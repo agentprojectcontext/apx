@@ -451,9 +451,10 @@ export function createExecutor(o: {
       callId,
       upsertPart: display.upsert,
       call: (method, params) => o.call(method, params, { run, callId }),
-      // A tool that always asks acts as the owner once this call passed its card (answered or granted above), or
-      // where the mode or rule let it run unasked and it keeps no card (DECISIONS.md#d-143).
-      ...(level === "always" && (gate.kind === "confirm" || !keeps)
+      // A tool that always asks, or changes what the owner set up, acts as the owner once this call passed its card
+      // (answered or granted above), or where the mode or rule let it run unasked and it keeps no card
+      // (DECISIONS.md#d-143, DECISIONS.md#d-203).
+      ...((level === "always" || tool.ownerSetting?.(args)) && (gate.kind === "confirm" || !keeps)
         ? {
             callAsOwner: async (method, params) => {
               if (target?.browser && store.approvals.browserVersion(target, thread.id, agent.id) !== approvalVersion)

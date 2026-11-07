@@ -419,6 +419,7 @@ export function taskTools(store: Store, home: string): Tool[] {
       confirm: (a) => (a.remove?.length ? "always" : "never"),
       // Removing is the owner's to decide, on their own word (DECISIONS.md#d-140).
       ownerSetting: (a) => Boolean(a.remove?.length),
+      keepsCard: (a) => (a.remove?.length ? "card" : undefined),
       explain: (a) =>
         a.remove?.length
           ? `Remove ${a.remove.length} comment(s) from ${a.task}${a.summary ? `, leaving this summary:\n${a.summary}` : ""}`

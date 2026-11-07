@@ -74,17 +74,19 @@ test("tasks: deleting one for good waits for the owner", async () => {
   assert.ok(left.includes(one.id) && !left.includes(two.id));
 });
 
-test("chats: renamed once the owner approves; how one writes stays theirs", async () => {
+test("chats: in Manual, renamed once the owner approves; how one writes stays theirs", async () => {
   const chat = await h.env.client.call("threads.create", {
     kind: "loose",
     agent_id: "superagent",
     title: "Acme plans",
   });
   const rename = { method: "threads.update", params: { thread: chat.id, title: "Acme launch plans" } };
-  const { detail } = await h.ask(rename, "approve");
+  const { detail } = await h.inMode("manual", () => h.ask(rename, "approve"));
   assert.equal(detail, 'Change the chat "Acme plans"\ntitle: "Acme plans" → "Acme launch plans"');
   assert.equal((await h.env.client.call("threads.get", { thread: chat.id })).thread.title, "Acme launch plans");
-  await h.ask({ method: "threads.update", params: { thread: chat.id, pinned: true } }, "deny");
+  await h.inMode("manual", () =>
+    h.ask({ method: "threads.update", params: { thread: chat.id, pinned: true } }, "deny"),
+  );
   assert.ok(!(await h.env.client.call("threads.get", { thread: chat.id })).thread.pinned);
   const write = { method: "threads.update", params: { thread: chat.id, write: "auto" } };
   assert.match((await h.ask(write)).answer, /write stays the owner's/);

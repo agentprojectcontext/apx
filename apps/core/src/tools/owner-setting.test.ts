@@ -47,16 +47,13 @@ const pendingIn = async (thread: string) => {
 };
 const note = async () => (await env.client.call("contacts.list", {})).persons.find((p) => p.id === sister)?.note;
 
-test("on total, a change to what the owner set up still waits for their card", async () => {
+test("on total, a contact the owner asks for changes without a card (DECISIONS.md#d-203)", async () => {
   await env.client.call("agents.update", { agent: "superagent", autonomy: "total" });
   try {
     const t = await env.client.call("threads.create", { kind: "loose", agent_id: "superagent", title: "Settings" });
     await env.client.call("threads.send", { thread: t.id, text: "tell her who she is" });
-    const [card] = await pendingIn(t.id);
-    assert.equal(card?.tool, "apx_settings");
-    assert.equal(await note(), undefined);
-    await env.client.call("runs.respond", { input: card?.id ?? "", decision: "approve" });
     await env.settle(t.id);
+    assert.deepEqual((await env.client.call("runs.pending", { thread: t.id })).inputs, []);
     assert.equal(await note(), "My sister");
   } finally {
     await env.client.call("agents.update", { agent: "superagent", autonomy: null });
@@ -89,7 +86,7 @@ test("every tool only the super-agent has marks its changes as the owner's setti
   }
 });
 
-test("every tool that acts as the owner keeps its card in Total, or is listed as one Total may run", () => {
+test("every tool that acts as the owner says which calls keep their card in Total, or is listed as one Total may run", () => {
   const store = env.core.store;
   const tools = [
     ...agentSetTools(store),
@@ -102,7 +99,7 @@ test("every tool that acts as the owner keeps its card in Total, or is listed as
   for (const name of new Set(Object.values(BY_TOOL))) {
     if (TOTAL_SKIPS[name]) continue;
     const tool = tools.find((t) => t.name === name);
-    assert.ok(tool?.ownerSetting || tool?.keepsCard, `${name} needs ownerSetting or keepsCard (DECISIONS.md#d-143)`);
+    assert.ok(tool?.keepsCard, `${name} needs keepsCard, or a reason in TOTAL_SKIPS (DECISIONS.md#d-143)`);
   }
 });
 

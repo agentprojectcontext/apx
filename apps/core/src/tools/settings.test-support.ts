@@ -35,5 +35,15 @@ export async function settingsCore({
     return { answer: String(llm.calls.at(-1)?.messages.at(-1)?.content), detail: detail ?? "", thread: thread.id };
   }
 
-  return { env, llm, ask };
+  /** Runs `fn` with the super-agent in `autonomy`: Manual shows the card of a change Auto would make at once. */
+  async function inMode<T>(autonomy: "manual" | "total", fn: () => Promise<T>): Promise<T> {
+    await env.client.call("agents.update", { agent: "superagent", autonomy });
+    try {
+      return await fn();
+    } finally {
+      await env.client.call("agents.update", { agent: "superagent", autonomy: null });
+    }
+  }
+
+  return { env, llm, ask, inMode };
 }

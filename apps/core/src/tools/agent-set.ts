@@ -1,5 +1,5 @@
-// agent_set: the super-agent runs the team for the owner (create, rename, rewrite a prompt, archive), each change once
-// the owner says yes. Autonomy and the main model stay the owner's own (DECISIONS.md#d-060); the fallback models after
+// agent_set: the super-agent runs the team for the owner (create, rename, rewrite a prompt, archive), each change at
+// the owner's word, asked first as the agent's mode says (DECISIONS.md#d-203). Autonomy and the main model stay the owner's own (DECISIONS.md#d-060); the fallback models after
 // it are set here too (DECISIONS.md#d-195).
 import { type Organization, randomAgentName } from "@apx/protocol";
 import { z } from "zod";

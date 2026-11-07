@@ -47,6 +47,12 @@ export type Setting = {
   /** Its card shows every value whole: a cut could hide what it runs or where a key goes. */
   whole?: true;
   /**
+   * How a change asks (DECISIONS.md#d-203). None: as a strong action, so the agent's mode decides (Total runs it).
+   * `untrusted`: like a contact message, it runs unless outside content is in the turn. `card`: on the owner's card
+   * in every mode, never granted for good (keys, who reaches the owner, what agents may do).
+   */
+  asks?: "untrusted" | "card" | ((p: Params, d: SettingsDeps) => "untrusted" | "card" | undefined);
+  /**
    * Run as the agent's own call through the router, not as the owner's: a Flow's drawing, which runs nothing until the
    * owner publishes it. `confirm`: `untrusted` asks the owner only while outside content is in the turn (a change, or
    * a read that hands back a whole drawing); `reads` names it a look (DECISIONS.md#d-174).

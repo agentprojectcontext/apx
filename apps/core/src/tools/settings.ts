@@ -1,6 +1,7 @@
 // apx_settings: the super-agent changes what the owner sets up in APX for them, through the owner's own methods, each
-// change once the owner approves it. One tool for every setting, read on demand, so the prompt does not grow with the
-// panel (rules/PROMPT_SIZE.md). Which methods it reaches is settings-reach.ts's to say. See DECISIONS.md#d-138
+// change at the owner's word, asked first as the agent's mode says (DECISIONS.md#d-203). One tool for every setting,
+// read on demand, so the prompt does not grow with the panel (rules/PROMPT_SIZE.md). Which methods it reaches is
+// settings-reach.ts's to say. See DECISIONS.md#d-138
 // Flows and their tables are the owner's work, not settings: they have apx_flow (flow-tool.ts), built on areaTool here.
 import { isMethodName, type MethodName, methods } from "@apx/protocol";
 import { z } from "zod";
@@ -132,6 +133,8 @@ export type AreaToolSpec = {
   areas: Readonly<Record<string, string>>;
   /** The card's title for a look. */
   looked: string;
+  /** How a change asks when its method does not say (Setting.asks); none: as the agent's mode says. */
+  asks?: "card";
   /** The index's last line: what lives elsewhere. */
   elsewhere: string;
 };
@@ -182,14 +185,21 @@ export function areaTool(spec: AreaToolSpec, deps: SettingsDeps): Tool {
     const c = card(a);
     return c.known && !c.lines.length;
   };
+  const real = (a: Args) => changes(a) && !unchanged(a);
+  const asks = (a: Args) => {
+    const s = table[a.method ?? ""]?.asks ?? spec.asks;
+    return typeof s === "function" ? s(filled(a), deps) : s;
+  };
   return defineTool({
     name: spec.name,
     description: spec.description,
     args,
     effect: "local",
-    // What the owner set up is theirs: every change waits for their yes.
-    confirm: (a) => (changes(a) && !unchanged(a) ? "always" : drafts(a) ? "untrusted" : "never"),
-    ownerSetting: (a) => changes(a) && !unchanged(a),
+    // A change follows the agent's mode like any strong action; a few keep the owner's card (DECISIONS.md#d-203).
+    confirm: (a) => (real(a) ? (asks(a) === "untrusted" ? "untrusted" : "always") : drafts(a) ? "untrusted" : "never"),
+    // Only at the owner's own word, whatever the mode (DECISIONS.md#d-140).
+    ownerSetting: real,
+    keepsCard: (a) => (real(a) && asks(a) === "card" ? "card" : undefined),
     // Long enough for a reindex or a repo's skills; a read answers at once.
     deadlineMs: 120_000,
     title: (a) => {
@@ -257,7 +267,7 @@ export function settingsTools(
       {
         name: "apx_settings",
         description:
-          "Read and change what the owner sets up in APX for them (contacts, channels, their profile, notices, projects, memory, which agents may use the isolated computer…). No args: the areas; method: an area's methods, or a method's fields; method + params: run it. Each change waits for the owner's OK.",
+          "Read and change what the owner sets up in APX for them (contacts, channels, their profile, notices, projects, memory, which agents may use the isolated computer…). No args: the areas; method: an area's methods, or a method's fields; method + params: run it. Change only what the owner asks you.",
         table: SETTINGS,
         areas: AREA,
         looked: "Looked at the settings",

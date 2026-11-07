@@ -2178,6 +2178,7 @@ while the owner listens for it ([D-178](#d-178)).
 
 <a id="d-140"></a>
 ## D-140 — 2026-10-23 — The owner's settings change on their card, at their word alone
+*Card part superseded by [D-203](#d-203) (2026-11-06): the owner's word stays required; the mode decides the card.*
 With D-138 the super-agent can change nearly everything the owner sets up. The owner asked that each such change
 always show its card (do it or not), and that no other agent can get the super-agent to make one. Before, `always`
 skipped the card on Total (D-047) or under the agent's own rule for that risk, and a message another agent posted in the
@@ -2225,6 +2226,7 @@ check, since the card's text does not bind a tool's arguments. An agent with "al
 
 <a id="d-143"></a>
 ## D-143 — 2026-10-23 — Total keeps its power, except over what the owner set up and their logins
+*Narrowed by [D-203](#d-203) (2026-11-06): only `keepsCard` calls stop Total; most settings follow the mode.*
 A review found that Total (D-047) and an agent's rule `auto` let calls that act as the owner run with no card: letting a
 stranger in (`answer_contact_request`), changing how far agents go alone (`agent_limits`), copying the owner's browser
 cookies (`browser_use_my_login`). The executor handed `callAsOwner` to any call whose tool "always" asks, once the
@@ -4114,3 +4116,27 @@ Rejected: a comment quota per task (the owner's own turns and real questions mus
 reviewers comment when they find a block (every review found one, D-188), and removing comments by a heuristic
 without the owner seeing what goes.
 
+<a id="d-203"></a>
+## D-203 — 2026-11-06 — What the owner asks the super-agent for follows its mode; a short list keeps the card
+The owner asked the super-agent, on Total, to add a contact and their WhatsApp, and got two cards. Since D-140 and D-143
+every `apx_settings` change, and every `agent_set` and `task_tidy` change, showed the owner's card in every mode with no
+"always" answer. The owner wants the super-agent independent: what they ask it themselves, it does as its mode says,
+like any strong action; reads never ask (they did not before either).
+
+- `ownerSetting` now means only "at the owner's own word" (D-140's origin gate stays: another agent, a contact, a
+  routine or a job gets "only when the owner asks you themselves"). It no longer forces a card; `keepsCard` alone does.
+- A change is `always` (Auto, Accept edits and Manual ask; Total and a rule `auto` run it). `Setting.asks` lowers or
+  raises it per method: `untrusted` runs in Auto unless outside content is in the turn (contacts, their addresses,
+  removing one, stickers, renaming or pinning a chat, memory reindex and upkeep, an imported chat's digest); `card`
+  keeps the card in every mode, never granted for good: MCP servers (a command and keys on this computer, D-141),
+  channels (who gets in, D-138), email signatures (text on every outgoing mail), the isolated computer per agent
+  (D-151), an agent's limits and `agent_limits`, deleting an agent for good, publishing a widget, and anything that
+  makes someone else the owner: an address added with no person, claiming an address, the owner role or the owner's
+  own record (D-144). `answer_contact_request` (letting someone in) and `task_tidy`'s removals (D-202) keep theirs.
+- An `ownerSetting` call that ran unasked under the mode acts as the owner (`callAsOwner`), as an `always` one did.
+- `apx_flow` keeps every change on its card (`AreaToolSpec.asks`): publishing and running a Flow by hand (D-184) and
+  its tables are left as they were.
+- `agent_set` joins `TOTAL_SKIPS`: autonomy and the main model stay the owner's there (D-060), so Total changes the team.
+
+Contacts stay in `apx_settings` rather than a tool of their own: a separate tool would be paid in every turn's tool
+definitions (rules/PROMPT_SIZE.md) for the same rule, which `Setting.asks` already says per method.

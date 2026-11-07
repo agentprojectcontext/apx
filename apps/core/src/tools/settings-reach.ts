@@ -20,10 +20,13 @@ export const BY_TOOL: Readonly<Record<string, string>> = {
 
 /**
  * Tools above that act as the owner yet may run without a card in Total (or under the agent's rule `auto`), by reason.
- * Every other one marks its changes `ownerSetting` or `keepsCard` (DECISIONS.md#d-143); owner-setting.test.ts holds it.
+ * Every other one says which calls keep their card with `keepsCard` (DECISIONS.md#d-143, DECISIONS.md#d-203);
+ * owner-setting.test.ts holds it. apx_settings says it per method (`Setting.asks`).
  */
 export const TOTAL_SKIPS: Readonly<Record<string, string>> = {
   routine_set: "the owner's decision: routines change freely for an agent they set to Total",
+  agent_set:
+    "the owner's decision: the team changes at their word in the super-agent's mode; autonomy and the main model stay theirs (DECISIONS.md#d-203)",
   asana: "a write to the owner's Asana acts in their name, which Total lets run like a send (DECISIONS.md#d-047)",
 };
 

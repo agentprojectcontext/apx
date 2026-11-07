@@ -212,15 +212,23 @@ test("shell: a command that only reads here never waits, outside content in the 
   assert.equal(run("git push origin main", agent()), "confirm");
 });
 
-test("total and a rule 'auto' skip a card, except one a call keeps (DECISIONS.md#d-143)", () => {
+test("total and a rule 'auto' skip a card, except one a call keeps (DECISIONS.md#d-143, DECISIONS.md#d-203)", () => {
   const always = tool("routine_like", "local", "always");
   const kept = defineTool({ ...base("login_like", "local", "always"), keepsCard: () => "grant" as const });
   const setting = defineTool({ ...base("setting_like", "local", "always"), ownerSetting: () => true });
+  const key = defineTool({
+    ...base("key_like", "local", "always"),
+    ownerSetting: () => true,
+    keepsCard: () => "card" as const,
+  });
   for (const who of [agent({ autonomy: "total" }), agent({ rules: { irreversible: "auto" } })]) {
     assert.equal(authorize(always, {}, who, true).kind, "allow");
     assert.equal(authorize(kept, {}, who, false).kind, "confirm");
-    assert.equal(authorize(setting, {}, who, false).kind, "confirm");
+    // A setting the owner asks for follows the mode; one that keeps its card does not.
+    assert.equal(authorize(setting, {}, who, true).kind, "allow");
+    assert.equal(authorize(key, {}, who, false).kind, "confirm");
   }
+  assert.equal(authorize(setting, {}, agent({}), false).kind, "confirm");
 });
 
 test("copying the owner's logins keeps its card in total, a grant counting only for the shared profile", () => {

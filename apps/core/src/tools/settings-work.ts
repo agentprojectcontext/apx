@@ -139,10 +139,12 @@ export const WORK: Readonly<Record<string, Setting>> = {
   },
   "memory.reindex": {
     does: "index every note again for search",
+    asks: "untrusted",
     says: () => "Index every note again for search",
   },
   "memory.maintenance": {
     does: "run memory's upkeep now (backfill: index what is missing; dream: tidy the notes)",
+    asks: "untrusted",
     named: ["backfill", "dream"],
     says: (p) =>
       `Run memory's upkeep now${p.backfill ? ", indexing what is missing" : ""}${p.dream ? ", tidying the notes" : ""}`,
@@ -197,6 +199,7 @@ export const WORK: Readonly<Record<string, Setting>> = {
   },
   "mcp.set": {
     does: "add, change or (server: null) remove one of the owner's MCP servers (name; server: command, args, env, or url, headers; project: only there). A key goes as secret://NAME, a variable the owner saved, never its value",
+    asks: "card",
     says: (p, { store }) => {
       const exists = !p.project && ownServers(store)[str(p.name)];
       const act = p.server === null ? "Remove" : exists ? "Change" : "Add";
@@ -307,6 +310,7 @@ export const WORK: Readonly<Record<string, Setting>> = {
   },
   "surfaces.share": {
     does: "publish a widget as a page anyone with its link opens, or stop (surface, shared)",
+    asks: "card",
     named: ["surface", "shared"],
     says: (p, { store }) =>
       p.shared
