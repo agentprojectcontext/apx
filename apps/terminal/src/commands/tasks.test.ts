@@ -178,3 +178,11 @@ test("inside an agent's command, closing a task as the owner is refused: the age
   }
   assert.deepEqual(calls, [], "nothing was closed");
 });
+
+test("show marks a proposed task as waiting for acceptance", async () => {
+  const { client } = recordingClient({
+    "tasks.get": { task: { ...task, proposed: true }, events: [], sessions: [] },
+    "threads.get": { thread: { id: "thr_t" }, messages: [], runs: [] },
+  });
+  assert.match(await printed(() => tasks(client, ["show", "tsk_1"], {})), /proposed, awaiting acceptance/);
+});
