@@ -62,6 +62,10 @@ export type ThreadContext = {
   task_dispatches?: { run: string; tasks: Array<{ task: string; agent: string; project?: string | undefined }> };
   /** The source of a self-task's existing findings, without copying trusted instructions or permissions. */
   handoff_from?: { thread: string; run: string };
+  /** Project coordination that most recently started this existing task; its result returns there. */
+  coordination_from?: { thread: string; run: string; work_run: string; root_run?: string };
+  /** Review returns already reported to the coordinating chat, keyed by the completed reviewer run. */
+  coordination_feedback?: string[];
   /** Native tool permissions cannot be revoked or reliably correlated with completion by every harness. */
   external_grant_run?: string;
   /** A task chat that stalled: when APX last asked its agent to go on, and the stop since then the owner was told of. */
