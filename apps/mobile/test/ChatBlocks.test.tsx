@@ -1,4 +1,4 @@
-import { render } from "@testing-library/react-native";
+import { render, within } from "@testing-library/react-native";
 import { t } from "../src/i18n";
 import type { Message } from "../src/protocol";
 import { ChatMessage } from "../src/ui/ChatMessage";
@@ -79,4 +79,25 @@ test("the agent's plan shows as a checklist at the end of its message, with how 
   expect(ui.getByText("Compare plans")).toBeTruthy();
   const tree = JSON.stringify(ui.toJSON());
   expect(tree.indexOf("Looking at prices")).toBeLessThan(tree.indexOf("Write the summary"));
+});
+
+test("a table the agent wrote shows as a grid that scrolls sideways, not as pipes", async () => {
+  const message = {
+    ...turn,
+    parts: [
+      {
+        type: "text",
+        text: "Here's a first cut of the **Q4 launch**:\n\n| Week | What | Who |\n|---|---|---|\n| 1 | Freeze the catalog | Tomás |\n| 2 | Landing page | Vera |",
+      },
+    ],
+  } as unknown as Message;
+  const ui = await render(<ChatMessage message={message} agents={[]} respond={async () => {}} />);
+  const table = ui.getByTestId("markdown-table");
+  expect(table.props.horizontal).toBe(true);
+  // A sideways ScrollView grows by default and left a blank band under the table on Android.
+  expect(table).toHaveStyle({ flexGrow: 0 });
+  expect(within(table).getByText("Week")).toBeTruthy();
+  expect(within(table).getByText("Freeze the catalog")).toBeTruthy();
+  expect(within(table).getByText("Vera")).toBeTruthy();
+  expect(ui.queryByText(/\|/)).toBeNull();
 });
