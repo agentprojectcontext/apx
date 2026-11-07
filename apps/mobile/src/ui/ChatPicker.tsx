@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { Pressable, ScrollView, Text, TextInput, View } from "react-native";
 import { sentenceCase } from "../format";
-import { isWorking, listedThreads, pickAgents } from "../hooks/chatSelectors";
+import { chatPreview, isWorking, listedThreads, pickAgents } from "../hooks/chatSelectors";
 import type { Agent, Thread, Workspace } from "../hooks/useWorkspace";
 import { t } from "../i18n";
 import { Icon } from "./Icon";
@@ -117,7 +117,7 @@ export function ChatPicker({
             <Row
               key={thread.id}
               title={thread.title}
-              sub={thread.preview}
+              sub={chatPreview(thread)}
               avatar={<AgentAvatar name={agent?.name ?? thread.title} blob={agent?.blob} id={agent?.id} size={36} />}
               trailing={
                 isWorking(thread.state) ? (

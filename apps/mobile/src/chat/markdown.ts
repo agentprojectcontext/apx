@@ -162,3 +162,14 @@ export function plainText(blocks: Block[]): string {
     })
     .join("\n\n");
 }
+
+/** A message's lines as they read, without marks or list bullets: what a list row builds its title and preview from. */
+export function plainLines(source: string): string[] {
+  return plainText(parseMarkdown(source))
+    .split("\n")
+    .map((line) => line.replace(/^• /, "").replace(/\s+/g, " ").trim())
+    .filter(Boolean);
+}
+
+/** A chat list's one line: the words of a message, marks and line breaks gone. */
+export const previewLine = (source: string): string => plainLines(source).join(" ");

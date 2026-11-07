@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { parseInline, parseMarkdown, plainText } from "./markdown.ts";
+import { parseInline, parseMarkdown, plainText, previewLine } from "./markdown.ts";
 
 test("bold, italic, code and links become runs; stray marks stay text", () => {
   assert.deepEqual(parseInline("**Hoy:** ver `reel-26` y [docs](https://example.com) *ya*"), [
@@ -114,6 +114,15 @@ test("pipes without a delimiter row, or rows without outer pipes, still read as 
 
 test("a copied table keeps one row per line with its cells apart", () => {
   assert.equal(plainText(parseMarkdown("| a | **b** |\n|---|---|\n| 1 | 2 |")), "a\tb\n1\t2");
+});
+
+test("a one-line preview is the words without marks, tables and lists included", () => {
+  assert.equal(
+    previewLine(LAUNCH),
+    "Here's a first cut of the Q4 launch: Week What Who 1 Freeze the catalog and fix checkout Tomás 2 Landing page and emails Vera I created two tasks.",
+  );
+  assert.equal(previewLine("## Plan\n- one\n- `two`\n1. three"), "Plan one two 1. three");
+  assert.equal(previewLine("Ver [docs](https://example.com) > ya"), "Ver docs > ya");
 });
 
 test("an escaped pipe stays inside its cell", () => {
