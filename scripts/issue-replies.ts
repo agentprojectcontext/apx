@@ -1,10 +1,11 @@
 #!/usr/bin/env node
-// Once a v2 release is out, answers the issues it fixes: each commit since the previous v2 tag that ends with an
+// Once a v2 release is out, answers the issues it fixes: each commit since the previous published release that ends with an
 // `Issue: #N` trailer gets a comment on issue N (which commit, in which version, how to update) and the issue is
 // closed. A comment already there for that version is not posted twice.
 //   TAG=v2.3.28 node scripts/issue-replies.ts [--dry]     (needs `gh`, logged in or with GH_TOKEN)
 import { execFileSync } from "node:child_process";
-import { previousTag, sentence } from "../apps/core/src/release-notes.ts";
+import { sentence } from "../apps/core/src/release-notes.ts";
+import { publishedPrevious } from "./release-previous.ts";
 
 const REPO = "agentprojectcontext/apx";
 
@@ -41,7 +42,7 @@ export function replyFor(tag: string, fixes: Fix[]): string {
 if (import.meta.main) {
   const tag = process.env.TAG ?? "";
   if (!/^v2\.\d+\.\d+$/.test(tag)) throw new Error(`TAG must be a v2 version tag, got "${tag}"`);
-  const previous = previousTag(tag, git("tag", "--list", "v2.*").split("\n"));
+  const previous = publishedPrevious(tag);
   const log = git(
     "log",
     "--no-merges",

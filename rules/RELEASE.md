@@ -86,9 +86,16 @@ pnpm release:check --tag v2.10.0 origin/main       # checks, then tags that comm
 --commit`), the run the publish job will wait for; a rerun that turned it green counts. The publish job's wait stays
 as the second guard, for a tag made by hand.
 
+### A failed release
+
+A release whose build failed stays a draft, and its tag is spent: fix the cause on `staging`, then tag the next
+patch version (a published tag is never moved). The Discord announcement and the issue replies read the commits since
+the previous *published* release (`scripts/release-previous.ts`), so the version that ships tells what the failed one
+carried too. Delete the failed draft and its tag once the next version is out, so nothing else reads it as released.
+
 ## What people are told
 
-The same commits since the previous v2 tag, each subject as a sentence, reach people three ways: the Discord
+The same commits since the previous published release, each subject as a sentence, reach people three ways: the Discord
 announcement, the replies to the issues a release fixes, and, inside APX, the super-agent's "what's new" chat on the
 first start of the new version ([D-100](DECISIONS.md#d-100)). So a commit subject is release text: write it for the
 people who use APX. Only `feat`, `fix` and `perf` commits are shown.
