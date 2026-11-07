@@ -11,7 +11,7 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { draftOf, keepDraft } from "./chat/drafts";
-import { type CatalogEngine, choiceText, type ModelChoice } from "./chat/models";
+import { type CatalogEngine, choiceLabel, type ModelChoice } from "./chat/models";
 import { isNewChat } from "./chat/newChat";
 import { showsStartHint, type TranscriptRow, usageText, withDays } from "./chat/transcript";
 import { useAttachments } from "./chat/useAttachments";
@@ -318,7 +318,7 @@ export function ChatScreen({
         busy={working}
         stopping={live.stopping}
         agentName={name}
-        model={engine ? engineName(engine) : choiceText(effective, [], t("router"))}
+        model={engine ? engineName(engine) : choiceLabel(effective, [], t, t("router"))}
         usage={usageText(live.usage)}
       />
       {sheet === "attach" ? (

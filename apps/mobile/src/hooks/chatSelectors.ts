@@ -169,9 +169,11 @@ export function threadContext(
     ? (CHANNEL_NAMES[channel?.type ?? ""] ?? channel?.label ?? thread.channel.id)
     : thread.engine
       ? engineName(thread.engine)
-      : thread.agent_ids.length > 1
-        ? tr("groupOf", { n: thread.agent_ids.length })
-        : tr("inApp");
+      : thread.flow
+        ? tr("flowStep")
+        : thread.agent_ids.length > 1
+          ? tr("groupOf", { n: thread.agent_ids.length })
+          : tr("inApp");
   return `${project} · ${where}`;
 }
 

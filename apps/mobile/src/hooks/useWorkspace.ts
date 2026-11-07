@@ -56,6 +56,8 @@ export type Thread = {
   engine?: string;
   /** A contact's chat on a channel: the channel instance and the person on the other side. */
   channel?: { id: string; conversation: string; person_id?: string };
+  /** A chat a Flow's step opened. */
+  flow?: { id: string; step?: string };
   state: string;
   preview: string;
   unread: number;

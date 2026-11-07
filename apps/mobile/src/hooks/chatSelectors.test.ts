@@ -261,3 +261,11 @@ test("a routine run that told a table is titled by its words, not its pipes", ()
   assert.equal(chatTitle(run), "Weekly numbers.");
   assert.equal(chatPreview(run), "Day Sales Mon 12");
 });
+
+test("a chat a Flow's step opened says so under its preview", () => {
+  const tr = translator("es");
+  assert.equal(
+    threadContext(thread("f", { flow: { id: "flow_1" } }), { projects: [], channels: [] }, tr),
+    `${tr("defaultProject")} · Paso de un flujo`,
+  );
+});

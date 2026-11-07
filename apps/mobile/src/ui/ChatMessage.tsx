@@ -216,6 +216,8 @@ export function ChatMessage({
   const chatAgent = agents.find((one) => one.id === thread?.agent_ids[0])?.name;
   const ticks = message.delivery ? <DeliveryTicks state={message.delivery} /> : null;
   const taken = useTaken(message);
+  // The engine notes when the agent's own model did not answer and a fallback did.
+  const fellBack = message.parts.some((part) => part.type === "notice" && part.code === "engine.fallback");
   const via = viaOf(message, thread?.channel?.id, channels);
   const viaMark = via ? <ViaMark via={via} /> : null;
   return (
@@ -253,7 +255,9 @@ export function ChatMessage({
         ) : hasText || message.model || message.delivery || via ? (
           <View style={[s.metaRow, { marginLeft: author.kind === "person" ? 40 : 6 }]}>
             <Text numberOfLines={1} style={[s.meta, { flexShrink: 1 }]}>
-              {[name, message.model, clock(message.created_at)].filter(Boolean).join(" · ")}
+              {[name, message.model, fellBack ? t("modelFallback") : undefined, clock(message.created_at)]
+                .filter(Boolean)
+                .join(" · ")}
             </Text>
             {viaMark}
             {ticks}

@@ -719,6 +719,13 @@ export const en = {
   viaReceived: "Came in on {channel}",
   viaOtherApp: "another chat app",
   browserInChrome: "{name} is using it in your Chrome",
+  modelWithFallbacks: "{model} · {n} fallbacks",
+  modelWithFallbacksOne: "{model} · 1 fallback",
+  modelWithFallbacksRouter: "{model} · {n} fallbacks + Automatic",
+  modelWithFallbacksRouterOne: "{model} · 1 fallback + Automatic",
+  modelFallback: "Fallback",
+  flowStep: "Flow step",
+  subthreadHeld: "Waiting for answers: {got} of {of}",
 } as const;
 
 export type Key = keyof typeof en;

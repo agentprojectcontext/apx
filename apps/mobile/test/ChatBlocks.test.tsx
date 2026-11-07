@@ -198,3 +198,36 @@ test("a page the agent uses in the owner's Chrome says so, not that it browses i
   );
   expect(ui.getByText(t("browserInChrome", { name: "Roby" }))).toBeTruthy();
 });
+
+test("a teammate's answer held for the others asked in the same turn says how many came in", async () => {
+  const message = {
+    ...turn,
+    parts: [
+      {
+        type: "subthread",
+        thread_id: "th_2",
+        agent_id: "superagent",
+        title: "Check prices",
+        status: "completed",
+        held: { got: 1, of: 3 },
+      },
+    ],
+  } as unknown as Message;
+  const ui = await render(<ChatMessage message={message} agents={[]} respond={async () => {}} />);
+  expect(ui.getByText(t("subthreadHeld", { got: 1, of: 3 }))).toBeTruthy();
+});
+
+test("a reply a fallback model gave says so next to the model", async () => {
+  const message = {
+    ...turn,
+    model: "gemini/flash",
+    parts: [
+      { type: "text", text: "Done." },
+      { type: "notice", code: "engine.fallback", level: "info", text: "x", vars: { model: "a", why: "b", to: "c" } },
+    ],
+  } as unknown as Message;
+  const ui = await render(
+    <ChatMessage message={message} agents={[{ id: "superagent", name: "Roby" }]} respond={async () => {}} />,
+  );
+  expect(ui.getByText(new RegExp(t("modelFallback")))).toBeTruthy();
+});

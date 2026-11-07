@@ -723,4 +723,11 @@ export const es: Record<Key, string> = {
   viaReceived: "Llegó por {channel}",
   viaOtherApp: "otra app de chat",
   browserInChrome: "{name} lo está usando en tu Chrome",
+  modelWithFallbacks: "{model} · {n} respaldos",
+  modelWithFallbacksOne: "{model} · 1 respaldo",
+  modelWithFallbacksRouter: "{model} · {n} respaldos + Automático",
+  modelWithFallbacksRouterOne: "{model} · 1 respaldo + Automático",
+  modelFallback: "Con respaldo",
+  flowStep: "Paso de un flujo",
+  subthreadHeld: "Esperando respuestas: {got} de {of}",
 };
