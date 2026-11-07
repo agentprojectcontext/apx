@@ -22,6 +22,7 @@ import type { InternalCall } from "../rpc/internal.ts";
 import type { Services } from "../services/registry.ts";
 import { saveUpload } from "../services/uploads.ts";
 import { inlineName, untrusted } from "../tools/result.ts";
+import { agentProject } from "./agent-project.ts";
 import { asksSomething, asksToStop, needsNoAnswer, reactionFor } from "./closers.ts";
 import type { Delivery } from "./delivery.ts";
 import { type Held, waitsForHours } from "./held.ts";
@@ -405,6 +406,7 @@ export function createInbound(deps: {
         kind: "channel",
         title: cfg.label,
         agent_ids: [cfg.agent_id],
+        project_id: agentProject(store, cfg.agent_id),
         channel: { id: cfg.id, conversation, person_id: OWNER_ID },
       })
     );
@@ -417,6 +419,7 @@ export function createInbound(deps: {
         kind: "channel",
         title: person.name,
         agent_ids: [cfg.agent_id],
+        project_id: agentProject(store, cfg.agent_id),
         channel: { id: cfg.id, conversation, person_id: person.id },
       })
     );

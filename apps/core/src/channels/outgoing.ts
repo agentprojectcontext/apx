@@ -7,6 +7,7 @@ import type { Store } from "../domain/store.ts";
 import { previewOf } from "../domain/threads.ts";
 import { audienceOf } from "../engine/audience.ts";
 import type { Services } from "../services/registry.ts";
+import { agentProject } from "./agent-project.ts";
 import type { createDelivery } from "./delivery.ts";
 import type { createPoster, Posted } from "./post.ts";
 import { type createRooms, quietMentions, roomMentions } from "./rooms.ts";
@@ -103,6 +104,7 @@ export function createOutgoing(deps: {
         kind: "channel",
         title: person.name,
         agent_ids: [pick.cfg.agent_id],
+        project_id: agentProject(store, pick.cfg.agent_id),
         channel: { id: pick.cfg.id, conversation: pick.conversation, person_id: person.id },
       });
       store.threads.mergeContext(thread.id, { reply_to: { channel: pick.cfg.id, conversation: pick.conversation } });
