@@ -12,7 +12,6 @@ import {
 import { type MediaRecord, partOfMedia } from "../domain/media.ts";
 import type { NewNotification } from "../domain/notifications.ts";
 import { OWNER_ID } from "../domain/persons.ts";
-import { HOME_THREAD_ID } from "../domain/seed.ts";
 import type { Store } from "../domain/store.ts";
 import { previewOf } from "../domain/threads.ts";
 import { errorMessage } from "../errors.ts";
@@ -397,29 +396,31 @@ export function createInbound(deps: {
   }
 
   function ownerThread(cfg: ChannelConfig, conversation: string): Thread {
-    const home = store.threads.get(HOME_THREAD_ID);
-    if (cfg.owner_thread === "home" && home) return home;
-    return (
+    const agent = store.agents.get(cfg.agent_id);
+    const thread =
       store.threads.byConversation(cfg.id, conversation) ??
       store.threads.create({
         kind: "channel",
         title: cfg.label,
         agent_ids: [cfg.agent_id],
+        project_id: agent?.project_id,
         channel: { id: cfg.id, conversation, person_id: OWNER_ID },
-      })
-    );
+      });
+    return store.threads.assign(thread.id, cfg.agent_id, agent?.project_id);
   }
 
   function contactThread(cfg: ChannelConfig, conversation: string, person: { id: string; name: string }): Thread {
-    return (
+    const agent = store.agents.get(cfg.agent_id);
+    const thread =
       store.threads.byConversation(cfg.id, conversation) ??
       store.threads.create({
         kind: "channel",
         title: person.name,
         agent_ids: [cfg.agent_id],
+        project_id: agent?.project_id,
         channel: { id: cfg.id, conversation, person_id: person.id },
-      })
-    );
+      });
+    return store.threads.assign(thread.id, cfg.agent_id, agent?.project_id);
   }
 
   /**

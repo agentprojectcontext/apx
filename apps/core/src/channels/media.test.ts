@@ -80,8 +80,20 @@ after(async () => {
   await env.cleanup();
 });
 
+const ownerThread = () => {
+  const thread =
+    env.core.store.threads.byConversation("tg", String(OWNER.id)) ??
+    env.core.store.threads.create({
+      kind: "channel",
+      title: "Telegram",
+      agent_ids: ["superagent"],
+      channel: { id: "tg", conversation: String(OWNER.id), person_id: "owner" },
+    });
+  return thread.id;
+};
+
 test("a voice note is heard, the agent draws, and the answer returns as a voice note with its words, and the photo", async () => {
-  await env.client.call("threads.voice", { thread: "home", on: true });
+  await env.client.call("threads.voice", { thread: ownerThread(), on: true });
   tg.voice(OWNER);
   await waitFor(() => tg.sent.some((s) => s.method === "sendPhoto"), "the photo", { ms: 8000 });
   await waitFor(() => tg.sent.some((s) => s.method === "sendVoice" || s.method === "sendAudio"), "the voice", {
@@ -91,7 +103,7 @@ test("a voice note is heard, the agent draws, and the answer returns as a voice 
   const voice = tg.sent.find((s) => s.method === "sendVoice" || s.method === "sendAudio");
   assert.match(String(voice?.body.caption), /fox, drawn/);
   assert.ok(!tg.messagesTo(OWNER.id).some((m) => /fox, drawn/.test(String(m.body.text))));
-  const home = await env.client.call("threads.get", { thread: "home" });
+  const home = await env.client.call("threads.get", { thread: ownerThread() });
   assert.ok(
     home.messages.some(
       (m) =>
@@ -111,7 +123,7 @@ test("a file the agent attaches on a channel turn reaches the channel, with or w
   fs.mkdirSync(path.join(env.home, "work"), { recursive: true });
   fs.writeFileSync(path.join(env.home, "work", "reel.mp4"), Buffer.alloc(2048, 1));
   for (const voice of [false, true]) {
-    await env.client.call("threads.voice", { thread: "home", on: voice });
+    await env.client.call("threads.voice", { thread: ownerThread(), on: voice });
     const before = tg.filesTo(OWNER.id).filter((s) => s.method === "sendDocument").length;
     tg.message(OWNER, "mandame el reel");
     await waitFor(
@@ -124,17 +136,17 @@ test("a file the agent attaches on a channel turn reaches the channel, with or w
       .filter((s) => s.method === "sendDocument")
       .at(-1);
     assert.equal(doc?.body.filename, "reel.mp4");
-    await env.settle("home");
+    await env.settle(ownerThread());
   }
 });
 
 test("a channel voice note stays playable when no transcription engine is configured", async () => {
   await env.client.call("services.set", { id: "ears", service: null });
-  const before = env.core.store.messages.list("home").length;
+  const before = env.core.store.messages.list(ownerThread()).length;
   tg.voice(OWNER);
-  await waitFor(() => env.core.store.messages.list("home").length > before, "the voice without transcription");
+  await waitFor(() => env.core.store.messages.list(ownerThread()).length > before, "the voice without transcription");
   const message = env.core.store.messages
-    .list("home")
+    .list(ownerThread())
     .slice(before)
     .find((m) => m.author.kind === "user");
   assert.ok(message?.parts.some((p) => p.type === "audio"));

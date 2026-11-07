@@ -622,12 +622,14 @@ function sectionsFor(deps: TurnDeps, turn: Turn, mode: Autonomy): Sections {
   const contact = audience.kind === "contact";
   const on = store.settings.read("channels").filter((c) => c.enabled);
   const typeOf = (id: string) => on.find((c) => c.id === id)?.type ?? id;
-  // A contact's chat hears from its own channel; Home from every one the owner writes on.
+  // A channel chat hears from its own account; Home covers every enabled account for direct super-agent work.
   const types = contact
     ? [typeOf(thread.channel?.id ?? "")]
-    : thread.kind === "home"
-      ? [...new Set([...on.map((c) => c.type), ...(store.settings.read("imessage").on ? ["imessage"] : [])])]
-      : [];
+    : thread.kind === "channel" && thread.channel
+      ? [typeOf(thread.channel.id)]
+      : thread.kind === "home"
+        ? [...new Set([...on.map((c) => c.type), ...(store.settings.read("imessage").on ? ["imessage"] : [])])]
+        : [];
   const chats = types.filter((t) => CHAT_CHANNELS.has(t));
   // A contact with no tools makes no call that could wait for the owner.
   const acts = !contact || turn.web || contactToolNames(audience.person).size > 0;

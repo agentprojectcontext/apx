@@ -22,7 +22,7 @@ export function BotCard({ kind, line, body }: { kind: "discord" | "slack"; line:
     setBusy(true);
     const ok = await saveChannel(
       kind,
-      { agent_id: boss.id, enabled: true, strangers: "pair", concurrency: "steer", owner_thread: "home" },
+      { agent_id: boss.id, enabled: true, strangers: "pair", concurrency: "steer", owner_thread: "own" },
       tokens.joined,
     );
     setBusy(false);

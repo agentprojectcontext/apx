@@ -74,13 +74,13 @@ function StartAnswering() {
               enabled: true,
               strangers: "pair",
               concurrency: "steer",
-              owner_thread: "home",
+              owner_thread: "own",
             })
           }
         />
       </SettingRow>
       <SettingRow title={t("tg.agent")} description={t("tg.agentHint", { channel: "iMessage" })}>
-        <AgentSelect size="sm" className="tgagent" value={agent} onChange={(id) => id && setAgent(id)} />
+        <AgentSelect all size="sm" className="tgagent" value={agent} onChange={(id) => id && setAgent(id)} />
       </SettingRow>
     </>
   );

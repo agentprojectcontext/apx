@@ -44,6 +44,10 @@ Start in **Settings › Channels › Add channel**. A configured connection is n
 approval button is supported: follow the service's guide and test both receipt and reply. See [devices](/devices/phone/)
 for the Android app and [integrations](/extend/integrations/) for connected services that are not channels.
 
+You can connect more than one account of the same type. Open that channel type, choose **Add account**, and connect
+the next bot, number or mailbox. Each account keeps separate credentials, contacts, rooms and delivery history. The
+exception is iMessage: it uses the one Messages identity of the Mac that runs APX.
+
 ## Three words: channel, contact, room
 
 - A **channel** is an app APX talks through: Telegram, WhatsApp, Discord, Slack, iMessage, Google Chat, SMS and more.
@@ -56,13 +60,12 @@ one by its exact name.
 
 ## Where your messages land
 
-When **you** write to your agent on a channel, your message goes into **Home** by default: one conversation with your
-secretary, whether you write from the panel, the terminal, Telegram or WhatsApp. Pick up on your phone what you
-started at your desk. Home shows all of it; **You** in a channel's list shows only that channel's part of it: what you
-wrote there and what was answered there.
+Each account has **Who answers**. It can be a global agent or an agent from any project. When you or a contact writes,
+the message starts in that account's own chat with the selected agent; it is never redirected to Home. Changing the
+agent keeps the same conversation and history, and the newly selected agent handles the following turns.
 
-If you'd rather keep a channel apart, set **Your messages** to **Own chat** in that channel's settings. Your
-messages from there then get a chat of their own.
+Home remains your direct conversation with the super-agent. The super-agent can list and delegate to agents in any
+project, while an ordinary project agent keeps that project's boundaries.
 
 ## Which channels act on your word
 

@@ -1106,7 +1106,7 @@ export const ChannelInfo = z.object({
   strangers: ChannelStrangers,
   /** A new message while the agent is working: wait for it, stop it, or (APX's own loop) slip into it. */
   concurrency: z.enum(["queue", "interrupt", "steer"]),
-  /** The owner's messages go to the Home chat (one conversation everywhere) or to a chat of this channel. */
+  /** The owner's messages go to this account's own chat. `home` is read only for legacy settings. */
   owner_thread: z.enum(["home", "own"]),
   /**
    * WhatsApp: the linked number is the owner's own phone, so "Message yourself" is the owner talking. Off: a line of

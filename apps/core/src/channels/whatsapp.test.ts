@@ -114,12 +114,14 @@ test("the owner talks in 'Message yourself'; the answer comes back there once, i
     1,
     "one turn, with no check first: the echo of the answer is not the owner writing",
   );
-  const home = await env.client.call("threads.get", { thread: "home" });
-  const asked = home.messages.find((m) => m.parts.some((p) => p.type === "text" && p.text === "what is on today?"));
-  const answer = home.messages.find((m) =>
+  const accountThread = env.core.store.threads.byConversation("whatsapp", wa.owner);
+  assert.ok(accountThread, "the WhatsApp account has its own chat");
+  const chat = await env.client.call("threads.get", { thread: accountThread.id });
+  const asked = chat.messages.find((m) => m.parts.some((p) => p.type === "text" && p.text === "what is on today?"));
+  const answer = chat.messages.find((m) =>
     m.parts.some((p) => p.type === "text" && p.text.includes("Got it: what is on today?")),
   );
-  // Home holds every channel's words: each says which one, so WhatsApp shows only its own part of it.
+  // The account chat keeps its channel origin; Home remains a separate direct conversation.
   assert.deepEqual([asked?.via, answer?.via], ["whatsapp", "whatsapp"]);
   await env.client.call("threads.send", { thread: "home", text: "and from the app" });
   await waitFor(async () => {

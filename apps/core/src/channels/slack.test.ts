@@ -77,7 +77,7 @@ test("tokens and formatting: both tokens from one secret; Markdown becomes mrkdw
   assert.equal(toSlackMrkdwn("**hi** <b> [docs](https://example.com)"), "*hi* &lt;b&gt; <https://example.com|docs>");
 });
 
-test("the app runs as its bot; the owner pairs with a code and their words reach Home, acknowledged", async () => {
+test("the app runs as its bot; the owner pairs with a code and their words reach its account chat", async () => {
   // Written as soon as the channel says it runs: "running" means its socket is there to receive it.
   const env1 = await pairOwner();
   const info = (await env.client.call("channels.list", {})).channels[0];
@@ -88,7 +88,9 @@ test("the app runs as its bot; the owner pairs with a code and their words reach
   sl.message(OWNER, "what is up");
   await waitFor(() => texts(OWNER).some((t) => t.includes("you said: what is up")), "owner reply");
   assert.match(texts(OWNER).at(-1) ?? "", /\*there\*/);
-  const home = await env.client.call("threads.get", { thread: "home" });
+  const thread = env.core.store.threads.byChannel("sl").find((candidate) => candidate.channel?.person_id === "owner");
+  assert.ok(thread);
+  const home = await env.client.call("threads.get", { thread: thread.id });
   assert.ok(home.messages.some((m) => m.parts.some((p) => p.type === "text" && p.text === "what is up")));
 });
 
