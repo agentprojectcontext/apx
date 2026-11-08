@@ -119,6 +119,11 @@
   flex-direction: column;
   gap: 12px;
 }
+.bedit__formhead {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
 .bedit__title {
   margin: 0;
   font-size: var(--apx-text-sm);
@@ -215,6 +220,33 @@
 .bedit__rowstate {
   flex: none;
   color: var(--apx-fg-muted);
+}
+/* Every part of the page while nothing is picked: its words, what it is, and a dot once changed. */
+.bedit__elements {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.bedit__elements .bedit__listtitle {
+  margin: 0;
+}
+.bedit__ellist {
+  display: flex;
+  flex-direction: column;
+  margin: 0 -6px;
+  padding: 0;
+  list-style: none;
+}
+.bedit__el {
+  min-height: 32px;
+  padding: 5px 6px;
+}
+.bedit__eldot {
+  flex: none;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--apx-info);
 }
 .bedit__actions {
   display: flex;

@@ -1,6 +1,6 @@
 import "../styles/browser-edit.css";
 import type { PickedElement, TabInfo } from "@apx/protocol";
-import { Button, EmptyState, Field, IconButton, Icons, Input, Skeleton, Textarea } from "@apx/ui";
+import { Button, EmptyState, Field, IconButton, Icons, Input, PickRow, Skeleton, Textarea } from "@apx/ui";
 import { type MouseEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { screenshot } from "../data/actions.ts";
 import { client } from "../data/client.ts";
@@ -13,12 +13,14 @@ import { nav, useNav } from "../shell/nav.ts";
 import {
   browserEdit,
   changeItem,
+  deselect,
   type EditItem,
   type EditStyle,
   type EditTarget,
   editRequest,
   editsOf,
   elementLabel,
+  elementRows,
   hexOf,
   isChanged,
   pageHeader,
@@ -50,6 +52,7 @@ export function BrowserEdit({ tab }: { tab: TabInfo }) {
     () => ({
       key: id,
       inspect: async (x, y) => (await client.call("browser.inspect", { tab: id, x, y })).element,
+      elements: async () => (await client.call("browser.edit_elements", { tab: id })).elements,
       show: (edits) => client.call("browser.preview_edits", { tab: id, edits }),
       shot: () => screenshot(id),
       header: (t) => pageHeader(url, t),
@@ -71,6 +74,7 @@ export function PageEdit({ target }: { target: EditTarget }) {
   const [shot, refresh] = useShot(target);
   const [hover, setHover] = useState<PickedElement | null>(null);
   const inspect = useInspector(target);
+  const [elements, loadElements] = useElements(target);
   const item = items.find((i) => i.element.node === selected);
   const changed = items.filter(isChanged);
   const pageBox = useRef<HTMLDivElement>(null);
@@ -100,11 +104,13 @@ export function PageEdit({ target }: { target: EditTarget }) {
         .then(() => {
           shown.current = edits;
           refresh();
+          // A changed text or size moves what comes after it.
+          loadElements();
         })
         .catch((e) => notify(tr("bedit.failed", { error: errText(e) })));
     }, SHOW_DELAY_MS);
     return () => clearTimeout(timer);
-  }, [edits, target, refresh]);
+  }, [edits, target, refresh, loadElements]);
 
   if (!ready) return <Skeleton shape="block" height="100%" />;
   const at = (e: MouseEvent<HTMLDivElement>): Point => {
@@ -161,13 +167,28 @@ export function PageEdit({ target }: { target: EditTarget }) {
             <Skeleton shape="block" height="100%" />
           )}
         </div>
-        <EditPanel target={target} changed={changed} item={item} />
+        <EditPanel target={target} items={items} changed={changed} item={item} elements={elements} onHover={setHover} />
       </div>
     </div>
   );
 }
 
-function EditPanel({ target, changed, item }: { target: EditTarget; changed: EditItem[]; item: EditItem | undefined }) {
+function EditPanel({
+  target,
+  items,
+  changed,
+  item,
+  elements,
+  onHover,
+}: {
+  target: EditTarget;
+  items: EditItem[];
+  changed: EditItem[];
+  item: EditItem | undefined;
+  /** The page's parts, once listed; undefined while they load or where the page cannot list them. */
+  elements: PickedElement[] | undefined;
+  onHover: (element: PickedElement | null) => void;
+}) {
   const t = useT();
   const openThread = useNav((s) => s.threadId);
   const threadId = target.thread ?? openThread;
@@ -237,7 +258,11 @@ function EditPanel({ target, changed, item }: { target: EditTarget; changed: Edi
   return (
     <aside ref={panel} className="bedit__panel" aria-label={t("browser.edit")}>
       {item ? (
-        <ItemForm key={item.element.node} item={item} saves={Boolean(target.save)} />
+        <ItemForm key={item.element.node} item={item} saves={Boolean(target.save)} listed={Boolean(target.elements)} />
+      ) : elements?.length ? (
+        <ElementList elements={elements} items={items} onHover={onHover} />
+      ) : elements === undefined && target.elements ? (
+        <Skeleton shape="block" height={120} />
       ) : (
         <EmptyState icon={<Icons.Pencil />} title={t("bedit.emptyTitle")}>
           {t("bedit.emptyBody")}
@@ -280,14 +305,63 @@ function EditPanel({ target, changed, item }: { target: EditTarget; changed: Edi
   );
 }
 
-function ItemForm({ item, saves }: { item: EditItem; saves: boolean }) {
+/** Every part of the page, to pick one here as on the page: pointing at a row lights it up there. */
+function ElementList({
+  elements,
+  items,
+  onHover,
+}: {
+  elements: PickedElement[];
+  items: EditItem[];
+  onHover: (element: PickedElement | null) => void;
+}) {
+  const t = useT();
+  // The light on the page goes with the list: a row picked or gone leaves nothing lit.
+  useEffect(() => () => onHover(null), [onHover]);
+  return (
+    <section className="bedit__elements" aria-label={t("bedit.elements")}>
+      <header>
+        <h4 className="bedit__listtitle">{t("bedit.elements")}</h4>
+        <p className="bedit__muted">{t("bedit.elementsHint")}</p>
+      </header>
+      <ul className="bedit__ellist">
+        {elementRows(elements, items).map((row) => (
+          <li
+            key={row.element.node}
+            onMouseEnter={() => onHover(row.element)}
+            onMouseLeave={() => onHover(null)}
+            onFocus={() => onHover(row.element)}
+            onBlur={() => onHover(null)}
+          >
+            <PickRow
+              className="bedit__el"
+              title={row.label || t("bedit.request.unnamed")}
+              trailing={
+                <>
+                  {t(`bedit.kind.${row.kind}`)}
+                  {row.changed && <span className="bedit__eldot" role="img" aria-label={t("bedit.changed")} />}
+                </>
+              }
+              onClick={() => pick(row.element)}
+            />
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
+}
+
+function ItemForm({ item, saves, listed }: { item: EditItem; saves: boolean; listed: boolean }) {
   const t = useT();
   const { element } = item;
   const node = element.node;
   const setStyle = (change: Partial<EditStyle>) => changeItem(node, { style: { ...item.style, ...change } });
   return (
     <div className="bedit__form">
-      <header>
+      <header className="bedit__formhead">
+        {listed && (
+          <IconButton size="sm" label={t("bedit.back")} icon={<Icons.ChevronLeft size={14} />} onClick={deselect} />
+        )}
         <h3 className="bedit__title">{elementLabel(element) || t("bedit.request.unnamed")}</h3>
       </header>
       {element.sensitive ? (
@@ -442,6 +516,28 @@ function useShot(target: EditTarget): [string | undefined, () => void] {
     };
   }, [target, every]);
   return [src, useCallback(() => now.current(), [])];
+}
+
+/** The page's parts, listed when edit mode opens and again on each `load()`; a failed list keeps the one before. */
+function useElements(target: EditTarget): [PickedElement[] | undefined, () => void] {
+  const [elements, setElements] = useState<PickedElement[]>();
+  const asked = useRef(0);
+  const load = useCallback(() => {
+    if (!target.elements) return;
+    const n = ++asked.current;
+    target
+      .elements()
+      .then((list) => n === asked.current && setElements(list))
+      .catch(() => n === asked.current && setElements((before) => before ?? []));
+  }, [target]);
+  useEffect(() => {
+    setElements(undefined);
+    load();
+    return () => {
+      asked.current++;
+    };
+  }, [load]);
+  return [elements, load];
 }
 
 /**

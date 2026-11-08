@@ -112,6 +112,7 @@ export function artifactHandlers(deps: {
       return { page: await pages.open(html, width, onCall, s.id, Boolean(s.page)) };
     },
     "surfaces.edit_inspect": async ({ page, x, y }) => ({ element: await editPages().inspect(page, x, y) }),
+    "surfaces.edit_elements": async ({ page }) => ({ elements: await editPages().elements(page) }),
     "surfaces.edit_preview": ({ page, edits }) => editPages().preview(page, edits),
     "surfaces.edit_shot": async ({ page }) => {
       const data = await editPages().shot(page);

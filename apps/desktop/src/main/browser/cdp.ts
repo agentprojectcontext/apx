@@ -70,6 +70,10 @@ export class CdpTab {
     return this.#page.inspect(x, y);
   }
 
+  editElements() {
+    return this.#page.editElements();
+  }
+
   previewEdits(edits: readonly ElementEdit[]) {
     return this.#page.previewEdits(edits);
   }

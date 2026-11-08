@@ -208,6 +208,11 @@ export class CdpPage {
     return withTimeout(this.#edits.inspect(x, y, whole), 4_000);
   }
 
+  /** Edit mode: the parts of the page the owner can pick, in page order. */
+  editElements(whole?: { height: number }): Promise<PickedElement[]> {
+    return withTimeout(this.#edits.list(whole), 10_000);
+  }
+
   /** Edit mode: these edits shown in the page until it reloads, the earlier ones undone. */
   previewEdits(edits: readonly ElementEdit[]): Promise<{ shown: number }> {
     return withTimeout(this.#edits.show(edits), 6_000);

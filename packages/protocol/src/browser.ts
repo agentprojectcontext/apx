@@ -56,6 +56,13 @@ export const SignInResult = z.object({
 });
 export type SignInResult = z.infer<typeof SignInResult>;
 
+/** What a part of a page is to the person editing it: a title, a run of text, a button, a link, a picture or a field. */
+export const ElementKind = z.enum(["heading", "text", "button", "link", "image", "field"]);
+export type ElementKind = z.infer<typeof ElementKind>;
+
+/** The most elements edit mode lists for a page. */
+export const EDIT_ELEMENTS_MAX = 200;
+
 /** An element of the page the owner picked in edit mode. Its name and text are untrusted page content. */
 export const PickedElement = z.object({
   /** The page's own id for the element while its document lives (a backend node id). */
@@ -64,6 +71,7 @@ export const PickedElement = z.object({
   role: z.string(),
   name: z.string(),
   selector: z.string(),
+  kind: ElementKind.optional(),
   /** Its text when it holds just one, so it can be rewritten; null otherwise. */
   text: z.string().nullable(),
   /** A password, one-time code or card field: never read nor edited. */
@@ -179,6 +187,16 @@ export const browserMethods = {
   "browser.inspect": {
     params: z.object({ tab: Tab, x: Fraction, y: Fraction }).strict(),
     result: z.object({ element: PickedElement.nullable() }),
+    effect: false,
+    access: "human",
+  },
+  /**
+   * Edit mode: the page's parts the owner can pick, in page order (at most EDIT_ELEMENTS_MAX), each as `browser.inspect`
+   * describes it; a part outside the visible page has no box. Owner only.
+   */
+  "browser.edit_elements": {
+    params: z.object({ tab: Tab }).strict(),
+    result: z.object({ elements: z.array(PickedElement).max(EDIT_ELEMENTS_MAX) }),
     effect: false,
     access: "human",
   },
