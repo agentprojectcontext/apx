@@ -7,6 +7,7 @@ export const BLOG = {
     compare: "See comparisons",
     back: "All articles",
     sources: "Sources",
+    related: "More articles",
     published: "Published",
     updated: "Updated",
     read: "Read article",
@@ -24,6 +25,7 @@ export const BLOG = {
     compare: "Ver comparaciones",
     back: "Todos los artículos",
     sources: "Fuentes",
+    related: "Más artículos",
     published: "Publicado",
     updated: "Actualizado",
     read: "Leer artículo",
@@ -52,6 +54,12 @@ export function publishedPosts(entries) {
   return posts.sort(
     (a, b) => b.data.published.localeCompare(a.data.published) || a.data.slug.localeCompare(b.data.slug),
   );
+}
+
+export function relatedPosts(entries, post) {
+  return publishedPosts(entries)
+    .filter(({ data }) => data.lang === post.data.lang && data.slug !== post.data.slug)
+    .slice(0, 3);
 }
 
 export function archivePath(page = 1) {

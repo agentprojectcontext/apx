@@ -1,7 +1,7 @@
 ---
 import { getImage, Image } from "astro:assets";
 import { type CollectionEntry, getCollection, render } from "astro:content";
-import { BLOG, archivePath, blogArchive, blogPath } from "../../data/blog.mjs";
+import { BLOG, archivePath, blogArchive, blogPath, relatedPosts } from "../../data/blog.mjs";
 import { sitePath } from "../../doc-routes.mjs";
 import AnalyticsConsent from "../AnalyticsConsent.astro";
 import PageMeta from "../web/PageMeta.astro";
@@ -19,7 +19,9 @@ const t = BLOG[lang];
 const pre = lang === "es" ? "/es" : "";
 const href = (path: string) => sitePath(path, import.meta.env.BASE_URL);
 const abs = (path: string) => new URL(href(path), Astro.site).href;
-const { posts, totalPages } = blogArchive(await getCollection("blog"), lang, page);
+const entries = await getCollection("blog");
+const { posts, totalPages } = blogArchive(entries, lang, page);
+const related = post ? relatedPosts(entries, post) : [];
 const route = post ? `/blog/${post.data.slug}/` : archivePath(page);
 const pageSuffix = !post && page > 1 ? ` · ${t.page} ${page}` : "";
 const title = post?.data.title ?? t.title;
@@ -88,6 +90,14 @@ const schema = [
           <h2 id="sources">{t.sources}</h2>
           <ol>{post.data.sources.map((source) => <li><a href={source.url}>{source.label} ↗</a></li>)}</ol>
         </section>
+        {related.length > 0 && <section aria-labelledby="related">
+          <h2 id="related">{t.related}</h2>
+          <div class="blog-list">{related.map(({ data }) => <a class:list={["blog-row", { "blog-row-illustrated": !!data.image }]} href={href(blogPath(data))}>
+            {data.image && <Image src={data.image.src} alt={data.image.alt} widths={[Math.min(320, data.image.src.width), ...[640, 800].filter((width) => width <= data.image.src.width)]} sizes="(max-width: 600px) calc(100vw - 32px), 200px" format="webp" loading="lazy" />}
+            <div><h3>{data.title}</h3><p>{data.description}</p></div>
+            <div class="blog-row-meta"><time datetime={data.published}>{date(data.published)}</time><span>{t.read} →</span></div>
+          </a>)}</div>
+        </section>}
         <a class="blog-back" href={href(`${pre}/blog/`)}>← {t.back}</a>
       </article> : posts.length ? <section aria-labelledby="articles">
         <h2 id="articles">{lang === "es" ? "Artículos" : "Articles"}</h2>

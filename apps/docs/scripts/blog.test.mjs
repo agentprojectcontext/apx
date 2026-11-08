@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { archivePath, blogArchive, blogPath, publishedPosts } from "../src/data/blog.mjs";
+import { archivePath, blogArchive, blogPath, publishedPosts, relatedPosts } from "../src/data/blog.mjs";
 
 const post = (lang, slug, published = "2026-01-01", draft = false) => ({ data: { lang, slug, published, draft } });
 
@@ -18,6 +18,17 @@ test("archive paginates ten published entries per language without overlap", () 
   assert.equal(archivePath(1), "/blog/");
   assert.equal(archivePath(2), "/blog/page/2/");
   assert.deepEqual(blogArchive([], "en"), { posts: [], totalPages: 1 });
+});
+
+test("more articles exclude drafts, the current article and other languages", () => {
+  const entries = ["one", "two", "three", "four", "five"].flatMap((slug) => [post("en", slug), post("es", slug)]);
+  entries.push(post("en", "draft", "2026-02-01", true));
+  for (const lang of ["en", "es"]) {
+    const result = relatedPosts(entries, post(lang, "one"));
+    assert.equal(result.length, 3);
+    assert.ok(result.every(({ data }) => data.lang === lang && data.slug !== "one" && !data.draft));
+    assert.deepEqual(relatedPosts([post("en", "one"), post("es", "one")], post(lang, "one")), []);
+  }
 });
 
 test("an empty blog has no fabricated articles", () => {
