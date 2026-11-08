@@ -201,8 +201,10 @@ varias pasadas. Una tarea trabajada por última vez hace más de un día queda p
 Una tarea que un agente creó y le dio a otro avisa cuando se cierra. Tu agente principal se entera de cada tarea que
 cierra su equipo, también las que diste vos u otro agente, y te cuenta cómo salió. Tu agente principal puede pasarle un objetivo
 entero al orquestador de un proyecto como tarea; cuando el orquestador la cierra, horas y reinicios después, tu agente
-principal recibe su informe en el chat donde creó la tarea y te cuenta lo que importa. Si la cerrás vos, o un agente
-cierra la suya, no se despierta a nadie. Ese turno cuenta para los [turnos que los agentes arrancan solos sin
+principal recibe su informe en el chat donde creó la tarea y te cuenta lo que importa. Cuando el orquestador de un
+proyecto arranca una tarea desde su propio chat del proyecto, ese chat también se entera de cómo terminó, y de cuando un
+revisor la devuelve pidiendo cambios; enterarse no le da ningún permiso nuevo. Si la cerrás vos, o un agente cierra la
+suya, no se despierta a nadie. Ese turno cuenta para los [turnos que los agentes arrancan solos sin
 vos](/es/concepts/agents/): pasado el límite, el informe espera a que escribas en ese chat.
 
 ### Pedir correcciones
@@ -341,6 +343,8 @@ el tablero para Tomás" funciona en cualquier chat.
 ## Herramientas de agentes
 
 - `task_list` lista el tablero; `task_get` consulta una tarea por su ID en `task`.
+- `task_list` muestra primero la actividad más reciente y avisa si hay más tareas. Con `cursor: "start"` (y luego cada `next_cursor`) recorre todas las tareas que coinciden por orden de ID, de 25 en 25; el recorrido es en vivo, no una foto fija. Las tareas que esperan la aceptación del dueño se marcan como propuestas.
+- Una descripción cortada en `task_get` se lee con `description_page: "0"` y luego cada `next_page`; si la descripción cambia entre páginas, la lectura falla y hay que empezar de nuevo.
 - `task_get` incluye campos, historial, sesiones de trabajo, consultas, subtareas, uso de tokens y los últimos 60 mensajes de la conversación. Las evidencias guardadas (referencias a archivos, parches y resúmenes de consultas) se conservan en su mensaje; no descarga adjuntos ni inventa pruebas faltantes.
 - Cada sección tiene un límite para el modelo, con marcas cuando se omite contenido o hay comentarios anteriores. El contenido se devuelve como datos, no como instrucciones.
 - Los agentes de proyecto pueden leer tareas de su proyecto y globales, pero no tareas ni trabajo relacionado de otros proyectos. Un ID inexistente o fuera del ámbito devuelve el mismo error seguro. La secretaria global conserva su visibilidad de todo el tablero.

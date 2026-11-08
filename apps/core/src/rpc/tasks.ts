@@ -202,12 +202,27 @@ export function taskHandlers(
       return { attachments: assets.list(task) };
     },
     "tasks.detach": ({ task, media_id }, ctx) => assets.detach(visible(task, ctx), media_id, ctx),
-    "tasks.list": ({ project, state, assignee, commitments, person, limit }, ctx) => {
+    "tasks.list": ({ project, state, assignee, commitments, person, limit, exhaustive, after }, ctx) => {
+      if (after && !exhaustive) throw badRequest("after requires exhaustive listing");
       const scope = agentScope(ctx);
       const projects = scope ? [scope.project, undefined] : project ? [project] : undefined;
+      const found = store.tasks.list({
+        projects,
+        state: state ?? "open",
+        assignee,
+        commitments,
+        person,
+        limit: limit + 1,
+        exhaustive,
+        after,
+      });
+      const tasks = found.slice(0, limit);
       return {
-        tasks: store.tasks.list({ projects, state: state ?? "open", assignee, commitments, person, limit }),
+        tasks,
         columns: columnsOf(store),
+        ...(exhaustive
+          ? { next_cursor: found.length > limit ? (tasks.at(-1)?.id ?? null) : null }
+          : { truncated: found.length > limit }),
       };
     },
     "tasks.get": ({ task }, ctx) => {
@@ -369,7 +384,15 @@ export function taskHandlers(
           !cur.description.trim() &&
           Boolean(c.description?.trim()) &&
           store.threads.byTask(cur.id).length === 0;
-        if (moving || c.assignee !== undefined || c.description !== undefined)
+        // A legacy/owner draft may be annotated without implicitly assigning or starting work. Moving it, giving
+        // it a parent, assigning it or putting it in review with a checker keeps the subtask rules.
+        const annotationOnly =
+          !moving &&
+          parent === undefined &&
+          !cur.assignee &&
+          c.assignee === undefined &&
+          !((c.status ?? cur.status) === "review" && (checker === undefined ? cur.reviewer : checker));
+        if ((moving || c.assignee !== undefined || c.description !== undefined) && !annotationOnly)
           requireSubtaskWork(ctx, taskParent, unassign ? null : keeper, c.description ?? cur.description);
         // Its start moved to now (or cleared) before its work began: it begins now.
         const unscheduled =
@@ -377,8 +400,14 @@ export function taskHandlers(
           Boolean(cur.start_at) &&
           !startsLater({ ...cur, start_at: dueOf(start_at) ?? undefined }) &&
           store.threads.byTask(cur.id).length === 0;
+        // Accepting a card already in review starts its reviewer (below), not its assignee again.
+        const acceptingReview = accepting && (c.status ?? cur.status) === "review";
         const starting =
-          !forced && !unassign && keeper && (keeper !== cur.assignee || completing || unscheduled || accepting);
+          !forced &&
+          !unassign &&
+          keeper &&
+          !acceptingReview &&
+          (keeper !== cur.assignee || completing || unscheduled || accepting);
         if (starting) {
           refuseHandOn(ctx);
           checkTransfer(ctx, {

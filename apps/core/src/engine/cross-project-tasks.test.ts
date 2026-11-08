@@ -240,3 +240,27 @@ test("an answering orchestrator still cannot start task work through the router"
   if (!result.ok) assert.match(result.error.message, /answering.*start no task work/);
   assert.ok(!tasks().some((t) => t.title === "No chained work"));
 });
+
+test("exhaustive task pages retain agent project boundaries even with another project's filter and cursor", async () => {
+  const own = await env.client.call("tasks.create", { title: "Scoped page own", project });
+  const foreign = await env.client.call("tasks.create", { title: "Scoped page foreign", project: other });
+  const thread = await chat(worker, project);
+  const ids: string[] = [];
+  let after: string | undefined;
+  do {
+    const response = await env.core.dispatch(
+      "tasks.list",
+      { project: other, exhaustive: true, limit: 1, ...(after ? { after } : {}) },
+      context(worker, thread.id),
+      `page-${after ?? "first"}`,
+    );
+    assert.equal(response.ok, true);
+    if (!response.ok) break;
+    const page = response.result as { tasks: Task[]; next_cursor: string | null };
+    ids.push(...page.tasks.map((t) => t.id));
+    after = page.next_cursor ?? undefined;
+  } while (after);
+  assert.ok(ids.includes(own.id));
+  assert.ok(!ids.includes(foreign.id));
+  assert.equal(new Set(ids).size, ids.length);
+});
