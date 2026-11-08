@@ -94,6 +94,7 @@ function Answering({ channel }: { channel: ChannelInfo }) {
     strangers: channel.strangers,
     concurrency: channel.concurrency,
     owner_thread: channel.owner_thread,
+    contacts_agent_id: channel.contacts_agent_id,
     reactions: channel.reactions,
     research: channel.research,
   };

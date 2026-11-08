@@ -6,7 +6,7 @@ import { ownerTimeZone } from "../domain/owner.ts";
 import type { Store } from "../domain/store.ts";
 import type { AdmitFn } from "../engine/engine.ts";
 import type { Suggestions } from "./suggestions.ts";
-import type { ChannelConfig } from "./types.ts";
+import { type ChannelConfig, contactAgentOf } from "./types.ts";
 
 /** Chats answered per tick of the office clock once the hours begin, so a night's contacts are not all woken at once. */
 const OPEN_PER_TICK = 3;
@@ -63,7 +63,7 @@ export function createHeld(deps: {
         }
         admit({
           thread_id: thread.id,
-          agent_id: thread.agent_ids[0] ?? cfg.agent_id,
+          agent_id: thread.agent_ids[0] ?? contactAgentOf(cfg),
           trigger: "channel",
           origin: {
             kind: "hours_began",

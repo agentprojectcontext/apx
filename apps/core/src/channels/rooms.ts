@@ -14,7 +14,7 @@ import type { InternalCall } from "../rpc/internal.ts";
 import { agentProject } from "./agent-project.ts";
 import type { TellOwner } from "./owner-notices.ts";
 import { channelTexts } from "./texts.ts";
-import type { ChannelConfig } from "./types.ts";
+import { type ChannelConfig, contactAgentOf } from "./types.ts";
 
 const HOUR_MS = 3_600_000;
 /** Several messages from one person this close together are one question: one answer, to the last. */
@@ -125,8 +125,8 @@ export function createRooms(deps: {
     const t = store.threads.create({
       kind: "channel",
       title: `#${room.name || room.id}`,
-      agent_ids: [cfg.agent_id],
-      project_id: agentProject(store, cfg.agent_id),
+      agent_ids: [contactAgentOf(cfg)],
+      project_id: agentProject(store, contactAgentOf(cfg)),
       channel: { id: cfg.id, conversation: room.id },
     });
     store.threads.mergeContext(t.id, { room: { name: room.name || room.id } });
