@@ -424,12 +424,13 @@
 }
 
 /* ── CodeFrame ─────────────────────────────────────────────────────────────── */
+/* Floating: the block sits on the chat itself, a soft outline around it; its controls come up when it is pointed at. */
 .apx-codeframe {
   container-type: inline-size;
   max-width: 100%;
-  border: 1px solid var(--apx-border);
-  border-radius: var(--apx-radius-md);
-  background: var(--apx-fill);
+  border: 1px solid color-mix(in oklch, var(--apx-border) 75%, transparent);
+  border-radius: 12px;
+  background: transparent;
   overflow: hidden;
 }
 .apx-codeframe__bar {
@@ -437,8 +438,9 @@
   align-items: center;
   justify-content: space-between;
   gap: 4px 8px;
-  padding: 4px 4px 4px 12px;
-  border-bottom: 1px solid var(--apx-border);
+  min-height: 36px;
+  padding: 4px 6px 4px 12px;
+  border-bottom: 1px solid color-mix(in oklch, var(--apx-border) 75%, transparent);
 }
 .apx-codeframe__lang {
   min-width: 0;
@@ -446,8 +448,8 @@
   text-overflow: ellipsis;
   white-space: nowrap;
   font-family: var(--apx-font-mono);
-  font-size: var(--apx-text-xs);
-  color: var(--apx-fg-muted);
+  font-size: 10px;
+  color: var(--apx-fg-subtle);
 }
 .apx-codeframe__title {
   flex: 1;
@@ -455,9 +457,8 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-size: var(--apx-text-sm);
-  font-weight: var(--apx-weight-medium);
-  color: var(--apx-fg);
+  font-size: var(--apx-text-xs);
+  color: var(--apx-fg-muted);
 }
 .apx-codeframe__status {
   display: inline-flex;
@@ -474,6 +475,11 @@
   align-items: center;
   justify-content: flex-end;
   gap: 2px;
+  opacity: 0.6;
+  transition: opacity 0.16s;
+}
+.apx-codeframe:is(:hover, :focus-within) .apx-codeframe__actions {
+  opacity: 1;
 }
 .apx-codeframe__actions .apx-btn,
 .apx-codeframe__actions .apx-iconbtn {
@@ -502,6 +508,7 @@
 .apx-codeframe__body > pre {
   margin: 0;
   border-radius: 0;
+  background: transparent;
 }
 /* What the code draws sits on the page's own surface, like the page or picture it is. */
 .apx-codeframe__body--preview {
