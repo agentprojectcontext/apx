@@ -59,7 +59,12 @@ export function fakeWhatsApp(owner = OWNER_PN) {
         const digits = numbers.map((n) => n.split("@")[0] ?? "");
         return digits.filter((d) => !absent.has(d)).map((d) => ({ jid: `${d}@s.whatsapp.net`, exists: true }));
       },
-      signalRepository: { lidMapping: { getLIDForPN: async (pn: string) => lids.get(pn) } },
+      signalRepository: {
+        lidMapping: {
+          getLIDForPN: async (pn: string) => lids.get(pn),
+          getPNForLID: async (lid: string) => [...lids].find(([, l]) => l === lid)?.[0],
+        },
+      },
       // The phone sends one message again, found by its id under the address it came on.
       async requestPlaceholderResend(key: WaKey) {
         resendAsked.push(key);
@@ -169,13 +174,21 @@ export function fakeWhatsApp(owner = OWNER_PN) {
         lastDisconnect: { error: { message: "logged out", output: { statusCode: REASON.loggedOut } } },
       });
     },
-    /** Someone writes; `lid` makes it arrive under their private id with the phone as the alternative. */
-    message(from: Person, text: string, opts: { group?: string; voice?: Buffer; content?: object } = {}) {
+    /**
+     * Someone writes; `lid` makes it arrive under their private id with the phone as the alternative, or without it
+     * (`noAlt`, as WhatsApp often sends a reply), leaving only what this device learned to tell who it is.
+     */
+    message(
+      from: Person,
+      text: string,
+      opts: { group?: string; voice?: Buffer; content?: object; noAlt?: boolean } = {},
+    ) {
       const jid = opts.group ?? (from.lid ? from.lid : from.phone);
       if (from.lid) lids.set(from.phone, from.lid);
       const id = `IN-${++seq}`;
+      const alt = from.lid && !opts.group && !opts.noAlt;
       deliver({
-        key: { id, remoteJid: jid, ...(from.lid && !opts.group ? { remoteJidAlt: from.phone } : {}), fromMe: false },
+        key: { id, remoteJid: jid, ...(alt ? { remoteJidAlt: from.phone } : {}), fromMe: false },
         pushName: from.name,
         message: opts.voice
           ? ({

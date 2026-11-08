@@ -334,6 +334,33 @@ test("someone under their private id is the same person as their number", async 
   assert.equal(req?.external_id, BOB.phone);
 });
 
+test("adapter: a reply under the private id alone is still the number this line already learned", async () => {
+  const fake = fakeWhatsApp();
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "apx-wa-"));
+  const adapter = whatsappAdapter({ dir, lib: async () => fake.lib });
+  const from: string[] = [];
+  const ac = new AbortController();
+  let linked = false;
+  await adapter.start({
+    receive: (m) => from.push(m.sender.id),
+    action: () => {},
+    status: () => {},
+    identified: () => {
+      linked = true;
+    },
+    qr: (code) => code && fake.scan(),
+    signal: ac.signal,
+  });
+  await waitFor(() => linked, "linked");
+  const CARL = { phone: "5491100000004@s.whatsapp.net", name: "Carl", lid: "200000000000004@lid" };
+  fake.message(CARL, "hello");
+  fake.message(CARL, "it's me again", { noAlt: true });
+  await waitFor(() => from.length === 2, "both messages");
+  assert.deepEqual(from, [CARL.phone, CARL.phone], "one person, never a second under the private id");
+  await adapter.stop();
+  await removeDir(dir);
+});
+
 test("a contact's sticker is kept as WhatsApp's, and the agent answers with it as a sticker", async () => {
   // A 1×1 WebP, the file a WhatsApp sticker is.
   const WEBP = Buffer.from("UklGRhoAAABXRUJQVlA4TA0AAAAvAAAAEAcQERGIiP4HAA==", "base64");

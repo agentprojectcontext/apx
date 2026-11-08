@@ -141,6 +141,12 @@ export const normalJid = (jid: string | null | undefined): string => {
   return `${s.slice(0, at).split(":")[0]}@${s.slice(at + 1)}`;
 };
 const isPhone = (jid: string) => jid.endsWith("@s.whatsapp.net");
+/** The number a private id stands for, when this device has learned it (from a send or an earlier message). */
+async function numberOf(s: WaSocket, jid: string): Promise<string> {
+  if (!jid.endsWith("@lid")) return jid;
+  const pn = normalJid(await s.signalRepository?.lidMapping?.getPNForLID?.(jid)?.catch(() => undefined));
+  return isPhone(pn) ? pn : jid;
+}
 const digitsOf = (jid: string) => jid.split("@")[0] ?? "";
 const ignorable = (jid: string) =>
   !jid ||
@@ -357,8 +363,7 @@ export function whatsappAdapter(opts: {
 
   async function onPresence(s: WaSocket, p: WaPresence): Promise<void> {
     for (const [jid, v] of Object.entries(p.presences)) {
-      let who = normalJid(jid);
-      if (who.endsWith("@lid")) who = normalJid(await s.signalRepository?.lidMapping?.getPNForLID?.(who)) || who;
+      const who = await numberOf(s, normalJid(jid));
       if (!v.lastKnownPresence) continue;
       // Typing or recording is being there too.
       const online = v.lastKnownPresence !== "unavailable";
@@ -437,8 +442,10 @@ export function whatsappAdapter(opts: {
       if (ownSends.delete(m.key.id) || !isSelf(jid) || !opts.selfOwner) return;
     }
     const alt = normalJid(m.key.remoteJidAlt);
-    // One person, one address: their phone number when WhatsApp tells it, their private id otherwise.
-    const who = m.key.fromMe ? me.pn : isPhone(jid) ? jid : alt && isPhone(alt) ? alt : jid;
+    // One person, one address: their phone number when WhatsApp tells it or this device learned it, their private id
+    // otherwise.
+    const told = alt && isPhone(alt) ? alt : jid;
+    const who = m.key.fromMe ? me.pn : sock ? await numberOf(sock, told) : told;
     const name = m.key.fromMe ? "Owner" : m.verifiedBizName?.trim() || m.pushName?.trim() || `+${digitsOf(who)}`;
     const reacted = content.reactionMessage;
     if (reacted) {
