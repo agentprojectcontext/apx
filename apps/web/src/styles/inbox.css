@@ -382,3 +382,78 @@ button.chatprocesses {
   flex: none;
   white-space: nowrap;
 }
+
+/* The tabs are the Inbox's main switch: taller, like the design's. */
+.inbox__views.apx-segmented {
+  width: 100%;
+  height: 34px;
+  padding: 3px;
+}
+.inbox__views .apx-segmented__item {
+  flex: 1;
+  height: 28px;
+  font-size: var(--apx-text-sm);
+}
+/* The filter: agents or projects with their counts, the chosen ones ticked. */
+.inboxfilter.apx-popover {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 6px;
+}
+.inboxfilter__tabs .apx-tabs__list {
+  width: 100%;
+}
+.inboxfilter__tabs .apx-tabs__tab {
+  flex: 1;
+  justify-content: center;
+}
+.inboxfilter__list {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  max-height: min(320px, 50vh);
+  overflow-y: auto;
+}
+.inboxfilter__list .apx-pickrow {
+  min-height: 32px;
+  padding: 4px 8px;
+}
+.inboxfilter__list .apx-pickrow.is-selected {
+  background: var(--apx-brand-soft);
+}
+.inboxfilter__sub.apx-pickrow {
+  padding-left: 28px;
+}
+.inboxfilter__mark {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  color: var(--apx-fg-subtle);
+}
+.inboxfilter__check {
+  display: inline-flex;
+  width: 14px;
+  color: var(--apx-brand);
+}
+.inboxfilter__foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  padding: 6px 2px 0;
+  border-top: 1px solid var(--apx-border);
+}
+.inboxfilter__chips {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+}
+.inboxfilter__chip.apx-btn {
+  height: 24px;
+  max-width: 100%;
+  background: var(--apx-brand-soft);
+  color: var(--apx-brand-soft-fg);
+}
