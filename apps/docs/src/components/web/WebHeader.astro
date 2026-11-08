@@ -135,6 +135,7 @@ const tones = ["warm", "dusk", "sea"] as const;
           )
         }
       </div>
+      <a href={href(`${pre}/blog/`)} aria-current={route.startsWith("/blog/") ? "page" : undefined}>Blog</a>
       <a href={href(`${pre}/#questions`)}>{t.nav.questions}</a>
       <a class="nav__sheet-get" href={href(`${pre}/#download`)}>{t.getApp}</a>
     </div>

@@ -14,7 +14,11 @@ const date = z
 
 export const collections = {
   blog: defineCollection({
-    loader: glob({ pattern: "**/*.md", base: "./src/content/blog" }),
+    loader: glob({
+      pattern: "**/*.md",
+      base: "./src/content/blog",
+      generateId: ({ entry }) => entry,
+    }),
     schema: z.object({
       title: z.string().min(1),
       description: z.string().min(1).max(160),
