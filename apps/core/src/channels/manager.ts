@@ -90,6 +90,8 @@ export function createChannels(deps: {
   see?: See;
   /** How long a room waits for one person's quick messages to settle (tests shorten it). */
   roomBurstMs?: number;
+  /** The clock rooms wait on: the burst and each person's pause (tests move it). */
+  roomTimers?: RunTimers;
   /** The reply a supervised contact would get, drafted with the agent's model and not sent. */
   draft?: (threadId: string, agentId: string, signal?: AbortSignal) => Promise<Draft>;
   /** How long a supervised contact's quick messages may keep coming before one draft answers them (tests shorten it). */
@@ -153,7 +155,7 @@ export function createChannels(deps: {
     tell,
     judge: deps.judge,
     ...(deps.roomBurstMs !== undefined ? { burstMs: deps.roomBurstMs } : {}),
-    now: () => clock().getTime(),
+    ...(deps.roomTimers ? { timers: deps.roomTimers } : { now: () => clock().getTime() }),
   });
   const poster = createPoster(store, delivery);
   const outgoing = createOutgoing({
