@@ -18,4 +18,8 @@ Keep the running owner core and its data untouched. Use a task branch and isolat
 
 No product or test fix has been implemented in this assessment. Product compatibility, macOS and complete CI success remain UNVERIFIED. No owner decision is required to diagnose; implementation and eventual integration should preserve the existing account-specific behavior.
 
+## Follow-up
+
+The Telegram news assertion was updated and passed. The next CI run passed all unit and portability jobs but repeated the three WhatsApp setup failures. Local reproduction showed that the owner account chat starts after the first message, and that account identifiers are generated rather than always `whatsapp`. The setup now sends the message before opening the owner chat, checks isolation between Telegram and WhatsApp, and finds the configured WhatsApp account by type. Six targeted setup scenarios passed, including stranger admission and media recovery, using temporary Windows-only fixture adaptations which were not retained. Full CI and release readiness remain UNVERIFIED until the new commit's run succeeds.
+
 Docs impact: this investigation records CI failures and the verification plan; reassess user documentation if a product behavior changes.

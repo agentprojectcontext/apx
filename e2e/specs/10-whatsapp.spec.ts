@@ -39,6 +39,10 @@ test("the owner links a line with the QR, then their own phone by writing to it"
   await expect(page.getByText("Vinculá tu teléfono")).toBeVisible();
   await expect(page.getByText("+5491100000007")).toBeVisible();
   await page.getByRole("button", { name: "Es mi número" }).click();
+  await world.whatsapp.message(ME, "Remind me to call the bank");
+  await until(async () =>
+    (await world.whatsapp.sentTo(ME.phone)).some((t) => t.includes("Got it: Remind me to call the bank")),
+  );
   await expect(page.getByRole("button", { name: /^Vos Tu teléfono/ })).toBeVisible();
   await expect(page.getByText("Vinculá tu teléfono")).toBeHidden();
 
@@ -48,18 +52,14 @@ test("the owner links a line with the QR, then their own phone by writing to it"
   await page.getByRole("menuitem", { name: "Widget" }).click();
   await expect(page.getByRole("complementary", { name: "Panel lateral" })).toBeVisible();
 
-  await world.whatsapp.message(ME, "Remind me to call the bank");
-  await until(async () =>
-    (await world.whatsapp.sentTo(ME.phone)).some((t) => t.includes("Got it: Remind me to call the bank")),
-  );
-  // Both channels write into Home: WhatsApp's view of it shows only what was said there, Home shows it all.
+  // Each account keeps its own conversation, separate from the other channel and Home.
   const chat = page.getByRole("main");
   await expect(chat.getByText("Got it: Remind me to call the bank").first()).toBeVisible();
   await expect(chat.getByText("Remind me to stretch")).toHaveCount(0);
-  await expect(chat.getByText(/Solo lo que hablaron vos y .+ por WhatsApp/)).toBeVisible();
-  await chat.getByRole("button", { name: "Abrir Home" }).click();
+  await page.getByRole("button", { name: "Telegram", exact: true }).first().click();
+  await page.getByRole("button", { name: /^Vos/ }).click();
   await expect(page.getByRole("main").getByText("Remind me to stretch").first()).toBeVisible();
-  await expect(page.getByRole("main").getByText("Remind me to call the bank").first()).toBeVisible();
+  await expect(page.getByRole("main").getByText("Remind me to call the bank")).toHaveCount(0);
 });
 
 test("strangers 'ask me': whoever writes is an unreviewed contact, the owner hears who and what; unsilenced, they get answers", async ({
@@ -74,8 +74,8 @@ test("strangers 'ask me': whoever writes is an unreviewed contact, the owner hea
   await expect(page.getByText("Conectando con WhatsApp…")).toHaveCount(0);
   await expect(page.getByRole("radio", { name: "Se suma" })).toBeVisible();
   await until(async () =>
-    (await rpc<{ channels: Array<{ id: string; strangers: string }> }>("channels.list")).channels.some(
-      (c) => c.id === "whatsapp" && c.strangers === "ask",
+    (await rpc<{ channels: Array<{ type: string; strangers: string }> }>("channels.list")).channels.some(
+      (c) => c.type === "whatsapp" && c.strangers === "ask",
     ),
   );
 
