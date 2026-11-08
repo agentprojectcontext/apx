@@ -6,6 +6,20 @@ These excerpts were read directly from the URLs below on this date. They preserv
 
 Estos extractos se leyeron directamente de las URL indicadas en esta fecha. Conservan el texto puntual consultado, no una copia completa o inmutable de cada sitio. Son afirmaciones del editor, no funciones verificadas mediante uso independiente. No se atribuye una consulta anterior ni una revisión completa de cada página. Los documentos fijados a commits se registran aparte en COMPARISONS.es.md.
 
+## Manus Studio local execution / Ejecución local de Manus Studio
+
+Consulted / Consultado: **2026-11-08**. URL: https://manus.im/docs/features/desktop
+
+Sections / Secciones: “Start a task on your computer”, “Choose where Manus works”, “What Manus sends to the cloud”, “Credits”.
+
+> In the chat box, turn on Work locally. The task then runs on this computer instead of in the cloud.
+>
+> Manus plans in the cloud.
+>
+> A task on your computer uses credits at the same rate as an equivalent task in the cloud.
+
+The guide also describes temporary cloud fallback and uploads for some features. This supports distinguishing local execution from cloud planning, rather than describing My Computer only as a command bridge. These are documentation claims, not hands-on testing. / La guía también describe cambios temporales a la nube y subidas de archivos para algunas funciones. Fundamenta distinguir ejecución local de planificación en la nube, en vez de describir My Computer solo como puente para comandos. Son afirmaciones documentadas, no una prueba de uso.
+
 ## OpenBot homepage / Página principal
 
 URL: https://openbot.run/
