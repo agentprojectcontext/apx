@@ -63,7 +63,7 @@ const tones = ["warm", "dusk", "sea"] as const;
     <a class="brand" href={href(`${pre}/`)}><img src={logo.src} alt="" width="26" height="26" /><span>APX</span><span class="brand__v" aria-hidden="true">v2</span></a>
     <div class="nav__links" id="navLinks">
       <div class="nav__drop nav__product">
-        <a class="nav__drop-link" href={href(`${pre}/#what`)}>{t.nav.product}<svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M2 3.5 5 6.5 8 3.5" /></svg></a>
+        <a class="nav__drop-link" data-home-nav="product" href={href(`${pre}/#what`)}>{t.nav.product}<svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M2 3.5 5 6.5 8 3.5" /></svg></a>
         <div class="nav__menu nav__menu--start">
           <div class="nav__menu-card">
             <ul class="nav__menu-sections">
@@ -136,7 +136,7 @@ const tones = ["warm", "dusk", "sea"] as const;
         }
       </div>
       <a href={href(`${pre}/blog/`)} aria-current={route.startsWith("/blog/") ? "page" : undefined}>Blog</a>
-      <a href={href(`${pre}/#questions`)}>{t.nav.questions}</a>
+      <a data-home-nav="questions" href={href(`${pre}/#questions`)}>{t.nav.questions}</a>
       <a class="nav__sheet-get" href={href(`${pre}/#download`)}>{t.getApp}</a>
     </div>
     <div class="nav__cta">
@@ -184,6 +184,23 @@ const tones = ["warm", "dusk", "sea"] as const;
   const marks = [...(nav?.querySelectorAll<HTMLAnchorElement>("a[data-section]") ?? [])];
   const homeSections = marks.map((a) => document.getElementById(a.dataset.section ?? "")).filter((el): el is HTMLElement => Boolean(el));
   if (homeSections.length) {
+    const setCurrent = (current: string | undefined) => {
+      for (const a of marks) {
+        if (a.dataset.section === current) a.setAttribute("aria-current", "location");
+        else a.removeAttribute("aria-current");
+      }
+      for (const a of nav?.querySelectorAll<HTMLAnchorElement>("[data-home-nav]") ?? []) {
+        const active = a.dataset.homeNav === "questions" ? current === "questions" : !!current && current !== "questions";
+        if (active) a.setAttribute("aria-current", "location");
+        else a.removeAttribute("aria-current");
+      }
+    };
+    const fromHash = () => {
+      const id = location.hash.slice(1);
+      setCurrent(homeSections.some((section) => section.id === id) ? id : undefined);
+    };
+    addEventListener("hashchange", fromHash);
+    fromHash();
     const inView = new Set<string>();
     const io = new IntersectionObserver(
       (entries) => {
@@ -192,10 +209,7 @@ const tones = ["warm", "dusk", "sea"] as const;
           else inView.delete(e.target.id);
         }
         const current = homeSections.find((el) => inView.has(el.id))?.id;
-        for (const a of marks) {
-          if (a.dataset.section === current) a.setAttribute("aria-current", "location");
-          else a.removeAttribute("aria-current");
-        }
+        setCurrent(current);
       },
       { rootMargin: "-45% 0px -50% 0px" },
     );
