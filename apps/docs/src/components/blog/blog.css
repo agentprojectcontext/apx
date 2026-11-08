@@ -1,6 +1,6 @@
 .blog .blog-main {
   max-width: 1080px;
-  padding-top: 150px;
+  padding-top: 96px;
   padding-bottom: 100px;
   min-height: 65vh;
 }
@@ -11,7 +11,7 @@
 }
 .blog-hero {
   max-width: 800px;
-  margin: 24px 0 60px;
+  margin: 12px 0 48px;
 }
 .blog-kicker {
   font: 12px var(--apx-font-mono);
@@ -187,7 +187,7 @@
 }
 @media (max-width: 600px) {
   .blog .blog-main {
-    padding-top: 110px;
+    padding-top: 84px;
     padding-bottom: 64px;
   }
   .blog-hero {

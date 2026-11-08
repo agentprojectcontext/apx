@@ -73,16 +73,16 @@ const schema = [
     <main id="main" class:list={["wrap blog-main", { "blog-article": !!post }]}>
       <a class="blog-back" href={href(post ? `${pre}/blog/` : `${pre}/`)}>← {post ? "Blog" : "APX"}</a>
       <header class="blog-hero">
+        {cover && <figure class="blog-cover">
+          <Image src={cover.src} alt={cover.alt} widths={[Math.min(400, cover.src.width), ...[800, 1200, 1600].filter((width) => width <= cover.src.width)]} sizes="(max-width: 808px) calc(100vw - 32px), 760px" format="webp" loading="eager" fetchpriority="high" />
+          {cover.caption && <figcaption>{cover.caption}</figcaption>}
+        </figure>}
         {!post && <p class="blog-kicker">Blog</p>}
         <h1>{title}</h1>
         <p class="blog-summary">{description}</p>
         {post && <p class="blog-dates">{t.published} <time datetime={post.data.published}>{date(post.data.published)}</time>{post.data.updated && <> · {t.updated} <time datetime={post.data.updated}>{date(post.data.updated)}</time></>}</p>}
       </header>
       {post && Content ? <article>
-        {cover && <figure class="blog-cover">
-          <Image src={cover.src} alt={cover.alt} widths={[Math.min(400, cover.src.width), ...[800, 1200, 1600].filter((width) => width <= cover.src.width)]} sizes="(max-width: 808px) calc(100vw - 32px), 760px" format="webp" loading="eager" fetchpriority="high" />
-          {cover.caption && <figcaption>{cover.caption}</figcaption>}
-        </figure>}
         <div class="blog-prose"><Content /></div>
         <section class="blog-sources" aria-labelledby="sources">
           <h2 id="sources">{t.sources}</h2>

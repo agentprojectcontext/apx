@@ -40,6 +40,8 @@ La ruta es relativa a un Markdown en `src/content/blog/en/` o `es/`. Ambos idiom
 
 Para imágenes dentro del artículo, usá Markdown con alt descriptivo y rutas relativas a la misma carpeta de recursos. Priorizá capturas reales y actuales de APX para explicar recorridos existentes; no presentes banners generados como capturas. Verificá los derechos de los recursos y distinguí ilustraciones conceptuales de interfaces reales mediante el pie. No commitees imágenes de verificación ni artículos de muestra.
 
+La cabecera compartida del artículo ubica la portada antes del título y resumen, con una separación compacta debajo de la navegación fija. Los artículos conservan una columna de lectura acotada; este layout no requiere cambios por artículo.
+
 ## Navegación del archivo
 
 El archivo muestra diez artículos publicados por página, del más reciente al más antiguo, en el idioma elegido. La primera página sigue en `/blog/` (`/es/blog/`); las siguientes usan `/blog/page/2/` y `/es/blog/page/2/`. Los enlaces anterior/siguiente, el cambio de idioma, las URL canónicas, las alternativas de idioma y el sitemap conservan el número de página. Solo se generan páginas con artículos. El menú Blog del encabezado muestra hasta cuatro artículos publicados recientes, nunca borradores.

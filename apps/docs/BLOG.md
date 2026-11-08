@@ -40,6 +40,8 @@ The path is relative to a Markdown file in `src/content/blog/en/` or `es/`. Engl
 
 Use Markdown images with descriptive alt text and relative paths to the same asset folder for inline illustrations or screenshots. Prefer current real APX captures when describing an actual workflow; do not present a generated banner as a screenshot. Confirm asset rights and distinguish conceptual imagery from real product UI in captions. Do not commit verification images or sample articles.
 
+The shared article header places the cover before the title and summary, with a compact offset below the fixed navigation. Articles retain a bounded reading column; this layout does not need per-article changes.
+
 ## Archive navigation
 
 The archive shows ten published articles per page, newest first, in the selected language. The first page stays at `/blog/` (`/es/blog/`); later pages use `/blog/page/2/` and `/es/blog/page/2/`. Previous/next links, language switching, canonical URLs, alternate-language links and the sitemap preserve the page number. Only pages with articles are generated. The header's Blog menu shows up to four recent published articles, never drafts.
