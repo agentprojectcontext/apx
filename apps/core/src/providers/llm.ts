@@ -109,7 +109,7 @@ export function createLlm(opts: {
   fetchImpl?: typeof fetch;
   retryDelayMs?: number;
   /** Bytes of an image the log references (base64), read only right before a call. */
-  media?: (id: string) => { mime: string; data: string } | undefined;
+  media?: (id: string) => MediaBytes | Promise<MediaBytes>;
   /** Sign-ins by key reference ("oauth:chatgpt"). */
   signIns?: Record<string, SignIn>;
   now?: () => number;
@@ -154,7 +154,7 @@ export function createLlm(opts: {
       const skipped = new Set<string>();
       const failed: ModelFailure[] = [];
       const need = tokensOf(req);
-      const messages = withImageBytes(req.messages, opts.media);
+      const messages = await withImageBytes(req.messages, opts.media);
       // A model known not to read images refuses a call carrying any: it gets the words alone.
       const wordsOnly = withoutImages(messages);
       // A model that failed after streaming part of an answer must not leave that part on screen.
@@ -326,27 +326,32 @@ function withoutImages(messages: ChatItem[]): ChatItem[] {
 /** Images a call carries at most: the newest ones; older ones stay named in their message's text. */
 const MAX_CALL_IMAGES = 4;
 
+type MediaBytes = { mime: string; data: string } | undefined;
+
 /**
  * Images travel as references in the log; their bytes join only this call, newest first up to the cap (an image no
  * longer on disk is dropped).
  */
-function withImageBytes(
+async function withImageBytes(
   messages: ChatItem[],
-  media: ((id: string) => { mime: string; data: string } | undefined) | undefined,
-): ChatItem[] {
+  media: ((id: string) => MediaBytes | Promise<MediaBytes>) | undefined,
+): Promise<ChatItem[]> {
   let room = MAX_CALL_IMAGES;
-  return messages
-    .toReversed()
-    .map((m) => {
-      if (m.role !== "user" || !m.images?.length) return m;
-      const images = m.images.toReversed().flatMap((i) => {
-        if (room <= 0) return [];
-        const got = media?.(i.media_id);
-        if (!got) return [];
-        room--;
-        return [{ ...i, mime: got.mime, data: got.data }];
-      });
-      return { ...m, images: images.toReversed() };
-    })
-    .toReversed();
+  const out: ChatItem[] = [];
+  for (const m of messages.toReversed()) {
+    if (m.role !== "user" || !m.images?.length) {
+      out.push(m);
+      continue;
+    }
+    const images = [];
+    for (const i of m.images.toReversed()) {
+      if (room <= 0) break;
+      const got = await media?.(i.media_id);
+      if (!got) continue;
+      room--;
+      images.push({ ...i, mime: got.mime, data: got.data });
+    }
+    out.push({ ...m, images: images.toReversed() });
+  }
+  return out.toReversed();
 }

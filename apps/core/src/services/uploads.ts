@@ -7,6 +7,7 @@ import path from "node:path";
 import { UPLOAD_LIMITS } from "@apx/protocol";
 import type { MediaRecord } from "../domain/media.ts";
 import type { Store } from "../domain/store.ts";
+import { fitForModel } from "./model-image.ts";
 
 const IMAGES: Record<string, string> = {
   "image/png": "png",
@@ -130,13 +131,26 @@ export function pruneUploads(store: Store, thread: string, name: string, keep: n
   }
 }
 
-/** A stored file's bytes, base64 (images for a model call). */
-export function mediaData(store: Store, id: string): { mime: string; data: string } | undefined {
+/** Images a model call carried lately, as sent: a chat sends the same ones on every turn. */
+const fitted = new Map<string, { mime: string; data: string }>();
+const FITTED_KEEP = 16;
+
+/** A stored image as a model call carries it, base64: scaled down when it is too big for one. */
+export async function mediaData(store: Store, id: string): Promise<{ mime: string; data: string } | undefined> {
   const m = store.media.get(id);
   if (!m) return undefined;
+  const key = `${m.path}\0${m.bytes}`;
+  const known = fitted.get(key);
+  if (known) return known;
+  let raw: Buffer;
   try {
-    return { mime: m.mime, data: fs.readFileSync(m.path).toString("base64") };
+    raw = fs.readFileSync(m.path);
   } catch {
     return undefined;
   }
+  const fit = await fitForModel(raw, m.mime);
+  const out = { mime: fit.mime, data: fit.bytes.toString("base64") };
+  fitted.set(key, out);
+  for (const old of fitted.keys()) if (fitted.size > FITTED_KEEP) fitted.delete(old);
+  return out;
 }

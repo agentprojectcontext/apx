@@ -128,16 +128,17 @@ export function claudeUsage(report: (soFar: Usage) => void) {
 type Tally = ReturnType<typeof claudeUsage>;
 
 type Sdk = typeof import("@anthropic-ai/claude-agent-sdk");
-type ImageReader = (id: string) => { mime: string; data: string } | undefined;
+type StoredImage = { mime: string; data: string } | undefined;
+type ImageReader = (id: string) => StoredImage | Promise<StoredImage>;
 
 type UserMessage = import("@anthropic-ai/claude-agent-sdk").SDKUserMessage;
 
 /** The turn's words and images, as the SDK takes a user message's content; words alone as text, as typed. */
-function promptContent(io: TurnIO, readImage: ImageReader): UserMessage["message"]["content"] {
+async function promptContent(io: TurnIO, readImage: ImageReader): Promise<UserMessage["message"]["content"]> {
   if (!io.input.images?.length) return io.input.content;
   const content: UserMessage["message"]["content"] = [{ type: "text", text: io.input.content }];
   for (const image of io.input.images ?? []) {
-    const stored = readImage(image.media_id);
+    const stored = await readImage(image.media_id);
     if (!stored) throw new Error(`Image attachment ${image.media_id} is no longer available`);
     if (!["image/png", "image/jpeg", "image/gif", "image/webp"].includes(stored.mime))
       throw new Error(`Unsupported image attachment type: ${stored.mime}`);
@@ -329,7 +330,7 @@ async function attempt(
     io.onText(prefix);
   });
   try {
-    input.push(userMessage(io, promptContent(io, o.readImage)));
+    input.push(userMessage(io, await promptContent(io, o.readImage)));
     words.listen();
     const sdk = await loadSdk();
     const cwd = o.cwd(io);
