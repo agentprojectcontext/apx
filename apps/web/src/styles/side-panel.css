@@ -200,8 +200,8 @@
 /* The page under an open drawer makes room for it, so the list sits beside the detail; a narrow page keeps ~480px
    of list and lets the drawer cover the rest. */
 @media (min-width: 768px) {
-  .page:has(.drawer:not(.drawer--inset)),
-  .project__body:has(.drawer:not(.drawer--inset)) {
+  .page:has(.drawer:not(.drawer--inset, .drawer--peek)),
+  .project__body:has(.drawer:not(.drawer--inset, .drawer--peek)) {
     padding-right: min(584px, max(0px, 100% - 480px));
   }
 }
@@ -220,6 +220,31 @@
     width: auto;
     border: 0;
     border-radius: 0;
+  }
+}
+/* A detail opened from a chat (its task, its routine): under the chat's header, and a wide chat steps aside for it
+   instead of being covered. */
+@media (min-width: 768px) {
+  .drawer.drawer--peek {
+    top: calc(var(--shell-topbar-h) + var(--shell-header-h) + 10px);
+    width: min(440px, calc(100vw - 24px));
+  }
+}
+@container chat (min-width: 860px) {
+  body.has-peek .workspace:not(:has(> .sidepanel)) > .chat > :not(.chat__header, .drawer) {
+    margin-right: 452px;
+  }
+  /* The composer fits the room left, centred under the transcript, instead of keeping its full width. */
+  body.has-peek .workspace:not(:has(> .sidepanel)) > .chat > .chat__composer {
+    width: auto;
+    max-width: none;
+    margin-left: 0;
+    padding-inline: max(24px, calc((100% - 452px - var(--shell-transcript-w)) / 2 + 24px));
+  }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .chat > :not(.chat__header, .drawer) {
+    transition: margin-right 0.2s ease;
   }
 }
 /* Over a canvas: a card inside its parent, a bottom sheet on a phone. */

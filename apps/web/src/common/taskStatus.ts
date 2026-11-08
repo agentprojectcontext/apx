@@ -28,3 +28,14 @@ export function taskStatus(task: Task, columns: readonly TaskColumn[], t: T): st
   const column = columns.find((c) => c.id === task.status);
   return column ? columnLabel(column, t) : t("tasks.state.open");
 }
+
+type RowState = { label: string; tone: "running" | "done" | "pending" | "waiting" | "failed" };
+
+/** How a task reads in a list: running while it is worked, done, waiting on the owner, or still to start. */
+export function taskRowState(task: Task | undefined, running: boolean, t: T): RowState {
+  if (task?.state === "dropped") return { label: t("tasks.dropped"), tone: "failed" };
+  if (task?.state === "done") return { label: t("routines.state.done"), tone: "done" };
+  if (task?.awaits_owner) return { label: t("tasks.group.blocked"), tone: "waiting" };
+  if (running || task?.status === "doing") return { label: t("routines.state.running"), tone: "running" };
+  return { label: t("tasks.row.pending"), tone: "pending" };
+}

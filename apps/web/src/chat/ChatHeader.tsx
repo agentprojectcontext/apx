@@ -16,10 +16,12 @@ import { ProjectBadge } from "../inbox/ProjectBadge.tsx";
 import { ThreadAvatar } from "../inbox/ThreadAvatar.tsx";
 import { PinMark } from "../inbox/ThreadRow.tsx";
 import { threadMenu } from "../inbox/threadActions.tsx";
-import { ChannelFace, TaskStatus } from "../lazy.ts";
+import { useThreadChannel } from "../inbox/useThreadChannel.ts";
+import { ChannelFace } from "../lazy.ts";
 import { PanelSwitcher } from "../panel/PanelSwitcher.tsx";
 import { go, useNav } from "../shell/nav.ts";
 import { toggleRoomCard, useRoomCard } from "./roomCard.ts";
+import { TaskCrumb, TaskStateButton } from "./TaskHeader.tsx";
 
 const POLICIES: WritePolicy[] = ["ask", "auto", "read-only"];
 
@@ -78,6 +80,7 @@ export function ChatHeader({
   const room = Boolean(thread.channel && !thread.channel.person_id);
   const roomChannel = useChannels((s) => s.channels.find((c) => c.id === thread.channel?.id));
   const roomOpen = useRoomCard(thread.id);
+  const channelKind = useThreadChannel(thread);
   const requestedRef = thread.model_choice?.model;
   const requested = requestedRef ? splitRef(requestedRef) : undefined;
   const requestedName = requestedRef && modelOf(requestedRef, catalog)?.name;
@@ -103,11 +106,13 @@ export function ChatHeader({
             {thread.pinned && <PinMark />}
             {sub || thread.channel || engine ? name : thread.title}
           </span>
-          {project && <ProjectBadge id={project.id} name={project.name} />}
+          {project && <ProjectBadge id={project.id} name={project.name} channel={channelKind} />}
+          {thread.task_id && <TaskStateButton taskId={thread.task_id} />}
           <ChatProcesses thread={thread.id} onOpen={go.processes} />
         </div>
-        <div className="chat__crumb">
-          {agent && !engine && !thread.channel && !sub && (
+        <div className={thread.task_id ? "chat__crumb is-task" : "chat__crumb"}>
+          {thread.task_id && <TaskCrumb thread={thread} taskId={thread.task_id} />}
+          {agent && !engine && !thread.channel && !sub && !thread.task_id && (
             <Tooltip content={agentHint}>
               <button type="button" className="chat__agentbtn" onClick={() => go.agent(agent.id)}>
                 {agent.kind === "secretary"
@@ -120,22 +125,6 @@ export function ChatHeader({
           )}
           {engine && <span>{t("chat.headerEngine", { engine })}</span>}
           {sub && <Tag>{t("thread.a2a")}</Tag>}
-          {thread.task_id && (
-            <Suspense fallback={null}>
-              <TaskStatus id={thread.task_id} />
-            </Suspense>
-          )}
-          {thread.task_id && (
-            <button
-              type="button"
-              className="chat__task"
-              title={t("tasks.fromTaskHint")}
-              onClick={() => thread.task_id && go.task(thread.task_id)}
-            >
-              <Icons.ListChecks size={11} />
-              {t("tasks.fromTask")}
-            </button>
-          )}
           {thread.flow && (
             <button
               type="button"

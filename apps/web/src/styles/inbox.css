@@ -270,6 +270,14 @@ button.chatprocesses {
   background: var(--apx-fill-strong);
   color: var(--apx-fg-muted);
 }
+.projbadge.has-channel {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.projbadge.has-channel > svg {
+  flex: none;
+}
 .projbadge.is-brand {
   background: var(--apx-brand-soft);
   color: var(--apx-brand-soft-fg);
@@ -372,11 +380,23 @@ button.chatprocesses {
 .routinerow__state.is-failed .routinerow__dot {
   background: var(--apx-danger);
 }
-.routinerow__state.is-off {
-  color: var(--apx-fg-subtle);
+.routinerow__state.is-pending,
+.routinerow__state.is-waiting {
+  color: var(--apx-warning-soft-fg);
 }
-.routinerow__state.is-off .routinerow__dot {
-  background: var(--apx-fg-subtle);
+.routinerow__state.is-pending .routinerow__dot,
+.routinerow__state.is-waiting .routinerow__dot {
+  background: var(--apx-warning);
+}
+/* A task row's counts: its chats and the agents working it. */
+.taskrow__count {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  margin-left: 8px;
+}
+.taskrow__count svg {
+  flex: none;
 }
 .routinerow__runs {
   vertical-align: -2px;
@@ -668,4 +688,8 @@ button.chatprocesses {
   min-width: 0;
   max-width: none;
   text-align: right;
+}
+/* Under a task, each chat reads "Agent: what it said last". */
+.taskbundle .tree__sessionwho::after {
+  content: ":";
 }

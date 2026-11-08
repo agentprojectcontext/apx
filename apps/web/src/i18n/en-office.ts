@@ -317,7 +317,6 @@ export const enOffice = {
   "routines.next": "Next: {when}",
   "routines.noNext": "Will not run again",
   "routines.off": "Off",
-  "routines.offMany": "Turned off",
   "routines.enabled": "Routine on",
   "routines.runNow": "Run now",
   "routines.failed": "Failed",

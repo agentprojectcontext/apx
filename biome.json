@@ -230,7 +230,6 @@
                       "**/AgentEvent.tsx",
                       "**/SubthreadPart.tsx",
                       "**/TaskBundle.tsx",
-                      "**/TaskStatus.tsx",
                       "**/TaskPeek.tsx",
                       "**/TasksScreen.tsx",
                       "**/TerminalPanel.tsx",

@@ -7,6 +7,7 @@ import {
   EmptyState,
   IconButton,
   Icons,
+  Menu,
   Skeleton,
   StickyScroll,
   type StickyScrollHandle,
@@ -22,6 +23,7 @@ import { useData } from "../data/state.ts";
 import { useT } from "../i18n/index.ts";
 import { PanelSwitcher } from "../panel/PanelSwitcher.tsx";
 import { go, useNav } from "../shell/nav.ts";
+import { RoutineDrawer } from "./RoutineDrawer.tsx";
 import { RoutineEditor } from "./RoutineEditor.tsx";
 import { RunBlock } from "./RunBlock.tsx";
 import { RunRail } from "./RunRail.tsx";
@@ -277,6 +279,7 @@ function RoutineHeader({
   const t = useT();
   const tools = useNav((s) => s.tools);
   const [editing, setEditing] = useState(false);
+  const [shown, setShown] = useState(false);
   return (
     <header className={compact ? "chat__header chat__header--compact" : "chat__header"}>
       {compact && (
@@ -287,29 +290,48 @@ function RoutineHeader({
         <div className="chat__title">
           <span className="chat__name">{routine.name}</span>
           {!routine.enabled && <Tag>{t("routineChat.paused")}</Tag>}
+          <Button
+            size="sm"
+            variant="secondary"
+            className={shown ? "chat__taskbtn is-on" : "chat__taskbtn"}
+            aria-pressed={shown}
+            leadingIcon={<Icons.RefreshCw size={14} />}
+            onClick={() => setShown(!shown)}
+          >
+            {t(shown ? "routineChat.hide" : "routineChat.show")}
+          </Button>
         </div>
         <div className="chat__crumb">
           <span className="rtchat__sub">{sub}</span>
         </div>
       </div>
       <div className="chat__tools">
-        <IconButton
-          size="sm"
-          label={tools ? t("chat.hideTools") : t("chat.showTools")}
-          tooltip={t("chat.toolsHint")}
-          icon={<Icons.Wrench size={14} />}
-          className={tools ? "chat__toolsbtn is-on" : "chat__toolsbtn"}
-          onClick={go.toggleTools}
-        />
-        <IconButton
-          size="sm"
-          label={t("routines.edit")}
-          icon={<Icons.Pencil size={14} />}
-          onClick={() => setEditing(true)}
+        <Menu
+          align="end"
+          trigger={<IconButton size="sm" label={t("chat.more")} icon={<Icons.Ellipsis size={14} />} />}
+          items={[
+            { label: t("routines.edit"), icon: <Icons.Pencil size={14} />, onSelect: () => setEditing(true) },
+            {
+              label: t("chat.showTools"),
+              icon: <Icons.Wrench size={14} />,
+              checked: tools,
+              keepOpen: true,
+              onSelect: go.toggleTools,
+            },
+          ]}
         />
         <span className="chat__toolsdiv" />
         <PanelSwitcher wide={wide} skipUsage />
       </div>
+      {shown && (
+        <RoutineDrawer
+          routine={routine}
+          agentName={agent?.name ?? routine.agent_id}
+          peek
+          onEdit={() => setEditing(true)}
+          onClose={() => setShown(false)}
+        />
+      )}
       {editing && <RoutineEditor draft={draftOf(routine)} onClose={() => setEditing(false)} />}
     </header>
   );

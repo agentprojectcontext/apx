@@ -371,36 +371,11 @@ textarea.inputcard__detail {
 .chat__header--compact .chat__titles {
   min-width: 0;
 }
-.task-status-hint {
-  display: flex;
-  align-items: flex-start;
-  gap: 8px;
-  max-width: min(420px, calc(100vw - 40px));
-}
-.task-status-hint__title {
-  min-width: 0;
-  white-space: normal;
-  overflow-wrap: anywhere;
-}
-.task-status-hint > .apx-badge {
-  flex-shrink: 0;
-}
-.task-status {
-  display: inline-flex;
-  min-width: 0;
-  max-width: 140px;
-}
-.task-status .apx-badge,
-.chat__header--compact .task-status .apx-badge {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
 .chat__header--compact .chat__crumb {
   flex-wrap: wrap;
   gap: 2px 4px;
 }
-.chat__header--compact:has(.task-status) {
+.chat__header--compact:has(.chat__crumb.is-task) {
   height: auto;
   min-height: var(--shell-header-h);
   padding-block: 6px;

@@ -101,25 +101,16 @@ export function TasksTab({ entries }: { entries: Tasks[] }) {
   );
 }
 
-/** Routines: one row each; it opens the routine's runs as one chat. Turned-off ones wait under a fold. */
+/** Routines: one row each; it opens the routine's runs as one chat. */
 export function RoutinesTab({ entries }: { entries: Routines[] }) {
-  const t = useT();
-  const routines = useRoutines((s) => s.routines);
   useEffect(() => {
     void loadRoutines();
   }, []);
-  const off = new Set(routines.filter((r) => !r.enabled).map((r) => r.id));
-  const row = (e: Routines) => <RoutineChatRow key={e.routineId} routineId={e.routineId} runs={e.threads} />;
-  const asleep = entries.filter((e) => off.has(e.routineId));
-  if (asleep.length === entries.length) return <>{entries.map(row)}</>;
   return (
     <>
-      {entries.filter((e) => !off.has(e.routineId)).map(row)}
-      {asleep.length > 0 && (
-        <InboxSection label={t("routines.offMany")} count={asleep.length} foldKey="section:routinesOff">
-          {asleep.map(row)}
-        </InboxSection>
-      )}
+      {entries.map((e) => (
+        <RoutineChatRow key={e.routineId} routineId={e.routineId} runs={e.threads} />
+      ))}
     </>
   );
 }
@@ -134,8 +125,8 @@ function RoutineChatRow({ routineId, runs }: { routineId: string; runs: Thread[]
   const unread = runs.reduce((n, th) => n + th.unread, 0);
   const working = runs.some((th) => isWorking(th.state));
   const failed = latest.state === "failed";
-  const off = routine && !routine.enabled;
-  const state = off ? "is-off" : working ? "is-running" : failed ? "is-failed" : "";
+  // What its runs did, not whether it is on: the latest run's outcome, or running now.
+  const state = working ? "is-running" : failed ? "is-failed" : "";
   return (
     <ConversationRow
       className="threadrow routinerow"
@@ -150,13 +141,7 @@ function RoutineChatRow({ routineId, runs }: { routineId: string; runs: Thread[]
           <span className="threadrow__who">
             <span className={`routinerow__state ${state}`}>
               <span className="routinerow__dot" />
-              {off
-                ? t("routines.off")
-                : working
-                  ? t("routines.state.running")
-                  : failed
-                    ? t("routines.state.failed")
-                    : t("routines.state.done")}
+              {working ? t("routines.state.running") : failed ? t("routines.state.failed") : t("routines.state.done")}
             </span>
             {" · "}
             <Icons.RefreshCw size={12} className="routinerow__runs" /> {runs.length}

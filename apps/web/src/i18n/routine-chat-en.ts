@@ -7,6 +7,8 @@ export const enRoutineChat = {
   "routineChat.runsOne": "1 run",
   "routineChat.runsMany": "{n} runs",
   "routineChat.paused": "Paused",
+  "routineChat.show": "See routine",
+  "routineChat.hide": "Hide routine",
   "routineChat.timeline": "Runs",
   "routineChat.changed": "Instructions changed",
   "routineChat.earlier": "Earlier version",

@@ -64,7 +64,11 @@ export function ThreadRow({ thread, agent, selected, onOpen }: ThreadRowProps) {
               {!inProject && thread.project_id && (
                 <>
                   <span className="threadrow__dot">·</span>
-                  <ProjectBadge id={thread.project_id} name={projectName(projects, thread.project_id)} />
+                  <ProjectBadge
+                    id={thread.project_id}
+                    name={projectName(projects, thread.project_id)}
+                    channel={channel}
+                  />
                 </>
               )}
             </span>

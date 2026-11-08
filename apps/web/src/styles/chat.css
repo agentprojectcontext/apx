@@ -1,6 +1,7 @@
 /* ── Chat ──────────────────────────────────────────────────────────────────── */
 /* The chat sits on the page's own background, like the main card around it. */
 .chat {
+  container: chat / inline-size;
   flex: 1;
   min-width: var(--shell-chat-min-w);
   display: flex;
@@ -918,4 +919,54 @@
 }
 .chat__roompill.is-on {
   background: var(--apx-fill-strong);
+}
+
+/* A task chat: the task's state as a pill beside the title (it shows the task), and under it whose session this is. */
+.chat__taskbtn.apx-btn {
+  flex: none;
+  height: 28px;
+  padding: 0 12px;
+  border-radius: var(--apx-radius-pill);
+  font-size: 12px;
+}
+.chat__taskbtn.is-on {
+  background: var(--apx-fill-strong);
+}
+.chat__crumb.is-task > * + *::before {
+  margin-right: 6px;
+  color: var(--apx-fg-subtle);
+  content: "·";
+}
+.chat__crumb.is-task > .chat__sessions.apx-btn {
+  height: 20px;
+  gap: 3px;
+  padding: 0 4px;
+  margin-left: -4px;
+  color: var(--apx-fg-muted);
+  font-size: inherit;
+  font-weight: inherit;
+}
+.chat__crumb.is-task > .chat__sessions:hover {
+  color: var(--apx-fg);
+}
+.chat__taskwho {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+/* A session in the task's list: the agent's name over what it said last. */
+.tasksess {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  max-width: 220px;
+}
+.tasksess__name {
+  font-weight: var(--apx-weight-medium);
+}
+.tasksess__said {
+  overflow: hidden;
+  color: var(--apx-fg-subtle);
+  font-size: 11.5px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }

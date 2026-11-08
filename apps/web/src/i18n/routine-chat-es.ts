@@ -9,6 +9,8 @@ export const esRoutineChat: Partial<Record<MessageKey, string>> = {
   "routineChat.runsOne": "1 ejecución",
   "routineChat.runsMany": "{n} ejecuciones",
   "routineChat.paused": "Pausada",
+  "routineChat.show": "Ver rutina",
+  "routineChat.hide": "Ocultar la rutina",
   "routineChat.timeline": "Ejecuciones",
   "routineChat.changed": "Instrucciones actualizadas",
   "routineChat.earlier": "Versión anterior",

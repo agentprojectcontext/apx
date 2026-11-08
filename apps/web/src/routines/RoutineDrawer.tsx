@@ -29,7 +29,14 @@ const ACTION_KEY: Record<Routine["action"], MessageKey> = {
  * A routine beside its list: how it is set up (trigger · before · action · after), its prompt and its activations.
  * Opening one shows that run's conversation in the same drawer; back (or Escape) returns to the routine.
  */
-export function RoutineDrawer(props: { routine: Routine; agentName: string; onEdit: () => void; onClose: () => void }) {
+export function RoutineDrawer(props: {
+  routine: Routine;
+  agentName: string;
+  onEdit: () => void;
+  onClose: () => void;
+  /** Opened from the routine's chat: it sits beside the chat, under its header. */
+  peek?: boolean;
+}) {
   const t = useT();
   const { routine: r } = props;
   const runs = useRuns(r);
@@ -38,6 +45,7 @@ export function RoutineDrawer(props: { routine: Routine; agentName: string; onEd
     <Drawer
       label={r.name}
       className="rtdrawer"
+      peek={props.peek ?? false}
       title={<span className="rtdrawer__title">{r.name}</span>}
       onClose={props.onClose}
       back={shown && { label: t("routines.back"), onClick: () => setShown(undefined) }}
