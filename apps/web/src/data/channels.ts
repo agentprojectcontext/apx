@@ -90,6 +90,8 @@ export type ChannelDraft = {
   hours?: ChannelInfo["hours"] | undefined;
   /** Email: the mailbox and its servers (kept on every save). */
   email?: ChannelInfo["email"];
+  /** What its contacts' chats may do unless set for one of them (kept on every save). */
+  contacts?: ChannelInfo["contacts"];
 };
 
 /** What a save sends for an account as it is now: every setting it keeps, so a change of one drops none. */
@@ -107,6 +109,7 @@ export const draftOf = (c: ChannelInfo): ChannelDraft => ({
   research: c.research,
   hours: c.hours,
   ...(c.email ? { email: c.email } : {}),
+  ...(c.contacts ? { contacts: c.contacts } : {}),
 });
 
 /** Lets agents read and send iMessages on this Mac (or stops them). */
@@ -267,9 +270,8 @@ export type ContactDraft = {
   rules?: string;
   muted?: boolean;
   supervised?: boolean;
-  /** Answered at any hour, past the attention hours of the channel they write on. */
-  any_hour?: boolean;
-  perms?: Partial<Person["perms"]>;
+  /** The rights set for this person: a value sets one, null gives it back to the account they write on. */
+  perms?: { [K in keyof Person["perms"]]?: boolean | null };
 };
 
 export async function saveContact(id: string, draft: ContactDraft): Promise<boolean> {

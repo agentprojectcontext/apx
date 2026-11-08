@@ -217,3 +217,16 @@ test("notices for the owner go out only on an account the super-agent answers", 
   assert.equal(env.core.channels.notifyOwner({ text: "Routine news" }), true);
   assert.equal(sent(), 1);
 });
+
+test("an account keeps what its contacts may do by default across saves", async (t) => {
+  const env = await setup(t);
+  const set = (contacts?: { requests?: boolean; any_hour?: boolean }) =>
+    env.client.call("channels.set", {
+      id: "tg",
+      channel: { type: "telegram", agent_id: "superagent", ...(contacts ? { contacts } : {}) },
+      token: TOKEN,
+    });
+  await set({ requests: true, any_hour: true });
+  const saved = (await env.client.call("channels.list", {})).channels.find((c) => c.id === "tg");
+  assert.deepEqual(saved?.contacts, { requests: true, any_hour: true });
+});

@@ -100,7 +100,7 @@ test("who they are and the owner's rules reach the contact's turns, the rules la
   });
   assert.equal(p.relation, "client");
   assert.equal(p.muted, false);
-  assert.deepEqual(p.perms, { appointments: false, requests: false, notes: false });
+  assert.deepEqual(p.perms, {}, "nothing set for them: they follow the account");
   tg.message(MAG, "any news?");
   await waitFor(() => tg.messagesTo(MAG.id).length >= 3, "answer");
   const system = String(llm.calls.at(-1)?.messages[0]?.content);
@@ -396,7 +396,7 @@ test("a close contact's message for the owner needs no flag, becomes a task and 
 test("a contact cannot flood the owner: past 5 requests waiting, pass_request refuses", async () => {
   await env.client.call("contacts.set", { id: person, name: MAG.name, perms: { notes: true } });
   const p = await env.client.call("contacts.set", { id: person, name: MAG.name, perms: { requests: true } });
-  assert.deepEqual(p.perms, { appointments: false, requests: true, notes: true }, "only the flags sent change");
+  assert.deepEqual(p.perms, { requests: true, notes: true }, "only the rights sent change");
   const open = async () =>
     (await env.client.call("tasks.list", {})).tasks.filter((t) => t.person_id === person && t.awaits_owner).length;
   for (let i = await open(); i < 5; i++) {

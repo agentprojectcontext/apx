@@ -97,8 +97,7 @@ for (const width of [412, 1280]) {
       muted: false,
       unreviewed: false,
       supervised: false,
-      any_hour: false,
-      perms: { appointments: false, requests: false, notes: false },
+      perms: {},
       addresses: [{ id: `address-${id}`, person_id: id, channel, external_id: id }],
       created_at: base.created_at,
     });

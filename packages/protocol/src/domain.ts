@@ -954,18 +954,36 @@ export type Address = z.infer<typeof Address>;
 export const PersonRelation = z.enum(PERSON_RELATIONS);
 export type PersonRelation = z.infer<typeof PersonRelation>;
 /**
- * What a contact's chat may do besides talking. All off by default: each one gives the sealed turn exactly one
- * narrow tool (see DECISIONS.md#d-022).
+ * What a contact's chat may do besides talking, and whether it is answered past the attention hours. Each tool one gives
+ * the sealed turn exactly one narrow tool (see DECISIONS.md#d-022). An account sets them for its contacts
+ * (`ChannelInfo.contacts`, all off unless set); a person keeps only the ones the owner set for them, which win.
  */
-export const PersonPerms = z.object({
+const RIGHTS = {
   /** Note an appointment they ask for, for the owner to confirm. */
-  appointments: z.boolean().default(false),
+  appointments: z.boolean(),
   /** Note a request they make (a purchase, a favor) as a task for the owner. */
-  requests: z.boolean().default(false),
+  requests: z.boolean(),
   /** Answer from the owner's own notes (global ones only, read-only). */
-  notes: z.boolean().default(false),
-});
+  notes: z.boolean(),
+  /** Answered at any hour, past the attention hours of the account they write on. */
+  any_hour: z.boolean(),
+};
+/** The rights set somewhere (an account, a person): one not set follows the next place, and in the end is off. */
+export const PersonPerms = z.object(RIGHTS).partial();
 export type PersonPerms = z.infer<typeof PersonPerms>;
+export const ContactRights = z.object({
+  appointments: z.boolean().default(false),
+  requests: z.boolean().default(false),
+  notes: z.boolean().default(false),
+  any_hour: z.boolean().default(false),
+});
+export type ContactRights = z.infer<typeof ContactRights>;
+/** A person's rights on one account: what the owner set for them, the account's for the rest. */
+export const contactRightsOf = (perms: PersonPerms | undefined, account: PersonPerms | undefined): ContactRights =>
+  ContactRights.parse({
+    ...account,
+    ...Object.fromEntries(Object.entries(perms ?? {}).filter(([, v]) => v !== undefined)),
+  });
 export const Person = z.object({
   id: Id,
   name: z.string(),
@@ -985,9 +1003,8 @@ export const Person = z.object({
    * Silenced and supervised exclude each other (setting one clears the other).
    */
   supervised: z.boolean().default(false),
-  /** Answered at any hour, past the attention hours of the channel they write on. */
-  any_hour: z.boolean().default(false),
-  perms: PersonPerms.default({ appointments: false, requests: false, notes: false }),
+  /** The rights the owner set for them; the rest follow the account they write on (`ChannelInfo.contacts`). */
+  perms: PersonPerms.default({}),
   addresses: z.array(Address),
   created_at: z.string(),
 });
@@ -1170,6 +1187,8 @@ export const ChannelInfo = z.object({
   research: ChannelResearch.optional(),
   /** When it answers contacts; none: at any hour. The owner is always answered. */
   hours: ChannelHours.optional(),
+  /** What its contacts' chats may do unless the owner set it for one of them (none: all off). */
+  contacts: PersonPerms.optional(),
   /** Email: the mailbox and its servers. */
   email: ChannelEmail.optional(),
   token_set: z.boolean(),

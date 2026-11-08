@@ -353,7 +353,7 @@ function AccountDialog({ edit }: { edit: AccountEdit }) {
                 save={async (rooms) => set({ rooms })}
               />
             ) : shown === "contacts" ? (
-              <ContactsPane channel={paneProps.channel} />
+              <ContactsPane {...paneProps} />
             ) : shown === "approvals" ? (
               <ApprovalsPane {...paneProps} />
             ) : (

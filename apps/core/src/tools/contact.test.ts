@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
 import { after, before, test } from "node:test";
+import { audienceOf } from "../engine/audience.ts";
 import { callTool, say, scriptedLlm, startCore } from "../engine/testkit.ts";
+import { contactHolder, contactToolNames } from "./contact.ts";
 
 type Request = {
   kind: "request" | "appointment";
@@ -214,4 +216,48 @@ test("a full description keeps the owner's notes and records the update in the t
   assert.match(text, /trust="untrusted"/);
   assert.match(text, /&#64;owner/);
   assert.equal(chat.runs.length, 0, "contact text starts no task work");
+});
+
+test("a contact's chat follows its account's rights for contacts, unless the owner set one for that person", async () => {
+  const { store } = env.core;
+  const saved = store.settings.read("channels");
+  store.settings.write("channels", [
+    ...saved,
+    {
+      id: "acme-sales",
+      type: "whatsapp",
+      label: "Acme sales",
+      enabled: false,
+      agent_id: "superagent",
+      strangers: "pair",
+      concurrency: "steer",
+      owner_thread: "home",
+      contacts: { requests: true, notes: true },
+    },
+  ]);
+  try {
+    const person = await env.client.call("contacts.set", { name: "Northwind Buyer" });
+    const thread = store.threads.create({
+      kind: "channel",
+      title: person.name,
+      agent_ids: ["superagent"],
+      channel: { id: "acme-sales", conversation: person.id, person_id: person.id },
+    });
+    const tools = () => contactToolNames(contactHolder(audienceOf(store, thread)));
+    assert.deepEqual([...tools()].sort(), ["pass_request", "search_owner_notes"], "the account's rights");
+    await env.client.call("contacts.set", { id: person.id, name: person.name, perms: { notes: false } });
+    assert.deepEqual([...tools()], ["pass_request"], "what the owner set for them wins");
+    await env.client.call("contacts.set", { id: person.id, name: person.name, perms: { notes: null } });
+    assert.deepEqual([...tools()].sort(), ["pass_request", "search_owner_notes"], "null gives it back to the account");
+    // Elsewhere, an account that sets nothing: none.
+    const other = store.threads.create({
+      kind: "channel",
+      title: person.name,
+      agent_ids: ["superagent"],
+      channel: { id: "test", conversation: `${person.id}-2`, person_id: person.id },
+    });
+    assert.equal(contactToolNames(contactHolder(audienceOf(store, other))).size, 0);
+  } finally {
+    store.settings.write("channels", saved);
+  }
 });

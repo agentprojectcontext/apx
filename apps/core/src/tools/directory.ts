@@ -123,7 +123,7 @@ export function directoryTools(store: Store): Tool[] {
               p.relation ?? "",
               `on ${on}`,
               p.muted ? "silenced" : p.supervised ? "supervised: the owner approves each answer" : "",
-              p.any_hour ? "answered at any hour" : "",
+              p.perms.any_hour ? "answered at any hour" : "",
             ];
             // A contact's name is the one they gave on their app: one plain line, so it cannot add contacts or orders.
             return `- ${inlineName(p.name) || "someone"} [${p.id}] (${bits.filter(Boolean).join(", ")})${p.note ? `: ${p.note.slice(0, 200)}` : ""}`;

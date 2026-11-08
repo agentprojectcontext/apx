@@ -1208,4 +1208,15 @@ export const MIGRATIONS: readonly string[] = [
   CREATE INDEX tasks_status ON tasks(state, status, id);
   CREATE INDEX tasks_parent_state ON tasks(parent_id, state);
   `,
+  `
+  -- A person keeps only the contact rights the owner turned on for them; the rest follow the account they write on
+  -- (ChannelInfo.contacts, D-205). Answered at any hour joins them there.
+  UPDATE persons SET perms = (
+    SELECT json_group_object(key, json('true')) FROM (
+      SELECT key FROM json_each(CASE WHEN json_valid(persons.perms) THEN persons.perms ELSE '{}' END) WHERE value = 1
+      UNION ALL SELECT 'any_hour' WHERE persons.any_hour = 1
+    )
+  );
+  ALTER TABLE persons DROP COLUMN any_hour;
+  `,
 ];

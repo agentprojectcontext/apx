@@ -378,4 +378,9 @@ export const enChannels = {
     "Its sign-in is removed and nobody answers there any more. Its chats stay in APX; to use it again, connect it again.",
   "acct.pane.stickers": "Stickers and emoji",
   "acct.lead.stickers": "How it answers without words on this account.",
+  "ch.right.account": "Account: {value}",
+  "ch.right.yes": "Yes",
+  "ch.right.no": "No",
+  "acct.contactsDefault": "For your contacts, by default",
+  "acct.contactsDefaultHint": "What every contact of this account gets unless you set it on their card.",
 } as const;

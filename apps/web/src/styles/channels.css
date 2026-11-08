@@ -1136,3 +1136,12 @@
   padding: 0;
   list-style: none;
 }
+/* A contact's right: its name over its three choices (as the account says, or theirs on or off). */
+.chan__right {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.chan__rightlabel {
+  font-size: var(--apx-text-sm);
+}

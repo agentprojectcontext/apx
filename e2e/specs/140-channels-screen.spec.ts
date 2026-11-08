@@ -76,8 +76,17 @@ test("leaving with unsaved edits asks first; contacts and what went out are list
   await expect(dialog.getByText("Cambios sin guardar")).toBeVisible();
   await dialog.getByRole("button", { name: "Descartar" }).click();
 
-  // Contacts: everyone on this account, with Add contact.
+  // Contacts: what every contact of the account may do unless set on their card, everyone on it, and Add contact.
   await dialog.getByRole("button", { name: /^Contactos/ }).click();
+  await dialog.getByRole("switch", { name: "Tomar pedidos", exact: true }).click();
+  await dialog.getByRole("button", { name: /^Guardar (⌘|Ctrl)/ }).click();
+  await until(async () =>
+    (await rpc<{ channels: Array<{ id: string; contacts?: { requests?: boolean } }> }>("channels.list")).channels.some(
+      (c) => c.id === "whatsapp" && c.contacts?.requests === true,
+    ),
+  );
+  await dialog.getByRole("switch", { name: "Tomar pedidos", exact: true }).click();
+  await dialog.getByRole("button", { name: /^Guardar (⌘|Ctrl)/ }).click();
   await expect(dialog.getByRole("button", { name: /Lucía/ })).toBeVisible();
   await dialog.getByRole("button", { name: "Agregar contacto" }).click();
   await dialog.getByRole("textbox", { name: "Nombre" }).fill("Northwind");

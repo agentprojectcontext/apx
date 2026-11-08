@@ -502,3 +502,31 @@ test("being in Apps is kept apart from being an app: what the owner put there st
     cleanup();
   }
 });
+
+test("a person keeps only the rights the owner turned on; the rest follow the account, any hour included", () => {
+  const { db, cleanup } = upgradeFrom("ALTER TABLE persons DROP COLUMN any_hour", (db) => {
+    const person = db.prepare(
+      "INSERT INTO persons (id, name, role, perms, any_hour, created_at, updated_at) VALUES (?, ?, 'contact', ?, ?, '2026-10-01', '2026-10-01')",
+    );
+    person.run("per_off", "Off", '{"appointments":false,"requests":false,"notes":false}', 0);
+    person.run("per_on", "On", '{"appointments":false,"requests":true,"notes":true}', 1);
+    person.run("per_none", "None", null, 0);
+    person.run("per_bad", "Bad", "not json", 1);
+  });
+  try {
+    const perms = (id: string) =>
+      JSON.parse(String(db.prepare("SELECT perms FROM persons WHERE id = ?").get(id)?.perms ?? "null"));
+    assert.deepEqual(perms("per_off"), {});
+    assert.deepEqual(perms("per_on"), { requests: true, notes: true, any_hour: true });
+    assert.deepEqual(perms("per_none"), {});
+    assert.deepEqual(perms("per_bad"), { any_hour: true });
+    const columns = db
+      .prepare("SELECT name FROM pragma_table_info('persons')")
+      .all()
+      .map((c) => c.name);
+    assert.ok(!columns.includes("any_hour"), "answered at any hour lives with the other rights");
+  } finally {
+    db.close();
+    cleanup();
+  }
+});

@@ -2,8 +2,16 @@
 // no tools of the engine's own, no memory, no projects, no other conversations, only this chat — plus, when the owner
 // allows it for that person, one of the narrow contact tools (tools/contact.ts), and web search and reading where the
 // channel allows research. See DECISIONS.md#d-014, DECISIONS.md#d-059
-import { CHANNEL_DEFAULTS, ChannelRooms, type Message, type Person, type Thread } from "@apx/protocol";
+import {
+  CHANNEL_DEFAULTS,
+  ChannelRooms,
+  type ContactRights,
+  type Message,
+  type Person,
+  type Thread,
+} from "@apx/protocol";
 import type { AgentRecord } from "../domain/agents.ts";
+import { contactRights } from "../domain/contact-rights.ts";
 import type { Origin } from "../domain/runs.ts";
 import type { Store } from "../domain/store.ts";
 import { inlineName, untrusted } from "../tools/result.ts";
@@ -13,7 +21,15 @@ export type Room = { name: string; settings: ChannelRooms; platform?: string | u
 
 export type Audience =
   | { kind: "owner" }
-  | { kind: "contact"; name: string; channel: string; person?: Person; room?: Room };
+  | {
+      kind: "contact";
+      name: string;
+      channel: string;
+      person?: Person;
+      /** What their chat may do on this account (a person's own rights, else the account's); none in a room. */
+      rights?: ContactRights;
+      room?: Room;
+    };
 
 export function audienceOf(store: Store, thread: Pick<Thread, "id" | "channel">): Audience {
   const ch = thread.channel;
@@ -33,7 +49,7 @@ export function audienceOf(store: Store, thread: Pick<Thread, "id" | "channel">)
     kind: "contact",
     name: inlineName(person?.name ?? "") || "someone",
     channel: ch.id,
-    ...(person ? { person } : {}),
+    ...(person ? { person, rights: contactRights(store, person, ch.id) } : {}),
   };
 }
 

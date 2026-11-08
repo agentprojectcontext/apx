@@ -4193,6 +4193,9 @@ project's agents, so a project's agent could never answer a channel.
   act at once. A new account opens on its connection and keeps the rest closed until it is connected. What is not one
   account's (when unanswered questions follow the owner) moved to Settings › Interruptions; links to the old place
   (`apx:settings/channels`) open the screen.
+- **What a contact's chat may do is set per account** (`ChannelInfo.contacts`: requests, appointments, the owner's
+  notes, any hour), and a person keeps only the rights the owner set on their card (`Person.perms`, partial), which win
+  on every account; null gives one back. Owner notices go out only on an account the super-agent answers.
 
 Rejected: removing Home as the destination of the owner's words, migrating saved settings to "own chat" at boot (it
 breaks the one conversation and a migration belongs to `doctor --fix`), resetting a chat's agents on every incoming

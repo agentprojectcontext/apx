@@ -25,7 +25,10 @@ export const CHANNEL_AGENTS_NEWS: NewsEntry = {
     "chats it answered, except one the owner handed to another agent. The owner can also connect more accounts of the " +
     "same app in Channels (its own screen in the sidebar) › New channel; each has its own sign-in, contacts and " +
     "agents, and iMessage stays " +
-    "one. Offer to review which agent answers each of their channels; change one only when they ask.",
+    "one. Each account can also set what its contacts may do by default (take requests, appointment requests, answer " +
+    "from the owner's notes, answer at any hour: channels.set contacts); what the owner sets on one contact's card " +
+    "(contacts.set perms) wins, and null gives it back to the account. Offer to review which agent answers each of " +
+    "their channels; change one only when they ask.",
   actions: [
     {
       label: { en: "Review who answers my channels", es: "Revisar quién atiende mis canales" },

@@ -127,8 +127,12 @@ Open a contact from the channel's screen to set:
 
 - **Who they are**, in your words. It reaches only the turns that answer this person.
 - **Rules**, which go last in the prompt and win over the agent's caution.
-- **What this conversation may do**: **Take appointment requests**, **Take requests** (each becomes a task for you)
-  and **Answer from my notes** (your general notes, read only). All off by default.
+- **What this conversation may do**: **Take appointment requests**, **Take requests** (each becomes a task for you),
+  **Answer from my notes** (your general notes, read only) and **Answer at any hour**. Each one follows the account by
+  default (**Account: Yes** or **No**), or you set **Yes** or **No** for this person only.
+
+What every contact of an account gets by default is in that account's settings, **Contacts › For your contacts, by
+default**: all off until you turn one on. A contact's own choice wins over it, on that account and any other.
 - **Silence**: their messages are kept but never reach a model.
 - **Supervise**: they aren't answered on their own; you get the answer the agent would send, to send it, edit it or
   drop it. See [Supervised contacts](/channels/supervised/).
@@ -182,7 +186,7 @@ the day they start on (Friday 20:00–02:00 covers the first hours of Saturday).
   are answered a few at a time, the longest waiting first. A supervised contact gets its draft then.
 - If they write again once the hours have begun, that message is answered with the earlier ones in view, and only
   once.
-- You are always answered, on any channel. A contact with **Answer at any hour** (in their card) is too.
+- You are always answered, on any channel. A contact with **Answer at any hour** (in their card, or for every contact in the account's settings) is too.
 - In rooms, outside the hours only you are answered, and nothing said meanwhile is answered later.
 
 You can also ask your super-agent in chat ("answer WhatsApp Monday to Friday 9 to 18, and my dad at any hour"): it sets

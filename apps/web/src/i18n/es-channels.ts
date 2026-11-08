@@ -396,4 +396,9 @@ export const esChannels: Partial<Record<MessageKey, string>> = {
     "Se borra su sesión y nadie responde más ahí. Sus conversaciones quedan en APX; para usarla de nuevo, volvés a conectarla.",
   "acct.pane.stickers": "Stickers y emojis",
   "acct.lead.stickers": "Cómo responde sin palabras en esta cuenta.",
+  "ch.right.account": "Cuenta: {value}",
+  "ch.right.yes": "Sí",
+  "ch.right.no": "No",
+  "acct.contactsDefault": "Para tus contactos, por defecto",
+  "acct.contactsDefaultHint": "Lo que recibe cada contacto de esta cuenta, salvo que lo cambies en su ficha.",
 };
