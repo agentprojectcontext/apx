@@ -129,8 +129,8 @@ Un modelo que llega al límite de uso de su cuenta (la cuota de un plan, un lím
 la hora de reinicio que dio el proveedor, o 10 minutos si no dio ninguna: los turnos siguientes van directo al modelo
 siguiente en lugar de volver a preguntarle, y el aviso repite lo que dijo el proveedor cuando lo retuvo. Un pedido que
 el modelo rechaza (un archivo que no puede leer, por ejemplo) no es un límite de uso: a ese modelo se le vuelve
-a preguntar en el turno siguiente. Si ningún modelo de la cadena puede responder, el turno se detiene y dice
-cuándo se levanta el límite; cuando se levanta, APX retoma el turno en el mismo chat, con lo que ya había hecho, y el
+a preguntar en el turno siguiente. Si ningún modelo de la cadena puede responder y uno de ellos está en su límite, el turno
+se detiene y dice cuándo se levanta el límite, aunque un modelo de respaldo haya rechazado el pedido; cuando se levanta, APX retoma el turno en el mismo chat, con lo que ya había hecho, y el
 agente lo termina. Lo hace solo con el último turno del chat y hasta tres veces seguidas, nunca con una rutina (su
 próxima corrida llega a su hora) ni con los agentes en pausa. Un turno detenido hace más de un día queda como está.
 

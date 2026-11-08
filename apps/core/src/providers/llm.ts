@@ -149,8 +149,11 @@ export function createLlm(opts: {
         );
       let last: ProviderError | undefined;
       const limited: ProviderError[] = [];
-      // A key, a model or a request the owner must fix: told as such even when another model hit a limit.
+      // A key or a model the owner must fix: told as such even when another model hit a limit.
       let broken: ProviderError | undefined;
+      // A request one model refused (its format, an image too big for it) is that model's alone: it never hides
+      // another model's limit, so the stopped turn still resumes at the reset (engine/provider-limit.ts).
+      let refused: ProviderError | undefined;
       const skipped = new Set<string>();
       const failed: ModelFailure[] = [];
       const need = tokensOf(req);
@@ -265,8 +268,8 @@ export function createLlm(opts: {
           const until = last.resetsAt ? Date.parse(last.resetsAt) : now() + UNSAID_HOLD_MS;
           held.set(ref, { until, error: new ProviderError(last.kind, last.message, last.resetsAt) });
         }
-        if (last && (last.kind === "auth" || last.kind === "model_gone" || last.kind === "bad_request"))
-          broken ??= last;
+        if (last && (last.kind === "auth" || last.kind === "model_gone")) broken ??= last;
+        if (last?.kind === "bad_request") refused ??= last;
         if (streamed) {
           streamed = false;
           req.onText?.("");
@@ -276,7 +279,7 @@ export function createLlm(opts: {
       const reasons = failed.map((f) => `${f.model}: ${f.why}`).join("\n");
       if (limited.length && !broken) throw limitError(limited, reasons);
       throw new ProviderError(
-        broken?.kind ?? last?.kind ?? "auth",
+        broken?.kind ?? refused?.kind ?? last?.kind ?? "auth",
         reasons || last?.message || "no usable model provider",
       );
     },
