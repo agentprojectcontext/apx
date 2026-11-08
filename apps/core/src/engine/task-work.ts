@@ -28,7 +28,6 @@ import { closedIn, reportClose } from "./task-report.ts";
 /** How often assigned tasks that never started are looked at, and how many start each time. */
 export const PICKUP_EVERY_MS = 3600_000;
 const PICKUP_AT_ONCE = 3;
-const PRIORITY_RANK: Record<Task["priority"], number> = { urgent: 0, high: 1, normal: 2, low: 3 };
 
 /** Who asked for the work: the owner (assigning, commenting) or another agent, at some depth of hand-offs. */
 export type Asker =
@@ -409,27 +408,16 @@ export function proposalReason(
 export const startsLater = (task: Pick<Task, "start_at">, now = new Date()): boolean =>
   Boolean(task.start_at && task.start_at > now.toISOString());
 
+/** The tasks agents gave while paused, kept by these chats until their chain goes on. */
+const heldTasks = (store: Store, holders: readonly string[]): string[] =>
+  holders.flatMap((id) => (store.threads.context(id).held ?? []).map((h) => h.task));
+
 /** Assigned tasks whose start time came and whose work never began, a few at a time (the office clock, each tick). */
 export function startScheduled(store: Store, admit: AdmitFn, now: Date): RunRecord[] {
   // A task an agent gave while paused waits for its chain to go on, never for the clock (DECISIONS.md#d-082).
-  const held = new Set(
-    store.threads.holding().flatMap((id) => (store.threads.context(id).held ?? []).map((h) => h.task)),
-  );
-  return store.tasks
-    .list({ state: "open", limit: 500 })
-    .filter(
-      (t) =>
-        t.start_at &&
-        !t.proposed &&
-        !startsLater(t, now) &&
-        t.status !== "review" &&
-        !held.has(t.id) &&
-        t.assignee &&
-        store.agents.get(t.assignee) &&
-        t.description.trim() &&
-        store.threads.byTask(t.id).length === 0,
-    )
-    .slice(0, PICKUP_AT_ONCE)
+  return store.taskLanes
+    .scheduled(now.toISOString(), heldTasks(store, store.threads.holding()), PICKUP_AT_ONCE)
+    .flatMap((id) => store.tasks.get(id) ?? [])
     .flatMap((t) => startLater(store, admit, t, now) ?? []);
 }
 
@@ -636,14 +624,6 @@ export function afterWorkTurn(store: Store, admit: AdmitFn, run: RunRecord): voi
   else continueTask(store, admit, run);
 }
 
-/** When a task was last given to its agent (its creation with one, or the last assignment). */
-function assignedAt(store: Store, task: Task): string | undefined {
-  return store.tasks
-    .events(task.id)
-    .filter((e) => (e.op === "assign" || e.op === "create") && typeof e.data.assignee === "string")
-    .at(-1)?.at;
-}
-
 /**
  * The hourly pickup: open tasks assigned to an agent (since this way of working began) that never started, the most
  * pressing first (priority, then the nearest due date), a few at a time.
@@ -654,24 +634,8 @@ export function pickUpTasks(store: Store, admit: AdmitFn): RunRecord[] {
   // A task an agent gave while paused waits for its chain to go on, never for the clock (DECISIONS.md#d-082).
   const holders = store.threads.holding();
   startHeld(store, admit, holders);
-  const held = new Set(holders.flatMap((id) => store.threads.context(id).held ?? []).map((h) => h.task));
-  const waiting = store.tasks
-    .list({ state: "open", limit: 500 })
-    .filter(
-      (t) =>
-        t.assignee &&
-        t.description.trim() &&
-        !held.has(t.id) &&
-        t.status !== "review" &&
-        !t.proposed &&
-        !startsLater(t) &&
-        store.agents.get(t.assignee) &&
-        store.threads.byTask(t.id).length === 0 &&
-        (assignedAt(store, t) ?? "") >= since,
-    )
-    .sort(
-      (a, b) =>
-        PRIORITY_RANK[a.priority] - PRIORITY_RANK[b.priority] || (a.due_at ?? "￿").localeCompare(b.due_at ?? "￿"),
-    );
-  return waiting.slice(0, PICKUP_AT_ONCE).flatMap((t) => startLater(store, admit, t) ?? []);
+  return store.taskLanes
+    .unstarted(since, new Date().toISOString(), heldTasks(store, holders), PICKUP_AT_ONCE)
+    .flatMap((id) => store.tasks.get(id) ?? [])
+    .flatMap((t) => startLater(store, admit, t) ?? []);
 }

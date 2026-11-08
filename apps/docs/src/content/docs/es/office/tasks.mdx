@@ -153,7 +153,9 @@ La descripción se lee con formato (listas, negritas, enlaces); el lápiz la abr
 Las tareas asignadas que nunca arrancaron se retoman solas: una vez por hora, las más urgentes se ponen en marcha,
 como de quien las dio: una tarea que dio un agente cuenta para los límites de ese agente, nunca como un pedido tuyo.
 Para que una arranque más tarde (mañana a la mañana, después de una salida a producción), poné **Empieza** en su
-panel, o `apx tasks add … --start 2026-10-23T09:00`: su agente arranca a esa hora, no cuando la asignás.
+panel, o `apx tasks add … --start 2026-10-23T09:00`: su agente arranca a esa hora, no cuando la asignás. Por más tareas que
+tenga el tablero, la retoma y los horarios de inicio tienen en cuenta todas las que pueden arrancar, no solo las que se
+movieron hace poco.
 
 ### Pasar el trabajo actual a una tarea
 
@@ -188,6 +190,11 @@ Cuando el turno de un agente en una tarea termina con la tarea todavía en curso
 después"), su parte siguiente arranca enseguida, numerada, hasta nueve. Para cuando el agente cierra la tarea, la marca
 esperándote con lo que tenés que hacer, dice qué lo bloquea, o cuando una parte no avanzó. Para cerrar su trabajo como
 hecho, el agente tiene que decir qué verificó.
+
+Si una tarea sigue en curso sin nada corriendo (ningún turno en 20 minutos, dentro del día de su último turno), APX le
+pide una vez a su agente que siga o diga qué espera, y te avisa si se vuelve a frenar. Cada diez minutos APX mira hasta
+100 tareas en curso y le pide a tres agentes como mucho, así que en una oficina grande cada tarea llega a su turno en
+varias pasadas. Una tarea trabajada por última vez hace más de un día queda para vos.
 
 ### Cuando se cierra la tarea de un agente
 

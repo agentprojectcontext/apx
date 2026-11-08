@@ -1202,4 +1202,10 @@ export const MIGRATIONS: readonly string[] = [
   ALTER TABLE runs ADD COLUMN trimmed INTEGER NOT NULL DEFAULT 0;
   CREATE INDEX runs_trimmed ON runs(trimmed, ended_at) WHERE ended_at IS NOT NULL;
   `,
+  `
+  -- The office clock filters eligible tasks in SQL, whatever their activity (domain/task-lanes.ts, D-206).
+  CREATE INDEX tasks_start ON tasks(state, start_at) WHERE start_at IS NOT NULL;
+  CREATE INDEX tasks_status ON tasks(state, status, id);
+  CREATE INDEX tasks_parent_state ON tasks(parent_id, state);
+  `,
 ];

@@ -113,6 +113,9 @@ stalled tasks, Google Calendar's event reminders (`engine/calendar-reminders.ts`
 (`engine/mail-check.ts`) are checks; each one an integration does is turned on and timed in that integration's
 settings (`integrations.settings` / `integrations.configure`, a `SETTINGS` entry), never in the routines list.
 [D-171](DECISIONS.md#d-171) says when new periodic work is a check and when it is a routine.
+The office clock's task lanes (`engine/task-work.ts` start times and pickup, `engine/task-stall.ts`) take their
+candidates from `domain/task-lanes.ts`, which filters eligibility in SQL before any limit; the stall check walks tasks in
+progress a page at a time from a saved cursor and asks a few agents per check ([D-206](DECISIONS.md#d-206)).
 
 ## 3. Modules and dependency direction
 

@@ -38,6 +38,7 @@ import { stickersRepo } from "./stickers.ts";
 import { suggestionsRepo } from "./suggestions.ts";
 import { surfacesRepo } from "./surfaces.ts";
 import { taskAttachmentsRepo } from "./task-attachments.ts";
+import { taskLanesRepo } from "./task-lanes.ts";
 import { tasksRepo } from "./tasks.ts";
 import { threadsRepo } from "./threads.ts";
 
@@ -86,6 +87,7 @@ export function createStore(db: Db, bus: Bus) {
     stickers: stickersRepo(q),
     surfaces: surfacesRepo(q, bus),
     tasks: tasksRepo(q, bus),
+    taskLanes: taskLanesRepo(q),
     routines: routinesRepo(q),
     notifications: notificationsRepo(q, bus),
     extensions: extensionsRepo(q),

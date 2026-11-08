@@ -4200,3 +4200,29 @@ message (it undoes hand-overs), and per-channel "customer service" modes that gi
 included, the agent's tools and MCP servers, with a model's JSON answer as the gate in the reviewed mode. Contacts'
 messages are untrusted (rule 10); opening tools to them needs its own design: the exact tools the owner lends, what
 each may reach, and who confirms what.
+
+<a id="d-206"></a>
+## D-206 — 2026-11-08 — The office clock filters task eligibility in SQL; stall recovery walks a cursor
+
+Start times, the hourly pickup and the stall check each listed the 500 most recently active open tasks and filtered
+them in code, so in an office with more open tasks an eligible older one was never seen (#139).
+
+- **Start times and pickup filter in SQL** (`domain/task-lanes.ts`): open, not proposed or in review, described, an
+  agent that exists, no chat yet, not held, start time come (pickup: assigned since `task_work_since`), ordered as
+  before (start time; priority then nearest due date) and limited to the three that start. Every condition the start
+  checks again is in the query, so a task that cannot start never takes a slot; a tripped chain turns into a hold and
+  leaves the query. No cursor or saved state is needed.
+- **Stall recovery walks a cursor.** Whether a task stalled depends on its chats' last turns, which SQL does not filter
+  cheaply, so the check takes the next 100 tasks in progress (in progress, an existing agent, not awaiting the owner,
+  no open subtask) after a cursor saved in settings (`task_stall_after`), wraps once to the start, and asks at most
+  three agents; the cursor stops at the last task looked at, so the rest wait for the next check. Before, one check
+  could start as many agents as there were stalls among 500.
+- **Capacity and the recovery window.** The window stays 20 minutes to 24 hours after the last turn, and the check every
+  ten minutes: a full cycle takes `ceil(N / 100)` checks for N tasks in progress, so up to about 14,000 tasks in
+  progress are each looked at within a day. Beyond that, or with more than about 430 stalls a day, some stalls pass
+  the 24-hour window and stay for the owner, as any task left longer than a day already did. Widening the window or
+  the pace is a product decision, not part of this fix.
+- **Not done here.** No per-project rotation, time slicing or candidate queue: one check looks at a bounded page, and
+  each task's own inspection (its chats' family) is as before. Who a held or later start acts as (#132, #141, #142) is
+  unchanged.
+

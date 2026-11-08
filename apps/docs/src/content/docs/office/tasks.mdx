@@ -151,7 +151,8 @@ The description reads as formatted text (lists, bold, links); the pencil opens i
 Assigned tasks that never started are picked up on their own: once an hour, the most pressing few get started, as
 whoever gave them: a task an agent gave counts against that agent's limits, never as your own request. To
 have one start later (tomorrow morning, after a release), set **Starts** in its drawer, or `apx tasks add … --start
-2026-10-23T09:00`: its agent starts then, not when you assign it.
+2026-10-23T09:00`: its agent starts then, not when you assign it. However many tasks the board holds, the pickup and
+start times consider every task that can start, not only the recently active ones.
 
 ### Moving the current work into a task
 
@@ -185,6 +186,11 @@ When an agent's turn on a task ends with the task still in progress (it ran out 
 continue"), its next part starts at once, numbered, up to nine. It stops when the agent closes the task, marks it
 waiting on you with what you must do, says what blocks it, or when a part got nowhere. Closing its own work as done,
 an agent must say what it verified.
+
+If a task stays in progress with nothing running on it (no turn for 20 minutes, within a day of its last one), APX asks
+its agent once to go on or say what it waits for, and tells you if it stops again. Every ten minutes APX looks at up to
+100 tasks in progress and asks at most three agents, so in a large office every task gets its turn over several checks.
+A task last worked on more than a day ago is left for you.
 
 ### When an agent's task closes
 
