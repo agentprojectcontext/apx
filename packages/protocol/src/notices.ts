@@ -83,7 +83,7 @@ export const noticeEn = {
   "notice.thread.compacted":
     "Earlier turns were summarized to keep this chat's context small. Nothing new was started.",
   "notice.task.stalled": "Nothing was running on this task: APX asked the agent to go on or say what it waits for.",
-  "notice.pairing.request": "Someone new wants to talk on a channel: approve them in Settings → Channels.",
+  "notice.pairing.request": "Someone new wants to talk on a channel: approve them in Channels.",
 };
 
 export type NoticeKey = keyof typeof noticeEn;
@@ -171,7 +171,7 @@ export const noticeEs: Record<NoticeKey, string> = {
   "notice.thread.compacted":
     "Se resumieron los turnos anteriores para que el contexto de este chat sea más chico. No se empezó nada nuevo.",
   "notice.task.stalled": "No había nada corriendo en esta tarea: APX le pidió al agente que siga o diga qué espera.",
-  "notice.pairing.request": "Alguien nuevo quiere hablar por un canal: aprobalo en Configuración › Canales.",
+  "notice.pairing.request": "Alguien nuevo quiere hablar por un canal: aprobalo en Canales.",
 };
 
 const NOTICES = { en: noticeEn, es: noticeEs } as const;
