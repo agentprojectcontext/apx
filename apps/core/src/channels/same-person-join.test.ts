@@ -4,9 +4,11 @@ import type { Part } from "@apx/protocol";
 import { createBus } from "../bus.ts";
 import { openDb } from "../db/db.ts";
 import { createStore, type Store } from "../domain/store.ts";
-import { tempDir } from "../testkit/platform.ts";
+import { manualTimers, tempDir, waitFor } from "../testkit/platform.ts";
+import { fakeWhatsApp } from "./fake-whatsapp.test-support.ts";
 import { joinSplitContacts } from "./same-person.ts";
-import type { ChannelAdapter } from "./types.ts";
+import type { AdapterIO, ChannelAdapter } from "./types.ts";
+import { whatsappAdapter } from "./whatsapp.ts";
 
 const PHONE = "5491100000007@s.whatsapp.net";
 const LID = "200000000000007@lid";
@@ -215,3 +217,69 @@ test("a stranger's defaults never loosen the contact the owner reviewed", () =>
     assert.equal(dana?.unreviewed, false);
     assert.equal(dana?.perms.notes, true);
   }));
+
+test("contacts already joined are not joined again on the next connect, and one left with a chat still is", () =>
+  split(async ({ store, known, byNumber, byId }) => {
+    assert.equal(await joinSplitContacts(store, "whatsapp", line), 1);
+    let tries = 0;
+    const counted = {
+      ...store,
+      threads: {
+        ...store.threads,
+        joinChats: (...a: Parameters<Store["threads"]["joinChats"]>) => {
+          tries++;
+          return store.threads.joinChats(...a);
+        },
+      },
+    };
+    assert.equal(await joinSplitContacts(counted, "whatsapp", line), 0);
+    assert.equal(tries, 0, "nothing left to join under the private id");
+
+    // A chat a turn kept under the private id last time is joined now.
+    const left = store.threads.create({
+      kind: "channel",
+      title: "Dana",
+      agent_ids: ["superagent"],
+      channel: { id: "whatsapp", conversation: LID, person_id: known.id },
+    });
+    assert.equal(await joinSplitContacts(counted, "whatsapp", line), 1);
+    assert.equal(store.threads.get(left.id), undefined);
+    assert.ok(store.threads.get(byNumber.id));
+    assert.equal(store.threads.get(byId.id), undefined);
+  }));
+
+test("a line whose id store stops answering gives up on the lookup instead of waiting forever", async () => {
+  const fake = fakeWhatsApp();
+  const home = tempDir("apx-wa-lookup-");
+  const timers = manualTimers();
+  const adapter = whatsappAdapter({ dir: home.path, lib: async () => fake.lib, timers });
+  try {
+    let up = false;
+    const io: AdapterIO = {
+      receive: () => {},
+      action: () => {},
+      status: () => {},
+      qr: (code) => code && fake.scan(),
+      identified: () => {
+        up = true;
+      },
+      signal: new AbortController().signal,
+    };
+    await adapter.start(io);
+    await waitFor(() => up, "linked");
+    fake.knows({ phone: PHONE, name: "Dana", lid: LID });
+    fake.stallLookups();
+    let pairs: Array<{ from: string; to: string }> | undefined;
+    void adapter.sameAs?.([LID]).then((p) => {
+      pairs = p;
+    });
+    await waitFor(() => timers.pending() > 0, "a lookup with its deadline");
+    assert.equal(pairs, undefined, "still asking");
+    timers.tick(60_000);
+    await waitFor(() => pairs !== undefined, "the lookup given up");
+    assert.deepEqual(pairs, [], "nothing known is joined");
+  } finally {
+    await adapter.stop();
+    home.remove();
+  }
+});
