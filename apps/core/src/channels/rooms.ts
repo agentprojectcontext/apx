@@ -11,6 +11,7 @@ import type { Store } from "../domain/store.ts";
 import { previewOf } from "../domain/threads.ts";
 import type { Log } from "../log.ts";
 import type { InternalCall } from "../rpc/internal.ts";
+import { agentProject } from "./agent-project.ts";
 import type { TellOwner } from "./owner-notices.ts";
 import { channelTexts } from "./texts.ts";
 import type { ChannelConfig } from "./types.ts";
@@ -125,6 +126,7 @@ export function createRooms(deps: {
       kind: "channel",
       title: `#${room.name || room.id}`,
       agent_ids: [cfg.agent_id],
+      project_id: agentProject(store, cfg.agent_id),
       channel: { id: cfg.id, conversation: room.id },
     });
     store.threads.mergeContext(t.id, { room: { name: room.name || room.id } });
