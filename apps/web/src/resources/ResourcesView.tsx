@@ -200,6 +200,7 @@ export function ResourcesView({ project }: { project?: ProjectEntry }) {
       }
       tools={
         <>
+          {!projectId && filters}
           {!project && <BrowserConsents />}
           {projectId && add}
         </>
@@ -220,9 +221,9 @@ export function ResourcesView({ project }: { project?: ProjectEntry }) {
           : undefined
       }
       under={
-        (filters || note) && (
+        ((projectId && filters) || note) && (
           <div className="secpage__under">
-            {filters}
+            {projectId && filters}
             {note && <p className="resv__inherit">{note}</p>}
           </div>
         )

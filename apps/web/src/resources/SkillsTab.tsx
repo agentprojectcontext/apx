@@ -68,6 +68,11 @@ export function SkillsTab({ projectId, query, scope, adding, setAdding, res, own
           .map((p) => ({ title: p.name, items: shown.filter((s) => s.project_id === p.id) })),
       ];
   const current = shown.find((s) => keyOf(s) === picked) ?? (all ?? []).find((s) => keyOf(s) === picked);
+  // Beside a wide list the first skill is open from the start; on a phone the list comes first.
+  const first = groups.flatMap((g) => g.items)[0];
+  useEffect(() => {
+    if (!picked && first && window.matchMedia("(min-width: 900px)").matches) setPicked(keyOf(first));
+  }, [picked, first]);
   const inherit = useInheritance(projectId, "skills", res.loadSkills);
   const row = (s: SkillInfo) => {
     const tag = sourceTag(s, t);

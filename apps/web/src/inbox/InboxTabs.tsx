@@ -1,5 +1,5 @@
 import type { Thread } from "@apx/protocol";
-import { ConversationRow, Icons, Spinner, Tag } from "@apx/ui";
+import { ConversationRow, Icons, Spinner } from "@apx/ui";
 import { type ReactNode, Suspense, useEffect, useMemo } from "react";
 import { shortWhen } from "../common/format.ts";
 import { DEFAULT_PID, isWorking, projectName, routineName, threadAgent } from "../data/identity.ts";
@@ -101,16 +101,25 @@ export function TasksTab({ entries }: { entries: Tasks[] }) {
   );
 }
 
-/** Routines: one row each; it opens the routine's runs as one chat. */
+/** Routines: one row each; it opens the routine's runs as one chat. Turned-off ones wait under a fold. */
 export function RoutinesTab({ entries }: { entries: Routines[] }) {
+  const t = useT();
+  const routines = useRoutines((s) => s.routines);
   useEffect(() => {
     void loadRoutines();
   }, []);
+  const off = new Set(routines.filter((r) => !r.enabled).map((r) => r.id));
+  const row = (e: Routines) => <RoutineChatRow key={e.routineId} routineId={e.routineId} runs={e.threads} />;
+  const asleep = entries.filter((e) => off.has(e.routineId));
+  if (asleep.length === entries.length) return <>{entries.map(row)}</>;
   return (
     <>
-      {entries.map((e) => (
-        <RoutineChatRow key={e.routineId} routineId={e.routineId} runs={e.threads} />
-      ))}
+      {entries.filter((e) => !off.has(e.routineId)).map(row)}
+      {asleep.length > 0 && (
+        <InboxSection label={t("routines.offMany")} count={asleep.length} foldKey="section:routinesOff">
+          {asleep.map(row)}
+        </InboxSection>
+      )}
     </>
   );
 }
@@ -125,6 +134,8 @@ function RoutineChatRow({ routineId, runs }: { routineId: string; runs: Thread[]
   const unread = runs.reduce((n, th) => n + th.unread, 0);
   const working = runs.some((th) => isWorking(th.state));
   const failed = latest.state === "failed";
+  const off = routine && !routine.enabled;
+  const state = off ? "is-off" : working ? "is-running" : failed ? "is-failed" : "";
   return (
     <ConversationRow
       className="threadrow routinerow"
@@ -137,9 +148,15 @@ function RoutineChatRow({ routineId, runs }: { routineId: string; runs: Thread[]
       preview={
         <span className="threadrow__line">
           <span className="threadrow__who">
-            <span className={`routinerow__state${working ? " is-running" : failed ? " is-failed" : ""}`}>
+            <span className={`routinerow__state ${state}`}>
               <span className="routinerow__dot" />
-              {working ? t("routines.state.running") : failed ? t("routines.state.failed") : t("routines.state.done")}
+              {off
+                ? t("routines.off")
+                : working
+                  ? t("routines.state.running")
+                  : failed
+                    ? t("routines.state.failed")
+                    : t("routines.state.done")}
             </span>
             {" · "}
             <Icons.RefreshCw size={12} className="routinerow__runs" /> {runs.length}
@@ -149,12 +166,7 @@ function RoutineChatRow({ routineId, runs }: { routineId: string; runs: Thread[]
           <ProjectBadge id={latest.project_id ?? DEFAULT_PID} name={projectName(projects, latest.project_id)} />
         </span>
       }
-      titleTag={
-        <>
-          {routine && !routine.enabled && <Tag>{t("routines.off")}</Tag>}
-          {working && <Spinner size={12} className="threadrow__spin" />}
-        </>
-      }
+      titleTag={working && <Spinner size={12} className="threadrow__spin" />}
     />
   );
 }

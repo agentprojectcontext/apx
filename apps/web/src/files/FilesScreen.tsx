@@ -1,18 +1,18 @@
 import "../styles/resources.css";
 import "../styles/shared-files.css";
 import type { SharedFile, SharedKind, SharedOrder } from "@apx/protocol";
-import { Button, EmptyState, Icons, ProjectTile, SegmentedControl, Select } from "@apx/ui";
+import { Button, EmptyState, Icons, SegmentedControl, Select } from "@apx/ui";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useMediaUrl } from "../chat/parts/useMediaUrl.ts";
 import { SectionPage } from "../common/SectionPage.tsx";
 import { client } from "../data/client.ts";
-import { DEFAULT_PID, projectEntries, projectInitial, projectName, projectTone } from "../data/identity.ts";
+import { DEFAULT_PID, projectEntries } from "../data/identity.ts";
 import { posterUrl } from "../data/media.ts";
 import { useData } from "../data/state.ts";
 import { type MessageKey, useT } from "../i18n/index.ts";
 import { ArtifactGrid, useArtifacts } from "./ArtifactCards.tsx";
 import { SharedPreview } from "./SharedPreview.tsx";
-import { kindIcon, ONE, Sender, SharedActions, when } from "./sharedFile.tsx";
+import { CardLine, kindIcon, ONE, SharedActions } from "./sharedFile.tsx";
 
 type Kind = SharedKind | "all" | "artifact";
 const KINDS: { id: Kind; label: MessageKey }[] = [
@@ -78,38 +78,18 @@ function Thumb({ file }: { file: SharedFile }) {
 
 function Card({ file, onOpen }: { file: SharedFile; onOpen: () => void }) {
   const t = useT();
-  const projects = useData((s) => s.projects);
-  const project = projectName(projects, file.project_id);
   const name = file.name || t(ONE[file.kind]);
   return (
     <li className="sharedf__card">
       <button type="button" className="sharedf__open" onClick={onOpen} aria-label={name}>
         <Thumb file={file} />
       </button>
+      <SharedActions file={file} />
       <div className="sharedf__cardbody">
         <span className="sharedf__name" title={name}>
           {name}
         </span>
-        <span className="sharedf__meta" title={`${project} · ${file.thread_title}`}>
-          <span className="sharedf__project">
-            <ProjectTile
-              tone={projectTone(file.project_id ?? DEFAULT_PID)}
-              initial={projectInitial(project)}
-              size={14}
-            />
-            {project}
-          </span>
-          <span className="sharedf__chat">{file.thread_title}</span>
-        </span>
-        <time className="sharedf__when" dateTime={file.created_at}>
-          {when(file.created_at)}
-        </time>
-        <span className="sharedf__foot">
-          <span className="sharedf__who">
-            <Sender author={file.author} />
-          </span>
-          <SharedActions file={file} />
-        </span>
+        <CardLine author={file.author} at={file.created_at} projectId={file.project_id} hint={file.thread_title} />
       </div>
     </li>
   );

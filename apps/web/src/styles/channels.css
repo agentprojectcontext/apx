@@ -741,8 +741,14 @@
 }
 
 /* ── Channels screen: every account, who answers it and what waits there ───────────────────────────────── */
-.page--channels .page__head {
+/* The header sits in the same centred column as the list, without a rule under it. */
+.page--channels .secpage__head {
+  width: 100%;
   max-width: 1080px;
+  margin: 0 auto;
+  padding-bottom: 0;
+  border-bottom: 0;
+  box-sizing: border-box;
 }
 .chs {
   display: flex;

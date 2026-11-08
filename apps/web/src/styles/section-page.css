@@ -63,8 +63,10 @@
 .secpage__spacer {
   flex: 1;
 }
+/* Wraps only below its least width, growing back to its own beside the tools. */
 .secpage__search {
-  width: min(240px, 100%);
+  flex: 1 1 160px;
+  max-width: 240px;
 }
 .secpage__scopes {
   display: flex;
@@ -126,7 +128,8 @@
     padding: 14px 16px 12px;
   }
   .secpage__search {
-    width: 100%;
+    flex-basis: 100%;
+    max-width: none;
   }
   /* Tabs and chips scroll sideways instead of being cut off or piling up. */
   .secpage__bar > .apx-segmented {

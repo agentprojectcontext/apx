@@ -1,19 +1,19 @@
 // Files' artifacts: every widget, app and web page an agent made, open or closed, as cards like a file's.
 import type { Author, SurfaceSummary } from "@apx/protocol";
-import { IconButton, Icons, Menu, ProjectTile, Tooltip } from "@apx/ui";
+import { IconButton, Icons, Menu, Tooltip } from "@apx/ui";
 import { useMemo, useState } from "react";
 import { loadThread } from "../data/actions.ts";
-import { DEFAULT_PID, projectInitial, projectName, projectTone } from "../data/identity.ts";
+import { DEFAULT_PID } from "../data/identity.ts";
 import { data, useData } from "../data/state.ts";
 import { useT } from "../i18n/index.ts";
 import { go } from "../shell/nav.ts";
 import { ArtifactMemoryDialog } from "../surfaces/ArtifactMemory.tsx";
 import { ArtifactPropertiesDialog } from "../surfaces/ArtifactProperties.tsx";
-import { KindTile, kindLabel, kindOf } from "../surfaces/artifactKind.tsx";
+import { KindIcon, kindLabel, kindOf } from "../surfaces/artifactKind.tsx";
 import { artifactMenu } from "../surfaces/artifactMenu.tsx";
 import { useRunningApps } from "../surfaces/livePool.ts";
 import { type ArtifactFilter, filterArtifacts } from "./artifactList.ts";
-import { Sender, when } from "./sharedFile.tsx";
+import { CardLine } from "./sharedFile.tsx";
 
 /** Every artifact in the system that a filter keeps, kept live as agents make, change or delete them. */
 export function useArtifacts({ project, query, order }: ArtifactFilter): SurfaceSummary[] {
@@ -55,8 +55,6 @@ function ArtifactCard({
   onProperties: () => void;
 }) {
   const t = useT();
-  const projects = useData((st) => st.projects);
-  const project = projectName(projects, s.project_id);
   const kind = kindOf(s);
   const open = t("files.artifacts.open", { title: s.title });
   return (
@@ -65,43 +63,29 @@ function ArtifactCard({
         {/* ui: the card's picture opens it, the same control as a file card's. */}
         <button type="button" className="sharedf__open" onClick={() => go.app(s.id)} aria-label={open}>
           <span className={`sharedf__thumb is-artifact is-${kind}`}>
-            <KindTile kind={kind} size={56} />
+            <KindIcon kind={kind} size={24} />
           </span>
         </button>
       </Tooltip>
+      <span className="sharedf__actions">
+        {s.thread_id && (
+          <IconButton
+            label={t("shared.goTo")}
+            icon={<Icons.MessageSquare size={16} />}
+            onClick={() => void goToArtifactChat(s)}
+          />
+        )}
+        <Menu
+          align="end"
+          trigger={<IconButton label={t("common.more")} icon={<Icons.Ellipsis size={16} />} />}
+          items={artifactMenu(s, t, { onMemory, onProperties, running })}
+        />
+      </span>
       <div className="sharedf__cardbody">
         <span className="sharedf__name" title={s.title}>
           {s.title}
         </span>
-        <span className="sharedf__meta" title={`${project} · ${kindLabel(kind, t)}`}>
-          <span className="sharedf__project">
-            <ProjectTile tone={projectTone(s.project_id ?? DEFAULT_PID)} initial={projectInitial(project)} size={14} />
-            {project}
-          </span>
-          <span className="sharedf__chat">{kindLabel(kind, t)}</span>
-        </span>
-        <time className="sharedf__when" dateTime={s.updated_at}>
-          {when(s.updated_at)}
-        </time>
-        <span className="sharedf__foot">
-          <span className="sharedf__who">
-            <Sender author={maker(s)} />
-          </span>
-          <span className="sharedf__actions">
-            {s.thread_id && (
-              <IconButton
-                label={t("shared.goTo")}
-                icon={<Icons.MessageSquare size={16} />}
-                onClick={() => void goToArtifactChat(s)}
-              />
-            )}
-            <Menu
-              align="end"
-              trigger={<IconButton label={t("common.more")} icon={<Icons.Ellipsis size={16} />} />}
-              items={artifactMenu(s, t, { onMemory, onProperties, running })}
-            />
-          </span>
-        </span>
+        <CardLine author={maker(s)} at={s.updated_at} projectId={s.project_id} hint={kindLabel(kind, t)} />
       </div>
     </li>
   );

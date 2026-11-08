@@ -63,7 +63,7 @@
 .apx-convrow__time {
   margin-left: auto;
   flex-shrink: 0;
-  font-size: var(--apx-text-xs);
+  font-size: 11px;
   color: var(--apx-fg-subtle);
   font-family: var(--apx-meta-font);
 }

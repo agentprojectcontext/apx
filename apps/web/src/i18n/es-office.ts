@@ -320,6 +320,7 @@ export const esOffice: Partial<Record<MessageKey, string>> = {
   "routines.next": "Próxima: {when}",
   "routines.noNext": "No vuelve a correr",
   "routines.off": "Apagada",
+  "routines.offMany": "Apagadas",
   "routines.enabled": "Rutina encendida",
   "routines.runNow": "Correr ahora",
   "routines.failed": "Falló",

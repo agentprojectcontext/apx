@@ -372,6 +372,12 @@ button.chatprocesses {
 .routinerow__state.is-failed .routinerow__dot {
   background: var(--apx-danger);
 }
+.routinerow__state.is-off {
+  color: var(--apx-fg-subtle);
+}
+.routinerow__state.is-off .routinerow__dot {
+  background: var(--apx-fg-subtle);
+}
 .routinerow__runs {
   vertical-align: -2px;
 }
