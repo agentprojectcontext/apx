@@ -24,4 +24,6 @@ The Telegram news assertion was updated and passed. The next CI run passed all u
 
 The following CI run reached additional panel scenarios: fixed channel IDs and the former shared Home routing remained in contact, bot and Telegram tests. The affected scenarios now resolve the single configured account by type and check account-chat isolation. Teams' public address test creates a distinct account and checks its own endpoint. A separate performance run measured a turn p95 of 63.3 ms against 60 ms; it was not reproduced or changed, and the budget remains unchanged. CI must determine whether it recurs. Local browser checks run with isolated temporary Windows fixture adaptations, excluded from the change.
 
+The subsequent run passed static checks, performance, unit and portability, but three contact scenarios timed out when locating WhatsApp in the sidebar. Contact tests now open the specific account directly instead of depending on sidebar placement. An isolated run with four additional simulated accounts passed all 18 setup and contact scenarios. The extra accounts and temporary Windows fixture adaptations were not retained. Full CI remains unverified until the next run completes.
+
 Docs impact: this investigation records CI failures and the verification plan; reassess user documentation if a product behavior changes.

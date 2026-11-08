@@ -15,8 +15,7 @@ test("a saved contact with no chat: listed, an empty chat to ask the agent to wr
     person: nora.id,
   });
 
-  await open(page);
-  await page.getByRole("button", { name: "WhatsApp", exact: true }).click();
+  await open(page, `#channel=${encodeURIComponent(await channelId("whatsapp"))}`);
   const row = page.locator(".chan__rows").getByRole("button", { name: /Nora/ });
   await expect(row).toContainText("+5491100000011");
   await row.click();
@@ -76,8 +75,7 @@ test("who is online and what is set for a contact show on their row", async ({ p
   const nora = persons.find((p) => p.name === "Nora");
   await rpc("contacts.set", { id: nora?.id, name: "Nora", muted: true, perms: { notes: true } });
 
-  await open(page);
-  await page.getByRole("button", { name: "WhatsApp", exact: true }).click();
+  await open(page, `#channel=${encodeURIComponent(await channelId("whatsapp"))}`);
   const row = page.locator(".chan__rows").getByRole("button", { name: /Nora/ });
   await expect(row.getByRole("img", { name: "Silenciado" })).toBeVisible();
   await expect(row.getByRole("img", { name: "Contestar desde mis notas" })).toBeVisible();
@@ -96,8 +94,7 @@ test("a muted, supervised contact's card keeps its three buttons on one row, Sav
   const nora = persons.find((p) => p.name === "Nora");
   await rpc("contacts.set", { id: nora?.id, name: "Nora", muted: true, supervised: true });
 
-  await open(page);
-  await page.getByRole("button", { name: "WhatsApp", exact: true }).click();
+  await open(page, `#channel=${encodeURIComponent(await channelId("whatsapp"))}`);
   await page.locator(".chan__rows").getByRole("button", { name: /Nora/ }).click();
   const card = page.getByRole("complementary", { name: "Contacto" });
   if (!(await card.isVisible())) await page.getByRole("button", { name: "Abrir el contacto de Nora" }).click();
