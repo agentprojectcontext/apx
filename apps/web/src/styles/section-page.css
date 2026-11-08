@@ -1,0 +1,155 @@
+/* A section's page: title, lead and main action; tabs and search; project or scope chips; then the body. */
+.secpage {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+}
+.secpage__head {
+  display: flex;
+  flex: none;
+  flex-direction: column;
+  gap: 12px;
+  padding: 18px 24px 14px;
+  border-bottom: 1px solid var(--apx-border);
+}
+.secpage__top {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+.secpage__titles {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.secpage__title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  font-size: 20px;
+  font-weight: var(--apx-weight-semibold);
+  letter-spacing: -0.01em;
+}
+.secpage__lead {
+  max-width: 760px;
+  margin: 0;
+  color: var(--apx-fg-muted);
+  font-size: 13px;
+  text-wrap: pretty;
+}
+.secpage__action {
+  flex: none;
+}
+.secpage__bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+.secpage__bar > .apx-segmented {
+  flex: none;
+}
+/* A page's own picker (an order) keeps a picker's width, not the row's. */
+.secpage__bar > .apx-select {
+  flex: none;
+  width: 200px;
+  max-width: 100%;
+}
+.secpage__spacer {
+  flex: 1;
+}
+.secpage__search {
+  width: min(240px, 100%);
+}
+.secpage__scopes {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+.secpage__scopelabel {
+  float: left;
+  padding: 0 4px 0 0;
+  color: var(--apx-fg-subtle);
+  font-size: 12px;
+}
+.secpage__scopelabel::after {
+  content: ":";
+}
+.secpage__chip.apx-btn {
+  height: 26px;
+  min-height: 26px;
+  padding: 0 11px;
+  border-radius: var(--apx-radius-pill);
+  background: var(--apx-fill);
+  color: var(--apx-fg-muted);
+  font-size: 12px;
+  font-weight: var(--apx-weight-medium);
+}
+.secpage__chip.apx-btn:hover {
+  background: var(--apx-fill-hover);
+  color: var(--apx-fg);
+}
+.secpage__chip.apx-btn.is-on {
+  background: var(--apx-fg);
+  color: var(--apx-bg);
+}
+/* A tab's label and its count, the count quieter. */
+.secpage__tab {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+}
+.secpage__count {
+  color: var(--apx-fg-subtle);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+.secpage__body {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+  overflow: auto;
+}
+@media (max-width: 767px) {
+  .secpage__head {
+    padding: 14px 16px 12px;
+  }
+  .secpage__search {
+    width: 100%;
+  }
+  /* Tabs and chips scroll sideways instead of being cut off or piling up. */
+  .secpage__bar > .apx-segmented {
+    max-width: 100%;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+  .secpage__scopes {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+  .secpage__chip.apx-btn {
+    flex: none;
+  }
+}
+/* Filters and a note on what the list shows, under the chips. */
+.secpage__under {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+}
+.secpage__under:empty {
+  display: none;
+}

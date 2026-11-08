@@ -29,6 +29,7 @@ import { BehaviorPane } from "./BehaviorPane.tsx";
 import { ContactsPane } from "./ContactsPane.tsx";
 import { keptAfter } from "./draft.ts";
 import { isRoomsKind, RoomsSection } from "./RoomsPane.tsx";
+import { clearRemoveAsk, removeAsked } from "./removeAsk.ts";
 import { hasStickersPane, StickersPane } from "./StickersPane.tsx";
 import type { Create, PaneProps } from "./types.ts";
 
@@ -89,8 +90,27 @@ export function ChannelDialogs() {
   return (
     <>
       {pick && <KindPicker />}
-      {edit && <AccountDialog key={`${edit.kind}:${edit.id ?? "new"}`} edit={edit} />}
+      {edit && <AccountOrRemove key={`${edit.kind}:${edit.id ?? "new"}`} edit={edit} />}
     </>
+  );
+}
+
+/** An account's settings, or only the question to disconnect it when "Disconnect" was picked in its menu. */
+function AccountOrRemove({ edit }: { edit: AccountEdit }) {
+  const t = useT();
+  const [removing] = useState(() => removeAsked(edit.id));
+  useEffect(() => clearRemoveAsk(), []);
+  const channel = useChannels((s) => s.channels.find((c) => c.id === edit.id));
+  if (!removing || !channel) return <AccountDialog edit={edit} />;
+  return (
+    <Confirm
+      danger
+      title={t("acct.removeTitle", { name: channel.label })}
+      body={t("acct.removeBody")}
+      yes={t("acct.disconnect")}
+      onYes={() => void saveChannel(channel.id, null).then(() => go.closeChannelDialogs())}
+      onClose={() => go.closeChannelDialogs()}
+    />
   );
 }
 

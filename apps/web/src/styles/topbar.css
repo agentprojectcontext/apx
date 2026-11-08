@@ -77,8 +77,9 @@
 .topbar__logo {
   display: block;
   flex: none;
-  width: 22px;
-  height: 22px;
+  width: 16px;
+  height: 16px;
+  margin: 0 2px;
 }
 /* History arrows lead the search box, both centred on the window. */
 .topbar__center {
@@ -132,6 +133,57 @@
   flex: none;
   color: var(--apx-fg-subtle);
 }
+/* Its list: a heading (Local or Remote), the server in use with its computer, its dot and ✓; connecting another at the foot. */
+.serverswitch__pop.apx-popover {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding: 6px;
+}
+.serverswitch__head {
+  padding: 8px 8px 4px;
+  font-size: var(--apx-text-2xs);
+  color: var(--apx-fg-subtle);
+}
+.serverswitch__row.apx-pickrow {
+  min-height: 40px;
+  padding: 0 8px;
+  border-radius: 8px;
+}
+.serverswitch__row.apx-pickrow.is-selected {
+  background: var(--apx-fill);
+}
+.serverswitch__row .apx-pickrow__trail {
+  order: 1;
+  color: var(--apx-fg);
+}
+.serverswitch__row .apx-pickrow__desc {
+  color: var(--apx-fg-subtle);
+  font-size: var(--apx-text-2xs);
+}
+.serverswitch__sep {
+  height: 1px;
+  margin: 4px 2px;
+  background: var(--apx-border);
+}
+.serverswitch__pop .serverswitch__connect {
+  justify-content: flex-start;
+  gap: 10px;
+  height: 32px;
+  padding: 0 8px;
+  border-radius: 8px;
+  color: var(--apx-fg-muted);
+  font-weight: var(--apx-weight-regular);
+}
+.serverswitch__pop .serverswitch__connect:hover {
+  color: var(--apx-fg);
+}
+.serverswitch__hint {
+  margin: 2px 8px 6px;
+  font-size: var(--apx-text-xs);
+  line-height: 1.45;
+  color: var(--apx-fg-muted);
+}
 .topbar__search {
   display: flex;
   align-items: center;
@@ -181,6 +233,124 @@
   font-size: var(--apx-text-2xs);
   font-weight: var(--apx-weight-regular);
   color: var(--apx-fg-subtle);
+}
+/* The super-agent's card, on resting over its button: who, what it does now, its last words, open or edit. */
+.superagent.apx-popover {
+  padding: 14px;
+  border-radius: 14px;
+}
+.superagent__card {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  min-width: 0;
+}
+.superagent__head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+.superagent__head > .apx-iconbtn {
+  margin-left: -6px;
+  color: var(--apx-fg-subtle);
+}
+.superagent__who {
+  flex: 1;
+  min-width: 0;
+}
+.superagent__name {
+  font-size: var(--apx-text-md);
+  font-weight: var(--apx-weight-semibold);
+}
+.superagent__role {
+  font-size: var(--apx-text-xs);
+  color: var(--apx-fg-muted);
+}
+.superagent__working {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 8px;
+  border-radius: var(--apx-radius-pill);
+  background: var(--apx-brand-soft);
+  color: var(--apx-brand-soft-fg);
+  font-size: var(--apx-text-2xs);
+}
+.superagent__working > span {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--apx-brand);
+}
+.superagent__now,
+.superagent__last {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.superagent__now {
+  gap: 8px;
+}
+.superagent__label {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: var(--apx-text-2xs);
+  color: var(--apx-fg-subtle);
+}
+.superagent__row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  font-size: var(--apx-text-sm);
+}
+.superagent__text {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.superagent__project {
+  flex: none;
+  max-width: 40%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--apx-text-2xs);
+  color: var(--apx-fg-subtle);
+}
+.superagent__idle {
+  font-size: var(--apx-text-sm);
+  color: var(--apx-fg-muted);
+}
+.superagent__last {
+  gap: 4px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: var(--apx-fill);
+}
+.superagent__words {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  font-size: var(--apx-text-sm);
+  overflow-wrap: anywhere;
+}
+.superagent__actions {
+  display: flex;
+  gap: 8px;
+}
+.superagent__open {
+  flex: 1;
+}
+.superagent__kbd {
+  font-size: var(--apx-text-2xs);
+  opacity: 0.7;
 }
 html[data-shortcuts-active] [data-shortcut-modifier] {
   color: var(--apx-fg);

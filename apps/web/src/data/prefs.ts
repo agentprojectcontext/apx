@@ -69,7 +69,12 @@ export type Prefs = {
   audioEndSound: boolean;
   /** Which notices make a sound as they arrive. */
   noticeSound: NoticeSound;
+  /** How the top bar shows the AI quotas and the system resources: with their figures, or as a small mark. */
+  quotaBar: BarShow;
+  resourcesBar: BarShow;
 };
+
+export type BarShow = "full" | "mini";
 
 /** `widths` are how many of the board's columns a tile spans (1 when absent). */
 export type BoardPrefs = {
@@ -121,6 +126,8 @@ const DEFAULTS: Prefs = {
   boards: {},
   audioEndSound: true,
   noticeSound: "all",
+  quotaBar: "full",
+  resourcesBar: "full",
 };
 
 function load(): Prefs {
@@ -176,6 +183,8 @@ function load(): Prefs {
         raw.noticeSound === "requests" || raw.noticeSound === "messages" || raw.noticeSound === "off"
           ? raw.noticeSound
           : "all",
+      quotaBar: raw.quotaBar === "mini" ? "mini" : "full",
+      resourcesBar: raw.resourcesBar === "mini" ? "mini" : "full",
     };
   } catch {
     return DEFAULTS;

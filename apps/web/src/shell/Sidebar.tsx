@@ -235,7 +235,8 @@ export function Sidebar({
           </SidebarReorder>
         ))}
       </ContextMenu>
-      {!rail && (
+      {/* With the full sidebar the notices show in a strip over the page instead (Shell). */}
+      {!rail && compact && (
         <Suspense fallback={null}>
           <CornerCards />
         </Suspense>

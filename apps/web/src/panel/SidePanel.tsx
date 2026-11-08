@@ -5,6 +5,7 @@ import { useData } from "../data/state.ts";
 import { useT } from "../i18n/index.ts";
 import {
   AgentPanel,
+  AgentsPanel,
   BrowserPanel,
   ChangesPanel,
   ChatFiles,
@@ -62,6 +63,10 @@ export function SidePanel() {
       ) : panel === "processes" ? (
         <Suspense fallback={null}>
           <ProcessesPanel key={threadId} />
+        </Suspense>
+      ) : panel === "agents" ? (
+        <Suspense fallback={null}>
+          <AgentsPanel key={threadId} />
         </Suspense>
       ) : panel === "agent" ? (
         <Suspense fallback={null}>

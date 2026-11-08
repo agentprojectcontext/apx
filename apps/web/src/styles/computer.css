@@ -286,15 +286,6 @@
 .computers__wall[data-count="1"] {
   grid-template-columns: minmax(280px, 900px);
 }
-.computers__bar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 12px 24px;
-  font-size: var(--apx-text-sm);
-  color: var(--apx-fg-muted);
-}
 .computers__tile {
   display: flex;
   flex-direction: column;
@@ -475,5 +466,103 @@
 @media (prefers-reduced-motion: reduce) {
   .chat__computerdot {
     animation: none;
+  }
+}
+
+/* ── Computers list: each machine, who uses it now and what to do with it ──────────────────────── */
+.machines {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-width: 960px;
+  margin: 0;
+  padding: 12px 16px 40px;
+  list-style: none;
+}
+.machines__row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  border-radius: 12px;
+}
+.machines__row:hover {
+  background: var(--apx-fill-hover);
+}
+.machines__main {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+}
+.machines__title {
+  overflow: hidden;
+  font-size: 14px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.machines__sub {
+  overflow: hidden;
+  color: var(--apx-fg-subtle);
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.machines__state {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 6px;
+  color: var(--apx-fg-subtle);
+  font-size: 12px;
+}
+.machines__dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--apx-fg-subtle);
+}
+.machines__dot.is-on {
+  background: var(--apx-brand);
+}
+.machines__dot.is-idle {
+  background: transparent;
+  box-shadow: inset 0 0 0 1.5px var(--apx-brand);
+}
+.machines__action {
+  display: flex;
+  flex: none;
+}
+.machines__action:empty {
+  display: none;
+}
+/* The VM's screens, under its row. */
+.machines__screens {
+  padding: 8px 0 0 44px;
+}
+.machines__screens .computers__wall {
+  padding: 0;
+}
+.machines__hint {
+  max-width: 960px;
+  margin: 0;
+  padding: 0 28px;
+  color: var(--apx-fg-subtle);
+  font-size: 12px;
+}
+@media (max-width: 767px) {
+  .machines {
+    padding: 8px 8px 32px;
+  }
+  .machines__row {
+    flex-wrap: wrap;
+  }
+  .machines__state {
+    order: 3;
+    width: 100%;
+    padding-left: 44px;
+  }
+  .machines__screens {
+    padding-left: 0;
   }
 }

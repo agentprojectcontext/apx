@@ -2,6 +2,9 @@ import { esHelper } from "./es-helper.ts";
 // UI strings, Spanish (Rioplatense, voseo). A missing key falls back to English.
 
 import { noticeEs } from "@apx/protocol/notices";
+import { esChannelsSlim } from "./channels-slim-es.ts";
+import { esChatSlim } from "./chat-slim-es.ts";
+import { esComposerSlim } from "./composer-slim-es.ts";
 import type { MessageKey } from "./en.ts";
 import { esChannels } from "./es-channels.ts";
 import { esChat } from "./es-chat.ts";
@@ -13,8 +16,13 @@ import { esSetup } from "./es-setup.ts";
 import { esTeam } from "./es-team.ts";
 import { esTelemetry } from "./es-telemetry.ts";
 import { esFilesArtifacts } from "./files-artifacts-es.ts";
+import { esInboxSlim } from "./inbox-slim-es.ts";
+import { esPanelAgents } from "./panel-agents-es.ts";
 import { esPanelTabs } from "./panel-tabs-es.ts";
+import { esProjectSlim } from "./project-slim-es.ts";
 import { esRoutineChat } from "./routine-chat-es.ts";
+import { esSectionPages } from "./section-pages-es.ts";
+import { esShellSlim } from "./shell-slim-es.ts";
 import { esTopbar } from "./topbar-es.ts";
 
 export const es: Partial<Record<MessageKey, string>> = {
@@ -44,14 +52,22 @@ export const es: Partial<Record<MessageKey, string>> = {
   ...esChannels,
   ...esSetup,
   ...esChat,
+  ...esChatSlim,
   ...esFiles,
   ...esFilesArtifacts,
   ...esResources,
   ...esEngines,
   ...esTelemetry,
   ...esRoutineChat,
+  ...esSectionPages,
   ...esTopbar,
+  ...esShellSlim,
+  ...esComposerSlim,
   ...esPanelTabs,
+  ...esPanelAgents,
+  ...esProjectSlim,
+  ...esInboxSlim,
+  ...esChannelsSlim,
   "engineUsage.title": "Cuotas de IA",
   "engineUsage.remaining": "{pct}% disponible",
   "engineUsage.primary": "Ventana actual",
@@ -511,8 +527,6 @@ export const es: Partial<Record<MessageKey, string>> = {
   "inbox.filter": "Filtrar chats",
   "inbox.filter.show": "Mostrar",
   "inbox.filter.routines": "Novedades de rutinas",
-  "inbox.markAllRead": "Marcar todo como leído",
-  "inbox.unread": "Sin leer",
   "inbox.filter.on": "Filtrar chats ({n} elegidos)",
   "inbox.filter.agents": "Agentes",
   "inbox.filter.projects": "Proyectos",
@@ -521,6 +535,8 @@ export const es: Partial<Record<MessageKey, string>> = {
   "inbox.filter.none": "Nada de acá coincide con el filtro",
   "inbox.filter.remove": "Dejar de filtrar por {name}",
   "inbox.searchOpen": "Buscar chats",
+  "inbox.markAllRead": "Marcar todo como leído",
+  "inbox.unread": "Sin leer",
   "inbox.offline.title": "Sin conexión",
   "inbox.offline.body": "Los chats aparecen cuando vuelva el core.",
   "inbox.noResults": "Sin resultados",
@@ -557,7 +573,7 @@ export const es: Partial<Record<MessageKey, string>> = {
   "write.auto": "Edita libremente",
   "write.read-only": "Sólo lectura",
   "changes.title": "{n} sin commitear",
-  "changes.edited": "Archivos editados: {n}",
+  "changes.edited": "Archivos editados {n}",
   "changes.scratchEdited": "Archivos en la carpeta temporal: {n}",
   "changes.scratch": "Carpeta temporal del chat",
   "changes.scratchHint": "Borradores del agente: no son cambios en tus carpetas.",
@@ -576,6 +592,10 @@ export const es: Partial<Record<MessageKey, string>> = {
   "chat.hideTools": "Ocultar herramientas",
   "chat.toolsHint": "Mostrar u ocultar cada paso del agente (las tools que usó y qué devolvieron)",
   "chat.showTools": "Mostrar herramientas",
+  "chat.roomCardOpen": "Abrir cuándo habla el agente acá y las reglas",
+  "chat.roomCardClose": "Cerrar la tarjeta",
+  "chat.headerSuper": "{name} · Super-agente, en todos tus proyectos",
+  "chat.headerEngine": "{engine} · Sesión directa",
   "chat.pick.title": "Elegí un chat",
   "chat.pick.body": "O empezá uno nuevo con tu super-agente.",
   "chat.offline.title": "Sin conexión con el core",
@@ -788,12 +808,12 @@ export const es: Partial<Record<MessageKey, string>> = {
   "changes.reportedEmpty": "No hay cambios registrados en este chat",
   "panel.terminal": "Terminal",
   "panel.files": "Archivos",
-  "panel.widget": "Widget",
+  "panel.widget": "Artefactos",
   "panel.usage": "Consumo",
   "panel.browser.hint": "Navegador: la página que maneja tu agente; podés tomar el control",
   "panel.terminal.hint": "Terminal: los comandos que corrió el agente y tu propia terminal en la carpeta",
   "panel.files.hint": "Archivos: la carpeta donde trabaja este chat",
-  "panel.widget.hint": "Widgets: lo que el agente armó para vos en este chat",
+  "panel.widget.hint": "Artefactos: lo que el agente armó para vos en este chat",
   "panel.usage.hint": "Consumo: tokens y costo de este chat",
   "panel.side": "Panel lateral",
   "panel.close": "Cerrar panel",

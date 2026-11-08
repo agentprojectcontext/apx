@@ -1,21 +1,42 @@
-import type { Person } from "@apx/protocol";
-import { PERSON_RELATIONS } from "@apx/protocol/client";
-import { Button, Help, IconButton, Icons, Input, Select, Switch, Textarea, Tooltip } from "@apx/ui";
+import type { ChannelInfo, Person } from "@apx/protocol";
+import { Button, Icons, Input, SegmentedControl, Switch, Textarea, Tooltip } from "@apx/ui";
 import { useState } from "react";
+import { AgentSelect } from "../common/pickers/AgentSelect.tsx";
 import { claimAddress, saveContact, useChannels } from "../data/channels.ts";
 import { notify } from "../data/notices.ts";
+import { useData } from "../data/state.ts";
 import { useT } from "../i18n/index.ts";
-import { RELATION_KEY } from "./people.ts";
+import { CardField, ChatCard } from "./ChatCard.tsx";
+import { ChoiceChips } from "./ChoiceChips.tsx";
+import { PersonAvatar } from "./PersonAvatar.tsx";
+import { initials, RELATION_KEY } from "./people.ts";
 import { ownerOn } from "./StartRows.tsx";
 
-/**
- * A contact's card beside their chat: name and nickname, how they relate to the owner, who they are and the rules for
- * answering them (in the owner's words), what their chat may do (all off by default), whether they are answered past
- * the channel's attention hours, and silencing.
- */
-const NO_RELATION = "none";
+/** The relations as chips, the ones most chats need first. */
+const RELATIONS: NonNullable<Person["relation"]>[] = [
+  "client",
+  "lead",
+  "associate",
+  "provider",
+  "family",
+  "friend",
+  "partner",
+  "coworker",
+  "other",
+];
+const PERMS = [
+  ["appointments", "ch.perm.appointments", "ch.perm.appointmentsHint"],
+  ["requests", "ch.perm.requests", "ch.perm.requestsHint"],
+  ["notes", "ch.perm.notes", "ch.perm.notesHint"],
+] as const;
 
-export function ContactPanel({ person, onClose }: { person: Person; onClose(): void }) {
+/**
+ * A contact's card beside their chat: who they are on top, then name and nickname, how they relate to the owner, who
+ * answers them (the account's contacts agent or one of their own), who they are and the rules for answering them (in
+ * the owner's words), what their chat may do (all off by default), whether they are answered past the account's
+ * attention hours, and silencing.
+ */
+export function ContactPanel({ person, channel, onClose }: { person: Person; channel: ChannelInfo; onClose(): void }) {
   const t = useT();
   const [d, setD] = useState({
     name: person.name,
@@ -25,7 +46,10 @@ export function ContactPanel({ person, onClose }: { person: Person; onClose(): v
     rules: person.rules ?? "",
     any_hour: person.any_hour,
     perms: person.perms,
+    agent_id: person.agent_id,
   });
+  const [other, setOther] = useState(Boolean(person.agent_id));
+  const accountAgent = useData((s) => s.agents[channel.contacts_agent_id ?? channel.agent_id]);
   const [busy, setBusy] = useState(false);
   const dirty =
     d.name !== person.name ||
@@ -34,145 +58,159 @@ export function ContactPanel({ person, onClose }: { person: Person; onClose(): v
     d.note !== (person.note ?? "") ||
     d.rules !== (person.rules ?? "") ||
     d.any_hour !== person.any_hour ||
+    d.agent_id !== person.agent_id ||
     JSON.stringify(d.perms) !== JSON.stringify(person.perms);
   const save = async () => {
     setBusy(true);
-    const ok = await saveContact(person.id, { ...d, relation: d.relation ?? null });
+    const ok = await saveContact(person.id, { ...d, relation: d.relation ?? null, agent_id: d.agent_id ?? null });
     setBusy(false);
     if (ok) notify(t("ch.saved"), "info");
   };
-  const perm = (k: keyof Person["perms"], label: string) => (
-    <li>
-      <Switch
-        size="sm"
-        checked={d.perms[k]}
-        label={label}
-        onCheckedChange={(on) => setD((x) => ({ ...x, perms: { ...x.perms, [k]: on } }))}
-      />
-    </li>
-  );
 
   return (
-    <aside className="chan__card" aria-label={t("ch.contact")}>
-      <header className="chan__cardhead">
-        <span>{t("ch.contact")}</span>
-        <IconButton size="sm" label={t("common.close")} icon={<Icons.X size={14} />} onClick={onClose} />
-      </header>
-      <div className="chan__cardbody">
-        <div className="chan__pair">
-          <div className="pform__field">
-            <span className="pform__label">{t("ch.name")}</span>
-            <Input
-              aria-label={t("ch.name")}
-              value={d.name}
-              onChange={(e) => setD({ ...d, name: e.currentTarget.value })}
-            />
-          </div>
-          <div className="pform__field">
-            <span className="pform__label">{t("ch.nickname")}</span>
-            <Input
-              aria-label={t("ch.nickname")}
-              value={d.nickname}
-              onChange={(e) => setD({ ...d, nickname: e.currentTarget.value })}
-            />
-          </div>
-        </div>
-        <div className="pform__field">
-          <span className="pform__label">{t("ch.relation")}</span>
-          <Select
-            label={t("ch.relation")}
-            value={d.relation ?? NO_RELATION}
-            onValueChange={(v) => {
-              const relation = PERSON_RELATIONS.find((r) => r === v);
-              setD({ ...d, relation });
-            }}
-            options={[
-              { value: NO_RELATION, label: t("ch.relation.none") },
-              ...PERSON_RELATIONS.map((r) => ({ value: r, label: t(RELATION_KEY[r]) })),
-            ]}
+    <ChatCard
+      title={t("ch.contact")}
+      channel={channel}
+      name={person.name}
+      avatar={
+        <PersonAvatar
+          personId={person.id}
+          name={person.name}
+          className="chan__cardavatar"
+          size={44}
+          fallback={initials(person.name)}
+        />
+      }
+      onClose={onClose}
+      footer={
+        <>
+          <Tooltip content={person.muted ? t("ch.unmuteHint") : t("ch.muteHint")}>
+            <Button
+              size="sm"
+              variant="ghost"
+              leadingIcon={<Icons.BellOff size={14} />}
+              onClick={() => void saveContact(person.id, { name: person.name, muted: !person.muted })}
+            >
+              <span className="chan__cardfoot-text">{person.muted ? t("ch.unmute") : t("ch.mute")}</span>
+            </Button>
+          </Tooltip>
+          <Tooltip content={t("ch.superviseHint")}>
+            <Button
+              size="sm"
+              variant="ghost"
+              leadingIcon={<Icons.Eye size={14} />}
+              onClick={() => void saveContact(person.id, { name: person.name, supervised: !person.supervised })}
+            >
+              <span className="chan__cardfoot-text">{person.supervised ? t("ch.unsupervise") : t("ch.supervise")}</span>
+            </Button>
+          </Tooltip>
+          <span className="chan__spacer" />
+          <Tooltip content={t("ch.saveHint")}>
+            <Button size="sm" disabled={!dirty || !d.name.trim()} loading={busy} onClick={() => void save()}>
+              {t("common.save")}
+            </Button>
+          </Tooltip>
+        </>
+      }
+    >
+      <div className="chan__pair">
+        <CardField label={t("ch.name")}>
+          <Input
+            aria-label={t("ch.name")}
+            value={d.name}
+            onChange={(e) => setD({ ...d, name: e.currentTarget.value })}
           />
-        </div>
-        <div className="pform__field">
-          <span className="pform__label">{t("ch.who.is")}</span>
-          <Textarea
-            aria-label={t("ch.who.is")}
-            rows={3}
-            value={d.note}
-            onChange={(e) => setD({ ...d, note: e.currentTarget.value })}
+        </CardField>
+        <CardField label={t("ch.nickname")}>
+          <Input
+            aria-label={t("ch.nickname")}
+            value={d.nickname}
+            onChange={(e) => setD({ ...d, nickname: e.currentTarget.value })}
           />
-          <span className="pform__hint">{t("ch.who.isHint")}</span>
-        </div>
-        <div className="pform__field">
-          <span className="pform__label">{t("ch.rules")}</span>
-          <Textarea
-            aria-label={t("ch.rules")}
-            rows={3}
-            value={d.rules}
-            onChange={(e) => setD({ ...d, rules: e.currentTarget.value })}
+        </CardField>
+      </div>
+      <CardField label={t("ch.relation")}>
+        <ChoiceChips
+          label={t("ch.relation")}
+          clearable
+          value={d.relation}
+          onChange={(v) => setD({ ...d, relation: RELATIONS.find((r) => r === v) })}
+          options={RELATIONS.map((r) => ({
+            value: r,
+            label: t(RELATION_KEY[r]),
+            hint: r === d.relation ? t("ch.relation.clear") : t("ch.relation.hint"),
+          }))}
+        />
+      </CardField>
+      <CardField label={t("ch.answers")} hint={other ? t("ch.answers.otherHint", { name: person.name }) : undefined}>
+        <SegmentedControl
+          size="sm"
+          className="chan__answers"
+          label={t("ch.answers")}
+          value={other ? "other" : "account"}
+          onValueChange={(v) => {
+            setOther(v === "other");
+            if (v === "account") setD((x) => ({ ...x, agent_id: undefined }));
+          }}
+          options={[
+            { value: "account", label: t("ch.answers.account", { agent: accountAgent?.name ?? "" }) },
+            { value: "other", label: t("ch.answers.other") },
+          ]}
+        />
+        {other && (
+          <AgentSelect
+            size="sm"
+            channel
+            label={t("ch.answers.pick", { name: person.name })}
+            value={d.agent_id}
+            onChange={(id) => id && setD((x) => ({ ...x, agent_id: id }))}
           />
-          <span className="pform__hint">{t("ch.rulesHint")}</span>
-        </div>
-        <div className="pform__label">
-          {t("ch.may")}
-          <Help
-            label={t("ch.may.help")}
-            title={t("ch.may.helpTitle")}
-            className="chan__help"
-            width={340}
-            items={[
-              { term: t("ch.perm.appointments"), text: t("ch.perm.appointmentsHint") },
-              { term: t("ch.perm.requests"), text: t("ch.perm.requestsHint") },
-              { term: t("ch.perm.notes"), text: t("ch.perm.notesHint") },
-              { term: t("ch.anyHour"), text: t("ch.anyHourHint") },
-            ]}
-          >
-            {t("ch.may.close")}
-          </Help>
-        </div>
+        )}
+      </CardField>
+      <CardField label={t("ch.who.is")} hint={t("ch.who.isHint")}>
+        <Textarea
+          aria-label={t("ch.who.is")}
+          rows={3}
+          placeholder={t("ch.who.placeholder")}
+          value={d.note}
+          onChange={(e) => setD({ ...d, note: e.currentTarget.value })}
+        />
+      </CardField>
+      <CardField label={t("ch.rules")} hint={t("ch.rulesHint")}>
+        <Textarea
+          aria-label={t("ch.rules")}
+          rows={2}
+          placeholder={t("ch.rules.placeholder")}
+          value={d.rules}
+          onChange={(e) => setD({ ...d, rules: e.currentTarget.value })}
+        />
+      </CardField>
+      <CardField label={t("ch.may")}>
         <ul className="chan__perms">
-          {perm("appointments", t("ch.perm.appointments"))}
-          {perm("requests", t("ch.perm.requests"))}
-          {perm("notes", t("ch.perm.notes"))}
+          {PERMS.map(([k, label, hint]) => (
+            <li key={k}>
+              <Switch
+                size="sm"
+                checked={d.perms[k]}
+                label={t(label)}
+                description={t(hint)}
+                onCheckedChange={(on) => setD((x) => ({ ...x, perms: { ...x.perms, [k]: on } }))}
+              />
+            </li>
+          ))}
           <li>
             <Switch
               size="sm"
               checked={d.any_hour}
               label={t("ch.anyHour")}
+              description={t("ch.anyHourHint")}
               onCheckedChange={(on) => setD((x) => ({ ...x, any_hour: on }))}
             />
           </li>
         </ul>
-        <ItsMine person={person} onDone={onClose} />
-      </div>
-      <footer className="chan__cardfoot">
-        <Tooltip content={person.muted ? t("ch.unmuteHint") : t("ch.muteHint")}>
-          <Button
-            size="sm"
-            variant="ghost"
-            leadingIcon={<Icons.BellOff size={14} />}
-            onClick={() => void saveContact(person.id, { name: person.name, muted: !person.muted })}
-          >
-            <span className="chan__cardfoot-text">{person.muted ? t("ch.unmute") : t("ch.mute")}</span>
-          </Button>
-        </Tooltip>
-        <Tooltip content={t("ch.superviseHint")}>
-          <Button
-            size="sm"
-            variant="ghost"
-            leadingIcon={<Icons.Eye size={14} />}
-            onClick={() => void saveContact(person.id, { name: person.name, supervised: !person.supervised })}
-          >
-            <span className="chan__cardfoot-text">{person.supervised ? t("ch.unsupervise") : t("ch.supervise")}</span>
-          </Button>
-        </Tooltip>
-        <span className="chan__spacer" />
-        <Tooltip content={t("ch.saveHint")}>
-          <Button size="sm" disabled={!dirty || !d.name.trim()} loading={busy} onClick={() => void save()}>
-            {t("common.save")}
-          </Button>
-        </Tooltip>
-      </footer>
-    </aside>
+      </CardField>
+      <ItsMine person={person} onDone={onClose} />
+    </ChatCard>
   );
 }
 

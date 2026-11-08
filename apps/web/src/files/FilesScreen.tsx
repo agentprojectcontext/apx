@@ -1,9 +1,10 @@
 import "../styles/resources.css";
 import "../styles/shared-files.css";
 import type { SharedFile, SharedKind, SharedOrder } from "@apx/protocol";
-import { Button, EmptyState, Icons, ProjectTile, SearchField, SegmentedControl, Select } from "@apx/ui";
+import { Button, EmptyState, Icons, ProjectTile, SegmentedControl, Select } from "@apx/ui";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useMediaUrl } from "../chat/parts/useMediaUrl.ts";
+import { SectionPage } from "../common/SectionPage.tsx";
 import { client } from "../data/client.ts";
 import { DEFAULT_PID, projectEntries, projectInitial, projectName, projectTone } from "../data/identity.ts";
 import { posterUrl } from "../data/media.ts";
@@ -177,61 +178,56 @@ export function FilesScreen() {
   const total = counts ? counts.image + counts.video + counts.audio + counts.document : undefined;
   const countOf = (k: Kind) => (k === "artifact" ? artifacts.length : k === "all" ? total : counts?.[k]);
 
+  const entries = projectEntries(projects);
   return (
-    <section className="resv sharedf" aria-label={t("nav.files")}>
+    <div className="resv sharedf">
       {shown && <SharedPreview file={shown} onBack={back} onStep={items.length > 1 ? step : undefined} />}
-      <div className="sharedf__list">
-        <header className="resv__head">
-          <div className="resv__titles">
-            <h1 className="resv__title">{t("nav.files")}</h1>
-            <p className="resv__lead">{t(showArtifacts ? "files.artifacts.lead" : "shared.lead")}</p>
-          </div>
-          <div className="resv__bar">
-            <SegmentedControl
-              label={t("shared.kinds")}
-              value={kind}
-              onValueChange={(v) => setKind(v as Kind)}
-              options={KINDS.map((k) => ({
-                value: k.id,
-                label: (
-                  <span className="resv__tab">
-                    {t(k.label)}
-                    {countOf(k.id) !== undefined && <span className="resv__count">{countOf(k.id)}</span>}
-                  </span>
-                ),
-              }))}
-            />
-            <span className="resv__spacer" />
-            <SearchField
-              className="resv__search"
-              aria-label={t("shared.search")}
-              placeholder={t("shared.search")}
-              value={typed}
-              onChange={(e) => setTyped(e.currentTarget.value)}
-            />
-            <Select
-              className="sharedf__select"
-              label={t("shared.order")}
-              value={order}
-              onValueChange={(v) => setOrder((v as SharedOrder | null) ?? "new")}
-              options={ORDERS.map((o) => ({ value: o.id, label: t(o.label) }))}
-            />
-            <Select
-              className="sharedf__select"
-              label={t("shared.project")}
-              value={project}
-              onValueChange={(v) => setProject(v ?? "")}
-              options={[
-                { value: "", label: t("shared.allProjects") },
-                ...projectEntries(projects).map((p) => ({
-                  value: p.id,
-                  label: p.name,
-                  icon: <ProjectTile tone={projectTone(p.id)} initial={projectInitial(p.name)} size={16} />,
-                })),
-              ]}
-            />
-          </div>
-        </header>
+      <SectionPage
+        className="sharedf__list"
+        label={t("nav.files")}
+        title={t("nav.files")}
+        lead={t(showArtifacts ? "files.artifacts.lead" : "shared.lead")}
+        tabs={
+          <SegmentedControl
+            label={t("shared.kinds")}
+            value={kind}
+            onValueChange={(v) => setKind(v as Kind)}
+            options={KINDS.map((k) => ({
+              value: k.id,
+              label: (
+                <span className="secpage__tab">
+                  {t(k.label)}
+                  {countOf(k.id) !== undefined && <span className="secpage__count">{countOf(k.id)}</span>}
+                </span>
+              ),
+            }))}
+          />
+        }
+        tools={
+          <Select
+            size="sm"
+            className="sharedf__select"
+            label={t("shared.order")}
+            value={order}
+            onValueChange={(v) => setOrder((v as SharedOrder | null) ?? "new")}
+            options={ORDERS.map((o) => ({ value: o.id, label: t(o.label) }))}
+          />
+        }
+        search={{ value: typed, onChange: setTyped, placeholder: t("shared.search") }}
+        scopes={
+          entries.length < 2
+            ? undefined
+            : {
+                label: t("shared.project"),
+                value: project || "all",
+                onChange: (id) => setProject(id === "all" ? "" : id),
+                options: [
+                  { id: "all", label: t("section.scope.all") },
+                  ...entries.map((p) => ({ id: p.id, label: p.name })),
+                ],
+              }
+        }
+      >
         <div className="sharedf__body">
           {showArtifacts ? (
             artifacts.length ? (
@@ -274,7 +270,7 @@ export function FilesScreen() {
             </div>
           )}
         </div>
-      </div>
-    </section>
+      </SectionPage>
+    </div>
   );
 }

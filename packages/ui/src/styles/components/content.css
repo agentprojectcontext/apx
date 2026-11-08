@@ -336,17 +336,43 @@
   color: var(--apx-fg-muted);
 }
 
-/* A table in its own frame: columns keep their words whole and a wide table scrolls sideways inside the frame. */
+/* A table in its own frame, as a code block's (CodeFrame): on the page, a soft outline, a header naming it with its
+   controls coming up when it is pointed at, rows split by thin lines. Wide tables scroll sideways inside it. */
 .apx-md__table {
   position: relative;
   max-width: 100%;
-  border: 1px solid var(--apx-border);
-  border-radius: var(--apx-radius-md);
-  background: var(--apx-surface);
+  border: 1px solid color-mix(in oklch, var(--apx-border) 75%, transparent);
+  border-radius: 12px;
+  background: transparent;
+  overflow: hidden;
+}
+.apx-md__tablebar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 36px;
+  padding: 4px 6px 4px 12px;
+  border-bottom: 1px solid color-mix(in oklch, var(--apx-border) 75%, transparent);
+}
+.apx-md__tablekind {
+  flex: 1;
+  min-width: 0;
+  font-family: var(--apx-font-mono);
+  font-size: 10px;
+  color: var(--apx-fg-subtle);
+}
+.apx-md__tablebaractions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  opacity: 0.6;
+  transition: opacity 0.16s;
+}
+.apx-md__tablebaractions .apx-iconbtn {
+  color: var(--apx-fg-muted);
 }
 .apx-md__scroll {
   overflow-x: auto;
-  border-radius: inherit;
 }
 .apx-md__scroll table {
   min-width: 100%;
@@ -359,8 +385,8 @@
 .apx-md__scroll th,
 .apx-md__scroll td {
   min-width: 4em;
-  padding: 8px 12px;
-  border-bottom: 1px solid var(--apx-border);
+  padding: 9px 14px;
+  border-bottom: 1px solid color-mix(in oklch, var(--apx-border) 75%, transparent);
   vertical-align: top;
 }
 .apx-md__scroll tr:last-child td {
@@ -371,9 +397,6 @@
   white-space: nowrap;
   color: var(--apx-fg);
 }
-.apx-md__scroll thead tr {
-  background: var(--apx-fill);
-}
 .apx-md__scroll :is(td, th) :is(a, code) {
   overflow-wrap: anywhere;
 }
@@ -381,43 +404,34 @@
   max-height: calc(100vh - 160px);
   overflow: auto;
   border: 1px solid var(--apx-border);
+  border-radius: var(--apx-radius-md);
 }
 .apx-md__scroll--max thead th {
   position: sticky;
   top: 0;
-  background: var(--apx-fill);
+  background: var(--apx-surface);
 }
-.apx-md__tablebar {
-  display: flex;
-  justify-content: flex-end;
-  gap: 2px;
-  padding: 2px;
-}
-/* With a mouse the toolbar floats over the header's corner and shows on hover or focus. */
-@media (hover: hover) {
-  .apx-md__tablebar {
-    position: absolute;
-    top: 4px;
-    right: 4px;
-    z-index: 1;
-    border-radius: var(--apx-radius-sm);
-    background: var(--apx-surface);
-    box-shadow: var(--apx-shadow-sm);
-  }
-  .apx-md__table:not(:hover) .apx-md__tablebar:not(:focus-within) {
-    opacity: 0;
-  }
-}
-/* Copy actions sit under the table, at its right edge. */
+/* Copy actions sit under the table, at its right edge; quieter until the table is pointed at. */
 .apx-md__tableactions {
   display: flex;
   flex-wrap: wrap;
   justify-content: flex-end;
   gap: 2px;
   margin-top: 4px;
+  opacity: 0.6;
+  transition: opacity 0.16s;
 }
 .apx-md__tableactions .apx-iconbtn {
   color: var(--apx-fg-muted);
+}
+.apx-md__tablebox:is(:hover, :focus-within) :is(.apx-md__tablebaractions, .apx-md__tableactions) {
+  opacity: 1;
+}
+@media (hover: none) {
+  .apx-md__tablebaractions,
+  .apx-md__tableactions {
+    opacity: 1;
+  }
 }
 .apx-md__dialog {
   width: calc(100vw - 32px);
@@ -510,9 +524,9 @@
   border-radius: 0;
   background: transparent;
 }
-/* What the code draws sits on the page's own surface, like the page or picture it is. */
+/* What the code draws sits on the page with the frame (a page brings its own white). */
 .apx-codeframe__body--preview {
-  background: var(--apx-surface);
+  background: transparent;
 }
 .apx-codeframe__body--large {
   max-height: calc(100vh - 160px);
@@ -524,13 +538,14 @@
 }
 
 /* ── LiveBrowserCard ───────────────────────────────────────────────────────── */
+/* The floating frame code blocks use: on the page, a soft outline, the page's picture over a line saying what it is. */
 .apx-livebrowser {
   display: flex;
   flex-direction: column;
   width: min(440px, 100%);
-  border: 1px solid var(--apx-border);
-  border-radius: var(--apx-radius-lg);
-  background: var(--apx-surface);
+  border: 1px solid color-mix(in oklch, var(--apx-border) 75%, transparent);
+  border-radius: 12px;
+  background: transparent;
   overflow: hidden;
 }
 .apx-livebrowser__preview {
@@ -539,7 +554,7 @@
   height: 170px;
   padding: 0;
   border: 0;
-  background: var(--apx-fill);
+  background: transparent;
   cursor: pointer;
   overflow: hidden;
 }
@@ -587,8 +602,8 @@
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 12px 14px;
-  border-top: 1px solid var(--apx-border);
+  padding: 10px 12px;
+  border-top: 1px solid color-mix(in oklch, var(--apx-border) 75%, transparent);
 }
 .apx-livebrowser__globe {
   display: inline-flex;
@@ -699,22 +714,20 @@
 }
 
 /* ── SubthreadCard ─────────────────────────────────────────────────────────── */
+/* On the page itself, a thin soft outline around it; the head lights up under the pointer. */
 .apx-subthread {
   display: flex;
   flex-direction: column;
-  width: min(560px, 100%);
-  border: 1px solid var(--apx-group-border);
-  border-radius: var(--apx-radius-md);
-  background: var(--apx-group-bg);
+  width: 100%;
+  border: 1px solid color-mix(in oklch, var(--apx-border) 75%, transparent);
+  border-radius: 12px;
+  background: transparent;
   color: var(--apx-fg);
-  transition: border-color var(--apx-duration);
-}
-.apx-subthread:hover {
-  border-color: var(--apx-border-strong);
+  overflow: hidden;
 }
 .apx-subthread__head {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   gap: 10px;
   width: 100%;
   padding: 10px 12px;
@@ -725,18 +738,21 @@
   font: inherit;
   text-align: left;
   cursor: pointer;
+  transition: background var(--apx-duration);
+}
+.apx-subthread__head:hover {
+  background: var(--apx-fill-hover);
 }
 .apx-subthread__avatar {
   display: inline-flex;
   flex-shrink: 0;
-  padding-top: 1px;
 }
 .apx-subthread__main {
   flex: 1;
   min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 1px;
 }
 .apx-subthread__top {
   display: flex;
@@ -748,7 +764,7 @@
   flex: 1;
   min-width: 0;
   font-size: var(--apx-text-sm);
-  font-weight: var(--apx-weight-semibold);
+  font-weight: var(--apx-weight-medium);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -771,16 +787,19 @@
   color: var(--apx-warning-soft-fg);
 }
 .apx-subthread__sub {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   font-size: var(--apx-text-xs);
-  color: var(--apx-fg-subtle);
+  color: var(--apx-fg-muted);
 }
-/* The report sits under the head, lined up with the title (avatar 28px + gap). */
+/* The report sits under the head, lined up with the title (avatar 24px + gap). */
 .apx-subthread__report {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
   gap: 4px;
-  margin: -2px 12px 0 50px;
+  margin: -2px 12px 0 46px;
   padding-bottom: 10px;
 }
 .apx-subthread__summary {
@@ -816,13 +835,12 @@
 }
 .apx-subthread__meta {
   padding: 6px 12px 8px;
-  border-top: 1px solid var(--apx-group-border);
+  border-top: 1px solid color-mix(in oklch, var(--apx-border) 75%, transparent);
   font-size: var(--apx-text-xs);
   color: var(--apx-fg-subtle);
 }
 .apx-subthread__chevron {
   flex-shrink: 0;
-  align-self: center;
   color: var(--apx-fg-subtle);
 }
 

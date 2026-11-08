@@ -160,6 +160,7 @@
                   {
                     "group": [
                       "**/AboutScreen.tsx",
+                      "**/AgentDialogs.tsx",
                       "**/AgentPanel.tsx",
                       "**/AppScreen.tsx",
                       "**/AppsDock.tsx",
@@ -221,6 +222,7 @@
                       "**/TablesView.tsx",
                       "**/FlowsScreen.tsx",
                       "**/RoutinesScreen.tsx",
+                      "**/RoomPanel.tsx",
                       "**/RoutineChat.tsx",
                       "**/SearchSelect.tsx",
                       "**/SurfacePart.tsx",

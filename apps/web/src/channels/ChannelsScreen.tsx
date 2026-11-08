@@ -1,26 +1,17 @@
 import "../styles/screens.css";
 import type { ChannelInfo } from "@apx/protocol";
-import {
-  AgentAvatar,
-  Badge,
-  Button,
-  ContextMenu,
-  EmptyState,
-  IconButton,
-  Icons,
-  PickRow,
-  ProjectTile,
-  SegmentedControl,
-} from "@apx/ui";
+import { AgentAvatar, Badge, Button, ContextMenu, EmptyState, IconButton, Icons, PickRow, ProjectTile } from "@apx/ui";
 import { useEffect, useState } from "react";
+import { SectionPage } from "../common/SectionPage.tsx";
 import { loadChannels, useChannels } from "../data/channels.ts";
 import { blobOf } from "../data/identity.ts";
 import { useData } from "../data/state.ts";
 import { useT } from "../i18n/index.ts";
 import { go } from "../shell/nav.ts";
 import { accountItems, accountLine } from "./accountMenu.tsx";
+import { ChoiceChips } from "./ChoiceChips.tsx";
 import { type AccountCounts, useAccountCounts } from "./counts.ts";
-import { KindTile } from "./KindIcon.tsx";
+import { KindIcon, KindTile } from "./KindIcon.tsx";
 import { CHANNEL_KIND_IDS, CHANNEL_KINDS, isChannelKind } from "./kinds.ts";
 
 const ALL = "all";
@@ -40,29 +31,29 @@ export function ChannelsScreen() {
   const kinds = CHANNEL_KIND_IDS.filter((k) => channels.some((c) => c.type === k));
   const shown = filter === ALL ? channels : channels.filter((c) => c.type === filter);
   return (
-    <section className="page page--channels" aria-label={t("nav.channels")}>
-      <header className="page__head page__head--row">
-        <div>
-          <h1 className="page__title">{t("nav.channels")}</h1>
-          <p className="page__lead">{t("chs.lead")}</p>
-        </div>
-        <Button leadingIcon={<Icons.Plus size={14} />} onClick={() => go.newChannel()}>
-          {t("chs.new")}
-        </Button>
-      </header>
+    <SectionPage
+      className="page--channels"
+      bodyClassName="page"
+      label={t("nav.channels")}
+      title={t("nav.channels")}
+      lead={t("chs.lead")}
+      action={{ label: t("chs.new"), hint: t("section.channels.newHint"), onClick: () => go.newChannel() }}
+    >
       <div className="chs">
         {kinds.length > 1 && (
-          <SegmentedControl
-            size="sm"
+          <ChoiceChips
             className="chs__filter"
             label={t("nav.channels")}
             value={kinds.includes(filter as never) ? filter : ALL}
-            onValueChange={setFilter}
+            onChange={(v) => setFilter(v ?? ALL)}
             options={[
-              { value: ALL, label: `${t("chs.all")} ${channels.length}` },
+              { value: ALL, label: t("chs.all"), aside: channels.length, hint: t("chs.filter.all") },
               ...kinds.map((k) => ({
                 value: k,
-                label: `${t(CHANNEL_KINDS[k].name)} ${channels.filter((c) => c.type === k).length}`,
+                label: t(CHANNEL_KINDS[k].name),
+                icon: <KindIcon kind={k} size={13} />,
+                aside: channels.filter((c) => c.type === k).length,
+                hint: t("chs.filter.kind", { app: t(CHANNEL_KINDS[k].name) }),
               })),
             ]}
           />
@@ -91,7 +82,7 @@ export function ChannelsScreen() {
           </>
         )}
       </div>
-    </section>
+    </SectionPage>
   );
 }
 

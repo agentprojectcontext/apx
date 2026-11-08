@@ -526,6 +526,14 @@
   border-radius: 50%;
   background: var(--apx-fg);
 }
+/* In the projects flyout: "2 sub" beside a project, "Own agents" beside a subproject that has them. */
+.sidebar__aside {
+  flex: none;
+  margin-left: 6px;
+  font-size: var(--apx-text-2xs);
+  color: var(--apx-fg-subtle);
+  white-space: nowrap;
+}
 .sidebar__soon {
   font-size: var(--apx-text-2xs);
   color: var(--apx-fg-subtle);
@@ -577,6 +585,33 @@
 .account__more {
   flex: none;
   color: var(--apx-fg-subtle);
+}
+/* The account menu: a value at the right of an item (the language in use), and a checkbox for an on/off option. */
+.account__menurow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+.account__menuaside {
+  margin-left: auto;
+  font-size: var(--apx-text-2xs);
+  color: var(--apx-fg-subtle);
+}
+.account__checkbox {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  width: 14px;
+  height: 14px;
+  border: 1.5px solid var(--apx-border-strong);
+  border-radius: 4px;
+  color: var(--apx-accent-fg);
+}
+.account__checkbox.is-on {
+  border-color: var(--apx-accent);
+  background: var(--apx-accent);
 }
 .account.is-rail .account__btn {
   padding: 0 0 0 9px;
@@ -1194,4 +1229,47 @@
 }
 .usage-btn.is-danger {
   color: var(--apx-danger-soft-fg);
+}
+/* Reduced (the owner's choice in its popover): the icon and a dot in the gauge's colour. */
+.usage-btn.is-mini {
+  gap: 6px;
+  padding: 0 8px;
+}
+.usage-btn__dot {
+  width: 6px;
+  height: 6px;
+  flex: none;
+  border-radius: 50%;
+  background: var(--apx-brand);
+}
+.usage-btn.is-warning .usage-btn__dot {
+  background: var(--apx-warning);
+}
+.usage-btn.is-danger .usage-btn__dot {
+  background: var(--apx-danger);
+}
+/* The foot of the quota and resources popovers: how their button shows in the bar. */
+.barshow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding-top: 12px;
+  border-top: 1px solid var(--apx-border);
+}
+.barshow__label {
+  flex: 1;
+  min-width: 0;
+  font-size: var(--apx-text-xs);
+  color: var(--apx-fg-muted);
+}
+
+/* The page under the notice strip: the main pane stacks the strip (when there is one) over what it shows. */
+.shell__main {
+  flex-direction: column;
+}
+.shell__view {
+  flex: 1;
+  min-height: 0;
+  min-width: 0;
+  display: flex;
 }

@@ -410,7 +410,7 @@
   padding: 2px 0;
 }
 
-/* Terminal: the agent's commands (the list), then the owner's shells, one tab each */
+/* Terminal: the owner's shells, one tab each */
 .term {
   overflow: hidden;
 }
@@ -434,93 +434,6 @@
   color: var(--apx-fg-subtle);
   font-size: var(--apx-text-xs);
 }
-.term__jobs {
-  flex: 1;
-  min-height: 0;
-  margin: 0;
-  padding: 10px;
-  overflow-y: auto;
-  list-style: none;
-}
-.term__job {
-  border-radius: 10px;
-  overflow: hidden;
-}
-.term__job + .term__job {
-  margin-top: 2px;
-}
-.term__job.is-open {
-  background: var(--apx-fill);
-}
-.term__jobrow {
-  display: flex;
-  align-items: center;
-  padding-right: 4px;
-  border-radius: 10px;
-}
-.term__jobrow:hover {
-  background: var(--apx-fill-hover);
-}
-.term__jobtoggle {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  min-height: 36px;
-  padding: 8px 10px;
-  border: 0;
-  background: none;
-  color: var(--apx-fg);
-  font: inherit;
-  text-align: left;
-  cursor: pointer;
-}
-.term__jobtoggle svg {
-  flex: none;
-  color: var(--apx-fg-muted);
-}
-.term__cmd {
-  flex: 1;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  font-family: var(--apx-font-mono);
-  font-size: var(--apx-text-xs);
-}
-.term__chip {
-  flex: none;
-  padding: 0 6px;
-  border-radius: var(--apx-radius-pill);
-  background: var(--apx-fill);
-  color: var(--apx-fg-muted);
-  font-size: calc(11px * var(--apx-text-scale, 1));
-}
-.term__status {
-  flex: none;
-  color: var(--apx-fg-subtle);
-  font-size: var(--apx-text-xs);
-}
-.term__status.is-running {
-  color: var(--apx-brand);
-}
-.term__status.is-failed {
-  color: var(--apx-danger);
-}
-.term__out {
-  max-height: 360px;
-  margin: 0;
-  padding: 8px 10px;
-  overflow: auto;
-  border-top: 1px solid var(--apx-border);
-  font-family: var(--apx-font-mono);
-  font-size: calc(12px * var(--apx-text-scale, 1));
-  line-height: 1.5;
-  white-space: pre-wrap;
-  word-break: break-word;
-}
-
 .sidepanel__title {
   min-width: 0;
   overflow: hidden;
@@ -724,7 +637,7 @@
   font-size: calc(12px * var(--apx-text-scale, 1));
 }
 /* The chat's own turn: its transcript is already beside the panel, nothing to open. */
-.plist .processes__row.is-own:hover {
+.plist .agents__row.is-own:hover {
   background: transparent;
 }
 .chatfiles > .chatfiles__note {
@@ -778,4 +691,96 @@
 .browser__stage > .ctrllock {
   inset: 0 10px 10px;
   border-radius: var(--apx-radius-md);
+}
+
+/* Chat header tools: a dot on a tool with something running for this chat (its commands, the agents it called). */
+.panelswitch__btn {
+  position: relative;
+}
+.panelswitch__live {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--apx-brand);
+}
+
+/* Chat agents: who asked whom, how it went and when. */
+.agents__state.is-failed {
+  color: var(--apx-danger);
+}
+.agents__when {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* Chat processes: the commands the agent ran; one opened shows what it printed. */
+.procs__row .apx-pickrow__title {
+  font-size: var(--apx-text-xs);
+}
+.procs__exit {
+  flex: none;
+  color: var(--apx-fg-subtle);
+}
+.procs__exit.is-running {
+  color: var(--apx-brand);
+}
+.procs__exit.is-failed {
+  color: var(--apx-danger);
+}
+.procs__view {
+  overflow: hidden;
+}
+.procs__head {
+  flex: none;
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 10px 10px 10px 14px;
+  border-bottom: 1px solid var(--apx-border);
+}
+.procs__headmain {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.procs__cmd {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  font-family: var(--apx-font-mono);
+  font-size: var(--apx-text-xs);
+  word-break: break-all;
+}
+.procs__meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  font-size: var(--apx-text-xs);
+}
+.procs__cwd {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--apx-fg-subtle);
+}
+.procs__out {
+  flex: 1;
+  min-height: 0;
+  margin: 0;
+  padding: 10px 14px;
+  overflow: auto;
+  font-family: var(--apx-font-mono);
+  font-size: calc(12px * var(--apx-text-scale, 1));
+  line-height: 1.5;
+  white-space: pre-wrap;
+  word-break: break-word;
 }

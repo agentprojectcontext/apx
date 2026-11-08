@@ -88,6 +88,8 @@ export type ChannelDraft = {
   research?: ChannelInfo["research"];
   /** When it answers contacts; none: at any hour (kept on every save). */
   hours?: ChannelInfo["hours"] | undefined;
+  /** Its notices silenced (kept on every save). */
+  quiet?: boolean | undefined;
   /** Email: the mailbox and its servers (kept on every save). */
   email?: ChannelInfo["email"];
 };
@@ -106,6 +108,7 @@ export const draftOf = (c: ChannelInfo): ChannelDraft => ({
   reactions: c.reactions,
   research: c.research,
   hours: c.hours,
+  ...(c.quiet ? { quiet: true } : {}),
   ...(c.email ? { email: c.email } : {}),
 });
 
@@ -270,6 +273,8 @@ export type ContactDraft = {
   /** Answered at any hour, past the attention hours of the channel they write on. */
   any_hour?: boolean;
   perms?: Partial<Person["perms"]>;
+  /** Who answers them instead of the account's contacts agent; null gives them back to the account's. */
+  agent_id?: string | null;
 };
 
 export async function saveContact(id: string, draft: ContactDraft): Promise<boolean> {

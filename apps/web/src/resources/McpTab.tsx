@@ -5,6 +5,7 @@ import { projectName } from "../data/identity.ts";
 import { setMcp, setMcpToolMode, toggleMcp, trustMcp } from "../data/resources.ts";
 import { useData } from "../data/state.ts";
 import { useT } from "../i18n/index.ts";
+import { OriginChip } from "./ByProject.tsx";
 import { mcpDot, STATUS_KEY } from "./labels.ts";
 import { McpDetail } from "./McpDetail.tsx";
 import { McpDialog } from "./McpDialog.tsx";
@@ -142,6 +143,7 @@ export function McpTab({ projectId, query, scope, adding, setAdding, res, ownOnl
         description={s.off_here ? t("res.offHere") : s.tools ? t("mcp.tools", { n: s.tools }) : t(STATUS_KEY[s.status])}
         trailing={
           <>
+            {!projectId && <OriginChip project={isGlobal(s) ? undefined : s.project_id} />}
             <Tag>{s.transport}</Tag>
             <PermissionIndicator mode={s.tool_permission_mode} />
           </>
@@ -204,16 +206,8 @@ export function McpTab({ projectId, query, scope, adding, setAdding, res, ownOnl
               ownOnly={ownOnly}
             />
           ) : (
-            groups
-              .filter((g) => g.items.length)
-              .map((g) => (
-                <div key={g.title} className="resv__group">
-                  <div className="resv__grouptitle">
-                    {g.title} <span>{g.items.length}</span>
-                  </div>
-                  {g.items.map(row)}
-                </div>
-              ))
+            // Globally one list, global ones first: each row says where it lives.
+            groups.flatMap((g) => g.items).map(row)
           )
         }
         detail={

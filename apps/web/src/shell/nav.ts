@@ -14,6 +14,7 @@ export type PanelKind =
   | "widget"
   | "usage"
   | "agent"
+  | "agents"
   | "processes"
   | "document";
 
@@ -167,6 +168,7 @@ const PANELS: readonly PanelKind[] = [
   "changes",
   "widget",
   "usage",
+  "agents",
   "processes",
   "document",
 ];
@@ -557,7 +559,10 @@ export const go = {
   agent(agentId: string) {
     nav.set({ panel: "agent", panelAgent: agentId });
   },
-  /** A sub-chat beside the open chat; with no chat open (Tasks, a task over the screen) it opens as a chat itself. */
+  /**
+   * A sub-chat beside the open chat, in its agents; with no chat open (Tasks, a task over the screen) it opens as a
+   * chat itself.
+   */
   subthread(thread: string) {
     nav.set((s) => {
       const chat =
@@ -567,9 +572,14 @@ export const go = {
         (s.view === "project" && s.projectTab === "chats");
       if (!chat || !s.threadId || s.peekTaskId)
         return { view: "inbox", threadId: thread, peekTaskId: undefined, panel: null, listInFront: false };
-      return { panel: "processes", panelThread: thread, panelParent: s.threadId, listInFront: false };
+      return { panel: "agents", panelThread: thread, panelParent: s.threadId, listInFront: false };
     });
   },
+  /** The agents the open chat called (its delegated conversations). */
+  agents() {
+    nav.set({ panel: "agents", panelThread: undefined, panelParent: undefined });
+  },
+  /** The commands the open chat's agent ran. */
   processes() {
     nav.set({ panel: "processes", panelThread: undefined, panelParent: undefined });
   },

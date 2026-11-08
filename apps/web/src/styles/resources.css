@@ -1,38 +1,10 @@
-/* Resources: header with full tabs, master/detail bodies, the variables table. */
+/* Resources: master/detail bodies and the variables table, under the shared section header. */
 .resv {
   display: flex;
   flex: 1;
   flex-direction: column;
   min-width: 0;
   min-height: 0;
-}
-.resv__head {
-  display: flex;
-  flex: none;
-  flex-direction: column;
-  gap: 12px;
-  padding: 24px 28px 14px;
-  border-bottom: 1px solid var(--apx-border);
-}
-.resv--project .resv__head {
-  padding-top: 16px;
-}
-.resv__title {
-  margin: 0;
-  font-size: var(--apx-text-xl);
-  font-weight: var(--apx-weight-semibold);
-}
-.resv__lead {
-  max-width: 760px;
-  margin: 4px 0 0;
-  color: var(--apx-fg-muted);
-  font-size: var(--apx-text-sm);
-}
-.resv__bar {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 10px;
 }
 .resv__tab {
   display: inline-flex;
@@ -44,68 +16,10 @@
   font-size: var(--apx-text-xs);
   font-variant-numeric: tabular-nums;
 }
-.resv__spacer {
-  flex: 1;
-}
-.resv__search {
-  width: 260px;
-  max-width: 100%;
-}
 .resv__inherit {
   margin: 0;
   color: var(--apx-fg-muted);
   font-size: var(--apx-text-xs);
-}
-.resv__scopes {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 6px;
-  margin: 0;
-  padding: 0;
-  border: 0;
-}
-.resv__scopelabel {
-  float: left;
-  margin-right: 4px;
-  padding: 0;
-  color: var(--apx-fg-subtle);
-  font-size: var(--apx-text-xs);
-}
-.resv__chip {
-  height: 26px;
-  padding: 0 12px;
-  border: 0;
-  border-radius: var(--apx-radius-pill);
-  background: var(--apx-fill);
-  color: var(--apx-fg-muted);
-  font-size: var(--apx-text-xs);
-}
-.resv__chip:hover {
-  background: var(--apx-fill-hover);
-}
-.resv__chip.is-on {
-  background: var(--apx-accent);
-  color: var(--apx-accent-fg);
-}
-/* Under the header's line: skills' filters first, the scope to filter by, then what the list shows. */
-.resv__under {
-  display: flex;
-  flex: none;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 8px 12px;
-  padding: 10px 28px;
-  border-bottom: 1px solid var(--apx-border);
-}
-.resv__under:empty {
-  display: none;
-}
-/* They keep a readable width: the skills' filters go to the next line first. */
-.resv__under .resv__scopes,
-.resv__under .resv__inherit {
-  flex: 1;
-  min-width: min(100%, 220px);
 }
 .resv__tags {
   display: inline-flex;
@@ -121,21 +35,9 @@
   align-items: center;
   gap: 8px;
 }
-.resv__under .resv__scopes {
-  flex-wrap: nowrap;
-  overflow-x: auto;
-  scrollbar-width: none;
-}
-.resv__under .resv__chip {
-  flex: none;
-}
-.resv__under .resv__inherit {
-  margin: 0;
-}
-.resv__body {
-  display: flex;
-  flex: 1;
-  min-height: 0;
+/* Each tab scrolls its own list and detail, side by side. */
+.secpage__body.resv__body {
+  flex-direction: row;
 }
 .resv__group + .resv__group {
   margin-top: 10px;
@@ -152,18 +54,6 @@
   font-variant-numeric: tabular-nums;
 }
 @media (max-width: 767px) {
-  .resv__head {
-    padding: 16px;
-  }
-  .resv__search {
-    width: 100%;
-  }
-  /* The tabs scroll sideways instead of being cut off. */
-  .resv__bar > .apx-segmented {
-    max-width: 100%;
-    overflow-x: auto;
-    scrollbar-width: none;
-  }
   .resd__facts {
     grid-template-columns: 1fr;
     gap: 2px;
@@ -189,7 +79,7 @@
 .resd__name {
   margin: 0;
   font-family: var(--apx-font-mono);
-  font-size: var(--apx-text-lg);
+  font-size: 17px;
   font-weight: var(--apx-weight-semibold);
 }
 .resd__spacer {
@@ -287,6 +177,58 @@
   min-height: 40px;
   border-top: 1px solid var(--apx-border);
   font-size: var(--apx-text-sm);
+}
+/* By project: every project a resource reaches in one bordered box, subprojects indented under theirs. */
+.resd__bylabel {
+  margin: 4px 0 6px;
+  color: var(--apx-fg-subtle);
+  font-size: 12px;
+  font-weight: var(--apx-weight-medium);
+}
+.resd__byproject {
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  border: 1px solid var(--apx-border);
+  border-radius: 12px;
+  list-style: none;
+}
+.resd__byproject li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  font-size: 13px;
+}
+.resd__byproject li + li {
+  border-top: 1px solid var(--apx-border);
+}
+.resd__byproject li.is-sub {
+  padding-left: 40px;
+}
+.resd__folder {
+  flex: none;
+  color: var(--apx-fg-subtle);
+}
+.resd__byname {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.resd__bynote {
+  color: var(--apx-fg-subtle);
+  font-size: 11px;
+}
+.resd__byhint {
+  margin: 6px 0 0;
+  font-size: 12px;
+  text-wrap: pretty;
+}
+/* "Global" beside the projects' coloured badges. */
+.projbadge.is-global {
+  color: var(--apx-fg);
 }
 .resd__viewbar {
   display: flex;

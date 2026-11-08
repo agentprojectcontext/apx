@@ -6,6 +6,7 @@ import { useData } from "../data/state.ts";
 import { useT } from "../i18n/index.ts";
 import { nav, useNav } from "../shell/nav.ts";
 import { AddSkill, type ImportStart } from "./AddSkill.tsx";
+import { OriginChip } from "./ByProject.tsx";
 import { copyTag, ENGINE_LABEL, engineOf, inEngines, sourceTag, unusedIn } from "./labels.ts";
 import type { TabProps } from "./ResourcesView.tsx";
 import { ScopedGroups, useInheritance } from "./ScopedGroups.tsx";
@@ -105,8 +106,9 @@ export function SkillsTab({ projectId, query, scope, adding, setAdding, res, own
           title={s.name}
           description={s.description || t("res.noDescription")}
           trailing={
-            (tag || s.copies.length > 0) && (
+            (tag || s.copies.length > 0 || !projectId) && (
               <span className="resv__tags">
+                {!projectId && <OriginChip project={s.scope === "project" ? s.project_id : undefined} />}
                 {s.copies.length > 0 && (
                   <Badge
                     tone="warning"
@@ -190,16 +192,8 @@ export function SkillsTab({ projectId, query, scope, adding, setAdding, res, own
               ownOnly={ownOnly}
             />
           ) : (
-            groups
-              .filter((g) => g.items.length)
-              .map((g) => (
-                <div key={g.title} className="resv__group">
-                  <div className="resv__grouptitle">
-                    {g.title} <span>{g.items.length}</span>
-                  </div>
-                  {g.items.map(row)}
-                </div>
-              ))
+            // Globally one list, global ones first: each row says where it lives.
+            groups.flatMap((g) => g.items).map(row)
           )
         }
         detail={

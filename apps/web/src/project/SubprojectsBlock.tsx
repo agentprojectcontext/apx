@@ -1,4 +1,4 @@
-import { IconButton, Icons } from "@apx/ui";
+import { IconButton, Icons, Tooltip } from "@apx/ui";
 import { Suspense, useMemo, useState } from "react";
 import { type ProjectEntry, projectEntries, subprojectsOf, teamOf } from "../data/identity.ts";
 import { useData } from "../data/state.ts";
@@ -7,7 +7,7 @@ import { NewProjectDialog } from "../lazy.ts";
 import { go } from "../shell/nav.ts";
 
 /**
- * A project's subprojects on its overview, with "+" to add one; on a subproject, the other subprojects of its project.
+ * A project's subprojects, with "+" to add one; on a subproject, the other subprojects of its project.
  * Each says whose agents it works with.
  */
 export function SubprojectsBlock({ project }: { project: ProjectEntry }) {
@@ -21,13 +21,14 @@ export function SubprojectsBlock({ project }: { project: ProjectEntry }) {
   const list = subprojectsOf(entries, owner.id).filter((p) => p.id !== project.id);
   if (parent && list.length === 0) return null;
   return (
-    <section className="overview__block">
-      <h2 className="overview__h">
-        {parent ? t("overview.otherSubs", { name: parent.name }) : t("overview.subprojects")}
+    <section className="projside__block">
+      <h2 className="projside__h">
+        <span className="projside__htext">
+          {parent ? t("overview.otherSubs", { name: parent.name }) : t("overview.subprojects")}
+        </span>
         {!parent && (
           <IconButton
             size="sm"
-            className="overview__hadd"
             label={t("project.newSub")}
             icon={<Icons.Plus size={14} />}
             onClick={() => setAdding(true)}
@@ -36,20 +37,24 @@ export function SubprojectsBlock({ project }: { project: ProjectEntry }) {
       </h2>
       {list.length ? (
         list.map((p) => (
-          // ui: the overview's own list row, the same as its recent chats and apps.
-          <button key={p.id} type="button" className="overview__row" onClick={() => go.project(p.id)}>
-            <Icons.Folder size={14} />
-            <span className="overview__rowname">{p.name}</span>
-            <span className="overview__rowwhen">
-              {teamOf(agents, p.id).length
-                ? t("overview.subOwn", { name: owner.name })
-                : t("overview.subUses", { name: owner.name })}
-            </span>
-            <Icons.ChevronRight size={14} />
-          </button>
+          <Tooltip key={p.id} content={t("projside.openSub", { name: p.name })}>
+            {/* ui: a bordered card naming the subproject and whose agents it uses, as the design draws it. */}
+            <button type="button" className="projside__sub" onClick={() => go.project(p.id)}>
+              <Icons.Folder size={14} />
+              <span className="projside__subtext">
+                <span className="projside__subname">{p.name}</span>
+                <span className="projside__subnote">
+                  {teamOf(agents, p.id).length
+                    ? t("overview.subOwn", { name: owner.name })
+                    : t("overview.subUses", { name: owner.name })}
+                </span>
+              </span>
+              <Icons.ChevronRight size={14} />
+            </button>
+          </Tooltip>
         ))
       ) : (
-        <p className="overview__hint">{t("overview.noSubs")}</p>
+        <p className="projside__hint">{t("overview.noSubs")}</p>
       )}
       {adding && (
         <Suspense fallback={null}>

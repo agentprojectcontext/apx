@@ -1,7 +1,7 @@
-import { AgentAvatar, IconButton, Icons, Kbd, Menu, Tooltip } from "@apx/ui";
+import { IconButton, Icons, Kbd, Menu, Tooltip } from "@apx/ui";
 import { Suspense } from "react";
 import logoUrl from "../assets/logo.png";
-import { blobOf, secretary } from "../data/identity.ts";
+import { secretary } from "../data/identity.ts";
 import { useData } from "../data/state.ts";
 import { useT } from "../i18n/index.ts";
 import { EngineUsageButton, RunningIndicator, UsageButton } from "../lazy.ts";
@@ -9,6 +9,7 @@ import { AttentionTray } from "./AttentionTray.tsx";
 import { useDesktopClass } from "./desktop.ts";
 import { go, useNavHistory } from "./nav.ts";
 import { ServerSwitch } from "./ServerSwitch.tsx";
+import { SuperAgentButton } from "./SuperAgentCard.tsx";
 import { UpdatePill, WhatsNewPill } from "./UpdatePill.tsx";
 import { useTopbarFit } from "./useTopbarFit.ts";
 
@@ -19,12 +20,11 @@ export function Topbar() {
   const canBack = useNavHistory((s) => s.canBack);
   const canForward = useNavHistory((s) => s.canForward);
   const agents = useData((s) => s.agents);
-  const homeId = useData((s) => Object.values(s.threads).find((x) => x.kind === "home")?.id);
   const sec = secretary(agents);
   return (
     <header className={`topbar${desktop}`}>
       <div className="topbar__left">
-        <img className="topbar__logo" src={logoUrl} alt="APX" width={22} height={22} />
+        <img className="topbar__logo" src={logoUrl} alt="APX" width={16} height={16} />
         <ServerSwitch />
       </div>
       <div className="topbar__center">
@@ -101,46 +101,7 @@ export function Topbar() {
             />
           }
         />
-        {sec && (
-          <Menu
-            align="end"
-            items={[
-              {
-                label: t("topbar.chatWith", { name: sec.name }),
-                icon: <Icons.MessageCircle />,
-                disabled: !homeId,
-                onSelect: () => homeId && go.inboxThread(homeId),
-              },
-              {
-                label: t("agent.openPanel", { name: sec.name }),
-                icon: <Icons.PanelRight />,
-                disabled: !homeId,
-                onSelect: () => {
-                  if (homeId) go.inboxThread(homeId);
-                  go.agent(sec.id);
-                },
-              },
-              { label: t("agent.super.profile"), icon: <Icons.Calendar />, onSelect: () => go.config("profile") },
-              { label: t("agent.super.owner"), icon: <Icons.User />, onSelect: () => go.config("account") },
-            ]}
-            trigger={
-              <IconButton
-                className="topbar__agent"
-                size="sm"
-                label={sec.name}
-                icon={
-                  <>
-                    <AgentAvatar name={sec.name} blob={blobOf(sec)} size={24} />
-                    <span className="topbar__agentname">{sec.name}</span>
-                    <span className="topbar__agentkbd" data-shortcut-modifier>
-                      ⌘J
-                    </span>
-                  </>
-                }
-              />
-            }
-          />
-        )}
+        {sec && <SuperAgentButton agent={sec} />}
       </div>
     </header>
   );

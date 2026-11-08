@@ -1,7 +1,8 @@
 import "../styles/screens.css";
 import type { Routine } from "@apx/protocol";
-import { Button, EmptyState, Icons, ProjectTile, SearchField, SegmentedControl, Select } from "@apx/ui";
+import { EmptyState, Icons, ProjectTile, SegmentedControl, Select } from "@apx/ui";
 import { useEffect, useMemo, useState } from "react";
+import { SectionPage } from "../common/SectionPage.tsx";
 import { DEFAULT_PID, projectEntries, projectInitial, projectTone } from "../data/identity.ts";
 import { draftOf, loadRoutines, type RoutineDraft, useRoutines } from "../data/routines.ts";
 import { useData } from "../data/state.ts";
@@ -79,76 +80,85 @@ export function RoutinesScreen() {
     max_steps: "",
     enabled: true,
   };
+  // Counted before the state filter, so each tab says how many it would show.
+  const countable = listed.filter(
+    (r) =>
+      (!project || (project === DEFAULT_PID ? !r.project_id : r.project_id === project)) &&
+      (!q.trim() || fold(`${r.name} ${agents[r.agent_id]?.name ?? ""}`).includes(fold(q.trim()))),
+  );
+  const count = { all: countable.length, on: countable.filter((r) => r.enabled).length, off: 0 };
+  count.off = count.all - count.on;
+  const empty = ready && listed.length === 0;
   return (
-    <section className="page page--routines" aria-label={t("nav.routines")}>
-      <header className="page__head page__head--row">
-        <div>
-          <h1 className="page__title">{t("nav.routines")}</h1>
-          <p className="page__lead">{t("routines.allLead")}</p>
-        </div>
-        <Button leadingIcon={<Icons.Plus size={14} />} onClick={() => setEditing(blank)}>
-          {t("routines.new")}
-        </Button>
-      </header>
+    <SectionPage
+      className="page--routines"
+      bodyClassName="page"
+      label={t("nav.routines")}
+      title={t("nav.routines")}
+      lead={t("routines.allLead")}
+      action={{ label: t("routines.new"), hint: t("section.routines.newHint"), onClick: () => setEditing(blank) }}
+      tabs={
+        !empty && (
+          <SegmentedControl
+            label={t("routines.filterState")}
+            value={state}
+            onValueChange={(v) => setState(v === "on" || v === "off" ? v : "all")}
+            options={(["all", "on", "off"] as const).map((v) => ({
+              value: v,
+              label: (
+                <span className="secpage__tab">
+                  {t(`routines.state.${v}`)}
+                  <span className="secpage__count">{count[v]}</span>
+                </span>
+              ),
+            }))}
+          />
+        )
+      }
+      tools={
+        !empty && (
+          <Select
+            size="sm"
+            label={t("routines.sort")}
+            value={sort}
+            onValueChange={(v) => setSort(v === "last" || v === "name" ? v : "next")}
+            options={[
+              { value: "next", label: t("routines.sort.next") },
+              { value: "last", label: t("routines.sort.last") },
+              { value: "name", label: t("routines.sort.name") },
+            ]}
+          />
+        )
+      }
+      search={empty ? undefined : { value: q, onChange: setQ, placeholder: t("routines.search") }}
+      scopes={
+        empty || entries.length < 2
+          ? undefined
+          : {
+              label: t("routines.filterProject"),
+              value: project || "all",
+              onChange: (id) => setProject(id === "all" ? "" : id),
+              options: [
+                { id: "all", label: t("section.scope.all") },
+                ...entries.map((p) => ({ id: p.id, label: p.name })),
+              ],
+            }
+      }
+    >
       <div className="routines">
-        {ready && listed.length === 0 ? (
+        {empty ? (
           <EmptyState variant="dashed" size="lg" icon={<Icons.Clock />} title={t("routines.emptyTitle")}>
             {t("routines.empty")}
           </EmptyState>
+        ) : groups.length === 0 ? (
+          <EmptyState size="sm" icon={<Icons.Search />} title={t("routines.noMatch")} />
         ) : (
-          <>
-            <div className="rtfilters">
-              <SearchField
-                size="sm"
-                value={q}
-                placeholder={t("routines.search")}
-                aria-label={t("routines.search")}
-                onChange={(e) => setQ(e.currentTarget.value)}
-              />
-              <Select
-                size="sm"
-                label={t("routines.filterProject")}
-                value={project}
-                onValueChange={(v) => setProject(v ?? "")}
-                options={[
-                  { value: "", label: t("routines.allProjects") },
-                  ...entries.map((p) => ({ value: p.id, label: p.name })),
-                ]}
-              />
-              <SegmentedControl
-                size="sm"
-                label={t("routines.filterState")}
-                value={state}
-                onValueChange={(v) => setState(v === "on" || v === "off" ? v : "all")}
-                options={[
-                  { value: "all", label: t("routines.state.all") },
-                  { value: "on", label: t("routines.state.on") },
-                  { value: "off", label: t("routines.state.off") },
-                ]}
-              />
-              <Select
-                size="sm"
-                label={t("routines.sort")}
-                value={sort}
-                onValueChange={(v) => setSort(v === "last" || v === "name" ? v : "next")}
-                options={[
-                  { value: "next", label: t("routines.sort.next") },
-                  { value: "last", label: t("routines.sort.last") },
-                  { value: "name", label: t("routines.sort.name") },
-                ]}
-              />
-            </div>
-            {groups.length === 0 ? (
-              <EmptyState size="sm" icon={<Icons.Search />} title={t("routines.noMatch")} />
-            ) : (
-              <RoutineList
-                groups={groups}
-                open={open}
-                onOpen={(id) => setOpen(open === id ? undefined : id)}
-                onEdit={(r) => setEditing(draftOf(r))}
-              />
-            )}
-          </>
+          <RoutineList
+            groups={groups}
+            open={open}
+            onOpen={(id) => setOpen(open === id ? undefined : id)}
+            onEdit={(r) => setEditing(draftOf(r))}
+          />
         )}
       </div>
       {current && (
@@ -161,6 +171,6 @@ export function RoutinesScreen() {
         />
       )}
       {editing && <RoutineEditor draft={editing} onClose={() => setEditing(undefined)} />}
-    </section>
+    </SectionPage>
   );
 }

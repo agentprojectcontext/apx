@@ -31,10 +31,10 @@ export function SubthreadPart({ part, from }: { part: Extract<Part, { type: "sub
       avatar={
         part.worker ? (
           <span className="subthread__worker" title={t("subthread.worker")}>
-            <Icons.Bot size={16} />
+            <Icons.Bot size={14} />
           </span>
         ) : (
-          <AgentAvatar name={name} blob={blobOf(target)} size={28} animated={part.state === "working"} />
+          <AgentAvatar name={name} blob={blobOf(target)} size={24} animated={part.state === "working"} />
         )
       }
       title={part.summary ? t(responseTitle(part), { name }) : part.title}

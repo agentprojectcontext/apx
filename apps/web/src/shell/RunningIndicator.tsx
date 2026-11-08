@@ -14,11 +14,12 @@ import { elapsed } from "../common/format.ts";
 import { useNow } from "../common/useNow.ts";
 import { cancel } from "../data/actions.ts";
 import { blobOf, isWorking, projectName, threadAgent } from "../data/identity.ts";
-import { isBackground, queuedTurnsOf } from "../data/jobs.ts";
+import { activeCommandsOf, isBackground, queuedTurnsOf } from "../data/jobs.ts";
 import { useData } from "../data/state.ts";
 import { useT } from "../i18n/index.ts";
 import { JobList } from "../lazy.ts";
-import { go, showsChat, useNav } from "./nav.ts";
+import { delegationRunning } from "../panel/process-scope.ts";
+import { go, nav, showsChat, useNav } from "./nav.ts";
 import { QueuedTurns } from "./QueuedTurns.tsx";
 
 /** Topbar pill: agents working (or waiting for you) · background jobs. The popover jumps to each chat or transcript. */
@@ -64,6 +65,13 @@ export function RunningIndicator() {
     return jobs.running.filter((j) => isBackground(j) && !(j.kind === "agent" && shown.has(j.thread_id)));
   }, [jobs.running, active]);
   const background = bgRunning.length;
+  // The chat's background work: its commands in its processes, or, with none running, the agents it called.
+  const openChatWork = () => {
+    const chat = nav.get().threadId;
+    if (chat && !activeCommandsOf(jobs.running, chat).length && delegationRunning(jobs.running, threads, chat))
+      go.agents();
+    else go.processes();
+  };
   const now = useNow(open);
 
   return (
@@ -195,7 +203,7 @@ export function RunningIndicator() {
             onClick={() => {
               setOpen(false);
               if (tab === "agents") go.view("tasks");
-              else go.processes();
+              else openChatWork();
             }}
           >
             {t(tab === "agents" ? "topbar.work.seeAll" : "topbar.work.openProcesses")}

@@ -1,16 +1,7 @@
 import { AgentAvatar, EmptyState, Icons, Spinner } from "@apx/ui";
 import { useMemo } from "react";
 import { shortWhen } from "../common/format.ts";
-import {
-  blobOf,
-  findProject,
-  inProject,
-  isListed,
-  isWorking,
-  type ProjectEntry,
-  teamOf,
-  threadAgent,
-} from "../data/identity.ts";
+import { blobOf, inProject, isListed, isWorking, type ProjectEntry, threadAgent } from "../data/identity.ts";
 import { useData } from "../data/state.ts";
 import { useT } from "../i18n/index.ts";
 import { standsAlone } from "../inbox/groupThreads.ts";
@@ -18,7 +9,7 @@ import { go } from "../shell/nav.ts";
 import { KindTile, kindLabel, kindOf } from "../surfaces/artifactKind.tsx";
 import { ProjectBoard } from "./ProjectBoard.tsx";
 import { ProjectHelper } from "./ProjectHelper.tsx";
-import { SubprojectsBlock } from "./SubprojectsBlock.tsx";
+import { ProjectSideBlocks, useProjectMembers } from "./ProjectSide.tsx";
 
 /** Overview: what runs now, the team, counts and the latest chats. All real data; nothing sampled. */
 export function ProjectOverview({ project }: { project: ProjectEntry }) {
@@ -36,14 +27,9 @@ export function ProjectOverview({ project }: { project: ProjectEntry }) {
     [threads, pid],
   );
   const running = chats.filter((t) => isWorking(t.state) || t.state === "input-required");
-  const projects = useData((s) => s.projects);
-  const parent = project.parent ? findProject(projects, project.parent) : undefined;
-  const team = useMemo(() => teamOf(agents, pid), [agents, pid]);
-  // A subproject also works with its project's agents.
-  const inherited = useMemo(
-    () => (parent ? teamOf(agents, parent.id).filter((a) => !team.some((own) => own.id === a.id)) : []),
-    [agents, parent, team],
-  );
+  // The count matches the Agents tab's team and its project's: the global agents are listed, not counted.
+  const { members } = useProjectMembers(project);
+  const teamSize = members.filter((m) => m.from !== "everywhere").length;
   const unread = chats.reduce((n, t) => n + t.unread, 0);
   const apps = useMemo(
     // Pinned widgets live on the board above; this lists what is in Apps.
@@ -62,11 +48,7 @@ export function ProjectOverview({ project }: { project: ProjectEntry }) {
         <div className="overview__stats">
           <Stat value={chats.length} label={t("overview.chats")} onClick={() => go.projectTab("chats")} />
           <Stat value={unread} label={t("overview.unread")} onClick={() => go.projectTab("chats")} />
-          <Stat
-            value={team.length + inherited.length}
-            label={t("overview.agents")}
-            onClick={() => go.projectTab("team")}
-          />
+          <Stat value={teamSize} label={t("overview.agents")} onClick={() => go.projectTab("team")} />
         </div>
         <section className="overview__block">
           <h2 className="overview__h">{t("overview.now")}</h2>
@@ -99,42 +81,7 @@ export function ProjectOverview({ project }: { project: ProjectEntry }) {
           )}
         </section>
 
-        <section className="overview__block">
-          <h2 className="overview__h">
-            {t("overview.team")}{" "}
-            <span className="overview__hsub">
-              {team.length + inherited.length === 1
-                ? t("overview.agentsCount.one")
-                : t("overview.agentsCount.other", { n: team.length + inherited.length })}
-            </span>
-          </h2>
-          {team.length || inherited.length ? (
-            <div className="overview__agents">
-              {[...team.map((a) => ({ a, from: undefined })), ...inherited.map((a) => ({ a, from: parent }))].map(
-                ({ a, from }) => (
-                  <button
-                    key={a.id}
-                    type="button"
-                    className="overview__agent"
-                    onClick={() => (from ? go.project(from.id, "team") : go.projectTab("team"))}
-                  >
-                    <AgentAvatar name={a.name} blob={blobOf(a)} size={24} animated={false} />
-                    <span className="overview__agentname">{a.name}</span>
-                    {from ? (
-                      <span className="overview__agentrole">{t("overview.fromParent", { name: from.name })}</span>
-                    ) : (
-                      a.role && <span className="overview__agentrole">{a.role}</span>
-                    )}
-                  </button>
-                ),
-              )}
-            </div>
-          ) : (
-            <EmptyState variant="dashed">{t("overview.noAgents")}</EmptyState>
-          )}
-        </section>
-
-        <SubprojectsBlock project={project} />
+        <ProjectSideBlocks project={project} />
 
         {apps.length > 0 && (
           <section className="overview__block">

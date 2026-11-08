@@ -1,6 +1,9 @@
 import { noticeEn } from "@apx/protocol/notices";
 import type { ApprovalKey } from "./approvals-en.ts";
 import type { BrowserEditKey } from "./browser-edit-en.ts";
+import { enChannelsSlim } from "./channels-slim-en.ts";
+import { enChatSlim } from "./chat-slim-en.ts";
+import { enComposerSlim } from "./composer-slim-en.ts";
 import type { ComputerKey } from "./computer-en.ts";
 import { enChannels } from "./en-channels.ts";
 import { enChat } from "./en-chat.ts";
@@ -15,12 +18,17 @@ import { enTeam } from "./en-team.ts";
 import { enTelemetry } from "./en-telemetry.ts";
 import { enFilesArtifacts } from "./files-artifacts-en.ts";
 import type { enFlow } from "./flow-en.ts";
+import { enInboxSlim } from "./inbox-slim-en.ts";
 import type { enIngress } from "./ingress-en.ts";
 import type { enMove } from "./move-en.ts";
+import { enPanelAgents } from "./panel-agents-en.ts";
 import { enPanelTabs } from "./panel-tabs-en.ts";
+import { enProjectSlim } from "./project-slim-en.ts";
 import type { ReceivedKey } from "./received-en.ts";
 import { enRoutineChat } from "./routine-chat-en.ts";
 import type { enSecretary } from "./secretary-en.ts";
+import { enSectionPages } from "./section-pages-en.ts";
+import { enShellSlim } from "./shell-slim-en.ts";
 import type { enSignIn } from "./signin-en.ts";
 import type { enStorage } from "./storage-en.ts";
 import type { SysUsageKey } from "./sysusage-en.ts";
@@ -54,14 +62,22 @@ export const en = {
   ...enChannels,
   ...enSetup,
   ...enChat,
+  ...enChatSlim,
   ...enFiles,
   ...enFilesArtifacts,
   ...enResources,
   ...enEngines,
   ...enTelemetry,
   ...enRoutineChat,
+  ...enSectionPages,
   ...enTopbar,
+  ...enShellSlim,
+  ...enComposerSlim,
   ...enPanelTabs,
+  ...enPanelAgents,
+  ...enProjectSlim,
+  ...enInboxSlim,
+  ...enChannelsSlim,
   "engineUsage.title": "AI quotas",
   "engineUsage.remaining": "{pct}% remaining",
   "engineUsage.primary": "Current window",
@@ -513,8 +529,6 @@ export const en = {
   "inbox.filter": "Filter chats",
   "inbox.filter.show": "Show",
   "inbox.filter.routines": "Routine news",
-  "inbox.markAllRead": "Mark all as read",
-  "inbox.unread": "Unread",
   "inbox.filter.on": "Filter chats ({n} chosen)",
   "inbox.filter.agents": "Agents",
   "inbox.filter.projects": "Projects",
@@ -523,6 +537,8 @@ export const en = {
   "inbox.filter.none": "Nothing here matches the filter",
   "inbox.filter.remove": "Stop filtering by {name}",
   "inbox.searchOpen": "Search chats",
+  "inbox.markAllRead": "Mark all as read",
+  "inbox.unread": "Unread",
   "inbox.offline.title": "Offline",
   "inbox.offline.body": "Chats show up when the core is back.",
   "inbox.noResults": "No results",
@@ -559,7 +575,7 @@ export const en = {
   "write.auto": "Edits freely",
   "write.read-only": "Read-only",
   "changes.title": "{n} uncommitted",
-  "changes.edited": "Files edited: {n}",
+  "changes.edited": "Files edited {n}",
   "changes.scratchEdited": "Files in the temp folder: {n}",
   "changes.scratch": "Chat's temp folder",
   "changes.scratchHint": "The agent's scratch work: not changes to your folders.",
@@ -578,6 +594,10 @@ export const en = {
   "chat.hideTools": "Hide tools",
   "chat.toolsHint": "Show or hide each step the agent took (tools it used, what they returned)",
   "chat.showTools": "Show tools",
+  "chat.roomCardOpen": "Open when the agent speaks here and the rules",
+  "chat.roomCardClose": "Close the card",
+  "chat.headerSuper": "{name} · Super-agent, in all your projects",
+  "chat.headerEngine": "{engine} · Direct session",
   "chat.pick.title": "Pick a chat",
   "chat.pick.body": "Or start a new one with your super-agent.",
   "chat.offline.title": "No connection to the core",
@@ -789,12 +809,12 @@ export const en = {
   "changes.reportedEmpty": "No changes reported in this chat",
   "panel.terminal": "Terminal",
   "panel.files": "Files",
-  "panel.widget": "Widget",
+  "panel.widget": "Artifacts",
   "panel.usage": "Usage",
   "panel.browser.hint": "Browser: the page your agent drives; you can take over",
   "panel.terminal.hint": "Terminal: the commands the agent ran, and your own shell in the folder",
   "panel.files.hint": "Files: the folder this chat works in",
-  "panel.widget.hint": "Widgets: what the agent built for you in this chat",
+  "panel.widget.hint": "Artifacts: what the agent built for you in this chat",
   "panel.usage.hint": "Usage: tokens and cost of this chat",
   "panel.side": "Side panel",
   "panel.close": "Close panel",

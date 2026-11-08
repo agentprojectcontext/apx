@@ -1,70 +1,53 @@
-import type { Job, Thread } from "@apx/protocol";
-import { AgentAvatar, Button, EmptyState, IconButton, Icons, Skeleton, Spinner } from "@apx/ui";
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { Transcript } from "../chat/Transcript.tsx";
-import { shortWhen } from "../common/format.ts";
+import type { Job } from "@apx/protocol";
+import { Button, EmptyState, IconButton, Icons, Skeleton, Spinner } from "@apx/ui";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { elapsed, shortWhen } from "../common/format.ts";
 import { useNow } from "../common/useNow.ts";
-import { loadThread } from "../data/actions.ts";
+import { cancelJob } from "../data/actions.ts";
 import { client } from "../data/client.ts";
-import { blobOf, isWorking, threadAgent } from "../data/identity.ts";
-import { queuedTurnsOf } from "../data/jobs.ts";
 import { watchEvents } from "../data/live.ts";
-import { data, useData } from "../data/state.ts";
+import { useData } from "../data/state.ts";
 import { type T, useT } from "../i18n/index.ts";
-import { JobList } from "../shell/JobList.tsx";
-import { go, useNav } from "../shell/nav.ts";
-import { QueuedTurns } from "../shell/QueuedTurns.tsx";
+import { useNav } from "../shell/nav.ts";
 import { closeTab, useOpenTabs } from "./openTabs.ts";
 import { LIST_TAB, PanelGroup, PanelList, PanelRow, PanelTabs } from "./PanelTabs.tsx";
-import { chatDescendants } from "./process-scope.ts";
 import { PanelHeader } from "./SidePanel.tsx";
+import { screenText } from "./terminalText.ts";
 
-/** Not over yet: working, waiting on the owner, or waiting for a free delegation slot. */
-const going = (state: Thread["state"]) => isWorking(state) || state === "input-required" || state === "queued";
+const running = (job: Job) => job.state === "working" && !job.ended_at;
 
-const statusOf = (t: T, state: Thread["state"]) =>
-  state === "input-required"
-    ? t("run.waiting")
-    : state === "queued"
-      ? t("run.queued")
-      : isWorking(state)
-        ? t("run.working")
-        : state === "failed"
-          ? t("run.failed")
-          : t("run.done");
+/** The command as the agent typed it. */
+const commandOf = (job: Job) => job.title.replace(/^Ran\s+/, "");
+
+const statusOf = (t: T, job: Job) =>
+  running(job)
+    ? t("terminal.running")
+    : job.state === "canceled"
+      ? t("terminal.stopped")
+      : job.exit_code != null
+        ? t("terminal.exit", { code: job.exit_code })
+        : t("terminal.done");
+
+const failed = (job: Job) => job.state === "failed" || (job.exit_code != null && job.exit_code !== 0);
 
 /**
- * This chat's own turn and those queued behind it, its delegated conversations and its commands: what the running
- * popover shows for it, leaving its transcript in place.
+ * The commands this chat's agent ran, in the foreground or in the background: running ones first, then those that
+ * ended. Each opens as a tab with what it printed, live while it runs.
  */
 export function ProcessesPanel() {
   const t = useT();
   const root = useNav((s) => s.threadId);
-  const selected = useNav((s) => (s.panelParent === root ? s.panelThread : undefined));
-  const thread = useData((s) => (selected ? s.threads[selected] : undefined));
-  const loadState = useData((s) => (selected ? s.threadLoad[selected] : undefined));
-  const agents = useData((s) => s.agents);
-  const threads = useData((s) => s.threads);
   const connection = useData((s) => s.connection);
-  const rootThread = useData((s) => (root ? s.threads[root] : undefined));
-  const allJobs = useData((s) => s.jobs.running);
-  const queued = useMemo(() => (root ? queuedTurnsOf(allJobs, root) : []), [allJobs, root]);
-  const [children, setChildren] = useState<Thread[]>();
-  const [jobs, setJobs] = useState<{ running: Job[]; finished: Job[] }>({ running: [], finished: [] });
+  const agents = useData((s) => s.agents);
+  const [jobs, setJobs] = useState<{ running: Job[]; finished: Job[] }>();
   const [error, setError] = useState(false);
-  const now = useNow(true);
+  const [selected, setSelected] = useState<string>();
+  const now = useNow(!!jobs?.running.length);
   const refresh = useCallback(async () => {
     if (!root) return;
     try {
-      const [all, commands] = await Promise.all([
-        client.call("threads.list", { root_thread: root, include_subthreads: true, include_archived: true }),
-        client.call("jobs.list", { thread: root, finished: 50 }),
-      ]);
-      const scoped = chatDescendants(all.threads, root);
-      setChildren(scoped);
-      setJobs(commands);
+      setJobs(await client.call("jobs.list", { thread: root, finished: 50 }));
       setError(false);
-      data.set((s) => ({ threads: { ...s.threads, ...Object.fromEntries(scoped.map((th) => [th.id, th])) } }));
     } catch {
       setError(true);
     }
@@ -73,7 +56,7 @@ export function ProcessesPanel() {
     let timer: ReturnType<typeof setTimeout> | undefined;
     if (connection === "online") void refresh();
     const stop = watchEvents((ev) => {
-      if (!["thread.updated", "thread.deleted", "run.updated", "job.updated"].includes(ev.type) || timer) return;
+      if (ev.type !== "job.updated" || ev.job.thread_id !== root || timer) return;
       timer = setTimeout(() => {
         timer = undefined;
         void refresh();
@@ -83,83 +66,59 @@ export function ProcessesPanel() {
       stop();
       clearTimeout(timer);
     };
-  }, [refresh, connection]);
-  useEffect(() => {
-    if (selected && loadState == null) void loadThread(selected);
-  }, [selected, loadState]);
-  const active = (children ?? []).map((th) => threads[th.id] ?? th).filter((th) => going(th.state));
-  const done = (children ?? []).map((th) => threads[th.id] ?? th).filter((th) => !going(th.state));
-  const own = rootThread && going(rootThread.state) ? rootThread : undefined;
-  const ownAgent = own && threadAgent(own, agents);
-  const activeCount = (own ? 1 : 0) + queued.length + active.length + jobs.running.length;
+  }, [refresh, connection, root]);
+  const all = jobs ? [...jobs.running, ...jobs.finished] : [];
+  const active = all.filter(running);
+  const done = all.filter((j) => !running(j));
   const key = root && `processes:${root}`;
   const open = useOpenTabs(key, selected);
   const tabs = open.flatMap((id) => {
-    const th = threads[id] ?? children?.find((x) => x.id === id);
-    return th
-      ? [{ id, label: th.title || t("thread.a2a"), dot: going(th.state) ? ("busy" as const) : ("idle" as const) }]
-      : [];
+    const job = all.find((j) => j.id === id);
+    return job ? [{ id, label: commandOf(job), dot: running(job) ? ("busy" as const) : ("idle" as const) }] : [];
   });
-  const row = (th: Thread) => {
-    const agent = threadAgent(th, agents);
+  const shown = selected ? all.find((j) => j.id === selected) : undefined;
+  const row = (job: Job) => {
+    const who = job.agent_name ?? (job.agent_id ? agents[job.agent_id]?.name : undefined);
     return (
       <PanelRow
-        key={th.id}
-        className="processes__row"
-        leading={
-          <AgentAvatar name={agent?.name ?? th.title} blob={blobOf(agent)} size={20} animated={isWorking(th.state)} />
+        key={job.id}
+        className="procs__row"
+        mono
+        leading={running(job) ? <Spinner size={12} /> : <Icons.Terminal size={14} />}
+        title={commandOf(job)}
+        description={
+          <>
+            {who && `${who} · `}
+            {job.background && `${t("terminal.background")} · `}
+            <span className={failed(job) ? "procs__exit is-failed" : "procs__exit"}>{statusOf(t, job)}</span>
+          </>
         }
-        title={th.title}
-        description={statusOf(t, th.state)}
-        trailing={isWorking(th.state) ? <Spinner size={12} /> : shortWhen(th.updated_at)}
-        onClick={() => go.subthread(th.id)}
+        trailing={running(job) ? elapsed(job.started_at, now) : shortWhen(job.ended_at ?? job.started_at)}
+        onClick={() => setSelected(job.id)}
       />
     );
   };
   return (
     <>
-      <PanelHeader
-        kind="processes"
-        actions={
-          selected && (
-            <IconButton
-              label={t("processes.maximize")}
-              icon={<Icons.ExternalLink size={14} />}
-              onClick={() => {
-                go.thread(selected);
-                go.panel(null);
-              }}
-            />
-          )
-        }
-      />
+      <PanelHeader kind="processes" />
       <PanelTabs
         label={t("panel.processes")}
-        list={t("panelTabs.all", { n: activeCount + done.length })}
+        list={t("panelTabs.all", { n: all.length })}
         tabs={tabs}
-        value={selected ?? LIST_TAB}
-        onSelect={(id) => (id === LIST_TAB ? go.processes() : go.subthread(id))}
+        value={shown ? shown.id : LIST_TAB}
+        onSelect={(id) => setSelected(id === LIST_TAB ? undefined : id)}
         onClose={(id) => {
           if (key) closeTab(key, id);
-          if (id === selected) go.processes();
+          if (id === selected) setSelected(undefined);
         }}
       />
-      {selected ? (
-        loadState === "error" || (loadState === "ready" && !thread) ? (
-          <EmptyState icon={<Icons.TriangleAlert />} title={t("chat.notFound.title")} />
-        ) : thread && loadState === "ready" ? (
-          <>
-            <Transcript key={selected} thread={thread} />
-            <div className="chat__readonly">{t("chat.readOnly")}</div>
-          </>
-        ) : (
-          <Skeleton className="term__loading" />
-        )
+      {shown ? (
+        <CommandOutput key={shown.id} job={shown} />
       ) : error ? (
         <div className="sidepanel__body">
           <EmptyState
             icon={<Icons.TriangleAlert />}
-            title={t("processes.failed")}
+            title={t("procs.failed")}
             action={
               <Button size="sm" variant="secondary" onClick={() => void refresh()}>
                 {t("common.retry")}
@@ -167,51 +126,83 @@ export function ProcessesPanel() {
             }
           />
         </div>
-      ) : !children ? (
+      ) : !jobs ? (
         <Skeleton className="term__loading" />
+      ) : !all.length ? (
+        <div className="sidepanel__body">
+          <EmptyState icon={<Icons.Layers />} title={t("procs.empty")}>
+            {t("procs.emptyBody")}
+          </EmptyState>
+        </div>
       ) : (
-        <PanelList label={t("panel.processes")}>
-          <PanelGroup title={t("processes.active", { n: activeCount })} />
-          {own && (
-            <div className="apx-pickrow processes__row is-own">
-              <span className="apx-pickrow__lead">
-                <AgentAvatar
-                  name={ownAgent?.name ?? own.title}
-                  blob={blobOf(ownAgent)}
-                  size={20}
-                  animated={isWorking(own.state)}
-                />
-              </span>
-              <span className="apx-pickrow__main">
-                <span className="apx-pickrow__title">{ownAgent?.name ?? own.title}</span>
-                <span className="apx-pickrow__desc">{statusOf(t, own.state)}</span>
-              </span>
-              {isWorking(own.state) && (
-                <span className="apx-pickrow__trail">
-                  <Spinner size={12} />
-                </span>
-              )}
-            </div>
-          )}
-          <QueuedTurns turns={queued} now={now} />
+        <PanelList label={t("procs.list")}>
+          <PanelGroup title={t("processes.active", { n: active.length })} />
           {active.map(row)}
-          {!activeCount && <p className="plist__empty">{t("running.empty")}</p>}
+          {!active.length && <p className="plist__empty">{t("procs.noneActive")}</p>}
           <PanelGroup title={t("processes.done", { n: done.length })} />
           {done.map(row)}
-          {!done.length && <p className="plist__empty">{t("processes.empty")}</p>}
-          {jobs.running.length + jobs.finished.length > 0 && (
-            <>
-              <PanelGroup title={t("panelTabs.commands", { n: jobs.running.length + jobs.finished.length })} />
-              <JobList
-                running={jobs.running}
-                finished={jobs.finished}
-                now={now}
-                onOpen={(job) => (job.thread_id === root ? go.panel("terminal") : go.subthread(job.thread_id))}
-              />
-            </>
-          )}
+          {!done.length && <p className="plist__empty">{t("procs.noneDone")}</p>}
         </PanelList>
       )}
     </>
+  );
+}
+
+/** One command opened as a tab: what it is, how it went, and what it printed, following the end while it runs. */
+function CommandOutput({ job }: { job: Job }) {
+  const t = useT();
+  const [output, setOutput] = useState<string>();
+  const box = useRef<HTMLPreElement>(null);
+  const live = running(job);
+  useEffect(() => {
+    let stop = false;
+    const read = async () => {
+      const r = await client.call("jobs.get", { job: job.id, max_chars: 20_000 }).catch(() => undefined);
+      if (stop || !r) return;
+      const el = box.current;
+      const atEnd = !el || el.scrollTop + el.clientHeight >= el.scrollHeight - 8;
+      setOutput(screenText(r.output));
+      // Follow the end like a terminal, unless the owner scrolled up to read.
+      if (atEnd)
+        requestAnimationFrame(() => {
+          if (box.current) box.current.scrollTop = box.current.scrollHeight;
+        });
+    };
+    void read();
+    const timer = live ? setInterval(() => void read(), 1500) : undefined;
+    return () => {
+      stop = true;
+      clearInterval(timer);
+    };
+  }, [live, job.id]);
+  return (
+    <div className="sidepanel__body procs__view">
+      <div className="procs__head">
+        <div className="procs__headmain">
+          <code className="procs__cmd">{commandOf(job)}</code>
+          <span className="procs__meta">
+            <span className={failed(job) ? "procs__exit is-failed" : live ? "procs__exit is-running" : "procs__exit"}>
+              {statusOf(t, job)}
+            </span>
+            {job.cwd && (
+              <span className="procs__cwd" title={job.cwd}>
+                {job.cwd}
+              </span>
+            )}
+          </span>
+        </div>
+        {live && (
+          <IconButton
+            size="sm"
+            label={t("terminal.stop")}
+            icon={<Icons.Square size={12} />}
+            onClick={() => void cancelJob(job.id)}
+          />
+        )}
+      </div>
+      <pre ref={box} className="procs__out">
+        {output === undefined ? t("procs.loadingOutput") : output || t("procs.noOutput")}
+      </pre>
+    </div>
   );
 }

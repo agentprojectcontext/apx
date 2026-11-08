@@ -1,12 +1,23 @@
 import { IconButton, Icons, Menu } from "@apx/ui";
+import { activeCommandsOf } from "../data/jobs.ts";
+import { useData } from "../data/state.ts";
 import { useT } from "../i18n/index.ts";
-import { go, useNav } from "../shell/nav.ts";
+import { go, type PanelKind, useNav } from "../shell/nav.ts";
 import { PANELS, panelDef } from "./panels.tsx";
+import { delegationRunning } from "./process-scope.ts";
+
+/** The tools with something running for this chat now: its commands, the agents it called. */
+function useLive(thread: string | undefined): ReadonlySet<PanelKind> {
+  const commands = useData((s) => !!thread && activeCommandsOf(s.jobs.running, thread).length > 0);
+  const agents = useData((s) => !!thread && delegationRunning(s.jobs.running, s.threads, thread));
+  return new Set<PanelKind>([...(commands ? ["processes" as const] : []), ...(agents ? ["agents" as const] : [])]);
+}
 
 /** Chat header control that picks the side panel: inline icons when wide, one dropdown when narrow. */
 export function PanelSwitcher({ wide, skipUsage = false }: { wide: boolean; skipUsage?: boolean }) {
   const t = useT();
   const panel = useNav((s) => s.panel);
+  const live = useLive(useNav((s) => s.threadId));
   const shown = PANELS.filter((p) => !(skipUsage && p.id === "usage"));
   if (wide) {
     return (
@@ -17,7 +28,16 @@ export function PanelSwitcher({ wide, skipUsage = false }: { wide: boolean; skip
             size="sm"
             label={t(p.label)}
             tooltip={t(p.hint)}
-            icon={p.icon(14)}
+            icon={
+              live.has(p.id) && panel !== p.id ? (
+                <>
+                  {p.icon(14)}
+                  <span className="panelswitch__live" aria-hidden="true" />
+                </>
+              ) : (
+                p.icon(14)
+              )
+            }
             className={panel === p.id ? "panelswitch__btn is-on" : "panelswitch__btn"}
             onClick={() => go.togglePanel(p.id)}
           />

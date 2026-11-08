@@ -1,22 +1,25 @@
 import type { Agent, Thread, WritePolicy } from "@apx/protocol";
-import { EngineIcon, IconButton, Icons, Menu, type MenuEntry, ProjectTile, Tag, Tooltip } from "@apx/ui";
+import { Button, EngineIcon, IconButton, Icons, Menu, type MenuEntry, Tag, Tooltip } from "@apx/ui";
 import { Suspense } from "react";
+import { roomWord } from "../channels/kinds.ts";
 import { useAgentHint } from "../common/AgentFace.tsx";
 import { ChatProcesses } from "../common/ChatProcesses.tsx";
 import { useEngineLabel } from "../common/useEngineLabel.ts";
 import { compactThread } from "../data/actions.ts";
-import { DEFAULT_PID, projectName, projectTone } from "../data/identity.ts";
+import { useChannels } from "../data/channels.ts";
 import { effortLabel, modelOf, splitRef, useModels } from "../data/models.ts";
 import { isNewChat } from "../data/newChat.ts";
 import { useData } from "../data/state.ts";
 import { updateThread } from "../data/threadAdmin.ts";
 import { useT } from "../i18n/index.ts";
+import { ProjectBadge } from "../inbox/ProjectBadge.tsx";
 import { ThreadAvatar } from "../inbox/ThreadAvatar.tsx";
 import { PinMark } from "../inbox/ThreadRow.tsx";
 import { threadMenu } from "../inbox/threadActions.tsx";
 import { ChannelFace, TaskStatus } from "../lazy.ts";
 import { PanelSwitcher } from "../panel/PanelSwitcher.tsx";
 import { go, useNav } from "../shell/nav.ts";
+import { toggleRoomCard, useRoomCard } from "./roomCard.ts";
 
 const POLICIES: WritePolicy[] = ["ask", "auto", "read-only"];
 
@@ -71,6 +74,10 @@ export function ChatHeader({
   const engine = useEngineLabel(thread.engine);
   const name = sub || thread.channel ? thread.title : (engine ?? agent?.name ?? thread.title);
   const catalog = useModels((s) => s.catalog);
+  // A group's or room's chat (a channel chat with nobody behind it) opens its card from here.
+  const room = Boolean(thread.channel && !thread.channel.person_id);
+  const roomChannel = useChannels((s) => s.channels.find((c) => c.id === thread.channel?.id));
+  const roomOpen = useRoomCard(thread.id);
   const requestedRef = thread.model_choice?.model;
   const requested = requestedRef ? splitRef(requestedRef) : undefined;
   const requestedName = requestedRef && modelOf(requestedRef, catalog)?.name;
@@ -88,36 +95,30 @@ export function ChatHeader({
           onClick={() => thread.parent_id && go.thread(thread.parent_id)}
         />
       )}
-      <ThreadAvatar thread={thread} agent={agent} size={32} slot={36} editable online={!sub} animated channelMark />
+      <ThreadAvatar thread={thread} agent={agent} size={28} slot={32} editable online={!sub} animated channelMark />
       <div className="chat__titles">
+        {/* The chat first, with its project; under it who answers there. */}
         <div className="chat__title">
-          {agent && !engine && !thread.channel ? (
-            <Tooltip content={agentHint}>
-              <button type="button" className="chat__name chat__namebtn" onClick={() => go.agent(agent.id)}>
-                {name}
-              </button>
-            </Tooltip>
-          ) : (
-            <span className="chat__name">{name}</span>
-          )}
-          {engine && <Tag kind="role">{t("engine.direct")}</Tag>}
+          <span className="chat__name">
+            {thread.pinned && <PinMark />}
+            {sub || thread.channel || engine ? name : thread.title}
+          </span>
+          {project && <ProjectBadge id={project.id} name={project.name} />}
           <ChatProcesses thread={thread.id} onOpen={go.processes} />
-          {!sub && !engine && !thread.channel && agent && (agent.kind === "secretary" || agent.role) && (
-            <Tag kind="role">{agent.kind === "secretary" ? t("agent.super") : agent.role}</Tag>
-          )}
         </div>
         <div className="chat__crumb">
-          <ProjectTile tone={projectTone(project?.id ?? DEFAULT_PID)} size={12} />
-          <span>{projectName(projects, thread.project_id)}</span>
-          {!sub && (
-            <>
-              <span className="chat__crumbsep">/</span>
-              <span className="chat__crumbthread">
-                {thread.pinned && <PinMark />}
-                {thread.title}
-              </span>
-            </>
+          {agent && !engine && !thread.channel && !sub && (
+            <Tooltip content={agentHint}>
+              <button type="button" className="chat__agentbtn" onClick={() => go.agent(agent.id)}>
+                {agent.kind === "secretary"
+                  ? t("chat.headerSuper", { name: agent.name })
+                  : agent.role
+                    ? `${agent.name} · ${agent.role}`
+                    : agent.name}
+              </button>
+            </Tooltip>
           )}
+          {engine && <span>{t("chat.headerEngine", { engine })}</span>}
           {sub && <Tag>{t("thread.a2a")}</Tag>}
           {thread.task_id && (
             <Suspense fallback={null}>
@@ -180,14 +181,6 @@ export function ChatHeader({
         )}
       </div>
       <div className="chat__tools">
-        <IconButton
-          size="sm"
-          label={tools ? t("chat.hideTools") : t("chat.showTools")}
-          tooltip={t("chat.toolsHint")}
-          icon={<Icons.Wrench size={14} />}
-          className={tools ? "chat__toolsbtn is-on" : "chat__toolsbtn"}
-          onClick={go.toggleTools}
-        />
         {/* A new chat has nothing to rename, archive or compact until its first message makes it. */}
         {!sub && !isNewChat(thread.id) && (
           <Menu
@@ -201,6 +194,13 @@ export function ChatHeader({
                   ? [folderMenu(thread, t)]
                   : []),
                 {
+                  label: t("chat.showTools"),
+                  icon: <Icons.Wrench size={14} />,
+                  checked: tools,
+                  keepOpen: true,
+                  onSelect: go.toggleTools,
+                },
+                {
                   label: t("chat.compact"),
                   icon: <Icons.Layers size={14} />,
                   onSelect: () => void compactThread(thread.id),
@@ -208,6 +208,19 @@ export function ChatHeader({
               ],
             })}
           />
+        )}
+        {room && roomChannel && (
+          <Button
+            size="sm"
+            variant="secondary"
+            className={roomOpen ? "chat__roompill is-on" : "chat__roompill"}
+            leadingIcon={<Icons.Users size={14} />}
+            aria-pressed={roomOpen}
+            title={t(roomOpen ? "chat.roomCardClose" : "chat.roomCardOpen")}
+            onClick={() => toggleRoomCard(thread.id)}
+          >
+            {t(roomWord(roomChannel))}
+          </Button>
         )}
         <span className="chat__toolsdiv" />
         {/* Usage opens from the composer's context chip; read-only chats have no composer, so it stays here. */}

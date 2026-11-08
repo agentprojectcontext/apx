@@ -76,7 +76,7 @@ export function ChatsTab({ entries, archived }: { entries: Thread[]; archived: T
 function ChatRow({ thread, selected }: { thread: Thread; selected: string | undefined }) {
   const agents = useShownAgents();
   return (
-    <ListedChat thread={thread} selected={selected}>
+    <ListedChat thread={thread} selected={selected} inline>
       <ThreadRow
         thread={thread}
         agent={threadAgent(thread, agents)}
@@ -135,21 +135,24 @@ function RoutineChatRow({ routineId, runs }: { routineId: string; runs: Thread[]
       time={shortWhen(latest.updated_at)}
       unread={unread}
       preview={
-        <span className="threadrow__preview">
-          <span className={`routinerow__state${working ? " is-running" : failed ? " is-failed" : ""}`}>
-            <span className="routinerow__dot" />
-            {working ? t("routines.state.running") : failed ? t("routines.state.failed") : t("routines.state.done")}
+        <span className="threadrow__line">
+          <span className="threadrow__who">
+            <span className={`routinerow__state${working ? " is-running" : failed ? " is-failed" : ""}`}>
+              <span className="routinerow__dot" />
+              {working ? t("routines.state.running") : failed ? t("routines.state.failed") : t("routines.state.done")}
+            </span>
+            {" · "}
+            <Icons.RefreshCw size={12} className="routinerow__runs" /> {runs.length}
+            {routine && ` · ${scheduleText(routine.schedule, t)}`}
           </span>
-          {" · "}
-          <Icons.RefreshCw size={12} className="routinerow__runs" /> {runs.length}
-          {routine && ` · ${scheduleText(routine.schedule, t)}`}
+          <span className="threadrow__dot">·</span>
+          <ProjectBadge id={latest.project_id ?? DEFAULT_PID} name={projectName(projects, latest.project_id)} />
         </span>
       }
       titleTag={
         <>
           {routine && !routine.enabled && <Tag>{t("routines.off")}</Tag>}
           {working && <Spinner size={12} className="threadrow__spin" />}
-          <ProjectBadge id={latest.project_id ?? DEFAULT_PID} name={projectName(projects, latest.project_id)} />
         </>
       }
     />

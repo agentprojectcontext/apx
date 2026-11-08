@@ -33,6 +33,7 @@ export function ProjectsNav({ rail, compact = false }: { rail: boolean; compact?
   const projectId = useNav((s) => s.projectId);
   const projects = useData((s) => s.projects);
   const threads = useData((s) => s.threads);
+  const agents = useData((s) => s.agents);
   const [moreOpen, setMoreOpen] = useState(false);
   // true: a new project; a project's id: a new subproject of it.
   const [adding, setAdding] = useState<boolean | string>(false);
@@ -80,6 +81,21 @@ export function ProjectsNav({ rail, compact = false }: { rail: boolean; compact?
       unread,
     };
   }, [projects, threads, saved, routines, rows]);
+  // In the flyout, beside each name: how many subprojects a project has, and a subproject with agents of its own.
+  const asides = useMemo(() => {
+    const subs = new Map<string, number>();
+    for (const p of projectEntries(projects)) if (p.parent) subs.set(p.parent, (subs.get(p.parent) ?? 0) + 1);
+    const own = new Set(Object.values(agents).flatMap((a) => (a.project_id ? [a.project_id] : [])));
+    return { subs, own };
+  }, [projects, agents]);
+  const aside = (p: ProjectEntry) =>
+    p.parent
+      ? asides.own.has(p.id)
+        ? t("nav.ownAgents")
+        : undefined
+      : asides.subs.get(p.id)
+        ? t("nav.subCount", { n: asides.subs.get(p.id) ?? 0 })
+        : undefined;
   // Read when a project opens, not when the list reorders after it. The page coming back on a project (a reload)
   // is not opening it.
   const inView = useRef<string[]>([]);
@@ -126,6 +142,7 @@ export function ProjectsNav({ rail, compact = false }: { rail: boolean; compact?
       label={p.name}
       trailing={
         <>
+          {onPick && aside(p) && <span className="sidebar__aside">{aside(p)}</span>}
           {p.isDefault && <Icons.Lock size={12} aria-label={t("nav.baseProject")} />}
           {running.has(p.id) ? (
             <span className="sidebar__running" title={t("common.running")} />

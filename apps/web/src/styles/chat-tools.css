@@ -241,20 +241,33 @@ textarea.inputcard__detail {
   font-family: var(--apx-font-mono);
   font-size: var(--apx-text-2xs);
 }
+/* The files a turn changed: a soft outline on the page, the totals in its head, mono paths with the name bright. */
 .changes {
-  max-width: 560px;
-  padding: 10px 12px;
-  border: 1px solid var(--apx-border);
-  border-radius: var(--apx-radius-lg);
-  background: var(--apx-surface);
+  display: flex;
+  flex-direction: column;
+  border: 1px solid color-mix(in oklch, var(--apx-border) 75%, transparent);
+  border-radius: 12px;
+  background: transparent;
+  overflow: hidden;
   text-align: left;
 }
 .changes__head {
   display: flex;
   align-items: center;
   gap: 8px;
-  font-size: var(--apx-text-sm);
-  font-weight: var(--apx-weight-medium);
+  min-width: 0;
+  min-height: 38px;
+  padding: 0 12px;
+  font-size: var(--apx-text-xs);
+  color: var(--apx-fg-muted);
+}
+.changes__icon {
+  flex: none;
+  color: var(--apx-fg-subtle);
+}
+.changes__title {
+  flex: none;
+  color: var(--apx-fg);
 }
 .changes__cwd {
   flex: 1;
@@ -263,45 +276,85 @@ textarea.inputcard__detail {
   text-overflow: ellipsis;
   white-space: nowrap;
   direction: rtl;
-  text-align: right;
+  text-align: left;
   font-family: var(--apx-font-mono);
   font-size: var(--apx-text-2xs);
-  font-weight: var(--apx-weight-regular);
   color: var(--apx-fg-subtle);
 }
 .changes__list {
-  margin: 8px 0 0;
-  padding: 0;
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0 6px 6px;
   list-style: none;
   font-family: var(--apx-font-mono);
   font-size: var(--apx-text-xs);
 }
 .changes__file {
   display: flex;
-  gap: 8px;
-  padding: 2px 0;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  height: 26px;
+  padding: 0 6px;
+  border-radius: 6px;
+}
+.changes__file:hover {
+  background: var(--apx-fill-hover);
 }
 .changes__status {
-  width: 18px;
+  flex: none;
+  width: 10px;
   color: var(--apx-fg-subtle);
 }
-.changes__status.is-new {
+.changes__status.is-a {
   color: var(--apx-brand-soft-fg);
 }
+.changes__status.is-m,
+.changes__status.is-r {
+  color: var(--apx-warning-soft-fg);
+}
+.changes__status.is-d {
+  color: var(--apx-danger);
+}
 .changes__path {
+  display: flex;
   flex: 1;
   min-width: 0;
   overflow: hidden;
-  text-overflow: ellipsis;
   white-space: nowrap;
+}
+.changes__dir {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--apx-fg-subtle);
+}
+.changes__name {
+  flex: none;
+  color: var(--apx-fg);
+}
+.changes__stat {
+  flex: none;
+  font-family: var(--apx-font-mono);
+  font-size: var(--apx-text-2xs);
+}
+.changes__file .changes__stat {
+  font-size: inherit;
 }
 .changes__stat .is-add {
   color: var(--apx-brand-soft-fg);
 }
 .changes__stat .is-del {
-  color: var(--apx-danger-soft-fg);
+  color: var(--apx-danger);
 }
 .changes__more {
+  padding: 4px 6px 0;
+  color: var(--apx-fg-subtle);
+}
+.changes .changes__toggle {
+  align-self: flex-start;
+  margin: -4px 0 6px 6px;
   color: var(--apx-fg-subtle);
 }
 
@@ -353,19 +406,15 @@ textarea.inputcard__detail {
   padding-block: 6px;
 }
 
-/* A settled note or warning, and a settled OK or question: the actions' line (ActionGroup), its text in the tone. */
+/* A settled note or warning, and a settled OK or question: the actions' line (ActionGroup), inline, in the tone. */
 .noticeline {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 8px;
-  min-height: 34px;
-  padding: 6px 12px;
-  border: 1px solid var(--apx-group-border);
-  border-radius: var(--apx-radius-md);
-  background: var(--apx-group-bg);
+  gap: 6px;
+  min-height: 24px;
+  padding: 2px 0;
   font-size: var(--apx-text-sm);
-  font-weight: var(--apx-weight-medium);
   color: var(--apx-fg-muted);
 }
 /* With no buttons to drop below, nothing wraps: a notice in a narrow turn keeps its icon beside the words. */
@@ -399,6 +448,10 @@ textarea.inputcard__detail {
 .turn__notice.is-warn .apx-actions__title {
   color: var(--apx-warning-soft-fg);
 }
+.turn__notice-text,
+.apx-tree > .notice__detail {
+  margin: 0;
+}
 .turn__notice-to {
   margin-left: 8px;
   font-family: var(--apx-font-mono);
@@ -406,12 +459,11 @@ textarea.inputcard__detail {
   font-weight: var(--apx-weight-regular);
   color: var(--apx-fg-muted);
 }
+/* What a note or a settled question says hangs from its chevron as a tree (apx-tree), as a turn's steps do. */
 .turn__notice-body,
 .inputline__body {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  padding: 0 12px 10px 34px;
+  --apx-tree-mid: 10px;
+  align-self: stretch;
   font-size: var(--apx-text-sm);
   line-height: 1.45;
   color: var(--apx-fg-muted);
@@ -491,33 +543,67 @@ textarea.inputcard__detail {
   white-space: pre-wrap;
 }
 
-/* An agent's plan (under its answer, and on a task): a quiet read-only checklist with how many steps are done. */
+/* An agent's plan (under its answer, and on a task): a quiet read-only checklist with how many steps are done, in a
+   soft outline on the page. Done steps are struck through, the current one spins, pending ones wait a little dimmer. */
 .plancard {
-  display: grid;
-  gap: 6px;
-  max-width: 560px;
-  padding: 10px 12px;
-  border: 1px solid var(--apx-border);
-  border-radius: var(--apx-radius-md);
-  background: var(--apx-surface);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 10px 14px 12px;
+  border: 1px solid color-mix(in oklch, var(--apx-border) 75%, transparent);
+  border-radius: 12px;
+  background: transparent;
 }
 .plancard__head {
   display: flex;
   align-items: baseline;
-  justify-content: space-between;
-  gap: 8px;
+  gap: 0;
   margin: 0;
+  padding-bottom: 4px;
   font-size: var(--apx-text-xs);
-  font-weight: 600;
-  color: var(--apx-fg-muted);
+  font-weight: var(--apx-weight-regular);
+  color: var(--apx-fg-subtle);
 }
-.plancard__count {
-  font-weight: 400;
+.plancard__count::before {
+  content: "·";
+  margin: 0 5px;
 }
 .plancard__steps {
   margin: 0;
+  gap: 0;
+}
+.plancard .apx-steps__row {
+  min-width: 0;
+  align-items: center;
+  gap: 10px;
+  min-height: 26px;
+  font-size: var(--apx-text-sm);
+}
+.plancard .apx-steps__row .apx-status {
+  margin-top: 0;
+}
+/* In the chat a long step keeps to one line; the task's own page shows it whole. */
+.transcript .plancard .apx-steps__row > :last-child {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.plancard .apx-steps__label {
+  font-weight: var(--apx-weight-regular);
+}
+.plancard .apx-steps__row.is-done .apx-status,
+.plancard .apx-steps__row.is-pending .apx-status {
+  color: var(--apx-fg-subtle);
+}
+.plancard .apx-steps__row.is-running .apx-status {
+  color: var(--apx-brand);
 }
 .plancard .apx-steps__row.is-done .apx-steps__label {
-  font-weight: 400;
-  color: var(--apx-fg-muted);
+  color: var(--apx-fg-subtle);
+  text-decoration: line-through;
+}
+.plancard .apx-steps__row.is-pending {
+  opacity: 0.75;
+  color: var(--apx-fg);
 }

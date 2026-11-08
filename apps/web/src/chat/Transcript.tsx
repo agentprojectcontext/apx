@@ -18,6 +18,7 @@ import { dayLabel, sameDay } from "../common/format.ts";
 import { useEngineLabel } from "../common/useEngineLabel.ts";
 import { useChannels } from "../data/channels.ts";
 import { blobOf, isWorking, routineName, threadAgent } from "../data/identity.ts";
+import { useOwnerName } from "../data/owner.ts";
 import { useData, useShownAgents } from "../data/state.ts";
 import { inLine } from "../data/waiting.ts";
 import { useLanguage, useT } from "../i18n/index.ts";
@@ -34,6 +35,7 @@ import { NoticePart } from "./parts/NoticePart.tsx";
 import { latestPlan } from "./planLast.ts";
 import { quotedIndex, quoteParts, splitQuote } from "./quote.ts";
 import { Regenerate, UserMessage } from "./Rewind.tsx";
+import { PersonFace, Speaker } from "./Speaker.tsx";
 import { InLine } from "./WaitingMessage.tsx";
 
 const EMPTY: Msg[] = [];
@@ -74,6 +76,13 @@ export function Transcript({ thread, comments = false, via }: { thread: Thread; 
       thread.kind === "task" ||
       thread.agent_ids.length > 1 ||
       new Set(messages.flatMap((m) => (m.author.kind === "agent" ? [m.author.id] : []))).size > 1);
+  // Several speakers (agents, or people on a channel): each one's face and name over their words, all at the left.
+  const room =
+    multiAgent ||
+    thread.kind === "channel" ||
+    thread.kind === "group" ||
+    messages.some((m) => m.author.kind === "person");
+  const ownerName = useOwnerName() || t("account.you");
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: day labels are re-made when the language changes
   const rows = useMemo(() => {
@@ -122,7 +131,7 @@ export function Transcript({ thread, comments = false, via }: { thread: Thread; 
         resetKey={thread.id}
         toBottomLabel={t("chat.toBottom")}
         className="chat__scroll"
-        contentClassName="transcript"
+        contentClassName={room ? "transcript transcript--room" : "transcript"}
       >
         {rows.length === 0 && !working && (
           <EmptyState
@@ -144,7 +153,8 @@ export function Transcript({ thread, comments = false, via }: { thread: Thread; 
               <RoutinePrompt name={routineName(thread)} text={textOf(msg)} />
             ) : msg.author.kind === "user" ? (
               <>
-                <UserMedia message={msg} from="user" />
+                {room && <Speaker face={<PersonFace name={ownerName} />} name={ownerName} />}
+                <UserMedia message={msg} from={room ? "agent" : "user"} />
                 <UserMessage
                   thread={thread}
                   message={msg}
@@ -160,6 +170,7 @@ export function Transcript({ thread, comments = false, via }: { thread: Thread; 
               <SystemMessage message={msg} />
             ) : msg.author.kind === "person" ? (
               <>
+                <Speaker face={<PersonFace id={msg.author.id} name={msg.author.name} />} name={msg.author.name} />
                 {/* A sticker or a photo alone: what anyone put on it shows on the picture, there is no bubble. */}
                 <UserMedia
                   message={msg}
@@ -170,13 +181,7 @@ export function Transcript({ thread, comments = false, via }: { thread: Thread; 
                   <Message
                     from="agent"
                     variant={mailChannels.has(msg.author.channel) && textOf(msg) ? "bare" : "bubble"}
-                    avatar={<AgentAvatar name={msg.author.name} size={24} />}
-                    meta={
-                      <>
-                        <span className="transcript__person">{msg.author.name}</span>
-                        <ViaMark thread={thread} message={msg} />
-                      </>
-                    }
+                    meta={<ViaMark thread={thread} message={msg} />}
                     reactions={reactionsOf(msg)}
                     actions={<MessageActions thread={thread} message={msg} text={textOf(msg)} speechKey={msg.id} />}
                   >
@@ -216,7 +221,7 @@ export function Transcript({ thread, comments = false, via }: { thread: Thread; 
                 message={msg}
                 generationImages={msg.run_id ? generationRuns.get(msg.run_id) : undefined}
                 agent={agents[msg.author.id]}
-                showAvatar={multiAgent}
+                showAvatar={room}
                 showTools={showTools}
                 showSkills={!comments}
                 showPlan={msg.id === planAt}

@@ -457,3 +457,209 @@ button.chatprocesses {
   background: var(--apx-brand-soft);
   color: var(--apx-brand-soft-fg);
 }
+
+/* A chat's second line: who speaks and where, then its project as a small badge. */
+.threadrow__line {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+.threadrow__who {
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.threadrow__dot {
+  flex: none;
+}
+.threadrow__line .projbadge {
+  flex: 0 0 auto;
+  max-width: 16ch;
+  font-size: 10.5px;
+  line-height: 15px;
+}
+
+/* The chevron of a chat's nested sessions, right after its title: it sits over the slot the title line leaves. */
+.rowfold__slot {
+  flex: none;
+  width: 18px;
+  height: 18px;
+  margin-left: -2px;
+}
+.apx-iconbtn.rowfold {
+  position: absolute;
+  z-index: 1;
+  width: 18px;
+  height: 18px;
+  min-width: 0;
+  color: var(--apx-fg-subtle);
+}
+.apx-iconbtn.rowfold:hover {
+  background: var(--apx-fill-strong);
+  color: var(--apx-fg);
+}
+.apx-iconbtn.rowfold svg {
+  width: 12px;
+  height: 12px;
+  transform: rotate(-90deg);
+  transition: transform var(--apx-duration);
+}
+.apx-iconbtn.rowfold.is-open svg {
+  transform: none;
+}
+.delegated.is-inline .delegated__list {
+  margin: 2px 0 4px 13px;
+}
+
+/* The filter's button while something is chosen: brand-soft, with how many in a pill on its corner. */
+.apx-iconbtn.inboxfilter__btn {
+  position: relative;
+  overflow: visible;
+}
+.apx-iconbtn.inboxfilter__btn.is-on {
+  background: var(--apx-brand-soft);
+  color: var(--apx-brand-soft-fg);
+}
+.inboxfilter__count {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  display: inline-grid;
+  place-items: center;
+  min-width: 15px;
+  height: 15px;
+  padding: 0 4px;
+  box-sizing: border-box;
+  border-radius: 999px;
+  background: var(--apx-brand);
+  color: var(--apx-bg);
+  font-size: 10px;
+  font-weight: var(--apx-weight-semibold);
+  line-height: 1;
+}
+
+/* The Inbox narrowed to one channel account: the account as its title, switching accounts from it. */
+.inbox__account {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin: -4px -4px 0 -6px;
+}
+.apx-btn.inbox__accountbtn {
+  flex: 1;
+  min-width: 0;
+  height: auto;
+  justify-content: flex-start;
+  gap: 10px;
+  padding: 5px 6px;
+  border-radius: 10px;
+  text-align: left;
+}
+.inbox__accountbtn[aria-expanded="true"] {
+  background: var(--apx-fill);
+}
+.inbox__accountbtn > .apx-btn__label {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+.inbox__accounttext {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+}
+.inbox__accountname {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+  font-size: 15px;
+  font-weight: var(--apx-weight-semibold);
+  letter-spacing: -0.01em;
+  color: var(--apx-fg);
+}
+.inbox__accountchev {
+  display: inline-flex;
+  flex: none;
+  color: var(--apx-fg-subtle);
+}
+.inbox__accountlabel,
+.inbox__accountsub {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.inbox__accountsub {
+  font-size: var(--apx-text-xs);
+  font-weight: var(--apx-weight-regular);
+  color: var(--apx-fg-subtle);
+}
+.accountswitch.apx-popover {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  max-height: 60vh;
+  padding: 6px;
+  overflow-y: auto;
+}
+.accountswitch__label {
+  padding: 6px 8px 4px;
+  font-size: 11px;
+  color: var(--apx-fg-subtle);
+}
+.accountswitch__row.apx-pickrow {
+  flex: none;
+  min-height: 44px;
+  padding: 0 8px;
+  border-radius: 8px;
+}
+.accountswitch__row .apx-pickrow__desc {
+  font-size: 11px;
+  color: var(--apx-fg-subtle);
+}
+.accountswitch__unread {
+  display: inline-grid;
+  place-items: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  box-sizing: border-box;
+  border-radius: 999px;
+  background: var(--apx-brand);
+  color: var(--apx-accent-fg);
+  font-size: 11px;
+  font-weight: var(--apx-weight-semibold);
+}
+.accountswitch__sep {
+  height: 1px;
+  margin: 4px 2px;
+  background: var(--apx-border);
+}
+.accountswitch__foot.apx-pickrow {
+  flex: none;
+  min-height: 32px;
+  padding: 0 8px;
+  border-radius: 8px;
+  color: var(--apx-fg-muted);
+}
+.accountswitch__foot.apx-pickrow:hover {
+  color: var(--apx-fg);
+}
+
+/* "New chat": each agent's name, then its role at the row's end. */
+.newchat .apx-menu__text {
+  flex: none;
+  max-width: 110px;
+}
+.newchat .apx-select__hint {
+  flex: 1 1 0;
+  min-width: 0;
+  max-width: none;
+  text-align: right;
+}

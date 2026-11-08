@@ -1,12 +1,14 @@
 import type { Thread } from "@apx/protocol";
 import { Button, EmptyState, IconButton, Icons, ProjectTile, SearchField, SegmentedControl, Skeleton } from "@apx/ui";
 import { Suspense, useEffect, useMemo, useState } from "react";
+import { useChannels } from "../data/channels.ts";
 import { DEFAULT_PID, findProject, projectInitial, projectTone, threadAgent } from "../data/identity.ts";
 import { type InboxTab, setPrefs, usePrefs } from "../data/prefs.ts";
 import { useData, useShownAgents } from "../data/state.ts";
 import { useT } from "../i18n/index.ts";
 import { ActivityView, TaskBundle } from "../lazy.ts";
 import { go, useNav } from "../shell/nav.ts";
+import { AccountHeader } from "./AccountHeader.tsx";
 import { ListedChat } from "./Delegated.tsx";
 import {
   archivedThreads,
@@ -19,7 +21,7 @@ import {
 import { InboxFilterChips, InboxFilterMenu } from "./InboxFilterMenu.tsx";
 import { ChatsTab, RoutinesTab, TasksTab } from "./InboxTabs.tsx";
 import { TreeView } from "./InboxViews.tsx";
-import { passesFilter, useInboxFilter } from "./inboxFilter.ts";
+import { filterCount, passesFilter, soleFilter, useInboxFilter } from "./inboxFilter.ts";
 import { NewChatMenu, startChat, useChatAgents } from "./NewChatMenu.tsx";
 import { RoutineBundle } from "./RoutineBundle.tsx";
 import { ThreadRow } from "./ThreadRow.tsx";
@@ -37,13 +39,19 @@ export function InboxList() {
   const [query, setQuery] = useState("");
   const [searching, setSearching] = useState(false);
   const filter = useInboxFilter((s) => s);
-  const filtered = filter.agents.length + filter.projects.length > 0;
+  const filtered = filterCount(filter) > 0;
+  const channels = useChannels((s) => s.channels);
+  // Narrowed to one channel account, the Inbox is that account's: its header, its chats.
+  const sole = soleFilter(filter);
+  const account = !projectId && sole?.kind === "accounts" ? channels.find((c) => c.id === sole.id) : undefined;
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
   const [showArchived, setShowArchived] = useState(false);
   const chatAgents = useChatAgents(projectId);
 
-  const view = usePrefs((s) => s.inboxView);
-  const tab = usePrefs((s) => s.inboxTab);
+  const savedView = usePrefs((s) => s.inboxView);
+  const view = account ? "list" : savedView;
+  const savedTab = usePrefs((s) => s.inboxTab);
+  const tab: InboxTab = account ? "chats" : savedTab;
   const routineOpen = useNav((s) => s.routineId != null);
   // A routine's runs open as one chat: its row is in Routines, however it was opened (a row, a link, back).
   useEffect(() => {
@@ -56,13 +64,14 @@ export function InboxList() {
   );
   const allListed = useMemo(() => entries.flatMap((e) => (e.kind === "thread" ? [e.thread] : e.threads)), [entries]);
   const tabs = useMemo(() => {
-    const ok = (th: Thread) => passesFilter(th, filter, projects);
+    const kindOf = (id: string) => channels.find((c) => c.id === id)?.type;
+    const ok = (th: Thread) => passesFilter(th, filter, projects, kindOf);
     return {
       chats: entries.flatMap((e) => (e.kind === "thread" && ok(e.thread) ? [e.thread] : [])),
       tasks: entries.flatMap((e) => (e.kind === "task" && e.threads.some(ok) ? [e] : [])),
       routines: entries.flatMap((e) => (e.kind === "routine" && e.threads.some(ok) ? [e] : [])),
     };
-  }, [entries, filter, projects]);
+  }, [entries, filter, projects, channels]);
   const groups = useMemo(
     () => groupByProject(threads, projects, { projectId, query, routines }),
     [threads, projects, projectId, query, routines],
@@ -88,40 +97,48 @@ export function InboxList() {
   return (
     <section className="inbox" aria-label={title}>
       <div className="inbox__head">
-        <div className="inbox__titlerow">
-          <h1 className="inbox__title">{title}</h1>
-          <IconButton
-            label={t("inbox.searchOpen")}
-            active={searching}
-            icon={<Icons.Search size={16} />}
-            onClick={() => {
-              if (searching) setQuery("");
-              setSearching(!searching);
-            }}
-          />
-          <NewChatMenu
-            projectId={projectId}
-            trigger={<IconButton label={t("chat.new")} icon={<Icons.SquarePen size={16} />} disabled={!ready} />}
-          />
-          <InboxFilterMenu threads={allListed} />
-        </div>
-        <SegmentedControl
-          size="sm"
-          className="inbox__views"
-          label={t("inbox.tabs")}
-          value={tab}
-          onValueChange={(v) => setPrefs({ inboxTab: v as InboxTab })}
-          options={(["chats", "tasks", "routines"] as const).map((v) => ({
-            value: v,
-            label: (
-              <>
-                {t(`inbox.tab.${v}`)}
-                <span className="inbox__tabcount">{tabs[v].length}</span>
-              </>
-            ),
-          }))}
-        />
-        <InboxFilterChips />
+        {account ? (
+          <AccountHeader account={account} />
+        ) : (
+          <>
+            <div className="inbox__titlerow">
+              <h1 className="inbox__title">{title}</h1>
+              <IconButton
+                label={t("inbox.searchOpen")}
+                active={searching}
+                icon={<Icons.Search size={16} />}
+                onClick={() => {
+                  if (searching) setQuery("");
+                  setSearching(!searching);
+                }}
+              />
+              <NewChatMenu
+                projectId={projectId}
+                side="bottom"
+                align="start"
+                trigger={<IconButton label={t("chat.new")} icon={<Icons.SquarePen size={16} />} disabled={!ready} />}
+              />
+              <InboxFilterMenu threads={allListed} />
+            </div>
+            <SegmentedControl
+              size="sm"
+              className="inbox__views"
+              label={t("inbox.tabs")}
+              value={tab}
+              onValueChange={(v) => setPrefs({ inboxTab: v as InboxTab })}
+              options={(["chats", "tasks", "routines"] as const).map((v) => ({
+                value: v,
+                label: (
+                  <>
+                    {t(`inbox.tab.${v}`)}
+                    <span className="inbox__tabcount">{tabs[v].length}</span>
+                  </>
+                ),
+              }))}
+            />
+            <InboxFilterChips />
+          </>
+        )}
         {searching && (
           <SearchField
             size="sm"
@@ -222,7 +239,7 @@ export function InboxList() {
                         <TaskBundle taskId={entry.taskId} threads={entry.threads} selected={threadId} />
                       </Suspense>
                     ) : (
-                      <ListedChat key={entry.thread.id} thread={entry.thread} selected={threadId}>
+                      <ListedChat key={entry.thread.id} thread={entry.thread} selected={threadId} inline>
                         <ThreadRow
                           thread={entry.thread}
                           agent={threadAgent(entry.thread, agents)}

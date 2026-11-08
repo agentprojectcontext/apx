@@ -4,6 +4,8 @@ import { Icons, type MenuEntry } from "@apx/ui";
 import { draftOf, saveChannel } from "../data/channels.ts";
 import type { T } from "../i18n/index.ts";
 import { go } from "../shell/nav.ts";
+import { askRemove } from "./account/removeAsk.ts";
+import { KindIcon } from "./KindIcon.tsx";
 import { CHANNEL_KINDS, isChannelKind } from "./kinds.ts";
 
 export function accountItems(channel: ChannelInfo, t: T, waiting: number, before?: () => void): MenuEntry[] {
@@ -12,17 +14,27 @@ export function accountItems(channel: ChannelInfo, t: T, waiting: number, before
     before?.();
     f();
   };
+  const app = kind ? t(CHANNEL_KINDS[kind].name) : channel.type;
   return [
+    {
+      type: "label",
+      label: (
+        <span className="chs__menuhead">
+          {kind ? <KindIcon kind={kind} size={14} /> : <Icons.Send size={14} />}
+          {t("ch.card.via", { app, account: channel.label })}
+        </span>
+      ),
+    },
     { label: t("nav.open"), icon: <Icons.MessageCircle />, onSelect: run(() => go.channel(channel.id)) },
     ...(kind
       ? [
           {
-            label: t("ch.settings"),
-            icon: <Icons.Settings />,
+            label: t("chs.menu.edit"),
+            icon: <Icons.Pencil />,
             onSelect: run(() => go.channelSettings(kind, channel.id)),
           },
           {
-            label: t("chs.contacts"),
+            label: t("chs.menu.contacts"),
             icon: <Icons.Users />,
             onSelect: run(() => go.channelSettings(kind, channel.id, "contacts")),
           },
@@ -38,10 +50,29 @@ export function accountItems(channel: ChannelInfo, t: T, waiting: number, before
         ]
       : []),
     {
+      label: t(channel.quiet ? "chs.menu.unquiet" : "chs.menu.quiet"),
+      icon: channel.quiet ? <Icons.Bell /> : <Icons.BellOff />,
+      onSelect: run(() => void saveChannel(channel.id, { ...draftOf(channel), quiet: !channel.quiet })),
+    },
+    {
       label: t(channel.enabled ? "chs.turnOff" : "chs.turnOn"),
       icon: <Icons.Power />,
       onSelect: run(() => void saveChannel(channel.id, { ...draftOf(channel), enabled: !channel.enabled })),
     },
+    ...(kind
+      ? [
+          { type: "separator" as const },
+          {
+            label: t("chs.menu.disconnect"),
+            icon: <Icons.X />,
+            danger: true,
+            onSelect: run(() => {
+              askRemove(channel.id);
+              go.channelSettings(kind, channel.id);
+            }),
+          },
+        ]
+      : []),
   ];
 }
 

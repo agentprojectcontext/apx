@@ -26,6 +26,7 @@ import { ProjectArtifacts } from "./ProjectArtifacts.tsx";
 import { ProjectMemory } from "./ProjectMemory.tsx";
 import { ProjectOverview } from "./ProjectOverview.tsx";
 import { ProjectSettings } from "./ProjectSettings.tsx";
+import { ProjectSide } from "./ProjectSide.tsx";
 import { ProjectAgents } from "./ProjectTeam.tsx";
 import { kindIcon, kindLabel } from "./projectKind.ts";
 import { useProjectCounts } from "./useProjectCounts.ts";
@@ -81,6 +82,8 @@ export function ProjectScreen({ layout }: { layout: Layout }) {
       <ProjectHeader project={project} tab={tab} />
       <div className="project__body">
         <TabBody project={project} tab={tab} layout={layout} />
+        {/* The overview has its own summary column; every other tab shows the project's subprojects and agents. */}
+        {tab !== "overview" && <ProjectSide project={project} chats={tab === "chats"} />}
       </div>
     </section>
   );

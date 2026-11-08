@@ -36,6 +36,7 @@ import { SkillsPart } from "./parts/SkillsPart.tsx";
 import { ToolGroup } from "./parts/ToolGroup.tsx";
 import { planLast } from "./planLast.ts";
 import { type ReplySegment, replySegments } from "./replySegments.ts";
+import { Speaker } from "./Speaker.tsx";
 import { taskCodeSpan } from "./TaskChip.tsx";
 
 type ToolPart = Extract<Part, { type: "tool" }>;
@@ -150,8 +151,13 @@ export function AgentTurn({
     : message.model && baseRef(message.model);
   // The engine notes when the agent's own model did not answer and a fallback did (engine.fallback).
   const fellBack = message.parts.some((p) => p.type === "notice" && p.code === "engine.fallback");
+  // With its face and name over the turn (a chat with several speakers), the meta line leaves the name out.
   const meta = (
-    <MessageMeta agent={engine?.label ?? agent?.name} model={model} effort={effort && effortLabel(effort)}>
+    <MessageMeta
+      agent={avatar ? undefined : (engine?.label ?? agent?.name)}
+      model={model}
+      effort={effort && effortLabel(effort)}
+    >
       {fellBack && (
         <span className="apx-msgmeta__part" title={t("chat.modelFallbackHint")}>
           {t("chat.modelFallback")}
@@ -164,6 +170,7 @@ export function AgentTurn({
 
   return (
     <div className="turn">
+      {avatar && <Speaker face={avatar} name={engine?.label ?? agent?.name} />}
       {skills && <SkillsPart part={skills} projectId={projectId} />}
       {tools.length > 0 && <ToolGroup parts={tools} waiting={waiting} />}
       {items.map(({ key, part, media, segment, whole, generation }, i) => {
@@ -176,7 +183,6 @@ export function AgentTurn({
             key={key}
             from="agent"
             variant={words ? "bubble" : "bare"}
-            avatar={i === 0 ? avatar : undefined}
             grouped={i > 0}
             meta={last ? meta : undefined}
             reactions={

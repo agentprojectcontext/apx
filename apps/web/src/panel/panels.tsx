@@ -18,22 +18,23 @@ export const PANELS: PanelDef[] = [
   {
     id: "terminal",
     label: "panel.terminal",
-    hint: "panel.terminal.hint",
+    hint: "panel.term.hint",
     icon: (s) => <Icons.Terminal size={s} />,
+  },
+  { id: "processes", label: "panel.processes", hint: "panel.procs.hint", icon: (s) => <Icons.Layers size={s} /> },
+  { id: "agents", label: "panel.agents", hint: "panel.agents.hint", icon: (s) => <Icons.Users size={s} /> },
+  {
+    id: "changes",
+    label: "panel.changes",
+    hint: "panel.changes.hint",
+    icon: (s) => <Icons.Code size={s} />,
   },
   {
     id: "files",
     label: "panel.files",
     hint: "panel.files.hint",
-    icon: (s) => <Icons.FolderTree size={s} />,
+    icon: (s) => <Icons.Folder size={s} />,
   },
-  {
-    id: "changes",
-    label: "panel.changes",
-    hint: "panel.changes.hint",
-    icon: (s) => <Icons.FileDiff size={s} />,
-  },
-  { id: "processes", label: "panel.processes", hint: "panel.processes.hint", icon: (s) => <Icons.Users size={s} /> },
   { id: "widget", label: "panel.widget", hint: "panel.widget.hint", icon: (s) => <Icons.LayoutGrid size={s} /> },
   { id: "usage", label: "panel.usage", hint: "panel.usage.hint", icon: (s) => <Icons.Zap size={s} /> },
 ];

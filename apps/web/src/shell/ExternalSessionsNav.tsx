@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { rememberSidebar, setPrefs, usePrefs, useSidebarRows } from "../data/prefs.ts";
 import { useData } from "../data/state.ts";
 import { useT } from "../i18n/index.ts";
+import { onlyFilter, soleFilter, useInboxFilter } from "../inbox/inboxFilter.ts";
 import { go, useNav } from "./nav.ts";
 import { orderItems, SidebarNavRow } from "./SidebarNavRow.tsx";
 import { SidebarOverflow, SidebarRowsGrip, SidebarSection } from "./SidebarSection.tsx";
@@ -19,6 +20,10 @@ export function ExternalSessionsNav({ rail, compact = false }: { rail: boolean; 
   const engines = useData((s) => s.engines);
   const view = useNav((s) => s.view);
   const engineId = useNav((s) => s.engineId);
+  const filtered = useInboxFilter((f) => {
+    const sole = soleFilter(f);
+    return sole?.kind === "engines" ? sole.id : undefined;
+  });
   const rows = useSidebarRows("engines");
   const [moreOpen, setMoreOpen] = useState(false);
   useEffect(() => {
@@ -39,7 +44,15 @@ export function ExternalSessionsNav({ rail, compact = false }: { rail: boolean; 
     ids.splice(Math.max(0, Math.min(index, ids.length)), 0, id);
     setPrefs({ engineOrder: ids });
   };
+  // Picked, an engine narrows the Inbox to its sessions; its own screen (with the sessions on this computer) stays
+  // in the row's menu.
   const open = (id: string) => {
+    setMoreOpen(false);
+    rememberSidebar("engineOrder", id);
+    onlyFilter("engines", id);
+    go.inbox();
+  };
+  const sessions = (id: string) => {
     setMoreOpen(false);
     go.engine(id);
   };
@@ -52,12 +65,13 @@ export function ExternalSessionsNav({ rail, compact = false }: { rail: boolean; 
       rail={rail && !overflow}
       icon={<SessionIcon engine={engine.id} />}
       trailing={<EngineState engine={engine} />}
-      active={view === "engine" && engineId === engine.id}
+      active={(view === "engine" && engineId === engine.id) || (view === "inbox" && filtered === engine.id)}
       onPick={() => open(engine.id)}
       order={order}
       onMove={move}
       items={[
-        { label: t("nav.open"), icon: <Icons.Terminal />, onSelect: () => open(engine.id) },
+        { label: t("nav.open"), icon: <Icons.Inbox />, onSelect: () => open(engine.id) },
+        { label: t("nav.engineSessions"), icon: <Icons.Terminal />, onSelect: () => sessions(engine.id) },
         { label: t("nav.engineSettings"), icon: <Icons.Settings />, onSelect: () => go.config("external") },
         { type: "separator" },
         ...orderItems(t, engine.id, order, move),

@@ -89,6 +89,14 @@ export const DesktopInstallNotice = lazy(() =>
   import("./shell/DesktopInstallNotice.tsx").then((m) => ({ default: m.DesktopInstallNotice })),
 );
 
+// The notices over the page with the full sidebar: none on most screens.
+export const NoticeStrip = lazy(() => import("./shell/NoticeStrip.tsx").then((m) => ({ default: m.NoticeStrip })));
+
+// The agent editor, opened from the super-agent's card in the top bar.
+export const AgentEditor = lazy(() =>
+  import("./project/team/AgentEditor.tsx").then((m) => ({ default: m.AgentEditor })),
+);
+
 // Project dialogs, opened rarely.
 export const NewProjectDialog = lazy(() =>
   import("./shell/NewProjectDialog.tsx").then((m) => ({ default: m.NewProjectDialog })),
@@ -112,6 +120,7 @@ export const WhatsNewDialog = lazy(() =>
 export const ChatFiles = lazy(() => import("./panel/ChatFiles.tsx").then((m) => ({ default: m.ChatFiles })));
 export const UsagePanel = lazy(() => import("./panel/UsagePanel.tsx").then((m) => ({ default: m.UsagePanel })));
 export const ChangesPanel = lazy(() => import("./panel/ChangesPanel.tsx").then((m) => ({ default: m.ChangesPanel })));
+export const AgentsPanel = lazy(() => import("./panel/AgentsPanel.tsx").then((m) => ({ default: m.AgentsPanel })));
 export const ProcessesPanel = lazy(() =>
   import("./panel/ProcessesPanel.tsx").then((m) => ({ default: m.ProcessesPanel })),
 );
@@ -140,6 +149,7 @@ export const ComputerProgress = lazy(() =>
 );
 export const ContactChat = lazy(() => import("./channels/ContactChat.tsx").then((m) => ({ default: m.ContactChat })));
 export const ActivityView = lazy(() => import("./inbox/ActivityView.tsx").then((m) => ({ default: m.ActivityView })));
+export const RoomPanel = lazy(() => import("./channels/RoomPanel.tsx").then((m) => ({ default: m.RoomPanel })));
 export const ChannelFace = lazy(() => import("./inbox/ChannelFace.tsx").then((m) => ({ default: m.ChannelFace })));
 export const ChannelTreeRow = lazy(() =>
   import("./inbox/ChannelTreeRow.tsx").then((m) => ({ default: m.ChannelTreeRow })),
@@ -210,6 +220,11 @@ export const FlowViewer = lazy(() => import("./flows/FlowViewer.tsx").then((m) =
 // The searchable picker (base-ui's combobox) loads after the first paint: the inbox's new-chat button has one.
 export const SearchSelect = lazy(() =>
   import("./common/pickers/SearchSelect.tsx").then((m) => ({ default: m.SearchSelect })),
+);
+
+// "New agent" from the new-chat picker opens the same dialog as a team's.
+export const NewAgentDialog = lazy(() =>
+  import("./project/team/AgentDialogs.tsx").then((m) => ({ default: m.NewAgentDialog })),
 );
 
 export const QrSvg = lazy(() => import("./common/QrSvg.tsx").then((m) => ({ default: m.QrSvg })));

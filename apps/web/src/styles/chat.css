@@ -196,6 +196,7 @@
   width: 100%;
 }
 .turn:has(.surfacecard, .pagepart) .apx-msg__col,
+.turn .apx-msg__col:has(> .apx-msg__bare > :is(.changes, .plancard, .apx-subthread, .apx-livebrowser)),
 .apx-msg__col:has(.inputcard.has-change) {
   max-width: 100%;
   width: 100%;
@@ -238,20 +239,23 @@
 }
 
 /* Parts */
+/* A widget in the chat sits in the floating frame code blocks use (CodeFrame): a soft outline, a header naming it with
+   its controls fading in when it is pointed at, the widget under it. */
 .surfacecard {
   display: flex;
   flex-direction: column;
-  gap: 8px;
   width: 100%;
-  padding: 10px 12px 12px;
-  border: 1px solid var(--apx-border);
-  border-radius: var(--apx-radius-lg);
+  border: 1px solid color-mix(in oklch, var(--apx-border) 75%, transparent);
+  border-radius: 12px;
   background: transparent;
   box-sizing: border-box;
+  overflow: hidden;
 }
 .surfacecard--gone {
   flex-direction: row;
   align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
   color: var(--apx-fg-subtle);
   font-size: var(--apx-text-sm);
 }
@@ -259,8 +263,19 @@
   display: flex;
   align-items: center;
   gap: 6px;
-  color: var(--apx-fg-subtle);
+  min-height: 36px;
+  padding: 4px 6px 4px 12px;
+  border-bottom: 1px solid color-mix(in oklch, var(--apx-border) 75%, transparent);
+  color: var(--apx-fg-muted);
   font-size: var(--apx-text-xs);
+}
+.surfacecard__head .apx-iconbtn {
+  color: var(--apx-fg-muted);
+  opacity: 0.6;
+  transition: opacity 0.16s;
+}
+.surfacecard:is(:hover, :focus-within) .surfacecard__head .apx-iconbtn {
+  opacity: 1;
 }
 .surfacecard__eyebrow {
   overflow: hidden;
@@ -332,13 +347,13 @@
   min-height: 0;
   flex: 1;
 }
-/* The skills picked by meaning for a turn: small chips over the answer, beside the avatar's column. */
+/* The skills picked by meaning for a turn: small mono chips over the answer. Only weighed: a dashed outline; given or
+   recommended: a soft fill, the closer the stronger. */
 .turn__skills {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 4px;
-  padding-left: 2px;
+  gap: 5px;
   font-size: calc(11px * var(--apx-text-scale, 1));
   color: var(--apx-info);
 }
@@ -351,27 +366,27 @@
 .skillchip {
   font: inherit;
   font-family: var(--apx-font-mono);
-  color: inherit;
+  line-height: 18px;
+  color: var(--apx-info-soft-fg);
   background: transparent;
-  border: 1px solid transparent;
-  border-radius: var(--apx-radius-sm);
-  padding: 1px 5px;
+  border: 1px dashed var(--apx-border-strong);
+  border-radius: 6px;
+  padding: 0 6px;
   cursor: pointer;
 }
 .skillchip.is-loaded {
+  border-style: solid;
+  border-color: transparent;
   background: color-mix(in srgb, currentColor 14%, transparent);
 }
 .skillchip.is-strong {
+  border-style: solid;
   border-color: color-mix(in srgb, currentColor 45%, transparent);
   background: color-mix(in srgb, currentColor 14%, transparent);
 }
 .skillchip.is-hinted {
+  border-style: solid;
   border-color: color-mix(in srgb, currentColor 35%, transparent);
-  opacity: 0.8;
-}
-.skillchip.is-considered {
-  border: 1px dashed color-mix(in srgb, currentColor 30%, transparent);
-  opacity: 0.6;
 }
 .skillchip:hover,
 .skillchip:focus-visible {
@@ -459,8 +474,8 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 28px;
-  height: 28px;
+  width: 24px;
+  height: 24px;
   border-radius: 50%;
   background: var(--apx-fill-strong);
   color: var(--apx-fg-muted);
@@ -808,12 +823,99 @@
   white-space: nowrap;
 }
 
-/* Minimal look: the agent writes as plain text on the chat, the owner's messages keep a quiet bubble. */
-[data-apx-look="minimal"] .chat {
+/* ── A chat with several speakers ─────────────────────────────────────────────── */
+/* A group, a channel's room or contact, agents working together: each speaker's face and name over their words,
+   everything at the left, the owner's own words too (no bubble). The face hangs beside the name and the first line. */
+.transcript__speaker {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  min-width: 0;
+  height: 16px;
+  margin-bottom: -8px;
+}
+.transcript__speakerface {
+  display: inline-flex;
+  flex: none;
+  width: 24px;
+  height: 24px;
+}
+.transcript__speakername {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--apx-text-xs);
+  line-height: 16px;
+  color: var(--apx-fg-subtle);
+}
+.transcript__face {
+  display: inline-grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: var(--apx-fill-strong);
+  color: var(--apx-fg-muted);
+  font-size: 9px;
+  font-weight: var(--apx-weight-semibold);
+  line-height: 1;
+  overflow: hidden;
+}
+.transcript__face.has-picture {
+  background: none;
+}
+.transcript--room .transcript__row > .apx-msg:not(.is-waiting),
+.transcript--room .turn > :not(.transcript__speaker) {
+  margin-left: 34px;
+}
+.transcript--room .apx-msg--user:not(.is-waiting) {
+  justify-content: flex-start;
+}
+.transcript--room .apx-msg:not(.is-waiting) .apx-msg__col {
+  align-items: stretch;
+  max-width: 100%;
+}
+.transcript--room .apx-msg:not(.is-waiting) .apx-msg__bubble {
+  padding: 0;
+  border-color: transparent;
+  background: transparent;
+  color: var(--apx-fg);
+}
+.transcript--room .apx-msg--user .apx-msg__meta {
+  flex-direction: row;
+}
+
+/* Minimal look: the agent writes as plain text on the chat, the owner's messages keep a quiet bubble. Wherever a
+   conversation shows (a chat, a task, a routine's run), messages sit a little apart and the agent's words have no
+   padding of their own. */
+[data-apx-look="minimal"] :is(.chat, .transcript) {
   --apx-bubble-bg: transparent;
   --apx-bubble-mine-bg: var(--apx-fill-strong);
   --apx-bubble-mine-fg: var(--apx-fg);
 }
-[data-apx-look="minimal"] .chat .apx-msg:not(.apx-msg--user):not(.is-waiting) .apx-msg__bubble {
-  padding-inline: 0;
+[data-apx-look="minimal"] .transcript {
+  gap: 16px;
+}
+[data-apx-look="minimal"] :is(.chat, .transcript) .apx-msg:not(.apx-msg--user):not(.is-waiting) .apx-msg__bubble {
+  padding: 0;
+}
+
+/* A group's or room's card floats over the chat, under the header, like the design's contact card. */
+.chat {
+  position: relative;
+}
+.chat__roomcard {
+  position: absolute;
+  z-index: 12;
+  top: 64px;
+  right: 16px;
+  width: min(380px, calc(100% - 32px));
+  max-height: calc(100% - 140px);
+  overflow: auto;
+  border-radius: 14px;
+  box-shadow: var(--apx-shadow-md);
+}
+.chat__roompill.is-on {
+  background: var(--apx-fill-strong);
 }

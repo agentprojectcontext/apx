@@ -241,20 +241,12 @@
       "count": 1,
       "reason": "custom-styled row, chip, tab or card control; moving it to Button/IconButton changes its look, so it needs a reviewed screenshot (rule 32)"
     },
-    "apps/web/src/panel/TerminalPanel.tsx": {
-      "count": 1,
-      "reason": "custom-styled row, chip, tab or card control; moving it to Button/IconButton changes its look, so it needs a reviewed screenshot (rule 32)"
-    },
-    "apps/web/src/project/ProjectArtifacts.tsx": {
-      "count": 4,
-      "reason": "custom-styled row, chip, tab or card control; moving it to Button/IconButton changes its look, so it needs a reviewed screenshot (rule 32)"
-    },
     "apps/web/src/project/ProjectBoard.tsx": {
       "count": 1,
       "reason": "custom-styled row, chip, tab or card control; moving it to Button/IconButton changes its look, so it needs a reviewed screenshot (rule 32)"
     },
     "apps/web/src/project/ProjectOverview.tsx": {
-      "count": 6,
+      "count": 5,
       "reason": "custom-styled row, chip, tab or card control; moving it to Button/IconButton changes its look, so it needs a reviewed screenshot (rule 32)"
     },
     "apps/web/src/project/ProjectScreen.tsx": {
@@ -331,10 +323,6 @@
     },
     "apps/web/src/resources/PairsEditor.tsx": {
       "count": 2,
-      "reason": "custom-styled row, chip, tab or card control; moving it to Button/IconButton changes its look, so it needs a reviewed screenshot (rule 32)"
-    },
-    "apps/web/src/resources/ResourcesView.tsx": {
-      "count": 1,
       "reason": "custom-styled row, chip, tab or card control; moving it to Button/IconButton changes its look, so it needs a reviewed screenshot (rule 32)"
     },
     "apps/web/src/routines/RoutineDrawer.tsx": {

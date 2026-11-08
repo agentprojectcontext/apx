@@ -1,15 +1,15 @@
 import type { Agent, CatalogEngine, Run, Thread } from "@apx/protocol";
-import { Composer, EngineIcon, IconButton, Icons, Menu, SegmentedControl, withMentions } from "@apx/ui";
-import { Suspense, useMemo, useRef, useState, useSyncExternalStore } from "react";
+import { Composer, EngineIcon, IconButton, Icons, SegmentedControl } from "@apx/ui";
+import { type KeyboardEvent, Suspense, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { MOD } from "../../common/modKey.ts";
 import { useEngineLabel } from "../../common/useEngineLabel.ts";
 import { ModelChoicePicker } from "../../config/models/ModelPickers.tsx";
 import { cancel, loadThread, makeChat, send } from "../../data/actions.ts";
 import { sendDirect } from "../../data/channels.ts";
-import { setThreadModel } from "../../data/composer.ts";
+import { setThreadModel, transcribe } from "../../data/composer.ts";
 import { draftOf, keepDraft, subscribeDrafts } from "../../data/drafts.ts";
 import { isPending, isWorking } from "../../data/identity.ts";
-import { choiceLabel, effectiveChoice, splitRef, useModels } from "../../data/models.ts";
+import { choiceLabel, effectiveChoice, effortLabel, modelOf, splitRef, useModels } from "../../data/models.ts";
 import { isNewChat } from "../../data/newChat.ts";
 import { notify } from "../../data/notices.ts";
 import { useData } from "../../data/state.ts";
@@ -17,19 +17,22 @@ import { useT } from "../../i18n/index.ts";
 import { AttachChips } from "../../lazy.ts";
 import { go } from "../../shell/nav.ts";
 import { ContextChip } from "./ContextChip.tsx";
-import { contextOf, spentOf, usageStamp } from "./context.ts";
+import { ContextChips } from "./ContextChips.tsx";
+import { contextOf, contextRunOf, spentOf, usageStamp } from "./context.ts";
+import { addRef, removeRef, restoreRefs, takeRefs, useContextRefs, withRefs } from "./contextRefs.ts";
+import { composerMarks } from "./marks.tsx";
+import { PlusMenu } from "./PlusMenu.tsx";
 import { useSlashMenu } from "./SlashMenu.tsx";
 import { useThreadUsage } from "./usage.ts";
 import { useAttachments } from "./useAttachments.ts";
 import { useDictation } from "./useDictation.ts";
 import { useFileDrop } from "./useFileDrop.ts";
-import { VoiceRecording } from "./VoiceRecording.tsx";
-
-const IMAGE_TYPES = "image/png,image/jpeg,image/webp,image/gif";
+import { MicWave, VoiceRecording } from "./VoiceRecording.tsx";
 
 /**
- * The chat's composer, left to right: + (file, image), the chat's model, then how full the chat is (opens Usage),
- * the mic (dictates words into the field) and send. While the agent works, Enter sends (its next step reads it) and
+ * The chat's composer, one line: + (files, a folder, audio, a skill, connectors, commands), the field, the mic
+ * (dictates words into the field) and send; under it, the chat's model and how full the chat is. While the agent
+ * works, Enter sends (its next step reads it) and
  * Ctrl/⌘+Enter puts it in line for when it finishes (DECISIONS.md#d-186).
  * A field starting with "/" opens the command and skill menu.
  * Files also arrive dragged or pasted. What is typed stays as the chat's draft until it is sent.
@@ -69,7 +72,7 @@ export function ChatComposer({
   // Files and voice notes of a new chat are uploaded to no chat yet; they go with its first message.
   const made = fresh ? undefined : thread.id;
   const files = useRef<HTMLInputElement>(null);
-  const images = useRef<HTMLInputElement>(null);
+  const audio = useRef<HTMLInputElement>(null);
   const appendWords = (words: string) => setText((cur) => (cur.trim() ? `${cur.trimEnd()} ${words}` : words));
   const att = useAttachments(thread.id, made);
   const box = useRef<HTMLDivElement>(null);
@@ -94,15 +97,34 @@ export function ChatComposer({
     [runsById, thread.id],
   );
   const usage = useThreadUsage(fresh ? undefined : thread.id, usageStamp(runs));
+  const refs = useContextRefs(thread.id);
+  // Audio files being turned into words for the field (not attached).
+  const [hearing, setHearing] = useState(0);
+  const transcribeAudio = (picked: Iterable<File>) => {
+    for (const file of picked) {
+      setHearing((n) => n + 1);
+      void transcribe(file, made)
+        .then((words) => words && appendWords(words))
+        .finally(() => setHearing((n) => n - 1));
+    }
+  };
 
   // A new chat is made once: what is sent while it is being made waits.
   const making = useRef(false);
   const created = useRef<Thread | undefined>(undefined);
   const submit = (value: string, { queue }: { queue: boolean }) => {
     if (micBusy || making.current) return;
+    // A command picked from the menu waits in the field: sent, it runs instead of going as words.
+    const command = att.ready || refs.length ? undefined : slash.command(value);
+    if (command) {
+      setText("");
+      return command();
+    }
     if (att.uploading) return notify(t("composer.stillUploading"), "info");
+    if (room && direct && refs.length) return notify(t("ch.room.noFiles", { agent: agentName }), "info");
     const attachments = att.take();
-    const words = value.trim() || (attachments.length ? t("composer.attachedOnly") : "");
+    const added = takeRefs(thread.id);
+    const words = withRefs(value.trim() || (attachments.length ? t("composer.attachedOnly") : ""), added);
     if (!words) return;
     if (room && direct) {
       att.restore(attachments);
@@ -117,6 +139,7 @@ export function ChatComposer({
       if (!att.active()) return;
       setText((cur) => (cur ? `${value}\n\n${cur}` : value));
       att.restore(attachments);
+      restoreRefs(thread.id, added);
     };
     const deliver = (said: string) => {
       if (!fresh) return void send(thread.id, said, { attachments, queue }).catch(giveBack);
@@ -139,6 +162,24 @@ export function ChatComposer({
     void prepare(words).then((said) => (said ? deliver(said) : giveBack()), giveBack);
   };
   const pick = (input: HTMLInputElement | null) => input?.click();
+  const field = useRef<HTMLTextAreaElement>(null);
+  // After a pick in the + menu (which hands the focus back to +), typing goes on in the field, at its end.
+  const backToField = () =>
+    window.setTimeout(() => {
+      const el = field.current;
+      el?.focus();
+      el?.setSelectionRange(el.value.length, el.value.length);
+    }, 0);
+  const lastModel = runs.find((r) => r.model)?.model;
+  const onKey = (e: KeyboardEvent<HTMLTextAreaElement>) => {
+    if (slash.onKey(e)) return true;
+    if ((e.metaKey || e.ctrlKey) && !e.shiftKey && !e.altKey && e.key.toLowerCase() === "u") {
+      e.preventDefault();
+      if (!offline && !micBusy) pick(files.current);
+      return true;
+    }
+    return false;
+  };
 
   return (
     <div
@@ -156,18 +197,19 @@ export function ChatComposer({
         }}
       />
       <input
-        ref={images}
+        ref={audio}
         type="file"
-        accept={IMAGE_TYPES}
+        accept="audio/*"
         multiple
         hidden
         onChange={(e) => {
-          if (!micBusy) att.add(e.currentTarget.files ?? []);
+          if (!micBusy) transcribeAudio(e.currentTarget.files ?? []);
           e.currentTarget.value = "";
         }}
       />
       <Composer
-        highlight={withMentions}
+        className="composer--slim"
+        highlight={composerMarks}
         placeholder={
           offline && offlineHint
             ? t("composer.offline")
@@ -180,17 +222,23 @@ export function ChatComposer({
         sendHint={t(thread.engine && thread.engine !== "claude" ? "composer.sendHintStop" : "composer.sendHint")}
         value={text}
         onValueChange={setText}
-        ready={att.ready && !att.uploading}
+        // Files or context alone can go: the agent reads them.
+        ready={(att.ready && !att.uploading) || refs.length > 0}
         disabled={offline || micBusy}
-        busy={busy && !text.trim() && !att.ready}
+        busy={busy && !text.trim() && !att.ready && !refs.length}
         // While the mic records, its own button is the one stop; send comes back with the words.
         sendHidden={micBusy}
         onStop={() => void cancel(thread.id)}
         onSubmit={submit}
         header={
-          micBusy || att.chips.length ? (
+          micBusy || hearing > 0 || att.chips.length || refs.length ? (
             <>
-              <VoiceRecording state={mic.state} levels={mic.levels} seconds={mic.seconds} heard={mic.heard} />
+              <VoiceRecording
+                state={micBusy ? mic.state : hearing > 0 ? "transcribing" : "idle"}
+                seconds={mic.seconds}
+                heard={mic.heard}
+              />
+              {refs.length > 0 && <ContextChips refs={refs} onRemove={(r) => removeRef(thread.id, r)} />}
               {att.chips.length > 0 && (
                 <Suspense fallback={<div role="status">{att.chips.map((chip) => chip.name).join(", ")}</div>}>
                   <AttachChips chips={att.chips} onRemove={att.remove} />
@@ -200,80 +248,99 @@ export function ChatComposer({
           ) : undefined
         }
         popup={slash.popup}
-        onInputKeyDown={slash.onKey}
+        onInputKeyDown={onKey}
+        inputRef={field}
         inputAria={slash.aria}
         toolbar={
           <>
-            <Menu
-              align="start"
-              side="top"
-              items={[
-                {
-                  label: t("composer.attachFile"),
-                  disabled: offline || micBusy,
-                  icon: <Icons.Paperclip size={14} />,
-                  onSelect: () => pick(files.current),
-                },
-                {
-                  label: t("composer.attachImage"),
-                  disabled: offline || micBusy,
-                  icon: <Icons.Image size={14} />,
-                  onSelect: () => pick(images.current),
-                },
-              ]}
-              trigger={<IconButton size="sm" label={t("composer.attach")} icon={<Icons.Plus size={16} />} />}
+            <PlusMenu
+              thread={thread}
+              made={made}
+              disabled={offline || micBusy}
+              direct={Boolean(thread.engine)}
+              connectors={slash.connectors}
+              onOpen={slash.loadConnectors}
+              onFiles={() => pick(files.current)}
+              onAudio={() => pick(audio.current)}
+              onSkill={() => {
+                slash.skills();
+                backToField();
+              }}
+              onConnector={(name) => {
+                slash.connector(name);
+                backToField();
+              }}
+              onCommands={() => {
+                slash.commands();
+                backToField();
+              }}
+              onContext={(ref) => {
+                addRef(thread.id, ref);
+                backToField();
+              }}
             />
-            {room && (
-              <SegmentedControl
-                size="sm"
-                label={t("ch.room.who")}
-                value={direct ? "me" : "agent"}
-                onValueChange={(v) => setDirect(v === "me")}
-                options={[
-                  { value: "agent", label: t("ch.room.agentPosts", { agent: agentName }) },
-                  { value: "me", label: t("ch.iWrite") },
-                ]}
-              />
-            )}
-            {!direct && <ChatModel thread={thread} agent={agent} />}
-            <span className="composer__spacer" />
-            <ContextChip context={contextOf(runs)} spent={spentOf(usage?.totals)} />
             {mic.state !== "unsupported" && (
-              <IconButton
-                size="sm"
-                className={`composer__mic is-${mic.state}`}
-                label={mic.state === "recording" ? t("composer.dictateStop") : t("composer.dictate")}
-                icon={
-                  mic.state === "transcribing" ? (
-                    <Icons.LoaderCircle size={14} />
-                  ) : mic.state === "recording" ? (
-                    <Icons.Square size={12} fill="currentColor" />
-                  ) : (
-                    <Icons.Mic size={14} />
-                  )
-                }
-                disabled={
-                  offline ||
-                  mic.state === "transcribing" ||
-                  mic.state === "starting" ||
-                  (mic.state === "idle" && att.full)
-                }
-                onClick={mic.toggle}
-              />
+              <span className="composer__voice">
+                {mic.state === "recording" && <MicWave levels={mic.levels} />}
+                <IconButton
+                  size="md"
+                  shape="circle"
+                  className={`composer__mic is-${mic.state}`}
+                  label={mic.state === "recording" ? t("composer.dictateStop") : t("composer.dictate")}
+                  icon={
+                    mic.state === "transcribing" ? (
+                      <Icons.LoaderCircle size={16} />
+                    ) : mic.state === "recording" ? (
+                      <Icons.Square size={12} fill="currentColor" />
+                    ) : (
+                      <Icons.Mic size={16} />
+                    )
+                  }
+                  disabled={
+                    offline ||
+                    mic.state === "transcribing" ||
+                    mic.state === "starting" ||
+                    (mic.state === "idle" && att.full)
+                  }
+                  onClick={mic.toggle}
+                />
+              </span>
             )}
           </>
         }
       />
-      {(room || queueHint) && (
-        <div className="chat__composer-foot">
-          {room && (
-            <p className="chat__composer-hint">
-              {t(direct ? "ch.room.hint.me" : "ch.room.hint.agent", { agent: agentName, room })}
-            </p>
-          )}
-          {queueHint && <p className="chat__composer-hint is-queue">{queueHint}</p>}
-        </div>
-      )}
+      <div className="chat__composer-foot">
+        {room && (
+          <SegmentedControl
+            size="sm"
+            label={t("ch.room.who")}
+            value={direct ? "me" : "agent"}
+            onValueChange={(v) => setDirect(v === "me")}
+            options={[
+              { value: "agent", label: t("ch.room.agentPosts", { agent: agentName }) },
+              { value: "me", label: t("ch.iWrite") },
+            ]}
+          />
+        )}
+        {room && (
+          <p className="chat__composer-hint">
+            {t(direct ? "ch.room.hint.me" : "ch.room.hint.agent", { agent: agentName, room })}
+          </p>
+        )}
+        {queueHint && <p className="chat__composer-hint is-queue">{queueHint}</p>}
+        <span className="composer__spacer" />
+        {!direct && <ChatModel thread={thread} agent={agent} />}
+        <ContextChip
+          context={contextOf(runs)}
+          spent={spentOf(usage?.totals)}
+          run={contextRunOf(runs)}
+          thread={made}
+          engine={Boolean(thread.engine)}
+          totals={usage?.totals}
+          model={lastModel}
+          loading={!fresh && usage === undefined && !contextOf(runs)}
+        />
+      </div>
     </div>
   );
 }
@@ -286,15 +353,22 @@ function ChatModel({ thread, agent }: { thread: Thread; agent: Agent | undefined
   const config = useModels((s) => s.config);
   const own = thread.model_choice;
   const effective = effectiveChoice(own, agent?.model_choice, config);
-  const text = choiceLabel(effective, catalog, config);
+  // The model by its own name (its provider's mark beside it) and how hard it thinks; the router alone by its route.
+  const ref = effective.model ? splitRef(effective.model) : undefined;
+  const text = ref
+    ? (ref.model ?? catalog.find((e) => e.id === ref.engine)?.label ?? ref.engine)
+    : choiceLabel(effective, catalog, config);
+  const effort = effective.model && (ref?.effort ?? modelOf(effective.model, catalog)?.default_effort);
   return (
     <ModelChoicePicker
       label={t("composer.modelOfChat")}
       value={own ?? null}
       {...(agent?.model_choice ? { inherited: agent.model_choice } : {})}
       text={offline ? t("models.unavailable") : text}
+      {...(effort && !offline ? { extra: <span className="composer__effort"> {effortLabel(effort)}</span> } : {})}
+      slim
       disabled={offline}
-      align="start"
+      align="end"
       className={`composer__model${own ? " is-own" : ""}`}
       icon={
         effective?.model ? (
