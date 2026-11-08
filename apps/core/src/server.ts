@@ -171,6 +171,8 @@ export type CoreOptions = {
   channelRetryMs?: readonly number[];
   /** How long a room waits for one person's quick messages to settle (tests shorten it). */
   roomBurstMs?: number;
+  /** The clock rooms wait on: the burst and each person's pause (tests move it). */
+  roomTimers?: RunTimers;
   /** When a question waiting in the app follows the owner to their channel (tests move it). */
   followUpTimers?: RunTimers;
   /** How long a supervised contact's quick messages may keep coming before their draft (tests shorten it). */
@@ -593,6 +595,7 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
     draft: createDrafter({ store, llm, fallbackModels: upkeep.auxModels }).draft,
     ...(opts.clock ? { now: opts.clock } : {}),
     ...(opts.roomBurstMs !== undefined ? { roomBurstMs: opts.roomBurstMs } : {}),
+    ...(opts.roomTimers ? { roomTimers: opts.roomTimers } : {}),
     ...(opts.followUpTimers ? { followUpTimers: opts.followUpTimers } : {}),
     ...(opts.suggestBurstMs !== undefined ? { suggestBurstMs: opts.suggestBurstMs } : {}),
   });

@@ -9,6 +9,7 @@ import { withinHours } from "../domain/hours.ts";
 import { ownerTimeZone } from "../domain/owner.ts";
 import type { Store } from "../domain/store.ts";
 import { previewOf } from "../domain/threads.ts";
+import type { RunTimers } from "../engine/engine.ts";
 import type { Log } from "../log.ts";
 import type { InternalCall } from "../rpc/internal.ts";
 import type { TellOwner } from "./owner-notices.ts";
@@ -87,7 +88,7 @@ type Pending = {
   rowId: string;
   gated: boolean;
   settle(v: "done"): void;
-  timer: ReturnType<typeof setTimeout>;
+  cancel(): void;
 };
 
 export function createRooms(deps: {
@@ -99,9 +100,19 @@ export function createRooms(deps: {
   judge?: ((system: string, user: string, about: AuxAbout) => Promise<string | undefined>) | undefined;
   burstMs?: number;
   now?: () => number;
+  /** The clock the burst and each person's pause run on (tests move it); `now` above defaults to it. */
+  timers?: RunTimers;
 }) {
   const { store } = deps;
-  const clock = deps.now ?? Date.now;
+  const timers: RunTimers = deps.timers ?? {
+    now: () => Date.now(),
+    after(ms, callback) {
+      const timer = setTimeout(callback, ms);
+      timer.unref?.();
+      return () => clearTimeout(timer);
+    },
+  };
+  const clock = deps.now ?? timers.now;
   const burstMs = deps.burstMs ?? BURST_MS;
   /** Per room and person: the message waiting for the burst to settle. */
   const pending = new Map<string, Pending>();
@@ -285,7 +296,7 @@ export function createRooms(deps: {
       const key = `${cfg.id}|${room.id}|${m.sender.id}`;
       const before = pending.get(key);
       if (before) {
-        clearTimeout(before.timer);
+        before.cancel();
         keep(cfg, thread, before.m);
         before.settle("done");
       }
@@ -296,19 +307,18 @@ export function createRooms(deps: {
           // A burst with a real call in it is answered without asking the model.
           gated: decision === "gate" && (!before || before.gated),
           settle,
-          timer: setTimeout(() => {
+          cancel: timers.after(burstMs, () => {
             if (pending.get(key) === p) pending.delete(key);
             answer(cfg, p)
               .catch((err) => deps.log.warn({ channel: cfg.id, err: String(err).slice(0, 200) }, "room answer failed"))
               .finally(() => settle("done"));
-          }, burstMs),
+          }),
         };
-        p.timer.unref?.();
         pending.set(key, p);
       });
     },
     stop(): void {
-      for (const p of pending.values()) clearTimeout(p.timer);
+      for (const p of pending.values()) p.cancel();
       pending.clear();
     },
   };
