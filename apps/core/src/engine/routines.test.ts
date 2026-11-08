@@ -161,6 +161,20 @@ test("a new routine keeps an imminent slot; a running one is not started again; 
   assert.equal((await runsOf(r.id)).length, 1);
 });
 
+test("each run says which version of the instructions it ran: a change starts the next one", async () => {
+  const draft = { name: "Versions", agent: "superagent", schedule: { kind: "manual" as const } };
+  const r = await env.client.call("routines.set", { ...draft, prompt: "first words" });
+  await env.client.call("routines.run", { routine: r.id });
+  await ended(r.id, 1);
+  await env.client.call("routines.run", { routine: r.id });
+  await ended(r.id, 2);
+  await env.client.call("routines.set", { ...draft, id: r.id, prompt: "second words" });
+  await env.client.call("routines.run", { routine: r.id });
+  await ended(r.id, 3);
+  const versions = (await runsOf(r.id)).map((run) => run.prompt_version);
+  assert.deepEqual(versions, [2, 1, 1], "newest first: the changed instructions are v2");
+});
+
 test("an agent cannot touch routines, notices or read marks", async () => {
   const agent = new ApxClient({ url: env.core.url, actor: "agent" });
   for (const call of [

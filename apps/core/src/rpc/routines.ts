@@ -1,5 +1,6 @@
 // Routines, for the owner only: an agent's scheduled work and its history.
 
+import type { RoutineRun } from "@apx/protocol";
 import type { FlowStepKey } from "../domain/flow-graph-runs.ts";
 import { worksIn } from "../domain/projects.ts";
 import { checkSchedule } from "../domain/schedule.ts";
@@ -191,9 +192,27 @@ export function routineHandlers(store: Store, scheduler: Scheduler, profileRoots
       }),
     "routines.runs": ({ routine, limit }) => {
       if (!store.routines.get(routine)) throw notFound(`routine ${routine}`);
-      return { runs: store.routines.runs(routine, limit) };
+      return { runs: withPromptVersions(store, store.routines.runs(routine, limit)) };
     },
   } satisfies Partial<Handlers>;
+}
+
+/** Numbers the instructions each run started from: oldest listed first is v1, a change makes the next one. */
+function withPromptVersions(store: Store, runs: RoutineRun[]): RoutineRun[] {
+  const firsts = store.messages.firstFromOwner(runs.map((r) => r.thread_id));
+  const text = (id: string) =>
+    (firsts.get(id)?.parts ?? []).flatMap((p) => (p.type === "text" ? [p.text.trim()] : [])).join("\n\n");
+  let version = 0;
+  let last: string | undefined;
+  const numbered = new Map<string, number>();
+  for (const run of [...runs].reverse()) {
+    const prompt = text(run.thread_id);
+    if (!prompt) continue;
+    if (prompt !== last) version += 1;
+    last = prompt;
+    numbered.set(run.run_id, version);
+  }
+  return runs.map((r) => (numbered.has(r.run_id) ? { ...r, prompt_version: numbered.get(r.run_id) } : r));
 }
 
 /**
