@@ -232,7 +232,6 @@ export const en = {
   "topbar.search": "Search or jump to…",
   "server.label": "APX in use: {name}",
   "server.local": "Local",
-  "server.online": "Connected",
   "server.offline": "Not connected",
   "server.change": "Connect to another APX…",
   "update.pill": "Update · {n}",

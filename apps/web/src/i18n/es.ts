@@ -225,7 +225,6 @@ export const es: Partial<Record<MessageKey, string>> = {
   "topbar.search": "Buscar o saltar a…",
   "server.label": "APX en uso: {name}",
   "server.local": "Local",
-  "server.online": "Conectado",
   "server.offline": "Sin conexión",
   "server.change": "Conectar con otro APX…",
   "update.pill": "Actualización · {n}",

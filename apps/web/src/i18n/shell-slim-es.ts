@@ -13,6 +13,9 @@ export const esShellSlim: Partial<Record<MessageKey, string>> = {
   "server.remote": "Remoto",
   "server.remoteSub": "Remoto · {name}",
   "server.remoteOffline": "Remoto · sin conexión",
+  "server.thisComputerOffline": "Esta computadora · sin iniciar",
+  "server.connecting": "Conectando…",
+  "server.notAnswering": "{name} no responde. Probá de nuevo en un momento.",
   "server.connectRemote": "Conectar servidor remoto",
   "server.connectRemoteHint":
     "Para usar APX en otro servidor, abrí su dirección en el navegador o conectalo desde la app de escritorio de APX.",

@@ -11,6 +11,9 @@ export const enShellSlim = {
   "server.remote": "Remote",
   "server.remoteSub": "Remote · {name}",
   "server.remoteOffline": "Remote · not connected",
+  "server.thisComputerOffline": "This computer · not running",
+  "server.connecting": "Connecting…",
+  "server.notAnswering": "{name} is not answering. Try again in a moment.",
   "server.connectRemote": "Connect a remote server",
   "server.connectRemoteHint":
     "To use APX on another server, open its address in the browser or connect it from the APX desktop app.",
