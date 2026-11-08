@@ -12,23 +12,28 @@ const MAX_BYTES = 3_500_000;
 const READABLE = new Set(["image/png", "image/jpeg", "image/webp", "image/gif"]);
 
 /**
- * An image as a model call should carry it: unchanged when it is small enough, else scaled down to fit and saved as
- * JPEG. Anything it cannot read goes as it was.
+ * An image as a model call should carry it: unchanged when it is small and upright, else turned upright, scaled down
+ * to fit and saved as JPEG (an animation as its first frame). Undefined when it is an image that cannot be made to
+ * fit: sent whole, every provider would refuse it on every turn of the chat. A file that is no image goes as it was.
  */
-export async function fitForModel(bytes: Buffer, mime: string): Promise<{ mime: string; bytes: Buffer }> {
+export async function fitForModel(bytes: Buffer, mime: string): Promise<{ mime: string; bytes: Buffer } | undefined> {
   if (!READABLE.has(mime)) return { mime, bytes };
   try {
-    const { width = 0, height = 0, pages = 1 } = await sharp(bytes).metadata();
-    const scale = Math.min(1, Math.sqrt(MAX_PIXELS / Math.max(1, width * height)), MAX_SIDE / Math.max(width, height));
-    // An animation keeps its frames; only its size is a concern for the call.
-    if ((scale >= 1 && bytes.length <= MAX_BYTES) || pages > 1) return { mime, bytes };
-    const out = await sharp(bytes)
-      .resize({ width: Math.max(1, Math.floor(width * scale)), height: Math.max(1, Math.floor(height * scale)) })
+    const { width = 0, height = 0, pages = 1, orientation = 1 } = await sharp(bytes).metadata();
+    if (!width || !height) return undefined;
+    // Orientations 5–8 turn the picture a quarter: its upright width is the stored height.
+    const [w, h] = orientation >= 5 ? [height, width] : [width, height];
+    const scale = Math.min(1, Math.sqrt(MAX_PIXELS / (w * h)), MAX_SIDE / Math.max(w, h));
+    if (scale >= 1 && bytes.length <= MAX_BYTES && orientation === 1) return { mime, bytes };
+    const out = await sharp(bytes, { pages: 1 })
+      .rotate()
+      .resize({ width: Math.max(1, Math.floor(w * scale)), height: Math.max(1, Math.floor(h * scale)) })
       .flatten({ background: "#ffffff" })
       .jpeg({ quality: 85 })
       .toBuffer();
-    return { mime: "image/jpeg", bytes: out };
+    // An animation small enough is kept moving; one that had to shrink goes as its first frame.
+    return pages > 1 && scale >= 1 && bytes.length <= MAX_BYTES ? { mime, bytes } : { mime: "image/jpeg", bytes: out };
   } catch {
-    return { mime, bytes };
+    return undefined;
   }
 }
