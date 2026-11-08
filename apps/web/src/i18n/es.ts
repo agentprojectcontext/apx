@@ -971,6 +971,7 @@ export const es: Partial<Record<MessageKey, string>> = {
   "channels.add": "Agregar canal",
   "channels.account": "Cuenta",
   "channels.addAccount": "Agregar cuenta",
+  "channels.newAccount": "Cuenta nueva",
   "channels.lead": "Por dónde te hablan a vos y a tus agentes: cada canal tiene su cuenta y sus contactos.",
   "channels.empty": "Todavía no conectaste ningún canal",
   "channels.emptyBody": "Agregá uno con el botón de arriba.",

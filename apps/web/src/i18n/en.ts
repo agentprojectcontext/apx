@@ -969,6 +969,7 @@ export const en = {
   "channels.add": "Add channel",
   "channels.account": "Account",
   "channels.addAccount": "Add account",
+  "channels.newAccount": "New account",
   "channels.lead": "Where people reach you and your agents: each channel has its account and its contacts.",
   "channels.empty": "No channel connected yet",
   "channels.emptyBody": "Add one with the button above.",

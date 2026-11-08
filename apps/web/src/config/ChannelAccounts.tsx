@@ -59,12 +59,15 @@ export function AccountPicker({ state }: { state: ChannelAccounts }) {
       <Select
         label={t("channels.account")}
         value={state.connecting ? "" : state.channel.id}
+        placeholder={t("channels.newAccount")}
         onValueChange={(id) => id && state.pick(id)}
         options={state.accounts.map((c) => ({ value: c.id, label: accountName(c) }))}
       />
-      <Button size="sm" variant="secondary" leadingIcon={<Icons.Plus size={14} />} onClick={state.add}>
-        {t("channels.addAccount")}
-      </Button>
+      {!state.connecting && (
+        <Button size="sm" variant="secondary" leadingIcon={<Icons.Plus size={14} />} onClick={state.add}>
+          {t("channels.addAccount")}
+        </Button>
+      )}
     </SettingRow>
   );
 }
