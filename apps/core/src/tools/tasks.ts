@@ -191,16 +191,9 @@ const PAUSED = (who: string) =>
 const DESCRIPTION_PAGE = 4_000;
 const EXHAUSTIVE_PAGE = 25;
 
-/** True when `cap` over the task's JSON drops part of its description (it keeps the head and the tail). */
+/** True when `cap` over the task's JSON drops part of its description: asked of `cap` itself, so they cannot drift. */
 export function descriptionCut(task: Task, budget: number): boolean {
-  const json = JSON.stringify(task);
-  if (json.length <= budget) return false;
-  const text = JSON.stringify(task.description);
-  const at = json.indexOf(`"description":${text}`);
-  if (at < 0) return true;
-  const from = at + '"description":'.length;
-  const head = Math.floor(budget * 0.75);
-  return from + text.length > head && from < json.length - (budget - head);
+  return !cap(JSON.stringify(task), budget).includes(`"description":${JSON.stringify(task.description)}`);
 }
 
 /** One bounded page of a description; the revision stops a read from mixing text of two versions. */
