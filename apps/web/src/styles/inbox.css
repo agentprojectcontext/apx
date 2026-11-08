@@ -389,13 +389,13 @@ button.chatprocesses {
   background: var(--apx-warning);
 }
 /* A task row's counts: its chats and the agents working it. */
-.taskrow__count {
+.inboxtask__count {
   display: inline-flex;
   align-items: center;
   gap: 3px;
   margin-left: 8px;
 }
-.taskrow__count svg {
+.inboxtask__count svg {
   flex: none;
 }
 .routinerow__runs {

@@ -120,41 +120,16 @@
   flex: none;
   font-weight: var(--apx-weight-medium);
 }
+/* A task and its unfolded sessions read as one group, with room before the next task. */
 .taskbundle {
-  padding: 2px 0 6px;
+  padding: 0 0 4px;
 }
-.taskbundle__head {
-  display: flex;
-  align-items: center;
-  gap: 2px;
+.taskbundle:has(> .tree__sessions) {
+  padding-bottom: 10px;
 }
-.taskbundle__task {
-  display: flex;
-  flex: 1;
-  align-items: center;
-  gap: 6px;
-  min-width: 0;
-  height: 30px;
-  padding: 0 8px 0 4px;
-  border: 0;
-  border-radius: var(--apx-row-radius);
-  background: none;
-  color: inherit;
-  font: inherit;
-  font-size: var(--apx-text-sm);
-  text-align: left;
-  cursor: pointer;
-}
-.taskbundle__task:hover {
-  background: var(--apx-fill-hover);
-}
-.taskbundle__chevron {
-  flex: none;
-  color: var(--apx-fg-subtle);
-}
-/* The guide line of the task's chats runs down from its chevron. */
+/* The guide line of the task's other sessions runs down from under its face. */
 .taskbundle .tree__sessions {
-  margin-left: 11px;
+  margin-left: 22px;
 }
 /* A chat's delegated chats: a chevron before its row folds them; they hang from a guide line under it. */
 .delegated__head {
@@ -213,6 +188,36 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+/* A routine's runs grouped as one row (Inbox list, tree and activity views). */
+.taskbundle__head {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+.taskbundle__task {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  height: 30px;
+  padding: 0 8px 0 4px;
+  border: 0;
+  border-radius: var(--apx-row-radius);
+  background: none;
+  color: inherit;
+  font: inherit;
+  font-size: var(--apx-text-sm);
+  text-align: left;
+  cursor: pointer;
+}
+.taskbundle__task:hover {
+  background: var(--apx-fill-hover);
+}
+.taskbundle__chevron {
+  flex: none;
+  color: var(--apx-fg-subtle);
 }
 .taskbundle__icon {
   flex: none;

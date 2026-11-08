@@ -8,6 +8,7 @@ import { DEFAULT_PID, isWorking, projectName } from "../data/identity.ts";
 import { useData, useShownAgents } from "../data/state.ts";
 import { archiveTaskChats } from "../data/taskChats.ts";
 import { ensureTask, useTasks } from "../data/tasks.ts";
+import { updateThread } from "../data/threadAdmin.ts";
 import { useT } from "../i18n/index.ts";
 import { go } from "../shell/nav.ts";
 import { ListedChat } from "./Delegated.tsx";
@@ -41,9 +42,11 @@ export function TaskBundle({ taskId, threads, selected }: { taskId: string; thre
       onSelect: () => void archiveTaskChats(taskId, !archived),
     },
   ];
+  // The row is its latest chat; unfolding lists the task's other sessions.
+  const others = sorted.slice(1);
   const [open, setOpen] = useOpenRow(
     `task:${taskId}`,
-    threads.some((th) => th.id === selected),
+    others.some((th) => th.id === selected),
   );
   const running = threads.some((th) => isWorking(th.state));
   const unread = threads.reduce((n, th) => n + th.unread, 0);
@@ -54,17 +57,21 @@ export function TaskBundle({ taskId, threads, selected }: { taskId: string; thre
   return (
     <div className="taskbundle">
       <FoldContext.Provider
-        value={{
-          open,
-          toggle: () => setOpen(!open),
-          label: t(open ? "inbox.taskBundle.close" : "inbox.taskBundle.open"),
-        }}
+        value={
+          others.length
+            ? {
+                open,
+                toggle: () => setOpen(!open),
+                label: t(open ? "inbox.taskBundle.close" : "inbox.taskBundle.open"),
+              }
+            : undefined
+        }
       >
         <TaskRow
           thread={latest}
           items={items}
           title={task?.title ?? latest.title}
-          selected={threads.some((th) => th.id === selected) && !open}
+          selected={latest?.id === selected}
           unread={unread}
           running={running}
           archived={archived}
@@ -76,10 +83,10 @@ export function TaskBundle({ taskId, threads, selected }: { taskId: string; thre
                   <span className="routinerow__dot" />
                   {state.label}
                 </span>
-                <span className="taskrow__count" title={t("inbox.taskBundle.chats", { n: threads.length })}>
+                <span className="inboxtask__count" title={t("inbox.taskBundle.chats", { n: threads.length })}>
                   <Icons.MessageSquare size={12} /> {threads.length}
                 </span>
-                <span className="taskrow__count" title={t("inbox.taskBundle.agents", { n: who.size })}>
+                <span className="inboxtask__count" title={t("inbox.taskBundle.agents", { n: who.size })}>
                   <Icons.Bot size={12} /> {who.size}
                 </span>
               </span>
@@ -89,9 +96,9 @@ export function TaskBundle({ taskId, threads, selected }: { taskId: string; thre
           }
         />
       </FoldContext.Provider>
-      {open && (
+      {open && others.length > 0 && (
         <div className="tree__sessions apx-branches">
-          {sorted.map((th) => (
+          {others.map((th) => (
             <ListedChat key={th.id} thread={th} selected={selected}>
               <SessionRow
                 thread={th}
@@ -133,7 +140,7 @@ function TaskRow(props: {
     <div className="threadrow-wrap" ref={fold.wrap}>
       <ContextMenu items={props.items}>
         <ConversationRow
-          className="threadrow taskrow"
+          className="threadrow inboxtask"
           selected={props.selected}
           onClick={() => go.thread(thread.id)}
           avatar={<ThreadAvatar thread={thread} agent={agents[thread.agent_ids[0] ?? ""]} size={24} slot={28} />}
@@ -151,6 +158,13 @@ function TaskRow(props: {
       </ContextMenu>
       {fold.button}
       <span className="threadrow__actions">
+        <IconButton
+          size="sm"
+          label={thread.pinned ? t("thread.menu.unpin") : t("thread.menu.pin")}
+          active={thread.pinned}
+          icon={<Icons.Pin size={14} />}
+          onClick={() => void updateThread(thread.id, { pinned: !thread.pinned })}
+        />
         <IconButton
           size="sm"
           label={t(props.archived ? "tasks.chats.unarchive" : "tasks.chats.archive")}
