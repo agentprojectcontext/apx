@@ -173,6 +173,14 @@ export type TransportRequest = {
 export type Transport = (req: TransportRequest) => Promise<Completion>;
 
 /**
+ * The request body as JSON with every string well-formed: text cut mid-emoji anywhere upstream (a page, a tool
+ * result, an old history item) would otherwise reach the provider as a lone surrogate, and some refuse the whole call.
+ */
+function wireJson(body: unknown): string {
+  return JSON.stringify(body, (_key, value: unknown) => (typeof value === "string" ? value.toWellFormed() : value));
+}
+
+/**
  * POST with a first-byte timeout that becomes an idle timer once bytes flow, so long streamed answers are not cut.
  * Returns the response and a `touch` to call on every chunk, plus `done` to clear the timer.
  */
@@ -193,7 +201,7 @@ export async function post(
     const res = await req.fetchImpl(url, {
       method: "POST",
       headers: { "content-type": "application/json", ...headers },
-      body: JSON.stringify(body),
+      body: wireJson(body),
       signal: AbortSignal.any([req.signal, deadline.signal]),
     });
     if (!res.ok) {

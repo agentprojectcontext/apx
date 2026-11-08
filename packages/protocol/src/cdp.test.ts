@@ -63,3 +63,23 @@ test("a page that cannot tell its layout is captured as it is", async () => {
   assert.equal(shots.length, 1);
   assert.equal(shots[0]?.clip, undefined);
 });
+
+test("a long name cut at the cap never ends on half an emoji", async () => {
+  // 99 letters then an emoji: the cap at 100 falls between its two halves.
+  const name = `${"a".repeat(99)}💬 more`;
+  const send = (async (method: string) => {
+    if (method === "Runtime.evaluate") return { result: { objectId: "doc1" } };
+    if (method === "DOM.getDocument") return { root: { backendNodeId: 1, nodeName: "#document" } };
+    if (method === "Accessibility.getFullAXTree")
+      return {
+        nodes: [
+          { nodeId: "r", role: { value: "RootWebArea" }, childIds: ["l"] },
+          { nodeId: "l", parentId: "r", role: { value: "link" }, name: { value: name }, backendDOMNodeId: 2 },
+        ],
+      };
+    return {};
+  }) as CdpSend;
+  const { tree } = await new CdpPage(send, { selectAllModifiers: 0 }).snapshot(10_000);
+  assert.ok(tree.isWellFormed(), tree);
+  assert.ok(tree.includes(`link "${"a".repeat(99)}"`), tree);
+});

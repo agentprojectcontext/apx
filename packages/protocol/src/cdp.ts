@@ -22,6 +22,13 @@ type AXNode = {
 };
 
 /** Sends one CDP command to the page and returns its result. */
+/** The first `max` UTF-16 units of `s`, never ending on half an emoji (a lone surrogate fails a model request). */
+export function clip(s: string, max: number): string {
+  if (s.length <= max) return s;
+  const code = s.charCodeAt(max - 1);
+  return s.slice(0, code >= 0xd800 && code <= 0xdbff ? max - 1 : max);
+}
+
 export type CdpSend = <T = unknown>(method: string, params?: object) => Promise<T>;
 
 const SKIP_ROLES =
@@ -160,7 +167,7 @@ export class CdpPage {
       const name = String(node.name?.value ?? "").trim();
       const shown = !node.ignored && !SKIP_ROLES.test(role) && (name !== "" || INTERACTIVE.test(role));
       if (shown) {
-        let line = `${"  ".repeat(depth)}- ${role}${name ? ` "${name.slice(0, 100)}"` : ""}`;
+        let line = `${"  ".repeat(depth)}- ${role}${name ? ` "${clip(name, 100)}"` : ""}`;
         if (node.backendDOMNodeId && (INTERACTIVE.test(role) || role === "heading" || role === "img")) {
           const ref = `e${++i}`;
           this.#refs.set(ref, node.backendDOMNodeId);
@@ -168,7 +175,7 @@ export class CdpPage {
         }
         const value = node.value?.value;
         if (node.backendDOMNodeId && this.#secrets.isFilled(node.backendDOMNodeId)) line += " (filled by APX)";
-        else if (value !== undefined && value !== "") line += ` = "${String(value).slice(0, 60)}"`;
+        else if (value !== undefined && value !== "") line += ` = "${clip(String(value), 60)}"`;
         line = this.#secrets.scrub(line);
         size += line.length + 1;
         if (size > maxChars) {
