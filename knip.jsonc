@@ -6,7 +6,18 @@
   "$schema": "https://unpkg.com/knip@6/schema.json",
   "treatConfigHintsAsErrors": true,
   // System tools the code runs; none is an npm package.
-  "ignoreBinaries": ["codex", "cwebp", "ffmpeg", "iconutil", "mkfifo", "plutil", "scutil", "sips", "ssh-keygen", "xcode-select"],
+  "ignoreBinaries": [
+    "codex",
+    "cwebp",
+    "ffmpeg",
+    "iconutil",
+    "mkfifo",
+    "plutil",
+    "scutil",
+    "sips",
+    "ssh-keygen",
+    "xcode-select"
+  ],
   "ignoreIssues": {
     // Generated from the migrations (check:schema): every table's type is exported on purpose.
     "apps/core/src/db/schema.ts": ["types"],
