@@ -1184,7 +1184,13 @@ export const appMethods = {
   },
   /** What channels sent lately and how each delivery went (sent, uncertain, failed). */
   "channels.outbox": {
-    params: z.object({ limit: z.number().int().min(1).max(200).default(50) }).strict(),
+    params: z
+      .object({
+        limit: z.number().int().min(1).max(200).default(50),
+        /** Only what this account sent (its id). */
+        channel: z.string().min(1).max(64).optional(),
+      })
+      .strict(),
     result: z.object({ items: z.array(OutboxItem) }),
     effect: false,
     access: "human",

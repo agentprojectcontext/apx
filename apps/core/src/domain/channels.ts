@@ -495,8 +495,11 @@ export function channelsRepo({ one, all, run }: Sql) {
         );
         return r ? toOut(r) : undefined;
       },
-      recent(limit: number): OutboxRow[] {
-        return all(qb.selectFrom("outbox").selectAll().orderBy("created_at", "desc").limit(limit)).map(toOut);
+      /** The newest sends, of one channel when given. */
+      recent(limit: number, channel?: string): OutboxRow[] {
+        let q = qb.selectFrom("outbox").selectAll();
+        if (channel) q = q.where("channel", "=", channel);
+        return all(q.orderBy("created_at", "desc").limit(limit)).map(toOut);
       },
     },
     pairing: {

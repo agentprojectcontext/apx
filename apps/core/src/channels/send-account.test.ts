@@ -57,3 +57,33 @@ test("a message to a contact goes out from an account its sender answers; when s
   );
   assert.equal(from({ by: "superagent", channel: "telegram-s2" }, client.id), "telegram-s2", "an account by its id");
 });
+
+test("an account's activity lists its own sends, however busy the other accounts are", async (t) => {
+  const env = await startCore({ llm: scriptedLlm(() => say("ok")) });
+  t.after(async () => {
+    await env.core.close();
+    await env.cleanup();
+  });
+  const { store } = env.core;
+  store.settings.write("channels", [
+    { ...base, id: "telegram", label: "Personal", agent_id: "superagent", owner_thread: "home" },
+    { ...base, id: "telegram-q1", label: "Quiet", agent_id: "superagent", owner_thread: "home" },
+  ]);
+  const buyer = store.persons.create({ name: "Acme Buyer", role: "contact" });
+  store.persons.link(buyer.id, { channel: "telegram", external_id: "41" });
+  store.persons.link(buyer.id, { channel: "telegram-q1", external_id: "42" });
+  env.core.channels.messageContact(buyer.id, "From the quiet account", { channel: "telegram-q1" });
+  for (const n of [1, 2, 3])
+    env.core.channels.messageContact(buyer.id, `Busy ${n}`, { channel: "telegram", exact: true });
+  const quiet = await env.client.call("channels.outbox", { channel: "telegram-q1", limit: 2 });
+  assert.deepEqual(
+    quiet.items.map((o) => [o.channel, o.text]),
+    [["telegram-q1", "From the quiet account"]],
+  );
+  const all = await env.client.call("channels.outbox", { limit: 2 });
+  assert.equal(all.items.length, 2);
+  assert.ok(
+    all.items.every((o) => o.channel === "telegram"),
+    "without a channel, the newest of every account",
+  );
+});

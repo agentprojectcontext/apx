@@ -1225,4 +1225,6 @@ export const MIGRATIONS: readonly string[] = [
     FROM json_each(meta.value) AS c
   ) WHERE key = 'setting:channels' AND json_valid(value) AND json_type(value) = 'array';
   `,
+  // An account's activity reads only its own sends (channels.outbox with a channel).
+  `CREATE INDEX outbox_channel_created ON outbox(channel, created_at);`,
 ];

@@ -177,8 +177,8 @@ export function channelHandlers(store: Store, channels: Channels, nudges: Pick<N
       }
       return { removed: true };
     },
-    "channels.outbox": ({ limit }) => ({
-      items: store.channels.outbox.recent(limit).map(publicOutbox),
+    "channels.outbox": ({ limit, channel }) => ({
+      items: store.channels.outbox.recent(limit, channel).map(publicOutbox),
     }),
 
     "notices.get": () => noticePrefs(store),
