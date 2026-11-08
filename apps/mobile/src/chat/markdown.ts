@@ -30,6 +30,11 @@ function tableCells(line: string): string[] {
   return row.split("|").map((cell) => cell.trim().replace(/\uE000/g, "|"));
 }
 
+function tableRow(line: string, align: Align[]): Inline[][] {
+  const cells = tableCells(line);
+  return align.map((_, column) => parseInline(cells[column] ?? ""));
+}
+
 /** A GFM table starts with a header row whose cells match the delimiter row under it. */
 function tableAt(lines: string[], i: number): Align[] | undefined {
   const header = lines[i] ?? "";
@@ -75,14 +80,10 @@ export function parseMarkdown(source: string): Block[] {
     if (align) {
       flush();
       // GFM: a row with fewer cells is padded, one with more is cut to the header's width.
-      const rowCells = (line: string) => {
-        const cells = tableCells(line);
-        return align.map((_, column) => parseInline(cells[column] ?? ""));
-      };
-      const header = rowCells(line);
+      const header = tableRow(line, align);
       const rows: Inline[][][] = [];
       for (i += 2; i < lines.length && (lines[i] ?? "").includes("|") && (lines[i] ?? "").trim(); i++)
-        rows.push(rowCells(lines[i] ?? ""));
+        rows.push(tableRow(lines[i] ?? "", align));
       i--;
       blocks.push({ kind: "table", align, header, rows });
       continue;

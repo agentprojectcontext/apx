@@ -3,7 +3,9 @@
 import assert from "node:assert/strict";
 import { after, before, test } from "node:test";
 import { z } from "zod";
+import { openDb } from "../db/db.ts";
 import type { AgentRecord } from "../domain/agents.ts";
+import { qb, sql } from "../domain/sql.ts";
 import { inherit } from "../tools/policy.ts";
 import { defineTool } from "../tools/types.ts";
 import { tripped } from "./breaker.ts";
@@ -121,9 +123,8 @@ test("the breaker stops unattended chains and an owner's message resets it", asy
     parent_id: root.id,
   });
   const deadline = new Date(Date.now() + 60_000).toISOString();
-  const add = async (thread: string, trigger: "a2a" | "a2a_result" | "user") => {
-    // Runs are ordered by creation time: keep each one in its own millisecond.
-    await new Promise((r) => setTimeout(r, 2));
+  let sequence = 0;
+  const add = (thread: string, trigger: "a2a" | "a2a_result" | "user") => {
     const r = store.runs.create({
       thread_id: thread,
       agent_id: thread === sub.id ? "scout" : "superagent",
@@ -132,6 +133,18 @@ test("the breaker stops unattended chains and an owner's message resets it", asy
       deadline_at: deadline,
     });
     store.runs.setState(r, "completed");
+    // The budget window tests persisted chronology, not the host clock's progress.
+    const db = openDb(env.home);
+    try {
+      sql(db).run(
+        qb
+          .updateTable("runs")
+          .set({ created_at: new Date(Date.UTC(2026, 0, 1) + sequence++).toISOString() })
+          .where("id", "=", r.id),
+      );
+    } finally {
+      db.close();
+    }
   };
   const limit = 12;
   await env.client.call("agents.set_limits", { runs: limit, tokens: 0 });

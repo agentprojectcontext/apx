@@ -247,6 +247,24 @@ the cause and retry. To roll back an upgrade, stop APX again and restore the pre
 program version, keeping the failed-upgrade data separately. Do not reset the schema version by hand. Restoring a
 backup discards changes made since that backup.
 
+### A migration reports an existing index
+
+Starting with v2.13.2, startup can reconcile a recognized mismatch between the migration
+counter and the columns and indexes from migrations 101–108. It checks the complete earlier schema, including
+table constraints, and existing object definitions first. Before changing anything, it saves a consistent database-only copy in
+`backups/migration-<unique-id>/apx.db` inside the data folder, then applies only missing changes in one transaction.
+Existing task goals, requests, queue order and retention markers stay unchanged. When the Apps-listing column is
+missing, its original conversion runs once; existing Apps choices are never converted again. Ordinary upgrades still
+commit migrations individually and do not create this extra copy.
+
+This is not a general repair for arbitrary local schema changes. An incompatible definition, an unrecognized
+trigger, an unknown version, insufficient backup space or a failed integrity check stops startup without committing
+the repair. Keep the data and
+any backup; do not delete indexes, add columns or change `schema_version` by hand. Stop other cores using the same
+data folder before retrying. The automatic copy contains private chat data, not media or keyring secrets; keep it
+protected. To restore it, stop APX and keep the failed database and its WAL files separately before replacing the
+database. Use a program version compatible with that copy's original schema.
+
 ## Uninstall
 
 Uninstalling removes the program and its service. **Your data stays** in `~/.apx/v2`; delete that folder yourself

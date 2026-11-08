@@ -31,6 +31,11 @@ to it and `release/v2` was deleted. v1's last `main` stays as branch `v1`, with 
 
 Day-to-day work goes to `staging` (verify runs on every push there); `main` is the last release. Cutting a version
 fast-forwards `main` to a `staging` commit whose verify passed, waits for verify on `main`, then tags it (below).
+An owner-authorized urgent hotfix may go from its task branch directly to `main`, without passing through
+`staging` first. Preserve changes already on `main`, verify the candidate locally before pushing, and wait for
+`verify` on that exact `main` commit before tagging. Bring the released fix back into `staging` afterward; the
+exception does not bypass checks or permit moving a published tag.
+
 `pages.yml` publishes the site from `main`, so the docs change with a release, not with each push. The site lives at
 `https://apxagent.app/`, the repository's Pages custom domain (DNS in Cloudflare, DNS only, pointing at GitHub Pages);
 GitHub sends every `agentprojectcontext.github.io/apx/…` address on to the same path there.
