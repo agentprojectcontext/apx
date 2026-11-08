@@ -4,13 +4,14 @@ category: Chat
 # Composer
 
 The chat input. Enter sends, Shift+Enter adds a line, Ctrl/⌘+Enter sends with `{ queue: true }`, auto-grows.
-`sendHint` is the send button's tooltip (explain the shortcuts there); `hint` is a short line beside the send button in
-the box layout, for the one shortcut worth knowing now ("⌘+Enter to put it in line" while the agent works), hidden on
-narrow screens.
+`sendHint` is the send button's tooltip (explain the shortcuts there). A shortcut worth knowing now ("⌘+Enter to put
+it in line" while the agent works) goes as a line of help under the box, outside it.
 
 - **Pill** (no `toolbar`): `+` · text · mic, mic becomes send when there is text — the minimal/mobile input.
 - **Box** (`toolbar` given): text on top, controls row below (`+`, model/mode Buttons as `variant="ghost" size="sm"`, mic/send at the end); `header` adds a strip above (context usage, attachments) — the classic desktop input.
 - `busy` swaps send for stop while the agent answers.
+- `sendHidden` takes send and stop away while another control has the moment (recording a voice note): one stop
+  button on screen, and nothing to send until the words are there.
 - Without `onVoice` the send button stays (disabled while empty): put your own mic in the toolbar. `ready` lets send
   work with an empty field (attachments waiting).
 - `popup` floats over the box, anchored to its top (a "/" command menu). `onInputKeyDown` sees each key in the

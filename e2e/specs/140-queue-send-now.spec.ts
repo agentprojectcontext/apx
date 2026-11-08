@@ -15,7 +15,7 @@ test("messages in line are edited, moved and removed, and Send now has the agent
   await page.keyboard.press("Enter");
   await expect(page.locator(".turn__tools")).toContainText("Trabajando · paso 1");
   // While it works the composer says how to leave a message in line.
-  await expect(page.locator(".apx-composer__hint")).toHaveText(/\+Enter para dejarlo en cola/);
+  await expect(page.locator(".chat__composer-hint.is-queue")).toHaveText(/\+Enter para dejarlo en cola/);
 
   for (const words of ["first in line", "second in line", "third in line"]) {
     await box.fill(words);
