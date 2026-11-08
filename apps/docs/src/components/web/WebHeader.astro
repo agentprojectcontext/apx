@@ -1,9 +1,9 @@
 ---
-import { getCollection } from "astro:content";
 import { Image } from "astro:assets";
-import { BLOG, blogPath, publishedPosts } from "../../data/blog.mjs";
+import { getCollection } from "astro:content";
 import logo from "../../assets/logo.png";
 import blobs from "../../data/blobs.json";
+import { BLOG, blogPath, publishedPosts } from "../../data/blog.mjs";
 import { featured, labels } from "../../data/comparisons";
 import { sitePath } from "../../doc-routes.mjs";
 import { HOME, type Lang } from "../../i18n/home";
@@ -50,7 +50,9 @@ const guides: [string, string, BlobName][] = [
 const [lead, ...rest] = featured;
 const listed = rest.slice(0, 3);
 const tones = ["warm", "dusk", "sea"] as const;
-const recentPosts = publishedPosts(await getCollection("blog")).filter(({ data }) => data.lang === lang).slice(0, 4);
+const recentPosts = publishedPosts(await getCollection("blog"))
+  .filter(({ data }) => data.lang === lang)
+  .slice(0, 4);
 const [latestPost, ...otherPosts] = recentPosts;
 ---
 <script is:inline>

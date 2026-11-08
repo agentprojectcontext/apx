@@ -5,7 +5,10 @@ import { blogArchive } from "../../../data/blog.mjs";
 
 export async function getStaticPaths() {
   const { totalPages } = blogArchive(await getCollection("blog"), "en");
-  return Array.from({ length: totalPages - 1 }, (_, i) => ({ params: { page: String(i + 2) }, props: { page: i + 2 } }));
+  return Array.from({ length: totalPages - 1 }, (_, i) => ({
+    params: { page: String(i + 2) },
+    props: { page: i + 2 },
+  }));
 }
 const { page } = Astro.props;
 ---

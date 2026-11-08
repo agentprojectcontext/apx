@@ -778,7 +778,7 @@ body.h {
     border-radius: 0;
   }
   .nav__links > a[aria-current],
-.nav__links > a:hover,
+  .nav__links > a:hover,
   .nav__drop-link:hover,
   .nav__drop-link[aria-current],
   .nav__drop:hover .nav__drop-link,
