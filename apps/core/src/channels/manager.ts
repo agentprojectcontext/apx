@@ -145,6 +145,7 @@ export function createChannels(deps: {
           from,
           to,
           project: agentProject(store, to),
+          fromProject: agentProject(store, from),
         });
   };
 
