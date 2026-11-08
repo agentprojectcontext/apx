@@ -4,6 +4,8 @@ import type { Part } from "@apx/protocol";
 import { say, scriptedLlm, startCore } from "../engine/testkit.ts";
 import { waitFor } from "../testkit/platform.ts";
 import { fakeWhatsApp } from "./fake-whatsapp.test-support.ts";
+import { joinSplitContacts } from "./same-person.ts";
+import type { ChannelAdapter } from "./types.ts";
 import { whatsappAdapter } from "./whatsapp.ts";
 
 const DANA = { phone: "5491100000005@s.whatsapp.net", name: "Dana", lid: "200000000000005@lid" };
@@ -96,4 +98,14 @@ test("someone split in two by their private id is one contact and one chat once 
     ],
     "in the order it was said",
   );
+});
+
+test("contacts already joined count as nothing done the next time the line connects", async () => {
+  const line = {
+    sameAs: async () => [
+      { from: DANA.lid, to: DANA.phone },
+      { from: EVE.lid, to: EVE.phone },
+    ],
+  } as unknown as ChannelAdapter;
+  assert.equal(await joinSplitContacts(env.core.store, "whatsapp", line), 0);
 });

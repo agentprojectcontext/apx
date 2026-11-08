@@ -5,7 +5,7 @@ import { errorMessage } from "../errors.ts";
 import type { Log } from "../log.ts";
 import type { ChannelAdapter } from "./types.ts";
 
-/** How many contacts were joined; a chat with a turn going is joined on a later connect. */
+/** How many contacts or chats changed; a chat with a turn going is joined on a later connect. */
 export async function joinSplitContacts(
   store: Store,
   channel: string,
@@ -17,11 +17,11 @@ export async function joinSplitContacts(
     const pairs = await adapter.sameAs(store.persons.addressesOn(channel));
     let joined = 0;
     for (const { from, to } of pairs) {
-      const done = store.tx(() => {
-        store.persons.joinPeople(channel, from, to);
-        return store.threads.joinChats(channel, from, to);
+      const changed = store.tx(() => {
+        const people = store.persons.joinPeople(channel, from, to);
+        return store.threads.joinChats(channel, from, to) === "joined" || people;
       });
-      if (done) joined++;
+      if (changed) joined++;
     }
     if (joined) log?.info({ channel, joined }, "contacts known under two addresses joined");
     return joined;

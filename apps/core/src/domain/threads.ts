@@ -391,17 +391,17 @@ export function threadsRepo({ one, all, run }: Sql, bus: Bus, endSession: (threa
     /**
      * One chat its platform kept under two addresses: `from`'s messages, turns, files and sub-chats go into `to`'s chat
      * in time order and `from`'s chat is removed; with no chat under `to`, `from`'s goes on under it. Not while either
-     * has a turn going (false: try again later).
+     * has a turn going ("busy": try again later).
      */
-    joinChats(channel: string, from: string, to: string): boolean {
+    joinChats(channel: string, from: string, to: string): "joined" | "none" | "busy" {
       const gone = repo.byConversation(channel, from);
-      if (!gone) return true;
+      if (!gone) return "none";
       const kept = repo.byConversation(channel, to);
       if (!kept) {
         repo.readdress(channel, from, to);
-        return true;
+        return "joined";
       }
-      if (repo.busy([gone.id, kept.id])) return false;
+      if (repo.busy([gone.id, kept.id])) return "busy";
       const ids = all(
         qb
           .selectFrom("messages")
@@ -442,7 +442,7 @@ export function threadsRepo({ one, all, run }: Sql, bus: Bus, endSession: (threa
       );
       repo.remove([gone.id]);
       bus.emit({ type: "thread.updated", thread: repo.get(kept.id) as Thread });
-      return true;
+      return "joined";
     },
     /** A thread whose history was brought in: its last activity and preview are the history's own. */
     settle(id: string, at: string, preview: string): void {
