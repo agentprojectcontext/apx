@@ -376,8 +376,6 @@ export const esChannels: Partial<Record<MessageKey, string>> = {
   "acct.disconnect": "Desconectar esta cuenta",
   "acct.default": "Por defecto",
   "acct.custom": "Propio",
-  "acct.reactions.off": "Silencio",
-  "acct.reactions.on": "Reaccionar",
   "acct.addContact": "Agregar contacto",
   "acct.searchContacts": "Buscar contactos",
   "acct.col.person": "Persona",

@@ -42,15 +42,11 @@ export function BehaviorPane({ channel, draft, set }: PaneProps) {
           title={t("ch.reactions")}
           description={t(reactions ? "ch.reactionsHint.on" : "ch.reactionsHint.off")}
         >
-          <SegmentedControl
+          <Switch
             size="sm"
-            label={t("ch.reactions")}
-            value={reactions ? "on" : "off"}
-            onValueChange={(v) => set({ reactions: v === "on" })}
-            options={[
-              { value: "off", label: t("acct.reactions.off") },
-              { value: "on", label: t("acct.reactions.on") },
-            ]}
+            checked={reactions}
+            onCheckedChange={(on) => set({ reactions: on })}
+            aria-label={t("ch.reactions")}
           />
         </SettingRow>
       )}

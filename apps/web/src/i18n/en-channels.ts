@@ -358,8 +358,6 @@ export const enChannels = {
   "acct.disconnect": "Disconnect this account",
   "acct.default": "Default",
   "acct.custom": "Custom",
-  "acct.reactions.off": "Silence",
-  "acct.reactions.on": "React",
   "acct.addContact": "Add contact",
   "acct.searchContacts": "Search contacts",
   "acct.col.person": "Person",
