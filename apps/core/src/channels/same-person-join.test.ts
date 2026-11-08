@@ -171,3 +171,47 @@ test("a message held in both chats waits once, since the earlier of the two", ()
       [[byNumber.id, PHONE, "2026-01-01T23:00:00.000Z"]],
     );
   }));
+
+test("when the owner decided about both contacts, the joined one keeps the stricter of each decision", () =>
+  split(async ({ store, known, stranger }) => {
+    store.persons.update(known.id, { any_hour: true, perms: { appointments: true, requests: true, notes: false } });
+    store.persons.update(stranger.id, { muted: true, perms: { appointments: true, requests: false, notes: true } });
+
+    assert.equal(await joinSplitContacts(store, "whatsapp", line), 1);
+
+    const dana = store.persons.get(known.id);
+    assert.equal(dana?.muted, true, "silenced under either address, silenced");
+    assert.equal(dana?.supervised, false);
+    assert.equal(dana?.any_hour, false, "answered at any hour only when both were");
+    assert.deepEqual(dana?.perms, { appointments: true, requests: false, notes: false }, "only what both may do");
+    assert.equal(dana?.unreviewed, false);
+  }));
+
+test("a joined contact blocked or supervised under one address stays so", () =>
+  split(async ({ store, known, stranger }) => {
+    store.persons.update(known.id, { supervised: true });
+    store.persons.update(stranger.id, { role: "blocked" });
+
+    assert.equal(await joinSplitContacts(store, "whatsapp", line), 1);
+
+    const dana = store.persons.get(known.id);
+    assert.equal(dana?.role, "blocked");
+    assert.equal(dana?.supervised, true, "not answered on their own");
+    assert.equal(dana?.muted, false);
+  }));
+
+test("a stranger's defaults never loosen the contact the owner reviewed", () =>
+  split(async ({ store, known }) => {
+    const other = store.persons.create({ name: "Dana", role: "contact", unreviewed: true });
+    store.persons.update(known.id, { perms: { notes: true } });
+    const lid = "200000000000008@lid";
+    store.persons.link(other.id, { channel: "whatsapp", external_id: lid });
+    const pair = { sameAs: async () => [{ from: lid, to: PHONE }] } as unknown as ChannelAdapter;
+
+    assert.equal(await joinSplitContacts(store, "whatsapp", pair), 1);
+
+    const dana = store.persons.get(known.id);
+    assert.equal(dana?.muted, false, "a stranger is kept silenced only until the owner decides, and they had");
+    assert.equal(dana?.unreviewed, false);
+    assert.equal(dana?.perms.notes, true);
+  }));
