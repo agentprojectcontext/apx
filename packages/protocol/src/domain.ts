@@ -1336,6 +1336,11 @@ export const OwnerIdentity = z.object({
     .default("es"),
   /** IANA ("America/Argentina/Buenos_Aires"); empty: this machine's. */
   timezone: z.string().max(60).default(""),
+  /**
+   * Publishing a task's work that can be undone (a plain push of a branch): `auto` runs it in Auto, `ask` waits for the
+   * owner in every mode. A release, a tag or a forced push always waits (DECISIONS.md#d-208).
+   */
+  publish: z.enum(["auto", "ask"]).default("auto"),
 });
 export type OwnerIdentity = z.infer<typeof OwnerIdentity>;
 

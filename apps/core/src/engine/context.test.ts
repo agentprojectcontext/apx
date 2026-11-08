@@ -271,7 +271,7 @@ test("an agent's place in its team comes from the team itself, not from its prom
   const agent = { id: "p1-developer", name: "Fausto", role: "Senior Developer", kind: "agent" as const, prompt: "" };
   const system = systemPrompt(
     agent as never,
-    { kind: "loose", parent_id: null },
+    { kind: "loose" },
     "en",
     undefined,
     "",

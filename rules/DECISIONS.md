@@ -4260,7 +4260,10 @@ in its role, every teammate it asked answered as a gate, and a plain push of the
 - **Publishing a branch is a medium action** (`tools/shell.ts`): a plain `git push` runs in Auto like any other
   command. A push that rewrites or deletes what others have (`--force`, `--delete`, `:branch`, `+ref`, `--mirror`,
   `--prune`) or cuts a release (a tag, `--tags`, `gh release`, `npm publish` and the like) stays `always`, the
-  hard kind: it waits in every mode but Total.
+  hard kind, and keeps its card in Total too (`publishCard`, `keepsCard: "grant"`): only the owner's "always for this
+  agent" skips it.
+- **The owner may want to be asked before publishing**: `publish: ask` on the owner (Settings › Account, `apx owner
+  set publish=ask`) makes a plain push keep its card the same way. The default, `auto`, publishes without asking.
 - **Reviews inform, never gate** (`REVIEW` in `engine/context.ts`, `reviewEnded` in `engine/task-work.ts`): a reviewer
   reports what works, what fails (and whether it breaks what was asked) and what it could not check, opening with
   "Approved" when nothing asked fails. Either way the task goes back to its agent: a clean report says it is theirs
