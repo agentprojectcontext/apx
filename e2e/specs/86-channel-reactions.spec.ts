@@ -1,6 +1,6 @@
 // A contact's sticker and the agent's reaction to it: the emoji in sight on the picture (never under it), the Inbox
 // saying it reacted instead of the signal, and the chat opened from the Inbox reading as it does in its channel.
-import { expect, open, rpc, test, until, world } from "./kit.ts";
+import { channelId, expect, open, rpc, test, until, world } from "./kit.ts";
 
 const OLGA = { phone: "5491100000012@s.whatsapp.net", name: "Olga" };
 // A 1×1 WebP, the file a WhatsApp sticker is.
@@ -10,7 +10,11 @@ test("the agent reacts to a sticker: the emoji shows on it, and the Inbox says s
   page,
 }) => {
   const olga = await rpc<{ id: string }>("contacts.set", { name: "Olga" });
-  await rpc("contacts.address", { channel: "whatsapp", address: "+54 9 11 0000-0012", person: olga.id });
+  await rpc("contacts.address", {
+    channel: await channelId("whatsapp"),
+    address: "+54 9 11 0000-0012",
+    person: olga.id,
+  });
   await world.whatsapp.message(OLGA, "hola!");
   await until(async () => (await world.whatsapp.sentTo(OLGA.phone)).length > 0);
   await world.whatsapp.media(OLGA, { stickerMessage: { mimetype: "image/webp" }, bytes: WEBP });

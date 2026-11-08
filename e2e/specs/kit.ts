@@ -21,6 +21,14 @@ export async function rpc<T = Record<string, unknown>>(method: string, params: u
   return body.result as T;
 }
 
+export async function channelId(type: string): Promise<string> {
+  const { channels } = await rpc<{ channels: Array<{ id: string; type: string }> }>("channels.list");
+  const matches = channels.filter((channel) => channel.type === type);
+  if (matches.length !== 1 || !matches[0])
+    throw new Error(`Expected exactly one ${type} account, found ${matches.length}`);
+  return matches[0].id;
+}
+
 /** The emulated outside: where things are, a Telegram user writing, what the bot sent. */
 export const world = {
   info: async () =>

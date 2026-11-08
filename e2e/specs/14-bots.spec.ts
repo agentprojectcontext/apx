@@ -1,7 +1,7 @@
 // Discord and Slack, emulated: each bot is connected from Config › Channels with its token(s), the owner writes to it
 // in a direct message, gets a code, links it as their own account, and from then on talks to the super-agent there.
 import type { Page } from "@playwright/test";
-import { expect, open, rpc, test, until, world } from "./kit.ts";
+import { expect, open, openSettings, rpc, test, until, world } from "./kit.ts";
 
 async function connect(page: Page, kind: "Discord" | "Slack", tokens: Array<[label: string, value: string]>) {
   await open(page);
@@ -16,8 +16,8 @@ async function connect(page: Page, kind: "Discord" | "Slack", tokens: Array<[lab
 async function linkAndTalk(page: Page, channel: "dc" | "sl", owner: { id: string; name: string }) {
   // The bot shows as connected before its socket is up; a message sent sooner never reaches it, as on the real app.
   await until(async () =>
-    (await rpc<{ channels: Array<{ id: string; status: string }> }>("channels.list")).channels.some(
-      (c) => c.id === (channel === "dc" ? "discord" : "slack") && c.status === "running",
+    (await rpc<{ channels: Array<{ type: string; status: string }> }>("channels.list")).channels.some(
+      (c) => c.type === (channel === "dc" ? "discord" : "slack") && c.status === "running",
     ),
   );
   await world.dm(channel, owner, "hola bot");
@@ -73,16 +73,16 @@ test("Discord rooms: the owner lists a server room, and the bot answers there wh
   await expect(page.getByRole("radio", { name: "Solo vos" })).toBeChecked();
   await page.getByRole("radio", { name: "Todos" }).click();
   await until(async () =>
-    (await rpc<{ channels: Array<{ id: string; research?: string }> }>("channels.list")).channels.some(
-      (c) => c.id === "discord" && c.research === "everyone",
+    (await rpc<{ channels: Array<{ type: string; research?: string }> }>("channels.list")).channels.some(
+      (c) => c.type === "discord" && c.research === "everyone",
     ),
   );
 
   // Each save restarts the bot with its rooms: it listens again before anyone writes.
   await until(async () =>
     (
-      await rpc<{ channels: Array<{ id: string; status: string; rooms?: { names: string[] } }> }>("channels.list")
-    ).channels.some((c) => c.id === "discord" && c.status === "running" && c.rooms?.names.includes("roby")),
+      await rpc<{ channels: Array<{ type: string; status: string; rooms?: { names: string[] } }> }>("channels.list")
+    ).channels.some((c) => c.type === "discord" && c.status === "running" && c.rooms?.names.includes("roby")),
   );
   await world.room({ id: "6160", name: "Ana" }, "100000000000000001", "nice weather today");
   await world.room({ id: "6161", name: "Ben" }, "100000000000000001", "roby what is Acme Notes?");
@@ -150,13 +150,22 @@ test("new channels are offered; Google Chat takes its subscription and whole JSO
 test("Teams shows its public address: the owner's own https URL gives the address to paste into Azure", async ({
   page,
 }) => {
+  await rpc("channels.set", {
+    id: "teams-test",
+    channel: { type: "teams", agent_id: "superagent", enabled: false },
+  });
   await open(page);
-  await page.getByRole("button", { name: "Agregar canal" }).click();
-  await page.getByRole("menuitem", { name: "Microsoft Teams", exact: true }).click();
+  await openSettings(page);
+  await page.getByRole("button", { name: "Canales", exact: true }).click();
+  await page.getByRole("radio", { name: "Microsoft Teams", exact: true }).click();
   await expect(page.getByText("Dirección pública", { exact: true })).toBeVisible();
   await page.getByRole("radio", { name: "Propia", exact: true }).click();
   await page.getByRole("textbox", { name: "Tu dirección", exact: true }).fill("https://hooks.example.com");
-  await page.getByRole("button", { name: "Guardar" }).click();
-  await expect(page.getByText("https://hooks.example.com/hooks/teams")).toBeVisible();
+  await page
+    .locator(".apx-setting")
+    .filter({ has: page.getByRole("textbox", { name: "Tu dirección" }) })
+    .getByRole("button", { name: "Guardar" })
+    .click();
+  await expect(page.getByText("https://hooks.example.com/hooks/teams-test")).toBeVisible();
   await rpc("webhooks.set", { mode: "off" });
 });

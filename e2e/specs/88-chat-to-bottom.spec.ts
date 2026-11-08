@@ -1,6 +1,6 @@
 // Scrolled up in a long chat (the app's or a contact's in its channel), a button floats over the end and takes the reader
 // back to the latest message.
-import { expect, open, rpc, test, until, world } from "./kit.ts";
+import { channelId, expect, open, rpc, test, until, world } from "./kit.ts";
 
 test("scrolled up, a button goes back to the latest message and hides there", async ({ page }) => {
   await rpc("setup.finish", {});
@@ -31,7 +31,11 @@ test("scrolled up, a button goes back to the latest message and hides there", as
 test("a contact's chat in its channel scrolls the same way, with the same button", async ({ page }) => {
   const nadia = { phone: "5491100000088@s.whatsapp.net", name: "Nadia" };
   const person = await rpc<{ id: string }>("contacts.set", { name: "Nadia" });
-  await rpc("contacts.address", { channel: "whatsapp", address: "+54 9 11 0000-0088", person: person.id });
+  await rpc("contacts.address", {
+    channel: await channelId("whatsapp"),
+    address: "+54 9 11 0000-0088",
+    person: person.id,
+  });
   const lines = Array.from({ length: 60 }, (_, i) => `Item ${i + 1} of the Acme order`).join("\n");
   await world.whatsapp.message(nadia, lines);
   await until(async () => (await world.whatsapp.sentTo(nadia.phone)).length > 0);

@@ -1,7 +1,7 @@
 // A channel's contacts (WhatsApp, linked by 10-whatsapp): a saved contact with no chat yet is listed and opens an empty
 // chat to ask the agent to write to them; what was sent shows how far it got and their reactions; who is online and what is set for each
 // contact show on their row.
-import { expect, open, rpc, test, until, world } from "./kit.ts";
+import { channelId, expect, open, rpc, test, until, world } from "./kit.ts";
 
 const NORA = "5491100000011@s.whatsapp.net";
 
@@ -9,7 +9,11 @@ test("a saved contact with no chat: listed, an empty chat to ask the agent to wr
   page,
 }) => {
   const nora = await rpc<{ id: string }>("contacts.set", { name: "Nora" });
-  await rpc("contacts.address", { channel: "whatsapp", address: "+54 9 11 0000-0011", person: nora.id });
+  await rpc("contacts.address", {
+    channel: await channelId("whatsapp"),
+    address: "+54 9 11 0000-0011",
+    person: nora.id,
+  });
 
   await open(page);
   await page.getByRole("button", { name: "WhatsApp", exact: true }).click();
