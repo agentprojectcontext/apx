@@ -2,6 +2,7 @@
 
 import fs from "node:fs";
 import { type ChannelType, ErrorCode } from "@apx/protocol";
+import { answersInHome } from "../channels/agent-project.ts";
 import { CHANNEL_CATALOG } from "../channels/catalog.ts";
 import { pairingRef } from "../channels/inbound.ts";
 import type { Channels } from "../channels/manager.ts";
@@ -63,7 +64,11 @@ export function channelHandlers(store: Store, channels: Channels, nudges: Pick<N
         throw badRequest("a Telegram channel needs its bot token (from @BotFather)");
       const saved = channels.info();
       const label = channel?.label || saved.find((c) => c.id === id)?.label;
-      const config = channel ? { ...channel, label: label || defaultLabel(channel.type, id, saved) } : null;
+      // Another agent than the super-agent answers the owner in the channel's own chat: Home is the super-agent's.
+      const ownerThread = channel && !answersInHome(store, channel.agent_id) ? "own" : channel?.owner_thread;
+      const config = channel
+        ? { ...channel, owner_thread: ownerThread ?? "home", label: label || defaultLabel(channel.type, id, saved) }
+        : null;
       return { channels: await channels.set(id, config, token) };
     },
     "channels.send": ({ thread, text, omit_signature }) => {

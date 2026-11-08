@@ -1426,10 +1426,11 @@ export const es: Partial<Record<MessageKey, string>> = {
   "tg.behavior": "Cómo se comporta",
   "tg.ownerThread": "Tus mensajes",
   "tg.ownerThreadHint":
-    "Home: hablás con el superagente, una sola conversación en todos lados. Chat propio: un chat de {channel} con el agente que elijas.",
+    "Home: hablás con tu super-agente, una sola conversación en todos lados. Chat propio: un chat de {channel} con el agente que elijas.",
+  "tg.ownerThreadOwnOnly":
+    "El agente de un proyecto te responde en un chat propio: Home es la conversación con tu super-agente.",
   "tg.ownerAgent": "Con quién hablás",
-  "tg.ownerAgentHint":
-    "El agente que te responde en el chat propio de {channel}: el superagente o el orquestador de un proyecto.",
+  "tg.ownerAgentHint": "El agente que te responde en {channel}: tu super-agente o el responsable de un proyecto.",
   "tg.contactsAgent": "Quién responde a tus contactos",
   "tg.contactsAgentHint": "El agente que responde a quienes escriben a {channel}.",
   "tg.ownerThread.home": "Home",

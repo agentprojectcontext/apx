@@ -17,6 +17,8 @@ export interface SegmentedControlProps {
   size?: "sm" | "md";
   /** Accessible name for the group. */
   label?: string;
+  /** Shows the choice without letting it change (a setting another one fixes). */
+  disabled?: boolean;
   className?: string;
 }
 
@@ -28,6 +30,7 @@ export function SegmentedControl({
   onValueChange,
   size = "md",
   label,
+  disabled,
   className,
 }: SegmentedControlProps) {
   const [inner, setInner] = useState(defaultValue ?? options[0]?.value);
@@ -40,6 +43,7 @@ export function SegmentedControl({
         onValueChange?.(v);
       }}
       aria-label={label}
+      disabled={disabled}
       className={cx("apx-segmented", `apx-segmented--${size}`, className)}
     >
       {options.map((o) => (

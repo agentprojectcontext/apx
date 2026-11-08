@@ -7,7 +7,7 @@ import type { Store } from "../domain/store.ts";
 import { previewOf } from "../domain/threads.ts";
 import { audienceOf } from "../engine/audience.ts";
 import type { Services } from "../services/registry.ts";
-import { agentProject } from "./agent-project.ts";
+import { agentProject, answersInHome } from "./agent-project.ts";
 import type { createDelivery } from "./delivery.ts";
 import type { createPoster, Posted } from "./post.ts";
 import { type createRooms, quietMentions, roomMentions } from "./rooms.ts";
@@ -98,7 +98,8 @@ export function createOutgoing(deps: {
         (b.chat?.updated_at ?? "").localeCompare(a.chat?.updated_at ?? "") || Number(b.running) - Number(a.running),
     )[0] as (typeof options)[number];
     const owner = person.role === "owner";
-    let thread = pick.chat ?? (owner ? store.threads.get(HOME_THREAD_ID) : undefined);
+    let thread =
+      pick.chat ?? (owner && answersInHome(store, pick.cfg.agent_id) ? store.threads.get(HOME_THREAD_ID) : undefined);
     if (!thread) {
       thread = store.threads.create({
         kind: "channel",

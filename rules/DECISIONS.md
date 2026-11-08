@@ -4181,8 +4181,10 @@ project's agents, so a project's agent could never answer a channel.
   a team is reached through its head. A chat takes the project of the agent that answers it.
 - **Open chats follow a change** of either one, in the same transaction as the save, and only while the previous agent
   still answers them: a chat the owner handed to another agent keeps it, and an unrelated save moves nothing.
-- **Home stays the default** for the owner's own words (one conversation from every app); "own chat" stays a choice
-  per channel.
+- **Home stays the default** for the owner's own words (one conversation from every app), and it is the super-agent's:
+  only a channel it answers may take the owner there. A channel answered by another agent keeps the owner in its own
+  chat (`channels.set` saves `owner_thread: "own"` for it, and inbound and outgoing never fall back to Home); the
+  settings show "Own chat" fixed and say why.
 - **Contacts stay sealed** (D-014, D-022) whoever answers them. A project's head answering a contact gets no more
   tools than the super-agent would.
 

@@ -17,6 +17,7 @@ import {
   useChannels,
 } from "../data/channels.ts";
 import { useOwnerTimeZone } from "../data/owner.ts";
+import { useData } from "../data/state.ts";
 import { type MessageKey, useT } from "../i18n/index.ts";
 import { go } from "../shell/nav.ts";
 import { SubHead } from "./SectionHead.tsx";
@@ -79,17 +80,32 @@ export function Behavior({
   save(patch: Partial<ChannelDraft>): Promise<unknown>;
 }) {
   const t = useT();
+  // Home is the super-agent's conversation: another agent answers the owner in the channel's own chat.
+  const home = useData((s) => s.agents[channel.agent_id]?.kind === "secretary");
   return (
     <>
       <SubHead>{t("tg.behavior")}</SubHead>
       <SettingRow title={t("ch.accountName")} description={t("ch.accountNameHint")}>
         <ChannelName key={channel.label} channel={channel} save={save} />
       </SettingRow>
-      <SettingRow title={t("tg.ownerThread")} description={t("tg.ownerThreadHint", { channel: channel.label })}>
+      <SettingRow title={t("tg.ownerAgent")} description={t("tg.ownerAgentHint", { channel: channel.label })}>
+        <AgentSelect
+          size="sm"
+          className="tgagent"
+          channel
+          value={channel.agent_id}
+          onChange={(id) => id && id !== channel.agent_id && void save({ agent_id: id })}
+        />
+      </SettingRow>
+      <SettingRow
+        title={t("tg.ownerThread")}
+        description={home ? t("tg.ownerThreadHint", { channel: channel.label }) : t("tg.ownerThreadOwnOnly")}
+      >
         <SegmentedControl
           size="sm"
           label={t("tg.ownerThread")}
-          value={channel.owner_thread}
+          disabled={!home}
+          value={home ? channel.owner_thread : "own"}
           onValueChange={(v) => void save({ owner_thread: v as ChannelDraft["owner_thread"] })}
           options={[
             { value: "home", label: t("tg.ownerThread.home") },
@@ -97,17 +113,6 @@ export function Behavior({
           ]}
         />
       </SettingRow>
-      {channel.owner_thread === "own" && (
-        <SettingRow title={t("tg.ownerAgent")} description={t("tg.ownerAgentHint", { channel: channel.label })}>
-          <AgentSelect
-            size="sm"
-            className="tgagent"
-            channel
-            value={channel.agent_id}
-            onChange={(id) => id && id !== channel.agent_id && void save({ agent_id: id })}
-          />
-        </SettingRow>
-      )}
       <SettingRow title={t("tg.contactsAgent")} description={t("tg.contactsAgentHint", { channel: channel.label })}>
         <AgentSelect
           size="sm"

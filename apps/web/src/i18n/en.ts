@@ -1429,9 +1429,10 @@ export const en = {
   "tg.ownerThread": "Your messages",
   "tg.ownerThreadHint":
     "Home: you talk to the super-agent, one conversation everywhere. Own chat: a chat of {channel} with the agent you pick.",
+  "tg.ownerThreadOwnOnly":
+    "A project's agent answers you in a chat of its own: Home is your super-agent's conversation.",
   "tg.ownerAgent": "Who you talk to",
-  "tg.ownerAgentHint":
-    "The agent that answers you in the own chat of {channel}: the super-agent or a project's orchestrator.",
+  "tg.ownerAgentHint": "The agent that answers you on {channel}: your super-agent or a project's head.",
   "tg.contactsAgent": "Who answers your contacts",
   "tg.contactsAgentHint": "The agent that answers the people who write to {channel}.",
   "tg.ownerThread.home": "Home",

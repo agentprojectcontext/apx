@@ -18,9 +18,9 @@ export const CHANNEL_AGENTS_NEWS: NewsEntry = {
   },
   applies: (facts) => facts.channels > 0,
   text:
-    "Each channel account (channels_list) can now be answered by a project's head instead of the super-agent: its " +
+    "Each channel account (the channels.list setting) can now be answered by a project's head instead of the super-agent: its " +
     "chats then work in that project, with its team, folders and memory. A channel has the agent the owner talks to " +
-    "in its own chat (agent_id, when the owner's messages go to the channel's own chat rather than Home) and, " +
+    "(agent_id; Home only while that is the super-agent, any other agent answers in the channel's own chat) and, " +
     "optionally, another agent for its contacts and rooms (contacts_agent_id). Changing either one moves the open " +
     "chats it answered, except one the owner handed to another agent. The owner can also connect more accounts of the " +
     "same app in Settings › Channels › Add account; each has its own sign-in, contacts and agents, and iMessage stays " +

@@ -22,7 +22,7 @@ import type { InternalCall } from "../rpc/internal.ts";
 import type { Services } from "../services/registry.ts";
 import { saveUpload } from "../services/uploads.ts";
 import { inlineName, untrusted } from "../tools/result.ts";
-import { agentProject } from "./agent-project.ts";
+import { agentProject, answersInHome } from "./agent-project.ts";
 import { asksToStop } from "./closers.ts";
 import type { Delivery } from "./delivery.ts";
 import { type Held, waitsForHours } from "./held.ts";
@@ -370,7 +370,7 @@ export function createInbound(deps: {
 
   function ownerThread(cfg: ChannelConfig, conversation: string): Thread {
     const home = store.threads.get(HOME_THREAD_ID);
-    if (cfg.owner_thread === "home" && home) return home;
+    if (cfg.owner_thread === "home" && home && answersInHome(store, cfg.agent_id)) return home;
     return (
       store.threads.byConversation(cfg.id, conversation) ??
       store.threads.create({

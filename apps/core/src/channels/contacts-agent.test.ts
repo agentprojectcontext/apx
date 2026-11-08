@@ -140,3 +140,53 @@ test("the owner's own chat follows the agent they talk to, into that agent's pro
   const contact = env.core.store.threads.byConversation("tg", String(CONTACT.id));
   assert.deepEqual([contact?.agent_ids[0], contact?.project_id], ["superagent", undefined], "contacts stay");
 });
+
+test("Home is the super-agent's: a channel a project's head answers keeps the owner in its own chat", async (t) => {
+  const env = await setup(t);
+  const dir = tempDir("apx-head-");
+  t.after(() => dir.remove());
+  fs.writeFileSync(path.join(dir.path, "AGENTS.md"), "# Acme\n");
+  const { project } = await env.client.call("projects.register", { path: dir.path, init: true });
+  const head = await env.client.call("agents.create", { project_id: project.id, slug: "acme-head", name: "Head" });
+
+  await env.client.call("channels.set", {
+    id: "tg",
+    channel: { type: "telegram", agent_id: "superagent", owner_thread: "home" },
+    token: TOKEN,
+  });
+  env.tg.message(OWNER, "to Home");
+  await waitFor(
+    () =>
+      env.core.store.messages.list("home").some((m) => m.parts.some((p) => p.type === "text" && p.text === "to Home")),
+    "the super-agent's channel writes into Home",
+    { ms: 8000 },
+  );
+
+  await env.client.call("channels.set", {
+    id: "tg",
+    channel: { type: "telegram", agent_id: head.id, owner_thread: "home" },
+    token: TOKEN,
+  });
+  const saved = (await env.client.call("channels.list", {})).channels.find((c) => c.id === "tg");
+  assert.equal(saved?.owner_thread, "own", "another agent cannot take the owner into Home");
+  env.tg.message(OWNER, "to the head");
+  await waitFor(() => env.core.store.threads.byConversation("tg", String(OWNER.id)), "the channel's own chat", {
+    ms: 8000,
+  });
+  const own = env.core.store.threads.byConversation("tg", String(OWNER.id));
+  assert.deepEqual([own?.agent_ids[0], own?.project_id], [head.id, project.id]);
+  await waitFor(
+    () =>
+      env.core.store.messages
+        .list(own?.id ?? "")
+        .some((m) => m.parts.some((p) => p.type === "text" && p.text === "to the head")),
+    "the owner's words reach the head's chat",
+    { ms: 8000 },
+  );
+  assert.ok(
+    !env.core.store.messages
+      .list("home")
+      .some((m) => m.parts.some((p) => p.type === "text" && p.text === "to the head")),
+    "nothing of it lands in Home",
+  );
+});
