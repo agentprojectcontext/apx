@@ -55,6 +55,7 @@ const child = spawn(process.execPath, ["--no-warnings", path.join(root, "apps/co
     APX_SECRETS: "file",
     APX_UPDATES: "off",
     APX_RELEASES: "off",
+    APX_TELEMETRY: "off",
     APX_AGENT_NAME: "Nova",
     APX_V1_HOME: path.join(dir, "no-v1"),
     APX_V1_URL: "http://127.0.0.1:9",
@@ -272,7 +273,7 @@ const prefs = async (p: Page, mode: "light" | "dark") =>
     try {
       localStorage.setItem("apx.mode", mode);
       localStorage.setItem("apx.prefs", JSON.stringify({ language: "en", look: "minimal", displayName: "Alex" }));
-      localStorage.setItem("apx.corner", JSON.stringify({ discord: true, star: true }));
+      localStorage.setItem("apx.corner", JSON.stringify({ discord: true, star: true, welcome: true }));
     } catch {}
   }, mode);
 // The demo lives in a temp folder; it shows the way a reader's own one would, under ~ (kept so across re-renders).
