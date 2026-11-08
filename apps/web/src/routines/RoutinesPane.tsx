@@ -1,9 +1,10 @@
-import { Button, EmptyState, Icons } from "@apx/ui";
+import { Button, Icons } from "@apx/ui";
 import { useEffect, useState } from "react";
-import { DEFAULT_PID } from "../data/identity.ts";
+import { DEFAULT_PID, projectName } from "../data/identity.ts";
 import { draftOf, loadRoutines, type RoutineDraft, useRoutines } from "../data/routines.ts";
 import { useData } from "../data/state.ts";
 import { useT } from "../i18n/index.ts";
+import { ProjectEmpty } from "../project/ProjectEmpty.tsx";
 import { go } from "../shell/nav.ts";
 import { RoutineDrawer } from "./RoutineDrawer.tsx";
 import { RoutineEditor } from "./RoutineEditor.tsx";
@@ -18,6 +19,7 @@ export function RoutinesPane({ projectId }: { projectId: string }) {
   const all = useRoutines((s) => s.routines);
   const ready = useRoutines((s) => s.ready);
   const agents = useData((s) => s.agents);
+  const projects = useData((s) => s.projects);
   const [editing, setEditing] = useState<RoutineDraft>();
   const [open, setOpen] = useState<string>();
   useEffect(() => {
@@ -54,9 +56,7 @@ export function RoutinesPane({ projectId }: { projectId: string }) {
         </Button>
       </div>
       {ready && !list.length ? (
-        <EmptyState variant="dashed" size="lg" icon={<Icons.Clock />} title={t("routines.emptyTitle")}>
-          {t("routines.empty")}
-        </EmptyState>
+        <ProjectEmpty name={projectName(projects, projectId)} />
       ) : (
         <RoutineList
           groups={[{ id: projectId, routines: list }]}

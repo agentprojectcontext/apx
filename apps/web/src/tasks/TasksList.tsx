@@ -28,6 +28,7 @@ import { useData } from "../data/state.ts";
 import { taskChatIds } from "../data/taskChats.ts";
 import { loadTasks, useTasks } from "../data/tasks.ts";
 import { type MessageKey, type T, useT } from "../i18n/index.ts";
+import { ProjectEmpty } from "../project/ProjectEmpty.tsx";
 import { nav, useNav } from "../shell/nav.ts";
 import { AcceptProposals } from "./AcceptProposals.tsx";
 import { CommitmentMeta } from "./Commitments.tsx";
@@ -222,7 +223,9 @@ export function TasksList({
             </Button>
           )}
         </div>
-        {ready && !shown.length ? (
+        {ready && !scoped.length && projectId ? (
+          <ProjectEmpty name={projectName(projects, projectId)} />
+        ) : ready && !shown.length ? (
           <EmptyState variant="dashed" size="lg" icon={<Icons.ListChecks />} title={t("tasks.emptyTitle")}>
             {t("tasks.empty")}
           </EmptyState>
