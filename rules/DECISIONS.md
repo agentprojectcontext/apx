@@ -4281,3 +4281,17 @@ in its role, every teammate it asked answered as a gate, and a plain push of the
 Rejected: a score threshold the core enforces (the score is the agent's word, and what decides is whether a step can
 be undone), and a separate "ready" status (closing with the report already reaches whoever gave the task).
 
+<a id="d-209"></a>
+## D-209 — 2026-11-08 — An agent's place in its team is told by APX, not written in its prompt
+Role prompts named people ("You report to Pia", "goes to Lorena, never to Saba") and broke whenever the team changed:
+an agent followed a name instead of the work. Every agent already has `parent:` and `area:` in its file.
+
+- **The system prompt says it** (`teamPlace` in `engine/context.ts`, `placeOf` in `engine/turn.ts`): under the
+  agent's first line, who it answers to (its `parent:`, resolved in its own project first) and its area, and that work
+  outside its area goes to that area's agent or to the super-agent when none fits. The super-agent and an agent with
+  neither get no line. It changes only when the team does, so the prompt stays cacheable.
+- Role prompts keep the craft (how to build, what to check) and name roles, never people.
+
+Rejected: a written chart of who talks to whom (the owner's own diagram drifts from the team, and a hand-kept chart in
+every prompt is what broke).
+

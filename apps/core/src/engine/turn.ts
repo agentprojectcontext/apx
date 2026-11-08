@@ -72,6 +72,7 @@ import {
   sectionLines,
   systemParts,
   systemPrompt,
+  teamPlace,
   turnBlocks,
   workerPrompt,
   workspaceBlock,
@@ -746,6 +747,7 @@ function systemFor(
     computerOff,
     channelsOn(store),
     told,
+    placeOf(store, turn.agent),
   );
   return {
     text,
@@ -760,6 +762,15 @@ function systemFor(
       ["skills", skills],
     ]),
   };
+}
+
+/** The agent's place in its team: whom its `parent:` names (in its own project first) and the super-agent. */
+function placeOf(store: Store, agent: AgentRecord): string {
+  const found = agent.parent ? store.agents.resolve(agent.parent, agent.project_id ?? undefined) : undefined;
+  const boss = found && "agent" in found ? found.agent : undefined;
+  const head = store.agents.list().find((a) => a.kind === "secretary");
+  const named = (a: AgentRecord | undefined) => (a ? { name: a.name, id: a.id } : undefined);
+  return teamPlace(agent, boss && boss.id !== agent.id ? named(boss) : undefined, named(head));
 }
 
 /**

@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import type { LogEntry } from "../domain/model-log.ts";
 import type { ChatItem } from "../providers/types.ts";
-import { frameInput, projectHistory, repair, systemPrompt, turnInput, workerPrompt } from "./context.ts";
+import { frameInput, projectHistory, repair, systemPrompt, teamPlace, turnInput, workerPrompt } from "./context.ts";
 
 const call = (id: string, name = "browser_text"): ChatItem => ({
   role: "assistant",
@@ -258,4 +258,31 @@ test("lines a turn may leave out (computer off, temp folder) never leave a blank
     assert.equal(p.includes("[Config › Desktop](apx:settings/desktop), where they turn it on"), off);
   }
   assert.doesNotMatch(workerPrompt({ name: "Helper", instructions: "audit" }, { name: "Roby" }, "es"), /\n$/);
+});
+
+test("an agent's place in its team comes from the team itself, not from its prompt", () => {
+  const roby = { name: "Roby", id: "superagent" };
+  const pia = { name: "Pia", id: "p1-orchestrator" };
+  const place = teamPlace({ kind: "agent", parent: "orchestrator", area: "engineering" }, pia, roby);
+  assert.match(place, /you answer to Pia \(p1-orchestrator\); your area is engineering/);
+  assert.match(place, /Work outside your area goes to that area's agent, or to Roby \(superagent\) when none fits/);
+  assert.equal(teamPlace({ kind: "secretary", parent: "x", area: "y" }, pia, roby), "", "the super-agent has none");
+  assert.equal(teamPlace({ kind: "agent" }, undefined, roby), "", "nothing to say without a boss or an area");
+  const agent = { id: "p1-developer", name: "Fausto", role: "Senior Developer", kind: "agent" as const, prompt: "" };
+  const system = systemPrompt(
+    agent as never,
+    { kind: "loose", parent_id: null },
+    "en",
+    undefined,
+    "",
+    "",
+    undefined,
+    "",
+    "",
+    false,
+    true,
+    {},
+    place,
+  );
+  assert.match(system, /^You are Fausto, Senior Developer[^\n]*\nYour place in the team: you answer to Pia/);
 });

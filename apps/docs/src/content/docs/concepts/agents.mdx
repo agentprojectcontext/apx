@@ -105,7 +105,7 @@ and follow up until they close. When a decision needs the owner, ask once, clear
 | `description` | What the agent is for. It is also put in front of the instructions when the body does not already say it. |
 | `icon` | The agent's blobo (`orbita`, `menta`, `cobalto`…). |
 | `emoji` | An optional emoji, kept with the agent (files written by other tools often have one). |
-| `parent` | The agent it reports to, by its slug (or its full id). Leave it out and the agent reports to Home. |
+| `parent` | The agent it reports to, by its slug (or its full id). Leave it out and the agent reports to Home. APX tells the agent who it answers to and its `area`, so its instructions never need to name people. |
 | `area` | The area it belongs to, for the org chart (`product`, `engineering`…). |
 | `autonomy` | Its permission mode: `manual`, `auto` (the default), `accept_edits`, `plan` or `total`. See [Autonomy and safety](/concepts/autonomy/). |
 | `personality` | How it sounds, apart from what it does. Up to 1,000 characters. |

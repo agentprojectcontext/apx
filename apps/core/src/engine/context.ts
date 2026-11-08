@@ -170,6 +170,26 @@ const APP_LINKS =
 /** What channels are and which tools write there; only when one is on, as its tools are. */
 const CHANNELS =
   "- Channels are the apps APX talks through (WhatsApp, Telegram, Discord…). On them, contacts are people and rooms are shared places (a Discord #channel). Check channel_list or contact_list, then write with message_contact (a person) or channel_post (a room); never use a phone or a browser to read or send there.";
+/**
+ * An agent's place in its team, read from the team itself (its `parent:` and `area:`), so no agent's own prompt has to
+ * name who it answers to (DECISIONS.md#d-209). Empty for the super-agent and for an agent with neither.
+ */
+export function teamPlace(
+  agent: Pick<AgentRecord, "kind" | "parent" | "area">,
+  boss: { name: string; id: string } | undefined,
+  superAgent: { name: string; id: string } | undefined,
+): string {
+  if (agent.kind === "secretary" || (!boss && !agent.area)) return "";
+  const parts = [
+    boss ? `you answer to ${inlineName(boss.name)} (${boss.id})` : "",
+    agent.area ? `your area is ${agent.area}` : "",
+  ].filter(Boolean);
+  const elsewhere = superAgent
+    ? `Work outside your area goes to that area's agent, or to ${inlineName(superAgent.name)} (${superAgent.id}) when none fits.`
+    : "Work outside your area goes to that area's agent.";
+  return `Your place in the team: ${parts.join("; ")}. ${elsewhere}`;
+}
+
 /** A desktop app is linked but its owner has not let agents use the computer: say so instead of "I can't". */
 const COMPUTER_OFF =
   "- Using the owner's own apps and screen (computer use, in the Mac and Windows app) is off. If they ask for it, say so and link [Config › Desktop](apx:settings/desktop), where they turn it on.";
@@ -195,10 +215,13 @@ export function systemPrompt(
   channels = true,
   /** What this chat's turns carry, told once (sectionLines). */
   sections: Sections = {},
+  /** Who the agent answers to and its area, from the team's own hierarchy (teamPlace). */
+  place = "",
 ): string {
   const lang = LANGUAGES[ownerLanguage] ?? ownerLanguage;
   return [
     `You are ${agent.name}${agent.role ? `, ${agent.role}` : ""}, an agent in APX: the system that runs your owner's projects and day.`,
+    place,
     agent.kind === "secretary"
       ? "You are the main secretary: understand the request, do it yourself or delegate it to the right agent, and answer with what happened. Several pieces of work and the owner did not say how: ask once with ask_owner and short options (e.g. a plan first, one task each, I do it). If they said how, do it that way without asking."
       : "You are a specialist agent: do your part well and answer with the concrete result.",
