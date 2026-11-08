@@ -176,7 +176,8 @@ Cambiá campos con pares `clave=valor` (`name`, `role`, `slug`, `parent`, `blob`
 
 <Terminal command="apx agents set 3f9a1c0d7e21-vera parent=lucia blob=cobalto">{`Vera (3f9a1c0d7e21-vera) · vera · Marketing`}</Terminal>
 
-Archivá uno. Su archivo pasa a `.apc/agents/.archived/` (nunca se borra) y sus chats quedan:
+Archivá uno. Su archivo pasa a `.apc/agents/.archived/` (nunca se borra) y sus chats quedan. Un agente que responde
+un canal se archiva recién cuando elegís quién responde ese canal en su lugar:
 
 <Terminal command="apx agents archive 3f9a1c0d7e21-vera">{`archived; file moved to ~/work/acme-store/.apc/agents/.archived/vera.md`}</Terminal>
 
