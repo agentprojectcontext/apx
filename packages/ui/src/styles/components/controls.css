@@ -736,6 +736,15 @@
   color: var(--apx-fg);
   box-shadow: var(--apx-shadow-sm);
 }
+.apx-segmented[data-disabled] {
+  opacity: 0.55;
+}
+.apx-segmented[data-disabled] .apx-segmented__item {
+  cursor: not-allowed;
+}
+.apx-segmented[data-disabled] .apx-segmented__item:hover {
+  color: var(--apx-fg-muted);
+}
 
 /* ── Tabs ──────────────────────────────────────────────────────────────────── */
 .apx-tabs__list {

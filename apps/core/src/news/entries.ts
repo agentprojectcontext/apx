@@ -9,6 +9,7 @@ import { AGENT_FALLBACKS_NEWS } from "./agent-fallbacks.ts";
 import { BROWSER_EDIT_NEWS } from "./browser-edit.ts";
 import { BROWSER_JAVASCRIPT_NEWS } from "./browser-javascript.ts";
 import { BROWSER_SIGN_IN_NEWS } from "./browser-sign-in.ts";
+import { CHANNEL_AGENTS_NEWS } from "./channel-agents.ts";
 import { CHROME_TABS_NEWS } from "./chrome-tabs.ts";
 import { COMPUTER_POINTER_NEWS } from "./computer-pointer.ts";
 import { EXTERNAL_SESSIONS_NEWS } from "./external-sessions.ts";
@@ -85,6 +86,7 @@ export type NewsEntry = {
 
 export const NEWS: readonly NewsEntry[] = [
   TASK_GOALS_NEWS,
+  CHANNEL_AGENTS_NEWS,
   TASK_COMMENTS_NEWS,
   COMPUTER_POINTER_NEWS,
   TASK_REGROUP_NEWS,
@@ -1042,15 +1044,15 @@ export const NEWS: readonly NewsEntry[] = [
     about: {
       en:
         "Your agents can now be reached on iMessage, Google Chat, SMS, ntfy, Nextcloud Talk, IRC " +
-        "and Twitch. Set each one up in Settings › Channels.",
+        "and Twitch. Set each one up in Channels.",
       es:
         "Ahora podés hablar con tus agentes por iMessage, Google Chat, SMS, ntfy, Nextcloud " +
-        "Talk, IRC y Twitch. Configurá cada uno en Configuración › Canales.",
+        "Talk, IRC y Twitch. Configurá cada uno en Canales.",
     },
     applies: (f) => f.channels > 0,
     text:
       "Agents can now be reached on more apps: iMessage on the owner's Mac, Google Chat, SMS through Twilio, ntfy " +
-      "push notifications, Nextcloud Talk, IRC and Twitch chat. Each is set up in Settings › Channels, like the others.",
+      "push notifications, Nextcloud Talk, IRC and Twitch chat. Each is set up in Channels, like the others.",
     actions: [
       {
         label: { en: "Set one up", es: "Configurar uno" },
@@ -1066,16 +1068,16 @@ export const NEWS: readonly NewsEntry[] = [
     title: { en: "Microsoft Teams and LINE", es: "Microsoft Teams y LINE" },
     about: {
       en:
-        "Connect Microsoft Teams and LINE in Settings › Channels. Their screen first helps you " +
+        "Connect Microsoft Teams and LINE in Channels. Their screen first helps you " +
         "turn on a public address so the apps can reach you.",
       es:
-        "Conectá Microsoft Teams y LINE en Configuración › Canales. Su pantalla te ayuda primero a " +
+        "Conectá Microsoft Teams y LINE en Canales. Su pantalla te ayuda primero a " +
         "activar una dirección pública para que las apps puedan llegar hasta vos.",
     },
     applies: (f) => f.channels > 0,
     text:
       "Agents can now be reached on Microsoft Teams and LINE. Both send their messages to a web address, so their " +
-      "screen in Settings › Channels turns on a public address first: Tailscale Funnel (a fixed address), ngrok " +
+      "screen in Channels turns on a public address first: Tailscale Funnel (a fixed address), ngrok " +
       "(started by APX, which says when its address is new) or the " +
       "owner's own. Only a door for webhooks is published, never the panel, and every message is checked.",
     actions: [

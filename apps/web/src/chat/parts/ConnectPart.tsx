@@ -3,13 +3,13 @@ import { Badge, Button, Icons, IntegrationIcon } from "@apx/ui";
 import { useCallback, useEffect, useState } from "react";
 import { KindTile } from "../../channels/KindIcon.tsx";
 import { CHANNEL_KINDS, isChannelKind } from "../../channels/kinds.ts";
+import { openChannelKind } from "../../channels/openKind.ts";
 import { send } from "../../data/actions.ts";
 import { loadChannels, useChannels } from "../../data/channels.ts";
 import { client } from "../../data/client.ts";
 import { useData } from "../../data/state.ts";
 import { useT } from "../../i18n/index.ts";
 import { ConnectDialog, ConnectForm, describe, type Integration } from "../../resources/IntegrationsTab.tsx";
-import { go } from "../../shell/nav.ts";
 
 type Connect = Extract<Part, { type: "connect" }>;
 
@@ -61,7 +61,7 @@ export function ConnectPart({ part, threadId, messageId }: { part: Connect; thre
 
   const connect = (o: ConnectOffer) => {
     if (o.kind === "channel") {
-      if (isChannelKind(o.id)) go.channelConfig(o.id);
+      if (isChannelKind(o.id)) openChannelKind(o.id, channels);
       return;
     }
     const i = integrations?.find((x) => x.id === o.id);

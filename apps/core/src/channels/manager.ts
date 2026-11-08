@@ -23,6 +23,7 @@ import type { InternalCall } from "../rpc/internal.ts";
 import type { Secrets } from "../secrets.ts";
 import { splitSpoken } from "../services/audio.ts";
 import type { Services } from "../services/registry.ts";
+import { agentProject } from "./agent-project.ts";
 import { createDelivery } from "./delivery.ts";
 import { guardReply } from "./guard.ts";
 import { createHeld } from "./held.ts";
@@ -44,6 +45,7 @@ import {
   type ChannelAdapter,
   type ChannelConfig,
   ChannelRefused,
+  contactAgentOf,
   type HookRequest,
   type HookResponse,
   type ServerRoom,
@@ -127,6 +129,24 @@ export function createChannels(deps: {
   let stopped = false;
 
   const configs = (): ChannelConfig[] => store.settings.read("channels");
+
+  /** Open chats follow a change of who answers them: the owner's own chats, and its contacts' and rooms'. */
+  const moveAnswerers = (id: string, before: ChannelConfig, after: Omit<ChannelConfig, "id">) => {
+    const moves: Array<[boolean, string, string]> = [
+      [true, before.agent_id, after.agent_id],
+      [false, contactAgentOf(before), contactAgentOf(after)],
+    ];
+    for (const [owners, from, to] of moves)
+      if (from !== to)
+        store.threads.moveAnswerer({
+          channel: id,
+          owner: OWNER_ID,
+          owners,
+          from,
+          to,
+          project: agentProject(store, to),
+        });
+  };
 
   const delivery = createDelivery({
     store,
@@ -694,7 +714,10 @@ export function createChannels(deps: {
         if (token) secrets.set(tokenName(id), token);
         const before = configs().find((c) => c.id === id);
         const rest = configs().filter((c) => c.id !== id);
-        store.settings.write("channels", config ? [...rest, { ...config, id }] : rest);
+        store.tx(() => {
+          store.settings.write("channels", config ? [...rest, { ...config, id }] : rest);
+          if (before && config) moveAnswerers(id, before, config);
+        });
         // Who answers, where the owner's words go, overlapping messages and strangers are read per message: the
         // connection stays up (a WhatsApp restart is seconds of "connecting"). It restarts only for what it runs
         // with, or to try again when it is down.

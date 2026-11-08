@@ -68,7 +68,11 @@ function channelLine(store: Store, c: Channel): string {
   const bits = [
     c.type,
     c.enabled ? "on" : "off",
+    `owner's messages: ${c.owner_thread === "own" ? "its own chat" : "Home"}`,
     `answered by ${inlineName(store.agents.get(c.agent_id)?.name ?? c.agent_id)}`,
+    ...(c.contacts_agent_id && c.contacts_agent_id !== c.agent_id
+      ? [`contacts answered by ${inlineName(store.agents.get(c.contacts_agent_id)?.name ?? c.contacts_agent_id)}`]
+      : []),
     `strangers: ${c.strangers}`,
     `reactions: ${(c.reactions ?? CHANNEL_DEFAULTS.reactions) ? "on" : "off"}`,
     `research: ${c.research ?? CHANNEL_DEFAULTS.research}`,
@@ -83,7 +87,7 @@ const hoursWords = (v: unknown, { store }: { store: Store }) =>
     ? `Answers contacts ${hoursText(v as ChannelHours)} (${ownerTimeZone(store) ?? "this computer's time zone"}); outside them they wait until the hours begin`
     : "Answers contacts at any hour";
 
-const SIGN_IN = "it carries the channel's sign-in, which the owner types in Settings › Channels";
+const SIGN_IN = "it carries the channel's sign-in, which the owner types in Channels";
 
 const stickerOf = (p: Params, store: Store) => (typeof p.id === "string" ? store.stickers.get(p.id) : undefined);
 
@@ -173,12 +177,12 @@ export const PEOPLE: Readonly<Record<string, Setting>> = {
         .join("\n") || "no channels set up.",
   },
   "channels.set": {
-    does: "change a channel already set up (id, and under channel only what changes: agent_id, strangers, rooms, hours when it answers contacts {days 0 = Sunday, from, to HH:MM in the owner's time zone} or null for any hour…); its sign-in, mail account and research stay the owner's",
+    does: "change a channel already set up (id, and under channel only what changes: label, owner_thread home|own (home only when the super-agent answers it), agent_id (who answers the owner), contacts_agent_id (who answers its contacts and rooms), strangers, rooms, hours when it answers contacts {days 0 = Sunday, from, to HH:MM in the owner's time zone} or null for any hour…); its sign-in, mail account and research stay the owner's",
     asks: "card",
     says: (p, { store }) => `Change the channel ${inlineName(channelOf(store, p.id)?.label ?? str(p.id))}`,
     refuse: (p, { store }) => {
       const now = channelNow(store, p.id);
-      if (!now) return `no channel "${str(p.id)}": setting up a new one needs its sign-in, in Settings › Channels`;
+      if (!now) return `no channel "${str(p.id)}": setting up a new one needs its sign-in, in Channels › New channel`;
       if (p.token !== undefined) return `token stays the owner's: ${SIGN_IN}`;
       if (p.channel === null)
         return "removing a channel stays the owner's (its sign-in goes with it): enabled: false turns it off";

@@ -1,15 +1,13 @@
-import type { ChannelEmail, ChannelInfo, MailServer } from "@apx/protocol";
-import { SUPER_AGENT_ID } from "@apx/protocol/client";
-import { Badge, Button, Icons, Input, Select, SettingRow, Switch, TagInput } from "@apx/ui";
-import { useEffect, useState } from "react";
-import { KindTile } from "../channels/KindIcon.tsx";
-import { AgentSelect } from "../common/pickers/AgentSelect.tsx";
-import { type ChannelDraft, loadChannels, saveChannel, useChannels } from "../data/channels.ts";
-import { notify } from "../data/notices.ts";
-import { useData } from "../data/state.ts";
-import { useT } from "../i18n/index.ts";
-import { Behavior, Deliveries, Notices, Pairing, People, STATUS } from "./ChannelParts.tsx";
-import { EmailSignatures } from "./EmailSignatures.tsx";
+import type { ChannelEmail, MailServer } from "@apx/protocol";
+import { Button, Icons, Input, Select, SettingRow, Switch, TagInput } from "@apx/ui";
+import { useState } from "react";
+import { EmailSignatures } from "../../config/EmailSignatures.tsx";
+import type { ChannelDraft } from "../../data/channels.ts";
+import { notify } from "../../data/notices.ts";
+import { useData } from "../../data/state.ts";
+import { useT } from "../../i18n/index.ts";
+import { ConnectionCard, OwnerLink } from "./parts.tsx";
+import type { Create, PaneProps } from "./types.ts";
 
 /** Known providers: their servers, and the address domains that point to them. */
 const PROVIDERS = {
@@ -191,91 +189,18 @@ function ServerFields({ title, value, onChange }: { title: string; value: MailSe
 }
 
 /** Email: connect a mailbox, choose who answers and who may write, see what went out. */
-export function EmailSection() {
-  const channels = useChannels((s) => s.channels);
-  const ready = useChannels((s) => s.ready);
-  useEffect(() => {
-    void loadChannels();
-    const id = setInterval(() => void loadChannels(), 5000);
-    return () => clearInterval(id);
-  }, []);
+/** A new mailbox: its address and provider (or servers), its password, and Connect, which makes the account. */
+export function EmailConnect({ create }: { create: Create }) {
   const t = useT();
-  const [selected, setSelected] = useState("");
-  const [adding, setAdding] = useState(false);
-  const accounts = channels.filter((c) => c.type === "email");
-  const channel = accounts.find((c) => c.id === selected) ?? accounts[0];
-  const connecting = adding || !channel;
-  return (
-    <>
-      {accounts.length > 0 && (
-        <SettingRow title={t("em.account")}>
-          <Select
-            label={t("em.account")}
-            value={channel?.id ?? ""}
-            onValueChange={(id) => {
-              if (id) setSelected(id);
-              setAdding(false);
-            }}
-            options={accounts.map((c) => ({ value: c.id, label: `${c.label} · ${c.email?.address ?? c.id}` }))}
-          />
-          <Button size="sm" variant="secondary" leadingIcon={<Icons.Plus size={14} />} onClick={() => setAdding(true)}>
-            {t("em.addAccount")}
-          </Button>
-        </SettingRow>
-      )}
-      {ready &&
-        (connecting ? (
-          <>
-            <Setup
-              onConnected={(id) => {
-                setSelected(id);
-                setAdding(false);
-              }}
-            />
-            {channel && (
-              <Button variant="ghost" onClick={() => setAdding(false)}>
-                {t("common.cancel")}
-              </Button>
-            )}
-          </>
-        ) : (
-          <Connected key={channel.id} channel={channel} />
-        ))}
-      {!connecting && channel?.email && (
-        <EmailSignatures
-          target={{ transport: "smtp", account: channel.id, sender: channel.email.address, label: channel.label }}
-        />
-      )}
-      {!connecting && channel && (
-        <Pairing
-          channelId={channel.id}
-          itsMe={{ title: t("tg.itsMe", { channel: "Email" }), hint: t("tg.itsMeHint", { channel: "Email" }) }}
-        />
-      )}
-      {!connecting && channel && <Notices />}
-      {!connecting && channel && <People channelId={channel.id} />}
-      {!connecting && channel && <Deliveries channelId={channel.id} />}
-    </>
-  );
-}
-
-function Setup({ onConnected }: { onConnected(id: string): void }) {
-  const [id] = useState(() => `email-${crypto.randomUUID().replaceAll("-", "").slice(0, 24)}`);
-  const t = useT();
-  const agents = useData((s) => s.agents);
-  const secretary = Object.values(agents).find((a) => a.kind === "secretary");
   const form = useMailForm();
   const [password, setPassword] = useState("");
-  const [agent, setAgent] = useState(secretary?.id ?? SUPER_AGENT_ID);
   const [busy, setBusy] = useState(false);
   const connect = async () => {
     setBusy(true);
-    const saved = await saveChannel(
-      id,
+    await create(
       {
-        type: "email",
         label: form.address.trim().slice(0, 60),
-        agent_id: agent,
+        agent_id: "",
         enabled: true,
         strangers: "pair",
         concurrency: "queue",
@@ -285,7 +210,6 @@ function Setup({ onConnected }: { onConnected(id: string): void }) {
       password,
     );
     setBusy(false);
-    if (saved) onConnected(id);
   };
   return (
     <div className="tgsetup">
@@ -306,41 +230,26 @@ function Setup({ onConnected }: { onConnected(id: string): void }) {
         />
         <span className="pform__hint">{t("em.passwordStored")}</span>
       </div>
-      <SettingRow title={t("tg.agent")} description={t("tg.agentHint", { channel: "Email" })}>
-        <AgentSelect size="sm" className="tgagent" value={agent} onChange={(id) => id && setAgent(id)} />
-      </SettingRow>
       <div>
         <Button disabled={!form.ok || password.length < 8} loading={busy} onClick={() => void connect()}>
-          {t("em.connect")}
+          {t("acct.connect")}
         </Button>
       </div>
     </div>
   );
 }
 
-function Connected({ channel }: { channel: ChannelInfo }) {
+/** A mailbox's connection: its state and password, whose mail it takes, its servers and its signatures. */
+export function EmailAccount(pane: PaneProps) {
   const t = useT();
+  const { channel, draft, set, saveNow } = pane;
   const [editing, setEditing] = useState(false);
   const [password, setPassword] = useState("");
   const [changingPassword, setChangingPassword] = useState(false);
-  const email = channel.email;
-  const draft: ChannelDraft = {
-    label: channel.label,
-    agent_id: channel.agent_id,
-    enabled: channel.enabled,
-    strangers: channel.strangers,
-    concurrency: channel.concurrency,
-    owner_thread: channel.owner_thread,
-    reactions: channel.reactions,
-    research: channel.research,
-    hours: channel.hours,
-    ...(email ? { email } : {}),
-  };
-  const save = (patch: Partial<ChannelDraft>, newPassword?: string) =>
-    saveChannel(channel.id, { ...draft, ...patch }, newPassword);
+  const email = draft.email;
   const fixPassword = channel.status === "error" || !channel.token_set;
   const savePassword = async () => {
-    if (password.length < 8 || !(await save({}, password))) return;
+    if (password.length < 8 || !(await saveNow(password))) return;
     setPassword("");
     setChangingPassword(false);
     notify(t("em.saved"), "info");
@@ -363,73 +272,14 @@ function Connected({ channel }: { channel: ChannelInfo }) {
   );
   return (
     <>
-      <div className="pcard tgcard">
-        <div className="pcard__top">
-          <span className={`tgcard__tile${channel.status === "running" ? "" : " is-idle"}`}>
-            <KindTile kind="email" />
-          </span>
-          <div className="pcard__titles">
-            <div className="pcard__name">{channel.account ?? email?.address ?? channel.label}</div>
-            <div className="pcard__id">{t(`tg.status.${channel.status}`)}</div>
-          </div>
-          <Badge tone={STATUS[channel.status]} dot>
-            {channel.enabled ? t(`tg.status.${channel.status}`) : t("providers.off")}
-          </Badge>
-          <Switch
-            size="sm"
-            checked={channel.enabled}
-            onCheckedChange={(on) => void save({ enabled: on })}
-            label={t("providers.on")}
-          />
-        </div>
-        {channel.error && <div className="tgcard__error">{channel.error}</div>}
+      <ConnectionCard {...pane}>
         {fixPassword && (
           <div className="tgcard__fix">
             <span className="tgcard__fixlabel">{t("em.passwordFix")}</span>
             {passwordField}
           </div>
         )}
-      </div>
-
-      <Behavior channel={channel} save={save} />
-      {email && (
-        <>
-          <SettingRow title={t("em.allowed")} description={t("em.allowedHint")}>
-            <TagInput
-              label={t("em.allowed")}
-              className="emailallowed"
-              max={50}
-              placeholder={t("em.allowedPlaceholder")}
-              value={email.allowed}
-              onValueChange={(allowed) => void save({ email: { ...email, allowed } })}
-            />
-          </SettingRow>
-          <SettingRow title={t("em.unverified")} description={t("em.unverifiedHint")}>
-            <Switch
-              size="sm"
-              checked={email.trust_unverified}
-              onCheckedChange={(on) => void save({ email: { ...email, trust_unverified: on } })}
-              aria-label={t("em.unverified")}
-            />
-          </SettingRow>
-          <SettingRow title={t("em.servers")} description={t("em.serversHint")}>
-            <div className="tgtoken">
-              <code className="tgtoken__hint">
-                {email.imap.host} · {email.smtp.host}
-              </code>
-              <Button
-                size="sm"
-                variant="secondary"
-                leadingIcon={<Icons.Pencil size={14} />}
-                onClick={() => setEditing((v) => !v)}
-              >
-                {t("em.edit")}
-              </Button>
-            </div>
-          </SettingRow>
-          {editing && <EditServers email={email} save={save} done={() => setEditing(false)} />}
-        </>
-      )}
+      </ConnectionCard>
       {!fixPassword && (
         <SettingRow title={t("em.password")} description={t("em.passwordStored")}>
           {changingPassword ? (
@@ -449,38 +299,69 @@ function Connected({ channel }: { channel: ChannelInfo }) {
           )}
         </SettingRow>
       )}
-      <div className="tgremove">
-        <Button
-          size="sm"
-          variant="secondary"
-          leadingIcon={<Icons.Trash2 size={14} />}
-          onClick={() => void saveChannel(channel.id, null)}
-        >
-          {t("em.remove")}
-        </Button>
-      </div>
+      {email && (
+        <>
+          <SettingRow title={t("em.allowed")} description={t("em.allowedHint")}>
+            <TagInput
+              label={t("em.allowed")}
+              className="emailallowed"
+              max={50}
+              placeholder={t("em.allowedPlaceholder")}
+              value={email.allowed}
+              onValueChange={(allowed) => set({ email: { ...email, allowed } })}
+            />
+          </SettingRow>
+          <SettingRow title={t("em.unverified")} description={t("em.unverifiedHint")}>
+            <Switch
+              size="sm"
+              checked={email.trust_unverified}
+              onCheckedChange={(on) => set({ email: { ...email, trust_unverified: on } })}
+              aria-label={t("em.unverified")}
+            />
+          </SettingRow>
+          <SettingRow title={t("em.servers")} description={t("em.serversHint")}>
+            <div className="tgtoken">
+              <code className="tgtoken__hint">
+                {email.imap.host} · {email.smtp.host}
+              </code>
+              <Button
+                size="sm"
+                variant="secondary"
+                leadingIcon={<Icons.Pencil size={14} />}
+                onClick={() => setEditing((v) => !v)}
+              >
+                {t("em.edit")}
+              </Button>
+            </div>
+          </SettingRow>
+          {editing && <EditServers email={email} set={set} done={() => setEditing(false)} />}
+        </>
+      )}
+      <OwnerLink channelId={channel.id} name="Email" />
+      {channel.email && (
+        <EmailSignatures
+          target={{ transport: "smtp", account: channel.id, sender: channel.email.address, label: channel.label }}
+        />
+      )}
     </>
   );
 }
 
 function EditServers({
   email,
-  save,
+  set,
   done,
 }: {
   email: ChannelEmail;
-  save(patch: Partial<ChannelDraft>): Promise<boolean>;
+  set(patch: Partial<ChannelDraft>): void;
   done(): void;
 }) {
   const t = useT();
   const form = useMailForm(email);
-  const [busy, setBusy] = useState(false);
-  const apply = async () => {
-    setBusy(true);
+  const apply = () => {
     const kept = { mailbox: email.mailbox, allowed: email.allowed, trust_unverified: email.trust_unverified };
-    const ok = await save({ email: { ...kept, ...form.value() } });
-    setBusy(false);
-    if (ok) done();
+    set({ email: { ...kept, ...form.value() } });
+    done();
   };
   return (
     <div className="tgsetup emailedit">
@@ -489,7 +370,7 @@ function EditServers({
         <Button size="sm" variant="ghost" onClick={done}>
           {t("common.cancel")}
         </Button>
-        <Button size="sm" variant="secondary" disabled={!form.ok} loading={busy} onClick={() => void apply()}>
+        <Button size="sm" variant="secondary" disabled={!form.ok} onClick={apply}>
           {t("common.save")}
         </Button>
       </div>

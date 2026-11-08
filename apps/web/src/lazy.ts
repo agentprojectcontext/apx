@@ -27,6 +27,12 @@ export const AppScreen = lazy(() => import("./apps/AppScreen.tsx").then((m) => (
 export const ChannelScreen = lazy(() =>
   import("./channels/ChannelScreen.tsx").then((m) => ({ default: m.ChannelScreen })),
 );
+export const ChannelsScreen = lazy(() =>
+  import("./channels/ChannelsScreen.tsx").then((m) => ({ default: m.ChannelsScreen })),
+);
+export const ChannelDialogs = lazy(() =>
+  import("./channels/account/AccountDialog.tsx").then((m) => ({ default: m.ChannelDialogs })),
+);
 export const ConfigModal = lazy(() => import("./config/ConfigModal.tsx").then((m) => ({ default: m.ConfigModal })));
 export const TaskPeek = lazy(() => import("./tasks/TaskPeek.tsx").then((m) => ({ default: m.TaskPeek })));
 export const TaskBundle = lazy(() => import("./inbox/TaskBundle.tsx").then((m) => ({ default: m.TaskBundle })));

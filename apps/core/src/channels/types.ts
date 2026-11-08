@@ -16,6 +16,10 @@ export type InboundFile = NonNullable<Inbound["files"]>[number];
 
 export type ChannelConfig = Omit<ChannelInfo, "token_set" | "token_hint" | "status" | "error" | "account">;
 
+/** Who answers a channel's contacts and rooms: its own agent when it has one, else the channel's. */
+export const contactAgentOf = (cfg: Pick<ChannelConfig, "agent_id" | "contacts_agent_id">): string =>
+  cfg.contacts_agent_id ?? cfg.agent_id;
+
 type AdapterCaps = {
   /** Shows "typing…" while the agent works. */
   typing: boolean;
@@ -79,7 +83,7 @@ export type AdapterIO = {
   identified?(who: { account: string; owner?: string }): void;
   /**
    * This channel's public address for its platform's webhooks (`<base>/hooks/<channel id>`), when the owner turned
-   * one on (Settings › Channels › Public address); none otherwise. It can change while the channel runs (ngrok).
+   * one on (an account's settings › Public address); none otherwise. It can change while the channel runs (ngrok).
    */
   hookUrl?(): string | undefined;
   signal: AbortSignal;

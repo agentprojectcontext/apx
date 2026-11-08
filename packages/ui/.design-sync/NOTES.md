@@ -14,6 +14,9 @@
 - Preview content uses generic names only (Acme, Northwind, Globex, Roby, Ledger, Scout…). Never real client/project names.
 
 ## Pending re-sync
+- SegmentedControl gained `disabled` (the choice shows, dimmed, and cannot change); re-sync it and its CSS.
+- SettingRow's control wraps its own items (a picker and its button) inside the screen's width on a phone; re-sync
+  the shared CSS bundle.
 - ResizeHandle can fold its column (`collapsed`, `collapsedWidth`, `onCollapsedChange`): a click or Enter toggles
   it, a drag past halfway to the rail snaps it. The panel's sidebar uses it in place of a topbar button; not in the
   Claude Design project yet.

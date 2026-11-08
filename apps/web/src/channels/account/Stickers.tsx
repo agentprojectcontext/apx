@@ -4,10 +4,10 @@
 import type { Sticker } from "@apx/protocol";
 import { Badge, IconButton, Icons, Input, SettingRow, Switch } from "@apx/ui";
 import { useEffect, useState } from "react";
-import { useMediaUrl } from "../chat/parts/useMediaUrl.ts";
-import { loadStickers, removeSticker, setSticker, setStickersAuto } from "../data/channels.ts";
-import { useT } from "../i18n/index.ts";
-import { SubHead } from "./SectionHead.tsx";
+import { useMediaUrl } from "../../chat/parts/useMediaUrl.ts";
+import { SubHead } from "../../config/SectionHead.tsx";
+import { loadStickers, removeSticker, setSticker, setStickersAuto } from "../../data/channels.ts";
+import { useT } from "../../i18n/index.ts";
 
 export function Stickers({ platform, label }: { platform: string; label: string }) {
   const t = useT();

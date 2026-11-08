@@ -15,7 +15,8 @@ export type AppPlace =
   | { kind: "inbox"; open: () => void }
   | { kind: "chat"; id: string; open: () => void }
   | { kind: "project"; id: string; open: () => void }
-  | { kind: "computer"; open: () => void };
+  | { kind: "computer"; open: () => void }
+  | { kind: "channels"; open: () => void };
 
 /** The place an `apx:` link names; undefined when it names none. */
 export function appPlace(href: string): AppPlace | undefined {
@@ -28,6 +29,8 @@ export function appPlace(href: string): AppPlace | undefined {
   switch (to) {
     case "settings":
     case "config": {
+      // Channels left Settings for a screen of their own; links written before still reach it.
+      if (a === "channels") return { kind: "channels", open: () => go.view("channels") };
       const section: ConfigSection | undefined = a === undefined ? "account" : isIn(CONFIG_SECTIONS, a) ? a : undefined;
       return section ? { kind: "settings", section, open: () => go.config(section) } : undefined;
     }
@@ -53,6 +56,8 @@ export function appPlace(href: string): AppPlace | undefined {
         kind: "computer",
         open: () => (nav.get().threadId && where === "computer" ? go.panel("computer") : go.view("computers")),
       };
+    case "channels":
+      return { kind: "channels", open: () => go.view("channels") };
     case "thread":
     case "chat":
       return a ? { kind: "chat", id: a, open: () => go.inboxThread(a) } : undefined;

@@ -10,10 +10,18 @@ import Shot from "../../../../components/Shot.astro";
 import Terminal from "../../../../components/Terminal.astro";
 
 Un canal te deja hablar con tus agentes desde una app que ya usás, y deja que otras personas también les escriban.
-Los canales se conectan en **Configuración › Canales**. Después cada uno aparece en la barra lateral, bajo
-**Canales**, con sus contactos y sus chats.
+Los canales se conectan en **Canales**, una pantalla propia en la barra lateral: lista cada cuenta con quién la
+atiende y qué está esperando, y cada una abre sus chats o su configuración (el lápiz). Cada cuenta aparece también en
+la barra lateral, bajo **Canales**, con sus contactos y sus chats; su nombre arriba cambia a otra cuenta.
 
-<Shot name="settings-channels" alt="Configuración, sección Canales: un bot de Telegram conectado con su estado, quién responde y cómo se comporta" caption="Configuración › Canales" />
+<Shot name="settings-channels" alt="La pantalla Canales: cada cuenta de mensajería con quién la atiende, su estado y quién espera aprobación" caption="Canales" />
+
+La configuración de una cuenta está agrupada en partes y se guarda junta con **Guardar**: **Cuenta** (su nombre,
+conexión y sesión), **Quién responde** (con quién hablás, dónde van tus mensajes, quién responde a tus contactos),
+**Comportamiento** (un mensaje mientras trabaja, la web, el horario), **Stickers y emojis** en las apps de chat,
+**Salas** donde la app las tiene, **Contactos** (todas las personas de la cuenta, y **Agregar contacto**),
+**Aprobaciones** (qué recibe alguien nuevo, y quién espera) y **Actividad** (lo que salió). Una cuenta nueva abre en
+**Cuenta**: ponele nombre y conectala; el resto se habilita cuando está conectada, y **Crear canal** la guarda.
 
 ## Canales disponibles
 
@@ -40,7 +48,11 @@ servidores MCP ni dispositivos vinculados. Todos tienen instrucciones abajo; alg
 | Microsoft Teams | [Bot Azure](/es/channels/teams-line/#microsoft-teams); requiere webhook HTTPS público. |
 | LINE | [Cuenta oficial](/es/channels/teams-line/#line); requiere webhook HTTPS público. |
 
-Empezá en **Configuración › Canales › Agregar canal**. Conectar no prueba que todas las salas, archivos o botones
+Empezá en **Canales › Nuevo canal**. Una segunda cuenta de la misma app (otro número de WhatsApp, otro bot,
+otra casilla) es un **Nuevo canal** más de esa app. Cada cuenta es
+un canal propio: su propio inicio de sesión, contactos, chats y agentes, su propia fila en la barra lateral y un
+**Nombre** que podés cambiar en su configuración. iMessage es la excepción: usa la única cuenta de Mensajes de la Mac.
+Conectar no prueba que todas las salas, archivos o botones
 funcionen: seguí la guía del servicio y probá recepción y respuesta. Leé [dispositivos](/es/devices/phone/) para la
 app Android e [integraciones](/es/extend/integrations/) para servicios conectados que no son canales.
 
@@ -63,8 +75,12 @@ y lo que se te contestó ahí. En Home, un mensaje que llegó o salió por una a
 junto a su hora (pasá el mouse: **Enviado por Telegram**, **Llegó por WhatsApp**), así sabés que también le llegó a tu
 teléfono o a un contacto, no solo a la app.
 
-Si preferís tener un canal aparte, poné **Tus mensajes** en **Chat propio** en la configuración de ese canal. Tus
-mensajes desde ahí tienen entonces su propio chat.
+**Con quién hablás** elige el agente que te responde en un canal: tu secretaria o el responsable de uno de tus
+proyectos. Con tu secretaria, **Tus mensajes** elige entre Home y **Chat propio**, un chat propio de ese canal. El
+responsable de un proyecto siempre te responde en el chat propio del canal: Home es tu conversación con la secretaria,
+así que ahí **Tus mensajes** queda en **Chat propio**. **Quién responde a tus contactos** elige, aparte, quién responde a
+quienes escriben al canal. Cambiar cualquiera de los dos pasa los chats que ya están abiertos, con su historial; un chat
+que le pasaste a otro agente se queda con ese agente.
 
 ## Qué canales actúan con tu palabra
 
@@ -188,7 +204,7 @@ terminal muestra más:
 <Terminal command="apx channels outbox">{`10-08T09:14  sent      telegram  reply   Tu pedido salió esta mañana…
 10-08T09:02  sent      telegram  notice  Resumen de la mañana: 3 tareas vencen hoy…`}</Terminal>
 
-En **Avisos para vos**, **Las confirmaciones te siguen** manda a tu canal una pregunta que un agente hizo en la app y
+En **Configuración › Interrupciones**, **Las confirmaciones te siguen** manda a tu canal una pregunta que un agente hizo en la app y
 nadie contestó (al minuto, a los 2 o a los 10 minutos, o nunca). Las preguntas de tu super-agente llegan enteras, con
 botones en Telegram y opciones numeradas en WhatsApp y Signal; en los demás te recuerda responderla en la app ([qué
 canales actúan con tu palabra](#qué-canales-actúan-con-tu-palabra)). La pregunta de otro agente llega como una línea de
@@ -219,14 +235,14 @@ las respuestas habladas para ese chat; para eso también hace falta una voz en *
 | Microsoft Teams, LINE | Sin verificar | Un bot (Azure Bot, Messaging API de LINE) que entrega a una [dirección pública](#una-dirección-pública-para-teams-y-line) |
 
 <Aside type="note">
-La terminal solo agrega bots de Telegram. Todos los demás canales se configuran en **Configuración › Canales**.
+La terminal solo agrega bots de Telegram. Todos los demás canales se configuran en **Canales**.
 </Aside>
 
 ## Una dirección pública para Teams y LINE
 
 Teams y LINE no dejan que un bot busque sus mensajes: mandan cada uno a una dirección web. APX sólo escucha en tu
 computadora, así que estos dos necesitan una **dirección pública**, que se configura en su pantalla de
-**Configuración › Canales**. Publica sólo una puerta aparte para webhooks (`…/hooks/<canal>`), nunca el panel ni la
+**Canales**. Publica sólo una puerta aparte para webhooks (`…/hooks/<canal>`), nunca el panel ni la
 API, y cada mensaje se verifica con la firma de la plataforma antes de que nada lo lea.
 
 | Cómo | Qué necesitás | La dirección |

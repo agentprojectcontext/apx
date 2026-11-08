@@ -1,10 +1,10 @@
 import type { ChannelInfo, ChannelRooms, RoomMode } from "@apx/protocol";
 import { Button, Icons, Input, Select, SettingRow, Switch, Tag, Textarea } from "@apx/ui";
 import { useEffect, useState } from "react";
-import { client } from "../data/client.ts";
-import { useData } from "../data/state.ts";
-import { type MessageKey, useT } from "../i18n/index.ts";
-import { SubHead } from "./SectionHead.tsx";
+import { SubHead } from "../../config/SectionHead.tsx";
+import { client } from "../../data/client.ts";
+import { useData } from "../../data/state.ts";
+import { type MessageKey, useT } from "../../i18n/index.ts";
 
 const MODES: RoomMode[] = ["mention", "useful", "always", "read"];
 const EMPTY: ChannelRooms = {

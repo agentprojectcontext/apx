@@ -105,7 +105,7 @@
       "count": 1,
       "reason": "custom-styled row, chip, tab or card control; moving it to Button/IconButton changes its look, so it needs a reviewed screenshot (rule 32)"
     },
-    "apps/web/src/config/EmailSection.tsx": {
+    "apps/web/src/channels/account/EmailAccount.tsx": {
       "count": 1,
       "reason": "custom-styled row, chip, tab or card control; moving it to Button/IconButton changes its look, so it needs a reviewed screenshot (rule 32)"
     },

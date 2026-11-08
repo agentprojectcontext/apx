@@ -117,11 +117,11 @@ test("SMTP account signatures stay isolated across mailbox selection and reload"
   });
   let addedId: string | undefined;
   try {
-    await open(page);
-    await openSettings(page);
-    const dialog = page.getByRole("dialog", { name: "Configuración", exact: true });
-    await dialog.getByRole("button", { name: "Canales", exact: true }).click();
-    await dialog.getByRole("radio", { name: "Email", exact: true }).click();
+    // A mailbox's signatures are in its account's settings, in Channels.
+    await open(page, "#view=channels");
+    await page.getByRole("button", { name: "Configuración de Signature mailbox" }).click();
+    // Named after the account it shows, which changes when the owner switches to another mailbox.
+    const dialog = page.getByRole("dialog");
     await expect(dialog.getByText("Firmas de email", { exact: true })).toBeVisible();
     await expect(dialog.getByLabel("Firma en texto plano", { exact: true })).toHaveValue("Existing signature");
     await expect(dialog.getByRole("button", { name: "Usar firma por defecto", exact: true })).toBeEnabled();
@@ -135,17 +135,28 @@ test("SMTP account signatures stay isolated across mailbox selection and reload"
     await expect
       .poll(async () => (await read()).find((e) => e.account === "signature-mail")?.text)
       .toBe("Acme support");
-    await dialog.getByRole("combobox", { name: "Cuenta de email" }).click();
-    await page.getByRole("option", { name: "Second mailbox · other@example.com" }).click();
+    await dialog.getByRole("button", { name: "Cambiar de cuenta" }).click();
+    await page.getByRole("menuitem", { name: "Second mailbox" }).click();
+    await expect(page.getByRole("dialog", { name: "Second mailbox" })).toBeVisible();
     await expect(dialog.getByLabel("Firma en texto plano", { exact: true })).toHaveValue("");
     await dialog.getByLabel("Firma en texto plano", { exact: true }).fill("Second account signature");
     await dialog.getByRole("button", { name: "Guardar firma", exact: true }).click();
     await expect
       .poll(async () => (await read()).find((e) => e.account === "signature-mail-two")?.text)
       .toBe("Second account signature");
-    await dialog.getByRole("button", { name: "Agregar cuenta de email", exact: true }).click();
-    await expect(dialog.getByLabel("Dirección", { exact: true })).toBeVisible();
-    await dialog.getByRole("button", { name: "Cancelar", exact: true }).click();
+    // Another mailbox is a new channel of its own.
+    await page.keyboard.press("Escape");
+    const newMailbox = async () => {
+      await page.getByRole("region", { name: "Canales" }).getByRole("button", { name: "Nuevo canal" }).click();
+      await page
+        .getByRole("dialog", { name: "Nuevo canal" })
+        .getByRole("button", { name: /^Email/ })
+        .click();
+      return page.getByRole("dialog", { name: "Nuevo canal de Email" });
+    };
+    let added = await newMailbox();
+    await expect(added.getByLabel("Dirección", { exact: true })).toBeVisible();
+    await added.getByRole("button", { name: "Cancelar", exact: true }).click();
     await page.route("**/rpc/channels.set", async (route) => {
       const params = route.request().postDataJSON() as Params<"channels.set">;
       expect(params.channel?.type).toBe("email");
@@ -155,12 +166,12 @@ test("SMTP account signatures stay isolated across mailbox selection and reload"
       const result = await rpc("channels.set", { ...params, channel: { ...params.channel, enabled: false } });
       await route.fulfill({ json: { ok: true, result } });
     });
-    await dialog.getByRole("button", { name: "Agregar cuenta de email", exact: true }).click();
-    await dialog.getByLabel("Dirección", { exact: true }).fill("new@example.com");
-    await dialog.getByLabel("Correo entrante (IMAP) · Servidor", { exact: true }).fill("127.0.0.1");
-    await dialog.getByLabel("Correo saliente (SMTP) · Servidor", { exact: true }).fill("127.0.0.1");
-    await dialog.getByLabel("Contraseña de aplicación", { exact: true }).fill("test-only-password");
-    await dialog.getByRole("button", { name: "Conectar casilla", exact: true }).click();
+    added = await newMailbox();
+    await added.getByLabel("Dirección", { exact: true }).fill("new@example.com");
+    await added.getByLabel("Correo entrante (IMAP) · Servidor", { exact: true }).fill("127.0.0.1");
+    await added.getByLabel("Correo saliente (SMTP) · Servidor", { exact: true }).fill("127.0.0.1");
+    await added.getByLabel("Contraseña de aplicación", { exact: true }).fill("test-only-password");
+    await added.getByRole("button", { name: "Conectar", exact: true }).click();
     await expect
       .poll(
         async () =>
@@ -169,9 +180,7 @@ test("SMTP account signatures stay isolated across mailbox selection and reload"
       .toBe("new@example.com");
     await page.unroute("**/rpc/channels.set");
     await page.reload();
-    await openSettings(page);
-    await dialog.getByRole("button", { name: "Canales", exact: true }).click();
-    await dialog.getByRole("radio", { name: "Email", exact: true }).click();
+    await page.getByRole("button", { name: "Configuración de Signature mailbox" }).click();
     await expect(dialog.getByText("Firmas de email", { exact: true })).toBeVisible();
     await dialog.getByRole("radio", { name: "Texto plano", exact: true }).click();
     await expect(dialog.getByLabel("Firma en texto plano", { exact: true })).toHaveValue("Acme support");

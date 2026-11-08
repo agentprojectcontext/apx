@@ -8,7 +8,7 @@ import { defineTool, type Tool } from "./types.ts";
 const MAX_OFFERS = 3;
 
 /** Where the owner connects it in the app, for a chat the card does not reach (a channel). */
-const WHERE = { integration: "Resources › Integrations", channel: "Settings › Channels" } as const;
+const WHERE = { integration: "Resources › Integrations", channel: "Channels" } as const;
 
 const named = (o: ConnectOffer) => `${o.label} (${o.kind}${o.coming ? ", coming soon" : ""})`;
 

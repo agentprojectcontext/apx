@@ -21,7 +21,7 @@ platform's messaging endpoint: a connected bot credential cannot fix delivery to
 1. In Azure **App registrations**, create a **single-tenant** registration. Copy the Application (client) ID and
    Directory (tenant) ID.
 2. In **Certificates & secrets**, create a client secret and copy its value.
-3. In APX **Settings › Channels › Add channel › Microsoft Teams**, enter these three values and configure Public address.
+3. In APX **Channels › New channel › Microsoft Teams**, enter these three values and configure Public address.
 4. Create an Azure Bot using that registration and set its **Messaging endpoint** to APX's channel address.
 5. Enable Microsoft Teams in the Azure Bot's Channels and install the bot in Teams using Developer Portal or a
    manifest with the bot's app ID.
@@ -35,7 +35,7 @@ The channel supports personal chats and listed shared conversations, not unrestr
 
 1. In LINE Developers, create a provider and a **Messaging API** channel for your Official Account. Copy the
    **Channel secret** from Basic settings and issue a long-lived **Channel access token** on the Messaging API tab.
-2. In APX **Settings › Channels › Add channel › LINE**, enter both values and configure Public address.
+2. In APX **Channels › New channel › LINE**, enter both values and configure Public address.
 3. Copy APX's exact channel address into LINE's **Webhook URL**, turn on **Use webhook** and press **Verify**.
 4. In Official Account Manager, disable greeting and auto-reply messages to avoid duplicate answers.
 5. Write to the account and enter its code in **This is my LINE** for your own account. Invite the bot to groups and

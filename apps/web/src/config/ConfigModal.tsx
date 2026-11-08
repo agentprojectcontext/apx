@@ -9,7 +9,6 @@ import { AdvancedSection } from "./AdvancedSection.tsx";
 import { AgentsSection } from "./AgentsSection.tsx";
 import { ApiTokensSection } from "./ApiTokensSection.tsx";
 import { BrowserSection } from "./BrowserSection.tsx";
-import { ChannelsSection } from "./ChannelsSection.tsx";
 import { DesktopSection } from "./DesktopSection.tsx";
 import { DevicesSection } from "./DevicesSection.tsx";
 import { EnginesSection } from "./EnginesSection.tsx";
@@ -51,7 +50,6 @@ const GROUPS: { label: MessageKey; items: NavEntry[] }[] = [
     items: [
       { id: "agents", label: "config.agents", icon: <Icons.Bot /> },
       { id: "profile", label: "config.superagent", icon: <Icons.Crown /> },
-      { id: "channels", label: "config.channels", icon: <Icons.MessageCircle /> },
       { id: "interruptions", label: "config.interruptions", icon: <Icons.BellOff /> },
     ],
   },
@@ -167,8 +165,6 @@ function Body({ section }: { section: ConfigSection }) {
       return <ServicesSection kind="speech" />;
     case "images":
       return <ServicesSection kind="image" />;
-    case "channels":
-      return <ChannelsSection />;
     case "interruptions":
       return <InterruptionsSection />;
     case "profile":
