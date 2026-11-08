@@ -22,7 +22,8 @@
     "./flow-graph": "./src/flow-graph.ts",
     "./flow-methods": "./src/flow-methods.ts",
     "./flow-history": "./src/flow-history.ts",
-    "./table-cells": "./src/table-cells.ts"
+    "./table-cells": "./src/table-cells.ts",
+    "./team-tree": "./src/team-tree.ts"
   },
   "scripts": {
     "typecheck": "tsc -p .",
