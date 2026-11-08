@@ -117,7 +117,9 @@ and which one went on.
 
 A model that hits its account's usage limit (a plan's quota, a long rate limit) is skipped until the time the provider
 gave for its reset, or for 10 minutes when it gave none: later turns go to the next model at once instead of asking it
-again. When no model of the chain can answer, the turn stops and says when the limit lifts; once it lifts, APX picks
+again, and the notice repeats what the provider said when it was held. A request the model refuses (an image too large
+for it, say) is not a usage limit: that model is asked again on the next turn. When no model of the chain can answer,
+the turn stops and says when the limit lifts; once it lifts, APX picks
 the turn back up in the same chat, with what it had done, and the agent finishes it. It does this only for the chat's
 last turn and up to three times in a row, never for a routine (its next run comes on schedule) nor while agents are
 paused. A turn stopped more than a day ago stays as it is.

@@ -170,7 +170,9 @@ export function createLlm(opts: {
         const ref = `${t.provider.id}/${t.model}`;
         const hold = held.get(ref);
         if (hold && hold.until > now()) {
-          failed.push({ model: ref, why: "its usage limit has not lifted yet" });
+          // What the provider said when it was held, so the owner can tell a real plan limit from a misread one.
+          const said = hold.error.message.slice(ref.length + 2, ref.length + 202);
+          failed.push({ model: ref, why: `its usage limit has not lifted yet (${said})` });
           limited.push(hold.error);
           continue;
         }
