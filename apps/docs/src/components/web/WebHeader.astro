@@ -1,5 +1,7 @@
 ---
 import { getCollection } from "astro:content";
+import { Image } from "astro:assets";
+import { BLOG, blogPath, publishedPosts } from "../../data/blog.mjs";
 import logo from "../../assets/logo.png";
 import blobs from "../../data/blobs.json";
 import { featured, labels } from "../../data/comparisons";
@@ -48,6 +50,8 @@ const guides: [string, string, BlobName][] = [
 const [lead, ...rest] = featured;
 const listed = rest.slice(0, 3);
 const tones = ["warm", "dusk", "sea"] as const;
+const recentPosts = publishedPosts(await getCollection("blog")).filter(({ data }) => data.lang === lang).slice(0, 4);
+const [latestPost, ...otherPosts] = recentPosts;
 ---
 <script is:inline>
   (() => {
@@ -135,7 +139,27 @@ const tones = ["warm", "dusk", "sea"] as const;
           )
         }
       </div>
-      <a href={href(`${pre}/blog/`)} aria-current={route.startsWith("/blog/") ? "page" : undefined}>Blog</a>
+      <div class="nav__drop nav__blog">
+        <a class="nav__drop-link" href={href(`${pre}/blog/`)} aria-current={route.startsWith("/blog/") ? "page" : undefined}>Blog<svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M2 3.5 5 6.5 8 3.5" /></svg></a>
+        <div class="nav__menu">
+          <div class="nav__menu-card">
+            {latestPost ? <div class="nav__menu-grid">
+              <a class="nav__feat nav__blog-feature" href={href(blogPath(latestPost.data))}>
+                {latestPost.data.image && <Image src={latestPost.data.image.src} alt="" width={320} format="webp" loading="lazy" />}
+                <span class="nav__feat-name">{latestPost.data.title}</span>
+                <span class="nav__feat-tag">{latestPost.data.description}</span>
+              </a>
+              <ul class="nav__menu-list">
+                {otherPosts.map(({ data }) => <li><a href={href(blogPath(data))}>
+                  {data.image && <Image class="nav__blog-thumb" src={data.image.src} alt="" width={96} format="webp" loading="lazy" />}
+                  <span class="nav__menu-text"><b>{data.title}</b><span>{data.description}</span></span>
+                </a></li>)}
+              </ul>
+            </div> : <p class="nav__blog-empty">{BLOG[lang].emptyTitle}</p>}
+            <p class="nav__menu-foot"><span>{BLOG[lang].description}</span><a href={href(`${pre}/blog/`)}>{BLOG[lang].back} →</a></p>
+          </div>
+        </div>
+      </div>
       <a data-home-nav="questions" href={href(`${pre}/#questions`)}>{t.nav.questions}</a>
       <a class="nav__sheet-get" href={href(`${pre}/#download`)}>{t.getApp}</a>
     </div>

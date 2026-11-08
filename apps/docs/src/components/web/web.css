@@ -366,6 +366,24 @@ body.h {
   background: var(--apx-fill-strong);
   color: var(--apx-fg);
 }
+.nav__blog-feature > img {
+  width: 100%;
+  height: auto;
+  aspect-ratio: 16 / 9;
+  object-fit: cover;
+  border-radius: 8px;
+  margin-bottom: 16px;
+}
+.nav__blog-thumb {
+  width: 64px;
+  height: 40px;
+  object-fit: cover;
+  border-radius: 6px;
+  flex-shrink: 0;
+}
+.nav__blog-empty {
+  padding: 24px;
+}
 .nav__drop-link svg {
   transition: transform 0.25s;
 }

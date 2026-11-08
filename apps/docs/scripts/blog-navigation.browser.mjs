@@ -10,6 +10,20 @@ try {
       await page.goto(`${base}${pre}/blog/`);
       await expect(page.locator('.nav__links a[aria-current="page"]')).toHaveText("Blog");
       await expect(page.locator('[data-home-nav][aria-current]')).toHaveCount(0);
+      if (width === 1440) {
+        await page.locator('.nav__blog > a').focus();
+        await expect(page.locator('.nav__blog .nav__menu')).toBeVisible();
+        const recent = page.locator('.nav__blog .nav__feat');
+        if (await recent.count()) {
+          const destination = await recent.getAttribute('href');
+          await recent.click();
+          await expect(page).toHaveURL(`${new URL(base).origin}${destination}`);
+          await page.goto(`${base}${pre}/blog/`);
+        }
+        await page.locator('.nav__blog > a').focus();
+        await page.locator('.nav__blog .nav__menu-foot a').click();
+        await expect(page).toHaveURL(`${base}${pre}/blog/`);
+      }
       const article = page.locator(".blog-row").first();
       if (await article.count()) {
         await article.click();
