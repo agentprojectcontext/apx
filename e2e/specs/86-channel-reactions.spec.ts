@@ -60,7 +60,7 @@ test("the channel's settings list the stickers kept: one no model saw waits; the
   await open(page);
   await page.getByRole("button", { name: "WhatsApp", exact: true }).click();
   await page.getByRole("button", { name: "Configuración del canal" }).click();
-  await page.getByRole("dialog").getByRole("button", { name: "Comportamiento" }).click();
+  await page.getByRole("dialog").getByRole("button", { name: "Stickers y emojis" }).click();
   await expect(page.getByText("Stickers", { exact: true })).toBeVisible();
   // New ones are the agent's by default; this one no model could see, so it waits for the owner.
   await expect(page.getByRole("switch", { name: "Aprobar stickers nuevos automáticamente" })).toBeChecked();

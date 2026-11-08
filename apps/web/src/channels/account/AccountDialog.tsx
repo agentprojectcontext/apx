@@ -29,6 +29,7 @@ import { BehaviorPane } from "./BehaviorPane.tsx";
 import { ContactsPane } from "./ContactsPane.tsx";
 import { keptAfter } from "./draft.ts";
 import { isRoomsKind, RoomsSection } from "./RoomsPane.tsx";
+import { hasStickersPane, StickersPane } from "./StickersPane.tsx";
 import type { Create, PaneProps } from "./types.ts";
 
 // The dialog portals outside .shell, so it gets its sizes here instead of the --shell-* variables.
@@ -39,12 +40,13 @@ const SIZE = {
 } as CSSProperties;
 
 const GROUPS: { label: MessageKey; panes: { id: Pane; icon: ReactNode }[] }[] = [
-  { label: "acct.group.general", panes: [{ id: "account", icon: <Icons.Settings /> }] },
   {
-    label: "acct.group.answering",
+    label: "acct.group.general",
     panes: [
+      { id: "account", icon: <Icons.Settings /> },
       { id: "answer", icon: <Icons.Bot /> },
       { id: "behavior", icon: <Icons.ListChecks /> },
+      { id: "stickers", icon: <Icons.Sparkles /> },
       { id: "rooms", icon: <Icons.Hash /> },
     ],
   },
@@ -62,6 +64,7 @@ const LEAD: Record<Pane, MessageKey> = {
   account: "acct.lead.account",
   answer: "acct.lead.answer",
   behavior: "acct.lead.behavior",
+  stickers: "acct.lead.stickers",
   rooms: "acct.lead.behavior",
   contacts: "acct.lead.contacts",
   approvals: "acct.lead.approvals",
@@ -264,7 +267,9 @@ function AccountDialog({ edit }: { edit: AccountEdit }) {
   const open = !isNew || connected;
   const panes = GROUPS.map((g) => ({
     ...g,
-    panes: g.panes.filter((p) => p.id !== "rooms" || isRoomsKind(edit.kind)),
+    panes: g.panes.filter(
+      (p) => (p.id !== "rooms" || isRoomsKind(edit.kind)) && (p.id !== "stickers" || hasStickersPane(edit.kind)),
+    ),
   }));
   const trailing = (p: Pane): ReactNode => {
     if (!channel) return undefined;
@@ -339,6 +344,8 @@ function AccountDialog({ edit }: { edit: AccountEdit }) {
               <AnswerPane {...paneProps} />
             ) : shown === "behavior" ? (
               <BehaviorPane {...paneProps} />
+            ) : shown === "stickers" ? (
+              <StickersPane {...paneProps} />
             ) : shown === "rooms" && isRoomsKind(edit.kind) ? (
               <RoomsSection
                 channel={{ ...paneProps.channel, ...(paneProps.draft.rooms ? { rooms: paneProps.draft.rooms } : {}) }}

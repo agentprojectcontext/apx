@@ -345,7 +345,6 @@ export const esChannels: Partial<Record<MessageKey, string>> = {
   "acct.newTitle": "Nuevo canal de {kind}",
   "acct.notConnected": "Sin conectar",
   "acct.group.general": "General",
-  "acct.group.answering": "Atención",
   "acct.group.people": "Personas",
   "acct.group.record": "Registro",
   "acct.pane.account": "Cuenta",
@@ -392,9 +391,9 @@ export const esChannels: Partial<Record<MessageKey, string>> = {
   "acct.stickers": "Stickers",
   "wa.qr": "Código QR",
   "wa.linkTitle": "Vinculá el número de WhatsApp",
-  "acct.moreAgents": "Ver los {n}",
-  "acct.fewerAgents": "Ver menos",
   "acct.removeTitle": "¿Desconectar {name}?",
   "acct.removeBody":
     "Se borra su sesión y nadie responde más ahí. Sus conversaciones quedan en APX; para usarla de nuevo, volvés a conectarla.",
+  "acct.pane.stickers": "Stickers y emojis",
+  "acct.lead.stickers": "Cómo responde sin palabras en esta cuenta.",
 };

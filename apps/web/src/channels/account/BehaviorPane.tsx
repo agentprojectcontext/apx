@@ -1,26 +1,18 @@
-import type { ChannelHours, ChannelInfo, ChannelResearch } from "@apx/protocol";
+import type { ChannelHours, ChannelResearch } from "@apx/protocol";
 import { CHANNEL_DEFAULTS } from "@apx/protocol/client";
 import { Input, SegmentedControl, SettingRow, Switch } from "@apx/ui";
 import { WeekDays } from "../../common/pickers/WeekDays.tsx";
 import type { ChannelDraft } from "../../data/channels.ts";
 import { useOwnerTimeZone } from "../../data/owner.ts";
 import { useT } from "../../i18n/index.ts";
-import { CHANNEL_KINDS, isChannelKind } from "../kinds.ts";
-import { Stickers } from "./Stickers.tsx";
 import type { PaneProps } from "./types.ts";
-
-/** Chat channels, where the agent may answer with an emoji (as a reaction, or as text where there are none). */
-const CHATS = new Set<ChannelInfo["type"]>(["telegram", "whatsapp", "discord", "slack", "imessage"]);
-/** Channels whose stickers the agent keeps and may send. */
-const STICKERS = new Set<ChannelInfo["type"]>(["telegram", "whatsapp"]);
 
 /** Hours a channel starts with when the owner turns them on: every day, a working day's span. */
 const FIRST_HOURS: ChannelHours = { days: [1, 2, 3, 4, 5, 6, 0], from: "08:00", to: "22:00" };
 
-/** How it answers: a message while it works, a message that needs no answer, the web, and its hours. */
-export function BehaviorPane({ channel, draft, set }: PaneProps) {
+/** How it answers: a message while it works, the web, and its hours. */
+export function BehaviorPane({ draft, set }: Pick<PaneProps, "draft" | "set">) {
   const t = useT();
-  const reactions = draft.reactions ?? CHANNEL_DEFAULTS.reactions;
   const research = draft.research ?? CHANNEL_DEFAULTS.research;
   return (
     <>
@@ -37,19 +29,6 @@ export function BehaviorPane({ channel, draft, set }: PaneProps) {
           ]}
         />
       </SettingRow>
-      {CHATS.has(channel.type) && (
-        <SettingRow
-          title={t("ch.reactions")}
-          description={t(reactions ? "ch.reactionsHint.on" : "ch.reactionsHint.off")}
-        >
-          <Switch
-            size="sm"
-            checked={reactions}
-            onCheckedChange={(on) => set({ reactions: on })}
-            aria-label={t("ch.reactions")}
-          />
-        </SettingRow>
-      )}
       <SettingRow title={t("ch.research")} description={t(`ch.researchHint.${research}`)}>
         <SegmentedControl
           size="sm"
@@ -64,9 +43,6 @@ export function BehaviorPane({ channel, draft, set }: PaneProps) {
         />
       </SettingRow>
       <Hours hours={draft.hours} set={set} />
-      {STICKERS.has(channel.type) && isChannelKind(channel.type) && (
-        <Stickers platform={channel.type} label={t(CHANNEL_KINDS[channel.type].name)} />
-      )}
     </>
   );
 }

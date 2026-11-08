@@ -327,7 +327,6 @@ export const enChannels = {
   "acct.newTitle": "New {kind} channel",
   "acct.notConnected": "Not connected",
   "acct.group.general": "General",
-  "acct.group.answering": "Answering",
   "acct.group.people": "People",
   "acct.group.record": "Record",
   "acct.pane.account": "Account",
@@ -340,7 +339,7 @@ export const enChannels = {
   "acct.lead.account": "This account's connection and its name in APX.",
   "acct.lead.accountNew": "Name it and connect the account. The rest opens once it is connected.",
   "acct.lead.answer": "The agents that answer on this account.",
-  "acct.lead.behavior": "How it answers on this account. What you change here applies only to it.",
+  "acct.lead.behavior": "How it answers on this account: what you change here applies only to it.",
   "acct.lead.contacts":
     "Everyone on this account, also those who have not written yet. Approving here does not approve them on other accounts.",
   "acct.lead.approvals": "Who wrote for the first time and waits for you to let them in.",
@@ -374,9 +373,9 @@ export const enChannels = {
   "acct.stickers": "Stickers",
   "wa.qr": "QR code",
   "wa.linkTitle": "Link the WhatsApp number",
-  "acct.moreAgents": "Show all {n}",
-  "acct.fewerAgents": "Show fewer",
   "acct.removeTitle": "Disconnect {name}?",
   "acct.removeBody":
     "Its sign-in is removed and nobody answers there any more. Its chats stay in APX; to use it again, connect it again.",
+  "acct.pane.stickers": "Stickers and emoji",
+  "acct.lead.stickers": "How it answers without words on this account.",
 } as const;
