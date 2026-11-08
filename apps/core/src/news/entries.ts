@@ -9,6 +9,7 @@ import { AGENT_FALLBACKS_NEWS } from "./agent-fallbacks.ts";
 import { BROWSER_EDIT_NEWS } from "./browser-edit.ts";
 import { BROWSER_JAVASCRIPT_NEWS } from "./browser-javascript.ts";
 import { BROWSER_SIGN_IN_NEWS } from "./browser-sign-in.ts";
+import { CHANNEL_SERVICE_NEWS } from "./channel-service.ts";
 import { CHROME_TABS_NEWS } from "./chrome-tabs.ts";
 import { COMPUTER_POINTER_NEWS } from "./computer-pointer.ts";
 import { EXTERNAL_SESSIONS_NEWS } from "./external-sessions.ts";
@@ -84,6 +85,7 @@ export type NewsEntry = {
 };
 
 export const NEWS: readonly NewsEntry[] = [
+  CHANNEL_SERVICE_NEWS,
   TASK_GOALS_NEWS,
   TASK_COMMENTS_NEWS,
   COMPUTER_POINTER_NEWS,

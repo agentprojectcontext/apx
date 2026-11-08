@@ -394,6 +394,7 @@ export function WorkspaceScreen({
             host={host}
             online={workspace.online}
             onSelect={(id) => on.push(id === "apps" ? { kind: "apps" } : { kind: "more", id })}
+            freeSpace={workspace.freeSpace}
           />
         );
     }

@@ -48,6 +48,27 @@ Podés conectar más de una cuenta del mismo tipo. Abrí ese tipo de canal, eleg
 siguiente bot, número o buzón. Cada cuenta conserva por separado sus credenciales, contactos, salas e historial de
 entregas. La excepción es iMessage: usa la única identidad de Messages de la Mac donde corre APX.
 
+## Modos de atención a clientes (sin publicar)
+
+Cada cuenta tiene **Atención a clientes**, independiente de **Desconocidos**. Desconocidos define quién puede entrar;
+la atención define qué herramientas puede solicitar una persona admitida. Las cuentas existentes conservan
+**Atención base**.
+
+- **Atención base** mantiene las capacidades actuales de los contactos y la delegación del propietario en WhatsApp.
+- **Consultar super-agente** pide al super-agente que autorice cada operación propuesta. Una revisión rechazada,
+  fallida o incompleta no ejecuta nada. La autorización corresponde a esa operación y sus argumentos, no a todo el chat.
+- **Acceso total** permite solicitar las herramientas autorizadas del agente asignado, incluidos los MCP habilitados
+  y aprobados para su proyecto. Revisá las herramientas y sus datos antes de habilitarlo: una herramienta con acceso
+  amplio sigue teniendo ese alcance. Se conservan las confirmaciones del propietario y sus ajustes exclusivos.
+
+Los clientes siguen siendo contactos en todos los modos. Los chats de atención usan las instrucciones del agente
+sin cargar automáticamente la memoria privada del propietario ni otras conversaciones. Las salas públicas mantienen
+sus restricciones. Guardar otros ajustes conserva el modo de atención. Deshabilitar el acceso, bloquear al cliente
+o cambiar el agente invalida una operación que esté esperando revisión o confirmación.
+
+Para usar un MCP en atención, habilitalo en el proyecto del agente, elegí **Consultar super-agente** o **Acceso total**
+y probá desde una cuenta de cliente. No hace falta registrar al cliente como propietario.
+
 ## Tres palabras: canal, contacto, sala
 
 - Un **canal** es una app por la que habla APX: Telegram, WhatsApp, Discord, Slack, iMessage, Google Chat, SMS y más.
@@ -105,7 +126,7 @@ apx pairing me 482913          # esta dirección es mía (tuya, la del dueño)
 
 ## Los contactos están sellados
 
-Una persona aprobada es un **contacto**, con un rol: vos (dueño), contacto o bloqueado. El chat de un contacto está
+Una persona aprobada es un **contacto**, con un rol: vos (dueño), contacto o bloqueado. En **Atención base**, el chat de un contacto está
 **sellado**: el agente le contesta sin tools y sin nada de tu memoria, así que el mensaje de un desconocido no puede
 hacerlo actuar por vos.
 

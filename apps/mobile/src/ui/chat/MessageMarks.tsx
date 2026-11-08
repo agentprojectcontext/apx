@@ -1,6 +1,8 @@
 import { Text, View } from "react-native";
+import type { Via } from "../../chat/via";
 import { type Key, t } from "../../i18n";
 import type { Message } from "../../protocol";
+import { ChannelMark } from "../ChannelMark";
 import { Icon, type IconName } from "../Icon";
 import { makeStyles, useTheme } from "../theme";
 
@@ -23,6 +25,21 @@ export function DeliveryTicks({ state }: { state: Delivery }) {
   return (
     <View accessible accessibilityRole="image" accessibilityLabel={t(tick.label)}>
       <Icon name={tick.icon} size={13} color={color} strokeWidth={2} />
+    </View>
+  );
+}
+
+/** A small mark of the app a message went out or came in on, saying which way. */
+export function ViaMark({ via }: { via: Via }) {
+  const theme = useTheme();
+  const label = t(via.out ? "viaSent" : "viaReceived", { channel: via.label ?? t("viaOtherApp") });
+  return (
+    <View accessible accessibilityRole="image" accessibilityLabel={label}>
+      {via.kind === "chrome" ? (
+        <Icon name="Chrome" size={12} color={theme.fgSubtle} />
+      ) : (
+        <ChannelMark type={via.kind} size={12} />
+      )}
     </View>
   );
 }

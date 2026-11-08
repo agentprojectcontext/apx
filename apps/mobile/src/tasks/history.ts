@@ -11,7 +11,7 @@ export type HistoryLine = {
   vars: Record<string, string>;
 };
 
-export type HistoryKey =
+type HistoryKey =
   | "create"
   | "move"
   | "assign"

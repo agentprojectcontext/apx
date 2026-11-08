@@ -319,8 +319,8 @@ For site edits, from `apps/docs` (a standalone install, outside the root workspa
 
 ```bash
 pnpm install --frozen-lockfile
-DOCS_BASE=/apx pnpm build
-pnpm check                 # EN/ES page and heading structure, built internal routes and fragment targets
+DOCS_BASE=/ pnpm build
+DOCS_BASE=/ pnpm check                 # EN/ES page and heading structure, built internal routes and fragment targets
 ```
 
 Also run root `pnpm check:private` and `git diff --check`. The site check deliberately ignores external URLs and

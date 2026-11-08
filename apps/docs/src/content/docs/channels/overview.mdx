@@ -48,6 +48,26 @@ You can connect more than one account of the same type. Open that channel type, 
 the next bot, number or mailbox. Each account keeps separate credentials, contacts, rooms and delivery history. The
 exception is iMessage: it uses the one Messages identity of the Mac that runs APX.
 
+## Customer service modes (unreleased)
+
+Each account has **Customer service**, independently of **Strangers**. Strangers decides who may enter; customer
+service decides which tools an admitted person may request. Existing accounts keep **Base attention**.
+
+- **Base attention** keeps the current contact capabilities and the owner's WhatsApp handoff behavior.
+- **Consult super-agent** asks the super-agent to approve each proposed tool operation. A declined, failed or
+  incomplete review runs nothing. Approval applies to that operation and its arguments, not the entire chat.
+- **Full access** lets customers request the assigned agent's permitted tools, including MCP servers enabled and
+  approved for its project. Review the agent's tool and data scope before enabling it: broadly capable tools remain
+  broadly capable. Existing owner confirmations and owner-only settings restrictions still apply.
+
+Customers remain contacts in every mode. Service chats use the assigned agent's instructions without automatically
+loading private owner memory or other conversations. Public rooms keep their existing restrictions. Saving other
+channel settings preserves the service mode. Disabling access, blocking a customer or changing the assigned agent
+invalidates an operation that is waiting for review or confirmation.
+
+To use an MCP for customer service, enable it in the assigned agent's project, choose **Consult super-agent** or
+**Full access**, and test with a customer account. Linking your own phone as the owner is not required for customers.
+
 ## Three words: channel, contact, room
 
 - A **channel** is an app APX talks through: Telegram, WhatsApp, Discord, Slack, iMessage, Google Chat, SMS and more.
@@ -106,7 +126,7 @@ apx pairing me 482913          # this address is mine (yours, the owner's)
 
 ## Contacts are sealed
 
-An approved person is a **contact**, with a role: you (owner), contact, or blocked. A contact's chat is **sealed**:
+An approved person is a **contact**, with a role: you (owner), contact, or blocked. In **Base attention**, a contact's chat is **sealed**:
 the agent answers them with no tools and none of your memory, so a stranger's message can't make it act for you.
 
 Open a contact from the channel's screen to set:

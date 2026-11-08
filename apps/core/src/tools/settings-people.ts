@@ -59,6 +59,7 @@ function channelLine(store: Store, c: Channel): string {
     c.enabled ? "on" : "off",
     `answered by ${inlineName(store.agents.get(c.agent_id)?.name ?? c.agent_id)}`,
     `strangers: ${c.strangers}`,
+    `service: ${c.service_mode ?? "base"}`,
     `closers: ${c.closers ?? CHANNEL_DEFAULTS.closers}`,
     `research: ${c.research ?? CHANNEL_DEFAULTS.research}`,
     c.hours ? `hours ${hoursText(c.hours)}` : "any hour",
@@ -158,7 +159,7 @@ export const PEOPLE: Readonly<Record<string, Setting>> = {
         .join("\n") || "no channels set up.",
   },
   "channels.set": {
-    does: "change a channel already set up (id, and under channel only what changes: agent_id, strangers, rooms, hours when it answers contacts {days 0 = Sunday, from, to HH:MM in the owner's time zone} or null for any hour…); its sign-in, mail account and research stay the owner's",
+    does: "change a channel already set up (id, and under channel only what changes: agent_id, strangers, service_mode (base, review by the super-agent, full within the agent/project permissions), rooms, hours when it answers contacts {days 0 = Sunday, from, to HH:MM in the owner's time zone} or null for any hour…); its sign-in, mail account and research stay the owner's",
     says: (p, { store }) => `Change the channel ${inlineName(channelOf(store, p.id)?.label ?? str(p.id))}`,
     refuse: (p, { store }) => {
       const now = channelNow(store, p.id);

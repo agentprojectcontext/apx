@@ -6,7 +6,8 @@ export type CatalogEngine = {
   available: boolean;
   models: Array<{ id: string; name: string; description?: string; chat: boolean }>;
 };
-export type ModelChoice = { model?: string; router: boolean };
+/** `fallbacks` are tried in order after `model` and before the router when it does not answer. */
+export type ModelChoice = { model?: string; router: boolean; fallbacks?: string[] };
 export type ModelOption = { ref: string; name: string; engine: string };
 
 /** "gemini/gemini-3.6-flash#high" → engine, model and effort (the panel's own reading of a ref). */
@@ -24,6 +25,18 @@ export function choiceText(choice: ModelChoice | undefined, catalog: CatalogEngi
   if (!choice?.model) return router;
   const { engine, model } = splitRef(choice.model);
   return model ? choice.model.replace(/#.*$/, "") : (catalog.find((e) => e.id === engine)?.label ?? engine);
+}
+
+/** A choice's chip with its fallbacks counted ("gpt-6 · 2 fallbacks"), as the panel's picker reads it. */
+export function choiceLabel(
+  choice: ModelChoice | undefined,
+  catalog: CatalogEngine[],
+  tr: (key: "modelWithFallbacks" | "modelWithFallbacksRouter", vars: { model: string; n: number }) => string,
+  router: string,
+): string {
+  const text = choiceText(choice, catalog, router);
+  const n = choice?.model ? (choice.fallbacks?.length ?? 0) : 0;
+  return n ? tr(choice?.router ? "modelWithFallbacksRouter" : "modelWithFallbacks", { model: text, n }) : text;
 }
 
 /**

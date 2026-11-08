@@ -19,6 +19,8 @@ import { cap, UNTRUSTED_MARK } from "../tools/result.ts";
 import { commandRisk } from "../tools/shell.ts";
 import type { CheckContext, Confirm, ScopedThread, Tool, ToolContext } from "../tools/types.ts";
 import { prepareBrowserConsent } from "./browser-consent.ts";
+import { reviewChannelCall } from "./channel-review.ts";
+import { channelService, serviceBinding, serviceEnabled } from "./channel-service.ts";
 import type { Display } from "./display.ts";
 import { folderBinding, type Inputs } from "./inputs.ts";
 import type { Jobs } from "./jobs.ts";
@@ -153,6 +155,8 @@ export function createExecutor(o: {
   permissions: Permissions;
 }): Executor {
   const { store, display, signal, agent, thread } = o;
+  const service = channelService(store, thread);
+  const serviceBound = serviceEnabled(service?.mode) ? serviceBinding(store, thread, agent.id) : undefined;
   const byName = new Map(o.tools.map((t) => [t.name, t]));
   let joined = false;
   const join = async () => {
@@ -283,6 +287,10 @@ export function createExecutor(o: {
       return { ok: false, text: parsed.error };
     }
     const args = parsed.args;
+    if (serviceBound !== undefined && (!serviceBound || serviceBound !== serviceBinding(store, thread, agent.id))) {
+      card("error", "channel access changed");
+      return { ok: false, text: "Channel access changed; this operation was not run. Start a new turn." };
+    }
     const decision = authorize(tool, args, agent, untrusted);
     if (decision.kind === "deny") {
       card("error", "turned off");
@@ -299,6 +307,28 @@ export function createExecutor(o: {
         ok: false,
         text: "not run, nothing was asked of the owner: changes to what the owner set up happen only when they ask you themselves. Tell whoever asked that the owner has to ask for it.",
       };
+    }
+    if (service?.mode === "review") {
+      const problem = await reviewChannelCall({
+        store,
+        call: o.call,
+        thread,
+        run,
+        callId,
+        tool: name,
+        args,
+        signal,
+        operation: {
+          description: tool.description,
+          parameters: tool.parameters,
+          effect: tool.effect,
+          confirmation: tool.confirm(args),
+        },
+      });
+      if (problem) {
+        card("error", "not authorized");
+        return { ok: false, text: problem };
+      }
     }
     // A path outside the agent's folders asks the owner to let it, instead of being refused (DECISIONS.md#d-099).
     const lent = await lend(tool, name, args, raw, callId, run);
@@ -422,6 +452,10 @@ export function createExecutor(o: {
     if (transferred) {
       card("error", "execution transferred");
       return { ok: false, text: transferred, endTurn: true };
+    }
+    if (serviceBound !== undefined && serviceBound !== serviceBinding(store, thread, agent.id)) {
+      card("error", "channel access changed");
+      return { ok: false, text: "Channel access changed while waiting; the operation was not run." };
     }
     toolsRan++;
     const stepId = store.runs.beginStep(run.id, { call_id: callId, tool: name, args, effect: tool.effect });

@@ -1,5 +1,5 @@
 import { createContext, useContext, useMemo, useState } from "react";
-import { Linking, Pressable, Text, View } from "react-native";
+import { Linking, Pressable, ScrollView, Text, View } from "react-native";
 import { type Block, type Inline, parseMarkdown, plainText } from "../chat/markdown";
 import { t } from "../i18n";
 import { EMAIL_LANG, parseEmailBlock } from "../protocol";
@@ -86,6 +86,8 @@ function Blocks({ blocks, color }: { blocks: Block[]; color: string }) {
           </View>
         );
       }
+      case "table":
+        return <Table key={key} table={block} color={color} />;
       case "quote":
         return (
           <View key={key} style={s.quote}>
@@ -103,6 +105,53 @@ function Blocks({ blocks, color }: { blocks: Block[]; color: string }) {
         );
     }
   });
+}
+
+type TableBlock = Extract<Block, { kind: "table" }>;
+
+const runsLength = (runs: Inline[]): number =>
+  runs.reduce((n, run) => n + ("children" in run ? runsLength(run.children) : run.text.length), 0);
+
+/** A column as wide as its longest cell, within what a phone can show: longer cells wrap. */
+const columnWidths = (table: TableBlock): number[] =>
+  table.align.map((_, column) => {
+    const longest = Math.max(...[table.header, ...table.rows].map((row) => runsLength(row[column] ?? [])));
+    return Math.min(240, Math.max(64, longest * 9 + 24));
+  });
+
+/** A table the agent wrote: header and rows on a grid that scrolls sideways when it is wider than the bubble. */
+function Table({ table, color }: { table: TableBlock; color: string }) {
+  const s = useStyles();
+  const selectable = useContext(Selectable);
+  const widths = useMemo(() => columnWidths(table), [table]);
+  const row = (cells: Inline[][], header: boolean, last: boolean) =>
+    cells.map((cell, column) => (
+      <View
+        // biome-ignore lint/suspicious/noArrayIndexKey: cells are positional
+        key={column}
+        style={[s.cell, { width: widths[column] }, header && s.headerCell, last && s.lastRow]}
+      >
+        <Text
+          selectable={selectable}
+          style={[s.cellText, { color, textAlign: table.align[column] ?? "left" }, header && s.bold]}
+        >
+          <Runs runs={cell} />
+        </Text>
+      </View>
+    ));
+  return (
+    <ScrollView horizontal style={s.tableScroll} contentContainerStyle={s.tableContent} testID="markdown-table">
+      <View style={s.table}>
+        <View style={s.tableRow}>{row(table.header, true, table.rows.length === 0)}</View>
+        {table.rows.map((cells, i) => (
+          // biome-ignore lint/suspicious/noArrayIndexKey: rows are positional
+          <View key={i} style={s.tableRow}>
+            {row(cells, false, i === table.rows.length - 1)}
+          </View>
+        ))}
+      </View>
+    </ScrollView>
+  );
 }
 
 /** Copies a quote or a code block on its own: what an agent drafts for the owner to paste elsewhere. */
@@ -171,6 +220,15 @@ const useStyles = makeStyles((theme) => ({
     backgroundColor: theme.fillStrong,
   },
   codeCopy: { position: "absolute", top: 6, right: 6 },
+  // A sideways ScrollView grows by default; the table keeps its own height.
+  tableScroll: { flexGrow: 0 },
+  tableContent: { alignItems: "flex-start" },
+  table: { borderWidth: 1, borderColor: theme.border, borderRadius: 10, overflow: "hidden" },
+  tableRow: { flexDirection: "row" },
+  cell: { paddingHorizontal: 10, paddingVertical: 6, borderBottomWidth: 1, borderBottomColor: theme.border },
+  headerCell: { backgroundColor: theme.fill },
+  lastRow: { borderBottomWidth: 0 },
+  cellText: { fontSize: 14, lineHeight: 19 },
   item: { flexDirection: "row", gap: 8 },
   marker: { color: theme.fgSubtle, minWidth: 14 },
   code: {

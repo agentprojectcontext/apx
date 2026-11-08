@@ -21,6 +21,7 @@ const usageOf = (runs: Array<{ started_at: string; usage?: Usage }>) =>
 
 import { APP_CLIENT } from "../appInfo";
 import { isNewChat } from "../chat/newChat";
+import { movedRuns } from "../chat/waiting";
 import { textOrder } from "../format";
 import type { ComputerStage } from "../ui/chat/ComputerProgress";
 import { isWorking } from "./chatSelectors";
@@ -309,6 +310,68 @@ export function useThread(creds: Creds, threadId: string, onUnpair: () => void) 
     },
     [client, reload],
   );
+  const failed = useCallback((err: unknown) => setError(err instanceof Error ? err.message : String(err)), [setError]);
+  /** The agent takes a waiting message at once: the step it is on stops, or it goes first in line. */
+  const sendNow = useCallback(
+    async (message: Message) => {
+      try {
+        await client.call("runs.send_now", { message: message.id });
+        setError("");
+      } catch (err) {
+        failed(err);
+      }
+    },
+    [client, setError, failed],
+  );
+  /** Takes a waiting message back before the agent reads it: out of its turn or the line, and out of the chat. */
+  const unsend = useCallback(
+    async (message: Message) => {
+      try {
+        await client.call("runs.unsend", { message: message.id });
+        setMessages((current) => current.filter((one) => one.id !== message.id));
+        setError("");
+      } catch (err) {
+        failed(err);
+      }
+    },
+    [client, setMessages, setError, failed],
+  );
+  /** New words for a message in line, before its turn starts; false when the core refused them. */
+  const editQueued = useCallback(
+    async (message: Message, text: string) => {
+      const run = message.waiting?.run;
+      if (!run) return false;
+      try {
+        const result = await client.call("runs.update_queued", { run, text });
+        setMessages((current) => upsert(current, result.message, false));
+        setError("");
+        return true;
+      } catch (err) {
+        failed(err);
+        return false;
+      }
+    },
+    [client, setMessages, setError, failed],
+  );
+  /** Moves a message in line a place up (-1) or down (+1). */
+  const moveQueued = useCallback(
+    async (line: Message[], message: Message, by: -1 | 1) => {
+      const runs = movedRuns(line, message.id, by);
+      if (!runs?.length) return;
+      try {
+        const result = await client.call("runs.reorder", { thread: threadId, runs });
+        setMessages((current) => result.messages.reduce((all, one) => upsert(all, one, false), current));
+        setError("");
+      } catch (err) {
+        failed(err);
+      }
+    },
+    [client, threadId, setMessages, setError, failed],
+  );
+  const waiting = useMemo(
+    () => ({ sendNow, unsend, editQueued, moveQueued }),
+    [sendNow, unsend, editQueued, moveQueued],
+  );
   /** The chat's own model; null goes back to the agent's. */
   const setModel = useCallback(
     async (choice: ModelChoice | null) => {
@@ -317,5 +380,20 @@ export function useThread(creds: Creds, threadId: string, onUnpair: () => void) 
     },
     [client, threadId, setThread],
   );
-  return { messages, online, state, error, send, respond, stop, stopping, thread, usage, setModel, client, computer };
+  return {
+    messages,
+    online,
+    state,
+    error,
+    send,
+    respond,
+    stop,
+    stopping,
+    thread,
+    usage,
+    setModel,
+    client,
+    computer,
+    waiting,
+  };
 }

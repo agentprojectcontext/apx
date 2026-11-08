@@ -35,6 +35,9 @@ import { UNTRUSTED_MARK, untrusted } from "../tools/result.ts";
 import { type Tool, toSpec } from "../tools/types.ts";
 import { type Audience, audienceOf, contactPrompt, roomPrompt, sealedWeb } from "./audience.ts";
 import { gitChanges, gitSnapshot, turnChanges } from "./changes.ts";
+import { SERVICE_REVIEW_PROMPT } from "./channel-review.ts";
+import { channelService, serviceEnabled } from "./channel-service.ts";
+import { channelServicePrompt } from "./channel-service-prompt.ts";
 import {
   agentsMdOf,
   flowBotPrompt,
@@ -454,6 +457,28 @@ function systemFor(
 ): { text: string; parts: PromptPart[] } {
   const lang = store.settings.get("owner_language") || "es";
   const plain = (text: string) => ({ text, parts: systemParts(text, []) });
+  const review = store.threads.context(turn.thread.id).service_review;
+  if (review) {
+    const source = store.runs.get(review.source_run);
+    const instructions = source ? store.agents.get(source.agent_id)?.prompt : undefined;
+    return plain([SERVICE_REVIEW_PROMPT, turn.agent.prompt, instructions].filter(Boolean).join("\n\n"));
+  }
+  const service = channelService(store, turn.thread);
+  if (service?.person.role === "contact" && turn.audience.kind !== "contact") {
+    return plain(
+      serviceEnabled(service.mode)
+        ? channelServicePrompt(turn.agent, service.person.name, service.mode === "review", sectionLines(told))
+        : contactPrompt(
+            turn.agent,
+            { name: service.person.name, person: service.person },
+            lang,
+            false,
+            sectionLines(told),
+          ),
+    );
+  }
+  if (turn.audience.kind === "contact" && !turn.audience.room && serviceEnabled(service?.mode))
+    return plain(channelServicePrompt(turn.agent, turn.audience.name, service?.mode === "review", sectionLines(told)));
   if (turn.audience.kind === "contact")
     return plain(
       turn.audience.room

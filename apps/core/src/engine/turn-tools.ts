@@ -1,5 +1,5 @@
 // The tools a turn may use: the agent's, narrowed by its callers, its chat (a contact's, the computer, a phone chat)
-// and what is turned on; MCP's join behind the bridge on first use, and never in a contact's turn.
+// and what is turned on; MCP tools join behind the bridge only where the channel policy allows them.
 import { BROWSER_CAP, CHROME_CAP } from "@apx/protocol";
 import { memorySettings } from "../domain/memory-settings.ts";
 import { answersChecked, inChrome, type Origin, ownerAsked } from "../domain/runs.ts";
@@ -13,6 +13,7 @@ import type { Tool } from "../tools/types.ts";
 import { COMPUTER_TOOL } from "../tools/vm.ts";
 import { WEB_TOOLS } from "../tools/web.ts";
 import { callersOf } from "./ancestry.ts";
+import { channelService, serviceEnabled } from "./channel-service.ts";
 import { MAX_DEPTH } from "./limits.ts";
 import type { Turn, TurnDeps } from "./turn.ts";
 
@@ -122,15 +123,19 @@ export async function turnTools(deps: TurnDeps, turn: Turn) {
     (Boolean(deps.hasCap?.(CHROME_CAP)) && ownerAsked(turn.input.origin, askedIn));
   // Offered only to an agent the owner allowed: one without it never asks to use it (DECISIONS.md#d-154).
   const computerOn = Boolean(deps.vm?.serves(turn.thread.id) && deps.vm.permitted(turn.agent.id, turn.thread.id));
-  const sealed = turn.audience.kind === "contact";
+  const service = channelService(deps.store, turn.thread);
+  const activeService = serviceEnabled(service?.mode);
+  const reviewing = Boolean(deps.store.threads.context(turn.thread.id).service_review);
+  const customer = turn.audience.kind === "contact" || service?.person.role === "contact";
+  const sealed = customer && !activeService;
   const callers = callersOf(deps.store, turn.thread.id);
   const step = deps.store.threads.context(turn.thread.id).flow_step;
   // MCP tools are reached through mcp_search and mcp_call; their servers start only when one is first used.
-  const servers = !sealed && !inVm && deps.mcpTools ? (deps.mcpServers?.(turn.thread) ?? []) : [];
+  const servers = !reviewing && !sealed && !inVm && deps.mcpTools ? (deps.mcpServers?.(turn.thread) ?? []) : [];
   let loading: Promise<Tool[]> | undefined;
-  // A contact's turn reaches no MCP tool, not even one it names without being offered it.
+  // Base-attention chats cannot bypass their policy by naming an MCP tool directly.
   const mcpLate = () => {
-    if (inVm || sealed || step?.bot) return Promise.resolve([]);
+    if (inVm || sealed || step?.bot || reviewing) return Promise.resolve([]);
     loading ??= (deps.mcpTools?.(turn.thread) ?? Promise.resolve([]))
       .catch(() => [])
       .then((all) => all.filter((t) => policy.allows(t.name) && (!only || only.has(t.name) || only.has(MCP_CALL))));
@@ -176,11 +181,13 @@ export async function turnTools(deps: TurnDeps, turn: Turn) {
   // The answer to the owner's words the super-agent checked is still their turn on that chat (DECISIONS.md#d-144).
   const ownerOnChannel = (o.kind === "channel" && o.role === "owner") || answersChecked(o);
   const replyChannel = turn.input.reply_to === null ? null : turn.input.reply_to?.channel;
-  const handoff = ownerOnChannel && HANDOFF_ONLY.has(channelKindOf(deps.store, o, replyChannel) ?? "");
+  const handoff =
+    !activeService && ownerOnChannel && HANDOFF_ONLY.has(channelKindOf(deps.store, o, replyChannel) ?? "");
   const only = handoff ? new Set([...HANDOFF_TOOLS].filter((n) => !named || named.has(n))) : named;
   const out = step && !step.delegate ? TEAM_TOOLS : undefined;
   const tools = policy.tools.filter(
     (t) =>
+      (!reviewing || t.name === "ask_owner") &&
       (!step?.bot || BOT_KEEPS.has(t.name)) &&
       !out?.has(t.name) &&
       ((callers.length < MAX_DEPTH && !turn.worker) || !SESSION_TOOLS.has(t.name)) &&

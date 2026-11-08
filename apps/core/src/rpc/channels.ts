@@ -62,7 +62,12 @@ export function channelHandlers(store: Store, channels: Channels, nudges: Pick<N
       if (channel?.type === "telegram" && !token && !channels.info().find((c) => c.id === id)?.token_set)
         throw badRequest("a Telegram channel needs its bot token (from @BotFather)");
       const config = channel
-        ? { ...channel, owner_thread: "own" as const, label: channel.label || defaultLabel(channel.type) }
+        ? {
+            ...channel,
+            owner_thread: "own" as const,
+            service_mode: channel.service_mode ?? channels.info().find((c) => c.id === id)?.service_mode ?? "base",
+            label: channel.label || defaultLabel(channel.type),
+          }
         : null;
       return { channels: await channels.set(id, config, token) };
     },

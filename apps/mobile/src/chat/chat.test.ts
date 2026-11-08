@@ -1,7 +1,8 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
+import { translator } from "../i18n/index.ts";
 import type { Message } from "../protocol";
-import { choiceText, modelOptions, splitRef } from "./models.ts";
+import { choiceLabel, choiceText, modelOptions, splitRef } from "./models.ts";
 import { compact, showsStartHint, usageText, withDays } from "./transcript.ts";
 
 const message = (id: string, created_at: string): Message =>
@@ -81,4 +82,19 @@ test("an empty chat says where to start once loaded, not while loading or while 
   assert.equal(showsStartHint({ ...empty, loaded: false, fresh: true }), true);
   assert.equal(showsStartHint({ ...empty, working: true }), false);
   assert.equal(showsStartHint({ ...empty, rows: 2 }), false);
+});
+
+test("a choice with fallbacks counts them on its chip, in the singular for one", () => {
+  const en = translator("en");
+  const es = translator("es");
+  assert.equal(choiceLabel({ model: "chatgpt/gpt-6", router: false }, [], en, "Auto"), "chatgpt/gpt-6");
+  assert.equal(
+    choiceLabel({ model: "chatgpt/gpt-6", router: false, fallbacks: ["gemini/flash"] }, [], en, "Auto"),
+    "chatgpt/gpt-6 · 1 fallback",
+  );
+  assert.equal(
+    choiceLabel({ model: "chatgpt/gpt-6", router: true, fallbacks: ["a/b", "c/d"] }, [], es, "Auto"),
+    "chatgpt/gpt-6 · 2 respaldos + Automático",
+  );
+  assert.equal(choiceLabel({ router: true, fallbacks: ["a/b"] }, [], en, "Auto"), "Auto");
 });

@@ -15,6 +15,7 @@ import { waitingBlock } from "../tools/requests.ts";
 import { untrusted } from "../tools/result.ts";
 import { attachmentsBlock } from "./attachments.ts";
 import { ownerInstruction, roomInput } from "./audience.ts";
+import { channelService, serviceEnabled } from "./channel-service.ts";
 import { memoryQuery, recallChats } from "./chat-recall.ts";
 import {
   CHAT_CHANNELS,
@@ -48,7 +49,9 @@ export async function buildContext(deps: TurnDeps, turn: Turn, run: RunRecord, m
   // A contact's turn knows nothing of the owner's: no notes, no roster, no skills. An engine session is the engine
   // itself: none of an agent's notes, roster, skills or framing either.
   const direct = Boolean(thread.engine);
-  const sealed = turn.audience.kind === "contact" || direct;
+  const customer = channelService(store, thread)?.person.role === "contact";
+  const sealed =
+    turn.audience.kind === "contact" || customer || direct || Boolean(store.threads.context(thread.id).service_review);
   const ctxState = store.threads.context(thread.id);
   // A bot of a Flow keeps no memory; a Flow step that may not delegate needs no roster (DECISIONS.md#d-172).
   const step = ctxState.flow_step;
@@ -191,7 +194,7 @@ export async function buildContext(deps: TurnDeps, turn: Turn, run: RunRecord, m
                 ? sentMeanwhile(store, thread.id, run.id)
                 : undefined,
             lastTalk:
-              turn.audience.kind === "owner" && unasked(o)
+              !sealed && turn.audience.kind === "owner" && unasked(o)
                 ? lastTalk(store, thread, new Date(), ownerTimeZone(store), run.id)
                 : undefined,
           });
@@ -231,7 +234,9 @@ function sectionsFor(deps: TurnDeps, turn: Turn, mode: Autonomy): Sections {
   const { store, vm } = deps;
   const { thread, agent, audience } = turn;
   if (thread.engine || (audience.kind === "contact" && audience.room)) return {};
-  const contact = audience.kind === "contact";
+  const service = channelService(store, thread);
+  const contact = audience.kind === "contact" || service?.person.role === "contact";
+  const person = audience.kind === "contact" ? audience.person : service?.person;
   const on = store.settings.read("channels").filter((c) => c.enabled);
   const typeOf = (id: string) => on.find((c) => c.id === id)?.type ?? id;
   // A channel chat hears from its own account; Home covers every enabled account for direct super-agent work.
@@ -244,12 +249,14 @@ function sectionsFor(deps: TurnDeps, turn: Turn, mode: Autonomy): Sections {
         : [];
   const chats = types.filter((t) => CHAT_CHANNELS.has(t));
   // A contact with no tools makes no call that could wait for the owner.
-  const acts = !contact || turn.web || contactToolNames(audience.person).size > 0;
+  const acts =
+    !contact || turn.web || serviceEnabled(channelService(store, thread)?.mode) || contactToolNames(person).size > 0;
   const allowed = !contact && vm?.permitted(agent.id, thread.id);
   return {
     mode: acts ? mode : undefined,
     chats,
     ownerChats: contact ? [] : chats,
+    service: serviceEnabled(channelService(store, thread)?.mode),
     voice: chats.length > 0 && Boolean(store.threads.context(thread.id).voice_replies),
     stickers: chats.some((t) => store.stickers.known(t, 1).length > 0),
     computer: allowed ? (vm?.serves(thread.id) ? "chat" : thread.kind === "home" ? "home" : undefined) : undefined,

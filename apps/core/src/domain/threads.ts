@@ -53,6 +53,14 @@ export type ThreadContext = {
    * An owner-check sub-thread: the owner's chat whose channel words it checks, that chat's agent, and where its answer
    * goes out (DECISIONS.md#d-144).
    */
+  service_review?: {
+    source_run: string;
+    call_id: string;
+    tool: string;
+    args: Record<string, unknown>;
+    binding: string;
+    decision?: { approve: boolean; reason: string };
+  };
   owner_check?: { thread: string; agent_id: string; reply_to: { channel: string; conversation: string } };
   /** A task chat an agent's turn started: the chat it came from, whose unattended limits its turns count against. */
   asked_from?: string;

@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { readSurfaceMessage, SURFACE_CSP, surfaceDoc, surfaceResult } from "./surfaceDoc.ts";
+import { pageDoc, readSurfaceMessage, SURFACE_CSP, surfaceDoc, surfaceResult } from "./surfaceDoc.ts";
 
 test("a surface gets the strict CSP, the mode's colors and the bridge, wherever its HTML starts", () => {
   const bare = surfaceDoc("<p>hi</p>", { mode: "dark", nonce: "n1" });
@@ -52,4 +52,12 @@ test("an answer handed back to the page cannot end the injected script", () => {
   const js = surfaceResult("n1", { id: 3, ok: true, value: { values: { note: "</script><b>" } } });
   assert.doesNotMatch(js, /<\/script/);
   assert.match(js, /^window\.__apxResult&&window\.__apxResult\("n1",\{"id":3,"ok":true,/);
+});
+
+test("a web page shows as a browser shows it: light, its own styles, no APX bridge and nothing from the web", () => {
+  const doc = pageDoc("<!doctype html><html><head><title>Q4</title></head><body><h1>Plan</h1></body></html>");
+  assert.match(doc, /color-scheme:light/);
+  assert.match(doc, /default-src 'none'/);
+  assert.doesNotMatch(doc, /ReactNativeWebView|apx-bg|--apx-/);
+  assert.match(doc, /<h1>Plan<\/h1>/);
 });

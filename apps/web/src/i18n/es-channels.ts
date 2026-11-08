@@ -21,7 +21,7 @@ export const esChannels: Partial<Record<MessageKey, string>> = {
   "ch.strangersHint.ask":
     "Te llega un aviso con quién escribió y qué dijo. Si decís que sí (con su botón o diciéndoselo a tu agente), se le contesta ese mensaje.",
   "ch.strangersHint.answer":
-    "Se le contesta enseguida y queda como contacto nuevo: charla sellada, sin tools ni memoria, con límite por hora.",
+    "Se le contesta enseguida y queda como contacto nuevo, con el modo de atención elegido y un límite por hora.",
   "ch.strangersHint.ignore": "Nadie le contesta y no queda anotado.",
   "ch.selfOwner": "Esta línea es mi propio teléfono",
   "ch.selfOwnerHint":
@@ -108,11 +108,21 @@ export const esChannels: Partial<Record<MessageKey, string>> = {
   "ch.flag.rules": "Tiene reglas propias",
   "ch.reaction.agent": "Reacción de {agent}",
   "ch.reaction.them": "Su reacción",
+  "ch.service": "Atención a clientes",
+  "ch.service.base": "Atención base",
+  "ch.service.review": "Consultar super-agente",
+  "ch.service.full": "Acceso total",
+  "ch.serviceHint.base":
+    "Responde con las capacidades limitadas actuales. Las demás herramientas no están disponibles para clientes.",
+  "ch.serviceHint.review":
+    "El super-agente autoriza cada operación solicitada antes de ejecutarla. Se mantienen las confirmaciones existentes.",
+  "ch.serviceHint.full":
+    "Los clientes pueden solicitar todas las herramientas permitidas para este agente y proyecto. Habilitalo solo si sus herramientas y datos son adecuados para sus clientes.",
   "ch.research": "Buscar en la web",
   "ch.research.off": "No",
   "ch.research.owner": "Solo vos",
   "ch.research.everyone": "Todos",
-  "ch.researchHint.off": "En las salas y en los chats de contactos nunca busca en la web; solo conversa.",
+  "ch.researchHint.off": "En salas y chats de atención base nunca busca en la web; solo conversa.",
   "ch.researchHint.owner":
     "Cuando se lo pedís en una sala (o desde la app en el chat de un contacto), busca en la web y lee páginas públicas. Nunca tu computadora, tus archivos ni tu memoria.",
   "ch.researchHint.everyone":

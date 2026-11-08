@@ -1,10 +1,11 @@
 #!/usr/bin/env node
 // Announces a v2 release on Discord (the webhook v1's releases use) once its files are attached: what is new and fixed,
-// read from the commits since the previous v2 tag, and how each install updates.
+// read from the commits since the previous published release, and how each install updates.
 //   TAG=v2.3.4 WEBHOOK=… [ROLE_ID=…] [BETA=1] [NOTE=…] node scripts/discord-release.ts [--dry]
 // NOTE is a line said once above the release (a launch, with a video link Discord previews): unset it after.
 import { execFileSync } from "node:child_process";
-import { previousTag, sentence } from "../apps/core/src/release-notes.ts";
+import { sentence } from "../apps/core/src/release-notes.ts";
+import { publishedPrevious } from "./release-previous.ts";
 
 const REPO = "agentprojectcontext/apx";
 const BRAND = 4176208; // APX green
@@ -67,7 +68,7 @@ export function payload(o: {
 if (import.meta.main) {
   const tag = process.env.TAG ?? "";
   if (!/^v2\.\d+\.\d+$/.test(tag)) throw new Error(`TAG must be a v2 version tag, got "${tag}"`);
-  const previous = previousTag(tag, git("tag", "--list", "v2.*").split("\n"));
+  const previous = publishedPrevious(tag);
   const subjects = git("log", "--no-merges", "--format=%s", previous ? `${previous}..${tag}` : tag).split("\n");
   const body = payload({
     tag,

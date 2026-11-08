@@ -19,7 +19,7 @@ export const enChannels = {
   "ch.strangersHint.ask":
     "You get a notice with who wrote and what. Say yes (its button, or tell your agent) and their message is answered.",
   "ch.strangersHint.answer":
-    "Answered right away as a new contact: a sealed chat, no tools or memory, with an hourly limit.",
+    "Answered right away as a new contact, following the selected customer service mode and an hourly limit.",
   "ch.strangersHint.ignore": "Nobody answers them and they are not listed.",
   "ch.selfOwner": "This line is my own phone",
   "ch.selfOwnerHint":
@@ -104,11 +104,20 @@ export const enChannels = {
   "ch.flag.rules": "Has rules of their own",
   "ch.reaction.agent": "{agent}'s reaction",
   "ch.reaction.them": "Their reaction",
+  "ch.service": "Customer service",
+  "ch.service.base": "Base attention",
+  "ch.service.review": "Consult super-agent",
+  "ch.service.full": "Full access",
+  "ch.serviceHint.base": "Reply with the current limited capabilities. Other tools remain unavailable to customers.",
+  "ch.serviceHint.review":
+    "The super-agent approves each requested tool operation before it runs. Existing confirmations still apply.",
+  "ch.serviceHint.full":
+    "Customers can request all tools allowed for this agent and project. Enable this only for an agent whose tools and data are appropriate for its customers.",
   "ch.research": "Search the web",
   "ch.research.off": "Off",
   "ch.research.owner": "Only you",
   "ch.research.everyone": "Everyone",
-  "ch.researchHint.off": "In rooms and contacts' chats it never searches the web; it only talks.",
+  "ch.researchHint.off": "In rooms and base-attention chats it never searches the web; it only talks.",
   "ch.researchHint.owner":
     "When you ask in a room (or from the app in a contact's chat), it searches the web and reads public pages. Never your computer, files or memory.",
   "ch.researchHint.everyone":

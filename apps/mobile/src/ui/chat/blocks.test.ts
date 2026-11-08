@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import type { Message } from "../../protocol.ts";
 import {
+  formsImage,
   hostPath,
   isAgentEvent,
   isComputerGroup,
@@ -77,4 +78,12 @@ test("host and duration read short", () => {
   assert.equal(took(45_000), "45s");
   assert.equal(took(200_000), "3m 20s");
   assert.equal(took(3_900_000), "1h 5m");
+});
+
+test("a picture forming stops showing as forming once its picture came in, even before the tool says done", () => {
+  const call = { type: "tool", call_id: "c1", tool: "make_image", title: "A cat", status: "running" } as const;
+  assert.equal(formsImage([call], "working"), true);
+  assert.equal(formsImage([call, { type: "image", media_id: "m1", tool_call_id: "c1", alt: "" }], "working"), false);
+  assert.equal(formsImage([call, { type: "image", media_id: "m2", tool_call_id: "other", alt: "" }], "working"), true);
+  assert.equal(formsImage([call], "completed"), false);
 });

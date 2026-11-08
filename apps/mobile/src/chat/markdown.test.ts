@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { parseInline, parseMarkdown, plainText } from "./markdown.ts";
+import { parseInline, parseMarkdown, plainText, previewLine } from "./markdown.ts";
 
 test("bold, italic, code and links become runs; stray marks stay text", () => {
   assert.deepEqual(parseInline("**Hoy:** ver `reel-26` y [docs](https://example.com) *ya*"), [
@@ -61,4 +61,72 @@ test("a copy is the text as it reads: no marks, list markers kept, a quote's own
   assert.equal(plainText(blocks), "Te dejo esto:\n\nHi team!\n\nDocs: site\n\n• one\n• two");
   const quote = blocks[1];
   assert.equal(quote?.kind === "quote" && plainText(quote.blocks), "Hi team!\n\nDocs: site");
+});
+
+const LAUNCH = [
+  "Here's a first cut of the **Q4 launch**:",
+  "",
+  "| Week | What | Who |",
+  "|---|:---:|--:|",
+  "| 1 | Freeze the catalog and fix `checkout` | Tomás |",
+  "| 2 | Landing page and emails | Vera |",
+  "",
+  "I created two tasks.",
+].join("\n");
+
+test("a GFM table becomes a table: header, alignment and rows of inline cells", () => {
+  const blocks = parseMarkdown(LAUNCH);
+  assert.deepEqual(
+    blocks.map((block) => block.kind),
+    ["paragraph", "table", "paragraph"],
+  );
+  const table = blocks[1];
+  assert.ok(table?.kind === "table");
+  assert.deepEqual(table.header, [
+    [{ kind: "text", text: "Week" }],
+    [{ kind: "text", text: "What" }],
+    [{ kind: "text", text: "Who" }],
+  ]);
+  assert.deepEqual(table.align, ["left", "center", "right"]);
+  assert.equal(table.rows.length, 2);
+  assert.deepEqual(table.rows[0]?.[1], [
+    { kind: "text", text: "Freeze the catalog and fix " },
+    { kind: "code", text: "checkout" },
+  ]);
+});
+
+test("pipes without a delimiter row, or rows without outer pipes, still read as a table only when GFM says so", () => {
+  assert.deepEqual(
+    parseMarkdown("a | b\n--- | ---\n1 | 2").map((block) => block.kind),
+    ["table"],
+  );
+  assert.deepEqual(
+    parseMarkdown("Use a | b to pipe\nand more").map((block) => block.kind),
+    ["paragraph"],
+  );
+  const [short] = parseMarkdown("| a | b |\n|---|---|\n| only |\n| 1 | 2 | 3 |");
+  assert.ok(short?.kind === "table");
+  assert.deepEqual(
+    short.rows.map((row) => row.length),
+    [2, 2],
+  );
+});
+
+test("a copied table keeps one row per line with its cells apart", () => {
+  assert.equal(plainText(parseMarkdown("| a | **b** |\n|---|---|\n| 1 | 2 |")), "a\tb\n1\t2");
+});
+
+test("a one-line preview is the words without marks, tables and lists included", () => {
+  assert.equal(
+    previewLine(LAUNCH),
+    "Here's a first cut of the Q4 launch: Week What Who 1 Freeze the catalog and fix checkout Tomás 2 Landing page and emails Vera I created two tasks.",
+  );
+  assert.equal(previewLine("## Plan\n- one\n- `two`\n1. three"), "Plan one two 1. three");
+  assert.equal(previewLine("Ver [docs](https://example.com) > ya"), "Ver docs > ya");
+});
+
+test("an escaped pipe stays inside its cell", () => {
+  const [table] = parseMarkdown("| cmd | what |\n|---|---|\n| `a \\| b` | pipe |");
+  assert.ok(table?.kind === "table");
+  assert.deepEqual(table.rows[0]?.[0], [{ kind: "code", text: "a | b" }]);
 });

@@ -133,7 +133,9 @@ test("a realistic owner's turns stay within their own budget", async () => {
     const before = llm.calls.length;
     wa.fromOwner("¿qué tengo hoy?");
     await waitFor(() => llm.calls.length > before, "the owner's turn on WhatsApp");
-    await real.settle("home");
+    const account = store.threads.byConversation("whatsapp", wa.owner);
+    assert.ok(account, "the owner's WhatsApp account has its own chat");
+    await real.settle(account.id);
     const input = String(llm.calls.at(-1)?.messages.at(-1)?.content ?? "").replace("¿qué tengo hoy?", "").length;
     assert.ok(input <= REALISTIC.input, `a WhatsApp turn's input: ${input} chars, budget ${REALISTIC.input}`);
   } finally {

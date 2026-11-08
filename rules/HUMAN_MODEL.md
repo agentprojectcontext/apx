@@ -81,6 +81,15 @@ Both are agent/chat scoped and revocable. Tab consent is capped at 30 minutes; t
 The registry is `packages/protocol/src/methods.ts`. Adding a method = registry entry + handler; every client
 gets the types. There is no other way into a handler.
 
+Channel accounts can opt into `service_mode` (`base`, `review`, `full`) through owner-only `channels.set`.
+Base preserves sealed contacts and WhatsApp owner handoff. Review and full expose the assigned agent/project's
+eligible tools to private customer chats without changing sender identity or loading private owner context.
+`engine/channel-service.ts` binds execution to live account, customer, agent and project configuration; changes
+invalidate a waiting call. Review creates a restricted super-agent child conversation and sends its operation
+through `threads.send`. `channel-review.ts` accepts only a completed structured decision for that exact call,
+never a reusable chat grant. Review results are consumed internally and do not generate customer result turns.
+Rooms, admission, blocked senders, owner-only settings and existing confirmations keep their separate checks.
+
 The restricted public listener (`transport/hooks.ts`) is a different boundary from the private daemon. One shared
 public tunnel (`public-tunnel.ts`, controlled by the existing `webhooks.*` methods) exposes only exact registered routes:
 LINE/Teams POSTs with native HMAC/JWT verification, registered Flow POSTs with independently rotatable route credentials,
