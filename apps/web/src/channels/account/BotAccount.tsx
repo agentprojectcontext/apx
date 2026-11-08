@@ -1,18 +1,11 @@
 import type { ChannelInfo } from "@apx/protocol";
-import { SUPER_AGENT_ID } from "@apx/protocol/client";
-import { Badge, Button, Icons, Input, SettingRow, Switch, Textarea } from "@apx/ui";
-import { useEffect, useState } from "react";
-import { KindTile } from "../channels/KindIcon.tsx";
-import { AgentSelect } from "../common/pickers/AgentSelect.tsx";
-import { type ChannelDraft, loadChannels, newChannelId, saveChannel, useChannels } from "../data/channels.ts";
-import { notify } from "../data/notices.ts";
-import { useData } from "../data/state.ts";
-import { type MessageKey, useT } from "../i18n/index.ts";
-import { AccountPicker, CancelAdding, useChannelAccounts } from "./ChannelAccounts.tsx";
-import { Behavior, Deliveries, Notices, Pairing, People, STATUS } from "./ChannelParts.tsx";
-import { PublicAddress } from "./PublicAddress.tsx";
-import { isRoomsKind, RoomsSection } from "./RoomsSection.tsx";
-import { Stickers } from "./StickersSection.tsx";
+import { Button, Icons, Input, SettingRow, Textarea } from "@apx/ui";
+import { useState } from "react";
+import { PublicAddress } from "../../config/PublicAddress.tsx";
+import { notify } from "../../data/notices.ts";
+import { type MessageKey, useT } from "../../i18n/index.ts";
+import { ConnectionCard, OwnerLink } from "./parts.tsx";
+import type { Create, PaneProps } from "./types.ts";
 
 export type BotKind =
   | "telegram"
@@ -184,45 +177,6 @@ export const isBotKind = (k: string): k is BotKind => Object.hasOwn(BOTS, k);
 /** How to make a kind's bot and the token(s) it takes (the setup connects Discord and Slack with it too). */
 export const botSpec = (kind: BotKind) => BOTS[kind];
 
-/** A bot channel (Telegram, Discord, Slack): connect it, choose who answers, approve who may write, see what went out. */
-export function BotSection({ kind }: { kind: BotKind }) {
-  const t = useT();
-  const ready = useChannels((s) => s.ready);
-  useEffect(() => {
-    void loadChannels();
-    const id = setInterval(() => void loadChannels(), 5000);
-    return () => clearInterval(id);
-  }, []);
-  const accounts = useChannelAccounts(kind);
-  const { channel, connecting } = accounts;
-  const name = BOTS[kind].name;
-  return (
-    <>
-      <AccountPicker state={accounts} />
-      {ready &&
-        (connecting ? (
-          <>
-            <Setup key={kind} kind={kind} onConnected={accounts.pick} />
-            <CancelAdding state={accounts} />
-          </>
-        ) : (
-          channel && <Connected key={channel.id} channel={channel} kind={kind} />
-        ))}
-      {!connecting && channel && WEBHOOK_KINDS.includes(kind) && <PublicAddress channelId={channel.id} />}
-      {!connecting && channel && (
-        <Pairing
-          channelId={channel.id}
-          itsMe={{ title: t("tg.itsMe", { channel: name }), hint: t("tg.itsMeHint", { channel: name }) }}
-        />
-      )}
-      {!connecting && channel && <Notices />}
-      {!connecting && channel && <People channelId={channel.id} />}
-      {!connecting && channel && kind === "telegram" && <Stickers platform="telegram" label={name} />}
-      {!connecting && channel && <Deliveries channelId={channel.id} />}
-    </>
-  );
-}
-
 /** The token fields of a kind, as one value ("xoxb-… xapp-…" for Slack) once every field holds a valid token. */
 export function useTokens(kind: BotKind) {
   const specs = BOTS[kind].tokens;
@@ -242,23 +196,16 @@ export function useTokens(kind: BotKind) {
   };
 }
 
-function Setup({ kind, onConnected }: { kind: BotKind; onConnected(id: string): void }) {
+/** A new bot account: how to make the bot, its token(s), and Connect, which makes the account with them. */
+export function BotConnect({ kind, create, id }: { kind: BotKind; create: Create; id: string }) {
   const t = useT();
-  // A new account's id exists before it connects: LINE and Teams need its public address first.
-  const channels = useChannels((s) => s.channels);
-  const [id] = useState(() => newChannelId(kind, channels));
-  const agents = useData((s) => s.agents);
-  const secretary = Object.values(agents).find((a) => a.kind === "secretary");
   const tokens = useTokens(kind);
-  const [agent, setAgent] = useState(secretary?.id ?? SUPER_AGENT_ID);
   const [busy, setBusy] = useState(false);
   const connect = async () => {
     setBusy(true);
-    const saved = await saveChannel(
-      id,
+    await create(
       {
-        type: kind,
-        agent_id: agent,
+        agent_id: "",
         enabled: true,
         strangers: "pair",
         concurrency: "steer",
@@ -268,7 +215,6 @@ function Setup({ kind, onConnected }: { kind: BotKind; onConnected(id: string): 
       tokens.joined,
     );
     setBusy(false);
-    if (saved) onConnected(id);
   };
   return (
     <>
@@ -285,12 +231,9 @@ function Setup({ kind, onConnected }: { kind: BotKind; onConnected(id: string): 
             {i === tokens.specs.length - 1 && <span className="pform__hint">{t("tg.tokenHint")}</span>}
           </div>
         ))}
-        <SettingRow title={t("tg.agent")} description={t("tg.agentHint", { channel: BOTS[kind].name })}>
-          <AgentSelect size="sm" className="tgagent" channel value={agent} onChange={(id) => id && setAgent(id)} />
-        </SettingRow>
         <div>
           <Button disabled={!tokens.ok} loading={busy} onClick={() => void connect()}>
-            {t("tg.connect")}
+            {t("acct.connect")}
           </Button>
         </div>
       </div>
@@ -416,72 +359,30 @@ function StoredToken({
   );
 }
 
-function Connected({ channel, kind }: { channel: ChannelInfo; kind: BotKind }) {
+/** A bot's connection: its state, its token (fixed right where an error shows), and the address webhooks reach. */
+export function BotAccount({ kind, ...pane }: PaneProps & { kind: BotKind }) {
   const t = useT();
+  const { channel, saveNow } = pane;
+  const name = BOTS[kind].name;
   // A refused or missing token is fixed right where the error shows, not at the bottom of the page.
   const fixToken = channel.status === "error" || !channel.token_set;
-  const draft: ChannelDraft = {
-    agent_id: channel.agent_id,
-    enabled: channel.enabled,
-    strangers: channel.strangers,
-    concurrency: channel.concurrency,
-    owner_thread: channel.owner_thread,
-    contacts_agent_id: channel.contacts_agent_id,
-    ...(channel.self_owner ? { self_owner: true } : {}),
-    ...(channel.rooms ? { rooms: channel.rooms } : {}),
-    reactions: channel.reactions,
-    research: channel.research,
-    hours: channel.hours,
-  };
-  const save = (patch: Partial<ChannelDraft>, newToken?: string) =>
-    saveChannel(channel.id, { ...draft, ...patch }, newToken);
   return (
     <>
-      <div className="pcard tgcard">
-        <div className="pcard__top">
-          <span className={`tgcard__tile${channel.status === "running" ? "" : " is-idle"}`}>
-            <KindTile kind={kind} />
-          </span>
-          <div className="pcard__titles">
-            <div className="pcard__name">{channel.account ?? channel.label}</div>
-            <div className="pcard__id">{t(`tg.status.${channel.status}`)}</div>
-          </div>
-          <Badge tone={STATUS[channel.status]} dot>
-            {channel.enabled ? t(`tg.status.${channel.status}`) : t("providers.off")}
-          </Badge>
-          <Switch
-            size="sm"
-            checked={channel.enabled}
-            onCheckedChange={(on) => void save({ enabled: on })}
-            label={t("providers.on")}
-          />
-        </div>
-        {channel.error && <div className="tgcard__error">{channel.error}</div>}
+      <ConnectionCard {...pane}>
         {fixToken && (
           <div className="tgcard__fix">
             <span className="tgcard__fixlabel">{t(channel.token_set ? "tg.tokenFix" : "tg.tokenMissing")}</span>
-            <TokenField channel={channel} kind={kind} onSave={(token) => save({}, token)} />
+            <TokenField channel={channel} kind={kind} onSave={saveNow} />
           </div>
         )}
-      </div>
-
-      <Behavior channel={channel} save={save} />
-      {isRoomsKind(kind) && <RoomsSection channel={channel} kind={kind} save={(rooms) => save({ rooms })} />}
+      </ConnectionCard>
       {!fixToken && (
         <SettingRow title={t("tg.token")} description={t("tg.tokenStored")}>
-          <StoredToken channel={channel} kind={kind} onSave={(token) => save({}, token)} />
+          <StoredToken channel={channel} kind={kind} onSave={saveNow} />
         </SettingRow>
       )}
-      <div className="tgremove">
-        <Button
-          size="sm"
-          variant="secondary"
-          leadingIcon={<Icons.Trash2 size={14} />}
-          onClick={() => void saveChannel(channel.id, null)}
-        >
-          {t("tg.remove")}
-        </Button>
-      </div>
+      <OwnerLink channelId={channel.id} name={name} />
+      {WEBHOOK_KINDS.includes(kind) && <PublicAddress channelId={channel.id} />}
     </>
   );
 }

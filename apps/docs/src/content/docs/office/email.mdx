@@ -8,7 +8,7 @@ sidebar:
 ## Choose how to connect
 
 Connect **Gmail** in **Resources › Integrations**, or configure an SMTP mailbox as an **Email** channel in
-**Settings › Channels**. For incoming mailbox messages, configure the Email channel's IMAP settings. These are
+**Channels**. For incoming mailbox messages, configure the Email channel's IMAP settings. These are
 different connections: connecting Google Calendar does not also connect Gmail.
 
 With APX's limited Google sign-in, Gmail can send mail. To search and read Gmail and prepare drafts, connect it
@@ -44,7 +44,7 @@ planned for 2.11.2. They are not available in the published 2.11.1 release.
 :::
 
 Each sender has its own local signature: Gmail's in **Resources › Integrations › Gmail › Configure integration**,
-each SMTP mailbox's in **Settings › Channels › Email** with that mailbox selected. **Settings › Account** holds an
+each SMTP mailbox's in that mailbox's settings in **Channels**. **Settings › Account** holds an
 optional default signature for senders without their own ([Email mailbox](/channels/email/)). For each sender:
 
 - Enable or disable automatic addition for that sender.
@@ -63,8 +63,8 @@ signature stays stored and is used again if that sender is configured again.
 
 ## Configure and test a signature
 
-1. Connect the sending account first. Open Gmail's **Configure integration**, or select the exact SMTP mailbox in
-   **Settings › Channels › Email**. An SMTP signature is tied to the channel account and sender, not just to a display name.
+1. Connect the sending account first. Open Gmail's **Configure integration**, or open the exact SMTP mailbox's
+   settings in **Channels**. An SMTP signature is tied to the channel account and sender, not just to a display name.
 2. Enter plain text, for example:
 
 ```text

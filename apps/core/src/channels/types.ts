@@ -83,7 +83,7 @@ export type AdapterIO = {
   identified?(who: { account: string; owner?: string }): void;
   /**
    * This channel's public address for its platform's webhooks (`<base>/hooks/<channel id>`), when the owner turned
-   * one on (Settings › Channels › Public address); none otherwise. It can change while the channel runs (ngrok).
+   * one on (an account's settings › Public address); none otherwise. It can change while the channel runs (ngrok).
    */
   hookUrl?(): string | undefined;
   signal: AbortSignal;

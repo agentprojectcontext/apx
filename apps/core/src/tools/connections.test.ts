@@ -68,7 +68,7 @@ test("an app that is not connected is offered on a card in the chat", async () =
 
 test("a channel that is not set up is offered too", async () => {
   const { answer, card } = await ask("message the team on whatsapp");
-  assert.match(answer, /WhatsApp \(channel\).*Settings › Channels/);
+  assert.match(answer, /WhatsApp \(channel\).*Channels/);
   assert.equal(card?.type === "connect" && card.offers[0]?.id, "whatsapp");
 });
 

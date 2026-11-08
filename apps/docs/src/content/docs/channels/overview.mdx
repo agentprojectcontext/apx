@@ -10,10 +10,18 @@ import Shot from "../../../components/Shot.astro";
 import Terminal from "../../../components/Terminal.astro";
 
 A channel lets you talk to your agents from an app you already use, and lets other people reach them too. You connect
-channels in **Settings › Channels**. Each one then shows up in the sidebar under **Channels**, with its contacts and
-chats.
+channels in **Channels**, a screen of its own in the sidebar: it lists every account with who answers it and what is
+waiting, and each one opens its chats or its settings (the pencil). Each account also shows up in the sidebar under
+**Channels**, with its contacts and chats; its name at the top switches to another account.
 
-<Shot name="settings-channels" alt="Settings, Channels section: a connected Telegram bot with its status, who answers, and how it behaves" caption="Settings › Channels" />
+<Shot name="settings-channels" alt="The Channels screen: each messaging account with who answers it, its state and what waits for approval" caption="Channels" />
+
+An account's settings are grouped in parts and saved together with **Save**: **Account** (its name, connection and
+sign-in), **Who answers** (who you talk to, where your messages go, who answers your contacts), **Behavior** (a
+message while it works, messages that need no answer, the web, hours, stickers), **Rooms** where the app has them,
+**Contacts** (everyone on the account, and **Add contact**), **Approvals** (what someone new gets, and who waits) and
+**Activity** (what went out). A new account opens on **Account**: name it and connect it; the other parts open once it
+is connected, and **Create channel** keeps it.
 
 ## Available channels
 
@@ -40,8 +48,8 @@ MCP servers or paired devices. Each type below has setup instructions; several r
 | Microsoft Teams | [Azure bot](/channels/teams-line/#microsoft-teams); public HTTPS webhook required. |
 | LINE | [Official Account](/channels/teams-line/#line); public HTTPS webhook required. |
 
-Start in **Settings › Channels › Add channel**. To connect a second account of the same app (another WhatsApp number,
-another bot, another mailbox), open that app in **Settings › Channels** and choose **Add account**. Each account is a
+Start in **Channels › New channel**. A second account of the same app (another WhatsApp number, another bot,
+another mailbox) is one more **New channel** of that app. Each account is a
 channel of its own: its own sign-in, contacts, chats and agents, its own row in the sidebar, and a **Name** you can
 change in its settings. iMessage is the exception: it uses the one Messages account of the Mac. A configured connection is not proof that every room, media type or
 approval button is supported: follow the service's guide and test both receipt and reply. See [devices](/devices/phone/)
@@ -188,7 +196,7 @@ as sent, maybe sent or failed. The channel's settings list what was **Recently s
 <Terminal command="apx channels outbox">{`10-08T09:14  sent      telegram  reply   Your order shipped this morning…
 10-08T09:02  sent      telegram  notice  Morning brief: 3 tasks due today…`}</Terminal>
 
-Under **Notices for you**, **Confirmations follow you** sends a question an agent asked in the app to your channel
+In **Settings › Interruptions**, **Confirmations follow you** sends a question an agent asked in the app to your channel
 if nobody answered it (after 1, 2 or 10 minutes, or never). Your super-agent's own questions come whole, with buttons
 on Telegram and numbered options on WhatsApp and Signal; elsewhere it reminds you to answer it in the app ([which
 channels act on your word](#which-channels-act-on-your-word)). Another agent's question comes as one line from your
@@ -219,13 +227,13 @@ on for that chat; that needs a voice in **Settings › Voices** too.
 | Microsoft Teams, LINE | Unverified | A bot (Azure Bot, LINE Messaging API) that delivers to a [public address](#a-public-address-for-teams-and-line) |
 
 <Aside type="note">
-The terminal adds Telegram bots only. Every other channel is set up in **Settings › Channels**.
+The terminal adds Telegram bots only. Every other channel is set up in **Channels**.
 </Aside>
 
 ## A public address for Teams and LINE
 
 Teams and LINE don't let a bot fetch its messages: they send each one to a web address. APX only listens on your
-computer, so these two need a **public address**, set in their screen under **Settings › Channels**. It publishes
+computer, so these two need a **public address**, set in their screen under **Channels**. It publishes
 only a separate door for webhooks (`…/hooks/<channel>`), never the panel or the API, and each message is checked
 against the platform's signature before anything reads it.
 

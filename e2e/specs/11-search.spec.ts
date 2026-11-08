@@ -40,8 +40,8 @@ test("⌘K finds a project, a task and a settings section, and Enter goes there"
 
     // Accents do not matter: "configuracion" finds the settings sections.
     await page.keyboard.press("ControlOrMeta+k");
-    await box.fill("canales configuracion");
-    await page.getByRole("option", { name: /Canales/ }).click();
+    await box.fill("interrupciones configuracion");
+    await page.getByRole("option", { name: /Interrupciones/ }).click();
     await expect(page.getByRole("dialog", { name: "Configuración" })).toBeVisible();
   } finally {
     await rpc("threads.delete", { thread: similar.id });

@@ -1,4 +1,4 @@
-// WhatsApp, emulated: a line of its own linked with the QR, the owner's phone linked by writing to it, strangers asked
+// WhatsApp, emulated: a line of its own linked with the QR from Channels › New channel, the owner's phone linked by writing to it, strangers asked
 // about on the owner's phone, and the line turned into the owner's own phone ("Message yourself").
 import { expect, open, rpc, test, until, world } from "./kit.ts";
 
@@ -15,17 +15,24 @@ const TELEGRAM_OWNER = 4242;
 
 test("the owner links a line with the QR, then their own phone by writing to it", async ({ page }) => {
   await open(page);
-  await page.getByRole("button", { name: "Agregar canal" }).click();
-  await page.getByRole("menuitem", { name: /WhatsApp/ }).click();
-  await expect(page.getByRole("switch", { name: "Esta línea es mi propio teléfono" })).not.toBeChecked();
-  await page.getByRole("button", { name: "Vincular" }).click();
+  // A new account: pick the app, name it, connect it with the QR; the rest of its settings open once it is linked.
+  await page.getByRole("button", { name: "Nuevo canal" }).first().click();
+  await page.getByRole("button", { name: /^WhatsApp/ }).click();
+  const dialog = page.getByRole("dialog", { name: "Nuevo canal de WhatsApp" });
+  await expect(dialog.getByRole("button", { name: "Crear canal" })).toBeDisabled();
+  await expect(dialog.getByRole("button", { name: "Quién responde" })).toBeDisabled();
+  await dialog.getByRole("button", { name: "Conectar" }).click();
   await expect(page.getByRole("img", { name: "Escaneá este código con tu teléfono" })).toBeVisible();
 
   await world.whatsapp.scan();
   await expect(page.getByText("+5491100000001").first()).toBeVisible();
   await expect(page.getByRole("img", { name: "Escaneá este código con tu teléfono" })).toBeHidden();
   await expect(page.getByText("Todavía no está vinculado", { exact: false })).toBeVisible();
+  await expect(page.getByRole("switch", { name: "Esta línea es mi propio teléfono" })).not.toBeChecked();
+  await page.getByRole("button", { name: "Quién responde" }).click();
   await expect(page.getByText("El agente que responde a quienes escriben a WhatsApp.")).toBeVisible();
+  await page.getByRole("button", { name: "Crear canal" }).click();
+  await expect(page.getByRole("dialog")).toHaveCount(0);
 
   // "Message yourself" on a line of its own is nobody.
   const calls = await world.llmCalls();
@@ -34,7 +41,6 @@ test("the owner links a line with the QR, then their own phone by writing to it"
   expect(await world.llmCalls()).toBe(calls);
 
   await world.whatsapp.message(ME, "soy yo");
-  await page.keyboard.press("Escape");
   await page.getByRole("button", { name: "WhatsApp", exact: true }).click();
   await expect(page.getByText("Vinculá tu teléfono")).toBeVisible();
   await expect(page.getByText("+5491100000007")).toBeVisible();
@@ -68,11 +74,12 @@ test("strangers 'ask me': whoever writes is an unreviewed contact, the owner hea
   await open(page);
   await page.getByRole("button", { name: "WhatsApp", exact: true }).click();
   await page.getByRole("button", { name: "Configuración del canal" }).click();
+  await page.getByRole("button", { name: "Aprobaciones" }).click();
   await page.getByRole("radio", { name: "Avisarme" }).click();
   await expect(page.getByText(/Te llega un aviso con quién escribió/)).toBeVisible();
-  // A setting changes in place: the line stays connected and every section stays on screen.
-  await expect(page.getByText("Conectando con WhatsApp…")).toHaveCount(0);
-  await expect(page.getByRole("radio", { name: "Se suma" })).toBeVisible();
+  await expect(page.getByText("Cambios sin guardar")).toBeVisible();
+  await page.getByRole("button", { name: "Guardar y cerrar" }).click();
+  await expect(page.getByRole("dialog")).toHaveCount(0);
   await until(async () =>
     (await rpc<{ channels: Array<{ id: string; strangers: string }> }>("channels.list")).channels.some(
       (c) => c.id === "whatsapp" && c.strangers === "ask",
@@ -89,7 +96,6 @@ test("strangers 'ask me': whoever writes is an unreviewed contact, the owner hea
   expect(await world.whatsapp.sentTo(FRIEND.phone)).toEqual([]);
 
   // In the panel they are a contact not reviewed yet: their message is in their chat, unanswered.
-  await page.keyboard.press("Escape");
   await page.getByRole("button", { name: /Lucía.*Sin revisar/ }).click();
   await expect(page.getByText("hola, ¿vamos el sábado?").last()).toBeVisible();
   await page.getByRole("button", { name: "Quitar silencio" }).click();
@@ -146,6 +152,7 @@ test("the line turned into the owner's own phone: 'Message yourself' is the owne
   await page.getByRole("button", { name: "WhatsApp", exact: true }).click();
   await page.getByRole("button", { name: "Configuración del canal" }).click();
   await page.getByRole("switch", { name: "Esta línea es mi propio teléfono" }).click();
+  await page.getByRole("button", { name: /^Guardar (⌘|Ctrl)/ }).click();
   await expect(page.getByText("Todavía no está vinculado", { exact: false })).toBeHidden();
   await until(async () =>
     (await rpc<{ channels: Array<{ self_owner?: boolean; status: string }> }>("channels.list")).channels.some(

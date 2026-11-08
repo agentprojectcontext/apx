@@ -1,7 +1,7 @@
 import { Badge, Button, Input } from "@apx/ui";
 import { useState } from "react";
+import { botSpec, useTokens } from "../channels/account/BotAccount.tsx";
 import { KindTile } from "../channels/KindIcon.tsx";
-import { botSpec, useTokens } from "../config/BotSection.tsx";
 import { saveChannel, useChannels } from "../data/channels.ts";
 import { notify } from "../data/notices.ts";
 import { useData } from "../data/state.ts";

@@ -214,7 +214,8 @@ const SHOTS: Shot[] = [
   { name: "settings-memory", go: settings("Memory") },
   { name: "settings-profile", go: settings("Profile") },
   { name: "settings-interruptions", go: settings("Interruptions") },
-  { name: "settings-channels", go: settings("Channels") },
+  // The Channels screen in the sidebar (Channels left Settings); the file keeps its name for the pages that show it.
+  { name: "settings-channels", go: at("view=channels") },
   { name: "settings-devices", go: settings("Devices") },
   { name: "settings-desktop", go: settings("Desktop") },
   { name: "settings-appearance", go: settings("Appearance") },

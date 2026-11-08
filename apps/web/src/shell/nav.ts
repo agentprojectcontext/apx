@@ -26,6 +26,7 @@ type View =
   | "resources"
   | "files"
   | "computers"
+  | "channels"
   | "channel"
   | "engine";
 
@@ -54,7 +55,6 @@ export const CONFIG_SECTIONS = [
   "memory",
   "voices",
   "images",
-  "channels",
   "interruptions",
   "browser",
   "desktop",
@@ -69,6 +69,12 @@ export type ConfigSection = (typeof CONFIG_SECTIONS)[number];
 
 export const RESOURCE_TABS = ["skills", "mcp", "integrations", "variables", "extensions"] as const;
 export type ResourceTab = (typeof RESOURCE_TABS)[number];
+
+/** The parts of a channel account's settings. */
+export type AccountPane = "account" | "answer" | "behavior" | "rooms" | "contacts" | "approvals" | "activity";
+
+/** A channel account's settings open over the screen: an existing one (`id`) or a new one of `kind` being set up. */
+export type AccountEdit = { kind: ChannelKind; id: string | undefined; pane: AccountPane };
 
 export type NavState = {
   view: View;
@@ -95,10 +101,10 @@ export type NavState = {
   tools: boolean;
   /** Config modal section, or null when closed. */
   config: ConfigSection | null;
-  /** The channel kind shown in Config › Channels (connected or being set up). */
-  configChannel: ChannelKind | undefined;
-  /** The account of that kind shown in it, when the owner opened one in particular. */
-  configAccount: string | undefined;
+  /** "New channel": the kinds to pick from, open over the screen. */
+  channelPick: boolean;
+  /** A channel account's settings, open over the screen. */
+  channelEdit: AccountEdit | null;
   /** "Open on your phone" dialog. */
   phone: boolean;
   /** The usage dialog (memory, CPU, disk; the computer's and APX's). */
@@ -154,7 +160,7 @@ const PANELS: readonly PanelKind[] = [
   "document",
 ];
 const TAB_IDS: readonly string[] = PROJECT_TABS.map((t) => t.id);
-const VIEWS: readonly string[] = ["tasks", "flows", "resources", "files", "computers"];
+const VIEWS: readonly string[] = ["tasks", "flows", "resources", "files", "computers", "channels"];
 
 /** Deep links: #thread=<id>&panel=<kind>, #app=<id>, #project=<id>&tab=<tab>, #view=tasks&task=<id>. */
 function fromHash(): Partial<NavState> {
@@ -215,8 +221,8 @@ export const nav = createStore<NavState>({
   mode: initialMode(),
   tools: true,
   config: null,
-  configChannel: undefined,
-  configAccount: undefined,
+  channelPick: false,
+  channelEdit: null,
   phone: false,
   usageDialog: false,
   palette: false,
@@ -321,7 +327,8 @@ nav.subscribe(() => {
     s.view === "flows" ||
     s.view === "resources" ||
     s.view === "files" ||
-    s.view === "computers"
+    s.view === "computers" ||
+    s.view === "channels"
   ) {
     h.set("view", s.view);
     if (s.view === "flows" && s.flowProject) h.set("scope", s.flowProject);
@@ -475,7 +482,7 @@ export const go = {
   tables(flowProject?: string, flowTable?: string) {
     nav.set({ view: "flows", flowProject, flowId: undefined, flowEdit: false, flowTables: true, flowTable });
   },
-  view(view: "tasks" | "resources" | "files" | "computers") {
+  view(view: "tasks" | "resources" | "files" | "computers" | "channels") {
     nav.set({ view });
   },
   /** A task: beside a tasks list when one is open, else over the current screen (a chat, a notice…). */
@@ -502,9 +509,18 @@ export const go = {
   config(section: ConfigSection | null = "account") {
     nav.set({ config: section });
   },
-  /** Config › Channels on one kind: its settings (of `account`, when given), or its setup when none is connected. */
-  channelConfig(kind: ChannelKind, account?: string) {
-    nav.set({ config: "channels", configChannel: kind, configAccount: account });
+  /** "New channel": pick the kind; with `kind`, the setup of a new account of it right away. */
+  newChannel(kind?: ChannelKind) {
+    nav.set(
+      kind ? { channelPick: false, channelEdit: { kind, id: undefined, pane: "account" } } : { channelPick: true },
+    );
+  },
+  /** A channel account's settings, on one of its parts. */
+  channelSettings(kind: ChannelKind, id: string, pane: AccountPane = "account") {
+    nav.set({ channelPick: false, channelEdit: { kind, id, pane } });
+  },
+  closeChannelDialogs() {
+    nav.set({ channelPick: false, channelEdit: null });
   },
   palette(open: boolean) {
     nav.set({ palette: open });

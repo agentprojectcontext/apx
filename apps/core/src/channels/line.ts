@@ -32,7 +32,7 @@ const MAX_AVATAR_BYTES = 1024 * 1024;
 const MAX_SEEN = 1000;
 const MAX_CACHED = 500;
 const ADDRESS_EVERY_MS = 10_000;
-const NO_ADDRESS = "Turn on a public address in Settings › Channels: LINE delivers only to a webhook";
+const NO_ADDRESS = "Turn on a public address in Channels: LINE delivers only to a webhook";
 
 type Source = { type?: string; userId?: string; groupId?: string; roomId?: string };
 type Mentionee = { index?: number; length?: number; type?: string; userId?: string; isSelf?: boolean };

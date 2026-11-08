@@ -1,6 +1,6 @@
 import "../styles/screens.css";
 import type { ChannelInfo, RoomMode, Thread } from "@apx/protocol";
-import { EmptyState, IconButton, Icons, ProjectTile, SearchField } from "@apx/ui";
+import { EmptyState, IconButton, Icons, Menu, ProjectTile, SearchField } from "@apx/ui";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { ChatView } from "../chat/ChatView.tsx";
 import { shortWhen } from "../common/format.ts";
@@ -12,7 +12,8 @@ import { go, nav, useNav } from "../shell/nav.ts";
 import { ChannelConversation } from "./ChannelConversation.tsx";
 import { ContactPanel } from "./ContactPanel.tsx";
 import { ContactRow, type Row } from "./ContactRow.tsx";
-import { KindTile } from "./KindIcon.tsx";
+import { useAccountCounts } from "./counts.ts";
+import { KindIcon, KindTile } from "./KindIcon.tsx";
 import { isChannelKind } from "./kinds.ts";
 import { LinkMe, LinkPhone, OwnerRow, ownerOn, PairingRow } from "./StartRows.tsx";
 
@@ -226,30 +227,63 @@ function OpenChat({ threadId, via }: { threadId: string; via?: { channel: string
   );
 }
 
+/** The account on top: its app, name and who answers; the name switches to another account, beside contacts and settings. */
 function ChannelHead({ channel }: { channel: ChannelInfo }) {
   const t = useT();
   const agents = useData((s) => s.agents);
+  const channels = useChannels((s) => s.channels);
+  const counts = useAccountCounts();
+  const kind = isChannelKind(channel.type) ? channel.type : undefined;
   return (
     <header className="chan__head">
-      {isChannelKind(channel.type) ? (
-        <KindTile kind={channel.type} size={32} />
-      ) : (
-        <ProjectTile tone="info" icon={<Icons.Send />} size={32} />
-      )}
-      <div className="chan__titles">
-        <div className="chan__name">{channel.label}</div>
-        <div className="chan__meta">
-          <span className={`chan__status is-${channel.status}`} />
-          {channel.account ? `${channel.account} · ` : ""}
-          {t("ch.answers", { agent: agents[channel.agent_id]?.name ?? channel.agent_id })}
-        </div>
-      </div>
-      <IconButton
-        size="sm"
-        label={t("ch.settings")}
-        icon={<Icons.Settings size={14} />}
-        onClick={() => isChannelKind(channel.type) && go.channelConfig(channel.type, channel.id)}
+      {kind ? <KindTile kind={kind} size={32} /> : <ProjectTile tone="info" icon={<Icons.Send />} size={32} />}
+      <Menu
+        align="start"
+        trigger={
+          // ui: the menu opens from the account's name and line, two lines no kit button holds.
+          <button type="button" className="chan__titles chan__switch" title={t("chs.switch")}>
+            <span className="chan__name">
+              {channel.label}
+              <Icons.ChevronDown size={14} />
+            </span>
+            <span className="chan__meta">
+              <span className={`chan__status is-${channel.status}`} />
+              {channel.account ? `${channel.account} · ` : ""}
+              {t("ch.answers", { agent: agents[channel.agent_id]?.name ?? channel.agent_id })}
+            </span>
+          </button>
+        }
+        items={[
+          { type: "label" as const, label: t("chs.accounts") },
+          ...channels.map((c) => {
+            const n = (counts.get(c.id)?.unread ?? 0) + (counts.get(c.id)?.waiting ?? 0);
+            return {
+              label: n ? `${c.label} · ${n}` : c.label,
+              icon: isChannelKind(c.type) ? <KindIcon kind={c.type} /> : <Icons.Send />,
+              checked: c.id === channel.id,
+              onSelect: () => go.channel(c.id),
+            };
+          }),
+          { type: "separator" as const },
+          { label: t("nav.manageChannels"), icon: <Icons.LayoutGrid />, onSelect: () => go.view("channels") },
+        ]}
       />
+      {kind && (
+        <>
+          <IconButton
+            size="sm"
+            label={t("chs.contacts")}
+            icon={<Icons.Users size={14} />}
+            onClick={() => go.channelSettings(kind, channel.id, "contacts")}
+          />
+          <IconButton
+            size="sm"
+            label={t("ch.settings")}
+            icon={<Icons.Settings size={14} />}
+            onClick={() => go.channelSettings(kind, channel.id)}
+          />
+        </>
+      )}
     </header>
   );
 }

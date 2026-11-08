@@ -35,6 +35,9 @@ test("an app link says what it opens, so its button can show the place's icon an
   // An agent that could not start the computer points the owner to its panel.
   assert.deepEqual(kindOf("apx:computer"), { kind: "computer" });
   assert.deepEqual(kindOf("apx:computers"), { kind: "computer" });
+  // Channels have their own screen; a link to their old place in Settings goes there too.
+  assert.deepEqual(kindOf("apx:channels"), { kind: "channels" });
+  assert.deepEqual(kindOf("apx:settings/channels"), { kind: "channels" });
 });
 
 test("an app link to no known place opens nothing", () => {

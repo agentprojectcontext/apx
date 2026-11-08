@@ -1044,15 +1044,15 @@ export const NEWS: readonly NewsEntry[] = [
     about: {
       en:
         "Your agents can now be reached on iMessage, Google Chat, SMS, ntfy, Nextcloud Talk, IRC " +
-        "and Twitch. Set each one up in Settings › Channels.",
+        "and Twitch. Set each one up in Channels.",
       es:
         "Ahora podés hablar con tus agentes por iMessage, Google Chat, SMS, ntfy, Nextcloud " +
-        "Talk, IRC y Twitch. Configurá cada uno en Configuración › Canales.",
+        "Talk, IRC y Twitch. Configurá cada uno en Canales.",
     },
     applies: (f) => f.channels > 0,
     text:
       "Agents can now be reached on more apps: iMessage on the owner's Mac, Google Chat, SMS through Twilio, ntfy " +
-      "push notifications, Nextcloud Talk, IRC and Twitch chat. Each is set up in Settings › Channels, like the others.",
+      "push notifications, Nextcloud Talk, IRC and Twitch chat. Each is set up in Channels, like the others.",
     actions: [
       {
         label: { en: "Set one up", es: "Configurar uno" },
@@ -1068,16 +1068,16 @@ export const NEWS: readonly NewsEntry[] = [
     title: { en: "Microsoft Teams and LINE", es: "Microsoft Teams y LINE" },
     about: {
       en:
-        "Connect Microsoft Teams and LINE in Settings › Channels. Their screen first helps you " +
+        "Connect Microsoft Teams and LINE in Channels. Their screen first helps you " +
         "turn on a public address so the apps can reach you.",
       es:
-        "Conectá Microsoft Teams y LINE en Configuración › Canales. Su pantalla te ayuda primero a " +
+        "Conectá Microsoft Teams y LINE en Canales. Su pantalla te ayuda primero a " +
         "activar una dirección pública para que las apps puedan llegar hasta vos.",
     },
     applies: (f) => f.channels > 0,
     text:
       "Agents can now be reached on Microsoft Teams and LINE. Both send their messages to a web address, so their " +
-      "screen in Settings › Channels turns on a public address first: Tailscale Funnel (a fixed address), ngrok " +
+      "screen in Channels turns on a public address first: Tailscale Funnel (a fixed address), ngrok " +
       "(started by APX, which says when its address is new) or the " +
       "owner's own. Only a door for webhooks is published, never the panel, and every message is checked.",
     actions: [

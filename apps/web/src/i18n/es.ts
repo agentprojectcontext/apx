@@ -965,16 +965,7 @@ export const es: Partial<Record<MessageKey, string>> = {
   "config.sections": "Secciones de configuración",
   "config.group.general": "General",
   "config.group.agents": "Agentes",
-  "config.channels": "Canales",
-  "channels.ready": "Disponibles",
   "common.comingSoonShort": "Próximamente",
-  "channels.add": "Agregar canal",
-  "channels.account": "Cuenta",
-  "channels.addAccount": "Agregar cuenta",
-  "channels.newAccount": "Cuenta nueva",
-  "channels.lead": "Por dónde te hablan a vos y a tus agentes: cada canal tiene su cuenta y sus contactos.",
-  "channels.empty": "Todavía no conectaste ningún canal",
-  "channels.emptyBody": "Agregá uno con el botón de arriba.",
   "config.group.models": "Modelos",
   "account.timezoneLocal": "La de esta computadora ({zone})",
   "tz.region.africa": "África",
@@ -1198,8 +1189,6 @@ export const es: Partial<Record<MessageKey, string>> = {
     "Una cuenta vinculada por QR. No le contesta a nadie hasta que digas quién es, empezando por vos.",
   "channel.telegram.text": "Un bot de Telegram. Solo responde a los chats que apruebes.",
   "channel.discord.text": "Un bot de Discord al que le escribís por mensaje directo. Solo contesta a quien apruebes.",
-  "channel.soonBody":
-    "Los canales se conectan en una próxima versión del core. Mientras tanto, escribile a tus agentes desde el Inbox.",
   "advanced.lead":
     "El core corre en esta computadora y es el único proceso que guarda estado. El panel se conecta a él.",
   "advanced.connection": "Conexión",
@@ -1390,13 +1379,9 @@ export const es: Partial<Record<MessageKey, string>> = {
   "memory.tainted": "Con contenido de afuera",
   "memory.taintedHint":
     "Se guardó con contenido externo en el chat. Los agentes la leen como dato, no como palabra tuya; editala para darla por buena.",
-  "tg.lead":
-    "Hablá con tus agentes desde Telegram. Sólo les llegan los chats que aprobás; el resto recibe un código que aprobás acá.",
   "tg.step1": "En Telegram abrí @BotFather, mandá /newbot y seguí los pasos.",
   "tg.step2": "Pegá abajo el token que te da y elegí quién responde.",
   "tg.step3": "Escribile a tu bot: te contesta con un código. Ponelo abajo en “Este es mi Telegram”.",
-  "wa.lead":
-    "Un número de WhatsApp vinculado como WhatsApp Web: una línea aparte para tu agente o tu propio número. Solo responde a las personas que apruebes.",
   "wa.step1": "Tocá Vincular: aparece un código acá.",
   "wa.step2": "En tu teléfono: WhatsApp › Configuración › Dispositivos vinculados › Vincular un dispositivo.",
   "wa.step3":
@@ -1407,7 +1392,6 @@ export const es: Partial<Record<MessageKey, string>> = {
   "wa.scan": "Escaneá este código con tu teléfono",
   "wa.scanHint": "Cambia cada pocos segundos; esta pantalla lo mantiene al día.",
   "wa.connecting": "Conectando con WhatsApp…",
-  "wa.remove": "Desvincular WhatsApp",
   "tg.token": "Token del bot",
   "tg.tokenHint": "Se guarda de forma segura; no vuelve a esta pantalla.",
   "tg.tokenFix": "Pegá un token válido para volver a conectarlo.",
@@ -1416,8 +1400,6 @@ export const es: Partial<Record<MessageKey, string>> = {
   "tg.tokenStored": "Guardado de forma segura; solo se muestran su principio y su final.",
   "tg.tokenChangeButton": "Cambiar token",
   "tg.tokenNew": "Pegá el token nuevo",
-  "tg.agent": "Quién responde",
-  "tg.agentHint": "El agente que contesta en {channel}. Tus mensajes van a Home hasta que elijas un chat propio.",
   "tg.connect": "Conectar bot",
   "tg.status.running": "Conectado",
   "tg.status.starting": "Conectando",
@@ -1443,12 +1425,9 @@ export const es: Partial<Record<MessageKey, string>> = {
   "tg.strangersHint": "Qué pasa cuando te escribe alguien que todavía no aprobaste.",
   "tg.strangers.pair": "Mandar código",
   "tg.strangers.ignore": "Ignorar",
-  "tg.remove": "Quitar este bot",
-  "tg.pairing": "Esperando tu aprobación",
   "tg.yourAccount": "Tu cuenta",
   "tg.itsMe": "Este es mi {channel}",
   "tg.ignore": "Ignorar",
-  "tg.people": "Personas en {channel}",
   "tg.role.owner": "Vos",
   "tg.role.contact": "Contacto",
   "tg.role.blocked": "Bloqueado",
@@ -1456,7 +1435,6 @@ export const es: Partial<Record<MessageKey, string>> = {
   "tg.block": "Bloquear",
   "tg.unblock": "Desbloquear",
   "tg.forget": "Olvidar a esta persona",
-  "tg.sent": "Enviado hace poco",
   "stk.title": "Stickers",
   "stk.lead":
     "Los stickers que te mandan por {channel} se guardan al llegar, con lo que significan. El agente los entiende y puede contestar con los que tienen permitido usarse.",
@@ -1481,7 +1459,6 @@ export const es: Partial<Record<MessageKey, string>> = {
   "tg.out.failed": "Falló",
   "error.channels": "Canales: {error}",
   "chat.viaChannel": "Por {channel}",
-  "tg.notices": "Avisos para vos",
   "tg.followUp": "Las confirmaciones te siguen",
   "tg.followUpHint": "Lo que un agente preguntó en la app y nadie respondió también llega acá, con botones.",
   "tg.followUp.0": "Nunca",
@@ -1715,14 +1692,10 @@ export const es: Partial<Record<MessageKey, string>> = {
   "rooms.tg.idPlaceholder": "ID del grupo (-1001234567890)",
   "rooms.tg.idHint":
     "Telegram no deja listar los grupos de un bot: uno aparece acá cuando agregan el bot o alguien escribe ahí mientras funciona.",
-  "dc.lead":
-    "Hablá con tus agentes desde Discord por mensaje directo a tu bot, y dejalo atender las salas de tu servidor que elijas. Por mensaje directo solo llegan las personas que apruebes.",
   "dc.step1": "En el Discord Developer Portal, creá una aplicación y entrá a Bot.",
   "dc.step2": "Activá Message Content Intent, después Reset Token y copialo.",
   "dc.step3": "En Installation, agregá el bot a tu cuenta (o a un servidor donde estés) para poder escribirle.",
   "dc.step4": "Pegá el token abajo, escribile al bot por mensaje directo y poné su código en “Este es mi Discord”.",
-  "sl.lead":
-    "Hablá con tus agentes desde Slack, por mensaje directo a tu app. Solo llegan las personas que apruebes; el resto recibe un código que aprobás acá.",
   "sl.step1": "En api.slack.com/apps, creá una app y activá Socket Mode: copiá el token de la app (xapp-…).",
   "sl.step2":
     "Dale al bot los permisos chat:write, im:history, users:read y files:write; suscribilo al evento message.im.",
@@ -1730,23 +1703,17 @@ export const es: Partial<Record<MessageKey, string>> = {
   "sl.step4": "Pegá los dos tokens abajo, escribile a la app y poné su código en “Este es mi Slack”.",
   "sl.botToken": "Token del bot",
   "sl.appToken": "Token de la app",
-  "mx.lead":
-    "Hablá con tus agentes desde Matrix, en cualquier servidor. Sólo se leen los chats directos, y sólo llegan las personas que aprobás.",
   "mx.step1": "Creá una cuenta para el agente en tu servidor de Matrix (o usá una que tengas para eso).",
   "mx.step2": "Entrá con ella en Element, abrí Ajustes › Ayuda y acerca de, y copiá su token de acceso.",
   "mx.step3":
     "Pegá la dirección del servidor y el token acá abajo. Empezá un chat con el cifrado apagado, escribile y poné su código en “Este es mi Matrix”.",
   "mx.server": "Dirección del servidor",
   "mx.token": "Token de acceso",
-  "mm.lead":
-    "Hablá con tus agentes desde Mattermost. Sólo se leen los mensajes directos, y sólo llegan las personas que aprobás.",
   "mm.step1": "En System Console › Integrations › Bot accounts, activá las cuentas de bot.",
   "mm.step2": "En Integrations › Bot accounts, agregá un bot y copiá su token.",
   "mm.step3":
     "Pegá la dirección del servidor y el token acá abajo, escribile al bot y poné su código en “Este es mi Mattermost”.",
   "mm.server": "Dirección del servidor",
-  "sg.lead":
-    "Hablá con tus agentes desde Signal con signal-cli corriendo en esta computadora. Sólo se leen los chats de a dos.",
   "sg.step1":
     "Instalá signal-cli y vinculalo a un número (uno propio para el agente, o el tuyo como dispositivo vinculado).",
   "sg.step2": "Arrancalo como daemon: signal-cli -a +NUMERO daemon --http 127.0.0.1:8080",
@@ -1754,8 +1721,6 @@ export const es: Partial<Record<MessageKey, string>> = {
     "Pegá la dirección del daemon y el número acá abajo, escribile desde Signal y poné su código en “Este es mi Signal”.",
   "sg.daemon": "Dirección de signal-cli",
   "sg.number": "Número",
-  "im.lead":
-    "Dejá que tus agentes lean tus iMessages recientes y manden uno desde esta Mac. Mandar siempre espera tu OK.",
   "im.toggle": "Los agentes pueden usar iMessage",
   "im.toggleHint":
     "Dos herramientas: leer mensajes recientes (lo que escriben otros se trata como dato de afuera) y mandar uno, que espera tu OK.",
@@ -1839,7 +1804,6 @@ export const es: Partial<Record<MessageKey, string>> = {
   "nudge.state.relay": "Esperando las novedades del equipo",
   "nudge.state.dropped": "Solo en la bandeja",
   "nudge.state.no_channel": "Sin canal",
-  "nudge.linkHint": "Las horas de silencio, el tope diario y lo que se mandó sin pedirlo están en Interrupciones.",
   "nudge.open": "Abrir Interrupciones",
   "routines.anchor": "Llega siempre",
   "routines.maxSteps": "Pasos por corrida",

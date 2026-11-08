@@ -4187,6 +4187,12 @@ project's agents, so a project's agent could never answer a channel.
   settings show "Own chat" fixed and say why.
 - **Contacts stay sealed** (D-014, D-022) whoever answers them. A project's head answering a contact gets no more
   tools than the super-agent would.
+- **Channels is a screen of its own**, beside Flows in the sidebar, not a section of Settings: it lists every account
+  with who answers it and what waits, and each account's settings open in a dialog of parts (account, who answers,
+  behavior, rooms, contacts, approvals, activity) saved together with Save; a sign-in (token, password) and a connect
+  act at once. A new account opens on its connection and keeps the rest closed until it is connected. What is not one
+  account's (when unanswered questions follow the owner) moved to Settings › Interruptions; links to the old place
+  (`apx:settings/channels`) open the screen.
 
 Rejected: removing Home as the destination of the owner's words, migrating saved settings to "own chat" at boot (it
 breaks the one conversation and a migration belongs to `doctor --fix`), resetting a chat's agents on every incoming

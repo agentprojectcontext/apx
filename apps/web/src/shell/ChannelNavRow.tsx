@@ -1,5 +1,6 @@
 import type { ChannelInfo } from "@apx/protocol";
 import { Icons } from "@apx/ui";
+import { accountItems } from "../channels/accountMenu.tsx";
 import { KindTile } from "../channels/KindIcon.tsx";
 import { CHANNEL_KINDS, isChannelKind } from "../channels/kinds.ts";
 import { useT } from "../i18n/index.ts";
@@ -11,6 +12,7 @@ export function ChannelNavRow({
   order,
   rail,
   count,
+  waiting,
   onClose,
   onMove,
 }: {
@@ -18,6 +20,8 @@ export function ChannelNavRow({
   order: string[];
   rail: boolean;
   count: number;
+  /** Who waits to be let in on it. */
+  waiting: number;
   onClose(): void;
   onMove(id: string, index: number): void;
 }) {
@@ -43,19 +47,7 @@ export function ChannelNavRow({
       order={order}
       onMove={onMove}
       items={[
-        { label: t("nav.open"), icon: <Icons.MessageCircle />, onSelect: pick },
-        ...(kind
-          ? [
-              {
-                label: t("ch.settings"),
-                icon: <Icons.Settings />,
-                onSelect: () => {
-                  onClose();
-                  go.channelConfig(kind, channel.id);
-                },
-              },
-            ]
-          : []),
+        ...accountItems(channel, t, waiting, onClose),
         { type: "separator" },
         ...orderItems(t, channel.id, order, onMove),
       ]}

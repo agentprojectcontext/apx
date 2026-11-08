@@ -92,6 +92,23 @@ export type ChannelDraft = {
   email?: ChannelInfo["email"];
 };
 
+/** What a save sends for an account as it is now: every setting it keeps, so a change of one drops none. */
+export const draftOf = (c: ChannelInfo): ChannelDraft => ({
+  label: c.label,
+  agent_id: c.agent_id,
+  contacts_agent_id: c.contacts_agent_id,
+  enabled: c.enabled,
+  strangers: c.strangers,
+  concurrency: c.concurrency,
+  owner_thread: c.owner_thread,
+  ...(c.self_owner !== undefined ? { self_owner: c.self_owner } : {}),
+  ...(c.rooms ? { rooms: c.rooms } : {}),
+  reactions: c.reactions,
+  research: c.research,
+  hours: c.hours,
+  ...(c.email ? { email: c.email } : {}),
+});
+
 /** Lets agents read and send iMessages on this Mac (or stops them). */
 export async function setIMessage(on: boolean): Promise<void> {
   try {
@@ -173,6 +190,21 @@ export async function addOwnerAddress(channel: string, address: string): Promise
     await loadChannels();
     return true;
   } catch (e) {
+    notify(t("error.channels", { error: errText(e) }));
+    return false;
+  }
+}
+
+/** A new contact on an account: their name and their address there (a number, a user); none is made if it is wrong. */
+export async function addContact(channel: string, name: string, address: string): Promise<boolean> {
+  let made: string | undefined;
+  try {
+    made = (await client.call("contacts.set", { name, role: "contact" })).id;
+    await client.call("contacts.address", { channel, address, person: made });
+    await loadChannels();
+    return true;
+  } catch (e) {
+    if (made) await client.call("contacts.remove", { id: made }).catch(() => undefined);
     notify(t("error.channels", { error: errText(e) }));
     return false;
   }

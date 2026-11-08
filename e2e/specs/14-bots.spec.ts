@@ -1,16 +1,28 @@
-// Discord and Slack, emulated: each bot is connected from Config › Channels with its token(s), the owner writes to it
+// Discord and Slack, emulated: each bot is connected from Channels › New channel with its token(s), the owner writes to it
 // in a direct message, gets a code, links it as their own account, and from then on talks to the super-agent there.
 import type { Page } from "@playwright/test";
 import { expect, open, rpc, test, until, world } from "./kit.ts";
 
 async function connect(page: Page, kind: "Discord" | "Slack", tokens: Array<[label: string, value: string]>) {
   await open(page);
-  await page.getByRole("button", { name: "Agregar canal" }).click();
-  await page.getByRole("menuitem", { name: new RegExp(kind) }).click();
-  for (const [label, value] of tokens) await page.getByRole("textbox", { name: label, exact: true }).fill(value);
-  await page.getByRole("button", { name: "Conectar bot" }).click();
+  await page.getByRole("button", { name: "Nuevo canal" }).first().click();
+  await page
+    .getByRole("dialog", { name: "Nuevo canal" })
+    .getByRole("button", { name: new RegExp(`^${kind}`) })
+    .click();
+  const dialog = page.getByRole("dialog", { name: `Nuevo canal de ${kind}` });
+  for (const [label, value] of tokens) await dialog.getByRole("textbox", { name: label, exact: true }).fill(value);
+  await dialog.getByRole("button", { name: "Conectar", exact: true }).click();
   await expect(page.getByText("@apx", { exact: false }).first()).toBeVisible();
   await expect(page.getByText(`Este es mi ${kind}`)).toBeVisible();
+}
+
+/** Keeps the new account the dialog connected, and opens its chats. */
+async function create(page: Page) {
+  const done = page.getByRole("button", { name: "Crear canal" });
+  await expect(done).toBeEnabled();
+  await done.click();
+  await expect(page.getByRole("dialog")).toHaveCount(0);
 }
 
 async function linkAndTalk(page: Page, channel: "dc" | "sl", owner: { id: string; name: string }) {
@@ -44,6 +56,7 @@ test("Discord: the bot connects with its token, the owner links their account an
   const { discord } = await world.info();
   await connect(page, "Discord", [["Token del bot", discord]]);
   await linkAndTalk(page, "dc", { id: "5150", name: "Owner" });
+  await create(page);
 });
 
 test("Discord rooms: the owner lists a server room, and the bot answers there when called by name", async ({
@@ -52,6 +65,10 @@ test("Discord rooms: the owner lists a server room, and the bot answers there wh
   await open(page);
   await page.getByRole("button", { name: "Discord", exact: true }).first().click();
   await page.getByRole("button", { name: "Configuración del canal" }).click();
+  await page
+    .getByRole("dialog")
+    .getByRole("button", { name: /^Salas/ })
+    .click();
   await expect(page.getByText("Salas del servidor")).toBeVisible();
   // Rooms are picked from the bot's server; one it may not post in says so before anything is sent there.
   const pick = page.getByRole("combobox", { name: "Agregar una sala del servidor…" });
@@ -70,8 +87,11 @@ test("Discord rooms: the owner lists a server room, and the bot answers there wh
   await names.blur();
   await expect(names).toHaveValue("roby");
   // Its rooms may look things up on the web: by default only when the owner asks; here, for everyone.
+  await page.getByRole("dialog").getByRole("button", { name: "Comportamiento" }).click();
   await expect(page.getByRole("radio", { name: "Solo vos" })).toBeChecked();
   await page.getByRole("radio", { name: "Todos" }).click();
+  // Rooms and settings go out together with Save.
+  await page.getByRole("button", { name: "Guardar y cerrar" }).click();
   await until(async () =>
     (await rpc<{ channels: Array<{ id: string; research?: string }> }>("channels.list")).channels.some(
       (c) => c.id === "discord" && c.research === "everyone",
@@ -93,7 +113,6 @@ test("Discord rooms: the owner lists a server room, and the bot answers there wh
   expect(await world.roomPosts("100000000000000001")).toHaveLength(1);
 
   // The room is listed in the channel itself, beside its contacts, and opens its chat right there.
-  await page.keyboard.press("Escape");
   await page.getByRole("button", { name: /#general/ }).click();
   await expect(page.getByText("roby what is Acme Notes?")).toBeVisible();
   await expect(page.getByText("nice weather today")).toBeVisible();
@@ -119,29 +138,29 @@ test("a second Discord bot is an account of its own: its own row, its own settin
 }) => {
   const { discord } = await world.info();
   await open(page);
-  await page.getByRole("button", { name: "Discord", exact: true }).first().click();
-  await page.getByRole("button", { name: "Configuración del canal" }).click();
-  await page.getByRole("button", { name: "Agregar cuenta" }).click();
+  await page.getByRole("button", { name: "Nuevo canal" }).first().click();
+  await page
+    .getByRole("dialog", { name: "Nuevo canal" })
+    .getByRole("button", { name: /^Discord/ })
+    .click();
   await page.getByRole("textbox", { name: "Token del bot", exact: true }).fill(discord);
-  await page.getByRole("button", { name: "Conectar bot" }).click();
+  await page.getByRole("button", { name: "Conectar", exact: true }).click();
   const second = await until(async () =>
     (await rpc<{ channels: Array<{ id: string; type: string; label: string }> }>("channels.list")).channels.find(
       (c) => c.type === "discord" && c.id !== "discord",
     ),
   );
   expect(second.label).toBe("Discord 2");
-  await expect(page.getByRole("combobox", { name: "Cuenta" })).toContainText("Discord 2");
   const name = page.getByRole("textbox", { name: "Nombre", exact: true });
   await expect(name).toHaveValue("Discord 2");
   await name.fill("Acme support");
-  await name.press("Enter");
+  await create(page);
   await until(async () =>
     (await rpc<{ channels: Array<{ id: string; label: string }> }>("channels.list")).channels.some(
       (c) => c.id === second.id && c.label === "Acme support",
     ),
   );
   // The first account is untouched, and each row of the sidebar opens the settings of its own account.
-  await page.keyboard.press("Escape");
   await expect(page.getByRole("button", { name: "Acme support", exact: true }).first()).toBeVisible();
   await page.getByRole("button", { name: "Discord", exact: true }).first().click();
   await page.getByRole("button", { name: "Configuración del canal" }).click();
@@ -158,22 +177,27 @@ test("Slack: the app connects with both tokens, the owner links their account an
     ["Token de la app", slack.app],
   ]);
   await linkAndTalk(page, "sl", { id: "U5150", name: "Owner" });
+  await create(page);
 });
 
 test("iMessage is a pair of tools on a Mac; elsewhere (this sandbox) the panel says so", async ({ page }) => {
   await open(page);
-  await page.getByRole("button", { name: "Agregar canal" }).click();
-  await page.getByRole("menuitem", { name: /iMessage/ }).click();
+  await page.getByRole("button", { name: "Nuevo canal" }).first().click();
+  await page
+    .getByRole("dialog", { name: "Nuevo canal" })
+    .getByRole("button", { name: /^iMessage/ })
+    .click();
   await expect(page.getByText("Solo en una Mac")).toBeVisible();
 });
 
 test("new channels are offered; Google Chat takes its subscription and whole JSON key", async ({ page }) => {
   await open(page);
-  await page.getByRole("button", { name: "Agregar canal" }).click();
+  await page.getByRole("button", { name: "Nuevo canal" }).first().click();
+  const pick = page.getByRole("dialog", { name: "Nuevo canal" });
   for (const name of ["Google Chat", "SMS", "ntfy", "Nextcloud Talk", "IRC", "Twitch", "Microsoft Teams", "LINE"])
-    await expect(page.getByRole("menuitem", { name, exact: true })).toBeEnabled();
-  await page.getByRole("menuitem", { name: "Google Chat", exact: true }).click();
-  const connect = page.getByRole("button", { name: "Conectar bot" });
+    await expect(pick.getByRole("button", { name: new RegExp(`^${name}`) })).toBeEnabled();
+  await pick.getByRole("button", { name: /^Google Chat/ }).click();
+  const connect = page.getByRole("button", { name: "Conectar", exact: true });
   await page.getByRole("textbox", { name: "Suscripción", exact: true }).fill("projects/acme/subscriptions/apx-chat");
   await expect(connect).toBeDisabled();
   const key =
@@ -186,12 +210,15 @@ test("Teams shows its public address: the owner's own https URL gives the addres
   page,
 }) => {
   await open(page);
-  await page.getByRole("button", { name: "Agregar canal" }).click();
-  await page.getByRole("menuitem", { name: "Microsoft Teams", exact: true }).click();
+  await page.getByRole("button", { name: "Nuevo canal" }).first().click();
+  await page
+    .getByRole("dialog", { name: "Nuevo canal" })
+    .getByRole("button", { name: /^Microsoft Teams/ })
+    .click();
   await expect(page.getByText("Dirección pública", { exact: true })).toBeVisible();
   await page.getByRole("radio", { name: "Propia", exact: true }).click();
   await page.getByRole("textbox", { name: "Tu dirección", exact: true }).fill("https://hooks.example.com");
-  await page.getByRole("button", { name: "Guardar" }).click();
+  await page.getByRole("button", { name: "Guardar", exact: true }).click();
   await expect(page.getByText("https://hooks.example.com/hooks/teams")).toBeVisible();
   await rpc("webhooks.set", { mode: "off" });
 });

@@ -23,7 +23,8 @@ export const CHANNEL_AGENTS_NEWS: NewsEntry = {
     "(agent_id; Home only while that is the super-agent, any other agent answers in the channel's own chat) and, " +
     "optionally, another agent for its contacts and rooms (contacts_agent_id). Changing either one moves the open " +
     "chats it answered, except one the owner handed to another agent. The owner can also connect more accounts of the " +
-    "same app in Settings › Channels › Add account; each has its own sign-in, contacts and agents, and iMessage stays " +
+    "same app in Channels (its own screen in the sidebar) › New channel; each has its own sign-in, contacts and " +
+    "agents, and iMessage stays " +
     "one. Offer to review which agent answers each of their channels; change one only when they ask.",
   actions: [
     {
