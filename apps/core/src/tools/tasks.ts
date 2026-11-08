@@ -66,6 +66,18 @@ function taskSide(t: Pick<Task, "created_by" | "person_id">): "owner" | "team" |
   return t.person_id ? "outside" : "team";
 }
 
+/**
+ * The task as written by whoever last wrote what it asks (title, description): its creator, unless an agent rewrote
+ * an owner's task and the owner did not rewrite it again. An agent annotating an owner's draft is not the owner's word.
+ */
+export function asWritten(store: Store, t: Task): Task {
+  if (t.created_by !== "owner") return t;
+  const edit = store.tasks
+    .events(t.id)
+    .findLast((e) => e.op !== "create" && (Object.hasOwn(e.data, "title") || Object.hasOwn(e.data, "description")));
+  return edit && edit.by !== "owner" && store.agents.get(edit.by) ? { ...t, created_by: edit.by } : t;
+}
+
 /** A task's words as the model reads them, enveloped by whose they are. */
 export function taskWords(t: Pick<Task, "created_by" | "person_id">, words: string): string {
   const side = taskSide(t);

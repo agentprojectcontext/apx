@@ -13,7 +13,7 @@ import { noticeTaskReview } from "../domain/task-attention.ts";
 import { taskReviewHandoff } from "../domain/tasks.ts";
 import { type HeldTask, previewOf } from "../domain/threads.ts";
 import { badRequest, conflict } from "../errors.ts";
-import { taskWords } from "../tools/tasks.ts";
+import { asWritten, taskWords } from "../tools/tasks.ts";
 import { agentTrip, heldNotice, trip } from "./breaker.ts";
 import { REVIEW } from "./context.ts";
 import { actionsOf, reportCard } from "./delegation.ts";
@@ -188,7 +188,7 @@ export function startTaskWork(
     hold(store, task, agentId, asker);
     return undefined;
   }
-  const ownWords = task.created_by === "owner";
+  const ownWords = asWritten(store, task).created_by === "owner";
   const assignment = store.tasks.events(task.id).findLast((event) => typeof event.data.assignment_id === "string");
   const review = taskReviewHandoff(assignment?.data.review_handoff);
   const reviewRequest =
