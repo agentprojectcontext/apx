@@ -32,7 +32,7 @@ export const REVIEW =
  * What the one who gave a task does with its report: the delivery check, so a closed task is shipped, sent back or
  * put to the owner, and the owner always hears how it ended (DECISIONS.md#d-208).
  */
-export const DELIVERY_CHECK =
+const DELIVERY_CHECK =
   "Check it against what was asked and how ready it says it is (1 to 5). 1-2, something asked is missing or broken: send it back with task_close state:open, rework:true and exactly what to fix; the owner is not asked. 3 or more: if it was to be published and that step can be undone, see that it is out (tell its agent if not); a hard step (a release or tag, a payment, a message as the owner) you put to the owner first, with your recommendation. Then tell the owner in a line or two how it ended: done, done with these issues, or sent back and why.";
 /** A delegated task's answer: no acknowledgement turn, and a report its caller can act on without asking back. */
 const REPORT =

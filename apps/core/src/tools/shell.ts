@@ -35,7 +35,7 @@ const DESTRUCTIVE =
  * A push that rewrites or deletes what others have, or that cuts a release (a tag, a package, a GitHub release). A
  * plain push of a branch is part of the work a task asks for and runs like any command (DECISIONS.md#d-208).
  */
-export const RELEASES =
+const RELEASES =
   /\bgit\b[^|;&]*\spush\b[^|;&]*(\s(-\w*[fd]\w*|--force\S*|--delete|--tags|--follow-tags|--mirror|--prune)\b|\s\+|\s:\S|\srefs\/tags\/|\sv?\d+\.\d+(\.\d+)?\S*(\s|$))|\bgh\s+release\s+(create|upload|delete|edit)\b|\b(npm|pnpm|yarn|bun)\s+publish\b|\bcargo\s+publish\b|\btwine\s+upload\b/;
 
 /** A push of a branch: publishing the work, which the owner may want to be asked about (`publish: ask`). */
@@ -45,7 +45,7 @@ const PUSH = /\bgit\b[^|;&]*\spush\b/;
  * Whether a command keeps the owner's card in every mode, Total included, until they grant it for the agent: a
  * release always, a plain push when the owner asked to be asked before publishing (DECISIONS.md#d-208).
  */
-export function publishCard(command: string, publish: "auto" | "ask"): "grant" | undefined {
+function publishCard(command: string, publish: "auto" | "ask"): "grant" | undefined {
   const c = command.trim();
   if (RELEASES.test(c) || RELEASES.test(normalize(c))) return "grant";
   return publish === "ask" && (PUSH.test(c) || PUSH.test(normalize(c))) ? "grant" : undefined;
