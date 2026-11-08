@@ -22,9 +22,18 @@ export const HISTORY_BUDGET_CHARS = 120_000;
 /** Runs (newest first) whose tool output stays whole; older output is replaced by a stub. */
 export const FULL_OUTPUT_RUNS = 2;
 
-/** How a review an agent was asked for ends: one verdict, so reviews close instead of adding rounds (DECISIONS.md#d-188). */
+/**
+ * How a review an agent was asked for ends: one report, so reviews close instead of adding rounds, and inform the one
+ * who owns the work instead of judging it (DECISIONS.md#d-188, DECISIONS.md#d-208).
+ */
 export const REVIEW =
-  "Asked to review: answer Approved, Approved with notes, or Blocked with the one thing that blocks it; notes never block, and do not ask for another round.";
+  'Asked to review: report what you checked: what works, what fails (and whether it breaks what was asked), what you could not check. Open with "Approved" when nothing that was asked fails. You inform, never approve or block: whoever owns the work decides. Do not ask for another round.';
+/**
+ * What the one who gave a task does with its report: the delivery check, so a closed task is shipped, sent back or
+ * put to the owner, and the owner always hears how it ended (DECISIONS.md#d-208).
+ */
+export const DELIVERY_CHECK =
+  "Check it against what was asked and how ready it says it is (1 to 5). 1-2, something asked is missing or broken: send it back with task_close state:open, rework:true and exactly what to fix; the owner is not asked. 3 or more: if it was to be published and that step can be undone, see that it is out (tell its agent if not); a hard step (a release or tag, a payment, a message as the owner) you put to the owner first, with your recommendation. Then tell the owner in a line or two how it ended: done, done with these issues, or sent back and why.";
 /** A delegated task's answer: no acknowledgement turn, and a report its caller can act on without asking back. */
 const REPORT =
   "No acknowledgement: do the work, then answer once, ending with four lines: Status: done or blocked; Result:; Evidence: (what your tools showed); Unblock: (what is needed, or none).";
@@ -458,8 +467,8 @@ export function frameInput(origin: Origin, text: string): string {
       return `APX: your task "${origin.title.slice(0, 120)}" (${origin.task_id}) is still open, but nothing has run on it since your last turn. Check where it stands: if part of it is yours to do, go on with it; if it waits on the owner, mark it with task_update awaits_owner=true and why (what they need to do); if it is done, close it with task_close.`;
     case "task_result":
       return origin.by
-        ? `${fromTeam("task_result", { task: origin.task_id, title: origin.title, from: origin.name, state: origin.state }, text)}\n${inlineName(origin.name)} closed a task ${inlineName(origin.by)} gave (${origin.state}); this is their report. Tell the owner in a line or two what came of it and anything they need to do; nothing else.`
-        : `${fromTeam("task_result", { task: origin.task_id, title: origin.title, from: origin.name, state: origin.state }, text)}\nA task you created and gave to ${inlineName(origin.name)} is closed (${origin.state}); this is their report. Tell the owner what matters.`;
+        ? `${fromTeam("task_result", { task: origin.task_id, title: origin.title, from: origin.name, state: origin.state }, text)}\n${inlineName(origin.name)} closed a task ${inlineName(origin.by)} gave (${origin.state}); this is their report. ${DELIVERY_CHECK}`
+        : `${fromTeam("task_result", { task: origin.task_id, title: origin.title, from: origin.name, state: origin.state }, text)}\nA task you created and gave to ${inlineName(origin.name)} is closed (${origin.state}); this is their report. ${DELIVERY_CHECK}`;
     case "delegation_result":
       return `${delegationBlock(origin, text)}This is the result of a task you delegated earlier. Tell the owner what matters; do not delegate the same task again. ${REDIRECT_NOTE}`;
     case "delegation_results":

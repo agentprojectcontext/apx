@@ -3615,6 +3615,7 @@ adding a restriction, without one step of its plan working.
   notes, or Blocked with the one thing that blocks it; notes never block and they ask for no other round. The task
   block asks for one review when a whole change is done, not one per part. "Approved with notes" opens with "Approved",
   so a task review (D-128) reads it as approved.
+  *Amended by [D-208](#d-208) (2026-11-08): a review reports and never blocks; the task's agent decides.*
 
 - **Fewer, shorter task comments**: a task's conversation is read by people, and one agent left 56 dense comments on
   one task. `task_comment` takes one comment per task per turn (a second is refused: the rest goes in the answer) and
@@ -4250,6 +4251,7 @@ happened to work it had started itself.
 Rejected: sending results to every project chat of the head (the owner would see reports in chats that never asked),
 and trusting `coordination_from` without checking the runs (a task chat's context is not proof of who started it).
 
+<a id="d-208"></a>
 ## D-208 — 2026-11-08 — A task's agent carries it to delivery; publishing is medium, a release is hard
 A blog the owner asked to publish sat finished on a branch for a day: its agent read "do not push unless authorized"
 in its role, every teammate it asked answered as a gate, and a plain push of the site waited for the owner like an
@@ -4259,4 +4261,23 @@ in its role, every teammate it asked answered as a gate, and a plain push of the
   command. A push that rewrites or deletes what others have (`--force`, `--delete`, `:branch`, `+ref`, `--mirror`,
   `--prune`) or cuts a release (a tag, `--tags`, `gh release`, `npm publish` and the like) stays `always`, the
   hard kind: it waits in every mode but Total.
+- **Reviews inform, never gate** (`REVIEW` in `engine/context.ts`, `reviewEnded` in `engine/task-work.ts`): a reviewer
+  reports what works, what fails (and whether it breaks what was asked) and what it could not check, opening with
+  "Approved" when nothing asked fails. Either way the task goes back to its agent: a clean report says it is theirs
+  to deliver, a failing one is "a report, not a verdict". Only with no agent on it, or its agent paused, does the owner
+  hear it is ready to close. Amends D-188's one verdict (Approved, Approved with notes, Blocked), whose "Blocked" read as
+  a stop every teammate could pull.
+- **The agent on a task delivers it** (`engine/office.ts`): it owns the task until it is delivered; publishing it,
+  when the task asks, is part of the work. A step that can be undone it does; a hard one (a release or tag, a payment,
+  a production data migration, a message as the owner) waits for the owner. It closes with what works, what is left
+  and how ready it is, 1 to 5.
+- **Whoever gave the task checks the delivery** (`DELIVERY_CHECK` in `engine/context.ts`, the `task_result` framing):
+  1-2 goes back to its agent with `task_close state:open, rework:true` and what to fix, without asking the owner; from
+  3 up it sees that what was to be published is out, puts only a hard step to the owner with a recommendation, and
+  always tells the owner how it ended. For the owner's tasks that is the super-agent.
+- **A part does not start while a teammate it asked is still answering** (`engine/task-continue.ts`): the answer
+  comes back to the chat on its own.
+
+Rejected: a score threshold the core enforces (the score is the agent's word, and what decides is whether a step can
+be undone), and a separate "ready" status (closing with the report already reaches whoever gave the task).
 

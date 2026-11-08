@@ -135,8 +135,12 @@ Above the description, a task shows where its work must arrive and what you said
   over.
 - **One agent does the work, one review at the end**: the agent on a task does it itself. It asks another agent only
   once the rest of its plan is done, usually for a review (unless you ask it for help sooner). Work for someone else
-  becomes a subtask. The reviewer answers Approved, Approved with notes, or Blocked with the one thing that blocks it.
-  Notes never block.
+  becomes a subtask. The reviewer reports what works, what fails and what it could not check; it never approves or
+  blocks. The task goes back to its agent, who decides what to fix and delivers it.
+- **The agent on a task delivers it**: when the task asks to publish or deploy, that is part of the work. A step that
+  can be undone (pushing a branch, a deploy) it does; a hard one (a release or tag, a payment, a production data
+  migration, a message in your name) waits for you. It closes the task saying what works, what is left and how ready
+  it is, from 1 to 5.
 - **Few comments**: an agent comments on a task when its plan is done, to ask you or a teammate something (an
   `@name`), or when it answers you; at most once a turn, in short lines. Progress shows in the plan. A helper answers
   whoever asked it, not the task.
@@ -195,7 +199,10 @@ A task last worked on more than a day ago is left for you.
 ### When an agent's task closes
 
 A task one agent created and gave to another reports back when it closes. Your main agent hears of every task its team
-closes, also the ones you or another agent gave, and tells you what came of it. Your main agent can hand a whole goal to a
+closes, also the ones you or another agent gave, checks it against what was asked and tells you how it ended. Rated
+1 or 2, it goes back to its agent with what to fix, without asking you; from 3 up, your main agent sees that what
+was to be published is out, asks you first only for a hard step, and tells you whether it ended done or done with
+issues. Your main agent can hand a whole goal to a
 project's orchestrator as a task; when the orchestrator closes it, hours and restarts later, your main agent gets
 its report in the chat where it created the task and tells you what matters. When a project's orchestrator starts a
 task from its own project chat, that chat hears how the task ended too, and also when a reviewer sends it back for
