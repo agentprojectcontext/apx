@@ -7,7 +7,7 @@ import path from "node:path";
 import { after, before, test } from "node:test";
 import { createSecrets } from "../secrets.ts";
 import { createChatgptLogin } from "./chatgpt-login.ts";
-import { toInput } from "./chatgpt-responses.ts";
+import { chatgptResponses, toInput } from "./chatgpt-responses.ts";
 import { createLlm } from "./llm.ts";
 
 const jwt = (payload: object) => `x.${Buffer.from(JSON.stringify(payload)).toString("base64url")}.sig`;
@@ -316,4 +316,36 @@ test("a token the plan refuses before its expiry is renewed once and the call go
   const status = dead.login.status();
   assert.equal(status.connected, false);
   assert.match(status.error ?? "", /sign in again/);
+});
+
+test("text cut mid-emoji in the history goes out well-formed, the whole emoji kept where it is whole", async () => {
+  let sent = "";
+  const fetchImpl: typeof fetch = async (_url, init) => {
+    sent = String(init?.body);
+    return new Response('data: {"type":"response.output_text.delta","delta":"ok"}\n\n', {
+      headers: { "content-type": "text/event-stream" },
+    });
+  };
+  await chatgptResponses({
+    baseUrl: "https://example.com/codex",
+    key: "k",
+    model: "gpt-x",
+    messages: [
+      { role: "system", content: "s" },
+      {
+        role: "assistant",
+        content: null,
+        tool_calls: [{ id: "c1", type: "function", function: { name: "t", arguments: "{}" } }],
+      },
+      { role: "tool", tool_call_id: "c1", content: 'link "free \ud83d" and 💬' },
+      { role: "user", content: "go" },
+    ],
+    tools: [],
+    signal: new AbortController().signal,
+    firstByteMs: 5_000,
+    fetchImpl,
+  });
+  assert.ok(!/\\ud[89ab][0-9a-f]{2}/i.test(sent), "no escaped lone surrogate on the wire");
+  const output = (JSON.parse(sent) as { input: Array<{ output?: string }> }).input.find((i) => i.output)?.output;
+  assert.equal(output, 'link "free �" and 💬');
 });
