@@ -60,6 +60,15 @@ export async function loadChannels(): Promise<void> {
   }
 }
 
+/**
+ * The id of a new account of `type`: the type itself for the first one (as the setup and `apx channels add` make it),
+ * a random one for each further account, which never shows its number, address or token.
+ */
+export function newChannelId(type: ChannelInfo["type"], taken: readonly Pick<ChannelInfo, "id">[]): string {
+  if (!taken.some((c) => c.id === type)) return type;
+  return `${type}-${crypto.randomUUID().replaceAll("-", "").slice(0, 10)}`;
+}
+
 export type ChannelDraft = {
   type?: ChannelInfo["type"];
   label?: string;

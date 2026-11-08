@@ -6,14 +6,21 @@ import { KindTile } from "../channels/KindIcon.tsx";
 import { PhoneForm, phoneOf } from "../channels/PhoneForm.tsx";
 import { AgentSelect } from "../common/pickers/AgentSelect.tsx";
 import { QrCode } from "../common/QrCode.tsx";
-import { type ChannelDraft, loadChannels, saveChannel, unlinkAddress, useChannels } from "../data/channels.ts";
+import {
+  type ChannelDraft,
+  loadChannels,
+  newChannelId,
+  saveChannel,
+  unlinkAddress,
+  useChannels,
+} from "../data/channels.ts";
 import { useData } from "../data/state.ts";
 import { useT } from "../i18n/index.ts";
+import { AccountPicker, CancelAdding, useChannelAccounts } from "./ChannelAccounts.tsx";
 import { Behavior, Deliveries, Notices, Pairing, People, STATUS } from "./ChannelParts.tsx";
 import { SubHead } from "./SectionHead.tsx";
 import { Stickers } from "./StickersSection.tsx";
 
-const CHANNEL_ID = "whatsapp";
 const DEFAULTS = { enabled: true, strangers: "pair", concurrency: "steer", owner_thread: "home" } as const;
 
 /**
@@ -21,9 +28,9 @@ const DEFAULTS = { enabled: true, strangers: "pair", concurrency: "steer", owner
  * own number (they write in "Message yourself"). Others are answered only once approved.
  */
 export function WhatsAppSection() {
-  const channels = useChannels((s) => s.channels);
   const ready = useChannels((s) => s.ready);
-  const channel = channels.find((c) => c.type === "whatsapp");
+  const accounts = useChannelAccounts("whatsapp");
+  const { channel, connecting } = accounts;
   // While a QR waits it changes every few seconds: read it often then, rarely otherwise.
   const linking = channel?.status === "starting";
   useEffect(() => {
@@ -33,8 +40,17 @@ export function WhatsAppSection() {
   }, [linking]);
   return (
     <>
-      {ready && (channel ? <Linked channel={channel} /> : <Setup />)}
-      {channel && (
+      <AccountPicker state={accounts} />
+      {ready &&
+        (connecting ? (
+          <>
+            <Setup onLinked={accounts.pick} />
+            <CancelAdding state={accounts} />
+          </>
+        ) : (
+          channel && <Linked key={channel.id} channel={channel} />
+        ))}
+      {!connecting && channel && (
         <>
           {!channel.self_owner && <OwnerPhone channel={channel} />}
           <Pairing channelId={channel.id} />
@@ -59,8 +75,9 @@ function Steps() {
   );
 }
 
-function Setup() {
+function Setup({ onLinked }: { onLinked(id: string): void }) {
   const t = useT();
+  const channels = useChannels((s) => s.channels);
   const agents = useData((s) => s.agents);
   const secretary = Object.values(agents).find((a) => a.kind === "secretary");
   const [agent, setAgent] = useState(secretary?.id ?? SUPER_AGENT_ID);
@@ -68,8 +85,10 @@ function Setup() {
   const [busy, setBusy] = useState(false);
   const link = async () => {
     setBusy(true);
-    await saveChannel(CHANNEL_ID, { agent_id: agent, ...DEFAULTS, self_owner: selfOwner });
+    const id = newChannelId("whatsapp", channels);
+    const saved = await saveChannel(id, { type: "whatsapp", agent_id: agent, ...DEFAULTS, self_owner: selfOwner });
     setBusy(false);
+    if (saved) onLinked(id);
   };
   return (
     <div className="tgsetup">

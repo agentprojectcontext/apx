@@ -21,6 +21,8 @@ export const enChannels = {
   "ch.strangersHint.answer":
     "Answered right away as a new contact: a sealed chat, no tools or memory, with an hourly limit.",
   "ch.strangersHint.ignore": "Nobody answers them and they are not listed.",
+  "ch.accountName": "Name",
+  "ch.accountNameHint": "How this account shows in your channels.",
   "ch.selfOwner": "This line is my own phone",
   "ch.selfOwnerHint":
     "On: what you write in “Message yourself” is yours and is answered there. Off: a line of its own where your agent answers; you write to it from your phone.",
@@ -175,8 +177,6 @@ export const enChannels = {
     "Their messages aren't answered on their own: you get the suggested answer, to send it, edit it or drop it.",
   "ch.saved": "Contact saved.",
   "ch.youToAgent": "You → {agent}",
-  "em.account": "Email account",
-  "em.addAccount": "Add email account",
   "em.lead": "A mailbox for the agent: it reads the mail that arrives and answers in the same thread.",
   "em.step1": "Give the agent a mailbox of its own (a new Gmail or Outlook account, or one on your domain).",
   "em.step2":

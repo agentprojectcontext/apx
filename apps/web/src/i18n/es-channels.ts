@@ -23,6 +23,8 @@ export const esChannels: Partial<Record<MessageKey, string>> = {
   "ch.strangersHint.answer":
     "Se le contesta enseguida y queda como contacto nuevo: charla sellada, sin tools ni memoria, con límite por hora.",
   "ch.strangersHint.ignore": "Nadie le contesta y no queda anotado.",
+  "ch.accountName": "Nombre",
+  "ch.accountNameHint": "Cómo aparece esta cuenta en tus canales.",
   "ch.selfOwner": "Esta línea es mi propio teléfono",
   "ch.selfOwnerHint":
     "Encendido: lo que escribas en “Mensaje a mí mismo” es tuyo y se contesta ahí. Apagado: es una línea aparte donde atiende tu agente; vos le escribís desde tu teléfono.",
@@ -192,8 +194,6 @@ export const esChannels: Partial<Record<MessageKey, string>> = {
   "channel.whatsapp.name": "WhatsApp",
   "channel.telegram.name": "Telegram",
   "channel.discord.name": "Discord",
-  "em.account": "Cuenta de email",
-  "em.addAccount": "Agregar cuenta de email",
   "em.lead": "Una casilla para el agente: lee el mail que llega y responde en el mismo hilo.",
   "em.step1": "Dale al agente una casilla propia (una cuenta nueva de Gmail u Outlook, o una de tu dominio).",
   "em.step2":

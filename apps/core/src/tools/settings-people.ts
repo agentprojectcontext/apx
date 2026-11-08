@@ -68,7 +68,11 @@ function channelLine(store: Store, c: Channel): string {
   const bits = [
     c.type,
     c.enabled ? "on" : "off",
+    `owner's messages: ${c.owner_thread === "own" ? "its own chat" : "Home"}`,
     `answered by ${inlineName(store.agents.get(c.agent_id)?.name ?? c.agent_id)}`,
+    ...(c.contacts_agent_id && c.contacts_agent_id !== c.agent_id
+      ? [`contacts answered by ${inlineName(store.agents.get(c.contacts_agent_id)?.name ?? c.contacts_agent_id)}`]
+      : []),
     `strangers: ${c.strangers}`,
     `reactions: ${(c.reactions ?? CHANNEL_DEFAULTS.reactions) ? "on" : "off"}`,
     `research: ${c.research ?? CHANNEL_DEFAULTS.research}`,
@@ -173,7 +177,7 @@ export const PEOPLE: Readonly<Record<string, Setting>> = {
         .join("\n") || "no channels set up.",
   },
   "channels.set": {
-    does: "change a channel already set up (id, and under channel only what changes: agent_id, strangers, rooms, hours when it answers contacts {days 0 = Sunday, from, to HH:MM in the owner's time zone} or null for any hour…); its sign-in, mail account and research stay the owner's",
+    does: "change a channel already set up (id, and under channel only what changes: label, owner_thread home|own, agent_id (who answers the owner in its own chat), contacts_agent_id (who answers its contacts and rooms), strangers, rooms, hours when it answers contacts {days 0 = Sunday, from, to HH:MM in the owner's time zone} or null for any hour…); its sign-in, mail account and research stay the owner's",
     asks: "card",
     says: (p, { store }) => `Change the channel ${inlineName(channelOf(store, p.id)?.label ?? str(p.id))}`,
     refuse: (p, { store }) => {

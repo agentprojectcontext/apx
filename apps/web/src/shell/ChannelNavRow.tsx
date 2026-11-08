@@ -51,7 +51,7 @@ export function ChannelNavRow({
                 icon: <Icons.Settings />,
                 onSelect: () => {
                   onClose();
-                  go.channelConfig(kind);
+                  go.channelConfig(kind, channel.id);
                 },
               },
             ]

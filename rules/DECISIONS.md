@@ -4165,3 +4165,30 @@ language ("merci", "obrigado" reached the model anyway).
   the "no answer needed" notice that other such messages already got.
 - The owner's "genial, funcionó" on a channel now runs a turn, so the procedure note it confirms comes from that turn
   (`captureProcedure`); the path for owner words kept without a turn is gone.
+
+<a id="d-205"></a>
+## D-205 — 2026-11-08 — Each channel account is a channel, answered by the super-agent or a project's head
+
+People run several businesses or projects through chat apps: two WhatsApp numbers, a bot per project. A channel had
+one `agent_id`, the panel assumed one account per app (`id === type`), and its picker offered only the default
+project's agents, so a project's agent could never answer a channel.
+
+- **An account is a channel.** A second account of an app gets its own id (the app's name for the first, a random
+  suffix after it, never the number or token), its own sign-in, contacts, chats, outbox and sidebar row, and a name
+  numbered from the second on ("WhatsApp 2") that the owner can change. A save without a name keeps the saved one.
+- **Who answers.** `agent_id` answers the owner in the channel's own chat; `contacts_agent_id` (none: `agent_id`)
+  answers its contacts and rooms. The picker lists the super-agent and each project's head (`teamHead`); the rest of
+  a team is reached through its head. A chat takes the project of the agent that answers it.
+- **Open chats follow a change** of either one, in the same transaction as the save, and only while the previous agent
+  still answers them: a chat the owner handed to another agent keeps it, and an unrelated save moves nothing.
+- **Home stays the default** for the owner's own words (one conversation from every app); "own chat" stays a choice
+  per channel.
+- **Contacts stay sealed** (D-014, D-022) whoever answers them. A project's head answering a contact gets no more
+  tools than the super-agent would.
+
+Rejected: removing Home as the destination of the owner's words, migrating saved settings to "own chat" at boot (it
+breaks the one conversation and a migration belongs to `doctor --fix`), resetting a chat's agents on every incoming
+message (it undoes hand-overs), and per-channel "customer service" modes that give admitted contacts, strangers
+included, the agent's tools and MCP servers, with a model's JSON answer as the gate in the reviewed mode. Contacts'
+messages are untrusted (rule 10); opening tools to them needs its own design: the exact tools the owner lends, what
+each may reach, and who confirms what.

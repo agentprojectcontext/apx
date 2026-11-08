@@ -4,10 +4,11 @@ import { Badge, Button, Icons, Input, SettingRow, Switch, Textarea } from "@apx/
 import { useEffect, useState } from "react";
 import { KindTile } from "../channels/KindIcon.tsx";
 import { AgentSelect } from "../common/pickers/AgentSelect.tsx";
-import { type ChannelDraft, loadChannels, saveChannel, useChannels } from "../data/channels.ts";
+import { type ChannelDraft, loadChannels, newChannelId, saveChannel, useChannels } from "../data/channels.ts";
 import { notify } from "../data/notices.ts";
 import { useData } from "../data/state.ts";
 import { type MessageKey, useT } from "../i18n/index.ts";
+import { AccountPicker, CancelAdding, useChannelAccounts } from "./ChannelAccounts.tsx";
 import { Behavior, Deliveries, Notices, Pairing, People, STATUS } from "./ChannelParts.tsx";
 import { PublicAddress } from "./PublicAddress.tsx";
 import { isRoomsKind, RoomsSection } from "./RoomsSection.tsx";
@@ -186,29 +187,38 @@ export const botSpec = (kind: BotKind) => BOTS[kind];
 /** A bot channel (Telegram, Discord, Slack): connect it, choose who answers, approve who may write, see what went out. */
 export function BotSection({ kind }: { kind: BotKind }) {
   const t = useT();
-  const channels = useChannels((s) => s.channels);
   const ready = useChannels((s) => s.ready);
   useEffect(() => {
     void loadChannels();
     const id = setInterval(() => void loadChannels(), 5000);
     return () => clearInterval(id);
   }, []);
-  const channel = channels.find((c) => c.type === kind);
+  const accounts = useChannelAccounts(kind);
+  const { channel, connecting } = accounts;
   const name = BOTS[kind].name;
   return (
     <>
-      {ready && (channel ? <Connected channel={channel} kind={kind} /> : <Setup kind={kind} />)}
-      {WEBHOOK_KINDS.includes(kind) && <PublicAddress channelId={channel?.id ?? kind} />}
-      {channel && (
+      <AccountPicker state={accounts} />
+      {ready &&
+        (connecting ? (
+          <>
+            <Setup key={kind} kind={kind} onConnected={accounts.pick} />
+            <CancelAdding state={accounts} />
+          </>
+        ) : (
+          channel && <Connected key={channel.id} channel={channel} kind={kind} />
+        ))}
+      {!connecting && channel && WEBHOOK_KINDS.includes(kind) && <PublicAddress channelId={channel.id} />}
+      {!connecting && channel && (
         <Pairing
           channelId={channel.id}
           itsMe={{ title: t("tg.itsMe", { channel: name }), hint: t("tg.itsMeHint", { channel: name }) }}
         />
       )}
-      {channel && <Notices />}
-      {channel && <People channelId={channel.id} />}
-      {channel && kind === "telegram" && <Stickers platform="telegram" label={name} />}
-      {channel && <Deliveries channelId={channel.id} />}
+      {!connecting && channel && <Notices />}
+      {!connecting && channel && <People channelId={channel.id} />}
+      {!connecting && channel && kind === "telegram" && <Stickers platform="telegram" label={name} />}
+      {!connecting && channel && <Deliveries channelId={channel.id} />}
     </>
   );
 }
@@ -232,8 +242,11 @@ export function useTokens(kind: BotKind) {
   };
 }
 
-function Setup({ kind }: { kind: BotKind }) {
+function Setup({ kind, onConnected }: { kind: BotKind; onConnected(id: string): void }) {
   const t = useT();
+  // A new account's id exists before it connects: LINE and Teams need its public address first.
+  const channels = useChannels((s) => s.channels);
+  const [id] = useState(() => newChannelId(kind, channels));
   const agents = useData((s) => s.agents);
   const secretary = Object.values(agents).find((a) => a.kind === "secretary");
   const tokens = useTokens(kind);
@@ -241,9 +254,10 @@ function Setup({ kind }: { kind: BotKind }) {
   const [busy, setBusy] = useState(false);
   const connect = async () => {
     setBusy(true);
-    await saveChannel(
-      kind,
+    const saved = await saveChannel(
+      id,
       {
+        type: kind,
         agent_id: agent,
         enabled: true,
         strangers: "pair",
@@ -254,30 +268,34 @@ function Setup({ kind }: { kind: BotKind }) {
       tokens.joined,
     );
     setBusy(false);
+    if (saved) onConnected(id);
   };
   return (
-    <div className="tgsetup">
-      <ol className="tgsetup__steps">
-        {BOTS[kind].steps.map((k) => (
-          <li key={k}>{t(k)}</li>
+    <>
+      <div className="tgsetup">
+        <ol className="tgsetup__steps">
+          {BOTS[kind].steps.map((k) => (
+            <li key={k}>{t(k)}</li>
+          ))}
+        </ol>
+        {tokens.specs.map((spec, i) => (
+          <div className="pform__field" key={spec.label}>
+            <span className="pform__label">{t(spec.label)}</span>
+            <TokenInput spec={spec} value={tokens.values[i] ?? ""} onChange={(v) => tokens.set(i, v)} />
+            {i === tokens.specs.length - 1 && <span className="pform__hint">{t("tg.tokenHint")}</span>}
+          </div>
         ))}
-      </ol>
-      {tokens.specs.map((spec, i) => (
-        <div className="pform__field" key={spec.label}>
-          <span className="pform__label">{t(spec.label)}</span>
-          <TokenInput spec={spec} value={tokens.values[i] ?? ""} onChange={(v) => tokens.set(i, v)} />
-          {i === tokens.specs.length - 1 && <span className="pform__hint">{t("tg.tokenHint")}</span>}
+        <SettingRow title={t("tg.agent")} description={t("tg.agentHint", { channel: BOTS[kind].name })}>
+          <AgentSelect size="sm" className="tgagent" channel value={agent} onChange={(id) => id && setAgent(id)} />
+        </SettingRow>
+        <div>
+          <Button disabled={!tokens.ok} loading={busy} onClick={() => void connect()}>
+            {t("tg.connect")}
+          </Button>
         </div>
-      ))}
-      <SettingRow title={t("tg.agent")} description={t("tg.agentHint", { channel: BOTS[kind].name })}>
-        <AgentSelect size="sm" className="tgagent" channel value={agent} onChange={(id) => id && setAgent(id)} />
-      </SettingRow>
-      <div>
-        <Button disabled={!tokens.ok} loading={busy} onClick={() => void connect()}>
-          {t("tg.connect")}
-        </Button>
       </div>
-    </div>
+      {WEBHOOK_KINDS.includes(kind) && <PublicAddress channelId={id} />}
+    </>
   );
 }
 

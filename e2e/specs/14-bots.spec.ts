@@ -114,6 +114,41 @@ test("Discord rooms: the owner lists a server room, and the bot answers there wh
   await expect(page.getByRole("region", { name: "#general" }).getByText("@ben welcome!")).toBeVisible();
 });
 
+test("a second Discord bot is an account of its own: its own row, its own settings and a name the owner gives it", async ({
+  page,
+}) => {
+  const { discord } = await world.info();
+  await open(page);
+  await page.getByRole("button", { name: "Discord", exact: true }).first().click();
+  await page.getByRole("button", { name: "Configuración del canal" }).click();
+  await page.getByRole("button", { name: "Agregar cuenta" }).click();
+  await page.getByRole("textbox", { name: "Token del bot", exact: true }).fill(discord);
+  await page.getByRole("button", { name: "Conectar bot" }).click();
+  const second = await until(async () =>
+    (await rpc<{ channels: Array<{ id: string; type: string; label: string }> }>("channels.list")).channels.find(
+      (c) => c.type === "discord" && c.id !== "discord",
+    ),
+  );
+  expect(second.label).toBe("Discord 2");
+  await expect(page.getByRole("combobox", { name: "Cuenta" })).toContainText("Discord 2");
+  const name = page.getByRole("textbox", { name: "Nombre", exact: true });
+  await expect(name).toHaveValue("Discord 2");
+  await name.fill("Acme support");
+  await name.press("Enter");
+  await until(async () =>
+    (await rpc<{ channels: Array<{ id: string; label: string }> }>("channels.list")).channels.some(
+      (c) => c.id === second.id && c.label === "Acme support",
+    ),
+  );
+  // The first account is untouched, and each row of the sidebar opens the settings of its own account.
+  await page.keyboard.press("Escape");
+  await expect(page.getByRole("button", { name: "Acme support", exact: true }).first()).toBeVisible();
+  await page.getByRole("button", { name: "Discord", exact: true }).first().click();
+  await page.getByRole("button", { name: "Configuración del canal" }).click();
+  await expect(page.getByRole("textbox", { name: "Nombre", exact: true })).toHaveValue("Discord");
+  await rpc("channels.set", { id: second.id, channel: null });
+});
+
 test("Slack: the app connects with both tokens, the owner links their account and talks to the super-agent", async ({
   page,
 }) => {

@@ -61,7 +61,9 @@ export function channelHandlers(store: Store, channels: Channels, nudges: Pick<N
         if (agent && !store.agents.get(agent)) throw notFound(`agent ${agent}`);
       if (channel?.type === "telegram" && !token && !channels.info().find((c) => c.id === id)?.token_set)
         throw badRequest("a Telegram channel needs its bot token (from @BotFather)");
-      const config = channel ? { ...channel, label: channel.label || defaultLabel(channel.type) } : null;
+      const saved = channels.info();
+      const label = channel?.label || saved.find((c) => c.id === id)?.label;
+      const config = channel ? { ...channel, label: label || defaultLabel(channel.type, id, saved) } : null;
       return { channels: await channels.set(id, config, token) };
     },
     "channels.send": ({ thread, text, omit_signature }) => {
@@ -309,4 +311,12 @@ function otherAddress(type: string, typed: string): string | undefined {
   }
   return /^-?\d{3,20}$/.test(typed.trim()) ? typed.trim() : undefined;
 }
-const defaultLabel = (type: string) => CHANNEL_CATALOG[type as ChannelType]?.label ?? type;
+/** The app's name, numbered from the second account of it on ("WhatsApp 2") so the list tells them apart. */
+function defaultLabel(type: string, id: string, saved: readonly { id: string; type: string; label: string }[]): string {
+  const name = CHANNEL_CATALOG[type as ChannelType]?.label ?? type;
+  const others = new Set(saved.filter((c) => c.type === type && c.id !== id).map((c) => c.label));
+  if (!others.size) return name;
+  let n = others.size + 1;
+  while (others.has(`${name} ${n}`)) n++;
+  return `${name} ${n}`;
+}

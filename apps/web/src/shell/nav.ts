@@ -97,6 +97,8 @@ export type NavState = {
   config: ConfigSection | null;
   /** The channel kind shown in Config › Channels (connected or being set up). */
   configChannel: ChannelKind | undefined;
+  /** The account of that kind shown in it, when the owner opened one in particular. */
+  configAccount: string | undefined;
   /** "Open on your phone" dialog. */
   phone: boolean;
   /** The usage dialog (memory, CPU, disk; the computer's and APX's). */
@@ -214,6 +216,7 @@ export const nav = createStore<NavState>({
   tools: true,
   config: null,
   configChannel: undefined,
+  configAccount: undefined,
   phone: false,
   usageDialog: false,
   palette: false,
@@ -499,9 +502,9 @@ export const go = {
   config(section: ConfigSection | null = "account") {
     nav.set({ config: section });
   },
-  /** Config › Channels on one kind: its settings, or its setup when it is not connected yet. */
-  channelConfig(kind: ChannelKind) {
-    nav.set({ config: "channels", configChannel: kind });
+  /** Config › Channels on one kind: its settings (of `account`, when given), or its setup when none is connected. */
+  channelConfig(kind: ChannelKind, account?: string) {
+    nav.set({ config: "channels", configChannel: kind, configAccount: account });
   },
   palette(open: boolean) {
     nav.set({ palette: open });

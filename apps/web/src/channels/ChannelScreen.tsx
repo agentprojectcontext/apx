@@ -248,7 +248,7 @@ function ChannelHead({ channel }: { channel: ChannelInfo }) {
         size="sm"
         label={t("ch.settings")}
         icon={<Icons.Settings size={14} />}
-        onClick={() => go.channelConfig(isChannelKind(channel.type) ? channel.type : "telegram")}
+        onClick={() => isChannelKind(channel.type) && go.channelConfig(channel.type, channel.id)}
       />
     </header>
   );

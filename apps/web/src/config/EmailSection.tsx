@@ -8,6 +8,7 @@ import { type ChannelDraft, loadChannels, saveChannel, useChannels } from "../da
 import { notify } from "../data/notices.ts";
 import { useData } from "../data/state.ts";
 import { useT } from "../i18n/index.ts";
+import { AccountPicker, CancelAdding, useChannelAccounts } from "./ChannelAccounts.tsx";
 import { Behavior, Deliveries, Notices, Pairing, People, STATUS } from "./ChannelParts.tsx";
 import { EmailSignatures } from "./EmailSignatures.tsx";
 
@@ -192,54 +193,26 @@ function ServerFields({ title, value, onChange }: { title: string; value: MailSe
 
 /** Email: connect a mailbox, choose who answers and who may write, see what went out. */
 export function EmailSection() {
-  const channels = useChannels((s) => s.channels);
+  const t = useT();
   const ready = useChannels((s) => s.ready);
   useEffect(() => {
     void loadChannels();
     const id = setInterval(() => void loadChannels(), 5000);
     return () => clearInterval(id);
   }, []);
-  const t = useT();
-  const [selected, setSelected] = useState("");
-  const [adding, setAdding] = useState(false);
-  const accounts = channels.filter((c) => c.type === "email");
-  const channel = accounts.find((c) => c.id === selected) ?? accounts[0];
-  const connecting = adding || !channel;
+  const accounts = useChannelAccounts("email");
+  const { channel, connecting } = accounts;
   return (
     <>
-      {accounts.length > 0 && (
-        <SettingRow title={t("em.account")}>
-          <Select
-            label={t("em.account")}
-            value={channel?.id ?? ""}
-            onValueChange={(id) => {
-              if (id) setSelected(id);
-              setAdding(false);
-            }}
-            options={accounts.map((c) => ({ value: c.id, label: `${c.label} · ${c.email?.address ?? c.id}` }))}
-          />
-          <Button size="sm" variant="secondary" leadingIcon={<Icons.Plus size={14} />} onClick={() => setAdding(true)}>
-            {t("em.addAccount")}
-          </Button>
-        </SettingRow>
-      )}
+      <AccountPicker state={accounts} />
       {ready &&
         (connecting ? (
           <>
-            <Setup
-              onConnected={(id) => {
-                setSelected(id);
-                setAdding(false);
-              }}
-            />
-            {channel && (
-              <Button variant="ghost" onClick={() => setAdding(false)}>
-                {t("common.cancel")}
-              </Button>
-            )}
+            <Setup onConnected={accounts.pick} />
+            <CancelAdding state={accounts} />
           </>
         ) : (
-          <Connected key={channel.id} channel={channel} />
+          channel && <Connected key={channel.id} channel={channel} />
         ))}
       {!connecting && channel?.email && (
         <EmailSignatures
