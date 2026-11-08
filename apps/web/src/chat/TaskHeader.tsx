@@ -66,12 +66,7 @@ export function TaskCrumb({ thread, taskId }: { thread: Thread; taskId: string }
         <Menu
           align="start"
           trigger={
-            <Button
-              size="sm"
-              variant="ghost"
-              className="chat__sessions"
-              trailingIcon={<Icons.ChevronDown size={12} />}
-            >
+            <Button size="sm" variant="ghost" className="chat__sessions" trailingIcon={<Icons.ChevronDown size={12} />}>
               {t("tasks.header.session", { name: name(thread) })}
             </Button>
           }
