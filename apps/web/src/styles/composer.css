@@ -686,3 +686,65 @@
   align-items: center;
   gap: 12px;
 }
+
+/* A side question (AsidePanel): over the composer, its own small conversation that never enters the chat. */
+.aside {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 10px;
+  padding: 10px 12px 12px;
+  border: 1px solid var(--apx-border);
+  border-radius: var(--apx-radius-lg);
+  background: var(--apx-surface-raised);
+  box-shadow: var(--apx-shadow-md);
+}
+.aside__head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--apx-fg-muted);
+  font-size: 13px;
+}
+.aside__title {
+  flex: none;
+  color: var(--apx-fg);
+  font-weight: 500;
+  white-space: nowrap;
+}
+.aside__sub {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--apx-fg-subtle);
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.aside__spacer {
+  flex: 1;
+}
+.aside__log {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-height: min(40vh, 360px);
+  overflow-y: auto;
+}
+.aside__log:empty {
+  display: none;
+}
+.aside__turn {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.aside__hint,
+.aside__thinking,
+.aside__error {
+  margin: 0;
+  font-size: 13px;
+  color: var(--apx-fg-muted);
+}
+.aside__error {
+  color: var(--apx-danger);
+}

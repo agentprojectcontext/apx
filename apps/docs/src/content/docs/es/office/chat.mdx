@@ -122,6 +122,19 @@ Los borradores de adjuntos, incluidas las cargas en curso, sobreviven a cambiar 
 Seleccioná una miniatura para previsualizar su archivo. A diferencia del texto del borrador guardado, los adjuntos
 no sobreviven a recargar o cerrar la página: no son almacenamiento durable de archivos.
 
+### Pregunta aparte
+
+**Desde 2.14.0**, **+** › **Pregunta aparte** le pregunta al agente del chat algo rápido sobre el chat sin sumarlo al
+chat: qué se decidió, un nombre que usó, un resumen corto. Se abre un panel chico sobre el cuadro de redacción;
+preguntá y repreguntá ahí.
+
+- El agente contesta con el modelo del chat y lee el chat como está, pero desde el panel no usa herramientas ni actúa.
+  Si la pregunta lo necesita, hacela en el chat.
+- Ni la pregunta ni la respuesta se suman al chat, y el agente no las ve en los turnos siguientes. No se guardan:
+  cerrar el panel (su **×** o Esc) las descarta.
+- Sus tokens cuentan en **Uso** como **Preguntas aparte**, junto al chat sobre el que fueron.
+- No aparece en un chat nuevo antes de su primer mensaje, ni en la sesión propia de Claude Code, Codex u otro motor.
+
 ### Identidad de canales y respuestas delegadas
 
 Las conversaciones de canales muestran la identidad del contacto y del canal correspondientes. Esa presentación

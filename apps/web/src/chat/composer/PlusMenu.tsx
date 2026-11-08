@@ -25,7 +25,8 @@ function twoLines(key: string, label: string, sub: string) {
 /**
  * The composer's +: a file (also ⌘/Ctrl+U), an audio to transcribe into the message; a skill, a connector, a command;
  * and context (a project, a chat, a task or a file). Every pick only writes in the composer: nothing is sent until the
- * owner sends it. `direct`: an engine's own session, which has its own skills and connectors.
+ * owner sends it. `direct`: an engine's own session, which has its own skills and connectors. Last, a side question
+ * (`onAside`), which stays out of the chat (DECISIONS.md#d-208).
  */
 export function PlusMenu(o: {
   thread: Thread;
@@ -41,6 +42,8 @@ export function PlusMenu(o: {
   onConnector: (name: string) => void;
   onCommands: () => void;
   onContext: (ref: ContextRef) => void;
+  /** Opens a side question; none where there is no chat to ask about yet, or in an engine's own session. */
+  onAside?: (() => void) | undefined;
 }) {
   const t = useT();
   const projects = useData((s) => s.projects);
@@ -153,6 +156,17 @@ export function PlusMenu(o: {
         },
       ],
     },
+    ...(o.onAside
+      ? ([
+          { type: "separator" },
+          {
+            label: twoLines("aside", t("composer.aside"), t("composer.asideDesc")),
+            icon: <Icons.MessageCircle size={14} />,
+            disabled: o.disabled,
+            onSelect: o.onAside,
+          },
+        ] satisfies MenuEntry[])
+      : []),
   ];
   return (
     <Menu

@@ -118,6 +118,18 @@ Attachment drafts, including uploads in progress, survive switching chats within
 preview its file. Unlike saved draft text, attachment drafts do not survive reloading or closing the page; they are
 not durable file storage.
 
+### Side question
+
+**Since 2.14.0**, **+** › **Side question** asks the chat's agent something quick about the chat without adding to
+it: what was decided, a name it used, a short recap. A small panel opens over the composer; ask, and follow up there.
+
+- The agent answers on the chat's model and reads the chat as it stands, but cannot use tools or act from the panel.
+  If the question needs that, ask in the chat.
+- Neither the question nor the answer is added to the chat, and the agent does not see them in later turns. They are
+  not saved: closing the panel (its **×** or Esc) lets them go.
+- Its tokens count in **Usage** as **Side questions**, with the chat they were about.
+- Not offered in a new chat before its first message, or in a Claude Code, Codex or other engine's own session.
+
 ### Channel identity and delegated replies
 
 Channel conversations show the corresponding contact and channel identity. That display does not change the agent

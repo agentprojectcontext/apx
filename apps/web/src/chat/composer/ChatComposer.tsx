@@ -5,6 +5,7 @@ import { MOD } from "../../common/modKey.ts";
 import { useEngineLabel } from "../../common/useEngineLabel.ts";
 import { ModelChoicePicker } from "../../config/models/ModelPickers.tsx";
 import { cancel, loadThread, makeChat, send } from "../../data/actions.ts";
+import { openAside } from "../../data/aside.ts";
 import { sendDirect } from "../../data/channels.ts";
 import { setThreadModel, transcribe } from "../../data/composer.ts";
 import { draftOf, keepDraft, subscribeDrafts } from "../../data/drafts.ts";
@@ -16,6 +17,7 @@ import { useData } from "../../data/state.ts";
 import { useT } from "../../i18n/index.ts";
 import { AttachChips } from "../../lazy.ts";
 import { go } from "../../shell/nav.ts";
+import { AsidePanel, useAsideOpen } from "./AsidePanel.tsx";
 import { ContextChip } from "./ContextChip.tsx";
 import { ContextChips } from "./ContextChips.tsx";
 import { contextOf, contextRunOf, spentOf, usageStamp } from "./context.ts";
@@ -87,6 +89,7 @@ export function ChatComposer({
   const busy = isPending(thread.state);
   const room = thread.channel && !thread.channel.person_id ? thread.title : undefined;
   const [direct, setDirect] = useState(false);
+  const aside = useAsideOpen(thread.id);
   const agentName = agent?.name ?? t("composer.yourAgent");
   const slash = useSlashMenu({ thread, agent, text, setText, busy, onNew });
   const runs = useMemo(
@@ -186,6 +189,7 @@ export function ChatComposer({
       ref={box}
       className={`chat__composer${over ? " is-dropping" : ""}${mic.state === "recording" ? " is-recording" : ""}`}
     >
+      {aside && <AsidePanel key={thread.id} thread={thread.id} agent={agentName} />}
       <input
         ref={files}
         type="file"
@@ -278,6 +282,7 @@ export function ChatComposer({
                 addRef(thread.id, ref);
                 backToField();
               }}
+              onAside={fresh || thread.engine ? undefined : () => openAside(thread.id)}
             />
             {mic.state !== "unsupported" && (
               <span className="composer__voice">
