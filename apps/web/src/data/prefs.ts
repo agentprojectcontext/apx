@@ -265,9 +265,15 @@ export function rememberSidebar(key: "projectOrder" | "engineOrder", id: string,
   setPrefs({ [key]: [id, ...order.filter((current) => current !== id)].slice(0, 100) });
 }
 
-/** "Alex Lee" → "AL", "You" → "YO". */
+/** "Alex Lee" → "AL", "You" → "YO", "lufer (@lufer)" → "LU": letters and digits only, a handle in brackets left out. */
 export function initialsOf(name: string): string {
-  const parts = name.trim().split(/\s+/).filter(Boolean);
+  const words = name
+    .replace(/\([^)]*\)/g, " ")
+    .split(/\s+/)
+    .map((w) => w.replace(/[^\p{L}\p{N}]/gu, ""))
+    .filter(Boolean);
+  // Only a handle: its own letters.
+  const parts = words.length ? words : [name.replace(/[^\p{L}\p{N}]/gu, "")];
   const first = parts[0] ?? "";
   const last = parts.length > 1 ? (parts[parts.length - 1] ?? "") : "";
   return ((first[0] ?? "") + (last ? last[0] : (first[1] ?? ""))).toUpperCase() || "?";

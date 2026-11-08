@@ -1,5 +1,5 @@
 import type { Agent, CatalogEngine, Run, Thread } from "@apx/protocol";
-import { Composer, EngineIcon, IconButton, Icons, SegmentedControl } from "@apx/ui";
+import { Composer, EngineIcon, IconButton, Icons, SegmentedControl, Tooltip } from "@apx/ui";
 import { type KeyboardEvent, Suspense, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { MOD } from "../../common/modKey.ts";
 import { useEngineLabel } from "../../common/useEngineLabel.ts";
@@ -316,21 +316,21 @@ export function ChatComposer({
       />
       <div className="chat__composer-foot">
         {room && (
-          <SegmentedControl
-            size="sm"
-            label={t("ch.room.who")}
-            value={direct ? "me" : "agent"}
-            onValueChange={(v) => setDirect(v === "me")}
-            options={[
-              { value: "agent", label: t("ch.room.agentPosts", { agent: agentName }) },
-              { value: "me", label: t("ch.iWrite") },
-            ]}
-          />
-        )}
-        {room && (
-          <p className="chat__composer-hint">
-            {t(direct ? "ch.room.hint.me" : "ch.room.hint.agent", { agent: agentName, room })}
-          </p>
+          // What each choice does is said on hover, so the row keeps the choice beside the model.
+          <Tooltip content={t(direct ? "ch.room.hint.me" : "ch.room.hint.agent", { agent: agentName, room })}>
+            <span className="chat__roommode">
+              <SegmentedControl
+                size="sm"
+                label={t("ch.room.who")}
+                value={direct ? "me" : "agent"}
+                onValueChange={(v) => setDirect(v === "me")}
+                options={[
+                  { value: "agent", label: t("ch.room.agentPosts", { agent: agentName }) },
+                  { value: "me", label: t("ch.iWrite") },
+                ]}
+              />
+            </span>
+          </Tooltip>
         )}
         {queueHint && <p className="chat__composer-hint is-queue">{queueHint}</p>}
         <span className="composer__spacer" />
