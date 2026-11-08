@@ -169,6 +169,16 @@ export function channelsRepo({ one, all, run }: Sql) {
         );
         return changes > 0 ? id : undefined;
       },
+      /** The other side's messages kept under an address its platform also wrote another way: under `to` now. */
+      readdress(channel: string, from: string, to: string): void {
+        run(
+          qb
+            .updateTable("channel_inbox")
+            .set({ conversation: to, payload: sql<string>`json_set(payload, '$.conversation', ${to})` })
+            .where("channel", "=", channel)
+            .where("conversation", "=", from),
+        );
+      },
       pending(): InboxRow[] {
         return all(
           qb.selectFrom("channel_inbox").selectAll().where("state", "=", "received").orderBy("created_at"),

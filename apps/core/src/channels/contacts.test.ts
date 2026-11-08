@@ -300,6 +300,7 @@ test("a reaction that cannot be put sends nothing to them, and the owner hears w
   assert.equal(tg.messagesTo(MAG.id).length, sent, "no stray emoji went to them");
   const { messages } = await env.client.call("threads.get", { thread });
   assert.ok(!messages.at(-1)?.parts.some((p) => p.type === "text"), "the REACT words leave the chat");
+  assert.doesNotMatch(env.core.store.threads.get(thread)?.preview ?? "", /REACT/, "and the chat's preview too");
 });
 
 test("a thanks reaches the agent, and the emoji it picks goes on their message", async () => {

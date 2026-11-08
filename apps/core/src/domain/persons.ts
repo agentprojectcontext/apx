@@ -1,7 +1,7 @@
 // People and their addresses on channels. The owner is the person with role "owner" (one, created on first use);
 // who someone is on a channel is decided only by an exact address match, never by a name.
 import { type Address, type Person, PersonPerms, PersonRelation, type PersonRole } from "@apx/protocol";
-import type { Selectable } from "kysely";
+import { type Selectable, sql } from "kysely";
 import type { AddressesTable, PersonsTable } from "../db/schema.ts";
 import { newId, now, opt, qb, type Sql } from "./sql.ts";
 
@@ -225,6 +225,14 @@ export function personsRepo({ one, all, run, tx }: Sql) {
         const [keep, gone] = a.role === "owner" ? [a, b] : [b, a];
         for (const table of ["addresses", "threads", "tasks", "suggestions", "channel_held"] as const)
           run(qb.updateTable(table).set({ person_id: keep.id }).where("person_id", "=", gone.id));
+        // What they wrote is signed by the one person they are now.
+        run(
+          qb
+            .updateTable("messages")
+            .set({ author: sql<string>`json_set(author, '$.id', ${keep.id})` })
+            .where("thread_id", "in", qb.selectFrom("threads").select("id").where("person_id", "=", keep.id))
+            .where(sql<string>`json_extract(author, '$.id')`, "=", gone.id),
+        );
         const decided = keep.unreviewed && !gone.unreviewed ? gone : keep;
         run(
           qb
