@@ -12,10 +12,10 @@ import { useT } from "../i18n/index.ts";
 import { go } from "./nav.ts";
 
 /**
- * A small deck: a newer APX, the Discord, a star on GitHub. Only the first that still applies shows; the next peeks
- * out behind it and comes forward when it is closed. Each one is said once per device (the update card once per
- * version), never as a modal. At the foot of the sidebar; floating beside it when the sidebar is a rail, away from the
- * composer.
+ * A small deck: a newer APX, the Discord, a star on GitHub. Only the first that still applies shows; up to two more
+ * peek out behind it as edges and the next comes forward when it is closed. Each one is said once per device (the
+ * update card once per version), never as a modal. At the foot of the sidebar; floating beside it when the sidebar is
+ * a rail, away from the composer.
  */
 export function CornerCards({ floating = false }: { floating?: boolean }) {
   const t = useT();
@@ -130,13 +130,19 @@ export function CornerCards({ floating = false }: { floating?: boolean }) {
       />,
     );
   if (!cards.length) return null;
+  const behind = Math.min(cards.length - 1, 2);
   return (
     <aside
       className={floating ? "corner is-floating" : "corner"}
       aria-label={t("corner.label")}
-      style={{ "--corner-peek": `${(Math.min(cards.length, 3) - 1) * 8}px` } as CSSProperties}
+      style={{ "--corner-peek": `${behind * 8}px` } as CSSProperties}
     >
-      {cards.slice(0, 3)}
+      {/* The cards waiting behind show only as edges: nothing in them to read or reach until they come forward. */}
+      {Array.from({ length: behind }, (_, i) => (
+        // biome-ignore lint/suspicious/noArrayIndexKey: the plates are interchangeable, only their depth differs.
+        <span key={i} className="corner__back" data-depth={i + 1} aria-hidden="true" />
+      ))}
+      {cards[0]}
     </aside>
   );
 }

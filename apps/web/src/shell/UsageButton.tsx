@@ -34,7 +34,7 @@ export function UsageButton() {
           data-testid="usage-button"
           icon={
             <>
-              <Icons.MemoryStick size={14} />
+              <Icons.Monitor size={14} />
               {pct !== undefined && (
                 <>
                   <span className="usage-btn__gauge" aria-hidden="true">

@@ -20,7 +20,7 @@ test("chat processes open A2A beside its parent, maximize and stay scoped to eac
   await expect(side.getByText("Last line of the report.")).toBeVisible();
   await expect(mainChat).toHaveAttribute("aria-label", /Source review|start a worker/);
   await expect(page).toHaveURL(new RegExp(`thread=${root.id}`));
-  await side.getByRole("button", { name: "Volver a procesos del chat" }).click();
+  await side.getByRole("tab", { name: /^Todos \(/ }).click();
   await expect(side.getByText("Terminados (1)")).toBeVisible();
   await side.locator(".processes__row").click();
   await side.getByRole("button", { name: "Abrir conversación completa" }).click();

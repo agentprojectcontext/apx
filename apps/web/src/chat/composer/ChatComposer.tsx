@@ -43,6 +43,7 @@ export function ChatComposer({
   onNew = go.thread,
   prepare,
   offlineHint = true,
+  placeholder,
 }: {
   thread: Thread;
   agent: Agent | undefined;
@@ -53,6 +54,8 @@ export function ChatComposer({
   offlineHint?: boolean;
   /** Runs before each message goes: the words to send (with what the screen adds), or null to keep them unsent. */
   prepare?: (words: string) => Promise<string | null>;
+  /** The field's hint when the screen says more than "Write to <agent>" (a routine's chat). */
+  placeholder?: string;
 }) {
   const t = useT();
   const offline = useData((s) => s.connection === "offline");
@@ -170,7 +173,7 @@ export function ChatComposer({
             ? t("composer.offline")
             : room
               ? t(direct ? "ch.room.writeMe" : "ch.room.writeAgent", { agent: agentName, room })
-              : t("composer.placeholder", { name: engine ?? agentName })
+              : (placeholder ?? t("composer.placeholder", { name: engine ?? agentName }))
         }
         labels={{ stop: t("composer.stop"), send: t("composer.send") }}
         // Claude Code takes words mid-turn as our own loop does; other engines stop and read them (DECISIONS.md#d-196).

@@ -9,8 +9,8 @@ import { ListedChat } from "./Delegated.tsx";
 import { SessionRow } from "./InboxViews.tsx";
 import { selectionPath } from "./selectionPath.ts";
 import { ThreadAvatar } from "./ThreadAvatar.tsx";
+import { useOpenRow } from "./useOpenRow.ts";
 
-const folded = new Set<string>();
 const SHOWN = 5;
 
 /** One routine, with its executions and their delegated sessions underneath in every Inbox view. */
@@ -25,18 +25,14 @@ export function RoutineBundle({
 }) {
   const t = useT();
   const agents = useShownAgents();
-  const [open, setOpen] = useState(() => !folded.has(routineId));
   const [all, setAll] = useState(false);
   const loaded = useData((s) => s.threads);
   const path = selectionPath(loaded, selected);
   const active = threads.findIndex((th) => path.has(th.id));
+  const [open, setOpen] = useOpenRow(`routine:${routineId}`, Boolean(selected) && active >= 0);
   useEffect(() => {
-    if (selected && active >= 0) {
-      folded.delete(routineId);
-      setOpen(true);
-      if (active >= SHOWN) setAll(true);
-    }
-  }, [active, routineId, selected]);
+    if (selected && active >= SHOWN) setAll(true);
+  }, [active, selected]);
   const latest = threads.reduce((a, b) => (a.updated_at >= b.updated_at ? a : b));
   const unread = threads.reduce((n, th) => n + th.unread, 0);
   const shown = all ? threads : threads.slice(0, SHOWN);
@@ -47,11 +43,7 @@ export function RoutineBundle({
         className={`taskbundle__task${unread ? " is-unread" : ""}`}
         aria-expanded={open}
         aria-label={`${t(open ? "inbox.routineBundle.close" : "inbox.routineBundle.open")}: ${routineName(latest)}`}
-        onClick={() => {
-          if (open) folded.add(routineId);
-          else folded.delete(routineId);
-          setOpen(!open);
-        }}
+        onClick={() => setOpen(!open)}
       >
         {open ? <Icons.ChevronDown size={14} /> : <Icons.ChevronRight size={14} />}
         <Icons.Clock size={14} className="taskbundle__icon" />

@@ -16,8 +16,7 @@
   display: flex;
   flex-direction: column;
   gap: 14px;
-  padding: 18px 24px 0;
-  border-bottom: 1px solid var(--apx-border);
+  padding: 18px 24px 12px;
 }
 .project__titlerow {
   display: flex;
@@ -103,9 +102,6 @@
   overflow-y: hidden;
   scrollbar-width: none;
 }
-.project__tabs .apx-tabs__tab[data-active] {
-  border-bottom-color: var(--apx-fg);
-}
 .project__body {
   flex: 1;
   min-height: 0;
@@ -115,27 +111,75 @@
 
 /* ── Overview ──────────────────────────────────────────────────────────────── */
 /* The whole overview scrolls as one page; the board may take the full width, the rest keeps the page's. */
+/* The widgets on the left (three quarters), the project's summary on the right (one quarter), both always so. */
 .overview {
   flex: 1;
   min-width: 0;
   overflow: auto;
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  grid-template-columns: minmax(0, 3fr) minmax(260px, 1fr);
+  align-items: start;
   gap: 24px;
   padding: 24px;
   box-sizing: border-box;
-  width: 100%;
 }
-.overview__grid {
-  display: grid;
-  grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr);
-  align-content: start;
+.overview__main {
+  display: flex;
+  flex-direction: column;
   gap: 24px;
-  width: 100%;
-  max-width: var(--shell-project-max-w);
-  margin: 0 auto;
+  min-width: 0;
 }
-.overview__col,
+.overview__side {
+  position: sticky;
+  top: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  min-width: 0;
+}
+.overview__agents {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.overview__agent {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  height: 36px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: var(--apx-row-radius);
+  background: transparent;
+  color: var(--apx-fg);
+  text-align: left;
+}
+.overview__agent:hover {
+  background: var(--apx-fill-hover);
+}
+.overview__agentname {
+  flex: none;
+  font-size: var(--apx-text-sm);
+}
+.overview__agentrole {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-align: right;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-size: var(--apx-text-xs);
+  color: var(--apx-fg-subtle);
+}
+@media (max-width: 900px) {
+  .overview {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .overview__side {
+    position: static;
+  }
+}
 .overview__block {
   display: flex;
   flex-direction: column;
@@ -828,12 +872,6 @@
 }
 
 /* The tabs' counts read as "Agents (10)". */
-.project__tabs .apx-tabs__count::before {
-  content: "(";
-}
-.project__tabs .apx-tabs__count::after {
-  content: ")";
-}
 
 .projsettings {
   display: flex;

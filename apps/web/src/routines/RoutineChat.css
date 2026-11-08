@@ -1,0 +1,250 @@
+/* A routine's runs as one chat: runs one after the other in one scroll, a timeline of runs on the right edge. */
+.rtchat__body {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+}
+.rtchat__scroll {
+  flex: 1;
+}
+.rtchat__runs {
+  display: flex;
+  flex-direction: column;
+  padding-bottom: 16px;
+}
+/* Kept out of the browser's scroll anchoring: runs added above keep the reader where they were. */
+.rtchat__more {
+  height: 1px;
+  overflow-anchor: none;
+}
+.rtchat__run {
+  display: flex;
+  flex-direction: column;
+  padding-top: 28px;
+}
+.rtchat__run:first-of-type {
+  padding-top: 8px;
+}
+.rtchat__head,
+.rtchat__loading {
+  width: 100%;
+  max-width: var(--shell-transcript-w);
+  margin: 0 auto;
+  padding: 0 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.rtchat__loading {
+  padding-top: 12px;
+}
+
+/* Each run's transcript is the chat's own, laid flat in this scroll. */
+.rtchat__run .chat__scroll {
+  flex: none;
+  min-height: auto;
+  overflow: visible;
+}
+.rtchat__run .transcript {
+  width: 100%;
+  padding-top: 12px;
+  padding-bottom: 0;
+}
+.rtchat__run .apx-stickyscroll__tobottom {
+  display: none;
+}
+/* The run's line already says when it ran, and its instructions sit above: the transcript's own copies go. */
+.rtchat__run .transcript__row:first-child:has(.transcript__routine) {
+  display: none;
+}
+.rtchat__run .transcript__row:first-child > .apx-daydiv {
+  display: none;
+}
+
+.rtchat__changed {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--apx-text-xs);
+  color: var(--apx-fg-subtle);
+}
+.rtchat__divider {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding-bottom: 6px;
+  font-size: var(--apx-text-xs);
+  color: var(--apx-fg-subtle);
+}
+.rtchat__divider::before,
+.rtchat__divider::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: var(--apx-border);
+}
+.rtchat__when {
+  color: var(--apx-fg-muted);
+  white-space: nowrap;
+}
+.rtchat__mark {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  white-space: nowrap;
+}
+.rtchat__mark::before {
+  content: "";
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--rtchat-tone);
+}
+.rtchat__mark.is-failed {
+  color: var(--apx-danger);
+}
+.rtchat .is-ran {
+  --rtchat-tone: var(--apx-brand);
+}
+.rtchat .is-told {
+  --rtchat-tone: var(--apx-info);
+}
+.rtchat .is-skipped {
+  --rtchat-tone: var(--apx-border-strong);
+}
+.rtchat .is-failed {
+  --rtchat-tone: var(--apx-danger);
+}
+.rtchat .is-live {
+  --rtchat-tone: var(--apx-violet);
+}
+
+.rtchat__prompt {
+  border: 1px solid var(--apx-border);
+  border-radius: var(--apx-radius-sm);
+  font-size: var(--apx-text-sm);
+  color: var(--apx-fg-muted);
+}
+.rtchat__prompt summary {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  cursor: pointer;
+  list-style: none;
+}
+.rtchat__prompt summary:hover {
+  color: var(--apx-fg);
+}
+.rtchat__prompt summary::-webkit-details-marker {
+  display: none;
+}
+.rtchat__prompttitle {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.rtchat__promptchev {
+  flex: none;
+  transition: transform 0.15s;
+}
+.rtchat__prompt[open] .rtchat__promptchev {
+  transform: rotate(90deg);
+}
+.rtchat__prompttext {
+  margin: 0;
+  padding: 0 10px 10px 31px;
+  white-space: pre-wrap;
+}
+.rtchat__sub {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* The timeline: quiet marks until the pointer is on it, then wider bars that are easy to hit. */
+.rtchat__rail {
+  position: absolute;
+  top: 12px;
+  right: 14px;
+  bottom: 12px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  pointer-events: none;
+}
+.rtchat__railtrack {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 3px;
+  max-height: 100%;
+  padding: 6px 4px;
+  overflow: hidden;
+  border-radius: var(--apx-radius-sm);
+  pointer-events: auto;
+  opacity: 0.6;
+  transition: opacity 0.2s;
+}
+.rtchat__railtrack:hover,
+.rtchat__railtrack:focus-within {
+  opacity: 1;
+}
+.rtchat__rail .rtchat__dot.apx-btn {
+  flex: none;
+  width: 4px;
+  height: 4px;
+  min-width: 0;
+  min-height: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 3px;
+  background: var(--rtchat-tone);
+  opacity: 0.7;
+  transition:
+    width 0.22s cubic-bezier(0.2, 0.8, 0.2, 1),
+    height 0.22s,
+    opacity 0.15s;
+}
+.rtchat__rail .rtchat__dot.apx-btn.is-skipped {
+  background: var(--apx-fill-strong);
+}
+.rtchat__rail .rtchat__dot.apx-btn.is-active {
+  width: 5px;
+  height: 5px;
+  opacity: 1;
+}
+.rtchat__railtrack:hover .rtchat__dot.apx-btn {
+  width: 12px;
+  height: 4px;
+  opacity: 0.55;
+}
+.rtchat__railtrack:hover .rtchat__dot.apx-btn:hover,
+.rtchat__railtrack:hover .rtchat__dot.apx-btn.is-active {
+  width: 22px;
+  opacity: 1;
+}
+
+/* "N earlier" / "N later": the runs past the ends of a rail too short for all of them. */
+.rtchat__rail .rtchat__more.apx-btn {
+  flex: none;
+  height: 22px;
+  min-height: 0;
+  padding: 0 4px;
+  gap: 1px;
+  font-size: 10px;
+  color: var(--apx-fg-subtle);
+}
+.rtchat__rail .rtchat__more.apx-btn:hover {
+  color: var(--apx-fg);
+}
+
+@media (max-width: 720px) {
+  .rtchat__head,
+  .rtchat__loading {
+    padding: 0 16px;
+  }
+}

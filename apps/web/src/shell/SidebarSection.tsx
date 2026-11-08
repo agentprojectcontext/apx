@@ -23,6 +23,7 @@ export function SidebarSection({
   count,
   running,
   active,
+  empty,
   children,
 }: {
   rail: boolean;
@@ -37,6 +38,8 @@ export function SidebarSection({
   count?: number;
   running?: boolean;
   active?: boolean;
+  /** What a compact section says while it has nothing in it. */
+  empty?: string;
   children?: ReactNode;
 }) {
   if (compact && icon)
@@ -50,6 +53,7 @@ export function SidebarSection({
         running={running}
         active={active}
         action={action}
+        empty={empty}
       >
         {children}
       </SidebarFlyout>

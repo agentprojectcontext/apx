@@ -73,6 +73,7 @@ export function ExternalSessionsNav({ rail, compact = false }: { rail: boolean; 
       count={shown.length}
       running={shown.some((engine) => engine.logged_in)}
       active={view === "engine"}
+      empty={t("nav.empty.sessions")}
       folded={folded}
       onToggle={() => {
         setMoreOpen(false);

@@ -1,5 +1,5 @@
 import type { Job, TerminalInfo, Thread } from "@apx/protocol";
-import { EmptyState, IconButton, Icons, Skeleton } from "@apx/ui";
+import { Button, EmptyState, IconButton, Icons, Skeleton } from "@apx/ui";
 import { Suspense, useCallback, useEffect, useState } from "react";
 import { client } from "../data/client.ts";
 import { watchEvents } from "../data/live.ts";
@@ -7,13 +7,14 @@ import { notify } from "../data/notices.ts";
 import { useT } from "../i18n/index.ts";
 import { TerminalView } from "../lazy.ts";
 import { useNav } from "../shell/nav.ts";
+import { LIST_TAB, PanelTabs } from "./PanelTabs.tsx";
 import { plain } from "./terminalText.ts";
 
 const errText = (e: unknown) => (e instanceof Error ? e.message : String(e));
 
 /**
- * The chat's terminals: "Agent" lists the commands the agent ran here (and the ones still running in the background)
- * with what they printed; each other tab is the owner's own shell in the chat's folder.
+ * The chat's terminals: the list shows the commands the agent ran here (and the ones still running in the background)
+ * with what they printed; each tab is the owner's own shell in the chat's folder.
  */
 export function TerminalPanel({ thread }: { thread: Thread }) {
   const t = useT();
@@ -50,51 +51,38 @@ export function TerminalPanel({ thread }: { thread: Thread }) {
     const left = await load();
     if (tab === id) setTab(left.at(-1)?.id ?? "agent");
   };
+  const jobs = useAgentJobs(threadId);
   const current = terms.find((x) => x.id === tab);
   return (
     <div className="sidepanel__body term">
-      <div className="term__tabs" role="tablist" aria-label={t("panel.terminal")}>
-        <button
-          type="button"
-          role="tab"
-          aria-selected={tab === "agent"}
-          className={tab === "agent" ? "term__tab is-on" : "term__tab"}
-          onClick={() => setTab("agent")}
-        >
-          <Icons.Bot size={13} />
-          {t("terminal.agent")}
-        </button>
-        {terms.map((x) => (
-          <span key={x.id} className={tab === x.id ? "term__tab is-on" : "term__tab"}>
-            <button type="button" role="tab" aria-selected={tab === x.id} onClick={() => setTab(x.id)}>
-              <Icons.Terminal size={13} />
-              {x.title}
-              {!x.alive && <span className="term__ended">{t("terminal.ended")}</span>}
-            </button>
-            <IconButton
-              size="sm"
-              label={t("terminal.close", { name: x.title })}
-              icon={<Icons.X size={12} />}
-              onClick={() => void close(x.id)}
-            />
-          </span>
-        ))}
-        <IconButton size="sm" label={t("terminal.new")} icon={<Icons.Plus size={14} />} onClick={() => void open()} />
-      </div>
+      <PanelTabs
+        label={t("panel.terminal")}
+        list={t("panelTabs.ran", { n: jobs?.length ?? 0 })}
+        tabs={terms.map((x) => ({
+          id: x.id,
+          label: x.title,
+          icon: <Icons.Terminal size={12} />,
+          ...(!x.alive && { note: t("terminal.ended") }),
+        }))}
+        value={current ? current.id : LIST_TAB}
+        onSelect={(id) => setTab(id === LIST_TAB ? "agent" : id)}
+        onClose={(id) => void close(id)}
+        onNew={() => void open()}
+        newLabel={t("terminal.new")}
+      />
       {current ? (
         <Suspense fallback={<Skeleton className="term__loading" />}>
           <TerminalView key={current.id} terminal={current} />
         </Suspense>
       ) : (
-        <AgentCommands threadId={threadId} onNew={() => void open()} />
+        <AgentCommands jobs={jobs} onNew={() => void open()} />
       )}
     </div>
   );
 }
 
-/** What the agent ran in this chat, newest first; a row unfolds into its output (live while it runs). */
-function AgentCommands({ threadId, onNew }: { threadId: string; onNew?: () => void }) {
-  const t = useT();
+/** What the agent ran in this chat, newest first; undefined while loading. */
+function useAgentJobs(threadId: string): Job[] | undefined {
   const [jobs, setJobs] = useState<Job[]>();
   const load = useCallback(async () => {
     const r = await client.call("jobs.list", { thread: threadId, finished: 50 }).catch(() => undefined);
@@ -106,16 +94,27 @@ function AgentCommands({ threadId, onNew }: { threadId: string; onNew?: () => vo
       if (ev.type === "job.updated" && ev.job.thread_id === threadId) void load();
     });
   }, [load, threadId]);
+  return jobs;
+}
+
+/** What the agent ran in this chat; a row unfolds into its output (live while it runs). */
+function AgentCommands({ jobs, onNew }: { jobs: Job[] | undefined; onNew?: () => void }) {
+  const t = useT();
   if (!jobs) return <Skeleton className="term__loading" />;
   if (!jobs.length)
     return (
-      <EmptyState icon={<Icons.Terminal />} title={t("terminal.agentEmpty")}>
+      <EmptyState
+        icon={<Icons.Terminal />}
+        title={t("terminal.agentEmpty")}
+        action={
+          onNew && (
+            <Button size="sm" variant="secondary" onClick={onNew}>
+              {t("terminal.openOwn")}
+            </Button>
+          )
+        }
+      >
         {t("terminal.agentEmptyBody")}
-        {onNew && (
-          <button type="button" className="term__link" onClick={onNew}>
-            {t("terminal.openOwn")}
-          </button>
-        )}
       </EmptyState>
     );
   return (

@@ -57,13 +57,13 @@ test("cambios: lista unificada, diff expandible en vivo, historial y registros a
     const input = page.getByRole("textbox", { name: /^Escribile a/ });
     await input.fill("changes");
     await page.getByRole("button", { name: "Enviar", exact: true }).click();
-    await expect(panel.getByText("Cambios: 1 archivo editado", { exact: true })).toBeVisible();
+    await expect(panel.getByRole("tab", { name: "Archivos (1)" })).toBeVisible();
     const guide = panel.locator(".wchanges__file").filter({ has: page.getByRole("button", { name: /Guide\.md/ }) });
     await guide.getByRole("button").click();
     await expect(guide.locator(".diff__line--add")).toContainText(["# Guía", "", "Original"]);
     advance();
     await expect(page.locator(".transcript").getByText("Done", { exact: true })).toHaveCount(1);
-    await expect(panel.getByText("Cambios: 3 archivos editados", { exact: true })).toBeVisible();
+    await expect(panel.getByRole("tab", { name: "Archivos (3)" })).toBeVisible();
     await expect(panel.locator(".wchanges__file")).toHaveCount(3);
     await expect(panel.locator(".changes")).toHaveCount(0);
     await expect(guide.locator(".diff__line--add")).toContainText(["# Guía", "", "Final"]);
@@ -80,7 +80,7 @@ test("cambios: lista unificada, diff expandible en vivo, historial y registros a
     await page.screenshot({ path: "/tmp/apx-changes.png", fullPage: true });
     await env.client.call("threads.send", { thread: thread.id, text: "single" });
     await env.settle(thread.id);
-    await expect(panel.getByText("Cambios: 1 archivo editado", { exact: true })).toBeVisible();
+    await expect(panel.getByRole("tab", { name: "Archivos (1)" })).toBeVisible();
     await pickScope(page, "Todos los turnos");
     await expect(panel.locator(".wchanges__file")).toHaveCount(4);
     fs.unlinkSync(path.join(work, "Guide.md"));

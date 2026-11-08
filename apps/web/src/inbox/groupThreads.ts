@@ -68,6 +68,11 @@ export function listedThreads(threads: Record<string, Thread>, opts: Filter): Th
   return out;
 }
 
+/** The Inbox's rows, pinned first then newest: each chat on its own, each task's and each routine's chats bundled. */
+export function inboxEntries(threads: Record<string, Thread>, opts: Filter): ListEntry[] {
+  return bundleTasks(visible(threads, opts).sort(pinnedFirst));
+}
+
 /** What "Mark all as read" reads: the unread chats the list shows, delegated ones under them included. */
 export const unreadListed = (threads: Record<string, Thread>, opts: Filter): string[] =>
   listedThreads(threads, opts)

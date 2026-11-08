@@ -233,14 +233,6 @@
       "count": 2,
       "reason": "terminal-style prompt and console buttons"
     },
-    "apps/web/src/panel/ComputerPanel.tsx": {
-      "count": 6,
-      "reason": "custom-styled row, chip, tab or card control; moving it to Button/IconButton changes its look, so it needs a reviewed screenshot (rule 32)"
-    },
-    "apps/web/src/panel/DocumentPanel.tsx": {
-      "count": 2,
-      "reason": "custom-styled row, chip, tab or card control; moving it to Button/IconButton changes its look, so it needs a reviewed screenshot (rule 32)"
-    },
     "apps/web/src/panel/FileChange.tsx": {
       "count": 1,
       "reason": "custom-styled row, chip, tab or card control; moving it to Button/IconButton changes its look, so it needs a reviewed screenshot (rule 32)"
@@ -249,15 +241,7 @@
       "count": 1,
       "reason": "custom-styled row, chip, tab or card control; moving it to Button/IconButton changes its look, so it needs a reviewed screenshot (rule 32)"
     },
-    "apps/web/src/panel/ProcessesPanel.tsx": {
-      "count": 2,
-      "reason": "custom-styled row, chip, tab or card control; moving it to Button/IconButton changes its look, so it needs a reviewed screenshot (rule 32)"
-    },
     "apps/web/src/panel/TerminalPanel.tsx": {
-      "count": 4,
-      "reason": "custom-styled row, chip, tab or card control; moving it to Button/IconButton changes its look, so it needs a reviewed screenshot (rule 32)"
-    },
-    "apps/web/src/panel/WidgetPanel.tsx": {
       "count": 1,
       "reason": "custom-styled row, chip, tab or card control; moving it to Button/IconButton changes its look, so it needs a reviewed screenshot (rule 32)"
     },
@@ -426,7 +410,7 @@
       "reason": "custom-styled row, chip, tab or card control; moving it to Button/IconButton changes its look, so it needs a reviewed screenshot (rule 32)"
     },
     "apps/web/src/shell/RunningIndicator.tsx": {
-      "count": 2,
+      "count": 1,
       "reason": "custom-styled row, chip, tab or card control; moving it to Button/IconButton changes its look, so it needs a reviewed screenshot (rule 32)"
     },
     "apps/web/src/shell/SidebarNavRow.tsx": {
@@ -490,10 +474,6 @@
     "apps/web/src/styles/media.css": {
       "count": 2,
       "reason": "scrim over image thumbnails: white on black whatever the theme"
-    },
-    "apps/web/src/styles/nav.css": {
-      "count": 1,
-      "reason": "white count on the warning badge; the design system's solid-tone text colour is scoped to its own components"
     },
     "apps/web/src/styles/shared-files.css": {
       "count": 6,

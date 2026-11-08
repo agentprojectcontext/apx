@@ -59,6 +59,7 @@ export function Topbar() {
       </div>
       <div className="topbar__right" ref={rightRef}>
         <div className="topbar__activity">
+          <AttentionTray />
           <Suspense
             fallback={
               <IconButton
@@ -72,7 +73,6 @@ export function Topbar() {
           >
             <RunningIndicator />
           </Suspense>
-          <AttentionTray />
           <WhatsNewPill />
           <UpdatePill />
         </div>
@@ -83,9 +83,7 @@ export function Topbar() {
             <EngineUsageButton />
           </Suspense>
           <Suspense
-            fallback={
-              <IconButton size="sm" label={t("sysUsage.title")} icon={<Icons.MemoryStick size={14} />} disabled />
-            }
+            fallback={<IconButton size="sm" label={t("sysUsage.title")} icon={<Icons.Monitor size={14} />} disabled />}
           >
             <UsageButton />
           </Suspense>
@@ -93,7 +91,7 @@ export function Topbar() {
         {/* System usage remains reachable when its gauge no longer fits. */}
         <Menu
           align="end"
-          items={[{ label: t("sysUsage.title"), icon: <Icons.MemoryStick />, onSelect: () => go.usageDialog(true) }]}
+          items={[{ label: t("sysUsage.title"), icon: <Icons.Monitor />, onSelect: () => go.usageDialog(true) }]}
           trigger={
             <IconButton
               size="sm"

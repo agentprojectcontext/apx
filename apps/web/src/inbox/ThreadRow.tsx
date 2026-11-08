@@ -1,12 +1,16 @@
 import type { Agent, Thread } from "@apx/protocol";
-import { ContextMenu, ConversationRow, Icons, Spinner, Tag } from "@apx/ui";
+import { ContextMenu, ConversationRow, IconButton, Icons, Spinner } from "@apx/ui";
 import { CHANNEL_KINDS, type ChannelKind } from "../channels/kinds.ts";
 import { ChatProcesses } from "../common/ChatProcesses.tsx";
 import { shortWhen } from "../common/format.ts";
-import { isWorking, routineName } from "../data/identity.ts";
+import { isWorking, projectName, routineName } from "../data/identity.ts";
+import { useData } from "../data/state.ts";
+import { updateThread } from "../data/threadAdmin.ts";
 import { type T, useT } from "../i18n/index.ts";
+import { useNav } from "../shell/nav.ts";
+import { ProjectBadge } from "./ProjectBadge.tsx";
 import { ThreadAvatar } from "./ThreadAvatar.tsx";
-import { threadMenu } from "./threadActions.tsx";
+import { lockedBy, threadMenu } from "./threadActions.tsx";
 import { useThreadChannel } from "./useThreadChannel.ts";
 
 export type ThreadRowProps = {
@@ -16,43 +20,65 @@ export type ThreadRowProps = {
   onOpen: () => void;
 };
 
+/**
+ * A chat in a list, two lines: its title, its project (outside the project) and when; then who and what kind of chat.
+ * Resting on it shows pin and archive; the rest is in its menu.
+ */
 export function ThreadRow({ thread, agent, selected, onOpen }: ThreadRowProps) {
   const t = useT();
   const channel = useThreadChannel(thread);
+  const projects = useData((s) => s.projects);
+  const inProject = useNav((s) => s.view === "project");
   const working = isWorking(thread.state);
   const waiting = thread.state === "input-required";
-  const preview = firstLine(thread.preview) || (working ? t("thread.working") : t("thread.noMessages"));
+  const locked = lockedBy(thread, t);
+  const who = agent?.name ?? (thread.engine ? "" : thread.title);
   return (
-    <ContextMenu items={threadMenu(thread, { t, agent })}>
-      <ConversationRow
-        className="threadrow"
-        selected={selected}
-        onClick={onOpen}
-        avatar={<ThreadAvatar thread={thread} agent={agent} size={32} slot={36} />}
-        title={
-          <>
-            {thread.pinned && <PinMark />}
-            {thread.kind === "routine" ? routineName(thread) : thread.title}
-          </>
-        }
-        titleTag={
-          <>
-            <ChatProcesses thread={thread.id} />
-            {!thread.engine && agent?.kind === "secretary" && <Tag kind="role">{t("agent.super")}</Tag>}
-          </>
-        }
-        time={shortWhen(thread.updated_at)}
-        unread={thread.unread}
-        meta={metaLine(thread, agent, t, channel)}
-        preview={
-          <span className="threadrow__preview">
-            {working && <Spinner size={12} className="threadrow__spin" />}
-            {waiting && <span className="threadrow__waiting">{t("thread.waiting")} · </span>}
-            {preview}
-          </span>
-        }
-      />
-    </ContextMenu>
+    <div className="threadrow-wrap">
+      <ContextMenu items={threadMenu(thread, { t, agent })}>
+        <ConversationRow
+          className="threadrow"
+          selected={selected}
+          onClick={onOpen}
+          avatar={<ThreadAvatar thread={thread} agent={agent} size={24} slot={28} />}
+          title={thread.kind === "routine" ? routineName(thread) : thread.title}
+          titleTag={
+            <>
+              <ChatProcesses thread={thread.id} />
+              {!inProject && thread.project_id && (
+                <ProjectBadge id={thread.project_id} name={projectName(projects, thread.project_id)} />
+              )}
+              {working && <Spinner size={12} className="threadrow__spin" />}
+            </>
+          }
+          time={shortWhen(thread.updated_at)}
+          unread={thread.unread}
+          preview={
+            <span className="threadrow__preview">
+              {waiting && <span className="threadrow__waiting">{t("thread.waiting")} · </span>}
+              {[who, metaLine(thread, agent, t, channel)].filter(Boolean).join(" · ")}
+            </span>
+          }
+        />
+      </ContextMenu>
+      <span className="threadrow__actions">
+        <IconButton
+          size="sm"
+          label={thread.pinned ? t("thread.menu.unpin") : t("thread.menu.pin")}
+          active={thread.pinned}
+          icon={<Icons.Pin size={14} />}
+          onClick={() => void updateThread(thread.id, { pinned: !thread.pinned })}
+        />
+        {!locked && (
+          <IconButton
+            size="sm"
+            label={thread.archived ? t("thread.menu.unarchive") : t("thread.menu.archive")}
+            icon={thread.archived ? <Icons.ArchiveRestore size={14} /> : <Icons.Archive size={14} />}
+            onClick={() => void updateThread(thread.id, { archived: !thread.archived })}
+          />
+        )}
+      </span>
+    </div>
   );
 }
 
@@ -76,9 +102,4 @@ function metaLine(thread: Thread, agent: Agent | undefined, t: T, channel: Chann
   if (channel) return t("chat.viaChannel", { channel: t(CHANNEL_KINDS[channel].name) });
   const kind = thread.kind === "home" ? t("thread.home") : t("thread.chat");
   return agent?.role ? `${kind} · ${agent.role}` : kind;
-}
-
-function firstLine(s: string): string {
-  const line = s.split("\n").find((l) => l.trim()) ?? "";
-  return line.replace(/\*\*|`|^\s*(#+|>|[-*])\s+/g, "");
 }

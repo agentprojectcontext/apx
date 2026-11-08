@@ -196,6 +196,8 @@ export const FlowsScreen = lazy(() => import("./flows/FlowsScreen.tsx"));
 export const RoutinesScreen = lazy(() =>
   import("./routines/RoutinesScreen.tsx").then((m) => ({ default: m.RoutinesScreen })),
 );
+// A routine's runs as one chat, opened from the Inbox's routines.
+export const RoutineChat = lazy(() => import("./routines/RoutineChat.tsx").then((m) => ({ default: m.RoutineChat })));
 export const FlowDetail = lazy(() => import("./flows/FlowDetail.tsx").then((m) => ({ default: m.FlowDetail })));
 export const FlowEditor = lazy(() => import("./flows/FlowEditor.tsx").then((m) => ({ default: m.FlowEditor })));
 // A project's tables, on the Flows screen's Tables.

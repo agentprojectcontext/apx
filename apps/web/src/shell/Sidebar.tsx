@@ -1,6 +1,5 @@
 import { ContextMenu, Icons, NavItem, ResizeHandle } from "@apx/ui";
 import { Suspense, useEffect, useMemo } from "react";
-import { useAccountCounts } from "../channels/counts.ts";
 import { markAllRead } from "../data/actions.ts";
 import { loadChannels } from "../data/channels.ts";
 import { inInbox } from "../data/identity.ts";
@@ -19,6 +18,7 @@ import { LAYOUT } from "./layout.ts";
 import { go, useNav } from "./nav.ts";
 import { ProjectsNav } from "./ProjectsNav.tsx";
 import { SidebarTooltipButton } from "./SidebarNavRow.tsx";
+import { useSidebarShows } from "./sidebarParts.ts";
 import { useSidebarCompact } from "./useSidebarCompact.ts";
 
 /**
@@ -42,13 +42,12 @@ export function Sidebar({
   const threads = useData((s) => s.threads);
   const computers = useData((s) => s.computers.shown);
   const screensInUse = useData((s) => s.computers.inUse);
-  const accountCounts = useAccountCounts();
-  const channelsAttention = [...accountCounts.values()].reduce((n, c) => n + c.unread + c.waiting, 0);
   useEffect(() => {
     void loadChannels();
   }, []);
 
   const compact = useSidebarCompact();
+  const shows = useSidebarShows();
   const routines = usePrefs((s) => s.inboxRoutines);
   // The width it opens to: the one the owner dragged it to.
   const open = usePrefs((s) => s.sidebarW) || undefined;
@@ -86,6 +85,7 @@ export function Sidebar({
           trigger={
             <SidebarTooltipButton
               label={t("nav.newChat")}
+              tip={rail}
               className={`apx-nav sidebar__newchat${rail ? " apx-nav--collapsed" : ""}`}
             >
               <span className="apx-nav__icon">
@@ -95,61 +95,73 @@ export function Sidebar({
             </SidebarTooltipButton>
           }
         />
-        <ContextMenu
-          items={[
-            {
-              label: t("inbox.markAllRead"),
-              icon: <Icons.CheckCheck />,
-              disabled: unreadIds.length === 0,
-              onSelect: () => void markAllRead(unreadIds),
-            },
-          ]}
-        >
+        {shows("inbox") && (
+          <ContextMenu
+            items={[
+              {
+                label: t("inbox.markAllRead"),
+                icon: <Icons.CheckCheck />,
+                disabled: unreadIds.length === 0,
+                onSelect: () => void markAllRead(unreadIds),
+              },
+            ]}
+          >
+            <NavItem
+              collapsed={rail}
+              icon={<Icons.Inbox />}
+              label={t("nav.inbox")}
+              count={unread}
+              active={view === "inbox"}
+              onClick={() => go.inbox()}
+            />
+          </ContextMenu>
+        )}
+        {shows("tasks") && (
           <NavItem
             collapsed={rail}
-            icon={<Icons.Inbox />}
-            label={t("nav.inbox")}
-            count={unread}
-            active={view === "inbox"}
-            onClick={() => go.inbox()}
+            icon={<Icons.ListChecks />}
+            label={t("nav.tasks")}
+            active={view === "tasks"}
+            onClick={() => go.view("tasks")}
           />
-        </ContextMenu>
-        <NavItem
-          collapsed={rail}
-          icon={<Icons.ListChecks />}
-          label={t("nav.tasks")}
-          active={view === "tasks"}
-          onClick={() => go.view("tasks")}
-        />
-        <NavItem
-          collapsed={rail}
-          icon={<Icons.GitBranch />}
-          label={t("nav.flows")}
-          active={view === "flows"}
-          onClick={() => go.flows()}
-        />
-        <NavItem
-          collapsed={rail}
-          icon={<Icons.Clock />}
-          label={t("nav.routines")}
-          active={view === "routines"}
-          onClick={() => go.view("routines")}
-        />
-        <NavItem
-          collapsed={rail}
-          icon={<Icons.Layers />}
-          label={t("nav.resources")}
-          active={view === "resources"}
-          onClick={() => go.view("resources")}
-        />
-        <NavItem
-          collapsed={rail}
-          icon={<Icons.Paperclip />}
-          label={t("nav.files")}
-          active={view === "files"}
-          onClick={() => go.view("files")}
-        />
-        {computers && (
+        )}
+        {shows("flows") && (
+          <NavItem
+            collapsed={rail}
+            icon={<Icons.GitBranch />}
+            label={t("nav.flows")}
+            active={view === "flows"}
+            onClick={() => go.flows()}
+          />
+        )}
+        {shows("routines") && (
+          <NavItem
+            collapsed={rail}
+            icon={<Icons.Clock />}
+            label={t("nav.routines")}
+            active={view === "routines"}
+            onClick={() => go.view("routines")}
+          />
+        )}
+        {shows("resources") && (
+          <NavItem
+            collapsed={rail}
+            icon={<Icons.Layers />}
+            label={t("nav.resources")}
+            active={view === "resources"}
+            onClick={() => go.view("resources")}
+          />
+        )}
+        {shows("files") && (
+          <NavItem
+            collapsed={rail}
+            icon={<Icons.Paperclip />}
+            label={t("nav.files")}
+            active={view === "files"}
+            onClick={() => go.view("files")}
+          />
+        )}
+        {computers && shows("computers") && (
           <NavItem
             collapsed={rail}
             icon={<Icons.Monitor />}
@@ -159,25 +171,16 @@ export function Sidebar({
             onClick={() => go.view("computers")}
           />
         )}
-        <NavItem
-          collapsed={rail}
-          icon={<Icons.MessageCircle />}
-          label={t("nav.channels")}
-          count={channelsAttention || undefined}
-          active={view === "channels"}
-          onClick={() => go.view("channels")}
-        />
       </div>
       <div className={compact ? "sidebar__scroll is-compact" : "sidebar__scroll"}>
-        <ProjectsNav rail={rail} compact={compact} />
-
-        <ExternalSessionsNav rail={rail} compact={compact} />
-
-        <ChannelsNav rail={rail} compact={compact} />
-
-        <Suspense fallback={null}>
-          <AppsDock rail={rail} compact={compact} />
-        </Suspense>
+        {shows("projects") && <ProjectsNav rail={rail} compact={compact} />}
+        {shows("sessions") && <ExternalSessionsNav rail={rail} compact={compact} />}
+        {shows("channels") && <ChannelsNav rail={rail} compact={compact} />}
+        {shows("apps") && (
+          <Suspense fallback={null}>
+            <AppsDock rail={rail} compact={compact} />
+          </Suspense>
+        )}
       </div>
       {!rail && (
         <Suspense fallback={null}>

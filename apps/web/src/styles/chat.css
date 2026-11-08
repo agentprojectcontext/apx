@@ -1,10 +1,11 @@
 /* ── Chat ──────────────────────────────────────────────────────────────────── */
+/* The chat sits on the page's own background, like the main card around it. */
 .chat {
   flex: 1;
   min-width: var(--shell-chat-min-w);
   display: flex;
   flex-direction: column;
-  background: var(--apx-surface);
+  background: var(--apx-bg);
 }
 .chat--empty {
   justify-content: center;
@@ -245,7 +246,7 @@
   padding: 10px 12px 12px;
   border: 1px solid var(--apx-border);
   border-radius: var(--apx-radius-lg);
-  background: var(--apx-surface);
+  background: transparent;
   box-sizing: border-box;
 }
 .surfacecard--gone {
@@ -805,4 +806,14 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+/* Minimal look: the agent writes as plain text on the chat, the owner's messages keep a quiet bubble. */
+[data-apx-look="minimal"] .chat {
+  --apx-bubble-bg: transparent;
+  --apx-bubble-mine-bg: var(--apx-fill-strong);
+  --apx-bubble-mine-fg: var(--apx-fg);
+}
+[data-apx-look="minimal"] .chat .apx-msg:not(.apx-msg--user):not(.is-waiting) .apx-msg__bubble {
+  padding-inline: 0;
 }

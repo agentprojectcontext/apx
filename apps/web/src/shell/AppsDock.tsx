@@ -92,6 +92,7 @@ export function AppsDock({ rail: folded, compact = false }: { rail: boolean; com
         count={pinned.length + loose.length}
         running={running.size > 0}
         active={view === "app"}
+        empty={t("nav.empty.apps")}
         action={
           // In the rail "+" leads the card, like every section's.
           <span className="appsdock__actions">

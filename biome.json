@@ -221,6 +221,7 @@
                       "**/TablesView.tsx",
                       "**/FlowsScreen.tsx",
                       "**/RoutinesScreen.tsx",
+                      "**/RoutineChat.tsx",
                       "**/SearchSelect.tsx",
                       "**/SurfacePart.tsx",
                       "**/TaskDescription.tsx",

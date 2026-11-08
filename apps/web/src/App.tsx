@@ -1,5 +1,6 @@
 import { ApxProvider } from "@apx/ui";
 import { type CSSProperties, Suspense, useEffect } from "react";
+import { TitleTooltips } from "./common/TitleTooltips.tsx";
 import { startLive } from "./data/live.ts";
 import { checkAccess, useGate } from "./data/pairing.ts";
 import { usePrefs } from "./data/prefs.ts";
@@ -76,6 +77,7 @@ function Main() {
         </Suspense>
       )}
       {!OAUTH_RETURN && gate === "open" && <Panel />}
+      <TitleTooltips />
       {!OAUTH_RETURN && gate === "pair" && (
         <Suspense fallback={null}>
           <PairScreen />

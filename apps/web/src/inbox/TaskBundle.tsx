@@ -1,6 +1,5 @@
 import type { Thread } from "@apx/protocol";
 import { ContextMenu, IconButton, Icons, Menu, type MenuEntry, Spinner } from "@apx/ui";
-import { useState } from "react";
 import { AgentFace } from "../common/AgentFace.tsx";
 import { shortWhen } from "../common/format.ts";
 import { taskStateActions } from "../common/taskStateActions.tsx";
@@ -13,15 +12,13 @@ import { TaskStatus } from "../lazy.ts";
 import { go } from "../shell/nav.ts";
 import { ListedChat } from "./Delegated.tsx";
 import { SessionRow } from "./InboxViews.tsx";
+import { useOpenRow } from "./useOpenRow.ts";
 
 const cx = (...c: Array<string | false>) => c.filter(Boolean).join(" ");
 
-/** Tasks the owner folded, kept while the panel is open so switching views or lists does not unfold them. */
-const folded = new Set<string>();
-
 /**
  * Every chat the agents keep for one task, as one row of a list: the task, who works it and whether it runs, with each
- * agent's chat nested under it, open until folded. The row only folds and unfolds; a chat's "Open the task" opens it.
+ * agent's chat nested under it, closed until the owner opens it (remembered). The row only folds and unfolds; a chat's "Open the task" opens it.
  */
 export function TaskBundle({ taskId, threads, selected }: { taskId: string; threads: Thread[]; selected?: string }) {
   const t = useT();
@@ -39,12 +36,10 @@ export function TaskBundle({ taskId, threads, selected }: { taskId: string; thre
       onSelect: () => void archiveTaskChats(taskId, !archived),
     },
   ];
-  const [open, setOpenState] = useState(() => !folded.has(taskId) || threads.some((th) => th.id === selected));
-  const setOpen = (next: boolean) => {
-    if (next) folded.delete(taskId);
-    else folded.add(taskId);
-    setOpenState(next);
-  };
+  const [open, setOpen] = useOpenRow(
+    `task:${taskId}`,
+    threads.some((th) => th.id === selected),
+  );
   const running = threads.some((th) => isWorking(th.state));
   const waiting = threads.some((th) => th.state === "input-required");
   const unread = threads.reduce((n, th) => n + th.unread, 0);
@@ -74,7 +69,9 @@ export function TaskBundle({ taskId, threads, selected }: { taskId: string; thre
           <span className="taskbundle__faces" aria-hidden>
             {who.slice(0, 3).map((a) => a && <AgentFace key={a.id} agent={a} size={16} />)}
           </span>
-          <span className="tree__agentmeta">{t("inbox.taskBundle.chats", { n: threads.length })}</span>
+          <span className="tree__agentmeta">
+            {threads.length === 1 ? t("inbox.taskBundle.chatsOne") : t("inbox.taskBundle.chats", { n: threads.length })}
+          </span>
           {unread > 0 && <span className="tree__unread">{unread}</span>}
           <span className="tree__when">{shortWhen(threads[0]?.updated_at ?? "")}</span>
         </button>

@@ -12,7 +12,7 @@ import {
 import { Suspense, useMemo, useState } from "react";
 import { markAllRead } from "../data/actions.ts";
 import { DEFAULT_PID, findProject, projectInitial, projectTone, threadAgent } from "../data/identity.ts";
-import { type InboxView, setPrefs, usePrefs } from "../data/prefs.ts";
+import { type InboxTab, type InboxView, setPrefs, usePrefs } from "../data/prefs.ts";
 import { useData, useShownAgents } from "../data/state.ts";
 import { useT } from "../i18n/index.ts";
 import { ActivityView, TaskBundle } from "../lazy.ts";
@@ -24,8 +24,10 @@ import {
   groupByAgent,
   groupByProject,
   groupByTime,
+  inboxEntries,
   unreadListed,
 } from "./groupThreads.ts";
+import { ChatsTab, RoutinesTab, TasksTab } from "./InboxTabs.tsx";
 import { TreeView } from "./InboxViews.tsx";
 import { NewChatMenu, startChat, useChatAgents } from "./NewChatMenu.tsx";
 import { RoutineBundle } from "./RoutineBundle.tsx";
@@ -47,7 +49,20 @@ export function InboxList() {
   const chatAgents = useChatAgents(projectId);
 
   const view = usePrefs((s) => s.inboxView);
+  const tab = usePrefs((s) => s.inboxTab);
   const routines = usePrefs((s) => s.inboxRoutines);
+  const entries = useMemo(
+    () => inboxEntries(threads, { projectId, query, routines: true }),
+    [threads, projectId, query],
+  );
+  const tabs = useMemo(
+    () => ({
+      chats: entries.flatMap((e) => (e.kind === "thread" ? [e.thread] : [])),
+      tasks: entries.flatMap((e) => (e.kind === "task" ? [e] : [])),
+      routines: entries.flatMap((e) => (e.kind === "routine" ? [e] : [])),
+    }),
+    [entries],
+  );
   const groups = useMemo(
     () => groupByProject(threads, projects, { projectId, query, routines }),
     [threads, projects, projectId, query, routines],
@@ -87,7 +102,14 @@ export function InboxList() {
             align="end"
             trigger={<IconButton label={t("inbox.filter")} icon={<Icons.Filter size={16} />} active={!routines} />}
             items={[
-              { type: "label", label: t("inbox.filter.show") },
+              { type: "label", label: t("inbox.view") },
+              ...(["list", "tree", "activity", "chats"] as const).map((v) => ({
+                label: t(`inbox.view.${v}`),
+                checked: view === v,
+                onSelect: () => setPrefs({ inboxView: v as InboxView }),
+              })),
+              { type: "separator" as const },
+              { type: "label" as const, label: t("inbox.filter.show") },
               {
                 label: t("inbox.filter.routines"),
                 icon: <Icons.Clock size={14} />,
@@ -104,14 +126,18 @@ export function InboxList() {
         <SegmentedControl
           size="sm"
           className="inbox__views"
-          label={t("inbox.view")}
-          value={view}
-          onValueChange={(v) => setPrefs({ inboxView: v as InboxView })}
-          options={[
-            { value: "tree", label: t("inbox.view.tree") },
-            { value: "activity", label: t("inbox.view.activity") },
-            { value: "chats", label: t("inbox.view.chats") },
-          ]}
+          label={t("inbox.tabs")}
+          value={tab}
+          onValueChange={(v) => setPrefs({ inboxTab: v as InboxTab })}
+          options={(["chats", "tasks", "routines"] as const).map((v) => ({
+            value: v,
+            label: (
+              <>
+                {t(`inbox.tab.${v}`)}
+                <span className="inbox__tabcount">{tabs[v].length}</span>
+              </>
+            ),
+          }))}
         />
         <SearchField
           size="sm"
@@ -141,6 +167,20 @@ export function InboxList() {
           >
             {query ? t("inbox.noMatch", { query }) : t("inbox.emptyBody")}
           </EmptyState>
+        ) : tab === "tasks" ? (
+          tabs.tasks.length ? (
+            <TasksTab entries={tabs.tasks} />
+          ) : (
+            <EmptyState icon={<Icons.ListChecks />} title={t("inbox.tabEmpty.tasks")} />
+          )
+        ) : tab === "routines" ? (
+          tabs.routines.length ? (
+            <RoutinesTab entries={tabs.routines} />
+          ) : (
+            <EmptyState icon={<Icons.Clock />} title={t("inbox.tabEmpty.routines")} />
+          )
+        ) : view === "list" ? (
+          <ChatsTab entries={tabs.chats} archived={archived} />
         ) : view === "tree" ? (
           <TreeView trees={trees} selected={threadId} />
         ) : view === "activity" ? (
@@ -199,7 +239,7 @@ export function InboxList() {
             );
           })
         )}
-        {ready && archived.length > 0 && (
+        {ready && tab === "chats" && view !== "list" && archived.length > 0 && (
           <div className="inbox__archived">
             <button
               type="button"

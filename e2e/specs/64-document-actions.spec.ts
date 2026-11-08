@@ -25,7 +25,7 @@ test("a document names its file and offers its folder, open apart and download w
   expect((await download).suggestedFilename()).toBe("report.md");
 
   await card.locator(".documentpart").click();
-  const panel = page.locator(".documentpanel");
+  const panel = page.locator(".sidepanel");
   await expect(panel.getByRole("heading", { name: "Quarter report" })).toBeVisible();
   await expect(panel.locator(".documentpanel__filename")).toHaveText("notes/report.md");
   for (const name of ["Mostrar en Finder", "Abrir en su app", "Descargar"])
@@ -33,7 +33,7 @@ test("a document names its file and offers its folder, open apart and download w
 
   const desktopOffer = page.locator(".desktop-install");
   if (await desktopOffer.isVisible()) await desktopOffer.getByRole("button", { name: "Más tarde" }).click();
-  await panel.getByRole("button", { name: /Todos los documentos/ }).click();
+  await panel.getByRole("tab", { name: /^Todos \(/ }).click();
   const row = panel.locator(".documentpanel__row");
   const actions = row.locator(".documentpanel__rowactions");
   // The click that opened the list can leave the pointer over its first row.

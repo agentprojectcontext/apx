@@ -13,15 +13,19 @@ import { enResources } from "./en-resources.ts";
 import { enSetup } from "./en-setup.ts";
 import { enTeam } from "./en-team.ts";
 import { enTelemetry } from "./en-telemetry.ts";
+import { enFilesArtifacts } from "./files-artifacts-en.ts";
 import type { enFlow } from "./flow-en.ts";
 import type { enIngress } from "./ingress-en.ts";
 import type { enMove } from "./move-en.ts";
+import { enPanelTabs } from "./panel-tabs-en.ts";
 import type { ReceivedKey } from "./received-en.ts";
+import { enRoutineChat } from "./routine-chat-en.ts";
 import type { enSecretary } from "./secretary-en.ts";
 import type { enSignIn } from "./signin-en.ts";
 import type { enStorage } from "./storage-en.ts";
 import type { SysUsageKey } from "./sysusage-en.ts";
 import type { enThreadDialogs } from "./thread-dialogs-en.ts";
+import { enTopbar } from "./topbar-en.ts";
 
 // UI strings, English: the source of truth. Every key lives here; `{name}` placeholders are filled by t().
 export const en = {
@@ -51,9 +55,13 @@ export const en = {
   ...enSetup,
   ...enChat,
   ...enFiles,
+  ...enFilesArtifacts,
   ...enResources,
   ...enEngines,
   ...enTelemetry,
+  ...enRoutineChat,
+  ...enTopbar,
+  ...enPanelTabs,
   "engineUsage.title": "AI quotas",
   "engineUsage.remaining": "{pct}% remaining",
   "engineUsage.primary": "Current window",
@@ -205,7 +213,6 @@ export const en = {
   "connection.connecting": "Connecting",
 
   // Topbar, sidebar, account
-  "topbar.location": "Location",
   "topbar.search": "Search or jump to…",
   "server.label": "APX in use: {name}",
   "server.local": "Local",
@@ -340,6 +347,12 @@ export const en = {
   "nav.flows": "Flows",
   "nav.routines": "Routines",
   "nav.newChat": "New chat",
+  "nav.showInSidebar": "Show in the sidebar",
+  "nav.showViews": "Views",
+  "nav.showSections": "Sections",
+  "nav.empty.apps": "No apps yet. Ask an agent to build one, or install one with the arrow.",
+  "nav.empty.sessions":
+    "No coding app found on this computer. Install Claude Code or Codex to see their sessions here.",
   "nav.itemOptions": "Options for {name}",
   "nav.open": "Open",
   "project.unregister": "Unregister project",
@@ -414,7 +427,6 @@ export const en = {
   "running.label": "Processes",
   "running.aria": "{working} running, {waiting} waiting, {background} in the background",
   "running.tab.agents": "Agents",
-  "running.tab.background": "Background",
   "running.waitingForYou": "Waiting for you",
   "running.stop": "Stop",
   "running.stop.title": "Stop {agent}?",
@@ -469,6 +481,15 @@ export const en = {
   "inbox.view.tree": "Tree",
   "inbox.view.activity": "Activity",
   "inbox.view.chats": "By chat",
+  "inbox.view.list": "List",
+  "inbox.tabs": "Show",
+  "inbox.tab.chats": "Chats",
+  "inbox.tab.tasks": "Tasks",
+  "inbox.tab.routines": "Routines",
+  "inbox.pinned": "Pinned",
+  "inbox.recent": "Recent",
+  "inbox.tabEmpty.tasks": "No task chats here yet",
+  "inbox.tabEmpty.routines": "No routine has run yet",
   "inbox.when.running": "In progress",
   "inbox.when.today": "Today",
   "inbox.when.yesterday": "Yesterday",
@@ -477,6 +498,7 @@ export const en = {
   "inbox.showMore": "Show {n} more",
   "inbox.showLess": "Show less",
   "inbox.taskBundle.chats": "{n} chats",
+  "inbox.taskBundle.chatsOne": "1 chat",
   "inbox.taskBundle.open": "Show the task's chats",
   "inbox.taskBundle.close": "Hide the task's chats",
   "inbox.delegated.open": "Show the chats it delegated",
@@ -533,8 +555,6 @@ export const en = {
   "changes.scratchEdited": "Files in the temp folder: {n}",
   "changes.scratch": "Chat's temp folder",
   "changes.scratchHint": "The agent's scratch work: not changes to your folders.",
-  "changes.heading.one": "Changes: {n} edited file",
-  "changes.heading.many": "Changes: {n} edited files",
   "changes.scope": "Choose changes",
   "changes.latest": "Last turn",
   "changes.all": "All turns",
@@ -614,7 +634,6 @@ export const en = {
   "widget.toPanel": "Show in the side panel",
   "widget.inPanel": "Showing in the side panel",
   "widget.showHere": "Show here",
-  "widgets.all": "All widgets ({n})",
   "widgets.empty": "No widgets in this chat",
   "widgets.emptyBody":
     "Widgets the agent builds in this chat show here. Pin one to keep it on the project's board too.",
@@ -758,7 +777,6 @@ export const en = {
   "processes.done": "Finished ({n})",
   "processes.empty": "No subagents in this chat yet",
   "processes.maximize": "Open conversation full size",
-  "processes.back": "Back to chat processes",
   "processes.failed": "Could not load chat processes",
   "changes.reportedEmpty": "No changes reported in this chat",
   "panel.terminal": "Terminal",

@@ -1,9 +1,9 @@
 import { Icons, Menu, type MenuEntry } from "@apx/ui";
 import { initialsOf, setPrefs, usePrefs } from "../data/prefs.ts";
-import { openSetup } from "../data/setup.ts";
 import { type T, useT } from "../i18n/index.ts";
 import { useLanguageItems } from "./LanguageMenu.tsx";
 import { go } from "./nav.ts";
+import { SIDEBAR_SECTIONS, SIDEBAR_VIEWS, toggleSidebarPart } from "./sidebarParts.ts";
 
 /** Sidebar footer: who is using the panel, with quick theme / phone / setup / usage actions and Settings. */
 export function AccountRow({ rail }: { rail: boolean }) {
@@ -11,6 +11,13 @@ export function AccountRow({ rail }: { rail: boolean }) {
   const name = usePrefs((s) => s.displayName) || t("account.you");
   const languageItems = useLanguageItems();
   const compact = usePrefs((s) => s.sidebarCompact);
+  const hidden = usePrefs((s) => s.navHidden);
+  const part = (p: (typeof SIDEBAR_VIEWS)[number] | (typeof SIDEBAR_SECTIONS)[number]): MenuEntry => ({
+    label: t(p.label),
+    checked: !hidden.includes(p.id),
+    keepOpen: true,
+    onSelect: () => toggleSidebarPart(p.id, hidden),
+  });
   const items: MenuEntry[] = [
     { type: "label", label: name },
     {
@@ -19,7 +26,6 @@ export function AccountRow({ rail }: { rail: boolean }) {
       onSelect: () => go.config("appearance"),
     },
     { label: t("phone.open"), icon: <Icons.Smartphone />, onSelect: () => go.phone(true) },
-    { label: t("setup.menu"), icon: <Icons.Sparkles />, onSelect: openSetup },
     { label: t("sysUsage.title"), icon: <Icons.MemoryStick />, onSelect: () => go.usageDialog(true) },
     {
       label: t("appearance.compact"),
@@ -27,6 +33,18 @@ export function AccountRow({ rail }: { rail: boolean }) {
       checked: compact,
       keepOpen: true,
       onSelect: () => setPrefs({ sidebarCompact: !compact }),
+    },
+    {
+      type: "submenu",
+      label: t("nav.showInSidebar"),
+      icon: <Icons.Eye />,
+      items: [
+        { type: "label", label: t("nav.showViews") },
+        ...SIDEBAR_VIEWS.map(part),
+        { type: "separator" },
+        { type: "label", label: t("nav.showSections") },
+        ...SIDEBAR_SECTIONS.map(part),
+      ],
     },
     { type: "separator" },
     { label: t("config.title"), icon: <Icons.Settings />, shortcut: "⌘,", onSelect: () => go.config() },

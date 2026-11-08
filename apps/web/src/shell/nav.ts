@@ -2,7 +2,7 @@
 import type { ApxMode } from "@apx/ui";
 import type { ChannelKind } from "../channels/kinds.ts";
 import { createStore, useSlice } from "../data/createStore.ts";
-import { rememberSidebar } from "../data/prefs.ts";
+import { rememberSidebar, setPrefs } from "../data/prefs.ts";
 import type { MessageKey } from "../i18n/index.ts";
 
 export type PanelKind =
@@ -91,6 +91,8 @@ export type NavState = {
   projectId: string | undefined;
   projectTab: ProjectTab;
   threadId: string | undefined;
+  /** The routine whose runs are open in the Inbox as one chat (instead of a thread). */
+  routineId: string | undefined;
   appId: string | undefined;
   panel: PanelKind | null;
   /** The side panel takes half the chat area (files, changes, a terminal), instead of its usual column. */
@@ -182,6 +184,9 @@ function fromHash(): Partial<NavState> {
   const channel = h.get("channel");
   return {
     ...(h.get("thread") ? { threadId: h.get("thread") ?? undefined } : {}),
+    ...(h.get("routine")
+      ? { view: "inbox" as const, routineId: h.get("routine") ?? undefined, threadId: undefined }
+      : {}),
     ...(h.get("task") ? { taskId: h.get("task") ?? undefined } : {}),
     ...(panel && (PANELS as readonly string[]).includes(panel) ? { panel: panel as PanelKind } : {}),
     panelDocument: panel === "document" ? (h.get("document") ?? undefined) : undefined,
@@ -217,6 +222,7 @@ export const nav = createStore<NavState>({
   projectId: undefined,
   projectTab: "overview",
   threadId: "home",
+  routineId: undefined,
   appId: undefined,
   panel: null,
   panelWide: false,
@@ -257,6 +263,7 @@ const PLACE = [
   "projectId",
   "projectTab",
   "threadId",
+  "routineId",
   "appId",
   "channelId",
   "channelThread",
@@ -353,7 +360,8 @@ nav.subscribe(() => {
   } else if (s.view === "engine" && s.engineId) {
     h.set("engine", s.engineId);
     if (s.threadId) h.set("thread", s.threadId);
-  } else if (s.threadId) h.set("thread", s.threadId);
+  } else if (s.view === "inbox" && s.routineId) h.set("routine", s.routineId);
+  else if (s.threadId) h.set("thread", s.threadId);
   if (s.panel && showsChat(s)) h.set("panel", s.panel);
   if (s.panel === "document" && showsChat(s) && s.panelDocument) h.set("document", s.panelDocument);
   if (s.panel === "widget" && showsChat(s) && s.panelWidget) h.set("widget", s.panelWidget);
@@ -426,8 +434,8 @@ export const go = {
   thread(threadId: string) {
     nav.set((s) =>
       s.view === "project" && s.projectTab === "chats"
-        ? { threadId, listInFront: false }
-        : { view: "inbox", threadId, listInFront: false },
+        ? { threadId, routineId: undefined, listInFront: false }
+        : { view: "inbox", threadId, routineId: undefined, listInFront: false },
     );
   },
   /** A new chat just made takes the place of the empty one it was, wherever it is open; back skips the empty one. */
@@ -446,7 +454,12 @@ export const go = {
   },
   /** Always the Inbox, whatever is open (running pill, deep links). */
   inboxThread(threadId: string) {
-    nav.set({ view: "inbox", threadId, listInFront: false });
+    nav.set({ view: "inbox", threadId, routineId: undefined, listInFront: false });
+  },
+  /** A routine's runs as one chat in the Inbox. */
+  routine(routineId: string) {
+    setPrefs({ inboxTab: "routines" });
+    nav.set({ view: "inbox", routineId, threadId: undefined, panel: null, listInFront: false });
   },
   /** Phone width: back from a chat to the chat list. */
   showList() {

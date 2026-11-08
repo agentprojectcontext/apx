@@ -12,6 +12,10 @@ import { esResources } from "./es-resources.ts";
 import { esSetup } from "./es-setup.ts";
 import { esTeam } from "./es-team.ts";
 import { esTelemetry } from "./es-telemetry.ts";
+import { esFilesArtifacts } from "./files-artifacts-es.ts";
+import { esPanelTabs } from "./panel-tabs-es.ts";
+import { esRoutineChat } from "./routine-chat-es.ts";
+import { esTopbar } from "./topbar-es.ts";
 
 export const es: Partial<Record<MessageKey, string>> = {
   "panel.computer": "Computadora",
@@ -41,9 +45,13 @@ export const es: Partial<Record<MessageKey, string>> = {
   ...esSetup,
   ...esChat,
   ...esFiles,
+  ...esFilesArtifacts,
   ...esResources,
   ...esEngines,
   ...esTelemetry,
+  ...esRoutineChat,
+  ...esTopbar,
+  ...esPanelTabs,
   "engineUsage.title": "Cuotas de IA",
   "engineUsage.remaining": "{pct}% disponible",
   "engineUsage.primary": "Ventana actual",
@@ -198,7 +206,6 @@ export const es: Partial<Record<MessageKey, string>> = {
   "connection.connecting": "Conectando",
 
   // Barra superior, barra lateral, cuenta
-  "topbar.location": "Ubicación",
   "topbar.search": "Buscar o saltar a…",
   "server.label": "APX en uso: {name}",
   "server.local": "Local",
@@ -336,6 +343,12 @@ export const es: Partial<Record<MessageKey, string>> = {
   "nav.flows": "Flows",
   "nav.routines": "Rutinas",
   "nav.newChat": "Nuevo chat",
+  "nav.showInSidebar": "Mostrar en la barra lateral",
+  "nav.showViews": "Vistas",
+  "nav.showSections": "Secciones",
+  "nav.empty.apps": "Todavía no hay apps. Pedile a un agente que te arme una, o instalá una con la flecha.",
+  "nav.empty.sessions":
+    "No hay ninguna app de código en esta computadora. Instalá Claude Code o Codex para ver sus sesiones acá.",
   "nav.itemOptions": "Opciones de {name}",
   "nav.open": "Abrir",
   "project.unregister": "Quitar registro del proyecto",
@@ -411,7 +424,6 @@ export const es: Partial<Record<MessageKey, string>> = {
   "running.label": "Procesos",
   "running.aria": "{working} en curso, {waiting} esperando, {background} en segundo plano",
   "running.tab.agents": "Agentes",
-  "running.tab.background": "Segundo plano",
   "running.waitingForYou": "Te espera",
   "running.stop": "Detener",
   "running.stop.title": "¿Detener a {agent}?",
@@ -467,6 +479,15 @@ export const es: Partial<Record<MessageKey, string>> = {
   "inbox.view.tree": "Árbol",
   "inbox.view.activity": "Actividad",
   "inbox.view.chats": "Por chat",
+  "inbox.view.list": "Lista",
+  "inbox.tabs": "Mostrar",
+  "inbox.tab.chats": "Chats",
+  "inbox.tab.tasks": "Tareas",
+  "inbox.tab.routines": "Rutinas",
+  "inbox.pinned": "Fijados",
+  "inbox.recent": "Recientes",
+  "inbox.tabEmpty.tasks": "Todavía no hay chats de tareas acá",
+  "inbox.tabEmpty.routines": "Ninguna rutina corrió todavía",
   "inbox.when.running": "En curso",
   "inbox.when.today": "Hoy",
   "inbox.when.yesterday": "Ayer",
@@ -475,6 +496,7 @@ export const es: Partial<Record<MessageKey, string>> = {
   "inbox.showMore": "Ver {n} más",
   "inbox.showLess": "Ver menos",
   "inbox.taskBundle.chats": "{n} chats",
+  "inbox.taskBundle.chatsOne": "1 chat",
   "inbox.taskBundle.open": "Ver los chats de la tarea",
   "inbox.taskBundle.close": "Ocultar los chats de la tarea",
   "inbox.delegated.open": "Ver los chats que delegó",
@@ -531,8 +553,6 @@ export const es: Partial<Record<MessageKey, string>> = {
   "changes.scratchEdited": "Archivos en la carpeta temporal: {n}",
   "changes.scratch": "Carpeta temporal del chat",
   "changes.scratchHint": "Borradores del agente: no son cambios en tus carpetas.",
-  "changes.heading.one": "Cambios: {n} archivo editado",
-  "changes.heading.many": "Cambios: {n} archivos editados",
   "changes.scope": "Elegir cambios",
   "changes.latest": "Último turno",
   "changes.all": "Todos los turnos",
@@ -613,7 +633,6 @@ export const es: Partial<Record<MessageKey, string>> = {
   "widget.toPanel": "Mostrar en el panel lateral",
   "widget.inPanel": "Se muestra en el panel lateral",
   "widget.showHere": "Mostrar acá",
-  "widgets.all": "Todos los widgets ({n})",
   "widgets.empty": "Sin widgets en este chat",
   "widgets.emptyBody":
     "Los widgets que arme el agente en este chat aparecen acá. Fijalos para tenerlos también en el tablero del proyecto.",
@@ -757,7 +776,6 @@ export const es: Partial<Record<MessageKey, string>> = {
   "processes.done": "Terminados ({n})",
   "processes.empty": "Todavía no hay subagentes en este chat",
   "processes.maximize": "Abrir conversación completa",
-  "processes.back": "Volver a procesos del chat",
   "processes.failed": "No se pudieron cargar los procesos del chat",
   "changes.reportedEmpty": "No hay cambios registrados en este chat",
   "panel.terminal": "Terminal",

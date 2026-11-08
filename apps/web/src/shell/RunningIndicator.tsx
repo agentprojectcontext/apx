@@ -71,17 +71,18 @@ export function RunningIndicator() {
       <Popover
         align="end"
         width={360}
+        className="running__popover"
         open={open}
         onOpenChange={setOpen}
         label={t("running.label")}
         trigger={
           <IconButton
             size="sm"
-            className={active.length || background ? "running is-active" : "running"}
+            className={active.length || background ? "running has-work" : "running"}
             label={t("running.aria", { working, waiting, background })}
             icon={
               <>
-                {working > 0 && <Spinner size={12} />}
+                {working + background > 0 && <Spinner size={12} />}
                 <span className="running__count">
                   {working}
                   <Icons.Bot size={14} />
@@ -97,24 +98,11 @@ export function RunningIndicator() {
                   {background}
                   <Icons.Layers size={14} />
                 </span>
-                <Icons.ChevronDown size={14} />
               </>
             }
           />
         }
       >
-        {chatShown && (
-          <button
-            type="button"
-            className="jobs__fold"
-            onClick={() => {
-              setOpen(false);
-              go.processes();
-            }}
-          >
-            {t("panel.processes")}
-          </button>
-        )}
         <SegmentedControl
           size="sm"
           className="running__tabs"
@@ -123,7 +111,7 @@ export function RunningIndicator() {
           onValueChange={setTab}
           options={[
             { value: "agents", label: <TabLabel text={t("running.tab.agents")} n={active.length + queuedCount} /> },
-            { value: "bg", label: <TabLabel text={t("running.tab.background")} n={background} /> },
+            { value: "bg", label: <TabLabel text={t("topbar.work.processes")} n={background} /> },
           ]}
         />
         {tab === "agents" ? (
@@ -139,28 +127,32 @@ export function RunningIndicator() {
                 const who = th.engine
                   ? (engines.find((e) => e.id === th.engine)?.label ?? th.engine)
                   : (agent?.name ?? t("common.agent"));
+                const waitingHere = th.state === "input-required";
                 return (
                   <Fragment key={th.id}>
                     <div className="running__line">
                       <button type="button" className="running__row" onClick={openChat}>
                         {th.engine ? (
-                          <EngineIcon engine={th.engine} tile size={28} />
+                          <EngineIcon engine={th.engine} tile size={24} />
                         ) : (
-                          <AgentAvatar name={agent?.name ?? th.title} blob={blobOf(agent)} size={28} animated={false} />
+                          <AgentAvatar name={agent?.name ?? th.title} blob={blobOf(agent)} size={24} animated={false} />
                         )}
                         <span className="running__item">
-                          <span className="running__title">{th.title}</span>
-                          <span className="running__sub">
-                            {projectName(projects, th.project_id)} · {who}
+                          <span className="running__title">
+                            {who} · {projectName(projects, th.project_id)}
                           </span>
+                          <span className="running__sub">{th.title}</span>
                         </span>
-                        {th.state === "input-required" ? (
+                        {waitingHere ? (
                           <span className="running__waiting">{t("running.waitingForYou")}</span>
                         ) : (
-                          since && <span className="running__elapsed">{elapsed(since, now)}</span>
+                          <span className="running__elapsed">
+                            {since && elapsed(since, now)}
+                            <Spinner size={12} />
+                          </span>
                         )}
                       </button>
-                      {(isWorking(th.state) || th.state === "input-required") && (
+                      {(isWorking(th.state) || waitingHere) && (
                         <IconButton
                           size="sm"
                           className="running__stop"
@@ -168,12 +160,7 @@ export function RunningIndicator() {
                           icon={<Icons.Square size={12} />}
                           onClick={() => {
                             setOpen(false);
-                            setStopping({
-                              id: th.id,
-                              agent: who,
-                              title: th.title,
-                              waiting: th.state === "input-required",
-                            });
+                            setStopping({ id: th.id, agent: who, title: th.title, waiting: waitingHere });
                           }}
                         />
                       )}
@@ -198,6 +185,21 @@ export function RunningIndicator() {
               }}
             />
           </Suspense>
+        )}
+        {(tab === "agents" || chatShown) && (
+          <Button
+            size="sm"
+            variant="ghost"
+            fullWidth
+            className="running__all"
+            onClick={() => {
+              setOpen(false);
+              if (tab === "agents") go.view("tasks");
+              else go.processes();
+            }}
+          >
+            {t(tab === "agents" ? "topbar.work.seeAll" : "topbar.work.openProcesses")}
+          </Button>
         )}
       </Popover>
       {stopping && (

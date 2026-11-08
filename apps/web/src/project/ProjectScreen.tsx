@@ -1,6 +1,6 @@
 import "../styles/screens.css";
 import { Badge, Button, EmptyState, IconButton, Icons, ProjectTile, Tabs } from "@apx/ui";
-import { useEffect, useState } from "react";
+import { type ReactNode, useEffect, useState } from "react";
 import { loadProjectThreads } from "../data/actions.ts";
 import {
   findProject,
@@ -29,6 +29,18 @@ import { ProjectSettings } from "./ProjectSettings.tsx";
 import { ProjectAgents } from "./ProjectTeam.tsx";
 import { kindIcon, kindLabel } from "./projectKind.ts";
 import { useProjectCounts } from "./useProjectCounts.ts";
+
+const TAB_ICONS: Record<ProjectTab, ReactNode> = {
+  overview: <Icons.LayoutGrid />,
+  chats: <Icons.MessageCircle />,
+  team: <Icons.Users />,
+  tasks: <Icons.ListChecks />,
+  routines: <Icons.RefreshCw />,
+  artifacts: <Icons.Image />,
+  files: <Icons.Folder />,
+  memory: <Icons.Brain />,
+  resources: <Icons.Layers />,
+};
 
 /** A project: header (tile, name, path, New chat) + underline tabs. SPEC §2.9. */
 export function ProjectScreen({ layout }: { layout: Layout }) {
@@ -144,6 +156,7 @@ function ProjectHeader({ project, tab }: { project: ProjectEntry; tab: ProjectTa
         items={PROJECT_TABS.map((x) => ({
           value: x.id,
           label: t(x.label),
+          icon: TAB_ICONS[x.id],
           count: counts[x.id],
         }))}
       />

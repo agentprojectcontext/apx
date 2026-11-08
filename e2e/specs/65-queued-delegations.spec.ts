@@ -35,7 +35,7 @@ test("delegations past the cap show as queued, then run as the others end", asyn
     .getByRole("button", { name: /^Abrir conversación con/ })
     .click();
   await expect(page.getByText(/^En cola: .+ empieza cuando termine una de las delegaciones en curso$/)).toBeVisible();
-  await side.getByRole("button", { name: "Volver a procesos del chat" }).click();
+  await side.getByRole("tab", { name: /^Todos \(/ }).click();
 
   await expect(side.getByText("Terminados (4)")).toBeVisible({ timeout: 15_000 });
   await expect(cards.getByText("En cola", { exact: true })).toHaveCount(0);

@@ -10,6 +10,8 @@ import { useT } from "../i18n/index.ts";
 import { go, useNav } from "../shell/nav.ts";
 import { DocumentActions } from "./DocumentActions.tsx";
 import { chatDocuments, type DocRef, withStored } from "./documents.ts";
+import { closeTab, useOpenTabs } from "./openTabs.ts";
+import { LIST_TAB, PanelList, PanelRow, PanelTabs } from "./PanelTabs.tsx";
 
 export function DocumentPanel() {
   const t = useT();
@@ -34,53 +36,61 @@ export function DocumentPanel() {
     [loaded, stored, thread],
   );
   const ready = stored?.thread === thread;
+  const key = thread && `document:${thread}`;
+  const open = useOpenTabs(key, selected);
   const current = selected ? documents.find((p) => p.media_id === selected) : undefined;
-  if (!documents.length && (ready || !selected))
-    return (
-      <div className="sidepanel__body">
-        <EmptyState icon={<Icons.FileText />} title={t("document.empty")}>
-          {t("document.emptyBody")}
-        </EmptyState>
-      </div>
-    );
-  // An old document may be one only the core lists: wait for it before falling back to the list.
-  if (selected && !current && !ready)
-    return (
-      <div className="documentpanel">
-        <p className="documentpanel__status" role="status">
-          {t("document.loading")}
-        </p>
-      </div>
-    );
-  if (!current)
-    return (
-      <div className="documentpanel">
-        <ul className="documentpanel__list" aria-label={t("document.list")}>
+  // An old document may be one only the core lists: its tab waits for it under a plain name.
+  const tabs = open.flatMap((id) => {
+    const doc = documents.find((d) => d.media_id === id);
+    return doc ? [{ id, label: doc.title }] : !ready && id === selected ? [{ id, label: t("document.label") }] : [];
+  });
+  return (
+    <>
+      <PanelTabs
+        label={t("document.list")}
+        list={t("panelTabs.all", { n: documents.length })}
+        tabs={tabs}
+        value={current || (selected && !ready) ? selected : LIST_TAB}
+        onSelect={(id) => go.document(id === LIST_TAB ? undefined : id)}
+        onClose={(id) => {
+          if (key) closeTab(key, id);
+          if (id === selected) go.document();
+        }}
+      />
+      {current ? (
+        <div className="documentpanel">
+          <DocumentBody key={current.media_id} doc={current} />
+        </div>
+      ) : selected && !ready ? (
+        <div className="documentpanel">
+          <p className="documentpanel__status" role="status">
+            {t("document.loading")}
+          </p>
+        </div>
+      ) : !documents.length ? (
+        <div className="sidepanel__body">
+          <EmptyState icon={<Icons.FileText />} title={t("document.empty")}>
+            {t("document.emptyBody")}
+          </EmptyState>
+        </div>
+      ) : (
+        <PanelList label={t("document.list")}>
           {documents.map((d) => (
-            <li key={d.media_id} className="documentpanel__row">
-              <button type="button" className="documentpanel__item" onClick={() => go.document(d.media_id)}>
-                <Icons.FileText size={16} />
-                <span className="documentpanel__itemtext">
-                  <span className="documentpanel__itemtitle">{d.title}</span>
-                  <span className="documentpanel__filename">{d.source?.path ?? d.name}</span>
-                </span>
-              </button>
+            <div key={d.media_id} className="documentpanel__row">
+              <PanelRow
+                leading={<Icons.FileText size={16} />}
+                title={d.title}
+                description={<span className="plist__mono">{d.source?.path ?? d.name}</span>}
+                onClick={() => go.document(d.media_id)}
+              />
               <div className="documentpanel__rowactions">
                 <DocumentActions doc={d} thread={thread} />
               </div>
-            </li>
+            </div>
           ))}
-        </ul>
-      </div>
-    );
-  return (
-    <div className="documentpanel">
-      <button type="button" className="documentpanel__back" onClick={() => go.document()}>
-        <Icons.ArrowLeft size={14} />
-        {t("document.back", { n: documents.length })}
-      </button>
-      <DocumentBody key={current.media_id} doc={current} />
-    </div>
+        </PanelList>
+      )}
+    </>
   );
 }
 

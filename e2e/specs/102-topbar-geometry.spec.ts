@@ -1,6 +1,6 @@
 import { expect, open, rpc, test } from "./kit.ts";
 
-test("search stays centered with unequal sides and activity precedes notifications", async ({ page }) => {
+test("search stays centered with unequal sides and notifications precede activity", async ({ page }) => {
   await rpc("setup.finish");
   await open(page);
   await page.locator(".serverswitch__name").evaluate((name) => {
@@ -28,7 +28,8 @@ test("search stays centered with unequal sides and activity precedes notificatio
     expect(geometry.overflow, `overflow ${width}`).toBeLessThanOrEqual(1);
     expect(geometry.searchOverflow, `search content ${width}`).toBe(false);
   }
-  await expect(page.locator(".topbar__activity > :first-child")).toHaveClass(/running/);
+  await expect(page.locator(".topbar__activity > :first-child")).toHaveClass(/attention/);
+  await expect(page.locator(".topbar__activity > :nth-child(2)")).toHaveClass(/running/);
 });
 
 test("pending usage has one anonymous preview until the empty report arrives", async ({ page }) => {

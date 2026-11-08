@@ -23,7 +23,7 @@
   align-items: center;
   gap: 4px;
   height: var(--shell-header-h);
-  padding: 0 8px 0 10px;
+  padding: 0 8px 0 16px;
   border-bottom: 1px solid var(--apx-border);
 }
 .sidepanel__headmain {
@@ -63,22 +63,6 @@
   border: 1px solid var(--apx-border);
   border-radius: var(--apx-radius-lg);
   background: var(--apx-surface);
-}
-.widgets__back {
-  display: inline-flex;
-  align-self: flex-start;
-  align-items: center;
-  gap: 6px;
-  padding: 0;
-  border: 0;
-  background: none;
-  color: var(--apx-fg-muted);
-  font: inherit;
-  font-size: var(--apx-text-sm);
-  cursor: pointer;
-}
-.widgets__back:hover {
-  color: var(--apx-fg);
 }
 .widgets__head {
   display: flex;
@@ -269,8 +253,7 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 6px 8px 6px 14px;
-  border-bottom: 1px solid var(--apx-border);
+  padding: 10px 14px 4px;
   font-size: var(--apx-text-xs);
   color: var(--apx-fg-muted);
 }
@@ -427,55 +410,9 @@
   padding: 2px 0;
 }
 
-/* Terminal: the agent's commands, then the owner's shells, one tab each */
+/* Terminal: the agent's commands (the list), then the owner's shells, one tab each */
 .term {
   overflow: hidden;
-}
-.term__tabs {
-  flex: none;
-  display: flex;
-  align-items: center;
-  gap: 2px;
-  padding: 4px 6px;
-  overflow-x: auto;
-  border-bottom: 1px solid var(--apx-border);
-}
-.term__tab,
-.term__tab > button {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  flex: none;
-  height: 26px;
-  border: 0;
-  border-radius: var(--apx-radius-sm);
-  background: none;
-  color: var(--apx-fg-muted);
-  font: inherit;
-  font-size: var(--apx-text-xs);
-  white-space: nowrap;
-  cursor: pointer;
-}
-.term__tab {
-  padding: 0 8px;
-}
-.term__tab:has(> button) {
-  gap: 0;
-  padding: 0 0 0 8px;
-}
-.term__tab > button {
-  padding: 0;
-}
-.term__tab:hover {
-  color: var(--apx-fg);
-  background: var(--apx-fill-hover);
-}
-.term__tab.is-on {
-  color: var(--apx-fg);
-  background: var(--apx-fill);
-}
-.term__ended {
-  color: var(--apx-fg-subtle);
 }
 .term__loading {
   height: 80px;
@@ -497,53 +434,47 @@
   color: var(--apx-fg-subtle);
   font-size: var(--apx-text-xs);
 }
-.term__link {
-  margin-top: 8px;
-  border: 0;
-  background: none;
-  color: var(--apx-brand);
-  font: inherit;
-  font-size: var(--apx-text-sm);
-  cursor: pointer;
-}
 .term__jobs {
   flex: 1;
   min-height: 0;
   margin: 0;
-  padding: 6px;
+  padding: 10px;
   overflow-y: auto;
   list-style: none;
 }
 .term__job {
-  border: 1px solid var(--apx-border);
-  border-radius: var(--apx-radius-md);
+  border-radius: 10px;
   overflow: hidden;
 }
 .term__job + .term__job {
-  margin-top: 4px;
+  margin-top: 2px;
+}
+.term__job.is-open {
+  background: var(--apx-fill);
 }
 .term__jobrow {
   display: flex;
   align-items: center;
   padding-right: 4px;
+  border-radius: 10px;
+}
+.term__jobrow:hover {
+  background: var(--apx-fill-hover);
 }
 .term__jobtoggle {
   flex: 1;
   min-width: 0;
   display: flex;
   align-items: center;
-  gap: 6px;
-  min-height: 32px;
-  padding: 4px 8px;
+  gap: 8px;
+  min-height: 36px;
+  padding: 8px 10px;
   border: 0;
   background: none;
   color: var(--apx-fg);
   font: inherit;
   text-align: left;
   cursor: pointer;
-}
-.term__jobtoggle:hover {
-  background: var(--apx-fill-hover);
 }
 .term__jobtoggle svg {
   flex: none;
@@ -583,7 +514,6 @@
   padding: 8px 10px;
   overflow: auto;
   border-top: 1px solid var(--apx-border);
-  background: var(--apx-fill);
   font-family: var(--apx-font-mono);
   font-size: calc(12px * var(--apx-text-scale, 1));
   line-height: 1.5;
@@ -591,54 +521,16 @@
   word-break: break-word;
 }
 
-.processes {
-  padding: 12px;
-  gap: 8px;
-}
-.processes__heading {
-  margin: 8px 0 0;
-  color: var(--apx-fg-muted);
-  font-size: var(--apx-text-xs);
-  font-weight: 500;
-}
-.processes__row {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 10px 6px;
-  border: 0;
-  border-radius: var(--apx-radius-sm);
-  background: transparent;
-  color: var(--apx-fg);
-  text-align: left;
-  cursor: pointer;
-}
-.processes__row:hover {
-  background: var(--apx-fill);
-}
-/* The chat's own turn: its transcript is already beside the panel, nothing to open. */
-.processes__row.is-own {
-  cursor: default;
-}
-.processes__row.is-own:hover {
-  background: transparent;
-}
-.processes__name {
-  flex: 1;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.processes__status {
-  color: var(--apx-fg-subtle);
-  font-size: var(--apx-text-xs);
-}
 .sidepanel__title {
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+.sidepanel__name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .sidepanel > .chat__scroll {
   min-width: 0;
@@ -673,4 +565,217 @@
   display: flex;
   flex-direction: column;
   overflow: hidden;
+}
+
+/* ── Tool tabs: the list chip, then each opened item (PanelTabs) ───────────── */
+.ptabs {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--apx-border);
+}
+.ptabs__strip {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.ptabs__trail {
+  flex: none;
+  display: flex;
+  align-items: center;
+}
+.ptabs__tab {
+  flex: 0 1 auto;
+  min-width: 0;
+  max-width: 170px;
+  display: inline-flex;
+  align-items: center;
+  height: 28px;
+  border-radius: 8px;
+  color: var(--apx-fg-muted);
+}
+.ptabs__tab:hover {
+  background: var(--apx-fill-hover);
+  color: var(--apx-fg);
+}
+.ptabs__tab.is-on {
+  background: var(--apx-fill-strong);
+  color: var(--apx-fg);
+}
+.ptabs__tab .ptabs__pick {
+  flex: 1;
+  min-width: 0;
+  height: 28px;
+  gap: 6px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: inherit;
+  font-size: calc(12px * var(--apx-text-scale, 1));
+  font-weight: 400;
+}
+.ptabs__tab .ptabs__pick:hover {
+  background: transparent;
+  color: inherit;
+}
+.ptabs__tab.has-close .ptabs__pick {
+  padding-right: 4px;
+}
+.ptabs__pick .apx-btn__label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.ptabs__pick svg {
+  flex: none;
+}
+.ptabs__note {
+  color: var(--apx-fg-subtle);
+}
+.ptabs__tab .ptabs__close {
+  flex: none;
+  width: 18px;
+  height: 18px;
+  min-width: 18px;
+  margin-right: 5px;
+  padding: 0;
+  border-radius: 5px;
+  color: var(--apx-fg-subtle);
+}
+.ptabs__tab .ptabs__close:hover {
+  background: var(--apx-fill-strong);
+  color: var(--apx-fg);
+}
+.ptabs__dot {
+  flex: none;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--apx-fg-subtle);
+}
+.ptabs__dot.is-busy,
+.ptabs__dot.is-agent,
+.ptabs__dot.is-handoff {
+  background: var(--apx-warning);
+}
+.ptabs__dot.is-handoff {
+  animation: ptabs-pulse 1.2s ease-in-out infinite;
+}
+.ptabs__dot.is-user {
+  background: var(--apx-brand);
+}
+@keyframes ptabs-pulse {
+  50% {
+    opacity: 0.35;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ptabs__dot.is-handoff {
+    animation: none;
+  }
+}
+.ptabs__new {
+  flex: none;
+}
+
+/* A tool's list: group headings and rows that open an item as a tab. */
+.plist {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 10px;
+  overflow-y: auto;
+}
+.plist > * {
+  flex: none;
+}
+.plist__group {
+  margin: 0;
+  padding: 10px 8px 4px;
+  color: var(--apx-fg-subtle);
+  font-size: calc(12px * var(--apx-text-scale, 1));
+  font-weight: 400;
+}
+.plist__group:first-child {
+  padding-top: 2px;
+}
+.plist .plist__row {
+  min-height: 0;
+  padding: 9px 10px;
+}
+.plist__mono {
+  font-family: var(--apx-font-mono);
+}
+.plist__empty {
+  margin: 0;
+  padding: 10px 8px;
+  color: var(--apx-fg-subtle);
+  font-size: calc(12px * var(--apx-text-scale, 1));
+}
+/* The chat's own turn: its transcript is already beside the panel, nothing to open. */
+.plist .processes__row.is-own:hover {
+  background: transparent;
+}
+.chatfiles > .chatfiles__note {
+  padding: 8px 14px 0;
+}
+
+/* An agent drives the screen: the page dimmed behind who it is and one button to take control. */
+.ctrllock {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  background: color-mix(in oklab, var(--apx-bg) 55%, transparent);
+  backdrop-filter: blur(2px);
+}
+.ctrllock__card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  max-width: 280px;
+  padding: 20px 24px;
+  border: 1px solid var(--apx-border);
+  border-radius: 16px;
+  background: var(--apx-surface-raised);
+  box-shadow: var(--apx-shadow-md);
+  text-align: center;
+  cursor: default;
+}
+.ctrllock__text {
+  margin: 0;
+  font-size: var(--apx-text-sm);
+  text-wrap: pretty;
+}
+.ctrllock__hint {
+  margin: 0;
+  color: var(--apx-fg-subtle);
+  font-size: calc(11px * var(--apx-text-scale, 1));
+  text-wrap: pretty;
+}
+.browser__stage {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+.browser__stage > .ctrllock {
+  inset: 0 10px 10px;
+  border-radius: var(--apx-radius-md);
 }

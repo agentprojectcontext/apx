@@ -1,9 +1,11 @@
 import type { Notification } from "@apx/protocol";
-import { Button, IconButton, Icons, Popover } from "@apx/ui";
+import { AgentAvatar, Button, EngineIcon, IconButton, Icons, Popover } from "@apx/ui";
 import { useEffect, useMemo, useState } from "react";
 import { shortWhen } from "../common/format.ts";
 import { pairingChannel } from "../data/channels.ts";
+import { blobOf, projectName, threadAgent } from "../data/identity.ts";
 import { readNotifications, useAttention } from "../data/notifications.ts";
+import { useData } from "../data/state.ts";
 import { useT } from "../i18n/index.ts";
 import { loadOsNotices } from "../lazy.ts";
 import { go } from "./nav.ts";
@@ -64,18 +66,21 @@ export function AttentionTray() {
   return (
     <Popover
       align="end"
-      width={380}
+      width={360}
       open={open}
       onOpenChange={setOpen}
-      label={t("attention.label")}
+      label={t("topbar.notifications")}
       trigger={
         <IconButton
           size="sm"
-          className={unread ? "attention is-active" : "attention"}
+          className={unread ? "attention has-unread" : "attention"}
           label={t("attention.aria", { n: unread })}
           icon={
             <>
-              <Icons.Bell size={16} />
+              <span className="attention__bell">
+                <Icons.Bell size={16} />
+                {unread > 0 && <span className="attention__dot" />}
+              </span>
               {unread > 0 && <span className="attention__count">{unread > 99 ? "99+" : unread}</span>}
             </>
           }
@@ -83,7 +88,7 @@ export function AttentionTray() {
       }
     >
       <div className="attention__head">
-        <span className="attention__title">{t("attention.label")}</span>
+        <span className="attention__title">{t("topbar.notifications")}</span>
         {unread > 0 && (
           <Button size="sm" variant="ghost" onClick={() => void readNotifications()}>
             {t("attention.readAll")}
@@ -92,35 +97,58 @@ export function AttentionTray() {
       </div>
       {list.length ? (
         <div className="running__list">
-          {list.map((n) => {
-            const Icon = KIND_ICON[n.kind];
-            return (
-              <button
-                key={n.id}
-                type="button"
-                className={n.read_at ? "running__row attention__row" : "running__row attention__row is-unread"}
-                onClick={() => {
-                  setOpen(false);
-                  openNotice(n);
-                }}
-              >
-                <span className={`attention__icon is-${n.level}`}>
-                  <Icon size={14} />
-                </span>
-                <span className="running__item">
-                  <span className="running__title">
-                    {t(`attention.kind.${n.kind}`)} · {n.title}
-                  </span>
-                  {n.body && <span className="attention__body">{n.body}</span>}
-                </span>
-                <span className="running__elapsed">{shortWhen(n.created_at)}</span>
-              </button>
-            );
-          })}
+          {list.map((n) => (
+            <NoticeRow
+              key={n.id}
+              notice={n}
+              onOpen={() => {
+                setOpen(false);
+                openNotice(n);
+              }}
+            />
+          ))}
         </div>
       ) : (
         <p className="running__empty">{t("attention.empty")}</p>
       )}
     </Popover>
+  );
+}
+
+/** A notice: who it comes from, what happened and when, the text in two lines, then who · project. */
+function NoticeRow({ notice: n, onOpen }: { notice: Notification; onOpen: () => void }) {
+  const t = useT();
+  const thread = useData((s) => (n.thread_id ? s.threads[n.thread_id] : undefined));
+  const agent = useData((s) => threadAgent(thread, s.agents));
+  const projects = useData((s) => s.projects);
+  const engine = useData((s) => (thread?.engine ? s.engines.find((e) => e.id === thread.engine) : undefined));
+  const Icon = KIND_ICON[n.kind];
+  const kind = t(`attention.kind.${n.kind}`);
+  const who = agent?.name ?? (thread?.engine ? (engine?.label ?? thread.engine) : undefined);
+  // A notice titled after its agent says what happened instead; the agent's name goes to the foot.
+  const titled = n.title !== who;
+  const meta = [titled ? kind : undefined, who, thread ? projectName(projects, thread.project_id) : undefined].filter(
+    Boolean,
+  );
+  return (
+    <button type="button" className={n.read_at ? "attention__row" : "attention__row is-unread"} onClick={onOpen}>
+      {agent ? (
+        <AgentAvatar name={agent.name} blob={blobOf(agent)} size={28} animated={false} />
+      ) : thread?.engine ? (
+        <EngineIcon engine={thread.engine} tile size={28} />
+      ) : (
+        <span className={`attention__icon is-${n.level}`}>
+          <Icon size={14} />
+        </span>
+      )}
+      <span className="attention__main">
+        <span className="attention__top">
+          <span className="attention__subject">{titled ? n.title : kind}</span>
+          <span className="attention__time">{shortWhen(n.created_at)}</span>
+        </span>
+        {n.body && <span className="attention__body">{n.body}</span>}
+        {meta.length > 0 && <span className="attention__meta">{meta.join(" · ")}</span>}
+      </span>
+    </button>
   );
 }

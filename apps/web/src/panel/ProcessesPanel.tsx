@@ -1,7 +1,8 @@
 import type { Job, Thread } from "@apx/protocol";
-import { AgentAvatar, EmptyState, IconButton, Icons, Skeleton } from "@apx/ui";
+import { AgentAvatar, Button, EmptyState, IconButton, Icons, Skeleton, Spinner } from "@apx/ui";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Transcript } from "../chat/Transcript.tsx";
+import { shortWhen } from "../common/format.ts";
 import { useNow } from "../common/useNow.ts";
 import { loadThread } from "../data/actions.ts";
 import { client } from "../data/client.ts";
@@ -13,6 +14,8 @@ import { type T, useT } from "../i18n/index.ts";
 import { JobList } from "../shell/JobList.tsx";
 import { go, useNav } from "../shell/nav.ts";
 import { QueuedTurns } from "../shell/QueuedTurns.tsx";
+import { closeTab, useOpenTabs } from "./openTabs.ts";
+import { LIST_TAB, PanelGroup, PanelList, PanelRow, PanelTabs } from "./PanelTabs.tsx";
 import { chatDescendants } from "./process-scope.ts";
 import { PanelHeader } from "./SidePanel.tsx";
 
@@ -89,24 +92,39 @@ export function ProcessesPanel() {
   const own = rootThread && going(rootThread.state) ? rootThread : undefined;
   const ownAgent = own && threadAgent(own, agents);
   const activeCount = (own ? 1 : 0) + queued.length + active.length + jobs.running.length;
+  const key = root && `processes:${root}`;
+  const open = useOpenTabs(key, selected);
+  const tabs = open.flatMap((id) => {
+    const th = threads[id] ?? children?.find((x) => x.id === id);
+    return th
+      ? [{ id, label: th.title || t("thread.a2a"), dot: going(th.state) ? ("busy" as const) : ("idle" as const) }]
+      : [];
+  });
   const row = (th: Thread) => {
     const agent = threadAgent(th, agents);
     return (
-      <button key={th.id} type="button" className="processes__row" onClick={() => go.subthread(th.id)}>
-        <AgentAvatar name={agent?.name ?? th.title} blob={blobOf(agent)} size={28} animated={isWorking(th.state)} />
-        <span className="processes__name">{th.title}</span>
-        <span className="processes__status">{statusOf(t, th.state)}</span>
-      </button>
+      <PanelRow
+        key={th.id}
+        className="processes__row"
+        leading={
+          <AgentAvatar name={agent?.name ?? th.title} blob={blobOf(agent)} size={20} animated={isWorking(th.state)} />
+        }
+        title={th.title}
+        description={statusOf(t, th.state)}
+        trailing={isWorking(th.state) ? <Spinner size={12} /> : shortWhen(th.updated_at)}
+        onClick={() => go.subthread(th.id)}
+      />
     );
   };
   return (
     <>
       <PanelHeader
+        kind="processes"
         actions={
           selected && (
             <IconButton
               label={t("processes.maximize")}
-              icon={<Icons.Maximize2 size={14} />}
+              icon={<Icons.ExternalLink size={14} />}
               onClick={() => {
                 go.thread(selected);
                 go.panel(null);
@@ -114,15 +132,18 @@ export function ProcessesPanel() {
             />
           )
         }
-      >
-        {selected && (
-          <IconButton label={t("processes.back")} icon={<Icons.ArrowLeft size={14} />} onClick={go.processes} />
-        )}
-        <span className="sidepanel__title">
-          <Icons.Users size={14} />
-          {selected ? (thread?.title ?? t("thread.a2a")) : t("panel.processes")}
-        </span>
-      </PanelHeader>
+      />
+      <PanelTabs
+        label={t("panel.processes")}
+        list={t("panelTabs.all", { n: activeCount + done.length })}
+        tabs={tabs}
+        value={selected ?? LIST_TAB}
+        onSelect={(id) => (id === LIST_TAB ? go.processes() : go.subthread(id))}
+        onClose={(id) => {
+          if (key) closeTab(key, id);
+          if (id === selected) go.processes();
+        }}
+      />
       {selected ? (
         loadState === "error" || (loadState === "ready" && !thread) ? (
           <EmptyState icon={<Icons.TriangleAlert />} title={t("chat.notFound.title")} />
@@ -134,39 +155,53 @@ export function ProcessesPanel() {
         ) : (
           <Skeleton className="term__loading" />
         )
-      ) : (
-        <div className="sidepanel__body processes">
-          {error ? (
-            <p className="running__empty">
-              {t("processes.failed")}
-              <button type="button" className="term__link" onClick={() => void refresh()}>
+      ) : error ? (
+        <div className="sidepanel__body">
+          <EmptyState
+            icon={<Icons.TriangleAlert />}
+            title={t("processes.failed")}
+            action={
+              <Button size="sm" variant="secondary" onClick={() => void refresh()}>
                 {t("common.retry")}
-              </button>
-            </p>
-          ) : !children ? (
-            <Skeleton className="term__loading" />
-          ) : (
-            <>
-              <h3 className="processes__heading">{t("processes.active", { n: activeCount })}</h3>
-              {own && (
-                <div className="processes__row is-own">
-                  <AgentAvatar
-                    name={ownAgent?.name ?? own.title}
-                    blob={blobOf(ownAgent)}
-                    size={28}
-                    animated={isWorking(own.state)}
-                  />
-                  <span className="processes__name">{ownAgent?.name ?? own.title}</span>
-                  <span className="processes__status">{statusOf(t, own.state)}</span>
-                </div>
+              </Button>
+            }
+          />
+        </div>
+      ) : !children ? (
+        <Skeleton className="term__loading" />
+      ) : (
+        <PanelList label={t("panel.processes")}>
+          <PanelGroup title={t("processes.active", { n: activeCount })} />
+          {own && (
+            <div className="apx-pickrow processes__row is-own">
+              <span className="apx-pickrow__lead">
+                <AgentAvatar
+                  name={ownAgent?.name ?? own.title}
+                  blob={blobOf(ownAgent)}
+                  size={20}
+                  animated={isWorking(own.state)}
+                />
+              </span>
+              <span className="apx-pickrow__main">
+                <span className="apx-pickrow__title">{ownAgent?.name ?? own.title}</span>
+                <span className="apx-pickrow__desc">{statusOf(t, own.state)}</span>
+              </span>
+              {isWorking(own.state) && (
+                <span className="apx-pickrow__trail">
+                  <Spinner size={12} />
+                </span>
               )}
-              <QueuedTurns turns={queued} now={now} />
-              {active.map(row)}
-              {!activeCount && <p className="running__empty">{t("running.empty")}</p>}
-              <h3 className="processes__heading">{t("processes.done", { n: done.length })}</h3>
-              {done.map(row)}
-              {!done.length && <p className="running__empty">{t("processes.empty")}</p>}
-              <h3 className="processes__heading">{t("panel.terminal")}</h3>
+            </div>
+          )}
+          <QueuedTurns turns={queued} now={now} />
+          {active.map(row)}
+          {!activeCount && <p className="plist__empty">{t("running.empty")}</p>}
+          <PanelGroup title={t("processes.done", { n: done.length })} />
+          {done.map(row)}
+          {!done.length && <p className="plist__empty">{t("processes.empty")}</p>}
+          {jobs.running.length + jobs.finished.length > 0 && (
+            <>
+              <PanelGroup title={t("panelTabs.commands", { n: jobs.running.length + jobs.finished.length })} />
               <JobList
                 running={jobs.running}
                 finished={jobs.finished}
@@ -175,7 +210,7 @@ export function ProcessesPanel() {
               />
             </>
           )}
-        </div>
+        </PanelList>
       )}
     </>
   );

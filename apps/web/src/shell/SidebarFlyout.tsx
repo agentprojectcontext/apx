@@ -17,6 +17,7 @@ export function SidebarFlyout({
   running = false,
   active = false,
   action,
+  empty,
   children,
 }: {
   rail: boolean;
@@ -28,6 +29,8 @@ export function SidebarFlyout({
   active?: boolean;
   /** A control at the right of the flyout's title (its "+"). */
   action?: ReactNode;
+  /** What the flyout says while the section has nothing in it. */
+  empty?: string;
   children: ReactNode;
 }) {
   const [open, setOpen] = useState(false);
@@ -49,6 +52,7 @@ export function SidebarFlyout({
       trigger={
         <SidebarTooltipButton
           label={title}
+          tip={rail && !open}
           aria-expanded={open}
           className={`apx-nav sideflyout__row${rail ? " apx-nav--collapsed" : ""}${active || open ? " is-active" : ""}`}
         >
@@ -71,7 +75,11 @@ export function SidebarFlyout({
         <span>{title}</span>
         {action}
       </div>
-      <div className="sideflyout__list">{children}</div>
+      {empty && !count ? (
+        <p className="sideflyout__empty">{empty}</p>
+      ) : (
+        <div className="sideflyout__list">{children}</div>
+      )}
     </Popover>
   );
 }

@@ -4,9 +4,9 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { client } from "../data/client.ts";
 import { useData } from "../data/state.ts";
 import { useT } from "../i18n/index.ts";
-import { go, useNav } from "../shell/nav.ts";
 import { type ChangeRow, recordedChanges } from "./change-records.ts";
 import { FileChange } from "./FileChange.tsx";
+import { LIST_TAB, PanelTabs } from "./PanelTabs.tsx";
 import { PanelHeader } from "./SidePanel.tsx";
 import type { Workspace } from "./workspace.ts";
 
@@ -15,7 +15,6 @@ const EMPTY: Message[] = [];
 /** One file list for recorded turns and the current repository, without nested summary cards. */
 export function ChangesPanel({ thread, ws }: { thread: Thread; ws?: Workspace | undefined }) {
   const t = useT();
-  const wide = useNav((s) => s.panelWide);
   const messages = useData((s) => s.messages[thread.id] ?? EMPTY);
   const [selection, setScope] = useState<"latest" | "all" | "folder">();
   const [changes, setChanges] = useState<Result<"files.changes">>();
@@ -65,20 +64,14 @@ export function ChangesPanel({ thread, ws }: { thread: Thread; ws?: Workspace | 
   );
   return (
     <>
-      <PanelHeader
-        actions={
-          <IconButton
-            label={wide ? t("panel.narrow") : t("panel.widen")}
-            icon={wide ? <Icons.Minimize2 size={14} /> : <Icons.Maximize2 size={14} />}
-            onClick={() => go.togglePanelWide()}
-          />
-        }
-      >
-        <span className="sidepanel__title">
-          <Icons.FileDiff size={14} />
-          {t(rows.length === 1 ? "changes.heading.one" : "changes.heading.many", { n: rows.length })}
-        </span>
-      </PanelHeader>
+      <PanelHeader kind="changes" />
+      <PanelTabs
+        label={t("panel.changes")}
+        list={t("panelTabs.files", { n: rows.length })}
+        tabs={[]}
+        value={LIST_TAB}
+        onSelect={() => {}}
+      />
       <div className="sidepanel__body wchanges">
         <div className="wchanges__bar">
           <Select

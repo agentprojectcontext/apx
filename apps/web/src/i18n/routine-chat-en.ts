@@ -1,0 +1,17 @@
+// A routine's runs read as one chat: its header, the line between runs, the timeline beside them.
+export const enRoutineChat = {
+  "routineChat.earlierRuns": "{n} earlier runs",
+  "routineChat.laterRuns": "{n} later runs",
+  "routineChat.placeholder": "Write to {name} about this routine…",
+  "routineChat.sub": "Routine · {schedule} · {runs}",
+  "routineChat.runsOne": "1 run",
+  "routineChat.runsMany": "{n} runs",
+  "routineChat.paused": "Paused",
+  "routineChat.timeline": "Runs",
+  "routineChat.changed": "Instructions changed",
+  "routineChat.earlier": "Earlier version",
+  "routineChat.notFound.title": "This routine is gone",
+  "routineChat.notFound.body": "It may have been deleted. Pick another one from the list.",
+  "routineChat.empty.title": "It has not run yet",
+  "routineChat.empty.body": "Each time it runs, what it did shows up here, one run after the other.",
+};

@@ -119,14 +119,20 @@ export function SidebarNavRow({
 /** Forwards popover handlers to the actual button while adding a readable hint. */
 export const SidebarTooltipButton = forwardRef<
   HTMLButtonElement,
-  ButtonHTMLAttributes<HTMLButtonElement> & { label: string }
->(function SidebarTooltipButton({ label, children, ...props }, ref) {
-  return (
+  ButtonHTMLAttributes<HTMLButtonElement> & { label: string; tip?: boolean }
+>(function SidebarTooltipButton({ label, tip = true, children, ...props }, ref) {
+  const button = (
+    <button type="button" ref={ref} aria-label={label} {...props}>
+      {children}
+    </button>
+  );
+  // With its name already on screen (or its own panel open beside it) the hint would only cover something.
+  return tip ? (
     <Tooltip content={label} side="right">
-      <button type="button" ref={ref} aria-label={label} {...props}>
-        {children}
-      </button>
+      {button}
     </Tooltip>
+  ) : (
+    button
   );
 });
 

@@ -9,16 +9,18 @@ import { DEFAULT_PID, projectEntries, projectInitial, projectName, projectTone }
 import { posterUrl } from "../data/media.ts";
 import { useData } from "../data/state.ts";
 import { type MessageKey, useT } from "../i18n/index.ts";
+import { ArtifactGrid, useArtifacts } from "./ArtifactCards.tsx";
 import { SharedPreview } from "./SharedPreview.tsx";
 import { kindIcon, ONE, Sender, SharedActions, when } from "./sharedFile.tsx";
 
-type Kind = SharedKind | "all";
+type Kind = SharedKind | "all" | "artifact";
 const KINDS: { id: Kind; label: MessageKey }[] = [
   { id: "all", label: "shared.kind.all" },
   { id: "image", label: "shared.kind.image" },
   { id: "video", label: "shared.kind.video" },
   { id: "audio", label: "shared.kind.audio" },
   { id: "document", label: "shared.kind.document" },
+  { id: "artifact", label: "files.kind.artifact" },
 ];
 const ORDERS: { id: SharedOrder; label: MessageKey }[] = [
   { id: "new", label: "shared.order.new" },
@@ -112,7 +114,10 @@ function Card({ file, onOpen }: { file: SharedFile; onOpen: () => void }) {
   );
 }
 
-/** Every file sent in a chat, as cards by kind, project and name; one opens live over the list. */
+/**
+ * Every file sent in a chat, as cards by kind, project and name; one opens live over the list. Artifacts, open or
+ * closed, are one more kind: listed from what the panel already holds, with the same project, search and order.
+ */
 export function FilesScreen() {
   const t = useT();
   const projects = useData((s) => s.projects);
@@ -127,26 +132,29 @@ export function FilesScreen() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [open, setOpen] = useState<number>();
+  const artifacts = useArtifacts({ project, query, order });
+  const showArtifacts = kind === "artifact";
 
   useEffect(() => {
     const wait = setTimeout(() => setQuery(typed.trim()), SEARCH_WAIT_MS);
     return () => clearTimeout(wait);
   }, [typed]);
 
+  // On Artifacts only the files' counts are asked for, so the other tabs keep theirs.
   const load = async (offset: number) => {
     setLoading(true);
     try {
       const r = await client.call("media.shared", {
-        ...(kind === "all" ? {} : { kind }),
+        ...(kind === "all" || kind === "artifact" ? {} : { kind }),
         ...(project === DEFAULT_PID ? { base: true } : project ? { project } : {}),
         ...(query ? { query } : {}),
         order,
         offset,
-        limit: PAGE,
+        limit: showArtifacts ? 1 : PAGE,
       });
-      setItems((prev) => (offset ? [...prev, ...r.items] : r.items));
+      setItems((prev) => (showArtifacts ? [] : offset ? [...prev, ...r.items] : r.items));
       setCounts(r.counts);
-      setMore(r.more);
+      setMore(!showArtifacts && r.more);
       setError("");
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
@@ -167,7 +175,7 @@ export function FilesScreen() {
   );
   const shown = open === undefined ? undefined : items[open];
   const total = counts ? counts.image + counts.video + counts.audio + counts.document : undefined;
-  const countOf = (k: Kind) => (k === "all" ? total : counts?.[k]);
+  const countOf = (k: Kind) => (k === "artifact" ? artifacts.length : k === "all" ? total : counts?.[k]);
 
   return (
     <section className="resv sharedf" aria-label={t("nav.files")}>
@@ -176,7 +184,7 @@ export function FilesScreen() {
         <header className="resv__head">
           <div className="resv__titles">
             <h1 className="resv__title">{t("nav.files")}</h1>
-            <p className="resv__lead">{t("shared.lead")}</p>
+            <p className="resv__lead">{t(showArtifacts ? "files.artifacts.lead" : "shared.lead")}</p>
           </div>
           <div className="resv__bar">
             <SegmentedControl
@@ -225,7 +233,24 @@ export function FilesScreen() {
           </div>
         </header>
         <div className="sharedf__body">
-          {error ? (
+          {showArtifacts ? (
+            artifacts.length ? (
+              <ArtifactGrid items={artifacts} />
+            ) : (
+              <EmptyState
+                icon={<Icons.LayoutGrid />}
+                title={t(
+                  query
+                    ? "files.artifacts.emptySearch"
+                    : project
+                      ? "files.artifacts.emptyProject"
+                      : "files.artifacts.empty",
+                )}
+              >
+                {!query && !project ? t("files.artifacts.emptyText") : undefined}
+              </EmptyState>
+            )
+          ) : error ? (
             <EmptyState icon={<Icons.TriangleAlert />} title={t("shared.error", { error })} />
           ) : !items.length && !loading ? (
             <EmptyState
