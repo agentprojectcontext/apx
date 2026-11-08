@@ -2,11 +2,18 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import { test } from "node:test";
-import type { AdmitFn } from "./engine.ts";
 import { tempDir } from "../testkit/platform.ts";
+import type { AdmitFn } from "./engine.ts";
 import { coordinatedTaskSource } from "./task-report.ts";
 import { deliverToCoordinator, startTaskWork } from "./task-work.ts";
 import { say, scriptedLlm, startCore } from "./testkit.ts";
+
+/** The stored task, failing the test if it is gone. */
+function taskOf(store: Parameters<typeof coordinatedTaskSource>[0], id: string) {
+  const task = store.tasks.get(id);
+  assert.ok(task, `task ${id} exists`);
+  return task;
+}
 
 /** A coordinator's chat and run, and a task whose work that run started. */
 function fixture(store: Parameters<typeof coordinatedTaskSource>[0]) {
@@ -49,7 +56,7 @@ test("a task started by a verified coordinator reports back to that coordinator'
     store.threads.mergeContext(task.thread_id, {
       coordination_from: { thread: chat.id, run: source.id, work_run: work.id },
     });
-    const found = coordinatedTaskSource(store, store.tasks.get(task.id)!);
+    const found = coordinatedTaskSource(store, taskOf(store, task.id));
     assert.equal(found?.thread, chat.id);
     assert.equal(found?.run.id, source.id);
   } finally {
@@ -73,7 +80,7 @@ test("a coordinator recorded for a run that did not start the work is not truste
     store.threads.mergeContext(task.thread_id, {
       coordination_from: { thread: chat.id, run: unrelated.id, work_run: "run_missing" },
     });
-    assert.equal(coordinatedTaskSource(store, store.tasks.get(task.id)!), undefined);
+    assert.equal(coordinatedTaskSource(store, taskOf(store, task.id)), undefined);
   } finally {
     await env.core.close();
     await env.cleanup();
@@ -125,7 +132,7 @@ test("a project head that starts a task from its own chat is recorded as its coo
         deadline_at: "2099-01-01T00:00:00Z",
       });
     };
-    const work = startTaskWork(store, admit, store.tasks.get(task.id)!, "vera", {
+    const work = startTaskWork(store, admit, taskOf(store, task.id), "vera", {
       kind: "agent",
       id: head.id,
       name: "Head",
@@ -135,7 +142,7 @@ test("a project head that starts a task from its own chat is recorded as its coo
     });
     assert.ok(work, "the task started");
     assert.equal(store.threads.context(taskThread.id).coordination_from?.thread, chat.id);
-    assert.equal(coordinatedTaskSource(store, store.tasks.get(task.id)!)?.thread, chat.id);
+    assert.equal(coordinatedTaskSource(store, taskOf(store, task.id))?.thread, chat.id);
   } finally {
     await env.core.close();
     await env.cleanup();
@@ -166,7 +173,7 @@ test("a review that sends a coordinated task back is told to its coordinator onc
         deadline_at: "2099-01-01T00:00:00Z",
       });
     };
-    const current = () => store.tasks.get(task.id)!;
+    const current = () => taskOf(store, task.id);
 
     deliverToCoordinator(store, admit, current(), reviewRun, "Scout", "REVISE: fix the header");
     assert.equal(admitted.length, 0, "no coordinator recorded, nobody is told");

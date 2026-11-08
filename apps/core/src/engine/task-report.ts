@@ -53,10 +53,7 @@ function reportOf(store: Store, task: Task, closer: string, note: unknown, fresh
 type Recipient = { agent: AgentRecord; thread: Thread; run?: RunRecord | undefined; by?: string };
 
 /** The verified coordinator and the exact task execution it started, if that coordination is still recorded. */
-export function coordinatedTaskSource(
-  store: Store,
-  task: Task,
-): { thread: string; run: RunRecord } | undefined {
+export function coordinatedTaskSource(store: Store, task: Task): { thread: string; run: RunRecord } | undefined {
   const from = store.threads.context(task.thread_id).coordination_from;
   const source = from && store.runs.get(from.run);
   const work = from && store.runs.get(from.work_run);

@@ -126,8 +126,9 @@ test("a held start does not resume when a new run started in an existing chat of
       ],
     });
     const oldChat = store.threads.byTask(task.id)[0];
+    assert.ok(oldChat, "the task has its earlier chat");
     store.runs.create({
-      thread_id: oldChat!.id,
+      thread_id: oldChat.id,
       agent_id: "vera",
       trigger: "user",
       input: { origin: { kind: "user" }, text: "Newer work" },
