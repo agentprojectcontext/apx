@@ -100,26 +100,24 @@ export function ProjectOverview({ project }: { project: ProjectEntry }) {
             </h2>
             {team.length || inherited.length ? (
               <div className="overview__pills">
-                {team.map((a) => (
-                  <button key={a.id} type="button" className="overview__pill" onClick={() => go.projectTab("team")}>
-                    <AgentAvatar name={a.name} blob={blobOf(a)} size={24} animated={false} />
-                    <span className="overview__pillname">{a.name}</span>
-                    {a.role && <span className="overview__pillrole">{a.role}</span>}
-                  </button>
-                ))}
-                {parent &&
-                  inherited.map((a) => (
+                {[...team.map((a) => ({ a, from: undefined })), ...inherited.map((a) => ({ a, from: parent }))].map(
+                  ({ a, from }) => (
                     <button
                       key={a.id}
                       type="button"
                       className="overview__pill"
-                      onClick={() => go.project(parent.id, "team")}
+                      onClick={() => (from ? go.project(from.id, "team") : go.projectTab("team"))}
                     >
                       <AgentAvatar name={a.name} blob={blobOf(a)} size={24} animated={false} />
                       <span className="overview__pillname">{a.name}</span>
-                      <span className="overview__pillrole">{t("overview.fromParent", { name: parent.name })}</span>
+                      {from ? (
+                        <span className="overview__pillrole">{t("overview.fromParent", { name: from.name })}</span>
+                      ) : (
+                        a.role && <span className="overview__pillrole">{a.role}</span>
+                      )}
                     </button>
-                  ))}
+                  ),
+                )}
               </div>
             ) : (
               <EmptyState variant="dashed">{t("overview.noAgents")}</EmptyState>

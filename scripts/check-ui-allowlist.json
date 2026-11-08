@@ -17,6 +17,10 @@
       "count": 2,
       "reason": "custom-styled row, chip, tab or card control; moving it to Button/IconButton changes its look, so it needs a reviewed screenshot (rule 32)"
     },
+    "apps/web/src/channels/account/EmailAccount.tsx": {
+      "count": 1,
+      "reason": "custom-styled row, chip, tab or card control; moving it to Button/IconButton changes its look, so it needs a reviewed screenshot (rule 32)"
+    },
     "apps/web/src/chat/AgentEvent.tsx": {
       "count": 1,
       "reason": "custom-styled row, chip, tab or card control; moving it to Button/IconButton changes its look, so it needs a reviewed screenshot (rule 32)"
@@ -102,10 +106,6 @@
       "reason": "custom-styled row, chip, tab or card control; moving it to Button/IconButton changes its look, so it needs a reviewed screenshot (rule 32)"
     },
     "apps/web/src/config/DesktopSection.tsx": {
-      "count": 1,
-      "reason": "custom-styled row, chip, tab or card control; moving it to Button/IconButton changes its look, so it needs a reviewed screenshot (rule 32)"
-    },
-    "apps/web/src/channels/account/EmailAccount.tsx": {
       "count": 1,
       "reason": "custom-styled row, chip, tab or card control; moving it to Button/IconButton changes its look, so it needs a reviewed screenshot (rule 32)"
     },
@@ -357,7 +357,7 @@
       "count": 1,
       "reason": "custom-styled row, chip, tab or card control; moving it to Button/IconButton changes its look, so it needs a reviewed screenshot (rule 32)"
     },
-    "apps/web/src/routines/RoutinesPane.tsx": {
+    "apps/web/src/routines/RoutineList.tsx": {
       "count": 1,
       "reason": "custom-styled row, chip, tab or card control; moving it to Button/IconButton changes its look, so it needs a reviewed screenshot (rule 32)"
     },

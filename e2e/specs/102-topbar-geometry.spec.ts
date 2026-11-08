@@ -3,8 +3,8 @@ import { expect, open, rpc, test } from "./kit.ts";
 test("search stays centered with unequal sides and activity precedes notifications", async ({ page }) => {
   await rpc("setup.finish");
   await open(page);
-  await page.locator(".topbar__crumbs").evaluate((crumbs) => {
-    crumbs.textContent = "A very long project name and a conversation that must not move search";
+  await page.locator(".serverswitch__name").evaluate((name) => {
+    name.textContent = "a-very-long-server-name.tailnet-of-the-owner.ts.net";
   });
   for (const width of [1836, 1600, 1599, 1536, 1500, 1499, 1440, 1280, 980, 768, 600, 390, 320]) {
     await page.setViewportSize({ width, height: 900 });

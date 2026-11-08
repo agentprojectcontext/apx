@@ -1,4 +1,4 @@
-import { Icons, Menu, type MenuEntry } from "@apx/ui";
+import { Button, Icons, Menu, type MenuEntry } from "@apx/ui";
 import { useData } from "../data/state.ts";
 import { useT } from "../i18n/index.ts";
 
@@ -35,14 +35,21 @@ export function ServerSwitch() {
       align="start"
       items={items}
       trigger={
-        <button type="button" className="serverswitch" aria-label={t("server.label", { name })}>
-          <span className="serverswitch__icon">
-            {local ? <Icons.Monitor size={16} /> : <Icons.Server size={16} />}
-            <span className={online ? "serverswitch__dot is-online" : "serverswitch__dot"} aria-hidden="true" />
-          </span>
+        <Button
+          variant="ghost"
+          size="sm"
+          className="serverswitch"
+          aria-label={t("server.label", { name })}
+          leadingIcon={
+            <span className="serverswitch__icon">
+              {local ? <Icons.Monitor size={16} /> : <Icons.Server size={16} />}
+              <span className={online ? "serverswitch__dot is-online" : "serverswitch__dot"} aria-hidden="true" />
+            </span>
+          }
+          trailingIcon={<Icons.ChevronDown size={14} className="serverswitch__chev" />}
+        >
           <span className="serverswitch__name">{name}</span>
-          <Icons.ChevronDown size={14} className="serverswitch__chev" />
-        </button>
+        </Button>
       }
     />
   );

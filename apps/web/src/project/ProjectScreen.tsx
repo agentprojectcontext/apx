@@ -89,6 +89,7 @@ function ProjectHeader({ project, tab }: { project: ProjectEntry; tab: ProjectTa
           <div className="project__name">
             {parent && (
               <>
+                {/* ui: part of the heading's text, set as the title is; a Button would draw a control there. */}
                 <button type="button" className="project__parent" onClick={() => go.project(parent.id)}>
                   {parent.name}
                 </button>

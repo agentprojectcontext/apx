@@ -208,6 +208,14 @@ export const test = base.extend<{
 export { expect };
 
 /** Opens the panel (the setup wizard stays closed unless a test wants it). */
+/** The sidebar's sections as cards (the compact sidebar folds each into one row): set before `open`. */
+export async function cardSidebar(page: Page) {
+  await page.addInitScript(() => {
+    const prefs = JSON.parse(localStorage.getItem("apx.prefs") ?? "{}");
+    localStorage.setItem("apx.prefs", JSON.stringify({ ...prefs, sidebarCompact: false }));
+  });
+}
+
 export async function open(page: Page, hash = "") {
   await page.goto(`/${hash}`);
   await expect(page.getByRole("button", { name: "Inbox" })).toBeVisible();

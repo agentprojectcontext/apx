@@ -36,6 +36,7 @@ export function SubprojectsBlock({ project }: { project: ProjectEntry }) {
       </h2>
       {list.length ? (
         list.map((p) => (
+          // ui: the overview's own list row, the same as its recent chats and apps.
           <button key={p.id} type="button" className="overview__row" onClick={() => go.project(p.id)}>
             <Icons.Folder size={14} />
             <span className="overview__rowname">{p.name}</span>

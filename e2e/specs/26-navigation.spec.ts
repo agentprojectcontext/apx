@@ -1,4 +1,4 @@
-import { expect, open, rpc, test } from "./kit.ts";
+import { cardSidebar, expect, open, rpc, test } from "./kit.ts";
 
 test.beforeAll(async () => {
   await rpc("setup.finish");
@@ -119,7 +119,7 @@ test("El navegador se cierra al pasar a otro chat; Atrás lo trae con su chat", 
 });
 
 for (const platform of ["web", "mac", "win", "linux"])
-  test(`${platform}: buscador centrado, controles accesibles, breadcrumb largo sin solapar`, async ({ page }) => {
+  test(`${platform}: buscador centrado y controles accesibles con un chat de título largo`, async ({ page }) => {
     const chat = await rpc<{ id: string }>("threads.create", {
       kind: "loose",
       agent_id: "superagent",
@@ -196,6 +196,7 @@ test("Sesiones externas: plegado independiente, persistente y accesible desde ba
       },
     });
   });
+  await cardSidebar(page);
   await open(page);
   const sidebar = page.locator(".sidebar");
   const fold = sidebar.getByRole("button", { name: "Sesiones externas", exact: true });
@@ -288,6 +289,7 @@ test("Canales: tres visibles, orden persistente y sin leer visibles también en 
     );
     await route.fulfill({ response, json: body });
   });
+  await cardSidebar(page);
   await open(page);
   const rows = page.locator(".channelsnav__shown .channelsnav__row");
   const ids = () => rows.evaluateAll((rows) => rows.map((row) => row.getAttribute("data-channel-id")));
