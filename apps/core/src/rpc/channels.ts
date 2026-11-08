@@ -2,7 +2,7 @@
 
 import fs from "node:fs";
 import { type ChannelType, ErrorCode } from "@apx/protocol";
-import { answersInHome } from "../channels/agent-project.ts";
+import { agentProject, answersInHome, contactAnswerer } from "../channels/agent-project.ts";
 import { CHANNEL_CATALOG } from "../channels/catalog.ts";
 import { pairingRef } from "../channels/inbound.ts";
 import type { Channels } from "../channels/manager.ts";
@@ -200,14 +200,30 @@ export function channelHandlers(store: Store, channels: Channels, nudges: Pick<N
       return { persons: store.persons.list() };
     },
     "contacts.set": ({ id, name, role, ...details }) => {
+      if (details.agent_id && !store.agents.get(details.agent_id)) throw notFound(`agent ${details.agent_id}`);
       if (!id) {
         if (role === "owner") throw badRequest("there is one owner");
         const created = store.persons.create({ name, role: role ?? "contact", note: details.note });
         return store.persons.update(created.id, details) ?? created;
       }
-      const p = store.persons.update(id, { name, ...(role ? { role } : {}), ...details });
-      if (!p) throw notFound(`person ${id}`);
-      return p;
+      const before = store.persons.get(id);
+      if (before?.role === "owner" && details.agent_id)
+        throw badRequest("the owner is answered by each account's agent");
+      return store.tx(() => {
+        const p = store.persons.update(id, { name, ...(role ? { role } : {}), ...details });
+        if (!p) throw notFound(`person ${id}`);
+        // Their open chats follow a change of who answers them, on every channel.
+        if (before && before.agent_id !== p.agent_id) {
+          const configs = channels.info();
+          store.threads.movePerson(p.id, (channel) => {
+            const cfg = configs.find((c) => c.id === channel);
+            if (!cfg) return undefined;
+            const agent = contactAnswerer(store, cfg, p);
+            return { agent, project: agentProject(store, agent) };
+          });
+        }
+        return p;
+      });
     },
     "contacts.suggestions.list": ({ state, person, limit }) => ({
       suggestions: store.suggestions.list({ state: state === "all" ? undefined : state, person, limit }),

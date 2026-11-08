@@ -1005,6 +1005,11 @@ export const Person = z.object({
   /** Answered at any hour, past the attention hours of the channel they write on. */
   any_hour: z.boolean().default(false),
   perms: PersonPerms.default({ appointments: false, requests: false, notes: false }),
+  /**
+   * The agent that answers this contact on every channel, instead of each account's contacts agent. None: the
+   * account's. Never set for the owner.
+   */
+  agent_id: Id.optional(),
   addresses: z.array(Address),
   created_at: z.string(),
 });
@@ -1187,6 +1192,11 @@ export const ChannelInfo = z.object({
   research: ChannelResearch.optional(),
   /** When it answers contacts; none: at any hour. The owner is always answered. */
   hours: ChannelHours.optional(),
+  /**
+   * Its notices are silenced: what happens on it (someone new writing, a draft waiting, a reply that could not go) stays
+   * out of the owner's tray and chat app; failures still arrive. It is all still in the account.
+   */
+  quiet: z.boolean().optional(),
   /** Email: the mailbox and its servers. */
   email: ChannelEmail.optional(),
   token_set: z.boolean(),

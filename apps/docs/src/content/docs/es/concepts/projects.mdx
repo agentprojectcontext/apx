@@ -175,6 +175,10 @@ Si los dos tienen algo con el mismo nombre, gana el del subproyecto. **La memori
 padre son del padre. Un subproyecto del proyecto base toma los agentes del proyecto base (los globales), que ya
 trabajan en todos lados, y sus apps.
 
+En **Recursos**, la caja **Por proyecto** de una skill o un servidor MCP lista cada proyecto al que llega, con sus
+subproyectos indentados debajo y un switch por fila. Apagarla en un subproyecto la deja activa en el proyecto de donde
+viene.
+
 <Terminal command={`apx projects create "Acme Site" --parent p_3f9a1c0d7e21`}>{`Acme Site (p_5c1e7a9b2d40) · ~/work/acme-store/acme-site`}</Terminal>
 
 Sin `--path`, la carpeta de un subproyecto va dentro de la del padre (`acme-store/acme-site`); un subproyecto del

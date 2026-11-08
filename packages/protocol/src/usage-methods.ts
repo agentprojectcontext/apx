@@ -42,6 +42,8 @@ export const SystemUsage = z.object({
   at: z.string(),
   host: z.object({
     platform: z.string(),
+    /** The computer's name as it calls itself on the network, without `.local`. */
+    name: z.string().optional(),
     memory_total_mb: z.number(),
     /** What apps can still take without the system swapping (macOS: what Activity Monitor counts as not used). */
     memory_available_mb: z.number(),

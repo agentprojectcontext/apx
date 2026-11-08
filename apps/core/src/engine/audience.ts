@@ -60,6 +60,7 @@ const RELATION: Record<NonNullable<Person["relation"]>, string> = {
   friend: "a friend of your owner",
   coworker: "a coworker of your owner",
   client: "a client of your owner",
+  lead: "someone who may become a client of your owner",
   associate: "a business associate of your owner",
   provider: "a provider of your owner",
   other: "one of your owner's contacts",

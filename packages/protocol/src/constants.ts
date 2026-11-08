@@ -69,6 +69,8 @@ export const PERSON_RELATIONS = [
   "friend",
   "coworker",
   "client",
+  /** Someone who may become a client. */
+  "lead",
   "associate",
   "provider",
   "other",

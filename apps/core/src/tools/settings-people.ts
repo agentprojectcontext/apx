@@ -24,6 +24,7 @@ function contactLine(p: Person): string {
     p.muted ? "silenced" : "",
     p.supervised ? "supervised" : "",
     p.any_hour ? "any hour" : "",
+    p.agent_id ? `answered by agent ${p.agent_id}` : "",
     ...Object.entries(p.perms)
       .filter(([, on]) => on)
       .map(([k]) => `may: ${k}`),
@@ -77,6 +78,7 @@ function channelLine(store: Store, c: Channel): string {
     `reactions: ${(c.reactions ?? CHANNEL_DEFAULTS.reactions) ? "on" : "off"}`,
     `research: ${c.research ?? CHANNEL_DEFAULTS.research}`,
     c.hours ? `hours ${hoursText(c.hours)}` : "any hour",
+    ...(c.quiet ? ["notices silenced"] : []),
   ];
   return `- ${inlineName(c.label ?? c.id)} [${c.id}] (${bits.join(", ")})${rooms ? `; rooms: ${rooms}` : ""}`;
 }
@@ -124,7 +126,7 @@ export const PEOPLE: Readonly<Record<string, Setting>> = {
     },
   },
   "contacts.set": {
-    does: "change a contact (id and only what changes: note says who they are, rules how to answer them, any_hour true answers them outside their channel's hours) or add one",
+    does: "change a contact (id and only what changes: note says who they are, rules how to answer them, any_hour true answers them outside their channel's hours, agent_id the agent that answers them instead of each account's, null for the account's) or add one",
     asks: contactAsks,
     says: (p, { store }) => {
       const cur = personOf(p, store);
@@ -177,7 +179,7 @@ export const PEOPLE: Readonly<Record<string, Setting>> = {
         .join("\n") || "no channels set up.",
   },
   "channels.set": {
-    does: "change a channel already set up (id, and under channel only what changes: label, owner_thread home|own (home only when the super-agent answers it), agent_id (who answers the owner), contacts_agent_id (who answers its contacts and rooms), strangers, rooms, hours when it answers contacts {days 0 = Sunday, from, to HH:MM in the owner's time zone} or null for any hour…); its sign-in, mail account and research stay the owner's",
+    does: "change a channel already set up (id, and under channel only what changes: label, owner_thread home|own (home only when the super-agent answers it), agent_id (who answers the owner), contacts_agent_id (who answers its contacts and rooms), strangers, rooms, hours when it answers contacts {days 0 = Sunday, from, to HH:MM in the owner's time zone} or null for any hour, quiet true to silence its notices…); its sign-in, mail account and research stay the owner's",
     asks: "card",
     says: (p, { store }) => `Change the channel ${inlineName(channelOf(store, p.id)?.label ?? str(p.id))}`,
     refuse: (p, { store }) => {

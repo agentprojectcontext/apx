@@ -36,6 +36,8 @@ export type PersonDetails = {
   supervised?: boolean | undefined;
   any_hour?: boolean | undefined;
   perms?: Partial<PersonPerms> | undefined;
+  /** Who answers them instead of each account's contacts agent; null gives them back to the account's. */
+  agent_id?: string | null | undefined;
 };
 
 export function personsRepo({ one, all, run, tx }: Sql) {
@@ -56,6 +58,7 @@ export function personsRepo({ one, all, run, tx }: Sql) {
       supervised: r.supervised === 1,
       any_hour: r.any_hour === 1,
       perms: permsOf(r.perms),
+      ...opt("agent_id", r.agent_id),
       addresses: addressesOf(r.id),
       created_at: r.created_at,
     };
@@ -134,6 +137,8 @@ export function personsRepo({ one, all, run, tx }: Sql) {
             unreviewed:
               cur.unreviewed && p.muted === undefined && p.supervised === undefined && p.role === undefined ? 1 : 0,
             perms: JSON.stringify({ ...cur.perms, ...(p.perms ?? {}) }),
+            // The owner is answered by each account's own agent, never by one of their own.
+            agent_id: role === "owner" ? null : p.agent_id === undefined ? (cur.agent_id ?? null) : p.agent_id,
             updated_at: now(),
           })
           .where("id", "=", id),
@@ -251,6 +256,7 @@ export function personsRepo({ one, all, run, tx }: Sql) {
                     any_hour: decided.any_hour ? 1 : 0,
                     unreviewed: decided.unreviewed ? 1 : 0,
                     perms: JSON.stringify(decided.perms),
+                    agent_id: decided.agent_id ?? keep.agent_id ?? gone.agent_id ?? null,
                   }),
               updated_at: now(),
             })

@@ -1134,6 +1134,7 @@ export const appMethods = {
             reactions: z.boolean().optional(),
             research: ChannelResearch.default(CHANNEL_DEFAULTS.research),
             hours: ChannelHours.optional(),
+            quiet: z.boolean().optional(),
             email: ChannelEmail.optional(),
           })
           .nullable(),
@@ -1518,6 +1519,8 @@ export const appMethods = {
         muted: z.boolean().optional(),
         supervised: z.boolean().optional(),
         any_hour: z.boolean().optional(),
+        /** Who answers them instead of each account's contacts agent; null gives them back to the account's. */
+        agent_id: Id.nullable().optional(),
         // Only the flags sent change (PersonPerms' defaults would reset the others).
         perms: z
           .object({ appointments: z.boolean(), requests: z.boolean(), notes: z.boolean() })

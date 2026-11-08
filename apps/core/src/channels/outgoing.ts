@@ -7,11 +7,11 @@ import type { Store } from "../domain/store.ts";
 import { previewOf } from "../domain/threads.ts";
 import { audienceOf } from "../engine/audience.ts";
 import type { Services } from "../services/registry.ts";
-import { agentProject, answersInHome } from "./agent-project.ts";
+import { agentProject, answersInHome, contactAnswerer } from "./agent-project.ts";
 import type { createDelivery } from "./delivery.ts";
 import type { createPoster, Posted } from "./post.ts";
 import { type createRooms, quietMentions, roomMentions } from "./rooms.ts";
-import { type ChannelAdapter, type ChannelConfig, contactAgentOf, type Presence } from "./types.ts";
+import type { ChannelAdapter, ChannelConfig, Presence } from "./types.ts";
 
 const AVATAR_TTL_MS = 24 * 3600_000;
 const SETTLE_POLL_MS = 100;
@@ -101,11 +101,12 @@ export function createOutgoing(deps: {
     let thread =
       pick.chat ?? (owner && answersInHome(store, pick.cfg.agent_id) ? store.threads.get(HOME_THREAD_ID) : undefined);
     if (!thread) {
+      const agent = owner ? pick.cfg.agent_id : contactAnswerer(store, pick.cfg, person);
       thread = store.threads.create({
         kind: "channel",
         title: person.name,
-        agent_ids: [owner ? pick.cfg.agent_id : contactAgentOf(pick.cfg)],
-        project_id: agentProject(store, owner ? pick.cfg.agent_id : contactAgentOf(pick.cfg)),
+        agent_ids: [agent],
+        project_id: agentProject(store, agent),
         channel: { id: pick.cfg.id, conversation: pick.conversation, person_id: person.id },
       });
       store.threads.mergeContext(thread.id, { reply_to: { channel: pick.cfg.id, conversation: pick.conversation } });

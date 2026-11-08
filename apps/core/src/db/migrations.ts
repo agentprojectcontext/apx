@@ -1208,4 +1208,6 @@ export const MIGRATIONS: readonly string[] = [
   ALTER TABLE projects ADD COLUMN parent_id TEXT;
   CREATE INDEX projects_parent ON projects(parent_id) WHERE parent_id IS NOT NULL;
   `,
+  // The agent that answers a contact on every channel, instead of each account's contacts agent (null: the account's).
+  `ALTER TABLE persons ADD COLUMN agent_id TEXT;`,
 ];

@@ -172,6 +172,10 @@ The subproject's own wins on a name both have. **Memory is never inherited**: th
 A subproject of the base project takes the base project's agents (your global ones), which already work everywhere,
 and its apps.
 
+In **Resources**, a skill or MCP server's **By project** box lists every project it reaches, with each subproject
+indented under its project and a switch per row. Turning it off in a subproject leaves it on in the project it comes
+from.
+
 <Terminal command={`apx projects create "Acme Site" --parent p_3f9a1c0d7e21`}>{`Acme Site (p_5c1e7a9b2d40) · ~/work/acme-store/acme-site`}</Terminal>
 
 With no `--path`, a subproject's folder goes inside its parent's (`acme-store/acme-site`); a subproject of the base

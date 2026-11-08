@@ -12,6 +12,7 @@ import { BROWSER_SIGN_IN_NEWS } from "./browser-sign-in.ts";
 import { CHANNEL_AGENTS_NEWS } from "./channel-agents.ts";
 import { CHROME_TABS_NEWS } from "./chrome-tabs.ts";
 import { COMPUTER_POINTER_NEWS } from "./computer-pointer.ts";
+import { CONTACT_AGENT_NEWS } from "./contact-agent.ts";
 import { EXTERNAL_SESSIONS_NEWS } from "./external-sessions.ts";
 import { HERMES_IMPORT_NEWS } from "./hermes-import.ts";
 import { LOCAL_MODELS_NEWS } from "./local-models.ts";
@@ -91,6 +92,7 @@ export const NEWS: readonly NewsEntry[] = [
   SUBPROJECTS_NEWS,
   TASK_GOALS_NEWS,
   CHANNEL_AGENTS_NEWS,
+  CONTACT_AGENT_NEWS,
   TASK_COMMENTS_NEWS,
   COMPUTER_POINTER_NEWS,
   TASK_REGROUP_NEWS,

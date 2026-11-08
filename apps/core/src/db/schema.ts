@@ -491,6 +491,7 @@ export interface PersonsTable {
   unreviewed: Generated<number>;
   supervised: Generated<number>;
   any_hour: Generated<number>;
+  agent_id: string | null;
 }
 
 export interface ProjectsTable {
