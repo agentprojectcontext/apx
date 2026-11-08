@@ -4185,6 +4185,10 @@ project's agents, so a project's agent could never answer a channel.
   only a channel it answers may take the owner there. A channel answered by another agent keeps the owner in its own
   chat (`channels.set` saves `owner_thread: "own"` for it, and inbound and outgoing never fall back to Home); the
   settings show "Own chat" fixed and say why.
+- **Saved channels keep their meaning.** Before, Home took the owner's words whoever `agent_id` was, so that agent in
+  practice answered only contacts. A store migration (the way stored values move, as in [D-106](#d-106)) saves each such
+  channel as it worked: `contacts_agent_id` the old agent, `agent_id` the super-agent, Home kept. A channel already on
+  its own chat, answered by the super-agent, or with a contacts agent of its own is left as it is.
 - **Contacts stay sealed** (D-014, D-022) whoever answers them. A project's head answering a contact gets no more
   tools than the super-agent would.
 - **Channels is a screen of its own**, beside Flows in the sidebar, not a section of Settings: it lists every account
@@ -4194,8 +4198,8 @@ project's agents, so a project's agent could never answer a channel.
   account's (when unanswered questions follow the owner) moved to Settings › Interruptions; links to the old place
   (`apx:settings/channels`) open the screen.
 
-Rejected: removing Home as the destination of the owner's words, migrating saved settings to "own chat" at boot (it
-breaks the one conversation and a migration belongs to `doctor --fix`), resetting a chat's agents on every incoming
+Rejected: removing Home as the destination of the owner's words, migrating saved settings to "own chat" (it breaks
+the one conversation), reading old settings the old way at every load (a shim kept forever, rule 14), resetting a chat's agents on every incoming
 message (it undoes hand-overs), and per-channel "customer service" modes that give admitted contacts, strangers
 included, the agent's tools and MCP servers, with a model's JSON answer as the gate in the reviewed mode. Contacts'
 messages are untrusted (rule 10); opening tools to them needs its own design: the exact tools the owner lends, what
