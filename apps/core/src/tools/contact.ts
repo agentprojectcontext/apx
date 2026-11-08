@@ -84,12 +84,13 @@ export function contactTools(store: Store): Tool[] {
         if (!person) throw new Error("this chat is not with a known contact");
         // The flag is checked again here: the tool list is built per turn, the owner may have just turned it off.
         if (!mayPass(person, a.kind)) throw new Error(`your owner does not take ${a.kind}s from ${person.name} here`);
+        // A request is left in the chat's project (that of the agent answering it), so it is looked for there.
         const eligible = (t: Task) =>
           t.person_id === person.id &&
           t.state === "open" &&
           t.kind === "commitment" &&
           t.owed_by === "owner" &&
-          !t.project_id;
+          (t.project_id ?? undefined) === (ctx.thread.project_id ?? undefined);
         const requests = store.tasks
           .list({ person: person.id, state: "open", from_thread: ctx.thread.id, limit: 50 })
           .filter(eligible)
