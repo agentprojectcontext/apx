@@ -56,11 +56,10 @@ type Recipient = { agent: AgentRecord; thread: Thread; run?: RunRecord | undefin
 export function coordinatedTaskSource(
   store: Store,
   task: Task,
-): { thread: string; run: RunRecord; root?: RunRecord } | undefined {
+): { thread: string; run: RunRecord } | undefined {
   const from = store.threads.context(task.thread_id).coordination_from;
   const source = from && store.runs.get(from.run);
   const work = from && store.runs.get(from.work_run);
-  const root = from?.root_run ? store.runs.get(from.root_run) : undefined;
   const origin = work?.input?.origin;
   if (
     !from ||
@@ -73,15 +72,10 @@ export function coordinatedTaskSource(
     origin.id !== source.agent_id ||
     origin.run_id !== source.id ||
     origin.thread_id !== source.thread_id ||
-    source.started_at > work.started_at ||
-    (from.root_run &&
-      (!root ||
-        root.thread_id !== source.thread_id ||
-        root.agent_id !== source.agent_id ||
-        root.started_at > source.started_at))
+    source.started_at > work.started_at
   )
     return undefined;
-  return { thread: from.thread, run: source, ...(root ? { root } : {}) };
+  return { thread: from.thread, run: source };
 }
 
 function recipients(store: Store, task: Task, closer: string, created: Record<string, unknown>): Recipient[] {

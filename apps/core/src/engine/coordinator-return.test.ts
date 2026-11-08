@@ -1,6 +1,9 @@
 import assert from "node:assert/strict";
+import fs from "node:fs";
+import path from "node:path";
 import { test } from "node:test";
 import type { AdmitFn } from "./engine.ts";
+import { tempDir } from "../testkit/platform.ts";
 import { coordinatedTaskSource } from "./task-report.ts";
 import { deliverToCoordinator, startTaskWork } from "./task-work.ts";
 import { say, scriptedLlm, startCore } from "./testkit.ts";
@@ -79,14 +82,11 @@ test("a coordinator recorded for a run that did not start the work is not truste
 
 test("a project head that starts a task from its own chat is recorded as its coordinator", async () => {
   const env = await startCore({ llm: scriptedLlm(() => say("ok")) });
-  const fs = await import("node:fs");
-  const os = await import("node:os");
-  const path = await import("node:path");
-  const dir = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "apx-coord-")));
+  const dir = tempDir("apx-coord-");
   try {
     const store = env.core.store;
-    fs.writeFileSync(path.join(dir, "AGENTS.md"), "# Acme\n");
-    const { project } = await env.client.call("projects.register", { path: dir, init: true });
+    fs.writeFileSync(path.join(dir.path, "AGENTS.md"), "# Acme\n");
+    const { project } = await env.client.call("projects.register", { path: dir.path, init: true });
     const head = await env.client.call("agents.create", { project_id: project.id, slug: "acme-head", name: "Head" });
     const chat = store.threads.create({
       kind: "loose",
@@ -139,6 +139,7 @@ test("a project head that starts a task from its own chat is recorded as its coo
   } finally {
     await env.core.close();
     await env.cleanup();
+    await dir.remove();
   }
 });
 
