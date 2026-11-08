@@ -1,4 +1,5 @@
-import { type Agent, teamHead } from "@apx/protocol";
+import type { Agent } from "@apx/protocol";
+import { teamHead } from "@apx/protocol/team-tree";
 
 /** Project tasks use their team and the super-agent; the base space keeps its specialists. */
 export function availableAgents(
