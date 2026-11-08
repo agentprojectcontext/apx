@@ -19,6 +19,7 @@ import { LOCAL_MODELS_NEWS } from "./local-models.ts";
 import { MOVE_BACKUP_NEWS } from "./move-backup.ts";
 import { QUEUED_MESSAGES_NEWS } from "./queued-messages.ts";
 import { QUICK_CHAT_NEWS } from "./quick-chat.ts";
+import { SIDE_QUESTION_NEWS } from "./side-question.ts";
 import { STORE_COMPACT_NEWS } from "./store-compact.ts";
 import { SUBPROJECTS_NEWS } from "./subprojects.ts";
 import { TASK_COMMENTS_NEWS } from "./task-comments.ts";
@@ -108,6 +109,7 @@ export const NEWS: readonly NewsEntry[] = [
   AGENT_FALLBACKS_NEWS,
   BROWSER_SIGN_IN_NEWS,
   STORE_COMPACT_NEWS,
+  SIDE_QUESTION_NEWS,
   {
     id: "storage-screen",
     since: "2.13.0",

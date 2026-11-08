@@ -1828,6 +1828,26 @@ export const appMethods = {
     effect: true,
     access: "human",
   },
+  /**
+   * A side question to the chat's agent, on the chat's model, with the chat as read-only context: neither the question
+   * nor the answer enters the chat or its later turns. `earlier`: this side conversation's previous exchanges, oldest
+   * first. No tools; only its tokens are kept (usage, "aside"). Not in an engine's own session.
+   */
+  "threads.aside": {
+    params: z
+      .object({
+        thread: Id,
+        question: z.string().trim().min(1).max(4000),
+        earlier: z
+          .array(z.object({ question: z.string().max(4000), answer: z.string().max(20_000) }).strict())
+          .max(10)
+          .optional(),
+      })
+      .strict(),
+    result: z.object({ answer: z.string(), model: z.string() }),
+    effect: true,
+    access: "human",
+  },
   /** The owner saw the thread: its unread count and its notices (not pending questions) are cleared. */
   /** Messages whose text has every word typed (each also as a prefix), best first: for the search box. */
   "threads.search": {

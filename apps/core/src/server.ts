@@ -49,6 +49,7 @@ import { TERMINAL } from "./domain/runs.ts";
 import { seed } from "./domain/seed.ts";
 import { createStore } from "./domain/store.ts";
 import { announceRelease } from "./domain/whats-new.ts";
+import { createAside } from "./engine/aside.ts";
 import { createAttention } from "./engine/attention.ts";
 import { keepAwake, sleepWatch } from "./engine/awake.ts";
 import { calendarReminders } from "./engine/calendar-reminders.ts";
@@ -444,6 +445,7 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
   });
   const { hooks, plugins, extensions } = extensionStack({ store, secrets, bus, log, home: config.home });
   const upkeep = createUpkeep({ store, llm, log });
+  const aside = createAside({ store, llm });
   const services = createServices({
     store,
     secrets,
@@ -778,6 +780,7 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
       llmLabel: () => llm.label(),
       engine,
       upkeep,
+      aside,
       memory,
       memoryMaintenance,
       channels,
@@ -932,6 +935,7 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
       webhooks.close();
       await hookListener.close();
       await engine.stop();
+      aside.stop();
       await upkeep.stop();
       await memoryMaintenance.stop();
       await memory.stop();

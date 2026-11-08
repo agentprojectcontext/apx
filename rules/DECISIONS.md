@@ -4200,3 +4200,26 @@ message (it undoes hand-overs), and per-channel "customer service" modes that gi
 included, the agent's tools and MCP servers, with a model's JSON answer as the gate in the reviewed mode. Contacts'
 messages are untrusted (rule 10); opening tools to them needs its own design: the exact tools the owner lends, what
 each may reach, and who confirms what.
+
+<a id="d-208"></a>
+## D-208 — 2026-11-08 — A side question is one model call beside the chat, not a turn in it
+
+The owner wants to ask a chat's agent something quick (what was decided, a name it used) without the question and its
+answer landing in a long chat and in every later turn's context. The composer's **+ › Side question** does that.
+
+- **One call, no thread** (`engine/aside.ts`, `threads.aside`): the chat's model as its next turn would pick it (the
+  chat's choice, the agent's, the default, the router; never a CLI), a short system prompt in the agent's name and voice,
+  and the chat as read-only context (the model log since the last summary, the summary first, shaped like
+  compaction's transcript and capped at 60k characters). No tools. Follow-ups pass the side conversation back
+  (`earlier`, at most 10 exchanges): the server keeps nothing.
+- **What is kept**: only its tokens, in `aux_calls` with the purpose `aside` and the chat's id (Usage shows them). No
+  message, run, thread or memory; the next turn never sees it, and no search, title, compaction or notification finds it.
+- **Limits**: a 60 s deadline (the client waits 75 s), `effect: true` so a retried request gets the same answer instead of
+  a second call, owner-only access. Not in an engine's own session, which keeps its own transcript and runs only its CLI.
+- **The panel** keeps the side conversation in memory per chat while it is open, so a layout change does not lose it;
+  closing it lets it go.
+
+Rejected: a turn on a hidden child thread (every listing of sub-threads, delegation counts, search, memory capture,
+titles and notifications would have to learn to skip it, and the agent could act with tools from a place the chat never
+shows), and a turn in the chat marked as hidden (it would still enter the model's context unless every history builder
+learned the mark).
