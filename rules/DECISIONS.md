@@ -4176,6 +4176,11 @@ project's agents, so a project's agent could never answer a channel.
 - **An account is a channel.** A second account of an app gets its own id (the app's name for the first, a random
   suffix after it, never the number or token), its own sign-in, contacts, chats, outbox and sidebar row, and a name
   numbered from the second on ("WhatsApp 2") that the owner can change. A save without a name keeps the saved one.
+- **The core makes a new account** (`channels.add`): it mints the id, names it, has the super-agent answer it and gives it
+  the defaults every account starts with (`CHANNEL_DEFAULTS`), so no client repeats them. iMessage is one per Mac, in
+  `channels.add` and `channels.set` alike (two would read one Messages database and answer twice). An account added
+  but never connected (the panel closed meanwhile) is dropped when the core starts again. `contacts.add` makes a contact
+  and its address in one transaction, and refuses an address someone already has.
 - **Who answers.** `agent_id` answers the owner in the channel's own chat; `contacts_agent_id` (none: `agent_id`)
   answers its contacts and rooms. The picker lists the super-agent and each project's head (`teamHead`); the rest of
   a team is reached through its head. A chat takes the project of the agent that answers it.
