@@ -6,6 +6,7 @@ import { sql } from "kysely";
 import type { Bus } from "../bus.ts";
 import type { ThreadsTable } from "../db/schema.ts";
 import { newId, now, qb, type Sql } from "./sql.ts";
+import { joinModelLogs } from "./thread-join.ts";
 import { toThread } from "./thread-projection.ts";
 
 /** A summary that stands for the model log up to `upto`: a new epoch of the thread's context (engine/upkeep.ts). */
@@ -402,9 +403,10 @@ export function threadsRepo({ one, all, run }: Sql, bus: Bus, endSession: (threa
       });
     },
     /**
-     * One chat its platform kept under two addresses: `from`'s messages, turns, files and sub-chats go into `to`'s chat
-     * in time order and `from`'s chat is removed; with no chat under `to`, `from`'s goes on under it. Not while either
-     * has a turn going ("busy": try again later).
+     * One chat its platform kept under two addresses: `from`'s messages, turns, model log, memory work, files and
+     * sub-chats go into `to`'s chat in time order and `from`'s chat is removed (an outside engine's session of it ends
+     * with it); with no chat under `to`, `from`'s goes on under it. Not while either has a turn going ("busy": try
+     * again later).
      */
     joinChats(channel: string, from: string, to: string): "joined" | "none" | "busy" {
       const gone = repo.byConversation(channel, from);
@@ -440,7 +442,18 @@ export function threadsRepo({ one, all, run }: Sql, bus: Bus, endSession: (threa
           .where("thread_id", "=", kept.id)
           .where("seq", "<", 0),
       );
-      for (const table of ["runs", "media", "jobs", "notifications"] as const)
+      // What the model saw and what the agent remembers of it go too: the next turn goes on from both chats.
+      joinModelLogs({ all, run }, gone.id, kept.id);
+      for (const table of [
+        "runs",
+        "media",
+        "jobs",
+        "notifications",
+        "memory_work",
+        "memory_episodes",
+        "memory_exclusions",
+        "memories",
+      ] as const)
         run(qb.updateTable(table).set({ thread_id: kept.id }).where("thread_id", "=", gone.id));
       run(qb.updateTable("threads").set({ parent_id: kept.id }).where("parent_id", "=", gone.id));
       // A summary counts places in the kept chat's old order: it is made again from the whole history.
