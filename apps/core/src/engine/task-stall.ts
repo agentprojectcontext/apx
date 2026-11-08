@@ -114,12 +114,7 @@ export function reviveStalled(store: Store, admit: AdmitFn, now: Date): { revive
       thread_id: thread.id,
       agent_id: task.assignee ?? "",
       trigger: "system",
-      origin: {
-        kind: "stalled_task",
-        task_id: task.id,
-        title: task.title,
-        ...(last.thread_id === thread.id && last.agent_id === task.assignee ? { from_run: last.id } : {}),
-      },
+      origin: { kind: "stalled_task", task_id: task.id, title: task.title },
       text: "",
       depth: last.depth,
     });
