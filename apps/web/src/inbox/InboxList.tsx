@@ -9,7 +9,7 @@ import {
   SegmentedControl,
   Skeleton,
 } from "@apx/ui";
-import { Suspense, useMemo, useState } from "react";
+import { Suspense, useEffect, useMemo, useState } from "react";
 import { markAllRead } from "../data/actions.ts";
 import { DEFAULT_PID, findProject, projectInitial, projectTone, threadAgent } from "../data/identity.ts";
 import { type InboxTab, type InboxView, setPrefs, usePrefs } from "../data/prefs.ts";
@@ -50,6 +50,11 @@ export function InboxList() {
 
   const view = usePrefs((s) => s.inboxView);
   const tab = usePrefs((s) => s.inboxTab);
+  const routineOpen = useNav((s) => s.routineId != null);
+  // A routine's runs open as one chat: its row is in Routines, however it was opened (a row, a link, back).
+  useEffect(() => {
+    if (routineOpen) setPrefs({ inboxTab: "routines" });
+  }, [routineOpen]);
   const routines = usePrefs((s) => s.inboxRoutines);
   const entries = useMemo(
     () => inboxEntries(threads, { projectId, query, routines: true }),

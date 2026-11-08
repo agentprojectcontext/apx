@@ -2,7 +2,7 @@
 import type { ApxMode } from "@apx/ui";
 import type { ChannelKind } from "../channels/kinds.ts";
 import { createStore, useSlice } from "../data/createStore.ts";
-import { rememberSidebar, setPrefs } from "../data/prefs.ts";
+import { rememberSidebar } from "../data/prefs.ts";
 import type { MessageKey } from "../i18n/index.ts";
 
 export type PanelKind =
@@ -458,7 +458,6 @@ export const go = {
   },
   /** A routine's runs as one chat in the Inbox. */
   routine(routineId: string) {
-    setPrefs({ inboxTab: "routines" });
     nav.set({ view: "inbox", routineId, threadId: undefined, panel: null, listInFront: false });
   },
   /** Phone width: back from a chat to the chat list. */
