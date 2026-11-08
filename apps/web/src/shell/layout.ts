@@ -41,6 +41,8 @@ export const BREAKPOINTS = {
   listWide: 1100,
   /** Below this width the inbox list hides while the side panel is open. */
   panelWide: 1240,
+  /** Below this width the side panel floats over the chat instead, and the list stays. */
+  panelFloat: 1180,
   /** Chat column width from which the header shows the panel switcher as inline icons (else a dropdown). */
   chatHeaderWide: 720,
   /** Below this width the chat workspace shows one column at a time: the list, the chat or the side panel. */
@@ -55,6 +57,8 @@ export type Layout = {
   panelW: number;
   /** How wide the owner may drag the side panel. */
   panelMaxW: number;
+  /** The side panel floats over the chat (a narrow window) instead of taking a column of its own. */
+  panelFloat: boolean;
   /** Chat header shows inline panel icons (true) or one dropdown (false). */
   wideHeader: boolean;
   /** One column at a time (phone width): the chat header gets a back button to the list. */
@@ -101,6 +105,23 @@ export function computeLayout(
           : LAYOUT.panelW;
   const ownListW = own.listW ? clamp(own.listW, LAYOUT.listMinW, LAYOUT.listMaxW) : 0;
   const defaultListW = width >= BREAKPOINTS.listWide ? LAYOUT.listW : LAYOUT.listWNarrow;
+  const panelFloat = !compact && !own.panelWide && width < BREAKPOINTS.panelFloat && panelOpen && chatShown;
+  if (panelFloat) {
+    const listW = ownListW || defaultListW;
+    return {
+      rail,
+      sidebarW,
+      transcriptW: LAYOUT.transcriptW[transcript],
+      listW,
+      panelW: own.panelW
+        ? clamp(own.panelW, Math.min(LAYOUT.panelMinW, room - listW), room - listW)
+        : Math.min(LAYOUT.panelWNarrow, room - listW),
+      panelMaxW: room - listW,
+      panelFloat,
+      wideHeader: room - listW >= BREAKPOINTS.chatHeaderWide,
+      compact,
+    };
+  }
   // A panel dragged wide enough to squeeze the chat under its minimum folds the list away, like the wide toggle.
   const crowded = room - panelW - (ownListW || defaultListW) < LAYOUT.chatMinW;
   const hideList = (narrow || Boolean(own.panelWide) || (Boolean(own.panelW) && crowded)) && panelOpen && chatShown;
@@ -113,6 +134,7 @@ export function computeLayout(
     listW,
     panelW,
     panelMaxW,
+    panelFloat: false,
     wideHeader: !compact && chatW >= BREAKPOINTS.chatHeaderWide,
     compact,
   };

@@ -36,3 +36,12 @@ test("on a phone the one column fills what the sidebar and the pane's frame leav
   assert.equal(l.listW, 390 - LAYOUT.sidebarRailW - LAYOUT.mainInset);
   assert.equal(l.panelW, l.listW);
 });
+
+test("below the float width the side panel floats over the chat and the list stays", () => {
+  const l = computeLayout(1100, true, true);
+  assert.equal(l.panelFloat, true);
+  assert.ok(l.listW > 0, "the list keeps its column");
+  assert.equal(computeLayout(1100, false, true).panelFloat, false);
+  assert.equal(computeLayout(1300, true, true).panelFloat, false);
+  assert.equal(computeLayout(390, true, true).panelFloat, false);
+});

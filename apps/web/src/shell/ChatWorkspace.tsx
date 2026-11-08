@@ -30,7 +30,7 @@ export function ChatWorkspace({ layout, list = <InboxList /> }: { layout: Layout
       </div>
     );
   return (
-    <div className="workspace">
+    <div className={layout.panelFloat ? "workspace is-panelfloat" : "workspace"}>
       {layout.listW > 0 && <ListColumn width={layout.listW}>{list}</ListColumn>}
       {chat(layout.wideHeader, false)}
       {panel != null && <SidePanel />}
