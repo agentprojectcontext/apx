@@ -1,4 +1,4 @@
-import { type Agent, teamHead } from "@apx/protocol";
+import { type Agent, BASE_PROJECT_ID, teamHead } from "@apx/protocol";
 
 /** Project tasks use their team and the super-agent; the base space keeps its specialists. */
 export function availableAgents(
@@ -6,10 +6,15 @@ export function availableAgents(
   projectId?: string,
   all = false,
   globalAgents: "all" | "secretary" = "all",
+  /** A subproject's project: its agents work in the subproject too (the base project's: the global ones). */
+  parentId?: string,
 ): Agent[] {
+  const baseParent = parentId === BASE_PROJECT_ID;
   return agents
     .filter((a) =>
-      a.project_id ? all || a.project_id === projectId : globalAgents === "all" || a.kind === "secretary",
+      a.project_id
+        ? all || a.project_id === projectId || a.project_id === parentId
+        : globalAgents === "all" || baseParent || a.kind === "secretary",
     )
     .sort(
       (a, b) =>

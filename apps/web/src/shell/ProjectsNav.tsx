@@ -5,6 +5,7 @@ import {
   inProject,
   isListed,
   isWorking,
+  nestProjects,
   type ProjectEntry,
   projectEntries,
   projectInitial,
@@ -33,7 +34,8 @@ export function ProjectsNav({ rail, compact = false }: { rail: boolean; compact?
   const projects = useData((s) => s.projects);
   const threads = useData((s) => s.threads);
   const [moreOpen, setMoreOpen] = useState(false);
-  const [adding, setAdding] = useState(false);
+  // true: a new project; a project's id: a new subproject of it.
+  const [adding, setAdding] = useState<boolean | string>(false);
   const [settings, setSettings] = useState<ProjectEntry>();
   const [removing, setRemoving] = useState<ProjectEntry>();
   // The rail has no section header to unfold with, so it always lists them.
@@ -59,11 +61,14 @@ export function ProjectsNav({ rail, compact = false }: { rail: boolean; compact?
       unread.set(pid, [...(unread.get(pid) ?? []), th.id]);
     }
     const rank = new Map(saved.map((id, index) => [id, index]));
-    const ordered = [...entries].sort(
-      (a, b) =>
-        Number(b.isDefault) - Number(a.isDefault) ||
-        (rank.get(a.id) ?? Infinity) - (rank.get(b.id) ?? Infinity) ||
-        (lastActive.get(b.id) ?? "").localeCompare(lastActive.get(a.id) ?? ""),
+    // Each subproject right under its project.
+    const ordered = nestProjects(
+      [...entries].sort(
+        (a, b) =>
+          Number(b.isDefault) - Number(a.isDefault) ||
+          (rank.get(a.id) ?? Infinity) - (rank.get(b.id) ?? Infinity) ||
+          (lastActive.get(b.id) ?? "").localeCompare(lastActive.get(a.id) ?? ""),
+      ),
     );
     // Folding a single leftover would save nothing.
     const cut = ordered.length > rows + 1 ? rows : ordered.length;
@@ -92,7 +97,8 @@ export function ProjectsNav({ rail, compact = false }: { rail: boolean; compact?
       id={p.id}
       kind="project"
       order={ordered}
-      locked={p.isDefault}
+      locked={p.isDefault || Boolean(p.parent)}
+      depth={p.parent ? 1 : 0}
       onMove={(id, index) => {
         if (id === ordered[0]) return;
         const ids = ordered.filter((current) => current !== id);
@@ -106,10 +112,17 @@ export function ProjectsNav({ rail, compact = false }: { rail: boolean; compact?
         () => setRemoving(p),
         () => setMoreOpen(false),
         unread.get(p.id),
+        () => setAdding(p.id),
       )}
       key={p.id}
       rail={rail && !onPick}
-      icon={<ProjectTile tone={projectTone(p.id)} initial={projectInitial(p.name)} />}
+      icon={
+        p.parent ? (
+          <Icons.Folder size={14} className="sidebar__subicon" />
+        ) : (
+          <ProjectTile tone={projectTone(p.id)} initial={projectInitial(p.name)} />
+        )
+      }
       label={p.name}
       trailing={
         <>
@@ -179,7 +192,9 @@ export function ProjectsNav({ rail, compact = false }: { rail: boolean; compact?
         )}
       </SidebarSection>
       <Suspense fallback={null}>
-        {adding && <NewProjectDialog onClose={() => setAdding(false)} />}
+        {adding && (
+          <NewProjectDialog parent={typeof adding === "string" ? adding : undefined} onClose={() => setAdding(false)} />
+        )}
         {settings && (
           <ProjectSettings project={settings} open onOpenChange={(open) => !open && setSettings(undefined)} />
         )}

@@ -63,7 +63,7 @@ export function RoutineList({
   );
 }
 
-export function RoutineRow(props: {
+function RoutineRow(props: {
   routine: Routine;
   agentName: string;
   open: boolean;

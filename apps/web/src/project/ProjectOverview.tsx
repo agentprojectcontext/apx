@@ -1,7 +1,16 @@
 import { AgentAvatar, EmptyState, Icons, Spinner } from "@apx/ui";
 import { useMemo } from "react";
 import { shortWhen } from "../common/format.ts";
-import { blobOf, inProject, isListed, isWorking, type ProjectEntry, teamOf, threadAgent } from "../data/identity.ts";
+import {
+  blobOf,
+  findProject,
+  inProject,
+  isListed,
+  isWorking,
+  type ProjectEntry,
+  teamOf,
+  threadAgent,
+} from "../data/identity.ts";
 import { useData } from "../data/state.ts";
 import { useT } from "../i18n/index.ts";
 import { standsAlone } from "../inbox/groupThreads.ts";
@@ -9,6 +18,7 @@ import { go } from "../shell/nav.ts";
 import { KindTile, kindLabel, kindOf } from "../surfaces/artifactKind.tsx";
 import { ProjectBoard } from "./ProjectBoard.tsx";
 import { ProjectHelper } from "./ProjectHelper.tsx";
+import { SubprojectsBlock } from "./SubprojectsBlock.tsx";
 
 /** Overview: what runs now, the team, counts and the latest chats. All real data; nothing sampled. */
 export function ProjectOverview({ project }: { project: ProjectEntry }) {
@@ -26,7 +36,14 @@ export function ProjectOverview({ project }: { project: ProjectEntry }) {
     [threads, pid],
   );
   const running = chats.filter((t) => isWorking(t.state) || t.state === "input-required");
+  const projects = useData((s) => s.projects);
+  const parent = project.parent ? findProject(projects, project.parent) : undefined;
   const team = useMemo(() => teamOf(agents, pid), [agents, pid]);
+  // A subproject also works with its project's agents.
+  const inherited = useMemo(
+    () => (parent ? teamOf(agents, parent.id).filter((a) => !team.some((own) => own.id === a.id)) : []),
+    [agents, parent, team],
+  );
   const unread = chats.reduce((n, t) => n + t.unread, 0);
   const apps = useMemo(
     // Pinned widgets live on the board above; this lists what is in Apps.
@@ -76,12 +93,12 @@ export function ProjectOverview({ project }: { project: ProjectEntry }) {
             <h2 className="overview__h">
               {t("overview.team")}{" "}
               <span className="overview__hsub">
-                {team.length === 1
+                {team.length + inherited.length === 1
                   ? t("overview.agentsCount.one")
-                  : t("overview.agentsCount.other", { n: team.length })}
+                  : t("overview.agentsCount.other", { n: team.length + inherited.length })}
               </span>
             </h2>
-            {team.length ? (
+            {team.length || inherited.length ? (
               <div className="overview__pills">
                 {team.map((a) => (
                   <button key={a.id} type="button" className="overview__pill" onClick={() => go.projectTab("team")}>
@@ -90,6 +107,19 @@ export function ProjectOverview({ project }: { project: ProjectEntry }) {
                     {a.role && <span className="overview__pillrole">{a.role}</span>}
                   </button>
                 ))}
+                {parent &&
+                  inherited.map((a) => (
+                    <button
+                      key={a.id}
+                      type="button"
+                      className="overview__pill"
+                      onClick={() => go.project(parent.id, "team")}
+                    >
+                      <AgentAvatar name={a.name} blob={blobOf(a)} size={24} animated={false} />
+                      <span className="overview__pillname">{a.name}</span>
+                      <span className="overview__pillrole">{t("overview.fromParent", { name: parent.name })}</span>
+                    </button>
+                  ))}
               </div>
             ) : (
               <EmptyState variant="dashed">{t("overview.noAgents")}</EmptyState>
@@ -101,8 +131,14 @@ export function ProjectOverview({ project }: { project: ProjectEntry }) {
           <div className="overview__stats">
             <Stat value={chats.length} label={t("overview.chats")} onClick={() => go.projectTab("chats")} />
             <Stat value={unread} label={t("overview.unread")} onClick={() => go.projectTab("chats")} />
-            <Stat value={team.length} label={t("overview.agents")} onClick={() => go.projectTab("team")} />
+            <Stat
+              value={team.length + inherited.length}
+              label={t("overview.agents")}
+              onClick={() => go.projectTab("team")}
+            />
           </div>
+
+          <SubprojectsBlock project={project} />
 
           {apps.length > 0 && (
             <section className="overview__block">

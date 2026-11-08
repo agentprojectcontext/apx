@@ -2,7 +2,7 @@ import { useSyncExternalStore } from "react";
 import { usePrefs } from "../data/prefs.ts";
 
 /** Below this window height the sections' cards leave too little room for their rows: they become single rows. */
-export const COMPACT_BELOW_H = 760;
+const COMPACT_BELOW_H = 760;
 
 const subscribe = (fn: () => void) => {
   window.addEventListener("resize", fn);

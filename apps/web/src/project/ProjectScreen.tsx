@@ -76,6 +76,8 @@ export function ProjectScreen({ layout }: { layout: Layout }) {
 
 function ProjectHeader({ project, tab }: { project: ProjectEntry; tab: ProjectTab }) {
   const t = useT();
+  const projects = useData((s) => s.projects);
+  const parent = project.parent ? findProject(projects, project.parent) : undefined;
   const counts = useProjectCounts(project.id);
   const [settings, setSettings] = useState(false);
   const KindIcon = kindIcon(project.kind);
@@ -85,6 +87,16 @@ function ProjectHeader({ project, tab }: { project: ProjectEntry; tab: ProjectTa
         <ProjectTile tone={projectTone(project.id)} initial={projectInitial(project.name)} size={36} />
         <div className="project__titles">
           <div className="project__name">
+            {parent && (
+              <>
+                <button type="button" className="project__parent" onClick={() => go.project(parent.id)}>
+                  {parent.name}
+                </button>
+                <span className="project__parentsep" aria-hidden="true">
+                  /
+                </span>
+              </>
+            )}
             <h1>{project.name}</h1>
             <button
               type="button"
@@ -118,6 +130,12 @@ function ProjectHeader({ project, tab }: { project: ProjectEntry; tab: ProjectTa
           onClick={() => setSettings(true)}
         />
       </div>
+      {parent && (
+        <p className="project__subnote">
+          <Icons.Info size={14} />
+          {t("project.subHint", { name: parent.name })}
+        </p>
+      )}
       <Tabs
         className="project__tabs"
         value={tab}

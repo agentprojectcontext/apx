@@ -42,6 +42,38 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+/* A subproject's title starts with its project, which opens it. */
+.project__parent {
+  flex: none;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--apx-fg-muted);
+  font-size: var(--apx-text-xl);
+  font-weight: var(--apx-weight-semibold);
+  line-height: 1.3;
+}
+.project__parent:hover {
+  color: var(--apx-fg);
+}
+.project__parentsep {
+  color: var(--apx-fg-subtle);
+  font-size: var(--apx-text-xl);
+}
+.project__subnote {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 10px 0 0;
+  padding: 8px 12px;
+  border-radius: var(--apx-radius-md);
+  background: var(--apx-fill);
+  color: var(--apx-fg-muted);
+  font-size: var(--apx-text-sm);
+}
+.project__subnote > svg {
+  flex: none;
+}
 .project__name .apx-badge {
   gap: 4px;
   flex: none;
@@ -120,6 +152,15 @@
   margin: 0;
   font-size: var(--apx-text-sm);
   font-weight: var(--apx-weight-semibold);
+}
+.overview__hadd {
+  margin-left: auto;
+  align-self: center;
+}
+.overview__hint {
+  margin: 0;
+  font-size: var(--apx-text-sm);
+  color: var(--apx-fg-subtle);
 }
 .overview__hsub {
   margin-left: auto;

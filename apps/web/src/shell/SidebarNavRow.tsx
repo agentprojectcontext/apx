@@ -17,6 +17,7 @@ export function SidebarNavRow({
   order,
   onMove,
   locked = false,
+  depth = 0,
 }: {
   id: string;
   kind: "channel" | "project" | "engine";
@@ -31,6 +32,8 @@ export function SidebarNavRow({
   order: string[];
   onMove(id: string, index: number): void;
   locked?: boolean;
+  /** 1 for a row under another (a subproject under its project). */
+  depth?: 0 | 1;
 }) {
   const t = useT();
   const [dragging, setDragging] = useState(false);
@@ -84,6 +87,7 @@ export function SidebarNavRow({
     >
       <NavItem
         collapsed={rail}
+        depth={rail ? 0 : depth}
         icon={icon}
         label={label}
         count={count}
