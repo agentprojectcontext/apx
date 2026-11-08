@@ -48,6 +48,23 @@ try {
           "https://example.com/research/topic",
         );
         await expect(page.locator("time").first()).toHaveAttribute("datetime", "2026-01-01");
+        if (process.env.DOCS_TEST_IMAGE === "1") {
+          const image = page.locator(".blog-cover img");
+          await expect(image).toHaveAttribute("alt", lang === "es" ? "Imagen de verificación" : "Verification image");
+          await expect(image).toHaveAttribute("width", "1600");
+          await expect(image).toHaveAttribute("height", "900");
+          await expect(image).toHaveAttribute("srcset", /400w.*800w.*1200w.*1600w/);
+          await expect(image).toHaveAttribute("sizes", /760px/);
+          assert.ok(await image.evaluate((element) => element.complete && element.naturalWidth > 0));
+          await expect(page.locator(".blog-cover figcaption")).toContainText(
+            lang === "es" ? "no captura" : "not an APX screenshot",
+          );
+          const social = await page.locator('meta[property="og:image"]').getAttribute("content");
+          assert.ok(social.includes("/_astro/") && social.endsWith(".webp"));
+          assert.equal((await page.request.get(`${new URL(base).origin}${new URL(social).pathname}`)).status(), 200);
+          await expect(page.locator('meta[property="og:image:width"]')).toHaveAttribute("content", "1200");
+          await expect(page.locator('meta[property="og:image:height"]')).toHaveAttribute("content", "675");
+        }
         const data = await page.locator('script[type="application/ld+json"]').allTextContents();
         assert.ok(data.map((item) => JSON.parse(item)).some((item) => item["@type"] === "BlogPosting"));
       }

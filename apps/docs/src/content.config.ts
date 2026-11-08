@@ -19,27 +19,35 @@ export const collections = {
       base: "./src/content/blog",
       generateId: ({ entry }) => entry,
     }),
-    schema: z.object({
-      title: z.string().min(1),
-      description: z.string().min(1).max(160),
-      lang: z.enum(["en", "es"]),
-      slug: z.string().regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/),
-      draft: z.boolean().default(true),
-      published: date,
-      updated: date.optional(),
-      sources: z
-        .array(
-          z.object({
-            label: z.string().min(1),
-            url: z
-              .string()
-              .url()
-              .refine((value) => new URL(value).protocol === "https:", "Sources require HTTPS"),
-            checked: date,
-          }),
-        )
-        .min(1),
-    }),
+    schema: ({ image }) =>
+      z.object({
+        image: z
+          .object({
+            src: image(),
+            alt: z.string().trim().min(1),
+            caption: z.string().trim().min(1).optional(),
+          })
+          .optional(),
+        title: z.string().min(1),
+        description: z.string().min(1).max(160),
+        lang: z.enum(["en", "es"]),
+        slug: z.string().regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/),
+        draft: z.boolean().default(true),
+        published: date,
+        updated: date.optional(),
+        sources: z
+          .array(
+            z.object({
+              label: z.string().min(1),
+              url: z
+                .string()
+                .url()
+                .refine((value) => new URL(value).protocol === "https:", "Sources require HTTPS"),
+              checked: date,
+            }),
+          )
+          .min(1),
+      }),
   }),
   docs: defineCollection({
     loader: docsLoader({ generateId: ({ entry }) => documentationId(entry) }),

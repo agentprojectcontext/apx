@@ -23,6 +23,23 @@ sources:
 
 Translate the title, description and body; change `lang` to `es` in the Spanish file. Optional `updated` must not predate `published`. Set `draft: false` in both files only after editorial approval. The detail page renders the Markdown and a linked sources list. Canonical URLs, language alternatives, article metadata and sitemap use the configured `DOCS_SITE` and `DOCS_BASE`.
 
+## Images and one shared layout
+
+All listings and articles use `src/components/blog/BlogPage.astro` and `blog.css`. Redesign these once, not each Markdown file. The marketing site uses shared Astro CSS; this feature does not introduce Tailwind or another styling stack.
+
+Store local images in `src/assets/blog/<slug>/`, not `public/`, so Astro can validate the file, read real dimensions and generate WebP variants. Add optional frontmatter in each translation:
+
+```yaml
+image:
+  src: ../../../assets/blog/article-topic/hero.webp
+  alt: A localized description of what the illustration shows.
+  caption: Conceptual illustration, not a screenshot.
+```
+
+The path is relative to a Markdown file in `src/content/blog/en/` or `es/`. English and Spanish may share the same asset but must localize alt text and captions. Alt text cannot be empty. No width/height fields are needed: Astro reads them from the original. Prefer 1600 × 900 banners with consistent art direction and no embedded text. The shared layout uses responsive `srcset` and `sizes`, explicit dimensions, an eager article cover and lazy listing thumbnails, without upscaling smaller originals. The article cover also supplies its social preview and structured-data image; articles without a cover retain the existing localized site preview.
+
+Use Markdown images with descriptive alt text and relative paths to the same asset folder for inline illustrations or screenshots. Prefer current real APX captures when describing an actual workflow; do not present a generated banner as a screenshot. Confirm asset rights and distinguish conceptual imagery from real product UI in captions. Do not commit verification images or sample articles.
+
 ## Research and approval
 
 Coordinate topics, search intent and publication with the existing SEO work. Every factual claim needs relevant, checked evidence; requiring a source in frontmatter does not certify the prose. Distinguish a user's report from a reproducible product limitation. Identify version/date and context; do not generalize an isolated complaint or invent ratings, quotations, metrics or capabilities. Avoid personal identifiers from reviews. Prefer primary issue threads, documentation and reproducible observations. Describe where APX is relevant and where it is not, using verified capabilities. Do not publish unapproved research or present existing comparisons as newly investigated complaints.
@@ -33,6 +50,6 @@ Reel-to-article conversion is later editorial work, not automatic transcription 
 
 Run the standalone frozen install, build and checks from `apps/docs` with `DOCS_BASE=/` and `/apx/`. Validate a paired disposable article and draft, including sources, Markdown, language switching and sitemap exclusion, without committing sample editorial content. Inspect desktop and phone widths. Publication is separate: this change does not alter the Pages workflow or authorize a push, release or deploy.
 
-Browser checks run with `node scripts/blog.browser.mjs` from the site directory (Playwright is provided by the root workspace). Set `DOCS_TEST_URL` to the running preview, including `/apx` when testing that base. With a disposable bilingual article, set `DOCS_TEST_ARTICLE_SLUG` to its slug; keep a draft named `unpublished-draft` to exercise the negative path. Set `DOCS_TEST_OUTPUT` to a temporary folder for screenshots. The checks cover reading, sources, dates, language switching, themes, the mobile menu, header overlap, sitemap membership and draft exclusion. Run the ordinary empty build separately without the article-slug variable. Never add verification articles to a production build.
+Browser checks run with `node scripts/blog.browser.mjs` from the site directory (Playwright is provided by the root workspace). Set `DOCS_TEST_URL` to the running preview, including `/apx` when testing that base. With a disposable bilingual article, set `DOCS_TEST_ARTICLE_SLUG` to its slug; keep a draft named `unpublished-draft` to exercise the negative path. For the disposable 1600 × 900 cover fixture, also set `DOCS_TEST_IMAGE=1` to check responsive variants, actual image loading, caption and social-preview dimensions. Set `DOCS_TEST_OUTPUT` to a temporary folder for screenshots. The checks cover reading, sources, dates, language switching, themes, the mobile menu, header overlap, sitemap membership and draft exclusion. Run the ordinary empty build separately without the article-slug variable. Never add verification articles to a production build.
 
 Docs impact: updated — this guide and its Spanish counterpart document article preparation, explicit bilingual publication, evidence requirements and deployment limits.

@@ -1,9 +1,11 @@
 ---
 import { getCollection } from "astro:content";
-import { publishedPosts } from "../../../data/blog.mjs";
 import BlogPage from "../../../components/blog/BlogPage.astro";
+import { publishedPosts } from "../../../data/blog.mjs";
 export async function getStaticPaths() {
-  return publishedPosts(await getCollection("blog")).filter(({ data }) => data.lang === "es").map((post) => ({ params: { slug: post.data.slug }, props: { post } }));
+  return publishedPosts(await getCollection("blog"))
+    .filter(({ data }) => data.lang === "es")
+    .map((post) => ({ params: { slug: post.data.slug }, props: { post } }));
 }
 const { post } = Astro.props;
 ---
