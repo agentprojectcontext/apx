@@ -284,7 +284,7 @@ export function workspaceBlock(
 }
 
 const MODES: Record<Autonomy, string> = {
-  auto: "Auto: read anything; edit files and run commands in your work folder, the owner's other projects and temp folders without asking. Only strong actions wait for the owner (sending or posting as them, paying, destructive commands, writing in a folder that is none of those).",
+  auto: "Auto: read anything; edit files and run commands in your work folder, the owner's other projects and temp folders without asking. Only strong actions wait for the owner (sending or posting as them, paying, destructive commands, cutting a release, writing in a folder that is none of those).",
   accept_edits:
     "Accept edits: edit files in your work folder and the owner's other projects without asking; a command that changes something waits for the owner.",
   manual: "Manual: every action that changes something waits for the owner.",

@@ -209,7 +209,11 @@ test("shell: a command that only reads here never waits, outside content in the 
     assert.equal(run(c, agent({ autonomy: "manual" })), "confirm", c);
     assert.equal(run(c, agent({ autonomy: "accept_edits" })), "confirm", c);
   }
-  assert.equal(run("git push origin main", agent()), "confirm");
+  // Publishing a branch runs in Auto; a release (a tag) or a forced push waits (DECISIONS.md#d-208).
+  assert.equal(run("git push origin main", agent()), "allow");
+  assert.equal(run("git push origin main", agent({ autonomy: "manual" })), "confirm");
+  assert.equal(run("git push origin v2.13.4", agent()), "confirm");
+  assert.equal(run("git push --force origin main", agent()), "confirm");
 });
 
 test("total and a rule 'auto' skip a card, except one a call keeps (DECISIONS.md#d-143, DECISIONS.md#d-203)", () => {

@@ -4249,3 +4249,14 @@ happened to work it had started itself.
 
 Rejected: sending results to every project chat of the head (the owner would see reports in chats that never asked),
 and trusting `coordination_from` without checking the runs (a task chat's context is not proof of who started it).
+
+## D-208 — 2026-11-08 — A task's agent carries it to delivery; publishing is medium, a release is hard
+A blog the owner asked to publish sat finished on a branch for a day: its agent read "do not push unless authorized"
+in its role, every teammate it asked answered as a gate, and a plain push of the site waited for the owner like an
+`rm -rf`. The owner's rule: easy things that can be undone are published, hard ones are asked.
+
+- **Publishing a branch is a medium action** (`tools/shell.ts`): a plain `git push` runs in Auto like any other
+  command. A push that rewrites or deletes what others have (`--force`, `--delete`, `:branch`, `+ref`, `--mirror`,
+  `--prune`) or cuts a release (a tag, `--tags`, `gh release`, `npm publish` and the like) stays `always`, the
+  hard kind: it waits in every mode but Total.
+

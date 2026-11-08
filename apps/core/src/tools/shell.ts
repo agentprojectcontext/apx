@@ -29,7 +29,14 @@ import { untrusted } from "./result.ts";
 import { type Confirm, defineTool, type Tool } from "./types.ts";
 
 const DESTRUCTIVE =
-  /\b(sudo|su|doas|mkfs|dd|shutdown|reboot|halt|diskutil|launchctl|crontab|shred|srm)\b|\brm\b[^|;&]*\s(-\w*[rf]|--recursive|--force)|\bgit\b[^|;&]*\s(push|reset\s+--hard|clean\b|filter-branch|update-ref\s+-d)|\b(curl|wget|fetch)\b[^|]*\|\s*(sudo\s+)?(ba|z|da|k)?sh\b|\bchmod\b[^|;&]*\s-\w*R|\bchown\b[^|;&]*\s-\w*R|:\(\)\s*\{|\/dev\/(sd|disk|nvme)/;
+  /\b(sudo|su|doas|mkfs|dd|shutdown|reboot|halt|diskutil|launchctl|crontab|shred|srm)\b|\brm\b[^|;&]*\s(-\w*[rf]|--recursive|--force)|\bgit\b[^|;&]*\s(reset\s+--hard|clean\b|filter-branch|update-ref\s+-d)|\b(curl|wget|fetch)\b[^|]*\|\s*(sudo\s+)?(ba|z|da|k)?sh\b|\bchmod\b[^|;&]*\s-\w*R|\bchown\b[^|;&]*\s-\w*R|:\(\)\s*\{|\/dev\/(sd|disk|nvme)/;
+
+/**
+ * A push that rewrites or deletes what others have, or that cuts a release (a tag, a package, a GitHub release). A
+ * plain push of a branch is part of the work a task asks for and runs like any command (DECISIONS.md#d-208).
+ */
+const RELEASES =
+  /\bgit\b[^|;&]*\spush\b[^|;&]*(\s(-\w*[fd]\w*|--force\S*|--delete|--tags|--follow-tags|--mirror|--prune)\b|\s\+|\s:\S|\srefs\/tags\/|\sv?\d+\.\d+(\.\d+)?\S*(\s|$))|\bgh\s+release\s+(create|upload|delete|edit)\b|\b(npm|pnpm|yarn|bun)\s+publish\b|\bcargo\s+publish\b|\btwine\s+upload\b/;
 
 /** The command as the shell will mostly see it: quotes and escapes dropped, paths to programs reduced to names. */
 const normalize = (c: string) =>
@@ -76,6 +83,7 @@ export function broadScan(command: string, home = os.homedir()): string | undefi
 export function commandRisk(command: string, apxPort?: number): Confirm {
   const c = command.trim();
   if (DESTRUCTIVE.test(c) || DESTRUCTIVE.test(normalize(c))) return "always";
+  if (RELEASES.test(c) || RELEASES.test(normalize(c))) return "always";
   // A command that talks to APX's own API could act as the owner (answer its own confirmation): always asked.
   if (apxPort && new RegExp(`(127\\.0\\.0\\.1|localhost|\\[::1\\]|0\\.0\\.0\\.0):${apxPort}\\b`).test(c))
     return "always";
