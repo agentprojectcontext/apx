@@ -29,7 +29,7 @@ const IMAGE_TYPES = "image/png,image/jpeg,image/webp,image/gif";
 
 /**
  * The chat's composer, left to right: + (file, image), the chat's model, then how full the chat is (opens Usage),
- * the mic (records audio with its words) and send. While the agent works, Enter sends (its next step reads it) and
+ * the mic (dictates words into the field) and send. While the agent works, Enter sends (its next step reads it) and
  * Ctrl/⌘+Enter puts it in line for when it finishes (DECISIONS.md#d-186).
  * A field starting with "/" opens the command and skill menu.
  * Files also arrive dragged or pasted. What is typed stays as the chat's draft until it is sent.
@@ -70,11 +70,10 @@ export function ChatComposer({
   const appendWords = (words: string) => setText((cur) => (cur.trim() ? `${cur.trimEnd()} ${words}` : words));
   const att = useAttachments(thread.id, made);
   const box = useRef<HTMLDivElement>(null);
-  const mic = useDictation(made, (audio, words) => {
-    att.restore([audio]);
-    if (words) appendWords(words);
-  });
+  const mic = useDictation(made, appendWords);
   const micBusy = mic.state === "recording" || mic.state === "starting" || mic.state === "transcribing";
+  // The one shortcut worth knowing while the agent works, under the box; not while the mic has the field.
+  const queueHint = isWorking(thread.state) && !micBusy ? t("composer.queueHint", { mod: MOD }) : undefined;
   const over = useFileDrop(box, (files) => {
     if (!micBusy) att.add(files);
   });
@@ -176,12 +175,13 @@ export function ChatComposer({
         labels={{ stop: t("composer.stop"), send: t("composer.send") }}
         // Claude Code takes words mid-turn as our own loop does; other engines stop and read them (DECISIONS.md#d-196).
         sendHint={t(thread.engine && thread.engine !== "claude" ? "composer.sendHintStop" : "composer.sendHint")}
-        hint={isWorking(thread.state) ? t("composer.queueHint", { mod: MOD }) : undefined}
         value={text}
         onValueChange={setText}
         ready={att.ready && !att.uploading}
         disabled={offline || micBusy}
         busy={busy && !text.trim() && !att.ready}
+        // While the mic records, its own button is the one stop; send comes back with the words.
+        sendHidden={micBusy}
         onStop={() => void cancel(thread.id)}
         onSubmit={submit}
         header={
@@ -261,10 +261,15 @@ export function ChatComposer({
           </>
         }
       />
-      {room && (
-        <p className="chat__composer-hint">
-          {t(direct ? "ch.room.hint.me" : "ch.room.hint.agent", { agent: agentName, room })}
-        </p>
+      {(room || queueHint) && (
+        <div className="chat__composer-foot">
+          {room && (
+            <p className="chat__composer-hint">
+              {t(direct ? "ch.room.hint.me" : "ch.room.hint.agent", { agent: agentName, room })}
+            </p>
+          )}
+          {queueHint && <p className="chat__composer-hint is-queue">{queueHint}</p>}
+        </div>
       )}
     </div>
   );

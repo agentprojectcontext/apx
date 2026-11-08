@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { type Attached, listen, transcribe, upload } from "../../data/composer.ts";
+import { listen, transcribe } from "../../data/composer.ts";
 import { notify } from "../../data/notices.ts";
 import { t } from "../../i18n/index.ts";
 import { startVoiceMeter } from "./voiceMeter.ts";
@@ -12,10 +12,11 @@ const LISTEN_MS = 2000;
 const LISTEN_MAX_BYTES = 8_000_000;
 
 /**
- * Records a voice note and its words for review in the composer before sending. While it records, `heard` shows the
- * words so far (only with a transcription engine on this machine); the final transcript replaces them when it stops.
+ * Dictation: what the microphone hears becomes words in the composer, for review before sending; the recording itself
+ * is not attached. While it records, `heard` shows the words so far (only with a transcription engine on this
+ * machine); the final transcript replaces them when it stops.
  */
-export function useDictation(thread: string | undefined, onAudio: (audio: Attached, text?: string) => void) {
+export function useDictation(thread: string | undefined, onWords: (text: string) => void) {
   const [state, setState] = useState<DictationState>(() =>
     typeof MediaRecorder === "undefined" || !navigator.mediaDevices ? "unsupported" : "idle",
   );
@@ -26,8 +27,8 @@ export function useDictation(thread: string | undefined, onAudio: (audio: Attach
   const stopListening = useRef<(() => void) | undefined>(undefined);
   const alive = useRef(true);
   const starting = useRef(false);
-  const deliver = useRef(onAudio);
-  deliver.current = onAudio;
+  const deliver = useRef(onWords);
+  deliver.current = onWords;
 
   useEffect(() => {
     alive.current = true;
@@ -73,10 +74,8 @@ export function useDictation(thread: string | undefined, onAudio: (audio: Attach
 
   const finish = async (audio: Blob) => {
     try {
-      const ext = audio.type.startsWith("audio/mp4") ? "m4a" : audio.type.startsWith("audio/ogg") ? "ogg" : "webm";
-      const media = await upload(new File([audio], `${t("composer.voiceNote")}.${ext}`, { type: audio.type }), thread);
-      const words = await transcribe(media.id, thread);
-      if (alive.current) deliver.current(media, words);
+      const words = await transcribe(audio, thread);
+      if (alive.current && words) deliver.current(words);
     } catch (error) {
       if (alive.current)
         notify(t("composer.dictationFailed", { error: error instanceof Error ? error.message : String(error) }));
