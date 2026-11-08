@@ -72,9 +72,11 @@ test("news reach the owner's channel with buttons; a press asks the super-agent 
     () => tg.messagesTo(OWNER.id).some((m) => /On it: Review my widgets/.test(String(m.body.text))),
     "answer",
   );
-  const home = await env.client.call("threads.get", { thread: "home" });
+  const thread = env.core.store.threads.byConversation("tg", String(OWNER.id));
+  assert.ok(thread, "the owner has a channel account chat");
+  const chat = await env.client.call("threads.get", { thread: thread.id });
   assert.ok(
-    home.messages.some(
+    chat.messages.some(
       (m) =>
         m.author.kind === "user" && m.parts.some((p) => p.type === "text" && p.text.startsWith("Review my widgets")),
     ),
