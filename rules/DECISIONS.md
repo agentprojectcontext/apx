@@ -2669,7 +2669,8 @@ agents stopped short. Each answers a stop seen in real work:
 - **A task turn that ends with the task in progress goes on at once** (`engine/task-continue.ts`), numbered "part k of
   at most 9", telling the agent to finish, verify and close, mark it waiting on the owner with why, or say what blocks
   it. Not after a part that made no progress (`progress.ts` `stalled`), past `MAX_AUTO_PARTS` in a row, in review,
-  or while a subtask, a helper, a background command, a question or the breaker is still to come. The stall watch
+  or while a subtask, a helper, a teammate it asked on the task, a background command, a question or the breaker is
+  still to come. The stall watch
   (20 minutes, then the owner) stays for what this does not catch.
 - **Repeating a call is reminded, not cut.** Only the same call in a row counts (arguments compared with their keys
   in order): a reminder at the third and fifth, tools off at the eighth. Returning to a read between other work is
