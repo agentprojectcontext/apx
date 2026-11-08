@@ -25,7 +25,7 @@ test("the owner links a line with the QR, then their own phone by writing to it"
   await expect(page.getByText("+5491100000001").first()).toBeVisible();
   await expect(page.getByRole("img", { name: "Escaneá este código con tu teléfono" })).toBeHidden();
   await expect(page.getByText("Todavía no está vinculado", { exact: false })).toBeVisible();
-  await expect(page.getByText("El agente que contesta en WhatsApp.")).toBeVisible();
+  await expect(page.getByText("El agente que responde a quienes escriben a WhatsApp.")).toBeVisible();
 
   // "Message yourself" on a line of its own is nobody.
   const calls = await world.llmCalls();
