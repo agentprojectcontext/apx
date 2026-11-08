@@ -388,6 +388,62 @@ export function threadsRepo({ one, all, run }: Sql, bus: Bus, endSession: (threa
         ...(c.their_last?.conversation === from ? { their_last: { ...c.their_last, conversation: to } } : {}),
       });
     },
+    /**
+     * One chat its platform kept under two addresses: `from`'s messages, turns, files and sub-chats go into `to`'s chat
+     * in time order and `from`'s chat is removed; with no chat under `to`, `from`'s goes on under it. Not while either
+     * has a turn going (false: try again later).
+     */
+    joinChats(channel: string, from: string, to: string): boolean {
+      const gone = repo.byConversation(channel, from);
+      if (!gone) return true;
+      const kept = repo.byConversation(channel, to);
+      if (!kept) {
+        repo.readdress(channel, from, to);
+        return true;
+      }
+      if (repo.busy([gone.id, kept.id])) return false;
+      const ids = all(
+        qb
+          .selectFrom("messages")
+          .select("id")
+          .where("thread_id", "in", [gone.id, kept.id])
+          .orderBy("created_at")
+          .orderBy("seq"),
+      ).map((r) => r.id);
+      // Negative first, so no two messages ever share a place in the kept chat while they are renumbered.
+      for (const [i, id] of ids.entries())
+        run(
+          qb
+            .updateTable("messages")
+            .set({ thread_id: kept.id, seq: -(i + 1) })
+            .where("id", "=", id),
+        );
+      run(
+        qb
+          .updateTable("messages")
+          .set((eb) => ({ seq: eb.neg(eb.ref("seq")) }))
+          .where("thread_id", "=", kept.id)
+          .where("seq", "<", 0),
+      );
+      for (const table of ["runs", "media", "jobs", "notifications"] as const)
+        run(qb.updateTable(table).set({ thread_id: kept.id }).where("thread_id", "=", gone.id));
+      run(qb.updateTable("threads").set({ parent_id: kept.id }).where("parent_id", "=", gone.id));
+      // A summary counts places in the kept chat's old order: it is made again from the whole history.
+      repo.mergeContext(kept.id, { compaction: undefined });
+      const newer = gone.updated_at > kept.updated_at;
+      run(
+        qb
+          .updateTable("threads")
+          .set({
+            unread: kept.unread + gone.unread,
+            ...(newer ? { updated_at: gone.updated_at, preview: gone.preview } : {}),
+          })
+          .where("id", "=", kept.id),
+      );
+      repo.remove([gone.id]);
+      bus.emit({ type: "thread.updated", thread: repo.get(kept.id) as Thread });
+      return true;
+    },
     /** A thread whose history was brought in: its last activity and preview are the history's own. */
     settle(id: string, at: string, preview: string): void {
       run(qb.updateTable("threads").set({ updated_at: at, preview }).where("id", "=", id));

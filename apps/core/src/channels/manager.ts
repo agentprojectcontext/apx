@@ -34,6 +34,7 @@ import { createOwnerNotices } from "./owner-notices.ts";
 import { createPoster } from "./post.ts";
 import { createRecovery } from "./recover.ts";
 import { createRooms, quietMentions, roomMentions } from "./rooms.ts";
+import { joinSplitContacts } from "./same-person.ts";
 import { createSignals } from "./signals.ts";
 import { createStickers, type See } from "./stickers.ts";
 import { createSuggestions } from "./suggestions.ts";
@@ -517,7 +518,10 @@ export function createChannels(deps: {
         status: (s, error) => {
           l.status = s;
           l.error = error;
-          if (s === "running") delivery.kick();
+          if (s === "running") {
+            delivery.kick();
+            void joinSplitContacts(store, config.id, adapter, log);
+          }
         },
         qr: (code) => {
           l.qr = code;
@@ -545,7 +549,10 @@ export function createChannels(deps: {
         signal: ac.signal,
       });
       if (r.account) l.account = r.account;
-      if (l.status === "starting" && !r.waiting) l.status = "running";
+      if (l.status === "starting" && !r.waiting) {
+        l.status = "running";
+        void joinSplitContacts(store, config.id, adapter, log);
+      }
       delivery.kick();
     } catch (err) {
       l.status = "error";

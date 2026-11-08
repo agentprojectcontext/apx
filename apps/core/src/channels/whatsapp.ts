@@ -718,6 +718,16 @@ export function whatsappAdapter(opts: {
       if (options) offered.set(conversation, options);
       return last ? { external_id: last, ...moved } : moved;
     },
+    async sameAs(addresses) {
+      const s = sock;
+      if (!s) return [];
+      const out: Array<{ from: string; to: string }> = [];
+      for (const from of addresses) {
+        const to = await numberOf(s, from);
+        if (to !== from) out.push({ from, to });
+      }
+      return out;
+    },
     async avatar(jid) {
       if (!sock?.profilePictureUrl) return undefined;
       const url = await sock.profilePictureUrl(jid, "image").catch(() => undefined);

@@ -118,6 +118,8 @@ export interface ChannelAdapter {
    * adapter checks the platform's signature itself and refuses (401) what it cannot verify; nothing else guards it.
    */
   webhook?(req: HookRequest, signal?: AbortSignal): Promise<HookResponse>;
+  /** Of these addresses, those the platform knows as another one (a private id and its number): `from` is `to`. */
+  sameAs?(addresses: string[]): Promise<Array<{ from: string; to: string }>>;
   /** Text, then `files` (the presentation's media, already read). */
   /** `address`: the conversation's address as the platform uses it, when it is not the one given (a number fixed). */
   send(conversation: string, p: Presentation, files?: OutFile[]): Promise<{ external_id?: string; address?: string }>;

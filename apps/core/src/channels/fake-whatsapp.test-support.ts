@@ -199,6 +199,10 @@ export function fakeWhatsApp(owner = OWNER_PN) {
       });
       return id;
     },
+    /** This device learns which private id stands for someone's number (as sending to them first does). */
+    knows(from: Person) {
+      if (from.lid) lids.set(from.phone, from.lid);
+    },
     /** The owner writes in "Message yourself" (under their private id, as a linked phone often sends it). */
     fromOwner(text: string) {
       deliver({ key: { id: `ME-${++seq}`, remoteJid: OWNER_LID, fromMe: true }, message: { conversation: text } });

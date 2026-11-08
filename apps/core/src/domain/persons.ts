@@ -199,6 +199,58 @@ export function personsRepo({ one, all, run, tx }: Sql) {
             .where("external_id", "=", from),
         );
     },
+    /** Every address known on a channel. */
+    addressesOn(channel: string): string[] {
+      return all(qb.selectFrom("addresses").select("external_id").where("channel", "=", channel)).map(
+        (r) => r.external_id,
+      );
+    },
+    /**
+     * One person their platform knew under two addresses (a private id and the number it stands for): whoever has
+     * `from` becomes whoever has `to` (the owner always stays), with their addresses, chats and commitments. What the
+     * kept one lacks comes from the other, and the owner's decision about either (who they are, how they are answered)
+     * wins over a stranger's defaults. Nobody has `to`: `from`'s person takes it too.
+     */
+    joinPeople(channel: string, from: string, to: string): void {
+      tx(() => {
+        const a = repo.byAddress(channel, from);
+        if (!a) return;
+        const b = repo.byAddress(channel, to);
+        if (!b) {
+          const label = a.addresses.find((x) => x.channel === channel && x.external_id === from)?.label;
+          repo.link(a.id, { channel, external_id: to, label });
+          return;
+        }
+        if (a.id === b.id) return;
+        const [keep, gone] = a.role === "owner" ? [a, b] : [b, a];
+        for (const table of ["addresses", "threads", "tasks", "suggestions", "channel_held"] as const)
+          run(qb.updateTable(table).set({ person_id: keep.id }).where("person_id", "=", gone.id));
+        const decided = keep.unreviewed && !gone.unreviewed ? gone : keep;
+        run(
+          qb
+            .updateTable("persons")
+            .set({
+              note: keep.note ?? gone.note ?? null,
+              nickname: keep.nickname ?? gone.nickname ?? null,
+              relation: keep.relation ?? gone.relation ?? null,
+              rules: keep.rules ?? gone.rules ?? null,
+              ...(keep.role === "owner"
+                ? {}
+                : {
+                    role: decided.role,
+                    muted: decided.muted ? 1 : 0,
+                    supervised: decided.supervised ? 1 : 0,
+                    any_hour: decided.any_hour ? 1 : 0,
+                    unreviewed: decided.unreviewed ? 1 : 0,
+                    perms: JSON.stringify(decided.perms),
+                  }),
+              updated_at: now(),
+            })
+            .where("id", "=", keep.id),
+        );
+        run(qb.deleteFrom("persons").where("id", "=", gone.id));
+      });
+    },
     /**
      * "This account is mine": an address approved as someone else's becomes the owner's. Its chats on that channel
      * become the owner's own, and the person, left with no address, is removed (their commitments stay as tasks).
