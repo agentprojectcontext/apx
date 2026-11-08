@@ -148,8 +148,29 @@ export function BrowserToolbar({
           </Button>
         </>
       )}
+      {tab && draft == null && (
+        <IconButton
+          size="sm"
+          label={t("share.share")}
+          icon={<Icons.Share size={14} />}
+          onClick={() => void sharePage(tab.url)}
+        />
+      )}
     </div>
   );
+}
+
+/** The system's share sheet where there is one; elsewhere the link is copied. */
+async function sharePage(url: string): Promise<void> {
+  try {
+    if (navigator.share) await navigator.share({ url });
+    else {
+      await navigator.clipboard.writeText(url);
+      notify(tr("share.copied"), "info");
+    }
+  } catch (e) {
+    if (!(e instanceof DOMException && e.name === "AbortError")) notify(e instanceof Error ? e.message : String(e));
+  }
 }
 
 /** The agent handed the tab to the human (login, 2FA, captcha): say why, and "Done" when finished. */

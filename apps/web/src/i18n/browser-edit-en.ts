@@ -1,6 +1,7 @@
 // The browser panel's edit mode: loaded with it (usePack in BrowserEdit.tsx), never with the first screen.
 export const enBrowserEdit = {
-  "bedit.pickHint": "Click the part you want to change · Esc to leave",
+  "bedit.pickHint": "Edit mode · click a part",
+  "bedit.pickEsc": "· Esc to leave",
   "bedit.page": "Page in edit mode",
   "bedit.emptyTitle": "Pick something to change",
   "bedit.emptyBody":

@@ -22,15 +22,36 @@
   background: var(--apx-surface);
   overflow: auto;
 }
+/* A pill floating over the top of the page while it is being edited. */
 .bedit__hint {
   position: sticky;
-  top: 0;
+  top: 8px;
   z-index: 2;
-  padding: 6px 10px;
-  border-bottom: 1px solid var(--apx-border);
-  background: var(--apx-surface);
+  display: flex;
+  align-self: center;
+  align-items: center;
+  gap: 8px;
+  width: fit-content;
+  max-width: calc(100% - 16px);
+  height: 28px;
+  margin: 8px auto;
+  padding: 0 12px;
+  border-radius: var(--apx-radius-pill);
+  background: var(--apx-surface-raised, var(--apx-surface));
+  box-shadow: var(--apx-shadow-sm);
   color: var(--apx-fg-muted);
-  font-size: var(--apx-text-xs);
+  font-size: 12px;
+  white-space: nowrap;
+}
+.bedit__hintdot {
+  flex: none;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--apx-info);
+}
+.bedit__hintesc {
+  color: var(--apx-fg-subtle);
 }
 /* The marks sit on the page itself, light or dark, so they keep one vivid blue whatever APX's own look. */
 .bedit {

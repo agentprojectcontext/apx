@@ -119,7 +119,9 @@ export function PageEdit({ target }: { target: EditTarget }) {
       <div className="bedit">
         <div ref={pageBox} className="bedit__page">
           <div className="bedit__hint" role="status">
+            <span className="bedit__hintdot" aria-hidden="true" />
             {tr("bedit.pickHint")}
+            <span className="bedit__hintesc">{tr("bedit.pickEsc")}</span>
           </div>
           {shot ? (
             // biome-ignore lint/a11y/noStaticElementInteractions: picking by pointer over a picture of the page; the panel holds the keyboard path
