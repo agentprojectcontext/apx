@@ -383,4 +383,11 @@ export const enChannels = {
   "ch.right.no": "No",
   "acct.contactsDefault": "For your contacts, by default",
   "acct.contactsDefaultHint": "What every contact of this account gets unless you set it on their card.",
+  "acct.ownerOnly": "Only answers you",
+  "acct.ownerOnlyHint": "Your contacts' and rooms' messages are kept, but only you get answers.",
+  "acct.knowledge": "What it knows and can answer",
+  "acct.knowledgeHint":
+    "Your notes for everyone who writes to this account: what the business is, where to point them. Rooms add their own.",
+  "acct.rules": "Rules",
+  "acct.rulesHint": "What it must never say here. They go last; a contact's or a room's own rules go after and win.",
 } as const;

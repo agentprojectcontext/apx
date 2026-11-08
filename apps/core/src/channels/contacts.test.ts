@@ -126,6 +126,27 @@ test("a silenced contact's message is kept and unread, never answered", async ()
   await env.client.call("contacts.set", { id: person, name: MAG.name, muted: false });
 });
 
+test("an account that answers only the owner keeps a contact's message, unanswered", async () => {
+  const saved = (await env.client.call("channels.list", {})).channels.find((c) => c.id === "tg");
+  const set = (owner_only: boolean) =>
+    env.client.call("channels.set", { id: "tg", channel: { type: "telegram", agent_id: "superagent", owner_only } });
+  await set(true);
+  try {
+    const sent = tg.messagesTo(MAG.id).length;
+    const calls = llm.calls.length;
+    tg.message(MAG, "only for you?");
+    await waitFor(async () => {
+      const { messages } = await env.client.call("threads.get", { thread });
+      return messages.some((m) => m.parts[0]?.type === "text" && m.parts[0].text === "only for you?");
+    }, "message kept");
+    await new Promise((r) => setTimeout(r, 200));
+    assert.equal(tg.messagesTo(MAG.id).length, sent, "nothing went back");
+    assert.equal(llm.calls.length, calls, "no model call");
+  } finally {
+    await set(saved?.owner_only ?? false);
+  }
+});
+
 test("a closing message in any language reaches the agent, which may leave it unanswered", async () => {
   const sent = tg.messagesTo(MAG.id).length;
   const calls = llm.calls.length;

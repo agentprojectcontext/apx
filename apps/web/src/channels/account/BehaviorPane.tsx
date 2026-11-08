@@ -1,6 +1,6 @@
 import type { ChannelHours, ChannelResearch } from "@apx/protocol";
 import { CHANNEL_DEFAULTS } from "@apx/protocol/client";
-import { Input, SegmentedControl, SettingRow, Switch } from "@apx/ui";
+import { Input, SegmentedControl, SettingRow, Switch, Textarea } from "@apx/ui";
 import { WeekDays } from "../../common/pickers/WeekDays.tsx";
 import type { ChannelDraft } from "../../data/channels.ts";
 import { useOwnerTimeZone } from "../../data/owner.ts";
@@ -10,7 +10,7 @@ import type { PaneProps } from "./types.ts";
 /** Hours a channel starts with when the owner turns them on: every day, a working day's span. */
 const FIRST_HOURS: ChannelHours = { days: [1, 2, 3, 4, 5, 6, 0], from: "08:00", to: "22:00" };
 
-/** How it answers: a message while it works, the web, and its hours. */
+/** How it answers: a message while it works, the web, its hours, whom, and the owner's notes and rules for it. */
 export function BehaviorPane({ draft, set }: Pick<PaneProps, "draft" | "set">) {
   const t = useT();
   const research = draft.research ?? CHANNEL_DEFAULTS.research;
@@ -43,6 +43,36 @@ export function BehaviorPane({ draft, set }: Pick<PaneProps, "draft" | "set">) {
         />
       </SettingRow>
       <Hours hours={draft.hours} set={set} />
+      <SettingRow title={t("acct.ownerOnly")} description={t("acct.ownerOnlyHint")}>
+        <Switch
+          size="sm"
+          checked={draft.owner_only === true}
+          onCheckedChange={(on) => set({ owner_only: on })}
+          aria-label={t("acct.ownerOnly")}
+        />
+      </SettingRow>
+      <div className="pform__field">
+        <span className="pform__label">{t("acct.knowledge")}</span>
+        <Textarea
+          aria-label={t("acct.knowledge")}
+          rows={5}
+          maxLength={12_000}
+          value={draft.knowledge ?? ""}
+          onChange={(e) => set({ knowledge: e.currentTarget.value })}
+        />
+        <span className="pform__hint">{t("acct.knowledgeHint")}</span>
+      </div>
+      <div className="pform__field">
+        <span className="pform__label">{t("acct.rules")}</span>
+        <Textarea
+          aria-label={t("acct.rules")}
+          rows={3}
+          maxLength={2000}
+          value={draft.rules ?? ""}
+          onChange={(e) => set({ rules: e.currentTarget.value })}
+        />
+        <span className="pform__hint">{t("acct.rulesHint")}</span>
+      </div>
     </>
   );
 }

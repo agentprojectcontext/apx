@@ -401,4 +401,12 @@ export const esChannels: Partial<Record<MessageKey, string>> = {
   "ch.right.no": "No",
   "acct.contactsDefault": "Para tus contactos, por defecto",
   "acct.contactsDefaultHint": "Lo que recibe cada contacto de esta cuenta, salvo que lo cambies en su ficha.",
+  "acct.ownerOnly": "Solo te contesta a vos",
+  "acct.ownerOnlyHint": "Los mensajes de tus contactos y salas se guardan, pero solo te responde a vos.",
+  "acct.knowledge": "Lo que sabe y puede responder",
+  "acct.knowledgeHint":
+    "Tus notas para todos los que escriben a esta cuenta: qué es el negocio, adónde mandarlos. Las salas suman las suyas.",
+  "acct.rules": "Reglas",
+  "acct.rulesHint":
+    "Lo que nunca debe decir acá. Van al final; las reglas propias de un contacto o de una sala van después y ganan.",
 };

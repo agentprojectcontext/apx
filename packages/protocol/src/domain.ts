@@ -1189,6 +1189,12 @@ export const ChannelInfo = z.object({
   hours: ChannelHours.optional(),
   /** What its contacts' chats may do unless the owner set it for one of them (none: all off). */
   contacts: PersonPerms.optional(),
+  /** The owner's notes for every contact and room of the account: what it can do and answer there. */
+  knowledge: z.string().max(12_000).optional(),
+  /** The owner's rules for every contact and room of the account; a contact's or a room's own go after and win. */
+  rules: z.string().max(2000).optional(),
+  /** Only the owner is answered: contacts' and rooms' messages are kept, never answered. */
+  owner_only: z.boolean().optional(),
   /** Email: the mailbox and its servers. */
   email: ChannelEmail.optional(),
   token_set: z.boolean(),

@@ -78,7 +78,10 @@ function channelLine(store: Store, c: Channel): string {
     ...Object.entries(c.contacts ?? {})
       .filter(([, on]) => on)
       .map(([k]) => `contacts may: ${k}`),
-  ];
+    c.owner_only ? "answers only the owner" : "",
+    c.knowledge?.trim() ? "has notes for everyone on it" : "",
+    c.rules?.trim() ? "has rules for everyone on it" : "",
+  ].filter(Boolean);
   return `- ${inlineName(c.label ?? c.id)} [${c.id}] (${bits.join(", ")})${rooms ? `; rooms: ${rooms}` : ""}`;
 }
 
@@ -194,7 +197,7 @@ export const PEOPLE: Readonly<Record<string, Setting>> = {
         .join("\n") || "no channels set up.",
   },
   "channels.set": {
-    does: "change a channel already set up (id, and under channel only what changes: label, owner_thread home|own (home only when the super-agent answers it), agent_id (who answers the owner), contacts_agent_id (who answers its contacts and rooms), strangers, rooms, hours when it answers contacts {days 0 = Sunday, from, to HH:MM in the owner's time zone} or null for any hour, contacts {appointments, requests, notes, any_hour} what every contact may do unless set for one…); its sign-in, mail account and research stay the owner's",
+    does: "change a channel already set up (id, and under channel only what changes: label, owner_thread home|own (home only when the super-agent answers it), agent_id (who answers the owner), contacts_agent_id (who answers its contacts and rooms), strangers, rooms, hours when it answers contacts {days 0 = Sunday, from, to HH:MM in the owner's time zone} or null for any hour, contacts {appointments, requests, notes, any_hour} what every contact may do unless set for one, knowledge and rules the owner's notes and rules for everyone on it, owner_only true answers only the owner…); its sign-in, mail account and research stay the owner's",
     asks: "card",
     says: (p, { store }) => `Change the channel ${inlineName(channelOf(store, p.id)?.label ?? str(p.id))}`,
     refuse: (p, { store }) => {

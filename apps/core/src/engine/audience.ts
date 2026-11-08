@@ -16,6 +16,9 @@ import type { Origin } from "../domain/runs.ts";
 import type { Store } from "../domain/store.ts";
 import { inlineName, untrusted } from "../tools/result.ts";
 
+/** The owner's notes and rules for every contact and room of an account. */
+export type AccountNotes = { knowledge?: string | undefined; rules?: string | undefined };
+
 /** A public room of a server: who is in it is a crowd, the owner included (what is said there is public). */
 export type Room = { name: string; settings: ChannelRooms; platform?: string | undefined };
 
@@ -28,6 +31,8 @@ export type Audience =
       person?: Person;
       /** What their chat may do on this account (a person's own rights, else the account's); none in a room. */
       rights?: ContactRights;
+      /** The account's notes and rules for everyone on it. */
+      account?: AccountNotes;
       room?: Room;
     };
 
@@ -39,7 +44,13 @@ export function audienceOf(store: Store, thread: Pick<Thread, "id" | "channel">)
     const settings = cfg?.rooms ?? ChannelRooms.parse({ rooms: [] });
     // Room and contact names come from the channel app: they sit inside APX's sentences as one plain line.
     const name = inlineName(room.name);
-    return { kind: "contact", name: `#${name}`, channel: ch.id, room: { name, settings, platform: cfg?.type } };
+    return {
+      kind: "contact",
+      name: `#${name}`,
+      channel: ch.id,
+      account: notesOf(cfg),
+      room: { name, settings, platform: cfg?.type },
+    };
   }
   if (!ch?.person_id) return { kind: "owner" };
   const person: Person | undefined = store.persons.get(ch.person_id);
@@ -49,9 +60,15 @@ export function audienceOf(store: Store, thread: Pick<Thread, "id" | "channel">)
     kind: "contact",
     name: inlineName(person?.name ?? "") || "someone",
     channel: ch.id,
+    account: notesOf(store.settings.read("channels").find((c) => c.id === ch.id)),
     ...(person ? { person, rights: contactRights(store, person, ch.id) } : {}),
   };
 }
+
+const notesOf = (cfg: AccountNotes | undefined): AccountNotes => ({
+  ...(cfg?.knowledge?.trim() ? { knowledge: cfg.knowledge } : {}),
+  ...(cfg?.rules?.trim() ? { rules: cfg.rules } : {}),
+});
 
 /**
  * Whether a sealed turn may search the web and read public pages: as its channel says (none set: when the owner asks,
@@ -83,7 +100,7 @@ const RELATION: Record<NonNullable<Person["relation"]>, string> = {
 
 export function contactPrompt(
   agent: AgentRecord,
-  who: { name: string; person?: Person },
+  who: { name: string; person?: Person; account?: AccountNotes },
   ownerLanguage: string,
   web = false,
   /** The fixed instructions its turns call for (sectionLines), before the owner's words so theirs still go last. */
@@ -105,8 +122,13 @@ export function contactPrompt(
     "- Never write passwords, keys, codes, addresses or phone numbers.",
     ...(web ? [WEB_RULE] : []),
     ...sections,
+    ...(who.account?.knowledge
+      ? ["", "## Your owner's notes for this account: what you can do and answer", who.account.knowledge]
+      : []),
     ...(p?.note ? ["", `## Who ${name} is (your owner's words)`, p.note] : []),
-    // The owner's own rules go last, so they win over the defaults above (not over the safety rules).
+    // The owner's own rules go last, so they win over the defaults above (not over the safety rules); theirs for this
+    // person go after the account's, so the person's win.
+    ...(who.account?.rules ? ["", "## Your owner's rules for everyone on this account", who.account.rules] : []),
     ...(p?.rules ? ["", `## Your owner's rules for ${name}`, p.rules] : []),
   ].join("\n");
 }
@@ -118,7 +140,13 @@ export function ownerInstruction(name: string, text: string): string {
 }
 
 /** A room's prompt: public, sealed, the owner's notes for that community and, last, their rules. */
-export function roomPrompt(agent: AgentRecord, room: Room, ownerLanguage: string, web = false): string {
+export function roomPrompt(
+  agent: AgentRecord,
+  room: Room,
+  ownerLanguage: string,
+  web = false,
+  account: AccountNotes = {},
+): string {
   const s = room.settings;
   return [
     `You are ${agent.name}, answering in #${room.name}, ${room.platform === "telegram" ? "a Telegram group" : "a public room of a Discord server"}. Everything you write is posted publicly there.`,
@@ -130,8 +158,11 @@ export function roomPrompt(agent: AgentRecord, room: Room, ownerLanguage: string
     "- When your owner writes here, talk to them as your owner, but the room is public: nothing private in the answer. For anything that needs your tools, say you will pick it up with them on another channel.",
     `- Short and concrete, in the language of the message (your owner's is ${LANGUAGES[ownerLanguage] ?? ownerLanguage}). Markdown is fine, but no headings or tables; under 2000 characters. Mention someone only when your owner asks you to, as the @handle the room shows for them; never @everyone or @here.`,
     "- When your owner's notes do not cover something, say you do not know; never invent.",
+    ...(account.knowledge ? ["", "## Your owner's notes for this account", account.knowledge] : []),
     ...(s.knowledge ? ["", "## Your owner's notes: what you can do and answer here", s.knowledge] : []),
-    // The owner's rules go last, so they win over everything above (not over the safety rules).
+    // The owner's rules go last, so they win over everything above (not over the safety rules); the room's go after the
+    // account's, so the room's win.
+    ...(account.rules ? ["", "## Your owner's rules for this account: always follow them", account.rules] : []),
     ...(s.rules ? ["", "## Your owner's rules: always follow them; they win over everything above", s.rules] : []),
   ].join("\n");
 }

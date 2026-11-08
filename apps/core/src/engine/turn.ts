@@ -710,7 +710,7 @@ function systemFor(
   if (turn.audience.kind === "contact")
     return plain(
       turn.audience.room
-        ? roomPrompt(turn.agent, turn.audience.room, lang, turn.web)
+        ? roomPrompt(turn.agent, turn.audience.room, lang, turn.web, turn.audience.account)
         : contactPrompt(turn.agent, turn.audience, lang, turn.web, sectionLines(told)),
     );
   // The thread's project when it has one (a global agent working there needs its AGENTS.md too).
