@@ -1801,7 +1801,7 @@ export const en = {
     "On: its news always arrives, even at night or past the daily cap (for a morning or evening brief). Off: it goes through your interruption budget.",
   "nudge.where": "Chat app for notices",
   "nudge.whereHint":
-    "The app and your paired phones always get them (pair one in Devices). Pick a chat app to get them there too, or none.",
+    "The app and your paired phones always get them (pair one in Devices). Pick one of the chat accounts your super-agent answers to get them there too, or none.",
   "nudge.whereAuto": "The first channel that knows you",
   "nudge.whereNone": "None, only in the app",
   "devices.push.expo": "Push",

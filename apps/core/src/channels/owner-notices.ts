@@ -7,6 +7,7 @@ import { appOnly, noticePrefs, quietNow } from "../domain/notices.ts";
 import type { NewNotification } from "../domain/notifications.ts";
 import { OWNER_ID } from "../domain/persons.ts";
 import type { Store } from "../domain/store.ts";
+import { answersInHome } from "./agent-project.ts";
 import type { Delivery } from "./delivery.ts";
 import { inputPresentation } from "./notices.ts";
 import { channelTexts } from "./texts.ts";
@@ -29,16 +30,18 @@ export function createOwnerNotices(deps: {
   const { store } = deps;
 
   /**
-   * Something for the owner, on their preferred channel or another that knows them (the outbox waits while it is not
-   * running); in quiet hours it arrives without sound. False when no channel knows the owner.
+   * Something for the owner, on their preferred channel or another that knows them and the super-agent answers (the
+   * outbox waits while it is not running); in quiet hours it arrives without sound. False when no such channel knows
+   * the owner.
    */
   function notifyOwner(body: Presentation, kind: OutboxRow["kind"] = "notice", threadId?: string): boolean {
     const prefs = noticePrefs(store);
     // The app only: what is told here is in the tray and on their phones already.
     if (appOnly(prefs)) return false;
     const refused = new Set(body.refused_by);
+    // Notices are the super-agent's words: an account a project's head answers is that head's line, not theirs.
     const order = [...deps.live()]
-      .filter((l) => !refused.has(l.config.id))
+      .filter((l) => !refused.has(l.config.id) && answersInHome(store, l.config.agent_id))
       .sort(
         (a, b) =>
           Number(b.config.id === prefs.channel) - Number(a.config.id === prefs.channel) ||

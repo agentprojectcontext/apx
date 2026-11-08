@@ -190,3 +190,30 @@ test("Home is the super-agent's: a channel a project's head answers keeps the ow
     "nothing of it lands in Home",
   );
 });
+
+test("notices for the owner go out only on an account the super-agent answers", async (t) => {
+  const env = await setup(t);
+  const dir = tempDir("apx-notice-");
+  t.after(() => dir.remove());
+  fs.writeFileSync(path.join(dir.path, "AGENTS.md"), "# Acme\n");
+  const { project } = await env.client.call("projects.register", { path: dir.path, init: true });
+  const head = await env.client.call("agents.create", { project_id: project.id, slug: "acme-head", name: "Head" });
+  const sent = () =>
+    env.core.store.channels.outbox.recent(50).filter((o) => o.channel === "tg" && o.text === "Routine news").length;
+
+  await env.client.call("channels.set", {
+    id: "tg",
+    channel: { type: "telegram", agent_id: head.id, owner_thread: "own" },
+    token: TOKEN,
+  });
+  assert.equal(env.core.channels.notifyOwner({ text: "Routine news" }), false, "a head's account is not a notice line");
+  assert.equal(sent(), 0);
+
+  await env.client.call("channels.set", {
+    id: "tg",
+    channel: { type: "telegram", agent_id: "superagent", owner_thread: "home" },
+    token: TOKEN,
+  });
+  assert.equal(env.core.channels.notifyOwner({ text: "Routine news" }), true);
+  assert.equal(sent(), 1);
+});
