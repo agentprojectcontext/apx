@@ -4208,10 +4208,11 @@ Start times, the hourly pickup and the stall check each listed the 500 most rece
 them in code, so in an office with more open tasks an eligible older one was never seen (#139).
 
 - **Start times and pickup filter in SQL** (`domain/task-lanes.ts`): open, not proposed or in review, described (blank
-  as the start reads it: SQLite's `trim()` is given every character JavaScript's `trim()` strips), an agent that exists, no chat yet, not held, start time come (pickup: assigned since `task_work_since`), ordered as
-  before (start time; priority then nearest due date) and limited to the three that start. Every condition the start
-  checks again is in the query, so a task that cannot start never takes a slot; a tripped chain turns into a hold and
-  leaves the query. No cursor or saved state is needed.
+  as the start reads it: SQLite's `trim()` is given every character JavaScript's `trim()` strips), an agent that exists,
+  no chat yet, not held, start time come (pickup: assigned since `task_work_since`), ordered as before (start time;
+  priority then nearest due date) and limited to the three that start. Every condition the start checks again is in the
+  query, so a task that cannot start never takes a slot; a tripped chain turns into a hold and leaves the query. No
+  cursor or saved state is needed.
 - **Stall recovery walks a cursor.** Whether a task stalled depends on its chats' last turns, which SQL does not filter
   cheaply, so the check takes the next 100 tasks in progress (in progress, an existing agent, not awaiting the owner,
   no open subtask) after a cursor saved in settings (`task_stall_after`), wraps once to the start, and asks at most
@@ -4236,13 +4237,15 @@ happened to work it had started itself.
 
 - **Recorded at the start** (`startTaskWork` in `engine/task-work.ts`): when the head starts a task from a project chat
   that is not a task's own, the task's chat keeps `coordination_from` (that chat, the head's run, the work run). A held
-  start that resumes later goes through the same place, so it is recorded then.
+  start that resumes later goes through the same place, so it is recorded then. Any other start (the owner's, another
+  agent's, the head's from elsewhere) clears it: it is the coordination that most recently started the task.
 - **Trusted only if it checks out** (`coordinatedTaskSource` in `engine/task-report.ts`): the record counts only while
   the head's run is in that chat, the chat is in the task's project, and the work run is in a chat of that task, was
   started by that same run and began after it. Anything else, a forged or stale record included, is ignored.
-- **What the head hears**: the task's close report, as any recipient (D-076's report). A reviewer that sends the task
-  back (`reviewEnded`) also tells the head with a `task_feedback` turn, framed as team feedback and not an approval,
-  once per reviewer run (`coordination_feedback` in the head's chat) and not while that chat is paused (D-081).
+- **What the head hears**: the task's close report, as any recipient (D-076's report), unless it closed the task itself.
+  A reviewer that sends the task back (`reviewEnded`) also tells the head with a `task_feedback` turn, framed as team
+  feedback and not an approval, once per reviewer run (`coordination_feedback` in the head's chat) and not while that
+  chat is paused (D-081).
 - **No new authority**: hearing a result grants nothing. What the head does next goes through the same assignment,
   proposal and review rules (D-079, D-131).
 

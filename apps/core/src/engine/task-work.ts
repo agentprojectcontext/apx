@@ -212,10 +212,12 @@ export function startTaskWork(
   const work = ask(store, admit, task, agentId, text, asker, author, sessionFor(store, task, agentId, source));
   if (self) markHandoff(store, task, asker, work);
   // A project's head that starts a task from its own chat is its coordinator: the result of that task returns there.
-  if (asker.kind === "agent" && projectCoordinatorChat(store, task, { id: asker.id, thread_id: asker.thread_id }))
-    store.threads.mergeContext(task.thread_id, {
-      coordination_from: { thread: asker.thread_id, run: asker.run_id, work_run: work.id },
-    });
+  // Anyone else's start ends that coordination (DECISIONS.md#d-207).
+  const coordinates =
+    asker.kind === "agent" && projectCoordinatorChat(store, task, { id: asker.id, thread_id: asker.thread_id });
+  store.threads.mergeContext(task.thread_id, {
+    coordination_from: coordinates ? { thread: asker.thread_id, run: asker.run_id, work_run: work.id } : undefined,
+  });
   const sourceRun = asker.kind === "agent" ? store.runs.get(asker.run_id) : undefined;
   if (asker.kind === "agent" && sourceRun && !sourceRun.ended_at) {
     const previous = store.threads.context(asker.thread_id).task_dispatches;
