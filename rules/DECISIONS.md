@@ -4114,3 +4114,21 @@ Rejected: a comment quota per task (the owner's own turns and real questions mus
 reviewers comment when they find a block (every review found one, D-188), and removing comments by a heuristic
 without the owner seeing what goes.
 
+
+<a id="d-203"></a>
+## D-203 — Customer service capabilities are account-scoped and opt-in
+
+An account's `service_mode` separates admission from execution. Base is the default and preserves sealed contacts
+and WhatsApp owner handoff. Review and full deliberately allow the assigned agent/project's tools in private
+customer chats without promoting the sender to owner. Rooms remain sealed. Customer prompts include the service
+agent's instructions but do not automatically receive private owner memory or other conversations.
+
+Review binds a proposed tool and parsed arguments to its source run, account, customer, agent and project. The
+super-agent receives a restricted child conversation through `threads.send`, with only `ask_owner` available;
+a completed strict JSON decision is consumed internally, never broadcast as a delegation result. Invalid, failed,
+canceled or incomplete reviews authorize nothing. Each operation needs its own decision; no chat-wide grant exists.
+Full skips this review, not existing tool permissions, MCP project/trust checks or human confirmations. Owner-setting
+methods still require the owner's own request. Configuration or identity changes invalidate waiting operations.
+
+The owner explicitly chooses the service agent's scope before enabling these modes: a general MCP or command tool
+remains as broad as its existing grants. The mode never makes a private administrative MCP customer-scoped by itself.

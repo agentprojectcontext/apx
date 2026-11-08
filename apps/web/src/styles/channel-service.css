@@ -1,0 +1,18 @@
+@media (max-width: 640px) {
+  .channel-service .apx-setting__control {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+  }
+  .channel-service .apx-segmented {
+    width: 100%;
+    max-width: 100%;
+  }
+  .channel-service .apx-segmented__item {
+    flex: 1;
+    min-width: 0;
+    justify-content: center;
+    white-space: normal;
+    text-align: center;
+  }
+}

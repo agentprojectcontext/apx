@@ -304,6 +304,14 @@ export function threadHandlers(store: Store, engine: Engine, upkeep: Pick<Upkeep
     "threads.send": ({ thread, text, mode, attachments, continue_run, via }, ctx) => {
       ownClientThread(thread, ctx);
       const { agent, thread: target } = threadAgent(thread);
+      const review = store.threads.context(thread).service_review;
+      if (
+        review &&
+        (ctx.transport !== "internal" ||
+          ctx.agent?.run_id !== review.source_run ||
+          ctx.agent?.call_id !== review.call_id)
+      )
+        throw unauthorized("only the originating operation may start this review");
       if (continue_run) {
         if (ctx.actor !== "human" || ctx.client || ctx.channel)
           throw unauthorized("only the owner can continue a stopped delegated session");
@@ -342,7 +350,11 @@ export function threadHandlers(store: Store, engine: Engine, upkeep: Pick<Upkeep
       const task = ctx.actor === "agent" ? undefined : assignedTaskOf(store, thread);
       if (task) return toTaskWork(task, text, mode, attachments ?? []);
       if (mode === "interrupt") engine.interrupt(thread);
-      if (ctx.agent && target.engine && target.parent_id === ctx.agent.thread_id) {
+      if (
+        ctx.agent &&
+        (target.engine || store.threads.context(target.id).service_review) &&
+        target.parent_id === ctx.agent.thread_id
+      ) {
         const parent = store.runs.get(ctx.agent.run_id);
         const from = store.agents.get(ctx.agent.id);
         if (!parent || !from || parent.agent_id !== from.id || parent.thread_id !== target.parent_id)

@@ -4,6 +4,7 @@ import type { ChannelClosers, ChannelHours, ChannelInfo, ChannelResearch, Outbox
 import { CHANNEL_DEFAULTS } from "@apx/protocol/client";
 import { Badge, Button, IconButton, Icons, Input, Menu, SegmentedControl, SettingRow, Switch } from "@apx/ui";
 import { useMemo, useState } from "react";
+import "../styles/channel-service.css";
 import { ownerOn, PairingRow } from "../channels/StartRows.tsx";
 import { AgentSelect } from "../common/pickers/AgentSelect.tsx";
 import { WeekDays } from "../common/pickers/WeekDays.tsx";
@@ -61,6 +62,23 @@ export function Behavior({
           className="tgagent"
           value={channel.agent_id}
           onChange={(id) => id && id !== channel.agent_id && void save({ agent_id: id })}
+        />
+      </SettingRow>
+      <SettingRow
+        className="channel-service"
+        title={t("ch.service")}
+        description={t(`ch.serviceHint.${channel.service_mode ?? "base"}`)}
+      >
+        <SegmentedControl
+          size="sm"
+          label={t("ch.service")}
+          value={channel.service_mode ?? "base"}
+          onValueChange={(value) => void save({ service_mode: value as ChannelInfo["service_mode"] })}
+          options={[
+            { value: "base", label: t("ch.service.base") },
+            { value: "review", label: t("ch.service.review") },
+            { value: "full", label: t("ch.service.full") },
+          ]}
         />
       </SettingRow>
       <SettingRow title={t("tg.concurrency")} description={t(`ch.concurrencyHint.${channel.concurrency}`)}>

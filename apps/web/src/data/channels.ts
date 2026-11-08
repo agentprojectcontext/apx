@@ -71,6 +71,7 @@ export type ChannelDraft = {
   agent_id: string;
   enabled: boolean;
   strangers: ChannelInfo["strangers"];
+  service_mode?: ChannelInfo["service_mode"];
   concurrency: ChannelInfo["concurrency"];
   owner_thread: ChannelInfo["owner_thread"];
   self_owner?: boolean | undefined;
@@ -127,6 +128,7 @@ export async function saveChannel(id: string, draft: ChannelDraft | null, token?
       channel: draft
         ? {
             type: before.find((c) => c.id === id)?.type ?? TYPES.find((k) => k === id) ?? "telegram",
+            service_mode: before.find((c) => c.id === id)?.service_mode ?? "base",
             ...draft,
           }
         : null,

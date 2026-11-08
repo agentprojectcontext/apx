@@ -322,6 +322,7 @@ export type Sections = {
   chats?: string[] | undefined;
   /** Of those, the ones the owner writes to this chat from (Home): one conversation, and how to answer there. */
   ownerChats?: string[] | undefined;
+  service?: boolean | undefined;
   /** Answers on a channel also go as voice notes. */
   voice?: boolean | undefined;
   /** A channel of this chat has stickers the agent may send. */
@@ -360,7 +361,7 @@ export function sectionLines(s: Sections, workspace = ""): string[] {
           `## Phone chats (channel: ${s.chats.join(", ")})`,
           `- ${CHAT_STYLE}`,
           ...(s.ownerChats?.includes("whatsapp")
-            ? [`- When your owner writes on whatsapp: ${ownerChannelNote("whatsapp")}`]
+            ? [`- When your owner writes on whatsapp: ${ownerChannelNote("whatsapp", s.service)}`]
             : []),
           ...(others.length
             ? [`- When your owner writes on ${others.join(" or ")}: ${ownerChannelNote(others.join(" or "))}`]
@@ -480,8 +481,8 @@ const SAME_CHAT = (channel: string) =>
 const ATTACH_NOTE = (channel: string) => `A file you attach with send_file reaches them on ${channel} too.`;
 
 /** What the owner's turn on a phone chat adds: how to hand work off on WhatsApp, how to say "on it" elsewhere. */
-const ownerChannelNote = (channel: string) =>
-  channel === "whatsapp"
+const ownerChannelNote = (channel: string, service = false) =>
+  channel === "whatsapp" && !service
     ? `${SAME_CHAT(channel)} ${HANDOFF_NOTE}`
     : `${SAME_CHAT(channel)} ${ATTACH_NOTE(channel)} ${ACK_NOTE}`;
 
@@ -583,7 +584,9 @@ export function turnBlocks(opts: TurnOpts): InputBlock[] {
     ["channel style", chat && !toldChat ? `[channel style] ${CHAT_STYLE}` : ""],
     [
       "channel turn",
-      ownerOnChat && !told.ownerChats?.includes(channel) ? `[channel turn] ${ownerChannelNote(channel)}` : "",
+      ownerOnChat && !told.ownerChats?.includes(channel)
+        ? `[channel turn] ${ownerChannelNote(channel, told.service)}`
+        : "",
     ],
     ["voice", opts.voice && !toldVoice ? `[voice] ${VOICE_STYLE}` : ""],
     ["mode", opts.mode && !toldMode ? `[mode] ${modeBlock(opts.mode)}` : ""],

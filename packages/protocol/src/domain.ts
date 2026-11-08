@@ -1139,6 +1139,9 @@ export const ChannelHours = z.object({
 });
 export type ChannelHours = z.infer<typeof ChannelHours>;
 
+export const ChannelServiceMode = z.enum(["base", "review", "full"]);
+export type ChannelServiceMode = z.infer<typeof ChannelServiceMode>;
+
 export const ChannelInfo = z.object({
   id: z.string(),
   type: ChannelType,
@@ -1151,6 +1154,7 @@ export const ChannelInfo = z.object({
    * a notice asking the owner first, an answer right away as a new contact, or nothing.
    */
   strangers: ChannelStrangers,
+  service_mode: ChannelServiceMode.optional(),
   /** A new message while the agent is working: wait for it, stop it, or (APX's own loop) slip into it. */
   concurrency: z.enum(["queue", "interrupt", "steer"]),
   /** The owner's messages go to this account's own chat. `home` is read only for legacy settings. */

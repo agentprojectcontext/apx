@@ -677,6 +677,11 @@ export function createDelegations(deps: {
      * its card settled, then its answer goes to the waiting caller or is delivered later.
      */
     childEnded(child: RunRecord): void {
+      if (store.threads.context(child.thread_id).service_review) {
+        const parent = store.threads.get(child.thread_id)?.parent_id;
+        if (parent) release(parent);
+        return;
+      }
       const from = TERMINAL.has(child.state) ? store.threads.get(child.thread_id)?.parent_id : undefined;
       const parent = child.parent_run_id ? store.runs.get(child.parent_run_id) : undefined;
       if (!parent) {
