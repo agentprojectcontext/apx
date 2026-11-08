@@ -16,17 +16,22 @@ export function BrowserCard({ part, agentName }: { part: BrowserPart; agentName:
   const theme = useTheme();
   const s = useStyles();
   const vm = part.environment === "vm";
+  const chrome = part.environment === "chrome";
   const host = hostPath(part.url);
   const title = part.title || host;
   const status = vm
     ? t("browserComputer")
-    : part.state === "handoff"
-      ? (part.reason ?? t("browserHandoff", { name: agentName }))
-      : part.state === "user"
-        ? t("browserYouControl")
-        : part.state === "agent"
-          ? t("browserAgentBrowsing", { name: agentName, host })
-          : t("browserFinished", { host });
+    : chrome
+      ? part.state === "agent"
+        ? t("browserInChrome", { name: agentName })
+        : t("browserFinished", { host })
+      : part.state === "handoff"
+        ? (part.reason ?? t("browserHandoff", { name: agentName }))
+        : part.state === "user"
+          ? t("browserYouControl")
+          : part.state === "agent"
+            ? t("browserAgentBrowsing", { name: agentName, host })
+            : t("browserFinished", { host });
   const live = !vm && part.state !== "done";
   const opens = !vm && opensOnPhone(part.url);
   return (
@@ -39,7 +44,7 @@ export function BrowserCard({ part, agentName }: { part: BrowserPart; agentName:
       style={({ pressed }) => [s.card, pressed && { backgroundColor: theme.fill }]}
     >
       <View style={s.tile}>
-        <Icon name={vm ? "Monitor" : "Globe"} size={18} color={theme.brandSoftFg} />
+        <Icon name={vm ? "Monitor" : chrome ? "Chrome" : "Globe"} size={18} color={theme.brandSoftFg} />
       </View>
       <View style={s.body}>
         <Text numberOfLines={1} style={s.title}>

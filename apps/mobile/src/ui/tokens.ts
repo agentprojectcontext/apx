@@ -82,6 +82,7 @@ export const palettes = {
     controlHSm: 28,
     controlHMd: 34,
     controlHLg: 42,
+    inputBorder: "rgba(255, 255, 255, 0.07)",
     bubbleRadius: 18,
     rowRadius: 10,
     composerRadius: 26,

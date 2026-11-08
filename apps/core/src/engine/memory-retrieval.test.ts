@@ -21,9 +21,9 @@ async function source(env: Awaited<ReturnType<typeof startCore>>, text: string, 
     ? env.core.store.threads.get(thread)
     : await env.client.call("threads.create", { kind: "loose", agent_id: "superagent" });
   assert.ok(t);
-  await env.client.call("threads.send", { thread: t.id, text });
+  const sent = await env.client.call("threads.send", { thread: t.id, text });
   await env.settle(t.id);
-  const run = env.core.store.runs.list(t.id, 1)[0];
+  const run = env.core.store.runs.get(sent.run.id);
   assert.ok(run);
   const message = env.core.store.memorySources.forRun(run.id)[0];
   assert.ok(message);

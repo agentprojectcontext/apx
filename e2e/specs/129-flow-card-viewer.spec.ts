@@ -88,6 +88,7 @@ for (const phone of [false, true]) {
     await expect(viewer.locator(".react-flow__node.draggable")).toHaveCount(0);
     // A step dragged stays where it was, and dragging from a step's way out to another joins nothing.
     const hook = nodes.filter({ hasText: "New lead" }).first();
+    await expect(hook).toBeVisible();
     const where = await hook.getAttribute("style");
     const from = await hook.boundingBox();
     if (from) {

@@ -255,6 +255,25 @@ error de espacio o de base de datos, conservá el backup, resolvé la causa y re
 y restaurá los datos previos junto con su versión del programa, guardando aparte los datos de la actualización
 fallida. No cambies la versión del esquema a mano. Restaurar un backup descarta los cambios posteriores a esa copia.
 
+### Una migración informa que un índice ya existe
+
+A partir de v2.13.2, el arranque puede reconciliar una
+diferencia reconocida entre el contador de migraciones y las columnas e índices de las migraciones
+101–108. Primero comprueba el esquema anterior completo, incluidas las restricciones de las tablas, y las definiciones existentes. Antes de cambiar nada, guarda una
+copia consistente de la base en `backups/migration-<id-único>/apx.db`, dentro de la carpeta de datos, y aplica
+solamente los cambios faltantes en una transacción. Conserva los objetivos y pedidos de las tareas, el orden de
+la cola y los marcadores de retención existentes. Si falta la columna que registra qué aparece en Apps, ejecuta su
+conversión original una sola vez; nunca vuelve a convertir las elecciones existentes. Las actualizaciones normales
+siguen confirmando las migraciones de a una y no crean esta copia adicional.
+
+No es una reparación general de cambios locales arbitrarios. Una definición incompatible, un trigger no reconocido,
+una versión desconocida, falta de espacio para el backup o una comprobación de integridad fallida detienen el arranque
+sin confirmar la reparación. Conservá los datos y cualquier backup; no borres índices, agregues columnas ni cambies `schema_version`
+a mano. Detené los otros cores que usen la misma carpeta antes de reintentar. La copia automática contiene chats
+privados, no los archivos multimedia ni los secretos del llavero; mantenela protegida. Para restaurarla, detené APX
+y guardá por separado la base fallida y sus archivos WAL antes de reemplazarla. Usá una versión del programa
+compatible con el esquema original de esa copia.
+
 ## Desinstalar
 
 Desinstalar saca el programa y su servicio. **Tus datos quedan** en `~/.apx/v2`; borrá esa carpeta vos si querés

@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { StyleSheet, Text, View } from "react-native";
 import { ago } from "../format";
-import { isWorking } from "../hooks/chatSelectors";
+import { chatPreview, isWorking } from "../hooks/chatSelectors";
 import type { Task, TaskUsage, Thread, Workspace } from "../hooks/useWorkspace";
 import { t } from "../i18n";
 import { AgentAvatar, BottomSheet, ListRow, Spinner, useType } from "../ui/kit";
@@ -85,7 +85,7 @@ function WorkRow({ session, data, onPress }: { session: Thread; data: Workspace;
   return (
     <ListRow
       label={session.kind === "a2a" ? `${name} · ${t("tkConsult")}` : name}
-      sub={chat.preview || chat.title}
+      sub={chatPreview(chat) || chat.title}
       leading={<AgentAvatar name={name} blob={agent?.blob} id={agent?.id ?? name} size={32} />}
       trailing={
         working ? (

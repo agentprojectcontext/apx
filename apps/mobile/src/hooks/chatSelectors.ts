@@ -1,3 +1,4 @@
+import { plainLines, previewLine } from "../chat/markdown.ts";
 import { textOrder } from "../format.ts";
 import { type Key, t } from "../i18n/index.ts";
 import type { Agent, Job, Thread, Workspace } from "./useWorkspace";
@@ -47,11 +48,9 @@ export function inboxThreads(threads: Thread[], routines: boolean): Thread[] {
 /** A routine run's chat is titled "<routine> · <when>". */
 export const routineName = (thread: Pick<Thread, "title">): string => thread.title.split(" · ")[0] ?? thread.title;
 
-const plain = (line: string) => line.replace(/\*\*|`|^\s*(#+|>|[-*])\s+/g, "").trim();
-
 /** A routine run's words as a title (its first line, or that line's first sentence) and what follows it. */
 function splitTold(preview: string): [string, string] {
-  const lines = preview.split("\n").map(plain).filter(Boolean);
+  const lines = plainLines(preview);
   const [first = "", ...rest] = lines;
   const cut = first.search(/[.!?](\s|$)/);
   if (cut > 0 && cut < first.length - 1)
@@ -68,7 +67,7 @@ export function chatTitle(thread: Thread): string {
 
 /** A chat's second line: what was said last; a routine run's goes on after its title (all of it when it is short). */
 export function chatPreview(thread: Thread): string {
-  if (thread.kind !== "routine") return thread.preview;
+  if (thread.kind !== "routine") return previewLine(thread.preview);
   const [title, rest] = splitTold(thread.preview);
   return rest || title;
 }
@@ -170,9 +169,11 @@ export function threadContext(
     ? (CHANNEL_NAMES[channel?.type ?? ""] ?? channel?.label ?? thread.channel.id)
     : thread.engine
       ? engineName(thread.engine)
-      : thread.agent_ids.length > 1
-        ? tr("groupOf", { n: thread.agent_ids.length })
-        : tr("inApp");
+      : thread.flow
+        ? tr("flowStep")
+        : thread.agent_ids.length > 1
+          ? tr("groupOf", { n: thread.agent_ids.length })
+          : tr("inApp");
   return `${project} · ${where}`;
 }
 

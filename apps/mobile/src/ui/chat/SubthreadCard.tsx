@@ -67,7 +67,17 @@ export function SubthreadCard({
           {plainText(parseMarkdown(part.summary))}
         </Text>
       ) : null}
-      {part.ms !== undefined ? <Text style={s.meta}>{t("subthreadTook", { time: took(part.ms) })}</Text> : null}
+      {part.ms !== undefined || part.held ? (
+        <Text style={s.meta}>
+          {[
+            part.ms !== undefined ? t("subthreadTook", { time: took(part.ms) }) : undefined,
+            // Its answer waits for the others asked in the same turn: the caller reads them all together.
+            part.held ? t("subthreadHeld", { got: part.held.got, of: part.held.of }) : undefined,
+          ]
+            .filter(Boolean)
+            .join(" · ")}
+        </Text>
+      ) : null}
     </Pressable>
   );
 }

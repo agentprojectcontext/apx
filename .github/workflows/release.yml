@@ -205,6 +205,7 @@ jobs:
       ROLE_ID: ${{ vars.DISCORD_RELEASE_ROLE_ID }}
       BETA: ${{ vars.APX_V2_LATEST != 'true' && '1' || '' }}
       NOTE: ${{ vars.DISCORD_RELEASE_NOTE }}
+      GH_TOKEN: ${{ github.token }}
     steps:
       # The branch's script (an older tag may not have it), with every tag to read the release's commits from.
       - uses: actions/checkout@v4

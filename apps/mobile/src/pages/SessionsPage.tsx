@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Alert, Pressable, Text, View } from "react-native";
 import { listWhen, textOrder } from "../format";
-import { engineName, stateMark } from "../hooks/chatSelectors";
+import { chatPreview, engineName, stateMark } from "../hooks/chatSelectors";
 import type { Engine, NativeSession, Thread, Workspace } from "../hooks/useWorkspace";
 import { t } from "../i18n";
 import { EngineIcon } from "../ui/EngineIcon";
@@ -168,7 +168,7 @@ function SessionRow({ thread, data, onPress }: { thread: Thread; data: Workspace
           {thread.title}
         </Text>
         <Text numberOfLines={1} style={[s.sub, failed && { color: theme.danger }]}>
-          {[project, queued ? t("queued") : undefined, thread.preview].filter(Boolean).join(" · ")}
+          {[project, queued ? t("queued") : undefined, chatPreview(thread)].filter(Boolean).join(" · ")}
         </Text>
       </View>
       <Text style={type.meta}>{listWhen(thread.updated_at)}</Text>

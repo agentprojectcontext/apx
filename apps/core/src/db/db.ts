@@ -2,6 +2,7 @@
 import path from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import { defaultHome, legacyHome } from "../config.ts";
+import { reconcileMigrationLineage } from "./migration-lineage.ts";
 import { MIGRATIONS } from "./migrations.ts";
 
 export type Db = DatabaseSync;
@@ -13,11 +14,16 @@ export function openDb(home: string, env: NodeJS.ProcessEnv = process.env): Db {
   }
   const db = new DatabaseSync(path.join(home, "apx.db"));
   // A new store hands freed pages back to the disk bit by bit; an older one needs one rebuild first (storeRebuild).
-  db.exec(
-    "PRAGMA auto_vacuum = INCREMENTAL; PRAGMA journal_mode = WAL; PRAGMA foreign_keys = ON; PRAGMA busy_timeout = 5000;",
-  );
-  migrate(db);
-  return db;
+  try {
+    db.exec(
+      "PRAGMA auto_vacuum = INCREMENTAL; PRAGMA journal_mode = WAL; PRAGMA foreign_keys = ON; PRAGMA busy_timeout = 5000;",
+    );
+    migrate(db, home);
+    return db;
+  } catch (error) {
+    db.close();
+    throw error;
+  }
 }
 
 export type StoreSize = { bytes: number; free_bytes: number; incremental: boolean };
@@ -53,10 +59,19 @@ export function storeRebuild(db: Db): void {
   db.exec("PRAGMA wal_checkpoint(TRUNCATE)");
 }
 
-function migrate(db: Db): void {
+function migrate(db: Db, home: string): void {
   db.exec("CREATE TABLE IF NOT EXISTS meta (key TEXT PRIMARY KEY, value TEXT NOT NULL)");
   const row = db.prepare("SELECT value FROM meta WHERE key = 'schema_version'").get() as { value: string } | undefined;
   let version = row ? Number(row.value) : 0;
+  if (
+    !Number.isSafeInteger(version) ||
+    version < 0 ||
+    version > MIGRATIONS.length ||
+    (row && !/^\d+$/.test(row.value))
+  ) {
+    throw new Error("Unsupported database schema_version; keep the data and use a matching program version");
+  }
+  version = reconcileMigrationLineage(db, home, version);
   for (const [i, sql] of MIGRATIONS.entries()) {
     if (i < version) continue;
     db.exec("BEGIN");

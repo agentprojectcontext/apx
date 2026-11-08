@@ -1,10 +1,11 @@
 import { useState } from "react";
 import { Alert, ScrollView, Text, TextInput, View } from "react-native";
+import { WEEK } from "../common/week";
 import { dueWhen, sentenceCase } from "../format";
 import type { Routine, Workspace } from "../hooks/useWorkspace";
 import { type Key, t } from "../i18n";
 import type { Schedule } from "../protocol";
-import { WEEK, weeklyCron, weeklyOf } from "../routines/cron";
+import { weeklyCron, weeklyOf } from "../routines/cron";
 import { EVERY_UNITS, type EveryUnit, everyMinutes, everyParts, scheduleOfKind, scheduleValid } from "../routines/edit";
 import { clockValue } from "../tasks/calendar";
 import { assignableAgents } from "../tasks/fields";
