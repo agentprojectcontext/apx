@@ -105,7 +105,7 @@ test("stickers: the owner approves what a sticker means; the agent reads its sti
   const list = await h.ask({ method: "stickers.list", params: { platform: "whatsapp" } });
   assert.match(list.answer, new RegExp(`\\[${sticker}\\] not named yet 🧉`));
   const call = { method: "stickers.set", params: { id: sticker, meaning: "mate shared, all good" } };
-  const { answer, detail } = await h.ask(call, "approve");
+  const { answer, detail } = await h.inMode("manual", () => h.ask(call, "approve"));
   assert.match(detail, /^Change the sticker/);
   assert.match(detail, /meaning: .* → "mate shared, all good"/);
   assert.match(answer, /"mate shared, all good"/);

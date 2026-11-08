@@ -100,6 +100,7 @@ export function requestTools(store: Store): Tool[] {
       // Ignoring changes nothing outside.
       confirm: (a) => (a.decision === "answer" ? "always" : "never"),
       ownerSetting: (a) => a.decision === "answer",
+      keepsCard: (a) => (a.decision === "answer" ? "card" : undefined),
       deadlineMs: 30_000,
       title: (a) => (a.decision === "answer" ? `Let ${String(a.who)} in` : `Ignored ${String(a.who)}`),
       async run(a, ctx) {

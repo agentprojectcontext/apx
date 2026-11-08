@@ -26,10 +26,14 @@ project with none is on **Auto**.
 | `plan` | Plan: reads and proposes, changes nothing | Reads anywhere and answers with a plan. Any call that would change something is refused and the agent is told to propose it instead. |
 | `total` | Total: asks for nothing | Nothing waits for you, in any folder but APX's own. Your explicit choice, for agents you trust to run on their own. |
 
-One kind of change waits for you in every mode, Total included: your super-agent changing what you set up in APX
-(your contacts, channels, agents, profile and other settings). It also happens only when you asked for it yourself, in
-your chat or as the answer to its question: if another agent asks your super-agent for it, nothing changes and you are
-not asked.
+Your super-agent changes what you set up in APX (your contacts, agents, profile and other settings) only when you asked
+for it yourself, in your chat or as the answer to its question: if another agent or a contact asks it, nothing changes
+and you are not asked. When you do ask, its mode decides, as for any strong action: on Total it just does it, on Auto
+it asks first. Contacts, their addresses, stickers, renaming a chat and memory upkeep run in Auto too, unless content
+from outside is in the turn. A few changes wait for your card in every mode, Total included: your MCP servers, your
+channels, your email signatures, who may use the isolated computer, an agent's limits, deleting an agent for good,
+publishing a widget, letting a contact in, clearing a task's comments, and anything that would make someone else you
+(your own addresses, the owner role).
 
 In Auto and Accept edits, your other registered projects and their git worktrees are written like the agent's own
 folder: you registered them. Writing in any other folder raises a card for that call: **Only this time** lets it write
@@ -59,8 +63,8 @@ And this is how they meet. "Here" is a file write or a command in the folder the
 
 <Aside type="caution" title="Total means total">
   An agent on `total` asks for nothing, `always` actions included: destructive commands, messages to contacts.
-  Give it to agents whose work you'd sign without reading. A few things still stop it: what you set up in APX
-  (letting a contact in, agents' limits, the settings your super-agent changes) asks on its card; copying your
+  Give it to agents whose work you'd sign without reading. A few things still stop it: the settings listed above
+  (letting a contact in, agents' limits, MCP servers, channels…) ask on their card; copying your
   browser login asks until you allow it for that agent for good; the browser never types passwords or card numbers;
   and screen control still checks in every 60 actions.
 </Aside>

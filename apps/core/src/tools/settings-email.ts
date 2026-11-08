@@ -10,6 +10,7 @@ export const EMAIL: Readonly<Record<string, Setting>> = {
   },
   "email.signature_default_set": {
     does: "Change or remove the global email signature fallback. signature is enabled/text/optional html or null; expected must be the exact last-read signature or null. Never changes account overrides.",
+    asks: "card",
     says: () => "Change the default email signature",
     whole: true,
   },
@@ -28,11 +29,13 @@ export const EMAIL: Readonly<Record<string, Setting>> = {
   },
   "email.signature_upsert": {
     does: "Create or replace one local APX signature for a configured mailbox. expected must be the exact last-read entry, or null if absent. Does not change Gmail settings or other signatures.",
+    asks: "card",
     says: () => "Change the local email signature",
     whole: true,
   },
   "email.signature_remove": {
     does: "Remove one local signature by transport/account/sender, with the exact last-read entry as expected. Other signatures stay unchanged.",
+    asks: "card",
     says: () => "Remove the local email signature",
     whole: true,
   },

@@ -161,12 +161,12 @@ export type Tool = {
   explain?: ((args: Record<string, unknown>) => string | undefined) | undefined;
   /**
    * The call changes what the owner set up (their contacts, channels, agents, settings): it runs only on the owner's
-   * own word in this chat, never another agent's, and always on their card, whatever the mode (DECISIONS.md#d-140).
+   * own word in this chat, never another agent's (DECISIONS.md#d-140); the mode, or `keepsCard`, says if it asks.
    */
   ownerSetting?: ((args: Record<string, unknown>) => boolean) | undefined;
   /**
    * Total and the agent's own rule `auto` do not skip this call's card (DECISIONS.md#d-143): `card`, nothing does, not
-   * even a grant; `grant`, only the owner's grant for it does. An ownerSetting call is always `card`.
+   * even a grant; `grant`, only the owner's grant for it does.
    */
   keepsCard?: ((args: Record<string, unknown>, agent: AgentRecord) => KeepsCard | undefined) | undefined;
   /** Checks the model's arguments; a failure goes back to the model as the tool's result. */

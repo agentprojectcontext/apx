@@ -35,6 +35,7 @@ export const TEAM: Readonly<Record<string, Setting>> = {
   },
   "environments.permit": {
     does: "let an agent use the isolated computer for good, or take it away (agent, on)",
+    asks: "card",
     named: ["agent"],
     says: (p, { store }) =>
       p.on
@@ -80,11 +81,13 @@ export const TEAM: Readonly<Record<string, Setting>> = {
   },
   "agents.delete": {
     does: "delete an archived agent for good, with its notes (agent)",
+    asks: "card",
     named: ["agent"],
     says: (p, { store }) => `Delete for good the archived agent ${agentName(store, p.agent)} and its notes`,
   },
   "agents.set_agent_limits": {
     does: "how far one agent may go on its own (agent; limits runs/tokens, null: the shared limits)",
+    asks: "card",
     says: (p, { store }) => `Change how far ${agentName(store, p.agent)} may go on its own`,
     now: (p, { store }) => ({
       agent: p.agent,
@@ -163,6 +166,7 @@ export const TEAM: Readonly<Record<string, Setting>> = {
   },
   "threads.update": {
     does: "rename, pin or archive a chat (thread, and only what changes: title, pinned, archived)",
+    asks: "untrusted",
     says: (p, { store }) => `Change the chat ${quoted(store.threads.get(str(p.thread))?.title ?? str(p.thread), 80)}`,
     refuse: (p, { store }) => {
       const t = store.threads.get(str(p.thread));
@@ -193,6 +197,7 @@ export const TEAM: Readonly<Record<string, Setting>> = {
   },
   "sessions.digest": {
     does: "summarize an imported chat (thread) and keep the summary on it",
+    asks: "untrusted",
     named: ["thread"],
     says: (p, { store }) =>
       `Summarize the chat ${quoted(store.threads.get(str(p.thread))?.title ?? str(p.thread), 80)}`,

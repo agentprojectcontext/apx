@@ -27,6 +27,8 @@ export function flowTools(store: Store): Tool[] {
         table: FLOW_SETTINGS,
         areas: AREA,
         looked: "Looked at the Flows",
+        // Turning a Flow on, running it and changing tables stay on the owner's card in every mode (DECISIONS.md#d-184).
+        asks: "card",
         elsewhere:
           "Drafts save freely and run nothing; publishing and running one by hand wait for the owner's OK. Tests and a Flow's address and key stay the owner's, in the Flows editor.",
       },

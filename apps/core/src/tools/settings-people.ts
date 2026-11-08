@@ -41,6 +41,17 @@ function contactLine(p: Person): string {
 
 const SHOWN_CONTACTS = 100;
 
+/** The owner's own record or one of their addresses: who the owner is stays on their card (DECISIONS.md#d-144). */
+const ownersOwn = (p: Params, store: Store) =>
+  personOf(p, store)?.role === "owner" ||
+  store.persons.list().some((x) => x.role === "owner" && x.addresses.some((a) => a.id === p.address));
+
+/** A contact changes like a message to them; making someone the owner, or the owner someone else, keeps its card. */
+const contactAsks = (p: Params, { store }: { store: Store }) => {
+  const cur = personOf(p, store);
+  return ownersOwn(p, store) || (p.role === "owner" && cur?.role !== "owner") ? "card" : "untrusted";
+};
+
 const channelsOf = (store: Store) => store.settings.read("channels");
 type Channel = ReturnType<typeof channelsOf>[number];
 const channelOf = (store: Store, id: unknown) => channelsOf(store).find((c) => c.id === id);
@@ -110,6 +121,7 @@ export const PEOPLE: Readonly<Record<string, Setting>> = {
   },
   "contacts.set": {
     does: "change a contact (id and only what changes: note says who they are, rules how to answer them, any_hour true answers them outside their channel's hours) or add one",
+    asks: contactAsks,
     says: (p, { store }) => {
       const cur = personOf(p, store);
       return cur ? `Change the contact ${inlineName(cur.name)}` : `Add the contact ${inlineName(str(p.name))}`;
@@ -124,6 +136,7 @@ export const PEOPLE: Readonly<Record<string, Setting>> = {
   },
   "contacts.remove": {
     does: "forget a contact (id), or only one of their addresses (address)",
+    asks: (p, { store }) => (ownersOwn(p, store) ? "card" : "untrusted"),
     says: (p, { store }) => {
       const cur = personOf(p, store);
       return cur ? `Forget the contact ${inlineName(cur.name)}` : "Forget an address of a contact";
@@ -131,6 +144,7 @@ export const PEOPLE: Readonly<Record<string, Setting>> = {
   },
   "contacts.address": {
     does: "add an address (a phone, a username) on a channel to a contact (person), or to the owner with no person",
+    asks: (p) => (typeof p.person === "string" ? "untrusted" : "card"),
     named: ["channel", "address", "person"],
     says: (p, { store }) => {
       const who = typeof p.person === "string" ? store.persons.get(p.person) : undefined;
@@ -141,6 +155,7 @@ export const PEOPLE: Readonly<Record<string, Setting>> = {
   },
   "contacts.claim": {
     does: "the owner takes an address of a contact as their own (address: its id, as contacts.list shows it)",
+    asks: "card",
     named: ["address"],
     says: (p, { store }) => {
       const from = store.persons.list().find((x) => x.addresses.some((a) => a.id === p.address));
@@ -159,6 +174,7 @@ export const PEOPLE: Readonly<Record<string, Setting>> = {
   },
   "channels.set": {
     does: "change a channel already set up (id, and under channel only what changes: agent_id, strangers, rooms, hours when it answers contacts {days 0 = Sunday, from, to HH:MM in the owner's time zone} or null for any hour…); its sign-in, mail account and research stay the owner's",
+    asks: "card",
     says: (p, { store }) => `Change the channel ${inlineName(channelOf(store, p.id)?.label ?? str(p.id))}`,
     refuse: (p, { store }) => {
       const now = channelNow(store, p.id);
@@ -234,6 +250,7 @@ export const PEOPLE: Readonly<Record<string, Setting>> = {
   },
   "stickers.set": {
     does: "say what a sticker means (id, meaning), or approve it (blocked false) or block it (blocked true)",
+    asks: "untrusted",
     says: (p, { store }) => `Change the sticker ${inlineName(stickerOf(p, store)?.meaning ?? str(p.id))}`,
     named: ["id"],
     now: (p, { store }) => {
@@ -249,6 +266,7 @@ export const PEOPLE: Readonly<Record<string, Setting>> = {
   },
   "stickers.remove": {
     does: "forget a sticker and its file (id); if someone sends it again it is kept again",
+    asks: "untrusted",
     says: (p, { store }) => `Forget the sticker ${inlineName(stickerOf(p, store)?.meaning ?? str(p.id))}`,
     named: ["id"],
   },

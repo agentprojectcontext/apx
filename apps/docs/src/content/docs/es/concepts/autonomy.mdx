@@ -26,9 +26,15 @@ el de su proyecto, y un proyecto sin modo está en **Auto**.
 | `plan` | Plan: lee y propone, no cambia nada | Lee en cualquier lado y responde con un plan. Cualquier llamada que cambiaría algo se rechaza y al agente se le dice que lo proponga. |
 | `total` | Total: no pregunta nada | Nada te espera, en cualquier carpeta salvo la de APX. Es tu elección explícita, para agentes en los que confiás para trabajar solos. |
 
-Un tipo de cambio te espera en cualquier modo, Total incluido: que tu super-agente cambie lo que configuraste en APX
-(tus contactos, canales, agentes, perfil y demás ajustes). Además pasa solo cuando se lo pediste vos, en tu chat o
-respondiendo a su pregunta: si otro agente se lo pide a tu super-agente, no cambia nada y no se te pregunta.
+Tu super-agente cambia lo que configuraste en APX (tus contactos, agentes, perfil y demás ajustes) solo cuando se lo
+pediste vos, en tu chat o respondiendo a su pregunta: si otro agente o un contacto se lo pide, no cambia nada y no se
+te pregunta. Cuando se lo pedís, decide su modo, como en cualquier acción fuerte: en Total lo hace directamente, en
+Auto pregunta antes. Los contactos, sus direcciones, los stickers, renombrar un chat y el mantenimiento de la memoria
+corren también en Auto, salvo que haya contenido de afuera en el turno. Unos pocos cambios esperan tu tarjeta en
+cualquier modo, Total incluido: tus servidores MCP, tus canales, tus firmas de correo, quién puede usar la computadora
+aislada, los límites de un agente, borrar un agente para siempre, publicar un widget, dejar entrar a un contacto,
+limpiar los comentarios de una tarea y todo lo que haría que otra persona pase a ser vos (tus propias direcciones, el
+rol de dueño).
 
 En Auto y Acepta ediciones, tus otros proyectos registrados y sus worktrees de git se escriben como la carpeta del
 agente: los registraste vos. Escribir en cualquier otra carpeta muestra una tarjeta para esa llamada: **Solo esta vez**
@@ -59,8 +65,8 @@ Y así se cruzan. "Acá" es escribir un archivo o correr un comando en la carpet
 
 <Aside type="caution" title="Total es total">
   Un agente en `total` no pregunta nada, ni siquiera las acciones `always`: comandos destructivos, mensajes a
-  contactos. Dáselo a agentes cuyo trabajo firmarías sin leer. Algunas cosas lo frenan igual: lo que configuraste en
-  APX (dejar entrar a un contacto, los límites de los agentes, los ajustes que cambia tu super-agente) pregunta en su
+  contactos. Dáselo a agentes cuyo trabajo firmarías sin leer. Algunas cosas lo frenan igual: los ajustes de la lista
+  de arriba (dejar entrar a un contacto, los límites de los agentes, los servidores MCP, los canales…) preguntan en su
   tarjeta; copiar tu sesión del navegador pregunta hasta que se lo permitas a ese agente para siempre; el navegador
   nunca tipea contraseñas ni números de tarjeta; y el control de pantalla vuelve a preguntar cada 60 acciones.
 </Aside>
