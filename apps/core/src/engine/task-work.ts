@@ -659,7 +659,8 @@ export function deliverToCoordinator(
   admit({
     thread_id: from.thread,
     agent_id: from.run.agent_id,
-    trigger: "system",
+    // A team's result, like the task's close report (reportClose): at the coordinator's depth, no owner standing.
+    trigger: "a2a_result",
     origin: {
       kind: "task_feedback",
       task_id: task.id,
@@ -669,7 +670,7 @@ export function deliverToCoordinator(
       run_id: run.id,
     },
     text: verdict.slice(0, 4000),
-    depth: 1,
+    depth: from.run.depth,
   });
 }
 

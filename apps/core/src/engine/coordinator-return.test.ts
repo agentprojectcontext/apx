@@ -91,9 +91,15 @@ type Env = Awaited<ReturnType<typeof startCore>>;
 
 /** Admits like the engine would, keeping what it was asked. */
 function recorder(store: Env["core"]["store"]) {
-  const admitted: Array<{ thread_id: string; agent_id: string; origin: { kind: string } }> = [];
+  const admitted: Array<Pick<Parameters<AdmitFn>[0], "thread_id" | "agent_id" | "origin" | "trigger" | "depth">> = [];
   const admit: AdmitFn = (a) => {
-    admitted.push({ thread_id: a.thread_id, agent_id: a.agent_id, origin: a.origin });
+    admitted.push({
+      thread_id: a.thread_id,
+      agent_id: a.agent_id,
+      origin: a.origin,
+      trigger: a.trigger,
+      depth: a.depth,
+    });
     return store.runs.create({
       thread_id: a.thread_id,
       agent_id: a.agent_id,
@@ -212,17 +218,7 @@ test("a review that sends a coordinated task back is told to its coordinator onc
       input: { origin: { kind: "routine", id: "review", name: "Review" }, text: "Review" },
       deadline_at: "2099-01-01T00:00:00Z",
     });
-    const admitted: Array<{ thread_id: string; agent_id: string; origin: { kind: string } }> = [];
-    const admit: AdmitFn = (a) => {
-      admitted.push({ thread_id: a.thread_id, agent_id: a.agent_id, origin: a.origin });
-      return store.runs.create({
-        thread_id: a.thread_id,
-        agent_id: a.agent_id,
-        trigger: a.trigger,
-        input: { origin: a.origin, text: a.text },
-        deadline_at: "2099-01-01T00:00:00Z",
-      });
-    };
+    const { admitted, admit } = recorder(store);
     const current = () => taskOf(store, task.id);
 
     deliverToCoordinator(store, admit, current(), reviewRun, "Scout", "REVISE: fix the header");
@@ -236,6 +232,9 @@ test("a review that sends a coordinated task back is told to its coordinator onc
     assert.equal(admitted.length, 1, "the same review is told once");
     assert.equal(admitted[0]?.thread_id, chat.id);
     assert.equal(admitted[0]?.origin.kind, "task_feedback");
+    // A result like a close report: at the coordinator's own depth, never as the owner's word.
+    assert.equal(admitted[0]?.trigger, "a2a_result");
+    assert.equal(admitted[0]?.depth, source.depth);
   } finally {
     await env.core.close();
     await env.cleanup();
