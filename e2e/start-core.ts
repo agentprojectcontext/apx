@@ -1,10 +1,13 @@
 import { loadConfig } from "../apps/core/src/config.ts";
 import { createCore } from "../apps/core/src/server.ts";
+import { fakeDesktopApp } from "./fake-desktop-app.ts";
 import { fakeDesktopTrash } from "./fake-desktop-trash.ts";
 
 const record = process.env.E2E_DESKTOP_TRASH_RECORD;
 const projectRoot = process.env.E2E_PROJECT_ROOT;
-if (!record || !projectRoot) throw new Error("E2E_DESKTOP_TRASH_RECORD and E2E_PROJECT_ROOT are required");
+const desktopApp = process.env.E2E_DESKTOP_APP;
+if (!record || !projectRoot || !desktopApp)
+  throw new Error("E2E_DESKTOP_TRASH_RECORD, E2E_PROJECT_ROOT and E2E_DESKTOP_APP are required");
 const config = loadConfig();
 // A spec may stop the core's clock at a moment (e2e/env.ts's /clock), so what it shows about time is the same any day.
 let stoppedAt: number | undefined;
@@ -20,6 +23,8 @@ const core = await createCore(config, {
     open: async () => {},
     trash: fakeDesktopTrash(projectRoot, record),
   },
+  // "Open desktop" in a spec never reaches the APX app installed on this machine nor writes its saved connection.
+  desktopApp: fakeDesktopApp(desktopApp),
   // A Linux VM that is always on, so the usage views show its slot.
   vmUsage: () => ({
     running: true,

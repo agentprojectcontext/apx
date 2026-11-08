@@ -146,6 +146,18 @@ and pointed at `apx service install`, which started the same broken version agai
 fixtures and previews. On its first run in v2 it caught a real name in a design-system preview.
 **Where:** `scripts/check-private-terms.ts`.
 
+<a id="e2e-desktop-handoff"></a>
+### The e2e core opens only the sandbox's own desktop app
+**Rule:** the e2e core (`e2e/start-core.ts`) gets `desktopApp: fakeDesktopApp(...)`: the APX app it finds, the data
+folder it saves the connection in and the launch itself all stay in the sandbox, and `e2e/env.ts` also sets
+`APX_DESKTOP_DATA` there. Spec 81 clicks "Open desktop" for real and checks both.
+**Why:** the e2e core runs with the real `HOME`, so `desktop.install` found the APX app installed on the machine
+(`~/Applications/APX.app`), wrote `connection.json` pointing at the sandbox's temp home and port into the real app's
+data folder, and opened it with `--apx-adopt-local`. The owner's app then stayed on "Connecting to 127.0.0.1:7460".
+Every spec shows "Open desktop" (the kit answers the install status as installed), so one stray click was enough.
+**Where:** `e2e/fake-desktop-app.ts`, `e2e/start-core.ts`, `e2e/env.ts`, `createCore`'s `desktopApp` option,
+`e2e/specs/81-desktop-install.spec.ts`.
+
 <a id="protocol-subpaths"></a>
 ### The core imports the protocol only through `@apx/protocol` subpaths
 **Rule:** `apps/core` and `apps/terminal` never import `packages/protocol/src/…` by path; a module they need becomes a
