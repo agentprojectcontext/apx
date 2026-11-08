@@ -716,6 +716,13 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+/* Who answers: the agent you talk to, and under it the one for your contacts when it is another. */
+.chs__agents {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
 .chs__agent,
 .chs__status {
   display: flex;
@@ -790,6 +797,10 @@
     gap: 12px;
     padding-left: 48px;
     font-size: var(--apx-text-xs);
+  }
+  .chs__agents {
+    flex-direction: row;
+    gap: 12px;
   }
 }
 /* The channel's name opens its accounts, to switch to another. */

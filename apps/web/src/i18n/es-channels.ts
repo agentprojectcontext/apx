@@ -70,6 +70,9 @@ export const esChannels: Partial<Record<MessageKey, string>> = {
   "ch.foot":
     "Conversaciones con otras personas. Lo que le escribís a {agent} por este canal queda en sus sesiones del Inbox.",
   "ch.answers": "Atiende {agent}",
+  "ch.answersSplit": "Hablás con {agent} · {contacts} atiende a tus contactos",
+  "ch.agentGone": "un agente que ya no existe",
+  "chs.forContacts": "{agent} para tus contactos",
   "ch.settings": "Configuración del canal",
   "ch.pick.title": "Elegí una conversación",
   "ch.pick.body": "Leela, decile al agente qué contestar o escribí vos.",
