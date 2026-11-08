@@ -402,6 +402,8 @@ export function threadsRepo({ one, all, run }: Sql, bus: Bus, endSession: (threa
         return "joined";
       }
       if (repo.busy([gone.id, kept.id])) return "busy";
+      const theirs = repo.context(gone.id).their_last;
+      const keptTheirs = repo.context(kept.id).their_last;
       const ids = all(
         qb
           .selectFrom("messages")
@@ -429,7 +431,13 @@ export function threadsRepo({ one, all, run }: Sql, bus: Bus, endSession: (threa
         run(qb.updateTable(table).set({ thread_id: kept.id }).where("thread_id", "=", gone.id));
       run(qb.updateTable("threads").set({ parent_id: kept.id }).where("parent_id", "=", gone.id));
       // A summary counts places in the kept chat's old order: it is made again from the whole history.
-      repo.mergeContext(kept.id, { compaction: undefined });
+      repo.mergeContext(kept.id, {
+        compaction: undefined,
+        // Their last message is the newer chat's, so a reaction goes on what they said last.
+        ...(theirs && (!keptTheirs || gone.updated_at > kept.updated_at)
+          ? { their_last: { ...theirs, conversation: to } }
+          : {}),
+      });
       const newer = gone.updated_at > kept.updated_at;
       run(
         qb

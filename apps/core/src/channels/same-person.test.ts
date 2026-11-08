@@ -51,11 +51,22 @@ test("someone split in two by their private id is one contact and one chat once 
     parts: text("Hi Dana"),
     at: "2026-01-01T10:00:00.000Z",
   });
-  store.messages.add({
+  const reply = store.messages.add({
     thread_id: byId.id,
-    author: her,
+    author: { ...her, id: stranger.id },
     parts: text("Hi! Who is this?"),
     at: "2026-01-01T11:00:00.000Z",
+  });
+  store.channels.inbox.add("whatsapp", {
+    external_id: "WA-REPLY",
+    ref: "WA-REPLY",
+    conversation: DANA.lid,
+    sender: { id: DANA.lid, name: "Dana" },
+    text: "Hi! Who is this?",
+    private: true,
+  });
+  store.threads.mergeContext(byId.id, {
+    their_last: { channel: "whatsapp", conversation: DANA.lid, ref: "WA-REPLY", message_id: reply.id },
   });
   store.messages.add({
     thread_id: byNumber.id,
@@ -88,7 +99,15 @@ test("someone split in two by their private id is one contact and one chat once 
     [EVE.lid, EVE.phone].sort(),
   );
   assert.equal(store.threads.byConversation("whatsapp", EVE.phone)?.id, eveChat.id);
+  // A reaction asked for now goes on what she said last, found under her number.
+  assert.equal(store.channels.inbox.latest("whatsapp", DANA.phone)?.ref, "WA-REPLY");
+  assert.equal(store.threads.context(byNumber.id).their_last?.conversation, DANA.phone);
+  assert.equal(store.threads.context(byNumber.id).their_last?.message_id, reply.id);
   const history = store.messages.list(byNumber.id);
+  assert.ok(
+    history.every((m) => m.author.kind !== "person" || m.author.id === known.id),
+    "her words are signed by the one contact she is",
+  );
   assert.deepEqual(
     history.map((m) => [m.seq, m.parts[0]?.type === "text" ? m.parts[0].text : ""]),
     [

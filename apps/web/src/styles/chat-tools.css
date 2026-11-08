@@ -368,6 +368,10 @@ textarea.inputcard__detail {
   font-weight: var(--apx-weight-medium);
   color: var(--apx-fg-muted);
 }
+/* With no buttons to drop below, nothing wraps: a notice in a narrow turn keeps its icon beside the words. */
+.noticeline:not(:has(.noticeline__actions)) {
+  flex-wrap: nowrap;
+}
 .noticeline > svg {
   flex: none;
 }

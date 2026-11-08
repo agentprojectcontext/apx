@@ -18,6 +18,8 @@ export async function joinSplitContacts(
     let joined = 0;
     for (const { from, to } of pairs) {
       const changed = store.tx(() => {
+        // What they wrote is found under the number too: a reaction answers their last message there.
+        store.channels.inbox.readdress(channel, from, to);
         const people = store.persons.joinPeople(channel, from, to);
         return store.threads.joinChats(channel, from, to) === "joined" || people;
       });

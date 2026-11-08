@@ -5,10 +5,7 @@ import { expect, test } from "./kit.ts";
 
 test.use({ launchOptions: { args: ["--use-fake-device-for-media-stream", "--use-fake-ui-for-media-stream"] } });
 
-test("nota voz muestra volumen real, conserva audio y texto, reproduce después de recargar", async ({
-  page,
-  context,
-}) => {
+test("dictar deja solo el texto; un audio adjunto conserva audio y texto", async ({ page, context }) => {
   const server = http.createServer((req, res) => {
     req.resume();
     req.on("end", () => {
@@ -40,13 +37,21 @@ test("nota voz muestra volumen real, conserva audio y texto, reproduce después 
     await page.route("**/rpc/media.listen", (route) =>
       route.fulfill({ json: { ok: true, result: { text: "Revisá publicaciones", live: true } } }),
     );
+    // Dictation sends the recording to be read and keeps only its words: no upload.
+    const dictated: { data?: string; mime?: string; media_id?: string }[] = [];
+    const uploads: string[] = [];
+    page.on("request", (req) => {
+      if (req.url().endsWith("/rpc/media.transcribe")) dictated.push(req.postDataJSON());
+      if (req.url().endsWith("/rpc/media.upload")) uploads.push(req.url());
+    });
     await page.goto(env.core.url);
     const input = page.getByRole("textbox", { name: /^Escribile a/ });
     await expect(input).toBeVisible();
     await page.getByRole("button", { name: "Dictar", exact: true }).click();
     await expect(page.getByText("Grabando", { exact: true })).toBeVisible();
     await expect(input).toBeDisabled();
-    await expect(page.getByRole("button", { name: "Enviar", exact: true })).toBeDisabled();
+    // The mic's own button is the one stop while it records; send comes back with the words.
+    await expect(page.getByRole("button", { name: "Enviar", exact: true })).toHaveCount(0);
     await expect
       .poll(() =>
         page
@@ -63,43 +68,47 @@ test("nota voz muestra volumen real, conserva audio y texto, reproduce después 
     await page.getByRole("button", { name: "Terminar de dictar", exact: true }).click();
     await expect(input).toHaveValue("Revisá publicaciones duplicadas");
     await expect(page.locator(".voice-recording__heard")).toHaveCount(0);
-    await expect(page.locator(".attchip.is-audio")).toBeVisible();
+    await expect(page.locator(".attchip")).toHaveCount(0);
     await expect(page.locator(".transcript__row")).toHaveCount(0);
+    expect(uploads).toHaveLength(0);
+    expect(dictated).toHaveLength(1);
+    const recording = dictated[0];
+    if (!recording?.data || !recording.mime || recording.media_id) throw new Error("Dictation did not send the audio");
+    // Stopping, then dictating again, adds the new words after the ones already there.
+    await page.getByRole("button", { name: "Dictar", exact: true }).click();
+    await expect(page.getByText("Grabando", { exact: true })).toBeVisible();
+    await page.getByRole("button", { name: "Terminar de dictar", exact: true }).click();
+    await expect(input).toHaveValue("Revisá publicaciones duplicadas Revisá publicaciones duplicadas");
+    await expect(page.locator(".attchip")).toHaveCount(0);
+    await input.fill("Revisá publicaciones duplicadas");
     await page.getByRole("button", { name: "Enviar", exact: true }).click();
     await expect(page.locator(".transcript").getByText("Duplicates checked", { exact: true })).toBeVisible();
     await expect(page.getByText("Revisá publicaciones duplicadas", { exact: true })).toBeVisible();
-    const player = page.getByRole("button", { name: "Reproducir nota de voz", exact: true });
-    await expect(player).toBeEnabled();
-    await player.click();
-    await expect(page.getByRole("button", { name: "Pausar nota de voz", exact: true })).toBeVisible();
-    await page.getByRole("button", { name: "Pausar nota de voz", exact: true }).click();
-    await page.reload();
-    await expect(page.getByText("Revisá publicaciones duplicadas", { exact: true })).toBeVisible();
-    await expect(player).toBeEnabled();
+    await expect(page.locator(".transcript__files .audiopart")).toHaveCount(0);
     await page.screenshot({ path: "/tmp/apx-voice-message.png" });
     const thread = await env.client.call("threads.get", { thread: "home" });
-    expect(thread.messages.filter((m) => m.author.kind === "user")).toHaveLength(1);
-    expect(thread.messages.find((m) => m.author.kind === "user")?.parts.some((p) => p.type === "audio")).toBe(true);
-    const note = thread.messages.find((m) => m.author.kind === "user")?.parts.find((p) => p.type === "audio");
-    expect(note?.type).toBe("audio");
-    if (note?.type !== "audio") throw new Error("Missing recording");
-    const recording = await env.client.call("media.get", { id: note.media_id });
+    const sent = thread.messages.filter((m) => m.author.kind === "user");
+    expect(sent).toHaveLength(1);
+    expect(sent[0]?.parts.some((p) => p.type === "audio")).toBe(false);
+    expect(uploads).toHaveLength(0);
+    // An audio file the owner attaches still goes as audio, with its words in the field.
     await page
       .locator('input[type="file"]')
       .first()
       .setInputFiles({
         name: "Attached.webm",
-        mimeType: recording.mime,
+        mimeType: recording.mime.split(";")[0] ?? recording.mime,
         buffer: Buffer.from(recording.data, "base64"),
       });
     await expect(input).toHaveValue("Revisá publicaciones duplicadas");
     await expect(page.locator(".attchip.is-audio")).toBeVisible();
     await page.getByRole("button", { name: "Enviar", exact: true }).click();
-    await expect(page.locator(".transcript__files .audiopart")).toHaveCount(2);
+    await expect(page.locator(".transcript__files .audiopart")).toHaveCount(1);
     await expect(page.getByText("Revisá publicaciones duplicadas", { exact: true })).toHaveCount(2);
+    const player = page.getByRole("button", { name: "Reproducir nota de voz", exact: true });
     await page.reload();
-    await expect(page.locator(".transcript__files .audiopart")).toHaveCount(2);
-    await expect(player.first()).toBeEnabled();
+    await expect(page.locator(".transcript__files .audiopart")).toHaveCount(1);
+    await expect(player).toBeEnabled();
   } finally {
     // Detach the browser before stopping its server; reconnect timers must not outlive the fixture.
     await page.goto("about:blank");

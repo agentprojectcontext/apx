@@ -23,8 +23,8 @@ export interface ComposerProps {
   onSubmit?: (value: string, opts: { queue: boolean }) => void;
   /** Tooltip on the send button (its shortcuts). */
   sendHint?: string;
-  /** A short line beside the send button (box layout): the shortcut worth knowing now. Hidden on narrow screens. */
-  hint?: ReactNode;
+  /** Another control has the moment (recording a voice note): no send or stop until it is done. */
+  sendHidden?: boolean;
   /** Called by the mic button (shown while the field is empty). Omit it to keep a (disabled) send button there. */
   onVoice?: () => void;
   /** Something besides text can be sent (attachments): send works with an empty field. */
@@ -69,7 +69,7 @@ export function Composer({
   onValueChange,
   onSubmit,
   sendHint,
-  hint,
+  sendHidden = false,
   onVoice,
   ready = false,
   onAttach,
@@ -115,7 +115,7 @@ export function Composer({
       <Plus size={18} />
     </button>
   );
-  const primary = busy ? (
+  const primary = sendHidden ? null : busy ? (
     <button type="button" className="apx-composer__send" aria-label={l.stop} onClick={onStop}>
       <Square size={12} fill="currentColor" />
     </button>
@@ -191,7 +191,6 @@ export function Composer({
           {attach}
           {toolbar}
           <span className="apx-composer__spacer" />
-          {hint && <span className="apx-composer__hint">{hint}</span>}
           {primary}
         </div>
       )}

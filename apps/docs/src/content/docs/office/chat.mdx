@@ -106,11 +106,13 @@ The box at the bottom ("Message Lucía…") is where you write. A few things it 
   to let the router choose; **Back to the agent's** undoes it. The chip next to it shows how much of the model's context
   is used, as a percentage, and opens the Usage panel; when it fills, older turns are summarized
   ([Compaction](/concepts/conversations/#compaction)).
-- **Voice dictation.** **Dictate** turns speech into text. Install a local transcription model (whisper.cpp) in
-  Settings › Voices to keep it on your machine.
+- **Voice dictation.** **Dictate** turns speech into text in the field, to review before you send it; the recording
+  itself is not attached. Stop and dictate again to add more. While it records, its button is the only stop, and send
+  comes back once the words are in. Install a local transcription model (whisper.cpp) in Settings › Voices to keep it
+  on your machine and see the words as you speak.
 - **Keys.** Enter sends (if the agent is working, it reads it at its next step; in a Codex session it stops the turn
   and runs the message at once). Ctrl/⌘+Enter puts it in line for when
-  it finishes; while the agent works the composer reminds you. Shift+Enter adds a line.
+  it finishes; while the agent works, a line under the composer reminds you. Shift+Enter adds a line.
 
 Attachment drafts, including uploads in progress, survive switching chats within the page. Select a thumbnail to
 preview its file. Unlike saved draft text, attachment drafts do not survive reloading or closing the page; they are
