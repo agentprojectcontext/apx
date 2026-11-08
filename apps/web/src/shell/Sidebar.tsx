@@ -1,5 +1,5 @@
 import { ContextMenu, Icons, NavItem, ResizeHandle } from "@apx/ui";
-import { Suspense, useEffect, useMemo } from "react";
+import { type ReactNode, Suspense, useEffect, useMemo } from "react";
 import { markAllRead } from "../data/actions.ts";
 import { loadChannels } from "../data/channels.ts";
 import { inInbox } from "../data/identity.ts";
@@ -18,7 +18,17 @@ import { LAYOUT } from "./layout.ts";
 import { go, useNav } from "./nav.ts";
 import { ProjectsNav } from "./ProjectsNav.tsx";
 import { SidebarTooltipButton } from "./SidebarNavRow.tsx";
-import { useSidebarShows } from "./sidebarParts.ts";
+import { SidebarReorder } from "./SidebarReorder.tsx";
+import {
+  inOrder,
+  moveSidebarPart,
+  type SectionId,
+  SIDEBAR_SECTIONS,
+  SIDEBAR_VIEWS,
+  useSidebarMenu,
+  useSidebarShows,
+  type ViewId,
+} from "./sidebarParts.ts";
 import { useSidebarCompact } from "./useSidebarCompact.ts";
 
 /**
@@ -59,6 +69,108 @@ export function Sidebar({
     return n;
   }, [threads, routines]);
 
+  const sidebarMenu = useSidebarMenu();
+  const navOrder = usePrefs((s) => s.navOrder);
+  const sectionOrder = usePrefs((s) => s.sectionOrder);
+  const views: Record<ViewId, ReactNode> = {
+    inbox: (
+      <ContextMenu
+        items={[
+          {
+            label: t("inbox.markAllRead"),
+            icon: <Icons.CheckCheck />,
+            disabled: unreadIds.length === 0,
+            onSelect: () => void markAllRead(unreadIds),
+          },
+          { type: "separator" },
+          ...sidebarMenu,
+        ]}
+      >
+        <NavItem
+          collapsed={rail}
+          icon={<Icons.Inbox />}
+          label={t("nav.inbox")}
+          count={unread}
+          active={view === "inbox"}
+          onClick={() => go.inbox()}
+        />
+      </ContextMenu>
+    ),
+    tasks: (
+      <NavItem
+        collapsed={rail}
+        icon={<Icons.ListChecks />}
+        label={t("nav.tasks")}
+        active={view === "tasks"}
+        onClick={() => go.view("tasks")}
+      />
+    ),
+    flows: (
+      <NavItem
+        collapsed={rail}
+        icon={<Icons.GitBranch />}
+        label={t("nav.flows")}
+        active={view === "flows"}
+        onClick={() => go.flows()}
+      />
+    ),
+    routines: (
+      <NavItem
+        collapsed={rail}
+        icon={<Icons.Clock />}
+        label={t("nav.routines")}
+        active={view === "routines"}
+        onClick={() => go.view("routines")}
+      />
+    ),
+    resources: (
+      <NavItem
+        collapsed={rail}
+        icon={<Icons.Layers />}
+        label={t("nav.resources")}
+        active={view === "resources"}
+        onClick={() => go.view("resources")}
+      />
+    ),
+    files: (
+      <NavItem
+        collapsed={rail}
+        icon={<Icons.Paperclip />}
+        label={t("nav.files")}
+        active={view === "files"}
+        onClick={() => go.view("files")}
+      />
+    ),
+    computers: computers ? (
+      <NavItem
+        collapsed={rail}
+        icon={<Icons.Monitor />}
+        label={t("nav.computers")}
+        count={screensInUse || undefined}
+        active={view === "computers"}
+        onClick={() => go.view("computers")}
+      />
+    ) : null,
+  };
+  const sections: Record<SectionId, ReactNode> = {
+    projects: <ProjectsNav rail={rail} compact={compact} />,
+    sessions: <ExternalSessionsNav rail={rail} compact={compact} />,
+    channels: <ChannelsNav rail={rail} compact={compact} />,
+    apps: (
+      <Suspense fallback={null}>
+        <AppsDock rail={rail} compact={compact} />
+      </Suspense>
+    ),
+  };
+  const viewIds = inOrder(
+    SIDEBAR_VIEWS.map((v) => v.id),
+    navOrder,
+  ).filter((id) => shows(id) && views[id] != null);
+  const sectionIds = inOrder(
+    SIDEBAR_SECTIONS.map((v) => v.id),
+    sectionOrder,
+  ).filter((id) => shows(id));
+
   return (
     <aside className={rail ? "sidebar is-rail" : "sidebar"} aria-label={t("nav.label")}>
       {!fixed && (
@@ -79,7 +191,7 @@ export function Sidebar({
           hint={t(rail ? "nav.unfoldHint" : "nav.resizeHint")}
         />
       )}
-      <div className="sidebar__top">
+      <ContextMenu items={sidebarMenu} render={<div className="sidebar__top" />}>
         <NewChatMenu
           projectId={undefined}
           trigger={
@@ -95,93 +207,34 @@ export function Sidebar({
             </SidebarTooltipButton>
           }
         />
-        {shows("inbox") && (
-          <ContextMenu
-            items={[
-              {
-                label: t("inbox.markAllRead"),
-                icon: <Icons.CheckCheck />,
-                disabled: unreadIds.length === 0,
-                onSelect: () => void markAllRead(unreadIds),
-              },
-            ]}
+        {viewIds.map((id) => (
+          <SidebarReorder
+            key={id}
+            id={id}
+            kind="view"
+            order={viewIds}
+            onMove={(moved, index) => moveSidebarPart("navOrder", viewIds, moved, index)}
           >
-            <NavItem
-              collapsed={rail}
-              icon={<Icons.Inbox />}
-              label={t("nav.inbox")}
-              count={unread}
-              active={view === "inbox"}
-              onClick={() => go.inbox()}
-            />
-          </ContextMenu>
-        )}
-        {shows("tasks") && (
-          <NavItem
-            collapsed={rail}
-            icon={<Icons.ListChecks />}
-            label={t("nav.tasks")}
-            active={view === "tasks"}
-            onClick={() => go.view("tasks")}
-          />
-        )}
-        {shows("flows") && (
-          <NavItem
-            collapsed={rail}
-            icon={<Icons.GitBranch />}
-            label={t("nav.flows")}
-            active={view === "flows"}
-            onClick={() => go.flows()}
-          />
-        )}
-        {shows("routines") && (
-          <NavItem
-            collapsed={rail}
-            icon={<Icons.Clock />}
-            label={t("nav.routines")}
-            active={view === "routines"}
-            onClick={() => go.view("routines")}
-          />
-        )}
-        {shows("resources") && (
-          <NavItem
-            collapsed={rail}
-            icon={<Icons.Layers />}
-            label={t("nav.resources")}
-            active={view === "resources"}
-            onClick={() => go.view("resources")}
-          />
-        )}
-        {shows("files") && (
-          <NavItem
-            collapsed={rail}
-            icon={<Icons.Paperclip />}
-            label={t("nav.files")}
-            active={view === "files"}
-            onClick={() => go.view("files")}
-          />
-        )}
-        {computers && shows("computers") && (
-          <NavItem
-            collapsed={rail}
-            icon={<Icons.Monitor />}
-            label={t("nav.computers")}
-            count={screensInUse || undefined}
-            active={view === "computers"}
-            onClick={() => go.view("computers")}
-          />
-        )}
-      </div>
-      <div className={compact ? "sidebar__scroll is-compact" : "sidebar__scroll"}>
-        {shows("projects") && <ProjectsNav rail={rail} compact={compact} />}
-        {shows("sessions") && <ExternalSessionsNav rail={rail} compact={compact} />}
-        {shows("channels") && <ChannelsNav rail={rail} compact={compact} />}
-        {shows("apps") && (
-          <Suspense fallback={null}>
-            <AppsDock rail={rail} compact={compact} />
-          </Suspense>
-        )}
-      </div>
+            {views[id]}
+          </SidebarReorder>
+        ))}
+      </ContextMenu>
+      <ContextMenu
+        items={sidebarMenu}
+        render={<div className={compact ? "sidebar__scroll is-compact" : "sidebar__scroll"} />}
+      >
+        {sectionIds.map((id) => (
+          <SidebarReorder
+            key={id}
+            id={id}
+            kind="section"
+            order={sectionIds}
+            onMove={(moved, index) => moveSidebarPart("sectionOrder", sectionIds, moved, index)}
+          >
+            {sections[id]}
+          </SidebarReorder>
+        ))}
+      </ContextMenu>
       {!rail && (
         <Suspense fallback={null}>
           <CornerCards />

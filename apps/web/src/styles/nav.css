@@ -1120,6 +1120,18 @@
 .sidebar-navrow:not(.is-rail):has([aria-expanded="true"]) .apx-nav__label {
   mask-image: linear-gradient(to right, #000 calc(100% - 10px), transparent);
 }
+.sidebar-reorder {
+  border-radius: var(--apx-row-radius);
+}
+.sidebar-reorder.is-dragging {
+  opacity: 0.5;
+}
+.sidebar-reorder.is-drop-before {
+  box-shadow: inset 0 2px var(--apx-fg-muted);
+}
+.sidebar-reorder.is-drop-after {
+  box-shadow: inset 0 -2px var(--apx-fg-muted);
+}
 .sidebar-navrow.is-dragging {
   opacity: 0.5;
 }

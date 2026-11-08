@@ -53,6 +53,9 @@ export type Prefs = {
   sidebarCompact: boolean;
   /** Sidebar views and sections the owner hid from it (ids from shell/sidebarParts.ts). */
   navHidden: string[];
+  /** The owner's order of the sidebar's views and of its sections (ids; the rest keep their place after them). */
+  navOrder: string[];
+  sectionOrder: string[];
   /** Unfolded by the owner in a window narrow enough to show the icon rail on its own. */
   sidebarOpen: boolean;
   listW: number;
@@ -110,6 +113,8 @@ const DEFAULTS: Prefs = {
   sidebarCollapsed: false,
   sidebarCompact: true,
   navHidden: [],
+  navOrder: [],
+  sectionOrder: [],
   sidebarOpen: false,
   listW: 0,
   panelW: 0,
@@ -157,6 +162,8 @@ function load(): Prefs {
       sidebarW: typeof raw.sidebarW === "number" ? raw.sidebarW : 0,
       sidebarCollapsed: raw.sidebarCollapsed === true,
       sidebarCompact: raw.sidebarCompact !== false,
+      navOrder: idsOf(raw.navOrder),
+      sectionOrder: idsOf(raw.sectionOrder),
       navHidden: Array.isArray(raw.navHidden)
         ? [...new Set(raw.navHidden.filter((id): id is string => typeof id === "string"))]
         : [],
@@ -173,6 +180,10 @@ function load(): Prefs {
   } catch {
     return DEFAULTS;
   }
+}
+
+function idsOf(raw: unknown): string[] {
+  return Array.isArray(raw) ? [...new Set(raw.filter((id): id is string => typeof id === "string"))] : [];
 }
 
 function sidebarRowsOf(raw: unknown): SidebarRows {
