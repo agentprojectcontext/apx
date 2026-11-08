@@ -114,3 +114,60 @@ test("what the model saw in the joined chat goes into the kept chat in the order
       "what the agent remembers of it stays",
     );
   }));
+
+test("a draft, a message held for the hours and a flow's link in the joined chat stay with the kept chat", () =>
+  split(async ({ store, db, known, stranger, byNumber, byId }) => {
+    const draft = store.suggestions.add({
+      person_id: stranger.id,
+      thread_id: byId.id,
+      channel: "whatsapp",
+      agent_id: "superagent",
+      said: ["Are you there?"],
+      text: "Yes, tell me",
+    });
+    store.channels.held.mark({
+      thread_id: byId.id,
+      channel: "whatsapp",
+      conversation: LID,
+      sender: LID,
+      person_id: stranger.id,
+    });
+    db.prepare("INSERT INTO projects (id, name, created_at) VALUES ('p_acme', 'Acme', '2026-01-01')").run();
+    db.prepare(
+      "INSERT INTO flows (id, project_id, enabled, predicates, table_key) VALUES ('f_1', 'p_acme', 1, '[]', 'k')",
+    ).run();
+    db.prepare(
+      "INSERT INTO flow_events (flow_id, event_id, state, created_at, thread_id) VALUES ('f_1', 'e_1', 'done', '2026-01-01', ?)",
+    ).run(byId.id);
+
+    assert.equal(await joinSplitContacts(store, "whatsapp", line), 1);
+
+    assert.equal(store.threads.get(byId.id), undefined, "one chat");
+    assert.deepEqual(
+      store.suggestions.pendingIn(byNumber.id).map((s) => [s.id, s.person_id]),
+      [[draft.id, known.id]],
+      "the draft still waits for the owner",
+    );
+    const held = store.channels.held.get(byNumber.id);
+    assert.equal(held?.person_id, known.id, "their message still waits for the hours");
+    assert.equal(held?.conversation, PHONE, "and is answered under their number");
+    assert.equal(held?.sender, PHONE);
+    assert.equal(db.prepare("SELECT thread_id FROM flow_events WHERE event_id = 'e_1'").get()?.thread_id, byNumber.id);
+  }));
+
+test("a message held in both chats waits once, since the earlier of the two", () =>
+  split(async ({ store, db, known, stranger, byNumber, byId }) => {
+    const hold = (thread_id: string, conversation: string, person_id: string, since: string) => {
+      store.channels.held.mark({ thread_id, channel: "whatsapp", conversation, sender: conversation, person_id });
+      db.prepare("UPDATE channel_held SET since = ? WHERE thread_id = ?").run(since, thread_id);
+    };
+    hold(byNumber.id, PHONE, known.id, "2026-01-02T08:00:00.000Z");
+    hold(byId.id, LID, stranger.id, "2026-01-01T23:00:00.000Z");
+
+    assert.equal(await joinSplitContacts(store, "whatsapp", line), 1);
+
+    assert.deepEqual(
+      store.channels.held.list().map((h) => [h.thread_id, h.conversation, h.since]),
+      [[byNumber.id, PHONE, "2026-01-01T23:00:00.000Z"]],
+    );
+  }));
