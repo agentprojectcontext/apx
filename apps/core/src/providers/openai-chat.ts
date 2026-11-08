@@ -38,9 +38,26 @@ const usageOf = (u: Chunk["usage"]): Usage | undefined => {
   return { input: u.prompt_tokens ?? 0, output: u.completion_tokens ?? 0, ...(cached ? { cached } : {}) };
 };
 
+/**
+ * Gemini refuses a tool call in the history without the thought signature it gave it; a call another model made has
+ * none, so it carries the placeholder Gemini documents for calls it did not make.
+ */
+const FOREIGN_SIGNATURE = { google: { thought_signature: "skip_thought_signature_validator" } };
+
+function signed(m: AssistantItem): AssistantItem {
+  if (!m.tool_calls?.some((c) => !c.extra_content)) return m;
+  return {
+    ...m,
+    tool_calls: m.tool_calls.map((c) => (c.extra_content ? c : { ...c, extra_content: FOREIGN_SIGNATURE })),
+  };
+}
+
+const isGemini = (baseUrl: string) => /generativelanguage\.googleapis\.com/.test(baseUrl);
+
 /** User items with images become content parts (text, then each image as a data URL); the rest go as they are. */
-function wire(items: TransportRequest["messages"]): unknown[] {
+function wire(items: TransportRequest["messages"], gemini: boolean): unknown[] {
   return items.map((m) => {
+    if (gemini && m.role === "assistant") return signed(m);
     if (m.role !== "user" || !m.images?.some((i) => i.data)) {
       if (m.role !== "user" || !m.images) return m;
       const { images: _i, ...rest } = m;
@@ -67,7 +84,7 @@ export const openaiChat: Transport = async (req) => {
     {
       model: req.model,
       ...(req.maxOutputTokens ? { max_tokens: req.maxOutputTokens } : {}),
-      messages: wire(req.messages),
+      messages: wire(req.messages, isGemini(req.baseUrl)),
       ...(req.tools.length
         ? {
             tools: req.tools.map((tool) => ({
