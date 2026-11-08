@@ -3,6 +3,10 @@
 import { sql as raw } from "kysely";
 import { qb, type Sql } from "./sql.ts";
 
+/** Every character JavaScript's `trim()` strips (SQLite's strips only spaces): a start refuses what is blank by it. */
+const BLANK = Array.from({ length: 0x10000 }, (_, c) => String.fromCharCode(c))
+  .filter((c) => c.trim() === "")
+  .join("");
 const PRIORITY = raw<number>`case tasks.priority when 'urgent' then 0 when 'high' then 1 when 'normal' then 2 else 3 end`;
 /** When the task was last given to its agent: its creation with one, or the last assignment. */
 const ASSIGNED_AT = raw<string>`(select e.at from task_events e where e.task_id = tasks.id and e.op in ('assign', 'create')
@@ -16,7 +20,7 @@ function startable(held: readonly string[]) {
     .where("tasks.state", "=", "open")
     .where("tasks.proposed", "=", 0)
     .where("tasks.status", "!=", "review")
-    .where(raw<string>`trim(tasks.description)`, "!=", "")
+    .where(raw<string>`trim(tasks.description, ${BLANK})`, "!=", "")
     .where((eb) => eb.exists(eb.selectFrom("agents").select("agents.id").whereRef("agents.id", "=", "tasks.assignee")))
     .where((eb) =>
       eb.not(eb.exists(eb.selectFrom("threads").select("threads.id").whereRef("threads.task_id", "=", "tasks.id"))),

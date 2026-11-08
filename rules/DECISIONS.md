@@ -4207,8 +4207,8 @@ each may reach, and who confirms what.
 Start times, the hourly pickup and the stall check each listed the 500 most recently active open tasks and filtered
 them in code, so in an office with more open tasks an eligible older one was never seen (#139).
 
-- **Start times and pickup filter in SQL** (`domain/task-lanes.ts`): open, not proposed or in review, described, an
-  agent that exists, no chat yet, not held, start time come (pickup: assigned since `task_work_since`), ordered as
+- **Start times and pickup filter in SQL** (`domain/task-lanes.ts`): open, not proposed or in review, described (blank
+  as the start reads it: SQLite's `trim()` is given every character JavaScript's `trim()` strips), an agent that exists, no chat yet, not held, start time come (pickup: assigned since `task_work_since`), ordered as
   before (start time; priority then nearest due date) and limited to the three that start. Every condition the start
   checks again is in the query, so a task that cannot start never takes a slot; a tripped chain turns into a hold and
   leaves the query. No cursor or saved state is needed.
