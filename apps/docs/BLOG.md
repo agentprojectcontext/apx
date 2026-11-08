@@ -40,6 +40,12 @@ The path is relative to a Markdown file in `src/content/blog/en/` or `es/`. Engl
 
 Use Markdown images with descriptive alt text and relative paths to the same asset folder for inline illustrations or screenshots. Prefer current real APX captures when describing an actual workflow; do not present a generated banner as a screenshot. Confirm asset rights and distinguish conceptual imagery from real product UI in captions. Do not commit verification images or sample articles.
 
+## Archive navigation
+
+The archive shows ten published articles per page, newest first, in the selected language. The first page stays at `/blog/` (`/es/blog/`); later pages use `/blog/page/2/` and `/es/blog/page/2/`. Previous/next links, language switching, canonical URLs, alternate-language links and the sitemap preserve the page number. Only pages with articles are generated. The header's Blog menu shows up to four recent published articles, never drafts.
+
+For pagination verification, build with more than ten disposable bilingual articles and run `node scripts/blog-pagination.browser.mjs` against the preview. Remove all fixtures and rebuild before publication. `node scripts/blog-navigation.browser.mjs` checks header navigation and active states at desktop and phone widths.
+
 ## Research and approval
 
 Coordinate topics, search intent and publication with the existing SEO work. Every factual claim needs relevant, checked evidence; requiring a source in frontmatter does not certify the prose. Distinguish a user's report from a reproducible product limitation. Identify version/date and context; do not generalize an isolated complaint or invent ratings, quotations, metrics or capabilities. Avoid personal identifiers from reviews. Prefer primary issue threads, documentation and reproducible observations. Describe where APX is relevant and where it is not, using verified capabilities. Do not publish unapproved research or present existing comparisons as newly investigated complaints.

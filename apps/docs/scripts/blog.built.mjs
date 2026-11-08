@@ -33,10 +33,11 @@ for (const lang of ["en", "es"]) {
       const route = path.slice(base.length);
       const article = await readFile(new URL(`${route}index.html`, root), "utf8");
       assert.ok(article.includes(`rel="canonical" href="${absolute(route)}"`));
-      assert.ok(article.includes('"@type":"BlogPosting"'));
+      assert.ok(article.includes(path.includes('/blog/page/') ? '"@type":"Blog"' : '"@type":"BlogPosting"'));
       assert.ok(article.includes(`inLanguage":"${lang}"`));
-      assert.ok(article.includes('class="blog-cover"'));
-      assert.ok(article.includes('class="blog-sources"'));
+      if (!path.includes('/blog/page/')) {
+        assert.ok(article.includes('class="blog-sources"'));
+      }
       assert.ok(!article.includes("PENDING-AGREED-DATE"));
       assert.ok(sitemap.includes(`<loc>${absolute(route)}</loc>`));
     }

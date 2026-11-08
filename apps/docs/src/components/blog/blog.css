@@ -57,6 +57,18 @@
   padding-block: 10px;
   color: var(--apx-brand-soft-fg);
 }
+.blog-pagination {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding-block: 32px;
+  font-size: 14px;
+}
+.blog-pagination a {
+  padding-block: 10px;
+  color: var(--apx-brand-soft-fg);
+}
 .blog-list {
   border-top: 1px solid var(--apx-border);
 }

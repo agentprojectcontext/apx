@@ -40,6 +40,12 @@ La ruta es relativa a un Markdown en `src/content/blog/en/` o `es/`. Ambos idiom
 
 Para imágenes dentro del artículo, usá Markdown con alt descriptivo y rutas relativas a la misma carpeta de recursos. Priorizá capturas reales y actuales de APX para explicar recorridos existentes; no presentes banners generados como capturas. Verificá los derechos de los recursos y distinguí ilustraciones conceptuales de interfaces reales mediante el pie. No commitees imágenes de verificación ni artículos de muestra.
 
+## Navegación del archivo
+
+El archivo muestra diez artículos publicados por página, del más reciente al más antiguo, en el idioma elegido. La primera página sigue en `/blog/` (`/es/blog/`); las siguientes usan `/blog/page/2/` y `/es/blog/page/2/`. Los enlaces anterior/siguiente, el cambio de idioma, las URL canónicas, las alternativas de idioma y el sitemap conservan el número de página. Solo se generan páginas con artículos. El menú Blog del encabezado muestra hasta cuatro artículos publicados recientes, nunca borradores.
+
+Para verificar la paginación, compilá con más de diez artículos bilingües descartables y ejecutá `node scripts/blog-pagination.browser.mjs` contra el preview. Eliminá todos los fixtures y recompilá antes de publicar. `node scripts/blog-navigation.browser.mjs` comprueba la navegación y los estados activos del encabezado en escritorio y teléfono.
+
 ## Investigación y aprobación
 
 Coordiná temas, intención de búsqueda y publicación con el trabajo SEO existente. Cada afirmación necesita evidencia relevante y revisada; exigir una fuente en los metadatos no certifica el texto. Diferenciá el relato de un usuario de una limitación reproducible. Indicá versión, fecha y contexto; no generalices una queja aislada ni inventes estrellas, citas, métricas o capacidades. Evitá identificadores personales de reseñas. Priorizá incidencias primarias, documentación y observaciones reproducibles. Explicá cuándo APX sirve y cuándo no con capacidades verificadas. No publiques investigación sin aprobar ni presentes comparativas existentes como quejas recién investigadas.

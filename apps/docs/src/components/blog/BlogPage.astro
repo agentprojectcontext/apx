@@ -1,7 +1,7 @@
 ---
 import { getImage, Image } from "astro:assets";
 import { type CollectionEntry, getCollection, render } from "astro:content";
-import { BLOG, blogPath, publishedPosts } from "../../data/blog.mjs";
+import { BLOG, archivePath, blogArchive, blogPath } from "../../data/blog.mjs";
 import { sitePath } from "../../doc-routes.mjs";
 import AnalyticsConsent from "../AnalyticsConsent.astro";
 import PageMeta from "../web/PageMeta.astro";
@@ -12,14 +12,16 @@ import "./blog.css";
 interface Props {
   lang: "en" | "es";
   post?: CollectionEntry<"blog">;
+  page?: number;
 }
-const { lang, post } = Astro.props;
+const { lang, post, page = 1 } = Astro.props;
 const t = BLOG[lang];
 const pre = lang === "es" ? "/es" : "";
 const href = (path: string) => sitePath(path, import.meta.env.BASE_URL);
 const abs = (path: string) => new URL(href(path), Astro.site).href;
-const posts = publishedPosts(await getCollection("blog")).filter(({ data }) => data.lang === lang);
-const route = post ? `/blog/${post.data.slug}/` : "/blog/";
+const { posts, totalPages } = blogArchive(await getCollection("blog"), lang, page);
+const route = post ? `/blog/${post.data.slug}/` : archivePath(page);
+const pageSuffix = !post && page > 1 ? ` · ${t.page} ${page}` : "";
 const title = post?.data.title ?? t.title;
 const description = post?.data.description ?? t.description;
 const rendered = post ? await render(post) : undefined;
@@ -51,14 +53,14 @@ const schema = [
         citation: post.data.sources.map((source) => source.url),
         ...(shareImage ? { image: abs(shareImage.src) } : {}),
       }
-    : { "@type": "Blog", name: title, description, url: abs(`${pre}/blog/`), inLanguage: lang },
+    : { "@type": "Blog", name: `${title}${pageSuffix}`, description, url: abs(`${pre}${route}`), inLanguage: lang },
 ];
 ---
 <!doctype html>
 <html lang={lang} data-theme="dark">
   <head>
     <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
-    <PageMeta lang={lang} title={`${title} — APX`} description={description} path={route} type={post ? "article" : "website"} imageAlt={cover?.alt ?? title} image={shareImage?.src} imageWidth={shareImage?.attributes.width} imageHeight={shareImage?.attributes.height} schema={schema} />
+    <PageMeta lang={lang} title={`${title}${pageSuffix} — APX`} description={description} path={route} type={post ? "article" : "website"} imageAlt={cover?.alt ?? title} image={shareImage?.src} imageWidth={shareImage?.attributes.width} imageHeight={shareImage?.attributes.height} schema={schema} />
     {post && <meta property="article:published_time" content={post.data.published} />}
     {post?.data.updated && <meta property="article:modified_time" content={post.data.updated} />}
     <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -94,6 +96,11 @@ const schema = [
           <div><h3>{data.title}</h3><p>{data.description}</p></div>
           <div class="blog-row-meta"><time datetime={data.published}>{date(data.published)}</time><span>{t.read} →</span></div>
         </a>)}</div>
+        {totalPages > 1 && <nav class="blog-pagination" aria-label={t.pagination}>
+          {page > 1 ? <a rel="prev" href={href(`${pre}${archivePath(page - 1)}`)}>← {t.previous}</a> : <span />}
+          <span aria-current="page">{t.page} {page} / {totalPages}</span>
+          {page < totalPages ? <a rel="next" href={href(`${pre}${archivePath(page + 1)}`)}>{t.next} →</a> : <span />}
+        </nav>}
       </section> : <section class="blog-empty" aria-labelledby="empty-title">
         <h2 id="empty-title">{t.emptyTitle}</h2><p>{t.empty}</p>
         <a class="blog-link" href={href(`${pre}/compare/`)}>{t.compare} →</a>

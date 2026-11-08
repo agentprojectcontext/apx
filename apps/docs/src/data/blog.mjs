@@ -11,6 +11,10 @@ export const BLOG = {
     updated: "Updated",
     read: "Read article",
     language: "en-US",
+    previous: "Previous",
+    next: "Next",
+    pagination: "Article pages",
+    page: "Page",
   },
   es: {
     title: "Investigaciones sobre asistentes de IA",
@@ -24,6 +28,10 @@ export const BLOG = {
     updated: "Actualizado",
     read: "Leer artículo",
     language: "es-AR",
+    previous: "Anterior",
+    next: "Siguiente",
+    pagination: "Páginas de artículos",
+    page: "Página",
   },
 };
 
@@ -44,6 +52,17 @@ export function publishedPosts(entries) {
   return posts.sort(
     (a, b) => b.data.published.localeCompare(a.data.published) || a.data.slug.localeCompare(b.data.slug),
   );
+}
+
+export function archivePath(page = 1) {
+  return page === 1 ? "/blog/" : `/blog/page/${page}/`;
+}
+
+export function blogArchive(entries, lang, page = 1) {
+  const posts = publishedPosts(entries).filter(({ data }) => data.lang === lang);
+  const totalPages = Math.max(1, Math.ceil(posts.length / 10));
+  if (!Number.isInteger(page) || page < 1 || page > totalPages) throw new Error("Invalid blog page");
+  return { posts: posts.slice((page - 1) * 10, page * 10), totalPages };
 }
 
 export function blogPath(data) {
