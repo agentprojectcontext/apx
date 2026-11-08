@@ -5,7 +5,7 @@ import path from "node:path";
 import { after, before, test } from "node:test";
 import { UPLOAD_LIMITS } from "@apx/protocol";
 import { say, scriptedLlm, startCore } from "../engine/testkit.ts";
-import { removeDir, waitFor } from "../testkit/platform.ts";
+import { removeDir, tempDir, waitFor } from "../testkit/platform.ts";
 import { fakeWhatsApp } from "./fake-whatsapp.test-support.ts";
 import type { AdapterIO } from "./types.ts";
 import { toWhatsApp, whatsappAdapter } from "./whatsapp.ts";
@@ -336,7 +336,8 @@ test("someone under their private id is the same person as their number", async 
 
 test("adapter: a reply under the private id alone is still the number this line already learned", async () => {
   const fake = fakeWhatsApp();
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "apx-wa-"));
+  const tmp = tempDir("apx-wa-");
+  const dir = tmp.path;
   const adapter = whatsappAdapter({ dir, lib: async () => fake.lib });
   const from: string[] = [];
   const ac = new AbortController();
@@ -358,7 +359,7 @@ test("adapter: a reply under the private id alone is still the number this line 
   await waitFor(() => from.length === 2, "both messages");
   assert.deepEqual(from, [CARL.phone, CARL.phone], "one person, never a second under the private id");
   await adapter.stop();
-  await removeDir(dir);
+  await tmp.remove();
 });
 
 test("a contact's sticker is kept as WhatsApp's, and the agent answers with it as a sticker", async () => {
