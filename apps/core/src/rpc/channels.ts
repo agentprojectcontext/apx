@@ -5,7 +5,6 @@ import { type ChannelType, ErrorCode } from "@apx/protocol";
 import { CHANNEL_CATALOG } from "../channels/catalog.ts";
 import { pairingRef } from "../channels/inbound.ts";
 import type { Channels } from "../channels/manager.ts";
-import { contactAgentOf } from "../channels/types.ts";
 import { countryOf, whatsappDigits } from "../channels/phone.ts";
 import { autoApproves } from "../channels/stickers.ts";
 import { normalJid } from "../channels/whatsapp.ts";
@@ -63,10 +62,7 @@ export function channelHandlers(store: Store, channels: Channels, nudges: Pick<N
       if (channel?.type === "telegram" && !token && !channels.info().find((c) => c.id === id)?.token_set)
         throw badRequest("a Telegram channel needs its bot token (from @BotFather)");
       const config = channel ? { ...channel, label: channel.label || defaultLabel(channel.type) } : null;
-      const result = { channels: await channels.set(id, config, token) };
-      // The agent that answers contacts and rooms changes for the chats already open too, not only new ones.
-      if (config) store.threads.answerersOf(id, contactAgentOf(config), OWNER_ID);
-      return result;
+      return { channels: await channels.set(id, config, token) };
     },
     "channels.send": ({ thread, text, omit_signature }) => {
       if (!store.threads.get(thread)) throw notFound(`thread ${thread}`);

@@ -481,17 +481,19 @@ export function threadsRepo({ one, all, run }: Sql, bus: Bus, endSession: (threa
       const ids = [to, ...t.agent_ids.filter((a) => a !== from && a !== to)];
       return repo.write(id, { agent_ids: JSON.stringify(ids) });
     },
-    /** A channel's chats of contacts and rooms (not the owner's own chat) move to the agent that now answers them. */
-    answerersOf(channel: string, agentId: string, skipPerson: string): number {
-      const rows = all(qb.selectFrom("threads").selectAll().where("channel", "=", channel));
-      let changed = 0;
-      for (const r of rows) {
+    /**
+     * A channel's chats still answered by `from` go to `to` and its project: the owner's own chats (`owners`) or those of
+     * its contacts and rooms. A chat handed to another agent keeps it; past messages keep their authors.
+     */
+    moveAnswerer(o: { channel: string; owner: string; owners: boolean; from: string; to: string; project?: string }) {
+      for (const r of all(qb.selectFrom("threads").selectAll().where("channel", "=", o.channel))) {
         const t = toThread(r);
-        if (t.channel?.person_id === skipPerson || t.agent_ids[0] === agentId) continue;
-        repo.write(t.id, { agent_ids: JSON.stringify([agentId, ...t.agent_ids.filter((a) => a !== agentId)]) });
-        changed++;
+        if ((t.channel?.person_id === o.owner) !== o.owners || t.agent_ids[0] !== o.from) continue;
+        repo.write(t.id, {
+          agent_ids: JSON.stringify([o.to, ...t.agent_ids.filter((a) => a !== o.from && a !== o.to)]),
+          project_id: o.project ?? null,
+        });
       }
-      return changed;
     },
     /** The owner's arrangement: their own name (null = the automatic title), pinned, archived. Not activity. */
     arrange(id: string, a: { custom_title?: string | null; pinned?: boolean; archived?: boolean }): Thread {

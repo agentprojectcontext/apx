@@ -1,7 +1,9 @@
 import assert from "node:assert/strict";
+import fs from "node:fs";
+import path from "node:path";
 import { type TestContext, test } from "node:test";
 import { say, scriptedLlm, startCore } from "../engine/testkit.ts";
-import { waitFor } from "../testkit/platform.ts";
+import { tempDir, waitFor } from "../testkit/platform.ts";
 import { fakeTelegram } from "./fake-telegram.test-support.ts";
 import { telegramAdapter } from "./telegram.ts";
 
@@ -89,4 +91,52 @@ test("a contacts agent that does not exist is refused", async (t) => {
     }),
     /agent nobody/,
   );
+});
+
+test("saving any other setting leaves a contact's chat with the agent the owner handed it to", async (t) => {
+  const env = await setup(t);
+  const tg = { type: "telegram", agent_id: "superagent", owner_thread: "own" } as const;
+  await env.client.call("channels.set", { id: "tg", channel: tg, token: TOKEN });
+  env.tg.message(CONTACT, "hello");
+  await waitFor(() => env.core.store.threads.byConversation("tg", String(CONTACT.id)), "the contact's chat", {
+    ms: 8000,
+  });
+  const chat = env.core.store.threads.byConversation("tg", String(CONTACT.id));
+  assert.ok(chat);
+  env.core.store.threads.handOver(chat.id, "superagent", env.helper);
+
+  await env.client.call("channels.set", { id: "tg", channel: { ...tg, strangers: "ignore" }, token: TOKEN });
+  assert.equal(env.core.store.threads.get(chat.id)?.agent_ids[0], env.helper, "an unrelated save moves nothing");
+
+  const other = await env.client.call("agents.create", { slug: "northwind-desk", name: "Desk", role: "desk" });
+  await env.client.call("channels.set", { id: "tg", channel: { ...tg, contacts_agent_id: other.id }, token: TOKEN });
+  assert.equal(env.core.store.threads.get(chat.id)?.agent_ids[0], env.helper, "a chat handed over keeps its agent");
+});
+
+test("the owner's own chat follows the agent they talk to, into that agent's project", async (t) => {
+  const env = await setup(t);
+  const dir = tempDir("apx-head-");
+  t.after(() => dir.remove());
+  fs.writeFileSync(path.join(dir.path, "AGENTS.md"), "# Acme\n");
+  const { project } = await env.client.call("projects.register", { path: dir.path, init: true });
+  const head = await env.client.call("agents.create", { project_id: project.id, slug: "acme-head", name: "Head" });
+  const tg = { type: "telegram", agent_id: "superagent", owner_thread: "own" } as const;
+  await env.client.call("channels.set", { id: "tg", channel: tg, token: TOKEN });
+  env.tg.message(CONTACT, "hello");
+  env.tg.message(OWNER, "hello from the owner");
+  await waitFor(
+    () => env.core.store.threads.byConversation("tg", String(OWNER.id)) && env.llm.calls.length >= 2,
+    "both chats answered",
+    { ms: 8000 },
+  );
+
+  await env.client.call("channels.set", {
+    id: "tg",
+    channel: { ...tg, agent_id: head.id, contacts_agent_id: "superagent" },
+    token: TOKEN,
+  });
+  const own = env.core.store.threads.byConversation("tg", String(OWNER.id));
+  assert.deepEqual([own?.agent_ids[0], own?.project_id], [head.id, project.id]);
+  const contact = env.core.store.threads.byConversation("tg", String(CONTACT.id));
+  assert.deepEqual([contact?.agent_ids[0], contact?.project_id], ["superagent", undefined], "contacts stay");
 });
