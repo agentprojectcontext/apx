@@ -98,7 +98,7 @@ function Linked({ channel }: { channel: ChannelInfo }) {
     concurrency: channel.concurrency,
     owner_thread: channel.owner_thread,
     self_owner: channel.self_owner,
-    closers: channel.closers,
+    reactions: channel.reactions,
     research: channel.research,
     hours: channel.hours,
   };

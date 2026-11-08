@@ -22,7 +22,7 @@ import type { InternalCall } from "../rpc/internal.ts";
 import type { Services } from "../services/registry.ts";
 import { saveUpload } from "../services/uploads.ts";
 import { inlineName, untrusted } from "../tools/result.ts";
-import { asksSomething, asksToStop, needsNoAnswer, reactionFor } from "./closers.ts";
+import { asksToStop } from "./closers.ts";
 import type { Delivery } from "./delivery.ts";
 import { type Held, waitsForHours } from "./held.ts";
 import { type Button, buttonId, inputPresentation, parseButton, ratingOf, shown } from "./notices.ts";
@@ -61,8 +61,6 @@ export function createInbound(deps: {
   /** Drafts for supervised contacts, and the owner answering one of them in their own words. */
   suggestions: Pick<Suggestions, "held" | "write" | "takeWriting">;
   stickers: Pick<Stickers, "keep">;
-  /** Puts the agent's emoji on a platform message; false when the channel has no reactions or is not running. */
-  react(channel: string, conversation: string, ref: string, emoji: string): Promise<boolean>;
   /** The owner answers an input from this chat: its message there is not taken out when it settles. */
   answeredHere(inputId: string, at: { channel: string; conversation: string }, by: "button" | "text"): void;
   /** Replaces the buttons under a message sent on a channel; false when the channel cannot. */
@@ -70,8 +68,6 @@ export function createInbound(deps: {
   /** Contacts' chats waiting for their channel's hours. */
   held: Pick<Held, "hold" | "release">;
   now: () => Date;
-  /** The owner's words kept without a turn (a closing "genial, funcionó"): memory may still learn from them. */
-  ownerReplied?: (messageId: string) => void;
 }) {
   const { store, log, call, delivery } = deps;
   const recent = new Map<string, number[]>();
@@ -174,12 +170,11 @@ export function createInbound(deps: {
       return "done";
     }
     if (!owner) deps.held.release(thread.id);
-    // Supervised: kept unanswered, and the owner gets the reply the agent would send (a closing "ok" gets none).
+    // Supervised: kept unanswered, and the owner gets the reply the agent would send.
     if (supervised) {
       const said = text.trim() || (attachments.length ? "[attached files]" : "[empty message]");
-      const closes = !attachments.length && closesChat(thread.id, said);
       theirLast(thread.id, cfg.id, m, keepQuiet(thread.id, cfg.id, person, said, attachments, {}));
-      if (!closes) deps.suggestions.held(cfg, person, m.sender.id, thread.id);
+      deps.suggestions.held(cfg, person, m.sender.id, thread.id);
       return "done";
     }
     // After "I'll answer" on a draft, even an "ok" is the owner's answer to that contact.
@@ -191,15 +186,6 @@ export function createInbound(deps: {
       (await answerContact(cfg.id, m.conversation, text.trim(), rowId))
     )
       return "done";
-    if (!attachments.length && closesChat(thread.id, text)) {
-      const kept = keepQuiet(thread.id, cfg.id, direct ? undefined : person, text.trim());
-      if (direct) deps.ownerReplied?.(kept);
-      theirLast(thread.id, cfg.id, m, kept);
-      const emoji = cfg.closers === "react" ? reactionFor(text) : undefined;
-      if (emoji && (await deps.react(cfg.id, m.conversation, m.ref ?? m.external_id, emoji).catch(() => false)))
-        store.messages.setReaction(kept, "agent", emoji);
-      return "done";
-    }
     text = text.trim() || (attachments.length ? "[attached files]" : "[empty message]");
     // "Pará" while the agent works: the turn stops, and the word is kept without starting another.
     if (owner && !attachments.length && asksToStop(text) && working(thread.id)) {
@@ -294,21 +280,6 @@ export function createInbound(deps: {
       log.warn({ err: errorMessage(err, 200) }, "voice note not transcribed");
       return `${caption}[voice note: it could not be transcribed]`;
     }
-  }
-
-  /**
-   * "Ok", "gracias", "no gastes más tokens": nothing to answer, so no model call. Not while a turn is running or
-   * waiting for an answer (the words may belong to it), nor when the agent's last words asked something.
-   */
-  function closesChat(threadId: string, text: string): boolean {
-    if (store.inputs.pending(threadId).length) return false;
-    if (working(threadId)) return false;
-    const last = store.messages
-      .list(threadId)
-      .findLast((x) => x.author.kind === "agent" || x.author.kind === "person" || x.author.kind === "user");
-    const said =
-      last?.author.kind === "agent" ? last.parts.map((p) => (p.type === "text" ? p.text : "")).join("\n") : "";
-    return needsNoAnswer(text, asksSomething(said));
   }
 
   /** A turn of the thread is running, queued or waiting for an answer. */

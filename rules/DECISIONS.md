@@ -4145,3 +4145,23 @@ like any strong action; reads never ask (they did not before either).
 
 Contacts stay in `apx_settings` rather than a tool of their own: a separate tool would be paid in every turn's tool
 definitions (rules/PROMPT_SIZE.md) for the same rule, which `Setting.asks` already says per method.
+
+<a id="d-204"></a>
+## D-204 — 2026-11-06 — The agent decides whether a message needs an answer; the owner only allows emoji or not
+
+A closing message ("ok", "gracias", "jaja", a lone emoji, "no gastes más tokens") was spotted by a word list
+(Spanish and some English, at most eight words) and settled before the model: left in silence, or with **React**
+answered by rule (❤️ for thanks, 😂 for a laugh, 👍 otherwise). The agent could already choose silence (`SKIP`) or any
+emoji (`REACT …`) for every other message, so the same choice had two deciders, and the list missed every other
+language ("merci", "obrigado" reached the model anyway).
+
+- **No list.** Every chat message reaches the agent, whose chat style already offers `SKIP` and `REACT`; the prompt
+  does not grow. Each "ok" now costs a model call, and a contact's counts toward the hourly limit like any message.
+  Only a short "pará" while the agent works is still read without a model: it cancels the turn, it does not answer.
+- **`reactions` (boolean, none: on) replaces `closers`.** Off, the turn's context says "no reactions" and a `REACT`
+  answer on that channel is dropped like `SKIP`. A stored `closers` value is dropped on read: the panel saved the old
+  default with every channel, so a chosen "silent" cannot be told from one never chosen, and every channel starts on.
+- A supervised contact's closer now gets a draft like any message; when the agent would not answer, the owner gets
+  the "no answer needed" notice that other such messages already got.
+- The owner's "genial, funcionó" on a channel now runs a turn, so the procedure note it confirms comes from that turn
+  (`captureProcedure`); the path for owner words kept without a turn is gone.

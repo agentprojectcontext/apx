@@ -42,10 +42,10 @@ export const FILE_PAYLOAD_BYTES =
 export const TURN_STEPS = 150;
 
 /**
- * What a channel does when the owner set nothing: a closer ("ok", "gracias") is left in silence, and its sealed chats
- * search the web only when the owner asks (DECISIONS.md#d-059).
+ * What a channel does when the owner set nothing: the agent may answer with an emoji reaction (DECISIONS.md#d-204), and
+ * its sealed chats search the web only when the owner asks (DECISIONS.md#d-059).
  */
-export const CHANNEL_DEFAULTS = { closers: "silent", research: "owner" } as const;
+export const CHANNEL_DEFAULTS = { reactions: true, research: "owner" } as const;
 
 /** Minutes a tab of the desktop's browser stays open off screen with no agent or owner using it. */
 export const BROWSER_TAB_IDLE_MIN = 10;

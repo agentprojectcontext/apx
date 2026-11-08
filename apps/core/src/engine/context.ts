@@ -467,7 +467,7 @@ export function frameInput(origin: Origin, text: string): string {
 
 /** Chat apps show plain text on a phone. */
 export const CHAT_CHANNELS = new Set(["telegram", "whatsapp", "slack", "discord", "imessage"]);
-const CHAT_STYLE = `Plain text on a phone: no Markdown tables, headers or bold; short, under about six sentences unless asked for more. Your answer must carry the whole result. When the message needs no answer (a thanks, an ok, a laugh, a goodbye, a request to stop answering), answer only ${SKIP_ANSWER}: nothing is sent, and the chat ends there. To react to their last message with an emoji instead of words (or when asked to react), answer only REACT and the emoji, e.g. "REACT ❤️".`;
+const CHAT_STYLE = `Plain text on a phone: no Markdown tables, headers or bold; short, under about six sentences unless asked for more. Your answer must carry the whole result. When the message needs no answer (a thanks, an ok, a laugh, a goodbye, a request to stop answering), answer only ${SKIP_ANSWER}: nothing is sent, and the chat ends there. To react to their last message with an emoji instead of words (or when asked to react), answer only REACT and the emoji, e.g. "REACT ❤️"; never with "no reactions" in the context.`;
 
 const HANDOFF_NOTE =
   "Here you keep notes, write to people and rooms when asked (message_contact, channel_post) and hand the rest off. Anything that needs other tools (the web, files, commands, tasks, the browser) goes to an agent with delegate: say in one line that it is on its way; its answer reaches the owner here.";
@@ -521,6 +521,8 @@ export type TurnOpts = {
   channel?: string | undefined;
   /** The chat gets spoken answers: the first paragraph becomes a voice note. */
   voice?: boolean | undefined;
+  /** The owner turned emoji reactions off on this channel: the agent never answers REACT there. */
+  noReactions?: boolean | undefined;
   /** A code thread's folder and what may change there, the project's read-only folders (workspaceBlock). */
   workspace?: string | undefined;
   /** The computer, for an agent allowed it: its state, the agent's screen and whose hands it is in (computerBriefing). */
@@ -574,6 +576,7 @@ export function turnBlocks(opts: TurnOpts): InputBlock[] {
     `channel: ${channel}`,
     toldMode && opts.mode ? `mode: ${MODE_NAMES[opts.mode]}` : "",
     opts.voice && toldVoice ? "voice" : "",
+    chat && opts.noReactions ? "no reactions" : "",
   ].filter(Boolean);
   // One header: the line of facts, then the folder and the computer, each already saying what it is.
   const head: Array<[string, string]> = [

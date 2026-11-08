@@ -121,13 +121,9 @@ export const enChannels = {
   "ch.hoursWhen": "Days and hours",
   "ch.hoursZone": "In {zone}, your account's time zone.",
   "ch.hoursZoneLocal": "On the clock of the computer APX runs on: your account has no time zone set.",
-  "ch.closers": "Messages that need no answer",
-  "ch.closers.silent": "Silence",
-  "ch.closers.react": "React",
-  "ch.closersHint.silent":
-    'An "ok", a thanks or a goodbye is kept in the chat and left unanswered, with no model call.',
-  "ch.closersHint.react":
-    'An "ok", a thanks or a goodbye gets an emoji instead of words (👍, ❤️, 😂), with no model call.',
+  "ch.reactions": "Emoji reactions",
+  "ch.reactionsHint.on": 'The agent may answer a thanks or an "ok" with an emoji, or not answer at all.',
+  "ch.reactionsHint.off": 'The agent answers a thanks or an "ok" with words or not at all, never with an emoji.',
   "ch.delivery.pending": "Sending",
   "ch.delivery.sent": "Sent",
   "ch.delivery.delivered": "Delivered",

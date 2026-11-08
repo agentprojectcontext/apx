@@ -9,7 +9,7 @@ import type { InternalCall } from "../rpc/internal.ts";
 import { memoryEpisodeSource, recordMemoryEpisode } from "./memory-episodes.ts";
 import type { MemoryIndex } from "./memory-index.ts";
 import { performMemoryJob } from "./memory-job.ts";
-import { captureConfirmed, captureProcedure } from "./memory-procedure.ts";
+import { captureProcedure } from "./memory-procedure.ts";
 import type { Upkeep } from "./upkeep.ts";
 
 export function createMemoryMaintenance(deps: {
@@ -135,17 +135,6 @@ export function createMemoryMaintenance(deps: {
         );
       deps.index.schedule();
       void drain();
-    },
-    /** The owner said something that started no turn (a closing "genial, funcionó" on a channel). */
-    ownerReplied(messageId: string) {
-      void captureConfirmed(store, deps.call, messageId, ownerTimeZone(store))
-        .then((saved) => saved && deps.index.schedule())
-        .catch((err) =>
-          log.warn(
-            { message: messageId, error: err instanceof Error ? err.message : "UnknownError" },
-            "procedure note failed",
-          ),
-        );
     },
     async maintain(backfill = false, dream = false) {
       let queued = 0;

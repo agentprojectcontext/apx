@@ -6,8 +6,8 @@
 // - delivery ticks: return the platform's id from `send`, and call `io.receipt` when it reaches their device or is
 //   read (WhatsApp does; the Telegram Bot API tells neither, so its messages stop at "sent");
 // - reactions in: call `io.reaction` when someone puts or takes off an emoji on a message (it never wakes the agent);
-// - reactions out: set `caps.reactions` and `react`, so a closing "ok"/"gracias" can get an emoji (channel setting
-//   `closers`); set `Inbound.ref` when the id to react to is not `external_id`;
+// - reactions out: set `caps.reactions` and `react`, so the agent's "REACT ❤️" lands on their message (channel setting
+//   `reactions`); set `Inbound.ref` when the id to react to is not `external_id`;
 // - presence (online / last seen) and avatars, where the platform shares them.
 import type { ChannelInfo } from "@apx/protocol";
 import type { Inbound, InboundAction, InboundReaction, Presentation } from "../domain/channels.ts";

@@ -70,7 +70,7 @@ function channelLine(store: Store, c: Channel): string {
     c.enabled ? "on" : "off",
     `answered by ${inlineName(store.agents.get(c.agent_id)?.name ?? c.agent_id)}`,
     `strangers: ${c.strangers}`,
-    `closers: ${c.closers ?? CHANNEL_DEFAULTS.closers}`,
+    `reactions: ${(c.reactions ?? CHANNEL_DEFAULTS.reactions) ? "on" : "off"}`,
     `research: ${c.research ?? CHANNEL_DEFAULTS.research}`,
     c.hours ? `hours ${hoursText(c.hours)}` : "any hour",
   ];
@@ -166,7 +166,7 @@ export const PEOPLE: Readonly<Record<string, Setting>> = {
     },
   },
   "channels.list": {
-    does: "each channel with who answers it, strangers, closers, research, hours and rooms",
+    does: "each channel with who answers it, strangers, reactions, research, hours and rooms",
     read: (_p, { store }) =>
       channelsOf(store)
         .map((c) => channelLine(store, c))

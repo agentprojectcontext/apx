@@ -1,6 +1,6 @@
 // What every channel's settings share: who answers and how, who waits to be let in, the people on it, what was sent,
 // and how notices reach the owner.
-import type { ChannelClosers, ChannelHours, ChannelInfo, ChannelResearch, OutboxItem, Person } from "@apx/protocol";
+import type { ChannelHours, ChannelInfo, ChannelResearch, OutboxItem, Person } from "@apx/protocol";
 import { CHANNEL_DEFAULTS } from "@apx/protocol/client";
 import { Badge, Button, IconButton, Icons, Input, Menu, SegmentedControl, SettingRow, Switch } from "@apx/ui";
 import { useMemo, useState } from "react";
@@ -28,8 +28,8 @@ export const STATUS: Record<ChannelInfo["status"], "brand" | "neutral" | "warnin
   error: "danger",
 };
 
-/** Channels whose adapter puts emoji on messages (a new one with reactions joins here). */
-const REACTS = new Set<ChannelInfo["type"]>(["telegram", "whatsapp"]);
+/** Chat channels, where the agent may answer with an emoji (as a reaction, or as text where there are none). */
+const CHATS = new Set<ChannelInfo["type"]>(["telegram", "whatsapp", "discord", "slack", "imessage"]);
 
 /** On the owner's own WhatsApp number a stranger never gets a code from it: "pair" only lists them. */
 const listsOnly = (c: ChannelInfo) => c.type === "whatsapp" && c.self_owner === true;
@@ -87,23 +87,7 @@ export function Behavior({
           ]}
         />
       </SettingRow>
-      {REACTS.has(channel.type) && (
-        <SettingRow
-          title={t("ch.closers")}
-          description={t(`ch.closersHint.${channel.closers ?? CHANNEL_DEFAULTS.closers}`)}
-        >
-          <SegmentedControl
-            size="sm"
-            label={t("ch.closers")}
-            value={channel.closers ?? CHANNEL_DEFAULTS.closers}
-            onValueChange={(v) => void save({ closers: v as ChannelClosers })}
-            options={[
-              { value: "silent", label: t("ch.closers.silent") },
-              { value: "react", label: t("ch.closers.react") },
-            ]}
-          />
-        </SettingRow>
-      )}
+      {CHATS.has(channel.type) && <ReactionsRow channel={channel} save={save} />}
       <SettingRow
         title={t("ch.research")}
         description={t(`ch.researchHint.${channel.research ?? CHANNEL_DEFAULTS.research}`)}
@@ -141,6 +125,28 @@ export function Behavior({
 
 /** Hours a channel starts with when the owner turns them on: every day, a working day's span. */
 const FIRST_HOURS: ChannelHours = { days: [1, 2, 3, 4, 5, 6, 0], from: "08:00", to: "22:00" };
+
+/** Whether the agent may answer with an emoji on their message instead of words. */
+function ReactionsRow({
+  channel,
+  save,
+}: {
+  channel: ChannelInfo;
+  save(patch: Partial<ChannelDraft>): Promise<unknown>;
+}) {
+  const t = useT();
+  const on = channel.reactions ?? CHANNEL_DEFAULTS.reactions;
+  return (
+    <SettingRow title={t("ch.reactions")} description={t(on ? "ch.reactionsHint.on" : "ch.reactionsHint.off")}>
+      <Switch
+        size="sm"
+        checked={on}
+        onCheckedChange={(v) => void save({ reactions: v })}
+        aria-label={t("ch.reactions")}
+      />
+    </SettingRow>
+  );
+}
 
 /** When it answers contacts, in the owner's time zone: at any hour, or on some days between two times. */
 function Hours({ channel, save }: { channel: ChannelInfo; save(patch: Partial<ChannelDraft>): Promise<unknown> }) {

@@ -32,11 +32,11 @@ test("channels: a change shows only the fields that change, and keeps the rest a
     (await h.ask({ method: "channels.list" })).answer,
     /^- Acme bot \[tg\] \(telegram, on, .*strangers: ask/,
   );
-  const call = { method: "channels.set", params: { id: "tg", channel: { strangers: "pair", closers: "react" } } };
+  const call = { method: "channels.set", params: { id: "tg", channel: { strangers: "pair", reactions: false } } };
   const { detail, answer } = await h.ask(call, "approve");
   assert.match(detail, /^Change the channel Acme bot/);
   assert.match(detail, /channel\.strangers: "ask" → "pair"/);
-  assert.match(detail, /channel\.closers: "silent" → "react"/);
+  assert.match(detail, /channel\.reactions: .* → false/);
   assert.doesNotMatch(detail, /label|research|agent_id|type/);
   assert.match(answer, /^done: saved/);
   assert.equal(channel()?.strangers, "pair");
@@ -112,16 +112,17 @@ test("stickers: the owner approves what a sticker means; the agent reads its sti
   assert.equal(h.env.core.store.stickers.get(sticker)?.meaning, "mate shared, all good");
 });
 
-test("channels: one saved before closers and research existed reads with their defaults (DECISIONS.md#d-059)", async () => {
+test("channels: one saved before reactions and research existed reads with their defaults (DECISIONS.md#d-059)", async () => {
   const store = h.env.core.store;
   const saved = store.settings.read("channels");
   store.settings.write(
     "channels",
-    saved.map((c) => (c.id === "tg" ? { ...c, closers: undefined, research: undefined } : c)),
+    // An old "closers" choice is dropped: every channel may react (DECISIONS.md#d-204).
+    saved.map((c) => (c.id === "tg" ? { ...c, closers: "silent", reactions: undefined, research: undefined } : c)),
   );
   try {
     const { answer } = await h.ask({ method: "channels.list" });
-    assert.match(answer, /closers: silent, research: owner/);
+    assert.match(answer, /reactions: on, research: owner/);
     assert.doesNotMatch(answer, /undefined/);
   } finally {
     store.settings.write("channels", saved);
