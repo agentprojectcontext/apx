@@ -193,6 +193,9 @@ export const CodeView = lazy(() => import("./project/files/CodeView.tsx").then((
 
 // Flows: the list first, then a flow's runs and the editor (with the canvas library) only when opened.
 export const FlowsScreen = lazy(() => import("./flows/FlowsScreen.tsx"));
+export const RoutinesScreen = lazy(() =>
+  import("./routines/RoutinesScreen.tsx").then((m) => ({ default: m.RoutinesScreen })),
+);
 export const FlowDetail = lazy(() => import("./flows/FlowDetail.tsx").then((m) => ({ default: m.FlowDetail })));
 export const FlowEditor = lazy(() => import("./flows/FlowEditor.tsx").then((m) => ({ default: m.FlowEditor })));
 // A project's tables, on the Flows screen's Tables.

@@ -23,6 +23,7 @@ type View =
   | "app"
   | "tasks"
   | "flows"
+  | "routines"
   | "resources"
   | "files"
   | "computers"
@@ -168,7 +169,7 @@ const PANELS: readonly PanelKind[] = [
   "document",
 ];
 const TAB_IDS: readonly string[] = PROJECT_TABS.map((t) => t.id);
-const VIEWS: readonly string[] = ["tasks", "flows", "resources", "files", "computers", "channels"];
+const VIEWS: readonly string[] = ["tasks", "flows", "routines", "resources", "files", "computers", "channels"];
 
 /** Deep links: #thread=<id>&panel=<kind>, #app=<id>, #project=<id>&tab=<tab>, #view=tasks&task=<id>. */
 function fromHash(): Partial<NavState> {
@@ -333,6 +334,7 @@ nav.subscribe(() => {
   } else if (
     s.view === "tasks" ||
     s.view === "flows" ||
+    s.view === "routines" ||
     s.view === "resources" ||
     s.view === "files" ||
     s.view === "computers" ||
@@ -490,7 +492,7 @@ export const go = {
   tables(flowProject?: string, flowTable?: string) {
     nav.set({ view: "flows", flowProject, flowId: undefined, flowEdit: false, flowTables: true, flowTable });
   },
-  view(view: "tasks" | "resources" | "files" | "computers" | "channels") {
+  view(view: "tasks" | "routines" | "resources" | "files" | "computers" | "channels") {
     nav.set({ view });
   },
   /** A task: beside a tasks list when one is open, else over the current screen (a chat, a notice…). */

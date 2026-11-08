@@ -80,31 +80,63 @@
   width: 22px;
   height: 22px;
 }
-.topbar__crumbs {
+/* History arrows lead the search box, both centred on the window. */
+.topbar__center {
   display: flex;
   align-items: center;
   gap: 6px;
   min-width: 0;
-  font-size: var(--apx-text-sm);
-  white-space: nowrap;
-  overflow: hidden;
 }
-.topbar__crumb {
+.serverswitch {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  height: 30px;
+  padding: 0 4px 0 8px;
+  border: 0;
+  border-radius: var(--apx-control-radius);
+  background: transparent;
+  color: var(--apx-fg);
+  font-size: var(--apx-text-sm);
+}
+.serverswitch:hover,
+.serverswitch[aria-expanded="true"] {
+  background: var(--apx-fill-hover);
+}
+.serverswitch__icon {
+  position: relative;
+  display: flex;
   color: var(--apx-fg-muted);
+}
+.serverswitch__dot {
+  position: absolute;
+  right: -3px;
+  bottom: -2px;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--apx-danger);
+  box-shadow: 0 0 0 2px var(--apx-sidebar);
+}
+.serverswitch__dot.is-online {
+  background: var(--apx-brand);
+}
+.serverswitch__name {
+  margin-left: 4px;
   overflow: hidden;
+  white-space: nowrap;
   text-overflow: ellipsis;
 }
-.topbar__crumb.is-last {
-  color: var(--apx-fg);
-}
-.topbar__sep {
+.serverswitch__chev {
+  flex: none;
   color: var(--apx-fg-subtle);
 }
 .topbar__search {
   display: flex;
   align-items: center;
   gap: 8px;
-  width: min(100cqw - 1460px, 300px);
+  width: clamp(30px, 100cqw - 1160px, 320px);
   height: 30px;
   padding: 0 8px 0 10px;
   border: 0;
@@ -205,7 +237,7 @@ html[data-shortcuts-active] [data-shortcut-modifier] {
     gap: 0;
   }
 }
-@container topbar (max-width: 1599px) {
+@container topbar (max-width: 1199px) {
   .topbar__search-label,
   .topbar__search .apx-kbd {
     display: none;
@@ -225,9 +257,6 @@ html[data-shortcuts-active] [data-shortcut-modifier] {
   .topbar__right {
     --topbar-min-fit: 3;
   }
-  .topbar__crumbs {
-    font-size: var(--apx-text-xs);
-  }
 }
 @container topbar (max-width: 1099px) {
   .topbar__right {
@@ -238,8 +267,8 @@ html[data-shortcuts-active] [data-shortcut-modifier] {
   .topbar {
     gap: 6px;
   }
-  .topbar__crumb:not(.is-last),
-  .topbar__sep {
+  .serverswitch__name,
+  .serverswitch__chev {
     display: none;
   }
 }
@@ -253,7 +282,7 @@ html[data-shortcuts-active] [data-shortcut-modifier] {
     width: 24px;
   }
   .topbar__nav,
-  .topbar__crumbs {
+  .serverswitch {
     display: none;
   }
   .topbar .usage-btn {

@@ -235,6 +235,67 @@
   overflow-y: auto;
   overflow-x: hidden;
 }
+/* Compact: every section is one row, its rows open beside it (SidebarFlyout). */
+.sidebar__scroll.is-compact {
+  gap: 2px;
+  padding: 10px 8px;
+}
+.sideflyout__row {
+  width: 100%;
+  border: 0;
+  background: transparent;
+  text-align: left;
+}
+.sideflyout__icon {
+  position: relative;
+}
+.sideflyout__alert {
+  position: absolute;
+  top: -3px;
+  right: -4px;
+  width: 7px;
+  height: 7px;
+  border: 2px solid var(--apx-sidebar);
+  border-radius: 50%;
+  background: var(--apx-danger);
+}
+.sideflyout__count {
+  font-size: var(--apx-text-xs);
+  color: var(--apx-fg-subtle);
+}
+.sideflyout__chev {
+  flex: none;
+  color: var(--apx-fg-subtle);
+}
+.sideflyout.apx-popover {
+  padding: 6px;
+}
+.sideflyout__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 26px;
+  padding: 0 2px 4px 8px;
+  font-size: var(--apx-text-xs);
+  color: var(--apx-fg-subtle);
+}
+.sideflyout__list {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  max-height: min(520px, 70vh);
+  overflow-y: auto;
+}
+.sideflyout__list .apx-nav {
+  height: 32px;
+  padding: 0 8px;
+}
+.sidebar__newchat {
+  width: 100%;
+  border: 0;
+  background: transparent;
+  text-align: left;
+}
 .sidebar__foot {
   flex: none;
   display: flex;
@@ -261,9 +322,9 @@
   min-width: 0;
   margin: 0;
   padding: 4px;
-  border: 0;
+  border: 1px solid var(--apx-border);
   border-radius: var(--apx-radius-lg);
-  background: var(--apx-fill);
+  background: var(--apx-bg);
 }
 .sidebar__group > .apx-section-label {
   min-height: 28px;

@@ -1,5 +1,5 @@
 import { Icons, Menu, type MenuEntry } from "@apx/ui";
-import { initialsOf, usePrefs } from "../data/prefs.ts";
+import { initialsOf, setPrefs, usePrefs } from "../data/prefs.ts";
 import { openSetup } from "../data/setup.ts";
 import { type T, useT } from "../i18n/index.ts";
 import { useLanguageItems } from "./LanguageMenu.tsx";
@@ -10,6 +10,7 @@ export function AccountRow({ rail }: { rail: boolean }) {
   const t = useT();
   const name = usePrefs((s) => s.displayName) || t("account.you");
   const languageItems = useLanguageItems();
+  const compact = usePrefs((s) => s.sidebarCompact);
   const items: MenuEntry[] = [
     { type: "label", label: name },
     {
@@ -20,6 +21,13 @@ export function AccountRow({ rail }: { rail: boolean }) {
     { label: t("phone.open"), icon: <Icons.Smartphone />, onSelect: () => go.phone(true) },
     { label: t("setup.menu"), icon: <Icons.Sparkles />, onSelect: openSetup },
     { label: t("sysUsage.title"), icon: <Icons.MemoryStick />, onSelect: () => go.usageDialog(true) },
+    {
+      label: t("appearance.compact"),
+      icon: <Icons.PanelLeftClose />,
+      checked: compact,
+      keepOpen: true,
+      onSelect: () => setPrefs({ sidebarCompact: !compact }),
+    },
     { type: "separator" },
     { label: t("config.title"), icon: <Icons.Settings />, shortcut: "⌘,", onSelect: () => go.config() },
     { type: "submenu", label: t("language.label"), icon: <Icons.Languages />, items: languageItems },

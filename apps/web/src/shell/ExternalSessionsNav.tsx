@@ -12,7 +12,7 @@ import { SidebarOverflow, SidebarRowsGrip, SidebarSection } from "./SidebarSecti
  * Last opened engine first, with the same row actions and manual ordering as the other sections; past the rows the
  * owner dragged it to, the rest folds into "N more" like Projects.
  */
-export function ExternalSessionsNav({ rail }: { rail: boolean }) {
+export function ExternalSessionsNav({ rail, compact = false }: { rail: boolean; compact?: boolean }) {
   const t = useT();
   const folded = usePrefs((s) => s.externalSessionsFolded);
   const saved = usePrefs((s) => s.engineOrder);
@@ -68,14 +68,20 @@ export function ExternalSessionsNav({ rail }: { rail: boolean }) {
     <SidebarSection
       rail={rail}
       title={t("nav.externalSessions")}
+      compact={compact}
+      icon={<Icons.Terminal size={16} />}
+      count={shown.length}
+      running={shown.some((engine) => engine.logged_in)}
+      active={view === "engine"}
       folded={folded}
       onToggle={() => {
         setMoreOpen(false);
         setPrefs({ externalSessionsFolded: !folded });
       }}
     >
-      {!hidden && shown.slice(0, cut).map((engine) => row(engine))}
-      {!hidden && rest.length > 0 && (
+      {compact && shown.map((engine) => row(engine, true))}
+      {!compact && !hidden && shown.slice(0, cut).map((engine) => row(engine))}
+      {!compact && !hidden && rest.length > 0 && (
         <SidebarOverflow
           rail={rail}
           title={t("nav.externalSessions")}
@@ -89,7 +95,9 @@ export function ExternalSessionsNav({ rail }: { rail: boolean }) {
           {rest.map((engine) => row(engine, true))}
         </SidebarOverflow>
       )}
-      {!hidden && !rail && <SidebarRowsGrip section="engines" total={shown.length} title={t("nav.externalSessions")} />}
+      {!compact && !hidden && !rail && (
+        <SidebarRowsGrip section="engines" total={shown.length} title={t("nav.externalSessions")} />
+      )}
     </SidebarSection>
   );
 }

@@ -22,6 +22,7 @@ import {
   PhoneDialog,
   ProjectScreen,
   ResourcesScreen,
+  RoutinesScreen,
   TaskPeek,
   TasksScreen,
   ThreadDialogs,
@@ -94,6 +95,8 @@ export function Shell() {
                 <TasksScreen />
               ) : view === "flows" ? (
                 <FlowsScreen key={flowProject ?? "all"} projectId={flowProject} />
+              ) : view === "routines" ? (
+                <RoutinesScreen />
               ) : view === "resources" ? (
                 <ResourcesScreen />
               ) : view === "files" ? (

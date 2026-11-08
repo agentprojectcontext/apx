@@ -220,6 +220,7 @@
                       "**/FlowViewer.tsx",
                       "**/TablesView.tsx",
                       "**/FlowsScreen.tsx",
+                      "**/RoutinesScreen.tsx",
                       "**/SearchSelect.tsx",
                       "**/SurfacePart.tsx",
                       "**/TaskDescription.tsx",

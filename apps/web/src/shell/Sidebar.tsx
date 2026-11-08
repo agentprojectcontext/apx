@@ -8,6 +8,7 @@ import { setPrefs, usePrefs } from "../data/prefs.ts";
 import { useData } from "../data/state.ts";
 import { useT } from "../i18n/index.ts";
 import { unreadListed } from "../inbox/groupThreads.ts";
+import { NewChatMenu } from "../inbox/NewChatMenu.tsx";
 import { AppsDock, CornerCards, DesktopInstallNotice } from "../lazy.ts";
 import { AccountRow } from "./AccountRow.tsx";
 import { ChannelsNav } from "./ChannelsNav.tsx";
@@ -17,10 +18,12 @@ import { HelpMenu } from "./HelpMenu.tsx";
 import { LAYOUT } from "./layout.ts";
 import { go, useNav } from "./nav.ts";
 import { ProjectsNav } from "./ProjectsNav.tsx";
+import { SidebarTooltipButton } from "./SidebarNavRow.tsx";
+import { useSidebarCompact } from "./useSidebarCompact.ts";
 
 /**
- * Inbox · Tasks · Flows · Resources · Files (pinned) · Channels · Projects · External sessions · Apps · account (with
- * Settings). `rail` = 60px icons. Its edge folds and unfolds it (click or drag) and sets its width; `narrow`: the
+ * New chat · Inbox · Tasks · Flows · Routines · Resources · Files (pinned) · Projects · External sessions · Channels ·
+ * Apps · account (with Settings). Compact (the owner's choice, or a short window): each section is one row. `rail` = 60px icons. Its edge folds and unfolds it (click or drag) and sets its width; `narrow`: the
  * window is narrow enough to fold it on its own; `fixed`: a phone, where it stays a rail.
  */
 export function Sidebar({
@@ -45,6 +48,7 @@ export function Sidebar({
     void loadChannels();
   }, []);
 
+  const compact = useSidebarCompact();
   const routines = usePrefs((s) => s.inboxRoutines);
   // The width it opens to: the one the owner dragged it to.
   const open = usePrefs((s) => s.sidebarW) || undefined;
@@ -77,6 +81,20 @@ export function Sidebar({
         />
       )}
       <div className="sidebar__top">
+        <NewChatMenu
+          projectId={undefined}
+          trigger={
+            <SidebarTooltipButton
+              label={t("nav.newChat")}
+              className={`apx-nav sidebar__newchat${rail ? " apx-nav--collapsed" : ""}`}
+            >
+              <span className="apx-nav__icon">
+                <Icons.SquarePen size={16} />
+              </span>
+              {!rail && <span className="apx-nav__label">{t("nav.newChat")}</span>}
+            </SidebarTooltipButton>
+          }
+        />
         <ContextMenu
           items={[
             {
@@ -112,6 +130,13 @@ export function Sidebar({
         />
         <NavItem
           collapsed={rail}
+          icon={<Icons.Clock />}
+          label={t("nav.routines")}
+          active={view === "routines"}
+          onClick={() => go.view("routines")}
+        />
+        <NavItem
+          collapsed={rail}
           icon={<Icons.Layers />}
           label={t("nav.resources")}
           active={view === "resources"}
@@ -143,15 +168,15 @@ export function Sidebar({
           onClick={() => go.view("channels")}
         />
       </div>
-      <div className="sidebar__scroll">
-        <ChannelsNav rail={rail} />
+      <div className={compact ? "sidebar__scroll is-compact" : "sidebar__scroll"}>
+        <ProjectsNav rail={rail} compact={compact} />
 
-        <ProjectsNav rail={rail} />
+        <ExternalSessionsNav rail={rail} compact={compact} />
 
-        <ExternalSessionsNav rail={rail} />
+        <ChannelsNav rail={rail} compact={compact} />
 
         <Suspense fallback={null}>
-          <AppsDock rail={rail} />
+          <AppsDock rail={rail} compact={compact} />
         </Suspense>
       </div>
       {!rail && (

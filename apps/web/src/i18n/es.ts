@@ -200,6 +200,11 @@ export const es: Partial<Record<MessageKey, string>> = {
   // Barra superior, barra lateral, cuenta
   "topbar.location": "Ubicación",
   "topbar.search": "Buscar o saltar a…",
+  "server.label": "APX en uso: {name}",
+  "server.local": "Local",
+  "server.online": "Conectado",
+  "server.offline": "Sin conexión",
+  "server.change": "Conectar con otro APX…",
   "update.pill": "Actualización · {n}",
   "update.pillVersion": "APX {v} · Actualizar",
   "help.label": "Ayuda",
@@ -329,6 +334,8 @@ export const es: Partial<Record<MessageKey, string>> = {
   "nav.inbox": "Inbox",
   "nav.tasks": "Tareas",
   "nav.flows": "Flows",
+  "nav.routines": "Rutinas",
+  "nav.newChat": "Nuevo chat",
   "nav.itemOptions": "Opciones de {name}",
   "nav.open": "Abrir",
   "project.unregister": "Quitar registro del proyecto",
@@ -1109,6 +1116,9 @@ export const es: Partial<Record<MessageKey, string>> = {
   "appearance.textSize": "Tamaño del texto",
   "appearance.textSizeHint":
     "Texto de la interfaz y el chat en este dispositivo. 100% es el tamaño normal. No cambia las imágenes, las apps incrustadas, los terminales ni el zoom del navegador.",
+  "appearance.compact": "Barra lateral compacta",
+  "appearance.compactHint":
+    "Cada sección es una fila y sus elementos se abren al lado. En una ventana baja se mantiene compacta.",
   "appearance.font": "Fuente de la interfaz",
   "appearance.fontHint": "Menús, barras laterales y paneles.",
   "appearance.fontLabel": "Fuente",

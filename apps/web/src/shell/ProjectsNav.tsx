@@ -24,7 +24,7 @@ import { SidebarOverflow, SidebarRowsGrip, SidebarSection } from "./SidebarSecti
  * popover.
  * The base space remains first, followed by the owner’s last opened or manually ordered projects.
  */
-export function ProjectsNav({ rail }: { rail: boolean }) {
+export function ProjectsNav({ rail, compact = false }: { rail: boolean; compact?: boolean }) {
   const t = useT();
   const folded = usePrefs((s) => s.projectsFolded);
   const saved = usePrefs((s) => s.projectOrder);
@@ -139,20 +139,29 @@ export function ProjectsNav({ rail }: { rail: boolean }) {
     />
   );
 
+  const unreadTotal = [...unread.values()].reduce((n, ids) => n + ids.length, 0);
+  const noop = () => {};
   return (
     <>
       <SidebarSection
         rail={rail}
         title={t("nav.projects")}
         action={add}
+        compact={compact}
+        icon={<Icons.Folder size={16} />}
+        count={shown.length + rest.length}
+        unread={compact ? unreadTotal : 0}
+        running={running.size > 0}
+        active={view === "project"}
         folded={folded}
         onToggle={() => {
           setMoreOpen(false);
           setPrefs({ projectsFolded: !folded });
         }}
       >
-        {!hidden && shown.map((p) => item(p))}
-        {!hidden && rest.length > 0 && (
+        {compact && [...shown, ...rest].map((p) => item(p, noop))}
+        {!compact && !hidden && shown.map((p) => item(p))}
+        {!compact && !hidden && rest.length > 0 && (
           <SidebarOverflow
             rail={rail}
             title={t("nav.moreProjects", { n: rest.length })}
@@ -165,7 +174,7 @@ export function ProjectsNav({ rail }: { rail: boolean }) {
             {rest.map((p) => item(p, () => setMoreOpen(false)))}
           </SidebarOverflow>
         )}
-        {!hidden && !rail && (
+        {!compact && !hidden && !rail && (
           <SidebarRowsGrip section="projects" total={shown.length + rest.length} title={t("nav.projects")} />
         )}
       </SidebarSection>

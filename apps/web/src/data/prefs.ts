@@ -45,6 +45,8 @@ export type Prefs = {
   /** Columns the owner resized (px; 0 = the default) or folded away. */
   sidebarW: number;
   sidebarCollapsed: boolean;
+  /** Each sidebar section is one row whose items open beside it; off, sections are cards (only when the window is tall enough). */
+  sidebarCompact: boolean;
   /** Unfolded by the owner in a window narrow enough to show the icon rail on its own. */
   sidebarOpen: boolean;
   listW: number;
@@ -97,6 +99,7 @@ const DEFAULTS: Prefs = {
   tasksProject: "",
   sidebarW: 0,
   sidebarCollapsed: false,
+  sidebarCompact: true,
   sidebarOpen: false,
   listW: 0,
   panelW: 0,
@@ -135,6 +138,7 @@ function load(): Prefs {
       tasksProject: typeof raw.tasksProject === "string" ? raw.tasksProject : "",
       sidebarW: typeof raw.sidebarW === "number" ? raw.sidebarW : 0,
       sidebarCollapsed: raw.sidebarCollapsed === true,
+      sidebarCompact: raw.sidebarCompact !== false,
       sidebarOpen: raw.sidebarOpen === true,
       listW: typeof raw.listW === "number" ? raw.listW : 0,
       panelW: typeof raw.panelW === "number" ? raw.panelW : 0,

@@ -10,7 +10,7 @@ import { go, useNav } from "./nav.ts";
 import { SidebarOverflow, SidebarRowsGrip, SidebarSection } from "./SidebarSection.tsx";
 
 /** The most recently active channels, as many as the owner dragged the section to; manual order lasts until newer activity arrives. */
-export function ChannelsNav({ rail }: { rail: boolean }) {
+export function ChannelsNav({ rail, compact = false }: { rail: boolean; compact?: boolean }) {
   const t = useT();
   const channels = useChannels((s) => s.channels);
   const saved = usePrefs((s) => s.channelOrder);
@@ -90,6 +90,10 @@ export function ChannelsNav({ rail }: { rail: boolean }) {
       rail={rail}
       title={t("nav.channels")}
       action={add}
+      compact={compact}
+      icon={<Icons.MessageCircle size={16} />}
+      count={ordered.length}
+      active={view === "channel"}
       folded={folded}
       unread={totalUnread}
       unreadLabel={t("nav.channelsUnread", { unread: totalUnread })}
@@ -98,7 +102,7 @@ export function ChannelsNav({ rail }: { rail: boolean }) {
         setPrefs({ channelsFolded: !folded });
       }}
     >
-      {!hidden && !rail && (
+      {(compact || (!hidden && !rail)) && (
         <NavItem
           className="channelsnav__manage"
           icon={<Icons.LayoutGrid />}
@@ -107,8 +111,9 @@ export function ChannelsNav({ rail }: { rail: boolean }) {
           onClick={() => go.view("channels")}
         />
       )}
-      {!hidden && <div className="channelsnav__shown">{shown.map((channel) => row(channel))}</div>}
-      {!hidden && rest.length > 0 && (
+      {compact && <div className="channelsnav__shown">{ordered.map((channel) => row(channel, true))}</div>}
+      {!compact && !hidden && <div className="channelsnav__shown">{shown.map((channel) => row(channel))}</div>}
+      {!compact && !hidden && rest.length > 0 && (
         <SidebarOverflow
           rail={rail}
           title={t("nav.channels")}
@@ -123,7 +128,9 @@ export function ChannelsNav({ rail }: { rail: boolean }) {
           {rest.map((channel) => row(channel, true))}
         </SidebarOverflow>
       )}
-      {!hidden && !rail && <SidebarRowsGrip section="channels" total={ordered.length} title={t("nav.channels")} />}
+      {!compact && !hidden && !rail && (
+        <SidebarRowsGrip section="channels" total={ordered.length} title={t("nav.channels")} />
+      )}
     </SidebarSection>
   );
 }

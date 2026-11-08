@@ -23,7 +23,9 @@ const fold = (s: string) => s.normalize("NFD").replace(/\p{M}/gu, "").toLowerCas
  * Apps in the sidebar, like a dock: every app (an artifact listed in Apps), a dot on each one still running, then under
  * a line the artifacts opened but not pinned, each with its pin, until closed. "+" opens any artifact in the system.
  */
-export function AppsDock({ rail }: { rail: boolean }) {
+export function AppsDock({ rail: folded, compact = false }: { rail: boolean; compact?: boolean }) {
+  // Inside the compact flyout the rows show their names even when the sidebar is a rail.
+  const rail = folded && !compact;
   const t = useT();
   const surfaces = useData((s) => s.surfaces);
   const view = useNav((s) => s.view);
@@ -83,8 +85,13 @@ export function AppsDock({ rail }: { rail: boolean }) {
   return (
     <>
       <SidebarSection
-        rail={rail}
+        rail={folded}
         title={t("nav.apps")}
+        compact={compact}
+        icon={<Icons.LayoutGrid size={16} />}
+        count={pinned.length + loose.length}
+        running={running.size > 0}
+        active={view === "app"}
         action={
           // In the rail "+" leads the card, like every section's.
           <span className="appsdock__actions">

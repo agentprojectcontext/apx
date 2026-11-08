@@ -2,11 +2,13 @@ import { Icons, Popover, SectionLabel } from "@apx/ui";
 import { type KeyboardEvent, type PointerEvent, type ReactNode, useRef } from "react";
 import { SIDEBAR_MIN_ROWS, type SidebarRows, setSidebarRows, useSidebarRows } from "../data/prefs.ts";
 import { useT } from "../i18n/index.ts";
+import { SidebarFlyout } from "./SidebarFlyout.tsx";
 import { SidebarTooltipButton } from "./SidebarNavRow.tsx";
 
 /**
  * One section of the sidebar as a card: its title (with the fold toggle and its "+"), then its rows. In the rail the
- * title hides and the "+" is the card's first icon.
+ * title hides and the "+" is the card's first icon. `compact` folds the whole section into one row (`icon`, `count`)
+ * whose rows open beside it.
  */
 export function SidebarSection({
   rail,
@@ -16,6 +18,11 @@ export function SidebarSection({
   onToggle,
   unread = 0,
   unreadLabel,
+  compact,
+  icon,
+  count,
+  running,
+  active,
   children,
 }: {
   rail: boolean;
@@ -25,8 +32,28 @@ export function SidebarSection({
   onToggle?: () => void;
   unread?: number;
   unreadLabel?: string;
+  compact?: boolean;
+  icon?: ReactNode;
+  count?: number;
+  running?: boolean;
+  active?: boolean;
   children?: ReactNode;
 }) {
+  if (compact && icon)
+    return (
+      <SidebarFlyout
+        rail={rail}
+        title={title}
+        icon={icon}
+        count={count}
+        unread={unread}
+        running={running}
+        active={active}
+        action={action}
+      >
+        {children}
+      </SidebarFlyout>
+    );
   return (
     <fieldset aria-label={title} className={rail ? "sidebar__group is-rail" : "sidebar__group"}>
       {rail ? (
