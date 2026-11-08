@@ -1202,4 +1202,10 @@ export const MIGRATIONS: readonly string[] = [
   ALTER TABLE runs ADD COLUMN trimmed INTEGER NOT NULL DEFAULT 0;
   CREATE INDEX runs_trimmed ON runs(trimmed, ended_at) WHERE ended_at IS NOT NULL;
   `,
+  // A subproject's parent: a project id, or '~default' for the base project (which has no row). Kept by APX, as
+  // autonomy is: the folder never says whose subproject it is (domain/projects.ts setParent).
+  `
+  ALTER TABLE projects ADD COLUMN parent_id TEXT;
+  CREATE INDEX projects_parent ON projects(parent_id) WHERE parent_id IS NOT NULL;
+  `,
 ];

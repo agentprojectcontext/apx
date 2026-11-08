@@ -155,6 +155,38 @@ agentes trabajan en cualquier lado y no se puede borrar. Le ponés nombre durant
 después; sigue siendo el proyecto base se llame como se llame. Cuando quieras agentes que trabajen en una carpeta
 puntual, creá un proyecto para esa carpeta.
 
+## Subproyectos
+
+Un proyecto puede tener **subproyectos**, de un solo nivel: un subproyecto no tiene subproyectos propios. El proyecto
+base también puede tenerlos, así diez clientes, sitios o tiendas comparten el equipo que ya tenés en vez de sumar
+agentes nuevos para cada uno.
+
+Un subproyecto es un proyecto como cualquier otro: su carpeta con `AGENTS.md` y `.apc/`, sus chats, tareas, rutinas,
+apps, archivos y su memoria. Lo que lo hace subproyecto es que además toma de su proyecto padre:
+
+| Del padre | Cómo |
+|---|---|
+| Agentes | Los agentes del padre trabajan en él: chatean, toman sus tareas y rutinas y se les delega ahí. Si se lo piden en el subproyecto, trabajan en la carpeta del subproyecto, con su `AGENTS.md` y su memoria. Un subproyecto también puede tener agentes propios. |
+| Variables | Un `secret://NAME` que el subproyecto no tiene usa el valor propio del padre y, si no, el global. |
+| Skills y servidores MCP | Los `.apc/skills/` y `.apc/mcps.json` del padre cuentan también en el subproyecto. |
+| Apps | Las apps del padre aparecen junto a las del subproyecto. |
+
+Si los dos tienen algo con el mismo nombre, gana el del subproyecto. **La memoria nunca se hereda**: las notas del
+padre son del padre. Un subproyecto del proyecto base toma los agentes del proyecto base (los globales), que ya
+trabajan en todos lados, y sus apps.
+
+<Terminal command={`apx projects create "Acme Site" --parent p_3f9a1c0d7e21`}>{`Acme Site (p_5c1e7a9b2d40) · ~/work/acme-store/acme-site`}</Terminal>
+
+Sin `--path`, la carpeta de un subproyecto va dentro de la del padre (`acme-store/acme-site`); un subproyecto del
+proyecto base (`--parent base`) va en la carpeta de APX, como cualquier proyecto sin carpeta. `apx projects set
+<project> --parent <project>` mueve un proyecto aparte adentro de otro. No puede ser un proyecto que ya tiene
+subproyectos, el mismo proyecto ni otro subproyecto.
+
+Para **separarlo en un proyecto aparte**, corré `apx projects detach <project>` (o `apx projects set <project>
+--parent none`). Conserva su carpeta, sus agentes, sus chats y su memoria, y deja de tomar los agentes y recursos del
+padre. Si quitás un padre de APX, cada subproyecto suyo queda como proyecto aparte. Qué proyecto es padre de cuál lo
+guarda APX, nunca las carpetas.
+
 ## Lo que APX guarda de su lado
 
 La carpeta del proyecto es tuya. Todo lo que APX necesita y no es parte del estándar queda en el home de APX

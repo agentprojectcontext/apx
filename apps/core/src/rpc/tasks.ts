@@ -5,6 +5,7 @@
 // subtask; an agent answering another one gives nobody work (DECISIONS.md#d-079).
 import { type Author, SUPER_AGENT_ID, type Task, type TaskAsked } from "@apx/protocol";
 import { planSteps } from "@apx/protocol/task-plan";
+import { worksIn } from "../domain/projects.ts";
 import { publicRun } from "../domain/runs.ts";
 import { HOME_THREAD_ID } from "../domain/seed.ts";
 import type { Store } from "../domain/store.ts";
@@ -363,7 +364,7 @@ export function taskHandlers(
         if (checker && checker === keeper)
           throw badRequest("reviewer: the agent doing it does not review its own work");
         const unassign =
-          moving && keeper && store.agents.get(keeper)?.project_id && store.agents.get(keeper)?.project_id !== target;
+          moving && keeper && !worksIn(store.projects, store.agents.get(keeper)?.project_id, target ?? undefined);
         const completing =
           cur.state === "open" &&
           !cur.description.trim() &&

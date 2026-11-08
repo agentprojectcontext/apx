@@ -28,6 +28,8 @@ export const InstanceProject = z.object({
   kind: z.string().max(40).optional(),
   autonomy: Autonomy.optional(),
   read_only_folders: z.array(z.string().max(4096)).max(200).optional(),
+  /** A subproject's project (BASE_PROJECT_ID for the base project's). */
+  parent: Id.optional(),
 });
 export type InstanceProject = z.infer<typeof InstanceProject>;
 export const InstanceRoutine = Routine.pick({

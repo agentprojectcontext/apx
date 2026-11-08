@@ -19,6 +19,7 @@ import { MOVE_BACKUP_NEWS } from "./move-backup.ts";
 import { QUEUED_MESSAGES_NEWS } from "./queued-messages.ts";
 import { QUICK_CHAT_NEWS } from "./quick-chat.ts";
 import { STORE_COMPACT_NEWS } from "./store-compact.ts";
+import { SUBPROJECTS_NEWS } from "./subprojects.ts";
 import { TASK_COMMENTS_NEWS } from "./task-comments.ts";
 import { TASK_GOALS_NEWS } from "./task-goals.ts";
 import { TASK_REGROUP_NEWS } from "./task-regroup.ts";
@@ -60,6 +61,8 @@ export type NewsFacts = {
   ownModels?: number;
   /** The chats' database is over 500 MB and keeps its free space until it is rewritten once (compacted). */
   bigStore?: boolean;
+  /** Projects the owner registered (the base project not counted). */
+  projects?: number;
 };
 
 export type NewsAction = {
@@ -85,6 +88,7 @@ export type NewsEntry = {
 };
 
 export const NEWS: readonly NewsEntry[] = [
+  SUBPROJECTS_NEWS,
   TASK_GOALS_NEWS,
   CHANNEL_AGENTS_NEWS,
   TASK_COMMENTS_NEWS,
@@ -1217,6 +1221,7 @@ export const newsFacts = (store: Store, o: { hermes?: boolean; storeSize?: Store
   noisyTasks: store.tasks.noisy(NOISY_COMMENTS).length,
   localModels: store.settings.read("local_models_seen").length > 0,
   ownModels: store.agents.list().filter((a) => a.model_choice?.model).length,
+  projects: store.projects.list().length,
 });
 
 /** The action a channel button stands for. */

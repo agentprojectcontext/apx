@@ -2,6 +2,7 @@
 // value (DECISIONS.md#d-193). On a site the owner did not mark for that secret, the owner is asked in the app.
 import { BROWSER_CAP, SecretFieldKind, siteOrigin } from "@apx/protocol";
 import { z } from "zod";
+import { lineage } from "../domain/projects.ts";
 import type { Store } from "../domain/store.ts";
 import type { SignIn } from "../sign-in.ts";
 import { defineTool, type ToolContext } from "./types.ts";
@@ -59,7 +60,7 @@ export function browserSignInTool(
       if (!signIn) return "refused: signing in with stored secrets is not available here; use browser_handoff";
       if (vm?.hasThread(ctx.thread.id))
         return "refused: stored secrets are filled only in the owner's browser, not in the isolated computer; use browser_handoff";
-      const key = signIn.keyFor(ctx.thread.project_id ?? undefined, a.secret);
+      const key = signIn.keyFor(lineage(store.projects, ctx.thread.project_id ?? undefined), a.secret);
       if (!key)
         return `refused: there is no stored secret named ${a.secret}; ask the owner to add it in Variables, or use browser_handoff`;
       // A secret marked for one kind of field never goes into another: a password into a visible username field.

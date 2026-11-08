@@ -43,6 +43,7 @@ import { openDb, storeSize } from "./db/db.ts";
 import { type DesktopOps, systemDesktop } from "./desktop.ts";
 import { signatureFor } from "./domain/email-signature-settings.ts";
 import { cleanUpCapturedNotes } from "./domain/memory-capture-cleanup.ts";
+import { lineage } from "./domain/projects.ts";
 import { parseRef } from "./domain/refs.ts";
 import { TERMINAL } from "./domain/runs.ts";
 import { seed } from "./domain/seed.ts";
@@ -539,11 +540,14 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
       },
     },
     outside: {
-      secret: (ref, project) => secrets.resolveIn(ref, project) !== undefined,
+      secret: (ref, project) => secrets.resolveIn(ref, lineage(store.projects, project)) !== undefined,
       allowHttp: config.flowHttpAllow,
       home: config.home,
     },
-    http: { policy: flowHttpPolicy(config.flowHttpAllow), secret: (ref, project) => secrets.resolveIn(ref, project) },
+    http: {
+      policy: flowHttpPolicy(config.flowHttpAllow),
+      secret: (ref, project) => secrets.resolveIn(ref, lineage(store.projects, project)),
+    },
     home: config.home,
     tell: (event) => bus.emit(event),
   });

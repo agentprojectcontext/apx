@@ -387,8 +387,14 @@ export function releaseBlock(r: ReleaseContext | undefined): string | undefined 
   );
 }
 
-export function rosterBlock(agent: AgentRecord, roster: AgentRecord[], thread: Thread): { text: string; hash: string } {
-  const inScope = roster.filter((a) => a.id !== agent.id && (!a.project_id || a.project_id === thread.project_id));
+/** `worksHere`: whether an agent works in the thread's project (a parent's agents do in its subprojects). */
+export function rosterBlock(
+  agent: AgentRecord,
+  roster: AgentRecord[],
+  thread: Thread,
+  worksHere: (a: AgentRecord) => boolean = (a) => !a.project_id || a.project_id === thread.project_id,
+): { text: string; hash: string } {
+  const inScope = roster.filter((a) => a.id !== agent.id && worksHere(a));
   const hidden = roster.length - inScope.length - 1;
   const lines = inScope.map((a) => `- ${a.name} (id: ${a.id})${a.role ? `: ${a.role}` : ""}`);
   const text = [

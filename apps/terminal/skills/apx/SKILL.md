@@ -101,7 +101,9 @@ Memory is for durable, curated facts, not transcripts.
 ```bash
 apx projects | projects register <folder> | projects sync [project]
 apx projects create "<Name>" [--path <folder>] [--kind company|software|…] [--desc "…"]   # no --path: a folder in APX's home
+apx projects create "<Name>" --parent <project>|base   # a subproject: works with its parent's agents, own memory
 apx projects set <project> [--name "…"] [--kind …] [--desc "…"] [--autonomy manual|auto|accept_edits|plan|total]
+apx projects detach <project>                          # a subproject becomes a project of its own
 apx projects folders list|add|rm <project> [folder]   # folders its agents may read and never change
 apx agents new <slug> "<Name>" [--project <id>] [--role "<role>"]
 apx agents set <agent> name=… role=…          # project agents are written to .apc/agents/<slug>.md

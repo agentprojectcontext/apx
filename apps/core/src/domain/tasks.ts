@@ -15,6 +15,7 @@ import { sql as raw } from "kysely";
 import type { Bus } from "../bus.ts";
 import type { TasksTable } from "../db/schema.ts";
 import { badRequest, notFound, unauthorized } from "../errors.ts";
+import { worksIn } from "./projects.ts";
 import { newId, now, opt, qb, type Sql } from "./sql.ts";
 import type { Store } from "./store.ts";
 
@@ -166,7 +167,7 @@ export function checkAssignee(store: Store, id: string | null | undefined, proje
   if (!id) return;
   const a = store.agents.get(id);
   if (!a) throw notFound(`agent ${id}`);
-  if (a.project_id && a.project_id !== project) throw badRequest(`${a.name} works in another project`);
+  if (!worksIn(store.projects, a.project_id, project)) throw badRequest(`${a.name} works in another project`);
 }
 
 /** A person by id or exact name (any case); never the owner or a blocked person, never a guess between two. */

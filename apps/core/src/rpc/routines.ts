@@ -1,6 +1,7 @@
 // Routines, for the owner only: an agent's scheduled work and its history.
 
 import type { FlowStepKey } from "../domain/flow-graph-runs.ts";
+import { worksIn } from "../domain/projects.ts";
 import { checkSchedule } from "../domain/schedule.ts";
 import type { Store } from "../domain/store.ts";
 import {
@@ -105,7 +106,7 @@ export function routineHandlers(store: Store, scheduler: Scheduler, profileRoots
       const a = store.agents.get(agent);
       if (!a) throw notFound(`agent ${agent}`);
       if (project && !store.projects.get(project)) throw notFound(`project ${project}`);
-      if (a.project_id && a.project_id !== project)
+      if (!worksIn(store.projects, a.project_id, project))
         throw badRequest(`${a.name} belongs to another project; pick one of this project's agents or a global one`);
       const next = enabled ? scheduler.nextFor(schedule) : undefined;
       if (enabled && schedule.kind === "once" && !next) throw badRequest("that moment has passed");

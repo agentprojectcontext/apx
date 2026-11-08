@@ -16,9 +16,13 @@ export function createSignIn(secrets: Secrets, now: () => number = Date.now) {
     for (const [k, until] of once) if (until <= now()) once.delete(k);
   };
   return {
-    /** The stored name a secret goes by in a chat: the project's own value first, as `secret://` references do. */
-    keyFor(project: string | undefined, name: string): string | undefined {
-      if (project && secrets.listed(projectSecretName(project, name))) return projectSecretName(project, name);
+    /**
+     * The stored name a secret goes by in a chat: the project's own value first (then its parent's, for a subproject:
+     * `projects` nearest first), as `secret://` references do.
+     */
+    keyFor(projects: readonly string[], name: string): string | undefined {
+      for (const project of projects)
+        if (secrets.listed(projectSecretName(project, name))) return projectSecretName(project, name);
       return secrets.listed(name) ? name : undefined;
     },
     /** The origins the owner marked for this kind of field ("*" included). */

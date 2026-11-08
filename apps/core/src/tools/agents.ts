@@ -5,7 +5,7 @@ import { planSteps } from "@apx/protocol/task-plan";
 import { z } from "zod";
 import type { AgentRecord } from "../domain/agents.ts";
 import { APX_SERVER } from "../domain/approvals.ts";
-import type { ProjectRecord } from "../domain/projects.ts";
+import { type ProjectRecord, worksIn } from "../domain/projects.ts";
 import type { Store } from "../domain/store.ts";
 import { ownerWordsOf } from "../domain/task-asked.ts";
 import { budgetLeft } from "../engine/breaker.ts";
@@ -239,7 +239,7 @@ export function agentTools(store: Store): Tool[] {
  * project. A string: why none.
  */
 function projectOf(store: Store, ref: string, agent: AgentRecord): ProjectRecord | string {
-  const all = store.projects.list().filter((p) => !agent.project_id || p.id === agent.project_id);
+  const all = store.projects.list().filter((p) => worksIn(store.projects, agent.project_id, p.id));
   const q = ref.trim();
   const absolute = path.isAbsolute(q) ? path.resolve(q) : undefined;
   const pathProject = all

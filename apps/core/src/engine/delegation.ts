@@ -3,6 +3,7 @@
 // a new input. See DECISIONS.md#d-009
 import { DEFAULT_AUTONOMY, type Message, type Part, type Thread, type WritePolicy } from "@apx/protocol";
 import type { AgentRecord } from "../domain/agents.ts";
+import { worksIn } from "../domain/projects.ts";
 import { type DelegationResult, type Origin, type RunRecord, TERMINAL } from "../domain/runs.ts";
 import type { Store } from "../domain/store.ts";
 import { previewOf, strictestWrite, type Worker, worksInFolder } from "../domain/threads.ts";
@@ -539,8 +540,12 @@ export function createDelegations(deps: {
       // The project named, else this chat's, else the agent's own: its folder is where the session reads and works.
       const projectId = existing
         ? existing.project_id
-        : // A project's agent works in its own project, wherever it is asked from; a worker or a global agent in the chat's.
-          (req.project ?? (worker ? parentThread.project_id : (to.project_id ?? parentThread.project_id)));
+        : // A project's agent works in its own project, wherever it is asked from (asked in one of its project's
+          // subprojects, in that one); a worker or a global agent in the chat's.
+          (req.project ??
+          (worker || worksIn(store.projects, to.project_id, parentThread.project_id)
+            ? parentThread.project_id
+            : to.project_id));
       const dispatched = store.threads.context(parentThread.id).task_dispatches;
       const assigned =
         !worker && !req.independent && dispatched && runLineage(store, from.run).includes(dispatched.run)

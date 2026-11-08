@@ -6,6 +6,7 @@ import path from "node:path";
 import type { ApcSync } from "../apc/sync.ts";
 import { projectOrchestrator } from "../domain/agent-directory.ts";
 import type { AuxAbout } from "../domain/aux-calls.ts";
+import { worksIn } from "../domain/projects.ts";
 import type { Store } from "../domain/store.ts";
 import { summary } from "../domain/surfaces.ts";
 import { badRequest, errorMessage, notFound } from "../errors.ts";
@@ -165,7 +166,7 @@ export function sessionHandlers(store: Store, homes: NativeHomes, deps: SessionD
           (a) => a.project_id === t.project_id && (a.slug === ref || a.name.toLowerCase() === ref.toLowerCase()),
         );
       if (!agent) throw notFound(`agent ${ref}`);
-      if (agent.project_id && agent.project_id !== t.project_id)
+      if (!worksIn(store.projects, agent.project_id, t.project_id))
         throw badRequest(`${agent.name} is in another project than ${t.title}`);
       const from = t.agent_ids[0];
       if (!from || from === agent.id) return t;

@@ -48,6 +48,12 @@ export const AUTONOMY_RULES: Record<Autonomy, Required<AgentRules>> = {
   total: { read: "auto", write: "auto", outside: "auto", irreversible: "auto" },
 };
 
+/**
+ * How a subproject names the base project as its parent (the base has no id of its own elsewhere: it is the absence of
+ * a project). Never a real project's id, which always starts with `p_`.
+ */
+export const BASE_PROJECT_ID = "~default";
+
 /** The base project (no folder): the owner may name it, describe it and give it a kind, like any other. */
 export const BaseProject = z.object({
   name: z.string().trim().min(1).max(80),
@@ -111,6 +117,12 @@ export const Project = z.object({
   read_only_folders: z.array(z.string()).optional(),
   /** AGENTS.md's length when it is past AGENTS_MD_LIMIT: its agents get the head and tail, not all of it. */
   agents_md_chars: z.number().int().optional(),
+  /**
+   * Set on a subproject: the project it belongs to, or BASE_PROJECT_ID for the base project. One level only (a
+   * subproject has none of its own). Its parent's agents work in it, and it takes its parent's variables, skills, MCP
+   * servers and apps under its own; its memory is its own. Kept by APX, never in the folder.
+   */
+  parent: Id.optional(),
 });
 export type Project = z.infer<typeof Project>;
 
@@ -248,6 +260,11 @@ export const AgentListing = Agent.extend({
   reports_to: z.object({ id: Id, name: z.string() }).nullable(),
   /** Ids of the agents that report to it. */
   leads: z.array(Id),
+  /**
+   * Only in a project's listing (agents.list `project_id`): set on an agent the project takes from its parent, the
+   * parent's id (BASE_PROJECT_ID for the base project's agents). Absent on the project's own agents.
+   */
+  inherited_from: Id.optional(),
 });
 export type AgentListing = z.infer<typeof AgentListing>;
 

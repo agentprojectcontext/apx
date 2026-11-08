@@ -5,14 +5,14 @@ import { randomUUID } from "node:crypto";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { type Organization, type ProjectKind, siteOrigin } from "@apx/protocol";
+import { BASE_PROJECT_ID, type Organization, type ProjectKind, siteOrigin } from "@apx/protocol";
 import { declaresApp } from "../../../../packages/surfaces/src/kit.ts";
 import { readOrganization, writeOrganization } from "../apc/org.ts";
 import type { ApcSync } from "../apc/sync.ts";
 import { writeProjectMeta } from "../apc/write.ts";
 import { artifactDir } from "../domain/artifact-memory.ts";
 import { ownerIdentity, saveOwnerIdentity } from "../domain/owner.ts";
-import { publicProject } from "../domain/projects.ts";
+import { inheritsFrom, parentProblem, publicProject } from "../domain/projects.ts";
 import type { EngineIds } from "../domain/refs.ts";
 import type { Store } from "../domain/store.ts";
 import { summary } from "../domain/surfaces.ts";
@@ -60,6 +60,19 @@ export function appHandlers(deps: {
     () => secrets.listed("chatgpt_login"),
   );
   const models = modelSettings(store);
+  /**
+   * Where a new subproject of `parent` goes when no folder is named: inside its parent's folder, or (the base project's)
+   * in APX's home like any project without one. Throws what the owner can act on.
+   */
+  const parentOf = (parent: string): { dir?: string } => {
+    const why = parentProblem(store.projects, undefined, parent);
+    if (why) throw badRequest(why);
+    if (parent === BASE_PROJECT_ID) return {};
+    const p = store.projects.get(parent);
+    if (!p?.path) return {};
+    if (!p.present) throw badRequest(`the folder of ${p.name} is not on disk right now`);
+    return { dir: p.path };
+  };
   /** A registered project's folder, when it is on disk. */
   const folderOf = (id: string) => {
     const p = store.projects.get(id);
@@ -174,15 +187,29 @@ export function appHandlers(deps: {
       if (!project) throw notFound(`project ${r.project}`);
       return { project: publicProject(project), agents: r.agents };
     },
-    "projects.create": ({ name, kind, description, path: dir }) => {
-      const r = createProject(deps.apc, deps.home, { name, kind, description, path: dir });
+    "projects.create": ({ name, kind, description, path: dir, parent }) => {
+      const under = parent ? parentOf(parent) : undefined;
+      const r = createProject(deps.apc, deps.home, { name, kind, description, path: dir }, under);
+      if (parent) {
+        // A path naming a folder already registered is that project: it is checked as itself.
+        const why = parentProblem(store.projects, r.project, parent);
+        if (why) throw badRequest(why);
+        store.projects.setParent(r.project, parent);
+      }
       const project = store.projects.get(r.project);
       if (!project) throw notFound(`project ${r.project}`);
       return { project: publicProject(project), agents: r.agents };
     },
-    "projects.update": ({ project: id, name, description, kind, autonomy, read_only_folders }) => {
+    "projects.update": ({ project: id, name, description, kind, autonomy, read_only_folders, parent }) => {
       const project = store.projects.get(id);
       if (!project) throw notFound(`project ${id}`);
+      if (parent) {
+        const why = parentProblem(store.projects, id, parent);
+        if (why) throw badRequest(why);
+      }
+      // Kept by APX like autonomy: a subproject keeps its folder, chats and agents when it moves or is detached.
+      if (parent !== undefined && parent !== (project.parent ?? null))
+        store.projects.setParent(id, parent ?? undefined);
       if (read_only_folders !== undefined) {
         let folders: string[];
         try {
@@ -215,9 +242,13 @@ export function appHandlers(deps: {
       deps.apc.unregister(id);
       return { ok: true as const };
     },
-    "surfaces.list": ({ project_id }) => ({
-      surfaces: store.surfaces.list(project_id ? { project: project_id } : undefined),
-    }),
+    "surfaces.list": ({ project_id, inherited }) => {
+      const own = store.surfaces.list(project_id ? { project: project_id } : undefined);
+      const from = inherited ? inheritsFrom(store.projects, project_id) : undefined;
+      if (!from) return { surfaces: own };
+      const taken = new Set(own.map((s) => s.name));
+      return { surfaces: [...own, ...store.surfaces.apps(from.project).filter((s) => !taken.has(s.name))] };
+    },
     "surfaces.get": ({ surface }) => {
       const s = store.surfaces.get(surface);
       if (!s) throw notFound(`surface ${surface}`);
@@ -340,10 +371,14 @@ export function createProject(
     description?: string | undefined;
     path?: string | undefined;
   },
+  /** A subproject's: `dir` is the parent's folder, where it goes when no path is given. */
+  under?: { dir?: string | undefined } | undefined,
 ): ReturnType<ApcSync["register"]> {
   const typed = p.path?.replace(/^~(?=$|[/\\])/, os.homedir());
   if (typed && !path.isAbsolute(typed)) throw badRequest(`${p.path} is not a full path`);
-  const root = typed ? path.resolve(typed) : freeFolder(path.join(home, "projects"), slugOf(p.name ?? ""));
+  const root = typed
+    ? path.resolve(typed)
+    : freeFolder(under?.dir ?? path.join(home, "projects"), slugOf(p.name ?? ""));
   try {
     fs.mkdirSync(root, { recursive: true });
     initProject(root, p.name);

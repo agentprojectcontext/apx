@@ -7,6 +7,7 @@ import path from "node:path";
 import type { Thread } from "@apx/protocol";
 import type { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { z } from "zod";
+import { lineage, parentOf } from "../domain/projects.ts";
 import type { Store } from "../domain/store.ts";
 import { badRequest, conflict, errorMessage, unavailable } from "../errors.ts";
 import { commandEnv, SECRET_NAME } from "../harness/env.ts";
@@ -123,13 +124,17 @@ export function createMcp(deps: {
    * `secret://NAME` is resolved here, at start, and never written anywhere else: a whole value, or inside text
    * ("Bearer secret://API_KEY"). A name with no value stays as written.
    */
+  /** A project's own values first, then its parent's for a subproject (domain/projects.ts lineage). */
+  const valuesIn = (projectId: string | undefined) => lineage(deps.store.projects, projectId);
   const resolveText = (v: string, valuesOf?: string) =>
-    deps.secrets.resolveIn(v, valuesOf) ?? v.replace(SECRET_REF, (ref) => deps.secrets.resolveIn(ref, valuesOf) ?? ref);
+    deps.secrets.resolveIn(v, valuesIn(valuesOf)) ??
+    v.replace(SECRET_REF, (ref) => deps.secrets.resolveIn(ref, valuesIn(valuesOf)) ?? ref);
   const resolve = (values: Record<string, string>, valuesOf?: string) =>
     Object.fromEntries(Object.entries(values).map(([k, v]) => [k, resolveText(v, valuesOf)]));
   /** An owner's server in a project with its own value for one of its variables runs as a copy of its own there. */
   const inProject = (d: McpDef, projectId: string | undefined): McpDef =>
-    projectId && secretNames(d).some((n) => deps.secrets.has(`secret://${projectSecretName(projectId, n)}`))
+    projectId &&
+    valuesIn(projectId).some((p) => secretNames(d).some((n) => deps.secrets.has(`secret://${projectSecretName(p, n)}`)))
       ? { ...d, values_of: projectId }
       : d;
 
@@ -189,7 +194,7 @@ export function createMcp(deps: {
       });
       // A server may print what it was given: its secrets and credential-like variables are masked in its log.
       const hidden = [
-        ...secretNames(d).map((n) => deps.secrets.resolveIn(`secret://${n}`, d.values_of) ?? ""),
+        ...secretNames(d).map((n) => deps.secrets.resolveIn(`secret://${n}`, valuesIn(d.values_of)) ?? ""),
         ...Object.keys(d.env)
           .filter((k) => SECRET_NAME.test(k) || d.env[k]?.includes("secret://"))
           .map((k) => env[k] ?? ""),
@@ -410,6 +415,13 @@ export function createMcp(deps: {
   }, 60_000);
   idle.unref();
 
+  /** A subproject also reaches its parent's own servers, under its own of the same name. */
+  const projectDefs = (projectId: string): McpDef[] => {
+    const own = config.project(projectId);
+    const parent = parentOf(deps.store.projects, projectId);
+    const taken = new Set(own.map((d) => d.name));
+    return [...own, ...(parent ? config.project(parent.id).filter((d) => !taken.has(d.name)) : [])];
+  };
   const defsFor = (projectId: string | undefined) => {
     const off = projectId ? new Set(config.offIn(projectId)) : new Set<string>();
     return [
@@ -417,7 +429,7 @@ export function createMcp(deps: {
         .global()
         .filter((d) => !off.has(d.name) && (!d.only || d.only === projectId))
         .map((d) => inProject(d, projectId)),
-      ...(projectId ? config.project(projectId) : []),
+      ...(projectId ? projectDefs(projectId) : []),
     ];
   };
 
@@ -486,13 +498,13 @@ export function createMcp(deps: {
       return invoke(d, t, parsed.args, AbortSignal.timeout(CALL_MS), project ?? d.values_of ?? d.project_id ?? d.only);
     },
     status(projectId?: string): McpStatus[] {
-      const projects = projectId ? [projectId] : deps.store.projects.list().map((p) => p.id);
       const defs = [
         ...config
           .global()
           .filter((d) => !projectId || !d.only || d.only === projectId)
           .map((d) => inProject(d, projectId ?? d.only)),
-        ...projects.flatMap((p) => config.project(p)),
+        // A subproject lists its parent's servers too: their project_id says they are the parent's.
+        ...(projectId ? projectDefs(projectId) : deps.store.projects.list().flatMap((p) => config.project(p.id))),
       ];
       const offHere = new Set(projectId ? config.offIn(projectId) : []);
       return defs.map((d) => {
@@ -527,7 +539,7 @@ export function createMcp(deps: {
                 : "some",
           vars: secretNames(d).map((name) => ({
             name,
-            set: deps.secrets.resolveIn(`secret://${name}`, projectId ?? d.only) !== undefined,
+            set: deps.secrets.resolveIn(`secret://${name}`, valuesIn(projectId ?? d.only)) !== undefined,
           })),
           off_here: d.scope === "global" && offHere.has(d.name),
           ...(d.own || d.scope === "project"

@@ -86,6 +86,7 @@ const projectShape = (p: ProjectRecord, userHome: string): InstanceProject => ({
   ...(p.kind ? { kind: p.kind } : {}),
   ...(p.autonomy ? { autonomy: p.autonomy } : {}),
   ...(p.read_only_folders?.length ? { read_only_folders: p.read_only_folders.map((f) => tildeHome(f, userHome)) } : {}),
+  ...(p.parent ? { parent: p.parent } : {}),
 });
 
 export const routineShape = (r: Routine) => InstanceRoutine.parse(r);

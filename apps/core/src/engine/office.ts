@@ -5,6 +5,7 @@ import type { Task, TaskAsked, Thread } from "@apx/protocol";
 import type { AgentRecord } from "../domain/agents.ts";
 import { ownerIdentity } from "../domain/owner.ts";
 import { ownerQuestionProblem } from "../domain/owner-question.ts";
+import { worksIn } from "../domain/projects.ts";
 import type { Store } from "../domain/store.ts";
 import { noticeTaskWaiting } from "../domain/task-attention.ts";
 import { previewOf } from "../domain/threads.ts";
@@ -27,7 +28,7 @@ export function mentioned(store: Store, text: string, projectId: string | undefi
     const r = store.agents.resolve(m[1] ?? "", projectId);
     if (
       "agent" in r &&
-      (!r.agent.project_id || r.agent.project_id === projectId) &&
+      worksIn(store.projects, r.agent.project_id, projectId) &&
       r.agent.id !== except &&
       !out.some((a) => a.id === r.agent.id)
     )
