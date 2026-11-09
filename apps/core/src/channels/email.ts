@@ -59,7 +59,9 @@ export function isAutomatic(h: ReturnType<typeof parseMail>["headers"], from: st
   if (["x-autoreply", "x-autorespond", "list-id", "list-unsubscribe", "feedback-id"].some((k) => h.has(k))) return true;
   if (/^multipart\/report/i.test(header(h, "content-type") ?? "")) return true;
   const local = from.split("@")[0] ?? "";
-  return /^(mailer-daemon|postmaster|no-?reply|do-?not-?reply|bounces?|notifications?)([+._-]|$)/i.test(local);
+  if (/^(mailer-daemon|postmaster|bounces?|notifications?)([+._-]|$)/i.test(local)) return true;
+  // "noreply" anywhere among its parts: security-noreply@, messages-noreply@, no_reply.billing@.
+  return /(^|[+._-])(no-?reply|do-?not-?reply)([+._-]|$)/i.test(local);
 }
 
 /**
@@ -88,11 +90,10 @@ export function verifiedSender(h: ReturnType<typeof parseMail>["headers"], from:
     });
 }
 
-/** Whether `address` is on the allow list (an exact address, or "@domain"). An empty list allows anyone. */
-function allowedSender(allowed: readonly string[], address: string): boolean {
-  if (!allowed.length) return true;
+/** Whether `address` is on a list of exact addresses and "@domain" entries. */
+function onList(list: readonly string[], address: string): boolean {
   const a = address.toLowerCase();
-  return allowed.some((x) => {
+  return list.some((x) => {
     const e = x.trim().toLowerCase();
     return e.startsWith("@") ? a.endsWith(e) : e === a;
   });
@@ -152,7 +153,13 @@ export function emailAdapter(
     const from = parseAddress(header(m.headers, "from"));
     if (!from || from.address === mail.address.toLowerCase()) return;
     const owner = opts.owner?.(from.address) === true;
-    if (isAutomatic(m.headers, from.address) || (!owner && !allowedSender(mail.allowed, from.address))) return;
+    if (isAutomatic(m.headers, from.address)) return;
+    // Who may write (empty: anyone) and who never: the owner's own addresses are read whatever the lists say.
+    if (
+      !owner &&
+      ((mail.allowed.length > 0 && !onList(mail.allowed, from.address)) || onList(mail.blocked ?? [], from.address))
+    )
+      return;
     // A From line is easy to forge: mail its server did not verify could pass for the owner. Dropped, unanswered;
     // from the owner's own address, even when the owner chose to read unverified mail.
     if ((owner || !mail.trust_unverified) && !verifiedSender(m.headers, from.address)) return;

@@ -207,6 +207,9 @@ export const enChannels = {
   "em.allowed": "Who may write",
   "em.allowedHint":
     "Only mail from these addresses (or @domain) is read. Empty: anyone; what people you don't know get is set in Approvals.",
+  "em.blocked": "Never read",
+  "em.blockedHint": "Mail from these addresses (or @domain) is skipped: not answered and not left for you to approve.",
+  "em.blockedPlaceholder": "news@example.com, @linkedin.com",
   "em.mine": "Your addresses",
   "em.mineHint":
     "Mail you send from these addresses is yours, once your mail server verified it was you. Add each address you write from.",

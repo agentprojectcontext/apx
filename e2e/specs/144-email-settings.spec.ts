@@ -37,6 +37,17 @@ test("email settings: own addresses typed, no Home or while-it-works choice, str
     await expect(dialog.getByText("owner@example.org")).toBeVisible();
     await expect(dialog.getByRole("textbox", { name: "Código" })).toHaveCount(0);
 
+    const never = dialog.getByRole("textbox", { name: "No leer nunca" });
+    await never.fill("@spam.example");
+    await never.press("Enter");
+    await page.getByRole("button", { name: /^Guardar (⌘|Ctrl)/ }).click();
+    await until(async () => {
+      const { channels } = await rpc<{ channels: Array<{ id: string; email?: { blocked: string[] } }> }>(
+        "channels.list",
+      );
+      return channels.find((c) => c.id === id)?.email?.blocked.includes("@spam.example");
+    });
+
     await dialog.getByRole("button", { name: "Quién responde" }).click();
     await expect(dialog.getByText("Con quién hablás")).toBeVisible();
     await expect(dialog.getByText("Tus mensajes")).toHaveCount(0);

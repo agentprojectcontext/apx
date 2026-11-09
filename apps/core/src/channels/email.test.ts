@@ -85,7 +85,10 @@ describe("reading mail", () => {
     assert.equal(isAutomatic(h(["List-Id: <news.example.org>"]), "a@example.org"), true);
     assert.equal(isAutomatic(h([]), "MAILER-DAEMON@example.org"), true);
     assert.equal(isAutomatic(h([]), "no-reply@example.org"), true);
+    assert.equal(isAutomatic(h([]), "security-noreply@example.org"), true);
+    assert.equal(isAutomatic(h([]), "messages.do-not-reply@example.org"), true);
     assert.equal(isAutomatic(h([]), "ana@example.org"), false);
+    assert.equal(isAutomatic(h([]), "noreplyhero@example.org"), false);
   });
 
   test("only the receiving server's own verdict, aligned with the From domain, verifies a sender", () => {
@@ -436,6 +439,23 @@ describe("the email channel", () => {
     assert.ok(!to("owner@example.org").some((m) => m.text.includes("forged as you")));
     const requests = (await env.client.call("pairing.list", {})).requests;
     assert.ok(!requests.some((r) => r.external_id === "bo@else.example"), "off the list is not read");
+    assert.equal(llm.calls.length, calls + 2);
+  });
+
+  test("a blocked address or domain is never read nor listed; the owner's own address still is", async () => {
+    const base = settings();
+    await env.client.call("channels.set", {
+      id: "email",
+      channel: { ...base, email: { ...base.email, blocked: ["@spam.example", "cy@else.example", "@example.org"] } },
+    });
+    await running();
+    const calls = llm.calls.length;
+    imap.deliver(mail({ from: "Promo <deals@spam.example>", to: USER, subject: "Sale", text: "buy" }).raw);
+    imap.deliver(mail({ from: "Cy <cy@else.example>", to: USER, subject: "Hi", text: "hello" }).raw);
+    imap.deliver(mail({ from: OWNER, to: USER, subject: "Re: Hello", text: "blocked domain, still me" }).raw);
+    await waitFor(() => to("owner@example.org").some((m) => m.text.includes("You said: blocked domain")), "answer");
+    const requests = (await env.client.call("pairing.list", {})).requests.map((r) => r.external_id);
+    assert.ok(!requests.includes("deals@spam.example") && !requests.includes("cy@else.example"), requests.join());
     assert.equal(llm.calls.length, calls + 2);
   });
 
