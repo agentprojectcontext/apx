@@ -137,7 +137,7 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  width: clamp(30px, 100cqw - 1160px, 320px);
+  width: var(--topbar-search-w, 30px);
   height: 30px;
   padding: 0 8px 0 10px;
   border: 0;
@@ -356,16 +356,16 @@ html[data-shortcuts-active] [data-shortcut-modifier] {
     gap: 0;
   }
 }
+/* The search shows its word and its shortcut only once it has the room (useTopbarFit). */
+.topbar:not([data-search="full"]) .topbar__search .apx-kbd,
+.topbar:not([data-search="full"], [data-search="word"]) .topbar__search-label {
+  display: none;
+}
+.topbar:not([data-search="full"], [data-search="word"]) .topbar__search {
+  padding: 0;
+  justify-content: center;
+}
 @container topbar (max-width: 1199px) {
-  .topbar__search-label,
-  .topbar__search .apx-kbd {
-    display: none;
-  }
-  .topbar__search {
-    width: var(--apx-control-h-sm);
-    padding: 0;
-    justify-content: center;
-  }
   .topbar__usage {
     margin-left: 4px;
     padding-right: 4px;

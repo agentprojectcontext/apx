@@ -30,6 +30,11 @@ test("search stays centered with unequal sides and notifications precede activit
     expect(geometry.overflow, `overflow ${width}`).toBeLessThanOrEqual(1);
     expect(geometry.searchOverflow, `search content ${width}`).toBe(false);
   }
+  // With room beside the sides the search shows its words, not just its icon.
+  await page.setViewportSize({ width: 1130, height: 900 });
+  await expect(page.locator(".topbar__search-label")).toBeVisible();
+  await page.setViewportSize({ width: 390, height: 900 });
+  await expect(page.locator(".topbar__search-label")).toBeHidden();
   await expect(page.locator(".topbar__activity > :first-child")).toHaveClass(/attention/);
   await expect(page.locator(".topbar__activity > :nth-child(2)")).toHaveClass(/running/);
 });
