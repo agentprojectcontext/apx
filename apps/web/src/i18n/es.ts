@@ -597,7 +597,6 @@ export const es: Partial<Record<MessageKey, string>> = {
   "chat.back": "Volver al chat",
   "chat.toList": "Volver a los chats",
   "chat.hideTools": "Ocultar herramientas",
-  "chat.toolsHint": "Mostrar u ocultar cada paso del agente (las tools que usó y qué devolvieron)",
   "chat.showTools": "Mostrar herramientas",
   "chat.roomCardOpen": "Abrir cuándo habla el agente acá y las reglas",
   "chat.roomCardClose": "Cerrar la tarjeta",

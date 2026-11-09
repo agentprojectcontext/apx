@@ -599,7 +599,6 @@ export const en = {
   "chat.back": "Back to the chat",
   "chat.toList": "Back to the chats",
   "chat.hideTools": "Hide tools",
-  "chat.toolsHint": "Show or hide each step the agent took (tools it used, what they returned)",
   "chat.showTools": "Show tools",
   "chat.roomCardOpen": "Open when the agent speaks here and the rules",
   "chat.roomCardClose": "Close the card",
