@@ -3,7 +3,7 @@ title: "How to start an AI agent team for a small business"
 description: "Define a useful first task, assign clear roles and review results before adding more agents or integrations."
 lang: en
 slug: ai-agent-team-small-business
-draft: true
+draft: false
 published: "2026-11-08"
 image:
   src: ../../../assets/blog/ai-agent-team-small-business/hero.webp

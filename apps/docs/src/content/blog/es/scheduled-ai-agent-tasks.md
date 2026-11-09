@@ -3,7 +3,7 @@ title: "Cómo programar un agente de IA sin llenarte de notificaciones"
 description: "Diseñá una tarea recurrente útil, probá su horario y decidí cuándo debería avisarte."
 lang: es
 slug: scheduled-ai-agent-tasks
-draft: true
+draft: false
 published: "2026-11-08"
 image:
   src: ../../../assets/blog/scheduled-ai-agent-tasks/hero.webp

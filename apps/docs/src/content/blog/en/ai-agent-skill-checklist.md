@@ -3,7 +3,7 @@ title: "How to write a reusable AI agent skill"
 description: "Turn a repeated task into a reusable skill without confusing instructions, permissions and proof of success."
 lang: en
 slug: ai-agent-skill-checklist
-draft: true
+draft: false
 published: "2026-11-08"
 image:
   src: ../../../assets/blog/ai-agent-skill-checklist/hero.webp
@@ -26,7 +26,7 @@ Suppose you prepare a weekly status report. Write down the inputs, the period co
 
 ## Make the skill discoverable
 
-[APX skills](https://apxagent.app/docs/extend/skills/) are folders containing a `SKILL.md`. Its description tells an agent when the skill applies; the body holds steps and examples. In APX, project skills are available to that project's agents, while global skills are inherited by projects. Agents still need to select and load the skill for a particular task; a saved file alone does not prove it was used.
+[APX skills](https://apxagent.app/docs/extend/skills/) are folders containing a `SKILL.md`. Its description tells an agent when the skill applies; the body holds steps and examples. In APX, project skills are available to that project's agents, while projects inherit global skills unless they turn them off. Agents still need to select and load the skill for a particular task; a saved file alone does not prove it was used.
 
 A concise checklist might cover:
 

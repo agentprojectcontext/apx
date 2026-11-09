@@ -3,7 +3,7 @@ title: "How to hand work between AI agents without losing the result"
 description: "Define the deliverable, ownership and evidence before splitting a task across AI agents."
 lang: en
 slug: ai-agent-task-handoffs
-draft: true
+draft: false
 published: "2026-11-08"
 image:
   src: ../../../assets/blog/ai-agent-task-handoffs/hero.webp

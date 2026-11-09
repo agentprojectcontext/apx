@@ -3,7 +3,7 @@ title: "Cómo escribir una skill reutilizable para un agente de IA"
 description: "Convertí una tarea repetida en una skill sin confundir instrucciones, permisos y pruebas de resultado."
 lang: es
 slug: ai-agent-skill-checklist
-draft: true
+draft: false
 published: "2026-11-08"
 image:
   src: ../../../assets/blog/ai-agent-skill-checklist/hero.webp
@@ -26,7 +26,7 @@ Supongamos que preparás un informe semanal de estado. Anotá los datos de entra
 
 ## Hacé que la skill se pueda encontrar
 
-Las [skills de APX](https://apxagent.app/es/docs/extend/skills/) son carpetas que contienen un `SKILL.md`. Su descripción le indica al agente cuándo corresponde usarla; el cuerpo contiene pasos y ejemplos. En APX, las skills de proyecto están disponibles para los agentes de ese proyecto y las globales se heredan en los proyectos. El agente todavía tiene que elegir y cargar la skill para una tarea: un archivo guardado, por sí solo, no demuestra que se haya usado.
+Las [skills de APX](https://apxagent.app/es/docs/extend/skills/) son carpetas que contienen un `SKILL.md`. Su descripción le indica al agente cuándo corresponde usarla; el cuerpo contiene pasos y ejemplos. En APX, las skills de proyecto están disponibles para los agentes de ese proyecto y las globales se heredan en los proyectos salvo que se desactiven. El agente todavía tiene que elegir y cargar la skill para una tarea: un archivo guardado, por sí solo, no demuestra que se haya usado.
 
 Una lista breve puede cubrir:
 

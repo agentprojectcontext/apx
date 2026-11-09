@@ -3,7 +3,7 @@ title: "Cómo empezar un equipo de agentes de IA para un negocio chico"
 description: "Definí una primera tarea útil, asigná roles claros y revisá el resultado antes de sumar agentes o integraciones."
 lang: es
 slug: ai-agent-team-small-business
-draft: true
+draft: false
 published: "2026-11-08"
 image:
   src: ../../../assets/blog/ai-agent-team-small-business/hero.webp

@@ -3,7 +3,7 @@ title: "Cómo repartir trabajo entre agentes de IA sin perder el resultado"
 description: "Definí entregable, responsables y evidencia antes de dividir una tarea entre agentes de IA."
 lang: es
 slug: ai-agent-task-handoffs
-draft: true
+draft: false
 published: "2026-11-08"
 image:
   src: ../../../assets/blog/ai-agent-task-handoffs/hero.webp

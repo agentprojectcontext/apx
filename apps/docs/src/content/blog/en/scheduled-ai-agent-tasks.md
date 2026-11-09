@@ -3,7 +3,7 @@ title: "How to schedule an AI agent task without creating notification noise"
 description: "Design a useful recurring AI agent task, test its schedule and decide when it should notify you."
 lang: en
 slug: scheduled-ai-agent-tasks
-draft: true
+draft: false
 published: "2026-11-08"
 image:
   src: ../../../assets/blog/scheduled-ai-agent-tasks/hero.webp
