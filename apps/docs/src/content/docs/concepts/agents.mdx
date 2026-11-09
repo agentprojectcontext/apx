@@ -170,7 +170,8 @@ Change fields with `key=value` pairs (`name`, `role`, `slug`, `parent`, `blob`):
 
 <Terminal command="apx agents set 3f9a1c0d7e21-vera parent=lucia blob=cobalto">{`Vera (3f9a1c0d7e21-vera) · vera · Marketing`}</Terminal>
 
-Archive one. Its file moves to `.apc/agents/.archived/`, never erased, and its chats stay:
+Archive one. Its file moves to `.apc/agents/.archived/`, never erased, and its chats stay. An agent that answers a
+channel is archived only once you choose who answers that channel instead:
 
 <Terminal command="apx agents archive 3f9a1c0d7e21-vera">{`archived; file moved to ~/work/acme-store/.apc/agents/.archived/vera.md`}</Terminal>
 

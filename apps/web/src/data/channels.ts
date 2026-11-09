@@ -60,15 +60,6 @@ export async function loadChannels(): Promise<void> {
   }
 }
 
-/**
- * The id of a new account of `type`: the type itself for the first one (as the setup and `apx channels add` make it),
- * a random one for each further account, which never shows its number, address or token.
- */
-export function newChannelId(type: ChannelInfo["type"], taken: readonly Pick<ChannelInfo, "id">[]): string {
-  if (!taken.some((c) => c.id === type)) return type;
-  return `${type}-${crypto.randomUUID().replaceAll("-", "").slice(0, 10)}`;
-}
-
 export type ChannelDraft = {
   type?: ChannelInfo["type"];
   label?: string;
@@ -148,6 +139,25 @@ const TYPES = [
   "line",
 ] as const satisfies readonly ChannelInfo["type"][];
 
+/** What a new account is made with: the core names it and gives it the rest (the super-agent answers it). */
+export type NewAccount = Partial<Pick<ChannelInfo, "label" | "self_owner" | "email">>;
+
+/** Makes a new account of `type` with its sign-in, when there is one; its id, or undefined (and a notice). */
+export async function addChannel(
+  type: ChannelInfo["type"],
+  account: NewAccount,
+  token?: string,
+): Promise<string | undefined> {
+  try {
+    const r = await client.call("channels.add", { type, ...account, ...(token ? { token } : {}) });
+    store.set({ channels: r.channels });
+    return r.id;
+  } catch (e) {
+    notify(t("error.channels", { error: errText(e) }));
+    return undefined;
+  }
+}
+
 /** Saves a channel (and its token when one was typed); the core restarts it. */
 export async function saveChannel(id: string, draft: ChannelDraft | null, token?: string): Promise<boolean> {
   // A setting shows changed at once; the core's answer confirms it (or a failure puts it back).
@@ -207,14 +217,11 @@ export async function addOwnerAddress(channel: string, address: string): Promise
 
 /** A new contact on an account: their name and their address there (a number, a user); none is made if it is wrong. */
 export async function addContact(channel: string, name: string, address: string): Promise<boolean> {
-  let made: string | undefined;
   try {
-    made = (await client.call("contacts.set", { name, role: "contact" })).id;
-    await client.call("contacts.address", { channel, address, person: made });
+    await client.call("contacts.add", { channel, name, address });
     await loadChannels();
     return true;
   } catch (e) {
-    if (made) await client.call("contacts.remove", { id: made }).catch(() => undefined);
     notify(t("error.channels", { error: errText(e) }));
     return false;
   }

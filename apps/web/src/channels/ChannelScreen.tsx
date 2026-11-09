@@ -9,6 +9,7 @@ import { useData } from "../data/state.ts";
 import { type MessageKey, useT } from "../i18n/index.ts";
 import { SidePanel } from "../panel/SidePanel.tsx";
 import { go, nav, useNav } from "../shell/nav.ts";
+import { agentName, answerersOf, answersLine } from "./answerers.ts";
 import { ChannelConversation } from "./ChannelConversation.tsx";
 import { ContactPanel } from "./ContactPanel.tsx";
 import { ContactRow, type Row } from "./ContactRow.tsx";
@@ -173,7 +174,7 @@ export function ChannelScreen() {
           ))}
           {query && !shown.length && !shownRooms.length && <li className="chan__nobody">{t("res.noMatch")}</li>}
         </ul>
-        <p className="chan__foot">{t("ch.foot", { agent: agents[channel.agent_id]?.name ?? channel.agent_id })}</p>
+        <p className="chan__foot">{t("ch.foot", { agent: agentName(agents[channel.agent_id], t) })}</p>
       </aside>
       {ownerOpen && ownerTarget ? (
         <OpenChat
@@ -254,7 +255,7 @@ function ChannelHead({ channel }: { channel: ChannelInfo }) {
             <span className="chan__meta">
               <span className={`chan__status is-${channel.status}`} />
               {channel.account ? `${channel.account} · ` : ""}
-              {t("ch.answers", { agent: agents[channel.agent_id]?.name ?? channel.agent_id })}
+              {answersLine(answerersOf(channel, agents), t)}
             </span>
           </button>
         }

@@ -7,7 +7,7 @@ import os from "node:os";
 import path from "node:path";
 import { test } from "node:test";
 import { createDesktopInstaller, type DesktopInstallOptions } from "./desktop.ts";
-import { desktopDataDir, hasDesktop } from "./paths.ts";
+import { desktopDataDir, hasDesktop, saveLocalTarget } from "./paths.ts";
 import type { ProcessRunner } from "./process.ts";
 
 function fixture(overrides: Partial<DesktopInstallOptions> = {}) {
@@ -516,4 +516,11 @@ test("Windows waits for its installer before launching the installed executable"
   } finally {
     await f.close();
   }
+});
+
+test("a test run can never write the machine's own desktop connection", () => {
+  const real = desktopDataDir(process.platform, { XDG_CONFIG_HOME: process.env.XDG_CONFIG_HOME }, os.homedir());
+  const target = { home: os.tmpdir(), port: 7551, home_id: "test-home" };
+  assert.throws(() => saveLocalTarget(real, target, { NODE_TEST_CONTEXT: "child" }), /refusing/);
+  assert.throws(() => saveLocalTarget(real, target, { TEST_WORKER_INDEX: "0" }), /refusing/);
 });

@@ -114,6 +114,10 @@ moved, assigned or closed it). **Sessions** at the top counts the chats the task
 to jump to where the work happens. If you reassign it, the new agent gets its own chat and is told who worked on it
 before, and where to read it.
 
+An agent can rewrite a task you created, for example to fill in a draft nobody does yet. Once an agent changed its
+title or description, the agent that works the task reads them as that teammate's words, not yours, and its chat
+does not open with them as your message. Edit them yourself and they are your words again.
+
 ### Goal, what you asked and the plan
 
 Above the description, a task shows where its work must arrive and what you said about it:
@@ -199,8 +203,9 @@ closes, also the ones you or another agent gave, and tells you what came of it. 
 project's orchestrator as a task; when the orchestrator closes it, hours and restarts later, your main agent gets
 its report in the chat where it created the task and tells you what matters. When a project's orchestrator starts a
 task from its own project chat, that chat hears how the task ended too, and also when a reviewer sends it back for
-changes; hearing it gives the orchestrator no new permission. Closing a task yourself, or an agent closing its own,
-wakes nobody. That turn counts toward the [turns agents start on their own without
+changes; hearing it gives the orchestrator no new permission. Once you or another agent start the task again, that
+chat stops hearing of it, and it is not told of a close it made itself. Closing a task yourself, or an agent closing
+its own, wakes nobody. That turn counts toward the [turns agents start on their own without
 you](/concepts/agents/): past the limit, the report waits until you write in that chat.
 
 ### Requesting corrections

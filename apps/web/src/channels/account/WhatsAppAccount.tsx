@@ -38,14 +38,7 @@ export function WhatsAppConnect({ create }: { create: Create }) {
             leadingIcon={<Icons.Zap size={14} />}
             onClick={() => {
               setBusy(true);
-              void create({
-                agent_id: "",
-                enabled: true,
-                strangers: "pair",
-                concurrency: "steer",
-                owner_thread: "home",
-                self_owner: false,
-              }).finally(() => setBusy(false));
+              void create({ self_owner: false }).finally(() => setBusy(false));
             }}
           >
             {t("acct.connect")}

@@ -503,6 +503,54 @@ test("being in Apps is kept apart from being an app: what the owner put there st
   }
 });
 
+test("a channel whose agent answered only its contacts keeps the owner in Home after upgrading", () => {
+  const { db, cleanup } = upgradeFrom("super-agent answers the owner, the old agent its contacts", (db) => {
+    const agent = db.prepare("INSERT INTO agents (id, name, kind, created_at) VALUES (?, ?, ?, '2026-10-01')");
+    agent.run("superagent", "Roby", "secretary");
+    agent.run("sales", "Sales", "agent");
+    const channel = (id: string, agent_id: string, owner_thread: string, more = {}) => ({
+      id,
+      type: "telegram",
+      label: id,
+      enabled: true,
+      agent_id,
+      strangers: "pair",
+      concurrency: "steer",
+      owner_thread,
+      ...more,
+    });
+    db.prepare("INSERT INTO meta (key, value) VALUES ('setting:channels', ?)").run(
+      JSON.stringify([
+        channel("tg", "sales", "home"),
+        channel("tg-home", "superagent", "home"),
+        channel("tg-own", "sales", "own"),
+        channel("tg-gone", "nobody", "home"),
+        channel("tg-set", "sales", "home", { contacts_agent_id: "superagent" }),
+      ]),
+    );
+  });
+  try {
+    const saved = JSON.parse(String(db.prepare("SELECT value FROM meta WHERE key = 'setting:channels'").get()?.value));
+    const who = (id: string) => {
+      const c = saved.find((x: { id: string }) => x.id === id);
+      return [c?.agent_id, c?.contacts_agent_id, c?.owner_thread];
+    };
+    assert.deepEqual(
+      saved.map((c: { id: string }) => c.id),
+      ["tg", "tg-home", "tg-own", "tg-gone", "tg-set"],
+    );
+    assert.deepEqual(who("tg"), ["superagent", "sales", "home"], "the owner stays in Home, contacts keep their agent");
+    assert.deepEqual(who("tg-home"), ["superagent", undefined, "home"]);
+    assert.deepEqual(who("tg-own"), ["sales", undefined, "own"], "its own chat already meant that agent");
+    assert.deepEqual(who("tg-gone"), ["nobody", undefined, "home"]);
+    assert.deepEqual(who("tg-set"), ["sales", "superagent", "home"]);
+    assert.equal(saved[0].label, "tg", "the rest of the channel is kept");
+  } finally {
+    db.close();
+    cleanup();
+  }
+});
+
 test("a person keeps only the rights the owner turned on; the rest follow the account, any hour included", () => {
   const { db, cleanup } = upgradeFrom("ALTER TABLE persons DROP COLUMN any_hour", (db) => {
     const person = db.prepare(

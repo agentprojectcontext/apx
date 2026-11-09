@@ -86,7 +86,7 @@ export function directoryTools(store: Store): Tool[] {
       title: () => "Looked at the channels",
       async run(_a, ctx) {
         const { channels } = await ctx.call("channels.overview", {});
-        if (!channels.length) return "no channels set up: the owner adds them in Settings, Channels.";
+        if (!channels.length) return "no channels set up: the owner adds them in Channels, in the sidebar.";
         const rows = channels.map((c) => {
           const rooms = c.rooms.map((r) => `#${r.name} (${ROOM_MODE[r.mode]})`).join(", ");
           return `- ${c.label} (${c.type}): ${c.status}${rooms ? `; rooms: ${rooms}` : ""}`;

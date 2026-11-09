@@ -83,14 +83,28 @@ export class ProviderError extends Error {
   }
 }
 
+/** Words only a plan that is out uses; "limit reached" alone also opens OpenAI's pause of a few seconds. */
+const PLAN_OUT = /quota|billing|credit|insufficient|exceeded your current|usage[ _]limit/i;
+const SLOW_DOWN = /rate[ _]limit|too many requests/i;
+
+/**
+ * What a provider's words say about its limit: a pause to wait out (`rate_limit`), the plan or account out until it
+ * resets (`quota`), or neither.
+ */
+export function limitKind(said: string): "quota" | "rate_limit" | undefined {
+  if (PLAN_OUT.test(said)) return "quota";
+  if (SLOW_DOWN.test(said)) return "rate_limit";
+  if (/limit[ _](has been )?reached/i.test(said)) return "quota";
+  return undefined;
+}
+
 function classifyHttp(status: number, body: string, headers?: Headers): ProviderError {
   const text = body.slice(0, 300);
   if (status === 401 || status === 403) return new ProviderError("auth", `HTTP ${status}: ${text}`);
   if (status === 404) return new ProviderError("model_gone", `HTTP 404: ${text}`);
   if (status === 429) {
     // Providers use 429 both for "slow down" and for "your plan is out"; the body tells them apart.
-    const quota = /quota|billing|credit|insufficient|exceeded your current|usage[ _]limit|limit[ _]reached/i.test(body);
-    return new ProviderError(quota ? "quota" : "rate_limit", `HTTP 429: ${text}`, resetOf(body, headers));
+    return new ProviderError(limitKind(body) ?? "rate_limit", `HTTP 429: ${text}`, resetOf(body, headers));
   }
   if (status === 0 || status >= 500)
     return new ProviderError(status === 0 ? "network" : "overloaded", `HTTP ${status}: ${text}`);

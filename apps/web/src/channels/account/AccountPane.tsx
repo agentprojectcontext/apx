@@ -28,13 +28,11 @@ function NameRow({ value, set }: { value: string; set(patch: Partial<ChannelDraf
 /** A new account: its name, and how to connect it (a QR, a bot's token, a mailbox). */
 export function NewAccountPane({
   kind,
-  id,
   label,
   set,
   create,
 }: {
   kind: ChannelKind;
-  id: string;
   label: string;
   set(patch: Partial<ChannelDraft>): void;
   create: Create;
@@ -51,7 +49,7 @@ export function NewAccountPane({
       ) : kind === "imessage" ? (
         <IMessageConnect create={create} />
       ) : isBotKind(kind) ? (
-        <BotConnect kind={kind} create={create} id={id} />
+        <BotConnect kind={kind} create={create} />
       ) : null}
     </>
   );

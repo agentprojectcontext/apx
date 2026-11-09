@@ -1208,6 +1208,25 @@ export const MIGRATIONS: readonly string[] = [
   CREATE INDEX tasks_status ON tasks(state, status, id);
   CREATE INDEX tasks_parent_state ON tasks(parent_id, state);
   `,
+  // Home is the super-agent's (DECISIONS.md#d-205): a channel whose other agent sent the owner to Home really had the
+  // super-agent answer the owner and that agent answer its contacts, so it is saved that way.
+  `
+  -- The super-agent answers the owner, the old agent its contacts.
+  UPDATE meta SET value = (
+    SELECT json_group_array(json(CASE
+      WHEN json_extract(c.value, '$.owner_thread') = 'home'
+        AND json_type(c.value, '$.contacts_agent_id') IS NULL
+        AND EXISTS (SELECT 1 FROM agents a WHERE a.id = json_extract(c.value, '$.agent_id') AND a.kind <> 'secretary')
+        AND EXISTS (SELECT 1 FROM agents WHERE kind = 'secretary')
+      THEN json_set(c.value,
+        '$.contacts_agent_id', json_extract(c.value, '$.agent_id'),
+        '$.agent_id', (SELECT id FROM agents WHERE kind = 'secretary' ORDER BY created_at LIMIT 1))
+      ELSE c.value END))
+    FROM json_each(meta.value) AS c
+  ) WHERE key = 'setting:channels' AND json_valid(value) AND json_type(value) = 'array';
+  `,
+  // An account's activity reads only its own sends (channels.outbox with a channel).
+  `CREATE INDEX outbox_channel_created ON outbox(channel, created_at);`,
   `
   -- A person keeps only the contact rights the owner turned on for them; the rest follow the account they write on
   -- (ChannelInfo.contacts, D-205). Answered at any hour joins them there.

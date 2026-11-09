@@ -47,6 +47,41 @@ export type PersonDetails = {
   perms?: { [K in keyof PersonPerms]?: boolean | null | undefined } | undefined;
 };
 
+type Decision = Pick<Person, "role" | "muted" | "supervised" | "unreviewed" | "perms">;
+
+/**
+ * The stricter of two people's own rights: off when either set it off, on only when both set it on, else unset (it
+ * follows the account, as it did for the one that never set it).
+ */
+function stricterRights(a: PersonPerms, b: PersonPerms): PersonPerms {
+  const out: PersonPerms = {};
+  for (const k of ["appointments", "requests", "notes", "any_hour"] as const) {
+    if (a[k] === false || b[k] === false) out[k] = false;
+    else if (a[k] === true && b[k] === true) out[k] = true;
+  }
+  return out;
+}
+
+/**
+ * How one person known as two is answered: what the owner decided about either (a stranger's defaults are no
+ * decision), the stricter of each when they decided about both, so joining never answers anyone more than before.
+ */
+function stricter(a: Person, b: Person): Decision {
+  const decided = [a, b].filter((p) => !p.unreviewed);
+  const [first, second] = decided;
+  if (!first) return a;
+  if (!second) return first;
+  const muted = first.muted || second.muted;
+  return {
+    role: first.role === "blocked" || second.role === "blocked" ? "blocked" : first.role,
+    muted,
+    // Silenced and supervised exclude each other: silenced answers less.
+    supervised: !muted && (first.supervised || second.supervised),
+    unreviewed: false,
+    perms: stricterRights(first.perms, second.perms),
+  };
+}
+
 export function personsRepo({ one, all, run, tx }: Sql) {
   const addressesOf = (id: string) =>
     all(qb.selectFrom("addresses").selectAll().where("person_id", "=", id).orderBy("created_at")).map(toAddress);
@@ -215,8 +250,9 @@ export function personsRepo({ one, all, run, tx }: Sql) {
     /**
      * One person their platform knew under two addresses (a private id and the number it stands for): whoever has
      * `from` becomes whoever has `to` (the owner always stays), with their addresses, chats and commitments. What the
-     * kept one lacks comes from the other, and the owner's decision about either (who they are, how they are answered)
-     * wins over a stranger's defaults. Nobody has `to`: `from`'s person takes it too. False when nothing changed.
+     * kept one lacks comes from the other; how they are answered is the owner's decision about either over a stranger's
+     * defaults, and the stricter of the two when the owner decided about both. Nobody has `to`: `from`'s person takes
+     * it too. False when nothing changed.
      */
     joinPeople(channel: string, from: string, to: string): boolean {
       return tx(() => {
@@ -240,7 +276,7 @@ export function personsRepo({ one, all, run, tx }: Sql) {
             .where("thread_id", "in", qb.selectFrom("threads").select("id").where("person_id", "=", keep.id))
             .where(sql<string>`json_extract(author, '$.id')`, "=", gone.id),
         );
-        const decided = keep.unreviewed && !gone.unreviewed ? gone : keep;
+        const decided = stricter(keep, gone);
         run(
           qb
             .updateTable("persons")
