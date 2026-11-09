@@ -385,11 +385,6 @@ export const en = {
   "account.agentLanguageHint": "They answer and send notices in it, unless you write to them in another one.",
   "account.timezone": "Time zone",
   "account.timezoneHint": "Your agents use it to know what time it is for you.",
-  "account.publish": "Publishing finished work",
-  "account.publishHint":
-    "When a task is done and can be undone, like putting a website online. A new version, a payment or a message in your name always waits for you.",
-  "account.publish.auto": "Without asking",
-  "account.publish.ask": "Ask me first",
   "error.account": "Could not save your account: {error}",
   "account.owner": "Owner of this installation",
   "account.name": "Name",
