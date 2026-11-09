@@ -324,8 +324,12 @@ function planChannels(deps: ImportDeps, file: InstanceFile, c: Ctx) {
   const { store } = deps;
   const { push, skip, mine, agents, agentOf } = c;
   for (const ch of file.channels) {
-    const want = { ...ch, agent_id: agentOf(ch.agent_id) };
-    if (!agents.has(want.agent_id)) {
+    const want = {
+      ...ch,
+      agent_id: agentOf(ch.agent_id),
+      ...(ch.contacts_agent_id ? { contacts_agent_id: agentOf(ch.contacts_agent_id) } : {}),
+    };
+    if (!agents.has(want.agent_id) || (want.contacts_agent_id && !agents.has(want.contacts_agent_id))) {
       skip("channels", ch.id, ch.label, "agent_missing");
       continue;
     }

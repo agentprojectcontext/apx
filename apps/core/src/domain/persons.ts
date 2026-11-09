@@ -17,13 +17,23 @@ const toAddress = (r: Selectable<AddressesTable>): Address => ({
   ...opt("label", r.label),
 });
 
-/** Stored flags, anything unreadable meaning "off". */
+/** The rights the owner set for them; anything unreadable meaning none (they follow the account). */
 function permsOf(text: string | null): PersonPerms {
   try {
     return PersonPerms.parse(JSON.parse(text ?? "{}"));
   } catch {
-    return { appointments: false, requests: false, notes: false };
+    return {};
   }
+}
+
+/** The rights set after a change: a value sets one, null gives it back to the account, undefined keeps it. */
+function permsAfter(cur: PersonPerms, change: PersonDetails["perms"]): PersonPerms {
+  const next: Record<string, boolean> = { ...cur };
+  for (const [k, v] of Object.entries(change ?? {})) {
+    if (v === null) delete next[k];
+    else if (v !== undefined) next[k] = v;
+  }
+  return next;
 }
 
 /** What the owner may change about a person besides name and role. */
@@ -34,11 +44,45 @@ export type PersonDetails = {
   rules?: string | undefined;
   muted?: boolean | undefined;
   supervised?: boolean | undefined;
-  any_hour?: boolean | undefined;
-  perms?: Partial<PersonPerms> | undefined;
+  perms?: { [K in keyof PersonPerms]?: boolean | null | undefined } | undefined;
   /** Who answers them instead of each account's contacts agent; null gives them back to the account's. */
   agent_id?: string | null | undefined;
 };
+
+type Decision = Pick<Person, "role" | "muted" | "supervised" | "unreviewed" | "perms">;
+
+/**
+ * The stricter of two people's own rights: off when either set it off, on only when both set it on, else unset (it
+ * follows the account, as it did for the one that never set it).
+ */
+function stricterRights(a: PersonPerms, b: PersonPerms): PersonPerms {
+  const out: PersonPerms = {};
+  for (const k of ["appointments", "requests", "notes", "any_hour"] as const) {
+    if (a[k] === false || b[k] === false) out[k] = false;
+    else if (a[k] === true && b[k] === true) out[k] = true;
+  }
+  return out;
+}
+
+/**
+ * How one person known as two is answered: what the owner decided about either (a stranger's defaults are no
+ * decision), the stricter of each when they decided about both, so joining never answers anyone more than before.
+ */
+function stricter(a: Person, b: Person): Decision {
+  const decided = [a, b].filter((p) => !p.unreviewed);
+  const [first, second] = decided;
+  if (!first) return a;
+  if (!second) return first;
+  const muted = first.muted || second.muted;
+  return {
+    role: first.role === "blocked" || second.role === "blocked" ? "blocked" : first.role,
+    muted,
+    // Silenced and supervised exclude each other: silenced answers less.
+    supervised: !muted && (first.supervised || second.supervised),
+    unreviewed: false,
+    perms: stricterRights(first.perms, second.perms),
+  };
+}
 
 export function personsRepo({ one, all, run, tx }: Sql) {
   const addressesOf = (id: string) =>
@@ -56,7 +100,6 @@ export function personsRepo({ one, all, run, tx }: Sql) {
       muted: r.muted === 1,
       unreviewed: r.unreviewed === 1,
       supervised: r.supervised === 1,
-      any_hour: r.any_hour === 1,
       perms: permsOf(r.perms),
       ...opt("agent_id", r.agent_id),
       addresses: addressesOf(r.id),
@@ -132,11 +175,10 @@ export function personsRepo({ one, all, run, tx }: Sql) {
             rules: text(p.rules, cur.rules),
             muted: muted ? 1 : 0,
             supervised: supervised ? 1 : 0,
-            any_hour: (p.any_hour ?? cur.any_hour) ? 1 : 0,
             // Deciding whether they are answered (or who they are) is the owner's review.
             unreviewed:
               cur.unreviewed && p.muted === undefined && p.supervised === undefined && p.role === undefined ? 1 : 0,
-            perms: JSON.stringify({ ...cur.perms, ...(p.perms ?? {}) }),
+            perms: JSON.stringify(permsAfter(cur.perms, p.perms)),
             // The owner is answered by each account's own agent, never by one of their own.
             agent_id: role === "owner" ? null : p.agent_id === undefined ? (cur.agent_id ?? null) : p.agent_id,
             updated_at: now(),
@@ -213,8 +255,9 @@ export function personsRepo({ one, all, run, tx }: Sql) {
     /**
      * One person their platform knew under two addresses (a private id and the number it stands for): whoever has
      * `from` becomes whoever has `to` (the owner always stays), with their addresses, chats and commitments. What the
-     * kept one lacks comes from the other, and the owner's decision about either (who they are, how they are answered)
-     * wins over a stranger's defaults. Nobody has `to`: `from`'s person takes it too. False when nothing changed.
+     * kept one lacks comes from the other; how they are answered is the owner's decision about either over a stranger's
+     * defaults, and the stricter of the two when the owner decided about both. Nobody has `to`: `from`'s person takes
+     * it too. False when nothing changed.
      */
     joinPeople(channel: string, from: string, to: string): boolean {
       return tx(() => {
@@ -238,7 +281,7 @@ export function personsRepo({ one, all, run, tx }: Sql) {
             .where("thread_id", "in", qb.selectFrom("threads").select("id").where("person_id", "=", keep.id))
             .where(sql<string>`json_extract(author, '$.id')`, "=", gone.id),
         );
-        const decided = keep.unreviewed && !gone.unreviewed ? gone : keep;
+        const decided = stricter(keep, gone);
         run(
           qb
             .updateTable("persons")
@@ -253,10 +296,9 @@ export function personsRepo({ one, all, run, tx }: Sql) {
                     role: decided.role,
                     muted: decided.muted ? 1 : 0,
                     supervised: decided.supervised ? 1 : 0,
-                    any_hour: decided.any_hour ? 1 : 0,
                     unreviewed: decided.unreviewed ? 1 : 0,
                     perms: JSON.stringify(decided.perms),
-                    agent_id: decided.agent_id ?? keep.agent_id ?? gone.agent_id ?? null,
+                    agent_id: keep.agent_id ?? gone.agent_id ?? null,
                   }),
               updated_at: now(),
             })

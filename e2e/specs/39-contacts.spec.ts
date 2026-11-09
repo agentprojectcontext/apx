@@ -31,6 +31,15 @@ test("a saved contact with no chat: listed, an empty chat to ask the agent to wr
   // What each option does reads under its switch, and the closing note about family and friends under them.
   await expect(card.getByText(/queda como tarea y te aviso en el momento/)).toBeVisible();
   await expect(card.getByText(/pareja, familia y amigos siempre pueden dejarte un mensaje/)).toBeVisible();
+  // Each right follows the account unless set here: taking requests becomes Nora's own.
+  const requests = card.getByRole("radiogroup", { name: "Tomar pedidos", exact: true });
+  await expect(requests.getByRole("radio", { name: "Cuenta: No" })).toBeChecked();
+  await requests.getByRole("radio", { name: "Sí" }).click();
+  await card.getByRole("button", { name: "Guardar" }).click();
+  await until(async () => {
+    const { persons } = await rpc<{ persons: Array<{ name: string; perms: { requests?: boolean } }> }>("contacts.list");
+    return persons.find((p) => p.name === "Nora")?.perms.requests === true;
+  });
   // The owner's own WhatsApp number is linked (10-whatsapp): "This account is mine" is settled, so no card offers it.
   await expect(card.getByRole("textbox", { name: "Nombre" })).toBeVisible();
   await expect(card.getByRole("button", { name: "Esta cuenta es mía" })).toHaveCount(0);

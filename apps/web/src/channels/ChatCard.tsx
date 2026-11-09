@@ -42,7 +42,7 @@ export function ChatCard({
             <span className="chan__cardname">{name}</span>
             <span className="chan__cardvia">
               {kind ? <KindIcon kind={kind} size={12} /> : <Icons.Send size={12} />}
-              <span>{t("ch.card.via", { app, account: channel.label })}</span>
+              <span>{channel.label === app ? app : t("ch.card.via", { app, account: channel.label })}</span>
             </span>
           </span>
         </div>

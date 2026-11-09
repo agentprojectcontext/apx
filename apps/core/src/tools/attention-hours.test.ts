@@ -58,14 +58,14 @@ test("the owner approves a channel's hours read in words, and the channel keeps 
 
 test("in Manual, a contact is let through the hours, and stops being let through, on a card in words", () =>
   h.inMode("manual", async () => {
-    const through = await h.ask({ method: "contacts.set", params: { id: dad, any_hour: true } }, "approve");
+    const through = await h.ask({ method: "contacts.set", params: { id: dad, perms: { any_hour: true } } }, "approve");
     assert.match(through.detail, /^Change the contact Northwind Dad\nAnswered at any hour$/);
-    assert.equal((await person(dad))?.any_hour, true);
-    await h.ask({ method: "contacts.set", params: { id: dad, any_hour: false } }, "deny");
-    assert.equal((await person(dad))?.any_hour, true, "a declined change saves nothing");
-    const wait = await h.ask({ method: "contacts.set", params: { id: dad, any_hour: false } }, "approve");
+    assert.equal((await person(dad))?.perms.any_hour, true);
+    await h.ask({ method: "contacts.set", params: { id: dad, perms: { any_hour: false } } }, "deny");
+    assert.equal((await person(dad))?.perms.any_hour, true, "a declined change saves nothing");
+    const wait = await h.ask({ method: "contacts.set", params: { id: dad, perms: { any_hour: false } } }, "approve");
     assert.match(wait.detail, /Waits for the hours like everyone/);
-    assert.equal((await person(dad))?.any_hour, false);
+    assert.equal((await person(dad))?.perms.any_hour, false);
   }));
 
 test("hours: null puts a channel back to any hour, and the card says so", async () => {

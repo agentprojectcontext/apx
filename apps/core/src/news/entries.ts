@@ -6,6 +6,7 @@ import { NOISY_COMMENTS } from "../domain/tasks.ts";
 import { computerHost } from "../environments/host.ts";
 import { CATALOG } from "../integrations/catalog.ts";
 import { AGENT_FALLBACKS_NEWS } from "./agent-fallbacks.ts";
+import { AGENT_PROMPTS_NEWS } from "./agent-prompts.ts";
 import { BROWSER_EDIT_NEWS } from "./browser-edit.ts";
 import { BROWSER_JAVASCRIPT_NEWS } from "./browser-javascript.ts";
 import { BROWSER_SIGN_IN_NEWS } from "./browser-sign-in.ts";
@@ -61,6 +62,8 @@ export type NewsFacts = {
   localModels?: boolean;
   /** Agents that run on a model of their own (not the router alone). */
   ownModels?: number;
+  /** Agents other than the super-agent with instructions of their own (a prompt worth reviewing). */
+  promptedAgents?: number;
   /** The chats' database is over 500 MB and keeps its free space until it is rewritten once (compacted). */
   bigStore?: boolean;
   /** Projects the owner registered (the base project not counted). */
@@ -91,6 +94,7 @@ export type NewsEntry = {
 
 export const NEWS: readonly NewsEntry[] = [
   SUBPROJECTS_NEWS,
+  AGENT_PROMPTS_NEWS,
   TASK_GOALS_NEWS,
   CHANNEL_AGENTS_NEWS,
   CONTACT_AGENT_NEWS,
@@ -1226,6 +1230,7 @@ export const newsFacts = (store: Store, o: { hermes?: boolean; storeSize?: Store
   localModels: store.settings.read("local_models_seen").length > 0,
   ownModels: store.agents.list().filter((a) => a.model_choice?.model).length,
   projects: store.projects.list().length,
+  promptedAgents: store.agents.list().filter((a) => a.kind !== "secretary" && a.prompt.trim()).length,
 });
 
 /** The action a channel button stands for. */

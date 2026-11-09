@@ -1,4 +1,6 @@
-import { type Agent, BASE_PROJECT_ID, teamHead } from "@apx/protocol";
+import type { Agent } from "@apx/protocol";
+import { teamHead } from "@apx/protocol/team-tree";
+import { DEFAULT_PID } from "../../data/identity.ts";
 
 /** Project tasks use their team and the super-agent; the base space keeps its specialists. */
 export function availableAgents(
@@ -9,7 +11,7 @@ export function availableAgents(
   /** A subproject's project: its agents work in the subproject too (the base project's: the global ones). */
   parentId?: string,
 ): Agent[] {
-  const baseParent = parentId === BASE_PROJECT_ID;
+  const baseParent = parentId === DEFAULT_PID;
   return agents
     .filter((a) =>
       a.project_id

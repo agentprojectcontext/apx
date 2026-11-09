@@ -43,6 +43,7 @@ export function followsOwner(origin: Origin | undefined): boolean {
     case "mail":
     case "job":
     case "task_continue":
+    case "task_feedback":
     case "stalled_task":
     case "added":
     case "computer_ready":

@@ -62,6 +62,12 @@ export const world = {
   /** Chats the model app on this computer answered. */
   localChats: async () => ((await (await fetch(`${control}/local-models`)).json()) as { chats: number }).chats,
   desktopTrash: async () => (await (await fetch(`${control}/desktop/trash`)).json()) as { paths: string[] },
+  /** The sandbox's APX app: each time the core opened it, and the connection it saved for it. */
+  desktopApp: async () =>
+    (await (await fetch(`${control}/desktop/app`)).json()) as {
+      opened: { command: string; args: string[] }[];
+      connection: { mode: string; home?: string; port?: number; home_id?: string } | null;
+    },
   telegram: async (from: { id: number; name: string }, text: string) => {
     await fetch(`${control}/tg/message`, { method: "POST", body: JSON.stringify({ from, text }) });
   },

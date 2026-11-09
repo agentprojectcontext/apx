@@ -1,5 +1,8 @@
+import fs from "node:fs";
+import path from "node:path";
+import { isInside, samePath } from "../../apps/core/src/paths.ts";
 import type { DesktopInstallStatus } from "../../packages/protocol/src/desktop-install.ts";
-import { expect, test } from "./kit.ts";
+import { expect, rpc, test, world } from "./kit.ts";
 
 // The offer is a card in the deck at the foot of the compact sidebar.
 test.use({ desktopInstallNotice: true, compactSidebar: true });
@@ -207,4 +210,26 @@ test("the desktop app never renders the web launcher or queries installation sta
   await expect(page.locator(".desktop-launch")).toHaveCount(0);
   await expect(page.locator(".desktop-install")).toHaveCount(0);
   expect(checks).toBe(0);
+});
+
+// See HISTORY.md#e2e-desktop-handoff.
+test("Open desktop in the sandbox opens the sandbox's own app, saved on the sandbox's data", async ({ page }) => {
+  await page.route("**/rpc/setup.status", (route) =>
+    route.fulfill({ json: { ok: true, result: { done: true, fresh: false } } }),
+  );
+  const before = (await world.desktopApp()).opened.length;
+  await page.goto("/");
+  await page.locator(".desktop-launch").getByRole("button", { name: "Abrir desktop", exact: true }).click();
+  await expect.poll(async () => (await world.desktopApp()).opened.length).toBe(before + 1);
+  await expect.poll(async () => (await rpc<DesktopInstallStatus>("desktop.install_status")).phase).toBe("ready");
+
+  const { dir, home, core } = await world.info();
+  const { opened, connection } = await world.desktopApp();
+  const launched = opened[before];
+  expect(launched?.args).toContain("--apx-adopt-local");
+  const sandbox = fs.realpathSync(dir);
+  const apps = [launched?.command ?? "", ...(launched?.args ?? [])].filter((arg) => path.isAbsolute(arg));
+  expect(apps.some((arg) => isInside(sandbox, fs.realpathSync(arg)))).toBe(true);
+  expect(connection).toMatchObject({ mode: "local", port: Number(new URL(core).port) });
+  expect(samePath(String(connection?.home), fs.realpathSync(home))).toBe(true);
 });

@@ -1,6 +1,6 @@
 // A channel's attention hours: a contact who writes outside them is kept unanswered, and once the hours begin their
 // chat gets one turn that answers everything they sent meanwhile. The owner is always answered. See DECISIONS.md#d-136
-import type { Person } from "@apx/protocol";
+import { contactRightsOf, type Person } from "@apx/protocol";
 import { withinHours } from "../domain/hours.ts";
 import { ownerTimeZone } from "../domain/owner.ts";
 import type { Store } from "../domain/store.ts";
@@ -14,11 +14,11 @@ const OPEN_PER_TICK = 3;
 /** Whether `person` waits for the channel's hours: it has some, it is outside them, and they are not answered anyway. */
 export function waitsForHours(
   store: Store,
-  cfg: Pick<ChannelConfig, "hours">,
-  person: Pick<Person, "role" | "any_hour">,
+  cfg: Pick<ChannelConfig, "hours" | "contacts">,
+  person: Pick<Person, "role" | "perms">,
   at: Date,
 ): boolean {
-  if (!cfg.hours || person.role === "owner" || person.any_hour) return false;
+  if (!cfg.hours || person.role === "owner" || contactRightsOf(person.perms, cfg.contacts).any_hour) return false;
   return !withinHours(cfg.hours, at, ownerTimeZone(store));
 }
 

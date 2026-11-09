@@ -205,6 +205,8 @@ export type CoreOptions = {
   /** How a turn gets the owner's Chrome when it is closed; tests pass their own instead of starting a browser. */
   ownersChrome?: OwnersChrome;
   desktopInstaller?: DesktopInstaller;
+  /** Where the desktop app is looked for, where its data goes and how it opens; the e2e sandbox keeps all three. */
+  desktopApp?: Pick<DesktopInstallOptions, "userHome" | "env" | "session" | "candidates" | "run">;
   /** Messages on this Mac (by default only on macOS); tests pass their own, null for none. */
   imessage?: IMessageOps | null;
   /** Runs the update's commands (git, pnpm); tests answer them. */
@@ -747,6 +749,7 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
       env: { ...process.env },
       feed: config.releases ?? "off",
       session: () => desktopSessionEnv(process.platform, { ...process.env }),
+      ...opts.desktopApp,
       target: () => prepareLocalTarget({ home: config.home, port: listening, home_id: identity.home_id }, config.token),
     } satisfies DesktopInstallOptions);
 

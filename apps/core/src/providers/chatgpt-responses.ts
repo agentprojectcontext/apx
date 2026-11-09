@@ -7,6 +7,7 @@ import {
   type ChatItem,
   type Completion,
   type Finish,
+  limitKind,
   ProviderError,
   post,
   resetOf,
@@ -38,11 +39,28 @@ type Event = {
     status?: string;
     incomplete_details?: { reason?: string };
     usage?: { input_tokens?: number; output_tokens?: number; input_tokens_details?: { cached_tokens?: number } };
-    error?: { message?: string };
+    error?: Failure;
   };
-  error?: { message?: string };
+  error?: Failure;
   message?: string;
 };
+type Failure = { message?: string; code?: string; type?: string };
+
+/**
+ * A failed response as what to do about it. Only the plan's own limit holds the model until it resets: a request it
+ * refuses ("the image … exceeding the limit of 30000") would fail on every model of the plan the same way.
+ */
+function failureOf(ev: Event, data: string): ProviderError {
+  const f = ev.response?.error ?? ev.error;
+  const why = f?.message ?? ev.message ?? "the model failed";
+  const said = `${f?.code ?? ""} ${f?.type ?? ""} ${why}`;
+  const limit = limitKind(said);
+  if (limit) return new ProviderError(limit, why, resetOf(data));
+  if (/context[ _]length|context window/i.test(said)) return new ProviderError("context", why);
+  if (/invalid|unsupported|too (large|long|big)|exceed|resize/i.test(said))
+    return new ProviderError("bad_request", why);
+  return new ProviderError("overloaded", why);
+}
 
 /** Why a round came back with nothing, so the owner sees more than "empty stream". */
 function emptyWhy(ended: Event["response"] | undefined): string {
@@ -203,9 +221,7 @@ export const chatgptResponses: Transport = async (req) => {
         }
         case "response.failed":
         case "error": {
-          const why = ev.response?.error?.message ?? ev.error?.message ?? ev.message ?? "the model failed";
-          const limit = /limit|quota|usage/i.test(why);
-          throw new ProviderError(limit ? "quota" : "overloaded", why, limit ? resetOf(data) : undefined);
+          throw failureOf(ev, data);
         }
       }
     }

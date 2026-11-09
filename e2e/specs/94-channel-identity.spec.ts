@@ -97,8 +97,7 @@ for (const width of [412, 1280]) {
       muted: false,
       unreviewed: false,
       supervised: false,
-      any_hour: false,
-      perms: { appointments: false, requests: false, notes: false },
+      perms: {},
       addresses: [{ id: `address-${id}`, person_id: id, channel, external_id: id }],
       created_at: base.created_at,
     });
@@ -235,7 +234,9 @@ for (const width of [412, 1280]) {
     expect(avatarCalls).toContain("person-none");
     expect(avatarCalls).toContain("person-broken");
     expect(avatarCalls).not.toContain("person-foreign");
-    expect(avatarCalls.every((id) => ["person-photo", "person-none", "person-broken"].includes(id))).toBe(true);
+    // Back on a channel's screen its "your phone" row shows the owner's face once another spec gave them an address.
+    const shown = ["person-photo", "person-none", "person-broken", "owner"];
+    expect(avatarCalls.filter((id) => !shown.includes(id))).toEqual([]);
     expect(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth)).toBe(false);
   });
 }

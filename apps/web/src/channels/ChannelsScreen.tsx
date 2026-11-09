@@ -9,6 +9,7 @@ import { useData } from "../data/state.ts";
 import { useT } from "../i18n/index.ts";
 import { go } from "../shell/nav.ts";
 import { accountItems, accountLine } from "./accountMenu.tsx";
+import { agentName, answerersOf, answersLine, sentence } from "./answerers.ts";
 import { ChoiceChips } from "./ChoiceChips.tsx";
 import { type AccountCounts, useAccountCounts } from "./counts.ts";
 import { KindIcon, KindTile } from "./KindIcon.tsx";
@@ -88,7 +89,8 @@ export function ChannelsScreen() {
 
 function AccountRow({ channel, counts }: { channel: ChannelInfo; counts: AccountCounts | undefined }) {
   const t = useT();
-  const agent = useData((s) => s.agents[channel.agent_id]);
+  const agents = useData((s) => s.agents);
+  const { owner, contacts } = answerersOf(channel, agents);
   const kind = isChannelKind(channel.type) ? channel.type : undefined;
   const waiting = counts?.waiting ?? 0;
   const unread = counts?.unread ?? 0;
@@ -111,7 +113,9 @@ function AccountRow({ channel, counts }: { channel: ChannelInfo; counts: Account
         }
         title={
           <span className="chs__name">
-            {channel.label}
+            <span className="chs__label" title={channel.label}>
+              {channel.label}
+            </span>
             {waiting > 0 && <Badge tone="warning">{t("chs.waiting", { n: waiting })}</Badge>}
           </span>
         }
@@ -119,9 +123,19 @@ function AccountRow({ channel, counts }: { channel: ChannelInfo; counts: Account
         onClick={() => go.channel(channel.id)}
       />
       <span className="chs__meta">
-        <span className="chs__agent">
-          {agent && <AgentAvatar name={agent.name} blob={blobOf(agent)} size={18} animated={false} />}
-          {agent?.name ?? channel.agent_id}
+        <span className="chs__agents" title={answersLine({ owner, contacts }, t)}>
+          <span className="chs__agent">
+            {owner && <AgentAvatar name={owner.name} blob={blobOf(owner)} size={18} animated={false} />}
+            {sentence(agentName(owner, t))}
+          </span>
+          {contacts && (
+            <span className="chs__agent">
+              {contacts.agent && (
+                <AgentAvatar name={contacts.agent.name} blob={blobOf(contacts.agent)} size={18} animated={false} />
+              )}
+              {sentence(t("chs.forContacts", { agent: agentName(contacts.agent, t) }))}
+            </span>
+          )}
         </span>
         <span className={`chs__status is-${status}`}>
           <span className="chs__dot" />

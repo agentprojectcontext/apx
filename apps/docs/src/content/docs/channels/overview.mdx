@@ -18,7 +18,8 @@ waiting, and each one opens its chats or its settings (the pencil). Each account
 
 An account's settings are grouped in parts and saved together with **Save**: **Account** (its name, connection and
 sign-in), **Who answers** (who you talk to, where your messages go, who answers your contacts), **Behavior** (a
-message while it works, the web, hours), **Stickers and emoji** in chat apps, **Rooms** where the app has them,
+message while it works, the web, hours, **Only answers you**, and **What it knows and can answer** and **Rules** for
+everyone who writes to the account; a room's or a contact's own rules go after and win), **Stickers and emoji** in chat apps, **Rooms** where the app has them,
 **Contacts** (everyone on the account, and **Add contact**), **Approvals** (what someone new gets, and who waits) and
 **Activity** (what went out). A new account opens on **Account**: name it and connect it; the other parts open once it
 is connected, and **Create channel** keeps it.
@@ -65,22 +66,31 @@ Every contact chat and every room is kept as an APX conversation, so you can rea
 panel. Agents use the same words: they can list channels and contacts, write to a contact, read a room and post in
 one by its exact name.
 
+With more than one account of an app (two WhatsApp numbers, say), an agent writes to a contact from an account it
+answers, and your secretary from yours. When the contact is only on accounts other agents answer, the agent is told to
+say which one instead of picking one for you.
+An account you start adding is kept once it connects; one left unconnected is gone the next time APX starts. iMessage
+is one per Mac.
+
 ## Where your messages land
 
 When **you** write to your agent on a channel, your message goes into **Home** by default: one conversation with your
-secretary, whether you write from the panel, the terminal, Telegram or WhatsApp. Pick up on your phone what you
+super-agent, whether you write from the panel, the terminal, Telegram or WhatsApp. Pick up on your phone what you
 started at your desk. Home shows all of it; **You** in a channel's list shows only that channel's part of it: what you
 wrote there and what was answered there. In Home, a message that came in or went out on a chat app carries that
 app's small mark beside its time (hover it: **Sent on Telegram**, **Came in on WhatsApp**), so you know it reached your
 phone or a contact too, not only the app.
 
-**Who you talk to** picks the agent that answers you on a channel: your secretary or the head of one of your projects.
-With your secretary, **Your messages** chooses between Home and **Own chat**, a chat of that channel's own. A
-project's head always answers you in the channel's own chat: Home is your conversation with the secretary, so
+**Who you talk to** picks the agent that answers you on a channel: your super-agent or the head of one of your
+projects. With your super-agent, **Your messages** chooses between Home and **Own chat**, a chat of that channel's own. A
+project's head always answers you in the channel's own chat: Home is your conversation with the super-agent, so
 **Your messages** stays on **Own chat** there. **Who answers your contacts** picks, separately, who answers the
 people who write to the channel. Changing either one moves the chats it answers that are already open, with their
 history; a chat you handed to another agent stays with that agent, and so does a contact you gave an agent of their own
 (**Answers** on their card, below).
+
+A channel you set up before this choice existed keeps working as it did: if its agent was not your secretary and
+your messages went to Home, your secretary answers you in Home and that agent answers your contacts.
 
 ## Which channels act on your word
 
@@ -133,8 +143,12 @@ Open a contact from the channel's screen to set:
   account's agent for contacts leaves them with theirs.
 - **Who they are**, in your words. It reaches only the turns that answer this person.
 - **Rules**, which go last in the prompt and win over the agent's caution.
-- **What this conversation may do**: **Take appointment requests**, **Take requests** (each becomes a task for you)
-  and **Answer from my notes** (your general notes, read only). All off by default.
+- **What this conversation may do**: **Note appointments**, **Take requests** (each becomes a task for you),
+  **Answer from my notes** (your general notes, read only) and **Answer at any hour**. Each one follows the account by
+  default (**Account: Yes** or **No**), or you set **Yes** or **No** for this person only.
+
+What every contact of an account gets by default is in that account's settings, **Contacts › For your contacts, by
+default**: all off until you turn one on. A contact's own choice wins over it, on that account and any other.
 - **Silence**: their messages are kept but never reach a model.
 - **Supervise**: they aren't answered on their own; you get the answer the agent would send, to send it, edit it or
   drop it. See [Supervised contacts](/channels/supervised/).
@@ -198,7 +212,7 @@ the day they start on (Friday 20:00–02:00 covers the first hours of Saturday).
   are answered a few at a time, the longest waiting first. A supervised contact gets its draft then.
 - If they write again once the hours have begun, that message is answered with the earlier ones in view, and only
   once.
-- You are always answered, on any channel. A contact with **Answer at any hour** (in their card) is too.
+- You are always answered, on any channel. A contact with **Answer at any hour** (in their card, or for every contact in the account's settings) is too.
 - In rooms, outside the hours only you are answered, and nothing said meanwhile is answered later.
 
 You can also ask your super-agent in chat ("answer WhatsApp Monday to Friday 9 to 18, and my dad at any hour"): it sets

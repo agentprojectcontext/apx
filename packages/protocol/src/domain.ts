@@ -451,7 +451,7 @@ export type PendingInput = z.infer<typeof PendingInput>;
 
 /**
  * Something the owner can connect, offered by an agent for what they asked: an integration (an account like Figma or
- * GitHub, Resources › Integrations) or a channel (an app like WhatsApp, Settings › Channels). `coming`: not yet.
+ * GitHub, Resources › Integrations) or a channel (an app like WhatsApp, the Channels screen). `coming`: not yet.
  */
 export const ConnectOffer = z.object({
   kind: z.enum(["integration", "channel"]),
@@ -972,18 +972,36 @@ export type Address = z.infer<typeof Address>;
 export const PersonRelation = z.enum(PERSON_RELATIONS);
 export type PersonRelation = z.infer<typeof PersonRelation>;
 /**
- * What a contact's chat may do besides talking. All off by default: each one gives the sealed turn exactly one
- * narrow tool (see DECISIONS.md#d-022).
+ * What a contact's chat may do besides talking, and whether it is answered past the attention hours. Each tool one gives
+ * the sealed turn exactly one narrow tool (see DECISIONS.md#d-022). An account sets them for its contacts
+ * (`ChannelInfo.contacts`, all off unless set); a person keeps only the ones the owner set for them, which win.
  */
-export const PersonPerms = z.object({
+const RIGHTS = {
   /** Note an appointment they ask for, for the owner to confirm. */
-  appointments: z.boolean().default(false),
+  appointments: z.boolean(),
   /** Note a request they make (a purchase, a favor) as a task for the owner. */
-  requests: z.boolean().default(false),
+  requests: z.boolean(),
   /** Answer from the owner's own notes (global ones only, read-only). */
-  notes: z.boolean().default(false),
-});
+  notes: z.boolean(),
+  /** Answered at any hour, past the attention hours of the account they write on. */
+  any_hour: z.boolean(),
+};
+/** The rights set somewhere (an account, a person): one not set follows the next place, and in the end is off. */
+export const PersonPerms = z.object(RIGHTS).partial();
 export type PersonPerms = z.infer<typeof PersonPerms>;
+export const ContactRights = z.object({
+  appointments: z.boolean().default(false),
+  requests: z.boolean().default(false),
+  notes: z.boolean().default(false),
+  any_hour: z.boolean().default(false),
+});
+export type ContactRights = z.infer<typeof ContactRights>;
+/** A person's rights on one account: what the owner set for them, the account's for the rest. */
+export const contactRightsOf = (perms: PersonPerms | undefined, account: PersonPerms | undefined): ContactRights =>
+  ContactRights.parse({
+    ...account,
+    ...Object.fromEntries(Object.entries(perms ?? {}).filter(([, v]) => v !== undefined)),
+  });
 export const Person = z.object({
   id: Id,
   name: z.string(),
@@ -1003,9 +1021,8 @@ export const Person = z.object({
    * Silenced and supervised exclude each other (setting one clears the other).
    */
   supervised: z.boolean().default(false),
-  /** Answered at any hour, past the attention hours of the channel they write on. */
-  any_hour: z.boolean().default(false),
-  perms: PersonPerms.default({ appointments: false, requests: false, notes: false }),
+  /** The rights the owner set for them; the rest follow the account they write on (`ChannelInfo.contacts`). */
+  perms: PersonPerms.default({}),
   /**
    * The agent that answers this contact on every channel, instead of each account's contacts agent. None: the
    * account's. Never set for the owner.
@@ -1198,6 +1215,14 @@ export const ChannelInfo = z.object({
    * out of the owner's tray and chat app; failures still arrive. It is all still in the account.
    */
   quiet: z.boolean().optional(),
+  /** What its contacts' chats may do unless the owner set it for one of them (none: all off). */
+  contacts: PersonPerms.optional(),
+  /** The owner's notes for every contact and room of the account: what it can do and answer there. */
+  knowledge: z.string().max(12_000).optional(),
+  /** The owner's rules for every contact and room of the account; a contact's or a room's own go after and win. */
+  rules: z.string().max(2000).optional(),
+  /** Only the owner is answered: contacts' and rooms' messages are kept, never answered. */
+  owner_only: z.boolean().optional(),
   /** Email: the mailbox and its servers. */
   email: ChannelEmail.optional(),
   token_set: z.boolean(),
@@ -1364,8 +1389,26 @@ export const OwnerIdentity = z.object({
     .default("es"),
   /** IANA ("America/Argentina/Buenos_Aires"); empty: this machine's. */
   timezone: z.string().max(60).default(""),
+  /**
+   * Publishing a task's work that can be undone (a plain push of a branch): `auto` runs it in Auto, `ask` waits for the
+   * owner in every mode. A release, a tag or a forced push always waits (DECISIONS.md#d-208).
+   */
+  publish: z.enum(["auto", "ask"]).default("auto"),
 });
 export type OwnerIdentity = z.infer<typeof OwnerIdentity>;
+/**
+ * What `owner.set` changes: only the fields given. Defaults stay out, so saving one field never resets the others.
+ */
+export const OwnerPatch = z
+  .object({
+    name: z.string().trim().max(80),
+    about: z.string().max(2000),
+    language: z.string().regex(/^[a-z]{2}$/),
+    timezone: z.string().max(60),
+    publish: z.enum(["auto", "ask"]),
+  })
+  .partial()
+  .strict();
 
 export const MemorySettings = z.object({
   mode: z.enum(["notes", "semantic", "off"]),

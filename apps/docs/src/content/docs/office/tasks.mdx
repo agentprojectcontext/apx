@@ -120,6 +120,10 @@ moved, assigned or closed it). **Sessions** at the top counts the chats the task
 to jump to where the work happens. If you reassign it, the new agent gets its own chat and is told who worked on it
 before, and where to read it.
 
+An agent can rewrite a task you created, for example to fill in a draft nobody does yet. Once an agent changed its
+title or description, the agent that works the task reads them as that teammate's words, not yours, and its chat
+does not open with them as your message. Edit them yourself and they are your words again.
+
 ### Goal, what you asked and the plan
 
 Above the description, a task shows where its work must arrive and what you said about it:
@@ -141,8 +145,12 @@ Above the description, a task shows where its work must arrive and what you said
   over.
 - **One agent does the work, one review at the end**: the agent on a task does it itself. It asks another agent only
   once the rest of its plan is done, usually for a review (unless you ask it for help sooner). Work for someone else
-  becomes a subtask. The reviewer answers Approved, Approved with notes, or Blocked with the one thing that blocks it.
-  Notes never block.
+  becomes a subtask. The reviewer reports what works, what fails and what it could not check; it never approves or
+  blocks. The task goes back to its agent, who decides what to fix and delivers it.
+- **The agent on a task delivers it**: when the task asks to publish or deploy, that is part of the work. A step that
+  can be undone (pushing a branch, a deploy) it does; a hard one (a release or tag, a payment, a production data
+  migration, a message in your name) waits for you. It closes the task saying what works, what is left and how ready
+  it is, from 1 to 5.
 - **Few comments**: an agent comments on a task when its plan is done, to ask you or a teammate something (an
   `@name`), or when it answers you; at most once a turn, in short lines. Progress shows in the plan. A helper answers
   whoever asked it, not the task.
@@ -157,7 +165,8 @@ The description reads as formatted text (lists, bold, links); the pencil opens i
 Assigned tasks that never started are picked up on their own: once an hour, the most pressing few get started, as
 whoever gave them: a task an agent gave counts against that agent's limits, never as your own request. To
 have one start later (tomorrow morning, after a release), set **Starts** in its drawer, or `apx tasks add … --start
-2026-10-23T09:00`: its agent starts then, not when you assign it.
+2026-10-23T09:00`: its agent starts then, not when you assign it. However many tasks the board holds, the pickup and
+start times consider every task that can start, not only the recently active ones.
 
 ### Moving the current work into a task
 
@@ -192,13 +201,24 @@ continue"), its next part starts at once, numbered, up to nine. It stops when th
 waiting on you with what you must do, says what blocks it, or when a part got nowhere. Closing its own work as done,
 an agent must say what it verified.
 
+If a task stays in progress with nothing running on it (no turn for 20 minutes, within a day of its last one), APX asks
+its agent once to go on or say what it waits for, and tells you if it stops again. Every ten minutes APX looks at up to
+100 tasks in progress and asks at most three agents, so in a large office every task gets its turn over several checks.
+A task last worked on more than a day ago is left for you.
+
 ### When an agent's task closes
 
 A task one agent created and gave to another reports back when it closes. Your main agent hears of every task its team
-closes, also the ones you or another agent gave, and tells you what came of it. Your main agent can hand a whole goal to a
+closes, also the ones you or another agent gave, checks it against what was asked and tells you how it ended. Rated
+1 or 2, it goes back to its agent with what to fix, without asking you; from 3 up, your main agent sees that what
+was to be published is out, asks you first only for a hard step, and tells you whether it ended done or done with
+issues. Your main agent can hand a whole goal to a
 project's orchestrator as a task; when the orchestrator closes it, hours and restarts later, your main agent gets
-its report in the chat where it created the task and tells you what matters. Closing a task yourself, or an agent
-closing its own, wakes nobody. That turn counts toward the [turns agents start on their own without
+its report in the chat where it created the task and tells you what matters. When a project's orchestrator starts a
+task from its own project chat, that chat hears how the task ended too, and also when a reviewer sends it back for
+changes; hearing it gives the orchestrator no new permission. Once you or another agent start the task again, that
+chat stops hearing of it, and it is not told of a close it made itself. Closing a task yourself, or an agent closing
+its own, wakes nobody. That turn counts toward the [turns agents start on their own without
 you](/concepts/agents/): past the limit, the report waits until you write in that chat.
 
 ### Requesting corrections
@@ -331,6 +351,8 @@ works in any chat.
 ## Agent tools
 
 - `task_list` lists the board; `task_get` reads one task by its `task` ID.
+- `task_list` shows the newest activity first and says when more tasks exist. With `cursor: "start"` (then each `next_cursor`) it walks every matching task in ID order, 25 per page; a walk is live, not a snapshot. Tasks waiting for the owner's acceptance are marked as proposals.
+- A description cut in `task_get` is read with `description_page: "0"` and then each `next_page`; if the description changes in between, the read fails and starts over.
 - `task_get` includes task fields, history, work sessions, consults, subtasks, token usage and the latest 60 conversation messages. Saved evidence (file references, change patches and consult summaries) stays with its message; it does not fetch attachment bytes or invent missing proof.
 - Detail sections are bounded for the model, with omission markers for long content and older comments. Task and conversation content is returned as data, not instructions.
 - Project agents can read their project's and global tasks, not other projects' tasks or related work. Missing and out-of-scope IDs return the same safe error. The global secretary keeps its board-wide visibility.

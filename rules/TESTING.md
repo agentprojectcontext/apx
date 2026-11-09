@@ -210,7 +210,10 @@ single-instance lock never touch the owner's running APX; macOS ignores `HOME` f
 served by the sandbox's core, and check the window, the browser it lends to the core as a node, and the quick chat.
 `e2e/env.ts` is a whole APX apart from the owner's: a temp home and port, `APX_SECRETS=file`, a fake
 OpenAI-compatible model (`e2e/fake-llm.ts`, answers "Got it: <what you wrote>"), an emulated Telegram Bot API
-(`APX_TELEGRAM_API`), an APX v1 and Claude Code / Codex sessions to import (`e2e/fixtures.ts`). Specs act as the
+(`APX_TELEGRAM_API`), an APX v1 and Claude Code / Codex sessions to import (`e2e/fixtures.ts`), and its own "installed"
+APX app (`e2e/fake-desktop-app.ts`): "Open desktop" records the launch and saves the connection in the sandbox, never
+opening the machine's APX app or writing its data folder ([HISTORY](HISTORY.md#e2e-desktop-handoff)); under a test
+runner `saveLocalTarget` itself refuses that folder, like the store refuses the real home. Specs act as the
 outside world through its control API (`world.telegram(...)`, `world.sentTo(chat)`). Specs run in file order on
 one core, like one owner from the first-run setup on. CI splits them into three parts (`--shard=i/3`), each on a core
 of its own, so a spec may build only on what the `setup` project leaves (`01-setup`, `06-telegram`, `10-whatsapp`,

@@ -43,7 +43,7 @@ test("with no channel on, the channel and contact tools and their rule stay out;
   const { tools, system } = await turn();
   for (const name of CHANNEL_TOOLS) assert.ok(!tools.includes(name), name);
   assert.ok(tools.includes("suggest_connection"));
-  assert.doesNotMatch(system, /Channels are the apps APX talks through/);
+  assert.doesNotMatch(system, /Channels \(WhatsApp, Telegram, Discord…\): contacts are people/);
 });
 
 test("a channel on brings them, and one turned off takes them away again", async () => {
@@ -54,7 +54,7 @@ test("a channel on brings them, and one turned off takes them away again", async
   });
   const on = await turn();
   for (const name of CHANNEL_TOOLS) assert.ok(on.tools.includes(name), name);
-  assert.match(on.system, /Channels are the apps APX talks through/);
+  assert.match(on.system, /Channels \(WhatsApp, Telegram, Discord…\): contacts are people/);
   await env.client.call("channels.set", {
     id: "tg",
     channel: { type: "telegram", agent_id: "superagent", enabled: false },

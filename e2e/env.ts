@@ -14,6 +14,7 @@ import { fakeSlack } from "../apps/core/src/channels/fake-slack.test-support.ts"
 import { fakeTelegram } from "../apps/core/src/channels/fake-telegram.test-support.ts";
 import { fakeGoogle } from "../apps/core/src/integrations/fake-google.test-support.ts";
 import { compileCacheEnv } from "../scripts/compile-cache.ts";
+import { desktopAppRecord } from "./fake-desktop-app.ts";
 import { fakeLlm } from "./fake-llm.ts";
 import { fakeLocalModels } from "./fake-local-models.ts";
 import { writeFixtures } from "./fixtures.ts";
@@ -66,6 +67,8 @@ const serviceUrl = `http://127.0.0.1:${(service.address() as AddressInfo).port}`
 
 const hook = path.join(root, "e2e/baileys-hook.ts");
 const desktopTrashRecord = path.join(dir, "desktop-trash.jsonl");
+// The APX app "installed on this computer" for the core (e2e/fake-desktop-app.ts), never the machine's own.
+const desktopApp = path.join(dir, "desktop-app");
 const core = spawn(process.execPath, ["--no-warnings", "--import", hook, path.join(root, "e2e/start-core.ts")], {
   cwd: root,
   // The channel carries /clock to the core (e2e/start-core.ts).
@@ -108,6 +111,9 @@ const core = spawn(process.execPath, ["--no-warnings", "--import", hook, path.jo
     APX_LOCAL_MODELS: `ollama:${localApp.port}`,
     E2E_WA_PORT: String(E2E.whatsapp),
     E2E_DESKTOP_TRASH_RECORD: desktopTrashRecord,
+    E2E_DESKTOP_APP: desktopApp,
+    // Anything the core hands an app opens on the sandbox's data, never the machine app's saved connection.
+    APX_DESKTOP_DATA: path.join(desktopApp, "data"),
     E2E_PROJECT_ROOT: fx.repo,
   },
 });
@@ -195,6 +201,7 @@ const control = http.createServer((req, res) => {
       return json(200, { ok: true });
     }
     if (req.url === "/local-models") return json(200, { chats: localApp.chats() });
+    if (req.url === "/desktop/app") return json(200, desktopAppRecord(desktopApp));
     if (req.url === "/desktop/trash")
       return json(200, {
         paths: fs.existsSync(desktopTrashRecord)

@@ -2,7 +2,7 @@ import type { ChannelType, Person, Thread } from "@apx/protocol";
 import { Icons, Tooltip } from "@apx/ui";
 import type { ReactNode } from "react";
 import { shortWhen } from "../common/format.ts";
-import type { PresenceState } from "../data/channels.ts";
+import { type PresenceState, useChannels } from "../data/channels.ts";
 import { type MessageKey, useT } from "../i18n/index.ts";
 import { PersonAvatar } from "./PersonAvatar.tsx";
 import { initials, RELATION_KEY } from "./people.ts";
@@ -47,14 +47,16 @@ const PERM_FLAGS: Array<{ key: keyof Person["perms"]; icon: ReactNode; label: Me
   { key: "notes", icon: <Icons.BookOpen size={12} />, label: "ch.perm.notes" },
 ];
 
-const hasFlags = (p: Person | undefined) =>
-  Boolean(p && (p.muted || p.supervised || p.rules?.trim() || Object.values(p.perms).some(Boolean)));
+type Flag = { key: string; icon: ReactNode; label: string };
 
-/** What is set for a contact, as small marks: silenced, rules of their own, and each thing their chat may do. */
-function ContactFlags({ person }: { person: Person | undefined }) {
+/** What is set for a contact, as small marks: silenced, rules of their own, and each thing their chat may do here. */
+function useContactFlags(person: Person | undefined, channelId: string): Flag[] {
   const t = useT();
-  if (!person || !hasFlags(person)) return null;
-  const flags = [
+  const defaults = useChannels((s) => s.channels.find((c) => c.id === channelId)?.contacts);
+  if (!person) return [];
+  // What their chat may do on this account: what is set for them, else what the account sets.
+  const rights = { ...defaults, ...person.perms };
+  return [
     // Someone who wrote first stays silenced until the owner reviews them.
     ...(person.muted
       ? [
@@ -67,8 +69,11 @@ function ContactFlags({ person }: { person: Person | undefined }) {
       : []),
     ...(person.supervised ? [{ key: "supervised", icon: <Icons.Eye size={12} />, label: t("ch.supervised") }] : []),
     ...(person.rules?.trim() ? [{ key: "rules", icon: <Icons.FileText size={12} />, label: t("ch.flag.rules") }] : []),
-    ...PERM_FLAGS.filter((f) => person.perms[f.key]).map((f) => ({ key: f.key, icon: f.icon, label: t(f.label) })),
+    ...PERM_FLAGS.filter((f) => rights[f.key]).map((f) => ({ key: f.key, icon: f.icon, label: t(f.label) })),
   ];
+}
+
+function ContactFlags({ flags }: { flags: Flag[] }) {
   return (
     <span className="chan__flags">
       {flags.map((f) => (
@@ -102,6 +107,7 @@ export function ContactRow({
   const name = person?.name ?? thread?.title ?? "";
   const relation = person?.relation ? t(RELATION_KEY[person.relation]) : undefined;
   const unread = thread?.unread ?? 0;
+  const flags = useContactFlags(person, channelId);
   return (
     <li>
       <button
@@ -122,10 +128,10 @@ export function ContactRow({
             </span>
             {unread > 0 && <span className="chan__unread">{unread}</span>}
           </span>
-          {(relation || hasFlags(person)) && (
+          {(relation || flags.length > 0) && (
             <span className="chan__rowtop">
               <span className="chan__rel">{relation}</span>
-              <ContactFlags person={person} />
+              <ContactFlags flags={flags} />
             </span>
           )}
         </span>

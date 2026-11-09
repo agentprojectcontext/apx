@@ -19,6 +19,13 @@ function parts(store: Store, threadId: string): RunRecord[] {
   return out;
 }
 
+/** A teammate this chat's agent asked on the task is still answering: its answer comes back to this chat. */
+function awaitingTeammate(store: Store, taskThread: string, threadId: string): boolean {
+  return store.threads
+    .sessions(taskThread)
+    .some((t) => store.threads.context(t.id).consult?.asker?.thread === threadId && store.threads.busy([t.id]));
+}
+
 /** Starts the next part of `run`'s task when its turn ended with the task in progress and nothing else to come. */
 export function continueTask(store: Store, admit: AdmitFn, run: RunRecord): RunRecord | undefined {
   // A stopped turn is the owner's word; a failed one is the provider's or APX's, told on its own.
@@ -28,12 +35,14 @@ export function continueTask(store: Store, admit: AdmitFn, run: RunRecord): RunR
   if (!thread || !task || thread.agent_ids[0] !== run.agent_id || task.assignee !== run.agent_id) return undefined;
   // In review it is someone else's turn; otherwise the agent working it is on it, whatever column it sits in.
   if (task.state !== "open" || task.status === "review" || task.awaits_owner || task.proposed) return undefined;
-  // Something else comes back here on its own: a subtask's close, a helper's result, a command's end, the owner.
+  // Something else comes back here on its own: a subtask's close, a helper's result, a teammate's answer, a command's
+  // end, the owner.
   if (
     store.tasks.list({ state: "open", parent: task.id, limit: 1 }).length ||
     store.threads.busy([thread.id]) ||
     store.inputs.pending(thread.id).length ||
     store.runs.activeDelegations(thread.id) > 0 ||
+    awaitingTeammate(store, task.thread_id, thread.id) ||
     store.runs.held(thread.id).length ||
     store.jobs.running().some((j) => j.thread_id === thread.id && j.background) ||
     agentTrip(store, thread.id, run.agent_id)

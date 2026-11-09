@@ -200,11 +200,6 @@ export function EmailConnect({ create }: { create: Create }) {
     await create(
       {
         label: form.address.trim().slice(0, 60),
-        agent_id: "",
-        enabled: true,
-        strangers: "pair",
-        concurrency: "queue",
-        owner_thread: "home",
         email: { ...form.value(), mailbox: "INBOX", allowed: [], trust_unverified: false },
       },
       password,

@@ -23,6 +23,7 @@ import type { InternalCall } from "../rpc/internal.ts";
 import type { Secrets } from "../secrets.ts";
 import { splitSpoken } from "../services/audio.ts";
 import type { Services } from "../services/registry.ts";
+import { addedUnconnected, dropUnconnected, keptConnected, restartsFor } from "./accounts.ts";
 import { agentProject } from "./agent-project.ts";
 import { createDelivery } from "./delivery.ts";
 import { guardReply } from "./guard.ts";
@@ -152,6 +153,7 @@ export function createChannels(deps: {
           to,
           project: agentProject(store, to),
           except,
+          fromProject: agentProject(store, from),
         });
   };
 
@@ -539,6 +541,11 @@ export function createChannels(deps: {
     const adapter = factory(config, secrets.resolve(`secret://${tokenName(config.id)}`));
     const l: Live = { config, adapter, ac, status: "starting" };
     live.set(config.id, l);
+    // Up: a new account is kept from now on, and contacts split across its addresses are joined.
+    const up = () => {
+      keptConnected(store, config.id);
+      void joinSplitContacts(store, config.id, adapter, log);
+    };
     try {
       const r = await adapter.start({
         receive: (m) => inbound.receive(config.id, m),
@@ -549,7 +556,7 @@ export function createChannels(deps: {
           l.error = error;
           if (s === "running") {
             delivery.kick();
-            void joinSplitContacts(store, config.id, adapter, log);
+            up();
           }
         },
         qr: (code) => {
@@ -580,7 +587,7 @@ export function createChannels(deps: {
       if (r.account) l.account = r.account;
       if (l.status === "starting" && !r.waiting) {
         l.status = "running";
-        void joinSplitContacts(store, config.id, adapter, log);
+        up();
       }
       delivery.kick();
     } catch (err) {
@@ -609,6 +616,15 @@ export function createChannels(deps: {
     l.ac.abort();
     await l.adapter.stop().catch(() => {});
     if (live.get(id) === l) live.delete(id);
+  }
+
+  /** A removed channel's sign-in, groups and saved session go with it. */
+  async function forget(id: string, before: ChannelConfig | undefined, running?: ChannelAdapter): Promise<void> {
+    secrets.set(tokenName(id), null);
+    store.settings.set(groupsKey(id), "[]");
+    // Disabled channels have no live adapter, but their persisted session still needs removing.
+    const adapter = running ?? (before ? deps.factories[before.type]?.(before, undefined) : undefined);
+    await adapter?.forget?.().catch(() => {});
   }
 
   /** Applies one channel's new settings after any change already in progress for it. */
@@ -715,6 +731,11 @@ export function createChannels(deps: {
     openHeld: held.open,
     /** A supervised contact's drafts: the owner sends one (as is or edited) or drops it. */
     suggestions: { send: suggestions.send, discard: suggestions.discard },
+    /** A new account, kept only once it connects (see `start`). */
+    async add(id: string, config: Omit<ChannelConfig, "id">, token?: string): Promise<ChannelInfo[]> {
+      addedUnconnected(store, id);
+      return this.set(id, config, token);
+    },
     /** Adds, changes or removes a channel and (re)starts it. */
     async set(id: string, config: Omit<ChannelConfig, "id"> | null, token?: string): Promise<ChannelInfo[]> {
       await serially(id, async () => {
@@ -733,13 +754,7 @@ export function createChannels(deps: {
           l.config = { ...config, id };
           return;
         }
-        if (!config) {
-          secrets.set(tokenName(id), null);
-          store.settings.set(groupsKey(id), "[]");
-          // Disabled channels have no live adapter, but their persisted session still needs removing.
-          const adapter = l?.adapter ?? (before ? deps.factories[before.type]?.(before, undefined) : undefined);
-          await adapter?.forget?.().catch(() => {});
-        }
+        if (!config) await forget(id, before, l?.adapter);
         await stopOne(id);
         const next = configs().find((c) => c.id === id);
         if (next) await startOne(next);
@@ -754,6 +769,8 @@ export function createChannels(deps: {
       unsubscribe();
       unsubscribe = deps.bus.on(onEvent);
       inbound.resume();
+      // A new account never connected (the panel closed while it was added) is not kept across a restart.
+      for (const c of dropUnconnected(store)) await forget(c.id, c);
       await Promise.allSettled(configs().map(startOne));
       resumeFollowUps();
       delivery.kick();
@@ -776,20 +793,3 @@ export function createChannels(deps: {
 }
 
 export type Channels = ReturnType<typeof createChannels>;
-
-/** Whether a settings change needs the channel started again (what its adapter is built with). */
-function restartsFor(a: Omit<ChannelConfig, "id">, b: Omit<ChannelConfig, "id">): boolean {
-  // The rooms a bot listens to are part of its connection (Discord subscribes to server messages only with some).
-  const rooms = (c: Omit<ChannelConfig, "id">) =>
-    (c.rooms?.rooms ?? [])
-      .map((r) => r.id)
-      .sort()
-      .join(",");
-  return (
-    a.type !== b.type ||
-    a.enabled !== b.enabled ||
-    Boolean(a.self_owner) !== Boolean(b.self_owner) ||
-    rooms(a) !== rooms(b) ||
-    JSON.stringify(a.email ?? null) !== JSON.stringify(b.email ?? null)
-  );
-}

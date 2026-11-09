@@ -21,7 +21,7 @@ export const CHANNEL_KINDS = {
   nextcloud: { name: "channel.nextcloud.name", text: "channel.nextcloud.text", tone: "info", soon: false },
   irc: { name: "channel.irc.name", text: "channel.irc.text", tone: "neutral", soon: false },
   twitch: { name: "channel.twitch.name", text: "channel.twitch.text", tone: "violet", soon: false },
-  // Both deliver only to a webhook: they need the public address (Settings › Channels, in their own screen).
+  // Both deliver only to a webhook: they need the public address (shown in their account settings, and in Settings › Devices).
   teams: { name: "channel.teams.name", text: "channel.teams.text", tone: "violet", soon: false },
   line: { name: "channel.line.name", text: "channel.line.text", tone: "brand", soon: false },
 } as const satisfies Record<string, { name: MessageKey; text: MessageKey; tone: string; soon: boolean }>;

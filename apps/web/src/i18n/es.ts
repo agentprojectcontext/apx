@@ -429,6 +429,11 @@ export const es: Partial<Record<MessageKey, string>> = {
   "account.agentLanguageHint": "Te contestan y te avisan en este idioma, salvo que les escribas en otro.",
   "account.timezone": "Zona horaria",
   "account.timezoneHint": "Tus agentes la usan para saber qué hora es para vos.",
+  "account.publish": "Publicar el trabajo terminado",
+  "account.publishHint":
+    "Cuando una tarea está lista y se puede deshacer, como subir una web. Una versión nueva, un pago o un mensaje en tu nombre siempre te esperan.",
+  "account.publish.auto": "Sin preguntar",
+  "account.publish.ask": "Preguntarme antes",
   "error.account": "No se pudo guardar tu cuenta: {error}",
   "account.owner": "Dueño de esta instalación",
   "account.name": "Nombre",
@@ -1893,7 +1898,7 @@ export const es: Partial<Record<MessageKey, string>> = {
     "Encendido: sus novedades llegan siempre, aunque sea de noche o ya se haya llegado al tope diario (para el resumen de la mañana o de la tarde). Apagado: entran en tu presupuesto de interrupciones.",
   "nudge.where": "App de chat para los avisos",
   "nudge.whereHint":
-    "La app y tus teléfonos vinculados siempre los reciben (vinculá uno en Dispositivos). Elegí una app de chat para recibirlos también ahí, o ninguna.",
+    "La app y tus teléfonos vinculados siempre los reciben (vinculá uno en Dispositivos). Elegí una de las cuentas de chat que atiende tu super-agente para recibirlos también ahí, o ninguna.",
   "nudge.whereAuto": "El primer canal que te conoce",
   "nudge.whereNone": "Ninguno, solo en la app",
   "devices.push.expo": "Push",

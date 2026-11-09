@@ -86,6 +86,18 @@ export function AccountSection() {
               onChange={(v) => save({ timezone: v })}
             />
           </SettingRow>
+          <SettingRow title={t("account.publish")} description={t("account.publishHint")}>
+            <SegmentedControl
+              size="sm"
+              label={t("account.publish")}
+              value={owner.publish}
+              onValueChange={(v) => save({ publish: v === "ask" ? "ask" : "auto" })}
+              options={[
+                { value: "auto", label: t("account.publish.auto") },
+                { value: "ask", label: t("account.publish.ask") },
+              ]}
+            />
+          </SettingRow>
         </>
       )}
       <EmailSignatures />

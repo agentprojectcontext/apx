@@ -1,11 +1,11 @@
 import type { ChannelInfo, Person } from "@apx/protocol";
-import { Button, Icons, Input, SegmentedControl, Switch, Textarea, Tooltip } from "@apx/ui";
+import { Button, Icons, Input, SegmentedControl, Textarea, Tooltip } from "@apx/ui";
 import { useState } from "react";
 import { AgentSelect } from "../common/pickers/AgentSelect.tsx";
 import { claimAddress, saveContact, useChannels } from "../data/channels.ts";
 import { notify } from "../data/notices.ts";
 import { useData } from "../data/state.ts";
-import { useT } from "../i18n/index.ts";
+import { type MessageKey, useT } from "../i18n/index.ts";
 import { CardField, ChatCard } from "./ChatCard.tsx";
 import { ChoiceChips } from "./ChoiceChips.tsx";
 import { PersonAvatar } from "./PersonAvatar.tsx";
@@ -24,27 +24,47 @@ const RELATIONS: NonNullable<Person["relation"]>[] = [
   "coworker",
   "other",
 ];
-const PERMS = [
-  ["appointments", "ch.perm.appointments", "ch.perm.appointmentsHint"],
-  ["requests", "ch.perm.requests", "ch.perm.requestsHint"],
-  ["notes", "ch.perm.notes", "ch.perm.notesHint"],
-] as const;
+
+/** The rights a contact's card sets, in the order it shows them. */
+const RIGHTS = ["appointments", "requests", "notes", "any_hour"] as const;
+type Right = (typeof RIGHTS)[number];
+const RIGHT_LABEL: Record<Right, MessageKey> = {
+  appointments: "ch.perm.appointments",
+  requests: "ch.perm.requests",
+  notes: "ch.perm.notes",
+  any_hour: "ch.anyHour",
+};
+const RIGHT_HINT: Record<Right, MessageKey> = {
+  appointments: "ch.perm.appointmentsHint",
+  requests: "ch.perm.requestsHint",
+  notes: "ch.perm.notesHint",
+  any_hour: "ch.anyHourHint",
+};
 
 /**
  * A contact's card beside their chat: who they are on top, then name and nickname, how they relate to the owner, who
  * answers them (the account's contacts agent or one of their own), who they are and the rules for answering them (in
- * the owner's words), what their chat may do (all off by default), whether they are answered past the account's
+ * the owner's words), what their chat may do and whether they are answered past the account's
  * attention hours, and silencing.
  */
-export function ContactPanel({ person, channel, onClose }: { person: Person; channel: ChannelInfo; onClose(): void }) {
+export function ContactPanel({
+  person,
+  channel,
+  onClose,
+}: {
+  person: Person;
+  /** The account this card is opened on: who answers them and what their rights follow when nothing is set. */
+  channel: ChannelInfo;
+  onClose(): void;
+}) {
   const t = useT();
+  const defaults = channel.contacts;
   const [d, setD] = useState({
     name: person.name,
     nickname: person.nickname ?? "",
     relation: person.relation,
     note: person.note ?? "",
     rules: person.rules ?? "",
-    any_hour: person.any_hour,
     perms: person.perms,
     agent_id: person.agent_id,
   });
@@ -57,14 +77,53 @@ export function ContactPanel({ person, channel, onClose }: { person: Person; cha
     d.relation !== person.relation ||
     d.note !== (person.note ?? "") ||
     d.rules !== (person.rules ?? "") ||
-    d.any_hour !== person.any_hour ||
     d.agent_id !== person.agent_id ||
-    JSON.stringify(d.perms) !== JSON.stringify(person.perms);
+    RIGHTS.some((k) => d.perms[k] !== person.perms[k]);
   const save = async () => {
     setBusy(true);
-    const ok = await saveContact(person.id, { ...d, relation: d.relation ?? null, agent_id: d.agent_id ?? null });
+    // Only the rights changed go out; one set back to the account goes as null.
+    const perms = Object.fromEntries(
+      RIGHTS.filter((k) => d.perms[k] !== person.perms[k]).map((k) => [k, d.perms[k] ?? null]),
+    );
+    const ok = await saveContact(person.id, {
+      ...d,
+      relation: d.relation ?? null,
+      perms,
+      agent_id: d.agent_id ?? null,
+    });
     setBusy(false);
     if (ok) notify(t("ch.saved"), "info");
+  };
+  // Each right: as the account says (and what that is), or on or off for this person only.
+  const right = (k: Right) => {
+    const own = d.perms[k];
+    const account = t(defaults?.[k] ? "ch.right.yes" : "ch.right.no");
+    return (
+      <li key={k} className="chan__right">
+        <span className="chan__rightlabel">
+          {t(RIGHT_LABEL[k])}
+          <span className="chan__righthint">{t(RIGHT_HINT[k])}</span>
+        </span>
+        <SegmentedControl
+          size="sm"
+          label={t(RIGHT_LABEL[k])}
+          value={own === undefined ? "account" : own ? "on" : "off"}
+          onValueChange={(v) =>
+            setD((x) => {
+              const perms = { ...x.perms };
+              if (v === "account") delete perms[k];
+              else perms[k] = v === "on";
+              return { ...x, perms };
+            })
+          }
+          options={[
+            { value: "account", label: t("ch.right.account", { value: account }) },
+            { value: "on", label: t("ch.right.yes") },
+            { value: "off", label: t("ch.right.no") },
+          ]}
+        />
+      </li>
+    );
   };
 
   return (
@@ -186,28 +245,7 @@ export function ContactPanel({ person, channel, onClose }: { person: Person; cha
         />
       </CardField>
       <CardField label={t("ch.may")} hint={t("ch.may.close")}>
-        <ul className="chan__perms">
-          {PERMS.map(([k, label, hint]) => (
-            <li key={k}>
-              <Switch
-                size="sm"
-                checked={d.perms[k]}
-                label={t(label)}
-                description={t(hint)}
-                onCheckedChange={(on) => setD((x) => ({ ...x, perms: { ...x.perms, [k]: on } }))}
-              />
-            </li>
-          ))}
-          <li>
-            <Switch
-              size="sm"
-              checked={d.any_hour}
-              label={t("ch.anyHour")}
-              description={t("ch.anyHourHint")}
-              onCheckedChange={(on) => setD((x) => ({ ...x, any_hour: on }))}
-            />
-          </li>
-        </ul>
+        <ul className="chan__perms">{RIGHTS.map(right)}</ul>
       </CardField>
       <ItsMine person={person} onDone={onClose} />
     </ChatCard>

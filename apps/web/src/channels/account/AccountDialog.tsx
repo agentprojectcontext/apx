@@ -1,18 +1,10 @@
 import "../../styles/screens.css";
 import type { ChannelInfo } from "@apx/protocol";
-import { SUPER_AGENT_ID } from "@apx/protocol/client";
 import { Button, Dialog, Icons, Kbd, Menu, NavItem, PickRow } from "@apx/ui";
 import { type CSSProperties, type ReactNode, useEffect, useState } from "react";
 import { MOD } from "../../common/modKey.ts";
 import { SectionHead } from "../../config/SectionHead.tsx";
-import {
-  type ChannelDraft,
-  draftOf,
-  loadChannels,
-  newChannelId,
-  saveChannel,
-  useChannels,
-} from "../../data/channels.ts";
+import { addChannel, type ChannelDraft, draftOf, loadChannels, saveChannel, useChannels } from "../../data/channels.ts";
 import { useData } from "../../data/state.ts";
 import { type MessageKey, useT } from "../../i18n/index.ts";
 import { LAYOUT } from "../../shell/layout.ts";
@@ -71,17 +63,6 @@ const LEAD: Record<Pane, MessageKey> = {
   approvals: "acct.lead.approvals",
   activity: "acct.lead.activity",
 };
-
-/**
- * A new account's id: iMessage is one per Mac; a mailbox gets an id of its own, as it always did (its signatures are
- * kept by it); the rest are named by `newChannelId`.
- */
-const accountId = (kind: keyof typeof CHANNEL_KINDS, channels: readonly { id: string }[]) =>
-  kind === "imessage"
-    ? "imessage"
-    : kind === "email"
-      ? `email-${crypto.randomUUID().replaceAll("-", "").slice(0, 24)}`
-      : newChannelId(kind, channels);
 
 /** "New channel" and an account's settings, whichever is open. */
 export function ChannelDialogs() {
@@ -195,7 +176,6 @@ function AccountDialog({ edit }: { edit: AccountEdit }) {
   const channels = useChannels((s) => s.channels);
   const agents = useData((s) => s.agents);
   const counts = useAccountCounts();
-  const [newId] = useState(() => accountId(edit.kind, channels));
   const [made, setMade] = useState<string>();
   const [pane, setPane] = useState<Pane>(edit.pane);
   const [edits, setEdits] = useState<Partial<ChannelDraft>>({});
@@ -230,20 +210,15 @@ function AccountDialog({ edit }: { edit: AccountEdit }) {
     if (ok) setEdits((now) => keptAfter(now, sent));
     return ok;
   };
-  const create: Create = async (b, secret) => {
+  const create: Create = async (account, secret) => {
     const sent = edits;
-    const secretary = Object.values(agents).find((a) => a.kind === "secretary")?.id ?? SUPER_AGENT_ID;
-    const label = edits.label?.trim() || b.label;
-    const ok = await saveChannel(
-      newId,
-      { ...b, type: edit.kind, agent_id: b.agent_id || secretary, ...(label ? { label } : {}) },
-      secret,
-    );
-    if (ok) {
-      setMade(newId);
+    const label = edits.label?.trim() || account.label;
+    const id = await addChannel(edit.kind, { ...account, ...(label ? { label } : {}) }, secret);
+    if (id) {
+      setMade(id);
       setEdits((now) => keptAfter(now, sent));
     }
-    return ok;
+    return Boolean(id);
   };
   const close = () => go.closeChannelDialogs();
   // A new account half made (never connected) is not kept; a connected one is, as it is.
@@ -357,7 +332,7 @@ function AccountDialog({ edit }: { edit: AccountEdit }) {
               lead={t(isNew && !connected && shown === "account" ? "acct.lead.accountNew" : LEAD[shown])}
             />
             {!paneProps || (isNew && !made) ? (
-              <NewAccountPane kind={edit.kind} id={newId} label={edits.label ?? ""} set={set} create={create} />
+              <NewAccountPane kind={edit.kind} label={edits.label ?? ""} set={set} create={create} />
             ) : shown === "account" ? (
               <AccountPane kind={edit.kind} onRemove={() => setAsking("remove")} {...paneProps} />
             ) : shown === "answer" ? (
@@ -373,7 +348,7 @@ function AccountDialog({ edit }: { edit: AccountEdit }) {
                 save={async (rooms) => set({ rooms })}
               />
             ) : shown === "contacts" ? (
-              <ContactsPane channel={paneProps.channel} />
+              <ContactsPane {...paneProps} />
             ) : shown === "approvals" ? (
               <ApprovalsPane {...paneProps} />
             ) : (

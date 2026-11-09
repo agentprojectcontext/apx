@@ -45,7 +45,7 @@ test("an account's settings: parts on the left, edits wait for Save, Discard put
   // Nothing reached the core yet.
   expect((await rpc<Listed>("channels.list")).channels.find((c) => c.id === "whatsapp")?.concurrency).toBe(before);
   await dialog.getByRole("button", { name: "Descartar" }).click();
-  await expect(dialog.getByText("Se guarda en APX")).toBeVisible();
+  await expect(dialog.getByText("Guardado en APX")).toBeVisible();
 
   // A name typed and saved shows in the lists; the old one comes back the same way.
   await dialog.getByRole("button", { name: /^Cuenta/ }).click();
@@ -77,8 +77,17 @@ test("leaving with unsaved edits asks first; contacts and what went out are list
   await expect(dialog.getByText("Cambios sin guardar")).toBeVisible();
   await dialog.getByRole("button", { name: "Descartar" }).click();
 
-  // Contacts: everyone on this account, with Add contact.
+  // Contacts: what every contact of the account may do unless set on their card, everyone on it, and Add contact.
   await dialog.getByRole("button", { name: /^Contactos/ }).click();
+  await dialog.getByRole("switch", { name: "Tomar pedidos", exact: true }).click();
+  await dialog.getByRole("button", { name: /^Guardar (⌘|Ctrl)/ }).click();
+  await until(async () =>
+    (await rpc<{ channels: Array<{ id: string; contacts?: { requests?: boolean } }> }>("channels.list")).channels.some(
+      (c) => c.id === "whatsapp" && c.contacts?.requests === true,
+    ),
+  );
+  await dialog.getByRole("switch", { name: "Tomar pedidos", exact: true }).click();
+  await dialog.getByRole("button", { name: /^Guardar (⌘|Ctrl)/ }).click();
   await expect(dialog.getByRole("button", { name: /Lucía/ })).toBeVisible();
   await dialog.getByRole("button", { name: "Agregar contacto" }).click();
   await dialog.getByRole("textbox", { name: "Nombre" }).fill("Northwind");

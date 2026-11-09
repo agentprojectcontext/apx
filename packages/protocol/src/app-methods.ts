@@ -40,9 +40,11 @@ import {
   OutboxItem,
   OutboxState,
   OwnerIdentity,
+  OwnerPatch,
   PairingRequest,
   PendingInput,
   Person,
+  PersonPerms,
   PersonRelation,
   PersonRole,
   Project,
@@ -949,7 +951,7 @@ export const appMethods = {
     access: "human",
   },
   "owner.set": {
-    params: OwnerIdentity.partial().strict(),
+    params: OwnerPatch,
     result: OwnerIdentity,
     effect: true,
     access: "human",
@@ -1126,9 +1128,9 @@ export const appMethods = {
             enabled: z.boolean().default(true),
             agent_id: Id,
             contacts_agent_id: Id.optional(),
-            strangers: ChannelStrangers.default("pair"),
-            concurrency: z.enum(["queue", "interrupt", "steer"]).default("steer"),
-            owner_thread: z.enum(["home", "own"]).default("home"),
+            strangers: ChannelStrangers.default(CHANNEL_DEFAULTS.strangers),
+            concurrency: z.enum(["queue", "interrupt", "steer"]).default(CHANNEL_DEFAULTS.concurrency),
+            owner_thread: z.enum(["home", "own"]).default(CHANNEL_DEFAULTS.owner_thread),
             self_owner: z.boolean().optional(),
             rooms: ChannelRooms.optional(),
             reactions: z.boolean().optional(),
@@ -1136,6 +1138,10 @@ export const appMethods = {
             hours: ChannelHours.optional(),
             quiet: z.boolean().optional(),
             email: ChannelEmail.optional(),
+            contacts: PersonPerms.optional(),
+            knowledge: z.string().max(12_000).optional(),
+            rules: z.string().max(2000).optional(),
+            owner_only: z.boolean().optional(),
           })
           .nullable(),
         // A Google service account key travels whole (about 2.3 KB).
@@ -1201,7 +1207,13 @@ export const appMethods = {
   },
   /** What channels sent lately and how each delivery went (sent, uncertain, failed). */
   "channels.outbox": {
-    params: z.object({ limit: z.number().int().min(1).max(200).default(50) }).strict(),
+    params: z
+      .object({
+        limit: z.number().int().min(1).max(200).default(50),
+        /** Only what this account sent (its id). */
+        channel: z.string().min(1).max(64).optional(),
+      })
+      .strict(),
     result: z.object({ items: z.array(OutboxItem) }),
     effect: false,
     access: "human",
@@ -1518,12 +1530,16 @@ export const appMethods = {
         rules: z.string().max(1000).optional(),
         muted: z.boolean().optional(),
         supervised: z.boolean().optional(),
-        any_hour: z.boolean().optional(),
         /** Who answers them instead of each account's contacts agent; null gives them back to the account's. */
         agent_id: Id.nullable().optional(),
-        // Only the flags sent change (PersonPerms' defaults would reset the others).
+        // Only the rights sent change; null gives one back to the account they write on.
         perms: z
-          .object({ appointments: z.boolean(), requests: z.boolean(), notes: z.boolean() })
+          .object({
+            appointments: z.boolean().nullable(),
+            requests: z.boolean().nullable(),
+            notes: z.boolean().nullable(),
+            any_hour: z.boolean().nullable(),
+          })
           .partial()
           .strict()
           .optional(),

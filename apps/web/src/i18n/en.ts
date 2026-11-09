@@ -432,6 +432,11 @@ export const en = {
   "account.agentLanguageHint": "They answer and send notices in it, unless you write to them in another one.",
   "account.timezone": "Time zone",
   "account.timezoneHint": "Your agents use it to know what time it is for you.",
+  "account.publish": "Publishing finished work",
+  "account.publishHint":
+    "When a task is done and can be undone, like putting a website online. A new version, a payment or a message in your name always waits for you.",
+  "account.publish.auto": "Without asking",
+  "account.publish.ask": "Ask me first",
   "error.account": "Could not save your account: {error}",
   "account.owner": "Owner of this installation",
   "account.name": "Name",
@@ -1880,7 +1885,7 @@ export const en = {
     "On: its news always arrives, even at night or past the daily cap (for a morning or evening brief). Off: it goes through your interruption budget.",
   "nudge.where": "Chat app for notices",
   "nudge.whereHint":
-    "The app and your paired phones always get them (pair one in Devices). Pick a chat app to get them there too, or none.",
+    "The app and your paired phones always get them (pair one in Devices). Pick one of the chat accounts your super-agent answers to get them there too, or none.",
   "nudge.whereAuto": "The first channel that knows you",
   "nudge.whereNone": "None, only in the app",
   "devices.push.expo": "Push",

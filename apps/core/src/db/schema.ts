@@ -490,7 +490,6 @@ export interface PersonsTable {
   perms: string | null;
   unreviewed: Generated<number>;
   supervised: Generated<number>;
-  any_hour: Generated<number>;
   agent_id: string | null;
 }
 

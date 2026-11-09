@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
 import { after, before, test } from "node:test";
+import { audienceOf } from "../engine/audience.ts";
 import { callTool, say, scriptedLlm, startCore } from "../engine/testkit.ts";
+import { contactHolder, contactToolNames } from "./contact.ts";
 
 type Request = {
   kind: "request" | "appointment";
@@ -28,7 +30,7 @@ after(async () => {
   await env.cleanup();
 });
 
-async function contact() {
+async function contact(o: { project?: string; agent?: string } = {}) {
   const person = await env.client.call("contacts.set", {
     name: "Acme Buyer",
     perms: { requests: true, appointments: true },
@@ -36,7 +38,8 @@ async function contact() {
   const thread = env.core.store.threads.create({
     kind: "channel",
     title: person.name,
-    agent_ids: ["superagent"],
+    agent_ids: [o.agent ?? "superagent"],
+    ...(o.project ? { project_id: o.project } : {}),
     channel: { id: "test", conversation: person.id, person_id: person.id },
   });
   return {
@@ -214,4 +217,69 @@ test("a full description keeps the owner's notes and records the update in the t
   assert.match(text, /trust="untrusted"/);
   assert.match(text, /&#64;owner/);
   assert.equal(chat.runs.length, 0, "contact text starts no task work");
+});
+
+test("in a chat a project's head answers, a confirmation updates the request it left there", async () => {
+  const { project } = await env.client.call("projects.create", { name: "Acme sales" });
+  const head = await env.client.call("agents.create", {
+    project_id: project.id,
+    slug: "acme-sales-head",
+    name: "Head",
+  });
+  const c = await contact({ project: project.id, agent: head.id });
+  await c.submit({ kind: "appointment", summary: "Pricing call" });
+  const first = c.tasks()[0];
+  assert.equal(first?.project_id, project.id, "the request is left in the chat's project");
+  const updated = await c.submit(
+    { kind: "appointment", summary: "Pricing call on Tuesday", when: "Tuesday" },
+    first?.id,
+  );
+  assert.match(updated.steps[0]?.result ?? "", /Pricing call/, "the open request is found");
+  assert.match(updated.result, /updated.*existing task/);
+  assert.equal(c.tasks().length, 1);
+  assert.match(env.core.store.tasks.get(first?.id ?? "")?.description ?? "", /Tuesday/);
+});
+
+test("a contact's chat follows its account's rights for contacts, unless the owner set one for that person", async () => {
+  const { store } = env.core;
+  const saved = store.settings.read("channels");
+  store.settings.write("channels", [
+    ...saved,
+    {
+      id: "acme-sales",
+      type: "whatsapp",
+      label: "Acme sales",
+      enabled: false,
+      agent_id: "superagent",
+      strangers: "pair",
+      concurrency: "steer",
+      owner_thread: "home",
+      contacts: { requests: true, notes: true },
+    },
+  ]);
+  try {
+    const person = await env.client.call("contacts.set", { name: "Northwind Buyer" });
+    const thread = store.threads.create({
+      kind: "channel",
+      title: person.name,
+      agent_ids: ["superagent"],
+      channel: { id: "acme-sales", conversation: person.id, person_id: person.id },
+    });
+    const tools = () => contactToolNames(contactHolder(audienceOf(store, thread)));
+    assert.deepEqual([...tools()].sort(), ["pass_request", "search_owner_notes"], "the account's rights");
+    await env.client.call("contacts.set", { id: person.id, name: person.name, perms: { notes: false } });
+    assert.deepEqual([...tools()], ["pass_request"], "what the owner set for them wins");
+    await env.client.call("contacts.set", { id: person.id, name: person.name, perms: { notes: null } });
+    assert.deepEqual([...tools()].sort(), ["pass_request", "search_owner_notes"], "null gives it back to the account");
+    // Elsewhere, an account that sets nothing: none.
+    const other = store.threads.create({
+      kind: "channel",
+      title: person.name,
+      agent_ids: ["superagent"],
+      channel: { id: "test", conversation: `${person.id}-2`, person_id: person.id },
+    });
+    assert.equal(contactToolNames(contactHolder(audienceOf(store, other))).size, 0);
+  } finally {
+    store.settings.write("channels", saved);
+  }
 });
