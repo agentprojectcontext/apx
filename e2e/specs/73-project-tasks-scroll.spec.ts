@@ -77,7 +77,7 @@ test("global tasks still scroll and open their detail", async ({ page }) => {
   const last = view.locator(".taskrow").last();
   await last.scrollIntoViewIfNeeded();
   await expect(last).toBeInViewport();
-  expect(await view.evaluate((el) => el.scrollTop)).toBeGreaterThan(0);
+  expect(await view.locator(".secpage__body").evaluate((el) => el.scrollTop)).toBeGreaterThan(0);
   await last.click();
   await expect(page.locator(".drawer")).toBeInViewport();
   await page.keyboard.press("Escape");

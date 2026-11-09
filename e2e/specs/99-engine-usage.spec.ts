@@ -56,7 +56,8 @@ test("AI usage shows account windows, unavailable engines and a narrow-screen ac
     await route.fulfill({ json: { ok: true, result: report } });
   });
   await open(page);
-  expect(calls).toBe(0);
+  // The button reads once at boot (101-topbar-loading); opening the summary is what asks again.
+  await expect.poll(() => calls).toBe(1);
   const trigger = page.getByTestId("engine-usage-button");
   const bounds = await trigger.evaluate((button) => {
     const label = button.querySelector("span")?.getBoundingClientRect();
@@ -66,11 +67,11 @@ test("AI usage shows account windows, unavailable engines and a narrow-screen ac
   expect(bounds.labelRight).toBeLessThanOrEqual(bounds.right);
   await trigger.click();
   const summary = page.getByTestId("engine-usage-summary");
-  await expect(summary.getByText("63% disponible")).toBeVisible();
-  await expect(summary.getByText("9% disponible")).toBeVisible();
-  await expect(summary.getByText("Sesión (5 h)", { exact: true })).toBeVisible();
-  await expect(summary.getByText("Semanal", { exact: true })).toBeVisible();
-  await expect(summary.getByRole("img", { name: "Codex · Sesión (5 h): 37% usado" })).toBeVisible();
+  await expect(summary.getByText("63 % libre")).toBeVisible();
+  await expect(summary.getByText("9 % libre")).toBeVisible();
+  await expect(summary.getByText(/Sesión \(5 h\)/)).toBeVisible();
+  await expect(summary.getByText(/Semanal/)).toBeVisible();
+  await expect(summary.getByRole("img", { name: "Codex · Semanal: 91% usado" })).toBeVisible();
   await expect(summary.getByText(/Se reinicia/)).toBeVisible();
   const claude = summary.locator("section").filter({ has: page.getByRole("heading", { name: "Claude", exact: true }) });
   await expect(claude.locator(".apx-meter")).toHaveCount(0);
@@ -86,7 +87,7 @@ test("AI usage shows account windows, unavailable engines and a narrow-screen ac
   await page.setViewportSize({ width: 390, height: 844 });
   await expect(page.getByTestId("engine-usage-button")).toBeVisible();
   await page.getByTestId("engine-usage-button").click();
-  await expect(summary.getByText("63% disponible")).toBeVisible();
+  await expect(summary.getByText("63 % libre")).toBeVisible();
   await summary.getByRole("button", { name: "Administrar engines" }).click();
   await expect(summary).toHaveCount(0);
 });
@@ -120,8 +121,8 @@ test("Claude displays real account windows and its CLI source", async ({ page })
   await open(page);
   await page.getByTestId("engine-usage-button").click();
   const summary = page.getByTestId("engine-usage-summary");
-  await expect(summary.getByText("85% disponible")).toBeVisible();
-  await expect(summary.getByText("13% disponible")).toBeVisible();
+  await expect(summary.getByText("85 % libre")).toBeVisible();
+  await expect(summary.getByText("13 % libre")).toBeVisible();
   await expect(summary.getByRole("img", { name: "Claude · Semanal: 87% usado" })).toBeVisible();
   await expect(summary.getByText("Fuente: cuota del plan de Claude (/usage)")).toHaveCount(0);
   const help = summary.getByRole("button", { name: "Ayuda sobre cuotas de Claude", exact: true });
@@ -130,7 +131,7 @@ test("Claude displays real account windows and its CLI source", async ({ page })
   await expect(page.locator(".apx-help__panel")).toContainText("Fuente: cuota del plan de Claude (/usage)");
   await expect(page.locator(".apx-help__panel")).not.toContainText("Sin fuente de cuota compatible");
   await page.keyboard.press("Escape");
-  await expect(summary.getByText("85% disponible")).toBeVisible();
+  await expect(summary.getByText("85 % libre")).toBeVisible();
 });
 
 test("AI usage recovers from a failed request without showing an invented balance", async ({ page }) => {
@@ -150,5 +151,5 @@ test("AI usage recovers from a failed request without showing an invented balanc
   await expect(summary.locator(".apx-meter")).toHaveCount(0);
   fail = false;
   await summary.getByRole("button", { name: "Actualizar" }).click();
-  await expect(summary.getByText("63% disponible")).toBeVisible();
+  await expect(summary.getByText("63 % libre")).toBeVisible();
 });

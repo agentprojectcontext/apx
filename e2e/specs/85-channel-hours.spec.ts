@@ -19,7 +19,7 @@ test("attention hours: set in the channel's settings, a contact waits outside th
   test.setTimeout(60_000);
   await open(page);
   await page.getByRole("button", { name: "Telegram", exact: true }).first().click();
-  await page.getByRole("button", { name: "Configuración del canal" }).click();
+  await page.getByRole("button", { name: "Editar cuenta" }).click();
   await page.getByRole("dialog").getByRole("button", { name: "Comportamiento" }).click();
   const hours = page.getByRole("switch", { name: "Horario de atención" });
   await expect(hours).not.toBeChecked();
@@ -64,7 +64,7 @@ test("attention hours: set in the channel's settings, a contact waits outside th
 
   // Without hours the channel answers again: the office clock answers the waiting chat on its next tick.
   await page.getByRole("button", { name: "Telegram", exact: true }).first().click();
-  await page.getByRole("button", { name: "Configuración del canal" }).click();
+  await page.getByRole("button", { name: "Editar cuenta" }).click();
   await page.getByRole("dialog").getByRole("button", { name: "Comportamiento" }).click();
   await page.getByRole("switch", { name: "Horario de atención" }).click();
   await page.getByRole("button", { name: "Guardar y cerrar" }).click();

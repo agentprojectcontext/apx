@@ -1,7 +1,22 @@
 // First run: a new install opens the setup by itself. Bringing v1 in, then the super-agent, engines, memory, the
 // Telegram bot (emulated) and a project folder; then the setup again from the account menu, from scratch.
+
+import type { Page } from "@playwright/test";
 import { AGENT_NAMES } from "../../packages/protocol/src/constants.ts";
 import { expect, rpc, test, until, world } from "./kit.ts";
+
+/**
+ * Opens the setup the way a new install does: the account menu no longer reopens it, so the page is told this core
+ * has not finished it (the rest of the core, its v1 scan included, is the real one).
+ */
+async function openWizard(page: Page, url = "/") {
+  const status = await rpc<Record<string, unknown>>("setup.status");
+  await page.route("**/rpc/setup.status", (route) =>
+    route.fulfill({ json: { ok: true, result: { ...status, done: false, fresh: true } } }),
+  );
+  await page.goto(url);
+  await expect(page.locator(".wiz")).toBeVisible();
+}
 
 test("a new install opens the setup and imports APX v1", async ({ page }) => {
   await page.goto("/");
@@ -122,10 +137,7 @@ test("a new install opens the setup and imports APX v1", async ({ page }) => {
 });
 
 test("the setup opens again from the account menu and starts from scratch", async ({ page }) => {
-  await page.goto("/");
-  await expect(page.locator(".wiz")).toBeHidden();
-  await page.getByRole("button", { name: /^Cuenta/ }).click();
-  await page.getByRole("menuitem", { name: "Configuración inicial" }).click();
+  await openWizard(page);
   const wizard = page.locator(".wiz");
   await wizard.getByRole("button", { name: /Empezar de cero/ }).click();
   const name = wizard.getByRole("textbox", { name: "Nombre" });
@@ -177,9 +189,7 @@ test("the setup opens again from the account menu and starts from scratch", asyn
 });
 
 test("right after the desktop app installs APX, the setup's welcome says so, once", async ({ page }) => {
-  await page.goto("/?welcome=installed");
-  await page.getByRole("button", { name: /^Cuenta/ }).click();
-  await page.getByRole("menuitem", { name: "Configuración inicial" }).click();
+  await openWizard(page, "/?welcome=installed");
   const wizard = page.locator(".wiz");
   await expect(wizard.getByText("APX está instalado")).toBeVisible();
   await expect(wizard.getByText(/APX ya está instalado; ahora armamos tu crew/)).toBeVisible();
@@ -187,23 +197,17 @@ test("right after the desktop app installs APX, the setup's welcome says so, onc
   await expect(wizard.getByRole("button", { name: /Importar desde APX v1/ })).toBeVisible();
   expect(new URL(page.url()).searchParams.has("welcome")).toBe(false);
   await page.reload();
-  await page.getByRole("button", { name: /^Cuenta/ }).click();
-  await page.getByRole("menuitem", { name: "Configuración inicial" }).click();
   await expect(wizard.getByText("Open source")).toBeVisible();
   await expect(wizard.getByText("APX está instalado")).toBeHidden();
 });
 
 test("the setup's header picks the language, kept like the app's own", async ({ page }) => {
-  await page.goto("/");
-  await page.getByRole("button", { name: /^Cuenta/ }).click();
-  await page.getByRole("menuitem", { name: "Configuración inicial" }).click();
+  await openWizard(page);
   const wizard = page.locator(".wiz");
   await wizard.getByRole("button", { name: "Idioma: Español" }).click();
   await page.getByRole("menuitem", { name: "English" }).click();
   await expect(wizard.getByRole("button", { name: /Start from scratch/ })).toBeVisible();
   await page.reload();
-  await page.getByRole("button", { name: /^Account/ }).click();
-  await page.getByRole("menuitem", { name: /setup/i }).click();
   await wizard.getByRole("button", { name: "Language: English" }).click();
   await page.getByRole("menuitem", { name: "Español" }).click();
   await expect(wizard.getByRole("button", { name: /Empezar de cero/ })).toBeVisible();
@@ -219,9 +223,7 @@ for (const look of ["minimal", "classic"]) {
         },
         { look, mode },
       );
-      await page.goto("/");
-      await page.getByRole("button", { name: /^Cuenta/ }).click();
-      await page.getByRole("menuitem", { name: "Configuración inicial" }).click();
+      await openWizard(page);
       const wizard = page.locator(".wiz");
       await wizard.getByRole("button", { name: /Empezar de cero/ }).click();
       for (let i = 0; i < 4; i++) await wizard.getByRole("button", { name: "Continuar" }).click();

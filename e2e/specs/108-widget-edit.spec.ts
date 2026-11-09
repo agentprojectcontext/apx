@@ -40,6 +40,28 @@ async function inspect(widget: Page, x: number, y: number) {
   );
 }
 
+/** The widget's parts the owner can pick, in page order, as the core describes them. */
+async function elements(widget: Page) {
+  return widget.evaluate(() => {
+    const all = [...document.querySelectorAll("*")];
+    return [...document.querySelectorAll<HTMLElement>("h2, .total b, .cta")].map((el) => {
+      const r = el.getBoundingClientRect();
+      const text = (el.dataset.original ?? el.textContent ?? "").trim();
+      return {
+        node: all.indexOf(el) + 1,
+        tag: el.localName,
+        role: "",
+        name: text,
+        selector: el.id ? `${el.localName}#${el.id}` : el.className ? `${el.localName}.${el.className}` : el.localName,
+        text,
+        sensitive: false,
+        box: { x: r.x / innerWidth, y: r.y / innerHeight, width: r.width / innerWidth, height: r.height / innerHeight },
+        style: { font_size: Number.parseFloat(getComputedStyle(el).fontSize) },
+      };
+    });
+  });
+}
+
 async function show(widget: Page, edits: Edit[]) {
   await widget.evaluate((edits) => {
     const all = [...document.querySelectorAll<HTMLElement>("*")];
@@ -87,6 +109,9 @@ for (const width of [1280, 390]) {
       const p = body(route);
       await reply(route, { element: await inspect(widget, p.x, p.y) });
     });
+    await page.route("**/rpc/surfaces.edit_elements", async (route) => {
+      await reply(route, { elements: await elements(widget) });
+    });
     await page.route("**/rpc/surfaces.edit_preview", async (route) => {
       const p = body(route);
       shown.push(p.edits);
@@ -125,7 +150,9 @@ for (const width of [1280, 390]) {
       // Laid out as wide as it shows beside the edit panel, or at a phone's width on a phone.
       if (width === 1280) expect(opened[0]?.width).toBeGreaterThan(800);
       else expect(opened[0]?.width).toBe(390);
-      await expect(page.getByText("Tocá la parte que querés cambiar")).toBeVisible();
+      const parts = page.getByRole("complementary", { name: "Editar" }).getByRole("region", { name: "Elementos" });
+      await expect(parts.getByText("Tocá uno en la página o elegilo acá.")).toBeVisible();
+      await expect(parts.getByRole("button")).toHaveCount(3);
       await expect(page.locator(".bedit__shot img")).toBeVisible();
 
       const shot = await page.locator(".bedit__shot").boundingBox();

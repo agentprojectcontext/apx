@@ -11,10 +11,12 @@ test("search stays centered with unequal sides and notifications precede activit
     const geometry = await page.locator(".topbar").evaluate((bar) => {
       const bounds = bar.getBoundingClientRect();
       const search = bar.querySelector(".topbar__search")?.getBoundingClientRect();
+      // The history arrows lead the search box: the pair is what sits on the window's centre.
+      const group = bar.querySelector(".topbar__center")?.getBoundingClientRect();
       const right = bar.querySelector(".topbar__right")?.getBoundingClientRect();
-      if (!search || !right) throw new Error("Missing topbar controls");
+      if (!search || !group || !right) throw new Error("Missing topbar controls");
       return {
-        center: Math.abs((search.left + search.right) / 2 - (bounds.left + bounds.right) / 2),
+        center: Math.abs((group.left + group.right) / 2 - (bounds.left + bounds.right) / 2),
         overlap: search.right - right.left,
         overflow: bar.scrollWidth - bar.clientWidth,
         searchOverflow: [...bar.querySelectorAll(".topbar__search svg, .topbar__search .apx-kbd")].some((child) => {
@@ -122,7 +124,6 @@ test("shared blob eyes retain the avatar canvas inside an icon button and chat h
     expect(measurement.height).toBeLessThan(1);
   }
   await page.locator(".topbar__agent").click();
-  await page.getByRole("menuitem").first().click();
   const blob = page.locator(".chat__agentbtn .apx-blob");
   await expect(blob).toHaveClass(/apx-blob--anim/);
   await expect(blob.locator(".apx-blob__bob")).toHaveCSS("animation-name", "apx-blob-float");

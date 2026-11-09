@@ -11,8 +11,8 @@ test("a saved contact with no chat: listed, an empty chat to ask the agent to wr
   const nora = await rpc<{ id: string }>("contacts.set", { name: "Nora" });
   await rpc("contacts.address", { channel: "whatsapp", address: "+54 9 11 0000-0011", person: nora.id });
 
-  await open(page);
-  await page.getByRole("button", { name: "WhatsApp", exact: true }).click();
+  // A contact nobody wrote to has no chat in the Inbox: the channel's own screen lists them.
+  await open(page, "#channel=whatsapp");
   const row = page.locator(".chan__rows").getByRole("button", { name: /Nora/ });
   await expect(row).toContainText("+5491100000011");
   await row.click();
@@ -25,15 +25,12 @@ test("a saved contact with no chat: listed, an empty chat to ask the agent to wr
   await expect(card).toBeVisible({ visible: !wasOpen });
   if (wasOpen) await page.getByRole("button", { name: "Abrir el contacto de Nora" }).click();
   await expect(card.getByRole("textbox", { name: "Nombre" })).toHaveValue("Nora");
-  await card.getByRole("combobox", { name: "Relación" }).click();
-  await page.getByRole("option", { name: "Amigo/a" }).click();
-  await expect(card.getByRole("combobox", { name: "Relación" })).toContainText("Amigo/a");
-  // What each option does is behind the "?", not under every switch.
-  await card.getByRole("button", { name: "Sobre qué puede hacer esta conversación" }).hover();
-  const help = page.getByRole("dialog", { name: "Sobre qué puede hacer esta conversación" });
-  await expect(help.getByText(/queda como tarea y te aviso en el momento/)).toBeVisible();
-  await expect(help.getByText(/pareja, familia y amigos siempre pueden dejarte un mensaje/)).toBeVisible();
-  await page.keyboard.press("Escape");
+  const friend = card.getByRole("group", { name: "Relación" }).getByRole("button", { name: "Amigo/a" });
+  await friend.click();
+  await expect(friend).toHaveAttribute("aria-pressed", "true");
+  // What each option does reads under its switch, and the closing note about family and friends under them.
+  await expect(card.getByText(/queda como tarea y te aviso en el momento/)).toBeVisible();
+  await expect(card.getByText(/pareja, familia y amigos siempre pueden dejarte un mensaje/)).toBeVisible();
   // The owner's own WhatsApp number is linked (10-whatsapp): "This account is mine" is settled, so no card offers it.
   await expect(card.getByRole("textbox", { name: "Nombre" })).toBeVisible();
   await expect(card.getByRole("button", { name: "Esta cuenta es mía" })).toHaveCount(0);
@@ -72,8 +69,8 @@ test("who is online and what is set for a contact show on their row", async ({ p
   const nora = persons.find((p) => p.name === "Nora");
   await rpc("contacts.set", { id: nora?.id, name: "Nora", muted: true, perms: { notes: true } });
 
-  await open(page);
-  await page.getByRole("button", { name: "WhatsApp", exact: true }).click();
+  // A contact nobody wrote to has no chat in the Inbox: the channel's own screen lists them.
+  await open(page, "#channel=whatsapp");
   const row = page.locator(".chan__rows").getByRole("button", { name: /Nora/ });
   await expect(row.getByRole("img", { name: "Silenciado" })).toBeVisible();
   await expect(row.getByRole("img", { name: "Contestar desde mis notas" })).toBeVisible();
@@ -92,8 +89,8 @@ test("a muted, supervised contact's card keeps its three buttons on one row, Sav
   const nora = persons.find((p) => p.name === "Nora");
   await rpc("contacts.set", { id: nora?.id, name: "Nora", muted: true, supervised: true });
 
-  await open(page);
-  await page.getByRole("button", { name: "WhatsApp", exact: true }).click();
+  // A contact nobody wrote to has no chat in the Inbox: the channel's own screen lists them.
+  await open(page, "#channel=whatsapp");
   await page.locator(".chan__rows").getByRole("button", { name: /Nora/ }).click();
   const card = page.getByRole("complementary", { name: "Contacto" });
   if (!(await card.isVisible())) await page.getByRole("button", { name: "Abrir el contacto de Nora" }).click();

@@ -15,7 +15,7 @@ test("Telegram groups: a group the bot is in is picked from the list, and the bo
   await world.telegramGroup(ana, group, "is the bot here?");
   await open(page);
   await page.getByRole("button", { name: "Telegram", exact: true }).first().click();
-  await page.getByRole("button", { name: "Configuración del canal" }).click();
+  await page.getByRole("button", { name: "Editar cuenta" }).click();
   await page
     .getByRole("dialog")
     .getByRole("button", { name: /^Salas/ })

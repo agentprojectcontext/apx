@@ -70,6 +70,7 @@ async function fakeEditPage(page: Page, opened: number[], hold: Promise<void> = 
     );
     await reply(route, { element });
   });
+  await page.route("**/rpc/surfaces.edit_elements", (route) => reply(route, { elements: [] }));
   await page.route("**/rpc/surfaces.edit_preview", (route) => reply(route, { shown: body(route).edits.length }));
   await page.route("**/rpc/surfaces.edit_close", (route) => reply(route, { ok: true }));
   return edit;

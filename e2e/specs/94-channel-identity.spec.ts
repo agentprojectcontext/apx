@@ -170,74 +170,36 @@ for (const width of [412, 1280]) {
     await page.getByRole("button", { name: "Inbox", exact: true }).click();
     if (width < 768) await page.getByRole("button", { name: "Volver a los chats", exact: true }).click();
     await expect(page.locator(".inbox__list")).toBeVisible();
-    for (const view of ["Árbol", "Actividad", "Por chat"]) {
-      await page.getByRole("radio", { name: view, exact: true }).click();
-      for (const item of cases) {
-        const row = page
-          .locator(
-            view === "Árbol" && item.channel
-              ? ".inbox__list .tree__channel"
-              : ".inbox__list .tree__session, .inbox__list .activity__row, .inbox__list .apx-convrow",
-          )
-          .filter({ hasText: item.title })
-          .first();
-        await expect(row).toBeVisible();
-        const avatar = row.locator(".threadavatar");
-        await expect(avatar.getByRole("img", { name: item.identity, exact: true })).toBeVisible();
-        if (item.picture) {
-          const image = avatar.locator("img.chan__avatarimg");
-          await expect(image).toBeVisible();
-          await expect.poll(() => image.evaluate((el) => (el as HTMLImageElement).naturalWidth)).toBeGreaterThan(0);
-          const size = view === "Árbol" ? 20 : view === "Actividad" ? 24 : 32;
-          const imageBox = await image.boundingBox();
-          const parentBox = await avatar.getByRole("img", { name: item.identity, exact: true }).boundingBox();
-          expect(imageBox).not.toBeNull();
-          expect(parentBox).not.toBeNull();
-          expect(imageBox?.width).toBe(size);
-          expect(imageBox?.height).toBe(size);
-          expect(parentBox?.width).toBe(size);
-          expect(parentBox?.height).toBe(size);
-        } else if (!item.internal) {
-          if (item.person === "person-broken")
-            await expect(avatar.getByRole("img", { name: item.identity, exact: true })).toHaveAttribute(
-              "data-image-error",
-              "true",
-            );
-          await expect(avatar.locator("img.chan__avatarimg")).toHaveCount(0);
-          await expect(avatar.getByRole("img", { name: agent.name, exact: true })).toHaveCount(0);
-        }
-        const mark = avatar.locator(".threadavatar__channel");
-        await expect(mark).toHaveCount(0);
-        if (item.platform) {
-          await expect(row).toContainText(`Por ${item.platform}`);
-          if (view === "Árbol") {
-            await expect(row.locator(".tree__agentmeta")).toHaveText(`Por ${item.platform}`);
-            await expect(row).not.toContainText("Super-agente");
-            const face = await avatar.boundingBox();
-            const title = await row.locator(".tree__agentname").boundingBox();
-            expect(face).not.toBeNull();
-            expect(title).not.toBeNull();
-            expect(
-              Math.abs((face ? face.y + face.height / 2 : 0) - (title ? title.y + title.height / 2 : 0)),
-            ).toBeLessThan(1);
-          }
-        }
+    // The Inbox lists every chat in one flat list (the tree and activity views are gone).
+    for (const item of cases) {
+      const row = page.locator(".inbox__list .apx-convrow").filter({ hasText: item.title }).first();
+      await expect(row).toBeVisible();
+      const avatar = row.locator(".threadavatar");
+      await expect(avatar.getByRole("img", { name: item.identity, exact: true })).toBeVisible();
+      if (item.picture) {
+        const image = avatar.locator("img.chan__avatarimg");
+        await expect(image).toBeVisible();
+        await expect.poll(() => image.evaluate((el) => (el as HTMLImageElement).naturalWidth)).toBeGreaterThan(0);
+        const size = 24;
+        const imageBox = await image.boundingBox();
+        const parentBox = await avatar.getByRole("img", { name: item.identity, exact: true }).boundingBox();
+        expect(imageBox).not.toBeNull();
+        expect(parentBox).not.toBeNull();
+        expect(imageBox?.width).toBe(size);
+        expect(imageBox?.height).toBe(size);
+        expect(parentBox?.width).toBe(size);
+        expect(parentBox?.height).toBe(size);
+      } else if (!item.internal) {
+        if (item.person === "person-broken")
+          await expect(avatar.getByRole("img", { name: item.identity, exact: true })).toHaveAttribute(
+            "data-image-error",
+            "true",
+          );
+        await expect(avatar.locator("img.chan__avatarimg")).toHaveCount(0);
+        await expect(avatar.getByRole("img", { name: agent.name, exact: true })).toHaveCount(0);
       }
-      if (view === "Árbol") {
-        const channelRow = page.locator(".inbox__list .tree__channel").filter({ hasText: "Photo Acme" });
-        const readRow = page.locator(".inbox__list .tree__channel").filter({ hasText: "No Photo" });
-        await expect(channelRow.locator(".tree__unread")).toHaveText("1");
-        await expect(channelRow.locator(".tree__agentname")).toHaveCSS("font-weight", "600");
-        await expect(readRow.locator(".tree__unread")).toHaveCount(0);
-        await expect(readRow.locator(".tree__agentname")).toHaveCSS("font-weight", "400");
-        await channelRow.click();
-        await expect(
-          page.locator(".chan__chathead").getByRole("img", { name: "Photo Acme", exact: true }),
-        ).toBeVisible();
-        if (width < 768) await page.getByRole("button", { name: /Volver a los (chats|contactos)/ }).click();
-        await expect(channelRow).toHaveClass(/is-selected/);
-        await expect(channelRow).toHaveCSS("box-shadow", /inset/);
-      }
+      await expect(avatar.locator(".threadavatar__channel")).toHaveCount(0);
+      if (item.platform) await expect(row).toContainText(item.platform);
     }
     for (const item of cases) {
       const row = page.locator(".inbox__list .apx-convrow").filter({ hasText: item.title }).first();

@@ -152,6 +152,7 @@ export const test = base.extend<{
   welcome: boolean;
   desktopInstallNotice: boolean;
   diskWarning: boolean;
+  compactSidebar: boolean;
 }>({
   // The corner cards and the welcome cover what sits under them, so they start closed unless a spec is about them.
   cornerCards: [false, { option: true }],
@@ -159,7 +160,15 @@ export const test = base.extend<{
   desktopInstallNotice: [false, { option: true }],
   // The machine running the tests may be short of disk: its warning card stays out unless a spec is about it.
   diskWarning: [false, { option: true }],
-  page: async ({ page, cornerCards, welcome, desktopInstallNotice, diskWarning }, use) => {
+  // The sidebar is compact by default (each section one row); specs list its items inline unless one is about the compact one.
+  compactSidebar: [false, { option: true }],
+  page: async ({ page, cornerCards, welcome, desktopInstallNotice, diskWarning, compactSidebar }, use) => {
+    if (!compactSidebar) {
+      await cardSidebar(page);
+      // Below 760px of height the panel folds the sidebar whatever the choice (devices['Desktop Chrome'] is 720).
+      const size = page.viewportSize();
+      if (size && size.height < 800) await page.setViewportSize({ width: size.width, height: 800 });
+    }
     if (!diskWarning) {
       const gb = 1024 ** 3;
       await page.route("**/rpc/storage.status", (route) =>
@@ -211,8 +220,11 @@ export { expect };
 /** The sidebar's sections as cards (the compact sidebar folds each into one row): set before `open`. */
 export async function cardSidebar(page: Page) {
   await page.addInitScript(() => {
-    const prefs = JSON.parse(localStorage.getItem("apx.prefs") ?? "{}");
-    localStorage.setItem("apx.prefs", JSON.stringify({ ...prefs, sidebarCompact: false }));
+    // It also runs in sandboxed widget frames, which have no storage.
+    try {
+      const prefs = JSON.parse(localStorage.getItem("apx.prefs") ?? "{}");
+      localStorage.setItem("apx.prefs", JSON.stringify({ ...prefs, sidebarCompact: false }));
+    } catch {}
   });
 }
 

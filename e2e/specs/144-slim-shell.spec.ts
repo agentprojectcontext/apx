@@ -1,5 +1,7 @@
 import { expect, open, rpc, test } from "./kit.ts";
 
+test.use({ compactSidebar: true });
+
 type Project = { id: string; name: string; parent?: string };
 type Agent = { id: string; kind?: string; name: string };
 
@@ -88,6 +90,6 @@ test("a subproject shows its project, works with its agents and can become a pro
 test("New chat at the top of the sidebar opens the agent picker", async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 });
   await open(page);
-  await page.locator(".sidebar").getByRole("button", { name: "Nuevo chat", exact: true }).click();
-  await expect(page.getByPlaceholder("Buscar agente")).toBeVisible();
+  await page.locator(".sidebar").getByRole("combobox", { name: "Nuevo chat", exact: true }).click();
+  await expect(page.getByPlaceholder("Buscá un agente")).toBeVisible();
 });

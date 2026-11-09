@@ -8,21 +8,22 @@ test("the Channels screen lists every account, filters by app and opens each one
   page,
 }) => {
   await open(page);
-  await page
-    .locator(".sidebar__top")
-    .getByRole("button", { name: /^Canales/ })
-    .click();
+  // From an account's Inbox, the account switcher leads to the screen with every account.
+  await page.getByRole("button", { name: "WhatsApp", exact: true }).click();
+  await page.locator(".inbox__accountbtn").click();
+  await page.getByRole("button", { name: "Administrar canales" }).click();
   const screen = page.getByRole("region", { name: "Canales" });
   await expect(screen.getByRole("heading", { name: "Canales" })).toBeVisible();
-  await expect(screen.getByRole("button", { name: /^Telegram/ })).toBeVisible();
-  await expect(screen.getByRole("button", { name: /^WhatsApp/ })).toBeVisible();
+  await expect(screen.locator(".chs__main", { hasText: "Telegram" })).toBeVisible();
+  await expect(screen.locator(".chs__main", { hasText: "WhatsApp" })).toBeVisible();
 
-  await screen.getByRole("radio", { name: /^WhatsApp/ }).click();
-  await expect(screen.getByRole("button", { name: /^Telegram/ })).toHaveCount(0);
-  await screen.getByRole("radio", { name: /^Todas/ }).click();
+  const filter = screen.getByRole("group", { name: "Canales" });
+  await filter.getByRole("button", { name: /^WhatsApp/ }).click();
+  await expect(screen.locator(".chs__main", { hasText: "Telegram" })).toHaveCount(0);
+  await filter.getByRole("button", { name: /^Todas/ }).click();
 
   // Right click: the same actions as in the sidebar.
-  await screen.getByRole("button", { name: /^Telegram/ }).click({ button: "right" });
+  await screen.locator(".chs__main", { hasText: "Telegram" }).click({ button: "right" });
   await expect(page.getByRole("menuitem", { name: "Contactos" })).toBeVisible();
   await page.keyboard.press("Escape");
 

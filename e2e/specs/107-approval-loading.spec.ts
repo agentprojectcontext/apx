@@ -34,7 +34,7 @@ for (const failed of [false, true]) {
     await open(page, "#view=resources");
     try {
       await page.getByRole("button", { name: /^Account/ }).click();
-      await page.getByRole("menuitem", { name: "Language", exact: true }).hover();
+      await page.getByRole("menuitem", { name: /^Language/ }).hover();
       await page.getByRole("menuitem", { name: "Español", exact: true }).click();
       await page.getByRole("button", { name: "Active browser permissions", exact: true }).click();
       await expect(page.getByRole("dialog")).toBeVisible();
@@ -152,7 +152,7 @@ for (const language of ["en", "es"] as const) {
         await route.continue();
       });
       await page.getByRole("button", { name: spanish ? /^Cuenta/ : /^Account/ }).click();
-      await page.getByRole("menuitem", { name: spanish ? "Idioma" : "Language", exact: true }).hover();
+      await page.getByRole("menuitem", { name: spanish ? /^Idioma/ : /^Language/ }).hover();
       await page.getByRole("menuitem", { name: spanish ? "English" : "Español", exact: true }).click();
       try {
         await expect(

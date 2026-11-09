@@ -212,7 +212,9 @@ test("the wall shows an off tile per allowed agent, turns one on, and says when 
     const wall = page.locator(".computers");
     const off = wall.locator(".computers__tile.is-off");
     await expect(off).toHaveCount(3);
-    await expect(wall.getByRole("heading")).toHaveCount(0);
+    // The screen has its own title; the tiles have no headings of theirs.
+    await expect(wall.getByRole("heading")).toHaveCount(1);
+    await expect(wall.locator(".computers__tile").getByRole("heading")).toHaveCount(0);
 
     await off.filter({ hasText: "Roby" }).getByRole("button", { name: "Encender pantalla", exact: true }).click();
     await expect(wall.locator(".computers__tile:not(.is-off)")).toHaveCount(1);

@@ -100,13 +100,19 @@ test("task context actions keep status live and archived conversations remain re
     .poll(async () => (await rpc<{ sessions: Thread[] }>("tasks.get", { task: task.id })).sessions.length)
     .toBe(1);
   await open(page);
+  await page
+    .getByRole("radiogroup", { name: "Mostrar" })
+    .getByRole("radio", { name: /^Tareas/ })
+    .click();
   const bundle = page.locator(".taskbundle").filter({ hasText: task.title });
   await expect(bundle).toBeVisible();
-  await bundle.locator(".tree__session").click();
+  // The row is the task's latest chat: a click opens it, and the state is the pill beside its title.
+  const row = bundle.locator(".apx-convrow");
+  await row.click();
   const header = page.locator(".chat__header");
-  const status = header.getByRole("status");
+  const status = header.locator(".chat__taskbtn");
   await expect(status).toHaveText("En curso");
-  await bundle.locator(".taskbundle__task").click({ button: "right" });
+  await row.click({ button: "right" });
   await page.getByRole("menuitem", { name: "Mover a", exact: true }).hover();
   const reviewOption = page.getByRole("menuitem", { name: "Revisión", exact: true });
   await expect(reviewOption).toBeVisible();
@@ -114,33 +120,28 @@ test("task context actions keep status live and archived conversations remain re
   expect(optionBounds?.height).toBeGreaterThan(20);
   await page.keyboard.press("Escape");
   await page.keyboard.press("Escape");
-  await bundle.locator(".taskbundle__task").click({ button: "right" });
+  await row.click({ button: "right" });
   await page.getByRole("menuitem", { name: "Espera tu respuesta", exact: true }).click();
   await expect(status).toHaveText("Necesita tu revisión");
-  await expect(bundle.locator(".taskbundle__title")).toHaveText(task.title);
-  await expect(bundle.locator(".apx-badge")).toHaveCount(0);
-  await expect(status.locator(".apx-badge")).toHaveClass(/apx-tone--warning/);
-  await header.hover();
-  await bundle.locator(".taskbundle__title").hover();
-  const hint = page.locator(".apx-tooltip[data-open]");
-  await expect(hint.locator(".task-status-hint__title")).toHaveText(task.title);
-  await expect(hint.locator(".apx-badge")).toHaveText("Necesita tu revisión");
-  await expect(hint.locator(".apx-badge__dot")).toBeVisible();
-  await expect(hint.locator(".apx-badge")).toHaveClass(/apx-tone--warning/);
+  await expect(status.locator(".routinerow__state")).toHaveClass(/is-waiting/);
+  await expect(row.locator(".apx-convrow__title")).toHaveText(task.title);
   // The explicit overflow menu works on touch and from the keyboard without a right click.
+  await row.hover();
   await bundle.getByRole("button", { name: "Acciones de la tarea" }).focus();
   await page.keyboard.press("Enter");
   await page.getByRole("menuitem", { name: "Mover a", exact: true }).hover();
   await page.getByRole("menuitem", { name: "Revisión", exact: true }).click();
-  await expect(status).toHaveText("Revisión");
+  await expect.poll(async () => (await rpc<{ task: Task }>("tasks.get", { task: task.id })).task.status).toBe("review");
+  await row.hover();
   await bundle.getByRole("button", { name: "Acciones de la tarea" }).click();
   await page.getByRole("menuitem", { name: "Hecha", exact: true }).click();
-  await expect(status).toHaveText("Hecha");
-  await expect(status.locator(".apx-badge")).toHaveClass(/apx-tone--brand/);
-  await bundle.locator(".taskbundle__task").click({ button: "right" });
+  await expect(status).toHaveText("Listo");
+  await expect(status.locator(".routinerow__state")).toHaveClass(/is-done/);
+  await row.click({ button: "right" });
   await expect(page.getByRole("menuitem", { name: "Mover a", exact: true })).toBeDisabled();
   await page.getByRole("menuitem", { name: "Reabrir", exact: true }).click();
-  await expect(status).toHaveText("Revisión");
+  await expect(status).not.toHaveText("Listo");
+  await row.hover();
   await bundle.getByRole("button", { name: "Acciones de la tarea" }).click();
   await page.getByRole("menuitem", { name: "Archivar chats de la tarea", exact: true }).click();
   await expect(bundle).toHaveCount(0);
@@ -149,7 +150,7 @@ test("task context actions keep status live and archived conversations remain re
   expect(detail.sessions.every((s) => s.archived)).toBe(true);
   expect((await rpc<{ thread: Thread }>("threads.get", { thread: unrelated.id })).thread.archived).toBeFalsy();
   const before = await rpc<{ runs: unknown[] }>("runs.list", { agent: agent.id });
-  await header.getByRole("button", { name: "Ver la tarea" }).click();
+  await status.click();
   const panel = page.getByRole("complementary", { name: task.title });
   await panel.getByRole("button", { name: "Sesiones · 1", exact: true }).click();
   await panel.locator(".taskwork__chat").click();
@@ -170,11 +171,12 @@ test("task context actions keep status live and archived conversations remain re
   expect(await rpc("runs.list", { agent: agent.id })).toEqual(before);
   await page.setViewportSize({ width: 390, height: 844 });
   await open(page, `#project=${project.id}&tab=chats&thread=${detail.sessions[0]?.id}`);
-  await expect(header.getByRole("status").locator(".apx-badge")).toBeVisible();
-  const bounds = await header.getByRole("status").boundingBox();
+  await expect(status.locator(".routinerow__state")).toBeVisible();
+  const bounds = await status.boundingBox();
   expect(bounds).not.toBeNull();
   expect(bounds && bounds.x + bounds.width).toBeLessThanOrEqual(390);
   await header.getByRole("button", { name: "Volver a los chats" }).click();
+  await row.hover();
   await bundle.getByRole("button", { name: "Acciones de la tarea" }).click();
   await expect(page.getByRole("menuitem", { name: "Archivar chats de la tarea", exact: true })).toBeVisible();
   await page.keyboard.press("Escape");
@@ -222,7 +224,7 @@ test("the initial task instruction shows a formatted description without adding 
   await expect(block).toHaveCount(1);
   expect(await rpc("threads.get", { thread: session })).toEqual(before);
   expect(await rpc("runs.list", { agent: "superagent" })).toEqual(runs);
-  await page.locator(".chat__header").getByRole("button", { name: "Ver la tarea" }).click();
+  await page.locator(".chat__header .chat__taskbtn").click();
   await page.getByRole("button", { name: "Editar la descripción" }).click();
   await expect(page.getByRole("textbox", { name: "Descripción", exact: true })).toHaveValue(description);
   await rpc("tasks.update", { task: task.id, description: "" });

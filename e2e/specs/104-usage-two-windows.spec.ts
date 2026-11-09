@@ -43,8 +43,8 @@ test("a plan with two limits shows the tightest one and lists both", async ({ pa
   await page.setViewportSize({ width: 390, height: 844 });
   await trigger.click();
   const summary = page.getByTestId("engine-usage-summary");
-  await expect(summary.getByText("Sesión (5 h)", { exact: true })).toBeVisible();
-  await expect(summary.getByText("Semanal", { exact: true })).toBeVisible();
+  await expect(summary.getByText(/Sesión \(5 h\)/)).toBeVisible();
+  await expect(summary.getByText(/Semanal/)).toBeVisible();
   await expect(summary.getByText(/Se reinicia en 2 h/)).toBeVisible();
   await expect(summary.getByText(/Se reinicia el/)).toBeVisible();
   await page.screenshot({ path: info.outputPath("phone-tap.png") });

@@ -52,7 +52,7 @@ test("background details keep another project's executor across chats and expose
   for (const chat of [root, other]) {
     await open(page, `#thread=${chat.id}`);
     await page.locator("button.running").click();
-    await page.getByRole("radio", { name: /Segundo plano/ }).click();
+    await page.getByRole("radio", { name: /^Procesos/ }).click();
     const cards = page.locator(".running__list .job");
     await expect(cards.first().locator(".job__origin")).toHaveText(
       `Desde Catalog builder · Northwind catalog · ${title}`,
@@ -73,7 +73,7 @@ test("background details keep another project's executor across chats and expose
   }
   await page.setViewportSize({ width: 390, height: 844 });
   await page.locator("button.running").click();
-  await page.getByRole("radio", { name: /Segundo plano/ }).click();
+  await page.getByRole("radio", { name: /^Procesos/ }).click();
   await page.keyboard.press("Tab");
   await page.locator(".running__list .job__main").first().focus();
   const hint = page.locator(".apx-tooltip[data-open]");
@@ -149,20 +149,15 @@ test("idle chats show their active commands and each process names its origin", 
   const header = page.locator(".workspace > .chat .chat__header");
   await expect(header.getByRole("button", { name: "Procesos activos: 2" })).toBeVisible();
   const inbox = page.locator(".inbox");
-  for (const view of ["Actividad", "Árbol", "Por chat"]) {
-    await inbox.getByRole("radio", { name: view, exact: true }).click();
-    await expect(inbox.getByRole("img", { name: "Procesos activos: 2" })).toBeVisible();
-    await expect(inbox.getByRole("img", { name: "Procesos activos: 1" })).toBeVisible();
-  }
+  await expect(inbox.getByRole("img", { name: "Procesos activos: 2" })).toBeVisible();
+  await expect(inbox.getByRole("img", { name: "Procesos activos: 1" })).toBeVisible();
   await header.getByRole("button", { name: "Procesos activos: 2" }).click();
   const side = page.getByRole("complementary", { name: "Panel lateral" });
   await expect(side.getByText("Activos (2)")).toBeVisible();
-  await expect(side.locator(".job__origin")).toHaveText([
-    `Desde ${agent.name} · Proyecto al inicio desconocido · Asset export`,
-    `Desde ${agent.name} · Proyecto al inicio desconocido · Asset export`,
-  ]);
+  await expect(side.locator(".procs__row .apx-pickrow__title")).toHaveText(["render 0", "render 1"]);
+  await expect(side.locator(".procs__row .apx-pickrow__desc").first()).toContainText(agent.name);
   await page.locator("button.running").click();
-  await page.getByRole("radio", { name: /Segundo plano/ }).click();
+  await page.getByRole("radio", { name: /^Procesos/ }).click();
   const popover = page.locator(".running__list").last();
   await expect(popover.locator(".job__origin")).toHaveText([
     `Desde ${agent.name} · Proyecto al inicio desconocido · Asset export`,

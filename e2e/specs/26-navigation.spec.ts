@@ -152,9 +152,11 @@ for (const platform of ["web", "mac", "win", "linux"])
       await expect(async () => {
         const geometry = await page.locator(".topbar").evaluate((bar) => {
           const search = bar.querySelector(".topbar__search")?.getBoundingClientRect();
+          // The history arrows lead the search box: the pair is what sits on the window's centre.
+          const group = bar.querySelector(".topbar__center")?.getBoundingClientRect();
           const controls = [...bar.querySelectorAll("button")].filter((button) => button.getClientRects().length);
           return {
-            center: search ? search.x + search.width / 2 : -1,
+            center: group ? group.x + group.width / 2 : -1,
             overlaps: controls
               .filter((button) => {
                 const b = button.getBoundingClientRect();
@@ -227,10 +229,13 @@ test("Canales: tres visibles, orden persistente y sin leer visibles también en 
 }) => {
   await page.setViewportSize({ width: 1480, height: 800 });
   await page.addInitScript(() => {
-    if (!localStorage.getItem("apx.prefs"))
+    // The fixture already stored the sidebar choice: seed the order once, before the owner changes it.
+    const prefs = JSON.parse(localStorage.getItem("apx.prefs") ?? "{}");
+    if (!prefs.channelOrder)
       localStorage.setItem(
         "apx.prefs",
         JSON.stringify({
+          ...prefs,
           channelOrder: ["telegram", "discord", "whatsapp", "slack", "email"],
           channelOrderAt: new Date().toISOString(),
         }),
