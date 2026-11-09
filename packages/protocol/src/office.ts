@@ -245,7 +245,7 @@ export const ActiveProfile = z.object({
 export type ActiveProfile = z.infer<typeof ActiveProfile>;
 
 /** What a notice in the attention tray is about. */
-export const NotificationKind = z.enum(["input", "task", "due", "routine", "channel", "agent", "run"]);
+export const NotificationKind = z.enum(["input", "task", "due", "routine", "channel", "agent", "run", "memory"]);
 export type NotificationKind = z.infer<typeof NotificationKind>;
 
 /**

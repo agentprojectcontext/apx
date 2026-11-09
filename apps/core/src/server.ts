@@ -43,6 +43,7 @@ import { openDb, storeSize } from "./db/db.ts";
 import { type DesktopOps, systemDesktop } from "./desktop.ts";
 import { signatureFor } from "./domain/email-signature-settings.ts";
 import { cleanUpCapturedNotes } from "./domain/memory-capture-cleanup.ts";
+import { tellWaitingNotes } from "./domain/memory-notice.ts";
 import { parseRef } from "./domain/refs.ts";
 import { TERMINAL } from "./domain/runs.ts";
 import { seed } from "./domain/seed.ts";
@@ -847,6 +848,7 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
   if (cleanup) log.info(cleanup, "captured memory cleanup: retired noisy automatic notes");
   const v1Marked = markV1Notes(store, config.v1.home);
   if (v1Marked?.marked) log.info(v1Marked, "memory: marked the notes brought over from APX v1");
+  tellWaitingNotes(store);
   memoryMaintenance.start();
 
   const transport = await listen(config, { dispatch, store, log, identity, broker, bus, vm });

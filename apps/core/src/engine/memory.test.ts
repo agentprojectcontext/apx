@@ -193,7 +193,11 @@ test("what an agent learns about the owner waits for the owner, with the run it 
     return lastInput();
   };
   assert.doesNotMatch(await fresh(), /green tea/, "an unconfirmed note does not stand in every turn");
+  const told = () => env.core.store.notifications.list({ unreadOnly: true, limit: 50 }).filter((n) => n.kind === "memory");
+  assert.equal(told().length, 1, "the tray tells the owner a note about them waits");
+  assert.match(told()[0]?.body ?? "", /green tea/);
   await env.client.call("memory.confirm", { id: note.id });
+  assert.equal(told().length, 0, "nothing waits any more: the notice goes");
   assert.equal(env.core.store.memories.get(note.id)?.pending, false);
   assert.match(await fresh(), /green tea/, "confirmed, it stands like the owner's own");
 });
