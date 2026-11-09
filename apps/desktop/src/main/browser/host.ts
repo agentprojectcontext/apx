@@ -166,7 +166,8 @@ export class BrowserHost extends EventEmitter<{ changed: [] }> {
       case "browser.type": {
         const p = browserMethods["browser.type"].params.parse(raw);
         const tab = this.#drive(p.tab, p.by);
-        const dialog = await tab.cdp.type(p.ref, p.text, p.submit);
+        // The node itself checks the page is one this computer serves, at the moment it types (DECISIONS.md#d-212).
+        const dialog = await tab.cdp.type(p.ref, p.text, p.submit, p.local_only ? blockedPorts : undefined);
         if (p.submit && !dialog) await this.#settle(tab);
         return { ok: true, url: tab.wc.getURL(), ...(dialog ? { dialog } : {}) };
       }

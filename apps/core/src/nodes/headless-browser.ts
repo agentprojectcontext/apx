@@ -558,7 +558,8 @@ export function createHeadlessBrowser(deps: {
       case "browser.type": {
         const p = browserMethods["browser.type"].params.parse(raw);
         const t = drive(p.tab, p.by);
-        const dialog = await t.page.type(p.ref, p.text, p.submit);
+        // Checked here, at the moment it types, from the page itself (DECISIONS.md#d-212).
+        const dialog = await t.page.type(p.ref, p.text, p.submit, p.local_only ? deps.blockedPorts() : undefined);
         if (p.submit && !dialog) await settle(t, 2000);
         else await refresh(t);
         return { ok: true, url: t.url, ...(dialog ? { dialog } : {}) };

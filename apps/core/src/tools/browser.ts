@@ -2,6 +2,7 @@
 // Every call goes through the router (browser.* methods), the same door the panel uses.
 import { setTimeout } from "node:timers/promises";
 import { BROWSER_CAP, BROWSER_REF, type BrowserDialog, chromeTabId, type TabInfo } from "@apx/protocol";
+import { servedHere } from "@apx/protocol/cdp";
 import { z } from "zod";
 import type { AgentRecord } from "../domain/agents.ts";
 import type { Store } from "../domain/store.ts";
@@ -44,6 +45,8 @@ const opened = (dialog: BrowserDialog | undefined) =>
 export function browserTools(
   store: Store,
   home: string,
+  /** APX's own ports: typing there acts as the owner, so it never runs unasked. */
+  appPorts: () => ReadonlySet<string>,
   vm?: { hasThread(id: string): boolean },
   signIn?: SignIn,
 ): Tool[] {
@@ -224,8 +227,14 @@ export function browserTools(
         submit: z.boolean().optional().describe("press Enter after"),
       }),
       effect: "external",
-      // Typing hands data to a site: after reading a page that may be steering the agent, the owner decides.
+      // After reading a page that may steer the agent, the owner decides, unless the page is served by this computer
+      // and APX's browser checks that as it types (DECISIONS.md#d-212).
       confirm: "untrusted",
+      onThisComputer: async (a, ctx) => {
+        if (chromeTabId(a.tab) !== undefined) return false;
+        const url = (await ctx.call("browser.tabs", {})).tabs.find((t) => t.tab === a.tab)?.url;
+        return url !== undefined && servedHere(url, appPorts());
+      },
       deadlineMs: 30_000,
       title: (a) => `Typed into ${a.ref}`,
       async run(a, ctx) {
@@ -236,6 +245,7 @@ export function browserTools(
           text: a.text,
           submit: a.submit ?? false,
           by: ctx.agent.id,
+          ...(ctx.onThisComputer ? { local_only: true } : {}),
         });
         if (r.dialog)
           return `typed into ${a.ref}${a.submit ? " and pressed Enter" : ""} · ${r.url}.${opened(r.dialog)}`;

@@ -189,6 +189,13 @@ export function browserHandlers(
           vm.browser(run.id).handle(method, bound),
         )) as never;
       }
+      // Typing unasked on a local page needs APX's browser, which checks the page itself (DECISIONS.md#d-212).
+      if (
+        method === "browser.type" &&
+        (params as { local_only?: unknown }).local_only === true &&
+        (chromeTurn(ctx) || forChrome(method, params))
+      )
+        throw conflict("this tab is in the owner's Chrome: typing there waits for the owner; try again");
       // The owner's own tabs: nothing is held or bound here, their Chrome closes nothing for being idle.
       if (chromeTurn(ctx)) return (await inOwnersChrome(method, params)) as never;
       if (forChrome(method, params)) {

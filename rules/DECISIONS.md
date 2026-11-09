@@ -4397,3 +4397,46 @@ notebook. Amends D-013, D-111 and D-112:
 - **Waiting notes are told.** One `memory` notice stays in the tray while any note about the owner waits, and
   "Confirm all" confirms the listed ones. The outside-content marker still governs how agents read a note but is not
   shown: it marked almost every agent note and offered no action (rule 31).
+
+<a id="d-212"></a>
+## D-212 — 2026-11-09 — In Auto, typing on a page this computer serves does not wait for the owner
+Amends D-106 for `browser_type`. Its level is `untrusted`, so in Auto, once a page was read in the turn, every typing
+call waited for the owner. Most such asks came from the visual check APX tells agents to do on their own app
+(`VISUAL_CHECK`): an agent filling a form of its Laravel app at `127.0.0.1:8127` asked three times in a row, its
+reviewer twice more, and the owner found them pointless. The asks guard against a page steering the agent into handing
+data to someone else's site. A page this computer serves is reached by a command just as well (`curl` to the same
+port), and in Auto the agent runs commands in its folder without asking, whatever the turn read; `urlConfirm`
+(D-057, D-121) already treats loopback hosts that way.
+
+- **Only in Auto**: where a command runs unasked. Accept edits asks before a command that changes something, so typing
+  there still asks; Manual, Plan and an agent's own rule apply as for any call; Total never asked.
+- **What counts**: an `http(s)` address on `localhost`, `*.localhost`, `127.x.x.x` or `[::1]` (`servedHere` in
+  `@apx/protocol/cdp`, the host test `urlConfirm` also uses), not on one of APX's own ports, where typing would act as
+  the owner: the core's, the panel dev server's and any extra allowed origin on loopback (`appPorts`), which the core's
+  headless browser now also refuses to load, as the desktop does. `0.0.0.0`, LAN addresses and `.local` names do not
+  count.
+- **Decided from the browser, now**: before the card, the executor asks the tool (`Tool.onThisComputer`), which reads
+  the tab's address from the browser that holds it (`browser.tabs`, answered by the node), within 5 seconds or the card
+  shows as before. When it is served here the call's level is `never`.
+- **Checked by the browser as it types**: the call carries `local_only`, and the node (the desktop's tabs, the core's
+  headless Chrome, the isolated computer's browser, all through `CdpPage.type`) reads the frame tree and the document
+  from CDP, not from page JavaScript: before focusing the field, the tab's address and the origin of the frame holding
+  the field must both be served here; right before the text goes in, both again, and the field must still hold the
+  focus (read from an isolated world, up through shadow hosts and the frames it can see). Otherwise it refuses with
+  `conflict` and nothing is typed. A page that redirected since the core looked gets nothing, and the agent's next call
+  sees the new address and waits for the owner. A field in a frame from another site points to `browser_handoff`. A
+  page's `prompt()` box (typed through `dialog-text`) has no field: its answer goes only when the frame that opened it,
+  as the browser's dialog event reports it, is served here.
+- **Not in the owner's Chrome**: its extension does not check the page, so the tool never exempts a Chrome tab and the
+  router refuses a `local_only` call routed there.
+- **Unchanged**: password, one-time code and card fields are refused as before (D-193 is the only way to fill one);
+  clicks were never gated; `browser_evaluate` keeps its own card (D-165).
+
+Known limits: any loopback service counts, not only the agent's own app: a web terminal or notebook on localhost, or a
+port forwarded elsewhere (an SSH tunnel). In Auto a command reaches them as well, so this adds no new reach, but tying
+the exemption to ports the agent's own commands listen on would be narrower. A frame whose parent is another local
+origin cannot see that parent's focus. The last check narrows, but cannot close, the instant before the text goes in.
+
+Rejected: trusting the core's cached tab address (a redirect makes it stale); exempting a page on the agent's word (a
+model-set argument); asking the node for a verdict without binding the typing to it (the page can move between the two
+calls); the exemption in Accept edits, where it would reach what a command there may not.

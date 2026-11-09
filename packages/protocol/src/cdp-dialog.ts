@@ -15,7 +15,7 @@ export const isDialogRef = (ref: string): boolean => ref === OK || ref === CANCE
 export class PageDialog {
   readonly #send: CdpSend;
   readonly #answered: () => void;
-  #open: { type: BrowserDialog; message: string; defaultPrompt: string } | undefined;
+  #open: { type: BrowserDialog; message: string; defaultPrompt: string; url: string } | undefined;
   #text: string | undefined;
   #waiters = new Set<() => void>();
 
@@ -29,12 +29,18 @@ export class PageDialog {
     return this.#open?.type;
   }
 
+  /** The address of the frame that opened the dialog open now, as the browser reported it. */
+  get url(): string {
+    return this.#open?.url ?? "";
+  }
+
   /** The page's CDP events; only the dialog ones matter here. */
   onEvent(method: string, params: unknown): void {
     if (method === "Page.javascriptDialogOpening") {
-      const p = (params ?? {}) as { type?: string; message?: unknown; defaultPrompt?: unknown };
+      const p = (params ?? {}) as { type?: string; message?: unknown; defaultPrompt?: unknown; url?: unknown };
       const type = (["alert", "confirm", "prompt", "beforeunload"] as const).find((t) => t === p.type) ?? "alert";
-      this.#open = { type, message: String(p.message ?? ""), defaultPrompt: String(p.defaultPrompt ?? "") };
+      const url = String(p.url ?? "");
+      this.#open = { type, message: String(p.message ?? ""), defaultPrompt: String(p.defaultPrompt ?? ""), url };
       this.#text = undefined;
       for (const wake of this.#waiters) wake();
       this.#waiters.clear();

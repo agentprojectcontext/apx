@@ -85,8 +85,8 @@ export class CdpTab {
     this.#page.assertNoDialog();
   }
 
-  type(ref: string, text: string, submit: boolean) {
-    return this.#page.type(ref, text, submit);
+  type(ref: string, text: string, submit: boolean, localOnly?: ReadonlySet<string>) {
+    return this.#page.type(ref, text, submit, localOnly);
   }
 
   fillSecret(ref: string, req: Pick<BrowserFillSecret, "kind" | "origins" | "value">) {

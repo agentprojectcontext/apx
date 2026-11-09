@@ -6,6 +6,7 @@ import type { AddressInfo } from "node:net";
 import os from "node:os";
 import path from "node:path";
 import { BROWSER_CAP } from "@apx/protocol";
+import { loopbackHost } from "@apx/protocol/cdp";
 import type { Bus } from "./bus.ts";
 import type { CoreConfig } from "./config.ts";
 import { nativeApproval } from "./domain/approvals.ts";
@@ -160,6 +161,16 @@ export function extensionStack(d: { store: Store; secrets: Secrets; bus: Bus; lo
   return { hooks, plugins, extensions };
 }
 
+/** APX's own core and panel ports on this computer: a tab never loads them nor types there unasked (DECISIONS.md#d-212). */
+export function appPorts(port: number, extra: readonly string[] = []): Set<string> {
+  const ports = new Set([String(port)]);
+  for (const origin of originsFor(`http://127.0.0.1:${port}`, extra)) {
+    const u = URL.parse(origin);
+    if (u && loopbackHost(u.hostname)) ports.add(u.port || (u.protocol === "https:" ? "443" : "80"));
+  }
+  return ports;
+}
+
 /** Every built-in tool, plus the ones a test adds. `port` is read late: tests listen on 0. */
 export function builtinTools(
   store: Store,
@@ -178,7 +189,7 @@ export function builtinTools(
     ...agentSetTools(store),
     ...chatTools(store),
     ...externalSessionTools(store),
-    ...browserTools(store, home, vm, signIn),
+    ...browserTools(store, home, () => appPorts(port()), vm, signIn),
     ...surfaceTools(store, home),
     ...ownerTools(store),
     ...connectionTools(),
