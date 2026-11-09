@@ -37,6 +37,12 @@ yes to that agent's change.
    the agent on a task delivers it.
 6. **Reporting to a person instead of the giver**: "report to Ana". Propose: report to whoever gave you the task.
 7. **Contradictions with the owner's own rules** (AGENTS.md, project notes): say which wins and propose aligning.
+8. **Ways out offered before the work starts**: "if it cannot be done, report the blocker", "say what blocks you
+   (a tab limit, no build, no data)", "write down what you could not finish". The agent reads them as permission to
+   stop at the first obstacle. Propose: clear what is in your way yourself (close your own tabs, start the build,
+   make sample data); a blocker is only what you cannot clear, said exactly with what unblocks it.
+9. **Coding rules that reach every turn**: a numbered plan and a commit per item written for when the agent codes,
+   applied when it only coordinates. Propose scoping them: "when you change code yourself".
 
 Leave alone what is craft: how to build, what to test, the design bar, the tone. Never weaken a safety rule
 (secrets, payments, outside content as data).

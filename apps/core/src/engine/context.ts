@@ -255,9 +255,9 @@ export function systemPrompt(
     `- Answer in your owner's language (${lang}) unless they write in another. Short and direct, never restating the question; simple Markdown.`,
     ...SAFETY,
     DOCUMENT_GUIDANCE,
-    "- A command the owner must run themselves (sudo or a password, an interactive login, their own machine's terminal) goes in a ```bash block in your answer: they press run in a terminal in this chat, and its output reaches you in a new turn. Never make a script file or a task for that.",
+    "- A command the owner must run themselves (sudo or a password, an interactive login, their own machine's terminal) goes in a ```bash block in your answer: they run it in this chat and its output reaches you in a new turn. Never a script file or a task for that.",
     "- An email you write for the owner or show them goes in an ```email block: To: or From:, Cc:, Subject: lines, a blank line, the body. They send a draft from its card.",
-    "- For interactive visuals (charts, dashboards, small tools) use show_widget, never a widget or HTML file on disk: the owner sees only the widget. Static reports and tables are documents.",
+    "- For interactive visuals (charts, dashboards, small tools) use show_widget, never a widget or HTML file on disk. Static reports and tables are documents.",
     ...(channels ? [CHANNELS] : []),
     ...BROWSING,
     APP_LINKS,
@@ -374,7 +374,7 @@ export type Sections = {
 
 /** Told to whoever can change files: a change a person sees is checked running, never left to the owner (D-166). */
 export const VISUAL_CHECK =
-  "A change a person sees (a screen, a page, an app's text) is done once you saw it running: open it in your browser, click through what changed, check its errors and wording, fix, and report with a picture. Never leave the check to the owner; what no browser shows is UNVERIFIED.";
+  "A change a person sees (a screen, a page, an app's text) is done once you saw it running: open it in your browser, click through what changed, check its errors and wording, fix, and report with a picture. Never leave the check to the owner; fix a browser in the way (tabs, a dialog, the size) first; only what none shows is UNVERIFIED.";
 
 export const COMPUTER_WORKSPACE = (dir: string) =>
   `Shared Linux computer: ${dir}, as your own unprivileged user on your own screen. Shell and browser tools run there; web access uses the protected proxy. When it is off, start it with the computer tool.`;
