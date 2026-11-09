@@ -577,6 +577,7 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
         emailAdapter(c, password, {
           dir: path.join(config.home, "channels", c.id),
           signature: () => signatureFor(store, "smtp", c.id, c.email?.address),
+          owner: (address) => store.persons.byAddress(c.id, address)?.role === "owner",
         }),
       whatsapp: (c) =>
         whatsappAdapter({ dir: path.join(config.home, "channels", c.id), selfOwner: c.self_owner === true, log }),

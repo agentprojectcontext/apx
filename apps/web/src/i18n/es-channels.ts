@@ -18,6 +18,7 @@ export const esChannels: Partial<Record<MessageKey, string>> = {
   "ch.strangers.answer": "Contestar",
   "ch.strangersHint.pair": "Recibe un código que aprobás acá o desde tu aviso. Hasta entonces nadie le contesta.",
   "ch.strangersHint.list": "Queda anotado acá para que lo apruebes; desde tu número no se le manda nada.",
+  "ch.strangersHint.listMail": "Queda anotado acá para que lo apruebes; no se le manda ningún correo.",
   "ch.strangersHint.ask":
     "Te llega un aviso con quién escribió y qué dijo. Si decís que sí (con su botón o diciéndoselo a tu agente), se le contesta ese mensaje.",
   "ch.strangersHint.answer":
@@ -223,11 +224,15 @@ export const esChannels: Partial<Record<MessageKey, string>> = {
   "em.edit": "Cambiar servidores",
   "em.allowed": "Quién puede escribir",
   "em.allowedHint":
-    "Solo se lee el correo de estas direcciones (o @dominio). Vacío: cualquiera, y los desconocidos reciben un código.",
+    "Solo se lee el correo de estas direcciones (o @dominio). Vacío: cualquiera; qué pasa con quien no conocés lo elegís en Aprobaciones.",
+  "em.mine": "Tus direcciones",
+  "em.mineHint":
+    "El correo que mandes desde estas direcciones es tuyo, cuando tu servidor de correo verificó que fuiste vos. Agregá cada dirección desde la que escribís.",
+  "em.minePlaceholder": "vos@example.org",
   "em.allowedPlaceholder": "ana@example.org, @acme.com",
   "em.unverified": "Leer correo sin verificar",
   "em.unverifiedHint":
-    "El correo que su servidor no pudo verificar (DKIM, SPF o DMARC) se descarta, porque cualquiera puede poner tu dirección como remitente. Activalo solo si tu servidor de correo no verifica remitentes.",
+    "El correo que su servidor no pudo verificar (DKIM, SPF o DMARC) se descarta, porque cualquiera puede poner tu dirección como remitente. Activalo solo si tu servidor de correo no verifica remitentes. El correo de tus propias direcciones siempre tiene que estar verificado.",
   "em.passwordStored": "Guardada de forma segura; nunca vuelve a esta pantalla.",
   "em.passwordChange": "Cambiar contraseña",
   "em.passwordFix": "Escribí la contraseña de nuevo para conectarla.",

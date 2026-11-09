@@ -61,7 +61,7 @@ export function IMessageAccount(pane: PaneProps) {
     <>
       <ConnectionCard {...pane} />
       <Tools />
-      <OwnerLink channelId={pane.channel.id} name="iMessage" />
+      <OwnerLink channelId={pane.channel.id} type={pane.channel.type} name="iMessage" />
     </>
   );
 }

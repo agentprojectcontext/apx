@@ -332,7 +332,7 @@ export function EmailAccount(pane: PaneProps) {
           {editing && <EditServers email={email} set={set} done={() => setEditing(false)} />}
         </>
       )}
-      <OwnerLink channelId={channel.id} name="Email" />
+      <OwnerLink channelId={channel.id} type={channel.type} name="Email" />
       {channel.email && (
         <EmailSignatures
           target={{ transport: "smtp", account: channel.id, sender: channel.email.address, label: channel.label }}

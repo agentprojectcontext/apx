@@ -1,6 +1,7 @@
 // apx_settings, the people the owner talks to and how: contacts, channels and their stickers, the owner's own profile
 // and when they are notified. A channel's sign-in and what its sealed chats may do stay the owner's (DECISIONS.md#d-138).
 import { CHANNEL_DEFAULTS, type ChannelHours, type Person } from "@apx/protocol";
+import { kindFixed } from "../channels/accounts.ts";
 import { autoApproves } from "../channels/stickers.ts";
 import { noticePrefs } from "../domain/notices.ts";
 import { ownerIdentity, ownerTimeZone } from "../domain/owner.ts";
@@ -50,7 +51,7 @@ const contactAsks = (p: Params, { store }: { store: Store }) => {
   return ownersOwn(p, store) || (p.role === "owner" && cur?.role !== "owner") ? "card" : "untrusted";
 };
 
-const channelsOf = (store: Store) => store.settings.read("channels");
+const channelsOf = (store: Store) => store.settings.read("channels").map(kindFixed);
 type Channel = ReturnType<typeof channelsOf>[number];
 const channelOf = (store: Store, id: unknown) => channelsOf(store).find((c) => c.id === id);
 /** A channel's settings without its id, as channels.set takes them. */
@@ -202,7 +203,7 @@ export const PEOPLE: Readonly<Record<string, Setting>> = {
         .join("\n") || "no channels set up.",
   },
   "channels.set": {
-    does: "change a channel already set up (id, and under channel only what changes: label, owner_thread home|own (home only when the super-agent answers it), agent_id (who answers the owner), contacts_agent_id (who answers its contacts and rooms), strangers, rooms, hours when it answers contacts {days 0 = Sunday, from, to HH:MM in the owner's time zone} or null for any hour, contacts {appointments, requests, notes, any_hour} what every contact may do unless set for one, knowledge and rules the owner's notes and rules for everyone on it, owner_only true answers only the owner, limits {per_contact_hour, per_account_hour 0 = no cap}…); its sign-in, mail account and research stay the owner's",
+    does: "change a channel already set up (id, and under channel only what changes: label, owner_thread home|own (home only when the super-agent answers it; email is always own), agent_id (who answers the owner), contacts_agent_id (who answers its contacts and rooms), strangers, rooms, hours when it answers contacts {days 0 = Sunday, from, to HH:MM in the owner's time zone} or null for any hour, contacts {appointments, requests, notes, any_hour} what every contact may do unless set for one, knowledge and rules the owner's notes and rules for everyone on it, owner_only true answers only the owner, limits {per_contact_hour, per_account_hour 0 = no cap}…); its sign-in, mail account and research stay the owner's",
     asks: "card",
     says: (p, { store }) => `Change the channel ${inlineName(channelOf(store, p.id)?.label ?? str(p.id))}`,
     refuse: (p, { store }) => {

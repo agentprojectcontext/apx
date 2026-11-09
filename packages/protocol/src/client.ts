@@ -15,6 +15,7 @@ export {
   CHANNEL_DEFAULTS,
   CHECK_EVERY,
   CHROME_VIA,
+  channelKindRules,
   DAILY_MEMORY_CALLS,
   DOCUMENT_MAX_BYTES,
   ErrorCode,

@@ -1,9 +1,10 @@
 // What every account's settings share: the card of its connection, and linking the owner's own chat on it.
 import type { ChannelInfo } from "@apx/protocol";
-import { Badge, Button, Input, SettingRow, Switch } from "@apx/ui";
-import { type ReactNode, useState } from "react";
+import { channelKindRules } from "@apx/protocol/client";
+import { Badge, Button, Input, SettingRow, Switch, TagInput } from "@apx/ui";
+import { type ReactNode, useMemo, useState } from "react";
 import { SubHead } from "../../config/SectionHead.tsx";
-import { respondPairing, useChannels } from "../../data/channels.ts";
+import { addOwnerAddress, respondPairing, unlinkAddress, useChannels } from "../../data/channels.ts";
 import { useT } from "../../i18n/index.ts";
 import { KindTile } from "../KindIcon.tsx";
 import { isChannelKind } from "../kinds.ts";
@@ -56,8 +57,19 @@ export function ConnectionCard({
   );
 }
 
-/** Until the owner's own chat is linked, the code the account sent them links it (so it is theirs, not a stranger's). */
-export function OwnerLink({ channelId, name }: { channelId: string; name: string }) {
+/**
+ * The owner's own address on the account. A chat app links it with the code the account sent them (so it is theirs,
+ * not a stranger's), until it is linked; a mailbox takes the addresses the owner types (see OwnerAddresses).
+ */
+export function OwnerLink({ channelId, type, name }: { channelId: string; type: ChannelInfo["type"]; name: string }) {
+  return channelKindRules(type).ownerLink === "address" ? (
+    <OwnerAddresses channelId={channelId} />
+  ) : (
+    <OwnerCode channelId={channelId} name={name} />
+  );
+}
+
+function OwnerCode({ channelId, name }: { channelId: string; name: string }) {
   const t = useT();
   const linked = useChannels((s) => ownerOn(s.persons, channelId));
   const [code, setCode] = useState("");
@@ -82,6 +94,33 @@ export function OwnerLink({ channelId, name }: { channelId: string; name: string
             {t("tg.link")}
           </Button>
         </div>
+      </SettingRow>
+    </>
+  );
+}
+
+/** The owner's own mail addresses: mail from them is the owner's once their server verified it. Always shown. */
+function OwnerAddresses({ channelId }: { channelId: string }) {
+  const t = useT();
+  const owner = useChannels((s) => s.persons.find((p) => p.role === "owner"));
+  const mine = useMemo(() => owner?.addresses.filter((a) => a.channel === channelId) ?? [], [owner, channelId]);
+  const shown = mine.map((a) => a.external_id);
+  const change = (next: string[]) => {
+    for (const a of mine) if (!next.includes(a.external_id)) void unlinkAddress(a.id);
+    for (const typed of next) if (!shown.includes(typed)) void addOwnerAddress(channelId, typed);
+  };
+  return (
+    <>
+      <SubHead>{t("tg.yourAccount")}</SubHead>
+      <SettingRow title={t("em.mine")} description={t("em.mineHint")}>
+        <TagInput
+          label={t("em.mine")}
+          className="emailallowed"
+          max={10}
+          placeholder={t("em.minePlaceholder")}
+          value={shown}
+          onValueChange={change}
+        />
       </SettingRow>
     </>
   );
