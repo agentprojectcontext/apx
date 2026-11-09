@@ -406,6 +406,10 @@ export const esChannels: Partial<Record<MessageKey, string>> = {
   "acct.contactsDefaultHint": "Lo que recibe cada contacto de esta cuenta, salvo que lo cambies en su ficha.",
   "acct.ownerOnly": "Solo te contesta a vos",
   "acct.ownerOnlyHint": "Los mensajes de tus contactos y salas se guardan, pero solo te responde a vos.",
+  "acct.limits": "Límites",
+  "acct.limitsHint": "Cuántos mensajes contesta solo por hora. Pasado eso, esperan por vos y te avisa una vez.",
+  "acct.perContact": "Respuestas por hora a un contacto",
+  "acct.perAccount": "Respuestas por hora en total (0: sin límite)",
   "acct.knowledge": "Lo que sabe y puede responder",
   "acct.knowledgeHint":
     "Tus notas para todos los que escriben a esta cuenta: qué es el negocio, adónde mandarlos. Las salas suman las suyas.",

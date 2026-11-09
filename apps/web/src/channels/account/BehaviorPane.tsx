@@ -5,6 +5,7 @@ import { WeekDays } from "../../common/pickers/WeekDays.tsx";
 import type { ChannelDraft } from "../../data/channels.ts";
 import { useOwnerTimeZone } from "../../data/owner.ts";
 import { useT } from "../../i18n/index.ts";
+import { Limit } from "./parts.tsx";
 import type { PaneProps } from "./types.ts";
 
 /** Hours a channel starts with when the owner turns them on: every day, a working day's span. */
@@ -14,6 +15,7 @@ const FIRST_HOURS: ChannelHours = { days: [1, 2, 3, 4, 5, 6, 0], from: "08:00", 
 export function BehaviorPane({ draft, set }: Pick<PaneProps, "draft" | "set">) {
   const t = useT();
   const research = draft.research ?? CHANNEL_DEFAULTS.research;
+  const limits = draft.limits ?? CHANNEL_DEFAULTS.limits;
   return (
     <>
       <SettingRow title={t("tg.concurrency")} description={t(`ch.concurrencyHint.${draft.concurrency}`)}>
@@ -50,6 +52,23 @@ export function BehaviorPane({ draft, set }: Pick<PaneProps, "draft" | "set">) {
           onCheckedChange={(on) => set({ owner_only: on })}
           aria-label={t("acct.ownerOnly")}
         />
+      </SettingRow>
+      <SettingRow title={t("acct.limits")} description={t("acct.limitsHint")}>
+        <span className="rooms__limits">
+          <Limit
+            label={t("acct.perContact")}
+            value={limits.per_contact_hour}
+            min={1}
+            max={600}
+            onSave={(v) => set({ limits: { ...limits, per_contact_hour: v } })}
+          />
+          <Limit
+            label={t("acct.perAccount")}
+            value={limits.per_account_hour}
+            max={5000}
+            onSave={(v) => set({ limits: { ...limits, per_account_hour: v } })}
+          />
+        </span>
       </SettingRow>
       <div className="pform__field">
         <span className="pform__label">{t("acct.knowledge")}</span>

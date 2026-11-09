@@ -388,6 +388,11 @@ export const enChannels = {
   "acct.contactsDefaultHint": "What every contact of this account gets unless you set it on their card.",
   "acct.ownerOnly": "Only answers you",
   "acct.ownerOnlyHint": "Your contacts' and rooms' messages are kept, but only you get answers.",
+  "acct.limits": "Limits",
+  "acct.limitsHint":
+    "How many messages it answers on its own each hour. Past that, they wait for you and you hear it once.",
+  "acct.perContact": "Answers per hour to one contact",
+  "acct.perAccount": "Answers per hour in all (0: no limit)",
   "acct.knowledge": "What it knows and can answer",
   "acct.knowledgeHint":
     "Your notes for everyone who writes to this account: what the business is, where to point them. Rooms add their own.",

@@ -15,6 +15,7 @@ import {
   ChannelEmail,
   ChannelHours,
   ChannelInfo,
+  ChannelLimits,
   ChannelResearch,
   ChannelRooms,
   ChannelStrangers,
@@ -1125,6 +1126,7 @@ export const appMethods = {
             knowledge: z.string().max(12_000).optional(),
             rules: z.string().max(2000).optional(),
             owner_only: z.boolean().optional(),
+            limits: ChannelLimits.optional(),
           })
           .nullable(),
         // A Google service account key travels whole (about 2.3 KB).

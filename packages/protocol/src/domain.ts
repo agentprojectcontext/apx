@@ -1099,6 +1099,16 @@ export const ChannelRooms = z.object({
 });
 export type ChannelRooms = z.infer<typeof ChannelRooms>;
 
+/**
+ * How many automatic answers an account gives its contacts in an hour: each one, and all of them together (0: no cap
+ * for the account). Past either, messages are kept unanswered and the owner hears it once. Rooms keep their own limits.
+ */
+export const ChannelLimits = z.object({
+  per_contact_hour: z.number().int().min(1).max(600).default(20),
+  per_account_hour: z.number().int().min(0).max(5000).default(0),
+});
+export type ChannelLimits = z.infer<typeof ChannelLimits>;
+
 /** How a mail server is reached: TLS from the start (993, 465), STARTTLS (143, 587), or plain (this machine only). */
 export const MailServer = z.object({
   host: z
@@ -1195,6 +1205,8 @@ export const ChannelInfo = z.object({
   rules: z.string().max(2000).optional(),
   /** Only the owner is answered: contacts' and rooms' messages are kept, never answered. */
   owner_only: z.boolean().optional(),
+  /** Automatic answers to its contacts per hour (none set: 20 each, no cap for the account). */
+  limits: ChannelLimits.optional(),
   /** Email: the mailbox and its servers. */
   email: ChannelEmail.optional(),
   token_set: z.boolean(),
