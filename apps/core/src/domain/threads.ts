@@ -509,13 +509,22 @@ export function threadsRepo({ one, all, run }: Sql, bus: Bus, endSession: (threa
      * A channel's chats still answered by `from` go to `to` and its project: the owner's own chats (`owners`) or those of
      * its contacts and rooms. A chat handed to another agent keeps it; past messages keep their authors.
      */
-    moveAnswerer(o: { channel: string; owner: string; owners: boolean; from: string; to: string; project?: string }) {
+    moveAnswerer(o: {
+      channel: string;
+      owner: string;
+      owners: boolean;
+      from: string;
+      to: string;
+      /** The project of `to`; a chat takes it only while it is in `fromProject` (the owner may have moved it). */
+      project?: string | undefined;
+      fromProject?: string | undefined;
+    }) {
       for (const r of all(qb.selectFrom("threads").selectAll().where("channel", "=", o.channel))) {
         const t = toThread(r);
         if ((t.channel?.person_id === o.owner) !== o.owners || t.agent_ids[0] !== o.from) continue;
         repo.write(t.id, {
           agent_ids: JSON.stringify([o.to, ...t.agent_ids.filter((a) => a !== o.from && a !== o.to)]),
-          project_id: o.project ?? null,
+          ...(t.project_id === o.fromProject ? { project_id: o.project ?? null } : {}),
         });
       }
     },

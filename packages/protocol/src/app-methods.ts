@@ -1110,9 +1110,9 @@ export const appMethods = {
             enabled: z.boolean().default(true),
             agent_id: Id,
             contacts_agent_id: Id.optional(),
-            strangers: ChannelStrangers.default("pair"),
-            concurrency: z.enum(["queue", "interrupt", "steer"]).default("steer"),
-            owner_thread: z.enum(["home", "own"]).default("home"),
+            strangers: ChannelStrangers.default(CHANNEL_DEFAULTS.strangers),
+            concurrency: z.enum(["queue", "interrupt", "steer"]).default(CHANNEL_DEFAULTS.concurrency),
+            owner_thread: z.enum(["home", "own"]).default(CHANNEL_DEFAULTS.owner_thread),
             self_owner: z.boolean().optional(),
             rooms: ChannelRooms.optional(),
             reactions: z.boolean().optional(),
@@ -1184,7 +1184,13 @@ export const appMethods = {
   },
   /** What channels sent lately and how each delivery went (sent, uncertain, failed). */
   "channels.outbox": {
-    params: z.object({ limit: z.number().int().min(1).max(200).default(50) }).strict(),
+    params: z
+      .object({
+        limit: z.number().int().min(1).max(200).default(50),
+        /** Only what this account sent (its id). */
+        channel: z.string().min(1).max(64).optional(),
+      })
+      .strict(),
     result: z.object({ items: z.array(OutboxItem) }),
     effect: false,
     access: "human",

@@ -493,3 +493,30 @@ test("an import that outlives its deadline stops and says so; importing again fi
   const done = await applyImport({ ...deps, setChannel: async () => {} }, crafted);
   assert.equal(byId(done, "channels", "tg_late")?.action, "add");
 });
+
+test("a channel's contacts agent is this install's: the other super-agent is mapped, a missing one is skipped", async () => {
+  const file = await exported();
+  const tg = file.channels.find((ch) => ch.id === "tg");
+  const own = file.agents.find((a) => a.kind === "secretary");
+  assert.ok(tg && own);
+  const crafted: InstanceFile = {
+    ...file,
+    // The file's super-agent has another id than this install's.
+    agents: file.agents.map((a) => (a.kind === "secretary" ? { ...a, id: "sec_elsewhere" } : a)),
+    channels: [
+      { ...tg, id: "tg_mapped", label: "Mapped bot", agent_id: "sec_elsewhere", contacts_agent_id: "sec_elsewhere" },
+      { ...tg, id: "tg_orphan", label: "Orphan bot", agent_id: "sec_elsewhere", contacts_agent_id: "nobody" },
+    ],
+  };
+  const preview = await target.client.call("instance.preview_import", { file: crafted });
+  assert.equal(byId(preview, "channels", "tg_orphan")?.reason, "agent_missing");
+  await target.client.call("instance.import", { file: crafted });
+  const saved = target.core.store.settings.read("channels");
+  const mapped = saved.find((c) => c.id === "tg_mapped");
+  assert.deepEqual([mapped?.agent_id, mapped?.contacts_agent_id], [SUPER_AGENT_ID, SUPER_AGENT_ID]);
+  assert.equal(
+    saved.find((c) => c.id === "tg_orphan"),
+    undefined,
+    "a channel whose contacts have no agent here is not made",
+  );
+});

@@ -190,3 +190,41 @@ test("Home is the super-agent's: a channel a project's head answers keeps the ow
     "nothing of it lands in Home",
   );
 });
+
+test("a chat the owner put in a project keeps it when another agent takes its contacts", async (t) => {
+  const env = await setup(t);
+  const tg = { type: "telegram", agent_id: "superagent", owner_thread: "own" } as const;
+  await env.client.call("channels.set", { id: "tg", channel: tg, token: TOKEN });
+  env.tg.message(CONTACT, "hello");
+  await waitFor(() => env.core.store.threads.byConversation("tg", String(CONTACT.id)), "the contact's chat", {
+    ms: 8000,
+  });
+  const chat = env.core.store.threads.byConversation("tg", String(CONTACT.id));
+  assert.ok(chat);
+  const { project: theirs } = await env.client.call("projects.create", { name: "Northwind" });
+  env.core.store.threads.moveTo(chat.id, theirs.id);
+  const { project } = await env.client.call("projects.create", { name: "Acme" });
+  const head = await env.client.call("agents.create", { project_id: project.id, slug: "acme-head", name: "Head" });
+
+  await env.client.call("channels.set", { id: "tg", channel: { ...tg, contacts_agent_id: head.id }, token: TOKEN });
+  const moved = env.core.store.threads.get(chat.id);
+  assert.deepEqual([moved?.agent_ids[0], moved?.project_id], [head.id, theirs.id], "the project the owner chose stays");
+});
+
+test("a Flow's message to a contact reads as the agent that answers that contact", async (t) => {
+  const env = await setup(t);
+  await env.client.call("channels.set", {
+    id: "tg",
+    channel: { type: "telegram", agent_id: "superagent", contacts_agent_id: env.helper, owner_thread: "own" },
+    token: TOKEN,
+  });
+  const contact = env.core.store.persons.list().find((p) => p.name === CONTACT.name);
+  assert.ok(contact);
+  const sent = env.core.channels.messageContact(contact.id, "Your order shipped", {
+    channel: "tg",
+    exact: true,
+    flow: "Orders",
+  });
+  const said = env.core.store.messages.list(sent.thread).find((m) => m.author.kind === "agent");
+  assert.equal(said?.author.kind === "agent" && said.author.id, env.helper);
+});
