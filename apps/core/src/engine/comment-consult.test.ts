@@ -6,6 +6,8 @@ import { waitFor } from "../testkit/platform.ts";
 import { callTool, say, scriptedLlm, startCore } from "./testkit.ts";
 
 let releaseScout: (() => void) | undefined;
+/** Read through a call, so a reset in one test does not narrow it for the checks after it. */
+const held = () => releaseScout;
 
 const taskId = (text: string) => /task_[0-9a-f]+/.exec(text)?.[0] ?? "";
 
@@ -37,6 +39,15 @@ const llm = scriptedLlm(async (req, { system, said, afterTool }) => {
       task: env.core.store.tasks.list({ limit: 50 }).find((t) => t.title === "Ledger summary")?.id,
       text: "@vera go on with the summary, nothing waits on the owner.",
     });
+  if (system.startsWith("You are Vera") && said.includes("Ship the review flow")) {
+    const review = env.core.store.tasks.list({ limit: 50 }).find((t) => t.title === "Review flow")?.id;
+    const last = req.messages.at(-1);
+    if (!afterTool) return callTool("rv1", "task_comment", { task: review, text: "@scout hold the answer: review it" });
+    if (last?.role === "tool" && last.tool_call_id === "rv1")
+      return callTool("rv2", "task_update", { task: review, status: "review", reviewer: "scout" });
+    return say("Sent for review.");
+  }
+  if (system.startsWith("You are Vera") && JSON.stringify(req.messages).includes("Review flow")) return say("ok");
   if (system.includes("main secretary") && said.includes("Wake Vera") && !afterTool)
     return callTool("c8", "task_update", {
       task: env.core.store.tasks.list({ limit: 50 }).find((t) => t.title === "Idle summary")?.id,
@@ -263,4 +274,25 @@ test("naming the task's own agent again while it is idle has it go on; the task 
   await env.client.call("threads.send", { thread: "home", text: "Wake Vera on her summary." });
   await env.settle("home");
   await waitFor(() => woken().length === 1, "vera goes on, as work on her own task");
+});
+
+test("an agent that asks its reviewer and then puts the task in review gets one review, not two at once", async () => {
+  const store = env.core.store;
+  releaseScout = undefined;
+  const task = await env.client.call("tasks.create", {
+    title: "Review flow",
+    description: "Ship the review flow.",
+    assignee: "vera",
+  });
+  const scouts = () => store.threads.sessions(task.thread_id).filter((t) => t.agent_ids[0] === "scout");
+  try {
+    await waitFor(() => store.tasks.get(task.id)?.status === "review", "vera puts it in review");
+    assert.equal(scouts().length, 1, "the consult she opened is the review");
+    assert.equal(store.threads.context(scouts()[0]?.id ?? "").consult?.review, true);
+    await waitFor(() => Boolean(held()), "scout is held at work");
+  } finally {
+    held()?.();
+  }
+  await env.settle(scouts()[0]?.id ?? "");
+  assert.equal(scouts().length, 1);
 });

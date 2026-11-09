@@ -526,6 +526,19 @@ export function reviewRequested(store: Store, admit: AdmitFn, task: Task): RunRe
     return undefined;
   }
   store.notifications.resolve("task", `review:${task.id}`);
+  // Its agent already asked the reviewer on the task and it is still checking: that consult is the review, so the
+  // work is not checked twice at once (DECISIONS.md#d-210).
+  const asked = store.threads.sessions(task.thread_id).find((t) => {
+    const c = store.threads.context(t.id).consult;
+    return (
+      c && !c.review && t.agent_ids[0] === reviewer.id && c.asker?.agent === task.assignee && store.threads.busy([t.id])
+    );
+  });
+  const held = asked && store.threads.context(asked.id).consult;
+  if (asked && held) {
+    store.threads.mergeContext(asked.id, { consult: { task: held.task, card: held.card, review: true } });
+    return undefined;
+  }
   const doer = task.assignee ? (store.agents.get(task.assignee)?.name ?? task.assignee) : "its agent";
   const text = `Check task ${task.id}, done by ${doer}, against what it asks, running the checks you can (tests, the page, the data). ${REVIEW}`;
   return consult(store, admit, task, reviewer, text, { by: task.assignee ?? "owner", trigger: "system", review: true });

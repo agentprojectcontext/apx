@@ -4349,4 +4349,16 @@ task", next to "your final answer goes back to them") and a review all came as a
   means in place and a checkout means a worktree, saved as a project note. Replaces the five-option question to the
   owner, which the owner added for lack of a rule and found out of place.
 
+- **The super-agent picks how to split work** (its role line in `systemPrompt`): several pieces and the owner did not
+  say how, it picks (one task each, a plan first, or doing it) and says which in a line, asking only before a large
+  fan-out. Amends D-160's ask-every-time.
+- **One review at a time** (`reviewRequested`): an agent that @mentioned its reviewer and then put the task in
+  review started two checks of the same work by the same agent, each asking the owner for the same browser steps.
+  A consult its agent opened with the reviewer and still running becomes the review.
+- **A brief gives no way out** (`delegate`'s description): the super-agent's briefs added "if it cannot be done,
+  return evidence" or "no retries", which the delegate read as permission to stop at the first obstacle.
+- **A profile is a layer, never a stricter mode** (`examples/profiles/secretary`): the secretary's "sending or
+  changing anything outward: confirm first" asked for more than the owner's permission mode, even in Total. It now
+  goes ahead with the work and prepares what the mode leaves to the owner.
+
 None of this changes a permission, an approval, a hard step or a spend limit: what waits for the owner still does.
