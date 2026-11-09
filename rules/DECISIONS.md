@@ -4313,3 +4313,28 @@ an agent followed a name instead of the work. Every agent already has `parent:` 
 Rejected: a written chart of who talks to whom (the owner's own diagram drifts from the team, and a hand-kept chart in
 every prompt is what broke).
 
+
+<a id="d-210"></a>
+## D-210 — 2026-11-09 — Agents carry work through; "blocked" is what is out of their reach
+Task chats stopped far more than they finished: in a week of the owner's office 266 answers ended "Status: blocked"
+against 211 "done". The four-line report every message between agents asked for (`REPORT` in `engine/context.ts`)
+had only those two states, so work left came out as "blocked" (one agent listed the 15 articles it had still to write
+as its unblock), and it reached the agent's own task too: the task's start, a teammate's answer ("go on with the
+task", next to "your final answer goes back to them") and a review all came as a one-off ask to answer once.
+
+- **The report has a middle state**: done, partial (what is left and why it stopped) or blocked, defined as nothing
+  more in the agent's reach (access, a login, an owner's decision). It does the work as far as its tools reach first.
+- **The agent's own task is not a one-off ask** (`on_task` on the agent origin, set in `ask()` in
+  `engine/task-work.ts` when the agent is the task's assignee and not a reviewer handed it): a teammate's message
+  there is framed as work on the task, which it carries until `task_close`, stopping only for what the owner must do
+  (`awaits_owner`) or what nothing in its reach can fix. No report envelope, no "goes back".
+- **A teammate's `@name` of the task's own agent reaches its chat for the task** (`consultFromAgent`): before, it
+  opened a consult on the side that told the agent "the task's work is not yours", so the super-agent's "go on" to the
+  agent on the task was answered in a side chat while the work stood still.
+- **Recovery reads as sentences** (`RECOVERY`): find why, fix it with its own tools and permissions (another way or
+  source, freeing its own tabs or processes), retry only after a change, and only then report blocked, with the
+  error, the attempts and what is needed. Never around access, a login, a quota or a handoff.
+- **A task whose way stops leading to the goal changes plan** (`taskBlock`): the owner hears only what only they can
+  give or decide.
+
+None of this changes a permission, an approval, a hard step or a spend limit: what waits for the owner still does.

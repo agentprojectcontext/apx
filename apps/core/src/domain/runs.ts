@@ -25,6 +25,8 @@ export type Origin =
       thread_id: string;
       run_id: string;
       task_assignment?: { task: string; id: string };
+      /** The task (its id) this turn works on as its owner: it goes on until the task is delivered, no one-off report. */
+      on_task?: string;
     }
   | { kind: "surface"; id: string; title: string }
   /** A message on a channel (Telegram…): from the owner, or from a contact (then it is a third party's text). */
