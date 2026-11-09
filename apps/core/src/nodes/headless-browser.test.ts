@@ -235,6 +235,34 @@ test("a page's confirm and prompt dialogs reach the agent, which answers them in
   }
 });
 
+test("typing limited to this computer checks the real page as it types, and a local page takes it", async () => {
+  // The test server is on 127.0.0.1: a page this computer serves (DECISIONS.md#d-212).
+  const tab = (await browser.handle("browser.open", { url: `${base}/`, by: "superagent" })) as TabInfo;
+  try {
+    const before = (await browser.handle("browser.snapshot", { tab: tab.tab })) as { tree: string };
+    const search = /textbox "Search" \[(e\d+)\]/.exec(before.tree)?.[1];
+    assert.ok(search, before.tree);
+    const typed = { tab: tab.tab, ref: search, text: "local plans", by: "superagent", local_only: true };
+    assert.deepEqual(await browser.handle("browser.type", typed), { ok: true, url: `${base}/` });
+    const after = (await browser.handle("browser.snapshot", { tab: tab.tab })) as { tree: string };
+    assert.match(after.tree, /textbox "Search" \[e\d+\] = "local plans"/);
+    // A prompt box the local page opened takes the answer too, checked against the page that opened it.
+    await browser.handle("browser.navigate", { tab: tab.tab, url: `${base}/dialogs`, by: "superagent" });
+    const page = ((await browser.handle("browser.snapshot", { tab: tab.tab })) as { tree: string }).tree;
+    const rename = /button "Rename" \[(e\d+)\]/.exec(page)?.[1];
+    assert.ok(rename, page);
+    await browser.handle("browser.click", { tab: tab.tab, ref: rename, by: "superagent" });
+    await browser.handle("browser.type", { ...typed, ref: "dialog-text", text: "Northwind", submit: true });
+    await waitFor(
+      async () =>
+        /renamed: Northwind/.test(((await browser.handle("browser.text", { tab: tab.tab })) as { text: string }).text),
+      "the page to get the text",
+    );
+  } finally {
+    await browser.handle("browser.close", { tab: tab.tab });
+  }
+});
+
 test("real Chromium retires consent on reload, in-page navigation and tab closure", async () => {
   const tab = (await browser.handle("browser.open", { url: `${base}/`, by: "reader" })) as TabInfo;
   const snapshot = async () => (await browser.handle("browser.snapshot", { tab: tab.tab })) as { document: string };

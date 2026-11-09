@@ -5,7 +5,7 @@ import type { BrowserDialog, BrowserFillSecret, ElementEdit, PickedElement, Sign
 import { isDialogRef, PageDialog } from "./cdp-dialog.ts";
 import { PageEdits } from "./cdp-edit.ts";
 import { captureDocument, evaluatePage } from "./cdp-evaluate.ts";
-import { SecretFields } from "./cdp-fill.ts";
+import { holdsFocus, nodeFrame, SecretFields } from "./cdp-fill.ts";
 
 export { scrubDeep } from "./cdp-fill.ts";
 
@@ -43,6 +43,26 @@ const CREDENTIAL_AUTOCOMPLETE = /\b(current-password|new-password|one-time-code|
 const SHOT_WIDTH = 1280;
 
 const LOOPBACK = new Set(["127.0.0.1", "localhost", "[::1]", "0.0.0.0"]);
+
+/** A host on this computer itself. */
+export function loopbackHost(hostname: string): boolean {
+  return /^(localhost|([\w-]+\.)+localhost|127(\.\d{1,3}){3}|\[::1\])$/i.test(hostname);
+}
+
+/**
+ * A page this computer serves (a dev server), other than APX itself (`blockedPorts`): what is typed there stays on
+ * this machine, so an agent types there without asking (DECISIONS.md#d-212).
+ */
+export function servedHere(url: string, blockedPorts: ReadonlySet<string>): boolean {
+  let u: URL;
+  try {
+    u = new URL(url);
+  } catch {
+    return false;
+  }
+  if (u.protocol !== "http:" && u.protocol !== "https:") return false;
+  return loopbackHost(u.hostname) && !blockedPorts.has(u.port || (u.protocol === "https:" ? "443" : "80"));
+}
 
 /**
  * Where a tab may go: http(s) only, no credentials in the address, never APX itself (a driven tab would hold the
@@ -259,20 +279,36 @@ export class CdpPage {
     );
   }
 
-  /** Returns the JavaScript dialog typing opened (a key handler, a form sent with Enter), if it did. */
-  async type(ref: string, text: string, submit: boolean): Promise<BrowserDialog | undefined> {
+  /**
+   * Returns the JavaScript dialog typing opened (a key handler, a form sent with Enter), if it did. `localOnly`: APX's
+   * own ports; given, only a page this computer serves takes the text (DECISIONS.md#d-212).
+   */
+  async type(
+    ref: string,
+    text: string,
+    submit: boolean,
+    localOnly?: ReadonlySet<string>,
+  ): Promise<BrowserDialog | undefined> {
     if (isDialogRef(ref)) {
+      if (localOnly && this.#dialog.kind && !servedHere(this.#dialog.url, localOnly))
+        throw new ApxError({
+          code: "conflict",
+          message: "this dialog comes from a page this computer does not serve: take a new snapshot before typing",
+        });
       await withTimeout(this.#dialog.type(ref, text, submit), 4_000);
       return undefined;
     }
     this.assertNoDialog();
     const backendNodeId = this.#backend(ref);
     await this.#assertNotCredentialField(backendNodeId);
+    if (localOnly) await this.#assertServedHere(backendNodeId, localOnly);
     await this.#send("DOM.scrollIntoViewIfNeeded", { backendNodeId });
     // Select existing content so the new text replaces it, like a user would.
     const steps: Array<() => Promise<BrowserDialog | undefined>> = [
       () => this.#input("DOM.focus", { backendNodeId }),
       () => this.#key("a", "KeyA", 65, this.#selectAll, undefined, ["selectAll"]),
+      // Again right before the text goes in: focusing may have sent the page elsewhere, or a frame taken the focus.
+      ...(localOnly ? [() => this.#assertServedHere(backendNodeId, localOnly, true).then(() => undefined)] : []),
       () => this.#input("Input.insertText", { text }),
       ...(submit ? [() => this.#key("Enter", "Enter", 13, 0, "\r")] : []),
     ];
@@ -333,6 +369,27 @@ export class CdpPage {
     const xs = [q[0], q[2], q[4], q[6]] as number[];
     const ys = [q[1], q[3], q[5], q[7]] as number[];
     return { x: xs.reduce((a, b) => a + b) / 4, y: ys.reduce((a, b) => a + b) / 4 };
+  }
+
+  /** The tab's address and the field's frame, as the browser reports them now, are both served by this computer. */
+  async #assertServedHere(backendNodeId: number, blockedPorts: ReadonlySet<string>, focused = false): Promise<void> {
+    const at = await nodeFrame(this.#send, backendNodeId);
+    if (!servedHere(at.url, blockedPorts))
+      throw new ApxError({
+        code: "conflict",
+        message: "this tab is no longer on a page this computer serves: take a new snapshot before typing",
+      });
+    if (!at.frame || !servedHere(at.frame, blockedPorts))
+      throw new ApxError({
+        code: "conflict",
+        message:
+          "this field is in a frame from another site, not this computer: use browser_handoff for the owner to type there",
+      });
+    if (focused && !(at.frameId && (await holdsFocus(this.#send, backendNodeId, at.frameId))))
+      throw new ApxError({
+        code: "conflict",
+        message: "the field lost the focus before typing (the page moved it): take a new snapshot and try again",
+      });
   }
 
   async #assertNotCredentialField(backendNodeId: number): Promise<void> {

@@ -94,7 +94,7 @@ test("every tool that acts as the owner says which calls keep their card in Tota
     ...requestTools(store),
     ...limitTools(store),
     ...routineTools(store),
-    ...browserTools(store, env.home),
+    ...browserTools(store, env.home, () => new Set()),
   ];
   for (const name of new Set(Object.values(BY_TOOL))) {
     if (TOTAL_SKIPS[name]) continue;

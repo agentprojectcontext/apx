@@ -173,6 +173,22 @@ test("asked in the app for their Chrome, the agent opens and reads a tab there; 
   }
 });
 
+test("typing limited to this computer never reaches the owner's Chrome, which cannot check the page itself", async () => {
+  const chrome = await new ApxClient({ url: env.core.url }).connect("node", ["chrome"]);
+  fakeNode(chrome, "chrome", "c");
+  try {
+    calls.length = 0;
+    // Only APX's own browser checks the page as it types (DECISIONS.md#d-212).
+    await assert.rejects(
+      env.client.call("browser.type", { tab: "c1", ref: "e1", text: "Buy milk", local_only: true }),
+      /owner's Chrome: typing there waits for the owner/,
+    );
+    assert.equal(calls.filter((c) => c.method === "browser.type").length, 0);
+  } finally {
+    chrome.close();
+  }
+});
+
 test("with Chrome not connected, the agent is told so instead of using another browser", async () => {
   await waitFor(() => (env.core.broker.withCap("chrome") ? undefined : true), "Chrome gone", { ms: 5000 });
   calls.length = 0;

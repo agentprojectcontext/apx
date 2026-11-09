@@ -152,7 +152,15 @@ export const browserMethods = {
   },
   "browser.type": {
     params: z
-      .object({ tab: Tab, ref: Ref, text: z.string().max(10_000), submit: z.boolean().default(false), by: By })
+      .object({
+        tab: Tab,
+        ref: Ref,
+        text: z.string().max(10_000),
+        submit: z.boolean().default(false),
+        by: By,
+        /** Type only if the page and the field's frame are served by this computer (DECISIONS.md#d-212). */
+        local_only: z.boolean().optional(),
+      })
       .strict(),
     result: z.object({ ok: z.literal(true), url: z.string(), dialog: BrowserDialog.optional() }),
     effect: true,

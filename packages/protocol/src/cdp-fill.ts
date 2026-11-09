@@ -80,6 +80,55 @@ function originsOf(tree: FrameTree, into = new Map<string, string>()): Map<strin
   return into;
 }
 
+/** The tab's address and the origin of the frame holding the node, as CDP reports them now (none: not in it). */
+export async function nodeFrame(
+  send: CdpSend,
+  backendNodeId: number,
+): Promise<{ url: string; frame?: string; frameId?: string }> {
+  const { frameTree } = await send<{ frameTree: FrameTree }>("Page.getFrameTree");
+  const { root } = await send<{ root: DomNode }>("DOM.getDocument", { depth: -1, pierce: true });
+  const found = locate(root, frameTree.frame.id, backendNodeId);
+  const frame = found && originsOf(frameTree).get(found.frameId);
+  return { url: frameTree.frame.url, ...(found && frame ? { frame, frameId: found.frameId } : {}) };
+}
+
+/** Whether the node has the focus up through its shadow hosts and the frames it can see, read from an isolated world. */
+export async function holdsFocus(send: CdpSend, backendNodeId: number, frameId: string): Promise<boolean> {
+  const objectId = await resolveIn(send, backendNodeId, frameId).catch(() => undefined);
+  if (!objectId) return false;
+  const r = await send<{ result: { value?: unknown }; exceptionDetails?: unknown }>("Runtime.callFunctionOn", {
+    objectId,
+    functionDeclaration: FOCUSED,
+    returnByValue: true,
+  });
+  return !r.exceptionDetails && r.result.value === true;
+}
+
+const FOCUSED = `function () {
+  let el = this;
+  for (;;) {
+    const root = el.getRootNode();
+    if (root.activeElement !== el) return false;
+    if (root.host) { el = root.host; continue; }
+    const frame = root.defaultView && root.defaultView.frameElement;
+    if (!frame) return true;
+    el = frame;
+  }
+}`;
+
+async function resolveIn(send: CdpSend, backendNodeId: number, frameId: string): Promise<string> {
+  const { executionContextId } = await send<{ executionContextId: number }>("Page.createIsolatedWorld", {
+    frameId,
+    worldName: WORLD,
+  });
+  const { object } = await send<{ object: { objectId?: string } }>("DOM.resolveNode", {
+    backendNodeId,
+    executionContextId,
+  });
+  if (!object.objectId) throw new Error("the field is gone");
+  return object.objectId;
+}
+
 const KIND_WORDS: Record<FieldKind, string> = {
   password: "a password",
   username: "a username",
@@ -262,17 +311,8 @@ export class SecretFields {
     return { frameId: frameTree.frame.id, origin, frames };
   }
 
-  async #resolve(backendNodeId: number, frameId: string): Promise<string> {
-    const { executionContextId } = await this.#send<{ executionContextId: number }>("Page.createIsolatedWorld", {
-      frameId,
-      worldName: WORLD,
-    });
-    const { object } = await this.#send<{ object: { objectId?: string } }>("DOM.resolveNode", {
-      backendNodeId,
-      executionContextId,
-    });
-    if (!object.objectId) throw new Error("the field is gone");
-    return object.objectId;
+  #resolve(backendNodeId: number, frameId: string): Promise<string> {
+    return resolveIn(this.#send, backendNodeId, frameId);
   }
 
   async #call<T>(objectId: string, fn: string, args: unknown[] = []): Promise<T> {

@@ -140,6 +140,10 @@ APX sabe si un turno tiene contenido de afuera, y cuando lo tiene, las acciones 
 
 - Una URL con query string, abierta después de que entró contenido de afuera, pregunta primero, así una página no
   puede hacer que un agente filtre datos por un link.
+- Tipear en una página después de que entró contenido de afuera también pregunta primero. En Auto no pregunta en una
+  página que sirve tu propia computadora (un agente que prueba su app en `localhost:8127`), a la que un comando también
+  llegaría. El navegador revisa que la página siga siendo esa en el momento de tipear; la dirección de APX y tu Chrome
+  cuentan siempre como afuera.
 - Una nota que un agente guarda mientras hay contenido de afuera en el turno queda marcada **Con contenido de
   afuera**. Los agentes la leen como dato, no como palabra tuya, hasta que la edites.
 - El resumen de un chat largo que tuvo contenido de afuera sigue marcado como de afuera.

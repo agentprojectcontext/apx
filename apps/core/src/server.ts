@@ -118,6 +118,7 @@ import { createRouter, type Dispatch } from "./rpc/router.ts";
 import { useLocalModel } from "./rpc/transcription.ts";
 import { createSecrets } from "./secrets.ts";
 import {
+  appPorts,
   builtinTools,
   coreHandlers,
   extensionStack,
@@ -275,7 +276,7 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
     ? createHeadlessBrowser({
         dir: path.join(config.home, "browser"),
         chrome: typeof config.headless === "string" ? config.headless : undefined,
-        blockedPorts: () => new Set([String(listening)]),
+        blockedPorts: () => appPorts(listening, config.allowedOrigins),
         onChange: (tabs) => {
           if (!broker.withCap(BROWSER_CAP)) bus.emit({ type: "browser.tabs", tabs });
         },
