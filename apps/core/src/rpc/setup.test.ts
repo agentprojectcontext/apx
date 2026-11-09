@@ -355,6 +355,7 @@ test("importing the identity brings who the owner is, the super-agent's personal
     about: "Runs a small bakery in Northwind.",
     language: "es",
     timezone: "America/Argentina/Buenos_Aires",
+    publish: "auto",
   });
   const roby = await env.client.call("agents.get", { agent: "superagent" });
   assert.equal(roby.prompt, "Never book meetings before 10.");
