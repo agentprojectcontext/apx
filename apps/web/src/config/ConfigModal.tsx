@@ -5,6 +5,7 @@ import { type MessageKey, useT } from "../i18n/index.ts";
 import { MoveSection } from "../lazy.ts";
 import { LAYOUT } from "../shell/layout.ts";
 import { type ConfigSection, go, useNav } from "../shell/nav.ts";
+import { ActivityReviewSection } from "./ActivityReviewSection.tsx";
 import { AdvancedSection } from "./AdvancedSection.tsx";
 import { AgentsSection } from "./AgentsSection.tsx";
 import { ApiTokensSection } from "./ApiTokensSection.tsx";
@@ -53,6 +54,7 @@ const GROUPS: { label: MessageKey; items: NavEntry[] }[] = [
       { id: "profile", label: "config.superagent", icon: <Icons.Crown /> },
       { id: "channels", label: "config.channels", icon: <Icons.MessageCircle /> },
       { id: "interruptions", label: "config.interruptions", icon: <Icons.BellOff /> },
+      { id: "activity-review", label: "config.activityReview", icon: <Icons.Sparkles /> },
     ],
   },
   {
@@ -169,6 +171,8 @@ function Body({ section }: { section: ConfigSection }) {
       return <ServicesSection kind="image" />;
     case "channels":
       return <ChannelsSection />;
+    case "activity-review":
+      return <ActivityReviewSection />;
     case "interruptions":
       return <InterruptionsSection />;
     case "profile":

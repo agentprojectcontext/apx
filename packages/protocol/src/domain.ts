@@ -729,6 +729,7 @@ export const AuxPurpose = z.enum([
   "suggestion",
   "memory_capture",
   "memory_dream",
+  "activity_review",
   "news",
   "sticker",
 ]);

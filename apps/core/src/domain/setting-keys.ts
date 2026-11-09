@@ -2,6 +2,7 @@
 // only through `store.settings.read`, so a bad stored value falls back here instead of reaching the code using it.
 import {
   ActiveProfile,
+  ActivityReviewSettings,
   AgentBudgets,
   AgentLimits,
   BaseProject,
@@ -69,6 +70,7 @@ const AcpAgent = z.object({
 const Channel = ChannelInfo.omit({ token_set: true, token_hint: true, status: true, error: true, account: true });
 
 export const SETTINGS = {
+  activity_review: entry(ActivityReviewSettings, { enabled: true, frequency: "daily", extra_details: "" }),
   email_signatures: entry(EmailSignatures, []),
   email_signature_default: entry(EmailSignatureValue.nullable(), null),
   engine_usage: entry(z.record(z.string(), z.boolean()), {}),

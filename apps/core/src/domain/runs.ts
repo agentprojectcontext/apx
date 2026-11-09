@@ -687,14 +687,15 @@ export function runsRepo({ one, all, run }: Sql, bus: Bus) {
           .map(toRun),
       };
     },
-    /** Runs completed after `since`, newest first. */
-    completedSince(since: string): RunRecord[] {
+    /** Runs completed after `since`, newest first, optionally through an inclusive window end. */
+    completedSince(since: string, until?: string): RunRecord[] {
       return all(
         qb
           .selectFrom("runs")
           .selectAll()
           .where("state", "=", "completed")
           .where("ended_at", ">", since)
+          .$if(until !== undefined, (q) => q.where("ended_at", "<=", until as string))
           .orderBy("ended_at", "desc"),
       ).map(toRun);
     },
