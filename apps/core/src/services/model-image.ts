@@ -1,4 +1,11 @@
-import sharp from "sharp";
+import type SharpModule from "sharp";
+
+// Loaded on the first image that needs it: its native library weighs about 45 MB, which a core with no images never pays.
+let loaded: Promise<typeof SharpModule> | undefined;
+const imaging = () => {
+  loaded ??= import("sharp").then((m) => m.default);
+  return loaded;
+};
 
 /**
  * The most pixels an image keeps for a model: about 2048×2048. Providers refuse or bill far bigger ones (a full-page
@@ -19,6 +26,7 @@ const READABLE = new Set(["image/png", "image/jpeg", "image/webp", "image/gif"])
 export async function fitForModel(bytes: Buffer, mime: string): Promise<{ mime: string; bytes: Buffer } | undefined> {
   if (!READABLE.has(mime)) return { mime, bytes };
   try {
+    const sharp = await imaging();
     const { width = 0, height = 0, pages = 1, orientation = 1 } = await sharp(bytes).metadata();
     if (!width || !height) return undefined;
     // Orientations 5–8 turn the picture a quarter: its upright width is the stored height.
