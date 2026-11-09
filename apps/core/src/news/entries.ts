@@ -20,6 +20,7 @@ import { LOCAL_MODELS_NEWS } from "./local-models.ts";
 import { MOVE_BACKUP_NEWS } from "./move-backup.ts";
 import { QUEUED_MESSAGES_NEWS } from "./queued-messages.ts";
 import { QUICK_CHAT_NEWS } from "./quick-chat.ts";
+import { ROOM_HANDOFF_NEWS } from "./room-handoff.ts";
 import { STORE_COMPACT_NEWS } from "./store-compact.ts";
 import { TASK_COMMENTS_NEWS } from "./task-comments.ts";
 import { TASK_GOALS_NEWS } from "./task-goals.ts";
@@ -64,6 +65,8 @@ export type NewsFacts = {
   promptedAgents?: number;
   /** The chats' database is over 500 MB and keeps its free space until it is rewritten once (compacted). */
   bigStore?: boolean;
+  /** A channel reads at least one room (a Discord channel, a group). */
+  rooms?: boolean;
 };
 
 export type NewsAction = {
@@ -89,6 +92,7 @@ export type NewsEntry = {
 };
 
 export const NEWS: readonly NewsEntry[] = [
+  ROOM_HANDOFF_NEWS,
   ACTIVITY_REVIEW_NEWS,
   AGENT_PROMPTS_NEWS,
   TASK_GOALS_NEWS,
@@ -1215,6 +1219,7 @@ export const newsFacts = (store: Store, o: { hermes?: boolean; storeSize?: Store
   secretary: store.settings.read("profile").id === "secretary",
   contacts: store.persons.list().some((p) => p.role !== "owner" && p.role !== "blocked" && p.addresses.length > 0),
   channels: store.settings.read("channels").length,
+  rooms: store.settings.read("channels").some((c) => (c.rooms?.rooms.length ?? 0) > 0),
   email: store.settings.read("channels").some((c) => c.type === "email" && c.email !== undefined),
   integrations: connectedIntegrations(store),
   computer: computerHost() !== undefined && store.projects.list().length > 0,

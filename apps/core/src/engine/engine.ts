@@ -24,6 +24,7 @@ import { relayEnded } from "./owner-relay.ts";
 import type { Permissions } from "./permissions.ts";
 import type { ProfileRoot } from "./profiles.ts";
 import { recoverInterrupted } from "./recovery.ts";
+import { roomHandoff } from "./room-handoff.ts";
 import { droppedResult } from "./run-outcome.ts";
 import type { SkillPicker } from "./skill-pick.ts";
 import { ownerTaskAssignment } from "./task-assignment.ts";
@@ -588,6 +589,8 @@ export function createEngine(deps: {
     delegations.childEnded(run);
     fanout.settle(run);
     relayEnded(store, admit, run);
+    // Before the channel posts the room's answer: its HANDOFF line must not reach the room.
+    roomHandoff(store, admit, log, run);
   }
 
   /**

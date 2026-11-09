@@ -4397,3 +4397,27 @@ notebook. Amends D-013, D-111 and D-112:
 - **Waiting notes are told.** One `memory` notice stays in the tray while any note about the owner waits, and
   "Confirm all" confirms the listed ones. The outside-content marker still governs how agents read a note but is not
   shown: it marked almost every agent note and offered no action (rule 31).
+
+<a id="d-212"></a>
+## D-212 — 2026-11-09 — What the owner asks in a room that needs tools is handed to Home, never only promised
+A room's turn has no tools (D-041, D-063), so when the owner asked there for something that needed them the prompt
+had the agent "say you will pick it up with them on another channel". Nothing recorded or did it: a promise, against
+the main prompt's own rule that a promise is not an action.
+
+- **The room answer ends with `HANDOFF`** when the owner's message needs tools (`roomPrompt`). The line is a signal,
+  like `SKIP` and `REACT`: `roomHandoff` (`engine/room-handoff.ts`, run from the engine's `ended`, before the channel
+  manager posts the answer) takes it out of the answer kept and posted. An answer that was only the line is replaced
+  by a short "on it, I'll tell you in private" in the owner's language.
+- **Only the owner's own words move**, from a turn whose origin is the room message marked owner by account
+  (`role: "owner"`): the run's input text, verbatim, never the model's text and never a member's. From any other
+  message the line is only removed, so nobody in a room can turn their text into a request, whatever the model says.
+- **Home does it, by the owner's rules on that platform** (D-144, D-150). On a channel whose owner acts on their word
+  (Telegram, WhatsApp, Signal) the words are kept in Home as the owner's (`via` the channel) and start a turn there
+  that is told which room they came from. Elsewhere (Discord, Slack…) they go through `relayOwnerWords` like the
+  owner's other words there: the super-agent checks them in Home's owner-check sub-thread, and the result returns to
+  Home as a delegated result.
+- **The result never goes back to the room.** The Home turn has no `reply_to` of its own and the relay leaves Home's
+  untouched (`owner_check.reply_to` is optional now): answers reach the owner where Home talks to them (Home's last
+  channel, or the app).
+
+Not done: the owner's earlier quick messages that a burst kept unanswered are not handed over, only the one answered.
