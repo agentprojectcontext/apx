@@ -10,8 +10,9 @@ import { namesApc } from "../engine/paths.ts";
 import { AGENT_WORKSPACE } from "../environments/worker.ts";
 import { insideReal } from "../paths.ts";
 import { commandShell } from "../processes.ts";
+import { apxReads } from "./apx-reads.ts";
 import { namedPaths } from "./command-paths.ts";
-import { readsOnly } from "./command-reads.ts";
+import { mayChange, readsOnly } from "./command-reads.ts";
 import {
   type Access,
   folderAccess,
@@ -106,7 +107,7 @@ export function commandRisk(command: string, apxPort?: number): Confirm {
   // Anything else APX's own CLI does, which finds the port by itself, could act as the owner too.
   if (runsApxCli(c)) return "always";
   // APC definitions and AGENTS.md set agents' modes: changed by a command as by file_write, the owner says yes first.
-  return c.split(/[\s;&|<>()'"`=]+/).some((w) => w && namesApc(w)) ? "always" : "ask";
+  return mayChange(c, namesApc) ? "always" : "ask";
 }
 
 /** Programs that run the command after them: `env apx …`, `xargs apx`, `bash -c "apx …"`, `pnpm exec apx`. */
@@ -140,14 +141,34 @@ const LAUNCHERS = new Set([
  * after it, so `cd ~/code/apx` or `ls /…/apx` only read a folder of that name.
  */
 function runsApxCli(command: string): boolean {
-  if (/(^|[\s;&|(`"'])[\w./-]*apps\/terminal\/src\/main\.ts(\s|$|["'])/.test(command)) return true;
+  // A part that only reads with the CLI (`apx status`, `apx --help`) acts as nobody, whatever else the line does.
+  const acts = (args: string[]) =>
+    !apxReads(
+      args.map((text) => ({ text, prose: false, unknown: /[$`]/.test(text), brace: text.includes("{"), tilde: false })),
+    );
   for (const part of command.replace(/["'\\]/g, "").split(/[;&|\n(`]|\$\(/)) {
-    for (const word of part.trim().split(/\s+/)) {
+    const words = part.trim().split(/\s+/);
+    // A variable set for the CLI could point it at another server with the owner's credentials: it acts, reading or not.
+    const set = words.findIndex((w) => /^\w+=/.test(w));
+    for (const [i, word] of words.entries()) {
+      // The CLI run from a checkout, by node or by path.
+      if (/(^|\/)apps\/terminal\/src\/main\.ts$/.test(word)) {
+        if ((set >= 0 && set < i) || acts(words.slice(i + 1))) return true;
+        break;
+      }
       // Variables set for the program, a launcher's flags and its numbers (`timeout 30`) come before it.
       if (/^\w+=/.test(word) || word.startsWith("-") || /^\d+[smhd]?$/.test(word)) continue;
       const program = path.basename(word);
-      if (program === "apx" || program === "apx.exe" || program === "apx.cmd") return true;
-      if (!LAUNCHERS.has(program)) break;
+      if (program === "apx" || program === "apx.exe" || program === "apx.cmd") {
+        if ((set >= 0 && set < i) || acts(words.slice(i + 1))) return true;
+        break;
+      }
+      // `command -v apx` only looks it up; `node` may be running the CLI's entry, next.
+      if (
+        (!LAUNCHERS.has(program) && program !== "node") ||
+        (program === "command" && /^-[vV]$/.test(words[i + 1] ?? ""))
+      )
+        break;
     }
   }
   return false;

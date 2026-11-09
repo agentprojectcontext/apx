@@ -10,7 +10,7 @@ const READERS = new Set(
   (
     "ls pwd cat head tail wc stat du df tree diff cmp comm sort uniq cut tr nl tac rev seq basename dirname realpath " +
     "readlink which whoami uname echo printf true false test [ column fold paste join expand md5 md5sum shasum " +
-    "sha1sum sha256sum strings od hexdump jq grep egrep fgrep zgrep rg ag sleep date file cd pushd popd"
+    "sha1sum sha256sum strings od hexdump jq grep egrep fgrep zgrep rg ag sleep date file cd pushd popd type"
   ).split(" "),
 );
 /** Options that make a reader run another program or change something. */
@@ -34,6 +34,17 @@ export function readsOnly(command: string, home = os.homedir()): boolean {
   );
 }
 
+/**
+ * Whether a part of the command that names one of `names` (APC files, AGENTS.md) could change it: a part that is not
+ * a known reader, or a redirection into it. Reading or listing them changes no agent's mode.
+ */
+export function mayChange(command: string, names: (path: string) => boolean): boolean {
+  const named = (w: Word) => w.text.split(/[=:]/).some((p) => p && names(p));
+  return segments(command).some(
+    (words) => words.some(named) && (!reader(words) || words.some((w) => w.redirect && named(w))),
+  );
+}
+
 /** One simple command: a known reader with arguments that neither write nor run anything else. */
 function reader(words: Word[]): boolean {
   const [first, ...args] = words.filter((w) => !w.redirect && !w.data);
@@ -43,6 +54,9 @@ function reader(words: Word[]): boolean {
   const program = first.text;
   const flag = (re: RegExp) => args.some((a) => !a.prose && re.test(a.text));
   switch (program) {
+    // `command -v x` only says where x is; `command x` runs it.
+    case "command":
+      return args[0]?.text === "-v" || args[0]?.text === "-V";
     case "git":
       return gitReads(args);
     case "apx":

@@ -4361,4 +4361,16 @@ task", next to "your final answer goes back to them") and a review all came as a
   changing anything outward: confirm first" asked for more than the owner's permission mode, even in Total. It now
   goes ahead with the work and prepares what the mode leaves to the owner.
 
-None of this changes a permission, an approval, a hard step or a spend limit: what waits for the owner still does.
+- **Commands ask by what they do, not by the word apx** (`runsApxCli`, `apxReads`, `mayChange`): in the week's real
+  asks every command naming APX was "high impact": `apx mcps list`, `apx usage 7`, `apx --help` beside `ls ..`,
+  `command -v apx`, `test -f .apc/migrate.md`. A part that only reads with the CLI now acts as nobody, whatever else
+  the line does (any `--help`, `mcps list`, `usage`, `jobs`, `projects`, `models`, `artifacts`, `skills`, `owner`,
+  `news`); `command -v` only looks it up; AGENTS.md or `.apc/` count only where a part of the command could change them
+  (not a reader, or a redirect into them). What stays always: the CLI acting as the owner (`runs respond`, `owner
+  set`, `tasks done`, `chat`…), any CLI run with a variable set before it (it could point the CLI elsewhere with the
+  owner's credentials), APX's API by its port, destructive commands and releases. Amends D-197.
+- **The visual check fixes the browser first** (`VISUAL_CHECK`): a tab limit, a dialog or the size is the agent's to
+  fix before it calls a change unverified.
+
+Apart from these narrower command asks, none of this changes a permission, an approval, a hard step or a spend
+limit: what waits for the owner still does.

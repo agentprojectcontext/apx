@@ -11,7 +11,17 @@ const APX_READS: Record<string, readonly (string | undefined)[]> = {
   tasks: [undefined, "show", "commitments", "help"],
   routines: [undefined, "show", "log", "help"],
   agents: [undefined, "list"],
+  mcps: [undefined, "list", "help"],
+  jobs: [undefined, "list", "get"],
+  projects: [undefined, "list"],
+  models: [undefined, "list"],
+  artifacts: [undefined, "list"],
+  skills: [undefined, "list"],
+  owner: [undefined, "help"],
+  news: [undefined],
 };
+/** Commands whose one argument is a number of days, not a subcommand (`apx usage 7`). */
+const DAYS = new Set(["usage"]);
 /** Options that change nothing; the ones that take a value consume the next word unless written `--x=v`. */
 const FLAGS = /^(--json|--plain|--status|--version|-v|--help|-h)$/;
 /** Options that are a reading command by themselves (`apx --version`). */
@@ -35,6 +45,9 @@ export function apxReads(args: Word[]): boolean {
   }
   const [command, sub] = positional;
   if (command === undefined) return args.some((a) => ALONE.test(a.text));
+  // --help anywhere prints the CLI's help and runs nothing; a bare "help" word could be a message (`apx chat help`).
+  if (args.some((a) => a.text === "--help" || a.text === "-h")) return true;
+  if (DAYS.has(command)) return sub === undefined || /^\d{1,4}$/.test(sub);
   return Object.hasOwn(APX_READS, command) && (APX_READS[command] ?? []).includes(sub);
 }
 
