@@ -100,7 +100,7 @@ test("capture-only records a task without execution or pressure to assign", asyn
 test("a simple action needs no task and receives action-first guidance", async () => {
   const llm = scriptedLlm((req, { afterTool, system }) => {
     assert.match(system, /An action request gets action with your tools/);
-    assert.match(system, /not board movements as progress/);
+    assert.match(system, /report results, not board moves/);
     const create = req.tools.find((t) => t.function.name === "task_create");
     assert.match(create?.function.description ?? "", /not every action/);
     return afterTool ? say("The board is empty.") : callTool("read", "task_list", {});

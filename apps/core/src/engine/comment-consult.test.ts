@@ -32,6 +32,11 @@ const llm = scriptedLlm(async (req, { system, said, afterTool }) => {
     return callTool("c3", "task_comment", { task: id, text: "@scout keep the animation first" });
   if (system.includes("main secretary") && said.includes("Scout answered your question"))
     return say("Go on with that, Scout.");
+  if (system.includes("main secretary") && said.includes("Push Vera on") && !afterTool)
+    return callTool("c7", "task_comment", {
+      task: env.core.store.tasks.list({ limit: 50 }).find((t) => t.title === "Ledger summary")?.id,
+      text: "@vera go on with the summary, nothing waits on the owner.",
+    });
   if (system.startsWith("You are Scout") && said.includes("make it a task") && !afterTool)
     return callTool("c4", "task_create", {
       goal: "Done as asked",
@@ -84,6 +89,13 @@ test("an agent's @mention on its task asks that teammate, and the answer comes b
     .find((m) => JSON.stringify(m.parts).includes("Scout answered your question"));
   assert.deepEqual(heard?.author, { kind: "agent", id: "scout" });
   assert.match(JSON.stringify(heard?.parts), /include taxes/);
+  // The answer reaches Vera as work on her own task: go on until it is delivered, never a one-off report to Scout.
+  const input = llm.calls
+    .filter((c) => String(c.messages[0]?.content).startsWith("You are Vera"))
+    .map((c) => String(c.messages.at(-1)?.content))
+    .find((m) => m.includes("Scout answered your question"));
+  assert.match(input ?? "", /The task is yours: keep working until it is done/);
+  assert.doesNotMatch(input ?? "", /Status: done|goes back to Scout/);
   // Scout's own @vera from inside the consult asked no one: still the one consult, and Vera's chat had two turns.
   assert.equal(store.threads.sessions(task.thread_id).length, 1);
   // Parts APX goes on with on its own (engine/task-continue.ts) are not turns anyone asked for.
@@ -201,4 +213,31 @@ test("a consult still working is left alone: a new @mention opens another, and a
   await env.client.call("tasks.comment", { task: vera.id, text: "@scout and the owner's question" });
   await waitFor(() => consultsOf(vera.thread_id).length === 2, "the owner's ask opens its own consult");
   assert.equal(store.runs.list(byVera?.id ?? "").length, 1, "Vera's consult was not reused for the owner");
+});
+
+test("a teammate's @mention of the task's own agent reaches its chat for the task as work, not a consult", async () => {
+  const store = env.core.store;
+  const task = await env.client.call("tasks.create", {
+    title: "Ledger summary",
+    description: "Draft the ledger summary.",
+    assignee: "vera",
+  });
+  const chat = () => store.threads.byTask(task.id).find((t) => t.agent_ids[0] === "vera");
+  await waitFor(() => Boolean(chat()), "vera's chat for the task");
+  await env.settle(chat()?.id ?? "");
+  await env.client.call("threads.send", { thread: "home", text: "Push Vera on the ledger." });
+  await env.settle("home");
+  await waitFor(
+    () => store.runs.list(chat()?.id ?? "").some((r) => r.input?.origin.kind === "agent" && r.state === "completed"),
+    "vera hears it in her chat for the task",
+  );
+  assert.equal(store.threads.sessions(task.thread_id).filter((t) => t.agent_ids[0] === "vera").length, 0, "no consult");
+  const run = store.runs.list(chat()?.id ?? "").find((r) => r.input?.origin.kind === "agent");
+  assert.deepEqual(run?.input?.origin.kind === "agent" && run.input.origin.on_task, task.id);
+  const input = llm.calls
+    .filter((c) => String(c.messages[0]?.content).startsWith("You are Vera"))
+    .map((c) => String(c.messages.at(-1)?.content))
+    .find((m) => m.includes("go on with the summary"));
+  assert.match(input ?? "", /The task is yours: keep working until it is done/);
+  assert.doesNotMatch(input ?? "", /the task's work is not yours|Status: done/);
 });
