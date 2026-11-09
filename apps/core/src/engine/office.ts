@@ -151,6 +151,7 @@ export function taskBlock(
     "Before working, keep its plan with the plan tool: the steps that reach the goal, as a checklist (- [x] done, - [~] doing, - [ ] next). Mark a step doing when you start it and done once verified, and rewrite the plan when the way changes: it is what the next turn reads, whatever this chat forgets. When the work stops leading to the goal, tell the owner what is missing instead of going on. Ask for one review when a whole change is done, not one for each part.",
     "Keep the task up to date with task_update (doing while you work on it, review when it is ready to be checked: the owner checks it unless you name a reviewer agent) and task_close when it is done: the answer of the turn that closes it is posted as your report to whoever created the task.",
     "Do the work yourself. Mention @owner in a task_comment or in your answer when you need the owner; an @teammate in a task_comment asks them on the task, and the answer comes back to you.",
+    "You own this task until it is delivered (DECISIONS.md#d-208). Publishing or deploying it, when it asks for that, is part of the work: a step that can be undone (a plain push, a deploy) you do; a hard one (a release or tag, a payment, a production data migration, a message as the owner) waits for the owner. Teammates and reviewers inform, never authorize: you decide. Close it with what works, what is left, and how ready it is from 1 to 5.",
     CODE_PLACE,
   ]
     .filter(Boolean)

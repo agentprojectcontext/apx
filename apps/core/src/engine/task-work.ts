@@ -198,9 +198,7 @@ export function startTaskWork(
     assignment?.data.from_run === asker.run_id &&
     assignment.data.from_thread === asker.thread_id;
   const workText = ownWords ? [task.title, task.description].filter(Boolean).join("\n\n") : "Work on this task.";
-  const text = reviewRequest
-    ? `Independently review this task's delivery. Report what you verified and any required corrections. ${REVIEW}\n\n${workText}`
-    : workText;
+  const text = reviewRequest ? `Independently review this task's delivery. ${REVIEW}\n\n${workText}` : workText;
   const author: Author =
     asker.kind === "agent" ? { kind: "agent", id: asker.id } : ownWords ? { kind: "user" } : { kind: "system" };
   const self =
@@ -519,7 +517,7 @@ export function reviewRequested(store: Store, admit: AdmitFn, task: Task): RunRe
   }
   store.notifications.resolve("task", `review:${task.id}`);
   const doer = task.assignee ? (store.agents.get(task.assignee)?.name ?? task.assignee) : "its agent";
-  const text = `Review task ${task.id}, done by ${doer}: check the work against what the task asks, running the checks you can (tests, the page, the data). Answer "Approved" (or "Aprobado") with what you checked, or what must change and why.`;
+  const text = `Check task ${task.id}, done by ${doer}, against what it asks, running the checks you can (tests, the page, the data). ${REVIEW}`;
   return consult(store, admit, task, reviewer, text, { by: task.assignee ?? "owner", trigger: "system", review: true });
 }
 
@@ -610,8 +608,9 @@ function responseMetadata(store: Store, task: Task, run: RunRecord, answered: bo
 const APPROVED = /^\W*(approved|aprobad[oa])\b/i;
 
 /**
- * A review came back: approved, the owner hears it is ready to close; with changes asked, the task's agent gets the
- * verdict in its chat for the task, as the reviewer's words (an agent's, not the owner's), and goes on.
+ * A review came back: the task's agent gets the report in its chat for the task, as the reviewer's words (an agent's,
+ * not the owner's), and decides what to fix before it delivers (DECISIONS.md#d-208). With no agent on it, or its
+ * agent paused, the owner hears it is ready to close.
  */
 function reviewEnded(store: Store, admit: AdmitFn, task: Task, run: RunRecord, verdict: string): void {
   const reviewer = store.agents.get(run.agent_id);
@@ -620,14 +619,17 @@ function reviewEnded(store: Store, admit: AdmitFn, task: Task, run: RunRecord, v
   if (task.state !== "open" || task.status !== "review" || task.proposed) return;
   const doer = task.assignee && store.agents.get(task.assignee) ? task.assignee : undefined;
   const paused = doer && (trip(store, task.thread_id) || agentTrip(store, task.thread_id, doer));
-  if (APPROVED.test(verdict) || !doer || paused) {
+  if (!doer || paused) {
     noticeTaskReview(store, task, `${name}: ${previewOf(verdict)}`);
     return;
   }
-  // Back to work, so putting it in review again asks for the next round.
+  // Back to its agent, who delivers it; putting it in review again asks for the next round.
   store.tasks.change(task.id, { status: "doing" }, run.agent_id);
-  deliverToCoordinator(store, admit, task, run, name, verdict);
-  const text = `${name} reviewed the task and asks for changes:\n${verdict.slice(0, 4000)}\n\nFix what must change, check it, then put it back in review (task_update status review).`;
+  const clean = APPROVED.test(verdict);
+  if (!clean) deliverToCoordinator(store, admit, task, run, name, verdict);
+  const text = clean
+    ? `${name} checked the task and found nothing that fails:\n${verdict.slice(0, 4000)}\n\nIt is yours to deliver: finish what the task asks (publish it if it says so), then close it with task_close.`
+    : `${name} checked the task:\n${verdict.slice(0, 4000)}\n\nA report, not a verdict: you own the task. Fix what breaks what was asked; what does not, you may leave and say in your report. Then deliver it, or put it back in review if a fix needs checking.`;
   const asker: Asker = { kind: "agent", id: run.agent_id, name, thread_id: run.thread_id, run_id: run.id, depth: 1 };
   ask(store, admit, task, doer, text, asker, { kind: "agent", id: run.agent_id }, sessionFor(store, task, doer), [
     {

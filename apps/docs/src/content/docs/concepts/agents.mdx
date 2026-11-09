@@ -105,7 +105,7 @@ and follow up until they close. When a decision needs the owner, ask once, clear
 | `description` | What the agent is for. It is also put in front of the instructions when the body does not already say it. |
 | `icon` | The agent's blobo (`orbita`, `menta`, `cobalto`…). |
 | `emoji` | An optional emoji, kept with the agent (files written by other tools often have one). |
-| `parent` | The agent it reports to, by its slug (or its full id). Leave it out and the agent reports to Home. |
+| `parent` | The agent it reports to, by its slug (or its full id). Leave it out and the agent reports to Home. APX tells the agent who it answers to and its `area`, so its instructions never need to name people. |
 | `area` | The area it belongs to, for the org chart (`product`, `engineering`…). |
 | `autonomy` | Its permission mode: `manual`, `auto` (the default), `accept_edits`, `plan` or `total`. See [Autonomy and safety](/concepts/autonomy/). |
 | `personality` | How it sounds, apart from what it does. Up to 1,000 characters. |
@@ -197,6 +197,11 @@ The **Agents** tab draws your team two ways:
 
 - **Hierarchy**: a tree built from each agent's `parent:`. Agents with no parent report to Home.
 - **Areas and roles**: the agents grouped by their `area:`, with the areas and roles of the project.
+
+An agent's instructions are for its craft: how it works and what it checks. Who it answers to and what it may
+publish are APX's to say. To check that none of your agents' instructions still holds work back (people named as
+bosses, "do not push unless authorized", approvals a reviewer must give), ask your super-agent "Review my agents'
+instructions": it tells you what it would change in each, and changes nothing until you say yes.
 
 <Shot name="org" alt="The Areas and roles view: Product, Engineering and Growth areas with their roles and agents" caption="Agents › Areas and roles" />
 

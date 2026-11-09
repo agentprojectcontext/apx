@@ -2669,7 +2669,8 @@ agents stopped short. Each answers a stop seen in real work:
 - **A task turn that ends with the task in progress goes on at once** (`engine/task-continue.ts`), numbered "part k of
   at most 9", telling the agent to finish, verify and close, mark it waiting on the owner with why, or say what blocks
   it. Not after a part that made no progress (`progress.ts` `stalled`), past `MAX_AUTO_PARTS` in a row, in review,
-  or while a subtask, a helper, a background command, a question or the breaker is still to come. The stall watch
+  or while a subtask, a helper, a teammate it asked on the task, a background command, a question or the breaker is
+  still to come. The stall watch
   (20 minutes, then the owner) stays for what this does not catch.
 - **Repeating a call is reminded, not cut.** Only the same call in a row counts (arguments compared with their keys
   in order): a reminder at the third and fifth, tools off at the eighth. Returning to a read between other work is
@@ -3614,6 +3615,7 @@ adding a restriction, without one step of its plan working.
   notes, or Blocked with the one thing that blocks it; notes never block and they ask for no other round. The task
   block asks for one review when a whole change is done, not one per part. "Approved with notes" opens with "Approved",
   so a task review (D-128) reads it as approved.
+  *Amended by [D-208](#d-208) (2026-11-08): a review reports and never blocks; the task's agent decides.*
 
 - **Fewer, shorter task comments**: a task's conversation is read by people, and one agent left 56 dense comments on
   one task. `task_comment` takes one comment per task per turn (a second is refused: the rest goes in the answer) and
@@ -4263,3 +4265,51 @@ happened to work it had started itself.
 
 Rejected: sending results to every project chat of the head (the owner would see reports in chats that never asked),
 and trusting `coordination_from` without checking the runs (a task chat's context is not proof of who started it).
+
+<a id="d-208"></a>
+## D-208 — 2026-11-08 — A task's agent carries it to delivery; publishing is medium, a release is hard
+A blog the owner asked to publish sat finished on a branch for a day: its agent read "do not push unless authorized"
+in its role, every teammate it asked answered as a gate, and a plain push of the site waited for the owner like an
+`rm -rf`. The owner's rule: easy things that can be undone are published, hard ones are asked.
+
+- **Publishing a branch is a medium action** (`tools/shell.ts`): a plain `git push` runs in Auto like any other
+  command. A push that rewrites or deletes what others have (`--force`, `--delete`, `:branch`, `+ref`, `--mirror`,
+  `--prune`) or cuts a release (a tag, `--tags`, `gh release`, `npm publish` and the like) stays `always`, the
+  hard kind, and keeps its card in Total too (`publishCard`, `keepsCard: "grant"`): only the owner's "always for this
+  agent" skips it.
+- **The owner may want to be asked before publishing**: `publish: ask` on the owner (Settings › Account, `apx owner
+  set publish=ask`) makes a plain push keep its card the same way. The default, `auto`, publishes without asking.
+- **Reviews inform, never gate** (`REVIEW` in `engine/context.ts`, `reviewEnded` in `engine/task-work.ts`): a reviewer
+  reports what works, what fails (and whether it breaks what was asked) and what it could not check, opening with
+  "Approved" when nothing asked fails. Either way the task goes back to its agent: a clean report says it is theirs
+  to deliver, a failing one is "a report, not a verdict". Only with no agent on it, or its agent paused, does the owner
+  hear it is ready to close. Amends D-188's one verdict (Approved, Approved with notes, Blocked), whose "Blocked" read as
+  a stop every teammate could pull.
+- **The agent on a task delivers it** (`engine/office.ts`): it owns the task until it is delivered; publishing it,
+  when the task asks, is part of the work. A step that can be undone it does; a hard one (a release or tag, a payment,
+  a production data migration, a message as the owner) waits for the owner. It closes with what works, what is left
+  and how ready it is, 1 to 5.
+- **Whoever gave the task checks the delivery** (`DELIVERY_CHECK` in `engine/context.ts`, the `task_result` framing):
+  1-2 goes back to its agent with `task_close state:open, rework:true` and what to fix, without asking the owner; from
+  3 up it sees that what was to be published is out, puts only a hard step to the owner with a recommendation, and
+  always tells the owner how it ended. For the owner's tasks that is the super-agent.
+- **A part does not start while a teammate it asked is still answering** (`engine/task-continue.ts`): the answer
+  comes back to the chat on its own.
+
+Rejected: a score threshold the core enforces (the score is the agent's word, and what decides is whether a step can
+be undone), and a separate "ready" status (closing with the report already reaches whoever gave the task).
+
+<a id="d-209"></a>
+## D-209 — 2026-11-08 — An agent's place in its team is told by APX, not written in its prompt
+Role prompts named people ("You report to Pia", "goes to Lorena, never to Saba") and broke whenever the team changed:
+an agent followed a name instead of the work. Every agent already has `parent:` and `area:` in its file.
+
+- **The system prompt says it** (`teamPlace` in `engine/context.ts`, `placeOf` in `engine/turn.ts`): under the
+  agent's first line, who it answers to (its `parent:`, resolved in its own project first) and its area, and that work
+  outside its area goes to that area's agent or to the super-agent when none fits. The super-agent and an agent with
+  neither get no line. It changes only when the team does, so the prompt stays cacheable.
+- Role prompts keep the craft (how to build, what to check) and name roles, never people.
+
+Rejected: a written chart of who talks to whom (the owner's own diagram drifts from the team, and a hand-kept chart in
+every prompt is what broke).
+

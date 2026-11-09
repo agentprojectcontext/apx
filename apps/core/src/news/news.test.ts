@@ -425,3 +425,26 @@ test("more integrations reach an owner who connected one; new channels an owner 
     done();
   }
 });
+
+test("the prompt review is offered to an owner whose agents have instructions of their own, with its skill", () => {
+  const { store, done } = setup();
+  try {
+    const review = NEWS.find((item) => item.id === "agent-prompts");
+    assert.ok(review);
+    store.agents.upsert({ id: "plain", name: "Plain", role: "Helper", kind: "agent", browser_profile: "shared" });
+    assert.equal(review.applies(newsFacts(store)), false, "no agent with a prompt of its own");
+    store.agents.upsert({
+      id: "dev",
+      name: "Dev",
+      role: "Developer",
+      kind: "agent",
+      browser_profile: "shared",
+      prompt: "You report to Ana. Do not push unless authorized.",
+    });
+    assert.equal(review.applies(newsFacts(store)), true);
+    assert.match(review.text, /load_skill apx-agent-prompts/);
+    assert.match(review.text, /Change nothing until the owner says yes/);
+  } finally {
+    done();
+  }
+});

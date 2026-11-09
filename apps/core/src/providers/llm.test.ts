@@ -552,6 +552,49 @@ test("a key to fix is told as such, even when another model hit a limit; a short
   assert.equal(new ProviderError("rate_limit", "HTTP 429: slow down").limit, true, "unsaid: may be long");
 });
 
+test("a request a backup model refuses does not hide the first model's limit: the work waits for its reset", async () => {
+  const reset = new Date(Math.ceil(Date.now() / 1000) * 1000 + 3600_000);
+  const llm = createLlm({
+    providers: () => providers,
+    secrets,
+    firstByteMs: 1000,
+    retryDelayMs: 5,
+    fetchImpl: (async (_url: string, init: RequestInit) => {
+      const model = (JSON.parse(String(init.body)) as { model: string }).model;
+      if (model === "m1")
+        return new Response(
+          JSON.stringify({ error: { type: "usage_limit_reached", resets_at: Math.floor(reset.getTime() / 1000) } }),
+          { status: 429 },
+        );
+      return new Response("Function call is missing a thought_signature", { status: 400 });
+    }) as typeof fetch,
+  });
+  const err = await llm
+    .complete({ models: ["pa/m1", "pb/m3"], messages: [], tools: [], signal: new AbortController().signal })
+    .then(
+      () => undefined,
+      (e: unknown) => e,
+    );
+  assert.ok(err instanceof ProviderError);
+  assert.ok(
+    err.limit,
+    `a limit, so the stopped turn resumes at the reset; got ${err instanceof Error ? err.message : err}`,
+  );
+  assert.equal(err.resetsAt, reset.toISOString());
+  assert.match(err.message, /pb\/m3: .*thought_signature/);
+
+  // With no model at its limit, the refusal is what the chain ends with.
+  const alone = await llm
+    .complete({ models: ["pb/m3"], messages: [], tools: [], signal: new AbortController().signal })
+    .then(
+      () => undefined,
+      (e: unknown) => e,
+    );
+  assert.ok(alone instanceof ProviderError);
+  assert.equal(alone.kind, "bad_request");
+  assert.equal(alone.limit, false);
+});
+
 test("a chain that fails for other reasons only is not a usage limit", async () => {
   const llm = createLlm({
     providers: () => providers,

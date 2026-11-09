@@ -141,8 +141,12 @@ Arriba de la descripción, una tarea muestra adónde tiene que llegar su trabajo
   vuelve a empezar la cuenta.
 - **Un agente hace el trabajo, una revisión al final**: el agente de una tarea la hace él mismo. Le pide algo a otro
   agente recién cuando terminó el resto de su plan, en general una revisión (salvo que vos le pidas ayuda antes). Lo
-  que tiene que hacer otro pasa a ser una subtarea. Quien revisa responde Aprobado, Aprobado con notas, o Bloqueado con
-  lo único que lo bloquea. Las notas nunca frenan.
+  que tiene que hacer otro pasa a ser una subtarea. Quien revisa informa qué funciona, qué falla y qué no pudo probar;
+  nunca aprueba ni bloquea. La tarea vuelve a su agente, que decide qué arreglar y la entrega.
+- **El agente de una tarea la entrega**: cuando la tarea pide publicar o desplegar, eso es parte del trabajo. Un paso
+  que se puede deshacer (subir una rama, un deploy) lo hace; uno difícil (una versión o un tag, un pago, una migración
+  de datos en producción, un mensaje en tu nombre) te espera. Cierra la tarea diciendo qué funciona, qué falta y qué
+  tan lista está, de 1 a 5.
 - **Pocos comentarios**: un agente comenta en una tarea cuando termina su plan, para preguntarte algo a vos o a un
   compañero (con `@nombre`), o cuando te responde; como mucho una vez por turno y en líneas cortas. El avance se ve en
   el plan. Un ayudante le responde a quien le preguntó, no a la tarea.
@@ -203,7 +207,10 @@ varias pasadas. Una tarea trabajada por última vez hace más de un día queda p
 ### Cuando se cierra la tarea de un agente
 
 Una tarea que un agente creó y le dio a otro avisa cuando se cierra. Tu agente principal se entera de cada tarea que
-cierra su equipo, también las que diste vos u otro agente, y te cuenta cómo salió. Tu agente principal puede pasarle un objetivo
+cierra su equipo, también las que diste vos u otro agente, la compara con lo que se pidió y te cuenta cómo terminó.
+Con 1 o 2, vuelve a su agente con lo que hay que arreglar, sin preguntarte; desde 3, tu agente principal se fija que
+lo que había que publicar esté publicado, te pregunta antes solo un paso difícil y te avisa si terminó bien o con
+detalles. Tu agente principal puede pasarle un objetivo
 entero al orquestador de un proyecto como tarea; cuando el orquestador la cierra, horas y reinicios después, tu agente
 principal recibe su informe en el chat donde creó la tarea y te cuenta lo que importa. Cuando el orquestador de un
 proyecto arranca una tarea desde su propio chat del proyecto, ese chat también se entera de cómo terminó, y de cuando un
