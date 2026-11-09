@@ -18,6 +18,7 @@ export interface SegmentedControlProps {
   /** Accessible name for the group. */
   label?: string;
   className?: string;
+  disabled?: boolean;
 }
 
 /** 2–4 mutually exclusive options in one pill: Light/Dark, Auto/Ask/Plan, list/board. */
@@ -29,11 +30,13 @@ export function SegmentedControl({
   size = "md",
   label,
   className,
+  disabled = false,
 }: SegmentedControlProps) {
   const [inner, setInner] = useState(defaultValue ?? options[0]?.value);
   const current = value ?? inner;
   return (
     <RadioGroup
+      disabled={disabled}
       value={current}
       onValueChange={(v: string) => {
         setInner(v);
