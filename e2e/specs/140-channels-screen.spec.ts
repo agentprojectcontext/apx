@@ -15,10 +15,7 @@ test("the Channels screen lists every account, filters by app and opens each one
   page,
 }) => {
   await open(page);
-  await page
-    .locator(".sidebar__top")
-    .getByRole("button", { name: /^Canales/ })
-    .click();
+  await page.locator(".sidebar").getByRole("button", { name: "Administrar canales" }).click();
   const screen = page.getByRole("region", { name: "Canales" });
   await expect(screen.getByRole("heading", { name: "Canales" })).toBeVisible();
   await expect(screen.getByRole("button", { name: /^Telegram/ })).toBeVisible();

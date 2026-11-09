@@ -85,6 +85,30 @@ test("checkboxes, switches and segmented controls expose and update selection wi
     await expect(page.getByTestId("events")).toHaveText('[{"view":"board"}]');
   }));
 
+test("a disabled segmented group ignores pointer input and preserves selection when re-enabled", async () =>
+  mounted(async (page) => {
+    const list = page.getByRole("radio", { name: "List", exact: true });
+    const board = page.getByRole("radio", { name: "Board", exact: true });
+    const toggle = page.getByRole("switch", { name: "Notifications", exact: true });
+    await expect(list).toBeDisabled();
+    await expect(board).toBeDisabled();
+    await board.click({ force: true });
+    await expect(list).toBeChecked();
+    await expect(page.getByTestId("events")).toHaveText("[]");
+    await toggle.click();
+    await expect(board).toBeEnabled();
+    await board.click();
+    await expect(board).toBeChecked();
+    await toggle.click();
+    await expect(board).toBeDisabled();
+    await list.click({ force: true });
+    await expect(board).toBeChecked();
+    await expect(page.getByTestId("events")).toHaveText('[{"view":"board"}]');
+    await toggle.click();
+    await expect(board).toBeEnabled();
+    await expect(board).toBeChecked();
+  }));
+
 test("splitter clamps keyboard and pointer resize, ends drag and resets on double click", async () =>
   mounted(async (page) => {
     const splitter = page.getByRole("separator", { name: "Resize sidebar", exact: true });

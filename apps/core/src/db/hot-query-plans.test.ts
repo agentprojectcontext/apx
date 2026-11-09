@@ -87,6 +87,7 @@ test("hot reads use an index on every large table, and paged lists never sort th
       ["runs.usage of chats", () => store.runs.usage("", undefined, ["th_a", "th_b"])],
       ["runs.jobs", () => store.runs.jobs(12), { paged: true }],
       ["runs.completedSince", () => store.runs.completedSince(since), { paged: true }],
+      ["runs.completedSince window", () => store.runs.completedSince(since, "2099-01-01T00:00:00.000Z")],
       ["runs.activeDelegations", () => store.runs.activeDelegations("th_a")],
       ["jobs.finished", () => store.jobs.finished(12), { paged: true }],
       ["channels.outbox.recent", () => store.channels.outbox.recent(20), { paged: true }],

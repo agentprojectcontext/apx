@@ -1,4 +1,5 @@
 import { noticeEn } from "@apx/protocol/notices";
+import type { enActivityReview } from "./activity-review-en.ts";
 import type { ApprovalKey } from "./approvals-en.ts";
 import type { BrowserEditKey } from "./browser-edit-en.ts";
 import type { ComputerKey } from "./computer-en.ts";
@@ -25,6 +26,7 @@ import type { enThreadDialogs } from "./thread-dialogs-en.ts";
 
 // UI strings, English: the source of truth. Every key lives here; `{name}` placeholders are filled by t().
 export const en = {
+  "config.activityReview": "Activity review",
   "panel.computer": "Computer",
   "panel.computer.hint": "See the agent's Linux computer",
   "computer.screen": "Live VM desktop",
@@ -385,11 +387,6 @@ export const en = {
   "account.agentLanguageHint": "They answer and send notices in it, unless you write to them in another one.",
   "account.timezone": "Time zone",
   "account.timezoneHint": "Your agents use it to know what time it is for you.",
-  "account.publish": "Publishing finished work",
-  "account.publishHint":
-    "When a task is done and can be undone, like putting a website online. A new version, a payment or a message in your name always waits for you.",
-  "account.publish.auto": "Without asking",
-  "account.publish.ask": "Ask me first",
   "error.account": "Could not save your account: {error}",
   "account.owner": "Owner of this installation",
   "account.name": "Name",
@@ -1881,6 +1878,7 @@ export const en = {
 /** Every key the panel may show: these, and those of the packs loaded with their screens (messages.ts PACKS). */
 export type MessageKey =
   | keyof typeof en
+  | keyof typeof enActivityReview
   | ApprovalKey
   | BrowserEditKey
   | ComputerKey

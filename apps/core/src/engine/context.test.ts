@@ -44,6 +44,25 @@ test("the system prompt has no clock and no roster: same agent and thread, same 
   assert.doesNotMatch(a, /A turn with no tool call did nothing/);
 });
 
+test("agents and workers recover within permissions before reporting a blocker", () => {
+  const agent = { id: "helper", name: "Helper", role: "", kind: "agent", prompt: "" } as Parameters<
+    typeof systemPrompt
+  >[0];
+  const prompts = [
+    systemPrompt(agent, { kind: "home" }, "en"),
+    workerPrompt({ name: "Helper", instructions: "Do the task." }, { name: "Caller" }, "en"),
+  ];
+  for (const prompt of prompts) {
+    assert.match(prompt, /Diagnose; try bounded fixes with own tools\/permissions first/);
+    assert.match(prompt, /Retry only after a fix or transient evidence; keep working methods/);
+    assert.match(prompt, /Fixed: continue; note useful facts and risks/);
+    assert.match(prompt, /Never bypass access, login, quota or handoffs/);
+    assert.match(prompt, /Else give exact error, attempts, dependency/);
+    assert.match(prompt, /A login: browser_sign_in, browser_use_my_login \(with their OK\), else browser_handoff/);
+    assert.doesNotMatch(prompt, /stop and report the exact error|never the same failing call again/);
+  }
+});
+
 test("history keeps whole runs, prunes old tool output and stays within budget", () => {
   const big = "x".repeat(5000);
   const runs: ChatItem[][] = [0, 1, 2, 3].map((i) => [
@@ -244,13 +263,10 @@ test("an unreadable source is a blocker in the shared rules, not 'not verifiable
     typeof systemPrompt
   >[0];
   const blocker = /unreadable source is a blocker.*never "not verifiable"/s;
-  assert.match(systemPrompt(agent, { kind: "home" }, "es"), /Never bypass denied access, a login or a usage limit/);
+  assert.match(systemPrompt(agent, { kind: "home" }, "es"), /Never bypass access, login, quota or handoffs/);
   assert.match(systemPrompt(agent, { kind: "home" }, "es"), /A greeting with a request is a request\./);
   assert.match(systemPrompt(agent, { kind: "home" }, "es"), /Short and direct, never restating the question/);
-  assert.match(
-    systemPrompt(agent, { kind: "home" }, "es"),
-    /If blocked, report the exact error and what access is missing/,
-  );
+  assert.match(systemPrompt(agent, { kind: "home" }, "es"), /Else give exact error, attempts, dependency/);
   const worker = workerPrompt({ name: "Helper", instructions: "audit" }, { name: "Roby" }, "es");
   assert.match(worker, /your answer is your report, complete and self-contained/);
   assert.match(worker, blocker);
@@ -264,7 +280,7 @@ test("the web goes to the agent's own browser, a login is handed to the owner, a
   assert.match(a, /^- The web: .*never another browser\.$/m);
   assert.match(a, /^- The owner's screen \(screen_ tools\) only when they ask for their computer\.$/m);
   assert.match(a, /A site that blocks you is a handoff too, not a reason to switch/);
-  assert.match(a, /never drop a way that works after one failure/);
+  assert.match(a, /keep working methods/);
   assert.match(a, /A step the owner declined is not repeated/);
   assert.match(a, /Independent tool calls go together in one step/);
   const worker = workerPrompt({ name: "Helper", instructions: "audit" }, { name: "Roby" }, "es");

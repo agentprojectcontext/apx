@@ -14,6 +14,7 @@ import { esTeam } from "./es-team.ts";
 import { esTelemetry } from "./es-telemetry.ts";
 
 export const es: Partial<Record<MessageKey, string>> = {
+  "config.activityReview": "Revisión y mejoras",
   "panel.computer": "Computadora",
   "panel.computer.hint": "Ver computadora Linux del agente",
   "computer.screen": "Escritorio VM en vivo",
@@ -382,11 +383,6 @@ export const es: Partial<Record<MessageKey, string>> = {
   "account.agentLanguageHint": "Te contestan y te avisan en este idioma, salvo que les escribas en otro.",
   "account.timezone": "Zona horaria",
   "account.timezoneHint": "Tus agentes la usan para saber qué hora es para vos.",
-  "account.publish": "Publicar el trabajo terminado",
-  "account.publishHint":
-    "Cuando una tarea está lista y se puede deshacer, como subir una web. Una versión nueva, un pago o un mensaje en tu nombre siempre te esperan.",
-  "account.publish.auto": "Sin preguntar",
-  "account.publish.ask": "Preguntarme antes",
   "error.account": "No se pudo guardar tu cuenta: {error}",
   "account.owner": "Dueño de esta instalación",
   "account.name": "Nombre",

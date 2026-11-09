@@ -48,6 +48,7 @@ import { TERMINAL } from "./domain/runs.ts";
 import { seed } from "./domain/seed.ts";
 import { createStore } from "./domain/store.ts";
 import { announceRelease } from "./domain/whats-new.ts";
+import { createActivityReview } from "./engine/activity-review.ts";
 import { createAttention } from "./engine/attention.ts";
 import { keepAwake, sleepWatch } from "./engine/awake.ts";
 import { calendarReminders } from "./engine/calendar-reminders.ts";
@@ -674,6 +675,12 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
     },
     (thread, stage) => bus.emit({ type: "computer.progress", thread_id: thread, stage }),
   );
+  const activityReview = createActivityReview({
+    store,
+    llm,
+    models: () => upkeep.auxModels(),
+    ...(opts.clock ? { now: opts.clock } : {}),
+  });
   const scheduler = officeScheduler({
     store,
     admit: (a) => engine.admit(a),
@@ -682,6 +689,7 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
     openHeld: () => channels.openHeld((a) => engine.admit(a)),
     flowTick: (at) => flows.tick(at),
     checks: (remind) => [
+      activityReview.check,
       storage.check,
       retention.check,
       localApps.check,
@@ -749,6 +757,7 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
 
   const dispatch = createRouter(
     coreHandlers({
+      activityReview,
       vm,
       internal,
       permissions,
@@ -921,6 +930,7 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
       await widgetPages?.closeAll().catch(() => {});
       headless?.close();
       scheduler.stop();
+      await activityReview.close();
       stopFlowEvents();
       await flows.close();
       await news.stop();

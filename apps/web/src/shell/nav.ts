@@ -56,6 +56,7 @@ export const CONFIG_SECTIONS = [
   "voices",
   "images",
   "interruptions",
+  "activity-review",
   "browser",
   "desktop",
   "devices",

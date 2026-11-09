@@ -32,6 +32,7 @@ import type { HeadlessBrowser } from "./nodes/headless-browser.ts";
 import type { WidgetPages } from "./nodes/widget-pages.ts";
 import { findProgram } from "./programs.ts";
 import { accessHandlers } from "./rpc/access.ts";
+import { activityReviewHandlers } from "./rpc/activity-review.ts";
 import { agentHandlers } from "./rpc/agents.ts";
 import { appHandlers } from "./rpc/app.ts";
 import { asanaHandlers } from "./rpc/asana.ts";
@@ -279,6 +280,7 @@ type HandlerDeps = {
   usage: Parameters<typeof usageHandlers>[0];
   /** The APX home by area, clearing what APX rebuilds, and the disk's free space. */
   storage: Parameters<typeof storageHandlers>[0];
+  activityReview: Parameters<typeof activityReviewHandlers>[0];
 };
 
 /** The handler table the router serves: one entry per protocol method. */
@@ -297,6 +299,7 @@ export function coreHandlers(d: HandlerDeps & { vm?: Computer | undefined }) {
     ...newsHandlers(d.news),
     ...usageHandlers(d.usage),
     ...storageHandlers(d.storage),
+    ...activityReviewHandlers(d.activityReview),
     ...systemHandlers(d.identity, d.app.home, d.panel, () => ({
       protocol: { status: "ok" },
       browser: d.broker.withCap(BROWSER_CAP)

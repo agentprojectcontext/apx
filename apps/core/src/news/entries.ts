@@ -5,6 +5,7 @@ import type { Store } from "../domain/store.ts";
 import { NOISY_COMMENTS } from "../domain/tasks.ts";
 import { computerHost } from "../environments/host.ts";
 import { CATALOG } from "../integrations/catalog.ts";
+import { ACTIVITY_REVIEW_NEWS } from "./activity-review.ts";
 import { AGENT_FALLBACKS_NEWS } from "./agent-fallbacks.ts";
 import { AGENT_PROMPTS_NEWS } from "./agent-prompts.ts";
 import { BROWSER_EDIT_NEWS } from "./browser-edit.ts";
@@ -88,6 +89,7 @@ export type NewsEntry = {
 };
 
 export const NEWS: readonly NewsEntry[] = [
+  ACTIVITY_REVIEW_NEWS,
   AGENT_PROMPTS_NEWS,
   TASK_GOALS_NEWS,
   CHANNEL_AGENTS_NEWS,
