@@ -38,11 +38,33 @@ export function readsOnly(command: string, home = os.homedir()): boolean {
  * Whether a part of the command that names one of `names` (APC files, AGENTS.md) could change it: a part that is not
  * a known reader, or a redirection into it. Reading or listing them changes no agent's mode.
  */
-export function mayChange(command: string, names: (path: string) => boolean): boolean {
+export function mayChange(command: string, names: (path: string) => boolean, home = os.homedir()): boolean {
   const named = (w: Word) => w.text.split(/[=:]/).some((p) => p && names(p));
-  return segments(command).some(
-    (words) => words.some(named) && (!reader(words) || words.some((w) => w.redirect && named(w))),
-  );
+  return segments(command).some((words) => {
+    if (!words.some(named)) return false;
+    if (words.some((w) => w.redirect && named(w))) return true;
+    if (reader(words)) return false;
+    const [first, ...args] = words.filter((w) => !w.redirect && !w.data);
+    // Staging, committing or showing a file in git leaves it as it is.
+    if (first?.text === "git" && GIT_KEEPS.has(gitCommand(args) ?? "")) return false;
+    // Any other program: only where it writes, when every path it names is known (`cp AGENTS.md /tmp/x` reads it).
+    const paths = namedPaths(words.map((w) => (w.prose ? JSON.stringify(w.text) : w.text)).join(" "), home);
+    const known = paths.every((n) => n.kind === "path" || n.kind === "cd");
+    return !known || paths.some((n) => n.kind === "path" && n.write && names(n.to.path));
+  });
+}
+
+/** git subcommands that leave the files they name as they are. */
+const GIT_KEEPS = new Set(["add", "commit", "diff", "log", "show", "status", "blame", "ls-files", "grep"]);
+
+/** git's subcommand, past its global options (`-C dir`, `-c key=value`). */
+function gitCommand(args: Word[]): string | undefined {
+  for (let i = 0; i < args.length; i++) {
+    const t = args[i]?.text ?? "";
+    if (t === "-C" || t === "-c" || t === "--git-dir" || t === "--work-tree") i++;
+    else if (!t.startsWith("-")) return t;
+  }
+  return undefined;
 }
 
 /** One simple command: a known reader with arguments that neither write nor run anything else. */
