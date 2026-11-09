@@ -38,8 +38,8 @@ test("Chats: un chat sin leer se distingue en la lista y deja de serlo al abrirl
   // Opening it reads it: from now on the core says so.
   await page.unroute("**/rpc/threads.list");
   await row("Arriba 0").click();
-  // Loaded, the chat marks itself read.
-  await expect(page.getByText(/^Chat con /)).toBeVisible();
+  // Loaded, the chat marks itself read: its empty state shows (other specs leave chats titled "Chat con …" in the list).
+  await expect(page.locator(".apx-empty__title").getByText(/^Chat con /)).toBeVisible();
   await expect(row("Arriba 0")).toHaveClass(/is-selected/);
   await row("Arriba 4").first().click();
   await expect(rows.locator(".apx-convrow__unread")).toHaveCount(0);
