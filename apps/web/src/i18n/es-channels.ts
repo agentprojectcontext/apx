@@ -155,9 +155,9 @@ export const esChannels: Partial<Record<MessageKey, string>> = {
   "ch.rules": "Reglas",
   "ch.rulesHint": "Va último en el prompt, así que le gana a la cautela del agente.",
   "ch.may": "Qué puede hacer esta conversación",
-  "ch.perm.appointments": "Tomar pedidos de turno",
+  "ch.perm.appointments": "Anotar citas",
   "ch.perm.appointmentsHint":
-    "Cuando pide un turno (día y hora), queda como tarea para que lo confirmes y te aviso por tu canal en el momento. No reserva nada.",
+    "Cuando pide una cita (día y hora), queda anotada como tarea para que la confirmes y te aviso por tu canal en el momento. No agenda nada.",
   "ch.perm.requests": "Tomar pedidos",
   "ch.perm.requestsHint":
     "Cuando pide algo que solo vos podés hacer (una compra, un favor, llamar a alguien), queda como tarea y te aviso en el momento. Tu agente nunca lo hace por vos.",

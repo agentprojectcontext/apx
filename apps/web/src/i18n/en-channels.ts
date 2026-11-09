@@ -151,7 +151,7 @@ export const enChannels = {
   "ch.rules": "Rules",
   "ch.rulesHint": "They go last in the prompt, so they win over the agent's caution.",
   "ch.may": "What this conversation may do",
-  "ch.perm.appointments": "Take appointment requests",
+  "ch.perm.appointments": "Note appointments",
   "ch.perm.appointmentsHint":
     "When they ask for an appointment (a day and time), it is noted as a task for you to confirm, and you are told on your channel right away. Nothing is booked.",
   "ch.perm.requests": "Take requests",
