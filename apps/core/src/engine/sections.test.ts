@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import type { Origin } from "../domain/runs.ts";
-import { agentsMdOf, type Sections, sectionLines, turnInput, VISUAL_CHECK } from "./context.ts";
+import { agentsMdOf, GIT_ASKED, type Sections, sectionLines, turnInput, VISUAL_CHECK } from "./context.ts";
 
 const owner: Origin = {
   kind: "channel",
@@ -60,6 +60,16 @@ test("whoever can change files is told to look at a visible change running, unde
   assert.ok(sectionLines({ mode: "auto", edits: true }).includes("## Changes people see"));
   assert.ok(!sectionLines({ write: "read-only" }).includes(`- ${VISUAL_CHECK}`));
   assert.ok(!sectionLines({ mode: "auto" }).includes(`- ${VISUAL_CHECK}`));
+});
+
+test("whoever can change files commits and publishes only when asked or a project rule says how", () => {
+  assert.ok(sectionLines({ write: "auto", edits: true }).includes(`- ${GIT_ASKED}`));
+  assert.ok(sectionLines({ mode: "auto", edits: true }).includes(`- ${GIT_ASKED}`));
+  assert.ok(!sectionLines({ mode: "auto" }).includes(`- ${GIT_ASKED}`));
+  assert.match(
+    GIT_ASKED,
+    /only when the owner or the task asked, or a project rule or note says how; else ask_owner once/,
+  );
 });
 
 test("a turn opens with one context header: the facts line, then the folder and the computer", () => {
