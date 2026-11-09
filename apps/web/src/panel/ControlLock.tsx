@@ -1,3 +1,4 @@
+import "../styles/panel-parts.css";
 import { AgentAvatar, Button, Icons } from "@apx/ui";
 
 /**

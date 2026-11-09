@@ -1,3 +1,4 @@
+import "../styles/title-tips.css";
 import { useEffect, useRef, useState } from "react";
 
 /** Controls whose `title` is their hint: buttons, links, tabs and menu items. */

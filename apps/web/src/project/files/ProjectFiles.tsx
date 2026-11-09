@@ -1,3 +1,4 @@
+import "../../styles/panel-parts.css";
 import { EmptyState, IconButton, Icons, PickRow, ResizeHandle, SegmentedControl, Tag } from "@apx/ui";
 import { useMemo, useState } from "react";
 import { shortWhen } from "../../common/format.ts";

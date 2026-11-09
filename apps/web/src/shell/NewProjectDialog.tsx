@@ -1,3 +1,4 @@
+import "../styles/nav-dialogs.css";
 import type { ProjectKind } from "@apx/protocol";
 import { Button, Checkbox, Dialog, Field, Icons, Input, SegmentedControl, Select, Textarea } from "@apx/ui";
 import { type KeyboardEvent, useEffect, useState } from "react";

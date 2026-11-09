@@ -9,7 +9,7 @@ import { AttentionTray } from "./AttentionTray.tsx";
 import { useDesktopClass } from "./desktop.ts";
 import { go, useNavHistory } from "./nav.ts";
 import { ServerSwitch } from "./ServerSwitch.tsx";
-import { SuperAgentButton } from "./SuperAgentCard.tsx";
+import { SuperAgentButton } from "./SuperAgentButton.tsx";
 import { UpdatePill, WhatsNewPill } from "./UpdatePill.tsx";
 import { useTopbarFit } from "./useTopbarFit.ts";
 

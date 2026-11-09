@@ -1,3 +1,4 @@
+import "../../styles/model-menus.css";
 import { Button, Icons } from "@apx/ui";
 import { Suspense } from "react";
 import { choiceLabel, effectiveChoice, refLabel, useModels } from "../../data/models.ts";

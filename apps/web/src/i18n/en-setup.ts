@@ -41,7 +41,6 @@ export const enSetup = {
   "setup.import.scanning": "Reading v1…",
   "setup.import.importing": "Importing…",
   "setup.import.result": "Imported: {list}",
-  "setup.import.failed": "Some of it could not be imported: {error}",
   "setup.v1.projects": "Projects",
   "setup.v1.projectsCount": "{n} · {agents} agents",
   "setup.v1.projectsBody":
@@ -107,7 +106,6 @@ export const enSetup = {
   "setup.engines.chainHint": "Order it with the arrows",
   "setup.engines.chainEmpty": "Connect at least one engine.",
   "setup.engines.up": "Move up",
-  "setup.engines.model": "Model",
   "setup.engines.drop": "Take out of the chain",
   "setup.engines.default": "Default",
   "setup.engines.needOne": "Add at least one model to the chain",
@@ -150,7 +148,6 @@ export const enSetup = {
   "setup.channels.titleGreen": "in your chats.",
   "setup.channels.body":
     "Write to {name} from where you already are. The same memory and tools as in the panel. Optional: they can be added later.",
-  "setup.channels.soon": "Soon",
   "setup.channels.telegram": "The main line",
   "setup.channels.telegramBody": "A bot for everything. Voice notes, files and routine reports.",
   "setup.channels.whatsapp": "A line or your own number",
@@ -179,10 +176,7 @@ export const enSetup = {
   "setup.project.later": "Use APX's folder",
   "setup.project.laterBody":
     "Choose nothing: your crew works in APX's folder (~/.apx/v2/work). You can add folders later.",
-  "setup.project.pick": "Choose folder",
-  "setup.project.pathPlaceholder": "/path/to/your/project",
   "setup.project.plain": "It is a plain folder: an AGENTS.md naming it is written there.",
-  "setup.project.added": "Added: {name}",
   "setup.done.ready": "is ready.",
   "setup.done.body":
     "Your crew lives in {home} and in each project's .apc/. Everything can be changed later in Settings.",
@@ -231,7 +225,6 @@ export const enSetup = {
   "about.system": "System",
   "about.credits": "Built on APC, the Agent Project Context standard. Icons by Lucide; shell by Electron.",
   "connect.kicker": "FIRST RUN",
-  "connect.title": "Where does",
   "connect.titleEnd": "your APX run?",
   "connect.body": "You can change it later from the APX menu › Change connection.",
   "connect.kickerServer": "SERVER",

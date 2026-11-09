@@ -1,6 +1,5 @@
 import { ApxProvider } from "@apx/ui";
 import { type CSSProperties, Suspense, useEffect } from "react";
-import { TitleTooltips } from "./common/TitleTooltips.tsx";
 import { startLive } from "./data/live.ts";
 import { checkAccess, useGate } from "./data/pairing.ts";
 import { usePrefs } from "./data/prefs.ts";
@@ -15,6 +14,7 @@ import {
   OAuthReturn,
   PairScreen,
   QuickChat,
+  TitleTooltips,
   Wizard,
 } from "./lazy.ts";
 import { IS_BROWSER_WINDOW } from "./panel/browserWindow.ts";
@@ -77,7 +77,9 @@ function Main() {
         </Suspense>
       )}
       {!OAUTH_RETURN && gate === "open" && <Panel />}
-      <TitleTooltips />
+      <Suspense fallback={null}>
+        <TitleTooltips />
+      </Suspense>
       {!OAUTH_RETURN && gate === "pair" && (
         <Suspense fallback={null}>
           <PairScreen />

@@ -1,3 +1,4 @@
+import "../styles/panel-parts.css";
 import type { Agent, SurfaceSummary } from "@apx/protocol";
 import { AgentAvatar, Icons, type MenuEntry } from "@apx/ui";
 import { useMemo } from "react";

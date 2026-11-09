@@ -361,7 +361,7 @@
       "count": 2,
       "reason": "custom-styled row, chip, tab or card control; moving it to Button/IconButton changes its look, so it needs a reviewed screenshot (rule 32)"
     },
-    "apps/web/src/shell/AttentionTray.tsx": {
+    "apps/web/src/shell/AttentionList.tsx": {
       "count": 1,
       "reason": "custom-styled row, chip, tab or card control; moving it to Button/IconButton changes its look, so it needs a reviewed screenshot (rule 32)"
     },
@@ -447,7 +447,7 @@
       "count": 4,
       "reason": "edit marks sit on the outside page, so they keep one vivid blue with white text whatever APX's theme"
     },
-    "apps/web/src/styles/chat.css": {
+    "apps/web/src/styles/chat-cards.css": {
       "count": 3,
       "reason": "pointer and scrim drawn over a remote screen: white on black whatever the theme"
     },

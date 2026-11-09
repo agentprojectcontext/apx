@@ -7,7 +7,7 @@ import { draftOf, removeRoutine, runRoutine, saveRoutine } from "../data/routine
 import { useData } from "../data/state.ts";
 import { useT } from "../i18n/index.ts";
 import { ActivationBars, hasAgent, useRuns } from "./ActivationBars.tsx";
-import { scheduleText } from "./Schedule.tsx";
+import { scheduleText } from "./scheduleText.ts";
 
 export type RoutineGroup = { id: string; title?: ReactNode; routines: Routine[] };
 

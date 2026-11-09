@@ -1,3 +1,4 @@
+import "../../styles/chat-cards.css";
 import type { FileEntry, Thread } from "@apx/protocol";
 import { IconButton, Icons, Menu, type MenuEntry } from "@apx/ui";
 import { useState } from "react";

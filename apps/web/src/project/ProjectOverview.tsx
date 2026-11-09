@@ -1,3 +1,4 @@
+import "../styles/panel-parts.css";
 import { AgentAvatar, EmptyState, Icons, Spinner } from "@apx/ui";
 import { useMemo } from "react";
 import { shortWhen } from "../common/format.ts";

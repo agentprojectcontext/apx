@@ -6,23 +6,7 @@ import { compactThread } from "../../data/actions.ts";
 import { client } from "../../data/client.ts";
 import { baseRef } from "../../data/models.ts";
 import { type MessageKey, useT } from "../../i18n/index.ts";
-import { COMPACT_AT_SHARE, type ContextKind, contextParts } from "./context.ts";
-
-type Totals = { runs: number; failed: number; seconds: number; input: number; output: number; cached: number };
-
-export type ContextCardProps = {
-  context: { used: number; window?: number } | undefined;
-  spent: { input: number; output: number; cached: number } | undefined;
-  /** The run the figure came from: what it carried splits the context by kind. */
-  run: string | undefined;
-  /** The chat to compact; none while it is not made yet. */
-  thread: string | undefined;
-  /** An engine's own session (Claude Code, Codex): it keeps its own context, APX does not compact it. */
-  engine: boolean;
-  totals: Totals | undefined;
-  /** The model the newest run answered with. */
-  model: string | undefined;
-};
+import { COMPACT_AT_SHARE, type ContextCardProps, type ContextKind, contextParts } from "./context.ts";
 
 const TONE: Record<ContextKind, MeterTone> = {
   system: "info",

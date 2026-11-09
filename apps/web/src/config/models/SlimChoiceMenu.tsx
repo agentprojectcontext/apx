@@ -1,3 +1,4 @@
+import "../../styles/model-menus.css";
 import type { ModelRef } from "@apx/protocol";
 import { Button, EngineIcon, Icons } from "@apx/ui";
 import { Suspense, useEffect, useRef } from "react";

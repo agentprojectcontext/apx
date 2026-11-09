@@ -12,9 +12,9 @@ import { enEngines } from "./en-engines.ts";
 import { enFiles } from "./en-files.ts";
 import { enHelper } from "./en-helper.ts";
 import { enOffice } from "./en-office.ts";
-import { enResources } from "./en-resources.ts";
-import { enSetup } from "./en-setup.ts";
-import { enTeam } from "./en-team.ts";
+import type { enResources } from "./en-resources.ts";
+import type { enSetup } from "./en-setup.ts";
+import type { enTeam } from "./en-team.ts";
 import { enTelemetry } from "./en-telemetry.ts";
 import { enFilesArtifacts } from "./files-artifacts-en.ts";
 import type { enFlow } from "./flow-en.ts";
@@ -25,13 +25,16 @@ import { enPanelAgents } from "./panel-agents-en.ts";
 import { enPanelTabs } from "./panel-tabs-en.ts";
 import { enProjectSlim } from "./project-slim-en.ts";
 import type { ReceivedKey } from "./received-en.ts";
+import { enResourcesShared } from "./resources-shared-en.ts";
 import { enRoutineChat } from "./routine-chat-en.ts";
 import type { enSecretary } from "./secretary-en.ts";
 import { enSectionPages } from "./section-pages-en.ts";
+import { enSetupShared } from "./setup-shared-en.ts";
 import { enShellSlim } from "./shell-slim-en.ts";
 import type { enSignIn } from "./signin-en.ts";
 import type { enStorage } from "./storage-en.ts";
 import type { SysUsageKey } from "./sysusage-en.ts";
+import { enTeamShared } from "./team-shared-en.ts";
 import type { enThreadDialogs } from "./thread-dialogs-en.ts";
 import { enTopbar } from "./topbar-en.ts";
 
@@ -58,14 +61,14 @@ export const en = {
   ...noticeEn,
   ...enHelper,
   ...enOffice,
-  ...enTeam,
+  ...enTeamShared,
   ...enChannels,
-  ...enSetup,
+  ...enSetupShared,
   ...enChat,
   ...enChatSlim,
   ...enFiles,
   ...enFilesArtifacts,
-  ...enResources,
+  ...enResourcesShared,
   ...enEngines,
   ...enTelemetry,
   ...enRoutineChat,
@@ -1972,4 +1975,7 @@ export type MessageKey =
   | keyof typeof enThreadDialogs
   | keyof typeof enIngress
   | keyof typeof enFlow
-  | keyof typeof enSecretary;
+  | keyof typeof enSecretary
+  | keyof typeof enSetup
+  | keyof typeof enTeam
+  | keyof typeof enResources;

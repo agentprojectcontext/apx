@@ -1,3 +1,4 @@
+import "../styles/panel-parts.css";
 import { useT } from "../i18n/index.ts";
 
 /** Unified patch lines, or a clearly labeled current-source fallback for older records. */

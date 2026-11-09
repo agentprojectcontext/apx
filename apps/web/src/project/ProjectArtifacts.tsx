@@ -1,3 +1,4 @@
+import "../styles/panel-parts.css";
 import type { Result, SurfaceSummary } from "@apx/protocol";
 import { Icons, SearchField, SegmentedControl } from "@apx/ui";
 import { useCallback, useEffect, useMemo, useState } from "react";

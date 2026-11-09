@@ -1,3 +1,4 @@
+import "../../styles/nav-dialogs.css";
 import type { Result } from "@apx/protocol";
 import { Button, Dialog, Field, IconButton, Icons, Input, Menu, type MenuEntry, Select } from "@apx/ui";
 import { useEffect, useState } from "react";

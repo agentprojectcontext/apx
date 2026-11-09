@@ -11,18 +11,18 @@ import { esChat } from "./es-chat.ts";
 import { esEngines } from "./es-engines.ts";
 import { esFiles } from "./es-files.ts";
 import { esOffice } from "./es-office.ts";
-import { esResources } from "./es-resources.ts";
-import { esSetup } from "./es-setup.ts";
-import { esTeam } from "./es-team.ts";
 import { esTelemetry } from "./es-telemetry.ts";
 import { esFilesArtifacts } from "./files-artifacts-es.ts";
 import { esInboxSlim } from "./inbox-slim-es.ts";
 import { esPanelAgents } from "./panel-agents-es.ts";
 import { esPanelTabs } from "./panel-tabs-es.ts";
 import { esProjectSlim } from "./project-slim-es.ts";
+import { esResourcesShared } from "./resources-shared-es.ts";
 import { esRoutineChat } from "./routine-chat-es.ts";
 import { esSectionPages } from "./section-pages-es.ts";
+import { esSetupShared } from "./setup-shared-es.ts";
 import { esShellSlim } from "./shell-slim-es.ts";
+import { esTeamShared } from "./team-shared-es.ts";
 import { esTopbar } from "./topbar-es.ts";
 
 export const es: Partial<Record<MessageKey, string>> = {
@@ -48,14 +48,14 @@ export const es: Partial<Record<MessageKey, string>> = {
   ...noticeEs,
   ...esHelper,
   ...esOffice,
-  ...esTeam,
+  ...esTeamShared,
   ...esChannels,
-  ...esSetup,
+  ...esSetupShared,
   ...esChat,
   ...esChatSlim,
   ...esFiles,
   ...esFilesArtifacts,
-  ...esResources,
+  ...esResourcesShared,
   ...esEngines,
   ...esTelemetry,
   ...esRoutineChat,

@@ -1,3 +1,4 @@
+import "../styles/chat-cards.css";
 import type { Thread } from "@apx/protocol";
 import { Button, Icons, Menu } from "@apx/ui";
 import { useEffect, useMemo } from "react";

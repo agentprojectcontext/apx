@@ -1,3 +1,4 @@
+import "../styles/panel-parts.css";
 import type { Thread } from "@apx/protocol";
 import { AgentAvatar, Button, EmptyState, IconButton, Icons, Skeleton, Spinner } from "@apx/ui";
 import { useCallback, useEffect, useMemo, useState } from "react";

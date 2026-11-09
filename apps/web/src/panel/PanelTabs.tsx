@@ -1,3 +1,4 @@
+import "../styles/panel-parts.css";
 import { Button, IconButton, Icons, PickRow, type PickRowProps, Tooltip } from "@apx/ui";
 import type { ReactNode } from "react";
 import { useT } from "../i18n/index.ts";

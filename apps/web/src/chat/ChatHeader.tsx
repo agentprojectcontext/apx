@@ -17,11 +17,10 @@ import { ThreadAvatar } from "../inbox/ThreadAvatar.tsx";
 import { PinMark } from "../inbox/ThreadRow.tsx";
 import { threadMenu } from "../inbox/threadActions.tsx";
 import { useThreadChannel } from "../inbox/useThreadChannel.ts";
-import { ChannelFace } from "../lazy.ts";
+import { ChannelFace, TaskCrumb, TaskStateButton } from "../lazy.ts";
 import { PanelSwitcher } from "../panel/PanelSwitcher.tsx";
 import { go, useNav } from "../shell/nav.ts";
 import { toggleRoomCard, useRoomCard } from "./roomCard.ts";
-import { TaskCrumb, TaskStateButton } from "./TaskHeader.tsx";
 
 const POLICIES: WritePolicy[] = ["ask", "auto", "read-only"];
 
@@ -110,7 +109,11 @@ export function ChatHeader({
           <ChatProcesses thread={thread.id} onOpen={go.processes} />
         </div>
         <div className={thread.task_id ? "chat__crumb is-task" : "chat__crumb"}>
-          {thread.task_id && <TaskCrumb thread={thread} taskId={thread.task_id} />}
+          {thread.task_id && (
+            <Suspense fallback={null}>
+              <TaskCrumb thread={thread} taskId={thread.task_id} />
+            </Suspense>
+          )}
           {agent && !engine && !thread.channel && !sub && !thread.task_id && (
             <Tooltip content={agentHint}>
               <button type="button" className="chat__agentbtn" onClick={() => go.agent(agent.id)}>
@@ -169,7 +172,11 @@ export function ChatHeader({
         )}
       </div>
       <div className="chat__tools">
-        {thread.task_id && <TaskStateButton taskId={thread.task_id} />}
+        {thread.task_id && (
+          <Suspense fallback={null}>
+            <TaskStateButton taskId={thread.task_id} />
+          </Suspense>
+        )}
         {room && roomChannel && (
           <Button
             size="sm"

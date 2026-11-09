@@ -1,3 +1,4 @@
+import "../styles/panel-parts.css";
 import type { SurfaceSummary } from "@apx/protocol";
 import { IconButton, Icons, Menu } from "@apx/ui";
 import { type DragEvent, useCallback, useMemo, useState } from "react";

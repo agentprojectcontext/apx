@@ -1,3 +1,4 @@
+import "../styles/panel-parts.css";
 import type { Message, Result, Thread } from "@apx/protocol";
 import { EmptyState, IconButton, Icons, SectionLabel, Select, Skeleton } from "@apx/ui";
 import { useCallback, useEffect, useMemo, useState } from "react";

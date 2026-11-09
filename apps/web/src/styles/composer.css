@@ -62,27 +62,10 @@
 .composer--slim .apx-composer__input {
   min-height: 34px;
 }
-
-/* The + menu: a row may carry a second line saying what happens to it. */
-.plusmenu {
-  width: 270px;
-}
 .apx-menu__item:has(.plusmenu__label) {
   height: auto;
   min-height: 32px;
   padding-block: 5px;
-}
-.plusmenu__label {
-  display: flex;
-  flex-direction: column;
-  white-space: normal;
-}
-.plusmenu__sub {
-  overflow: hidden;
-  font-size: var(--apx-text-xs);
-  color: var(--apx-fg-subtle);
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 /* What was added as context to the next message, above the field. */
@@ -353,27 +336,6 @@
 .filechip__size {
   color: var(--apx-fg-subtle);
 }
-.fileviewer {
-  width: calc(100vw - 32px);
-}
-.fileviewer__text {
-  max-height: calc(100vh - 180px);
-  overflow: auto;
-  border: 1px solid var(--apx-border);
-  border-radius: var(--apx-radius-md);
-}
-.fileviewer__text .cm-editor {
-  height: auto;
-}
-.fileviewer__pdf {
-  display: block;
-  width: 100%;
-  height: calc(100vh - 180px);
-  border: 0;
-}
-.fileviewer__failed {
-  color: var(--apx-fg-muted);
-}
 
 /* What fills the context: by kind, what is left, then compact or see what the chat spent. */
 .ctxcard__pop {
@@ -491,101 +453,6 @@
 }
 .ctxcard__foot > .apx-btn {
   flex: 1;
-}
-
-/* The composer's model picker: models by provider with their tags; what runs now and after; the effort. */
-.mslim {
-  gap: 0;
-}
-.mslim .mlist__catalog {
-  padding: 0 0 4px;
-}
-.mslim .mlist__opt.is-tagged {
-  display: flex;
-  padding-left: 30px;
-}
-/* A long model name wraps rather than hide what tells it apart. */
-.mslim .mlist__name {
-  flex: 1;
-  min-width: 0;
-  overflow-wrap: anywhere;
-}
-.mlist__tag {
-  display: inline-flex;
-  flex: none;
-  gap: 6px;
-  font-size: var(--apx-text-xs);
-}
-.mslim__chosen {
-  color: var(--apx-brand-soft-fg);
-}
-.mslim__router {
-  color: var(--apx-info-soft-fg);
-}
-.mslim__foot {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  margin: 0 -8px -8px;
-  padding: 8px;
-  border-top: 1px solid var(--apx-border);
-}
-.mslim__slot {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  min-width: 0;
-  padding: 5px 6px;
-  font-size: var(--apx-text-sm);
-}
-.mslim__when {
-  flex: none;
-  width: 60px;
-  font-size: var(--apx-text-xs);
-  color: var(--apx-fg-subtle);
-}
-.mslim__auto {
-  flex: none;
-  color: var(--apx-fg-muted);
-}
-.mslim__name {
-  flex: 1;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.mslim__note {
-  flex: none;
-  font-size: var(--apx-text-xs);
-  color: var(--apx-fg-subtle);
-}
-.mslim__note.is-now {
-  color: var(--apx-brand-soft-fg);
-}
-.mslim__actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 2px;
-  padding-left: 68px;
-}
-.mslim__actions:empty {
-  display: none;
-}
-.mslim .mlist__effort {
-  justify-content: flex-start;
-  padding: 6px 6px 2px;
-  border-top: 0;
-  font-size: var(--apx-text-xs);
-}
-.mslim .mlist__effort > span:first-child {
-  flex: none;
-  width: 60px;
-  color: var(--apx-fg-subtle);
-}
-.mslim .mlist__effort > :last-child {
-  flex: 1;
-  min-width: 0;
 }
 
 /* "/" menu: commands, then skills, over the composer: icon, name, what it does and what it is. */

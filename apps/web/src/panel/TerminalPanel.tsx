@@ -1,3 +1,4 @@
+import "../styles/panel-parts.css";
 import type { TerminalInfo, Thread } from "@apx/protocol";
 import { Button, EmptyState, Icons, Skeleton } from "@apx/ui";
 import { Suspense, useCallback, useEffect, useState } from "react";

@@ -1,6 +1,7 @@
 // Side questions per chat (DECISIONS.md#d-210), in memory for this window: the panel open over the composer, its
 // exchanges and its unsent words. A layout change (a phone's width) that remounts the composer finds them as they were;
 // closing the panel lets them go, and an answer arriving after that is dropped.
+import { useSyncExternalStore } from "react";
 import { client } from "./client.ts";
 
 /** One exchange of a side question, as its panel shows it. */
@@ -67,3 +68,6 @@ export function askAside(thread: string, value: string): void {
     },
   );
 }
+
+/** Whether the chat's side question is open (the composer shows its panel). */
+export const useAsideOpen = (thread: string) => useSyncExternalStore(subscribeAside, () => Boolean(asideOf(thread)));

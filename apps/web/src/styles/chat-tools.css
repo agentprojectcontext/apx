@@ -41,47 +41,6 @@
   color: var(--apx-fg);
 }
 
-/* ── App screen ────────────────────────────────────────────────────────────── */
-.appscreen {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  background: var(--apx-surface);
-}
-.appscreen__head {
-  flex: none;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  height: 52px;
-  padding: 0 14px 0 10px;
-  border-bottom: 1px solid var(--apx-border);
-}
-.appscreen__titles {
-  flex: 1;
-  min-width: 0;
-}
-.appscreen__title {
-  font-size: var(--apx-text-md);
-  font-weight: var(--apx-weight-semibold);
-}
-.appscreen__sub {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: var(--apx-text-2xs);
-  color: var(--apx-fg-subtle);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-.appscreen__body {
-  flex: 1;
-  min-height: 0;
-  padding: 0;
-}
-
 /* System notices in a turn (interrupted, fallback engine, no answer): quiet, never styled as the agent's words. */
 .notice {
   font-size: calc(12.5px * var(--apx-text-scale, 1));
@@ -104,123 +63,9 @@
   max-height: 180px;
   overflow: auto;
 }
-
-/* ── Input card: an agent waiting for the owner's OK or answer ─────────────── */
-.inputcard {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  max-width: 560px;
-  padding: 12px 14px;
-  border: 1px solid var(--apx-border);
-  border-radius: var(--apx-radius-lg);
-  background: var(--apx-surface);
-  text-align: left;
-}
-.inputcard.is-pending {
-  border-color: var(--apx-warning-soft-fg);
-  box-shadow: 0 0 0 3px var(--apx-warning-soft);
-}
-.inputcard__head {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  color: var(--apx-warning-soft-fg);
-}
-.inputcard__title {
-  flex: 1;
-  font-size: var(--apx-text-sm);
-  font-weight: var(--apx-weight-semibold);
-  color: var(--apx-fg);
-}
-.inputcard__prompt,
-.inputcard__answer {
-  margin: 0;
-  font-size: var(--apx-text-sm);
-  line-height: 1.45;
-}
-.inputcard__answer {
-  color: var(--apx-fg-muted);
-}
-.inputcard__folder {
-  padding: 1px 4px;
-  border-radius: var(--apx-radius-sm);
-  background: var(--apx-fill);
-  font-family: var(--apx-font-mono);
-  font-size: var(--apx-text-xs);
-  word-break: break-all;
-}
-.inputcard__detail {
-  display: block;
-  max-height: 220px;
-  overflow: auto;
-  padding: 6px 8px;
-  border-radius: var(--apx-radius-md);
-  background: var(--apx-fill);
-  font-family: var(--apx-font-mono);
-  font-size: var(--apx-text-xs);
-  color: var(--apx-fg-muted);
-  white-space: pre-wrap;
-  word-break: break-word;
-}
-.inputcard__browser {
-  display: grid;
-  gap: 8px;
-  min-width: 0;
-  overflow-wrap: anywhere;
-}
 textarea.inputcard__detail {
   width: 100%;
   resize: vertical;
-}
-/* A file write to confirm: the card takes the chat's width so the patch reads without wrapping. */
-.inputcard.has-change {
-  max-width: none;
-}
-.inputcard__change {
-  overflow: hidden;
-  border: 1px solid var(--apx-border);
-  border-radius: var(--apx-radius-md);
-  background: var(--apx-bg);
-}
-.inputcard__change .diff {
-  max-height: 420px;
-  overflow: auto;
-}
-.inputcard__file {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 6px 10px;
-  color: var(--apx-fg-muted);
-}
-.inputcard__path {
-  flex: 1;
-  min-width: 0;
-  overflow: hidden;
-  font-family: var(--apx-font-mono);
-  font-size: var(--apx-text-xs);
-  color: var(--apx-fg);
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.inputcard__actions,
-.inputcard__options {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-.inputcard__reply {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-.inputcard__input {
-  height: 32px;
-  padding: 0 10px;
-  border: 1px solid var(--apx-border);
-  border-radius: var(--apx-radius-md);
-  background: var(--apx-bg);
 }
 
 /* ── Code threads: folder in the header, uncommitted changes card ─────────── */
@@ -442,67 +287,6 @@ textarea.inputcard__detail {
   font-size: var(--apx-text-sm);
   line-height: 1.45;
   color: var(--apx-fg-muted);
-}
-.inputline__state {
-  display: inline-flex;
-  align-items: center;
-  gap: 3px;
-  margin-left: 8px;
-  font-size: var(--apx-text-xs);
-  color: var(--apx-fg-subtle);
-}
-.inputline__state.is-approved,
-.inputline__state.is-answered {
-  color: var(--apx-brand-soft-fg);
-}
-.inputline__state.is-denied {
-  color: var(--apx-danger-soft-fg);
-}
-
-/* An agent's suggested connections (ConnectPart). */
-.connectcard .inputcard__head {
-  color: var(--apx-fg-muted);
-}
-.connectcard__rows {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-.connectcard__row {
-  display: flex;
-  gap: 10px;
-  align-items: center;
-  padding: 8px 10px;
-  border: 1px solid var(--apx-border);
-  border-radius: var(--apx-radius-md);
-  background: var(--apx-bg);
-}
-.connectcard__more {
-  display: flex;
-  align-self: flex-start;
-  gap: 8px;
-  align-items: center;
-  padding: 2px 4px;
-  border: 0;
-  border-radius: var(--apx-radius-sm);
-  background: none;
-  color: var(--apx-fg-muted);
-  font-size: var(--apx-text-xs);
-  cursor: pointer;
-}
-.connectcard__more:hover {
-  color: var(--apx-fg);
-  background: var(--apx-fill);
-}
-.connectcard__stack {
-  display: flex;
-}
-.connectcard__stack > * {
-  border-radius: 5px;
-  box-shadow: 0 0 0 1.5px var(--apx-surface);
-}
-.connectcard__stack > * + * {
-  margin-left: -5px;
 }
 .transcript__task-description {
   padding: 12px;

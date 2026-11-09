@@ -73,3 +73,20 @@ export function usageStamp(runs: readonly Run[]): string {
 export function tokens(n: number): string {
   return n >= 1e6 ? `${(n / 1e6).toFixed(1)}M` : n >= 1e3 ? `${Math.round(n / 1e3)}k` : String(n);
 }
+
+type Totals = { runs: number; failed: number; seconds: number; input: number; output: number; cached: number };
+
+/** What the context chip and its card show. */
+export type ContextCardProps = {
+  context: { used: number; window?: number } | undefined;
+  spent: { input: number; output: number; cached: number } | undefined;
+  /** The run the figure came from: what it carried splits the context by kind. */
+  run: string | undefined;
+  /** The chat to compact; none while it is not made yet. */
+  thread: string | undefined;
+  /** An engine's own session (Claude Code, Codex): it keeps its own context, APX does not compact it. */
+  engine: boolean;
+  totals: Totals | undefined;
+  /** The model the newest run answered with. */
+  model: string | undefined;
+};

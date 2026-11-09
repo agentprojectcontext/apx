@@ -1,3 +1,4 @@
+import "../styles/panel-parts.css";
 import "../styles/screens.css";
 import { SegmentedControl } from "@apx/ui";
 import { useState } from "react";

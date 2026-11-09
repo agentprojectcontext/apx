@@ -1,3 +1,4 @@
+import "../styles/inbox-parts.css";
 import type { Thread } from "@apx/protocol";
 import { ContextMenu, ConversationRow, IconButton, Icons, Menu, type MenuEntry, Spinner } from "@apx/ui";
 import { type ReactNode, useEffect } from "react";

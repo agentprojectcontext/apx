@@ -1,3 +1,4 @@
+import "../styles/panel-parts.css";
 import type { Job } from "@apx/protocol";
 import { Button, EmptyState, IconButton, Icons, Skeleton, Spinner } from "@apx/ui";
 import { useCallback, useEffect, useRef, useState } from "react";

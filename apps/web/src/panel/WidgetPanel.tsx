@@ -1,3 +1,4 @@
+import "../styles/panel-parts.css";
 import { Button, EmptyState, IconButton, Icons } from "@apx/ui";
 import { Fragment, useEffect, useMemo } from "react";
 import { shortWhen } from "../common/format.ts";

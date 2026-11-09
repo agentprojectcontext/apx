@@ -6,9 +6,8 @@ import { DEFAULT_PID, findProject, projectInitial, projectTone, threadAgent } fr
 import { type InboxTab, setPrefs, usePrefs } from "../data/prefs.ts";
 import { useData, useShownAgents } from "../data/state.ts";
 import { useT } from "../i18n/index.ts";
-import { ActivityView, TaskBundle } from "../lazy.ts";
+import { AccountHeader, ActivityView, TaskBundle } from "../lazy.ts";
 import { go, useNav } from "../shell/nav.ts";
-import { AccountHeader } from "./AccountHeader.tsx";
 import { ListedChat } from "./Delegated.tsx";
 import {
   archivedThreads,
@@ -98,7 +97,9 @@ export function InboxList() {
     <section className="inbox" aria-label={title}>
       <div className="inbox__head">
         {account ? (
-          <AccountHeader account={account} />
+          <Suspense fallback={<h1 className="inbox__title">{account.label}</h1>}>
+            <AccountHeader account={account} />
+          </Suspense>
         ) : (
           <>
             <div className="inbox__titlerow">

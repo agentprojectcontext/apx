@@ -238,115 +238,8 @@
   color: var(--apx-fg-subtle);
   font-size: var(--apx-text-sm);
 }
-
-/* Parts */
-/* A widget in the chat sits in the floating frame code blocks use (CodeFrame): a soft outline, a header naming it with
-   its controls fading in when it is pointed at, the widget under it. */
-.surfacecard {
-  display: flex;
-  flex-direction: column;
-  width: 100%;
-  border: 1px solid color-mix(in oklch, var(--apx-border) 75%, transparent);
-  border-radius: 12px;
-  background: transparent;
-  box-sizing: border-box;
-  overflow: hidden;
-}
-.surfacecard--gone {
-  flex-direction: row;
-  align-items: center;
-  gap: 8px;
-  padding: 10px 12px;
-  color: var(--apx-fg-subtle);
-  font-size: var(--apx-text-sm);
-}
-.surfacecard__head {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  min-height: 36px;
-  padding: 4px 6px 4px 12px;
-  border-bottom: 1px solid color-mix(in oklch, var(--apx-border) 75%, transparent);
-  color: var(--apx-fg-muted);
-  font-size: var(--apx-text-xs);
-}
-.surfacecard__head .apx-iconbtn {
-  color: var(--apx-fg-muted);
-  opacity: 0.6;
-  transition: opacity 0.16s;
-}
 .surfacecard:is(:hover, :focus-within) .surfacecard__head .apx-iconbtn {
   opacity: 1;
-}
-.surfacecard__eyebrow {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.surfacecard__net {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  min-width: 0;
-  overflow: hidden;
-  color: var(--apx-fg-muted);
-  white-space: nowrap;
-  text-overflow: ellipsis;
-}
-.surfacecard__spacer {
-  flex: 1;
-}
-/* Shown in the side panel: one line in the chat, as a delegation's card, never the widget twice. */
-.surfacecard--aside {
-  flex-direction: row;
-  align-items: center;
-  gap: 10px;
-  padding: 10px 12px;
-  color: var(--apx-fg-muted);
-}
-.surfacecard__asidetext {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-}
-.surfacecard__asidetitle {
-  overflow: hidden;
-  color: var(--apx-fg);
-  font-weight: var(--apx-weight-semibold);
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.surfacecard__asidenote {
-  font-size: var(--apx-text-xs);
-}
-
-/* ── Surfaces ──────────────────────────────────────────────────────────────── */
-.surfaceframe {
-  width: 100%;
-  box-sizing: border-box;
-  padding: clamp(16px, 2vw, 24px);
-}
-.surfaceframe--app {
-  padding: 0;
-}
-.surfaceframe--fill {
-  height: 100%;
-  min-height: 0;
-  display: flex;
-  flex-direction: column;
-}
-.surfaceframe__iframe {
-  display: block;
-  width: 100%;
-  border: 0;
-  background: transparent;
-  color-scheme: inherit;
-}
-.surfaceframe--fill .surfaceframe__iframe {
-  height: 0;
-  min-height: 0;
-  flex: 1;
 }
 /* The skills picked by meaning for a turn: small mono chips over the answer. Only weighed: a dashed outline; given or
    recommended: a soft fill, the closer the stronger. */
@@ -363,79 +256,6 @@
   place-items: center;
   width: 14px;
   height: 14px;
-}
-.skillchip {
-  font: inherit;
-  font-family: var(--apx-font-mono);
-  line-height: 18px;
-  color: var(--apx-info-soft-fg);
-  background: transparent;
-  border: 1px dashed var(--apx-border-strong);
-  border-radius: 6px;
-  padding: 0 6px;
-  cursor: pointer;
-}
-.skillchip.is-loaded {
-  border-style: solid;
-  border-color: transparent;
-  background: color-mix(in srgb, currentColor 14%, transparent);
-}
-.skillchip.is-strong {
-  border-style: solid;
-  border-color: color-mix(in srgb, currentColor 45%, transparent);
-  background: color-mix(in srgb, currentColor 14%, transparent);
-}
-.skillchip.is-hinted {
-  border-style: solid;
-  border-color: color-mix(in srgb, currentColor 35%, transparent);
-}
-.skillchip:hover,
-.skillchip:focus-visible {
-  opacity: 1;
-  background: color-mix(in srgb, currentColor 20%, transparent);
-}
-.skillcard {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-.skillcard__head {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 8px;
-}
-.skillcard__name {
-  font-family: var(--apx-font-mono);
-  font-size: calc(12px * var(--apx-text-scale, 1));
-  font-weight: 600;
-}
-.skillcard__why {
-  margin: 0;
-  font-size: calc(11px * var(--apx-text-scale, 1));
-  color: var(--apx-fg-muted);
-}
-.skillcard__desc {
-  margin: 0;
-  font-size: calc(12px * var(--apx-text-scale, 1));
-  line-height: 1.5;
-}
-.skillcard__open {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  align-self: flex-start;
-  padding: 0;
-  font: inherit;
-  font-size: calc(12px * var(--apx-text-scale, 1));
-  font-weight: 500;
-  color: var(--apx-info);
-  background: none;
-  border: 0;
-  cursor: pointer;
-}
-.skillcard__open:hover {
-  text-decoration: underline;
 }
 
 /* A block the agent wrote (code, a page, a diagram, an email), as a card between its bubbles, wider than words. */
@@ -536,90 +356,6 @@
 .chat {
   position: relative;
 }
-.screenlive {
-  position: absolute;
-  right: 16px;
-  bottom: 96px;
-  z-index: 20;
-  display: flex;
-  flex-direction: column;
-  border: 1px solid var(--apx-border);
-  border-radius: 10px;
-  background: var(--apx-surface-raised);
-  box-shadow: var(--apx-shadow-md);
-  overflow: hidden;
-}
-.screenlive--mini {
-  width: 260px;
-}
-.screenlive--large {
-  width: min(640px, calc(100% - 32px));
-}
-.screenlive__head {
-  cursor: grab;
-  touch-action: none;
-  user-select: none;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 4px 4px 4px 10px;
-  font-size: calc(12px * var(--apx-text-scale, 1));
-  color: var(--apx-fg-muted);
-}
-.screenlive__title {
-  flex: 1;
-  min-width: 0;
-  overflow: hidden;
-  white-space: nowrap;
-  text-overflow: ellipsis;
-  color: var(--apx-fg);
-}
-.screenlive__window {
-  color: var(--apx-fg-muted);
-}
-.screenlive__view {
-  position: relative;
-  background: #000; /* ui: letterbox behind a video, black in either theme. */
-}
-.screenlive__view img {
-  display: block;
-  width: 100%;
-  height: auto;
-}
-.screenlive__wait {
-  padding: 24px;
-  text-align: center;
-  font-size: calc(12px * var(--apx-text-scale, 1));
-  color: var(--apx-fg-muted);
-}
-.screenlive__dot {
-  position: absolute;
-  width: 14px;
-  height: 14px;
-  margin: -7px 0 0 -7px;
-  border-radius: 50%;
-  border: 2px solid #fff;
-  background: var(--apx-brand);
-  box-shadow: 0 0 0 4px color-mix(in srgb, var(--apx-brand) 35%, transparent);
-  pointer-events: none;
-}
-/* Hidden, it waits as a pill at the top right of the chat, under its header: easy to find, out of the way. */
-.screenlive__pill {
-  position: absolute;
-  right: 16px;
-  top: 64px;
-  z-index: 20;
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 5px 10px;
-  border: 1px solid var(--apx-border);
-  border-radius: 999px;
-  background: var(--apx-surface);
-  color: var(--apx-fg);
-  font-size: calc(12px * var(--apx-text-scale, 1));
-  cursor: pointer;
-}
 .computer-icon {
   color: var(--apx-brand);
   flex: none;
@@ -644,55 +380,6 @@
     animation: none;
   }
 }
-.screenlive__stopped {
-  position: absolute;
-  inset: 0;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 10px;
-  padding: 12px;
-  text-align: center;
-  font-size: calc(12px * var(--apx-text-scale, 1));
-  color: #fff;
-  background: rgba(0, 0, 0, 0.72);
-}
-.screenlive__stop {
-  display: inline-flex;
-  align-items: center;
-  height: 24px;
-  padding: 0 7px;
-  gap: 0;
-  border: 0;
-  border-radius: 999px;
-  background: transparent;
-  color: var(--apx-danger);
-  font-size: calc(12px * var(--apx-text-scale, 1));
-  cursor: pointer;
-  transition:
-    background 0.15s,
-    gap 0.2s;
-}
-.screenlive__stop svg {
-  fill: currentColor;
-}
-.screenlive__stoplabel {
-  max-width: 0;
-  overflow: hidden;
-  white-space: nowrap;
-  transition: max-width 0.2s ease;
-}
-.screenlive__stop:hover,
-.screenlive__stop:focus-visible {
-  gap: 5px;
-  background: var(--apx-danger-soft);
-  color: var(--apx-danger-soft-fg);
-}
-.screenlive__stop:hover .screenlive__stoplabel,
-.screenlive__stop:focus-visible .screenlive__stoplabel {
-  max-width: 80px;
-}
 /* The computer in the actions card: it moves while working, once when it is done, and again under the pointer. */
 .computer-icon.is-done .computer-icon__pointer {
   animation: computer-pointer 1.6s ease-in-out 2;
@@ -715,20 +402,6 @@
   background: transparent;
   border: 0;
   box-shadow: none;
-}
-.imageviewer__frame {
-  display: flex;
-}
-.imageviewer__frame img {
-  display: block;
-  max-width: calc(100vw - 48px);
-  max-height: calc(100vh - 48px);
-  object-fit: contain;
-  border-radius: var(--apx-radius-lg);
-}
-.imageviewer .apx-dialog__close--float {
-  background: var(--apx-surface-raised);
-  color: var(--apx-fg);
 }
 
 /* A quote an agent drafted, with its copy button in the corner (on hover with a mouse). */
@@ -793,35 +466,6 @@
 .taskchip.is-closed .taskchip__title {
   color: var(--apx-fg-muted);
   text-decoration: line-through;
-}
-
-.browserpart__compact {
-  max-width: 100%;
-}
-
-/* A tab in the owner's Chrome: they see it there, so the chat only says what happens in it. */
-.browserpart__chrome {
-  display: flex;
-  align-items: center;
-  gap: var(--apx-space-2);
-  margin: 0;
-  max-width: 100%;
-  color: var(--apx-fg-muted);
-  font-size: var(--apx-text-sm);
-}
-
-.browserpart__chrome span {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.browserpart__compact .apx-btn__label {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 /* ── A chat with several speakers ─────────────────────────────────────────────── */
@@ -952,24 +596,4 @@
 .chat__taskwho {
   overflow: hidden;
   text-overflow: ellipsis;
-}
-/* A session in the task's list: the agent's name over what it said last. */
-.tasksess__menu {
-  min-width: 280px;
-}
-.tasksess {
-  display: flex;
-  flex-direction: column;
-  min-width: 0;
-  max-width: 260px;
-}
-.tasksess__name {
-  font-weight: var(--apx-weight-medium);
-}
-.tasksess__said {
-  overflow: hidden;
-  color: var(--apx-fg-subtle);
-  font-size: 11.5px;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }

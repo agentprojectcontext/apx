@@ -8,7 +8,7 @@ import { notify } from "../data/notices.ts";
 import { loadRoutines, useRoutines } from "../data/routines.ts";
 import { useData } from "../data/state.ts";
 import { useT } from "../i18n/index.ts";
-import { scheduleText } from "../routines/Schedule.tsx";
+import { scheduleText } from "../routines/scheduleText.ts";
 import { go } from "../shell/nav.ts";
 import { ExtensionGuide } from "./ExtensionGuide.tsx";
 import { ExtensionTest } from "./ExtensionTest.tsx";

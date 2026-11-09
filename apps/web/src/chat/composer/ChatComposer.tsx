@@ -5,7 +5,7 @@ import { MOD } from "../../common/modKey.ts";
 import { useEngineLabel } from "../../common/useEngineLabel.ts";
 import { ModelChoicePicker } from "../../config/models/ModelPickers.tsx";
 import { cancel, loadThread, makeChat, send } from "../../data/actions.ts";
-import { openAside } from "../../data/aside.ts";
+import { openAside, useAsideOpen } from "../../data/aside.ts";
 import { sendDirect } from "../../data/channels.ts";
 import { setThreadModel, transcribe } from "../../data/composer.ts";
 import { draftOf, keepDraft, subscribeDrafts } from "../../data/drafts.ts";
@@ -15,15 +15,13 @@ import { isNewChat } from "../../data/newChat.ts";
 import { notify } from "../../data/notices.ts";
 import { useData } from "../../data/state.ts";
 import { useT } from "../../i18n/index.ts";
-import { AttachChips } from "../../lazy.ts";
+import { AsidePanel, AttachChips, PlusMenu } from "../../lazy.ts";
 import { go } from "../../shell/nav.ts";
-import { AsidePanel, useAsideOpen } from "./AsidePanel.tsx";
 import { ContextChip } from "./ContextChip.tsx";
 import { ContextChips } from "./ContextChips.tsx";
 import { contextOf, contextRunOf, spentOf, usageStamp } from "./context.ts";
 import { addRef, removeRef, restoreRefs, takeRefs, useContextRefs, withRefs } from "./contextRefs.ts";
 import { composerMarks } from "./marks.tsx";
-import { PlusMenu } from "./PlusMenu.tsx";
 import { useSlashMenu } from "./SlashMenu.tsx";
 import { useThreadUsage } from "./usage.ts";
 import { useAttachments } from "./useAttachments.ts";
@@ -190,7 +188,11 @@ export function ChatComposer({
       ref={box}
       className={`chat__composer${over ? " is-dropping" : ""}${mic.state === "recording" ? " is-recording" : ""}`}
     >
-      {aside && <AsidePanel key={thread.id} thread={thread.id} agent={agentName} />}
+      {aside && (
+        <Suspense fallback={null}>
+          <AsidePanel key={thread.id} thread={thread.id} agent={agentName} />
+        </Suspense>
+      )}
       <input
         ref={files}
         type="file"
@@ -258,33 +260,46 @@ export function ChatComposer({
         inputAria={slash.aria}
         toolbar={
           <>
-            <PlusMenu
-              thread={thread}
-              made={made}
-              disabled={offline || micBusy}
-              direct={Boolean(thread.engine)}
-              connectors={slash.connectors}
-              onOpen={slash.loadConnectors}
-              onFiles={() => pick(files.current)}
-              onAudio={() => pick(audio.current)}
-              onSkill={() => {
-                slash.skills();
-                backToField();
-              }}
-              onConnector={(name) => {
-                slash.connector(name);
-                backToField();
-              }}
-              onCommands={() => {
-                slash.commands();
-                backToField();
-              }}
-              onContext={(ref) => {
-                addRef(thread.id, ref);
-                backToField();
-              }}
-              onAside={fresh || thread.engine ? undefined : () => openAside(thread.id)}
-            />
+            <Suspense
+              fallback={
+                <IconButton
+                  size="md"
+                  shape="circle"
+                  className="composer__plus"
+                  label={t("composer.add")}
+                  icon={<Icons.Plus size={16} />}
+                  disabled
+                />
+              }
+            >
+              <PlusMenu
+                thread={thread}
+                made={made}
+                disabled={offline || micBusy}
+                direct={Boolean(thread.engine)}
+                connectors={slash.connectors}
+                onOpen={slash.loadConnectors}
+                onFiles={() => pick(files.current)}
+                onAudio={() => pick(audio.current)}
+                onSkill={() => {
+                  slash.skills();
+                  backToField();
+                }}
+                onConnector={(name) => {
+                  slash.connector(name);
+                  backToField();
+                }}
+                onCommands={() => {
+                  slash.commands();
+                  backToField();
+                }}
+                onContext={(ref) => {
+                  addRef(thread.id, ref);
+                  backToField();
+                }}
+                onAside={fresh || thread.engine ? undefined : () => openAside(thread.id)}
+              />
+            </Suspense>
             {mic.state !== "unsupported" && (
               <span className="composer__voice">
                 {mic.state === "recording" && <MicWave levels={mic.levels} />}

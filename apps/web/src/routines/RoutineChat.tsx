@@ -27,7 +27,7 @@ import { RoutineDrawer } from "./RoutineDrawer.tsx";
 import { RoutineEditor } from "./RoutineEditor.tsx";
 import { RunBlock } from "./RunBlock.tsx";
 import { RunRail } from "./RunRail.tsx";
-import { scheduleText } from "./Schedule.tsx";
+import { scheduleText } from "./scheduleText.ts";
 
 /** Runs shown at first and added each time the reader reaches the top. */
 const PAGE = 6;

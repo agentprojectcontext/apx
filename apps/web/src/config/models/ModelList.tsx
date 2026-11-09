@@ -1,3 +1,4 @@
+import "../../styles/model-menus.css";
 import type { CatalogEngine, ModelRef } from "@apx/protocol";
 import { Badge, EngineIcon, Icons, SearchField } from "@apx/ui";
 import { type ReactNode, useMemo, useState } from "react";

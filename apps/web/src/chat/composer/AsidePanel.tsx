@@ -4,9 +4,6 @@ import { useMarkdownLabels } from "../../common/useMarkdownLabels.ts";
 import { asideOf, askAside, closeAside, subscribeAside, typeAside } from "../../data/aside.ts";
 import { useT } from "../../i18n/index.ts";
 
-/** Whether the chat's side question is open (the composer shows its panel). */
-export const useAsideOpen = (thread: string) => useSyncExternalStore(subscribeAside, () => Boolean(asideOf(thread)));
-
 /**
  * A side question, over the composer: the owner asks the chat's agent something quick and the answer shows here
  * only; nothing of it enters the chat (DECISIONS.md#d-210). Closing it lets the side conversation go. Esc closes.

@@ -3,7 +3,7 @@ import { AgentAvatar } from "@apx/ui";
 import { type ReactNode, useEffect, useRef, useState } from "react";
 import logo from "../assets/logo.png";
 import { elapsed } from "../common/format.ts";
-import { type MessageKey, useLanguage, useT } from "../i18n/index.ts";
+import { type MessageKey, useLanguage, usePack, useT } from "../i18n/index.ts";
 import { useScrambleTo } from "./CrewHero.tsx";
 import { startGlyphPortrait } from "./glyphPortrait.ts";
 
@@ -79,8 +79,13 @@ function Services({ value }: { value: string }) {
   );
 }
 
-/** The desktop app's About window: this build and its core (sent by the shell in the URL), credits and the repo. */
+/** Its strings load with it (the "setup" pack): nothing shows until they are here. */
 export function AboutScreen() {
+  return usePack("setup") ? <AboutScreenBody /> : null;
+}
+
+/** The desktop app's About window: this build and its core (sent by the shell in the URL), credits and the repo. */
+function AboutScreenBody() {
   const t = useT();
   const params = new URLSearchParams(window.location.search);
   const version = params.get("v") ?? "";

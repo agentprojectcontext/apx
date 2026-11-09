@@ -1,3 +1,4 @@
+import "../styles/panel-parts.css";
 import "./RunnableCode.css";
 import type { TerminalInfo, Thread } from "@apx/protocol";
 import { IconButton, Icons } from "@apx/ui";

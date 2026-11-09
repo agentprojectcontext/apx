@@ -1,3 +1,4 @@
+import "../styles/panel-parts.css";
 import type { SurfaceSummary } from "@apx/protocol";
 import { IconButton, Icons, Skeleton } from "@apx/ui";
 import { useEffect } from "react";

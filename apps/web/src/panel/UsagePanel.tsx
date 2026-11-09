@@ -1,3 +1,4 @@
+import "../styles/panel-parts.css";
 import type { AuxPurpose, Message, Run } from "@apx/protocol";
 import { Badge, EmptyState, Icons } from "@apx/ui";
 import { useMemo } from "react";

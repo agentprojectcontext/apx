@@ -1,3 +1,4 @@
+import "../styles/panel-parts.css";
 import "../styles/document-panel.css";
 import { DOCUMENT_MAX_BYTES } from "@apx/protocol/client";
 import { Button, EmptyState, IconButton, Icons, MarkdownView } from "@apx/ui";

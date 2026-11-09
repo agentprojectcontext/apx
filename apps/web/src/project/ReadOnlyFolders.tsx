@@ -1,3 +1,4 @@
+import "../styles/nav-dialogs.css";
 import type { Project } from "@apx/protocol";
 import { Button, Field, IconButton, Icons, Input } from "@apx/ui";
 import { useState } from "react";

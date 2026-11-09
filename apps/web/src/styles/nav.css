@@ -941,32 +941,6 @@
   left: 5.5px;
 }
 
-/* New project dialog: where it lives, then its name, kind and description; a folder path has the picker beside it. */
-.newproject {
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-}
-.newproject > .apx-segmented {
-  align-self: flex-start;
-}
-.newproject__hint {
-  margin: 0;
-  color: var(--apx-fg-muted);
-  font-size: var(--apx-text-sm);
-}
-.newproject__hint code {
-  overflow-wrap: anywhere;
-}
-.newproject__row {
-  display: flex;
-  gap: 8px;
-}
-.newproject__row > :first-child {
-  flex: 1;
-  min-width: 0;
-}
-
 /* ⌘K palette: the box, then results grouped by kind; the active row follows arrows and the pointer. */
 .palette.apx-dialog {
   top: 14vh;
@@ -1247,20 +1221,6 @@
 }
 .usage-btn.is-danger .usage-btn__dot {
   background: var(--apx-danger);
-}
-/* The foot of the quota and resources popovers: how their button shows in the bar. */
-.barshow {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding-top: 12px;
-  border-top: 1px solid var(--apx-border);
-}
-.barshow__label {
-  flex: 1;
-  min-width: 0;
-  font-size: var(--apx-text-xs);
-  color: var(--apx-fg-muted);
 }
 
 /* The page under the notice strip: the main pane stacks the strip (when there is one) over what it shows. */

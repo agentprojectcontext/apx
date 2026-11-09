@@ -7,7 +7,7 @@ import { loadRoutines, useRoutines } from "../data/routines.ts";
 import { useData, useShownAgents } from "../data/state.ts";
 import { useT } from "../i18n/index.ts";
 import { TaskBundle } from "../lazy.ts";
-import { scheduleText } from "../routines/Schedule.tsx";
+import { scheduleText } from "../routines/scheduleText.ts";
 import { go, useNav } from "../shell/nav.ts";
 import { ListedChat } from "./Delegated.tsx";
 import type { ListEntry } from "./groupThreads.ts";

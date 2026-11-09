@@ -1,9 +1,9 @@
 import { Meter, Popover, Tooltip } from "@apx/ui";
-import { type ComponentPropsWithoutRef, forwardRef, useState } from "react";
+import { type ComponentPropsWithoutRef, forwardRef, Suspense, useState } from "react";
 import { formatNumber } from "../../common/format.ts";
 import { useT } from "../../i18n/index.ts";
-import { ContextCard, type ContextCardProps } from "./ContextCard.tsx";
-import { tokens as k, shareOf } from "./context.ts";
+import { ContextCard } from "../../lazy.ts";
+import { type ContextCardProps, tokens as k, shareOf } from "./context.ts";
 
 /**
  * How full the chat's context is: the tokens in use ("82k") beside a ring that fills with the model's window (empty
@@ -60,7 +60,9 @@ export function ContextChip(props: ContextCardProps & { loading: boolean }) {
         </ChipButton>
       }
     >
-      <ContextCard {...props} onDone={() => setOpen(false)} />
+      <Suspense fallback={null}>
+        <ContextCard {...props} onDone={() => setOpen(false)} />
+      </Suspense>
     </Popover>
   );
 }

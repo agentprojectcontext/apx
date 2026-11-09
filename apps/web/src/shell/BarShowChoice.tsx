@@ -1,3 +1,4 @@
+import "../styles/nav-dialogs.css";
 import { SegmentedControl } from "@apx/ui";
 import { type BarShow, setPrefs, usePrefs } from "../data/prefs.ts";
 import { useT } from "../i18n/index.ts";

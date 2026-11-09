@@ -7,7 +7,8 @@ import { secretary } from "../data/identity.ts";
 import { type RoutineDraft, saveRoutine } from "../data/routines.ts";
 import { useData } from "../data/state.ts";
 import { type MessageKey, useT } from "../i18n/index.ts";
-import { ScheduleEditor, scheduleText } from "./Schedule.tsx";
+import { ScheduleEditor } from "./Schedule.tsx";
+import { scheduleText } from "./scheduleText.ts";
 import { postVars, promptVars } from "./vars.ts";
 
 const ACTIONS: Array<{ value: RoutineAction; key: MessageKey; hint: MessageKey; icon: typeof Icons.Bot }> = [

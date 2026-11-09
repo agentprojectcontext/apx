@@ -1,3 +1,4 @@
+import "../styles/inbox-parts.css";
 import type { ChannelInfo } from "@apx/protocol";
 import { Button, IconButton, Icons, PickRow, Popover } from "@apx/ui";
 import { useState } from "react";
