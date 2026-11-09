@@ -1,5 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
+import { enAccount } from "./account-en.ts";
+import { esAccount } from "./account-es.ts";
 import { enActivityReview } from "./activity-review-en.ts";
 import { esActivityReview } from "./activity-review-es.ts";
 import { enApprovals } from "./approvals-en.ts";
@@ -61,6 +63,16 @@ test("the resources pack's strings load with its screens, never with the first s
     assert.equal(messages["res.tab.skills"], lang === "en" ? "Skills" : "Skills");
     for (const key of Object.keys(enResources) as (keyof typeof enResources)[]) assert.equal(messages[key], undefined);
     assert.deepEqual(await loadPack("resources", lang), lang === "en" ? enResources : esResources);
+  }
+});
+
+test("an account's settings strings load only when they open, in either language", async () => {
+  const { loadMessages, loadPack } = await import("./messages.ts");
+  for (const lang of ["en", "es"] as const) {
+    const messages = await loadMessages(lang);
+    assert.equal(messages["chs.new"] !== undefined, true);
+    for (const key of Object.keys(enAccount) as (keyof typeof enAccount)[]) assert.equal(messages[key], undefined);
+    assert.deepEqual(await loadPack("account", lang), lang === "en" ? enAccount : esAccount);
   }
 });
 
@@ -157,6 +169,7 @@ test("secretary capability strings load only with the super-agent's settings in 
 // A pack's strings belong to the language as much as the main chunk's.
 const en = {
   ...base,
+  ...enAccount,
   ...enActivityReview,
   ...enApprovals,
   ...enComputer,
@@ -175,6 +188,7 @@ const en = {
 };
 const es = {
   ...esBase,
+  ...esAccount,
   ...esActivityReview,
   ...esApprovals,
   ...esComputer,

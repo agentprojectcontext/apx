@@ -1,4 +1,5 @@
 import { noticeEn } from "@apx/protocol/notices";
+import type { enAccount } from "./account-en.ts";
 import type { enActivityReview } from "./activity-review-en.ts";
 import type { ApprovalKey } from "./approvals-en.ts";
 import type { BrowserEditKey } from "./browser-edit-en.ts";
@@ -1390,13 +1391,26 @@ export const en = {
     "The auxiliary model selects exact owner quotes. Memories stay private to this agent and project.",
   "mem.auto_dream": "AutoDream",
   "mem.auto_dream.hint":
-    "Once a day after new work, review equivalent private notes and combine duplicates. Conflicts stay separate; changes can be undone.",
+    "Once a day, tidies each agent's notebook and the notes a project or your agents share: merges duplicates and retires what a newer note corrects. Your own notes stay as they are; changes can be undone.",
   "mem.dailyCalls": "Daily memory call limit",
   "mem.dailyCalls.hint":
     "Capture and AutoDream share this limit. Each call has bounded input and output; token use appears in Usage. Zero pauses model calls.",
   "mem.backfill": "Review earlier chats",
   "mem.dreamNow": "Review duplicates now",
-  "mem.job.completed": "Completed",
+  "mem.job.capture": "Memories from {agent}",
+  "mem.job.notebook": "{agent}'s notebook",
+  "mem.job.sharedProject": "Notes shared in {place}",
+  "mem.job.sharedGlobal": "Notes about you",
+  "mem.job.waitBudget": "Waits for tomorrow's limit",
+  "mem.job.waitAgent": "Waits for {agent} to finish",
+  "mem.job.waitModel": "Waits for a memory model",
+  "mem.job.saved": "Notes saved: {n}",
+  "mem.job.nothingNew": "Nothing new to save",
+  "mem.job.merged": "Duplicates merged: {n}",
+  "mem.job.retired": "Outdated retired: {n}",
+  "mem.job.redated": "Dated: {n}",
+  "mem.job.unchanged": "Checked, nothing to change",
+  "mem.job.tooMany": "No change: too many to retire",
   "mem.job.failed": "Failed",
   "mem.job.working": "Working",
   "mem.job.pending": "Waiting",
@@ -1443,6 +1457,9 @@ export const en = {
   "memory.notebookOf": "{name}'s notebook",
   "memory.byYou": "By you",
   "memory.byAgent": "An agent",
+  "memory.fromV1": "Brought over from APX v1",
+  "memory.fromV1Hint":
+    "It came with what you imported from the previous version. It may be out of date: your agents use it only when it comes up and may correct it. Edit it to vouch for it.",
   "memory.edit": "Edit note",
   "memory.remove": "Remove note",
   "error.memory": "Memory: {error}",
@@ -1458,14 +1475,15 @@ export const en = {
   "memory.lead.forgotten": "Notes you or an agent forgot. No agent sees them; bring one back or delete it for good.",
   "memory.empty.forgotten": "Nothing forgotten.",
   "memory.pending": "To confirm",
-  "memory.pendingHint": "An agent learned this about you. It only stands in every chat once you confirm it.",
+  "memory.pendingHint":
+    "An agent learned this about you. Until you confirm it, your agents use it only when it comes up.",
+  "memory.pendingBar":
+    "{n} to confirm: what your agents learned about you. Once confirmed, every agent keeps them in mind in every chat.",
   "memory.confirm": "Confirm",
+  "memory.confirmAll": "Confirm all",
   "memory.origin": "Open the chat",
   "memory.restore": "Bring back",
   "memory.deleteForever": "Delete for good",
-  "memory.tainted": "From outside content",
-  "memory.taintedHint":
-    "Saved with outside content in the chat. Agents read it as data, not as your word; edit it to vouch for it.",
   "tg.step1": "In Telegram, open @BotFather, send /newbot and follow the steps.",
   "tg.step2": "Paste the token it gives you below and pick who answers.",
   "tg.step3": "Write to your bot: it replies with a code. Type it below in “This is my Telegram”.",
@@ -1719,58 +1737,10 @@ export const en = {
   "common.more": "More",
   "svc.modelWhisperCppHint":
     "The ggml model file. APX starts whisper.cpp when a voice note arrives and stops it after 10 minutes unused. It needs whisper.cpp and ffmpeg installed.",
-  "rooms.title": "Server rooms",
-  "rooms.lead":
-    "The rooms of your server where the bot reads and may speak. A room not on the list does not exist for APX. There it answers in public and sealed: no memory and nothing of yours, also when you write; at most it searches the web, as “Search the web” says.",
-  "rooms.mode": "Mode of {room}",
   "rooms.mode.mention": "When called",
   "rooms.mode.useful": "When useful",
   "rooms.mode.always": "Always",
   "rooms.mode.read": "Read only",
-  "rooms.modeHint.mention": "Answers when someone says its name, @mentions it or replies to it.",
-  "rooms.modeHint.useful":
-    "Also when nobody calls it: a cheap model reads each message and answers only if it is worth it, by your criterion below.",
-  "rooms.modeHint.always": "Answers every message, within the room's limits.",
-  "rooms.modeHint.read": "Never answers; it keeps what is said so your agents can read it.",
-  "rooms.remove": "Remove {room}",
-  "rooms.name": "Room name",
-  "rooms.namePlaceholder": "general",
-  "rooms.id": "Room id",
-  "rooms.idPlaceholder": "Channel id (123456789012345678)",
-  "rooms.add": "Add room",
-  "rooms.pick": "Add a room from the server…",
-  "rooms.allListed": "Every room of the server is listed",
-  "rooms.byId": "Add by ID",
-  "rooms.cannotWrite": "Cannot write",
-  "rooms.cannotWriteHint": "The bot may read but not post here: give its role “Send messages” in this room on Discord.",
-  "rooms.idHint":
-    "In Discord, turn on Developer Mode (Settings › Advanced) and right-click the channel › Copy Channel ID.",
-  "rooms.names": "What calls it",
-  "rooms.namesHint": "Words that count as calling it, besides an @mention or a reply to it. Comma-separated.",
-  "rooms.ownerOnly": "Answers only you",
-  "rooms.ownerOnlyHint": "In rooms it reads everyone but answers only you.",
-  "rooms.knowledge": "What it knows and can answer",
-  "rooms.knowledgeHint": "Your notes for that community: what the project is, where the docs are. They are public.",
-  "rooms.rules": "Rules",
-  "rooms.rulesHint": "What it must never say or do there. They go last and win over everything else.",
-  "rooms.replyWhen": "When an answer is worth it",
-  "rooms.replyWhenHint": "For “When useful” rooms: a cheap model reads each uncalled message and decides by this.",
-  "rooms.limits": "Limits",
-  "rooms.limitsHint": "So it does not answer too much in a busy room. They do not apply to you.",
-  "rooms.cooldown": "Seconds between answers to one person",
-  "rooms.perHour": "Answers per hour in a room",
-  "rooms.tg.title": "Groups",
-  "rooms.tg.lead":
-    "The Telegram groups where the bot reads and may speak. A group not on the list does not exist for APX. There it answers in public and sealed: no memory and nothing of yours, also when you write; at most it searches the web, as “Search the web” says.",
-  "rooms.tg.privacy":
-    "To read every message of a group, turn off the bot's Group Privacy in @BotFather (/mybots › Bot Settings › Group Privacy), then remove the bot from the group and add it again. With it on, Telegram only hands the bot messages that @mention it or reply to it.",
-  "rooms.tg.pick": "Add a group the bot is in…",
-  "rooms.tg.allListed": "Every group the bot was seen in is listed",
-  "rooms.tg.none": "No groups yet: add the bot to a group or write there",
-  "rooms.tg.namePlaceholder": "Team",
-  "rooms.tg.idPlaceholder": "Group id (-1001234567890)",
-  "rooms.tg.idHint":
-    "Telegram cannot list a bot's groups: one shows up here once the bot is added to it or someone writes there while it runs.",
   "dc.step1": "In the Discord Developer Portal, create an application and open Bot.",
   "dc.step2": "Turn on Message Content Intent, then Reset Token and copy it.",
   "dc.step3": "Under Installation, add the bot to your account (or to a server you are in), so you can write to it.",
@@ -1961,6 +1931,7 @@ export const en = {
 /** Every key the panel may show: these, and those of the packs loaded with their screens (messages.ts PACKS). */
 export type MessageKey =
   | keyof typeof en
+  | keyof typeof enAccount
   | keyof typeof enActivityReview
   | ApprovalKey
   | BrowserEditKey

@@ -1,6 +1,6 @@
 // A side question: the owner asks a chat's agent something quick about the chat, on the chat's model, and the answer
 // never enters the chat. One model call with the chat as read-only context, no tools; nothing is kept but its tokens.
-// See DECISIONS.md#d-210
+// See DECISIONS.md#d-215
 
 import type { LogEntry } from "../domain/model-log.ts";
 import { isCliRef } from "../domain/refs.ts";

@@ -416,6 +416,11 @@
   align-self: flex-start;
   max-width: min(560px, 80%);
 }
+/* A received mail reads like a page, not a chat line: it takes the column's width. */
+.chan__bubble:has(> .mailview) {
+  width: 100%;
+  max-width: min(760px, 100%);
+}
 .chan__bubble.is-out {
   align-self: flex-end;
   align-items: flex-end;
@@ -1322,4 +1327,13 @@
   color: var(--apx-fg-subtle);
   font-size: var(--apx-text-xs);
   line-height: 1.4;
+}
+/* A mail sender's card: stop reading them, or their whole domain. */
+.chan__neverread {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.chan__neverread > * {
+  max-width: 100%;
 }

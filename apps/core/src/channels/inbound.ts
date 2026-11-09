@@ -1,7 +1,7 @@
 // What arrives on a channel. Who wrote (an exact address match) decides where the words go: the owner's thread, a
-// contact's sealed thread, or a pairing code for a stranger. Button presses decide only when the owner presses them.
+// contact's sealed thread, or a pairing request for a stranger. Button presses decide only when the owner presses them.
 
-import { CHANNEL_DEFAULTS, type Thread, UPLOAD_LIMITS } from "@apx/protocol";
+import { CHANNEL_DEFAULTS, channelKindRules, type Thread, UPLOAD_LIMITS } from "@apx/protocol";
 import {
   type Inbound,
   type InboundAction,
@@ -161,7 +161,7 @@ export function createInbound(deps: {
     // A silenced contact keeps its files without transcription, a model call or a work-folder copy.
     if (quiet) {
       const said = m.voice ? `${text ? `${text}\n` : ""}[voice note]` : text;
-      keepQuiet(
+      const kept = keepQuiet(
         thread.id,
         cfg.id,
         person,
@@ -169,6 +169,7 @@ export function createInbound(deps: {
         attachments,
         person.muted ? undefined : { answered: "no: this account answers only its owner" },
       );
+      keepMail(thread.id, m, kept);
       if (person.unreviewed) report(cfg, person, m.sender.id, said, thread.id);
       return "done";
     }
@@ -269,9 +270,30 @@ export function createInbound(deps: {
 
   /** Remembers the other side's last message, so the agent can answer it with a reaction (REACT in manager.ts). */
   function theirLast(threadId: string, channel: string, m: Inbound, messageId: string): void {
+    keepMail(threadId, m, messageId);
     store.threads.mergeContext(threadId, {
       their_last: { channel, conversation: m.conversation, ref: m.ref ?? m.external_id, message_id: messageId },
     });
+  }
+
+  /**
+   * A mail's HTML, kept with its message so the app shows the mail as it was sent. Only the chat's message gets it:
+   * the agent reads the words, never the markup.
+   */
+  function keepMail(threadId: string, m: Inbound, messageId: string): void {
+    const message = m.html ? store.messages.get(messageId) : undefined;
+    if (!m.html || !message) return;
+    try {
+      const media = saveUpload(deps.home, store, {
+        name: "mail.html",
+        mime: "text/html",
+        bytes: Buffer.from(m.html),
+        thread: threadId,
+      });
+      store.messages.update({ ...message, parts: [...message.parts, partOfMedia(media)] });
+    } catch (err) {
+      log.warn({ thread: threadId, err: errorMessage(err, 200) }, "mail's formatted copy not kept");
+    }
   }
 
   /** A voice note as words the agent can read (with its caption, if any); says so when it could not be heard. */
@@ -379,9 +401,10 @@ export function createInbound(deps: {
       { id: buttonId.pairing(request.code, "contact"), label },
       { id: buttonId.pairing(request.code, "deny"), label: t.ignore },
     ];
-    // On the owner's own number the request is only listed: the owner's friends must not get a code from it. Past
-    // the hourly cap of codes (a wave of spam mail) the rest are only listed too: no reply goes to forged senders.
-    if (deps.ownAccount(cfg.id) || codesOver(cfg.id)) return "ignored";
+    // On the owner's own number the request is only listed: the owner's friends must not get a code from it. A kind
+    // that never sends codes (email: anyone can write, and a reply to every stranger is spam) only lists them too, and
+    // so does a channel past its hourly cap of codes: no reply goes to forged senders.
+    if (deps.ownAccount(cfg.id) || channelKindRules(cfg.type).strangersListed || codesOver(cfg.id)) return "ignored";
     const agent = store.agents.get(contactAgentOf(cfg))?.name ?? "APX";
     delivery.enqueue({
       channel: cfg.id,

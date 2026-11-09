@@ -27,6 +27,9 @@ function fromOf(origin: Origin): JobFrom {
     // A reviewer's return to a coordinator: a team's word, shown as the reviewer's agent.
     case "task_feedback":
       return { kind: "agent", name: origin.name };
+    // The owner's own step on a card the agent showed, as answering it.
+    case "connected":
+      return { kind: "input_answer" };
     // A contact's messages answered once the channel's hours began: shown as theirs.
     case "hours_began":
       return { kind: "channel", name: origin.name };

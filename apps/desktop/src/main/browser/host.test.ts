@@ -18,6 +18,9 @@ class Contents extends EventEmitter {
   isDestroyed() {
     return this.destroyed;
   }
+  isLoading() {
+    return false;
+  }
   getURL() {
     assert.equal(this.destroyed, false, "cannot read a destroyed WebContents");
     return this.url;
@@ -242,5 +245,83 @@ test("tabs keep the engine's own user agent", async () => {
   const { wc } = await opened(host);
   // A tab that claims to be Chrome has Cloudflare's pass refused on every reload. See HISTORY.md#tab-user-agent
   assert.deepEqual(agents, []);
+  wc.close();
+});
+
+/**
+ * A page whose button (e1) opens `dialog`. Like Chromium, the click answers only once the dialog closes and nothing that
+ * runs in the page answers while it is open; Electron's own box for it waits for "-cancel-dialogs".
+ */
+function withDialog(wc: Contents, dialog: { type: string; message: string }) {
+  const sent: string[] = [];
+  let open = false;
+  let release = () => {};
+  const event = (method: string, params: object) => wc.debugger.emit("message", {}, method, params);
+  wc.debugger.sendCommand = (async (method: string, params?: { type?: string; accept?: boolean }) => {
+    sent.push(method);
+    if (method === "Page.handleJavaScriptDialog") {
+      open = false;
+      event("Page.javascriptDialogClosed", { result: params?.accept });
+      release();
+      return {};
+    }
+    if (open) return new Promise(() => {});
+    if (method === "Runtime.evaluate") return { result: { objectId: "doc1" } };
+    if (method === "DOM.getContentQuads") return { quads: [[0, 0, 10, 0, 10, 10, 0, 10]] };
+    if (method === "Accessibility.getFullAXTree")
+      return {
+        nodes: [
+          { nodeId: "r", role: { value: "RootWebArea" }, childIds: ["b"] },
+          { nodeId: "b", parentId: "r", role: { value: "button" }, name: { value: "Delete" }, backendDOMNodeId: 2 },
+        ],
+      };
+    if (method === "Input.dispatchMouseEvent" && params?.type === "mouseReleased") {
+      open = true;
+      setImmediate(() => event("Page.javascriptDialogOpening", dialog));
+      return new Promise<void>((resolve) => {
+        release = resolve;
+      });
+    }
+    return {};
+  }) as never;
+  let boxesClosed = 0;
+  wc.on("-cancel-dialogs", () => boxesClosed++);
+  return { sent, boxesClosed: () => boxesClosed };
+}
+
+test("an agent sees a confirm dialog its click opened, answers it, and Electron's box for it closes", async () => {
+  const host = new BrowserHost();
+  const { tab, wc } = await opened(host);
+  const page = withDialog(wc, { type: "confirm", message: "Delete Acme for good?" });
+  await host.handle("browser.snapshot", { tab: tab.id });
+  assert.deepEqual(await host.handle("browser.click", { tab: tab.id, ref: "e1", by: "superagent" }), {
+    ok: true,
+    url: "https://example.com",
+    dialog: "confirm",
+  });
+  const snap = (await host.handle("browser.snapshot", { tab: tab.id })) as { tree: string };
+  assert.match(snap.tree, /- dialog confirm "Delete Acme for good\?" \(the page waits for an answer\)/);
+  assert.match(snap.tree, /button "OK" \[dialog-ok\]\n {2}- button "Cancel" \[dialog-cancel\]/);
+  await assert.rejects(host.handle("browser.text", { tab: tab.id }), { code: "conflict" });
+  await host.handle("browser.click", { tab: tab.id, ref: "dialog-ok", by: "superagent" });
+  assert.equal(page.sent.at(-1), "Page.handleJavaScriptDialog");
+  assert.equal(page.boxesClosed(), 1);
+  assert.match(((await host.handle("browser.snapshot", { tab: tab.id })) as { tree: string }).tree, /\[e1\]/);
+  wc.close();
+});
+
+test("a dialog on a tab the owner holds stays theirs", async () => {
+  const host = new BrowserHost();
+  const { tab, wc } = await opened(host);
+  const page = withDialog(wc, { type: "confirm", message: "Leave the team?" });
+  await host.handle("browser.snapshot", { tab: tab.id });
+  await host.handle("browser.click", { tab: tab.id, ref: "e1", by: "superagent" });
+  host.takeControl(tab.id);
+  await assert.rejects(host.handle("browser.snapshot", { tab: tab.id }), { code: "paused_by_user" });
+  await assert.rejects(host.handle("browser.click", { tab: tab.id, ref: "dialog-ok", by: "superagent" }), {
+    code: "paused_by_user",
+  });
+  assert.equal(page.sent.includes("Page.handleJavaScriptDialog"), false);
+  assert.equal(page.boxesClosed(), 0);
   wc.close();
 });

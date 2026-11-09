@@ -139,8 +139,9 @@ Arriba de la descripción, una tarea muestra adónde tiene que llegar su trabajo
   dijiste, o lo contrario, mandan tus palabras, y si no queda claro el agente te pregunta.
 - **Plan**: antes de trabajar, el agente escribe sus pasos hacia el objetivo y marca cada uno como pendiente, en curso
   o hecho a medida que avanza. El panel los muestra como una lista con cuántos van hechos, y también el chat de la
-  tarea, debajo del mensaje del agente ([El plan del agente](/es/office/chat/#el-plan-del-agente)). Si el trabajo deja de
-  llevar al objetivo, el agente te dice qué falta en vez de seguir.
+  tarea, debajo del mensaje del agente ([El plan del agente](/es/office/chat/#el-plan-del-agente)). Si el camino deja de
+  llevar al objetivo, el agente cambia el plan y prueba otro; a vos te dice solo lo que únicamente vos podés dar o
+  decidir.
 - **Una pausa cuando no avanza**: si los agentes de una tarea hacen 12 turnos o gastan 2 millones de tokens sin
   terminar un paso de su plan (contando desde el último paso hecho o desde tu último mensaje), se pausan. Ves el
   motivo en el chat, con el botón para dejarlos seguir, y una vez en tus notificaciones. Un paso hecho, o tu mensaje,
@@ -192,7 +193,8 @@ para la tarea, y su respuesta vuelve como comentario. Preguntale a Vera desde la
 Un agente le pregunta a un compañero igual: su `@nombre` en un comentario abre una consulta en la tarea, que se ve
 como una tarjeta con la pregunta y la respuesta, y la respuesta le vuelve al agente que preguntó, que sigue con su
 trabajo. Un comentario pregunta a dos compañeros como mucho, y el que responde una consulta no puede preguntarle a
-nadie más. Un agente también te puede mencionar a vos para llamarte la atención.
+nadie más. Un `@nombre` del agente de la propia tarea no es una consulta: le llega a su chat de la tarea como parte de
+su trabajo, igual que tus comentarios. Un agente también te puede mencionar a vos para llamarte la atención.
 
 Quien le pregunta de nuevo al mismo compañero (vos, o el mismo agente) sigue en esa misma consulta, con lo que el
 compañero ya sabe, y la tarea muestra una tarjeta nueva para la nueva respuesta. Si el compañero sigue trabajando en
@@ -202,8 +204,10 @@ una pregunta anterior, la nueva abre una consulta propia, así que las preguntas
 
 Cuando el turno de un agente en una tarea termina con la tarea todavía en curso (se quedó sin pasos, o frenó en "sigo
 después"), su parte siguiente arranca enseguida, numerada, hasta nueve. Para cuando el agente cierra la tarea, la marca
-esperándote con lo que tenés que hacer, dice qué lo bloquea, o cuando una parte no avanzó. Para cerrar su trabajo como
-hecho, el agente tiene que decir qué verificó.
+esperándote con lo que tenés que hacer, dice qué lo bloquea, o cuando una parte no avanzó. Una parte que solo revisa lo
+que cambió la anterior cuenta como avance; dos partes seguidas que solo consultan, no. Para cerrar su trabajo como
+hecho, el agente tiene que decir qué verificó. Cuando otro agente vuelve a nombrar al agente de la tarea mientras no la
+está trabajando, este sigue.
 
 Si una tarea sigue en curso sin nada corriendo (ningún turno en 20 minutos, dentro del día de su último turno), APX le
 pide una vez a su agente que siga o diga qué espera, y te avisa si se vuelve a frenar. Cada diez minutos APX mira hasta

@@ -19,20 +19,39 @@ dos. Leé [Email y firmas](/es/office/email/) para Gmail y las firmas locales de
 3. Los proveedores conocidos completan los servidores. Si no, ingresá host, puerto y seguridad de IMAP y SMTP.
    Opciones seguras típicas: IMAP 993 con SSL/TLS y SMTP 465 con SSL/TLS o 587 con STARTTLS; usá los datos de tu proveedor.
 4. Completá el usuario si no coincide con la dirección. Conectá y revisá el estado antes de probar.
-5. Enviá un mensaje corto desde otro buzón, aprobá su pedido de vinculación como la persona correcta y verificá la respuesta.
+5. En **Cuenta › Tu cuenta**, escribí en **Tus direcciones** las direcciones desde las que escribís (no hace falta
+   código). Mandá un mensaje corto desde una de ellas y verificá la respuesta.
 
 La seguridad **Ninguna** es solo para servidores locales, no para conexiones a internet. APX guarda la contraseña
 como secreto y no vuelve a mostrarla. Cambiar servidores o contraseña reconecta el buzón.
 
 ## Restringí el correo entrante
 
-**Quién puede escribir** acepta direcciones o dominios como `@example.com`. Una lista vacía permite llegar al flujo
-normal de desconocidos; no aprueba a todos automáticamente. Empezá con una lista acotada y revisá **Desconocidos**
-y las [respuestas supervisadas](/es/channels/supervised/).
+**Quién puede escribir** acepta direcciones o dominios como `@example.com`; tus propias direcciones siempre se
+leen. Una lista vacía deja llegar a cualquiera al manejo de desconocidos que elegís en **Aprobaciones**; no aprueba a
+todos. Una cuenta de email nunca le manda un código por correo a quien no conoce: con **Anotar**, queda esperando en
+**Aprobaciones** con lo que escribió, y no se le manda nada hasta que lo apruebes. Empezá con una lista acotada y
+revisá las [respuestas supervisadas](/es/channels/supervised/).
+
+**No leer nunca** acepta direcciones o dominios (`@example.com`) cuyo correo se saltea: no se contesta ni queda en
+**Aprobaciones**. El correo que no escribió una persona (boletines con enlace para darse de baja, respuestas
+automáticas, rebotes y remitentes como `security-noreply@`) se saltea sin anotarse.
+
+El correo de **Tus direcciones** cuenta como tuyo solo si tu servidor de correo lo verificó (DKIM, SPF o DMARC),
+aunque **Leer correo sin verificar** esté activo. Tu correo va al chat propio de la cuenta, uno después del otro:
+email no tiene el selector de Home ni la opción **Mientras trabaja**.
 
 Por defecto APX descarta mensajes cuyo dominio remitente el servidor no pudo verificar con DKIM, SPF o DMARC.
 **Leer correo no verificado** debilita esa protección: activalo solo si entendés por qué tu servidor no verifica
 remitentes. Una dirección From no prueba que autorizaste una instrucción. El correo entrante sigue siendo contenido externo.
+
+## Leer el correo recibido
+
+Un correo con formato se ve en su chat como fue enviado: asunto, remitente, fecha y el cuerpo con formato. Nada de lo
+que trae se ejecuta, y sus imágenes quedan ocultas hasta que elegís **Mostrar imágenes** (una imagen remota le puede
+avisar a quien lo mandó que lo abriste). El agente lee solo el texto del correo. En la ficha de contacto de un
+remitente, **No leer nunca más** saltea esa dirección, o todo lo de su dominio, y olvida el contacto; el chat queda,
+y la lista **No leer nunca** de la cuenta lo deshace.
 
 ## Respuestas, firmas y diagnóstico
 

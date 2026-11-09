@@ -112,13 +112,19 @@ const BRIDGE = new Set(["mcp_search", "mcp_call"]);
 
 /**
  * `untrusted` is whether text from outside (web pages, other agents, channel messages) is in the turn's context:
- * then a model may be acting on someone else's instructions, so strong actions wait for the owner.
+ * then a model may be acting on someone else's instructions, so strong actions wait for the owner. `level`: the
+ * call's own, unless the executor found it acts only on this computer (DECISIONS.md#d-212).
  */
-export function authorize(tool: Tool, args: Record<string, unknown>, agent: AgentRecord, untrusted: boolean): Decision {
+export function authorize(
+  tool: Tool,
+  args: Record<string, unknown>,
+  agent: AgentRecord,
+  untrusted: boolean,
+  level: Confirm = tool.confirm(args),
+): Decision {
   // Plan mode still asks the owner, loads skills and hands reading work to a helper (who works in plan mode too).
   if (modeOf(agent) === "plan" && PLAN_KEEPS.has(tool.name) && agent.rules?.[toolRisk(tool)] !== "off")
     return { kind: "allow" };
-  const level = tool.confirm(args);
   // Its own temp files change nothing of the owner's: no mode asks for them, only what always asks still does.
   if (tool.scratch?.(args)) return decide(level === "always" ? "always" : "never", "none", agent, untrusted);
   // A call that only reads here is risk read whatever the tool may do otherwise (DECISIONS.md#d-098).

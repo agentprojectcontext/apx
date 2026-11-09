@@ -79,7 +79,7 @@ const spaces = (home: string) => [defaultSpace(home), ...v1Projects(home)];
  * Every v1 note file that becomes global: the super-agent's own and Default's (v1's workspace without a folder). A
  * project v1 no longer lists has no project here, and as global its notes would show in every project: left out.
  */
-function globalNotes(home: string): Array<{ file: string }> {
+export function globalNotes(home: string): Array<{ file: string }> {
   return [{ file: path.join(home, "memory.md") }, { file: path.join(defaultSpace(home).storage, "memory.md") }];
 }
 
@@ -249,12 +249,12 @@ export function importV1(deps: V1ImportDeps, groups: readonly V1Group[]) {
     const before = store.memories.counts(undefined).total;
     for (const { file } of globalNotes(home))
       for (const text of v1Notes(file))
-        store.memories.add({ scope: "global", text: text.slice(0, 2000), source: "owner" });
+        store.memories.add({ scope: "global", text: text.slice(0, 2000), source: "imported" });
     for (const p of v1Projects(home)) {
       const project = projectOf(p);
       if (!project) continue;
       for (const text of v1Notes(path.join(p.storage, "memory.md")))
-        store.memories.add({ scope: "project", project_id: project, text, source: "owner" });
+        store.memories.add({ scope: "project", project_id: project, text, source: "imported" });
     }
     return store.memories.counts(undefined).total - before;
   });
@@ -591,7 +591,7 @@ function importAgentNotes(store: Store, home: string): number {
     const have = new Set(store.memories.list({ agent_id: agent.id, limit: 500 }).map((m) => m.text));
     for (const text of v1Notes(file))
       if (!have.has(text)) {
-        store.memories.add({ scope: "agent", agent_id: agent.id, text, source: "owner" });
+        store.memories.add({ scope: "agent", agent_id: agent.id, text, source: "imported" });
         n++;
       }
   }

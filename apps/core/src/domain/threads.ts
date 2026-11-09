@@ -54,7 +54,8 @@ export type ThreadContext = {
    * An owner-check sub-thread: the owner's chat whose channel words it checks, that chat's agent, and where its answer
    * goes out (DECISIONS.md#d-144).
    */
-  owner_check?: { thread: string; agent_id: string; reply_to: { channel: string; conversation: string } };
+  /** Where the checked answer goes; none: where the chat's answers go (words handed on from a room, D-213). */
+  owner_check?: { thread: string; agent_id: string; reply_to?: { channel: string; conversation: string } };
   /** A task chat an agent's turn started: the chat it came from, whose unattended limits its turns count against. */
   asked_from?: string;
   /** An immediate self-task takes execution from this run only; later owner turns stay independent. */
@@ -157,7 +158,8 @@ export const strictestWrite = (first: Write, ...rest: Write[]): Write =>
   rest.reduce((m, w) => (WRITE_STRICTNESS[w] > WRITE_STRICTNESS[m] ? w : m), first);
 
 const PREVIEW_CHARS = 160;
-export const previewOf = (text: string) => text.slice(0, PREVIEW_CHARS);
+/** A chat's last line in a list; a mail's leading "[subject: …]" (email.ts) shows as its subject. */
+export const previewOf = (text: string) => text.replace(/^\[subject: ([^\]\n]*)\]\n?/, "$1 · ").slice(0, PREVIEW_CHARS);
 
 export function threadsRepo({ one, all, run }: Sql, bus: Bus, endSession: (thread: string) => void = () => {}) {
   const repo = {

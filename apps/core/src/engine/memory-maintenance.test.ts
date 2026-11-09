@@ -178,11 +178,12 @@ test("episode, capture, dream and its timestamp roll back together before indexi
     assert.deepEqual(
       store.memoryWork
         .recent()
-        .map((job) => job.kind)
+        .map((job) => (job.id.startsWith("dream:shared:") ? "shared dream" : job.kind))
         .sort(),
-      ["capture", "dream"],
+      ["capture", "dream", "shared dream"],
     );
     assert.ok(store.settings.get(dreamKey));
+    assert.ok(store.settings.get("memory_dream:shared:"), "the notes the place shares are tidied once a day too");
     assert.equal(scheduled, 1);
   } finally {
     store.settings.set = set;

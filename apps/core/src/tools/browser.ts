@@ -1,7 +1,8 @@
 // Browser tools: the agent drives the embedded browser through the desktop node, in its own profile and tabs.
 // Every call goes through the router (browser.* methods), the same door the panel uses.
 import { setTimeout } from "node:timers/promises";
-import { BROWSER_CAP, chromeTabId, type TabInfo } from "@apx/protocol";
+import { BROWSER_CAP, BROWSER_REF, type BrowserDialog, chromeTabId, type TabInfo } from "@apx/protocol";
+import { servedHere } from "@apx/protocol/cdp";
 import { z } from "zod";
 import type { AgentRecord } from "../domain/agents.ts";
 import type { Store } from "../domain/store.ts";
@@ -35,14 +36,17 @@ const host = (url: unknown) => {
 };
 
 const tabArg = z.string().min(1).describe("tab id");
-const refArg = z
-  .string()
-  .regex(/^e\d+$/)
-  .describe("ref like e12, from the last snapshot");
+const refArg = z.string().regex(BROWSER_REF).describe("ref like e12, from the last snapshot");
+
+/** What the agent is told when its action opened a dialog the page now waits on. */
+const opened = (dialog: BrowserDialog | undefined) =>
+  dialog ? ` It opened a ${dialog} dialog the page waits on: browser_snapshot shows it with refs to answer.` : "";
 
 export function browserTools(
   store: Store,
   home: string,
+  /** APX's own ports: typing there acts as the owner, so it never runs unasked. */
+  appPorts: () => ReadonlySet<string>,
   vm?: { hasThread(id: string): boolean },
   signIn?: SignIn,
 ): Tool[] {
@@ -207,6 +211,7 @@ export function browserTools(
         const tab = await own(ctx, a.tab);
         const r = await ctx.call("browser.click", { tab, ref: a.ref, by: ctx.agent.id });
         await card(ctx, tab, "agent");
+        if (r.dialog) return `clicked ${a.ref} · ${r.url}.${opened(r.dialog)}`;
         return `clicked ${a.ref} · now at ${r.url}. Take a new browser_snapshot to check it did what you meant.`;
       },
     }),
@@ -222,8 +227,14 @@ export function browserTools(
         submit: z.boolean().optional().describe("press Enter after"),
       }),
       effect: "external",
-      // Typing hands data to a site: after reading a page that may be steering the agent, the owner decides.
+      // After reading a page that may steer the agent, the owner decides, unless the page is served by this computer
+      // and APX's browser checks that as it types (DECISIONS.md#d-212).
       confirm: "untrusted",
+      onThisComputer: async (a, ctx) => {
+        if (chromeTabId(a.tab) !== undefined) return false;
+        const url = (await ctx.call("browser.tabs", {})).tabs.find((t) => t.tab === a.tab)?.url;
+        return url !== undefined && servedHere(url, appPorts());
+      },
       deadlineMs: 30_000,
       title: (a) => `Typed into ${a.ref}`,
       async run(a, ctx) {
@@ -234,7 +245,10 @@ export function browserTools(
           text: a.text,
           submit: a.submit ?? false,
           by: ctx.agent.id,
+          ...(ctx.onThisComputer ? { local_only: true } : {}),
         });
+        if (r.dialog)
+          return `typed into ${a.ref}${a.submit ? " and pressed Enter" : ""} · ${r.url}.${opened(r.dialog)}`;
         return `typed into ${a.ref}${a.submit ? " and pressed Enter" : ""} · ${r.url}. Take a new browser_snapshot to check it worked (a message sent, a form gone) before saying it did.`;
       },
     }),

@@ -137,8 +137,8 @@ Above the description, a task shows where its work must arrive and what you said
   or for the opposite, your words win, and when it is not clear the agent asks you.
 - **Plan**: before working, the agent writes its steps toward the goal and marks each one pending, under way or done
   as it goes. The drawer shows them as a checklist with how many are done, and so does the task's chat, under the
-  agent's message ([The agent's plan](/office/chat/#the-agents-plan)). When the work stops leading to the goal,
-  the agent tells you what is missing instead of going on.
+  agent's message ([The agent's plan](/office/chat/#the-agents-plan)). When the way stops leading to the goal,
+  the agent changes the plan and tries another; it tells you only what only you can give or decide.
 - **A pause when it gets nowhere**: if the agents on a task take 12 turns or 2 million tokens without finishing a
   step of its plan (counted since the last step done or since you last wrote), they pause. You see why in the chat,
   with the button to let them go on, and once in your notifications. A step done, or your message, starts the count
@@ -187,8 +187,9 @@ answer comes back as a comment. Ask Vera from Lucía's task:
 
 An agent asks a teammate the same way: its `@name` in a comment opens a consult on the task, shown as a card with
 the question and the answer, and the answer comes back to the agent that asked, which goes on with its work. One
-comment asks two teammates at most, and the one answering a consult cannot ask anyone further. An agent can also
-mention you to get your attention.
+comment asks two teammates at most, and the one answering a consult cannot ask anyone further. An `@name` of the
+task's own agent is no consult: it reaches that agent's chat for the task as part of its work, the way your comments
+do. An agent can also mention you to get your attention.
 
 Whoever asks the same teammate again (you, or the same agent) goes on in that consult, with what the teammate already
 knows, and the task shows a new card for the new answer. If the teammate is still working on an earlier question, the
@@ -198,8 +199,10 @@ new one opens a consult of its own, so questions asked together stay apart.
 
 When an agent's turn on a task ends with the task still in progress (it ran out of steps, or stopped at "I'll
 continue"), its next part starts at once, numbered, up to nine. It stops when the agent closes the task, marks it
-waiting on you with what you must do, says what blocks it, or when a part got nowhere. Closing its own work as done,
-an agent must say what it verified.
+waiting on you with what you must do, says what blocks it, or when a part got nowhere. One part that only checks what
+the part before it changed counts as progress; two parts in a row that only look things up do not. Closing its own
+work as done, an agent must say what it verified. When another agent names a task's own agent again while it is not
+working on it, it goes on.
 
 If a task stays in progress with nothing running on it (no turn for 20 minutes, within a day of its last one), APX asks
 its agent once to go on or say what it waits for, and tells you if it stops again. Every ten minutes APX looks at up to

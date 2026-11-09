@@ -938,7 +938,8 @@ export const Memory = z.object({
   /** `procedure`: how the agent did something that worked, kept as history (never as an instruction). */
   kind: z.enum(["user", "feedback", "project", "reference", "procedure"]).optional(),
   evidence: z.array(MemoryEvidence).optional(),
-  source: z.enum(["owner", "agent"]),
+  /** `imported`: brought over from APX v1, neither the owner's word nor checked by an agent since. */
+  source: z.enum(["owner", "agent", "imported"]),
   /** The agent that wrote it, and the thread and run it learned it in. */
   author_agent: Id.optional(),
   thread_id: Id.optional(),
@@ -1156,11 +1157,17 @@ export const ChannelEmail = z.object({
   imap: MailServer,
   smtp: MailServer,
   mailbox: z.string().min(1).max(200).default("INBOX"),
-  /** Only mail from these addresses (or "@domain") is read; empty: anyone (strangers get a pairing code). */
+  /**
+   * Only mail from these addresses (or "@domain") is read, besides the owner's own; empty: anyone (strangers are only
+   * listed for the owner, never mailed a code).
+   */
   allowed: z.array(z.string().min(3).max(254)).max(100).default([]),
+  /** Mail from these addresses (or "@domain") is never read, nor listed for the owner; the owner's own still is. */
+  blocked: z.array(z.string().min(3).max(254)).max(200).default([]),
   /**
    * Also read mail its server could not verify (no DKIM, SPF or DMARC pass for the sender's domain). Off: such mail is
-   * dropped, since anyone can write the owner's address in a From line.
+   * dropped, since anyone can write the owner's address in a From line. Mail from the owner's own addresses is always
+   * dropped unverified.
    */
   trust_unverified: z.boolean().default(false),
 });
@@ -1200,7 +1207,8 @@ export const ChannelInfo = z.object({
   /** The agent that answers the contacts and rooms of this channel, when it is not `agent_id`. */
   contacts_agent_id: Id.optional(),
   /**
-   * What a stranger's first message gets: a pairing code the owner approves (on the owner's own number: only listed),
+   * What a stranger's first message gets: a pairing code the owner approves (on the owner's own number and on email:
+   * only listed),
    * a notice asking the owner first, an answer right away as a new contact, or nothing.
    */
   strangers: ChannelStrangers,

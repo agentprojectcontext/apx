@@ -71,7 +71,7 @@ export const InstanceMemory = z.object({
   agent_id: Id.optional(),
   text: z.string().min(1).max(20_000),
   kind: z.enum(["user", "feedback", "project", "reference", "procedure"]).optional(),
-  source: z.enum(["owner", "agent"]),
+  source: z.enum(["owner", "agent", "imported"]),
 });
 export type InstanceMemory = z.infer<typeof InstanceMemory>;
 /** A channel as set up; its token and its linked account stay on the computer that has them. */

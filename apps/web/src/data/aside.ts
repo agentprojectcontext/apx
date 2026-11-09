@@ -1,4 +1,4 @@
-// Side questions per chat (DECISIONS.md#d-210), in memory for this window: the panel open over the composer, its
+// Side questions per chat (DECISIONS.md#d-215), in memory for this window: the panel open over the composer, its
 // exchanges and its unsent words. A layout change (a phone's width) that remounts the composer finds them as they were;
 // closing the panel lets them go, and an answer arriving after that is dropped.
 import { useSyncExternalStore } from "react";

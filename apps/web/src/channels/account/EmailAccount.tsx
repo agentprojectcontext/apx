@@ -68,7 +68,7 @@ function useMailForm(initial?: ChannelEmail) {
   const provider = picked ?? providerOf(address) ?? "other";
   const servers = provider === "other" ? { imap, smtp } : PROVIDERS[provider];
   const ok = ADDRESS.test(address.trim()) && Boolean(servers.imap.host) && Boolean(servers.smtp.host);
-  const value = (): Omit<ChannelEmail, "allowed" | "trust_unverified" | "mailbox"> => ({
+  const value = (): Omit<ChannelEmail, "allowed" | "blocked" | "trust_unverified" | "mailbox"> => ({
     address: address.trim().toLowerCase(),
     ...(name.trim() ? { name: name.trim() } : {}),
     ...(provider === "other" && username.trim() ? { username: username.trim() } : {}),
@@ -200,7 +200,7 @@ export function EmailConnect({ create }: { create: Create }) {
     await create(
       {
         label: form.address.trim().slice(0, 60),
-        email: { ...form.value(), mailbox: "INBOX", allowed: [], trust_unverified: false },
+        email: { ...form.value(), mailbox: "INBOX", allowed: [], blocked: [], trust_unverified: false },
       },
       password,
     );
@@ -306,6 +306,16 @@ export function EmailAccount(pane: PaneProps) {
               onValueChange={(allowed) => set({ email: { ...email, allowed } })}
             />
           </SettingRow>
+          <SettingRow title={t("em.blocked")} description={t("em.blockedHint")}>
+            <TagInput
+              label={t("em.blocked")}
+              className="emailallowed"
+              max={200}
+              placeholder={t("em.blockedPlaceholder")}
+              value={email.blocked}
+              onValueChange={(blocked) => set({ email: { ...email, blocked } })}
+            />
+          </SettingRow>
           <SettingRow title={t("em.unverified")} description={t("em.unverifiedHint")}>
             <Switch
               size="sm"
@@ -332,7 +342,7 @@ export function EmailAccount(pane: PaneProps) {
           {editing && <EditServers email={email} set={set} done={() => setEditing(false)} />}
         </>
       )}
-      <OwnerLink channelId={channel.id} name="Email" />
+      <OwnerLink channelId={channel.id} type={channel.type} name="Email" />
       {channel.email && (
         <EmailSignatures
           target={{ transport: "smtp", account: channel.id, sender: channel.email.address, label: channel.label }}
@@ -354,7 +364,12 @@ function EditServers({
   const t = useT();
   const form = useMailForm(email);
   const apply = () => {
-    const kept = { mailbox: email.mailbox, allowed: email.allowed, trust_unverified: email.trust_unverified };
+    const kept = {
+      mailbox: email.mailbox,
+      allowed: email.allowed,
+      blocked: email.blocked,
+      trust_unverified: email.trust_unverified,
+    };
     set({ email: { ...kept, ...form.value() } });
     done();
   };

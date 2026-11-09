@@ -52,7 +52,9 @@ export function ProjectMemory({ project }: { project: ProjectEntry }) {
               .sort((a, b) => b.updated_at.localeCompare(a.updated_at))
           : await list();
       const ids = new Set(team.map((a) => a.id));
-      setNotes(filter === "agents" ? memories.filter((m) => m.agent_id && ids.has(m.agent_id)) : memories);
+      const shown = filter === "agents" ? memories.filter((m) => m.agent_id && ids.has(m.agent_id)) : memories;
+      // What waits for the owner comes first, so it is seen before the notes that already stand.
+      setNotes([...shown].sort((a, b) => Number(Boolean(b.pending)) - Number(Boolean(a.pending))));
     } catch (e) {
       setNotes([]);
       notify(t("error.memory", { error: errText(e) }));
@@ -100,6 +102,8 @@ export function ProjectMemory({ project }: { project: ProjectEntry }) {
         </div>
       )}
 
+      {filter !== "forgotten" && <PendingBar notes={notes} onConfirmed={load} />}
+
       <SearchField
         size="sm"
         placeholder={t("memory.search")}
@@ -121,6 +125,33 @@ export function ProjectMemory({ project }: { project: ProjectEntry }) {
       {(filter === "project" || filter === "global") && (
         <AddNote key={filter} scope={filter} projectId={project.id} onAdded={load} />
       )}
+    </div>
+  );
+}
+
+/** The notes agents learned about the owner that wait for them, confirmed in one go. */
+function PendingBar({ notes, onConfirmed }: { notes: Memory[] | undefined; onConfirmed: () => void }) {
+  const t = useT();
+  const [busy, setBusy] = useState(false);
+  const ids = (notes ?? []).filter((m) => m.pending && !m.forgotten_at).map((m) => m.id);
+  if (!ids.length) return null;
+  const confirm = async () => {
+    setBusy(true);
+    try {
+      await client.call("memory.confirm_all", { ids });
+      onConfirmed();
+    } catch (e) {
+      notify(t("error.memory", { error: errText(e) }));
+    }
+    setBusy(false);
+  };
+  return (
+    <div className="memory__file memory__pending">
+      <Icons.Brain size={14} />
+      <span className="memory__pending-text">{t("memory.pendingBar", { n: ids.length })}</span>
+      <Button size="sm" loading={busy} onClick={() => void confirm()}>
+        {t("memory.confirmAll")}
+      </Button>
     </div>
   );
 }
@@ -250,14 +281,13 @@ function NoteRow({ note, sub, onChanged }: { note: Memory; sub: ProjectEntry | u
               {t("memory.pending")}
             </Badge>
           )}
-          {note.tainted && (
-            <Badge tone="warning" title={t("memory.taintedHint")}>
-              {t("memory.tainted")}
-            </Badge>
-          )}
           {owner && <Badge>{t("memory.notebookOf", { name: owner.name })}</Badge>}
           {note.source === "owner" ? (
             <span className="memory__by">{t("memory.byYou")}</span>
+          ) : note.source === "imported" ? (
+            <span className="memory__by" title={t("memory.fromV1Hint")}>
+              {t("memory.fromV1")}
+            </span>
           ) : (
             <span className="memory__by">
               {author && <AgentAvatar name={author.name} blob={blobOf(author)} size={16} />}

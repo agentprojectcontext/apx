@@ -2,7 +2,7 @@ import type { ChannelInfo, Person } from "@apx/protocol";
 import { Button, Icons, Input, SegmentedControl, Textarea, Tooltip } from "@apx/ui";
 import { useState } from "react";
 import { AgentSelect } from "../common/pickers/AgentSelect.tsx";
-import { claimAddress, saveContact, useChannels } from "../data/channels.ts";
+import { claimAddress, neverRead, saveContact, useChannels } from "../data/channels.ts";
 import { notify } from "../data/notices.ts";
 import { useData } from "../data/state.ts";
 import { type MessageKey, useT } from "../i18n/index.ts";
@@ -59,6 +59,7 @@ export function ContactPanel({
 }) {
   const t = useT();
   const defaults = channel.contacts;
+  const mailbox = channel.type === "email";
   const [d, setD] = useState({
     name: person.name,
     nickname: person.nickname ?? "",
@@ -188,6 +189,7 @@ export function ContactPanel({
           />
         </CardField>
       </div>
+      {mailbox && <NeverRead person={person} account={channel.id} onDone={onClose} />}
       <CardField label={t("ch.relation")}>
         <ChoiceChips
           label={t("ch.relation")}
@@ -249,6 +251,41 @@ export function ContactPanel({
       </CardField>
       <ItsMine person={person} onDone={onClose} />
     </ChatCard>
+  );
+}
+
+/** On an email account: stop reading this sender, or everyone at their domain (a service's notices). */
+function NeverRead({ person, account, onDone }: { person: Person; account: string; onDone(): void }) {
+  const t = useT();
+  const address = person.addresses.find((a) => a.channel === account)?.external_id ?? "";
+  const domain = address.split("@")[1];
+  const stop = async (scope: "address" | "domain") => {
+    if (await neverRead(person.id, account, scope)) onDone();
+  };
+  if (!address || person.role === "owner") return null;
+  return (
+    <CardField label={t("ch.neverRead")} hint={t("ch.neverReadHint")}>
+      <div className="chan__neverread">
+        <Button
+          size="sm"
+          variant="secondary"
+          leadingIcon={<Icons.BellOff size={14} />}
+          onClick={() => void stop("address")}
+        >
+          {address}
+        </Button>
+        {domain && (
+          <Button
+            size="sm"
+            variant="secondary"
+            leadingIcon={<Icons.BellOff size={14} />}
+            onClick={() => void stop("domain")}
+          >
+            {t("ch.neverReadDomain", { domain })}
+          </Button>
+        )}
+      </div>
+    </CardField>
   );
 }
 

@@ -167,6 +167,21 @@ export function messagesRepo({ one, all, run }: Sql, bus: Bus) {
       );
       return r ? (JSON.parse(r.parts) as Part[]).findLast((p) => p.type === type) : undefined;
     },
+    /** Agents' messages since `since` with a connect card offering this app or channel, newest first. */
+    withConnectOffer(what: "integration" | "channel", id: string, since: string, limit = 20): Message[] {
+      return all(
+        qb
+          .selectFrom("messages")
+          .selectAll()
+          .where("created_at", ">=", since)
+          .where(sql<string>`json_extract(author, '$.kind')`, "=", "agent")
+          .where(sql<boolean>`exists (select 1 from json_each(messages.parts) p, json_each(p.value, '$.offers') o
+            where json_extract(p.value, '$.type') = 'connect'
+              and json_extract(o.value, '$.kind') = ${what} and json_extract(o.value, '$.id') = ${id})`)
+          .orderBy("created_at", "desc")
+          .limit(limit),
+      ).map(toMessage);
+    },
     around(threadId: string, seq: number, limit = 20): Message[] {
       const half = Math.floor(limit / 2);
       return all(

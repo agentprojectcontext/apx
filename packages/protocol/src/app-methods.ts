@@ -118,6 +118,8 @@ const MemoryJobs = z.array(
     kind: z.string(),
     agent_id: Id,
     thread_id: Id,
+    /** The project the job works in; none outside a project. */
+    project_id: Id.nullable().optional(),
     state: z.string(),
     attempts: z.number().int(),
     updated_at: z.string(),
@@ -1014,6 +1016,8 @@ export const appMethods = {
           .array(z.object({ id: Id, revision: z.number().int().positive() }))
           .min(2)
           .max(8),
+        /** `shared`: the notes the agent's place shares (the project's, or the global ones), not its own notebook. */
+        shelf: z.enum(["notebook", "shared"]).optional(),
       })
       .strict(),
     result: z.object({ merged: z.boolean() }),
@@ -1041,6 +1045,7 @@ export const appMethods = {
           .array(z.object({ id: Id, revision: z.number().int().positive() }))
           .max(32)
           .optional(),
+        shelf: z.enum(["notebook", "shared"]).optional(),
       })
       .strict(),
     result: z.object({ retired: z.number().int(), redated: z.number().int() }),
@@ -1078,6 +1083,13 @@ export const appMethods = {
   "memory.confirm": {
     params: z.object({ id: Id }).strict(),
     result: Memory,
+    effect: true,
+    access: "human",
+  },
+  /** The owner confirms several notes agents wrote about them at once; ids already confirmed or gone are skipped. */
+  "memory.confirm_all": {
+    params: z.object({ ids: z.array(Id).min(1).max(500) }).strict(),
+    result: z.object({ confirmed: z.number().int() }),
     effect: true,
     access: "human",
   },
@@ -1622,6 +1634,16 @@ export const appMethods = {
     params: z.object({ person: Id }).strict(),
     result: z.object({ media_id: Id.optional() }),
     effect: false,
+    access: "human",
+  },
+  /**
+   * A mailbox account stops reading someone: their address (or their whole domain) goes on its "Never read" list and
+   * the person is forgotten, with their chat kept.
+   */
+  "contacts.never_read": {
+    params: z.object({ person: Id, channel: Id, scope: z.enum(["address", "domain"]) }).strict(),
+    result: z.object({ blocked: z.string() }),
+    effect: true,
     access: "human",
   },
   "contacts.claim": {

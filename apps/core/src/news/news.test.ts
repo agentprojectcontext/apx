@@ -219,6 +219,33 @@ test("an upgrade with one entry that applies runs one capped, toolless call and 
   }
 });
 
+test("the offer names the buttons as the owner sees them, in their language", async () => {
+  const spanish = setup({ entries: [entry("a")] });
+  try {
+    ownerWrote(spanish.store);
+    await spanish.news.atBoot("2.7.2");
+    const input = String(spanish.llm.calls[0]?.messages.at(-1)?.content);
+    assert.match(input, /then offer: "Hacer a", "Otro a"\./);
+    assert.doesNotMatch(input, /"Do a"/);
+    assert.deepEqual(
+      spanish.notices[0]?.body.buttons?.map((b) => b.label),
+      ["Hacer a", "Otro a"],
+    );
+  } finally {
+    spanish.done();
+  }
+  const english = setup({ entries: [entry("a")] });
+  try {
+    english.store.settings.set("owner_language", "en");
+    ownerWrote(english.store);
+    await english.news.atBoot("2.7.2");
+    const input = String(english.llm.calls[0]?.messages.at(-1)?.content);
+    assert.match(input, /then offer: "Do a", "Other a"\./);
+  } finally {
+    english.done();
+  }
+});
+
 test("several entries at once: the message names one and points to Help for the rest", async () => {
   const { store, llm, news, done } = setup({ entries: [entry("a"), entry("b"), entry("c")] });
   try {

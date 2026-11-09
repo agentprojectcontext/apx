@@ -37,6 +37,19 @@ sea la autonomía. El agente inicia sesión con una variable que guardaste para 
 Además, a los agentes se les indica que nunca te pidan contraseñas por chat.
 </Aside>
 
+Los demás campos: después de que el agente leyó una página, tipear espera tu OK. En Auto no lo espera en una página
+que sirve tu propia computadora (`localhost`, `127.0.0.1`), como la app que está armando.
+
+## Cuando una página pregunta
+
+Algunas páginas preguntan con un cuadro propio: "¿Borrar este elemento?", "¿Salir de esta página?", un nombre para
+escribir. El agente ve el cuadro cuando lee la página y lo responde, Aceptar o Cancelar, en vez de quedarse trabado
+detrás. En la app de APX el cuadro también aparece en tu pantalla y lo podés responder vos; cuando el agente responde,
+se cierra. Mientras tenés el control de la pestaña, sus cuadros son tuyos: el agente espera.
+
+Las páginas en la app de APX no pueden pedirte que escribas texto en un cuadro así (la app nunca mostró ese tipo). En
+el navegador propio de APX, el que se usa con la app cerrada, el agente escribe la respuesta.
+
 ## Iniciar sesión con tus claves guardadas
 
 Un agente puede iniciar sesión por vos sin ver nunca tu contraseña. Guardala una vez y decí para qué sitios es:

@@ -21,6 +21,7 @@ import { LOCAL_MODELS_NEWS } from "./local-models.ts";
 import { MOVE_BACKUP_NEWS } from "./move-backup.ts";
 import { QUEUED_MESSAGES_NEWS } from "./queued-messages.ts";
 import { QUICK_CHAT_NEWS } from "./quick-chat.ts";
+import { ROOM_HANDOFF_NEWS } from "./room-handoff.ts";
 import { SIDE_QUESTION_NEWS } from "./side-question.ts";
 import { STORE_COMPACT_NEWS } from "./store-compact.ts";
 import { SUBPROJECTS_NEWS } from "./subprojects.ts";
@@ -69,6 +70,8 @@ export type NewsFacts = {
   bigStore?: boolean;
   /** Projects the owner registered (the base project not counted). */
   projects?: number;
+  /** A channel reads at least one room (a Discord channel, a group). */
+  rooms?: boolean;
 };
 
 export type NewsAction = {
@@ -95,6 +98,7 @@ export type NewsEntry = {
 
 export const NEWS: readonly NewsEntry[] = [
   SUBPROJECTS_NEWS,
+  ROOM_HANDOFF_NEWS,
   ACTIVITY_REVIEW_NEWS,
   AGENT_PROMPTS_NEWS,
   TASK_GOALS_NEWS,
@@ -153,6 +157,28 @@ export const NEWS: readonly NewsEntry[] = [
       {
         label: { en: "Check plan quotas", es: "Consultar cuotas" },
         prompt: "Check the reported quotas and reset times for all my AI plans. Tell me which data is unavailable.",
+      },
+    ],
+  },
+  {
+    id: "email-as-mail",
+    since: "2.13.4",
+    title: { en: "Received mail looks like mail", es: "El correo recibido se ve como correo" },
+    about: {
+      en: "Mail that reaches an Email account shows as it was sent, pictures hidden until you ask, and you can stop reading a sender or a whole domain from their card.",
+      es: "El correo que llega a una cuenta de Email se ve como fue enviado, con las imágenes ocultas hasta que las pidas, y desde su ficha podés dejar de leer a un remitente o a todo un dominio.",
+    },
+    applies: (s) => s.email,
+    text:
+      "Mail that reaches the owner's Email account now shows in its chat as it was sent (formatting, links), with " +
+      "pictures hidden until the owner shows them; the agent still reads only the words. Email accounts no longer " +
+      "mail a code to strangers; they wait in Approvals. A sender's card can stop reading them or their whole domain, " +
+      "and the account has a Never read list. The owner marks their own addresses by typing them, no code.",
+    actions: [
+      {
+        label: { en: "Clean up my mail senders", es: "Ordenar mis remitentes" },
+        prompt:
+          "Look at who has written to my Email account and suggest which senders or domains I could stop reading.",
       },
     ],
   },
@@ -1223,6 +1249,7 @@ export const newsFacts = (store: Store, o: { hermes?: boolean; storeSize?: Store
   secretary: store.settings.read("profile").id === "secretary",
   contacts: store.persons.list().some((p) => p.role !== "owner" && p.role !== "blocked" && p.addresses.length > 0),
   channels: store.settings.read("channels").length,
+  rooms: store.settings.read("channels").some((c) => (c.rooms?.rooms.length ?? 0) > 0),
   email: store.settings.read("channels").some((c) => c.type === "email" && c.email !== undefined),
   integrations: connectedIntegrations(store),
   computer: computerHost() !== undefined && store.projects.list().length > 0,

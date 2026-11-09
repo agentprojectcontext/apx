@@ -403,12 +403,28 @@ export function taskHandlers(
           store.threads.byTask(cur.id).length === 0;
         // Accepting a card already in review starts its reviewer (below), not its assignee again.
         const acceptingReview = accepting && (c.status ?? cur.status) === "review";
+        // An agent naming the task's own agent again while none of its chats for the task works has it go on; the
+        // owner's edits send every field, so they never restart it (DECISIONS.md#d-210).
+        const resuming =
+          Boolean(ctx.agent) &&
+          c.assignee !== undefined &&
+          c.assignee === cur.assignee &&
+          cur.state === "open" &&
+          !cur.proposed &&
+          (c.status ?? cur.status) !== "review" &&
+          !(c.awaits_owner ?? cur.awaits_owner) &&
+          !store.threads.busy(
+            store.threads
+              .byTask(cur.id)
+              .filter((t) => t.agent_ids[0] === cur.assignee)
+              .map((t) => t.id),
+          );
         const starting =
           !forced &&
           !unassign &&
           keeper &&
           !acceptingReview &&
-          (keeper !== cur.assignee || completing || unscheduled || accepting);
+          (keeper !== cur.assignee || completing || unscheduled || accepting || resuming);
         if (starting) {
           refuseHandOn(ctx);
           checkTransfer(ctx, {

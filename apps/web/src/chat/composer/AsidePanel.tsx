@@ -6,7 +6,7 @@ import { useT } from "../../i18n/index.ts";
 
 /**
  * A side question, over the composer: the owner asks the chat's agent something quick and the answer shows here
- * only; nothing of it enters the chat (DECISIONS.md#d-210). Closing it lets the side conversation go. Esc closes.
+ * only; nothing of it enters the chat (DECISIONS.md#d-215). Closing it lets the side conversation go. Esc closes.
  */
 export function AsidePanel({ thread, agent }: { thread: string; agent: string }) {
   const t = useT();

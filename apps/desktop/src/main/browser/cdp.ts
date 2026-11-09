@@ -16,7 +16,10 @@ export class CdpTab {
     this.#wc = wc;
     this.#page = new CdpPage((method, params) => this.send(method, params), {
       selectAllModifiers: process.platform === "darwin" ? 4 : 2,
+      // Electron's own box for the dialog stays on screen after CDP answered it. See HISTORY.md#browser-dialogs
+      dialogAnswered: () => wc.emit("-cancel-dialogs"),
     });
+    wc.debugger.on("message", (_e, method, params) => this.#page.onEvent(method, params));
     wc.debugger.on("detach", () => {
       this.#attached = false;
       // The document stays: a field filled from a secret stays protected.
@@ -82,8 +85,12 @@ export class CdpTab {
     return this.#page.click(ref);
   }
 
-  type(ref: string, text: string, submit: boolean) {
-    return this.#page.type(ref, text, submit);
+  assertNoDialog(): void {
+    this.#page.assertNoDialog();
+  }
+
+  type(ref: string, text: string, submit: boolean, localOnly?: ReadonlySet<string>) {
+    return this.#page.type(ref, text, submit, localOnly);
   }
 
   fillSecret(ref: string, req: Pick<BrowserFillSecret, "kind" | "origins" | "value">) {
@@ -106,8 +113,8 @@ export class CdpTab {
     try {
       return Buffer.from(await this.#page.screenshot(), "base64");
     } catch (err) {
-      // The compositor's picture cannot cover a field filled from a secret.
-      if (this.#page.holdsSecret) throw err;
+      // The compositor's picture cannot cover a field filled from a secret; a page held by a dialog paints nothing.
+      if (this.#page.holdsSecret || this.#page.dialog) throw err;
       const image = await withTimeout(this.#wc.capturePage(), 4_000);
       if (image.isEmpty()) throw new ApxError({ code: "unavailable", message: "tab is not painting (window hidden?)" });
       return (image.getSize().width > 1280 ? image.resize({ width: 1280 }) : image).toJPEG(70);

@@ -1,10 +1,11 @@
 // Driving one page over the Chrome DevTools Protocol, the same way wherever the page lives: the desktop app's tabs
 // (Electron's debugger) or the core's own headless Chrome. Refs are backendNodeIds from the accessibility tree
 // (stable while the document lives, DOM untouched).
-import type { BrowserFillSecret, ElementEdit, PickedElement, SignInResult } from "./browser.ts";
+import type { BrowserDialog, BrowserFillSecret, ElementEdit, PickedElement, SignInResult } from "./browser.ts";
+import { isDialogRef, PageDialog } from "./cdp-dialog.ts";
 import { PageEdits } from "./cdp-edit.ts";
 import { captureDocument, evaluatePage } from "./cdp-evaluate.ts";
-import { SecretFields } from "./cdp-fill.ts";
+import { holdsFocus, nodeFrame, SecretFields } from "./cdp-fill.ts";
 
 export { scrubDeep } from "./cdp-fill.ts";
 
@@ -43,6 +44,26 @@ const SHOT_WIDTH = 1280;
 
 const LOOPBACK = new Set(["127.0.0.1", "localhost", "[::1]", "0.0.0.0"]);
 
+/** A host on this computer itself. */
+export function loopbackHost(hostname: string): boolean {
+  return /^(localhost|([\w-]+\.)+localhost|127(\.\d{1,3}){3}|\[::1\])$/i.test(hostname);
+}
+
+/**
+ * A page this computer serves (a dev server), other than APX itself (`blockedPorts`): what is typed there stays on
+ * this machine, so an agent types there without asking (DECISIONS.md#d-212).
+ */
+export function servedHere(url: string, blockedPorts: ReadonlySet<string>): boolean {
+  let u: URL;
+  try {
+    u = new URL(url);
+  } catch {
+    return false;
+  }
+  if (u.protocol !== "http:" && u.protocol !== "https:") return false;
+  return loopbackHost(u.hostname) && !blockedPorts.has(u.port || (u.protocol === "https:" ? "443" : "80"));
+}
+
 /**
  * Where a tab may go: http(s) only, no credentials in the address, never APX itself (a driven tab would hold the
  * owner's controls) nor link-local or cloud-metadata addresses.
@@ -72,13 +93,33 @@ export class CdpPage {
   #review: { document: string; epoch: string } | undefined;
   readonly #edits: PageEdits;
   readonly #secrets: SecretFields;
+  readonly #dialog: PageDialog;
 
-  /** `selectAllModifiers`: the modifier bits for "select all" on the machine the page runs on (Meta=4 on a Mac). */
-  constructor(send: CdpSend, opts: { selectAllModifiers: number }) {
+  /**
+   * `selectAllModifiers`: the modifier bits for "select all" on the machine the page runs on (Meta=4 on a Mac).
+   * `dialogAnswered`: called after the agent answered a JavaScript dialog.
+   */
+  constructor(send: CdpSend, opts: { selectAllModifiers: number; dialogAnswered?: () => void }) {
     this.#send = send;
     this.#selectAll = opts.selectAllModifiers;
     this.#edits = new PageEdits(send);
     this.#secrets = new SecretFields(send);
+    this.#dialog = new PageDialog(send, opts.dialogAnswered);
+  }
+
+  /** The page's CDP events, as they come: a JavaScript dialog is known only from them. */
+  onEvent(method: string, params: unknown): void {
+    this.#dialog.onEvent(method, params);
+  }
+
+  /** The JavaScript dialog the page waits on, if any. */
+  get dialog(): BrowserDialog | undefined {
+    return this.#dialog.kind;
+  }
+
+  /** Refuses anything that runs in the page while a dialog holds it: it would wait until someone answers. */
+  assertNoDialog(): void {
+    this.#dialog.assertClosed();
   }
 
   get consentEpoch(): string {
@@ -127,12 +168,14 @@ export class CdpPage {
 
   /** Puts a value the core resolved from a stored secret into a sign-in field. See DECISIONS.md#d-193 */
   fillSecret(ref: string, req: Pick<BrowserFillSecret, "kind" | "origins" | "value">): Promise<SignInResult> {
+    this.assertNoDialog();
     const backendNodeId = this.#backend(ref);
     return withTimeout(this.#secrets.fill(backendNodeId, req), 10_000);
   }
 
   async approvalContext(origin: string, document: string): Promise<{ epoch: string }> {
     this.#assertNoSecret();
+    this.assertNoDialog();
     const epoch = this.#epoch;
     if (this.#review?.document !== document || this.#review.epoch !== epoch)
       throw new ApxError({ code: "bad_request", message: "Page review changed; take a new snapshot" });
@@ -148,6 +191,10 @@ export class CdpPage {
 
   async snapshot(maxChars: number): Promise<{ tree: string; refs: number; truncated: boolean; document: string }> {
     this.assertReadable();
+    if (this.#dialog.kind) {
+      this.#review = undefined;
+      return { ...this.#dialog.tree(clip, (s) => this.#secrets.scrub(s)), truncated: false, document: "" };
+    }
     const epoch = this.#epoch;
     const document = await captureDocument(this.#send);
     this.#review = { document, epoch };
@@ -195,6 +242,7 @@ export class CdpPage {
 
   evaluate(script: string, origin: string, document: string, epoch?: string) {
     this.#assertNoSecret();
+    this.assertNoDialog();
     if (epoch !== undefined) {
       this.#assertEpoch(epoch);
       if (this.#review?.document !== document || this.#review.epoch !== epoch)
@@ -205,6 +253,7 @@ export class CdpPage {
 
   /** Edit mode: the element under a point of the visible page, as fractions of it. */
   inspect(x: number, y: number, whole?: { height: number }): Promise<PickedElement | null> {
+    this.assertNoDialog();
     return withTimeout(this.#edits.inspect(x, y, whole), 4_000);
   }
 
@@ -215,30 +264,75 @@ export class CdpPage {
 
   /** Edit mode: these edits shown in the page until it reloads, the earlier ones undone. */
   previewEdits(edits: readonly ElementEdit[]): Promise<{ shown: number }> {
+    this.assertNoDialog();
     return withTimeout(this.#edits.show(edits), 6_000);
   }
 
-  async click(ref: string): Promise<void> {
+  /** Returns the JavaScript dialog the click opened, if it did: the page then waits for its answer. */
+  async click(ref: string): Promise<BrowserDialog | undefined> {
+    if (isDialogRef(ref)) {
+      await withTimeout(this.#dialog.click(ref), 4_000);
+      return undefined;
+    }
+    this.assertNoDialog();
     const { x, y } = await this.#center(ref);
-    await this.#send("Input.dispatchMouseEvent", { type: "mouseMoved", x, y });
-    await this.#send("Input.dispatchMouseEvent", { type: "mousePressed", x, y, button: "left", clickCount: 1 });
-    await this.#send("Input.dispatchMouseEvent", { type: "mouseReleased", x, y, button: "left", clickCount: 1 });
+    const press = { x, y, button: "left", clickCount: 1 };
+    return (
+      (await this.#input("Input.dispatchMouseEvent", { type: "mouseMoved", x, y })) ??
+      (await this.#input("Input.dispatchMouseEvent", { type: "mousePressed", ...press })) ??
+      this.#input("Input.dispatchMouseEvent", { type: "mouseReleased", ...press })
+    );
   }
 
-  async type(ref: string, text: string, submit: boolean): Promise<void> {
+  /**
+   * Returns the JavaScript dialog typing opened (a key handler, a form sent with Enter), if it did. `localOnly`: APX's
+   * own ports; given, only a page this computer serves takes the text (DECISIONS.md#d-212).
+   */
+  async type(
+    ref: string,
+    text: string,
+    submit: boolean,
+    localOnly?: ReadonlySet<string>,
+  ): Promise<BrowserDialog | undefined> {
+    if (isDialogRef(ref)) {
+      if (localOnly && this.#dialog.kind && !servedHere(this.#dialog.url, localOnly))
+        throw new ApxError({
+          code: "conflict",
+          message: "this dialog comes from a page this computer does not serve: take a new snapshot before typing",
+        });
+      await withTimeout(this.#dialog.type(ref, text, submit), 4_000);
+      return undefined;
+    }
+    this.assertNoDialog();
     const backendNodeId = this.#backend(ref);
     await this.#assertNotCredentialField(backendNodeId);
+    if (localOnly) await this.#assertServedHere(backendNodeId, localOnly);
     await this.#send("DOM.scrollIntoViewIfNeeded", { backendNodeId });
-    await this.#send("DOM.focus", { backendNodeId });
     // Select existing content so the new text replaces it, like a user would.
-    await this.#key("a", "KeyA", 65, this.#selectAll, undefined, ["selectAll"]);
-    await this.#send("Input.insertText", { text });
-    if (submit) await this.#key("Enter", "Enter", 13, 0, "\r");
+    const steps: Array<() => Promise<BrowserDialog | undefined>> = [
+      () => this.#input("DOM.focus", { backendNodeId }),
+      () => this.#key("a", "KeyA", 65, this.#selectAll, undefined, ["selectAll"]),
+      // Again right before the text goes in: focusing may have sent the page elsewhere, or a frame taken the focus.
+      ...(localOnly ? [() => this.#assertServedHere(backendNodeId, localOnly, true).then(() => undefined)] : []),
+      () => this.#input("Input.insertText", { text }),
+      ...(submit ? [() => this.#key("Enter", "Enter", 13, 0, "\r")] : []),
+    ];
+    for (const step of steps) {
+      const opened = await step();
+      if (opened) return opened;
+    }
+    return undefined;
+  }
+
+  /** An input command that the page answers, unless it opens a dialog first (then it answers once that closes). */
+  #input(method: string, params: object): Promise<BrowserDialog | undefined> {
+    return this.#dialog.input(this.#send(method, params));
   }
 
   /** A JPEG of what the page shows (base64), at most SHOT_WIDTH pixels wide, bounded in time. */
   async screenshot(timeoutMs = 4_000): Promise<string> {
     this.assertReadable();
+    this.assertNoDialog();
     const shoot = async () => {
       const clip = await this.#viewportClip().catch(() => undefined);
       return this.#send<{ data: string }>("Page.captureScreenshot", {
@@ -282,6 +376,27 @@ export class CdpPage {
     return { x: xs.reduce((a, b) => a + b) / 4, y: ys.reduce((a, b) => a + b) / 4 };
   }
 
+  /** The tab's address and the field's frame, as the browser reports them now, are both served by this computer. */
+  async #assertServedHere(backendNodeId: number, blockedPorts: ReadonlySet<string>, focused = false): Promise<void> {
+    const at = await nodeFrame(this.#send, backendNodeId);
+    if (!servedHere(at.url, blockedPorts))
+      throw new ApxError({
+        code: "conflict",
+        message: "this tab is no longer on a page this computer serves: take a new snapshot before typing",
+      });
+    if (!at.frame || !servedHere(at.frame, blockedPorts))
+      throw new ApxError({
+        code: "conflict",
+        message:
+          "this field is in a frame from another site, not this computer: use browser_handoff for the owner to type there",
+      });
+    if (focused && !(at.frameId && (await holdsFocus(this.#send, backendNodeId, at.frameId))))
+      throw new ApxError({
+        code: "conflict",
+        message: "the field lost the focus before typing (the page moved it): take a new snapshot and try again",
+      });
+  }
+
   async #assertNotCredentialField(backendNodeId: number): Promise<void> {
     const { node } = await this.#send<{ node: { nodeName: string; attributes?: string[] } }>("DOM.describeNode", {
       backendNodeId,
@@ -303,13 +418,13 @@ export class CdpPage {
   async #key(key: string, code: string, keyCode: number, modifiers: number, text?: string, commands?: string[]) {
     const base = { key, code, windowsVirtualKeyCode: keyCode, modifiers };
     // Editing shortcuts (select all…) only run through `commands`; a bare Cmd+A key event does nothing via CDP.
-    await this.#send("Input.dispatchKeyEvent", {
+    const opened = await this.#input("Input.dispatchKeyEvent", {
       type: text ? "keyDown" : "rawKeyDown",
       ...base,
       ...(text ? { text } : {}),
       ...(commands ? { commands } : {}),
     });
-    await this.#send("Input.dispatchKeyEvent", { type: "keyUp", ...base });
+    return opened ?? this.#input("Input.dispatchKeyEvent", { type: "keyUp", ...base });
   }
 }
 

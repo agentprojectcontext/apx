@@ -27,7 +27,7 @@ function twoLines(key: string, label: string, sub: string) {
  * The composer's +: a file (also ⌘/Ctrl+U), an audio to transcribe into the message; a skill, a connector, a command;
  * and context (a project, a chat, a task or a file). Every pick only writes in the composer: nothing is sent until the
  * owner sends it. `direct`: an engine's own session, which has its own skills and connectors. Last, a side question
- * (`onAside`), which stays out of the chat (DECISIONS.md#d-210).
+ * (`onAside`), which stays out of the chat (DECISIONS.md#d-215).
  */
 export function PlusMenu(o: {
   thread: Thread;

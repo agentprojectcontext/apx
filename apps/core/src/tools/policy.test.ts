@@ -237,7 +237,9 @@ test("total and a rule 'auto' skip a card, except one a call keeps (DECISIONS.md
 });
 
 test("copying the owner's logins keeps its card in total, a grant counting only for the shared profile", () => {
-  const login = browserTools({} as never, "/path/to/home").find((t) => t.name === "browser_use_my_login");
+  const login = browserTools({} as never, "/path/to/home", () => new Set()).find(
+    (t) => t.name === "browser_use_my_login",
+  );
   assert.ok(login?.keepsCard);
   const total = (browser_profile: AgentRecord["browser_profile"]) => agent({ autonomy: "total", browser_profile });
   assert.equal(authorize(login, { domain: "example.com" }, total("shared"), false).kind, "confirm");

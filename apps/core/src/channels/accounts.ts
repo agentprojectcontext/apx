@@ -1,7 +1,7 @@
 // A channel's accounts: how a new one is named and what it starts with, and the new ones not connected yet, which a
 // restart drops (the panel closed while one was added). See DECISIONS.md#d-205
 import { randomBytes } from "node:crypto";
-import { CHANNEL_DEFAULTS, type ChannelType } from "@apx/protocol";
+import { CHANNEL_DEFAULTS, type ChannelType, channelKindRules } from "@apx/protocol";
 import type { Store } from "../domain/store.ts";
 import { CHANNEL_CATALOG } from "./catalog.ts";
 import type { ChannelConfig } from "./types.ts";
@@ -44,18 +44,28 @@ export function newAccount(
   superAgent: string,
   o: Pick<ChannelConfig, "label" | "self_owner" | "email">,
 ): Omit<ChannelConfig, "id"> {
+  const rules = channelKindRules(type);
   return {
     type,
     label: o.label,
     enabled: true,
     agent_id: superAgent,
     strangers: CHANNEL_DEFAULTS.strangers,
-    // Mail answers one message after another: a second mail never cuts the answer to the first.
-    concurrency: type === "email" ? "queue" : CHANNEL_DEFAULTS.concurrency,
-    owner_thread: CHANNEL_DEFAULTS.owner_thread,
+    concurrency: rules.concurrency ?? CHANNEL_DEFAULTS.concurrency,
+    owner_thread: rules.ownerThread ?? CHANNEL_DEFAULTS.owner_thread,
     research: CHANNEL_DEFAULTS.research,
     ...(o.self_owner !== undefined ? { self_owner: o.self_owner } : {}),
     ...(o.email ? { email: o.email } : {}),
+  };
+}
+
+/** A saved account with what its kind fixes in place of what was saved (an email account never answers in Home). */
+export function kindFixed<C extends Pick<ChannelConfig, "type" | "owner_thread" | "concurrency">>(c: C): C {
+  const rules = channelKindRules(c.type);
+  return {
+    ...c,
+    owner_thread: rules.ownerThread ?? c.owner_thread,
+    concurrency: rules.concurrency ?? c.concurrency,
   };
 }
 

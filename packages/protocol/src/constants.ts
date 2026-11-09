@@ -56,6 +56,28 @@ export const CHANNEL_DEFAULTS = {
   limits: { per_contact_hour: 20, per_account_hour: 0 },
 } as const;
 
+/**
+ * What a kind of channel fixes instead of offering, because the choice does not fit how it is used. A chat app (the
+ * default) offers everything. Email: the owner types their own addresses (trusted only when their server verified the
+ * mail) instead of a code; strangers are never mailed a code, only listed; each mail goes to the account's own chat,
+ * never Home, and waits for the answer to the one before it. See DECISIONS.md#d-214
+ */
+export type ChannelKindRules = {
+  /** How the owner marks their own address: a code the account sends them, or typing it. */
+  ownerLink: "code" | "address";
+  /** "pair" sends strangers no code: they are only listed for the owner to approve. */
+  strangersListed: boolean;
+  /** Fixed: where the owner's words go (none: the owner picks Home or the account's own chat). */
+  ownerThread?: "own";
+  /** Fixed: a new message while it works (none: the owner picks). */
+  concurrency?: "queue";
+};
+const CHAT_RULES: ChannelKindRules = { ownerLink: "code", strangersListed: false };
+const KIND_RULES: Readonly<Record<string, ChannelKindRules>> = {
+  email: { ownerLink: "address", strangersListed: true, ownerThread: "own", concurrency: "queue" },
+};
+export const channelKindRules = (type: string): ChannelKindRules => KIND_RULES[type] ?? CHAT_RULES;
+
 /** Minutes a tab of the desktop's browser stays open off screen with no agent or owner using it. */
 export const BROWSER_TAB_IDLE_MIN = 10;
 

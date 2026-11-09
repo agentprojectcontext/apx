@@ -150,6 +150,11 @@ export const WORK: Readonly<Record<string, Setting>> = {
     named: ["id"],
     says: (p, { store }) => `Confirm the note ${noteText(store, p.id)}`,
   },
+  "memory.confirm_all": {
+    does: "confirm several notes agents wrote about the owner at once (ids)",
+    named: ["ids"],
+    says: (p) => `Confirm ${Array.isArray(p.ids) ? p.ids.length : 0} notes about the owner`,
+  },
   "memory.restore": {
     does: "bring a forgotten note back (id)",
     named: ["id"],
