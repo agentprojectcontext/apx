@@ -4248,3 +4248,22 @@ happened to work it had started itself.
 
 Rejected: sending results to every project chat of the head (the owner would see reports in chats that never asked),
 and trusting `coordination_from` without checking the runs (a task chat's context is not proof of who started it).
+
+<a id="d-209"></a>
+## D-209 — 2026-11-08 — Proposed, not accepted: group chats split front from back, and a router picks who answers
+
+**Status: a proposal for the owner to accept or reject.** The measurements, the mechanics compared and the prototype
+are in [GROUP_CHAT.md](GROUP_CHAT.md); the prototype runs only with `APX_GROUP_CHATS=on`.
+
+A group chat of the owner and two to five agents would keep only the owner's words and each agent's final answer.
+Each member works in a closed chat of its own under the group (an `a2a` sub-thread, like a delegation), whose turn
+reads what the group said since its last one; no agent reads a teammate's tool steps, and each one's prompt only
+grows at its end, so its cache holds. Who answers: the members an `@mention` names, otherwise one call to the
+auxiliary model that picks the fewest needed (everyone when the owner asks the whole group), one after the other.
+
+Measured on a scripted launch chat with four agents: everyone answering every message costs 3–6× the router's pick;
+with tool-heavy turns the split billed 64% of a shared transcript with the same router and 28% of the naive group
+chat over 32 messages on a real model, and half and 15% projected to 96. Rejected for this size of group: one shared transcript (it fills its window with
+teammates' tool output and its cache breaks as the window slides), and a rolling summary (cheapest, but it forgot a
+fact the owner asked for later; kept for rooms with many agents). Open: moving the agent's name after the prefix all
+agents share (about 8% more cached), a member asking another directly, and the panel's way to make a group.
