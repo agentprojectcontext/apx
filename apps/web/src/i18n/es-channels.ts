@@ -225,6 +225,10 @@ export const esChannels: Partial<Record<MessageKey, string>> = {
   "em.allowed": "Quién puede escribir",
   "em.allowedHint":
     "Solo se lee el correo de estas direcciones (o @dominio). Vacío: cualquiera; qué pasa con quien no conocés lo elegís en Aprobaciones.",
+  "em.blocked": "No leer nunca",
+  "em.blockedHint":
+    "El correo de estas direcciones (o @dominio) se saltea: no se contesta ni queda para que lo apruebes.",
+  "em.blockedPlaceholder": "news@example.com, @linkedin.com",
   "em.mine": "Tus direcciones",
   "em.mineHint":
     "El correo que mandes desde estas direcciones es tuyo, cuando tu servidor de correo verificó que fuiste vos. Agregá cada dirección desde la que escribís.",

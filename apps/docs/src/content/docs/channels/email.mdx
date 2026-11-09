@@ -33,6 +33,10 @@ An email account never mails a code to someone it does not know: with **List the
 what they wrote, and nothing is sent until you approve them. Start with a narrow allowlist and review the
 [supervised reply mode](/channels/supervised/).
 
+**Never read** takes addresses or domains (`@example.com`) whose mail is skipped: not answered and not left in
+**Approvals**. Mail that no person wrote (newsletters with an unsubscribe link, auto-replies, bounces and senders
+such as `security-noreply@`) is skipped without being listed.
+
 Mail from **Your addresses** counts as yours only when your mail server verified it (DKIM, SPF or DMARC), even with
 **Read unverified mail** on. Your mail goes to the account's own chat, one mail after another: email has no Home
 switch and no **While it is working** choice.

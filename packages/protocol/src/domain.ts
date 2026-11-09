@@ -1139,6 +1139,8 @@ export const ChannelEmail = z.object({
    * listed for the owner, never mailed a code).
    */
   allowed: z.array(z.string().min(3).max(254)).max(100).default([]),
+  /** Mail from these addresses (or "@domain") is never read, nor listed for the owner; the owner's own still is. */
+  blocked: z.array(z.string().min(3).max(254)).max(200).default([]),
   /**
    * Also read mail its server could not verify (no DKIM, SPF or DMARC pass for the sender's domain). Off: such mail is
    * dropped, since anyone can write the owner's address in a From line. Mail from the owner's own addresses is always
