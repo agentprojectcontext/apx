@@ -469,3 +469,19 @@ without naming a write policy. The session kept `read-only`, so the developer co
 the task sat "in progress" overnight. A delegation that continues a free session and says nothing about folder or
 writes now lifts a read-only session back to what caller, callee and project allow, in the same folder; one that asks
 for read-only again keeps it. Where: `apps/core/src/engine/delegation.ts`, test in `engine/workers.test.ts`.
+
+<a id="browser-dialogs"></a>
+### A page's JavaScript dialog froze the agent's tab
+An agent testing a delete button in its own app hit the page's `confirm()`: `browser_snapshot` and `browser_click` then
+timed out on the desktop node and the owner had to accept it by hand. While a dialog is open the renderer runs nothing,
+so every CDP command that reaches the page (the click's `mouseReleased` itself, the accessibility tree, `Runtime.evaluate`)
+waits until someone answers. `CdpPage` now learns the dialog from `Page.javascriptDialogOpening`/`Closed`, returns
+from an input command as soon as it opens one, shows it in the snapshot with `dialog-ok`/`dialog-cancel`/`dialog-text`
+refs and answers with `Page.handleJavaScriptDialog`; anything else that runs in the page is refused with `conflict`
+meanwhile. Electron (checked with 44.5) keeps its own message box for the dialog on screen after CDP answered it, so the
+desktop node emits Electron's internal `-cancel-dialogs` on the tab's `webContents`, which aborts that box; if a later
+Electron drops the event, the box stays (stale, harmless) and the page still gets the agent's answer. The headless
+browser's click raced its 10-second load wait against 1.5 s and left the wait running, which could start Chrome again
+after the tab closed; the wait itself is bounded now. Where: `packages/protocol/src/cdp-dialog.ts`,
+`apps/desktop/src/main/browser/cdp.ts`, `apps/core/src/nodes/headless-browser.ts`; tests in `cdp-dialog.test.ts`,
+`host.test.ts`, `headless-browser.test.ts` (real Chromium).

@@ -28,6 +28,8 @@ const llm = scriptedLlm((req, { said, afterTool }) => {
   const looks = req.messages.filter((m) => m.role === "tool").length;
   if (said.includes("look six times") && looks < 6)
     return { ...callTool(`l${looks}`, "browser_snapshot", { tab: "t1" }), model };
+  if (said.includes("delete and confirm") && looks < 2)
+    return { ...callTool(`c${looks}`, "browser_click", { tab: "t1", ref: looks ? "dialog-ok" : "e1" }), model };
   const browse = BROWSE.find(([cue]) => said.includes(cue))?.[1][looks];
   if (browse) return { ...callTool(`b${looks}`, "browser_open", browse), model };
   if (said.includes("read then send") && looks < 2)
@@ -78,6 +80,7 @@ const tabs = [
 ];
 const opened: string[] = [];
 const navigated: Array<{ tab: string; url: string }> = [];
+const clicked: string[] = [];
 /** What the fake tab's screenshot returns next. */
 let shot = JPEG;
 
@@ -102,6 +105,11 @@ before(async () => {
       const { tab, url } = params as { tab: string; url: string };
       navigated.push({ tab, url });
       return { url, title: "Page" };
+    }
+    if (method === "browser.click") {
+      const { ref } = params as { ref: string };
+      clicked.push(ref);
+      return { ok: true, url: "https://example.com/", ...(ref === "e1" ? { dialog: "confirm" } : {}) };
     }
     if (method === "browser.text")
       return {
@@ -224,6 +232,20 @@ test("browser_snapshot waits the seconds asked before reading the page", async (
   assert.equal(snapshots.length, 1);
   assert.ok((snapshots[0] ?? 0) - sent >= 1000, "read after the wait");
   assert.match(String(llm.calls.at(-1)?.messages.findLast((m) => m.role === "tool")?.content), /Send/);
+});
+
+test("a click that opens a confirm dialog says so, and the agent answers it with its ref", async () => {
+  const thread = (await env.client.call("threads.create", { kind: "loose", agent_id: "superagent" })).id;
+  await env.client.call("threads.send", { thread, text: "delete and confirm" });
+  await env.settle(thread);
+  assert.deepEqual(clicked, ["e1", "dialog-ok"]);
+  const results =
+    llm.calls
+      .at(-1)
+      ?.messages.filter((m) => m.role === "tool")
+      .map((m) => String(m.content)) ?? [];
+  assert.match(results[0] ?? "", /opened a confirm dialog the page waits on: browser_snapshot shows it/);
+  assert.match(results[1] ?? "", /clicked dialog-ok/);
 });
 
 test("browser_snapshot shows the model a picture of the tab, not the chat", async () => {
