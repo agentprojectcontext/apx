@@ -33,6 +33,7 @@ const llm = scriptedLlm((req, { system, said }) => {
   }
   if (said.includes("Judge first")) return say("It is the owner: check the deploy.");
   if (said.includes("<delegation_result")) return say("Deploy checked: all green.");
+  if (said.includes("the invoice is for Northwind")) return say("Report filed for Northwind.");
   if (said.includes("file the report")) return say("Report filed.");
   return say("Hi there");
 });
@@ -151,4 +152,19 @@ test("on Discord the owner's words from a room go through the super-agent's chec
   const check = llm.calls.find((c) => String(c.messages.at(-1)?.content).includes("Judge first"));
   assert.match(String(check?.messages.at(-1)?.content), /in #help \(a public room on/);
   assert.match(String(check?.messages.at(-1)?.content), /trust="untrusted"/);
+});
+
+test("the owner's quick messages before the one answered go to Home with it, in order", async () => {
+  const group = { id: GROUP, type: "supergroup", title: "Acme" };
+  const armed = timers.armed();
+  tg.message(OWNER_TG, "the invoice is for Northwind", group);
+  await waitFor(() => timers.armed() >= armed + 1, "the first message waits");
+  tg.message(OWNER_TG, "so file the report with it", group);
+  await waitFor(() => timers.armed() >= armed + 2, "the second one restarts the wait");
+  timers.tick(BURST);
+  await waitFor(() => texts(tg.messagesTo(OWNER_TG.id)).includes("Report filed for Northwind."), "done with both");
+  const run = env.core.store.runs
+    .list(HOME_THREAD_ID, 50)
+    .find((r) => r.input?.origin.kind === "user" && r.input.text.includes("so file the report with it"));
+  assert.match(run?.input?.text ?? "", /the invoice is for Northwind\nso file the report with it/);
 });

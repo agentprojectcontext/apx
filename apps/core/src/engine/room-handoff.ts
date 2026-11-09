@@ -46,11 +46,38 @@ export function roomHandoff(store: Store, admit: AdmitFn, log: Log, run: RunReco
   const agent = home ? store.agents.get(home.agent_ids[0] ?? "") : undefined;
   if (!owner || !run.input || !agent) return;
   try {
-    handOn(store, admit, { owner, words: run.input.text.slice(0, 4000), room: room.name, agentId: agent.id });
+    const words = [...burstBefore(store, run.thread_id, owner.message_id), run.input.text].join("\n").slice(-4000);
+    handOn(store, admit, { owner, words, room: room.name, agentId: agent.id });
   } catch (err) {
     // The room's answer still goes out; what failed is told in the log, never in the room.
     log.warn({ run: run.id, err: errorMessage(err, 200) }, "room request not handed to Home");
   }
+}
+
+/** Longest pause between two of one person's quick messages that a room answers as one (rooms.ts waits 8 s). */
+const BURST_GAP_MS = 15_000;
+
+/**
+ * The owner's own messages a burst kept unanswered right before the one answered, oldest first: theirs alone, with
+ * nobody else's message (nor an answer) between them, each close to the next.
+ */
+function burstBefore(store: Store, threadId: string, messageId: string | undefined): string[] {
+  const all = store.messages.list(threadId);
+  let at = all.findIndex((m) => m.id === messageId);
+  const kept: string[] = [];
+  while (at > 0) {
+    const m = all[at - 1];
+    const next = all[at];
+    if (!m || !next || m.author.kind !== "user" || !m.author.direct) break;
+    if (Date.parse(next.created_at) - Date.parse(m.created_at) > BURST_GAP_MS) break;
+    const text = m.parts
+      .flatMap((p) => (p.type === "text" ? [p.text] : []))
+      .join("\n")
+      .trim();
+    if (text) kept.unshift(text);
+    at--;
+  }
+  return kept;
 }
 
 type ChannelOrigin = Extract<NonNullable<RunRecord["input"]>["origin"], { kind: "channel" }>;
