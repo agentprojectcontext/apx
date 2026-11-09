@@ -451,6 +451,14 @@ html[data-shortcuts-active] [data-shortcut-modifier] {
   .topbar__activity .updatepill {
     width: 24px;
   }
+}
+/* The narrowest phones fit one pill: an update waiting wins over what's new (still told in Home's chat). */
+@media (max-width: 379px) {
+  .topbar__activity .updatepill:has(+ .updatepill) {
+    display: none;
+  }
+}
+@media (max-width: 639px) {
   .topbar__nav,
   .serverswitch {
     display: none;
