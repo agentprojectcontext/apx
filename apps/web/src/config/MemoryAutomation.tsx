@@ -1,7 +1,10 @@
 import type { MemorySettings } from "@apx/protocol";
 import { DAILY_MEMORY_CALLS } from "@apx/protocol/client";
 import { Button, Input, SettingRow, Switch } from "@apx/ui";
+import { projectName } from "../data/identity.ts";
+import { useData } from "../data/state.ts";
 import { useT } from "../i18n/index.ts";
+import { memoryJobText } from "./memoryJobText.ts";
 import { SubHead } from "./SectionHead.tsx";
 import { useMemoryAutomation } from "./useMemoryAutomation.ts";
 
@@ -14,6 +17,8 @@ export function MemoryAutomation({
 }) {
   const t = useT();
   const { jobs, busy, run } = useMemoryAutomation();
+  const agents = useData((s) => s.agents);
+  const projects = useData((s) => s.projects);
   return (
     <>
       <SubHead>{t("mem.continuity")}</SubHead>
@@ -62,25 +67,18 @@ export function MemoryAutomation({
       </div>
       {jobs.length > 0 && (
         <ul className="res__list">
-          {jobs.slice(0, 6).map((job) => (
-            <li key={job.id} className="res__row">
-              <div className="res__main">
-                <div className="res__name">{t(job.kind === "dream" ? "mem.auto_dream" : "mem.auto_capture")}</div>
-                <div className="res__desc">
-                  {t(
-                    job.state === "completed"
-                      ? "mem.job.completed"
-                      : job.state === "failed"
-                        ? "mem.job.failed"
-                        : job.state === "working"
-                          ? "mem.job.working"
-                          : "mem.job.pending",
-                  )}
-                  {job.error ? ` · ${job.error}` : ""}
+          {jobs.slice(0, 6).map((job) => {
+            const place = job.project_id ? projectName(projects, job.project_id) : undefined;
+            const text = memoryJobText(job, t, agents[job.agent_id]?.name ?? t("memory.byAgent"), place);
+            return (
+              <li key={job.id} className="res__row">
+                <div className="res__main">
+                  <div className="res__name">{text.name}</div>
+                  <div className="res__desc">{text.desc}</div>
                 </div>
-              </div>
-            </li>
-          ))}
+              </li>
+            );
+          })}
         </ul>
       )}
     </>

@@ -147,7 +147,7 @@ test("a late maintenance failure after closing stays dismissed and a reopened pa
     const retry = reopened.getByRole("button", { name: "Revisar duplicados ahora" });
     await expect(retry).toBeEnabled();
     await retry.click();
-    await expect(reopened.getByText("Completado", { exact: true })).toBeVisible();
+    await expect(reopened.getByText("Nada nuevo para guardar", { exact: true })).toBeVisible();
     expect(attempts).toBe(2);
   } finally {
     waiting.release();
@@ -209,7 +209,7 @@ test("memory maintenance reports failure, releases busy controls and retries the
     await expect(backfill).toBeEnabled();
     await expect(dream).toBeEnabled();
     await backfill.click();
-    await expect(dialog.getByText("Falló · Review needs retry", { exact: true })).toBeVisible();
+    await expect(dialog.getByText("Falló", { exact: true })).toBeVisible();
     await dream.click();
     await expect.poll(() => calls.length).toBe(3);
     expect(calls).toEqual([
@@ -247,7 +247,7 @@ test("memory jobs poll without overlapping, recover a status failure and stop af
   );
   try {
     const dialog = await memoryDialog(page);
-    const row = dialog.locator(".res__row").filter({ hasText: "Guardar recuerdos duraderos" });
+    const row = dialog.locator(".res__row").filter({ hasText: "Recuerdos de " });
     await expect(row.getByText("En espera", { exact: true })).toBeVisible();
     await page.clock.fastForward(5000);
     await expect.poll(() => reads).toBe(2);
@@ -260,7 +260,7 @@ test("memory jobs poll without overlapping, recover a status failure and stop af
     await failedResponse;
     await expect(row.getByText("Trabajando", { exact: true })).toBeVisible();
     await page.clock.fastForward(5000);
-    await expect(row.getByText("Completado", { exact: true })).toBeVisible();
+    await expect(row.getByText("Nada nuevo para guardar", { exact: true })).toBeVisible();
     await page.clock.fastForward(15000);
     expect(reads).toBe(4);
     await dialog.getByRole("button", { name: "Revisar duplicados ahora" }).click();
@@ -291,12 +291,12 @@ test("an older initial memory status cannot overwrite the result of a manual mai
     const dialog = await memoryDialog(page);
     await expect.poll(() => reads).toBe(1);
     await dialog.getByRole("button", { name: "Revisar duplicados ahora" }).click();
-    const row = dialog.locator(".res__row").filter({ hasText: "Guardar recuerdos duraderos" });
-    await expect(row.getByText("Completado", { exact: true })).toBeVisible();
+    const row = dialog.locator(".res__row").filter({ hasText: "Recuerdos de " });
+    await expect(row.getByText("Nada nuevo para guardar", { exact: true })).toBeVisible();
     const initial = page.waitForResponse((r) => r.url().endsWith("/rpc/memory.status"));
     waiting.release();
     await initial;
-    await expect(row.getByText("Completado", { exact: true })).toBeVisible();
+    await expect(row.getByText("Nada nuevo para guardar", { exact: true })).toBeVisible();
     await expect(row.getByText("En espera", { exact: true })).toHaveCount(0);
   } finally {
     waiting.release();
