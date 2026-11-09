@@ -5,6 +5,7 @@ import { useChannels } from "../data/channels.ts";
 import { setPrefs, usePrefs, useSidebarRows } from "../data/prefs.ts";
 import { useData } from "../data/state.ts";
 import { useT } from "../i18n/index.ts";
+import { soleFilter, useInboxFilter } from "../inbox/inboxFilter.ts";
 import { ChannelNavRow } from "./ChannelNavRow.tsx";
 import { go, useNav } from "./nav.ts";
 import { SidebarOverflow, SidebarRowsGrip, SidebarSection } from "./SidebarSection.tsx";
@@ -45,7 +46,14 @@ export function ChannelsNav({ rail, compact = false }: { rail: boolean; compact?
   const cut = ordered.length > rows + 1 ? rows : ordered.length;
   const shown = ordered.slice(0, cut);
   const rest = ordered.slice(cut);
-  const hiddenActive = view === "channel" && rest.some((channel) => channel.id === channelId);
+  // An account opens the Inbox narrowed to it: one picked from under "more" marks that row.
+  const filtered = useInboxFilter((f) => {
+    const sole = soleFilter(f);
+    return sole?.kind === "accounts" ? sole.id : undefined;
+  });
+  const hiddenActive = rest.some(
+    (channel) => (view === "channel" && channel.id === channelId) || (view === "inbox" && channel.id === filtered),
+  );
   const hiddenUnread = rest.reduce((sum, channel) => sum + (counts.get(channel.id) ?? 0), 0);
   const totalUnread = ordered.reduce((sum, channel) => sum + (counts.get(channel.id) ?? 0), 0);
 

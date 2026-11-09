@@ -17,5 +17,7 @@ export function Speaker({ face, name }: { face: ReactNode; name: ReactNode }) {
 
 /** A person's face: their picture on their channel when there is one, else their initials on a quiet circle. */
 export function PersonFace({ id, name }: { id?: string | undefined; name: string }) {
-  return <PersonAvatar personId={id} fallback={initialsOf(name)} className="transcript__face" size={24} />;
+  // Someone in a room the owner never saved is named by their app's id ("telegram:6262"): no picture to ask for.
+  const saved = id && !id.includes(":") ? id : undefined;
+  return <PersonAvatar personId={saved} fallback={initialsOf(name)} className="transcript__face" size={24} />;
 }

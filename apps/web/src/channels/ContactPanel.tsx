@@ -185,7 +185,7 @@ export function ContactPanel({ person, channel, onClose }: { person: Person; cha
           onChange={(e) => setD({ ...d, rules: e.currentTarget.value })}
         />
       </CardField>
-      <CardField label={t("ch.may")}>
+      <CardField label={t("ch.may")} hint={t("ch.may.close")}>
         <ul className="chan__perms">
           {PERMS.map(([k, label, hint]) => (
             <li key={k}>
