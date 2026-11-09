@@ -14,6 +14,7 @@ export const PROFILES = [
   { name: "Discord", url: "https://discord.gg/vxdZuT5WuE", footer: true },
   { name: "YouTube", url: "https://www.youtube.com/@apx-agents", footer: true },
   { name: "GitHub organization", url: "https://github.com/agentprojectcontext", footer: false },
+  { name: "Product Hunt", url: "https://www.producthunt.com/products/apx", footer: false },
 ] as const;
 
 export const ORGANIZATION_ID = `${SITE}/#organization`;
