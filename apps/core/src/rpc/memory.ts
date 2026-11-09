@@ -4,7 +4,7 @@
 import type { Memory } from "@apx/protocol";
 import { canUseChatMemory, memoryEligibleChat } from "../domain/chat-access.ts";
 import { canSee, looksSecret, type MemoryView } from "../domain/memories.ts";
-import { factSupported } from "../domain/memory-content.ts";
+import { factSupported, reportsWorkDone } from "../domain/memory-content.ts";
 import { evidenceIsLive, memoryClaimKey } from "../domain/memory-evidence.ts";
 import { memorySettings } from "../domain/memory-settings.ts";
 import { procedureEvidenceIsLive } from "../domain/memory-verification.ts";
@@ -83,6 +83,12 @@ export function memoryHandlers(store: Store, index: MemoryIndex, maintenance?: M
       const view = viewOf(ctx);
       if (view && memorySettings(store).mode === "off") throw badRequest("memory is disabled");
       if (view && store.memories.excluded(view, text)) throw badRequest("the owner asked to forget that");
+      // Shared notes keep what stays true; what an agent did belongs in its task, its plan or its own notebook.
+      const shared = (id ? store.memories.get(id)?.scope : scope) !== "agent";
+      if (view && !evidence?.length && shared && reportsWorkDone(text))
+        throw badRequest(
+          "that reads like a log of work done (dates, commits, CI runs). Notes shared with the project or about the owner keep what stays true: put progress in the task or its plan, or in your own notebook (scope agent)",
+        );
       const sourceThread = ctx.agent && store.threads.get(ctx.agent.thread_id);
       if (view && evidence?.length) {
         const quote = evidence.map((e) => e.quote).join("\n");

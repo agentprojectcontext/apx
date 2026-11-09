@@ -24,6 +24,13 @@ const llm = scriptedLlm((req, { said, afterTool }) => {
   if (said.includes("search memory")) return callTool("s1", "recall", { query: "cafe" });
   if (said.includes("rewrite note"))
     return callTool("e1", "remember", { text: "Moved.", id: String(said.split(" ").at(-1)) });
+  if (said.includes("note the release"))
+    return callTool("l1", "remember", { text: "Acme 2026-11-07: v2.4.1 released from 1a2b3c4d, CI green." });
+  if (said.includes("note my lesson"))
+    return callTool("l2", "remember", {
+      text: "Acme 2026-11-07: taught bunker setup, open the face.",
+      scope: "agent",
+    });
   if (said.includes("leak a key"))
     return callTool("k1", "remember", { text: "the api key is sk-abcdefghijklmnop1234" });
   return say("ok");
@@ -215,6 +222,25 @@ test("the owner confirms many notes about them at once, and only the ones still 
   assert.equal(env.core.store.memories.get(gone.id)?.pending, true, "a forgotten note stays as it was");
   assert.equal((await env.client.call("memory.confirm_all", { ids: [a.id] })).confirmed, 0, "already confirmed");
   for (const id of [a.id, b.id, gone.id]) env.core.store.memories.remove(id);
+});
+
+test("a log of work done stays out of shared notes, but an agent may keep its own diary", async () => {
+  const t = await env.client.call("threads.create", { kind: "loose", agent_id: "superagent", project_id: project });
+  await env.client.call("threads.send", { thread: t.id, text: "note the release" });
+  await env.settle(t.id);
+  assert.match(lastInput(), /log of work done/);
+  assert.equal((await env.client.call("memory.list", { query: "released" })).memories.length, 0);
+  await env.client.call("threads.send", { thread: t.id, text: "note my lesson" });
+  await env.settle(t.id);
+  const diary = (await env.client.call("memory.list", { query: "bunker" })).memories;
+  assert.equal(diary[0]?.scope, "agent", "its own notebook takes it");
+  // The owner writes what they like.
+  const own = await env.client.call("memory.add", {
+    text: "Acme 2026-11-07: shipped v2.4.1, CI green.",
+    scope: "global",
+  });
+  assert.equal(own.source, "owner");
+  for (const m of [...diary, own]) env.core.store.memories.remove(m.id);
 });
 
 test("a forgotten note leaves every turn, is not saved again by an agent, and the owner can bring it back", async () => {
