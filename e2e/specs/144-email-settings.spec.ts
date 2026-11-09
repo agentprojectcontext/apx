@@ -20,8 +20,8 @@ test("email settings: own addresses typed, no Home or while-it-works choice, str
     token: "app-password-0000",
   });
   try {
-    await open(page);
-    await page.getByRole("button", { name: "Northwind support", exact: true }).first().click();
+    // Straight to the account: with many accounts the sidebar folds some of them away.
+    await open(page, `#channel=${id}`);
     await page.getByRole("button", { name: "Configuración del canal" }).click();
     const dialog = page.getByRole("dialog");
 
