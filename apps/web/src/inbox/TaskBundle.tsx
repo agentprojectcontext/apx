@@ -1,5 +1,5 @@
 import type { Thread } from "@apx/protocol";
-import { ContextMenu, ConversationRow, IconButton, Icons, type MenuEntry, Spinner } from "@apx/ui";
+import { ContextMenu, ConversationRow, IconButton, Icons, Menu, type MenuEntry, Spinner } from "@apx/ui";
 import { type ReactNode, useEffect } from "react";
 import { shortWhen } from "../common/format.ts";
 import { taskStateActions } from "../common/taskStateActions.tsx";
@@ -34,6 +34,15 @@ export function TaskBundle({ taskId, threads, selected }: { taskId: string; thre
   const archived = threads.every((th) => th.archived);
   const items: MenuEntry[] = [
     { label: t("tasks.menu.open"), icon: <Icons.PanelRight />, onSelect: () => go.task(taskId) },
+    ...(latest
+      ? [
+          {
+            label: latest.pinned ? t("thread.menu.unpin") : t("thread.menu.pin"),
+            icon: <Icons.Pin />,
+            onSelect: () => void updateThread(latest.id, { pinned: !latest.pinned }),
+          },
+        ]
+      : []),
     ...(task ? taskStateActions(task, columns, t) : []),
     { type: "separator" },
     {
@@ -74,8 +83,6 @@ export function TaskBundle({ taskId, threads, selected }: { taskId: string; thre
           selected={latest?.id === selected}
           unread={unread}
           running={running}
-          archived={archived}
-          onArchive={() => void archiveTaskChats(taskId, !archived)}
           preview={
             <span className="threadrow__line">
               <span className="threadrow__who">
@@ -128,8 +135,6 @@ function TaskRow(props: {
   selected: boolean;
   unread: number;
   running: boolean;
-  archived: boolean;
-  onArchive: () => void;
   preview: ReactNode;
 }) {
   const t = useT();
@@ -157,19 +162,11 @@ function TaskRow(props: {
         />
       </ContextMenu>
       {fold.button}
-      <span className="threadrow__actions">
-        <IconButton
-          size="sm"
-          label={thread.pinned ? t("thread.menu.unpin") : t("thread.menu.pin")}
-          active={thread.pinned}
-          icon={<Icons.Pin size={14} />}
-          onClick={() => void updateThread(thread.id, { pinned: !thread.pinned })}
-        />
-        <IconButton
-          size="sm"
-          label={t(props.archived ? "tasks.chats.unarchive" : "tasks.chats.archive")}
-          icon={<Icons.Inbox size={14} />}
-          onClick={props.onArchive}
+      <span className="threadrow__more">
+        <Menu
+          align="end"
+          trigger={<IconButton size="sm" label={t("tasks.chats.actions")} icon={<Icons.Ellipsis size={14} />} />}
+          items={props.items}
         />
       </span>
     </div>

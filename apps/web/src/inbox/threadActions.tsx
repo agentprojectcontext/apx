@@ -7,7 +7,7 @@ import type { T } from "../i18n/index.ts";
 import { go } from "../shell/nav.ts";
 
 /** Why a chat cannot be archived or deleted (Home, a task's chat), or undefined when it can. */
-export function lockedBy(thread: Thread, t: T): string | undefined {
+function lockedBy(thread: Thread, t: T): string | undefined {
   if (thread.kind === "home") return t("thread.menu.homeLocked");
   if (thread.kind === "task") return t("thread.menu.taskLocked");
   return undefined;

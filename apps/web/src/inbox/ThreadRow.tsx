@@ -1,18 +1,17 @@
 import type { Agent, Thread } from "@apx/protocol";
-import { ContextMenu, ConversationRow, IconButton, Icons, Spinner } from "@apx/ui";
+import { ContextMenu, ConversationRow, IconButton, Icons, Menu, Spinner } from "@apx/ui";
 import { CHANNEL_KINDS, type ChannelKind } from "../channels/kinds.ts";
 import { ChatProcesses } from "../common/ChatProcesses.tsx";
 import { shortWhen } from "../common/format.ts";
 import { useEngineLabel } from "../common/useEngineLabel.ts";
 import { isWorking, projectName, routineName } from "../data/identity.ts";
 import { useData } from "../data/state.ts";
-import { updateThread } from "../data/threadAdmin.ts";
 import { type T, useT } from "../i18n/index.ts";
 import { useNav } from "../shell/nav.ts";
 import { ProjectBadge } from "./ProjectBadge.tsx";
 import { useRowFold } from "./RowFold.tsx";
 import { ThreadAvatar } from "./ThreadAvatar.tsx";
-import { lockedBy, threadMenu } from "./threadActions.tsx";
+import { threadMenu } from "./threadActions.tsx";
 import { useThreadChannel } from "./useThreadChannel.ts";
 
 export type ThreadRowProps = {
@@ -35,7 +34,6 @@ export function ThreadRow({ thread, agent, selected, onOpen }: ThreadRowProps) {
   const fold = useRowFold();
   const working = isWorking(thread.state);
   const waiting = thread.state === "input-required";
-  const locked = lockedBy(thread, t);
   const who = engine ?? agent?.name ?? thread.title;
   return (
     <div className="threadrow-wrap" ref={fold.wrap}>
@@ -76,22 +74,13 @@ export function ThreadRow({ thread, agent, selected, onOpen }: ThreadRowProps) {
         />
       </ContextMenu>
       {fold.button}
-      <span className="threadrow__actions">
-        <IconButton
-          size="sm"
-          label={thread.pinned ? t("thread.menu.unpin") : t("thread.menu.pin")}
-          active={thread.pinned}
-          icon={<Icons.Pin size={14} />}
-          onClick={() => void updateThread(thread.id, { pinned: !thread.pinned })}
+      {/* Pointed at, "···" takes the time's place: the row's whole menu, the fold beside the title left free. */}
+      <span className="threadrow__more">
+        <Menu
+          align="end"
+          trigger={<IconButton size="sm" label={t("chat.more")} icon={<Icons.Ellipsis size={14} />} />}
+          items={threadMenu(thread, { t, agent })}
         />
-        {!locked && (
-          <IconButton
-            size="sm"
-            label={thread.archived ? t("thread.menu.unarchive") : t("thread.menu.archive")}
-            icon={<Icons.Inbox size={14} />}
-            onClick={() => void updateThread(thread.id, { archived: !thread.archived })}
-          />
-        )}
       </span>
     </div>
   );
