@@ -663,7 +663,7 @@
 }
 .chs__row {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 140px 120px 28px auto;
+  grid-template-columns: minmax(0, 1fr) minmax(140px, 220px) 120px 28px auto;
   align-items: center;
   gap: 12px;
   padding: 10px 14px;
