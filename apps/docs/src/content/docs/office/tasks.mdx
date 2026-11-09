@@ -193,8 +193,10 @@ new one opens a consult of its own, so questions asked together stay apart.
 
 When an agent's turn on a task ends with the task still in progress (it ran out of steps, or stopped at "I'll
 continue"), its next part starts at once, numbered, up to nine. It stops when the agent closes the task, marks it
-waiting on you with what you must do, says what blocks it, or when a part got nowhere. Closing its own work as done,
-an agent must say what it verified.
+waiting on you with what you must do, says what blocks it, or when a part got nowhere. One part that only checks what
+the part before it changed counts as progress; two parts in a row that only look things up do not. Closing its own
+work as done, an agent must say what it verified. When another agent names a task's own agent again while it is not
+working on it, it goes on.
 
 If a task stays in progress with nothing running on it (no turn for 20 minutes, within a day of its last one), APX asks
 its agent once to go on or say what it waits for, and tells you if it stops again. Every ten minutes APX looks at up to

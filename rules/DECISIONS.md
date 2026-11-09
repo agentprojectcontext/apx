@@ -4337,4 +4337,16 @@ task", next to "your final answer goes back to them") and a review all came as a
 - **A task whose way stops leading to the goal changes plan** (`taskBlock`): the owner hears only what only they can
   give or decide.
 
+- **Checking is progress** (`stalled` in `engine/progress.ts`, `continueTask`): one part that only reads after one
+  that changed something (the turn that started the stretch counts) is verifying, so the next part starts; two
+  reading parts in a row still stop it.
+- **An agent naming a task's own agent again wakes it** (`resuming` in `rpc/tasks.ts`): the super-agent's
+  `task_update` with the same assignee answered "updated" while the agent stayed idle, and it told the owner the work
+  had resumed. The owner's edits from the panel carry every field, so they never restart the work.
+- **A partial delegation is carried on** (`REDIRECT_NOTE`): with nothing waiting on the owner, its caller has what is
+  left done instead of only reporting it.
+- **Where code goes is the agents' call** (`CODE_PLACE`): the project's AGENTS.md or note, else not a git repository
+  means in place and a checkout means a worktree, saved as a project note. Replaces the five-option question to the
+  owner, which the owner added for lack of a rule and found out of place.
+
 None of this changes a permission, an approval, a hard step or a spend limit: what waits for the owner still does.

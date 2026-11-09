@@ -36,11 +36,11 @@ libertad.
 
 ### Dónde una tarea cambia código
 
-**Desde 2.11.1**, antes de cambiar código para una tarea, el agente sigue la elección
-guardada del proyecto: trabajar en el checkout o en un worktree de Git. Si ninguna nota del proyecto lo indica,
-te pregunta: **Worktree now**, **Worktree always**, **Here now**, **Here always** u **Other**. Una respuesta “always”
-se guarda para ese proyecto; “now” vale solo para esta elección. Esas opciones llegan con esos nombres en inglés.
-Esto elige dónde trabajar, no cambia la política de escritura ni el nivel de autonomía.
+Antes de cambiar código para una tarea, el agente trabaja donde dice el AGENTS.md del proyecto o una nota del
+proyecto: en el checkout o en un worktree de Git. Si ninguno lo dice, decide sin preguntarte: una carpeta que no es un
+repositorio Git se trabaja en el lugar, un checkout de Git lleva un worktree. Guarda esa elección como nota del
+proyecto, así todos los agentes de ahí hacen lo mismo, y la podés cambiar como cualquier otra nota. Esto elige dónde
+trabajar, no cambia la política de escritura ni el nivel de autonomía.
 
 Si usa un worktree, el agente primero revisa los worktrees y ramas relacionados con la tarea y sigue en el que ya
 cubre el trabajo. Solo si no hay uno crea una rama con nombre dentro de `.worktrees/` en el proyecto. Después de

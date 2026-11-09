@@ -56,7 +56,9 @@ export function continueTask(store: Store, admit: AdmitFn, run: RunRecord): RunR
   const done = parts(store, thread.id);
   if (done.length >= MAX_AUTO_PARTS) return undefined;
   // A part after the first must have got somewhere; the first one may have stopped early, which is why it goes on.
-  if (done.length && stalled(store.runs.steps(run.id), done[1] ? store.runs.steps(done[1].id) : [])) return undefined;
+  // The part before it is the previous one, or the turn that started this stretch.
+  const before = done.length ? (done[1] ?? store.runs.list(thread.id, MAX_AUTO_PARTS + 2)[done.length]) : undefined;
+  if (done.length && stalled(store.runs.steps(run.id), before ? store.runs.steps(before.id) : [])) return undefined;
   const origin: Continue = {
     kind: "task_continue",
     from_run: run.id,
