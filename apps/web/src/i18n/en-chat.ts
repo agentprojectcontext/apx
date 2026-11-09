@@ -149,7 +149,6 @@ export const enChat = {
   "choices.ownPlaceholder": "Tell me how you'd like me to be and press Enter",
   "connect.title": "Suggested connections",
   "connect.connected": "Connected",
-  "connect.done": "I connected {name}.",
   "connect.more": "Explore {count} more connectors",
   "mail.to": "To",
   "mail.cc": "Cc",

@@ -1,5 +1,5 @@
 // Asked for something an app or channel that is not connected would do, the agent offers it on a card: an app's form
-// opens right there, a channel's setup opens in Settings.
+// opens right there, a channel's setup opens in Settings; once connected, the agent goes on by itself.
 import { expect, open, rpc, test } from "./kit.ts";
 
 async function ask(page: Parameters<typeof open>[0], text: string) {
@@ -33,4 +33,19 @@ test("a channel that is not set up is offered, and opens its setup in Settings",
   await expect(card).toContainText("Matrix");
   await card.getByRole("button", { name: "Conectar" }).click();
   await expect(page.getByRole("dialog")).toContainText("Matrix");
+});
+
+test("connecting what the card offers wakes the agent that offered it", async ({ page }) => {
+  const card = await ask(page, "connect github for me");
+  await expect(card).toContainText("GitHub");
+  // The agent's turn ends after the card: it is waiting for the owner, not working.
+  await expect(page.getByText(/Got it: connect github for me/)).toBeVisible();
+  await card.getByRole("button", { name: "Conectar" }).click();
+  const form = page.getByRole("dialog", { name: "Conectar GitHub" });
+  await form.getByLabel(/token/i).fill("ghp_example0000");
+  await form.getByRole("button", { name: "Conectar" }).click();
+  await expect(form).toHaveCount(0);
+  await expect(card.getByText("Conectado")).toBeVisible();
+  await expect(page.getByText(/the owner connected .*GitHub/)).toBeVisible();
+  await rpc("integrations.disconnect", { id: "github" });
 });

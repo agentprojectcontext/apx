@@ -490,6 +490,8 @@ export function frameInput(origin: Origin, text: string): string {
       return `${untrusted("job_output", { job: origin.job_id, state: origin.state, exit_code: String(origin.exit_code ?? "none") }, text)}\nA background command you started (${origin.command.slice(0, 120)}) has ended; this is the end of its output. Tell the owner what matters.`;
     case "terminal":
       return `${untrusted("terminal_output", { terminal: origin.terminal_id, exit_code: String(origin.exit_code ?? "none") }, text)}\nThe owner ran the command you suggested (${origin.command.slice(0, 120)}) in their terminal and it has ended; this is the end of what it printed. Go on from there: say whether it worked and what comes next.`;
+    case "connected":
+      return `APX: the owner connected ${inlineName(origin.label)} (${origin.what} ${origin.id}) from the card you showed in this chat. It is ready: go on with what they asked for, using it now.`;
     case "go_on":
       return `The owner let agents go on after a pause (${origin.mode === "reset" ? "a fresh budget" : "no limit until they write here again"}). What reached you while paused is above as system notes: carry on with it, then tell the owner what happened.`;
     case "computer_ready":

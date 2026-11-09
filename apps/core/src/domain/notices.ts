@@ -34,6 +34,7 @@ export function followsOwner(origin: Origin | undefined): boolean {
     case "delegation_results":
     case "go_on":
     case "terminal":
+    case "connected":
       return true;
     case undefined:
     case "agent":
