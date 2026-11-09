@@ -217,6 +217,7 @@
                       "**/FilesScreen.tsx",
                       "**/FlowCard.tsx",
                       "**/InboxFilterBody.tsx",
+                      "**/TaskStatusHint.tsx",
                       "**/ChangesPart.tsx",
                       "**/LinkMenu.tsx",
                       "**/PlusMenu.tsx",

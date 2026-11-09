@@ -26,6 +26,11 @@ for (const mode of ["dark", "light"] as const) {
       .toBe(1);
     await rpc("tasks.close", { task: task.id, state: "done" });
     await open(page);
+    // Tasks have their own tab in the Inbox; each row keeps its state beside the title, the hover the whole title.
+    await page
+      .getByRole("radiogroup", { name: "Mostrar" })
+      .getByRole("radio", { name: /^Tareas/ })
+      .click();
     const title = page.locator(".taskbundle__title").filter({ hasText: task.title });
     await title.hover();
     const hint = page.locator(".apx-tooltip[data-open]");

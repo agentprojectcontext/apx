@@ -1,7 +1,7 @@
 import "../styles/inbox-parts.css";
 import type { Thread } from "@apx/protocol";
 import { ContextMenu, ConversationRow, IconButton, Icons, Menu, type MenuEntry, Spinner } from "@apx/ui";
-import { type ReactNode, useEffect } from "react";
+import { type ReactNode, Suspense, useEffect } from "react";
 import { shortWhen } from "../common/format.ts";
 import { taskStateActions } from "../common/taskStateActions.tsx";
 import { taskRowState } from "../common/taskStatus.ts";
@@ -11,6 +11,7 @@ import { archiveTaskChats } from "../data/taskChats.ts";
 import { ensureTask, useTasks } from "../data/tasks.ts";
 import { updateThread } from "../data/threadAdmin.ts";
 import { useT } from "../i18n/index.ts";
+import { TaskStatusHint } from "../lazy.ts";
 import { go } from "../shell/nav.ts";
 import { ListedChat } from "./Delegated.tsx";
 import { SessionRow } from "./InboxViews.tsx";
@@ -78,6 +79,7 @@ export function TaskBundle({ taskId, threads, selected }: { taskId: string; thre
         }
       >
         <TaskRow
+          taskId={taskId}
           thread={latest}
           items={items}
           title={task?.title ?? latest.title}
@@ -130,6 +132,7 @@ function lastSaid(thread: Thread): string | undefined {
 }
 
 function TaskRow(props: {
+  taskId: string;
   thread: Thread;
   items: MenuEntry[];
   title: string;
@@ -150,7 +153,13 @@ function TaskRow(props: {
           selected={props.selected}
           onClick={() => go.thread(thread.id)}
           avatar={<ThreadAvatar thread={thread} agent={agents[thread.agent_ids[0] ?? ""]} size={24} slot={28} />}
-          title={props.title}
+          title={
+            <Suspense fallback={<span className="taskbundle__title">{props.title}</span>}>
+              <TaskStatusHint id={props.taskId}>
+                <span className="taskbundle__title">{props.title}</span>
+              </TaskStatusHint>
+            </Suspense>
+          }
           titleTag={
             <>
               {fold.slot}

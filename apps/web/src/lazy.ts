@@ -85,6 +85,10 @@ export const AttentionList = lazy(() =>
 export const InboxFilterBody = lazy(() =>
   import("./inbox/InboxFilterBody.tsx").then((m) => ({ default: m.InboxFilterBody })),
 );
+// A task title's hover in the Inbox: its whole title and status.
+export const TaskStatusHint = lazy(() =>
+  import("./common/TaskStatusHint.tsx").then((m) => ({ default: m.TaskStatusHint })),
+);
 export const TaskBundle = lazy(() => import("./inbox/TaskBundle.tsx").then((m) => ({ default: m.TaskBundle })));
 export const SubthreadPart = lazy(() =>
   import("./chat/parts/SubthreadPart.tsx").then((m) => ({ default: m.SubthreadPart })),
