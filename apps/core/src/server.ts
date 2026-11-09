@@ -52,6 +52,7 @@ import { createAttention } from "./engine/attention.ts";
 import { keepAwake, sleepWatch } from "./engine/awake.ts";
 import { calendarReminders } from "./engine/calendar-reminders.ts";
 import { createEngine, type RunTimers } from "./engine/engine.ts";
+import { createGroups } from "./engine/group.ts";
 import type { InputWaits } from "./engine/inputs.ts";
 import { mailCheck } from "./engine/mail-check.ts";
 import { createMemoryIndex } from "./engine/memory-index.ts";
@@ -645,8 +646,10 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
       scheduler.afterRun(run);
       scheduler.stalls.afterRun(run);
       afterWorkTurn(store, engine.admit, run);
+      groups.afterRun(run);
     },
   });
+  const groups = createGroups({ store, admit: engine.admit, judge: upkeep.judge, enabled: config.groupChats });
   // The Mac stays awake while APX works for the owner: a turn, a command, or a computer coming up (engine/awake.ts).
   const awake = keepAwake({
     busy: () =>
@@ -777,6 +780,7 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
       llmLabel: () => llm.label(),
       engine,
       upkeep,
+      groups,
       memory,
       memoryMaintenance,
       channels,

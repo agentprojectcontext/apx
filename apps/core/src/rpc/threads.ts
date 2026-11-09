@@ -9,6 +9,7 @@ import { previewOf } from "../domain/threads.ts";
 import { agentTripped, tree, tripped } from "../engine/breaker.ts";
 import type { Admit, Engine } from "../engine/engine.ts";
 import { goOn } from "../engine/go-on.ts";
+import { createGroup, type Groups } from "../engine/group.ts";
 import { MAX_ACTIVE_DELEGATIONS } from "../engine/limits.ts";
 import { relayOwnerWords } from "../engine/owner-relay.ts";
 import { answersOwner } from "../engine/task-inbox.ts";
@@ -103,7 +104,12 @@ function attachedFiles(store: Store, thread: string, ids: string[]): Attachment[
   });
 }
 
-export function threadHandlers(store: Store, engine: Engine, upkeep: Pick<Upkeep, "compact">) {
+export function threadHandlers(
+  store: Store,
+  engine: Engine,
+  upkeep: Pick<Upkeep, "compact">,
+  groups?: Pick<Groups, "enabled" | "is" | "send" | "stop">,
+) {
   const threadAgent = (threadId: string) => {
     const thread = store.threads.get(threadId);
     if (!thread) throw notFound(`thread ${threadId}`);
@@ -301,6 +307,14 @@ export function threadHandlers(store: Store, engine: Engine, upkeep: Pick<Upkeep
       return { thread: t, messages: store.messages.list(thread), runs: store.runs.list(thread).map(publicRun) };
     },
     "threads.create": (params, ctx) => createThread(store, params, ctx),
+    "threads.group": ({ agent_ids, title }) => {
+      if (!groups?.enabled) throw conflict("group chats are off in this core (APX_GROUP_CHATS=on turns them on)");
+      try {
+        return createGroup(store, { agent_ids, title });
+      } catch (err) {
+        throw badRequest((err as Error).message);
+      }
+    },
     "threads.send": ({ thread, text, mode, attachments, continue_run, via }, ctx) => {
       ownClientThread(thread, ctx);
       const { agent, thread: target } = threadAgent(thread);
@@ -329,6 +343,15 @@ export function threadHandlers(store: Store, engine: Engine, upkeep: Pick<Upkeep
           depth: latest.depth,
           continues: latest.id,
           queued: store.runs.activeDelegations(target.parent_id) >= MAX_ACTIVE_DELEGATIONS,
+        });
+      }
+      if (groups?.is(thread)) {
+        if (ctx.actor !== "human" || ctx.agent || ctx.channel || ctx.client)
+          throw unauthorized("only the owner writes in a group chat");
+        if (attachments?.length || mode !== "queue") throw badRequest("a group chat takes queued text messages");
+        return groups.send(thread, text).then(({ message, run }) => {
+          if (!run) throw conflict("nobody in the group could answer");
+          return { message, run: publicRun(run) };
         });
       }
       if (attachments?.length && ctx.actor === "agent" && !ctx.channel)
@@ -432,7 +455,11 @@ export function threadHandlers(store: Store, engine: Engine, upkeep: Pick<Upkeep
         ...(files.length ? { attachments: attachedFiles(store, thread, files) } : {}),
       });
     },
-    "threads.cancel": ({ thread }) => ({ canceled: engine.cancel(thread) }),
+    "threads.cancel": ({ thread }) => {
+      // A group's line goes first, so the member stopped below hands the turn to nobody.
+      groups?.stop(thread);
+      return { canceled: engine.cancel(thread) };
+    },
     "threads.go_on": ({ thread, mode }) => {
       if (!store.threads.get(thread)) throw notFound(`thread ${thread}`);
       return { started: goOn(store, engine.admit, engine.release, thread, mode) };
