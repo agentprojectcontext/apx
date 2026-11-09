@@ -4371,6 +4371,11 @@ task", next to "your final answer goes back to them") and a review all came as a
   owner's credentials), APX's API by its port, destructive commands and releases. Amends D-197.
 - **The visual check fixes the browser first** (`VISUAL_CHECK`): a tab limit, a dialog or the size is the agent's to
   fix before it calls a change unverified.
+- **Giving up comes after trying**: the promise line says "if you cannot after trying, say why and who can", and a
+  worker calls a source unreadable only once another way to it failed too (another URL, a copy, a search).
+- **Staging or copying AGENTS.md is not changing it** (`mayChange`): `git add`, `commit`, `diff`, `log`, `show` and
+  the like leave the file as it is, and a program whose paths are all known changes it only where it writes there
+  (`cp AGENTS.md /tmp/x` reads it). A program the path analysis cannot follow (`python3 fix.py AGENTS.md`) still asks.
 
 Apart from these narrower command asks, none of this changes a permission, an approval, a hard step or a spend
 limit: what waits for the owner still does.

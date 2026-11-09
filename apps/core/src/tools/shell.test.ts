@@ -203,8 +203,19 @@ test("command risk: reading runs, changing asks, destroying always asks", () => 
     "echo x > .apc/agents/designer.md",
     "sed -i '' 's/a/b/' AGENTS.md",
     "python3 fix.py .apc/agents/x.md",
+    "cp /tmp/x AGENTS.md",
+    "mv AGENTS.md b.md",
+    "git checkout AGENTS.md",
+    "git rm AGENTS.md",
   ])
     assert.equal(commandRisk(c), "always", c);
+  // Staging or committing it, or copying it somewhere, leaves it as it is (DECISIONS.md#d-210).
+  for (const c of [
+    "git add AGENTS.md && git commit -m 'chore: baseline'",
+    "git -C repo add AGENTS.md",
+    "cp AGENTS.md /tmp/x",
+  ])
+    assert.equal(commandRisk(c), "ask", c);
   // A folder named apx is only read: going into it or listing it is not running the CLI.
   for (const c of [
     "cd /code/agentprojectcontext/apx && rg -n teams docs | head -100",
