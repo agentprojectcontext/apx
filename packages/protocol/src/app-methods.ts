@@ -40,6 +40,7 @@ import {
   OutboxItem,
   OutboxState,
   OwnerIdentity,
+  OwnerPatch,
   PairingRequest,
   PendingInput,
   Person,
@@ -934,7 +935,7 @@ export const appMethods = {
     access: "human",
   },
   "owner.set": {
-    params: OwnerIdentity.partial().strict(),
+    params: OwnerPatch,
     result: OwnerIdentity,
     effect: true,
     access: "human",

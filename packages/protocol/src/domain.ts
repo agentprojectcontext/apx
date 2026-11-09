@@ -1368,6 +1368,19 @@ export const OwnerIdentity = z.object({
   publish: z.enum(["auto", "ask"]).default("auto"),
 });
 export type OwnerIdentity = z.infer<typeof OwnerIdentity>;
+/**
+ * What `owner.set` changes: only the fields given. Defaults stay out, so saving one field never resets the others.
+ */
+export const OwnerPatch = z
+  .object({
+    name: z.string().trim().max(80),
+    about: z.string().max(2000),
+    language: z.string().regex(/^[a-z]{2}$/),
+    timezone: z.string().max(60),
+    publish: z.enum(["auto", "ask"]),
+  })
+  .partial()
+  .strict();
 
 export const MemorySettings = z.object({
   mode: z.enum(["notes", "semantic", "off"]),
