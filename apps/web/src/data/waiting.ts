@@ -54,13 +54,12 @@ export async function unsend(message: Message): Promise<void> {
   }
 }
 
-/** Moves one message in line a place up (-1) or down (+1). */
-export async function moveInLine(line: readonly Message[], message: Message, by: -1 | 1): Promise<void> {
+/** Puts one message in line at `to` (0 is next): the others keep their order around it. */
+export async function moveInLine(line: readonly Message[], message: Message, to: number): Promise<void> {
   const at = line.findIndex((m) => m.id === message.id);
-  const to = at + by;
-  if (at < 0 || to < 0 || to >= line.length) return;
-  const order = [...line];
-  [order[at], order[to]] = [order[to] as Message, order[at] as Message];
+  if (at < 0 || to < 0 || to >= line.length || to === at) return;
+  const order = line.filter((m) => m.id !== message.id);
+  order.splice(to, 0, message);
   const runs = order.flatMap((m) => (m.waiting?.run ? [m.waiting.run] : []));
   try {
     const r = await client.call("runs.reorder", { thread: message.thread_id, runs });

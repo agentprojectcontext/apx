@@ -15,7 +15,7 @@ import { isNewChat } from "../../data/newChat.ts";
 import { notify } from "../../data/notices.ts";
 import { useData } from "../../data/state.ts";
 import { useT } from "../../i18n/index.ts";
-import { AsidePanel, AttachChips, PlusMenu } from "../../lazy.ts";
+import { AsidePanel, AttachChips, PlusMenu, QueueTray } from "../../lazy.ts";
 import { go } from "../../shell/nav.ts";
 import { ContextChip } from "./ContextChip.tsx";
 import { ContextChips } from "./ContextChips.tsx";
@@ -62,6 +62,7 @@ export function ChatComposer({
 }) {
   const t = useT();
   const offline = useData((s) => s.connection === "offline");
+  const queued = useData((s) => (s.messages[thread.id] ?? []).some((m) => m.waiting?.until === "turn"));
   const engine = useEngineLabel(thread.engine);
   const runsById = useData((s) => s.runs);
   const text = useSyncExternalStore(subscribeDrafts, () => draftOf(thread.id));
@@ -191,6 +192,11 @@ export function ChatComposer({
       {aside && (
         <Suspense fallback={null}>
           <AsidePanel key={thread.id} thread={thread.id} agent={agentName} />
+        </Suspense>
+      )}
+      {queued && (
+        <Suspense fallback={null}>
+          <QueueTray thread={thread.id} agent={agentName} />
         </Suspense>
       )}
       <input

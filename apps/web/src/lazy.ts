@@ -65,6 +65,8 @@ export const TitleTooltips = lazy(() =>
 );
 // The top bar's server list, once it opens.
 export const ServerList = lazy(() => import("./shell/ServerList.tsx").then((m) => ({ default: m.ServerList })));
+// The messages in line for the agent's next turn, above the composer while there are any.
+export const QueueTray = lazy(() => import("./chat/composer/QueueTray.tsx").then((m) => ({ default: m.QueueTray })));
 // Editing one of the owner's messages to send it again, and the question before later messages go.
 export const RewindConfirm = lazy(() => import("./chat/RewindParts.tsx").then((m) => ({ default: m.RewindConfirm })));
 export const RewindEditor = lazy(() => import("./chat/RewindParts.tsx").then((m) => ({ default: m.RewindEditor })));

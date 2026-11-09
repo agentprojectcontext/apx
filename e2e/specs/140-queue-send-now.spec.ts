@@ -1,5 +1,5 @@
-// Writing while the agent works (DECISIONS.md#d-186): Ctrl/⌘+Enter puts a message in line, where it is edited, moved
-// and removed before its turn; Enter sends it into the running turn, and "Send now" stops the step it is on so the
+// Writing while the agent works (DECISIONS.md#d-186): Ctrl/⌘+Enter puts a message in line, above the composer, where
+// it is edited, dragged or moved with the keyboard, and removed before its turn; Enter sends it into the running turn, and "Send now" stops the step it is on so the
 // agent reads it at once. What is in line then runs in its order, each above its answer.
 import { expect, open, rpc, test } from "./kit.ts";
 
@@ -21,17 +21,30 @@ test("messages in line are edited, moved and removed, and Send now has the agent
     await box.fill(words);
     await page.keyboard.press("ControlOrMeta+Enter");
   }
-  const line = page.locator(".waiting__line");
-  await expect(line.getByText("En cola para cuando Scout termine")).toBeVisible();
-  const queued = line.locator(".apx-msg.is-waiting");
+  const line = page.getByRole("region", { name: "En cola para cuando Scout termine" });
+  await expect(line.locator(".queue__count")).toHaveText("3");
+  const queued = line.locator(".queue__row");
   await expect(queued).toHaveCount(3);
+  // Nothing in line shows in the chat itself.
+  await expect(page.locator(".transcript .apx-msg", { hasText: "first in line" })).toHaveCount(0);
+  const row = (text: string) => queued.filter({ hasText: text });
 
-  // Second goes first; third is taken out; first is edited.
-  await queued.filter({ hasText: "second in line" }).getByRole("button", { name: "Subir" }).click();
+  // Second goes first with the keyboard, third is dragged above first, then taken out; first is edited.
+  await row("second in line").getByRole("button", { name: "Mover" }).focus();
+  await page.keyboard.press("ArrowUp");
   await expect(queued.first()).toContainText("second in line");
-  await queued.filter({ hasText: "third in line" }).getByRole("button", { name: "Quitar" }).click();
+  const grip = row("third in line").getByRole("button", { name: "Mover" });
+  const handle = await grip.boundingBox();
+  if (!handle) throw new Error("No handle");
+  await page.mouse.move(handle.x + handle.width / 2, handle.y + handle.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(handle.x + handle.width / 2, handle.y + handle.height / 2 - handle.height * 1.4, { steps: 6 });
+  await page.mouse.up();
+  await expect(queued.nth(1)).toContainText("third in line");
+  await expect(queued.nth(2)).toContainText("first in line");
+  await row("third in line").getByRole("button", { name: "Quitar" }).click();
   await expect(queued).toHaveCount(2);
-  await queued.filter({ hasText: "first in line" }).getByRole("button", { name: "Editar" }).click();
+  await row("first in line").getByRole("button", { name: "Editar" }).click();
   const edit = line.getByRole("textbox", { name: "Editar" });
   await edit.fill("first, edited");
   await line.getByRole("button", { name: "Guardar" }).click();
@@ -50,6 +63,7 @@ test("messages in line are edited, moved and removed, and Send now has the agent
   const sent = page.locator(".apx-msg", { hasText: "use metric units" });
   const now = sent.getByRole("button", { name: "Enviar ahora" });
   await expect(now).toBeVisible();
+  await expect(sent.getByText("En espera")).toBeVisible();
   await page.screenshot({ path: test.info().outputPath("queue-desktop.png") });
   await page.setViewportSize({ width: 375, height: 760 });
   await expect(queued.first().getByRole("button", { name: "Enviar ahora" })).toBeVisible();

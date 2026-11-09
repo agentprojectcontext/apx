@@ -9,7 +9,7 @@ import { rewindThread } from "../data/threadAdmin.ts";
 import { useT } from "../i18n/index.ts";
 import { RewindConfirm, RewindEditor } from "../lazy.ts";
 import { MessageActions } from "./MessageActions.tsx";
-import { SendNowButton, TakenMark, UnsendButton, useTaken } from "./WaitingMessage.tsx";
+import { TakenMark, useTaken, WaitingMarks } from "./WaitingMessage.tsx";
 
 /** Whether this chat can go back: nothing running, not a channel's chat (delivered), not an engine session. */
 function canRewind(thread: Thread): boolean {
@@ -90,8 +90,7 @@ export function UserMessage({
         draft === undefined && (via || message.waiting || taken) ? (
           <>
             {via && <ViaMark thread={thread} message={message} />}
-            {message.waiting && <SendNowButton message={message} />}
-            {message.waiting && !pending && <UnsendButton message={message} />}
+            {message.waiting && <WaitingMarks message={message} sending={pending} />}
             {taken && <TakenMark />}
           </>
         ) : undefined
