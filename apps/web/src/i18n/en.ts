@@ -1376,14 +1376,15 @@ export const en = {
   "memory.lead.forgotten": "Notes you or an agent forgot. No agent sees them; bring one back or delete it for good.",
   "memory.empty.forgotten": "Nothing forgotten.",
   "memory.pending": "To confirm",
-  "memory.pendingHint": "An agent learned this about you. It only stands in every chat once you confirm it.",
+  "memory.pendingHint":
+    "An agent learned this about you. Until you confirm it, your agents use it only when it comes up.",
+  "memory.pendingBar":
+    "{n} to confirm: what your agents learned about you. Once confirmed, every agent keeps them in mind in every chat.",
   "memory.confirm": "Confirm",
+  "memory.confirmAll": "Confirm all",
   "memory.origin": "Open the chat",
   "memory.restore": "Bring back",
   "memory.deleteForever": "Delete for good",
-  "memory.tainted": "From outside content",
-  "memory.taintedHint":
-    "Saved with outside content in the chat. Agents read it as data, not as your word; edit it to vouch for it.",
   "tg.step1": "In Telegram, open @BotFather, send /newbot and follow the steps.",
   "tg.step2": "Paste the token it gives you below and pick who answers.",
   "tg.step3": "Write to your bot: it replies with a code. Type it below in “This is my Telegram”.",

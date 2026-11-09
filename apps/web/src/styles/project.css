@@ -473,6 +473,13 @@
   color: var(--apx-fg-muted);
   font-size: var(--apx-text-sm);
 }
+.memory__pending {
+  flex-wrap: wrap;
+}
+.memory__pending-text {
+  flex: 1;
+  min-width: 200px;
+}
 .memory__file code {
   font-family: var(--apx-font-mono);
   font-size: var(--apx-text-xs);

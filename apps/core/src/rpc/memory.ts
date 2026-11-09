@@ -205,6 +205,18 @@ export function memoryHandlers(store: Store, index: MemoryIndex, maintenance?: M
       invalidateMemorySummaries(store);
       return indexed(m);
     },
+    "memory.confirm_all": ({ ids }) => {
+      let confirmed = 0;
+      for (const id of new Set(ids)) {
+        const note = store.memories.get(id);
+        if (note?.pending && !note.forgotten_at && store.memories.confirm(id)) confirmed++;
+      }
+      if (confirmed) {
+        invalidateMemorySummaries(store);
+        index.schedule();
+      }
+      return { confirmed };
+    },
     "memory.restore": ({ id }) => {
       const m = store.memories.restore(id);
       if (!m) throw notFound(`memory ${id}`);

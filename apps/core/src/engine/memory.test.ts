@@ -191,6 +191,32 @@ test("what an agent learns about the owner waits for the owner, with the run it 
   assert.match(await fresh(), /green tea/, "confirmed, it stands like the owner's own");
 });
 
+test("the owner confirms many notes about them at once, and only the ones still waiting", async () => {
+  const add = (text: string) =>
+    env.core.store.memories.add({
+      scope: "global",
+      text,
+      source: "agent",
+      author_agent: "superagent",
+      tainted: true,
+      pending: true,
+    });
+  const a = add("The owner walks to work on Mondays.");
+  const b = add("The owner reads the news at seven.");
+  const gone = add("The owner keeps a cat called Miso.");
+  env.core.store.memories.forget(gone.id);
+  const r = await env.client.call("memory.confirm_all", { ids: [a.id, b.id, b.id, gone.id, "mem_missing"] });
+  assert.equal(r.confirmed, 2, "each waiting note once; a forgotten or missing one is skipped");
+  for (const id of [a.id, b.id]) {
+    const note = env.core.store.memories.get(id);
+    assert.equal(note?.pending, false);
+    assert.equal(note?.tainted, false, "confirmed, it reads as the owner's word");
+  }
+  assert.equal(env.core.store.memories.get(gone.id)?.pending, true, "a forgotten note stays as it was");
+  assert.equal((await env.client.call("memory.confirm_all", { ids: [a.id] })).confirmed, 0, "already confirmed");
+  for (const id of [a.id, b.id, gone.id]) env.core.store.memories.remove(id);
+});
+
 test("a forgotten note leaves every turn, is not saved again by an agent, and the owner can bring it back", async () => {
   const note = env.core.store.memories.add({
     scope: "agent",
