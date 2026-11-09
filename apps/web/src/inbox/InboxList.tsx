@@ -93,6 +93,8 @@ export function InboxList() {
                 label={t("inbox.searchOpen")}
                 active={searching}
                 icon={<Icons.Search size={15} />}
+                // The field keeps focus on press: its blur would close an empty search and this click open it again.
+                onMouseDown={(e) => searching && e.preventDefault()}
                 onClick={() => (searching ? closeSearch() : setSearching(true))}
               />
               <InboxFilterMenu threads={allListed} />

@@ -24,6 +24,13 @@ test("search opens over the tabs without moving the list, and closes back to the
   await expect(inbox.getByRole("radiogroup", { name: "Mostrar" })).toBeVisible();
   await expect(inbox.getByText("Sin resultados")).toHaveCount(0);
 
+  // The magnifier closes it again, empty or not.
+  await inbox.getByRole("button", { name: "Buscar chats" }).click();
+  await expect(inbox.getByPlaceholder("Buscar chats")).toBeFocused();
+  await inbox.getByRole("button", { name: "Buscar chats" }).click();
+  await expect(inbox.getByRole("radiogroup", { name: "Mostrar" })).toBeVisible();
+  await expect(inbox.getByPlaceholder("Buscar chats")).toHaveCount(0);
+
   // An empty search closes once the field is left; the × closes one with words.
   await inbox.getByRole("button", { name: "Buscar chats" }).click();
   await inbox.locator(".inbox__title").click();
