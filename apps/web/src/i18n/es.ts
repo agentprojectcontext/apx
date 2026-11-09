@@ -232,6 +232,8 @@ export const es: Partial<Record<MessageKey, string>> = {
   "update.pillVersion": "APX {v} · Actualizar",
   "help.label": "Ayuda",
   "help.labelNew": "Ayuda · hay novedades",
+  "help.labelNewHint": "Ayuda · hay novedades. Abrir Todas las novedades las marca como vistas",
+  "help.moreUnread": "{n} más sin ver",
   "help.whatsNew": "Novedades",
   "help.unread": "Nueva",
   "help.changelog": "Todas las novedades",

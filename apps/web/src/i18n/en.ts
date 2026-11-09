@@ -243,6 +243,8 @@ export const en = {
   "update.pillVersion": "APX {v} · Update",
   "help.label": "Help",
   "help.labelNew": "Help · there is news",
+  "help.labelNewHint": "Help · there is news. Opening All the news marks it all as seen",
+  "help.moreUnread": "{n} more unread",
   "help.whatsNew": "What's new",
   "help.unread": "New",
   "help.changelog": "All the news",

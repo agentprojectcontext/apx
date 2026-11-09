@@ -42,9 +42,9 @@ export function isUnread(entry: NewsItem, entries: readonly NewsItem[], read: re
   return entry.since === byRelease(entries)[0]?.version;
 }
 
-/** Whether the Help button shows its dot: an entry is still unread. */
-export const hasFresh = (entries: readonly NewsItem[], read: readonly string[] | null): boolean =>
-  entries.some((e) => isUnread(e, entries, read));
+/** The entries still unread: the Help button keeps its dot while there is one. */
+export const unreadOf = (entries: readonly NewsItem[], read: readonly string[] | null): NewsItem[] =>
+  entries.filter((e) => isUnread(e, entries, read));
 
 /** What is read once `ids` are opened: what was read before (the older releases, the first time) and these. */
 export function withRead(

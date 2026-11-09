@@ -679,6 +679,19 @@
 .help__newsdot.is-unread {
   background: var(--apx-brand);
 }
+/* "All the news" with unread ones the menu has no line for: how many, in the dot's colour. */
+.help__all {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: 8px;
+}
+.help__more {
+  margin-left: auto;
+  color: var(--apx-brand);
+  font-size: 12px;
+  white-space: nowrap;
+}
 .help__dot {
   position: absolute;
   top: 9px;

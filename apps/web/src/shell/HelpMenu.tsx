@@ -2,7 +2,7 @@ import { Icons, Menu, type MenuEntry } from "@apx/ui";
 import { Suspense, useEffect } from "react";
 import { guidesUrl, LINKS, openLink } from "../data/links.ts";
 import { loadNews, openNews, useNews } from "../data/news.ts";
-import { hasFresh, isUnread, latest, words } from "../data/newsModel.ts";
+import { isUnread, latest, unreadOf, words } from "../data/newsModel.ts";
 import { useLanguage, useT } from "../i18n/index.ts";
 import { WhatsNewDialog } from "../lazy.ts";
 
@@ -13,19 +13,22 @@ export function HelpMenu({ rail }: { rail: boolean }) {
   const entries = useNews((s) => s.entries);
   const open = useNews((s) => s.open);
   const read = useNews((s) => s.read);
-  const fresh = entries ? hasFresh(entries, read) : false;
+  const unread = entries ? unreadOf(entries, read) : [];
+  const fresh = unread.length > 0;
   useEffect(() => void loadNews(), []);
 
   const recent = entries ? latest(entries) : [];
+  // Unread ones the menu has no line for: "All the news" says so, since opening it reads them all.
+  const more = unread.filter((e) => !recent.includes(e)).length;
   const items: MenuEntry[] = [
     ...(recent.length
       ? ([
           { type: "label", label: t("help.whatsNew") },
           ...recent.map((e) => {
-            const unread = Boolean(entries && isUnread(e, entries, read));
+            const isNew = Boolean(entries && isUnread(e, entries, read));
             return {
               // Unread ones carry a dot until opened; read ones keep its place, so the titles stay in line.
-              icon: unread ? (
+              icon: isNew ? (
                 <span className="help__newsdot is-unread" role="img" aria-label={t("help.unread")} />
               ) : (
                 <span className="help__newsdot" aria-hidden="true" />
@@ -35,7 +38,18 @@ export function HelpMenu({ rail }: { rail: boolean }) {
               onSelect: () => openNews(e.id),
             };
           }),
-          { label: t("help.changelog"), icon: <Icons.Gift />, onSelect: () => openNews() },
+          {
+            label: more ? (
+              <span className="help__all">
+                {t("help.changelog")}
+                <span className="help__more">{t("help.moreUnread", { n: more })}</span>
+              </span>
+            ) : (
+              t("help.changelog")
+            ),
+            icon: <Icons.Gift />,
+            onSelect: () => openNews(),
+          },
           { type: "separator" },
         ] satisfies MenuEntry[])
       : []),
@@ -56,7 +70,7 @@ export function HelpMenu({ rail }: { rail: boolean }) {
             type="button"
             className="help__btn"
             aria-label={fresh ? t("help.labelNew") : t("help.label")}
-            title={fresh ? t("help.labelNew") : t("help.label")}
+            title={fresh ? t("help.labelNewHint") : t("help.label")}
           >
             <Icons.CircleHelp size={16} />
             {fresh && <span className="help__dot" aria-hidden="true" />}
