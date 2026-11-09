@@ -3,7 +3,7 @@ title: "¿Un agente de IA local es privado? Qué revisar antes de conectar un mo
 description: "Entendé dónde corre un agente, qué sale de tu computadora y qué revisar antes de usar información sensible."
 lang: es
 slug: local-ai-agent-privacy
-draft: true
+draft: false
 published: "2026-11-08"
 image:
   src: ../../../assets/blog/local-ai-agent-privacy/hero.webp
@@ -35,7 +35,7 @@ Una aplicación puede consultar actualizaciones, enviar eventos de instalación 
 
 ## Qué documenta APX
 
-La [página de privacidad de APX](https://apxagent.app/es/docs/reference/privacy/) indica que la aplicación conserva chats, agentes, archivos y claves en la computadora. También documenta eventos del ciclo de instalación, informes agregados opcionales y formas de desactivar la telemetría. Señala que los mensajes y las respuestas de agentes no se envían en esos informes; eso es distinto de enviar un pedido a un proveedor de modelos o usar una integración. La [guía de modelos](https://apxagent.app/es/docs/concepts/models/) explica opciones alojadas y locales. Revisá tu configuración concreta y los términos del proveedor de destino.
+La [página de privacidad de APX](https://apxagent.app/es/docs/reference/privacy/) indica que la aplicación conserva chats, agentes, archivos y claves en la computadora. También documenta eventos del ciclo de instalación, informes agregados opcionales y sus controles. Señala que los mensajes y las respuestas de agentes no se envían en esos informes; eso es distinto de enviar un pedido a un proveedor de modelos o usar una integración. La [guía de modelos](https://apxagent.app/es/docs/concepts/models/) explica opciones alojadas y locales. Revisá tu configuración concreta y los términos del proveedor de destino.
 
 La [comparación entre APX y OpenClaw](https://apxagent.app/es/compare/openclaw/) describe ambos como opciones para ejecutar agentes en equipos propios, con opciones de modelos y enlaces a fuentes. Es una comparación de funciones, no una auditoría de privacidad. APX publica este artículo y tiene interés en la comparación.
 

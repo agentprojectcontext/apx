@@ -3,7 +3,7 @@ title: "Moving an AI agent to another computer: a backup checklist"
 description: "Plan an AI agent migration, check what a backup includes, and test the restore before relying on the new machine."
 lang: en
 slug: back-up-ai-agent-before-moving
-draft: true
+draft: false
 published: "2026-11-08"
 image:
   src: ../../../assets/blog/back-up-ai-agent-before-moving/hero.webp

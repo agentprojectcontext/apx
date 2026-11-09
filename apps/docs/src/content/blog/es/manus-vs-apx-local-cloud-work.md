@@ -3,7 +3,7 @@ title: "Manus vs. APX: ¿dónde trabaja tu agente de IA?"
 description: "Una comparación práctica de trabajo local y en la nube, límites de datos y pruebas antes de elegir."
 lang: es
 slug: manus-vs-apx-local-cloud-work
-draft: true
+draft: false
 published: "2026-11-08"
 image:
   src: ../../../assets/blog/manus-vs-apx-local-cloud-work/hero.webp

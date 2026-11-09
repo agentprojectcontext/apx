@@ -3,7 +3,7 @@ title: "OpenClaw vs APX: choosing how to organize agent work"
 description: "Compare project-centered work and agent routing, and run a practical trial before choosing an AI agent setup."
 lang: en
 slug: openclaw-vs-apx-project-workflows
-draft: true
+draft: false
 published: "2026-11-08"
 image:
   src: ../../../assets/blog/openclaw-vs-apx-project-workflows/hero.webp

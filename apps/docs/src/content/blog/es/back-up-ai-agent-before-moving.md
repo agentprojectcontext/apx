@@ -3,7 +3,7 @@ title: "Cómo mudar un agente de IA a otra computadora sin perder el contexto"
 description: "Prepará la migración de un agente, comprobá qué incluye la copia y probá la restauración antes de depender del equipo nuevo."
 lang: es
 slug: back-up-ai-agent-before-moving
-draft: true
+draft: false
 published: "2026-11-08"
 image:
   src: ../../../assets/blog/back-up-ai-agent-before-moving/hero.webp

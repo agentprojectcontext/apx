@@ -3,7 +3,7 @@ title: "OpenClaw vs. APX: cómo elegir dónde organizar el trabajo de tus agente
 description: "Compará la organización por proyectos y el enrutamiento de agentes, y hacé una prueba práctica antes de elegir."
 lang: es
 slug: openclaw-vs-apx-project-workflows
-draft: true
+draft: false
 published: "2026-11-08"
 image:
   src: ../../../assets/blog/openclaw-vs-apx-project-workflows/hero.webp

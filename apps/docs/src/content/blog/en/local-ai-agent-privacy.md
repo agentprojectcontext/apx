@@ -3,7 +3,7 @@ title: "Is a local AI agent private? What to check before connecting a model"
 description: "Understand where an AI agent runs, what leaves your computer and which settings to check before using sensitive material."
 lang: en
 slug: local-ai-agent-privacy
-draft: true
+draft: false
 published: "2026-11-08"
 image:
   src: ../../../assets/blog/local-ai-agent-privacy/hero.webp
@@ -35,7 +35,7 @@ An app may contact update services, send installation events or offer optional u
 
 ## What APX documents
 
-[APX's privacy page](https://apxagent.app/docs/reference/privacy/) says the app keeps chats, agents, files and keys on the computer. It also documents installation lifecycle events, optional aggregate usage reports and ways to disable telemetry. It says messages and agent output are not sent in those telemetry reports; that is separate from sending a request to a model provider or using an integration. The [models guide](https://apxagent.app/docs/concepts/models/) describes hosted and local choices. Check your actual configuration and the destination provider's terms.
+[APX's privacy page](https://apxagent.app/docs/reference/privacy/) says the app keeps chats, agents, files and keys on the computer. It also documents installation lifecycle events, optional aggregate usage reports and their controls. It says messages and agent output are not sent in those telemetry reports; that is separate from sending a request to a model provider or using an integration. The [models guide](https://apxagent.app/docs/concepts/models/) describes hosted and local choices. Check your actual configuration and the destination provider's terms.
 
 The [APX vs OpenClaw page](https://apxagent.app/compare/openclaw/) describes both as options for running agents on your own hardware, with model choices and source links. It is a feature comparison, not a privacy audit. APX publishes this article and has an interest in the comparison.
 

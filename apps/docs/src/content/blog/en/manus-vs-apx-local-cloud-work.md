@@ -3,7 +3,7 @@ title: "Manus vs APX: where does agent work happen?"
 description: "A practical comparison of local and cloud agent workflows, data boundaries and what to test before committing."
 lang: en
 slug: manus-vs-apx-local-cloud-work
-draft: true
+draft: false
 published: "2026-11-08"
 image:
   src: ../../../assets/blog/manus-vs-apx-local-cloud-work/hero.webp
