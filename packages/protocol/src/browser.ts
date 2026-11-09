@@ -31,7 +31,13 @@ export const TabInfo = z.object({
 export type TabInfo = z.infer<typeof TabInfo>;
 
 const Tab = z.string().min(1);
-const Ref = z.string().regex(/^e\d+$/);
+/** A page element from the last snapshot (e12), or the parts of a JavaScript dialog the page waits on. */
+export const BROWSER_REF = /^(e\d+|dialog-(ok|cancel|text))$/;
+const Ref = z.string().regex(BROWSER_REF);
+
+/** A page's own JavaScript dialog (alert, confirm, prompt, leave-page warning): the page stops until it is answered. */
+export const BrowserDialog = z.enum(["alert", "confirm", "prompt", "beforeunload"]);
+export type BrowserDialog = z.infer<typeof BrowserDialog>;
 const Url = z.string().url().max(4096);
 /** Who drives the tab; shown in the pill ("Roby is using this tab"). */
 const By = z.string().min(1).max(64).default("operator");
@@ -140,14 +146,23 @@ export const browserMethods = {
   },
   "browser.click": {
     params: z.object({ tab: Tab, ref: Ref, by: By }).strict(),
-    result: z.object({ ok: z.literal(true), url: z.string() }),
+    /** `dialog`: the click opened one, and the page waits for its answer. */
+    result: z.object({ ok: z.literal(true), url: z.string(), dialog: BrowserDialog.optional() }),
     effect: true,
   },
   "browser.type": {
     params: z
-      .object({ tab: Tab, ref: Ref, text: z.string().max(10_000), submit: z.boolean().default(false), by: By })
+      .object({
+        tab: Tab,
+        ref: Ref,
+        text: z.string().max(10_000),
+        submit: z.boolean().default(false),
+        by: By,
+        /** Type only if the page and the field's frame are served by this computer (DECISIONS.md#d-212). */
+        local_only: z.boolean().optional(),
+      })
       .strict(),
-    result: z.object({ ok: z.literal(true), url: z.string() }),
+    result: z.object({ ok: z.literal(true), url: z.string(), dialog: BrowserDialog.optional() }),
     effect: true,
   },
   "browser.approval_context": {

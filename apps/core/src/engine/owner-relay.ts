@@ -31,7 +31,7 @@ export type OwnerWords = {
   channel: { id: string; conversation: string; message?: string | undefined; person_id: string; name: string };
   text: string;
   attachments: Attachment[];
-  /** Said in a public room and handed on to Home (DECISIONS.md#d-212): where, and where Home's answers go meanwhile. */
+  /** Said in a public room and handed on to Home (DECISIONS.md#d-213): where, and where Home's answers go meanwhile. */
   room?: { where: string; reply_to?: { channel: string; conversation: string } };
 };
 

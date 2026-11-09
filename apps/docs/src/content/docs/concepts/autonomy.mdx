@@ -136,6 +136,9 @@ you (unless the agent is on `total`); the agent's own reads, edits and commands 
 
 - A URL with a query string, opened after outside content came in, asks first, so a page can't make an agent leak
   data through a link.
+- Typing into a page after outside content came in asks first too. In Auto it does not on a page your computer serves
+  (an agent checking its own app at `localhost:8127`), which a command could reach just as well. The browser checks
+  the page is still that one at the moment it types; APX's own address and your Chrome always count as elsewhere.
 - A note an agent saves while outside content is in the turn is marked **From outside content**. Agents read it as
   data, not as your word, until you edit it.
 - A summary of a long chat that held outside content stays marked as outside content.

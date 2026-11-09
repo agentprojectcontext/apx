@@ -1,7 +1,7 @@
 // A room's turn has no tools (D-041). When the owner asks there for something that needs them, the room's agent says it
 // is on its way and ends its answer with HANDOFF: APX takes that line out of what is posted and hands the owner's own
 // message (never the model's words, never a member's) to Home, where it gets done and answered in private.
-// See DECISIONS.md#d-212
+// See DECISIONS.md#d-213
 import { ownerActsOn } from "../domain/channels.ts";
 import type { RunRecord } from "../domain/runs.ts";
 import { HOME_THREAD_ID } from "../domain/seed.ts";

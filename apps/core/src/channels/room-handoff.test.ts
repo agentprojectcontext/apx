@@ -1,4 +1,4 @@
-// DECISIONS.md#d-212: a room's turn has no tools. When the owner asks there for something that needs them, the room
+// DECISIONS.md#d-213: a room's turn has no tools. When the owner asks there for something that needs them, the room
 // answer ends with HANDOFF: that line never reaches the room, and the owner's own message (never a member's) is done in
 // Home and answered in private.
 import assert from "node:assert/strict";
