@@ -3,6 +3,8 @@
 // menu-bar quick chat talks to the super-agent. Its data folder is a temp one (APX_DESKTOP_DATA; on a Mac the system
 // ignores HOME for it): the owner's APX, its sessions and its single-instance lock are never touched.
 import fs from "node:fs";
+import http from "node:http";
+import type { AddressInfo } from "node:net";
 import os from "node:os";
 import path from "node:path";
 import { _electron, type ElectronApplication, expect, type Page, test } from "@playwright/test";
@@ -237,6 +239,65 @@ test("the app lends its browser to the core, and a tab opened through the core i
     }),
   ).rejects.toThrow(/context|object|document/i);
   await rpc("browser.close", { tab });
+});
+
+test("an agent answers a page's confirm in the app's browser, and the app's own box for it closes", async () => {
+  await until(async () => {
+    const h = await rpc<{ subsystems: Record<string, { status: string; detail?: string }> }>("system.health");
+    return h.subsystems.browser?.status === "ok" && h.subsystems.browser.detail === "apx-desktop";
+  }, 20_000);
+  const site = http.createServer((_q, r) =>
+    r
+      .writeHead(200, { "content-type": "text/html" })
+      .end(
+        `<title>Team</title><p id="out">Nothing yet</p><button onclick="out.textContent = 'deleted: ' + confirm('Delete Acme for good?')">Delete</button>`,
+      ),
+  );
+  await new Promise<void>((r) => site.listen(0, "127.0.0.1", r));
+  // Electron shows the dialog with its own message box: the test sees each box and whether it was closed.
+  await app.evaluate(({ dialog }) => {
+    const shown: Array<{ message: string; signal?: AbortSignal }> = [];
+    const show = dialog.showMessageBox;
+    Object.assign(globalThis, { apxTestBoxes: shown, apxTestShowBox: show });
+    dialog.showMessageBox = function (this: unknown, ...args: unknown[]) {
+      shown.push(args.at(-1) as { message: string; signal?: AbortSignal });
+      return (show as (...a: unknown[]) => ReturnType<typeof show>).apply(this, args);
+    } as typeof show;
+  });
+  const boxes = () =>
+    app.evaluate(() =>
+      (globalThis as unknown as { apxTestBoxes: Array<{ message: string; signal?: AbortSignal }> }).apxTestBoxes.map(
+        (b) => ({ message: b.message, closed: Boolean(b.signal?.aborted) }),
+      ),
+    );
+  const url = `http://127.0.0.1:${(site.address() as AddressInfo).port}/`;
+  const { tab } = await rpc<{ tab: string }>("browser.open", { url, by: "e2e" });
+  try {
+    // Playwright, attached to every page of the app, dismisses a dialog nobody listens for: this one is the agent's.
+    const tabPage = await until(async () => app.windows().find((w) => w.url() === url));
+    tabPage.on("dialog", () => {});
+    const page = await rpc<{ tree: string }>("browser.snapshot", { tab });
+    const ref = /button "Delete" \[(e\d+)\]/.exec(page.tree)?.[1];
+    expect(ref, page.tree).toBeTruthy();
+    const clicked = await rpc<{ dialog?: string }>("browser.click", { tab, ref, by: "e2e" });
+    expect(clicked.dialog).toBe("confirm");
+    const asked = await rpc<{ tree: string }>("browser.snapshot", { tab });
+    expect(asked.tree).toContain('- dialog confirm "Delete Acme for good?"');
+    expect(asked.tree).toContain('button "OK" [dialog-ok]');
+    await expect.poll(boxes).toEqual([{ message: "Delete Acme for good?", closed: false }]);
+    await rpc("browser.click", { tab, ref: "dialog-ok", by: "e2e" });
+    await expect.poll(boxes).toEqual([{ message: "Delete Acme for good?", closed: true }]);
+    await expect
+      .poll(async () => (await rpc<{ text: string }>("browser.text", { tab })).text)
+      .toContain("deleted: true");
+  } finally {
+    await rpc("browser.close", { tab });
+    await app.evaluate(({ dialog }) => {
+      const g = globalThis as unknown as { apxTestShowBox: typeof dialog.showMessageBox };
+      dialog.showMessageBox = g.apxTestShowBox;
+    });
+    site.close();
+  }
 });
 
 /** Where the main window's browser tab is: its bounds, and whether it paints over the panel or sits behind it. */
