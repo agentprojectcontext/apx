@@ -40,7 +40,10 @@ async function lineAs(selfOwner: boolean): Promise<void> {
 async function openRooms(page: Page) {
   await open(page, "#view=channels");
   await page.getByRole("button", { name: "Configuración de WhatsApp" }).click();
-  await page.getByRole("button", { name: "Salas" }).click();
+  // The part of the account's own dialog: the screen behind it may have a "Salas" too (Discord's rooms).
+  const dialog = page.getByRole("dialog", { name: "WhatsApp" });
+  await dialog.getByRole("button", { name: /^Salas/ }).click();
+  await expect(dialog.getByRole("heading", { name: "Salas" })).toBeVisible();
 }
 const save = (page: Page) => page.getByRole("button", { name: /^Guardar (⌘|Ctrl)/ }).click();
 
