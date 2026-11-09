@@ -4377,6 +4377,12 @@ task", next to "your final answer goes back to them") and a review all came as a
   the like leave the file as it is, and a program whose paths are all known changes it only where it writes there
   (`cp AGENTS.md /tmp/x` reads it). A program the path analysis cannot follow (`python3 fix.py AGENTS.md`) still asks.
 
+- **Git follows what was asked, in the prompt, not a gate** (`GIT_ASKED`, told to whoever can change files): commit,
+  pull, merge or push only when the owner or the task asked, or a project rule or note says how (web straight to
+  main, a tag from staging to main after preflight and verify); else one `ask_owner`. The shell's own levels are
+  unchanged (a plain push follows the owner's publish setting; a force push, a tag or a release always asks). The
+  realistic owner's system budget rises to 8,150 for it (`rules/PROMPT_SIZE.md`).
+
 Apart from these narrower command asks, none of this changes a permission, an approval, a hard step or a spend
 limit: what waits for the owner still does.
 
