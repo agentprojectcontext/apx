@@ -1356,6 +1356,9 @@ export const es: Partial<Record<MessageKey, string>> = {
   "memory.notebookOf": "Cuaderno de {name}",
   "memory.byYou": "Escrita por vos",
   "memory.byAgent": "Un agente",
+  "memory.fromV1": "Traída de APX v1",
+  "memory.fromV1Hint":
+    "Vino con lo que importaste de la versión anterior. Puede estar vieja: tus agentes la usan sólo cuando viene al caso y pueden corregirla. Editala para darla por buena.",
   "memory.edit": "Editar nota",
   "memory.remove": "Quitar nota",
   "error.memory": "Memoria: {error}",

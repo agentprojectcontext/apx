@@ -14,8 +14,11 @@ const SCOPE = z
 
 const MEMORY_BLOCK_CHARS = 2400;
 
+const by = (m: Memory) =>
+  m.source === "owner" ? ", by the owner" : m.source === "imported" ? ", from APX v1, may be outdated" : "";
+
 const line = (m: Memory) =>
-  `- [${m.id}] (${m.scope}${m.source === "owner" ? ", by the owner" : m.pending ? ", not confirmed by the owner" : ""}; updated ${m.updated_at}) ${m.text.replace(/\s+/g, " ")}`;
+  `- [${m.id}] (${m.scope}${by(m) || (m.pending ? ", not confirmed by the owner" : "")}; updated ${m.updated_at}) ${m.text.replace(/\s+/g, " ")}`;
 
 /**
  * Notes as the model reads them, capped. A note saved while outside content was in the turn is wrapped as untrusted,
@@ -24,7 +27,7 @@ const line = (m: Memory) =>
 /** One line per note for the index: what it is about, not all it says (recall brings the rest). */
 export function hookLine(m: Memory): string {
   const first = m.text.split("\n")[0] ?? "";
-  const head = `- [${m.id}] (${m.kind ?? "note"}${m.source === "owner" ? ", by the owner" : ""}, ${m.updated_at.slice(0, 10)}) `;
+  const head = `- [${m.id}] (${m.kind ?? "note"}${by(m)}, ${m.updated_at.slice(0, 10)}) `;
   const hook = (m.kind === "procedure" ? procedureHook(m.text) : undefined) ?? first.replace(/\s+/g, " ").trim();
   return `${head}${hook.length > 96 ? `${hook.slice(0, 95)}…` : hook}`;
 }

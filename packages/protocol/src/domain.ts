@@ -920,7 +920,8 @@ export const Memory = z.object({
   /** `procedure`: how the agent did something that worked, kept as history (never as an instruction). */
   kind: z.enum(["user", "feedback", "project", "reference", "procedure"]).optional(),
   evidence: z.array(MemoryEvidence).optional(),
-  source: z.enum(["owner", "agent"]),
+  /** `imported`: brought over from APX v1, neither the owner's word nor checked by an agent since. */
+  source: z.enum(["owner", "agent", "imported"]),
   /** The agent that wrote it, and the thread and run it learned it in. */
   author_agent: Id.optional(),
   thread_id: Id.optional(),

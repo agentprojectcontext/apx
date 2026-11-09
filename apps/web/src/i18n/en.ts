@@ -1361,6 +1361,9 @@ export const en = {
   "memory.notebookOf": "{name}'s notebook",
   "memory.byYou": "By you",
   "memory.byAgent": "An agent",
+  "memory.fromV1": "Brought over from APX v1",
+  "memory.fromV1Hint":
+    "It came with what you imported from the previous version. It may be out of date: your agents use it only when it comes up and may correct it. Edit it to vouch for it.",
   "memory.edit": "Edit note",
   "memory.remove": "Remove note",
   "error.memory": "Memory: {error}",

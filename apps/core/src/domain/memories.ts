@@ -16,7 +16,7 @@ const toMemory = (r: Selectable<MemoriesTable>): Memory => ({
   revision: r.revision,
   ...(r.kind ? { kind: r.kind as NonNullable<Memory["kind"]> } : {}),
   ...(r.evidence ? { evidence: JSON.parse(r.evidence) as MemoryEvidence[] } : {}),
-  source: r.source === "owner" ? "owner" : "agent",
+  source: r.source === "owner" || r.source === "imported" ? r.source : "agent",
   ...opt("author_agent", r.author_agent),
   ...opt("thread_id", r.thread_id),
   ...opt("run_id", r.run_id),
@@ -98,6 +98,8 @@ type Filters = {
   pending?: boolean | undefined;
   /** The forgotten notes instead of the live ones (the owner's list, to bring one back). */
   forgotten?: boolean | undefined;
+  /** Only notes from these sources. */
+  sources?: Memory["source"][] | undefined;
 };
 
 /** The notes a view may see, narrowed by the given filters. */
@@ -122,6 +124,7 @@ function visibleWhere(f: Filters) {
     if (f.agent_id) conds.push(eb("memories.agent_id", "=", f.agent_id));
     if (f.exclude?.length) conds.push(eb("memories.id", "not in", f.exclude));
     if (f.pending !== undefined) conds.push(eb("memories.pending", "=", f.pending ? 1 : 0));
+    if (f.sources) conds.push(eb("memories.source", "in", f.sources));
     conds.push(eb("memories.forgotten_at", f.forgotten ? "is not" : "is", null));
     return eb.and(conds);
   };
@@ -268,7 +271,7 @@ export function memoriesRepo({ one, all, run, tx }: Sql) {
       project_id?: string | undefined;
       agent_id?: string | undefined;
       text: string;
-      source: "owner" | "agent";
+      source: Memory["source"];
       author_agent?: string | undefined;
       thread_id?: string | undefined;
       run_id?: string | undefined;
@@ -317,6 +320,8 @@ export function memoriesRepo({ one, all, run, tx }: Sql) {
         evidence?: MemoryEvidence[];
         kind?: Memory["kind"];
         provenance?: { thread_id: string; run_id: string; author_agent: string };
+        /** Who now vouches for the text: the owner, once they edit a note brought over from v1. */
+        source?: Memory["source"];
       },
     ): Memory | undefined {
       return tx(() => {
@@ -335,6 +340,7 @@ export function memoriesRepo({ one, all, run, tx }: Sql) {
               ...(o.evidence ? { evidence: JSON.stringify(o.evidence) } : {}),
               ...(o.kind ? { kind: o.kind } : {}),
               ...(o.provenance ?? {}),
+              ...(o.source ? { source: o.source } : {}),
               tainted: o.tainted ? 1 : 0,
               pending: o.pending ? 1 : 0,
               updated_at: now(),
@@ -348,10 +354,35 @@ export function memoriesRepo({ one, all, run, tx }: Sql) {
         return saved;
       });
     },
+    /**
+     * Marks the owner's notes whose text is one APX v1 had, or starts with `prefix`, as brought over from v1. Notes
+     * with a chat, run or author came from v2 and stay as they are. Returns how many changed.
+     */
+    markImported(texts: ReadonlySet<string>, prefix: string): number {
+      const owners = () =>
+        qb
+          .updateTable("memories")
+          .set({ source: "imported" })
+          .where("source", "=", "owner")
+          .where("thread_id", "is", null)
+          .where("run_id", "is", null)
+          .where("author_agent", "is", null);
+      let changed = run(owners().where(raw<string>`substr(text, 1, ${prefix.length})`, "=", prefix));
+      const list = [...texts];
+      for (let i = 0; i < list.length; i += 400) changed += run(owners().where("text", "in", list.slice(i, i + 400)));
+      return changed;
+    },
     /** The owner confirms a note an agent wrote about them: from now on it stands like their own. */
     confirm(id: string): Memory | undefined {
       const note = repo.get(id);
-      return note ? repo.edit(id, note.text, { pending: false, tainted: false, reason: "confirmed" }) : undefined;
+      return note
+        ? repo.edit(id, note.text, {
+            pending: false,
+            tainted: false,
+            reason: "confirmed",
+            ...(note.source === "imported" ? { source: "owner" as const } : {}),
+          })
+        : undefined;
     },
     /** Out of every turn and search, but kept: the owner can bring it back (or delete it for good). */
     forget(id: string): boolean {

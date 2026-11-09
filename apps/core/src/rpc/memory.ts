@@ -126,6 +126,7 @@ export function memoryHandlers(store: Store, index: MemoryIndex, maintenance?: M
         const edited = store.memories.edit(id, text, {
           tainted: view ? (tainted ?? true) : false,
           pending: view ? m.scope === "global" : false,
+          ...(!view && m.source === "imported" ? { source: "owner" as const } : {}),
           ...(expected_revision !== undefined ? { expectedRevision: expected_revision } : {}),
           ...(kind ? { kind } : {}),
           ...(evidence ? { evidence } : text !== m.text || !view ? { evidence: [] } : {}),
