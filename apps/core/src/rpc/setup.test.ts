@@ -438,7 +438,7 @@ test("importing channels brings v1's WhatsApp: whose phone the line is, the owne
       relation: "provider",
       note: "Buys our coffee.",
       muted: false,
-      perms: { appointments: false, requests: true, notes: true },
+      perms: { requests: true, notes: true },
     },
   );
   assert.match(buyer?.rules ?? "", /Be brief\.[\s\S]*We open at 9\./);

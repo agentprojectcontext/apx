@@ -154,7 +154,7 @@ export const enChannels = {
   "ch.rules": "Rules",
   "ch.rulesHint": "They go last in the prompt, so they win over the agent's caution.",
   "ch.may": "What this conversation may do",
-  "ch.perm.appointments": "Take appointment requests",
+  "ch.perm.appointments": "Note appointments",
   "ch.perm.appointmentsHint":
     "When they ask for an appointment (a day and time), it is noted as a task for you to confirm, and you are told on your channel right away. Nothing is booked.",
   "ch.perm.requests": "Take requests",
@@ -381,4 +381,16 @@ export const enChannels = {
     "Its sign-in is removed and nobody answers there any more. Its chats stay in APX; to use it again, connect it again.",
   "acct.pane.stickers": "Stickers and emoji",
   "acct.lead.stickers": "How it answers without words on this account.",
+  "ch.right.account": "Account: {value}",
+  "ch.right.yes": "Yes",
+  "ch.right.no": "No",
+  "acct.contactsDefault": "For your contacts, by default",
+  "acct.contactsDefaultHint": "What every contact of this account gets unless you set it on their card.",
+  "acct.ownerOnly": "Only answers you",
+  "acct.ownerOnlyHint": "Your contacts' and rooms' messages are kept, but only you get answers.",
+  "acct.knowledge": "What it knows and can answer",
+  "acct.knowledgeHint":
+    "Your notes for everyone who writes to this account: what the business is, where to point them. Rooms add their own.",
+  "acct.rules": "Rules",
+  "acct.rulesHint": "What it must never say here. They go last; a contact's or a room's own rules go after and win.",
 } as const;

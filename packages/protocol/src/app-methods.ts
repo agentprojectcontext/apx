@@ -43,6 +43,7 @@ import {
   PairingRequest,
   PendingInput,
   Person,
+  PersonPerms,
   PersonRelation,
   PersonRole,
   Project,
@@ -1119,6 +1120,10 @@ export const appMethods = {
             research: ChannelResearch.default(CHANNEL_DEFAULTS.research),
             hours: ChannelHours.optional(),
             email: ChannelEmail.optional(),
+            contacts: PersonPerms.optional(),
+            knowledge: z.string().max(12_000).optional(),
+            rules: z.string().max(2000).optional(),
+            owner_only: z.boolean().optional(),
           })
           .nullable(),
         // A Google service account key travels whole (about 2.3 KB).
@@ -1507,10 +1512,14 @@ export const appMethods = {
         rules: z.string().max(1000).optional(),
         muted: z.boolean().optional(),
         supervised: z.boolean().optional(),
-        any_hour: z.boolean().optional(),
-        // Only the flags sent change (PersonPerms' defaults would reset the others).
+        // Only the rights sent change; null gives one back to the account they write on.
         perms: z
-          .object({ appointments: z.boolean(), requests: z.boolean(), notes: z.boolean() })
+          .object({
+            appointments: z.boolean().nullable(),
+            requests: z.boolean().nullable(),
+            notes: z.boolean().nullable(),
+            any_hour: z.boolean().nullable(),
+          })
           .partial()
           .strict()
           .optional(),

@@ -1,4 +1,4 @@
-import type { EmailSignatureEntry, Params, Result } from "../../packages/protocol/src/index.ts";
+import type { EmailSignatureEntry, Result } from "../../packages/protocol/src/index.ts";
 import { expect, open, openSettings, rpc, test } from "./kit.ts";
 
 test("the personal default signature can be edited without connecting an account", async ({ page }) => {
@@ -157,28 +157,24 @@ test("SMTP account signatures stay isolated across mailbox selection and reload"
     let added = await newMailbox();
     await expect(added.getByLabel("Dirección", { exact: true })).toBeVisible();
     await added.getByRole("button", { name: "Cancelar", exact: true }).click();
-    await page.route("**/rpc/channels.set", async (route) => {
-      const params = route.request().postDataJSON() as Params<"channels.set">;
-      expect(params.channel?.type).toBe("email");
-      expect(params.id).not.toBe("email");
-      expect(params.id).not.toBe("signature-mail");
-      addedId = params.id;
-      const result = await rpc("channels.set", { ...params, channel: { ...params.channel, enabled: false } });
-      await route.fulfill({ json: { ok: true, result } });
-    });
+    // The core makes the new mailbox and names its id: never "email" nor another mailbox's.
+    const made = page.waitForResponse("**/rpc/channels.add");
     added = await newMailbox();
     await added.getByLabel("Dirección", { exact: true }).fill("new@example.com");
     await added.getByLabel("Correo entrante (IMAP) · Servidor", { exact: true }).fill("127.0.0.1");
     await added.getByLabel("Correo saliente (SMTP) · Servidor", { exact: true }).fill("127.0.0.1");
     await added.getByLabel("Contraseña de aplicación", { exact: true }).fill("test-only-password");
     await added.getByRole("button", { name: "Conectar", exact: true }).click();
+    const response = (await (await made).json()) as { result: { id: string } };
+    addedId = response.result.id;
+    expect(addedId).not.toBe("email");
+    expect(addedId).not.toBe("signature-mail");
     await expect
       .poll(
         async () =>
           (await rpc<Result<"channels.list">>("channels.list")).channels.find((c) => c.id === addedId)?.email?.address,
       )
       .toBe("new@example.com");
-    await page.unroute("**/rpc/channels.set");
     await page.reload();
     await page.getByRole("button", { name: "Configuración de Signature mailbox" }).click();
     await expect(dialog.getByText("Firmas de email", { exact: true })).toBeVisible();

@@ -196,7 +196,12 @@ export function ChannelScreen() {
             onBack={() => go.channel(channel.id, undefined)}
           />
           {card && current.person && (
-            <ContactPanel key={current.person.id} person={current.person} onClose={() => setCard(false)} />
+            <ContactPanel
+              key={current.person.id}
+              person={current.person}
+              account={channel.id}
+              onClose={() => setCard(false)}
+            />
           )}
         </>
       ) : (

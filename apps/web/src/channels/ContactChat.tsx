@@ -28,7 +28,9 @@ export function ContactChat({ thread }: { thread: Thread }) {
         onToggleCard={() => setCard((c) => !c)}
         onBack={go.showList}
       />
-      {card && person && <ContactPanel key={person.id} person={person} onClose={() => setCard(false)} />}
+      {card && person && (
+        <ContactPanel key={person.id} person={person} account={channel.id} onClose={() => setCard(false)} />
+      )}
     </section>
   );
 }

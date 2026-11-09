@@ -1227,4 +1227,15 @@ export const MIGRATIONS: readonly string[] = [
   `,
   // An account's activity reads only its own sends (channels.outbox with a channel).
   `CREATE INDEX outbox_channel_created ON outbox(channel, created_at);`,
+  `
+  -- A person keeps only the contact rights the owner turned on for them; the rest follow the account they write on
+  -- (ChannelInfo.contacts, D-205). Answered at any hour joins them there.
+  UPDATE persons SET perms = (
+    SELECT json_group_object(key, json('true')) FROM (
+      SELECT key FROM json_each(CASE WHEN json_valid(persons.perms) THEN persons.perms ELSE '{}' END) WHERE value = 1
+      UNION ALL SELECT 'any_hour' WHERE persons.any_hour = 1
+    )
+  );
+  ALTER TABLE persons DROP COLUMN any_hour;
+  `,
 ];

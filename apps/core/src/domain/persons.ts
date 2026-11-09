@@ -17,13 +17,23 @@ const toAddress = (r: Selectable<AddressesTable>): Address => ({
   ...opt("label", r.label),
 });
 
-/** Stored flags, anything unreadable meaning "off". */
+/** The rights the owner set for them; anything unreadable meaning none (they follow the account). */
 function permsOf(text: string | null): PersonPerms {
   try {
     return PersonPerms.parse(JSON.parse(text ?? "{}"));
   } catch {
-    return { appointments: false, requests: false, notes: false };
+    return {};
   }
+}
+
+/** The rights set after a change: a value sets one, null gives it back to the account, undefined keeps it. */
+function permsAfter(cur: PersonPerms, change: PersonDetails["perms"]): PersonPerms {
+  const next: Record<string, boolean> = { ...cur };
+  for (const [k, v] of Object.entries(change ?? {})) {
+    if (v === null) delete next[k];
+    else if (v !== undefined) next[k] = v;
+  }
+  return next;
 }
 
 /** What the owner may change about a person besides name and role. */
@@ -34,11 +44,23 @@ export type PersonDetails = {
   rules?: string | undefined;
   muted?: boolean | undefined;
   supervised?: boolean | undefined;
-  any_hour?: boolean | undefined;
-  perms?: Partial<PersonPerms> | undefined;
+  perms?: { [K in keyof PersonPerms]?: boolean | null | undefined } | undefined;
 };
 
-type Decision = Pick<Person, "role" | "muted" | "supervised" | "any_hour" | "unreviewed" | "perms">;
+type Decision = Pick<Person, "role" | "muted" | "supervised" | "unreviewed" | "perms">;
+
+/**
+ * The stricter of two people's own rights: off when either set it off, on only when both set it on, else unset (it
+ * follows the account, as it did for the one that never set it).
+ */
+function stricterRights(a: PersonPerms, b: PersonPerms): PersonPerms {
+  const out: PersonPerms = {};
+  for (const k of ["appointments", "requests", "notes", "any_hour"] as const) {
+    if (a[k] === false || b[k] === false) out[k] = false;
+    else if (a[k] === true && b[k] === true) out[k] = true;
+  }
+  return out;
+}
 
 /**
  * How one person known as two is answered: what the owner decided about either (a stranger's defaults are no
@@ -55,13 +77,8 @@ function stricter(a: Person, b: Person): Decision {
     muted,
     // Silenced and supervised exclude each other: silenced answers less.
     supervised: !muted && (first.supervised || second.supervised),
-    any_hour: first.any_hour && second.any_hour,
     unreviewed: false,
-    perms: {
-      appointments: first.perms.appointments && second.perms.appointments,
-      requests: first.perms.requests && second.perms.requests,
-      notes: first.perms.notes && second.perms.notes,
-    },
+    perms: stricterRights(first.perms, second.perms),
   };
 }
 
@@ -81,7 +98,6 @@ export function personsRepo({ one, all, run, tx }: Sql) {
       muted: r.muted === 1,
       unreviewed: r.unreviewed === 1,
       supervised: r.supervised === 1,
-      any_hour: r.any_hour === 1,
       perms: permsOf(r.perms),
       addresses: addressesOf(r.id),
       created_at: r.created_at,
@@ -156,11 +172,10 @@ export function personsRepo({ one, all, run, tx }: Sql) {
             rules: text(p.rules, cur.rules),
             muted: muted ? 1 : 0,
             supervised: supervised ? 1 : 0,
-            any_hour: (p.any_hour ?? cur.any_hour) ? 1 : 0,
             // Deciding whether they are answered (or who they are) is the owner's review.
             unreviewed:
               cur.unreviewed && p.muted === undefined && p.supervised === undefined && p.role === undefined ? 1 : 0,
-            perms: JSON.stringify({ ...cur.perms, ...(p.perms ?? {}) }),
+            perms: JSON.stringify(permsAfter(cur.perms, p.perms)),
             updated_at: now(),
           })
           .where("id", "=", id),
@@ -276,7 +291,6 @@ export function personsRepo({ one, all, run, tx }: Sql) {
                     role: decided.role,
                     muted: decided.muted ? 1 : 0,
                     supervised: decided.supervised ? 1 : 0,
-                    any_hour: decided.any_hour ? 1 : 0,
                     unreviewed: decided.unreviewed ? 1 : 0,
                     perms: JSON.stringify(decided.perms),
                   }),

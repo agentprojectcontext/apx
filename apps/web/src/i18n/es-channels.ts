@@ -158,9 +158,9 @@ export const esChannels: Partial<Record<MessageKey, string>> = {
   "ch.rules": "Reglas",
   "ch.rulesHint": "Va último en el prompt, así que le gana a la cautela del agente.",
   "ch.may": "Qué puede hacer esta conversación",
-  "ch.perm.appointments": "Tomar pedidos de turno",
+  "ch.perm.appointments": "Anotar citas",
   "ch.perm.appointmentsHint":
-    "Cuando pide un turno (día y hora), queda como tarea para que lo confirmes y te aviso por tu canal en el momento. No reserva nada.",
+    "Cuando pide una cita (día y hora), queda anotada como tarea para que la confirmes y te aviso por tu canal en el momento. No agenda nada.",
   "ch.perm.requests": "Tomar pedidos",
   "ch.perm.requestsHint":
     "Cuando pide algo que solo vos podés hacer (una compra, un favor, llamar a alguien), queda como tarea y te aviso en el momento. Tu agente nunca lo hace por vos.",
@@ -399,4 +399,17 @@ export const esChannels: Partial<Record<MessageKey, string>> = {
     "Se borra su sesión y nadie responde más ahí. Sus conversaciones quedan en APX; para usarla de nuevo, volvés a conectarla.",
   "acct.pane.stickers": "Stickers y emojis",
   "acct.lead.stickers": "Cómo responde sin palabras en esta cuenta.",
+  "ch.right.account": "Cuenta: {value}",
+  "ch.right.yes": "Sí",
+  "ch.right.no": "No",
+  "acct.contactsDefault": "Para tus contactos, por defecto",
+  "acct.contactsDefaultHint": "Lo que recibe cada contacto de esta cuenta, salvo que lo cambies en su ficha.",
+  "acct.ownerOnly": "Solo te contesta a vos",
+  "acct.ownerOnlyHint": "Los mensajes de tus contactos y salas se guardan, pero solo te responde a vos.",
+  "acct.knowledge": "Lo que sabe y puede responder",
+  "acct.knowledgeHint":
+    "Tus notas para todos los que escriben a esta cuenta: qué es el negocio, adónde mandarlos. Las salas suman las suyas.",
+  "acct.rules": "Reglas",
+  "acct.rulesHint":
+    "Lo que nunca debe decir acá. Van al final; las reglas propias de un contacto o de una sala van después y ganan.",
 };

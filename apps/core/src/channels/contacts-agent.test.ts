@@ -228,3 +228,43 @@ test("a Flow's message to a contact reads as the agent that answers that contact
   const said = env.core.store.messages.list(sent.thread).find((m) => m.author.kind === "agent");
   assert.equal(said?.author.kind === "agent" && said.author.id, env.helper);
 });
+
+test("notices for the owner go out only on an account the super-agent answers", async (t) => {
+  const env = await setup(t);
+  const dir = tempDir("apx-notice-");
+  t.after(() => dir.remove());
+  fs.writeFileSync(path.join(dir.path, "AGENTS.md"), "# Acme\n");
+  const { project } = await env.client.call("projects.register", { path: dir.path, init: true });
+  const head = await env.client.call("agents.create", { project_id: project.id, slug: "acme-head", name: "Head" });
+  const sent = () =>
+    env.core.store.channels.outbox.recent(50).filter((o) => o.channel === "tg" && o.text === "Routine news").length;
+
+  await env.client.call("channels.set", {
+    id: "tg",
+    channel: { type: "telegram", agent_id: head.id, owner_thread: "own" },
+    token: TOKEN,
+  });
+  assert.equal(env.core.channels.notifyOwner({ text: "Routine news" }), false, "a head's account is not a notice line");
+  assert.equal(sent(), 0);
+
+  await env.client.call("channels.set", {
+    id: "tg",
+    channel: { type: "telegram", agent_id: "superagent", owner_thread: "home" },
+    token: TOKEN,
+  });
+  assert.equal(env.core.channels.notifyOwner({ text: "Routine news" }), true);
+  assert.equal(sent(), 1);
+});
+
+test("an account keeps what its contacts may do by default across saves", async (t) => {
+  const env = await setup(t);
+  const set = (contacts?: { requests?: boolean; any_hour?: boolean }) =>
+    env.client.call("channels.set", {
+      id: "tg",
+      channel: { type: "telegram", agent_id: "superagent", ...(contacts ? { contacts } : {}) },
+      token: TOKEN,
+    });
+  await set({ requests: true, any_hour: true });
+  const saved = (await env.client.call("channels.list", {})).channels.find((c) => c.id === "tg");
+  assert.deepEqual(saved?.contacts, { requests: true, any_hour: true });
+});
