@@ -155,6 +155,8 @@ export const enChat = {
   "mail.from": "From",
   "mail.date": "Date",
   "mail.noSubject": "No subject",
+  "mail.imagesOff": "Pictures are hidden: showing them can tell the sender you opened it.",
+  "mail.showImages": "Show pictures",
   "mail.send": "Send",
   "mail.sendWith": "Send with",
   "mail.sendingIn": "Sending in {n} s",

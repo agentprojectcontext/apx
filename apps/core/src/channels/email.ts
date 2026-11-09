@@ -8,7 +8,7 @@ import type { ChannelEmail } from "@apx/protocol";
 import { type EmailSignature, renderEmailDraft, withEmailSignature } from "../domain/email-signature.ts";
 import { errorMessage } from "../errors.ts";
 import { Imap, ImapRefused } from "./email-imap.ts";
-import { decodeWords, header, messageIds, parseAddress, parseMail, stripQuoted } from "./email-mime.ts";
+import { decodeWords, header, mailHtml, messageIds, parseAddress, parseMail, stripQuoted } from "./email-mime.ts";
 import { composeMail, isAuthRefusal, smtpCheck, smtpSend } from "./email-smtp.ts";
 import { type Endpoint, isLoopback } from "./email-socket.ts";
 import { numberedOptions, sleep } from "./net.ts";
@@ -191,6 +191,7 @@ export function emailAdapter(
     if (fresh && subject) text = `[subject: ${subject}]\n${text}`;
 
     const sender = { id: from.address, name: from.name ? `${from.name} (${from.address})` : from.address };
+    const shownAs = mailHtml(m.html);
     const picked = options.pick(from.address, stripQuoted(m.text));
     io.receive({
       // The Message-ID dedupes a mail read again (another UID, the mailbox rebuilt); the UID when it has none.
@@ -201,6 +202,7 @@ export function emailAdapter(
       private: true,
       ...(picked ? { action: picked } : {}),
       ...(files.length ? { files } : {}),
+      ...(shownAs ? { html: shownAs } : {}),
     });
   }
 

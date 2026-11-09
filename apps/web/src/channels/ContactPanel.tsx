@@ -2,7 +2,7 @@ import type { Person } from "@apx/protocol";
 import { PERSON_RELATIONS } from "@apx/protocol/client";
 import { Button, Help, IconButton, Icons, Input, SegmentedControl, Select, Textarea, Tooltip } from "@apx/ui";
 import { useState } from "react";
-import { claimAddress, saveContact, useChannels } from "../data/channels.ts";
+import { claimAddress, neverRead, saveContact, useChannels } from "../data/channels.ts";
 import { notify } from "../data/notices.ts";
 import { type MessageKey, useT } from "../i18n/index.ts";
 import { RELATION_KEY } from "./people.ts";
@@ -37,6 +37,7 @@ export function ContactPanel({
 }) {
   const t = useT();
   const defaults = useChannels((s) => s.channels.find((c) => c.id === account)?.contacts);
+  const mailbox = useChannels((s) => s.channels.find((c) => c.id === account)?.type === "email");
   const [d, setD] = useState({
     name: person.name,
     nickname: person.nickname ?? "",
@@ -132,6 +133,7 @@ export function ContactPanel({
             ]}
           />
         </div>
+        {mailbox && <NeverRead person={person} account={account} onDone={onClose} />}
         <div className="pform__field">
           <span className="pform__label">{t("ch.who.is")}</span>
           <Textarea
@@ -201,6 +203,43 @@ export function ContactPanel({
         </Tooltip>
       </footer>
     </aside>
+  );
+}
+
+/** On an email account: stop reading this sender, or everyone at their domain (a service's notices). */
+function NeverRead({ person, account, onDone }: { person: Person; account: string; onDone(): void }) {
+  const t = useT();
+  const address = person.addresses.find((a) => a.channel === account)?.external_id ?? "";
+  const domain = address.split("@")[1];
+  const stop = async (scope: "address" | "domain") => {
+    if (await neverRead(person.id, account, scope)) onDone();
+  };
+  if (!address || person.role === "owner") return null;
+  return (
+    <div className="pform__field">
+      <span className="pform__label">{t("ch.neverRead")}</span>
+      <div className="chan__neverread">
+        <Button
+          size="sm"
+          variant="secondary"
+          leadingIcon={<Icons.BellOff size={14} />}
+          onClick={() => void stop("address")}
+        >
+          {address}
+        </Button>
+        {domain && (
+          <Button
+            size="sm"
+            variant="secondary"
+            leadingIcon={<Icons.BellOff size={14} />}
+            onClick={() => void stop("domain")}
+          >
+            {t("ch.neverReadDomain", { domain })}
+          </Button>
+        )}
+      </div>
+      <span className="pform__hint">{t("ch.neverReadHint")}</span>
+    </div>
   );
 }
 

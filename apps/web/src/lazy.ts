@@ -177,6 +177,10 @@ export const MermaidDiagram = lazy(() =>
   import("./chat/MermaidDiagram.tsx").then((m) => ({ default: m.MermaidDiagram })),
 );
 export const EmailCard = lazy(() => import("./chat/EmailCard.tsx").then((m) => ({ default: m.EmailCard })));
+// A received mail's formatted body loads the first time an Email account's chat shows one.
+export const ReceivedMail = lazy(() =>
+  import("./channels/ReceivedMail.tsx").then((m) => ({ default: m.ReceivedMail })),
+);
 export const ReceivedDialog = lazy(() =>
   import("./chat/ReceivedDialog.tsx").then((m) => ({ default: m.ReceivedDialog })),
 );

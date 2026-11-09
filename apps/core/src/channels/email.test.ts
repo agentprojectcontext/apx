@@ -395,6 +395,55 @@ describe("the email channel", () => {
     assert.equal(llm.calls.length, calls + 2);
   });
 
+  test("a mail's HTML is kept, made safe, beside its words in the chat; the agent reads only the words", async () => {
+    const calls = llm.calls.length;
+    const html =
+      '<p onclick="steal()">Hi <b>there</b></p><script>alert(1)</script><a href="javascript:alert(2)">x</a><img src="https://track.example/p.gif">';
+    imap.deliver(mail({ from: OWNER, to: USER, subject: "Re: Hello", text: "formatted hello", html }).raw);
+    await waitFor(() => to("owner@example.org").some((m) => m.text.includes("You said: formatted hello")), "answer");
+    const thread = env.core.store.threads.byConversation("email", "owner@example.org");
+    const kept = env.core.store.messages
+      .list(thread?.id ?? "")
+      .find((m) => m.parts.some((p) => p.type === "text" && p.text.includes("formatted hello")));
+    const file = kept?.parts.find((p) => p.type === "file" && p.mime === "text/html");
+    assert.ok(file && file.type === "file", JSON.stringify(kept?.parts));
+    const shown = Buffer.from((await env.client.call("media.get", { id: file.media_id })).data, "base64").toString();
+    assert.match(shown, /<b>there<\/b>/);
+    assert.match(shown, /track\.example/, "remote images stay, for the app to show only when asked");
+    assert.doesNotMatch(shown, /script|onclick|javascript:/i);
+    const read = JSON.stringify(llm.calls.slice(calls));
+    assert.ok(read.includes("formatted hello") && !read.includes("<b>there"), "the agent never gets the markup");
+  });
+
+  test("never read: a sender's address or whole domain goes on the list, the person is forgotten", async () => {
+    imap.deliver(mail({ from: "Notices <alerts@service.example>", to: USER, subject: "Hi", text: "notice" }).raw);
+    const { requests } = await waitFor(async () => {
+      const r = await env.client.call("pairing.list", {});
+      return r.requests.some((q) => q.external_id === "alerts@service.example") ? r : undefined;
+    }, "listed");
+    const code = requests.find((q) => q.external_id === "alerts@service.example")?.code ?? "";
+    await env.client.call("pairing.respond", { code, decision: "contact", name: "Notices" });
+    const person = env.core.store.persons.byAddress("email", "alerts@service.example");
+    assert.ok(person);
+    const owner = env.core.store.persons.owner();
+    await assert.rejects(
+      env.client.call("contacts.never_read", { person: owner.id, channel: "email", scope: "address" }),
+      /always read/,
+    );
+    const r = await env.client.call("contacts.never_read", { person: person.id, channel: "email", scope: "domain" });
+    assert.equal(r.blocked, "@service.example");
+    assert.equal(env.core.store.persons.get(person.id), undefined);
+    const ch = (await env.client.call("channels.list", {})).channels[0];
+    assert.ok(ch?.email?.blocked.includes("@service.example"));
+    const calls = llm.calls.length;
+    imap.deliver(mail({ from: "Other <news@service.example>", to: USER, subject: "Hi", text: "more" }).raw);
+    imap.deliver(mail({ from: OWNER, to: USER, subject: "Re: Hello", text: "after never read" }).raw);
+    await waitFor(() => to("owner@example.org").some((m) => m.text.includes("You said: after never read")), "answer");
+    const after = (await env.client.call("pairing.list", {})).requests.map((q) => q.external_id);
+    assert.ok(!after.includes("news@service.example"));
+    assert.equal(llm.calls.length, calls + 2);
+  });
+
   test("the owner sends a chat's draft from the mailbox once: subject and copy kept, not marked as automatic", async () => {
     const { routes } = await env.client.call("mail.routes", {});
     const route = routes.find((r) => r.kind === "channel");

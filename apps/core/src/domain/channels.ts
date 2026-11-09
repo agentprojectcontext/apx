@@ -18,6 +18,8 @@ export const ownerActsOn = (type: string | undefined): boolean => type !== undef
 
 /** What an adapter hands over for one platform message. */
 export type Inbound = {
+  /** A mail's HTML (already made safe), kept to show it as it was sent; the agent reads `text`. */
+  html?: string | undefined;
   /** The platform's id for this message (dedupes a redelivery). */
   external_id: string;
   /** Where to answer (a chat id). */

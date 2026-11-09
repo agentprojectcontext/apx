@@ -157,6 +157,8 @@ export const esChat: Partial<Record<MessageKey, string>> = {
   "mail.from": "De",
   "mail.date": "Fecha",
   "mail.noSubject": "Sin asunto",
+  "mail.imagesOff": "Las imágenes están ocultas: si las mostrás, quien lo mandó puede saber que lo abriste.",
+  "mail.showImages": "Mostrar imágenes",
   "mail.send": "Enviar",
   "mail.sendWith": "Enviar con",
   "mail.sendingIn": "Se envía en {n} s",

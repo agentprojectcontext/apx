@@ -261,6 +261,8 @@ export function mail(m: {
   references?: string[];
   headers?: Record<string, string>;
   verified?: boolean;
+  /** Also an HTML version of the words (multipart/alternative). */
+  html?: string;
 }): { raw: string; id: string } {
   const id = m.id ?? `<${randomUUID()}@example.org>`;
   const domain = /@([^>\s]+)/.exec(m.from)?.[1] ?? "example.org";
@@ -277,8 +279,23 @@ export function mail(m: {
     ...(m.references?.length ? [`References: ${m.references.join(" ")}`] : []),
     ...Object.entries(m.headers ?? {}).map(([k, v]) => `${k}: ${v}`),
     "MIME-Version: 1.0",
-    "Content-Type: text/plain; charset=utf-8",
-    "Content-Transfer-Encoding: 8bit",
   ];
-  return { raw: `${head.join("\r\n")}\r\n\r\n${m.text.replace(/\r?\n/g, "\r\n")}\r\n`, id };
+  const crlf = (t: string) => t.replace(/\r?\n/g, "\r\n");
+  if (m.html === undefined) {
+    head.push("Content-Type: text/plain; charset=utf-8", "Content-Transfer-Encoding: 8bit");
+    return { raw: `${head.join("\r\n")}\r\n\r\n${crlf(m.text)}\r\n`, id };
+  }
+  head.push('Content-Type: multipart/alternative; boundary="alt"');
+  const body = [
+    "--alt",
+    "Content-Type: text/plain; charset=utf-8",
+    "",
+    crlf(m.text),
+    "--alt",
+    "Content-Type: text/html; charset=utf-8",
+    "",
+    crlf(m.html),
+    "--alt--",
+  ].join("\r\n");
+  return { raw: `${head.join("\r\n")}\r\n\r\n${body}\r\n`, id };
 }
