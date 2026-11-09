@@ -7,6 +7,7 @@ import {
   type ChatItem,
   type Completion,
   type Finish,
+  limitKind,
   ProviderError,
   post,
   resetOf,
@@ -53,9 +54,8 @@ function failureOf(ev: Event, data: string): ProviderError {
   const f = ev.response?.error ?? ev.error;
   const why = f?.message ?? ev.message ?? "the model failed";
   const said = `${f?.code ?? ""} ${f?.type ?? ""} ${why}`;
-  if (/usage[ _]limit|quota|insufficient|limit[ _](has been )?reached/i.test(said))
-    return new ProviderError("quota", why, resetOf(data));
-  if (/rate[ _]limit|too many requests/i.test(said)) return new ProviderError("rate_limit", why, resetOf(data));
+  const limit = limitKind(said);
+  if (limit) return new ProviderError(limit, why, resetOf(data));
   if (/context[ _]length|context window/i.test(said)) return new ProviderError("context", why);
   if (/invalid|unsupported|too (large|long|big)|exceed|resize/i.test(said))
     return new ProviderError("bad_request", why);

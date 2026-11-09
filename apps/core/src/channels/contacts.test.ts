@@ -195,7 +195,8 @@ test("with reactions off, the agent is told and its emoji answer sends nothing",
   tg.message(MAG, "muchísimas gracias");
   await waitFor(() => llm.calls.length > calls, "the agent read it");
   await env.settle(thread);
-  assert.match(String(llm.calls.at(-1)?.messages.at(-1)?.content), /no reactions/);
+  // The fact on the turn's context line, not the style text that names it.
+  assert.match(String(llm.calls.at(-1)?.messages.at(-1)?.content), /\[context: [^\]]*· no reactions\]/);
   assert.equal(tg.reactionsTo(MAG.id).length, reactions, "no reaction");
   assert.equal(tg.messagesTo(MAG.id).length, sent, "no words either");
   const { messages } = await env.client.call("threads.get", { thread });
