@@ -72,15 +72,7 @@ export const RESOURCE_TABS = ["skills", "mcp", "integrations", "variables", "ext
 export type ResourceTab = (typeof RESOURCE_TABS)[number];
 
 /** The parts of a channel account's settings. */
-export type AccountPane =
-  | "account"
-  | "answer"
-  | "behavior"
-  | "stickers"
-  | "rooms"
-  | "contacts"
-  | "approvals"
-  | "activity";
+export type AccountPane = "account" | "behavior" | "stickers" | "rooms" | "contacts" | "approvals" | "activity";
 
 /** A channel account's settings open over the screen: an existing one (`id`) or a new one of `kind` being set up. */
 export type AccountEdit = { kind: ChannelKind; id: string | undefined; pane: AccountPane };

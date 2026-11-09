@@ -11,7 +11,7 @@ import type { PaneProps } from "./types.ts";
  * in the picker), where the owner's words go (Home is the super-agent's conversation, so another agent answers in this
  * account's own chat), and who answers the contacts and rooms.
  */
-export function AnswerPane({ channel, draft, set }: PaneProps) {
+export function AnswerPane({ channel, draft, set }: Pick<PaneProps, "channel" | "draft" | "set">) {
   const t = useT();
   const home = useData((s) => s.agents[draft.agent_id]?.kind === "secretary");
   // A kind that fixes where the owner's words go (email: each mail in the account's own chat) offers no choice.

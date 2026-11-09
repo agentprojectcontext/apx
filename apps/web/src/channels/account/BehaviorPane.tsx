@@ -5,6 +5,7 @@ import { WeekDays } from "../../common/pickers/WeekDays.tsx";
 import type { ChannelDraft } from "../../data/channels.ts";
 import { useOwnerTimeZone } from "../../data/owner.ts";
 import { useT } from "../../i18n/index.ts";
+import { AnswerPane } from "./AnswerPane.tsx";
 import { Limit } from "./parts.tsx";
 import type { PaneProps } from "./types.ts";
 
@@ -12,7 +13,7 @@ import type { PaneProps } from "./types.ts";
 const FIRST_HOURS: ChannelHours = { days: [1, 2, 3, 4, 5, 6, 0], from: "08:00", to: "22:00" };
 
 /**
- * How it answers: a message while it works (unless its kind fixes it: mail waits its turn), the web, its hours, whom,
+ * Who answers (the agent the owner talks to, the one for contacts) and how: a message while it works (unless its kind fixes it: mail waits its turn), the web, its hours, whom,
  * and the owner's notes and rules for it.
  */
 export function BehaviorPane({ channel, draft, set }: Pick<PaneProps, "channel" | "draft" | "set">) {
@@ -22,6 +23,7 @@ export function BehaviorPane({ channel, draft, set }: Pick<PaneProps, "channel" 
   const limits = draft.limits ?? CHANNEL_DEFAULTS.limits;
   return (
     <>
+      <AnswerPane channel={channel} draft={draft} set={set} />
       {!fixed && (
         <SettingRow title={t("tg.concurrency")} description={t(`ch.concurrencyHint.${draft.concurrency}`)}>
           <SegmentedControl
