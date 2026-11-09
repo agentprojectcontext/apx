@@ -11,6 +11,9 @@ interface Props {
   path: string;
   type?: "website" | "article";
   imageAlt: string;
+  image?: string;
+  imageWidth?: number;
+  imageHeight?: number;
   /** schema.org objects, one JSON-LD script each. */
   schema?: Record<string, unknown>[];
 }
@@ -19,7 +22,7 @@ const abs = (p: string) => new URL(sitePath(p, import.meta.env.BASE_URL), Astro.
 const en = abs(path);
 const es = abs(`/es${path}`);
 const canonical = lang === "es" ? es : en;
-const image = abs(lang === "es" ? "/og-es.jpg" : "/og.jpg");
+const image = abs(Astro.props.image ?? (lang === "es" ? "/og-es.jpg" : "/og.jpg"));
 const locale = { en: "en_US", es: "es_AR" };
 
 /** Whole sentences up to what Google shows (~160 characters); a first sentence longer than that is cut at a word. */
@@ -54,8 +57,8 @@ const summary = snippet(description);
 <meta property="og:locale" content={locale[lang]} />
 <meta property="og:locale:alternate" content={locale[lang === "es" ? "en" : "es"]} />
 <meta property="og:image" content={image} />
-<meta property="og:image:width" content="1200" />
-<meta property="og:image:height" content="630" />
+<meta property="og:image:width" content={Astro.props.imageWidth ?? 1200} />
+<meta property="og:image:height" content={Astro.props.imageHeight ?? 630} />
 <meta property="og:image:alt" content={imageAlt} />
 <meta name="twitter:card" content="summary_large_image" />
 <meta name="twitter:title" content={title} />

@@ -1,0 +1,122 @@
+---
+import { getImage, Image } from "astro:assets";
+import { type CollectionEntry, getCollection, render } from "astro:content";
+import { archivePath, BLOG, blogArchive, blogPath, relatedPosts } from "../../data/blog.mjs";
+import { sitePath } from "../../doc-routes.mjs";
+import AnalyticsConsent from "../AnalyticsConsent.astro";
+import PageMeta from "../web/PageMeta.astro";
+import WebFooter from "../web/WebFooter.astro";
+import WebHeader from "../web/WebHeader.astro";
+import "./blog.css";
+
+interface Props {
+  lang: "en" | "es";
+  post?: CollectionEntry<"blog">;
+  page?: number;
+}
+const { lang, post, page = 1 } = Astro.props;
+const t = BLOG[lang];
+const pre = lang === "es" ? "/es" : "";
+const href = (path: string) => sitePath(path, import.meta.env.BASE_URL);
+const abs = (path: string) => new URL(href(path), Astro.site).href;
+const entries = await getCollection("blog");
+const { posts, totalPages } = blogArchive(entries, lang, page);
+const related = post ? relatedPosts(entries, post) : [];
+const route = post ? `/blog/${post.data.slug}/` : archivePath(page);
+const pageSuffix = !post && page > 1 ? ` · ${t.page} ${page}` : "";
+const title = post?.data.title ?? t.title;
+const description = post?.data.description ?? t.description;
+const rendered = post ? await render(post) : undefined;
+const Content = rendered?.Content;
+const cover = post?.data.image;
+const shareImage = cover
+  ? await getImage({ src: cover.src, width: Math.min(1200, cover.src.width), format: "webp" })
+  : undefined;
+const date = (value: string) =>
+  new Intl.DateTimeFormat(t.language, { dateStyle: "long", timeZone: "UTC" }).format(new Date(`${value}T00:00:00Z`));
+const schema = [
+  {
+    "@type": "BreadcrumbList",
+    itemListElement: [
+      { "@type": "ListItem", position: 1, name: "APX", item: abs(`${pre}/`) },
+      { "@type": "ListItem", position: 2, name: "Blog", item: abs(`${pre}/blog/`) },
+      ...(post ? [{ "@type": "ListItem", position: 3, name: title, item: abs(`${pre}${route}`) }] : []),
+    ],
+  },
+  post
+    ? {
+        "@type": "BlogPosting",
+        headline: title,
+        description,
+        datePublished: post.data.published,
+        ...(post.data.updated ? { dateModified: post.data.updated } : {}),
+        inLanguage: lang,
+        mainEntityOfPage: abs(`${pre}${route}`),
+        citation: post.data.sources.map((source) => source.url),
+        ...(shareImage ? { image: abs(shareImage.src) } : {}),
+      }
+    : { "@type": "Blog", name: `${title}${pageSuffix}`, description, url: abs(`${pre}${route}`), inLanguage: lang },
+];
+---
+<!doctype html>
+<html lang={lang} data-theme="dark">
+  <head>
+    <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+    <PageMeta lang={lang} title={`${title}${pageSuffix} — APX`} description={description} path={route} type={post ? "article" : "website"} imageAlt={cover?.alt ?? title} image={shareImage?.src} imageWidth={shareImage?.attributes.width} imageHeight={shareImage?.attributes.height} schema={schema} />
+    {post && <meta property="article:published_time" content={post.data.published} />}
+    {post?.data.updated && <meta property="article:modified_time" content={post.data.updated} />}
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Geist:wght@300..800&family=Geist+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+  </head>
+  <body class="h blog">
+    <a class="skip-link" href="#main">{lang === "es" ? "Ir al contenido" : "Skip to content"}</a>
+    <WebHeader lang={lang} route={route} />
+    <main id="main" class:list={["wrap blog-main", { "blog-article": !!post }]}>
+      <a class="blog-back" href={href(post ? `${pre}/blog/` : `${pre}/`)}>← {post ? "Blog" : "APX"}</a>
+      <header class="blog-hero">
+        {cover && <figure class="blog-cover">
+          <Image src={cover.src} alt={cover.alt} widths={[Math.min(400, cover.src.width), ...[800, 1200, 1600].filter((width) => width <= cover.src.width)]} sizes="(max-width: 808px) calc(100vw - 32px), 760px" format="webp" loading="eager" fetchpriority="high" />
+          {cover.caption && <figcaption>{cover.caption}</figcaption>}
+        </figure>}
+        {!post && <p class="blog-kicker">Blog</p>}
+        <h1>{title}</h1>
+        <p class="blog-summary">{description}</p>
+        {post && <p class="blog-dates">{t.published} <time datetime={post.data.published}>{date(post.data.published)}</time>{post.data.updated && <> · {t.updated} <time datetime={post.data.updated}>{date(post.data.updated)}</time></>}</p>}
+      </header>
+      {post && Content ? <article>
+        <div class="blog-prose"><Content /></div>
+        <section class="blog-sources" aria-labelledby="sources">
+          <h2 id="sources">{t.sources}</h2>
+          <ol>{post.data.sources.map((source) => <li><a href={source.url}>{source.label} ↗</a></li>)}</ol>
+        </section>
+        {related.length > 0 && <section aria-labelledby="related">
+          <h2 id="related">{t.related}</h2>
+          <div class="blog-list">{related.map(({ data }) => <a class:list={["blog-row", { "blog-row-illustrated": !!data.image }]} href={href(blogPath(data))}>
+            {data.image && <Image src={data.image.src} alt={data.image.alt} widths={[Math.min(320, data.image.src.width), ...[640, 800].filter((width) => width <= data.image.src.width)]} sizes="(max-width: 600px) calc(100vw - 32px), 200px" format="webp" loading="lazy" />}
+            <div><h3>{data.title}</h3><p>{data.description}</p></div>
+            <div class="blog-row-meta"><time datetime={data.published}>{date(data.published)}</time><span>{t.read} →</span></div>
+          </a>)}</div>
+        </section>}
+        <a class="blog-back" href={href(`${pre}/blog/`)}>← {t.back}</a>
+      </article> : posts.length ? <section aria-labelledby="articles">
+        <h2 id="articles">{lang === "es" ? "Artículos" : "Articles"}</h2>
+        <div class="blog-list">{posts.map(({ data }) => <a class:list={["blog-row", { "blog-row-illustrated": !!data.image }]} href={href(blogPath(data))}>
+          {data.image && <Image src={data.image.src} alt={data.image.alt} widths={[Math.min(320, data.image.src.width), ...[640, 800].filter((width) => width <= data.image.src.width)]} sizes="(max-width: 600px) calc(100vw - 32px), 200px" format="webp" loading="lazy" />}
+          <div><h3>{data.title}</h3><p>{data.description}</p></div>
+          <div class="blog-row-meta"><time datetime={data.published}>{date(data.published)}</time><span>{t.read} →</span></div>
+        </a>)}</div>
+        {totalPages > 1 && <nav class="blog-pagination" aria-label={t.pagination}>
+          {page > 1 ? <a rel="prev" href={href(`${pre}${archivePath(page - 1)}`)}>← {t.previous}</a> : <span />}
+          <span aria-current="page">{t.page} {page} / {totalPages}</span>
+          {page < totalPages ? <a rel="next" href={href(`${pre}${archivePath(page + 1)}`)}>{t.next} →</a> : <span />}
+        </nav>}
+      </section> : <section class="blog-empty" aria-labelledby="empty-title">
+        <h2 id="empty-title">{t.emptyTitle}</h2><p>{t.empty}</p>
+        <a class="blog-link" href={href(`${pre}/compare/`)}>{t.compare} →</a>
+      </section>}
+    </main>
+    <WebFooter lang={lang} />
+    <AnalyticsConsent lang={lang} />
+  </body>
+</html>
