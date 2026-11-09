@@ -202,8 +202,6 @@
   transition: opacity var(--apx-duration);
 }
 .apx-msg__reveal > .apx-msg__actions {
-  min-height: 0;
-  overflow: hidden;
   padding: 0 4px;
 }
 /* Shown after half a second on the bubble, so a pointer passing over the chat does not make every row open. */
@@ -215,32 +213,17 @@
   opacity: 1;
   transition-delay: 0s;
 }
-/* Without a meta line the row opens under the bubble, pushing the next message down instead of covering it. */
+/* Without a meta line the controls keep their row under the bubble, empty until shown: the chat never moves. */
 .apx-msg__reveal {
-  display: grid;
-  grid-template-rows: 0fr;
-  margin-top: -4px;
-  transition:
-    grid-template-rows var(--apx-duration),
-    margin-top var(--apx-duration);
+  display: flex;
+  min-height: var(--apx-control-h-sm);
 }
-.apx-msg:hover .apx-msg__reveal {
-  grid-template-rows: 1fr;
-  margin-top: 0;
-  transition-delay: 0.5s;
-}
-.apx-msg__reveal:focus-within {
-  grid-template-rows: 1fr;
-  margin-top: 0;
-  transition-delay: 0s;
+.apx-msg--user .apx-msg__reveal {
+  justify-content: flex-end;
 }
 @media (hover: none) {
   .apx-msg__actions {
     opacity: 1;
-  }
-  .apx-msg__reveal {
-    grid-template-rows: 1fr;
-    margin-top: 0;
   }
 }
 
