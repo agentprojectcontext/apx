@@ -4440,3 +4440,27 @@ origin cannot see that parent's focus. The last check narrows, but cannot close,
 Rejected: trusting the core's cached tab address (a redirect makes it stale); exempting a page on the agent's word (a
 model-set argument); asking the node for a verdict without binding the typing to it (the page can move between the two
 calls); the exemption in Accept edits, where it would reach what a command there may not.
+
+<a id="d-213"></a>
+## D-213 — 2026-11-09 — What the owner asks in a room that needs tools is handed to Home, never only promised
+A room's turn has no tools (D-041, D-063), so when the owner asked there for something that needed them the prompt
+had the agent "say you will pick it up with them on another channel". Nothing recorded or did it: a promise, against
+the main prompt's own rule that a promise is not an action.
+
+- **The room answer ends with `HANDOFF`** when the owner's message needs tools (`roomPrompt`). The line is a signal,
+  like `SKIP` and `REACT`: `roomHandoff` (`engine/room-handoff.ts`, run from the engine's `ended`, before the channel
+  manager posts the answer) takes it out of the answer kept and posted. An answer that was only the line is replaced
+  by a short "on it, I'll tell you in private" in the owner's language.
+- **Only the owner's own words move**, from a turn whose origin is the room message marked owner by account
+  (`role: "owner"`): the run's input text, verbatim, never the model's text and never a member's. From any other
+  message the line is only removed, so nobody in a room can turn their text into a request, whatever the model says.
+- **Home does it, by the owner's rules on that platform** (D-144, D-150). On a channel whose owner acts on their word
+  (Telegram, WhatsApp, Signal) the words are kept in Home as the owner's (`via` the channel) and start a turn there
+  that is told which room they came from. Elsewhere (Discord, Slack…) they go through `relayOwnerWords` like the
+  owner's other words there: the super-agent checks them in Home's owner-check sub-thread, and the result returns to
+  Home as a delegated result.
+- **The result never goes back to the room.** The Home turn has no `reply_to` of its own and the relay leaves Home's
+  untouched (`owner_check.reply_to` is optional now): answers reach the owner where Home talks to them (Home's last
+  channel, or the app).
+
+Not done: the owner's earlier quick messages that a burst kept unanswered are not handed over, only the one answered.
