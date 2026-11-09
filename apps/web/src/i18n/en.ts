@@ -25,7 +25,8 @@ import type { enThreadDialogs } from "./thread-dialogs-en.ts";
 
 // UI strings, English: the source of truth. Every key lives here; `{name}` placeholders are filled by t().
 export const en = {
-  "config.activityReview": "Review and improvements",
+  "config.activityReview": "Activity review",
+  "review.title": "Review and improvements",
   "review.lead": "APX reviews activity and suggests improvements for you to consider.",
   "review.enabled": "Review activity",
   "review.cost": "This may use credits or your plan’s usage. If there’s no new activity, no review runs.",

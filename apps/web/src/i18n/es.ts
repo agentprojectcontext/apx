@@ -15,6 +15,7 @@ import { esTelemetry } from "./es-telemetry.ts";
 
 export const es: Partial<Record<MessageKey, string>> = {
   "config.activityReview": "Revisión y mejoras",
+  "review.title": "Revisión y mejoras",
   "review.lead": "APX revisa la actividad y te propone mejoras para que decidas cuáles hacer.",
   "review.enabled": "Revisar actividad",
   "review.cost": "Puede consumir créditos o uso de tu plan. Si no hay actividad nueva, no hace una revisión.",

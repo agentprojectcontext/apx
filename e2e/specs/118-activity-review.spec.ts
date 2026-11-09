@@ -8,7 +8,7 @@ for (const language of ["en", "es"] as const) {
     }, info) => {
       await rpc("setup.finish");
       await rpc("activity_review.configure", { enabled: true, frequency: "daily", extra_details: "" });
-      await page.setViewportSize({ width, height: 900 });
+      await page.setViewportSize({ width, height: width === 390 ? 640 : 900 });
       await page.addInitScript((language) => localStorage.setItem("apx.prefs", JSON.stringify({ language })), language);
       const en = language === "en";
       const title = en ? "Review and improvements" : "Revisión y mejoras";
@@ -20,11 +20,27 @@ for (const language of ["en", "es"] as const) {
       await open(page);
       await page.getByRole("button", { name: en ? /^Account/ : /^Cuenta/ }).click();
       await page.getByRole("menuitem", { name: en ? /^Settings(?! wizard)/ : /^Configuración(?! inicial)/ }).click();
-      await page.getByRole("dialog").getByRole("button", { name: title, exact: true }).click();
+      const navItem = page
+        .getByRole("dialog")
+        .getByRole("button", { name: en ? "Activity review" : title, exact: true });
+      await navItem.click();
+      await expect(page.getByRole("heading", { name: title, exact: true })).toBeVisible();
+      const navLabel = navItem.locator(".apx-nav__label");
+      expect(await navLabel.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true);
       const input = page.getByRole("textbox", { name: details });
       await expect(input).toHaveValue("");
       await expect(page.getByRole("switch", { name: enabled })).toBeChecked();
       await page.screenshot({ path: info.outputPath("empty.png"), fullPage: true });
+      if (width === 390) {
+        const content = page.locator(".config__content");
+        await page.screenshot({ path: info.outputPath("before-scroll.png") });
+        await content.hover();
+        await page.mouse.wheel(0, 600);
+        await expect.poll(() => content.evaluate((element) => element.scrollTop)).toBeGreaterThan(0);
+        await expect(page.getByRole("button", { name: save, exact: true })).toBeInViewport();
+        expect(await content.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true);
+        await page.screenshot({ path: info.outputPath("after-scroll.png") });
+      }
       await input.fill("Focus on clearer acceptance criteria");
       await page.getByRole("radio", { name: weekly, exact: true }).click();
       await page.getByRole("button", { name: save, exact: true }).click();
@@ -69,6 +85,9 @@ for (const language of ["en", "es"] as const) {
         .click();
       await expect(input).toHaveValue("Changed on another device");
       await expect(page.getByRole("switch", { name: enabled })).not.toBeChecked();
+      await expect(page.getByRole("alert")).toHaveCount(0);
+      await expect(input).toBeDisabled();
+      await page.screenshot({ path: info.outputPath("conflict-reloaded.png"), fullPage: true });
     });
   }
 }

@@ -45,7 +45,7 @@ export function ActivityReviewSection() {
   };
   return (
     <>
-      <SectionHead title={t("config.activityReview")} lead={t("review.lead")} />
+      <SectionHead title={t("review.title")} lead={t("review.lead")} />
       {error && (
         <p role="alert" className="config__lead">
           {t(conflict ? "review.conflict" : draft ? "review.saveError" : "review.loadError")}
