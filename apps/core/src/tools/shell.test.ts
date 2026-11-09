@@ -207,6 +207,7 @@ test("command risk: reading runs, changing asks, destroying always asks", () => 
     "mv AGENTS.md b.md",
     "git checkout AGENTS.md",
     "git rm AGENTS.md",
+    `for f in AGENTS.md; do sed -i '' s/a/b/ "$f"; done`,
   ])
     assert.equal(commandRisk(c), "always", c);
   // Staging or committing it, or copying it somewhere, leaves it as it is (DECISIONS.md#d-210).
@@ -214,6 +215,7 @@ test("command risk: reading runs, changing asks, destroying always asks", () => 
     "git add AGENTS.md && git commit -m 'chore: baseline'",
     "git -C repo add AGENTS.md",
     "cp AGENTS.md /tmp/x",
+    `for f in AGENTS.md app/Note.php; do echo "--- $f"; sed -n '1,260p' "$f"; done`,
   ])
     assert.equal(commandRisk(c), "ask", c);
   // A folder named apx is only read: going into it or listing it is not running the CLI.
