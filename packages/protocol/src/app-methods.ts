@@ -1617,6 +1617,16 @@ export const appMethods = {
     effect: false,
     access: "human",
   },
+  /**
+   * A mailbox account stops reading someone: their address (or their whole domain) goes on its "Never read" list and
+   * the person is forgotten, with their chat kept.
+   */
+  "contacts.never_read": {
+    params: z.object({ person: Id, channel: Id, scope: z.enum(["address", "domain"]) }).strict(),
+    result: z.object({ blocked: z.string() }),
+    effect: true,
+    access: "human",
+  },
   "contacts.claim": {
     params: z.object({ address: Id }).strict(),
     result: z.object({ moved: z.boolean() }),

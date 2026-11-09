@@ -247,6 +247,25 @@ export function channelHandlers(store: Store, channels: Channels, nudges: Pick<N
       if (id === OWNER_ID) throw badRequest("the owner cannot be removed");
       return { removed: store.persons.remove(id) };
     },
+    "contacts.never_read": async ({ person, channel, scope }) => {
+      const cfg = channels.info().find((c) => c.id === channel);
+      if (!cfg?.email) throw badRequest("only an email account has a list of senders it never reads");
+      const who = store.persons.get(person);
+      const address = who?.addresses.find((a) => a.channel === channel)?.external_id;
+      if (!who || !address) throw notFound(`person ${person} on ${channel}`);
+      if (who.role === "owner") throw badRequest("your own addresses are always read");
+      const blocked = scope === "domain" ? `@${address.split("@")[1] ?? ""}` : address;
+      if (blocked === "@") throw badRequest(`${address} has no domain`);
+      const { token_set: _t, token_hint: _h, status: _s, error: _e, account: _a, qr: _q, id: _id, ...saved } = cfg;
+      const list = cfg.email.blocked ?? [];
+      if (!list.includes(blocked))
+        await channels.set(channel, { ...saved, email: { ...cfg.email, blocked: [...list, blocked] } });
+      // Someone known on other apps too keeps those; only this address goes.
+      const here = who.addresses.find((a) => a.channel === channel);
+      if (who.addresses.length > 1 && here) store.persons.unlink(here.id);
+      else store.persons.remove(who.id);
+      return { blocked };
+    },
     "contacts.claim": ({ address }) => ({ moved: store.persons.giveToOwner(address) }),
     "contacts.avatar": async ({ person }) => {
       if (!store.persons.get(person)) throw notFound(`person ${person}`);

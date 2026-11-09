@@ -12,6 +12,8 @@ export type ParsedMail = {
   headers: Headers;
   /** The plain text (from text/plain, else the HTML as text), quoted history not yet removed. */
   text: string;
+  /** The HTML the sender wrote, when there is one (as they sent it: see `mailHtml` before showing it). */
+  html: string;
   attachments: MailPart[];
   /** Attachments the message announced but that were cut by the size cap. */
   truncated: boolean;
@@ -179,9 +181,15 @@ export function parseMail(raw: Buffer, truncated = false): ParsedMail {
           parsed.find((p) => contentType(header(p.headers, "content-type")).type === "text/html") ??
           parsed[0];
         if (pick) walk(pick.headers, pick.body, depth + 1);
-        for (const p of parsed)
-          if (p !== pick && !contentType(header(p.headers, "content-type")).type.startsWith("text/"))
-            walk(p.headers, p.body, depth + 1);
+        for (const p of parsed) {
+          const t = contentType(header(p.headers, "content-type"));
+          // The HTML twin of the plain words is kept to show the mail as it was sent; the agent reads the plain one.
+          if (p !== pick && t.type === "text/html")
+            html.push(
+              charsetText(decodeBody(p.body, header(p.headers, "content-transfer-encoding")), t.params.charset),
+            );
+          else if (p !== pick && !t.type.startsWith("text/")) walk(p.headers, p.body, depth + 1);
+        }
         return;
       }
       for (const p of parts) {
@@ -205,7 +213,7 @@ export function parseMail(raw: Buffer, truncated = false): ParsedMail {
   };
   walk(headers, body, 0);
   const text = plain.length ? plain.join("\n\n") : html.map(htmlToText).join("\n\n");
-  return { headers, text, attachments, truncated };
+  return { headers, text, html: html.join("\n"), attachments, truncated };
 }
 
 function splitMultipart(b: Buffer, boundary: string): Buffer[] {
@@ -265,6 +273,29 @@ export function htmlToText(html: string): string {
     .replace(/[ \t]+\n/g, "\n")
     .replace(/\n{3,}/g, "\n\n")
     .trim();
+}
+
+/** Largest HTML of a mail kept to show it; past it the mail shows as its words. */
+const MAX_HTML = 512 * 1024;
+
+/**
+ * A mail's HTML made safe to keep: no scripts, frames, forms, embedded objects, event handlers or javascript:
+ * links. The panel still shows it in a sandboxed frame with remote images off until the owner asks.
+ */
+export function mailHtml(html: string): string | undefined {
+  if (!html.trim() || html.length > MAX_HTML) return undefined;
+  return html
+    .replace(/<!--[\s\S]*?-->/g, "")
+    .replace(/<(script|iframe|frame|frameset|object|embed|applet|noscript|template)\b[\s\S]*?<\/\1\s*>/gi, "")
+    .replace(
+      /<\/?(script|iframe|frame|frameset|object|embed|applet|form|input|button|textarea|select|meta|link|base)\b[^>]*>/gi,
+      "",
+    )
+    .replace(/\s+on[a-z]+\s*=\s*("[^"]*"|'[^']*'|[^\s>]+)/gi, "")
+    .replace(
+      /(href|src|action|formaction|xlink:href)\s*=\s*(["']?)\s*(javascript|vbscript|data:text\/html)[^"'\s>]*\2/gi,
+      '$1="#"',
+    );
 }
 
 /** Where the quoted history starts: "On … wrote:", Outlook's header block, a forwarded-message line. */

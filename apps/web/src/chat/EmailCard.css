@@ -90,3 +90,27 @@
   color: var(--apx-fg-muted);
   overflow-wrap: anywhere;
 }
+
+/* A received mail as it was sent: its HTML in a closed frame, on paper of its own (mail is written for a light page). */
+.mailview__frame {
+  display: block;
+  width: 100%;
+  border: 0;
+  color-scheme: light;
+}
+.mailview__images {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  font-size: var(--apx-text-sm);
+  color: var(--apx-fg-subtle);
+  border-bottom: 1px solid var(--apx-border);
+}
+.mailview__images {
+  flex-wrap: wrap;
+}
+.mailview__images > span {
+  flex: 1 1 220px;
+  min-width: 0;
+}

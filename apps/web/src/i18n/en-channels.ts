@@ -16,6 +16,11 @@ export const enChannels = {
   "ch.strangers.answer": "Answer",
   "ch.strangersHint.pair": "They get a code you approve here or from your notice. Until then nobody answers them.",
   "ch.strangersHint.list": "They are listed here for you to approve; nothing is sent to them from your number.",
+  "ch.neverRead": "Never read again",
+  "ch.neverReadDomain": "Everything from @{domain}",
+  "ch.neverReadHint":
+    "Their mail is skipped from now on and this contact is forgotten; the chat stays. Undo it in the account's Never read list.",
+  "ch.neverReadDone": "{who} is not read anymore.",
   "ch.strangersHint.listMail": "They are listed here for you to approve; no mail is sent to them.",
   "ch.strangersHint.ask":
     "You get a notice with who wrote and what. Say yes (its button, or tell your agent) and their message is answered.",

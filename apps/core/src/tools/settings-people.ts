@@ -183,6 +183,17 @@ export const PEOPLE: Readonly<Record<string, Setting>> = {
     },
     shows: (r) => contactLine(r as Person),
   },
+  "contacts.never_read": {
+    does: "an email account stops reading a contact (scope address) or everyone at their domain (scope domain); the contact is forgotten, their chat kept",
+    asks: "card",
+    named: ["person", "channel"],
+    says: (p, { store }) => {
+      const who = typeof p.person === "string" ? store.persons.get(p.person) : undefined;
+      const address = who?.addresses.find((a) => a.channel === p.channel)?.external_id ?? "";
+      const what = p.scope === "domain" ? `everything from @${address.split("@")[1] ?? ""}` : address || "this sender";
+      return `Never read ${inlineName(what)} on ${inlineName(channelOf(store, p.channel)?.label ?? str(p.channel))} again`;
+    },
+  },
   "contacts.claim": {
     does: "the owner takes an address of a contact as their own (address: its id, as contacts.list shows it)",
     asks: "card",

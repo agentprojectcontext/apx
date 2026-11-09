@@ -153,6 +153,28 @@ export const NEWS: readonly NewsEntry[] = [
     ],
   },
   {
+    id: "email-as-mail",
+    since: "2.13.4",
+    title: { en: "Received mail looks like mail", es: "El correo recibido se ve como correo" },
+    about: {
+      en: "Mail that reaches an Email account shows as it was sent, pictures hidden until you ask, and you can stop reading a sender or a whole domain from their card.",
+      es: "El correo que llega a una cuenta de Email se ve como fue enviado, con las imágenes ocultas hasta que las pidas, y desde su ficha podés dejar de leer a un remitente o a todo un dominio.",
+    },
+    applies: (s) => s.email,
+    text:
+      "Mail that reaches the owner's Email account now shows in its chat as it was sent (formatting, links), with " +
+      "pictures hidden until the owner shows them; the agent still reads only the words. Email accounts no longer " +
+      "mail a code to strangers; they wait in Approvals. A sender's card can stop reading them or their whole domain, " +
+      "and the account has a Never read list. The owner marks their own addresses by typing them, no code.",
+    actions: [
+      {
+        label: { en: "Clean up my mail senders", es: "Ordenar mis remitentes" },
+        prompt:
+          "Look at who has written to my Email account and suggest which senders or domains I could stop reading.",
+      },
+    ],
+  },
+  {
     id: "email-cards",
     since: "2.13.0",
     title: { en: "Emails as cards in the chat", es: "Los emails, como tarjetas en el chat" },

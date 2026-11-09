@@ -20,7 +20,7 @@ import { loadThread, markRead, send } from "../data/actions.ts";
 import { openContactChat, type PresenceState, recoverFiles, sendDirect } from "../data/channels.ts";
 import { useData } from "../data/state.ts";
 import { useT } from "../i18n/index.ts";
-import { EmailCard, MediaGroup } from "../lazy.ts";
+import { EmailCard, MediaGroup, ReceivedMail } from "../lazy.ts";
 import { go } from "../shell/nav.ts";
 import { addressText, ContactFace } from "./ContactRow.tsx";
 import { KindIcon } from "./KindIcon.tsx";
@@ -238,7 +238,11 @@ function Bubble({ m, agentName, mail }: { m: Message; agentName: string; mail: b
     .trim();
   const words = m.author.kind === "agent" && isSignal(said) ? "" : withoutFilesNote(m.parts, said);
   const media = mediaBlocks(m.parts).filter((b) => b.kind !== "part");
-  const files = bubbleFiles(m.parts);
+  // A received mail's formatted copy is the mail itself, not a file of it.
+  const formatted = mail
+    ? m.parts.find((p) => p.type === "file" && p.mime === "text/html" && p.name === "mail.html")
+    : undefined;
+  const files = bubbleFiles(m.parts).filter((p) => p !== formatted);
   const actions = m.parts.flatMap((p) => (p.type === "tool" && p.status !== "error" ? [p.title] : []));
   const out = m.author.kind === "agent" || m.author.kind === "user";
   // The owner's words to the agent (what to answer) read apart from what was sent to the contact.
@@ -270,7 +274,16 @@ function Bubble({ m, agentName, mail }: { m: Message; agentName: string; mail: b
           {files.map((p) =>
             p.type === "file" ? <FilePart key={p.media_id} part={p} /> : <AudioPart key={p.media_id} part={p} />,
           )}
-          {words && mail && m.author.kind === "person" ? (
+          {words && formatted?.type === "file" && m.author.kind === "person" ? (
+            <Suspense fallback={<p className="chan__text">{words}</p>}>
+              <ReceivedMail
+                from={m.author.name}
+                subject={receivedMail(words).subject}
+                at={m.created_at}
+                htmlId={formatted.media_id}
+              />
+            </Suspense>
+          ) : words && mail && m.author.kind === "person" ? (
             <Suspense fallback={<p className="chan__text">{words}</p>}>
               <EmailCard
                 mail={{ to: [], cc: [], from: m.author.name, date: "", ...receivedMail(words) }}
