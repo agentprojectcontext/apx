@@ -2166,7 +2166,7 @@ or the platform gets 503. It is not a client↔core call, so it is not a router 
 each adapter verifies its platform's own signature (Teams' Bot Framework JWT, LINE's HMAC) over the bytes as they came
 and refuses what it cannot verify. A failure's detail stays in the log.
 
-What publishes that port is the owner's choice (`webhooks.set`, Settings › Channels › Public address), kept and applied
+What publishes that port is the owner's choice (`webhooks.set`, Public address, in a Teams or LINE account's settings and in Settings › Devices), kept and applied
 again at every start (`webhooks.ts`): Tailscale Funnel on HTTPS port 8443 (443 stays what `apx tailscale connect`
 serves to the tailnet, and only APX's own Funnel is undone when it is turned off); ngrok, started and watched by the
 core, which remembers the last address ngrok gave and tells the owner only when one is new (a free account usually
@@ -2340,7 +2340,7 @@ connected one comes first.
 
 - **When the card appears:** only when the best match is not connected. Up to three of the unconnected matches go on a
   "Suggested connections" card in the answer; Connect opens that integration's form in the chat, a channel opens its
-  setup in Settings › Channels. The agent is told what it showed and to stop there until the owner says it is
+  setup in the Channels screen. The agent is told what it showed and to stop there until the owner says it is
   connected. An already connected match gets no card: the agent is told to use it. No match: the agent says APX does
   not connect to it yet.
 - **Never in sealed chats:** a contact's or a room's turn gets only the tools the owner allowed for that person, and

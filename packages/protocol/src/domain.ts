@@ -434,7 +434,7 @@ export type PendingInput = z.infer<typeof PendingInput>;
 
 /**
  * Something the owner can connect, offered by an agent for what they asked: an integration (an account like Figma or
- * GitHub, Resources › Integrations) or a channel (an app like WhatsApp, Settings › Channels). `coming`: not yet.
+ * GitHub, Resources › Integrations) or a channel (an app like WhatsApp, the Channels screen). `coming`: not yet.
  */
 export const ConnectOffer = z.object({
   kind: z.enum(["integration", "channel"]),
