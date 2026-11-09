@@ -17,14 +17,21 @@ for (const language of ["en", "es"] as const) {
       const enabled = en ? "Review activity" : "Revisar actividad";
       const weekly = en ? "Weekly" : "Semanal";
       const saved = en ? "Changes saved." : "Cambios guardados.";
+      const reviewChunks: string[] = [];
+      page.on("request", (request) => {
+        if (/\/activity-review-(?:en|es)-[^/]+\.js(?:\?|$)/.test(request.url())) reviewChunks.push(request.url());
+      });
       await open(page);
       await page.getByRole("button", { name: en ? /^Account/ : /^Cuenta/ }).click();
       await page.getByRole("menuitem", { name: en ? /^Settings(?! wizard)/ : /^Configuración(?! inicial)/ }).click();
       const navItem = page
         .getByRole("dialog")
         .getByRole("button", { name: en ? "Activity review" : title, exact: true });
+      expect(reviewChunks).toEqual([]);
       await navItem.click();
       await expect(page.getByRole("heading", { name: title, exact: true })).toBeVisible();
+      expect(reviewChunks).toHaveLength(1);
+      expect(reviewChunks[0]).toContain(`/activity-review-${language}-`);
       const navLabel = navItem.locator(".apx-nav__label");
       expect(await navLabel.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true);
       const input = page.getByRole("textbox", { name: details });

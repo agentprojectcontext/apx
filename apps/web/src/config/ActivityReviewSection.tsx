@@ -3,10 +3,14 @@ import { ApxError, ErrorCode } from "@apx/protocol/client";
 import { Button, SegmentedControl, SettingRow, Skeleton, Switch, Textarea } from "@apx/ui";
 import { useEffect, useState } from "react";
 import { client } from "../data/client.ts";
-import { useT } from "../i18n/index.ts";
+import { usePack, useT } from "../i18n/index.ts";
 import { SectionHead } from "./SectionHead.tsx";
 
 export function ActivityReviewSection() {
+  return usePack("activityReview") ? <ActivityReview /> : <Skeleton height={180} shape="block" />;
+}
+
+function ActivityReview() {
   const t = useT();
   const [status, setStatus] = useState<ActivityReviewStatus>();
   const [draft, setDraft] = useState<ActivityReviewSettings>();
