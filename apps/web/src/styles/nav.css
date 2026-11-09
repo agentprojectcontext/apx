@@ -315,6 +315,13 @@
   overflow-y: auto;
   overflow-x: hidden;
 }
+/* The rail: icons on one centre line with only the room their highlight needs around them. */
+.sidebar.is-rail :is(.sidebar__top, .sidebar__foot) {
+  padding-inline: 6px;
+}
+.sidebar.is-rail .sidebar__scroll {
+  padding-inline: 6px;
+}
 /* Compact: every section is one row, its rows open beside it (SidebarFlyout). */
 .sidebar__scroll.is-compact {
   gap: 2px;
@@ -614,7 +621,8 @@
   background: var(--apx-accent);
 }
 .account.is-rail .account__btn {
-  padding: 0 0 0 9px;
+  justify-content: center;
+  padding: 0;
 }
 
 /* ── Help ──────────────────────────────────────────────────────────────────── */
@@ -645,7 +653,7 @@
   color: var(--apx-fg-muted);
 }
 .help.is-rail .help__btn {
-  width: 44px;
+  width: 40px;
 }
 .help__btn:hover,
 .help__btn[data-popup-open] {
@@ -663,7 +671,7 @@
   border-radius: var(--apx-row-radius);
 }
 .sidebar.is-rail .diskmark {
-  width: 44px;
+  width: 40px;
 }
 .sidebar:not(.is-rail) .diskmark {
   order: 1;

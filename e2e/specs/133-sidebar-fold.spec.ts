@@ -73,7 +73,7 @@ test("a click on the sidebar's edge folds and unfolds it, keeping the width the 
   await expect(page.getByText("Clic para plegar la barra · arrastrá para cambiar el ancho")).toBeVisible();
   await edge(page).click();
   await expect(sidebar).toHaveClass(/is-rail/);
-  expect(await sidebarWidth(page)).toBe(60);
+  expect(await sidebarWidth(page)).toBe(52);
   await page.reload();
   await expect(sidebar).toHaveClass(/is-rail/);
   await edge(page).click();
@@ -103,7 +103,7 @@ test("dragging the sidebar's edge past halfway to the rail snaps it closed, and 
   expect(await sidebarWidth(page)).toBe(start);
   await dragEdge(page, -(start - 100));
   await expect(sidebar).toHaveClass(/is-rail/);
-  expect(await sidebarWidth(page)).toBe(60);
+  expect(await sidebarWidth(page)).toBe(52);
   // It still remembers the width it had for a click.
   await edge(page).click();
   expect(await sidebarWidth(page)).toBe(start);

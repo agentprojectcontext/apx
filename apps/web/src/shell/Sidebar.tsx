@@ -33,7 +33,7 @@ import { useSidebarCompact } from "./useSidebarCompact.ts";
 
 /**
  * New chat · Inbox · Tasks · Flows · Routines · Resources · Files (pinned) · Projects · External sessions · Channels ·
- * Apps · account (with Settings). Compact (the owner's choice, or a short window): each section is one row. `rail` = 60px icons. Its edge folds and unfolds it (click or drag) and sets its width; `narrow`: the
+ * Apps · account (with Settings). Compact (the owner's choice, or a short window): each section is one row. `rail` = a column of icons (LAYOUT.sidebarRailW). Its edge folds and unfolds it (click or drag) and sets its width; `narrow`: the
  * window is narrow enough to fold it on its own; `fixed`: a phone, where it stays a rail.
  */
 export function Sidebar({

@@ -5,7 +5,7 @@ export const LAYOUT = {
   /** Chat, panel and app headers. */
   headerH: 56,
   sidebarW: 236,
-  sidebarRailW: 60,
+  sidebarRailW: 52,
   /** The main pane is a card beside the sidebar: its right margin plus its two borders. */
   mainInset: 10,
   /** What the owner may drag the sidebar and the chat list to. */
