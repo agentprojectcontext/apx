@@ -65,7 +65,7 @@ export function taskCommentAttention(store: Store, task: Task, text: string, by:
 
 // Where a task's code work goes is the owner's call, asked once and kept when they answer "always".
 const CODE_PLACE = [
-  'Before you change code for this task, unless a note says where code work goes in this project (recall "worktree"), ask_owner with five short options written in the language you speak with the owner: a worktree now, a worktree always, here in the project folder now, here always, other; save an "always" with remember (scope project) and do not ask again.',
+  'Where code work goes: as this project\'s AGENTS.md or a note says (recall "worktree"). With neither, decide yourself, never asking the owner: a folder that is not a git repository is worked in place; a git checkout gets a worktree. Save what you chose with remember (scope project), so every agent does the same.',
   "In a worktree: first git worktree list and the branches on this task's subject, and go on in the one that exists. Only if none, add one under .worktrees/ at the project root (never a parent folder, .apc or .claude) on a named branch (feat/…, fix/…), never detached. Remove it and its branch once merged, never with uncommitted changes.",
 ].join("\n");
 

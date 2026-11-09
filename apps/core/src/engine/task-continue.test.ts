@@ -27,6 +27,15 @@ const llm = scriptedLlm(async (req, { system, said, afterTool }) => {
     if (!afterTool) return callTool("bare", "task_close", { task, state: "done" });
     return say(String(req.messages.at(-1)?.content));
   }
+  if (all.includes("Write then check")) {
+    if (said.includes("Part 3 of at most"))
+      return afterTool
+        ? say("Done.")
+        : callTool("closing", "task_close", { task, state: "done", note: "both halves of the draft checked" });
+    if (said.includes("Part 2 of at most"))
+      return afterTool ? say("Checked half of it.") : callTool("check", "task_list", {});
+    return afterTool ? say("Wrote it, checking next.") : callTool("w", "task_update", { task, status: "doing" });
+  }
   if (all.includes("Spin around")) return afterTool ? say("Still looking.") : callTool("look", "task_list", {});
   if (said.includes("Part 2 of at most")) {
     if (!afterTool) return callTool("close", "task_close", { task, state: "done", note: "both halves shipped" });
@@ -78,6 +87,16 @@ test("a part that gets nowhere is not followed by another: the stall watch has i
   await new Promise((r) => setTimeout(r, 300));
   assert.equal(turnsOn(task.id).length, 2, "the second part only looked things up, so no third");
   assert.equal(env.core.store.tasks.get(task.id)?.state, "open");
+});
+
+test("a part that only checks what the turn before it changed goes on: checking is work", async () => {
+  const task = await env.client.call("tasks.create", {
+    title: "Write then check",
+    description: "Write the draft, then check it.",
+    assignee: "vera",
+  });
+  await waitFor(() => env.core.store.tasks.get(task.id)?.state === "done", "closed in its third part");
+  assert.equal(turnsOn(task.id).length, 3, "the reading part 2 was followed by part 3");
 });
 
 test("an agent waiting for a teammate it asked on its task is not told to go on: the answer wakes it", async () => {

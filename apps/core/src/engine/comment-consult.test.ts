@@ -37,6 +37,11 @@ const llm = scriptedLlm(async (req, { system, said, afterTool }) => {
       task: env.core.store.tasks.list({ limit: 50 }).find((t) => t.title === "Ledger summary")?.id,
       text: "@vera go on with the summary, nothing waits on the owner.",
     });
+  if (system.includes("main secretary") && said.includes("Wake Vera") && !afterTool)
+    return callTool("c8", "task_update", {
+      task: env.core.store.tasks.list({ limit: 50 }).find((t) => t.title === "Idle summary")?.id,
+      assignee: "vera",
+    });
   if (system.startsWith("You are Scout") && said.includes("make it a task") && !afterTool)
     return callTool("c4", "task_create", {
       goal: "Done as asked",
@@ -240,4 +245,22 @@ test("a teammate's @mention of the task's own agent reaches its chat for the tas
     .find((m) => m.includes("go on with the summary"));
   assert.match(input ?? "", /The task is yours: keep working until it is done/);
   assert.doesNotMatch(input ?? "", /the task's work is not yours|Status: done/);
+});
+
+test("naming the task's own agent again while it is idle has it go on; the task does not just sit", async () => {
+  const store = env.core.store;
+  const task = await env.client.call("tasks.create", {
+    title: "Idle summary",
+    description: "Draft the idle summary.",
+    assignee: "vera",
+  });
+  const chat = () => store.threads.byTask(task.id).find((t) => t.agent_ids[0] === "vera");
+  await waitFor(() => Boolean(chat()), "vera's chat for the task");
+  await env.settle(chat()?.id ?? "");
+  const woken = () =>
+    store.runs.list(chat()?.id ?? "").filter((r) => r.input?.origin.kind === "agent" && r.input.origin.on_task);
+  assert.equal(woken().length, 0);
+  await env.client.call("threads.send", { thread: "home", text: "Wake Vera on her summary." });
+  await env.settle("home");
+  await waitFor(() => woken().length === 1, "vera goes on, as work on her own task");
 });
