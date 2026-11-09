@@ -233,6 +233,7 @@ export const es: Partial<Record<MessageKey, string>> = {
   "help.label": "Ayuda",
   "help.labelNew": "Ayuda · hay novedades",
   "help.whatsNew": "Novedades",
+  "help.unread": "Nueva",
   "help.changelog": "Todas las novedades",
   "help.guides": "Guías",
   "help.discord": "Unirte a Discord",

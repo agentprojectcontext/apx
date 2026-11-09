@@ -1,8 +1,8 @@
 import { Icons, Menu, type MenuEntry } from "@apx/ui";
 import { Suspense, useEffect } from "react";
 import { guidesUrl, LINKS, openLink } from "../data/links.ts";
-import { loadNews, lookAtNews, openNews, useNews } from "../data/news.ts";
-import { hasFresh, latest, words } from "../data/newsModel.ts";
+import { loadNews, openNews, useNews } from "../data/news.ts";
+import { hasFresh, isUnread, latest, words } from "../data/newsModel.ts";
 import { useLanguage, useT } from "../i18n/index.ts";
 import { WhatsNewDialog } from "../lazy.ts";
 
@@ -12,8 +12,8 @@ export function HelpMenu({ rail }: { rail: boolean }) {
   const lang = useLanguage();
   const entries = useNews((s) => s.entries);
   const open = useNews((s) => s.open);
-  const looked = useNews((s) => s.looked);
-  const fresh = entries ? hasFresh(entries, looked) : false;
+  const read = useNews((s) => s.read);
+  const fresh = entries ? hasFresh(entries, read) : false;
   useEffect(() => void loadNews(), []);
 
   const recent = entries ? latest(entries) : [];
@@ -21,11 +21,20 @@ export function HelpMenu({ rail }: { rail: boolean }) {
     ...(recent.length
       ? ([
           { type: "label", label: t("help.whatsNew") },
-          ...recent.map((e) => ({
-            label: words(e.title, lang),
-            shortcut: e.since,
-            onSelect: () => openNews(e.id),
-          })),
+          ...recent.map((e) => {
+            const unread = Boolean(entries && isUnread(e, entries, read));
+            return {
+              // Unread ones carry a dot until opened; read ones keep its place, so the titles stay in line.
+              icon: unread ? (
+                <span className="help__newsdot is-unread" role="img" aria-label={t("help.unread")} />
+              ) : (
+                <span className="help__newsdot" aria-hidden="true" />
+              ),
+              label: words(e.title, lang),
+              shortcut: e.since,
+              onSelect: () => openNews(e.id),
+            };
+          }),
           { label: t("help.changelog"), icon: <Icons.Gift />, onSelect: () => openNews() },
           { type: "separator" },
         ] satisfies MenuEntry[])
@@ -41,7 +50,7 @@ export function HelpMenu({ rail }: { rail: boolean }) {
         align={rail ? "end" : "start"}
         className="help__menu"
         items={items}
-        onOpenChange={(o) => o && void lookAtNews()}
+        onOpenChange={(o) => o && void loadNews()}
         trigger={
           <button
             type="button"

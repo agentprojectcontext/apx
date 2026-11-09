@@ -668,9 +668,16 @@
 .sidebar:not(.is-rail) .diskmark {
   order: 1;
 }
-/* The news lines have no icon of their own: no empty column before them. */
-.help__menu .apx-menu__icon:empty {
-  display: none;
+/* The news lines' column holds their dot: lit until the entry is opened. */
+.help__newsdot {
+  display: block;
+  width: 8px;
+  height: 8px;
+  margin: auto;
+  border-radius: 50%;
+}
+.help__newsdot.is-unread {
+  background: var(--apx-brand);
 }
 .help__dot {
   position: absolute;
