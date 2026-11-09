@@ -133,7 +133,7 @@ export function ContactPanel({
             ]}
           />
         </div>
-        {mailbox && <NeverRead person={person} account={account} onDone={onClose} />}
+        {mailbox && <NeverRead person={person} account={account} />}
         <div className="pform__field">
           <span className="pform__label">{t("ch.who.is")}</span>
           <Textarea
@@ -206,15 +206,30 @@ export function ContactPanel({
   );
 }
 
-/** On an email account: stop reading this sender, or everyone at their domain (a service's notices). */
-function NeverRead({ person, account, onDone }: { person: Person; account: string; onDone(): void }) {
+/**
+ * On an email account: stop reading this sender, or everyone at their domain (a service's notices). Once stopped, the
+ * card says by which entry and reads them again.
+ */
+function NeverRead({ person, account }: { person: Person; account: string }) {
   const t = useT();
+  const list = useChannels((s) => s.channels.find((c) => c.id === account)?.email?.blocked);
   const address = person.addresses.find((a) => a.channel === account)?.external_id ?? "";
   const domain = address.split("@")[1];
-  const stop = async (scope: "address" | "domain") => {
-    if (await neverRead(person.id, account, scope)) onDone();
-  };
   if (!address || person.role === "owner") return null;
+  const by = list?.includes(address) ? "address" : domain && list?.includes(`@${domain}`) ? "domain" : undefined;
+  if (by)
+    return (
+      <div className="pform__field">
+        <span className="pform__label">{t("ch.notRead")}</span>
+        <div className="chan__neverread">
+          <span className="chan__neverread-what">{by === "address" ? address : `@${domain}`}</span>
+          <Button size="sm" variant="secondary" onClick={() => void neverRead(person.id, account, by, true)}>
+            {t("ch.readAgain")}
+          </Button>
+        </div>
+        <span className="pform__hint">{t("ch.notReadHint")}</span>
+      </div>
+    );
   return (
     <div className="pform__field">
       <span className="pform__label">{t("ch.neverRead")}</span>
@@ -223,7 +238,7 @@ function NeverRead({ person, account, onDone }: { person: Person; account: strin
           size="sm"
           variant="secondary"
           leadingIcon={<Icons.BellOff size={14} />}
-          onClick={() => void stop("address")}
+          onClick={() => void neverRead(person.id, account, "address")}
         >
           {address}
         </Button>
@@ -232,7 +247,7 @@ function NeverRead({ person, account, onDone }: { person: Person; account: strin
             size="sm"
             variant="secondary"
             leadingIcon={<Icons.BellOff size={14} />}
-            onClick={() => void stop("domain")}
+            onClick={() => void neverRead(person.id, account, "domain")}
           >
             {t("ch.neverReadDomain", { domain })}
           </Button>

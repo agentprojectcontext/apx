@@ -415,7 +415,7 @@ describe("the email channel", () => {
     assert.ok(read.includes("formatted hello") && !read.includes("<b>there"), "the agent never gets the markup");
   });
 
-  test("never read: a sender's address or whole domain goes on the list, the person is forgotten", async () => {
+  test("never read: a sender's address or whole domain goes on the list, the person is blocked, and undo reads them again", async () => {
     imap.deliver(mail({ from: "Notices <alerts@service.example>", to: USER, subject: "Hi", text: "notice" }).raw);
     const { requests } = await waitFor(async () => {
       const r = await env.client.call("pairing.list", {});
@@ -432,7 +432,8 @@ describe("the email channel", () => {
     );
     const r = await env.client.call("contacts.never_read", { person: person.id, channel: "email", scope: "domain" });
     assert.equal(r.blocked, "@service.example");
-    assert.equal(env.core.store.persons.get(person.id), undefined);
+    // Blocked, not forgotten: the chat's card still has someone to show.
+    assert.equal(env.core.store.persons.get(person.id)?.role, "blocked");
     const ch = (await env.client.call("channels.list", {})).channels[0];
     assert.ok(ch?.email?.blocked.includes("@service.example"));
     const calls = llm.calls.length;
@@ -442,6 +443,10 @@ describe("the email channel", () => {
     const after = (await env.client.call("pairing.list", {})).requests.map((q) => q.external_id);
     assert.ok(!after.includes("news@service.example"));
     assert.equal(llm.calls.length, calls + 2);
+    await env.client.call("contacts.never_read", { person: person.id, channel: "email", scope: "domain", undo: true });
+    assert.equal(env.core.store.persons.get(person.id)?.role, "contact");
+    const again = (await env.client.call("channels.list", {})).channels[0];
+    assert.ok(!again?.email?.blocked.includes("@service.example"), "read again: off the list");
   });
 
   test("the owner sends a chat's draft from the mailbox once: subject and copy kept, not marked as automatic", async () => {

@@ -247,7 +247,7 @@ export function channelHandlers(store: Store, channels: Channels, nudges: Pick<N
       if (id === OWNER_ID) throw badRequest("the owner cannot be removed");
       return { removed: store.persons.remove(id) };
     },
-    "contacts.never_read": async ({ person, channel, scope }) => {
+    "contacts.never_read": async ({ person, channel, scope, undo }) => {
       const cfg = channels.info().find((c) => c.id === channel);
       if (!cfg?.email) throw badRequest("only an email account has a list of senders it never reads");
       const who = store.persons.get(person);
@@ -258,12 +258,11 @@ export function channelHandlers(store: Store, channels: Channels, nudges: Pick<N
       if (blocked === "@") throw badRequest(`${address} has no domain`);
       const { token_set: _t, token_hint: _h, status: _s, error: _e, account: _a, qr: _q, id: _id, ...saved } = cfg;
       const list = cfg.email.blocked ?? [];
-      if (!list.includes(blocked))
-        await channels.set(channel, { ...saved, email: { ...cfg.email, blocked: [...list, blocked] } });
-      // Someone known on other apps too keeps those; only this address goes.
-      const here = who.addresses.find((a) => a.channel === channel);
-      if (who.addresses.length > 1 && here) store.persons.unlink(here.id);
-      else store.persons.remove(who.id);
+      const next = undo ? list.filter((x) => x !== blocked) : list.includes(blocked) ? list : [...list, blocked];
+      if (next.length !== list.length)
+        await channels.set(channel, { ...saved, email: { ...cfg.email, blocked: next } });
+      // Blocked, not forgotten: their card and chat stay, and the card can read them again.
+      store.persons.update(who.id, { role: undo ? "contact" : "blocked" });
       return { blocked };
     },
     "contacts.claim": ({ address }) => ({ moved: store.persons.giveToOwner(address) }),

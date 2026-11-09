@@ -15,7 +15,6 @@ import { KindTile } from "../KindIcon.tsx";
 import { CHANNEL_KINDS, isChannelKind } from "../kinds.ts";
 import { AccountPane, NewAccountPane } from "./AccountPane.tsx";
 import { ActivityPane } from "./ActivityPane.tsx";
-import { AnswerPane } from "./AnswerPane.tsx";
 import { ApprovalsPane } from "./ApprovalsPane.tsx";
 import { BehaviorPane } from "./BehaviorPane.tsx";
 import { ContactsPane } from "./ContactsPane.tsx";
@@ -36,7 +35,6 @@ const GROUPS: { label: MessageKey; panes: { id: Pane; icon: ReactNode }[] }[] = 
     label: "acct.group.general",
     panes: [
       { id: "account", icon: <Icons.Settings /> },
-      { id: "answer", icon: <Icons.Bot /> },
       { id: "behavior", icon: <Icons.ListChecks /> },
       { id: "stickers", icon: <Icons.Sparkles /> },
       { id: "rooms", icon: <Icons.Hash /> },
@@ -54,10 +52,9 @@ const GROUPS: { label: MessageKey; panes: { id: Pane; icon: ReactNode }[] }[] = 
 
 const LEAD: Record<Pane, MessageKey> = {
   account: "acct.lead.account",
-  answer: "acct.lead.answer",
   behavior: "acct.lead.behavior",
   stickers: "acct.lead.stickers",
-  rooms: "acct.lead.behavior",
+  rooms: "acct.lead.rooms",
   contacts: "acct.lead.contacts",
   approvals: "acct.lead.approvals",
   activity: "acct.lead.activity",
@@ -255,7 +252,7 @@ function AccountDialog({ edit }: { edit: AccountEdit }) {
     if (!channel) return undefined;
     const c = counts.get(channel.id);
     if (p === "account") return t(`tg.status.${channel.enabled ? channel.status : "off"}`);
-    if (p === "answer") return agents[draft?.agent_id ?? channel.agent_id]?.name;
+    if (p === "behavior") return agents[draft?.agent_id ?? channel.agent_id]?.name;
     if (p === "rooms") return channel.rooms?.rooms.length || undefined;
     if (p === "approvals") return c?.waiting || undefined;
     return undefined;
@@ -320,8 +317,6 @@ function AccountDialog({ edit }: { edit: AccountEdit }) {
               <NewAccountPane kind={edit.kind} label={edits.label ?? ""} set={set} create={create} />
             ) : shown === "account" ? (
               <AccountPane kind={edit.kind} onRemove={() => setAsking("remove")} {...paneProps} />
-            ) : shown === "answer" ? (
-              <AnswerPane {...paneProps} />
             ) : shown === "behavior" ? (
               <BehaviorPane {...paneProps} />
             ) : shown === "stickers" ? (

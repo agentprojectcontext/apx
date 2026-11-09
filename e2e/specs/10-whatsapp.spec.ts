@@ -20,7 +20,7 @@ test("the owner links a line with the QR, then their own phone by writing to it"
   await page.getByRole("button", { name: /^WhatsApp/ }).click();
   const dialog = page.getByRole("dialog", { name: "Nuevo canal de WhatsApp" });
   await expect(dialog.getByRole("button", { name: "Crear canal" })).toBeDisabled();
-  await expect(dialog.getByRole("button", { name: "Quién responde" })).toBeDisabled();
+  await expect(dialog.getByRole("button", { name: "Comportamiento" })).toBeDisabled();
   await dialog.getByRole("button", { name: "Conectar" }).click();
   await expect(page.getByRole("img", { name: "Escaneá este código con tu teléfono" })).toBeVisible();
 
@@ -29,7 +29,7 @@ test("the owner links a line with the QR, then their own phone by writing to it"
   await expect(page.getByRole("img", { name: "Escaneá este código con tu teléfono" })).toBeHidden();
   await expect(page.getByText("Todavía no está vinculado", { exact: false })).toBeVisible();
   await expect(page.getByRole("switch", { name: "Esta línea es mi propio teléfono" })).not.toBeChecked();
-  await page.getByRole("button", { name: "Quién responde" }).click();
+  await page.getByRole("button", { name: "Comportamiento" }).click();
   await expect(page.getByText("El agente que responde a quienes escriben a WhatsApp.")).toBeVisible();
   await page.getByRole("button", { name: "Crear canal" }).click();
   await expect(page.getByRole("dialog")).toHaveCount(0);

@@ -1619,10 +1619,12 @@ export const appMethods = {
   },
   /**
    * A mailbox account stops reading someone: their address (or their whole domain) goes on its "Never read" list and
-   * the person is forgotten, with their chat kept.
+   * the person is blocked, their card and chat kept. `undo` reads them again: the entry leaves the list, the block too.
    */
   "contacts.never_read": {
-    params: z.object({ person: Id, channel: Id, scope: z.enum(["address", "domain"]) }).strict(),
+    params: z
+      .object({ person: Id, channel: Id, scope: z.enum(["address", "domain"]), undo: z.boolean().optional() })
+      .strict(),
     result: z.object({ blocked: z.string() }),
     effect: true,
     access: "human",

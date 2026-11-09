@@ -19,7 +19,11 @@ export const enChannels = {
   "ch.neverRead": "Never read again",
   "ch.neverReadDomain": "Everything from @{domain}",
   "ch.neverReadHint":
-    "Their mail is skipped from now on and this contact is forgotten; the chat stays. Undo it in the account's Never read list.",
+    "Their mail is skipped from now on; this card and the chat stay, and you can read them again here.",
+  "ch.notRead": "Not read",
+  "ch.notReadHint": "Their mail is skipped without an answer. Read again takes them off the account's Never read list.",
+  "ch.readAgain": "Read again",
+  "ch.readAgainDone": "{who} is read again.",
   "ch.neverReadDone": "{who} is not read anymore.",
   "ch.strangersHint.listMail": "They are listed here for you to approve; no mail is sent to them.",
   "ch.strangersHint.ask":

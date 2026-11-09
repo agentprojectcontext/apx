@@ -162,14 +162,17 @@ export function ChannelConversation(props: {
             {t("ch.recover")}
           </Button>
         )}
-        <Button
-          size="sm"
-          variant={props.card ? "secondary" : "ghost"}
-          leadingIcon={<Icons.User size={14} />}
-          onClick={props.onToggleCard}
-        >
-          {t("ch.contact")}
-        </Button>
+        {/* A forgotten contact has no card left to open. */}
+        {person && (
+          <Button
+            size="sm"
+            variant={props.card ? "secondary" : "ghost"}
+            leadingIcon={<Icons.User size={14} />}
+            onClick={props.onToggleCard}
+          >
+            {t("ch.contact")}
+          </Button>
+        )}
       </header>
       <StickyScroll
         resetKey={threadId || (person?.id ?? "")}
