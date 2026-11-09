@@ -4463,4 +4463,6 @@ the main prompt's own rule that a promise is not an action.
   untouched (`owner_check.reply_to` is optional now): answers reach the owner where Home talks to them (Home's last
   channel, or the app).
 
-Not done: the owner's earlier quick messages that a burst kept unanswered are not handed over, only the one answered.
+- **A burst goes whole.** A room answers one person's quick messages as one (D-041), so the owner's messages kept
+  unanswered right before the one answered go with it, oldest first: only theirs, with nobody else's message or an
+  answer between, each within 15 s of the next.
