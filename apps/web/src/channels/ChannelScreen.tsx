@@ -249,8 +249,10 @@ function ChannelHead({ channel }: { channel: ChannelInfo }) {
             </span>
             <span className="chan__meta">
               <span className={`chan__status is-${channel.status}`} />
-              {channel.account ? `${channel.account} · ` : ""}
-              {answersLine(answerersOf(channel, agents), t)}
+              <span className="chan__metatext" title={answersLine(answerersOf(channel, agents), t)}>
+                {channel.account ? `${channel.account} · ` : ""}
+                {answersLine(answerersOf(channel, agents), t)}
+              </span>
             </span>
           </button>
         }
