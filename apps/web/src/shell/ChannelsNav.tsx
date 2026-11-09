@@ -98,8 +98,9 @@ export function ChannelsNav({ rail }: { rail: boolean }) {
         setPrefs({ channelsFolded: !folded });
       }}
     >
-      {!hidden && !rail && (
+      {!hidden && (
         <NavItem
+          collapsed={rail}
           className="channelsnav__manage"
           icon={<Icons.LayoutGrid />}
           label={t("nav.manageChannels")}

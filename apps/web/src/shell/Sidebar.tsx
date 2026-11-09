@@ -1,6 +1,5 @@
 import { ContextMenu, Icons, NavItem, ResizeHandle } from "@apx/ui";
 import { Suspense, useEffect, useMemo } from "react";
-import { useAccountCounts } from "../channels/counts.ts";
 import { markAllRead } from "../data/actions.ts";
 import { loadChannels } from "../data/channels.ts";
 import { inInbox } from "../data/identity.ts";
@@ -39,8 +38,6 @@ export function Sidebar({
   const threads = useData((s) => s.threads);
   const computers = useData((s) => s.computers.shown);
   const screensInUse = useData((s) => s.computers.inUse);
-  const accountCounts = useAccountCounts();
-  const channelsAttention = [...accountCounts.values()].reduce((n, c) => n + c.unread + c.waiting, 0);
   useEffect(() => {
     void loadChannels();
   }, []);
@@ -134,14 +131,6 @@ export function Sidebar({
             onClick={() => go.view("computers")}
           />
         )}
-        <NavItem
-          collapsed={rail}
-          icon={<Icons.MessageCircle />}
-          label={t("nav.channels")}
-          count={channelsAttention || undefined}
-          active={view === "channels"}
-          onClick={() => go.view("channels")}
-        />
       </div>
       <div className="sidebar__scroll">
         <ChannelsNav rail={rail} />
