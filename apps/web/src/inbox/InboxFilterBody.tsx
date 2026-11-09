@@ -1,22 +1,18 @@
 import type { Thread } from "@apx/protocol";
-import { AgentAvatar, Button, Icons, PickRow, ProjectTile, Select, Tabs } from "@apx/ui";
+import { AgentAvatar, Button, Icons, PickRow, ProjectTile, Tabs } from "@apx/ui";
 import { useMemo, useState } from "react";
 import { blobOf, inProject, nestProjects, projectEntries, projectInitial, projectTone } from "../data/identity.ts";
-import { type InboxView, setPrefs, usePrefs } from "../data/prefs.ts";
 import { useData, useShownAgents } from "../data/state.ts";
 import { useT } from "../i18n/index.ts";
 import { clearFilter, filterCount, toggleFilter, useInboxFilter } from "./inboxFilter.ts";
 
-const VIEWS: readonly InboxView[] = ["list", "tree", "activity", "chats"];
-
-/** What the filter's popover holds, loaded when it first opens: agents or projects to pick, and how Chats lists them. */
+/** What the filter's popover holds, loaded when it first opens: agents or projects to pick, and a way to clear them. */
 export function InboxFilterBody({ threads }: { threads: Thread[] }) {
   const t = useT();
   const agents = useShownAgents();
   const chosen = useInboxFilter((s) => s);
   const active = filterCount(chosen);
   const projects = useData((s) => s.projects);
-  const view = usePrefs((s) => s.inboxView);
   const [kind, setKind] = useState<"agents" | "projects">("agents");
   const agentRows = useMemo(() => {
     const n = new Map<string, number>();
@@ -78,20 +74,13 @@ export function InboxFilterBody({ threads }: { threads: Thread[] }) {
               />
             ))}
       </div>
-      <div className="inboxfilter__foot">
-        <Select
-          size="sm"
-          label={t("inbox.view")}
-          value={view}
-          onValueChange={(v) => setPrefs({ inboxView: (VIEWS.find((x) => x === v) ?? "list") as InboxView })}
-          options={VIEWS.map((v) => ({ value: v, label: t(`inbox.view.${v}`) }))}
-        />
-        {active > 0 && (
+      {active > 0 && (
+        <div className="inboxfilter__foot">
           <Button size="sm" variant="ghost" onClick={clearFilter}>
             {t("inbox.filter.clear")}
           </Button>
-        )}
-      </div>
+        </div>
+      )}
     </>
   );
 }

@@ -11,7 +11,7 @@ import { clearFilter, type FilterKind, filterCount, toggleFilter, useInboxFilter
 
 /**
  * The Inbox's filter: pick agents or projects (each with how many chats it has here); the chosen ones show as chips
- * under the tabs. Below, how the Chats tab lists them.
+ * under the tabs.
  */
 export function InboxFilterMenu({ threads }: { threads: Thread[] }) {
   const t = useT();

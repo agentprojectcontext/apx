@@ -189,20 +189,8 @@
       "count": 1,
       "reason": "custom-styled row, chip, tab or card control; moving it to Button/IconButton changes its look, so it needs a reviewed screenshot (rule 32)"
     },
-    "apps/web/src/inbox/ActivityView.tsx": {
-      "count": 1,
-      "reason": "custom-styled row, chip, tab or card control; moving it to Button/IconButton changes its look, so it needs a reviewed screenshot (rule 32)"
-    },
-    "apps/web/src/inbox/ChannelTreeRow.tsx": {
-      "count": 1,
-      "reason": "custom-styled row, chip, tab or card control; moving it to Button/IconButton changes its look, so it needs a reviewed screenshot (rule 32)"
-    },
     "apps/web/src/inbox/Delegated.tsx": {
       "count": 4,
-      "reason": "custom-styled row, chip, tab or card control; moving it to Button/IconButton changes its look, so it needs a reviewed screenshot (rule 32)"
-    },
-    "apps/web/src/inbox/InboxList.tsx": {
-      "count": 2,
       "reason": "custom-styled row, chip, tab or card control; moving it to Button/IconButton changes its look, so it needs a reviewed screenshot (rule 32)"
     },
     "apps/web/src/inbox/InboxPreview.tsx": {
@@ -210,11 +198,7 @@
       "reason": "custom-styled row, chip, tab or card control; moving it to Button/IconButton changes its look, so it needs a reviewed screenshot (rule 32)"
     },
     "apps/web/src/inbox/InboxViews.tsx": {
-      "count": 3,
-      "reason": "custom-styled row, chip, tab or card control; moving it to Button/IconButton changes its look, so it needs a reviewed screenshot (rule 32)"
-    },
-    "apps/web/src/inbox/RoutineBundle.tsx": {
-      "count": 2,
+      "count": 1,
       "reason": "custom-styled row, chip, tab or card control; moving it to Button/IconButton changes its look, so it needs a reviewed screenshot (rule 32)"
     },
     "apps/web/src/panel/BrowserEdit.tsx": {

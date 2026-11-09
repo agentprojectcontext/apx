@@ -37,7 +37,6 @@ export type Prefs = {
   /** Rows each sidebar section shows before the rest folds into "N more" (0 = its minimum). */
   sidebarRows: SidebarRows;
   /** How the Inbox's Chats tab lists them: one list (pinned, recent, archived), project → agent → chats, by time, or by project. */
-  inboxView: InboxView;
   /** The Inbox's tab: chats, tasks or routines. */
   inboxTab: InboxTab;
   /** Rows of the Inbox the owner opened (a chat's delegated chats, a task's chats, a section): closed until opened. */
@@ -89,7 +88,6 @@ export type SidebarRows = { channels: number; projects: number; engines: number 
 /** The fewest rows each sidebar section can be dragged down to, and what it shows until then. */
 export const SIDEBAR_MIN_ROWS: SidebarRows = { channels: 3, projects: 5, engines: 3 };
 
-export type InboxView = "list" | "tree" | "activity" | "chats";
 export type InboxTab = "chats" | "tasks" | "routines";
 
 const KEY = "apx.prefs";
@@ -109,7 +107,6 @@ const DEFAULTS: Prefs = {
   projectOrder: [],
   engineOrder: [],
   sidebarRows: { channels: 0, projects: 0, engines: 0 },
-  inboxView: "list",
   inboxTab: "chats",
   inboxOpen: [],
   inboxRoutines: true,
@@ -155,11 +152,6 @@ function load(): Prefs {
         ? [...new Set(raw.engineOrder.filter((id): id is string => typeof id === "string"))]
         : [],
       sidebarRows: sidebarRowsOf(raw.sidebarRows),
-      // Lists stored before the tabs (the old default tree included) open on the new list.
-      inboxView:
-        raw.inboxTab && (raw.inboxView === "activity" || raw.inboxView === "chats" || raw.inboxView === "tree")
-          ? raw.inboxView
-          : "list",
       inboxTab: raw.inboxTab === "tasks" || raw.inboxTab === "routines" ? raw.inboxTab : "chats",
       inboxOpen: Array.isArray(raw.inboxOpen)
         ? [...new Set(raw.inboxOpen.filter((id): id is string => typeof id === "string"))].slice(-500)

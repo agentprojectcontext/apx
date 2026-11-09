@@ -1,5 +1,5 @@
-import type { Project, Thread } from "@apx/protocol";
-import { baseName, inInbox, inProject, isTopLevel, isWorking } from "../data/identity.ts";
+import type { Thread } from "@apx/protocol";
+import { inInbox, inProject, isTopLevel } from "../data/identity.ts";
 
 /** `routines`: routine runs that told something are listed too. */
 type Filter = { projectId?: string; query?: string; routines?: boolean };
@@ -84,38 +84,6 @@ export function archivedThreads(threads: Record<string, Thread>, opts: Filter): 
   return visible(threads, opts, (t) => !!t.archived && isTopLevel(t)).sort(newest);
 }
 
-export type ThreadGroup = {
-  key: string;
-  project: Project | undefined;
-  name: string;
-  threads: Thread[];
-  running: number;
-};
-
-const NO_PROJECT = "__none__";
-
-/** Inbox organisation "a" (by chat): top-level threads grouped by project, most recent group first. */
-export function groupByProject(threads: Record<string, Thread>, projects: Project[], opts: Filter): ThreadGroup[] {
-  const byId = new Map(projects.map((p) => [p.id, p]));
-  const groups = new Map<string, ThreadGroup>();
-  for (const t of visible(threads, opts)) {
-    const key = t.project_id ?? NO_PROJECT;
-    let g = groups.get(key);
-    if (!g) {
-      const project = t.project_id ? byId.get(t.project_id) : undefined;
-      g = { key, project, name: project?.name ?? baseName(), threads: [], running: 0 };
-      groups.set(key, g);
-    }
-    g.threads.push(t);
-    if (isWorking(t.state)) g.running++;
-  }
-  const out = [...groups.values()];
-  const latest = (g: ThreadGroup) => g.threads.reduce((m, t) => (t.updated_at > m ? t.updated_at : m), "");
-  out.sort((a, b) => latest(b).localeCompare(latest(a)));
-  for (const g of out) g.threads.sort(pinnedFirst);
-  return out;
-}
-
 /** A row of a chat list: a chat, or (`task`) every chat the agents keep for one task, together. */
 export type ListEntry =
   | { kind: "thread"; thread: Thread }
@@ -151,98 +119,4 @@ export function bundleTasks(list: Thread[]): ListEntry[] {
     }
   }
   return out;
-}
-
-/**
- * One branch of the tree: an agent's chats, (`engine`) an engine's own sessions wherever they were started, or
- * (`task`) the chats of every agent working one task.
- */
-type AgentBranch = {
-  agentId: string;
-  engine?: string | undefined;
-  task?: string | undefined;
-  routine?: string | undefined;
-  channel?: boolean;
-  threads: Thread[];
-};
-export type ProjectTree = { key: string; project: Project | undefined; name: string; agents: AgentBranch[] };
-
-/** Inbox organisation "b" (tree): project → agent (or task) → chats; busiest-recent first at every level. */
-export function groupByAgent(threads: Record<string, Thread>, projects: Project[], opts: Filter): ProjectTree[] {
-  const byId = new Map(projects.map((p) => [p.id, p]));
-  const trees = new Map<string, ProjectTree>();
-  for (const t of visible(threads, opts).sort(newest)) {
-    const key = t.project_id ?? NO_PROJECT;
-    let tree = trees.get(key);
-    if (!tree) {
-      const project = t.project_id ? byId.get(t.project_id) : undefined;
-      tree = { key, project, name: project?.name ?? baseName(), agents: [] };
-      trees.set(key, tree);
-    }
-    // A Claude Code or Codex session belongs to that engine, and a task's chat to the task, not to the agent.
-    const routine = t.kind === "routine" ? t.routine_id : undefined;
-    const agentId = routine
-      ? `routine:${routine}`
-      : t.engine
-        ? `engine:${t.engine}`
-        : t.task_id
-          ? `task:${t.task_id}`
-          : t.channel
-            ? `channel:${t.id}`
-            : (t.agent_ids[0] ?? "");
-    let branch = tree.agents.find((a) => a.agentId === agentId);
-    if (!branch) {
-      branch = {
-        agentId,
-        ...(routine
-          ? { routine }
-          : t.engine
-            ? { engine: t.engine }
-            : t.task_id
-              ? { task: t.task_id }
-              : t.channel
-                ? { channel: true }
-                : {}),
-        threads: [],
-      };
-      tree.agents.push(branch);
-    }
-    branch.threads.push(t);
-  }
-  // Branches keep their order (most recent first); a pinned chat goes to the top of its own branch.
-  for (const tree of trees.values()) for (const b of tree.agents) b.threads.sort(pinnedFirst);
-  return [...trees.values()];
-}
-
-export type TimeBucket = "pinned" | "running" | "today" | "yesterday" | "week" | "earlier";
-export type ActivityGroup = { bucket: TimeBucket; threads: Thread[] };
-
-/** Inbox organisation "c" (activity): pinned chats on top, then what runs now, then by when it last moved. */
-export function groupByTime(threads: Record<string, Thread>, opts: Filter, now = new Date()): ActivityGroup[] {
-  const day = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
-  const bucketOf = (t: Thread): TimeBucket => {
-    if (t.pinned) return "pinned";
-    if (isWorking(t.state) || t.state === "input-required") return "running";
-    const at = Date.parse(t.updated_at);
-    if (at >= day) return "today";
-    if (at >= day - 86_400_000) return "yesterday";
-    if (at >= day - 6 * 86_400_000) return "week";
-    return "earlier";
-  };
-  const order: TimeBucket[] = ["pinned", "running", "today", "yesterday", "week", "earlier"];
-  const groups = new Map<TimeBucket, Thread[]>();
-  const orderOf = (t: Thread) => order.indexOf(bucketOf(t));
-  for (const entry of bundleTasks(visible(threads, opts).sort(pinnedFirst))) {
-    const list = entry.kind === "thread" ? [entry.thread] : entry.threads;
-    if (entry.kind === "routine") {
-      const bucket = bucketOf(list.reduce((a, b) => (orderOf(a) <= orderOf(b) ? a : b)));
-      groups.set(bucket, [...(groups.get(bucket) ?? []), ...list]);
-    } else {
-      for (const t of list) groups.set(bucketOf(t), [...(groups.get(bucketOf(t)) ?? []), t]);
-    }
-  }
-  return order.flatMap((bucket) => {
-    const list = groups.get(bucket);
-    return list ? [{ bucket, threads: list }] : [];
-  });
 }

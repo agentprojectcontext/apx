@@ -17,7 +17,50 @@
 .inbox__titlerow {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 2px;
+}
+.inbox__titlerow .inbox__title {
+  margin-right: 6px;
+}
+/* New chat apart from the two that narrow the list. */
+.inbox__headsep {
+  flex: none;
+  width: 1px;
+  height: 14px;
+  margin: 0 4px;
+  background: var(--apx-border);
+}
+/* The tabs, or the search in their place: one row of the same height, so the list never moves. */
+.inbox__switch {
+  display: flex;
+  align-items: center;
+  min-height: 34px;
+}
+.inbox__seek {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+  animation: inbox-seek var(--apx-duration) ease-out;
+}
+.inbox__seekfield {
+  flex: 1;
+  min-width: 0;
+}
+@keyframes inbox-seek {
+  from {
+    opacity: 0;
+    transform: scaleX(0.96);
+  }
+}
+.inbox__seek {
+  transform-origin: right center;
+}
+@media (prefers-reduced-motion: reduce) {
+  .inbox__seek {
+    animation: none;
+  }
 }
 .inbox__title {
   flex: 1;
@@ -34,44 +77,6 @@
   min-height: 0;
   overflow-y: auto;
   padding: 0 8px 16px;
-}
-.inbox__group + .inbox__group {
-  margin-top: 6px;
-}
-.inbox__grouphead {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  width: 100%;
-  height: 30px;
-  padding: 0 8px;
-  border: 0;
-  border-radius: var(--apx-row-radius);
-  background: none;
-  color: var(--apx-fg-muted);
-  font-size: var(--apx-text-xs);
-  font-weight: var(--apx-weight-semibold);
-  cursor: pointer;
-}
-.inbox__grouphead:hover {
-  background: var(--apx-fill-hover);
-}
-.inbox__groupname {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.inbox__groupcount {
-  font-weight: var(--apx-weight-regular);
-  color: var(--apx-fg-subtle);
-}
-.inbox__grouprun {
-  font-weight: var(--apx-weight-medium);
-  color: var(--apx-brand);
-  white-space: nowrap;
-}
-.inbox__groupspacer {
-  flex: 1;
 }
 .inbox__skeleton {
   display: flex;
@@ -195,13 +200,6 @@ button.chatprocesses {
   margin-right: 4px;
   vertical-align: -1px;
   color: var(--apx-fg-subtle);
-}
-
-/* Archived chats: one quiet row at the end of the list that unfolds them. */
-.inbox__archived {
-  margin-top: 8px;
-  padding-top: 6px;
-  border-top: 1px solid var(--apx-border);
 }
 
 /* Compact faces retain their column, including group and caller badges. */
@@ -407,13 +405,6 @@ button.chatprocesses {
 }
 .routinerow__runs {
   vertical-align: -2px;
-}
-.routinebundle > .tree__sessions {
-  min-width: 0;
-}
-.routinebundle .tree__agentmeta {
-  flex: none;
-  white-space: nowrap;
 }
 
 /* The tabs are the Inbox's main switch: taller, like the design's. */
