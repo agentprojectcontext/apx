@@ -40,9 +40,12 @@ export function readsOnly(command: string, home = os.homedir()): boolean {
  */
 export function mayChange(command: string, names: (path: string) => boolean, home = os.homedir()): boolean {
   const named = (w: Word) => w.text.split(/[=:]/).some((p) => p && names(p));
-  return segments(command).some((words) => {
+  const segs = segments(command);
+  return segs.some((words) => {
     if (!words.some(named)) return false;
     if (words.some((w) => w.redirect && named(w))) return true;
+    // A loop's list is only names: it changes them only if a part of its body could change anything.
+    if (words[0]?.text === "for" && words[2]?.text === "in") return !segs.every((s) => s === words || bodyReads(s));
     if (reader(words)) return false;
     const [first, ...args] = words.filter((w) => !w.redirect && !w.data);
     // Staging, committing or showing a file in git leaves it as it is.
@@ -52,6 +55,13 @@ export function mayChange(command: string, names: (path: string) => boolean, hom
     const known = paths.every((n) => n.kind === "path" || n.kind === "cd");
     return !known || paths.some((n) => n.kind === "path" && n.write && names(n.to.path));
   });
+}
+
+/** A part of a loop's body that only reads: `do`/`then` before it and `done`/`fi` alone count as nothing. */
+function bodyReads(words: Word[]): boolean {
+  const rest = words[0] && /^(do|then|else)$/.test(words[0].text) ? words.slice(1) : words;
+  if (!rest.length || /^(done|fi)$/.test(rest[0]?.text ?? "")) return true;
+  return reader(rest) && !rest.some((w) => w.redirect === "write");
 }
 
 /** git subcommands that leave the files they name as they are. */
