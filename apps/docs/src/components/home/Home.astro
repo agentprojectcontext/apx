@@ -3,6 +3,7 @@
 // questions, comparisons and downloads.
 import logo from "../../assets/logo.png";
 import blobs from "../../data/blobs.json";
+import { DEFINITION, ORGANIZATION_ID, organization, REPO, SOFTWARE_ID } from "../../data/brand";
 import { featured } from "../../data/comparisons";
 import { builtRelease, downloadHref, releasesPage } from "../../data/latest-release";
 import { sitePath } from "../../doc-routes.mjs";
@@ -30,8 +31,12 @@ const href = (path: string) => sitePath(path, import.meta.env.BASE_URL);
 const schema = [
   {
     "@type": "SoftwareApplication",
+    "@id": SOFTWARE_ID,
     name: "APX",
-    description: t.description,
+    description: `${DEFINITION[lang]} ${t.description}`,
+    publisher: { "@id": ORGANIZATION_ID },
+    sameAs: [REPO],
+    license: "https://opensource.org/licenses/MIT",
     url: new URL(href(lang === "es" ? "/es/" : "/"), Astro.site).href,
     image: new URL(href(lang === "es" ? "/og-es.jpg" : "/og.jpg"), Astro.site).href,
     applicationCategory: "BusinessApplication",
@@ -39,7 +44,14 @@ const schema = [
     offers: { "@type": "Offer", price: "0", priceCurrency: "USD" },
     ...(builtRelease ? { softwareVersion: builtRelease.replace(/^v/, "") } : {}),
   },
-  { "@type": "WebSite", name: "APX", url: new URL(href("/"), Astro.site).href, inLanguage: ["en", "es"] },
+  {
+    "@type": "WebSite",
+    name: "APX",
+    url: new URL(href("/"), Astro.site).href,
+    inLanguage: ["en", "es"],
+    publisher: { "@id": ORGANIZATION_ID },
+  },
+  organization(new URL(href("/favicon.png"), Astro.site).href, lang),
 ];
 const pre = lang === "es" ? "/es" : "";
 // v2's releases are not GitHub's "Latest" while v1 shares the repo, so the scripts are served by this site.
