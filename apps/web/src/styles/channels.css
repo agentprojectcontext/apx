@@ -58,7 +58,14 @@
   white-space: nowrap;
   text-overflow: ellipsis;
 }
+/* The line itself shrinks with an ellipsis; the whole of it shows on hover. */
+.chan__metatext {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
 .chan__status {
+  flex: none;
   width: 7px;
   height: 7px;
   border-radius: 50%;
@@ -632,4 +639,545 @@
 /* The "?" after "What this conversation may do". */
 .chan__help {
   margin-left: 4px;
+}
+
+/* ── Channels screen: every account, who answers it and what waits there ───────────────────────────────── */
+.page--channels .page__head {
+  max-width: 1080px;
+}
+.chs {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  width: 100%;
+  max-width: 1080px;
+  margin: 0 auto;
+  padding: 16px 24px 32px;
+  box-sizing: border-box;
+}
+.chs__filter {
+  align-self: flex-start;
+  max-width: 100%;
+  overflow-x: auto;
+}
+.chs__list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border: 1px solid var(--apx-border);
+  border-radius: var(--apx-radius-lg);
+  overflow: hidden;
+}
+.chs__row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(140px, 220px) 120px 28px auto;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  font-size: var(--apx-text-sm);
+}
+.chs__row + .chs__row {
+  border-top: 1px solid var(--apx-border);
+}
+.chs__main {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.chs__row.is-off .chs__main {
+  opacity: 0.6;
+}
+.chs__tile {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border-radius: var(--apx-radius-md);
+  background: var(--apx-group-bg);
+}
+.chs__titles {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.chs__name {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  font-weight: var(--apx-weight-medium);
+}
+/* A long name ends in an ellipsis next to the buttons; the whole of it shows on hover. */
+.chs__label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.chs__sub {
+  overflow: hidden;
+  color: var(--apx-fg-muted);
+  font-size: var(--apx-text-xs);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+/* Who answers: the agent you talk to, and under it the one for your contacts when it is another. */
+.chs__agents {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.chs__agent,
+.chs__status {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  overflow: hidden;
+  color: var(--apx-fg-muted);
+  white-space: nowrap;
+}
+.chs__dot {
+  flex: none;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--apx-fg-subtle);
+}
+.chs__status.is-running .chs__dot {
+  background: var(--apx-brand);
+}
+.chs__status.is-error {
+  color: var(--apx-danger);
+}
+.chs__status.is-error .chs__dot {
+  background: var(--apx-danger);
+}
+.chs__unread {
+  display: flex;
+  justify-content: center;
+}
+.chs__actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.chs__hint {
+  margin: 0;
+  color: var(--apx-fg-subtle);
+  font-size: var(--apx-text-xs);
+}
+.chs__meta {
+  display: contents;
+}
+.chs__name {
+  flex-wrap: wrap;
+}
+/* A phone: who answers and the state go in one line under the name, the actions stay on the right. */
+@media (max-width: 720px) {
+  .chs {
+    padding: 12px 16px 24px;
+  }
+  .chs__row {
+    grid-template-columns: minmax(0, 1fr) auto auto;
+    row-gap: 2px;
+  }
+  .chs__main {
+    grid-row: 1;
+    grid-column: 1;
+  }
+  .chs__unread {
+    grid-row: 1;
+    grid-column: 2;
+  }
+  .chs__actions {
+    grid-row: 1;
+    grid-column: 3;
+  }
+  .chs__meta {
+    display: flex;
+    grid-row: 2;
+    grid-column: 1 / -1;
+    gap: 12px;
+    padding-left: 48px;
+    font-size: var(--apx-text-xs);
+  }
+  .chs__agents {
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: 2px 12px;
+  }
+  /* Too narrow for all of it on one line: what does not fit goes under, never cut. */
+  .chs__meta {
+    flex-wrap: wrap;
+    row-gap: 2px;
+  }
+  .chs__agent,
+  .chs__status {
+    flex: none;
+  }
+}
+/* The channel's name opens its accounts, to switch to another. */
+.chan__switch {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 1px;
+  margin: -4px 0;
+  padding: 4px 6px;
+  border: 0;
+  border-radius: var(--apx-radius-sm);
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.chan__switch:hover {
+  background: var(--apx-fill-hover);
+}
+.chan__switch .chan__name {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.channelsnav__manage {
+  margin-bottom: 2px;
+}
+
+/* ── New channel: the apps to connect ─────────────────────────────────────────────────────────────────── */
+.chpick {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 8px;
+}
+.chpick__kind {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+  padding: 14px;
+  border: 1px solid var(--apx-border);
+  border-radius: var(--apx-radius-md);
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.chpick__kind:hover,
+.chpick__kind:focus-visible {
+  background: var(--apx-fill-hover);
+}
+.chpick__name {
+  font-size: var(--apx-text-sm);
+  font-weight: var(--apx-weight-medium);
+}
+.chpick__how {
+  color: var(--apx-fg-muted);
+  font-size: var(--apx-text-xs);
+}
+
+/* ── An account's settings: the config dialog's layout, with the account on top of its nav and Save below ── */
+.apx-dialog.acct {
+  overflow: hidden;
+}
+.acct__side {
+  display: flex;
+  flex: none;
+  flex-direction: column;
+  width: var(--config-nav-w);
+  background: var(--apx-sidebar);
+  border-right: 1px solid var(--apx-border);
+}
+.acct__side .config__nav {
+  flex: 1;
+  width: auto;
+  padding-top: 4px;
+  background: none;
+  border-right: 0;
+}
+.acct__head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 16px 14px 8px;
+}
+.acct__titles {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+}
+.acct__title {
+  overflow: hidden;
+  font-size: var(--apx-text-sm);
+  font-weight: var(--apx-weight-semibold);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.acct__headsub {
+  overflow: hidden;
+  color: var(--apx-fg-muted);
+  font-size: var(--apx-text-xs);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.acct__switch {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  margin: -4px -6px;
+  padding: 4px 6px;
+  border: 0;
+  border-radius: var(--apx-radius-sm);
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.acct__switch:hover {
+  background: var(--apx-fill-hover);
+}
+.acct__trail {
+  color: var(--apx-fg-subtle);
+  font-size: var(--apx-text-xs);
+}
+.acct__main {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+}
+.acct__foot {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 20px;
+  border-top: 1px solid var(--apx-border);
+}
+.acct__state {
+  flex: 1;
+  min-width: 0;
+  color: var(--apx-fg-subtle);
+  font-size: var(--apx-text-xs);
+}
+.acct__sub {
+  font-size: var(--apx-text-sm);
+  font-weight: var(--apx-weight-medium);
+}
+.acct__connect {
+  display: flex;
+  align-items: flex-start;
+  gap: 20px;
+}
+.acct__qr.is-empty {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 148px;
+  height: 148px;
+  border: 1px dashed var(--apx-border-strong);
+  border-radius: var(--apx-radius-md);
+  color: var(--apx-fg-subtle);
+  font-size: var(--apx-text-xs);
+}
+.acct__connecttext {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+  font-size: var(--apx-text-sm);
+}
+.acct__danger {
+  color: var(--apx-danger);
+}
+.acct__tools {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.acct__tools > .apx-field {
+  flex: 1;
+  min-width: 0;
+}
+.acct__add {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px;
+  border: 1px solid var(--apx-border);
+  border-radius: var(--apx-radius-md);
+}
+.acct__addactions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+.acct__table {
+  display: flex;
+  flex-direction: column;
+  font-size: var(--apx-text-sm);
+}
+.acct__thead,
+.acct__trow {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 120px 110px 32px;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 4px;
+}
+.acct__thead {
+  color: var(--apx-fg-subtle);
+  font-size: var(--apx-text-xs);
+}
+.acct__trow {
+  border-top: 1px solid var(--apx-border);
+}
+.acct__trow.is-off {
+  opacity: 0.6;
+}
+.acct__person {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.acct__person:disabled {
+  cursor: default;
+}
+.acct__personname {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.acct__address,
+.acct__muted {
+  overflow: hidden;
+  color: var(--apx-fg-muted);
+  font-size: var(--apx-text-xs);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.acct__none {
+  margin: 0;
+  padding: 12px 4px;
+  color: var(--apx-fg-subtle);
+}
+.acct__log {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.acct__logrow {
+  display: grid;
+  grid-template-columns: 72px minmax(0, 1fr) auto;
+  align-items: start;
+  gap: 12px;
+  padding: 10px 0;
+  border-top: 1px solid var(--apx-border);
+  font-size: var(--apx-text-sm);
+}
+.acct__logtime {
+  color: var(--apx-fg-subtle);
+  font-family: var(--apx-font-mono);
+  font-size: var(--apx-text-xs);
+}
+.acct__logtext {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+/* A phone: the account and its parts go in rows over the content, as in Settings. */
+@media (max-width: 640px) {
+  .acct__side {
+    width: auto;
+    border-right: 0;
+  }
+  .acct__head {
+    margin-right: 44px;
+    padding: 10px 12px 4px;
+  }
+  .acct__side .config__nav {
+    margin-right: 0;
+  }
+  .acct__trail {
+    display: none;
+  }
+  .acct__foot {
+    flex-wrap: wrap;
+    gap: 6px;
+    padding: 10px 12px;
+  }
+  .acct__state {
+    flex-basis: 100%;
+  }
+  .acct__foot .apx-btn {
+    padding-inline: 10px;
+  }
+  .acct__connect {
+    flex-direction: column;
+  }
+  .acct .pcard__top {
+    flex-wrap: wrap;
+  }
+  .acct .pcard__titles {
+    flex-basis: calc(100% - 48px);
+  }
+  .acct__foot {
+    justify-content: flex-end;
+  }
+  .acct__foot .apx-kbd {
+    display: none;
+  }
+  .acct__thead {
+    display: none;
+  }
+  .acct__trow {
+    grid-template-columns: minmax(0, 1fr) auto 32px;
+  }
+  .acct__trow > :nth-child(2) {
+    display: none;
+  }
+}
+.acct__tbody {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+/* A contact's right: its name over its three choices (as the account says, or theirs on or off). */
+.chan__right {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.chan__rightlabel {
+  font-size: var(--apx-text-sm);
 }

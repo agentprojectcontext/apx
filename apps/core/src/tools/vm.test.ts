@@ -329,7 +329,7 @@ test("the computer's status says what it runs with now and, apart, what the owne
   }
 });
 
-test("on the computer, the owner's own agents' results run in its chat; a contact's message is refused in words", async () => {
+test("on the computer, the owner's own agents' results and feedback run in its chat; a contact's message is refused in words", async () => {
   const home = tempDir("apx-vm-tool-").path;
   const llm = scriptedLlm(() => say("Te cuento lo que hizo Scout"));
   const env = await startCore({ home, llm, computer: fakeComputer(home).config });
@@ -356,6 +356,24 @@ test("on the computer, the owner's own agents' results run in its chat; a contac
     });
     const reported = await env.settle(chat);
     assert.equal(reported.runs.at(-1)?.state, "completed");
+    // A reviewer sends a task Roby started back: that feedback is its team's word too.
+    engine.admit({
+      thread_id: chat,
+      agent_id: "superagent",
+      trigger: "a2a_result",
+      origin: {
+        kind: "task_feedback",
+        task_id: "task_1",
+        title: "Acme report",
+        agent_id: "scout",
+        name: "Scout",
+        run_id: "run_review",
+      },
+      text: "Fix the totals",
+    });
+    const fed = await env.settle(chat);
+    assert.equal(fed.runs.length, 2);
+    assert.equal(fed.runs[0]?.state, "completed", "newest first: the feedback's turn");
 
     const runs = async () => (await env.client.call("threads.get", { thread: chat })).runs;
     const before = (await runs()).length;

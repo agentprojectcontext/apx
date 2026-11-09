@@ -303,8 +303,26 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.chat__composer-hint {
+.chat__composer-foot {
+  display: flex;
+  gap: 12px;
   margin: 6px 4px 0;
+}
+.chat__composer-hint {
+  margin: 0;
   font-size: var(--apx-text-xs);
   color: var(--apx-fg-muted);
+}
+/* Help for the keyboard, at the right under send. A phone has no Ctrl or ⌘. */
+.chat__composer-hint.is-queue {
+  margin-left: auto;
+  white-space: nowrap;
+}
+@media (max-width: 560px) {
+  .chat__composer-hint.is-queue {
+    display: none;
+  }
+  .chat__composer-foot:not(:has(> :not(.is-queue))) {
+    display: none;
+  }
 }

@@ -520,7 +520,8 @@ function importWhatsApp(deps: V1ImportDeps, agentId: string): number {
         ...(c.note ? { note: c.note } : {}),
         ...(c.rules ? { rules: c.rules } : {}),
         muted: c.muted,
-        perms: { requests: c.requests, notes: c.notes },
+        // Only what v1 turned on is theirs; the rest follows the account.
+        perms: { ...(c.requests ? { requests: true } : {}), ...(c.notes ? { notes: true } : {}) },
       });
       for (const a of c.addresses) store.persons.link(p.id, { channel: "whatsapp", external_id: a, label: c.name });
     }

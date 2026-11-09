@@ -32,7 +32,7 @@ const CHECK_MS = 30_000;
 /** A delivery this recent shows the address works, even when the core does not know it. */
 const HEARD_MS = 10 * 60_000;
 const MAX_KEPT = 500;
-const NO_ADDRESS = "Turn on a public address in Settings › Channels: Teams delivers only to a webhook";
+const NO_ADDRESS = "Turn on a public address in Channels: Teams delivers only to a webhook";
 
 type Account = { id?: string; name?: string; role?: string };
 type Activity = {

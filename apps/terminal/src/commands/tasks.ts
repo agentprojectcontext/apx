@@ -76,7 +76,7 @@ export async function tasks(client: ApxClient, [sub, id, ...rest]: string[], opt
     const fields: [string, string | undefined][] = [
       [
         "Status",
-        `${t.status}${t.state === "open" ? "" : ` (${t.state})`}${t.awaits_owner ? " · waiting for you" : ""}`,
+        `${t.status}${t.state === "open" ? "" : ` (${t.state})`}${t.awaits_owner ? " · waiting for you" : ""}${t.state === "open" && t.proposed ? " · proposed, awaiting acceptance" : ""}`,
       ],
       ["Agent", t.assignee],
       ["Project", t.project_id],
@@ -189,7 +189,7 @@ export async function tasks(client: ApxClient, [sub, id, ...rest]: string[], opt
     console.log(`\n${c.label}`);
     for (const t of cards)
       console.log(
-        `  ${t.id}  ${t.title}${t.assignee ? `  · ${t.assignee}` : ""}${t.awaits_owner ? "  · waiting for you" : ""}`,
+        `  ${t.id}  ${t.title}${t.assignee ? `  · ${t.assignee}` : ""}${t.awaits_owner ? "  · waiting for you" : ""}${t.state === "open" && t.proposed ? "  · proposed, awaiting acceptance" : ""}`,
       );
   }
   if (!list.length) console.log(`(no open tasks)\n\n${USAGE}`);

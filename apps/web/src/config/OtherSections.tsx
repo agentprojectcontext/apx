@@ -1,8 +1,6 @@
 import type { OwnerIdentity } from "@apx/protocol";
-import { Badge, EmptyState, Icons, Input, SegmentedControl, SettingRow, Textarea } from "@apx/ui";
+import { Badge, Icons, Input, SegmentedControl, SettingRow, Textarea } from "@apx/ui";
 import { useEffect, useState } from "react";
-import { KindTile } from "../channels/KindIcon.tsx";
-import { CHANNEL_KINDS, type ChannelKind } from "../channels/kinds.ts";
 import { LanguageSelect, TimezoneSelect } from "../common/pickers/LocaleSelect.tsx";
 import { client } from "../data/client.ts";
 import { notify } from "../data/notices.ts";
@@ -86,6 +84,18 @@ export function AccountSection() {
               label={t("account.timezone")}
               value={owner.timezone}
               onChange={(v) => save({ timezone: v })}
+            />
+          </SettingRow>
+          <SettingRow title={t("account.publish")} description={t("account.publishHint")}>
+            <SegmentedControl
+              size="sm"
+              label={t("account.publish")}
+              value={owner.publish}
+              onValueChange={(v) => save({ publish: v === "ask" ? "ask" : "auto" })}
+              options={[
+                { value: "auto", label: t("account.publish.auto") },
+                { value: "ask", label: t("account.publish.ask") },
+              ]}
             />
           </SettingRow>
         </>
@@ -183,19 +193,5 @@ export function AppearanceSection() {
         />
       </SettingRow>
     </>
-  );
-}
-
-/** A channel kind that cannot be connected yet. */
-export function ChannelSoon({ channel }: { channel: ChannelKind }) {
-  const t = useT();
-  const name = t(CHANNEL_KINDS[channel].name);
-  return (
-    <div className="channelcfg">
-      <KindTile kind={channel} size={40} />
-      <EmptyState variant="dashed" icon={<Icons.Clock />} title={t("common.comingSoon", { name })}>
-        {t("channel.soonBody")}
-      </EmptyState>
-    </div>
   );
 }

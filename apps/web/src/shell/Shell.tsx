@@ -7,7 +7,9 @@ import { data } from "../data/state.ts";
 import { useThreadDialog } from "../data/threadAdmin.ts";
 import {
   AppScreen,
+  ChannelDialogs,
   ChannelScreen,
+  ChannelsScreen,
   CommandPalette,
   ComputersScreen,
   ConfigModal,
@@ -54,6 +56,7 @@ export function Shell() {
   const panelOpen = chat && panel != null;
   const own = usePrefs((s) => s);
   const config = useNav((s) => s.config != null);
+  const channelDialog = useNav((s) => s.channelPick || s.channelEdit != null);
   const palette = useNav((s) => s.palette);
   const threadDialog = useThreadDialog() != null;
   const phone = useNav((s) => s.phone);
@@ -97,6 +100,8 @@ export function Shell() {
                 <FilesScreen />
               ) : view === "computers" ? (
                 <ComputersScreen />
+              ) : view === "channels" ? (
+                <ChannelsScreen />
               ) : view === "channel" ? (
                 <ChannelScreen />
               ) : view === "engine" ? (
@@ -114,6 +119,11 @@ export function Shell() {
       {config && (
         <Suspense fallback={null}>
           <ConfigModal />
+        </Suspense>
+      )}
+      {channelDialog && (
+        <Suspense fallback={null}>
+          <ChannelDialogs />
         </Suspense>
       )}
       {palette && (

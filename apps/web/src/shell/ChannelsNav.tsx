@@ -1,7 +1,6 @@
-import { IconButton, Icons, Menu } from "@apx/ui";
+import { IconButton, Icons, NavItem } from "@apx/ui";
 import { useMemo, useState } from "react";
-import { addChannelItems } from "../channels/KindIcon.tsx";
-import { CHANNEL_KIND_IDS } from "../channels/kinds.ts";
+import { useAccountCounts } from "../channels/counts.ts";
 import { useChannels } from "../data/channels.ts";
 import { setPrefs, usePrefs, useSidebarRows } from "../data/prefs.ts";
 import { useData } from "../data/state.ts";
@@ -40,13 +39,8 @@ export function ChannelsNav({ rail }: { rail: boolean }) {
       return channel ? [channel] : [];
     });
   }, [channels, saved, threads, orderAt]);
-  const counts = useMemo(() => {
-    const counts = new Map<string, number>();
-    for (const thread of Object.values(threads)) {
-      if (thread.channel) counts.set(thread.channel.id, (counts.get(thread.channel.id) ?? 0) + thread.unread);
-    }
-    return counts;
-  }, [threads]);
+  const accountCounts = useAccountCounts();
+  const counts = useMemo(() => new Map([...accountCounts].map(([id, c]) => [id, c.unread])), [accountCounts]);
   // Folding a single leftover would save nothing.
   const cut = ordered.length > rows + 1 ? rows : ordered.length;
   const shown = ordered.slice(0, cut);
@@ -76,24 +70,20 @@ export function ChannelsNav({ rail }: { rail: boolean }) {
       rail={rail && !overflow}
       order={order}
       count={counts.get(channel.id) ?? 0}
+      waiting={accountCounts.get(channel.id)?.waiting ?? 0}
       onClose={() => setMoreOpen(false)}
       onMove={move}
     />
   );
-  const missing = addChannelItems(
-    channels.map((channel) => channel.type),
-    t,
-    go.channelConfig,
-  );
-  const add = CHANNEL_KIND_IDS.some((kind) => !channels.some((channel) => channel.type === kind)) ? (
-    <Menu
-      align="start"
-      trigger={
-        <IconButton size="sm" className="sidebar__add" label={t("channels.add")} icon={<Icons.Plus size={14} />} />
-      }
-      items={missing}
+  const add = (
+    <IconButton
+      size="sm"
+      className="sidebar__add"
+      label={t("chs.new")}
+      icon={<Icons.Plus size={14} />}
+      onClick={() => go.newChannel()}
     />
-  ) : null;
+  );
   const moreLabel = t("nav.moreChannels", { n: rest.length });
   return (
     <SidebarSection
@@ -108,6 +98,15 @@ export function ChannelsNav({ rail }: { rail: boolean }) {
         setPrefs({ channelsFolded: !folded });
       }}
     >
+      {!hidden && !rail && (
+        <NavItem
+          className="channelsnav__manage"
+          icon={<Icons.LayoutGrid />}
+          label={t("nav.manageChannels")}
+          active={view === "channels"}
+          onClick={() => go.view("channels")}
+        />
+      )}
       {!hidden && <div className="channelsnav__shown">{shown.map((channel) => row(channel))}</div>}
       {!hidden && rest.length > 0 && (
         <SidebarOverflow

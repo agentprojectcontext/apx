@@ -5,6 +5,7 @@
 // (the question and its answer, under the task's conversation, shown there as a card); an hourly pickup starts what was
 // assigned and never began. An agent's @mention on a task is a consult whose answer comes back to it (DECISIONS.md#d-132).
 import type { Author, Part, Task, Thread } from "@apx/protocol";
+import { projectOrchestrator } from "../domain/agent-directory.ts";
 import { ownerIdentity } from "../domain/owner.ts";
 import type { Origin, RunRecord } from "../domain/runs.ts";
 import type { Store } from "../domain/store.ts";
@@ -12,7 +13,7 @@ import { noticeTaskReview } from "../domain/task-attention.ts";
 import { taskReviewHandoff } from "../domain/tasks.ts";
 import { type HeldTask, previewOf } from "../domain/threads.ts";
 import { badRequest, conflict } from "../errors.ts";
-import { taskWords } from "../tools/tasks.ts";
+import { asWritten, taskWords } from "../tools/tasks.ts";
 import { agentTrip, heldNotice, trip } from "./breaker.ts";
 import { REVIEW } from "./context.ts";
 import { actionsOf, reportCard } from "./delegation.ts";
@@ -23,12 +24,11 @@ import { continueTask } from "./task-continue.ts";
 import { checkSelfHandoff, markHandoff, runLineage } from "./task-handoff.ts";
 import { answersOwner, ownerTurnEnded } from "./task-inbox.ts";
 import { MAX_HANDOFF_DEPTH, MAX_REVIEW_ROUNDS } from "./task-limits.ts";
-import { closedIn, reportClose } from "./task-report.ts";
+import { closedIn, coordinatedTaskSource, reportClose } from "./task-report.ts";
 
 /** How often assigned tasks that never started are looked at, and how many start each time. */
 export const PICKUP_EVERY_MS = 3600_000;
 const PICKUP_AT_ONCE = 3;
-const PRIORITY_RANK: Record<Task["priority"], number> = { urgent: 0, high: 1, normal: 2, low: 3 };
 
 /** Who asked for the work: the owner (assigning, commenting) or another agent, at some depth of hand-offs. */
 export type Asker =
@@ -114,8 +114,24 @@ export function startHeld(store: Store, admit: AdmitFn, threadIds: readonly stri
       if (waiting.includes(h)) continue;
       const task = store.tasks.get(h.task);
       const asker = store.runs.get(h.run);
-      // Reassigned or begun meanwhile: whoever has it now goes on as it is.
-      if (!task || !asker || task.assignee !== h.agent || store.threads.byTask(task.id).length) continue;
+      if (!task || !asker || task.assignee !== h.agent) continue;
+      // A new execution since the hold wins; an older task chat is not evidence that this assignment started.
+      const heads = taskRunHeads(store, task.id);
+      if (h.prior_runs ? JSON.stringify(h.prior_runs) !== JSON.stringify(heads) : store.threads.byTask(task.id).length)
+        continue;
+      // Reassigned, re-scoped or re-statused since the hold: the owner's later change decides, not this old start.
+      if (
+        h.prior_events !== undefined &&
+        store.tasks
+          .events(task.id)
+          .slice(h.prior_events)
+          .some((e) =>
+            ["assignee", "status", "state", "proposed", "description", "start_at", "project_id"].some((k) =>
+              Object.hasOwn(e.data, k),
+            ),
+          )
+      )
+        continue;
       const name = store.agents.get(asker.agent_id)?.name ?? asker.agent_id;
       const by = { kind: "agent" as const, id: asker.agent_id, name, thread_id: id, run_id: h.run, depth: h.depth };
       if (startTaskWork(store, admit, task, h.agent, by)) started++;
@@ -124,10 +140,28 @@ export function startHeld(store: Store, admit: AdmitFn, threadIds: readonly stri
   return started;
 }
 
+/** The latest run in each existing chat of a task: what a held start was waiting on. */
+function taskRunHeads(store: Store, task: string): string[] {
+  return store.threads
+    .byTask(task)
+    .flatMap((t) => {
+      const id = store.runs.latestId(t.id);
+      return id ? [id] : [];
+    })
+    .sort();
+}
+
 /** Keeps a task an agent gave while its chat's chain is paused, and tells the owner there. */
 function hold(store: Store, task: Task, agentId: string, asker: Extract<Asker, { kind: "agent" }>): void {
   const held = (store.threads.context(asker.thread_id).held ?? []).filter((h) => h.task !== task.id);
-  const entry: HeldTask = { task: task.id, agent: agentId, run: asker.run_id, depth: asker.depth };
+  const entry: HeldTask = {
+    task: task.id,
+    agent: agentId,
+    run: asker.run_id,
+    depth: asker.depth,
+    prior_runs: taskRunHeads(store, task.id),
+    prior_events: store.tasks.events(task.id).length,
+  };
   store.threads.mergeContext(asker.thread_id, { held: [...held, entry] });
   const who = store.agents.get(agentId)?.name ?? agentId;
   const notice = heldNotice(store, asker.thread_id, who, task.title.slice(0, 120), agentId);
@@ -154,7 +188,7 @@ export function startTaskWork(
     hold(store, task, agentId, asker);
     return undefined;
   }
-  const ownWords = task.created_by === "owner";
+  const ownWords = asWritten(store, task).created_by === "owner";
   const assignment = store.tasks.events(task.id).findLast((event) => typeof event.data.assignment_id === "string");
   const review = taskReviewHandoff(assignment?.data.review_handoff);
   const reviewRequest =
@@ -164,9 +198,7 @@ export function startTaskWork(
     assignment?.data.from_run === asker.run_id &&
     assignment.data.from_thread === asker.thread_id;
   const workText = ownWords ? [task.title, task.description].filter(Boolean).join("\n\n") : "Work on this task.";
-  const text = reviewRequest
-    ? `Independently review this task's delivery. Report what you verified and any required corrections. ${REVIEW}\n\n${workText}`
-    : workText;
+  const text = reviewRequest ? `Independently review this task's delivery. ${REVIEW}\n\n${workText}` : workText;
   const author: Author =
     asker.kind === "agent" ? { kind: "agent", id: asker.id } : ownWords ? { kind: "user" } : { kind: "system" };
   const self =
@@ -177,6 +209,13 @@ export function startTaskWork(
   const source = self ? store.threads.get(asker.thread_id) : undefined;
   const work = ask(store, admit, task, agentId, text, asker, author, sessionFor(store, task, agentId, source));
   if (self) markHandoff(store, task, asker, work);
+  // A project's head that starts a task from its own chat is its coordinator: the result of that task returns there.
+  // Anyone else's start ends that coordination (DECISIONS.md#d-207).
+  const coordinates =
+    asker.kind === "agent" && projectCoordinatorChat(store, task, { id: asker.id, thread_id: asker.thread_id });
+  store.threads.mergeContext(task.thread_id, {
+    coordination_from: coordinates ? { thread: asker.thread_id, run: asker.run_id, work_run: work.id } : undefined,
+  });
   const sourceRun = asker.kind === "agent" ? store.runs.get(asker.run_id) : undefined;
   if (asker.kind === "agent" && sourceRun && !sourceRun.ended_at) {
     const previous = store.threads.context(asker.thread_id).task_dispatches;
@@ -191,9 +230,22 @@ export function startTaskWork(
   return work;
 }
 
+/** Whether the agent is the project's head, speaking in a project chat that is not a task's own. */
+function projectCoordinatorChat(store: Store, task: Task, agent: { id: string; thread_id: string }): boolean {
+  const thread = store.threads.get(agent.thread_id);
+  return Boolean(
+    task.project_id &&
+      thread?.project_id === task.project_id &&
+      !thread.task_id &&
+      (thread.kind === "agent" || thread.kind === "loose") &&
+      projectOrchestrator(store.agents.list().filter((a) => a.project_id === task.project_id))?.agent.id === agent.id,
+  );
+}
+
 /** Reopens a delivery and records the correction request and its run together, or leaves it unchanged. */
 export function reworkTask(store: Store, admit: AdmitFn, task: Task, note: string | undefined, asker: Asker): Task {
   if (task.state === "open") throw conflict("rework requires a closed task");
+  if (task.proposed) throw conflict("rework requires accepting the proposed task first");
   if (!task.assignee) throw badRequest("rework requires an assignee");
   const reason = note?.trim();
   if (!reason) throw badRequest("rework requires a note explaining the corrections");
@@ -409,27 +461,16 @@ export function proposalReason(
 export const startsLater = (task: Pick<Task, "start_at">, now = new Date()): boolean =>
   Boolean(task.start_at && task.start_at > now.toISOString());
 
+/** The tasks agents gave while paused, kept by these chats until their chain goes on. */
+const heldTasks = (store: Store, holders: readonly string[]): string[] =>
+  holders.flatMap((id) => (store.threads.context(id).held ?? []).map((h) => h.task));
+
 /** Assigned tasks whose start time came and whose work never began, a few at a time (the office clock, each tick). */
 export function startScheduled(store: Store, admit: AdmitFn, now: Date): RunRecord[] {
   // A task an agent gave while paused waits for its chain to go on, never for the clock (DECISIONS.md#d-082).
-  const held = new Set(
-    store.threads.holding().flatMap((id) => (store.threads.context(id).held ?? []).map((h) => h.task)),
-  );
-  return store.tasks
-    .list({ state: "open", limit: 500 })
-    .filter(
-      (t) =>
-        t.start_at &&
-        !t.proposed &&
-        !startsLater(t, now) &&
-        t.status !== "review" &&
-        !held.has(t.id) &&
-        t.assignee &&
-        store.agents.get(t.assignee) &&
-        t.description.trim() &&
-        store.threads.byTask(t.id).length === 0,
-    )
-    .slice(0, PICKUP_AT_ONCE)
+  return store.taskLanes
+    .scheduled(now.toISOString(), heldTasks(store, store.threads.holding()), PICKUP_AT_ONCE)
+    .flatMap((id) => store.tasks.get(id) ?? [])
     .flatMap((t) => startLater(store, admit, t, now) ?? []);
 }
 
@@ -476,7 +517,7 @@ export function reviewRequested(store: Store, admit: AdmitFn, task: Task): RunRe
   }
   store.notifications.resolve("task", `review:${task.id}`);
   const doer = task.assignee ? (store.agents.get(task.assignee)?.name ?? task.assignee) : "its agent";
-  const text = `Review task ${task.id}, done by ${doer}: check the work against what the task asks, running the checks you can (tests, the page, the data). Answer "Approved" (or "Aprobado") with what you checked, or what must change and why.`;
+  const text = `Check task ${task.id}, done by ${doer}, against what it asks, running the checks you can (tests, the page, the data). ${REVIEW}`;
   return consult(store, admit, task, reviewer, text, { by: task.assignee ?? "owner", trigger: "system", review: true });
 }
 
@@ -567,23 +608,28 @@ function responseMetadata(store: Store, task: Task, run: RunRecord, answered: bo
 const APPROVED = /^\W*(approved|aprobad[oa])\b/i;
 
 /**
- * A review came back: approved, the owner hears it is ready to close; with changes asked, the task's agent gets the
- * verdict in its chat for the task, as the reviewer's words (an agent's, not the owner's), and goes on.
+ * A review came back: the task's agent gets the report in its chat for the task, as the reviewer's words (an agent's,
+ * not the owner's), and decides what to fix before it delivers (DECISIONS.md#d-208). With no agent on it, or its
+ * agent paused, the owner hears it is ready to close.
  */
 function reviewEnded(store: Store, admit: AdmitFn, task: Task, run: RunRecord, verdict: string): void {
   const reviewer = store.agents.get(run.agent_id);
   const name = reviewer?.name ?? run.agent_id;
   // Closed or taken out of review meanwhile: the verdict stays on its card, nobody is asked.
-  if (task.state !== "open" || task.status !== "review") return;
+  if (task.state !== "open" || task.status !== "review" || task.proposed) return;
   const doer = task.assignee && store.agents.get(task.assignee) ? task.assignee : undefined;
   const paused = doer && (trip(store, task.thread_id) || agentTrip(store, task.thread_id, doer));
-  if (APPROVED.test(verdict) || !doer || paused) {
+  if (!doer || paused) {
     noticeTaskReview(store, task, `${name}: ${previewOf(verdict)}`);
     return;
   }
-  // Back to work, so putting it in review again asks for the next round.
+  // Back to its agent, who delivers it; putting it in review again asks for the next round.
   store.tasks.change(task.id, { status: "doing" }, run.agent_id);
-  const text = `${name} reviewed the task and asks for changes:\n${verdict.slice(0, 4000)}\n\nFix what must change, check it, then put it back in review (task_update status review).`;
+  const clean = APPROVED.test(verdict);
+  if (!clean) deliverToCoordinator(store, admit, task, run, name, verdict);
+  const text = clean
+    ? `${name} checked the task and found nothing that fails:\n${verdict.slice(0, 4000)}\n\nIt is yours to deliver: finish what the task asks (publish it if it says so), then close it with task_close.`
+    : `${name} checked the task:\n${verdict.slice(0, 4000)}\n\nA report, not a verdict: you own the task. Fix what breaks what was asked; what does not, you may leave and say in your report. Then deliver it, or put it back in review if a fix needs checking.`;
   const asker: Asker = { kind: "agent", id: run.agent_id, name, thread_id: run.thread_id, run_id: run.id, depth: 1 };
   ask(store, admit, task, doer, text, asker, { kind: "agent", id: run.agent_id }, sessionFor(store, task, doer), [
     {
@@ -592,6 +638,42 @@ function reviewEnded(store: Store, admit: AdmitFn, task: Task, run: RunRecord, v
       response: responseMetadata(store, task, run, Boolean(textOf(store, run))),
     },
   ]);
+}
+
+/**
+ * The coordinator that started a task hears a review that sends it back, once per reviewer run and only while its
+ * chat may go on: the owner's and the team's rules still decide what the task does next.
+ */
+export function deliverToCoordinator(
+  store: Store,
+  admit: AdmitFn,
+  task: Task,
+  run: RunRecord,
+  name: string,
+  verdict: string,
+): void {
+  const from = coordinatedTaskSource(store, task);
+  if (!from) return;
+  const told = store.threads.context(from.thread).coordination_feedback ?? [];
+  if (told.includes(run.id)) return;
+  if (trip(store, from.thread) || agentTrip(store, from.thread, from.run.agent_id)) return;
+  store.threads.mergeContext(from.thread, { coordination_feedback: [...told, run.id].slice(-50) });
+  admit({
+    thread_id: from.thread,
+    agent_id: from.run.agent_id,
+    // A team's result, like the task's close report (reportClose): at the coordinator's depth, no owner standing.
+    trigger: "a2a_result",
+    origin: {
+      kind: "task_feedback",
+      task_id: task.id,
+      title: task.title,
+      agent_id: run.agent_id,
+      name,
+      run_id: run.id,
+    },
+    text: verdict.slice(0, 4000),
+    depth: from.run.depth,
+  });
 }
 
 /** The final answer of a run, as text. */
@@ -636,14 +718,6 @@ export function afterWorkTurn(store: Store, admit: AdmitFn, run: RunRecord): voi
   else continueTask(store, admit, run);
 }
 
-/** When a task was last given to its agent (its creation with one, or the last assignment). */
-function assignedAt(store: Store, task: Task): string | undefined {
-  return store.tasks
-    .events(task.id)
-    .filter((e) => (e.op === "assign" || e.op === "create") && typeof e.data.assignee === "string")
-    .at(-1)?.at;
-}
-
 /**
  * The hourly pickup: open tasks assigned to an agent (since this way of working began) that never started, the most
  * pressing first (priority, then the nearest due date), a few at a time.
@@ -654,24 +728,8 @@ export function pickUpTasks(store: Store, admit: AdmitFn): RunRecord[] {
   // A task an agent gave while paused waits for its chain to go on, never for the clock (DECISIONS.md#d-082).
   const holders = store.threads.holding();
   startHeld(store, admit, holders);
-  const held = new Set(holders.flatMap((id) => store.threads.context(id).held ?? []).map((h) => h.task));
-  const waiting = store.tasks
-    .list({ state: "open", limit: 500 })
-    .filter(
-      (t) =>
-        t.assignee &&
-        t.description.trim() &&
-        !held.has(t.id) &&
-        t.status !== "review" &&
-        !t.proposed &&
-        !startsLater(t) &&
-        store.agents.get(t.assignee) &&
-        store.threads.byTask(t.id).length === 0 &&
-        (assignedAt(store, t) ?? "") >= since,
-    )
-    .sort(
-      (a, b) =>
-        PRIORITY_RANK[a.priority] - PRIORITY_RANK[b.priority] || (a.due_at ?? "￿").localeCompare(b.due_at ?? "￿"),
-    );
-  return waiting.slice(0, PICKUP_AT_ONCE).flatMap((t) => startLater(store, admit, t) ?? []);
+  return store.taskLanes
+    .unstarted(since, new Date().toISOString(), heldTasks(store, holders), PICKUP_AT_ONCE)
+    .flatMap((id) => store.tasks.get(id) ?? [])
+    .flatMap((t) => startLater(store, admit, t) ?? []);
 }

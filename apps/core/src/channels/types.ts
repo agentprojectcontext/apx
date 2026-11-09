@@ -16,6 +16,10 @@ export type InboundFile = NonNullable<Inbound["files"]>[number];
 
 export type ChannelConfig = Omit<ChannelInfo, "token_set" | "token_hint" | "status" | "error" | "account">;
 
+/** Who answers a channel's contacts and rooms: its own agent when it has one, else the channel's. */
+export const contactAgentOf = (cfg: Pick<ChannelConfig, "agent_id" | "contacts_agent_id">): string =>
+  cfg.contacts_agent_id ?? cfg.agent_id;
+
 type AdapterCaps = {
   /** Shows "typing…" while the agent works. */
   typing: boolean;
@@ -79,7 +83,7 @@ export type AdapterIO = {
   identified?(who: { account: string; owner?: string }): void;
   /**
    * This channel's public address for its platform's webhooks (`<base>/hooks/<channel id>`), when the owner turned
-   * one on (Settings › Channels › Public address); none otherwise. It can change while the channel runs (ngrok).
+   * one on (an account's settings › Public address); none otherwise. It can change while the channel runs (ngrok).
    */
   hookUrl?(): string | undefined;
   signal: AbortSignal;
@@ -118,6 +122,8 @@ export interface ChannelAdapter {
    * adapter checks the platform's signature itself and refuses (401) what it cannot verify; nothing else guards it.
    */
   webhook?(req: HookRequest, signal?: AbortSignal): Promise<HookResponse>;
+  /** Of these addresses, those the platform knows as another one (a private id and its number): `from` is `to`. */
+  sameAs?(addresses: string[]): Promise<Array<{ from: string; to: string }>>;
   /** Text, then `files` (the presentation's media, already read). */
   /** `address`: the conversation's address as the platform uses it, when it is not the one given (a number fixed). */
   send(conversation: string, p: Presentation, files?: OutFile[]): Promise<{ external_id?: string; address?: string }>;

@@ -203,6 +203,13 @@
   gap: 8px;
   flex: none;
 }
+/* On a phone a control with several items (a picker and its button) wraps inside the screen instead of past it. */
+@media (max-width: 600px) {
+  .apx-setting__control {
+    flex-wrap: wrap;
+    max-width: 100%;
+  }
+}
 /* Stacked: a control that needs the width (a paragraph to write) goes under the text. */
 .apx-setting--stacked {
   flex-direction: column;

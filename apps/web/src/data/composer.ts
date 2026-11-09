@@ -97,10 +97,15 @@ export async function upload(
   return { id: media.id, kind: media.kind, name: media.name, mime: media.mime, bytes: media.bytes };
 }
 
-/** Speech to text for the field; undefined (with a notice) when it could not be heard. */
-export async function transcribe(mediaId: string, thread: string | undefined): Promise<string | undefined> {
+/**
+ * Speech to text for the field, from an uploaded audio file (its id) or straight from the microphone (nothing is
+ * attached); undefined (with a notice) when it could not be heard.
+ */
+export async function transcribe(audio: string | Blob, thread: string | undefined): Promise<string | undefined> {
   try {
-    const r = await client.call("media.transcribe", { media_id: mediaId, ...(thread ? { thread } : {}) });
+    const source =
+      typeof audio === "string" ? { media_id: audio } : { data: await base64(audio), mime: audio.type || "audio/webm" };
+    const r = await client.call("media.transcribe", { ...source, ...(thread ? { thread } : {}) });
     return r.text.trim();
   } catch (e) {
     notify(t("composer.dictationFailed", { error: errText(e) }));

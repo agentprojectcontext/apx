@@ -86,7 +86,7 @@ export function directoryTools(store: Store): Tool[] {
       title: () => "Looked at the channels",
       async run(_a, ctx) {
         const { channels } = await ctx.call("channels.overview", {});
-        if (!channels.length) return "no channels set up: the owner adds them in Settings, Channels.";
+        if (!channels.length) return "no channels set up: the owner adds them in Channels, in the sidebar.";
         const rows = channels.map((c) => {
           const rooms = c.rooms.map((r) => `#${r.name} (${ROOM_MODE[r.mode]})`).join(", ");
           return `- ${c.label} (${c.type}): ${c.status}${rooms ? `; rooms: ${rooms}` : ""}`;
@@ -123,7 +123,7 @@ export function directoryTools(store: Store): Tool[] {
               p.relation ?? "",
               `on ${on}`,
               p.muted ? "silenced" : p.supervised ? "supervised: the owner approves each answer" : "",
-              p.any_hour ? "answered at any hour" : "",
+              p.perms.any_hour ? "answered at any hour" : "",
             ];
             // A contact's name is the one they gave on their app: one plain line, so it cannot add contacts or orders.
             return `- ${inlineName(p.name) || "someone"} [${p.id}] (${bits.filter(Boolean).join(", ")})${p.note ? `: ${p.note.slice(0, 200)}` : ""}`;

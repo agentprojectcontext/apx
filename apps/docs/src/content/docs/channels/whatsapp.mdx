@@ -31,14 +31,16 @@ You can switch later with the same toggle in the channel's settings.
 
 <Steps>
 
-1. Open **Settings › Channels**, use **Add channel** and pick **WhatsApp** (or open it directly if it's the first).
+1. Open **Channels** in the sidebar, press **New channel** and pick **WhatsApp**. Give it a name if you like
+   (Sales, Personal…).
 
-2. Choose **Who answers**, and set **This line is my own phone** if you're linking your own number.
+2. Press **Connect**. A QR shows up; it changes every few seconds and the page keeps it fresh.
 
-3. Press **Link**. A QR shows up; it changes every few seconds and the page keeps it fresh.
-
-4. On the phone that has the number: **WhatsApp › Settings › Linked devices › Link a device**, and point it at the
+3. On the phone that has the number: **WhatsApp › Settings › Linked devices › Link a device**, and point it at the
    code.
+
+4. Once it is connected, set **This line is my own phone** if you linked your own number, choose **Who answers**, and
+   press **Create channel**.
 
 </Steps>
 
@@ -64,6 +66,15 @@ APX reads one-to-one chats. Groups, broadcasts and WhatsApp channels are ignored
 transcribed (see [Voice notes](/channels/overview/#voice-notes)), and options the agent offers you arrive as a
 numbered list: answer with the number. Photos, videos, stickers and documents are kept in the chat to play or
 download.
+
+### One person, one contact
+
+WhatsApp sometimes delivers a reply under a private id instead of the person's number. When APX already knows
+which number that id belongs to (for example, because your agent wrote to them first), the reply goes to the same
+contact and chat. If an earlier reply created a second contact, APX merges the two the next time WhatsApp connects:
+one contact keeps both addresses, the details you set and both chats' messages in order. If you had set up both
+contacts, the joined one keeps the stricter choice of each: silenced or supervised if either was, blocked if either
+was, answered at any hour only if both were, and only the permissions both had.
 
 ### Files that never arrived
 

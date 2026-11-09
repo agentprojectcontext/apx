@@ -16,6 +16,10 @@ test("Telegram groups: a group the bot is in is picked from the list, and the bo
   await open(page);
   await page.getByRole("button", { name: "Telegram", exact: true }).first().click();
   await page.getByRole("button", { name: "Configuración del canal" }).click();
+  await page
+    .getByRole("dialog")
+    .getByRole("button", { name: /^Salas/ })
+    .click();
   await expect(page.getByText("Grupos", { exact: true })).toBeVisible();
   await expect(page.getByText(/Group Privacy/)).toBeVisible();
   const pick = page.getByRole("combobox", { name: "Agregar un grupo donde está el bot…" });
@@ -23,6 +27,7 @@ test("Telegram groups: a group the bot is in is picked from the list, and the bo
   await page.getByRole("option", { name: "Acme team" }).click();
   await expect(page.getByText("Acme team", { exact: true })).toBeVisible();
   expect(await world.sentTo(group.id)).toEqual([]);
+  await page.getByRole("button", { name: "Guardar y cerrar" }).click();
 
   // The save restarts the bot with the group: it listens again before anyone writes.
   await until(async () =>
@@ -42,7 +47,6 @@ test("Telegram groups: a group the bot is in is picked from the list, and the bo
   expect(await world.sentTo(ana.id)).toEqual([]);
 
   // The group is listed in the channel itself and opens its chat there, with what was said.
-  await page.keyboard.press("Escape");
   await page.getByRole("button", { name: /Acme team/ }).click();
   await expect(page.getByText("anyone around today?")).toBeVisible();
 });

@@ -25,38 +25,44 @@ function lastTurn(store: Store, ids: string[]): RunRecord | undefined {
     .sort((a, b) => (b.ended_at ?? "").localeCompare(a.ended_at ?? ""))[0];
 }
 
+/** How many tasks in progress one check looks at, and how many agents it asks to go on (DECISIONS.md#d-206). */
+export const STALL_PAGE = 100;
+export const STALL_AT_ONCE = 3;
+/** Where the last check stopped: the next one goes on from there, so every task in progress gets its turn. */
+const STALL_CURSOR = "task_stall_after";
+
 /**
- * Tasks in progress whose agent's chats went quiet: not waiting for the owner, on a subtask or on the breaker, and
+ * A task in progress whose agent's chats went quiet: not waiting for the owner, on a subtask or on the breaker, and
  * stopped neither by the owner nor by a provider's limit.
  */
-function stalledTasks(store: Store, now: Date): Stall[] {
-  const held = new Set(
-    store.threads.holding().flatMap((id) => (store.threads.context(id).held ?? []).map((h) => h.task)),
-  );
-  const out: Stall[] = [];
-  for (const task of store.tasks.list({ state: "open", limit: 500 })) {
-    const agent = task.assignee;
-    if (
-      task.status !== "doing" ||
-      task.awaits_owner ||
-      task.proposed ||
-      held.has(task.id) ||
-      !agent ||
-      !store.agents.get(agent)
-    )
-      continue;
-    // A subtask still open is what it waits on; its close reports back on its own.
-    if (store.tasks.list({ state: "open", parent: task.id, limit: 1 }).length) continue;
-    const thread = store.threads.byTask(task.id).findLast((t) => t.agent_ids[0] === agent);
-    if (!thread || trip(store, thread.id) || agentTrip(store, thread.id, agent)) continue;
-    const ids = [task.thread_id, ...store.threads.family(thread.id)];
-    const last = lastTurn(store, ids);
-    const quiet = last?.ended_at ? now.getTime() - Date.parse(last.ended_at) : 0;
-    if (!last || last.state === "canceled" || last.end_reason === "provider_limit") continue;
-    if (quiet < STALL_AFTER_MS || quiet > STALL_WITHIN_MS) continue;
-    out.push({ task, thread, last, ids });
-  }
-  return out;
+function stalledTask(store: Store, id: string, now: Date, held: ReadonlySet<string>): Stall | undefined {
+  const task = store.tasks.get(id);
+  const agent = task?.assignee;
+  if (!task || !agent || held.has(task.id)) return undefined;
+  const thread = store.threads.byTask(task.id).findLast((t) => t.agent_ids[0] === agent);
+  if (!thread || trip(store, thread.id) || agentTrip(store, thread.id, agent)) return undefined;
+  const ids = [task.thread_id, ...store.threads.family(thread.id)];
+  const last = lastTurn(store, ids);
+  const quiet = last?.ended_at ? now.getTime() - Date.parse(last.ended_at) : 0;
+  if (!last || last.state === "canceled" || last.end_reason === "provider_limit") return undefined;
+  if (quiet < STALL_AFTER_MS || quiet > STALL_WITHIN_MS) return undefined;
+  return { task, thread, last, ids };
+}
+
+/**
+ * The next tasks in progress after the saved cursor, wrapping once to the start: at most a page, so a large office is
+ * looked at over several checks instead of only its most recently active tasks.
+ */
+function nextInProgress(store: Store): { ids: string[]; save: (upTo: string) => void } {
+  const after = store.settings.get(STALL_CURSOR) ?? "";
+  const ids = store.taskLanes.inProgress(after, STALL_PAGE);
+  if (after && ids.length < STALL_PAGE)
+    for (const id of store.taskLanes.inProgress("", STALL_PAGE - ids.length)) if (id <= after) ids.push(id);
+  return {
+    ids,
+    // Past the end, the next check starts over.
+    save: (upTo) => store.settings.set(STALL_CURSOR, upTo === ids.at(-1) && ids.length < STALL_PAGE ? "" : upTo),
+  };
 }
 
 /** Whether the owner wrote in these chats since `at`: the agent may be asked to go on again after a new stop. */
@@ -70,9 +76,20 @@ const ownerWroteSince = (store: Store, ids: string[], at: string) =>
 export function reviveStalled(store: Store, admit: AdmitFn, now: Date): { revived: number; told: number } {
   let revived = 0;
   let told = 0;
-  for (const { task, thread, last, ids } of stalledTasks(store, now)) {
+  const held = new Set(
+    store.threads.holding().flatMap((id) => (store.threads.context(id).held ?? []).map((h) => h.task)),
+  );
+  const { ids, save } = nextInProgress(store);
+  let upTo = "";
+  for (const id of ids) {
+    // The rest wait for the next check, from here: a backlog never starts many agents at once.
+    if (revived >= STALL_AT_ONCE) break;
+    upTo = id;
+    const stalled = stalledTask(store, id, now, held);
+    if (!stalled) continue;
+    const { task, thread, last, ids: chats } = stalled;
     const stall = store.threads.context(thread.id).stall;
-    if (stall && !ownerWroteSince(store, ids, stall.revived_at)) {
+    if (stall && !ownerWroteSince(store, chats, stall.revived_at)) {
       if (stall.told === last.id) continue;
       const agent = store.agents.get(task.assignee ?? "")?.name ?? task.assignee ?? "";
       noticeTaskStalled(store, task, thread.id, stalledWords(store, agent));
@@ -104,5 +121,6 @@ export function reviveStalled(store: Store, admit: AdmitFn, now: Date): { revive
     store.threads.mergeContext(thread.id, { stall: { revived_at: now.toISOString() } });
     revived++;
   }
+  if (upTo) save(upTo);
   return { revived, told };
 }

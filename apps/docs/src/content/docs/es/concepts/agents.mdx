@@ -111,7 +111,7 @@ and follow up until they close. When a decision needs the owner, ask once, clear
 | `description` | Para qué está el agente. También se pone delante de las instrucciones cuando el cuerpo no lo dice. |
 | `icon` | El blobo del agente (`orbita`, `menta`, `cobalto`…). |
 | `emoji` | Un emoji opcional que se guarda con el agente (los archivos de otras herramientas suelen traer uno). |
-| `parent` | El agente al que reporta, por su slug (o su id completo). Si no está, reporta a Home. |
+| `parent` | El agente al que reporta, por su slug (o su id completo). Si no está, reporta a Home. APX le dice al agente a quién responde y su `area`, así sus instrucciones nunca necesitan nombrar personas. |
 | `area` | El área a la que pertenece, para el organigrama (`product`, `engineering`…). |
 | `autonomy` | Su modo de permisos: `manual`, `auto` (por defecto), `accept_edits`, `plan` o `total`. Mirá [Autonomía y seguridad](/es/concepts/autonomy/). |
 | `personality` | Cómo suena, aparte de lo que hace. Hasta 1.000 caracteres. |
@@ -176,7 +176,8 @@ Cambiá campos con pares `clave=valor` (`name`, `role`, `slug`, `parent`, `blob`
 
 <Terminal command="apx agents set 3f9a1c0d7e21-vera parent=lucia blob=cobalto">{`Vera (3f9a1c0d7e21-vera) · vera · Marketing`}</Terminal>
 
-Archivá uno. Su archivo pasa a `.apc/agents/.archived/` (nunca se borra) y sus chats quedan:
+Archivá uno. Su archivo pasa a `.apc/agents/.archived/` (nunca se borra) y sus chats quedan. Un agente que responde
+un canal se archiva recién cuando elegís quién responde ese canal en su lugar:
 
 <Terminal command="apx agents archive 3f9a1c0d7e21-vera">{`archived; file moved to ~/work/acme-store/.apc/agents/.archived/vera.md`}</Terminal>
 
@@ -202,6 +203,11 @@ La pestaña **Agentes** dibuja tu equipo de dos maneras:
 
 - **Jerarquía**: un árbol armado con el `parent:` de cada agente. Los que no tienen parent reportan a Home.
 - **Áreas y roles**: los agentes agrupados por su `area:`, con las áreas y roles del proyecto.
+
+Las instrucciones de un agente son para su oficio: cómo trabaja y qué revisa. A quién responde y qué puede publicar lo
+dice APX. Para revisar que ninguna instrucción de tus agentes siga frenando el trabajo (personas nombradas como jefes,
+"no pushees salvo autorización", aprobaciones que tiene que dar un revisor), pedile a tu super-agente "Revisá las
+instrucciones de mis agentes": te dice qué cambiaría en cada uno y no cambia nada hasta que digas que sí.
 
 <Shot name="org" alt="La vista Areas and roles: áreas Product, Engineering y Growth con sus roles y agentes" caption="Agentes › Áreas y roles" />
 

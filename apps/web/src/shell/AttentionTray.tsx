@@ -30,7 +30,7 @@ function openNotice(n: Notification): void {
     // Someone waits to be let in: their row, lit, in the channel's own list — where it can be answered.
     go.channel(pairingChannel(n.ref.slice(8)) ?? "telegram", undefined);
     go.focus(n.ref);
-  } else if (n.kind === "channel") go.channelConfig("telegram");
+  } else if (n.kind === "channel") go.view("channels");
 }
 
 /** Topbar bell: what wants the owner (an agent's question or news, a task waiting, a routine's news, a channel matter). */

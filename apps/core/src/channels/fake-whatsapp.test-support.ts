@@ -29,6 +29,9 @@ export function fakeWhatsApp(owner = OWNER_PN) {
   const resendAsked: WaKey[] = [];
   /** Private ids WhatsApp told this device, by phone address. */
   const lids = new Map<string, string>();
+  /** The device's id store stopped answering: a lookup never ends. */
+  let stalled = false;
+  const never = () => new Promise<undefined>(() => {});
   /** Numbers nobody has WhatsApp on (anyone else has it); and every number this device asked about. */
   const absent = new Set<string>();
   const checked: string[] = [];
@@ -61,8 +64,9 @@ export function fakeWhatsApp(owner = OWNER_PN) {
       },
       signalRepository: {
         lidMapping: {
-          getLIDForPN: async (pn: string) => lids.get(pn),
-          getPNForLID: async (lid: string) => [...lids].find(([, l]) => l === lid)?.[0],
+          getLIDForPN: (pn: string) => (stalled ? never() : Promise.resolve(lids.get(pn))),
+          getPNForLID: (lid: string) =>
+            stalled ? never() : Promise.resolve([...lids].find(([, l]) => l === lid)?.[0]),
         },
       },
       // The phone sends one message again, found by its id under the address it came on.
@@ -198,6 +202,14 @@ export function fakeWhatsApp(owner = OWNER_PN) {
           : ((opts.content as WaContent | undefined) ?? { conversation: text }),
       });
       return id;
+    },
+    /** This device learns which private id stands for someone's number (as sending to them first does). */
+    knows(from: Person) {
+      if (from.lid) lids.set(from.phone, from.lid);
+    },
+    /** From now on, asking which number a private id stands for (or the other way) never gets an answer. */
+    stallLookups() {
+      stalled = true;
     },
     /** The owner writes in "Message yourself" (under their private id, as a linked phone often sends it). */
     fromOwner(text: string) {

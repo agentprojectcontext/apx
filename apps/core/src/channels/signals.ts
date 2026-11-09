@@ -118,6 +118,7 @@ export function createSignals(deps: {
       return;
     }
     // Words instead would be a stray emoji in their chat: nothing goes, and the owner hears why.
+    showLast(run);
     const where = store.threads.get(run.thread_id)?.title ?? to.channel;
     const texts = channelTexts(store);
     const text = refused ? texts.reactRefused(emoji, where, refused) : texts.reactFailed(emoji, where);

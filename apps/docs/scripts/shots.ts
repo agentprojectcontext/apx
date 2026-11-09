@@ -55,6 +55,7 @@ const child = spawn(process.execPath, ["--no-warnings", path.join(root, "apps/co
     APX_SECRETS: "file",
     APX_UPDATES: "off",
     APX_RELEASES: "off",
+    APX_TELEMETRY: "off",
     APX_AGENT_NAME: "Nova",
     APX_V1_HOME: path.join(dir, "no-v1"),
     APX_V1_URL: "http://127.0.0.1:9",
@@ -214,7 +215,8 @@ const SHOTS: Shot[] = [
   { name: "settings-memory", go: settings("Memory") },
   { name: "settings-profile", go: settings("Profile") },
   { name: "settings-interruptions", go: settings("Interruptions") },
-  { name: "settings-channels", go: settings("Channels") },
+  // The Channels screen in the sidebar (Channels left Settings); the file keeps its name for the pages that show it.
+  { name: "settings-channels", go: at("view=channels") },
   { name: "settings-devices", go: settings("Devices") },
   { name: "settings-desktop", go: settings("Desktop") },
   { name: "settings-appearance", go: settings("Appearance") },
@@ -271,7 +273,7 @@ const prefs = async (p: Page, mode: "light" | "dark") =>
     try {
       localStorage.setItem("apx.mode", mode);
       localStorage.setItem("apx.prefs", JSON.stringify({ language: "en", look: "minimal", displayName: "Alex" }));
-      localStorage.setItem("apx.corner", JSON.stringify({ discord: true, star: true }));
+      localStorage.setItem("apx.corner", JSON.stringify({ discord: true, star: true, welcome: true }));
     } catch {}
   }, mode);
 // The demo lives in a temp folder; it shows the way a reader's own one would, under ~ (kept so across re-renders).

@@ -100,7 +100,7 @@ test("who they are and the owner's rules reach the contact's turns, the rules la
   });
   assert.equal(p.relation, "client");
   assert.equal(p.muted, false);
-  assert.deepEqual(p.perms, { appointments: false, requests: false, notes: false });
+  assert.deepEqual(p.perms, {}, "nothing set for them: they follow the account");
   tg.message(MAG, "any news?");
   await waitFor(() => tg.messagesTo(MAG.id).length >= 3, "answer");
   const system = String(llm.calls.at(-1)?.messages[0]?.content);
@@ -124,6 +124,27 @@ test("a silenced contact's message is kept and unread, never answered", async ()
   const t = (await env.client.call("threads.get", { thread })).thread;
   assert.ok(t.unread > 0);
   await env.client.call("contacts.set", { id: person, name: MAG.name, muted: false });
+});
+
+test("an account that answers only the owner keeps a contact's message, unanswered", async () => {
+  const saved = (await env.client.call("channels.list", {})).channels.find((c) => c.id === "tg");
+  const set = (owner_only: boolean) =>
+    env.client.call("channels.set", { id: "tg", channel: { type: "telegram", agent_id: "superagent", owner_only } });
+  await set(true);
+  try {
+    const sent = tg.messagesTo(MAG.id).length;
+    const calls = llm.calls.length;
+    tg.message(MAG, "only for you?");
+    await waitFor(async () => {
+      const { messages } = await env.client.call("threads.get", { thread });
+      return messages.some((m) => m.parts[0]?.type === "text" && m.parts[0].text === "only for you?");
+    }, "message kept");
+    await new Promise((r) => setTimeout(r, 200));
+    assert.equal(tg.messagesTo(MAG.id).length, sent, "nothing went back");
+    assert.equal(llm.calls.length, calls, "no model call");
+  } finally {
+    await set(saved?.owner_only ?? false);
+  }
 });
 
 test("a closing message in any language reaches the agent, which may leave it unanswered", async () => {
@@ -195,7 +216,8 @@ test("with reactions off, the agent is told and its emoji answer sends nothing",
   tg.message(MAG, "muchísimas gracias");
   await waitFor(() => llm.calls.length > calls, "the agent read it");
   await env.settle(thread);
-  assert.match(String(llm.calls.at(-1)?.messages.at(-1)?.content), /no reactions/);
+  // The fact on the turn's context line, not the style text that names it.
+  assert.match(String(llm.calls.at(-1)?.messages.at(-1)?.content), /\[context: [^\]]*· no reactions\]/);
   assert.equal(tg.reactionsTo(MAG.id).length, reactions, "no reaction");
   assert.equal(tg.messagesTo(MAG.id).length, sent, "no words either");
   const { messages } = await env.client.call("threads.get", { thread });
@@ -300,6 +322,7 @@ test("a reaction that cannot be put sends nothing to them, and the owner hears w
   assert.equal(tg.messagesTo(MAG.id).length, sent, "no stray emoji went to them");
   const { messages } = await env.client.call("threads.get", { thread });
   assert.ok(!messages.at(-1)?.parts.some((p) => p.type === "text"), "the REACT words leave the chat");
+  assert.doesNotMatch(env.core.store.threads.get(thread)?.preview ?? "", /REACT/, "and the chat's preview too");
 });
 
 test("a thanks reaches the agent, and the emoji it picks goes on their message", async () => {
@@ -395,7 +418,7 @@ test("a close contact's message for the owner needs no flag, becomes a task and 
 test("a contact cannot flood the owner: past 5 requests waiting, pass_request refuses", async () => {
   await env.client.call("contacts.set", { id: person, name: MAG.name, perms: { notes: true } });
   const p = await env.client.call("contacts.set", { id: person, name: MAG.name, perms: { requests: true } });
-  assert.deepEqual(p.perms, { appointments: false, requests: true, notes: true }, "only the flags sent change");
+  assert.deepEqual(p.perms, { requests: true, notes: true }, "only the rights sent change");
   const open = async () =>
     (await env.client.call("tasks.list", {})).tasks.filter((t) => t.person_id === person && t.awaits_owner).length;
   for (let i = await open(); i < 5; i++) {

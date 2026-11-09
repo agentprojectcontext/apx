@@ -201,7 +201,7 @@ test("Sesiones externas: plegado independiente, persistente y accesible desde ba
   const fold = sidebar.getByRole("button", { name: "Sesiones externas", exact: true });
   const engine = sidebar.getByRole("button", { name: /^Codex/ });
   const projects = sidebar.getByRole("button", { name: "Proyectos", exact: true });
-  const channels = sidebar.getByRole("button", { name: "Canales", exact: true });
+  const channels = sidebar.locator(".sidebar__toggle").filter({ hasText: "Canales" });
   await expect(engine).toBeVisible();
   await fold.focus();
   await page.keyboard.press("Space");

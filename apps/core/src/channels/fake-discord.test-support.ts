@@ -58,6 +58,9 @@ export async function fakeDiscord(token: string) {
       if (req.method === "GET" && route === `/guilds/${guild.id}/roles`) return reply(200, guild.roles);
       if (req.method === "GET" && route.startsWith(`/guilds/${guild.id}/members/`))
         return reply(200, { roles: ["7001"] });
+      const lookup = /^\/channels\/([^/]+)$/.exec(route);
+      if (req.method === "GET" && lookup)
+        return reply(200, guild.channels.find((c) => c.id === lookup[1]) ?? { id: lookup[1], type: 0 });
       const multipart = (req.headers["content-type"] ?? "").startsWith("multipart/");
       const body = (raw && !multipart ? JSON.parse(raw) : multipart ? { bytes: raw.length } : {}) as Record<
         string,

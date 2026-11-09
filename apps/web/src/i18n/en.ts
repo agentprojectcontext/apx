@@ -406,6 +406,11 @@ export const en = {
   "account.agentLanguageHint": "They answer and send notices in it, unless you write to them in another one.",
   "account.timezone": "Time zone",
   "account.timezoneHint": "Your agents use it to know what time it is for you.",
+  "account.publish": "Publishing finished work",
+  "account.publishHint":
+    "When a task is done and can be undone, like putting a website online. A new version, a payment or a message in your name always waits for you.",
+  "account.publish.auto": "Without asking",
+  "account.publish.ask": "Ask me first",
   "error.account": "Could not save your account: {error}",
   "account.owner": "Owner of this installation",
   "account.name": "Name",
@@ -984,13 +989,7 @@ export const en = {
   "config.sections": "Settings sections",
   "config.group.general": "General",
   "config.group.agents": "Agents",
-  "config.channels": "Channels",
-  "channels.ready": "Available",
   "common.comingSoonShort": "Coming soon",
-  "channels.add": "Add channel",
-  "channels.lead": "Where people reach you and your agents: each channel has its account and its contacts.",
-  "channels.empty": "No channel connected yet",
-  "channels.emptyBody": "Add one with the button above.",
   "config.group.models": "Models",
   "account.timezoneLocal": "This computer's ({zone})",
   "tz.region.africa": "Africa",
@@ -1221,8 +1220,6 @@ export const en = {
   "channel.telegram.text": "A Telegram bot. It only answers the chats you approve.",
   "channel.discord.name": "Discord",
   "channel.discord.text": "A Discord bot you write to in direct messages. It only answers the people you approve.",
-  "channel.soonBody":
-    "Channels connect in an upcoming version of the core. Meanwhile, write to your agents from the Inbox.",
   "advanced.lead": "The core runs on this computer and is the only process that keeps state. The panel connects to it.",
   "advanced.connection": "Connection",
   "advanced.core": "Core",
@@ -1410,13 +1407,9 @@ export const en = {
   "memory.tainted": "From outside content",
   "memory.taintedHint":
     "Saved with outside content in the chat. Agents read it as data, not as your word; edit it to vouch for it.",
-  "tg.lead":
-    "Talk with your agents from Telegram. Only chats you approve reach them; everyone else gets a code you approve here.",
   "tg.step1": "In Telegram, open @BotFather, send /newbot and follow the steps.",
   "tg.step2": "Paste the token it gives you below and pick who answers.",
   "tg.step3": "Write to your bot: it replies with a code. Type it below in “This is my Telegram”.",
-  "wa.lead":
-    "A WhatsApp number linked like WhatsApp Web: a separate line for your agent, or your own number. It answers only the people you approve.",
   "wa.step1": "Press Link: a code shows up here.",
   "wa.step2": "On your phone: WhatsApp › Settings › Linked devices › Link a device.",
   "wa.step3": "Point the phone at the code. Then link your own phone below (or say this line is your phone).",
@@ -1426,7 +1419,6 @@ export const en = {
   "wa.scan": "Scan this code with your phone",
   "wa.scanHint": "It changes every few seconds; this page keeps it fresh.",
   "wa.connecting": "Connecting to WhatsApp…",
-  "wa.remove": "Unlink WhatsApp",
   "tg.token": "Bot token",
   "tg.tokenHint": "Stored securely; it never comes back to this screen.",
   "tg.tokenFix": "Paste a valid token to connect it again.",
@@ -1435,8 +1427,6 @@ export const en = {
   "tg.tokenStored": "Stored securely; only its start and end are shown.",
   "tg.tokenChangeButton": "Change token",
   "tg.tokenNew": "Paste the new token",
-  "tg.agent": "Who answers",
-  "tg.agentHint": "The agent that answers on {channel}.",
   "tg.connect": "Connect bot",
   "tg.status.running": "Connected",
   "tg.status.starting": "Connecting",
@@ -1444,7 +1434,14 @@ export const en = {
   "tg.status.error": "Error",
   "tg.behavior": "How it behaves",
   "tg.ownerThread": "Your messages",
-  "tg.ownerThreadHint": "Into the Home chat (one conversation everywhere) or a {channel} chat of their own.",
+  "tg.ownerThreadHint":
+    "Home: you talk to the super-agent, one conversation everywhere. Own chat: a chat of {channel} with the agent you pick.",
+  "tg.ownerThreadOwnOnly":
+    "A project's agent answers you in a chat of its own: Home is your super-agent's conversation.",
+  "tg.ownerAgent": "Who you talk to",
+  "tg.ownerAgentHint": "The agent that answers you on {channel}: your super-agent or a project's head.",
+  "tg.contactsAgent": "Who answers your contacts",
+  "tg.contactsAgentHint": "The agent that answers the people who write to {channel}.",
   "tg.ownerThread.home": "Home",
   "tg.ownerThread.own": "Own chat",
   "tg.concurrency": "While it is working",
@@ -1455,12 +1452,9 @@ export const en = {
   "tg.strangersHint": "What happens when someone you have not approved writes.",
   "tg.strangers.pair": "Send a code",
   "tg.strangers.ignore": "Ignore",
-  "tg.remove": "Remove this bot",
-  "tg.pairing": "Waiting for your approval",
   "tg.yourAccount": "Your account",
   "tg.itsMe": "This is my {channel}",
   "tg.ignore": "Ignore",
-  "tg.people": "People on {channel}",
   "tg.role.owner": "You",
   "tg.role.contact": "Contact",
   "tg.role.blocked": "Blocked",
@@ -1468,7 +1462,6 @@ export const en = {
   "tg.block": "Block",
   "tg.unblock": "Unblock",
   "tg.forget": "Forget this person",
-  "tg.sent": "Recently sent",
   "stk.title": "Stickers",
   "stk.lead":
     "Stickers people send you on {channel} are kept as they arrive, with what they mean. The agent understands them and can answer with the ones allowed.",
@@ -1493,7 +1486,6 @@ export const en = {
   "tg.out.failed": "Failed",
   "error.channels": "Channels: {error}",
   "chat.viaChannel": "On {channel}",
-  "tg.notices": "Notices for you",
   "tg.followUp": "Confirmations follow you",
   "tg.followUpHint": "Something an agent asked in the app and nobody answered also comes here, with buttons.",
   "tg.followUp.0": "Never",
@@ -1720,14 +1712,10 @@ export const en = {
   "rooms.tg.idPlaceholder": "Group id (-1001234567890)",
   "rooms.tg.idHint":
     "Telegram cannot list a bot's groups: one shows up here once the bot is added to it or someone writes there while it runs.",
-  "dc.lead":
-    "Talk with your agents from Discord in direct messages to your bot, and let it look after the rooms of your server you pick. In direct messages only people you approve reach them.",
   "dc.step1": "In the Discord Developer Portal, create an application and open Bot.",
   "dc.step2": "Turn on Message Content Intent, then Reset Token and copy it.",
   "dc.step3": "Under Installation, add the bot to your account (or to a server you are in), so you can write to it.",
   "dc.step4": "Paste the token below, write to the bot in a direct message and type its code in “This is my Discord”.",
-  "sl.lead":
-    "Talk with your agents from Slack, in direct messages to your app. Only people you approve reach them; everyone else gets a code you approve here.",
   "sl.step1": "At api.slack.com/apps, create an app and turn on Socket Mode: copy the app-level token (xapp-…).",
   "sl.step2":
     "Give the bot the scopes chat:write, im:history, users:read and files:write; subscribe to the message.im event.",
@@ -1735,30 +1723,23 @@ export const en = {
   "sl.step4": "Paste both tokens below, write to the app and type its code in “This is my Slack”.",
   "sl.botToken": "Bot token",
   "sl.appToken": "App-level token",
-  "mx.lead":
-    "Talk with your agents from Matrix, on any server. Only direct chats are read, and only the people you approve reach them.",
   "mx.step1": "Create an account for the agent on your Matrix server (or use one you have for it).",
   "mx.step2": "Sign in with it in Element, open Settings › Help & About and copy its access token.",
   "mx.step3":
     "Paste the server's address and the token below. Start a chat with encryption turned off, write to it and type its code in “This is my Matrix”.",
   "mx.server": "Server address",
   "mx.token": "Access token",
-  "mm.lead":
-    "Talk with your agents from Mattermost. Only direct messages are read, and only the people you approve reach them.",
   "mm.step1": "In System Console › Integrations › Bot accounts, turn bot accounts on.",
   "mm.step2": "In Integrations › Bot accounts, add a bot and copy its token.",
   "mm.step3":
     "Paste the server's address and the token below, write to the bot and type its code in “This is my Mattermost”.",
   "mm.server": "Server address",
-  "sg.lead":
-    "Talk with your agents from Signal through signal-cli running on this computer. Only one-to-one chats are read.",
   "sg.step1": "Install signal-cli and link it to a number (a number of its own, or yours as a linked device).",
   "sg.step2": "Start it as a daemon: signal-cli -a +NUMBER daemon --http 127.0.0.1:8080",
   "sg.step3":
     "Paste the daemon's address and the number below, write to it from Signal and type its code in “This is my Signal”.",
   "sg.daemon": "signal-cli address",
   "sg.number": "Number",
-  "im.lead": "Let your agents read your recent iMessages and send one from this Mac. Sending always waits for your OK.",
   "im.toggle": "Agents may use iMessage",
   "im.toggleHint":
     "Two tools: read recent messages (other people's words are treated as outside data) and send one, which waits for your OK.",
@@ -1838,7 +1819,6 @@ export const en = {
   "nudge.state.relay": "Waiting for the team news",
   "nudge.state.dropped": "Only in the tray",
   "nudge.state.no_channel": "No channel",
-  "nudge.linkHint": "Quiet hours, the daily cap and what was sent unasked are in Interruptions.",
   "nudge.open": "Open Interruptions",
   "routines.anchor": "Always arrives",
   "routines.maxSteps": "Steps per run",
@@ -1847,7 +1827,7 @@ export const en = {
     "On: its news always arrives, even at night or past the daily cap (for a morning or evening brief). Off: it goes through your interruption budget.",
   "nudge.where": "Chat app for notices",
   "nudge.whereHint":
-    "The app and your paired phones always get them (pair one in Devices). Pick a chat app to get them there too, or none.",
+    "The app and your paired phones always get them (pair one in Devices). Pick one of the chat accounts your super-agent answers to get them there too, or none.",
   "nudge.whereAuto": "The first channel that knows you",
   "nudge.whereNone": "None, only in the app",
   "devices.push.expo": "Push",

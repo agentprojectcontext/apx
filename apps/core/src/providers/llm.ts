@@ -109,7 +109,7 @@ export function createLlm(opts: {
   fetchImpl?: typeof fetch;
   retryDelayMs?: number;
   /** Bytes of an image the log references (base64), read only right before a call. */
-  media?: (id: string) => { mime: string; data: string } | undefined;
+  media?: (id: string) => MediaBytes | Promise<MediaBytes>;
   /** Sign-ins by key reference ("oauth:chatgpt"). */
   signIns?: Record<string, SignIn>;
   now?: () => number;
@@ -149,12 +149,15 @@ export function createLlm(opts: {
         );
       let last: ProviderError | undefined;
       const limited: ProviderError[] = [];
-      // A key, a model or a request the owner must fix: told as such even when another model hit a limit.
+      // A key or a model the owner must fix: told as such even when another model hit a limit.
       let broken: ProviderError | undefined;
+      // A request one model refused (its format, an image too big for it) is that model's alone: it never hides
+      // another model's limit, so the stopped turn still resumes at the reset (engine/provider-limit.ts).
+      let refused: ProviderError | undefined;
       const skipped = new Set<string>();
       const failed: ModelFailure[] = [];
       const need = tokensOf(req);
-      const messages = withImageBytes(req.messages, opts.media);
+      const messages = await withImageBytes(req.messages, opts.media);
       // A model known not to read images refuses a call carrying any: it gets the words alone.
       const wordsOnly = withoutImages(messages);
       // A model that failed after streaming part of an answer must not leave that part on screen.
@@ -170,7 +173,9 @@ export function createLlm(opts: {
         const ref = `${t.provider.id}/${t.model}`;
         const hold = held.get(ref);
         if (hold && hold.until > now()) {
-          failed.push({ model: ref, why: "its usage limit has not lifted yet" });
+          // What the provider said when it was held, so the owner can tell a real plan limit from a misread one.
+          const said = hold.error.message.slice(ref.length + 2, ref.length + 202);
+          failed.push({ model: ref, why: `its usage limit has not lifted yet (${said})` });
           limited.push(hold.error);
           continue;
         }
@@ -263,8 +268,8 @@ export function createLlm(opts: {
           const until = last.resetsAt ? Date.parse(last.resetsAt) : now() + UNSAID_HOLD_MS;
           held.set(ref, { until, error: new ProviderError(last.kind, last.message, last.resetsAt) });
         }
-        if (last && (last.kind === "auth" || last.kind === "model_gone" || last.kind === "bad_request"))
-          broken ??= last;
+        if (last && (last.kind === "auth" || last.kind === "model_gone")) broken ??= last;
+        if (last?.kind === "bad_request") refused ??= last;
         if (streamed) {
           streamed = false;
           req.onText?.("");
@@ -274,7 +279,7 @@ export function createLlm(opts: {
       const reasons = failed.map((f) => `${f.model}: ${f.why}`).join("\n");
       if (limited.length && !broken) throw limitError(limited, reasons);
       throw new ProviderError(
-        broken?.kind ?? last?.kind ?? "auth",
+        broken?.kind ?? refused?.kind ?? last?.kind ?? "auth",
         reasons || last?.message || "no usable model provider",
       );
     },
@@ -324,27 +329,32 @@ function withoutImages(messages: ChatItem[]): ChatItem[] {
 /** Images a call carries at most: the newest ones; older ones stay named in their message's text. */
 const MAX_CALL_IMAGES = 4;
 
+type MediaBytes = { mime: string; data: string } | undefined;
+
 /**
  * Images travel as references in the log; their bytes join only this call, newest first up to the cap (an image no
  * longer on disk is dropped).
  */
-function withImageBytes(
+async function withImageBytes(
   messages: ChatItem[],
-  media: ((id: string) => { mime: string; data: string } | undefined) | undefined,
-): ChatItem[] {
+  media: ((id: string) => MediaBytes | Promise<MediaBytes>) | undefined,
+): Promise<ChatItem[]> {
   let room = MAX_CALL_IMAGES;
-  return messages
-    .toReversed()
-    .map((m) => {
-      if (m.role !== "user" || !m.images?.length) return m;
-      const images = m.images.toReversed().flatMap((i) => {
-        if (room <= 0) return [];
-        const got = media?.(i.media_id);
-        if (!got) return [];
-        room--;
-        return [{ ...i, mime: got.mime, data: got.data }];
-      });
-      return { ...m, images: images.toReversed() };
-    })
-    .toReversed();
+  const out: ChatItem[] = [];
+  for (const m of messages.toReversed()) {
+    if (m.role !== "user" || !m.images?.length) {
+      out.push(m);
+      continue;
+    }
+    const images = [];
+    for (const i of m.images.toReversed()) {
+      if (room <= 0) break;
+      const got = await media?.(i.media_id);
+      if (!got) continue;
+      room--;
+      images.push({ ...i, mime: got.mime, data: got.data });
+    }
+    out.push({ ...m, images: images.toReversed() });
+  }
+  return out.toReversed();
 }

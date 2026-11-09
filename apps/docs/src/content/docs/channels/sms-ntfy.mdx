@@ -10,7 +10,7 @@ sidebar:
 1. In Twilio, buy or choose a number capable of sending SMS. Your Twilio account and carrier restrictions still apply;
    APX does not make SMS free.
 2. Copy the **Account SID** and **Auth Token** from the console's Account Info.
-3. Open **Settings › Channels › Add channel › SMS** and enter those values and the phone number. Choose the agent.
+3. Open **Channels › New channel › SMS** and enter those values and the phone number. Choose the agent.
 4. Send a text to that number. APX polls for messages every few seconds; this adapter needs **no webhook**.
 5. Link your own sender using the code in the SMS; approve other senders as contacts, not as yourself.
 
@@ -27,7 +27,7 @@ an ntfy push address for a [paired phone](/devices/phone/#push-notifications).
 1. Install ntfy and subscribe to a long, random topic on ntfy.sh or your own server.
 2. Prefer a protected topic and create an access token in ntfy account settings. **Anyone who knows an unprotected
    topic can write to it as you**; an obscure name is not account authentication.
-3. Open **Settings › Channels › Add channel › ntfy**. Enter server, topic and the token if required.
+3. Open **Channels › New channel › ntfy**. Enter server, topic and the token if required.
 4. Reply on the topic to speak to the agent. Test a reply and an agent message before relying on it for notices.
 
 The channel's topic is not an authenticated owner session. Confirmation cards may direct you to the APX app rather

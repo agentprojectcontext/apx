@@ -15,7 +15,7 @@ llegan a **Home**, la misma conversación que usás en la app. Podés enviar not
 
 APX tiene que estar funcionando en tu computadora o en tu propio servidor. Telegram es una forma de acceder a esa
 instalación, no la reemplaza. Antes de empezar, [instalá APX](/es/start/install/) y tené lista tu cuenta de Telegram.
-Creá un bot, conectalo en **Configuración › Canales** y vinculá tu cuenta con el código que te envía.
+Creá un bot, conectalo en **Canales** y vinculá tu cuenta con el código que te envía.
 
 ## Creá el bot
 
@@ -36,11 +36,11 @@ Creá un bot, conectalo en **Configuración › Canales** y vinculá tu cuenta c
 
 <Steps>
 
-1. Abrí **Configuración › Canales**. Si ya hay otro canal, usá **Agregar canal** y elegí **Telegram**.
+1. Abrí **Canales** en la barra lateral, tocá **Nuevo canal** y elegí **Telegram**.
 
-2. Pegá el token en **Token del bot** y elegí **Quién responde** (tu secretaria, de entrada).
+2. Pegá el token en **Token del bot** y tocá **Conectar**. El estado pasa a **Conectado**.
 
-3. Tocá **Conectar bot**. El estado pasa a **Conectado**.
+3. Elegí **Quién responde** (tu super-agente, de entrada) y tocá **Crear canal**.
 
 </Steps>
 
@@ -72,7 +72,7 @@ El bot todavía no te conoce: para él sos un desconocido más. Vinculá tu cuen
 
 1. Escribile cualquier cosa a tu bot desde tu Telegram. Te contesta con un código de 6 números.
 
-2. En **Configuración › Canales**, en **Tu cuenta**, escribí el código en **Este es mi Telegram** y tocá
+2. En la configuración de la cuenta (**Canales**, su lápiz), en **Tu cuenta**, escribí el código en **Este es mi Telegram** y tocá
    **Vincular**. (La pantalla del canal en la barra lateral ofrece lo mismo, como **Vinculá tu Telegram**.)
 
 </Steps>
@@ -119,7 +119,7 @@ opcionales: uno que no está en la lista no existe para APX, así que no se lee 
 2. Agregá el bot al grupo y escribí algo ahí con el canal conectado. Telegram no deja listar los grupos de un bot,
    así que APX los aprende de lo que llega: que lo agreguen, o cualquier mensaje.
 
-3. En **Configuración › Canales**, en **Grupos**, elegí el grupo en **Agregar un grupo donde está el bot…**. Escribir
+3. En **Canales**, en **Grupos**, elegí el grupo en **Agregar un grupo donde está el bot…**. Escribir
    su ID (un número negativo, `-100…` en un supergrupo) queda como alternativa.
 
 </Steps>
@@ -150,7 +150,7 @@ apx channels add telegram northwind-bot --agent <id-del-agente-del-proyecto>
 unset APX_CHANNEL_TOKEN
 ```
 
-Después escribile al bot nuevo y vinculate con `apx pairing me <código>`: **Configuración › Canales** muestra el
+Después escribile al bot nuevo y vinculate con `apx pairing me <código>`: **Canales** muestra el
 primer bot de cada tipo.
 
 <Aside type="caution">

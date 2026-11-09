@@ -5,10 +5,24 @@ import { callTool, say, scriptedLlm, startCore } from "./testkit.ts";
 
 // Vera works her tasks: "Ship in parts" needs two turns and closes in the second; "Spin" only looks things up.
 const taskOf = (s: string) => /(task_\w+)/.exec(s)?.[1] ?? "";
-const llm = scriptedLlm((req, { system, said, afterTool }) => {
+let releaseScout: (() => void) | undefined;
+const llm = scriptedLlm(async (req, { system, said, afterTool }) => {
+  if (system.startsWith("You are Scout") && said.includes("are the numbers final")) {
+    if (!releaseScout) await new Promise<void>((r) => (releaseScout = r));
+    return say("Yes, final.");
+  }
   if (!system.startsWith("You are Vera")) return say("ok");
   const all = JSON.stringify(req.messages);
   const task = taskOf(/Task (task_\w+)/.exec(all)?.[0] ?? all);
+  if (all.includes("Scout answered your question")) {
+    if (!afterTool)
+      return callTool("final", "task_close", { task, state: "done", note: "Scout confirmed the numbers" });
+    return say("Done.");
+  }
+  if (all.includes("Ask and wait")) {
+    if (!afterTool) return callTool("ask", "task_comment", { task, text: "@scout are the numbers final?" });
+    return say("Waiting for Scout's answer.");
+  }
   if (all.includes("Close it bare")) {
     if (!afterTool) return callTool("bare", "task_close", { task, state: "done" });
     return say(String(req.messages.at(-1)?.content));
@@ -64,6 +78,21 @@ test("a part that gets nowhere is not followed by another: the stall watch has i
   await new Promise((r) => setTimeout(r, 300));
   assert.equal(turnsOn(task.id).length, 2, "the second part only looked things up, so no third");
   assert.equal(env.core.store.tasks.get(task.id)?.state, "open");
+});
+
+test("an agent waiting for a teammate it asked on its task is not told to go on: the answer wakes it", async () => {
+  const task = await env.client.call("tasks.create", {
+    title: "Ask and wait",
+    description: "Ask Scout whether the numbers are final.",
+    assignee: "vera",
+  });
+  await waitFor(() => turnsOn(task.id)[0]?.ended_at !== undefined && releaseScout !== undefined, "vera asked");
+  // The teammate is still answering when the asker's turn ends; only then does the answer come back.
+  await new Promise((r) => setImmediate(r));
+  releaseScout?.();
+  await waitFor(() => turnsOn(task.id).some((r) => r.trigger === "a2a" && r.ended_at), "vera hears scout's answer");
+  const origins = turnsOn(task.id).map((r) => r.input?.origin.kind);
+  assert.notEqual(origins[1], "task_continue", `no 'go on' while scout was answering; got ${origins.join(", ")}`);
 });
 
 test("the agent that did the work closes it as done only saying what it verified", async () => {

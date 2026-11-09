@@ -15,7 +15,7 @@ arrive in **Home**, the same conversation you use in the app. You can send voice
 
 APX must be running on your computer or your own server. Telegram is a way to reach that installation, not a
 replacement for it. Before you start, [install APX](/start/install/) and have your Telegram account ready.
-Create a bot, connect it in **Settings › Channels**, then pair your own account using the code it sends you.
+Create a bot, connect it in **Channels**, then pair your own account using the code it sends you.
 
 ## Create the bot
 
@@ -36,11 +36,11 @@ Create a bot, connect it in **Settings › Channels**, then pair your own accoun
 
 <Steps>
 
-1. Open **Settings › Channels**. If another channel is already there, use **Add channel** and pick **Telegram**.
+1. Open **Channels** in the sidebar, press **New channel** and pick **Telegram**.
 
-2. Paste the token in **Bot token** and choose **Who answers** (your secretary by default).
+2. Paste the token in **Bot token** and press **Connect**. The status turns to **Connected**.
 
-3. Press **Connect bot**. The status turns to **Connected**.
+3. Choose **Who answers** (your super-agent by default) and press **Create channel**.
 
 </Steps>
 
@@ -72,7 +72,8 @@ The bot doesn't know you yet: to it, you're a stranger like anyone else. Link yo
 
 1. Write anything to your bot from your own Telegram. It answers with a 6-digit code.
 
-2. In **Settings › Channels**, under **Your account**, type the code in **This is my Telegram** and press **Link**.
+2. In the account's settings (**Channels**, its pencil), under **Your account**, type the code in **This is my
+   Telegram** and press **Link**.
    (The channel's screen in the sidebar offers the same, as **Link your Telegram**.)
 
 </Steps>
@@ -119,7 +120,7 @@ one that isn't listed doesn't exist for APX, so it's neither read nor stored, ev
 2. Add the bot to the group, and write something there while the channel is connected. Telegram can't list the groups
    a bot is in, so APX learns them from what arrives: being added, or any message.
 
-3. In **Settings › Channels**, under **Groups**, pick the group from **Add a group the bot is in…**. Typing its id
+3. In **Channels**, under **Groups**, pick the group from **Add a group the bot is in…**. Typing its id
    (a negative number, `-100…` for a supergroup) is the fallback.
 
 </Steps>
@@ -150,7 +151,7 @@ apx channels add telegram northwind-bot --agent <project-agent-id>
 unset APX_CHANNEL_TOKEN
 ```
 
-Then write to the new bot and link yourself with `apx pairing me <code>`: **Settings › Channels** shows the first bot
+Then write to the new bot and link yourself with `apx pairing me <code>`: **Channels** shows the first bot
 of each kind.
 
 <Aside type="caution">

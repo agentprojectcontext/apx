@@ -116,6 +116,10 @@ movió, asignó o cerró). **Sesiones**, arriba, cuenta los chats en los que se 
 a donde pasa el trabajo. Si la reasignás, el nuevo agente tiene su propio chat y se entera de quién la trabajó antes y
 dónde leerlo.
 
+Un agente puede reescribir una tarea que creaste, por ejemplo para completar un borrador que todavía no hace nadie.
+Una vez que un agente cambió su título o su descripción, el agente que trabaja la tarea los lee como palabras de ese
+compañero, no tuyas, y su chat no arranca con ellos como mensaje tuyo. Editalos vos y vuelven a ser tus palabras.
+
 ### Objetivo, lo que pediste y el plan
 
 Arriba de la descripción, una tarea muestra adónde tiene que llegar su trabajo y lo que dijiste sobre ella:
@@ -137,8 +141,12 @@ Arriba de la descripción, una tarea muestra adónde tiene que llegar su trabajo
   vuelve a empezar la cuenta.
 - **Un agente hace el trabajo, una revisión al final**: el agente de una tarea la hace él mismo. Le pide algo a otro
   agente recién cuando terminó el resto de su plan, en general una revisión (salvo que vos le pidas ayuda antes). Lo
-  que tiene que hacer otro pasa a ser una subtarea. Quien revisa responde Aprobado, Aprobado con notas, o Bloqueado con
-  lo único que lo bloquea. Las notas nunca frenan.
+  que tiene que hacer otro pasa a ser una subtarea. Quien revisa informa qué funciona, qué falla y qué no pudo probar;
+  nunca aprueba ni bloquea. La tarea vuelve a su agente, que decide qué arreglar y la entrega.
+- **El agente de una tarea la entrega**: cuando la tarea pide publicar o desplegar, eso es parte del trabajo. Un paso
+  que se puede deshacer (subir una rama, un deploy) lo hace; uno difícil (una versión o un tag, un pago, una migración
+  de datos en producción, un mensaje en tu nombre) te espera. Cierra la tarea diciendo qué funciona, qué falta y qué
+  tan lista está, de 1 a 5.
 - **Pocos comentarios**: un agente comenta en una tarea cuando termina su plan, para preguntarte algo a vos o a un
   compañero (con `@nombre`), o cuando te responde; como mucho una vez por turno y en líneas cortas. El avance se ve en
   el plan. Un ayudante le responde a quien le preguntó, no a la tarea.
@@ -153,7 +161,9 @@ La descripción se lee con formato (listas, negritas, enlaces); el lápiz la abr
 Las tareas asignadas que nunca arrancaron se retoman solas: una vez por hora, las más urgentes se ponen en marcha,
 como de quien las dio: una tarea que dio un agente cuenta para los límites de ese agente, nunca como un pedido tuyo.
 Para que una arranque más tarde (mañana a la mañana, después de una salida a producción), poné **Empieza** en su
-panel, o `apx tasks add … --start 2026-10-23T09:00`: su agente arranca a esa hora, no cuando la asignás.
+panel, o `apx tasks add … --start 2026-10-23T09:00`: su agente arranca a esa hora, no cuando la asignás. Por más tareas que
+tenga el tablero, la retoma y los horarios de inicio tienen en cuenta todas las que pueden arrancar, no solo las que se
+movieron hace poco.
 
 ### Pasar el trabajo actual a una tarea
 
@@ -189,13 +199,24 @@ después"), su parte siguiente arranca enseguida, numerada, hasta nueve. Para cu
 esperándote con lo que tenés que hacer, dice qué lo bloquea, o cuando una parte no avanzó. Para cerrar su trabajo como
 hecho, el agente tiene que decir qué verificó.
 
+Si una tarea sigue en curso sin nada corriendo (ningún turno en 20 minutos, dentro del día de su último turno), APX le
+pide una vez a su agente que siga o diga qué espera, y te avisa si se vuelve a frenar. Cada diez minutos APX mira hasta
+100 tareas en curso y le pide a tres agentes como mucho, así que en una oficina grande cada tarea llega a su turno en
+varias pasadas. Una tarea trabajada por última vez hace más de un día queda para vos.
+
 ### Cuando se cierra la tarea de un agente
 
 Una tarea que un agente creó y le dio a otro avisa cuando se cierra. Tu agente principal se entera de cada tarea que
-cierra su equipo, también las que diste vos u otro agente, y te cuenta cómo salió. Tu agente principal puede pasarle un objetivo
+cierra su equipo, también las que diste vos u otro agente, la compara con lo que se pidió y te cuenta cómo terminó.
+Con 1 o 2, vuelve a su agente con lo que hay que arreglar, sin preguntarte; desde 3, tu agente principal se fija que
+lo que había que publicar esté publicado, te pregunta antes solo un paso difícil y te avisa si terminó bien o con
+detalles. Tu agente principal puede pasarle un objetivo
 entero al orquestador de un proyecto como tarea; cuando el orquestador la cierra, horas y reinicios después, tu agente
-principal recibe su informe en el chat donde creó la tarea y te cuenta lo que importa. Si la cerrás vos, o un agente
-cierra la suya, no se despierta a nadie. Ese turno cuenta para los [turnos que los agentes arrancan solos sin
+principal recibe su informe en el chat donde creó la tarea y te cuenta lo que importa. Cuando el orquestador de un
+proyecto arranca una tarea desde su propio chat del proyecto, ese chat también se entera de cómo terminó, y de cuando un
+revisor la devuelve pidiendo cambios; enterarse no le da ningún permiso nuevo. Cuando vos u otro agente vuelven a
+arrancar la tarea, ese chat deja de enterarse, y no se le avisa de un cierre que hizo él mismo. Si la cerrás vos, o un
+agente cierra la suya, no se despierta a nadie. Ese turno cuenta para los [turnos que los agentes arrancan solos sin
 vos](/es/concepts/agents/): pasado el límite, el informe espera a que escribas en ese chat.
 
 ### Pedir correcciones
@@ -334,6 +355,8 @@ el tablero para Tomás" funciona en cualquier chat.
 ## Herramientas de agentes
 
 - `task_list` lista el tablero; `task_get` consulta una tarea por su ID en `task`.
+- `task_list` muestra primero la actividad más reciente y avisa si hay más tareas. Con `cursor: "start"` (y luego cada `next_cursor`) recorre todas las tareas que coinciden por orden de ID, de 25 en 25; el recorrido es en vivo, no una foto fija. Las tareas que esperan la aceptación del dueño se marcan como propuestas.
+- Una descripción cortada en `task_get` se lee con `description_page: "0"` y luego cada `next_page`; si la descripción cambia entre páginas, la lectura falla y hay que empezar de nuevo.
 - `task_get` incluye campos, historial, sesiones de trabajo, consultas, subtareas, uso de tokens y los últimos 60 mensajes de la conversación. Las evidencias guardadas (referencias a archivos, parches y resúmenes de consultas) se conservan en su mensaje; no descarga adjuntos ni inventa pruebas faltantes.
 - Cada sección tiene un límite para el modelo, con marcas cuando se omite contenido o hay comentarios anteriores. El contenido se devuelve como datos, no como instrucciones.
 - Los agentes de proyecto pueden leer tareas de su proyecto y globales, pero no tareas ni trabajo relacionado de otros proyectos. Un ID inexistente o fuera del ámbito devuelve el mismo error seguro. La secretaria global conserva su visibilidad de todo el tablero.

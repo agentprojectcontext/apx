@@ -20,7 +20,7 @@ de la plataforma: credenciales válidas no arreglan mensajes enviados a una URL 
 
 1. En Azure **App registrations**, creá un registro **single-tenant**. Copiá Application (client) ID y Directory (tenant) ID.
 2. En **Certificates & secrets**, creá un secreto de cliente y copiá su valor.
-3. En APX **Configuración › Canales › Agregar canal › Microsoft Teams**, ingresá los tres valores y configurá Dirección pública.
+3. En APX **Canales › Nuevo canal › Microsoft Teams**, ingresá los tres valores y configurá Dirección pública.
 4. Creá un Azure Bot con ese registro y usá la dirección del canal de APX como **Messaging endpoint**.
 5. Habilitá Microsoft Teams en Channels del Azure Bot e instalá el bot en Teams mediante Developer Portal o un
    manifiesto con el ID de su app.
@@ -34,7 +34,7 @@ Admite chats personales y conversaciones compartidas listadas, no acceso irrestr
 
 1. En LINE Developers, creá un proveedor y un canal **Messaging API** para tu Official Account. Copiá **Channel secret**
    de Basic settings y emití un **Channel access token** de larga duración en la pestaña Messaging API.
-2. En APX **Configuración › Canales › Agregar canal › LINE**, ingresá ambos y configurá Dirección pública.
+2. En APX **Canales › Nuevo canal › LINE**, ingresá ambos y configurá Dirección pública.
 3. Copiá la dirección exacta del canal en **Webhook URL** de LINE, activá **Use webhook** y presioná **Verify**.
 4. En Official Account Manager desactivá saludos y respuestas automáticas para evitar respuestas duplicadas.
 5. Escribile a la cuenta e ingresá el código en **Este es mi LINE** para tu cuenta. Invitá el bot a grupos y listalos

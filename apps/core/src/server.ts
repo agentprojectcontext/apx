@@ -172,6 +172,8 @@ export type CoreOptions = {
   channelRetryMs?: readonly number[];
   /** How long a room waits for one person's quick messages to settle (tests shorten it). */
   roomBurstMs?: number;
+  /** The clock rooms wait on: the burst and each person's pause (tests move it). */
+  roomTimers?: RunTimers;
   /** When a question waiting in the app follows the owner to their channel (tests move it). */
   followUpTimers?: RunTimers;
   /** How long a supervised contact's quick messages may keep coming before their draft (tests shorten it). */
@@ -202,6 +204,8 @@ export type CoreOptions = {
   /** How a turn gets the owner's Chrome when it is closed; tests pass their own instead of starting a browser. */
   ownersChrome?: OwnersChrome;
   desktopInstaller?: DesktopInstaller;
+  /** Where the desktop app is looked for, where its data goes and how it opens; the e2e sandbox keeps all three. */
+  desktopApp?: Pick<DesktopInstallOptions, "userHome" | "env" | "session" | "candidates" | "run">;
   /** Messages on this Mac (by default only on macOS); tests pass their own, null for none. */
   imessage?: IMessageOps | null;
   /** Runs the update's commands (git, pnpm); tests answer them. */
@@ -594,6 +598,7 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
     draft: createDrafter({ store, llm, fallbackModels: upkeep.auxModels }).draft,
     ...(opts.clock ? { now: opts.clock } : {}),
     ...(opts.roomBurstMs !== undefined ? { roomBurstMs: opts.roomBurstMs } : {}),
+    ...(opts.roomTimers ? { roomTimers: opts.roomTimers } : {}),
     ...(opts.followUpTimers ? { followUpTimers: opts.followUpTimers } : {}),
     ...(opts.suggestBurstMs !== undefined ? { suggestBurstMs: opts.suggestBurstMs } : {}),
   });
@@ -746,6 +751,7 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
       env: { ...process.env },
       feed: config.releases ?? "off",
       session: () => desktopSessionEnv(process.platform, { ...process.env }),
+      ...opts.desktopApp,
       target: () => prepareLocalTarget({ home: config.home, port: listening, home_id: identity.home_id }, config.token),
     } satisfies DesktopInstallOptions);
 

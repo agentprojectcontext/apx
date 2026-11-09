@@ -1,10 +1,10 @@
 import type { Person } from "@apx/protocol";
 import { PERSON_RELATIONS } from "@apx/protocol/client";
-import { Button, Help, IconButton, Icons, Input, Select, Switch, Textarea, Tooltip } from "@apx/ui";
+import { Button, Help, IconButton, Icons, Input, SegmentedControl, Select, Textarea, Tooltip } from "@apx/ui";
 import { useState } from "react";
 import { claimAddress, saveContact, useChannels } from "../data/channels.ts";
 import { notify } from "../data/notices.ts";
-import { useT } from "../i18n/index.ts";
+import { type MessageKey, useT } from "../i18n/index.ts";
 import { RELATION_KEY } from "./people.ts";
 import { ownerOn } from "./StartRows.tsx";
 
@@ -15,15 +15,34 @@ import { ownerOn } from "./StartRows.tsx";
  */
 const NO_RELATION = "none";
 
-export function ContactPanel({ person, onClose }: { person: Person; onClose(): void }) {
+/** The rights a contact's card sets, in the order it shows them. */
+const RIGHTS = ["appointments", "requests", "notes", "any_hour"] as const;
+type Right = (typeof RIGHTS)[number];
+const RIGHT_LABEL: Record<Right, MessageKey> = {
+  appointments: "ch.perm.appointments",
+  requests: "ch.perm.requests",
+  notes: "ch.perm.notes",
+  any_hour: "ch.anyHour",
+};
+
+export function ContactPanel({
+  person,
+  account,
+  onClose,
+}: {
+  person: Person;
+  /** The account this card is opened on: what its rights follow when nothing is set for them. */
+  account: string;
+  onClose(): void;
+}) {
   const t = useT();
+  const defaults = useChannels((s) => s.channels.find((c) => c.id === account)?.contacts);
   const [d, setD] = useState({
     name: person.name,
     nickname: person.nickname ?? "",
     relation: person.relation,
     note: person.note ?? "",
     rules: person.rules ?? "",
-    any_hour: person.any_hour,
     perms: person.perms,
   });
   const [busy, setBusy] = useState(false);
@@ -33,24 +52,45 @@ export function ContactPanel({ person, onClose }: { person: Person; onClose(): v
     d.relation !== person.relation ||
     d.note !== (person.note ?? "") ||
     d.rules !== (person.rules ?? "") ||
-    d.any_hour !== person.any_hour ||
-    JSON.stringify(d.perms) !== JSON.stringify(person.perms);
+    RIGHTS.some((k) => d.perms[k] !== person.perms[k]);
   const save = async () => {
     setBusy(true);
-    const ok = await saveContact(person.id, { ...d, relation: d.relation ?? null });
+    // Only the rights changed go out; one set back to the account goes as null.
+    const perms = Object.fromEntries(
+      RIGHTS.filter((k) => d.perms[k] !== person.perms[k]).map((k) => [k, d.perms[k] ?? null]),
+    );
+    const ok = await saveContact(person.id, { ...d, relation: d.relation ?? null, perms });
     setBusy(false);
     if (ok) notify(t("ch.saved"), "info");
   };
-  const perm = (k: keyof Person["perms"], label: string) => (
-    <li>
-      <Switch
-        size="sm"
-        checked={d.perms[k]}
-        label={label}
-        onCheckedChange={(on) => setD((x) => ({ ...x, perms: { ...x.perms, [k]: on } }))}
-      />
-    </li>
-  );
+  // Each right: as the account says (and what that is), or on or off for this person only.
+  const right = (k: Right) => {
+    const own = d.perms[k];
+    const account = t(defaults?.[k] ? "ch.right.yes" : "ch.right.no");
+    return (
+      <li key={k} className="chan__right">
+        <span className="chan__rightlabel">{t(RIGHT_LABEL[k])}</span>
+        <SegmentedControl
+          size="sm"
+          label={t(RIGHT_LABEL[k])}
+          value={own === undefined ? "account" : own ? "on" : "off"}
+          onValueChange={(v) =>
+            setD((x) => {
+              const perms = { ...x.perms };
+              if (v === "account") delete perms[k];
+              else perms[k] = v === "on";
+              return { ...x, perms };
+            })
+          }
+          options={[
+            { value: "account", label: t("ch.right.account", { value: account }) },
+            { value: "on", label: t("ch.right.yes") },
+            { value: "off", label: t("ch.right.no") },
+          ]}
+        />
+      </li>
+    );
+  };
 
   return (
     <aside className="chan__card" aria-label={t("ch.contact")}>
@@ -129,19 +169,7 @@ export function ContactPanel({ person, onClose }: { person: Person; onClose(): v
             {t("ch.may.close")}
           </Help>
         </div>
-        <ul className="chan__perms">
-          {perm("appointments", t("ch.perm.appointments"))}
-          {perm("requests", t("ch.perm.requests"))}
-          {perm("notes", t("ch.perm.notes"))}
-          <li>
-            <Switch
-              size="sm"
-              checked={d.any_hour}
-              label={t("ch.anyHour")}
-              onCheckedChange={(on) => setD((x) => ({ ...x, any_hour: on }))}
-            />
-          </li>
-        </ul>
+        <ul className="chan__perms">{RIGHTS.map(right)}</ul>
         <ItsMine person={person} onDone={onClose} />
       </div>
       <footer className="chan__cardfoot">

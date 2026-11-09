@@ -32,14 +32,16 @@ Después podés cambiar con el mismo interruptor, en la configuración del canal
 
 <Steps>
 
-1. Abrí **Configuración › Canales**, usá **Agregar canal** y elegí **WhatsApp** (o entrá directo si es el primero).
+1. Abrí **Canales** en la barra lateral, tocá **Nuevo canal** y elegí **WhatsApp**. Si querés, ponele un nombre
+   (Ventas, Personal…).
 
-2. Elegí **Quién responde**, y prendé **Esta línea es mi propio teléfono** si vinculás tu propio número.
+2. Tocá **Conectar**. Aparece un QR; cambia cada pocos segundos y la página lo mantiene al día.
 
-3. Tocá **Vincular**. Aparece un QR; cambia cada pocos segundos y la página lo mantiene al día.
-
-4. En el teléfono que tiene el número: **WhatsApp › Configuración › Dispositivos vinculados › Vincular un
+3. En el teléfono que tiene el número: **WhatsApp › Configuración › Dispositivos vinculados › Vincular un
    dispositivo**, y apuntá al código.
+
+4. Cuando está conectada, prendé **Esta línea es mi propio teléfono** si vinculaste tu propio número, elegí **Quién
+   responde** y tocá **Crear canal**.
 
 </Steps>
 
@@ -64,6 +66,16 @@ Con tu propio número no hay nada que vincular: quien escribe en "Mensaje a mí 
 APX lee los chats uno a uno. Los grupos, las listas de difusión y los canales de WhatsApp se ignoran. Las notas de voz
 en chats privados se transcriben (mirá [Notas de voz](/es/channels/overview/#notas-de-voz)), y las opciones que te
 ofrece el agente llegan como una lista numerada: contestá con el número. Las fotos, videos, stickers y documentos quedan en el chat para verlos o descargarlos.
+
+### Una persona, un contacto
+
+A veces WhatsApp entrega una respuesta con un id privado en vez del número de la persona. Si APX ya sabe a qué
+número corresponde ese id (por ejemplo, porque tu agente le escribió primero), la respuesta va al mismo contacto y al
+mismo chat. Si una respuesta anterior creó un segundo contacto, APX une los dos la próxima vez que WhatsApp se conecta:
+queda un solo contacto con las dos direcciones, los datos que cargaste y los mensajes de los dos chats en orden. Si
+habías configurado los dos contactos, el que queda se lleva la opción más estricta de cada uno: silenciado o
+supervisado si alguno lo estaba, bloqueado si alguno lo estaba, atendido a cualquier hora solo si los dos lo estaban, y
+solo los permisos que tenían los dos.
 
 ### Archivos que nunca llegaron
 

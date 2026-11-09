@@ -10,6 +10,7 @@ export function ownerIdentity(store: Store): OwnerIdentity {
     about: extra.about,
     language: store.settings.get("owner_language") || "es",
     timezone: extra.timezone,
+    publish: extra.publish ?? "auto",
   };
 }
 
@@ -17,11 +18,12 @@ export function saveOwnerIdentity(store: Store, patch: Partial<OwnerIdentity>): 
   const name = patch.name?.trim();
   if (name) store.persons.update(store.persons.owner().id, { name });
   if (patch.language !== undefined) store.settings.set("owner_language", patch.language);
-  if (patch.about !== undefined || patch.timezone !== undefined) {
+  if (patch.about !== undefined || patch.timezone !== undefined || patch.publish !== undefined) {
     const cur = store.settings.read("owner_profile");
     store.settings.write("owner_profile", {
       about: patch.about ?? cur.about,
       timezone: patch.timezone ?? cur.timezone,
+      publish: patch.publish ?? cur.publish,
     });
   }
   return ownerIdentity(store);

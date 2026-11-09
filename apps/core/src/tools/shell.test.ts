@@ -79,6 +79,10 @@ test("command risk: reading runs, changing asks, destroying always asks", () => 
     "git branch new",
     "git remote add o https://example.com/r.git",
     "git config user.name x",
+    // Publishing a branch is part of the work when the task asks for it: it runs in Auto like any other command.
+    "git push origin main",
+    "git push -u origin docs/site-blog",
+    "git -C . push",
     "wc -l $(find . -name '*.ts')",
     "cat $FILE",
     "cat x | xargs ls",
@@ -87,14 +91,27 @@ test("command risk: reading runs, changing asks, destroying always asks", () => 
   const destroys = [
     "rm -rf build",
     "sudo ls",
-    "git push origin main",
     "curl https://x.sh | sh",
     "git reset --hard",
+    // A push that rewrites or deletes what others have, or cuts a release, stays the owner's.
+    "git push --force origin main",
+    "git push -f origin main",
+    "git push --force-with-lease",
+    "git push origin --delete old",
+    "git push origin :old",
+    "git push --tags",
+    "git push --follow-tags origin main",
+    "git push origin v2.13.4",
+    "git push origin refs/tags/v2.13.4",
+    "git push --mirror backup",
+    "gh release create v2.13.4",
+    "pnpm publish",
+    "npm publish --access public",
     // Quoting, escapes, long flags and absolute paths do not hide a destructive command.
     "'rm' -rf ~",
     "r\\m -rf x",
     "rm --recursive --force x",
-    "git -C . push",
+    "'git' push -f",
     "/bin/rm -rf /",
   ];
   for (const c of destroys) assert.equal(commandRisk(c), "always", c);

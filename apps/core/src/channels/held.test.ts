@@ -107,7 +107,11 @@ test("the owner is answered at any hour", async () => {
 });
 
 test("a contact the owner answers at any hour is answered after the hours too", async () => {
-  await env.client.call("contacts.set", { id: persons[FAMILY.name] ?? "", name: FAMILY.name, any_hour: true });
+  await env.client.call("contacts.set", {
+    id: persons[FAMILY.name] ?? "",
+    name: FAMILY.name,
+    perms: { any_hour: true },
+  });
   const sent = texts(FAMILY).length;
   tg.message(FAMILY, "dinner on Sunday?");
   await waitFor(() => texts(FAMILY).length > sent, "an answer at night");

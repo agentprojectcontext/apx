@@ -355,6 +355,7 @@ test("importing the identity brings who the owner is, the super-agent's personal
     about: "Runs a small bakery in Northwind.",
     language: "es",
     timezone: "America/Argentina/Buenos_Aires",
+    publish: "auto",
   });
   const roby = await env.client.call("agents.get", { agent: "superagent" });
   assert.equal(roby.prompt, "Never book meetings before 10.");
@@ -438,7 +439,7 @@ test("importing channels brings v1's WhatsApp: whose phone the line is, the owne
       relation: "provider",
       note: "Buys our coffee.",
       muted: false,
-      perms: { appointments: false, requests: true, notes: true },
+      perms: { requests: true, notes: true },
     },
   );
   assert.match(buyer?.rules ?? "", /Be brief\.[\s\S]*We open at 9\./);

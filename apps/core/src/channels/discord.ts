@@ -46,8 +46,8 @@ type DcInteraction = {
 };
 type Frame = { op: number; d?: unknown; s?: number | null; t?: string | null };
 
-/** Text and announcement channels: the rooms a bot can read and post in. */
-const ROOM_TYPES = new Set([0, 5]);
+/** Text, announcement and forum channels. Posting in a forum creates a topic. */
+const ROOM_TYPES = new Set([0, 5, 15]);
 const ADMINISTRATOR = 1n << 3n;
 const VIEW_CHANNEL = 1n << 10n;
 const SEND_MESSAGES = 1n << 11n;
@@ -339,6 +339,32 @@ export const discordAdapter = ((
       const { text, users } = pings(p.text, p.mentions ?? []);
       const texts = text.trim() ? splitText(text, MAX_CHARS) : [];
       let channel = dms.get(conversation) ?? conversation;
+      // Only configured rooms need discovery; a person's id must still take the ordinary DM path.
+      if (config.rooms?.rooms.some((r) => r.id === conversation)) {
+        try {
+          const room = await api<DcChannel>("GET", `/channels/${channel}`);
+          if (room.type === 15) {
+            // One atomic request: never create a topic then retry a partial message in its parent forum.
+            if (files.length || texts.length !== 1)
+              throw new DcError(
+                400,
+                "Forum topics need text of at most 2000 characters and no files; split the request explicitly",
+              );
+            const name = text.trim().split(/\r?\n/, 1)[0]?.trim().slice(0, 100);
+            if (!name) throw new DcError(400, "A forum topic needs a title on its first line");
+            const topic = await api<{ id: string; message?: { id: string } }>("POST", `/channels/${channel}/threads`, {
+              name,
+              message: {
+                content: text,
+                allowed_mentions: { parse: [], ...(users.length ? { users: users.slice(0, 100) } : {}) },
+              },
+            });
+            return { external_id: topic.message?.id ?? topic.id };
+          }
+        } catch (err) {
+          throw toSendError(err, 0);
+        }
+      }
       const steps: Array<() => Promise<string>> = [
         ...texts.map(
           (t, i) => () =>

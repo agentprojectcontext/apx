@@ -1,6 +1,6 @@
 import type { NoticePrefs, Nudge } from "@apx/protocol";
 import { QUIET_HOURS } from "@apx/protocol/client";
-import { Badge, Button, EmptyState, Icons, Input, SettingRow, Switch } from "@apx/ui";
+import { Badge, Button, EmptyState, Icons, Input, SegmentedControl, SettingRow, Switch } from "@apx/ui";
 import { useCallback, useEffect, useState } from "react";
 import { loadChannels, saveNotices, useChannels } from "../data/channels.ts";
 import { client } from "../data/client.ts";
@@ -16,6 +16,9 @@ const STATE_TONE: Record<Nudge["state"], "brand" | "neutral" | "warning" | "dang
   dropped: "neutral",
   no_channel: "danger",
 };
+
+/** How long a question nobody answered in the app waits before it follows the owner to their chat app. */
+const FOLLOW_UP = ["0", "60", "120", "600"] as const;
 
 /** What the core lets the owner rate: a routine's or an agent's news that went out. */
 const rateable = (n: Nudge) =>
@@ -76,6 +79,15 @@ export function InterruptionsSection() {
       )}
       <SettingRow title={t("nudge.where")} description={t("nudge.whereHint")}>
         <NoticeChannelSelect label={t("nudge.where")} />
+      </SettingRow>
+      <SettingRow title={t("tg.followUp")} description={t("tg.followUpHint")}>
+        <SegmentedControl
+          size="sm"
+          label={t("tg.followUp")}
+          value={String(prefs.inputs_after_s)}
+          onValueChange={(v) => save({ inputs_after_s: Number(v) })}
+          options={FOLLOW_UP.map((v) => ({ value: v, label: t(`tg.followUp.${v}`) }))}
+        />
       </SettingRow>
       <SettingRow title={t("nudge.budget_per_day")} description={t("nudge.budgetHint")}>
         {num("budget_per_day", 50)}

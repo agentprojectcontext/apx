@@ -64,6 +64,8 @@ export type ChannelDraft = {
   type?: ChannelInfo["type"];
   label?: string;
   agent_id: string;
+  /** Who answers the contacts and rooms, when it is not `agent_id` (kept on every save, or it would be dropped). */
+  contacts_agent_id?: string | undefined;
   enabled: boolean;
   strangers: ChannelInfo["strangers"];
   concurrency: ChannelInfo["concurrency"];
@@ -79,7 +81,34 @@ export type ChannelDraft = {
   hours?: ChannelInfo["hours"] | undefined;
   /** Email: the mailbox and its servers (kept on every save). */
   email?: ChannelInfo["email"];
+  /** What its contacts' chats may do unless set for one of them (kept on every save). */
+  contacts?: ChannelInfo["contacts"];
+  /** The owner's notes and rules for everyone on it, and whether only the owner is answered (kept on every save). */
+  knowledge?: string | undefined;
+  rules?: string | undefined;
+  owner_only?: boolean | undefined;
 };
+
+/** What a save sends for an account as it is now: every setting it keeps, so a change of one drops none. */
+export const draftOf = (c: ChannelInfo): ChannelDraft => ({
+  label: c.label,
+  agent_id: c.agent_id,
+  contacts_agent_id: c.contacts_agent_id,
+  enabled: c.enabled,
+  strangers: c.strangers,
+  concurrency: c.concurrency,
+  owner_thread: c.owner_thread,
+  ...(c.self_owner !== undefined ? { self_owner: c.self_owner } : {}),
+  ...(c.rooms ? { rooms: c.rooms } : {}),
+  reactions: c.reactions,
+  research: c.research,
+  hours: c.hours,
+  ...(c.email ? { email: c.email } : {}),
+  ...(c.contacts ? { contacts: c.contacts } : {}),
+  ...(c.knowledge ? { knowledge: c.knowledge } : {}),
+  ...(c.rules ? { rules: c.rules } : {}),
+  ...(c.owner_only ? { owner_only: true } : {}),
+});
 
 /** Lets agents read and send iMessages on this Mac (or stops them). */
 export async function setIMessage(on: boolean): Promise<void> {
@@ -109,6 +138,25 @@ const TYPES = [
   "teams",
   "line",
 ] as const satisfies readonly ChannelInfo["type"][];
+
+/** What a new account is made with: the core names it and gives it the rest (the super-agent answers it). */
+export type NewAccount = Partial<Pick<ChannelInfo, "label" | "self_owner" | "email">>;
+
+/** Makes a new account of `type` with its sign-in, when there is one; its id, or undefined (and a notice). */
+export async function addChannel(
+  type: ChannelInfo["type"],
+  account: NewAccount,
+  token?: string,
+): Promise<string | undefined> {
+  try {
+    const r = await client.call("channels.add", { type, ...account, ...(token ? { token } : {}) });
+    store.set({ channels: r.channels });
+    return r.id;
+  } catch (e) {
+    notify(t("error.channels", { error: errText(e) }));
+    return undefined;
+  }
+}
 
 /** Saves a channel (and its token when one was typed); the core restarts it. */
 export async function saveChannel(id: string, draft: ChannelDraft | null, token?: string): Promise<boolean> {
@@ -159,6 +207,18 @@ export async function addOwnerAddress(channel: string, address: string): Promise
   try {
     await client.call("contacts.address", { channel, address });
     notify(t("ch.claimed"), "info");
+    await loadChannels();
+    return true;
+  } catch (e) {
+    notify(t("error.channels", { error: errText(e) }));
+    return false;
+  }
+}
+
+/** A new contact on an account: their name and their address there (a number, a user); none is made if it is wrong. */
+export async function addContact(channel: string, name: string, address: string): Promise<boolean> {
+  try {
+    await client.call("contacts.add", { channel, name, address });
     await loadChannels();
     return true;
   } catch (e) {
@@ -224,9 +284,8 @@ export type ContactDraft = {
   rules?: string;
   muted?: boolean;
   supervised?: boolean;
-  /** Answered at any hour, past the attention hours of the channel they write on. */
-  any_hour?: boolean;
-  perms?: Partial<Person["perms"]>;
+  /** The rights set for this person: a value sets one, null gives it back to the account they write on. */
+  perms?: { [K in keyof Person["perms"]]?: boolean | null };
 };
 
 export async function saveContact(id: string, draft: ContactDraft): Promise<boolean> {

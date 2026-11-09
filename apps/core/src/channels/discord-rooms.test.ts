@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { after, before, test } from "node:test";
 import { OWNER_ID } from "../domain/persons.ts";
 import { callTool, say, scriptedLlm, startCore } from "../engine/testkit.ts";
-import { waitFor } from "../testkit/platform.ts";
+import { manualTimers, waitFor } from "../testkit/platform.ts";
 import { canWrite, discordAdapter } from "./discord.ts";
 import { fakeDiscord } from "./fake-discord.test-support.ts";
 import { calledByName, roomDecision } from "./rooms.ts";
@@ -46,6 +46,20 @@ const llm = scriptedLlm((req, { system, said, afterTool }) => {
 let env: Awaited<ReturnType<typeof startCore>>;
 let dc: Awaited<ReturnType<typeof fakeDiscord>>;
 
+// The burst and each person's pause run on this clock, so a slow machine never splits a burst or ends a pause.
+const timers = manualTimers();
+const BURST = 60;
+/** Sends, waits until the room has seen the `n` messages that wait for the burst, then ends the burst. */
+async function settled<T>(send: () => T, n = 1): Promise<T> {
+  const armed = timers.armed();
+  const out = send();
+  await waitFor(() => timers.armed() >= armed + n, "the room saw the messages");
+  timers.tick(BURST);
+  return out;
+}
+/** Past each person's pause between answers (the room's user_cooldown_s). */
+const cooldown = () => timers.tick(1100);
+
 const posts = (room: string) => dc.messagesTo(room).map((m) => m.body);
 const pause = (ms: number) => new Promise((r) => setTimeout(r, ms));
 const roomThread = (room: string) => env.core.store.threads.byConversation("dc", room);
@@ -61,7 +75,8 @@ before(async () => {
   env = await startCore({
     llm,
     aux: true,
-    roomBurstMs: 60,
+    roomBurstMs: BURST,
+    roomTimers: timers,
     channelAdapters: { discord: (c, t) => discordAdapter(c, t, dc.urls) },
   });
   env.core.store.persons.owner();
@@ -111,17 +126,17 @@ test("a mention room keeps everything and answers only when called: by name, @me
   assert.equal(posts(ROOMS.general).length, 0, "not called, not answered");
   assert.equal(roomThread(ROOMS.general)?.title, "#general");
 
-  const asked = dc.message(BEN, "Roby, what is Acme Notes?", { room: ROOMS.general });
+  const asked = await settled(() => dc.message(BEN, "Roby, what is Acme Notes?", { room: ROOMS.general }));
   await waitFor(() => posts(ROOMS.general).length === 1, "answered by name");
   const reply = posts(ROOMS.general)[0];
   assert.deepEqual(reply?.message_reference, { message_id: asked, fail_if_not_exists: false }, "as a reply");
   assert.deepEqual(reply?.allowed_mentions, { parse: [] });
 
-  dc.message(ANA, "and on Linux?", { room: ROOMS.general, mention: true });
+  await settled(() => dc.message(ANA, "and on Linux?", { room: ROOMS.general, mention: true }));
   await waitFor(() => posts(ROOMS.general).length === 2, "answered by @mention");
   assert.ok(kept(ROOMS.general).includes("and on Linux?"), "the bot's own @mention is dropped from the text");
-  await pause(1100); // Ben's pause between answers
-  dc.message(BEN, "thanks!", { room: ROOMS.general, replyToBot: true });
+  cooldown();
+  await settled(() => dc.message(BEN, "thanks!", { room: ROOMS.general, replyToBot: true }));
   await waitFor(() => posts(ROOMS.general).length === 3, "answered as a reply to it");
 });
 
@@ -149,22 +164,27 @@ test("read rooms never answer; always rooms answer everyone, within a pause per 
   await pause(150);
   assert.equal(posts(ROOMS.logs).length, 0);
 
-  dc.message(ANA, "how does sync work?", { room: ROOMS.help });
+  await settled(() => dc.message(ANA, "how does sync work?", { room: ROOMS.help }));
   await waitFor(() => posts(ROOMS.help).length === 1, "always answers");
-  dc.message(ANA, "and offline?", { room: ROOMS.help });
+  await settled(() => dc.message(ANA, "and offline?", { room: ROOMS.help }));
   await pause(250);
   assert.equal(posts(ROOMS.help).length, 1, "the same person within the pause is kept, not answered");
-  await pause(900);
-  dc.message(ANA, "and on the phone?", { room: ROOMS.help });
+  cooldown();
+  await settled(() => dc.message(ANA, "and on the phone?", { room: ROOMS.help }));
   await waitFor(() => posts(ROOMS.help).length === 2, "after the pause it answers again");
 });
 
 test("one person's quick messages get one answer, to the last of them", async () => {
   const before_ = posts(ROOMS.help).length;
-  await pause(1100);
-  dc.message(BEN, "hi", { room: ROOMS.help });
-  dc.message(BEN, "I have a question", { room: ROOMS.help });
-  const last = dc.message(BEN, "can I export to PDF?", { room: ROOMS.help });
+  cooldown();
+  // Each message reaches the room later than the burst lasts in real time, as on a slow machine: still one burst.
+  const last = await settled(async () => {
+    dc.message(BEN, "hi", { room: ROOMS.help });
+    await pause(BURST * 2);
+    dc.message(BEN, "I have a question", { room: ROOMS.help });
+    await pause(BURST * 2);
+    return dc.message(BEN, "can I export to PDF?", { room: ROOMS.help });
+  }, 3);
   await waitFor(() => posts(ROOMS.help).length === before_ + 1, "one answer");
   await pause(200);
   assert.equal(posts(ROOMS.help).length, before_ + 1);
@@ -176,11 +196,11 @@ test("one person's quick messages get one answer, to the last of them", async ()
 });
 
 test("a useful room asks the cheap model about uncalled messages and speaks only on its yes", async () => {
-  dc.message(ANA, "lol nice", { room: ROOMS.ideas });
+  await settled(() => dc.message(ANA, "lol nice", { room: ROOMS.ideas }));
   await waitFor(() => kept(ROOMS.ideas).length === 1, "kept");
   await pause(150);
   assert.equal(posts(ROOMS.ideas).length, 0, "the judge said no");
-  dc.message(BEN, "how do I install it on a Mac?", { room: ROOMS.ideas });
+  await settled(() => dc.message(BEN, "how do I install it on a Mac?", { room: ROOMS.ideas }));
   await waitFor(() => posts(ROOMS.ideas).length === 1, "the judge said yes");
   // Both questions to the cheap model are counted, as the room's filter.
   const { aux } = await env.client.call("usage.summary", {});
@@ -198,12 +218,12 @@ test("owner only: in rooms only the owner gets answers", async () => {
     await waitFor(async () => (await env.client.call("channels.list", {})).channels[0]?.status === "running", "up");
   };
   await set(true);
-  await pause(1100);
+  cooldown();
   const n = posts(ROOMS.help).length;
   dc.message(BEN, "are you there?", { room: ROOMS.help });
   await pause(250);
   assert.equal(posts(ROOMS.help).length, n);
-  dc.message(OWNER, "roby, status?", { room: ROOMS.help });
+  await settled(() => dc.message(OWNER, "roby, status?", { room: ROOMS.help }));
   await waitFor(() => posts(ROOMS.help).length === n + 1, "the owner is answered");
   const call = llm.calls.at(-1);
   assert.match(String(call?.messages.at(-1)?.content), /<room_message from="[^"]*" owner="yes"/);
@@ -223,9 +243,9 @@ test("research: none for members by default; off closes it to the owner too, eve
     await waitFor(async () => (await env.client.call("channels.list", {})).channels[0]?.status === "running", "up");
   };
   const toolsFor = async (who: { id: string; name: string }, text: string) => {
-    await pause(1100);
+    cooldown();
     const n = posts(ROOMS.help).length;
-    dc.message(who, text, { room: ROOMS.help });
+    await settled(() => dc.message(who, text, { room: ROOMS.help }));
     await waitFor(() => posts(ROOMS.help).length === n + 1, `answered: ${text}`);
     const call = llm.calls.findLast((c) => String(c.messages.at(-1)?.content).includes(text));
     return (call?.tools ?? []).map((t) => t.function.name).sort();
@@ -325,12 +345,12 @@ test("from the app the owner tells the agent what to post in a room: it goes out
 });
 
 test("a member's turn in a room pings nobody, even someone who wrote there", async () => {
-  await pause(1100);
+  cooldown();
   const n = posts(ROOMS.help).length;
-  dc.message(ANA, "hello all", { room: ROOMS.help });
+  await settled(() => dc.message(ANA, "hello all", { room: ROOMS.help }));
   await waitFor(() => posts(ROOMS.help).length === n + 1, "Ana answered");
-  await pause(1100);
-  dc.message(BEN, "roby greet ana please", { room: ROOMS.help });
+  cooldown();
+  await settled(() => dc.message(BEN, "roby greet ana please", { room: ROOMS.help }));
   await waitFor(() => posts(ROOMS.help).length === n + 2, "Ben answered");
   assert.equal(posts(ROOMS.help).at(-1)?.content, "Hi @ana!");
   assert.deepEqual(posts(ROOMS.help).at(-1)?.allowed_mentions, { parse: [] });

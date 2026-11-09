@@ -22,6 +22,7 @@ import type { InternalCall } from "../rpc/internal.ts";
 import type { Services } from "../services/registry.ts";
 import { saveUpload } from "../services/uploads.ts";
 import { inlineName, untrusted } from "../tools/result.ts";
+import { agentProject, answersInHome } from "./agent-project.ts";
 import { asksToStop } from "./closers.ts";
 import type { Delivery } from "./delivery.ts";
 import { type Held, waitsForHours } from "./held.ts";
@@ -31,7 +32,7 @@ import type { createRooms } from "./rooms.ts";
 import type { Stickers } from "./stickers.ts";
 import type { Suggestions } from "./suggestions.ts";
 import { channelTexts } from "./texts.ts";
-import type { ChannelConfig } from "./types.ts";
+import { type ChannelConfig, contactAgentOf } from "./types.ts";
 
 /** A contact gets at most this many automatic answers per hour; then the owner is told once. */
 const CONTACT_PER_HOUR = 20;
@@ -111,11 +112,13 @@ export function createInbound(deps: {
     // Where the platform cannot vouch for the owner, their words only reach the super-agent to check: they answer and approve nothing here.
     const direct = owner && ownerActsOn(cfg.type);
     const thread = owner ? ownerThread(cfg, m.conversation) : contactThread(cfg, m.conversation, person);
+    // Silenced, or on an account that answers only the owner: kept, never answered.
+    const quiet = !owner && (person.muted || cfg.owner_only === true);
     // A supervised contact costs a draft, not an answer: suggestions.ts keeps its own hourly cap.
-    const supervised = !owner && !person.muted && person.supervised;
+    const supervised = !quiet && !owner && person.supervised;
     // Outside the channel's hours a contact's message waits, unanswered, for them to begin (held.ts).
-    const waits = !owner && !person.muted && waitsForHours(store, cfg, person, deps.now());
-    if (!owner && !person.muted && !supervised && !waits && overLimit(person.id, person.name)) return "ignored";
+    const waits = !quiet && !owner && waitsForHours(store, cfg, person, deps.now());
+    if (!owner && !quiet && !supervised && !waits && overLimit(person.id, person.name)) return "ignored";
     let text = m.text;
     const attachments: string[] = [];
     let voice: MediaRecord | undefined;
@@ -131,7 +134,7 @@ export function createInbound(deps: {
       } catch {
         text += "\n[voice note could not be accepted: invalid type, contents or size]";
       }
-      if (voice && !(person.muted && !owner)) text = await heard(m, thread.id, voice);
+      if (voice && !quiet) text = await heard(m, thread.id, voice);
     }
     for (const file of m.files ?? []) {
       try {
@@ -149,16 +152,23 @@ export function createInbound(deps: {
       }
       // A sticker is kept for good the moment it arrives, and read as what it means (a silenced contact's unnamed).
       if (file.sticker) {
-        const s = await deps.stickers.keep(cfg.type, file, thread.id, owner || !person.muted);
+        const s = await deps.stickers.keep(cfg.type, file, thread.id, !quiet);
         const said = `[sticker${s?.adult ? " (18+)" : ""}${s?.meaning ? `: ${inlineName(s.meaning, 160)}` : ""}]`;
         // A model wrote its meaning from a picture someone sent: outside text, even in the owner's turn.
         text = `${text}\n${s?.meaning ? untrusted("sticker", { named_by: "a model that saw it" }, said) : said}`.trim();
       }
     }
     // A silenced contact keeps its files without transcription, a model call or a work-folder copy.
-    if (!owner && person.muted) {
+    if (quiet) {
       const said = m.voice ? `${text ? `${text}\n` : ""}[voice note]` : text;
-      keepQuiet(thread.id, cfg.id, person, said, attachments);
+      keepQuiet(
+        thread.id,
+        cfg.id,
+        person,
+        said,
+        attachments,
+        person.muted ? undefined : { answered: "no: this account answers only its owner" },
+      );
       if (person.unreviewed) report(cfg, person, m.sender.id, said, thread.id);
       return "done";
     }
@@ -352,7 +362,7 @@ export function createInbound(deps: {
     // On the owner's own number the request is only listed: the owner's friends must not get a code from it. Past
     // the hourly cap of codes (a wave of spam mail) the rest are only listed too: no reply goes to forged senders.
     if (deps.ownAccount(cfg.id) || codesOver(cfg.id)) return "ignored";
-    const agent = store.agents.get(cfg.agent_id)?.name ?? "APX";
+    const agent = store.agents.get(contactAgentOf(cfg))?.name ?? "APX";
     delivery.enqueue({
       channel: cfg.id,
       conversation: m.conversation,
@@ -369,13 +379,14 @@ export function createInbound(deps: {
 
   function ownerThread(cfg: ChannelConfig, conversation: string): Thread {
     const home = store.threads.get(HOME_THREAD_ID);
-    if (cfg.owner_thread === "home" && home) return home;
+    if (cfg.owner_thread === "home" && home && answersInHome(store, cfg.agent_id)) return home;
     return (
       store.threads.byConversation(cfg.id, conversation) ??
       store.threads.create({
         kind: "channel",
         title: cfg.label,
         agent_ids: [cfg.agent_id],
+        project_id: agentProject(store, cfg.agent_id),
         channel: { id: cfg.id, conversation, person_id: OWNER_ID },
       })
     );
@@ -387,7 +398,8 @@ export function createInbound(deps: {
       store.threads.create({
         kind: "channel",
         title: person.name,
-        agent_ids: [cfg.agent_id],
+        agent_ids: [contactAgentOf(cfg)],
+        project_id: agentProject(store, contactAgentOf(cfg)),
         channel: { id: cfg.id, conversation, person_id: person.id },
       })
     );

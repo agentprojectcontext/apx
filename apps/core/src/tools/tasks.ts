@@ -1,4 +1,5 @@
 // task_*: agents work the office board through the tasks.* methods, like the owner does in the app.
+import { createHash } from "node:crypto";
 import { type Task, TaskKind, TaskPriority, TaskTag } from "@apx/protocol";
 import { planSteps } from "@apx/protocol/task-plan";
 import { z } from "zod";
@@ -40,6 +41,7 @@ const line = (t: Task, project?: string) =>
     project ? `project ${project}` : "",
     t.state === "open" ? t.status : t.state,
     t.assignee,
+    t.state === "open" && t.proposed ? "proposal: awaits owner acceptance; no new execution started" : "",
     t.awaits_owner ? "waiting for the owner" : "",
     t.person_name
       ? t.owed_by === "person"
@@ -62,6 +64,18 @@ const line = (t: Task, project?: string) =>
 function taskSide(t: Pick<Task, "created_by" | "person_id">): "owner" | "team" | "outside" {
   if (t.created_by === "owner") return "owner";
   return t.person_id ? "outside" : "team";
+}
+
+/**
+ * The task as written by whoever last wrote what it asks (title, description): its creator, unless an agent rewrote
+ * an owner's task and the owner did not rewrite it again. An agent annotating an owner's draft is not the owner's word.
+ */
+export function asWritten(store: Store, t: Task): Task {
+  if (t.created_by !== "owner") return t;
+  const edit = store.tasks
+    .events(t.id)
+    .findLast((e) => e.op !== "create" && (Object.hasOwn(e.data, "title") || Object.hasOwn(e.data, "description")));
+  return edit && edit.by !== "owner" && store.agents.get(edit.by) ? { ...t, created_by: edit.by } : t;
 }
 
 /** A task's words as the model reads them, enveloped by whose they are. */
@@ -98,17 +112,24 @@ function folded(tasks: Task[], where: (t: Task) => string | undefined): string {
     const day = (iso: string | undefined) => (iso ?? "").slice(0, 10);
     return `- ${project ? `project ${project}` : "this project"}: ${ts.length} (${columns}), last activity ${day(last.at(-1))}, quiet since ${day(last[0])}`;
   });
-  return `${tasks.length} more not listed one by one (no promise, no date due within a day, not waiting for the owner, no move in 48 hours):\n${lines.join("\n")}`;
+  return `${tasks.length} more not listed one by one (no promise, no date due within a day, not waiting for the owner, no move in 48 hours):\n${lines.join("\n")}\nThis summary omits individual tasks: use task_list with cursor start, then each next_cursor, to enumerate them before claiming full coverage.`;
 }
 
 /** A task list for the model: every task on its line while it fits, else the pressing ones and the rest counted. */
 export function boardText(tasks: Task[], where: (t: Task) => string | undefined, at = Date.now()): string {
   const lineOf = (t: Task) => line(t, where(t));
   const whole = taskLines(tasks, lineOf);
-  const rest = tasks.filter((t) => !pressing(t, at));
-  if (whole.length <= LIST_CHARS || !rest.length) return whole;
+  if (whole.length <= LIST_CHARS) return whole;
   const keep = tasks.filter((t) => pressing(t, at));
-  return `${keep.length ? `${taskLines(keep, lineOf)}\n` : ""}${folded(rest, where)}`;
+  const rest = tasks.filter((t) => !pressing(t, at));
+  const brief = `${keep.length ? `${taskLines(keep, lineOf)}\n` : ""}${rest.length ? folded(rest, where) : ""}`;
+  if (rest.length && brief.length <= LIST_CHARS) return brief;
+  // Even the urgent rows can overflow. Return only whole rows and always disclose the omission.
+  const visible: Task[] = [];
+  for (const t of [...keep, ...rest]) {
+    if (taskLines([...visible, t], lineOf).length <= LIST_CHARS - 300) visible.push(t);
+  }
+  return `${visible.length ? `${taskLines(visible, lineOf)}\n` : ""}${tasks.length - visible.length} tasks omitted from this summary; use task_list with cursor start, then each next_cursor, to enumerate them before claiming full coverage.`;
 }
 
 /**
@@ -179,6 +200,40 @@ const UNSPECIFIED = "It has not started: add a non-empty description with task_u
 const PAUSED = (who: string) =>
   `It has not started: agents here reached the owner's limit for working on their own, so ${who} starts on it once the owner lets them go on (they were told). Do not assign it again.`;
 
+const DESCRIPTION_PAGE = 4_000;
+const EXHAUSTIVE_PAGE = 25;
+
+/** True when `cap` over the task's JSON drops part of its description: asked of `cap` itself, so they cannot drift. */
+export function descriptionCut(task: Task, budget: number): boolean {
+  return !cap(JSON.stringify(task), budget).includes(`"description":${JSON.stringify(task.description)}`);
+}
+
+/** One bounded page of a description; the revision stops a read from mixing text of two versions. */
+function descriptionPage(task: Task, page: string): string {
+  const [from = "", revision] = page.split(":");
+  const offset = Number(from);
+  if (!/^\d+$/.test(from) || !Number.isSafeInteger(offset)) throw badRequest("description_page: use 0, then next_page");
+  const content = task.description;
+  const current = createHash("sha256").update(content).digest("hex");
+  if (offset > 0 && !revision) throw badRequest("revision is required after the first page");
+  if (revision && revision !== current) throw badRequest("description changed; restart from offset 0");
+  if (offset > content.length) throw badRequest("offset is beyond the description");
+  const high = (i: number) => /[\uD800-\uDBFF]/.test(content[i] ?? "");
+  const low = (i: number) => /[\uDC00-\uDFFF]/.test(content[i] ?? "");
+  if (offset > 0 && high(offset - 1) && low(offset)) throw badRequest("offset splits a Unicode character");
+  let end = Math.min(offset + DESCRIPTION_PAGE, content.length);
+  // Do not split a Unicode surrogate pair across independently decoded pages.
+  if (end < content.length && high(end - 1) && low(end)) end--;
+  return JSON.stringify({
+    task: task.id,
+    revision: current,
+    offset,
+    total: content.length,
+    text: content.slice(offset, end),
+    next_page: end < content.length ? `${end}:${current}` : null,
+  });
+}
+
 export function taskTools(store: Store, home: string): Tool[] {
   const outsideAssets = (a: { attachments?: string[] }, ctx: CheckContext) =>
     readsOutside(
@@ -209,12 +264,17 @@ export function taskTools(store: Store, home: string): Tool[] {
       name: "task_get",
       description:
         "Read task details, history, sessions, consults, subtasks, usage and recent comments with saved evidence.",
-      args: z.object({ task: z.string().min(1).max(64) }),
+      args: z.object({
+        task: z.string().min(1).max(64),
+        description_page: z.string().optional(),
+      }),
       effect: "none",
       deadlineMs: 5_000,
       title: () => "Read a task",
       async run(a, ctx) {
         const r = await ctx.call("tasks.get", { task: a.task });
+        if (a.description_page !== undefined)
+          return untrusted("task_description", {}, descriptionPage(r.task, a.description_page));
         const section = (name: string, data: unknown, budget: number) =>
           `${name}:\n${cap(JSON.stringify(data), budget)}`;
         const chat = (t: (typeof r.sessions)[number]) => ({
@@ -228,6 +288,9 @@ export function taskTools(store: Store, home: string): Tool[] {
           {},
           [
             section("Task", r.task, 2_000),
+            ...(descriptionCut(r.task, 2_000)
+              ? ["The description is cut. Call task_get again with description_page 0 to read it in full."]
+              : []),
             section(
               "Attachments (untrusted; file_read to inspect, send_file to share here by media_id)",
               r.attachments,
@@ -250,23 +313,43 @@ export function taskTools(store: Store, home: string): Tool[] {
     defineTool({
       name: "task_list",
       description:
-        "List this project's tasks by newest activity (default open), with ids, columns and commitments. The global super-agent sees all projects.",
+        "List this project's tasks by newest activity (default open), with ids, columns, commitments. The super-agent sees all projects.",
       args: z.object({
         mine: z.boolean().optional(),
         state: z.enum(["open", "done", "dropped"]).optional(),
-        commitments: z.boolean().optional().describe("Only commitments (tasks with a person on the other side)."),
-        limit: z.number().int().min(1).max(200).optional().describe("At most this many (default 200)."),
+        commitments: z.boolean().optional().describe("Only commitments (person on the other side)."),
+        limit: z.number().int().min(1).max(200).optional().describe("Max rows, default 200."),
+        cursor: z.string().optional(),
       }),
       effect: "none",
       deadlineMs: 5_000,
       title: () => "Looked at the tasks",
       async run(a, ctx) {
+        // One argument drives the traversal: "start" for the first page, then each page's next_cursor.
+        const exhaustive = a.cursor !== undefined;
+        const after = a.cursor && a.cursor !== "start" ? a.cursor : undefined;
         const r = await ctx.call("tasks.list", {
           ...(a.state ? { state: a.state } : {}),
           ...(a.mine ? { assignee: ctx.agent.id } : {}),
           ...(a.commitments ? { commitments: true } : {}),
-          ...(a.limit ? { limit: a.limit } : {}),
+          ...(a.limit ? { limit: exhaustive ? Math.min(a.limit, EXHAUSTIVE_PAGE) : a.limit } : {}),
+          ...(exhaustive ? { limit: Math.min(a.limit ?? EXHAUSTIVE_PAGE, EXHAUSTIVE_PAGE), exhaustive: true } : {}),
+          ...(after ? { after } : {}),
         });
+        if (exhaustive) {
+          // Fixed-width summaries keep every ID and cursor inside the tool result cap, even for very long titles.
+          const rowOf = (t: Task) =>
+            `- [${t.id}] ${Array.from(t.title.slice(0, 120), (c) => (c.charCodeAt(0) < 32 ? " " : c)).join("")} (${(t.state === "open" ? t.status : t.state).slice(0, 80)}, project ${t.project_id ?? "global"}${t.assignee ? `, ${t.assignee}` : ""}${t.state === "open" && t.proposed ? ", proposal: awaits owner acceptance" : ""})`;
+          // Whole rows only: if a page would pass the list cap, it ends earlier and the cursor follows the last row shown.
+          const shown: Task[] = [];
+          for (const t of r.tasks) {
+            if (taskLines([...shown, t], rowOf).length > LIST_CHARS - 300) break;
+            shown.push(t);
+          }
+          const more = shown.length < r.tasks.length || Boolean(r.next_cursor);
+          const cursor = more ? (shown.at(-1)?.id ?? null) : null;
+          return `${taskLines(shown, rowOf) || "no matching tasks"}\nnext_cursor: ${cursor ?? "none"}. This is a live traversal, not a snapshot; repeat if tasks changed.`;
+        }
         const cols = `columns: ${r.columns.map((c) => c.id).join(", ")}`;
         // Tasks from more than one place: each says which project it is in (by name, as the owner calls it).
         const many = new Set(r.tasks.map((t) => t.project_id ?? "")).size > 1;
@@ -274,7 +357,8 @@ export function taskTools(store: Store, home: string): Tool[] {
         const names = new Map(listed?.projects.map((p) => [p.id, p.name]));
         const where = (t: Task) =>
           listed ? (t.project_id ? (names.get(t.project_id) ?? t.project_id) : listed.base.name) : undefined;
-        if (r.tasks.length) return `${boardText(r.tasks, where)}\n${cols}`;
+        if (r.tasks.length)
+          return `${boardText(r.tasks, where)}\n${cols}${r.truncated ? "\nMore tasks exist; use cursor start to enumerate every matching task." : ""}`;
         // An empty filtered list is not an empty board: say what was asked and what else is open.
         const scope = [a.state ?? "open", a.mine ? "assigned to you" : "", a.commitments ? "commitments" : ""];
         const empty = `no tasks (${scope.filter(Boolean).join(", ")}).`;
