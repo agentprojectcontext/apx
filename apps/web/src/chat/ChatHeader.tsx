@@ -97,7 +97,16 @@ export function ChatHeader({
           onClick={() => thread.parent_id && go.thread(thread.parent_id)}
         />
       )}
-      <ThreadAvatar thread={thread} agent={agent} size={28} slot={32} editable online={!sub} animated channelMark />
+      <ThreadAvatar
+        thread={thread}
+        agent={agent}
+        size={28}
+        slot={32}
+        editable
+        online={!sub}
+        animated
+        channelMark={compact ? "badge" : true}
+      />
       <div className="chat__titles">
         {/* The chat first, with its project; under it who answers there. */}
         <div className="chat__title">
@@ -177,19 +186,33 @@ export function ChatHeader({
             <TaskStateButton taskId={thread.task_id} />
           </Suspense>
         )}
-        {room && roomChannel && (
-          <Button
-            size="sm"
-            variant="secondary"
-            className={roomOpen ? "chat__roompill is-on" : "chat__roompill"}
-            leadingIcon={<Icons.Users size={14} />}
-            aria-pressed={roomOpen}
-            title={t(roomOpen ? "chat.roomCardClose" : "chat.roomCardOpen")}
-            onClick={() => toggleRoomCard(thread.id)}
-          >
-            {t(roomWord(roomChannel))}
-          </Button>
-        )}
+        {room &&
+          roomChannel &&
+          // On a phone the pill is its icon alone: the chat's name needs the room.
+          (compact ? (
+            <IconButton
+              size="sm"
+              variant="secondary"
+              className={roomOpen ? "chat__roompill is-on" : "chat__roompill"}
+              icon={<Icons.Users size={14} />}
+              label={t(roomWord(roomChannel))}
+              tooltip={t(roomOpen ? "chat.roomCardClose" : "chat.roomCardOpen")}
+              active={roomOpen}
+              onClick={() => toggleRoomCard(thread.id)}
+            />
+          ) : (
+            <Button
+              size="sm"
+              variant="secondary"
+              className={roomOpen ? "chat__roompill is-on" : "chat__roompill"}
+              leadingIcon={<Icons.Users size={14} />}
+              aria-pressed={roomOpen}
+              title={t(roomOpen ? "chat.roomCardClose" : "chat.roomCardOpen")}
+              onClick={() => toggleRoomCard(thread.id)}
+            >
+              {t(roomWord(roomChannel))}
+            </Button>
+          ))}
         {/* A new chat has nothing to rename, archive or compact until its first message makes it. */}
         {!sub && !isNewChat(thread.id) && (
           <Menu

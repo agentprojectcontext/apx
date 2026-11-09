@@ -213,6 +213,13 @@ textarea.inputcard__detail {
   gap: 6px;
   padding: 0 6px 0 8px;
 }
+/* The panel switch keeps its icon; its arrow gives way to the name. */
+.chat__header--compact .panelswitch__menu {
+  padding: 0 6px;
+}
+.chat__header--compact .panelswitch__menu > svg + svg {
+  display: none;
+}
 .chat__header--compact .chat__titles {
   min-width: 0;
 }

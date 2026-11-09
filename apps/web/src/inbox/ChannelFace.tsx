@@ -19,7 +19,8 @@ export function ChannelFace({
   size?: number;
   slot?: number;
   labelOnly?: boolean;
-  showMark?: boolean;
+  /** The channel's mark beside the face, or on its corner where there is little room. */
+  showMark?: boolean | "badge";
 }) {
   const t = useT();
   const person = useThreadPerson(thread);
@@ -33,13 +34,19 @@ export function ChannelFace({
         <KindIcon kind={channel} size={11} /> {label}
       </Tag>
     ) : null;
-  const markSize = Math.min(16, size);
-  const width = slot + (channel && showMark ? markSize + 4 : 0);
+  const badge = showMark === "badge";
+  const markSize = badge ? 13 : Math.min(16, size);
+  const width = slot + (channel && showMark && !badge ? markSize + 4 : 0);
   return (
     <span className="threadavatar" style={{ width, minWidth: width, height: slot, gap: 4 }}>
       {channel && showMark && (
         <Tooltip content={label}>
-          <span className="threadavatar__channel" role="img" aria-label={label} style={{ display: "inline-flex" }}>
+          <span
+            className={badge ? "threadavatar__channel is-badge" : "threadavatar__channel"}
+            role="img"
+            aria-label={label}
+            style={{ display: "inline-flex" }}
+          >
             <KindIcon kind={channel} size={markSize} />
           </span>
         </Tooltip>

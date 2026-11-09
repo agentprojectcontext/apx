@@ -212,6 +212,16 @@ button.chatprocesses {
   justify-content: center;
   position: relative;
 }
+/* The channel's mark on the face's corner, ringed in the header's colour, where the name needs the room. */
+.threadavatar__channel.is-badge {
+  position: absolute;
+  right: -4px;
+  bottom: -3px;
+  z-index: 1;
+  padding: 1.5px;
+  border-radius: 50%;
+  background: var(--apx-bg);
+}
 .threadavatar__caller {
   position: absolute;
   right: -3px;
