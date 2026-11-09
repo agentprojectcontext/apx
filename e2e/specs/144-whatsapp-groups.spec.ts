@@ -1,7 +1,8 @@
 // WhatsApp groups as rooms: picked in the account's Rooms part from the groups the line is in. On the owner's own
 // phone they are only read until the owner lets the agent answer there as them; on a line of its own an @mention of
 // the line is answered in the group.
-import { expect, open, type Page, rpc, test, until, world } from "./kit.ts";
+import type { Page } from "@playwright/test";
+import { expect, open, rpc, test, until, world } from "./kit.ts";
 
 const TEAM = { id: "120363000000000101@g.us", name: "Acme equipo" };
 const NEWS = { id: "120363000000000102@g.us", name: "Acme novedades" };
