@@ -228,7 +228,8 @@ function newsInput(told: NewsEntry[], lang: string, moreActions: number, talk?: 
   const offers = told
     .flatMap((e) => (told.length === 1 ? e.actions : e.actions.slice(0, 1)))
     .slice(0, MAX_ACTIONS)
-    .map((a) => `"${a.label.en}"`)
+    // The buttons under the message read in the owner's language; the offer names them the same way.
+    .map((a) => `"${labelOf(a, lang)}"`)
     .join(", ");
   return [
     "APX was updated. What is new that you can now do for the owner:",
