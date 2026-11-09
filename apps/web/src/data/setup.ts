@@ -22,6 +22,7 @@ export async function loadSetup(): Promise<void> {
   }
 }
 
+export const openSetup = () => store.set({ open: true });
 export const closeSetup = () => store.set({ open: false });
 
 export async function finishSetup(): Promise<void> {

@@ -1,5 +1,6 @@
 // The setup strings other screens use too: they load with the first screen; the rest is the "setup" pack.
 export const enSetupShared = {
+  "setup.menu": "First-run setup",
   "setup.import.failed": "Some of it could not be imported: {error}",
   "setup.engines.model": "Model",
   "setup.channels.soon": "Soon",

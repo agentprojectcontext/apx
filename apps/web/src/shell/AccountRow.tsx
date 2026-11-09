@@ -1,5 +1,6 @@
 import { Icons, Menu, type MenuEntry } from "@apx/ui";
 import { initialsOf, setPrefs, usePrefs } from "../data/prefs.ts";
+import { openSetup } from "../data/setup.ts";
 import { LANGUAGE_NAMES, type T, useLanguage, useT } from "../i18n/index.ts";
 import { useLanguageItems } from "./LanguageMenu.tsx";
 import { go } from "./nav.ts";
@@ -21,6 +22,7 @@ export function AccountRow({ rail }: { rail: boolean }) {
       onSelect: () => go.config("appearance"),
     },
     { label: t("phone.open"), icon: <Icons.Smartphone />, onSelect: () => go.phone(true) },
+    { label: t("setup.menu"), icon: <Icons.Sparkles />, onSelect: openSetup },
     { label: t("sysUsage.title"), icon: <Icons.MemoryStick />, onSelect: () => go.usageDialog(true) },
     {
       label: t("appearance.compact"),

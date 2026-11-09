@@ -195,7 +195,6 @@ export const esSetup: Partial<Record<MessageKey, string>> = {
   "setup.preview.imports": "IMPORTA",
   "setup.preview.unset": "Sin configurar",
   "setup.preview.groups": "{n} de {total} grupos de v1",
-  "setup.menu": "Configuración inicial",
   "pair.kicker": "VINCULAR ESTE DISPOSITIVO",
   "pair.title": "Vinculá este",
   "pair.titleEnd": "dispositivo.",

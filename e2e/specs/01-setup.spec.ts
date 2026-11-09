@@ -6,8 +6,8 @@ import { AGENT_NAMES } from "../../packages/protocol/src/constants.ts";
 import { expect, rpc, test, until, world } from "./kit.ts";
 
 /**
- * Opens the setup the way a new install does: the account menu no longer reopens it, so the page is told this core
- * has not finished it (the rest of the core, its v1 scan included, is the real one).
+ * Opens the setup the way a new install does: the page is told this core has not finished it (the rest of the core,
+ * its v1 scan included, is the real one).
  */
 async function openWizard(page: Page, url = "/") {
   const status = await rpc<Record<string, unknown>>("setup.status");
@@ -137,8 +137,12 @@ test("a new install opens the setup and imports APX v1", async ({ page }) => {
 });
 
 test("the setup opens again from the account menu and starts from scratch", async ({ page }) => {
-  await openWizard(page);
+  await page.goto("/");
+  await expect(page.locator(".wiz")).toBeHidden();
+  await page.getByRole("button", { name: /^Cuenta/ }).click();
+  await page.getByRole("menuitem", { name: "Configuración inicial" }).click();
   const wizard = page.locator(".wiz");
+  await expect(wizard).toBeVisible();
   await wizard.getByRole("button", { name: /Empezar de cero/ }).click();
   const name = wizard.getByRole("textbox", { name: "Nombre" });
   await expect(name).toHaveValue("Robina");

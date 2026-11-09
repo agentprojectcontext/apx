@@ -194,7 +194,6 @@ export const enSetup = {
   "setup.preview.imports": "IMPORTS",
   "setup.preview.unset": "Not set",
   "setup.preview.groups": "{n} of {total} v1 groups",
-  "setup.menu": "First-run setup",
   "pair.kicker": "PAIR THIS DEVICE",
   "pair.title": "Pair this",
   "pair.titleEnd": "device.",

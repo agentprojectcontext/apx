@@ -2,6 +2,7 @@
 import type { MessageKey } from "./en.ts";
 
 export const esSetupShared: Partial<Record<MessageKey, string>> = {
+  "setup.menu": "Configuración inicial",
   "setup.import.failed": "Parte no se pudo importar: {error}",
   "setup.engines.model": "Modelo",
   "setup.channels.soon": "Pronto",
