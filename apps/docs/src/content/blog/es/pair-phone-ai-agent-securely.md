@@ -23,7 +23,7 @@ Antes de vincular, comprobá que APX esté funcionando y que el teléfono pueda 
 
 ## Vinculá un solo dispositivo
 
-La [guía del teléfono](https://apxagent.app/es/docs/devices/phone/) explica cómo abrir el QR de vinculación desde el panel o vincular un navegador móvil. El código dura poco y se usa una sola vez. Tratálo como una invitación de acceso: escaneá solo el que generaste para tu instalación y no lo publiques en un chat abierto.
+La [guía del teléfono](https://apxagent.app/es/docs/devices/phone/) explica cómo abrir el QR de vinculación desde el panel o vincular un navegador móvil. El código dura poco y se usa una sola vez. Tratalo como una invitación de acceso: escaneá solo el que generaste para tu instalación y no lo publiques en un chat abierto.
 
 Cada dispositivo recibe una clave propia, no el token principal del core. APX lista los dispositivos vinculados para quitar uno sin desconectar los demás. Si perdés el teléfono, revocá su entrada y seguí las reglas de seguridad de tu organización.
 
