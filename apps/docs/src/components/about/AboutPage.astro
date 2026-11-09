@@ -1,0 +1,76 @@
+---
+// What APX is, in one page: the definition, the facts, the name and every public profile. Search engines read it as
+// the AboutPage of the APX Organization.
+import { ABOUT } from "../../data/about";
+import { ORGANIZATION_ID, organization, PROFILES, SOFTWARE_ID } from "../../data/brand";
+import { sitePath } from "../../doc-routes.mjs";
+import AnalyticsConsent from "../AnalyticsConsent.astro";
+import PageMeta from "../web/PageMeta.astro";
+import WebFooter from "../web/WebFooter.astro";
+import WebHeader from "../web/WebHeader.astro";
+import "../blog/blog.css";
+import "./about.css";
+
+interface Props {
+  lang: "en" | "es";
+}
+const { lang } = Astro.props;
+const t = ABOUT[lang];
+const pre = lang === "es" ? "/es" : "";
+const href = (path: string) => sitePath(path, import.meta.env.BASE_URL);
+const abs = (path: string) => new URL(href(path), Astro.site).href;
+const schema = [
+  {
+    "@type": "AboutPage",
+    name: t.title,
+    description: t.description,
+    url: abs(`${pre}/about/`),
+    inLanguage: lang,
+    mainEntity: { "@id": ORGANIZATION_ID },
+    about: { "@id": SOFTWARE_ID },
+  },
+  organization(abs("/favicon.png"), lang),
+  {
+    "@type": "BreadcrumbList",
+    itemListElement: [
+      { "@type": "ListItem", position: 1, name: "APX", item: abs(`${pre}/`) },
+      { "@type": "ListItem", position: 2, name: t.title, item: abs(`${pre}/about/`) },
+    ],
+  },
+];
+---
+<!doctype html>
+<html lang={lang} data-theme="dark">
+  <head>
+    <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+    <PageMeta lang={lang} title={`${t.title} — APX`} description={t.description} path="/about/" imageAlt={t.title} schema={schema} />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Geist:wght@300..800&family=Geist+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+  </head>
+  <body class="h blog">
+    <a class="skip-link" href="#main">{lang === "es" ? "Ir al contenido" : "Skip to content"}</a>
+    <WebHeader lang={lang} route="/about/" />
+    <main id="main" class="wrap blog-main blog-article">
+      <a class="blog-back" href={href(`${pre}/`)}>← APX</a>
+      <header class="blog-hero">
+        <h1>{t.title}</h1>
+        <p class="blog-summary">{t.lead}</p>
+      </header>
+      <article class="blog-prose">
+        <h2>{t.facts}</h2>
+        <dl class="about-facts">{t.rows.map(([term, value]) => <div><dt>{term}</dt><dd>{value}</dd></div>)}</dl>
+        <h2>{t.name}</h2>
+        <p>{t.nameText}</p>
+        <h2>{t.find}</h2>
+        <ul>
+          <li><a href={href(`${pre}/#download`)}>{t.download}</a></li>
+          <li><a href={href(`${pre}/start/introduction/`)}>{t.docs}</a></li>
+          {PROFILES.map((profile) => <li><a href={profile.url} rel="me">{profile.name}</a></li>)}
+        </ul>
+      </article>
+    </main>
+    <WebFooter lang={lang} />
+    <AnalyticsConsent lang={lang} />
+  </body>
+</html>

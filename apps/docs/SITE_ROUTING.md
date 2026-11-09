@@ -59,3 +59,7 @@ Download links (the home's buttons and cards, the download button on doc pages) 
 The explicit `@astrojs/sitemap` dependency reuses the integration already required by Starlight. It is declared directly to use its supported filtering and locale configuration, excluding compatibility pages without post-processing generated XML or relying on a transitive import.
 
 Docs impact: updated — this file, its Spanish counterpart, README and bilingual comparison guides explain the new routes and compatibility limits. No core, protocol, private state or authorization changes.
+
+## Who APX is, for search engines
+
+`src/data/brand.ts` holds the one-line definition of APX and its public profiles. The home publishes an `Organization` (`https://apxagent.app/#organization`) whose `sameAs` lists every profile, and the `SoftwareApplication` and `WebSite` point at it as publisher. `/about/` and `/es/about/` repeat the definition, the facts and the profiles as an `AboutPage`. The footer's social icons come from the same list. When a new public profile exists (a directory listing, a social account), add it to `PROFILES`; directory listings and social bios start with the same definition.
