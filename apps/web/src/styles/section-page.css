@@ -1,4 +1,4 @@
-/* A section's page: title, lead and main action; tabs and search; project or scope chips; then the body. */
+/* A section's page: title, lead and main action; tabs, the project it shows and search; then the body. */
 .secpage {
   display: flex;
   flex: 1;
@@ -68,42 +68,11 @@
   flex: 1 1 160px;
   max-width: 240px;
 }
-.secpage__scopes {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 6px;
-  min-width: 0;
-  margin: 0;
-  padding: 0;
-  border: 0;
-}
-.secpage__scopelabel {
-  float: left;
-  padding: 0 4px 0 0;
-  color: var(--apx-fg-subtle);
-  font-size: 12px;
-}
-.secpage__scopelabel::after {
-  content: ":";
-}
-.secpage__chip.apx-btn {
-  height: 26px;
-  min-height: 26px;
-  padding: 0 11px;
-  border-radius: var(--apx-radius-pill);
-  background: var(--apx-fill);
-  color: var(--apx-fg-muted);
-  font-size: 12px;
-  font-weight: var(--apx-weight-medium);
-}
-.secpage__chip.apx-btn:hover {
-  background: var(--apx-fill-hover);
-  color: var(--apx-fg);
-}
-.secpage__chip.apx-btn.is-on {
-  background: var(--apx-fg);
-  color: var(--apx-bg);
+/* The project it shows, beside the tabs: a picker's width, never the row's. */
+.secpage__bar > .secpage__scope {
+  flex: none;
+  width: 184px;
+  max-width: 100%;
 }
 /* A tab's label and its count, the count quieter. */
 .secpage__tab {
@@ -131,22 +100,14 @@
     flex-basis: 100%;
     max-width: none;
   }
-  /* Tabs and chips scroll sideways instead of being cut off or piling up. */
+  /* Tabs scroll sideways instead of being cut off or piling up. */
   .secpage__bar > .apx-segmented {
     max-width: 100%;
     overflow-x: auto;
     scrollbar-width: none;
   }
-  .secpage__scopes {
-    flex-wrap: nowrap;
-    overflow-x: auto;
-    scrollbar-width: none;
-  }
-  .secpage__chip.apx-btn {
-    flex: none;
-  }
 }
-/* Filters and a note on what the list shows, under the chips. */
+/* Filters and a note on what the list shows, under the bar. */
 .secpage__under {
   display: flex;
   flex-wrap: wrap;

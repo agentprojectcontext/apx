@@ -213,8 +213,8 @@ export function ResourcesView({ project }: { project?: ProjectEntry }) {
               value: scope,
               onChange: setScope,
               options: [
-                { id: "all", label: t("res.scope.all") },
-                { id: "global", label: t("res.scope.global") },
+                { id: "all", label: t("section.scope.all") },
+                { id: "global", label: t("res.scope.global"), icon: <Icons.Globe size={14} /> },
                 ...projects.filter((p) => p.path && p.registered !== false).map((p) => ({ id: p.id, label: p.name })),
               ],
             }

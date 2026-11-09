@@ -1,9 +1,7 @@
 // Section pages (Tasks, Flows, Routines, Files, Computers, Resources, Channels): their shared header, the list of
 // computers and a resource's place in each project.
 export const enSectionPages = {
-  "section.scope.all": "All",
-  "section.scope.allHint": "Show everything, from every project",
-  "section.scope.onlyHint": "Show only {name}",
+  "section.scope.all": "All projects",
   "section.tasks.newHint": "Write a task for an agent",
   "section.flows.newHint": "Draw a new flow from scratch",
   "section.routines.newHint": "Set something an agent does on a schedule",

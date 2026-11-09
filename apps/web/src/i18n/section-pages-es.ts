@@ -3,9 +3,7 @@ import type { MessageKey } from "./en.ts";
 // Páginas de sección (Tareas, Flows, Rutinas, Archivos, Computadoras, Recursos, Canales): su cabecera común, la lista
 // de computadoras y dónde está activo un recurso en cada proyecto.
 export const esSectionPages: Partial<Record<MessageKey, string>> = {
-  "section.scope.all": "Todos",
-  "section.scope.allHint": "Ver todo, de todos los proyectos",
-  "section.scope.onlyHint": "Ver solo {name}",
+  "section.scope.all": "Todos los proyectos",
   "section.tasks.newHint": "Escribirle una tarea a un agente",
   "section.flows.newHint": "Dibujar un flow nuevo desde cero",
   "section.routines.newHint": "Programar algo que un agente hace con horario",

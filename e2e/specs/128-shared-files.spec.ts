@@ -70,12 +70,13 @@ test("Archivos lists what was shared, by kind and project, and leads back to the
     const cards = page.locator(".sharedf__card");
     await expect(cards).toHaveCount(3);
     await expect(cards.nth(0)).toContainText("invoice.pdf");
-    await expect(cards.nth(0)).toContainText("Errands");
+    // The chat's title and the full date sit in the card's hover titles, not in its line.
+    await expect(cards.nth(0).locator(".sharedf__line")).toHaveAttribute("title", "Errands");
     await expect(cards.nth(1)).toContainText("teaser.mp4");
     await expect(cards.nth(2)).toContainText("storefront.png");
     await expect(cards.nth(2)).toContainText("Acme");
-    await expect(cards.nth(2)).toContainText("Storefront launch");
-    await expect(cards.nth(2)).toContainText("2026");
+    await expect(cards.nth(2).locator(".sharedf__line")).toHaveAttribute("title", "Storefront launch");
+    await expect(cards.nth(2).locator("time")).toHaveAttribute("title", /2026/);
     await expect(cards.nth(2).locator(".sharedf__thumb img")).toBeVisible();
     // A video's card shows its first frame, made by the core's ffmpeg when this computer has it.
     if (spawnSync("ffmpeg", ["-version"]).status === 0)
@@ -107,7 +108,7 @@ test("Archivos lists what was shared, by kind and project, and leads back to the
     await page.keyboard.press("Escape");
     await expect(page.getByRole("dialog")).toHaveCount(0);
     await expect(cards).toHaveCount(3);
-    await page.getByRole("combobox", { name: "Proyecto" }).click();
+    await page.getByRole("combobox", { name: "Proyecto", exact: true }).click();
     await page.getByRole("option", { name: "Acme" }).click();
     await expect(cards).toHaveCount(1);
     await cards.first().getByRole("button", { name: "storefront.png" }).click();

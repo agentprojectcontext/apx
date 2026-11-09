@@ -12,17 +12,9 @@ import {
 } from "@apx/ui";
 import { type CSSProperties, type ReactNode, useEffect, useMemo, useState } from "react";
 import { aheadLabel, dueLabel, shortWhen } from "../common/format.ts";
-import { SearchSelect } from "../common/pickers/SearchSelect.tsx";
+import { ProjectSelect } from "../common/ProjectSelect.tsx";
 import { useLongPressDrag } from "../common/useLongPressDrag.ts";
-import {
-  blobOf,
-  DEFAULT_PID,
-  inProject,
-  projectEntries,
-  projectInitial,
-  projectName,
-  projectTone,
-} from "../data/identity.ts";
+import { blobOf, DEFAULT_PID, inProject, projectEntries, projectName, projectTone } from "../data/identity.ts";
 import { setPrefs, usePrefs } from "../data/prefs.ts";
 import { useData } from "../data/state.ts";
 import { taskChatIds } from "../data/taskChats.ts";
@@ -198,21 +190,14 @@ export function TasksList({
             }))}
           />
           {global && (
-            <SearchSelect
+            <ProjectSelect
               label={t("pickers.project")}
-              searchPlaceholder={t("pickers.searchProject")}
-              emptyLabel={t("pickers.noMatch")}
-              size="sm"
               className="tasks__project"
-              value={filter ?? ALL_PROJECTS}
-              onValueChange={(v) => setPrefs({ tasksProject: v ?? ALL_PROJECTS })}
+              value={filter || "all"}
+              onChange={(v) => setPrefs({ tasksProject: v === "all" ? ALL_PROJECTS : v })}
               options={[
-                { value: ALL_PROJECTS, label: t("tasks.allProjects"), icon: <Icons.Layers size={14} /> },
-                ...projectEntries(projects).map((p) => ({
-                  value: p.id,
-                  label: p.name,
-                  icon: <ProjectTile tone={projectTone(p.id)} initial={projectInitial(p.name)} size={16} />,
-                })),
+                { id: "all", label: t("tasks.allProjects") },
+                ...projectEntries(projects).map((p) => ({ id: p.id, label: p.name })),
               ]}
             />
           )}

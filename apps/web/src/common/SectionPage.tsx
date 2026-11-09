@@ -1,7 +1,7 @@
 import "../styles/section-page.css";
 import { Button, Icons, SearchField } from "@apx/ui";
 import type { ReactNode } from "react";
-import { useT } from "../i18n/index.ts";
+import { ProjectSelect, type ScopeOption } from "./ProjectSelect.tsx";
 
 export type SectionAction = {
   label: string;
@@ -18,12 +18,9 @@ export type SectionSearch = {
   placeholder: string;
 };
 
-/** `id` "all" is the chip that shows everything. */
-export type ScopeOption = { id: string; label: string };
-
 /**
  * A section's page (Tasks, Flows, Routines, Files, Computers, Resources, Channels): title and lead with the main action
- * at the right, then a row with its tabs and search, then the chips that pick a project or scope, and the body.
+ * at the right, then a row with its tabs, the project it shows, its tools and search, and the body.
  */
 export function SectionPage({
   title,
@@ -49,10 +46,11 @@ export function SectionPage({
   action?: SectionAction | ReactNode;
   /** The segmented control that switches the page's views. */
   tabs?: ReactNode;
+  /** After the tabs: which project (or scope) the page shows. */
+  scopes?: { label: string; value: string; onChange(id: string): void; options: ScopeOption[] };
   /** Controls between the tabs and the search (an order, a filter). */
   tools?: ReactNode;
   search?: SectionSearch;
-  scopes?: { label: string; value: string; onChange(id: string): void; options: ScopeOption[] };
   /** A last line in the header: what the list shows. */
   under?: ReactNode;
   /** The page's accessible name. */
@@ -61,7 +59,7 @@ export function SectionPage({
   bodyClassName?: string;
   children?: ReactNode;
 }) {
-  const bar = tabs || tools || search;
+  const bar = tabs || tools || search || scopes;
   return (
     <section className={className ? `secpage ${className}` : "secpage"} aria-label={label}>
       <header className="secpage__head">
@@ -94,6 +92,7 @@ export function SectionPage({
         {bar && (
           <div className="secpage__bar">
             {tabs}
+            {scopes && <ProjectSelect className="secpage__scope" {...scopes} />}
             <span className="secpage__spacer" />
             {tools}
             {search && (
@@ -108,7 +107,6 @@ export function SectionPage({
             )}
           </div>
         )}
-        {scopes && <ScopeChips {...scopes} />}
         {under}
       </header>
       <div className={bodyClassName ? `secpage__body ${bodyClassName}` : "secpage__body"}>{children}</div>
@@ -118,37 +116,4 @@ export function SectionPage({
 
 function isAction(a: unknown): a is SectionAction {
   return typeof a === "object" && a !== null && "onClick" in a && "label" in a && "hint" in a;
-}
-
-/** "Project: All · Default · …": one pressed at a time, the pressed one inverted. */
-function ScopeChips({
-  label,
-  value,
-  onChange,
-  options,
-}: {
-  label: string;
-  value: string;
-  onChange(id: string): void;
-  options: ScopeOption[];
-}) {
-  const t = useT();
-  return (
-    <fieldset className="secpage__scopes">
-      <legend className="secpage__scopelabel">{label}</legend>
-      {options.map((o) => (
-        <Button
-          key={o.id}
-          size="sm"
-          variant="ghost"
-          className={value === o.id ? "secpage__chip is-on" : "secpage__chip"}
-          aria-pressed={value === o.id}
-          title={o.id === "all" ? t("section.scope.allHint") : t("section.scope.onlyHint", { name: o.label })}
-          onClick={() => onChange(o.id)}
-        >
-          {o.label}
-        </Button>
-      ))}
-    </fieldset>
-  );
 }

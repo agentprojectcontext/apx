@@ -33,7 +33,6 @@ export const esResources: Partial<Record<MessageKey, string>> = {
   "res.search.mcp": "Buscar MCP o tools…",
   "res.search.variables": "Buscar variables…",
   "res.scope": "Ámbito",
-  "res.scope.all": "Todos",
   "res.scope.global": "Global",
   "res.scope.project": "Proyecto",
   "res.defaultGlobal": "Los recursos de Default son los globales: los usan todos tus proyectos.",

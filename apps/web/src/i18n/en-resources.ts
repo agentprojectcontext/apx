@@ -30,7 +30,6 @@ export const enResources = {
   "res.search.mcp": "Search MCP or tools…",
   "res.search.variables": "Search variables…",
   "res.scope": "Scope",
-  "res.scope.all": "All",
   "res.scope.global": "Global",
   "res.scope.project": "Project",
   "res.defaultGlobal": "Default's resources are the global ones: every project uses them.",
