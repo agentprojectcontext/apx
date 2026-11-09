@@ -149,6 +149,11 @@ export const esTeam: Partial<Record<MessageKey, string>> = {
   "limits.onHint": "Los agentes se pausan al llegar a esto y te esperan.",
   "limits.offHint":
     "Sin límites: los agentes siguen solos hasta terminar lo que les pediste, como un agente de código.",
+  "limits.publish": "Publicar el trabajo terminado",
+  "limits.publishHint":
+    "Cuando una tarea está lista y se puede deshacer, como subir una web. Una versión nueva, un pago o un mensaje en tu nombre siempre te esperan.",
+  "limits.publish.auto": "Sin preguntar",
+  "limits.publish.ask": "Preguntarme antes",
   "agentedit.group.general": "General",
   "agentedit.group.abilities": "Capacidades",
   "agentedit.group.permissions": "Permisos",
