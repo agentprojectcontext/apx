@@ -42,6 +42,21 @@ A bundled local core still updates with Desktop. See [Update coordination](UPDAT
 startup holds an OS-released SQLite lock per canonical home, independent of port. Local service identities are
 home-specific; `APX_URL` does not redirect OS service commands. See [Desktop lifecycle](DESKTOP_LIFECYCLE.md).
 
+### Native activity review (planned for 2.14)
+
+`engine/activity-review.ts` contributes one check to the existing office background scheduler, independent of user
+routines and profile selection. Owner-only `activity_review.settings/configure` use the protocol/router; the
+super-agent reaches them through `apx_settings`. Settings and the bounded runtime cursor live in the settings store.
+A consumed window is persisted before the tool-free auxiliary calls; failures and interrupted calls are not replayed.
+Sources come from completed runs in the activity window, not the pinned-first chat list or a chat's latest runs.
+Eligibility is applied before the excerpt cap; inactive chats and automated turns cannot displace eligible activity.
+At most three project scopes (including no project) are sampled separately, never sharing a model reference. The
+calls share a 60-second deadline and 2,400 requested output tokens; each can produce one proposal.
+Disabling or configuring invalidates in-flight results. Verified owner evidence, project scope and title deduplication
+are rechecked before an atomic task-proposal/notification/runtime commit. No agent is assigned and no run is admitted.
+The maintained base prompt cannot be replaced; optional details remain untrusted data. See the secretary guide for
+sampling/cost limits and exclusions. This is bounded assistance, not full-thread auditing or semantic deduplication.
+
 ## 2. How a call flows
 
 ```

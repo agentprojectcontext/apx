@@ -1,5 +1,5 @@
-import type { AgentLimits } from "@apx/protocol";
-import { Input, SettingRow, Switch } from "@apx/ui";
+import type { AgentLimits, OwnerIdentity } from "@apx/protocol";
+import { Input, SegmentedControl, SettingRow, Switch } from "@apx/ui";
 import { useEffect, useState } from "react";
 import { client } from "../data/client.ts";
 import { useT } from "../i18n/index.ts";
@@ -13,12 +13,20 @@ const MAX: Record<Key, number> = { runs: 10_000, tokens: 1_000_000 };
 /**
  * How far agents go on their own (delegating, waking each other with results) before they wait for the owner to
  * write: none until the owner turns them on; then a number of turns and of tokens (left empty: that one has none).
+ * Also whether finished work that can be undone is published without asking (DECISIONS.md#d-208).
  */
 export function AgentLimitsBlock() {
   const t = useT();
   const [limits, setLimits] = useState<AgentLimits>();
   const [defaults, setDefaults] = useState<AgentLimits>({ runs: 100, tokens: 5_000_000 });
   const [draft, setDraft] = useState<Partial<Record<Key, string>>>({});
+  const [publish, setPublish] = useState<OwnerIdentity["publish"]>();
+  useEffect(() => {
+    void client
+      .call("owner.get", {})
+      .then((o) => setPublish(o.publish))
+      .catch(() => {});
+  }, []);
   useEffect(() => {
     void client
       .call("agents.limits", {})
@@ -83,6 +91,27 @@ export function AgentLimitsBlock() {
       </SettingRow>
       {!none && row("runs")}
       {!none && row("tokens")}
+      {publish && (
+        <SettingRow title={t("limits.publish")} description={t("limits.publishHint")}>
+          <SegmentedControl
+            size="sm"
+            label={t("limits.publish")}
+            value={publish}
+            onValueChange={(v) => {
+              const next = v === "ask" ? "ask" : "auto";
+              setPublish(next);
+              void client
+                .call("owner.set", { publish: next })
+                .then((o) => setPublish(o.publish))
+                .catch(() => setPublish(publish));
+            }}
+            options={[
+              { value: "auto", label: t("limits.publish.auto") },
+              { value: "ask", label: t("limits.publish.ask") },
+            ]}
+          />
+        </SettingRow>
+      )}
     </>
   );
 }

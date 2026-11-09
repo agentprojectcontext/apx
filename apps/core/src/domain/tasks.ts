@@ -310,6 +310,20 @@ export function tasksRepo({ one, all, run }: Sql, bus: Bus) {
         o.project_id === undefined ? q.where("project_id", "is", null) : q.where("project_id", "=", o.project_id);
       return Boolean(one(scoped.limit(1)));
     },
+    hasOpenTitle(title: string, project?: string | null): boolean {
+      return Boolean(
+        one(
+          qb
+            .selectFrom("tasks")
+            .select("id")
+            .where("state", "=", "open")
+            .where(raw<boolean>`lower(trim(title)) = lower(trim(${title}))`)
+            .$if(!!project, (q) => q.where("project_id", "=", project as string))
+            .$if(!project, (q) => q.where("project_id", "is", null))
+            .limit(1),
+        ),
+      );
+    },
     /** Newest activity first. `projects` limits to those projects (undefined in the list = tasks without one). */
     list(o: {
       projects?: Array<string | undefined>;

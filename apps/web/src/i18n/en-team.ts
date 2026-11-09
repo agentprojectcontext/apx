@@ -143,6 +143,11 @@ export const enTeam = {
   "limits.on": "Set limits",
   "limits.onHint": "Agents pause when they reach these and wait for you.",
   "limits.offHint": "No limits: agents keep going until they finish what you asked, like a coding agent.",
+  "limits.publish": "Publishing finished work",
+  "limits.publishHint":
+    "When a task is done and can be undone, like putting a website online. A new version, a payment or a message in your name always waits for you.",
+  "limits.publish.auto": "Without asking",
+  "limits.publish.ask": "Ask me first",
   "agentedit.group.general": "General",
   "agentedit.group.abilities": "Abilities",
   "agentedit.group.permissions": "Permissions",

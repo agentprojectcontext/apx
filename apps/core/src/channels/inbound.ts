@@ -1,7 +1,7 @@
 // What arrives on a channel. Who wrote (an exact address match) decides where the words go: the owner's thread, a
 // contact's sealed thread, or a pairing code for a stranger. Button presses decide only when the owner presses them.
 
-import { type Thread, UPLOAD_LIMITS } from "@apx/protocol";
+import { CHANNEL_DEFAULTS, type Thread, UPLOAD_LIMITS } from "@apx/protocol";
 import {
   type Inbound,
   type InboundAction,
@@ -33,8 +33,6 @@ import type { Suggestions } from "./suggestions.ts";
 import { channelTexts } from "./texts.ts";
 import { type ChannelConfig, contactAgentOf } from "./types.ts";
 
-/** A contact gets at most this many automatic answers per hour; then the owner is told once. */
-const CONTACT_PER_HOUR = 20;
 const HOUR_MS = 3600_000;
 /** Pairing codes a channel sends to strangers per hour; past it, requests are only listed for the owner. */
 const CODES_PER_HOUR = 10;
@@ -72,6 +70,9 @@ export function createInbound(deps: {
   const { store, log, call, delivery } = deps;
   const recent = new Map<string, number[]>();
   const paused = new Set<string>();
+  /** Automatic answers each account gave its contacts in the last hour, and the accounts the owner was told about. */
+  const answered = new Map<string, number[]>();
+  const capped = new Set<string>();
   const codesSent = new Map<string, number[]>();
   const reports = new Map<string, number[]>();
   /** The options ticked so far on a multi-choice question, by input. */
@@ -117,7 +118,7 @@ export function createInbound(deps: {
     const supervised = !quiet && !owner && person.supervised;
     // Outside the channel's hours a contact's message waits, unanswered, for them to begin (held.ts).
     const waits = !quiet && !owner && waitsForHours(store, cfg, person, deps.now());
-    if (!owner && !quiet && !supervised && !waits && overLimit(person.id, person.name)) return "ignored";
+    if (!owner && !quiet && !supervised && !waits && overLimit(cfg, person.id, person.name)) return "ignored";
     let text = m.text;
     const attachments: string[] = [];
     let voice: MediaRecord | undefined;
@@ -296,14 +297,29 @@ export function createInbound(deps: {
     return store.runs.list(threadId, 5).some((r) => LIVE.has(r.state));
   }
 
-  /** Each automatic answer to a contact costs a model call: past the hourly limit they wait and the owner hears it. */
-  function overLimit(personId: string, name: string): boolean {
-    const now = Date.now();
+  /**
+   * Each automatic answer to a contact costs a model call: past the account's hourly limit for that contact, or for
+   * all of its contacts together, they wait and the owner hears it once.
+   */
+  function overLimit(cfg: ChannelConfig, personId: string, name: string): boolean {
+    const now = deps.now().getTime();
+    const limits = cfg.limits ?? CHANNEL_DEFAULTS.limits;
     const times = (recent.get(personId) ?? []).filter((t) => now - t < HOUR_MS);
+    const all = (answered.get(cfg.id) ?? []).filter((t) => now - t < HOUR_MS);
+    if (limits.per_account_hour > 0 && all.length >= limits.per_account_hour) {
+      answered.set(cfg.id, all);
+      if (!capped.has(cfg.id)) {
+        capped.add(cfg.id);
+        deps.tell({ text: channelTexts(store).accountCap(cfg.label) }, { level: "warn", title: cfg.label });
+      }
+      return true;
+    }
+    capped.delete(cfg.id);
     times.push(now);
     recent.set(personId, times);
-    if (times.length <= CONTACT_PER_HOUR) {
+    if (times.length <= limits.per_contact_hour) {
       paused.delete(personId);
+      answered.set(cfg.id, [...all, now]);
       return false;
     }
     if (!paused.has(personId)) {

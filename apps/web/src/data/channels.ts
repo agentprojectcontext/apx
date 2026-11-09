@@ -89,6 +89,8 @@ export type ChannelDraft = {
   knowledge?: string | undefined;
   rules?: string | undefined;
   owner_only?: boolean | undefined;
+  /** Automatic answers to its contacts per hour (kept on every save). */
+  limits?: ChannelInfo["limits"];
 };
 
 /** What a save sends for an account as it is now: every setting it keeps, so a change of one drops none. */
@@ -111,6 +113,7 @@ export const draftOf = (c: ChannelInfo): ChannelDraft => ({
   ...(c.knowledge ? { knowledge: c.knowledge } : {}),
   ...(c.rules ? { rules: c.rules } : {}),
   ...(c.owner_only ? { owner_only: true } : {}),
+  ...(c.limits ? { limits: c.limits } : {}),
 });
 
 /** Lets agents read and send iMessages on this Mac (or stops them). */

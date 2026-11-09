@@ -5,6 +5,7 @@ import { SubHead } from "../../config/SectionHead.tsx";
 import { client } from "../../data/client.ts";
 import { useData } from "../../data/state.ts";
 import { type MessageKey, useT } from "../../i18n/index.ts";
+import { Limit } from "./parts.tsx";
 
 const MODES: RoomMode[] = ["mention", "useful", "always", "read"];
 const EMPTY: ChannelRooms = {
@@ -298,38 +299,5 @@ export function RoomsSection({
         </span>
       </SettingRow>
     </>
-  );
-}
-
-function Limit({
-  label,
-  value,
-  min = 0,
-  max,
-  onSave,
-}: {
-  label: string;
-  value: number;
-  min?: number;
-  max: number;
-  onSave(v: number): void;
-}) {
-  return (
-    <span className="rooms__limit">
-      <Input
-        key={value}
-        aria-label={label}
-        type="number"
-        min={min}
-        max={max}
-        className="nudge__num"
-        defaultValue={String(value)}
-        onBlur={(e) => {
-          const v = Math.max(min, Math.min(max, Math.round(Number(e.currentTarget.value) || min)));
-          if (v !== value) onSave(v);
-        }}
-      />
-      <span className="pform__hint">{label}</span>
-    </span>
   );
 }

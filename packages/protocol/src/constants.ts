@@ -52,6 +52,8 @@ export const CHANNEL_DEFAULTS = {
   strangers: "pair",
   concurrency: "steer",
   owner_thread: "home",
+  /** Automatic answers to its contacts per hour: each one, and all together (0: no cap). */
+  limits: { per_contact_hour: 20, per_account_hour: 0 },
 } as const;
 
 /** Minutes a tab of the desktop's browser stays open off screen with no agent or owner using it. */

@@ -45,6 +45,8 @@ const es = {
   stickerMissing: (words: string, where: string) =>
     `No mandé el sticker «${words}» en ${where}: no tengo uno guardado de este canal que diga eso. No se envió nada.`,
   tooMany: (name: string) => `${name} escribe mucho seguido: pausé sus respuestas automáticas por una hora.`,
+  accountCap: (label: string) =>
+    `${label} llegó al tope de respuestas por hora: los mensajes de sus contactos quedan sin contestar hasta que se libere.`,
   roomCap: (room: string) =>
     `Llegué al tope de respuestas por hora en ${room}: sigo leyendo, contesto cuando se libere.`,
   roomFailed: (room: string, why: string) => `No pude responder en ${room}: ${why}`,
@@ -141,6 +143,8 @@ const en: typeof es = {
   stickerMissing: (words, where) =>
     `I didn't send the sticker "${words}" in ${where}: I have none kept from this channel that says that. Nothing was sent.`,
   tooMany: (name) => `${name} is writing a lot in a row: I paused their automatic answers for an hour.`,
+  accountCap: (label) =>
+    `${label} hit its hourly cap of answers: its contacts' messages wait unanswered until it frees up.`,
   roomCap: (room) => `I hit the hourly cap of answers in ${room}: I keep reading and answer once it frees up.`,
   roomFailed: (room, why) => `I couldn't answer in ${room}: ${why}`,
   notHandled: (name, why) => `I couldn't handle a message from ${name}: ${why}`,

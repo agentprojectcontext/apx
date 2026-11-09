@@ -86,3 +86,37 @@ export function OwnerLink({ channelId, name }: { channelId: string; name: string
     </>
   );
 }
+
+/** A number the owner types for a limit; kept in range and saved when they leave the field. */
+export function Limit({
+  label,
+  value,
+  min = 0,
+  max,
+  onSave,
+}: {
+  label: string;
+  value: number;
+  min?: number;
+  max: number;
+  onSave(v: number): void;
+}) {
+  return (
+    <span className="rooms__limit">
+      <Input
+        key={value}
+        aria-label={label}
+        type="number"
+        min={min}
+        max={max}
+        className="nudge__num"
+        defaultValue={String(value)}
+        onBlur={(e) => {
+          const v = Math.max(min, Math.min(max, Math.round(Number(e.currentTarget.value) || min)));
+          if (v !== value) onSave(v);
+        }}
+      />
+      <span className="pform__hint">{label}</span>
+    </span>
+  );
+}

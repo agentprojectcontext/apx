@@ -10,7 +10,7 @@ import Shot from "../../../components/Shot.astro";
 import Terminal from "../../../components/Terminal.astro";
 
 A channel lets you talk to your agents from an app you already use, and lets other people reach them too. You connect
-channels in **Channels**, a screen of its own in the sidebar: it lists every account with who answers it and what is
+channels in **Manage channels**, under **Channels** in the sidebar: a screen that lists every account with who answers it and what is
 waiting, and each one opens its chats or its settings (the pencil). Each account also shows up in the sidebar under
 **Channels**, with its contacts and chats; its name at the top switches to another account.
 
@@ -18,7 +18,7 @@ waiting, and each one opens its chats or its settings (the pencil). Each account
 
 An account's settings are grouped in parts and saved together with **Save**: **Account** (its name, connection and
 sign-in), **Who answers** (who you talk to, where your messages go, who answers your contacts), **Behavior** (a
-message while it works, the web, hours, **Only answers you**, and **What it knows and can answer** and **Rules** for
+message while it works, the web, hours, **Only answers you**, **Limits**, and **What it knows and can answer** and **Rules** for
 everyone who writes to the account; a room's or a contact's own rules go after and win), **Stickers and emoji** in chat apps, **Rooms** where the app has them,
 **Contacts** (everyone on the account, and **Add contact**), **Approvals** (what someone new gets, and who waits) and
 **Activity** (what went out). A new account opens on **Account**: name it and connect it; the other parts open once it
@@ -217,6 +217,19 @@ the day they start on (Friday 20:00–02:00 covers the first hours of Saturday).
 
 You can also ask your super-agent in chat ("answer WhatsApp Monday to Friday 9 to 18, and my dad at any hour"): it sets
 a channel's hours once you approve it, and who is answered at any hour as its mode allows. Other agents cannot.
+
+## Limits
+
+Each answer to a contact costs a model call, so every account caps how many it gives on its own in an hour, under
+**Behavior › Limits**:
+
+- **Answers per hour to one contact** (20 unless you change it). Past it, that person's messages are kept in their
+  chat unanswered for the rest of the hour, and you hear it once.
+- **Answers per hour in all**, for every contact of the account together (0, the default, is no limit). Past it, the
+  account's contacts wait the same way, and you hear it once.
+
+You are never limited. Rooms have their own limits, under **Rooms**: seconds between two answers to one person, and
+answers per hour in a room.
 
 ## Delivery and notices
 

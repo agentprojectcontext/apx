@@ -2,16 +2,25 @@
 // in a dialog of parts, saved together. Builds on the setup's Telegram and WhatsApp accounts.
 import { expect, open, rpc, test, until } from "./kit.ts";
 
-type Listed = { channels: Array<{ id: string; label: string; concurrency: string }> };
+type Listed = {
+  channels: Array<{
+    id: string;
+    label: string;
+    concurrency: string;
+    limits?: { per_contact_hour: number; per_account_hour: number };
+  }>;
+};
 
 test("the Channels screen lists every account, filters by app and opens each one's chats or settings", async ({
   page,
 }) => {
   await open(page);
+  // The sidebar's Channels section leads there too, narrow sidebar included.
+  await expect(page.locator(".sidebar").getByRole("button", { name: "Administrar canales" })).toBeVisible();
   // From an account's Inbox, the account switcher leads to the screen with every account.
   await page.getByRole("button", { name: "WhatsApp", exact: true }).click();
   await page.locator(".inbox__accountbtn").click();
-  await page.getByRole("button", { name: "Administrar canales" }).click();
+  await page.getByRole("dialog", { name: "Cuentas" }).getByRole("button", { name: "Administrar canales" }).click();
   const screen = page.getByRole("region", { name: "Canales" });
   await expect(screen.getByRole("heading", { name: "Canales" })).toBeVisible();
   await expect(screen.locator(".chs__main", { hasText: "Telegram" })).toBeVisible();
@@ -46,6 +55,18 @@ test("an account's settings: parts on the left, edits wait for Save, Discard put
   expect((await rpc<Listed>("channels.list")).channels.find((c) => c.id === "whatsapp")?.concurrency).toBe(before);
   await dialog.getByRole("button", { name: "Descartar" }).click();
   await expect(dialog.getByText("Guardado en APX")).toBeVisible();
+
+  // Its limits on answers to contacts: typed, kept on Save.
+  const perContact = dialog.getByRole("spinbutton", { name: "Respuestas por hora a un contacto" });
+  await expect(perContact).toHaveValue("20");
+  await perContact.fill("12");
+  await perContact.blur();
+  await dialog.getByRole("button", { name: /^Guardar (⌘|Ctrl)/ }).click();
+  await until(async () =>
+    (await rpc<Listed>("channels.list")).channels.some(
+      (c) => c.id === "whatsapp" && c.limits?.per_contact_hour === 12 && c.limits.per_account_hour === 0,
+    ),
+  );
 
   // A name typed and saved shows in the lists; the old one comes back the same way.
   await dialog.getByRole("button", { name: /^Cuenta/ }).click();

@@ -110,8 +110,9 @@ export function ChannelsNav({ rail, compact = false }: { rail: boolean; compact?
         setPrefs({ channelsFolded: !folded });
       }}
     >
-      {(compact || (!hidden && !rail)) && (
+      {(compact || !hidden) && (
         <NavItem
+          collapsed={rail}
           className="channelsnav__manage"
           icon={<Icons.LayoutGrid />}
           label={t("nav.manageChannels")}

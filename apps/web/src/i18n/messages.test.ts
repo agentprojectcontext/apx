@@ -1,5 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
+import { enActivityReview } from "./activity-review-en.ts";
+import { esActivityReview } from "./activity-review-es.ts";
 import { enApprovals } from "./approvals-en.ts";
 import { esApprovals } from "./approvals-es.ts";
 import { enComputer } from "./computer-en.ts";
@@ -59,6 +61,18 @@ test("the resources pack's strings load with its screens, never with the first s
     assert.equal(messages["res.tab.skills"], lang === "en" ? "Skills" : "Skills");
     for (const key of Object.keys(enResources) as (keyof typeof enResources)[]) assert.equal(messages[key], undefined);
     assert.deepEqual(await loadPack("resources", lang), lang === "en" ? enResources : esResources);
+  }
+});
+
+test("activity review details stay off the first screen while its navigation remains translated", async () => {
+  const { loadMessages, loadPack } = await import("./messages.ts");
+  for (const lang of ["en", "es"] as const) {
+    const messages = await loadMessages(lang);
+    assert.equal(messages["config.activityReview"], lang === "en" ? "Activity review" : "Revisión y mejoras");
+    for (const key of Object.keys(enActivityReview) as (keyof typeof enActivityReview)[]) {
+      assert.equal(messages[key], undefined);
+    }
+    assert.deepEqual(await loadPack("activityReview", lang), lang === "en" ? enActivityReview : esActivityReview);
   }
 });
 
@@ -143,6 +157,7 @@ test("secretary capability strings load only with the super-agent's settings in 
 // A pack's strings belong to the language as much as the main chunk's.
 const en = {
   ...base,
+  ...enActivityReview,
   ...enApprovals,
   ...enComputer,
   ...enReceived,
@@ -160,6 +175,7 @@ const en = {
 };
 const es = {
   ...esBase,
+  ...esActivityReview,
   ...esApprovals,
   ...esComputer,
   ...esReceived,

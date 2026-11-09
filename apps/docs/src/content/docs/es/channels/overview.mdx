@@ -10,7 +10,7 @@ import Shot from "../../../../components/Shot.astro";
 import Terminal from "../../../../components/Terminal.astro";
 
 Un canal te deja hablar con tus agentes desde una app que ya usás, y deja que otras personas también les escriban.
-Los canales se conectan en **Canales**, una pantalla propia en la barra lateral: lista cada cuenta con quién la
+Los canales se conectan en **Administrar canales**, bajo **Canales** en la barra lateral: una pantalla que lista cada cuenta con quién la
 atiende y qué está esperando, y cada una abre sus chats o su configuración (el lápiz). Cada cuenta aparece también en
 la barra lateral, bajo **Canales**, con sus contactos y sus chats; su nombre arriba cambia a otra cuenta.
 
@@ -18,7 +18,7 @@ la barra lateral, bajo **Canales**, con sus contactos y sus chats; su nombre arr
 
 La configuración de una cuenta está agrupada en partes y se guarda junta con **Guardar**: **Cuenta** (su nombre,
 conexión y sesión), **Quién responde** (con quién hablás, dónde van tus mensajes, quién responde a tus contactos),
-**Comportamiento** (un mensaje mientras trabaja, la web, el horario, **Solo te contesta a vos**, y **Lo que sabe y
+**Comportamiento** (un mensaje mientras trabaja, la web, el horario, **Solo te contesta a vos**, **Límites**, y **Lo que sabe y
 puede responder** y **Reglas** para todos los que escriben a la cuenta; las reglas propias de una sala o de un contacto
 van después y ganan), **Stickers y emojis** en las apps de chat,
 **Salas** donde la app las tiene, **Contactos** (todas las personas de la cuenta, y **Agregar contacto**),
@@ -227,6 +227,19 @@ sábado).
 También se lo podés pedir a tu super-agente en el chat ("respondé WhatsApp de lunes a viernes de 9 a 18, y a mi papá
 a cualquier hora"): cambia el horario de un canal cuando lo aprobás, y a quién se responde a cualquier hora según
 su modo. Los demás agentes no pueden.
+
+## Límites
+
+Cada respuesta a un contacto cuesta una llamada al modelo, así que cada cuenta pone un tope a cuántas da sola por hora,
+en **Comportamiento › Límites**:
+
+- **Respuestas por hora a un contacto** (20 si no lo cambiás). Pasado eso, los mensajes de esa persona quedan en su
+  chat sin contestar el resto de la hora, y te avisa una vez.
+- **Respuestas por hora en total**, para todos los contactos de la cuenta juntos (0, lo inicial, es sin límite). Pasado
+  eso, los contactos de la cuenta esperan igual, y te avisa una vez.
+
+A vos nunca te limita. Las salas tienen sus propios límites, en **Salas**: segundos entre dos respuestas a una persona
+y respuestas por hora en una sala.
 
 ## Entregas y avisos
 

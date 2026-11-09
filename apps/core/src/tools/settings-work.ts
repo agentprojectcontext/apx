@@ -116,6 +116,21 @@ export const WORK: Readonly<Record<string, Setting>> = {
     says: (p, { store }) => `Change the helper of ${projectName(store, p.project)}`,
     now: (p, { store }) => ({ project: p.project, ...store.settings.read("project_helper")[str(p.project)] }),
   },
+  "activity_review.settings": {
+    does: "whether APX reviews new activity and proposes improvements; daily or weekly, extra details",
+    read: (_p, { store }) => JSON.stringify(store.settings.read("activity_review")),
+  },
+  "activity_review.configure": {
+    does: "configure activity review (enabled, frequency daily or weekly, extra_details); always proposal-only",
+    says: () => "Change activity review and improvement proposals",
+    whole: true,
+    now: (_p, { store }) => store.settings.read("activity_review"),
+    keep: (p, { store }) => ({
+      ...merged(store.settings.read("activity_review"), p),
+      expected: store.settings.read("activity_review"),
+    }),
+    asks: "card",
+  },
   "memory.settings": {
     does: "how notes are searched and how long chats are kept small",
     read: (_p, { store }) =>
