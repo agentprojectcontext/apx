@@ -48,6 +48,17 @@
   color: var(--apx-fg-muted);
   white-space: nowrap;
 }
+/* Who answers, under the name: cut short before the header's tools, never under them. */
+.chat__crumb .chat__agentbtn {
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  border-radius: 0;
+  color: inherit;
+  font: inherit;
+}
 .chat__header:has(.chat__modelrequest) {
   height: auto;
   min-height: var(--shell-header-h);
