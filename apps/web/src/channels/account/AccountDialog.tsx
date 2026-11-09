@@ -6,7 +6,7 @@ import { MOD } from "../../common/modKey.ts";
 import { SectionHead } from "../../config/SectionHead.tsx";
 import { addChannel, type ChannelDraft, draftOf, loadChannels, saveChannel, useChannels } from "../../data/channels.ts";
 import { useData } from "../../data/state.ts";
-import { type MessageKey, useT } from "../../i18n/index.ts";
+import { type MessageKey, usePack, useT } from "../../i18n/index.ts";
 import { LAYOUT } from "../../shell/layout.ts";
 import { type AccountEdit, go, type AccountPane as Pane, useNav } from "../../shell/nav.ts";
 import { accountLine } from "../accountMenu.tsx";
@@ -70,9 +70,14 @@ export function ChannelDialogs() {
   return (
     <>
       {pick && <KindPicker />}
-      {edit && <AccountDialog key={`${edit.kind}:${edit.id ?? "new"}`} edit={edit} />}
+      {edit && <WithStrings key={`${edit.kind}:${edit.id ?? "new"}`} edit={edit} />}
     </>
   );
+}
+
+/** The account's settings once their strings are here: a moment on the first open, then at once. */
+function WithStrings({ edit }: { edit: AccountEdit }) {
+  return usePack("account") ? <AccountDialog edit={edit} /> : null;
 }
 
 /** The apps to connect, each with how it connects; iMessage, one per Mac, opens its settings when it is on. */
