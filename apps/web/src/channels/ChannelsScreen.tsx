@@ -122,7 +122,9 @@ function AccountRow({ channel, counts }: { channel: ChannelInfo; counts: Account
         }
         title={
           <span className="chs__name">
-            {channel.label}
+            <span className="chs__label" title={channel.label}>
+              {channel.label}
+            </span>
             {waiting > 0 && <Badge tone="warning">{t("chs.waiting", { n: waiting })}</Badge>}
           </span>
         }

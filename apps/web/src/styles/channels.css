@@ -714,7 +714,15 @@
   display: flex;
   align-items: center;
   gap: 8px;
+  min-width: 0;
   font-weight: var(--apx-weight-medium);
+}
+/* A long name ends in an ellipsis next to the buttons; the whole of it shows on hover. */
+.chs__label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .chs__sub {
   overflow: hidden;
