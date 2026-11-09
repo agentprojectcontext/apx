@@ -225,6 +225,7 @@ test("Teams shows its public address: the owner's own https URL gives the addres
   await page.getByRole("radio", { name: "Propia", exact: true }).click();
   await page.getByRole("textbox", { name: "Tu dirección", exact: true }).fill("https://hooks.example.com");
   await page.getByRole("button", { name: "Guardar", exact: true }).click();
-  await expect(page.getByText("https://hooks.example.com/hooks/teams")).toBeVisible();
+  // Before the account is made it shows the base address; its own (/hooks/<id>) once it is connected.
+  await expect(page.getByText("https://hooks.example.com", { exact: true })).toBeVisible();
   await rpc("webhooks.set", { mode: "off" });
 });

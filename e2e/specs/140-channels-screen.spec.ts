@@ -44,7 +44,7 @@ test("an account's settings: parts on the left, edits wait for Save, Discard put
   // Nothing reached the core yet.
   expect((await rpc<Listed>("channels.list")).channels.find((c) => c.id === "whatsapp")?.concurrency).toBe(before);
   await dialog.getByRole("button", { name: "Descartar" }).click();
-  await expect(dialog.getByText("Se guarda en APX")).toBeVisible();
+  await expect(dialog.getByText("Guardado en APX")).toBeVisible();
 
   // A name typed and saved shows in the lists; the old one comes back the same way.
   await dialog.getByRole("button", { name: /^Cuenta/ }).click();
