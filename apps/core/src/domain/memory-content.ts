@@ -33,6 +33,18 @@ export const memoryKey = (text: string) =>
     .replace(/[.!]+$/, "");
 export const duplicateMemory = (a: string, b: string) => memoryKey(a) === memoryKey(b);
 
+// A commit hash on its own (not part of a UUID) or a CI run id, beside a word that reports work done.
+const COMMIT = /(?<![\w-])(?=[0-9a-f]*\d)(?=[0-9a-f]*[a-f])[0-9a-f]{7,12}(?![\w-])/i;
+const RUN_ID = /(?:\b(?:run|ci|job|build|workflow)\s*#?|[a-z])\d{9,}\b/i;
+const DONE_WORD =
+  /\b(commits?|commite\w*|merged?|mergead\w*|pushed|pushead\w*|ci|verde|green|publicad[ao]s?|released?|desplegad[ao]s?|deployed)\b/i;
+// A diary line: "Acme review 2026-10-07: commented on…".
+const DATED_ENTRY = /^[^\n]{0,40}?\b\d{4}-\d{2}-\d{2}\b[^\n:]{0,20}:/;
+
+/** A report of work done (a dated entry, commits, CI runs) rather than something that stays true. */
+export const reportsWorkDone = (text: string) =>
+  ((COMMIT.test(text) || RUN_ID.test(text)) && DONE_WORD.test(text)) || DATED_ENTRY.test(text);
+
 export const isMemoryGreeting = (text: string) =>
   /^(hola|hello|hi|hey|gracias|thanks|buen[oa]s?(?: d[ií]as| tardes| noches)?)[!.\s]*$/i.test(text.trim());
 

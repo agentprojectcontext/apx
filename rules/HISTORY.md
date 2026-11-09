@@ -212,6 +212,16 @@ saved temporary owner requests verbatim; the filter stops new ones but cannot cl
 **Where:** `apps/core/src/domain/memory-capture-cleanup.ts`, called from `server.ts`. Delete it (keep the setting
 key) once no install older than 2.7.1 needs upgrading.
 
+<a id="v1-imported-notes"></a>
+### A one-time startup pass marks the notes the v1 import saved as the owner's
+**Rule:** on its first start, a core reads APX v1's note files and marks each owner note with exactly that text and no
+chat, run or author as `imported`, records that it ran (`setting:memory_v1_marked`) and never runs again. **Why:** the
+v1 import saved every v1 note, mostly old agents' session notes, as written by the owner: the panel said "written by
+you", agents could not correct them, AutoDream skipped them and the global ones stood in every chat. Imported notes
+are reached by search, read as "from APX v1, may be outdated", and become the owner's once they edit or confirm one.
+**Where:** `apps/core/src/import/v1-memory-mark.ts`, called from `server.ts`; the import itself now saves `imported`.
+Delete the pass (keep the setting key) once no install imported before 2.13 needs upgrading.
+
 ## Agent engine
 
 <a id="system-notes-as-user"></a>

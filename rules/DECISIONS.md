@@ -4361,4 +4361,39 @@ task", next to "your final answer goes back to them") and a review all came as a
   changing anything outward: confirm first" asked for more than the owner's permission mode, even in Total. It now
   goes ahead with the work and prepares what the mode leaves to the owner.
 
-None of this changes a permission, an approval, a hard step or a spend limit: what waits for the owner still does.
+- **Commands ask by what they do, not by the word apx** (`runsApxCli`, `apxReads`, `mayChange`): in the week's real
+  asks every command naming APX was "high impact": `apx mcps list`, `apx usage 7`, `apx --help` beside `ls ..`,
+  `command -v apx`, `test -f .apc/migrate.md`. A part that only reads with the CLI now acts as nobody, whatever else
+  the line does (any `--help`, `mcps list`, `usage`, `jobs`, `projects`, `models`, `artifacts`, `skills`, `owner`,
+  `news`); `command -v` only looks it up; AGENTS.md or `.apc/` count only where a part of the command could change them
+  (not a reader, or a redirect into them). What stays always: the CLI acting as the owner (`runs respond`, `owner
+  set`, `tasks done`, `chat`…), any CLI run with a variable set before it (it could point the CLI elsewhere with the
+  owner's credentials), APX's API by its port, destructive commands and releases. Amends D-197.
+- **The visual check fixes the browser first** (`VISUAL_CHECK`): a tab limit, a dialog or the size is the agent's to
+  fix before it calls a change unverified.
+
+Apart from these narrower command asks, none of this changes a permission, an approval, a hard step or a spend
+limit: what waits for the owner still does.
+
+<a id="d-211"></a>
+## D-211 — 2026-11-09 — Memory the owner can keep up with: v1 notes marked, shared notes tidied, logs refused, waiting notes told
+The owner's Memory tab had 386 notes "about you", 348 of them v1 imports labeled "written by you", a few agent notes
+waiting under "To confirm" that nobody heard about, an "outside content" badge on nearly every agent note, and project
+notes that read like release logs. AutoDream ran daily and changed nothing: it only read each agent's private
+notebook. Amends D-013, D-111 and D-112:
+
+- **Imported is a source of its own** (`source: "imported"`). The v1 import saves it; a one-time startup pass marks
+  earlier imports by exact text against v1's note files (HISTORY.md#v1-imported-notes). Imported notes are reached by
+  search only, never as standing notes; agents read them as possibly outdated and may correct them; the owner's edit
+  or confirmation makes one theirs. The owner's own notes stay untouchable.
+- **AutoDream has two shelves.** Besides the private notebook, a daily pass per place tidies its shared notes (the
+  project's, or the global ones outside a project) written by agents or imported, never the owner's or a note waiting
+  for the owner. The same rules hold: the helper only names ids, exact duplicates merge, retirement needs a separate
+  review, stale notes go only past 40, and a fifth per day is counted per place across its agents. The shelf is in the
+  job's id (`dream:shared:`), so the queue and its settings did not change.
+- **Shared notes keep what stays true.** An agent's `memory.add` for the project or global scope refuses a report of
+  work done (a commit hash or CI run id with a word like committed or released, or a dated entry); an agent's own
+  notebook may still keep a diary.
+- **Waiting notes are told.** One `memory` notice stays in the tray while any note about the owner waits, and
+  "Confirm all" confirms the listed ones. The outside-content marker still governs how agents read a note but is not
+  shown: it marked almost every agent note and offered no action (rule 31).

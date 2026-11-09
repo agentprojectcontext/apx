@@ -78,3 +78,35 @@ test("what agents learned about the owner waits first in the list and is confirm
   expect(confirmed).toEqual(["mem_a", "mem_b"]);
   await expect(page.getByText("Para confirmar", { exact: true })).toHaveCount(0);
 });
+
+test("the tray tells the owner an agent learned something about them, and opens where to confirm it", async ({
+  page,
+}) => {
+  await rpc("setup.finish", {});
+  const at = new Date().toISOString();
+  await page.route("**/rpc/notifications.list", (route) =>
+    route.fulfill({
+      json: {
+        ok: true,
+        result: {
+          unread: 1,
+          notifications: [
+            {
+              id: "ntf_memory",
+              kind: "memory",
+              level: "info",
+              title: "Roby",
+              body: "The owner signs emails with their first name.",
+              ref: "pending",
+              created_at: at,
+            },
+          ],
+        },
+      },
+    }),
+  );
+  await open(page);
+  await page.getByRole("button", { name: "1 avisos para vos" }).click();
+  await page.getByText("Aprendió algo sobre vos", { exact: false }).click();
+  await expect(page.getByText("Lo que todos tus agentes saben de vos", { exact: false })).toBeVisible();
+});

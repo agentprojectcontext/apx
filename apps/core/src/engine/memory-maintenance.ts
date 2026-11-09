@@ -8,7 +8,7 @@ import type { Log } from "../log.ts";
 import type { InternalCall } from "../rpc/internal.ts";
 import { memoryEpisodeSource, recordMemoryEpisode } from "./memory-episodes.ts";
 import type { MemoryIndex } from "./memory-index.ts";
-import { performMemoryJob } from "./memory-job.ts";
+import { performMemoryJob, SHARED_DREAM_PREFIX } from "./memory-job.ts";
 import { captureProcedure } from "./memory-procedure.ts";
 import type { Upkeep } from "./upkeep.ts";
 
@@ -36,7 +36,7 @@ export function createMemoryMaintenance(deps: {
       memoryEligibleChat(store, thread)
     );
   }
-  function enqueue(run: RunRecord, dream = false, manual = false): boolean {
+  function enqueue(run: RunRecord, dream = false, manual = false, shared = false): boolean {
     const thread = store.threads.get(run.thread_id);
     if (!thread || !eligible(run)) return false;
     const capture = memorySettings(store).auto_capture !== false && memoryEpisodeSource(store, run).length > 0;
@@ -60,8 +60,17 @@ export function createMemoryMaintenance(deps: {
           run_id: run.id,
           ...(thread.project_id ? { project_id: thread.project_id } : {}),
         });
+      if (shared)
+        store.memoryWork.enqueue({
+          id: `${SHARED_DREAM_PREFIX}${run.id}${manual ? `:${randomUUID()}` : ""}`,
+          kind: "dream",
+          agent_id: run.agent_id,
+          thread_id: thread.id,
+          run_id: run.id,
+          ...(thread.project_id ? { project_id: thread.project_id } : {}),
+        });
     });
-    return capture || dream;
+    return capture || dream || shared;
   }
   function drain(): Promise<void> {
     if (stopped) return Promise.resolve();
@@ -117,13 +126,20 @@ export function createMemoryMaintenance(deps: {
     },
     afterRun(run: RunRecord) {
       if (!eligible(run)) return;
-      const key = `memory_dream:${run.agent_id}:${store.threads.get(run.thread_id)?.project_id ?? ""}`;
-      const last = store.settings.get(key);
-      const dream =
-        memorySettings(store).auto_dream !== false && (!last || Date.now() - Date.parse(last) >= 86_400_000);
+      const place = store.threads.get(run.thread_id)?.project_id ?? "";
+      const key = `memory_dream:${run.agent_id}:${place}`;
+      // The notes a place shares are tidied once a day too, by whichever of its agents works first.
+      const sharedKey = `memory_dream:shared:${place}`;
+      const due = (k: string) => {
+        const last = store.settings.get(k);
+        return memorySettings(store).auto_dream !== false && (!last || Date.now() - Date.parse(last) >= 86_400_000);
+      };
+      const dream = due(key);
+      const shared = due(sharedKey);
       store.tx(() => {
-        enqueue(run, dream);
+        enqueue(run, dream, false, shared);
         if (dream) store.settings.set(key, new Date().toISOString());
+        if (shared) store.settings.set(sharedKey, new Date().toISOString());
       });
       void captureProcedure(store, deps.call, run, ownerTimeZone(store))
         .then((saved) => saved && deps.index.schedule())
@@ -138,13 +154,17 @@ export function createMemoryMaintenance(deps: {
     },
     async maintain(backfill = false, dream = false) {
       let queued = 0;
+      const tidied = new Set<string>();
       if (backfill || dream)
         for (const thread of store.threads.list({ include_archived: true, include_subthreads: false, limit: null })) {
           if (!memoryEligibleChat(store, thread)) continue;
           const eligibleRuns = store.runs.list(thread.id, backfill ? 100 : 20).filter(eligible);
           const runs = backfill ? eligibleRuns : eligibleRuns.slice(0, 1);
           for (const run of runs) {
-            if (enqueue(run, dream, true)) queued++;
+            // One pass over the notes each place shares, whichever of its chats comes first.
+            const shared = dream && !tidied.has(thread.project_id ?? "");
+            if (shared) tidied.add(thread.project_id ?? "");
+            if (enqueue(run, dream, true, shared)) queued++;
           }
         }
       if (backfill || dream) deps.index.schedule();
