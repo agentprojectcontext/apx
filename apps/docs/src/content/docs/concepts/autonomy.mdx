@@ -53,7 +53,7 @@ Every tool call has a level, and some depend on their arguments: a read-only `gi
 | `always` | Destructive shell commands (`rm -rf`, `sudo`, `git reset --hard`…), a push that cuts a release or rewrites history (a tag, `--force`, `gh release`, `npm publish`), changing `AGENTS.md` or anything in `.apc/` (with a file tool or a command), commands that reach APX's own API, or its CLI for anything but reading (`apx chat`, `apx runs respond`, `apx routines add`), sending an iMessage, answering a contact, using your browser login, clicking, typing or pressing keys on your screen. |
 
 Publishing a task's work is the agent's job when the task asks for it. Pushing a branch (putting a website on `main`,
-say) runs on its own; set **Settings › Account › Publishing finished work** to **Ask me first** and it waits for you
+say) runs on its own; set **Settings › Agents › Publishing finished work** to **Ask me first** and it waits for you
 in every mode. A release (a tag, `gh release`, `npm publish`) or a forced push waits for you in every mode, Total
 included, until you allow it always for that agent.
 
