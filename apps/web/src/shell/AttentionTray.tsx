@@ -3,6 +3,7 @@ import { Button, IconButton, Icons, Popover } from "@apx/ui";
 import { useEffect, useMemo, useState } from "react";
 import { shortWhen } from "../common/format.ts";
 import { pairingChannel } from "../data/channels.ts";
+import { DEFAULT_PID } from "../data/identity.ts";
 import { readNotifications, useAttention } from "../data/notifications.ts";
 import { useT } from "../i18n/index.ts";
 import { loadOsNotices } from "../lazy.ts";
@@ -17,6 +18,7 @@ const KIND_ICON: Record<Notification["kind"], typeof Icons.Bell> = {
   channel: Icons.Send,
   agent: Icons.Bell,
   run: Icons.Activity,
+  memory: Icons.Brain,
 };
 
 /** Opens what a notice is about. A question stays in the tray until it is answered. */
@@ -31,6 +33,8 @@ function openNotice(n: Notification): void {
     go.channel(pairingChannel(n.ref.slice(8)) ?? "telegram", undefined);
     go.focus(n.ref);
   } else if (n.kind === "channel") go.view("channels");
+  // What agents learned about the owner is confirmed in the base project's Memory tab, which opens on "About you".
+  else if (n.kind === "memory") go.project(DEFAULT_PID, "memory");
 }
 
 /** Topbar bell: what wants the owner (an agent's question or news, a task waiting, a routine's news, a channel matter). */

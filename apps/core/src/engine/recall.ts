@@ -79,9 +79,11 @@ export async function recallFor(
   }
   const matched = notes.length;
   if (!before) {
+    // What came over from v1 is reached by search only: it may be stale, and nobody vouched for it since.
+    const sources: Memory["source"][] = ["owner", "agent"];
     if (delegated && thread.project_id)
-      add(store.memories.list({ view, scope: "project", project_id: thread.project_id, limit: STANDING }));
-    else if (!delegated) add(store.memories.list({ view, scope: "global", pending: false, limit: STANDING }));
+      add(store.memories.list({ view, scope: "project", project_id: thread.project_id, sources, limit: STANDING }));
+    else if (!delegated) add(store.memories.list({ view, scope: "global", pending: false, sources, limit: STANDING }));
     add(store.memories.list({ view, scope: "agent", agent_id: agentId, limit: STANDING }));
   }
   // The owner's turns also get a hook per own note not shown yet in this thread, so a note phrased unlike the message

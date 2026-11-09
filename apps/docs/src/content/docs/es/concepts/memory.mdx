@@ -36,6 +36,8 @@ Tres caminos, todos a la vista:
   que repetís o una forma de hacer algo que confirmaste. Escribe la nota con sus propias palabras; para una corrección
   o una forma de trabajar, primero la regla; `Why:` solo si diste motivo y `How to apply:` solo cuando existe respaldo. Dentro de un proyecto la
   guarda en el proyecto; si no, en las notas globales. Puede corregir sus propias notas y sacar una con `forget`.
+  Un registro de trabajo hecho (una entrada con fecha, commits, corridas de CI) se rechaza en las notas del proyecto y
+  en las globales: el avance va en la tarea o su plan, y un agente igual puede llevar ese diario en su propio cuaderno.
 
 - **Guardado automático.** Después de un turno común del dueño, el auxiliar puede seleccionar preferencias,
   correcciones, decisiones y referencias duraderas. Considera hasta tres turnos elegibles y conserva hasta cuatro
@@ -66,6 +68,10 @@ Los agentes no pueden editar ni borrar las notas que escribiste vos. Y algunas n
 
 - **Para confirmar.** Una nota global que un agente escribió sobre vos queda en todos los chats recién cuando la
   confirmás. Mientras tanto, aparece sólo cuando coincide con lo que dijiste.
+- **Traída de APX v1.** Notas que la configuración importó de APX v1. Casi todas son notas viejas de agentes, así que
+  pueden estar desactualizadas: los agentes las usan sólo cuando coinciden, las leen como posiblemente viejas y pueden
+  corregirlas o retirarlas. Si editás una, pasa a ser tuya. Un core que se actualiza desde una versión anterior las
+  marca una sola vez, en su primer arranque, comparándolas con los archivos de notas de v1.
 - **Guardada con contenido de afuera.** Una nota que un agente guardó mientras había una página web, un mensaje de un
   canal o el texto de otro agente en el turno: los agentes la leen como dato, no como palabra tuya, hasta que la
   confirmes o la edites. La pestaña Memoria no la marca: casi toda nota que un agente guarda mientras trabaja es así,
@@ -129,6 +135,11 @@ y proyecto, cuando ese agente está libre. Hace esto:
 - reescribe los días relativos ("hoy", "yesterday") como las fechas que querían decir, sin tocar comandos citados
   ni notas de procedimiento.
 
+Una vez al día también ordena las notas que comparte un lugar, de la misma forma: las de un proyecto o, fuera de un
+proyecto, las globales (**Sobre vos**). Sólo entran las que escribieron agentes o vinieron de APX v1; tus propias
+notas y las que esperan que las confirmes nunca se tocan. Pasadas las 40 notas, lo primero que retira son registros de
+trabajo hecho (quién hizo qué tal día, commits, corridas). **Revisar duplicados ahora** hace las dos cosas.
+
 El modelo auxiliar sólo nombra notas; APX hace la reescritura por su cuenta y nunca edita notas del dueño ni promueve
 recuerdos globales. Conserva contradicciones, números distintos y preferencias diferentes. Una pasada que olvidaría
 más de un quinto del cuaderno de una vez (al menos una nota) se rechaza entera, y ese cupo se cuenta por día. Las notas retiradas van a
@@ -159,7 +170,8 @@ agentes**, **Sobre vos** y **Olvidadas**. Buscalas, sumá una, editá o sacá cu
 
 - Las notas **Para confirmar** van primero en **Sobre vos**, cada una con un botón **Confirmar** y un link al chat
   donde el agente la aprendió. Una barra arriba dice cuántas esperan y **Confirmar todas** confirma las de la lista
-  de una vez.
+  de una vez. Mientras alguna espera, la campana muestra un aviso **Aprendió algo sobre vos** con la más nueva; abre
+  **Sobre vos** y se va cuando ya no queda ninguna.
 - Olvidar se puede deshacer. Una nota que sacás va a **Olvidadas**, donde ningún agente la ve; **Traer de vuelta** la
   recupera. **Borrar para siempre** elimina la nota y el texto de sus revisiones; conserva una huella mínima y los IDs
   fuente para impedir recrearla. Las fuentes olvidadas quedan fuera del recuerdo automático, herramientas de chats y reintentos.

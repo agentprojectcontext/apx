@@ -4,8 +4,9 @@
 import type { Memory } from "@apx/protocol";
 import { canUseChatMemory, memoryEligibleChat } from "../domain/chat-access.ts";
 import { canSee, looksSecret, type MemoryView } from "../domain/memories.ts";
-import { factSupported } from "../domain/memory-content.ts";
+import { factSupported, reportsWorkDone } from "../domain/memory-content.ts";
 import { evidenceIsLive, memoryClaimKey } from "../domain/memory-evidence.ts";
+import { notesSettled, noteWaits } from "../domain/memory-notice.ts";
 import { memorySettings } from "../domain/memory-settings.ts";
 import { procedureEvidenceIsLive } from "../domain/memory-verification.ts";
 import { placesOf, procedureSupported } from "../domain/procedure-steps.ts";
@@ -83,6 +84,12 @@ export function memoryHandlers(store: Store, index: MemoryIndex, maintenance?: M
       const view = viewOf(ctx);
       if (view && memorySettings(store).mode === "off") throw badRequest("memory is disabled");
       if (view && store.memories.excluded(view, text)) throw badRequest("the owner asked to forget that");
+      // Shared notes keep what stays true; what an agent did belongs in its task, its plan or its own notebook.
+      const shared = (id ? store.memories.get(id)?.scope : scope) !== "agent";
+      if (view && !evidence?.length && shared && reportsWorkDone(text))
+        throw badRequest(
+          "that reads like a log of work done (dates, commits, CI runs). Notes shared with the project or about the owner keep what stays true: put progress in the task or its plan, or in your own notebook (scope agent)",
+        );
       const sourceThread = ctx.agent && store.threads.get(ctx.agent.thread_id);
       if (view && evidence?.length) {
         const quote = evidence.map((e) => e.quote).join("\n");
@@ -126,6 +133,7 @@ export function memoryHandlers(store: Store, index: MemoryIndex, maintenance?: M
         const edited = store.memories.edit(id, text, {
           tainted: view ? (tainted ?? true) : false,
           pending: view ? m.scope === "global" : false,
+          ...(!view && m.source === "imported" ? { source: "owner" as const } : {}),
           ...(expected_revision !== undefined ? { expectedRevision: expected_revision } : {}),
           ...(kind ? { kind } : {}),
           ...(evidence ? { evidence } : text !== m.text || !view ? { evidence: [] } : {}),
@@ -144,6 +152,8 @@ export function memoryHandlers(store: Store, index: MemoryIndex, maintenance?: M
             : {}),
         });
         if (!edited) throw badRequest("memory changed; reload before editing");
+        if (edited.pending) noteWaits(store, edited);
+        else if (m.pending) notesSettled(store);
         invalidateMemorySummaries(store);
         index.schedule();
         return edited;
@@ -171,7 +181,7 @@ export function memoryHandlers(store: Store, index: MemoryIndex, maintenance?: M
         throw unauthorized("an agent writes notes only for its own thread's project or for itself");
       if (forgottenTwin(text, scope, view.project_id, view.agent_id))
         throw badRequest("the owner asked to forget that; do not save it again");
-      return indexed(
+      const saved = indexed(
         store.memories.add({
           scope,
           project_id: scope === "project" || evidence?.length ? view.project_id : undefined,
@@ -187,6 +197,8 @@ export function memoryHandlers(store: Store, index: MemoryIndex, maintenance?: M
           ...(evidence ? { evidence } : {}),
         }),
       );
+      noteWaits(store, saved);
+      return saved;
     },
 
     "memory.remove": ({ id, forever }, ctx) => {
@@ -197,11 +209,14 @@ export function memoryHandlers(store: Store, index: MemoryIndex, maintenance?: M
         throw unauthorized("an agent can only remove notes agents wrote that it can see");
       if (forever && view) throw unauthorized("only the owner deletes a note for good");
       invalidateMemorySummaries(store);
-      return { removed: forever ? store.memories.remove(id) : store.memories.forget(id) };
+      const removed = forever ? store.memories.remove(id) : store.memories.forget(id);
+      if (m.pending) notesSettled(store);
+      return { removed };
     },
     "memory.confirm": ({ id }) => {
       const m = store.memories.confirm(id);
       if (!m) throw notFound(`memory ${id}`);
+      notesSettled(store);
       invalidateMemorySummaries(store);
       return indexed(m);
     },
@@ -212,6 +227,7 @@ export function memoryHandlers(store: Store, index: MemoryIndex, maintenance?: M
         if (note?.pending && !note.forgotten_at && store.memories.confirm(id)) confirmed++;
       }
       if (confirmed) {
+        notesSettled(store);
         invalidateMemorySummaries(store);
         index.schedule();
       }

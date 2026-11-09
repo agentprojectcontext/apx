@@ -16,7 +16,7 @@ const toMemory = (r: Selectable<MemoriesTable>): Memory => ({
   revision: r.revision,
   ...(r.kind ? { kind: r.kind as NonNullable<Memory["kind"]> } : {}),
   ...(r.evidence ? { evidence: JSON.parse(r.evidence) as MemoryEvidence[] } : {}),
-  source: r.source === "owner" ? "owner" : "agent",
+  source: r.source === "owner" || r.source === "imported" ? r.source : "agent",
   ...opt("author_agent", r.author_agent),
   ...opt("thread_id", r.thread_id),
   ...opt("run_id", r.run_id),
@@ -29,6 +29,22 @@ const toMemory = (r: Selectable<MemoriesTable>): Memory => ({
 
 /** What one agent in one thread may see: the owner's notes, the thread's project's and its own. */
 export type MemoryView = { agent_id: string; project_id?: string | undefined };
+
+/**
+ * What one AutoDream pass tidies: an agent's own notebook in one place, or the notes its place shares (the project's,
+ * or the global ones outside a project) that no one vouched for: agents' and v1's, never the owner's or one waiting
+ * for the owner.
+ */
+export type Shelf = "notebook" | "shared";
+
+const onShelf = (n: Memory | undefined, view: MemoryView, shelf: Shelf): n is Memory =>
+  !!n &&
+  !n.forgotten_at &&
+  (shelf === "notebook"
+    ? n.source === "agent" && n.scope === "agent" && n.agent_id === view.agent_id && n.project_id === view.project_id
+    : (n.source === "agent" || n.source === "imported") &&
+      !n.pending &&
+      (view.project_id ? n.scope === "project" && n.project_id === view.project_id : n.scope === "global"));
 
 export const canSee = (v: MemoryView, m: Memory) =>
   m.scope === "global" ||
@@ -98,6 +114,8 @@ type Filters = {
   pending?: boolean | undefined;
   /** The forgotten notes instead of the live ones (the owner's list, to bring one back). */
   forgotten?: boolean | undefined;
+  /** Only notes from these sources. */
+  sources?: Memory["source"][] | undefined;
 };
 
 /** The notes a view may see, narrowed by the given filters. */
@@ -122,6 +140,7 @@ function visibleWhere(f: Filters) {
     if (f.agent_id) conds.push(eb("memories.agent_id", "=", f.agent_id));
     if (f.exclude?.length) conds.push(eb("memories.id", "not in", f.exclude));
     if (f.pending !== undefined) conds.push(eb("memories.pending", "=", f.pending ? 1 : 0));
+    if (f.sources) conds.push(eb("memories.source", "in", f.sources));
     conds.push(eb("memories.forgotten_at", f.forgotten ? "is not" : "is", null));
     return eb.and(conds);
   };
@@ -268,7 +287,7 @@ export function memoriesRepo({ one, all, run, tx }: Sql) {
       project_id?: string | undefined;
       agent_id?: string | undefined;
       text: string;
-      source: "owner" | "agent";
+      source: Memory["source"];
       author_agent?: string | undefined;
       thread_id?: string | undefined;
       run_id?: string | undefined;
@@ -317,6 +336,8 @@ export function memoriesRepo({ one, all, run, tx }: Sql) {
         evidence?: MemoryEvidence[];
         kind?: Memory["kind"];
         provenance?: { thread_id: string; run_id: string; author_agent: string };
+        /** Who now vouches for the text: the owner, once they edit a note brought over from v1. */
+        source?: Memory["source"];
       },
     ): Memory | undefined {
       return tx(() => {
@@ -335,6 +356,7 @@ export function memoriesRepo({ one, all, run, tx }: Sql) {
               ...(o.evidence ? { evidence: JSON.stringify(o.evidence) } : {}),
               ...(o.kind ? { kind: o.kind } : {}),
               ...(o.provenance ?? {}),
+              ...(o.source ? { source: o.source } : {}),
               tainted: o.tainted ? 1 : 0,
               pending: o.pending ? 1 : 0,
               updated_at: now(),
@@ -348,10 +370,35 @@ export function memoriesRepo({ one, all, run, tx }: Sql) {
         return saved;
       });
     },
+    /**
+     * Marks the owner's notes whose text is one APX v1 had, or starts with `prefix`, as brought over from v1. Notes
+     * with a chat, run or author came from v2 and stay as they are. Returns how many changed.
+     */
+    markImported(texts: ReadonlySet<string>, prefix: string): number {
+      const owners = () =>
+        qb
+          .updateTable("memories")
+          .set({ source: "imported" })
+          .where("source", "=", "owner")
+          .where("thread_id", "is", null)
+          .where("run_id", "is", null)
+          .where("author_agent", "is", null);
+      let changed = run(owners().where(raw<string>`substr(text, 1, ${prefix.length})`, "=", prefix));
+      const list = [...texts];
+      for (let i = 0; i < list.length; i += 400) changed += run(owners().where("text", "in", list.slice(i, i + 400)));
+      return changed;
+    },
     /** The owner confirms a note an agent wrote about them: from now on it stands like their own. */
     confirm(id: string): Memory | undefined {
       const note = repo.get(id);
-      return note ? repo.edit(id, note.text, { pending: false, tainted: false, reason: "confirmed" }) : undefined;
+      return note
+        ? repo.edit(id, note.text, {
+            pending: false,
+            tainted: false,
+            reason: "confirmed",
+            ...(note.source === "imported" ? { source: "owner" as const } : {}),
+          })
+        : undefined;
     },
     /** Out of every turn and search, but kept: the owner can bring it back (or delete it for good). */
     forget(id: string): boolean {
@@ -453,23 +500,11 @@ export function memoriesRepo({ one, all, run, tx }: Sql) {
         );
       });
     },
-    consolidate(refs: Array<{ id: string; revision: number }>, view: MemoryView): boolean {
+    consolidate(refs: Array<{ id: string; revision: number }>, view: MemoryView, shelf: Shelf = "notebook"): boolean {
       return tx(() => {
         if (new Set(refs.map((r) => r.id)).size !== refs.length) return false;
         const notes = refs.map((r) => repo.get(r.id));
-        if (
-          notes.some(
-            (m, i) =>
-              !m ||
-              m.revision !== refs[i]?.revision ||
-              m.forgotten_at ||
-              m.source !== "agent" ||
-              m.scope !== "agent" ||
-              m.agent_id !== view.agent_id ||
-              m.project_id !== view.project_id,
-          )
-        )
-          return false;
+        if (notes.some((m, i) => !onShelf(m, view, shelf) || m.revision !== refs[i]?.revision)) return false;
         const ordered = (notes as Memory[]).sort((a, b) => b.updated_at.localeCompare(a.updated_at));
         const keep = ordered[0] as Memory;
         if (!ordered.every((m) => duplicateMemory(keep.text, m.text))) return false;
@@ -504,17 +539,12 @@ export function memoriesRepo({ one, all, run, tx }: Sql) {
       ref: { id: string; revision: number; by?: string | undefined; by_revision?: number | undefined },
       view: MemoryView,
       reviewed = false,
+      shelf: Shelf = "notebook",
     ): boolean {
       return tx(() => {
         const m = repo.get(ref.id);
         const by = ref.by ? repo.get(ref.by) : undefined;
-        const own = (n: Memory | undefined) =>
-          !!n &&
-          !n.forgotten_at &&
-          n.source === "agent" &&
-          n.scope === "agent" &&
-          n.agent_id === view.agent_id &&
-          n.project_id === view.project_id;
+        const own = (n: Memory | undefined) => onShelf(n, view, shelf);
         if (!reviewed || !own(m) || m?.revision !== ref.revision || ref.by === ref.id) return false;
         // A correction supersedes only what was written before it.
         if (
@@ -574,12 +604,15 @@ export function memoriesRepo({ one, all, run, tx }: Sql) {
       });
     },
     /** Rewrites relative days in an agent's own note as the dates they meant (`day`: the note's own day). */
-    redate(ref: { id: string; revision: number }, view: MemoryView, day: string): Memory | undefined {
+    redate(
+      ref: { id: string; revision: number },
+      view: MemoryView,
+      day: string,
+      shelf: Shelf = "notebook",
+    ): Memory | undefined {
       const m = repo.get(ref.id);
-      // A procedure's dates and quoted steps are a record of what ran; it is never rewritten.
-      if (m?.source !== "agent" || m.scope !== "agent" || m.agent_id !== view.agent_id || m.kind === "procedure")
-        return undefined;
-      if (m.project_id !== view.project_id) return undefined;
+      // A procedure's dates and quoted steps are a record of what ran; a v1 note's "today" was v1's day, unknown here.
+      if (!onShelf(m, view, shelf) || m.kind === "procedure" || m.source === "imported") return undefined;
       const text = absoluteDates(m.text, day);
       if (text === m.text) return undefined;
       return repo.edit(m.id, text, {
@@ -699,7 +732,21 @@ export function memoriesRepo({ one, all, run, tx }: Sql) {
 export type Memories = ReturnType<typeof memoriesRepo>;
 
 /** An agent's own live notebook in one place: what it wrote itself, newest first. */
-export const ownNotes = (memories: Memories, view: MemoryView, limit = 1000) =>
+const ownNotes = (memories: Memories, view: MemoryView, limit = 1000) =>
   memories
     .list({ view, scope: "agent", agent_id: view.agent_id, limit })
     .filter((m) => m.project_id === view.project_id && m.source === "agent");
+
+/** The live notes on one shelf of this view, newest first. */
+export const shelfNotes = (memories: Memories, view: MemoryView, shelf: Shelf, limit = 1000) =>
+  shelf === "notebook"
+    ? ownNotes(memories, view, limit)
+    : memories
+        .list({
+          view,
+          scope: view.project_id ? "project" : "global",
+          sources: ["agent", "imported"],
+          pending: false,
+          limit,
+        })
+        .filter((m) => onShelf(m, view, shelf));

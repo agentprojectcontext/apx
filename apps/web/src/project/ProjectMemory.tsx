@@ -272,6 +272,10 @@ function NoteRow({ note, onChanged }: { note: Memory; onChanged: () => void }) {
         {owner && <Badge>{t("memory.notebookOf", { name: owner.name })}</Badge>}
         {note.source === "owner" ? (
           <span className="memory__by">{t("memory.byYou")}</span>
+        ) : note.source === "imported" ? (
+          <span className="memory__by" title={t("memory.fromV1Hint")}>
+            {t("memory.fromV1")}
+          </span>
         ) : (
           <span className="memory__by">
             {author && <AgentAvatar name={author.name} blob={blobOf(author)} size={16} />}

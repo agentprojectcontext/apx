@@ -338,6 +338,7 @@ export const enOffice = {
   "attention.kind.channel": "Channel",
   "attention.kind.agent": "Agent",
   "attention.kind.run": "Turn ended",
+  "attention.kind.memory": "Learned something about you",
   "commitments.youOwe": "To {name}",
   "commitments.theyOwe": "{name} owes you",
   "commitments.noPerson": "No person",

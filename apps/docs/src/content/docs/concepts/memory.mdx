@@ -32,7 +32,9 @@ Three ways, all visible:
 - **An agent**, with its `remember` tool, when it learns something worth keeping: a correction, something you repeat,
   or an approach you confirmed. It writes the note in its own words; for a correction or a way of working, the rule
   first; a `Why:` line only when you gave the reason, and `How to apply:` only when supported. Inside a project it saves to the project by default, otherwise
-  to the global notes. It can correct its own notes and remove one with `forget`.
+  to the global notes. It can correct its own notes and remove one with `forget`. A log of work done (a dated entry,
+  commits, CI runs) is refused in the project's and the global notes: progress goes in the task or its plan, and an
+  agent may still keep such a diary in its own notebook.
 
 - **Automatic capture.** After an ordinary owner turn, the helper can select durable preferences, corrections,
   decisions and references. It considers up to three eligible owner turns and keeps up to four exact supporting
@@ -62,6 +64,10 @@ Agents can't edit or remove the notes you wrote. And some notes wait for you:
 
 - **To confirm.** A global note an agent wrote about you only stands in every chat once you confirm it. Until then it
   shows up only when it matches what you said.
+- **Brought over from APX v1.** Notes the setup imported from APX v1. Most are old agents' notes, so they may be out
+  of date: agents reach them only when they match, read them as possibly outdated and may correct or retire them.
+  Edit one to vouch for it and it becomes yours. A core updated from an older version marks them once, on its first
+  start, by comparing them with v1's own note files.
 - **Saved with outside content.** A note an agent saved while a web page, a channel message or another agent's text
   was in the turn is read by agents as data, not as your word, until you confirm or edit it. The Memory tab does not
   mark it: almost every note an agent saves while working is one, so the mark told you nothing you could act on.
@@ -129,6 +135,11 @@ agent is idle. It:
 - rewrites relative days ("today", "ayer") as the dates they meant, leaving quoted commands and procedure notes as
   they are.
 
+Once a day it also tidies the notes a place shares, the same way: a project's notes, or outside a project the global
+ones (**About you**). Only notes agents wrote or that came from APX v1 are on that shelf; your own notes and the ones
+waiting for you to confirm are never touched. Past 40 notes, logs of past work (who did what on a date, commits, runs)
+are what it retires first. **Review duplicates now** runs both.
+
 Retiring a note requires a separate review of the same subject and scope; a newer date alone proves nothing.
 The helper model only names notes; APX does the rewriting itself and never changes owner notes or promotes anything to
 global memory. Contradictions, different numbers and different preferences stay separate. A pass that would forget
@@ -151,7 +162,9 @@ A project's **Memory** tab shows its notes and lets you switch between **This pr
 <Shot name="memory" alt="Acme Store's Memory tab: project notes with who wrote each one, and a search box" caption="A project's Memory tab" />
 
 - Notes **To confirm** come first in **About you**, each with a **Confirm** button and a link to the chat where the
-  agent learned it. A bar above them says how many wait and **Confirm all** confirms the ones listed at once.
+  agent learned it. A bar above them says how many wait and **Confirm all** confirms the ones listed at once. While
+  any waits, the bell shows one **Learned something about you** notice with the newest; it opens **About you** and
+  goes once none waits.
 - Forgetting is reversible. A removed note goes to **Forgotten**, where no agent sees it; **Bring back** restores
   it. Forgotten sources are excluded from automatic recall, chat tools and extraction retries. **Delete for good**
   deletes the note and its revision text; a minimal exclusion fingerprint and source IDs prevent recreation.

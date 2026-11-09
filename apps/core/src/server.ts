@@ -43,6 +43,7 @@ import { openDb, storeSize } from "./db/db.ts";
 import { type DesktopOps, systemDesktop } from "./desktop.ts";
 import { signatureFor } from "./domain/email-signature-settings.ts";
 import { cleanUpCapturedNotes } from "./domain/memory-capture-cleanup.ts";
+import { tellWaitingNotes } from "./domain/memory-notice.ts";
 import { parseRef } from "./domain/refs.ts";
 import { TERMINAL } from "./domain/runs.ts";
 import { seed } from "./domain/seed.ts";
@@ -82,6 +83,7 @@ import { createHarnesses, type Harness } from "./harness/index.ts";
 import { readIdentity } from "./identity.ts";
 import { createIdleTrim } from "./idle-memory.ts";
 import { type IMessageOps, systemIMessage } from "./imessage.ts";
+import { markV1Notes } from "./import/v1-memory-mark.ts";
 import { createAsana } from "./integrations/asana.ts";
 import { calendarApi } from "./integrations/calendar.ts";
 import { gmailApi } from "./integrations/gmail.ts";
@@ -844,6 +846,9 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
   routed = dispatch;
   const cleanup = cleanUpCapturedNotes(store);
   if (cleanup) log.info(cleanup, "captured memory cleanup: retired noisy automatic notes");
+  const v1Marked = markV1Notes(store, config.v1.home);
+  if (v1Marked?.marked) log.info(v1Marked, "memory: marked the notes brought over from APX v1");
+  tellWaitingNotes(store);
   memoryMaintenance.start();
 
   const transport = await listen(config, { dispatch, store, log, identity, broker, bus, vm });
