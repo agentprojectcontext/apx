@@ -56,7 +56,7 @@ try {
         assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
         await expect(page.locator(".blog-sources a").first()).toBeVisible();
         const related = page.locator('[aria-labelledby="related"]');
-        await expect(related.locator(".blog-row")).toHaveCount(2);
+        await expect(related.locator(".blog-row")).toHaveCount(Math.min(3, articles.length - 1));
         const relatedUrls = await related.locator(".blog-row").evaluateAll((links) => links.map((link) => link.href));
         assert.ok(
           relatedUrls.every(
