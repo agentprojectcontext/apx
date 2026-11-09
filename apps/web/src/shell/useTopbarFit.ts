@@ -3,18 +3,15 @@ import { useLayoutEffect, useRef } from "react";
 /** The search's widest, and the widths from which it shows its word and then its shortcut. */
 const SEARCH = { max: 320, icon: 30, word: 110, keys: 170 } as const;
 
-/** What a row's visible children take, with its gaps and padding. */
+/** What a row's visible children take, from the first one's left edge to the last one's right (gaps and margins
+ * between them included), plus its padding. */
 function used(el: Element | null): number {
   if (!el) return 0;
   const style = getComputedStyle(el);
-  const kids = [...el.children].map((c) => c.getBoundingClientRect().width).filter((w) => w > 0);
-  const gap = Number.parseFloat(style.columnGap) || 0;
-  return (
-    kids.reduce((a, b) => a + b, 0) +
-    gap * Math.max(0, kids.length - 1) +
-    (Number.parseFloat(style.paddingLeft) || 0) +
-    (Number.parseFloat(style.paddingRight) || 0)
-  );
+  const boxes = [...el.children].map((c) => c.getBoundingClientRect()).filter((b) => b.width > 0);
+  if (!boxes.length) return 0;
+  const span = Math.max(...boxes.map((b) => b.right)) - Math.min(...boxes.map((b) => b.left));
+  return span + (Number.parseFloat(style.paddingLeft) || 0) + (Number.parseFloat(style.paddingRight) || 0);
 }
 
 /**
