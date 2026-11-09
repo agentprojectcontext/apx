@@ -1,5 +1,5 @@
 import type { ChannelInfo } from "@apx/protocol";
-import type { ChannelDraft } from "../../data/channels.ts";
+import type { ChannelDraft, NewAccount } from "../../data/channels.ts";
 
 /** What each part of an account's settings gets: the account, its settings with unsaved edits, and how to edit them. */
 export type PaneProps = {
@@ -11,4 +11,4 @@ export type PaneProps = {
 };
 
 /** A new account not made yet: connecting makes it, with these settings and its secret (who answers: the super-agent). */
-export type Create = (base: ChannelDraft, secret?: string) => Promise<boolean>;
+export type Create = (account: NewAccount, secret?: string) => Promise<boolean>;

@@ -1,9 +1,9 @@
 // Channels, the people on them and pairing: owner-only methods (the router refuses anyone else).
 
 import fs from "node:fs";
-import { type ChannelType, ErrorCode } from "@apx/protocol";
+import { ErrorCode, type Person, SUPER_AGENT_ID } from "@apx/protocol";
+import { cannotAdd, defaultLabel, newAccount, newAccountId } from "../channels/accounts.ts";
 import { answersInHome } from "../channels/agent-project.ts";
-import { CHANNEL_CATALOG } from "../channels/catalog.ts";
 import { pairingRef } from "../channels/inbound.ts";
 import type { Channels } from "../channels/manager.ts";
 import { countryOf, whatsappDigits } from "../channels/phone.ts";
@@ -19,7 +19,7 @@ import type { Sticker } from "../domain/stickers.ts";
 import type { Store } from "../domain/store.ts";
 import { previewOf } from "../domain/threads.ts";
 import type { Nudges } from "../engine/nudges.ts";
-import { badRequest, CallError, errorMessage, notFound } from "../errors.ts";
+import { badRequest, CallError, conflict, errorMessage, notFound } from "../errors.ts";
 import type { Handlers } from "./router.ts";
 
 /** How long a send waits for the platform's answer before saying it is still queued (the tools have 15 s). */
@@ -42,6 +42,17 @@ export function channelHandlers(store: Store, channels: Channels, nudges: Pick<N
     const media = store.media.get(s.media_id);
     return media ? [{ ...s, mime: media.mime }] : [];
   };
+  /** An address typed for a channel, as the platform writes it; a number without its country code is read in the
+   * person's country, else the owner's. */
+  const addressOn = (cfg: { type: string; label: string }, address: string, who?: Person) => {
+    const phones = [...(who ? [who] : []), store.persons.owner()].flatMap((p) =>
+      p.addresses.flatMap((a) => phoneIn(a.external_id)),
+    );
+    const typed = typedAddress(cfg.type, address, phones.map(countryOf).find(Boolean));
+    if ("problem" in typed) throw badRequest(typed.problem);
+    if (!typed.external) throw badRequest(`"${address}" is not a ${cfg.label} address`);
+    return typed.external;
+  };
   return {
     "channels.list": () => ({ channels: channels.info() }),
     // Open to agents: what channel_list shows. Disabled channels are not there for them.
@@ -59,10 +70,12 @@ export function channelHandlers(store: Store, channels: Channels, nudges: Pick<N
     }),
     "channels.set": async ({ id, channel, token }) => {
       for (const agent of [channel?.agent_id, channel?.contacts_agent_id])
-        if (agent && !store.agents.get(agent)) throw notFound(`agent ${agent}`);
+        if (agent && !store.agents.active(agent)) throw notFound(`agent ${agent}`);
       if (channel?.type === "telegram" && !token && !channels.info().find((c) => c.id === id)?.token_set)
         throw badRequest("a Telegram channel needs its bot token (from @BotFather)");
       const saved = channels.info();
+      const refused = channel && cannotAdd(channel.type, saved, id);
+      if (refused) throw conflict(refused);
       const label = channel?.label || saved.find((c) => c.id === id)?.label;
       // Another agent than the super-agent answers the owner in the channel's own chat: Home is the super-agent's.
       const ownerThread = channel && !answersInHome(store, channel.agent_id) ? "own" : channel?.owner_thread;
@@ -70,6 +83,17 @@ export function channelHandlers(store: Store, channels: Channels, nudges: Pick<N
         ? { ...channel, owner_thread: ownerThread ?? "home", label: label || defaultLabel(channel.type, id, saved) }
         : null;
       return { channels: await channels.set(id, config, token) };
+    },
+    "channels.add": async ({ type, label, self_owner, email, token }) => {
+      if (type === "telegram" && !token) throw badRequest("a Telegram channel needs its bot token (from @BotFather)");
+      const saved = channels.info();
+      const refused = cannotAdd(type, saved);
+      if (refused) throw conflict(refused);
+      const id = newAccountId(type, saved);
+      const superAgent = store.agents.list().find((a) => a.kind === "secretary")?.id ?? SUPER_AGENT_ID;
+      const name = label?.trim() || defaultLabel(type, id, saved);
+      const config = newAccount(type, superAgent, { label: name, self_owner, email });
+      return { id, channels: await channels.add(id, config, token) };
     },
     "channels.send": ({ thread, text, omit_signature }) => {
       if (!store.threads.get(thread)) throw notFound(`thread ${thread}`);
@@ -177,8 +201,8 @@ export function channelHandlers(store: Store, channels: Channels, nudges: Pick<N
       }
       return { removed: true };
     },
-    "channels.outbox": ({ limit }) => ({
-      items: store.channels.outbox.recent(limit).map(publicOutbox),
+    "channels.outbox": ({ limit, channel }) => ({
+      items: store.channels.outbox.recent(limit, channel).map(publicOutbox),
     }),
 
     "notices.get": () => noticePrefs(store),
@@ -234,14 +258,23 @@ export function channelHandlers(store: Store, channels: Channels, nudges: Pick<N
       if (!cfg) throw notFound(`channel ${channel}`);
       const who = person ? store.persons.get(person) : store.persons.owner();
       if (!who) throw notFound(`person ${person}`);
-      // A number without its country code is read in the contact's country, else the owner's.
-      const phones = [who, store.persons.owner()].flatMap((p) => p.addresses.flatMap((a) => phoneIn(a.external_id)));
-      const typed = typedAddress(cfg.type, address, phones.map(countryOf).find(Boolean));
-      if ("problem" in typed) throw badRequest(typed.problem);
-      const external = typed.external;
-      if (!external) throw badRequest(`"${address}" is not a ${cfg.label} address`);
+      const external = addressOn(cfg, address, who);
       store.tx(() => store.persons.link(who.id, { channel, external_id: external, label: cfg.label }));
       return store.persons.get(who.id) as NonNullable<ReturnType<typeof store.persons.get>>;
+    },
+    "contacts.add": ({ channel, name, address }) => {
+      const cfg = channels.info().find((c) => c.id === channel);
+      if (!cfg) throw notFound(`channel ${channel}`);
+      const external = addressOn(cfg, address);
+      const holder = store.persons.byAddress(channel, external);
+      if (holder)
+        throw conflict(`${address} on ${cfg.label} is already ${holder.role === "owner" ? "yours" : holder.name}`);
+      const made = store.tx(() => {
+        const p = store.persons.create({ name, role: "contact" });
+        store.persons.link(p.id, { channel, external_id: external, label: cfg.label });
+        return p.id;
+      });
+      return store.persons.get(made) as NonNullable<ReturnType<typeof store.persons.get>>;
     },
 
     "pairing.list": () => ({
@@ -315,13 +348,4 @@ function otherAddress(type: string, typed: string): string | undefined {
     return /^\+[1-9]\d{6,14}$/.test(phone) ? phone : type === "imessage" ? mail : undefined;
   }
   return /^-?\d{3,20}$/.test(typed.trim()) ? typed.trim() : undefined;
-}
-/** The app's name, numbered from the second account of it on ("WhatsApp 2") so the list tells them apart. */
-function defaultLabel(type: string, id: string, saved: readonly { id: string; type: string; label: string }[]): string {
-  const name = CHANNEL_CATALOG[type as ChannelType]?.label ?? type;
-  const others = new Set(saved.filter((c) => c.type === type && c.id !== id).map((c) => c.label));
-  if (!others.size) return name;
-  let n = others.size + 1;
-  while (others.has(`${name} ${n}`)) n++;
-  return `${name} ${n}`;
 }

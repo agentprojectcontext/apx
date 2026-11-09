@@ -9,7 +9,7 @@ import type { Store } from "../domain/store.ts";
 import { noticeTaskWaiting } from "../domain/task-attention.ts";
 import { previewOf } from "../domain/threads.ts";
 import { inlineName, untrusted } from "../tools/result.ts";
-import { taskWords } from "../tools/tasks.ts";
+import { asWritten, taskWords } from "../tools/tasks.ts";
 import { handoffBrief } from "./task-handoff.ts";
 
 const MAX_MENTIONS = 3;
@@ -129,7 +129,7 @@ export function taskBlock(
     `Task ${t.id}:`,
     goal,
     asked,
-    `${asked ? `Brief by ${creator}` : "What it is"}:\n${taskWords(t, words)}`,
+    `${asked ? `Brief by ${creator}` : "What it is"}:\n${taskWords(asWritten(store, t), words)}`,
     brief,
     state,
     plan,

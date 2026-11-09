@@ -7,7 +7,7 @@ import type { ProviderConfig } from "../config.ts";
 import { createSecrets } from "../secrets.ts";
 import { toAnthropic } from "./anthropic-messages.ts";
 import { createLlm, retryWait } from "./llm.ts";
-import { ProviderError, resetOf } from "./types.ts";
+import { limitKind, ProviderError, resetOf } from "./types.ts";
 
 const home = fs.mkdtempSync(path.join(os.tmpdir(), "apx-llm-"));
 const secrets = createSecrets(home, "file", {});
@@ -594,6 +594,20 @@ test("a 429's reset is read from Retry-After or the body, and an implausible one
   assert.equal(resetOf("You exceeded your current quota", undefined, now), undefined);
   assert.equal(resetOf(JSON.stringify({ resets_at: 1 }), undefined, now), undefined, "long past");
   assert.equal(resetOf(JSON.stringify({ resets_at: "2027-03-02T10:00:00Z" }), undefined, now), undefined, "a year out");
+});
+
+test("a pause to slow down is told apart from a plan that is out, in every wording providers use", () => {
+  // OpenAI's standard pause says "limit reached" too: it is a wait of seconds, not the plan's limit.
+  assert.equal(
+    limitKind("rate_limit_exceeded Rate limit reached for gpt-5 in organization org-x. Try again in 2s."),
+    "rate_limit",
+  );
+  assert.equal(limitKind("Too many requests, slow down"), "rate_limit");
+  assert.equal(limitKind("usage_limit_reached The usage limit has been reached"), "quota");
+  assert.equal(limitKind("You exceeded your current quota, please check your plan and billing details."), "quota");
+  assert.equal(limitKind("You have exceeded your monthly included credits"), "quota");
+  assert.equal(limitKind("insufficient_quota"), "quota");
+  assert.equal(limitKind("The image you provided requires 70161 patches, exceeding the limit of 30000."), undefined);
 });
 
 test("a request the plan refuses is not its usage limit: the model is asked again next turn; the plan's limit holds it", async () => {

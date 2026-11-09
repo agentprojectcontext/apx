@@ -4176,6 +4176,11 @@ project's agents, so a project's agent could never answer a channel.
 - **An account is a channel.** A second account of an app gets its own id (the app's name for the first, a random
   suffix after it, never the number or token), its own sign-in, contacts, chats, outbox and sidebar row, and a name
   numbered from the second on ("WhatsApp 2") that the owner can change. A save without a name keeps the saved one.
+- **The core makes a new account** (`channels.add`): it mints the id, names it, has the super-agent answer it and gives it
+  the defaults every account starts with (`CHANNEL_DEFAULTS`), so no client repeats them. iMessage is one per Mac, in
+  `channels.add` and `channels.set` alike (two would read one Messages database and answer twice). An account added
+  but never connected (the panel closed meanwhile) is dropped when the core starts again. `contacts.add` makes a contact
+  and its address in one transaction, and refuses an address someone already has.
 - **Who answers.** `agent_id` answers the owner in the channel's own chat; `contacts_agent_id` (none: `agent_id`)
   answers its contacts and rooms. The picker lists the super-agent and each project's head (`teamHead`); the rest of
   a team is reached through its head. A chat takes the project of the agent that answers it.
@@ -4185,6 +4190,10 @@ project's agents, so a project's agent could never answer a channel.
   only a channel it answers may take the owner there. A channel answered by another agent keeps the owner in its own
   chat (`channels.set` saves `owner_thread: "own"` for it, and inbound and outgoing never fall back to Home); the
   settings show "Own chat" fixed and say why.
+- **Saved channels keep their meaning.** Before, Home took the owner's words whoever `agent_id` was, so that agent in
+  practice answered only contacts. A store migration (the way stored values move, as in [D-106](#d-106)) saves each such
+  channel as it worked: `contacts_agent_id` the old agent, `agent_id` the super-agent, Home kept. A channel already on
+  its own chat, answered by the super-agent, or with a contacts agent of its own is left as it is.
 - **Contacts stay sealed** (D-014, D-022) whoever answers them. A project's head answering a contact gets no more
   tools than the super-agent would.
 - **Channels is a screen of its own**, beside Flows in the sidebar, not a section of Settings: it lists every account
@@ -4194,8 +4203,8 @@ project's agents, so a project's agent could never answer a channel.
   account's (when unanswered questions follow the owner) moved to Settings › Interruptions; links to the old place
   (`apx:settings/channels`) open the screen.
 
-Rejected: removing Home as the destination of the owner's words, migrating saved settings to "own chat" at boot (it
-breaks the one conversation and a migration belongs to `doctor --fix`), resetting a chat's agents on every incoming
+Rejected: removing Home as the destination of the owner's words, migrating saved settings to "own chat" (it breaks
+the one conversation), reading old settings the old way at every load (a shim kept forever, rule 14), resetting a chat's agents on every incoming
 message (it undoes hand-overs), and per-channel "customer service" modes that give admitted contacts, strangers
 included, the agent's tools and MCP servers, with a model's JSON answer as the gate in the reviewed mode. Contacts'
 messages are untrusted (rule 10); opening tools to them needs its own design: the exact tools the owner lends, what
@@ -4207,11 +4216,12 @@ each may reach, and who confirms what.
 Start times, the hourly pickup and the stall check each listed the 500 most recently active open tasks and filtered
 them in code, so in an office with more open tasks an eligible older one was never seen (#139).
 
-- **Start times and pickup filter in SQL** (`domain/task-lanes.ts`): open, not proposed or in review, described, an
-  agent that exists, no chat yet, not held, start time come (pickup: assigned since `task_work_since`), ordered as
-  before (start time; priority then nearest due date) and limited to the three that start. Every condition the start
-  checks again is in the query, so a task that cannot start never takes a slot; a tripped chain turns into a hold and
-  leaves the query. No cursor or saved state is needed.
+- **Start times and pickup filter in SQL** (`domain/task-lanes.ts`): open, not proposed or in review, described (blank
+  as the start reads it: SQLite's `trim()` is given every character JavaScript's `trim()` strips), an agent that exists,
+  no chat yet, not held, start time come (pickup: assigned since `task_work_since`), ordered as before (start time;
+  priority then nearest due date) and limited to the three that start. Every condition the start checks again is in the
+  query, so a task that cannot start never takes a slot; a tripped chain turns into a hold and leaves the query. No
+  cursor or saved state is needed.
 - **Stall recovery walks a cursor.** Whether a task stalled depends on its chats' last turns, which SQL does not filter
   cheaply, so the check takes the next 100 tasks in progress (in progress, an existing agent, not awaiting the owner,
   no open subtask) after a cursor saved in settings (`task_stall_after`), wraps once to the start, and asks at most
@@ -4236,13 +4246,15 @@ happened to work it had started itself.
 
 - **Recorded at the start** (`startTaskWork` in `engine/task-work.ts`): when the head starts a task from a project chat
   that is not a task's own, the task's chat keeps `coordination_from` (that chat, the head's run, the work run). A held
-  start that resumes later goes through the same place, so it is recorded then.
+  start that resumes later goes through the same place, so it is recorded then. Any other start (the owner's, another
+  agent's, the head's from elsewhere) clears it: it is the coordination that most recently started the task.
 - **Trusted only if it checks out** (`coordinatedTaskSource` in `engine/task-report.ts`): the record counts only while
   the head's run is in that chat, the chat is in the task's project, and the work run is in a chat of that task, was
   started by that same run and began after it. Anything else, a forged or stale record included, is ignored.
-- **What the head hears**: the task's close report, as any recipient (D-076's report). A reviewer that sends the task
-  back (`reviewEnded`) also tells the head with a `task_feedback` turn, framed as team feedback and not an approval,
-  once per reviewer run (`coordination_feedback` in the head's chat) and not while that chat is paused (D-081).
+- **What the head hears**: the task's close report, as any recipient (D-076's report), unless it closed the task itself.
+  A reviewer that sends the task back (`reviewEnded`) also tells the head with a `task_feedback` turn, framed as team
+  feedback and not an approval, once per reviewer run (`coordination_feedback` in the head's chat) and not while that
+  chat is paused (D-081).
 - **No new authority**: hearing a result grants nothing. What the head does next goes through the same assignment,
   proposal and review rules (D-079, D-131).
 

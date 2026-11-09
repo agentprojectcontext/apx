@@ -6,6 +6,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { UPLOAD_LIMITS } from "@apx/protocol";
 import type { Inbound, Presentation } from "../domain/channels.ts";
+import type { RunTimers } from "../engine/engine.ts";
 import { errorMessage } from "../errors.ts";
 import type { Log } from "../log.ts";
 import { countryOf, whatsappDigits } from "./phone.ts";
@@ -19,6 +20,7 @@ import {
   type Recovered,
   SendError,
 } from "./types.ts";
+import { lookup, wallTimers } from "./whatsapp-lookup.ts";
 import { type Menu, menuText, optionNamed, readMenu, tapFor, WA_CONTAINERS } from "./whatsapp-menus.ts";
 
 /** The part of the library APX uses, so a test can hand in its own. */
@@ -142,9 +144,9 @@ export const normalJid = (jid: string | null | undefined): string => {
 };
 const isPhone = (jid: string) => jid.endsWith("@s.whatsapp.net");
 /** The number a private id stands for, when this device has learned it (from a send or an earlier message). */
-async function numberOf(s: WaSocket, jid: string): Promise<string> {
+async function numberOf(s: WaSocket, jid: string, timers: RunTimers): Promise<string> {
   if (!jid.endsWith("@lid")) return jid;
-  const pn = normalJid(await s.signalRepository?.lidMapping?.getPNForLID?.(jid)?.catch(() => undefined));
+  const pn = normalJid(await lookup(timers, s.signalRepository?.lidMapping?.getPNForLID?.(jid)));
   return isPhone(pn) ? pn : jid;
 }
 const digitsOf = (jid: string) => jid.split("@")[0] ?? "";
@@ -270,8 +272,11 @@ export function whatsappAdapter(opts: {
   lib?: () => Promise<WaLib>;
   /** How long the phone has to send a message again (tests shorten it). */
   resendWaitMs?: number;
+  /** The clock of the id lookups' deadline (tests drive it). */
+  timers?: RunTimers;
 }): ChannelAdapter {
   const { dir, log } = opts;
+  const timers = opts.timers ?? wallTimers;
   let lib: WaLib | undefined;
   let sock: WaSocket | undefined;
   let io: AdapterIO | undefined;
@@ -363,7 +368,7 @@ export function whatsappAdapter(opts: {
 
   async function onPresence(s: WaSocket, p: WaPresence): Promise<void> {
     for (const [jid, v] of Object.entries(p.presences)) {
-      const who = await numberOf(s, normalJid(jid));
+      const who = await numberOf(s, normalJid(jid), timers);
       if (!v.lastKnownPresence) continue;
       // Typing or recording is being there too.
       const online = v.lastKnownPresence !== "unavailable";
@@ -445,7 +450,7 @@ export function whatsappAdapter(opts: {
     // One person, one address: their phone number when WhatsApp tells it or this device learned it, their private id
     // otherwise.
     const told = alt && isPhone(alt) ? alt : jid;
-    const who = m.key.fromMe ? me.pn : sock ? await numberOf(sock, told) : told;
+    const who = m.key.fromMe ? me.pn : sock ? await numberOf(sock, told, timers) : told;
     const name = m.key.fromMe ? "Owner" : m.verifiedBizName?.trim() || m.pushName?.trim() || `+${digitsOf(who)}`;
     const reacted = content.reactionMessage;
     if (reacted) {
@@ -555,7 +560,7 @@ export function whatsappAdapter(opts: {
     wanted: Array<{ id: string; fromMe: boolean }>,
   ): Promise<Map<string, WaMessage>> {
     const lid = isPhone(conversation)
-      ? normalJid(await s.signalRepository?.lidMapping?.getLIDForPN?.(conversation)?.catch(() => undefined))
+      ? normalJid(await lookup(timers, s.signalRepository?.lidMapping?.getLIDForPN?.(conversation)))
       : "";
     const jidsOf = (id: string) => [
       ...new Set([chats.get(id), lid, conversation].filter((j): j is string => Boolean(j))),
@@ -723,7 +728,7 @@ export function whatsappAdapter(opts: {
       if (!s) return [];
       const out: Array<{ from: string; to: string }> = [];
       for (const from of addresses) {
-        const to = await numberOf(s, from);
+        const to = await numberOf(s, from, timers);
         if (to !== from) out.push({ from, to });
       }
       return out;

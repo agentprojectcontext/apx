@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import fs from "node:fs";
+import os from "node:os";
 import path from "node:path";
 import { CORE_ENV_FILE, parseCoreEnv, serializeCoreEnv } from "@apx/protocol";
 
@@ -56,8 +57,24 @@ export function prepareLocalTarget(target: LocalTarget, token?: string): LocalTa
   return target;
 }
 
-/** A local handoff carries identity, never credentials. The app reads the token from the selected home. */
-export function saveLocalTarget(dataDir: string, target: LocalTarget): void {
+/** Whether `dataDir` is this machine's own desktop app folder (APX_DESKTOP_DATA aside), in any case on Windows. */
+function isMachineDesktop(dataDir: string, env: NodeJS.ProcessEnv): boolean {
+  const fold = (x: string) => (process.platform === "win32" ? x.toLowerCase() : x);
+  const own = desktopDataDir(
+    process.platform,
+    { APPDATA: env.APPDATA, XDG_CONFIG_HOME: env.XDG_CONFIG_HOME },
+    os.homedir(),
+  );
+  return fold(path.resolve(dataDir)) === fold(path.resolve(own));
+}
+
+/**
+ * A local handoff carries identity, never credentials. The app reads the token from the selected home. Refuses the
+ * machine's own desktop app under a test runner, like the store refuses the real home.
+ */
+export function saveLocalTarget(dataDir: string, target: LocalTarget, env: NodeJS.ProcessEnv = process.env): void {
+  if ((env.NODE_TEST_CONTEXT || env.TEST_WORKER_INDEX) && isMachineDesktop(dataDir, env))
+    throw new Error(`refusing to write the desktop app's own connection in ${dataDir} from a test run`);
   if (
     !path.isAbsolute(target.home) ||
     !Number.isInteger(target.port) ||
