@@ -293,7 +293,7 @@ function renderCard(p: Part, agent: Agent | undefined, message: Msg): ReactNode 
     case "connect":
       return (
         <Suspense fallback={null}>
-          <ConnectPart part={p} threadId={message.thread_id} messageId={message.id} />
+          <ConnectPart part={p} />
         </Suspense>
       );
     case "flow":

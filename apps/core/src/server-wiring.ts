@@ -13,6 +13,7 @@ import { nativeApproval } from "./domain/approvals.ts";
 import type { Store } from "./domain/store.ts";
 import { type Added, tellAdded } from "./engine/added.ts";
 import { audienceOf } from "./engine/audience.ts";
+import { type Connected, wakeAfterConnect } from "./engine/connect-wake.ts";
 import { createHooks } from "./engine/hooks.ts";
 import type { Permissions } from "./engine/permissions.ts";
 import { applyProfile, listProfiles, type ProfileRoot } from "./engine/profiles.ts";
@@ -302,6 +303,20 @@ export function coreHandlers(d: HandlerDeps & { vm?: Computer | undefined }) {
   const added = (ctx: CallContext, a: Added) => {
     if (ctx.actor === "human" && !ctx.agent) tellAdded(d.store, d.engine.admit, a);
   };
+  // What the owner connects reaches the agent that offered it on a card and waits for it.
+  const connected = (ctx: CallContext, what: Connected["what"], ids: string[]) => {
+    if (ctx.actor === "human" && !ctx.agent)
+      for (const id of ids) wakeAfterConnect(d.store, d.engine.admit, { what, id });
+  };
+  const integrations = integrationHandlers({
+    store: d.store,
+    secrets: d.secrets,
+    mcp: d.mcp,
+    google: d.google,
+    asana: d.asana,
+    ...(d.integrationFetch ? { fetch: d.integrationFetch } : {}),
+  });
+  const channelsH = channelHandlers(d.store, d.channels, d.nudges);
   return {
     ...environmentHandlers(d.store, d.vm, d.engine.cancel),
     ...desktopInstallHandlers(d.desktopInstaller),
@@ -334,7 +349,12 @@ export function coreHandlers(d: HandlerDeps & { vm?: Computer | undefined }) {
     ...runHandlers(d.store, d.engine),
     ...jobHandlers(d.store, d.engine),
     ...memoryHandlers(d.store, d.memory, d.memoryMaintenance),
-    ...channelHandlers(d.store, d.channels, d.nudges),
+    ...channelsH,
+    "channels.add": async (p: Parameters<(typeof channelsH)["channels.add"]>[0], ctx: CallContext) => {
+      const r = await channelsH["channels.add"](p);
+      connected(ctx, "channel", [p.type]);
+      return r;
+    },
     ...emailSignatureHandlers(d.store, d.google),
     ...mailHandlers(d.store, d.google, d.channels),
     ...mediaHandlers(d.services, d.store),
@@ -356,14 +376,23 @@ export function coreHandlers(d: HandlerDeps & { vm?: Computer | undefined }) {
     ...mcpHandlers(d.mcp, d.store, (name) =>
       name === "asana" ? d.asana.connected() : isGoogleId(name) && d.google.connected(name),
     ),
-    ...integrationHandlers({
-      store: d.store,
-      secrets: d.secrets,
-      mcp: d.mcp,
-      google: d.google,
-      asana: d.asana,
-      ...(d.integrationFetch ? { fetch: d.integrationFetch } : {}),
-    }),
+    ...integrations,
+    "integrations.connect": async (
+      p: Parameters<(typeof integrations)["integrations.connect"]>[0],
+      ctx: CallContext,
+    ) => {
+      const r = await integrations["integrations.connect"](p);
+      connected(ctx, "integration", [p.id]);
+      return r;
+    },
+    "integrations.oauth_finish": async (
+      p: Parameters<(typeof integrations)["integrations.oauth_finish"]>[0],
+      ctx: CallContext,
+    ) => {
+      const r = await integrations["integrations.oauth_finish"](p);
+      connected(ctx, "integration", [r.id, ...(r.also ?? [])]);
+      return r;
+    },
     ...asanaHandlers(d.store, d.asana),
     ...resourceHandlers({
       store: d.store,

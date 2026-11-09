@@ -63,6 +63,8 @@ export type Origin =
   | { kind: "job"; job_id: string; command: string; state: RunState; exit_code: number | null }
   /** A command the agent suggested, which the owner ran in a terminal, has ended. */
   | { kind: "terminal"; terminal_id: string; command: string; exit_code: number | null }
+  /** The owner connected an app or channel an agent offered on a card in this chat (engine/connect-wake.ts). */
+  | { kind: "connected"; what: "integration" | "channel"; id: string; label: string; message_id: string }
   /** The owner let agents go on after a pause: with a fresh budget, or with no limit this round (DECISIONS.md#d-081). */
   | { kind: "go_on"; mode: "reset" | "release" }
   /** The agent's task turn ended with the task still in progress: APX starts its next part (engine/task-continue.ts). */
@@ -124,6 +126,7 @@ export const runsOnComputer = (o: Origin): boolean => {
     case "go_on":
     case "job":
     case "terminal":
+    case "connected":
     case "routine":
     case "stalled_task":
     case "task_continue":

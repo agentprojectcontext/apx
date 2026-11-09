@@ -4,7 +4,9 @@ import { expect, open, rpc, test, until } from "./kit.ts";
 
 type Person = { role: string; addresses: Array<{ channel: string; external_id: string }> };
 
-test("email settings: own addresses typed, no Home or while-it-works choice, strangers only listed", async ({ page }) => {
+test("email settings: own addresses typed, no Home or while-it-works choice, strangers only listed", async ({
+  page,
+}) => {
   // Its servers are not there: the account shows an error, and its settings still open.
   const { id } = await rpc<{ id: string }>("channels.add", {
     type: "email",
@@ -44,7 +46,9 @@ test("email settings: own addresses typed, no Home or while-it-works choice, str
     await expect(dialog.getByText("Mientras trabaja")).toHaveCount(0);
 
     await dialog.getByRole("button", { name: "Aprobaciones" }).click();
-    await expect(dialog.getByText("Queda anotado acá para que lo apruebes; no se le manda ningún correo.")).toBeVisible();
+    await expect(
+      dialog.getByText("Queda anotado acá para que lo apruebes; no se le manda ningún correo."),
+    ).toBeVisible();
   } finally {
     await rpc("channels.set", { id, channel: null });
   }
