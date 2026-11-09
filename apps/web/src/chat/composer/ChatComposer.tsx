@@ -5,7 +5,7 @@ import { MOD } from "../../common/modKey.ts";
 import { useEngineLabel } from "../../common/useEngineLabel.ts";
 import { ModelChoicePicker } from "../../config/models/ModelPickers.tsx";
 import { cancel, loadThread, makeChat, send } from "../../data/actions.ts";
-import { sendDirect } from "../../data/channels.ts";
+import { sendDirect, useChannels } from "../../data/channels.ts";
 import { setThreadModel } from "../../data/composer.ts";
 import { draftOf, keepDraft, subscribeDrafts } from "../../data/drafts.ts";
 import { isPending, isWorking } from "../../data/identity.ts";
@@ -81,7 +81,13 @@ export function ChatComposer({
   // A queued delegation is work the owner can stop too.
   const busy = isPending(thread.state);
   const room = thread.channel && !thread.channel.person_id ? thread.title : undefined;
-  const [direct, setDirect] = useState(false);
+  // A group on the owner's own phone that the agent may not speak in as them: only the owner writes there.
+  const ownerOnly = useChannels((s) => {
+    const c = room ? s.channels.find((x) => x.id === thread.channel?.id) : undefined;
+    return c?.self_owner === true && c.rooms?.as_owner !== true;
+  });
+  const [chosen, setDirect] = useState(false);
+  const direct = chosen || ownerOnly;
   const agentName = agent?.name ?? t("composer.yourAgent");
   const slash = useSlashMenu({ thread, agent, text, setText, busy, onNew });
   const runs = useMemo(
@@ -221,7 +227,7 @@ export function ChatComposer({
               ]}
               trigger={<IconButton size="sm" label={t("composer.attach")} icon={<Icons.Plus size={16} />} />}
             />
-            {room && (
+            {room && !ownerOnly && (
               <SegmentedControl
                 size="sm"
                 label={t("ch.room.who")}
@@ -266,7 +272,10 @@ export function ChatComposer({
         <div className="chat__composer-foot">
           {room && (
             <p className="chat__composer-hint">
-              {t(direct ? "ch.room.hint.me" : "ch.room.hint.agent", { agent: agentName, room })}
+              {t(ownerOnly ? "ch.room.hint.mine" : direct ? "ch.room.hint.me" : "ch.room.hint.agent", {
+                agent: agentName,
+                room,
+              })}
             </p>
           )}
           {queueHint && <p className="chat__composer-hint is-queue">{queueHint}</p>}

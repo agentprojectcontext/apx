@@ -32,7 +32,7 @@ MCP servers or paired devices. Each type below has setup instructions; several r
 | Channel | Setup and important limit |
 |---|---|
 | Telegram | [Bot setup](/channels/telegram/); direct chats and listed groups. |
-| WhatsApp | [QR linking](/channels/whatsapp/); your line or a dedicated line. |
+| WhatsApp | [QR linking](/channels/whatsapp/); your line or a dedicated line; listed groups. |
 | Discord | [Bot and rooms](/channels/discord-slack/); explicitly allow server rooms. |
 | Slack | [Socket Mode app](/channels/discord-slack/); direct messages. |
 | iMessage | [Mac permissions](/channels/imessage/); runs on the Mac hosting the core. |
@@ -60,7 +60,8 @@ for the Android app and [integrations](/extend/integrations/) for connected serv
 
 - A **channel** is an app APX talks through: Telegram, WhatsApp, Discord, Slack, iMessage, Google Chat, SMS and more.
 - A **contact** is a person on a channel. Each contact has a direct chat with your agent.
-- A **room** is a shared place many people read, such as a channel on your Discord server.
+- A **room** is a shared place many people read, such as a channel on your Discord server or a WhatsApp group you
+  listed.
 
 Every contact chat and every room is kept as an APX conversation, so you can read it, search it and step in from the
 panel. Agents use the same words: they can list channels and contacts, write to a contact, read a room and post in
@@ -241,7 +242,7 @@ on for that chat; that needs a voice in **Settings › Voices** too.
 | Channel | State | How it connects |
 |---|---|---|
 | [Telegram](/channels/telegram/) | Complete | A bot you create with BotFather |
-| [WhatsApp](/channels/whatsapp/) | Complete | A linked device, by QR |
+| [WhatsApp](/channels/whatsapp/) | Complete | A linked device, by QR: chats and the groups you list |
 | [Discord](/channels/discord-slack/) | Complete | A bot: direct messages and server rooms |
 | [Slack](/channels/discord-slack/) | Complete | An app in Socket Mode: direct messages |
 | [iMessage](/channels/imessage/) | Unverified | On a Mac: tools agents use, and (optional) answering the people you approve |

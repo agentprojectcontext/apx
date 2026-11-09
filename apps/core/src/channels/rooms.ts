@@ -1,4 +1,4 @@
-// Public rooms (a Discord server's channels, Telegram groups the owner listed). Every message there is kept in the room's chat, so the
+// Public rooms (a Discord server's channels, Telegram and WhatsApp groups the owner listed). Every message there is kept in the room's chat, so the
 // agent knows what the room was talking about when it is called; whether it answers depends on the room's mode, who
 // called it, a cheap model's judgment ("useful" rooms) and the room's limits. Answers are sealed turns, the owner's
 // too: the room is public. See DECISIONS.md#d-041
@@ -55,6 +55,13 @@ export function roomDecision(o: {
   if (o.called || o.mode === "always") return "reply";
   return o.mode === "useful" ? "gate" : "keep";
 }
+
+/**
+ * A line that is the owner's own phone speaks in a group as the owner: its groups are only read until the owner allows
+ * the agent to answer there as them. See DECISIONS.md#d-210
+ */
+export const roomsReadOnly = (cfg: Pick<ChannelConfig, "self_owner" | "rooms">): boolean =>
+  cfg.self_owner === true && cfg.rooms?.as_owner !== true;
 
 /** A room message's reply in the outside world: no pings to everyone. */
 export const quietMentions = (text: string) => text.replace(/@(everyone|here)\b/g, "@​$1");
@@ -284,7 +291,7 @@ export function createRooms(deps: {
       const decision = who.blocked
         ? "keep"
         : roomDecision({
-            mode: room.mode,
+            mode: roomsReadOnly(cfg) ? "read" : room.mode,
             called,
             owner: who.owner,
             ownerOnly: settings.owner_only || cfg.owner_only === true,

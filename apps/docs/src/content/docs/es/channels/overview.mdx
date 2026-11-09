@@ -33,7 +33,7 @@ servidores MCP ni dispositivos vinculados. Todos tienen instrucciones abajo; alg
 | Canal | Configuración y límite importante |
 |---|---|
 | Telegram | [Bot](/es/channels/telegram/); chats directos y grupos listados. |
-| WhatsApp | [Vinculación QR](/es/channels/whatsapp/); tu línea o una dedicada. |
+| WhatsApp | [Vinculación QR](/es/channels/whatsapp/); tu línea o una dedicada; grupos listados. |
 | Discord | [Bot y salas](/es/channels/discord-slack/); habilitá las salas explícitamente. |
 | Slack | [App con Socket Mode](/es/channels/discord-slack/); mensajes directos. |
 | iMessage | [Permisos en Mac](/es/channels/imessage/); en la Mac del core. |
@@ -62,7 +62,8 @@ app Android e [integraciones](/es/extend/integrations/) para servicios conectado
 
 - Un **canal** es una app por la que habla APX: Telegram, WhatsApp, Discord, Slack, iMessage, Google Chat, SMS y más.
 - Un **contacto** es una persona en un canal. Cada contacto tiene un chat directo con tu agente.
-- Una **sala** es un lugar compartido que leen muchas personas, como un canal de tu servidor de Discord.
+- Una **sala** es un lugar compartido que leen muchas personas, como un canal de tu servidor de Discord o un grupo de
+  WhatsApp que listaste.
 
 Cada chat con un contacto y cada sala queda guardado como una conversación de APX, así que lo podés leer, buscar y
 meterte desde el panel. Los agentes usan las mismas palabras: pueden listar canales y contactos, escribirle a un
@@ -251,7 +252,7 @@ las respuestas habladas para ese chat; para eso también hace falta una voz en *
 | Canal | Estado | Cómo se conecta |
 |---|---|---|
 | [Telegram](/es/channels/telegram/) | Completo | Un bot que creás con BotFather |
-| [WhatsApp](/es/channels/whatsapp/) | Completo | Un dispositivo vinculado, por QR |
+| [WhatsApp](/es/channels/whatsapp/) | Completo | Un dispositivo vinculado, por QR: chats y los grupos que listes |
 | [Discord](/es/channels/discord-slack/) | Completo | Un bot: mensajes directos y salas del servidor |
 | [Slack](/es/channels/discord-slack/) | Completo | Una app en Socket Mode: mensajes directos |
 | [iMessage](/es/channels/imessage/) | Sin verificar | En una Mac: tools que usan los agentes y, si querés, contestar a las personas que aprobás |

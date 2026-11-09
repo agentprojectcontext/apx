@@ -19,18 +19,30 @@ const EMPTY: ChannelRooms = {
 };
 
 type ServerRoom = { id: string; name: string; server: string; writable: boolean };
-const ROOMS_KINDS = ["discord", "telegram", "googlechat", "nextcloud", "irc", "twitch", "teams", "line"] as const;
+const ROOMS_KINDS = [
+  "discord",
+  "telegram",
+  "whatsapp",
+  "googlechat",
+  "nextcloud",
+  "irc",
+  "twitch",
+  "teams",
+  "line",
+] as const;
 type RoomsKind = (typeof ROOMS_KINDS)[number];
 export const isRoomsKind = (k: string): k is RoomsKind => (ROOMS_KINDS as readonly string[]).includes(k);
 
 /**
- * A Discord channel id; a Telegram group's id (negative, -100… for a supergroup); a Google Chat space; a Nextcloud
+ * A Discord channel id; a Telegram group's id (negative, -100… for a supergroup); a WhatsApp group's address
+ * (…@g.us, an older one with its creator's number in front); a Google Chat space; a Nextcloud
  * Talk conversation's token; an IRC channel; a Twitch chat (the streamer's #login); a Teams channel or group chat; a
  * LINE group (C…) or multi-person chat (R…).
  */
 const ROOM_ID: Record<RoomsKind, RegExp> = {
   discord: /^\d{15,21}$/,
   telegram: /^-\d{5,16}$/,
+  whatsapp: /^\d{6,30}(-\d{6,12})?@g\.us$/,
   googlechat: /^spaces\/[\w-]+$/,
   nextcloud: /^[a-z0-9]{4,32}$/,
   irc: /^[#&][^\s,]{1,39}$/,
@@ -38,6 +50,10 @@ const ROOM_ID: Record<RoomsKind, RegExp> = {
   teams: /^19:\S{8,116}$/,
   line: /^[CR][0-9a-f]{32}$/,
 };
+/** The platforms that list every room the account is in: typing an id is only the fallback there. */
+const LISTS = new Set<RoomsKind>(["discord", "whatsapp"]);
+/** What an empty list of groups says, where the platform has its own words. */
+const NONE: Partial<Record<RoomsKind, MessageKey>> = { telegram: "rooms.tg.none", whatsapp: "rooms.wa.none" };
 /** The rooms of the platforms that report them as the bot sees them, like Telegram's groups. */
 const SEEN = {
   title: "rooms.any.title",
@@ -67,6 +83,15 @@ const WORDS = {
     namePlaceholder: "rooms.tg.namePlaceholder",
     idPlaceholder: "rooms.tg.idPlaceholder",
     idHint: "rooms.tg.idHint",
+  },
+  whatsapp: {
+    title: "rooms.tg.title",
+    lead: "rooms.wa.lead",
+    pick: "rooms.wa.pick",
+    allListed: "rooms.wa.allListed",
+    namePlaceholder: "rooms.tg.namePlaceholder",
+    idPlaceholder: "rooms.wa.idPlaceholder",
+    idHint: "rooms.wa.idHint",
   },
   googlechat: SEEN,
   nextcloud: SEEN,
@@ -103,15 +128,18 @@ function useServerRooms(channel: ChannelInfo): ServerRoom[] | undefined {
 export function RoomsSection({
   channel,
   kind,
+  ownLine = false,
   save,
 }: {
   channel: ChannelInfo;
   kind: RoomsKind;
+  /** The line is the owner's own phone: the agent speaks in its groups only once the owner allows it. */
+  ownLine?: boolean;
   save(rooms: ChannelRooms): Promise<unknown>;
 }) {
   const t = useT();
   const words = WORDS[kind];
-  // Telegram groups have no "#" in front of their names.
+  // Telegram and WhatsApp groups have no "#" in front of their names.
   const shown = (r: { id: string; name: string }) => (kind === "discord" ? `#${r.name || r.id}` : r.name || r.id);
   const cur = channel.rooms ?? EMPTY;
   const set = (patch: Partial<ChannelRooms>) => void save({ ...cur, ...patch });
@@ -120,6 +148,9 @@ export function RoomsSection({
   const agentName = useData((s) => s.agents[channel.agent_id]?.name);
   const [byId, setById] = useState(false);
   const writable = new Map((server ?? []).map((r) => [r.id, r.writable]));
+  const cannotWriteHint = t(kind === "whatsapp" ? "rooms.wa.cannotWriteHint" : "rooms.cannotWriteHint");
+  // On the owner's own phone, until they allow it, every group is only read whatever its mode.
+  const readOnly = ownLine && cur.as_owner !== true;
   const unlisted = (server ?? []).filter((r) => !cur.rooms.some((x) => x.id === r.id));
   const validId = ROOM_ID[kind].test(adding.id.trim());
   const add = () => {
@@ -144,20 +175,33 @@ export function RoomsSection({
       <SubHead>{t(words.title)}</SubHead>
       <p className="pform__hint">{t(words.lead)}</p>
       {kind === "telegram" && <p className="pform__hint">{t("rooms.tg.privacy")}</p>}
+      {ownLine && (
+        <SettingRow title={t("rooms.wa.asOwner")} description={t("rooms.wa.asOwnerHint")}>
+          <Switch
+            size="sm"
+            checked={cur.as_owner === true}
+            onCheckedChange={(on) => set({ as_owner: on })}
+            aria-label={t("rooms.wa.asOwner")}
+          />
+        </SettingRow>
+      )}
+      {readOnly && cur.rooms.length > 0 && <p className="pform__hint">{t("rooms.wa.readOnly")}</p>}
       <div className="rooms">
         {cur.rooms.map((r) => (
           <div key={r.id} className="rooms__row">
             <span className="rooms__name">{shown(r)}</span>
             {writable.get(r.id) === false ? (
-              <Tag className="rooms__mute" title={t("rooms.cannotWriteHint")}>
+              <Tag className="rooms__mute" title={cannotWriteHint}>
                 {t("rooms.cannotWrite")}
               </Tag>
-            ) : (
+            ) : kind === "whatsapp" ? null : (
+              // A WhatsApp group's address says nothing to the owner; other platforms' ids are what they look up.
               <code className="rooms__id">{r.id}</code>
             )}
             <Select
               label={t("rooms.mode", { room: shown(r) })}
-              value={r.mode}
+              value={readOnly ? "read" : r.mode}
+              disabled={readOnly}
               onValueChange={(v) =>
                 v && set({ rooms: cur.rooms.map((x) => (x.id === r.id ? { ...x, mode: v as RoomMode } : x)) })
               }
@@ -186,7 +230,7 @@ export function RoomsSection({
                 unlisted.length
                   ? t(words.pick)
                   : kind !== "discord" && !server.length
-                    ? t(kind === "telegram" ? "rooms.tg.none" : "rooms.any.none")
+                    ? t(NONE[kind] ?? "rooms.any.none")
                     : t(words.allListed)
               }
               disabled={!unlisted.length}
@@ -198,7 +242,7 @@ export function RoomsSection({
                 value: r.id,
                 label: shown(r),
                 ...(r.server ? { group: r.server } : {}),
-                ...(r.writable ? {} : { description: t("rooms.cannotWriteHint") }),
+                ...(r.writable ? {} : { description: cannotWriteHint }),
               }))}
             />
             {!byId && (
@@ -236,10 +280,10 @@ export function RoomsSection({
             </Button>
           </div>
         )}
-        {(!server || byId || kind !== "discord") && <p className="pform__hint">{t(words.idHint)}</p>}
+        {(!server || byId || !LISTS.has(kind)) && <p className="pform__hint">{t(words.idHint)}</p>}
       </div>
 
-      <SettingRow title={t("rooms.names")} description={t("rooms.namesHint")}>
+      <SettingRow title={t("rooms.names")} description={t(ownLine ? "rooms.wa.namesHint" : "rooms.namesHint")}>
         <Input
           key={cur.names.join(",")}
           aria-label={t("rooms.names")}

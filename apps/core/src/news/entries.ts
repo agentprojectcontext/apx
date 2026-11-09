@@ -24,6 +24,7 @@ import { STORE_COMPACT_NEWS } from "./store-compact.ts";
 import { TASK_COMMENTS_NEWS } from "./task-comments.ts";
 import { TASK_GOALS_NEWS } from "./task-goals.ts";
 import { TASK_REGROUP_NEWS } from "./task-regroup.ts";
+import { WHATSAPP_GROUPS_NEWS } from "./whatsapp-groups.ts";
 
 /** What an entry may ask about this install before it is told. */
 export type NewsFacts = {
@@ -39,6 +40,8 @@ export type NewsFacts = {
   channels: number;
   /** An SMTP mailbox is configured as an Email channel. */
   email: boolean;
+  /** A WhatsApp account is connected. */
+  whatsapp?: boolean;
   /** Catalog integrations the owner connected (GitHub, Notion…). */
   integrations: number;
   /** This core can run the isolated Linux computer (macOS, Linux or Windows) and the owner has a project to try there. */
@@ -93,6 +96,7 @@ export const NEWS: readonly NewsEntry[] = [
   AGENT_PROMPTS_NEWS,
   TASK_GOALS_NEWS,
   CHANNEL_AGENTS_NEWS,
+  WHATSAPP_GROUPS_NEWS,
   TASK_COMMENTS_NEWS,
   COMPUTER_POINTER_NEWS,
   TASK_REGROUP_NEWS,
@@ -1216,6 +1220,7 @@ export const newsFacts = (store: Store, o: { hermes?: boolean; storeSize?: Store
   contacts: store.persons.list().some((p) => p.role !== "owner" && p.role !== "blocked" && p.addresses.length > 0),
   channels: store.settings.read("channels").length,
   email: store.settings.read("channels").some((c) => c.type === "email" && c.email !== undefined),
+  whatsapp: store.settings.read("channels").some((c) => c.type === "whatsapp"),
   integrations: connectedIntegrations(store),
   computer: computerHost() !== undefined && store.projects.list().length > 0,
   mac: process.platform === "darwin" && store.projects.list().length > 0,

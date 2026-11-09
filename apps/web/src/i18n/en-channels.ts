@@ -94,6 +94,7 @@ export const enChannels = {
   "ch.room.writeMe": "Write in {room}…",
   "ch.room.hint.agent": "{agent} writes the message and posts it in {room}; nobody there sees what you tell {agent}.",
   "ch.room.hint.me": "Posted in {room} as you wrote it, from {agent}'s account.",
+  "ch.room.hint.mine": "Posted in {room} as you wrote it, from your number. {agent} only reads this group.",
   "ch.room.noFiles": "To post files, ask {agent} to do it.",
   "ch.muted": "Silenced",
   "ch.unreviewed": "Not reviewed: not answered",
@@ -268,6 +269,22 @@ export const enChannels = {
   "rooms.any.none": "No rooms yet: add the bot to one or write there",
   "rooms.any.idPlaceholder": "Room id",
   "rooms.any.idHint": "Rooms show up here once the bot is in them; you can also type a room's id.",
+  "rooms.wa.lead":
+    "The WhatsApp groups this line reads and may speak in. A group not on the list does not exist for APX: nothing of it is kept. In a listed group everything said is kept in its chat, and the agent answers by the mode you pick, in public and sealed: no memory and nothing of yours, also when you write; at most it searches the web, as “Search the web” says.",
+  "rooms.wa.pick": "Add a group this line is in…",
+  "rooms.wa.allListed": "Every group this line is in is listed",
+  "rooms.wa.none": "This line is in no groups yet",
+  "rooms.wa.idPlaceholder": "Group id (120363000000000000@g.us)",
+  "rooms.wa.idHint": "Groups show up here while WhatsApp is connected; you can also type a group's id.",
+  "rooms.wa.cannotWriteHint":
+    "Only admins can write in this group: make the line an admin on WhatsApp to answer there.",
+  "rooms.wa.asOwner": "Answer in groups as me",
+  "rooms.wa.asOwnerHint":
+    "This line is your own phone: whatever the agent writes in a group comes from your number and reads as you. Off, your groups are only read.",
+  "rooms.wa.readOnly":
+    "Your groups are only read: the agent keeps what is said and never answers there. Turn on “Answer in groups as me” to use each group's mode.",
+  "rooms.wa.namesHint":
+    "Words that count as calling it, comma-separated. On your own phone only these call it: an @mention or a reply there is meant for you.",
   "im.answer": "Answer chats",
   "im.answerHint":
     "The people who write to you on iMessage get answered by your agent, once you approve them. Your own messages are never answered.",

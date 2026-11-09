@@ -1,9 +1,10 @@
 // A WhatsApp account in memory, with the library's shape (see WaLib): a QR until it is "scanned", the restart WhatsApp
 // asks for after a scan, people writing, the owner typing on their phone, the echo of every send, a logout, and the
-// phone's copy of each message (sent again on request while the phone is online).
+// phone's copy of each message (sent again on request while the phone is online), and the groups the account is in.
 import fs from "node:fs";
 import path from "node:path";
-import type { WaContent, WaKey, WaLib, WaMessage, WaSocket } from "./whatsapp.ts";
+import type { WaGroup, WaLib, WaMessage, WaSocket } from "./whatsapp.ts";
+import type { WaContent, WaKey } from "./whatsapp-content.ts";
 
 const OWNER_PN = "5491100000001@s.whatsapp.net";
 const OWNER_LID = "100000000000001@lid";
@@ -20,7 +21,9 @@ export function fakeWhatsApp(owner = OWNER_PN) {
   let seq = 0;
   let qrs = 0;
   let sockets = 0;
-  const sent: Array<{ id: string; jid: string; content: Record<string, unknown> }> = [];
+  const sent: Array<{ id: string; jid: string; content: Record<string, unknown>; quoted?: string }> = [];
+  /** The groups the account is in, by address. */
+  const groups = new Map<string, WaGroup>();
   /** Who this device asked to hear coming online. */
   const watched = new Set<string>();
   const loggedOut = { value: false };
@@ -49,14 +52,18 @@ export function fakeWhatsApp(owner = OWNER_PN) {
       emit(event: string, arg: unknown) {
         for (const fn of listeners.get(event) ?? []) fn(arg);
       },
-      async sendMessage(jid: string, content: Record<string, unknown>) {
+      async sendMessage(jid: string, content: Record<string, unknown>, opts?: { quoted?: WaMessage }) {
         const id = `OUT-${++seq}`;
-        sent.push({ id, jid, content });
+        const quoted = opts?.quoted?.key.id;
+        sent.push({ id, jid, content, ...(quoted ? { quoted } : {}) });
         // Every send comes back as an echo, as on a linked device.
         setTimeout(() => s.emit("messages.upsert", { type: "notify", messages: [echo(id, jid, content)] }), 5);
         return { key: { id } };
       },
       async sendPresenceUpdate() {},
+      async groupFetchAllParticipating() {
+        return Object.fromEntries(groups);
+      },
       async onWhatsApp(...numbers: string[]) {
         checked.push(...numbers);
         const digits = numbers.map((n) => n.split("@")[0] ?? "");
@@ -191,8 +198,15 @@ export function fakeWhatsApp(owner = OWNER_PN) {
       if (from.lid) lids.set(from.phone, from.lid);
       const id = `IN-${++seq}`;
       const alt = from.lid && !opts.group && !opts.noAlt;
+      // In a group the chat is the group's and the writer is the participant (their private id, the phone beside it).
+      const author = opts.group
+        ? {
+            participant: from.lid ?? from.phone,
+            ...(from.lid && !opts.noAlt ? { participantAlt: from.phone } : {}),
+          }
+        : {};
       deliver({
-        key: { id, remoteJid: jid, ...(alt ? { remoteJidAlt: from.phone } : {}), fromMe: false },
+        key: { id, remoteJid: jid, ...(alt ? { remoteJidAlt: from.phone } : {}), ...author, fromMe: false },
         pushName: from.name,
         message: opts.voice
           ? ({
@@ -214,6 +228,39 @@ export function fakeWhatsApp(owner = OWNER_PN) {
     /** The owner writes in "Message yourself" (under their private id, as a linked phone often sends it). */
     fromOwner(text: string) {
       deliver({ key: { id: `ME-${++seq}`, remoteJid: OWNER_LID, fromMe: true }, message: { conversation: text } });
+    },
+    /** The account is added to a group (`admins`: who of its people may write when only admins can). */
+    joinGroup(id: string, subject: string, o: { announce?: boolean; admin?: boolean; community?: boolean } = {}) {
+      groups.set(id, {
+        id,
+        subject,
+        announce: o.announce ?? false,
+        isCommunity: o.community ?? false,
+        participants: [{ id: owner, admin: o.admin ? "admin" : null }],
+      });
+    },
+    /**
+     * Someone writes in a group: `mention` @mentions the line (as WhatsApp writes it, "@<its number>"), `replyTo`
+     * answers one of the line's messages.
+     */
+    inGroup(from: Person, group: string, text: string, o: { mention?: boolean; replyTo?: string } = {}) {
+      const digits = owner.split("@")[0] ?? "";
+      const words = o.mention ? `@${digits} ${text}` : text;
+      const contextInfo = {
+        ...(o.mention ? { mentionedJid: [owner] } : {}),
+        ...(o.replyTo ? { stanzaId: o.replyTo, participant: owner } : {}),
+      };
+      return this.message(from, words, {
+        group,
+        content:
+          o.mention || o.replyTo ? { extendedTextMessage: { text: words, contextInfo } } : { conversation: words },
+      });
+    },
+    /** The owner types in a group on their phone. */
+    ownerInGroup(group: string, text: string) {
+      const id = `ME-${++seq}`;
+      deliver({ key: { id, remoteJid: group, participant: owner, fromMe: true }, message: { conversation: text } });
+      return id;
     },
     /** The owner types to someone else on their phone. */
     ownerTo(to: Person, text: string) {

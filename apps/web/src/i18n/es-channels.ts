@@ -98,6 +98,7 @@ export const esChannels: Partial<Record<MessageKey, string>> = {
   "ch.room.writeMe": "Escribí en {room}…",
   "ch.room.hint.agent": "{agent} escribe el mensaje y lo publica en {room}; nadie ahí ve lo que le decís a {agent}.",
   "ch.room.hint.me": "Sale en {room} tal cual lo escribís, desde la cuenta de {agent}.",
+  "ch.room.hint.mine": "Sale en {room} tal cual lo escribís, desde tu número. {agent} solo lee este grupo.",
   "ch.room.noFiles": "Para publicar archivos, pedíselo a {agent}.",
   "ch.muted": "Silenciado",
   "ch.unreviewed": "Sin revisar: no se le contesta",
@@ -287,6 +288,23 @@ export const esChannels: Partial<Record<MessageKey, string>> = {
   "rooms.any.none": "Todavía no hay salas: sumá el bot a una o escribí ahí",
   "rooms.any.idPlaceholder": "Id de la sala",
   "rooms.any.idHint": "Las salas aparecen acá cuando el bot está en ellas; también podés escribir el id de una sala.",
+  "rooms.wa.lead":
+    "Los grupos de WhatsApp que esta línea lee y donde puede hablar. Un grupo que no está en la lista no existe para APX: no se guarda nada de él. En un grupo de la lista se guarda todo lo que se dice en su chat, y el agente contesta según el modo que elijas, en público y sellado: sin memoria y sin nada tuyo, también cuando escribís vos; como mucho busca en la web, según diga “Buscar en la web”.",
+  "rooms.wa.pick": "Sumar un grupo donde está esta línea…",
+  "rooms.wa.allListed": "Ya están todos los grupos de esta línea",
+  "rooms.wa.none": "Esta línea todavía no está en ningún grupo",
+  "rooms.wa.idPlaceholder": "ID del grupo (120363000000000000@g.us)",
+  "rooms.wa.idHint":
+    "Los grupos aparecen acá mientras WhatsApp está conectado; también podés escribir el ID de un grupo.",
+  "rooms.wa.cannotWriteHint":
+    "En este grupo solo escriben los admins: hacé admin a la línea en WhatsApp para contestar ahí.",
+  "rooms.wa.asOwner": "Contestar en grupos como yo",
+  "rooms.wa.asOwnerHint":
+    "Esta línea es tu propio teléfono: lo que el agente escriba en un grupo sale de tu número y se lee como si fueras vos. Apagado, tus grupos solo se leen.",
+  "rooms.wa.readOnly":
+    "Tus grupos solo se leen: el agente guarda lo que se dice y nunca contesta ahí. Activá “Contestar en grupos como yo” para usar el modo de cada grupo.",
+  "rooms.wa.namesHint":
+    "Palabras que cuentan como llamarlo, separadas por coma. En tu propio teléfono solo lo llaman estas: una @mención o una respuesta ahí es para vos.",
   "im.answer": "Contestar chats",
   "im.answerHint":
     "Las personas que te escriben por iMessage reciben respuesta de tu agente, una vez que las aprobás. Tus propios mensajes nunca se contestan.",

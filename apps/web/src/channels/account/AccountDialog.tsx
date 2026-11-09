@@ -325,6 +325,7 @@ function AccountDialog({ edit }: { edit: AccountEdit }) {
               <RoomsSection
                 channel={{ ...paneProps.channel, ...(paneProps.draft.rooms ? { rooms: paneProps.draft.rooms } : {}) }}
                 kind={edit.kind}
+                ownLine={edit.kind === "whatsapp" && paneProps.draft.self_owner === true}
                 save={async (rooms) => set({ rooms })}
               />
             ) : shown === "contacts" ? (

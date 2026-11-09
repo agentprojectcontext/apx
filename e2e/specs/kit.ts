@@ -120,6 +120,14 @@ export const world = {
     presence: (jid: string, online: boolean) => post(`${phone}/presence`, { jid, online }),
     /** Someone puts an emoji on the last message sent to them ("": takes it off). */
     react: (from: { phone: string; name: string }, emoji: string) => post(`${phone}/react`, { from, emoji }),
+    /** The line is added to a group (`announce`: only admins may write there). */
+    joinGroup: (group: string, subject: string, announce = false) =>
+      post(`${phone}/group/join`, { group, subject, announce }),
+    /** Someone writes in a group (`mention`: they @mention the line). */
+    inGroup: (from: { phone: string; name: string }, group: string, text: string, mention = false) =>
+      post(`${phone}/group/message`, { from, group, text, mention }),
+    /** The owner types in a group on the line's phone. */
+    ownerInGroup: (group: string, text: string) => post(`${phone}/group/owner`, { group, text }),
     sentTo: async (jid: string) =>
       (
         (await (await fetch(`${phone}/sent?jid=${encodeURIComponent(jid)}`)).json()) as {

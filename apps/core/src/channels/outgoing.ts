@@ -10,7 +10,7 @@ import type { Services } from "../services/registry.ts";
 import { agentProject, answersInHome } from "./agent-project.ts";
 import type { createDelivery } from "./delivery.ts";
 import type { createPoster, Posted } from "./post.ts";
-import { type createRooms, quietMentions, roomMentions } from "./rooms.ts";
+import { type createRooms, quietMentions, roomMentions, roomsReadOnly } from "./rooms.ts";
 import { type ChannelAdapter, type ChannelConfig, contactAgentOf, type Presence } from "./types.ts";
 
 const AVATAR_TTL_MS = 24 * 3600_000;
@@ -215,6 +215,10 @@ export function createOutgoing(deps: {
     text: string,
     o: { by?: string | undefined; files?: string[] | undefined },
   ): Posted {
+    if (roomsReadOnly(cfg))
+      throw new Error(
+        `${cfg.label ?? cfg.id} is the owner's own phone: a post in "${r.name || r.id}" would be the owner speaking. The owner allows it in the account's Rooms settings`,
+      );
     const thread = rooms.thread(cfg, r);
     const recent = recentOf(thread.id);
     const named = roomMentions(quietMentions(text), store.channels.inbox.people(cfg.id, r.id));

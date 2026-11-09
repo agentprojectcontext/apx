@@ -433,7 +433,7 @@ test("a contact's video, a document of any type and a too-big file: kept to play
   );
 });
 
-test("groups, and the owner writing to a friend on their phone, never reach the agent", async () => {
+test("an unlisted group, and the owner writing to a friend on their phone, never reach the agent", async () => {
   const calls = llm.calls.length;
   wa.message(ANA, "group news", { group: "120363000000000001@g.us" });
   wa.ownerTo(ANA, "see you tonight");
