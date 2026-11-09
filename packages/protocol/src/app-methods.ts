@@ -118,6 +118,8 @@ const MemoryJobs = z.array(
     kind: z.string(),
     agent_id: Id,
     thread_id: Id,
+    /** The project the job works in; none outside a project. */
+    project_id: Id.nullable().optional(),
     state: z.string(),
     attempts: z.number().int(),
     updated_at: z.string(),

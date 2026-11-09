@@ -149,8 +149,9 @@ the reason in their history, and revision checks reject proposals made stale by 
 Capture and AutoDream share a **daily memory call limit**, default 20. Extraction and semantic review each consume
 one gateway request; transient transport retries can make more than one HTTP attempt. If review must wait for quota,
 the saved extraction resumes without repeating it. Each request has bounded input, output and a
-deadline; calls and tokens appear in **Usage**. A limit of zero pauses model calls. The queue reports completed,
-waiting and failed work in Settings. **Review earlier chats** queues the newest 100 turns per eligible chat;
+deadline; calls and tokens appear in **Usage**. A limit of zero pauses model calls. Settings lists the latest
+work, each row naming whose notes it is about (an agent's notebook, the notes a project shares, notes about you,
+memories from a chat) and what it did or why it waits. **Review earlier chats** queues the newest 100 turns per eligible chat;
 **Review duplicates now** requests consolidation. Queued work is processed in bounded batches, prioritizing recent
 jobs. Exhausted daily quotas defer model calls until the next UTC day; historical retrieval continues.
 
