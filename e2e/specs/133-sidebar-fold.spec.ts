@@ -41,6 +41,13 @@ test("the topbar starts with the APX logo and the APX in use, then back and forw
   expect(back).toBeLessThan(forward);
   expect(forward).toBeLessThan(search);
   await expect(page.locator(".serverswitch")).toHaveAccessibleName("APX en uso: Local");
+  // Its list: this computer, checked, and how to connect another one (a browser says where that is done).
+  await page.locator(".serverswitch").click();
+  const list = page.getByRole("dialog", { name: "APX en uso: Local" });
+  await expect(list.getByText("Esta computadora")).toBeVisible();
+  await list.getByRole("button", { name: "Conectar servidor remoto" }).click();
+  await expect(list.getByRole("button", { name: "Conectar servidor remoto" })).toHaveAttribute("aria-expanded", "true");
+  await page.keyboard.press("Escape");
   // Folding lives on the sidebar's edge now, not in the topbar.
   await expect(page.locator(".topbar").getByRole("button", { name: /barra/ })).toHaveCount(0);
   for (const width of [900, 390]) {

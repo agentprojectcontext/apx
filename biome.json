@@ -220,6 +220,8 @@
                       "**/TaskStatusHint.tsx",
                       "**/ChangesPart.tsx",
                       "**/LinkMenu.tsx",
+                      "**/RewindParts.tsx",
+                      "**/ServerList.tsx",
                       "**/PlusMenu.tsx",
                       "**/AttentionList.tsx",
                       "**/SkillsPart.tsx",

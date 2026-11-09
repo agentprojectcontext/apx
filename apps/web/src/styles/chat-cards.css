@@ -587,3 +587,16 @@
 .connectcard__stack > * + * {
   margin-left: -5px;
 }
+
+/* Editing one of the owner's messages to send it again. */
+.rewind__edit {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.rewind__bar {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}

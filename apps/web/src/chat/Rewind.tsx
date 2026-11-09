@@ -1,12 +1,13 @@
 // Editing one of the owner's messages and asking again for an answer: the chat goes back to that point and sends
 // again, so what came after it is removed (asked first when there is any).
 import type { Message as Msg, Thread } from "@apx/protocol";
-import { Button, Dialog, IconButton, Icons, Message, Textarea } from "@apx/ui";
-import { type ReactNode, useState } from "react";
+import { IconButton, Icons, Message } from "@apx/ui";
+import { type ReactNode, Suspense, useState } from "react";
 import { useVia, ViaMark } from "../channels/MessageMarks.tsx";
 import { isWorking } from "../data/identity.ts";
 import { rewindThread } from "../data/threadAdmin.ts";
 import { useT } from "../i18n/index.ts";
+import { RewindConfirm, RewindEditor } from "../lazy.ts";
 import { MessageActions } from "./MessageActions.tsx";
 import { SendNowButton, TakenMark, UnsendButton, useTaken } from "./WaitingMessage.tsx";
 
@@ -35,35 +36,11 @@ const askedBy = (messages: Msg[], answer: Msg) =>
 /** Asks before removing later messages; with none to remove it goes straight on. */
 function useConfirm() {
   const [pending, setPending] = useState<{ count: number; go: () => Promise<boolean> }>();
-  const [busy, setBusy] = useState(false);
   const ask = (count: number, go: () => Promise<boolean>) => (count ? setPending({ count, go }) : void go());
-  const t = useT();
   const dialog = pending && (
-    <Dialog
-      open
-      title={t("rewind.confirmTitle")}
-      description={t("rewind.confirmBody", { count: pending.count })}
-      onOpenChange={(o) => !o && !busy && setPending(undefined)}
-      footer={
-        <>
-          <Button variant="secondary" disabled={busy} onClick={() => setPending(undefined)}>
-            {t("common.cancel")}
-          </Button>
-          <Button
-            variant="danger"
-            loading={busy}
-            onClick={async () => {
-              setBusy(true);
-              await pending.go();
-              setBusy(false);
-              setPending(undefined);
-            }}
-          >
-            {t("rewind.confirm")}
-          </Button>
-        </>
-      }
-    />
+    <Suspense fallback={null}>
+      <RewindConfirm count={pending.count} go={pending.go} onClose={() => setPending(undefined)} />
+    </Suspense>
   );
   return { ask, dialog };
 }
@@ -137,30 +114,9 @@ export function UserMessage({
       {draft === undefined ? (
         children
       ) : (
-        <div className="rewind__edit">
-          <Textarea
-            autoFocus
-            rows={Math.min(10, Math.max(2, draft.split("\n").length))}
-            value={draft}
-            aria-label={t("rewind.edit")}
-            onChange={(e) => setDraft(e.currentTarget.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Escape") setDraft(undefined);
-              if (e.key === "Enter" && !e.shiftKey) {
-                e.preventDefault();
-                send();
-              }
-            }}
-          />
-          <div className="rewind__bar">
-            <Button size="sm" variant="secondary" onClick={() => setDraft(undefined)}>
-              {t("common.cancel")}
-            </Button>
-            <Button size="sm" disabled={!draft.trim()} onClick={send}>
-              {t("rewind.send")}
-            </Button>
-          </div>
-        </div>
+        <Suspense fallback={null}>
+          <RewindEditor draft={draft} onChange={setDraft} onCancel={() => setDraft(undefined)} onSend={send} />
+        </Suspense>
       )}
       {dialog}
     </Message>

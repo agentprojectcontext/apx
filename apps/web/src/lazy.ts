@@ -63,6 +63,11 @@ export const AccountHeader = lazy(() =>
 export const TitleTooltips = lazy(() =>
   import("./common/TitleTooltips.tsx").then((m) => ({ default: m.TitleTooltips })),
 );
+// The top bar's server list, once it opens.
+export const ServerList = lazy(() => import("./shell/ServerList.tsx").then((m) => ({ default: m.ServerList })));
+// Editing one of the owner's messages to send it again, and the question before later messages go.
+export const RewindConfirm = lazy(() => import("./chat/RewindParts.tsx").then((m) => ({ default: m.RewindConfirm })));
+export const RewindEditor = lazy(() => import("./chat/RewindParts.tsx").then((m) => ({ default: m.RewindEditor })));
 // A message link's right-click menu, or an app link's button.
 export const MessageLink = lazy(() => import("./chat/LinkMenu.tsx").then((m) => ({ default: m.MessageLink })));
 // Parts only some messages carry and a task chat's header pieces.
