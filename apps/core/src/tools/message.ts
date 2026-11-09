@@ -172,7 +172,7 @@ export function messageTools(store: Store, home: string): Tool[] {
     defineTool({
       name: "channel_post",
       description:
-        "Post in a room of the owner's channels (a Discord #channel); rooms are public. room: its name as channel_list shows it; channel: only when two channels have a room of that name; files: paths in your work folder (20 MB at most). Plain text, no Markdown, no @everyone; mention someone with their @handle as read_chat shows it. Only what the owner asked for; once posted it cannot be taken back.",
+        "Post in a room of the owner's channels (a Discord #channel); rooms are public. In a Discord forum this creates a topic: first line is its title (100 characters max), text is at most 2000 characters, no files; mandatory forum tags are not supported. room: its name as channel_list shows it; channel: only when two channels have a room of that name; files: paths in your work folder (20 MB at most). Plain text, no Markdown, no @everyone; mention someone with their @handle as read_chat shows it. Only what the owner asked for; once posted it cannot be taken back.",
       args: z.object({
         room: z.string().trim().min(1).max(80),
         text: z.string().trim().min(1).max(4000),
