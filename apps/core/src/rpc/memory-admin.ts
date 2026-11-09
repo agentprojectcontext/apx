@@ -1,5 +1,5 @@
 import { memoryEligibleChat } from "../domain/chat-access.ts";
-import { forgetAllowance, NOTEBOOK_TARGET, ownNotes } from "../domain/memories.ts";
+import { forgetAllowance, NOTEBOOK_TARGET, shelfNotes } from "../domain/memories.ts";
 import { retirementKey } from "../domain/memory-evidence.ts";
 import { bumpMemoryGeneration, memorySettings, saveMemorySettings } from "../domain/memory-settings.ts";
 import { ownerTimeZone } from "../domain/owner.ts";
@@ -56,20 +56,7 @@ export function memoryAdminHandlers(store: Store, index: MemoryIndex, maintenanc
       index.schedule();
       return note;
     },
-    "memory.consolidate": ({ notes }, ctx) => {
-      const thread = ctx.agent && store.threads.get(ctx.agent.thread_id);
-      if (
-        !ctx.agent ||
-        !store.agents.list().some((a) => a.id === ctx.agent?.id) ||
-        !thread ||
-        !memoryEligibleChat(store, thread)
-      )
-        throw unauthorized("private agent context required");
-      const merged = store.memories.consolidate(notes, { agent_id: ctx.agent.id, project_id: thread.project_id });
-      if (merged) index.schedule();
-      return { merged };
-    },
-    "memory.tidy": ({ retire = [], redate = [] }, ctx) => {
+    "memory.consolidate": ({ notes, shelf = "notebook" }, ctx) => {
       const thread = ctx.agent && store.threads.get(ctx.agent.thread_id);
       if (
         !ctx.agent ||
@@ -79,9 +66,23 @@ export function memoryAdminHandlers(store: Store, index: MemoryIndex, maintenanc
       )
         throw unauthorized("private agent context required");
       const view = { agent_id: ctx.agent.id, project_id: thread.project_id };
-      const live = ownNotes(store.memories, view).length;
-      // The share is counted per day, so repeated calls cannot add up past it.
-      const key = `memory_forgets:${view.agent_id}:${view.project_id ?? ""}`;
+      const merged = store.memories.consolidate(notes, view, shelf);
+      if (merged) index.schedule();
+      return { merged };
+    },
+    "memory.tidy": ({ retire = [], redate = [], shelf = "notebook" }, ctx) => {
+      const thread = ctx.agent && store.threads.get(ctx.agent.thread_id);
+      if (
+        !ctx.agent ||
+        !store.agents.list().some((a) => a.id === ctx.agent?.id) ||
+        !thread ||
+        !memoryEligibleChat(store, thread)
+      )
+        throw unauthorized("private agent context required");
+      const view = { agent_id: ctx.agent.id, project_id: thread.project_id };
+      const live = shelfNotes(store.memories, view, shelf).length;
+      // The share is counted per day, so repeated calls cannot add up past it; every agent shares a place's.
+      const key = `memory_forgets:${shelf === "shared" ? "shared" : view.agent_id}:${view.project_id ?? ""}`;
       const today = new Date().toISOString().slice(0, 10);
       const spent = JSON.parse(store.settings.get(key) ?? "{}") as { day?: string; n?: number };
       const used = spent.day === today ? (spent.n ?? 0) : 0;
@@ -93,7 +94,7 @@ export function memoryAdminHandlers(store: Store, index: MemoryIndex, maintenanc
         const old = store.memories.get(r.id);
         const replacement = r.by ? store.memories.get(r.by) : undefined;
         const reviewed = !!old && !!ctx.memoryReviewed?.includes(retirementKey(old, replacement));
-        return (r.by || live > NOTEBOOK_TARGET) && store.memories.retire(r, view, reviewed);
+        return (r.by || live > NOTEBOOK_TARGET) && store.memories.retire(r, view, reviewed, shelf);
       }).length;
       if (retired) store.settings.set(key, JSON.stringify({ day: today, n: used + retired }));
       const zone = ownerTimeZone(store);
@@ -108,7 +109,7 @@ export function memoryAdminHandlers(store: Store, index: MemoryIndex, maintenanc
           ),
         );
         const day = days.size === 1 ? [...days][0] : undefined;
-        return !!day && !!store.memories.redate(r, view, day);
+        return !!day && !!store.memories.redate(r, view, day, shelf);
       }).length;
       if (retired || redated) {
         invalidateMemorySummaries(store);

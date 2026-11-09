@@ -135,6 +135,11 @@ agent is idle. It:
 - rewrites relative days ("today", "ayer") as the dates they meant, leaving quoted commands and procedure notes as
   they are.
 
+Once a day it also tidies the notes a place shares, the same way: a project's notes, or outside a project the global
+ones (**About you**). Only notes agents wrote or that came from APX v1 are on that shelf; your own notes and the ones
+waiting for you to confirm are never touched. Past 40 notes, logs of past work (who did what on a date, commits, runs)
+are what it retires first. **Review duplicates now** runs both.
+
 Retiring a note requires a separate review of the same subject and scope; a newer date alone proves nothing.
 The helper model only names notes; APX does the rewriting itself and never changes owner notes or promotes anything to
 global memory. Contradictions, different numbers and different preferences stay separate. A pass that would forget

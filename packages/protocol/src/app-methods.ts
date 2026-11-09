@@ -998,6 +998,8 @@ export const appMethods = {
           .array(z.object({ id: Id, revision: z.number().int().positive() }))
           .min(2)
           .max(8),
+        /** `shared`: the notes the agent's place shares (the project's, or the global ones), not its own notebook. */
+        shelf: z.enum(["notebook", "shared"]).optional(),
       })
       .strict(),
     result: z.object({ merged: z.boolean() }),
@@ -1025,6 +1027,7 @@ export const appMethods = {
           .array(z.object({ id: Id, revision: z.number().int().positive() }))
           .max(32)
           .optional(),
+        shelf: z.enum(["notebook", "shared"]).optional(),
       })
       .strict(),
     result: z.object({ retired: z.number().int(), redated: z.number().int() }),
