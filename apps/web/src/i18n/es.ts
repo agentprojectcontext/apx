@@ -1372,14 +1372,15 @@ export const es: Partial<Record<MessageKey, string>> = {
     "Notas que vos o un agente olvidaron. Ningún agente las ve; podés traer una de vuelta o borrarla para siempre.",
   "memory.empty.forgotten": "No hay nada olvidado.",
   "memory.pending": "Para confirmar",
-  "memory.pendingHint": "Un agente aprendió esto sobre vos. Sólo queda en cada chat cuando lo confirmás.",
+  "memory.pendingHint":
+    "Un agente aprendió esto sobre vos. Mientras no la confirmes, tus agentes la usan sólo cuando viene al caso.",
+  "memory.pendingBar":
+    "{n} para confirmar: lo que tus agentes aprendieron de vos. Confirmadas, todos las tienen presentes en cada chat.",
   "memory.confirm": "Confirmar",
+  "memory.confirmAll": "Confirmar todas",
   "memory.origin": "Abrir el chat",
   "memory.restore": "Traer de vuelta",
   "memory.deleteForever": "Borrar para siempre",
-  "memory.tainted": "Con contenido de afuera",
-  "memory.taintedHint":
-    "Se guardó con contenido externo en el chat. Los agentes la leen como dato, no como palabra tuya; editala para darla por buena.",
   "tg.step1": "En Telegram abrí @BotFather, mandá /newbot y seguí los pasos.",
   "tg.step2": "Pegá abajo el token que te da y elegí quién responde.",
   "tg.step3": "Escribile a tu bot: te contesta con un código. Ponelo abajo en “Este es mi Telegram”.",

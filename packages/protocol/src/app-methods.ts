@@ -1065,6 +1065,13 @@ export const appMethods = {
     effect: true,
     access: "human",
   },
+  /** The owner confirms several notes agents wrote about them at once; ids already confirmed or gone are skipped. */
+  "memory.confirm_all": {
+    params: z.object({ ids: z.array(Id).min(1).max(500) }).strict(),
+    result: z.object({ confirmed: z.number().int() }),
+    effect: true,
+    access: "human",
+  },
   /** Brings a forgotten note back. */
   "memory.restore": {
     params: z.object({ id: Id }).strict(),

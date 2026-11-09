@@ -62,8 +62,9 @@ Agents can't edit or remove the notes you wrote. And some notes wait for you:
 
 - **To confirm.** A global note an agent wrote about you only stands in every chat once you confirm it. Until then it
   shows up only when it matches what you said.
-- **From outside content.** A note saved while a web page, a channel message or another agent's text was in the
-  turn is marked as such. Agents read it as data, not as your word, until you edit it to vouch for it.
+- **Saved with outside content.** A note an agent saved while a web page, a channel message or another agent's text
+  was in the turn is read by agents as data, not as your word, until you confirm or edit it. The Memory tab does not
+  mark it: almost every note an agent saves while working is one, so the mark told you nothing you could act on.
 
 ## How notes reach a turn
 
@@ -149,7 +150,8 @@ A project's **Memory** tab shows its notes and lets you switch between **This pr
 
 <Shot name="memory" alt="Acme Store's Memory tab: project notes with who wrote each one, and a search box" caption="A project's Memory tab" />
 
-- A note **To confirm** has a **Confirm** button and a link to the chat where the agent learned it.
+- Notes **To confirm** come first in **About you**, each with a **Confirm** button and a link to the chat where the
+  agent learned it. A bar above them says how many wait and **Confirm all** confirms the ones listed at once.
 - Forgetting is reversible. A removed note goes to **Forgotten**, where no agent sees it; **Bring back** restores
   it. Forgotten sources are excluded from automatic recall, chat tools and extraction retries. **Delete for good**
   deletes the note and its revision text; a minimal exclusion fingerprint and source IDs prevent recreation.

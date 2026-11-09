@@ -45,7 +45,9 @@ export function ProjectMemory({ project }: { project: ProjectEntry }) {
         limit: 500,
       });
       const ids = new Set(team.map((a) => a.id));
-      setNotes(filter === "agents" ? r.memories.filter((m) => m.agent_id && ids.has(m.agent_id)) : r.memories);
+      const shown = filter === "agents" ? r.memories.filter((m) => m.agent_id && ids.has(m.agent_id)) : r.memories;
+      // What waits for the owner comes first, so it is seen before the notes that already stand.
+      setNotes([...shown].sort((a, b) => Number(Boolean(b.pending)) - Number(Boolean(a.pending))));
     } catch (e) {
       setNotes([]);
       notify(t("error.memory", { error: errText(e) }));
@@ -93,6 +95,8 @@ export function ProjectMemory({ project }: { project: ProjectEntry }) {
         </div>
       )}
 
+      {filter !== "forgotten" && <PendingBar notes={notes} onConfirmed={load} />}
+
       <SearchField
         size="sm"
         placeholder={t("memory.search")}
@@ -114,6 +118,33 @@ export function ProjectMemory({ project }: { project: ProjectEntry }) {
       {(filter === "project" || filter === "global") && (
         <AddNote key={filter} scope={filter} projectId={project.id} onAdded={load} />
       )}
+    </div>
+  );
+}
+
+/** The notes agents learned about the owner that wait for them, confirmed in one go. */
+function PendingBar({ notes, onConfirmed }: { notes: Memory[] | undefined; onConfirmed: () => void }) {
+  const t = useT();
+  const [busy, setBusy] = useState(false);
+  const ids = (notes ?? []).filter((m) => m.pending && !m.forgotten_at).map((m) => m.id);
+  if (!ids.length) return null;
+  const confirm = async () => {
+    setBusy(true);
+    try {
+      await client.call("memory.confirm_all", { ids });
+      onConfirmed();
+    } catch (e) {
+      notify(t("error.memory", { error: errText(e) }));
+    }
+    setBusy(false);
+  };
+  return (
+    <div className="memory__file memory__pending">
+      <Icons.Brain size={14} />
+      <span className="memory__pending-text">{t("memory.pendingBar", { n: ids.length })}</span>
+      <Button size="sm" loading={busy} onClick={() => void confirm()}>
+        {t("memory.confirmAll")}
+      </Button>
     </div>
   );
 }
@@ -236,11 +267,6 @@ function NoteRow({ note, onChanged }: { note: Memory; onChanged: () => void }) {
         {note.pending && !forgotten && (
           <Badge tone="info" title={t("memory.pendingHint")}>
             {t("memory.pending")}
-          </Badge>
-        )}
-        {note.tainted && (
-          <Badge tone="warning" title={t("memory.taintedHint")}>
-            {t("memory.tainted")}
           </Badge>
         )}
         {owner && <Badge>{t("memory.notebookOf", { name: owner.name })}</Badge>}
