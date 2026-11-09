@@ -1,10 +1,18 @@
 import type { Person } from "@apx/protocol";
-import { Button, EmptyState, IconButton, Icons, Input, Menu, PickRow, SearchField } from "@apx/ui";
+import { Button, EmptyState, IconButton, Icons, Input, Menu, PickRow, SearchField, SettingRow, Switch } from "@apx/ui";
 import { useMemo, useState } from "react";
 import { shortWhen } from "../../common/format.ts";
-import { addContact, removePerson, setPersonRole, unlinkAddress, useChannels } from "../../data/channels.ts";
+import { SubHead } from "../../config/SectionHead.tsx";
+import {
+  addContact,
+  type ChannelDraft,
+  removePerson,
+  setPersonRole,
+  unlinkAddress,
+  useChannels,
+} from "../../data/channels.ts";
 import { useData } from "../../data/state.ts";
-import { useT } from "../../i18n/index.ts";
+import { type MessageKey, useT } from "../../i18n/index.ts";
 import { go } from "../../shell/nav.ts";
 import { PersonAvatar } from "../PersonAvatar.tsx";
 import { phoneOf } from "../PhoneForm.tsx";
@@ -15,7 +23,7 @@ import type { PaneProps } from "./types.ts";
 const PERSON_PICK = "person:";
 
 /** Everyone on the account, those who wrote and those added by hand: a search, Add contact, and each one's chat. */
-export function ContactsPane({ channel }: Pick<PaneProps, "channel">) {
+export function ContactsPane({ channel, draft, set }: PaneProps) {
   const t = useT();
   const persons = useChannels((s) => s.persons);
   const threads = useData((s) => s.threads);
@@ -40,6 +48,8 @@ export function ContactsPane({ channel }: Pick<PaneProps, "channel">) {
   const shown = rows.filter((r) => !q || `${r.person.name} ${r.person.nickname ?? ""}`.toLowerCase().includes(q));
   return (
     <>
+      <ContactDefaults draft={draft} set={set} />
+      <SubHead>{t("acct.pane.contacts")}</SubHead>
       <div className="acct__tools">
         <SearchField
           size="sm"
@@ -133,6 +143,32 @@ function ContactLine({
         />
       </span>
     </li>
+  );
+}
+
+/** What every contact of the account gets unless the owner set it on their card. */
+function ContactDefaults({ draft, set }: Pick<PaneProps, "draft" | "set">) {
+  const t = useT();
+  const on = draft.contacts ?? {};
+  const row = (k: keyof NonNullable<ChannelDraft["contacts"]>, label: MessageKey) => (
+    <SettingRow key={k} title={t(label)}>
+      <Switch
+        size="sm"
+        aria-label={t(label)}
+        checked={on[k] === true}
+        onCheckedChange={(v) => set({ contacts: { ...on, [k]: v } })}
+      />
+    </SettingRow>
+  );
+  return (
+    <>
+      <SubHead>{t("acct.contactsDefault")}</SubHead>
+      <p className="config__lead">{t("acct.contactsDefaultHint")}</p>
+      {row("requests", "ch.perm.requests")}
+      {row("appointments", "ch.perm.appointments")}
+      {row("notes", "ch.perm.notes")}
+      {row("any_hour", "ch.anyHour")}
+    </>
   );
 }
 

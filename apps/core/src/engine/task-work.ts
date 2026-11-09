@@ -13,7 +13,7 @@ import { noticeTaskReview } from "../domain/task-attention.ts";
 import { taskReviewHandoff } from "../domain/tasks.ts";
 import { type HeldTask, previewOf } from "../domain/threads.ts";
 import { badRequest, conflict } from "../errors.ts";
-import { taskWords } from "../tools/tasks.ts";
+import { asWritten, taskWords } from "../tools/tasks.ts";
 import { agentTrip, heldNotice, trip } from "./breaker.ts";
 import { REVIEW } from "./context.ts";
 import { actionsOf, reportCard } from "./delegation.ts";
@@ -188,7 +188,7 @@ export function startTaskWork(
     hold(store, task, agentId, asker);
     return undefined;
   }
-  const ownWords = task.created_by === "owner";
+  const ownWords = asWritten(store, task).created_by === "owner";
   const assignment = store.tasks.events(task.id).findLast((event) => typeof event.data.assignment_id === "string");
   const review = taskReviewHandoff(assignment?.data.review_handoff);
   const reviewRequest =
@@ -210,10 +210,12 @@ export function startTaskWork(
   const work = ask(store, admit, task, agentId, text, asker, author, sessionFor(store, task, agentId, source));
   if (self) markHandoff(store, task, asker, work);
   // A project's head that starts a task from its own chat is its coordinator: the result of that task returns there.
-  if (asker.kind === "agent" && projectCoordinatorChat(store, task, { id: asker.id, thread_id: asker.thread_id }))
-    store.threads.mergeContext(task.thread_id, {
-      coordination_from: { thread: asker.thread_id, run: asker.run_id, work_run: work.id },
-    });
+  // Anyone else's start ends that coordination (DECISIONS.md#d-207).
+  const coordinates =
+    asker.kind === "agent" && projectCoordinatorChat(store, task, { id: asker.id, thread_id: asker.thread_id });
+  store.threads.mergeContext(task.thread_id, {
+    coordination_from: coordinates ? { thread: asker.thread_id, run: asker.run_id, work_run: work.id } : undefined,
+  });
   const sourceRun = asker.kind === "agent" ? store.runs.get(asker.run_id) : undefined;
   if (asker.kind === "agent" && sourceRun && !sourceRun.ended_at) {
     const previous = store.threads.context(asker.thread_id).task_dispatches;
@@ -659,7 +661,8 @@ export function deliverToCoordinator(
   admit({
     thread_id: from.thread,
     agent_id: from.run.agent_id,
-    trigger: "system",
+    // A team's result, like the task's close report (reportClose): at the coordinator's depth, no owner standing.
+    trigger: "a2a_result",
     origin: {
       kind: "task_feedback",
       task_id: task.id,
@@ -669,7 +672,7 @@ export function deliverToCoordinator(
       run_id: run.id,
     },
     text: verdict.slice(0, 4000),
-    depth: 1,
+    depth: from.run.depth,
   });
 }
 

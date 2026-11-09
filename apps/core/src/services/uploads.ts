@@ -131,8 +131,8 @@ export function pruneUploads(store: Store, thread: string, name: string, keep: n
   }
 }
 
-/** Images a model call carried lately, as sent: a chat sends the same ones on every turn. */
-const fitted = new Map<string, { mime: string; data: string }>();
+/** Images a model call carried lately, as sent (null: left out): a chat sends the same ones on every turn. */
+const fitted = new Map<string, { mime: string; data: string } | null>();
 const FITTED_KEEP = 16;
 
 /** A stored image as a model call carries it, base64: scaled down when it is too big for one. */
@@ -141,7 +141,7 @@ export async function mediaData(store: Store, id: string): Promise<{ mime: strin
   if (!m) return undefined;
   const key = `${m.path}\0${m.bytes}`;
   const known = fitted.get(key);
-  if (known) return known;
+  if (known !== undefined) return known ?? undefined;
   let raw: Buffer;
   try {
     raw = fs.readFileSync(m.path);
@@ -149,8 +149,8 @@ export async function mediaData(store: Store, id: string): Promise<{ mime: strin
     return undefined;
   }
   const fit = await fitForModel(raw, m.mime);
-  const out = { mime: fit.mime, data: fit.bytes.toString("base64") };
+  const out = fit ? { mime: fit.mime, data: fit.bytes.toString("base64") } : null;
   fitted.set(key, out);
   for (const old of fitted.keys()) if (fitted.size > FITTED_KEEP) fitted.delete(old);
-  return out;
+  return out ?? undefined;
 }

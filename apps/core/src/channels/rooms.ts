@@ -287,7 +287,7 @@ export function createRooms(deps: {
             mode: room.mode,
             called,
             owner: who.owner,
-            ownerOnly: settings.owner_only,
+            ownerOnly: settings.owner_only || cfg.owner_only === true,
             closed: Boolean(cfg.hours && !withinHours(cfg.hours, new Date(clock()), ownerTimeZone(store))),
           });
       if (decision === "keep") {

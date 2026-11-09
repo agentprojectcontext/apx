@@ -5,6 +5,7 @@ import { appMethods } from "./app-methods.ts";
 import { artifactMethods } from "./artifact-methods.ts";
 import { asanaMethods } from "./asana-methods.ts";
 import { browserMethods } from "./browser.ts";
+import { channelMethods } from "./channel-methods.ts";
 import { desktopInstallMethods } from "./desktop-install.ts";
 import { deviceMethods } from "./device-methods.ts";
 import { emailSignatureMethods } from "./email-signatures.ts";
@@ -103,6 +104,7 @@ export const methods = {
   },
   ...browserMethods,
   ...appMethods,
+  ...channelMethods,
   ...artifactMethods,
   ...asanaMethods,
   ...deviceMethods,

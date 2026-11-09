@@ -1818,7 +1818,7 @@ export const es: Partial<Record<MessageKey, string>> = {
     "Encendido: sus novedades llegan siempre, aunque sea de noche o ya se haya llegado al tope diario (para el resumen de la mañana o de la tarde). Apagado: entran en tu presupuesto de interrupciones.",
   "nudge.where": "App de chat para los avisos",
   "nudge.whereHint":
-    "La app y tus teléfonos vinculados siempre los reciben (vinculá uno en Dispositivos). Elegí una app de chat para recibirlos también ahí, o ninguna.",
+    "La app y tus teléfonos vinculados siempre los reciben (vinculá uno en Dispositivos). Elegí una de las cuentas de chat que atiende tu super-agente para recibirlos también ahí, o ninguna.",
   "nudge.whereAuto": "El primer canal que te conoce",
   "nudge.whereNone": "Ninguno, solo en la app",
   "devices.push.expo": "Push",

@@ -34,7 +34,7 @@ import { saveLocalAttachment } from "../services/attachment-files.ts";
 import { askedSkill } from "../skills/picker.ts";
 import type { RuntimeHomes } from "../skills/runtimes.ts";
 import { agentSkills, skillCatalog, skillsFor } from "../skills/skills.ts";
-import { contactToolNames } from "../tools/contact.ts";
+import { contactHolder, contactToolNames } from "../tools/contact.ts";
 import { channelsOn } from "../tools/directory.ts";
 import { harnessDir, readOnlyFolders, scratchDir, workDir } from "../tools/folders.ts";
 import { chatPlanBlock } from "../tools/plan.ts";
@@ -665,7 +665,7 @@ function sectionsFor(deps: TurnDeps, turn: Turn, mode: Autonomy): Sections {
       : [];
   const chats = types.filter((t) => CHAT_CHANNELS.has(t));
   // A contact with no tools makes no call that could wait for the owner.
-  const acts = !contact || turn.web || contactToolNames(audience.person).size > 0;
+  const acts = !contact || turn.web || contactToolNames(contactHolder(audience)).size > 0;
   const allowed = !contact && vm?.permitted(agent.id, thread.id);
   return {
     mode: acts ? mode : undefined,
@@ -711,7 +711,7 @@ function systemFor(
   if (turn.audience.kind === "contact")
     return plain(
       turn.audience.room
-        ? roomPrompt(turn.agent, turn.audience.room, lang, turn.web)
+        ? roomPrompt(turn.agent, turn.audience.room, lang, turn.web, turn.audience.account)
         : contactPrompt(turn.agent, turn.audience, lang, turn.web, sectionLines(told)),
     );
   // The thread's project when it has one (a global agent working there needs its AGENTS.md too).

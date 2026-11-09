@@ -77,8 +77,8 @@ export const manus: Product = {
       "Apps web, de escritorio (macOS y Windows) y móvil; Slack, Telegram y una API.",
     ),
     text(
-      "Tasks run in Manus' cloud sandboxes or a persistent Cloud Computer; My Computer runs approved commands in folders you authorize.",
-      "Las tareas corren en entornos en la nube de Manus o en una Cloud Computer persistente; My Computer ejecuta comandos aprobados en carpetas que autorizás.",
+      "Cloud sandbox by default, or a persistent Cloud Computer. Studio's Work locally mode executes tasks on your computer while Manus plans in the cloud; some features upload files or temporarily switch to cloud execution.",
+      "Entorno en la nube por defecto, o una Cloud Computer persistente. El modo Work locally de Studio ejecuta tareas en tu computadora mientras Manus planifica en la nube; algunas funciones suben archivos o cambian temporalmente a ejecución en la nube.",
     ),
     text(
       "Wide Research splits work across parallel agents; a task can be shared with up to 50 people; Team plan shares projects and skills.",
@@ -102,8 +102,8 @@ export const manus: Product = {
     ),
   ],
   detail: text(
-    "Manus is built around the deliverable: you describe the outcome and its agent, sandbox and studio tools produce the file, site or video. It also offers projects, skills, automations, parallel agents and a desktop bridge to your own folders, so the difference is not memory or scheduling. APX runs the crew on hardware you control with the model providers you choose, while Manus runs tasks on its own service and bills them in credits.",
-    "Manus gira alrededor del entregable: describís el resultado y su agente, su entorno en la nube y sus herramientas de estudio producen el archivo, el sitio o el video. También ofrece proyectos, habilidades, automatizaciones, agentes en paralelo y un puente de escritorio a tus carpetas, así que la diferencia no es la memoria ni la programación de tareas. APX corre el equipo en equipos que controlás con los proveedores de modelos que elegís, mientras que Manus ejecuta las tareas en su propio servicio y las cobra en créditos.",
+    "Manus is built around the deliverable: you describe the outcome and its agent, sandbox and Studio tools produce the file, site or video. It also offers projects, skills, automations and parallel agents, so the difference is not memory or scheduling. Studio offers local execution with cloud planning, and local tasks use the same credits as cloud tasks. APX runs a project crew on hardware you control with the model providers you choose; a cloud model still receives the prompts needed for its requests.",
+    "Manus gira alrededor del entregable: describís el resultado y su agente, su entorno en la nube y sus herramientas de Studio producen el archivo, el sitio o el video. También ofrece proyectos, habilidades, automatizaciones y agentes en paralelo, así que la diferencia no es la memoria ni la programación de tareas. Studio ofrece ejecución local con planificación en la nube, y las tareas locales usan los mismos créditos que las tareas en la nube. APX corre un equipo por proyecto en equipos que controlás con los proveedores de modelos que elegís; un modelo en la nube recibe los prompts necesarios para sus pedidos.",
   ),
   tryIt: text(
     "Ask both for the same weekly market brief delivered to Telegram. Compare the result, how you correct it the second week and what each run cost.",

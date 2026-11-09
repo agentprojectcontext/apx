@@ -9,6 +9,7 @@ import { useData } from "../data/state.ts";
 import { type MessageKey, useT } from "../i18n/index.ts";
 import { SidePanel } from "../panel/SidePanel.tsx";
 import { go, nav, useNav } from "../shell/nav.ts";
+import { agentName, answerersOf, answersLine } from "./answerers.ts";
 import { ChannelConversation } from "./ChannelConversation.tsx";
 import { ContactPanel } from "./ContactPanel.tsx";
 import { ContactRow, type Row } from "./ContactRow.tsx";
@@ -173,7 +174,7 @@ export function ChannelScreen() {
           ))}
           {query && !shown.length && !shownRooms.length && <li className="chan__nobody">{t("res.noMatch")}</li>}
         </ul>
-        <p className="chan__foot">{t("ch.foot", { agent: agents[channel.agent_id]?.name ?? channel.agent_id })}</p>
+        <p className="chan__foot">{t("ch.foot", { agent: agentName(agents[channel.agent_id], t) })}</p>
       </aside>
       {ownerOpen && ownerTarget ? (
         <OpenChat
@@ -195,7 +196,12 @@ export function ChannelScreen() {
             onBack={() => go.channel(channel.id, undefined)}
           />
           {card && current.person && (
-            <ContactPanel key={current.person.id} person={current.person} onClose={() => setCard(false)} />
+            <ContactPanel
+              key={current.person.id}
+              person={current.person}
+              account={channel.id}
+              onClose={() => setCard(false)}
+            />
           )}
         </>
       ) : (
@@ -248,8 +254,10 @@ function ChannelHead({ channel }: { channel: ChannelInfo }) {
             </span>
             <span className="chan__meta">
               <span className={`chan__status is-${channel.status}`} />
-              {channel.account ? `${channel.account} · ` : ""}
-              {t("ch.answers", { agent: agents[channel.agent_id]?.name ?? channel.agent_id })}
+              <span className="chan__metatext" title={answersLine(answerersOf(channel, agents), t)}>
+                {channel.account ? `${channel.account} · ` : ""}
+                {answersLine(answerersOf(channel, agents), t)}
+              </span>
             </span>
           </button>
         }

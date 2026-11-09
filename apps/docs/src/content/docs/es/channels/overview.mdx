@@ -18,7 +18,9 @@ la barra lateral, bajo **Canales**, con sus contactos y sus chats; su nombre arr
 
 La configuración de una cuenta está agrupada en partes y se guarda junta con **Guardar**: **Cuenta** (su nombre,
 conexión y sesión), **Quién responde** (con quién hablás, dónde van tus mensajes, quién responde a tus contactos),
-**Comportamiento** (un mensaje mientras trabaja, la web, el horario), **Stickers y emojis** en las apps de chat,
+**Comportamiento** (un mensaje mientras trabaja, la web, el horario, **Solo te contesta a vos**, y **Lo que sabe y
+puede responder** y **Reglas** para todos los que escriben a la cuenta; las reglas propias de una sala o de un contacto
+van después y ganan), **Stickers y emojis** en las apps de chat,
 **Salas** donde la app las tiene, **Contactos** (todas las personas de la cuenta, y **Agregar contacto**),
 **Aprobaciones** (qué recibe alguien nuevo, y quién espera) y **Actividad** (lo que salió). Una cuenta nueva abre en
 **Cuenta**: ponele nombre y conectala; el resto se habilita cuando está conectada, y **Crear canal** la guarda.
@@ -66,21 +68,30 @@ Cada chat con un contacto y cada sala queda guardado como una conversación de A
 meterte desde el panel. Los agentes usan las mismas palabras: pueden listar canales y contactos, escribirle a un
 contacto, leer una sala y publicar en una por su nombre exacto.
 
+Con más de una cuenta de una app (dos números de WhatsApp, por ejemplo), un agente le escribe a un contacto desde una
+cuenta que responde él, y tu secretaria desde las tuyas. Si el contacto solo está en cuentas que responden otros
+agentes, al agente se le pide que diga cuál en vez de elegir una por vos.
+Una cuenta que empezás a agregar queda guardada cuando se conecta; si queda sin conectar, desaparece la próxima vez
+que arranca APX. iMessage es uno por Mac.
+
 ## Adónde van tus mensajes
 
 Cuando **vos** le escribís a tu agente por un canal, tu mensaje va a **Home**: una sola conversación con tu
-secretaria, escribas desde el panel, la terminal, Telegram o WhatsApp. Lo que empezaste en la compu lo seguís desde el
+super-agente, escribas desde el panel, la terminal, Telegram o WhatsApp. Lo que empezaste en la compu lo seguís desde el
 teléfono. Home muestra todo; **Vos** en la lista de un canal muestra solo la parte de ese canal: lo que escribiste ahí
 y lo que se te contestó ahí. En Home, un mensaje que llegó o salió por una app de chat lleva la marca chica de esa app
 junto a su hora (pasá el mouse: **Enviado por Telegram**, **Llegó por WhatsApp**), así sabés que también le llegó a tu
 teléfono o a un contacto, no solo a la app.
 
-**Con quién hablás** elige el agente que te responde en un canal: tu secretaria o el responsable de uno de tus
-proyectos. Con tu secretaria, **Tus mensajes** elige entre Home y **Chat propio**, un chat propio de ese canal. El
-responsable de un proyecto siempre te responde en el chat propio del canal: Home es tu conversación con la secretaria,
+**Con quién hablás** elige el agente que te responde en un canal: tu super-agente o el responsable de uno de tus
+proyectos. Con tu super-agente, **Tus mensajes** elige entre Home y **Chat propio**, un chat propio de ese canal. El
+responsable de un proyecto siempre te responde en el chat propio del canal: Home es tu conversación con el super-agente,
 así que ahí **Tus mensajes** queda en **Chat propio**. **Quién responde a tus contactos** elige, aparte, quién responde a
 quienes escriben al canal. Cambiar cualquiera de los dos pasa los chats que ya están abiertos, con su historial; un chat
 que le pasaste a otro agente se queda con ese agente.
+
+Un canal que configuraste antes de que existiera esta opción sigue funcionando como antes: si su agente no era tu
+secretaria y tus mensajes iban a Home, tu secretaria te responde en Home y ese agente responde a tus contactos.
 
 ## Qué canales actúan con tu palabra
 
@@ -128,8 +139,13 @@ Abrí un contacto desde la pantalla del canal para configurar:
 
 - **Quién es**, en tus palabras. Llega solo a los turnos que le contestan a esa persona.
 - **Reglas**, que van últimas en el prompt y le ganan a la cautela del agente.
-- **Qué puede hacer esta conversación**: **Tomar pedidos de turno**, **Tomar pedidos** (cada uno queda como tarea
-  para vos) y **Contestar desde mis notas** (tus notas generales, de lectura). Todo apagado de entrada.
+- **Qué puede hacer esta conversación**: **Anotar citas**, **Tomar pedidos** (cada uno queda como tarea
+  para vos), **Contestar desde mis notas** (tus notas generales, de lectura) y **Responder a cualquier hora**. Cada uno
+  sigue a la cuenta de entrada (**Cuenta: Sí** o **No**), o le ponés **Sí** o **No** solo a esta persona.
+
+Lo que recibe de entrada cada contacto de una cuenta está en la configuración de esa cuenta, **Contactos › Para tus
+contactos, por defecto**: todo apagado hasta que prendas algo. Lo que elijas para un contacto le gana, en esa cuenta y
+en cualquier otra.
 - **Silenciar**: sus mensajes se guardan pero nunca llegan a un modelo.
 - **Supervisar**: no se le contesta solo; te llega la respuesta que mandaría el agente, para mandarla, editarla o
   descartarla. Mirá [Contactos supervisados](/es/channels/supervised/).
@@ -187,8 +203,8 @@ sábado).
   en ese momento.
 - Si vuelve a escribir cuando el horario ya empezó, ese mensaje se responde con los anteriores a la vista, y una sola
   vez.
-- A vos siempre te responde, en cualquier canal. A un contacto con **Responder a cualquier hora** (en su ficha),
-  también.
+- A vos siempre te responde, en cualquier canal. A un contacto con **Responder a cualquier hora** (en su ficha, o para todos en la configuración
+  de la cuenta), también.
 - En las salas, fuera del horario solo te responde a vos, y lo que se dijo mientras tanto no se responde después.
 
 También se lo podés pedir a tu super-agente en el chat ("respondé WhatsApp de lunes a viernes de 9 a 18, y a mi papá

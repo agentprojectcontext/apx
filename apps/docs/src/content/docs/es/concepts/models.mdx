@@ -123,7 +123,9 @@ corra una herramienta: cada paso sólo le pregunta al modelo qué hacer, así qu
 chat muestra un aviso con qué modelo no respondió, por qué y cuál siguió.
 
 Una imagen de más de unos 2048 × 2048 píxeles (una foto de la cámara, una captura de página entera) le llega al modelo
-reducida a ese tamaño, así ningún proveedor la rechaza por grande; el chat guarda la original.
+reducida a ese tamaño, así ningún proveedor la rechaza por grande; el chat guarda la original. Una foto del celular le
+llega derecha, como la ves vos, y una animación grande como su primer cuadro. Una imagen que no se puede abrir, o que es
+demasiado grande para reducirla, queda afuera del pedido: el resto del mensaje le llega igual al modelo.
 
 Un modelo que llega al límite de uso de su cuenta (la cuota de un plan, un límite de frecuencia largo) se saltea hasta
 la hora de reinicio que dio el proveedor, o 10 minutos si no dio ninguna: los turnos siguientes van directo al modelo

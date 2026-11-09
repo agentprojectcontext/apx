@@ -144,28 +144,34 @@ test("a second Discord bot is an account of its own: its own row, its own settin
     .getByRole("button", { name: /^Discord/ })
     .click();
   await page.getByRole("textbox", { name: "Token del bot", exact: true }).fill(discord);
-  await page.getByRole("button", { name: "Conectar", exact: true }).click();
-  const second = await until(async () =>
-    (await rpc<{ channels: Array<{ id: string; type: string; label: string }> }>("channels.list")).channels.find(
-      (c) => c.type === "discord" && c.id !== "discord",
-    ),
-  );
-  expect(second.label).toBe("Discord 2");
-  const name = page.getByRole("textbox", { name: "Nombre", exact: true });
-  await expect(name).toHaveValue("Discord 2");
-  await name.fill("Acme support");
-  await create(page);
-  await until(async () =>
-    (await rpc<{ channels: Array<{ id: string; label: string }> }>("channels.list")).channels.some(
-      (c) => c.id === second.id && c.label === "Acme support",
-    ),
-  );
-  // The first account is untouched, and each row of the sidebar opens the settings of its own account.
-  await expect(page.getByRole("button", { name: "Acme support", exact: true }).first()).toBeVisible();
-  await page.getByRole("button", { name: "Discord", exact: true }).first().click();
-  await page.getByRole("button", { name: "Configuración del canal" }).click();
-  await expect(page.getByRole("textbox", { name: "Nombre", exact: true })).toHaveValue("Discord");
-  await rpc("channels.set", { id: second.id, channel: null });
+  // Connecting already keeps the account: it is removed whatever fails below, so later specs see only the first one.
+  try {
+    await page.getByRole("button", { name: "Conectar", exact: true }).click();
+    const second = await until(async () =>
+      (await rpc<{ channels: Array<{ id: string; type: string; label: string }> }>("channels.list")).channels.find(
+        (c) => c.type === "discord" && c.id !== "discord",
+      ),
+    );
+    expect(second.label).toBe("Discord 2");
+    const name = page.getByRole("textbox", { name: "Nombre", exact: true });
+    await expect(name).toHaveValue("Discord 2");
+    await name.fill("Acme support");
+    await create(page);
+    await until(async () =>
+      (await rpc<{ channels: Array<{ id: string; label: string }> }>("channels.list")).channels.some(
+        (c) => c.id === second.id && c.label === "Acme support",
+      ),
+    );
+    // The first account is untouched, and each row of the sidebar opens the settings of its own account.
+    await expect(page.getByRole("button", { name: "Acme support", exact: true }).first()).toBeVisible();
+    await page.getByRole("button", { name: "Discord", exact: true }).first().click();
+    await page.getByRole("button", { name: "Configuración del canal" }).click();
+    await expect(page.getByRole("textbox", { name: "Nombre", exact: true })).toHaveValue("Discord");
+  } finally {
+    const { channels } = await rpc<{ channels: Array<{ id: string; type: string }> }>("channels.list");
+    for (const c of channels)
+      if (c.type === "discord" && c.id !== "discord") await rpc("channels.set", { id: c.id, channel: null });
+  }
 });
 
 test("Slack: the app connects with both tokens, the owner links their account and talks to the super-agent", async ({
@@ -219,6 +225,7 @@ test("Teams shows its public address: the owner's own https URL gives the addres
   await page.getByRole("radio", { name: "Propia", exact: true }).click();
   await page.getByRole("textbox", { name: "Tu dirección", exact: true }).fill("https://hooks.example.com");
   await page.getByRole("button", { name: "Guardar", exact: true }).click();
-  await expect(page.getByText("https://hooks.example.com/hooks/teams")).toBeVisible();
+  // Before the account is made it shows the base address; its own (/hooks/<id>) once it is connected.
+  await expect(page.getByText("https://hooks.example.com", { exact: true })).toBeVisible();
   await rpc("webhooks.set", { mode: "off" });
 });

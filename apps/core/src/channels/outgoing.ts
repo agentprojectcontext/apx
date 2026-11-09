@@ -75,9 +75,11 @@ export function createOutgoing(deps: {
 
   /**
    * A person's chat on a channel: the one with their latest words (on `channel`, an id or type, when given), else a new
-   * empty one on the first channel that knows them, its answers going back to them.
+   * empty one on the first channel that knows them, its answers going back to them. Only from an account `by` answers
+   * (none, or the super-agent: the owner's own); when no such account knows them and several others do, it asks which,
+   * rather than write from another business's number.
    */
-  function chatWith(personId: string, channel?: string, exact = false) {
+  function chatWith(personId: string, channel?: string, exact = false, by?: string) {
     const person = store.persons.get(personId);
     if (!person || person.role === "blocked") throw new Error(`${personId} is not one of the owner's contacts`);
     const wanted = exact ? channel : channel?.toLowerCase();
@@ -93,7 +95,17 @@ export function createOutgoing(deps: {
           ? `${person.name} has no address on ${channel}`
           : `${person.name} has no address on any channel APX runs`,
       );
-    const pick = [...options].sort(
+    const sender = (agent: string) =>
+      by && !answersInHome(store, by) ? agent === by : agent === by || answersInHome(store, agent);
+    // The agent that answers them there: the owner's on the channel, a contact's its contacts agent.
+    const own = options.filter((o) => sender(person.role === "owner" ? o.cfg.agent_id : contactAgentOf(o.cfg)));
+    const accounts = [...new Map(options.map((o) => [o.cfg.id, o.cfg])).values()];
+    if (!own.length && accounts.length > 1)
+      throw new Error(
+        `${person.name} is on several accounts: ${accounts.map((c) => `${c.label} (${c.id})`).join(", ")}; ` +
+          "say which one to write from (channel: its id)",
+      );
+    const pick = [...(own.length ? own : options)].sort(
       (a, b) =>
         (b.chat?.updated_at ?? "").localeCompare(a.chat?.updated_at ?? "") || Number(b.running) - Number(a.running),
     )[0] as (typeof options)[number];
@@ -136,7 +148,7 @@ export function createOutgoing(deps: {
       omit_signature?: boolean | undefined;
     },
   ): Posted {
-    const { pick, owner, thread } = chatWith(personId, o.channel, o.exact);
+    const { pick, owner, thread } = chatWith(personId, o.channel, o.exact, o.by);
     // The chat's agent answers the contact's reply knowing it wrote this first (the owner's own chat logs its turns).
     const recent = recentOf(thread.id);
     // To the owner on a chat app it is a notice like any other: without sound in their quiet hours.
@@ -144,7 +156,7 @@ export function createOutgoing(deps: {
     const outbox = post(thread, pick.cfg.id, pick.conversation, text, {
       ...o,
       // A Flow's message reaches them from the channel's agent, so the chat shows it as that agent's.
-      by: o.by ?? (o.flow ? pick.cfg.agent_id : undefined),
+      by: o.by ?? (o.flow ? (owner ? pick.cfg.agent_id : contactAgentOf(pick.cfg)) : undefined),
       logged: !owner && !o.flow,
       silent,
     });

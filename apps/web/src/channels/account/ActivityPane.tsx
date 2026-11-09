@@ -28,8 +28,8 @@ export function ActivityPane({ channel }: Pick<PaneProps, "channel">) {
     let live = true;
     const read = () =>
       void client
-        .call("channels.outbox", { limit: 200 })
-        .then((r) => live && setItems(r.items.filter((o) => o.channel === channel.id).slice(0, 50)))
+        .call("channels.outbox", { channel: channel.id, limit: 50 })
+        .then((r) => live && setItems(r.items))
         .catch(() => live && setItems([]));
     read();
     const id = setInterval(read, 5000);

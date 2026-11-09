@@ -58,7 +58,14 @@
   white-space: nowrap;
   text-overflow: ellipsis;
 }
+/* The line itself shrinks with an ellipsis; the whole of it shows on hover. */
+.chan__metatext {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
 .chan__status {
+  flex: none;
   width: 7px;
   height: 7px;
   border-radius: 50%;
@@ -663,7 +670,7 @@
 }
 .chs__row {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 140px 120px 28px auto;
+  grid-template-columns: minmax(0, 1fr) minmax(140px, 220px) 120px 28px auto;
   align-items: center;
   gap: 12px;
   padding: 10px 14px;
@@ -715,6 +722,13 @@
   font-size: var(--apx-text-xs);
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+/* Who answers: the agent you talk to, and under it the one for your contacts when it is another. */
+.chs__agents {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
 }
 .chs__agent,
 .chs__status {
@@ -790,6 +804,20 @@
     gap: 12px;
     padding-left: 48px;
     font-size: var(--apx-text-xs);
+  }
+  .chs__agents {
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: 2px 12px;
+  }
+  /* Too narrow for all of it on one line: what does not fit goes under, never cut. */
+  .chs__meta {
+    flex-wrap: wrap;
+    row-gap: 2px;
+  }
+  .chs__agent,
+  .chs__status {
+    flex: none;
   }
 }
 /* The channel's name opens its accounts, to switch to another. */
@@ -1135,4 +1163,13 @@
   margin: 0;
   padding: 0;
   list-style: none;
+}
+/* A contact's right: its name over its three choices (as the account says, or theirs on or off). */
+.chan__right {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.chan__rightlabel {
+  font-size: var(--apx-text-sm);
 }

@@ -112,11 +112,13 @@ export function createInbound(deps: {
     // Where the platform cannot vouch for the owner, their words only reach the super-agent to check: they answer and approve nothing here.
     const direct = owner && ownerActsOn(cfg.type);
     const thread = owner ? ownerThread(cfg, m.conversation) : contactThread(cfg, m.conversation, person);
+    // Silenced, or on an account that answers only the owner: kept, never answered.
+    const quiet = !owner && (person.muted || cfg.owner_only === true);
     // A supervised contact costs a draft, not an answer: suggestions.ts keeps its own hourly cap.
-    const supervised = !owner && !person.muted && person.supervised;
+    const supervised = !quiet && !owner && person.supervised;
     // Outside the channel's hours a contact's message waits, unanswered, for them to begin (held.ts).
-    const waits = !owner && !person.muted && waitsForHours(store, cfg, person, deps.now());
-    if (!owner && !person.muted && !supervised && !waits && overLimit(person.id, person.name)) return "ignored";
+    const waits = !quiet && !owner && waitsForHours(store, cfg, person, deps.now());
+    if (!owner && !quiet && !supervised && !waits && overLimit(person.id, person.name)) return "ignored";
     let text = m.text;
     const attachments: string[] = [];
     let voice: MediaRecord | undefined;
@@ -132,7 +134,7 @@ export function createInbound(deps: {
       } catch {
         text += "\n[voice note could not be accepted: invalid type, contents or size]";
       }
-      if (voice && !(person.muted && !owner)) text = await heard(m, thread.id, voice);
+      if (voice && !quiet) text = await heard(m, thread.id, voice);
     }
     for (const file of m.files ?? []) {
       try {
@@ -150,16 +152,23 @@ export function createInbound(deps: {
       }
       // A sticker is kept for good the moment it arrives, and read as what it means (a silenced contact's unnamed).
       if (file.sticker) {
-        const s = await deps.stickers.keep(cfg.type, file, thread.id, owner || !person.muted);
+        const s = await deps.stickers.keep(cfg.type, file, thread.id, !quiet);
         const said = `[sticker${s?.adult ? " (18+)" : ""}${s?.meaning ? `: ${inlineName(s.meaning, 160)}` : ""}]`;
         // A model wrote its meaning from a picture someone sent: outside text, even in the owner's turn.
         text = `${text}\n${s?.meaning ? untrusted("sticker", { named_by: "a model that saw it" }, said) : said}`.trim();
       }
     }
     // A silenced contact keeps its files without transcription, a model call or a work-folder copy.
-    if (!owner && person.muted) {
+    if (quiet) {
       const said = m.voice ? `${text ? `${text}\n` : ""}[voice note]` : text;
-      keepQuiet(thread.id, cfg.id, person, said, attachments);
+      keepQuiet(
+        thread.id,
+        cfg.id,
+        person,
+        said,
+        attachments,
+        person.muted ? undefined : { answered: "no: this account answers only its owner" },
+      );
       if (person.unreviewed) report(cfg, person, m.sender.id, said, thread.id);
       return "done";
     }

@@ -116,7 +116,9 @@ to do next, so nothing runs twice. When it does switch, the chat shows a notice 
 and which one went on.
 
 An image bigger than about 2048 × 2048 pixels (a camera photo, a full-page screenshot) goes to the model scaled down to
-that size, so no provider refuses it for its size; the chat keeps the original.
+that size, so no provider refuses it for its size; the chat keeps the original. A phone photo goes upright, the way you
+see it, and a large animation as its first frame. An image that can't be opened, or is too large to scale down, is left
+out of the call: the rest of the message still reaches the model.
 
 A model that hits its account's usage limit (a plan's quota, a long rate limit) is skipped until the time the provider
 gave for its reset, or for 10 minutes when it gave none: later turns go to the next model at once instead of asking it

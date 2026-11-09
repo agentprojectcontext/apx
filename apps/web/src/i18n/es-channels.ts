@@ -24,7 +24,7 @@ export const esChannels: Partial<Record<MessageKey, string>> = {
     "Se le contesta enseguida y queda como contacto nuevo: charla sellada, sin tools ni memoria, con límite por hora.",
   "ch.strangersHint.ignore": "Nadie le contesta y no queda anotado.",
   "ch.accountName": "Nombre",
-  "ch.accountNameHint": "Cómo aparece en la sidebar. Por ejemplo: Ventas, Soporte, Personal.",
+  "ch.accountNameHint": "Cómo aparece en la barra lateral. Por ejemplo: Ventas, Soporte, Personal.",
   "ch.selfOwner": "Esta línea es mi propio teléfono",
   "ch.selfOwnerHint":
     "Encendido: lo que escribas en “Mensaje a mí mismo” es tuyo y se contesta ahí. Apagado: es una línea aparte donde atiende tu agente; vos le escribís desde tu teléfono.",
@@ -70,6 +70,9 @@ export const esChannels: Partial<Record<MessageKey, string>> = {
   "ch.foot":
     "Conversaciones con otras personas. Lo que le escribís a {agent} por este canal queda en sus sesiones del Inbox.",
   "ch.answers": "Atiende {agent}",
+  "ch.answersSplit": "Hablás con {agent} · {contacts} atiende a tus contactos",
+  "ch.agentGone": "un agente que ya no existe",
+  "chs.forContacts": "{agent} para tus contactos",
   "ch.settings": "Configuración del canal",
   "ch.pick.title": "Elegí una conversación",
   "ch.pick.body": "Leela, decile al agente qué contestar o escribí vos.",
@@ -155,9 +158,9 @@ export const esChannels: Partial<Record<MessageKey, string>> = {
   "ch.rules": "Reglas",
   "ch.rulesHint": "Va último en el prompt, así que le gana a la cautela del agente.",
   "ch.may": "Qué puede hacer esta conversación",
-  "ch.perm.appointments": "Tomar pedidos de turno",
+  "ch.perm.appointments": "Anotar citas",
   "ch.perm.appointmentsHint":
-    "Cuando pide un turno (día y hora), queda como tarea para que lo confirmes y te aviso por tu canal en el momento. No reserva nada.",
+    "Cuando pide una cita (día y hora), queda anotada como tarea para que la confirmes y te aviso por tu canal en el momento. No agenda nada.",
   "ch.perm.requests": "Tomar pedidos",
   "ch.perm.requestsHint":
     "Cuando pide algo que solo vos podés hacer (una compra, un favor, llamar a alguien), queda como tarea y te aviso en el momento. Tu agente nunca lo hace por vos.",
@@ -316,7 +319,7 @@ export const esChannels: Partial<Record<MessageKey, string>> = {
   "chs.rooms.other": "{n} salas",
   "chs.open": "Abrir",
   "chs.settings": "Configuración de {name}",
-  "chs.hint": "Clic derecho en una cuenta, acá o en la sidebar, para más opciones.",
+  "chs.hint": "Clic derecho en una cuenta, acá o en la barra lateral, para más opciones.",
   "chs.empty": "Todavía no conectaste ningún canal",
   "chs.emptyBody": "Conectá WhatsApp, Telegram, email y más: cada cuenta tiene su agente y sus contactos.",
   "chs.turnOff": "Apagar",
@@ -364,7 +367,7 @@ export const esChannels: Partial<Record<MessageKey, string>> = {
   "acct.lead.activity": "Lo último que salió por esta cuenta.",
   "acct.noApprovals": "Nadie esperando aprobación en esta cuenta.",
   "acct.noActivity": "Todavía no salió nada por esta cuenta.",
-  "acct.saved": "Se guarda en APX",
+  "acct.saved": "Guardado en APX",
   "acct.unsaved": "Cambios sin guardar",
   "acct.discard": "Descartar",
   "acct.saveClose": "Guardar y cerrar",
@@ -396,4 +399,17 @@ export const esChannels: Partial<Record<MessageKey, string>> = {
     "Se borra su sesión y nadie responde más ahí. Sus conversaciones quedan en APX; para usarla de nuevo, volvés a conectarla.",
   "acct.pane.stickers": "Stickers y emojis",
   "acct.lead.stickers": "Cómo responde sin palabras en esta cuenta.",
+  "ch.right.account": "Cuenta: {value}",
+  "ch.right.yes": "Sí",
+  "ch.right.no": "No",
+  "acct.contactsDefault": "Para tus contactos, por defecto",
+  "acct.contactsDefaultHint": "Lo que recibe cada contacto de esta cuenta, salvo que lo cambies en su ficha.",
+  "acct.ownerOnly": "Solo te contesta a vos",
+  "acct.ownerOnlyHint": "Los mensajes de tus contactos y salas se guardan, pero solo te responde a vos.",
+  "acct.knowledge": "Lo que sabe y puede responder",
+  "acct.knowledgeHint":
+    "Tus notas para todos los que escriben a esta cuenta: qué es el negocio, adónde mandarlos. Las salas suman las suyas.",
+  "acct.rules": "Reglas",
+  "acct.rulesHint":
+    "Lo que nunca debe decir acá. Van al final; las reglas propias de un contacto o de una sala van después y ganan.",
 };

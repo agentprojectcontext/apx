@@ -126,6 +126,7 @@ export const runsOnComputer = (o: Origin): boolean => {
     case "stalled_task":
     case "task_continue":
     case "task_result":
+    case "task_feedback":
     case "delegation_result":
     case "delegation_results":
       return true;
