@@ -27,6 +27,6 @@ test("on Windows the account menu runs the desktop app's About, updates and chan
 test("in a browser the account menu has no desktop app items", async ({ page }) => {
   await page.goto("/");
   await page.getByRole("button", { name: /^Cuenta/ }).click();
-  await expect(page.getByRole("menuitem", { name: /^Configuración/ })).toBeVisible();
+  await expect(page.getByRole("menuitem", { name: /^Configuración(?! inicial)/ })).toBeVisible();
   await expect(page.getByRole("menuitem", { name: "Acerca de APX" })).toHaveCount(0);
 });
