@@ -23,7 +23,7 @@ import type { InternalCall } from "../rpc/internal.ts";
 import type { Secrets } from "../secrets.ts";
 import { splitSpoken } from "../services/audio.ts";
 import type { Services } from "../services/registry.ts";
-import { addedUnconnected, dropUnconnected, keptConnected, restartsFor } from "./accounts.ts";
+import { addedUnconnected, dropUnconnected, keptConnected, kindFixed, restartsFor } from "./accounts.ts";
 import { agentProject } from "./agent-project.ts";
 import { createDelivery } from "./delivery.ts";
 import { guardReply } from "./guard.ts";
@@ -129,7 +129,8 @@ export function createChannels(deps: {
   const changing = new Map<string, Promise<unknown>>();
   let stopped = false;
 
-  const configs = (): ChannelConfig[] => store.settings.read("channels");
+  // What a kind of channel fixes (email: its own chat, one mail after another) wins over what was saved.
+  const configs = (): ChannelConfig[] => store.settings.read("channels").map(kindFixed);
 
   /** Open chats follow a change of who answers them: the owner's own chats, and its contacts' and rooms'. */
   const moveAnswerers = (id: string, before: ChannelConfig, after: Omit<ChannelConfig, "id">) => {
@@ -736,7 +737,7 @@ export function createChannels(deps: {
         const before = configs().find((c) => c.id === id);
         const rest = configs().filter((c) => c.id !== id);
         store.tx(() => {
-          store.settings.write("channels", config ? [...rest, { ...config, id }] : rest);
+          store.settings.write("channels", config ? [...rest, kindFixed({ ...config, id })] : rest);
           if (before && config) moveAnswerers(id, before, config);
         });
         // Who answers, where the owner's words go, overlapping messages and strangers are read per message: the

@@ -112,6 +112,8 @@ export function emailAdapter(
   opts: {
     dir: string;
     signature?: (() => EmailSignature | undefined) | undefined;
+    /** One of the owner's own addresses on this account: always read, and only when its server verified it. */
+    owner?: ((address: string) => boolean) | undefined;
   },
 ) {
   const mail: ChannelEmail | undefined = config.email;
@@ -149,9 +151,11 @@ export function emailAdapter(
     }
     const from = parseAddress(header(m.headers, "from"));
     if (!from || from.address === mail.address.toLowerCase()) return;
-    if (isAutomatic(m.headers, from.address) || !allowedSender(mail.allowed, from.address)) return;
-    // A From line is easy to forge: mail its server did not verify could pass for the owner. Dropped, unanswered.
-    if (!mail.trust_unverified && !verifiedSender(m.headers, from.address)) return;
+    const owner = opts.owner?.(from.address) === true;
+    if (isAutomatic(m.headers, from.address) || (!owner && !allowedSender(mail.allowed, from.address))) return;
+    // A From line is easy to forge: mail its server did not verify could pass for the owner. Dropped, unanswered;
+    // from the owner's own address, even when the owner chose to read unverified mail.
+    if ((owner || !mail.trust_unverified) && !verifiedSender(m.headers, from.address)) return;
     const id = messageIds(header(m.headers, "message-id"))[0];
     const subject = decodeWords(header(m.headers, "subject") ?? "")
       .replace(/[\p{Cc}\p{Cf}]/gu, "")

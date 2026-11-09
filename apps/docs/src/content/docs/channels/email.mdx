@@ -19,16 +19,23 @@ either one. See [Email and signatures](/office/email/) for Gmail and local sende
 3. Known providers fill the IMAP and SMTP servers. Otherwise enter each host, port and security mode. Typical secure
    choices are IMAP 993 with SSL/TLS and SMTP 465 with SSL/TLS or 587 with STARTTLS; use your provider's actual settings.
 4. Set the sign-in name if it differs from the email address. Connect and check the status before testing.
-5. Send a short message from another mailbox, approve its pairing request as the appropriate person and verify a reply.
+5. Under **Account › Your account**, type the addresses you write from in **Your addresses** (no code is needed).
+   Send a short message from one of them and verify a reply.
 
 **None** security is only for local mail servers, not an internet connection. APX stores the password as a secret;
 it does not display it again. Changing server details or password reconnects the mailbox.
 
 ## Restrict incoming mail
 
-**Who may write** accepts individual addresses or a domain such as `@example.com`. An empty list allows incoming
-senders to reach the normal stranger-handling flow; it does not automatically approve everyone. Start with a narrow
-allowlist and review **Strangers** and the [supervised reply mode](/channels/supervised/).
+**Who may write** accepts individual addresses or a domain such as `@example.com`; your own addresses are always
+read. An empty list lets anyone reach the stranger handling chosen in **Approvals**; it does not approve everyone.
+An email account never mails a code to someone it does not know: with **List them**, they wait in **Approvals** with
+what they wrote, and nothing is sent until you approve them. Start with a narrow allowlist and review the
+[supervised reply mode](/channels/supervised/).
+
+Mail from **Your addresses** counts as yours only when your mail server verified it (DKIM, SPF or DMARC), even with
+**Read unverified mail** on. Your mail goes to the account's own chat, one mail after another: email has no Home
+switch and no **While it is working** choice.
 
 By default APX drops messages whose sender domain the mail server could not verify with DKIM, SPF or DMARC.
 **Read unverified mail** weakens that protection: enable it only if you understand why your server does not check

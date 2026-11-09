@@ -372,7 +372,7 @@ export function BotAccount({ kind, ...pane }: PaneProps & { kind: BotKind }) {
           <StoredToken channel={channel} kind={kind} onSave={saveNow} />
         </SettingRow>
       )}
-      <OwnerLink channelId={channel.id} name={name} />
+      <OwnerLink channelId={channel.id} type={channel.type} name={name} />
       {WEBHOOK_KINDS.includes(kind) && <PublicAddress channelId={channel.id} />}
     </>
   );

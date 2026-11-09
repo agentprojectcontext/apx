@@ -16,6 +16,7 @@ export const enChannels = {
   "ch.strangers.answer": "Answer",
   "ch.strangersHint.pair": "They get a code you approve here or from your notice. Until then nobody answers them.",
   "ch.strangersHint.list": "They are listed here for you to approve; nothing is sent to them from your number.",
+  "ch.strangersHint.listMail": "They are listed here for you to approve; no mail is sent to them.",
   "ch.strangersHint.ask":
     "You get a notice with who wrote and what. Say yes (its button, or tell your agent) and their message is answered.",
   "ch.strangersHint.answer":
@@ -205,11 +206,15 @@ export const enChannels = {
   "em.edit": "Change servers",
   "em.allowed": "Who may write",
   "em.allowedHint":
-    "Only mail from these addresses (or @domain) is read. Empty: anyone, and strangers get a pairing code.",
+    "Only mail from these addresses (or @domain) is read. Empty: anyone; what people you don't know get is set in Approvals.",
+  "em.mine": "Your addresses",
+  "em.mineHint":
+    "Mail you send from these addresses is yours, once your mail server verified it was you. Add each address you write from.",
+  "em.minePlaceholder": "you@example.org",
   "em.allowedPlaceholder": "ana@example.org, @acme.com",
   "em.unverified": "Read unverified mail",
   "em.unverifiedHint":
-    "Mail its server could not verify (DKIM, SPF or DMARC) is dropped, since anyone can write your address as the sender. Turn it on only if your mail server does not check senders.",
+    "Mail its server could not verify (DKIM, SPF or DMARC) is dropped, since anyone can write your address as the sender. Turn it on only if your mail server does not check senders. Mail from your own addresses always needs it.",
   "em.passwordStored": "Stored securely; it never comes back to this screen.",
   "em.passwordChange": "Change password",
   "em.passwordFix": "Type the password again to connect it.",

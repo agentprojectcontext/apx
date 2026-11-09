@@ -259,6 +259,8 @@ export function channelHandlers(store: Store, channels: Channels, nudges: Pick<N
       const who = person ? store.persons.get(person) : store.persons.owner();
       if (!who) throw notFound(`person ${person}`);
       const external = addressOn(cfg, address, who);
+      if (cfg.type === "email" && external === cfg.email?.address.toLowerCase())
+        throw badRequest(`${address} is this mailbox's own address: its mail is never read as anyone's`);
       store.tx(() => store.persons.link(who.id, { channel, external_id: external, label: cfg.label }));
       return store.persons.get(who.id) as NonNullable<ReturnType<typeof store.persons.get>>;
     },

@@ -1,3 +1,4 @@
+import { channelKindRules } from "@apx/protocol/client";
 import { SegmentedControl, SettingRow } from "@apx/ui";
 import { AgentSelect } from "../../common/pickers/AgentSelect.tsx";
 import type { ChannelDraft } from "../../data/channels.ts";
@@ -13,6 +14,8 @@ import type { PaneProps } from "./types.ts";
 export function AnswerPane({ channel, draft, set }: PaneProps) {
   const t = useT();
   const home = useData((s) => s.agents[draft.agent_id]?.kind === "secretary");
+  // A kind that fixes where the owner's words go (email: each mail in the account's own chat) offers no choice.
+  const fixed = channelKindRules(channel.type).ownerThread;
   return (
     <>
       <SettingRow title={t("tg.ownerAgent")} description={t("tg.ownerAgentHint", { channel: channel.label })}>
@@ -24,22 +27,24 @@ export function AnswerPane({ channel, draft, set }: PaneProps) {
           onChange={(id) => id && set({ agent_id: id })}
         />
       </SettingRow>
-      <SettingRow
-        title={t("tg.ownerThread")}
-        description={home ? t("tg.ownerThreadHint", { channel: channel.label }) : t("tg.ownerThreadOwnOnly")}
-      >
-        <SegmentedControl
-          size="sm"
-          label={t("tg.ownerThread")}
-          disabled={!home}
-          value={home ? draft.owner_thread : "own"}
-          onValueChange={(v) => set({ owner_thread: v as ChannelDraft["owner_thread"] })}
-          options={[
-            { value: "home", label: t("tg.ownerThread.home") },
-            { value: "own", label: t("tg.ownerThread.own") },
-          ]}
-        />
-      </SettingRow>
+      {!fixed && (
+        <SettingRow
+          title={t("tg.ownerThread")}
+          description={home ? t("tg.ownerThreadHint", { channel: channel.label }) : t("tg.ownerThreadOwnOnly")}
+        >
+          <SegmentedControl
+            size="sm"
+            label={t("tg.ownerThread")}
+            disabled={!home}
+            value={home ? draft.owner_thread : "own"}
+            onValueChange={(v) => set({ owner_thread: v as ChannelDraft["owner_thread"] })}
+            options={[
+              { value: "home", label: t("tg.ownerThread.home") },
+              { value: "own", label: t("tg.ownerThread.own") },
+            ]}
+          />
+        </SettingRow>
+      )}
       <SettingRow title={t("tg.contactsAgent")} description={t("tg.contactsAgentHint", { channel: channel.label })}>
         <AgentSelect
           size="sm"

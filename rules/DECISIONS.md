@@ -4471,3 +4471,28 @@ the main prompt's own rule that a promise is not an action.
 - **A burst goes whole.** A room answers one person's quick messages as one (D-041), so the owner's messages kept
   unanswered right before the one answered go with it, oldest first: only theirs, with nobody else's message or an
   answer between, each within 15 s of the next.
+
+<a id="d-214"></a>
+## D-214 — 2026-11-09 — A kind of channel fixes the choices that do not fit it; email is mail, not a chat
+The account settings were made for chat apps: a pairing code for the owner and for strangers, Home or the account's own
+chat, and what a message does while the agent works. On an email account each of these was wrong: the owner had to
+mail the bot and paste back a code, every stranger's mail got a code in reply (an answer to spam and to forged
+senders), the owner's mail could land in Home, and "interrupt" or "slip in" mean nothing for mail.
+
+- **`channelKindRules(type)`** (`packages/protocol/src/constants.ts`) says, per kind, how the owner marks their own
+  address (`code` or `address`), whether "pair" only lists strangers, and what it fixes (`ownerThread`, `concurrency`).
+  Chat apps get the default (everything offered); email fixes its own chat and a queue, lists strangers and takes typed
+  addresses. Another kind gets rules by adding a row, not a branch in a screen.
+- **The core applies them**: the manager reads and saves an account with what its kind fixes (`kindFixed`), so a saved
+  "home" or "steer" on an email account never takes effect; inbound lists a stranger of a listing kind like one on the
+  owner's own number (no code, no tray notice: the request waits in Approvals with what they wrote). The panel only
+  hides the rows a kind fixes and shows the address field instead of the code.
+- **The owner's addresses on email are typed** (`contacts.address`, the mailbox's own refused) and trusted only when
+  the owner's server verified them: mail from them skips "Who may write" and is dropped unverified even with "Read
+  unverified mail" on.
+
+Known limit: one conversation per sender, as before; each mail shows as a card in it, but a new subject from the same
+person is not a conversation of its own.
+
+Rejected: a code mailed to the owner as on chat apps (the step the owner found confusing, and a reply to any forged
+From); per-screen `type === "email"` checks (the next kind would copy them).

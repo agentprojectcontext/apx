@@ -1,7 +1,7 @@
 // What arrives on a channel. Who wrote (an exact address match) decides where the words go: the owner's thread, a
-// contact's sealed thread, or a pairing code for a stranger. Button presses decide only when the owner presses them.
+// contact's sealed thread, or a pairing request for a stranger. Button presses decide only when the owner presses them.
 
-import { CHANNEL_DEFAULTS, type Thread, UPLOAD_LIMITS } from "@apx/protocol";
+import { CHANNEL_DEFAULTS, channelKindRules, type Thread, UPLOAD_LIMITS } from "@apx/protocol";
 import {
   type Inbound,
   type InboundAction,
@@ -375,9 +375,10 @@ export function createInbound(deps: {
       { id: buttonId.pairing(request.code, "contact"), label },
       { id: buttonId.pairing(request.code, "deny"), label: t.ignore },
     ];
-    // On the owner's own number the request is only listed: the owner's friends must not get a code from it. Past
-    // the hourly cap of codes (a wave of spam mail) the rest are only listed too: no reply goes to forged senders.
-    if (deps.ownAccount(cfg.id) || codesOver(cfg.id)) return "ignored";
+    // On the owner's own number the request is only listed: the owner's friends must not get a code from it. A kind
+    // that never sends codes (email: anyone can write, and a reply to every stranger is spam) only lists them too, and
+    // so does a channel past its hourly cap of codes: no reply goes to forged senders.
+    if (deps.ownAccount(cfg.id) || channelKindRules(cfg.type).strangersListed || codesOver(cfg.id)) return "ignored";
     const agent = store.agents.get(contactAgentOf(cfg))?.name ?? "APX";
     delivery.enqueue({
       channel: cfg.id,
