@@ -62,34 +62,38 @@ export function TaskCrumb({ thread, taskId }: { thread: Thread; taskId: string }
   return (
     <>
       <span>{t("tasks.header.task")}</span>
-      {chats.length > 1 ? (
-        <Menu
-          align="start"
-          trigger={
-            <Button size="sm" variant="ghost" className="chat__sessions" trailingIcon={<Icons.ChevronDown size={12} />}>
-              {t("tasks.header.session", { name: name(thread) })}
-            </Button>
-          }
-          items={[
-            { type: "label", label: t("tasks.header.sessions") },
-            ...chats.map((th) => ({
-              label: (
-                <span className="tasksess">
-                  <span className="tasksess__name">{name(th)}</span>
-                  <span className="tasksess__said">{th.preview.split("\n").find((l) => l.trim()) ?? ""}</span>
-                </span>
-              ),
-              icon: <ThreadAvatar thread={th} agent={agents[th.agent_ids[0] ?? ""]} size={20} slot={22} />,
-              shortcut: shortWhen(th.updated_at),
-              checked: th.id === thread.id,
-              onSelect: () => go.thread(th.id),
-            })),
-          ]}
-        />
-      ) : (
-        <span>{t("tasks.header.session", { name: name(thread) })}</span>
-      )}
       {who.length > 0 && <span className="chat__taskwho">{who.join(", ")}</span>}
+      <Menu
+        align="start"
+        className="tasksess__menu"
+        trigger={
+          <Button
+            size="sm"
+            variant="outline"
+            className="chat__sessions"
+            trailingIcon={<Icons.ChevronDown size={12} />}
+          >
+            {t("tasks.header.session", { name: name(thread) })}
+          </Button>
+        }
+        items={[
+          { type: "label", label: t("tasks.header.sessions") },
+          ...chats.map((th) => ({
+            label: (
+              <span className="tasksess">
+                <span className="tasksess__name">{name(th)}</span>
+                <span className="tasksess__said">
+                  {th.preview.split("\n").find((l) => l.trim()) ?? t("tasks.header.noWords")}
+                </span>
+              </span>
+            ),
+            icon: <ThreadAvatar thread={th} agent={agents[th.agent_ids[0] ?? ""]} size={20} slot={22} />,
+            shortcut: shortWhen(th.updated_at),
+            checked: th.id === thread.id,
+            onSelect: () => go.thread(th.id),
+          })),
+        ]}
+      />
     </>
   );
 }

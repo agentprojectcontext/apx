@@ -107,7 +107,6 @@ export function ChatHeader({
             {sub || thread.channel || engine ? name : thread.title}
           </span>
           {project && <ProjectBadge id={project.id} name={project.name} channel={channelKind} />}
-          {thread.task_id && <TaskStateButton taskId={thread.task_id} />}
           <ChatProcesses thread={thread.id} onOpen={go.processes} />
         </div>
         <div className={thread.task_id ? "chat__crumb is-task" : "chat__crumb"}>
@@ -170,6 +169,20 @@ export function ChatHeader({
         )}
       </div>
       <div className="chat__tools">
+        {thread.task_id && <TaskStateButton taskId={thread.task_id} />}
+        {room && roomChannel && (
+          <Button
+            size="sm"
+            variant="secondary"
+            className={roomOpen ? "chat__roompill is-on" : "chat__roompill"}
+            leadingIcon={<Icons.Users size={14} />}
+            aria-pressed={roomOpen}
+            title={t(roomOpen ? "chat.roomCardClose" : "chat.roomCardOpen")}
+            onClick={() => toggleRoomCard(thread.id)}
+          >
+            {t(roomWord(roomChannel))}
+          </Button>
+        )}
         {/* A new chat has nothing to rename, archive or compact until its first message makes it. */}
         {!sub && !isNewChat(thread.id) && (
           <Menu
@@ -197,19 +210,6 @@ export function ChatHeader({
               ],
             })}
           />
-        )}
-        {room && roomChannel && (
-          <Button
-            size="sm"
-            variant="secondary"
-            className={roomOpen ? "chat__roompill is-on" : "chat__roompill"}
-            leadingIcon={<Icons.Users size={14} />}
-            aria-pressed={roomOpen}
-            title={t(roomOpen ? "chat.roomCardClose" : "chat.roomCardOpen")}
-            onClick={() => toggleRoomCard(thread.id)}
-          >
-            {t(roomWord(roomChannel))}
-          </Button>
         )}
         <span className="chat__toolsdiv" />
         {/* Usage opens from the composer's context chip; read-only chats have no composer, so it stays here. */}

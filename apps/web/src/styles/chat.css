@@ -924,6 +924,7 @@
 /* A task chat: the task's state as a pill beside the title (it shows the task), and under it whose session this is. */
 .chat__taskbtn.apx-btn {
   flex: none;
+  margin-right: 4px;
   height: 28px;
   padding: 0 12px;
   border-radius: var(--apx-radius-pill);
@@ -937,28 +938,30 @@
   color: var(--apx-fg-subtle);
   content: "·";
 }
+/* Whose session this is: a bordered button at the end of the line, the task's other sessions one pick away. */
 .chat__crumb.is-task > .chat__sessions.apx-btn {
-  height: 20px;
-  gap: 3px;
-  padding: 0 4px;
-  margin-left: -4px;
-  color: var(--apx-fg-muted);
-  font-size: inherit;
-  font-weight: inherit;
+  height: 22px;
+  gap: 4px;
+  padding: 0 8px;
+  border-radius: var(--apx-radius-pill);
+  font-size: 11.5px;
 }
-.chat__crumb.is-task > .chat__sessions:hover {
-  color: var(--apx-fg);
+.chat__crumb.is-task > .chat__sessions::before {
+  content: none;
 }
 .chat__taskwho {
   overflow: hidden;
   text-overflow: ellipsis;
 }
 /* A session in the task's list: the agent's name over what it said last. */
+.tasksess__menu {
+  min-width: 280px;
+}
 .tasksess {
   display: flex;
   flex-direction: column;
   min-width: 0;
-  max-width: 220px;
+  max-width: 260px;
 }
 .tasksess__name {
   font-weight: var(--apx-weight-medium);

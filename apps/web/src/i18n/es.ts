@@ -518,6 +518,7 @@ export const es: Partial<Record<MessageKey, string>> = {
   "tasks.header.task": "Tarea",
   "tasks.header.session": "Sesión de {name}",
   "tasks.header.sessions": "Sesiones de la tarea",
+  "tasks.header.noWords": "Todavía sin mensajes",
   "inbox.taskBundle.chatsOne": "1 chat",
   "inbox.taskBundle.open": "Ver los chats de la tarea",
   "inbox.taskBundle.close": "Ocultar los chats de la tarea",

@@ -290,22 +290,22 @@ function RoutineHeader({
         <div className="chat__title">
           <span className="chat__name">{routine.name}</span>
           {!routine.enabled && <Tag>{t("routineChat.paused")}</Tag>}
-          <Button
-            size="sm"
-            variant="secondary"
-            className={shown ? "chat__taskbtn is-on" : "chat__taskbtn"}
-            aria-pressed={shown}
-            leadingIcon={<Icons.RefreshCw size={14} />}
-            onClick={() => setShown(!shown)}
-          >
-            {t(shown ? "routineChat.hide" : "routineChat.show")}
-          </Button>
         </div>
         <div className="chat__crumb">
           <span className="rtchat__sub">{sub}</span>
         </div>
       </div>
       <div className="chat__tools">
+        <Button
+          size="sm"
+          variant="secondary"
+          className={shown ? "chat__taskbtn is-on" : "chat__taskbtn"}
+          aria-pressed={shown}
+          leadingIcon={<Icons.RefreshCw size={14} />}
+          onClick={() => setShown(!shown)}
+        >
+          {t(shown ? "routineChat.hide" : "routineChat.show")}
+        </Button>
         <Menu
           align="end"
           trigger={<IconButton size="sm" label={t("chat.more")} icon={<Icons.Ellipsis size={14} />} />}

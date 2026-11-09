@@ -520,6 +520,7 @@ export const en = {
   "tasks.header.task": "Task",
   "tasks.header.session": "{name}'s session",
   "tasks.header.sessions": "The task's sessions",
+  "tasks.header.noWords": "Nothing said yet",
   "inbox.taskBundle.chatsOne": "1 chat",
   "inbox.taskBundle.open": "Show the task's chats",
   "inbox.taskBundle.close": "Hide the task's chats",
