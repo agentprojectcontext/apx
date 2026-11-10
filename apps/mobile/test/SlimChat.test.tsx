@@ -130,6 +130,7 @@ test("a notice with no chat to open shows one button to clear it", async () => {
       read={jest.fn(async () => {})}
       respond={jest.fn(async () => {})}
       rerun={jest.fn(async () => {})}
+      muteEvent={jest.fn(async () => {})}
       continueSession={jest.fn(async () => {})}
     />,
   );
