@@ -104,3 +104,24 @@ test("New chat at the top of the sidebar opens the agent picker", async ({ page 
   await page.locator(".sidebar").getByRole("combobox", { name: "Nuevo chat", exact: true }).click();
   await expect(page.getByPlaceholder("Buscá un agente")).toBeVisible();
 });
+
+test("a project's tabs take the whole width, and on a phone nothing spills sideways", async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await open(page, `#project=${northwind.id}&tab=overview`);
+  // The overview keeps its column of subprojects and agents; every other tab is the tab alone.
+  await expect(page.locator(".projside__block").first()).toBeVisible();
+  await page.getByRole("tab", { name: /^Recursos/ }).click();
+  await expect(page.locator(".projside__block")).toHaveCount(0);
+
+  await page.setViewportSize({ width: 390, height: 844 });
+  for (const tab of ["overview", "chats", "tasks", "resources"]) {
+    await open(page, `#project=${northwind.id}&tab=${tab}`);
+    await expect(page.locator(".project__name h1")).toBeVisible();
+    const spill = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
+    expect(spill, tab).toBeLessThanOrEqual(0);
+  }
+  // The open tab stays in sight in a row that scrolls.
+  await open(page, `#project=${northwind.id}&tab=resources`);
+  const active = await page.locator('.project__tabs [aria-selected="true"]').boundingBox();
+  expect((active?.x ?? 0) + (active?.width ?? 0)).toBeLessThanOrEqual(390);
+});

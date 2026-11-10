@@ -102,6 +102,39 @@
   overflow-y: hidden;
   scrollbar-width: none;
 }
+/* Narrower, the tabs keep their words: first the icons go, then the counts; past that the row scrolls. */
+.project__head {
+  container: projhead / inline-size;
+}
+@container projhead (max-width: 1080px) {
+  .project__tabs .apx-tabs__tab > svg {
+    display: none;
+  }
+}
+@container projhead (max-width: 820px) {
+  .project__tabs .apx-tabs__count {
+    display: none;
+  }
+}
+/* A phone: the name keeps its line, its tags wrap under it, and New chat is its icon. */
+@container projhead (max-width: 560px) {
+  .project__name {
+    flex-wrap: wrap;
+    row-gap: 4px;
+  }
+  .project__newchatlabel {
+    display: none;
+  }
+  .project__newchat.apx-btn {
+    gap: 0;
+    padding-inline: 10px;
+  }
+}
+@media (max-width: 640px) {
+  .project__head {
+    padding: 14px 16px 10px;
+  }
+}
 .project__body {
   flex: 1;
   min-height: 0;
@@ -704,7 +737,7 @@
 }
 .projboard__grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(min(320px, 100%), 1fr));
   /* A widened tile pushes the next ones down; dense lets a later one fill the gap it leaves. */
   grid-auto-flow: row dense;
   gap: 16px;
@@ -907,31 +940,7 @@
   font-size: var(--apx-text-sm);
 }
 
-/* ── Project side column: subprojects and agents beside every tab but the overview ── */
-.project__body {
-  container: projbody / inline-size;
-}
-.projside {
-  flex: none;
-  width: 280px;
-  box-sizing: border-box;
-  overflow-y: auto;
-  display: flex;
-  flex-direction: column;
-  gap: 22px;
-  padding: 24px 24px 24px 0;
-}
-/* Narrow: the tab keeps the room. Chats need more of it (their list and the chat sit beside it). */
-@container projbody (max-width: 900px) {
-  .projside {
-    display: none;
-  }
-}
-@container projbody (max-width: 1140px) {
-  .projside--chats {
-    display: none;
-  }
-}
+/* ── Subprojects and agents, in the overview's column ─────────────────────── */
 .projside__block {
   display: flex;
   flex-direction: column;
