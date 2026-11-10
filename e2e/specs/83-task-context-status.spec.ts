@@ -127,7 +127,7 @@ test("task context actions keep status live and archived conversations remain re
   await page.keyboard.press("Escape");
   await row.click({ button: "right" });
   await page.getByRole("menuitem", { name: "Espera tu respuesta", exact: true }).click();
-  await expect(status).toHaveText("Necesita tu revisión");
+  await expect(status).toHaveText("Te espera");
   await expect(status.locator(".routinerow__state")).toHaveClass(/is-waiting/);
   await expect(row.locator(".apx-convrow__title")).toHaveText(task.title);
   // The explicit overflow menu works on touch and from the keyboard without a right click.

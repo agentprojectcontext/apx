@@ -42,7 +42,7 @@ test("task tones distinguish work, review and terminal states with the same life
 
 test("task labels follow persisted lifecycle before waiting flags and columns", () => {
   assert.equal(taskStatus(task, columns, t), "Doing");
-  assert.equal(taskStatus({ ...task, awaits_owner: true }, columns, t), "Needs your review");
+  assert.equal(taskStatus({ ...task, awaits_owner: true }, columns, t), "Waiting for you");
   assert.equal(taskStatus({ ...task, state: "done", awaits_owner: true }, columns, t), "Done");
   assert.equal(taskStatus({ ...task, state: "dropped" }, columns, t), "Dropped");
   assert.equal(taskStatus({ ...task, status: "custom" }, columns, t), "Waiting for supplier");
