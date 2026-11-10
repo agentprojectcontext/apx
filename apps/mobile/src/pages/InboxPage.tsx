@@ -17,6 +17,7 @@ export function InboxPage({
   respond,
   rerun,
   continueSession,
+  muteEvent,
 }: {
   data: Workspace;
   items: InboxItem[];
@@ -25,12 +26,14 @@ export function InboxPage({
   respond: (input: string, response: Answer) => Promise<void>;
   rerun: (routine: string) => Promise<void>;
   continueSession: (session: string) => Promise<void>;
+  muteEvent: (series: string, title: string) => Promise<void>;
 }) {
   const act = async (item: InboxItem, action: InboxAction) => {
     if (action.kind === "approve")
       await respond(action.input, { decision: "approve", ...(action.scope ? { scope: action.scope } : {}) });
     if (action.kind === "rerun") await rerun(action.routine);
     if (action.kind === "continue") await continueSession(action.session);
+    if (action.kind === "muteEvent") await muteEvent(action.series, action.title);
     if (item.notice) await read(item.notice);
     if (action.kind === "open" && action.thread) open(action.thread);
   };

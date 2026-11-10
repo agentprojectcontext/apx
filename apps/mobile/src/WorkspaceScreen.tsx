@@ -366,6 +366,9 @@ export function WorkspaceScreen({
             respond={workspace.respond}
             rerun={workspace.runRoutine}
             continueSession={workspace.continueDelegation}
+            muteEvent={async (series, title) => {
+              await workspace.client.call("integrations.mute_event", { series, title, muted: true });
+            }}
           />
         );
       case "tasks":
