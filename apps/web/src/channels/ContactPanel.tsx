@@ -189,7 +189,7 @@ export function ContactPanel({
           />
         </CardField>
       </div>
-      {mailbox && <NeverRead person={person} account={channel.id} onDone={onClose} />}
+      {mailbox && <NeverRead person={person} account={channel.id} />}
       <CardField label={t("ch.relation")}>
         <ChoiceChips
           label={t("ch.relation")}
@@ -254,15 +254,28 @@ export function ContactPanel({
   );
 }
 
-/** On an email account: stop reading this sender, or everyone at their domain (a service's notices). */
-function NeverRead({ person, account, onDone }: { person: Person; account: string; onDone(): void }) {
+/**
+ * On an email account: stop reading this sender, or everyone at their domain (a service's notices). Once stopped, the
+ * card says by which entry and reads them again.
+ */
+function NeverRead({ person, account }: { person: Person; account: string }) {
   const t = useT();
+  const list = useChannels((s) => s.channels.find((c) => c.id === account)?.email?.blocked);
   const address = person.addresses.find((a) => a.channel === account)?.external_id ?? "";
   const domain = address.split("@")[1];
-  const stop = async (scope: "address" | "domain") => {
-    if (await neverRead(person.id, account, scope)) onDone();
-  };
   if (!address || person.role === "owner") return null;
+  const by = list?.includes(address) ? "address" : domain && list?.includes(`@${domain}`) ? "domain" : undefined;
+  if (by)
+    return (
+      <CardField label={t("ch.notRead")} hint={t("ch.notReadHint")}>
+        <div className="chan__neverread">
+          <span className="chan__neverread-what">{by === "address" ? address : `@${domain}`}</span>
+          <Button size="sm" variant="secondary" onClick={() => void neverRead(person.id, account, by, true)}>
+            {t("ch.readAgain")}
+          </Button>
+        </div>
+      </CardField>
+    );
   return (
     <CardField label={t("ch.neverRead")} hint={t("ch.neverReadHint")}>
       <div className="chan__neverread">
@@ -270,7 +283,7 @@ function NeverRead({ person, account, onDone }: { person: Person; account: strin
           size="sm"
           variant="secondary"
           leadingIcon={<Icons.BellOff size={14} />}
-          onClick={() => void stop("address")}
+          onClick={() => void neverRead(person.id, account, "address")}
         >
           {address}
         </Button>
@@ -279,7 +292,7 @@ function NeverRead({ person, account, onDone }: { person: Person; account: strin
             size="sm"
             variant="secondary"
             leadingIcon={<Icons.BellOff size={14} />}
-            onClick={() => void stop("domain")}
+            onClick={() => void neverRead(person.id, account, "domain")}
           >
             {t("ch.neverReadDomain", { domain })}
           </Button>

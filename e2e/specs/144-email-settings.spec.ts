@@ -48,11 +48,11 @@ test("email settings: own addresses typed, no Home or while-it-works choice, str
       return channels.find((c) => c.id === id)?.email?.blocked.includes("@spam.example");
     });
 
-    await dialog.getByRole("button", { name: "Quién responde" }).click();
+    // Who answers sits at the top of Behavior: no menu of its own.
+    await expect(dialog.getByRole("button", { name: "Quién responde" })).toHaveCount(0);
+    await dialog.getByRole("button", { name: "Comportamiento" }).click();
     await expect(dialog.getByText("Con quién hablás")).toBeVisible();
     await expect(dialog.getByText("Tus mensajes")).toHaveCount(0);
-
-    await dialog.getByRole("button", { name: "Comportamiento" }).click();
     await expect(dialog.getByText("Horario de atención")).toBeVisible();
     await expect(dialog.getByText("Mientras trabaja")).toHaveCount(0);
 

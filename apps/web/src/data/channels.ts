@@ -255,11 +255,16 @@ export async function setPersonRole(p: Person, role: "contact" | "blocked"): Pro
   await loadChannels();
 }
 
-/** An email account stops reading this sender, or their whole domain; the person is forgotten. */
-export async function neverRead(person: string, channel: string, scope: "address" | "domain"): Promise<boolean> {
+/** An email account stops reading this sender, or their whole domain (blocked, card kept); `undo` reads them again. */
+export async function neverRead(
+  person: string,
+  channel: string,
+  scope: "address" | "domain",
+  undo = false,
+): Promise<boolean> {
   try {
-    const { blocked } = await client.call("contacts.never_read", { person, channel, scope });
-    notify(t("ch.neverReadDone", { who: blocked }), "info");
+    const { blocked } = await client.call("contacts.never_read", { person, channel, scope, undo });
+    notify(t(undo ? "ch.readAgainDone" : "ch.neverReadDone", { who: blocked }), "info");
     await loadChannels();
     return true;
   } catch (e) {
