@@ -65,6 +65,7 @@ export function WidgetEdit({
         ? {
             key: `widget:${surface.id}`,
             inspect: async (x, y) => (await client.call("surfaces.edit_inspect", { page: id, x, y })).element,
+            elements: async () => (await client.call("surfaces.edit_elements", { page: id })).elements,
             show: (edits) => client.call("surfaces.edit_preview", { page: id, edits }),
             shot: async () => {
               const r = await client.call("surfaces.edit_shot", { page: id });

@@ -101,6 +101,10 @@ test("the / menu: commands and skills, a skill named loads whole, /new opens a f
   // The new chat is made with its first message, not before.
   const count = (await rpc<{ threads: unknown[] }>("threads.list")).threads.length;
   await box.fill("/new");
+  // A pick only writes the command in the field; sending it runs it.
+  await box.press("Enter");
+  await expect(box).toHaveValue("/new ");
+  await expect(menu).toBeHidden();
   await box.press("Enter");
   await expect(page.getByRole("textbox", { name: /^Escribile a/ })).toHaveValue("");
   await expect(page.getByText("Got it: /image-gen dibujá un perro")).toBeHidden();

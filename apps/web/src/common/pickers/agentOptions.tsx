@@ -20,9 +20,10 @@ export function useAgentOptions(
   const projects = useData((s) => s.projects);
   return useMemo(() => {
     const name = (pid: string) => projects.find((p) => p.id === pid)?.name ?? pid;
+    const parent = projectId ? projects.find((p) => p.id === projectId)?.parent : undefined;
     const list = channel
       ? channelAgents(Object.values(agents), keep)
-      : availableAgents(Object.values(agents), projectId, all, globalAgents);
+      : availableAgents(Object.values(agents), projectId, all, globalAgents, parent);
     return list.map((a) => ({
       value: a.id,
       label: a.name,

@@ -17,6 +17,10 @@
       "count": 2,
       "reason": "custom-styled row, chip, tab or card control; moving it to Button/IconButton changes its look, so it needs a reviewed screenshot (rule 32)"
     },
+    "apps/web/src/channels/account/EmailAccount.tsx": {
+      "count": 1,
+      "reason": "custom-styled row, chip, tab or card control; moving it to Button/IconButton changes its look, so it needs a reviewed screenshot (rule 32)"
+    },
     "apps/web/src/chat/AgentEvent.tsx": {
       "count": 1,
       "reason": "custom-styled row, chip, tab or card control; moving it to Button/IconButton changes its look, so it needs a reviewed screenshot (rule 32)"
@@ -26,7 +30,7 @@
       "reason": "custom-styled row, chip, tab or card control; moving it to Button/IconButton changes its look, so it needs a reviewed screenshot (rule 32)"
     },
     "apps/web/src/chat/ChatHeader.tsx": {
-      "count": 3,
+      "count": 2,
       "reason": "custom-styled row, chip, tab or card control; moving it to Button/IconButton changes its look, so it needs a reviewed screenshot (rule 32)"
     },
     "apps/web/src/chat/ScreenLive.tsx": {
@@ -102,10 +106,6 @@
       "reason": "custom-styled row, chip, tab or card control; moving it to Button/IconButton changes its look, so it needs a reviewed screenshot (rule 32)"
     },
     "apps/web/src/config/DesktopSection.tsx": {
-      "count": 1,
-      "reason": "custom-styled row, chip, tab or card control; moving it to Button/IconButton changes its look, so it needs a reviewed screenshot (rule 32)"
-    },
-    "apps/web/src/channels/account/EmailAccount.tsx": {
       "count": 1,
       "reason": "custom-styled row, chip, tab or card control; moving it to Button/IconButton changes its look, so it needs a reviewed screenshot (rule 32)"
     },
@@ -189,20 +189,8 @@
       "count": 1,
       "reason": "custom-styled row, chip, tab or card control; moving it to Button/IconButton changes its look, so it needs a reviewed screenshot (rule 32)"
     },
-    "apps/web/src/inbox/ActivityView.tsx": {
-      "count": 1,
-      "reason": "custom-styled row, chip, tab or card control; moving it to Button/IconButton changes its look, so it needs a reviewed screenshot (rule 32)"
-    },
-    "apps/web/src/inbox/ChannelTreeRow.tsx": {
-      "count": 1,
-      "reason": "custom-styled row, chip, tab or card control; moving it to Button/IconButton changes its look, so it needs a reviewed screenshot (rule 32)"
-    },
     "apps/web/src/inbox/Delegated.tsx": {
       "count": 4,
-      "reason": "custom-styled row, chip, tab or card control; moving it to Button/IconButton changes its look, so it needs a reviewed screenshot (rule 32)"
-    },
-    "apps/web/src/inbox/InboxList.tsx": {
-      "count": 2,
       "reason": "custom-styled row, chip, tab or card control; moving it to Button/IconButton changes its look, so it needs a reviewed screenshot (rule 32)"
     },
     "apps/web/src/inbox/InboxPreview.tsx": {
@@ -210,14 +198,6 @@
       "reason": "custom-styled row, chip, tab or card control; moving it to Button/IconButton changes its look, so it needs a reviewed screenshot (rule 32)"
     },
     "apps/web/src/inbox/InboxViews.tsx": {
-      "count": 3,
-      "reason": "custom-styled row, chip, tab or card control; moving it to Button/IconButton changes its look, so it needs a reviewed screenshot (rule 32)"
-    },
-    "apps/web/src/inbox/RoutineBundle.tsx": {
-      "count": 2,
-      "reason": "custom-styled row, chip, tab or card control; moving it to Button/IconButton changes its look, so it needs a reviewed screenshot (rule 32)"
-    },
-    "apps/web/src/inbox/TaskBundle.tsx": {
       "count": 1,
       "reason": "custom-styled row, chip, tab or card control; moving it to Button/IconButton changes its look, so it needs a reviewed screenshot (rule 32)"
     },
@@ -233,14 +213,6 @@
       "count": 2,
       "reason": "terminal-style prompt and console buttons"
     },
-    "apps/web/src/panel/ComputerPanel.tsx": {
-      "count": 6,
-      "reason": "custom-styled row, chip, tab or card control; moving it to Button/IconButton changes its look, so it needs a reviewed screenshot (rule 32)"
-    },
-    "apps/web/src/panel/DocumentPanel.tsx": {
-      "count": 2,
-      "reason": "custom-styled row, chip, tab or card control; moving it to Button/IconButton changes its look, so it needs a reviewed screenshot (rule 32)"
-    },
     "apps/web/src/panel/FileChange.tsx": {
       "count": 1,
       "reason": "custom-styled row, chip, tab or card control; moving it to Button/IconButton changes its look, so it needs a reviewed screenshot (rule 32)"
@@ -249,28 +221,12 @@
       "count": 1,
       "reason": "custom-styled row, chip, tab or card control; moving it to Button/IconButton changes its look, so it needs a reviewed screenshot (rule 32)"
     },
-    "apps/web/src/panel/ProcessesPanel.tsx": {
-      "count": 2,
-      "reason": "custom-styled row, chip, tab or card control; moving it to Button/IconButton changes its look, so it needs a reviewed screenshot (rule 32)"
-    },
-    "apps/web/src/panel/TerminalPanel.tsx": {
-      "count": 4,
-      "reason": "custom-styled row, chip, tab or card control; moving it to Button/IconButton changes its look, so it needs a reviewed screenshot (rule 32)"
-    },
-    "apps/web/src/panel/WidgetPanel.tsx": {
-      "count": 1,
-      "reason": "custom-styled row, chip, tab or card control; moving it to Button/IconButton changes its look, so it needs a reviewed screenshot (rule 32)"
-    },
-    "apps/web/src/project/ProjectArtifacts.tsx": {
-      "count": 4,
-      "reason": "custom-styled row, chip, tab or card control; moving it to Button/IconButton changes its look, so it needs a reviewed screenshot (rule 32)"
-    },
     "apps/web/src/project/ProjectBoard.tsx": {
       "count": 1,
       "reason": "custom-styled row, chip, tab or card control; moving it to Button/IconButton changes its look, so it needs a reviewed screenshot (rule 32)"
     },
     "apps/web/src/project/ProjectOverview.tsx": {
-      "count": 6,
+      "count": 5,
       "reason": "custom-styled row, chip, tab or card control; moving it to Button/IconButton changes its look, so it needs a reviewed screenshot (rule 32)"
     },
     "apps/web/src/project/ProjectScreen.tsx": {
@@ -349,15 +305,11 @@
       "count": 2,
       "reason": "custom-styled row, chip, tab or card control; moving it to Button/IconButton changes its look, so it needs a reviewed screenshot (rule 32)"
     },
-    "apps/web/src/resources/ResourcesView.tsx": {
-      "count": 1,
-      "reason": "custom-styled row, chip, tab or card control; moving it to Button/IconButton changes its look, so it needs a reviewed screenshot (rule 32)"
-    },
     "apps/web/src/routines/RoutineDrawer.tsx": {
       "count": 1,
       "reason": "custom-styled row, chip, tab or card control; moving it to Button/IconButton changes its look, so it needs a reviewed screenshot (rule 32)"
     },
-    "apps/web/src/routines/RoutinesPane.tsx": {
+    "apps/web/src/routines/RoutineList.tsx": {
       "count": 1,
       "reason": "custom-styled row, chip, tab or card control; moving it to Button/IconButton changes its look, so it needs a reviewed screenshot (rule 32)"
     },
@@ -393,7 +345,7 @@
       "count": 2,
       "reason": "custom-styled row, chip, tab or card control; moving it to Button/IconButton changes its look, so it needs a reviewed screenshot (rule 32)"
     },
-    "apps/web/src/shell/AttentionTray.tsx": {
+    "apps/web/src/shell/AttentionList.tsx": {
       "count": 1,
       "reason": "custom-styled row, chip, tab or card control; moving it to Button/IconButton changes its look, so it needs a reviewed screenshot (rule 32)"
     },
@@ -426,7 +378,7 @@
       "reason": "custom-styled row, chip, tab or card control; moving it to Button/IconButton changes its look, so it needs a reviewed screenshot (rule 32)"
     },
     "apps/web/src/shell/RunningIndicator.tsx": {
-      "count": 2,
+      "count": 1,
       "reason": "custom-styled row, chip, tab or card control; moving it to Button/IconButton changes its look, so it needs a reviewed screenshot (rule 32)"
     },
     "apps/web/src/shell/SidebarNavRow.tsx": {
@@ -479,7 +431,7 @@
       "count": 4,
       "reason": "edit marks sit on the outside page, so they keep one vivid blue with white text whatever APX's theme"
     },
-    "apps/web/src/styles/chat.css": {
+    "apps/web/src/styles/chat-cards.css": {
       "count": 3,
       "reason": "pointer and scrim drawn over a remote screen: white on black whatever the theme"
     },
@@ -490,10 +442,6 @@
     "apps/web/src/styles/media.css": {
       "count": 2,
       "reason": "scrim over image thumbnails: white on black whatever the theme"
-    },
-    "apps/web/src/styles/nav.css": {
-      "count": 1,
-      "reason": "white count on the warning badge; the design system's solid-tone text colour is scoped to its own components"
     },
     "apps/web/src/styles/shared-files.css": {
       "count": 6,

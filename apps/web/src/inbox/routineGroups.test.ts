@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import type { Thread } from "@apx/protocol";
-import { bundleTasks, groupByAgent, groupByTime, unreadListed } from "./groupThreads.ts";
+import { bundleTasks, inboxEntries, unreadListed } from "./groupThreads.ts";
 
 const run = (id: string, extra: Partial<Thread> = {}): Thread => ({
   id,
@@ -26,25 +26,17 @@ test("routine runs bundle by identity, not title or agent, preserving order", ()
   assert.equal(bundleTasks([run("legacy", { routine_id: undefined })])[0]?.kind, "thread");
 });
 
-test("activity keeps all runs together across dates, with pinned runs on top", () => {
+test("a routine's runs are one row across dates, a pinned run leading it; listed only when the owner asks", () => {
   const all = { old: run("old"), new: run("new", { updated_at: "2026-10-19T08:00:00Z" }) };
-  const groups = groupByTime(all, { routines: true }, new Date("2026-10-19T12:00:00Z"));
-  assert.equal(groups.length, 1);
-  assert.equal(groups[0]?.bucket, "today");
-  assert.deepEqual(
-    groups[0]?.threads.map((t) => t.id),
-    ["new", "old"],
-  );
-  assert.deepEqual(groupByTime(all, { routines: false }), []);
-  const pinned = groupByTime({ ...all, old: run("old", { pinned: true }) }, { routines: true });
-  assert.equal(pinned[0]?.bucket, "pinned");
-  assert.equal(pinned[0]?.threads[0]?.id, "old");
+  const entries = inboxEntries(all, { routines: true });
+  assert.equal(entries.length, 1);
+  assert.deepEqual(entries[0] && "threads" in entries[0] && entries[0].threads.map((t) => t.id), ["new", "old"]);
+  assert.deepEqual(inboxEntries(all, { routines: false }), []);
+  const pinned = inboxEntries({ ...all, old: run("old", { pinned: true }) }, { routines: true });
+  assert.equal(pinned[0] && "threads" in pinned[0] && pinned[0].threads[0]?.id, "old");
 });
 
-test("tree has one routine branch and mark-read still includes runs and delegated chats", () => {
+test("mark-read includes a routine's runs and the chats they delegated", () => {
   const all = { a: run("a"), b: run("b"), c: run("c", { kind: "a2a", routine_id: undefined, parent_id: "a" }) };
-  const trees = groupByAgent(all, [], { routines: true });
-  assert.equal(trees[0]?.agents.length, 1);
-  assert.equal(trees[0]?.agents[0]?.routine, "daily");
   assert.deepEqual(new Set(unreadListed(all, { routines: true })), new Set(["a", "b", "c"]));
 });

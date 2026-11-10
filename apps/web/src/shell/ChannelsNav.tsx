@@ -5,12 +5,13 @@ import { useChannels } from "../data/channels.ts";
 import { setPrefs, usePrefs, useSidebarRows } from "../data/prefs.ts";
 import { useData } from "../data/state.ts";
 import { useT } from "../i18n/index.ts";
+import { soleFilter, useInboxFilter } from "../inbox/inboxFilter.ts";
 import { ChannelNavRow } from "./ChannelNavRow.tsx";
 import { go, useNav } from "./nav.ts";
 import { SidebarOverflow, SidebarRowsGrip, SidebarSection } from "./SidebarSection.tsx";
 
 /** The most recently active channels, as many as the owner dragged the section to; manual order lasts until newer activity arrives. */
-export function ChannelsNav({ rail }: { rail: boolean }) {
+export function ChannelsNav({ rail, compact = false }: { rail: boolean; compact?: boolean }) {
   const t = useT();
   const channels = useChannels((s) => s.channels);
   const saved = usePrefs((s) => s.channelOrder);
@@ -45,7 +46,14 @@ export function ChannelsNav({ rail }: { rail: boolean }) {
   const cut = ordered.length > rows + 1 ? rows : ordered.length;
   const shown = ordered.slice(0, cut);
   const rest = ordered.slice(cut);
-  const hiddenActive = view === "channel" && rest.some((channel) => channel.id === channelId);
+  // An account opens the Inbox narrowed to it: one picked from under "more" marks that row.
+  const filtered = useInboxFilter((f) => {
+    const sole = soleFilter(f);
+    return sole?.kind === "accounts" ? sole.id : undefined;
+  });
+  const hiddenActive = rest.some(
+    (channel) => (view === "channel" && channel.id === channelId) || (view === "inbox" && channel.id === filtered),
+  );
   const hiddenUnread = rest.reduce((sum, channel) => sum + (counts.get(channel.id) ?? 0), 0);
   const totalUnread = ordered.reduce((sum, channel) => sum + (counts.get(channel.id) ?? 0), 0);
 
@@ -90,6 +98,10 @@ export function ChannelsNav({ rail }: { rail: boolean }) {
       rail={rail}
       title={t("nav.channels")}
       action={add}
+      compact={compact}
+      icon={<Icons.MessageCircle size={16} />}
+      count={ordered.length}
+      active={view === "channel"}
       folded={folded}
       unread={totalUnread}
       unreadLabel={t("nav.channelsUnread", { unread: totalUnread })}
@@ -98,7 +110,7 @@ export function ChannelsNav({ rail }: { rail: boolean }) {
         setPrefs({ channelsFolded: !folded });
       }}
     >
-      {!hidden && (
+      {(compact || !hidden) && (
         <NavItem
           collapsed={rail}
           className="channelsnav__manage"
@@ -108,8 +120,9 @@ export function ChannelsNav({ rail }: { rail: boolean }) {
           onClick={() => go.view("channels")}
         />
       )}
-      {!hidden && <div className="channelsnav__shown">{shown.map((channel) => row(channel))}</div>}
-      {!hidden && rest.length > 0 && (
+      {compact && <div className="channelsnav__shown">{ordered.map((channel) => row(channel, true))}</div>}
+      {!compact && !hidden && <div className="channelsnav__shown">{shown.map((channel) => row(channel))}</div>}
+      {!compact && !hidden && rest.length > 0 && (
         <SidebarOverflow
           rail={rail}
           title={t("nav.channels")}
@@ -124,7 +137,9 @@ export function ChannelsNav({ rail }: { rail: boolean }) {
           {rest.map((channel) => row(channel, true))}
         </SidebarOverflow>
       )}
-      {!hidden && !rail && <SidebarRowsGrip section="channels" total={ordered.length} title={t("nav.channels")} />}
+      {!compact && !hidden && !rail && (
+        <SidebarRowsGrip section="channels" total={ordered.length} title={t("nav.channels")} />
+      )}
     </SidebarSection>
   );
 }

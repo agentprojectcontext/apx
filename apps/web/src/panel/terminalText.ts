@@ -2,7 +2,7 @@
 const ESCAPES = /\x1b\[[0-9;?]*[ -/]*[@-~]|\x1b\][^\x07]*\x07|\x1b[()][0-9A-B]|\x1b[=>]/g;
 
 /** A terminal's output without its escape codes (colors, cursor moves). */
-export const plain = (s: string) => s.replace(ESCAPES, "");
+const plain = (s: string) => s.replace(ESCAPES, "");
 
 /** What a terminal's output reads as on screen: no escapes, and a carriage return overwrites its line (progress bars). */
 export function screenText(raw: string): string {

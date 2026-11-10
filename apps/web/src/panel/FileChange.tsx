@@ -1,3 +1,4 @@
+import "../styles/panel-parts.css";
 import type { Result } from "@apx/protocol";
 import { Button, Icons, Skeleton } from "@apx/ui";
 import { useCallback, useEffect, useState } from "react";

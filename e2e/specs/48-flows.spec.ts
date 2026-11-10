@@ -164,8 +164,10 @@ test("a flow drawn in the editor saves as what runs, and a webhook run shows in 
   // The filter narrows the list to a project; all projects show every flow.
   await open(page, `#view=flows&scope=${second.project.id}`);
   await expect(screen.getByText("Este proyecto todavía no tiene flows.")).toBeVisible();
-  await screen.getByRole("combobox", { name: "Proyecto", exact: true }).click();
-  await page.getByRole("option", { name: /Todos los proyectos/ }).click();
+  const picker = screen.getByRole("combobox", { name: "Proyecto", exact: true });
+  await expect(picker).toContainText(`flow-other-${stamp}`);
+  await picker.click();
+  await page.getByRole("option", { name: "Todos los proyectos", exact: true }).click();
   await expect(page).toHaveURL(/#view=flows$/);
   await expect(screen.getByRole("button", { name: new RegExp(`^${name}`) })).toBeVisible();
 });

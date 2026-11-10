@@ -20,6 +20,7 @@ import { BehaviorPane } from "./BehaviorPane.tsx";
 import { ContactsPane } from "./ContactsPane.tsx";
 import { keptAfter } from "./draft.ts";
 import { isRoomsKind, RoomsSection } from "./RoomsPane.tsx";
+import { clearRemoveAsk, removeAsked } from "./removeAsk.ts";
 import { hasStickersPane, StickersPane } from "./StickersPane.tsx";
 import type { Create, PaneProps } from "./types.ts";
 
@@ -72,9 +73,28 @@ export function ChannelDialogs() {
   );
 }
 
-/** The account's settings once their strings are here: a moment on the first open, then at once. */
+/** An account's settings, or only the question to disconnect it when "Disconnect" was picked in its menu. */
+function AccountOrRemove({ edit }: { edit: AccountEdit }) {
+  const t = useT();
+  const [removing] = useState(() => removeAsked(edit.id));
+  useEffect(() => clearRemoveAsk(), []);
+  const channel = useChannels((s) => s.channels.find((c) => c.id === edit.id));
+  if (!removing || !channel) return <AccountDialog edit={edit} />;
+  return (
+    <Confirm
+      danger
+      title={t("acct.removeTitle", { name: channel.label })}
+      body={t("acct.removeBody")}
+      yes={t("acct.disconnect")}
+      onYes={() => void saveChannel(channel.id, null).then(() => go.closeChannelDialogs())}
+      onClose={() => go.closeChannelDialogs()}
+    />
+  );
+}
+
+/** The account's settings, or the question to disconnect it, once their strings are here: a moment on the first open. */
 function WithStrings({ edit }: { edit: AccountEdit }) {
-  return usePack("account") ? <AccountDialog edit={edit} /> : null;
+  return usePack("account") ? <AccountOrRemove edit={edit} /> : null;
 }
 
 /** The apps to connect, each with how it connects; iMessage, one per Mac, opens its settings when it is on. */

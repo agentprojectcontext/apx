@@ -1,5 +1,14 @@
 import type { Agent, Message as Msg, Part, Thread } from "@apx/protocol";
-import { AgentAvatar, EngineIcon, IconButton, Icons, MarkdownView, Message, MessageMeta } from "@apx/ui";
+import {
+  AgentAvatar,
+  EngineIcon,
+  IconButton,
+  Icons,
+  type LinkRenderer,
+  MarkdownView,
+  Message,
+  MessageMeta,
+} from "@apx/ui";
 import { type ReactNode, Suspense, useState } from "react";
 import { DeliveryTicks, ReactionList, ViaMark } from "../channels/MessageMarks.tsx";
 import { isSignal } from "../channels/signal.ts";
@@ -10,33 +19,41 @@ import { useData } from "../data/state.ts";
 import { useT } from "../i18n/index.ts";
 import {
   BrowserPart,
+  ChangesPart,
   ChoicesPart,
   ConnectPart,
   FlowCard,
+  ImageGenerationPreview,
   InputPart,
   MediaGroup,
+  MessageLink,
   ReceivedDialog,
+  SkillsPart,
   SubthreadPart,
   SurfacePart,
 } from "../lazy.ts";
 import { go } from "../shell/nav.ts";
 import { copyableQuote } from "./CopyableQuote.tsx";
 import { replyBlock, runnableCode } from "./codeRunner.tsx";
-import { linkMenu } from "./LinkMenu.tsx";
 import { MessageActions } from "./MessageActions.tsx";
-import { ChangesPart } from "./parts/ChangesPart.tsx";
 import { FilePart } from "./parts/FilePart.tsx";
-import { ImageGenerationPreview } from "./parts/ImageGenerationPreview.tsx";
 import { imageGenerationBlocks } from "./parts/imageGeneration.ts";
 import { AudioPart } from "./parts/lazyAudio.tsx";
 import type { MediaBlock } from "./parts/mediaGroups.ts";
 import { NoticePart } from "./parts/NoticePart.tsx";
 import { PlanPart } from "./parts/PlanPart.tsx";
-import { SkillsPart } from "./parts/SkillsPart.tsx";
 import { ToolGroup } from "./parts/ToolGroup.tsx";
 import { planLast } from "./planLast.ts";
 import { type ReplySegment, replySegments } from "./replySegments.ts";
+import { Speaker } from "./Speaker.tsx";
 import { taskCodeSpan } from "./TaskChip.tsx";
+
+/** A message's links show as written until their menus load (lazy.ts), then gain them. */
+const linkMenu: LinkRenderer = (href, link) => (
+  <Suspense fallback={/^apx:/i.test(href) ? (link.props as { children?: ReactNode }).children : link}>
+    <MessageLink href={href} link={link} />
+  </Suspense>
+);
 
 type ToolPart = Extract<Part, { type: "tool" }>;
 type SkillsPick = Extract<Part, { type: "skills" }>;
@@ -150,8 +167,13 @@ export function AgentTurn({
     : message.model && baseRef(message.model);
   // The engine notes when the agent's own model did not answer and a fallback did (engine.fallback).
   const fellBack = message.parts.some((p) => p.type === "notice" && p.code === "engine.fallback");
+  // With its face and name over the turn (a chat with several speakers), the meta line leaves the name out.
   const meta = (
-    <MessageMeta agent={engine?.label ?? agent?.name} model={model} effort={effort && effortLabel(effort)}>
+    <MessageMeta
+      agent={avatar ? undefined : (engine?.label ?? agent?.name)}
+      model={model}
+      effort={effort && effortLabel(effort)}
+    >
       {fellBack && (
         <span className="apx-msgmeta__part" title={t("chat.modelFallbackHint")}>
           {t("chat.modelFallback")}
@@ -164,10 +186,20 @@ export function AgentTurn({
 
   return (
     <div className="turn">
-      {skills && <SkillsPart part={skills} projectId={projectId} />}
+      {avatar && <Speaker face={avatar} name={engine?.label ?? agent?.name} />}
+      {skills && (
+        <Suspense fallback={null}>
+          <SkillsPart part={skills} projectId={projectId} />
+        </Suspense>
+      )}
       {tools.length > 0 && <ToolGroup parts={tools} waiting={waiting} />}
       {items.map(({ key, part, media, segment, whole, generation }, i) => {
-        if (generation) return <ImageGenerationPreview key={key} block={media} />;
+        if (generation)
+          return (
+            <Suspense key={key} fallback={null}>
+              <ImageGenerationPreview block={media} />
+            </Suspense>
+          );
         const last = i === items.length - 1;
         const card = segment?.kind === "block";
         const words = part.type === "text" && !card;
@@ -176,7 +208,6 @@ export function AgentTurn({
             key={key}
             from="agent"
             variant={words ? "bubble" : "bare"}
-            avatar={i === 0 ? avatar : undefined}
             grouped={i > 0}
             meta={last ? meta : undefined}
             reactions={
@@ -283,7 +314,11 @@ function renderCard(p: Part, agent: Agent | undefined, message: Msg): ReactNode 
         </Suspense>
       );
     case "changes":
-      return <ChangesPart part={p} />;
+      return (
+        <Suspense fallback={null}>
+          <ChangesPart part={p} />
+        </Suspense>
+      );
     case "choices":
       return (
         <Suspense fallback={null}>

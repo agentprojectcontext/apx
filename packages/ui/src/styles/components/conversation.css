@@ -63,7 +63,7 @@
 .apx-convrow__time {
   margin-left: auto;
   flex-shrink: 0;
-  font-size: var(--apx-text-xs);
+  font-size: 11px;
   color: var(--apx-fg-subtle);
   font-family: var(--apx-meta-font);
 }
@@ -202,8 +202,6 @@
   transition: opacity var(--apx-duration);
 }
 .apx-msg__reveal > .apx-msg__actions {
-  min-height: 0;
-  overflow: hidden;
   padding: 0 4px;
 }
 /* Shown after half a second on the bubble, so a pointer passing over the chat does not make every row open. */
@@ -215,32 +213,17 @@
   opacity: 1;
   transition-delay: 0s;
 }
-/* Without a meta line the row opens under the bubble, pushing the next message down instead of covering it. */
+/* Without a meta line the controls keep their row under the bubble, empty until shown: the chat never moves. */
 .apx-msg__reveal {
-  display: grid;
-  grid-template-rows: 0fr;
-  margin-top: -4px;
-  transition:
-    grid-template-rows var(--apx-duration),
-    margin-top var(--apx-duration);
+  display: flex;
+  min-height: var(--apx-control-h-sm);
 }
-.apx-msg:hover .apx-msg__reveal {
-  grid-template-rows: 1fr;
-  margin-top: 0;
-  transition-delay: 0.5s;
-}
-.apx-msg__reveal:focus-within {
-  grid-template-rows: 1fr;
-  margin-top: 0;
-  transition-delay: 0s;
+.apx-msg--user .apx-msg__reveal {
+  justify-content: flex-end;
 }
 @media (hover: none) {
   .apx-msg__actions {
     opacity: 1;
-  }
-  .apx-msg__reveal {
-    grid-template-rows: 1fr;
-    margin-top: 0;
   }
 }
 
@@ -374,32 +357,77 @@
   border-bottom-left-radius: 7px;
 }
 
+/* ── Tree ────────────────────────────────────────────────────────────────────── */
+/* What a line in a conversation unfolds into (a turn's steps, a note's words, a session's parts): rows hanging from
+   the line's chevron, each joined by an elbow that curves into its middle, the line going on to the next row. Put it
+   right under the line; `--apx-tree-mid` is where a row's elbow lands (half a 26px row by default). */
+.apx-tree {
+  --apx-tree-gap: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: var(--apx-tree-gap);
+  margin: 0;
+  padding: 2px 0 2px 16px;
+  list-style: none;
+}
+.apx-tree > * {
+  position: relative;
+  min-width: 0;
+}
+.apx-tree > *::before,
+.apx-tree > :not(:last-child)::after {
+  content: "";
+  position: absolute;
+  left: -10px;
+  box-sizing: border-box;
+  border-left: 1px solid var(--apx-border-strong);
+  pointer-events: none;
+}
+.apx-tree > *::before {
+  top: calc(-1 * var(--apx-tree-gap));
+  width: 8px;
+  height: calc(var(--apx-tree-mid, 13px) + var(--apx-tree-gap));
+  border-bottom: 1px solid var(--apx-border-strong);
+  border-bottom-left-radius: 6px;
+}
+.apx-tree > :first-child::before {
+  top: -2px;
+  height: calc(var(--apx-tree-mid, 13px) + 2px);
+}
+.apx-tree > :not(:last-child)::after {
+  top: var(--apx-tree-mid, 13px);
+  bottom: calc(-1 * var(--apx-tree-gap));
+}
+
 /* ── ActionGroup ───────────────────────────────────────────────────────────── */
+/* Inline in the conversation, no box: a quiet line that unfolds into its steps hanging from the chevron. */
 .apx-actions {
-  border-radius: var(--apx-radius-md);
-  background: var(--apx-group-bg);
-  border: 1px solid var(--apx-group-border);
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  border: 0;
+  background: transparent;
 }
 .apx-actions__head {
   display: flex;
   align-items: center;
-  gap: 8px;
-  width: 100%;
-  min-height: 34px;
-  padding: 6px 12px;
+  gap: 6px;
+  max-width: 100%;
+  min-height: 24px;
+  padding: 2px 0;
   border: 0;
   background: none;
   color: var(--apx-fg-muted);
   font-size: var(--apx-text-sm);
   text-align: left;
-  border-radius: inherit;
+  border-radius: var(--apx-radius-sm);
 }
 .apx-actions__head:hover {
   color: var(--apx-fg);
 }
 .apx-actions__chevron {
   flex-shrink: 0;
-  color: var(--apx-fg-subtle);
+  color: inherit;
   transition: transform var(--apx-duration) var(--apx-ease);
 }
 .apx-actions__head[data-panel-open] .apx-actions__chevron {
@@ -407,44 +435,44 @@
 }
 .apx-actions__icon {
   display: inline-flex;
-  color: var(--apx-fg-subtle);
+  color: inherit;
 }
 .apx-actions__title {
-  color: var(--apx-fg);
-  font-weight: var(--apx-weight-medium);
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .apx-actions__failed {
+  flex: none;
   color: var(--apx-danger);
 }
 .apx-actions__panel {
+  align-self: stretch;
   overflow: hidden;
 }
-/* The steps hang from a line under the chevron (the same line as an agent's chats in the inbox). */
+/* The steps hang from the chevron as a tree (apx-tree). */
 .apx-actions__list {
-  --apx-branch-mid: 13px;
-  list-style: none;
-  margin: 0;
-  padding: 0 12px 10px 30px;
-  display: flex;
-  flex-direction: column;
+  align-self: stretch;
 }
 .apx-actions__item {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
   min-width: 0;
   min-height: 26px;
-  padding-left: 6px;
   font-size: var(--apx-text-sm);
 }
 .apx-actions__itemicon {
   display: inline-flex;
   flex: none;
+  justify-content: center;
+  width: 14px;
   color: var(--apx-fg-subtle);
 }
 .apx-actions__itemicon svg {
-  width: 14px;
-  height: 14px;
+  width: 13px;
+  height: 13px;
 }
 .apx-actions__item.is-failed :is(.apx-actions__itemicon, .apx-actions__name) {
   color: var(--apx-danger);

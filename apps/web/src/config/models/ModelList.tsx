@@ -1,6 +1,7 @@
+import "../../styles/model-menus.css";
 import type { CatalogEngine, ModelRef } from "@apx/protocol";
 import { Badge, EngineIcon, Icons, SearchField } from "@apx/ui";
-import { useMemo, useState } from "react";
+import { type ReactNode, useMemo, useState } from "react";
 import { baseRef, forAgents, refLabel, splitRef, useModels, withEffort } from "../../data/models.ts";
 import { useT } from "../../i18n/index.ts";
 import { EffortRow } from "./RefSelect.tsx";
@@ -31,6 +32,7 @@ export function ModelList({
   onPick,
   onEffort,
   only = forAgents,
+  tag,
 }: {
   value?: ModelRef;
   /** An inherited model can expose effort without marking it as an explicit selection. */
@@ -40,6 +42,8 @@ export function ModelList({
   onEffort?: (ref: ModelRef) => void;
   /** Which engines it offers; by default what agents may run on (model APIs that answer now). */
   only?: (e: CatalogEngine) => boolean;
+  /** Words at the end of a row ("Chosen", "Router") in place of its check and ref: the composer's short list. */
+  tag?: (ref: ModelRef) => ReactNode;
 }) {
   const t = useT();
   const catalog = useModels((s) => s.catalog);
@@ -90,6 +94,7 @@ export function ModelList({
                   selected={picked === e.id}
                   name={refLabel(e.id, catalog)}
                   sub={e.id}
+                  tag={tag}
                   onPick={() => onPick(withEffort(e.id, sameModel(e.id)))}
                 />
               )}
@@ -102,6 +107,7 @@ export function ModelList({
                     selected={picked === ref}
                     name={m.name}
                     sub={ref}
+                    tag={tag}
                     onPick={() => onPick(withEffort(ref, sameModel(ref)))}
                   />
                 );
@@ -115,12 +121,29 @@ export function ModelList({
   );
 }
 
-function Option(props: { selected: boolean; name: string; sub: string; onPick: () => void }) {
+function Option(props: {
+  selected: boolean;
+  name: string;
+  sub: string;
+  onPick: () => void;
+  tag?: ((ref: ModelRef) => ReactNode) | undefined;
+}) {
   return (
-    <button type="button" role="option" aria-selected={props.selected} className="mlist__opt" onClick={props.onPick}>
-      <span className="mlist__check">{props.selected && <Icons.Check size={14} />}</span>
+    <button
+      type="button"
+      role="option"
+      aria-selected={props.selected}
+      className={`mlist__opt${props.tag ? " is-tagged" : ""}`}
+      title={props.tag ? props.sub : undefined}
+      onClick={props.onPick}
+    >
+      {!props.tag && <span className="mlist__check">{props.selected && <Icons.Check size={14} />}</span>}
       <span className="mlist__name">{props.name}</span>
-      <span className="mlist__ref">{props.sub}</span>
+      {props.tag ? (
+        <span className="mlist__tag">{props.tag(props.sub)}</span>
+      ) : (
+        <span className="mlist__ref">{props.sub}</span>
+      )}
     </button>
   );
 }

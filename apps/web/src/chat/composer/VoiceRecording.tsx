@@ -2,14 +2,25 @@ import { Icons } from "@apx/ui";
 import { useT } from "../../i18n/index.ts";
 import type { DictationState } from "./useDictation.ts";
 
+/** What the mic hears, live, beside it: the newest levels as small bars. */
+export function MicWave({ levels }: { levels: number[] }) {
+  return (
+    <span className="composer__wave" aria-hidden="true">
+      {levels.slice(-12).map((level, i) => (
+        // biome-ignore lint/suspicious/noArrayIndexKey: fixed slots in a rolling signal meter.
+        <span key={i} style={{ transform: `scaleY(${0.15 + level * 0.85})` }} />
+      ))}
+    </span>
+  );
+}
+
+/** Above the field while the mic has it: recording or transcribing, for how long, and the words heard so far. */
 export function VoiceRecording({
   state,
-  levels,
   seconds,
   heard,
 }: {
   state: DictationState;
-  levels: number[];
   seconds: number;
   /** The words heard so far: shown, not editable; the final transcript goes into the field. */
   heard: string;
@@ -24,17 +35,9 @@ export function VoiceRecording({
         {t(recording ? "composer.recording" : state === "starting" ? "composer.micStarting" : "composer.transcribing")}
       </span>
       {recording && (
-        <>
-          <span className="voice-recording__bars" aria-hidden="true">
-            {levels.map((level, i) => (
-              // biome-ignore lint/suspicious/noArrayIndexKey: fixed slots in a rolling signal meter.
-              <span key={i} style={{ transform: `scaleY(${0.12 + level * 0.88})` }} />
-            ))}
-          </span>
-          <time className="voice-recording__time">
-            {Math.floor(seconds / 60)}:{String(seconds % 60).padStart(2, "0")}
-          </time>
-        </>
+        <time className="voice-recording__time">
+          {Math.floor(seconds / 60)}:{String(seconds % 60).padStart(2, "0")}
+        </time>
       )}
       {heard && (
         <p className="voice-recording__heard" aria-live="polite">

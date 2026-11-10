@@ -1,19 +1,29 @@
-import type { Person } from "@apx/protocol";
-import { PERSON_RELATIONS } from "@apx/protocol/client";
-import { Button, Help, IconButton, Icons, Input, SegmentedControl, Select, Textarea, Tooltip } from "@apx/ui";
+import type { ChannelInfo, Person } from "@apx/protocol";
+import { Button, Icons, Input, SegmentedControl, Textarea, Tooltip } from "@apx/ui";
 import { useState } from "react";
+import { AgentSelect } from "../common/pickers/AgentSelect.tsx";
 import { claimAddress, neverRead, saveContact, useChannels } from "../data/channels.ts";
 import { notify } from "../data/notices.ts";
+import { useData } from "../data/state.ts";
 import { type MessageKey, useT } from "../i18n/index.ts";
-import { RELATION_KEY } from "./people.ts";
+import { CardField, ChatCard } from "./ChatCard.tsx";
+import { ChoiceChips } from "./ChoiceChips.tsx";
+import { PersonAvatar } from "./PersonAvatar.tsx";
+import { initials, RELATION_KEY } from "./people.ts";
 import { ownerOn } from "./StartRows.tsx";
 
-/**
- * A contact's card beside their chat: name and nickname, how they relate to the owner, who they are and the rules for
- * answering them (in the owner's words), what their chat may do (all off by default), whether they are answered past
- * the channel's attention hours, and silencing.
- */
-const NO_RELATION = "none";
+/** The relations as chips, the ones most chats need first. */
+const RELATIONS: NonNullable<Person["relation"]>[] = [
+  "client",
+  "lead",
+  "associate",
+  "provider",
+  "family",
+  "friend",
+  "partner",
+  "coworker",
+  "other",
+];
 
 /** The rights a contact's card sets, in the order it shows them. */
 const RIGHTS = ["appointments", "requests", "notes", "any_hour"] as const;
@@ -24,20 +34,32 @@ const RIGHT_LABEL: Record<Right, MessageKey> = {
   notes: "ch.perm.notes",
   any_hour: "ch.anyHour",
 };
+const RIGHT_HINT: Record<Right, MessageKey> = {
+  appointments: "ch.perm.appointmentsHint",
+  requests: "ch.perm.requestsHint",
+  notes: "ch.perm.notesHint",
+  any_hour: "ch.anyHourHint",
+};
 
+/**
+ * A contact's card beside their chat: who they are on top, then name and nickname, how they relate to the owner, who
+ * answers them (the account's contacts agent or one of their own), who they are and the rules for answering them (in
+ * the owner's words), what their chat may do and whether they are answered past the account's
+ * attention hours, and silencing.
+ */
 export function ContactPanel({
   person,
-  account,
+  channel,
   onClose,
 }: {
   person: Person;
-  /** The account this card is opened on: what its rights follow when nothing is set for them. */
-  account: string;
+  /** The account this card is opened on: who answers them and what their rights follow when nothing is set. */
+  channel: ChannelInfo;
   onClose(): void;
 }) {
   const t = useT();
-  const defaults = useChannels((s) => s.channels.find((c) => c.id === account)?.contacts);
-  const mailbox = useChannels((s) => s.channels.find((c) => c.id === account)?.type === "email");
+  const defaults = channel.contacts;
+  const mailbox = channel.type === "email";
   const [d, setD] = useState({
     name: person.name,
     nickname: person.nickname ?? "",
@@ -45,7 +67,10 @@ export function ContactPanel({
     note: person.note ?? "",
     rules: person.rules ?? "",
     perms: person.perms,
+    agent_id: person.agent_id,
   });
+  const [other, setOther] = useState(Boolean(person.agent_id));
+  const accountAgent = useData((s) => s.agents[channel.contacts_agent_id ?? channel.agent_id]);
   const [busy, setBusy] = useState(false);
   const dirty =
     d.name !== person.name ||
@@ -53,6 +78,7 @@ export function ContactPanel({
     d.relation !== person.relation ||
     d.note !== (person.note ?? "") ||
     d.rules !== (person.rules ?? "") ||
+    d.agent_id !== person.agent_id ||
     RIGHTS.some((k) => d.perms[k] !== person.perms[k]);
   const save = async () => {
     setBusy(true);
@@ -60,7 +86,12 @@ export function ContactPanel({
     const perms = Object.fromEntries(
       RIGHTS.filter((k) => d.perms[k] !== person.perms[k]).map((k) => [k, d.perms[k] ?? null]),
     );
-    const ok = await saveContact(person.id, { ...d, relation: d.relation ?? null, perms });
+    const ok = await saveContact(person.id, {
+      ...d,
+      relation: d.relation ?? null,
+      perms,
+      agent_id: d.agent_id ?? null,
+    });
     setBusy(false);
     if (ok) notify(t("ch.saved"), "info");
   };
@@ -70,7 +101,10 @@ export function ContactPanel({
     const account = t(defaults?.[k] ? "ch.right.yes" : "ch.right.no");
     return (
       <li key={k} className="chan__right">
-        <span className="chan__rightlabel">{t(RIGHT_LABEL[k])}</span>
+        <span className="chan__rightlabel">
+          {t(RIGHT_LABEL[k])}
+          <span className="chan__righthint">{t(RIGHT_HINT[k])}</span>
+        </span>
         <SegmentedControl
           size="sm"
           label={t(RIGHT_LABEL[k])}
@@ -94,115 +128,129 @@ export function ContactPanel({
   };
 
   return (
-    <aside className="chan__card" aria-label={t("ch.contact")}>
-      <header className="chan__cardhead">
-        <span>{t("ch.contact")}</span>
-        <IconButton size="sm" label={t("common.close")} icon={<Icons.X size={14} />} onClick={onClose} />
-      </header>
-      <div className="chan__cardbody">
-        <div className="chan__pair">
-          <div className="pform__field">
-            <span className="pform__label">{t("ch.name")}</span>
-            <Input
-              aria-label={t("ch.name")}
-              value={d.name}
-              onChange={(e) => setD({ ...d, name: e.currentTarget.value })}
-            />
-          </div>
-          <div className="pform__field">
-            <span className="pform__label">{t("ch.nickname")}</span>
-            <Input
-              aria-label={t("ch.nickname")}
-              value={d.nickname}
-              onChange={(e) => setD({ ...d, nickname: e.currentTarget.value })}
-            />
-          </div>
-        </div>
-        <div className="pform__field">
-          <span className="pform__label">{t("ch.relation")}</span>
-          <Select
-            label={t("ch.relation")}
-            value={d.relation ?? NO_RELATION}
-            onValueChange={(v) => {
-              const relation = PERSON_RELATIONS.find((r) => r === v);
-              setD({ ...d, relation });
-            }}
-            options={[
-              { value: NO_RELATION, label: t("ch.relation.none") },
-              ...PERSON_RELATIONS.map((r) => ({ value: r, label: t(RELATION_KEY[r]) })),
-            ]}
+    <ChatCard
+      title={t("ch.contact")}
+      channel={channel}
+      name={person.name}
+      avatar={
+        <PersonAvatar
+          personId={person.id}
+          name={person.name}
+          className="chan__cardavatar"
+          size={44}
+          fallback={initials(person.name)}
+        />
+      }
+      onClose={onClose}
+      footer={
+        <>
+          <Tooltip content={person.muted ? t("ch.unmuteHint") : t("ch.muteHint")}>
+            <Button
+              size="sm"
+              variant="ghost"
+              leadingIcon={<Icons.BellOff size={14} />}
+              onClick={() => void saveContact(person.id, { name: person.name, muted: !person.muted })}
+            >
+              <span className="chan__cardfoot-text">{person.muted ? t("ch.unmute") : t("ch.mute")}</span>
+            </Button>
+          </Tooltip>
+          <Tooltip content={t("ch.superviseHint")}>
+            <Button
+              size="sm"
+              variant="ghost"
+              leadingIcon={<Icons.Eye size={14} />}
+              onClick={() => void saveContact(person.id, { name: person.name, supervised: !person.supervised })}
+            >
+              <span className="chan__cardfoot-text">{person.supervised ? t("ch.unsupervise") : t("ch.supervise")}</span>
+            </Button>
+          </Tooltip>
+          <span className="chan__spacer" />
+          <Tooltip content={t("ch.saveHint")}>
+            <Button size="sm" disabled={!dirty || !d.name.trim()} loading={busy} onClick={() => void save()}>
+              {t("common.save")}
+            </Button>
+          </Tooltip>
+        </>
+      }
+    >
+      <div className="chan__pair">
+        <CardField label={t("ch.name")}>
+          <Input
+            aria-label={t("ch.name")}
+            value={d.name}
+            onChange={(e) => setD({ ...d, name: e.currentTarget.value })}
           />
-        </div>
-        {mailbox && <NeverRead person={person} account={account} />}
-        <div className="pform__field">
-          <span className="pform__label">{t("ch.who.is")}</span>
-          <Textarea
-            aria-label={t("ch.who.is")}
-            rows={3}
-            value={d.note}
-            onChange={(e) => setD({ ...d, note: e.currentTarget.value })}
+        </CardField>
+        <CardField label={t("ch.nickname")}>
+          <Input
+            aria-label={t("ch.nickname")}
+            value={d.nickname}
+            onChange={(e) => setD({ ...d, nickname: e.currentTarget.value })}
           />
-          <span className="pform__hint">{t("ch.who.isHint")}</span>
-        </div>
-        <div className="pform__field">
-          <span className="pform__label">{t("ch.rules")}</span>
-          <Textarea
-            aria-label={t("ch.rules")}
-            rows={3}
-            value={d.rules}
-            onChange={(e) => setD({ ...d, rules: e.currentTarget.value })}
-          />
-          <span className="pform__hint">{t("ch.rulesHint")}</span>
-        </div>
-        <div className="pform__label">
-          {t("ch.may")}
-          <Help
-            label={t("ch.may.help")}
-            title={t("ch.may.helpTitle")}
-            className="chan__help"
-            width={340}
-            items={[
-              { term: t("ch.perm.appointments"), text: t("ch.perm.appointmentsHint") },
-              { term: t("ch.perm.requests"), text: t("ch.perm.requestsHint") },
-              { term: t("ch.perm.notes"), text: t("ch.perm.notesHint") },
-              { term: t("ch.anyHour"), text: t("ch.anyHourHint") },
-            ]}
-          >
-            {t("ch.may.close")}
-          </Help>
-        </div>
-        <ul className="chan__perms">{RIGHTS.map(right)}</ul>
-        <ItsMine person={person} onDone={onClose} />
+        </CardField>
       </div>
-      <footer className="chan__cardfoot">
-        <Tooltip content={person.muted ? t("ch.unmuteHint") : t("ch.muteHint")}>
-          <Button
+      {mailbox && <NeverRead person={person} account={channel.id} />}
+      <CardField label={t("ch.relation")}>
+        <ChoiceChips
+          label={t("ch.relation")}
+          clearable
+          value={d.relation}
+          onChange={(v) => setD({ ...d, relation: RELATIONS.find((r) => r === v) })}
+          options={RELATIONS.map((r) => ({
+            value: r,
+            label: t(RELATION_KEY[r]),
+            hint: r === d.relation ? t("ch.relation.clear") : t("ch.relation.hint"),
+          }))}
+        />
+      </CardField>
+      <CardField label={t("ch.answers")} hint={other ? t("ch.answers.otherHint", { name: person.name }) : undefined}>
+        <SegmentedControl
+          size="sm"
+          className="chan__answers"
+          label={t("ch.answers")}
+          value={other ? "other" : "account"}
+          onValueChange={(v) => {
+            setOther(v === "other");
+            if (v === "account") setD((x) => ({ ...x, agent_id: undefined }));
+          }}
+          options={[
+            { value: "account", label: t("ch.answers.account", { agent: accountAgent?.name ?? "" }) },
+            { value: "other", label: t("ch.answers.other") },
+          ]}
+        />
+        {other && (
+          <AgentSelect
             size="sm"
-            variant="ghost"
-            leadingIcon={<Icons.BellOff size={14} />}
-            onClick={() => void saveContact(person.id, { name: person.name, muted: !person.muted })}
-          >
-            <span className="chan__cardfoot-text">{person.muted ? t("ch.unmute") : t("ch.mute")}</span>
-          </Button>
-        </Tooltip>
-        <Tooltip content={t("ch.superviseHint")}>
-          <Button
-            size="sm"
-            variant="ghost"
-            leadingIcon={<Icons.Eye size={14} />}
-            onClick={() => void saveContact(person.id, { name: person.name, supervised: !person.supervised })}
-          >
-            <span className="chan__cardfoot-text">{person.supervised ? t("ch.unsupervise") : t("ch.supervise")}</span>
-          </Button>
-        </Tooltip>
-        <span className="chan__spacer" />
-        <Tooltip content={t("ch.saveHint")}>
-          <Button size="sm" disabled={!dirty || !d.name.trim()} loading={busy} onClick={() => void save()}>
-            {t("common.save")}
-          </Button>
-        </Tooltip>
-      </footer>
-    </aside>
+            channel
+            label={t("ch.answers.pick", { name: person.name })}
+            value={d.agent_id}
+            onChange={(id) => id && setD((x) => ({ ...x, agent_id: id }))}
+          />
+        )}
+      </CardField>
+      <CardField label={t("ch.who.is")} hint={t("ch.who.isHint")}>
+        <Textarea
+          aria-label={t("ch.who.is")}
+          rows={3}
+          placeholder={t("ch.who.placeholder")}
+          value={d.note}
+          onChange={(e) => setD({ ...d, note: e.currentTarget.value })}
+        />
+      </CardField>
+      <CardField label={t("ch.rules")} hint={t("ch.rulesHint")}>
+        <Textarea
+          aria-label={t("ch.rules")}
+          rows={2}
+          placeholder={t("ch.rules.placeholder")}
+          value={d.rules}
+          onChange={(e) => setD({ ...d, rules: e.currentTarget.value })}
+        />
+      </CardField>
+      <CardField label={t("ch.may")} hint={t("ch.may.close")}>
+        <ul className="chan__perms">{RIGHTS.map(right)}</ul>
+      </CardField>
+      <ItsMine person={person} onDone={onClose} />
+    </ChatCard>
   );
 }
 
@@ -219,20 +267,17 @@ function NeverRead({ person, account }: { person: Person; account: string }) {
   const by = list?.includes(address) ? "address" : domain && list?.includes(`@${domain}`) ? "domain" : undefined;
   if (by)
     return (
-      <div className="pform__field">
-        <span className="pform__label">{t("ch.notRead")}</span>
+      <CardField label={t("ch.notRead")} hint={t("ch.notReadHint")}>
         <div className="chan__neverread">
           <span className="chan__neverread-what">{by === "address" ? address : `@${domain}`}</span>
           <Button size="sm" variant="secondary" onClick={() => void neverRead(person.id, account, by, true)}>
             {t("ch.readAgain")}
           </Button>
         </div>
-        <span className="pform__hint">{t("ch.notReadHint")}</span>
-      </div>
+      </CardField>
     );
   return (
-    <div className="pform__field">
-      <span className="pform__label">{t("ch.neverRead")}</span>
+    <CardField label={t("ch.neverRead")} hint={t("ch.neverReadHint")}>
       <div className="chan__neverread">
         <Button
           size="sm"
@@ -253,8 +298,7 @@ function NeverRead({ person, account }: { person: Person; account: string }) {
           </Button>
         )}
       </div>
-      <span className="pform__hint">{t("ch.neverReadHint")}</span>
-    </div>
+    </CardField>
   );
 }
 

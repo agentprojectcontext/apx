@@ -33,12 +33,25 @@ export function latest(entries: readonly NewsItem[], n = 3): NewsItem[] {
 export const words = (w: { en: string; es: string }, lang: string): string => (lang === "es" ? w.es : w.en);
 
 /**
- * Whether the Help button shows its dot: an entry that applies to the owner and was not there the last time they opened
- * the menu. Never opened on this device: the newest release's entries count as new, older ones as known.
+ * Whether an entry carries its dot: it applies to the owner and they have not opened it. Nothing opened on this device
+ * yet: the newest release's entries count as unread, older ones as read.
  */
-export function hasFresh(entries: readonly NewsItem[], looked: readonly string[] | null): boolean {
-  const mine = entries.filter((e) => e.applies);
-  if (looked) return mine.some((e) => !looked.includes(e.id));
-  const newest = byRelease(entries)[0]?.version;
-  return mine.some((e) => e.since === newest);
+export function isUnread(entry: NewsItem, entries: readonly NewsItem[], read: readonly string[] | null): boolean {
+  if (!entry.applies) return false;
+  if (read) return !read.includes(entry.id);
+  return entry.since === byRelease(entries)[0]?.version;
+}
+
+/** The entries still unread: the Help button keeps its dot while there is one. */
+export const unreadOf = (entries: readonly NewsItem[], read: readonly string[] | null): NewsItem[] =>
+  entries.filter((e) => isUnread(e, entries, read));
+
+/** What is read once `ids` are opened: what was read before (the older releases, the first time) and these. */
+export function withRead(
+  entries: readonly NewsItem[],
+  read: readonly string[] | null,
+  ids: readonly string[],
+): string[] {
+  const before = read ?? entries.filter((e) => !isUnread(e, entries, null)).map((e) => e.id);
+  return [...new Set([...before, ...ids])];
 }

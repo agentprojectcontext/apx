@@ -20,7 +20,17 @@ export function PlanCard({ label, steps, children }: { label: string; steps?: Pl
         {steps && <span className="plancard__count">{t("chat.planDone", { done, count: steps.length })}</span>}
       </h3>
       {steps ? (
-        <StepList className="plancard__steps" steps={steps.map((s) => ({ label: s.step, status: STATUS[s.state] }))} />
+        <StepList
+          className="plancard__steps"
+          steps={steps.map((s) => ({
+            label: (
+              <span key={s.step} title={s.step}>
+                {s.step}
+              </span>
+            ),
+            status: STATUS[s.state],
+          }))}
+        />
       ) : (
         children
       )}

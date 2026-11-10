@@ -14,6 +14,7 @@ import { BROWSER_SIGN_IN_NEWS } from "./browser-sign-in.ts";
 import { CHANNEL_AGENTS_NEWS } from "./channel-agents.ts";
 import { CHROME_TABS_NEWS } from "./chrome-tabs.ts";
 import { COMPUTER_POINTER_NEWS } from "./computer-pointer.ts";
+import { CONTACT_AGENT_NEWS } from "./contact-agent.ts";
 import { EXTERNAL_SESSIONS_NEWS } from "./external-sessions.ts";
 import { HERMES_IMPORT_NEWS } from "./hermes-import.ts";
 import { LOCAL_MODELS_NEWS } from "./local-models.ts";
@@ -21,7 +22,9 @@ import { MOVE_BACKUP_NEWS } from "./move-backup.ts";
 import { QUEUED_MESSAGES_NEWS } from "./queued-messages.ts";
 import { QUICK_CHAT_NEWS } from "./quick-chat.ts";
 import { ROOM_HANDOFF_NEWS } from "./room-handoff.ts";
+import { SIDE_QUESTION_NEWS } from "./side-question.ts";
 import { STORE_COMPACT_NEWS } from "./store-compact.ts";
+import { SUBPROJECTS_NEWS } from "./subprojects.ts";
 import { TASK_COMMENTS_NEWS } from "./task-comments.ts";
 import { TASK_GOALS_NEWS } from "./task-goals.ts";
 import { TASK_REGROUP_NEWS } from "./task-regroup.ts";
@@ -65,6 +68,8 @@ export type NewsFacts = {
   promptedAgents?: number;
   /** The chats' database is over 500 MB and keeps its free space until it is rewritten once (compacted). */
   bigStore?: boolean;
+  /** Projects the owner registered (the base project not counted). */
+  projects?: number;
   /** A channel reads at least one room (a Discord channel, a group). */
   rooms?: boolean;
 };
@@ -92,11 +97,13 @@ export type NewsEntry = {
 };
 
 export const NEWS: readonly NewsEntry[] = [
+  SUBPROJECTS_NEWS,
   ROOM_HANDOFF_NEWS,
   ACTIVITY_REVIEW_NEWS,
   AGENT_PROMPTS_NEWS,
   TASK_GOALS_NEWS,
   CHANNEL_AGENTS_NEWS,
+  CONTACT_AGENT_NEWS,
   TASK_COMMENTS_NEWS,
   COMPUTER_POINTER_NEWS,
   TASK_REGROUP_NEWS,
@@ -112,6 +119,7 @@ export const NEWS: readonly NewsEntry[] = [
   AGENT_FALLBACKS_NEWS,
   BROWSER_SIGN_IN_NEWS,
   STORE_COMPACT_NEWS,
+  SIDE_QUESTION_NEWS,
   {
     id: "storage-screen",
     since: "2.13.0",
@@ -1250,6 +1258,7 @@ export const newsFacts = (store: Store, o: { hermes?: boolean; storeSize?: Store
   noisyTasks: store.tasks.noisy(NOISY_COMMENTS).length,
   localModels: store.settings.read("local_models_seen").length > 0,
   ownModels: store.agents.list().filter((a) => a.model_choice?.model).length,
+  projects: store.projects.list().length,
   promptedAgents: store.agents.list().filter((a) => a.kind !== "secretary" && a.prompt.trim()).length,
 });
 

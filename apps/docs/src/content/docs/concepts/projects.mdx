@@ -153,6 +153,41 @@ Home and your global agents live in the **base project**. It has no folder: APX 
 work anywhere, and it can't be deleted. You name it during setup and can rename it later; it stays the base project
 whatever you call it. When you want agents that work in a specific folder, make a project for that folder.
 
+## Subprojects
+
+A project can hold **subprojects**, one level deep: a subproject has none of its own. The base project can have
+them too, so ten clients, sites or shops can share the team you already have instead of each getting new agents.
+
+A subproject is a project like any other: its own folder with `AGENTS.md` and `.apc/`, its own chats, tasks,
+routines, apps, files and memory. What makes it a subproject is that it also takes from its parent:
+
+| From the parent | How |
+|---|---|
+| Agents | The parent's agents work in it: they chat, take its tasks and routines, and are delegated to there. Asked in the subproject, they work in the subproject's folder, with its `AGENTS.md` and its memory. A subproject can also have agents of its own. |
+| Variables | A `secret://NAME` the subproject has no value for uses the parent's own value, then the global one. |
+| Skills and MCP servers | The parent's `.apc/skills/` and `.apc/mcps.json` count in the subproject too. |
+| Apps | The parent's apps are listed with the subproject's. |
+
+The subproject's own wins on a name both have. **Memory is never inherited**: the parent's notes stay the parent's.
+A subproject of the base project takes the base project's agents (your global ones), which already work everywhere,
+and its apps.
+
+In **Resources**, a skill or MCP server's **By project** box lists every project it reaches, with each subproject
+indented under its project and a switch per row. Turning it off in a subproject leaves it on in the project it comes
+from.
+
+<Terminal command={`apx projects create "Acme Site" --parent p_3f9a1c0d7e21`}>{`Acme Site (p_5c1e7a9b2d40) · ~/work/acme-store/acme-site`}</Terminal>
+
+With no `--path`, a subproject's folder goes inside its parent's (`acme-store/acme-site`); a subproject of the base
+project (`--parent base`) goes in APX's own folder, like any project without one. `apx projects set <project>
+--parent <project>` moves a project of its own under another. It can't be a project that has subprojects, the
+project itself, or another subproject.
+
+To **make a subproject a project of its own** again, run `apx projects detach <project>` (or `apx projects set
+<project> --parent none`). It keeps its folder, agents, chats and memory, and stops taking its parent's agents and
+resources. Removing a parent from APX leaves each of its subprojects as a project of its own. Which project is whose
+parent is kept by APX, never in the folders.
+
 ## What APX keeps on its side
 
 The project folder is yours. Everything APX needs that is not part of the standard stays in APX's home

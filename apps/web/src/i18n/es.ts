@@ -2,16 +2,28 @@ import { esHelper } from "./es-helper.ts";
 // UI strings, Spanish (Rioplatense, voseo). A missing key falls back to English.
 
 import { noticeEs } from "@apx/protocol/notices";
+import { esChannelsSlim } from "./channels-slim-es.ts";
+import { esChatSlim } from "./chat-slim-es.ts";
+import { esComposerSlim } from "./composer-slim-es.ts";
 import type { MessageKey } from "./en.ts";
 import { esChannels } from "./es-channels.ts";
 import { esChat } from "./es-chat.ts";
 import { esEngines } from "./es-engines.ts";
 import { esFiles } from "./es-files.ts";
 import { esOffice } from "./es-office.ts";
-import { esResources } from "./es-resources.ts";
-import { esSetup } from "./es-setup.ts";
-import { esTeam } from "./es-team.ts";
 import { esTelemetry } from "./es-telemetry.ts";
+import { esFilesArtifacts } from "./files-artifacts-es.ts";
+import { esInboxSlim } from "./inbox-slim-es.ts";
+import { esPanelAgents } from "./panel-agents-es.ts";
+import { esPanelTabs } from "./panel-tabs-es.ts";
+import { esProjectSlim } from "./project-slim-es.ts";
+import { esResourcesShared } from "./resources-shared-es.ts";
+import { esRoutineChat } from "./routine-chat-es.ts";
+import { esSectionPages } from "./section-pages-es.ts";
+import { esSetupShared } from "./setup-shared-es.ts";
+import { esShellSlim } from "./shell-slim-es.ts";
+import { esTeamShared } from "./team-shared-es.ts";
+import { esTopbar } from "./topbar-es.ts";
 
 export const es: Partial<Record<MessageKey, string>> = {
   "config.activityReview": "Revisión y mejoras",
@@ -37,14 +49,26 @@ export const es: Partial<Record<MessageKey, string>> = {
   ...noticeEs,
   ...esHelper,
   ...esOffice,
-  ...esTeam,
+  ...esTeamShared,
   ...esChannels,
-  ...esSetup,
+  ...esSetupShared,
   ...esChat,
+  ...esChatSlim,
   ...esFiles,
-  ...esResources,
+  ...esFilesArtifacts,
+  ...esResourcesShared,
   ...esEngines,
   ...esTelemetry,
+  ...esRoutineChat,
+  ...esSectionPages,
+  ...esTopbar,
+  ...esShellSlim,
+  ...esComposerSlim,
+  ...esPanelTabs,
+  ...esPanelAgents,
+  ...esProjectSlim,
+  ...esInboxSlim,
+  ...esChannelsSlim,
   "engineUsage.title": "Cuotas de IA",
   "engineUsage.remaining": "{pct}% disponible",
   "engineUsage.primary": "Ventana actual",
@@ -199,13 +223,19 @@ export const es: Partial<Record<MessageKey, string>> = {
   "connection.connecting": "Conectando",
 
   // Barra superior, barra lateral, cuenta
-  "topbar.location": "Ubicación",
   "topbar.search": "Buscar o saltar a…",
+  "server.label": "APX en uso: {name}",
+  "server.local": "Local",
+  "server.offline": "Sin conexión",
+  "server.change": "Conectar con otro APX…",
   "update.pill": "Actualización · {n}",
   "update.pillVersion": "APX {v} · Actualizar",
   "help.label": "Ayuda",
   "help.labelNew": "Ayuda · hay novedades",
+  "help.labelNewHint": "Ayuda · hay novedades. Abrir Todas las novedades las marca como vistas",
+  "help.moreUnread": "{n} más sin ver",
   "help.whatsNew": "Novedades",
+  "help.unread": "Nueva",
   "help.changelog": "Todas las novedades",
   "help.guides": "Guías",
   "help.discord": "Unirte a Discord",
@@ -330,9 +360,28 @@ export const es: Partial<Record<MessageKey, string>> = {
   "nav.inbox": "Inbox",
   "nav.tasks": "Tareas",
   "nav.flows": "Flows",
+  "nav.routines": "Rutinas",
+  "nav.newChat": "Nuevo chat",
+  "nav.showInSidebar": "Mostrar en la barra lateral",
+  "nav.showViews": "Vistas",
+  "nav.showSections": "Secciones",
+  "nav.empty.apps": "Todavía no hay apps. Pedile a un agente que te arme una, o instalá una con la flecha.",
+  "nav.empty.sessions":
+    "No hay ninguna app de código en esta computadora. Instalá Claude Code o Codex para ver sus sesiones acá.",
   "nav.itemOptions": "Opciones de {name}",
   "nav.open": "Abrir",
   "project.unregister": "Quitar registro del proyecto",
+  "project.newSub": "Nuevo subproyecto",
+  "project.detach": "Separar en un proyecto aparte",
+  "project.detached": "{name} ahora es un proyecto aparte",
+  "project.subOf": "Subproyecto de {name}",
+  "project.subHint":
+    "Trabaja con los agentes, skills, servidores MCP y variables de {name}. Sus chats, tareas, rutinas, artefactos, archivos y memoria son propios.",
+  "project.new.inside": "Dentro de",
+  "project.new.insideNone": "Ninguno: un proyecto aparte",
+  "project.new.inParent": "En la carpeta de su proyecto",
+  "project.new.subHint":
+    "Un subproyecto usa los agentes y recursos de su proyecto, así que no necesita un equipo propio. Su memoria, chats y archivos quedan aparte.",
   "project.unregisterTitle": "¿Quitar registro de {name}?",
   "project.unregisterBody":
     "Carpeta, archivos, chats y tareas se conservan. Volvé a registrarlo para recuperar el proyecto.",
@@ -354,6 +403,7 @@ export const es: Partial<Record<MessageKey, string>> = {
   "project.new.inFolder": "En una carpeta",
   "project.new.noFolder": "Sin carpeta",
   "project.new.apxHint": "Se crea dentro de la carpeta de APX:",
+  "project.new.parentHint": "Se crea dentro de la carpeta de su proyecto:",
   "project.new.example": "Mi proyecto",
   "project.new.nameFromFolder": "El de la carpeta",
   "project.new.path": "Carpeta",
@@ -393,7 +443,6 @@ export const es: Partial<Record<MessageKey, string>> = {
   "running.label": "Procesos",
   "running.aria": "{working} en curso, {waiting} esperando, {background} en segundo plano",
   "running.tab.agents": "Agentes",
-  "running.tab.background": "Segundo plano",
   "running.waitingForYou": "Te espera",
   "running.stop": "Detener",
   "running.stop.title": "¿Detener a {agent}?",
@@ -445,10 +494,14 @@ export const es: Partial<Record<MessageKey, string>> = {
 
   // Inbox
   "inbox.projectChats": "Chats de {project}",
-  "inbox.view": "Cómo listar los chats",
-  "inbox.view.tree": "Árbol",
-  "inbox.view.activity": "Actividad",
-  "inbox.view.chats": "Por chat",
+  "inbox.tabs": "Mostrar",
+  "inbox.tab.chats": "Chats",
+  "inbox.tab.tasks": "Tareas",
+  "inbox.tab.routines": "Rutinas",
+  "inbox.pinned": "Fijados",
+  "inbox.recent": "Recientes",
+  "inbox.tabEmpty.tasks": "Todavía no hay chats de tareas acá",
+  "inbox.tabEmpty.routines": "Ninguna rutina corrió todavía",
   "inbox.when.running": "En curso",
   "inbox.when.today": "Hoy",
   "inbox.when.yesterday": "Ayer",
@@ -457,6 +510,15 @@ export const es: Partial<Record<MessageKey, string>> = {
   "inbox.showMore": "Ver {n} más",
   "inbox.showLess": "Ver menos",
   "inbox.taskBundle.chats": "{n} chats",
+  "inbox.taskBundle.agents": "{n} agentes",
+  "tasks.row.pending": "Pendiente",
+  "tasks.header.show": "Ver tarea",
+  "tasks.header.hide": "Ocultar la tarea",
+  "tasks.header.task": "Tarea",
+  "tasks.header.session": "Sesión de {name}",
+  "tasks.header.sessions": "Sesiones de la tarea",
+  "tasks.header.noWords": "Todavía sin mensajes",
+  "inbox.taskBundle.chatsOne": "1 chat",
   "inbox.taskBundle.open": "Ver los chats de la tarea",
   "inbox.taskBundle.close": "Ocultar los chats de la tarea",
   "inbox.delegated.open": "Ver los chats que delegó",
@@ -467,10 +529,21 @@ export const es: Partial<Record<MessageKey, string>> = {
     "Sesión de código: el agente trabaja dentro de la carpeta {folder} (lee, edita archivos y corre comandos ahí)",
   "nav.externalSession": "Sesión externa",
   "thread.code": "Código",
-  "inbox.search": "Buscar chats",
   "inbox.filter": "Filtrar chats",
   "inbox.filter.show": "Mostrar",
   "inbox.filter.routines": "Novedades de rutinas",
+  "inbox.filter.on": "Filtrar chats ({n} elegidos)",
+  "inbox.filter.agents": "Agentes",
+  "inbox.filter.projects": "Proyectos",
+  "inbox.filter.clear": "Limpiar filtros",
+  "inbox.filter.clearShort": "Limpiar",
+  "inbox.filter.none": "Nada de acá coincide con el filtro",
+  "inbox.filter.remove": "Dejar de filtrar por {name}",
+  "inbox.searchOpen": "Buscar chats",
+  "inbox.searchIn.chats": "Buscar chats",
+  "inbox.searchIn.tasks": "Buscar tareas",
+  "inbox.searchIn.routines": "Buscar rutinas",
+  "inbox.searchClose": "Cerrar la búsqueda",
   "inbox.markAllRead": "Marcar todo como leído",
   "inbox.unread": "Sin leer",
   "inbox.offline.title": "Sin conexión",
@@ -509,12 +582,10 @@ export const es: Partial<Record<MessageKey, string>> = {
   "write.auto": "Edita libremente",
   "write.read-only": "Sólo lectura",
   "changes.title": "{n} sin commitear",
-  "changes.edited": "Archivos editados: {n}",
+  "changes.edited": "Archivos editados {n}",
   "changes.scratchEdited": "Archivos en la carpeta temporal: {n}",
   "changes.scratch": "Carpeta temporal del chat",
   "changes.scratchHint": "Borradores del agente: no son cambios en tus carpetas.",
-  "changes.heading.one": "Cambios: {n} archivo editado",
-  "changes.heading.many": "Cambios: {n} archivos editados",
   "changes.scope": "Elegir cambios",
   "changes.latest": "Último turno",
   "changes.all": "Todos los turnos",
@@ -528,8 +599,11 @@ export const es: Partial<Record<MessageKey, string>> = {
   "chat.back": "Volver al chat",
   "chat.toList": "Volver a los chats",
   "chat.hideTools": "Ocultar herramientas",
-  "chat.toolsHint": "Mostrar u ocultar cada paso del agente (las tools que usó y qué devolvieron)",
   "chat.showTools": "Mostrar herramientas",
+  "chat.roomCardOpen": "Abrir cuándo habla el agente acá y las reglas",
+  "chat.roomCardClose": "Cerrar la tarjeta",
+  "chat.headerSuper": "{name} · Super-agente, en todos tus proyectos",
+  "chat.headerEngine": "{engine} · Sesión directa",
   "chat.pick.title": "Elegí un chat",
   "chat.pick.body": "O empezá uno nuevo con tu super-agente.",
   "chat.offline.title": "Sin conexión con el core",
@@ -595,7 +669,6 @@ export const es: Partial<Record<MessageKey, string>> = {
   "widget.toPanel": "Mostrar en el panel lateral",
   "widget.inPanel": "Se muestra en el panel lateral",
   "widget.showHere": "Mostrar acá",
-  "widgets.all": "Todos los widgets ({n})",
   "widgets.empty": "Sin widgets en este chat",
   "widgets.emptyBody":
     "Los widgets que arme el agente en este chat aparecen acá. Fijalos para tenerlos también en el tablero del proyecto.",
@@ -739,17 +812,16 @@ export const es: Partial<Record<MessageKey, string>> = {
   "processes.done": "Terminados ({n})",
   "processes.empty": "Todavía no hay subagentes en este chat",
   "processes.maximize": "Abrir conversación completa",
-  "processes.back": "Volver a procesos del chat",
   "processes.failed": "No se pudieron cargar los procesos del chat",
   "changes.reportedEmpty": "No hay cambios registrados en este chat",
   "panel.terminal": "Terminal",
   "panel.files": "Archivos",
-  "panel.widget": "Widget",
+  "panel.widget": "Artefactos",
   "panel.usage": "Consumo",
   "panel.browser.hint": "Navegador: la página que maneja tu agente; podés tomar el control",
   "panel.terminal.hint": "Terminal: los comandos que corrió el agente y tu propia terminal en la carpeta",
   "panel.files.hint": "Archivos: la carpeta donde trabaja este chat",
-  "panel.widget.hint": "Widgets: lo que el agente armó para vos en este chat",
+  "panel.widget.hint": "Artefactos: lo que el agente armó para vos en este chat",
   "panel.usage.hint": "Consumo: tokens y costo de este chat",
   "panel.side": "Panel lateral",
   "panel.close": "Cerrar panel",
@@ -935,6 +1007,12 @@ export const es: Partial<Record<MessageKey, string>> = {
   "overview.now": "Ahora",
   "overview.nothingRunning": "Nada corriendo en este proyecto.",
   "overview.team": "Agentes",
+  "overview.subprojects": "Subproyectos",
+  "overview.otherSubs": "Otros subproyectos de {name}",
+  "overview.subUses": "Usa los agentes de {name}",
+  "overview.subOwn": "Agentes propios y de {name}",
+  "overview.fromParent": "De {name}",
+  "overview.noSubs": "Dividí un proyecto en partes que comparten sus agentes: una web, una app, un cliente.",
   "overview.agentsCount.one": "1 agente",
   "overview.agentsCount.other": "{n} agentes",
   "overview.noAgents": "Este proyecto todavía no tiene agentes propios.",
@@ -1110,6 +1188,9 @@ export const es: Partial<Record<MessageKey, string>> = {
   "appearance.textSize": "Tamaño del texto",
   "appearance.textSizeHint":
     "Texto de la interfaz y el chat en este dispositivo. 100% es el tamaño normal. No cambia las imágenes, las apps incrustadas, los terminales ni el zoom del navegador.",
+  "appearance.compact": "Barra lateral compacta",
+  "appearance.compactHint":
+    "Cada sección es una fila y sus elementos se abren al lado. En una ventana baja se mantiene compacta.",
   "appearance.font": "Fuente de la interfaz",
   "appearance.fontHint": "Menús, barras laterales y paneles.",
   "appearance.fontLabel": "Fuente",

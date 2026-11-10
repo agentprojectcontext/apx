@@ -130,9 +130,14 @@ Usage:
   apx projects [list] | register <folder> | sync [project]
                            Projects are folders with AGENTS.md / .apc/; their agents come from those files
   apx projects create "<Name>" [--path <folder>] [--kind personal|app|company|software|other] [--desc "…"]
-                           A new project: in that folder (made if missing), else in a folder of its own in APX's home
+                    [--parent <project>|base]
+                           A new project: in that folder (made if missing), else in a folder of its own in APX's home.
+                           With --parent, a subproject that works with its parent's agents, in the parent's folder
   apx projects set <project> [--name "…"] [--kind …] [--desc "…"] [--autonomy manual|auto|accept_edits|plan|total]
-                           Rename it, change its kind or description, or how far its agents go without asking
+                    [--parent <project>|base|none]
+                           Rename it, change its kind or description, how far its agents go without asking, or
+                           whose subproject it is
+  apx projects detach <subproject>   Make a subproject a project of its own (it keeps its folder, agents and chats)
   apx projects folders list|add|rm <project> [folder]
                            Folders its agents may read and never change (another checkout, docs)
   apx projects rm <project>   Forget a project in APX; its folder and files are never deleted

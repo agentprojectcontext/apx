@@ -195,6 +195,10 @@ export class BrowserHost extends EventEmitter<{ changed: [] }> {
         const p = browserMethods["browser.inspect"].params.parse(raw);
         return { element: await this.#get(p.tab).cdp.inspect(p.x, p.y) };
       }
+      case "browser.edit_elements": {
+        const p = browserMethods["browser.edit_elements"].params.parse(raw);
+        return { elements: await this.#get(p.tab).cdp.editElements() };
+      }
       case "browser.preview_edits": {
         const p = browserMethods["browser.preview_edits"].params.parse(raw);
         const tab = this.#get(p.tab);

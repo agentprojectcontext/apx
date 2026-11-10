@@ -14,6 +14,7 @@ import {
   OAuthReturn,
   PairScreen,
   QuickChat,
+  TitleTooltips,
   Wizard,
 } from "./lazy.ts";
 import { IS_BROWSER_WINDOW } from "./panel/browserWindow.ts";
@@ -76,6 +77,9 @@ function Main() {
         </Suspense>
       )}
       {!OAUTH_RETURN && gate === "open" && <Panel />}
+      <Suspense fallback={null}>
+        <TitleTooltips />
+      </Suspense>
       {!OAUTH_RETURN && gate === "pair" && (
         <Suspense fallback={null}>
           <PairScreen />

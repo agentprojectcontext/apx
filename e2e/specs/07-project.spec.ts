@@ -61,9 +61,14 @@ test("a project's text file opens as code with line numbers, is edited and saved
 
 test("the owner's Claude Code and Codex sessions are listed", async ({ page }) => {
   await open(page);
-  await page.getByRole("button", { name: "Claude Code", exact: true }).click();
+  // A row narrows the Inbox; the sessions on this computer are the row's "All sessions".
+  const sessions = async (engine: string) => {
+    await page.getByRole("button", { name: engine, exact: true }).click({ button: "right" });
+    await page.getByRole("menuitem", { name: "Todas las sesiones" }).click();
+  };
+  await sessions("Claude Code");
   await expect(page.getByText("Refactor the cart module")).toBeVisible();
-  await page.getByRole("button", { name: "Codex", exact: true }).click();
+  await sessions("Codex");
   await expect(page.getByText("Add a footer")).toBeVisible();
 });
 

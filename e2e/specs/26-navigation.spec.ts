@@ -1,4 +1,4 @@
-import { expect, open, rpc, test } from "./kit.ts";
+import { cardSidebar, expect, open, rpc, test } from "./kit.ts";
 
 test.beforeAll(async () => {
   await rpc("setup.finish");
@@ -119,7 +119,7 @@ test("El navegador se cierra al pasar a otro chat; Atrás lo trae con su chat", 
 });
 
 for (const platform of ["web", "mac", "win", "linux"])
-  test(`${platform}: buscador centrado, controles accesibles, breadcrumb largo sin solapar`, async ({ page }) => {
+  test(`${platform}: buscador centrado y controles accesibles con un chat de título largo`, async ({ page }) => {
     const chat = await rpc<{ id: string }>("threads.create", {
       kind: "loose",
       agent_id: "superagent",
@@ -152,9 +152,11 @@ for (const platform of ["web", "mac", "win", "linux"])
       await expect(async () => {
         const geometry = await page.locator(".topbar").evaluate((bar) => {
           const search = bar.querySelector(".topbar__search")?.getBoundingClientRect();
+          // The history arrows lead the search box: the pair is what sits on the window's centre.
+          const group = bar.querySelector(".topbar__center")?.getBoundingClientRect();
           const controls = [...bar.querySelectorAll("button")].filter((button) => button.getClientRects().length);
           return {
-            center: search ? search.x + search.width / 2 : -1,
+            center: group ? group.x + group.width / 2 : -1,
             overlaps: controls
               .filter((button) => {
                 const b = button.getBoundingClientRect();
@@ -196,6 +198,7 @@ test("Sesiones externas: plegado independiente, persistente y accesible desde ba
       },
     });
   });
+  await cardSidebar(page);
   await open(page);
   const sidebar = page.locator(".sidebar");
   const fold = sidebar.getByRole("button", { name: "Sesiones externas", exact: true });
@@ -226,10 +229,13 @@ test("Canales: tres visibles, orden persistente y sin leer visibles también en 
 }) => {
   await page.setViewportSize({ width: 1480, height: 800 });
   await page.addInitScript(() => {
-    if (!localStorage.getItem("apx.prefs"))
+    // The fixture already stored the sidebar choice: seed the order once, before the owner changes it.
+    const prefs = JSON.parse(localStorage.getItem("apx.prefs") ?? "{}");
+    if (!prefs.channelOrder)
       localStorage.setItem(
         "apx.prefs",
         JSON.stringify({
+          ...prefs,
           channelOrder: ["telegram", "discord", "whatsapp", "slack", "email"],
           channelOrderAt: new Date().toISOString(),
         }),
@@ -288,6 +294,7 @@ test("Canales: tres visibles, orden persistente y sin leer visibles también en 
     );
     await route.fulfill({ response, json: body });
   });
+  await cardSidebar(page);
   await open(page);
   const rows = page.locator(".channelsnav__shown .channelsnav__row");
   const ids = () => rows.evaluateAll((rows) => rows.map((row) => row.getAttribute("data-channel-id")));

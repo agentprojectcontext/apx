@@ -1,3 +1,4 @@
+import "../../styles/chat-cards.css";
 import type { ConnectOffer, Part } from "@apx/protocol";
 import { Badge, Button, Icons, IntegrationIcon } from "@apx/ui";
 import { useCallback, useEffect, useState } from "react";

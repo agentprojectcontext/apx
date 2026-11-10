@@ -60,7 +60,7 @@ test("task consult replies arrive as traced events, survive reload and do not tu
     )[0];
     expect(response?.task_id).toBe(task);
     await event.getByRole("button", { name: /Abrir conversación con Helper/ }).click();
-    await expect(page).toHaveURL(/panel=processes/);
+    await expect(page).toHaveURL(/panel=agents/);
     await expect(page.getByRole("complementary", { name: "Panel lateral" })).toContainText(
       "Consult evidence: tests passed.",
     );

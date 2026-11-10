@@ -1,26 +1,30 @@
+import "../styles/panel-parts.css";
 import type { Result, SurfaceSummary } from "@apx/protocol";
-import { Badge, EmptyState, Icons, SearchField, SegmentedControl } from "@apx/ui";
+import { Icons, SearchField, SegmentedControl } from "@apx/ui";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { formatBytes, shortWhen } from "../common/format.ts";
 import { client } from "../data/client.ts";
-import { inProject, type ProjectEntry, realProjectId } from "../data/identity.ts";
+import { inProject, type ProjectEntry, realProjectId, threadAgent } from "../data/identity.ts";
 import { notify } from "../data/notices.ts";
 import { useData } from "../data/state.ts";
 import { useT } from "../i18n/index.ts";
 import { go } from "../shell/nav.ts";
 import { KindIcon, kindLabel, kindOf } from "../surfaces/artifactKind.tsx";
-import { SurfaceActions } from "../surfaces/SurfaceActions.tsx";
 import { DocumentDrawer, WidgetDrawer } from "./ArtifactPanel.tsx";
+import { ArtifactTile } from "./ArtifactTile.tsx";
+import { ProjectEmpty } from "./ProjectEmpty.tsx";
+import { useSubScope } from "./subScope.tsx";
 
 type Filter = "all" | "widgets" | "documents";
-type Doc = Result<"documents.list">["documents"][number];
+/** A document, with the project whose chat holds it. */
+type Doc = Result<"documents.list">["documents"][number] & { project_id?: string | undefined };
 type Item = { kind: "widget"; at: string; widget: SurfaceSummary } | { kind: "document"; at: string; doc: Doc };
 
 const errText = (e: unknown) => (e instanceof Error ? e.message : String(e));
 
 /**
- * What the project's agents made: its widgets (live pages, on the board or not) and the documents its chats hold, the
- * newest first. Each opens beside the list (the list stays in view): a widget live, a document to read.
+ * What the project's agents made, its subprojects' too: its widgets (live pages, on the board or not) and the documents
+ * its chats hold, the newest first, as a gallery. Each opens beside it (the gallery stays in view): a widget live, a
+ * document to read.
  */
 export function ProjectArtifacts({ project }: { project: ProjectEntry }) {
   const t = useT();
@@ -30,21 +34,30 @@ export function ProjectArtifacts({ project }: { project: ProjectEntry }) {
   const [query, setQuery] = useState("");
   const [docs, setDocs] = useState<Doc[] | undefined>();
   const [open, setOpen] = useState<string>();
+  const agents = useData((s) => s.agents);
+  const { subs, subOf } = useSubScope(project);
   const pid = realProjectId(project.id);
+  const subIds = subs.map((p) => p.id).join(",");
 
   const load = useCallback(async () => {
+    const list = async (id: string | undefined) =>
+      (await client.call("documents.list", id ? { project_id: id } : {})).documents.map((d) => ({
+        ...d,
+        project_id: id,
+      }));
     try {
-      setDocs((await client.call("documents.list", pid ? { project_id: pid } : {})).documents);
+      const all = await Promise.all([list(pid), ...(subIds ? subIds.split(",") : []).map((id) => list(id))]);
+      setDocs(all.flat());
     } catch (e) {
       setDocs([]);
       notify(t("error.artifacts", { error: errText(e) }));
     }
-  }, [pid, t]);
+  }, [pid, subIds, t]);
   useEffect(() => void load(), [load]);
 
   const items = useMemo(() => {
     const widgets: Item[] = Object.values(surfaces)
-      .filter((s) => inProject(s, project.id))
+      .filter((s) => inProject(s, project.id) || subOf(s.project_id))
       .map((widget) => ({ kind: "widget", at: widget.updated_at, widget }));
     const documents: Item[] = (docs ?? []).map((doc) => ({ kind: "document", at: doc.created_at, doc }));
     const words = query.trim().toLowerCase();
@@ -55,20 +68,24 @@ export function ProjectArtifacts({ project }: { project: ProjectEntry }) {
         return text.toLowerCase().includes(words);
       })
       .sort((a, b) => b.at.localeCompare(a.at));
-  }, [surfaces, docs, project.id, filter, query]);
+  }, [surfaces, docs, project.id, subOf, filter, query]);
 
-  const chatTitle = (id: string | undefined, fallback = "") => (id ? (threads[id]?.title ?? fallback) : "");
-  const openChat = (id: string) => go.project(project.id, "chats", id);
+  const chatTitle = (id: string | undefined) => (id ? (threads[id]?.title ?? "") : "");
+  // A document is the work of the agent of the chat it is in.
+  const docMaker = (d: Doc) => {
+    const agent = threadAgent(threads[d.thread_id], agents);
+    return agent ? ({ kind: "agent", id: agent.id } as const) : undefined;
+  };
+  // In the project that holds the chat: a subproject's chat opens in the subproject.
+  const openChat = (id: string, where?: string) => go.project(where ?? project.id, "chats", id);
   // A chat's side panel shows the document in the chat it came from.
   const openDocInChat = (d: Doc) => {
-    openChat(d.thread_id);
+    openChat(d.thread_id, d.project_id);
     go.document(d.media_id);
   };
   const toggle = (id: string) => setOpen((o) => (o === id ? undefined : id));
   const openWidget = open ? surfaces[open] : undefined;
   const openDoc = open ? docs?.find((d) => d.media_id === open) : undefined;
-  const rowClass = (id: string) =>
-    id === open ? "memory__row artifacts__row is-selected" : "memory__row artifacts__row";
 
   return (
     <div className="memory artifacts">
@@ -100,62 +117,41 @@ export function ProjectArtifacts({ project }: { project: ProjectEntry }) {
       />
 
       {docs && !items.length ? (
-        <EmptyState variant="dashed" size="sm" icon={<Icons.LayoutGrid />}>
-          {query ? t("artifacts.noMatch") : t("artifacts.empty")}
-        </EmptyState>
+        <ProjectEmpty name={project.name}>{query ? t("artifacts.noMatch") : undefined}</ProjectEmpty>
       ) : (
-        <ul className="memory__list" aria-label={t("project.tab.artifacts")}>
+        <ul className="projart__grid" aria-label={t("project.tab.artifacts")}>
           {items.map((i) =>
             i.kind === "widget" ? (
-              <li key={i.widget.id} className={rowClass(i.widget.id)}>
-                <button
-                  type="button"
-                  className="artifacts__open"
-                  aria-expanded={i.widget.id === open}
-                  onClick={() => toggle(i.widget.id)}
-                >
-                  <KindIcon kind={kindOf(i.widget)} size={16} />
-                  <span className="artifacts__title">{i.widget.title}</span>
-                </button>
-                <div className="memory__meta">
-                  <span>{kindLabel(kindOf(i.widget), t)}</span>
-                  <span>{t("artifacts.version", { n: i.widget.version })}</span>
-                  <span>{shortWhen(i.widget.updated_at)}</span>
-                  {i.widget.pinned && <Badge>{t("artifacts.onBoard")}</Badge>}
-                  {i.widget.thread_id && chatTitle(i.widget.thread_id) && (
-                    <button
-                      type="button"
-                      className="artifacts__chat"
-                      onClick={() => openChat(i.widget.thread_id ?? "")}
-                    >
-                      {t("artifacts.inChat", { chat: chatTitle(i.widget.thread_id) })}
-                    </button>
-                  )}
-                  <span className="memory__spacer" />
-                  <SurfaceActions surface={i.widget} />
-                </div>
-              </li>
+              <ArtifactTile
+                key={i.widget.id}
+                title={i.widget.title}
+                icon={<KindIcon kind={kindOf(i.widget)} size={24} />}
+                kind={kindLabel(kindOf(i.widget), t)}
+                maker={i.widget.created_by === "owner" ? { kind: "owner" } : { kind: "agent", id: i.widget.created_by }}
+                at={i.widget.updated_at}
+                sub={subOf(i.widget.project_id)}
+                mark={i.widget.pinned ? t("artifacts.onBoard") : undefined}
+                selected={i.widget.id === open}
+                onOpen={() => toggle(i.widget.id)}
+                onChat={
+                  chatTitle(i.widget.thread_id)
+                    ? () => openChat(i.widget.thread_id ?? "", i.widget.project_id)
+                    : undefined
+                }
+              />
             ) : (
-              <li key={i.doc.media_id} className={rowClass(i.doc.media_id)}>
-                <button
-                  type="button"
-                  className="artifacts__open"
-                  aria-expanded={i.doc.media_id === open}
-                  onClick={() => toggle(i.doc.media_id)}
-                >
-                  <Icons.FileText size={16} />
-                  <span className="artifacts__title">{i.doc.title}</span>
-                </button>
-                <div className="memory__meta">
-                  <span>{t("artifacts.kind.document")}</span>
-                  <span>{i.doc.name}</span>
-                  <span>{formatBytes(i.doc.bytes)}</span>
-                  <span>{shortWhen(i.doc.created_at)}</span>
-                  <button type="button" className="artifacts__chat" onClick={() => openChat(i.doc.thread_id)}>
-                    {t("artifacts.inChat", { chat: chatTitle(i.doc.thread_id, i.doc.thread_title) })}
-                  </button>
-                </div>
-              </li>
+              <ArtifactTile
+                key={i.doc.media_id}
+                title={i.doc.title}
+                icon={<Icons.FileText size={24} />}
+                kind={t("artifacts.kind.document")}
+                maker={docMaker(i.doc)}
+                at={i.doc.created_at}
+                sub={subOf(i.doc.project_id)}
+                selected={i.doc.media_id === open}
+                onOpen={() => toggle(i.doc.media_id)}
+                onChat={() => openChat(i.doc.thread_id, i.doc.project_id)}
+              />
             ),
           )}
         </ul>

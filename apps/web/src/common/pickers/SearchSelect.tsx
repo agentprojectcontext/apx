@@ -1,7 +1,7 @@
 import "../../styles/searchselect.css";
 import { Icons, type SelectOption, useApx } from "@apx/ui";
 import { Combobox } from "@base-ui/react/combobox";
-import { type ReactElement, useMemo, useRef } from "react";
+import { type ReactElement, type ReactNode, useMemo, useRef, useState } from "react";
 
 export interface SearchSelectProps {
   value: string | null;
@@ -19,6 +19,15 @@ export interface SearchSelectProps {
   className?: string;
   /** Opens the list from this element (a button) instead of the field: a picker that acts, holding no value. */
   trigger?: ReactElement;
+  /** Where the list opens from its field or trigger (default: below it, aligned to its end). */
+  side?: "top" | "bottom" | "left" | "right";
+  align?: "start" | "center" | "end";
+  /** The list's width in px (default: its field's, at least 280). */
+  width?: number;
+  /** A class on the list's popup, for a picker laid out its own way. */
+  popupClassName?: string;
+  /** Under the list: actions beside picking (a "New agent" button); `close` shuts the list. */
+  footer?: (close: () => void) => ReactNode;
 }
 
 type Group = { value: string; items: SelectOption[] };
@@ -52,8 +61,14 @@ export function SearchSelect({
   disabled,
   className,
   trigger,
+  side = "bottom",
+  align = "end",
+  width,
+  popupClassName,
+  footer,
 }: SearchSelectProps) {
   const { portalRef } = useApx();
+  const [open, setOpen] = useState(false);
   const search = useRef<HTMLInputElement>(null);
   const current = options.find((o) => o.value === value) ?? null;
   const groups = useMemo<Group[]>(() => {
@@ -86,6 +101,8 @@ export function SearchSelect({
       filter={(o: SelectOption, q: string) => matches(o, q)}
       autoHighlight
       disabled={disabled}
+      open={open}
+      onOpenChange={setOpen}
     >
       {trigger ? (
         <Combobox.Trigger render={trigger} />
@@ -106,9 +123,14 @@ export function SearchSelect({
         </Combobox.Trigger>
       )}
       <Combobox.Portal container={portalRef}>
-        <Combobox.Positioner sideOffset={6} align="end" className="apx-select__positioner">
+        <Combobox.Positioner sideOffset={6} side={side} align={align} className="apx-select__positioner">
           {/* Typing goes to the search however the list opened: on the list itself, letters would jump between items. */}
-          <Combobox.Popup className="apx-menu apx-searchselect__popup" aria-label={label} initialFocus={search}>
+          <Combobox.Popup
+            className={["apx-menu apx-searchselect__popup", popupClassName].filter(Boolean).join(" ")}
+            style={width ? { width } : undefined}
+            aria-label={label}
+            initialFocus={search}
+          >
             <div className="apx-searchselect__search">
               <Icons.Search size={14} />
               <Combobox.Input ref={search} className="apx-searchselect__input" placeholder={searchPlaceholder} />
@@ -128,6 +150,7 @@ export function SearchSelect({
                 )
               }
             </Combobox.List>
+            {footer && <div className="apx-searchselect__footer">{footer(() => setOpen(false))}</div>}
           </Combobox.Popup>
         </Combobox.Positioner>
       </Combobox.Portal>

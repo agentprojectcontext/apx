@@ -16,6 +16,7 @@ import { ContactRow, type Row } from "./ContactRow.tsx";
 import { useAccountCounts } from "./counts.ts";
 import { KindIcon, KindTile } from "./KindIcon.tsx";
 import { isChannelKind } from "./kinds.ts";
+import { RoomPanel } from "./RoomPanel.tsx";
 import { LinkMe, LinkPhone, OwnerRow, ownerOn, PairingRow } from "./StartRows.tsx";
 
 /** A saved contact picked before they have a chat: the list's selection names them instead of a chat. */
@@ -31,7 +32,8 @@ const ROOM_MODE_KEY: Record<RoomMode, MessageKey> = {
 /**
  * A channel with its contacts built in: who wrote (unread first, silenced last), the chat with the one picked, and
  * their card (who they are, rules for answering them, what their chat may do). The same layout serves every channel;
- * a server's rooms (Discord) are listed too, each one a shared chat with no card.
+ * a server's rooms (Discord) and an account's groups are listed too, each one a shared chat with its own card (when the
+ * agent speaks there, the rooms' rules).
  */
 export function ChannelScreen() {
   const t = useT();
@@ -113,7 +115,12 @@ export function ChannelScreen() {
     [threads, channelId],
   );
   const shownRooms = rooms.filter((th) => !query || th.title.toLowerCase().includes(query.toLowerCase()));
-  const roomOpen = Boolean(picked) && rooms.some((th) => th.id === picked);
+  const room = picked ? rooms.find((th) => th.id === picked) : undefined;
+  const roomOpen = Boolean(room);
+  // A room picked shows its card again on wide screens: its chat header has no button for it.
+  useEffect(() => {
+    if (room?.id && window.innerWidth >= 1280) setCard(true);
+  }, [room?.id]);
   const current = rows.find((r) => r.key === picked);
   const waiting = pairing.filter((r) => r.channel === channelId);
   const linked = ownerOn(persons, channelId ?? "");
@@ -136,7 +143,7 @@ export function ChannelScreen() {
 
   return (
     <section
-      className={`chan${current || ownerOpen || roomOpen ? " has-chat" : ""}${current && card && !ownerOpen ? " has-card" : ""}`}
+      className={`chan${current || ownerOpen || roomOpen ? " has-chat" : ""}${(current || room) && card && !ownerOpen ? " has-card" : ""}`}
       aria-label={channel.label}
     >
       <aside className="chan__list">
@@ -181,8 +188,11 @@ export function ChannelScreen() {
           threadId={ownerTarget}
           {...(ownerTarget === "home" ? { via: { channel: channel.id, label: channel.label } } : {})}
         />
-      ) : roomOpen && picked ? (
-        <OpenChat threadId={picked} />
+      ) : room ? (
+        <>
+          <OpenChat threadId={room.id} />
+          {card && <RoomPanel key={room.id} thread={room} channel={channel} onClose={() => setCard(false)} />}
+        </>
       ) : current ? (
         <>
           <ChannelConversation
@@ -199,7 +209,7 @@ export function ChannelScreen() {
             <ContactPanel
               key={current.person.id}
               person={current.person}
-              account={channel.id}
+              channel={channel}
               onClose={() => setCard(false)}
             />
           )}

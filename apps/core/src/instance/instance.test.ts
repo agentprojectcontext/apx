@@ -211,6 +211,28 @@ test("a file from another version, or one that is not an export, is refused and 
   await assert.rejects(target.client.call("instance.import", { file: { ...file, version: 2 } }), /newer APX/);
 });
 
+test("a subproject comes back under its project; a parent left out of the copy leaves it a project of its own", async () => {
+  const file = await exported();
+  const crafted = {
+    ...file,
+    projects: [
+      { id: "p_suptop", name: "Top" },
+      { id: "p_supkid", name: "Kid", parent: "p_suptop" },
+      { id: "p_supbase", name: "Base kid", parent: "~default" },
+      { id: "p_suplost", name: "Lost", parent: "p_notincopy" },
+    ],
+  };
+  await target.client.call("instance.import", { file: crafted });
+  const t = target.core.store.projects;
+  assert.equal(t.get("p_supkid")?.parent, "p_suptop");
+  assert.equal(t.get("p_supbase")?.parent, "~default");
+  assert.equal(t.get("p_suplost")?.parent, undefined);
+  // The export carries the link too.
+  const sub = (await source.client.call("projects.create", { name: "Sub", parent: project })).project;
+  const again = await exported();
+  assert.equal(again.projects.find((p) => p.id === sub.id)?.parent, project);
+});
+
 test("a copy's read-only folders pass the owner's own check: APX's home never becomes one", async () => {
   const file = await exported();
   const there = homes[1]?.path as string;

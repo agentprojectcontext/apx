@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { prefs, setPrefs, TEXT_SIZES, textSizeOf } from "./prefs.ts";
+import { initialsOf, prefs, setPrefs, TEXT_SIZES, textSizeOf } from "./prefs.ts";
 
 test("text size accepts only the device presets", () => {
   for (const size of TEXT_SIZES) assert.equal(textSizeOf(size), size);
@@ -41,4 +41,12 @@ test("text size persists without replacing other device preferences and survives
     if (original) Object.defineProperty(globalThis, "localStorage", original);
     else Reflect.deleteProperty(globalThis, "localStorage");
   }
+});
+
+test("initials leave out a handle in brackets and anything that is not a letter or digit", () => {
+  assert.equal(initialsOf("lufermalgo (@lufermalgo)"), "LU");
+  assert.equal(initialsOf("Alex Lee"), "AL");
+  assert.equal(initialsOf("@allensheshar"), "AL");
+  assert.equal(initialsOf("(@solo)"), "SO");
+  assert.equal(initialsOf("  "), "?");
 });

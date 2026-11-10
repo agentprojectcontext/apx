@@ -45,7 +45,7 @@
 .topbar__activity {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 6px;
   flex: none;
 }
 .topbar__right {
@@ -60,8 +60,8 @@
 }
 .topbar__usage {
   flex: none;
-  gap: 4px;
-  margin-left: 12px;
+  gap: 2px;
+  margin-left: 6px;
   padding-right: 12px;
   border-right: 1px solid var(--apx-border);
 }
@@ -77,34 +77,67 @@
 .topbar__logo {
   display: block;
   flex: none;
-  width: 22px;
-  height: 22px;
+  width: 16px;
+  height: 16px;
+  margin: 0 2px;
 }
-.topbar__crumbs {
+/* History arrows lead the search box, both centred on the window. */
+.topbar__center {
   display: flex;
   align-items: center;
   gap: 6px;
   min-width: 0;
-  font-size: var(--apx-text-sm);
-  white-space: nowrap;
-  overflow: hidden;
 }
-.topbar__crumb {
+.serverswitch {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  height: 30px;
+  padding: 0 4px 0 8px;
+  border: 0;
+  border-radius: var(--apx-control-radius);
+  background: transparent;
+  color: var(--apx-fg);
+  font-size: var(--apx-text-sm);
+}
+.serverswitch:hover,
+.serverswitch[aria-expanded="true"] {
+  background: var(--apx-fill-hover);
+}
+.serverswitch__icon {
+  position: relative;
+  display: flex;
   color: var(--apx-fg-muted);
+}
+.serverswitch__dot {
+  position: absolute;
+  right: -3px;
+  bottom: -2px;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--apx-danger);
+  box-shadow: 0 0 0 2px var(--apx-sidebar);
+}
+.serverswitch__dot.is-online {
+  background: var(--apx-brand);
+}
+.serverswitch__name {
+  margin-left: 4px;
   overflow: hidden;
+  white-space: nowrap;
   text-overflow: ellipsis;
 }
-.topbar__crumb.is-last {
-  color: var(--apx-fg);
-}
-.topbar__sep {
+.serverswitch__chev {
+  flex: none;
   color: var(--apx-fg-subtle);
 }
 .topbar__search {
   display: flex;
   align-items: center;
   gap: 8px;
-  width: min(100cqw - 1460px, 300px);
+  width: var(--topbar-search-w, 30px);
   height: 30px;
   padding: 0 8px 0 10px;
   border: 0;
@@ -149,6 +182,124 @@
   font-size: var(--apx-text-2xs);
   font-weight: var(--apx-weight-regular);
   color: var(--apx-fg-subtle);
+}
+/* The super-agent's card, on resting over its button: who, what it does now, its last words, open or edit. */
+.superagent.apx-popover {
+  padding: 14px;
+  border-radius: 14px;
+}
+.superagent__card {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  min-width: 0;
+}
+.superagent__head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+.superagent__head > .apx-iconbtn {
+  margin-left: -6px;
+  color: var(--apx-fg-subtle);
+}
+.superagent__who {
+  flex: 1;
+  min-width: 0;
+}
+.superagent__name {
+  font-size: var(--apx-text-md);
+  font-weight: var(--apx-weight-semibold);
+}
+.superagent__role {
+  font-size: var(--apx-text-xs);
+  color: var(--apx-fg-muted);
+}
+.superagent__working {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 8px;
+  border-radius: var(--apx-radius-pill);
+  background: var(--apx-brand-soft);
+  color: var(--apx-brand-soft-fg);
+  font-size: var(--apx-text-2xs);
+}
+.superagent__working > span {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--apx-brand);
+}
+.superagent__now,
+.superagent__last {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.superagent__now {
+  gap: 8px;
+}
+.superagent__label {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: var(--apx-text-2xs);
+  color: var(--apx-fg-subtle);
+}
+.superagent__row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  font-size: var(--apx-text-sm);
+}
+.superagent__text {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.superagent__project {
+  flex: none;
+  max-width: 40%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--apx-text-2xs);
+  color: var(--apx-fg-subtle);
+}
+.superagent__idle {
+  font-size: var(--apx-text-sm);
+  color: var(--apx-fg-muted);
+}
+.superagent__last {
+  gap: 4px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: var(--apx-fill);
+}
+.superagent__words {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  font-size: var(--apx-text-sm);
+  overflow-wrap: anywhere;
+}
+.superagent__actions {
+  display: flex;
+  gap: 8px;
+}
+.superagent__open {
+  flex: 1;
+}
+.superagent__kbd {
+  font-size: var(--apx-text-2xs);
+  opacity: 0.7;
 }
 html[data-shortcuts-active] [data-shortcut-modifier] {
   color: var(--apx-fg);
@@ -205,16 +356,16 @@ html[data-shortcuts-active] [data-shortcut-modifier] {
     gap: 0;
   }
 }
-@container topbar (max-width: 1599px) {
-  .topbar__search-label,
-  .topbar__search .apx-kbd {
-    display: none;
-  }
-  .topbar__search {
-    width: var(--apx-control-h-sm);
-    padding: 0;
-    justify-content: center;
-  }
+/* The search shows its word and its shortcut only once it has the room (useTopbarFit). */
+.topbar:not([data-search="full"]) .topbar__search .apx-kbd,
+.topbar:not([data-search="full"], [data-search="word"]) .topbar__search-label {
+  display: none;
+}
+.topbar:not([data-search="full"], [data-search="word"]) .topbar__search {
+  padding: 0;
+  justify-content: center;
+}
+@container topbar (max-width: 1199px) {
   .topbar__usage {
     margin-left: 4px;
     padding-right: 4px;
@@ -224,9 +375,6 @@ html[data-shortcuts-active] [data-shortcut-modifier] {
 @container topbar (max-width: 1199px) {
   .topbar__right {
     --topbar-min-fit: 3;
-  }
-  .topbar__crumbs {
-    font-size: var(--apx-text-xs);
   }
 }
 @container topbar (max-width: 1099px) {
@@ -238,8 +386,8 @@ html[data-shortcuts-active] [data-shortcut-modifier] {
   .topbar {
     gap: 6px;
   }
-  .topbar__crumb:not(.is-last),
-  .topbar__sep {
+  .serverswitch__name,
+  .serverswitch__chev {
     display: none;
   }
 }
@@ -247,13 +395,21 @@ html[data-shortcuts-active] [data-shortcut-modifier] {
   .topbar__activity {
     position: absolute;
     left: 36px;
-    gap: 0;
+    gap: 2px;
   }
   .topbar__activity .updatepill {
     width: 24px;
   }
+}
+/* The narrowest phones fit one pill: an update waiting wins over what's new (still told in Home's chat). */
+@media (max-width: 379px) {
+  .topbar__activity .updatepill:has(+ .updatepill) {
+    display: none;
+  }
+}
+@media (max-width: 639px) {
   .topbar__nav,
-  .topbar__crumbs {
+  .serverswitch {
     display: none;
   }
   .topbar .usage-btn {

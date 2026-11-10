@@ -1,12 +1,18 @@
+import "../../styles/model-menus.css";
 import { Button, Icons } from "@apx/ui";
 import { Suspense } from "react";
 import { choiceLabel, effectiveChoice, refLabel, useModels } from "../../data/models.ts";
 import { useT } from "../../i18n/index.ts";
 import { ModelList } from "../../lazy.ts";
 import type { ModelChoiceProps } from "./ModelPickers.tsx";
+import { SlimChoiceMenu } from "./SlimChoiceMenu.tsx";
 
 /** What a model picker opens: the current choice, the router or the inherited default, and every model. */
 export function ModelChoiceMenu(props: ModelChoiceProps & { empty: boolean }) {
+  return props.slim ? <SlimChoiceMenu {...props} /> : <FullChoiceMenu {...props} />;
+}
+
+function FullChoiceMenu(props: ModelChoiceProps & { empty: boolean }) {
   const t = useT();
   const catalog = useModels((s) => s.catalog);
   const { value, empty } = props;

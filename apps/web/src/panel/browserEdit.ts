@@ -1,6 +1,6 @@
 // Edit mode, for a browser tab or a widget: the elements the owner picked in a page, what they changed in each, and the
 // request it becomes in the chat. The changes show in the page only in the owner's view (browser.preview_edits).
-import type { ElementEdit, PickedElement } from "@apx/protocol";
+import type { ElementEdit, ElementKind, PickedElement } from "@apx/protocol";
 import { hostPath } from "../common/format.ts";
 import { createStore } from "../data/createStore.ts";
 import type { T } from "../i18n/index.ts";
@@ -15,6 +15,8 @@ export type EditTarget = {
   /** A tab id, or `widget:<id>`: one target is edited at a time. */
   key: string;
   inspect(x: number, y: number): Promise<PickedElement | null>;
+  /** Every part of the page the owner can pick, in page order; absent where the page cannot list them. */
+  elements?(): Promise<PickedElement[]>;
   show(edits: ElementEdit[]): Promise<unknown>;
   /** A picture of the page as a data: URL. */
   shot(): Promise<string>;
@@ -91,6 +93,11 @@ export function select(node: number): void {
   }));
 }
 
+/** Back to the page's parts: nothing picked, and a part picked but left as it was is not kept. */
+export function deselect(): void {
+  browserEdit.set((s) => ({ items: s.items.filter(isChanged), selected: undefined }));
+}
+
 export function changeItem(node: number, change: Partial<Omit<EditItem, "element">>): void {
   browserEdit.set((s) => ({ items: s.items.map((i) => (i.element.node === node ? { ...i, ...change } : i)) }));
 }
@@ -129,6 +136,24 @@ export function editsOf(items: readonly EditItem[]): ElementEdit[] {
 export function elementLabel(element: PickedElement): string {
   const words = (element.name || element.text || "").replace(/\s+/g, " ").trim();
   return words.length > 60 ? `${words.slice(0, 60).trimEnd()}…` : words;
+}
+
+/** One row of the page's parts: what it is, the words it shows (the owner's own when they rewrote it), if changed. */
+export type ElementRow = { element: PickedElement; kind: ElementKind; label: string; changed: boolean };
+
+export function elementRows(elements: readonly PickedElement[], items: readonly EditItem[]): ElementRow[] {
+  const byNode = new Map(items.map((i) => [i.element.node, i]));
+  return elements.map((element) => {
+    const item = byNode.get(element.node);
+    const changed = item ? isChanged(item) : false;
+    const rewritten = changed && item?.text !== undefined && item.text !== element.text ? item.text : undefined;
+    return {
+      element,
+      kind: element.kind ?? "text",
+      label: rewritten !== undefined ? elementLabel({ ...element, name: "", text: rewritten }) : elementLabel(element),
+      changed,
+    };
+  });
 }
 
 /**

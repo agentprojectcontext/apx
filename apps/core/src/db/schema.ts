@@ -490,6 +490,7 @@ export interface PersonsTable {
   perms: string | null;
   unreviewed: Generated<number>;
   supervised: Generated<number>;
+  agent_id: string | null;
 }
 
 export interface ProjectsTable {
@@ -507,6 +508,7 @@ export interface ProjectsTable {
   autonomy: string | null;
   read_only_folders: string | null;
   context_chars: number | null;
+  parent_id: string | null;
 }
 
 export interface PromptTextsTable {

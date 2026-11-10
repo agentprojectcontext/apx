@@ -9,6 +9,7 @@ import { declaresApp, declaresLive } from "../../../../packages/surfaces/src/kit
 import { artifactFetch } from "../artifact-fetch.ts";
 import { artifactMemory, type SqlParam } from "../domain/artifact-memory.ts";
 import { ownerIdentity } from "../domain/owner.ts";
+import { lineage } from "../domain/projects.ts";
 import type { Store } from "../domain/store.ts";
 import { summary } from "../domain/surfaces.ts";
 import { badRequest, notFound, unauthorized, unavailable } from "../errors.ts";
@@ -111,6 +112,7 @@ export function artifactHandlers(deps: {
       return { page: await pages.open(html, width, onCall, s.id, Boolean(s.page)) };
     },
     "surfaces.edit_inspect": async ({ page, x, y }) => ({ element: await editPages().inspect(page, x, y) }),
+    "surfaces.edit_elements": async ({ page }) => ({ elements: await editPages().elements(page) }),
     "surfaces.edit_preview": ({ page, edits }) => editPages().preview(page, edits),
     "surfaces.edit_shot": async ({ page }) => {
       const data = await editPages().shot(page);
@@ -214,7 +216,7 @@ export function artifactHandlers(deps: {
       return artifactFetch(
         s,
         { url, method, headers, body, secret },
-        (ref, projectId) => secrets.resolveIn(ref, projectId),
+        (ref, projectId) => secrets.resolveIn(ref, lineage(store.projects, projectId)),
         { get: (key) => memory.pins(s)[key], set: (key, origin) => memory.pin(s, key, origin) },
         deps.fetcher,
       );

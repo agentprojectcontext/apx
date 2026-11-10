@@ -132,12 +132,18 @@ export function createChannels(deps: {
   // What a kind of channel fixes (email: its own chat, one mail after another) wins over what was saved.
   const configs = (): ChannelConfig[] => store.settings.read("channels").map(kindFixed);
 
-  /** Open chats follow a change of who answers them: the owner's own chats, and its contacts' and rooms'. */
+  /**
+   * Open chats follow a change of who answers them: the owner's own chats, and its contacts' and rooms' (not those of a
+   * contact the owner gave an agent of their own).
+   */
   const moveAnswerers = (id: string, before: ChannelConfig, after: Omit<ChannelConfig, "id">) => {
     const moves: Array<[boolean, string, string]> = [
       [true, before.agent_id, after.agent_id],
       [false, contactAgentOf(before), contactAgentOf(after)],
     ];
+    const except = new Set(
+      store.persons.list().flatMap((p) => (p.agent_id && store.agents.get(p.agent_id) ? [p.id] : [])),
+    );
     for (const [owners, from, to] of moves)
       if (from !== to)
         store.threads.moveAnswerer({
@@ -147,6 +153,7 @@ export function createChannels(deps: {
           from,
           to,
           project: agentProject(store, to),
+          except,
           fromProject: agentProject(store, from),
         });
   };
@@ -209,12 +216,12 @@ export function createChannels(deps: {
       return l?.status === "running" ? l.adapter : undefined;
     },
   });
-  const stickers = createStickers({ store, home: deps.home, log, see: deps.see, attention: deps.attention });
+  const stickers = createStickers({ store, home: deps.home, log, see: deps.see, attention: notices.attention });
   const signals = createSignals({
     store,
     log,
     live: (id) => live.get(id),
-    attention: deps.attention,
+    attention: notices.attention,
     delivery,
     stickers,
   });
@@ -227,7 +234,7 @@ export function createChannels(deps: {
     delivery,
     configs,
     tell,
-    attention: deps.attention,
+    attention: notices.attention,
     ownAccount: (id) => Boolean(live.get(id)?.adapter.caps.ownAccount),
     rooms,
     suggestions,

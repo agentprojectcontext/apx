@@ -44,6 +44,7 @@ test("a widget's edit page is cut off from the network before its code loads, an
   await pages.close(id);
   assert.ok(b.sent.some((s) => s.method === "Target.disposeBrowserContext"));
   await assert.rejects(pages.inspect(id, 0.5, 0.5), /open edit mode again/);
+  await assert.rejects(pages.elements(id), /open edit mode again/);
 });
 
 test("the page's calls reach only the reads it is given; garbage is ignored", async () => {

@@ -111,6 +111,11 @@ export const RoutineRun = z.object({
   delivered: z.boolean().optional(),
   /** false: the pre-command's result said not to call the model, so the run spent no tokens. */
   model_called: z.boolean().optional(),
+  /**
+   * Which version of the routine's instructions it ran (routines.runs): 1 for the oldest listed, one more each time
+   * the instructions differ from the run before.
+   */
+  prompt_version: z.number().int().min(1).optional(),
 });
 export type RoutineRun = z.infer<typeof RoutineRun>;
 

@@ -54,6 +54,21 @@ test("a global skill turned off in one project is off only there; agents there n
   await env.client.call("skills.toggle", { name: "brief", project, on: true });
 });
 
+test("a project's own skill turned off in its subproject says so, and stays on in the project", async () => {
+  skill(path.join(repo, ".apc", "skills"), "ship", "Ships Acme's release.");
+  const sub = (await env.client.call("projects.create", { name: "Acme web", parent: project })).project.id;
+  await env.client.call("skills.toggle", { name: "ship", project: sub, on: false });
+  const own = (await env.client.call("skills.list", { project })).skills.find((s) => s.name === "ship");
+  assert.equal(own?.scope, "project");
+  assert.equal(own?.on, true, "still on in its own project");
+  assert.deepEqual(own?.off_in, [sub], "off in the subproject only");
+  const inSub = (await env.client.call("skills.list", { project: sub })).skills.find((s) => s.name === "ship");
+  assert.equal(inSub?.on, false);
+  await env.client.call("skills.toggle", { name: "ship", project: sub, on: true });
+  const back = await env.client.call("skills.list", { project });
+  assert.deepEqual(back.skills.find((s) => s.name === "ship")?.off_in, []);
+});
+
 test("editing a global skill from a project as a copy leaves the original untouched", async () => {
   const got = await env.client.call("skills.get", { name: "brief", project });
   assert.match(got.content, /morning brief/);

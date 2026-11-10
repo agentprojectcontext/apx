@@ -9,7 +9,7 @@ export default function EngineUsageQuick({ report }: { report: Report | undefine
     <span className="engine-usage-quick" aria-hidden="true">
       {quickWindows(report).map(({ engine, remaining }) => (
         <span className="engine-usage-quick__item" key={engine.id} data-testid="engine-usage-quick">
-          <EngineIcon engine={engine.id} tile size={16} />
+          <EngineIcon engine={engine.id} tile size={14} />
           <span>{remaining}%</span>
         </span>
       ))}

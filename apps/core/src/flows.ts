@@ -8,6 +8,7 @@ import { flowGapIssues, validateFlowGraph } from "./domain/flow-graph-validate.t
 import { FlowTriggerMismatch } from "./domain/flow-graphs.ts";
 import { dueFlowTick } from "./domain/flow-schedules.ts";
 import { ownerTimeZone } from "./domain/owner.ts";
+import { worksIn } from "./domain/projects.ts";
 import { TERMINAL } from "./domain/runs.ts";
 import type { Store } from "./domain/store.ts";
 import type { RunTimers } from "./engine/engine.ts";
@@ -50,7 +51,7 @@ export function validateFlowBinding(store: Store, flow: FlowDefinition) {
   )
     throw badRequest("A Flow needs a manual-only routine in its project");
   const agent = store.agents.get(flow.action.kind === "agent" ? flow.action.agent : (routine?.agent_id ?? ""));
-  if (!agent || (agent.project_id && agent.project_id !== flow.projectId))
+  if (!agent || !worksIn(store.projects, agent.project_id, flow.projectId))
     throw badRequest("Flow agent is outside its project");
 }
 

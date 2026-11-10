@@ -115,7 +115,7 @@ for (const language of ["en", "es"] as const) {
     });
     await open(page, `#thread=${thread.id}`);
     const unconfirmed = language === "en" ? "Model unconfirmed" : "Modelo sin confirmar";
-    await expect(page.locator(".apx-msgmeta").filter({ hasText: "Claude Code" })).toHaveCount(5);
+    await expect(page.locator(".transcript__speakername").filter({ hasText: "Claude Code" })).toHaveCount(5);
     await expect(page.getByText("Verification failed", { exact: true })).toBeVisible();
     await expect(page.locator(".apx-msgmeta").filter({ hasText: unconfirmed })).toHaveCount(3);
     await expect(page.locator(".apx-msgmeta").filter({ hasText: "Reported model A" })).toHaveCount(1);

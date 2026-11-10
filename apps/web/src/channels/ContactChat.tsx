@@ -29,7 +29,7 @@ export function ContactChat({ thread }: { thread: Thread }) {
         onBack={go.showList}
       />
       {card && person && (
-        <ContactPanel key={person.id} person={person} account={channel.id} onClose={() => setCard(false)} />
+        <ContactPanel key={person.id} person={person} channel={channel} onClose={() => setCard(false)} />
       )}
     </section>
   );

@@ -27,13 +27,17 @@
   list-style: none;
 }
 .sharedf__card {
+  position: relative;
   display: flex;
   flex-direction: column;
   min-width: 0;
   overflow: hidden;
   border: 1px solid var(--apx-border);
-  border-radius: var(--apx-radius-md);
+  border-radius: 14px;
   background: var(--apx-surface);
+}
+.sharedf__card:hover {
+  border-color: var(--apx-border-strong, var(--apx-border));
 }
 .sharedf__open {
   display: block;
@@ -46,7 +50,7 @@
   position: relative;
   display: grid;
   place-items: center;
-  aspect-ratio: 1;
+  height: 120px;
   overflow: hidden;
   background: var(--apx-fill);
   color: var(--apx-fg-muted);
@@ -81,69 +85,72 @@
   flex-direction: column;
   gap: 4px;
   min-width: 0;
-  padding: 10px 10px 8px 12px;
+  padding: 10px 12px 12px;
 }
 .sharedf__name {
   overflow: hidden;
-  font-size: var(--apx-text-sm);
+  font-size: 13px;
   font-weight: var(--apx-weight-medium);
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.sharedf__meta {
+.sharedf__line {
   display: flex;
   align-items: center;
   gap: 6px;
   min-width: 0;
-  overflow: hidden;
   color: var(--apx-fg-muted);
-  font-size: var(--apx-text-xs);
+  font-size: 11px;
   white-space: nowrap;
 }
-.sharedf__meta > * + *::before {
-  margin-right: 6px;
-  color: var(--apx-fg-subtle);
-  content: "·";
-}
-.sharedf__project,
 .sharedf__sender {
   display: inline-flex;
-  flex: none;
+  flex: 0 1 auto;
   align-items: center;
-  gap: 5px;
+  gap: 6px;
+  min-width: 0;
 }
-.sharedf__chat {
+.sharedf__sender > span:last-child {
   overflow: hidden;
   text-overflow: ellipsis;
 }
-.sharedf__foot {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  min-width: 0;
-  margin-top: 2px;
+.sharedf__line .sharedf__when::before {
+  margin-right: 4px;
+  content: "·";
 }
 .sharedf__when {
-  color: var(--apx-fg-subtle);
-  font-size: var(--apx-text-xs);
+  flex: none;
   font-variant-numeric: tabular-nums;
 }
-.sharedf__who {
-  display: flex;
-  flex: 1;
+.sharedf__line .projbadge {
+  flex: 0 4 auto;
   min-width: 0;
-  overflow: hidden;
-  color: var(--apx-fg-muted);
-  font-size: var(--apx-text-xs);
-  white-space: nowrap;
-}
-.sharedf__who .sharedf__sender {
-  flex: 1;
-  min-width: 0;
-}
-.sharedf__who .sharedf__sender > span {
+  margin-left: auto;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+/* A card's actions float over its picture, shown while the card is pointed at or holds focus. */
+.sharedf__card > .sharedf__actions {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  display: inline-flex;
+  gap: 2px;
+  padding: 2px;
+  border-radius: var(--apx-radius-sm);
+  background: var(--apx-surface);
+  box-shadow: var(--apx-shadow-sm);
+  opacity: 0;
+  transition: opacity 120ms;
+}
+.sharedf__card:hover > .sharedf__actions,
+.sharedf__card:focus-within > .sharedf__actions {
+  opacity: 1;
+}
+@media (hover: none) {
+  .sharedf__card > .sharedf__actions {
+    opacity: 1;
+  }
 }
 .sharedf__actions {
   display: inline-flex;
@@ -337,4 +344,9 @@
     border-top: 1px solid var(--apx-border);
     border-left: 0;
   }
+}
+.sharedf__facts .sharedf__project {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
 }

@@ -112,13 +112,17 @@ export function agentsRepo({ one, all, run }: Sql, changed: () => void) {
       return !!one(qb.selectFrom("agents").select("id").where("id", "=", id).where("archived", "=", 0));
     },
     /**
-     * Id first; otherwise a case-insensitive name match among global agents and the given project's team.
+     * Id first; otherwise a case-insensitive name match among global agents, the given project's team and, in a
+     * subproject, its parent's (the subproject's own or a global one goes before a parent's of the same name).
      * More than one match is an error that lists the ids, never a guess.
      */
     resolve(ref: string, projectId: string | undefined): Resolved {
       const byId = repo.get(ref);
       if (byId) return { agent: byId };
-      const matches = all(
+      const parent = projectId
+        ? (one(qb.selectFrom("projects").select("parent_id").where("id", "=", projectId))?.parent_id ?? undefined)
+        : undefined;
+      const found = all(
         qb
           .selectFrom("agents")
           .selectAll()
@@ -127,8 +131,16 @@ export function agentsRepo({ one, all, run }: Sql, changed: () => void) {
             const lowerRef = eb.fn<string>("lower", [eb.val(ref)]);
             return eb.or([eb(eb.fn<string>("lower", ["name"]), "=", lowerRef), eb("slug", "=", lowerRef)]);
           })
-          .where((eb) => eb.or([eb("project_id", "is", null), eb("project_id", "=", projectId ?? "")])),
+          .where((eb) =>
+            eb.or([
+              eb("project_id", "is", null),
+              eb("project_id", "=", projectId ?? ""),
+              ...(parent ? [eb("project_id", "=", parent)] : []),
+            ]),
+          ),
       ).map(toAgent);
+      const nearer = found.filter((a) => !parent || a.project_id !== parent);
+      const matches = nearer.length ? nearer : found;
       if (matches.length === 1 && matches[0]) return { agent: matches[0] };
       if (matches.length > 1) return { error: `"${ref}" matches ${matches.map((a) => a.id).join(", ")}; use the id` };
       return { error: `unknown agent "${ref}"; use list_agents to find its id` };

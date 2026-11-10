@@ -1,3 +1,4 @@
+import "../styles/chat-cards.css";
 import { IconButton, Icons } from "@apx/ui";
 import { type PointerEvent, useEffect, useRef, useState } from "react";
 import { stopKeys } from "../config/desktopPrefs.ts";

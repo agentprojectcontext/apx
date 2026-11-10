@@ -34,6 +34,7 @@ const DESCRIPTIONS: Record<BrowserMethod, string> = {
   "browser.handoff": "Hand the tab to the human for login/2FA/captcha and wait until they finish.",
   "browser.control": "",
   "browser.inspect": "",
+  "browser.edit_elements": "",
   "browser.preview_edits": "",
   "browser.cookie_sources": "",
   "browser.cookie_domains": "",

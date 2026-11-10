@@ -6,6 +6,7 @@ import {
   ApprovalScope,
   type Author,
   Autonomy,
+  BASE_PROJECT_ID,
   DEFAULT_AUTONOMY,
   type Message,
   ProjectKind,
@@ -157,6 +158,8 @@ function choiceLabel(c: { model?: string | undefined; router: boolean } | undefi
 
 type ProjectFlags = {
   autonomy?: string | undefined;
+  /** A project id, `base` for the base project, or (on set) `none` to make a subproject a project of its own. */
+  parent?: string | undefined;
   path?: string | undefined;
   kind?: string | undefined;
   desc?: string | undefined;
@@ -170,6 +173,17 @@ function autonomyOf(level: string | undefined): Autonomy | undefined {
   return a.data;
 }
 
+/** `--parent`: `base` names the base project; `none` (only where `detach` is allowed) makes it a project of its own. */
+function parentOf(parent: string | undefined, detach: boolean): string | null | undefined {
+  if (parent === undefined) return undefined;
+  if (parent === "base") return BASE_PROJECT_ID;
+  if (parent === "none") {
+    if (!detach) throw new Error("--parent is a project id, or base for the base project");
+    return null;
+  }
+  return parent;
+}
+
 function kindOf(kind: string | undefined): ProjectKind | undefined {
   if (kind === undefined) return undefined;
   const k = ProjectKind.safeParse(kind);
@@ -180,8 +194,11 @@ function kindOf(kind: string | undefined): ProjectKind | undefined {
 export async function projects(client: ApxClient, [sub, arg, ...more]: string[], o: ProjectFlags = {}): Promise<void> {
   if (!sub || sub === "list") {
     const { projects } = await client.call("projects.list", {});
+    const parentName = (id: string) =>
+      id === BASE_PROJECT_ID ? "the base project" : (projects.find((x) => x.id === id)?.name ?? id);
     for (const p of projects) {
-      console.log(`${p.id.padEnd(16)} ${p.present ? " " : "!"} ${p.name.padEnd(24)} ${p.kind ?? ""}`);
+      const sub = p.parent ? ` · subproject of ${parentName(p.parent)}` : "";
+      console.log(`${p.id.padEnd(16)} ${p.present ? " " : "!"} ${p.name.padEnd(24)} ${p.kind ?? ""}${sub}`);
       if (p.agents_md_chars)
         console.log(
           `${"".padEnd(18)} AGENTS.md has ${p.agents_md_chars} chars, past the ${AGENTS_MD_LIMIT} limit: agents get its start and end`,
@@ -199,8 +216,11 @@ export async function projects(client: ApxClient, [sub, arg, ...more]: string[],
   if (sub === "create") {
     const name = [arg, ...more].filter(Boolean).join(" ") || undefined;
     if (!name && !o.path)
-      throw new Error('usage: apx projects create "<Name>" [--path <folder>] [--kind <kind>] [--desc "…"]');
+      throw new Error(
+        'usage: apx projects create "<Name>" [--path <folder>] [--kind <kind>] [--desc "…"] [--parent <project>|base]',
+      );
     const kind = kindOf(o.kind);
+    const parent = parentOf(o.parent, false);
     const { resolve } = await import("node:path");
     const { homedir } = await import("node:os");
     const r = await client.call("projects.create", {
@@ -208,26 +228,44 @@ export async function projects(client: ApxClient, [sub, arg, ...more]: string[],
       ...(o.path ? { path: resolve(o.path.replace(/^~(?=$|[/\\])/, homedir())) } : {}),
       ...(kind ? { kind } : {}),
       ...(o.desc ? { description: o.desc } : {}),
+      ...(parent ? { parent } : {}),
     });
     console.log(`${r.project.name} (${r.project.id}) · ${r.project.path ?? ""}`);
     return;
   }
   if (sub === "set") {
-    if (!arg || (o.name === undefined && o.kind === undefined && o.desc === undefined && o.autonomy === undefined))
+    if (
+      !arg ||
+      (o.name === undefined &&
+        o.kind === undefined &&
+        o.desc === undefined &&
+        o.autonomy === undefined &&
+        o.parent === undefined)
+    )
       throw new Error(
-        'usage: apx projects set <project> [--name "…"] [--kind <kind>] [--desc "…"] [--autonomy <level>]',
+        'usage: apx projects set <project> [--name "…"] [--kind <kind>] [--desc "…"] [--autonomy <level>] [--parent <project>|base|none]',
       );
     const kind = kindOf(o.kind);
     const autonomy = autonomyOf(o.autonomy);
+    const parent = parentOf(o.parent, true);
     const r = await client.call("projects.update", {
       project: arg,
       ...(o.name !== undefined ? { name: o.name } : {}),
       ...(kind ? { kind } : {}),
       ...(o.desc !== undefined ? { description: o.desc } : {}),
       ...(autonomy ? { autonomy } : {}),
+      ...(parent !== undefined ? { parent } : {}),
     });
     console.log(
       `${r.project.name} (${r.project.id})${r.project.kind ? ` · ${r.project.kind}` : ""} · mode ${r.project.autonomy ?? DEFAULT_AUTONOMY}`,
+    );
+    return;
+  }
+  if (sub === "detach") {
+    if (!arg) throw new Error("usage: apx projects detach <subproject>");
+    const r = await client.call("projects.update", { project: arg, parent: null });
+    console.log(
+      `${r.project.name} (${r.project.id}) is a project of its own now; it keeps its folder, agents and chats`,
     );
     return;
   }

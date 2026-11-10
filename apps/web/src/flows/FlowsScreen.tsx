@@ -9,11 +9,11 @@ import {
   Icons,
   RunBars,
   SegmentedControl,
-  Select,
   Skeleton,
   Switch,
 } from "@apx/ui";
 import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
+import { SectionPage } from "../common/SectionPage.tsx";
 import { useFlowsChanged } from "../data/flowDrafts.ts";
 import { blobOf } from "../data/identity.ts";
 import { notify } from "../data/notices.ts";
@@ -162,49 +162,56 @@ function FlowList(props: {
   const t = useT();
   const projects = useData((s) => s.projects);
   const shown = useMemo(() => flows?.filter((f) => !projectId || f.projectId === projectId), [flows, projectId]);
-  const options = [
-    { value: "", label: t("flow.allProjects"), hint: String(flows?.length ?? "") },
-    ...projects.map((p) => ({
-      value: p.id,
-      label: p.name,
-      hint: String(flows?.filter((f) => f.projectId === p.id).length ?? ""),
-    })),
-  ];
+  const pick = (id: string) => {
+    const v = id === "all" ? undefined : id;
+    if (props.tables) go.tables(v);
+    else go.flows(v);
+  };
   return (
-    <section className="flows" aria-label={t("flow.title")}>
+    <SectionPage
+      className="flows"
+      label={t("flow.title")}
+      title={t("flow.title")}
+      lead={t(props.tables ? "flow.tables.lead" : "flow.lead")}
+      action={
+        props.tables
+          ? undefined
+          : { label: t("flow.new"), hint: t("section.flows.newHint"), onClick: () => props.onNew(STARTERS.blank) }
+      }
+      tabs={
+        <SegmentedControl
+          label={t("flow.tab.label")}
+          value={props.tables ? "tables" : "flows"}
+          onValueChange={(v) => (v === "tables" ? go.tables(projectId) : go.flows(projectId))}
+          options={[
+            {
+              value: "flows",
+              label: (
+                <span className="secpage__tab">
+                  {t("flow.tab.flows")}
+                  {shown && <span className="secpage__count">{shown.length}</span>}
+                </span>
+              ),
+            },
+            { value: "tables", label: t("flow.tab.tables") },
+          ]}
+        />
+      }
+      scopes={
+        projects.length
+          ? {
+              label: t("flow.projectFilter"),
+              value: projectId ?? "all",
+              onChange: pick,
+              options: [
+                { id: "all", label: t("section.scope.all") },
+                ...projects.map((p) => ({ id: p.id, label: p.name })),
+              ],
+            }
+          : undefined
+      }
+    >
       <div className="flows__page">
-        {/* Title and its two views stay put on the left; what acts on the view sits on the right. */}
-        <header className="flows__head">
-          <div className="flows__top">
-            <h1 className="flows__title">{t("flow.title")}</h1>
-            <SegmentedControl
-              label={t("flow.tab.label")}
-              value={props.tables ? "tables" : "flows"}
-              onValueChange={(v) => (v === "tables" ? go.tables(projectId) : go.flows(projectId))}
-              options={[
-                { value: "flows", label: t("flow.tab.flows") },
-                { value: "tables", label: t("flow.tab.tables") },
-              ]}
-            />
-            <div className="flows__tools">
-              {!props.tables && (
-                <Button leadingIcon={<Icons.Plus size={14} />} onClick={() => props.onNew(STARTERS.blank)}>
-                  {t("flow.new")}
-                </Button>
-              )}
-              <Select
-                label={t("flow.projectFilter")}
-                value={projectId ?? ""}
-                onValueChange={(v) => (props.tables ? go.tables(v || undefined) : go.flows(v || undefined))}
-                options={options}
-              />
-            </div>
-          </div>
-          <div className="flows__intro">
-            <h2 className="flows__section">{t(props.tables ? "flow.list.tables" : "flow.list.flows")}</h2>
-            <p className="flows__lead">{t(props.tables ? "flow.tables.lead" : "flow.lead")}</p>
-          </div>
-        </header>
         {props.tables ? (
           <Suspense fallback={<Skeleton width="100%" height={160} />}>
             <TablesView projectId={projectId} table={props.table} />
@@ -269,7 +276,7 @@ function FlowList(props: {
           </div>
         )}
       </div>
-    </section>
+    </SectionPage>
   );
 }
 

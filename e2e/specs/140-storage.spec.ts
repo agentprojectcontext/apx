@@ -83,7 +83,8 @@ test("the owner compacts the chats' file after confirming, and a copy is kept in
 });
 
 test.describe("a disk running out", () => {
-  test.use({ diskWarning: true });
+  // The warning is a card in the deck of the compact sidebar (a strip under the top bar where the deck has no place).
+  test.use({ diskWarning: true, compactSidebar: true });
 
   test("shows a corner card that opens Settings › Storage, closed for the session", async ({ page }) => {
     await rpc("setup.finish");
@@ -160,7 +161,8 @@ async function diskStatus(page: Page) {
 }
 
 test.describe("one by one", () => {
-  test.use({ diskWarning: true });
+  // The warning is a card in the deck of the compact sidebar (a strip under the top bar where the deck has no place).
+  test.use({ diskWarning: true, compactSidebar: true });
 
   test("the owner deletes an agents' computer once it is off, and a backup; the disk mark goes when there is room", async ({
     page,

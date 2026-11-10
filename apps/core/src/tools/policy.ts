@@ -8,6 +8,7 @@ import {
   ToolRisk,
 } from "@apx/protocol";
 import type { AgentRecord } from "../domain/agents.ts";
+import { inheritsFrom } from "../domain/projects.ts";
 import type { Store } from "../domain/store.ts";
 import { worksInFolder } from "../domain/threads.ts";
 import { SUPER_AGENT_TOOLS } from "./agent-set.ts";
@@ -228,12 +229,18 @@ export function reachOf(agent: AgentRecord): Reach {
   return "read";
 }
 
-/** An agent with no autonomy of its own goes as far as its project says (the base project's, for a global one). */
+/**
+ * An agent with no autonomy of its own goes as far as its project says (the base project's, for a global one); a
+ * subproject that says nothing goes as its parent does.
+ */
 export function withProjectAutonomy(store: Store, agent: AgentRecord): AgentRecord {
   if (agent.autonomy) return agent;
+  const base = () => store.settings.read("base_project").autonomy;
+  const from = inheritsFrom(store.projects, agent.project_id);
   const of = agent.project_id
-    ? store.projects.get(agent.project_id)?.autonomy
-    : store.settings.read("base_project").autonomy;
+    ? (store.projects.get(agent.project_id)?.autonomy ??
+      (from ? (from.project ? store.projects.get(from.project)?.autonomy : base()) : undefined))
+    : base();
   return of ? { ...agent, autonomy: of } : agent;
 }
 

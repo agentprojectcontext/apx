@@ -42,3 +42,15 @@
   font-size: var(--apx-text-sm);
   color: var(--apx-fg-subtle);
 }
+.apx-searchselect__footer {
+  display: flex;
+  gap: 2px;
+  padding: 6px;
+  border-top: 1px solid var(--apx-border);
+}
+.apx-searchselect__footer .apx-btn {
+  flex: 1;
+  height: 30px;
+  font-size: var(--apx-text-xs);
+  color: var(--apx-fg-muted);
+}

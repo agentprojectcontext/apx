@@ -4,6 +4,7 @@ import { FlowDraftGraph, type FlowGraph, type FlowGraphIssue } from "@apx/protoc
 import type { Bus } from "../bus.ts";
 import { FlowGraphConflict, FlowGraphUnavailable } from "../domain/flow-graphs.ts";
 import { FlowPathError } from "../domain/flows.ts";
+import { worksIn } from "../domain/projects.ts";
 import type { Store } from "../domain/store.ts";
 import { badRequest, CallError, conflict, notFound, unauthorized } from "../errors.ts";
 import { type FlowOutside, flowOutward } from "../flow-outward.ts";
@@ -67,7 +68,7 @@ export function flowReach(store: Store, missing: string) {
     if (ctx.actor === "human" && !ctx.client && !ctx.channel) return undefined;
     const agent = ctx.agent && !ctx.client && !ctx.channel ? store.agents.get(ctx.agent.id) : undefined;
     if (!agent) throw unauthorized("Flows and tables are reserved to the owner and their agents' tools");
-    if (agent.project_id && projectId !== undefined && agent.project_id !== projectId) throw notFound(missing);
+    if (projectId !== undefined && !worksIn(store.projects, agent.project_id, projectId)) throw notFound(missing);
     return agent.project_id ?? undefined;
   };
 }

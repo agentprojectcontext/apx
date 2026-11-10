@@ -1,20 +1,22 @@
 import { expect, open, rpc, test } from "./kit.ts";
 
-test("search stays centered with unequal sides and activity precedes notifications", async ({ page }) => {
+test("search stays centered with unequal sides and notifications precede activity", async ({ page }) => {
   await rpc("setup.finish");
   await open(page);
-  await page.locator(".topbar__crumbs").evaluate((crumbs) => {
-    crumbs.textContent = "A very long project name and a conversation that must not move search";
+  await page.locator(".serverswitch__name").evaluate((name) => {
+    name.textContent = "a-very-long-server-name.tailnet-of-the-owner.ts.net";
   });
   for (const width of [1836, 1600, 1599, 1536, 1500, 1499, 1440, 1280, 980, 768, 600, 390, 320]) {
     await page.setViewportSize({ width, height: 900 });
     const geometry = await page.locator(".topbar").evaluate((bar) => {
       const bounds = bar.getBoundingClientRect();
       const search = bar.querySelector(".topbar__search")?.getBoundingClientRect();
+      // The history arrows lead the search box: the pair is what sits on the window's centre.
+      const group = bar.querySelector(".topbar__center")?.getBoundingClientRect();
       const right = bar.querySelector(".topbar__right")?.getBoundingClientRect();
-      if (!search || !right) throw new Error("Missing topbar controls");
+      if (!search || !group || !right) throw new Error("Missing topbar controls");
       return {
-        center: Math.abs((search.left + search.right) / 2 - (bounds.left + bounds.right) / 2),
+        center: Math.abs((group.left + group.right) / 2 - (bounds.left + bounds.right) / 2),
         overlap: search.right - right.left,
         overflow: bar.scrollWidth - bar.clientWidth,
         searchOverflow: [...bar.querySelectorAll(".topbar__search svg, .topbar__search .apx-kbd")].some((child) => {
@@ -28,7 +30,13 @@ test("search stays centered with unequal sides and activity precedes notificatio
     expect(geometry.overflow, `overflow ${width}`).toBeLessThanOrEqual(1);
     expect(geometry.searchOverflow, `search content ${width}`).toBe(false);
   }
-  await expect(page.locator(".topbar__activity > :first-child")).toHaveClass(/running/);
+  // With room beside the sides the search shows its words, not just its icon.
+  await page.setViewportSize({ width: 1130, height: 900 });
+  await expect(page.locator(".topbar__search-label")).toBeVisible();
+  await page.setViewportSize({ width: 390, height: 900 });
+  await expect(page.locator(".topbar__search-label")).toBeHidden();
+  await expect(page.locator(".topbar__activity > :first-child")).toHaveClass(/attention/);
+  await expect(page.locator(".topbar__activity > :nth-child(2)")).toHaveClass(/running/);
 });
 
 test("pending usage has one anonymous preview until the empty report arrives", async ({ page }) => {
@@ -121,7 +129,6 @@ test("shared blob eyes retain the avatar canvas inside an icon button and chat h
     expect(measurement.height).toBeLessThan(1);
   }
   await page.locator(".topbar__agent").click();
-  await page.getByRole("menuitem").first().click();
   const blob = page.locator(".chat__agentbtn .apx-blob");
   await expect(blob).toHaveClass(/apx-blob--anim/);
   await expect(blob.locator(".apx-blob__bob")).toHaveCSS("animation-name", "apx-blob-float");

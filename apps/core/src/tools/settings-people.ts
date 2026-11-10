@@ -24,6 +24,7 @@ function contactLine(p: Person): string {
   const flags = [
     p.muted ? "silenced" : "",
     p.supervised ? "supervised" : "",
+    p.agent_id ? `answered by agent ${p.agent_id}` : "",
     // Only what the owner set for this person; the rest follows the account they write on.
     ...Object.entries(p.perms).map(([k, on]) => `${on ? "may" : "may not"}: ${k}`),
   ].filter(Boolean);
@@ -76,6 +77,7 @@ function channelLine(store: Store, c: Channel): string {
     `reactions: ${(c.reactions ?? CHANNEL_DEFAULTS.reactions) ? "on" : "off"}`,
     `research: ${c.research ?? CHANNEL_DEFAULTS.research}`,
     c.hours ? `hours ${hoursText(c.hours)}` : "any hour",
+    ...(c.quiet ? ["notices silenced"] : []),
     ...Object.entries(c.contacts ?? {})
       .filter(([, on]) => on)
       .map(([k]) => `contacts may: ${k}`),
@@ -150,7 +152,7 @@ export const PEOPLE: Readonly<Record<string, Setting>> = {
     },
   },
   "contacts.set": {
-    does: "change a contact (id and only what changes: note says who they are, rules how to answer them, perms {appointments, requests, notes, any_hour} true or false for this person only, null to follow the account they write on) or add one",
+    does: "change a contact (id and only what changes: note says who they are, rules how to answer them, perms {appointments, requests, notes, any_hour} true or false for this person only, null to follow the account they write on, agent_id the agent that answers them instead of each account's, null for the account's) or add one",
     asks: contactAsks,
     says: (p, { store }) => {
       const cur = personOf(p, store);
@@ -214,7 +216,7 @@ export const PEOPLE: Readonly<Record<string, Setting>> = {
         .join("\n") || "no channels set up.",
   },
   "channels.set": {
-    does: "change a channel already set up (id, and under channel only what changes: label, owner_thread home|own (home only when the super-agent answers it; email is always own), agent_id (who answers the owner), contacts_agent_id (who answers its contacts and rooms), strangers, rooms, hours when it answers contacts {days 0 = Sunday, from, to HH:MM in the owner's time zone} or null for any hour, contacts {appointments, requests, notes, any_hour} what every contact may do unless set for one, knowledge and rules the owner's notes and rules for everyone on it, owner_only true answers only the owner, limits {per_contact_hour, per_account_hour 0 = no cap}…); its sign-in, mail account and research stay the owner's",
+    does: "change a channel already set up (id, and under channel only what changes: label, owner_thread home|own (home only when the super-agent answers it; email is always own), agent_id (who answers the owner), contacts_agent_id (who answers its contacts and rooms), strangers, rooms, hours when it answers contacts {days 0 = Sunday, from, to HH:MM in the owner's time zone} or null for any hour, contacts {appointments, requests, notes, any_hour} what every contact may do unless set for one, knowledge and rules the owner's notes and rules for everyone on it, owner_only true answers only the owner, limits {per_contact_hour, per_account_hour 0 = no cap}, quiet true to silence its notices…); its sign-in, mail account and research stay the owner's",
     asks: "card",
     says: (p, { store }) => `Change the channel ${inlineName(channelOf(store, p.id)?.label ?? str(p.id))}`,
     refuse: (p, { store }) => {

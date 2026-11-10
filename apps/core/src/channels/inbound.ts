@@ -10,7 +10,6 @@ import {
   type Presentation,
 } from "../domain/channels.ts";
 import { type MediaRecord, partOfMedia } from "../domain/media.ts";
-import type { NewNotification } from "../domain/notifications.ts";
 import { OWNER_ID } from "../domain/persons.ts";
 import { HOME_THREAD_ID } from "../domain/seed.ts";
 import type { Store } from "../domain/store.ts";
@@ -22,12 +21,12 @@ import type { InternalCall } from "../rpc/internal.ts";
 import type { Services } from "../services/registry.ts";
 import { saveUpload } from "../services/uploads.ts";
 import { inlineName, untrusted } from "../tools/result.ts";
-import { agentProject, answersInHome } from "./agent-project.ts";
+import { agentProject, answersInHome, contactAnswerer } from "./agent-project.ts";
 import { asksToStop } from "./closers.ts";
 import type { Delivery } from "./delivery.ts";
 import { type Held, waitsForHours } from "./held.ts";
 import { type Button, buttonId, inputPresentation, parseButton, ratingOf, shown } from "./notices.ts";
-import type { TellOwner } from "./owner-notices.ts";
+import type { ChannelNotice, TellOwner } from "./owner-notices.ts";
 import type { createRooms } from "./rooms.ts";
 import type { Stickers } from "./stickers.ts";
 import type { Suggestions } from "./suggestions.ts";
@@ -52,7 +51,7 @@ export function createInbound(deps: {
   /** A notice for the owner: the tray, and their chat app. */
   tell: TellOwner;
   /** A notice in the app's attention tray only. */
-  attention(n: NewNotification): void;
+  attention(n: ChannelNotice): void;
   /** The channel is the owner's own account: strangers are listed quietly, never answered. */
   ownAccount(channel: string): boolean;
   /** Messages in the public rooms the owner listed. */
@@ -381,7 +380,12 @@ export function createInbound(deps: {
         const p = store.persons.create({ name, role: "contact" });
         store.persons.link(p.id, { channel: cfg.id, external_id: m.sender.id, label: name });
       });
-      deps.attention({ kind: "channel", title: name, body: t.answering(shown(cfg, name, m.sender.id), cfg.label) });
+      deps.attention({
+        kind: "channel",
+        title: name,
+        body: t.answering(shown(cfg, name, m.sender.id), cfg.label),
+        channel: cfg.id,
+      });
       return route(cfg.id, rowId, m);
     }
     const { request, fresh } = store.channels.pairing.request({
@@ -410,7 +414,12 @@ export function createInbound(deps: {
     });
     deps.tell(
       { text: t.pairingOwner(request.name, cfg.label, request.code), buttons: decide(t.asContact) },
-      { title: request.name, body: t.pairingApp(request.name, cfg.label, request.code), ref: pairingRef(request.code) },
+      {
+        title: request.name,
+        body: t.pairingApp(request.name, cfg.label, request.code),
+        ref: pairingRef(request.code),
+        channel: cfg.id,
+      },
       "pairing",
     );
     return "ignored";
@@ -431,14 +440,19 @@ export function createInbound(deps: {
     );
   }
 
-  function contactThread(cfg: ChannelConfig, conversation: string, person: { id: string; name: string }): Thread {
+  function contactThread(
+    cfg: ChannelConfig,
+    conversation: string,
+    person: { id: string; name: string; agent_id?: string | undefined },
+  ): Thread {
+    const agent = contactAnswerer(store, cfg, person);
     return (
       store.threads.byConversation(cfg.id, conversation) ??
       store.threads.create({
         kind: "channel",
         title: person.name,
-        agent_ids: [contactAgentOf(cfg)],
-        project_id: agentProject(store, contactAgentOf(cfg)),
+        agent_ids: [agent],
+        project_id: agentProject(store, agent),
         channel: { id: cfg.id, conversation, person_id: person.id },
       })
     );

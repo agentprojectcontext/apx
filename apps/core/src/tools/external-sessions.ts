@@ -1,5 +1,6 @@
 import { DEFAULT_AUTONOMY, ModelRef, WritePolicy } from "@apx/protocol";
 import { z } from "zod";
+import { worksIn } from "../domain/projects.ts";
 import { engineOf } from "../domain/refs.ts";
 import type { Store } from "../domain/store.ts";
 import { strictestWrite } from "../domain/threads.ts";
@@ -40,7 +41,7 @@ export function externalSessionTools(store: Store): Tool[] {
         const project = matches[0];
         if (!project) return "refused: no project";
         if (
-          (ctx.agent.project_id && project.id !== ctx.agent.project_id) ||
+          !worksIn(store.projects, ctx.agent.project_id, project.id) ||
           (ctx.thread.reach === "fenced" && project.id !== ctx.thread.project_id)
         )
           return "refused: this agent cannot start a session in another project";

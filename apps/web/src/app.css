@@ -73,7 +73,7 @@ body {
   margin-right: calc(var(--shell-main-inset) - 2px);
   border: 1px solid var(--apx-border);
   border-bottom: 0;
-  border-radius: var(--apx-radius-md) var(--apx-radius-md) 0 0;
+  border-radius: 14px 14px 0 0;
   background: var(--apx-bg);
   overflow: hidden;
 }

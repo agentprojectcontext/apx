@@ -250,6 +250,25 @@ export function messagesRepo({ one, all, run }: Sql, bus: Bus) {
       );
       return r ? toMessage(r) : undefined;
     },
+    /** Each thread's first message from the owner (a routine run's: the instructions it started from). */
+    firstFromOwner(threadIds: string[]): Map<string, Message> {
+      if (!threadIds.length) return new Map();
+      const firsts = qb
+        .selectFrom("messages")
+        .select(["thread_id", sql<number>`min(seq)`.as("seq")])
+        .where("thread_id", "in", threadIds)
+        .where(sql<string>`json_extract(author, '$.kind')`, "=", "user")
+        .groupBy("thread_id");
+      const rows = all(
+        qb
+          .selectFrom("messages")
+          .innerJoin(firsts.as("f"), (j) =>
+            j.onRef("f.thread_id", "=", "messages.thread_id").onRef("f.seq", "=", "messages.seq"),
+          )
+          .selectAll("messages"),
+      );
+      return new Map(rows.map((r) => [r.thread_id, toMessage(r)]));
+    },
     /** Whether the owner ever wrote anything (an install in use, not a new one). */
     anyFromOwner(): boolean {
       return Boolean(

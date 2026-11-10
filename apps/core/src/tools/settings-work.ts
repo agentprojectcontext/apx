@@ -1,6 +1,7 @@
 // apx_settings, where the work happens and what it draws on: projects, memory, skills, MCP servers and extensions on
 // or off, media services and widgets. A project's autonomy and read-only folders and memory's model stay the owner's
 // (DECISIONS.md#d-060). An MCP server names its keys as secret://NAME, never their value (DECISIONS.md#d-141).
+import { BASE_PROJECT_ID } from "@apx/protocol";
 import { memorySettings } from "../domain/memory-settings.ts";
 import { keyLike } from "../log.ts";
 import { imageDefaultsOf } from "../services/registry.ts";
@@ -65,13 +66,18 @@ export const WORK: Readonly<Record<string, Setting>> = {
       store.projects
         .list()
         .map((p) => {
-          const bits = [p.kind ?? "", p.path ? `folder ${p.path}` : "kept by APX", p.present ? "" : "folder away"];
+          const bits = [
+            p.kind ?? "",
+            p.path ? `folder ${p.path}` : "kept by APX",
+            p.present ? "" : "folder away",
+            p.parent ? `subproject of ${p.parent === BASE_PROJECT_ID ? "the base project" : p.parent}` : "",
+          ];
           return `- ${inlineName(p.name)} [${p.id}] (${bits.filter(Boolean).join(", ")})${p.description ? `: ${p.description.slice(0, 160)}` : ""}`;
         })
         .join("\n") || "no projects yet.",
   },
   "projects.create": {
-    does: "create a project (name, kind, description) in a folder (path, made if missing) or kept by APX",
+    does: `create a project (name, kind, description) in a folder (path, made if missing) or kept by APX; parent (a project id, or ${BASE_PROJECT_ID} for the base project) makes it a subproject, in the parent's folder unless path, using the parent's agents`,
     named: ["name", "path"],
     says: (p) => `Create the project ${inlineName(str(p.name) || str(p.path))}${p.path ? ` in ${str(p.path)}` : ""}`,
   },
@@ -86,7 +92,7 @@ export const WORK: Readonly<Record<string, Setting>> = {
     says: (p, { store }) => `Stop listing ${projectName(store, p.project)} (its files and chats stay)`,
   },
   "projects.update": {
-    does: "change a project (project, and only what changes: name, description, kind); autonomy and read-only folders stay the owner's",
+    does: "change a project (project, and only what changes: name, description, kind, parent; parent null makes a subproject a project of its own); autonomy and read-only folders stay the owner's",
     says: (p, { store }) => `Change ${projectName(store, p.project)}`,
     refuse: (p, { store }) => {
       const cur = store.projects.get(str(p.project)) as Params | undefined;
@@ -94,7 +100,9 @@ export const WORK: Readonly<Record<string, Setting>> = {
     },
     now: (p, { store }) => {
       const cur = store.projects.get(str(p.project));
-      return cur && { project: cur.id, name: cur.name, description: cur.description, kind: cur.kind };
+      return (
+        cur && { project: cur.id, name: cur.name, description: cur.description, kind: cur.kind, parent: cur.parent }
+      );
     },
   },
   "projects.update_base": {

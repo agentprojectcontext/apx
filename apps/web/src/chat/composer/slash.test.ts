@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { type SlashContext, slashItems, slashQuery } from "./slash.ts";
+import { commandOf, dollarQuery, dollarRank, type SlashContext, slashItems, slashQuery } from "./slash.ts";
 
 const ctx: SlashContext = {
   busy: false,
@@ -58,4 +58,32 @@ test("/model and /effort list what can be picked; a skill with words is sent as 
   assert.ok(model?.kind === "model" && model.current);
   assert.deepEqual(names("/effort h"), ["high"]);
   assert.deepEqual(names("/pdf leé esto"), []);
+});
+
+test("a field that is only a command runs it on Enter; one with a list or with words does not", () => {
+  assert.equal(commandOf("/compact "), "compact");
+  assert.equal(commandOf("/resumir"), "compact", "an alias");
+  assert.equal(commandOf("/model"), undefined, "a command with a list");
+  assert.equal(commandOf("/compact now please"), undefined, "words after it: a message");
+  assert.equal(commandOf("/image-gen"), undefined, "a skill");
+});
+
+test("a $ at the end of the field asks for skills and connectors", () => {
+  assert.deepEqual(dollarQuery("$"), { start: 0, query: "" });
+  assert.deepEqual(dollarQuery("use $lin"), { start: 4, query: "lin" });
+  assert.equal(dollarQuery("costs 5$"), undefined, "inside a word");
+  assert.equal(dollarQuery("$lin and more"), undefined, "not at the end");
+  const items = [
+    { name: "linear", description: "Issues" },
+    { name: "pdf", description: "Read PDF files" },
+  ];
+  assert.deepEqual(
+    dollarRank(items, "pd").map((i) => i.name),
+    ["pdf"],
+  );
+  assert.deepEqual(
+    dollarRank(items, "issues").map((i) => i.name),
+    ["linear"],
+    "by what it does",
+  );
 });

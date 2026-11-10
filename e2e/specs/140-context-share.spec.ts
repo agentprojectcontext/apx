@@ -1,5 +1,5 @@
-// How full the chat's context is, in the composer: a percentage of the model's window with a ring, and in its
-// tooltip what happens when it fills.
+// How full the chat's context is, in the composer: the tokens in use with a ring for the model's window, and in its
+// tooltip the share and what happens when it fills.
 import type { Thread } from "../../packages/protocol/src/domain.ts";
 import { expect, open, rpc, test, until } from "./kit.ts";
 
@@ -18,10 +18,11 @@ test("the composer shows how much of the model's context the chat uses", async (
   const label =
     /^Contexto usado: 64\s?% \(82k de 128k\)\. Cuando se llena, se resume la parte más vieja de este chat\.$/;
   const chip = page.getByRole("button", { name: label });
-  await expect(chip).toHaveText(/^64\s?%$/);
+  // The tokens in use beside the ring; the share is in its name and tooltip.
+  await expect(chip).toHaveText("82k");
   await chip.hover();
   await expect(page.locator(".apx-tooltip").getByText(label)).toBeVisible();
-  // On a phone the percentage stays beside the ring.
+  // On a phone the figure stays beside the ring.
   await page.setViewportSize({ width: 375, height: 760 });
   await expect(chip).toBeVisible();
   await expect(chip.locator(".ctxchip__text")).toBeVisible();

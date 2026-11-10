@@ -3,6 +3,9 @@ import type { enAccount } from "./account-en.ts";
 import type { enActivityReview } from "./activity-review-en.ts";
 import type { ApprovalKey } from "./approvals-en.ts";
 import type { BrowserEditKey } from "./browser-edit-en.ts";
+import { enChannelsSlim } from "./channels-slim-en.ts";
+import { enChatSlim } from "./chat-slim-en.ts";
+import { enComposerSlim } from "./composer-slim-en.ts";
 import type { ComputerKey } from "./computer-en.ts";
 import { enChannels } from "./en-channels.ts";
 import { enChat } from "./en-chat.ts";
@@ -11,19 +14,31 @@ import { enEngines } from "./en-engines.ts";
 import { enFiles } from "./en-files.ts";
 import { enHelper } from "./en-helper.ts";
 import { enOffice } from "./en-office.ts";
-import { enResources } from "./en-resources.ts";
-import { enSetup } from "./en-setup.ts";
-import { enTeam } from "./en-team.ts";
+import type { enResources } from "./en-resources.ts";
+import type { enSetup } from "./en-setup.ts";
+import type { enTeam } from "./en-team.ts";
 import { enTelemetry } from "./en-telemetry.ts";
+import { enFilesArtifacts } from "./files-artifacts-en.ts";
 import type { enFlow } from "./flow-en.ts";
+import { enInboxSlim } from "./inbox-slim-en.ts";
 import type { enIngress } from "./ingress-en.ts";
 import type { enMove } from "./move-en.ts";
+import { enPanelAgents } from "./panel-agents-en.ts";
+import { enPanelTabs } from "./panel-tabs-en.ts";
+import { enProjectSlim } from "./project-slim-en.ts";
 import type { ReceivedKey } from "./received-en.ts";
+import { enResourcesShared } from "./resources-shared-en.ts";
+import { enRoutineChat } from "./routine-chat-en.ts";
 import type { enSecretary } from "./secretary-en.ts";
+import { enSectionPages } from "./section-pages-en.ts";
+import { enSetupShared } from "./setup-shared-en.ts";
+import { enShellSlim } from "./shell-slim-en.ts";
 import type { enSignIn } from "./signin-en.ts";
 import type { enStorage } from "./storage-en.ts";
 import type { SysUsageKey } from "./sysusage-en.ts";
+import { enTeamShared } from "./team-shared-en.ts";
 import type { enThreadDialogs } from "./thread-dialogs-en.ts";
+import { enTopbar } from "./topbar-en.ts";
 
 // UI strings, English: the source of truth. Every key lives here; `{name}` placeholders are filled by t().
 export const en = {
@@ -49,14 +64,26 @@ export const en = {
   ...noticeEn,
   ...enHelper,
   ...enOffice,
-  ...enTeam,
+  ...enTeamShared,
   ...enChannels,
-  ...enSetup,
+  ...enSetupShared,
   ...enChat,
+  ...enChatSlim,
   ...enFiles,
-  ...enResources,
+  ...enFilesArtifacts,
+  ...enResourcesShared,
   ...enEngines,
   ...enTelemetry,
+  ...enRoutineChat,
+  ...enSectionPages,
+  ...enTopbar,
+  ...enShellSlim,
+  ...enComposerSlim,
+  ...enPanelTabs,
+  ...enPanelAgents,
+  ...enProjectSlim,
+  ...enInboxSlim,
+  ...enChannelsSlim,
   "engineUsage.title": "AI quotas",
   "engineUsage.remaining": "{pct}% remaining",
   "engineUsage.primary": "Current window",
@@ -208,13 +235,19 @@ export const en = {
   "connection.connecting": "Connecting",
 
   // Topbar, sidebar, account
-  "topbar.location": "Location",
   "topbar.search": "Search or jump to…",
+  "server.label": "APX in use: {name}",
+  "server.local": "Local",
+  "server.offline": "Not connected",
+  "server.change": "Connect to another APX…",
   "update.pill": "Update · {n}",
   "update.pillVersion": "APX {v} · Update",
   "help.label": "Help",
   "help.labelNew": "Help · there is news",
+  "help.labelNewHint": "Help · there is news. Opening All the news marks it all as seen",
+  "help.moreUnread": "{n} more unread",
   "help.whatsNew": "What's new",
+  "help.unread": "New",
   "help.changelog": "All the news",
   "help.guides": "Guides",
   "help.discord": "Join Discord",
@@ -336,9 +369,28 @@ export const en = {
   "nav.inbox": "Inbox",
   "nav.tasks": "Tasks",
   "nav.flows": "Flows",
+  "nav.routines": "Routines",
+  "nav.newChat": "New chat",
+  "nav.showInSidebar": "Show in the sidebar",
+  "nav.showViews": "Views",
+  "nav.showSections": "Sections",
+  "nav.empty.apps": "No apps yet. Ask an agent to build one, or install one with the arrow.",
+  "nav.empty.sessions":
+    "No coding app found on this computer. Install Claude Code or Codex to see their sessions here.",
   "nav.itemOptions": "Options for {name}",
   "nav.open": "Open",
   "project.unregister": "Unregister project",
+  "project.newSub": "New subproject",
+  "project.detach": "Make it a project of its own",
+  "project.detached": "{name} is a project of its own now",
+  "project.subOf": "Subproject of {name}",
+  "project.subHint":
+    "Works with the agents, skills, MCP servers and variables of {name}. Its chats, tasks, routines, artifacts, files and memory are its own.",
+  "project.new.inside": "Inside",
+  "project.new.insideNone": "None: a project of its own",
+  "project.new.inParent": "In its project's folder",
+  "project.new.subHint":
+    "A subproject uses the agents and resources of its project, so it needs no team of its own. Its memory, chats and files stay apart.",
   "project.unregisterTitle": "Unregister {name}?",
   "project.unregisterBody":
     "The folder and its files, chats and tasks are kept. Register it again to restore the project.",
@@ -360,6 +412,7 @@ export const en = {
   "project.new.inFolder": "In a folder",
   "project.new.noFolder": "No folder",
   "project.new.apxHint": "It is made inside APX's folder:",
+  "project.new.parentHint": "It is made inside its project's folder:",
   "project.new.example": "My project",
   "project.new.nameFromFolder": "The folder's",
   "project.new.path": "Folder",
@@ -398,7 +451,6 @@ export const en = {
   "running.label": "Processes",
   "running.aria": "{working} running, {waiting} waiting, {background} in the background",
   "running.tab.agents": "Agents",
-  "running.tab.background": "Background",
   "running.waitingForYou": "Waiting for you",
   "running.stop": "Stop",
   "running.stop.title": "Stop {agent}?",
@@ -449,10 +501,14 @@ export const en = {
 
   // Inbox and chat list
   "inbox.projectChats": "{project} chats",
-  "inbox.view": "How to list chats",
-  "inbox.view.tree": "Tree",
-  "inbox.view.activity": "Activity",
-  "inbox.view.chats": "By chat",
+  "inbox.tabs": "Show",
+  "inbox.tab.chats": "Chats",
+  "inbox.tab.tasks": "Tasks",
+  "inbox.tab.routines": "Routines",
+  "inbox.pinned": "Pinned",
+  "inbox.recent": "Recent",
+  "inbox.tabEmpty.tasks": "No task chats here yet",
+  "inbox.tabEmpty.routines": "No routine has run yet",
   "inbox.when.running": "In progress",
   "inbox.when.today": "Today",
   "inbox.when.yesterday": "Yesterday",
@@ -461,6 +517,15 @@ export const en = {
   "inbox.showMore": "Show {n} more",
   "inbox.showLess": "Show less",
   "inbox.taskBundle.chats": "{n} chats",
+  "inbox.taskBundle.agents": "{n} agents",
+  "tasks.row.pending": "To do",
+  "tasks.header.show": "See the task",
+  "tasks.header.hide": "Hide the task",
+  "tasks.header.task": "Task",
+  "tasks.header.session": "{name}'s session",
+  "tasks.header.sessions": "The task's sessions",
+  "tasks.header.noWords": "Nothing said yet",
+  "inbox.taskBundle.chatsOne": "1 chat",
   "inbox.taskBundle.open": "Show the task's chats",
   "inbox.taskBundle.close": "Hide the task's chats",
   "inbox.delegated.open": "Show the chats it delegated",
@@ -471,10 +536,21 @@ export const en = {
     "Coding session: the agent works inside the folder {folder} (reads, edits files and runs commands there)",
   "nav.externalSession": "External session",
   "thread.code": "Code",
-  "inbox.search": "Search chats",
   "inbox.filter": "Filter chats",
   "inbox.filter.show": "Show",
   "inbox.filter.routines": "Routine news",
+  "inbox.filter.on": "Filter chats ({n} chosen)",
+  "inbox.filter.agents": "Agents",
+  "inbox.filter.projects": "Projects",
+  "inbox.filter.clear": "Clear filters",
+  "inbox.filter.clearShort": "Clear",
+  "inbox.filter.none": "Nothing here matches the filter",
+  "inbox.filter.remove": "Stop filtering by {name}",
+  "inbox.searchOpen": "Search chats",
+  "inbox.searchIn.chats": "Search chats",
+  "inbox.searchIn.tasks": "Search tasks",
+  "inbox.searchIn.routines": "Search routines",
+  "inbox.searchClose": "Close search",
   "inbox.markAllRead": "Mark all as read",
   "inbox.unread": "Unread",
   "inbox.offline.title": "Offline",
@@ -513,12 +589,10 @@ export const en = {
   "write.auto": "Edits freely",
   "write.read-only": "Read-only",
   "changes.title": "{n} uncommitted",
-  "changes.edited": "Files edited: {n}",
+  "changes.edited": "Files edited {n}",
   "changes.scratchEdited": "Files in the temp folder: {n}",
   "changes.scratch": "Chat's temp folder",
   "changes.scratchHint": "The agent's scratch work: not changes to your folders.",
-  "changes.heading.one": "Changes: {n} edited file",
-  "changes.heading.many": "Changes: {n} edited files",
   "changes.scope": "Choose changes",
   "changes.latest": "Last turn",
   "changes.all": "All turns",
@@ -532,8 +606,11 @@ export const en = {
   "chat.back": "Back to the chat",
   "chat.toList": "Back to the chats",
   "chat.hideTools": "Hide tools",
-  "chat.toolsHint": "Show or hide each step the agent took (tools it used, what they returned)",
   "chat.showTools": "Show tools",
+  "chat.roomCardOpen": "Open when the agent speaks here and the rules",
+  "chat.roomCardClose": "Close the card",
+  "chat.headerSuper": "{name} · Super-agent, in all your projects",
+  "chat.headerEngine": "{engine} · Direct session",
   "chat.pick.title": "Pick a chat",
   "chat.pick.body": "Or start a new one with your super-agent.",
   "chat.offline.title": "No connection to the core",
@@ -598,7 +675,6 @@ export const en = {
   "widget.toPanel": "Show in the side panel",
   "widget.inPanel": "Showing in the side panel",
   "widget.showHere": "Show here",
-  "widgets.all": "All widgets ({n})",
   "widgets.empty": "No widgets in this chat",
   "widgets.emptyBody":
     "Widgets the agent builds in this chat show here. Pin one to keep it on the project's board too.",
@@ -742,17 +818,16 @@ export const en = {
   "processes.done": "Finished ({n})",
   "processes.empty": "No subagents in this chat yet",
   "processes.maximize": "Open conversation full size",
-  "processes.back": "Back to chat processes",
   "processes.failed": "Could not load chat processes",
   "changes.reportedEmpty": "No changes reported in this chat",
   "panel.terminal": "Terminal",
   "panel.files": "Files",
-  "panel.widget": "Widget",
+  "panel.widget": "Artifacts",
   "panel.usage": "Usage",
   "panel.browser.hint": "Browser: the page your agent drives; you can take over",
   "panel.terminal.hint": "Terminal: the commands the agent ran, and your own shell in the folder",
   "panel.files.hint": "Files: the folder this chat works in",
-  "panel.widget.hint": "Widgets: what the agent built for you in this chat",
+  "panel.widget.hint": "Artifacts: what the agent built for you in this chat",
   "panel.usage.hint": "Usage: tokens and cost of this chat",
   "panel.side": "Side panel",
   "panel.close": "Close panel",
@@ -935,6 +1010,12 @@ export const en = {
   "overview.now": "Now",
   "overview.nothingRunning": "Nothing running in this project.",
   "overview.team": "Agents",
+  "overview.subprojects": "Subprojects",
+  "overview.otherSubs": "Other subprojects of {name}",
+  "overview.subUses": "Uses the agents of {name}",
+  "overview.subOwn": "Own agents and those of {name}",
+  "overview.fromParent": "From {name}",
+  "overview.noSubs": "Split a project into parts that share its agents: a website, an app, a client.",
   "overview.agentsCount.one": "1 agent",
   "overview.agentsCount.other": "{n} agents",
   "overview.noAgents": "This project has no agents of its own yet.",
@@ -1107,6 +1188,8 @@ export const en = {
   "appearance.textSize": "Text size",
   "appearance.textSizeHint":
     "Interface and chat text on this device. 100% is normal. Images, embedded apps, terminals and browser zoom stay unchanged.",
+  "appearance.compact": "Compact sidebar",
+  "appearance.compactHint": "Each section is one row and its items open beside it. In a short window it stays compact.",
   "appearance.font": "Interface font",
   "appearance.fontHint": "Menus, sidebars and panels.",
   "appearance.fontLabel": "Font",
@@ -1862,4 +1945,7 @@ export type MessageKey =
   | keyof typeof enThreadDialogs
   | keyof typeof enIngress
   | keyof typeof enFlow
-  | keyof typeof enSecretary;
+  | keyof typeof enSecretary
+  | keyof typeof enSetup
+  | keyof typeof enTeam
+  | keyof typeof enResources;

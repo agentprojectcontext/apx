@@ -45,7 +45,7 @@ export const SkillInfo = z.object({
   source: SkillSource,
   /** On where it was asked about (the project, or everywhere). */
   on: z.boolean(),
-  /** Projects where the owner turned this global skill off. */
+  /** Projects where the owner turned it off: any, for a global skill; a project's own, that project or its subprojects. */
   off_in: z.array(Id).default([]),
   /** Turned off everywhere: a project cannot turn it back on for itself. */
   off_everywhere: z.boolean().default(false),

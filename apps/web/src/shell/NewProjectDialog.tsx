@@ -1,10 +1,13 @@
+import "../styles/nav-dialogs.css";
 import type { ProjectKind } from "@apx/protocol";
 import { Button, Checkbox, Dialog, Field, Icons, Input, SegmentedControl, Select, Textarea } from "@apx/ui";
 import { type KeyboardEvent, useEffect, useState } from "react";
 import { bootstrap } from "../data/actions.ts";
 import { client } from "../data/client.ts";
+import { projectEntries } from "../data/identity.ts";
 import { notify } from "../data/notices.ts";
 import { createProject } from "../data/setup.ts";
+import { useData } from "../data/state.ts";
 import { useT } from "../i18n/index.ts";
 import { kindOptions, NO_KIND } from "../project/projectKind.ts";
 import { go } from "./nav.ts";
@@ -32,9 +35,14 @@ const baseName = (p: string) =>
  * A new project: in a folder (typed or picked; made if missing) or, without one, in a folder of its own inside APX's.
  * Its name (the folder's when left empty), kind and description are the ones its settings show. Opens it once made.
  */
-export function NewProjectDialog({ onClose }: { onClose(): void }) {
+export function NewProjectDialog({ onClose, parent: within }: { onClose(): void; parent?: string | undefined }) {
   const t = useT();
-  const [where, setWhere] = useState<Where>("folder");
+  const projects = useData((s) => s.projects);
+  // A subproject goes inside a project that is not one itself.
+  const parents = projectEntries(projects).filter((p) => !p.parent);
+  const [parent, setParent] = useState(within ?? "");
+  const parentEntry = parents.find((p) => p.id === parent);
+  const [where, setWhere] = useState<Where>(within ? "apx" : "folder");
   const [path, setPath] = useState("");
   const [name, setName] = useState("");
   const [kind, setKind] = useState<string>(NO_KIND);
@@ -105,6 +113,7 @@ export function NewProjectDialog({ onClose }: { onClose(): void }) {
         ...(kind !== NO_KIND ? { kind: kind as ProjectKind } : {}),
         ...(description.trim() ? { description: description.trim() } : {}),
         ...(where === "folder" ? { path: path.trim() } : {}),
+        ...(parent ? { parent } : {}),
       });
       if (!project) return;
       await enableHelper(project.id);
@@ -121,7 +130,7 @@ export function NewProjectDialog({ onClose }: { onClose(): void }) {
     <Dialog
       open
       onOpenChange={(o) => !o && !busy && onClose()}
-      title={t("project.new.title")}
+      title={within ? t("project.newSub") : t("project.new.title")}
       description={t("project.new.body")}
       footer={
         <>
@@ -135,6 +144,21 @@ export function NewProjectDialog({ onClose }: { onClose(): void }) {
       }
     >
       <div className="newproject">
+        <Field label={t("project.new.inside")}>
+          <Select
+            label={t("project.new.inside")}
+            value={parent}
+            onValueChange={(v) => {
+              setParent(v ?? "");
+              if (v && where === "import") setWhere("apx");
+            }}
+            options={[
+              { value: "", label: t("project.new.insideNone") },
+              ...parents.map((p) => ({ value: p.id, label: p.name })),
+            ]}
+          />
+        </Field>
+        {parentEntry && <p className="newproject__hint">{t("project.new.subHint")}</p>}
         <Checkbox checked={helper} onCheckedChange={setHelper} label={t("helper.enable")} />
         <SegmentedControl
           label={t("project.new.where")}
@@ -142,8 +166,8 @@ export function NewProjectDialog({ onClose }: { onClose(): void }) {
           onValueChange={(v) => setWhere(v as Where)}
           options={[
             { value: "folder", label: t("project.new.inFolder") },
-            { value: "apx", label: t("project.new.noFolder") },
-            { value: "import", label: t("project.new.import") },
+            { value: "apx", label: parentEntry?.path ? t("project.new.inParent") : t("project.new.noFolder") },
+            ...(parentEntry ? [] : [{ value: "import", label: t("project.new.import") }]),
           ]}
         />
         {where === "import" ? (
@@ -195,7 +219,10 @@ export function NewProjectDialog({ onClose }: { onClose(): void }) {
           </Field>
         ) : (
           <p className="newproject__hint">
-            {t("project.new.apxHint")} <code>~/.apx/v2/projects/{slugOf(name.trim() || t("project.new.example"))}</code>
+            {parentEntry?.path ? t("project.new.parentHint") : t("project.new.apxHint")}{" "}
+            <code>
+              {parentEntry?.path ?? "~/.apx/v2/projects"}/{slugOf(name.trim() || t("project.new.example"))}
+            </code>
           </p>
         )}
         <Field label={t("project.settings.name")}>

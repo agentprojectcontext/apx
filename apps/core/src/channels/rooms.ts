@@ -228,7 +228,10 @@ export function createRooms(deps: {
       const at = reported.get(roomId) ?? 0;
       if (now - at > REPORT_MS) {
         reported.set(roomId, now);
-        deps.tell({ text: channelTexts(store).roomCap(`#${roomName}`) }, { level: "warn", title: `#${roomName}` });
+        deps.tell(
+          { text: channelTexts(store).roomCap(`#${roomName}`) },
+          { level: "warn", title: `#${roomName}`, channel: cfg.id },
+        );
       }
       return true;
     }
