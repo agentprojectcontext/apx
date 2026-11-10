@@ -77,9 +77,6 @@ export function ProjectMemory({ project }: { project: ProjectEntry }) {
     <div className="memory">
       <div className="team__head">
         <div className="team__titles">
-          <div className="team__title">
-            {t("project.tab.memory")} {notes && <span className="team__count">{notes.length}</span>}
-          </div>
           <div className="team__note">{t(`memory.lead.${filter}`)}</div>
         </div>
         <SegmentedControl

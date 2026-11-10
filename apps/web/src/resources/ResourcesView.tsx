@@ -171,10 +171,11 @@ export function ResourcesView({ project }: { project?: ProjectEntry }) {
       className={projectId ? "resv resv--project" : "resv"}
       bodyClassName="resv__body"
       label={t("nav.resources")}
-      title={projectId ? undefined : t("nav.resources")}
-      lead={projectId ? undefined : t("res.lead")}
+      // Inside a project its tab already names it: no title, and adding sits with the filters.
+      title={project ? undefined : t("nav.resources")}
+      lead={t("res.lead")}
       action={
-        projectId || !def.add
+        project || !def.add
           ? undefined
           : { label: t(def.add), hint: t("section.res.addHint"), onClick: () => setAdding(true) }
       }
@@ -202,7 +203,7 @@ export function ResourcesView({ project }: { project?: ProjectEntry }) {
         <>
           {!projectId && filters}
           {!project && <BrowserConsents />}
-          {projectId && add}
+          {project && add}
         </>
       }
       search={def.search ? { value: query, onChange: setQuery, placeholder: t(def.search) } : undefined}

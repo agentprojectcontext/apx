@@ -1,6 +1,6 @@
 import "../styles/screens.css";
 import { Badge, Button, EmptyState, IconButton, Icons, ProjectTile, Tabs } from "@apx/ui";
-import { type ReactNode, useEffect, useRef, useState } from "react";
+import { type ReactNode, useEffect, useState } from "react";
 import { loadProjectThreads } from "../data/actions.ts";
 import {
   findProject,
@@ -94,23 +94,8 @@ function ProjectHeader({ project, tab }: { project: ProjectEntry; tab: ProjectTa
   const counts = useProjectCounts(project.id);
   const [settings, setSettings] = useState(false);
   const KindIcon = kindIcon(project.kind);
-  // A tab past a narrow row's end scrolls into sight when it is the one open.
-  const head = useRef<HTMLElement>(null);
-  // biome-ignore lint/correctness/useExhaustiveDependencies: runs again when another tab opens, to bring it into sight
-  useEffect(() => {
-    const box = head.current;
-    if (!box) return;
-    const show = () =>
-      box
-        .querySelector('.project__tabs [aria-selected="true"]')
-        ?.scrollIntoView({ block: "nearest", inline: "nearest" });
-    show();
-    const watch = new ResizeObserver(show);
-    watch.observe(box);
-    return () => watch.disconnect();
-  }, [tab]);
   return (
-    <header ref={head} className="project__head">
+    <header className="project__head">
       <div className="project__titlerow">
         <ProjectTile tone={projectTone(project.id)} initial={projectInitial(project.name)} size={36} />
         <div className="project__titles">
@@ -170,6 +155,7 @@ function ProjectHeader({ project, tab }: { project: ProjectEntry; tab: ProjectTa
         </p>
       )}
       <Tabs
+        variant="chips"
         className="project__tabs"
         value={tab}
         onValueChange={(v) => go.projectTab(v as ProjectTab)}
