@@ -4,7 +4,7 @@ import { useMemo } from "react";
 import { blobOf, DEFAULT_PID, findProject, type ProjectEntry, teamOf } from "../data/identity.ts";
 import { useData } from "../data/state.ts";
 import { useT } from "../i18n/index.ts";
-import { go, useNav } from "../shell/nav.ts";
+import { go } from "../shell/nav.ts";
 import { SubprojectsBlock } from "./SubprojectsBlock.tsx";
 
 type Member = { agent: Agent; from: "own" | "parent" | "everywhere" };
@@ -74,20 +74,5 @@ export function ProjectSideBlocks({ project }: { project: ProjectEntry }) {
       <SubprojectsBlock project={project} />
       <AgentsBlock project={project} />
     </>
-  );
-}
-
-/**
- * The right column beside a project tab. It hides when the window is narrow and, on Chats, while the chat's side
- * panel is open, so the chat keeps its room.
- */
-export function ProjectSide({ project, chats = false }: { project: ProjectEntry; chats?: boolean }) {
-  const t = useT();
-  const panel = useNav((s) => s.panel);
-  if (chats && panel != null) return null;
-  return (
-    <aside className={chats ? "projside projside--chats" : "projside"} aria-label={t("projside.label")}>
-      <ProjectSideBlocks project={project} />
-    </aside>
   );
 }

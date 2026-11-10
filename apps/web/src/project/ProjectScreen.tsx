@@ -1,6 +1,6 @@
 import "../styles/screens.css";
 import { Badge, Button, EmptyState, IconButton, Icons, ProjectTile, Tabs } from "@apx/ui";
-import { type ReactNode, useEffect, useState } from "react";
+import { type ReactNode, useEffect, useRef, useState } from "react";
 import { loadProjectThreads } from "../data/actions.ts";
 import {
   findProject,
@@ -26,7 +26,6 @@ import { ProjectArtifacts } from "./ProjectArtifacts.tsx";
 import { ProjectMemory } from "./ProjectMemory.tsx";
 import { ProjectOverview } from "./ProjectOverview.tsx";
 import { ProjectSettings } from "./ProjectSettings.tsx";
-import { ProjectSide } from "./ProjectSide.tsx";
 import { ProjectAgents } from "./ProjectTeam.tsx";
 import { kindIcon, kindLabel } from "./projectKind.ts";
 import { useProjectCounts } from "./useProjectCounts.ts";
@@ -81,9 +80,8 @@ export function ProjectScreen({ layout }: { layout: Layout }) {
     <section className="project" aria-label={project.name}>
       <ProjectHeader project={project} tab={tab} />
       <div className="project__body">
+        {/* Each tab takes the whole width: the overview keeps the project's subprojects and agents in its own column. */}
         <TabBody project={project} tab={tab} layout={layout} />
-        {/* The overview has its own summary column; every other tab shows the project's subprojects and agents. */}
-        {tab !== "overview" && <ProjectSide project={project} chats={tab === "chats"} />}
       </div>
     </section>
   );
@@ -96,8 +94,22 @@ function ProjectHeader({ project, tab }: { project: ProjectEntry; tab: ProjectTa
   const counts = useProjectCounts(project.id);
   const [settings, setSettings] = useState(false);
   const KindIcon = kindIcon(project.kind);
+  // A tab past a narrow row's end scrolls into sight when it is the one open.
+  const head = useRef<HTMLElement>(null);
+  useEffect(() => {
+    const box = head.current;
+    if (!box) return;
+    const show = () =>
+      box
+        .querySelector('.project__tabs [aria-selected="true"]')
+        ?.scrollIntoView({ block: "nearest", inline: "nearest" });
+    show();
+    const watch = new ResizeObserver(show);
+    watch.observe(box);
+    return () => watch.disconnect();
+  }, [tab]);
   return (
-    <header className="project__head">
+    <header ref={head} className="project__head">
       <div className="project__titlerow">
         <ProjectTile tone={projectTone(project.id)} initial={projectInitial(project.name)} size={36} />
         <div className="project__titles">
@@ -136,7 +148,11 @@ function ProjectHeader({ project, tab }: { project: ProjectEntry; tab: ProjectTa
         </div>
         <NewChatMenu
           projectId={project.id}
-          trigger={<Button leadingIcon={<Icons.SquarePen size={14} />}>{t("chat.new")}</Button>}
+          trigger={
+            <Button className="project__newchat" leadingIcon={<Icons.SquarePen size={14} />} aria-label={t("chat.new")}>
+              <span className="project__newchatlabel">{t("chat.new")}</span>
+            </Button>
+          }
         />
         <IconButton
           variant="secondary"
