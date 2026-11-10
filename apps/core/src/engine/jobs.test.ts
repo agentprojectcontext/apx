@@ -30,9 +30,17 @@ for (const background of [false, true]) {
       },
     });
     try {
-      const thread = store.threads.create({ kind: "loose", title: "Commands", agent_ids: [] });
+      store.agents.upsert({
+        id: "launcher",
+        name: "Launcher",
+        kind: "agent",
+        role: "Helper",
+        browser_profile: "isolated",
+      });
+      const thread = store.threads.create({ kind: "loose", title: "Commands", agent_ids: ["launcher"] });
       assert.throws(
-        () => jobs.start({ command: "echo hello", cwd: home.path, thread_id: thread.id, background }),
+        () =>
+          jobs.start({ command: "echo hello", cwd: home.path, thread_id: thread.id, agent_id: "launcher", background }),
         /Command could not start: Process launch unavailable/,
       );
       assert.deepEqual(store.jobs.running(), []);
