@@ -20,6 +20,17 @@ never reaches you:
 | It for all their agents (the usual case; it may use variables) | `apx mcps add <name> …` |
 | It only inside one project, saved in the repo (`.apc/mcps.json`) | `apx mcps add <name> --project <project-id> …` |
 
+An owner's private server can be limited to a project without writing its configuration into the repo:
+
+```bash
+apx mcps scope magic <project-id>
+apx mcps scope magic global
+```
+
+This keeps its definition and approvals for the same configuration and credential scope. A project's different
+credentials do not inherit grants from another account. Project variables override global variables there. Before making
+it global, check that its variables exist globally or in every project where it will be used.
+
 A project's server is committed with the repo, so it **cannot use variables** (`secret://`): anything with a key is
 one of the owner's own servers. One of the owner's servers is turned off inside a project with
 `apx mcps off <name> --project <project-id>` (and back with `on`). `apx projects` lists project ids.

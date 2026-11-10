@@ -38,6 +38,20 @@ Un repositorio puede nombrar cualquier comando, así que **un servidor de proyec
 esa definición exacta**. Si el archivo cambia, hay que aprobarlo de nuevo. `.apc/mcps.json` nunca guarda tokens: una
 definición que menciona `secret://` ahí se ignora.
 
+### Servidores privados para un proyecto (versión de desarrollo)
+
+Podés limitar un servidor tuyo a un proyecto y mantener su configuración privada en APX, fuera del repositorio.
+Puede usar las variables de ese proyecto. Los permisos se conservan para la misma configuración y cuenta; si el
+proyecto usa otra cuenta, las tools vuelven a pedir permiso:
+
+```bash
+apx mcps scope github acme-store           # solo este proyecto
+apx mcps scope github global               # disponible en todos otra vez
+```
+
+Antes de hacerlo global, comprobá que sus variables existan donde lo vas a usar. Las variables del proyecto no se
+copian al almacenamiento global. Esto no mueve una definición del archivo `.apc/mcps.json` del repositorio.
+
 ## Agregar, aprobar, quitar
 
 <Tabs>

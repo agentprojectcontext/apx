@@ -37,6 +37,20 @@ A repository can name any command, so **a project server starts only after you a
 the file changes, it needs approving again. `.apc/mcps.json` never holds tokens: a definition that mentions
 `secret://` is ignored there.
 
+### Private servers for one project (development preview)
+
+An owner's server can be limited to one project while its configuration stays private in APX, not in the repository.
+It can use that project's variables. Approvals for the same configuration and credential scope are kept; a different
+project account asks for permission again:
+
+```bash
+apx mcps scope github acme-store           # only this project
+apx mcps scope github global               # available everywhere again
+```
+
+Before making it global, check that its variables exist in the places where you will use it. Project variables are
+not copied into the global store. This does not move a repository's `.apc/mcps.json` definition.
+
 ## Add, approve, remove
 
 <Tabs>

@@ -620,8 +620,8 @@ export function createMcp(deps: {
       return stderr.read(keyOf(d), n);
     },
     /** Closes a server's connection now (approval withdrawn, definition removed). */
-    drop(d: Pick<McpDef, "scope" | "project_id" | "name">): void {
-      deps.store.approvals.revokeServer(serverApprovalId(d));
+    drop(d: Pick<McpDef, "scope" | "project_id" | "name">, preserveApprovals = false): void {
+      if (!preserveApprovals) deps.store.approvals.revokeServer(serverApprovalId(d));
       const prefix = `${d.scope}:${d.project_id ?? ""}:`;
       const mine = (key: string) => key.startsWith(prefix) && key.endsWith(`:${d.name}`);
       for (const [key, c] of conns) {

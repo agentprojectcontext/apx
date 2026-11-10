@@ -359,6 +359,12 @@ export async function mcps(
     const s = r.servers.find((x) => x.name === name);
     console.log(`${name}: ${s?.status ?? "saved"} · live from the next message`);
   };
+  if (sub === "scope") {
+    if (!a || !b || o.project) throw new Error("usage: apx mcps scope <name> global|<project-id>");
+    const { status, def } = await definition(a);
+    await save(a, { ...def, enabled: status.enabled, project: b === "global" ? null : b });
+    return;
+  }
   if (sub === "show") {
     if (!a) throw new Error("usage: apx mcps show <name> [--project p]");
     const { status, def } = await definition(a);

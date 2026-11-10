@@ -374,6 +374,8 @@ export const resourceMethods = {
             url: z.string().url().optional(),
             headers: z.record(z.string(), z.string()).optional(),
             enabled: z.boolean().optional(),
+            /** Private owner server availability; null makes it available everywhere. Never saved in a repo. */
+            project: Id.nullable().optional(),
           })
           .strict()
           .refine((s) => !!s.command !== !!s.url, "give either command or url")
