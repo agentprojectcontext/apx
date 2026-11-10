@@ -170,7 +170,7 @@ test("a group pair takes a little more than one face; a delegation pair shows th
   const row = await render(
     <InboxRow node={required(inboxTree([home], { routines: true, project: "all" })[0])} data={data} open={jest.fn()} />,
   );
-  expect(row.getByRole("button", { name: "Launch planning" })).toHaveStyle({ paddingVertical: 7 });
+  expect(row.getByRole("button", { name: "Launch planning" })).toHaveStyle({ paddingVertical: 9 });
   await row.unmount();
 });
 

@@ -743,6 +743,10 @@ export const en = {
   waitingShow: "Show queued messages",
   waitingHide: "Hide queued messages",
   waitingOptions: "Send now, edit, move or remove it",
+  stateDone: "Done",
+  stateRunning: "Running",
+  stateDropped: "Dropped",
+  statePending: "Pending",
 } as const;
 
 export type Key = keyof typeof en;

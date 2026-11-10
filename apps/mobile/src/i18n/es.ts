@@ -748,4 +748,8 @@ export const es: Record<Key, string> = {
   waitingShow: "Mostrar mensajes en cola",
   waitingHide: "Ocultar mensajes en cola",
   waitingOptions: "Enviarlo ahora, editarlo, moverlo o quitarlo",
+  stateDone: "Listo",
+  stateRunning: "Corriendo",
+  stateDropped: "Descartada",
+  statePending: "Pendiente",
 };

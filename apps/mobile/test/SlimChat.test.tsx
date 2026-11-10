@@ -1,10 +1,16 @@
 import { fireEvent, render, waitFor } from "@testing-library/react-native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
-import type { Thread } from "../src/hooks/useWorkspace";
+import type { InboxItem } from "../src/hooks/inboxItems";
+import { emptyWorkspace, type Task, type Thread } from "../src/hooks/useWorkspace";
 import { t } from "../src/i18n";
+import { InboxPage } from "../src/pages/InboxPage";
+import { rowState } from "../src/pages/InboxRows";
 import type { Message, RoutineRun } from "../src/protocol";
 import { QueueTray } from "../src/ui/chat/QueueTray";
 import { RoutineRunsSheet } from "../src/ui/chat/RoutineRunsSheet";
+
+// Agents' faces and contacts' pictures come through the media cache, which needs the phone's gallery module.
+jest.mock("../src/chat/mediaFiles", () => ({}));
 
 const metrics = { frame: { x: 0, y: 0, width: 390, height: 844 }, insets: { top: 20, right: 0, bottom: 20, left: 0 } };
 const mount = (children: React.ReactNode) =>
@@ -90,5 +96,43 @@ test("a routine's run picker lists its runs, marks the one on screen and switche
   expect(ui.getByText(t("inboxFailed"))).toBeVisible();
   await fireEvent.press(ui.getByText("Told in yesterday"));
   await waitFor(() => expect(onPick).toHaveBeenCalledWith("yesterday"));
+  await ui.unmount();
+});
+
+test("a task or routine row says where it stands; a run in progress reads as running", () => {
+  expect(rowState("routine", { busy: false, waiting: false, failed: false }).label).toBe("stateDone");
+  expect(rowState("routine", { busy: true, waiting: false, failed: true }).label).toBe("stateRunning");
+  expect(rowState("routine", { busy: false, waiting: false, failed: true }).label).toBe("inboxFailed");
+  const task = { state: "open", status: "todo", awaits_owner: false } as unknown as Task;
+  expect(rowState("task", { task, busy: false, waiting: false, failed: false }).label).toBe("statePending");
+  expect(rowState("task", { task, busy: false, waiting: true, failed: false }).label).toBe("waitsForYou");
+  expect(
+    rowState("task", { task: { ...task, state: "dropped" }, busy: true, waiting: false, failed: false }).label,
+  ).toBe("stateDropped");
+});
+
+test("a notice with no chat to open shows one button to clear it", async () => {
+  const item: InboxItem = {
+    id: "n1",
+    label: "inboxMessage",
+    tone: "brand",
+    context: "",
+    at: "2026-11-09T10:00:00Z",
+    title: "Someone wants to talk",
+    primary: { label: "done", action: { kind: "dismiss" } },
+    secondary: { label: "done", action: { kind: "dismiss" } },
+  };
+  const ui = await mount(
+    <InboxPage
+      data={emptyWorkspace}
+      items={[item]}
+      open={jest.fn()}
+      read={jest.fn(async () => {})}
+      respond={jest.fn(async () => {})}
+      rerun={jest.fn(async () => {})}
+      continueSession={jest.fn(async () => {})}
+    />,
+  );
+  expect(ui.getAllByRole("button", { name: t("done") })).toHaveLength(1);
   await ui.unmount();
 });
