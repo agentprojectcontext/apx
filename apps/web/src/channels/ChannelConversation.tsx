@@ -22,7 +22,7 @@ import { useData } from "../data/state.ts";
 import { useT } from "../i18n/index.ts";
 import { EmailCard, MediaGroup, ReceivedMail } from "../lazy.ts";
 import { go } from "../shell/nav.ts";
-import { addressText, ContactFace } from "./ContactRow.tsx";
+import { addressText, ContactFace, ContactFlags, useContactFlags } from "./ContactRow.tsx";
 import { KindIcon } from "./KindIcon.tsx";
 import { CHANNEL_KINDS } from "./kinds.ts";
 import { DeliveryTicks, ReactionList } from "./MessageMarks.tsx";
@@ -107,6 +107,7 @@ export function ChannelConversation(props: {
     person?.relation ? t(RELATION_KEY[person.relation]) : undefined,
   ].filter(Boolean);
   const address = addressText(channel.type, person, channel.id);
+  const flags = useContactFlags(person, channel.id);
   // Only WhatsApp can send old messages again (the owner's phone keeps them).
   const lostFiles =
     channel.type === "whatsapp" &&
@@ -147,7 +148,12 @@ export function ChannelConversation(props: {
           <ContactFace person={person} name={name} presence={props.presence} />
           <span className="chan__titles">
             <span className="chan__name">{name}</span>
-            <span className="chan__meta">{meta.join(" · ")}</span>
+            {(meta.length > 0 || flags.length > 0) && (
+              <span className="chan__metaline">
+                {meta.length > 0 && <span className="chan__meta">{meta.join(" · ")}</span>}
+                <ContactFlags flags={flags} />
+              </span>
+            )}
           </span>
         </button>
         {lostFiles && (
@@ -160,17 +166,6 @@ export function ChannelConversation(props: {
             onClick={() => void recover()}
           >
             {t("ch.recover")}
-          </Button>
-        )}
-        {/* A forgotten contact has no card left to open. */}
-        {person && (
-          <Button
-            size="sm"
-            variant={props.card ? "secondary" : "ghost"}
-            leadingIcon={<Icons.User size={14} />}
-            onClick={props.onToggleCard}
-          >
-            {t("ch.contact")}
           </Button>
         )}
       </header>

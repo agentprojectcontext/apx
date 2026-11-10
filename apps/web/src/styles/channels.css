@@ -369,6 +369,21 @@
 .chan__who .chan__meta {
   display: block;
 }
+/* Under the name: what they are, then the marks of what is set for them. */
+.chan__metaline {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+.chan__metaline .chan__meta {
+  min-width: 0;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.chan__metaline .chan__flags {
+  margin-left: 0;
+}
 .chan__nobody {
   padding: 12px;
   color: var(--apx-fg-subtle);
@@ -1328,12 +1343,13 @@
   font-size: var(--apx-text-xs);
   line-height: 1.4;
 }
-/* A mail sender's card: stop reading them, or their whole domain. */
-.chan__neverread {
+/* Settings on a contact's card that apply at once: silenced, supervised, a mail sender never read again. */
+.chan__switches {
   display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
 }
-.chan__neverread > * {
-  max-width: 100%;
+.chan__switches label {
+  overflow-wrap: anywhere;
 }

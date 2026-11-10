@@ -4,7 +4,6 @@ import type { MessageKey } from "./en.ts";
 export const esChannelsSlim: Partial<Record<MessageKey, string>> = {
   "ch.rel.lead": "Lead",
   "ch.relation.hint": "Qué es de vos: cambia cómo le habla el agente",
-  "ch.relation.clear": "Otro clic lo quita",
   "ch.who.placeholder": "Ej.: dueño de la panadería del centro",
   "ch.rules.placeholder": "Ej.: no pasarle precios sin consultarme",
   "ch.answers": "Atiende",

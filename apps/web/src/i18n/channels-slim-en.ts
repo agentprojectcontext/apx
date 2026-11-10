@@ -2,7 +2,6 @@
 export const enChannelsSlim = {
   "ch.rel.lead": "Lead",
   "ch.relation.hint": "How they relate to you: it shapes how the agent talks to them",
-  "ch.relation.clear": "Click again to clear it",
   "ch.who.placeholder": "E.g.: owns the bakery downtown",
   "ch.rules.placeholder": "E.g.: no prices without asking me first",
   "ch.answers": "Answers",
