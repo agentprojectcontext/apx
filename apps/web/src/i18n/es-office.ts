@@ -350,6 +350,7 @@ export const esOffice: Partial<Record<MessageKey, string>> = {
   "attention.aria": "{n} avisos para vos",
   "attention.readAll": "Marcar todo leído",
   "attention.empty": "Nada te está esperando.",
+  "attention.muteEvent": "No avisarme más de este evento",
   "attention.kind.input": "Necesita tu OK",
   "attention.kind.task": "Tarea que te espera",
   "attention.kind.routine": "Rutina",

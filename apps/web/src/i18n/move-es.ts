@@ -86,6 +86,7 @@ export const esMove: Record<keyof typeof enMove, string> = {
   "move.setting.email_signatures": "Firmas de email",
   "move.setting.email_signature_default": "Firma por defecto",
   "move.setting.calendar_reminders": "Recordatorios del calendario",
+  "move.setting.calendar_muted": "Eventos del calendario sin aviso",
   "move.setting.mail_check": "Revisión del correo",
   "move.setting.other": "Una preferencia",
 };

@@ -15,6 +15,7 @@ import {
   ImageDefaults,
   MemorySettings,
   ModelChoice,
+  MutedEvent,
   NoticePrefs,
   Organization,
   ProviderInfo,
@@ -134,6 +135,8 @@ export const SETTINGS = {
     }),
     { enabled: false, lead_min: CALENDAR_LEAD.default, every_min: CHECK_EVERY.default },
   ),
+  /** Google Calendar's events (a whole series, for a recurring one) the owner is not reminded of; the latest last. */
+  calendar_muted: entry(z.array(MutedEvent).catch([]), []),
   /** Gmail's mail check: off, every 5 minutes, any mail outside ads and social until the owner chooses. */
   mail_check: entry(
     z.object({

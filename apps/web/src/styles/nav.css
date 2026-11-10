@@ -219,6 +219,17 @@
   color: var(--apx-fg);
   text-align: left;
 }
+.attention__item {
+  display: flex;
+  flex-direction: column;
+}
+.attention__item > .attention__row {
+  width: 100%;
+}
+/* Under the text, past the row's icon: 8px padding + 28px icon + 10px gap. */
+.attention__actions {
+  padding: 0 8px 6px 46px;
+}
 .attention__row:hover {
   background: var(--apx-fill-hover);
 }

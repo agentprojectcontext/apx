@@ -265,6 +265,10 @@ export const esResources: Partial<Record<MessageKey, string>> = {
   "int.cal.unit.min": "Minutos",
   "int.cal.unit.h": "Horas",
   "int.cal.unit.d": "Días",
+  "int.cal.muted": "Eventos de los que no te aviso",
+  "int.cal.mutedHint": "Los apagaste desde un aviso, con todas sus fechas siguientes.",
+  "int.cal.untitled": "Evento sin título",
+  "int.cal.unmute": "Volver a avisarme",
   "int.mail.title": "Mails nuevos",
   "int.mail.check": "Avisarme de los mails nuevos",
   "int.mail.checkHint":

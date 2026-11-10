@@ -169,3 +169,15 @@ test("a delegated session a limit stopped offers Continue on its card; other age
   assert.deepEqual(stuck?.secondary.action, { kind: "open", thread: "th_sub" });
   assert.notEqual(items.find((i) => i.id === "notice:news")?.primary.label, "delegationContinue");
 });
+
+test("a calendar event's reminder offers to stop that event's reminders, for its whole series", () => {
+  const [item] = inboxItems(
+    data({ notices: [notice("n1", { kind: "due", title: "Merienda", body: "At 17:00", ref: "event:merienda" })] }),
+  );
+  assert.equal(item?.label, "inboxEvent");
+  assert.deepEqual(item?.primary, { label: "done", action: { kind: "dismiss" } });
+  assert.deepEqual(item?.secondary, {
+    label: "muteEvent",
+    action: { kind: "muteEvent", series: "merienda", title: "Merienda" },
+  });
+});

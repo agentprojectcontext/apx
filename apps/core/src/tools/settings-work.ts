@@ -262,10 +262,15 @@ export const WORK: Readonly<Record<string, Setting>> = {
     says: (p, { store }) => `Turn the MCP server ${str(p.server)} ${on(p.on)} in ${projectName(store, p.project)}`,
   },
   "integrations.settings": {
-    does: "an integration's own settings (id; google-calendar: event reminders on or off, how many minutes before and every how many minutes Calendar is looked at; gmail: the mail check on or off, every how many minutes, important mail only)",
+    does: "an integration's own settings (id; google-calendar: event reminders on or off, how many minutes before, every how many minutes Calendar is looked at, and the events muted; gmail: the mail check on or off, every how many minutes, important mail only)",
     read: (p, { store }) =>
       str(p.id) === "google-calendar"
-        ? `event reminders: ${JSON.stringify(store.settings.read("calendar_reminders"))}`
+        ? `event reminders: ${JSON.stringify(store.settings.read("calendar_reminders"))}\nmuted events: ${
+            store.settings
+              .read("calendar_muted")
+              .map((m) => `${inlineName(m.title || m.series)} [${m.series}]`)
+              .join(", ") || "none"
+          }`
         : str(p.id) === "gmail"
           ? `mail check: ${JSON.stringify(store.settings.read("mail_check"))}`
           : "no settings of its own",
@@ -289,6 +294,15 @@ export const WORK: Readonly<Record<string, Setting>> = {
         : str(p.id) === "gmail"
           ? { id: p.id, mail: store.settings.read("mail_check") }
           : undefined,
+  },
+  "integrations.mute_event": {
+    does: "stop or resume reminders of a Google Calendar event and the rest of its series (series: the event's series, or its id when it has none; title; muted)",
+    says: (p) => `${p.muted ? "Stop" : "Resume"} reminders of ${inlineName(str(p.title) || str(p.series))}`,
+    named: ["series", "title"],
+    now: (p, { store }) => ({
+      series: p.series,
+      muted: store.settings.read("calendar_muted").some((m) => m.series === str(p.series)),
+    }),
   },
   "extensions.enable": {
     does: "turn an installed extension on or off (id, enabled)",

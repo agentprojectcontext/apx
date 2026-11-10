@@ -347,6 +347,7 @@ export const enOffice = {
   "attention.aria": "{n} notices for you",
   "attention.readAll": "Mark all read",
   "attention.empty": "Nothing waiting for you.",
+  "attention.muteEvent": "Don't remind me of this event",
   "attention.kind.input": "Needs your OK",
   "attention.kind.task": "Task waiting for you",
   "attention.kind.routine": "Routine",

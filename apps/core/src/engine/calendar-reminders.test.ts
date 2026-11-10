@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { after, before, test } from "node:test";
+import { setMuted } from "../domain/calendar-muted.ts";
 import { officeScheduler } from "../office-wiring.ts";
 import { waitFor } from "../testkit/platform.ts";
 import type { Attention } from "./attention.ts";
@@ -44,6 +45,25 @@ test("a moved event is told again at its new time, and what started leaves the r
   assert.deepEqual(after.told, {}, "both starts are past");
 });
 
+test("a muted series is never due, nor any single event muted by its id", () => {
+  const due = dueEvents(
+    [
+      ev("merienda_0504", "2026-05-04T18:00:00-03:00", { series: "merienda", title: "Merienda" }),
+      ev("dentist", "2026-05-04T18:05:00-03:00"),
+      ev("call", "2026-05-04T18:10:00-03:00"),
+    ],
+    {},
+    now,
+    60,
+    new Set(["merienda", "dentist"]),
+  );
+  assert.deepEqual(
+    due.due.map((e) => e.id),
+    ["call"],
+  );
+  assert.deepEqual(Object.keys(due.told), ["call@2026-05-04T18:10:00-03:00"], "a muted one is not even kept as told");
+});
+
 test("all-day, declined and cancelled events are never reminded", () => {
   const due = dueEvents(
     [
@@ -64,6 +84,7 @@ let connected = false;
 const calendar: CalendarEvent[] = [];
 const asked: Array<{ from: string; to: string }> = [];
 const sent: string[] = [];
+const tray: Array<{ title: string; body?: string; ref?: string }> = [];
 let office: ReturnType<typeof officeScheduler>;
 
 before(async () => {
@@ -78,7 +99,7 @@ before(async () => {
     admit: () => {
       throw new Error("no runs here");
     },
-    attention: { add() {} } as unknown as Attention,
+    attention: { add: (n: (typeof tray)[number]) => tray.push(n) } as unknown as Attention,
     notifyOwner: (body) => {
       sent.push(body.text);
       return true;
@@ -93,7 +114,7 @@ before(async () => {
             return calendar.filter((e) => (e.start ?? "") >= from && (e.start ?? "") <= to);
           },
         },
-        remind: (texts) => remind(texts, "event"),
+        remind,
       }),
     ],
     log: { info() {}, warn() {}, error() {}, debug() {} } as never,
@@ -157,4 +178,34 @@ test("Calendar is looked at as often as the owner chose, and never less often th
   env.core.store.settings.write("calendar_reminders", { enabled: true, lead_min: 5, every_min: 60 });
   await looks(5);
   assert.equal(await looks(30), 6, "an hour apart would miss events: every five minutes, the lead time");
+});
+
+test("each event is its own tray notice, named by its series, and a muted series is never told again", async () => {
+  connected = true;
+  env.core.store.settings.write("calendar_reminders", { enabled: true, lead_min: 30, every_min: 1 });
+  const before = sent.length;
+  tray.length = 0;
+  calendar.length = 0;
+  const day = (d: number) => new Date(clock.getTime() + d * 86_400_000 + 20 * 60_000).toISOString();
+  calendar.push(
+    ev("merienda_1", day(0), { series: "merienda", title: "Merienda" }),
+    ev("standup", day(0), { title: "Standup" }),
+    ev("merienda_2", day(1), { series: "merienda", title: "Merienda" }),
+  );
+  step(1);
+  await beat();
+  await waitFor(() => sent.length === before + 1, "one message for both");
+  assert.deepEqual(
+    tray.map((n) => [n.title, n.ref]),
+    [
+      ["Merienda", "event:merienda"],
+      ["Standup", "event:standup"],
+    ],
+  );
+  setMuted(env.core.store, { series: "merienda", title: "Merienda", muted: true }, clock);
+  step(24 * 60);
+  await beat();
+  await waitFor(() => asked.at(-1)?.to === minutes(30), "the next day's look");
+  assert.equal(sent.length, before + 1, "the next Merienda is not told");
+  assert.equal(tray.length, 2);
 });

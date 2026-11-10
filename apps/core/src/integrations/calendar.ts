@@ -7,6 +7,7 @@ const ID = "google-calendar" as const;
 
 type GEvent = {
   id?: string;
+  recurringEventId?: string;
   summary?: string;
   description?: string;
   location?: string;
@@ -27,6 +28,8 @@ type GEvent = {
 
 export type CalendarEvent = {
   id: string;
+  /** The recurring series this occurrence belongs to. */
+  series?: string;
   title: string;
   start: string | undefined;
   end: string | undefined;
@@ -48,6 +51,7 @@ export function flattenEvent(e: GEvent): CalendarEvent {
   );
   return {
     id: e.id ?? "",
+    ...(e.recurringEventId ? { series: e.recurringEventId } : {}),
     title: e.summary || "(no title)",
     start: e.start?.dateTime ?? e.start?.date,
     end: e.end?.dateTime ?? e.end?.date,

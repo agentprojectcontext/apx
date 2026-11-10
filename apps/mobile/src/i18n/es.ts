@@ -165,6 +165,8 @@ export const es: Record<Key, string> = {
   inboxQuestion: "Pregunta",
   inboxBlocked: "Necesita tu revisión",
   inboxDue: "Vence",
+  inboxEvent: "Evento",
+  muteEvent: "No avisarme más de este evento",
   inboxFailed: "Falló",
   routineRuns: "{n} ejecuciones",
   routineRunsOne: "1 ejecución",

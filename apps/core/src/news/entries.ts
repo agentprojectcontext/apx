@@ -15,6 +15,7 @@ import { CHANNEL_AGENTS_NEWS } from "./channel-agents.ts";
 import { CHROME_TABS_NEWS } from "./chrome-tabs.ts";
 import { COMPUTER_POINTER_NEWS } from "./computer-pointer.ts";
 import { CONTACT_AGENT_NEWS } from "./contact-agent.ts";
+import { EVENT_MUTE_NEWS } from "./event-mute.ts";
 import { EXTERNAL_SESSIONS_NEWS } from "./external-sessions.ts";
 import { HERMES_IMPORT_NEWS } from "./hermes-import.ts";
 import { LOCAL_MODELS_NEWS } from "./local-models.ts";
@@ -72,6 +73,8 @@ export type NewsFacts = {
   projects?: number;
   /** A channel reads at least one room (a Discord channel, a group). */
   rooms?: boolean;
+  /** Google Calendar's event reminders are on. */
+  eventReminders?: boolean;
 };
 
 export type NewsAction = {
@@ -97,6 +100,7 @@ export type NewsEntry = {
 };
 
 export const NEWS: readonly NewsEntry[] = [
+  EVENT_MUTE_NEWS,
   SUBPROJECTS_NEWS,
   ROOM_HANDOFF_NEWS,
   ACTIVITY_REVIEW_NEWS,
@@ -1250,6 +1254,7 @@ export const newsFacts = (store: Store, o: { hermes?: boolean; storeSize?: Store
   contacts: store.persons.list().some((p) => p.role !== "owner" && p.role !== "blocked" && p.addresses.length > 0),
   channels: store.settings.read("channels").length,
   rooms: store.settings.read("channels").some((c) => (c.rooms?.rooms.length ?? 0) > 0),
+  eventReminders: signedIn(store, "google-calendar") && store.settings.read("calendar_reminders").enabled,
   email: store.settings.read("channels").some((c) => c.type === "email" && c.email !== undefined),
   integrations: connectedIntegrations(store),
   computer: computerHost() !== undefined && store.projects.list().length > 0,

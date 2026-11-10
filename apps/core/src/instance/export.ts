@@ -50,6 +50,7 @@ export const MOVED_SETTINGS = [
   "email_signatures",
   "email_signature_default",
   "calendar_reminders",
+  "calendar_muted",
   "mail_check",
 ] as const satisfies readonly SettingKey[];
 /** Of those, the ones that act through a sign-in (Google): they arrive off. */

@@ -161,6 +161,8 @@ export const en = {
   inboxQuestion: "Question",
   inboxBlocked: "Needs your review",
   inboxDue: "Due",
+  inboxEvent: "Event",
+  muteEvent: "Don't remind me of this event",
   inboxFailed: "Failed",
   routineRuns: "{n} executions",
   routineRunsOne: "1 execution",

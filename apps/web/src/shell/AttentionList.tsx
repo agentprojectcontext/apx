@@ -3,12 +3,14 @@ import { AgentAvatar, Button, EngineIcon, Icons } from "@apx/ui";
 import { useMemo } from "react";
 import { shortWhen } from "../common/format.ts";
 import { pairingChannel } from "../data/channels.ts";
+import { client } from "../data/client.ts";
 import { blobOf, DEFAULT_PID, projectName, threadAgent } from "../data/identity.ts";
+import { notify } from "../data/notices.ts";
 import { readNotifications, useAttention } from "../data/notifications.ts";
 import { useData } from "../data/state.ts";
 import { useT } from "../i18n/index.ts";
 import { go } from "./nav.ts";
-import { noticeTask } from "./noticeTarget.ts";
+import { noticeEvent, noticeTask } from "./noticeTarget.ts";
 
 const KIND_ICON: Record<Notification["kind"], typeof Icons.Bell> = {
   input: Icons.Hand,
@@ -26,6 +28,8 @@ function openNotice(n: Notification): void {
   if (n.kind !== "input") void readNotifications([n.id]);
   const task = noticeTask(n);
   if (task) go.task(task);
+  // A calendar reminder has nothing to open here: reading it is all.
+  else if (noticeEvent(n)) return;
   else if (n.kind === "task" || n.kind === "due") go.view("tasks");
   else if (n.thread_id) go.inboxThread(n.thread_id);
   else if (n.kind === "channel" && n.ref?.startsWith("pairing:")) {
@@ -79,8 +83,40 @@ export function AttentionList({ onOpened }: { onOpened: () => void }) {
   );
 }
 
-/** A notice: who it comes from, what happened and when, the text in two lines, then who · project. */
+/** Stops reminders of a calendar event and the rest of its series; its notice leaves the tray. */
+async function muteEvent(series: string, title: string, failed: (error: string) => string): Promise<void> {
+  try {
+    await client.call("integrations.mute_event", { series, title, muted: true });
+  } catch (e) {
+    notify(failed(e instanceof Error ? e.message : String(e)));
+  }
+}
+
+/**
+ * A notice: who it comes from, what happened and when, the text in two lines, then who · project. A calendar
+ * reminder can be told not to come again.
+ */
 function NoticeRow({ notice: n, onOpen }: { notice: Notification; onOpen: () => void }) {
+  const t = useT();
+  const series = noticeEvent(n);
+  if (!series) return <NoticeButton notice={n} onOpen={onOpen} />;
+  return (
+    <div className="attention__item">
+      <NoticeButton notice={n} onOpen={onOpen} />
+      <div className="attention__actions">
+        <Button
+          size="sm"
+          variant="ghost"
+          onClick={() => void muteEvent(series, n.title, (error) => t("error.change", { error }))}
+        >
+          {t("attention.muteEvent")}
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+function NoticeButton({ notice: n, onOpen }: { notice: Notification; onOpen: () => void }) {
   const t = useT();
   const thread = useData((s) => (n.thread_id ? s.threads[n.thread_id] : undefined));
   const agent = useData((s) => threadAgent(thread, s.agents));
