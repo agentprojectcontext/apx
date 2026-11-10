@@ -27,12 +27,14 @@ for (const language of ["es-AR", "en-US"]) {
       for (const width of [1440, 390]) {
         await page.setViewportSize({ width, height: 900 });
         await open(page, `#thread=${thread.id}&panel=processes`);
-        const row = page.locator(".procs__row");
+        await page.locator(".processes .jobs__fold").click();
+        const row = page.locator(".processes .job.is-terminal");
         await expect(row).toContainText(label);
-        await row.click();
-        await expect(page.locator(".procs__head")).toContainText(label);
-        await expect(page.locator(".procs__out")).toContainText("null bytes");
-        await expect(page.locator(".procs__view").getByRole("button")).toHaveCount(0);
+        await row.locator(".job__main").click();
+        await expect(row.locator(".job__output")).toContainText("null bytes");
+        await expect(
+          row.getByRole("button", { name: language === "es-AR" ? "Detener" : "Stop", exact: true }),
+        ).toHaveCount(0);
         await info.attach(`terminal-${language}-${width}`, {
           body: await page.screenshot({ path: info.outputPath(`terminal-${language}-${width}.png`) }),
           contentType: "image/png",
