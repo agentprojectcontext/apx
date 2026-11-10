@@ -351,6 +351,25 @@ button.chatprocesses {
   font-size: 11px;
   color: var(--apx-fg-subtle);
 }
+.inbox__tabname {
+  position: relative;
+}
+/* News in a tab not shown: a dot over the end of its name. */
+.inbox__tabnews {
+  position: absolute;
+  top: -1px;
+  right: -6px;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--apx-brand);
+}
+.inbox__tabwork {
+  display: inline-grid;
+  place-items: center;
+  margin-left: 4px;
+  color: var(--apx-brand-soft-fg);
+}
 .inboxsec {
   display: flex;
   flex-direction: column;

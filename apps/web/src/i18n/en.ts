@@ -507,6 +507,8 @@ export const en = {
   "inbox.tab.chats": "Chats",
   "inbox.tab.tasks": "Tasks",
   "inbox.tab.routines": "Routines",
+  "inbox.tabNews": "New messages",
+  "inbox.tabWorking": "Something is running",
   "inbox.pinned": "Pinned",
   "inbox.recent": "Recent",
   "inbox.tabEmpty.tasks": "No task chats here yet",
