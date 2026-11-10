@@ -785,6 +785,7 @@ export const es: Partial<Record<MessageKey, string>> = {
   "terminal.stopped": "Detenido",
   "terminal.exit": "Salió con {code}",
   "terminal.done": "Terminó",
+  "terminal.startFailed": "No se pudo iniciar",
   "terminal.background": "Segundo plano",
   "terminal.stop": "Detener",
   "terminal.exitedLine": "[la terminal terminó con {code}]",

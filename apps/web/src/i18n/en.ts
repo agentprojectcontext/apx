@@ -786,6 +786,7 @@ export const en = {
   "terminal.stopped": "Stopped",
   "terminal.exit": "Exited with {code}",
   "terminal.done": "Done",
+  "terminal.startFailed": "Could not start",
   "terminal.background": "Background",
   "terminal.stop": "Stop",
   "terminal.exitedLine": "[the terminal ended with {code}]",

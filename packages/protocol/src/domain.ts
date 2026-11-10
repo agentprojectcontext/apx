@@ -845,6 +845,8 @@ export const Job = z.object({
   /** Terminal jobs: where the command runs, how it exited, and whether it was started in the background. */
   cwd: z.string().optional(),
   exit_code: z.number().int().optional(),
+  /** Terminal jobs that never started: the reason the process could not be created. */
+  start_error: z.string().optional(),
   background: z.boolean().optional(),
   started_at: z.string(),
   ended_at: z.string().optional(),

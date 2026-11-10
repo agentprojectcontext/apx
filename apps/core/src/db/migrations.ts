@@ -1202,4 +1202,5 @@ export const MIGRATIONS: readonly string[] = [
   ALTER TABLE runs ADD COLUMN trimmed INTEGER NOT NULL DEFAULT 0;
   CREATE INDEX runs_trimmed ON runs(trimmed, ended_at) WHERE ended_at IS NOT NULL;
   `,
+  `ALTER TABLE jobs ADD COLUMN start_error TEXT;`,
 ];
