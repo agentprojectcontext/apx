@@ -4,8 +4,9 @@ import { accountItems } from "../channels/accountMenu.tsx";
 import { KindTile } from "../channels/KindIcon.tsx";
 import { CHANNEL_KINDS, isChannelKind } from "../channels/kinds.ts";
 import { useT } from "../i18n/index.ts";
-import { onlyFilter, soleFilter, useInboxFilter } from "../inbox/inboxFilter.ts";
-import { go, useNav } from "./nav.ts";
+import { soleFilter, useInboxFilter } from "../inbox/inboxFilter.ts";
+import { openAccount } from "../inbox/openAccount.ts";
+import { useNav } from "./nav.ts";
 import { orderItems, SidebarNavRow } from "./SidebarNavRow.tsx";
 
 export function ChannelNavRow({
@@ -38,8 +39,7 @@ export function ChannelNavRow({
   const label = channel.label || (kind ? t(CHANNEL_KINDS[kind].name) : channel.id);
   const pick = () => {
     onClose();
-    onlyFilter("accounts", channel.id);
-    go.inbox();
+    openAccount(channel.id);
   };
   return (
     <SidebarNavRow

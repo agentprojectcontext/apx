@@ -64,3 +64,45 @@ test("email settings: own addresses typed, no Home or while-it-works choice, str
     await rpc("channels.set", { id, channel: null });
   }
 });
+
+test("a sender's card: never read the whole domain first, which covers the address too", async ({ page }) => {
+  const { id } = await rpc<{ id: string }>("channels.add", {
+    type: "email",
+    label: "Northwind sales",
+    email: {
+      address: "sales@northwind.example",
+      imap: { host: "127.0.0.1", port: 9, tls: "none" },
+      smtp: { host: "127.0.0.1", port: 9, tls: "none" },
+      mailbox: "INBOX",
+      allowed: [],
+      trust_unverified: false,
+    },
+    token: "app-password-0000",
+  });
+  try {
+    const sender = await rpc<{ id: string }>("contacts.set", { name: "Acme news" });
+    await rpc("contacts.address", { channel: id, address: "news@acme.example", person: sender.id });
+    await open(page, `#channel=${id}`);
+    await page
+      .locator(".chan__rows")
+      .getByRole("button", { name: /Acme news/ })
+      .click();
+    const card = page.getByRole("complementary", { name: "Contacto" });
+    if (!(await card.isVisible())) await page.getByRole("button", { name: "Abrir el contacto de Acme news" }).click();
+    const switches = card.locator(".chan__switches").last().getByRole("switch");
+    await expect(switches.first()).toHaveAccessibleName(/Todo lo de @acme\.example/);
+    const address = card.getByRole("switch", { name: "news@acme.example" });
+    await expect(address).not.toBeChecked();
+    await switches.first().click();
+    await expect(address).toBeChecked();
+    await expect(address).toBeDisabled();
+    await until(async () => {
+      const { channels } = await rpc<{ channels: Array<{ id: string; email?: { blocked?: string[] } }> }>(
+        "channels.list",
+      );
+      return channels.find((c) => c.id === id)?.email?.blocked?.includes("@acme.example") === true;
+    });
+  } finally {
+    await rpc("channels.set", { id, channel: null });
+  }
+});

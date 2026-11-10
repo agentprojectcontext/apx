@@ -289,7 +289,6 @@ function NeverRead({ person, account }: { person: Person; account: string }) {
   return (
     <CardField label={t("ch.neverRead")} hint={t("ch.neverReadHint")}>
       <div className="chan__switches">
-        <Switch size="sm" label={address} checked={on.address} onCheckedChange={(v) => void flip("address", v)} />
         {domain && (
           <Switch
             size="sm"
@@ -298,6 +297,14 @@ function NeverRead({ person, account }: { person: Person; account: string }) {
             onCheckedChange={(v) => void flip("domain", v)}
           />
         )}
+        {/* The whole domain already covers this address: it reads as skipped and is settled up there. */}
+        <Switch
+          size="sm"
+          label={address}
+          checked={on.domain || on.address}
+          disabled={on.domain}
+          onCheckedChange={(v) => void flip("address", v)}
+        />
       </div>
     </CardField>
   );
