@@ -5,8 +5,7 @@ import { SidebarTooltipButton } from "./SidebarNavRow.tsx";
 
 /**
  * A sidebar section folded into one row (the compact sidebar): its icon, name and count; resting on it or clicking it
- * opens its items beside it. A dot on the icon says something there waits to be read; one at the end, that something
- * is working.
+ * opens its items beside it. A dot on the icon says something there waits to be read or is working.
  */
 export function SidebarFlyout({
   rail,
@@ -58,12 +57,11 @@ export function SidebarFlyout({
         >
           <span className="apx-nav__icon sideflyout__icon">
             {icon}
-            {unread > 0 && <span className="sideflyout__alert" aria-hidden="true" />}
+            {(unread > 0 || running) && <span className="sideflyout__alert" aria-hidden="true" />}
           </span>
           {!rail && (
             <>
               <span className="apx-nav__label">{title}</span>
-              {running && <span className="sidebar__running" aria-hidden="true" />}
               {count != null && count > 0 && <span className="sideflyout__count">{count}</span>}
               <Icons.ChevronRight size={14} className="sideflyout__chev" />
             </>
