@@ -43,6 +43,7 @@ export function ProjectsNav({ rail, compact = false }: { rail: boolean; compact?
   const hidden = folded && !rail;
   const routines = usePrefs((s) => s.inboxRoutines);
   const rows = useSidebarRows("projects");
+  const entries = useMemo(() => projectEntries(projects), [projects]);
   const { shown, rest, running, unread, ordered } = useMemo(() => {
     const entries = projectEntries(projects);
     const live = Object.values(threads).filter(isListed);
@@ -129,6 +130,7 @@ export function ProjectsNav({ rail, compact = false }: { rail: boolean; compact?
         () => setMoreOpen(false),
         unread.get(p.id),
         () => setAdding(p.id),
+        moveTargets(entries, p),
       )}
       key={p.id}
       rail={rail && !onPick}
@@ -219,4 +221,13 @@ export function ProjectsNav({ rail, compact = false }: { rail: boolean; compact?
       </Suspense>
     </>
   );
+}
+
+/**
+ * Where a project can go as a subproject: a project that is not a subproject itself, other than it and its parent.
+ * None for the base project or a project with subprojects of its own (the core refuses both).
+ */
+function moveTargets(entries: readonly ProjectEntry[], project: ProjectEntry): ProjectEntry[] {
+  if (project.isDefault || entries.some((e) => e.parent === project.id)) return [];
+  return entries.filter((e) => e.id !== project.id && !e.parent && e.id !== project.parent);
 }

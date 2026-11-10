@@ -180,10 +180,11 @@ from.
 
 With no `--path`, a subproject's folder goes inside its parent's (`acme-store/acme-site`); a subproject of the base
 project (`--parent base`) goes in APX's own folder, like any project without one. `apx projects set <project>
---parent <project>` moves a project of its own under another. It can't be a project that has subprojects, the
-project itself, or another subproject.
+--parent <project>` moves a project of its own under another, and so does **Move into** in its menu in the sidebar
+(right click or "···"), which lists the projects it can go into, the base project included. It can't be a project
+that has subprojects, the project itself, or another subproject.
 
-To **make a subproject a project of its own** again, run `apx projects detach <project>` (or `apx projects set
+To **make a subproject a project of its own** again, pick **Make it a project of its own** in its menu, or run `apx projects detach <project>` (or `apx projects set
 <project> --parent none`). It keeps its folder, agents, chats and memory, and stops taking its parent's agents and
 resources. Removing a parent from APX leaves each of its subprojects as a project of its own. Which project is whose
 parent is kept by APX, never in the folders.

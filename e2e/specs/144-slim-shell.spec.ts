@@ -72,7 +72,7 @@ test("Routines lists every project's routines, grouped and filtered", async ({ p
   await expect(page).toHaveURL(/view=routines/);
 });
 
-test("a subproject shows its project, works with its agents and can become a project of its own", async ({ page }) => {
+test("a subproject shows its project, can become a project of its own and move into one again", async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 });
   await open(page, `#project=${web.id}&tab=overview`);
   await expect(page.locator(".project__parent")).toHaveText("Northwind slim");
@@ -85,6 +85,17 @@ test("a subproject shows its project, works with its agents and can become a pro
   await expect(page.locator(".project__parent")).toHaveCount(0);
   const { projects } = await rpc<{ projects: Project[] }>("projects.list");
   expect(projects.find((p) => p.id === web.id)?.parent).toBeUndefined();
+
+  // And back: any project without subprojects of its own moves into another from its menu.
+  await page.locator(".sidebar").getByRole("button", { name: "Proyectos", exact: true }).hover();
+  await expect(flyout).toBeVisible();
+  await flyout.getByText("Web slim", { exact: true }).click({ button: "right" });
+  await page.getByRole("menuitem", { name: "Mover dentro de" }).hover();
+  await page.getByRole("menuitem", { name: "Northwind slim" }).click();
+  await expect(page.getByText("Web slim ahora es subproyecto de Northwind slim")).toBeVisible();
+  await expect(page.locator(".project__parent")).toHaveText("Northwind slim");
+  const after = await rpc<{ projects: Project[] }>("projects.list");
+  expect(after.projects.find((p) => p.id === web.id)?.parent).toBe(northwind.id);
 });
 
 test("New chat at the top of the sidebar opens the agent picker", async ({ page }) => {

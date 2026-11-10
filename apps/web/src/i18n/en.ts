@@ -383,6 +383,8 @@ export const en = {
   "project.newSub": "New subproject",
   "project.detach": "Make it a project of its own",
   "project.detached": "{name} is a project of its own now",
+  "project.moveUnder": "Move into",
+  "project.movedUnder": "{name} is now a subproject of {parent}",
   "project.subOf": "Subproject of {name}",
   "project.subHint":
     "Works with the agents, skills, MCP servers and variables of {name}. Its chats, tasks, routines, artifacts, files and memory are its own.",

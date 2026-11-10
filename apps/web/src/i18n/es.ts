@@ -374,6 +374,8 @@ export const es: Partial<Record<MessageKey, string>> = {
   "project.newSub": "Nuevo subproyecto",
   "project.detach": "Separar en un proyecto aparte",
   "project.detached": "{name} ahora es un proyecto aparte",
+  "project.moveUnder": "Mover dentro de",
+  "project.movedUnder": "{name} ahora es subproyecto de {parent}",
   "project.subOf": "Subproyecto de {name}",
   "project.subHint":
     "Trabaja con los agentes, skills, servidores MCP y variables de {name}. Sus chats, tareas, rutinas, artefactos, archivos y memoria son propios.",
