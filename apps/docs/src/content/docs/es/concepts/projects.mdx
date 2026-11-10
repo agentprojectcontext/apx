@@ -183,10 +183,11 @@ viene.
 
 Sin `--path`, la carpeta de un subproyecto va dentro de la del padre (`acme-store/acme-site`); un subproyecto del
 proyecto base (`--parent base`) va en la carpeta de APX, como cualquier proyecto sin carpeta. `apx projects set
-<project> --parent <project>` mueve un proyecto aparte adentro de otro. No puede ser un proyecto que ya tiene
-subproyectos, el mismo proyecto ni otro subproyecto.
+<project> --parent <project>` mueve un proyecto aparte adentro de otro, y también **Mover dentro de** en su menú de
+la barra lateral (clic derecho o "···"), que lista los proyectos a los que puede ir, el base incluido. No puede ser un
+proyecto que ya tiene subproyectos, el mismo proyecto ni otro subproyecto.
 
-Para **separarlo en un proyecto aparte**, corré `apx projects detach <project>` (o `apx projects set <project>
+Para **separarlo en un proyecto aparte**, elegí **Separar en un proyecto aparte** en su menú, o corré `apx projects detach <project>` (o `apx projects set <project>
 --parent none`). Conserva su carpeta, sus agentes, sus chats y su memoria, y deja de tomar los agentes y recursos del
 padre. Si quitás un padre de APX, cada subproyecto suyo queda como proyecto aparte. Qué proyecto es padre de cuál lo
 guarda APX, nunca las carpetas.

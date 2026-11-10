@@ -21,6 +21,12 @@ async function detachProject(project: ProjectEntry, t: T): Promise<void> {
     notify(t("project.detached", { name: project.name }), "info");
 }
 
+/** Makes a project a subproject of another: it works with that project's agents and resources from then on. */
+async function moveUnder(project: ProjectEntry, parent: ProjectEntry, t: T): Promise<void> {
+  if (await updateProject({ project: project.id, parent: parent.id }))
+    notify(t("project.movedUnder", { name: project.name, parent: parent.name }), "info");
+}
+
 /** The same project actions from either the row's overflow or its context menu. */
 export function projectNavMenu(
   project: ProjectEntry,
@@ -32,6 +38,8 @@ export function projectNavMenu(
   unread: readonly string[] = [],
   /** "New subproject" (a project that is not one itself). */
   onNewSub?: () => void,
+  /** Where it can go as a subproject (none for the base project or one with subprojects of its own). */
+  parents: readonly ProjectEntry[] = [],
 ): MenuEntry[] {
   return [
     {
@@ -59,6 +67,22 @@ export function projectNavMenu(
               onClose();
               onNewSub();
             },
+          },
+        ]
+      : []),
+    ...(parents.length
+      ? [
+          {
+            type: "submenu" as const,
+            label: t("project.moveUnder"),
+            icon: <Icons.FolderTree />,
+            items: parents.map((parent) => ({
+              label: parent.name,
+              onSelect: () => {
+                onClose();
+                void moveUnder(project, parent, t);
+              },
+            })),
           },
         ]
       : []),
