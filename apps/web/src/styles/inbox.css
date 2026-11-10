@@ -98,11 +98,12 @@
 .threadrow__preview {
   display: inline;
 }
+/* Working: the same quiet loader as the top bar's running count, not the brand colour of a state. */
 .threadrow__spin {
   display: inline-block;
   vertical-align: -2px;
   margin-right: 6px;
-  color: var(--apx-brand);
+  color: var(--apx-fg-muted);
 }
 .threadrow__waiting {
   color: var(--apx-warning-soft-fg);
@@ -118,7 +119,7 @@
   border: 0;
   border-radius: var(--apx-row-radius);
   background: var(--apx-fill-hover);
-  color: var(--apx-brand);
+  color: var(--apx-fg-muted);
   font: inherit;
   font-size: var(--apx-text-xs);
   vertical-align: middle;
@@ -240,9 +241,10 @@ button.chatprocesses {
   bottom: -2px;
 }
 /* Two lines per chat, like the Slim design: title, project and time; then who and what kind. */
+/* The face close to the row's edge and to its words, as the design has it. */
 .inbox .threadrow {
-  padding: 7px 10px;
-  gap: 10px;
+  padding: 7px 10px 7px 6px;
+  gap: 8px;
   border-radius: 10px;
 }
 .inbox .threadrow .apx-convrow__title {

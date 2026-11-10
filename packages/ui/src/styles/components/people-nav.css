@@ -9,6 +9,10 @@
   line-height: 1;
   user-select: none;
 }
+/* Initials are capitals: trimmed to their cap height they sit in the circle's optical centre, not above it. */
+.apx-avatar--initials > span {
+  text-box: trim-both cap alphabetic;
+}
 .apx-avatar__img {
   width: 100%;
   height: 100%;

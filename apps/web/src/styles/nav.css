@@ -336,16 +336,30 @@
 .sideflyout__icon {
   position: relative;
 }
+/* Its dot sits on the icon's corner: green inside a ring of the row's own background, drawn within the dot. */
+/* The ring is the sidebar with the row's state over it (hover and selection are see-through fills). */
+.sideflyout__row {
+  --dot-ring: transparent;
+}
+.sideflyout__row:hover {
+  --dot-ring: var(--apx-fill-hover);
+}
+.sideflyout__row.is-active {
+  --dot-ring: var(--apx-row-selected-bg);
+}
 .sideflyout__alert {
   position: absolute;
-  top: -3px;
-  right: -4px;
-  width: 8px;
-  height: 8px;
+  top: -4px;
+  right: -5px;
+  width: 10px;
+  height: 10px;
   border-radius: 50%;
   box-sizing: border-box;
-  border: 2px solid var(--apx-bg);
-  background: var(--apx-brand);
+  border: 1.5px solid transparent;
+  background:
+    linear-gradient(var(--apx-brand), var(--apx-brand)) padding-box,
+    linear-gradient(var(--dot-ring), var(--dot-ring)) border-box,
+    linear-gradient(var(--apx-sidebar), var(--apx-sidebar)) border-box;
 }
 .sideflyout__count {
   font-size: var(--apx-text-xs);

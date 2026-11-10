@@ -507,6 +507,9 @@
   line-height: 1;
   overflow: hidden;
 }
+.transcript__face > span {
+  text-box: trim-both cap alphabetic;
+}
 .transcript__face.has-picture {
   background: none;
 }

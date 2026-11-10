@@ -105,6 +105,8 @@
   display: inline-grid;
   place-items: center;
   flex-shrink: 0;
+  /* The browser's button padding would push the icon off-centre in the smaller sizes. */
+  padding: 0;
   border: 1px solid transparent;
   background: transparent;
   color: var(--apx-fg-muted);

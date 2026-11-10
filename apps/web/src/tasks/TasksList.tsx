@@ -8,6 +8,7 @@ import {
   Icons,
   ProjectTile,
   SegmentedControl,
+  Select,
   Spinner,
 } from "@apx/ui";
 import { type CSSProperties, type ReactNode, useEffect, useMemo, useState } from "react";
@@ -95,6 +96,8 @@ export function TasksList({
   const ready = useTasks((s) => s.ready);
   const runs = useData((s) => s.runs);
   const [kind, setKind] = useState<Kind>("all");
+  /** One group alone (every task of it, no "See more"), or every group. */
+  const [state, setState] = useState<GroupId | "all">("all");
   const open = useNav((s) => s.taskId);
   const setOpen = (taskId: string | undefined) => nav.set({ taskId });
   const [more, setMore] = useState<Set<GroupId>>(new Set());
@@ -134,7 +137,9 @@ export function TasksList({
   const { top, children } = useMemo(() => nestTasks(shown), [shown]);
   const filled = groupTasks(top, running);
   // While dragging every group is a place to drop, empty ones too.
-  const groups = drag ? GROUP_ORDER.map((id) => filled.find((g) => g.id === id) ?? { id, items: [] }) : filled;
+  const groups = drag
+    ? GROUP_ORDER.map((id) => filled.find((g) => g.id === id) ?? { id, items: [] })
+    : filled.filter((g) => state === "all" || g.id === state);
   // Only a task of this list opens beside it (a project's tab never shows another project's task).
   const current = open ? scoped.find((x) => x.id === open) : undefined;
   /** A task's row, then its subtasks' rows under it (while unfolded), indented a level each. */
@@ -201,6 +206,21 @@ export function TasksList({
               ]}
             />
           )}
+          <Select
+            size="sm"
+            className="tasks__state"
+            label={t("tasks.stateFilter")}
+            value={state}
+            onValueChange={(v) => setState(GROUP_ORDER.find((g) => g === v) ?? "all")}
+            options={[
+              { value: "all", label: t("tasks.allStates") },
+              ...GROUP_ORDER.map((g) => ({
+                value: g,
+                label: t(GROUP_LABEL[g]),
+                hint: String(filled.find((x) => x.id === g)?.items.length ?? 0),
+              })),
+            ]}
+          />
           <span className="board__spacer" />
           {!global && (
             <Button size="sm" leadingIcon={<Icons.Plus size={14} />} onClick={() => setCreating(true)}>
@@ -214,10 +234,18 @@ export function TasksList({
           <EmptyState variant="dashed" size="lg" icon={<Icons.ListChecks />} title={t("tasks.emptyTitle")}>
             {t("tasks.empty")}
           </EmptyState>
+        ) : ready && !groups.length ? (
+          <EmptyState variant="dashed" icon={<Icons.ListChecks />} title={t("tasks.stateEmpty")}>
+            <Button size="sm" variant="secondary" onClick={() => setState("all")}>
+              {t("tasks.allStates")}
+            </Button>
+          </EmptyState>
         ) : (
           groups.map((g) => {
-            const folded = g.id === "closed" && !closedOpen && !drag;
-            const limit = global && !more.has(g.id) ? GLOBAL_PEEK : Number.POSITIVE_INFINITY;
+            // Picked alone in the state filter, a group shows every task it has, the closed ones too.
+            const alone = state === g.id;
+            const folded = g.id === "closed" && !closedOpen && !drag && !alone;
+            const limit = global && !more.has(g.id) && !alone ? GLOBAL_PEEK : Number.POSITIVE_INFINITY;
             const items = folded ? [] : g.items.slice(0, limit);
             const hidden = folded ? 0 : g.items.length - items.length;
             return (

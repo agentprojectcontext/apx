@@ -23,7 +23,7 @@ export function taskStatusTone(task: Task): "brand" | "neutral" | "danger" | "wa
 
 export function taskStatus(task: Task, columns: readonly TaskColumn[], t: T): string {
   if (task.state !== "open") return t(task.state === "done" ? "tasks.done" : "tasks.dropped");
-  if (task.awaits_owner) return t("tasks.group.blocked");
+  if (task.awaits_owner) return t("tasks.awaitsYou");
   if (task.proposed) return t("tasks.group.proposed");
   const column = columns.find((c) => c.id === task.status);
   return column ? columnLabel(column, t) : t("tasks.state.open");
@@ -35,7 +35,7 @@ type RowState = { label: string; tone: "running" | "done" | "pending" | "waiting
 export function taskRowState(task: Task | undefined, running: boolean, t: T): RowState {
   if (task?.state === "dropped") return { label: t("tasks.dropped"), tone: "failed" };
   if (task?.state === "done") return { label: t("routines.state.done"), tone: "done" };
-  if (task?.awaits_owner) return { label: t("tasks.group.blocked"), tone: "waiting" };
+  if (task?.awaits_owner) return { label: t("tasks.awaitsYou"), tone: "waiting" };
   if (running || task?.status === "doing") return { label: t("routines.state.running"), tone: "running" };
   return { label: t("tasks.row.pending"), tone: "pending" };
 }

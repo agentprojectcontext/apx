@@ -13,7 +13,7 @@ Tasks are the office's to-do board, shared by you and your agents. You create th
 to an agent is enough for it to start. **Tasks** in the sidebar shows them from every project; each project has its
 own **Tasks** tab with **New task**.
 
-<Shot name="tasks" alt="The Tasks screen with groups In progress, Pending, In review and Needs your review, each listing tasks with assignee and due date" caption="Tasks, across every project" />
+<Shot name="tasks" alt="The Tasks screen with groups In progress, Pending, In review and Waiting for you, each listing tasks with assignee and due date" caption="Tasks, across every project" />
 
 Before creating another task, agents are instructed to check the open tasks and continue an existing task when
 it already covers the same or closely related work. This is not automatic duplicate detection. For a task that
@@ -47,14 +47,15 @@ it cannot verify that an agent's claim of independent work is correct.
 
 **Done** and **Drop** close a task; **Reopen** brings it back. The filter at the top switches between **All**,
 **Tasks**, **Commitments** and **Errands**. On the Tasks screen, the project picker beside it narrows the list to one
-project or shows **All projects**; this browser remembers the choice for the next visit.
+project or shows **All projects**; this browser remembers the choice for the next visit. The state selector beside it shows a
+single group (for example only **In progress**), with every task in it instead of the first five.
 
 ### How the list is grouped
 
 - **Proposed** (when there are any, on top): tasks an agent proposes and nothing starts until you accept them.
   **Accept all** in its header, or **Accept** and **Drop** in each one's drawer. See
   [Proposals](#proposals).
-- **Needs your review** (first): what is yours. An agent asked you something or needs your decision (it goes on when
+- **Waiting for you** (first): what is yours. An agent asked you something or needs your decision (it goes on when
   you answer; you also mark it so with **Waits for your answer** from its menu), or a finished task you review to
   close. Each row says which: **Asks you something** or **Reviews: You**.
 - **In progress**: its column is Doing, or an agent is working on it right now.
@@ -111,7 +112,7 @@ task**. That chat is a normal chat listed in the Inbox: you can open it and watc
 3. His answers stay in his chat, and how far he got shows in his plan. He comments on the task when his plan is done
    or to ask someone something. The task keeps those comments; the chat keeps the work itself (every tool call,
    every file). When he closes the task, his last answer is posted as his report.
-4. When he needs a decision, he asks you. The task moves to **Needs your review** until you answer.
+4. When he needs a decision, he asks you. The task moves to **Waiting for you** until you answer.
 
 </Steps>
 

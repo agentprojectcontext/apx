@@ -49,6 +49,13 @@
   min-width: 160px;
   max-width: 240px;
 }
+/* The state filter sits beside the project's, its own width. */
+.tasks__state {
+  width: auto;
+  min-width: 160px;
+  max-width: 200px;
+  flex: none;
+}
 .tasks__grouphead {
   display: flex;
   align-items: center;

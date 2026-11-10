@@ -139,3 +139,31 @@ test("New channel lists every app; a new account's other parts wait until it is 
   // Cancel leaves no account behind.
   expect(await ids()).toEqual(before);
 });
+
+test("in the folded, compact sidebar the channels list names Manage channels in words", async ({ page }) => {
+  // Narrow enough for the rail, short enough for every section to be one row that opens beside it.
+  await page.setViewportSize({ width: 1100, height: 560 });
+  await open(page);
+  const sidebar = page.locator(".sidebar");
+  await expect(sidebar).toHaveClass(/is-rail/);
+  await sidebar
+    .getByRole("button", { name: /^Canales/ })
+    .first()
+    .click();
+  const manage = page.getByRole("button", { name: "Administrar canales" });
+  await expect(manage.locator(".apx-nav__label")).toHaveText("Administrar canales");
+});
+
+test("an account picked under Channels lights Channels, and Inbox leads back to every chat", async ({ page }) => {
+  await open(page);
+  const sidebar = page.locator(".sidebar");
+  await sidebar.getByRole("button", { name: "WhatsApp", exact: true }).first().click();
+  // The Inbox narrowed to that account: its header, and Channels is where the owner is.
+  await expect(page.locator(".inbox__accountbtn")).toBeVisible();
+  const inbox = sidebar.getByRole("button", { name: /^Inbox/ }).first();
+  await expect(inbox).not.toHaveClass(/is-active/);
+  await inbox.click();
+  await expect(page.locator(".inbox__accountbtn")).toHaveCount(0);
+  await expect(page.locator(".inbox__title")).toHaveText("Inbox");
+  await expect(inbox).toHaveClass(/is-active/);
+});
