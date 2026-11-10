@@ -96,6 +96,7 @@ function ProjectHeader({ project, tab }: { project: ProjectEntry; tab: ProjectTa
   const KindIcon = kindIcon(project.kind);
   // A tab past a narrow row's end scrolls into sight when it is the one open.
   const head = useRef<HTMLElement>(null);
+  // biome-ignore lint/correctness/useExhaustiveDependencies: runs again when another tab opens, to bring it into sight
   useEffect(() => {
     const box = head.current;
     if (!box) return;
