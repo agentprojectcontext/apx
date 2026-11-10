@@ -173,7 +173,7 @@ export function threadsRepo({ one, all, run }: Sql, bus: Bus, endSession: (threa
       } = {},
     ): Thread[] {
       const { project_id, engine } = opts;
-      return all(
+      const base = () =>
         qb
           .selectFrom("threads")
           .selectAll()
@@ -196,12 +196,20 @@ export function threadsRepo({ one, all, run }: Sql, bus: Bus, endSession: (threa
           .where((eb) => eb.or([eb("kind", "!=", "routine"), eb("archived", "=", 0)]))
           .$if(!!project_id, (q) => q.where("project_id", "=", project_id as string))
           // An engine's sessions: the engine itself, never an agent's chat that happens to run on its model.
-          .$if(!!engine, (q) => q.where("engine", "=", engine as string))
-          // Pinned first, so the cap never drops one.
+          .$if(!!engine, (q) => q.where("engine", "=", engine as string));
+      const cap = opts.limit === null ? undefined : (opts.limit ?? 300);
+      // Pinned first, so the cap never drops one.
+      const rows = all(
+        base()
           .orderBy("pinned", "desc")
           .orderBy("updated_at", "desc")
-          .$if(opts.limit !== null, (q) => q.limit(opts.limit ?? 300)),
-      ).map(toThread);
+          .$if(cap !== undefined, (q) => q.limit(cap as number)),
+      );
+      // Contact and room chats are few and a channel lists them all: busy task chats never push one out.
+      if (cap === undefined || cap <= 1 || rows.length < cap) return rows.map(toThread);
+      const seen = new Set(rows.map((r) => r.id));
+      const chats = all(base().where("kind", "=", "channel").orderBy("updated_at", "desc"));
+      return [...rows, ...chats.filter((r) => !seen.has(r.id))].map(toThread);
     },
     /** Every delegated descendant, independent of the global chat list's recency cap. */
     descendants(root: string, includeArchived = false): Thread[] {
