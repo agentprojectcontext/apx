@@ -103,6 +103,10 @@
 .transcript__row > .apx-msg {
   margin-top: 0;
 }
+/* A turn with nothing to show leaves its row empty: no gap for it. */
+.transcript__row:empty {
+  display: none;
+}
 /* The message a search result opened, lit for a moment. */
 .transcript__row.is-flash {
   border-radius: var(--apx-radius-md);
