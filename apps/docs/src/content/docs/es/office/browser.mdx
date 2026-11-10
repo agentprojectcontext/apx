@@ -138,6 +138,19 @@ campo de contraseña, código o tarjeta se puede elegir pero nunca se lee ni se 
 >
 > **Vera:** Listo: el botón dice "Pedí tu demo", un poco más grande y sigue naranja. Te la recargué.
 
+## Lo que los agentes hacen sin JavaScript
+
+Casi todo lo que los agentes pedían hacer con JavaScript, el navegador lo hace solo, sin preguntarte:
+
+- **Adónde lleva un link**: la vista de la página que lee el agente muestra la dirección de cada link.
+- **Editores de texto enriquecido** (la caja de un post o un comentario que no es un campo común) aparecen como campos
+  donde puede escribir.
+- **Listas**: escribir en una lista desplegable elige la opción con ese texto.
+- **Archivos**: escribir en un campo de archivo la ruta completa de un archivo de su carpeta o su carpeta temporal lo
+  adjunta. Solo puede adjuntar un archivo que puede leer; nunca de la carpeta de APX.
+
+JavaScript queda para lo que nada de esto cubre, y siempre pregunta.
+
 ## Ejecución de JavaScript aprobada
 
 El agente puede usar `browser_evaluate` en su pestaña actual de APX.

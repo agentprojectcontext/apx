@@ -133,6 +133,18 @@ be picked but never read or changed.
 >
 > **Vera:** Done: the button reads "Get your demo", a bit bigger, still orange. Reloaded it for you.
 
+## What agents do without JavaScript
+
+Most of what agents used to ask JavaScript for, the browser does on its own, without asking you:
+
+- **Where a link goes**: the page view an agent reads shows each link's address.
+- **Rich text editors** (a post or comment box that is not a plain field) show as fields it can type in.
+- **Lists**: typing in a drop-down list picks the option with that text.
+- **Files**: typing the full path of a file in its folder or temp folder into a file field attaches it. It can only
+  attach a file it may read; APX's own folder never.
+
+JavaScript stays for what none of these covers, and it always asks.
+
 ## Approved JavaScript execution
 
 An agent can use `browser_evaluate` in its existing APX tab. Supply either a JavaScript

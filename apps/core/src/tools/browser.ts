@@ -1,17 +1,21 @@
 // Browser tools: the agent drives the embedded browser through the desktop node, in its own profile and tabs.
 // Every call goes through the router (browser.* methods), the same door the panel uses.
+import fs from "node:fs";
+import path from "node:path";
 import { setTimeout } from "node:timers/promises";
 import { BROWSER_CAP, BROWSER_REF, type BrowserDialog, chromeTabId, type TabInfo } from "@apx/protocol";
 import { servedHere } from "@apx/protocol/cdp";
 import { z } from "zod";
 import type { AgentRecord } from "../domain/agents.ts";
 import type { Store } from "../domain/store.ts";
+import { expandHome } from "../paths.ts";
 import { pruneUploads, saveUpload } from "../services/uploads.ts";
 import type { SignIn } from "../sign-in.ts";
 import { browserEvaluateTool } from "./browser-evaluate.ts";
 import { browserSignInTool } from "./browser-sign-in.ts";
+import { folderAccess } from "./folders.ts";
 import { cap, untrusted } from "./result.ts";
-import { defineTool, type Tool, type ToolContext } from "./types.ts";
+import { defineTool, type ScopedThread, type Tool, type ToolContext } from "./types.ts";
 import { urlConfirm } from "./web.ts";
 
 const HANDOFF_S = 300;
@@ -41,6 +45,20 @@ const refArg = z.string().regex(BROWSER_REF).describe("ref like e12, from the la
 /** What the agent is told when its action opened a dialog the page now waits on. */
 const opened = (dialog: BrowserDialog | undefined) =>
   dialog ? ` It opened a ${dialog} dialog the page waits on: browser_snapshot shows it with refs to answer.` : "";
+
+/**
+ * A file the agent may attach to a page: a full path to a file it may read (its folder, its temp folder), on this
+ * computer. Anything else is typed as text; a file field then says what it needs.
+ */
+function attachableIn(store: Store, home: string, vm: { hasThread(id: string): boolean } | undefined) {
+  return (text: string, thread: ScopedThread): string | undefined => {
+    const want = expandHome(text.trim(), home);
+    if (!path.isAbsolute(want) || /[\n\r]/.test(want) || vm?.hasThread(thread.id)) return undefined;
+    const r = folderAccess(store, home, thread, want);
+    if ("refused" in r) return undefined;
+    return fs.statSync(r.at, { throwIfNoEntry: false })?.isFile() ? r.at : undefined;
+  };
+}
 
 export function browserTools(
   store: Store,
@@ -116,6 +134,7 @@ export function browserTools(
     });
   };
 
+  const attachable = attachableIn(store, home, vm);
   return [
     browserEvaluateTool(store, home, own, vm),
     browserSignInTool(store, signIn, own, vm),
@@ -219,7 +238,7 @@ export function browserTools(
       needsCap: BROWSER_CAP,
       name: "browser_type",
       description:
-        "Type text into a field by ref. Password, 2FA and card fields are refused: use browser_sign_in with a stored secret, or browser_handoff.",
+        "Type text into a field by ref; in a list, the option to pick; in a file field, a local file's full path to attach. Password, 2FA and card fields are refused: use browser_sign_in with a stored secret, or browser_handoff.",
       args: z.object({
         tab: tabArg,
         ref: refArg,
@@ -239,10 +258,12 @@ export function browserTools(
       title: (a) => `Typed into ${a.ref}`,
       async run(a, ctx) {
         const tab = await own(ctx, a.tab);
+        const file = attachable(a.text, ctx.thread);
         const r = await ctx.call("browser.type", {
           tab,
           ref: a.ref,
-          text: a.text,
+          text: file ?? a.text,
+          ...(file ? { upload: true } : {}),
           submit: a.submit ?? false,
           by: ctx.agent.id,
           ...(ctx.onThisComputer ? { local_only: true } : {}),

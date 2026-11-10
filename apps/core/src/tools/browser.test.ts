@@ -46,6 +46,9 @@ const llm = scriptedLlm((req, { said, afterTool }) => {
         : callTool("s0", "browser_text", { tab: "t1" })),
       model,
     };
+  const attach = /^attach (\S+)/.exec(said)?.[1];
+  if (attach && !afterTool)
+    return { ...callTool("up1", "browser_type", { tab: "t9", ref: "e2", text: attach }), model };
   const typeIn = TYPE_IN.find(([cue]) => said.includes(cue))?.[1];
   if (typeIn && looks < 2)
     return {
@@ -415,6 +418,36 @@ test("typing on the agent's own local app after reading a page runs unasked, lim
   assert.deepEqual(typed, [
     { tab: "t9", ref: "e1", text: "Buy milk", submit: false, by: "superagent", local_only: true },
   ]);
+});
+
+test("a full path to a file the agent may read is attached; any other text is typed as it is", async () => {
+  // Instead of a script that fetched a logo into the page's file field (DECISIONS.md#d-210).
+  if (!tabs.some((t) => t.tab === "t9"))
+    tabs.push({
+      tab: "t9",
+      url: "http://127.0.0.1:8127/new",
+      title: "New",
+      profile: "shared",
+      control: { kind: "idle" },
+    });
+  const work = path.join(env.home, "work");
+  fs.mkdirSync(work, { recursive: true });
+  const logo = path.join(work, "logo.png");
+  fs.writeFileSync(logo, "png");
+  for (const [text, attached] of [
+    [logo, true],
+    [path.join(work, "missing.png"), false],
+    [path.join(env.home, "apx.db"), false],
+  ] as const) {
+    typed.length = 0;
+    const thread = (await env.client.call("threads.create", { kind: "loose", agent_id: "superagent" })).id;
+    await env.client.call("threads.send", { thread, text: `attach ${text}` });
+    await env.settle(thread);
+    const sent = typed[0];
+    assert.equal(sent?.upload, attached ? true : undefined, text);
+    if (attached) assert.equal(fs.realpathSync(String(sent?.text)), fs.realpathSync(logo));
+    else assert.equal(sent?.text, text);
+  }
 });
 
 test("typing on a website, in the owner's Chrome, or outside Auto after reading a page waits for the owner", async () => {

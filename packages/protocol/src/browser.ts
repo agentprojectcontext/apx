@@ -168,6 +168,8 @@ export const browserMethods = {
         by: By,
         /** Type only if the page and the field's frame are served by this computer (DECISIONS.md#d-212). */
         local_only: z.boolean().optional(),
+        /** `text` is a local file the core checked the agent may read: a file field gets it attached. */
+        upload: z.boolean().optional(),
       })
       .strict(),
     result: z.object({ ok: z.literal(true), url: z.string(), dialog: BrowserDialog.optional() }),
