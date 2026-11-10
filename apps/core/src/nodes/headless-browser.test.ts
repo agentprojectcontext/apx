@@ -10,7 +10,7 @@ import { PassThrough } from "node:stream";
 import { after, before, test } from "node:test";
 import type { TabInfo } from "@apx/protocol";
 import { chromium } from "@playwright/test";
-import { removeDir, waitFor } from "../testkit/platform.ts";
+import { removeDir, tempDir, waitFor } from "../testkit/platform.ts";
 import { createHeadlessBrowser } from "./headless-browser.ts";
 
 const chrome = chromium.executablePath();
@@ -22,9 +22,14 @@ const PAGES: Record<string, string> = {
   "/dialogs": `<html><head><title>Team</title></head><body><p id="out">Nothing yet</p>
     <button onclick="out.textContent = 'deleted: ' + confirm('Delete Acme for good?')">Delete</button>
     <button onclick="out.textContent = 'renamed: ' + prompt('New name', 'Acme')">Rename</button></body></html>`,
+  "/form": `<html><head><title>Submit</title></head><body><p id="out">Nothing yet</p>
+    <select aria-label="License" onchange="out.textContent = 'license: ' + this.value"><option value="">Pick one</option>
+      <option value="mit">MIT License</option><option value="gpl">GPL</option></select>
+    <input type="file" aria-label="Logo" onchange="out.textContent = 'logo: ' + this.files[0].name">
+    <div contenteditable="true" oninput="out.textContent = 'post: ' + this.textContent"></div></body></html>`,
 };
 /** Pages whose own scripts run; every other page runs none. */
-const SCRIPTED = new Set(["/dialogs"]);
+const SCRIPTED = new Set(["/dialogs", "/form"]);
 let srv: http.Server;
 let base = "";
 let apxPort = "";
@@ -160,7 +165,8 @@ test("with no desktop app the core drives its own headless Chrome: open, read, c
   assert.equal(tab.title, "Acme home");
   assert.deepEqual(tab.control.kind, "agent");
   assert.match(snap.tree, /^<untrusted_web source=/, "page content is marked as outside data");
-  const link = /link "Prices" \[(e\d+)\]/.exec(snap.tree)?.[1];
+  // A link shows where it goes, read from a real Chrome's accessibility tree (DECISIONS.md#d-210).
+  const link = /link "Prices" <http:\/\/127\.0\.0\.1:\d+\/prices> \[(e\d+)\]/.exec(snap.tree)?.[1];
   const search = /textbox "Search" \[(e\d+)\]/.exec(snap.tree)?.[1];
   const password = /textbox "Password" \[(e\d+)\]/.exec(snap.tree)?.[1];
   assert.ok(link && search && password, snap.tree);
@@ -232,6 +238,38 @@ test("a page's confirm and prompt dialogs reach the agent, which answers them in
     await waitFor(async () => /renamed: Northwind/.test(await out()), "the page to get the text");
   } finally {
     await browser.handle("browser.close", { tab: tab.tab });
+  }
+});
+
+test("a real page's list, file field and rich text editor are worked by typing, with no agent script", async () => {
+  // What agents used JavaScript for, done by the browser's own steps (DECISIONS.md#d-210).
+  const tab = (await browser.handle("browser.open", { url: `${base}/form`, by: "superagent" })) as TabInfo;
+  const type = (ref: string, text: string, upload?: boolean) =>
+    browser.handle("browser.type", { tab: tab.tab, ref, text, by: "superagent", ...(upload ? { upload } : {}) });
+  const out = async () => ((await browser.handle("browser.text", { tab: tab.tab })) as { text: string }).text;
+  const dir = tempDir("apx-form-");
+  try {
+    const page = ((await browser.handle("browser.snapshot", { tab: tab.tab })) as { tree: string }).tree;
+    const list = /combobox "License"[^\n]*\[(e\d+)\]/.exec(page)?.[1];
+    const logo = /"Logo"[^\n]*\[(e\d+)\]/.exec(page)?.[1];
+    const editor = /- textbox \[(e\d+)\]/.exec(page)?.[1];
+    assert.ok(list && logo && editor, page);
+
+    await type(list, "MIT License");
+    await waitFor(async () => /license: mit/.test(await out()), "the list to take the option");
+    await assert.rejects(type(list, "Proprietary"), /no option with that text/);
+
+    await assert.rejects(type(logo, "the logo"), /this is a file field/);
+    const file = path.join(dir.path, "logo.png");
+    fs.writeFileSync(file, "png");
+    await type(logo, file, true);
+    await waitFor(async () => /logo: logo\.png/.test(await out()), "the file to be attached");
+
+    await type(editor, "Hello Northwind");
+    await waitFor(async () => /post: Hello Northwind/.test(await out()), "the editor to take the text");
+  } finally {
+    await browser.handle("browser.close", { tab: tab.tab });
+    await dir.remove();
   }
 });
 

@@ -20,6 +20,7 @@ type AXNode = {
   backendDOMNodeId?: number;
   childIds?: string[];
   parentId?: string;
+  properties?: Array<{ name: string; value?: { value?: unknown } }>;
 };
 
 /** Sends one CDP command to the page and returns its result. */
@@ -43,6 +44,19 @@ const CREDENTIAL_AUTOCOMPLETE = /\b(current-password|new-password|one-time-code|
 const SHOT_WIDTH = 1280;
 
 const LOOPBACK = new Set(["127.0.0.1", "localhost", "[::1]", "0.0.0.0"]);
+
+/** APX's own step for a native list: the option whose text (or value) matches, then the events a choice sends. */
+const CHOOSE = `function (wanted) {
+  const w = String(wanted).trim().toLowerCase();
+  const all = Array.from(this.options);
+  const o = all.find((x) => x.text.trim().toLowerCase() === w || x.value === wanted) ||
+    all.find((x) => x.text.trim().toLowerCase().includes(w));
+  if (!o) return false;
+  this.value = o.value;
+  this.dispatchEvent(new Event("input", { bubbles: true }));
+  this.dispatchEvent(new Event("change", { bubbles: true }));
+  return true;
+}`;
 
 /** A host on this computer itself. */
 export function loopbackHost(hostname: string): boolean {
@@ -208,13 +222,20 @@ export class CdpPage {
     let size = 0;
     let truncated = false;
 
-    const visit = (node: AXNode, depth: number) => {
+    const visit = (node: AXNode, depth: number, inEditor: boolean) => {
       if (truncated) return;
-      const role = node.role?.value ?? "";
+      const prop = (name: string) => node.properties?.find((p) => p.name === name)?.value?.value;
+      // A rich text editor (contenteditable) is a field to type in, whatever role the page gave it.
+      const editor =
+        !inEditor && !node.ignored && (prop("editable") === "richtext" || prop("editable") === "plaintext");
+      const role = editor && !INTERACTIVE.test(node.role?.value ?? "") ? "textbox" : (node.role?.value ?? "");
       const name = String(node.name?.value ?? "").trim();
       const shown = !node.ignored && !SKIP_ROLES.test(role) && (name !== "" || INTERACTIVE.test(role));
       if (shown) {
         let line = `${"  ".repeat(depth)}- ${role}${name ? ` "${clip(name, 100)}"` : ""}`;
+        // Where a link goes, so reading it needs no script.
+        const url = role === "link" ? prop("url") : undefined;
+        if (typeof url === "string" && url) line += ` <${clip(url, 160)}>`;
         if (node.backendDOMNodeId && (INTERACTIVE.test(role) || role === "heading" || role === "img")) {
           const ref = `e${++i}`;
           this.#refs.set(ref, node.backendDOMNodeId);
@@ -233,10 +254,10 @@ export class CdpPage {
       }
       for (const id of node.childIds ?? []) {
         const child = byId.get(id);
-        if (child) visit(child, shown ? depth + 1 : depth);
+        if (child) visit(child, shown ? depth + 1 : depth, inEditor || editor);
       }
     };
-    if (root) visit(root, 0);
+    if (root) visit(root, 0, false);
     return { tree: lines.join("\n"), refs: i, truncated, document };
   }
 
@@ -293,6 +314,8 @@ export class CdpPage {
     text: string,
     submit: boolean,
     localOnly?: ReadonlySet<string>,
+    /** `text` is a file the caller checked the agent may read: a file field gets it attached. */
+    upload = false,
   ): Promise<BrowserDialog | undefined> {
     if (isDialogRef(ref)) {
       if (localOnly && this.#dialog.kind && !servedHere(this.#dialog.url, localOnly))
@@ -307,6 +330,21 @@ export class CdpPage {
     const backendNodeId = this.#backend(ref);
     await this.#assertNotCredentialField(backendNodeId);
     if (localOnly) await this.#assertServedHere(backendNodeId, localOnly);
+    // A list or a file field takes a choice or a file, not keystrokes: APX's own fixed steps, no agent script.
+    const control = await this.#control(backendNodeId);
+    if (control === "file") {
+      if (!upload)
+        throw new ApxError({
+          code: "bad_request",
+          message: "this is a file field: type the full path of a file in your folder or your temp folder",
+        });
+      await this.#send("DOM.setFileInputFiles", { files: [text], backendNodeId });
+      return undefined;
+    }
+    if (control === "select") {
+      await this.#choose(backendNodeId, text);
+      return undefined;
+    }
     await this.#send("DOM.scrollIntoViewIfNeeded", { backendNodeId });
     // Select existing content so the new text replaces it, like a user would.
     const steps: Array<() => Promise<BrowserDialog | undefined>> = [
@@ -322,6 +360,35 @@ export class CdpPage {
       if (opened) return opened;
     }
     return undefined;
+  }
+
+  /** What kind of field a node is: a native list, a file field, or anything typed into. */
+  async #control(backendNodeId: number): Promise<"select" | "file" | "text"> {
+    const { node } = await this.#send<{ node: { nodeName?: string; attributes?: string[] } }>("DOM.describeNode", {
+      backendNodeId,
+    });
+    const tag = node.nodeName?.toLowerCase();
+    if (tag === "select") return "select";
+    const raw = node.attributes ?? [];
+    let type = "";
+    for (let k = 0; k + 1 < raw.length; k += 2) if (String(raw[k]).toLowerCase() === "type") type = String(raw[k + 1]);
+    return tag === "input" && type.toLowerCase() === "file" ? "file" : "text";
+  }
+
+  /** Picks the option of a native list whose text (or value) is `wanted`, as a person choosing it would. */
+  async #choose(backendNodeId: number, wanted: string): Promise<void> {
+    const { object } = await this.#send<{ object: { objectId?: string } }>("DOM.resolveNode", { backendNodeId });
+    const { result } = await this.#send<{ result: { value?: boolean } }>("Runtime.callFunctionOn", {
+      objectId: object.objectId,
+      functionDeclaration: CHOOSE,
+      arguments: [{ value: wanted }],
+      returnByValue: true,
+    });
+    if (result.value !== true)
+      throw new ApxError({
+        code: "bad_request",
+        message: "no option with that text in this list: take a snapshot to see its options",
+      });
   }
 
   /** An input command that the page answers, unless it opens a dialog first (then it answers once that closes). */

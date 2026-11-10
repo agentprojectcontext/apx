@@ -4385,6 +4385,14 @@ task", next to "your final answer goes back to them") and a review all came as a
   unchanged (a plain push follows the owner's publish setting; a force push, a tag or a release always asks). The
   realistic owner's system budget rises to 8,150 for it (`rules/PROMPT_SIZE.md`).
 
+- **The browser does what agents used JavaScript for** (`CdpPage` in `packages/protocol/src/cdp.ts`, `browser_type`):
+  of the week's 22 JavaScript asks, nearly all read a link's address or a field, picked a list option, filled a rich
+  text editor or attached a file. The page view now shows each link's address and makes a contenteditable editor a
+  field with a ref; typing in a native list picks the option with that text through APX's own fixed function (no agent
+  script); typing a full path into a file field attaches the file when the core found it inside what the agent may
+  read (`folderAccess`, never on the isolated computer), and a file field refuses plain text. `browser_evaluate` says it
+  is the last resort; it still always asks (D-165 unchanged).
+
 Apart from these narrower command asks, none of this changes a permission, an approval, a hard step or a spend
 limit: what waits for the owner still does.
 
