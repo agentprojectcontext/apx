@@ -1,8 +1,8 @@
 import type { Thread } from "@apx/protocol";
-import { Button, EmptyState, IconButton, Icons, SearchField, SegmentedControl, Skeleton } from "@apx/ui";
+import { Button, EmptyState, IconButton, Icons, SearchField, SegmentedControl, Skeleton, Spinner } from "@apx/ui";
 import { Suspense, useEffect, useMemo, useState } from "react";
 import { useChannels } from "../data/channels.ts";
-import { findProject } from "../data/identity.ts";
+import { findProject, isWorking } from "../data/identity.ts";
 import { type InboxTab, setPrefs, usePrefs } from "../data/prefs.ts";
 import { useData } from "../data/state.ts";
 import { useT } from "../i18n/index.ts";
@@ -53,6 +53,18 @@ export function InboxList() {
       routines: entries.flatMap((e) => (e.kind === "routine" && e.threads.some(ok) ? [e] : [])),
     };
   }, [entries, filter, projects, channels]);
+  // Each tab tells from outside whether something in it is running and whether it holds news.
+  const marks = useMemo(() => {
+    const of = (list: Thread[]) => ({
+      working: list.some((th) => isWorking(th.state)),
+      news: list.some((th) => th.unread > 0),
+    });
+    return {
+      chats: of(tabs.chats),
+      tasks: of(tabs.tasks.flatMap((e) => e.threads)),
+      routines: of(tabs.routines.flatMap((e) => e.threads)),
+    };
+  }, [tabs]);
   const archived = useMemo(() => archivedThreads(threads, { projectId, query }), [threads, projectId, query]);
   const title = projectId
     ? t("inbox.projectChats", { project: findProject(projects, projectId)?.name ?? t("project.fallback") })
@@ -136,8 +148,19 @@ export function InboxList() {
                     value: v,
                     label: (
                       <>
-                        {t(`inbox.tab.${v}`)}
+                        <span className="inbox__tabname">
+                          {t(`inbox.tab.${v}`)}
+                          {/* The tab on screen already shows its unread rows. */}
+                          {marks[v].news && v !== tab && (
+                            <span className="inbox__tabnews" role="img" aria-label={t("inbox.tabNews")} />
+                          )}
+                        </span>
                         <span className="inbox__tabcount">{tabs[v].length}</span>
+                        {marks[v].working && (
+                          <span className="inbox__tabwork" role="img" aria-label={t("inbox.tabWorking")}>
+                            <Spinner size={10} />
+                          </span>
+                        )}
                       </>
                     ),
                   }))}
