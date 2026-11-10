@@ -750,6 +750,7 @@ export const AuxPurpose = z.enum([
   "news",
   "sticker",
   "aside",
+  "mail",
 ]);
 export type AuxPurpose = z.infer<typeof AuxPurpose>;
 

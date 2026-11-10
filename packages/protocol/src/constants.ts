@@ -71,10 +71,21 @@ export type ChannelKindRules = {
   ownerThread?: "own";
   /** Fixed: a new message while it works (none: the owner picks). */
   concurrency?: "queue";
+  /**
+   * What the owner hears of an unreviewed contact's message: all of it (a chat line), or, for mail, only the important
+   * ones, as sender, subject and one short line (like a mail app's alert).
+   */
+  reports: "full" | "important";
 };
-const CHAT_RULES: ChannelKindRules = { ownerLink: "code", strangersListed: false };
+const CHAT_RULES: ChannelKindRules = { ownerLink: "code", strangersListed: false, reports: "full" };
 const KIND_RULES: Readonly<Record<string, ChannelKindRules>> = {
-  email: { ownerLink: "address", strangersListed: true, ownerThread: "own", concurrency: "queue" },
+  email: {
+    ownerLink: "address",
+    strangersListed: true,
+    ownerThread: "own",
+    concurrency: "queue",
+    reports: "important",
+  },
 };
 export const channelKindRules = (type: string): ChannelKindRules => KIND_RULES[type] ?? CHAT_RULES;
 
