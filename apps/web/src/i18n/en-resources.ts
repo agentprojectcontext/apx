@@ -260,6 +260,10 @@ export const enResources = {
   "int.cal.unit.min": "Minutes",
   "int.cal.unit.h": "Hours",
   "int.cal.unit.d": "Days",
+  "int.cal.muted": "Events I'm not reminded of",
+  "int.cal.mutedHint": "Turned off from a reminder, with every later date of each.",
+  "int.cal.untitled": "Untitled event",
+  "int.cal.unmute": "Remind me again",
   "int.mail.title": "New mail",
   "int.mail.check": "Tell me about new mail",
   "int.mail.checkHint":
