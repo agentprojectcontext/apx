@@ -654,7 +654,7 @@
 }
 .resext__guidecols {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(280px, 100%), 1fr));
   gap: 16px;
 }
 .resext__guidenote {
@@ -741,7 +741,7 @@
 }
 .int__catalog {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(min(260px, 100%), 1fr));
   gap: 10px;
 }
 .int__card {
