@@ -99,7 +99,7 @@ test("strangers 'ask me': whoever writes is an unreviewed contact, the owner hea
   await page.getByRole("button", { name: "WhatsApp", exact: true }).click();
   await page.getByRole("button", { name: /^Lucía/ }).click();
   await expect(page.getByText("hola, ¿vamos el sábado?").last()).toBeVisible();
-  await page.getByRole("button", { name: "Quitar silencio" }).click();
+  await page.getByRole("switch", { name: /^Silenciado/ }).click();
   await world.whatsapp.message(FRIEND, "¿y a qué hora?");
   await until(async () => (await world.whatsapp.sentTo(FRIEND.phone)).some((t) => t.startsWith("Got it:")));
 });

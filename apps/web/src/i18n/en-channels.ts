@@ -20,9 +20,6 @@ export const enChannels = {
   "ch.neverReadDomain": "Everything from @{domain}",
   "ch.neverReadHint":
     "Their mail is skipped from now on; this card and the chat stay, and you can read them again here.",
-  "ch.notRead": "Not read",
-  "ch.notReadHint": "Their mail is skipped without an answer. Read again takes them off the account's Never read list.",
-  "ch.readAgain": "Read again",
   "ch.readAgainDone": "{who} is read again.",
   "ch.neverReadDone": "{who} is not read anymore.",
   "ch.strangersHint.listMail": "They are listed here for you to approve; no mail is sent to them.",
@@ -179,13 +176,9 @@ export const enChannels = {
     "Your partner, family and friends can always leave you a message to pass on, even with everything off.",
   "ch.anyHour": "Answer at any hour",
   "ch.anyHourHint": "They are answered even outside the channel's attention hours.",
-  "ch.mute": "Silence",
-  "ch.unmute": "Unsilence",
   "ch.muteHint": "Their messages are kept but not answered, transcribed or sent to a model.",
-  "ch.unmuteHint": "Their messages are answered again, as the rules above say.",
   "ch.saveHint": "Save the changes to this contact.",
   "ch.supervise": "Supervise",
-  "ch.unsupervise": "Stop supervising",
   "ch.superviseHint":
     "Their messages aren't answered on their own: you get the suggested answer, to send it, edit it or drop it.",
   "ch.saved": "Contact saved.",

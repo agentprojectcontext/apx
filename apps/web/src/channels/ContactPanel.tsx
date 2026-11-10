@@ -1,5 +1,5 @@
 import type { ChannelInfo, Person } from "@apx/protocol";
-import { Button, Icons, Input, SegmentedControl, Textarea, Tooltip } from "@apx/ui";
+import { Button, Icons, Input, SegmentedControl, Select, Switch, Textarea, Tooltip } from "@apx/ui";
 import { useState } from "react";
 import { AgentSelect } from "../common/pickers/AgentSelect.tsx";
 import { claimAddress, neverRead, saveContact, useChannels } from "../data/channels.ts";
@@ -7,12 +7,11 @@ import { notify } from "../data/notices.ts";
 import { useData } from "../data/state.ts";
 import { type MessageKey, useT } from "../i18n/index.ts";
 import { CardField, ChatCard } from "./ChatCard.tsx";
-import { ChoiceChips } from "./ChoiceChips.tsx";
 import { PersonAvatar } from "./PersonAvatar.tsx";
 import { initials, RELATION_KEY } from "./people.ts";
 import { ownerOn } from "./StartRows.tsx";
 
-/** The relations as chips, the ones most chats need first. */
+/** The relations, the ones most chats need first. */
 const RELATIONS: NonNullable<Person["relation"]>[] = [
   "client",
   "lead",
@@ -144,26 +143,6 @@ export function ContactPanel({
       onClose={onClose}
       footer={
         <>
-          <Tooltip content={person.muted ? t("ch.unmuteHint") : t("ch.muteHint")}>
-            <Button
-              size="sm"
-              variant="ghost"
-              leadingIcon={<Icons.BellOff size={14} />}
-              onClick={() => void saveContact(person.id, { name: person.name, muted: !person.muted })}
-            >
-              <span className="chan__cardfoot-text">{person.muted ? t("ch.unmute") : t("ch.mute")}</span>
-            </Button>
-          </Tooltip>
-          <Tooltip content={t("ch.superviseHint")}>
-            <Button
-              size="sm"
-              variant="ghost"
-              leadingIcon={<Icons.Eye size={14} />}
-              onClick={() => void saveContact(person.id, { name: person.name, supervised: !person.supervised })}
-            >
-              <span className="chan__cardfoot-text">{person.supervised ? t("ch.unsupervise") : t("ch.supervise")}</span>
-            </Button>
-          </Tooltip>
           <span className="chan__spacer" />
           <Tooltip content={t("ch.saveHint")}>
             <Button size="sm" disabled={!dirty || !d.name.trim()} loading={busy} onClick={() => void save()}>
@@ -189,20 +168,21 @@ export function ContactPanel({
           />
         </CardField>
       </div>
-      {mailbox && <NeverRead person={person} account={channel.id} />}
-      <CardField label={t("ch.relation")}>
-        <ChoiceChips
+      <CardField label={t("ch.relation")} hint={t("ch.relation.hint")}>
+        <Select
+          size="sm"
           label={t("ch.relation")}
-          clearable
-          value={d.relation}
-          onChange={(v) => setD({ ...d, relation: RELATIONS.find((r) => r === v) })}
-          options={RELATIONS.map((r) => ({
-            value: r,
-            label: t(RELATION_KEY[r]),
-            hint: r === d.relation ? t("ch.relation.clear") : t("ch.relation.hint"),
-          }))}
+          placeholder={t("ch.relation.none")}
+          value={d.relation ?? ""}
+          onValueChange={(v) => setD({ ...d, relation: RELATIONS.find((r) => r === v) })}
+          options={[
+            { value: "", label: t("ch.relation.none") },
+            ...RELATIONS.map((r) => ({ value: r, label: t(RELATION_KEY[r]) })),
+          ]}
         />
       </CardField>
+      <ContactSwitches person={person} />
+      {mailbox && <NeverRead person={person} account={channel.id} />}
       <CardField label={t("ch.answers")} hint={other ? t("ch.answers.otherHint", { name: person.name }) : undefined}>
         <SegmentedControl
           size="sm"
@@ -254,48 +234,69 @@ export function ContactPanel({
   );
 }
 
+/** Silenced and supervised apply at once, each a switch that shows where it stands. */
+function ContactSwitches({ person }: { person: Person }) {
+  const t = useT();
+  // What was just switched shows right away; the saved contact catches up.
+  const [mine, setMine] = useState<{ muted?: boolean; supervised?: boolean }>({});
+  const muted = mine.muted ?? person.muted;
+  const supervised = mine.supervised ?? person.supervised;
+  const flip = async (key: "muted" | "supervised", on: boolean) => {
+    setMine((m) => ({ ...m, [key]: on }));
+    await saveContact(person.id, { name: person.name, [key]: on });
+    setMine((m) => ({ ...m, [key]: undefined }));
+  };
+  return (
+    <div className="chan__switches">
+      <Switch
+        size="sm"
+        label={t("ch.muted")}
+        description={t("ch.muteHint")}
+        checked={muted}
+        onCheckedChange={(on) => void flip("muted", on)}
+      />
+      <Switch
+        size="sm"
+        label={t("ch.supervise")}
+        description={t("ch.superviseHint")}
+        checked={Boolean(supervised)}
+        onCheckedChange={(on) => void flip("supervised", on)}
+      />
+    </div>
+  );
+}
+
 /**
- * On an email account: stop reading this sender, or everyone at their domain (a service's notices). Once stopped, the
- * card says by which entry and reads them again.
+ * On an email account: stop reading this sender, or everyone at their domain (a service's notices), each a switch.
+ * Turning one off reads them again.
  */
 function NeverRead({ person, account }: { person: Person; account: string }) {
   const t = useT();
   const list = useChannels((s) => s.channels.find((c) => c.id === account)?.email?.blocked);
+  const [mine, setMine] = useState<{ address?: boolean; domain?: boolean }>({});
   const address = person.addresses.find((a) => a.channel === account)?.external_id ?? "";
   const domain = address.split("@")[1];
   if (!address || person.role === "owner") return null;
-  const by = list?.includes(address) ? "address" : domain && list?.includes(`@${domain}`) ? "domain" : undefined;
-  if (by)
-    return (
-      <CardField label={t("ch.notRead")} hint={t("ch.notReadHint")}>
-        <div className="chan__neverread">
-          <span className="chan__neverread-what">{by === "address" ? address : `@${domain}`}</span>
-          <Button size="sm" variant="secondary" onClick={() => void neverRead(person.id, account, by, true)}>
-            {t("ch.readAgain")}
-          </Button>
-        </div>
-      </CardField>
-    );
+  const on = {
+    address: mine.address ?? Boolean(list?.includes(address)),
+    domain: mine.domain ?? Boolean(domain && list?.includes(`@${domain}`)),
+  };
+  const flip = async (scope: "address" | "domain", value: boolean) => {
+    setMine((m) => ({ ...m, [scope]: value }));
+    await neverRead(person.id, account, scope, !value);
+    setMine((m) => ({ ...m, [scope]: undefined }));
+  };
   return (
     <CardField label={t("ch.neverRead")} hint={t("ch.neverReadHint")}>
-      <div className="chan__neverread">
-        <Button
-          size="sm"
-          variant="secondary"
-          leadingIcon={<Icons.BellOff size={14} />}
-          onClick={() => void neverRead(person.id, account, "address")}
-        >
-          {address}
-        </Button>
+      <div className="chan__switches">
+        <Switch size="sm" label={address} checked={on.address} onCheckedChange={(v) => void flip("address", v)} />
         {domain && (
-          <Button
+          <Switch
             size="sm"
-            variant="secondary"
-            leadingIcon={<Icons.BellOff size={14} />}
-            onClick={() => void neverRead(person.id, account, "domain")}
-          >
-            {t("ch.neverReadDomain", { domain })}
-          </Button>
+            label={t("ch.neverReadDomain", { domain })}
+            checked={on.domain}
+            onCheckedChange={(v) => void flip("domain", v)}
+          />
         )}
       </div>
     </CardField>

@@ -203,6 +203,15 @@ button.chatprocesses {
   color: var(--apx-fg-subtle);
 }
 
+/* A contact silenced or supervised: a small mark after their name. */
+.threadrow__mark {
+  display: inline-grid;
+  place-items: center;
+  flex: none;
+  margin-left: 4px;
+  color: var(--apx-fg-subtle);
+}
+
 /* Compact faces retain their column, including group and caller badges. */
 .threadavatar {
   display: inline-flex;

@@ -4,6 +4,7 @@ import { CHANNEL_KINDS, type ChannelKind } from "../channels/kinds.ts";
 import { ChatProcesses } from "../common/ChatProcesses.tsx";
 import { shortWhen } from "../common/format.ts";
 import { useEngineLabel } from "../common/useEngineLabel.ts";
+import { useChannels } from "../data/channels.ts";
 import { isWorking, projectName, routineName } from "../data/identity.ts";
 import { useData } from "../data/state.ts";
 import { type T, useT } from "../i18n/index.ts";
@@ -49,6 +50,7 @@ export function ThreadRow({ thread, agent, selected, onOpen }: ThreadRowProps) {
               {fold.slot}
               <ChatProcesses thread={thread.id} />
               {working && <Spinner size={12} className="threadrow__spin" />}
+              <ContactMarks person={thread.channel?.person_id} />
             </>
           }
           time={shortWhen(thread.updated_at)}
@@ -83,6 +85,28 @@ export function ThreadRow({ thread, agent, selected, onOpen }: ThreadRowProps) {
         />
       </span>
     </div>
+  );
+}
+
+/** A contact's chat says when they are silenced or supervised, beside its title. */
+function ContactMarks({ person }: { person: string | undefined }) {
+  const t = useT();
+  const muted = useChannels((s) => Boolean(person && s.persons.find((p) => p.id === person)?.muted));
+  const supervised = useChannels((s) => Boolean(person && s.persons.find((p) => p.id === person)?.supervised));
+  if (!muted && !supervised) return null;
+  return (
+    <>
+      {muted && (
+        <span className="threadrow__mark" role="img" aria-label={t("ch.muted")}>
+          <Icons.BellOff size={11} />
+        </span>
+      )}
+      {supervised && (
+        <span className="threadrow__mark" role="img" aria-label={t("ch.supervised")}>
+          <Icons.Eye size={11} />
+        </span>
+      )}
+    </>
   );
 }
 
