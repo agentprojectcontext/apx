@@ -30,6 +30,9 @@ A core on a VPS or reached through Tailscale: choose Tailscale in Settings › C
 `apx expose tailscale` on that server and restart the core. Tailscale Serve forwards the tailnet's HTTPS address to
 the core on loopback; `apx pair` creates the one-time code. Network settings always belong to the core's machine.
 
+- **Lists chats, tasks and routines as one list**, newest on top, like the panel's Inbox: a task or a routine is one
+  row (its latest chat); a task's other chats fold under it, and a routine's chat switches between its runs from its
+  header. Messages queued for the agent's next turn wait in a tray above the composer.
 - **Keeps the board and the routines**: a task opens its page (title, description, column, priority, who does it, due
   date, project, type, waiting for the owner), closes as done or dropped (a commitment as kept, missed or released),
   reopens, and shows its history; the Tasks tab writes new ones. A routine's page edits its name, prompt, agent,

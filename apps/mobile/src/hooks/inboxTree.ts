@@ -1,6 +1,10 @@
 import { textOrder } from "../format.ts";
 import type { Thread } from "./useWorkspace";
 
+/**
+ * A row of the chat list. A `task` or `routine` row is its most recent chat (`thread`); its other chats, and the
+ * sessions under the latest one, are its `children`.
+ */
 export type InboxNode = {
   key: string;
   kind: "thread" | "task" | "routine";
@@ -25,8 +29,16 @@ export type InboxFilter = {
   archived?: boolean;
 };
 
-/** Project filtering precedes parenting: a session whose parent is unavailable stays reachable as a root. */
-export function inboxTree(threads: Thread[], options: InboxFilter): InboxNode[] {
+/**
+ * Project filtering precedes parenting: a session whose parent is unavailable stays reachable as a root. A task's own
+ * chat (`tasks`' `thread_id`) joins the task's row once something was said in it; until then the board shows it.
+ */
+export function inboxTree(
+  threads: Thread[],
+  options: InboxFilter,
+  tasks: readonly { id: string; thread_id?: string | undefined }[] = [],
+): InboxNode[] {
+  const taskOf = new Map(tasks.flatMap((task) => (task.thread_id ? [[task.thread_id, task.id] as const] : [])));
   const all = new Map(threads.map((thread) => [thread.id, thread]));
   const under = (thread: Thread, is: (item: Thread) => boolean): boolean => {
     const seen = new Set<string>();
@@ -42,6 +54,7 @@ export function inboxTree(threads: Thread[], options: InboxFilter): InboxNode[] 
   const nodes = new Map<string, InboxNode>();
   for (const thread of threads) {
     if (Boolean(thread.archived) !== Boolean(options.archived)) continue;
+    if (thread.kind === "task" && !thread.task_id && !thread.preview.trim()) continue;
     if (!options.routines && under(thread, (item) => item.kind === "routine")) continue;
     if (options.tasks === false && under(thread, (item) => item.kind === "task" || Boolean(item.task_id))) continue;
     if (agents && !thread.agent_ids.some((id) => agents.has(id))) continue;
@@ -79,22 +92,23 @@ export function inboxTree(threads: Thread[], options: InboxFilter): InboxNode[] 
         ? node.thread.routine_id
           ? "routine"
           : undefined
-        : node.thread.task_id
+        : (node.thread.task_id ?? taskOf.get(node.thread.id))
           ? "task"
           : undefined;
-    const ref = kind === "routine" ? node.thread.routine_id : node.thread.task_id;
+    const ref = kind === "routine" ? node.thread.routine_id : (node.thread.task_id ?? taskOf.get(node.thread.id));
     if (!kind || !ref) {
       result.push(node);
       continue;
     }
     const key = `${kind}:${ref}`;
-    let bundle = bundles.get(key);
-    if (!bundle) {
-      bundle = { key, kind, ref, thread: node.thread, children: [] };
-      bundles.set(key, bundle);
-      result.push(bundle);
+    // Roots come newest first: the first chat of a task or routine is its row, the later ones nest under it.
+    const bundle = bundles.get(key);
+    if (bundle) bundle.children.push(node);
+    else {
+      const head: InboxNode = { key, kind, ref, thread: node.thread, children: [...node.children] };
+      bundles.set(key, head);
+      result.push(head);
     }
-    bundle.children.push(node);
   }
   const sort = (list: InboxNode[]) => {
     list.sort(recent);
@@ -105,7 +119,7 @@ export function inboxTree(threads: Thread[], options: InboxFilter): InboxNode[] 
 }
 
 export function nodeThreads(node: InboxNode): Thread[] {
-  return [...(node.kind === "thread" ? [node.thread] : []), ...node.children.flatMap(nodeThreads)];
+  return [node.thread, ...node.children.flatMap(nodeThreads)];
 }
 
 /** A matching descendant keeps its ancestors; a matching header keeps its entire subtree. */
@@ -117,8 +131,7 @@ export function searchInbox(
   const words = query?.trim().toLocaleLowerCase().split(/\s+/).filter(Boolean) ?? [];
   if (!words.length) return nodes;
   return nodes.flatMap((node) => {
-    const hay =
-      `${title(node)} ${node.kind === "thread" ? `${node.thread.title} ${node.thread.preview}` : ""}`.toLocaleLowerCase();
+    const hay = `${title(node)} ${node.thread.title} ${node.thread.preview}`.toLocaleLowerCase();
     if (words.every((word) => hay.includes(word))) return [node];
     const children = searchInbox(node.children, query, title);
     return children.length ? [{ ...node, children }] : [];

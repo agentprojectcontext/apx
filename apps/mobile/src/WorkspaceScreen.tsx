@@ -32,6 +32,7 @@ import { SharedFilesPage } from "./pages/SharedFilesPage";
 import { TaskDetailPage } from "./pages/TaskDetailPage";
 import { TasksPage } from "./pages/TasksPage";
 import { SurfacesScreen } from "./SurfacesScreen";
+import { TaskMenu } from "./tasks/TaskMenu";
 import { ChatMenu } from "./ui/ChatMenu";
 import { ChatPicker } from "./ui/ChatPicker";
 import { ConnectionBanner, ConnectionEmpty } from "./ui/ConnectionState";
@@ -134,6 +135,8 @@ export function WorkspaceScreen({
   const [picker, setPicker] = useState<"switch" | "new">();
   /** A chat's long-press sheet, or the Chats tab's ("mark all read"). */
   const [menu, setMenu] = useState<Thread | "all">();
+  /** A task's options, from a long press on its row in Chats. */
+  const [taskMenu, setTaskMenu] = useState<string>();
   const [noticeThread, setNoticeThread] = useState<string>();
   const top = stack.top;
   // News about the chat on screen does not sound; the others still do.
@@ -191,12 +194,12 @@ export function WorkspaceScreen({
     return () => sub.remove();
   }, [picker, back, tab]);
   /** A chat by id, from the list or asked of the core; `focus` scrolls it to one of its messages. */
-  const openById = (id: string, focus?: string) => {
+  const openById = (id: string, focus?: string, how: "push" | "replace" = "push") => {
     const found = workspace.data.threads.find((item) => item.id === id);
-    if (found) return showChat(found, "push", focus);
+    if (found) return showChat(found, how, focus);
     void workspace
       .openThread(id)
-      .then((result) => showChat(result.thread as Thread, "push", focus))
+      .then((result) => showChat(result.thread as Thread, how, focus))
       .catch(() => undefined);
   };
   const newChat = () => setPicker("new");
@@ -224,6 +227,12 @@ export function WorkspaceScreen({
             make={workspace.makeChat}
             onMade={(made) => replace({ kind: "chat", thread: made })}
             onOpenThread={openById}
+            routineRuns={workspace.routineRuns}
+            onOpenRun={(id) => openById(id, undefined, "replace")}
+            onRoutine={(id) => {
+              const routine = workspace.data.routines.find((item) => item.id === id);
+              if (routine) push({ kind: "routine", routine });
+            }}
             onBack={back}
           />
         );
@@ -353,6 +362,7 @@ export function WorkspaceScreen({
             filter={chatFilter}
             setFilter={setChatFilter}
             menu={setMenu}
+            taskMenu={setTaskMenu}
             openArchived={() => on.push({ kind: "archived" })}
           />
         );
@@ -424,6 +434,7 @@ export function WorkspaceScreen({
     return <ConnectionEmpty offline={connection.offline} host={host} checking={connection.checking} retry={retry} />;
   const menuThread =
     menu && menu !== "all" ? (workspace.data.threads.find((x) => x.id === menu.id) ?? menu) : undefined;
+  const taskMenuTask = taskMenu ? workspace.data.tasks.find((task) => task.id === taskMenu) : undefined;
   const unreadIds = workspace.data.threads.filter((thread) => thread.unread > 0).map((thread) => thread.id);
   return (
     <MediaClient.Provider value={workspace.client}>
@@ -471,6 +482,16 @@ export function WorkspaceScreen({
             onRead={() => workspace.readThreads([menuThread.id])}
             update={(patch) => workspace.updateThread(menuThread.id, patch)}
             remove={() => workspace.deleteThread(menuThread.id)}
+          />
+        ) : null}
+        {taskMenuTask ? (
+          <TaskMenu
+            task={taskMenuTask}
+            data={workspace.data}
+            actions={taskActions}
+            onClose={() => setTaskMenu(undefined)}
+            onOpen={() => push({ kind: "task", id: taskMenuTask.id })}
+            openThread={openById}
           />
         ) : null}
         {menu === "all" ? (

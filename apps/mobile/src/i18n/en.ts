@@ -710,7 +710,6 @@ export const en = {
   mailLess: "Show less",
   waitingSendNow: "Send now",
   waitingTaken: "Now",
-  waitingLine: "In line for when {name} finishes",
   waitingEdit: "Edit",
   waitingRemove: "Remove",
   waitingUp: "Move up",
@@ -733,6 +732,17 @@ export const en = {
   diskLowHint: "When it runs out, APX can't save chats or files. Freeing space removes only caches and old logs.",
   diskFree: "Free up space",
   diskFreed: "Freed {size}.",
+  closeSearch: "Close search",
+  rtOpenRoutine: "Routine settings",
+  rtPastRuns: "{n} runs",
+  rtPastRunsOne: "1 run",
+  rtRunQuiet: "Nothing to tell",
+  rtPickRun: "Runs of {name}",
+  waitingQueue: "Queued",
+  waitingLineFor: "for when {name} is done",
+  waitingShow: "Show queued messages",
+  waitingHide: "Hide queued messages",
+  waitingOptions: "Send now, edit, move or remove it",
 } as const;
 
 export type Key = keyof typeof en;

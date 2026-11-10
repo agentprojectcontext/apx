@@ -95,48 +95,56 @@ export function WaitingControls({
         onPress={() => run(() => actions.unsend(message))}
       />
       {draft !== undefined ? (
-        <BottomSheet title={t("waitingEdit")} onClose={() => setDraft(undefined)}>
-          {(dismiss) => (
-            <View style={s.editing}>
-              <TextInput
-                autoFocus
-                multiline
-                value={draft}
-                onChangeText={setDraft}
-                accessibilityLabel={t("waitingEdit")}
-                placeholderTextColor={theme.fgSubtle}
-                style={s.input}
-              />
-              <View style={s.editActions}>
-                <Button label={t("cancel")} variant="secondary" size="sm" onPress={() => dismiss()} />
-                <Button
-                  label={t("save")}
-                  size="sm"
-                  disabled={!draft.trim() || draft.trim() === wordsOf(message).trim()}
-                  onPress={() =>
-                    void actions.editQueued(message, draft.trim()).then((saved) => {
-                      if (saved) dismiss();
-                    })
-                  }
-                />
-              </View>
-            </View>
-          )}
-        </BottomSheet>
+        <EditWaitingSheet message={message} actions={actions} initial={draft} onClose={() => setDraft(undefined)} />
       ) : null}
     </View>
   );
 }
 
-/** The label over the messages in line for the agent's next turn. */
-export function LineLabel({ name }: { name: string }) {
+/** Edits the words of a message in line before the agent takes it. */
+export function EditWaitingSheet({
+  message,
+  actions,
+  initial = wordsOf(message),
+  onClose,
+}: {
+  message: Message;
+  actions: Pick<WaitingActions, "editQueued">;
+  initial?: string;
+  onClose: () => void;
+}) {
   const theme = useTheme();
   const s = useStyles();
+  const [draft, setDraft] = useState(initial);
   return (
-    <View style={s.label}>
-      <Icon name="Clock" size={12} color={theme.fgSubtle} />
-      <Text style={s.labelText}>{t("waitingLine", { name })}</Text>
-    </View>
+    <BottomSheet title={t("waitingEdit")} onClose={onClose}>
+      {(dismiss) => (
+        <View style={s.editing}>
+          <TextInput
+            autoFocus
+            multiline
+            value={draft}
+            onChangeText={setDraft}
+            accessibilityLabel={t("waitingEdit")}
+            placeholderTextColor={theme.fgSubtle}
+            style={s.input}
+          />
+          <View style={s.editActions}>
+            <Button label={t("cancel")} variant="secondary" size="sm" onPress={() => dismiss()} />
+            <Button
+              label={t("save")}
+              size="sm"
+              disabled={!draft.trim() || draft.trim() === wordsOf(message).trim()}
+              onPress={() =>
+                void actions.editQueued(message, draft.trim()).then((saved) => {
+                  if (saved) dismiss();
+                })
+              }
+            />
+          </View>
+        </View>
+      )}
+    </BottomSheet>
   );
 }
 
@@ -144,8 +152,6 @@ const useStyles = makeStyles((theme) => ({
   row: { flexDirection: "row", alignItems: "center", justifyContent: "flex-end", gap: 2 },
   taken: { flexDirection: "row", alignItems: "center", gap: 3 },
   takenText: { color: theme.brand, fontSize: 11 },
-  label: { flexDirection: "row", alignItems: "center", gap: 6, alignSelf: "flex-end", paddingRight: 6, paddingTop: 6 },
-  labelText: { color: theme.fgSubtle, fontSize: 12 },
   editing: { gap: 8, paddingHorizontal: 16, paddingBottom: 8 },
   input: {
     minHeight: 120,
