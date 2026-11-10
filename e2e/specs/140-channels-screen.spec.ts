@@ -146,7 +146,24 @@ test("in the folded, compact sidebar the channels list names Manage channels in 
   await open(page);
   const sidebar = page.locator(".sidebar");
   await expect(sidebar).toHaveClass(/is-rail/);
-  await sidebar.getByRole("button", { name: /^Canales/ }).first().click();
+  await sidebar
+    .getByRole("button", { name: /^Canales/ })
+    .first()
+    .click();
   const manage = page.getByRole("button", { name: "Administrar canales" });
   await expect(manage.locator(".apx-nav__label")).toHaveText("Administrar canales");
+});
+
+test("an account picked under Channels lights Channels, and Inbox leads back to every chat", async ({ page }) => {
+  await open(page);
+  const sidebar = page.locator(".sidebar");
+  await sidebar.getByRole("button", { name: "WhatsApp", exact: true }).first().click();
+  // The Inbox narrowed to that account: its header, and Channels is where the owner is.
+  await expect(page.locator(".inbox__accountbtn")).toBeVisible();
+  const inbox = sidebar.getByRole("button", { name: /^Inbox/ }).first();
+  await expect(inbox).not.toHaveClass(/is-active/);
+  await inbox.click();
+  await expect(page.locator(".inbox__accountbtn")).toHaveCount(0);
+  await expect(page.locator(".inbox__title")).toHaveText("Inbox");
+  await expect(inbox).toHaveClass(/is-active/);
 });

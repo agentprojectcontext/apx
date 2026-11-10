@@ -7,6 +7,7 @@ import { setPrefs, usePrefs } from "../data/prefs.ts";
 import { useData } from "../data/state.ts";
 import { useT } from "../i18n/index.ts";
 import { unreadListed } from "../inbox/groupThreads.ts";
+import { clearFilter, soleFilter, useInboxFilter } from "../inbox/inboxFilter.ts";
 import { NewChatMenu } from "../inbox/NewChatMenu.tsx";
 import { AppsDock, CornerCards, DesktopInstallNotice } from "../lazy.ts";
 import { AccountRow } from "./AccountRow.tsx";
@@ -69,6 +70,9 @@ export function Sidebar({
     return n;
   }, [threads, routines]);
 
+  // An account picked under Channels narrows the Inbox to its chats: Channels is where the owner is, and Inbox leads
+  // back to every chat.
+  const accountView = useInboxFilter((f) => soleFilter(f)?.kind === "accounts");
   const sidebarMenu = useSidebarMenu();
   const navOrder = usePrefs((s) => s.navOrder);
   const sectionOrder = usePrefs((s) => s.sectionOrder);
@@ -91,8 +95,11 @@ export function Sidebar({
           icon={<Icons.Inbox />}
           label={t("nav.inbox")}
           count={unread}
-          active={view === "inbox"}
-          onClick={() => go.inbox()}
+          active={view === "inbox" && !accountView}
+          onClick={() => {
+            if (accountView) clearFilter();
+            go.inbox();
+          }}
         />
       </ContextMenu>
     ),

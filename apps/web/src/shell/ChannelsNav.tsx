@@ -101,7 +101,7 @@ export function ChannelsNav({ rail, compact = false }: { rail: boolean; compact?
       compact={compact}
       icon={<Icons.MessageCircle size={16} />}
       count={ordered.length}
-      active={view === "channel"}
+      active={view === "channel" || view === "channels" || (view === "inbox" && filtered !== undefined)}
       folded={folded}
       unread={totalUnread}
       unreadLabel={t("nav.channelsUnread", { unread: totalUnread })}
