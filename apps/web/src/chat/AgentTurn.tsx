@@ -184,6 +184,8 @@ export function AgentTurn({
     </MessageMeta>
   );
 
+  // The chips label an answer: a finished turn that said nothing (a mail it let pass, a signal) shows nothing at all.
+  if (!live && tools.length === 0 && items.length === 0) return null;
   return (
     <div className="turn">
       {avatar && <Speaker face={avatar} name={engine?.label ?? agent?.name} />}
