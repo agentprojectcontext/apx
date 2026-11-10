@@ -711,7 +711,7 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
             // The lead can be days: enough events that a busy week is not cut short.
             (await calendarApi(google).list({ from, to, max: 250, calendar: "primary" })).events,
         },
-        remind: (texts, events) => remind(texts, `event:${events.map((e) => e.id).join(",")}`),
+        remind,
       }),
       mailCheck({
         store,

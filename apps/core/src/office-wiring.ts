@@ -22,6 +22,9 @@ import { reviveStalled } from "./engine/task-stall.ts";
 import { PICKUP_EVERY_MS, pickUpTasks, startScheduled } from "./engine/task-work.ts";
 import type { Log } from "./log.ts";
 
+/** One thing a background check reminds the owner of: its line, the tray's title and the ref it is known by. */
+export type RemindItem = { text: string; title: string; ref: string };
+
 /** A reminder noticed this late goes only to the tray: a message about it now would be noise. */
 const LATE_MS = 3 * 3600_000;
 /** How often tasks whose work stopped are looked for. */
@@ -37,8 +40,11 @@ export function officeScheduler(deps: {
   openHeld?: () => number;
   /** Schedule Flows due at this beat start their runs (flows.ts): the same clock, no second one. */
   flowTick?: (at: Date) => void;
-  /** Work kept on this clock; `remind` tells the owner something they asked to hear (tray and channel). */
-  checks?: (remind: (texts: string[], ref: string) => void) => BackgroundCheck[];
+  /**
+   * Work kept on this clock; `remind` tells the owner something they asked to hear: each item in the tray, all of
+   * them in one channel message.
+   */
+  checks?: (remind: (items: RemindItem[]) => void) => BackgroundCheck[];
   log: Log;
   now?: () => Date;
 }) {
@@ -49,11 +55,11 @@ export function officeScheduler(deps: {
     digest: (texts) => channelTexts(store).digest(texts),
     ...(deps.now ? { now: deps.now } : {}),
   });
-  const remind = (texts: string[], ref: string) => {
-    const [first] = texts;
+  const remind = (items: RemindItem[]) => {
+    const [first] = items;
     if (!first) return;
-    const text = texts.length === 1 ? first : channelTexts(store).reminders(texts);
-    attention.add({ kind: "due", level: "info", title: first, body: text, ref });
+    for (const i of items) attention.add({ kind: "due", level: "info", title: i.title, body: i.text, ref: i.ref });
+    const text = items.length === 1 ? first.text : channelTexts(store).reminders(items.map((i) => i.text));
     nudges.offer({ kind: "reminder", text, asked: true });
   };
   const background = createBackground(deps.log, [

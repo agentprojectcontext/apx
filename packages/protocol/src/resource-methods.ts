@@ -20,8 +20,21 @@ export const MailCheck = z.object({
   important_only: z.boolean(),
 });
 export type MailCheck = z.infer<typeof MailCheck>;
+/** A Google Calendar event, or a whole recurring series, whose reminders the owner turned off. */
+export const MutedEvent = z.object({
+  /** The series' id (Google's recurringEventId), or the event's own id for a single event. */
+  series: z.string().min(1).max(1024),
+  title: z.string().max(300),
+  at: z.string(),
+});
+export type MutedEvent = z.infer<typeof MutedEvent>;
 /** An integration's own settings; only the ones it has are present. */
-const IntegrationSettings = z.object({ reminders: CalendarReminders.optional(), mail: MailCheck.optional() });
+const IntegrationSettings = z.object({
+  reminders: CalendarReminders.optional(),
+  /** Google Calendar's events the owner is not reminded of. */
+  muted: z.array(MutedEvent).optional(),
+  mail: MailCheck.optional(),
+});
 
 const McpTarget = z
   .object({ scope: z.enum(["global", "project"]), server: z.string(), project: Id.optional() })
@@ -485,6 +498,23 @@ export const resourceMethods = {
         id: z.string().max(40),
         reminders: CalendarReminders.partial().strict().optional(),
         mail: MailCheck.partial().strict().optional(),
+      })
+      .strict(),
+    result: IntegrationSettings,
+    effect: true,
+    access: "human",
+  },
+  /**
+   * Stops (muted) or resumes reminders of one Google Calendar event and every later one of its series. A reminder
+   * notice's ref is `event:<series>`.
+   */
+  "integrations.mute_event": {
+    params: z
+      .object({
+        series: z.string().min(1).max(1024),
+        /** Shown in the muted list; needed when muting. */
+        title: z.string().max(300).optional(),
+        muted: z.boolean(),
       })
       .strict(),
     result: IntegrationSettings,
