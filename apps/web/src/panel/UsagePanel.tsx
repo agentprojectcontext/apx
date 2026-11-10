@@ -34,6 +34,7 @@ const AUX_LABEL: Record<AuxPurpose, MessageKey> = {
   news: "usage.aux.news",
   sticker: "usage.aux.sticker",
   aside: "usage.aux.aside",
+  mail: "usage.aux.mail",
 };
 
 function secs(run: Run): number | undefined {

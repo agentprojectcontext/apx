@@ -97,6 +97,7 @@ export const esChat: Partial<Record<MessageKey, string>> = {
   "usage.aux.title": "Título",
   "usage.aux.summary": "Resúmenes",
   "usage.aux.room": "Filtro de sala",
+  "usage.aux.mail": "Filtro de correo",
   "usage.aux.commit": "Mensajes de commit",
   "usage.aux.suggestion": "Respuestas sugeridas",
   "usage.aux.news": "Novedades",

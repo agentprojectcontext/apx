@@ -241,6 +241,7 @@ export function createChannels(deps: {
     stickers,
     answeredHere: cards.answeredHere,
     held,
+    judge: deps.judge,
     now: clock,
     setButtons: async (id, conversation, ref, buttons) => {
       const l = live.get(id);

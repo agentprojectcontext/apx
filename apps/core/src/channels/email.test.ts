@@ -14,6 +14,7 @@ import { emailAdapter, isAutomatic, verifiedSender } from "./email.ts";
 import { htmlToText, parseAddress, parseMail, splitMessage, stripQuoted } from "./email-mime.ts";
 import { composeMail, dotStuff, smtpSend } from "./email-smtp.ts";
 import { type FakeImap, type FakeSmtp, fakeImap, fakeSmtp, mail, type SentMail } from "./fake-email.test-support.ts";
+import { firstLine } from "./inbound.ts";
 import { SendError } from "./types.ts";
 
 const USER = "agent@example.org";
@@ -74,6 +75,16 @@ describe("reading mail", () => {
     const m = parseMail(Buffer.from(raw, "latin1"));
     assert.equal(m.text.trim(), "Café con leche");
     assert.deepEqual(parseAddress(m.headers.get("from")?.[0]), { address: "jose@example.org", name: "José" });
+  });
+
+  test("a mail's alert line is its first words, plain: no links, no marks, one short line", () => {
+    assert.equal(
+      firstLine("\n**Hi Manuel**, your report is ready: https://example.org/r?id=1&t=abc\nmore"),
+      "Hi Manuel, your report is ready:",
+    );
+    assert.equal(firstLine("[attachments not kept: a.pdf]\nSee you"), "See you");
+    assert.equal(firstLine("Hola, Manuel:\n\nTu factura vence hoy."), "Tu factura vence hoy.");
+    assert.equal(firstLine("x".repeat(300)).length, 110);
   });
 
   test("auto-replies, lists, bounces and robots are automatic; a person's mail is not", () => {
@@ -223,7 +234,10 @@ const probe = defineTool({
 
 describe("the email channel", () => {
   const llm = scriptedLlm(
-    throughOwnerCheck((req, { said, afterTool }) => {
+    throughOwnerCheck((req, { said, afterTool, system }) => {
+      // The mail filter: only the overdue invoice is important.
+      if (system.startsWith("You mark incoming email"))
+        return say(said.includes("invoice is overdue") ? '{"important": true}' : '{"important": false}');
       if (afterTool) return say(`Done: ${String(req.messages.at(-1)?.content).slice(0, 40)}`);
       if (said.includes("launch the probe")) return callTool("p1", "probe", {});
       return say(`You said: ${said.split("\n").at(-1)?.slice(0, 60)}`);
@@ -253,6 +267,7 @@ describe("the email channel", () => {
     home = fs.mkdtempSync(path.join(os.tmpdir(), "apx-email-"));
     env = await startCore({
       llm,
+      aux: true,
       home,
       extraTools: [probe],
       channelAdapters: {
@@ -447,6 +462,42 @@ describe("the email channel", () => {
     assert.equal(env.core.store.persons.get(person.id)?.role, "contact");
     const again = (await env.client.call("channels.list", {})).channels[0];
     assert.ok(!again?.email?.blocked.includes("@service.example"), "read again: off the list");
+  });
+
+  test("an unreviewed sender's mail alerts the owner only when important, as sender, subject and one plain line", async () => {
+    const base = settings();
+    await env.client.call("channels.set", { id: "email", channel: { ...base, strangers: "ask" } });
+    await running();
+    const alerts = async () =>
+      (await env.client.call("notifications.list", {})).notifications.filter((n) =>
+        /Correo de|Mail from/.test(n.body ?? ""),
+      );
+    const before = (await alerts()).length;
+    imap.deliver(
+      mail({
+        from: "Promo <deals@launch.example>",
+        to: USER,
+        subject: "Boost your launch",
+        text: "Get 10x upvotes today: https://launch.example/track?u=1\n\nLong pitch...",
+      }).raw,
+    );
+    const body = `Hello,\nyour invoice is overdue: please pay by Friday https://billing.example/i/42\n\n${"details ".repeat(400)}`;
+    imap.deliver(mail({ from: "Billing <ana@billing.example>", to: USER, subject: "Invoice 42", text: body }).raw);
+    await waitFor(async () => (await alerts()).length > before, "an alert");
+    // Give the pitch's judgment time to land too: it must stay quiet.
+    await waitFor(async () => {
+      const calls = llm.calls.filter((c) => String(c.messages[0]?.content ?? "").startsWith("You mark incoming email"));
+      return calls.length >= 2;
+    }, "both judged");
+    const got = (await alerts()).slice(0, (await alerts()).length - before);
+    assert.equal(got.length, 1, JSON.stringify(got.map((n) => n.body)));
+    const text = got[0]?.body ?? "";
+    assert.match(text, /Invoice 42/);
+    assert.match(text, /invoice is overdue/);
+    assert.doesNotMatch(text, /https?:|billing\.example\/i|details details|\[subject:/, "no links, no body, no marker");
+    assert.ok(text.length < 260, text);
+    await env.client.call("channels.set", { id: "email", channel: base });
+    await running();
   });
 
   test("the owner sends a chat's draft from the mailbox once: subject and copy kept, not marked as automatic", async () => {
