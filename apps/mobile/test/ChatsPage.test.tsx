@@ -36,24 +36,17 @@ const mount = async (patch: Partial<React.ComponentProps<typeof ChatsPage>> = {}
   return { ...(await render(<ChatsPage {...props} />)), props };
 };
 
-test("routine headers collapse cross-day executions, distinguish same-name identities and open exact runs", async () => {
+test("a routine is one row that opens its latest run; same-name routines and legacy runs stay apart", async () => {
   const ui = await mount();
-  expect(ui.getAllByRole("button", { name: "Daily review" })).toHaveLength(2);
-  expect(ui.queryByText("Latest summary.")).toBeNull();
-  const first = required(ui.getAllByRole("button", { name: "Daily review" })[0]);
-  expect(first.props.accessibilityState).toMatchObject({ expanded: false });
+  const rows = ui.getAllByRole("button", { name: "Daily review" });
+  expect(rows).toHaveLength(2);
+  const first = required(rows[0]);
+  // Its past runs are picked inside its chat: no fold in the list.
+  expect(ui.queryByRole("button", { name: t("expandSessions", { name: "Daily review" }) })).toBeNull();
+  expect(within(first).getByText("3")).toBeVisible();
   await fireEvent.press(first);
-  expect(required(ui.getAllByRole("button", { name: "Daily review" })[0]).props.accessibilityState).toMatchObject({
-    expanded: true,
-  });
-  expect(ui.getByText(t("routineRuns", { n: 3 }))).toBeVisible();
-  await fireEvent.press(ui.getByRole("button", { name: "Latest summary." }));
   expect(ui.props.open).toHaveBeenLastCalledWith(expect.objectContaining({ id: "run_today" }));
-  await fireEvent.press(ui.getByRole("button", { name: t("expandSessions", { name: "Latest summary." }) }));
-  await fireEvent.press(ui.getByRole("button", { name: "Check metrics" }));
-  expect(ui.props.open).toHaveBeenLastCalledWith(expect.objectContaining({ id: "run_delegate" }));
-  await fireEvent.press(first);
-  expect(ui.queryByRole("button", { name: "Check metrics" })).toBeNull();
+  expect(ui.queryByText("Yesterday")).toBeNull();
   expect(ui.getByRole("button", { name: "Legacy routine" })).toBeVisible();
   await ui.unmount();
 });
@@ -75,15 +68,26 @@ test("chat sessions expand recursively, keep independent open actions, unread to
   await ui.unmount();
 });
 
-test("tasks group multiple agents and keep delegated sessions below the correct task chat", async () => {
+test("a task is its latest chat's row; its other chats nest under it by who works them", async () => {
   const ui = await mount();
-  await fireEvent.press(ui.getByRole("button", { name: "Prepare launch" }));
-  expect(ui.getByRole("button", { name: "Draft proposal" })).toBeVisible();
-  expect(ui.getByRole("button", { name: "Review proposal" })).toBeVisible();
-  expect(ui.queryByRole("button", { name: "Compare options" })).toBeNull();
-  await fireEvent.press(ui.getByRole("button", { name: t("expandSessions", { name: "Draft proposal" }) }));
+  const task = ui.getByRole("button", { name: "Prepare launch" });
+  expect(within(task).getByText("2")).toBeVisible();
+  await fireEvent.press(task);
+  expect(ui.props.open).toHaveBeenLastCalledWith(expect.objectContaining({ id: "task_chat_a" }));
+  expect(ui.queryByRole("button", { name: "Reviewer" })).toBeNull();
+  await fireEvent.press(ui.getByRole("button", { name: t("expandSessions", { name: "Prepare launch" }) }));
+  await fireEvent.press(ui.getByRole("button", { name: "Reviewer" }));
+  expect(ui.props.open).toHaveBeenLastCalledWith(expect.objectContaining({ id: "task_chat_b" }));
   await fireEvent.press(ui.getByRole("button", { name: "Compare options" }));
   expect(ui.props.open).toHaveBeenLastCalledWith(expect.objectContaining({ id: "task_delegate" }));
+  await ui.unmount();
+});
+
+test("a long press on a task's row gives the task's options", async () => {
+  const taskMenu = jest.fn();
+  const ui = await mount({ taskMenu });
+  await fireEvent(ui.getByRole("button", { name: "Prepare launch" }), "longPress");
+  expect(taskMenu).toHaveBeenCalledWith("task_a");
   await ui.unmount();
 });
 
@@ -134,7 +138,7 @@ test("refresh indicator resets after rejection without changing or losing the li
   await ui.unmount();
 });
 
-test("single faces shrink to 34; group pairs take 42 and delegation pairs include target then caller", async () => {
+test("a group pair takes a little more than one face; a delegation pair shows the target then the caller", async () => {
   const data = inboxFixtures();
   const home = required(data.threads.find((thread) => thread.id === "home"));
   const ui = await render(<ThreadAvatar thread={home} agents={data.agents} size={34} />);
@@ -147,8 +151,8 @@ test("single faces shrink to 34; group pairs take 42 and delegation pairs includ
     />,
   );
   expect(ui.getByLabelText(t("groupAgents", { first: "Coordinator", second: "Researcher" }))).toHaveStyle({
-    width: 42,
-    height: 42,
+    width: 38,
+    height: 38,
   });
   await ui.rerender(
     <ThreadAvatar
@@ -166,7 +170,7 @@ test("single faces shrink to 34; group pairs take 42 and delegation pairs includ
   const row = await render(
     <InboxRow node={required(inboxTree([home], { routines: true, project: "all" })[0])} data={data} open={jest.fn()} />,
   );
-  expect(row.getByRole("button", { name: "Launch planning" })).toHaveStyle({ paddingVertical: 6 });
+  expect(row.getByRole("button", { name: "Launch planning" })).toHaveStyle({ paddingVertical: 9 });
   await row.unmount();
 });
 

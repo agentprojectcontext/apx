@@ -100,6 +100,7 @@ function InboxCard({
       {item.quote ? <Text style={s.quote}>{item.quote}</Text> : null}
       <View style={s.actions}>
         <Button
+          size="sm"
           label={t(item.primary.label)}
           busy={busy === "primary"}
           disabled={Boolean(busy)}
@@ -108,6 +109,7 @@ function InboxCard({
         {(item.more ?? []).map((m) => (
           <Button
             key={m.label}
+            size="sm"
             label={t(m.label)}
             variant="secondary"
             busy={busy === m.label}
@@ -115,13 +117,17 @@ function InboxCard({
             onPress={() => press(m.label, m.action)}
           />
         ))}
-        <Button
-          label={t(item.secondary.label)}
-          variant="secondary"
-          busy={busy === "secondary"}
-          disabled={Boolean(busy)}
-          onPress={() => press("secondary", item.secondary.action)}
-        />
+        {/* A notice with no chat to open has one thing to do: one button, not the same one twice. */}
+        {item.secondary.label === item.primary.label ? null : (
+          <Button
+            size="sm"
+            label={t(item.secondary.label)}
+            variant="secondary"
+            busy={busy === "secondary"}
+            disabled={Boolean(busy)}
+            onPress={() => press("secondary", item.secondary.action)}
+          />
+        )}
       </View>
     </Card>
   );
@@ -149,5 +155,5 @@ const useStyles = makeStyles((theme) => ({
     fontSize: 14,
     overflow: "hidden",
   },
-  actions: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
+  actions: { flexDirection: "row", flexWrap: "wrap", gap: 6 },
 }));

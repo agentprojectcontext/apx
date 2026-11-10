@@ -38,9 +38,12 @@ test("routine identity groups cross-day executions but never same-title routines
     options,
   );
   assert.equal(nodes.length, 4);
+  // The routine's row is its latest run; the runs before it nest under it.
+  const routine = nodes.find((node) => node.ref === "r_one");
+  assert.equal(routine?.thread.id, "one");
   assert.deepEqual(
-    nodes.find((node) => node.ref === "r_one")?.children.map((node) => node.ref),
-    ["one", "two"],
+    routine?.children.map((node) => node.ref),
+    ["two"],
   );
   assert.equal(nodes.filter((node) => node.kind === "routine").length, 2);
   assert.equal(nodes.filter((node) => node.kind === "thread").length, 2);
@@ -58,8 +61,10 @@ test("task chats from multiple agents retain recursive delegations exactly once"
   );
   assert.equal(nodes.length, 1);
   assert.equal(nodes[0]?.kind, "task");
-  assert.equal(nodes[0]?.children.length, 2);
-  assert.equal(nodes[0]?.children.find((node) => node.ref === "chat")?.children[0]?.children[0]?.ref, "nested");
+  // The row is the task's latest chat: its own sessions and the task's other chats nest under it.
+  assert.equal(nodes[0]?.thread.id, "chat");
+  assert.deepEqual(nodes[0]?.children.map((node) => node.ref).sort(), ["delegate", "review"]);
+  assert.equal(nodes[0]?.children.find((node) => node.ref === "delegate")?.children[0]?.ref, "nested");
   assert.deepEqual(ids(nodes), ["chat", "delegate", "nested", "review"]);
 });
 
@@ -130,4 +135,46 @@ test("filters drop task chats with their sessions, keep only the picked agents, 
     "task_session",
   ]);
   assert.deepEqual(ids(inboxTree(threads, { ...options, archived: true })), ["old"]);
+});
+
+test("a task's row is its most recent chat, wherever its older chats were in the list", () => {
+  const nodes = inboxTree(
+    [
+      thread("old_task_chat", { task_id: "t1", updated_at: "2026-10-17T10:00:00Z" }),
+      thread("plain", { updated_at: "2026-10-18T10:00:00Z" }),
+      thread("new_task_chat", { task_id: "t1", updated_at: "2026-10-19T10:00:00Z" }),
+    ],
+    options,
+  );
+  assert.deepEqual(
+    nodes.map((node) => `${node.kind}:${node.thread.id}`),
+    ["task:new_task_chat", "thread:plain"],
+  );
+  assert.deepEqual(
+    nodes[0]?.children.map((node) => node.ref),
+    ["old_task_chat"],
+  );
+  const title = (node: (typeof nodes)[number]) => node.thread.title;
+  assert.deepEqual(ids(searchInbox(nodes, "new_task_chat", title)), ["new_task_chat", "old_task_chat"]);
+});
+
+test("a task's own chat joins its row once something was said in it, and stays off the list while empty", () => {
+  const tasks = [
+    { id: "t_started", thread_id: "board_started" },
+    { id: "t_new", thread_id: "board_new" },
+  ];
+  const nodes = inboxTree(
+    [
+      thread("board_started", { kind: "task", preview: "On it.", updated_at: "2026-10-19T11:00:00Z" }),
+      thread("helper", { task_id: "t_started" }),
+      thread("board_new", { kind: "task", preview: "" }),
+    ],
+    options,
+    tasks,
+  );
+  assert.deepEqual(
+    nodes.map((node) => `${node.key}>${node.thread.id}`),
+    ["task:t_started>board_started"],
+  );
+  assert.deepEqual(ids(nodes), ["board_started", "helper"]);
 });

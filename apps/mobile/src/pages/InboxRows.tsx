@@ -1,19 +1,26 @@
 import { memo, useState } from "react";
 import { Pressable, Text, View } from "react-native";
-import { listWhen, textOrder } from "../format";
-import { channelIdentity, chatPreview, chatTitle, isWorking, routineName, threadContext } from "../hooks/chatSelectors";
+import { listWhen } from "../format";
+import { channelIdentity, chatPreview, chatTitle, isWorking, routineName } from "../hooks/chatSelectors";
 import { type InboxNode, nodeThreads } from "../hooks/inboxTree";
-import type { Agent, Thread, Workspace } from "../hooks/useWorkspace";
-import { t } from "../i18n";
+import type { Agent, Task, Thread, Workspace } from "../hooks/useWorkspace";
+import { type Key, t } from "../i18n";
+import { scheduleText } from "../routines/view";
 import { EngineIcon } from "../ui/EngineIcon";
 import { Icon } from "../ui/Icon";
-import { AgentAvatar, AgentPair, CountBadge, IconButton, Spinner, useType } from "../ui/kit";
+import { AgentAvatar, AgentPair, CountBadge, Spinner, useType } from "../ui/kit";
 import { PersonAvatar } from "../ui/PersonAvatar";
-import { makeStyles, useTheme } from "../ui/theme";
+import { type ColorKey, makeStyles, useTheme } from "../ui/theme";
 
 const agentOf = (id: string | undefined, agents: Agent[]) => agents.find((agent) => agent.id === id);
 /** One face in the list: small enough that more chats fit, big enough to tell agents apart. */
-export const LIST_FACE = 34;
+export const LIST_FACE = 30;
+/** A face under another row. */
+const NESTED_FACE = 24;
+/** Room the tree's line takes left of a row under another, and how far down that row's middle is. */
+const BRANCH = 14;
+const NESTED_MIDDLE = 26;
+const RISE = 8;
 
 export function inboxTitle(node: InboxNode, data: Workspace): string {
   if (node.kind === "routine") return data.routines.find((r) => r.id === node.ref)?.name ?? routineName(node.thread);
@@ -22,7 +29,7 @@ export function inboxTitle(node: InboxNode, data: Workspace): string {
 }
 
 /** The size a pair of faces takes in the list: a little more than one face. */
-export const PAIR_SIZE = 42;
+export const PAIR_SIZE = 36;
 
 /**
  * Delegations show the target first, and the caller second, including single-agent sessions. A contact's chat shows the
@@ -81,114 +88,152 @@ export const InboxRow = memo(function InboxRow({
   data,
   open,
   menu,
+  taskMenu,
   searching = false,
   caller,
+  nested = false,
+  label,
 }: {
   node: InboxNode;
   data: Workspace;
+  /** Opens a chat; a task's or a routine's row opens its latest one. */
   open: (thread: Thread) => void;
   /** A long press: the chat's own actions (read, archive, delete…). */
   menu?: (thread: Thread) => void;
+  /** A long press on a task's row: the task's options instead of its latest chat's. */
+  taskMenu?: (taskId: string) => void;
   searching?: boolean;
   caller?: string | undefined;
+  /** Under another row: a smaller face, the same two lines. */
+  nested?: boolean;
+  /** Under a task's row every chat has the task's title: who works in it tells them apart. */
+  label?: string | undefined;
 }) {
   const type = useType();
   const theme = useTheme();
   const s = useStyles();
   const [expanded, setExpanded] = useState(false);
-  const shown = searching || expanded;
-  const title = inboxTitle(node, data);
+  // A routine is one row: its past runs are picked inside its chat, not listed here.
+  const folds = node.kind !== "routine" && node.children.length > 0;
+  const shown = folds && (searching || expanded);
+  const title = label ?? inboxTitle(node, data);
   const threads = nodeThreads(node);
   const unread = threads.reduce((n, thread) => n + thread.unread, 0);
   const busy = threads.some((thread) => isWorking(thread.state));
   const waiting = threads.some((thread) => thread.state === "input-required");
-  const failed = threads.some((thread) => thread.state === "failed");
-  const latest = [...threads].sort((a, b) => textOrder(b.updated_at, a.updated_at))[0] ?? node.thread;
-  const bundle = node.kind !== "thread";
-  const ids = [...new Set(threads.flatMap((thread) => thread.agent_ids))];
-  const [a, b] = ids.map((id) => agentOf(id, data.agents) ?? { id, name: id });
+  // A routine says how its latest run ended; a chat or task, whether any of its chats failed.
+  const failed =
+    node.kind === "routine" ? node.thread.state === "failed" : threads.some((thread) => thread.state === "failed");
   const toggle = () => setExpanded((value) => !value);
-  const preview = bundle
-    ? node.kind === "routine"
-      ? t("routineRuns", { n: node.children.length })
-      : t("taskChats", { n: node.children.length })
-    : chatPreview(node.thread) || t("noMessagesYet");
+  // How many chats the task has, or runs the routine has: not the sessions under them.
+  const members = [node, ...node.children].filter((item) =>
+    node.kind === "routine" ? item.thread.kind === "routine" : sameTask(item.thread),
+  ).length;
+  const routine = node.kind === "routine" ? data.routines.find((r) => r.id === node.ref) : undefined;
+  const task = node.kind === "task" ? data.tasks.find((item) => item.id === node.ref) : undefined;
+  const state = node.kind === "thread" ? undefined : rowState(node.kind, { task, busy, waiting, failed });
+  const preview = chatPreview(node.thread) || t("noMessagesYet");
+  const face = nested ? NESTED_FACE : LIST_FACE;
+  const longPress =
+    node.kind === "task" && taskMenu ? () => taskMenu(node.ref) : menu ? () => menu(node.thread) : undefined;
   return (
     <View>
-      <View style={s.container}>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={title}
-          accessibilityState={bundle ? { expanded: shown } : undefined}
-          onPress={bundle ? toggle : () => open(node.thread)}
-          onLongPress={menu && !bundle ? () => menu(node.thread) : undefined}
-          delayLongPress={350}
-          style={({ pressed }) => [s.row, pressed && { backgroundColor: theme.fill }]}
-        >
-          <View style={s.avatar}>
-            {bundle && a && b ? (
-              <AgentPair first={a} second={b} size={PAIR_SIZE} />
-            ) : (
-              <ThreadAvatar
-                thread={node.thread}
-                agents={data.agents}
-                data={data}
-                size={LIST_FACE}
-                caller={data.threads.find((thread) => thread.id === node.thread.parent_id)?.agent_ids[0] ?? caller}
-              />
-            )}
-          </View>
-          <View style={s.copy}>
-            <View style={s.line}>
-              {bundle || node.thread.kind === "routine" ? (
-                <Icon name={node.kind === "task" ? "ListChecks" : "Clock"} size={13} color={theme.fgSubtle} />
-              ) : null}
-              <Text numberOfLines={1} style={[s.title, unread > 0 && { fontWeight: "600" }]}>
-                {title}
-              </Text>
-              {busy ? <Spinner size={12} /> : null}
-              <Text style={[type.meta, waiting && { color: theme.warning }, failed && { color: theme.danger }]}>
-                {busy
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={title}
+        onPress={() => open(node.thread)}
+        onLongPress={longPress}
+        delayLongPress={350}
+        style={({ pressed }) => [s.row, nested && s.nestedRow, pressed && { backgroundColor: theme.fill }]}
+      >
+        <View style={[s.avatar, { width: face, height: face }]}>
+          <ThreadAvatar
+            thread={node.thread}
+            agents={data.agents}
+            data={data}
+            size={face}
+            caller={data.threads.find((thread) => thread.id === node.thread.parent_id)?.agent_ids[0] ?? caller}
+          />
+        </View>
+        <View style={s.copy}>
+          <View style={s.line}>
+            {node.kind !== "thread" || node.thread.kind === "routine" ? (
+              <Icon name={node.kind === "task" ? "ListChecks" : "Clock"} size={12} color={theme.fgSubtle} />
+            ) : null}
+            <Text numberOfLines={1} style={[s.title, nested && s.nestedTitle, unread > 0 && { fontWeight: "600" }]}>
+              {title}
+            </Text>
+            {folds ? (
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={t(shown ? "collapseSessions" : "expandSessions", { name: title })}
+                accessibilityState={{ expanded: shown }}
+                hitSlop={12}
+                onPress={toggle}
+                style={({ pressed }) => [s.fold, pressed && { backgroundColor: theme.fillHover }]}
+              >
+                <Icon name={shown ? "ChevronDown" : "ChevronRight"} size={13} color={theme.fgMuted} />
+              </Pressable>
+            ) : null}
+            <View style={s.spacer} />
+            {busy ? <Spinner size={11} /> : null}
+            <Text
+              style={[
+                type.meta,
+                !state && waiting && { color: theme.warning },
+                !state && failed && { color: theme.danger },
+              ]}
+            >
+              {state
+                ? listWhen(node.thread.updated_at)
+                : busy
                   ? t("working")
                   : waiting
                     ? t("waitsForYou")
                     : failed
                       ? t("inboxFailed")
-                      : listWhen(latest.updated_at)}
-              </Text>
-            </View>
-            <View style={s.line}>
-              <Text numberOfLines={1} style={[s.preview, unread > 0 && { color: theme.fg }]}>
-                {preview}
-              </Text>
-              {unread > 0 ? <CountBadge count={unread} /> : null}
-            </View>
-            <Text numberOfLines={1} style={type.small}>
-              {threadContext(node.thread, data)}
+                      : listWhen(node.thread.updated_at)}
             </Text>
           </View>
-          {bundle ? <Icon name={shown ? "ChevronDown" : "ChevronRight"} size={16} color={theme.fgSubtle} /> : null}
-        </Pressable>
-        {!bundle && node.children.length > 0 ? (
-          <IconButton
-            icon={shown ? "ChevronDown" : "ChevronRight"}
-            label={t(shown ? "collapseSessions" : "expandSessions", { name: title })}
-            onPress={toggle}
-          />
-        ) : null}
-      </View>
+          <View style={s.line}>
+            {state ? (
+              <View style={s.state}>
+                <View style={[s.stateDot, { backgroundColor: theme[state.color] }]} />
+                <Text style={[s.stateText, { color: theme[state.color] }]}>{t(state.label)}</Text>
+              </View>
+            ) : null}
+            {node.kind !== "thread" && members > 1 ? (
+              <Count icon={node.kind === "task" ? "MessageCircle" : "RefreshCw"} n={members} />
+            ) : null}
+            <Text numberOfLines={1} style={[s.preview, unread > 0 && { color: theme.fg }]}>
+              {routine ? scheduleText(routine.schedule) : preview}
+            </Text>
+            {unread > 0 ? <CountBadge count={unread} small /> : null}
+          </View>
+        </View>
+      </Pressable>
       {shown ? (
         <View style={s.nested}>
-          {node.children.map((child) => (
-            <InboxRow
-              key={child.key}
-              node={child}
-              data={data}
-              open={open}
-              {...(menu ? { menu } : {})}
-              searching={searching}
-              caller={node.thread.agent_ids[0]}
-            />
+          {node.children.map((child, i) => (
+            <View key={child.key} style={s.branch}>
+              {/* A line from the row above to each chat under it; the last one ends in a curve. */}
+              {i < node.children.length - 1 ? <View style={s.trunk} /> : null}
+              <View style={s.elbow} />
+              <InboxRow
+                node={child}
+                data={data}
+                open={open}
+                {...(menu ? { menu } : {})}
+                searching={searching}
+                caller={node.thread.agent_ids[0]}
+                label={
+                  node.kind === "task" && sameTask(child.thread)
+                    ? agentOf(child.thread.agent_ids[0], data.agents)?.name
+                    : undefined
+                }
+                nested
+              />
+            </View>
           ))}
         </View>
       ) : null}
@@ -196,13 +241,68 @@ export const InboxRow = memo(function InboxRow({
   );
 });
 
+/** Where a task or a routine stands, as the panel's Inbox shows it: what its runs did, or the task's place. */
+export function rowState(
+  kind: "task" | "routine",
+  at: { task?: Task | undefined; busy: boolean; waiting: boolean; failed: boolean },
+): { label: Key; color: ColorKey } {
+  if (kind === "routine") {
+    if (at.busy) return { label: "stateRunning", color: "info" };
+    return at.failed ? { label: "inboxFailed", color: "danger" } : { label: "stateDone", color: "brand" };
+  }
+  if (at.task?.state === "dropped") return { label: "stateDropped", color: "danger" };
+  if (at.task && at.task.state !== "open") return { label: "stateDone", color: "brand" };
+  if (at.waiting || at.task?.awaits_owner) return { label: "waitsForYou", color: "warning" };
+  if (at.busy || at.task?.status === "doing") return { label: "stateRunning", color: "info" };
+  if (at.failed) return { label: "inboxFailed", color: "danger" };
+  return { label: "statePending", color: "fgSubtle" };
+}
+
+/** A chat kept for a task (the task's own or one an agent works it in), not a session one of them started. */
+const sameTask = (thread: Thread) => Boolean(thread.task_id) || thread.kind === "task";
+
+/** How many chats a task has, or runs a routine has, before the second line's words. */
+function Count({ icon, n }: { icon: "MessageCircle" | "RefreshCw"; n: number }) {
+  const theme = useTheme();
+  const s = useStyles();
+  return (
+    <View style={s.count}>
+      <Icon name={icon} size={11} color={theme.fgSubtle} />
+      <Text style={s.countText}>{n}</Text>
+    </View>
+  );
+}
+
 const useStyles = makeStyles((theme) => ({
-  container: { flexDirection: "row", alignItems: "center" },
-  row: { flex: 1, flexDirection: "row", alignItems: "center", gap: 12, paddingVertical: 6, paddingHorizontal: 16 },
-  avatar: { width: PAIR_SIZE, height: PAIR_SIZE, alignItems: "center", justifyContent: "center" },
-  copy: { flex: 1, minWidth: 0, gap: 2 },
-  line: { flexDirection: "row", alignItems: "center", gap: 8 },
-  title: { flex: 1, color: theme.fg, fontSize: 15, fontWeight: "500" },
+  row: { flexDirection: "row", alignItems: "center", gap: 10, paddingVertical: 9, paddingHorizontal: 16 },
+  nestedRow: { paddingVertical: 7, paddingLeft: 4 },
+  avatar: { alignItems: "center", justifyContent: "center" },
+  copy: { flex: 1, minWidth: 0, gap: 1 },
+  line: { flexDirection: "row", alignItems: "center", gap: 6 },
+  title: { flexShrink: 1, color: theme.fg, fontSize: 15, fontWeight: "500" },
+  nestedTitle: { fontSize: 14 },
+  spacer: { flex: 1, minWidth: 4 },
+  fold: { width: 20, height: 20, borderRadius: 10, alignItems: "center", justifyContent: "center" },
   preview: { flex: 1, color: theme.fgMuted, fontSize: 13 },
-  nested: { marginLeft: 20, borderLeftWidth: 1, borderLeftColor: theme.border },
+  count: { flexDirection: "row", alignItems: "center", gap: 3 },
+  state: { flexDirection: "row", alignItems: "center", gap: 4 },
+  stateDot: { width: 6, height: 6, borderRadius: 3 },
+  stateText: { fontSize: 12 },
+  countText: { color: theme.fgSubtle, fontSize: 12 },
+  // Under the face of the row above: each chat hangs from one line, like the panel's tree.
+  nested: { marginLeft: 30 },
+  branch: { paddingLeft: BRANCH },
+  // Both start under the face of the row above, not at the edge of the row.
+  trunk: { position: "absolute", left: 0, top: -RISE, bottom: 0, width: 1, backgroundColor: theme.border },
+  elbow: {
+    position: "absolute",
+    left: 0,
+    top: -RISE,
+    width: BRANCH - 2,
+    height: NESTED_MIDDLE + RISE,
+    borderLeftWidth: 1,
+    borderBottomWidth: 1,
+    borderBottomLeftRadius: 8,
+    borderColor: theme.border,
+  },
 }));

@@ -19,7 +19,7 @@ export function ArchivedChatsPage({
   menu: (thread: Thread) => void;
 }) {
   const s = useStyles();
-  const rows = inboxTree(data.threads, { routines: true, project: "all", archived: true });
+  const rows = inboxTree(data.threads, { routines: true, project: "all", archived: true }, data.tasks);
   return (
     <View style={s.root}>
       <SubHeader title={t("archivedChats")} back={back} />
