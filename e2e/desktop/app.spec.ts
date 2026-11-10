@@ -432,6 +432,124 @@ test("the browser tab follows its slot, a popup over it shows a still, and a rel
   await rpc("browser.close", { tab });
 });
 
+test("the browser tab stays in its slot while its page scrolls and the window is resized", async () => {
+  // A long page, so the wheel really scrolls it.
+  const server = http.createServer((_req, res) => {
+    res.setHeader("content-type", "text/html");
+    res.end(
+      `<!doctype html><body style="margin:0">${Array.from({ length: 200 }, (_, i) => `<p style="height:40px">Row ${i}</p>`).join("")}</body>`,
+    );
+  });
+  await new Promise<void>((r) => server.listen(0, "127.0.0.1", r));
+  const url = `http://127.0.0.1:${(server.address() as AddressInfo).port}/long`;
+  await until(async () => {
+    const h = await rpc<{ subsystems: Record<string, { status: string; detail?: string }> }>("system.health");
+    return h.subsystems.browser?.status === "ok" && h.subsystems.browser.detail === "apx-desktop";
+  }, 20_000);
+  const { tab } = await rpc<{ tab: string }>("browser.open", { url, by: "e2e" });
+  try {
+    const main = await page("main");
+    const thread = await rpc<{ id: string }>("threads.create", {
+      kind: "loose",
+      agent_id: "superagent",
+      title: "Scroll",
+    });
+    await main.evaluate((hash) => {
+      location.hash = hash;
+    }, `#thread=${thread.id}&panel=browser&browserTab=${tab}`);
+    const slot = main.locator(".browser__page--native");
+    await expect(slot).toBeVisible();
+    await main.keyboard.press("Escape");
+    const rect = async () =>
+      slot.evaluate((el) => {
+        const r = el.getBoundingClientRect();
+        return {
+          x: Math.round(r.left),
+          y: Math.round(r.top),
+          width: Math.round(r.width),
+          height: Math.round(r.height),
+        };
+      });
+    // How far the page is scrolled, read in the tab's own view (the one that is not the panel).
+    const scrollY = () =>
+      app.evaluate(({ BaseWindow }) => {
+        const win = BaseWindow.getAllWindows().find((w) => w.contentView.children.length > 1);
+        const full = win?.getContentBounds();
+        const view = win?.contentView.children.find((k) => {
+          const b = k.getBounds();
+          return !(b.x === 0 && b.y === 0 && b.width === full?.width && b.height === full?.height);
+        }) as unknown as { webContents: Electron.WebContents } | undefined;
+        return view?.webContents.executeJavaScript("scrollY") as Promise<number>;
+      });
+    // Both read now: the slot moves while the window settles.
+    const fits = async () => JSON.stringify(await tabView()) === JSON.stringify({ on: "top", ...(await rect()) });
+    await expect.poll(fits).toBe(true);
+    const scrollAndCheck = async () => {
+      const b = await tabView();
+      // The wheel goes to the native page, where the person's pointer is.
+      await app.evaluate(
+        ({ BaseWindow }, at) => {
+          const win = BaseWindow.getAllWindows().find((w) => w.contentView.children.length > 1);
+          const kids = win?.contentView.children ?? [];
+          const view = kids[kids.length - 1] as unknown as { webContents: Electron.WebContents };
+          for (let i = 0; i < 10; i++)
+            view.webContents.sendInputEvent({ type: "mouseWheel", x: at.x, y: at.y, deltaX: 0, deltaY: -120 });
+        },
+        { x: Math.round((b?.width ?? 200) / 2), y: Math.round((b?.height ?? 200) / 2) },
+      );
+      await expect.poll(fits).toBe(true);
+    };
+    await scrollAndCheck();
+    for (const [w, h] of [
+      [1000, 700],
+      [1400, 900],
+      [900, 640],
+      [1280, 820],
+    ] as const) {
+      await app.evaluate(
+        ({ BaseWindow }, size) => {
+          const win = BaseWindow.getAllWindows().find((x) => x.contentView.children.length > 1);
+          win?.setContentSize(size.w, size.h);
+        },
+        { w, h },
+      );
+      await expect.poll(fits).toBe(true);
+      await scrollAndCheck();
+    }
+    // Dragging the panel's edge wider and narrower: once let go, the live page is back in its new place.
+    const edge = main.locator(".sidepanel__resize");
+    for (const dx of [-160, 120, -80]) {
+      const e = await edge.boundingBox();
+      if (!e) throw new Error("no panel edge");
+      const x = e.x + e.width / 2;
+      const y = e.y + e.height / 2;
+      const before = await rect();
+      // The wheel scrolls smoothly: read it once it has come to rest.
+      let scrolled = -1;
+      await expect
+        .poll(async () => {
+          const was = scrolled;
+          scrolled = await scrollY();
+          return scrolled === was;
+        })
+        .toBe(true);
+      await main.mouse.move(x, y);
+      await main.mouse.down();
+      // Under the panel it keeps its place and size, so the page is not laid out again at another width.
+      await expect.poll(tabView).toEqual({ on: "behind", ...before });
+      for (let i = 1; i <= 8; i++) await main.mouse.move(x + (dx * i) / 8, y);
+      await main.mouse.up();
+      await expect.poll(fits).toBe(true);
+      await expect(main.locator(".browser__frame")).toHaveCount(0);
+      expect(await scrollY()).toBe(scrolled);
+      await scrollAndCheck();
+    }
+  } finally {
+    await rpc("browser.close", { tab });
+    server.close();
+  }
+});
+
 test("native tab destruction during CDP invalidation removes only that tab and the browser keeps working", async () => {
   await until(async () => {
     const h = await rpc<{ subsystems: Record<string, { status: string; detail?: string }> }>("system.health");

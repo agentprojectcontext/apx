@@ -1,7 +1,8 @@
 // Sandboxed preload for APX's own pages (the panel and the quick chat): the few things the web UI asks of the shell.
 import { contextBridge, ipcRenderer } from "electron";
 
-type Bounds = { x: number; y: number; width: number; height: number };
+/** `behind`: keep the page at this place and size, but under the panel (something covers it for a moment). */
+type Bounds = { x: number; y: number; width: number; height: number; behind?: boolean };
 
 // Kept from the window's own reports (sent at load and on every change), so a late reader gets it too.
 let fullScreen = false;
