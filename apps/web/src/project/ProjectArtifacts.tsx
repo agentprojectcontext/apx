@@ -91,9 +91,6 @@ export function ProjectArtifacts({ project }: { project: ProjectEntry }) {
     <div className="memory artifacts">
       <div className="team__head">
         <div className="team__titles">
-          <div className="team__title">
-            {t("project.tab.artifacts")} {docs && <span className="team__count">{items.length}</span>}
-          </div>
           <div className="team__note">{t("artifacts.lead")}</div>
         </div>
         <SegmentedControl

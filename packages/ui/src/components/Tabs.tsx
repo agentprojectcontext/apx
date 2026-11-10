@@ -19,10 +19,11 @@ export interface TabsProps {
   defaultValue?: string;
   onValueChange?: (value: string) => void;
   /**
-   * buttons = page sections as separate rounded buttons (a project's Chats · Tasks · Files); underline = the same on a
-   * line; pill = compact filters inside a panel.
+   * buttons = page sections on one rounded track (the Inbox's Chats · Tasks · Routines); chips = page sections as
+   * separate rounded buttons that wrap (a project's Overview · Chats · Agents…); underline = the same on a line;
+   * pill = compact filters inside a panel.
    */
-  variant?: "buttons" | "underline" | "pill";
+  variant?: "buttons" | "chips" | "underline" | "pill";
   className?: string;
 }
 

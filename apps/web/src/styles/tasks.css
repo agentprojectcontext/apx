@@ -25,7 +25,9 @@
   min-width: 0;
 }
 /* Project tabs are clipped by their body; the list owns scrolling, not the project header. */
+/* Inside a project the body already holds the page's width: the list lines up with the tabs above it. */
 .project__body > .tasks {
+  max-width: none;
   min-height: 0;
   grid-template-rows: minmax(0, 1fr);
 }

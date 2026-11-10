@@ -28,7 +28,7 @@ export const LAYOUT = {
   configH: 760,
   configNavW: 240,
   /** Project screens: content max widths. */
-  projectMaxW: 1080,
+  projectMaxW: 1120,
   teamMaxW: 1180,
   /** Inline widget iframe max height before it scrolls. */
   surfaceMaxH: 900,
