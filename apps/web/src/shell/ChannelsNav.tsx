@@ -112,7 +112,8 @@ export function ChannelsNav({ rail, compact = false }: { rail: boolean; compact?
     >
       {(compact || !hidden) && (
         <NavItem
-          collapsed={rail}
+          // In the flyout (compact) the row is a list item with its words, like the channels under it.
+          collapsed={rail && !compact}
           className="channelsnav__manage"
           icon={<Icons.LayoutGrid />}
           label={t("nav.manageChannels")}
