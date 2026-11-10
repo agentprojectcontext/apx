@@ -9,7 +9,8 @@ import { useChannels } from "../data/channels.ts";
 import { useData } from "../data/state.ts";
 import { useT } from "../i18n/index.ts";
 import { go } from "../shell/nav.ts";
-import { clearFilter, onlyFilter } from "./inboxFilter.ts";
+import { clearFilter } from "./inboxFilter.ts";
+import { openAccount } from "./openAccount.ts";
 
 /**
  * The Inbox narrowed to one channel account: the account takes the title, and picking it switches to another account
@@ -67,7 +68,7 @@ export function AccountHeader({ account }: { account: ChannelInfo }) {
               title={name(c)}
               description={[app(c), answers(c)].filter(Boolean).join(" · ")}
               trailing={unread > 0 ? <span className="accountswitch__unread">{unread}</span> : undefined}
-              onClick={() => pick(() => onlyFilter("accounts", c.id))}
+              onClick={() => pick(() => openAccount(c.id))}
             />
           );
         })}

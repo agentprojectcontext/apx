@@ -167,3 +167,17 @@ test("an account picked under Channels lights Channels, and Inbox leads back to 
   await expect(page.locator(".inbox__title")).toHaveText("Inbox");
   await expect(inbox).toHaveClass(/is-active/);
 });
+
+test("an account picked under Channels opens its newest chat, not the one that was open", async ({ page }) => {
+  const { threads } = await rpc<{
+    threads: Array<{ id: string; updated_at: string; archived?: boolean; channel?: { id: string } }>;
+  }>("threads.list");
+  const newest = threads
+    .filter((t) => t.channel?.id === "whatsapp" && !t.archived)
+    .sort((a, b) => b.updated_at.localeCompare(a.updated_at))[0];
+  expect(newest).toBeTruthy();
+  await open(page, "#thread=home");
+  await page.locator(".sidebar").getByRole("button", { name: "WhatsApp", exact: true }).first().click();
+  await expect(page.locator(".inbox__accountbtn")).toBeVisible();
+  await expect(page).toHaveURL(new RegExp(`thread=${newest?.id}`));
+});
