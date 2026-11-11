@@ -24,6 +24,13 @@ test("scrolled up, a button goes back to the latest message and hides there", as
   await expect(toBottom).toBeInViewport();
 
   await toBottom.click();
+  // Something late (the skills over an answer, an image) grows the chat on the way down: the trip goes on to the end.
+  await scroller
+    .locator(".transcript > *")
+    .last()
+    .evaluate((row: HTMLElement) => {
+      row.style.paddingBottom = "300px";
+    });
   await expect.poll(atEnd).toBe(true);
   await expect(toBottom).toBeHidden();
 });

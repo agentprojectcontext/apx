@@ -39,18 +39,23 @@ export function StickyScroll({
   const scroller = useRef<HTMLDivElement>(null);
   const content = useRef<HTMLDivElement>(null);
   const stick = useRef(true);
+  // On the way back to the end after the button: what grows meanwhile is part of the trip, not a reason to stop short.
+  const homing = useRef(false);
+  const lastTop = useRef(0);
   const [away, setAway] = useState(false);
 
   useImperativeHandle(ref, () => ({
     content: () => content.current,
     release: () => {
       stick.current = false;
+      homing.current = false;
     },
   }));
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: runs per key on purpose
   useLayoutEffect(() => {
     stick.current = true;
+    homing.current = false;
     setAway(false);
     const el = scroller.current;
     if (el) el.scrollTop = el.scrollHeight;
@@ -62,7 +67,8 @@ export function StickyScroll({
     const inner = content.current;
     if (!el || !inner) return;
     const ro = new ResizeObserver(() => {
-      if (stick.current) el.scrollTop = el.scrollHeight;
+      if (homing.current) el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
+      else if (stick.current) el.scrollTop = el.scrollHeight;
     });
     ro.observe(inner);
     return () => ro.disconnect();
@@ -71,12 +77,21 @@ export function StickyScroll({
   const onScroll = () => {
     const el = scroller.current;
     if (!el) return;
-    stick.current = el.scrollHeight - el.scrollTop - el.clientHeight < STICK_PX;
+    const gap = el.scrollHeight - el.scrollTop - el.clientHeight;
+    // Arrived, or the reader turned back up on the way.
+    if (homing.current && (gap < 1 || el.scrollTop < lastTop.current)) homing.current = false;
+    lastTop.current = el.scrollTop;
+    stick.current = homing.current || gap < STICK_PX;
     setAway(!stick.current);
   };
   const toBottom = () => {
     const el = scroller.current;
-    if (el) el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
+    if (!el) return;
+    homing.current = true;
+    stick.current = true;
+    lastTop.current = el.scrollTop;
+    setAway(false);
+    el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
   };
 
   return (
