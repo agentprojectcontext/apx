@@ -15,12 +15,12 @@ import { KindTile } from "../KindIcon.tsx";
 import { CHANNEL_KINDS, isChannelKind } from "../kinds.ts";
 import { AccountPane, NewAccountPane } from "./AccountPane.tsx";
 import { ActivityPane } from "./ActivityPane.tsx";
-import { AnswerPane } from "./AnswerPane.tsx";
 import { ApprovalsPane } from "./ApprovalsPane.tsx";
 import { BehaviorPane } from "./BehaviorPane.tsx";
 import { ContactsPane } from "./ContactsPane.tsx";
 import { keptAfter } from "./draft.ts";
 import { isRoomsKind, RoomsSection } from "./RoomsPane.tsx";
+import { clearRemoveAsk, removeAsked } from "./removeAsk.ts";
 import { hasStickersPane, StickersPane } from "./StickersPane.tsx";
 import type { Create, PaneProps } from "./types.ts";
 
@@ -36,7 +36,6 @@ const GROUPS: { label: MessageKey; panes: { id: Pane; icon: ReactNode }[] }[] = 
     label: "acct.group.general",
     panes: [
       { id: "account", icon: <Icons.Settings /> },
-      { id: "answer", icon: <Icons.Bot /> },
       { id: "behavior", icon: <Icons.ListChecks /> },
       { id: "stickers", icon: <Icons.Sparkles /> },
       { id: "rooms", icon: <Icons.Hash /> },
@@ -54,10 +53,9 @@ const GROUPS: { label: MessageKey; panes: { id: Pane; icon: ReactNode }[] }[] = 
 
 const LEAD: Record<Pane, MessageKey> = {
   account: "acct.lead.account",
-  answer: "acct.lead.answer",
   behavior: "acct.lead.behavior",
   stickers: "acct.lead.stickers",
-  rooms: "acct.lead.behavior",
+  rooms: "acct.lead.rooms",
   contacts: "acct.lead.contacts",
   approvals: "acct.lead.approvals",
   activity: "acct.lead.activity",
@@ -75,9 +73,28 @@ export function ChannelDialogs() {
   );
 }
 
-/** The account's settings once their strings are here: a moment on the first open, then at once. */
+/** An account's settings, or only the question to disconnect it when "Disconnect" was picked in its menu. */
+function AccountOrRemove({ edit }: { edit: AccountEdit }) {
+  const t = useT();
+  const [removing] = useState(() => removeAsked(edit.id));
+  useEffect(() => clearRemoveAsk(), []);
+  const channel = useChannels((s) => s.channels.find((c) => c.id === edit.id));
+  if (!removing || !channel) return <AccountDialog edit={edit} />;
+  return (
+    <Confirm
+      danger
+      title={t("acct.removeTitle", { name: channel.label })}
+      body={t("acct.removeBody")}
+      yes={t("acct.disconnect")}
+      onYes={() => void saveChannel(channel.id, null).then(() => go.closeChannelDialogs())}
+      onClose={() => go.closeChannelDialogs()}
+    />
+  );
+}
+
+/** The account's settings, or the question to disconnect it, once their strings are here: a moment on the first open. */
 function WithStrings({ edit }: { edit: AccountEdit }) {
-  return usePack("account") ? <AccountDialog edit={edit} /> : null;
+  return usePack("account") ? <AccountOrRemove edit={edit} /> : null;
 }
 
 /** The apps to connect, each with how it connects; iMessage, one per Mac, opens its settings when it is on. */
@@ -255,7 +272,7 @@ function AccountDialog({ edit }: { edit: AccountEdit }) {
     if (!channel) return undefined;
     const c = counts.get(channel.id);
     if (p === "account") return t(`tg.status.${channel.enabled ? channel.status : "off"}`);
-    if (p === "answer") return agents[draft?.agent_id ?? channel.agent_id]?.name;
+    if (p === "behavior") return agents[draft?.agent_id ?? channel.agent_id]?.name;
     if (p === "rooms") return channel.rooms?.rooms.length || undefined;
     if (p === "approvals") return c?.waiting || undefined;
     return undefined;
@@ -320,8 +337,6 @@ function AccountDialog({ edit }: { edit: AccountEdit }) {
               <NewAccountPane kind={edit.kind} label={edits.label ?? ""} set={set} create={create} />
             ) : shown === "account" ? (
               <AccountPane kind={edit.kind} onRemove={() => setAsking("remove")} {...paneProps} />
-            ) : shown === "answer" ? (
-              <AnswerPane {...paneProps} />
             ) : shown === "behavior" ? (
               <BehaviorPane {...paneProps} />
             ) : shown === "stickers" ? (

@@ -131,6 +131,7 @@ export const OWNER_ONLY: Readonly<Record<string, string>> = {
   "terminal.resize": PANEL,
   "terminal.close": PANEL,
   "threads.compact": PANEL,
+  "threads.aside": "the owner's own question beside a chat, answered by that chat's agent; an agent asks in a chat",
   "threads.flow_editor": "the Flow editor says which Flow its own chat draws; agents read it in that chat's turns",
   "threads.delete": PANEL,
   "threads.fork": PANEL,
@@ -149,6 +150,8 @@ export const OWNER_ONLY: Readonly<Record<string, string>> = {
   "environments.display": PANEL,
   "environments.screen": PANEL,
   "channels.recover": PANEL,
+  "channels.email_history":
+    "the owner explicitly imports private mailbox history with apx channels email-history; agents must not import it unasked",
   "surfaces.import": PANEL,
   "sessions.resume": PANEL,
   "runs.respond": AS_OWNER,

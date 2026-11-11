@@ -53,11 +53,11 @@ test("agents and workers recover within permissions before reporting a blocker",
     workerPrompt({ name: "Helper", instructions: "Do the task." }, { name: "Caller" }, "en"),
   ];
   for (const prompt of prompts) {
-    assert.match(prompt, /Diagnose; try bounded fixes with own tools\/permissions first/);
-    assert.match(prompt, /Retry only after a fix or transient evidence; keep working methods/);
-    assert.match(prompt, /Fixed: continue; note useful facts and risks/);
-    assert.match(prompt, /Never bypass access, login, quota or handoffs/);
-    assert.match(prompt, /Else give exact error, attempts, dependency/);
+    assert.match(prompt, /On failure, find why and fix it with your own tools and permissions/);
+    assert.match(prompt, /free your own tabs or processes\), then go on/);
+    assert.match(prompt, /Retry only after a change or a passing error/);
+    assert.match(prompt, /Blocked only after that: exact error, attempts, what is needed/);
+    assert.match(prompt, /Never bypass access, a login, a quota or a handoff/);
     assert.match(prompt, /A login: browser_sign_in, browser_use_my_login \(with their OK\), else browser_handoff/);
     assert.doesNotMatch(prompt, /stop and report the exact error|never the same failing call again/);
   }
@@ -123,14 +123,36 @@ test("the owner speaks plainly, their agents as the team; outside apps, widgets 
   assert.doesNotMatch(asked, /trust="untrusted"/);
   assert.match(asked, /goes back to Roby on its own: answer here, never delegate back/);
   // No acknowledgement turn, and one report shape the caller can act on.
-  assert.match(asked, /No acknowledgement: do the work, then answer once/);
-  assert.match(asked, /Status: done or blocked; Result:; Evidence: .*; Unblock: .*or none/);
+  assert.match(asked, /No acknowledgement: do the work as far as your tools reach, then answer once/);
+  // Work left is "partial", not "blocked": blocked is only what nothing in the agent's reach can fix.
+  assert.match(
+    asked,
+    /Status: done, partial \(what is left, and why you stopped\) or blocked \(nothing more is in your reach/,
+  );
+  assert.match(asked, /Result:; Evidence: .*; Unblock: .*or none/);
   // An outside app's agent is not one of the owner's.
   for (const id of ["external", "client:c1"]) {
     const outside = frameInput({ kind: "agent", id, name: "Claude Code", thread_id: "home", run_id: "" }, "x");
     assert.match(outside, /<agent_message from="Claude Code" trust="untrusted">/);
-    assert.doesNotMatch(outside, /Status: done or blocked/);
+    assert.doesNotMatch(outside, /Status: done/);
   }
+  // On the agent's own task a teammate's message (its start, an answer, a review) is no one-off ask: no report
+  // envelope and no "answer goes back", it works on until it closes the task.
+  const own = frameInput(
+    { kind: "agent", id: "lorena", name: "Lorena", thread_id: "t", run_id: "r", on_task: "task_1" },
+    "Lorena answered your question on task task_1:\nUse the staging DB.\n\nGo on with the task.",
+  );
+  assert.match(own, /<agent_message from="Lorena" task="task_1" trust="team">/);
+  assert.match(own, /The task is yours: keep working until it is done, then close it with task_close/);
+  assert.match(own, /task_update awaits_owner=true/);
+  assert.doesNotMatch(own, /Status: done|goes back to Lorena|answer once/);
+  // An outside app's agent never gets the team's task frame, whatever its origin says.
+  const outsideOnTask = frameInput(
+    { kind: "agent", id: "client:c1", name: "Claude Code", thread_id: "t", run_id: "", on_task: "task_1" },
+    "x",
+  );
+  assert.match(outsideOnTask, /trust="untrusted"/);
+  assert.doesNotMatch(outsideOnTask, /The task is yours/);
 });
 
 test("a contact's name stays one plain line inside APX's own sentences", async () => {
@@ -263,10 +285,10 @@ test("an unreadable source is a blocker in the shared rules, not 'not verifiable
     typeof systemPrompt
   >[0];
   const blocker = /unreadable source is a blocker.*never "not verifiable"/s;
-  assert.match(systemPrompt(agent, { kind: "home" }, "es"), /Never bypass access, login, quota or handoffs/);
+  assert.match(systemPrompt(agent, { kind: "home" }, "es"), /Never bypass access, a login, a quota or a handoff/);
   assert.match(systemPrompt(agent, { kind: "home" }, "es"), /A greeting with a request is a request\./);
   assert.match(systemPrompt(agent, { kind: "home" }, "es"), /Short and direct, never restating the question/);
-  assert.match(systemPrompt(agent, { kind: "home" }, "es"), /Else give exact error, attempts, dependency/);
+  assert.match(systemPrompt(agent, { kind: "home" }, "es"), /Blocked only after that: exact error, attempts/);
   const worker = workerPrompt({ name: "Helper", instructions: "audit" }, { name: "Roby" }, "es");
   assert.match(worker, /your answer is your report, complete and self-contained/);
   assert.match(worker, blocker);
@@ -280,7 +302,7 @@ test("the web goes to the agent's own browser, a login is handed to the owner, a
   assert.match(a, /^- The web: .*never another browser\.$/m);
   assert.match(a, /^- The owner's screen \(screen_ tools\) only when they ask for their computer\.$/m);
   assert.match(a, /A site that blocks you is a handoff too, not a reason to switch/);
-  assert.match(a, /keep working methods/);
+  assert.match(a, /Retry only after a change or a passing error/);
   assert.match(a, /A step the owner declined is not repeated/);
   assert.match(a, /Independent tool calls go together in one step/);
   const worker = workerPrompt({ name: "Helper", instructions: "audit" }, { name: "Roby" }, "es");

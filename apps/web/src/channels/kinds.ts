@@ -1,3 +1,4 @@
+import type { ChannelInfo } from "@apx/protocol";
 import type { MessageKey } from "../i18n/index.ts";
 
 /**
@@ -29,3 +30,10 @@ export type ChannelKind = keyof typeof CHANNEL_KINDS;
 export const CHANNEL_KIND_IDS = Object.keys(CHANNEL_KINDS) as ChannelKind[];
 
 export const isChannelKind = (v: string): v is ChannelKind => Object.hasOwn(CHANNEL_KINDS, v);
+
+/** Where people meet in a group (Telegram, LINE) rather than in a server's room (Discord, Slack…). */
+export const GROUP_KINDS = new Set(["telegram", "line", "whatsapp", "signal"]);
+
+/** A group's or a room's chat is "Group" or "Room" by the app it is on. */
+export const roomWord = (channel: ChannelInfo): MessageKey =>
+  GROUP_KINDS.has(channel.type) ? "ch.card.group" : "ch.card.room";

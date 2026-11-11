@@ -205,7 +205,7 @@ app.whenReady().then(() => {
   };
   const onScreen = () => {
     const s = stage().slot;
-    return Boolean(s && s.width > 0 && s.height > 0);
+    return Boolean(s && !s.behind && s.width > 0 && s.height > 0);
   };
 
   const layout = () => {
@@ -222,7 +222,13 @@ app.whenReady().then(() => {
     } else {
       const area = w.getContentBounds();
       w.contentView.addChildView(shown, 0);
-      shown.setBounds({ x: 0, y: 0, width: Math.min(area.width, 1280), height: area.height });
+      // Covered for a moment, it keeps its size: a page laid out again at another one loses its scroll and its look.
+      const keep = at?.behind && at.width > 0 && at.height > 0;
+      shown.setBounds(
+        keep
+          ? { x: at.x, y: at.y, width: at.width, height: at.height }
+          : { x: 0, y: 0, width: Math.min(area.width, 1280), height: area.height },
+      );
     }
   };
   host.onShow = (view) => {
@@ -275,7 +281,13 @@ app.whenReady().then(() => {
   ipcMain.on("panel:browser-bounds", (e, b: Bounds | null) => {
     const next =
       b && Number.isFinite(b.x)
-        ? { x: Math.round(b.x), y: Math.round(b.y), width: Math.round(b.width), height: Math.round(b.height) }
+        ? {
+            x: Math.round(b.x),
+            y: Math.round(b.y),
+            width: Math.round(b.width),
+            height: Math.round(b.height),
+            ...(b.behind === true ? { behind: true } : {}),
+          }
         : null;
     if (popout.isPanel(e.sender)) return popout.setSlot(next);
     if (e.sender !== panel.webContents) return;

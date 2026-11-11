@@ -258,7 +258,10 @@ chunk. Over budget or failing, it prints each first-load chunk's size and, with 
 with `APX_TEST_COVERAGE=1`), the five packages or files that weigh the most: split the module it names.
 Code loaded late is declared only in `apps/web/src/lazy.ts` (AGENTS.md rule 27); `biome.json` fails a first-screen
 file (`App`, `main`, `shell/`, `inbox/`, `chat/`) that imports one of its modules directly, and
-`e2e/specs/89-first-load.spec.ts` checks what opening the inbox fetches, its own late parts included.
+`e2e/specs/89-first-load.spec.ts` checks what opening the inbox fetches, its own late parts included. Strings only
+late screens show go in a language pack (`PACKS` in `apps/web/src/i18n/messages.ts`), never in the language chunk:
+the screen waits for it with `usePack`, or its `lazy.ts` loader with `withPacks`; the few keys a first-screen file also
+uses stay in the language (`*-shared-en.ts`), and `messages.test.ts` checks each pack stays out of it.
 
 ## CI
 `.github/workflows/verify.yml` runs on every push to `main` and every pull request. Every job starts from

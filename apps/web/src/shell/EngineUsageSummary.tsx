@@ -1,8 +1,10 @@
 import type { Result } from "@apx/protocol";
-import { Button, Help, Icons, Meter } from "@apx/ui";
+import { EngineIcon, Help, IconButton, Icons, Meter } from "@apx/ui";
 import { useEffect, useState } from "react";
+import { dayLabel } from "../common/format.ts";
 import { currentLocale, type MessageKey, useT } from "../i18n/index.ts";
-import { remainingPercent, resetLabel, windowLabel } from "./engineUsageModel.ts";
+import { BarShowChoice } from "./BarShowChoice.tsx";
+import { remainingPercent, resetLabel, tightestWindow, windowLabel } from "./engineUsageModel.ts";
 import { go } from "./nav.ts";
 import { UsageLoading } from "./UsageLoading.tsx";
 
@@ -57,18 +59,26 @@ export default function EngineUsageSummary({
     <div className="usage usage--compact engine-usage" data-testid="engine-usage-summary" aria-busy={loading}>
       <div className="usage__headrow">
         <div className="usage__head">
-          <h2 className="usage__head">
-            <Icons.Zap size={14} />
-            {t("engineUsage.title")}
-          </h2>
+          <h2 className="usage__head">{t("engineUsage.title")}</h2>
           <Help label={t("engineUsage.help")} align="end">
             <p>{t("engineUsage.description")}</p>
             <p>{t("engineUsage.disclaimer")}</p>
           </Help>
         </div>
-        <Button size="sm" variant="ghost" disabled={loading} onClick={onRefresh}>
-          {t("sysUsage.refresh")}
-        </Button>
+        <div className="engine-usage__checked">
+          {!loading && !failed && report && (
+            <span className="usage__note" title={t("engineUsage.updated", { at: dateLabel(report.checked_at) })}>
+              {dayLabel(report.checked_at)}
+            </span>
+          )}
+          <IconButton
+            size="sm"
+            label={t("sysUsage.refresh")}
+            icon={<Icons.RefreshCw size={13} />}
+            disabled={loading}
+            onClick={onRefresh}
+          />
+        </div>
       </div>
       {loading && (
         <>
@@ -87,9 +97,6 @@ export default function EngineUsageSummary({
         <p className="usage__note">{t("engineUsage.empty")}</p>
       )}
       {!loading && !failed && report?.engines.map((engine) => <EngineBlock key={engine.id} engine={engine} />)}
-      {!loading && !failed && report && (
-        <p className="usage__note">{t("engineUsage.updated", { at: dateLabel(report.checked_at) })}</p>
-      )}
       <button
         type="button"
         className="usage__more"
@@ -101,6 +108,7 @@ export default function EngineUsageSummary({
         {t("engineUsage.engines")}
         <Icons.ChevronRight size={14} />
       </button>
+      <BarShowChoice pref="quotaBar" />
     </div>
   );
 }
@@ -114,53 +122,67 @@ function dateLabel(at: string): string {
   });
 }
 
+/** One engine as a row: its mark, name and what is left of its tightest window, the bar, and when it resets. */
 function EngineBlock({ engine }: { engine: Report["engines"][number] }) {
   const t = useT();
   const note = NOTES[engine.id];
+  const tightest = engine.available ? tightestWindow(engine.windows) : undefined;
+  const others = engine.available ? engine.windows.filter((w) => w !== tightest) : [];
   return (
     <section className="usage__block engine-usage__engine">
-      <div className="usage__headrow">
-        <div className="usage__head">
-          <h3 className="usage__head">{engine.label}</h3>
-          {(note || (engine.available && ["codex_app_server", "claude_cli"].includes(engine.source ?? ""))) && (
-            <Help label={t("engineUsage.engineHelp", { engine: engine.label })} align="end">
-              {engine.available && engine.source === "codex_app_server" && <p>{t("engineUsage.codexSource")}</p>}
-              {engine.available && engine.source === "claude_cli" && <p>{t("engineUsage.claudeSource")}</p>}
-              {note && <p>{t(note)}</p>}
-            </Help>
-          )}
-        </div>
-        {!engine.available && (
-          <span className="usage__state">
-            {t(
-              !engine.cli_installed
-                ? "engineUsage.notInstalled"
-                : engine.reason === "unsupported"
-                  ? "engineUsage.unsupported"
-                  : "engineUsage.unavailable",
-            )}
-          </span>
+      <div className="engine-usage__row">
+        <EngineIcon engine={engine.id} tile size={16} />
+        <h3 className="engine-usage__name">{engine.label}</h3>
+        {(note || (engine.available && ["codex_app_server", "claude_cli"].includes(engine.source ?? ""))) && (
+          <Help label={t("engineUsage.engineHelp", { engine: engine.label })} align="end">
+            {engine.available && engine.source === "codex_app_server" && <p>{t("engineUsage.codexSource")}</p>}
+            {engine.available && engine.source === "claude_cli" && <p>{t("engineUsage.claudeSource")}</p>}
+            {note && <p>{t(note)}</p>}
+          </Help>
         )}
+        <span className="usage__figure engine-usage__left">
+          {tightest
+            ? t("quota.free", { pct: remainingPercent(tightest) })
+            : !engine.available &&
+              t(
+                !engine.cli_installed
+                  ? "engineUsage.notInstalled"
+                  : engine.reason === "unsupported"
+                    ? "engineUsage.unsupported"
+                    : "engineUsage.unavailable",
+              )}
+        </span>
       </div>
-      {engine.available &&
-        engine.windows.map((window) => (
-          <div className="usage__block" key={window.id}>
-            <div className="usage__headrow">
-              <span className="usage__figure">{windowLabel(window, t)}</span>
-              <span className="usage__figure">{t("engineUsage.remaining", { pct: remainingPercent(window) })}</span>
-            </div>
-            <Meter
-              size="sm"
-              label={`${engine.label} · ${windowLabel(window, t)}`}
-              value={window.used_percent}
-              max={100}
-              valueText={t("engineUsage.used", { pct: Math.round(window.used_percent) })}
-            />
-            {window.resets_at && (
-              <p className="usage__note">{resetLabel(window.resets_at, new Date(), currentLocale(), t)}</p>
-            )}
-          </div>
-        ))}
+      {tightest && (
+        <>
+          <Meter
+            size="sm"
+            label={`${engine.label} · ${windowLabel(tightest, t)}`}
+            value={tightest.used_percent}
+            max={100}
+            valueText={t("engineUsage.used", { pct: Math.round(tightest.used_percent) })}
+          />
+          <p className="usage__note">
+            {[
+              windowLabel(tightest, t),
+              tightest.resets_at && resetLabel(tightest.resets_at, new Date(), currentLocale(), t),
+            ]
+              .filter(Boolean)
+              .join(" · ")}
+          </p>
+        </>
+      )}
+      {others.map((window) => (
+        <p className="usage__note" key={window.id}>
+          {[
+            windowLabel(window, t),
+            t("quota.free", { pct: remainingPercent(window) }),
+            window.resets_at && resetLabel(window.resets_at, new Date(), currentLocale(), t),
+          ]
+            .filter(Boolean)
+            .join(" · ")}
+        </p>
+      ))}
     </section>
   );
 }

@@ -6,12 +6,14 @@ import type { AddressInfo } from "node:net";
 import os from "node:os";
 import path from "node:path";
 import { BROWSER_CAP } from "@apx/protocol";
+import { loopbackHost } from "@apx/protocol/cdp";
 import type { Bus } from "./bus.ts";
 import type { CoreConfig } from "./config.ts";
 import { nativeApproval } from "./domain/approvals.ts";
 import type { Store } from "./domain/store.ts";
 import { type Added, tellAdded } from "./engine/added.ts";
 import { audienceOf } from "./engine/audience.ts";
+import { type Connected, wakeAfterConnect } from "./engine/connect-wake.ts";
 import { createHooks } from "./engine/hooks.ts";
 import type { Permissions } from "./engine/permissions.ts";
 import { applyProfile, listProfiles, type ProfileRoot } from "./engine/profiles.ts";
@@ -160,6 +162,16 @@ export function extensionStack(d: { store: Store; secrets: Secrets; bus: Bus; lo
   return { hooks, plugins, extensions };
 }
 
+/** APX's own core and panel ports on this computer: a tab never loads them nor types there unasked (DECISIONS.md#d-212). */
+export function appPorts(port: number, extra: readonly string[] = []): Set<string> {
+  const ports = new Set([String(port)]);
+  for (const origin of originsFor(`http://127.0.0.1:${port}`, extra)) {
+    const u = URL.parse(origin);
+    if (u && loopbackHost(u.hostname)) ports.add(u.port || (u.protocol === "https:" ? "443" : "80"));
+  }
+  return ports;
+}
+
 /** Every built-in tool, plus the ones a test adds. `port` is read late: tests listen on 0. */
 export function builtinTools(
   store: Store,
@@ -178,7 +190,7 @@ export function builtinTools(
     ...agentSetTools(store),
     ...chatTools(store),
     ...externalSessionTools(store),
-    ...browserTools(store, home, vm, signIn),
+    ...browserTools(store, home, () => appPorts(port()), vm, signIn),
     ...surfaceTools(store, home),
     ...ownerTools(store),
     ...connectionTools(),
@@ -224,6 +236,7 @@ type HandlerDeps = {
   llmLabel: () => string;
   engine: Parameters<typeof threadHandlers>[1] & Parameters<typeof jobHandlers>[1] & Parameters<typeof taskHandlers>[1];
   upkeep: Parameters<typeof threadHandlers>[2] & Parameters<typeof gitHandlers>[1] & Pick<Upkeep, "study">;
+  aside: Parameters<typeof threadHandlers>[3];
   memory: Parameters<typeof memoryHandlers>[1];
   memoryMaintenance: NonNullable<Parameters<typeof memoryHandlers>[2]>;
   channels: Parameters<typeof channelHandlers>[1];
@@ -291,6 +304,20 @@ export function coreHandlers(d: HandlerDeps & { vm?: Computer | undefined }) {
   const added = (ctx: CallContext, a: Added) => {
     if (ctx.actor === "human" && !ctx.agent) tellAdded(d.store, d.engine.admit, a);
   };
+  // What the owner connects reaches the agent that offered it on a card and waits for it.
+  const connected = (ctx: CallContext, what: Connected["what"], ids: string[]) => {
+    if (ctx.actor === "human" && !ctx.agent)
+      for (const id of ids) wakeAfterConnect(d.store, d.engine.admit, { what, id });
+  };
+  const integrations = integrationHandlers({
+    store: d.store,
+    secrets: d.secrets,
+    mcp: d.mcp,
+    google: d.google,
+    asana: d.asana,
+    ...(d.integrationFetch ? { fetch: d.integrationFetch } : {}),
+  });
+  const channelsH = channelHandlers(d.store, d.channels, d.nudges);
   return {
     ...environmentHandlers(d.store, d.vm, d.engine.cancel),
     ...desktopInstallHandlers(d.desktopInstaller),
@@ -318,12 +345,17 @@ export function coreHandlers(d: HandlerDeps & { vm?: Computer | undefined }) {
       d.signIn && { secrets: d.secrets, signIn: d.signIn },
       d.ownersChrome,
     ),
-    ...threadHandlers(d.store, d.engine, d.upkeep),
+    ...threadHandlers(d.store, d.engine, d.upkeep, d.aside),
     ...threadAdminHandlers(d.store, d.app.home, d.vm?.beforeDelete),
     ...runHandlers(d.store, d.engine),
     ...jobHandlers(d.store, d.engine),
     ...memoryHandlers(d.store, d.memory, d.memoryMaintenance),
-    ...channelHandlers(d.store, d.channels, d.nudges),
+    ...channelsH,
+    "channels.add": async (p: Parameters<(typeof channelsH)["channels.add"]>[0], ctx: CallContext) => {
+      const r = await channelsH["channels.add"](p);
+      connected(ctx, "channel", [p.type]);
+      return r;
+    },
     ...emailSignatureHandlers(d.store, d.google),
     ...mailHandlers(d.store, d.google, d.channels),
     ...mediaHandlers(d.services, d.store),
@@ -345,14 +377,23 @@ export function coreHandlers(d: HandlerDeps & { vm?: Computer | undefined }) {
     ...mcpHandlers(d.mcp, d.store, (name) =>
       name === "asana" ? d.asana.connected() : isGoogleId(name) && d.google.connected(name),
     ),
-    ...integrationHandlers({
-      store: d.store,
-      secrets: d.secrets,
-      mcp: d.mcp,
-      google: d.google,
-      asana: d.asana,
-      ...(d.integrationFetch ? { fetch: d.integrationFetch } : {}),
-    }),
+    ...integrations,
+    "integrations.connect": async (
+      p: Parameters<(typeof integrations)["integrations.connect"]>[0],
+      ctx: CallContext,
+    ) => {
+      const r = await integrations["integrations.connect"](p);
+      connected(ctx, "integration", [p.id]);
+      return r;
+    },
+    "integrations.oauth_finish": async (
+      p: Parameters<(typeof integrations)["integrations.oauth_finish"]>[0],
+      ctx: CallContext,
+    ) => {
+      const r = await integrations["integrations.oauth_finish"](p);
+      connected(ctx, "integration", [r.id, ...(r.also ?? [])]);
+      return r;
+    },
     ...asanaHandlers(d.store, d.asana),
     ...resourceHandlers({
       store: d.store,

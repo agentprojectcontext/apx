@@ -5,6 +5,7 @@
 // subtask; an agent answering another one gives nobody work (DECISIONS.md#d-079).
 import { type Author, SUPER_AGENT_ID, type Task, type TaskAsked } from "@apx/protocol";
 import { planSteps } from "@apx/protocol/task-plan";
+import { worksIn } from "../domain/projects.ts";
 import { publicRun } from "../domain/runs.ts";
 import { HOME_THREAD_ID } from "../domain/seed.ts";
 import type { Store } from "../domain/store.ts";
@@ -378,7 +379,7 @@ export function taskHandlers(
         if (checker && checker === keeper)
           throw badRequest("reviewer: the agent doing it does not review its own work");
         const unassign =
-          moving && keeper && store.agents.get(keeper)?.project_id && store.agents.get(keeper)?.project_id !== target;
+          moving && keeper && !worksIn(store.projects, store.agents.get(keeper)?.project_id, target ?? undefined);
         const completing =
           cur.state === "open" &&
           !cur.description.trim() &&
@@ -402,12 +403,28 @@ export function taskHandlers(
           store.threads.byTask(cur.id).length === 0;
         // Accepting a card already in review starts its reviewer (below), not its assignee again.
         const acceptingReview = accepting && (c.status ?? cur.status) === "review";
+        // An agent naming the task's own agent again while none of its chats for the task works has it go on; the
+        // owner's edits send every field, so they never restart it (DECISIONS.md#d-210).
+        const resuming =
+          Boolean(ctx.agent) &&
+          c.assignee !== undefined &&
+          c.assignee === cur.assignee &&
+          cur.state === "open" &&
+          !cur.proposed &&
+          (c.status ?? cur.status) !== "review" &&
+          !(c.awaits_owner ?? cur.awaits_owner) &&
+          !store.threads.busy(
+            store.threads
+              .byTask(cur.id)
+              .filter((t) => t.agent_ids[0] === cur.assignee)
+              .map((t) => t.id),
+          );
         const starting =
           !forced &&
           !unassign &&
           keeper &&
           !acceptingReview &&
-          (keeper !== cur.assignee || completing || unscheduled || accepting);
+          (keeper !== cur.assignee || completing || unscheduled || accepting || resuming);
         if (starting) {
           refuseHandOn(ctx);
           checkTransfer(ctx, {

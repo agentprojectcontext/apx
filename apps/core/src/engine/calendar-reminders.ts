@@ -1,7 +1,9 @@
 // Event reminders: the owner's Google Calendar events that start within the lead time they chose in Calendar's
-// settings are told once, in a fixed line (no model call, so an event's text never reaches an agent).
+// settings are told once, in a fixed line (no model call, so an event's text never reaches an agent). An event the
+// owner muted, with every later one of its series, is never told.
 
 import { channelTexts } from "../channels/texts.ts";
+import { eventRef, mutedSeries, seriesOf } from "../domain/calendar-muted.ts";
 import { ownerTimeZone } from "../domain/owner.ts";
 import type { Store } from "../domain/store.ts";
 import type { BackgroundCheck } from "./background.ts";
@@ -9,6 +11,8 @@ import type { BackgroundCheck } from "./background.ts";
 /** An event as the reminders see it. */
 export type CalendarEvent = {
   id: string;
+  /** The recurring series it belongs to; a single event is its own. */
+  series?: string;
   title: string;
   start: string | undefined;
   all_day: boolean;
@@ -34,9 +38,8 @@ const TOLD_KEY = "calendar_told";
 const SLACK_MS = 30_000;
 
 const keyOf = (e: CalendarEvent) => `${e.id}@${e.start}`;
-
 /**
- * The events starting after now and within `leadMin` that were not told: all-day, declined and cancelled ones
+ * The events starting after now and within `leadMin` that were not told: all-day, declined, cancelled and muted ones
  * never are. `told` keeps only events still ahead, so it stays small.
  */
 export function dueEvents(
@@ -44,13 +47,22 @@ export function dueEvents(
   told: Told,
   now: Date,
   leadMin: number,
+  muted: ReadonlySet<string> = new Set(),
 ): { due: CalendarEvent[]; told: Told } {
   const at = now.getTime();
   const until = at + leadMin * 60_000;
   const kept: Told = Object.fromEntries(Object.entries(told).filter(([, start]) => Date.parse(start) > at));
   const due = events.filter((e) => {
     const start = e.start ? Date.parse(e.start) : Number.NaN;
-    return !e.all_day && !e.declined && e.status !== "cancelled" && start > at && start <= until && !(keyOf(e) in kept);
+    return (
+      !e.all_day &&
+      !e.declined &&
+      e.status !== "cancelled" &&
+      !muted.has(seriesOf(e)) &&
+      start > at &&
+      start <= until &&
+      !(keyOf(e) in kept)
+    );
   });
   for (const e of due) kept[keyOf(e)] = e.start ?? "";
   return { due, told: kept };
@@ -77,8 +89,8 @@ function eventTexts(store: Store, events: readonly CalendarEvent[], now: Date): 
 export function calendarReminders(deps: {
   store: Store;
   source: CalendarSource;
-  /** Tells the owner, past the daily cap and quiet hours: they asked for it. */
-  remind: (texts: string[], events: CalendarEvent[]) => void;
+  /** Tells the owner, past the daily cap and quiet hours: they asked for it. One tray notice per event. */
+  remind: (items: Array<{ text: string; title: string; ref: string }>) => void;
 }): BackgroundCheck {
   const { store, source } = deps;
   let lastAt = Number.NEGATIVE_INFINITY;
@@ -96,9 +108,11 @@ export function calendarReminders(deps: {
       try {
         told = JSON.parse(store.settings.get(TOLD_KEY) ?? "{}") as Told;
       } catch {}
-      const next = dueEvents(events, told, at, lead_min);
+      const next = dueEvents(events, told, at, lead_min, mutedSeries(store));
       store.settings.set(TOLD_KEY, JSON.stringify(next.told));
-      if (next.due.length) deps.remind(eventTexts(store, next.due, at), next.due);
+      const texts = eventTexts(store, next.due, at);
+      if (next.due.length)
+        deps.remind(next.due.map((e, i) => ({ text: texts[i] ?? "", title: e.title, ref: eventRef(seriesOf(e)) })));
     },
   };
 }

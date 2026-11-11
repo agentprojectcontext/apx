@@ -2,6 +2,7 @@
 // (DECISIONS.md#d-193). The value is resolved here, handed to the browser in the same call and never returned, logged
 // or kept; the browser checks site, frame and field again when it fills.
 import { SignInResult } from "@apx/protocol";
+import { lineage } from "../domain/projects.ts";
 import type { Store } from "../domain/store.ts";
 import { badRequest, unauthorized } from "../errors.ts";
 import type { Secrets } from "../secrets.ts";
@@ -38,7 +39,7 @@ export function signInHandler(d: SignInDeps): Handler<"browser.sign_in"> {
     const agent = ctx.agent;
     if (!agent) throw unauthorized("only APX's own agents sign in with the owner's stored secrets");
     const thread = d.store.threads.get(agent.thread_id);
-    const key = d.signIn.keyFor(thread?.project_id ?? undefined, p.secret);
+    const key = d.signIn.keyFor(lineage(d.store.projects, thread?.project_id ?? undefined), p.secret);
     const origin = await d.tabOrigin(p.tab, ctx);
     const done = (r: SignInResult): SignInResult => {
       // An audit line names the secret and the site, never the value.

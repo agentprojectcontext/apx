@@ -7,6 +7,8 @@ Object.defineProperty(globalThis, "window", {
   value: { location: { origin: "http://panel.example.test", hash: "" }, addEventListener() {} },
 });
 const { appPlace } = await import("./appLinks.ts");
+const { mcpPeek, closeMcp } = await import("../data/mcpPeek.ts");
+const { nav } = await import("../shell/nav.ts");
 if (windowDescriptor) Object.defineProperty(globalThis, "window", windowDescriptor);
 else Reflect.deleteProperty(globalThis, "window");
 
@@ -38,6 +40,30 @@ test("an app link says what it opens, so its button can show the place's icon an
   // Channels have their own screen; a link to their old place in Settings goes there too.
   assert.deepEqual(kindOf("apx:channels"), { kind: "channels" });
   assert.deepEqual(kindOf("apx:settings/channels"), { kind: "channels" });
+});
+
+test("a server link opens an exact contextual editor without navigating away from the chat", () => {
+  assert.deepEqual(kindOf("apx:resources/mcp/acme/global"), {
+    kind: "resources",
+    tab: "mcp",
+    server: "acme",
+    source: "global",
+  });
+  assert.deepEqual(kindOf("apx:resources/mcp/acme/prj_1"), {
+    kind: "resources",
+    tab: "mcp",
+    server: "acme",
+    source: "prj_1",
+  });
+  assert.deepEqual(kindOf("apx:resources/mcp/acme"), { kind: "resources", tab: "mcp", server: "acme" });
+  assert.equal(appPlace("apx:resources/skills/acme"), undefined);
+  const before = nav.get();
+  appPlace("apx:resources/mcp/acme/prj_1")?.open();
+  assert.deepEqual(mcpPeek.get().target, { name: "acme", source: "prj_1" });
+  assert.equal(nav.get(), before, "opening and closing preserve navigation and the active chat");
+  closeMcp();
+  assert.equal(mcpPeek.get().target, undefined);
+  assert.equal(nav.get(), before);
 });
 
 test("an app link to no known place opens nothing", () => {

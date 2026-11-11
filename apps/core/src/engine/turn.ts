@@ -16,6 +16,7 @@ import { readOrganization } from "../apc/org.ts";
 import type { AgentRecord } from "../domain/agents.ts";
 import { memorySettings } from "../domain/memory-settings.ts";
 import { ownerIdentity, ownerTimeZone } from "../domain/owner.ts";
+import { worksIn } from "../domain/projects.ts";
 import { engineOf, harnessOf, isCliRef } from "../domain/refs.ts";
 import { inChrome, type RunRecord, runsOnComputer } from "../domain/runs.ts";
 import type { Store } from "../domain/store.ts";
@@ -484,7 +485,9 @@ async function buildContext(deps: TurnDeps, turn: Turn, run: RunRecord, mode: Au
     ? { items: [] as ChatItem[], from: 0 }
     : project(entries, HISTORY_BUDGET_CHARS, ctxState.compaction);
   const { from } = projected;
-  const roster = rosterBlock(agent, store.agents.list(), thread);
+  const roster = rosterBlock(agent, store.agents.list(), thread, (a) =>
+    worksIn(store.projects, a.project_id, thread.project_id),
+  );
   const told = sectionsFor(deps, turn, mode);
   // An agent allowed the computer reads its state each turn, as the owner sees it in the panel.
   const vm = deps.vm;

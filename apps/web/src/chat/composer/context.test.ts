@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import type { Run } from "@apx/protocol";
-import { contextOf, shareOf, spentOf, tokens, usageStamp } from "./context.ts";
+import { contextOf, contextParts, contextRunOf, shareOf, spentOf, tokens, usageStamp } from "./context.ts";
 
 const run = (id: string, usage?: Run["usage"]) => ({ id, usage }) as Run;
 
@@ -52,4 +52,39 @@ test("the share of the window is known only with the window, and never past full
   assert.equal(shareOf({ used: 82_000 }), undefined, "window unknown: no share");
   assert.equal(shareOf({ used: 82_000, window: 128_000 }), 0.640625);
   assert.equal(shareOf({ used: 300_000, window: 200_000 }), 1);
+});
+
+test("the run asked for what the context holds is the one the figure came from", () => {
+  assert.equal(contextRunOf([run("b"), run("a", { input: 9, output: 1 })]), undefined, "no context reported");
+  assert.equal(contextRunOf([run("b"), run("a", { input: 9, output: 1, context: 900, window: 9_000 })]), "a");
+});
+
+test("the context's parts add up to what the model counted, the conversation taking the rest", () => {
+  const sizes = {
+    system: [
+      { name: "base", chars: 8_000 },
+      { name: "project_memory", chars: 2_000 },
+      { name: "skills", chars: 400 },
+    ],
+    input: [
+      { name: "memory", chars: 400 },
+      { name: "message", chars: 100 },
+    ],
+    tools: 4_000,
+    history: { items: 3, chars: 1_000 },
+  };
+  assert.deepEqual(contextParts(sizes, 10_000), [
+    { kind: "system", tokens: 2_000 },
+    { kind: "memory", tokens: 600 },
+    { kind: "tools", tokens: 1_000 },
+    { kind: "skills", tokens: 100 },
+    { kind: "messages", tokens: 6_300 },
+  ]);
+  const small = contextParts(sizes, 1_850);
+  assert.equal(
+    small.reduce((n, p) => n + p.tokens, 0),
+    1_850,
+    "an estimate past the count shrinks to it",
+  );
+  assert.equal(small.find((p) => p.kind === "system")?.tokens, 1_000);
 });

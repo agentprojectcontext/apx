@@ -220,6 +220,7 @@ export function createHeadlessBrowser(deps: {
       return;
     }
     if (!tab) return;
+    if (m.method) tab.page.onEvent(m.method, m.params);
     if (m.method === "Page.loadEventFired") loads.get(tab.id)?.();
     if (m.method === "Page.navigatedWithinDocument") {
       tab.page.forget(true);
@@ -351,17 +352,18 @@ export function createHeadlessBrowser(deps: {
     return browserContextId;
   }
 
-  async function settle(t: Tab): Promise<void> {
+  /** Waits for the page's load (at most `ms`); a wait left running would start Chrome again after it stopped. */
+  async function settle(t: Tab, ms = NAV_TIMEOUT_MS): Promise<void> {
     await new Promise<void>((resolve) => {
-      const timer = setTimeout(done, NAV_TIMEOUT_MS);
+      const timer = setTimeout(done, ms);
       function done() {
         clearTimeout(timer);
-        loads.delete(t.id);
+        if (loads.get(t.id) === done) loads.delete(t.id);
         resolve();
       }
       loads.set(t.id, done);
     });
-    await refresh(t);
+    if (tabs.get(t.id) === t) await refresh(t);
   }
 
   async function refresh(t: Tab): Promise<void> {
@@ -548,18 +550,25 @@ export function createHeadlessBrowser(deps: {
       case "browser.click": {
         const p = browserMethods["browser.click"].params.parse(raw);
         const t = drive(p.tab, p.by);
-        await t.page.click(p.ref);
-        await Promise.race([settle(t), new Promise((r) => setTimeout(r, 1500))]);
-        await refresh(t);
-        return { ok: true, url: t.url };
+        const dialog = await t.page.click(p.ref);
+        if (dialog) await refresh(t);
+        else await settle(t, 1500);
+        return { ok: true, url: t.url, ...(dialog ? { dialog } : {}) };
       }
       case "browser.type": {
         const p = browserMethods["browser.type"].params.parse(raw);
         const t = drive(p.tab, p.by);
-        await t.page.type(p.ref, p.text, p.submit);
-        if (p.submit) await Promise.race([settle(t), new Promise((r) => setTimeout(r, 2000))]);
-        await refresh(t);
-        return { ok: true, url: t.url };
+        // Checked here, at the moment it types, from the page itself (DECISIONS.md#d-212).
+        const dialog = await t.page.type(
+          p.ref,
+          p.text,
+          p.submit,
+          p.local_only ? deps.blockedPorts() : undefined,
+          p.upload,
+        );
+        if (p.submit && !dialog) await settle(t, 2000);
+        else await refresh(t);
+        return { ok: true, url: t.url, ...(dialog ? { dialog } : {}) };
       }
       case BROWSER_FILL_SECRET: {
         const p = BrowserFillSecret.parse(raw);
@@ -584,6 +593,10 @@ export function createHeadlessBrowser(deps: {
         const p = browserMethods["browser.inspect"].params.parse(raw);
         return { element: await get(p.tab).page.inspect(p.x, p.y) };
       }
+      case "browser.edit_elements": {
+        const p = browserMethods["browser.edit_elements"].params.parse(raw);
+        return { elements: await get(p.tab).page.editElements() };
+      }
       case "browser.preview_edits": {
         const p = browserMethods["browser.preview_edits"].params.parse(raw);
         const t = get(p.tab);
@@ -595,6 +608,7 @@ export function createHeadlessBrowser(deps: {
       case "browser.text": {
         const p = browserMethods["browser.text"].params.parse(raw);
         const t = get(p.tab);
+        t.page.assertNoDialog();
         const pp = await ready();
         const tree = await pp.send<{ frameTree: { frame: { id: string } } }>("Page.getFrameTree", {}, t.session);
         // An isolated world: the page's scripts cannot see or patch this read.

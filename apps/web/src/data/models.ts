@@ -44,22 +44,39 @@ export function loadMarks(): void {
 
 /** The latest catalog request: an older answer arriving after it (a provider switched off, then on) is dropped. */
 let catalogAsk = 0;
+/** The first load still on its way. */
+let firstLoad: Promise<void> | undefined;
+/** Asked for while the first load was on its way: its answer may predate a change, so it is asked again after. */
+let askedDuring: { refresh: boolean } | undefined;
 
 /** Every engine and its models. `refresh` asks the engines again instead of the day cache. */
 export async function loadCatalog(refresh = false): Promise<void> {
   loadMarks();
-  if (models.get().catalogLoad === "loading") return;
-  models.set((s) => ({ catalogLoad: s.catalog.length ? s.catalogLoad : "loading" }));
-  const ask = ++catalogAsk;
-  try {
-    const r = await client.call("models.list", { refresh });
-    if (ask !== catalogAsk) return;
-    models.set({ catalog: r.engines, catalogLoad: "ready" });
-  } catch (e) {
-    if (ask !== catalogAsk) return;
-    models.set((s) => ({ catalogLoad: missing(e) || !s.catalog.length ? "unavailable" : "ready" }));
-    if (refresh && !missing(e)) notify(t("error.loadModels", { error: errText(e) }));
+  if (firstLoad) {
+    askedDuring = { refresh: refresh || Boolean(askedDuring?.refresh) };
+    return firstLoad;
   }
+  const first = !models.get().catalog.length;
+  if (first) models.set({ catalogLoad: "loading" });
+  const ask = ++catalogAsk;
+  const load = (async () => {
+    try {
+      const r = await client.call("models.list", { refresh });
+      if (ask !== catalogAsk) return;
+      models.set({ catalog: r.engines, catalogLoad: "ready" });
+    } catch (e) {
+      if (ask !== catalogAsk) return;
+      models.set((s) => ({ catalogLoad: missing(e) || !s.catalog.length ? "unavailable" : "ready" }));
+      if (refresh && !missing(e)) notify(t("error.loadModels", { error: errText(e) }));
+    }
+  })();
+  if (!first) return load;
+  firstLoad = load;
+  await load;
+  firstLoad = undefined;
+  const again = askedDuring;
+  askedDuring = undefined;
+  if (again && models.get().catalogLoad !== "unavailable") await loadCatalog(again.refresh);
 }
 
 export async function loadModelsConfig(): Promise<void> {

@@ -15,18 +15,24 @@ test("the Channels screen lists every account, filters by app and opens each one
   page,
 }) => {
   await open(page);
-  await page.locator(".sidebar").getByRole("button", { name: "Administrar canales" }).click();
+  // The sidebar's Channels section leads there too, narrow sidebar included.
+  await expect(page.locator(".sidebar").getByRole("button", { name: "Administrar canales" })).toBeVisible();
+  // From an account's Inbox, the account switcher leads to the screen with every account.
+  await page.getByRole("button", { name: "WhatsApp", exact: true }).click();
+  await page.locator(".inbox__accountbtn").click();
+  await page.getByRole("dialog", { name: "Cuentas" }).getByRole("button", { name: "Administrar canales" }).click();
   const screen = page.getByRole("region", { name: "Canales" });
   await expect(screen.getByRole("heading", { name: "Canales" })).toBeVisible();
-  await expect(screen.getByRole("button", { name: /^Telegram/ })).toBeVisible();
-  await expect(screen.getByRole("button", { name: /^WhatsApp/ })).toBeVisible();
+  await expect(screen.locator(".chs__main", { hasText: "Telegram" })).toBeVisible();
+  await expect(screen.locator(".chs__main", { hasText: "WhatsApp" })).toBeVisible();
 
-  await screen.getByRole("radio", { name: /^WhatsApp/ }).click();
-  await expect(screen.getByRole("button", { name: /^Telegram/ })).toHaveCount(0);
-  await screen.getByRole("radio", { name: /^Todas/ }).click();
+  const filter = screen.getByRole("group", { name: "Canales" });
+  await filter.getByRole("button", { name: /^WhatsApp/ }).click();
+  await expect(screen.locator(".chs__main", { hasText: "Telegram" })).toHaveCount(0);
+  await filter.getByRole("button", { name: /^Todas/ }).click();
 
   // Right click: the same actions as in the sidebar.
-  await screen.getByRole("button", { name: /^Telegram/ }).click({ button: "right" });
+  await screen.locator(".chs__main", { hasText: "Telegram" }).click({ button: "right" });
   await expect(page.getByRole("menuitem", { name: "Contactos" })).toBeVisible();
   await page.keyboard.press("Escape");
 
@@ -132,4 +138,46 @@ test("New channel lists every app; a new account's other parts wait until it is 
   await expect(page.getByRole("dialog")).toHaveCount(0);
   // Cancel leaves no account behind.
   expect(await ids()).toEqual(before);
+});
+
+test("in the folded, compact sidebar the channels list names Manage channels in words", async ({ page }) => {
+  // Narrow enough for the rail, short enough for every section to be one row that opens beside it.
+  await page.setViewportSize({ width: 1100, height: 560 });
+  await open(page);
+  const sidebar = page.locator(".sidebar");
+  await expect(sidebar).toHaveClass(/is-rail/);
+  await sidebar
+    .getByRole("button", { name: /^Canales/ })
+    .first()
+    .click();
+  const manage = page.getByRole("button", { name: "Administrar canales" });
+  await expect(manage.locator(".apx-nav__label")).toHaveText("Administrar canales");
+});
+
+test("an account picked under Channels lights Channels, and Inbox leads back to every chat", async ({ page }) => {
+  await open(page);
+  const sidebar = page.locator(".sidebar");
+  await sidebar.getByRole("button", { name: "WhatsApp", exact: true }).first().click();
+  // The Inbox narrowed to that account: its header, and Channels is where the owner is.
+  await expect(page.locator(".inbox__accountbtn")).toBeVisible();
+  const inbox = sidebar.getByRole("button", { name: /^Inbox/ }).first();
+  await expect(inbox).not.toHaveClass(/is-active/);
+  await inbox.click();
+  await expect(page.locator(".inbox__accountbtn")).toHaveCount(0);
+  await expect(page.locator(".inbox__title")).toHaveText("Inbox");
+  await expect(inbox).toHaveClass(/is-active/);
+});
+
+test("an account picked under Channels opens its newest chat, not the one that was open", async ({ page }) => {
+  const { threads } = await rpc<{
+    threads: Array<{ id: string; updated_at: string; archived?: boolean; channel?: { id: string } }>;
+  }>("threads.list");
+  const newest = threads
+    .filter((t) => t.channel?.id === "whatsapp" && !t.archived)
+    .sort((a, b) => b.updated_at.localeCompare(a.updated_at))[0];
+  expect(newest).toBeTruthy();
+  await open(page, "#thread=home");
+  await page.locator(".sidebar").getByRole("button", { name: "WhatsApp", exact: true }).first().click();
+  await expect(page.locator(".inbox__accountbtn")).toBeVisible();
+  await expect(page).toHaveURL(new RegExp(`thread=${newest?.id}`));
 });

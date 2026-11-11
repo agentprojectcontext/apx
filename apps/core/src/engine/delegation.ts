@@ -3,6 +3,7 @@
 // a new input. See DECISIONS.md#d-009
 import { DEFAULT_AUTONOMY, type Message, type Part, type Thread, type WritePolicy } from "@apx/protocol";
 import type { AgentRecord } from "../domain/agents.ts";
+import { worksIn } from "../domain/projects.ts";
 import { type DelegationResult, type Origin, type RunRecord, TERMINAL } from "../domain/runs.ts";
 import type { Store } from "../domain/store.ts";
 import { previewOf, strictestWrite, type Worker, worksInFolder } from "../domain/threads.ts";
@@ -184,7 +185,7 @@ export const actionsNote = (actions: readonly string[]) =>
 
 /** A delegate does its own part and names who owns the rest (it cannot ask them): the caller asks. See DECISIONS.md#d-074 */
 export const REDIRECT_NOTE =
-  "If it names another agent for what is left, ask that agent yourself: a task it left for them you assign with task_update (that starts their work); anything else, delegate only the remaining part to them.";
+  "If it names another agent for what is left, ask that agent yourself: a task it left for them you assign with task_update (that starts their work); anything else, delegate only the remaining part to them. Partial, with nothing waiting on the owner: delegate only what is left to the same agent, or do it.";
 
 const slug = (s: string) =>
   s
@@ -539,8 +540,12 @@ export function createDelegations(deps: {
       // The project named, else this chat's, else the agent's own: its folder is where the session reads and works.
       const projectId = existing
         ? existing.project_id
-        : // A project's agent works in its own project, wherever it is asked from; a worker or a global agent in the chat's.
-          (req.project ?? (worker ? parentThread.project_id : (to.project_id ?? parentThread.project_id)));
+        : // A project's agent works in its own project, wherever it is asked from (asked in one of its project's
+          // subprojects, in that one); a worker or a global agent in the chat's.
+          (req.project ??
+          (worker || worksIn(store.projects, to.project_id, parentThread.project_id)
+            ? parentThread.project_id
+            : to.project_id));
       const dispatched = store.threads.context(parentThread.id).task_dispatches;
       const assigned =
         !worker && !req.independent && dispatched && runLineage(store, from.run).includes(dispatched.run)

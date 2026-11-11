@@ -3,7 +3,7 @@
 import fs from "node:fs";
 import { ErrorCode, type Person, SUPER_AGENT_ID } from "@apx/protocol";
 import { cannotAdd, defaultLabel, newAccount, newAccountId } from "../channels/accounts.ts";
-import { answersInHome } from "../channels/agent-project.ts";
+import { agentProject, answersInHome, contactAnswerer } from "../channels/agent-project.ts";
 import { pairingRef } from "../channels/inbound.ts";
 import type { Channels } from "../channels/manager.ts";
 import { countryOf, whatsappDigits } from "../channels/phone.ts";
@@ -55,6 +55,14 @@ export function channelHandlers(store: Store, channels: Channels, nudges: Pick<N
   };
   return {
     "channels.list": () => ({ channels: channels.info() }),
+    "channels.email_history": async ({ channel, ...request }) => {
+      if (!channels.info().some((c) => c.id === channel)) throw notFound(`channel ${channel}`);
+      try {
+        return await channels.mailHistory(channel, request);
+      } catch (err) {
+        throw badRequest(errorMessage(err));
+      }
+    },
     // Open to agents: what channel_list shows. Disabled channels are not there for them.
     "channels.overview": () => ({
       channels: channels
@@ -224,14 +232,30 @@ export function channelHandlers(store: Store, channels: Channels, nudges: Pick<N
       return { persons: store.persons.list() };
     },
     "contacts.set": ({ id, name, role, ...details }) => {
+      if (details.agent_id && !store.agents.get(details.agent_id)) throw notFound(`agent ${details.agent_id}`);
       if (!id) {
         if (role === "owner") throw badRequest("there is one owner");
         const created = store.persons.create({ name, role: role ?? "contact", note: details.note });
         return store.persons.update(created.id, details) ?? created;
       }
-      const p = store.persons.update(id, { name, ...(role ? { role } : {}), ...details });
-      if (!p) throw notFound(`person ${id}`);
-      return p;
+      const before = store.persons.get(id);
+      if (before?.role === "owner" && details.agent_id)
+        throw badRequest("the owner is answered by each account's agent");
+      return store.tx(() => {
+        const p = store.persons.update(id, { name, ...(role ? { role } : {}), ...details });
+        if (!p) throw notFound(`person ${id}`);
+        // Their open chats follow a change of who answers them, on every channel.
+        if (before && before.agent_id !== p.agent_id) {
+          const configs = channels.info();
+          store.threads.movePerson(p.id, (channel) => {
+            const cfg = configs.find((c) => c.id === channel);
+            if (!cfg) return undefined;
+            const agent = contactAnswerer(store, cfg, p);
+            return { agent, project: agentProject(store, agent) };
+          });
+        }
+        return p;
+      });
     },
     "contacts.suggestions.list": ({ state, person, limit }) => ({
       suggestions: store.suggestions.list({ state: state === "all" ? undefined : state, person, limit }),
@@ -247,6 +271,24 @@ export function channelHandlers(store: Store, channels: Channels, nudges: Pick<N
       if (id === OWNER_ID) throw badRequest("the owner cannot be removed");
       return { removed: store.persons.remove(id) };
     },
+    "contacts.never_read": async ({ person, channel, scope, undo }) => {
+      const cfg = channels.info().find((c) => c.id === channel);
+      if (!cfg?.email) throw badRequest("only an email account has a list of senders it never reads");
+      const who = store.persons.get(person);
+      const address = who?.addresses.find((a) => a.channel === channel)?.external_id;
+      if (!who || !address) throw notFound(`person ${person} on ${channel}`);
+      if (who.role === "owner") throw badRequest("your own addresses are always read");
+      const blocked = scope === "domain" ? `@${address.split("@")[1] ?? ""}` : address;
+      if (blocked === "@") throw badRequest(`${address} has no domain`);
+      const { token_set: _t, token_hint: _h, status: _s, error: _e, account: _a, qr: _q, id: _id, ...saved } = cfg;
+      const list = cfg.email.blocked ?? [];
+      const next = undo ? list.filter((x) => x !== blocked) : list.includes(blocked) ? list : [...list, blocked];
+      if (next.length !== list.length)
+        await channels.set(channel, { ...saved, email: { ...cfg.email, blocked: next } });
+      // Blocked, not forgotten: their card and chat stay, and the card can read them again.
+      store.persons.update(who.id, { role: undo ? "contact" : "blocked" });
+      return { blocked };
+    },
     "contacts.claim": ({ address }) => ({ moved: store.persons.giveToOwner(address) }),
     "contacts.avatar": async ({ person }) => {
       if (!store.persons.get(person)) throw notFound(`person ${person}`);
@@ -259,6 +301,8 @@ export function channelHandlers(store: Store, channels: Channels, nudges: Pick<N
       const who = person ? store.persons.get(person) : store.persons.owner();
       if (!who) throw notFound(`person ${person}`);
       const external = addressOn(cfg, address, who);
+      if (cfg.type === "email" && external === cfg.email?.address.toLowerCase())
+        throw badRequest(`${address} is this mailbox's own address: its mail is never read as anyone's`);
       store.tx(() => store.persons.link(who.id, { channel, external_id: external, label: cfg.label }));
       return store.persons.get(who.id) as NonNullable<ReturnType<typeof store.persons.get>>;
     },

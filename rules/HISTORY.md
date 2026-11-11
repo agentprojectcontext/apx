@@ -32,6 +32,19 @@ actual provenance. A concurrent writer detected across backup and write-lock
 acquisition aborts the repair. A backup or transaction failure leaves the original schema counter and data intact.
 **Where:** `apps/core/src/db/{db,migration-lineage}.ts`; migration-lineage regression tests; EN/ES installation guides.
 
+<a id="hotfix-migration-lineage"></a>
+### A released hotfix may have a different migration suffix
+**Rule:** the v2.13.4 hotfix's migration 109 adds `jobs.start_error`; staging keeps its original migrations
+109–114 and adds that column at 115. Only the exact hotfix-109 schema is reconciled: compare every schema object
+with the canonical 108-entry prefix plus the hotfix column, save a private consistent backup, revalidate under
+`BEGIN IMMEDIATE`, apply canonical 109–114 and mark 115 in the same transaction. A concurrent writer or any failure
+aborts the whole reconciliation. Existing staging databases follow their normal suffix; reopening never repeats
+channel or permission conversions. Unknown mixed schemas fail closed.
+**Why:** inserting the hotfix migration into staging would renumber migrations already applied. Merely appending
+the column would instead skip staging109 for hotfix databases and later fail on the duplicate column. The older
+101–108 reconciler only repairs additive changes and cannot safely absorb this transforming suffix.
+**Where:** `apps/core/src/db/{db,migration-hotfix}.ts`; migration-hotfix regression tests; EN/ES installation guides.
+
 <a id="task-execution-handoff"></a>
 ### A self-task transfers execution, not just a board entry
 **Rule:** an immediate self-assignment transfers execution to the task session. The source run stops using tools;
@@ -211,6 +224,16 @@ saved temporary owner requests verbatim; the filter stops new ones but cannot cl
 `forgotten_at` plus a history entry, no exclusion: Bring back restores a note, and the owner can teach it again.
 **Where:** `apps/core/src/domain/memory-capture-cleanup.ts`, called from `server.ts`. Delete it (keep the setting
 key) once no install older than 2.7.1 needs upgrading.
+
+<a id="v1-imported-notes"></a>
+### A one-time startup pass marks the notes the v1 import saved as the owner's
+**Rule:** on its first start, a core reads APX v1's note files and marks each owner note with exactly that text and no
+chat, run or author as `imported`, records that it ran (`setting:memory_v1_marked`) and never runs again. **Why:** the
+v1 import saved every v1 note, mostly old agents' session notes, as written by the owner: the panel said "written by
+you", agents could not correct them, AutoDream skipped them and the global ones stood in every chat. Imported notes
+are reached by search, read as "from APX v1, may be outdated", and become the owner's once they edit or confirm one.
+**Where:** `apps/core/src/import/v1-memory-mark.ts`, called from `server.ts`; the import itself now saves `imported`.
+Delete the pass (keep the setting key) once no install imported before 2.13 needs upgrading.
 
 ## Agent engine
 
@@ -459,3 +482,19 @@ without naming a write policy. The session kept `read-only`, so the developer co
 the task sat "in progress" overnight. A delegation that continues a free session and says nothing about folder or
 writes now lifts a read-only session back to what caller, callee and project allow, in the same folder; one that asks
 for read-only again keeps it. Where: `apps/core/src/engine/delegation.ts`, test in `engine/workers.test.ts`.
+
+<a id="browser-dialogs"></a>
+### A page's JavaScript dialog froze the agent's tab
+An agent testing a delete button in its own app hit the page's `confirm()`: `browser_snapshot` and `browser_click` then
+timed out on the desktop node and the owner had to accept it by hand. While a dialog is open the renderer runs nothing,
+so every CDP command that reaches the page (the click's `mouseReleased` itself, the accessibility tree, `Runtime.evaluate`)
+waits until someone answers. `CdpPage` now learns the dialog from `Page.javascriptDialogOpening`/`Closed`, returns
+from an input command as soon as it opens one, shows it in the snapshot with `dialog-ok`/`dialog-cancel`/`dialog-text`
+refs and answers with `Page.handleJavaScriptDialog`; anything else that runs in the page is refused with `conflict`
+meanwhile. Electron (checked with 44.5) keeps its own message box for the dialog on screen after CDP answered it, so the
+desktop node emits Electron's internal `-cancel-dialogs` on the tab's `webContents`, which aborts that box; if a later
+Electron drops the event, the box stays (stale, harmless) and the page still gets the agent's answer. The headless
+browser's click raced its 10-second load wait against 1.5 s and left the wait running, which could start Chrome again
+after the tab closed; the wait itself is bounded now. Where: `packages/protocol/src/cdp-dialog.ts`,
+`apps/desktop/src/main/browser/cdp.ts`, `apps/core/src/nodes/headless-browser.ts`; tests in `cdp-dialog.test.ts`,
+`host.test.ts`, `headless-browser.test.ts` (real Chromium).

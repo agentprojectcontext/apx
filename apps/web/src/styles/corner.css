@@ -1,4 +1,4 @@
-/* Corner cards: a deck, the first in front and in flow; up to two more peek out above it, smaller and faded. */
+/* Corner cards: a deck, the front card in flow; up to two more peek out above it as edges, smaller and faded. */
 .corner {
   --corner-peek: 0px;
   position: relative;
@@ -15,44 +15,43 @@
   width: min(300px, calc(100% - var(--shell-sidebar-w) - 24px));
   margin: 0;
 }
+.corner__card,
+.corner__back {
+  border-radius: var(--apx-radius-md);
+  background: var(--apx-surface-raised);
+  border: 1px solid var(--apx-border);
+}
 .corner__card {
+  position: relative;
+  z-index: 3;
   display: flex;
   flex-direction: column;
   gap: 8px;
   padding: 10px 10px 12px;
-  border-radius: var(--apx-radius-md);
-  background: var(--apx-surface-raised);
-  border: 1px solid var(--apx-card-border);
   color: var(--apx-fg);
   font-size: var(--apx-text-sm);
-  transform-origin: top center;
-  transition:
-    transform 0.2s ease,
-    opacity 0.2s ease;
 }
 .corner.is-floating .corner__card {
   box-shadow: var(--apx-shadow-md);
 }
-.corner__card:first-child {
-  position: relative;
-  z-index: 3;
-}
-/* Behind the front card only their top edge shows, and they take no clicks. */
-.corner__card:not(:first-child) {
+.corner__back {
   position: absolute;
   top: var(--corner-peek);
   left: 0;
   right: 0;
   height: 40px;
-  overflow: hidden;
   pointer-events: none;
+  transform-origin: top center;
+  transition:
+    transform 0.2s ease,
+    opacity 0.2s ease;
 }
-.corner__card:nth-child(2) {
+.corner__back[data-depth="1"] {
   z-index: 2;
   transform: translateY(-8px) scale(0.95);
   opacity: 0.7;
 }
-.corner__card:nth-child(3) {
+.corner__back[data-depth="2"] {
   z-index: 1;
   transform: translateY(-16px) scale(0.9);
   opacity: 0.45;
@@ -62,6 +61,14 @@
   align-items: center;
   gap: 8px;
 }
+.corner__head .apx-iconbtn {
+  width: 24px;
+  height: 24px;
+  color: var(--apx-fg-subtle);
+}
+.corner__head .apx-iconbtn:hover {
+  color: var(--apx-fg);
+}
 .corner__title {
   flex: 1;
   min-width: 0;
@@ -69,10 +76,11 @@
 }
 .corner__desc {
   color: var(--apx-fg-muted);
-  line-height: var(--apx-leading);
+  line-height: 1.45;
+  text-wrap: pretty;
 }
 @media (prefers-reduced-motion: reduce) {
-  .corner__card {
+  .corner__back {
     transition: none;
   }
 }
@@ -90,4 +98,100 @@
 .corner__actions > * {
   flex: 1 1 auto;
   width: auto;
+}
+/* A download's progress under a notice's text (the desktop app). */
+.corner__progress {
+  width: 100%;
+  height: 6px;
+  accent-color: var(--apx-brand);
+}
+
+/* The notice strip (full sidebar): 38px over the page, tinted by the notice's tone, one notice at a time. */
+.noticestrip {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  height: 38px;
+  padding: 0 6px 0 12px;
+  border-bottom: 1px solid var(--apx-border);
+  background: var(--apx-bg);
+  color: var(--apx-fg);
+}
+.noticestrip.is-warning {
+  background: color-mix(in oklab, var(--apx-warning) 7%, var(--apx-bg));
+}
+.noticestrip.is-danger {
+  background: color-mix(in oklab, var(--apx-danger) 7%, var(--apx-bg));
+}
+.noticestrip__text {
+  display: flex;
+  flex: 1;
+  align-items: baseline;
+  gap: 8px;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+}
+.noticestrip__title {
+  flex: none;
+  font-size: var(--apx-text-sm);
+  font-weight: var(--apx-weight-semibold);
+}
+.noticestrip__desc {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-size: var(--apx-text-xs);
+  color: var(--apx-fg-muted);
+}
+.noticestrip__desc a {
+  color: var(--apx-fg);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.noticestrip .noticestrip__btn {
+  flex: none;
+  height: 26px;
+  padding: 0 12px;
+  font-size: var(--apx-text-xs);
+  white-space: nowrap;
+}
+.noticestrip .corner__progress {
+  flex: none;
+  width: 88px;
+}
+.noticestrip__sep {
+  flex: none;
+  width: 1px;
+  height: 16px;
+  background: var(--apx-border);
+}
+.noticestrip__pager {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 2px;
+}
+.noticestrip__pos {
+  min-width: 38px;
+  text-align: center;
+  font-family: var(--apx-font-mono);
+  font-size: var(--apx-text-2xs);
+  color: var(--apx-fg-subtle);
+}
+.noticestrip > .apx-iconbtn,
+.noticestrip__pager .apx-iconbtn {
+  width: 24px;
+  height: 24px;
+  flex: none;
+  color: var(--apx-fg-muted);
+}
+/* On a phone the title alone carries it; the description stays in its tooltip. */
+@media (max-width: 639px) {
+  .noticestrip__desc,
+  .noticestrip__pos {
+    display: none;
+  }
 }

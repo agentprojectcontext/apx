@@ -12,14 +12,18 @@ export function BrowserConsents({
   thread,
   agents,
   threads,
+  onClose,
 }: {
   client: ApxClient;
   thread: string;
   agents: Agent[];
   threads: Thread[];
+  /** Opened from elsewhere (the chat's menu): the sheet shows at once, with no button of its own. */
+  onClose?: () => void;
 }) {
   const s = useStyles();
-  const [open, setOpen] = useState(false);
+  const [opened, setOpen] = useState(false);
+  const open = Boolean(onClose) || opened;
   const [grants, setGrants] = useState<ToolApproval[]>([]);
   const latest = useRef(0);
   const [loading, setLoading] = useState(false);
@@ -73,9 +77,11 @@ export function BrowserConsents({
   };
   return (
     <>
-      <Button size="sm" variant="secondary" label={t("browserPermissions")} onPress={() => setOpen(true)} />
+      {onClose ? null : (
+        <Button size="sm" variant="secondary" label={t("browserPermissions")} onPress={() => setOpen(true)} />
+      )}
       {open ? (
-        <BottomSheet title={t("browserPermissions")} onClose={() => setOpen(false)}>
+        <BottomSheet title={t("browserPermissions")} onClose={onClose ?? (() => setOpen(false))}>
           <View style={s.list}>
             <Text style={s.help}>{t("browserPermissionsHelp")}</Text>
             <Button

@@ -11,8 +11,8 @@ test("a saved contact with no chat: listed, an empty chat to ask the agent to wr
   const nora = await rpc<{ id: string }>("contacts.set", { name: "Nora" });
   await rpc("contacts.address", { channel: "whatsapp", address: "+54 9 11 0000-0011", person: nora.id });
 
-  await open(page);
-  await page.getByRole("button", { name: "WhatsApp", exact: true }).click();
+  // A contact nobody wrote to has no chat in the Inbox: the channel's own screen lists them.
+  await open(page, "#channel=whatsapp");
   const row = page.locator(".chan__rows").getByRole("button", { name: /Nora/ });
   await expect(row).toContainText("+5491100000011");
   await row.click();
@@ -25,15 +25,13 @@ test("a saved contact with no chat: listed, an empty chat to ask the agent to wr
   await expect(card).toBeVisible({ visible: !wasOpen });
   if (wasOpen) await page.getByRole("button", { name: "Abrir el contacto de Nora" }).click();
   await expect(card.getByRole("textbox", { name: "Nombre" })).toHaveValue("Nora");
-  await card.getByRole("combobox", { name: "Relación" }).click();
+  const relation = card.getByRole("combobox", { name: "Relación" });
+  await relation.click();
   await page.getByRole("option", { name: "Amigo/a" }).click();
-  await expect(card.getByRole("combobox", { name: "Relación" })).toContainText("Amigo/a");
-  // What each option does is behind the "?", not under every switch.
-  await card.getByRole("button", { name: "Sobre qué puede hacer esta conversación" }).hover();
-  const help = page.getByRole("dialog", { name: "Sobre qué puede hacer esta conversación" });
-  await expect(help.getByText(/queda como tarea y te aviso en el momento/)).toBeVisible();
-  await expect(help.getByText(/pareja, familia y amigos siempre pueden dejarte un mensaje/)).toBeVisible();
-  await page.keyboard.press("Escape");
+  await expect(relation).toContainText("Amigo/a");
+  // What each option does reads under its switch, and the closing note about family and friends under them.
+  await expect(card.getByText(/queda como tarea y te aviso en el momento/)).toBeVisible();
+  await expect(card.getByText(/pareja, familia y amigos siempre pueden dejarte un mensaje/)).toBeVisible();
   // Each right follows the account unless set here: taking requests becomes Nora's own.
   const requests = card.getByRole("radiogroup", { name: "Tomar pedidos", exact: true });
   await expect(requests.getByRole("radio", { name: "Cuenta: No" })).toBeChecked();
@@ -81,8 +79,8 @@ test("who is online and what is set for a contact show on their row", async ({ p
   const nora = persons.find((p) => p.name === "Nora");
   await rpc("contacts.set", { id: nora?.id, name: "Nora", muted: true, perms: { notes: true } });
 
-  await open(page);
-  await page.getByRole("button", { name: "WhatsApp", exact: true }).click();
+  // A contact nobody wrote to has no chat in the Inbox: the channel's own screen lists them.
+  await open(page, "#channel=whatsapp");
   const row = page.locator(".chan__rows").getByRole("button", { name: /Nora/ });
   await expect(row.getByRole("img", { name: "Silenciado" })).toBeVisible();
   await expect(row.getByRole("img", { name: "Contestar desde mis notas" })).toBeVisible();
@@ -96,24 +94,35 @@ test("who is online and what is set for a contact show on their row", async ({ p
   await expect(row.getByRole("img", { name: "En línea" })).toBeHidden({ timeout: 8000 });
 });
 
-test("a muted, supervised contact's card keeps its three buttons on one row, Save inside it", async ({ page }) => {
+test("a muted, supervised contact: switches on their card, marks under their name, and the whole header opens it", async ({
+  page,
+}) => {
   const { persons } = await rpc<{ persons: Array<{ id: string; name: string }> }>("contacts.list");
   const nora = persons.find((p) => p.name === "Nora");
   await rpc("contacts.set", { id: nora?.id, name: "Nora", muted: true, supervised: true });
 
-  await open(page);
-  await page.getByRole("button", { name: "WhatsApp", exact: true }).click();
+  // A contact nobody wrote to has no chat in the Inbox: the channel's own screen lists them.
+  await open(page, "#channel=whatsapp");
   await page.locator(".chan__rows").getByRole("button", { name: /Nora/ }).click();
+  const header = page.getByRole("button", { name: "Abrir el contacto de Nora" });
+  await expect(header.getByRole("img", { name: "Silenciado" })).toBeVisible();
+  await expect(header.getByRole("img", { name: /^Supervisado/ })).toBeVisible();
+  // The name's bar is the one way to the card: no separate Contact button.
+  await expect(page.locator(".chan__chathead").getByRole("button", { name: "Contacto", exact: true })).toHaveCount(0);
   const card = page.getByRole("complementary", { name: "Contacto" });
-  if (!(await card.isVisible())) await page.getByRole("button", { name: "Abrir el contacto de Nora" }).click();
-  const supervise = card.getByRole("button", { name: "Dejar de supervisar" });
-  await expect(supervise).toBeVisible();
+  if (!(await card.isVisible())) await header.click();
+  const muted = card.getByRole("switch", { name: /^Silenciado/ });
+  await expect(muted).toBeChecked();
+  await expect(card.getByRole("switch", { name: /^Supervisar/ })).toBeChecked();
   const save = await card.getByRole("button", { name: "Guardar" }).boundingBox();
-  const mute = await card.getByRole("button", { name: "Quitar silencio" }).boundingBox();
   const edge = await card.boundingBox();
   expect(save && edge && save.x + save.width <= edge.x + edge.width).toBe(true);
-  expect(save && mute && Math.abs(save.y - mute.y) < 4).toBe(true);
-  // A label cut short still says what it does in its tooltip.
-  await supervise.hover();
-  await expect(page.locator(".apx-tooltip")).toContainText("te llega la respuesta sugerida");
+  // A switch applies at once, with no Save.
+  await muted.click();
+  await expect(muted).not.toBeChecked();
+  await until(async () => {
+    const { persons } = await rpc<{ persons: Array<{ name: string; muted?: boolean }> }>("contacts.list");
+    return persons.find((p) => p.name === "Nora")?.muted === false;
+  });
+  await expect(header.getByRole("img", { name: "Silenciado" })).toHaveCount(0);
 });

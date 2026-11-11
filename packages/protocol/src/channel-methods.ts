@@ -4,6 +4,29 @@ import { z } from "zod";
 import { ChannelEmail, ChannelInfo, ChannelType, Person } from "./domain.ts";
 
 export const channelMethods = {
+  /** Explicit, quiet recovery of one page of a mailbox's retained history; never changes the live cursor. */
+  "channels.email_history": {
+    params: z
+      .object({
+        channel: z.string().min(1).max(32),
+        after_uid: z.number().int().nonnegative().default(0),
+        uidvalidity: z.number().int().positive().optional(),
+        limit: z.number().int().min(1).max(50).default(25),
+      })
+      .strict(),
+    result: z.object({
+      uidvalidity: z.number().int().positive(),
+      next_uid: z.number().int().nonnegative(),
+      has_more: z.boolean(),
+      scanned: z.number().int().nonnegative(),
+      stored: z.number().int().nonnegative(),
+      already_seen: z.number().int().nonnegative(),
+      skipped: z.number().int().nonnegative(),
+      failed: z.number().int().nonnegative(),
+    }),
+    effect: true,
+    access: "human",
+  },
   /**
    * A new account of a chat app, answered by the super-agent: the core gives it its id (the app's name for the first,
    * a random one after it, never its number or token) and its name. It is kept once it has connected; one never

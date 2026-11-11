@@ -107,6 +107,7 @@ Usage:
   apx channels [add|rm|outbox]   Channels (Telegram bots); apx channels add telegram <id> --agent <a>
   apx channels send <channel> <contact> <text…>   Write to a contact yourself, in their chat on that channel
   apx channels recover <thread>   Ask the channel again for files that never arrived in a chat
+  apx channels email-history <channel> [after_uid uidvalidity]   Import one page of old mail quietly
   apx contacts [add|block|rm]    People APX talks to on channels
   apx pairing [me|ok|no <code>]  Approve who wrote to a channel
   apx compact <thread>    Summarize a thread's older turns now (APX's own loop; Claude Code and Codex compact their own)
@@ -130,9 +131,14 @@ Usage:
   apx projects [list] | register <folder> | sync [project]
                            Projects are folders with AGENTS.md / .apc/; their agents come from those files
   apx projects create "<Name>" [--path <folder>] [--kind personal|app|company|software|other] [--desc "…"]
-                           A new project: in that folder (made if missing), else in a folder of its own in APX's home
+                    [--parent <project>|base]
+                           A new project: in that folder (made if missing), else in a folder of its own in APX's home.
+                           With --parent, a subproject that works with its parent's agents, in the parent's folder
   apx projects set <project> [--name "…"] [--kind …] [--desc "…"] [--autonomy manual|auto|accept_edits|plan|total]
-                           Rename it, change its kind or description, or how far its agents go without asking
+                    [--parent <project>|base|none]
+                           Rename it, change its kind or description, how far its agents go without asking, or
+                           whose subproject it is
+  apx projects detach <subproject>   Make a subproject a project of its own (it keeps its folder, agents and chats)
   apx projects folders list|add|rm <project> [folder]
                            Folders its agents may read and never change (another checkout, docs)
   apx projects rm <project>   Forget a project in APX; its folder and files are never deleted

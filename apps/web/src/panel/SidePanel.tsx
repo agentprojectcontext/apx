@@ -5,6 +5,7 @@ import { useData } from "../data/state.ts";
 import { useT } from "../i18n/index.ts";
 import {
   AgentPanel,
+  AgentsPanel,
   BrowserPanel,
   ChangesPanel,
   ChatFiles,
@@ -16,7 +17,7 @@ import {
   WidgetPanel,
 } from "../lazy.ts";
 import { LAYOUT } from "../shell/layout.ts";
-import { go, nav, useNav } from "../shell/nav.ts";
+import { go, nav, type PanelKind, useNav } from "../shell/nav.ts";
 import { useShellLayout } from "../shell/useShellLayout.ts";
 import { coverNativeViews } from "./nativeCover.ts";
 import { panelDef } from "./panels.tsx";
@@ -63,6 +64,10 @@ export function SidePanel() {
         <Suspense fallback={null}>
           <ProcessesPanel key={threadId} />
         </Suspense>
+      ) : panel === "agents" ? (
+        <Suspense fallback={null}>
+          <AgentsPanel key={threadId} />
+        </Suspense>
       ) : panel === "agent" ? (
         <Suspense fallback={null}>
           <AgentPanel />
@@ -73,22 +78,7 @@ export function SidePanel() {
         </Suspense>
       ) : (
         <>
-          <PanelHeader
-            actions={
-              (panel === "files" || panel === "terminal" || panel === "changes" || panel === "document") && (
-                <IconButton
-                  label={wide ? t("panel.narrow") : t("panel.widen")}
-                  icon={wide ? <Icons.Minimize2 size={14} /> : <Icons.Maximize2 size={14} />}
-                  onClick={() => go.togglePanelWide()}
-                />
-              )
-            }
-          >
-            <span className="sidepanel__title">
-              {panelDef(panel).icon(14)}
-              {t(panelDef(panel).label)}
-            </span>
-          </PanelHeader>
+          <PanelHeader kind={panel} />
           {panel === "widget" && (
             <Suspense fallback={null}>
               <WidgetPanel />
@@ -127,21 +117,47 @@ export function SidePanel() {
   );
 }
 
-/** 56px header: custom content (title or tab strip), optional actions, and close (not in a window of its own). */
+/** The tool's icon and name, as the header shows it. */
+export function PanelTitle({ kind, children }: { kind: PanelKind; children?: ReactNode }) {
+  const t = useT();
+  return (
+    <span className="sidepanel__title">
+      {panelDef(kind).icon(14)}
+      <span className="sidepanel__name">{children ?? t(panelDef(kind).label)}</span>
+    </span>
+  );
+}
+
+/**
+ * 56px header of every tool: its icon and name (or custom content), its own actions, widen and close (close not in a
+ * window of its own). The tool's tab strip goes under it.
+ */
 export function PanelHeader({
+  kind,
   children,
   actions,
   closable = true,
+  widen = true,
 }: {
-  children: ReactNode;
+  kind?: PanelKind;
+  children?: ReactNode;
   actions?: ReactNode;
   closable?: boolean;
+  widen?: boolean;
 }) {
   const t = useT();
+  const wide = useNav((s) => s.panelWide);
   return (
     <header className="sidepanel__head">
-      <div className="sidepanel__headmain">{children}</div>
+      <div className="sidepanel__headmain">{children ?? (kind && <PanelTitle kind={kind} />)}</div>
       {actions}
+      {widen && (
+        <IconButton
+          label={wide ? t("panel.narrow") : t("panel.widen")}
+          icon={wide ? <Icons.Minimize2 size={14} /> : <Icons.Maximize2 size={14} />}
+          onClick={() => go.togglePanelWide()}
+        />
+      )}
       {closable && <IconButton label={t("panel.close")} icon={<Icons.X size={16} />} onClick={() => go.panel(null)} />}
     </header>
   );

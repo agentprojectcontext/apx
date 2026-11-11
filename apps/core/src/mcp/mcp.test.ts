@@ -135,21 +135,15 @@ test("a project's own value reaches the owner's server only in that project's ch
 });
 
 test("an owner's server limited to a project runs only there, and its test uses that project's values", async () => {
-  const servers = JSON.parse(env.core.store.settings.get("mcp_servers") ?? "{}") as { mcpServers: object };
-  env.core.store.settings.set(
-    "mcp_servers",
-    JSON.stringify({
-      mcpServers: {
-        ...servers.mcpServers,
-        scoped: {
-          command: process.execPath,
-          args: [SERVER],
-          env: { REQUIRE_TOKEN: "1", NOTES_TOKEN: "secret://scoped_token" },
-          project,
-        },
-      },
-    }),
-  );
+  await env.client.call("mcp.set", {
+    name: "scoped",
+    server: {
+      command: process.execPath,
+      args: [SERVER],
+      env: { REQUIRE_TOKEN: "1", NOTES_TOKEN: "secret://scoped_token" },
+      project,
+    },
+  });
   await env.client.call("secrets.set", { name: "scoped_token", value: "only-here", project });
   const here = (await env.client.call("mcp.list", { project })).servers.find((s) => s.name === "scoped");
   assert.deepEqual([here?.only, here?.project_id], [true, project]);
@@ -161,6 +155,45 @@ test("an owner's server limited to a project runs only there, and its test uses 
   assert.ok(!toolsSeen().some((n) => n.startsWith("mcp_scoped_")), "not outside its project");
   await env.client.call("mcp.set", { name: "scoped", server: null });
   await env.client.call("secrets.set", { name: "scoped_token", value: null, project });
+});
+
+test("private availability can change without rewriting credentials or granting revoked tools", async () => {
+  const server = { command: process.execPath, args: [SERVER], env: { NOTES_TOKEN: "secret://notes" } };
+  await assert.rejects(
+    env.client.call("mcp.set", { name: "movable", server: { ...server, project: "missing" } }),
+    /project missing/,
+  );
+  await env.client.call("mcp.set", { name: "movable", server: { ...server, project } });
+  assert.ok(!(await env.client.call("mcp.list", { project: "other" })).servers.some((s) => s.name === "movable"));
+  await env.client.call("mcp.approveTool", { scope: "global", server: "movable", tool: "token" });
+  const tokenBefore = (await env.client.call("mcp.tools", { scope: "global", server: "movable" })).tools.find(
+    (tool) => tool.name === "token",
+  );
+  assert.equal(tokenBefore?.approved, true);
+  await env.client.call("mcp.set", { name: "movable", server: { ...server, project: null } });
+  const tokenAfter = (await env.client.call("mcp.tools", { scope: "global", server: "movable" })).tools.find(
+    (tool) => tool.name === "token",
+  );
+  assert.equal(tokenAfter?.key, tokenBefore?.key);
+  assert.equal(tokenAfter?.approved, true, "the same definition and credentials retain their approval");
+  await env.client.call("secrets.set", { name: "notes", value: "different-project-account", project });
+  await env.client.call("mcp.set", { name: "movable", server: { ...server, project } });
+  const otherAccount = (await env.client.call("mcp.tools", { scope: "global", server: "movable", project })).tools.find(
+    (tool) => tool.name === "token",
+  );
+  assert.equal(otherAccount?.approved, false, "a different credential scope never inherits a grant");
+  await env.client.call("secrets.set", { name: "notes", value: null, project });
+  await env.client.call("mcp.trust", { server: "movable", trusted: false });
+  await env.client.call("mcp.set", { name: "movable", server: { ...server, project: null } });
+  const moved = (await env.client.call("mcp.list", { project: "other" })).servers.find((s) => s.name === "movable");
+  assert.equal(moved?.only, false);
+  assert.equal(moved?.trusted, false, "moving never restores revoked approval");
+  assert.deepEqual(moved?.definition?.env, server.env);
+  await assert.rejects(
+    env.client.call("mcp.set", { name: "movable", project, server: { ...server, env: {}, project: null } }),
+    /repository server cannot/,
+  );
+  await env.client.call("mcp.set", { name: "movable", server: null });
 });
 
 test("the owner edits a project's server: its file is written, approved as written, and secrets are refused", async () => {

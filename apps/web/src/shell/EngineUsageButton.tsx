@@ -2,6 +2,7 @@ import type { Result } from "@apx/protocol";
 import { IconButton, Icons, Popover, Skeleton } from "@apx/ui";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { client } from "../data/client.ts";
+import { usePrefs } from "../data/prefs.ts";
 import { currentLocale, usePack, useT } from "../i18n/index.ts";
 import EngineUsageQuick from "./EngineUsageQuick.tsx";
 import EngineUsageSummary from "./EngineUsageSummary.tsx";
@@ -44,6 +45,7 @@ export default function EngineUsageButton() {
     };
   }, [visible, open, load, onReport]);
   const previews = quickWindows(quick);
+  const mini = usePrefs((s) => s.quotaBar) === "mini";
   const lines = usageLines(quick, new Date(), currentLocale(), t);
   const tooltip = (
     <span className="engine-usage-tip">
@@ -79,7 +81,11 @@ export default function EngineUsageButton() {
                   <Skeleton width="100%" height={14} />
                 </span>
               ) : previews.length ? (
-                <EngineUsageQuick report={quick} />
+                mini ? (
+                  <EngineUsageMini left={Math.min(...previews.map((p) => p.remaining))} />
+                ) : (
+                  <EngineUsageQuick report={quick} />
+                )
               ) : null}
             </>
           }
@@ -112,5 +118,18 @@ function EngineUsageContent({
     />
   ) : (
     preview
+  );
+}
+
+/** Reduced: the bolt and one 22×4 bar, the share left of the quota closest to its limit. */
+function EngineUsageMini({ left }: { left: number }) {
+  const tone = left <= 8 ? " is-danger" : left <= 20 ? " is-warning" : "";
+  return (
+    <span className={`engine-usage-mini engine-usage-quick${tone}`} aria-hidden="true">
+      <Icons.Zap size={14} />
+      <span className="engine-usage-mini__bar">
+        <span style={{ width: `${left}%` }} />
+      </span>
+    </span>
   );
 }

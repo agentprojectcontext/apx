@@ -94,6 +94,10 @@ export function surfacesRepo({ one, all, run }: Sql, bus: Bus) {
       const q = qb.selectFrom("surfaces").selectAll().orderBy("updated_at", "desc");
       return all(only ? q.where(inScope(only.project)) : q).map((r) => summary(toSurface(r)));
     },
+    /** The apps a project (`undefined`: the global scope) has: made as one or listed in Apps. */
+    apps(project: string | undefined): SurfaceSummary[] {
+      return repo.list({ project }).filter((s) => s.app || s.in_apps);
+    },
     get(id: string): Surface | undefined {
       const r = one(qb.selectFrom("surfaces").selectAll().where("id", "=", id));
       return r ? toSurface(r) : undefined;

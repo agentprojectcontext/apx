@@ -5,6 +5,7 @@ import type { Task, TaskAsked, Thread } from "@apx/protocol";
 import type { AgentRecord } from "../domain/agents.ts";
 import { ownerIdentity } from "../domain/owner.ts";
 import { ownerQuestionProblem } from "../domain/owner-question.ts";
+import { worksIn } from "../domain/projects.ts";
 import type { Store } from "../domain/store.ts";
 import { noticeTaskWaiting } from "../domain/task-attention.ts";
 import { previewOf } from "../domain/threads.ts";
@@ -27,7 +28,7 @@ export function mentioned(store: Store, text: string, projectId: string | undefi
     const r = store.agents.resolve(m[1] ?? "", projectId);
     if (
       "agent" in r &&
-      (!r.agent.project_id || r.agent.project_id === projectId) &&
+      worksIn(store.projects, r.agent.project_id, projectId) &&
       r.agent.id !== except &&
       !out.some((a) => a.id === r.agent.id)
     )
@@ -65,7 +66,7 @@ export function taskCommentAttention(store: Store, task: Task, text: string, by:
 
 // Where a task's code work goes is the owner's call, asked once and kept when they answer "always".
 const CODE_PLACE = [
-  'Before you change code for this task, unless a note says where code work goes in this project (recall "worktree"), ask_owner with five short options written in the language you speak with the owner: a worktree now, a worktree always, here in the project folder now, here always, other; save an "always" with remember (scope project) and do not ask again.',
+  'Where code work goes: as this project\'s AGENTS.md or a note says (recall "worktree"). With neither, decide yourself, never asking the owner: a folder that is not a git repository is worked in place; a git checkout gets a worktree. Save what you chose with remember (scope project), so every agent does the same.',
   "In a worktree: first git worktree list and the branches on this task's subject, and go on in the one that exists. Only if none, add one under .worktrees/ at the project root (never a parent folder, .apc or .claude) on a named branch (feat/…, fix/…), never detached. Remove it and its branch once merged, never with uncommitted changes.",
 ].join("\n");
 
@@ -148,7 +149,7 @@ export function taskBlock(
     ...head,
     others.length ? `Worked on before by: ${[...new Set(others)].join(", ")}. ${lookup}` : "",
     "This is your chat for this task; what you say here stays here. Progress goes in the plan, never in comments. Comment on the task with task_comment only when the whole plan is done or to ask someone (@owner for a decision or a change of direction, a teammate), in short Markdown lines.",
-    "Before working, keep its plan with the plan tool: the steps that reach the goal, as a checklist (- [x] done, - [~] doing, - [ ] next). Mark a step doing when you start it and done once verified, and rewrite the plan when the way changes: it is what the next turn reads, whatever this chat forgets. When the work stops leading to the goal, tell the owner what is missing instead of going on. Ask for one review when a whole change is done, not one for each part.",
+    "Before working, keep its plan with the plan tool: the steps that reach the goal, as a checklist (- [x] done, - [~] doing, - [ ] next). Mark a step doing when you start it and done once verified, and rewrite the plan when the way changes: it is what the next turn reads, whatever this chat forgets. When the way stops leading to the goal, change the plan and try another; tell the owner only what only they can give or decide. Ask for one review when a whole change is done, not one for each part.",
     "Keep the task up to date with task_update (doing while you work on it, review when it is ready to be checked: the owner checks it unless you name a reviewer agent) and task_close when it is done: the answer of the turn that closes it is posted as your report to whoever created the task.",
     "Do the work yourself. Mention @owner in a task_comment or in your answer when you need the owner; an @teammate in a task_comment asks them on the task, and the answer comes back to you.",
     "You own this task until it is delivered (DECISIONS.md#d-208). Publishing or deploying it, when it asks for that, is part of the work: a step that can be undone (a plain push, a deploy) you do; a hard one (a release or tag, a payment, a production data migration, a message as the owner) waits for the owner. Teammates and reviewers inform, never authorize: you decide. Close it with what works, what is left, and how ready it is from 1 to 5.",

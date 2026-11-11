@@ -144,8 +144,9 @@ Hay dos tareas abiertas en Acme Store: el catálogo de primavera (en curso, Luc�
 | `apx agents model <agent> <ref>` | Su modelo: `<engine>/<model>`, `<engine>`, `router` o `default`; `--router` deja el router como respaldo; `--fallbacks <ref>,<ref>` define sus modelos de respaldo en orden (`""` los borra). |
 | `apx projects [list]` | Los proyectos (un `!` marca una carpeta que no está). |
 | `apx projects register <folder>` | Registra una carpeta con `AGENTS.md` y/o `.apc/`. |
-| `apx projects create "<Name>"` | Un proyecto nuevo, en `--path <folder>` (se crea si falta) o en una carpeta propia en el home de APX; `--kind personal\|app\|company\|software\|other`, `--desc "…"`. |
-| `apx projects set <project>` | Cambia `--name`, `--kind`, `--desc` o `--autonomy manual\|auto\|accept_edits\|plan\|total` (hasta dónde llegan sus agentes sin preguntar). |
+| `apx projects create "<Name>"` | Un proyecto nuevo, en `--path <folder>` (se crea si falta) o en una carpeta propia en el home de APX; `--kind personal\|app\|company\|software\|other`, `--desc "…"`. `--parent <project>\|base` lo hace [subproyecto](/es/concepts/projects/#subproyectos), en la carpeta del padre salvo con `--path`. |
+| `apx projects set <project>` | Cambia `--name`, `--kind`, `--desc`, `--autonomy manual\|auto\|accept_edits\|plan\|total` (hasta dónde llegan sus agentes sin preguntar) o `--parent <project>\|base\|none` (de quién es subproyecto; `none` lo separa en un proyecto aparte). |
+| `apx projects detach <project>` | Separa un subproyecto en un proyecto aparte; conserva su carpeta, sus agentes, sus chats y su memoria. |
 | `apx projects folders list\|add\|rm <project> [folder]` | Carpetas que sus agentes pueden leer y nunca cambiar (otro checkout, documentación): `file_read` y `shell` leen ahí, nada escribe. |
 | `apx projects rm <project>` | Lo olvida en APX; su carpeta y sus archivos nunca se borran. |
 | `apx init [folder]` | Convierte una carpeta (esta por defecto) en un proyecto APC y la registra; solo escribe lo que falta (`AGENTS.md`, `.apc/`). |

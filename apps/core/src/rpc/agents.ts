@@ -12,7 +12,7 @@ import {
   writeNewAgent,
 } from "../apc/write.ts";
 import { contactAgentOf } from "../channels/types.ts";
-import { agentDirectory } from "../domain/agent-directory.ts";
+import { agentDirectory, projectTeam } from "../domain/agent-directory.ts";
 import { type AgentRecord, publicAgent, rulesText } from "../domain/agents.ts";
 import type { EngineIds } from "../domain/refs.ts";
 import type { Store } from "../domain/store.ts";
@@ -86,6 +86,11 @@ export function agentHandlers(store: Store, apc: ApcSync, engines: EngineIds, to
       if (p.id === cur.id) throw badRequest(`${parent} already reports to ${cur.name}: that would make a loop`);
     return keyOf(target);
   };
+  const teamIn = (projectId: string) => {
+    const team = projectTeam(store, projectId);
+    if (!team) throw notFound(`project ${projectId}`);
+    return team;
+  };
   const fresh = (id: string) => {
     const a = store.agents.get(id);
     if (!a) throw notFound(`agent ${id}`);
@@ -93,8 +98,8 @@ export function agentHandlers(store: Store, apc: ApcSync, engines: EngineIds, to
   };
 
   return {
-    "agents.list": () => ({
-      agents: agentDirectory(store),
+    "agents.list": ({ project_id }) => ({
+      agents: project_id === undefined ? agentDirectory(store) : teamIn(project_id),
       // A deleted agent's prompt and settings are gone already; what is left is who it was.
       former: store.agents.former().map(publicAgent),
     }),

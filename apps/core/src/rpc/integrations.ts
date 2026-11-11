@@ -3,6 +3,7 @@
 import os from "node:os";
 import type { ChannelType } from "@apx/protocol";
 import { CHANNEL_CATALOG } from "../channels/catalog.ts";
+import { setMuted } from "../domain/calendar-muted.ts";
 import type { Store } from "../domain/store.ts";
 import { badRequest, notFound } from "../errors.ts";
 import { ASANA_FIELD, ASANA_SECRET, type Asana } from "../integrations/asana.ts";
@@ -87,7 +88,8 @@ export function integrationHandlers(deps: {
   /** What an integration's settings hold; Gmail's signature has methods of its own (email.signature_*). */
   const settingsOf = (id: string) => {
     if (id !== "asana" && !isGoogleId(id) && !CATALOG.some((x) => x.id === id)) throw notFound(`integration ${id}`);
-    if (id === "google-calendar") return { reminders: store.settings.read("calendar_reminders") };
+    if (id === "google-calendar")
+      return { reminders: store.settings.read("calendar_reminders"), muted: store.settings.read("calendar_muted") };
     return id === "gmail" ? { mail: store.settings.read("mail_check") } : {};
   };
   return {
@@ -240,6 +242,10 @@ export function integrationHandlers(deps: {
         store.settings.write("mail_check", { ...store.settings.read("mail_check"), ...mail });
       }
       return settingsOf(id);
+    },
+    "integrations.mute_event": ({ series, title, muted }) => {
+      setMuted(store, { series, title, muted }, new Date());
+      return settingsOf("google-calendar");
     },
     "integrations.disconnect": ({ id }) => {
       if (id === "asana") {

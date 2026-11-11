@@ -77,6 +77,20 @@ const entry = (id: string, since = "2.7.3"): NewsEntry => ({
   ],
 });
 
+test("contextual connection news only reaches owners with a private MCP server", () => {
+  const entry = NEWS.find((item) => item.id === "mcp-context");
+  assert.ok(entry);
+  const { store, done } = setup();
+  try {
+    assert.equal(entry.applies(newsFacts(store)), false);
+    store.settings.set("mcp_servers", JSON.stringify({ mcpServers: { acme: { url: "https://example.com/mcp" } } }));
+    assert.equal(entry.applies(newsFacts(store)), true);
+    assert.equal(newsFacts(store).mcp, 1);
+  } finally {
+    done();
+  }
+});
+
 test("compacting the chats' file is told only while a big store keeps its free space", async () => {
   const compact = NEWS.find((item) => item.id === "store-compact");
   assert.ok(compact);
@@ -216,6 +230,33 @@ test("an upgrade with one entry that applies runs one capped, toolless call and 
     assert.equal(llm.calls.length, 1, "told once");
   } finally {
     done();
+  }
+});
+
+test("the offer names the buttons as the owner sees them, in their language", async () => {
+  const spanish = setup({ entries: [entry("a")] });
+  try {
+    ownerWrote(spanish.store);
+    await spanish.news.atBoot("2.7.2");
+    const input = String(spanish.llm.calls[0]?.messages.at(-1)?.content);
+    assert.match(input, /then offer: "Hacer a", "Otro a"\./);
+    assert.doesNotMatch(input, /"Do a"/);
+    assert.deepEqual(
+      spanish.notices[0]?.body.buttons?.map((b) => b.label),
+      ["Hacer a", "Otro a"],
+    );
+  } finally {
+    spanish.done();
+  }
+  const english = setup({ entries: [entry("a")] });
+  try {
+    english.store.settings.set("owner_language", "en");
+    ownerWrote(english.store);
+    await english.news.atBoot("2.7.2");
+    const input = String(english.llm.calls[0]?.messages.at(-1)?.content);
+    assert.match(input, /then offer: "Do a", "Other a"\./);
+  } finally {
+    english.done();
   }
 });
 

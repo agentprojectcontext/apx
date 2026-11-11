@@ -13,7 +13,7 @@ Las tareas son el tablero de pendientes de la oficina, compartido entre vos y tu
 ellos, y darle una a un agente alcanza para que arranque. **Tareas** en la barra lateral las muestra de todos los
 proyectos; cada proyecto tiene además su pestaña **Tareas** con **Nueva tarea**.
 
-<Shot name="tasks" alt="La pantalla de Tareas con los grupos En curso, Pendiente, En revisión y Necesita tu revisión, cada uno con tareas, responsable y vencimiento" caption="Tareas, de todos los proyectos" />
+<Shot name="tasks" alt="La pantalla de Tareas con los grupos En curso, Pendiente, En revisión y Te esperan, cada uno con tareas, responsable y vencimiento" caption="Tareas, de todos los proyectos" />
 
 Antes de crear otra tarea, los agentes tienen la instrucción de revisar las tareas abiertas y seguir una
 existente si ya cubre el mismo trabajo o uno muy relacionado. No es una detección automática de duplicados.
@@ -48,14 +48,15 @@ declarar que son trabajos independientes.
 
 **Hecha** y **Descartar** cierran una tarea; **Reabrir** la trae de vuelta. El filtro de arriba cambia entre
 **Todas**, **Tareas**, **Compromisos** y **Recados**. En la pantalla Tareas, el selector de proyecto de al lado deja la
-lista en un solo proyecto o muestra **Todos los proyectos**; este navegador recuerda la elección para la próxima vez.
+lista en un solo proyecto o muestra **Todos los proyectos**; este navegador recuerda la elección para la próxima vez. El selector de
+estado de al lado muestra un solo grupo (por ejemplo solo **En curso**), con todas sus tareas en vez de las primeras cinco.
 
 ### Cómo se agrupa la lista
 
 - **Propuestas** (cuando hay, arriba de todo): tareas que un agente propone y que no arrancan hasta que las aceptás.
   **Aceptar todas** en su encabezado, o **Aceptar** y **Descartar** en el panel de cada una. Mirá
   [Propuestas](#propuestas).
-- **Necesita tu revisión** (va primero): lo que es tuyo. Un agente te preguntó algo o necesita una decisión (sigue
+- **Te esperan** (va primero): lo que es tuyo. Un agente te preguntó algo o necesita una decisión (sigue
   cuando respondés; también la marcás así con **Espera tu respuesta** desde el menú), o una tarea terminada que
   revisás vos para cerrarla. Cada fila dice cuál: **Te pregunta algo** o **Revisa: Vos**.
 - **En curso**: su columna es En curso, o un agente la está trabajando ahora.
@@ -91,9 +92,15 @@ Borrar el chat original no borra la copia de la tarea; quitar el adjunto borra e
 compartido. Los agentes autorizados pueden consultar los adjuntos sin obtener acceso a chats privados de contactos.
 Enviar un archivo fuera de APX sigue siendo una acción separada del dueño.
 
-Usá el botón de acciones del grupo de chats de la tarea o su menú contextual para cambiarla de columna, marcarla en
-espera, cerrarla, reabrirla o archivar sus chats. Archivar conserva el historial: no cierra la tarea ni reinicia el
-trabajo. El estado aparece junto al encabezado del chat y la descripción inicial conserva párrafos y listas.
+En la pestaña **Tareas** del Inbox cada tarea es una fila: la cara de su último chat, su título, su estado (en
+curso, pendiente, listo), cuántos chats y agentes la trabajan y su proyecto. Un clic abre ese chat; la flecha junto al
+título lista los otros chats de la tarea, cada uno con lo último que dijo su agente. Con clic derecho la cambiás de
+columna, la marcás en espera, la cerrás, la reabrís o archivás sus chats. Archivar conserva el historial: no cierra la
+tarea ni reinicia el trabajo.
+
+En el chat de una tarea, su estado es un botón arriba a la derecha, antes del menú **···**: un clic muestra la tarea
+al costado del chat (un chat ancho se corre para dejarle lugar) y otro la oculta. Debajo del título, después de quiénes
+la trabajan, **Sesión de …** pasa al chat de otro agente en la misma tarea. La descripción inicial conserva párrafos y listas.
 
 ## Asignar arranca el trabajo
 
@@ -107,7 +114,7 @@ tarea**. Ese chat es uno más del Inbox: podés abrirlo y mirar, o hablar ahí c
 3. Sus respuestas quedan en su chat, y hasta dónde llegó se ve en su plan. Comenta en la tarea cuando termina su plan
    o para preguntarle algo a alguien. La tarea guarda esos comentarios; el chat guarda el trabajo en sí (cada
    herramienta, cada archivo). Cuando la cierra, su última respuesta se publica como su informe.
-4. Cuando necesita una decisión, te pregunta. La tarea pasa a **Necesita tu revisión** hasta que respondas.
+4. Cuando necesita una decisión, te pregunta. La tarea pasa a **Te esperan** hasta que respondas.
 
 </Steps>
 
@@ -133,8 +140,9 @@ Arriba de la descripción, una tarea muestra adónde tiene que llegar su trabajo
   dijiste, o lo contrario, mandan tus palabras, y si no queda claro el agente te pregunta.
 - **Plan**: antes de trabajar, el agente escribe sus pasos hacia el objetivo y marca cada uno como pendiente, en curso
   o hecho a medida que avanza. El panel los muestra como una lista con cuántos van hechos, y también el chat de la
-  tarea, debajo del mensaje del agente ([El plan del agente](/es/office/chat/#el-plan-del-agente)). Si el trabajo deja de
-  llevar al objetivo, el agente te dice qué falta en vez de seguir.
+  tarea, debajo del mensaje del agente ([El plan del agente](/es/office/chat/#el-plan-del-agente)). Si el camino deja de
+  llevar al objetivo, el agente cambia el plan y prueba otro; a vos te dice solo lo que únicamente vos podés dar o
+  decidir.
 - **Una pausa cuando no avanza**: si los agentes de una tarea hacen 12 turnos o gastan 2 millones de tokens sin
   terminar un paso de su plan (contando desde el último paso hecho o desde tu último mensaje), se pausan. Ves el
   motivo en el chat, con el botón para dejarlos seguir, y una vez en tus notificaciones. Un paso hecho, o tu mensaje,
@@ -186,7 +194,8 @@ para la tarea, y su respuesta vuelve como comentario. Preguntale a Vera desde la
 Un agente le pregunta a un compañero igual: su `@nombre` en un comentario abre una consulta en la tarea, que se ve
 como una tarjeta con la pregunta y la respuesta, y la respuesta le vuelve al agente que preguntó, que sigue con su
 trabajo. Un comentario pregunta a dos compañeros como mucho, y el que responde una consulta no puede preguntarle a
-nadie más. Un agente también te puede mencionar a vos para llamarte la atención.
+nadie más. Un `@nombre` del agente de la propia tarea no es una consulta: le llega a su chat de la tarea como parte de
+su trabajo, igual que tus comentarios. Un agente también te puede mencionar a vos para llamarte la atención.
 
 Quien le pregunta de nuevo al mismo compañero (vos, o el mismo agente) sigue en esa misma consulta, con lo que el
 compañero ya sabe, y la tarea muestra una tarjeta nueva para la nueva respuesta. Si el compañero sigue trabajando en
@@ -196,8 +205,10 @@ una pregunta anterior, la nueva abre una consulta propia, así que las preguntas
 
 Cuando el turno de un agente en una tarea termina con la tarea todavía en curso (se quedó sin pasos, o frenó en "sigo
 después"), su parte siguiente arranca enseguida, numerada, hasta nueve. Para cuando el agente cierra la tarea, la marca
-esperándote con lo que tenés que hacer, dice qué lo bloquea, o cuando una parte no avanzó. Para cerrar su trabajo como
-hecho, el agente tiene que decir qué verificó.
+esperándote con lo que tenés que hacer, dice qué lo bloquea, o cuando una parte no avanzó. Una parte que solo revisa lo
+que cambió la anterior cuenta como avance; dos partes seguidas que solo consultan, no. Para cerrar su trabajo como
+hecho, el agente tiene que decir qué verificó. Cuando otro agente vuelve a nombrar al agente de la tarea mientras no la
+está trabajando, este sigue.
 
 Si una tarea sigue en curso sin nada corriendo (ningún turno en 20 minutos, dentro del día de su último turno), APX le
 pide una vez a su agente que siga o diga qué espera, y te avisa si se vuelve a frenar. Cada diez minutos APX mira hasta

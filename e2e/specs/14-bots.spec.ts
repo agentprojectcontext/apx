@@ -64,7 +64,7 @@ test("Discord rooms: the owner lists a server room, and the bot answers there wh
 }) => {
   await open(page);
   await page.getByRole("button", { name: "Discord", exact: true }).first().click();
-  await page.getByRole("button", { name: "Configuración del canal" }).click();
+  await page.getByRole("button", { name: "Editar cuenta" }).click();
   await page
     .getByRole("dialog")
     .getByRole("button", { name: /^Salas/ })
@@ -119,7 +119,7 @@ test("Discord rooms: the owner lists a server room, and the bot answers there wh
 
   // From the app the owner tells the agent what to post there: the answer goes to the room, not back to the app.
   const ask = page.getByRole("textbox", { name: /^Decile a .+ qué publicar en #general…$/ });
-  await expect(page.getByText(/escribe el mensaje y lo publica en #general/)).toBeVisible();
+  await expect(page.getByRole("radio", { name: /publica$/ })).toBeChecked();
   await ask.fill("thank Ben for asking");
   await ask.press("Enter");
   await until(async () => (await world.roomPosts("100000000000000001")).length === 2, 20_000);
@@ -165,7 +165,7 @@ test("a second Discord bot is an account of its own: its own row, its own settin
     // The first account is untouched, and each row of the sidebar opens the settings of its own account.
     await expect(page.getByRole("button", { name: "Acme support", exact: true }).first()).toBeVisible();
     await page.getByRole("button", { name: "Discord", exact: true }).first().click();
-    await page.getByRole("button", { name: "Configuración del canal" }).click();
+    await page.getByRole("button", { name: "Editar cuenta" }).click();
     await expect(page.getByRole("textbox", { name: "Nombre", exact: true })).toHaveValue("Discord");
   } finally {
     const { channels } = await rpc<{ channels: Array<{ id: string; type: string }> }>("channels.list");

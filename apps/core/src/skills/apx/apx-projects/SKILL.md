@@ -1,6 +1,6 @@
 ---
 name: apx-projects
-description: Create a project in APX, rename one or change its kind or description, list them, or add an existing folder as one, with the `apx projects` command. Use it whenever the owner asks for a new project, workspace or client, or to rename or reorganize their projects.
+description: Create a project or a subproject in APX, rename one or change its kind or description, list them, or add an existing folder as one, with the `apx projects` command. Use it whenever the owner asks for a new project, workspace or client, or to rename or reorganize their projects.
 ---
 
 # Projects in APX
@@ -38,6 +38,23 @@ apx projects folders add <project-id> ~/work/other-repo   # a folder its agents 
   `create --path`, which writes a short `AGENTS.md` and an empty `.apc/` there and touches nothing else. Run
   `apx projects` first and never create again a project already in the list.
 - The default project (no folder) cannot be renamed here; the owner does it in the app.
+
+## Subprojects
+
+A subproject is a project inside another one (or inside the default project), one level deep, that works with its
+parent's team: the parent's agents work in it, in its folder, and it takes the parent's variables, skills, MCP servers
+and apps (its own of the same name win). Its chats, tasks and memory are its own; memory is never inherited. Use one
+when the owner wants several clients, sites or shops to share the agents they already have instead of new ones.
+
+```bash
+apx projects create "Acme site" --parent <project-id>   # a folder inside the parent's, unless --path
+apx projects create "Garden" --parent base               # a subproject of the default project
+apx projects set <project-id> --parent <project-id>      # move a project of its own under another
+apx projects detach <project-id>                         # make a subproject a project of its own again
+```
+
+A project with subprojects cannot become one, and a subproject has none of its own. A subproject needs no cloned
+team: add agents to it with `agent_set` only for work its parent's agents do not cover.
 
 ## After creating one
 

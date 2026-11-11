@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { htmlPreviewDoc, isPreviewHeight } from "./htmlPreview.ts";
+import { htmlPreviewDoc, htmlTitle, isPreviewHeight } from "./htmlPreview.ts";
 
 const cspOf = (doc: string) => /http-equiv="Content-Security-Policy" content="([^"]*)"/.exec(doc)?.[1] ?? "";
 
@@ -39,4 +39,14 @@ test("only a height message with the frame's own key counts", () => {
   assert.equal(isPreviewHeight({ apxPreview: "k", height: "120" }, "k"), false);
   assert.equal(isPreviewHeight({ apxPreview: "k", height: Number.POSITIVE_INFINITY }, "k"), false);
   assert.equal(isPreviewHeight(null, "k"), false);
+});
+
+test("a page is named by its title, else by its first heading, as plain text", () => {
+  assert.equal(
+    htmlTitle("<html><head><title> Acme &amp; Northwind </title></head><h1>Other</h1></html>"),
+    "Acme & Northwind",
+  );
+  assert.equal(htmlTitle('<section><p>Intro</p><h2 class="x">Hello, <b>team</b></h2></section>'), "Hello, team");
+  assert.equal(htmlTitle("<p>No heading here</p>"), undefined);
+  assert.equal(htmlTitle("<title>   </title>"), undefined);
 });

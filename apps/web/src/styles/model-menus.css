@@ -1,0 +1,265 @@
+/* The model pickers' lists and menus (settings, the composer's model choice): loaded with them, not the first screen. */
+/* The composer's model picker: models by provider with their tags; what runs now and after; the effort. */
+.mslim {
+  gap: 0;
+}
+.mslim .mlist__catalog {
+  padding: 0 0 4px;
+}
+.mslim .mlist__opt.is-tagged {
+  display: flex;
+  padding-left: 30px;
+}
+/* A long model name wraps rather than hide what tells it apart. */
+.mslim .mlist__name {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.mlist__tag {
+  display: inline-flex;
+  flex: none;
+  gap: 6px;
+  font-size: var(--apx-text-xs);
+}
+.mslim__chosen {
+  color: var(--apx-brand-soft-fg);
+}
+.mslim__router {
+  color: var(--apx-info-soft-fg);
+}
+.mslim__foot {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 0 -8px -8px;
+  padding: 8px;
+  border-top: 1px solid var(--apx-border);
+}
+.mslim__slot {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  padding: 5px 6px;
+  font-size: var(--apx-text-sm);
+}
+.mslim__when {
+  flex: none;
+  width: 60px;
+  font-size: var(--apx-text-xs);
+  color: var(--apx-fg-subtle);
+}
+.mslim__auto {
+  flex: none;
+  color: var(--apx-fg-muted);
+}
+.mslim__name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.mslim__note {
+  flex: none;
+  font-size: var(--apx-text-xs);
+  color: var(--apx-fg-subtle);
+}
+.mslim__note.is-now {
+  color: var(--apx-brand-soft-fg);
+}
+.mslim__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px;
+  padding-left: 68px;
+}
+.mslim__actions:empty {
+  display: none;
+}
+.mslim .mlist__effort {
+  justify-content: flex-start;
+  padding: 6px 6px 2px;
+  border-top: 0;
+  font-size: var(--apx-text-xs);
+}
+.mslim .mlist__effort > span:first-child {
+  flex: none;
+  width: 60px;
+  color: var(--apx-fg-subtle);
+}
+.mslim .mlist__effort > :last-child {
+  flex: 1;
+  min-width: 0;
+}
+
+/* Catalog list inside a picker */
+.mlist {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.mlist__catalog {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+.mlist__scroll {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 260px;
+  overflow-y: auto;
+  margin: 0 -4px;
+  padding: 0 4px;
+}
+.mlist__empty {
+  margin: 8px 4px;
+  font-size: var(--apx-text-sm);
+  color: var(--apx-fg-muted);
+}
+.mlist__group {
+  display: flex;
+  flex-direction: column;
+}
+.mlist__engine {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px 4px;
+  background: var(--apx-surface-raised);
+  font-size: var(--apx-text-xs);
+  font-weight: var(--apx-weight-medium);
+  color: var(--apx-fg-subtle);
+}
+.mlist__opt {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  min-height: 30px;
+  padding: 4px 8px;
+  border: 0;
+  border-radius: var(--apx-radius-sm);
+  background: transparent;
+  color: var(--apx-fg);
+  font: inherit;
+  font-size: var(--apx-text-sm);
+  text-align: left;
+  cursor: pointer;
+}
+.mlist__opt:hover,
+.mlist__opt:focus-visible {
+  background: var(--apx-fill-hover);
+  outline: none;
+}
+.mlist__check {
+  flex: none;
+  display: inline-grid;
+  place-items: center;
+  width: 14px;
+  color: var(--apx-brand);
+}
+.mlist__name {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  white-space: normal;
+}
+.mlist__ref {
+  flex: none;
+  max-width: 50%;
+  overflow-wrap: anywhere;
+  white-space: normal;
+  font-family: var(--apx-font-mono);
+  font-size: var(--apx-text-2xs);
+  color: var(--apx-fg-subtle);
+}
+
+/* Model choice popover */
+.mchoice {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.mchoice__current,
+.mchoice__title {
+  display: block;
+  min-width: 0;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  white-space: normal;
+  font-size: var(--apx-text-sm);
+}
+.mchoice__title {
+  font-weight: var(--apx-weight-medium);
+}
+.mchoice__label {
+  padding: 10px 4px 0;
+  border-top: 1px solid var(--apx-border);
+  font-size: var(--apx-text-xs);
+  color: var(--apx-fg-subtle);
+}
+.mchoice__fallback {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 12px;
+  padding: 0 4px;
+  font-size: var(--apx-text-sm);
+}
+.mchoice__fallback .mchoice__title {
+  flex: 1 1 auto;
+}
+.mchoice__fallback > button,
+.mchoice__inuse {
+  flex: none;
+  margin-left: auto;
+}
+.mchoice__inuse {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: var(--apx-text-xs);
+  color: var(--apx-brand);
+}
+.mlist__effort {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-width: 0;
+  padding: 8px 4px 2px;
+  border-top: 1px solid var(--apx-border);
+  color: var(--apx-fg-muted);
+  font-size: var(--apx-text-sm);
+}
+.mlist__effort .apx-select {
+  width: 160px;
+}
+@media (max-width: 480px) {
+  .mlist__opt {
+    display: grid;
+    grid-template-columns: 14px minmax(0, 1fr);
+    gap: 2px 8px;
+  }
+  .mlist__check {
+    grid-row: 1 / span 2;
+  }
+  .mlist__name,
+  .mlist__ref {
+    grid-column: 2;
+    max-width: 100%;
+    overflow: visible;
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+}
+.mlist__engine .apx-engine {
+  flex: none;
+}

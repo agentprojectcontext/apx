@@ -46,7 +46,6 @@ export const esFiles: Partial<Record<MessageKey, string>> = {
   "panel.document.hint": "Leer documentos de este chat",
   "document.label": "Documento",
   "document.list": "Documentos de este chat",
-  "document.back": "Todos los documentos ({n})",
   "document.empty": "Todavía no hay documentos",
   "document.emptyBody": "Acá aparecen informes, planes y documentos de consulta abiertos por tu agente.",
   "document.source": "Ver código fuente",

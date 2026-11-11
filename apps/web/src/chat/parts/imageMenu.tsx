@@ -2,7 +2,7 @@
 import { Icons, type MenuEntry } from "@apx/ui";
 import { notify } from "../../data/notices.ts";
 import { useT } from "../../i18n/index.ts";
-import { useLinkItems } from "../LinkMenu.tsx";
+import { useLinkItems } from "../linkItems.tsx";
 
 /**
  * What a right-click on a picture offers: view it full size (`onView`, left out inside the viewer), open a web one where

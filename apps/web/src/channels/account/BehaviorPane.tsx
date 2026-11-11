@@ -1,36 +1,44 @@
 import type { ChannelHours, ChannelResearch } from "@apx/protocol";
-import { CHANNEL_DEFAULTS } from "@apx/protocol/client";
+import { CHANNEL_DEFAULTS, channelKindRules } from "@apx/protocol/client";
 import { Input, SegmentedControl, SettingRow, Switch, Textarea } from "@apx/ui";
 import { WeekDays } from "../../common/pickers/WeekDays.tsx";
 import type { ChannelDraft } from "../../data/channels.ts";
 import { useOwnerTimeZone } from "../../data/owner.ts";
 import { useT } from "../../i18n/index.ts";
+import { AnswerPane } from "./AnswerPane.tsx";
 import { Limit } from "./parts.tsx";
 import type { PaneProps } from "./types.ts";
 
 /** Hours a channel starts with when the owner turns them on: every day, a working day's span. */
 const FIRST_HOURS: ChannelHours = { days: [1, 2, 3, 4, 5, 6, 0], from: "08:00", to: "22:00" };
 
-/** How it answers: a message while it works, the web, its hours, whom, and the owner's notes and rules for it. */
-export function BehaviorPane({ draft, set }: Pick<PaneProps, "draft" | "set">) {
+/**
+ * Who answers (the agent the owner talks to, the one for contacts) and how: a message while it works (unless its kind fixes it: mail waits its turn), the web, its hours, whom,
+ * and the owner's notes and rules for it.
+ */
+export function BehaviorPane({ channel, draft, set }: Pick<PaneProps, "channel" | "draft" | "set">) {
   const t = useT();
+  const fixed = channelKindRules(channel.type).concurrency;
   const research = draft.research ?? CHANNEL_DEFAULTS.research;
   const limits = draft.limits ?? CHANNEL_DEFAULTS.limits;
   return (
     <>
-      <SettingRow title={t("tg.concurrency")} description={t(`ch.concurrencyHint.${draft.concurrency}`)}>
-        <SegmentedControl
-          size="sm"
-          label={t("tg.concurrency")}
-          value={draft.concurrency}
-          onValueChange={(v) => set({ concurrency: v as ChannelDraft["concurrency"] })}
-          options={[
-            { value: "queue", label: t("tg.concurrency.queue") },
-            { value: "interrupt", label: t("tg.concurrency.interrupt") },
-            { value: "steer", label: t("tg.concurrency.steer") },
-          ]}
-        />
-      </SettingRow>
+      <AnswerPane channel={channel} draft={draft} set={set} />
+      {!fixed && (
+        <SettingRow title={t("tg.concurrency")} description={t(`ch.concurrencyHint.${draft.concurrency}`)}>
+          <SegmentedControl
+            size="sm"
+            label={t("tg.concurrency")}
+            value={draft.concurrency}
+            onValueChange={(v) => set({ concurrency: v as ChannelDraft["concurrency"] })}
+            options={[
+              { value: "queue", label: t("tg.concurrency.queue") },
+              { value: "interrupt", label: t("tg.concurrency.interrupt") },
+              { value: "steer", label: t("tg.concurrency.steer") },
+            ]}
+          />
+        </SettingRow>
+      )}
       <SettingRow title={t("ch.research")} description={t(`ch.researchHint.${research}`)}>
         <SegmentedControl
           size="sm"

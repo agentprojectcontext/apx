@@ -4,7 +4,7 @@ import assert from "node:assert/strict";
 import { after, before, test } from "node:test";
 import { callTool, say, scriptedLlm, startCore } from "./testkit.ts";
 
-const SHAPE = /Status: done or blocked; Result:; Evidence: .*; Unblock: /;
+const SHAPE = /Status: done, partial .* or blocked .*; Result:; Evidence: .*; Unblock: /;
 const REPORT = "Status: done\nResult: the build passes\nEvidence: pnpm build exited 0\nUnblock: none";
 
 let builder = "";
@@ -36,7 +36,7 @@ test("a delegated task asks for the four-line report, and the caller gets it in 
   const asked = llm.calls.filter((c) => String(c.messages[0]?.content).startsWith("You are Builder"));
   assert.equal(asked.length, 1, "one model call: the report, no acknowledgement before it");
   const input = String(asked[0]?.messages.at(-1)?.content);
-  assert.match(input, /No acknowledgement: do the work, then answer once/);
+  assert.match(input, /No acknowledgement: do the work as far as your tools reach, then answer once/);
   assert.match(input, SHAPE);
   assert.equal(env.core.store.runs.list(sub.id, 20).length, 1, "one run in the sub-thread");
 

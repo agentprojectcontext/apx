@@ -1,8 +1,11 @@
+import "../styles/resources.css";
+import "./mcp-editor.css";
 import type { McpServerStatus } from "@apx/protocol";
 import { Button, Dialog, Input, SegmentedControl } from "@apx/ui";
 import { useState } from "react";
 import { type McpDraft, setMcp } from "../data/resources.ts";
 import { useT } from "../i18n/index.ts";
+import { McpAvailability } from "./McpAvailability.tsx";
 import { type Pair, PairsEditor, pairsToRecord } from "./PairsEditor.tsx";
 
 const NAME = /^[a-zA-Z0-9][a-zA-Z0-9_-]{0,40}$/;
@@ -23,34 +26,50 @@ const toPairs = (r: Record<string, string> | undefined): Pair[] =>
  */
 export function McpDialog(props: {
   server?: McpServerStatus | undefined;
+  projectId?: string | undefined;
   onClose(): void;
   onSaved(name: string): void;
 }) {
   const t = useT();
   const def = props.server?.definition;
+  const [available, setAvailable] = useState(
+    props.server
+      ? props.server.only
+        ? (props.server.project_id ?? "global")
+        : "global"
+      : (props.projectId ?? "global"),
+  );
+  const privateServer = props.server?.scope !== "project";
   const [name, setName] = useState(props.server?.name ?? "");
   const [kind, setKind] = useState(def?.url ? "url" : "command");
   const [command, setCommand] = useState(def?.command ? joinCommand([def.command, ...def.args]) : "");
   const [url, setUrl] = useState(def?.url ?? "");
   const [pairs, setPairs] = useState<Pair[]>(toPairs(def?.url ? def.headers : def?.env));
   const [busy, setBusy] = useState(false);
+  const [failed, setFailed] = useState(false);
   const parts = splitCommand(command);
   const valid = NAME.test(name) && (kind === "command" ? parts.length > 0 : /^https?:\/\/.+/.test(url));
   const save = async () => {
     setBusy(true);
+    setFailed(false);
     const extra = pairsToRecord(pairs);
     const server: McpDraft =
-      kind === "command" ? { command: parts[0] ?? "", args: parts.slice(1), env: extra } : { url, headers: extra };
+      kind === "command"
+        ? { command: parts[0] ?? "", args: parts.slice(1), env: extra }
+        : { url, headers: extra, ...(def?.env ? { env: def.env } : {}) };
+    if (privateServer) server.project = available === "global" ? null : available;
     // An edit keeps whether it was turned off.
     if (props.server && !props.server.enabled) server.enabled = false;
     const r = await setMcp(name, server, props.server?.scope === "project" ? props.server.project_id : undefined);
     setBusy(false);
     if (r) props.onSaved(name);
+    else setFailed(true);
   };
   return (
     <Dialog
       open
       size="lg"
+      closeLabel={t("common.close")}
       onOpenChange={(o) => !o && props.onClose()}
       title={props.server ? t("res.editMcp", { name: props.server.name }) : t("res.newMcp")}
       description={
@@ -67,7 +86,7 @@ export function McpDialog(props: {
         </>
       }
     >
-      <div className="pform">
+      <div className="pform mcp-editor">
         <div className="pform__field">
           <span className="pform__label">{t("res.mcpName")}</span>
           <Input
@@ -113,13 +132,26 @@ export function McpDialog(props: {
         <div className="pform__field">
           <span className="pform__label">{kind === "command" ? t("res.env") : t("res.headers")}</span>
           <PairsEditor
-            vars={props.server?.scope !== "project"}
+            vars={privateServer}
+            project={available === "global" ? undefined : available}
             keys={kind === "command" ? "env" : "headers"}
             label={kind === "command" ? t("res.env") : t("res.headers")}
             pairs={pairs}
             onChange={setPairs}
           />
         </div>
+        {privateServer && (
+          <McpAvailability
+            value={available}
+            onChange={setAvailable}
+            values={[...pairs.map((pair) => pair.value), ...(kind === "url" ? Object.values(def?.env ?? {}) : [])]}
+          />
+        )}
+        {failed && (
+          <p role="alert" className="resd__error">
+            {t("res.mcpSaveError")}
+          </p>
+        )}
       </div>
     </Dialog>
   );

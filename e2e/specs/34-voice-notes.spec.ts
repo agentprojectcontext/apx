@@ -55,7 +55,7 @@ test("dictar deja solo el texto; un audio adjunto conserva audio y texto", async
     await expect
       .poll(() =>
         page
-          .locator(".voice-recording__bars > span")
+          .locator(".composer__wave > span")
           .evaluateAll((bars) =>
             bars.some((bar) => Number((bar as HTMLElement).style.transform.match(/scaleY\(([^)]+)/)?.[1]) > 0.2),
           ),

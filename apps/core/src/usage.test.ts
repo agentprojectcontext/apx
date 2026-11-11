@@ -9,7 +9,7 @@ import { testConfig } from "./config.ts";
 import { createCore } from "./server.ts";
 import { createStorage } from "./storage.ts";
 import { removeDir, tempDir, waitFor } from "./testkit/platform.ts";
-import { availableFromMeminfo, availableFromVmStat, createUsage } from "./usage.ts";
+import { availableFromMeminfo, availableFromVmStat, createUsage, hostName } from "./usage.ts";
 
 const MB = 1048576;
 let core: Awaited<ReturnType<typeof createCore>>;
@@ -50,6 +50,15 @@ test("the computer's memory, CPU and disks, and the core's own share, come witho
   assert.ok(u.core.rss_mb > 0);
   assert.equal(u.home, undefined);
   assert.equal(u.vm, undefined, "no VM: no slot");
+});
+
+test("the computer comes with its network name, without .local, and with none when it has no name", async () => {
+  const named = createUsage({ home, hostname: () => "northwind-mac.local" });
+  assert.equal((await named.read({ disk: false })).host.name, "northwind-mac");
+  const unnamed = createUsage({ home, hostname: () => "  " });
+  assert.equal("name" in (await unnamed.read({ disk: false })).host, false);
+  assert.deepEqual(hostName("acme-server"), { name: "acme-server" });
+  assert.deepEqual(hostName("acme.LOCAL."), { name: "acme" });
 });
 
 test("asked for disk, the first answer is measuring; the next has the home by part, biggest first", async () => {

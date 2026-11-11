@@ -107,7 +107,15 @@ export type UsageOptions = {
   /** The clock CPU windows are measured on, and the CPUs' cumulative times (tests move both). */
   now?: () => number;
   cpuTimes?: () => { busy: number; total: number };
+  /** The computer's network name (tests pass their own). */
+  hostname?: () => string;
 };
+
+/** "northwind-mac.local" → "northwind-mac"; nothing when the system has no name to give. */
+export function hostName(raw: string): { name?: string } {
+  const name = raw.trim().replace(/\.local\.?$/i, "");
+  return name ? { name } : {};
+}
 
 export type Usage = { read(o: { disk: boolean }): Promise<SystemUsage> };
 
@@ -118,6 +126,7 @@ export function createUsage(o: UsageOptions): Usage {
   const storage = o.storage ?? createStorage({ home: o.home });
   const clock = o.now ?? (() => performance.now());
   const cpuTimes = o.cpuTimes ?? cpuBusy;
+  const hostname = o.hostname ?? os.hostname;
   let prevHost = cpuTimes();
   let prevCore = { cpu: process.cpuUsage(), at: clock() };
   let hostPct: number | undefined;
@@ -148,6 +157,7 @@ export function createUsage(o: UsageOptions): Usage {
         at: new Date().toISOString(),
         host: {
           platform,
+          ...hostName(hostname()),
           memory_total_mb: mb(os.totalmem()),
           memory_available_mb: mb(available),
           cpus: os.availableParallelism(),

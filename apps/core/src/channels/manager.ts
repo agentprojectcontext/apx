@@ -23,8 +23,9 @@ import type { InternalCall } from "../rpc/internal.ts";
 import type { Secrets } from "../secrets.ts";
 import { splitSpoken } from "../services/audio.ts";
 import type { Services } from "../services/registry.ts";
-import { addedUnconnected, dropUnconnected, keptConnected, restartsFor } from "./accounts.ts";
+import { addedUnconnected, dropUnconnected, keptConnected, kindFixed, restartsFor } from "./accounts.ts";
 import { agentProject } from "./agent-project.ts";
+import { createChannelMail } from "./channel-mail.ts";
 import { createDelivery } from "./delivery.ts";
 import { guardReply } from "./guard.ts";
 import { createHeld } from "./held.ts";
@@ -129,14 +130,21 @@ export function createChannels(deps: {
   const changing = new Map<string, Promise<unknown>>();
   let stopped = false;
 
-  const configs = (): ChannelConfig[] => store.settings.read("channels");
+  // What a kind of channel fixes (email: its own chat, one mail after another) wins over what was saved.
+  const configs = (): ChannelConfig[] => store.settings.read("channels").map(kindFixed);
 
-  /** Open chats follow a change of who answers them: the owner's own chats, and its contacts' and rooms'. */
+  /**
+   * Open chats follow a change of who answers them: the owner's own chats, and its contacts' and rooms' (not those of a
+   * contact the owner gave an agent of their own).
+   */
   const moveAnswerers = (id: string, before: ChannelConfig, after: Omit<ChannelConfig, "id">) => {
     const moves: Array<[boolean, string, string]> = [
       [true, before.agent_id, after.agent_id],
       [false, contactAgentOf(before), contactAgentOf(after)],
     ];
+    const except = new Set(
+      store.persons.list().flatMap((p) => (p.agent_id && store.agents.get(p.agent_id) ? [p.id] : [])),
+    );
     for (const [owners, from, to] of moves)
       if (from !== to)
         store.threads.moveAnswerer({
@@ -146,6 +154,7 @@ export function createChannels(deps: {
           from,
           to,
           project: agentProject(store, to),
+          except,
           fromProject: agentProject(store, from),
         });
   };
@@ -208,17 +217,18 @@ export function createChannels(deps: {
       return l?.status === "running" ? l.adapter : undefined;
     },
   });
-  const stickers = createStickers({ store, home: deps.home, log, see: deps.see, attention: deps.attention });
+  const stickers = createStickers({ store, home: deps.home, log, see: deps.see, attention: notices.attention });
   const signals = createSignals({
     store,
     log,
     live: (id) => live.get(id),
-    attention: deps.attention,
+    attention: notices.attention,
     delivery,
     stickers,
   });
   const inbound = createInbound({
     store,
+    bus: deps.bus,
     home: deps.home,
     log,
     call: deps.call,
@@ -226,13 +236,14 @@ export function createChannels(deps: {
     delivery,
     configs,
     tell,
-    attention: deps.attention,
+    attention: notices.attention,
     ownAccount: (id) => Boolean(live.get(id)?.adapter.caps.ownAccount),
     rooms,
     suggestions,
     stickers,
     answeredHere: cards.answeredHere,
     held,
+    judge: deps.judge,
     now: clock,
     setButtons: async (id, conversation, ref, buttons) => {
       const l = live.get(id);
@@ -694,30 +705,13 @@ export function createChannels(deps: {
     return l.adapter.webhook(req, signal);
   }
 
-  /** The running channels that can send a new mail the owner wrote (a mailbox), with the address it goes from. */
-  function mailboxes(): Array<{ id: string; label: string; address?: string }> {
-    return [...live.values()]
-      .filter((l) => l.status === "running" && l.adapter.compose)
-      .map((l) => ({
-        id: l.config.id,
-        label: l.config.label ?? l.config.id,
-        ...(l.account ? { address: l.account } : {}),
-      }));
-  }
-
-  /** Sends a mail the owner wrote from one of `mailboxes`. */
-  async function compose(id: string, mail: { to: string[]; cc: string[]; subject: string; body: string }) {
-    const l = live.get(id);
-    if (!l?.adapter.compose || l.status !== "running") throw new Error(`the ${id} channel cannot send mail now`);
-    return l.adapter.compose(mail);
-  }
+  const mail = createChannelMail(live, (id) => (message) => inbound.restoreMail(id, message));
 
   return {
     info,
     serverRooms,
     webhook,
-    mailboxes,
-    compose,
+    ...mail,
     ...outgoing,
     notifyOwner,
     approved: inbound.approved,
@@ -739,7 +733,7 @@ export function createChannels(deps: {
         const before = configs().find((c) => c.id === id);
         const rest = configs().filter((c) => c.id !== id);
         store.tx(() => {
-          store.settings.write("channels", config ? [...rest, { ...config, id }] : rest);
+          store.settings.write("channels", config ? [...rest, kindFixed({ ...config, id })] : rest);
           if (before && config) moveAnswerers(id, before, config);
         });
         // Who answers, where the owner's words go, overlapping messages and strangers are read per message: the

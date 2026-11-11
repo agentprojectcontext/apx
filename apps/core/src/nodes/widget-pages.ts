@@ -281,6 +281,11 @@ export function createWidgetPages(
       const p = get(id);
       return p.page.inspect(x, y, p.whole ? { height: PAGE_MAX } : undefined);
     },
+    /** The widget's parts the owner can pick, as `inspect` describes each. */
+    elements: async (id: string): Promise<PickedElement[]> => {
+      const p = get(id);
+      return p.page.editElements(p.whole ? { height: PAGE_MAX } : undefined);
+    },
     preview: async (id: string, edits: readonly ElementEdit[]) => get(id).page.previewEdits(edits),
     shot: async (id: string) => {
       const p = get(id);

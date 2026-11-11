@@ -1,6 +1,7 @@
 import type { TerminalInfo } from "@apx/protocol";
 import { FitAddon } from "@xterm/addon-fit";
 import { Terminal } from "@xterm/xterm";
+import "../styles/panel-parts.css";
 import "@xterm/xterm/css/xterm.css";
 import { useEffect, useRef } from "react";
 import { client } from "../data/client.ts";

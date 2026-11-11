@@ -50,6 +50,7 @@ export const MOVED_SETTINGS = [
   "email_signatures",
   "email_signature_default",
   "calendar_reminders",
+  "calendar_muted",
   "mail_check",
 ] as const satisfies readonly SettingKey[];
 /** Of those, the ones that act through a sign-in (Google): they arrive off. */
@@ -86,6 +87,7 @@ const projectShape = (p: ProjectRecord, userHome: string): InstanceProject => ({
   ...(p.kind ? { kind: p.kind } : {}),
   ...(p.autonomy ? { autonomy: p.autonomy } : {}),
   ...(p.read_only_folders?.length ? { read_only_folders: p.read_only_folders.map((f) => tildeHome(f, userHome)) } : {}),
+  ...(p.parent ? { parent: p.parent } : {}),
 });
 
 export const routineShape = (r: Routine) => InstanceRoutine.parse(r);

@@ -17,6 +17,7 @@ export function SidebarNavRow({
   order,
   onMove,
   locked = false,
+  depth = 0,
 }: {
   id: string;
   kind: "channel" | "project" | "engine";
@@ -31,6 +32,8 @@ export function SidebarNavRow({
   order: string[];
   onMove(id: string, index: number): void;
   locked?: boolean;
+  /** 1 for a row under another (a subproject under its project). */
+  depth?: 0 | 1;
 }) {
   const t = useT();
   const [dragging, setDragging] = useState(false);
@@ -84,6 +87,7 @@ export function SidebarNavRow({
     >
       <NavItem
         collapsed={rail}
+        depth={rail ? 0 : depth}
         icon={icon}
         label={label}
         count={count}
@@ -115,14 +119,20 @@ export function SidebarNavRow({
 /** Forwards popover handlers to the actual button while adding a readable hint. */
 export const SidebarTooltipButton = forwardRef<
   HTMLButtonElement,
-  ButtonHTMLAttributes<HTMLButtonElement> & { label: string }
->(function SidebarTooltipButton({ label, children, ...props }, ref) {
-  return (
+  ButtonHTMLAttributes<HTMLButtonElement> & { label: string; tip?: boolean }
+>(function SidebarTooltipButton({ label, tip = true, children, ...props }, ref) {
+  const button = (
+    <button type="button" ref={ref} aria-label={label} {...props}>
+      {children}
+    </button>
+  );
+  // With its name already on screen (or its own panel open beside it) the hint would only cover something.
+  return tip ? (
     <Tooltip content={label} side="right">
-      <button type="button" ref={ref} aria-label={label} {...props}>
-        {children}
-      </button>
+      {button}
     </Tooltip>
+  ) : (
+    button
   );
 });
 

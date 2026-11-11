@@ -6,12 +6,13 @@ import { notify } from "./notices.ts";
 
 const errText = (e: unknown) => (e instanceof Error ? e.message : String(e));
 
-type FailureOptions = { quiet?: boolean };
+type FailureOptions = { quiet?: boolean; onError?(error: unknown): void };
 
 async function attempt<T>(work: () => Promise<T>, options: FailureOptions = {}): Promise<T | undefined> {
   try {
     return await work();
   } catch (e) {
+    options.onError?.(e);
     if (!options.quiet) notify(t("res.error", { error: errText(e) }));
     return undefined;
   }
@@ -45,8 +46,8 @@ export const importSkills = (source: SkillImportSource, pick: string[], replace:
 export const toggleSkill = (name: string, on: boolean, project?: string) =>
   attempt(() => client.call("skills.toggle", { name, on, ...scoped(project) }));
 
-export const listMcp = (project?: string) =>
-  attempt(async () => (await client.call("mcp.list", scoped(project))).servers);
+export const listMcp = (project?: string, options?: FailureOptions) =>
+  attempt(async () => (await client.call("mcp.list", scoped(project))).servers, options);
 
 export const toggleMcp = (project: string, server: string, on: boolean) =>
   attempt(async () => (await client.call("mcp.toggle", { project, server, on })).servers);
@@ -78,13 +79,15 @@ export type McpDraft = {
   url?: string;
   headers?: Record<string, string>;
   enabled?: boolean;
+  project?: string | null;
 };
 
 /** Adds or replaces one of the owner's servers (or, with `project`, one in its .apc/mcps.json); null removes it. */
 export const setMcp = (name: string, server: McpDraft | null, project?: string) =>
   attempt(async () => (await client.call("mcp.set", { name, server, ...(project ? { project } : {}) })).servers);
 
-export const listSecrets = () => attempt(async () => (await client.call("secrets.list", {})).secrets);
+export const listSecrets = (project?: string, options?: FailureOptions) =>
+  attempt(async () => (await client.call("secrets.list", scoped(project))).secrets, options);
 
 /** Stores (or with null removes) a variable; its value never comes back to the panel. */
 /** `project`: that project's own value, over the global one there. */

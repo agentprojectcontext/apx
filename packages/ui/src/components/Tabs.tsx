@@ -18,13 +18,17 @@ export interface TabsProps {
   value?: string;
   defaultValue?: string;
   onValueChange?: (value: string) => void;
-  /** underline = page sections (Chat · Tasks · Board); pill = compact filters inside a panel. */
-  variant?: "underline" | "pill";
+  /**
+   * buttons = page sections on one rounded track (the Inbox's Chats · Tasks · Routines); chips = page sections as
+   * separate rounded buttons that wrap (a project's Overview · Chats · Agents…); underline = the same on a line;
+   * pill = compact filters inside a panel.
+   */
+  variant?: "buttons" | "chips" | "underline" | "pill";
   className?: string;
 }
 
 /** Section tabs, e.g. a project's Chat · Tasks · Board · Routines · Files. */
-export function Tabs({ items, value, defaultValue, onValueChange, variant = "underline", className }: TabsProps) {
+export function Tabs({ items, value, defaultValue, onValueChange, variant = "buttons", className }: TabsProps) {
   return (
     <BaseTabs.Root
       className={cx("apx-tabs", `apx-tabs--${variant}`, className)}

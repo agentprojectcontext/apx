@@ -50,7 +50,7 @@ const PERM_FLAGS: Array<{ key: keyof Person["perms"]; icon: ReactNode; label: Me
 type Flag = { key: string; icon: ReactNode; label: string };
 
 /** What is set for a contact, as small marks: silenced, rules of their own, and each thing their chat may do here. */
-function useContactFlags(person: Person | undefined, channelId: string): Flag[] {
+export function useContactFlags(person: Person | undefined, channelId: string): Flag[] {
   const t = useT();
   const defaults = useChannels((s) => s.channels.find((c) => c.id === channelId)?.contacts);
   if (!person) return [];
@@ -73,7 +73,7 @@ function useContactFlags(person: Person | undefined, channelId: string): Flag[] 
   ];
 }
 
-function ContactFlags({ flags }: { flags: Flag[] }) {
+export function ContactFlags({ flags }: { flags: Flag[] }) {
   return (
     <span className="chan__flags">
       {flags.map((f) => (

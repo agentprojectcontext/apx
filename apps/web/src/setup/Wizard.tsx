@@ -15,7 +15,7 @@ import { updateBase } from "../data/projects.ts";
 import { addProject, closeSetup, finishSetup, importV1, scanV1, useSetup, type V1Groups } from "../data/setup.ts";
 import { useData } from "../data/state.ts";
 import { updateAgent } from "../data/team.ts";
-import { type MessageKey, useLanguage, useT } from "../i18n/index.ts";
+import { type MessageKey, useLanguage, usePack, useT } from "../i18n/index.ts";
 import { useDesktopClass } from "../shell/desktop.ts";
 import { LanguageMenu } from "../shell/LanguageMenu.tsx";
 import { go, useNav } from "../shell/nav.ts";
@@ -36,11 +36,16 @@ const STEP_KEY: Record<Step, MessageKey> = {
 };
 type Step = "welcome" | "import" | "agent" | "engines" | "memory" | "channels" | "project" | "done";
 
+/** Its strings load with it (the "setup" pack): nothing shows until they are here. */
+export function Wizard() {
+  return usePack("setup") ? <WizardBody /> : null;
+}
+
 /**
  * The first-run setup, the whole window: welcome (start fresh or bring v1), the super-agent's face, the engines, memory,
  * channels and a first project, then done. Each step saves as it goes on; the card on the right shows the crew so far.
  */
-export function Wizard() {
+function WizardBody() {
   const t = useT();
   const lang = useLanguage();
   const mode = useNav((s) => s.mode);

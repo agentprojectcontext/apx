@@ -228,7 +228,13 @@ test("APX's own skills are listed with an APX tag, always on and read-only", asy
   const detail = page.getByRole("article");
   await expect(detail.getByRole("heading", { name: "apx-mcps" })).toBeVisible();
   await expect(detail.getByText("APX", { exact: true })).toBeVisible();
-  await expect(detail.getByRole("switch")).toHaveCount(0);
+  // On in every project and not the owner's to turn off: each project's switch is on and locked.
+  const switches = detail.getByRole("switch");
+  await expect(switches.first()).toBeVisible();
+  for (const one of await switches.all()) {
+    await expect(one).toBeChecked();
+    await expect(one).toBeDisabled();
+  }
   await expect(detail.getByText(/^Viene con APX y les enseña a los agentes a cambiar APX/)).toBeVisible();
   await expect(detail.getByText(/apx mcps add/).first()).toBeVisible();
 });

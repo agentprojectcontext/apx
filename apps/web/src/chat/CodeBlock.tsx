@@ -4,7 +4,7 @@ import { CodeFrame, type CodeFrameLabels, Skeleton, Spinner } from "@apx/ui";
 import { type ReactElement, Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { useT } from "../i18n/index.ts";
 import { CodeView, MermaidDiagram } from "../lazy.ts";
-import { htmlPreviewDoc, isPreviewHeight } from "./htmlPreview.ts";
+import { htmlPreviewDoc, htmlTitle, isPreviewHeight } from "./htmlPreview.ts";
 
 /** How a fence's word reads in the header; any other word shows with a capital first letter. */
 const NAMES: Record<string, string> = {
@@ -88,6 +88,7 @@ export function CodeBlock({
   return (
     <CodeFrame
       language={language}
+      title={kind === "HTML" ? htmlTitle(code) : undefined}
       code={code}
       preview={preview}
       status={

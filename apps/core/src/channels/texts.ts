@@ -10,6 +10,8 @@ const es = {
     `${name} quiere hablar por ${label} (código ${code}). Aprobalo en la lista de ${label}.`,
   askOwner: (name: string, label: string, text: string) =>
     `${name} te escribió por ${label}${text ? `: «${text}»` : "."} ¿Le contesto?`,
+  mailArrived: (name: string, label: string, subject: string, line: string) =>
+    `Correo de ${name} en ${label}\n${subject || "(sin asunto)"}${line ? `\n${line}` : ""}`,
   wroteFirst: (name: string, label: string, text: string) =>
     `${name} te escribió por ${label}${text ? `: «${text}»` : "."} No le contesto: quedó como contacto sin revisar.`,
   answering: (name: string, label: string) => `${name} te escribió por ${label}: le contesto como contacto nuevo.`,
@@ -109,6 +111,8 @@ const en: typeof es = {
     `${name} wants to talk on ${label} (code ${code}). Approve it in the ${label} list.`,
   askOwner: (name, label, text) => `${name} wrote to you on ${label}${text ? `: "${text}"` : "."} Shall I answer?`,
   answering: (name, label) => `${name} wrote to you on ${label}: I'm answering them as a new contact.`,
+  mailArrived: (name, label, subject, line) =>
+    `Mail from ${name} on ${label}\n${subject || "(no subject)"}${line ? `\n${line}` : ""}`,
   wroteFirst: (name, label, text) =>
     `${name} wrote to you on ${label}${text ? `: "${text}"` : "."} I'm not answering: they're kept as an unreviewed contact.`,
   answer: "Answer them",

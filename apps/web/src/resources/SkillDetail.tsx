@@ -1,10 +1,23 @@
-import { Badge, Button, Dialog, Icons, MarkdownView, SegmentedControl, Skeleton, Switch, Tag, Textarea } from "@apx/ui";
+import {
+  AgentChip,
+  Badge,
+  Button,
+  Dialog,
+  Icons,
+  MarkdownView,
+  SegmentedControl,
+  Skeleton,
+  Switch,
+  Tag,
+  Textarea,
+} from "@apx/ui";
 import { useEffect, useState } from "react";
 import { useMarkdownLabels } from "../common/useMarkdownLabels.ts";
 import { projectName } from "../data/identity.ts";
 import { getSkill, type SkillInfo, saveSkill, toggleSkill } from "../data/resources.ts";
 import { useData } from "../data/state.ts";
 import { useT } from "../i18n/index.ts";
+import { ByProject, OriginChip } from "./ByProject.tsx";
 import { copyTag, ENGINE_LABEL, engineOf, sourceTag } from "./labels.ts";
 
 /** The body without its frontmatter, for the rendered view. */
@@ -70,14 +83,15 @@ export function SkillDetail({
     <article className="resd">
       <header className="resd__head">
         <h2 className="resd__name">{skill.name}</h2>
-        <Badge>{skill.scope === "project" ? t("res.scope.project") : t("res.scope.global")}</Badge>
+        <OriginChip project={skill.scope === "project" ? skill.project_id : undefined} />
+        <Tag>{t("res.kind.skill")}</Tag>
         {inherited && <Badge>{t("res.inherited")}</Badge>}
         {tag && <Tag>{tag}</Tag>}
         <span className="resd__spacer" />
         {!apx && (
           <Switch
             checked={skill.on}
-            label={t("res.active")}
+            label={t(skill.on ? "res.onLabel" : "res.offLabel")}
             // Off everywhere wins: a project cannot turn it back on for itself (the global view can).
             disabled={Boolean(projectId) && skill.off_everywhere}
             onCheckedChange={(on) =>
@@ -97,7 +111,11 @@ export function SkillDetail({
         <dd>{t("res.loadsOnDemand")}</dd>
         <dt>{t("res.usedBy")}</dt>
         <dd className="resd__chips">
-          {usedBy.length ? usedBy.map((a) => <Tag key={a.id}>{a.name}</Tag>) : <Tag>{t("res.everyone")}</Tag>}
+          {usedBy.length ? (
+            usedBy.map((a) => <AgentChip key={a.id} name={a.name} blob={a.blob} tone="neutral" />)
+          ) : (
+            <Tag>{t("res.everyone")}</Tag>
+          )}
         </dd>
         <dt>{t("res.path")}</dt>
         <dd className="resd__mono">{skill.path}</dd>
@@ -138,26 +156,19 @@ export function SkillDetail({
         </p>
       )}
 
-      {!apx && !projectId && skill.scope === "global" && projects.some((p) => p.path) && (
-        <section className="resd__section">
-          <h3 className="resd__h3">{t("res.availableIn")}</h3>
-          <ul className="resd__toggles">
-            {projects
-              .filter((p) => p.path)
-              .map((p) => (
-                <li key={p.id}>
-                  <span>{p.name}</span>
-                  <Switch
-                    size="sm"
-                    checked={skill.on && !skill.off_in.includes(p.id)}
-                    disabled={!skill.on}
-                    aria-label={t("res.availableInProject", { name: p.name })}
-                    onCheckedChange={(on) => void toggleSkill(skill.name, on, p.id).then(() => onChanged())}
-                  />
-                </li>
-              ))}
-          </ul>
-        </section>
+      {!projectId && (
+        <ByProject
+          name={skill.name}
+          origin={skill.scope === "project" ? skill.project_id : undefined}
+          withBase={skill.scope === "global"}
+          disabled={apx}
+          isOn={(id) => apx || (!skill.off_everywhere && (id === undefined || !skill.off_in.includes(id)))}
+          onToggle={(id, on) =>
+            void toggleSkill(skill.name, on, id ?? (skill.scope === "project" ? skill.project_id : undefined)).then(
+              () => onChanged(),
+            )
+          }
+        />
       )}
 
       <div className="resd__viewbar">

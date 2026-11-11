@@ -1,4 +1,4 @@
-import { IconButton, Icons, Select } from "@apx/ui";
+import { Button, Icons, Select } from "@apx/ui";
 import { useState } from "react";
 import { screenChat, screensUp } from "../computers/agent.ts";
 import { ComputerError } from "../computers/ComputerError.tsx";
@@ -7,7 +7,8 @@ import { usePack, useT } from "../i18n/index.ts";
 import { go, useNav } from "../shell/nav.ts";
 import { ComputerConsole } from "./ComputerConsole.tsx";
 import { ComputerSettings } from "./ComputerSettings.tsx";
-import { PanelHeader } from "./SidePanel.tsx";
+import { ControlLock } from "./ControlLock.tsx";
+import { PanelHeader, PanelTitle } from "./SidePanel.tsx";
 import { useComputer } from "./useComputer.ts";
 import { useVmDisplay } from "./useVmDisplay.ts";
 import "../styles/computer.css";
@@ -17,7 +18,6 @@ import { setupSizes } from "./computerSizes.ts";
 function ComputerPanelBody() {
   const t = useT();
   const thread = useNav((s) => s.threadId);
-  const wide = useNav((s) => s.panelWide);
   const {
     status,
     error: controlError,
@@ -58,27 +58,22 @@ function ComputerPanelBody() {
       <PanelHeader
         actions={
           <>
-            <IconButton
-              label={wide ? t("panel.narrow") : t("panel.widen")}
-              icon={wide ? <Icons.Minimize2 size={14} /> : <Icons.Maximize2 size={14} />}
-              onClick={() => go.togglePanelWide()}
-            />
             {ready && (
-              <button type="button" className="computer__button" onClick={reconnect}>
+              <Button size="sm" variant="ghost" title={t("computer.reconnect")} onClick={reconnect}>
                 {t("computer.reconnect")}
-              </button>
+              </Button>
             )}
             {(ready || phase === "preparing" || phase === "error") && (
-              <button type="button" className="computer__button" disabled={busy} onClick={() => void operate("stop")}>
+              <Button size="sm" variant="ghost" disabled={busy} onClick={() => void operate("stop")}>
                 {t(phase === "preparing" ? "computer.cancelInstall" : "computer.stop")}
-              </button>
+              </Button>
             )}
           </>
         }
       >
         <div className="computer__toolbar">
+          <PanelTitle kind="computer">{t("computer.title")}</PanelTitle>
           <span className={`computer__status ${state === "connected" ? "is-on" : ""}`} />
-          <strong>{t("computer.title")}</strong>
           {r && <span className="computer__badge">{t("computer.badge", badge)}</span>}
         </div>
       </PanelHeader>
@@ -95,15 +90,10 @@ function ComputerPanelBody() {
             />
           )}
           <span className="computer__held">{t("computer.screensHeld", { held, max: status?.max_screens ?? 1 })}</span>
-          {current && (
-            <button
-              type="button"
-              className="computer__button is-primary"
-              disabled={busy}
-              onClick={() => void operate(manual ? "agent" : "human")}
-            >
-              {t(manual ? "computer.returnControl" : "computer.takeControl")}
-            </button>
+          {current && manual && (
+            <Button size="sm" variant="secondary" disabled={busy} onClick={() => void operate("agent")}>
+              {t("computer.returnControl")}
+            </Button>
           )}
         </div>
       )}
@@ -113,18 +103,18 @@ function ComputerPanelBody() {
             {t(elsewhere ? "computer.chatOnMacElsewhere" : "computer.chatOnMac", { agent: chat.agent_name ?? "" })}
           </span>
           {elsewhere && (
-            <button type="button" className="computer__button" onClick={() => go.thread(elsewhere)}>
+            <Button size="sm" variant="secondary" onClick={() => go.thread(elsewhere)}>
               {t("computer.openOtherChat")}
-            </button>
+            </Button>
           )}
-          <button
-            type="button"
-            className="computer__button"
+          <Button
+            size="sm"
+            variant="secondary"
             disabled={busy}
             onClick={() => void operate(allow ? "allow" : "enable")}
           >
             {allow ? t("computer.allowAndUse", { agent: chat.agent_name ?? "" }) : t("computer.useHere")}
-          </button>
+          </Button>
         </div>
       )}
       {/* Above the desktop or the setup: below the settings a narrow panel hides it. */}
@@ -146,7 +136,17 @@ function ComputerPanelBody() {
       )}
       <div className="computer__desktop" hidden={!ready || shown === undefined || terminalMaximized}>
         <section className="computer__screen" ref={screen} aria-label={t("computer.screen")} />
-        {!manual && <div className="computer__locked" role="img" aria-label={t("computer.takeControlHint")} />}
+        {!manual && (
+          <ControlLock
+            className="computer__locked"
+            agent={current?.agent_name ?? chat?.agent_name ?? ""}
+            text={t("panelTabs.computerUsing", { name: current?.agent_name ?? chat?.agent_name ?? "" })}
+            hint={t("computer.takeControlHint")}
+            action={t("computer.takeControl")}
+            busy={busy}
+            onTake={() => void operate("human")}
+          />
+        )}
       </div>
       {!ready && (
         <div className="computer__setup">
@@ -186,16 +186,15 @@ function ComputerPanelBody() {
             </p>
           )}
           {!preparing && phase !== "unsupported" && !status?.needs && (
-            <button
-              type="button"
-              className="computer__button is-primary"
+            <Button
+              size="sm"
               disabled={busy || !status || !thread}
               onClick={() => void operate(allow ? "allow" : "enable")}
             >
               {allow
                 ? t("computer.allowAndEnable", { agent: chat?.agent_name ?? "" })
                 : t(phase === "stopped" ? "computer.start" : phase === "error" ? "computer.retry" : "computer.enable")}
-            </button>
+            </Button>
           )}
           {status && !preparing && phase !== "unsupported" && (
             <ComputerSettings

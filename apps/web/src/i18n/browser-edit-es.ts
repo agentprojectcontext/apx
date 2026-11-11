@@ -1,7 +1,8 @@
 import type { BrowserEditKey } from "./browser-edit-en.ts";
 
 export const esBrowserEdit: Record<BrowserEditKey, string> = {
-  "bedit.pickHint": "Tocá la parte que querés cambiar · Esc para salir",
+  "bedit.pickHint": "Modo edición · tocá un elemento",
+  "bedit.pickEsc": "· Esc para salir",
   "bedit.page": "Página en modo edición",
   "bedit.emptyTitle": "Elegí qué cambiar",
   "bedit.emptyBody": "Tocá un título, un botón o cualquier parte de la página. Ves tus cambios ahí antes de pedirlos.",
@@ -17,6 +18,15 @@ export const esBrowserEdit: Record<BrowserEditKey, string> = {
   "bedit.sensitive": "Este campo lleva una contraseña, un código o datos de tarjeta: no se puede cambiar acá.",
   "bedit.live": "Lo ves en la página ahora. Queda cuando el agente hace el cambio.",
   "bedit.liveSave": "Lo ves en la página ahora. Queda al guardar.",
+  "bedit.back": "Volver a los elementos",
+  "bedit.elements": "Elementos",
+  "bedit.elementsHint": "Tocá uno en la página o elegilo acá.",
+  "bedit.kind.heading": "Título",
+  "bedit.kind.text": "Texto",
+  "bedit.kind.button": "Botón",
+  "bedit.kind.link": "Enlace",
+  "bedit.kind.image": "Imagen",
+  "bedit.kind.field": "Campo",
   "bedit.list": "Tus cambios",
   "bedit.changed": "Cambiado",
   "bedit.remove": "Quitar",

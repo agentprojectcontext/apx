@@ -79,6 +79,8 @@ export type ChannelDraft = {
   research?: ChannelInfo["research"];
   /** When it answers contacts; none: at any hour (kept on every save). */
   hours?: ChannelInfo["hours"] | undefined;
+  /** Its notices silenced (kept on every save). */
+  quiet?: boolean | undefined;
   /** Email: the mailbox and its servers (kept on every save). */
   email?: ChannelInfo["email"];
   /** What its contacts' chats may do unless set for one of them (kept on every save). */
@@ -105,6 +107,7 @@ export const draftOf = (c: ChannelInfo): ChannelDraft => ({
   reactions: c.reactions,
   research: c.research,
   hours: c.hours,
+  ...(c.quiet ? { quiet: true } : {}),
   ...(c.email ? { email: c.email } : {}),
   ...(c.contacts ? { contacts: c.contacts } : {}),
   ...(c.knowledge ? { knowledge: c.knowledge } : {}),
@@ -252,6 +255,24 @@ export async function setPersonRole(p: Person, role: "contact" | "blocked"): Pro
   await loadChannels();
 }
 
+/** An email account stops reading this sender, or their whole domain (blocked, card kept); `undo` reads them again. */
+export async function neverRead(
+  person: string,
+  channel: string,
+  scope: "address" | "domain",
+  undo = false,
+): Promise<boolean> {
+  try {
+    const { blocked } = await client.call("contacts.never_read", { person, channel, scope, undo });
+    notify(t(undo ? "ch.readAgainDone" : "ch.neverReadDone", { who: blocked }), "info");
+    await loadChannels();
+    return true;
+  } catch (e) {
+    notify(t("error.channels", { error: errText(e) }));
+    return false;
+  }
+}
+
 export async function removePerson(id: string): Promise<void> {
   try {
     await client.call("contacts.remove", { id });
@@ -289,6 +310,8 @@ export type ContactDraft = {
   supervised?: boolean;
   /** The rights set for this person: a value sets one, null gives it back to the account they write on. */
   perms?: { [K in keyof Person["perms"]]?: boolean | null };
+  /** Who answers them instead of the account's contacts agent; null gives them back to the account's. */
+  agent_id?: string | null;
 };
 
 export async function saveContact(id: string, draft: ContactDraft): Promise<boolean> {

@@ -40,3 +40,12 @@ test("a part that goes round the same calls, or redoes the last part's changes, 
   assert.equal(stalled(edits(0, 10), before), "it redid what its last part had done");
   assert.equal(stalled(edits(5, 10), before), undefined, "half of it is new work");
 });
+
+test("one part that only checks what the part before it changed is progress; two looking parts in a row are not", () => {
+  const looks = Array.from({ length: 6 }, (_, i) => step("file_read", { path: `src/f${i}.ts` }, { effect: "none" }));
+  assert.equal(stalled(looks, edits(0, 4)), undefined, "verifying the last part's edits");
+  assert.equal(stalled(looks, looks), "it only looked things up and changed nothing");
+  // A part before it whose changes all failed did not change anything to check.
+  const failed = edits(0, 3).map((s) => ({ ...s, state: "error" as const }));
+  assert.equal(stalled(looks, failed), "it only looked things up and changed nothing");
+});

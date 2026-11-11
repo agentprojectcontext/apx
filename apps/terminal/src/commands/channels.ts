@@ -8,6 +8,7 @@ apx channels rm <id>                            Remove a channel (and its token)
 apx channels outbox                             What was sent lately and how it went
 apx channels send <channel> <contact> <text…>   Write to a contact yourself, in their chat on that channel
                                                 (contact: an id or name from apx contacts)
+apx channels email-history <channel> [after_uid uidvalidity]  Import one page of old mail quietly (25 messages)
 apx channels recover <thread>                   Ask the channel again for files that never arrived in a chat
                                                 (WhatsApp: your phone sends those messages again; it must be online)`,
   contacts: `apx contacts                                  People and their addresses
@@ -46,6 +47,20 @@ export async function channels(client: ApxClient, [sub, ...rest]: string[], opts
     const chat = await client.call("channels.open", { person: person.id, channel });
     await client.call("channels.send", { thread: chat.id, text: words.join(" ") });
     console.log(`sent to ${person.name} on ${channel}`);
+    return;
+  } else if (sub === "email-history") {
+    const [channel, after, validity] = rest;
+    if (
+      !channel ||
+      ![1, 3].includes(rest.length) ||
+      (after !== undefined && (!/^\d+$/.test(after) || !/^\d+$/.test(validity ?? "")))
+    )
+      throw new Error(USAGE.channels);
+    const request = {
+      channel,
+      ...(after !== undefined ? { after_uid: Number(after), uidvalidity: Number(validity) } : {}),
+    };
+    console.log(JSON.stringify(await client.call("channels.email_history", request), null, 2));
     return;
   } else if (sub === "recover") {
     const [thread] = rest;

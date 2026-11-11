@@ -1,71 +1,79 @@
-import {
-  Button,
-  EmptyState,
-  IconButton,
-  Icons,
-  Menu,
-  ProjectTile,
-  SearchField,
-  SegmentedControl,
-  Skeleton,
-} from "@apx/ui";
-import { Suspense, useMemo, useState } from "react";
-import { markAllRead } from "../data/actions.ts";
-import { DEFAULT_PID, findProject, projectInitial, projectTone, threadAgent } from "../data/identity.ts";
-import { type InboxView, setPrefs, usePrefs } from "../data/prefs.ts";
-import { useData, useShownAgents } from "../data/state.ts";
+import type { Thread } from "@apx/protocol";
+import { Button, EmptyState, IconButton, Icons, SearchField, SegmentedControl, Skeleton, Spinner } from "@apx/ui";
+import { Suspense, useEffect, useMemo, useState } from "react";
+import { useChannels } from "../data/channels.ts";
+import { findProject, isWorking } from "../data/identity.ts";
+import { type InboxTab, setPrefs, usePrefs } from "../data/prefs.ts";
+import { useData } from "../data/state.ts";
 import { useT } from "../i18n/index.ts";
-import { ActivityView, TaskBundle } from "../lazy.ts";
-import { go, useNav } from "../shell/nav.ts";
-import { ListedChat } from "./Delegated.tsx";
-import {
-  archivedThreads,
-  bundleTasks,
-  groupByAgent,
-  groupByProject,
-  groupByTime,
-  unreadListed,
-} from "./groupThreads.ts";
-import { TreeView } from "./InboxViews.tsx";
+import { AccountHeader } from "../lazy.ts";
+import { useNav } from "../shell/nav.ts";
+import { archivedThreads, inboxEntries } from "./groupThreads.ts";
+import { InboxFilterChips, InboxFilterMenu } from "./InboxFilterMenu.tsx";
+import { ChatsTab, RoutinesTab, TasksTab } from "./InboxTabs.tsx";
+import { filterCount, passesFilter, soleFilter, useInboxFilter } from "./inboxFilter.ts";
 import { NewChatMenu, startChat, useChatAgents } from "./NewChatMenu.tsx";
-import { RoutineBundle } from "./RoutineBundle.tsx";
-import { ThreadRow } from "./ThreadRow.tsx";
 
 /** Chat list: every chat grouped by project (Inbox), or one project's chats (project › Chats). */
 export function InboxList() {
   const t = useT();
   const projectId = useNav((s) => (s.view === "project" ? s.projectId : undefined));
-  const threadId = useNav((s) => s.threadId);
   const threads = useData((s) => s.threads);
-  const agents = useShownAgents();
   const projects = useData((s) => s.projects);
   const ready = useData((s) => s.ready);
   const offline = useData((s) => s.connection === "offline");
   const [query, setQuery] = useState("");
-  const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
-  const [showArchived, setShowArchived] = useState(false);
+  const [searching, setSearching] = useState(false);
+  const filter = useInboxFilter((s) => s);
+  const filtered = filterCount(filter) > 0;
+  const channels = useChannels((s) => s.channels);
+  // Narrowed to one channel account, the Inbox is that account's: its header, its chats.
+  const sole = soleFilter(filter);
+  const account = !projectId && sole?.kind === "accounts" ? channels.find((c) => c.id === sole.id) : undefined;
   const chatAgents = useChatAgents(projectId);
 
-  const view = usePrefs((s) => s.inboxView);
-  const routines = usePrefs((s) => s.inboxRoutines);
-  const groups = useMemo(
-    () => groupByProject(threads, projects, { projectId, query, routines }),
-    [threads, projects, projectId, query, routines],
+  const savedTab = usePrefs((s) => s.inboxTab);
+  const tab: InboxTab = account ? "chats" : savedTab;
+  const routineOpen = useNav((s) => s.routineId != null);
+  // A routine's runs open as one chat: its row is in Routines, however it was opened (a row, a link, back).
+  useEffect(() => {
+    if (routineOpen) setPrefs({ inboxTab: "routines" });
+  }, [routineOpen]);
+  const entries = useMemo(
+    () => inboxEntries(threads, { projectId, query, routines: true }),
+    [threads, projectId, query],
   );
-  const trees = useMemo(
-    () => (view === "tree" ? groupByAgent(threads, projects, { projectId, query, routines }) : []),
-    [view, threads, projects, projectId, query, routines],
-  );
-  const activity = useMemo(
-    () => (view === "activity" ? groupByTime(threads, { projectId, query, routines }) : []),
-    [view, threads, projectId, query, routines],
-  );
+  const allListed = useMemo(() => entries.flatMap((e) => (e.kind === "thread" ? [e.thread] : e.threads)), [entries]);
+  const tabs = useMemo(() => {
+    const kindOf = (id: string) => channels.find((c) => c.id === id)?.type;
+    const ok = (th: Thread) => passesFilter(th, filter, projects, kindOf);
+    return {
+      chats: entries.flatMap((e) => (e.kind === "thread" && ok(e.thread) ? [e.thread] : [])),
+      tasks: entries.flatMap((e) => (e.kind === "task" && e.threads.some(ok) ? [e] : [])),
+      routines: entries.flatMap((e) => (e.kind === "routine" && e.threads.some(ok) ? [e] : [])),
+    };
+  }, [entries, filter, projects, channels]);
+  // Each tab tells from outside whether something in it is running and whether it holds news.
+  const marks = useMemo(() => {
+    const of = (list: Thread[]) => ({
+      working: list.some((th) => isWorking(th.state)),
+      news: list.some((th) => th.unread > 0),
+    });
+    return {
+      chats: of(tabs.chats),
+      tasks: of(tabs.tasks.flatMap((e) => e.threads)),
+      routines: of(tabs.routines.flatMap((e) => e.threads)),
+    };
+  }, [tabs]);
   const archived = useMemo(() => archivedThreads(threads, { projectId, query }), [threads, projectId, query]);
-  // The chats the Inbox counts as unread, in this project when one is open.
-  const unreadIds = useMemo(() => unreadListed(threads, { projectId, routines }), [threads, routines, projectId]);
   const title = projectId
     ? t("inbox.projectChats", { project: findProject(projects, projectId)?.name ?? t("project.fallback") })
     : t("nav.inbox");
+
+  const closeSearch = () => {
+    setQuery("");
+    setSearching(false);
+  };
 
   const newChat = () => {
     const first = chatAgents[0];
@@ -75,50 +83,93 @@ export function InboxList() {
   return (
     <section className="inbox" aria-label={title}>
       <div className="inbox__head">
-        <div className="inbox__titlerow">
-          <h1 className="inbox__title">{title}</h1>
-          <IconButton
-            label={t("inbox.markAllRead")}
-            icon={<Icons.CheckCheck size={16} />}
-            disabled={unreadIds.length === 0}
-            onClick={() => void markAllRead(unreadIds)}
-          />
-          <Menu
-            align="end"
-            trigger={<IconButton label={t("inbox.filter")} icon={<Icons.Filter size={16} />} active={!routines} />}
-            items={[
-              { type: "label", label: t("inbox.filter.show") },
-              {
-                label: t("inbox.filter.routines"),
-                icon: <Icons.Clock size={14} />,
-                checked: routines,
-                onSelect: () => setPrefs({ inboxRoutines: !routines }),
-              },
-            ]}
-          />
-          <NewChatMenu
-            projectId={projectId}
-            trigger={<IconButton label={t("chat.new")} icon={<Icons.SquarePen size={16} />} disabled={!ready} />}
-          />
-        </div>
-        <SegmentedControl
-          size="sm"
-          className="inbox__views"
-          label={t("inbox.view")}
-          value={view}
-          onValueChange={(v) => setPrefs({ inboxView: v as InboxView })}
-          options={[
-            { value: "tree", label: t("inbox.view.tree") },
-            { value: "activity", label: t("inbox.view.activity") },
-            { value: "chats", label: t("inbox.view.chats") },
-          ]}
-        />
-        <SearchField
-          size="sm"
-          placeholder={t("inbox.search")}
-          value={query}
-          onChange={(e) => setQuery(e.currentTarget.value)}
-        />
+        {account ? (
+          <Suspense fallback={<h1 className="inbox__title">{account.label}</h1>}>
+            <AccountHeader account={account} />
+          </Suspense>
+        ) : (
+          <>
+            <div className="inbox__titlerow">
+              <h1 className="inbox__title">{title}</h1>
+              <NewChatMenu
+                projectId={projectId}
+                side="bottom"
+                align="start"
+                trigger={
+                  <IconButton size="sm" label={t("chat.new")} icon={<Icons.SquarePen size={15} />} disabled={!ready} />
+                }
+              />
+              <span className="inbox__headsep" aria-hidden="true" />
+              <IconButton
+                size="sm"
+                label={t("inbox.searchOpen")}
+                active={searching}
+                icon={<Icons.Search size={15} />}
+                // The field keeps focus on press: its blur would close an empty search and this click open it again.
+                onMouseDown={(e) => searching && e.preventDefault()}
+                onClick={() => (searching ? closeSearch() : setSearching(true))}
+              />
+              <InboxFilterMenu threads={allListed} />
+            </div>
+            {/* Searching takes the tabs' place: the list under it stays where it was. */}
+            <div className="inbox__switch">
+              {searching ? (
+                <div className="inbox__seek">
+                  <SearchField
+                    size="sm"
+                    autoFocus
+                    className="inbox__seekfield"
+                    placeholder={t(`inbox.searchIn.${tab}`)}
+                    value={query}
+                    onChange={(e) => setQuery(e.currentTarget.value)}
+                    onBlur={() => {
+                      if (!query.trim()) closeSearch();
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === "Escape") closeSearch();
+                    }}
+                  />
+                  <IconButton
+                    size="sm"
+                    label={t("inbox.searchClose")}
+                    icon={<Icons.X size={14} />}
+                    onMouseDown={(e) => e.preventDefault()}
+                    onClick={closeSearch}
+                  />
+                </div>
+              ) : (
+                <SegmentedControl
+                  size="sm"
+                  className="inbox__views"
+                  label={t("inbox.tabs")}
+                  value={tab}
+                  onValueChange={(v) => setPrefs({ inboxTab: v as InboxTab })}
+                  options={(["chats", "tasks", "routines"] as const).map((v) => ({
+                    value: v,
+                    label: (
+                      <>
+                        <span className="inbox__tabname">
+                          {t(`inbox.tab.${v}`)}
+                          {/* The tab on screen already shows its unread rows. */}
+                          {marks[v].news && v !== tab && (
+                            <span className="inbox__tabnews" role="img" aria-label={t("inbox.tabNews")} />
+                          )}
+                        </span>
+                        <span className="inbox__tabcount">{tabs[v].length}</span>
+                        {marks[v].working && (
+                          <span className="inbox__tabwork" role="img" aria-label={t("inbox.tabWorking")}>
+                            <Spinner size={10} />
+                          </span>
+                        )}
+                      </>
+                    ),
+                  }))}
+                />
+              )}
+            </div>
+            <InboxFilterChips />
+          </>
+        )}
       </div>
       <div className="inbox__list">
         {!ready && offline ? (
@@ -127,7 +178,7 @@ export function InboxList() {
           </EmptyState>
         ) : !ready ? (
           <InboxSkeleton />
-        ) : groups.length === 0 && archived.length === 0 ? (
+        ) : allListed.length === 0 && archived.length === 0 ? (
           <EmptyState
             icon={<Icons.Inbox />}
             title={query ? t("inbox.noResults") : t("inbox.empty")}
@@ -141,89 +192,26 @@ export function InboxList() {
           >
             {query ? t("inbox.noMatch", { query }) : t("inbox.emptyBody")}
           </EmptyState>
-        ) : view === "tree" ? (
-          <TreeView trees={trees} selected={threadId} />
-        ) : view === "activity" ? (
-          <Suspense fallback={<InboxSkeleton />}>
-            <ActivityView groups={activity} selected={threadId} />
-          </Suspense>
+        ) : tab === "tasks" ? (
+          tabs.tasks.length ? (
+            <TasksTab entries={tabs.tasks} />
+          ) : (
+            <EmptyState
+              icon={<Icons.ListChecks />}
+              title={filtered ? t("inbox.filter.none") : t("inbox.tabEmpty.tasks")}
+            />
+          )
+        ) : tab === "routines" ? (
+          tabs.routines.length ? (
+            <RoutinesTab entries={tabs.routines} />
+          ) : (
+            <EmptyState
+              icon={<Icons.Clock />}
+              title={filtered ? t("inbox.filter.none") : t("inbox.tabEmpty.routines")}
+            />
+          )
         ) : (
-          groups.map((g) => {
-            const isCollapsed = collapsed[g.key] ?? false;
-            return (
-              <div key={g.key} className="inbox__group">
-                <button
-                  type="button"
-                  className="inbox__grouphead"
-                  aria-expanded={!isCollapsed}
-                  onClick={() => setCollapsed((c) => ({ ...c, [g.key]: !isCollapsed }))}
-                >
-                  <ProjectTile
-                    tone={projectTone(g.project?.id ?? DEFAULT_PID)}
-                    initial={projectInitial(g.name)}
-                    size={16}
-                  />
-                  <span className="inbox__groupname">{g.name}</span>
-                  <span className="inbox__groupcount">{g.threads.length}</span>
-                  {g.running > 0 && (
-                    <span className="inbox__grouprun">{t("inbox.groupRunning", { n: g.running })}</span>
-                  )}
-                  <span className="inbox__groupspacer" />
-                  {isCollapsed ? <Icons.ChevronRight size={14} /> : <Icons.ChevronDown size={14} />}
-                </button>
-                {!isCollapsed &&
-                  bundleTasks(g.threads).map((entry) =>
-                    entry.kind === "routine" ? (
-                      <RoutineBundle
-                        key={`routine:${entry.routineId}`}
-                        routineId={entry.routineId}
-                        threads={entry.threads}
-                        selected={threadId}
-                      />
-                    ) : entry.kind === "task" ? (
-                      <Suspense key={entry.taskId} fallback={null}>
-                        <TaskBundle taskId={entry.taskId} threads={entry.threads} selected={threadId} />
-                      </Suspense>
-                    ) : (
-                      <ListedChat key={entry.thread.id} thread={entry.thread} selected={threadId}>
-                        <ThreadRow
-                          thread={entry.thread}
-                          agent={threadAgent(entry.thread, agents)}
-                          selected={entry.thread.id === threadId}
-                          onOpen={() => go.thread(entry.thread.id)}
-                        />
-                      </ListedChat>
-                    ),
-                  )}
-              </div>
-            );
-          })
-        )}
-        {ready && archived.length > 0 && (
-          <div className="inbox__archived">
-            <button
-              type="button"
-              className="inbox__grouphead"
-              aria-expanded={showArchived}
-              onClick={() => setShowArchived((v) => !v)}
-            >
-              <Icons.Archive size={14} />
-              <span className="inbox__groupname">{t("inbox.archived")}</span>
-              <span className="inbox__groupcount">{archived.length}</span>
-              <span className="inbox__groupspacer" />
-              {showArchived ? <Icons.ChevronDown size={14} /> : <Icons.ChevronRight size={14} />}
-            </button>
-            {showArchived &&
-              archived.map((th) => (
-                <ThreadRow
-                  key={th.id}
-                  thread={th}
-                  agent={threadAgent(th, agents)}
-                  selected={th.id === threadId}
-                  onOpen={() => go.thread(th.id)}
-                />
-              ))}
-          </div>
+          <ChatsTab entries={tabs.chats} archived={archived} />
         )}
       </div>
     </section>

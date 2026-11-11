@@ -1,3 +1,4 @@
+import "../../styles/chat-cards.css";
 import type { Agent, Part } from "@apx/protocol";
 import { Button, Icons, LiveBrowserCard } from "@apx/ui";
 import { hostPath } from "../../common/format.ts";

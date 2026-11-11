@@ -1,11 +1,12 @@
 import type { McpServerStatus } from "@apx/protocol";
-import { Badge, Button, Icons, Switch } from "@apx/ui";
+import { Badge, Button, Icons, Switch, Tag } from "@apx/ui";
 import { useEffect, useState } from "react";
 import { projectName } from "../data/identity.ts";
 import { listMcp, signInMcp, testMcp, toggleMcp, trustMcp } from "../data/resources.ts";
 import { useData } from "../data/state.ts";
 import { useT } from "../i18n/index.ts";
 import { go } from "../shell/nav.ts";
+import { ByProject, OriginChip } from "./ByProject.tsx";
 import { mcpDot, STATUS_KEY } from "./labels.ts";
 import { McpTools } from "./McpTools.tsx";
 
@@ -76,7 +77,8 @@ export function McpDetail({
     <article className="resd">
       <header className="resd__head">
         <h2 className="resd__name">{s.name}</h2>
-        <Badge>{shared ? t("res.scope.global") : t("res.scope.project")}</Badge>
+        <OriginChip project={shared ? undefined : s.project_id} />
+        <Tag>{t("res.kind.mcp")}</Tag>
         {inherited && <Badge>{t("res.inherited")}</Badge>}
         <span className="resd__spacer" />
         {inherited && projectId && (
@@ -199,40 +201,32 @@ export function McpDetail({
   );
 }
 
-/** Globally: one switch per project to turn this server off (or back on) there. */
+/** Globally: one switch per project and subproject to turn this server off (or back on) there. */
 function AvailableIn({ server, onChanged }: { server: string; onChanged(): Promise<void> | void }) {
-  const t = useT();
-  const projects = useData((s) => s.projects).filter((p) => p.path && p.registered !== false);
+  const projects = useData((s) => s.projects);
   const [off, setOff] = useState<Record<string, boolean>>({});
-  const ids = projects.map((p) => p.id).join(",");
+  const ids = projects
+    .filter((p) => p.registered !== false)
+    .map((p) => p.id)
+    .join(",");
   useEffect(() => {
     const read = async (id: string) =>
       [id, (await listMcp(id))?.find((x) => x.name === server && x.scope === "global")?.off_here ?? false] as const;
     void Promise.all(ids.split(",").filter(Boolean).map(read)).then((pairs) => setOff(Object.fromEntries(pairs)));
   }, [server, ids]);
-  if (!projects.length) return null;
   return (
-    <section className="resd__section">
-      <h3 className="resd__h3">{t("res.availableIn")}</h3>
-      <ul className="resd__toggles">
-        {projects.map((p) => (
-          <li key={p.id}>
-            <span>{p.name}</span>
-            <Switch
-              size="sm"
-              checked={!off[p.id]}
-              aria-label={t("res.availableInProject", { name: p.name })}
-              onCheckedChange={(on) =>
-                void toggleMcp(p.id, server, on).then((r) => {
-                  if (!r) return;
-                  setOff((o) => ({ ...o, [p.id]: !on }));
-                  return onChanged();
-                })
-              }
-            />
-          </li>
-        ))}
-      </ul>
-    </section>
+    <ByProject
+      name={server}
+      origin={undefined}
+      isOn={(id) => id === undefined || !off[id]}
+      onToggle={(id, on) => {
+        if (!id) return;
+        void toggleMcp(id, server, on).then((r) => {
+          if (!r) return;
+          setOff((o) => ({ ...o, [id]: !on }));
+          return onChanged();
+        });
+      }}
+    />
   );
 }

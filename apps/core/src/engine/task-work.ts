@@ -77,6 +77,8 @@ export function ask(
   author: Author,
   into: Thread = sessionFor(store, task, agentId),
   parts: Part[] = [{ type: "text", text }],
+  /** The agent works the task as its owner (not as a reviewer handed it): framed to go on until it is delivered. */
+  own = agentId === task.assignee,
 ) {
   const thread = into;
   // Work an agent gives spends against the chat it gave it from (DECISIONS.md#d-080).
@@ -88,6 +90,7 @@ export function ask(
   const origin = originOf(asker);
   if ((origin.kind === "user" || origin.kind === "agent") && typeof assignment?.data.assignment_id === "string")
     origin.task_assignment = { task: task.id, id: assignment.data.assignment_id };
+  if (origin.kind === "agent" && own) origin.on_task = task.id;
   return admit({
     thread_id: thread.id,
     agent_id: agentId,
@@ -207,7 +210,8 @@ export function startTaskWork(
     asker.id === agentId &&
     checkSelfHandoff(store, asker, task.project_id);
   const source = self ? store.threads.get(asker.thread_id) : undefined;
-  const work = ask(store, admit, task, agentId, text, asker, author, sessionFor(store, task, agentId, source));
+  const session = sessionFor(store, task, agentId, source);
+  const work = ask(store, admit, task, agentId, text, asker, author, session, [{ type: "text", text }], !reviewRequest);
   if (self) markHandoff(store, task, asker, work);
   // A project's head that starts a task from its own chat is its coordinator: the result of that task returns there.
   // Anyone else's start ends that coordination (DECISIONS.md#d-207).
@@ -310,7 +314,8 @@ const MAX_COMMENT_ASKS = 2;
 
 /**
  * An agent's comment on a task @mentioning teammates: each is asked in a consult there, and its answer comes back to
- * the asking agent's chat for the task. Said from inside a consult or a delegation, it asks no one (no chains).
+ * the asking agent's chat for the task; the task's own agent hears it in its chat for the task instead. Said from
+ * inside a consult or a delegation, it asks no one (no chains).
  */
 export function consultFromAgent(
   store: Store,
@@ -333,7 +338,12 @@ export function consultFromAgent(
   return mentioned(store, text, task.project_id)
     .filter((a) => a.id !== agent.id)
     .slice(0, MAX_COMMENT_ASKS)
-    .flatMap((a) => consult(store, admit, task, a, text, { by: agent.id, asker }) ?? []);
+    .flatMap((a) =>
+      // The task's own agent works it in its chat for the task: a teammate's word reaches it there, not on the side.
+      a.id === task.assignee
+        ? [ask(store, admit, task, a.id, text, asker, { kind: "agent", id: agent.id })]
+        : (consult(store, admit, task, a, text, { by: agent.id, asker }) ?? []),
+    );
 }
 
 /** The owner's comment's @mentions of anyone but the task's own agent, each answered in a consult. */
@@ -516,6 +526,19 @@ export function reviewRequested(store: Store, admit: AdmitFn, task: Task): RunRe
     return undefined;
   }
   store.notifications.resolve("task", `review:${task.id}`);
+  // Its agent already asked the reviewer on the task and it is still checking: that consult is the review, so the
+  // work is not checked twice at once (DECISIONS.md#d-210).
+  const asked = store.threads.sessions(task.thread_id).find((t) => {
+    const c = store.threads.context(t.id).consult;
+    return (
+      c && !c.review && t.agent_ids[0] === reviewer.id && c.asker?.agent === task.assignee && store.threads.busy([t.id])
+    );
+  });
+  const held = asked && store.threads.context(asked.id).consult;
+  if (asked && held) {
+    store.threads.mergeContext(asked.id, { consult: { task: held.task, card: held.card, review: true } });
+    return undefined;
+  }
   const doer = task.assignee ? (store.agents.get(task.assignee)?.name ?? task.assignee) : "its agent";
   const text = `Check task ${task.id}, done by ${doer}, against what it asks, running the checks you can (tests, the page, the data). ${REVIEW}`;
   return consult(store, admit, task, reviewer, text, { by: task.assignee ?? "owner", trigger: "system", review: true });

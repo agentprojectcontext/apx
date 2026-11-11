@@ -31,7 +31,13 @@ export const TabInfo = z.object({
 export type TabInfo = z.infer<typeof TabInfo>;
 
 const Tab = z.string().min(1);
-const Ref = z.string().regex(/^e\d+$/);
+/** A page element from the last snapshot (e12), or the parts of a JavaScript dialog the page waits on. */
+export const BROWSER_REF = /^(e\d+|dialog-(ok|cancel|text))$/;
+const Ref = z.string().regex(BROWSER_REF);
+
+/** A page's own JavaScript dialog (alert, confirm, prompt, leave-page warning): the page stops until it is answered. */
+export const BrowserDialog = z.enum(["alert", "confirm", "prompt", "beforeunload"]);
+export type BrowserDialog = z.infer<typeof BrowserDialog>;
 const Url = z.string().url().max(4096);
 /** Who drives the tab; shown in the pill ("Roby is using this tab"). */
 const By = z.string().min(1).max(64).default("operator");
@@ -56,6 +62,13 @@ export const SignInResult = z.object({
 });
 export type SignInResult = z.infer<typeof SignInResult>;
 
+/** What a part of a page is to the person editing it: a title, a run of text, a button, a link, a picture or a field. */
+export const ElementKind = z.enum(["heading", "text", "button", "link", "image", "field"]);
+export type ElementKind = z.infer<typeof ElementKind>;
+
+/** The most elements edit mode lists for a page. */
+export const EDIT_ELEMENTS_MAX = 200;
+
 /** An element of the page the owner picked in edit mode. Its name and text are untrusted page content. */
 export const PickedElement = z.object({
   /** The page's own id for the element while its document lives (a backend node id). */
@@ -64,6 +77,7 @@ export const PickedElement = z.object({
   role: z.string(),
   name: z.string(),
   selector: z.string(),
+  kind: ElementKind.optional(),
   /** Its text when it holds just one, so it can be rewritten; null otherwise. */
   text: z.string().nullable(),
   /** A password, one-time code or card field: never read nor edited. */
@@ -140,14 +154,25 @@ export const browserMethods = {
   },
   "browser.click": {
     params: z.object({ tab: Tab, ref: Ref, by: By }).strict(),
-    result: z.object({ ok: z.literal(true), url: z.string() }),
+    /** `dialog`: the click opened one, and the page waits for its answer. */
+    result: z.object({ ok: z.literal(true), url: z.string(), dialog: BrowserDialog.optional() }),
     effect: true,
   },
   "browser.type": {
     params: z
-      .object({ tab: Tab, ref: Ref, text: z.string().max(10_000), submit: z.boolean().default(false), by: By })
+      .object({
+        tab: Tab,
+        ref: Ref,
+        text: z.string().max(10_000),
+        submit: z.boolean().default(false),
+        by: By,
+        /** Type only if the page and the field's frame are served by this computer (DECISIONS.md#d-212). */
+        local_only: z.boolean().optional(),
+        /** `text` is a local file the core checked the agent may read: a file field gets it attached. */
+        upload: z.boolean().optional(),
+      })
       .strict(),
-    result: z.object({ ok: z.literal(true), url: z.string() }),
+    result: z.object({ ok: z.literal(true), url: z.string(), dialog: BrowserDialog.optional() }),
     effect: true,
   },
   "browser.approval_context": {
@@ -179,6 +204,16 @@ export const browserMethods = {
   "browser.inspect": {
     params: z.object({ tab: Tab, x: Fraction, y: Fraction }).strict(),
     result: z.object({ element: PickedElement.nullable() }),
+    effect: false,
+    access: "human",
+  },
+  /**
+   * Edit mode: the page's parts the owner can pick, in page order (at most EDIT_ELEMENTS_MAX), each as `browser.inspect`
+   * describes it; a part outside the visible page has no box. Owner only.
+   */
+  "browser.edit_elements": {
+    params: z.object({ tab: Tab }).strict(),
+    result: z.object({ elements: z.array(PickedElement).max(EDIT_ELEMENTS_MAX) }),
     effect: false,
     access: "human",
   },

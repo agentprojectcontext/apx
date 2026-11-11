@@ -53,8 +53,9 @@ export function tableCsv(table: HTMLTableElement): string {
 }
 
 /**
- * A Markdown table in a frame of its own: wide tables scroll sideways inside it instead of squeezing their columns.
- * Under it, buttons copy it as Markdown or CSV; a corner button (on hover, always shown on touch screens) maximizes it.
+ * A Markdown table in a frame of its own, like a code block's: a header with what it is and a button that maximizes
+ * it, then the rows; wide tables scroll sideways inside it instead of squeezing their columns. Under it, buttons copy
+ * it as Markdown or CSV.
  */
 export function MarkdownTable({
   source,
@@ -100,7 +101,15 @@ export function MarkdownTable({
     <div className="apx-md__tablebox">
       <div className="apx-md__table">
         <div className="apx-md__tablebar">
-          <IconButton size="sm" label={labels.maximize} icon={<Maximize2 size={13} />} onClick={() => setOpen(true)} />
+          <span className="apx-md__tablekind">{labels.table}</span>
+          <span className="apx-md__tablebaractions">
+            <IconButton
+              size="sm"
+              label={labels.maximize}
+              icon={<Maximize2 size={14} />}
+              onClick={() => setOpen(true)}
+            />
+          </span>
         </div>
         <div ref={scroller} className="apx-md__scroll">
           {children}

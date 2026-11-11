@@ -37,31 +37,12 @@ test("Marcar todo como leído: desde la Bandeja y desde el menú del proyecto", 
   await open(page, "#view=inbox");
   const inbox = page.locator(".sidebar__top").getByRole("button", { name: /^Inbox/, includeHidden: true });
   await expect(inbox.locator(".apx-nav__count")).toHaveText("5");
-  const all = page.getByRole("button", { name: "Marcar todo como leído", exact: true });
   const dialog = page.getByRole("dialog", { name: "Marcar todo como leído", exact: true });
-  await all.click();
-  await expect(dialog).toContainText("Chats que se marcarán como leídos: 2.");
-  expect(read).toEqual([]);
-  await expect(inbox.locator(".apx-nav__count")).toHaveText("5");
-  await dialog.getByRole("button", { name: "Cancelar", exact: true }).click();
-  await expect(dialog).toHaveCount(0);
-  expect(read).toEqual([]);
-  await expect(inbox.locator(".apx-nav__count")).toHaveText("5");
-  await all.click();
-  await dialog.getByRole("button", { name: "Marcar todo como leído", exact: true }).click();
-  await expect.poll(() => [...read].sort()).toEqual([a.id, b.id].sort());
-  await expect(inbox.locator(".apx-nav__count")).toHaveCount(0);
-  await expect(all).toBeDisabled();
 
-  // Inbox unread counts can also be cleared from its sidebar context menu.
-  unread.set(a.id, 2);
-  unread.set(b.id, 3);
-  read.length = 0;
-  await page.reload();
-  await expect(inbox.locator(".apx-nav__count")).toHaveText("5");
+  // Inbox unread counts are cleared from its sidebar context menu.
   await inbox.click({ button: "right" });
   await page.getByRole("menuitem", { name: "Marcar todo como leído", exact: true }).click();
-  await expect(dialog).toBeVisible();
+  await expect(dialog).toContainText("Chats que se marcarán como leídos: 2.");
   expect(read).toEqual([]);
   await page.keyboard.press("Escape");
   await expect(dialog).toHaveCount(0);

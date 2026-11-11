@@ -169,6 +169,11 @@ test("an event is flattened to what a prompt needs; free gaps fall between busy 
     meet: "https://meet.google.com/abc",
   });
   assert.equal(flattenEvent({ start: { date: "2026-05-05" } }).all_day, true);
+  assert.equal(
+    flattenEvent({ id: "e1_20260504", recurringEventId: "e1", start: { dateTime: "2026-05-04T17:00:00Z" } }).series,
+    "e1",
+    "an occurrence of a recurring event carries its series",
+  );
   const at = (h: number) => Date.parse(`2026-05-04T${String(h).padStart(2, "0")}:00:00Z`);
   const free = gaps({ from: "2026-05-04T09:00:00Z", to: "2026-05-04T17:00:00Z", minutes: 60, limit: 5 }, [
     [at(9), at(10)],

@@ -9,7 +9,12 @@
 // - reactions out: set `caps.reactions` and `react`, so the agent's "REACT ❤️" lands on their message (channel setting
 //   `reactions`); set `Inbound.ref` when the id to react to is not `external_id`;
 // - presence (online / last seen) and avatars, where the platform shares them.
-import type { ChannelInfo } from "@apx/protocol";
+import type { ChannelInfo, ParsedParams, Result } from "@apx/protocol";
+
+export type MailHistoryRequest = Omit<ParsedParams<"channels.email_history">, "channel">;
+export type MailHistoryResult = Result<"channels.email_history">;
+export type RestoreMail = (message: Inbound) => Promise<"stored" | "already_seen" | "skipped" | "failed">;
+
 import type { Inbound, InboundAction, InboundReaction, Presentation } from "../domain/channels.ts";
 
 export type InboundFile = NonNullable<Inbound["files"]>[number];
@@ -127,6 +132,8 @@ export interface ChannelAdapter {
   /** Text, then `files` (the presentation's media, already read). */
   /** `address`: the conversation's address as the platform uses it, when it is not the one given (a number fixed). */
   send(conversation: string, p: Presentation, files?: OutFile[]): Promise<{ external_id?: string; address?: string }>;
+  /** Reads a bounded page of retained mail, quietly, through the same durable inbox and security checks. */
+  mailHistory?(request: MailHistoryRequest, receive: RestoreMail): Promise<MailHistoryResult>;
   /** A new mail the owner wrote (a mailbox channel): sent from its address as they reviewed it, signed. */
   compose?(mail: { to: string[]; cc: string[]; subject: string; body: string }): Promise<{ external_id?: string }>;
   typing?(conversation: string): Promise<void>;

@@ -49,6 +49,11 @@ export type ToolContext = {
   see?(image: { media_id: string; mime: string }): void;
   /** Adds or replaces a part of the answer the owner sees (tool card, browser card, widget, sub-thread). */
   upsertPart(match: (p: Part) => boolean, part: Part, opts?: { last?: boolean }): void;
+  /**
+   * The call runs unasked because its target is on this computer (Tool.onThisComputer): the node must check it still
+   * is when it acts (DECISIONS.md#d-212).
+   */
+  onThisComputer?: true;
   /** A protocol method through the router, as this agent: the same door every client uses. */
   call<M extends MethodName>(method: M, params: Params<M>): Promise<Result<M>>;
   /**
@@ -123,6 +128,13 @@ export type Tool = {
   confirm(args: Record<string, unknown>): Confirm;
   /** Why an `untrusted` call waits, when the tool knows better than "outside content is in this turn". */
   untrustedWhy?: UntrustedWhy | undefined;
+  /**
+   * The call acts only on this computer (a page its own dev server serves), as the node reports it now: an
+   * `untrusted` level is then `never`, and the call runs with `onThisComputer` (DECISIONS.md#d-212).
+   */
+  onThisComputer?:
+    | ((args: Record<string, unknown>, ctx: Pick<ToolContext, "agent" | "call">) => Promise<boolean>)
+    | undefined;
   /** Longest the call may take before it is cut (the turn goes on with an error result). */
   deadlineMs: number;
   /** What the model reads after "stopped part way" when the owner's "send now" cuts this call (DECISIONS.md#d-186). */
@@ -191,6 +203,7 @@ export function defineTool<S extends Args>(def: {
   ) => Promise<ApprovalTarget>;
   confirm?: Confirm | ((args: z.output<S>) => Confirm);
   untrustedWhy?: UntrustedWhy;
+  onThisComputer?: (args: z.output<S>, ctx: Pick<ToolContext, "agent" | "call">) => Promise<boolean>;
   deadlineMs: number;
   cut?: string;
   local?: (args: z.output<S>) => boolean;
@@ -226,6 +239,12 @@ export function defineTool<S extends Args>(def: {
     deadlineMs: def.deadlineMs,
     ...(def.cut ? { cut: def.cut } : {}),
     ...(def.untrustedWhy ? { untrustedWhy: def.untrustedWhy } : {}),
+    ...(def.onThisComputer
+      ? {
+          onThisComputer: (a: Record<string, unknown>, ctx: Pick<ToolContext, "agent" | "call">) =>
+            def.onThisComputer?.(a as z.output<S>, ctx) ?? Promise.resolve(false),
+        }
+      : {}),
     ...(def.workspace ? { workspace: true as const } : {}),
     ...(def.needsCap ? { needsCap: def.needsCap } : {}),
     ...(def.when ? { when: def.when } : {}),

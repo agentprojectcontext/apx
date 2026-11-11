@@ -7,7 +7,6 @@ export const esAccount: Record<keyof typeof enAccount, string> = {
   "acct.group.people": "Personas",
   "acct.group.record": "Registro",
   "acct.pane.account": "Cuenta",
-  "acct.pane.answer": "Quién responde",
   "acct.pane.behavior": "Comportamiento",
   "acct.pane.rooms": "Salas",
   "acct.pane.contacts": "Contactos",
@@ -15,8 +14,8 @@ export const esAccount: Record<keyof typeof enAccount, string> = {
   "acct.pane.activity": "Actividad",
   "acct.lead.account": "La conexión de esta cuenta y cómo se llama en APX.",
   "acct.lead.accountNew": "Ponele un nombre y conectá la cuenta. El resto se habilita cuando está conectada.",
-  "acct.lead.answer": "Los agentes que atienden esta cuenta.",
-  "acct.lead.behavior": "Cómo responde en esta cuenta. Lo que cambies acá vale solo para ella.",
+  "acct.lead.rooms": "Los grupos y salas que lee, y cómo responde ahí.",
+  "acct.lead.behavior": "Quién responde en esta cuenta y cómo. Lo que cambies acá vale solo para ella.",
   "acct.lead.contacts":
     "Todas las personas de esta cuenta, también las que todavía no escribieron. Aprobar acá no aprueba en otras cuentas.",
   "acct.lead.approvals": "Quienes escribieron por primera vez y esperan que los apruebes.",

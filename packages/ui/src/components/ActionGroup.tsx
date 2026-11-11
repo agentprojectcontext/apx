@@ -63,7 +63,7 @@ export function ActionGroup({
       </Collapsible.Trigger>
       <Collapsible.Panel className="apx-actions__panel">
         {children ?? (
-          <ul className="apx-actions__list apx-branches">
+          <ul className="apx-actions__list apx-tree">
             {keyed(items ?? [], (it) => it.name).map(({ item: it, key }) => (
               <li key={key} className={cx("apx-actions__item", it.status === "failed" && "is-failed")}>
                 <span className="apx-actions__itemicon">

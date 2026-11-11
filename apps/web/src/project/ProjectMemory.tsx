@@ -1,15 +1,5 @@
 import type { Memory, MemoryScope } from "@apx/protocol";
-import {
-  AgentAvatar,
-  Badge,
-  Button,
-  EmptyState,
-  IconButton,
-  Icons,
-  SearchField,
-  SegmentedControl,
-  Textarea,
-} from "@apx/ui";
+import { AgentAvatar, Badge, Button, IconButton, Icons, SearchField, SegmentedControl, Textarea } from "@apx/ui";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { shortWhen } from "../common/format.ts";
 import { client } from "../data/client.ts";
@@ -19,12 +9,17 @@ import { useData } from "../data/state.ts";
 import { useT } from "../i18n/index.ts";
 import { go } from "../shell/nav.ts";
 import { MemoryHistory } from "./MemoryHistory.tsx";
+import { ProjectEmpty } from "./ProjectEmpty.tsx";
+import { SubBadge, useSubScope } from "./subScope.tsx";
 
 type Filter = "project" | "agents" | "global" | "forgotten";
 
 const errText = (e: unknown) => (e instanceof Error ? e.message : String(e));
 
-/** What the project's agents remember: notes about this project, each agent's notebook and the owner's global notes. */
+/**
+ * What the project's agents remember: notes about this project (and its subprojects), each agent's notebook and the
+ * owner's global notes.
+ */
 export function ProjectMemory({ project }: { project: ProjectEntry }) {
   const t = useT();
   const agents = useData((s) => s.agents);
@@ -32,25 +27,39 @@ export function ProjectMemory({ project }: { project: ProjectEntry }) {
   const [filter, setFilter] = useState<Filter>(project.isDefault ? "global" : "project");
   const [query, setQuery] = useState("");
   const [notes, setNotes] = useState<Memory[] | undefined>();
+  const { subs, subOf } = useSubScope(project);
+  const subIds = subs.map((p) => p.id).join(",");
 
   const load = useCallback(async () => {
     const q = query.trim() ? { query: query.trim() } : {};
     try {
       const scope: MemoryScope | undefined =
         filter === "agents" ? "agent" : filter === "forgotten" ? undefined : filter;
-      const r = await client.call("memory.list", {
-        ...(scope ? { scope } : { forgotten: true }),
-        ...(filter === "project" ? { project: project.id } : {}),
-        ...q,
-        limit: 500,
-      });
+      const list = async (projectId?: string) =>
+        (
+          await client.call("memory.list", {
+            ...(scope ? { scope } : { forgotten: true }),
+            ...(projectId ? { project: projectId } : {}),
+            ...q,
+            limit: 500,
+          })
+        ).memories;
+      // A project's notes come with its subprojects', newest first.
+      const memories =
+        filter === "project"
+          ? (await Promise.all([project.id, ...(subIds ? subIds.split(",") : [])].map((id) => list(id))))
+              .flat()
+              .sort((a, b) => b.updated_at.localeCompare(a.updated_at))
+          : await list();
       const ids = new Set(team.map((a) => a.id));
-      setNotes(filter === "agents" ? r.memories.filter((m) => m.agent_id && ids.has(m.agent_id)) : r.memories);
+      const shown = filter === "agents" ? memories.filter((m) => m.agent_id && ids.has(m.agent_id)) : memories;
+      // What waits for the owner comes first, so it is seen before the notes that already stand.
+      setNotes([...shown].sort((a, b) => Number(Boolean(b.pending)) - Number(Boolean(a.pending))));
     } catch (e) {
       setNotes([]);
       notify(t("error.memory", { error: errText(e) }));
     }
-  }, [filter, query, project.id, team, t]);
+  }, [filter, query, project.id, subIds, team, t]);
 
   useEffect(() => {
     const id = setTimeout(() => void load(), query ? 250 : 0);
@@ -68,9 +77,6 @@ export function ProjectMemory({ project }: { project: ProjectEntry }) {
     <div className="memory">
       <div className="team__head">
         <div className="team__titles">
-          <div className="team__title">
-            {t("project.tab.memory")} {notes && <span className="team__count">{notes.length}</span>}
-          </div>
           <div className="team__note">{t(`memory.lead.${filter}`)}</div>
         </div>
         <SegmentedControl
@@ -93,6 +99,8 @@ export function ProjectMemory({ project }: { project: ProjectEntry }) {
         </div>
       )}
 
+      {filter !== "forgotten" && <PendingBar notes={notes} onConfirmed={load} />}
+
       <SearchField
         size="sm"
         placeholder={t("memory.search")}
@@ -101,19 +109,46 @@ export function ProjectMemory({ project }: { project: ProjectEntry }) {
       />
 
       {notes && !notes.length ? (
-        <EmptyState variant="dashed" size="sm" icon={<Icons.Brain />}>
-          {query ? t("memory.noMatch") : t(`memory.empty.${filter}`)}
-        </EmptyState>
+        <ProjectEmpty name={project.name}>
+          {query ? t("memory.noMatch") : filter === "project" ? undefined : t(`memory.empty.${filter}`)}
+        </ProjectEmpty>
       ) : (
         <ul className="memory__list" aria-label={t("project.tab.memory")}>
           {notes?.map((m) => (
-            <NoteRow key={m.id} note={m} onChanged={load} />
+            <NoteRow key={m.id} note={m} sub={subOf(m.project_id)} onChanged={load} />
           ))}
         </ul>
       )}
       {(filter === "project" || filter === "global") && (
         <AddNote key={filter} scope={filter} projectId={project.id} onAdded={load} />
       )}
+    </div>
+  );
+}
+
+/** The notes agents learned about the owner that wait for them, confirmed in one go. */
+function PendingBar({ notes, onConfirmed }: { notes: Memory[] | undefined; onConfirmed: () => void }) {
+  const t = useT();
+  const [busy, setBusy] = useState(false);
+  const ids = (notes ?? []).filter((m) => m.pending && !m.forgotten_at).map((m) => m.id);
+  if (!ids.length) return null;
+  const confirm = async () => {
+    setBusy(true);
+    try {
+      await client.call("memory.confirm_all", { ids });
+      onConfirmed();
+    } catch (e) {
+      notify(t("error.memory", { error: errText(e) }));
+    }
+    setBusy(false);
+  };
+  return (
+    <div className="memory__file memory__pending">
+      <Icons.Brain size={14} />
+      <span className="memory__pending-text">{t("memory.pendingBar", { n: ids.length })}</span>
+      <Button size="sm" loading={busy} onClick={() => void confirm()}>
+        {t("memory.confirmAll")}
+      </Button>
     </div>
   );
 }
@@ -183,7 +218,8 @@ function AddNote({
   );
 }
 
-function NoteRow({ note, onChanged }: { note: Memory; onChanged: () => void }) {
+/** One note: the Brain tile, its text, what it is and who wrote it, its subproject and date; its actions at the end. */
+function NoteRow({ note, sub, onChanged }: { note: Memory; sub: ProjectEntry | undefined; onChanged: () => void }) {
   const t = useT();
   const agents = useData((s) => s.agents);
   const [editing, setEditing] = useState(false);
@@ -210,55 +246,62 @@ function NoteRow({ note, onChanged }: { note: Memory; onChanged: () => void }) {
   const forgotten = Boolean(note.forgotten_at);
   const remove = act(() => client.call("memory.remove", { id: note.id }));
   return (
-    <li className="memory__row">
-      {editing ? (
-        <div className="memory__edit">
-          <Textarea
-            aria-label={t("memory.addLabel")}
-            rows={2}
-            value={text}
-            onChange={(e) => setText(e.currentTarget.value)}
-          />
-          <div className="memory__editbar">
-            <Button size="sm" variant="secondary" onClick={() => setEditing(false)}>
-              {t("common.cancel")}
-            </Button>
-            <Button size="sm" disabled={!text.trim()} onClick={() => void save()}>
-              {t("common.save")}
-            </Button>
+    <li className="memory__row memrow">
+      <span className="memrow__tile" aria-hidden="true">
+        <Icons.Brain size={14} />
+      </span>
+      <div className="memrow__body">
+        {editing ? (
+          <div className="memory__edit">
+            <Textarea
+              aria-label={t("memory.addLabel")}
+              rows={2}
+              value={text}
+              onChange={(e) => setText(e.currentTarget.value)}
+            />
+            <div className="memory__editbar">
+              <Button size="sm" variant="secondary" onClick={() => setEditing(false)}>
+                {t("common.cancel")}
+              </Button>
+              <Button size="sm" disabled={!text.trim()} onClick={() => void save()}>
+                {t("common.save")}
+              </Button>
+            </div>
           </div>
-        </div>
-      ) : (
-        <div className="memory__text">{note.text}</div>
-      )}
-      <MemoryHistory note={note} onChanged={onChanged} />
-      <div className="memory__meta">
-        {note.pending && !forgotten && (
-          <Badge tone="info" title={t("memory.pendingHint")}>
-            {t("memory.pending")}
-          </Badge>
-        )}
-        {note.tainted && (
-          <Badge tone="warning" title={t("memory.taintedHint")}>
-            {t("memory.tainted")}
-          </Badge>
-        )}
-        {owner && <Badge>{t("memory.notebookOf", { name: owner.name })}</Badge>}
-        {note.source === "owner" ? (
-          <span className="memory__by">{t("memory.byYou")}</span>
         ) : (
-          <span className="memory__by">
-            {author && <AgentAvatar name={author.name} blob={blobOf(author)} size={16} />}
-            {author?.name ?? note.author_agent ?? t("memory.byAgent")}
-          </span>
+          <div className="memory__text">{note.text}</div>
         )}
-        <span className="memory__when">{shortWhen(note.forgotten_at ?? note.updated_at)}</span>
-        {note.thread_id && (
-          <Button size="sm" variant="ghost" onClick={() => go.thread(note.thread_id as string)}>
-            {t("memory.origin")}
-          </Button>
-        )}
-        <span className="memory__spacer" />
+        <div className="memory__meta">
+          <span>{t("memory.kindLabel")}</span>
+          {note.pending && !forgotten && (
+            <Badge tone="info" title={t("memory.pendingHint")}>
+              {t("memory.pending")}
+            </Badge>
+          )}
+          {owner && <Badge>{t("memory.notebookOf", { name: owner.name })}</Badge>}
+          {note.source === "owner" ? (
+            <span className="memory__by">{t("memory.byYou")}</span>
+          ) : note.source === "imported" ? (
+            <span className="memory__by" title={t("memory.fromV1Hint")}>
+              {t("memory.fromV1")}
+            </span>
+          ) : (
+            <span className="memory__by">
+              {author && <AgentAvatar name={author.name} blob={blobOf(author)} size={16} />}
+              {author?.name ?? note.author_agent ?? t("memory.byAgent")}
+            </span>
+          )}
+          {note.thread_id && (
+            <Button size="sm" variant="ghost" onClick={() => go.thread(note.thread_id as string)}>
+              {t("memory.origin")}
+            </Button>
+          )}
+          <MemoryHistory note={note} onChanged={onChanged} />
+        </div>
+      </div>
+      {sub && <SubBadge project={sub} />}
+      <span className="memrow__when">{shortWhen(note.forgotten_at ?? note.updated_at)}</span>
+      <div className="memrow__actions">
         {forgotten ? (
           <>
             <Button

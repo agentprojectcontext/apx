@@ -20,8 +20,21 @@ export const MailCheck = z.object({
   important_only: z.boolean(),
 });
 export type MailCheck = z.infer<typeof MailCheck>;
+/** A Google Calendar event, or a whole recurring series, whose reminders the owner turned off. */
+export const MutedEvent = z.object({
+  /** The series' id (Google's recurringEventId), or the event's own id for a single event. */
+  series: z.string().min(1).max(1024),
+  title: z.string().max(300),
+  at: z.string(),
+});
+export type MutedEvent = z.infer<typeof MutedEvent>;
 /** An integration's own settings; only the ones it has are present. */
-const IntegrationSettings = z.object({ reminders: CalendarReminders.optional(), mail: MailCheck.optional() });
+const IntegrationSettings = z.object({
+  reminders: CalendarReminders.optional(),
+  /** Google Calendar's events the owner is not reminded of. */
+  muted: z.array(MutedEvent).optional(),
+  mail: MailCheck.optional(),
+});
 
 const McpTarget = z
   .object({ scope: z.enum(["global", "project"]), server: z.string(), project: Id.optional() })
@@ -45,7 +58,7 @@ export const SkillInfo = z.object({
   source: SkillSource,
   /** On where it was asked about (the project, or everywhere). */
   on: z.boolean(),
-  /** Projects where the owner turned this global skill off. */
+  /** Projects where the owner turned it off: any, for a global skill; a project's own, that project or its subprojects. */
   off_in: z.array(Id).default([]),
   /** Turned off everywhere: a project cannot turn it back on for itself. */
   off_everywhere: z.boolean().default(false),
@@ -131,9 +144,9 @@ export const SecretInfo = z.object({
 export type SecretInfo = z.infer<typeof SecretInfo>;
 
 export const resourceMethods = {
-  /** Names of the stored secrets with a hint and where each is used; values never leave the core. */
+  /** Names and usage, never values; with project, one effective entry per name (project, parent, global). */
   "secrets.list": {
-    params: z.object({}).strict(),
+    params: z.object({ project: Id.optional() }).strict(),
     result: z.object({ secrets: z.array(SecretInfo) }),
     effect: false,
     access: "human",
@@ -347,6 +360,7 @@ export const resourceMethods = {
   /**
    * Adds, replaces or (null) removes one of the owner's own servers (env and header values may hold secret://), or,
    * with `project`, one in that project's .apc/mcps.json (no secret://; approved as the owner wrote it).
+   * `server.project` limits a private server to one project; null makes it global without copying variables.
    */
   "mcp.set": {
     params: z
@@ -361,6 +375,8 @@ export const resourceMethods = {
             url: z.string().url().optional(),
             headers: z.record(z.string(), z.string()).optional(),
             enabled: z.boolean().optional(),
+            /** Private owner server availability; null makes it available everywhere. Never saved in a repo. */
+            project: Id.nullable().optional(),
           })
           .strict()
           .refine((s) => !!s.command !== !!s.url, "give either command or url")
@@ -485,6 +501,23 @@ export const resourceMethods = {
         id: z.string().max(40),
         reminders: CalendarReminders.partial().strict().optional(),
         mail: MailCheck.partial().strict().optional(),
+      })
+      .strict(),
+    result: IntegrationSettings,
+    effect: true,
+    access: "human",
+  },
+  /**
+   * Stops (muted) or resumes reminders of one Google Calendar event and every later one of its series. A reminder
+   * notice's ref is `event:<series>`.
+   */
+  "integrations.mute_event": {
+    params: z
+      .object({
+        series: z.string().min(1).max(1024),
+        /** Shown in the muted list; needed when muting. */
+        title: z.string().max(300).optional(),
+        muted: z.boolean(),
       })
       .strict(),
     result: IntegrationSettings,

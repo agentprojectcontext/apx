@@ -4315,7 +4315,227 @@ every prompt is what broke).
 
 
 <a id="d-210"></a>
-## D-210 — 2026-11-09 — WhatsApp groups are rooms; on the owner's own phone they are only read until the owner allows more
+## D-210 — 2026-11-09 — Agents carry work through; "blocked" is what is out of their reach
+Task chats stopped far more than they finished: in a week of the owner's office 266 answers ended "Status: blocked"
+against 211 "done". The four-line report every message between agents asked for (`REPORT` in `engine/context.ts`)
+had only those two states, so work left came out as "blocked" (one agent listed the 15 articles it had still to write
+as its unblock), and it reached the agent's own task too: the task's start, a teammate's answer ("go on with the
+task", next to "your final answer goes back to them") and a review all came as a one-off ask to answer once.
+
+- **The report has a middle state**: done, partial (what is left and why it stopped) or blocked, defined as nothing
+  more in the agent's reach (access, a login, an owner's decision). It does the work as far as its tools reach first.
+- **The agent's own task is not a one-off ask** (`on_task` on the agent origin, set in `ask()` in
+  `engine/task-work.ts` when the agent is the task's assignee and not a reviewer handed it): a teammate's message
+  there is framed as work on the task, which it carries until `task_close`, stopping only for what the owner must do
+  (`awaits_owner`) or what nothing in its reach can fix. No report envelope, no "goes back".
+- **A teammate's `@name` of the task's own agent reaches its chat for the task** (`consultFromAgent`): before, it
+  opened a consult on the side that told the agent "the task's work is not yours", so the super-agent's "go on" to the
+  agent on the task was answered in a side chat while the work stood still.
+- **Recovery reads as sentences** (`RECOVERY`): find why, fix it with its own tools and permissions (another way or
+  source, freeing its own tabs or processes), retry only after a change, and only then report blocked, with the
+  error, the attempts and what is needed. Never around access, a login, a quota or a handoff.
+- **A task whose way stops leading to the goal changes plan** (`taskBlock`): the owner hears only what only they can
+  give or decide.
+
+- **Checking is progress** (`stalled` in `engine/progress.ts`, `continueTask`): one part that only reads after one
+  that changed something (the turn that started the stretch counts) is verifying, so the next part starts; two
+  reading parts in a row still stop it.
+- **An agent naming a task's own agent again wakes it** (`resuming` in `rpc/tasks.ts`): the super-agent's
+  `task_update` with the same assignee answered "updated" while the agent stayed idle, and it told the owner the work
+  had resumed. The owner's edits from the panel carry every field, so they never restart the work.
+- **A partial delegation is carried on** (`REDIRECT_NOTE`): with nothing waiting on the owner, its caller has what is
+  left done instead of only reporting it.
+- **Where code goes is the agents' call** (`CODE_PLACE`): the project's AGENTS.md or note, else not a git repository
+  means in place and a checkout means a worktree, saved as a project note. Replaces the five-option question to the
+  owner, which the owner added for lack of a rule and found out of place.
+
+- **The super-agent picks how to split work** (its role line in `systemPrompt`): several pieces and the owner did not
+  say how, it picks (one task each, a plan first, or doing it) and says which in a line, asking only before a large
+  fan-out. Amends D-160's ask-every-time.
+- **One review at a time** (`reviewRequested`): an agent that @mentioned its reviewer and then put the task in
+  review started two checks of the same work by the same agent, each asking the owner for the same browser steps.
+  A consult its agent opened with the reviewer and still running becomes the review.
+- **A brief gives no way out** (`delegate`'s description): the super-agent's briefs added "if it cannot be done,
+  return evidence" or "no retries", which the delegate read as permission to stop at the first obstacle.
+- **A profile is a layer, never a stricter mode** (`examples/profiles/secretary`): the secretary's "sending or
+  changing anything outward: confirm first" asked for more than the owner's permission mode, even in Total. It now
+  goes ahead with the work and prepares what the mode leaves to the owner.
+
+- **Commands ask by what they do, not by the word apx** (`runsApxCli`, `apxReads`, `mayChange`): in the week's real
+  asks every command naming APX was "high impact": `apx mcps list`, `apx usage 7`, `apx --help` beside `ls ..`,
+  `command -v apx`, `test -f .apc/migrate.md`. A part that only reads with the CLI now acts as nobody, whatever else
+  the line does (any `--help`, `mcps list`, `usage`, `jobs`, `projects`, `models`, `artifacts`, `skills`, `owner`,
+  `news`); `command -v` only looks it up; AGENTS.md or `.apc/` count only where a part of the command could change them
+  (not a reader, or a redirect into them). What stays always: the CLI acting as the owner (`runs respond`, `owner
+  set`, `tasks done`, `chat`…), any CLI run with a variable set before it (it could point the CLI elsewhere with the
+  owner's credentials), APX's API by its port, destructive commands and releases. Amends D-197.
+- **The visual check fixes the browser first** (`VISUAL_CHECK`): a tab limit, a dialog or the size is the agent's to
+  fix before it calls a change unverified.
+- **Giving up comes after trying**: the promise line says "if you cannot after trying, say why and who can", and a
+  worker calls a source unreadable only once another way to it failed too (another URL, a copy, a search).
+- **Staging or copying AGENTS.md is not changing it** (`mayChange`): `git add`, `commit`, `diff`, `log`, `show` and
+  the like leave the file as it is, and a program whose paths are all known changes it only where it writes there
+  (`cp AGENTS.md /tmp/x` reads it). A program the path analysis cannot follow (`python3 fix.py AGENTS.md`) still asks.
+  A `for` loop's list is only names: it counts as a change only when a part of the loop's body could change anything
+  (`for f in AGENTS.md …; do sed -n … "$f"; done` reads).
+
+- **Git follows what was asked, in the prompt, not a gate** (`GIT_ASKED`, told to whoever can change files): commit,
+  pull, merge or push only when the owner or the task asked, or a project rule or note says how (web straight to
+  main, a tag from staging to main after preflight and verify); else one `ask_owner`. The shell's own levels are
+  unchanged (a plain push follows the owner's publish setting; a force push, a tag or a release always asks). The
+  realistic owner's system budget rises to 8,150 for it (`rules/PROMPT_SIZE.md`).
+
+- **The browser does what agents used JavaScript for** (`CdpPage` in `packages/protocol/src/cdp.ts`, `browser_type`):
+  of the week's 22 JavaScript asks, nearly all read a link's address or a field, picked a list option, filled a rich
+  text editor or attached a file. The page view now shows each link's address and makes a contenteditable editor a
+  field with a ref; typing in a native list picks the option with that text through APX's own fixed function (no agent
+  script); typing a full path into a file field attaches the file when the core found it inside what the agent may
+  read (`folderAccess`, never on the isolated computer), and a file field refuses plain text. `browser_evaluate` says it
+  is the last resort; it still always asks (D-165 unchanged).
+
+Apart from these narrower command asks, none of this changes a permission, an approval, a hard step or a spend
+limit: what waits for the owner still does.
+
+<a id="d-211"></a>
+## D-211 — 2026-11-09 — Memory the owner can keep up with: v1 notes marked, shared notes tidied, logs refused, waiting notes told
+The owner's Memory tab had 386 notes "about you", 348 of them v1 imports labeled "written by you", a few agent notes
+waiting under "To confirm" that nobody heard about, an "outside content" badge on nearly every agent note, and project
+notes that read like release logs. AutoDream ran daily and changed nothing: it only read each agent's private
+notebook. Amends D-013, D-111 and D-112:
+
+- **Imported is a source of its own** (`source: "imported"`). The v1 import saves it; a one-time startup pass marks
+  earlier imports by exact text against v1's note files (HISTORY.md#v1-imported-notes). Imported notes are reached by
+  search only, never as standing notes; agents read them as possibly outdated and may correct them; the owner's edit
+  or confirmation makes one theirs. The owner's own notes stay untouchable.
+- **AutoDream has two shelves.** Besides the private notebook, a daily pass per place tidies its shared notes (the
+  project's, or the global ones outside a project) written by agents or imported, never the owner's or a note waiting
+  for the owner. The same rules hold: the helper only names ids, exact duplicates merge, retirement needs a separate
+  review, stale notes go only past 40, and a fifth per day is counted per place across its agents. The shelf is in the
+  job's id (`dream:shared:`), so the queue and its settings did not change.
+- **Shared notes keep what stays true.** An agent's `memory.add` for the project or global scope refuses a report of
+  work done (a commit hash or CI run id with a word like committed or released, or a dated entry); an agent's own
+  notebook may still keep a diary.
+- **Waiting notes are told.** One `memory` notice stays in the tray while any note about the owner waits, and
+  "Confirm all" confirms the listed ones. The outside-content marker still governs how agents read a note but is not
+  shown: it marked almost every agent note and offered no action (rule 31).
+
+<a id="d-212"></a>
+## D-212 — 2026-11-09 — In Auto, typing on a page this computer serves does not wait for the owner
+Amends D-106 for `browser_type`. Its level is `untrusted`, so in Auto, once a page was read in the turn, every typing
+call waited for the owner. Most such asks came from the visual check APX tells agents to do on their own app
+(`VISUAL_CHECK`): an agent filling a form of its Laravel app at `127.0.0.1:8127` asked three times in a row, its
+reviewer twice more, and the owner found them pointless. The asks guard against a page steering the agent into handing
+data to someone else's site. A page this computer serves is reached by a command just as well (`curl` to the same
+port), and in Auto the agent runs commands in its folder without asking, whatever the turn read; `urlConfirm`
+(D-057, D-121) already treats loopback hosts that way.
+
+- **Only in Auto**: where a command runs unasked. Accept edits asks before a command that changes something, so typing
+  there still asks; Manual, Plan and an agent's own rule apply as for any call; Total never asked.
+- **What counts**: an `http(s)` address on `localhost`, `*.localhost`, `127.x.x.x` or `[::1]` (`servedHere` in
+  `@apx/protocol/cdp`, the host test `urlConfirm` also uses), not on one of APX's own ports, where typing would act as
+  the owner: the core's, the panel dev server's and any extra allowed origin on loopback (`appPorts`), which the core's
+  headless browser now also refuses to load, as the desktop does. `0.0.0.0`, LAN addresses and `.local` names do not
+  count.
+- **Decided from the browser, now**: before the card, the executor asks the tool (`Tool.onThisComputer`), which reads
+  the tab's address from the browser that holds it (`browser.tabs`, answered by the node), within 5 seconds or the card
+  shows as before. When it is served here the call's level is `never`.
+- **Checked by the browser as it types**: the call carries `local_only`, and the node (the desktop's tabs, the core's
+  headless Chrome, the isolated computer's browser, all through `CdpPage.type`) reads the frame tree and the document
+  from CDP, not from page JavaScript: before focusing the field, the tab's address and the origin of the frame holding
+  the field must both be served here; right before the text goes in, both again, and the field must still hold the
+  focus (read from an isolated world, up through shadow hosts and the frames it can see). Otherwise it refuses with
+  `conflict` and nothing is typed. A page that redirected since the core looked gets nothing, and the agent's next call
+  sees the new address and waits for the owner. A field in a frame from another site points to `browser_handoff`. A
+  page's `prompt()` box (typed through `dialog-text`) has no field: its answer goes only when the frame that opened it,
+  as the browser's dialog event reports it, is served here.
+- **Not in the owner's Chrome**: its extension does not check the page, so the tool never exempts a Chrome tab and the
+  router refuses a `local_only` call routed there.
+- **Unchanged**: password, one-time code and card fields are refused as before (D-193 is the only way to fill one);
+  clicks were never gated; `browser_evaluate` keeps its own card (D-165).
+
+Known limits: any loopback service counts, not only the agent's own app: a web terminal or notebook on localhost, or a
+port forwarded elsewhere (an SSH tunnel). In Auto a command reaches them as well, so this adds no new reach, but tying
+the exemption to ports the agent's own commands listen on would be narrower. A frame whose parent is another local
+origin cannot see that parent's focus. The last check narrows, but cannot close, the instant before the text goes in.
+
+Rejected: trusting the core's cached tab address (a redirect makes it stale); exempting a page on the agent's word (a
+model-set argument); asking the node for a verdict without binding the typing to it (the page can move between the two
+calls); the exemption in Accept edits, where it would reach what a command there may not.
+
+<a id="d-213"></a>
+## D-213 — 2026-11-09 — What the owner asks in a room that needs tools is handed to Home, never only promised
+A room's turn has no tools (D-041, D-063), so when the owner asked there for something that needed them the prompt
+had the agent "say you will pick it up with them on another channel". Nothing recorded or did it: a promise, against
+the main prompt's own rule that a promise is not an action.
+
+- **The room answer ends with `HANDOFF`** when the owner's message needs tools (`roomPrompt`). The line is a signal,
+  like `SKIP` and `REACT`: `roomHandoff` (`engine/room-handoff.ts`, run from the engine's `ended`, before the channel
+  manager posts the answer) takes it out of the answer kept and posted. An answer that was only the line is replaced
+  by a short "on it, I'll tell you in private" in the owner's language.
+- **Only the owner's own words move**, from a turn whose origin is the room message marked owner by account
+  (`role: "owner"`): the run's input text, verbatim, never the model's text and never a member's. From any other
+  message the line is only removed, so nobody in a room can turn their text into a request, whatever the model says.
+- **Home does it, by the owner's rules on that platform** (D-144, D-150). On a channel whose owner acts on their word
+  (Telegram, WhatsApp, Signal) the words are kept in Home as the owner's (`via` the channel) and start a turn there
+  that is told which room they came from. Elsewhere (Discord, Slack…) they go through `relayOwnerWords` like the
+  owner's other words there: the super-agent checks them in Home's owner-check sub-thread, and the result returns to
+  Home as a delegated result.
+- **The result never goes back to the room.** The Home turn has no `reply_to` of its own and the relay leaves Home's
+  untouched (`owner_check.reply_to` is optional now): answers reach the owner where Home talks to them (Home's last
+  channel, or the app).
+
+- **A burst goes whole.** A room answers one person's quick messages as one (D-041), so the owner's messages kept
+  unanswered right before the one answered go with it, oldest first: only theirs, with nobody else's message or an
+  answer between, each within 15 s of the next.
+
+<a id="d-214"></a>
+## D-214 — 2026-11-09 — A kind of channel fixes the choices that do not fit it; email is mail, not a chat
+The account settings were made for chat apps: a pairing code for the owner and for strangers, Home or the account's own
+chat, and what a message does while the agent works. On an email account each of these was wrong: the owner had to
+mail the bot and paste back a code, every stranger's mail got a code in reply (an answer to spam and to forged
+senders), the owner's mail could land in Home, and "interrupt" or "slip in" mean nothing for mail.
+
+- **`channelKindRules(type)`** (`packages/protocol/src/constants.ts`) says, per kind, how the owner marks their own
+  address (`code` or `address`), whether "pair" only lists strangers, and what it fixes (`ownerThread`, `concurrency`).
+  Chat apps get the default (everything offered); email fixes its own chat and a queue, lists strangers and takes typed
+  addresses. Another kind gets rules by adding a row, not a branch in a screen.
+- **The core applies them**: the manager reads and saves an account with what its kind fixes (`kindFixed`), so a saved
+  "home" or "steer" on an email account never takes effect; inbound lists a stranger of a listing kind like one on the
+  owner's own number (no code, no tray notice: the request waits in Approvals with what they wrote). The panel only
+  hides the rows a kind fixes and shows the address field instead of the code.
+- **The owner's addresses on email are typed** (`contacts.address`, the mailbox's own refused) and trusted only when
+  the owner's server verified them: mail from them skips "Who may write" and is dropped unverified even with "Read
+  unverified mail" on.
+
+Known limit: one conversation per sender, as before; each mail shows as a card in it, but a new subject from the same
+person is not a conversation of its own.
+
+Rejected: a code mailed to the owner as on chat apps (the step the owner found confusing, and a reply to any forged
+From); per-screen `type === "email"` checks (the next kind would copy them).
+
+## D-215 — 2026-11-08 — A side question is one model call beside the chat, not a turn in it
+
+The owner wants to ask a chat's agent something quick (what was decided, a name it used) without the question and its
+answer landing in a long chat and in every later turn's context. The composer's **+ › Side question** does that.
+
+- **One call, no thread** (`engine/aside.ts`, `threads.aside`): the chat's model as its next turn would pick it (the
+  chat's choice, the agent's, the default, the router; never a CLI), a short system prompt in the agent's name and voice,
+  and the chat as read-only context (the model log since the last summary, the summary first, shaped like
+  compaction's transcript and capped at 60k characters). No tools. Follow-ups pass the side conversation back
+  (`earlier`, at most 10 exchanges): the server keeps nothing.
+- **What is kept**: only its tokens, in `aux_calls` with the purpose `aside` and the chat's id (Usage shows them). No
+  message, run, thread or memory; the next turn never sees it, and no search, title, compaction or notification finds it.
+- **Limits**: a 60 s deadline (the client waits 75 s), `effect: true` so a retried request gets the same answer instead of
+  a second call, owner-only access. Not in an engine's own session, which keeps its own transcript and runs only its CLI.
+- **The panel** keeps the side conversation in memory per chat while it is open, so a layout change does not lose it;
+  closing it lets it go.
+
+Rejected: a turn on a hidden child thread (every listing of sub-threads, delegation counts, search, memory capture,
+titles and notifications would have to learn to skip it, and the agent could act with tools from a place the chat never
+shows), and a turn in the chat marked as hidden (it would still enter the model's context unless every history builder
+learned the mark).
+
+## D-216 — 2026-11-11 — WhatsApp groups are rooms; on the owner's own phone they are only read until the owner allows more
 WhatsApp read only one-to-one chats, and owners asked for their groups to work like Telegram's and Discord's. A
 WhatsApp account now has `rooms` as D-041 sets them (deny by default, a mode per group, the owner's notes, rules,
 names and limits, sealed turns), with what is particular to a linked phone:

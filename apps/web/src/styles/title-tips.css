@@ -1,0 +1,8 @@
+/* The tooltips that stand in for native titles: loaded after the first paint. */
+/* A control's title as the design system's tooltip (common/TitleTooltips.tsx). */
+.titletip {
+  position: fixed;
+  z-index: 1000;
+  max-width: 320px;
+  pointer-events: none;
+}

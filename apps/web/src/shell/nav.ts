@@ -14,6 +14,7 @@ export type PanelKind =
   | "widget"
   | "usage"
   | "agent"
+  | "agents"
   | "processes"
   | "document";
 
@@ -23,6 +24,7 @@ type View =
   | "app"
   | "tasks"
   | "flows"
+  | "routines"
   | "resources"
   | "files"
   | "computers"
@@ -72,15 +74,7 @@ export const RESOURCE_TABS = ["skills", "mcp", "integrations", "variables", "ext
 export type ResourceTab = (typeof RESOURCE_TABS)[number];
 
 /** The parts of a channel account's settings. */
-export type AccountPane =
-  | "account"
-  | "answer"
-  | "behavior"
-  | "stickers"
-  | "rooms"
-  | "contacts"
-  | "approvals"
-  | "activity";
+export type AccountPane = "account" | "behavior" | "stickers" | "rooms" | "contacts" | "approvals" | "activity";
 
 /** A channel account's settings open over the screen: an existing one (`id`) or a new one of `kind` being set up. */
 export type AccountEdit = { kind: ChannelKind; id: string | undefined; pane: AccountPane };
@@ -91,6 +85,8 @@ export type NavState = {
   projectId: string | undefined;
   projectTab: ProjectTab;
   threadId: string | undefined;
+  /** The routine whose runs are open in the Inbox as one chat (instead of a thread). */
+  routineId: string | undefined;
   appId: string | undefined;
   panel: PanelKind | null;
   /** The side panel takes half the chat area (files, changes, a terminal), instead of its usual column. */
@@ -165,11 +161,12 @@ const PANELS: readonly PanelKind[] = [
   "changes",
   "widget",
   "usage",
+  "agents",
   "processes",
   "document",
 ];
 const TAB_IDS: readonly string[] = PROJECT_TABS.map((t) => t.id);
-const VIEWS: readonly string[] = ["tasks", "flows", "resources", "files", "computers", "channels"];
+const VIEWS: readonly string[] = ["tasks", "flows", "routines", "resources", "files", "computers", "channels"];
 
 /** Deep links: #thread=<id>&panel=<kind>, #app=<id>, #project=<id>&tab=<tab>, #view=tasks&task=<id>. */
 function fromHash(): Partial<NavState> {
@@ -182,6 +179,9 @@ function fromHash(): Partial<NavState> {
   const channel = h.get("channel");
   return {
     ...(h.get("thread") ? { threadId: h.get("thread") ?? undefined } : {}),
+    ...(h.get("routine")
+      ? { view: "inbox" as const, routineId: h.get("routine") ?? undefined, threadId: undefined }
+      : {}),
     ...(h.get("task") ? { taskId: h.get("task") ?? undefined } : {}),
     ...(panel && (PANELS as readonly string[]).includes(panel) ? { panel: panel as PanelKind } : {}),
     panelDocument: panel === "document" ? (h.get("document") ?? undefined) : undefined,
@@ -217,6 +217,7 @@ export const nav = createStore<NavState>({
   projectId: undefined,
   projectTab: "overview",
   threadId: "home",
+  routineId: undefined,
   appId: undefined,
   panel: null,
   panelWide: false,
@@ -257,6 +258,7 @@ const PLACE = [
   "projectId",
   "projectTab",
   "threadId",
+  "routineId",
   "appId",
   "channelId",
   "channelThread",
@@ -334,6 +336,7 @@ nav.subscribe(() => {
   } else if (
     s.view === "tasks" ||
     s.view === "flows" ||
+    s.view === "routines" ||
     s.view === "resources" ||
     s.view === "files" ||
     s.view === "computers" ||
@@ -352,7 +355,8 @@ nav.subscribe(() => {
   } else if (s.view === "engine" && s.engineId) {
     h.set("engine", s.engineId);
     if (s.threadId) h.set("thread", s.threadId);
-  } else if (s.threadId) h.set("thread", s.threadId);
+  } else if (s.view === "inbox" && s.routineId) h.set("routine", s.routineId);
+  else if (s.threadId) h.set("thread", s.threadId);
   if (s.panel && showsChat(s)) h.set("panel", s.panel);
   if (s.panel === "document" && showsChat(s) && s.panelDocument) h.set("document", s.panelDocument);
   if (s.panel === "widget" && showsChat(s) && s.panelWidget) h.set("widget", s.panelWidget);
@@ -425,8 +429,8 @@ export const go = {
   thread(threadId: string) {
     nav.set((s) =>
       s.view === "project" && s.projectTab === "chats"
-        ? { threadId, listInFront: false }
-        : { view: "inbox", threadId, listInFront: false },
+        ? { threadId, routineId: undefined, listInFront: false }
+        : { view: "inbox", threadId, routineId: undefined, listInFront: false },
     );
   },
   /** A new chat just made takes the place of the empty one it was, wherever it is open; back skips the empty one. */
@@ -445,7 +449,11 @@ export const go = {
   },
   /** Always the Inbox, whatever is open (running pill, deep links). */
   inboxThread(threadId: string) {
-    nav.set({ view: "inbox", threadId, listInFront: false });
+    nav.set({ view: "inbox", threadId, routineId: undefined, listInFront: false });
+  },
+  /** A routine's runs as one chat in the Inbox. */
+  routine(routineId: string) {
+    nav.set({ view: "inbox", routineId, threadId: undefined, panel: null, listInFront: false });
   },
   /** Phone width: back from a chat to the chat list. */
   showList() {
@@ -491,7 +499,7 @@ export const go = {
   tables(flowProject?: string, flowTable?: string) {
     nav.set({ view: "flows", flowProject, flowId: undefined, flowEdit: false, flowTables: true, flowTable });
   },
-  view(view: "tasks" | "resources" | "files" | "computers" | "channels") {
+  view(view: "tasks" | "routines" | "resources" | "files" | "computers" | "channels") {
     nav.set({ view });
   },
   /** A task: beside a tasks list when one is open, else over the current screen (a chat, a notice…). */
@@ -544,7 +552,10 @@ export const go = {
   agent(agentId: string) {
     nav.set({ panel: "agent", panelAgent: agentId });
   },
-  /** A sub-chat beside the open chat; with no chat open (Tasks, a task over the screen) it opens as a chat itself. */
+  /**
+   * A sub-chat beside the open chat, in its agents; with no chat open (Tasks, a task over the screen) it opens as a
+   * chat itself.
+   */
   subthread(thread: string) {
     nav.set((s) => {
       const chat =
@@ -554,9 +565,14 @@ export const go = {
         (s.view === "project" && s.projectTab === "chats");
       if (!chat || !s.threadId || s.peekTaskId)
         return { view: "inbox", threadId: thread, peekTaskId: undefined, panel: null, listInFront: false };
-      return { panel: "processes", panelThread: thread, panelParent: s.threadId, listInFront: false };
+      return { panel: "agents", panelThread: thread, panelParent: s.threadId, listInFront: false };
     });
   },
+  /** The agents the open chat called (its delegated conversations). */
+  agents() {
+    nav.set({ panel: "agents", panelThread: undefined, panelParent: undefined });
+  },
+  /** The commands the open chat's agent ran. */
   processes() {
     nav.set({ panel: "processes", panelThread: undefined, panelParent: undefined });
   },

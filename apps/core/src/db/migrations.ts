@@ -1238,4 +1238,13 @@ export const MIGRATIONS: readonly string[] = [
   );
   ALTER TABLE persons DROP COLUMN any_hour;
   `,
+  // A subproject's parent: a project id, or '~default' for the base project (which has no row). Kept by APX, as
+  // autonomy is: the folder never says whose subproject it is (domain/projects.ts setParent).
+  `
+  ALTER TABLE projects ADD COLUMN parent_id TEXT;
+  CREATE INDEX projects_parent ON projects(parent_id) WHERE parent_id IS NOT NULL;
+  `,
+  // The agent that answers a contact on every channel, instead of each account's contacts agent (null: the account's).
+  `ALTER TABLE persons ADD COLUMN agent_id TEXT;`,
+  `ALTER TABLE jobs ADD COLUMN start_error TEXT;`,
 ];

@@ -6,7 +6,6 @@ export const enAccount = {
   "acct.group.people": "People",
   "acct.group.record": "Record",
   "acct.pane.account": "Account",
-  "acct.pane.answer": "Who answers",
   "acct.pane.behavior": "Behavior",
   "acct.pane.rooms": "Rooms",
   "acct.pane.contacts": "Contacts",
@@ -14,8 +13,8 @@ export const enAccount = {
   "acct.pane.activity": "Activity",
   "acct.lead.account": "This account's connection and its name in APX.",
   "acct.lead.accountNew": "Name it and connect the account. The rest opens once it is connected.",
-  "acct.lead.answer": "The agents that answer on this account.",
-  "acct.lead.behavior": "How it answers on this account: what you change here applies only to it.",
+  "acct.lead.rooms": "The groups and rooms it reads, and how it answers there.",
+  "acct.lead.behavior": "How it answers on this account and who: what you change here applies only to it.",
   "acct.lead.contacts":
     "Everyone on this account, also those who have not written yet. Approving here does not approve them on other accounts.",
   "acct.lead.approvals": "Who wrote for the first time and waits for you to let them in.",

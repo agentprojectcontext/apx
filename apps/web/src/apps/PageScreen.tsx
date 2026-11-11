@@ -1,3 +1,4 @@
+import "../styles/app-screen.css";
 import type { SurfaceSummary } from "@apx/protocol";
 import { AgentAvatar, Button, IconButton, Icons, Menu, SegmentedControl, Skeleton } from "@apx/ui";
 import { Suspense, useCallback, useLayoutEffect, useRef, useState } from "react";

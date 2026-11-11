@@ -3,6 +3,13 @@
 // static import of one from App, main, shell/, inbox/ or chat/ (a new entry adds its file there). The language chunks
 // (i18n/messages.ts) and the marks (data/models.ts) are the two loaded elsewhere.
 import { lazy } from "react";
+import { addPack } from "./i18n/index.ts";
+import type { Pack } from "./i18n/messages.ts";
+
+/** A screen whose strings come in packs (i18n/messages.ts) opens once they are here, so it never shows a bare key. */
+function withPacks<T>(packs: Pack[], load: () => Promise<T>): () => Promise<T> {
+  return () => Promise.all([load(), ...packs.map((pack) => addPack(pack))]).then(([module]) => module);
+}
 
 // Windows of their own and the setup screens: the main window never loads them.
 export const QuickChat = lazy(() => import("./quick/QuickChat.tsx").then((m) => ({ default: m.QuickChat })));
@@ -16,7 +23,9 @@ export const AboutScreen = lazy(() => import("./setup/AboutScreen.tsx").then((m)
 export const ArtifactWindow = lazy(() =>
   import("./apps/ArtifactWindow.tsx").then((m) => ({ default: m.ArtifactWindow })),
 );
-export const OAuthReturn = lazy(() => import("./resources/OAuthReturn.tsx").then((m) => ({ default: m.OAuthReturn })));
+export const OAuthReturn = lazy(
+  withPacks(["resources"], () => import("./resources/OAuthReturn.tsx").then((m) => ({ default: m.OAuthReturn }))),
+);
 
 export const AttachChips = lazy(() =>
   import("./chat/composer/AttachChips.tsx").then((m) => ({ default: m.AttachChips })),
@@ -24,19 +33,73 @@ export const AttachChips = lazy(() =>
 
 // Screens and dialogs loaded when first opened: the chat is what the panel opens on.
 export const AppScreen = lazy(() => import("./apps/AppScreen.tsx").then((m) => ({ default: m.AppScreen })));
-export const ChannelScreen = lazy(() =>
-  import("./channels/ChannelScreen.tsx").then((m) => ({ default: m.ChannelScreen })),
+export const ChannelScreen = lazy(
+  withPacks(["resources"], () => import("./channels/ChannelScreen.tsx").then((m) => ({ default: m.ChannelScreen }))),
 );
 export const ChannelsScreen = lazy(() =>
   import("./channels/ChannelsScreen.tsx").then((m) => ({ default: m.ChannelsScreen })),
 );
-export const ChannelDialogs = lazy(() =>
-  import("./channels/account/AccountDialog.tsx").then((m) => ({ default: m.ChannelDialogs })),
+export const ChannelDialogs = lazy(
+  withPacks(["resources"], () =>
+    import("./channels/account/AccountDialog.tsx").then((m) => ({ default: m.ChannelDialogs })),
+  ),
 );
-export const ConfigModal = lazy(() => import("./config/ConfigModal.tsx").then((m) => ({ default: m.ConfigModal })));
+export const ConfigModal = lazy(
+  withPacks(["team"], () => import("./config/ConfigModal.tsx").then((m) => ({ default: m.ConfigModal }))),
+);
+export const McpPeek = lazy(
+  withPacks(["resources"], () => import("./resources/McpPeek.tsx").then((m) => ({ default: m.McpPeek }))),
+);
 export const TaskPeek = lazy(() => import("./tasks/TaskPeek.tsx").then((m) => ({ default: m.TaskPeek })));
+// Shown on hover or click over the first screen, loaded when first needed: the super-agent's card, what fills a chat's
+// context, a side question, a channel account's header, and the tooltips that replace native titles.
+export const SuperAgentCard = lazy(() =>
+  import("./shell/SuperAgentCard.tsx").then((m) => ({ default: m.SuperAgentCard })),
+);
+export const ContextCard = lazy(() =>
+  import("./chat/composer/ContextCard.tsx").then((m) => ({ default: m.ContextCard })),
+);
+export const AsidePanel = lazy(() => import("./chat/composer/AsidePanel.tsx").then((m) => ({ default: m.AsidePanel })));
+export const AccountHeader = lazy(() =>
+  import("./inbox/AccountHeader.tsx").then((m) => ({ default: m.AccountHeader })),
+);
+export const TitleTooltips = lazy(() =>
+  import("./common/TitleTooltips.tsx").then((m) => ({ default: m.TitleTooltips })),
+);
+// The top bar's server list, once it opens.
+export const ServerList = lazy(() => import("./shell/ServerList.tsx").then((m) => ({ default: m.ServerList })));
+// The messages in line for the agent's next turn, above the composer while there are any.
+export const QueueTray = lazy(() => import("./chat/composer/QueueTray.tsx").then((m) => ({ default: m.QueueTray })));
+// Editing one of the owner's messages to send it again, and the question before later messages go.
+export const RewindConfirm = lazy(() => import("./chat/RewindParts.tsx").then((m) => ({ default: m.RewindConfirm })));
+export const RewindEditor = lazy(() => import("./chat/RewindParts.tsx").then((m) => ({ default: m.RewindEditor })));
+// A message link's right-click menu, or an app link's button.
+export const MessageLink = lazy(() => import("./chat/LinkMenu.tsx").then((m) => ({ default: m.MessageLink })));
+// Parts only some messages carry and a task chat's header pieces.
+export const ChangesPart = lazy(() => import("./chat/parts/ChangesPart.tsx").then((m) => ({ default: m.ChangesPart })));
+export const SkillsPart = lazy(
+  withPacks(["resources"], () => import("./chat/parts/SkillsPart.tsx").then((m) => ({ default: m.SkillsPart }))),
+);
+export const ImageGenerationPreview = lazy(() =>
+  import("./chat/parts/ImageGenerationPreview.tsx").then((m) => ({ default: m.ImageGenerationPreview })),
+);
+export const TaskCrumb = lazy(() => import("./chat/TaskHeader.tsx").then((m) => ({ default: m.TaskCrumb })));
+export const TaskStateButton = lazy(() =>
+  import("./chat/TaskHeader.tsx").then((m) => ({ default: m.TaskStateButton })),
+);
+export const PlusMenu = lazy(() => import("./chat/composer/PlusMenu.tsx").then((m) => ({ default: m.PlusMenu })));
+export const AttentionList = lazy(() =>
+  import("./shell/AttentionList.tsx").then((m) => ({ default: m.AttentionList })),
+);
+// The Inbox filter's popover body (tabs, lists and the view picker), loaded when it first opens.
+export const InboxFilterBody = lazy(() =>
+  import("./inbox/InboxFilterBody.tsx").then((m) => ({ default: m.InboxFilterBody })),
+);
+// A task title's hover in the Inbox: its whole title and status.
+export const TaskStatusHint = lazy(() =>
+  import("./common/TaskStatusHint.tsx").then((m) => ({ default: m.TaskStatusHint })),
+);
 export const TaskBundle = lazy(() => import("./inbox/TaskBundle.tsx").then((m) => ({ default: m.TaskBundle })));
-export const TaskStatus = lazy(() => import("./common/TaskStatus.tsx").then((m) => ({ default: m.TaskStatus })));
 export const SubthreadPart = lazy(() =>
   import("./chat/parts/SubthreadPart.tsx").then((m) => ({ default: m.SubthreadPart })),
 );
@@ -47,11 +110,13 @@ export const TaskDescription = lazy(() =>
 export const EngineSessions = lazy(() =>
   import("./engines/EngineSessions.tsx").then((m) => ({ default: m.EngineSessions })),
 );
-export const ProjectScreen = lazy(() =>
-  import("./project/ProjectScreen.tsx").then((m) => ({ default: m.ProjectScreen })),
+export const ProjectScreen = lazy(
+  withPacks(["team", "resources"], () =>
+    import("./project/ProjectScreen.tsx").then((m) => ({ default: m.ProjectScreen })),
+  ),
 );
-export const ResourcesScreen = lazy(() =>
-  import("./project/ResourcesScreen.tsx").then((m) => ({ default: m.ResourcesScreen })),
+export const ResourcesScreen = lazy(
+  withPacks(["resources"], () => import("./project/ResourcesScreen.tsx").then((m) => ({ default: m.ResourcesScreen }))),
 );
 export const InstallArtifactDialog = lazy(() =>
   import("./surfaces/InstallArtifact.tsx").then((m) => ({ default: m.InstallArtifactDialog })),
@@ -89,6 +154,14 @@ export const DesktopInstallNotice = lazy(() =>
   import("./shell/DesktopInstallNotice.tsx").then((m) => ({ default: m.DesktopInstallNotice })),
 );
 
+// The notices over the page with the full sidebar: none on most screens.
+export const NoticeStrip = lazy(() => import("./shell/NoticeStrip.tsx").then((m) => ({ default: m.NoticeStrip })));
+
+// The agent editor, opened from the super-agent's card in the top bar.
+export const AgentEditor = lazy(
+  withPacks(["team"], () => import("./project/team/AgentEditor.tsx").then((m) => ({ default: m.AgentEditor }))),
+);
+
 // Project dialogs, opened rarely.
 export const NewProjectDialog = lazy(() =>
   import("./shell/NewProjectDialog.tsx").then((m) => ({ default: m.NewProjectDialog })),
@@ -96,8 +169,8 @@ export const NewProjectDialog = lazy(() =>
 export const UnregisterProjectDialog = lazy(() =>
   import("./shell/UnregisterProjectDialog.tsx").then((m) => ({ default: m.UnregisterProjectDialog })),
 );
-export const ProjectSettings = lazy(() =>
-  import("./project/ProjectSettings.tsx").then((m) => ({ default: m.ProjectSettings })),
+export const ProjectSettings = lazy(
+  withPacks(["team"], () => import("./project/ProjectSettings.tsx").then((m) => ({ default: m.ProjectSettings }))),
 );
 
 export const JobList = lazy(() => import("./shell/JobList.tsx").then((m) => ({ default: m.JobList })));
@@ -112,6 +185,7 @@ export const WhatsNewDialog = lazy(() =>
 export const ChatFiles = lazy(() => import("./panel/ChatFiles.tsx").then((m) => ({ default: m.ChatFiles })));
 export const UsagePanel = lazy(() => import("./panel/UsagePanel.tsx").then((m) => ({ default: m.UsagePanel })));
 export const ChangesPanel = lazy(() => import("./panel/ChangesPanel.tsx").then((m) => ({ default: m.ChangesPanel })));
+export const AgentsPanel = lazy(() => import("./panel/AgentsPanel.tsx").then((m) => ({ default: m.AgentsPanel })));
 export const ProcessesPanel = lazy(() =>
   import("./panel/ProcessesPanel.tsx").then((m) => ({ default: m.ProcessesPanel })),
 );
@@ -119,7 +193,9 @@ export const TerminalPanel = lazy(() =>
   import("./panel/TerminalPanel.tsx").then((m) => ({ default: m.TerminalPanel })),
 );
 export const WidgetPanel = lazy(() => import("./panel/WidgetPanel.tsx").then((m) => ({ default: m.WidgetPanel })));
-export const AgentPanel = lazy(() => import("./panel/AgentPanel.tsx").then((m) => ({ default: m.AgentPanel })));
+export const AgentPanel = lazy(
+  withPacks(["team"], () => import("./panel/AgentPanel.tsx").then((m) => ({ default: m.AgentPanel }))),
+);
 export const DocumentPanel = lazy(() =>
   import("./panel/DocumentPanel.tsx").then((m) => ({ default: m.DocumentPanel })),
 );
@@ -139,18 +215,17 @@ export const ComputerProgress = lazy(() =>
   import("./computers/ComputerProgress.tsx").then((m) => ({ default: m.ComputerProgress })),
 );
 export const ContactChat = lazy(() => import("./channels/ContactChat.tsx").then((m) => ({ default: m.ContactChat })));
-export const ActivityView = lazy(() => import("./inbox/ActivityView.tsx").then((m) => ({ default: m.ActivityView })));
+export const RoomPanel = lazy(() => import("./channels/RoomPanel.tsx").then((m) => ({ default: m.RoomPanel })));
 export const ChannelFace = lazy(() => import("./inbox/ChannelFace.tsx").then((m) => ({ default: m.ChannelFace })));
-export const ChannelTreeRow = lazy(() =>
-  import("./inbox/ChannelTreeRow.tsx").then((m) => ({ default: m.ChannelTreeRow })),
-);
 
 // Message parts load with the first message that has one, not with the chat.
 export const SurfacePart = lazy(() => import("./chat/parts/SurfacePart.tsx").then((m) => ({ default: m.SurfacePart })));
 // A browser card shows only in a chat whose agent used a browser.
 export const BrowserPart = lazy(() => import("./chat/parts/BrowserPart.tsx").then((m) => ({ default: m.BrowserPart })));
 export const ChoicesPart = lazy(() => import("./chat/parts/ChoicesPart.tsx").then((m) => ({ default: m.ChoicesPart })));
-export const ConnectPart = lazy(() => import("./chat/parts/ConnectPart.tsx").then((m) => ({ default: m.ConnectPart })));
+export const ConnectPart = lazy(
+  withPacks(["resources"], () => import("./chat/parts/ConnectPart.tsx").then((m) => ({ default: m.ConnectPart }))),
+);
 export const MediaGroup = lazy(() => import("./chat/parts/MediaGroup.tsx"));
 export const InputPart = lazy(() => import("./chat/parts/InputPart.tsx").then((m) => ({ default: m.InputPart })));
 
@@ -177,6 +252,10 @@ export const MermaidDiagram = lazy(() =>
   import("./chat/MermaidDiagram.tsx").then((m) => ({ default: m.MermaidDiagram })),
 );
 export const EmailCard = lazy(() => import("./chat/EmailCard.tsx").then((m) => ({ default: m.EmailCard })));
+// A received mail's formatted body loads the first time an Email account's chat shows one.
+export const ReceivedMail = lazy(() =>
+  import("./channels/ReceivedMail.tsx").then((m) => ({ default: m.ReceivedMail })),
+);
 export const ReceivedDialog = lazy(() =>
   import("./chat/ReceivedDialog.tsx").then((m) => ({ default: m.ReceivedDialog })),
 );
@@ -193,8 +272,15 @@ export const CodeView = lazy(() => import("./project/files/CodeView.tsx").then((
 
 // Flows: the list first, then a flow's runs and the editor (with the canvas library) only when opened.
 export const FlowsScreen = lazy(() => import("./flows/FlowsScreen.tsx"));
+export const RoutinesScreen = lazy(() =>
+  import("./routines/RoutinesScreen.tsx").then((m) => ({ default: m.RoutinesScreen })),
+);
+// A routine's runs as one chat, opened from the Inbox's routines.
+export const RoutineChat = lazy(() => import("./routines/RoutineChat.tsx").then((m) => ({ default: m.RoutineChat })));
 export const FlowDetail = lazy(() => import("./flows/FlowDetail.tsx").then((m) => ({ default: m.FlowDetail })));
-export const FlowEditor = lazy(() => import("./flows/FlowEditor.tsx").then((m) => ({ default: m.FlowEditor })));
+export const FlowEditor = lazy(
+  withPacks(["resources"], () => import("./flows/FlowEditor.tsx").then((m) => ({ default: m.FlowEditor }))),
+);
 // A project's tables, on the Flows screen's Tables.
 export const TablesView = lazy(() => import("./flows/TablesView.tsx").then((m) => ({ default: m.TablesView })));
 // A Flow an agent made or changed: its card in the chat draws it with the canvas library.
@@ -205,6 +291,11 @@ export const FlowViewer = lazy(() => import("./flows/FlowViewer.tsx").then((m) =
 // The searchable picker (base-ui's combobox) loads after the first paint: the inbox's new-chat button has one.
 export const SearchSelect = lazy(() =>
   import("./common/pickers/SearchSelect.tsx").then((m) => ({ default: m.SearchSelect })),
+);
+
+// "New agent" from the new-chat picker opens the same dialog as a team's.
+export const NewAgentDialog = lazy(
+  withPacks(["team"], () => import("./project/team/AgentDialogs.tsx").then((m) => ({ default: m.NewAgentDialog }))),
 );
 
 export const QrSvg = lazy(() => import("./common/QrSvg.tsx").then((m) => ({ default: m.QrSvg })));

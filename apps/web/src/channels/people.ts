@@ -9,6 +9,7 @@ export const RELATION_KEY: Record<NonNullable<Person["relation"]>, MessageKey> =
   friend: "ch.rel.friend",
   coworker: "ch.rel.coworker",
   client: "ch.rel.client",
+  lead: "ch.rel.lead",
   associate: "ch.rel.associate",
   provider: "ch.rel.provider",
   other: "ch.rel.other",

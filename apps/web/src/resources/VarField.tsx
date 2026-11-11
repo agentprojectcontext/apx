@@ -10,7 +10,8 @@ function serialize(root: HTMLElement): string {
   let out = "";
   for (const n of root.childNodes) {
     if (n instanceof HTMLElement && n.dataset.var) out += `secret://${n.dataset.var}`;
-    else out += n.textContent ?? "";
+    // Contenteditable inserts non-breaking spaces at the caret; connection values need ordinary spaces.
+    else out += (n.textContent ?? "").replaceAll("\u00a0", " ");
   }
   return out;
 }
@@ -21,8 +22,15 @@ function serialize(root: HTMLElement): string {
  */
 export const VarField = forwardRef<
   VarFieldHandle,
-  { value: string; onChange(value: string): void; placeholder?: string; label: string; removeLabel: string }
->(function VarField({ value, onChange, placeholder, label, removeLabel }, ref) {
+  {
+    value: string;
+    onChange(value: string): void;
+    onSuggest?(): void;
+    placeholder?: string;
+    label: string;
+    removeLabel: string;
+  }
+>(function VarField({ value, onChange, onSuggest, placeholder, label, removeLabel }, ref) {
   const root = useRef<HTMLDivElement>(null);
   /** Where the cursor was last inside the field, so a variable picked from a menu goes there. */
   const caret = useRef<Range | undefined>(undefined);
@@ -112,7 +120,14 @@ export const VarField = forwardRef<
       onKeyUp={remember}
       onMouseUp={remember}
       onBlur={remember}
-      onKeyDown={(e) => e.key === "Enter" && e.preventDefault()}
+      onKeyDown={(e) => {
+        if (e.key === "Enter") e.preventDefault();
+        if (e.code === "Space" && e.ctrlKey && onSuggest) {
+          e.preventDefault();
+          remember();
+          onSuggest();
+        }
+      }}
       onPaste={(e) => {
         // Plain text only: a pasted page must not bring its markup in.
         e.preventDefault();

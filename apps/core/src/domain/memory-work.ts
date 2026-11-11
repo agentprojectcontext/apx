@@ -157,7 +157,18 @@ export function memoryWorkRepo({ all, one, run, tx }: Sql) {
       return all(
         qb
           .selectFrom("memory_work")
-          .select(["id", "kind", "agent_id", "thread_id", "state", "attempts", "updated_at", "result", "error"])
+          .select([
+            "id",
+            "kind",
+            "agent_id",
+            "thread_id",
+            "project_id",
+            "state",
+            "attempts",
+            "updated_at",
+            "result",
+            "error",
+          ])
           .orderBy("updated_at", "desc")
           .limit(limit),
       );

@@ -118,6 +118,8 @@ const MemoryJobs = z.array(
     kind: z.string(),
     agent_id: Id,
     thread_id: Id,
+    /** The project the job works in; none outside a project. */
+    project_id: Id.nullable().optional(),
     state: z.string(),
     attempts: z.number().int(),
     updated_at: z.string(),
@@ -326,7 +328,11 @@ export const appMethods = {
     access: "human",
   },
   "agents.list": {
-    params: z.object({}).strict(),
+    /**
+     * `project_id`: only the agents that work in that project (BASE_PROJECT_ID: the base project's), its own first,
+     * then the ones it takes from its parent, marked `inherited_from`.
+     */
+    params: z.object({ project_id: Id.optional() }).strict(),
     /** `former`: agents archived or deleted, so the chats they spoke in still show their name and face. */
     result: z.object({ agents: z.array(AgentListing), former: z.array(Agent).default([]) }),
     effect: false,
@@ -551,7 +557,9 @@ export const appMethods = {
   /**
    * A new project: in a folder (made if missing; a plain one gets an AGENTS.md and .apc/), or, without one, in a folder
    * of its own inside APX's home (`projects/<name>`). Name, kind and description go to its .apc/project.json; a project
-   * in a folder with no name given keeps the folder's.
+   * in a folder with no name given keeps the folder's. With `parent` it is a subproject of that project
+   * (BASE_PROJECT_ID: of the base project); without a path its folder goes inside the parent's (the base project's:
+   * in APX's home, as above).
    */
   "projects.create": {
     params: z
@@ -560,6 +568,7 @@ export const appMethods = {
         kind: ProjectKind.optional(),
         description: z.string().trim().max(500).optional(),
         path: z.string().trim().min(1).max(1024).optional(),
+        parent: Id.optional(),
       })
       .strict()
       .refine((p) => p.name || p.path, "a name or a folder"),
@@ -582,6 +591,12 @@ export const appMethods = {
         autonomy: Autonomy.nullable().optional(),
         /** Replaces the folders its agents may only read: absolute (or "~/…"), existing, outside APX's home. */
         read_only_folders: z.array(z.string().trim().min(1).max(1024)).max(20).optional(),
+        /**
+         * Makes it a subproject of that project (BASE_PROJECT_ID: of the base project); null makes it a project of
+         * its own again, which stops taking its parent's agents and resources. Refused for a project with subprojects,
+         * for itself and for a parent that is a subproject. Its folder stays where it is.
+         */
+        parent: Id.nullable().optional(),
       })
       .strict(),
     result: z.object({ project: Project }),
@@ -638,7 +653,10 @@ export const appMethods = {
     result: z.object({ projects: z.number().int(), agents: z.number().int(), archived: z.number().int() }),
     effect: true,
   },
-  /** Removes a folder from the registry; its files and existing conversations remain available. */
+  /**
+   * Removes a folder from the registry; its files and existing conversations remain available. Its subprojects become
+   * projects of their own.
+   */
   "projects.unregister": {
     params: z.object({ project: Id }).strict(),
     result: z.object({ ok: z.literal(true) }),
@@ -998,6 +1016,8 @@ export const appMethods = {
           .array(z.object({ id: Id, revision: z.number().int().positive() }))
           .min(2)
           .max(8),
+        /** `shared`: the notes the agent's place shares (the project's, or the global ones), not its own notebook. */
+        shelf: z.enum(["notebook", "shared"]).optional(),
       })
       .strict(),
     result: z.object({ merged: z.boolean() }),
@@ -1025,6 +1045,7 @@ export const appMethods = {
           .array(z.object({ id: Id, revision: z.number().int().positive() }))
           .max(32)
           .optional(),
+        shelf: z.enum(["notebook", "shared"]).optional(),
       })
       .strict(),
     result: z.object({ retired: z.number().int(), redated: z.number().int() }),
@@ -1062,6 +1083,13 @@ export const appMethods = {
   "memory.confirm": {
     params: z.object({ id: Id }).strict(),
     result: Memory,
+    effect: true,
+    access: "human",
+  },
+  /** The owner confirms several notes agents wrote about them at once; ids already confirmed or gone are skipped. */
+  "memory.confirm_all": {
+    params: z.object({ ids: z.array(Id).min(1).max(500) }).strict(),
+    result: z.object({ confirmed: z.number().int() }),
     effect: true,
     access: "human",
   },
@@ -1121,6 +1149,7 @@ export const appMethods = {
             reactions: z.boolean().optional(),
             research: ChannelResearch.default(CHANNEL_DEFAULTS.research),
             hours: ChannelHours.optional(),
+            quiet: z.boolean().optional(),
             email: ChannelEmail.optional(),
             contacts: PersonPerms.optional(),
             knowledge: z.string().max(12_000).optional(),
@@ -1515,6 +1544,8 @@ export const appMethods = {
         rules: z.string().max(1000).optional(),
         muted: z.boolean().optional(),
         supervised: z.boolean().optional(),
+        /** Who answers them instead of each account's contacts agent; null gives them back to the account's. */
+        agent_id: Id.nullable().optional(),
         // Only the rights sent change; null gives one back to the account they write on.
         perms: z
           .object({
@@ -1603,6 +1634,18 @@ export const appMethods = {
     params: z.object({ person: Id }).strict(),
     result: z.object({ media_id: Id.optional() }),
     effect: false,
+    access: "human",
+  },
+  /**
+   * A mailbox account stops reading someone: their address (or their whole domain) goes on its "Never read" list and
+   * the person is blocked, their card and chat kept. `undo` reads them again: the entry leaves the list, the block too.
+   */
+  "contacts.never_read": {
+    params: z
+      .object({ person: Id, channel: Id, scope: z.enum(["address", "domain"]), undo: z.boolean().optional() })
+      .strict(),
+    result: z.object({ blocked: z.string() }),
+    effect: true,
     access: "human",
   },
   "contacts.claim": {
@@ -1827,6 +1870,26 @@ export const appMethods = {
     effect: true,
     access: "human",
   },
+  /**
+   * A side question to the chat's agent, on the chat's model, with the chat as read-only context: neither the question
+   * nor the answer enters the chat or its later turns. `earlier`: this side conversation's previous exchanges, oldest
+   * first. No tools; only its tokens are kept (usage, "aside"). Not in an engine's own session.
+   */
+  "threads.aside": {
+    params: z
+      .object({
+        thread: Id,
+        question: z.string().trim().min(1).max(4000),
+        earlier: z
+          .array(z.object({ question: z.string().max(4000), answer: z.string().max(20_000) }).strict())
+          .max(10)
+          .optional(),
+      })
+      .strict(),
+    result: z.object({ answer: z.string(), model: z.string() }),
+    effect: true,
+    access: "human",
+  },
   /** The owner saw the thread: its unread count and its notices (not pending questions) are cleared. */
   /** Messages whose text has every word typed (each also as a prefix), best first: for the search box. */
   "threads.search": {
@@ -1854,9 +1917,13 @@ export const appMethods = {
     effect: true,
     access: "human",
   },
-  /** Every widget, or with `project_id` only that project's (the global ones are listed without it). */
+  /**
+   * Every widget, or with `project_id` only that project's (the global ones are listed without it). `inherited`, with
+   * a subproject's `project_id`: also the apps of its parent (the base project's: the global ones) under a name it does
+   * not use itself; their `project_id` says whose they are.
+   */
   "surfaces.list": {
-    params: z.object({ project_id: Id.optional() }).strict(),
+    params: z.object({ project_id: Id.optional(), inherited: z.boolean().default(false) }).strict(),
     result: z.object({ surfaces: z.array(SurfaceSummary) }),
     effect: false,
   },

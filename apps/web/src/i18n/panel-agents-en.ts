@@ -1,0 +1,20 @@
+// Side panel tools: the agents a chat called, the commands its agent ran, and the owner's own terminals.
+export const enPanelAgents = {
+  "panel.agents": "Chat agents",
+  "panel.agents.hint": "Chat agents: the agents this chat asked for help and what they did",
+  "panel.procs.hint": "Chat processes: the commands the agent ran here and what they printed",
+  "panel.term.hint": "Terminal: your own shells in this chat's folder",
+  "agentsPanel.empty": "This chat has not called other agents yet",
+  "agentsPanel.failed": "Could not load this chat's agents",
+  "agentsPanel.going": "In progress",
+  "procs.empty": "The agent has not run commands in this chat",
+  "procs.emptyBody": "When it runs one, in the foreground or in the background, it shows here with what it printed.",
+  "procs.noneActive": "Nothing running now.",
+  "procs.noneDone": "No finished commands yet.",
+  "procs.failed": "Could not load this chat's processes",
+  "procs.list": "Commands",
+  "procs.noOutput": "It printed nothing.",
+  "procs.loadingOutput": "Loading output…",
+  "terminal.none": "No terminals open",
+  "terminal.noneBody": "A terminal is your own shell in this chat's folder, to run commands yourself.",
+};

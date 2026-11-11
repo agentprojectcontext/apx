@@ -1,7 +1,7 @@
 import { DAILY_MEMORY_CALLS, type Memory } from "@apx/protocol";
 import type { AuxAbout } from "../domain/aux-calls.ts";
 import { canUseChatMemory } from "../domain/chat-access.ts";
-import { NOTEBOOK_TARGET } from "../domain/memories.ts";
+import { NOTEBOOK_TARGET, type Shelf, shelfNotes } from "../domain/memories.ts";
 import { hasDurableCue } from "../domain/memory-content.ts";
 import { memoryClaimKey, memorySourceWindow, retirementKey } from "../domain/memory-evidence.ts";
 import { memorySettings } from "../domain/memory-settings.ts";
@@ -10,7 +10,7 @@ import type { RunRecord } from "../domain/runs.ts";
 import type { Store } from "../domain/store.ts";
 import type { InternalCall } from "../rpc/internal.ts";
 import { captureCandidates, captureMemories, captureNeedsEvidence, captureNotebook } from "./memory-capture.ts";
-import { applyDream, DREAM, type DreamPass, dreamInput, retirementClaims } from "./memory-dream.ts";
+import { applyDream, type DreamPass, dreamInput, dreamPrompt, retirementClaims } from "./memory-dream.ts";
 import type { MemoryIndex } from "./memory-index.ts";
 import { captureProposal, MEMORY_REVIEW, memoryJson, RETIRE_REVIEW, ReviewVerdicts } from "./memory-review.ts";
 import type { Upkeep } from "./upkeep.ts";
@@ -27,6 +27,10 @@ const CAPTURE = [
 
 /** A dream reads a little past the notebook target, so it can tell when stale notes should go. */
 const DREAM_NOTES = NOTEBOOK_TARGET + 8;
+
+/** A dream of the shared shelf is queued as `dream:shared:<run>`; any other dream tidies the agent's own notebook. */
+export const SHARED_DREAM_PREFIX = "dream:shared:";
+const shelfOf = (job: MemoryWork): Shelf => (job.id.startsWith(SHARED_DREAM_PREFIX) ? "shared" : "notebook");
 
 export type MemoryJobDeps = { store: Store; upkeep: Upkeep; call: InternalCall; index: MemoryIndex };
 
@@ -63,18 +67,16 @@ export async function performMemoryJob(
     return;
   }
   // Past the window a dream reads the newest and the oldest notes: the stalest ones are what it may retire.
+  const shelf = shelfOf(job);
   const notebook = () => {
-    const all = store.memories
-      .list({ view, scope: "agent", agent_id: job.agent_id, limit: 1000 })
-      .filter(
-        (m) =>
-          m.project_id === view.project_id && m.source === "agent" && !m.pending && canUseChatMemory(store, thread, m),
-      );
+    const all = shelfNotes(store.memories, view, shelf).filter(
+      (m) => (shelf === "shared" || !m.pending) && canUseChatMemory(store, thread, m),
+    );
     const half = DREAM_NOTES / 2;
     return { total: all.length, notes: all.length > DREAM_NOTES ? [...all.slice(0, half), ...all.slice(-half)] : all };
   };
   const { total, notes } = notebook();
-  const dreamKey = `memory_dream_snapshot:${job.agent_id}:${job.project_id ?? ""}`;
+  const dreamKey = `memory_dream_snapshot:${shelf === "shared" ? "shared" : job.agent_id}:${job.project_id ?? ""}`;
   const fingerprint =
     "evidence-v1:" +
     notes
@@ -130,7 +132,7 @@ export async function performMemoryJob(
     if (!reserve()) return;
     out = await upkeep.memory(
       job.agent_id,
-      job.kind === "capture" ? CAPTURE : DREAM,
+      job.kind === "capture" ? CAPTURE : dreamPrompt(shelf),
       JSON.stringify(
         job.kind === "capture"
           ? {
@@ -173,7 +175,7 @@ export async function performMemoryJob(
   if (job.kind === "capture" && memorySettings(store).auto_capture !== false) {
     changed = await captureMemories(store, call, job, out, checkpoint.reviewed);
   } else if (job.kind === "dream" && memorySettings(store).auto_dream !== false) {
-    pass = await applyDream(call, ctx, notes, out, checkpoint.reviewed);
+    pass = await applyDream(call, ctx, notes, out, checkpoint.reviewed, shelf);
     changed = pass.merged + pass.retired + pass.redated;
   }
   if (job.kind === "dream") store.settings.set(dreamKey, fingerprint);

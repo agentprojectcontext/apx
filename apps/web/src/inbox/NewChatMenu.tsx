@@ -1,12 +1,12 @@
 import type { Agent } from "@apx/protocol";
-import { Icons, type SelectOption } from "@apx/ui";
-import { type ReactElement, Suspense, useMemo } from "react";
+import { Button, Icons, type SelectOption } from "@apx/ui";
+import { type ReactElement, Suspense, useMemo, useState } from "react";
 import { useAgentOptions } from "../common/pickers/agentOptions.tsx";
-import { inProject, isListed, realProjectId } from "../data/identity.ts";
+import { DEFAULT_PID, findProject, inProject, isListed, realProjectId } from "../data/identity.ts";
 import { newChatId } from "../data/newChat.ts";
 import { useData } from "../data/state.ts";
 import { useT } from "../i18n/index.ts";
-import { SearchSelect } from "../lazy.ts";
+import { NewAgentDialog, SearchSelect } from "../lazy.ts";
 import { go } from "../shell/nav.ts";
 
 /** Agents the owner talked to lately, shown first. */
@@ -36,19 +36,27 @@ export function startChat(agent: Agent, projectId: string | undefined, code = fa
 /**
  * "New chat with <agent>" picker around any trigger, with a search box: the agents used lately first, then all of
  * them by project. From the Inbox every project's agents are there (the chat goes to the agent's project); in a
- * project, its own and the super-agent, plus code sessions when the project has its folder on disk.
+ * project, its own and the super-agent, plus code sessions when the project has its folder on disk. Under the list,
+ * "New agent" makes one (in the project, or a global one) and opens a chat with it.
+ *
+ * Without `side`, the sidebar's picker (no project, opening the chat in the panel) opens beside the sidebar; the
+ * others open below their button.
  */
 export function NewChatMenu({
   projectId,
   trigger,
   onStart,
   disabled,
+  side,
+  align,
 }: {
   projectId: string | undefined;
   trigger: ReactElement;
   /** Embedded chats stay in their window instead of navigating the full panel. */
   onStart?: (id: string) => void;
   disabled?: boolean;
+  side?: "bottom" | "right";
+  align?: "start" | "end";
 }) {
   const t = useT();
   const agents = useData((s) => s.agents);
@@ -58,6 +66,9 @@ export function NewChatMenu({
   const all = useAgentOptions(projectId, !projectId, projectId ? "secretary" : "all");
   // A code session needs the project's folder on disk.
   const onDisk = projects.some((p) => p.id === pid && p.path && p.present);
+  const [creating, setCreating] = useState(false);
+  const beside = !projectId && !onStart;
+  const home = findProject(projects, projectId ?? DEFAULT_PID);
 
   const options = useMemo<SelectOption[]>(() => {
     const offered = new Set(all.map((o) => o.value));
@@ -114,17 +125,53 @@ export function NewChatMenu({
 
   // The combobox loads after the first paint; until then the button shows, without its list.
   return (
-    <Suspense fallback={trigger}>
-      <SearchSelect
-        trigger={trigger}
-        disabled={disabled}
-        label={t("chat.newWith")}
-        searchPlaceholder={t("pickers.searchAgent")}
-        emptyLabel={t("pickers.noMatch")}
-        value={null}
-        options={options}
-        onValueChange={pick}
-      />
-    </Suspense>
+    <>
+      <Suspense fallback={trigger}>
+        <SearchSelect
+          trigger={trigger}
+          disabled={disabled}
+          label={t("chat.newWith")}
+          searchPlaceholder={t("pickers.searchAgent")}
+          emptyLabel={t("pickers.noMatch")}
+          value={null}
+          options={options}
+          onValueChange={pick}
+          side={side ?? (beside ? "right" : "bottom")}
+          align={align ?? (beside ? "start" : "end")}
+          width={300}
+          popupClassName="newchat"
+          footer={
+            onStart || !home
+              ? undefined
+              : (close) => (
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    leadingIcon={<Icons.Plus size={14} />}
+                    title={t("team.new.title")}
+                    onClick={() => {
+                      close();
+                      setCreating(true);
+                    }}
+                  >
+                    {t("team.new.title")}
+                  </Button>
+                )
+          }
+        />
+      </Suspense>
+      {creating && home && (
+        <Suspense fallback={null}>
+          <NewAgentDialog
+            project={home}
+            onClose={() => setCreating(false)}
+            onCreated={(a) => {
+              setCreating(false);
+              startChat(a, projectId);
+            }}
+          />
+        </Suspense>
+      )}
+    </>
   );
 }

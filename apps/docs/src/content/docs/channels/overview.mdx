@@ -87,7 +87,8 @@ projects. With your super-agent, **Your messages** chooses between Home and **Ow
 project's head always answers you in the channel's own chat: Home is your conversation with the super-agent, so
 **Your messages** stays on **Own chat** there. **Who answers your contacts** picks, separately, who answers the
 people who write to the channel. Changing either one moves the chats it answers that are already open, with their
-history; a chat you handed to another agent stays with that agent.
+history; a chat you handed to another agent stays with that agent, and so does a contact you gave an agent of their own
+(**Answers** on their card, below).
 
 A channel you set up before this choice existed keeps working as it did: if its agent was not your secretary and
 your messages went to Home, your secretary answers you in Home and that agent answers your contacts.
@@ -134,8 +135,14 @@ apx pairing me 482913          # this address is mine (yours, the owner's)
 An approved person is a **contact**, with a role: you (owner), contact, or blocked. A contact's chat is **sealed**:
 the agent answers them with no tools and none of your memory, so a stranger's message can't make it act for you.
 
-Open a contact from the channel's screen to set:
+Click the name at the top of a contact's chat to open their card; under the name, small marks show what is set
+for them (silenced, supervised, rules of their own, what their chat may do). The card sets:
 
+- **Relation**: client, lead, associate, provider, family, friend, partner, coworker or other. It shapes how the agent
+  talks to them; **Not set** clears it.
+- **Answers**: **Like the account** (its agent for contacts) or **Another agent**, picked from your super-agent and
+  your projects' heads. Their own agent answers them on every account, their open chats move to it, and changing the
+  account's agent for contacts leaves them with theirs.
 - **Who they are**, in your words. It reaches only the turns that answer this person.
 - **Rules**, which go last in the prompt and win over the agent's caution.
 - **What this conversation may do**: **Note appointments**, **Take requests** (each becomes a task for you),
@@ -144,9 +151,20 @@ Open a contact from the channel's screen to set:
 
 What every contact of an account gets by default is in that account's settings, **Contacts › For your contacts, by
 default**: all off until you turn one on. A contact's own choice wins over it, on that account and any other.
-- **Silence**: their messages are kept but never reach a model.
-- **Supervise**: they aren't answered on their own; you get the answer the agent would send, to send it, edit it or
+- **Silenced** (a switch): their messages are kept but never reach a model. A silenced contact's chat shows a
+  crossed-out bell beside its name in the Inbox, and a supervised one an eye.
+- **Supervise** (a switch): they aren't answered on their own; you get the answer the agent would send, to send it, edit it or
   drop it. See [Supervised contacts](/channels/supervised/).
+
+A room's or a group's chat has its own card: **When it speaks in the room** (when called, when useful, always, or read
+only) and the **Rules** for every room of that account, the same ones as in the account's **Rooms** settings.
+
+## An account's menu
+
+Right-click an account, in **Channels** or in the sidebar, to open it, edit it, see its contacts, turn it off or on,
+**Silence notices** or **Disconnect** it (after asking). With its notices silenced, what happens on it (someone new
+writing, a draft waiting, a room past its limit) stays out of your tray and your chat app; failures still arrive, and
+everything is still in the account (its approvals, its chats). **Notify me again** turns them back on.
 
 ### Search the web
 

@@ -27,7 +27,7 @@ export function ThreadAvatar({
   editable?: boolean;
   online?: boolean;
   animated?: boolean;
-  channelMark?: boolean;
+  channelMark?: boolean | "badge";
 }) {
   const t = useT();
   const agents = useShownAgents();

@@ -48,7 +48,7 @@ async function turnTools(): Promise<Spec[]> {
     const sticker = directoryTools(env.core.store).find((t) => t.name === STICKER_TOOL);
     const sent = [
       ...(llm.calls.at(-1)?.tools ?? []),
-      ...browserTools(env.core.store, env.home).map(toSpec),
+      ...browserTools(env.core.store, env.home, () => new Set()).map(toSpec),
       ...(sticker ? [toSpec(sticker)] : []),
     ];
     return sent.map((s) => ({

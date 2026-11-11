@@ -16,6 +16,37 @@ const COMMANDS: readonly Command[] = [
   { id: "skills", aliases: [] },
 ];
 
+/**
+ * The command a field holds when it is only "/name" (or an alias): picked from the menu it waits there, and Enter runs
+ * it instead of sending it. Commands with a list (model, effort) are not run this way.
+ */
+export function commandOf(text: string): CommandId | undefined {
+  const m = /^\/([^\s/]+)\s*$/.exec(text.trim());
+  const name = m?.[1]?.toLowerCase();
+  if (!name) return undefined;
+  return COMMANDS.find((c) => !c.sub && (c.id === name || c.aliases.includes(name)))?.id;
+}
+
+/** A "$" being typed at the end of the field ("… $lin"): what follows it, to list skills and connectors. */
+export function dollarQuery(text: string): { start: number; query: string } | undefined {
+  const m = /(?:^|\s)\$([\p{L}\p{N}_.:-]*)$/u.exec(text);
+  if (!m || text.slice(m.index).includes("\n")) return undefined;
+  const query = m[1] ?? "";
+  return { start: text.length - query.length - 1, query };
+}
+
+/** Ranks names against what was typed after "$", best first; none that do not match. */
+export function dollarRank<T extends { name: string; description: string }>(items: readonly T[], typed: string): T[] {
+  return items
+    .flatMap((i) => {
+      const r = rank(i.name, typed) ?? (typed && fold(i.description).includes(fold(typed)) ? 2 : undefined);
+      return r === undefined ? [] : [{ r, i }];
+    })
+    .sort((a, b) => a.r - b.r)
+    .map((x) => x.i)
+    .slice(0, MAX);
+}
+
 export type SlashItem =
   | { kind: "command"; id: CommandId; sub: boolean }
   | { kind: "skill"; name: string; description: string }

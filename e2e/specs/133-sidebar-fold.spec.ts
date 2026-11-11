@@ -1,5 +1,5 @@
 import type { Page } from "@playwright/test";
-import { expect, open, rpc, test } from "./kit.ts";
+import { cardSidebar, expect, open, rpc, test } from "./kit.ts";
 
 test.beforeAll(async () => {
   await rpc("setup.finish");
@@ -22,19 +22,32 @@ async function dragEdge(page: Page, dx: number) {
   await page.mouse.up();
 }
 
-test("the topbar starts with the APX logo, then back and forward, then where you are", async ({ page }) => {
+test("the topbar starts with the APX logo and the APX in use, then back and forward before search", async ({
+  page,
+}) => {
   await page.setViewportSize({ width: 1440, height: 900 });
   await open(page);
   const left = page.locator(".topbar__left");
-  const x = async (selector: string) => (await left.locator(selector).first().boundingBox())?.x ?? -1;
+  const bar = page.locator(".topbar");
+  const x = async (selector: string) => (await bar.locator(selector).first().boundingBox())?.x ?? -1;
   const logo = await x(".topbar__logo");
-  const back = (await left.getByRole("button", { name: "Atrás", exact: true }).boundingBox())?.x ?? -1;
-  const forward = (await left.getByRole("button", { name: "Adelante", exact: true }).boundingBox())?.x ?? -1;
-  const crumbs = await x(".topbar__crumbs");
+  const server = await x(".serverswitch");
+  const back = (await bar.getByRole("button", { name: "Atrás", exact: true }).boundingBox())?.x ?? -1;
+  const forward = (await bar.getByRole("button", { name: "Adelante", exact: true }).boundingBox())?.x ?? -1;
+  const search = await x(".topbar__search");
   expect(logo).toBeGreaterThanOrEqual(0);
-  expect(logo).toBeLessThan(back);
+  expect(logo).toBeLessThan(server);
+  expect(server).toBeLessThan(back);
   expect(back).toBeLessThan(forward);
-  expect(forward).toBeLessThan(crumbs);
+  expect(forward).toBeLessThan(search);
+  await expect(page.locator(".serverswitch")).toHaveAccessibleName("APX en uso: Local");
+  // Its list: this computer, checked, and how to connect another one (a browser says where that is done).
+  await page.locator(".serverswitch").click();
+  const list = page.getByRole("dialog", { name: "APX en uso: Local" });
+  await expect(list.getByText("Esta computadora")).toBeVisible();
+  await list.getByRole("button", { name: "Conectar servidor remoto" }).click();
+  await expect(list.getByRole("button", { name: "Conectar servidor remoto" })).toHaveAttribute("aria-expanded", "true");
+  await page.keyboard.press("Escape");
   // Folding lives on the sidebar's edge now, not in the topbar.
   await expect(page.locator(".topbar").getByRole("button", { name: /barra/ })).toHaveCount(0);
   for (const width of [900, 390]) {
@@ -60,7 +73,7 @@ test("a click on the sidebar's edge folds and unfolds it, keeping the width the 
   await expect(page.getByText("Clic para plegar la barra · arrastrá para cambiar el ancho")).toBeVisible();
   await edge(page).click();
   await expect(sidebar).toHaveClass(/is-rail/);
-  expect(await sidebarWidth(page)).toBe(60);
+  expect(await sidebarWidth(page)).toBe(52);
   await page.reload();
   await expect(sidebar).toHaveClass(/is-rail/);
   await edge(page).click();
@@ -90,7 +103,7 @@ test("dragging the sidebar's edge past halfway to the rail snaps it closed, and 
   expect(await sidebarWidth(page)).toBe(start);
   await dragEdge(page, -(start - 100));
   await expect(sidebar).toHaveClass(/is-rail/);
-  expect(await sidebarWidth(page)).toBe(60);
+  expect(await sidebarWidth(page)).toBe(52);
   // It still remembers the width it had for a click.
   await edge(page).click();
   expect(await sidebarWidth(page)).toBe(start);
@@ -124,6 +137,7 @@ test("a window narrow enough for the rail opens the sidebar from its edge, and a
 
 test("in the rail each section's add button is the first icon of its card", async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 800 });
+  await cardSidebar(page);
   await open(page);
   const sidebar = page.locator(".sidebar");
   await expect(sidebar).toHaveClass(/is-rail/);

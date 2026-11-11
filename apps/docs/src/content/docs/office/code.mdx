@@ -35,10 +35,11 @@ and the write policy, so you always know where it is working and how freely.
 
 ### Where a task changes code
 
-**Since 2.11.1**, before changing code for a task, the agent follows the project's saved
-choice of working in the checkout or in a Git worktree. If no project note says which, it asks: **Worktree now**,
-**Worktree always**, **Here now**, **Here always**, or **Other**. An “always” answer is saved for that project;
-“now” applies to this choice only. This chooses the working location, not a different write policy or autonomy level.
+Before changing code for a task, the agent works where the project's AGENTS.md or a project note says: in the
+checkout or in a Git worktree. If neither says, it decides without asking you: a folder that is not a Git repository is
+worked in place, a Git checkout gets a worktree. It saves that choice as a project note, so every agent there does the
+same, and you can change it like any other note. This chooses the working location, not a different write policy or
+autonomy level.
 
 When using a worktree, the agent first checks existing worktrees and task-related branches and continues in one
 that already covers the work. Only if none exists does it create a named branch under the project's `.worktrees/`
@@ -68,6 +69,9 @@ Open the side panel from the chat header. Three views matter most when code is i
 | **Terminal** | Every command the agent ran, with what it printed, foreground or background. **Open a terminal** gives you your own shell in the same folder. |
 | **Files** | The chat's folder (**Chat folder**) and its scratch files (**Temporary**). Open a file to read it; Markdown reads as a page. |
 | **Changes** | The edits the agent recorded, for the **Last turn** or **All turns**, and the **Current folder**'s git diff, file by file. |
+
+A command that cannot start appears as **Could not start**, with the reason in its output. It is no longer active;
+correct the command or the problem it reports before asking the agent to try again.
 
 <Shot name="chat-terminal" alt="A code chat with the Terminal side panel open, showing the test command the agent ran and its output" caption="The Terminal panel: the agent's commands and your own shell" />
 

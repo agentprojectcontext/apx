@@ -677,16 +677,17 @@ test("deleting a task takes its history and conversation; subtasks and the agent
   await assert.rejects(env.client.call("tasks.delete", { task: t.id }), /not found|task/);
 });
 
-test("a task's chat asks the owner once where code work goes and reuses a worktree before adding one", async () => {
+test("a task's chat decides where code work goes without asking the owner, and reuses a worktree before adding one", async () => {
   const t = await env.client.call("tasks.create", { title: "Fix the export button", project });
   const block = taskBlock(env.core.store, { id: "th_probe", task_id: t.id, kind: "loose" }) ?? "";
-  // The options are meanings, not fixed English labels: the agent words them in the owner's language.
+  // The project's own rule or note first; otherwise the agent decides and keeps it for the team.
+  assert.match(block, /Where code work goes: as this project's AGENTS\.md or a note says/);
   assert.match(
     block,
-    /ask_owner with five short options written in the language you speak with the owner: a worktree now,/,
+    /decide yourself, never asking the owner: a folder that is not a git repository is worked in place/,
   );
-  assert.doesNotMatch(block, /"Worktree now"|"Here now"/);
-  assert.match(block, /save an "always" with remember \(scope project\) and do not ask again/);
+  assert.match(block, /Save what you chose with remember \(scope project\), so every agent does the same/);
+  assert.doesNotMatch(block, /ask_owner with five short options/);
   assert.match(
     block,
     /first git worktree list and the branches on this task's subject, and go on in the one that exists/,

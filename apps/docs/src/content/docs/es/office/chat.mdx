@@ -16,18 +16,17 @@ que podés escribir y el panel lateral que muestra lo que está haciendo el agen
 ## El Inbox
 
 **Inbox** en la barra lateral lista todos tus chats: el de Home, el de cada agente, los grupales, las sesiones de
-código y los chats que abren las tareas y las rutinas. Elegí cómo verlos con el selector de arriba:
+código y los chats que abren las tareas y las rutinas. Sus pestañas los separan en **Chats**, **Tareas** (los chats de
+cada tarea juntos) y **Rutinas** (las corridas de cada rutina juntas), primero los fijados y después los más nuevos.
 
-| Vista | Qué muestra |
-|---|---|
-| **Árbol** | Los chats agrupados por proyecto y después por agente: de un vistazo ves con quién hablaste en Acme Store. |
-| **Actividad** | Los chats por momento: En curso, Hoy, Ayer, Esta semana, Antes. |
-| **Por chat** | Una sola lista, los más nuevos primero. |
+<Shot name="inbox" alt="El Inbox con sus pestañas Chats, Tareas y Rutinas y los chats listados debajo" caption="El Inbox" />
 
-<Shot name="inbox" alt="El Inbox en vista Árbol: el chat de Home, chats con agentes de un proyecto y un chat grupal, agrupados por proyecto y agente" caption="El Inbox, vista Árbol" />
+Arriba, **Nuevo chat** abre un chat con cualquier agente del proyecto actual (o con Home). **Buscar chats** pone un
+campo de búsqueda donde están las pestañas y filtra la pestaña en la que estás mientras escribís; Escape, la × o
+dejarlo vacío trae las pestañas de vuelta. **Filtrar chats** deja solo los agentes o proyectos que elijas, que se ven
+como etiquetas debajo de las pestañas.
 
-**Buscar chats** filtra la lista mientras escribís, y **Nuevo chat** abre un chat con cualquier agente del proyecto
-actual (o con Home). El menú de cada chat te deja **Fijar arriba**, **Renombrar**, **Marcar como leído**,
+El menú de cada chat te deja **Fijar arriba**, **Renombrar**, **Marcar como leído**,
 **Archivar** o **Borrar**. El chat principal de Home no se puede archivar ni borrar: es la conversación que siempre
 tenés.
 
@@ -72,12 +71,13 @@ No hace falta esperar a que el agente termine, ni cortarlo:
 
 - **Enter** envía. El agente lee tu mensaje en su próximo paso (después de la herramienta o la respuesta en la que
   está) y sigue teniéndolo en cuenta. El mensaje queda donde lo escribiste y lo que el agente dice después de leerlo
-  aparece debajo. Hasta que lo lea, debajo del mensaje aparece **Enviar ahora**: el agente corta el paso en el que
+  aparece debajo. Hasta que lo lea, debajo del mensaje dice **En espera**, con **Enviar ahora** al lado: el agente corta el paso en el que
   está y lee tu mensaje en el momento, sin perder lo que ya hizo. Si estaba esperando a un compañero, ese sigue
   trabajando y su respuesta llega cuando esté lista. **Quitar** lo retira antes de que el agente lo lea. Cuando lo leyó, debajo del mensaje aparecen dos tildes y **Ahora**.
 - **Ctrl/⌘+Enter** deja el mensaje **en cola** para cuando el agente termine lo que está haciendo. Los mensajes en
-  cola esperan debajo del chat con la burbuja delineada, en el orden en que van a correr. Hasta que empiece su turno
-  los podés **Editar**, **Subir** o **Bajar**, **Quitar**, o **Enviar ahora**.
+  cola esperan en una lista arriba del cuadro donde escribís, uno por línea, en el orden en que van a correr. Hasta
+  que empiece su turno podés arrastrar uno por su manija a otro lugar (o enfocar la manija y usar ↑ y ↓),
+  o usar **Editar**, **Quitar** o **Enviar ahora**. La flecha arriba de la lista la pliega.
 - **En una sesión de Claude Code** funciona igual: Claude lee tu mensaje cuando termina el comando o la edición en la
   que está, en el mismo turno. Si está escribiendo su respuesta, tu mensaje corre justo después.
   **Enviar ahora** corta lo que Claude está haciendo y lee tu mensaje en el momento.
@@ -122,6 +122,19 @@ La caja de abajo ("Escribile a Lucía…") es donde escribís. Algunas cosas que
 Los borradores de adjuntos, incluidas las cargas en curso, sobreviven a cambiar de chat dentro de la página.
 Seleccioná una miniatura para previsualizar su archivo. A diferencia del texto del borrador guardado, los adjuntos
 no sobreviven a recargar o cerrar la página: no son almacenamiento durable de archivos.
+
+### Pregunta aparte
+
+**Desde 2.14.0**, **+** › **Pregunta aparte** le pregunta al agente del chat algo rápido sobre el chat sin sumarlo al
+chat: qué se decidió, un nombre que usó, un resumen corto. Se abre un panel chico sobre el cuadro de redacción;
+preguntá y repreguntá ahí.
+
+- El agente contesta con el modelo del chat y lee el chat como está, pero desde el panel no usa herramientas ni actúa.
+  Si la pregunta lo necesita, hacela en el chat.
+- Ni la pregunta ni la respuesta se suman al chat, y el agente no las ve en los turnos siguientes. No se guardan:
+  cerrar el panel (su **×** o Esc) las descarta.
+- Sus tokens cuentan en **Uso** como **Preguntas aparte**, junto al chat sobre el que fueron.
+- No aparece en un chat nuevo antes de su primer mensaje, ni en la sesión propia de Claude Code, Codex u otro motor.
 
 ### Identidad de canales y respuestas delegadas
 
@@ -179,11 +192,12 @@ El selector a la derecha del encabezado abre un panel lateral. Cada vista muestr
 |---|---|
 | **Navegador** | La página que maneja tu agente, en vivo. Podés tomar el control. Mirá [Navegador](/es/office/browser/). |
 | **Documentos** | Informes, planes y documentos de consulta que el agente abrió para vos. |
-| **Terminal** | Los comandos que corrió el agente (con lo que imprimieron) y tu propia terminal en la carpeta del chat. |
+| **Terminal** | Tus propias terminales en la carpeta del chat, una pestaña cada una; **+** abre otra. |
 | **Archivos** | La carpeta donde trabaja este chat, más sus archivos temporales. |
 | **Cambios** | Las ediciones que registró el agente, del último turno o de todos, y el diff de la carpeta actual, archivo por archivo. |
-| **Procesos del chat** | Los subagentes y comandos de este chat: activos y terminados. |
-| **Widget** | Lo que el agente armó para vos en este chat. Mirá [Tablero y widgets](/es/office/board/). |
+| **Procesos del chat** | Los comandos que corrió el agente acá, activos y terminados: abrí uno para ver lo que imprimió, en vivo mientras corre, y detenerlo. |
+| **Agentes del chat** | Los agentes que llamó este chat («Roby → Fausto»), activos y terminados: abrí uno para leer su chat. |
+| **Artefactos** | Lo que el agente armó para vos en este chat: widgets, apps y páginas web. Mirá [Tablero y widgets](/es/office/board/). |
 | **Consumo** | Tokens, corridas y costo de este chat, y si entraron en un plan o se pagan por token. |
 
 <Tabs>
@@ -250,6 +264,11 @@ mandó, lo descargan, lo muestran en su carpeta en la computadora donde corre AP
 
 Los archivos con los que tus agentes solo trabajaron durante una tarea (capturas, archivos temporales) no aparecen:
 solo lo que muestra un mensaje.
+
+**Artefactos**, el último tipo, muestra cada widget, app y página web que hicieron tus agentes, abiertos o cerrados,
+así encontrás de nuevo uno que cerraste. El filtro por proyecto, la búsqueda y el orden funcionan igual. Tocá una
+tarjeta para abrirlo; sus botones te llevan al chat donde se hizo, en el mensaje que lo muestra, y **Más** tiene el
+resto de su menú (abrir en otra ventana, compartir, memoria, descargar, fijarlo al tablero de su proyecto o a Apps).
 
 ## Chat rápido desde la bandeja
 

@@ -106,3 +106,20 @@ test("widgets: deleting one for good waits for the owner", async () => {
   const left = (await h.env.client.call("surfaces.list", {})).surfaces.map((s) => s.id);
   assert.ok(left.includes(keep.id) && !left.includes(drop.id));
 });
+
+test("calendar: an event's series is muted and resumed once the owner approves, and the settings list it", async () => {
+  const mute = { method: "integrations.mute_event", params: { series: "merienda", title: "Merienda", muted: true } };
+  await h.ask(mute, "deny");
+  const muted = async () => (await h.env.client.call("integrations.settings", { id: "google-calendar" })).muted;
+  assert.deepEqual(await muted(), []);
+  const { detail } = await h.ask(mute, "approve");
+  assert.equal(detail, "Stop reminders of Merienda\nmuted: false → true");
+  assert.deepEqual(
+    (await muted())?.map((m) => m.series),
+    ["merienda"],
+  );
+  const read = await h.ask({ method: "integrations.settings", params: { id: "google-calendar" } });
+  assert.match(read.answer, /muted events: Merienda \[merienda\]/);
+  await h.ask({ method: "integrations.mute_event", params: { series: "merienda", muted: false } }, "approve");
+  assert.deepEqual(await muted(), []);
+});

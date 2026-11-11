@@ -54,6 +54,21 @@ test("a global skill turned off in one project is off only there; agents there n
   await env.client.call("skills.toggle", { name: "brief", project, on: true });
 });
 
+test("a project's own skill turned off in its subproject says so, and stays on in the project", async () => {
+  skill(path.join(repo, ".apc", "skills"), "ship", "Ships Acme's release.");
+  const sub = (await env.client.call("projects.create", { name: "Acme web", parent: project })).project.id;
+  await env.client.call("skills.toggle", { name: "ship", project: sub, on: false });
+  const own = (await env.client.call("skills.list", { project })).skills.find((s) => s.name === "ship");
+  assert.equal(own?.scope, "project");
+  assert.equal(own?.on, true, "still on in its own project");
+  assert.deepEqual(own?.off_in, [sub], "off in the subproject only");
+  const inSub = (await env.client.call("skills.list", { project: sub })).skills.find((s) => s.name === "ship");
+  assert.equal(inSub?.on, false);
+  await env.client.call("skills.toggle", { name: "ship", project: sub, on: true });
+  const back = await env.client.call("skills.list", { project });
+  assert.deepEqual(back.skills.find((s) => s.name === "ship")?.off_in, []);
+});
+
 test("editing a global skill from a project as a copy leaves the original untouched", async () => {
   const got = await env.client.call("skills.get", { name: "brief", project });
   assert.match(got.content, /morning brief/);
@@ -92,6 +107,28 @@ test("variables: a hint only for long values, and where each one is used", async
   assert.deepEqual(gh?.used_in, ["mcp:github"]);
   assert.equal(secrets.find((s) => s.name === "pin")?.hint, undefined, "a short value gives no hint");
   assert.ok(!JSON.stringify(secrets).includes("ghp_0123"), "values never leave the core");
+});
+
+test("variable choices resolve project and parent overrides without duplicate names or other projects", async () => {
+  const child = (await env.client.call("projects.create", { name: "Acme variables", parent: project })).project.id;
+  const other = (await env.client.call("projects.create", { name: "Northwind variables" })).project.id;
+  await env.client.call("secrets.set", { name: "CHOICE", value: "global-account" });
+  await env.client.call("secrets.set", { name: "CHOICE", value: "parent-account", project });
+  await env.client.call("secrets.set", { name: "CHOICE", value: "child-account", project: child });
+  await env.client.call("secrets.set", { name: "PARENT_ONLY", value: "parent-value", project });
+  await env.client.call("secrets.set", { name: "OTHER_ONLY", value: "other-value", project: other });
+  const { secrets } = await env.client.call("secrets.list", { project: child });
+  const choices = secrets.filter((s) => s.name === "CHOICE");
+  assert.equal(choices.length, 1);
+  assert.equal(choices[0]?.project_id, child);
+  assert.equal(secrets.find((s) => s.name === "PARENT_ONLY")?.project_id, project);
+  assert.equal(
+    secrets.some((s) => s.name === "OTHER_ONLY"),
+    false,
+  );
+  assert.equal((await env.client.call("secrets.list", {})).secrets.filter((s) => s.name === "CHOICE").length, 3);
+  assert.ok(!JSON.stringify(secrets).includes("child-account"));
+  await assert.rejects(env.client.call("secrets.list", { project: "missing" }), /project missing/);
 });
 
 test("mcp: a global server off in one project, a test run, and no test before a project server is approved", async () => {

@@ -35,6 +35,19 @@ either signs in with a variable you saved for that site (below) or hands the tab
 ask for passwords in chat.
 </Aside>
 
+Other fields: after the agent read a page, typing waits for your OK. In Auto it does not on a page your own computer
+serves (`localhost`, `127.0.0.1`), such as the app it is building.
+
+## When a page asks
+
+Some pages ask through a box of their own: "Delete this item?", "Leave this page?", a name to type. The agent sees
+the box when it reads the page and answers it, OK or Cancel, instead of getting stuck behind it. In the APX app the box
+shows on your screen too and you can answer it yourself; once the agent answers, it goes away. While you have taken
+control of the tab, its boxes are yours: the agent waits.
+
+Pages in the APX app cannot ask you to type text in such a box (the app has never shown that kind). In APX's own
+browser, used when the app is closed, the agent types the answer.
+
 ## Signing in with your saved passwords
 
 An agent can sign in for you without ever seeing your password. Save it once and say where it is for:
@@ -95,12 +108,15 @@ Limits to know:
 When an agent builds a site or a landing and opens it in the browser (a local address such as `localhost:5173`), you
 can point at what you want changed instead of describing it. Press **Edit** in the browser bar:
 
-1. Move the pointer over the page: the part under it lights up. Click a title, a button or a picture to pick it.
+1. Move the pointer over the page: the part under it lights up. Click a title, a button or a picture to pick it. Or
+   pick it in **Elements**, the edit panel's list of every part of the page by what it is (title, text, button, link,
+   picture, field) and what it says: pointing at a row lights that part up in the page.
 2. The edit panel shows its fields: **Text**, **Text color**, **Background**, **Font size**, **Spacing**, and
    **Anything else?** for what you would rather say in words. What you change shows in the page right away, only in
    your view: the page's own code is untouched, and a reload brings it back as it was.
-3. Click another part to edit that one. **Your changes** lists only the parts you changed, numbered as on the page and
-   marked **Changed**; a part you only looked at is not kept.
+3. Click another part to edit that one, or go back to **Elements** with the arrow beside its name. **Your changes**
+   lists only the parts you changed, numbered as on the page and marked **Changed**, and **Elements** marks them with a
+   dot; a part you only looked at is not kept.
 4. **Ask Vera** puts the changes in the chat's message box in plain words: the page, then each part by what it says
    and what to change. Add anything and send it; nothing is sent for you. **Discard**, or Esc, leaves the page as it
    was.
@@ -116,6 +132,18 @@ be picked but never read or changed.
 > Keep the orange.
 >
 > **Vera:** Done: the button reads "Get your demo", a bit bigger, still orange. Reloaded it for you.
+
+## What agents do without JavaScript
+
+Most of what agents used to ask JavaScript for, the browser does on its own, without asking you:
+
+- **Where a link goes**: the page view an agent reads shows each link's address.
+- **Rich text editors** (a post or comment box that is not a plain field) show as fields it can type in.
+- **Lists**: typing in a drop-down list picks the option with that text.
+- **Files**: typing the full path of a file in its folder or temp folder into a file field attaches it. It can only
+  attach a file it may read; APX's own folder never.
+
+JavaScript stays for what none of these covers, and it always asks.
 
 ## Approved JavaScript execution
 

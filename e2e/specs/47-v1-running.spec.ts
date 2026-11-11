@@ -1,5 +1,8 @@
 import { expect, open, rpc, test } from "./kit.ts";
 
+// The card sits in the deck of the compact sidebar.
+test.use({ compactSidebar: true });
+
 test.beforeAll(async () => {
   await rpc("setup.finish");
 });
@@ -25,7 +28,7 @@ test("APX v1 todavía prendido: la tarjeta lo dice y Apagar v1 lo apaga", async 
 
   await page.setViewportSize({ width: 1440, height: 900 });
   await open(page, "#view=inbox");
-  const card = page.locator('.corner__card[data-card="v1"]');
+  const card = page.locator('[data-card="v1"]');
   await expect(card).toBeVisible();
   await expect(card).toContainText("APX v1 sigue prendido");
   await card.getByRole("button", { name: "Apagar v1" }).click();

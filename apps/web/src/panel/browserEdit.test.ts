@@ -7,9 +7,11 @@ import {
   browserEdit,
   canEditPage,
   changeItem,
+  deselect,
   type EditItem,
   editRequest,
   editsOf,
+  elementRows,
   hexOf,
   isChanged,
   pageHeader,
@@ -130,4 +132,39 @@ test("edit mode is offered on local files and pages from this computer or the lo
     "",
   ])
     assert.equal(canEditPage(url), false, url);
+});
+
+test("each part of the page is a row: what it is, its words, the owner's own once rewritten, and if changed", () => {
+  const title = element({ node: 1, tag: "h1", role: "heading", name: "", text: "Northwind tea", kind: "heading" });
+  const cta = element({ node: 2, kind: "link" });
+  const picture = element({ node: 3, tag: "img", role: "image", name: "Tea cups", text: null, kind: "image" });
+  const loose = element({ node: 4, tag: "span", role: "", name: "", text: "Every week" });
+  const items: EditItem[] = [
+    { element: title, text: "Northwind teas", style: {}, note: "" },
+    { element: cta, style: { color: "#ff0000" }, note: "" },
+    // Picked and left as it was: not a change.
+    { element: picture, style: {}, note: "" },
+  ];
+  assert.deepEqual(
+    elementRows([title, cta, picture, loose], items).map((r) => [r.kind, r.label, r.changed]),
+    [
+      ["heading", "Northwind teas", true],
+      ["link", "Book a demo", true],
+      ["image", "Tea cups", false],
+      ["text", "Every week", false],
+    ],
+  );
+});
+
+test("going back to the page's parts keeps only the parts changed", () => {
+  startEditing("tab-1");
+  pick(element({ node: 1 }));
+  changeItem(1, { note: "Bigger" });
+  pick(element({ node: 2, name: "Pricing" }));
+  deselect();
+  assert.equal(browserEdit.get().selected, undefined);
+  assert.deepEqual(
+    browserEdit.get().items.map((i) => i.element.node),
+    [1],
+  );
 });

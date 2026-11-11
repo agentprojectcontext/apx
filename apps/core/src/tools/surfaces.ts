@@ -3,6 +3,7 @@
 import { SurfaceOrigin, type SurfaceSummary } from "@apx/protocol";
 import { z } from "zod";
 import { memorySummary } from "../domain/artifact-memory.ts";
+import { inheritsFrom } from "../domain/projects.ts";
 import type { Store } from "../domain/store.ts";
 import { builtFromFiles } from "./artifact-files.ts";
 import { defineTool, type Tool, type ToolContext } from "./types.ts";
@@ -42,6 +43,11 @@ export function card(ctx: ToolContext, surface: SurfaceSummary) {
 
 export function surfaceTools(store: Store, home: string): Tool[] {
   const find = (ctx: ToolContext, name: string) => store.surfaces.byName(ctx.thread.project_id, slug(name));
+  /** A subproject's parent's apps, to read (a change makes the subproject a copy of its own with show_widget). */
+  const inherited = (ctx: ToolContext) => {
+    const from = inheritsFrom(store.projects, ctx.thread.project_id);
+    return from ? store.surfaces.apps(from.project) : [];
+  };
   return [
     defineTool({
       name: "show_widget",
@@ -110,18 +116,22 @@ export function surfaceTools(store: Store, home: string): Tool[] {
       title: (a) => (a.name ? `Read the widget ${String(a.name)}` : "Listed the widgets"),
       async run(a, ctx) {
         if (!a.name) {
-          const list = store.surfaces.list({ project: ctx.thread.project_id });
+          const own = store.surfaces.list({ project: ctx.thread.project_id });
+          const taken = new Set(own.map((s) => s.name));
+          const list = [...own, ...inherited(ctx).filter((s) => !taken.has(s.name))];
           if (!list.length)
             return `no widgets ${ctx.thread.project_id ? "in this project" : "outside a project"} yet: make one with show_widget.`;
           return list
             .slice(0, 40)
             .map(
               (s) =>
-                `- ${s.name}: ${s.title} (v${s.version}${s.app ? ", app" : s.page ? ", web page" : ""}${s.pinned ? ", pinned" : ""}${s.in_apps ? ", in Apps" : ""})`,
+                `- ${s.name}: ${s.title} (v${s.version}${s.app ? ", app" : s.page ? ", web page" : ""}${s.pinned ? ", pinned" : ""}${s.in_apps ? ", in Apps" : ""}${s.project_id === ctx.thread.project_id ? "" : ", the parent project's"})`,
             )
             .join("\n");
         }
-        const s = find(ctx, a.name);
+        const wanted = slug(a.name);
+        const parents = inherited(ctx).find((x) => x.name === wanted);
+        const s = find(ctx, a.name) ?? (parents && store.surfaces.get(parents.id));
         if (!s) return `no widget named ${a.name}: read_widget without a name lists them.`;
         const net = s.connect ? `, connects to ${s.connect.join(", ")}` : "";
         const html = `widget "${s.name}" · ${s.title} · v${s.version}${net}\n<html_source>\n${s.html}\n</html_source>`;

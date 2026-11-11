@@ -1,0 +1,24 @@
+.about-facts {
+  display: grid;
+  margin: 16px 0 0;
+  border-top: 1px solid var(--apx-border);
+}
+.about-facts > div {
+  display: grid;
+  grid-template-columns: minmax(120px, 180px) 1fr;
+  gap: 16px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--apx-border);
+}
+.about-facts dt {
+  color: var(--apx-fg-muted);
+}
+.about-facts dd {
+  margin: 0;
+}
+@media (max-width: 600px) {
+  .about-facts > div {
+    grid-template-columns: 1fr;
+    gap: 4px;
+  }
+}

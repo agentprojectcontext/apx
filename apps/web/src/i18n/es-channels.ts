@@ -18,6 +18,13 @@ export const esChannels: Partial<Record<MessageKey, string>> = {
   "ch.strangers.answer": "Contestar",
   "ch.strangersHint.pair": "Recibe un código que aprobás acá o desde tu aviso. Hasta entonces nadie le contesta.",
   "ch.strangersHint.list": "Queda anotado acá para que lo apruebes; desde tu número no se le manda nada.",
+  "ch.neverRead": "No leer nunca más",
+  "ch.neverReadDomain": "Todo lo de @{domain}",
+  "ch.neverReadHint":
+    "Desde ahora su correo se saltea; esta ficha y el chat quedan, y acá mismo lo podés volver a leer.",
+  "ch.readAgainDone": "{who} se vuelve a leer.",
+  "ch.neverReadDone": "{who} ya no se lee.",
+  "ch.strangersHint.listMail": "Queda anotado acá para que lo apruebes; no se le manda ningún correo.",
   "ch.strangersHint.ask":
     "Te llega un aviso con quién escribió y qué dijo. Si decís que sí (con su botón o diciéndoselo a tu agente), se le contesta ese mensaje.",
   "ch.strangersHint.answer":
@@ -174,13 +181,9 @@ export const esChannels: Partial<Record<MessageKey, string>> = {
     "Tu pareja, familia y amigos siempre pueden dejarte un mensaje para que te lo pase, aunque todo esté apagado.",
   "ch.anyHour": "Responder a cualquier hora",
   "ch.anyHourHint": "Le responde aunque sea fuera del horario de atención del canal.",
-  "ch.mute": "Silenciar",
-  "ch.unmute": "Quitar silencio",
   "ch.muteHint": "Sus mensajes se guardan, pero no se contestan, no se transcriben ni pasan por un modelo.",
-  "ch.unmuteHint": "Sus mensajes se vuelven a contestar, según las reglas de arriba.",
   "ch.saveHint": "Guardar los cambios de este contacto.",
   "ch.supervise": "Supervisar",
-  "ch.unsupervise": "Dejar de supervisar",
   "ch.superviseHint": "No se le contesta solo: te llega la respuesta sugerida para mandarla, editarla o descartarla.",
   "ch.saved": "Contacto guardado.",
   "ch.youToAgent": "Vos → {agent}",
@@ -224,11 +227,19 @@ export const esChannels: Partial<Record<MessageKey, string>> = {
   "em.edit": "Cambiar servidores",
   "em.allowed": "Quién puede escribir",
   "em.allowedHint":
-    "Solo se lee el correo de estas direcciones (o @dominio). Vacío: cualquiera, y los desconocidos reciben un código.",
+    "Solo se lee el correo de estas direcciones (o @dominio). Vacío: cualquiera; qué pasa con quien no conocés lo elegís en Aprobaciones.",
+  "em.blocked": "No leer nunca",
+  "em.blockedHint":
+    "El correo de estas direcciones (o @dominio) se saltea: no se contesta ni queda para que lo apruebes.",
+  "em.blockedPlaceholder": "news@example.com, @linkedin.com",
+  "em.mine": "Tus direcciones",
+  "em.mineHint":
+    "El correo que mandes desde estas direcciones es tuyo, cuando tu servidor de correo verificó que fuiste vos. Agregá cada dirección desde la que escribís.",
+  "em.minePlaceholder": "vos@example.org",
   "em.allowedPlaceholder": "ana@example.org, @acme.com",
   "em.unverified": "Leer correo sin verificar",
   "em.unverifiedHint":
-    "El correo que su servidor no pudo verificar (DKIM, SPF o DMARC) se descarta, porque cualquiera puede poner tu dirección como remitente. Activalo solo si tu servidor de correo no verifica remitentes.",
+    "El correo que su servidor no pudo verificar (DKIM, SPF o DMARC) se descarta, porque cualquiera puede poner tu dirección como remitente. Activalo solo si tu servidor de correo no verifica remitentes. El correo de tus propias direcciones siempre tiene que estar verificado.",
   "em.passwordStored": "Guardada de forma segura; nunca vuelve a esta pantalla.",
   "em.passwordChange": "Cambiar contraseña",
   "em.passwordFix": "Escribí la contraseña de nuevo para conectarla.",

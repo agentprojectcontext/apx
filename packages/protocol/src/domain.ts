@@ -48,6 +48,12 @@ export const AUTONOMY_RULES: Record<Autonomy, Required<AgentRules>> = {
   total: { read: "auto", write: "auto", outside: "auto", irreversible: "auto" },
 };
 
+/**
+ * How a subproject names the base project as its parent (the base has no id of its own elsewhere: it is the absence of
+ * a project). Never a real project's id, which always starts with `p_`.
+ */
+export const BASE_PROJECT_ID = "~default";
+
 /** The base project (no folder): the owner may name it, describe it and give it a kind, like any other. */
 export const BaseProject = z.object({
   name: z.string().trim().min(1).max(80),
@@ -111,6 +117,12 @@ export const Project = z.object({
   read_only_folders: z.array(z.string()).optional(),
   /** AGENTS.md's length when it is past AGENTS_MD_LIMIT: its agents get the head and tail, not all of it. */
   agents_md_chars: z.number().int().optional(),
+  /**
+   * Set on a subproject: the project it belongs to, or BASE_PROJECT_ID for the base project. One level only (a
+   * subproject has none of its own). Its parent's agents work in it, and it takes its parent's variables, skills, MCP
+   * servers and apps under its own; its memory is its own. Kept by APX, never in the folder.
+   */
+  parent: Id.optional(),
 });
 export type Project = z.infer<typeof Project>;
 
@@ -248,6 +260,11 @@ export const AgentListing = Agent.extend({
   reports_to: z.object({ id: Id, name: z.string() }).nullable(),
   /** Ids of the agents that report to it. */
   leads: z.array(Id),
+  /**
+   * Only in a project's listing (agents.list `project_id`): set on an agent the project takes from its parent, the
+   * parent's id (BASE_PROJECT_ID for the base project's agents). Absent on the project's own agents.
+   */
+  inherited_from: Id.optional(),
 });
 export type AgentListing = z.infer<typeof AgentListing>;
 
@@ -732,6 +749,8 @@ export const AuxPurpose = z.enum([
   "activity_review",
   "news",
   "sticker",
+  "aside",
+  "mail",
 ]);
 export type AuxPurpose = z.infer<typeof AuxPurpose>;
 
@@ -846,6 +865,8 @@ export const Job = z.object({
   /** Terminal jobs: where the command runs, how it exited, and whether it was started in the background. */
   cwd: z.string().optional(),
   exit_code: z.number().int().optional(),
+  /** Terminal jobs that never started: the reason the process could not be created. */
+  start_error: z.string().optional(),
   background: z.boolean().optional(),
   started_at: z.string(),
   ended_at: z.string().optional(),
@@ -920,7 +941,8 @@ export const Memory = z.object({
   /** `procedure`: how the agent did something that worked, kept as history (never as an instruction). */
   kind: z.enum(["user", "feedback", "project", "reference", "procedure"]).optional(),
   evidence: z.array(MemoryEvidence).optional(),
-  source: z.enum(["owner", "agent"]),
+  /** `imported`: brought over from APX v1, neither the owner's word nor checked by an agent since. */
+  source: z.enum(["owner", "agent", "imported"]),
   /** The agent that wrote it, and the thread and run it learned it in. */
   author_agent: Id.optional(),
   thread_id: Id.optional(),
@@ -1006,6 +1028,11 @@ export const Person = z.object({
   supervised: z.boolean().default(false),
   /** The rights the owner set for them; the rest follow the account they write on (`ChannelInfo.contacts`). */
   perms: PersonPerms.default({}),
+  /**
+   * The agent that answers this contact on every channel, instead of each account's contacts agent. None: the
+   * account's. Never set for the owner.
+   */
+  agent_id: Id.optional(),
   addresses: z.array(Address),
   created_at: z.string(),
 });
@@ -1138,11 +1165,17 @@ export const ChannelEmail = z.object({
   imap: MailServer,
   smtp: MailServer,
   mailbox: z.string().min(1).max(200).default("INBOX"),
-  /** Only mail from these addresses (or "@domain") is read; empty: anyone (strangers get a pairing code). */
+  /**
+   * Only mail from these addresses (or "@domain") is read, besides the owner's own; empty: anyone (strangers are only
+   * listed for the owner, never mailed a code).
+   */
   allowed: z.array(z.string().min(3).max(254)).max(100).default([]),
+  /** Mail from these addresses (or "@domain") is never read, nor listed for the owner; the owner's own still is. */
+  blocked: z.array(z.string().min(3).max(254)).max(200).default([]),
   /**
    * Also read mail its server could not verify (no DKIM, SPF or DMARC pass for the sender's domain). Off: such mail is
-   * dropped, since anyone can write the owner's address in a From line.
+   * dropped, since anyone can write the owner's address in a From line. Mail from the owner's own addresses is always
+   * dropped unverified.
    */
   trust_unverified: z.boolean().default(false),
 });
@@ -1182,7 +1215,8 @@ export const ChannelInfo = z.object({
   /** The agent that answers the contacts and rooms of this channel, when it is not `agent_id`. */
   contacts_agent_id: Id.optional(),
   /**
-   * What a stranger's first message gets: a pairing code the owner approves (on the owner's own number: only listed),
+   * What a stranger's first message gets: a pairing code the owner approves (on the owner's own number and on email:
+   * only listed),
    * a notice asking the owner first, an answer right away as a new contact, or nothing.
    */
   strangers: ChannelStrangers,
@@ -1203,6 +1237,11 @@ export const ChannelInfo = z.object({
   research: ChannelResearch.optional(),
   /** When it answers contacts; none: at any hour. The owner is always answered. */
   hours: ChannelHours.optional(),
+  /**
+   * Its notices are silenced: what happens on it (someone new writing, a draft waiting, a reply that could not go) stays
+   * out of the owner's tray and chat app; failures still arrive. It is all still in the account.
+   */
+  quiet: z.boolean().optional(),
   /** What its contacts' chats may do unless the owner set it for one of them (none: all off). */
   contacts: PersonPerms.optional(),
   /** The owner's notes for every contact and room of the account: what it can do and answer there. */

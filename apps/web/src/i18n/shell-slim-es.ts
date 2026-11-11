@@ -1,0 +1,38 @@
+import type { MessageKey } from "./en.ts";
+
+// Barra superior y sidebar: la tarjeta del super-agente, la lista de servidores, cómo se ven cuotas y recursos, la franja de avisos.
+export const esShellSlim: Partial<Record<MessageKey, string>> = {
+  "bar.show": "Mostrar en la barra",
+  "bar.full": "Completa",
+  "bar.mini": "Reducida",
+  "quota.free": "{pct} % libre",
+  "server.localHead": "Local",
+  "server.remoteHead": "Remotos",
+  "server.thisComputer": "Esta computadora",
+  "server.thisComputerNamed": "Esta computadora · {name}",
+  "server.remote": "Remoto",
+  "server.remoteSub": "Remoto · {name}",
+  "server.remoteOffline": "Remoto · sin conexión",
+  "server.thisComputerOffline": "Esta computadora · sin iniciar",
+  "server.connecting": "Conectando…",
+  "server.notAnswering": "{name} no responde. Probá de nuevo en un momento.",
+  "server.connectRemote": "Conectar servidor remoto",
+  "server.connectRemoteHint":
+    "Para usar APX en otro servidor, abrí su dirección en el navegador o conectalo desde la app de escritorio de APX.",
+  "roby.role": "Super-agente · en todos tus proyectos",
+  "roby.working": "Trabajando",
+  "roby.now": "Ahora",
+  "roby.idle": "Nada en curso",
+  "roby.lastMessage": "Último mensaje",
+  "roby.noMessage": "Todavía no hay mensajes",
+  "roby.openChat": "Abrir chat",
+  "roby.edit": "Editar",
+  "roby.editHint": "Editar a {name}: nombre, personalidad, herramientas y permisos",
+  "roby.openHint": "Abrir el chat con {name}",
+  "nav.subCount": "{n} sub",
+  "nav.ownAgents": "Agentes propios",
+  "notice.prev": "Aviso anterior",
+  "notice.next": "Aviso siguiente",
+  "notice.pos": "{i} de {n}",
+  "notice.dismiss": "Descartar",
+};

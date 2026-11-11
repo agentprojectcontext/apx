@@ -1,3 +1,4 @@
+import "../../styles/model-menus.css";
 import type { CatalogEngine, ModelRef } from "@apx/protocol";
 import { SegmentedControl, Select, type SelectOption } from "@apx/ui";
 import { baseRef, effortLabel, modelOf, splitRef, useModels, withEffort } from "../../data/models.ts";

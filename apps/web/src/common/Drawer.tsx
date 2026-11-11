@@ -10,6 +10,7 @@ const OPEN_POPUP = '[role="dialog"][data-open], [role="menu"][data-open], [role=
  * A panel over the right edge of the page: the list beside it keeps its place and width; on a narrow window it takes
  * the whole width. × or Escape closes it; `back` steps out of a nested view (a routine's run → the routine).
  * `inset` floats it over its positioned parent instead of the page (a canvas), and as a bottom sheet on a phone.
+ * `peek` sits it beside the open chat, under its header, and a wide chat steps aside for it.
  */
 export function Drawer(props: {
   label: string;
@@ -19,6 +20,7 @@ export function Drawer(props: {
   actions?: ReactNode;
   className?: string;
   inset?: boolean;
+  peek?: boolean;
   children: ReactNode;
 }) {
   const t = useT();
@@ -37,10 +39,18 @@ export function Drawer(props: {
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, []);
+  // A class, not :has(): a chat's width query is not looked at again when a drawer comes or goes.
+  useEffect(() => {
+    if (!props.peek) return;
+    document.body.classList.add("has-peek");
+    return () => document.body.classList.remove("has-peek");
+  }, [props.peek]);
   return (
     <aside
       ref={self}
-      className={["drawer", props.inset && "drawer--inset", props.className].filter(Boolean).join(" ")}
+      className={["drawer", props.inset && "drawer--inset", props.peek && "drawer--peek", props.className]
+        .filter(Boolean)
+        .join(" ")}
       aria-label={props.label}
     >
       <header className="drawer__head">

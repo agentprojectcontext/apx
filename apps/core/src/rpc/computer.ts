@@ -5,6 +5,7 @@ import { COMPUTER_CAP, COMPUTER_POINTER_CAP, type NodeComputerParams } from "@ap
 import type { Store } from "../domain/store.ts";
 import { CallError } from "../errors.ts";
 import type { NodeBroker } from "../nodes/broker.ts";
+import { hostName, hostOs } from "../services/host-machine.ts";
 import { saveUpload } from "../services/uploads.ts";
 import type { CallContext } from "./context.ts";
 import type { Handlers } from "./router.ts";
@@ -17,6 +18,8 @@ const CLICK_MS = 30_000;
 
 /** A turn that used the computer this recently counts as using it when the owner pulls the stop. */
 const ACTIVE_MS = 10 * 60_000;
+/** An agent whose turn used the computer this recently is listed as using it now. */
+const IN_USE_MS = 2 * 60_000;
 
 export function computerHandlers(
   broker: NodeBroker,
@@ -27,7 +30,7 @@ export function computerHandlers(
   onComputer: (thread: string) => boolean = () => false,
 ) {
   /** The turns using the computer now (run → its chat, last use), and those the owner stopped. */
-  const using = new Map<string, { thread: string; at: number }>();
+  const using = new Map<string, { thread: string; agent: string; at: number }>();
   const stopped = new Set<string>();
 
   broker.onEvent((node, event) => {
@@ -58,7 +61,7 @@ export function computerHandlers(
         message:
           "the owner pulled the emergency stop on this turn: do not use the computer again in it; say so and end the turn",
       });
-    using.set(a.run_id, { thread: a.thread_id, at: Date.now() });
+    using.set(a.run_id, { thread: a.thread_id, agent: a.id, at: Date.now() });
   };
 
   const forNode = <P extends object>(params: P, ctx: CallContext): NodeComputerParams<P> => ({
@@ -67,6 +70,20 @@ export function computerHandlers(
   });
 
   return {
+    "computers.host": async () => {
+      const now = Date.now();
+      const agents = new Map<string, string>();
+      for (const [run, u] of using) {
+        if (now - u.at > ACTIVE_MS) using.delete(run);
+        else if (now - u.at <= IN_USE_MS) agents.set(u.agent, store.agents.get(u.agent)?.name ?? u.agent);
+      }
+      return {
+        name: await hostName(),
+        os: hostOs(),
+        computer_use: Boolean(broker.withCap(COMPUTER_CAP)),
+        agents: [...agents].map(([id, name]) => ({ id, name })),
+      };
+    },
     "computer.snapshot": async ({ thread, app, note }, ctx) => {
       enter(ctx);
       const ask = forNode({ ...(app ? { app } : {}), ...(note ? { note } : {}) }, ctx);

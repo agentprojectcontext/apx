@@ -1,7 +1,9 @@
 // What arrives on a channel. Who wrote (an exact address match) decides where the words go: the owner's thread, a
-// contact's sealed thread, or a pairing code for a stranger. Button presses decide only when the owner presses them.
+// contact's sealed thread, or a pairing request for a stranger. Button presses decide only when the owner presses them.
 
-import { CHANNEL_DEFAULTS, type Thread, UPLOAD_LIMITS } from "@apx/protocol";
+import { CHANNEL_DEFAULTS, channelKindRules, type Thread, UPLOAD_LIMITS } from "@apx/protocol";
+import type { Bus } from "../bus.ts";
+import type { AuxAbout } from "../domain/aux-calls.ts";
 import {
   type Inbound,
   type InboundAction,
@@ -10,11 +12,9 @@ import {
   type Presentation,
 } from "../domain/channels.ts";
 import { type MediaRecord, partOfMedia } from "../domain/media.ts";
-import type { NewNotification } from "../domain/notifications.ts";
 import { OWNER_ID } from "../domain/persons.ts";
 import { HOME_THREAD_ID } from "../domain/seed.ts";
 import type { Store } from "../domain/store.ts";
-import { previewOf } from "../domain/threads.ts";
 import { errorMessage } from "../errors.ts";
 import type { Log } from "../log.ts";
 import { newsAction } from "../news/entries.ts";
@@ -22,12 +22,16 @@ import type { InternalCall } from "../rpc/internal.ts";
 import type { Services } from "../services/registry.ts";
 import { saveUpload } from "../services/uploads.ts";
 import { inlineName, untrusted } from "../tools/result.ts";
-import { agentProject, answersInHome } from "./agent-project.ts";
+import { agentProject, answersInHome, contactAnswerer } from "./agent-project.ts";
 import { asksToStop } from "./closers.ts";
 import type { Delivery } from "./delivery.ts";
 import { type Held, waitsForHours } from "./held.ts";
+import { createMailReporter } from "./mail-notices.ts";
 import { type Button, buttonId, inputPresentation, parseButton, ratingOf, shown } from "./notices.ts";
-import type { TellOwner } from "./owner-notices.ts";
+import type { ChannelNotice, TellOwner } from "./owner-notices.ts";
+import { capturedSender, createPassiveMail } from "./passive-mail.ts";
+import { quietMessage } from "./quiet-message.ts";
+import { restoreMail } from "./restore-mail.ts";
 import type { createRooms } from "./rooms.ts";
 import type { Stickers } from "./stickers.ts";
 import type { Suggestions } from "./suggestions.ts";
@@ -40,9 +44,9 @@ const CODES_PER_HOUR = 10;
 /** Reports of one unreviewed contact's messages per hour; past it their messages are only kept. */
 const REPORTS_PER_HOUR = 10;
 const LIVE = new Set(["submitted", "working", "input-required"]);
-
 export function createInbound(deps: {
   store: Store;
+  bus: Bus;
   home: string;
   log: Log;
   call: InternalCall;
@@ -52,7 +56,7 @@ export function createInbound(deps: {
   /** A notice for the owner: the tray, and their chat app. */
   tell: TellOwner;
   /** A notice in the app's attention tray only. */
-  attention(n: NewNotification): void;
+  attention(n: ChannelNotice): void;
   /** The channel is the owner's own account: strangers are listed quietly, never answered. */
   ownAccount(channel: string): boolean;
   /** Messages in the public rooms the owner listed. */
@@ -66,6 +70,8 @@ export function createInbound(deps: {
   setButtons(channel: string, conversation: string, ref: string, buttons: Presentation["buttons"]): Promise<boolean>;
   /** Contacts' chats waiting for their channel's hours. */
   held: Pick<Held, "hold" | "release">;
+  /** A cheap model's one-shot answer (the auxiliary model): whether a mail is worth an alert. */
+  judge?: ((system: string, user: string, about: AuxAbout) => Promise<string | undefined>) | undefined;
   now: () => Date;
 }) {
   const { store, log, call, delivery } = deps;
@@ -86,15 +92,24 @@ export function createInbound(deps: {
     if (id) queueMicrotask(() => void process({ id, channel, payload: m }));
   }
 
-  async function process(row: { id: string; channel: string; payload: Inbound }): Promise<void> {
+  async function process(row: {
+    id: string;
+    channel: string;
+    payload: Inbound;
+  }): Promise<"done" | "ignored" | "failed"> {
     try {
-      store.channels.inbox.done(row.id, await route(row.channel, row.id, row.payload));
+      if (row.payload.mail_handling) return passiveMail(row);
+      const state = await route(row.channel, row.id, row.payload);
+      store.channels.inbox.done(row.id, state);
+      return state;
     } catch (err) {
       const msg = errorMessage(err, 300);
       log.warn({ channel: row.channel, inbox: row.id, err: msg }, "channel message not handled");
       store.channels.inbox.done(row.id, "failed", msg);
       const text = channelTexts(store).notHandled(row.payload.sender.name, msg);
-      deps.tell({ text }, { level: "error", title: row.payload.sender.name });
+      if (row.payload.mail_handling !== "history")
+        deps.tell({ text }, { level: "error", title: row.payload.sender.name });
+      return "failed";
     }
   }
 
@@ -106,9 +121,11 @@ export function createInbound(deps: {
       await action(channel, { conversation: m.conversation, sender: m.sender, data: m.action });
       return "done";
     }
-    const person = store.persons.byAddress(cfg.id, m.sender.id);
-    if (!person) return stranger(cfg, m, rowId);
-    if (person.role === "blocked") return "ignored";
+    const found = store.persons.byAddress(cfg.id, m.sender.id);
+    if (!found) return stranger(cfg, m, rowId);
+    if (found.role === "blocked") return "ignored";
+    const person = capturedSender(store, cfg, m, found);
+    if (person === "stranger") return stranger(cfg, m, rowId);
     const owner = person.role === "owner";
     // Where the platform cannot vouch for the owner, their words only reach the super-agent to check: they answer and approve nothing here.
     const direct = owner && ownerActsOn(cfg.type);
@@ -162,7 +179,7 @@ export function createInbound(deps: {
     // A silenced contact keeps its files without transcription, a model call or a work-folder copy.
     if (quiet) {
       const said = m.voice ? `${text ? `${text}\n` : ""}[voice note]` : text;
-      keepQuiet(
+      const kept = keepQuiet(
         thread.id,
         cfg.id,
         person,
@@ -170,6 +187,7 @@ export function createInbound(deps: {
         attachments,
         person.muted ? undefined : { answered: "no: this account answers only its owner" },
       );
+      keepMail(thread.id, m, kept);
       if (person.unreviewed) report(cfg, person, m.sender.id, said, thread.id);
       return "done";
     }
@@ -259,6 +277,10 @@ export function createInbound(deps: {
     const times = (reports.get(person.id) ?? []).filter((x) => at - x < HOUR_MS);
     if (times.length >= REPORTS_PER_HOUR) return;
     reports.set(person.id, [...times, at]);
+    if (channelKindRules(cfg.type).reports === "important") {
+      void reportMail(cfg, person, senderId, said, threadId);
+      return;
+    }
     const t = channelTexts(store);
     const text = t.wroteFirst(shown(cfg, person.name, senderId), cfg.label, said.slice(0, 300));
     const buttons = [
@@ -268,11 +290,34 @@ export function createInbound(deps: {
     deps.tell({ text, buttons }, { title: person.name, thread_id: threadId }, "pairing");
   }
 
+  const reportMail = createMailReporter(deps);
+
   /** Remembers the other side's last message, so the agent can answer it with a reaction (REACT in manager.ts). */
   function theirLast(threadId: string, channel: string, m: Inbound, messageId: string): void {
+    keepMail(threadId, m, messageId);
     store.threads.mergeContext(threadId, {
       their_last: { channel, conversation: m.conversation, ref: m.ref ?? m.external_id, message_id: messageId },
     });
+  }
+
+  /**
+   * A mail's HTML, kept with its message so the app shows the mail as it was sent. Only the chat's message gets it:
+   * the agent reads the words, never the markup.
+   */
+  function keepMail(threadId: string, m: Inbound, messageId: string): void {
+    const message = m.html ? store.messages.get(messageId) : undefined;
+    if (!m.html || !message) return;
+    try {
+      const media = saveUpload(deps.home, store, {
+        name: "mail.html",
+        mime: "text/html",
+        bytes: Buffer.from(m.html),
+        thread: threadId,
+      });
+      store.messages.update({ ...message, parts: [...message.parts, partOfMedia(media)] });
+    } catch (err) {
+      log.warn({ thread: threadId, err: errorMessage(err, 200) }, "mail's formatted copy not kept");
+    }
   }
 
   /** A voice note as words the agent can read (with its caption, if any); says so when it could not be heard. */
@@ -359,7 +404,12 @@ export function createInbound(deps: {
         const p = store.persons.create({ name, role: "contact" });
         store.persons.link(p.id, { channel: cfg.id, external_id: m.sender.id, label: name });
       });
-      deps.attention({ kind: "channel", title: name, body: t.answering(shown(cfg, name, m.sender.id), cfg.label) });
+      deps.attention({
+        kind: "channel",
+        title: name,
+        body: t.answering(shown(cfg, name, m.sender.id), cfg.label),
+        channel: cfg.id,
+      });
       return route(cfg.id, rowId, m);
     }
     const { request, fresh } = store.channels.pairing.request({
@@ -375,9 +425,10 @@ export function createInbound(deps: {
       { id: buttonId.pairing(request.code, "contact"), label },
       { id: buttonId.pairing(request.code, "deny"), label: t.ignore },
     ];
-    // On the owner's own number the request is only listed: the owner's friends must not get a code from it. Past
-    // the hourly cap of codes (a wave of spam mail) the rest are only listed too: no reply goes to forged senders.
-    if (deps.ownAccount(cfg.id) || codesOver(cfg.id)) return "ignored";
+    // On the owner's own number the request is only listed: the owner's friends must not get a code from it. A kind
+    // that never sends codes (email: anyone can write, and a reply to every stranger is spam) only lists them too, and
+    // so does a channel past its hourly cap of codes: no reply goes to forged senders.
+    if (deps.ownAccount(cfg.id) || channelKindRules(cfg.type).strangersListed || codesOver(cfg.id)) return "ignored";
     const agent = store.agents.get(contactAgentOf(cfg))?.name ?? "APX";
     delivery.enqueue({
       channel: cfg.id,
@@ -387,7 +438,12 @@ export function createInbound(deps: {
     });
     deps.tell(
       { text: t.pairingOwner(request.name, cfg.label, request.code), buttons: decide(t.asContact) },
-      { title: request.name, body: t.pairingApp(request.name, cfg.label, request.code), ref: pairingRef(request.code) },
+      {
+        title: request.name,
+        body: t.pairingApp(request.name, cfg.label, request.code),
+        ref: pairingRef(request.code),
+        channel: cfg.id,
+      },
       "pairing",
     );
     return "ignored";
@@ -408,62 +464,25 @@ export function createInbound(deps: {
     );
   }
 
-  function contactThread(cfg: ChannelConfig, conversation: string, person: { id: string; name: string }): Thread {
+  function contactThread(
+    cfg: ChannelConfig,
+    conversation: string,
+    person: { id: string; name: string; agent_id?: string | undefined },
+  ): Thread {
+    const agent = contactAnswerer(store, cfg, person);
     return (
       store.threads.byConversation(cfg.id, conversation) ??
       store.threads.create({
         kind: "channel",
         title: person.name,
-        agent_ids: [contactAgentOf(cfg)],
-        project_id: agentProject(store, contactAgentOf(cfg)),
+        agent_ids: [agent],
+        project_id: agentProject(store, agent),
         channel: { id: cfg.id, conversation, person_id: person.id },
       })
     );
   }
 
-  /**
-   * A message that gets no answer (a silenced contact, or a closing "ok"): kept in its chat and in what the agent will
-   * read next time. A contact's is marked unread for the owner; `person` is undefined for the owner's own words.
-   */
-  function keepQuiet(
-    threadId: string,
-    channel: string,
-    person: { id: string; name: string; muted?: boolean } | undefined,
-    text: string,
-    attachments: string[] = [],
-    /** What the agent reads about why it was not answered; by default, silenced or needing no answer. */
-    note?: Record<string, string>,
-  ): string {
-    return store.tx(() => {
-      const kept = store.messages.add({
-        thread_id: threadId,
-        author: person ? { kind: "person", id: person.id, name: person.name, channel } : { kind: "user" },
-        via: channel,
-        parts: [
-          { type: "text", text },
-          ...attachments.flatMap((id) => {
-            const m = store.media.get(id);
-            return m ? [partOfMedia(m)] : [];
-          }),
-        ],
-      });
-      const why: Record<string, string> =
-        note ?? (person?.muted ? { silenced: "yes" } : { answered: "no, it needed no answer" });
-      store.modelLog.append(threadId, undefined, [
-        {
-          role: "user",
-          content: person ? untrusted("channel_message", { from: person.name, channel, ...why }, text) : text,
-          images: attachments.flatMap((id) => {
-            const m = store.media.get(id);
-            return m?.kind === "image" ? [{ media_id: id, mime: m.mime }] : [];
-          }),
-        },
-      ]);
-      const t = store.threads.get(threadId);
-      store.threads.patch(threadId, { preview: previewOf(text), ...(person ? { unread: (t?.unread ?? 0) + 1 } : {}) });
-      return kept.id;
-    });
-  }
+  const keepQuiet = quietMessage(store);
 
   /**
    * Someone put an emoji on one of the messages sent on this channel (or took theirs off): shown on it in the app.
@@ -723,8 +742,23 @@ export function createInbound(deps: {
     reply(t.answered(text));
   }
 
+  const passiveMail = createPassiveMail({
+    store,
+    bus: deps.bus,
+    home: deps.home,
+    configs: deps.configs,
+    log,
+    thread: (cfg, message, person) =>
+      person.role === "owner"
+        ? ownerThread(cfg, message.conversation)
+        : contactThread(cfg, message.conversation, person),
+    keepHtml: keepMail,
+    report,
+  });
+
   return {
     receive,
+    restoreMail: restoreMail(store, process),
     action,
     reaction,
     /**

@@ -1,7 +1,7 @@
 // An artifact's own memory (store, db), its bundle and its credentialed fetch. `surface` is fixed by the host,
 // never chosen by the page.
 import { z } from "zod";
-import { ElementEdit, PickedElement } from "./browser.ts";
+import { EDIT_ELEMENTS_MAX, ElementEdit, PickedElement } from "./browser.ts";
 import { ArtifactBundle, ArtifactMemory, ArtifactSqlParam, Id, SurfaceSummary } from "./domain.ts";
 
 /** A widget open in edit mode: a throwaway page of the core's own browser, not a tab anyone browses. */
@@ -131,6 +131,13 @@ export const artifactMethods = {
   "surfaces.edit_inspect": {
     params: z.object({ page: EditPage, x: Fraction, y: Fraction }).strict(),
     result: z.object({ element: PickedElement.nullable() }),
+    effect: false,
+    access: "human",
+  },
+  /** The widget's parts the owner can pick, in page order, as `surfaces.edit_inspect` describes each. */
+  "surfaces.edit_elements": {
+    params: z.object({ page: EditPage }).strict(),
+    result: z.object({ elements: z.array(PickedElement).max(EDIT_ELEMENTS_MAX) }),
     effect: false,
     access: "human",
   },

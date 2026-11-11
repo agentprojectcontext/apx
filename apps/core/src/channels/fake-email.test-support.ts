@@ -45,13 +45,23 @@ export type FakeImap = {
   renumber(): void;
   /** How many messages were fetched. */
   fetches(): number;
+  readOnlyViolations(): number;
+  pauseNextFetch(): { entered: Promise<number>; release(): void };
   close(): Promise<void>;
 };
 
-export async function fakeImap(opts: { user: string; pass: string; idle?: boolean }): Promise<FakeImap> {
+export async function fakeImap(opts: {
+  user: string;
+  pass: string;
+  idle?: boolean;
+  omitUidvalidity?: boolean;
+}): Promise<FakeImap> {
+  type FetchPause = { enter(uid: number): void; resume?: () => void; released: boolean };
+  let pause: FetchPause | undefined;
   let uidvalidity = 1000;
   let nextUid = 1;
   let fetched = 0;
+  let readOnlyViolations = 0;
   let box: Array<{ uid: number; raw: string; at: Date }> = [];
   const idling = new Map<net.Socket, string>();
   /** How many messages each session was told of. */
@@ -103,9 +113,16 @@ export async function fakeImap(opts: { user: string; pass: string; idle?: boolea
         return sock.end();
       }
       if (!authed) return send(`${tag} NO sign in first`);
+      if (
+        c === "SELECT" ||
+        /^(STORE|COPY|MOVE|EXPUNGE|DELETE)$/.test(c) ||
+        (c === "UID" &&
+          (/^(STORE|COPY|MOVE|EXPUNGE)\b/i.test(args) || (/^FETCH\b/i.test(args) && !/BODY\.PEEK\[\]/i.test(args))))
+      )
+        readOnlyViolations++;
       if (c === "EXAMINE" || c === "SELECT") {
         send(`* ${box.length} EXISTS`);
-        send(`* OK [UIDVALIDITY ${uidvalidity}] UIDs valid`);
+        if (!opts.omitUidvalidity) send(`* OK [UIDVALIDITY ${uidvalidity}] UIDs valid`);
         send(`* OK [UIDNEXT ${nextUid}] next`);
         return send(`${tag} OK [READ-ONLY] done`);
       }
@@ -130,22 +147,33 @@ export async function fakeImap(opts: { user: string; pass: string; idle?: boolea
       }
       if (c === "UID" && /^FETCH /i.test(args)) {
         const uid = Number(args.split(" ")[1]);
-        const i = box.findIndex((m) => m.uid === uid);
-        const m = box[i];
-        if (m) {
-          fetched++;
-          const bytes = Buffer.from(m.raw, "utf8");
-          const d = m.at;
-          const month = d.toLocaleString("en", { month: "short", timeZone: "UTC" });
-          const time = d.toISOString().slice(11, 19);
-          const date = `${String(d.getUTCDate()).padStart(2, "0")}-${month}-${d.getUTCFullYear()} ${time} +0000`;
-          sock.write(
-            `* ${i + 1} FETCH (UID ${uid} RFC822.SIZE ${bytes.length} INTERNALDATE "${date}" BODY[]<0> {${bytes.length}}\r\n`,
-          );
-          sock.write(bytes);
-          sock.write(")\r\n");
+        const respond = () => {
+          if (sock.destroyed) return;
+          const i = box.findIndex((m) => m.uid === uid);
+          const m = box[i];
+          if (m) {
+            fetched++;
+            const bytes = Buffer.from(m.raw, "utf8");
+            const d = m.at;
+            const month = d.toLocaleString("en", { month: "short", timeZone: "UTC" });
+            const time = d.toISOString().slice(11, 19);
+            const date = `${String(d.getUTCDate()).padStart(2, "0")}-${month}-${d.getUTCFullYear()} ${time} +0000`;
+            sock.write(
+              `* ${i + 1} FETCH (UID ${uid} RFC822.SIZE ${bytes.length} INTERNALDATE "${date}" BODY[]<0> {${bytes.length}}\r\n`,
+            );
+            sock.write(bytes);
+            sock.write(")\r\n");
+          }
+          send(`${tag} OK`);
+        };
+        const held = pause;
+        pause = undefined;
+        if (!held || held.released) respond();
+        else {
+          held.resume = respond;
+          held.enter(uid);
         }
-        return send(`${tag} OK`);
+        return;
       }
       send(`${tag} BAD unknown command`);
     });
@@ -169,6 +197,25 @@ export async function fakeImap(opts: { user: string; pass: string; idle?: boolea
       for (const s of sockets) s.destroy();
     },
     fetches: () => fetched,
+    readOnlyViolations: () => readOnlyViolations,
+    pauseNextFetch() {
+      if (pause) throw new Error("a fetch is already paused");
+      let enter: (uid: number) => void = () => {};
+      const entered = new Promise<number>((resolve) => {
+        enter = resolve;
+      });
+      const gate: FetchPause = { enter, released: false };
+      pause = gate;
+      return {
+        entered,
+        release() {
+          gate.released = true;
+          const resume = gate.resume;
+          delete gate.resume;
+          resume?.();
+        },
+      };
+    },
     close: async () => {
       for (const s of sockets) s.destroy();
       await new Promise<void>((r) => server.close(() => r()));
@@ -261,6 +308,8 @@ export function mail(m: {
   references?: string[];
   headers?: Record<string, string>;
   verified?: boolean;
+  /** Also an HTML version of the words (multipart/alternative). */
+  html?: string;
 }): { raw: string; id: string } {
   const id = m.id ?? `<${randomUUID()}@example.org>`;
   const domain = /@([^>\s]+)/.exec(m.from)?.[1] ?? "example.org";
@@ -277,8 +326,23 @@ export function mail(m: {
     ...(m.references?.length ? [`References: ${m.references.join(" ")}`] : []),
     ...Object.entries(m.headers ?? {}).map(([k, v]) => `${k}: ${v}`),
     "MIME-Version: 1.0",
-    "Content-Type: text/plain; charset=utf-8",
-    "Content-Transfer-Encoding: 8bit",
   ];
-  return { raw: `${head.join("\r\n")}\r\n\r\n${m.text.replace(/\r?\n/g, "\r\n")}\r\n`, id };
+  const crlf = (t: string) => t.replace(/\r?\n/g, "\r\n");
+  if (m.html === undefined) {
+    head.push("Content-Type: text/plain; charset=utf-8", "Content-Transfer-Encoding: 8bit");
+    return { raw: `${head.join("\r\n")}\r\n\r\n${crlf(m.text)}\r\n`, id };
+  }
+  head.push('Content-Type: multipart/alternative; boundary="alt"');
+  const body = [
+    "--alt",
+    "Content-Type: text/plain; charset=utf-8",
+    "",
+    crlf(m.text),
+    "--alt",
+    "Content-Type: text/html; charset=utf-8",
+    "",
+    crlf(m.html),
+    "--alt--",
+  ].join("\r\n");
+  return { raw: `${head.join("\r\n")}\r\n\r\n${body}\r\n`, id };
 }

@@ -18,6 +18,12 @@ export const ownerActsOn = (type: string | undefined): boolean => type !== undef
 
 /** What an adapter hands over for one platform message. */
 export type Inbound = {
+  /** Automatic mail is kept without starting a reply; historical mail also suppresses alerts. Set only by adapters. */
+  mail_handling?: "automatic" | "history" | undefined;
+  /** The IMAP server's arrival time for an explicitly recovered message. */
+  mail_received_at?: string | undefined;
+  /** A mail's HTML (already made safe), kept to show it as it was sent; the agent reads `text`. */
+  html?: string | undefined;
   /** The platform's id for this message (dedupes a redelivery). */
   external_id: string;
   /** Where to answer (a chat id). */
@@ -149,6 +155,31 @@ export function channelsRepo({ one, all, run }: Sql) {
   const pairingRow = (code: string) => one(qb.selectFrom("pairing").selectAll().where("code", "=", code));
   return {
     inbox: {
+      get(channel: string, externalId: string): InboxRow | undefined {
+        const row = one(
+          qb
+            .selectFrom("channel_inbox")
+            .selectAll()
+            .where("channel", "=", channel)
+            .where("external_id", "=", externalId),
+        );
+        return row
+          ? { id: row.id, channel: row.channel, payload: JSON.parse(row.payload) as Inbound, state: row.state }
+          : undefined;
+      },
+      /** Only a failed silent import may be retried: a live delivery may already have caused a reply. */
+      retryHistory(id: string, message: Inbound): boolean {
+        return (
+          run(
+            qb
+              .updateTable("channel_inbox")
+              .set({ state: "received", error: null, payload: JSON.stringify(message) })
+              .where("id", "=", id)
+              .where("state", "=", "failed")
+              .where(sql`json_extract(payload, '$.mail_handling')`, "=", "history"),
+          ) > 0
+        );
+      },
       /** Stores a message; false when this platform message was already stored (a redelivery). */
       add(channel: string, m: Inbound): string | undefined {
         const id = newId("in");
@@ -250,7 +281,7 @@ export function channelsRepo({ one, all, run }: Sql) {
         const row = one(qb.selectFrom("channel_inbox").select("payload").where("id", "=", id));
         const m = row ? (JSON.parse(row.payload) as Inbound) : undefined;
         const light =
-          m && (m.files?.length || m.voice)
+          state !== "failed" && m && (m.files?.length || m.voice)
             ? JSON.stringify({
                 ...m,
                 ...(m.files ? { files: m.files.map((f) => ({ ...f, data: "" })) } : {}),
