@@ -46,6 +46,9 @@
   display: inline-grid;
   place-items: center;
 }
+.chan__flag.is-off {
+  opacity: 0.35;
+}
 /* "Associate · ☺ Roby answers": one line, the agent's face starting its part; what comes first gives way first. */
 .answers {
   display: flex;

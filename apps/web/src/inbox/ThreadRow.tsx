@@ -1,6 +1,7 @@
 import type { Agent, Thread } from "@apx/protocol";
 import { ContextMenu, ConversationRow, IconButton, Icons, Menu, Spinner } from "@apx/ui";
 import { AnswererFace, AnswersLine } from "../channels/AnswererFace.tsx";
+import { ContactFlags, useContactFlags } from "../channels/flags.tsx";
 import { CHANNEL_KINDS, type ChannelKind } from "../channels/kinds.ts";
 import { RELATION_KEY } from "../channels/people.ts";
 import { ChatProcesses } from "../common/ChatProcesses.tsx";
@@ -55,7 +56,8 @@ export function ThreadRow({ thread, agent, selected, account = false, onOpen }: 
               {fold.slot}
               <ChatProcesses thread={thread.id} />
               {working && <Spinner size={12} className="threadrow__spin" />}
-              <ContactMarks person={thread.channel?.person_id} />
+              {/* An account's list puts every mark at the end of the line under it. */}
+              {!own && <ContactMarks person={thread.channel?.person_id} />}
             </>
           }
           time={shortWhen(thread.updated_at)}
@@ -122,10 +124,12 @@ function AccountLine({ thread, agent }: { thread: Thread; agent: Agent | undefin
   const t = useT();
   const person = useChannels((s) => s.persons.find((p) => p.id === thread.channel?.person_id));
   const relation = person?.relation ? t(RELATION_KEY[person.relation]) : undefined;
+  const flags = useContactFlags(person, thread.channel?.id ?? "");
   return (
     <span className="threadrow__line">
       {thread.state === "input-required" && <span className="threadrow__waiting">{t("thread.waiting")} · </span>}
       <AnswersLine className="threadrow__who" lead={[relation]} agent={agent} />
+      <ContactFlags flags={flags} />
     </span>
   );
 }

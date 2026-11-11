@@ -598,6 +598,17 @@ button.chatprocesses {
   gap: 4px;
   margin: -4px -4px 0 -6px;
 }
+.inbox__accounttools {
+  display: inline-flex;
+  flex: none;
+  gap: 4px;
+}
+/* On a phone the account's tools are in its menu: the name needs the room. */
+@media (max-width: 640px) {
+  .inbox__accounttools {
+    display: none;
+  }
+}
 .apx-btn.inbox__accountbtn {
   flex: 1;
   min-width: 0;

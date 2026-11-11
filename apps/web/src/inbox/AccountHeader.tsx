@@ -3,11 +3,12 @@ import type { ChannelInfo } from "@apx/protocol";
 import { Button, IconButton, Icons, PickRow, Popover } from "@apx/ui";
 import { useState } from "react";
 import { AnswersLine } from "../channels/AnswererFace.tsx";
+import { accountTools } from "../channels/accountMenu.tsx";
 import { accountName, accountWhere } from "../channels/accountName.ts";
 import { useAccountCounts } from "../channels/counts.ts";
 import { ContactFlags, useAccountFlags } from "../channels/flags.tsx";
 import { KindTile } from "../channels/KindIcon.tsx";
-import { isChannelKind, isRoomsKind, roomsOpenKey } from "../channels/kinds.ts";
+import { isChannelKind } from "../channels/kinds.ts";
 import { useChannels } from "../data/channels.ts";
 import { useData } from "../data/state.ts";
 import { useT } from "../i18n/index.ts";
@@ -25,10 +26,10 @@ export function AccountHeader({ account }: { account: ChannelInfo }) {
   const agents = useData((s) => s.agents);
   const counts = useAccountCounts();
   const [open, setOpen] = useState(false);
-  const kind = isChannelKind(account.type) ? account.type : undefined;
   const name = (c: ChannelInfo) => accountName(c, t);
   const answerer = (c: ChannelInfo) => agents[c.contacts_agent_id ?? c.agent_id];
   const flags = useAccountFlags(account);
+  const tools = accountTools(account, t, t("inbox.account.edit"));
   const pick = (f: () => void) => {
     setOpen(false);
     f();
@@ -63,6 +64,16 @@ export function AccountHeader({ account }: { account: ChannelInfo }) {
           </Button>
         }
       >
+        {tools.map((tool) => (
+          <PickRow
+            key={tool.key}
+            className="accountswitch__foot"
+            leading={tool.icon}
+            title={tool.label}
+            onClick={() => pick(tool.onSelect)}
+          />
+        ))}
+        {tools.length > 0 && <div className="accountswitch__sep" />}
         <div className="accountswitch__label">{t("inbox.account.list")}</div>
         {channels.map((c) => {
           const unread = counts.get(c.id)?.unread ?? 0;
@@ -98,27 +109,12 @@ export function AccountHeader({ account }: { account: ChannelInfo }) {
           }
         />
       </Popover>
-      {kind && (
-        <>
-          {isRoomsKind(kind) && (
-            <IconButton
-              label={t(roomsOpenKey(kind))}
-              icon={<Icons.Hash size={14} />}
-              onClick={() => go.channelSettings(kind, account.id, "rooms")}
-            />
-          )}
-          <IconButton
-            label={t("chs.contacts")}
-            icon={<Icons.Users size={14} />}
-            onClick={() => go.channelSettings(kind, account.id, "contacts")}
-          />
-          <IconButton
-            label={t("inbox.account.edit")}
-            icon={<Icons.Settings size={14} />}
-            onClick={() => go.channelSettings(kind, account.id, "account")}
-          />
-        </>
-      )}
+      {/* On a phone they are in the account's menu: the name needs the room. */}
+      <span className="inbox__accounttools">
+        {tools.map((tool) => (
+          <IconButton key={tool.key} label={tool.label} icon={tool.icon} onClick={tool.onSelect} />
+        ))}
+      </span>
     </div>
   );
 }

@@ -13,6 +13,7 @@ import { LAYOUT } from "../shell/layout.ts";
 import { go, nav, useNav } from "../shell/nav.ts";
 import { useShellLayout } from "../shell/useShellLayout.ts";
 import { AnswersLine } from "./AnswererFace.tsx";
+import { accountTools } from "./accountMenu.tsx";
 import { accountName, accountWhere } from "./accountName.ts";
 import { answerersOf, answersLine } from "./answerers.ts";
 import { ChannelConversation } from "./ChannelConversation.tsx";
@@ -21,7 +22,7 @@ import { ContactRow, type Row } from "./ContactRow.tsx";
 import { useAccountCounts } from "./counts.ts";
 import { ContactFlags, useAccountFlags } from "./flags.tsx";
 import { KindIcon, KindTile } from "./KindIcon.tsx";
-import { isChannelKind, isRoomsKind, roomsOpenKey } from "./kinds.ts";
+import { isChannelKind } from "./kinds.ts";
 import { LinkMe, LinkPhone, OwnerRow, ownerOn, PairingRow } from "./StartRows.tsx";
 
 /** A saved contact picked before they have a chat: the list's selection names them instead of a chat. */
@@ -315,32 +316,37 @@ function ChannelHead({ channel }: { channel: ChannelInfo }) {
   const answerers = answerersOf(channel, agents);
   const name = accountName(channel, t);
   const flags = useAccountFlags(channel);
+  const tools = accountTools(channel, t);
   return (
     <header className="chan__head">
-      {kind ? <KindTile kind={kind} size={26} /> : <ProjectTile tone="info" icon={<Icons.Send />} size={26} />}
       <Menu
         align="start"
         trigger={
-          // ui: the menu opens from the account's name and line, two lines no kit button holds.
-          <button type="button" className="chan__titles chan__switch">
-            <span className="chan__name">
-              {name}
-              <Icons.ChevronDown size={14} />
-            </span>
-            <span className="chan__meta">
-              {/* Only an account that is not up says so here; its number and details are in its settings. */}
-              {channel.status !== "running" && <span className={`chan__status is-${channel.status}`} />}
-              <AnswersLine
-                className="chan__metatext"
-                lead={[accountWhere(channel, name)]}
-                agent={answerers.owner}
-                text={answersLine(answerers, t)}
-              />
-              <ContactFlags flags={flags} />
+          // ui: the menu opens from the account's mark, name and line together, which no kit button holds.
+          <button type="button" className="chan__switch">
+            {kind ? <KindTile kind={kind} size={26} /> : <ProjectTile tone="info" icon={<Icons.Send />} size={26} />}
+            <span className="chan__titles">
+              <span className="chan__name">
+                <span className="chan__nametext">{name}</span>
+                <Icons.ChevronDown size={14} />
+              </span>
+              <span className="chan__meta">
+                {/* Only an account that is not up says so here; its number and details are in its settings. */}
+                {channel.status !== "running" && <span className={`chan__status is-${channel.status}`} />}
+                <AnswersLine
+                  className="chan__metatext"
+                  lead={[accountWhere(channel, name)]}
+                  agent={answerers.owner}
+                  text={answersLine(answerers, t)}
+                />
+                <ContactFlags flags={flags} />
+              </span>
             </span>
           </button>
         }
         items={[
+          ...tools.map((tool) => ({ label: tool.label, icon: tool.icon, onSelect: tool.onSelect })),
+          ...(tools.length ? [{ type: "separator" as const }] : []),
           { type: "label" as const, label: t("chs.accounts") },
           ...channels.map((c) => {
             const n = (counts.get(c.id)?.unread ?? 0) + (counts.get(c.id)?.waiting ?? 0);
@@ -355,30 +361,12 @@ function ChannelHead({ channel }: { channel: ChannelInfo }) {
           { label: t("nav.manageChannels"), icon: <Icons.LayoutGrid />, onSelect: () => go.view("channels") },
         ]}
       />
-      {kind && (
-        <>
-          {isRoomsKind(kind) && (
-            <IconButton
-              size="sm"
-              label={t(roomsOpenKey(kind))}
-              icon={<Icons.Hash size={14} />}
-              onClick={() => go.channelSettings(kind, channel.id, "rooms")}
-            />
-          )}
-          <IconButton
-            size="sm"
-            label={t("chs.contacts")}
-            icon={<Icons.Users size={14} />}
-            onClick={() => go.channelSettings(kind, channel.id, "contacts")}
-          />
-          <IconButton
-            size="sm"
-            label={t("ch.settings")}
-            icon={<Icons.Settings size={14} />}
-            onClick={() => go.channelSettings(kind, channel.id)}
-          />
-        </>
-      )}
+      {/* On a phone they are in the account's menu: the name needs the room. */}
+      <span className="chan__headtools">
+        {tools.map((tool) => (
+          <IconButton key={tool.key} size="sm" label={tool.label} icon={tool.icon} onClick={tool.onSelect} />
+        ))}
+      </span>
     </header>
   );
 }

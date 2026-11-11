@@ -98,7 +98,7 @@ function AccountRow({ channel, counts }: { channel: ChannelInfo; counts: Account
   const unread = counts?.unread ?? 0;
   const status = channel.enabled ? channel.status : "off";
   const name = accountName(channel, t);
-  const flags = useAccountFlags(channel);
+  const flags = useAccountFlags(channel, true);
   return (
     <ContextMenu
       items={accountItems(channel, t, waiting)}
@@ -121,13 +121,14 @@ function AccountRow({ channel, counts }: { channel: ChannelInfo; counts: Account
               {name}
             </span>
             {waiting > 0 && <Badge tone="warning">{t("chs.waiting", { n: waiting })}</Badge>}
-            <ContactFlags flags={flags} />
           </span>
         }
         description={accountLine(channel, t)}
         onClick={() => go.channel(channel.id)}
       />
       <span className="chs__meta">
+        {/* What it does for everyone on it; what it does not, dimmed. */}
+        <ContactFlags className="chs__marks" flags={flags} />
         <span className="chs__agents" title={answersLine({ owner, contacts }, t)}>
           <span className="chs__agent">
             {owner && <AgentAvatar name={owner.name} blob={blobOf(owner)} size={18} animated={false} />}
@@ -149,16 +150,22 @@ function AccountRow({ channel, counts }: { channel: ChannelInfo; counts: Account
       </span>
       <span className="chs__unread">{unread > 0 && <span className="chan__unread">{unread}</span>}</span>
       <span className="chs__actions">
-        <Button size="sm" variant="secondary" onClick={() => go.channel(channel.id)}>
-          {t("chs.open")}
-        </Button>
+        {/* The row opens the account; these are the same tools as on top of its list. */}
         {kind && (
-          <IconButton
-            size="sm"
-            label={t("chs.settings", { name })}
-            icon={<Icons.Pencil size={14} />}
-            onClick={() => go.channelSettings(kind, channel.id)}
-          />
+          <>
+            <IconButton
+              size="sm"
+              label={t("chs.contactsOf", { name })}
+              icon={<Icons.Users size={14} />}
+              onClick={() => go.channelSettings(kind, channel.id, "contacts")}
+            />
+            <IconButton
+              size="sm"
+              label={t("chs.settings", { name })}
+              icon={<Icons.Settings size={14} />}
+              onClick={() => go.channelSettings(kind, channel.id)}
+            />
+          </>
         )}
       </span>
     </ContextMenu>

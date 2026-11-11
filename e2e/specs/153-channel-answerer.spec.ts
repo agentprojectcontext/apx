@@ -126,7 +126,13 @@ for (const width of [1440, 412]) {
     if (width < 768) await page.getByRole("button", { name: "Volver a los chats", exact: true }).click();
     const header = page.locator(".inbox__account");
     await expect(header.locator(".inbox__accountsubtext .answerer")).toBeVisible();
-    await expect(header.getByRole("button", { name: "Salas" })).toBeVisible();
+    // A phone keeps the account's tools in its menu, so the name has the room.
+    if (width > 640) await expect(header.getByRole("button", { name: "Salas" })).toBeVisible();
+    else {
+      await header.locator(".inbox__accountbtn").click();
+      await expect(page.getByRole("dialog", { name: "Cuentas" }).getByRole("button", { name: "Salas" })).toBeVisible();
+      await page.keyboard.press("Escape");
+    }
     // Which account it is and who answers, without the app's name again; what it does, as marks.
     await expect(header.locator(".inbox__accountsubtext")).toHaveText(`Acme bot · Atiende ${superagent.name}`);
     await expect(header.getByRole("img", { name: "Anota citas" })).toBeVisible();
@@ -151,7 +157,12 @@ for (const width of [1440, 412]) {
     await open(page, "#channel=community-primary");
     const head = page.locator(".chan__head");
     await expect(head.locator(".chan__metatext .answerer")).toBeVisible();
-    await expect(head.getByRole("button", { name: "Salas" })).toBeVisible();
+    if (width > 640) await expect(head.getByRole("button", { name: "Salas" })).toBeVisible();
+    else {
+      await head.locator(".chan__switch").click();
+      await expect(page.getByRole("menuitem", { name: "Salas" })).toBeVisible();
+      await page.keyboard.press("Escape");
+    }
     // As slim as the Inbox's: which account it is and who answers; no note under the list.
     await expect(head.locator(".chan__metatext")).toHaveText(`Acme bot · Atiende ${superagent.name}`);
     await expect(head.getByRole("img", { name: "Anota citas" })).toBeVisible();

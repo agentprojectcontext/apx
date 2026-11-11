@@ -321,7 +321,6 @@ export const enChannels = {
   "chs.waiting": "{n} to approve",
   "chs.rooms.one": "1 room",
   "chs.rooms.other": "{n} rooms",
-  "chs.open": "Open",
   "chs.settings": "Settings of {name}",
   "chs.hint": "Right-click an account, here or in the sidebar, for more options.",
   "chs.empty": "No channel connected yet",

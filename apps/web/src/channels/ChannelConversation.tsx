@@ -2,13 +2,14 @@ import type { ChannelInfo, Message, Person, Thread } from "@apx/protocol";
 import { receivedMail } from "@apx/protocol/email-block";
 import {
   Button,
+  Composer,
   EmptyState,
   IconButton,
   Icons,
   SegmentedControl,
   Skeleton,
   StickyScroll,
-  Textarea,
+  Tag,
   Tooltip,
 } from "@apx/ui";
 import { Suspense, useEffect, useState } from "react";
@@ -22,8 +23,8 @@ import { useData } from "../data/state.ts";
 import { type MessageKey, useT } from "../i18n/index.ts";
 import { EmailCard, MediaGroup, ReceivedMail } from "../lazy.ts";
 import { go } from "../shell/nav.ts";
-import { addressText, ContactFace, useContactFlags } from "./ContactRow.tsx";
-import { ContactFlags } from "./flags.tsx";
+import { addressText, ContactFace } from "./ContactRow.tsx";
+import { ContactFlags, useContactFlags } from "./flags.tsx";
 import { KindIcon } from "./KindIcon.tsx";
 import { CHANNEL_KINDS } from "./kinds.ts";
 import { DeliveryTicks, ReactionList } from "./MessageMarks.tsx";
@@ -141,20 +142,17 @@ export function ChannelConversation(props: {
           aria-expanded={props.card}
           onClick={props.onToggleCard}
         >
-          <Tooltip content={channelLabel}>
-            <span className="threadavatar__channel" role="img" aria-label={channelLabel}>
-              <KindIcon kind={channel.type} size={16} />
-            </span>
-          </Tooltip>
           <ContactFace person={person} name={name} presence={props.presence} />
           <span className="chan__titles">
             <span className="chan__name">{name}</span>
-            {(meta.length > 0 || flags.length > 0) && (
-              <span className="chan__metaline">
-                {meta.length > 0 && <span className="chan__meta">{meta.join(" · ")}</span>}
-                <ContactFlags flags={flags} />
-              </span>
-            )}
+            {/* The app is said once, in words under the name, as in an agent's chat. */}
+            <span className="chan__metaline">
+              <Tag>
+                <KindIcon kind={channel.type} size={11} /> {channelLabel}
+              </Tag>
+              {meta.length > 0 && <span className="chan__meta">{meta.join(" · ")}</span>}
+              <ContactFlags flags={flags} />
+            </span>
           </span>
         </button>
         {lostFiles && (
@@ -188,42 +186,35 @@ export function ChannelConversation(props: {
           (messages ?? []).map((m) => <Bubble key={m.id} m={m} agentName={agentName} mail={channel.type === "email"} />)
         )}
       </StickyScroll>
-      <div className="chan__composer">
-        <Textarea
-          aria-label={writeLabel}
+      {/* The same composer as a room's: the line, and under it who writes, what each choice does on hover. */}
+      <div className="chat__composer chan__composer">
+        <Composer
+          className="composer--slim"
           placeholder={writeLabel}
-          rows={2}
+          inputLabel={writeLabel}
+          labels={{ send: t("composer.send"), stop: t("composer.stop") }}
+          sendHint={t("composer.sendHint")}
           value={text}
-          onChange={(e) => setText(e.currentTarget.value)}
-          onKeyDown={(e) => {
-            if (e.key === "Enter" && !e.shiftKey) {
-              e.preventDefault();
-              void submit();
-            }
-          }}
+          onValueChange={setText}
+          disabled={busy}
+          onSubmit={() => void submit()}
         />
-        <div className="chan__composerbar">
-          <SegmentedControl
-            size="sm"
-            label={t("ch.who")}
-            value={mode}
-            onValueChange={setMode}
-            options={[
-              { value: "agent", label: t("ch.agentAnswers", { agent: agentName }) },
-              { value: "me", label: t("ch.iWrite") },
-            ]}
-          />
-          <span className="chan__spacer" />
-          <IconButton
-            variant="primary"
-            shape="circle"
-            label={t("tasks.send")}
-            icon={<Icons.ArrowUp size={14} />}
-            disabled={!text.trim() || busy}
-            onClick={() => void submit()}
-          />
+        <div className="chat__composer-foot">
+          <Tooltip content={hint}>
+            <span className="chat__roommode">
+              <SegmentedControl
+                size="sm"
+                label={t("ch.who")}
+                value={mode}
+                onValueChange={setMode}
+                options={[
+                  { value: "agent", label: t("ch.agentAnswers", { agent: agentName }) },
+                  { value: "me", label: t("ch.iWrite") },
+                ]}
+              />
+            </span>
+          </Tooltip>
         </div>
-        <p className="chan__hint">{hint}</p>
       </div>
     </section>
   );

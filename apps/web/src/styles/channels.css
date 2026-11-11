@@ -492,31 +492,6 @@
   color: var(--apx-fg-muted);
   font-size: var(--apx-text-xs);
 }
-.chan__composer {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  margin: 0 24px 20px;
-  padding: 10px 12px;
-  border: 1px solid var(--apx-border);
-  border-radius: 18px;
-  background: var(--apx-surface);
-}
-.chan__composer textarea {
-  border: 0;
-  background: transparent;
-  resize: none;
-}
-.chan__composerbar {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-.chan__hint {
-  margin: 0;
-  font-size: var(--apx-text-xs);
-  color: var(--apx-fg-muted);
-}
 .chan__spacer {
   flex: 1;
 }
@@ -736,9 +711,6 @@
   .chan__msglist {
     padding: 14px;
   }
-  .chan__composer {
-    margin: 0 10px 10px;
-  }
 }
 
 /* WhatsApp linking: the QR beside what to do with it. */
@@ -808,7 +780,7 @@
 }
 .chs__row {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(140px, 220px) 120px 28px auto;
+  grid-template-columns: minmax(0, 1fr) 108px minmax(140px, 220px) 120px 28px auto;
   align-items: center;
   gap: 12px;
   padding: 10px 14px;
@@ -855,7 +827,8 @@
   min-width: 0;
   font-weight: var(--apx-weight-medium);
 }
-.chs__name .chan__flags {
+.chs__marks.chan__flags {
+  gap: 6px;
   margin-left: 0;
 }
 /* A long name ends in an ellipsis next to the buttons; the whole of it shows on hover. */
@@ -969,13 +942,14 @@
     flex: none;
   }
 }
-/* The channel's name opens its accounts, to switch to another. */
+/* The account's mark, name and line are one button: its menu has the account's tools and the other accounts. */
 .chan__switch {
   display: flex;
-  flex-direction: column;
-  align-items: stretch;
-  gap: 1px;
-  margin: -4px 0;
+  flex: 1;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  margin: -4px 0 -4px -6px;
   padding: 4px 6px;
   border: 0;
   border-radius: var(--apx-radius-sm);
@@ -988,10 +962,30 @@
 .chan__switch:hover {
   background: var(--apx-fill-hover);
 }
+.chan__switch .chan__titles {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
 .chan__switch .chan__name {
   display: flex;
   align-items: center;
   gap: 4px;
+}
+.chan__nametext {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.chan__headtools {
+  display: inline-flex;
+  flex: none;
+  gap: 2px;
+}
+@media (max-width: 640px) {
+  .chan__headtools {
+    display: none;
+  }
 }
 .channelsnav__manage {
   margin-bottom: 2px;

@@ -338,7 +338,6 @@ export const esChannels: Partial<Record<MessageKey, string>> = {
   "chs.waiting": "{n} por aprobar",
   "chs.rooms.one": "1 sala",
   "chs.rooms.other": "{n} salas",
-  "chs.open": "Abrir",
   "chs.settings": "Configuración de {name}",
   "chs.hint": "Clic derecho en una cuenta, acá o en la barra lateral, para más opciones.",
   "chs.empty": "Todavía no conectaste ningún canal",
