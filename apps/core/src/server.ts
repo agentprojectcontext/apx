@@ -694,7 +694,9 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
     },
     (thread, stage) => bus.emit({ type: "computer.progress", thread_id: thread, stage }),
   );
-  const stopAgentReviews = watchAgentReviews(store, bus);
+  const stopAgentReviews = watchAgentReviews(store, bus, (error) =>
+    log.warn({ err: errorMessage(error) }, "agent review scan failed"),
+  );
   const activityReview = createActivityReview({
     store,
     llm,

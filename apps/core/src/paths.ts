@@ -73,15 +73,17 @@ export function insideReal(base: string, p: string): boolean {
 /**
  * Writes a file atomically: a fresh temp file beside it, created exclusively (an existing path or a planted symlink
  * makes it fail instead of being followed), then renamed over the target. The folder is checked again right before
- * the rename, so swapping it for a link in between is refused too.
+ * the rename, so swapping it for a link in between is refused too. `beforeCommit` can revalidate optimistic
+ * preconditions after staging bytes; it does not lock another process's writes.
  */
-export function writeAtomic(file: string, text: string, mode?: number): void {
+export function writeAtomic(file: string, text: string, mode?: number, beforeCommit?: () => void): void {
   const dir = path.dirname(file);
   fs.mkdirSync(dir, { recursive: true });
   const before = fs.lstatSync(dir);
   const tmp = path.join(dir, `.${path.basename(file)}.${randomBytes(6).toString("hex")}.tmp`);
   fs.writeFileSync(tmp, text, { flag: "wx", ...(mode !== undefined ? { mode } : {}) });
   try {
+    beforeCommit?.();
     const now = fs.lstatSync(dir);
     if (now.isSymbolicLink() || now.ino !== before.ino)
       throw new Error(`refusing to write: ${dir} changed while writing`);

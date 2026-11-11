@@ -81,7 +81,7 @@ test("all writers converge, burst notices replace, no-ops stay silent and review
   }
 });
 
-test("a failed notice write does not consume the persisted change checkpoint", async () => {
+test("a failed initial notice write does not consume the persisted change checkpoint", async () => {
   const dir = tempDir("apx-agent-review-atomic-");
   const db = openDb(dir.path);
   const bus = createBus();
@@ -100,7 +100,10 @@ test("a failed notice write does not consume the persisted change checkpoint", a
       throw new Error("notice write failed");
     };
     try {
-      assert.throws(() => watchAgentReviews(store, bus), /notice write failed/);
+      const errors: unknown[] = [];
+      const failed = watchAgentReviews(store, bus, (error) => errors.push(error));
+      failed();
+      assert.match(String(errors[0]), /notice write failed/);
       assert.equal(pendingAgentReviews(store).length, 0, "failed scan rolls back its pending checkpoint too");
     } finally {
       store.notifications.add = add;

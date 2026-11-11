@@ -39,7 +39,9 @@ llama a un modelo por cada guardado y el aviso nunca bloquea el trabajo.
 Pedí «Revisá mis agentes modificados, sin editarlos». El super-agente usa `agent_set` con `review: true`, revisa tandas
 chicas en contexto y propone un antes y después. Vos elegís qué aplicar. Los cambios revisados usan la revisión leída
 antes de la propuesta: instrucciones o contexto más nuevos generan un conflicto en vez de sobrescribirse. Una
-actualización revisada resuelve su pendiente; un cambio posterior abre otro. Si no hay nada que corregir, el
+actualización revisada resuelve su pendiente; un cambio posterior abre otro. APX vuelve a comprobar la revisión
+después de preparar el reemplazo del archivo, justo antes de guardarlo. Es protección de concurrencia optimista, no
+un bloqueo exclusivo sobre editores externos: evitá guardar ese mismo archivo mientras aplicás una revisión. Si no hay nada que corregir, el
 super-agente puede marcarlo como revisado con tu acuerdo. La revisión es pasiva por defecto: guardar un archivo no
 dispara una reescritura autónoma ni una revisión semántica en segundo plano.
 

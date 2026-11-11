@@ -68,7 +68,11 @@ is replaced on further changes. The owner asks the super-agent to load the singl
 review a bounded batch; `apx-agent-prompts` remains a reserved load alias, not another catalog entry.
 Owner-only `agents.review_queue` and `agents.review_ack`, plus `agent_set`'s review mode, expose this procedure.
 `agents.get` returns a revision; optional `agents.update.if_revision` reindexes a file-backed definition and refuses
-stale proposals before writing. Checked prompt updates acknowledge the resulting version to avoid review loops.
+stale proposals before writing, then checks again after staging the replacement bytes and before the atomic rename.
+This is optimistic validation, not filesystem compare-and-swap against a non-cooperating editor; an external write
+after the final check remains outside its exclusion guarantee. Checked prompt updates acknowledge the resulting
+version to avoid review loops. Scan failures roll back, are logged without terminating the core, and retry on a
+later team change or restart.
 Ordinary edits retain their existing behavior. Notifications are passive; no autonomous semantic review is scheduled.
 
 ## 2. How a call flows

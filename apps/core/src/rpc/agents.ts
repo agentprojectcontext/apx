@@ -17,7 +17,7 @@ import { acknowledgeAgentReview, agentRevision, pendingAgentReviews } from "../d
 import { type AgentRecord, publicAgent, rulesText } from "../domain/agents.ts";
 import type { EngineIds } from "../domain/refs.ts";
 import type { Store } from "../domain/store.ts";
-import { badRequest, conflict, errorMessage, notFound } from "../errors.ts";
+import { badRequest, CallError, conflict, errorMessage, notFound } from "../errors.ts";
 import { refProblem } from "../models/choice.ts";
 import { toolCatalog } from "../tools/policy.ts";
 import type { Tool } from "../tools/types.ts";
@@ -52,6 +52,7 @@ export function agentHandlers(store: Store, apc: ApcSync, engines: EngineIds, to
     try {
       return fn();
     } catch (err) {
+      if (err instanceof CallError) throw err;
       throw badRequest(errorMessage(err));
     }
   };
@@ -205,7 +206,18 @@ export function agentHandlers(store: Store, apc: ApcSync, engines: EngineIds, to
         const reports = slug !== cur.slug ? reportsOf(teamOf(cur.project_id), cur) : [];
         onDisk(() => {
           if (slug !== cur.slug) renameAgentFile(root, cur.slug as string, slug);
-          updateAgentFile(root, slug, definition, p.prompt);
+          const expected = p.if_revision;
+          updateAgentFile(
+            root,
+            slug,
+            definition,
+            p.prompt,
+            expected
+              ? () => {
+                  reviewedCurrent(cur.id, expected);
+                }
+              : undefined,
+          );
           for (const r of reports) if (r.slug) updateAgentFile(root, r.slug, { parent: slug });
         });
         apc.sync(cur.project_id);

@@ -45,7 +45,8 @@ changed, not unsafe. A review is optional and never blocks work.
   which changes to apply. Do not silently apply a review because creation or import was approved earlier.
 - For an approved prompt change, send the complete replacement and `if_revision` from the reviewed version through
   `agent_set`. If it conflicts, reread and propose again; never retry without the condition. This also checks external
-  file edits before applying. A successful checked prompt change clears that review without generating a new alert.
+  file edits again immediately before committing the replacement. This does not lock another editor: avoid saving
+  the same file concurrently while applying. A successful checked prompt change clears that review without a new alert.
 - To finish a review without a prompt change, use `agent_set {agent, review: true, if_revision}` after the owner agrees.
   Subsequent changes create a new review. Never mark other agents reviewed just to clear the queue.
 

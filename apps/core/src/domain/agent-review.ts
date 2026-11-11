@@ -80,7 +80,7 @@ export function acknowledgeAgentReview(store: Store, a: AgentRecord): void {
 }
 
 /** All writers converge on team.updated, including file reindexing and importers. No model call runs here. */
-export function watchAgentReviews(store: Store, bus: Bus): () => void {
+export function watchAgentReviews(store: Store, bus: Bus, onError: (error: unknown) => void = () => {}): () => void {
   let closed = false;
   let queued = false;
   const scan = () =>
@@ -131,13 +131,22 @@ export function watchAgentReviews(store: Store, bus: Bus): () => void {
           store.notifications.resolve("agent", n.ref);
       }
     });
-  scan();
+  const safelyScan = () => {
+    try {
+      scan();
+    } catch (error) {
+      try {
+        onError(error);
+      } catch {}
+    }
+  };
+  safelyScan();
   const off = bus.on((e) => {
     if (e.type !== "team.updated" || queued) return;
     queued = true;
     queueMicrotask(() => {
       queued = false;
-      if (!closed) scan();
+      if (!closed) safelyScan();
     });
   });
   return () => {

@@ -36,7 +36,9 @@ changed, not that APX found an error. No model is called for each save, and the 
 Ask “Review my changed agents, without editing them.” The super-agent uses `agent_set` with `review: true`, checks
 small batches in context, and proposes before/after changes. You choose which to apply. Reviewed changes use the
 revision read before the proposal: newer instructions or project context cause a conflict instead of being overwritten.
-A reviewed update clears its pending review; a later change opens a new one. If nothing needs changing, the
+APX checks again after preparing the file replacement, immediately before committing it. This is optimistic
+concurrency protection, not an exclusive lock on external editors: avoid saving that same file while applying a
+review. A reviewed update clears its pending review; a later change opens a new one. If nothing needs changing, the
 super-agent can mark it reviewed with your agreement. Reviews are passive by default: no autonomous rewrite or
 background semantic review runs merely because a file was saved.
 
