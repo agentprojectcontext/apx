@@ -1,3 +1,4 @@
+import type { Thread } from "../../packages/protocol/src/index.ts";
 import { cardSidebar, expect, open, rpc, test } from "./kit.ts";
 
 test.beforeAll(async () => {
@@ -251,7 +252,7 @@ test("Canales: tres visibles, orden persistente y sin leer visibles también en 
     agent_id: "superagent",
     title: "Avisos Email",
   });
-  let unread = true;
+  const unread = { slack: 3, email: 2 };
   await page.route("**/rpc/channels.list", async (route) => {
     await route.fulfill({
       json: {
@@ -273,26 +274,31 @@ test("Canales: tres visibles, orden persistente y sin leer visibles también en 
       },
     });
   });
+  const channelThread = (thread: Thread): Thread =>
+    thread.id === slack.id
+      ? { ...thread, channel: { id: "slack", conversation: "slack-e2e" }, unread: unread.slack }
+      : thread.id === email.id
+        ? { ...thread, channel: { id: "email", conversation: "email-e2e" }, unread: unread.email }
+        : { ...thread, unread: 0 };
   await page.route("**/rpc/threads.list", async (route) => {
     const response = await route.fetch();
     const body = await response.json();
-    body.result.threads = body.result.threads.map((thread: { id: string }) =>
-      thread.id === slack.id
-        ? {
-            ...thread,
-            channel: { id: "slack", conversation: "slack-e2e" },
-            unread: unread ? 3 : 0,
-          }
-        : thread.id === email.id
-          ? {
-              ...thread,
-              channel: { id: "email", conversation: "email-e2e" },
-              unread: unread ? 2 : 0,
-            }
-          : // Unread left by earlier specs on other channels would change the counts checked here.
-            { ...thread, unread: 0 },
-    );
+    body.result.threads = body.result.threads.map(channelThread);
     await route.fulfill({ response, json: body });
+  });
+  // Loading a conversation must preserve the same fixture identity and unread state as its list entry.
+  await page.route("**/rpc/threads.get", async (route) => {
+    const response = await route.fetch();
+    const body = await response.json();
+    if (body.ok) body.result.thread = channelThread(body.result.thread);
+    await route.fulfill({ response, json: body });
+  });
+  await page.route("**/rpc/threads.read", async (route) => {
+    const { thread } = route.request().postDataJSON() as { thread: string };
+    if (thread === slack.id) unread.slack = 0;
+    else if (thread === email.id) unread.email = 0;
+    else return route.continue();
+    await route.fulfill({ json: { ok: true, result: { ok: true } } });
   });
   await cardSidebar(page);
   await open(page);
@@ -300,8 +306,9 @@ test("Canales: tres visibles, orden persistente y sin leer visibles también en 
   const ids = () => rows.evaluateAll((rows) => rows.map((row) => row.getAttribute("data-channel-id")));
   await expect(rows).toHaveCount(3);
   await expect.poll(ids).toEqual(["telegram", "discord", "whatsapp"]);
-  const more = page.getByRole("button", { name: "2 canales más · 5 sin leer" });
+  const more = page.getByRole("button", { name: /^2 canales más(?: · \d+ sin leer)?$/ });
   await expect(more).toBeVisible();
+  await expect(more).toHaveAccessibleName("2 canales más · 5 sin leer");
   await expect(more.locator(".apx-nav__count")).toHaveText("5");
   const fold = page.locator(".sidebar__toggle").filter({ hasText: "Canales" });
   await expect(fold).toHaveAttribute("aria-expanded", "true");
@@ -338,6 +345,8 @@ test("Canales: tres visibles, orden persistente y sin leer visibles también en 
   await expect(popup.getByRole("button", { name: /^Slack/ })).toBeVisible();
   await expect(popup.locator('[data-channel-id="slack"] .apx-nav__count')).toHaveText("3");
   await popup.getByRole("button", { name: /^Slack/ }).click();
+  await expect.poll(() => unread.slack).toBe(0);
+  await expect(more).toHaveAccessibleName("2 canales más · 2 sin leer");
   await expect(more).toHaveClass(/is-active/);
   await more.click();
   await popup.locator('[data-channel-id="email"]').hover();
@@ -345,11 +354,14 @@ test("Canales: tres visibles, orden persistente y sin leer visibles también en 
   await page.getByRole("menuitem", { name: "Mostrar primero" }).click();
   await expect.poll(ids).toEqual(["email", "whatsapp", "telegram"]);
   await page.keyboard.press("Escape");
-  await expect(page.getByRole("button", { name: "2 canales más · 3 sin leer" })).toBeVisible();
-  unread = false;
+  await expect(more).toHaveAccessibleName("2 canales más");
+  const emailCount = page.locator('[data-channel-id="email"] .apx-nav__count');
+  await expect(emailCount).toHaveText("2");
+  unread.email = 0;
   await page.reload();
   const cleared = page.getByRole("button", { name: "2 canales más", exact: true });
   await expect(cleared).toBeVisible();
   await expect(cleared.locator(".apx-nav__count")).toHaveCount(0);
+  await expect(emailCount).toHaveCount(0);
   await expect.poll(ids).toEqual(["email", "whatsapp", "telegram"]);
 });

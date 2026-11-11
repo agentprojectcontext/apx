@@ -53,22 +53,24 @@ test("Canales recientes, tres visibles, acciones integradas y menú idéntico co
     channelIds.map((id, index) => [id, new Date(Date.UTC(2001, 0, 1) - (index + 1) * 1000).toISOString()]),
   );
   at.set("slack", new Date(Date.UTC(2001, 0, 1) - 100).toISOString());
+  const channelThreads = (): Thread[] =>
+    channelIds.map((id, index) => ({
+      ...base,
+      id: `${base.id}_${id}`,
+      channel: { id, conversation: `room-${id}` },
+      updated_at: at.get(id) ?? base.updated_at,
+      unread: index === 4 ? 2 : 0,
+    }));
   await page.route("**/rpc/threads.list", async (route) =>
-    route.fulfill({
-      json: {
-        ok: true,
-        result: {
-          threads: channelIds.map((id, index) => ({
-            ...base,
-            id: `${base.id}_${id}`,
-            channel: { id, conversation: `room-${id}` },
-            updated_at: at.get(id),
-            unread: index === 4 ? 2 : 0,
-          })),
-        },
-      },
-    }),
+    route.fulfill({ json: { ok: true, result: { threads: channelThreads() } } }),
   );
+  // These list entries are synthetic: serve their transcripts rather than requesting nonexistent core IDs.
+  await page.route("**/rpc/threads.get", async (route) => {
+    const { thread: id } = route.request().postDataJSON() as { thread: string };
+    const thread = channelThreads().find((thread) => thread.id === id);
+    if (!thread) return route.continue();
+    await route.fulfill({ json: { ok: true, result: { thread, messages: [], runs: [] } } });
+  });
   await cardSidebar(page);
   await open(page, "#view=tasks");
   await expect.poll(() => orderedIds(page, "channel")).toEqual(["slack", "telegram", "discord"]);
