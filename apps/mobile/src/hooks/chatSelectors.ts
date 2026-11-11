@@ -129,6 +129,8 @@ const CHANNEL_NAMES: Record<string, string> = {
   whatsapp: "WhatsApp",
   discord: "Discord",
   slack: "Slack",
+  email: "Email",
+  imessage: "iMessage",
 };
 const ENGINE_NAMES: Record<string, string> = { claude: "Claude Code", codex: "Codex" };
 

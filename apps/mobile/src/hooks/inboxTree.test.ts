@@ -178,3 +178,23 @@ test("a task's own chat joins its row once something was said in it, and stays o
   );
   assert.deepEqual(ids(nodes), ["board_started", "helper"]);
 });
+
+test("a hidden channel account's chats leave the list; grouping puts each account's chats under one row", () => {
+  const on = (account: string, at: string) => ({ channel: { id: account, conversation: "c" }, updated_at: at });
+  const threads = [
+    thread("mail_a", { ...on("mail", "2026-10-19T09:00:00Z"), unread: 2 }),
+    thread("mail_b", on("mail", "2026-10-19T11:00:00Z")),
+    thread("wa_a", on("wa_sales", "2026-10-19T10:30:00Z")),
+    thread("app_chat", { updated_at: "2026-10-19T10:00:00Z" }),
+  ];
+  assert.deepEqual(ids(inboxTree(threads, { ...options, hiddenChannels: ["mail"] })), ["app_chat", "wa_a"]);
+  const grouped = inboxTree(threads, { ...options, byChannel: true });
+  assert.deepEqual(
+    grouped.map((node) => node.key),
+    ["channel:mail", "channel:wa_sales", "thread:app_chat"],
+  );
+  const mail = grouped[0];
+  assert.equal(mail?.thread.id, "mail_b");
+  // Its newest chat heads it without being counted twice.
+  assert.deepEqual(mail && nodeThreads(mail).map((item) => item.id), ["mail_b", "mail_a"]);
+});

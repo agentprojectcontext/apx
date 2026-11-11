@@ -3,11 +3,12 @@ import type { Thread } from "./useWorkspace";
 
 /**
  * A row of the chat list. A `task` or `routine` row is its most recent chat (`thread`); its other chats, and the
- * sessions under the latest one, are its `children`.
+ * sessions under the latest one, are its `children`. A `channel` row is one channel account (`ref`): `thread` is its
+ * most recent chat and every chat on it is a child.
  */
 export type InboxNode = {
   key: string;
-  kind: "thread" | "task" | "routine";
+  kind: "thread" | "task" | "routine" | "channel";
   ref: string;
   thread: Thread;
   children: InboxNode[];
@@ -27,6 +28,10 @@ export type InboxFilter = {
   agents?: readonly string[];
   /** The archived chats instead of the others. */
   archived?: boolean;
+  /** Channel accounts whose chats are left out. */
+  hiddenChannels?: readonly string[];
+  /** Each channel account's chats under one row. */
+  byChannel?: boolean;
 };
 
 /**
@@ -51,6 +56,7 @@ export function inboxTree(
     return false;
   };
   const agents = options.agents?.length ? new Set(options.agents) : undefined;
+  const hidden = new Set(options.hiddenChannels ?? []);
   const nodes = new Map<string, InboxNode>();
   for (const thread of threads) {
     if (Boolean(thread.archived) !== Boolean(options.archived)) continue;
@@ -58,6 +64,7 @@ export function inboxTree(
     if (!options.routines && under(thread, (item) => item.kind === "routine")) continue;
     if (options.tasks === false && under(thread, (item) => item.kind === "task" || Boolean(item.task_id))) continue;
     if (agents && !thread.agent_ids.some((id) => agents.has(id))) continue;
+    if (thread.channel && hidden.has(thread.channel.id)) continue;
     if (
       options.project !== "all" &&
       (options.project === "default" ? !!thread.project_id : thread.project_id !== options.project)
@@ -97,7 +104,19 @@ export function inboxTree(
           : undefined;
     const ref = kind === "routine" ? node.thread.routine_id : (node.thread.task_id ?? taskOf.get(node.thread.id));
     if (!kind || !ref) {
-      result.push(node);
+      const account = options.byChannel ? node.thread.channel?.id : undefined;
+      if (!account) {
+        result.push(node);
+        continue;
+      }
+      const key = `channel:${account}`;
+      const bundle = bundles.get(key);
+      if (bundle) bundle.children.push(node);
+      else {
+        const head: InboxNode = { key, kind: "channel", ref: account, thread: node.thread, children: [node] };
+        bundles.set(key, head);
+        result.push(head);
+      }
       continue;
     }
     const key = `${kind}:${ref}`;
@@ -118,8 +137,10 @@ export function inboxTree(
   return result;
 }
 
+/** Every chat a row holds; a channel's row is only its chats (its `thread` is one of them). */
 export function nodeThreads(node: InboxNode): Thread[] {
-  return [node.thread, ...node.children.flatMap(nodeThreads)];
+  const children = node.children.flatMap(nodeThreads);
+  return node.kind === "channel" ? children : [node.thread, ...children];
 }
 
 /** A matching descendant keeps its ancestors; a matching header keeps its entire subtree. */
