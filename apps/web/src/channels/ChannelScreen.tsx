@@ -180,11 +180,11 @@ export function ChannelScreen() {
               align="end"
               items={[
                 { type: "label" as const, label: t("ch.mailView") },
-                ...MAIL_VIEWS.map((v) => ({
-                  label: t(MAIL_VIEW_LABEL[v]),
-                  checked: mailView === v,
-                  onSelect: () => setMailView(v),
-                })),
+                ...MAIL_VIEWS.flatMap((v) => [
+                  // The marks come after a heading of their own: each shows only the chats of that kind of mail.
+                  ...(v === "automatic" ? [{ type: "label" as const, label: t("ch.mailView.marked") }] : []),
+                  { label: t(MAIL_VIEW_LABEL[v]), checked: mailView === v, onSelect: () => setMailView(v) },
+                ]),
               ]}
               trigger={
                 <IconButton
