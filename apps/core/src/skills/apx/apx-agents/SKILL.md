@@ -95,8 +95,8 @@ Leave alone what is craft: how to build, what to test, the design bar, the tone.
 
 ## How to do it
 
-1. `agent_set` with no args lists the team; `agent_set {agent}` reads one agent with its prompt. Read every agent,
-   the super-agent included (its own instructions, not APX's).
+1. `agent_set` with no args lists the team; `agent_set {agent}` reads one agent with its prompt. Read the agents in
+   the agreed batch, including the super-agent only when it is in scope (its own instructions, not APX's).
 2. Tell the owner in one short list: each agent that has something to fix, the line, why it stalls work, and the
    rewrite you propose. Agents with nothing to fix go in one line at the end. Ask which to apply.
 3. Only for the ones the owner approves, `agent_set {agent, prompt, if_revision}` with the whole new prompt and the
