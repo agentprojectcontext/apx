@@ -695,3 +695,38 @@ button.chatprocesses {
   padding: 8px 10px 4px;
   border-top: 1px solid var(--apx-border);
 }
+
+/* One account's own list: what was written last on one line ("…"), then who they are and who answers them. */
+.inbox .threadrow--account .apx-convrow__preview {
+  font-size: var(--apx-text-xs);
+  color: var(--apx-fg-muted);
+}
+.inbox .threadrow--account.is-unread .apx-convrow__preview {
+  color: var(--apx-fg);
+}
+.threadrow--account .apx-convrow__meta {
+  margin-top: 2px;
+}
+/* A mail shows its subject, then two lines of it. */
+.inbox .threadrow--mail .apx-convrow__preview {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  white-space: normal;
+}
+.threadrow__subject {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--apx-fg);
+  font-weight: var(--apx-weight-medium);
+}
+.threadrow--mail .threadrow__said {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+.inbox__accountfind {
+  margin-top: -2px;
+}

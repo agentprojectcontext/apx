@@ -134,7 +134,9 @@ export function ContactRow({
           </span>
           <span className="chan__rowtop chan__rowanswer">
             <AnswererFace agent={agent} />
-            <span className="chan__rel">{[agent?.name, relation].filter(Boolean).join(" · ")}</span>
+            <span className="chan__rel">
+              {[relation, agent ? t("ch.answersBy", { agent: agent.name }) : undefined].filter(Boolean).join(" · ")}
+            </span>
             <ContactFlags flags={flags} />
           </span>
         </span>

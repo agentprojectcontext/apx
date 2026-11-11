@@ -19,7 +19,7 @@ import { ContactPanel } from "./ContactPanel.tsx";
 import { ContactRow, type Row } from "./ContactRow.tsx";
 import { useAccountCounts } from "./counts.ts";
 import { KindIcon, KindTile } from "./KindIcon.tsx";
-import { CHANNEL_KINDS, GROUP_KINDS, isChannelKind, isRoomsKind } from "./kinds.ts";
+import { GROUP_KINDS, isChannelKind, isRoomsKind } from "./kinds.ts";
 import { LinkMe, LinkPhone, OwnerRow, ownerOn, PairingRow } from "./StartRows.tsx";
 
 /** A saved contact picked before they have a chat: the list's selection names them instead of a chat. */
@@ -329,8 +329,9 @@ function ChannelHead({ channel }: { channel: ChannelInfo }) {
               <AnswererFace agent={answerers.owner} />
               {answerers.contacts && <AnswererFace agent={answerers.contacts.agent} />}
               <span className="chan__metatext" title={answersLine(answerers, t)}>
-                {kind ? `${t(CHANNEL_KINDS[kind].name)} · ` : ""}
-                {answersLine(answerers, t)}
+                {[channel.account ?? channel.email?.address, answersLine(answerers, t)]
+                  .filter((x) => x && x !== channel.label)
+                  .join(" · ")}
               </span>
             </span>
           </button>
@@ -416,7 +417,9 @@ function RoomRow({
           <span className="chan__rowtop chan__rowanswer">
             <AnswererFace agent={agent} />
             <span className="chan__rel">
-              {[agent?.name, mode ? t(ROOM_MODE_KEY[mode]) : undefined].filter(Boolean).join(" · ")}
+              {[mode ? t(ROOM_MODE_KEY[mode]) : undefined, agent ? t("ch.answersBy", { agent: agent.name }) : undefined]
+                .filter(Boolean)
+                .join(" · ")}
             </span>
           </span>
         </span>

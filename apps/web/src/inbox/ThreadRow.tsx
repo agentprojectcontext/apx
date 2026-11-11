@@ -2,6 +2,7 @@ import type { Agent, Thread } from "@apx/protocol";
 import { ContextMenu, ConversationRow, IconButton, Icons, Menu, Spinner } from "@apx/ui";
 import { AnswererFace } from "../channels/AnswererFace.tsx";
 import { CHANNEL_KINDS, type ChannelKind } from "../channels/kinds.ts";
+import { RELATION_KEY } from "../channels/people.ts";
 import { ChatProcesses } from "../common/ChatProcesses.tsx";
 import { shortWhen } from "../common/format.ts";
 import { useEngineLabel } from "../common/useEngineLabel.ts";
@@ -20,6 +21,8 @@ export type ThreadRowProps = {
   thread: Thread;
   agent: Agent | undefined;
   selected: boolean;
+  /** Listed in one channel account's own list: what was written last, and who they are and who answers them. */
+  account?: boolean;
   onOpen: () => void;
 };
 
@@ -27,7 +30,7 @@ export type ThreadRowProps = {
  * A chat in a list, two lines: its title (with the chevron of its nested sessions) and when; then who speaks in it,
  * where, and its project (outside the project). Resting on it shows pin and archive; the rest is in its menu.
  */
-export function ThreadRow({ thread, agent, selected, onOpen }: ThreadRowProps) {
+export function ThreadRow({ thread, agent, selected, account = false, onOpen }: ThreadRowProps) {
   const t = useT();
   const channel = useThreadChannel(thread);
   const engine = useEngineLabel(thread.engine);
@@ -37,14 +40,15 @@ export function ThreadRow({ thread, agent, selected, onOpen }: ThreadRowProps) {
   const working = isWorking(thread.state);
   const waiting = thread.state === "input-required";
   const who = engine ?? agent?.name ?? thread.title;
+  const own = account && Boolean(thread.channel);
   return (
     <div className="threadrow-wrap" ref={fold.wrap}>
       <ContextMenu items={threadMenu(thread, { t, agent })}>
         <ConversationRow
-          className="threadrow"
+          className={`threadrow${own ? " threadrow--account" : ""}${own && channel === "email" ? " threadrow--mail" : ""}`}
           selected={selected}
           onClick={onOpen}
-          avatar={<ThreadAvatar thread={thread} agent={agent} size={24} slot={28} />}
+          avatar={<ThreadAvatar thread={thread} agent={agent} size={own ? 32 : 24} slot={own ? 36 : 28} />}
           title={thread.kind === "routine" ? routineName(thread) : thread.title}
           titleTag={
             <>
@@ -56,26 +60,31 @@ export function ThreadRow({ thread, agent, selected, onOpen }: ThreadRowProps) {
           }
           time={shortWhen(thread.updated_at)}
           unread={thread.unread}
+          {...(own ? { meta: <AccountLine thread={thread} agent={agent} /> } : {})}
           preview={
-            <span className="threadrow__line">
-              {/* A channel chat's own face is the person's or the room's: the agent who answers it shows here. */}
-              {thread.channel && !engine && <AnswererFace agent={agent} />}
-              <span className="threadrow__who">
-                {waiting && <span className="threadrow__waiting">{t("thread.waiting")} · </span>}
-                {[who, contextOf(thread, agent, t, channel)].filter(Boolean).join(" · ")}
+            own ? (
+              <Said thread={thread} mail={channel === "email"} />
+            ) : (
+              <span className="threadrow__line">
+                {/* A channel chat's own face is the person's or the room's: the agent who answers it shows here. */}
+                {thread.channel && !engine && <AnswererFace agent={agent} />}
+                <span className="threadrow__who">
+                  {waiting && <span className="threadrow__waiting">{t("thread.waiting")} · </span>}
+                  {[who, contextOf(thread, agent, t, channel)].filter(Boolean).join(" · ")}
+                </span>
+                {/* A chat with no project (the super-agent's) is the base project's: its badge says so. */}
+                {!inProject && (
+                  <>
+                    <span className="threadrow__dot">·</span>
+                    <ProjectBadge
+                      id={thread.project_id ?? DEFAULT_PID}
+                      name={projectName(projects, thread.project_id)}
+                      channel={channel}
+                    />
+                  </>
+                )}
               </span>
-              {/* A chat with no project (the super-agent's) is the base project's: its badge says so. */}
-              {!inProject && (
-                <>
-                  <span className="threadrow__dot">·</span>
-                  <ProjectBadge
-                    id={thread.project_id ?? DEFAULT_PID}
-                    name={projectName(projects, thread.project_id)}
-                    channel={channel}
-                  />
-                </>
-              )}
-            </span>
+            )
           }
         />
       </ContextMenu>
@@ -89,6 +98,38 @@ export function ThreadRow({ thread, agent, selected, onOpen }: ThreadRowProps) {
         />
       </span>
     </div>
+  );
+}
+
+/**
+ * What was written last, as the account's list shows it: one line with "…" for a chat; for a mail, its subject and
+ * two lines of it (the core keeps a mail's preview as "Subject · text").
+ */
+function Said({ thread, mail }: { thread: Thread; mail: boolean }) {
+  const text = thread.preview.replace(/\s+/g, " ").trim();
+  const cut = mail ? text.indexOf(" · ") : -1;
+  if (cut < 0) return <span className="threadrow__said">{text}</span>;
+  return (
+    <>
+      <span className="threadrow__subject">{text.slice(0, cut)}</span>
+      <span className="threadrow__said">{text.slice(cut + 3)}</span>
+    </>
+  );
+}
+
+/** Under it, who they are to the owner and who answers them ("Associate · Roby answers"), with what is set for them. */
+function AccountLine({ thread, agent }: { thread: Thread; agent: Agent | undefined }) {
+  const t = useT();
+  const person = useChannels((s) => s.persons.find((p) => p.id === thread.channel?.person_id));
+  const relation = person?.relation ? t(RELATION_KEY[person.relation]) : undefined;
+  return (
+    <span className="threadrow__line">
+      <AnswererFace agent={agent} />
+      <span className="threadrow__who">
+        {thread.state === "input-required" && <span className="threadrow__waiting">{t("thread.waiting")} · </span>}
+        {[relation, agent ? t("ch.answersBy", { agent: agent.name }) : undefined].filter(Boolean).join(" · ")}
+      </span>
+    </span>
   );
 }
 

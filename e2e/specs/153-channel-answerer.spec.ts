@@ -34,6 +34,7 @@ for (const width of [1440, 412]) {
       id: "community-primary",
       type: "discord",
       label: "Community",
+      account: "Acme bot",
       enabled: true,
       agent_id: "superagent",
       strangers: "pair",
@@ -111,11 +112,21 @@ for (const width of [1440, 412]) {
     const header = page.locator(".inbox__account");
     await expect(header.getByRole("img", { name: `Atiende ${superagent.name}` })).toBeVisible();
     await expect(header.getByRole("button", { name: "Salas" })).toBeVisible();
-    await expect(
-      page
-        .locator(".inbox__list .apx-convrow", { hasText: "#general" })
-        .getByRole("img", { name: `Atiende ${superagent.name}` }),
-    ).toBeVisible();
+    // Which account it is and who answers, without the app's name again.
+    await expect(header.locator(".inbox__accountsubtext")).toHaveText(`Acme bot · Atiende ${superagent.name}`);
+    const listed = page.locator(".inbox__list .apx-convrow", { hasText: "#general" });
+    await expect(listed.getByRole("img", { name: `Atiende ${superagent.name}` })).toBeVisible();
+    // Its row: what was written last, then who answers; no project badge, no app name.
+    await expect(listed.locator(".apx-convrow__preview")).toHaveText("Ana: hola");
+    await expect(listed.locator(".apx-convrow__meta")).toHaveText(`Atiende ${superagent.name}`);
+    await expect(listed.locator(".projbadge")).toHaveCount(0);
+    // The account's list has its search.
+    const find = page.locator(".inbox__accountfind input");
+    await find.fill("nadie así");
+    await expect(listed).toHaveCount(0);
+    await find.fill("hola");
+    await expect(listed).toBeVisible();
+    await find.fill("");
     if (SHOTS) await page.screenshot({ path: `${SHOTS}/inbox-account-${width}.png` });
 
     // The account's own screen: who answers in its header, a way to its rooms, and each room's answerer.
@@ -123,8 +134,8 @@ for (const width of [1440, 412]) {
     const head = page.locator(".chan__head");
     await expect(head.getByRole("img", { name: `Atiende ${superagent.name}` })).toBeVisible();
     await expect(head.getByRole("button", { name: "Salas" })).toBeVisible();
-    // As slim as the Inbox's: the app and who answers, never the account's number; no note under the list.
-    await expect(head.locator(".chan__metatext")).toHaveText(`Discord · Atiende ${superagent.name}`);
+    // As slim as the Inbox's: which account it is and who answers; no note under the list.
+    await expect(head.locator(".chan__metatext")).toHaveText(`Acme bot · Atiende ${superagent.name}`);
     await expect(page.getByText("Conversaciones con otras personas", { exact: false })).toHaveCount(0);
     if (width >= 1280) {
       // Its edge resizes it, like the Inbox's list.
@@ -142,6 +153,7 @@ for (const width of [1440, 412]) {
     }
     const row = page.locator(".chan__row", { hasText: "#general" });
     await expect(row.getByRole("img", { name: `Atiende ${superagent.name}` })).toBeVisible();
+    await expect(row.locator(".chan__rel")).toHaveText(`Cuando lo llaman · Atiende ${superagent.name}`);
     if (SHOTS) await page.screenshot({ path: `${SHOTS}/channel-screen-${width}.png` });
     expect(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth)).toBe(false);
 

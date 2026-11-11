@@ -86,9 +86,22 @@ export function InboxList() {
     <section className="inbox" aria-label={title}>
       <div className="inbox__head">
         {account ? (
-          <Suspense fallback={<h1 className="inbox__title">{account.label}</h1>}>
-            <AccountHeader account={account} />
-          </Suspense>
+          <>
+            <Suspense fallback={<h1 className="inbox__title">{account.label}</h1>}>
+              <AccountHeader account={account} />
+            </Suspense>
+            <SearchField
+              size="sm"
+              className="inbox__accountfind"
+              aria-label={t("inbox.searchIn.chats")}
+              placeholder={t("inbox.searchIn.chats")}
+              value={query}
+              onChange={(e) => setQuery(e.currentTarget.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Escape") setQuery("");
+              }}
+            />
+          </>
         ) : (
           <>
             <div className="inbox__titlerow">
@@ -214,7 +227,12 @@ export function InboxList() {
           )
         ) : (
           // One account's own list has nothing to group.
-          <ChatsTab entries={tabs.chats} archived={archived} byChannel={byChannel && !account} />
+          <ChatsTab
+            entries={tabs.chats}
+            archived={archived}
+            byChannel={byChannel && !account}
+            account={Boolean(account)}
+          />
         )}
       </div>
     </section>
