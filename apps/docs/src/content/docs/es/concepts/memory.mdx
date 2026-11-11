@@ -94,6 +94,7 @@ Las notas nunca van en el prompt de sistema. En cambio, cuando un agente respond
    fecha y mensaje fuente. Incluye turnos antiguos del mismo chat que ya no entran en su contexto, sin duplicar los
    visibles. También funciona con chats antiguos sin modelo auxiliar. Los saludos no disparan búsquedas.
 5. Si necesita detalle, usa `recall` o `read_chat` con `around` y el ID del mensaje fuente para leer mensajes antiguos.
+   `recall` sin palabras lista las notas más nuevas que puede ver, de a una página, y así una revisión las recorre todas.
 
 Editar u olvidar una nota invalida las copias inyectadas y sus respuestas derivadas. También invalida resúmenes de
 compactación, evitando que reaparezca desde un resumen viejo. Los registros originales de conversación se conservan.
@@ -165,12 +166,20 @@ repetirla. Retirar una nota exige revisar misma afirmación y ámbito; una fecha
 ## Ver, confirmar y deshacer
 
 La pestaña **Memoria** de un proyecto muestra sus notas y te deja cambiar entre **Este proyecto**, **Cuadernos de
-agentes**, **Sobre vos** y **Olvidadas**. Buscalas, sumá una, editá o sacá cualquiera.
+agentes**, **Sobre vos** y **Olvidadas**. Cada nota es una fila corta (sus dos primeras líneas, qué tipo de nota es,
+quién la escribió y cuándo); buscalas o sumá una. Hacé clic en una nota para abrirla al lado de la lista: su texto
+completo, **Editar nota** y **Quitar nota**, **Abrir el chat** donde se aprendió, y sus fuentes y revisiones anteriores.
+
+**Revisar con** el super-agente (en **Este proyecto** y **Sobre vos**, y en el panel de cualquier nota) abre un chat
+con él al lado de la lista, con el primer mensaje listo: repasan juntos las notas, una por una, y te propone qué
+dejar, corregir, unir u olvidar, y espera tu ok antes de cambiar una. Abierto desde una nota, el mensaje la cita y el
+chat vuelve a esa nota. Una nota del cuaderno de un agente se revisa con ese agente. La lista se vuelve a leer después
+de cada respuesta; una revisión que cerrás sin mandar nada no se guarda.
 
 <Shot name="memory" alt="La pestaña Memory de Acme Store: notas del proyecto con quién escribió cada una, y un buscador" caption="La pestaña Memoria de un proyecto" />
 
-- Las notas **Para confirmar** van primero en **Sobre vos**, cada una con un botón **Confirmar** y un link al chat
-  donde el agente la aprendió. Una barra arriba dice cuántas esperan y **Confirmar todas** confirma las de la lista
+- Las notas **Para confirmar** van primero en **Sobre vos**; el panel de cada una tiene **Confirmar** y un link al
+  chat donde el agente la aprendió. Una barra arriba dice cuántas esperan y **Confirmar todas** confirma las de la lista
   de una vez. Mientras alguna espera, la campana muestra un aviso **Aprendió algo sobre vos** con la más nueva; abre
   **Sobre vos** y se va cuando ya no queda ninguna.
 - Olvidar se puede deshacer. Una nota que sacás va a **Olvidadas**, donde ningún agente la ve; **Traer de vuelta** la

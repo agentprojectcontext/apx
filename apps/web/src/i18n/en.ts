@@ -22,6 +22,7 @@ import { enFilesArtifacts } from "./files-artifacts-en.ts";
 import type { enFlow } from "./flow-en.ts";
 import { enInboxSlim } from "./inbox-slim-en.ts";
 import type { enIngress } from "./ingress-en.ts";
+import type { enMemoryPanel } from "./memory-panel-en.ts";
 import type { enMove } from "./move-en.ts";
 import { enPanelAgents } from "./panel-agents-en.ts";
 import { enPanelTabs } from "./panel-tabs-en.ts";
@@ -1951,6 +1952,7 @@ export type MessageKey =
   | keyof typeof enStorage
   | keyof typeof enSignIn
   | keyof typeof enMove
+  | keyof typeof enMemoryPanel
   | keyof typeof enEmailSignatures
   | keyof typeof enThreadDialogs
   | keyof typeof enIngress
