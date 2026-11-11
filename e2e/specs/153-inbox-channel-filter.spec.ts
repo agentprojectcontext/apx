@@ -187,6 +187,8 @@ test("one account's list shows what was written: a mail's subject and two lines,
 
   await sidebar.getByRole("button", { name: "ventas@example.com", exact: true }).first().click();
   await page.setViewportSize({ width: 390, height: 800 });
+  // A phone opens the account's newest chat: wait for it or the list before stepping back.
+  await expect(back.or(row).first()).toBeVisible();
   if (await back.isVisible()) await back.click();
   await expect(row.locator(".threadrow__subject")).toBeVisible();
   await page.screenshot({ path: "test-results/inbox-account-mail-phone.png" });
