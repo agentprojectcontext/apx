@@ -716,6 +716,21 @@ export const appMethods = {
     effect: true,
   },
   /**
+   * A group chat of the owner and 2–5 agents (a prototype behind APX_GROUP_CHATS; rules/GROUP_CHAT.md). Its messages go
+   * through threads.send; each answer comes from the agents an @mention names, or the ones a cheap model picks.
+   */
+  "threads.group": {
+    params: z
+      .object({
+        agent_ids: z.array(Id).min(2).max(5),
+        title: z.string().max(200).optional(),
+      })
+      .strict(),
+    result: Thread,
+    effect: true,
+    access: "human",
+  },
+  /**
    * The one way to talk to an agent. The message and its run are stored before this returns, so a restart does not
    * lose them; the run streams as events. `interrupt` cancels the turn in progress first; `queue` waits for it.
    */

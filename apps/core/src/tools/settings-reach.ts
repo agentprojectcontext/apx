@@ -65,6 +65,8 @@ export const OWNER_ONLY: Readonly<Record<string, string>> = {
   "webhooks.set": MACHINE,
   "models.set_config": POWER,
   "threads.model": POWER,
+  "threads.group":
+    "a prototype behind APX_GROUP_CHATS (rules/GROUP_CHAT.md); the owner makes a group while it is tried",
   "tools.grant_set": POWER,
   "tools.revoke": POWER,
   "mcp.trust": POWER,

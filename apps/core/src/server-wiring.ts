@@ -237,6 +237,8 @@ type HandlerDeps = {
   engine: Parameters<typeof threadHandlers>[1] & Parameters<typeof jobHandlers>[1] & Parameters<typeof taskHandlers>[1];
   upkeep: Parameters<typeof threadHandlers>[2] & Parameters<typeof gitHandlers>[1] & Pick<Upkeep, "study">;
   aside: Parameters<typeof threadHandlers>[3];
+  /** Group chats of several agents (engine/group.ts). */
+  groups?: Parameters<typeof threadHandlers>[4];
   memory: Parameters<typeof memoryHandlers>[1];
   memoryMaintenance: NonNullable<Parameters<typeof memoryHandlers>[2]>;
   channels: Parameters<typeof channelHandlers>[1];
@@ -345,7 +347,7 @@ export function coreHandlers(d: HandlerDeps & { vm?: Computer | undefined }) {
       d.signIn && { secrets: d.secrets, signIn: d.signIn },
       d.ownersChrome,
     ),
-    ...threadHandlers(d.store, d.engine, d.upkeep, d.aside),
+    ...threadHandlers(d.store, d.engine, d.upkeep, d.aside, d.groups),
     ...threadAdminHandlers(d.store, d.app.home, d.vm?.beforeDelete),
     ...runHandlers(d.store, d.engine),
     ...jobHandlers(d.store, d.engine),

@@ -1,0 +1,178 @@
+{
+  "about": "The owner plans the launch of Northwind Notes with four agents in one group chat. `relevant` is who should answer (for the router's score); `work` is the tool step an agent takes before answering, replayed the same in every mechanic; `expect` are facts a later answer must still know.",
+  "agents": [
+    { "id": "iris", "name": "Iris", "role": "the owner's coordinator: plans, sums up and keeps the team on track" },
+    { "id": "theo", "name": "Theo", "role": "the engineer: architecture, hosting, timelines and code" },
+    { "id": "mara", "name": "Mara", "role": "marketing: positioning, pricing, launch channels and copy" },
+    { "id": "nico", "name": "Nico", "role": "finance: costs, runway, pricing math and forecasts" }
+  ],
+  "steps": [
+    {
+      "text": "Hi team. We are launching Northwind Notes, our note-taking app, in six weeks. Iris, set up a plan for who does what.",
+      "relevant": ["iris"],
+      "work": {
+        "iris": {
+          "tool": "task_list",
+          "topic": "open tasks on the board",
+          "facts": ["Board has 3 open tasks: landing page draft, beta feedback form, app store listing."],
+          "lines": 18
+        }
+      }
+    },
+    {
+      "text": "Theo, how much will hosting cost us per month at launch, with sync for 5,000 users?",
+      "relevant": ["theo"],
+      "work": {
+        "theo": {
+          "tool": "web_search",
+          "topic": "managed Postgres and object storage pricing",
+          "facts": ["Estimated hosting at 5,000 users: 1,240 USD per month (database 610, storage 180, compute 450)."],
+          "lines": 26
+        }
+      }
+    },
+    {
+      "text": "Mara, what are competitors charging? I want a feel for our price.",
+      "relevant": ["mara"],
+      "work": {
+        "mara": {
+          "tool": "web_search",
+          "topic": "note-taking app pricing pages",
+          "facts": [
+            "Competitors charge between 4 and 10 USD per month; the median is 8 USD.",
+            "Suggested price for Northwind Notes Pro: 6 USD per month, 49 USD per year."
+          ],
+          "lines": 26
+        }
+      }
+    },
+    {
+      "text": "Nico, with that price and Theo's hosting number, how many paying users do we need to break even?",
+      "relevant": ["nico"],
+      "work": {
+        "nico": {
+          "tool": "sheet_read",
+          "topic": "the launch budget sheet",
+          "facts": [
+            "Fixed costs besides hosting: 3,100 USD per month.",
+            "Break-even at 6 USD per month: 724 paying users."
+          ],
+          "lines": 22
+        }
+      }
+    },
+    {
+      "text": "Ok. What do you all think is the biggest risk for the launch?",
+      "relevant": ["iris", "theo", "mara", "nico"]
+    },
+    {
+      "text": "@theo can sync be ready in four weeks so we have two weeks of beta?",
+      "relevant": ["theo"],
+      "work": {
+        "theo": {
+          "tool": "read_file",
+          "topic": "the sync module's open issues",
+          "facts": [
+            "Sync has 9 open issues; 3 are blockers (conflict merge, offline queue, auth refresh). Estimate: 3.5 weeks."
+          ],
+          "lines": 30
+        }
+      }
+    },
+    {
+      "text": "Mara, draft the one-line pitch for the landing page.",
+      "relevant": ["mara"]
+    },
+    {
+      "text": "Nico and Mara: should we offer a lifetime deal at launch? Give me the numbers and the marketing view.",
+      "relevant": ["nico", "mara"],
+      "work": {
+        "nico": {
+          "tool": "sheet_read",
+          "topic": "lifetime deal scenarios",
+          "facts": [
+            "A 99 USD lifetime deal pays back hosting per user in 22 months; it caps at 300 seats to protect revenue."
+          ],
+          "lines": 20
+        },
+        "mara": {
+          "tool": "web_search",
+          "topic": "lifetime deal launches of small apps",
+          "facts": ["Lifetime deals on launch sites sold 200 to 600 seats for apps of this size."],
+          "lines": 20
+        }
+      }
+    },
+    {
+      "text": "Thanks everyone!",
+      "relevant": ["iris"]
+    },
+    {
+      "text": "Theo, which hosting region should we pick? Most beta users are in Europe.",
+      "relevant": ["theo"],
+      "work": {
+        "theo": {
+          "tool": "web_search",
+          "topic": "provider regions and latency",
+          "facts": ["Pick Frankfurt (eu-central): 28 ms median latency for the beta users, same price."],
+          "lines": 24
+        }
+      }
+    },
+    {
+      "text": "Mara, list the three launch channels you would use first, in order.",
+      "relevant": ["mara"],
+      "work": {
+        "mara": {
+          "tool": "web_search",
+          "topic": "launch channels for productivity apps",
+          "facts": [
+            "Order: Product Hunt, a newsletter swap with two productivity newsletters, then Reddit communities."
+          ],
+          "lines": 24
+        }
+      }
+    },
+    {
+      "text": "Nico, what runway do we have if we spend as planned?",
+      "relevant": ["nico"],
+      "work": {
+        "nico": {
+          "tool": "sheet_read",
+          "topic": "the cash plan",
+          "facts": ["Cash 61,000 USD; monthly burn 4,340 USD; runway 14 months."],
+          "lines": 20
+        }
+      }
+    },
+    {
+      "text": "Iris, who still owes me something this week?",
+      "relevant": ["iris"],
+      "work": {
+        "iris": {
+          "tool": "task_list",
+          "topic": "tasks due this week",
+          "facts": [
+            "Due this week: Theo the sync estimate review, Mara the landing page copy, Nico the lifetime deal sheet."
+          ],
+          "lines": 16
+        }
+      }
+    },
+    {
+      "text": "Theo, remind me: what was the monthly hosting estimate and which region did you pick?",
+      "relevant": ["theo"],
+      "expect": ["1240", "frankfurt"]
+    },
+    {
+      "text": "Iris, sum up for me: the price Mara proposed, the break-even Nico computed and the runway.",
+      "relevant": ["iris"],
+      "expect": ["6", "724", "14"]
+    },
+    {
+      "text": "Mara, given the 724 break-even, is the 300-seat cap on the lifetime deal still a good idea?",
+      "relevant": ["mara", "nico"],
+      "expect": ["300"]
+    }
+  ]
+}
