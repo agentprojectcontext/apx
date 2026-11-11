@@ -68,3 +68,11 @@ test("the sole pick is named only when the filter holds exactly one", () => {
   assert.equal(soleFilter(on({ accounts: ["wa_sales"], engines: ["claude"] })), undefined);
   assert.equal(soleFilter(on({ accounts: ["wa_sales", "tg_team"] })), undefined);
 });
+
+test("a hidden account's chats are left out, unless the filter picks that account", () => {
+  const hidden = ["mail"];
+  assert.equal(passesFilter(contact("mail"), none, projects, kindOf, hidden), false);
+  assert.equal(passesFilter(contact("wa_sales"), none, projects, kindOf, hidden), true);
+  assert.equal(passesFilter(chat("roby"), none, projects, kindOf, hidden), true);
+  assert.equal(passesFilter(contact("mail"), on({ accounts: ["mail"] }), projects, kindOf, hidden), true);
+});

@@ -3,6 +3,7 @@ import { test } from "node:test";
 import type { Thread } from "@apx/protocol";
 import {
   archivedThreads,
+  bundleChannels,
   bundleTasks,
   delegatedByChat,
   inboxEntries,
@@ -155,4 +156,19 @@ test("a chat delegated into a project from Home is listed in that project, and o
   assert.equal(standsAlone(threads.lost, threads), true, "its caller is not loaded");
   assert.deepEqual(rows(threads, { projectId: "p_acme" }).sort(), ["mine", "sub"]);
   assert.equal(rows(threads).includes("sub"), false, "listed once, under its caller");
+});
+
+test("chats on one channel account go together where its newest chat is", () => {
+  const on = (account: string) => ({ channel: { id: account, conversation: "c1" } }) as Partial<Thread>;
+  const list = [
+    thread("a", on("wa_sales")),
+    thread("b"),
+    thread("c", on("mail")),
+    thread("d", on("wa_sales")),
+    thread("e", on("wa_home")),
+  ];
+  const got = bundleChannels(list).map((e) =>
+    e.kind === "thread" ? e.thread.id : `${e.account}:${e.threads.map((t) => t.id).join(",")}`,
+  );
+  assert.deepEqual(got, ["wa_sales:a,d", "b", "mail:c", "wa_home:e"]);
 });

@@ -1,6 +1,7 @@
 import type { Project, Thread } from "@apx/protocol";
 import { createStore, useSlice } from "../data/createStore.ts";
 import { DEFAULT_PID, inProject } from "../data/identity.ts";
+import { prefs, setPrefs } from "../data/prefs.ts";
 
 /**
  * Who and where the Inbox narrows to: any of the agents, the projects (a project takes its subprojects), the channel
@@ -34,6 +35,18 @@ export function clearFilter(): void {
   store.set(EMPTY);
 }
 
+/** Clears what the filter picks and shows every channel account again. */
+export function clearAll(): void {
+  clearFilter();
+  setPrefs({ inboxHiddenChannels: [] });
+}
+
+/** Shows or hides one channel account's chats in the Inbox (remembered on this device). */
+export function toggleHiddenChannel(account: string): void {
+  const now = prefs.get().inboxHiddenChannels;
+  setPrefs({ inboxHiddenChannels: now.includes(account) ? now.filter((x) => x !== account) : [...now, account] });
+}
+
 /** How many things the filter holds, of every kind. */
 export const filterCount = (f: InboxFilter): number => FILTER_KINDS.reduce((n, k) => n + f[k].length, 0);
 
@@ -48,13 +61,17 @@ export function soleFilter(f: InboxFilter): { kind: FilterKind; id: string } | u
 /**
  * Whether a chat passes the filter: each kind chosen must match (any of its picks); nothing chosen of a kind lets
  * every chat through for that kind. `kindOf` names a channel account's app ("whatsapp") for the channels kind.
+ * `hidden` accounts' chats are left out, unless the filter picks that account.
  */
 export function passesFilter(
   thread: Thread,
   f: InboxFilter,
   projects: readonly Project[],
   kindOf: (account: string) => string | undefined = () => undefined,
+  hidden: readonly string[] = [],
 ): boolean {
+  const account = thread.channel?.id;
+  if (account && hidden.includes(account) && !f.accounts.includes(account)) return false;
   const agentOk = !f.agents.length || thread.agent_ids.some((id) => f.agents.includes(id));
   const projectOk =
     !f.projects.length ||
@@ -64,7 +81,6 @@ export function passesFilter(
       const own = projects.find((p) => p.id === thread.project_id);
       return Boolean(own?.parent) && (own?.parent === pid || (pid === DEFAULT_PID && own?.parent === DEFAULT_PID));
     });
-  const account = thread.channel?.id;
   const accountOk = !f.accounts.length || (!!account && f.accounts.includes(account));
   const app = account ? kindOf(account) : undefined;
   const channelOk = !f.channels.length || (!!app && f.channels.includes(app));

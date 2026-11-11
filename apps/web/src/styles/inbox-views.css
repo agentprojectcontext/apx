@@ -220,3 +220,22 @@
   font-weight: var(--apx-weight-semibold);
   color: var(--apx-fg);
 }
+/* A channel account's chats together: its row, then its chats hanging from the shared branch line. */
+.channelbundle__face {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+}
+.channelbundle:has(> .channelbundle__chats) {
+  padding-bottom: 6px;
+}
+/* Its chats are two-line rows: the line drops from under the channel's mark and each elbow reaches a chat's face. */
+.channelbundle__chats {
+  --apx-branch-mid: 26px;
+  padding-left: 13px;
+}
+.channelbundle .channelbundle__chats > :last-child::before {
+  width: 16px;
+}

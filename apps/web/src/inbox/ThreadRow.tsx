@@ -6,7 +6,7 @@ import { ChatProcesses } from "../common/ChatProcesses.tsx";
 import { shortWhen } from "../common/format.ts";
 import { useEngineLabel } from "../common/useEngineLabel.ts";
 import { useChannels } from "../data/channels.ts";
-import { isWorking, projectName, routineName } from "../data/identity.ts";
+import { DEFAULT_PID, isWorking, projectName, routineName } from "../data/identity.ts";
 import { useData } from "../data/state.ts";
 import { type T, useT } from "../i18n/index.ts";
 import { useNav } from "../shell/nav.ts";
@@ -64,11 +64,12 @@ export function ThreadRow({ thread, agent, selected, onOpen }: ThreadRowProps) {
                 {waiting && <span className="threadrow__waiting">{t("thread.waiting")} · </span>}
                 {[who, contextOf(thread, agent, t, channel)].filter(Boolean).join(" · ")}
               </span>
-              {!inProject && thread.project_id && (
+              {/* A chat with no project (the super-agent's) is the base project's: its badge says so. */}
+              {!inProject && (
                 <>
                   <span className="threadrow__dot">·</span>
                   <ProjectBadge
-                    id={thread.project_id}
+                    id={thread.project_id ?? DEFAULT_PID}
                     name={projectName(projects, thread.project_id)}
                     channel={channel}
                   />

@@ -4,19 +4,22 @@ import { Suspense } from "react";
 import { CHANNEL_KINDS, isChannelKind } from "../channels/kinds.ts";
 import { useChannels } from "../data/channels.ts";
 import { projectEntries } from "../data/identity.ts";
+import { usePrefs } from "../data/prefs.ts";
 import { useData, useShownAgents } from "../data/state.ts";
 import { useT } from "../i18n/index.ts";
 import { InboxFilterBody } from "../lazy.ts";
 import { clearFilter, type FilterKind, filterCount, toggleFilter, useInboxFilter } from "./inboxFilter.ts";
 
 /**
- * The Inbox's filter: pick agents or projects (each with how many chats it has here); the chosen ones show as chips
- * under the tabs.
+ * The Inbox's filter: show or hide channel accounts, pick agents or projects (each with how many chats it has here);
+ * the chosen ones show as chips under the tabs.
  */
 export function InboxFilterMenu({ threads }: { threads: Thread[] }) {
   const t = useT();
   const chosen = useInboxFilter((s) => s);
-  const active = filterCount(chosen);
+  // Hidden channel accounts count too: something is left out of the list.
+  const hidden = usePrefs((s) => s.inboxHiddenChannels.length);
+  const active = filterCount(chosen) + hidden;
   return (
     <Popover
       align="end"

@@ -43,6 +43,10 @@ export type Prefs = {
   inboxOpen: string[];
   /** The Inbox lists routine runs that told something, besides the chats. */
   inboxRoutines: boolean;
+  /** Channel accounts whose chats the Inbox leaves out (an account picked on its own still shows). */
+  inboxHiddenChannels: string[];
+  /** The Inbox lists each channel account's chats together, under one row that unfolds. */
+  inboxByChannel: boolean;
   /** The Tasks screen shows one project's tasks (a nav project id) or every project's (""). */
   tasksProject: string;
   /** Columns the owner resized (px; 0 = the default) or folded away. */
@@ -110,6 +114,8 @@ const DEFAULTS: Prefs = {
   inboxTab: "chats",
   inboxOpen: [],
   inboxRoutines: true,
+  inboxHiddenChannels: [],
+  inboxByChannel: false,
   tasksProject: "",
   sidebarW: 0,
   sidebarCollapsed: false,
@@ -157,6 +163,8 @@ function load(): Prefs {
         ? [...new Set(raw.inboxOpen.filter((id): id is string => typeof id === "string"))].slice(-500)
         : [],
       inboxRoutines: raw.inboxRoutines !== false,
+      inboxHiddenChannels: idsOf(raw.inboxHiddenChannels),
+      inboxByChannel: raw.inboxByChannel === true,
       tasksProject: typeof raw.tasksProject === "string" ? raw.tasksProject : "",
       sidebarW: typeof raw.sidebarW === "number" ? raw.sidebarW : 0,
       sidebarCollapsed: raw.sidebarCollapsed === true,

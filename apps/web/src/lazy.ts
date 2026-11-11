@@ -99,6 +99,9 @@ export const InboxFilterBody = lazy(() =>
 export const TaskStatusHint = lazy(() =>
   import("./common/TaskStatusHint.tsx").then((m) => ({ default: m.TaskStatusHint })),
 );
+export const ChannelBundle = lazy(() =>
+  import("./inbox/ChannelBundle.tsx").then((m) => ({ default: m.ChannelBundle })),
+);
 export const TaskBundle = lazy(() => import("./inbox/TaskBundle.tsx").then((m) => ({ default: m.TaskBundle })));
 export const SubthreadPart = lazy(() =>
   import("./chat/parts/SubthreadPart.tsx").then((m) => ({ default: m.SubthreadPart })),

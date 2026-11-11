@@ -120,3 +120,27 @@ export function bundleTasks(list: Thread[]): ListEntry[] {
   }
   return out;
 }
+
+/** A row of the Chats tab: a chat, or (`channel`) every chat on one channel account, together. */
+export type ChatEntry = { kind: "thread"; thread: Thread } | { kind: "channel"; account: string; threads: Thread[] };
+
+/** Chats on a channel account go together, where the account's most recent one would be; the rest stay as they are. */
+export function bundleChannels(list: readonly Thread[]): ChatEntry[] {
+  const out: ChatEntry[] = [];
+  const accounts = new Map<string, Extract<ChatEntry, { kind: "channel" }>>();
+  for (const thread of list) {
+    const account = thread.channel?.id;
+    if (!account) {
+      out.push({ kind: "thread", thread });
+      continue;
+    }
+    const bundle = accounts.get(account);
+    if (bundle) bundle.threads.push(thread);
+    else {
+      const entry = { kind: "channel" as const, account, threads: [thread] };
+      accounts.set(account, entry);
+      out.push(entry);
+    }
+  }
+  return out;
+}

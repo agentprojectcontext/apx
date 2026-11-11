@@ -6,11 +6,11 @@ import { DEFAULT_PID, isWorking, projectName, routineName, threadAgent } from ".
 import { loadRoutines, useRoutines } from "../data/routines.ts";
 import { useData, useShownAgents } from "../data/state.ts";
 import { useT } from "../i18n/index.ts";
-import { TaskBundle } from "../lazy.ts";
+import { ChannelBundle, TaskBundle } from "../lazy.ts";
 import { scheduleText } from "../routines/scheduleText.ts";
 import { go, useNav } from "../shell/nav.ts";
 import { ListedChat } from "./Delegated.tsx";
-import type { ListEntry } from "./groupThreads.ts";
+import { bundleChannels, type ListEntry } from "./groupThreads.ts";
 import { ProjectBadge } from "./ProjectBadge.tsx";
 import { ThreadAvatar } from "./ThreadAvatar.tsx";
 import { ThreadRow } from "./ThreadRow.tsx";
@@ -53,17 +53,39 @@ function InboxSection({
   );
 }
 
-/** Chats: pinned ones, then the rest by their last message; archived ones under a fold. */
-export function ChatsTab({ entries, archived }: { entries: Thread[]; archived: Thread[] }) {
+/**
+ * Chats: pinned ones, then the rest by their last message; archived ones under a fold. `byChannel`: the rest's chats
+ * on each channel account go under one row.
+ */
+export function ChatsTab({
+  entries,
+  archived,
+  byChannel = false,
+}: {
+  entries: Thread[];
+  archived: Thread[];
+  byChannel?: boolean;
+}) {
   const t = useT();
   const selected = useNav((s) => s.threadId);
   const pinned = entries.filter((th) => th.pinned);
   const rest = entries.filter((th) => !th.pinned);
   const row = (th: Thread) => <ChatRow key={th.id} thread={th} selected={selected} />;
+  const recent = byChannel
+    ? bundleChannels(rest).map((e) =>
+        e.kind === "thread" ? (
+          row(e.thread)
+        ) : (
+          <Suspense key={`channel:${e.account}`} fallback={null}>
+            <ChannelBundle account={e.account} threads={e.threads} selected={selected} />
+          </Suspense>
+        ),
+      )
+    : rest.map(row);
   return (
     <>
       {pinned.length > 0 && <InboxSection label={t("inbox.pinned")}>{pinned.map(row)}</InboxSection>}
-      {pinned.length > 0 ? <InboxSection label={t("inbox.recent")}>{rest.map(row)}</InboxSection> : rest.map(row)}
+      {pinned.length > 0 ? <InboxSection label={t("inbox.recent")}>{recent}</InboxSection> : recent}
       {archived.length > 0 && (
         <InboxSection label={t("inbox.archived")} count={archived.length} foldKey="section:archived">
           {archived.map(row)}
@@ -73,7 +95,7 @@ export function ChatsTab({ entries, archived }: { entries: Thread[]; archived: T
   );
 }
 
-function ChatRow({ thread, selected }: { thread: Thread; selected: string | undefined }) {
+export function ChatRow({ thread, selected }: { thread: Thread; selected: string | undefined }) {
   const agents = useShownAgents();
   return (
     <ListedChat thread={thread} selected={selected} inline>
