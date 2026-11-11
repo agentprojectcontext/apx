@@ -96,6 +96,10 @@ export const listSecrets = (project?: string, options?: FailureOptions) =>
 export const setSecret = (name: string, value: string | null, project?: string) =>
   attempt(() => client.call("secrets.set", { name, value, ...(project ? { project } : {}) }));
 
+/** Moves a stored variable to another project's own (or, without `to`, to the global ones); the value stays in the core. */
+export const moveSecret = (name: string, project: string | undefined, to: string | undefined) =>
+  attempt(() => client.call("secrets.move", { name, to: to ?? null, ...(project ? { project } : {}) }));
+
 export type { McpServerStatus, SecretInfo, SkillCandidate, SkillImportSource, SkillInfo };
 
 export const getInheritance = (project: string) => attempt(() => client.call("resources.inheritance", { project }));

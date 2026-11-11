@@ -4,8 +4,7 @@ import { SectionPage } from "../common/SectionPage.tsx";
 import { type ProjectEntry, projectName } from "../data/identity.ts";
 import { useData } from "../data/state.ts";
 import { type MessageKey, useT } from "../i18n/index.ts";
-import { go, nav, type ResourceTab, useNav } from "../shell/nav.ts";
-import { BrowserConsents } from "./BrowserConsents.tsx";
+import { go, type ResourceTab, useNav } from "../shell/nav.ts";
 import { ExtensionsTab } from "./ExtensionsTab.tsx";
 import { IntegrationsTab } from "./IntegrationsTab.tsx";
 import { ENGINE_LABEL, SKILL_ENGINES, type SkillEngine } from "./labels.ts";
@@ -43,17 +42,21 @@ export function ResourcesView({ project }: { project?: ProjectEntry }) {
   const t = useT();
   const projects = useData((s) => s.projects);
   const tab = useNav((s) => s.resourcesTab);
-  const find = useNav((s) => s.resourcesFind);
-  const [query, setQuery] = useState(find ?? "");
-  // A link that names what to find (a server's variable) fills the search once, then lets the owner change it.
-  useEffect(() => {
-    if (find === undefined) return;
-    setQuery(find);
-    nav.set({ resourcesFind: undefined });
-  }, [find]);
+  const variable = useNav((s) => s.variable);
+  const variableIn = useNav((s) => s.variableIn);
+  const [query, setQuery] = useState("");
   const [picked, setScope] = useState<ScopeFilter>("all");
   const [adding, setAdding] = useState(false);
   const [ownOnly, setOwnOnly] = useState(false);
+  // A link to a variable (from where it is used) finds it: its name searched, in every scope.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: the same name in another project is a new link
+  useEffect(() => {
+    if (!variable) return;
+    setQuery(variable);
+    setScope("all");
+    setOwnOnly(false);
+    setAdding(false);
+  }, [variable, variableIn]);
   const [engines, setEngines] = useState<ReadonlySet<SkillEngine>>(new Set());
   const projectId = project && !project.isDefault ? project.id : undefined;
   // Default's resources are the global ones, which every project takes: no other scope to pick there.
@@ -209,7 +212,6 @@ export function ResourcesView({ project }: { project?: ProjectEntry }) {
       tools={
         <>
           {!projectId && filters}
-          {!project && <BrowserConsents />}
           {project && add}
         </>
       }

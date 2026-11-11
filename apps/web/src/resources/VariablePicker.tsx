@@ -2,7 +2,7 @@ import { Button, Icons, Popover, SearchField, Spinner } from "@apx/ui";
 import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { useT } from "../i18n/index.ts";
 import { useVariableNames } from "./useVariableNames.ts";
-import { VariableDialog } from "./VariablesTab.tsx";
+import { VariableDialog } from "./VariableDialog.tsx";
 
 export function VariablePicker({
   project,

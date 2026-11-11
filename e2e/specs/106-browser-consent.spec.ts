@@ -11,11 +11,11 @@ for (const [width, scope, language] of [
     page,
   }, info) => {
     const spanish = language === "es";
-    const permissions = spanish ? "Permisos activos del navegador" : "Active browser permissions";
-    const revoke = spanish ? /^Revocar permiso:/ : /^Revoke permission:/;
+    const permissions = spanish ? "JavaScript en páginas" : "JavaScript on pages";
+    const revoke = spanish ? /^Revocar:/ : /^Revoke:/;
     const empty = spanish
-      ? "No hay permisos temporales activos del navegador."
-      : "No active temporary browser permissions.";
+      ? "Ningún agente puede ejecutar JavaScript en una página ahora sin preguntarte."
+      : "No agent can run JavaScript on a page right now without asking you.";
     await page.addInitScript((language) => localStorage.setItem("apx.prefs", JSON.stringify({ language })), language);
     let failPermissions = false;
     let failRevocation = false;
@@ -52,6 +52,8 @@ for (const [width, scope, language] of [
           ],
         };
       if (method === "browser.approval_context") return { epoch: "epoch1" };
+      // Settings › Browser also offers to copy sessions from this computer's browsers: none here.
+      if (method === "browser.cookie_sources") return { sources: [] };
       if (method === "browser.hold") return { ok: true };
       if (method === "browser.evaluate") {
         evaluations++;
@@ -99,65 +101,55 @@ for (const [width, scope, language] of [
       await expect(card).toBeHidden();
       await until(async () => evaluations === 3);
       await expect(page.locator(".inputline")).toHaveCount(1);
-      await page.keyboard.press("ControlOrMeta+k");
+      // Settings › Browser lists it, read again on its own while shown.
+      await page.getByRole("button", { name: spanish ? /^Cuenta/ : /^Account/ }).click();
+      await page.getByRole("menuitem", { name: spanish ? /^Configuración(?! inicial)/ : /^Settings/ }).click();
       await page
-        .getByRole("combobox", { name: spanish ? "Buscar" : "Search" })
-        .or(page.getByRole("textbox", { name: spanish ? "Buscar" : "Search" }))
-        .fill(spanish ? "Recursos" : "Resources");
-      await page.getByRole("option", { name: spanish ? /Recursos/ : /Resources/ }).click();
-      await page.getByRole("button", { name: permissions, exact: true }).click();
-      const dialog = page.getByRole("dialog");
-      await expect(dialog.getByRole("button", { name: spanish ? "Cerrar" : "Close", exact: true })).toBeVisible();
+        .getByRole("dialog", { name: spanish ? "Configuración" : "Settings" })
+        .getByRole("button", { name: spanish ? "Navegador" : "Browser", exact: true })
+        .click();
+      const section = page.getByRole("region", { name: permissions });
+      await expect(section).toBeVisible();
+      await expect(
+        section.getByRole("button", { name: spanish ? "Actualizar permisos" : "Refresh permissions" }),
+      ).toHaveCount(0);
       if (scope === "tab") {
-        await expect(dialog).toContainText("https://example.com");
-        await expect(dialog.getByRole("button", { name: revoke })).toHaveAccessibleName(
+        await expect(section).toContainText("https://example.com");
+        await expect(section.getByRole("button", { name: revoke })).toHaveAccessibleName(
           /example\.com.*Example.*(?:Pestaña|Tab) 1/,
         );
+        await section.scrollIntoViewIfNeeded();
         await page.screenshot({ path: info.outputPath(`permissions-${language}-${width}.png`), fullPage: true });
         if (width === 390) {
           failRevocation = true;
-          await dialog.getByRole("button", { name: revoke }).click();
-          await expect(dialog.getByRole("alert")).toContainText(
-            spanish ? "No se pudo revocar este permiso" : "Could not revoke this browser permission",
-          );
-          await expect(dialog).toContainText("https://example.com");
+          await section.getByRole("button", { name: revoke }).click();
+          await expect(section.getByRole("alert")).toContainText(spanish ? "No se pudo revocar" : "Couldn’t revoke it");
+          await expect(section).toContainText("https://example.com");
           expect(await page.getByText("Revocation temporarily unavailable", { exact: false }).count()).toBe(0);
           await page.screenshot({ path: info.outputPath(`error-revoke-${language}-390.png`), fullPage: true });
           failRevocation = false;
-          await dialog
-            .getByRole("button", { name: spanish ? "Actualizar permisos" : "Refresh permissions", exact: true })
-            .click();
-          await expect(dialog.getByRole("alert")).toHaveCount(0);
         }
-        await dialog.getByRole("button", { name: revoke }).click();
-        await expect(dialog.getByRole("status")).toContainText(spanish ? "Permiso revocado" : "Permission revoked");
+        await section.getByRole("button", { name: revoke }).click();
+        await expect(section.getByRole("status")).toContainText(spanish ? "Revocado" : "Revoked");
+        await expect(section.getByRole("alert")).toHaveCount(0);
       }
-      await expect(dialog.getByRole("button", { name: revoke })).toHaveCount(0);
-      await expect(dialog).toContainText(empty);
+      await expect(section.getByRole("button", { name: revoke })).toHaveCount(0);
+      await expect(section).toContainText(empty);
       await page.screenshot({ path: info.outputPath(`empty-${language}-${width}.png`), fullPage: true });
       if (width === 390) {
         failPermissions = true;
-        await dialog
-          .getByRole("button", { name: spanish ? "Actualizar permisos" : "Refresh permissions", exact: true })
-          .click();
-        await expect(dialog.getByRole("alert")).toContainText(
-          spanish ? "No se pudieron cargar los permisos" : "Could not load browser permissions",
+        await expect(section.getByRole("alert")).toContainText(
+          spanish ? "No se pudieron cargar" : "Couldn’t load them",
+          { timeout: 15_000 },
         );
         expect(await page.getByText("Permissions temporarily unavailable", { exact: false }).count()).toBe(0);
         await page.screenshot({ path: info.outputPath(`error-load-${language}-390.png`), fullPage: true });
         failPermissions = false;
-        await dialog
-          .getByRole("button", { name: spanish ? "Actualizar permisos" : "Refresh permissions", exact: true })
-          .click();
-        await expect(dialog.getByRole("alert")).toHaveCount(0);
-        await expect(dialog).toContainText(empty);
+        await expect(section.getByRole("alert")).toHaveCount(0, { timeout: 15_000 });
+        await expect(section).toContainText(empty);
       }
-      await dialog.getByRole("button", { name: spanish ? "Cerrar" : "Close", exact: true }).click();
-      await expect(dialog).toBeHidden();
-      await page.getByRole("button", { name: permissions, exact: true }).click();
-      await expect(dialog).toBeVisible();
       await page.keyboard.press("Escape");
-      await expect(dialog).toBeHidden();
+      await expect(section).toBeHidden();
     } finally {
       if (thread) await rpc("threads.cancel", { thread });
       node.close();

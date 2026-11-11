@@ -260,3 +260,41 @@ test("other agent apps get APX's skills: only the installed ones, and a dry run 
   const again = await env.client.call("skills.runtimes", {});
   assert.ok(again.steps.every((s) => s.action === "unchanged"));
 });
+
+test("variables: moving one to another project or to the global ones takes its value along; servers find it there", async () => {
+  const other = (await env.client.call("projects.create", { name: "Northwind moves" })).project.id;
+  await env.client.call("mcp.set", {
+    name: "mover",
+    server: { command: process.execPath, args: [SERVER], env: { MOVE_TOKEN: "secret://MOVE_TOKEN" } },
+  });
+  const vars = async (p?: string) =>
+    (await env.client.call("mcp.list", p ? { project: p } : {})).servers.find((x) => x.name === "mover")?.vars;
+  await env.client.call("secrets.set", { name: "MOVE_TOKEN", value: "acme-move-0123456789", project });
+  assert.deepEqual(await vars(other), [{ name: "MOVE_TOKEN", set: false }]);
+
+  await env.client.call("secrets.move", { name: "MOVE_TOKEN", project, to: other });
+  assert.deepEqual(await vars(project), [{ name: "MOVE_TOKEN", set: false }], "no longer in the first project");
+  assert.deepEqual(await vars(other), [{ name: "MOVE_TOKEN", set: true }], "found in the one it moved to");
+  const listed = (await env.client.call("secrets.list", {})).secrets.filter((x) => x.name === "MOVE_TOKEN");
+  assert.deepEqual(
+    listed.map((x) => [x.project_id, x.hint]),
+    [[other, "6789"]],
+  );
+  assert.deepEqual(await env.client.call("secrets.reveal", { name: "MOVE_TOKEN", project: other }), {
+    value: "acme-move-0123456789",
+  });
+
+  await env.client.call("secrets.move", { name: "MOVE_TOKEN", project: other, to: null });
+  assert.deepEqual(await vars(), [{ name: "MOVE_TOKEN", set: true }], "global now");
+  await env.client.call("secrets.set", { name: "MOVE_TOKEN", value: "acme-own", project });
+  await assert.rejects(
+    env.client.call("secrets.move", { name: "MOVE_TOKEN", project, to: null }),
+    /already has a value/,
+    "never overwrites the value already there",
+  );
+  await assert.rejects(env.client.call("secrets.move", { name: "NOT_THERE", to: null }), /not found/);
+  await assert.rejects(env.client.call("secrets.move", { name: "MOVE_TOKEN", project, to: "p_nope" }), /not found/);
+  const agent = new ApxClient({ url: env.core.url, actor: "agent" });
+  await assert.rejects(agent.call("secrets.move", { name: "MOVE_TOKEN", project, to: other }));
+  await env.client.call("mcp.set", { name: "mover", server: null });
+});

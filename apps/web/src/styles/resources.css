@@ -311,19 +311,6 @@
   white-space: pre-wrap;
   overflow-wrap: anywhere;
 }
-.resd__var {
-  padding: 2px 8px;
-  border: 0;
-  border-radius: var(--apx-radius-sm);
-  background: var(--apx-fill);
-  color: var(--apx-fg-muted);
-  font-family: var(--apx-font-mono);
-  font-size: var(--apx-text-2xs);
-}
-.resd__var.is-missing {
-  background: var(--apx-danger-soft);
-  color: var(--apx-danger-soft-fg);
-}
 .resd__muted {
   margin: 0;
   color: var(--apx-fg-subtle);
@@ -433,14 +420,15 @@
   gap: 6px;
 }
 /* A value with variables as chips: looks like a field, one line, scrolls sideways when long. */
+/* Inline, not flex: in a flex box each run of text is its own item, and the cursor cannot cross a chip. */
 .varfield {
-  display: flex;
-  align-items: center;
-  gap: 2px;
+  display: block;
   min-width: 0;
   height: var(--apx-control-h-md);
   padding: 0 12px;
   overflow-x: auto;
+  overflow-y: hidden;
+  line-height: calc(var(--apx-control-h-md) - 2px);
   border: 1px solid var(--apx-input-border);
   border-radius: var(--apx-control-radius);
   background: var(--apx-input-bg);
@@ -459,11 +447,15 @@
   color: var(--apx-fg-subtle);
   pointer-events: none;
 }
-.varchip {
+/* A variable as a chip: in a value field, and where an MCP server names it (pressable, it opens the variable). */
+.varchip,
+.resd__var {
   display: inline-flex;
   align-items: center;
   gap: 2px;
   flex: none;
+  margin: 0 1px;
+  vertical-align: middle;
   padding: 1px 2px 1px 7px;
   border-radius: var(--apx-radius-pill);
   background: var(--apx-brand-soft);
@@ -472,6 +464,20 @@
   font-weight: var(--apx-weight-medium);
   line-height: 18px;
   user-select: none;
+}
+.varchip.is-missing,
+.resd__var.is-missing {
+  background: var(--apx-danger-soft);
+  color: var(--apx-danger-soft-fg);
+}
+.resd__var {
+  padding: 1px 7px;
+  border: 0;
+  font-family: var(--apx-font-sans);
+  cursor: pointer;
+}
+.resd__var:hover {
+  background: color-mix(in srgb, currentColor 22%, transparent);
 }
 .varchip__x {
   display: inline-grid;
@@ -555,6 +561,10 @@
   display: inline-flex;
   flex-wrap: wrap;
   gap: 4px;
+}
+/* The variable a link opened: picked like a row in a list. */
+.resvars__table tr.is-picked td {
+  background: var(--apx-row-selected-bg);
 }
 .resvars__table tr.is-shadowed td {
   opacity: 0.5;

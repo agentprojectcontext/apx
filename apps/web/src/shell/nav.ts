@@ -109,8 +109,9 @@ export type NavState = {
   listInFront: boolean;
   /** Tab of Resources (global, and inside a project). */
   resourcesTab: ResourceTab;
-  /** What Resources searches for once it shows (a variable named on a server): taken and cleared there. */
-  resourcesFind: string | undefined;
+  /** The variable picked on Resources › Variables (a link from where it is used), and the project it belongs to. */
+  variable: string | undefined;
+  variableIn: string | undefined;
   /** The channel open in the channel view, and the contact's chat picked in it. */
   channelId: string | undefined;
   channelThread: string | undefined;
@@ -184,6 +185,13 @@ function fromHash(): Partial<NavState> {
         }
       : {}),
     ...(view && VIEWS.includes(view) ? { view: view as View } : {}),
+    ...(h.get("variable")
+      ? {
+          resourcesTab: "variables" as const,
+          variable: h.get("variable") ?? undefined,
+          variableIn: h.get("variable_in") ?? undefined,
+        }
+      : {}),
     ...(view === "flows"
       ? {
           flowProject: h.get("scope") ?? undefined,
@@ -229,7 +237,8 @@ export const nav = createStore<NavState>({
   palette: false,
   listInFront: false,
   resourcesTab: "skills",
-  resourcesFind: undefined,
+  variable: undefined,
+  variableIn: undefined,
   channelId: undefined,
   channelThread: undefined,
   engineId: undefined,
@@ -263,6 +272,8 @@ const PLACE = [
   "flowTables",
   "flowTable",
   "resourcesTab",
+  "variable",
+  "variableIn",
   "listInFront",
   "panel",
   "panelWide",
@@ -317,6 +328,12 @@ function applyPlace(place: Place): void {
   syncHist();
 }
 
+function variableHash(s: NavState, h: URLSearchParams): void {
+  if (s.resourcesTab !== "variables" || !s.variable) return;
+  h.set("variable", s.variable);
+  if (s.variableIn) h.set("variable_in", s.variableIn);
+}
+
 nav.subscribe(() => {
   const s = nav.get();
   const h = new URLSearchParams();
@@ -326,6 +343,7 @@ nav.subscribe(() => {
     h.set("tab", s.projectTab);
     if (s.projectTab === "chats" && s.threadId) h.set("thread", s.threadId);
     if (s.projectTab === "tasks" && s.taskId) h.set("task", s.taskId);
+    if (s.projectTab === "resources") variableHash(s, h);
   } else if (
     s.view === "tasks" ||
     s.view === "flows" ||
@@ -342,6 +360,7 @@ nav.subscribe(() => {
     if (s.view === "flows" && !s.flowId && s.flowTables) h.set("tab", "tables");
     if (s.view === "flows" && !s.flowId && s.flowTables && s.flowTable) h.set("table", s.flowTable);
     if (s.view === "tasks" && s.taskId) h.set("task", s.taskId);
+    if (s.view === "resources") variableHash(s, h);
   } else if (s.view === "channel" && s.channelId) {
     h.set("channel", s.channelId);
     if (s.channelThread) h.set("chat", s.channelThread);
@@ -519,20 +538,24 @@ export const go = {
   resources(tab: ResourceTab, global = false) {
     nav.set((s) =>
       s.view === "project" && !global
-        ? { projectTab: "resources", resourcesTab: tab }
-        : { view: "resources", resourcesTab: tab },
+        ? { projectTab: "resources", resourcesTab: tab, variable: undefined, variableIn: undefined }
+        : { view: "resources", resourcesTab: tab, variable: undefined, variableIn: undefined },
     );
   },
   resourcesTab(tab: ResourceTab) {
-    nav.set({ resourcesTab: tab });
+    nav.set({ resourcesTab: tab, variable: undefined, variableIn: undefined });
   },
-  /** Variables with this one found: in the open project's Resources when a project is open, else the global screen. */
-  variable(name: string) {
-    nav.set((s) =>
-      s.view === "project"
-        ? { projectTab: "resources", resourcesTab: "variables", resourcesFind: name }
-        : { view: "resources", resourcesTab: "variables", resourcesFind: name },
-    );
+  /**
+   * Resources › Variables with one variable found and picked: in the open project's Resources tab when a project is
+   * open, else the global screen. `project`: the project whose own value it is (none: the global one).
+   */
+  variable(name: string, project?: string) {
+    nav.set((s) => ({
+      ...(s.view === "project" ? { projectTab: "resources" as const } : { view: "resources" as const }),
+      resourcesTab: "variables" as const,
+      variable: name,
+      variableIn: project,
+    }));
   },
   config(section: ConfigSection | null = "account") {
     nav.set({ config: section });

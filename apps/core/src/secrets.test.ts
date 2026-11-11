@@ -5,6 +5,7 @@ import path from "node:path";
 import { test } from "node:test";
 import { createSecrets, keychainService, projectSecretName, splitSecretName } from "./secrets.ts";
 import { type Run, systemBackend } from "./secrets-stores.ts";
+import { tempDir } from "./testkit/platform.ts";
 
 test("secrets resolve by reference, list names only, and live in a 0600 file with the file backend", () => {
   const home = fs.mkdtempSync(path.join(os.tmpdir(), "apx-secrets-"));
@@ -170,4 +171,28 @@ test("on Windows values are sealed with DPAPI in one file, apart from the index"
   } finally {
     fs.rmSync(home, { recursive: true, force: true });
   }
+});
+
+test("moving a value to another project keeps it, its sign-in sites and last use, and never overwrites one there", async () => {
+  await using home = tempDir("apx-secrets-");
+  const s = createSecrets(home.path, "file", {});
+  const acme = projectSecretName("p_acme", "GH_TOKEN");
+  const northwind = projectSecretName("p_northwind", "GH_TOKEN");
+  s.set(acme, "acme-value-0123456789");
+  s.setSites(acme, [{ origin: "https://git.example.com", kind: "password" }]);
+  s.markUsed(acme, { origin: "https://git.example.com", at: "2026-01-01T00:00:00.000Z" });
+  assert.equal(s.move(acme, northwind), "moved");
+  assert.equal(s.resolve(`secret://${acme}`), undefined, "gone from where it was");
+  assert.equal(s.resolveIn("secret://GH_TOKEN", "p_northwind"), "acme-value-0123456789");
+  assert.deepEqual(s.sites(northwind), [{ origin: "https://git.example.com", kind: "password" }]);
+  assert.equal(s.list().find((x) => x.name === northwind)?.last_used?.origin, "https://git.example.com");
+  assert.equal(s.list().find((x) => x.name === northwind)?.hint, "6789");
+  // To the global ones, then refused where a value of that name already lives.
+  assert.equal(s.move(northwind, "GH_TOKEN"), "moved");
+  assert.equal(s.resolve("secret://GH_TOKEN"), "acme-value-0123456789");
+  s.set(acme, "acme-again");
+  assert.equal(s.move(acme, "GH_TOKEN"), "taken");
+  assert.equal(s.resolve("secret://GH_TOKEN"), "acme-value-0123456789", "the value there is untouched");
+  assert.equal(s.resolve(`secret://${acme}`), "acme-again", "and the one asked to move stays");
+  assert.equal(s.move("NOT_THERE", "ELSEWHERE"), "missing");
 });
