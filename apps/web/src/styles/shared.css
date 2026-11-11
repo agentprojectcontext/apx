@@ -46,16 +46,33 @@
   display: inline-grid;
   place-items: center;
 }
-/* "Associate · ☺ Roby answers": one line that cuts with "…", the agent's face starting its part. */
+/* "Associate · ☺ Roby answers": one line, the agent's face starting its part; what comes first gives way first. */
 .answers {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+}
+.answers__lead,
+.answers__name {
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
-  white-space: nowrap;
 }
-.answers .answerer {
-  margin-right: 4px;
-  vertical-align: -3px;
+.answers__lead {
+  flex: 0 1000 auto;
+}
+.answers__sep {
+  flex: none;
+}
+.answers__who {
+  display: inline-flex;
+  flex: 0 1 auto;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
 }
 .chan__ticks {
   display: inline-flex;

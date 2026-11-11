@@ -34,13 +34,13 @@ export function AnswersLine({
   const answers = text ?? (agent ? t("ch.answersBy", { agent: agent.name }) : undefined);
   return (
     <span className={className ? `answers ${className}` : "answers"}>
-      {before}
-      {before && answers ? " · " : ""}
+      {before && <span className="answers__lead">{before}</span>}
+      {before && answers && <span className="answers__sep"> · </span>}
       {answers && (
-        <>
+        <span className="answers__who">
           <AnswererFace agent={agent} />
-          {answers}
-        </>
+          <span className="answers__name">{answers}</span>
+        </span>
       )}
     </span>
   );
