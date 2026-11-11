@@ -88,7 +88,14 @@ test("a sender's card: never read the whole domain first, which covers the addre
       .getByRole("button", { name: /Acme news/ })
       .click();
     const card = page.getByRole("complementary", { name: "Contacto" });
-    if (!(await card.isVisible())) await page.getByRole("button", { name: "Abrir el contacto de Acme news" }).click();
+    // A wide screen opens the card by itself, a moment after the chat: open it only while it is still not there.
+    const openCard = () =>
+      expect(async () => {
+        if (!(await card.isVisible()))
+          await page.getByRole("button", { name: "Abrir el contacto de Acme news" }).click();
+        await expect(card).toBeVisible({ timeout: 1500 });
+      }).toPass({ timeout: 10_000 });
+    await openCard();
     const switches = card.locator(".chan__switches").last().getByRole("switch");
     await expect(switches.first()).toHaveAccessibleName(/Todo lo de @acme\.example/);
     const address = card.getByRole("switch", { name: "news@acme.example" });
@@ -102,6 +109,11 @@ test("a sender's card: never read the whole domain first, which covers the addre
       );
       return channels.find((c) => c.id === id)?.email?.blocked?.includes("@acme.example") === true;
     });
+    // Once the block is saved and the list reloads, the card the owner was using stays open, still saying it.
+    await page.reload();
+    await openCard();
+    await expect(address).toBeChecked();
+    await expect(address).toBeDisabled();
   } finally {
     await rpc("channels.set", { id, channel: null });
   }
