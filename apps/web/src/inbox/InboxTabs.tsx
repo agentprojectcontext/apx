@@ -61,16 +61,19 @@ export function ChatsTab({
   entries,
   archived,
   byChannel = false,
+  account = false,
 }: {
   entries: Thread[];
   archived: Thread[];
   byChannel?: boolean;
+  /** The list is one channel account's: its rows say what was written and who answers, not where. */
+  account?: boolean;
 }) {
   const t = useT();
   const selected = useNav((s) => s.threadId);
   const pinned = entries.filter((th) => th.pinned);
   const rest = entries.filter((th) => !th.pinned);
-  const row = (th: Thread) => <ChatRow key={th.id} thread={th} selected={selected} />;
+  const row = (th: Thread) => <ChatRow key={th.id} thread={th} selected={selected} account={account} />;
   const recent = byChannel
     ? bundleChannels(rest).map((e) =>
         e.kind === "thread" ? (
@@ -95,7 +98,15 @@ export function ChatsTab({
   );
 }
 
-export function ChatRow({ thread, selected }: { thread: Thread; selected: string | undefined }) {
+export function ChatRow({
+  thread,
+  selected,
+  account = false,
+}: {
+  thread: Thread;
+  selected: string | undefined;
+  account?: boolean;
+}) {
   const agents = useShownAgents();
   return (
     <ListedChat thread={thread} selected={selected} inline>
@@ -103,6 +114,7 @@ export function ChatRow({ thread, selected }: { thread: Thread; selected: string
         thread={thread}
         agent={threadAgent(thread, agents)}
         selected={thread.id === selected}
+        account={account}
         onOpen={() => go.thread(thread.id)}
       />
     </ListedChat>

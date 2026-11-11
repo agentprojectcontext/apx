@@ -54,7 +54,9 @@ export function AccountHeader({ account }: { account: ChannelInfo }) {
               <span className="inbox__accountsub">
                 <AnswererFace agent={answerer} />
                 <span className="inbox__accountsubtext">
-                  {who ? t("inbox.account.answeredBy", { app: app(account), agent: who }) : app(account)}
+                  {[whereOf(account, name(account)), who ? t("ch.answersBy", { agent: who }) : undefined]
+                    .filter(Boolean)
+                    .join(" · ") || app(account)}
                 </span>
               </span>
             </span>
@@ -119,6 +121,12 @@ export function AccountHeader({ account }: { account: ChannelInfo }) {
       )}
     </div>
   );
+}
+
+/** Which account it is (its number, address or bot), unless its name already says it. */
+function whereOf(channel: ChannelInfo, shownName: string): string | undefined {
+  const where = channel.account ?? channel.email?.address;
+  return where && where !== shownName ? where : undefined;
 }
 
 function Logo({ channel, size }: { channel: ChannelInfo; size: number }) {

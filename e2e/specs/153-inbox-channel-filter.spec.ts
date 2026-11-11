@@ -112,3 +112,82 @@ test("a super-agent chat with no project carries the base project's badge", asyn
   await expect(row.locator(".projbadge")).toHaveCount(1);
   await expect(row.locator(".projbadge")).toHaveText(base.name);
 });
+
+test("one account's list shows what was written: a mail's subject and two lines, a chat's last line", async ({
+  page,
+}) => {
+  const mail = await rpc<{ id: string }>("threads.create", {
+    kind: "loose",
+    agent_id: "superagent",
+    title: "Northwind",
+  });
+  const chat = await rpc<{ id: string }>("threads.create", { kind: "loose", agent_id: "superagent", title: "Acme" });
+  const shape: Record<string, { channel: string; preview: string }> = {
+    [mail.id]: {
+      channel: "mail-e2e",
+      preview: "Factura de marzo · Te mando la factura de marzo con el detalle de cada pedido y la fecha de pago.",
+    },
+    [chat.id]: { channel: "wa-sales-e2e", preview: "¿Me pasás el precio del pedido grande para mañana?" },
+  };
+  await page.route("**/rpc/channels.list", async (route) => {
+    const response = await route.fetch();
+    const body = await response.json();
+    body.result.channels = ACCOUNTS.map((a) => ({
+      ...a,
+      ...(a.type === "email" ? { email: { address: "ventas@example.com" } } : { account: "+15550100" }),
+      enabled: true,
+      agent_id: "superagent",
+      strangers: "pair",
+      concurrency: "queue",
+      owner_thread: "own",
+      token_set: true,
+      status: "running",
+    }));
+    await route.fulfill({ response, json: body });
+  });
+  await page.route("**/rpc/threads.list", async (route) => {
+    const response = await route.fetch();
+    const body = await response.json();
+    body.result.threads = body.result.threads.map((th: { id: string }) => {
+      const s = shape[th.id];
+      return s ? { ...th, preview: s.preview, channel: { id: s.channel, conversation: `c-${th.id}` } } : th;
+    });
+    await route.fulfill({ response, json: body });
+  });
+  // Opening a chat reads it again: it keeps its account there too.
+  await page.route("**/rpc/threads.get", async (route) => {
+    const response = await route.fetch();
+    const body = await response.json();
+    const s = shape[body.result?.thread?.id];
+    if (s)
+      body.result.thread = { ...body.result.thread, preview: s.preview, channel: { id: s.channel, conversation: "c" } };
+    await route.fulfill({ response, json: body });
+  });
+  await open(page);
+  const sidebar = page.locator(".sidebar");
+  await sidebar.getByRole("button", { name: "Email", exact: true }).first().click();
+  const back = page.getByRole("button", { name: "Volver a los chats", exact: true });
+  if (await back.isVisible()) await back.click();
+  await expect(page.locator(".inbox__accountsubtext")).toContainText("ventas@example.com");
+  const row = page.locator(".inbox__list .threadrow", { hasText: "Northwind" });
+  await expect(row).toHaveClass(/threadrow--mail/);
+  await expect(row.locator(".threadrow__subject")).toHaveText("Factura de marzo");
+  await expect(row.locator(".threadrow__said")).toContainText("Te mando la factura");
+  await expect(row.locator(".projbadge")).toHaveCount(0);
+  await page.screenshot({ path: "test-results/inbox-account-mail.png" });
+
+  await sidebar.getByRole("button", { name: "WhatsApp ventas", exact: true }).first().click();
+  if (await back.isVisible()) await back.click();
+  await expect(page.locator(".inbox__accountsubtext")).toContainText("+15550100");
+  const wa = page.locator(".inbox__list .threadrow", { hasText: "Acme" });
+  await expect(wa.locator(".apx-convrow__preview")).toHaveText("¿Me pasás el precio del pedido grande para mañana?");
+  await expect(wa.locator(".apx-convrow__meta")).not.toContainText("WhatsApp");
+  await page.screenshot({ path: "test-results/inbox-account-chat.png" });
+
+  await sidebar.getByRole("button", { name: "Email", exact: true }).first().click();
+  await page.setViewportSize({ width: 390, height: 800 });
+  if (await back.isVisible()) await back.click();
+  await expect(row.locator(".threadrow__subject")).toBeVisible();
+  await page.screenshot({ path: "test-results/inbox-account-mail-phone.png" });
+  expect(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth)).toBe(false);
+});
