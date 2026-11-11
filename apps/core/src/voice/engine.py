@@ -175,9 +175,24 @@ async def keep_speech_warm():
             await asyncio.to_thread(speech.warm)
 
 
+async def follow_core():
+    """The core that started this engine is gone (it crashed or was killed): leave too, freeing the GPU."""
+    pid = int(os.environ.get("VOICE_PARENT_PID") or 0)
+    while pid:
+        await asyncio.sleep(2)
+        try:
+            os.kill(pid, 0)
+        except ProcessLookupError:
+            print("[voice] the core is gone, stopping", flush=True)
+            os._exit(0)
+        except PermissionError:
+            pass
+
+
 @app.on_event("startup")
 async def startup():
     global speech
+    asyncio.create_task(follow_core())
     speech = await asyncio.to_thread(Speech)
     for lang, line in GREETING.items():
         for v in VOICES.values():
@@ -250,7 +265,17 @@ class Call:
         tongue = "Spanish, Argentine with voseo" if self.lang == "es" else "English"
         return f"(Note. Call language: {tongue}. Your voice: {self.gender}. {tasks})"
 
+    async def warm(self):
+        """Reads the prompt while the greeting plays: a model that has not seen it takes seconds on the first answer."""
+        llm_state.update(system=self.system, used=time.monotonic())
+        try:
+            async for _ in llm_stream([self.system, {"role": "user", "content": "Hola."}]):
+                break
+        except Exception as e:
+            print(f"[voice] llm warm: {e!r}", flush=True)
+
     async def greet(self):
+        asyncio.create_task(self.warm())
         line = GREETING[self.lang].format(owner=f" {self.owner}" if self.owner else "")
         self.history.append({"role": "assistant", "content": line})
         await self.send({"type": "state", "state": "speaking"})

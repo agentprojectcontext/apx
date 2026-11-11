@@ -89,10 +89,11 @@ export function createVoiceEngine(deps: {
     const secret = crypto.randomBytes(24).toString("base64url");
     const key = cfg.llmKey ? await deps.resolveKey?.(cfg.llmKey) : undefined;
     const child = (deps.spawn ?? spawn)(uv, ["run", "--script", ENGINE, "--port", String(port)], {
-      stdio: ["ignore", "ignore", "pipe"],
+      stdio: ["ignore", "pipe", "pipe"],
       env: {
         ...process.env,
         VOICE_SECRET: secret,
+        VOICE_PARENT_PID: String(process.pid),
         VOICE_OWNER: deps.owner?.() ?? "",
         VOICE_LLM_URL: cfg.llmUrl,
         VOICE_LLM_MODEL: cfg.llmModel,
@@ -105,10 +106,16 @@ export function createVoiceEngine(deps: {
         VOICE_CACHE: path.join(deps.home, "voice"),
       },
     });
+    // What it says goes to <home>/logs/voice.log; the end of it explains a start that failed.
+    fs.mkdirSync(path.join(deps.home, "logs"), { recursive: true });
+    const out = fs.createWriteStream(path.join(deps.home, "logs", "voice.log"), { flags: "a" });
     let stderr = "";
+    child.stdout?.pipe(out, { end: false });
     child.stderr?.on("data", (d) => {
+      out.write(d);
       stderr = (stderr + String(d)).slice(-2000);
     });
+    child.on("close", () => out.end());
     const url = `http://127.0.0.1:${port}`;
     const ready = (async () => {
       const until = Date.now() + START_TIMEOUT_MS;
