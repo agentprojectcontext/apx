@@ -109,6 +109,28 @@ test("variables: a hint only for long values, and where each one is used", async
   assert.ok(!JSON.stringify(secrets).includes("ghp_0123"), "values never leave the core");
 });
 
+test("variable choices resolve project and parent overrides without duplicate names or other projects", async () => {
+  const child = (await env.client.call("projects.create", { name: "Acme variables", parent: project })).project.id;
+  const other = (await env.client.call("projects.create", { name: "Northwind variables" })).project.id;
+  await env.client.call("secrets.set", { name: "CHOICE", value: "global-account" });
+  await env.client.call("secrets.set", { name: "CHOICE", value: "parent-account", project });
+  await env.client.call("secrets.set", { name: "CHOICE", value: "child-account", project: child });
+  await env.client.call("secrets.set", { name: "PARENT_ONLY", value: "parent-value", project });
+  await env.client.call("secrets.set", { name: "OTHER_ONLY", value: "other-value", project: other });
+  const { secrets } = await env.client.call("secrets.list", { project: child });
+  const choices = secrets.filter((s) => s.name === "CHOICE");
+  assert.equal(choices.length, 1);
+  assert.equal(choices[0]?.project_id, child);
+  assert.equal(secrets.find((s) => s.name === "PARENT_ONLY")?.project_id, project);
+  assert.equal(
+    secrets.some((s) => s.name === "OTHER_ONLY"),
+    false,
+  );
+  assert.equal((await env.client.call("secrets.list", {})).secrets.filter((s) => s.name === "CHOICE").length, 3);
+  assert.ok(!JSON.stringify(secrets).includes("child-account"));
+  await assert.rejects(env.client.call("secrets.list", { project: "missing" }), /project missing/);
+});
+
 test("mcp: a global server off in one project, a test run, and no test before a project server is approved", async () => {
   const listed = await env.client.call("mcp.list", { project });
   const gh = listed.servers.find((s) => s.name === "github");

@@ -1,5 +1,6 @@
 // Where an app link an agent wrote goes (apx:settings/desktop, apx:tasks…): a place of the panel, or nothing for a
 // link it does not know (shown as its label).
+import { openMcp } from "../data/mcpPeek.ts";
 import { CONFIG_SECTIONS, type ConfigSection, go, nav, RESOURCE_TABS, type ResourceTab } from "../shell/nav.ts";
 
 const isIn = <T extends string>(list: readonly T[], v: string | undefined): v is T =>
@@ -11,7 +12,7 @@ export type AppPlace =
   | { kind: "task"; id: string; open: () => void }
   | { kind: "tasks"; open: () => void }
   | { kind: "flows"; project?: string; flow?: string; open: () => void }
-  | { kind: "resources"; tab: ResourceTab; open: () => void }
+  | { kind: "resources"; tab: ResourceTab; server?: string; source?: string; open: () => void }
   | { kind: "inbox"; open: () => void }
   | { kind: "chat"; id: string; open: () => void }
   | { kind: "project"; id: string; open: () => void }
@@ -24,8 +25,8 @@ export function appPlace(href: string): AppPlace | undefined {
   if (!m) return undefined;
   const [, where = "", a, b, c] = m;
   const to = where.toLowerCase();
-  // Only a flow's link goes three deep: apx:flows/<project>/<flow>/edit.
-  if (c !== undefined && (to !== "flows" || c !== "edit")) return undefined;
+  if (c !== undefined && !(to === "flows" && c === "edit") && !(to === "resources" && a === "mcp" && b))
+    return undefined;
   switch (to) {
     case "settings":
     case "config": {
@@ -44,6 +45,15 @@ export function appPlace(href: string): AppPlace | undefined {
         open: () => go.flows(a, b, c === "edit"),
       };
     case "resources": {
+      if (a === "mcp" && b)
+        return {
+          kind: "resources",
+          tab: "mcp",
+          server: b,
+          ...(c ? { source: c } : {}),
+          open: () => openMcp(b, c),
+        };
+      if (b) return undefined;
       const tab: ResourceTab | undefined = a === undefined ? "skills" : isIn(RESOURCE_TABS, a) ? a : undefined;
       return tab ? { kind: "resources", tab, open: () => go.resources(tab, true) } : undefined;
     }

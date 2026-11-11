@@ -121,6 +121,15 @@ A server that comes with an extension is changed in that extension, not here. A 
 by someone else needs the owner's approval before it runs: that approval is theirs, in
 [Resources › MCP](apx:resources/mcp), never yours.
 
+## Open a server from chat
+
+Link a named server as `[Acme](apx:resources/mcp/acme/global)` to open its editor over the chat. `global` identifies
+one of the owner's private servers, even when it is limited to a project. For a repository definition, use
+`apx:resources/mcp/acme/PROJECT_ID`. A link without the last segment asks which one when the name is ambiguous;
+a missing exact target never opens another server with the same name. The editor offers **Available in** for a
+private server and a visible **Use a variable** picker (also Ctrl+Space in a value). The picker lists the selected
+project's effective variables, including inherited names and overrides, without values.
+
 ## Tell the owner
 
 What you added, with which name, whether it is theirs (global) or one project's, what `apx mcps check` said, and what

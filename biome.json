@@ -248,6 +248,7 @@
                       "**/SubthreadPart.tsx",
                       "**/TaskBundle.tsx",
                       "**/TaskPeek.tsx",
+                      "**/McpPeek.tsx",
                       "**/TasksScreen.tsx",
                       "**/TerminalPanel.tsx",
                       "**/TerminalView.tsx",

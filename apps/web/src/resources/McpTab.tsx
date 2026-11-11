@@ -158,6 +158,7 @@ export function McpTab({ projectId, query, scope, adding, setAdding, res, ownOnl
 
   const newServer = adding && (
     <McpDialog
+      projectId={projectId ?? (scope !== "all" && scope !== "global" ? scope : undefined)}
       onClose={() => setAdding(false)}
       onSaved={async (name) => {
         setAdding(false);

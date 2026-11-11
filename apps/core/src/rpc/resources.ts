@@ -2,6 +2,7 @@
 // servers are in rpc/mcp.ts.
 
 import path from "node:path";
+import { lineage } from "../domain/projects.ts";
 import type { Store } from "../domain/store.ts";
 import { badRequest, errorMessage, notFound } from "../errors.ts";
 import type { McpConfig, McpDef } from "../mcp/config.ts";
@@ -69,16 +70,31 @@ export function resourceHandlers(deps: {
     return { skills: !skillsOff(store)[project]?.includes(NO_GLOBALS), mcp: mcp.takesGlobals(project) };
   };
   return {
-    "secrets.list": () => {
+    "secrets.list": ({ project }) => {
+      if (project && !store.projects.get(project)) throw notFound(`project ${project}`);
       const used = usedIn(store, deps.mcp);
+      const scopes = project ? [...lineage(store.projects, project), undefined] : undefined;
+      const all = deps.secrets.list();
+      const visible = scopes
+        ? scopes.flatMap((scope) => all.filter((s) => splitSecretName(s.name).project_id === scope))
+        : all;
+      const seen = new Set<string>();
       return {
-        secrets: deps.secrets.list().map((s) => {
-          const { project_id, name } = splitSecretName(s.name);
-          if (project_id) return { ...s, name, project_id, used_in: used.get(`${project_id}/${name}`) ?? [] };
-          // A service keeps its key under service-<id>: that name says where it is used.
-          const service = s.name.startsWith("service-") ? [`service:${s.name.slice(8)}`] : [];
-          return { ...s, used_in: [...(used.get(s.name) ?? []), ...service] };
-        }),
+        secrets: visible
+          .filter((s) => {
+            if (!scopes) return true;
+            const { name } = splitSecretName(s.name);
+            if (seen.has(name)) return false;
+            seen.add(name);
+            return true;
+          })
+          .map((s) => {
+            const { project_id, name } = splitSecretName(s.name);
+            if (project_id) return { ...s, name, project_id, used_in: used.get(`${project_id}/${name}`) ?? [] };
+            // A service keeps its key under service-<id>: that name says where it is used.
+            const service = s.name.startsWith("service-") ? [`service:${s.name.slice(8)}`] : [];
+            return { ...s, used_in: [...(used.get(s.name) ?? []), ...service] };
+          }),
       };
     },
     "secrets.reveal": ({ name, project }) => {

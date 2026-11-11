@@ -77,6 +77,20 @@ const entry = (id: string, since = "2.7.3"): NewsEntry => ({
   ],
 });
 
+test("contextual connection news only reaches owners with a private MCP server", () => {
+  const entry = NEWS.find((item) => item.id === "mcp-context");
+  assert.ok(entry);
+  const { store, done } = setup();
+  try {
+    assert.equal(entry.applies(newsFacts(store)), false);
+    store.settings.set("mcp_servers", JSON.stringify({ mcpServers: { acme: { url: "https://example.com/mcp" } } }));
+    assert.equal(entry.applies(newsFacts(store)), true);
+    assert.equal(newsFacts(store).mcp, 1);
+  } finally {
+    done();
+  }
+});
+
 test("compacting the chats' file is told only while a big store keeps its free space", async () => {
   const compact = NEWS.find((item) => item.id === "store-compact");
   assert.ok(compact);

@@ -47,6 +47,9 @@ export const ChannelDialogs = lazy(
 export const ConfigModal = lazy(
   withPacks(["team"], () => import("./config/ConfigModal.tsx").then((m) => ({ default: m.ConfigModal }))),
 );
+export const McpPeek = lazy(
+  withPacks(["resources"], () => import("./resources/McpPeek.tsx").then((m) => ({ default: m.McpPeek }))),
+);
 export const TaskPeek = lazy(() => import("./tasks/TaskPeek.tsx").then((m) => ({ default: m.TaskPeek })));
 // Shown on hover or click over the first screen, loaded when first needed: the super-agent's card, what fills a chat's
 // context, a side question, a channel account's header, and the tooltips that replace native titles.

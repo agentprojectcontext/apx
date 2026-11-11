@@ -1,5 +1,15 @@
 // UI strings, English: Resources (skills, MCP servers, integrations, variables, extensions).
 export const enResources = {
+  "res.mcpAvailable": "Available in",
+  "res.mcpEverywhere": "All projects",
+  "res.mcpMissingVariables": "Before using this connection here, add a value for: {names}.",
+  "res.mcpSaveError": "Couldn’t save this connection. Try again.",
+  "res.variablesLoadError": "Couldn’t load variables.",
+  "res.variablesEmpty": "No variables available",
+  "res.mcpMissing": "This connection is no longer available.",
+  "res.mcpLoadError": "Couldn’t open this connection.",
+  "res.mcpDenied": "You don’t have access to this connection.",
+  "res.mcpAmbiguous": "Choose the connection you want to open.",
   "res.toolsMode": "Tool permissions",
   "res.toolsMode.ask": "Ask first",
   "res.toolsMode.all": "All allowed",

@@ -2,6 +2,16 @@
 import type { MessageKey } from "./en.ts";
 
 export const esResources: Partial<Record<MessageKey, string>> = {
+  "res.mcpAvailable": "Disponible en",
+  "res.mcpEverywhere": "Todos los proyectos",
+  "res.mcpMissingVariables": "Antes de usar esta conexión acá, agregá un valor para: {names}.",
+  "res.mcpSaveError": "No se pudo guardar la conexión. Volvé a intentar.",
+  "res.variablesLoadError": "No se pudieron cargar las variables.",
+  "res.variablesEmpty": "No hay variables disponibles",
+  "res.mcpMissing": "Esta conexión ya no está disponible.",
+  "res.mcpLoadError": "No se pudo abrir esta conexión.",
+  "res.mcpDenied": "No tenés acceso a esta conexión.",
+  "res.mcpAmbiguous": "Elegí la conexión que querés abrir.",
   "res.toolsMode": "Permisos de tools",
   "res.toolsMode.ask": "Preguntar",
   "res.toolsMode.all": "Todas permitidas",
@@ -173,7 +183,7 @@ export const esResources: Partial<Record<MessageKey, string>> = {
   "res.pairRemove": "Quitar esta fila",
   "res.pairAdd": "Agregar fila",
   "res.pairInsertVar": "Usar una variable",
-  "res.pairSearchVar": "Buscar variable…",
+  "res.pairSearchVar": "Buscar variables…",
   "res.pairNewVar": "Crear nueva variable…",
   "res.integrations.title": "Las integraciones están en camino",
   "res.integrations.body":

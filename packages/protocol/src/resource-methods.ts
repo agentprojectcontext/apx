@@ -144,9 +144,9 @@ export const SecretInfo = z.object({
 export type SecretInfo = z.infer<typeof SecretInfo>;
 
 export const resourceMethods = {
-  /** Names of the stored secrets with a hint and where each is used; values never leave the core. */
+  /** Names and usage, never values; with project, one effective entry per name (project, parent, global). */
   "secrets.list": {
-    params: z.object({}).strict(),
+    params: z.object({ project: Id.optional() }).strict(),
     result: z.object({ secrets: z.array(SecretInfo) }),
     effect: false,
     access: "human",
@@ -360,6 +360,7 @@ export const resourceMethods = {
   /**
    * Adds, replaces or (null) removes one of the owner's own servers (env and header values may hold secret://), or,
    * with `project`, one in that project's .apc/mcps.json (no secret://; approved as the owner wrote it).
+   * `server.project` limits a private server to one project; null makes it global without copying variables.
    */
   "mcp.set": {
     params: z

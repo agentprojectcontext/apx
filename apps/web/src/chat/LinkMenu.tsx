@@ -53,7 +53,9 @@ function usePlaceHint(place: AppPlace | undefined): string {
     case "flows":
       return place.flow ? t("link.go.flow") : t("nav.flows");
     case "resources":
-      return t("link.go.resources", { name: t(`res.tab.${place.tab}`) });
+      return place.server
+        ? `${t("res.mcpOpen")}: ${place.server}`
+        : t("link.go.resources", { name: t(`res.tab.${place.tab}`) });
     case "inbox":
       return t("link.go.inbox");
     case "chat":

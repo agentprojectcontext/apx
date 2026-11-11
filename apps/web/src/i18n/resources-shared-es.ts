@@ -2,6 +2,7 @@
 import type { MessageKey } from "./en.ts";
 
 export const esResourcesShared: Partial<Record<MessageKey, string>> = {
+  "res.mcpOpen": "Editar conexión",
   "res.error": "Recursos: {error}",
   "res.tab.skills": "Skills",
   "res.tab.mcp": "MCP",
