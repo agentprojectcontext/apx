@@ -97,6 +97,8 @@ When {owner} says goodbye, answer with one short goodbye.
 """
 GREETING = {"es": "Hola{owner}, ¿en qué te ayudo?", "en": "Hi{owner}, what can I do for you?"}
 STT_HINT = {"es": "Hola {name}, ¿me ayudás con algo? APX.", "en": "Hi {name}, can you help me with something? APX."}
+HOLD_ON = {"es": "Dame un segundo.", "en": "Give me a second."}
+HOLD_ON_S = 4  # the voice model is this slow to start: say so instead of going quiet
 FAILED = {"es": "No pude terminar lo que me pediste.", "en": "I couldn't finish what you asked."}
 
 speech: Speech | None = None
@@ -275,7 +277,6 @@ class Call:
             print(f"[voice] llm warm: {e!r}", flush=True)
 
     async def greet(self):
-        asyncio.create_task(self.warm())
         line = GREETING[self.lang].format(owner=f" {self.owner}" if self.owner else "")
         self.history.append({"role": "assistant", "content": line})
         await self.send({"type": "state", "state": "speaking"})
@@ -293,6 +294,13 @@ class Call:
         await self.send({"type": "state", "state": "thinking"})
         spoken, skipped = [], False
         self.carry = ""
+        holding = {"speaking": False}
+        filler = asyncio.create_task(self.hold_on(holding))
+
+        async def settle_filler():  # a line already being said ends; one not begun never is
+            if not filler.done():
+                await filler if holding["speaking"] else filler.cancel()
+
         try:
             async for raw in sentences(messages):
                 if SKIP.search(raw):
@@ -304,11 +312,13 @@ class Call:
                 line = clean(TASK.sub("", raw))
                 if not line:
                     continue
+                await settle_filler()
                 if not spoken:
                     await self.send({"type": "state", "state": "speaking"})
                 await self.say(line)
                 spoken.append(line)
         except asyncio.CancelledError:
+            filler.cancel()
             if not spoken:  # the owner went on before a word was said: their words join the next turn
                 self.history.pop()
                 self.carry = text
@@ -316,6 +326,7 @@ class Call:
             self.history.append({"role": "assistant", "content": " ".join(spoken) + " …"})
             raise
         else:
+            await settle_filler()
             said = " ".join(spoken)
             self.history.append({"role": "assistant", "content": said or ("[[skip]]" if skipped else "…")})
         finally:
@@ -323,6 +334,12 @@ class Call:
         if BYE_HEARD.search(heard) and len(heard.split()) <= 8 and spoken:
             await asyncio.sleep(max(0.0, self.playing_until - time.monotonic()) + 0.4)
             await self.send({"type": "end", "reason": "goodbye"})
+
+    async def hold_on(self, holding):
+        await asyncio.sleep(HOLD_ON_S)
+        holding["speaking"] = True
+        await self.send({"type": "state", "state": "speaking"})
+        await self.say(HOLD_ON[self.lang])
 
     async def tell(self, n, state, text):
         """A task's answer, read as it came: no model in between, so nothing waits and nothing is made up."""
@@ -471,6 +488,11 @@ async def call(ws: WebSocket):
     await ws.accept()
     q = ws.query_params
     c = Call(ws, q.get("voice", "female"), q.get("lang", "es"), q.get("owner", ""), q.get("agent", ""))
+    await c.send({"type": "preparing"})
+    try:  # the first answer would wait while the model reads its prompt: read it before the call begins
+        await asyncio.wait_for(c.warm(), 90)
+    except asyncio.TimeoutError:
+        print("[voice] the voice model did not answer while preparing", flush=True)
     await c.send({"type": "ready"})
     watcher = asyncio.create_task(c.watch())
     c.reply_task = asyncio.create_task(c.greet())
