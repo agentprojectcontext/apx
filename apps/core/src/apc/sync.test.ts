@@ -100,11 +100,17 @@ test("a change in a project's files is reindexed once the watcher's quiet window
     makeProject(root.path);
     await env.client.call("projects.register", { path: root.path });
     const armed = timers.armed();
-    fs.writeFileSync(
-      path.join(root.path, ".apc", "project.json"),
-      JSON.stringify({ name: "Northwind Labs", apx_id: "abc123def456" }),
-    );
-    await waitFor(() => timers.armed() > armed, "the watcher to queue a reindex on its clock");
+    const change = () =>
+      fs.writeFileSync(
+        path.join(root.path, ".apc", "project.json"),
+        JSON.stringify({ name: "Northwind Labs", apx_id: "abc123def456" }),
+      );
+    // macOS drops a change made before its file events stream starts: the change is made again until it is seen.
+    await waitFor(() => {
+      if (timers.armed() > armed) return true;
+      change();
+      return false;
+    }, "the watcher to queue a reindex on its clock");
     assert.equal(name(), "Northwind", "nothing is reindexed before the quiet window passes");
     timers.tick(1_000);
     assert.equal(name(), "Northwind Labs");
