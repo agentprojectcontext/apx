@@ -654,11 +654,14 @@ test("with no chat app for notices, the owner's chat app hears only what follows
     tg.message(OWNER, "set the scene");
     await waitFor(() => tg.messagesTo(OWNER.id).length > before, "the answer to the owner's own words");
     await env.settle("home");
-    // An agent the owner adds gives the super-agent an unasked turn in Home: it stays in the app.
+    // Agent changes offer a passive review in the app, without an unasked model turn.
     const told = tg.messagesTo(OWNER.id).length;
+    const homeRuns = store.runs.list("home").length;
     await env.client.call("agents.create", { slug: "northwind-helper", name: "Northwind helper", role: "helper" });
-    await waitFor(() => store.runs.list("home").some((r) => r.input?.origin.kind === "added"), "the super-agent told");
-    await env.settle("home");
+    const reviews = await env.client.call("agents.review_queue", {});
+    assert.ok(reviews.agents.some((a) => a.agent === "northwind-helper"));
+    assert.ok(store.notifications.hasUnread("agent", "agent-review:global"));
+    assert.equal(store.runs.list("home").length, homeRuns);
     // A teammate's question is answered in the app, with nothing on the chat app.
     const t = await env.client.call("threads.create", { kind: "loose", agent_id: "vera" });
     await env.client.call("threads.send", { thread: t.id, text: "launch the probe" });
