@@ -41,7 +41,8 @@ export type WaLib = {
 };
 export type WaSocket = {
   ev: { on(event: string, listener: (arg: never) => void): void };
-  user?: { id: string; lid?: string } | undefined;
+  /** The linked account; `name` is its profile name once the phone shared it, `verifiedName` a business's. */
+  user?: { id: string; lid?: string; name?: string; verifiedName?: string } | undefined;
   sendMessage(
     jid: string,
     content: Record<string, unknown>,
@@ -250,9 +251,12 @@ export function whatsappAdapter(opts: {
       syncFullHistory: false,
     });
     sock = s;
-    s.ev.on("creds.update", (() => {
+    s.ev.on("creds.update", ((update: { me?: { name?: string } } | undefined) => {
       if (s !== sock || stopped) return;
       saving = saving.then(saveCreds, saveCreds);
+      // The profile name can arrive after the connection opens.
+      const name = update?.me?.name?.trim() || profileName(s);
+      if (me && name && name !== named) identify(s, name);
     }) as (arg: never) => void);
     s.ev.on("connection.update", ((u: ConnectionUpdate) => onConnection(s, u)) as (arg: never) => void);
     s.ev.on("messages.upsert", ((up: { type: string; messages: WaMessage[] }) => {
@@ -289,6 +293,15 @@ export function whatsappAdapter(opts: {
     }
   }
 
+  /** Who the linked account is: its number, the owner's address on it, and its profile name once the phone shares it. */
+  let named: string | undefined;
+  const profileName = (s: WaSocket) => s.user?.name?.trim() || s.user?.verifiedName?.trim() || undefined;
+  function identify(s: WaSocket, name = profileName(s)): void {
+    if (!me) return;
+    named = name;
+    io?.identified?.({ account: `+${digitsOf(me.pn)}`, owner: me.pn, ...(named ? { name: named } : {}) });
+  }
+
   function onConnection(s: WaSocket, u: ConnectionUpdate): void {
     if (s !== sock || stopped || !lib || !io) return;
     if (u.qr) io.qr?.(u.qr);
@@ -301,7 +314,7 @@ export function whatsappAdapter(opts: {
       qrRounds = 0;
       me = { pn: normalJid(s.user?.id), lid: normalJid(s.user?.lid) };
       io.status("running");
-      io.identified?.({ account: `+${digitsOf(me.pn)}`, owner: me.pn });
+      identify(s);
       return;
     }
     if (u.connection !== "close") return;

@@ -220,16 +220,6 @@ button.chatprocesses {
   justify-content: center;
   position: relative;
 }
-/* The channel's mark on the face's corner, ringed in the header's colour, where the name needs the room. */
-.threadavatar__channel.is-badge {
-  position: absolute;
-  right: -4px;
-  bottom: -3px;
-  z-index: 1;
-  padding: 1.5px;
-  border-radius: 50%;
-  background: var(--apx-bg);
-}
 .threadavatar__caller {
   position: absolute;
   right: -3px;
@@ -252,7 +242,7 @@ button.chatprocesses {
 /* Two lines per chat, like the Slim design: title, project and time; then who and what kind. */
 /* The face close to the row's edge and to its words, as the design has it. */
 .inbox .threadrow {
-  padding: 7px 10px 7px 6px;
+  padding: 6px 10px 6px 6px;
   gap: 8px;
   border-radius: 10px;
 }
@@ -529,7 +519,7 @@ button.chatprocesses {
 .threadrow__dot {
   flex: none;
 }
-/* The face of the agent who answers, before the line that names it (lists, an account's header). */
+/* The face of the agent who answers, before the words that name it (lists, an account's header). */
 .answerer {
   display: inline-flex;
   flex: none;

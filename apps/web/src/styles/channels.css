@@ -92,7 +92,9 @@
   display: flex;
   gap: 10px;
   width: 100%;
-  padding: 10px;
+  padding: 9px 10px;
+  /* Two lit rows next to each other stay apart. */
+  margin-block: 1px;
   border: 0;
   border-radius: 12px;
   background: transparent;
@@ -317,7 +319,7 @@
 .chan__rel:empty {
   flex: 1;
 }
-/* Who answers them (face and name), then how they relate to the owner; the marks go to the end. */
+/* How they relate to the owner, then who answers them (face and name); the marks go to the end. */
 .chan__rowanswer {
   gap: 5px;
 }
@@ -329,17 +331,6 @@
   white-space: nowrap;
 }
 /* What is set for a contact: small marks at the end of their row. */
-.chan__flags {
-  display: inline-flex;
-  flex: none;
-  gap: 4px;
-  margin-left: auto;
-  color: var(--apx-fg-subtle);
-}
-.chan__flag {
-  display: inline-grid;
-  place-items: center;
-}
 /* A face with a dot while they are online. */
 .chan__face {
   position: relative;
@@ -863,6 +854,9 @@
   gap: 8px;
   min-width: 0;
   font-weight: var(--apx-weight-medium);
+}
+.chs__name .chan__flags {
+  margin-left: 0;
 }
 /* A long name ends in an ellipsis next to the buttons; the whole of it shows on hover. */
 .chs__label {

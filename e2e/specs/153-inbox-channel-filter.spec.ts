@@ -165,10 +165,11 @@ test("one account's list shows what was written: a mail's subject and two lines,
   });
   await open(page);
   const sidebar = page.locator(".sidebar");
-  await sidebar.getByRole("button", { name: "Email", exact: true }).first().click();
+  // An account named only after its app goes by its address.
+  await sidebar.getByRole("button", { name: "ventas@example.com", exact: true }).first().click();
   const back = page.getByRole("button", { name: "Volver a los chats", exact: true });
   if (await back.isVisible()) await back.click();
-  await expect(page.locator(".inbox__accountsubtext")).toContainText("ventas@example.com");
+  await expect(page.locator(".inbox__accountlabel")).toHaveText("ventas@example.com");
   const row = page.locator(".inbox__list .threadrow", { hasText: "Northwind" });
   await expect(row).toHaveClass(/threadrow--mail/);
   await expect(row.locator(".threadrow__subject")).toHaveText("Factura de marzo");
@@ -184,7 +185,7 @@ test("one account's list shows what was written: a mail's subject and two lines,
   await expect(wa.locator(".apx-convrow__meta")).not.toContainText("WhatsApp");
   await page.screenshot({ path: "test-results/inbox-account-chat.png" });
 
-  await sidebar.getByRole("button", { name: "Email", exact: true }).first().click();
+  await sidebar.getByRole("button", { name: "ventas@example.com", exact: true }).first().click();
   await page.setViewportSize({ width: 390, height: 800 });
   if (await back.isVisible()) await back.click();
   await expect(row.locator(".threadrow__subject")).toBeVisible();

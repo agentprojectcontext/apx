@@ -1,8 +1,9 @@
 import type { Thread } from "@apx/protocol";
 import { AgentAvatar, Button, Icons, PickRow, ProjectTile, Switch, Tabs } from "@apx/ui";
 import { useMemo, useState } from "react";
+import { accountName } from "../channels/accountName.ts";
 import { KindTile } from "../channels/KindIcon.tsx";
-import { CHANNEL_KINDS, isChannelKind } from "../channels/kinds.ts";
+import { isChannelKind } from "../channels/kinds.ts";
 import { useChannels } from "../data/channels.ts";
 import { blobOf, inProject, nestProjects, projectEntries, projectInitial, projectTone } from "../data/identity.ts";
 import { setPrefs, usePrefs } from "../data/prefs.ts";
@@ -122,7 +123,7 @@ function ChannelRows({ threads, hidden }: { threads: Thread[]; hidden: string[] 
         key={c.id}
         muted={!shown}
         leading={kind ? <KindTile kind={kind} /> : <Icons.Send size={14} />}
-        title={c.label || (kind ? t(CHANNEL_KINDS[kind].name) : c.id)}
+        title={accountName(c, t)}
         trailing={<FilterMark count={count} on={shown} />}
         onClick={() => toggleHiddenChannel(c.id)}
       />

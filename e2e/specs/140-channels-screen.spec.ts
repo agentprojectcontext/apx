@@ -1,6 +1,6 @@
 // Channels, a screen of its own: every account with who answers it and what waits there, and each account's settings
 // in a dialog of parts, saved together. Builds on the setup's Telegram and WhatsApp accounts.
-import { expect, open, rpc, test, until } from "./kit.ts";
+import { ACCOUNT_NAME, expect, open, rpc, test, until } from "./kit.ts";
 
 type Listed = {
   channels: Array<{
@@ -18,21 +18,21 @@ test("the Channels screen lists every account, filters by app and opens each one
   // The sidebar's Channels section leads there too, narrow sidebar included.
   await expect(page.locator(".sidebar").getByRole("button", { name: "Administrar canales" })).toBeVisible();
   // From an account's Inbox, the account switcher leads to the screen with every account.
-  await page.getByRole("button", { name: "WhatsApp", exact: true }).click();
+  await page.getByRole("button", { name: ACCOUNT_NAME.whatsapp, exact: true }).click();
   await page.locator(".inbox__accountbtn").click();
   await page.getByRole("dialog", { name: "Cuentas" }).getByRole("button", { name: "Administrar canales" }).click();
   const screen = page.getByRole("region", { name: "Canales" });
   await expect(screen.getByRole("heading", { name: "Canales" })).toBeVisible();
-  await expect(screen.locator(".chs__main", { hasText: "Telegram" })).toBeVisible();
-  await expect(screen.locator(".chs__main", { hasText: "WhatsApp" })).toBeVisible();
+  await expect(screen.locator(".chs__main", { hasText: ACCOUNT_NAME.telegram })).toBeVisible();
+  await expect(screen.locator(".chs__main", { hasText: ACCOUNT_NAME.whatsapp })).toBeVisible();
 
   const filter = screen.getByRole("group", { name: "Canales" });
   await filter.getByRole("button", { name: /^WhatsApp/ }).click();
-  await expect(screen.locator(".chs__main", { hasText: "Telegram" })).toHaveCount(0);
+  await expect(screen.locator(".chs__main", { hasText: ACCOUNT_NAME.telegram })).toHaveCount(0);
   await filter.getByRole("button", { name: /^Todas/ }).click();
 
   // Right click: the same actions as in the sidebar.
-  await screen.locator(".chs__main", { hasText: "Telegram" }).click({ button: "right" });
+  await screen.locator(".chs__main", { hasText: ACCOUNT_NAME.telegram }).click({ button: "right" });
   await expect(page.getByRole("menuitem", { name: "Contactos" })).toBeVisible();
   await page.keyboard.press("Escape");
 
@@ -42,7 +42,7 @@ test("the Channels screen lists every account, filters by app and opens each one
 
 test("an account's settings: parts on the left, edits wait for Save, Discard puts them back", async ({ page }) => {
   await open(page, "#view=channels");
-  await page.getByRole("button", { name: "Configuración de WhatsApp" }).click();
+  await page.getByRole("button", { name: `Configuración de ${ACCOUNT_NAME.whatsapp}` }).click();
   // Its name is the account's: it changes with a rename below.
   const dialog = page.getByRole("dialog");
   await expect(dialog.getByRole("heading", { name: "Cuenta" })).toBeVisible();
@@ -87,7 +87,7 @@ test("an account's settings: parts on the left, edits wait for Save, Discard put
 
 test("leaving with unsaved edits asks first; contacts and what went out are listed per account", async ({ page }) => {
   await open(page, "#view=channels");
-  await page.getByRole("button", { name: "Configuración de WhatsApp" }).click();
+  await page.getByRole("button", { name: `Configuración de ${ACCOUNT_NAME.whatsapp}` }).click();
   const dialog = page.getByRole("dialog", { name: "WhatsApp" });
   await dialog.getByRole("button", { name: "Comportamiento" }).click();
   await dialog.getByRole("switch", { name: "Horario de atención" }).click();
@@ -157,7 +157,7 @@ test("in the folded, compact sidebar the channels list names Manage channels in 
 test("an account picked under Channels lights Channels, and Inbox leads back to every chat", async ({ page }) => {
   await open(page);
   const sidebar = page.locator(".sidebar");
-  await sidebar.getByRole("button", { name: "WhatsApp", exact: true }).first().click();
+  await sidebar.getByRole("button", { name: ACCOUNT_NAME.whatsapp, exact: true }).first().click();
   // The Inbox narrowed to that account: its header, and Channels is where the owner is.
   await expect(page.locator(".inbox__accountbtn")).toBeVisible();
   const inbox = sidebar.getByRole("button", { name: /^Inbox/ }).first();
@@ -177,7 +177,7 @@ test("an account picked under Channels opens its newest chat, not the one that w
     .sort((a, b) => b.updated_at.localeCompare(a.updated_at))[0];
   expect(newest).toBeTruthy();
   await open(page, "#thread=home");
-  await page.locator(".sidebar").getByRole("button", { name: "WhatsApp", exact: true }).first().click();
+  await page.locator(".sidebar").getByRole("button", { name: ACCOUNT_NAME.whatsapp, exact: true }).first().click();
   await expect(page.locator(".inbox__accountbtn")).toBeVisible();
   await expect(page).toHaveURL(new RegExp(`thread=${newest?.id}`));
 });

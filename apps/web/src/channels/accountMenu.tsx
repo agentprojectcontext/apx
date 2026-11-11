@@ -5,8 +5,9 @@ import { draftOf, saveChannel } from "../data/channels.ts";
 import type { T } from "../i18n/index.ts";
 import { go } from "../shell/nav.ts";
 import { askRemove } from "./account/removeAsk.ts";
+import { accountName, accountWhere, appName } from "./accountName.ts";
 import { KindIcon } from "./KindIcon.tsx";
-import { CHANNEL_KINDS, isChannelKind } from "./kinds.ts";
+import { isChannelKind } from "./kinds.ts";
 
 export function accountItems(channel: ChannelInfo, t: T, waiting: number, before?: () => void): MenuEntry[] {
   const kind = isChannelKind(channel.type) ? channel.type : undefined;
@@ -14,14 +15,13 @@ export function accountItems(channel: ChannelInfo, t: T, waiting: number, before
     before?.();
     f();
   };
-  const app = kind ? t(CHANNEL_KINDS[kind].name) : channel.type;
   return [
     {
       type: "label",
       label: (
         <span className="chs__menuhead">
           {kind ? <KindIcon kind={kind} size={14} /> : <Icons.Send size={14} />}
-          {t("ch.card.via", { app, account: channel.label })}
+          {accountName(channel, t)}
         </span>
       ),
     },
@@ -76,15 +76,14 @@ export function accountItems(channel: ChannelInfo, t: T, waiting: number, before
   ];
 }
 
-/** The account's line under its name: the app, the number or bot it runs as, and its rooms. */
+/** The account's line under its name: the number or bot it runs as and its rooms (its icon says the app). */
 export function accountLine(channel: ChannelInfo, t: T): string {
-  const kind = isChannelKind(channel.type) ? t(CHANNEL_KINDS[channel.type].name) : channel.type;
   const rooms = channel.rooms?.rooms.length ?? 0;
-  return [
-    kind,
-    channel.account ?? channel.email?.address,
+  const line = [
+    accountWhere(channel, accountName(channel, t)),
     rooms ? (rooms === 1 ? t("chs.rooms.one") : t("chs.rooms.other", { n: rooms })) : undefined,
   ]
     .filter(Boolean)
     .join(" · ");
+  return line || appName(channel, t);
 }

@@ -46,9 +46,29 @@ const ROOMS_KINDS = [
 export type RoomsKind = (typeof ROOMS_KINDS)[number];
 export const isRoomsKind = (k: string): k is RoomsKind => (ROOMS_KINDS as readonly string[]).includes(k);
 
-/** Where people meet in a group (Telegram, LINE) rather than in a server's room (Discord, Slack…). */
-export const GROUP_KINDS = new Set(["telegram", "line", "whatsapp", "signal"]);
+/** What the app's people call its shared places: WhatsApp's groups, Google Chat's spaces, Discord's rooms. */
+export type RoomsWord = "groups" | "spaces" | "rooms";
+const WORD: Readonly<Record<string, RoomsWord>> = {
+  whatsapp: "groups",
+  telegram: "groups",
+  line: "groups",
+  signal: "groups",
+  googlechat: "spaces",
+};
+export const roomsWord = (kind: string): RoomsWord => WORD[kind] ?? "rooms";
 
-/** A group's or a room's chat is "Group" or "Room" by the app it is on. */
-export const roomWord = (channel: ChannelInfo): MessageKey =>
-  GROUP_KINDS.has(channel.type) ? "ch.card.group" : "ch.card.room";
+const OPEN_KEY = {
+  groups: "ch.groups.open",
+  spaces: "ch.spaces.open",
+  rooms: "ch.rooms.open",
+} as const satisfies Record<RoomsWord, MessageKey>;
+const ONE_KEY = { groups: "ch.card.group", spaces: "ch.card.space", rooms: "ch.card.room" } as const satisfies Record<
+  RoomsWord,
+  MessageKey
+>;
+
+/** The button to an account's rooms, in the app's word ("Groups", "Spaces", "Rooms"). */
+export const roomsOpenKey = (kind: string): MessageKey => OPEN_KEY[roomsWord(kind)];
+
+/** One group's or room's chat, in the app's word ("Group", "Space", "Room"). */
+export const roomWord = (channel: ChannelInfo): MessageKey => ONE_KEY[roomsWord(channel.type)];

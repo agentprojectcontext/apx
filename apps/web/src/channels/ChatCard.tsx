@@ -2,8 +2,9 @@ import type { ChannelInfo } from "@apx/protocol";
 import { IconButton, Icons } from "@apx/ui";
 import type { ReactNode } from "react";
 import { useT } from "../i18n/index.ts";
+import { accountName } from "./accountName.ts";
 import { KindIcon } from "./KindIcon.tsx";
-import { CHANNEL_KINDS, isChannelKind } from "./kinds.ts";
+import { isChannelKind } from "./kinds.ts";
 
 /**
  * The card beside a channel chat (a contact's, a group's or a room's): its title and close, who or what it is on top
@@ -31,7 +32,6 @@ export function ChatCard({
 }) {
   const t = useT();
   const kind = isChannelKind(channel.type) ? channel.type : undefined;
-  const app = kind ? t(CHANNEL_KINDS[kind].name) : channel.type;
   return (
     <aside className={className ? `chan__card ${className}` : "chan__card"} aria-label={title}>
       <header className="chan__cardhead">
@@ -45,7 +45,7 @@ export function ChatCard({
             <span className="chan__cardname">{name}</span>
             <span className="chan__cardvia">
               {kind ? <KindIcon kind={kind} size={12} /> : <Icons.Send size={12} />}
-              <span>{channel.label === app ? app : t("ch.card.via", { app, account: channel.label })}</span>
+              <span>{accountName(channel, t)}</span>
             </span>
           </span>
         </div>

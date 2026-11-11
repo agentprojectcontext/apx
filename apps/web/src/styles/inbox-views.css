@@ -39,8 +39,10 @@
   align-items: center;
   gap: 6px;
   min-width: 0;
-  height: 30px;
+  height: 28px;
   padding: 0 8px;
+  /* Two lit rows next to each other stay apart. */
+  margin-block: 1px;
   border: 0;
   border-radius: var(--apx-row-radius);
   background: transparent;

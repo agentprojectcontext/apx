@@ -1,7 +1,7 @@
 // Discord and Slack, emulated: each bot is connected from Channels › New channel with its token(s), the owner writes to it
 // in a direct message, gets a code, links it as their own account, and from then on talks to the super-agent there.
 import type { Page } from "@playwright/test";
-import { expect, open, rpc, test, until, world } from "./kit.ts";
+import { ACCOUNT_NAME, expect, open, rpc, test, until, world } from "./kit.ts";
 
 async function connect(page: Page, kind: "Discord" | "Slack", tokens: Array<[label: string, value: string]>) {
   await open(page);
@@ -63,7 +63,7 @@ test("Discord rooms: the owner lists a server room, and the bot answers there wh
   page,
 }) => {
   await open(page);
-  await page.getByRole("button", { name: "Discord", exact: true }).first().click();
+  await page.getByRole("button", { name: ACCOUNT_NAME.discord, exact: true }).first().click();
   await page.getByRole("button", { name: "Editar cuenta" }).click();
   await page
     .getByRole("dialog")
@@ -164,7 +164,7 @@ test("a second Discord bot is an account of its own: its own row, its own settin
     );
     // The first account is untouched, and each row of the sidebar opens the settings of its own account.
     await expect(page.getByRole("button", { name: "Acme support", exact: true }).first()).toBeVisible();
-    await page.getByRole("button", { name: "Discord", exact: true }).first().click();
+    await page.getByRole("button", { name: ACCOUNT_NAME.discord, exact: true }).first().click();
     await page.getByRole("button", { name: "Editar cuenta" }).click();
     await expect(page.getByRole("textbox", { name: "Nombre", exact: true })).toHaveValue("Discord");
   } finally {

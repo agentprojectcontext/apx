@@ -190,7 +190,7 @@ export const telegramAdapter = ((config, token, apiBase = "https://api.telegram.
   const ac = new AbortController();
   let loop: Promise<void> | undefined;
   /** The bot itself, to know when a group message calls it. */
-  let me: { id: number; username?: string | undefined } | undefined;
+  let me: { id: number; username?: string | undefined; first_name?: string | undefined } | undefined;
   const listed = new Set((config.rooms?.rooms ?? []).map((r) => r.id));
 
   async function api<T>(method: string, body: object, timeoutMs = CALL_MS, signal = ac.signal): Promise<T> {
@@ -477,13 +477,16 @@ export const telegramAdapter = ((config, token, apiBase = "https://api.telegram.
   return {
     caps: { typing: true, buttons: true, reactions: true, stickers: true, reactionSet: TELEGRAM_REACTIONS },
     async start(io) {
-      me = await api<{ id: number; username?: string }>("getMe", {}).catch((err: unknown) => {
+      me = await api<{ id: number; username?: string; first_name?: string }>("getMe", {}).catch((err: unknown) => {
         throw err instanceof TgError && (err.code === 401 || err.code === 404)
           ? new ChannelRefused("Telegram refused the bot token: check it with @BotFather")
           : err;
       });
       loop = poll(io);
-      return { account: me.username ? `@${me.username}` : config.label };
+      return {
+        account: me.username ? `@${me.username}` : config.label,
+        ...(me.first_name ? { name: me.first_name } : {}),
+      };
     },
     async stop() {
       ac.abort();

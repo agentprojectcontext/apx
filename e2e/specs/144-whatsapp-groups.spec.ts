@@ -2,7 +2,7 @@
 // phone they are only read until the owner lets the agent answer there as them; on a line of its own an @mention of
 // the line is answered in the group.
 import type { Page } from "@playwright/test";
-import { expect, open, rpc, test, until, world } from "./kit.ts";
+import { ACCOUNT_NAME, expect, open, rpc, test, until, world } from "./kit.ts";
 
 const TEAM = { id: "120363000000000101@g.us", name: "Acme equipo" };
 const NEWS = { id: "120363000000000102@g.us", name: "Acme novedades" };
@@ -39,7 +39,7 @@ async function lineAs(selfOwner: boolean): Promise<void> {
 
 async function openRooms(page: Page) {
   await open(page, "#view=channels");
-  await page.getByRole("button", { name: "Configuración de WhatsApp" }).click();
+  await page.getByRole("button", { name: `Configuración de ${ACCOUNT_NAME.whatsapp}` }).click();
   // The part of the account's own dialog, named as WhatsApp names them.
   const dialog = page.getByRole("dialog", { name: "WhatsApp" });
   await dialog.getByRole("button", { name: /^Grupos/ }).click();
@@ -85,7 +85,7 @@ test("on the owner's own phone a group is only read until the owner lets the age
   // Both are kept in the group's chat, and nothing is said as the owner.
   await page.keyboard.press("Escape");
   await open(page);
-  await page.getByRole("button", { name: "WhatsApp", exact: true }).click();
+  await page.getByRole("button", { name: ACCOUNT_NAME.whatsapp, exact: true }).click();
   await page
     .getByRole("button", { name: new RegExp(TEAM.name) })
     .first()

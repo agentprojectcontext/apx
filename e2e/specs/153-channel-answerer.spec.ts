@@ -1,9 +1,22 @@
 // Who answers a channel chat shows as a face in the lists and the account's header; a room's card docks beside its
 // chat like a contact's, and gives the room an agent of its own.
+
+import type { Locator } from "@playwright/test";
 import type { Agent, Thread } from "../../packages/protocol/src/index.ts";
 import { expect, open, rpc, test } from "./kit.ts";
 
 const SHOTS = process.env.E2E_SHOTS;
+
+/** The words a line shows before the answering agent's face. */
+const beforeFace = (line: Locator) =>
+  line.evaluate((el) => {
+    const face = el.querySelector(".answerer");
+    if (!face) return null;
+    const range = document.createRange();
+    range.setStart(el, 0);
+    range.setEndBefore(face);
+    return range.toString().trim();
+  });
 
 for (const width of [1440, 412]) {
   test(`a room's card docks beside its chat and picks who answers there at ${width}px`, async ({ page }) => {
@@ -43,6 +56,8 @@ for (const width of [1440, 412]) {
       token_set: true,
       status: "running",
       rooms,
+      // What it does for everyone on it shows as marks beside its name.
+      contacts: { appointments: true },
     };
     const saved: unknown[] = [];
     await page.setViewportSize({ width, height: 900 });
@@ -110,12 +125,15 @@ for (const width of [1440, 412]) {
     // A phone opens the account's newest chat: its list is one step back.
     if (width < 768) await page.getByRole("button", { name: "Volver a los chats", exact: true }).click();
     const header = page.locator(".inbox__account");
-    await expect(header.getByRole("img", { name: `Atiende ${superagent.name}` })).toBeVisible();
+    await expect(header.locator(".inbox__accountsubtext .answerer")).toBeVisible();
     await expect(header.getByRole("button", { name: "Salas" })).toBeVisible();
-    // Which account it is and who answers, without the app's name again.
+    // Which account it is and who answers, without the app's name again; what it does, as marks.
     await expect(header.locator(".inbox__accountsubtext")).toHaveText(`Acme bot · Atiende ${superagent.name}`);
+    await expect(header.getByRole("img", { name: "Anota citas" })).toBeVisible();
+    // The face starts the agent's part, after what comes first.
+    expect(await beforeFace(header.locator(".inbox__accountsubtext"))).toBe("Acme bot ·");
     const listed = page.locator(".inbox__list .apx-convrow", { hasText: "#general" });
-    await expect(listed.getByRole("img", { name: `Atiende ${superagent.name}` })).toBeVisible();
+    await expect(listed.locator(".apx-convrow__meta .answerer")).toBeVisible();
     // Its row: what was written last, then who answers; no project badge, no app name.
     await expect(listed.locator(".apx-convrow__preview")).toHaveText("Ana: hola");
     await expect(listed.locator(".apx-convrow__meta")).toHaveText(`Atiende ${superagent.name}`);
@@ -132,10 +150,11 @@ for (const width of [1440, 412]) {
     // The account's own screen: who answers in its header, a way to its rooms, and each room's answerer.
     await open(page, "#channel=community-primary");
     const head = page.locator(".chan__head");
-    await expect(head.getByRole("img", { name: `Atiende ${superagent.name}` })).toBeVisible();
+    await expect(head.locator(".chan__metatext .answerer")).toBeVisible();
     await expect(head.getByRole("button", { name: "Salas" })).toBeVisible();
     // As slim as the Inbox's: which account it is and who answers; no note under the list.
     await expect(head.locator(".chan__metatext")).toHaveText(`Acme bot · Atiende ${superagent.name}`);
+    await expect(head.getByRole("img", { name: "Anota citas" })).toBeVisible();
     await expect(page.getByText("Conversaciones con otras personas", { exact: false })).toHaveCount(0);
     if (width >= 1280) {
       // Its edge resizes it, like the Inbox's list.
@@ -152,8 +171,9 @@ for (const width of [1440, 412]) {
         .toBeGreaterThan(before + 30);
     }
     const row = page.locator(".chan__row", { hasText: "#general" });
-    await expect(row.getByRole("img", { name: `Atiende ${superagent.name}` })).toBeVisible();
+    await expect(row.locator(".chan__rel .answerer")).toBeVisible();
     await expect(row.locator(".chan__rel")).toHaveText(`Cuando lo llaman · Atiende ${superagent.name}`);
+    expect(await beforeFace(row.locator(".chan__rel"))).toBe("Cuando lo llaman ·");
     if (SHOTS) await page.screenshot({ path: `${SHOTS}/channel-screen-${width}.png` });
     expect(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth)).toBe(false);
 

@@ -34,6 +34,29 @@
   place-items: center;
   flex: none;
 }
+/* What is set for a contact or an account: small marks, their words on hover. */
+.chan__flags {
+  display: inline-flex;
+  flex: none;
+  gap: 4px;
+  margin-left: auto;
+  color: var(--apx-fg-subtle);
+}
+.chan__flag {
+  display: inline-grid;
+  place-items: center;
+}
+/* "Associate · ☺ Roby answers": one line that cuts with "…", the agent's face starting its part. */
+.answers {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.answers .answerer {
+  margin-right: 4px;
+  vertical-align: -3px;
+}
 .chan__ticks {
   display: inline-flex;
   margin-left: 4px;

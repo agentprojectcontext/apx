@@ -4,7 +4,8 @@ import type { ReactNode } from "react";
 import { shortWhen } from "../common/format.ts";
 import { type PresenceState, useChannels } from "../data/channels.ts";
 import { type MessageKey, useT } from "../i18n/index.ts";
-import { AnswererFace } from "./AnswererFace.tsx";
+import { AnswersLine } from "./AnswererFace.tsx";
+import { ContactFlags, type Flag } from "./flags.tsx";
 import { PersonAvatar } from "./PersonAvatar.tsx";
 import { initials, RELATION_KEY } from "./people.ts";
 
@@ -48,8 +49,6 @@ const PERM_FLAGS: Array<{ key: keyof Person["perms"]; icon: ReactNode; label: Me
   { key: "notes", icon: <Icons.BookOpen size={12} />, label: "ch.perm.notes" },
 ];
 
-type Flag = { key: string; icon: ReactNode; label: string };
-
 /** What is set for a contact, as small marks: silenced, rules of their own, and each thing their chat may do here. */
 export function useContactFlags(person: Person | undefined, channelId: string): Flag[] {
   const t = useT();
@@ -72,20 +71,6 @@ export function useContactFlags(person: Person | undefined, channelId: string): 
     ...(person.rules?.trim() ? [{ key: "rules", icon: <Icons.FileText size={12} />, label: t("ch.flag.rules") }] : []),
     ...PERM_FLAGS.filter((f) => rights[f.key]).map((f) => ({ key: f.key, icon: f.icon, label: t(f.label) })),
   ];
-}
-
-export function ContactFlags({ flags }: { flags: Flag[] }) {
-  return (
-    <span className="chan__flags">
-      {flags.map((f) => (
-        <Tooltip key={f.key} content={f.label}>
-          <span className="chan__flag" role="img" aria-label={f.label}>
-            {f.icon}
-          </span>
-        </Tooltip>
-      ))}
-    </span>
-  );
 }
 
 export function ContactRow({
@@ -133,10 +118,7 @@ export function ContactRow({
             {unread > 0 && <span className="chan__unread">{unread}</span>}
           </span>
           <span className="chan__rowtop chan__rowanswer">
-            <AnswererFace agent={agent} />
-            <span className="chan__rel">
-              {[relation, agent ? t("ch.answersBy", { agent: agent.name }) : undefined].filter(Boolean).join(" · ")}
-            </span>
+            <AnswersLine className="chan__rel" lead={[relation]} agent={agent} />
             <ContactFlags flags={flags} />
           </span>
         </span>

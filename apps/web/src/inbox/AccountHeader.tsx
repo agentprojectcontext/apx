@@ -2,10 +2,12 @@ import "../styles/inbox-parts.css";
 import type { ChannelInfo } from "@apx/protocol";
 import { Button, IconButton, Icons, PickRow, Popover } from "@apx/ui";
 import { useState } from "react";
-import { AnswererFace } from "../channels/AnswererFace.tsx";
+import { AnswersLine } from "../channels/AnswererFace.tsx";
+import { accountName, accountWhere } from "../channels/accountName.ts";
 import { useAccountCounts } from "../channels/counts.ts";
+import { ContactFlags, useAccountFlags } from "../channels/flags.tsx";
 import { KindTile } from "../channels/KindIcon.tsx";
-import { CHANNEL_KINDS, GROUP_KINDS, isChannelKind, isRoomsKind } from "../channels/kinds.ts";
+import { isChannelKind, isRoomsKind, roomsOpenKey } from "../channels/kinds.ts";
 import { useChannels } from "../data/channels.ts";
 import { useData } from "../data/state.ts";
 import { useT } from "../i18n/index.ts";
@@ -24,11 +26,9 @@ export function AccountHeader({ account }: { account: ChannelInfo }) {
   const counts = useAccountCounts();
   const [open, setOpen] = useState(false);
   const kind = isChannelKind(account.type) ? account.type : undefined;
-  const app = (c: ChannelInfo) => (isChannelKind(c.type) ? t(CHANNEL_KINDS[c.type].name) : c.type);
-  const name = (c: ChannelInfo) => c.label || app(c);
-  const answers = (c: ChannelInfo) => agents[c.contacts_agent_id ?? c.agent_id]?.name;
-  const who = answers(account);
-  const answerer = agents[account.contacts_agent_id ?? account.agent_id];
+  const name = (c: ChannelInfo) => accountName(c, t);
+  const answerer = (c: ChannelInfo) => agents[c.contacts_agent_id ?? c.agent_id];
+  const flags = useAccountFlags(account);
   const pick = (f: () => void) => {
     setOpen(false);
     f();
@@ -42,7 +42,7 @@ export function AccountHeader({ account }: { account: ChannelInfo }) {
         label={t("inbox.account.list")}
         className="accountswitch"
         trigger={
-          <Button variant="ghost" className="inbox__accountbtn" title={t("inbox.account.switch")} aria-expanded={open}>
+          <Button variant="ghost" className="inbox__accountbtn" aria-expanded={open}>
             <Logo channel={account} size={26} />
             <span className="inbox__accounttext">
               <span className="inbox__accountname">
@@ -52,12 +52,12 @@ export function AccountHeader({ account }: { account: ChannelInfo }) {
                 </span>
               </span>
               <span className="inbox__accountsub">
-                <AnswererFace agent={answerer} />
-                <span className="inbox__accountsubtext">
-                  {[whereOf(account, name(account)), who ? t("ch.answersBy", { agent: who }) : undefined]
-                    .filter(Boolean)
-                    .join(" · ") || app(account)}
-                </span>
+                <AnswersLine
+                  className="inbox__accountsubtext"
+                  lead={[accountWhere(account, name(account))]}
+                  agent={answerer(account)}
+                />
+                <ContactFlags flags={flags} />
               </span>
             </span>
           </Button>
@@ -73,7 +73,7 @@ export function AccountHeader({ account }: { account: ChannelInfo }) {
               selected={c.id === account.id}
               leading={<Logo channel={c} size={20} />}
               title={name(c)}
-              description={[app(c), answers(c)].filter(Boolean).join(" · ")}
+              description={<AnswersLine lead={[accountWhere(c, name(c))]} agent={answerer(c)} />}
               trailing={unread > 0 ? <span className="accountswitch__unread">{unread}</span> : undefined}
               onClick={() => pick(() => openAccount(c.id))}
             />
@@ -102,7 +102,7 @@ export function AccountHeader({ account }: { account: ChannelInfo }) {
         <>
           {isRoomsKind(kind) && (
             <IconButton
-              label={t(GROUP_KINDS.has(kind) ? "ch.groups.open" : "ch.rooms.open")}
+              label={t(roomsOpenKey(kind))}
               icon={<Icons.Hash size={14} />}
               onClick={() => go.channelSettings(kind, account.id, "rooms")}
             />
@@ -121,12 +121,6 @@ export function AccountHeader({ account }: { account: ChannelInfo }) {
       )}
     </div>
   );
-}
-
-/** Which account it is (its number, address or bot), unless its name already says it. */
-function whereOf(channel: ChannelInfo, shownName: string): string | undefined {
-  const where = channel.account ?? channel.email?.address;
-  return where && where !== shownName ? where : undefined;
 }
 
 function Logo({ channel, size }: { channel: ChannelInfo; size: number }) {

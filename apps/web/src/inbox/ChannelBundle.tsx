@@ -1,7 +1,8 @@
 import type { Thread } from "@apx/protocol";
 import { ConversationRow, Icons, Spinner } from "@apx/ui";
+import { accountName } from "../channels/accountName.ts";
 import { KindTile } from "../channels/KindIcon.tsx";
-import { CHANNEL_KINDS, isChannelKind } from "../channels/kinds.ts";
+import { isChannelKind } from "../channels/kinds.ts";
 import { shortWhen } from "../common/format.ts";
 import { useChannels } from "../data/channels.ts";
 import { isWorking } from "../data/identity.ts";
@@ -50,7 +51,7 @@ function ChannelHead({ account, threads, onToggle }: { account: string; threads:
   const fold = useRowFold();
   const info = useChannels((s) => s.channels.find((c) => c.id === account));
   const kind = info && isChannelKind(info.type) ? info.type : undefined;
-  const name = info?.label || (kind ? t(CHANNEL_KINDS[kind].name) : account);
+  const name = info ? accountName(info, t) : account;
   // The bundle comes newest first: its first chat is who wrote last.
   const latest = threads[0];
   const unread = threads.reduce((n, th) => n + th.unread, 0);
@@ -63,7 +64,7 @@ function ChannelHead({ account, threads, onToggle }: { account: string; threads:
         onClick={onToggle}
         avatar={
           <span className="channelbundle__face">
-            {kind ? <KindTile kind={kind} size={24} /> : <Icons.Send size={16} />}
+            {kind ? <KindTile kind={kind} size={20} /> : <Icons.Send size={16} />}
           </span>
         }
         title={name}

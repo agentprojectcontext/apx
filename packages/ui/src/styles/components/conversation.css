@@ -4,7 +4,9 @@
   align-items: flex-start;
   gap: 12px;
   width: 100%;
-  padding: 10px;
+  padding: 9px 10px;
+  /* Two lit rows next to each other stay apart. */
+  margin-block: 1px;
   border: 0;
   text-align: left;
   border-radius: var(--apx-row-radius);

@@ -1,5 +1,5 @@
 import type { Thread } from "@apx/protocol";
-import { Avatar, Tag, Tooltip } from "@apx/ui";
+import { Avatar, Tag } from "@apx/ui";
 import { KindIcon } from "../channels/KindIcon.tsx";
 import { CHANNEL_KINDS } from "../channels/kinds.ts";
 import { PersonAvatar } from "../channels/PersonAvatar.tsx";
@@ -13,14 +13,11 @@ export function ChannelFace({
   size = 32,
   slot = size,
   labelOnly = false,
-  showMark = false,
 }: {
   thread: Thread;
   size?: number;
   slot?: number;
   labelOnly?: boolean;
-  /** The channel's mark beside the face, or on its corner where there is little room. */
-  showMark?: boolean | "badge";
 }) {
   const t = useT();
   const person = useThreadPerson(thread);
@@ -34,23 +31,8 @@ export function ChannelFace({
         <KindIcon kind={channel} size={11} /> {label}
       </Tag>
     ) : null;
-  const badge = showMark === "badge";
-  const markSize = badge ? 13 : Math.min(16, size);
-  const width = slot + (channel && showMark && !badge ? markSize + 4 : 0);
   return (
-    <span className="threadavatar" style={{ width, minWidth: width, height: slot, gap: 4 }}>
-      {channel && showMark && (
-        <Tooltip content={label}>
-          <span
-            className={badge ? "threadavatar__channel is-badge" : "threadavatar__channel"}
-            role="img"
-            aria-label={label}
-            style={{ display: "inline-flex" }}
-          >
-            <KindIcon kind={channel} size={markSize} />
-          </span>
-        </Tooltip>
-      )}
+    <span className="threadavatar" style={{ width: slot, minWidth: slot, height: slot }}>
       <PersonAvatar
         personId={person?.id}
         name={name}

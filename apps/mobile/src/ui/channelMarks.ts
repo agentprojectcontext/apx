@@ -1,5 +1,6 @@
 // Synced from packages/ui/src/channel-marks.ts by scripts/sync-design-assets.mjs.
-// Official marks of the chat apps APX connects to, used only to say which app a channel is (never altered).
+// Official marks of the chat apps APX connects to, used only to say which app a channel is (never altered), and
+// APX's own envelope for email, which has none.
 // Path data from simple-icons 16.35.0 (CC0; Slack from an earlier release, which no longer carries it); Microsoft
 // Teams' 2025 icon and Google Chat's 2026 icon are drawn whole (gradients) from thesvg.org; the marks belong to their owners. `color` null draws in the text colour (a black mark would vanish on the
 // dark theme). Flat paths where possible: these ship in the first load.
@@ -405,6 +406,38 @@ export const CHANNEL_MARKS = {
       {
         d: "M12.597 13.693v2.156h6.205v-2.156ZM5.183 6.549v2.363l3.591 1.901.023.01-.023.009-3.591 1.901v2.35l.386-.211 5.456-2.969V9.729ZM3.659 2.037C1.915 2.037.42 3.41.42 5.154v.002L.438 18.73 0 21.963l5.956-1.583h14.806c1.744 0 3.238-1.374 3.238-3.118V5.154c0-1.744-1.493-3.116-3.237-3.117h-.001zm0 2.2h17.104c.613.001 1.037.447 1.037.917v12.108c0 .47-.424.916-1.038.916H5.633l-3.026.915.031-.179-.017-13.76c0-.47.424-.917 1.038-.917z",
         color: "#317F6F",
+      },
+    ],
+  },
+  // Email has no owner's mark: APX draws a filled envelope, so it sits beside the apps' full-colour logos.
+  email: {
+    viewBox: "0 0 24 24",
+    art: [
+      {
+        t: "defs",
+        a: {},
+        c: [
+          {
+            t: "linearGradient",
+            a: { id: "{id}m", x1: "12", x2: "12", y1: "4", y2: "20", gradientUnits: "userSpaceOnUse" },
+            c: [
+              { t: "stop", a: { stopColor: "#5AA9FF" } },
+              { t: "stop", a: { offset: "1", stopColor: "#2B66E8" } },
+            ],
+          },
+        ],
+      },
+      { t: "rect", a: { x: "1.5", y: "4", width: "21", height: "16", rx: "3.5", fill: "url(#{id}m)" } },
+      {
+        t: "path",
+        a: {
+          d: "M5.2 8.4 12 13.1l6.8-4.7",
+          fill: "none",
+          stroke: "#fff",
+          strokeWidth: "1.9",
+          strokeLinecap: "round",
+          strokeLinejoin: "round",
+        },
       },
     ],
   },

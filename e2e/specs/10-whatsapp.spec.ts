@@ -1,6 +1,6 @@
 // WhatsApp, emulated: a line of its own linked with the QR from Channels › New channel, the owner's phone linked by writing to it, strangers asked
 // about on the owner's phone, and the line turned into the owner's own phone ("Message yourself").
-import { expect, open, rpc, test, until, world } from "./kit.ts";
+import { ACCOUNT_NAME, expect, open, rpc, test, until, world } from "./kit.ts";
 
 // Done with the setup wizard: this spec must not depend on an earlier one having finished it.
 test.beforeAll(async () => {
@@ -41,7 +41,7 @@ test("the owner links a line with the QR, then their own phone by writing to it"
   expect(await world.llmCalls()).toBe(calls);
 
   await world.whatsapp.message(ME, "soy yo");
-  await page.getByRole("button", { name: "WhatsApp", exact: true }).click();
+  await page.getByRole("button", { name: ACCOUNT_NAME.whatsapp, exact: true }).click();
   // Who wrote and waits is listed in the account's approvals; their number tells the owner it is their own phone.
   await page.getByRole("button", { name: "Editar cuenta" }).click();
   const approvals = page.getByRole("dialog");
@@ -70,7 +70,7 @@ test("strangers 'ask me': whoever writes is an unreviewed contact, the owner hea
   page,
 }) => {
   await open(page);
-  await page.getByRole("button", { name: "WhatsApp", exact: true }).click();
+  await page.getByRole("button", { name: ACCOUNT_NAME.whatsapp, exact: true }).click();
   await page.getByRole("button", { name: "Editar cuenta" }).click();
   await page.getByRole("button", { name: "Aprobaciones" }).click();
   await page.getByRole("radio", { name: "Avisarme" }).click();
@@ -96,7 +96,7 @@ test("strangers 'ask me': whoever writes is an unreviewed contact, the owner hea
   // In the panel they are a contact not reviewed yet: their message is in their chat, unanswered.
   // PRODUCT ISSUE: opened right after they wrote, the chat has no contact card until the panel reloads the contacts.
   await page.reload();
-  await page.getByRole("button", { name: "WhatsApp", exact: true }).click();
+  await page.getByRole("button", { name: ACCOUNT_NAME.whatsapp, exact: true }).click();
   await page.getByRole("button", { name: /^Lucía/ }).click();
   await expect(page.getByText("hola, ¿vamos el sábado?").last()).toBeVisible();
   await page.getByRole("switch", { name: /^Silenciado/ }).click();
@@ -115,7 +115,7 @@ test("a contact's video plays in the chat's own player, and a document of any ty
     bytes: Buffer.from("PK\u0003\u0004 hoja").toString("base64"),
   });
   await open(page);
-  await page.getByRole("button", { name: "WhatsApp", exact: true }).click();
+  await page.getByRole("button", { name: ACCOUNT_NAME.whatsapp, exact: true }).click();
   await page.getByRole("button", { name: /Lucía/ }).first().click();
   await expect(page.locator('video[aria-label="video.mp4"]')).toBeVisible();
   await expect(page.getByText("Mirá cómo quedó")).toBeVisible();
@@ -135,7 +135,7 @@ test("a video kept only as a placeholder: 'Recover files' asks the phone again a
   await until(async () => (await world.whatsapp.sentTo(FRIEND.phone)).length > answers);
   await world.whatsapp.keep(id, { videoMessage: { mimetype: "video/mp4" }, bytes: mp4.toString("base64") });
   await open(page);
-  await page.getByRole("button", { name: "WhatsApp", exact: true }).click();
+  await page.getByRole("button", { name: ACCOUNT_NAME.whatsapp, exact: true }).click();
   await page.getByRole("button", { name: /Lucía/ }).first().click();
   await expect(page.getByText(/cannot read this kind/)).toBeVisible();
   const calls = await world.llmCalls();
@@ -150,7 +150,7 @@ test("a video kept only as a placeholder: 'Recover files' asks the phone again a
 
 test("the line turned into the owner's own phone: 'Message yourself' is the owner", async ({ page }) => {
   await open(page);
-  await page.getByRole("button", { name: "WhatsApp", exact: true }).click();
+  await page.getByRole("button", { name: ACCOUNT_NAME.whatsapp, exact: true }).click();
   await page.getByRole("button", { name: "Editar cuenta" }).click();
   await page.getByRole("switch", { name: "Esta línea es mi propio teléfono" }).click();
   await page.getByRole("button", { name: /^Guardar (⌘|Ctrl)/ }).click();

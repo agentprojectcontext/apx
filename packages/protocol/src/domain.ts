@@ -1280,6 +1280,8 @@ export const ChannelInfo = z.object({
   error: z.string().optional(),
   /** The account the channel runs as (a bot's @name, a WhatsApp number). */
   account: z.string().optional(),
+  /** The name the app gives that account, when it has one besides `account` (a WhatsApp profile, a bot's name). */
+  account_name: z.string().optional(),
   /** WhatsApp: the QR to scan from the phone to link the account, while one is waiting. Owner-only, never logged. */
   qr: z.string().optional(),
 });

@@ -10,16 +10,17 @@ import { type MessageKey, usePack, useT } from "../../i18n/index.ts";
 import { LAYOUT } from "../../shell/layout.ts";
 import { type AccountEdit, go, type AccountPane as Pane, useNav } from "../../shell/nav.ts";
 import { accountLine } from "../accountMenu.tsx";
+import { accountName } from "../accountName.ts";
 import { useAccountCounts } from "../counts.ts";
 import { KindTile } from "../KindIcon.tsx";
-import { CHANNEL_KINDS, isChannelKind, isRoomsKind } from "../kinds.ts";
+import { CHANNEL_KINDS, isChannelKind, isRoomsKind, roomsWord } from "../kinds.ts";
 import { AccountPane, NewAccountPane } from "./AccountPane.tsx";
 import { ActivityPane } from "./ActivityPane.tsx";
 import { ApprovalsPane } from "./ApprovalsPane.tsx";
 import { BehaviorPane } from "./BehaviorPane.tsx";
 import { ContactsPane } from "./ContactsPane.tsx";
 import { keptAfter } from "./draft.ts";
-import { RoomsSection, roomsWord } from "./RoomsPane.tsx";
+import { RoomsSection } from "./RoomsPane.tsx";
 import { clearRemoveAsk, removeAsked } from "./removeAsk.ts";
 import { hasStickersPane, StickersPane } from "./StickersPane.tsx";
 import type { Create, PaneProps } from "./types.ts";
@@ -473,7 +474,7 @@ function Head({
           items={[
             { type: "label" as const, label: t("chs.accounts") },
             ...channels.map((c) => ({
-              label: c.label,
+              label: accountName(c, t),
               icon: isChannelKind(c.type) ? <KindTile kind={c.type} size={14} /> : <Icons.Send />,
               checked: c.id === channel?.id,
               onSelect: () => onSwitch(c),

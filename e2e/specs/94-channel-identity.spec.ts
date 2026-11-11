@@ -179,7 +179,7 @@ for (const width of [412, 1280]) {
         const image = avatar.locator("img.chan__avatarimg");
         await expect(image).toBeVisible();
         await expect.poll(() => image.evaluate((el) => (el as HTMLImageElement).naturalWidth)).toBeGreaterThan(0);
-        const size = 24;
+        const size = 22;
         const imageBox = await image.boundingBox();
         const parentBox = await avatar.getByRole("img", { name: item.identity, exact: true }).boundingBox();
         expect(imageBox).not.toBeNull();
@@ -223,8 +223,11 @@ for (const width of [412, 1280]) {
         await expect(page.locator(".chan__card")).toHaveCount(0);
         await expect(page.getByText("Foreign Name", { exact: true })).toHaveCount(0);
       }
+      // The app is said once: in words under the name (an agent's chat) or as a mark beside the face (a contact's).
       if (item.platform)
-        await expect(header.getByRole("img", { name: `Por ${item.platform}`, exact: true })).toBeVisible();
+        await expect(
+          header.getByText(`Por ${item.platform}`).or(header.getByRole("img", { name: `Por ${item.platform}` })),
+        ).toHaveCount(1);
       else await expect(header.locator(".threadavatar__channel")).toHaveCount(0);
       if (width < 768) await page.getByRole("button", { name: /Volver a los (chats|contactos)/ }).click();
     }
