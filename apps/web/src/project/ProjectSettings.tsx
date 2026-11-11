@@ -1,9 +1,11 @@
 import "../styles/screens.css";
 import { AGENTS_MD_LIMIT, Autonomy, DEFAULT_AUTONOMY, type ProjectKind } from "@apx/protocol";
-import { Button, Dialog, Field, Icons, Input, Select, type SelectOption, Textarea } from "@apx/ui";
+import { Button, Checkbox, Dialog, Field, Icons, Input, Select, type SelectOption, Textarea } from "@apx/ui";
 import { useEffect, useMemo, useState } from "react";
 import { formatNumber } from "../common/format.ts";
+import { client } from "../data/client.ts";
 import type { ProjectEntry } from "../data/identity.ts";
+import { notify } from "../data/notices.ts";
 import { updateBase, updateProject } from "../data/projects.ts";
 import { useData } from "../data/state.ts";
 import { useT } from "../i18n/index.ts";
@@ -39,6 +41,22 @@ export function ProjectSettings({
   const [autonomy, setAutonomy] = useState<Autonomy>(DEFAULT_AUTONOMY);
   const [busy, setBusy] = useState(false);
   const [newProject, setNewProject] = useState(false);
+  // Whether creating an agent here says what it or the project lacks; read on each opening.
+  const [warn, setWarn] = useState<{ was: boolean; now: boolean }>();
+  useEffect(() => {
+    if (!open || project.isDefault) return;
+    let live = true;
+    setWarn(undefined);
+    client
+      .call("projects.helper_review", { project: project.id })
+      .then((r) => {
+        if (live) setWarn({ was: r.enabled, now: r.enabled });
+      })
+      .catch(() => undefined);
+    return () => {
+      live = false;
+    };
+  }, [open, project.id, project.isDefault]);
   // Filled once per opening: the project list refreshing while it is open must not undo what the owner typed.
   const [seeded, setSeeded] = useState(false);
   useEffect(() => {
@@ -80,7 +98,17 @@ export function ProjectSettings({
         ? { autonomy: autonomy === DEFAULT_AUTONOMY ? null : autonomy }
         : {}),
     };
-    const done = project.isDefault ? await updateBase(patch) : await updateProject({ project: full.id, ...patch });
+    let done = Boolean(
+      project.isDefault ? await updateBase(patch) : await updateProject({ project: full.id, ...patch }),
+    );
+    if (done && warn && warn.now !== warn.was)
+      done = await client
+        .call("projects.helper_set", { project: full.id, enabled: warn.now })
+        .then(() => true)
+        .catch((e: unknown) => {
+          notify(e instanceof Error ? e.message : String(e), "error");
+          return false;
+        });
     setBusy(false);
     if (done) close();
   };
@@ -156,6 +184,14 @@ export function ProjectSettings({
               }))}
             />
           </Field>
+          {warn && (
+            <Checkbox
+              checked={warn.now}
+              onCheckedChange={(now) => setWarn({ ...warn, now })}
+              label={t("helper.enable")}
+              description={t("helper.enableHint")}
+            />
+          )}
           {full.path && (
             <Field
               label={t("project.settings.folder")}

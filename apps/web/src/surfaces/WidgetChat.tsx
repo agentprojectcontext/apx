@@ -21,10 +21,10 @@ import { widgetChatOpen as open } from "./widgetChatOpen.ts";
  */
 export function WidgetChatHost() {
   const t = useT();
-  const { surfaceId, threadId } = useSlice(open, (s) => s);
+  const { surfaceId, threadId, topic } = useSlice(open, (s) => s);
   const surface = useData((s) => {
     if (surfaceId) return s.surfaces[surfaceId];
-    if (!threadId) return undefined;
+    if (!threadId || topic) return undefined;
     // Asking for one: the newest widget this chat has made.
     let made: SurfaceSummary | undefined;
     for (const x of Object.values(s.surfaces))
@@ -42,12 +42,12 @@ export function WidgetChatHost() {
     if (!surfaceId && surface && threadId) rememberChat(surface.id, threadId);
   }, [surface?.id]);
   if (!thread) return null;
-  const title = surface?.title ?? t("widget.askTitle");
+  const title = topic ?? surface?.title ?? t("widget.askTitle");
   return (
     <Drawer
       key={thread.id}
       className="widgetchat"
-      label={t("widget.chatOf", { title })}
+      label={topic ?? t("widget.chatOf", { title })}
       title={title}
       onClose={close}
       actions={
@@ -78,7 +78,7 @@ export function WidgetChatHost() {
         <div className="widgetchat__preview">
           <SurfaceFrame surfaceId={surface.id} maxHeight={420} />
         </div>
-      ) : (
+      ) : topic ? null : (
         <p className="widgetchat__waiting">
           <Icons.LayoutGrid size={14} />
           {t("widget.askWaiting")}

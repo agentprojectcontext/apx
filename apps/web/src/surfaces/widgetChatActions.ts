@@ -63,7 +63,7 @@ export async function openWidgetChat(surface: SurfaceSummary): Promise<void> {
   const threadId = usable(chatsMade()[surface.id]) ?? usable(surface.thread_id) ?? (await newChat(surface));
   if (!threadId) return;
   rememberChat(surface.id, threadId);
-  open.set({ surfaceId: surface.id, threadId });
+  open.set({ surfaceId: surface.id, threadId, topic: undefined });
 }
 
 /** Starts the widget's chat over: a new session, which from then on is the widget's chat. */
@@ -71,7 +71,7 @@ export async function restartChat(surface: SurfaceSummary): Promise<void> {
   const threadId = await newChat(surface);
   if (!threadId) return;
   rememberChat(surface.id, threadId);
-  open.set({ surfaceId: surface.id, threadId });
+  open.set({ surfaceId: surface.id, threadId, topic: undefined });
 }
 
 /** Chats opened here to ask for a new widget: one closed before anything was written in it is not kept. */
@@ -79,7 +79,7 @@ export const asking = new Set<string>();
 
 export const close = () => {
   const { threadId } = open.get();
-  open.set({ surfaceId: undefined, threadId: undefined });
+  open.set({ surfaceId: undefined, threadId: undefined, topic: undefined });
   if (!threadId || !asking.has(threadId)) return;
   asking.delete(threadId);
   void client
@@ -92,16 +92,33 @@ export const close = () => {
  * Asks an agent for a new widget for a project's board: a new chat with it in that project (so it works with the
  * project's context), its first words ready, floating over the page; the widget shows on top as soon as it is made.
  */
-export async function askForWidget(
+export function askForWidget(
   agentId: string,
   projectId: string | undefined,
   words: { title: string; draft: string } = { title: tr("widget.askTitle"), draft: tr("widget.askDraft") },
+): Promise<void> {
+  return startAsking(agentId, projectId, words, undefined);
+}
+
+/**
+ * A new chat with an agent about something that is not a widget (reviewing a project with it): it opens over the
+ * page the same way, its first words ready for the owner to change or send, and goes if closed untouched.
+ */
+export function askAbout(agentId: string, projectId: string, words: { title: string; draft: string }): Promise<void> {
+  return startAsking(agentId, projectId, words, words.title);
+}
+
+async function startAsking(
+  agentId: string,
+  projectId: string | undefined,
+  words: { title: string; draft: string },
+  topic: string | undefined,
 ): Promise<void> {
   try {
     const thread = await createThread({ agentId, ...(projectId ? { projectId } : {}), title: words.title });
     asking.add(thread.id);
     keepDraft(thread.id, words.draft);
-    open.set({ surfaceId: undefined, threadId: thread.id });
+    open.set({ surfaceId: undefined, threadId: thread.id, topic });
   } catch (e) {
     notify(tr("error.change", { error: errText(e) }));
   }

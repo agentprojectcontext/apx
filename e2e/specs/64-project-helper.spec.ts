@@ -1,15 +1,18 @@
 import type { Result } from "../../packages/protocol/src/index.ts";
 import { expect, open, rpc, test } from "./kit.ts";
 
-test("project helper is optional, asks only missing context and stays quiet after dismissal", async ({ page }) => {
+test("the new-agent check is optional, set when the project is made, and the overview says what is missing", async ({
+  page,
+}) => {
   await rpc("setup.finish", {});
   await open(page);
   await page.getByRole("button", { name: "Nuevo proyecto" }).click();
   const create = page.getByRole("dialog");
-  await expect(create.getByRole("checkbox", { name: "Ofrecer ayuda para preparar este proyecto" })).not.toBeChecked();
+  const check = "Al crear un agente, avisarme si falta contexto";
+  await expect(create.getByRole("checkbox", { name: check })).not.toBeChecked();
   await create.getByRole("radio", { name: "Sin carpeta" }).click();
   await create.getByRole("textbox", { name: "Nombre" }).fill("Helper storefront");
-  await create.getByRole("checkbox", { name: "Ofrecer ayuda para preparar este proyecto" }).check();
+  await create.getByRole("checkbox", { name: check }).check();
   let release: (() => void) | undefined;
   const held = new Promise<void>((resolve) => {
     release = resolve;
@@ -27,30 +30,24 @@ test("project helper is optional, asks only missing context and stays quiet afte
   release?.();
   await expect(create).toBeHidden();
   await page.unroute("**/rpc/projects.helper_set");
-  await expect(
-    page.getByText("Falta contexto del proyecto o de un agente. ¿Preparamos un próximo paso concreto?"),
-  ).toBeVisible();
-  await page.getByRole("button", { name: "Revisar contexto del proyecto" }).click();
-  const helper = page.getByRole("dialog", { name: "Revisar contexto del proyecto" });
-  await helper.getByRole("textbox", { name: "¿Qué debería lograr este proyecto?" }).fill("Sell the catalog online");
-  await helper.getByRole("button", { name: "Un prototipo pequeño que funcione" }).click();
-  await expect(helper.getByRole("textbox", { name: "¿Cuál sería un primer resultado útil?" })).toHaveValue(
-    "Un prototipo pequeño que funcione",
-  );
-  await helper.getByRole("button", { name: "Preparar resumen" }).click();
-  await expect(
-    helper.getByText("El contexto existente alcanza para empezar. No hacen falta más preguntas."),
-  ).toBeVisible();
-  await expect(helper.getByRole("textbox", { name: "¿Qué debería lograr este proyecto?" })).toHaveCount(0);
-  await helper.getByRole("button", { name: "Cerrar", exact: true }).click();
-  await page.reload();
-  await expect(
-    page.getByText("Falta contexto del proyecto o de un agente. ¿Preparamos un próximo paso concreto?"),
-  ).toHaveCount(0);
-  await page.getByRole("button", { name: "Revisar contexto del proyecto" }).click();
-  await helper.getByRole("button", { name: "Desactivar ayuda proactiva" }).click();
-  await expect(helper.getByRole("button", { name: "Activar ayuda proactiva" })).toBeVisible();
-  await helper.getByRole("button", { name: "Cerrar", exact: true }).click();
+  const card = page.getByRole("region", { name: "Revisar el proyecto" });
+  await expect(card.getByText("El proyecto no tiene un objetivo escrito")).toBeVisible();
+
+  // The same choice lives in the project's settings, where it is turned off.
+  await page.getByRole("button", { name: "Configuración del proyecto" }).click();
+  const settings = page.getByRole("dialog");
+  await expect(settings.getByRole("checkbox", { name: check })).toBeChecked();
+  await settings.getByRole("checkbox", { name: check }).uncheck();
+  await settings.getByRole("button", { name: "Guardar" }).click();
+  await expect(settings).toBeHidden();
+  const { projects } = await rpc<Result<"projects.list">>("projects.list");
+  const made = projects.find((p) => p.name === "Helper storefront");
+  await expect
+    .poll(
+      async () =>
+        (await rpc<Result<"projects.helper_review">>("projects.helper_review", { project: made?.id })).enabled,
+    )
+    .toBe(false);
 });
 
 test("manual agent review works off; custom instructions stay intact and proposals require acceptance", async ({
@@ -68,8 +65,8 @@ test("manual agent review works off; custom instructions stay intact and proposa
   await create.getByRole("textbox", { name: "Rol", exact: true }).fill("Editor");
   await create.getByRole("textbox", { name: "Prompt", exact: true }).fill("Keep this custom instruction exactly.");
   await create.getByRole("button", { name: "Revisar borrador con el contexto del proyecto" }).click();
-  const helper = page.getByRole("dialog", { name: "Revisar contexto del proyecto" });
-  await expect(helper.getByRole("button", { name: "Activar ayuda proactiva" })).toBeVisible();
+  const helper = page.getByRole("dialog", { name: "Revisar borrador con el contexto del proyecto" });
+  await expect(helper.getByText("ayuda proactiva")).toHaveCount(0);
   await expect(helper.getByRole("button", { name: "Usar estas instrucciones propuestas" })).toHaveCount(0);
   await helper.getByRole("button", { name: "Cerrar", exact: true }).click();
   await expect(create.getByRole("textbox", { name: "Prompt", exact: true })).toHaveValue(
@@ -121,7 +118,7 @@ test("navigation away from proposal confirmation never creates or modifies an ag
   const create = page.getByRole("dialog", { name: "Nuevo agente" });
   await create.getByRole("textbox", { name: "Rol", exact: true }).fill("Reviewer");
   await create.getByRole("button", { name: "Revisar borrador con el contexto del proyecto" }).click();
-  const helper = page.getByRole("dialog", { name: "Revisar contexto del proyecto" });
+  const helper = page.getByRole("dialog", { name: "Revisar borrador con el contexto del proyecto" });
   await helper.getByRole("button", { name: "Revisar cambio propuesto" }).click();
   await expect(page.getByRole("dialog", { name: "¿Aplicar las instrucciones propuestas?" })).toBeVisible();
   await open(page);
@@ -130,22 +127,19 @@ test("navigation away from proposal confirmation never creates or modifies an ag
   expect(agents.filter((a) => a.project_id === project.id).map((a) => a.id)).toEqual([existing.id]);
 });
 
-test("import offers helper mode without changing existing contextual instructions", async ({ page }) => {
+test("an imported project with its own context has nothing missing, and is still reviewed in a chat", async ({
+  page,
+}) => {
   await rpc("setup.finish", {});
   await open(page);
   await page.getByRole("button", { name: "Nuevo proyecto" }).click();
   const create = page.getByRole("dialog");
   await create.getByRole("radio", { name: "Importar" }).click();
   await expect(create.getByRole("combobox", { name: "Proyecto" })).toContainText("acme");
-  await create.getByRole("checkbox", { name: "Ofrecer ayuda para preparar este proyecto" }).check();
+  await create.getByRole("checkbox", { name: "Al crear un agente, avisarme si falta contexto" }).check();
   await create.getByRole("button", { name: "Importar" }).click();
   await expect(create).toBeHidden();
-  await page.getByRole("button", { name: "Revisar contexto del proyecto" }).click();
-  const helper = page.getByRole("dialog", { name: "Revisar contexto del proyecto" });
-  await expect(helper.getByRole("textbox", { name: "¿Qué debería lograr este proyecto?" })).toHaveCount(0);
-  await expect(helper.getByRole("textbox", { name: "¿Cuál sería un primer resultado útil?" })).toHaveCount(0);
-  await expect(
-    helper.getByText("El contexto existente alcanza para empezar. No hacen falta más preguntas."),
-  ).toBeVisible();
-  await helper.getByRole("button", { name: "Cerrar", exact: true }).click();
+  const card = page.getByRole("region", { name: "Revisar el proyecto" });
+  await expect(card.getByRole("button", { name: /^Hablarlo con / })).toBeVisible();
+  await expect(card.getByRole("list", { name: "Qué falta" })).toHaveCount(0);
 });
