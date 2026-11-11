@@ -443,6 +443,8 @@ export const en = {
   noArchivedChatsBody: "Hold a chat in the list to archive it; it waits here.",
   filterChats: "Filter chats",
   filterChatsOn: "Filter chats, some hidden",
+  filterChannels: "Channels",
+  filterByChannel: "Group by channel",
   filterShow: "Show",
   filterRoutines: "Routine news",
   filterTasks: "Task chats",

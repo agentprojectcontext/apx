@@ -448,6 +448,8 @@ export const es: Record<Key, string> = {
   noArchivedChatsBody: "Mantené apretado un chat de la lista para archivarlo; queda acá.",
   filterChats: "Filtrar chats",
   filterChatsOn: "Filtrar chats, hay ocultos",
+  filterChannels: "Canales",
+  filterByChannel: "Agrupar por canal",
   filterShow: "Mostrar",
   filterRoutines: "Novedades de rutinas",
   filterTasks: "Chats de tareas",

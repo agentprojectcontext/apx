@@ -191,3 +191,59 @@ test("a long press opens a chat's actions, archived chats have their own row and
   expect(ui.getByRole("button", { name: "Research sources" })).toBeVisible();
   await ui.unmount();
 });
+
+test("channel accounts group under one row that unfolds, and the filter hides an account", async () => {
+  const base = inboxFixtures();
+  const on = (id: string, title: string, account: string, at: string, unread = 0) => ({
+    ...required(base.threads[0]),
+    id,
+    title,
+    kind: "contact",
+    parent_id: undefined,
+    task_id: undefined,
+    routine_id: undefined,
+    project_id: undefined,
+    archived: false,
+    pinned: false,
+    preview: `Hi from ${title}`,
+    unread,
+    updated_at: at,
+    channel: { id: account, conversation: id },
+  });
+  const data = {
+    ...base,
+    channels: [
+      { id: "mail", type: "email", label: "Email", enabled: true, agent_id: "a" },
+      { id: "wa_sales", type: "whatsapp", label: "WhatsApp sales", enabled: true, agent_id: "a" },
+    ],
+    threads: [
+      ...base.threads,
+      on("mail_a", "March invoice", "mail", "2030-01-01T10:00:00Z", 2),
+      on("mail_b", "Weekly newsletter", "mail", "2030-01-01T11:00:00Z", 1),
+      on("wa_a", "Northwind client", "wa_sales", "2030-01-01T09:00:00Z"),
+    ],
+  } as typeof base;
+  const ui = await mount({ data });
+  const mail = ui.getByRole("button", { name: "Email" });
+  expect(within(mail).getByText("Weekly newsletter: Hi from Weekly newsletter")).toBeVisible();
+  expect(within(mail).getByText("3")).toBeVisible();
+  expect(ui.queryByRole("button", { name: "March invoice" })).toBeNull();
+  await fireEvent.press(mail);
+  expect(ui.props.open).not.toHaveBeenCalled();
+  await fireEvent.press(ui.getByRole("button", { name: "March invoice" }));
+  expect(ui.props.open).toHaveBeenLastCalledWith(expect.objectContaining({ id: "mail_a" }));
+
+  await fireEvent.press(ui.getByRole("button", { name: t("filterChats") }));
+  expect(ui.getByText(t("filterChannels"))).toBeVisible();
+  await fireEvent.press(ui.getByRole("switch", { name: "Email" }));
+  expect(ui.props.setFilter).toHaveBeenLastCalledWith({ ...ALL_CHATS, hiddenChannels: ["mail"] });
+  await fireEvent.press(ui.getByRole("switch", { name: t("filterByChannel") }));
+  expect(ui.props.setFilter).toHaveBeenLastCalledWith({ ...ALL_CHATS, byChannel: false });
+  await ui.unmount();
+
+  const hidden = await mount({ data, filter: { ...ALL_CHATS, hiddenChannels: ["mail"], byChannel: false } });
+  expect(hidden.queryByRole("button", { name: "Email" })).toBeNull();
+  expect(hidden.queryByRole("button", { name: "March invoice" })).toBeNull();
+  expect(hidden.getByRole("button", { name: "Northwind client" })).toBeVisible();
+  await hidden.unmount();
+});

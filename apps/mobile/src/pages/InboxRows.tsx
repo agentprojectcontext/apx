@@ -1,11 +1,12 @@
 import { memo, useState } from "react";
 import { Pressable, Text, View } from "react-native";
 import { listWhen } from "../format";
-import { channelIdentity, chatPreview, chatTitle, isWorking, routineName } from "../hooks/chatSelectors";
+import { channelIdentity, channelName, chatPreview, chatTitle, isWorking, routineName } from "../hooks/chatSelectors";
 import { type InboxNode, nodeThreads } from "../hooks/inboxTree";
 import type { Agent, Task, Thread, Workspace } from "../hooks/useWorkspace";
 import { type Key, t } from "../i18n";
 import { scheduleText } from "../routines/view";
+import { ChannelMark } from "../ui/ChannelMark";
 import { EngineIcon } from "../ui/EngineIcon";
 import { Icon } from "../ui/Icon";
 import { AgentAvatar, AgentPair, CountBadge, Spinner, useType } from "../ui/kit";
@@ -25,7 +26,14 @@ const RISE = 8;
 export function inboxTitle(node: InboxNode, data: Workspace): string {
   if (node.kind === "routine") return data.routines.find((r) => r.id === node.ref)?.name ?? routineName(node.thread);
   if (node.kind === "task") return data.tasks.find((task) => task.id === node.ref)?.title ?? node.thread.title;
+  if (node.kind === "channel") return accountName(node.ref, data);
   return chatTitle(node.thread);
+}
+
+/** A channel account by the name the owner gave it, or its app's. */
+function accountName(account: string, data: Pick<Workspace, "channels">): string {
+  const channel = data.channels.find((item) => item.id === account);
+  return channel?.label || (channel ? channelName(channel.type) : account);
 }
 
 /** The size a pair of faces takes in the list: a little more than one face. */
@@ -126,38 +134,56 @@ export const InboxRow = memo(function InboxRow({
     node.kind === "routine" ? node.thread.state === "failed" : threads.some((thread) => thread.state === "failed");
   const toggle = () => setExpanded((value) => !value);
   // How many chats the task has, or runs the routine has: not the sessions under them.
-  const members = [node, ...node.children].filter((item) =>
-    node.kind === "routine" ? item.thread.kind === "routine" : sameTask(item.thread),
-  ).length;
+  const members =
+    node.kind === "channel"
+      ? node.children.length
+      : [node, ...node.children].filter((item) =>
+          node.kind === "routine" ? item.thread.kind === "routine" : sameTask(item.thread),
+        ).length;
   const routine = node.kind === "routine" ? data.routines.find((r) => r.id === node.ref) : undefined;
   const task = node.kind === "task" ? data.tasks.find((item) => item.id === node.ref) : undefined;
-  const state = node.kind === "thread" ? undefined : rowState(node.kind, { task, busy, waiting, failed });
-  const preview = chatPreview(node.thread) || t("noMessagesYet");
+  const channel = node.kind === "channel";
+  const state =
+    node.kind === "task" || node.kind === "routine" ? rowState(node.kind, { task, busy, waiting, failed }) : undefined;
+  const said = chatPreview(node.thread) || t("noMessagesYet");
+  // A channel's row says who wrote last before what they said.
+  const preview = channel ? `${chatTitle(node.thread)}: ${said}` : said;
   const face = nested ? NESTED_FACE : LIST_FACE;
-  const longPress =
-    node.kind === "task" && taskMenu ? () => taskMenu(node.ref) : menu ? () => menu(node.thread) : undefined;
+  const longPress = channel
+    ? undefined
+    : node.kind === "task" && taskMenu
+      ? () => taskMenu(node.ref)
+      : menu
+        ? () => menu(node.thread)
+        : undefined;
   return (
     <View>
       <Pressable
         accessibilityRole="button"
         accessibilityLabel={title}
-        onPress={() => open(node.thread)}
+        {...(channel ? { accessibilityState: { expanded: shown } } : {})}
+        // A channel's row unfolds its chats; any other opens its chat.
+        onPress={channel ? toggle : () => open(node.thread)}
         onLongPress={longPress}
         delayLongPress={350}
         style={({ pressed }) => [s.row, nested && s.nestedRow, pressed && { backgroundColor: theme.fill }]}
       >
         <View style={[s.avatar, { width: face, height: face }]}>
-          <ThreadAvatar
-            thread={node.thread}
-            agents={data.agents}
-            data={data}
-            size={face}
-            caller={data.threads.find((thread) => thread.id === node.thread.parent_id)?.agent_ids[0] ?? caller}
-          />
+          {channel ? (
+            <ChannelMark type={data.channels.find((item) => item.id === node.ref)?.type} size={face - 4} />
+          ) : (
+            <ThreadAvatar
+              thread={node.thread}
+              agents={data.agents}
+              data={data}
+              size={face}
+              caller={data.threads.find((thread) => thread.id === node.thread.parent_id)?.agent_ids[0] ?? caller}
+            />
+          )}
         </View>
         <View style={s.copy}>
           <View style={s.line}>
-            {node.kind !== "thread" || node.thread.kind === "routine" ? (
+            {node.kind === "task" || node.kind === "routine" || node.thread.kind === "routine" ? (
               <Icon name={node.kind === "task" ? "ListChecks" : "Clock"} size={12} color={theme.fgSubtle} />
             ) : null}
             <Text numberOfLines={1} style={[s.title, nested && s.nestedTitle, unread > 0 && { fontWeight: "600" }]}>
@@ -202,8 +228,8 @@ export const InboxRow = memo(function InboxRow({
                 <Text style={[s.stateText, { color: theme[state.color] }]}>{t(state.label)}</Text>
               </View>
             ) : null}
-            {node.kind !== "thread" && members > 1 ? (
-              <Count icon={node.kind === "task" ? "MessageCircle" : "RefreshCw"} n={members} />
+            {channel || (node.kind !== "thread" && members > 1) ? (
+              <Count icon={node.kind === "routine" ? "RefreshCw" : "MessageCircle"} n={members} />
             ) : null}
             <Text numberOfLines={1} style={[s.preview, unread > 0 && { color: theme.fg }]}>
               {routine ? scheduleText(routine.schedule) : preview}

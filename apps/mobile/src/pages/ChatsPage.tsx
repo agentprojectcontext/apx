@@ -206,7 +206,14 @@ export function ChatsPage({
       />
       <Fab icon="SquarePen" label={t("newChat")} onPress={create} />
       {filters ? (
-        <ChatFilterSheet filter={filter} agents={listedAgents} onChange={setFilter} onClose={() => setFilters(false)} />
+        <ChatFilterSheet
+          filter={filter}
+          agents={listedAgents}
+          channels={data.channels}
+          threads={data.threads}
+          onChange={setFilter}
+          onClose={() => setFilters(false)}
+        />
       ) : null}
     </View>
   );
