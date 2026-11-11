@@ -82,7 +82,8 @@ export function watchAgentReviews(store: Store, bus: Bus): () => void {
   let closed = false;
   let queued = false;
   const scan = () => {
-    const initialized = store.settings.get(KEY) !== undefined;
+    const previous = store.settings.get(KEY);
+    const initialized = previous !== undefined;
     const s = state(store);
     const active = store.agents.list();
     const ids = new Set(active.map((a) => a.id));
@@ -100,21 +101,23 @@ export function watchAgentReviews(store: Store, bus: Bus): () => void {
         delete s.seen[id];
         delete s.pending[id];
       }
-    store.settings.set(KEY, JSON.stringify(s));
+    const next = JSON.stringify(s);
+    if (next !== previous) store.settings.set(KEY, next);
     for (const scope of changedScopes) {
       const agents = active.filter((a) => (a.project_id ?? "") === scope && s.pending[a.id]);
       if (!agents.length) continue;
       const en = store.settings.get("owner_language") === "en";
+      const projectName = scope ? store.projects.get(scope)?.name : undefined;
+      const names = agents
+        .slice(0, 5)
+        .map((a) => a.name)
+        .join(", ");
+      const more = agents.length > 5 ? (en ? ` and ${agents.length - 5} more` : ` y ${agents.length - 5} más`) : "";
       store.notifications.add({
         kind: "agent",
         ref: `agent-review:${scope || "global"}`,
         title: en ? "Review changed agents" : "Revisá los agentes modificados",
-        body: `${agents
-          .slice(0, 5)
-          .map((a) => a.name)
-          .join(
-            ", ",
-          )}${agents.length > 5 ? (en ? ` and ${agents.length - 5} more` : ` y ${agents.length - 5} más`) : ""}. ${en ? "Ask your super-agent to review their instructions before changing anything." : "Pedile a tu super-agente que revise sus instrucciones antes de cambiar algo."}`,
+        body: `${projectName ? `${projectName}: ` : ""}${names}${more}. ${en ? "Ask your super-agent to review their instructions before changing anything." : "Pedile a tu super-agente que revise sus instrucciones antes de cambiar algo."}`,
         thread_id: HOME_THREAD_ID,
       });
     }

@@ -37,11 +37,17 @@ test("all writers converge, burst notices replace, no-ops stay silent and review
       store.notifications.list({ unreadOnly: true, limit: 100 }).filter((n) => n.ref?.startsWith("agent-review:"));
     assert.equal(notices().length, 1);
     const first = notices()[0]?.id;
+    let events = 0;
+    const stopEvents = bus.on((e) => {
+      if (e.type === "notification.updated") events++;
+    });
     const one = store.agents.get("one");
     assert.ok(one);
     store.agents.upsert(one);
     await drain();
     assert.equal(notices()[0]?.id, first);
+    assert.equal(events, 0, "a no-op emits no notice update");
+    stopEvents();
     stop();
     stop = watchAgentReviews(store, bus);
     assert.equal(pendingAgentReviews(store).length, 2);
@@ -55,7 +61,11 @@ test("all writers converge, burst notices replace, no-ops stay silent and review
     await drain();
     assert.equal(pendingAgentReviews(store).length, 0, "model-only changes need no prompt review");
     const before = agentRevision(store, one);
+    stop();
     store.projects.upsert({ id: "acme", name: "Acme", context: "Changed destination rules" });
+    await drain();
+    assert.equal(pendingAgentReviews(store).length, 0, "a stopped detector does not react");
+    stop = watchAgentReviews(store, bus);
     await drain();
     assert.notEqual(agentRevision(store, one), before);
     assert.equal(pendingAgentReviews(store).length, 2);

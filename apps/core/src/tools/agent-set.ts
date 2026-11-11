@@ -137,9 +137,13 @@ export function agentSetTools(store: Store): Tool[] {
       ownerSetting: changes,
       deadlineMs: 15_000,
       title: (a) =>
-        !a.agent
-          ? `Created the agent ${a.name ?? a.slug ?? ""}`
-          : `${a.archive ? "Archived" : changes(a as Args) ? "Changed" : "Looked at"} ${a.agent}`,
+        a.review
+          ? a.agent
+            ? `Reviewed ${a.agent}`
+            : "Read pending agent reviews"
+          : !a.agent
+            ? `Created the agent ${a.name ?? a.slug ?? ""}`
+            : `${a.archive ? "Archived" : changes(a as Args) ? "Changed" : "Looked at"} ${a.agent}`,
       // Before the owner is asked: a sentence as the role fills the team's role list and every agent card.
       check(a, ctx) {
         if (a.role && a.role.length > ROLE_MAX)
