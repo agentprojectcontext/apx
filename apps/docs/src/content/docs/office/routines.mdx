@@ -283,6 +283,10 @@ reference survives for retry at core startup or the next rotation; the newly act
 Interrupted token creation is tracked for the same cleanup. Restore the Secrets backend if rotations report a full
 cleanup queue (1,000 references). Use the same idempotency key when retrying a management request whose reply was lost.
 
+A key rotated or revoked while a request is still uploading also stops that request: it is refused and never reaches
+the flow. Retiring a flow removes its key at once, even when its address was renamed; if the stored secret cannot be
+deleted yet, retry the retirement (core startup also retries). A new flow that reuses the address needs its own key.
+
 ## Silence is an answer: SKIP
 
 An agent routine's prompt is your own words. When there is nothing worth telling you this time, the agent answers

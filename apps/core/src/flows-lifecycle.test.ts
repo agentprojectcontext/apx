@@ -66,7 +66,8 @@ test("retirement retries clean up a credential after secret deletion fails", asy
     const project = (await env.client.call("projects.register", { path: folder.path, init: true })).project.id;
     const definition = { ...flow(project, "cleanup"), enabled: false, action: { kind: "none" as const } };
     await env.client.call("flows.set", { ...definition, enabled: true });
-    const credential = await env.client.call("public_routes.rotate", { path: "/flows/cleanup" });
+    await env.client.call("flows.path_set", { flow: "cleanup", path: "cleanup-address" });
+    const credential = await env.client.call("public_routes.rotate", { path: "/flows/cleanup-address" });
     await env.client.call("flows.set", definition);
     const originalSet = env.core.secrets.set.bind(env.core.secrets);
     const failure = t.mock.method(env.core.secrets, "set", (name: string, value: string | null) => {
@@ -76,7 +77,8 @@ test("retirement retries clean up a credential after secret deletion fails", asy
     await assert.rejects(env.client.call("flows.retire", { flow: "cleanup", confirm: true, exported: true }));
     assert.equal(env.core.store.flows.get("cleanup"), undefined);
     assert.ok(env.core.secrets.resolve(credential.secret_ref));
-    assert.ok(env.core.store.settings.get("public-route-credentials")?.includes(credential.secret_ref));
+    assert.equal(env.core.store.settings.get("public-route-credentials")?.includes(credential.secret_ref), false);
+    assert.ok(env.core.store.settings.get("public-route-credential-cleanup")?.includes(credential.secret_ref));
     await assert.rejects(env.client.call("flows.set", definition), /Invalid Flow/);
     failure.mock.restore();
     assert.equal(

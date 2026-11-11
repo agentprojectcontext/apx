@@ -304,6 +304,11 @@ La creación interrumpida de un token también queda registrada para limpieza. S
 referencias), recuperá el backend de Secrets antes de rotar. Usá la misma clave de idempotencia al reintentar un pedido
 de administración cuya respuesta se perdió.
 
+Una clave rotada o revocada mientras un pedido todavía se está subiendo también frena ese pedido: se rechaza y nunca
+llega al flow. Retirar un flow quita su clave en el acto, aunque se haya cambiado su dirección; si todavía no se puede
+borrar el secreto guardado, reintentá el retiro (el inicio del core también lo reintenta). Un flow nuevo que reuse la
+dirección necesita su propia clave.
+
 ## El silencio también es una respuesta: SKIP
 
 El prompt de una rutina de agente son tus propias palabras. Cuando esta vez no hay nada que valga contarte, el agente

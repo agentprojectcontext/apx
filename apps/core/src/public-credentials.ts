@@ -39,7 +39,7 @@ export function createPublicCredentials(deps: { store: Store; secrets: Secrets; 
   const pendingSchema = z.array(z.string().regex(/^secret:\/\/public-token-[a-f0-9]{32}$/)).max(1000);
   const pending = () => pendingSchema.parse(JSON.parse(deps.store.settings.get(cleanupKey) ?? "[]"));
   const savePending = (refs: string[]) => deps.store.settings.set(cleanupKey, JSON.stringify(refs));
-  const cleanup = () => {
+  const cleanup = (strict = false) => {
     try {
       const active = new Set(read().map((entry) => entry.secret_ref));
       const remaining = pending().filter((ref) => {
@@ -52,8 +52,10 @@ export function createPublicCredentials(deps: { store: Store; secrets: Secrets; 
         }
       });
       savePending(remaining);
-    } catch {
+      if (strict && remaining.length) throw new Error("Public credential cleanup incomplete");
+    } catch (error) {
       // Cleanup must not hide an already committed rotation's new credential from its caller.
+      if (strict) throw error;
     }
   };
   cleanup();
@@ -116,6 +118,20 @@ export function createPublicCredentials(deps: { store: Store; secrets: Secrets; 
         rotated_at: entry?.rotated_at ?? null,
       };
     },
+    /** Journal revocation in the caller's retirement transaction, before the Flow's address disappears. */
+    deactivate(pathname: string) {
+      if (!Path.safeParse(pathname).success) throw badRequest("invalid public endpoint path");
+      deps.store.tx(() => {
+        const saved = read();
+        const refs = [...new Set([...pending(), ...saved.filter((s) => s.path === pathname).map((s) => s.secret_ref)])];
+        if (refs.length > 1000) throw badRequest("public credential cleanup is full; restore secret storage first");
+        savePending(refs);
+        deps.store.settings.set(KEY, JSON.stringify(saved.filter((s) => s.path !== pathname)));
+      });
+    },
+    finishRevocations() {
+      cleanup(true);
+    },
     revoke(pathname: string) {
       if (!Path.safeParse(pathname).success) throw badRequest("invalid public endpoint path");
       const saved = read();
@@ -163,7 +179,10 @@ export function createPublicCredentials(deps: { store: Store; secrets: Secrets; 
         return {
           ...route,
           authorize: (headers) => api.authorize(pathname, headers) && route.authorize(deliveryHeaders(headers)),
-          handle: (request, signal) => route.handle({ ...request, headers: deliveryHeaders(request.headers) }, signal),
+          handle: (request, signal) => {
+            if (!api.authorize(pathname, request.headers)) return Promise.resolve({ status: 401 });
+            return route.handle({ ...request, headers: deliveryHeaders(request.headers) }, signal);
+          },
         } satisfies PublicRoute;
       };
     },
