@@ -342,3 +342,47 @@ test("explicit history pages recover old verified mail silently, keep arrival da
     await f.close();
   }
 });
+
+test("a mailbox is running only once it is open, so its history can be recovered right then", async () => {
+  const home = tempDir();
+  const imap = await fakeImap({ user: USER, pass: PASS });
+  const smtp = await fakeSmtp({ user: USER, pass: PASS });
+  imap.deliver(automatic("early@example.net").raw, new Date("2020-01-02T12:00:00.000Z"));
+  const env = await startCore({
+    home: home.path,
+    llm: scriptedLlm(() => say('{"important": false}')),
+    aux: true,
+    channelAdapters: { email: (c, s) => emailAdapter(c, s, { dir: path.join(home.path, "channels", c.id) }) },
+  });
+  try {
+    // The live session signs in, then waits for its mailbox: until it opens, the account is not running yet.
+    const held = imap.holdNextExamine();
+    await env.client.call("channels.set", {
+      id: "email",
+      token: PASS,
+      channel: {
+        type: "email",
+        agent_id: "superagent",
+        strangers: "ask",
+        email: {
+          address: USER,
+          imap: { host: "127.0.0.1", port: imap.port, tls: "none" },
+          smtp: { host: "127.0.0.1", port: smtp.port, tls: "none" },
+        },
+      },
+    });
+    const status = async () => (await env.client.call("channels.list", {})).channels[0]?.status;
+    await waitFor(async () => (await status()) === "starting", "signed in, mailbox not open");
+    assert.equal(await status(), "starting");
+    held.release();
+    await waitFor(async () => (await status()) === "running", "mailbox open");
+    const page = await env.client.call("channels.email_history", { channel: "email" });
+    assert.equal(page.stored, 1);
+  } finally {
+    await env.core.close();
+    await imap.close();
+    await smtp.close();
+    await env.cleanup();
+    await home.remove();
+  }
+});

@@ -49,6 +49,8 @@ export type FakeImap = {
   fetches(): number;
   readOnlyViolations(): number;
   pauseNextFetch(): { entered: Promise<number>; release(): void };
+  /** The next EXAMINE of the inbox waits until released: the mailbox is not open yet. */
+  holdNextExamine(): { release(): void };
   close(): Promise<void>;
 };
 
@@ -60,6 +62,7 @@ export async function fakeImap(opts: {
 }): Promise<FakeImap> {
   type FetchPause = { enter(uid: number): void; resume?: () => void; released: boolean };
   let pause: FetchPause | undefined;
+  let examineHold: Promise<void> | undefined;
   let uidvalidity = 1000;
   let nextUid = 1;
   let fetched = 0;
@@ -135,11 +138,18 @@ export async function fakeImap(opts: {
       }
       if (c === "EXAMINE" || c === "SELECT") {
         const spam = /INBOX\.Spam/i.test(args);
-        opened.set(sock, spam ? "junk" : "inbox");
-        send(`* ${(spam ? junk : box).length} EXISTS`);
-        if (!opts.omitUidvalidity) send(`* OK [UIDVALIDITY ${spam ? 77 : uidvalidity}] UIDs valid`);
-        send(`* OK [UIDNEXT ${spam ? junkUid : nextUid}] next`);
-        return send(`${tag} OK [READ-ONLY] done`);
+        const answer = () => {
+          opened.set(sock, spam ? "junk" : "inbox");
+          send(`* ${(spam ? junk : box).length} EXISTS`);
+          if (!opts.omitUidvalidity) send(`* OK [UIDVALIDITY ${spam ? 77 : uidvalidity}] UIDs valid`);
+          send(`* OK [UIDNEXT ${spam ? junkUid : nextUid}] next`);
+          send(`${tag} OK [READ-ONLY] done`);
+        };
+        const hold = spam ? undefined : examineHold;
+        if (!hold) return answer();
+        examineHold = undefined;
+        void hold.then(answer);
+        return;
       }
       if (c === "NOOP") return send(`${tag} OK`);
       if (c === "IDLE") {
@@ -222,6 +232,13 @@ export async function fakeImap(opts: {
     },
     fetches: () => fetched,
     readOnlyViolations: () => readOnlyViolations,
+    holdNextExamine() {
+      let release = () => {};
+      examineHold = new Promise<void>((resolve) => {
+        release = resolve;
+      });
+      return { release };
+    },
     pauseNextFetch() {
       if (pause) throw new Error("a fetch is already paused");
       let enter: (uid: number) => void = () => {};
