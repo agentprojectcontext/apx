@@ -7,63 +7,18 @@ import http from "node:http";
 import type { AddressInfo } from "node:net";
 import os from "node:os";
 import path from "node:path";
-import { _electron, type ElectronApplication, expect, type Page, test } from "@playwright/test";
-import { rpc, until, world } from "../specs/kit.ts";
+import { type ElectronApplication, expect, type Page, test } from "@playwright/test";
+import { rpc, until } from "../specs/kit.ts";
+import { assertDesktopHeader, assertFullscreenBar, launchDesktop } from "./app-shell.test-support.ts";
 
-const root = path.resolve(import.meta.dirname, "../..");
 const core = `http://127.0.0.1:${process.env.E2E_PORT ?? 7460}`;
 
 let app: ElectronApplication;
 let home: string;
 
 test.beforeAll(async () => {
-  await rpc("setup.finish");
   home = fs.mkdtempSync(path.join(os.tmpdir(), "apx-e2e-desktop-"));
-  // Keep the native tray reachable by the test, without adding a bridge to the product.
-  const entry = path.join(home, "tray-test.cjs");
-  fs.writeFileSync(
-    entry,
-    `
-    const { Tray } = require("electron");
-    const on = Tray.prototype.on;
-    Tray.prototype.on = function (...args) {
-      globalThis.apxTestTray = this;
-      return on.apply(this, args);
-    };
-    const setImage = Tray.prototype.setImage;
-    Tray.prototype.setImage = function (image) {
-      globalThis.apxTestTrayImage = image.toDataURL();
-      globalThis.apxTestTrayTemplate = image.isTemplateImage();
-      return setImage.call(this, image);
-    };
-    const setToolTip = Tray.prototype.setToolTip;
-    Tray.prototype.setToolTip = function (text) {
-      globalThis.apxTestTrayTooltip = text;
-      return setToolTip.call(this, text);
-    };
-    void import(${JSON.stringify(path.join(root, "apps/desktop/dist/main.js"))});
-  `,
-  );
-  app = await _electron.launch({
-    args: [
-      entry,
-      // Containers run as root, where Chromium's sandbox cannot start.
-      ...(process.getuid?.() === 0 ? ["--no-sandbox"] : []),
-    ],
-    env: {
-      ...process.env,
-      HOME: home,
-      XDG_CONFIG_HOME: path.join(home, ".config"),
-      APX_DESKTOP_DATA: path.join(home, "desktop"),
-      APX_QUIT_CONFIRM: "off",
-      APX_CONNECTION: "local",
-      APX_URL: "",
-      APX_HOME: (await world.info()).home,
-      APX_PORT: process.env.E2E_PORT ?? "7460",
-      // No dev server: the window falls back to the panel the core serves.
-      APX_WEB_URL: "http://127.0.0.1:9",
-    },
-  });
+  app = await launchDesktop(home);
 });
 
 test.afterAll(async () => {
@@ -93,76 +48,12 @@ test("the window shows the panel the core serves", async () => {
   await expect(main.getByRole("textbox", { name: /^Escribile a|^Message/ }).or(main.getByRole("dialog"))).toBeVisible();
 });
 
-test("the desktop header shares the native title bar and keeps its search centered", async () => {
-  const main = await page("main");
-  await expect(main.locator(".topbar.is-desktop")).toBeVisible();
-  const geometry = await main.locator(".topbar").evaluate((bar) => {
-    const rect = bar.getBoundingClientRect();
-    const search = bar.querySelector(".topbar__search")?.getBoundingClientRect();
-    return {
-      y: rect.y,
-      height: rect.height,
-      center: search ? search.x + search.width / 2 : -1,
-      width: innerWidth,
-      drag: getComputedStyle(bar).getPropertyValue("-webkit-app-region"),
-    };
-  });
-  expect(geometry.y).toBe(0);
-  expect(geometry.height).toBe(46);
-  expect(geometry.center).toBeCloseTo(geometry.width / 2, 0);
-  expect(geometry.drag).toBe("drag");
-  const bounds = await app.evaluate(({ BaseWindow, BrowserWindow }) => {
-    const main = BaseWindow.getAllWindows().find((w) => !(w instanceof BrowserWindow));
-    return { outer: main?.getBounds(), content: main?.getContentBounds() };
-  });
-  expect(Math.abs((bounds.outer?.height ?? 0) - (bounds.content?.height ?? 0))).toBeLessThanOrEqual(2);
-  await main.screenshot({ path: test.info().outputPath("unified-header.png") });
+test("the desktop header shares the native title bar and centers history with search", async () => {
+  await assertDesktopHeader(app, await page("main"));
 });
 
 test("a full-screen layer's bar clears the window controls and keeps its controls clickable", async () => {
-  const main = await page("main");
-  // The welcome and corner cards would cover the screen: seen already, as in the panel's own specs.
-  await main.evaluate(() => {
-    localStorage.setItem("apx.corner", JSON.stringify({ discord: true, star: true, welcome: true }));
-    location.hash = "#view=flows";
-    location.reload();
-  });
-  await main.getByRole("button", { name: /^(Nuevo flow|New flow)$/ }).click();
-  const bar = main.locator(".fe-top.window-bar.is-desktop");
-  await expect(bar).toBeVisible();
-  const read = () =>
-    bar.evaluate((b) => {
-      const style = getComputedStyle(b);
-      const region = (el: Element | null) => (el ? getComputedStyle(el).getPropertyValue("-webkit-app-region") : "");
-      return {
-        left: Number.parseFloat(style.paddingLeft),
-        right: Number.parseFloat(style.paddingRight),
-        drag: region(b),
-        // Drag regions ignore what is drawn on top: the bar's controls must opt out to get the click.
-        picker: region(b.querySelector('[role="combobox"]')),
-        close: region(b.querySelector("button")),
-      };
-    });
-  const windowed = await read();
-  expect(windowed).toMatchObject({ drag: "drag", picker: "no-drag", close: "no-drag" });
-  if (process.platform === "darwin") {
-    expect(windowed.left).toBe(76);
-    const full = (on: boolean) =>
-      app.evaluate(({ BaseWindow, BrowserWindow }, on) => {
-        BaseWindow.getAllWindows()
-          .find((w) => !(w instanceof BrowserWindow))
-          ?.setFullScreen(on);
-      }, on);
-    // In native fullscreen the traffic lights are gone, and so is their room.
-    await full(true);
-    await expect.poll(async () => (await read()).left, { timeout: 10_000 }).toBe(12);
-    await full(false);
-    await expect.poll(async () => (await read()).left, { timeout: 10_000 }).toBe(76);
-  } else {
-    expect(windowed.right).toBe(140);
-  }
-  await main.getByRole("button", { name: /^(Salir del editor|Exit the editor)$/ }).click();
-  await expect(bar).toHaveCount(0);
+  await assertFullscreenBar(app, await page("main"));
 });
 
 test("the app lends its browser to the core, and a tab opened through the core is listed", async () => {
