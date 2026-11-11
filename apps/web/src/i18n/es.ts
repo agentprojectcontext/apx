@@ -92,9 +92,9 @@ export const es: Partial<Record<MessageKey, string>> = {
   "common.done": "Listo",
   "common.refresh": "Actualizar",
   "common.retry": "Reintentar",
-  "common.browserPermissionsLoading": "Cargando permisos del navegador…",
+  "common.browserPermissionsLoading": "Cargando permisos de JavaScript…",
   "common.browserPermissionsFailed":
-    "No se pudieron mostrar los permisos del navegador. Recargá para volver a intentarlo.",
+    "No se pudieron mostrar los permisos de JavaScript. Recargá para volver a intentarlo.",
   "common.optionsLoading": "Cargando opciones…",
   "common.optionsFailed": "No se pudieron mostrar estas opciones. Recargá para volver a intentarlo.",
   "common.running": "En curso",

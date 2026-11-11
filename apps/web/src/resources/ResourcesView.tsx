@@ -5,7 +5,6 @@ import { type ProjectEntry, projectName } from "../data/identity.ts";
 import { useData } from "../data/state.ts";
 import { type MessageKey, useT } from "../i18n/index.ts";
 import { go, type ResourceTab, useNav } from "../shell/nav.ts";
-import { BrowserConsents } from "./BrowserConsents.tsx";
 import { ExtensionsTab } from "./ExtensionsTab.tsx";
 import { IntegrationsTab } from "./IntegrationsTab.tsx";
 import { ENGINE_LABEL, SKILL_ENGINES, type SkillEngine } from "./labels.ts";
@@ -202,7 +201,6 @@ export function ResourcesView({ project }: { project?: ProjectEntry }) {
       tools={
         <>
           {!projectId && filters}
-          {!project && <BrowserConsents />}
           {project && add}
         </>
       }

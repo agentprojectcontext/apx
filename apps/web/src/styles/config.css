@@ -95,6 +95,9 @@
   color: var(--apx-fg-muted);
   font-size: var(--apx-text-sm);
 }
+.config__hint.is-error {
+  color: var(--apx-danger);
+}
 .config__row {
   display: flex;
   gap: 10px;

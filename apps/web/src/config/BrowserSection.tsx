@@ -2,6 +2,7 @@ import { Button, Checkbox, EmptyState, Icons, SearchField, SegmentedControl } fr
 import { useEffect, useState } from "react";
 import { cookieDomains, cookieSources, importCookies } from "../data/actions.ts";
 import { useT } from "../i18n/index.ts";
+import { BrowserPermissions } from "./BrowserPermissions.tsx";
 import { SectionHead } from "./SectionHead.tsx";
 
 type Source = Awaited<ReturnType<typeof cookieSources>>[number];
@@ -16,13 +17,17 @@ const BROWSER_NAMES: Record<string, string> = {
   edge: "Edge",
 };
 
-/** Browser: copy sessions from a local browser into APX's shared profile (runs in the desktop app). */
+/**
+ * Browser: copy sessions from a local browser into APX's shared profile (runs in the desktop app), and the pages where
+ * agents may run JavaScript for now.
+ */
 export function BrowserSection() {
   const t = useT();
   return (
     <>
       <SectionHead title={t("config.browser")} lead={t("browser.cfg.lead")} />
       <SessionsImport />
+      <BrowserPermissions />
     </>
   );
 }
