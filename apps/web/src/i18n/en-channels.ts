@@ -110,6 +110,7 @@ export const enChannels = {
   "ch.room.writeMe": "Write in {room}…",
   "ch.room.hint.agent": "{agent} writes the message and posts it in {room}; nobody there sees what you tell {agent}.",
   "ch.room.hint.me": "Posted in {room} as you wrote it, from {agent}'s account.",
+  "ch.room.hint.mine": "Posted in {room} as you wrote it, from your number. {agent} only reads this group.",
   "ch.room.noFiles": "To post files, ask {agent} to do it.",
   "ch.muted": "Silenced",
   "ch.unreviewed": "Not reviewed: not answered",

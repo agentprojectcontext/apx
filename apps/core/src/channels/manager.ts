@@ -36,7 +36,7 @@ import { createOutgoing } from "./outgoing.ts";
 import { createOwnerNotices } from "./owner-notices.ts";
 import { createPoster } from "./post.ts";
 import { createRecovery } from "./recover.ts";
-import { createRooms, quietMentions, roomMentions } from "./rooms.ts";
+import { createRooms, quietMentions, roomMentions, roomsReadOnly } from "./rooms.ts";
 import { joinSplitContacts } from "./same-person.ts";
 import { createSignals } from "./signals.ts";
 import { createStickers, type See } from "./stickers.ts";
@@ -366,6 +366,9 @@ export function createChannels(deps: {
     const audience = thread ? audienceOf(store, thread) : undefined;
     const why = (run.error ?? "").replace(/^Could not finish: /, "").slice(0, 200);
     const room = audience?.kind === "contact" ? audience.room : undefined;
+    // A group on the owner's own phone the agent may not speak in: its answer stays in the app. See DECISIONS.md#d-216
+    const cfg = configs().find((c) => c.id === to.channel);
+    if (room && cfg && roomsReadOnly(cfg)) return;
     if (!out && run.state === "failed" && room) {
       // A public room never sees what went wrong inside APX; the owner does.
       const text = channelTexts(store).roomFailed(`#${room.name}`, why);

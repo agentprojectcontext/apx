@@ -114,6 +114,7 @@ export const esChannels: Partial<Record<MessageKey, string>> = {
   "ch.room.writeMe": "Escribí en {room}…",
   "ch.room.hint.agent": "{agent} escribe el mensaje y lo publica en {room}; nadie ahí ve lo que le decís a {agent}.",
   "ch.room.hint.me": "Sale en {room} tal cual lo escribís, desde la cuenta de {agent}.",
+  "ch.room.hint.mine": "Sale en {room} tal cual lo escribís, desde tu número. {agent} solo lee este grupo.",
   "ch.room.noFiles": "Para publicar archivos, pedíselo a {agent}.",
   "ch.muted": "Silenciado",
   "ch.unreviewed": "Sin revisar: no se le contesta",

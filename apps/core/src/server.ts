@@ -586,7 +586,12 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
           owner: (address) => store.persons.byAddress(c.id, address)?.role === "owner",
         }),
       whatsapp: (c) =>
-        whatsappAdapter({ dir: path.join(config.home, "channels", c.id), selfOwner: c.self_owner === true, log }),
+        whatsappAdapter({
+          dir: path.join(config.home, "channels", c.id),
+          selfOwner: c.self_owner === true,
+          rooms: (c.rooms?.rooms ?? []).map((r) => r.id),
+          log,
+        }),
       // Messages' database on this Mac: no secret; it refuses to start anywhere else.
       imessage: (c, s) => imessageAdapter(c, s, { dir: path.join(config.home, "channels", c.id) }),
       googlechat: (c, secret) => googlechatAdapter(c, secret),

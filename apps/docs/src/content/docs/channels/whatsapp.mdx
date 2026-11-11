@@ -60,9 +60,9 @@ Once linked, your messages go to **Home**, or to a chat of their own if you set 
 
 On your own number there's nothing to link: whoever writes in "Message yourself" is you.
 
-## Contacts only
+## Chats with contacts
 
-APX reads one-to-one chats. Groups, broadcasts and WhatsApp channels are ignored. Voice notes in private chats are
+APX reads one-to-one chats, and the [groups you list](#groups). Broadcasts and WhatsApp channels are ignored. Voice notes in private chats are
 transcribed (see [Voice notes](/channels/overview/#voice-notes)), and options the agent offers you arrive as a
 numbered list: answer with the number. Photos, videos, stickers and documents are kept in the chat to play or
 download.
@@ -82,6 +82,43 @@ A file that could not be downloaded when it came (or that arrived before APX rea
 "[video — APX cannot read this kind of message yet]". Press **Recover files** in that chat, or run
 `apx channels recover <thread>`: APX asks your phone to send those messages again and puts each file in its message,
 without a new answer from the agent. Your phone has to be online for it to answer.
+
+## Groups
+
+Your agent can also look after WhatsApp groups, the way a Telegram bot looks after its groups. Groups are opt-in: one
+that isn't listed doesn't exist for APX, so nothing of it is read or stored, even with the line in it.
+
+<Steps>
+
+1. Add the line to the group on WhatsApp (or, on your own number, be in it).
+
+2. In **Channels**, open the account's settings and go to **Rooms**. While WhatsApp is connected, pick the group from
+   **Add a group this line is in…**. A group where only admins can write says the line cannot write there.
+
+3. Choose its mode, and **Save**.
+
+</Steps>
+
+Each group has the same modes, words that call it, notes, rules and limits as a Discord room (see
+[Server rooms](/channels/discord-slack/#server-rooms)). Everything said in a listed group is kept in that group's chat
+in APX, so you and your agents can read it. In **When called**, an @mention of the line, a reply to one of its
+messages or one of the words that call it gets an answer. Answers go to the group, quoting the message they answer.
+Photos, files and voice notes in a group are noted by kind; they are not downloaded or transcribed.
+
+<Aside type="caution" title="Groups are public, so their turns are sealed">
+In a group the agent answers with no memory and nothing of yours, even when you're the one writing. Private chats
+don't change.
+</Aside>
+
+### Groups on your own number
+
+When **This line is my own phone** is on, anything the agent writes in a group comes from your number, and the group
+reads it as you. So your groups are **only read** at first: what is said is kept, and the agent never answers there,
+whatever mode a group has. To let it answer, turn on **Answer in groups as me** in **Rooms**; each group's mode applies
+from then on. Until you do, an agent can't post in those groups for you either.
+
+On your own number, an @mention of you or a reply to your message is meant for you, not the agent: only the words that
+call it (under **What calls it**) do. What you type in a group from your phone is kept as yours.
 
 ## Phone numbers
 
