@@ -27,7 +27,7 @@ test("nothing chosen lets every chat through", () => {
 test("agents: any of them; projects: any of them; both kinds must match", () => {
   const f = on({ agents: ["roby", "cody"], projects: ["p_acme"] });
   assert.equal(passesFilter(chat("cody", "p_acme"), f, projects), true);
-  assert.equal(passesFilter(chat("magui", "p_acme"), f, projects), false);
+  assert.equal(passesFilter(chat("vera", "p_acme"), f, projects), false);
   assert.equal(passesFilter(chat("roby", "p_other"), f, projects), false);
 });
 
@@ -58,7 +58,7 @@ test("an engine keeps only its own sessions", () => {
 });
 
 test("kinds combine: an account and an agent must both match", () => {
-  const f = on({ accounts: ["wa_sales"], agents: ["magui"] });
+  const f = on({ accounts: ["wa_sales"], agents: ["vera"] });
   assert.equal(passesFilter(contact("wa_sales"), f, projects, kindOf), false);
 });
 

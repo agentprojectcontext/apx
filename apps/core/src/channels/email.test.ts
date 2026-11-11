@@ -79,11 +79,11 @@ describe("reading mail", () => {
 
   test("a mail's alert line is its first words, plain: no links, no marks, one short line", () => {
     assert.equal(
-      firstLine("\n**Hi Manuel**, your report is ready: https://example.org/r?id=1&t=abc\nmore"),
-      "Hi Manuel, your report is ready:",
+      firstLine("\n**Hi Ana**, your report is ready: https://example.org/r?id=1&t=abc\nmore"),
+      "Hi Ana, your report is ready:",
     );
     assert.equal(firstLine("[attachments not kept: a.pdf]\nSee you"), "See you");
-    assert.equal(firstLine("Hola, Manuel:\n\nTu factura vence hoy."), "Tu factura vence hoy.");
+    assert.equal(firstLine("Hola, Ana:\n\nTu factura vence hoy."), "Tu factura vence hoy.");
     assert.equal(firstLine("x".repeat(300)).length, 110);
   });
 
