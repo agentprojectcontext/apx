@@ -1,6 +1,7 @@
 import type { Result } from "@apx/protocol";
+import { secureRequestKey } from "@apx/protocol/client";
 import { Button, Dialog, Field, Icons, Textarea } from "@apx/ui";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { client } from "../data/client.ts";
 import { notify } from "../data/notices.ts";
 import { useData } from "../data/state.ts";
@@ -35,8 +36,31 @@ export function ProjectHelper({ project }: { project: string }) {
       live = false;
     };
   }, [project]);
+  // One chat per attempt: a retry after an error reuses the key; leaving the overview drops what comes after.
+  const attempt = useRef<string | undefined>(undefined);
+  const shown = useRef(true);
+  const [busy, setBusy] = useState(false);
+  useEffect(() => {
+    shown.current = true;
+    return () => {
+      shown.current = false;
+    };
+  }, []);
   const agent = review?.recipient ? agents[review.recipient] : undefined;
   if (!review || !agent) return null;
+  const talk = async () => {
+    if (busy) return;
+    setBusy(true);
+    attempt.current ??= secureRequestKey();
+    const done = await askAbout(
+      agent.id,
+      project,
+      { title: t("helper.chatTitle"), draft: t("helper.chatDraft") },
+      { key: attempt.current, wanted: () => shown.current },
+    );
+    if (done) attempt.current = undefined;
+    if (shown.current) setBusy(false);
+  };
   const gaps = helperGaps(review).map((g) => ("name" in g ? t(g.key, { name: g.name }) : t(g.key)));
   return (
     <OverviewCard title={t("helper.title")} mark={gaps.length > 0}>
@@ -53,9 +77,8 @@ export function ProjectHelper({ project }: { project: string }) {
           size="sm"
           variant="secondary"
           leadingIcon={<Icons.MessageCircle size={14} />}
-          onClick={() =>
-            void askAbout(agent.id, project, { title: t("helper.chatTitle"), draft: t("helper.chatDraft") })
-          }
+          loading={busy}
+          onClick={() => void talk()}
         >
           {t("helper.talk", { name: agent.name })}
         </Button>

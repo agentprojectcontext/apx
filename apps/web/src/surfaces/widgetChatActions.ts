@@ -102,10 +102,30 @@ export function askForWidget(
 
 /**
  * A new chat with an agent about something that is not a widget (reviewing a project with it): it opens over the
- * page the same way, its first words ready for the owner to change or send, and goes if closed untouched.
+ * page the same way, its first words ready for the owner to change or send, and goes if closed untouched. A retry
+ * passes the same `key`, so a chat the core made before its answer was lost is not made twice; one made after the
+ * owner left (`wanted` false) is deleted instead of opening over another page. False when it failed.
  */
-export function askAbout(agentId: string, projectId: string, words: { title: string; draft: string }): Promise<void> {
-  return startAsking(agentId, projectId, words, words.title);
+export async function askAbout(
+  agentId: string,
+  projectId: string,
+  words: { title: string; draft: string },
+  o: { key: string; wanted(): boolean },
+): Promise<boolean> {
+  try {
+    const thread = await createThread({ agentId, projectId, title: words.title }, o.key);
+    if (!o.wanted()) {
+      void deleteThread(thread.id);
+      return true;
+    }
+    asking.add(thread.id);
+    keepDraft(thread.id, words.draft);
+    open.set({ surfaceId: undefined, threadId: thread.id, topic: words.title });
+    return true;
+  } catch (e) {
+    notify(tr("error.change", { error: errText(e) }));
+    return false;
+  }
 }
 
 async function startAsking(
