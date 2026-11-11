@@ -44,6 +44,7 @@ export const OWNER_ONLY: Readonly<Record<string, string>> = {
   "channels.add": "a new account starts with its sign-in, which is the owner's to give (Channels › New channel)",
   "contacts.add":
     "the panel's one-step Add contact; agents add a contact and its address with contacts.set and contacts.address",
+  "secrets.move": "which project a stored secret belongs to is the owner's to say, as setting it is",
   "secrets.set_sites":
     "where agents may sign in with a stored secret is the owner's to say; an agent asks with its own card (DECISIONS.md#d-193)",
   "providers.set": SECRET,
