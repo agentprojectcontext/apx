@@ -104,7 +104,11 @@ const SCAN = `function(secret) {
         continue;
       }
       if (n.nodeType !== 1) continue;
-      for (const a of [...n.attributes]) if (a.value.includes(secret)) { leaks++; n.removeAttribute(a.name); }
+      // A field keeping its own value on its value attribute (React does) holds it, it has not copied it.
+      for (const a of [...n.attributes]) {
+        if (n === self && a.name === 'value') continue;
+        if (a.value.includes(secret)) { leaks++; n.removeAttribute(a.name); }
+      }
       if (n !== self && typeof n.value === 'string' && n.value.includes(secret)) { leaks++; n.value = ''; }
       if (n.shadowRoot) visit(n.shadowRoot);
     }

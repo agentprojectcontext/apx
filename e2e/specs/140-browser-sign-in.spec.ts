@@ -27,6 +27,11 @@ const FRAME = `<!doctype html><html><body><form><label>Partner password <input t
 // A page that copies whatever is typed into its password field onto an attribute.
 const LEAKY = `<!doctype html><html><body><form><label>Password <input id="pw" type="password"
 oninput="document.body.dataset.seen = this.value"></label></form></body></html>`;
+// A React controlled form: each field mirrors its own value into its `value` attribute. That is not a copy.
+const MIRRORED = `<!doctype html><html><body><form>
+<label>Email <input id="user" type="email" oninput="this.setAttribute('value', this.value)"></label>
+<label>Password <input id="pw" type="password" oninput="this.setAttribute('value', this.value)"></label>
+</form></body></html>`;
 
 function site(port: number, pages: Record<string, string>) {
   const server = http.createServer((req, res) => {
@@ -43,7 +48,7 @@ test("an agent signs in with a variable the owner marked, and the value reaches 
 }) => {
   test.setTimeout(120_000);
   const servers = await Promise.all([
-    site(SITE, { "/login": LOGIN(true), "/leaky": LEAKY }),
+    site(SITE, { "/login": LOGIN(true), "/leaky": LEAKY, "/mirrored": MIRRORED }),
     site(OTHER, { "/frame": FRAME, "/login": LOGIN(false) }),
   ]);
   const tab = await context.newPage();
@@ -108,9 +113,16 @@ test("an agent signs in with a variable the owner marked, and the value reaches 
     const thread = (await rpc<{ id: string }>("threads.create", { kind: "loose", agent_id: agent.id })).id;
     await open(page, `#thread=${thread}`);
     const composer = page.getByRole("textbox", { name: /Escribile|Message/ });
+    // Each request waits for the turn to end: an earlier answer that reads the same must not let the next one in mid-turn.
+    const runs = async () => (await rpc<{ runs: Array<{ ended_at?: string }> }>("runs.list", { agent: agent.id })).runs;
     const say = async (text: string, expected: RegExp) => {
+      const before = (await runs()).length;
       await composer.fill(text);
       await page.keyboard.press("Enter");
+      await until(async () => {
+        const now = await runs();
+        return now.length > before && now.every((r) => r.ended_at);
+      }, 20_000);
       await expect(page.getByText(expected).last()).toBeVisible({ timeout: 20_000 });
     };
 
@@ -189,6 +201,16 @@ test("an agent signs in with a variable the owner marked, and the value reaches 
     );
     await expect(tab.locator("#search")).toHaveValue("");
     expect(await tab.frameLocator("iframe").locator("input").inputValue()).toBe("");
+
+    // A page that keeps each field's value on its own attribute, as React does, signs in like any other.
+    await tab.goto(`http://127.0.0.1:${SITE}/mirrored`);
+    await say("sign in to t1 field Email with E2E_LOGIN_USER as username", /filled e\d+ .* E2E_LOGIN_USER/);
+    await say("sign in to t1 field Password with E2E_LOGIN_PASS as password", /filled e\d+ .* E2E_LOGIN_PASS/);
+    await expect(tab.locator("#user")).toHaveValue(USER);
+    await expect(tab.locator("#pw")).toHaveValue(PASSWORD);
+    const mirrored = await rpc<{ tree: string }>("browser.snapshot", { tab: "t1" });
+    expect(mirrored.tree).not.toContain(USER);
+    expect(mirrored.tree).not.toContain(PASSWORD);
 
     // Another site: the owner is asked in the app, and says no.
     await tab.goto(`http://127.0.0.1:${OTHER}/login`);
