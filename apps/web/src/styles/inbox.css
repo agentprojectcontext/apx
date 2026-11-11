@@ -346,17 +346,7 @@ button.chatprocesses {
 .inbox__tabicon {
   display: none;
 }
-/* News in a tab not shown: a dot over the end of its name. */
-.inbox__tabnews {
-  position: absolute;
-  top: -1px;
-  right: -6px;
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: var(--apx-brand);
-}
-/* Running now: a live dot and how many of its rows, never the tab's total. */
+/* Running now: a green spinner and how many of its rows; done, the same count by a still green dot. */
 .inbox__tabwork {
   display: inline-flex;
   align-items: center;
@@ -366,17 +356,14 @@ button.chatprocesses {
   font-weight: var(--apx-weight-semibold);
   font-variant-numeric: tabular-nums;
 }
-.inbox__tabworkdot {
+.inbox__tabwork .apx-spinner {
+  color: var(--apx-brand);
+}
+.inbox__tabnewsdot {
   width: 6px;
   height: 6px;
   border-radius: 50%;
   background: var(--apx-brand);
-  animation: apx-pulse 1.6s ease-in-out infinite;
-}
-@media (prefers-reduced-motion: reduce) {
-  .inbox__tabworkdot {
-    animation: none;
-  }
 }
 @container inbox-switch (max-width: 300px) {
   .inbox__tabicon {
@@ -393,10 +380,6 @@ button.chatprocesses {
   .inbox__views .apx-segmented__item {
     gap: 4px;
     padding: 0 4px;
-  }
-  .inbox__tabnews {
-    top: -3px;
-    right: -4px;
   }
 }
 @container inbox-switch (max-width: 140px) {

@@ -499,7 +499,7 @@ export const es: Partial<Record<MessageKey, string>> = {
   "inbox.tab.chats": "Chats",
   "inbox.tab.tasks": "Tareas",
   "inbox.tab.routines": "Rutinas",
-  "inbox.tabNews": "Mensajes nuevos",
+  "inbox.tabNews": "{count} sin leer",
   "inbox.tabWorking": "{count} en curso",
   "inbox.pinned": "Fijados",
   "inbox.recent": "Recientes",

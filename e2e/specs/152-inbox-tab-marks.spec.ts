@@ -26,18 +26,21 @@ test("a tab shows a spinner while its chat runs and a dot for its news until it 
     await expect(tab("Tareas")).toBeChecked();
 
     await env.client.call("threads.send", { thread: chat.id, text: "revisá el contrato de Northwind" });
-    await expect(tab("Chats").getByRole("img", { name: /en curso$/ })).toBeVisible();
+    await expect(tab("Chats").getByRole("img", { name: "1 en curso" })).toBeVisible();
+    await expect(tab("Chats").locator(".apx-spinner")).toBeVisible();
     await expect(tab("Tareas").getByRole("img", { name: /en curso$/ })).toHaveCount(0);
 
     release();
     await env.settle(chat.id);
     await expect(tab("Chats").getByRole("img", { name: /en curso$/ })).toHaveCount(0);
-    await expect(tab("Chats").getByRole("img", { name: "Mensajes nuevos" })).toBeVisible();
-    await expect(tab("Tareas").getByRole("img", { name: "Mensajes nuevos" })).toHaveCount(0);
+    // Done: the same count, now what waits to be read, by a still dot instead of the spinner.
+    await expect(tab("Chats").getByRole("img", { name: "1 sin leer" })).toBeVisible();
+    await expect(tab("Chats").locator(".apx-spinner")).toHaveCount(0);
+    await expect(tab("Tareas").getByRole("img", { name: /sin leer$/ })).toHaveCount(0);
 
-    // Shown, the tab's own rows carry the news: no dot over it.
+    // Shown, the tab keeps its count until the chat is read.
     await tab("Chats").click();
-    await expect(tab("Chats").getByRole("img", { name: "Mensajes nuevos" })).toHaveCount(0);
+    await expect(tab("Chats").getByRole("img", { name: "1 sin leer" })).toBeVisible();
     await expect(inbox.locator(".apx-convrow.is-unread")).toHaveCount(1);
   } finally {
     // A failed check must not leave the model held: closing the core waits for its run.

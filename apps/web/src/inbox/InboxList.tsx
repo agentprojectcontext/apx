@@ -1,5 +1,5 @@
 import type { Thread } from "@apx/protocol";
-import { Button, EmptyState, IconButton, Icons, SearchField, SegmentedControl, Skeleton } from "@apx/ui";
+import { Button, EmptyState, IconButton, Icons, SearchField, SegmentedControl, Skeleton, Spinner } from "@apx/ui";
 import { Suspense, useEffect, useMemo, useState } from "react";
 import { markAllRead } from "../data/actions.ts";
 import { useChannels } from "../data/channels.ts";
@@ -89,11 +89,11 @@ export function InboxList() {
     }),
     [threads, tabs],
   );
-  // Each tab tells from outside how many of its rows are running and whether it holds news; never its total.
+  // Each tab tells how many of its rows are running and, once they finish, how many wait to be read; never its total.
   const marks = useMemo(() => {
     const of = (rows: Thread[][]) => ({
       working: rows.filter((r) => r.some((th) => isWorking(th.state))).length,
-      news: rows.some((r) => r.some((th) => th.unread > 0)),
+      news: rows.filter((r) => r.some((th) => th.unread > 0)).length,
     });
     return {
       chats: of(tabs.chats.map((th) => [th])),
@@ -211,20 +211,28 @@ export function InboxList() {
                         <span className="inbox__tabname">
                           {TAB_ICON[v]}
                           <span className="inbox__tabtext">{t(`inbox.tab.${v}`)}</span>
-                          {/* The tab on screen already shows its unread rows. */}
-                          {marks[v].news && v !== tab && (
-                            <span className="inbox__tabnews" role="img" aria-label={t("inbox.tabNews")} />
-                          )}
                         </span>
-                        {marks[v].working > 0 && (
+                        {/* Running: a spinner and how many. Done: how many wait to be read, by a still dot. */}
+                        {marks[v].working > 0 ? (
                           <span
                             className="inbox__tabwork"
                             role="img"
                             aria-label={t("inbox.tabWorking", { count: marks[v].working })}
                           >
-                            <span className="inbox__tabworkdot" />
-                            <span className="inbox__tabworkn">{marks[v].working > 99 ? "99+" : marks[v].working}</span>
+                            <Spinner size={10} />
+                            <span className="inbox__tabworkn">{capped(marks[v].working)}</span>
                           </span>
+                        ) : (
+                          marks[v].news > 0 && (
+                            <span
+                              className="inbox__tabwork is-news"
+                              role="img"
+                              aria-label={t("inbox.tabNews", { count: marks[v].news })}
+                            >
+                              <span className="inbox__tabnewsdot" />
+                              <span className="inbox__tabworkn">{capped(marks[v].news)}</span>
+                            </span>
+                          )
                         )}
                       </>
                     ),
@@ -312,3 +320,6 @@ function InboxSkeleton() {
     </div>
   );
 }
+
+/** A tab's count, short enough for its pill. */
+const capped = (n: number): string => (n > 99 ? "99+" : String(n));
