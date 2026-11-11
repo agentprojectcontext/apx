@@ -19,3 +19,10 @@ export const contactAnswerer = (
   cfg: Pick<ChannelConfig, "agent_id" | "contacts_agent_id">,
   person: { agent_id?: string | undefined } | undefined,
 ): string => (person?.agent_id && store.agents.get(person.agent_id) ? person.agent_id : contactAgentOf(cfg));
+
+/** Who answers a room: the agent the owner gave that room, while it exists, else the account's contacts agent. */
+export const roomAnswerer = (
+  store: Store,
+  cfg: Pick<ChannelConfig, "agent_id" | "contacts_agent_id">,
+  room: { agent_id?: string | undefined } | undefined,
+): string => (room?.agent_id && store.agents.get(room.agent_id) ? room.agent_id : contactAgentOf(cfg));

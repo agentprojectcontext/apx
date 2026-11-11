@@ -21,6 +21,6 @@ export const sentence = (text: string): string => text.charAt(0).toUpperCase() +
 /** One line: who answers, or who the owner talks to and who answers the contacts. */
 export function answersLine(a: Answerers, t: T): string {
   const agent = agentName(a.owner, t);
-  if (!a.contacts) return sentence(t("ch.answers", { agent }));
+  if (!a.contacts) return sentence(t("ch.answersBy", { agent }));
   return sentence(t("ch.answersSplit", { agent, contacts: agentName(a.contacts.agent, t) }));
 }

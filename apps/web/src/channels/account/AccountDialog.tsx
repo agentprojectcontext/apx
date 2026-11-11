@@ -12,14 +12,14 @@ import { type AccountEdit, go, type AccountPane as Pane, useNav } from "../../sh
 import { accountLine } from "../accountMenu.tsx";
 import { useAccountCounts } from "../counts.ts";
 import { KindTile } from "../KindIcon.tsx";
-import { CHANNEL_KINDS, isChannelKind } from "../kinds.ts";
+import { CHANNEL_KINDS, isChannelKind, isRoomsKind } from "../kinds.ts";
 import { AccountPane, NewAccountPane } from "./AccountPane.tsx";
 import { ActivityPane } from "./ActivityPane.tsx";
 import { ApprovalsPane } from "./ApprovalsPane.tsx";
 import { BehaviorPane } from "./BehaviorPane.tsx";
 import { ContactsPane } from "./ContactsPane.tsx";
 import { keptAfter } from "./draft.ts";
-import { isRoomsKind, RoomsSection } from "./RoomsPane.tsx";
+import { RoomsSection } from "./RoomsPane.tsx";
 import { clearRemoveAsk, removeAsked } from "./removeAsk.ts";
 import { hasStickersPane, StickersPane } from "./StickersPane.tsx";
 import type { Create, PaneProps } from "./types.ts";

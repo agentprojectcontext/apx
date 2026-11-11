@@ -2,9 +2,10 @@ import "../styles/inbox-parts.css";
 import type { ChannelInfo } from "@apx/protocol";
 import { Button, IconButton, Icons, PickRow, Popover } from "@apx/ui";
 import { useState } from "react";
+import { AnswererFace } from "../channels/AnswererFace.tsx";
 import { useAccountCounts } from "../channels/counts.ts";
 import { KindTile } from "../channels/KindIcon.tsx";
-import { CHANNEL_KINDS, isChannelKind } from "../channels/kinds.ts";
+import { CHANNEL_KINDS, GROUP_KINDS, isChannelKind, isRoomsKind } from "../channels/kinds.ts";
 import { useChannels } from "../data/channels.ts";
 import { useData } from "../data/state.ts";
 import { useT } from "../i18n/index.ts";
@@ -27,6 +28,7 @@ export function AccountHeader({ account }: { account: ChannelInfo }) {
   const name = (c: ChannelInfo) => c.label || app(c);
   const answers = (c: ChannelInfo) => agents[c.contacts_agent_id ?? c.agent_id]?.name;
   const who = answers(account);
+  const answerer = agents[account.contacts_agent_id ?? account.agent_id];
   const pick = (f: () => void) => {
     setOpen(false);
     f();
@@ -50,7 +52,10 @@ export function AccountHeader({ account }: { account: ChannelInfo }) {
                 </span>
               </span>
               <span className="inbox__accountsub">
-                {who ? t("inbox.account.answeredBy", { app: app(account), agent: who }) : app(account)}
+                <AnswererFace agent={answerer} />
+                <span className="inbox__accountsubtext">
+                  {who ? t("inbox.account.answeredBy", { app: app(account), agent: who }) : app(account)}
+                </span>
               </span>
             </span>
           </Button>
@@ -93,6 +98,13 @@ export function AccountHeader({ account }: { account: ChannelInfo }) {
       </Popover>
       {kind && (
         <>
+          {isRoomsKind(kind) && (
+            <IconButton
+              label={t(GROUP_KINDS.has(kind) ? "ch.groups.open" : "ch.rooms.open")}
+              icon={<Icons.Hash size={14} />}
+              onClick={() => go.channelSettings(kind, account.id, "rooms")}
+            />
+          )}
           <IconButton
             label={t("chs.contacts")}
             icon={<Icons.Users size={14} />}

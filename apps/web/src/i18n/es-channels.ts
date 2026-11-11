@@ -85,8 +85,6 @@ export const esChannels: Partial<Record<MessageKey, string>> = {
   "ch.link.yourBot": "tu bot",
   "ch.link.step2": "Escribí acá el código de 6 números que te contesta",
   "ch.search": "Buscar contactos",
-  "ch.foot":
-    "Conversaciones con otras personas. Lo que le escribís a {agent} por este canal queda en sus sesiones del Inbox.",
   "ch.answers": "Atiende {agent}",
   "ch.answersSplit": "Hablás con {agent} · {contacts} atiende a tus contactos",
   "ch.agentGone": "un agente que ya no existe",

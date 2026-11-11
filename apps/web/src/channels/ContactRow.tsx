@@ -1,9 +1,10 @@
-import type { ChannelType, Person, Thread } from "@apx/protocol";
+import type { Agent, ChannelType, Person, Thread } from "@apx/protocol";
 import { Icons, Tooltip } from "@apx/ui";
 import type { ReactNode } from "react";
 import { shortWhen } from "../common/format.ts";
 import { type PresenceState, useChannels } from "../data/channels.ts";
 import { type MessageKey, useT } from "../i18n/index.ts";
+import { AnswererFace } from "./AnswererFace.tsx";
 import { PersonAvatar } from "./PersonAvatar.tsx";
 import { initials, RELATION_KEY } from "./people.ts";
 
@@ -92,6 +93,7 @@ export function ContactRow({
   type,
   channelId,
   presence,
+  agent,
   selected,
   onPick,
 }: {
@@ -99,6 +101,8 @@ export function ContactRow({
   type: ChannelType;
   channelId: string;
   presence: PresenceState | undefined;
+  /** Who answers them here: their own agent, or the account's. */
+  agent: Agent | undefined;
   selected: boolean;
   onPick(): void;
 }) {
@@ -128,12 +132,11 @@ export function ContactRow({
             </span>
             {unread > 0 && <span className="chan__unread">{unread}</span>}
           </span>
-          {(relation || flags.length > 0) && (
-            <span className="chan__rowtop">
-              <span className="chan__rel">{relation}</span>
-              <ContactFlags flags={flags} />
-            </span>
-          )}
+          <span className="chan__rowtop chan__rowanswer">
+            <AnswererFace agent={agent} />
+            <span className="chan__rel">{[agent?.name, relation].filter(Boolean).join(" · ")}</span>
+            <ContactFlags flags={flags} />
+          </span>
         </span>
       </button>
     </li>

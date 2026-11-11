@@ -5,7 +5,7 @@ import type { T } from "../i18n/index.ts";
 import { answerersOf, answersLine } from "./answerers.ts";
 
 const texts: Record<string, string> = {
-  "ch.answers": "{agent} answers",
+  "ch.answersBy": "{agent} answers",
   "ch.answersSplit": "You talk to {agent} · {contacts} answers your contacts",
   "ch.agentGone": "an agent that no longer exists",
 };

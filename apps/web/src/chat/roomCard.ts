@@ -1,7 +1,11 @@
 import { createStore, useSlice } from "../data/createStore.ts";
 
-/** The room or group chat whose card (when the agent speaks there, its rules) is open over the chat. */
-const store = createStore<{ open: string | undefined }>({ open: undefined });
-export const useRoomCard = (thread: string) => useSlice(store, (s) => s.open === thread);
-export const toggleRoomCard = (thread: string) => store.set((s) => ({ open: s.open === thread ? undefined : thread }));
-export const closeRoomCard = () => store.set({ open: undefined });
+/**
+ * Whether a room's or group's card (who answers, when it speaks there, its rules) sits beside its chat. Like a contact's
+ * card it stays as the owner left it from one room to the next; until then it is open on wide screens.
+ */
+const store = createStore<{ shown: boolean | undefined }>({ shown: undefined });
+const wide = () => window.innerWidth >= 1280;
+export const useRoomCard = () => useSlice(store, (s) => s.shown ?? wide());
+export const toggleRoomCard = () => store.set((s) => ({ shown: !(s.shown ?? wide()) }));
+export const closeRoomCard = () => store.set({ shown: false });

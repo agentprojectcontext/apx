@@ -83,7 +83,6 @@ export const enChannels = {
   "ch.link.yourBot": "your bot",
   "ch.link.step2": "Type here the 6-digit code it answers with",
   "ch.search": "Search contacts",
-  "ch.foot": "Conversations with other people. What you write to {agent} here stays in its chats in the Inbox too.",
   "ch.answers": "{agent} answers",
   "ch.answersSplit": "You talk to {agent} · {contacts} answers your contacts",
   "ch.agentGone": "an agent that no longer exists",

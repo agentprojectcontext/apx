@@ -1,22 +1,25 @@
 import "../styles/screens.css";
-import type { ChannelInfo, RoomMode, Thread } from "@apx/protocol";
+import type { Agent, ChannelInfo, RoomMode, Thread } from "@apx/protocol";
 import { Button, EmptyState, IconButton, Icons, Menu, ProjectTile, SearchField } from "@apx/ui";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { type CSSProperties, useEffect, useMemo, useRef, useState } from "react";
 import { ChatView } from "../chat/ChatView.tsx";
 import { shortWhen } from "../common/format.ts";
 import { loadChannels, loadPresence, type PresenceState, useChannels } from "../data/channels.ts";
 import { useData } from "../data/state.ts";
 import { type MessageKey, useT } from "../i18n/index.ts";
 import { SidePanel } from "../panel/SidePanel.tsx";
+import { ListColumn } from "../shell/ListColumn.tsx";
+import { LAYOUT } from "../shell/layout.ts";
 import { go, nav, useNav } from "../shell/nav.ts";
-import { agentName, answerersOf, answersLine } from "./answerers.ts";
+import { useShellLayout } from "../shell/useShellLayout.ts";
+import { AnswererFace } from "./AnswererFace.tsx";
+import { answerersOf, answersLine } from "./answerers.ts";
 import { ChannelConversation } from "./ChannelConversation.tsx";
 import { ContactPanel } from "./ContactPanel.tsx";
 import { ContactRow, type Row } from "./ContactRow.tsx";
 import { useAccountCounts } from "./counts.ts";
 import { KindIcon, KindTile } from "./KindIcon.tsx";
-import { isChannelKind } from "./kinds.ts";
-import { RoomPanel } from "./RoomPanel.tsx";
+import { CHANNEL_KINDS, GROUP_KINDS, isChannelKind, isRoomsKind } from "./kinds.ts";
 import { LinkMe, LinkPhone, OwnerRow, ownerOn, PairingRow } from "./StartRows.tsx";
 
 /** A saved contact picked before they have a chat: the list's selection names them instead of a chat. */
@@ -58,6 +61,10 @@ export function ChannelScreen() {
   const threads = useData((s) => s.threads);
   const agents = useData((s) => s.agents);
   const [query, setQuery] = useState("");
+  const layout = useShellLayout();
+  // The list is as wide as the Inbox's, and its edge resizes both; a phone shows one column at a time.
+  const listW = layout?.listW || LAYOUT.listW;
+  const resizable = Boolean(layout && !layout.compact);
   const [mailView, setMailView] = useState<MailView>("people");
   // The card sits beside the chat on wide screens; on narrow ones it covers it, so it starts closed there.
   const [card, setCard] = useState(() => window.innerWidth >= 1280);
@@ -137,10 +144,6 @@ export function ChannelScreen() {
   const shownRooms = rooms.filter((th) => !query || th.title.toLowerCase().includes(query.toLowerCase()));
   const room = picked ? rooms.find((th) => th.id === picked) : undefined;
   const roomOpen = Boolean(room);
-  // A room picked shows its card again on wide screens: its chat header has no button for it.
-  useEffect(() => {
-    if (room?.id && window.innerWidth >= 1280) setCard(true);
-  }, [room?.id]);
   const current = rows.find((r) => r.key === picked);
   const waiting = pairing.filter((r) => r.channel === channelId);
   const linked = ownerOn(persons, channelId ?? "");
@@ -161,88 +164,95 @@ export function ChannelScreen() {
       </section>
     );
 
+  const list = (
+    <aside className="chan__list">
+      <ChannelHead channel={channel} />
+      <div className="chan__find">
+        <SearchField
+          aria-label={t("ch.search")}
+          placeholder={t("ch.search")}
+          value={query}
+          onChange={(e) => setQuery(e.currentTarget.value)}
+        />
+        {mailbox && (
+          <Menu
+            align="end"
+            items={[
+              { type: "label" as const, label: t("ch.mailView") },
+              ...MAIL_VIEWS.flatMap((v) => [
+                // The marks come after a heading of their own: each shows only the chats of that kind of mail.
+                ...(v === "automatic" ? [{ type: "label" as const, label: t("ch.mailView.marked") }] : []),
+                { label: t(MAIL_VIEW_LABEL[v]), checked: mailView === v, onSelect: () => setMailView(v) },
+              ]),
+            ]}
+            trigger={
+              <IconButton
+                size="sm"
+                variant={mailView === "people" ? "ghost" : "secondary"}
+                label={t("ch.mailView")}
+                icon={<Icons.Filter size={14} />}
+              />
+            }
+          />
+        )}
+      </div>
+      <ul className="chan__rows">
+        {!query && !linked && channel.type === "telegram" && <LinkMe channel={channel} />}
+        {!query && !linked && channel.type === "whatsapp" && !channel.self_owner && <LinkPhone channel={channel} />}
+        {!query && waiting.map((r) => <PairingRow key={r.code} request={r} />)}
+        {!query && linked && (channel.type !== "email" || ownerTarget) && (
+          <OwnerRow channel={channel} target={ownerTarget} selected={ownerOpen} />
+        )}
+        {shownRooms.map((th) => (
+          <RoomRow
+            key={th.id}
+            thread={th}
+            channel={channel}
+            agent={agents[th.agent_ids[0] ?? ""]}
+            selected={th.id === picked}
+            onPick={() => go.channel(channel.id, th.id)}
+          />
+        ))}
+        {shown.map((r) => (
+          <ContactRow
+            key={r.key}
+            row={r}
+            type={channel.type}
+            channelId={channel.id}
+            presence={r.person ? presence[r.person.id] : undefined}
+            agent={
+              agents[r.thread?.agent_ids[0] ?? r.person?.agent_id ?? channel.contacts_agent_id ?? channel.agent_id]
+            }
+            selected={r.key === picked}
+            onPick={() => go.channel(channel.id, r.key)}
+          />
+        ))}
+        {query && !shown.length && !shownRooms.length && <li className="chan__nobody">{t("res.noMatch")}</li>}
+        {!query && mailView === "people" && marked > 0 && (
+          <li>
+            <Button variant="link" size="sm" className="chan__hidden" onClick={() => setMailView("all")}>
+              {t("ch.mailHidden", { n: marked })}
+            </Button>
+          </li>
+        )}
+      </ul>
+    </aside>
+  );
+
   return (
     <section
-      className={`chan${current || ownerOpen || roomOpen ? " has-chat" : ""}${(current || room) && card && !ownerOpen ? " has-card" : ""}`}
+      className={`chan${current || ownerOpen || roomOpen ? " has-chat" : ""}${current && !room && card && !ownerOpen ? " has-card" : ""}`}
+      style={{ "--chan-list-w": `${listW}px` } as CSSProperties}
       aria-label={channel.label}
     >
-      <aside className="chan__list">
-        <ChannelHead channel={channel} />
-        <div className="chan__find">
-          <SearchField
-            aria-label={t("ch.search")}
-            placeholder={t("ch.search")}
-            value={query}
-            onChange={(e) => setQuery(e.currentTarget.value)}
-          />
-          {mailbox && (
-            <Menu
-              align="end"
-              items={[
-                { type: "label" as const, label: t("ch.mailView") },
-                ...MAIL_VIEWS.flatMap((v) => [
-                  // The marks come after a heading of their own: each shows only the chats of that kind of mail.
-                  ...(v === "automatic" ? [{ type: "label" as const, label: t("ch.mailView.marked") }] : []),
-                  { label: t(MAIL_VIEW_LABEL[v]), checked: mailView === v, onSelect: () => setMailView(v) },
-                ]),
-              ]}
-              trigger={
-                <IconButton
-                  size="sm"
-                  variant={mailView === "people" ? "ghost" : "secondary"}
-                  label={t("ch.mailView")}
-                  icon={<Icons.Filter size={14} />}
-                />
-              }
-            />
-          )}
-        </div>
-        <ul className="chan__rows">
-          {!query && !linked && channel.type === "telegram" && <LinkMe channel={channel} />}
-          {!query && !linked && channel.type === "whatsapp" && !channel.self_owner && <LinkPhone channel={channel} />}
-          {!query && waiting.map((r) => <PairingRow key={r.code} request={r} />)}
-          {!query && linked && <OwnerRow channel={channel} target={ownerTarget} selected={ownerOpen} />}
-          {shownRooms.map((th) => (
-            <RoomRow
-              key={th.id}
-              thread={th}
-              channel={channel}
-              selected={th.id === picked}
-              onPick={() => go.channel(channel.id, th.id)}
-            />
-          ))}
-          {shown.map((r) => (
-            <ContactRow
-              key={r.key}
-              row={r}
-              type={channel.type}
-              channelId={channel.id}
-              presence={r.person ? presence[r.person.id] : undefined}
-              selected={r.key === picked}
-              onPick={() => go.channel(channel.id, r.key)}
-            />
-          ))}
-          {query && !shown.length && !shownRooms.length && <li className="chan__nobody">{t("res.noMatch")}</li>}
-          {!query && mailView === "people" && marked > 0 && (
-            <li>
-              <Button variant="link" size="sm" className="chan__hidden" onClick={() => setMailView("all")}>
-                {t("ch.mailHidden", { n: marked })}
-              </Button>
-            </li>
-          )}
-        </ul>
-        <p className="chan__foot">{t("ch.foot", { agent: agentName(agents[channel.agent_id], t) })}</p>
-      </aside>
+      {resizable ? <ListColumn width={listW}>{list}</ListColumn> : list}
       {ownerOpen && ownerTarget ? (
         <OpenChat
           threadId={ownerTarget}
           {...(ownerTarget === "home" ? { via: { channel: channel.id, label: channel.label } } : {})}
         />
       ) : room ? (
-        <>
-          <OpenChat threadId={room.id} />
-          {card && <RoomPanel key={room.id} thread={room} channel={channel} onClose={() => setCard(false)} />}
-        </>
+        <OpenChat threadId={room.id} />
       ) : current ? (
         <>
           <ChannelConversation
@@ -300,9 +310,10 @@ function ChannelHead({ channel }: { channel: ChannelInfo }) {
   const channels = useChannels((s) => s.channels);
   const counts = useAccountCounts();
   const kind = isChannelKind(channel.type) ? channel.type : undefined;
+  const answerers = answerersOf(channel, agents);
   return (
     <header className="chan__head">
-      {kind ? <KindTile kind={kind} size={32} /> : <ProjectTile tone="info" icon={<Icons.Send />} size={32} />}
+      {kind ? <KindTile kind={kind} size={26} /> : <ProjectTile tone="info" icon={<Icons.Send />} size={26} />}
       <Menu
         align="start"
         trigger={
@@ -313,10 +324,13 @@ function ChannelHead({ channel }: { channel: ChannelInfo }) {
               <Icons.ChevronDown size={14} />
             </span>
             <span className="chan__meta">
-              <span className={`chan__status is-${channel.status}`} />
-              <span className="chan__metatext" title={answersLine(answerersOf(channel, agents), t)}>
-                {channel.account ? `${channel.account} · ` : ""}
-                {answersLine(answerersOf(channel, agents), t)}
+              {/* Only an account that is not up says so here; its number and details are in its settings. */}
+              {channel.status !== "running" && <span className={`chan__status is-${channel.status}`} />}
+              <AnswererFace agent={answerers.owner} />
+              {answerers.contacts && <AnswererFace agent={answerers.contacts.agent} />}
+              <span className="chan__metatext" title={answersLine(answerers, t)}>
+                {kind ? `${t(CHANNEL_KINDS[kind].name)} · ` : ""}
+                {answersLine(answerers, t)}
               </span>
             </span>
           </button>
@@ -338,6 +352,14 @@ function ChannelHead({ channel }: { channel: ChannelInfo }) {
       />
       {kind && (
         <>
+          {isRoomsKind(kind) && (
+            <IconButton
+              size="sm"
+              label={t(GROUP_KINDS.has(kind) ? "ch.groups.open" : "ch.rooms.open")}
+              icon={<Icons.Hash size={14} />}
+              onClick={() => go.channelSettings(kind, channel.id, "rooms")}
+            />
+          )}
           <IconButton
             size="sm"
             label={t("chs.contacts")}
@@ -359,11 +381,13 @@ function ChannelHead({ channel }: { channel: ChannelInfo }) {
 function RoomRow({
   thread,
   channel,
+  agent,
   selected,
   onPick,
 }: {
   thread: Thread;
   channel: ChannelInfo;
+  agent: Agent | undefined;
   selected: boolean;
   onPick(): void;
 }) {
@@ -389,7 +413,12 @@ function RoomRow({
             <span className="chan__preview">{thread.preview}</span>
             {thread.unread > 0 && <span className="chan__unread">{thread.unread}</span>}
           </span>
-          {mode && <span className="chan__rel">{t(ROOM_MODE_KEY[mode])}</span>}
+          <span className="chan__rowtop chan__rowanswer">
+            <AnswererFace agent={agent} />
+            <span className="chan__rel">
+              {[agent?.name, mode ? t(ROOM_MODE_KEY[mode]) : undefined].filter(Boolean).join(" · ")}
+            </span>
+          </span>
         </span>
       </button>
     </li>

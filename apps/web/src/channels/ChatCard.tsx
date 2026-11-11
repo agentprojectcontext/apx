@@ -17,7 +17,10 @@ export function ChatCard({
   onClose,
   footer,
   children,
+  className,
 }: {
+  /** A variant of the card (a room's docks beside a chat of the Inbox too). */
+  className?: string;
   title: string;
   channel: ChannelInfo;
   name: string;
@@ -30,7 +33,7 @@ export function ChatCard({
   const kind = isChannelKind(channel.type) ? channel.type : undefined;
   const app = kind ? t(CHANNEL_KINDS[kind].name) : channel.type;
   return (
-    <aside className="chan__card" aria-label={title}>
+    <aside className={className ? `chan__card ${className}` : "chan__card"} aria-label={title}>
       <header className="chan__cardhead">
         <span>{title}</span>
         <IconButton size="sm" label={t("common.close")} icon={<Icons.X size={14} />} onClick={onClose} />

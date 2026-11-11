@@ -47,6 +47,9 @@ export function ChatView({
   const visible = usePageVisible();
   const offline = useData((s) => s.connection === "offline");
   const contact = useContactChat(thread);
+  // A room's card docked beside the chat leaves its header the room of a narrow one: the panels go in a menu.
+  const roomCard = useRoomCard();
+  const docked = Boolean(thread?.channel && !thread.channel.person_id) && roomCard && window.innerWidth >= 1280;
 
   useEffect(() => {
     if (threadId && ready && load == null && !isNewChat(threadId)) void loadThread(threadId);
@@ -120,39 +123,41 @@ export function ChatView({
   const shown = agent ?? threadAgent(thread, former);
   const readOnly = thread.kind === "a2a" || thread.parent_id != null;
   return (
-    <section className="chat" aria-label={thread.title}>
-      <ChatHeader thread={thread} agent={shown} wide={wideHeader} compact={compact} />
-      <Transcript thread={thread} {...(via ? { via: via.channel } : {})} />
-      {via ? (
-        <div className="chat__readonly">
-          <Icons.Filter size={14} />
-          {t("ch.homePart", { agent: shown?.name ?? thread.title, channel: via.label })}
-          <Button size="sm" variant="secondary" onClick={() => go.thread(thread.id)}>
-            {t("ch.openHome")}
-          </Button>
-        </div>
-      ) : readOnly ? (
-        <div className="chat__readonly">
-          <Icons.Users size={14} />
-          {t("chat.readOnly")}
-        </div>
-      ) : (
-        <>
-          {computerStage && computerStage !== "failed" && (
-            <Suspense fallback={null}>
-              <ComputerProgress stage={computerStage} thread={thread.id} />
-            </Suspense>
-          )}
-          <ChatComposer key={thread.id} thread={thread} agent={agent} />
-        </>
-      )}
-      {COMPUTER && (
-        <Suspense fallback={null}>
-          <ScreenLive />
-        </Suspense>
-      )}
+    <>
+      <section className="chat" aria-label={thread.title}>
+        <ChatHeader thread={thread} agent={shown} wide={wideHeader && !docked} compact={compact} />
+        <Transcript thread={thread} {...(via ? { via: via.channel } : {})} />
+        {via ? (
+          <div className="chat__readonly">
+            <Icons.Filter size={14} />
+            {t("ch.homePart", { agent: shown?.name ?? thread.title, channel: via.label })}
+            <Button size="sm" variant="secondary" onClick={() => go.thread(thread.id)}>
+              {t("ch.openHome")}
+            </Button>
+          </div>
+        ) : readOnly ? (
+          <div className="chat__readonly">
+            <Icons.Users size={14} />
+            {t("chat.readOnly")}
+          </div>
+        ) : (
+          <>
+            {computerStage && computerStage !== "failed" && (
+              <Suspense fallback={null}>
+                <ComputerProgress stage={computerStage} thread={thread.id} />
+              </Suspense>
+            )}
+            <ChatComposer key={thread.id} thread={thread} agent={agent} />
+          </>
+        )}
+        {COMPUTER && (
+          <Suspense fallback={null}>
+            <ScreenLive />
+          </Suspense>
+        )}
+      </section>
       <RoomCard thread={thread} />
-    </section>
+    </>
   );
 }
 
@@ -174,16 +179,17 @@ function ChatSkeleton() {
   );
 }
 
-/** A group's or room's card over its chat, opened from the header's "Group"/"Room" pill. */
+/**
+ * A group's or room's card beside its chat, as a contact's is beside theirs; the header's "Group"/"Room" pill shows
+ * and hides it.
+ */
 function RoomCard({ thread }: { thread: Thread }) {
-  const open = useRoomCard(thread.id);
+  const open = useRoomCard();
   const channel = useChannels((s) => s.channels.find((c) => c.id === thread.channel?.id));
-  if (!open || !channel) return null;
+  if (!open || !channel || !thread.channel || thread.channel.person_id) return null;
   return (
-    <div className="chat__roomcard">
-      <Suspense fallback={null}>
-        <RoomPanel thread={thread} channel={channel} onClose={closeRoomCard} />
-      </Suspense>
-    </div>
+    <Suspense fallback={null}>
+      <RoomPanel key={thread.id} thread={thread} channel={channel} onClose={closeRoomCard} />
+    </Suspense>
   );
 }

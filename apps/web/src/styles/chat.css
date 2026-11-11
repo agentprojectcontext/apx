@@ -553,20 +553,12 @@
   padding: 0;
 }
 
-/* A group's or room's card floats over the chat, under the header, like the design's contact card. */
-.chat {
-  position: relative;
-}
-.chat__roomcard {
-  position: absolute;
-  z-index: 12;
-  top: 64px;
-  right: 16px;
-  width: min(380px, calc(100% - 32px));
-  max-height: calc(100% - 140px);
-  overflow: auto;
-  border-radius: 14px;
-  box-shadow: var(--apx-shadow-md);
+/* A room's card docks beside its chat like a contact's; narrower windows lay it over the chat (channels.css). */
+@media (min-width: 1280px) {
+  .chan__card.chan__card--room {
+    flex: none;
+    width: 340px;
+  }
 }
 .chat__roompill.is-on {
   background: var(--apx-fill-strong);

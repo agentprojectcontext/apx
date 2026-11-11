@@ -529,6 +529,12 @@ button.chatprocesses {
 .threadrow__dot {
   flex: none;
 }
+/* The face of the agent who answers, before the line that names it (lists, an account's header). */
+.answerer {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+}
 .threadrow__line .projbadge {
   flex: 0 0 auto;
   max-width: 16ch;
@@ -650,9 +656,17 @@ button.chatprocesses {
   white-space: nowrap;
 }
 .inbox__accountsub {
+  display: flex;
+  align-items: center;
+  gap: 5px;
   font-size: var(--apx-text-xs);
   font-weight: var(--apx-weight-regular);
   color: var(--apx-fg-subtle);
+}
+.inbox__accountsubtext {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 /* "New chat": each agent's name, then its role at the row's end. */
