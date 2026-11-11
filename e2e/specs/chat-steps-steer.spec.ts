@@ -30,7 +30,7 @@ test("the owner's words mid-turn stay in order, and the folded steps say how man
   await expect(row).toContainText("sleep 3");
   await expect(row).not.toContainText("shell");
   await expect(row.locator(".apx-actions__itemicon svg")).toHaveCount(1);
-  await expect(steps.locator(".apx-actions__list")).toHaveClass(/apx-branches/);
+  await expect(steps.locator(".apx-actions__list")).toHaveClass(/apx-tree/);
   await page.screenshot({ path: test.info().outputPath("steps-steer-desktop.png") });
   await page.setViewportSize({ width: 390, height: 760 });
   await expect(page.getByText("Got it: use metric units")).toBeVisible();

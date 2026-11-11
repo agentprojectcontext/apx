@@ -19,20 +19,90 @@ either one. See [Email and signatures](/office/email/) for Gmail and local sende
 3. Known providers fill the IMAP and SMTP servers. Otherwise enter each host, port and security mode. Typical secure
    choices are IMAP 993 with SSL/TLS and SMTP 465 with SSL/TLS or 587 with STARTTLS; use your provider's actual settings.
 4. Set the sign-in name if it differs from the email address. Connect and check the status before testing.
-5. Send a short message from another mailbox, approve its pairing request as the appropriate person and verify a reply.
+5. Under **Account › Your account**, type the addresses you write from in **Your addresses** (no code is needed).
+   Send a short message from one of them and verify a reply.
 
 **None** security is only for local mail servers, not an internet connection. APX stores the password as a secret;
 it does not display it again. Changing server details or password reconnects the mailbox.
 
 ## Restrict incoming mail
 
-**Who may write** accepts individual addresses or a domain such as `@example.com`. An empty list allows incoming
-senders to reach the normal stranger-handling flow; it does not automatically approve everyone. Start with a narrow
-allowlist and review **Strangers** and the [supervised reply mode](/channels/supervised/).
+**Who may write** accepts individual addresses or a domain such as `@example.com`; your own addresses are always
+read. An empty list lets anyone reach the stranger handling chosen in **Approvals**; it does not approve everyone.
+An email account never mails a code to someone it does not know: with **List them**, they wait in **Approvals** with
+what they wrote, and nothing is sent until you approve them. Start with a narrow allowlist and review the
+[supervised reply mode](/channels/supervised/).
 
-By default APX drops messages whose sender domain the mail server could not verify with DKIM, SPF or DMARC.
-**Read unverified mail** weakens that protection: enable it only if you understand why your server does not check
+## Marked mail
+
+Every mail that reaches the inbox, and the server's **Spam** folder, is brought in. A mail a person wrote is handled
+as above; any other is kept in its sender's chat with a mark at its foot and is never answered, never told to you and
+never given to the agent:
+
+- **Automatic**: no person wrote it (newsletters, auto-replies, bounces, senders such as `security-noreply@`).
+- **Spam**: your mail server put it in its Spam folder (found by its Junk flag or a usual name, read about every ten
+  minutes or as soon as new mail arrives).
+- **Unverified**: its server could not verify the sender (DKIM, SPF or DMARC), while **Read unverified mail** is off.
+- **Never read**: its address or domain is on the account's **Never read** list.
+- **Outside who may write**: **Who may write** has addresses and this sender is not among them.
+
+The account's list shows people by default; its filter button shows all mail or one mark, and a line at the end says
+how many chats of marked mail are hidden. A chat leaves the marked ones for good once its sender writes a mail a
+person wrote. Mail sent from the connected mailbox itself is skipped to avoid echo loops, and unverified mail from your
+own address is dropped: it is never kept as yours.
+
+Mail from **Your addresses** counts as yours only when your mail server verified it (DKIM, SPF or DMARC), even with
+**Read unverified mail** on. Your mail goes to the account's own chat, one mail after another: email has no Home
+switch and no **While it is working** choice.
+
+**Read unverified mail** weakens the sender check: enable it only if you understand why your server does not check
 senders. A From address is not proof that you authorized an instruction. Incoming email remains outside content.
+
+## Reading received mail
+
+A mail sent with formatting shows in its chat as it was sent: subject, sender, date and the formatted body. Nothing
+in it runs, and its pictures stay hidden until you choose **Show pictures** (a remote picture can tell the sender you
+opened it). The agent reads only the mail's words. On a sender's contact card, **Never read again** has a switch for everything from its
+domain and one for that address (with the whole domain on, the address is covered too); the contact is blocked and its card and chat stay, and turning the
+switch off reads them again.
+
+## What you are told
+
+When someone you have not reviewed writes a mail a person wrote, you get an alert only for mail the auxiliary model marks as important
+(a person writing to you, money, accounts, deadlines), like a mail app's alert: sender, subject and one short line,
+plain, without the body or links. Newsletters, promotions and pitches stay in the account's chats without a notice.
+Without an auxiliary model no alert is sent.
+
+## Recover older mail
+
+IMAP can read messages retained in the selected mailbox, but APX starts at its end on the first connection and
+then reads new messages by UID. Reconnecting does not import older mail or revisit messages previously filtered out.
+Other folders, deleted messages and mail no longer retained by the server are not included.
+
+The owner can explicitly import one page of up to 25 messages with:
+
+```bash
+apx channels email-history email
+```
+
+Replace `email` with the account ID shown by `apx channels`. The JSON result reports `stored`, `already_seen`,
+`skipped`, `failed`, `has_more`, `next_uid` and `uidvalidity`. If `has_more` is true, pass the returned cursor and
+mailbox numbering to the next page: `apx channels email-history email NEXT_UID UIDVALIDITY`. Stop on errors;
+if the server renumbers the mailbox, restart from the first page. Already recorded messages are not imported twice.
+`already_seen` includes live messages still being processed normally. A failed silent import rolls back its display
+and context writes and leaves its UID for retry: after fixing the error, repeat that page with a new request. Failed
+live messages are reported as failures rather than silently retried, because they may already have caused an answer.
+
+Recovery only examines UIDs the live reader has already passed, so it cannot consume a newly arrived message before
+its normal alert or answer. A missing or changed mailbox numbering is refused. Capturing a sender does not change
+how their later personal mail follows the account's stranger policy; an explicit contact decision still wins.
+An already-open operator receives recovered message updates without an unread-message flood.
+
+Recovery uses a separate read-only connection: it does not mark mail as read, change the live cursor, start agent
+turns, send replies or issue importance alerts. Recovered mail keeps the server's arrival date. Existing allowlists,
+blocks, stranger-ignore settings and sender verification still apply, so scanned messages are not all necessarily
+stored. The protocol method `channels.email_history` supports pages of up to 50 messages; importing history remains
+an owner-only action because it brings private old correspondence into APX.
 
 ## Replies, signatures and recovery
 

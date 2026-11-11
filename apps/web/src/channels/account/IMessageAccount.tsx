@@ -46,13 +46,7 @@ export function IMessageConnect({ create }: { create: Create }) {
           loading={busy}
           onClick={() => {
             setBusy(true);
-            void create({
-              agent_id: "",
-              enabled: true,
-              strangers: "pair",
-              concurrency: "steer",
-              owner_thread: "home",
-            }).finally(() => setBusy(false));
+            void create({}).finally(() => setBusy(false));
           }}
         >
           {t("acct.connect")}
@@ -67,7 +61,7 @@ export function IMessageAccount(pane: PaneProps) {
     <>
       <ConnectionCard {...pane} />
       <Tools />
-      <OwnerLink channelId={pane.channel.id} name="iMessage" />
+      <OwnerLink channelId={pane.channel.id} type={pane.channel.type} name="iMessage" />
     </>
   );
 }

@@ -6,7 +6,7 @@ test("the new-chat search is styled on first open and takes what is typed, opene
   page,
 }) => {
   await open(page);
-  const trigger = page.getByRole("combobox", { name: "Nuevo chat" });
+  const trigger = page.getByRole("region", { name: "Inbox" }).getByRole("combobox", { name: "Nuevo chat" });
   await trigger.focus();
   await page.keyboard.press("Enter");
   const search = page.getByPlaceholder("Buscá un agente");

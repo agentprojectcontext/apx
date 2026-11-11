@@ -1,5 +1,6 @@
 import { IconButton, Icons, Popover } from "@apx/ui";
 import { Suspense, useState } from "react";
+import { usePrefs } from "../data/prefs.ts";
 import { useUsage } from "../data/usage.ts";
 import { useT } from "../i18n/index.ts";
 import { UsageSummary } from "../lazy.ts";
@@ -18,6 +19,8 @@ export function UsageButton() {
     ? Math.round(((host.memory_total_mb - host.memory_available_mb) / host.memory_total_mb) * 100)
     : undefined;
   const tone = pct === undefined ? "" : pct >= 92 ? " is-danger" : pct >= 80 ? " is-warning" : "";
+  // Reduced: only a dot in the gauge's colour.
+  const mini = usePrefs((s) => s.resourcesBar) === "mini";
   return (
     <Popover
       align="end"
@@ -29,13 +32,14 @@ export function UsageButton() {
       trigger={
         <IconButton
           size="sm"
-          className={`usage-btn${tone}`}
+          className={`usage-btn${tone}${mini ? " is-mini" : ""}`}
           label={pct === undefined ? t("sysUsage.title") : t("sysUsage.button", { pct })}
           data-testid="usage-button"
           icon={
             <>
-              <Icons.MemoryStick size={14} />
-              {pct !== undefined && (
+              <Icons.Monitor size={14} />
+              {pct !== undefined && mini && <span className="usage-btn__dot" aria-hidden="true" />}
+              {pct !== undefined && !mini && (
                 <>
                   <span className="usage-btn__gauge" aria-hidden="true">
                     <span style={{ width: `${pct}%` }} />

@@ -49,6 +49,30 @@ async function inspect(landing: Page, x: number, y: number) {
   );
 }
 
+/** The parts the node lists for picking, in page order (a password field is not one of them). */
+async function elements(landing: Page) {
+  return landing.evaluate(() => {
+    const all = [...document.querySelectorAll("*")];
+    return [...document.querySelectorAll<HTMLElement>("h1, p, a")].map((el) => {
+      const r = el.getBoundingClientRect();
+      const tag = el.localName;
+      const text = (el.dataset.original ?? el.textContent ?? "").trim();
+      return {
+        node: all.indexOf(el) + 1,
+        tag,
+        role: tag === "a" ? "link" : tag === "h1" ? "heading" : "",
+        name: text,
+        selector: el.id ? `${tag}#${el.id}` : el.className ? `${tag}.${el.className.split(" ").join(".")}` : tag,
+        kind: tag === "a" ? "link" : tag === "h1" ? "heading" : "text",
+        text,
+        sensitive: false,
+        box: { x: r.x / innerWidth, y: r.y / innerHeight, width: r.width / innerWidth, height: r.height / innerHeight },
+        style: { font_size: Number.parseFloat(getComputedStyle(el).fontSize) },
+      };
+    });
+  });
+}
+
 async function show(landing: Page, edits: Edit[]) {
   await landing.evaluate((edits) => {
     const all = [...document.querySelectorAll<HTMLElement>("*")];
@@ -114,6 +138,7 @@ for (const width of [1280, 390]) {
         const data = (await landing.screenshot({ type: "jpeg", quality: 70 })).toString("base64");
         return { mime: "image/jpeg", data, bytes: data.length };
       }
+      if (method === "browser.edit_elements") return { elements: await elements(landing) };
       if (method === "browser.inspect") return { element: await inspect(landing, p.x, p.y) };
       if (method === "browser.preview_edits") {
         shown.push(p.edits);
@@ -130,8 +155,11 @@ for (const width of [1280, 390]) {
       await page.setViewportSize({ width, height: 860 });
       await open(page, `#thread=${thread}&panel=browser`);
       await page.getByRole("button", { name: "Editar", exact: true }).click();
-      await expect(page.getByText("Tocá la parte que querés cambiar")).toBeVisible();
-      await expect(page.getByText("Elegí qué cambiar")).toBeVisible();
+      await expect(page.getByText("Modo edición · tocá un elemento")).toBeVisible();
+      await expect(page.getByText("· Esc para salir")).toBeVisible();
+      // While nothing is picked, the panel lists the page's parts to choose from.
+      const parts = page.getByRole("complementary", { name: "Editar" }).getByRole("region", { name: "Elementos" });
+      await expect(parts.getByRole("button")).toHaveCount(3);
       await expect(page.locator(".bedit__shot img")).toBeVisible();
 
       // The pointer lights an element up; a click picks it and opens its fields.

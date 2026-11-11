@@ -13,31 +13,39 @@ const FILE = "connection.json";
 
 export function loadConnection(dataDir: string): Connection | undefined {
   try {
-    const c = JSON.parse(fs.readFileSync(path.join(dataDir, FILE), "utf8")) as Partial<Connection> & {
-      url?: unknown;
-      target?: unknown;
-      home?: unknown;
-      port?: unknown;
-      home_id?: unknown;
-    };
-    if (c.mode === "local") {
-      if (c.home === undefined && c.port === undefined && c.home_id === undefined) return { mode: "local" };
-      if (
-        typeof c.home !== "string" ||
-        !path.isAbsolute(c.home) ||
-        typeof c.port !== "number" ||
-        !Number.isInteger(c.port) ||
-        c.port < 1 ||
-        c.port > 65535 ||
-        typeof c.home_id !== "string" ||
-        !c.home_id
-      )
-        return undefined;
-      return { mode: "local", home: c.home, port: c.port, home_id: c.home_id };
-    }
-    if (c.mode === "url" && typeof c.url === "string") return { mode: "url", url: c.url };
-    if (c.mode === "ssh" && typeof c.target === "string") return { mode: "ssh", target: c.target };
-  } catch {}
+    return parseConnection(JSON.parse(fs.readFileSync(path.join(dataDir, FILE), "utf8")));
+  } catch {
+    return undefined;
+  }
+}
+
+/** A connection read back from disk (connection.json, or an entry of the servers this app used), or none if broken. */
+export function parseConnection(raw: unknown): Connection | undefined {
+  if (!raw || typeof raw !== "object") return undefined;
+  const c = raw as Partial<Connection> & {
+    url?: unknown;
+    target?: unknown;
+    home?: unknown;
+    port?: unknown;
+    home_id?: unknown;
+  };
+  if (c.mode === "local") {
+    if (c.home === undefined && c.port === undefined && c.home_id === undefined) return { mode: "local" };
+    if (
+      typeof c.home !== "string" ||
+      !path.isAbsolute(c.home) ||
+      typeof c.port !== "number" ||
+      !Number.isInteger(c.port) ||
+      c.port < 1 ||
+      c.port > 65535 ||
+      typeof c.home_id !== "string" ||
+      !c.home_id
+    )
+      return undefined;
+    return { mode: "local", home: c.home, port: c.port, home_id: c.home_id };
+  }
+  if (c.mode === "url" && typeof c.url === "string") return { mode: "url", url: c.url };
+  if (c.mode === "ssh" && typeof c.target === "string") return { mode: "ssh", target: c.target };
   return undefined;
 }
 

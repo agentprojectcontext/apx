@@ -6,6 +6,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { parseFrontmatter, textField } from "../apc/frontmatter.ts";
 import type { AgentRecord } from "../domain/agents.ts";
+import { lineage, type ProjectRecord } from "../domain/projects.ts";
 import type { Store } from "../domain/store.ts";
 import { isInside, realpath, tildeHome } from "../paths.ts";
 import { type RuntimeHomes, runtimes, shippedNames } from "./runtimes.ts";
@@ -145,18 +146,21 @@ export function skillsFor(store: Store, roots: SkillRoots, projectId: string | u
  */
 export function allSkills(store: Store, roots: SkillRoots, projectId: string | undefined): Skill[] {
   const apx = scan(APX_SKILLS_DIR, false, { scope: "global", source: "apx", own: false });
-  const project = projectId ? store.projects.get(projectId) : undefined;
-  const repo = project?.path && project.present ? project.path : undefined;
   // `top` is the repo's `.apc` or `.<app>`: a link there would read a folder outside the project.
-  const inRepo = (top: string, source: Skill["source"]) =>
-    repo && project && !isLink(path.join(repo, top))
+  const inRepo = (project: ProjectRecord | undefined) => (top: string, source: Skill["source"]) => {
+    const repo = project?.path && project.present ? project.path : undefined;
+    return repo && project && !isLink(path.join(repo, top))
       ? scan(path.join(repo, top, "skills"), false, {
           scope: "project",
           project_id: project.id,
           source,
-          own: source === "project",
+          // A parent's skill is changed in the parent, not from its subproject.
+          own: source === "project" && project.id === projectId,
         })
       : [];
+  };
+  // A subproject's own skills, then its parent's (theirs keep the parent's id).
+  const repos = lineage(store.projects, projectId).map((id) => inRepo(store.projects.get(id)));
   // The other apps keep copies of the skills APX writes for them (runtimes.ts): those are APX's, not theirs.
   const shipped = roots.apps ? shippedNames() : NONE;
   const apps = roots.apps
@@ -173,8 +177,7 @@ export function allSkills(store: Store, roots: SkillRoots, projectId: string | u
     );
   return firstPerName([
     ...apx,
-    ...inRepo(".apc", "project"),
-    ...APPS.flatMap((app) => inRepo(`.${app}`, app)),
+    ...repos.flatMap((inIt) => [...inIt(".apc", "project"), ...APPS.flatMap((app) => inIt(`.${app}`, app))]),
     ...scan(path.join(roots.home, "skills"), true, { scope: "global", source: "owner", own: true }),
     ...apps,
     ...extensions,

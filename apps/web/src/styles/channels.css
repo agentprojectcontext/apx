@@ -1,13 +1,13 @@
 /* A channel with its contacts: list · chat · contact card. */
 .chan {
   display: grid;
-  grid-template-columns: 320px minmax(0, 1fr);
+  grid-template-columns: var(--chan-list-w, 320px) minmax(0, 1fr);
   flex: 1;
   min-width: 0;
   min-height: 0;
 }
 .chan.has-card {
-  grid-template-columns: 320px minmax(0, 1fr) 340px;
+  grid-template-columns: var(--chan-list-w, 320px) minmax(0, 1fr) 340px;
 }
 /* A contact's chat opened from the Inbox: the Inbox is its list. */
 .chan.chan--single {
@@ -58,7 +58,14 @@
   white-space: nowrap;
   text-overflow: ellipsis;
 }
+/* The line itself shrinks with an ellipsis; the whole of it shows on hover. */
+.chan__metatext {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
 .chan__status {
+  flex: none;
   width: 7px;
   height: 7px;
   border-radius: 50%;
@@ -85,7 +92,9 @@
   display: flex;
   gap: 10px;
   width: 100%;
-  padding: 10px;
+  padding: 9px 10px;
+  /* Two lit rows next to each other stay apart. */
+  margin-block: 1px;
   border: 0;
   border-radius: 12px;
   background: transparent;
@@ -150,7 +159,7 @@
   min-width: 0;
   min-height: 0;
 }
-.chan__owner > :not(.sidepanel) {
+.chan__owner > :not(.sidepanel, .chan__card) {
   flex: 1;
   min-width: 0;
 }
@@ -310,18 +319,18 @@
 .chan__rel:empty {
   flex: 1;
 }
+/* How they relate to the owner, then who answers them (face and name); the marks go to the end. */
+.chan__rowanswer {
+  gap: 5px;
+}
+.chan__rowanswer .chan__rel {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 /* What is set for a contact: small marks at the end of their row. */
-.chan__flags {
-  display: inline-flex;
-  flex: none;
-  gap: 4px;
-  margin-left: auto;
-  color: var(--apx-fg-subtle);
-}
-.chan__flag {
-  display: inline-grid;
-  place-items: center;
-}
 /* A face with a dot while they are online. */
 .chan__face {
   position: relative;
@@ -362,17 +371,30 @@
 .chan__who .chan__meta {
   display: block;
 }
+/* Under the name: what they are, then the marks of what is set for them. */
+.chan__metaline {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+.chan__metaline .chan__meta {
+  min-width: 0;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.chan__metaline .chan__flags {
+  margin-left: 0;
+}
 .chan__nobody {
   padding: 12px;
   color: var(--apx-fg-subtle);
   font-size: var(--apx-text-sm);
 }
-.chan__foot {
-  margin: 0 -12px;
-  padding: 12px 16px;
-  border-top: 1px solid var(--apx-border);
-  color: var(--apx-fg-muted);
-  font-size: var(--apx-text-xs);
+/* The list inside its resizable column (wide screens): the column's edge sets its width. */
+.listcol > .chan__list {
+  flex: 1;
+  min-width: 0;
 }
 
 /* ── Chat ──────────────────────────────────────────────────────────────────── */
@@ -408,6 +430,11 @@
   gap: 4px;
   align-self: flex-start;
   max-width: min(560px, 80%);
+}
+/* A received mail reads like a page, not a chat line: it takes the column's width. */
+.chan__bubble:has(> .mailview) {
+  width: 100%;
+  max-width: min(760px, 100%);
 }
 .chan__bubble.is-out {
   align-self: flex-end;
@@ -465,31 +492,6 @@
   color: var(--apx-fg-muted);
   font-size: var(--apx-text-xs);
 }
-.chan__composer {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  margin: 0 24px 20px;
-  padding: 10px 12px;
-  border: 1px solid var(--apx-border);
-  border-radius: 18px;
-  background: var(--apx-surface);
-}
-.chan__composer textarea {
-  border: 0;
-  background: transparent;
-  resize: none;
-}
-.chan__composerbar {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-.chan__hint {
-  margin: 0;
-  font-size: var(--apx-text-xs);
-  color: var(--apx-fg-muted);
-}
 .chan__spacer {
   flex: 1;
 }
@@ -529,13 +531,124 @@
 .chan__pair > * {
   min-width: 0;
 }
+/* Who or what the card is about: picture, name, and the app and account it is on. */
+.chan__cardwho {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+.chan__cardavatar {
+  display: inline-grid;
+  flex: none;
+  place-items: center;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: var(--apx-fill-strong);
+  color: var(--apx-fg-muted);
+  font-size: var(--apx-text-sm);
+  font-weight: var(--apx-weight-semibold);
+}
+.chan__cardwhomain {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.chan__cardname {
+  overflow: hidden;
+  font-size: 15px;
+  font-weight: var(--apx-weight-semibold);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.chan__cardvia {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  overflow: hidden;
+  color: var(--apx-fg-subtle);
+  font-size: var(--apx-text-xs);
+  white-space: nowrap;
+}
+.chan__cardvia > span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.chan__answers {
+  display: flex;
+  width: 100%;
+}
+.chan__answers > * {
+  flex: 1;
+  min-width: 0;
+}
+.chan__cardgone {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+}
+/* What the chat may do: each switch with what it does under it, a line between them. */
 .chan__perms {
   display: flex;
   flex-direction: column;
-  gap: 12px;
   margin: 0;
   padding: 0;
   list-style: none;
+}
+.chan__perms > li {
+  padding: 10px 0;
+  border-top: 1px solid var(--apx-border);
+}
+.chan__perms .apx-choice {
+  align-items: center;
+  gap: 12px;
+}
+.chan__perms .apx-choice__desc {
+  font-size: var(--apx-text-2xs);
+  color: var(--apx-fg-subtle);
+  text-wrap: pretty;
+}
+
+/* A few choices as bordered pills that wrap; the one picked is filled. */
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+.chips .apx-btn.chips__chip {
+  height: 28px;
+  padding: 0 11px;
+  border: 1px solid var(--apx-border);
+  border-radius: 999px;
+  color: var(--apx-fg-muted);
+  font-size: var(--apx-text-xs);
+  font-weight: var(--apx-weight-regular);
+}
+.chips .apx-btn.chips__chip:hover {
+  background: var(--apx-fill-hover);
+  color: var(--apx-fg);
+}
+.chips .apx-btn.chips__chip.is-on {
+  border-color: var(--apx-fg-muted);
+  background: var(--apx-fill-strong);
+  color: var(--apx-fg);
+}
+.chips__chip .apx-btn__label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.chips__aside {
+  color: var(--apx-fg-subtle);
 }
 /* One row however long the labels run: the toggles shrink to an ellipsis (their tooltip says it all), Save never does. */
 .chan__cardfoot {
@@ -565,7 +678,7 @@
 /* Narrow: one column at a time — the list, or the chat (with back), or the card over it. */
 @media (max-width: 1279px) {
   .chan.has-card {
-    grid-template-columns: 300px minmax(0, 1fr);
+    grid-template-columns: var(--chan-list-w, 300px) minmax(0, 1fr);
   }
   .chan.chan--single.has-card {
     grid-template-columns: minmax(0, 1fr);
@@ -588,7 +701,8 @@
     grid-template-columns: minmax(0, 1fr);
   }
   .chan.has-chat .chan__list,
-  .chan:not(.has-chat) .chan__chat {
+  .chan:not(.has-chat) .chan__chat,
+  .chan:not(.has-chat) > .chan__pick {
     display: none;
   }
   .chan__back {
@@ -596,9 +710,6 @@
   }
   .chan__msglist {
     padding: 14px;
-  }
-  .chan__composer {
-    margin: 0 10px 10px;
   }
 }
 
@@ -629,14 +740,15 @@
   color: var(--apx-fg-muted);
 }
 
-/* The "?" after "What this conversation may do". */
-.chan__help {
-  margin-left: 4px;
-}
-
 /* ── Channels screen: every account, who answers it and what waits there ───────────────────────────────── */
-.page--channels .page__head {
+/* The header sits in the same centred column as the list, without a rule under it. */
+.page--channels .secpage__head {
+  width: 100%;
   max-width: 1080px;
+  margin: 0 auto;
+  padding-bottom: 0;
+  border-bottom: 0;
+  box-sizing: border-box;
 }
 .chs {
   display: flex;
@@ -651,7 +763,12 @@
 .chs__filter {
   align-self: flex-start;
   max-width: 100%;
-  overflow-x: auto;
+}
+/* The account's right-click menu: its app and name on top. */
+.chs__menuhead {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
 }
 .chs__list {
   margin: 0;
@@ -663,7 +780,7 @@
 }
 .chs__row {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 140px 120px 28px auto;
+  grid-template-columns: minmax(0, 1fr) 108px minmax(140px, 220px) 120px 28px auto;
   align-items: center;
   gap: 12px;
   padding: 10px 14px;
@@ -707,7 +824,19 @@
   display: flex;
   align-items: center;
   gap: 8px;
+  min-width: 0;
   font-weight: var(--apx-weight-medium);
+}
+.chs__marks.chan__flags {
+  gap: 6px;
+  margin-left: 0;
+}
+/* A long name ends in an ellipsis next to the buttons; the whole of it shows on hover. */
+.chs__label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .chs__sub {
   overflow: hidden;
@@ -715,6 +844,13 @@
   font-size: var(--apx-text-xs);
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+/* Who answers: the agent you talk to, and under it the one for your contacts when it is another. */
+.chs__agents {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
 }
 .chs__agent,
 .chs__status {
@@ -791,14 +927,29 @@
     padding-left: 48px;
     font-size: var(--apx-text-xs);
   }
+  .chs__agents {
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: 2px 12px;
+  }
+  /* Too narrow for all of it on one line: what does not fit goes under, never cut. */
+  .chs__meta {
+    flex-wrap: wrap;
+    row-gap: 2px;
+  }
+  .chs__agent,
+  .chs__status {
+    flex: none;
+  }
 }
-/* The channel's name opens its accounts, to switch to another. */
+/* The account's mark, name and line are one button: its menu has the account's tools and the other accounts. */
 .chan__switch {
   display: flex;
-  flex-direction: column;
-  align-items: stretch;
-  gap: 1px;
-  margin: -4px 0;
+  flex: 1;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  margin: -4px 0 -4px -6px;
   padding: 4px 6px;
   border: 0;
   border-radius: var(--apx-radius-sm);
@@ -811,10 +962,30 @@
 .chan__switch:hover {
   background: var(--apx-fill-hover);
 }
+.chan__switch .chan__titles {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
 .chan__switch .chan__name {
   display: flex;
   align-items: center;
   gap: 4px;
+}
+.chan__nametext {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.chan__headtools {
+  display: inline-flex;
+  flex: none;
+  gap: 2px;
+}
+@media (max-width: 640px) {
+  .chan__headtools {
+    display: none;
+  }
 }
 .channelsnav__manage {
   margin-bottom: 2px;
@@ -823,26 +994,43 @@
 /* ── New channel: the apps to connect ─────────────────────────────────────────────────────────────────── */
 .chpick {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
   gap: 8px;
 }
-.chpick__kind {
-  display: flex;
+/* Each app is a card: its mark on top, then its name and how it connects, wrapped in its own column. */
+.chpick .apx-pickrow.chpick__kind {
   flex-direction: column;
   align-items: flex-start;
-  gap: 6px;
+  gap: 10px;
+  min-width: 0;
+  height: 100%;
   padding: 14px;
   border: 1px solid var(--apx-border);
-  border-radius: var(--apx-radius-md);
+  border-radius: 14px;
   background: none;
   color: inherit;
   font: inherit;
   text-align: left;
   cursor: pointer;
 }
-.chpick__kind:hover,
-.chpick__kind:focus-visible {
+.chpick .apx-pickrow.chpick__kind:hover,
+.chpick .apx-pickrow.chpick__kind:focus-visible {
+  border-color: var(--apx-border-strong);
   background: var(--apx-fill-hover);
+}
+.chpick__kind .apx-pickrow__main {
+  gap: 2px;
+  width: 100%;
+}
+.chpick__kind .apx-pickrow__title {
+  font-weight: var(--apx-weight-medium);
+}
+.chpick__kind .apx-pickrow__desc {
+  overflow: visible;
+  color: var(--apx-fg-subtle);
+  font-size: var(--apx-text-2xs);
+  white-space: normal;
+  text-wrap: pretty;
 }
 .chpick__name {
   font-size: var(--apx-text-sm);
@@ -1135,4 +1323,57 @@
   margin: 0;
   padding: 0;
   list-style: none;
+}
+/* A contact's right: its name over its three choices (as the account says, or theirs on or off). */
+.chan__right {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.chan__rightlabel {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: var(--apx-text-sm);
+}
+.chan__righthint {
+  color: var(--apx-fg-subtle);
+  font-size: var(--apx-text-xs);
+  line-height: 1.4;
+}
+/* Settings on a contact's card that apply at once: silenced, supervised, a mail sender never read again. */
+.chan__switches {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+}
+.chan__switches label {
+  overflow-wrap: anywhere;
+}
+
+/* A mailbox's search and its filter of marked mail, side by side. */
+.chan__find {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.chan__find > :first-child {
+  flex: 1;
+  min-width: 0;
+}
+/* Why a kept mail is not answered (spam, automatic…), at its foot. */
+.chan__mark {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  align-self: flex-start;
+  padding: 1px 8px;
+  border-radius: var(--apx-radius-pill);
+  border: 1px solid var(--apx-border);
+  font-size: var(--apx-text-xs);
+  color: var(--apx-fg-subtle);
+}
+.chan__hidden {
+  margin: 6px 12px;
 }

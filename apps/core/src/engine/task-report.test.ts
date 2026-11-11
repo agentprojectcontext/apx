@@ -201,7 +201,14 @@ test("the super-agent hears in Home of a task it did not give, closed by its tea
   const input = llm.calls.findLast((c) =>
     String(c.messages.at(-1)?.content).includes(`<task_result task="${task.id}"`),
   );
-  assert.match(String(input?.messages.at(-1)?.content), /Vera closed a task the owner gave \(done\)/);
+  const told = String(input?.messages.at(-1)?.content);
+  assert.match(told, /Vera closed a task the owner gave \(done\)/);
+  // It checks the delivery: back to its agent when not ready, the owner asked only for a hard step, always told.
+  assert.match(told, /1-2, something asked is missing or broken: send it back with task_close state:open, rework:true/);
+  assert.match(told, /a hard step \(a release or tag, a payment, a message as the owner\) you put to the owner first/);
+  // The agent that did it was told it owns the delivery.
+  const worked = llm.calls.find((c) => JSON.stringify(c.messages).includes(`Task ${task.id}:`));
+  assert.match(JSON.stringify(worked?.messages), /You own this task until it is delivered/);
 });
 
 test("nobody is woken when the owner closes a task or its creator closes it itself", async () => {

@@ -1,6 +1,8 @@
 // Routines, for the owner only: an agent's scheduled work and its history.
 
+import type { RoutineRun } from "@apx/protocol";
 import type { FlowStepKey } from "../domain/flow-graph-runs.ts";
+import { worksIn } from "../domain/projects.ts";
 import { checkSchedule } from "../domain/schedule.ts";
 import type { Store } from "../domain/store.ts";
 import {
@@ -105,7 +107,7 @@ export function routineHandlers(store: Store, scheduler: Scheduler, profileRoots
       const a = store.agents.get(agent);
       if (!a) throw notFound(`agent ${agent}`);
       if (project && !store.projects.get(project)) throw notFound(`project ${project}`);
-      if (a.project_id && a.project_id !== project)
+      if (!worksIn(store.projects, a.project_id, project))
         throw badRequest(`${a.name} belongs to another project; pick one of this project's agents or a global one`);
       const next = enabled ? scheduler.nextFor(schedule) : undefined;
       if (enabled && schedule.kind === "once" && !next) throw badRequest("that moment has passed");
@@ -190,9 +192,27 @@ export function routineHandlers(store: Store, scheduler: Scheduler, profileRoots
       }),
     "routines.runs": ({ routine, limit }) => {
       if (!store.routines.get(routine)) throw notFound(`routine ${routine}`);
-      return { runs: store.routines.runs(routine, limit) };
+      return { runs: withPromptVersions(store, store.routines.runs(routine, limit)) };
     },
   } satisfies Partial<Handlers>;
+}
+
+/** Numbers the instructions each run started from: oldest listed first is v1, a change makes the next one. */
+function withPromptVersions(store: Store, runs: RoutineRun[]): RoutineRun[] {
+  const firsts = store.messages.firstFromOwner(runs.map((r) => r.thread_id));
+  const text = (id: string) =>
+    (firsts.get(id)?.parts ?? []).flatMap((p) => (p.type === "text" ? [p.text.trim()] : [])).join("\n\n");
+  let version = 0;
+  let last: string | undefined;
+  const numbered = new Map<string, number>();
+  for (const run of [...runs].reverse()) {
+    const prompt = text(run.thread_id);
+    if (!prompt) continue;
+    if (prompt !== last) version += 1;
+    last = prompt;
+    numbered.set(run.run_id, version);
+  }
+  return runs.map((r) => (numbered.has(r.run_id) ? { ...r, prompt_version: numbered.get(r.run_id) } : r));
 }
 
 /**

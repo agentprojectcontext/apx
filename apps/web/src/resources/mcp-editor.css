@@ -1,0 +1,23 @@
+.mcp-editor .pairs__row {
+  grid-template-columns: minmax(0, 2fr) minmax(0, 3fr) auto auto;
+}
+.varpick__list .varpick__item {
+  justify-content: flex-start;
+}
+.varpick__item[aria-selected="true"] {
+  background: var(--apx-fill);
+}
+@media (max-width: 600px) {
+  .mcp-editor .pairs__row {
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 8px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid var(--apx-border);
+  }
+  .mcp-editor .pairs__key,
+  .mcp-editor .pairs__value,
+  .mcp-editor .varfield {
+    grid-column: 1 / -1;
+    width: 100%;
+  }
+}

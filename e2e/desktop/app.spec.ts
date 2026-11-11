@@ -3,65 +3,22 @@
 // menu-bar quick chat talks to the super-agent. Its data folder is a temp one (APX_DESKTOP_DATA; on a Mac the system
 // ignores HOME for it): the owner's APX, its sessions and its single-instance lock are never touched.
 import fs from "node:fs";
+import http from "node:http";
+import type { AddressInfo } from "node:net";
 import os from "node:os";
 import path from "node:path";
-import { _electron, type ElectronApplication, expect, type Page, test } from "@playwright/test";
-import { rpc, until, world } from "../specs/kit.ts";
+import { type ElectronApplication, expect, type Page, test } from "@playwright/test";
+import { rpc, until } from "../specs/kit.ts";
+import { assertDesktopHeader, assertFullscreenBar, launchDesktop } from "./app-shell.test-support.ts";
 
-const root = path.resolve(import.meta.dirname, "../..");
 const core = `http://127.0.0.1:${process.env.E2E_PORT ?? 7460}`;
 
 let app: ElectronApplication;
 let home: string;
 
 test.beforeAll(async () => {
-  await rpc("setup.finish");
   home = fs.mkdtempSync(path.join(os.tmpdir(), "apx-e2e-desktop-"));
-  // Keep the native tray reachable by the test, without adding a bridge to the product.
-  const entry = path.join(home, "tray-test.cjs");
-  fs.writeFileSync(
-    entry,
-    `
-    const { Tray } = require("electron");
-    const on = Tray.prototype.on;
-    Tray.prototype.on = function (...args) {
-      globalThis.apxTestTray = this;
-      return on.apply(this, args);
-    };
-    const setImage = Tray.prototype.setImage;
-    Tray.prototype.setImage = function (image) {
-      globalThis.apxTestTrayImage = image.toDataURL();
-      globalThis.apxTestTrayTemplate = image.isTemplateImage();
-      return setImage.call(this, image);
-    };
-    const setToolTip = Tray.prototype.setToolTip;
-    Tray.prototype.setToolTip = function (text) {
-      globalThis.apxTestTrayTooltip = text;
-      return setToolTip.call(this, text);
-    };
-    void import(${JSON.stringify(path.join(root, "apps/desktop/dist/main.js"))});
-  `,
-  );
-  app = await _electron.launch({
-    args: [
-      entry,
-      // Containers run as root, where Chromium's sandbox cannot start.
-      ...(process.getuid?.() === 0 ? ["--no-sandbox"] : []),
-    ],
-    env: {
-      ...process.env,
-      HOME: home,
-      XDG_CONFIG_HOME: path.join(home, ".config"),
-      APX_DESKTOP_DATA: path.join(home, "desktop"),
-      APX_QUIT_CONFIRM: "off",
-      APX_CONNECTION: "local",
-      APX_URL: "",
-      APX_HOME: (await world.info()).home,
-      APX_PORT: process.env.E2E_PORT ?? "7460",
-      // No dev server: the window falls back to the panel the core serves.
-      APX_WEB_URL: "http://127.0.0.1:9",
-    },
-  });
+  app = await launchDesktop(home);
 });
 
 test.afterAll(async () => {
@@ -91,76 +48,12 @@ test("the window shows the panel the core serves", async () => {
   await expect(main.getByRole("textbox", { name: /^Escribile a|^Message/ }).or(main.getByRole("dialog"))).toBeVisible();
 });
 
-test("the desktop header shares the native title bar and keeps its search centered", async () => {
-  const main = await page("main");
-  await expect(main.locator(".topbar.is-desktop")).toBeVisible();
-  const geometry = await main.locator(".topbar").evaluate((bar) => {
-    const rect = bar.getBoundingClientRect();
-    const search = bar.querySelector(".topbar__search")?.getBoundingClientRect();
-    return {
-      y: rect.y,
-      height: rect.height,
-      center: search ? search.x + search.width / 2 : -1,
-      width: innerWidth,
-      drag: getComputedStyle(bar).getPropertyValue("-webkit-app-region"),
-    };
-  });
-  expect(geometry.y).toBe(0);
-  expect(geometry.height).toBe(46);
-  expect(geometry.center).toBeCloseTo(geometry.width / 2, 0);
-  expect(geometry.drag).toBe("drag");
-  const bounds = await app.evaluate(({ BaseWindow, BrowserWindow }) => {
-    const main = BaseWindow.getAllWindows().find((w) => !(w instanceof BrowserWindow));
-    return { outer: main?.getBounds(), content: main?.getContentBounds() };
-  });
-  expect(Math.abs((bounds.outer?.height ?? 0) - (bounds.content?.height ?? 0))).toBeLessThanOrEqual(2);
-  await main.screenshot({ path: test.info().outputPath("unified-header.png") });
+test("the desktop header shares the native title bar and centers history with search", async () => {
+  await assertDesktopHeader(app, await page("main"));
 });
 
 test("a full-screen layer's bar clears the window controls and keeps its controls clickable", async () => {
-  const main = await page("main");
-  // The welcome and corner cards would cover the screen: seen already, as in the panel's own specs.
-  await main.evaluate(() => {
-    localStorage.setItem("apx.corner", JSON.stringify({ discord: true, star: true, welcome: true }));
-    location.hash = "#view=flows";
-    location.reload();
-  });
-  await main.getByRole("button", { name: /^(Nuevo flow|New flow)$/ }).click();
-  const bar = main.locator(".fe-top.window-bar.is-desktop");
-  await expect(bar).toBeVisible();
-  const read = () =>
-    bar.evaluate((b) => {
-      const style = getComputedStyle(b);
-      const region = (el: Element | null) => (el ? getComputedStyle(el).getPropertyValue("-webkit-app-region") : "");
-      return {
-        left: Number.parseFloat(style.paddingLeft),
-        right: Number.parseFloat(style.paddingRight),
-        drag: region(b),
-        // Drag regions ignore what is drawn on top: the bar's controls must opt out to get the click.
-        picker: region(b.querySelector('[role="combobox"]')),
-        close: region(b.querySelector("button")),
-      };
-    });
-  const windowed = await read();
-  expect(windowed).toMatchObject({ drag: "drag", picker: "no-drag", close: "no-drag" });
-  if (process.platform === "darwin") {
-    expect(windowed.left).toBe(76);
-    const full = (on: boolean) =>
-      app.evaluate(({ BaseWindow, BrowserWindow }, on) => {
-        BaseWindow.getAllWindows()
-          .find((w) => !(w instanceof BrowserWindow))
-          ?.setFullScreen(on);
-      }, on);
-    // In native fullscreen the traffic lights are gone, and so is their room.
-    await full(true);
-    await expect.poll(async () => (await read()).left, { timeout: 10_000 }).toBe(12);
-    await full(false);
-    await expect.poll(async () => (await read()).left, { timeout: 10_000 }).toBe(76);
-  } else {
-    expect(windowed.right).toBe(140);
-  }
-  await main.getByRole("button", { name: /^(Salir del editor|Exit the editor)$/ }).click();
-  await expect(bar).toHaveCount(0);
+  await assertFullscreenBar(app, await page("main"));
 });
 
 test("the app lends its browser to the core, and a tab opened through the core is listed", async () => {
@@ -237,6 +130,65 @@ test("the app lends its browser to the core, and a tab opened through the core i
     }),
   ).rejects.toThrow(/context|object|document/i);
   await rpc("browser.close", { tab });
+});
+
+test("an agent answers a page's confirm in the app's browser, and the app's own box for it closes", async () => {
+  await until(async () => {
+    const h = await rpc<{ subsystems: Record<string, { status: string; detail?: string }> }>("system.health");
+    return h.subsystems.browser?.status === "ok" && h.subsystems.browser.detail === "apx-desktop";
+  }, 20_000);
+  const site = http.createServer((_q, r) =>
+    r
+      .writeHead(200, { "content-type": "text/html" })
+      .end(
+        `<title>Team</title><p id="out">Nothing yet</p><button onclick="out.textContent = 'deleted: ' + confirm('Delete Acme for good?')">Delete</button>`,
+      ),
+  );
+  await new Promise<void>((r) => site.listen(0, "127.0.0.1", r));
+  // Electron shows the dialog with its own message box: the test sees each box and whether it was closed.
+  await app.evaluate(({ dialog }) => {
+    const shown: Array<{ message: string; signal?: AbortSignal }> = [];
+    const show = dialog.showMessageBox;
+    Object.assign(globalThis, { apxTestBoxes: shown, apxTestShowBox: show });
+    dialog.showMessageBox = function (this: unknown, ...args: unknown[]) {
+      shown.push(args.at(-1) as { message: string; signal?: AbortSignal });
+      return (show as (...a: unknown[]) => ReturnType<typeof show>).apply(this, args);
+    } as typeof show;
+  });
+  const boxes = () =>
+    app.evaluate(() =>
+      (globalThis as unknown as { apxTestBoxes: Array<{ message: string; signal?: AbortSignal }> }).apxTestBoxes.map(
+        (b) => ({ message: b.message, closed: Boolean(b.signal?.aborted) }),
+      ),
+    );
+  const url = `http://127.0.0.1:${(site.address() as AddressInfo).port}/`;
+  const { tab } = await rpc<{ tab: string }>("browser.open", { url, by: "e2e" });
+  try {
+    // Playwright, attached to every page of the app, dismisses a dialog nobody listens for: this one is the agent's.
+    const tabPage = await until(async () => app.windows().find((w) => w.url() === url));
+    tabPage.on("dialog", () => {});
+    const page = await rpc<{ tree: string }>("browser.snapshot", { tab });
+    const ref = /button "Delete" \[(e\d+)\]/.exec(page.tree)?.[1];
+    expect(ref, page.tree).toBeTruthy();
+    const clicked = await rpc<{ dialog?: string }>("browser.click", { tab, ref, by: "e2e" });
+    expect(clicked.dialog).toBe("confirm");
+    const asked = await rpc<{ tree: string }>("browser.snapshot", { tab });
+    expect(asked.tree).toContain('- dialog confirm "Delete Acme for good?"');
+    expect(asked.tree).toContain('button "OK" [dialog-ok]');
+    await expect.poll(boxes).toEqual([{ message: "Delete Acme for good?", closed: false }]);
+    await rpc("browser.click", { tab, ref: "dialog-ok", by: "e2e" });
+    await expect.poll(boxes).toEqual([{ message: "Delete Acme for good?", closed: true }]);
+    await expect
+      .poll(async () => (await rpc<{ text: string }>("browser.text", { tab })).text)
+      .toContain("deleted: true");
+  } finally {
+    await rpc("browser.close", { tab });
+    await app.evaluate(({ dialog }) => {
+      const g = globalThis as unknown as { apxTestShowBox: typeof dialog.showMessageBox };
+      dialog.showMessageBox = g.apxTestShowBox;
+    });
+    site.close();
+  }
 });
 
 /** Where the main window's browser tab is: its bounds, and whether it paints over the panel or sits behind it. */
@@ -369,6 +321,124 @@ test("the browser tab follows its slot, a popup over it shows a still, and a rel
   await main.reload();
   await expect.poll(async () => (await tabView())?.on).toBe("behind");
   await rpc("browser.close", { tab });
+});
+
+test("the browser tab stays in its slot while its page scrolls and the window is resized", async () => {
+  // A long page, so the wheel really scrolls it.
+  const server = http.createServer((_req, res) => {
+    res.setHeader("content-type", "text/html");
+    res.end(
+      `<!doctype html><body style="margin:0">${Array.from({ length: 200 }, (_, i) => `<p style="height:40px">Row ${i}</p>`).join("")}</body>`,
+    );
+  });
+  await new Promise<void>((r) => server.listen(0, "127.0.0.1", r));
+  const url = `http://127.0.0.1:${(server.address() as AddressInfo).port}/long`;
+  await until(async () => {
+    const h = await rpc<{ subsystems: Record<string, { status: string; detail?: string }> }>("system.health");
+    return h.subsystems.browser?.status === "ok" && h.subsystems.browser.detail === "apx-desktop";
+  }, 20_000);
+  const { tab } = await rpc<{ tab: string }>("browser.open", { url, by: "e2e" });
+  try {
+    const main = await page("main");
+    const thread = await rpc<{ id: string }>("threads.create", {
+      kind: "loose",
+      agent_id: "superagent",
+      title: "Scroll",
+    });
+    await main.evaluate((hash) => {
+      location.hash = hash;
+    }, `#thread=${thread.id}&panel=browser&browserTab=${tab}`);
+    const slot = main.locator(".browser__page--native");
+    await expect(slot).toBeVisible();
+    await main.keyboard.press("Escape");
+    const rect = async () =>
+      slot.evaluate((el) => {
+        const r = el.getBoundingClientRect();
+        return {
+          x: Math.round(r.left),
+          y: Math.round(r.top),
+          width: Math.round(r.width),
+          height: Math.round(r.height),
+        };
+      });
+    // How far the page is scrolled, read in the tab's own view (the one that is not the panel).
+    const scrollY = () =>
+      app.evaluate(({ BaseWindow }) => {
+        const win = BaseWindow.getAllWindows().find((w) => w.contentView.children.length > 1);
+        const full = win?.getContentBounds();
+        const view = win?.contentView.children.find((k) => {
+          const b = k.getBounds();
+          return !(b.x === 0 && b.y === 0 && b.width === full?.width && b.height === full?.height);
+        }) as unknown as { webContents: Electron.WebContents } | undefined;
+        return view?.webContents.executeJavaScript("scrollY") as Promise<number>;
+      });
+    // Both read now: the slot moves while the window settles.
+    const fits = async () => JSON.stringify(await tabView()) === JSON.stringify({ on: "top", ...(await rect()) });
+    await expect.poll(fits).toBe(true);
+    const scrollAndCheck = async () => {
+      const b = await tabView();
+      // The wheel goes to the native page, where the person's pointer is.
+      await app.evaluate(
+        ({ BaseWindow }, at) => {
+          const win = BaseWindow.getAllWindows().find((w) => w.contentView.children.length > 1);
+          const kids = win?.contentView.children ?? [];
+          const view = kids[kids.length - 1] as unknown as { webContents: Electron.WebContents };
+          for (let i = 0; i < 10; i++)
+            view.webContents.sendInputEvent({ type: "mouseWheel", x: at.x, y: at.y, deltaX: 0, deltaY: -120 });
+        },
+        { x: Math.round((b?.width ?? 200) / 2), y: Math.round((b?.height ?? 200) / 2) },
+      );
+      await expect.poll(fits).toBe(true);
+    };
+    await scrollAndCheck();
+    for (const [w, h] of [
+      [1000, 700],
+      [1400, 900],
+      [900, 640],
+      [1280, 820],
+    ] as const) {
+      await app.evaluate(
+        ({ BaseWindow }, size) => {
+          const win = BaseWindow.getAllWindows().find((x) => x.contentView.children.length > 1);
+          win?.setContentSize(size.w, size.h);
+        },
+        { w, h },
+      );
+      await expect.poll(fits).toBe(true);
+      await scrollAndCheck();
+    }
+    // Dragging the panel's edge wider and narrower: once let go, the live page is back in its new place.
+    const edge = main.locator(".sidepanel__resize");
+    for (const dx of [-160, 120, -80]) {
+      const e = await edge.boundingBox();
+      if (!e) throw new Error("no panel edge");
+      const x = e.x + e.width / 2;
+      const y = e.y + e.height / 2;
+      const before = await rect();
+      // The wheel scrolls smoothly: read it once it has come to rest.
+      let scrolled = -1;
+      await expect
+        .poll(async () => {
+          const was = scrolled;
+          scrolled = await scrollY();
+          return scrolled === was;
+        })
+        .toBe(true);
+      await main.mouse.move(x, y);
+      await main.mouse.down();
+      // Under the panel it keeps its place and size, so the page is not laid out again at another width.
+      await expect.poll(tabView).toEqual({ on: "behind", ...before });
+      for (let i = 1; i <= 8; i++) await main.mouse.move(x + (dx * i) / 8, y);
+      await main.mouse.up();
+      await expect.poll(fits).toBe(true);
+      await expect(main.locator(".browser__frame")).toHaveCount(0);
+      expect(await scrollY()).toBe(scrolled);
+      await scrollAndCheck();
+    }
+  } finally {
+    await rpc("browser.close", { tab });
+    server.close();
+  }
 });
 
 test("native tab destruction during CDP invalidation removes only that tab and the browser keeps working", async () => {

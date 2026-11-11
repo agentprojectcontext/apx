@@ -2,7 +2,7 @@
   flex: 1;
   min-height: 0;
   overflow: auto;
-  padding: 20px;
+  padding: 22px 24px;
 }
 
 .documentpanel__head {
@@ -33,44 +33,6 @@
   display: flex;
   gap: 2px;
 }
-.documentpanel__back {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  margin-bottom: 16px;
-  padding: 0;
-  border: 0;
-  background: none;
-  color: var(--apx-fg-muted);
-  font: inherit;
-  font-size: var(--apx-text-sm);
-  cursor: pointer;
-}
-.documentpanel__back:hover {
-  color: var(--apx-fg);
-}
-.documentpanel__list {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-.documentpanel__item {
-  display: flex;
-  align-items: flex-start;
-  gap: 10px;
-  width: 100%;
-  padding: 10px 12px;
-  border: 0;
-  border-radius: var(--apx-radius-md);
-  background: none;
-  color: var(--apx-fg);
-  font: inherit;
-  text-align: left;
-  cursor: pointer;
-}
 /* A row's actions show while it is pointed at or focused, over its right end. */
 .documentpanel__row {
   position: relative;
@@ -82,7 +44,7 @@
   display: flex;
   gap: 2px;
   border-radius: var(--apx-radius-md);
-  background: var(--apx-surface);
+  background: var(--apx-bg);
   opacity: 0;
   pointer-events: none;
 }
@@ -91,28 +53,8 @@
   opacity: 1;
   pointer-events: auto;
 }
-.documentpanel__row:hover .documentpanel__item {
+.documentpanel__row:hover .plist__row {
   background: var(--apx-fill-hover);
-}
-.documentpanel__item:hover {
-  background: var(--apx-fill-hover);
-}
-.documentpanel__item > svg {
-  flex: none;
-  margin-top: 2px;
-  color: var(--apx-fg-muted);
-}
-.documentpanel__itemtext {
-  display: flex;
-  flex: 1;
-  flex-direction: column;
-  gap: 2px;
-  min-width: 0;
-}
-.documentpanel__itemtitle {
-  font-size: var(--apx-text-sm);
-  font-weight: 500;
-  overflow-wrap: anywhere;
 }
 .documentpanel__source {
   font-family: var(--apx-font-mono);

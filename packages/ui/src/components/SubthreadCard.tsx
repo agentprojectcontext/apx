@@ -4,7 +4,7 @@ import { cx } from "../cx";
 import { Spinner } from "./Spinner";
 
 export interface SubthreadCardProps {
-  /** Avatar of the agent that was asked (AgentAvatar ~28px). */
+  /** Avatar of the agent that was asked (AgentAvatar ~24px). */
   avatar: ReactNode;
   /** What was asked ("Find flights to Lima"). */
   title: ReactNode;
@@ -73,7 +73,7 @@ export function SubthreadCard({
           </span>
           {subtitle && <span className="apx-subthread__sub">{subtitle}</span>}
         </span>
-        <ChevronRight size={16} className="apx-subthread__chevron" />
+        <ChevronRight size={14} className="apx-subthread__chevron" />
       </button>
       {summary && (
         <div className="apx-subthread__report">

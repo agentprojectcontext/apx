@@ -32,7 +32,7 @@ Después podés cambiar con el mismo interruptor, en la configuración del canal
 
 <Steps>
 
-1. Abrí **Canales** en la barra lateral, tocá **Nuevo canal** y elegí **WhatsApp**. Si querés, ponele un nombre
+1. Bajo **Canales** en la barra lateral, abrí **Administrar canales**, tocá **Nuevo canal** y elegí **WhatsApp**. Si querés, ponele un nombre
    (Ventas, Personal…).
 
 2. Tocá **Conectar**. Aparece un QR; cambia cada pocos segundos y la página lo mantiene al día.
@@ -61,9 +61,9 @@ Una vez vinculado, tus mensajes van a **Home**, o a un chat propio si pusiste **
 
 Con tu propio número no hay nada que vincular: quien escribe en "Mensaje a mí mismo" sos vos.
 
-## Solo contactos
+## Chats con contactos
 
-APX lee los chats uno a uno. Los grupos, las listas de difusión y los canales de WhatsApp se ignoran. Las notas de voz
+APX lee los chats uno a uno, y los [grupos que listes](#grupos). Las listas de difusión y los canales de WhatsApp se ignoran. Las notas de voz
 en chats privados se transcriben (mirá [Notas de voz](/es/channels/overview/#notas-de-voz)), y las opciones que te
 ofrece el agente llegan como una lista numerada: contestá con el número. Las fotos, videos, stickers y documentos quedan en el chat para verlos o descargarlos.
 
@@ -72,7 +72,10 @@ ofrece el agente llegan como una lista numerada: contestá con el número. Las f
 A veces WhatsApp entrega una respuesta con un id privado en vez del número de la persona. Si APX ya sabe a qué
 número corresponde ese id (por ejemplo, porque tu agente le escribió primero), la respuesta va al mismo contacto y al
 mismo chat. Si una respuesta anterior creó un segundo contacto, APX une los dos la próxima vez que WhatsApp se conecta:
-queda un solo contacto con las dos direcciones, los datos que cargaste y los mensajes de los dos chats en orden.
+queda un solo contacto con las dos direcciones, los datos que cargaste y los mensajes de los dos chats en orden. Si
+habías configurado los dos contactos, el que queda se lleva la opción más estricta de cada uno: silenciado o
+supervisado si alguno lo estaba, bloqueado si alguno lo estaba, atendido a cualquier hora solo si los dos lo estaban, y
+solo los permisos que tenían los dos.
 
 ### Archivos que nunca llegaron
 
@@ -80,6 +83,47 @@ Un archivo que no se pudo descargar cuando llegó (o que llegó antes de que APX
 del estilo "[video — APX cannot read this kind of message yet]". Tocá **Recuperar archivos** en ese chat, o corré
 `apx channels recover <thread>`: APX le pide a tu teléfono que vuelva a mandar esos mensajes y pone cada archivo en
 su mensaje, sin que el agente vuelva a contestar. El teléfono tiene que estar en línea para responder.
+
+## Grupos
+
+Tu agente también puede atender grupos de WhatsApp, como un bot de Telegram atiende sus grupos. Los grupos son
+opcionales: uno que no está en la lista no existe para APX, así que no se lee ni se guarda nada de él, aunque la línea
+esté adentro.
+
+<Steps>
+
+1. Agregá la línea al grupo en WhatsApp (o, con tu propio número, estate en él).
+
+2. En **Canales**, abrí la configuración de la cuenta y entrá a **Grupos**. Con WhatsApp conectado, elegí el grupo en
+   **Sumar un grupo donde está esta línea…**. Un grupo donde solo escriben los admins avisa que la línea no puede
+   escribir ahí.
+
+3. Elegí su modo y tocá **Guardar**.
+
+</Steps>
+
+Cada grupo tiene los mismos modos, palabras que lo llaman, notas, reglas y límites que una sala de Discord (ver
+[Salas del servidor](/es/channels/discord-slack/#salas-del-servidor)). Todo lo que se dice en un grupo de la lista
+queda guardado en el chat de ese grupo en APX, para que vos y tus agentes lo lean. En **Cuando lo llaman**, contesta a
+una @mención de la línea, a una respuesta a uno de sus mensajes o a una de las palabras que lo llaman. Las respuestas
+van al grupo, citando el mensaje que contestan. Las fotos, archivos y notas de voz de un grupo se anotan por tipo; no
+se descargan ni se transcriben.
+
+<Aside type="caution" title="Los grupos son públicos, así que sus turnos van sellados">
+En un grupo el agente contesta sin memoria y sin nada tuyo, aunque seas vos quien escribe. Los chats privados no
+cambian.
+</Aside>
+
+### Grupos con tu propio número
+
+Con **Esta línea es mi propio teléfono** activado, lo que el agente escriba en un grupo sale de tu número y el grupo lo
+lee como si fueras vos. Por eso al principio tus grupos **solo se leen**: se guarda lo que se dice y el agente nunca
+contesta ahí, tenga el modo que tenga cada grupo. Para que conteste, activá **Contestar en grupos como yo** en
+**Grupos**; desde ahí vale el modo de cada grupo. Hasta que lo actives, un agente tampoco puede publicar en esos grupos
+por vos.
+
+Con tu propio número, una @mención tuya o una respuesta a un mensaje tuyo es para vos, no para el agente: solo lo
+llaman las palabras de **Cómo lo llaman**. Lo que escribís en un grupo desde tu teléfono queda guardado como tuyo.
 
 ## Números de teléfono
 

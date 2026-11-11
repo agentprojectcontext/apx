@@ -2,7 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import type { Page } from "@playwright/test";
 import type { Thread } from "../../packages/protocol/src/index.ts";
-import { expect, open, rpc, test, world } from "./kit.ts";
+import { cardSidebar, expect, open, rpc, test, world } from "./kit.ts";
 
 test.beforeAll(async () => {
   await rpc("setup.finish");
@@ -53,22 +53,25 @@ test("Canales recientes, tres visibles, acciones integradas y menú idéntico co
     channelIds.map((id, index) => [id, new Date(Date.UTC(2001, 0, 1) - (index + 1) * 1000).toISOString()]),
   );
   at.set("slack", new Date(Date.UTC(2001, 0, 1) - 100).toISOString());
+  const channelThreads = (): Thread[] =>
+    channelIds.map((id, index) => ({
+      ...base,
+      id: `${base.id}_${id}`,
+      channel: { id, conversation: `room-${id}` },
+      updated_at: at.get(id) ?? base.updated_at,
+      unread: index === 4 ? 2 : 0,
+    }));
   await page.route("**/rpc/threads.list", async (route) =>
-    route.fulfill({
-      json: {
-        ok: true,
-        result: {
-          threads: channelIds.map((id, index) => ({
-            ...base,
-            id: `${base.id}_${id}`,
-            channel: { id, conversation: `room-${id}` },
-            updated_at: at.get(id),
-            unread: index === 4 ? 2 : 0,
-          })),
-        },
-      },
-    }),
+    route.fulfill({ json: { ok: true, result: { threads: channelThreads() } } }),
   );
+  // These list entries are synthetic: serve their transcripts rather than requesting nonexistent core IDs.
+  await page.route("**/rpc/threads.get", async (route) => {
+    const { thread: id } = route.request().postDataJSON() as { thread: string };
+    const thread = channelThreads().find((thread) => thread.id === id);
+    if (!thread) return route.continue();
+    await route.fulfill({ json: { ok: true, result: { thread, messages: [], runs: [] } } });
+  });
+  await cardSidebar(page);
   await open(page, "#view=tasks");
   await expect.poll(() => orderedIds(page, "channel")).toEqual(["slack", "telegram", "discord"]);
   const more = page.getByRole("button", { name: "2 canales más · 2 sin leer" });
@@ -133,6 +136,7 @@ test("Proyectos: último acceso, arrastre, menús v1, copia y confirmación ante
   const acme = projects[0];
   const northwind = projects[1];
   if (!acme || !northwind) throw new Error("Missing project fixtures");
+  await cardSidebar(page);
   await open(page, "#view=tasks");
   await expect.poll(async () => (await orderedIds(page, "project"))[0]).toBe("~default");
   // Projects' own "N más" (the channels section has its own "N canales más").
@@ -219,6 +223,7 @@ test("Sesiones externas: orden por acceso y arrastre, mismas opciones en ambos m
       },
     }),
   );
+  await cardSidebar(page);
   await open(page, "#view=tasks");
   await expect.poll(() => orderedIds(page, "engine")).toEqual(["claude", "codex"]);
   const codex = page.locator('.sidebar [data-engine-id="codex"]');
@@ -247,6 +252,7 @@ test("the Projects section shows more or fewer rows from its bottom edge, never 
   }
   // The icon rail has no section edges to drag.
   await page.setViewportSize({ width: 1440, height: 900 });
+  await cardSidebar(page);
   await open(page, "#view=tasks");
   const rows = page.locator(".sidebar__scroll [data-project-id]");
   await expect(rows).toHaveCount(5);

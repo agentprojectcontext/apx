@@ -11,11 +11,12 @@ import {
   updateAgentFile,
   writeNewAgent,
 } from "../apc/write.ts";
-import { agentDirectory } from "../domain/agent-directory.ts";
+import { contactAgentOf } from "../channels/types.ts";
+import { agentDirectory, projectTeam } from "../domain/agent-directory.ts";
 import { type AgentRecord, publicAgent, rulesText } from "../domain/agents.ts";
 import type { EngineIds } from "../domain/refs.ts";
 import type { Store } from "../domain/store.ts";
-import { badRequest, errorMessage, notFound } from "../errors.ts";
+import { badRequest, conflict, errorMessage, notFound } from "../errors.ts";
 import { refProblem } from "../models/choice.ts";
 import { toolCatalog } from "../tools/policy.ts";
 import type { Tool } from "../tools/types.ts";
@@ -85,6 +86,11 @@ export function agentHandlers(store: Store, apc: ApcSync, engines: EngineIds, to
       if (p.id === cur.id) throw badRequest(`${parent} already reports to ${cur.name}: that would make a loop`);
     return keyOf(target);
   };
+  const teamIn = (projectId: string) => {
+    const team = projectTeam(store, projectId);
+    if (!team) throw notFound(`project ${projectId}`);
+    return team;
+  };
   const fresh = (id: string) => {
     const a = store.agents.get(id);
     if (!a) throw notFound(`agent ${id}`);
@@ -92,8 +98,8 @@ export function agentHandlers(store: Store, apc: ApcSync, engines: EngineIds, to
   };
 
   return {
-    "agents.list": () => ({
-      agents: agentDirectory(store),
+    "agents.list": ({ project_id }) => ({
+      agents: project_id === undefined ? agentDirectory(store) : teamIn(project_id),
       // A deleted agent's prompt and settings are gone already; what is left is who it was.
       former: store.agents.former().map(publicAgent),
     }),
@@ -216,6 +222,13 @@ export function agentHandlers(store: Store, apc: ApcSync, engines: EngineIds, to
       const cur = store.agents.get(agent);
       if (!cur) throw notFound(`agent ${agent}`);
       if (cur.kind === "secretary") throw badRequest("the secretary cannot be archived");
+      // A channel it answers would answer as nobody: the owner picks who takes it over first.
+      const answered = store.settings
+        .read("channels")
+        .filter((c) => c.agent_id === cur.id || contactAgentOf(c) === cur.id)
+        .map((c) => c.label);
+      if (answered.length)
+        throw conflict(`${cur.name} answers ${answered.join(", ")}: choose who answers it in Channels first`);
       let moved: string | undefined;
       if (cur.source === "apc" && cur.project_id && cur.slug) {
         const root = rootOf(cur.project_id);

@@ -1,3 +1,4 @@
+import "../../styles/panel-parts.css";
 import type { Result } from "@apx/protocol";
 import { Button, EmptyState, IconButton, Icons, Select, Skeleton, Spinner, Tag, Textarea } from "@apx/ui";
 import { type ReactNode, useCallback, useEffect, useMemo, useState } from "react";

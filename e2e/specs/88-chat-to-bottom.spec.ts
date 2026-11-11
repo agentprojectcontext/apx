@@ -24,6 +24,13 @@ test("scrolled up, a button goes back to the latest message and hides there", as
   await expect(toBottom).toBeInViewport();
 
   await toBottom.click();
+  // Something late (the skills over an answer, an image) grows the chat on the way down: the trip goes on to the end.
+  await scroller
+    .locator(".transcript > *")
+    .last()
+    .evaluate((row: HTMLElement) => {
+      row.style.paddingBottom = "300px";
+    });
   await expect.poll(atEnd).toBe(true);
   await expect(toBottom).toBeHidden();
 });
@@ -37,8 +44,7 @@ test("a contact's chat in its channel scrolls the same way, with the same button
   await until(async () => (await world.whatsapp.sentTo(nadia.phone)).length > 0);
   await page.setViewportSize({ width: 1024, height: 640 });
   await open(page);
-  await page.getByRole("button", { name: "WhatsApp", exact: true }).click();
-  await page.locator(".chan__rows").getByRole("button", { name: /Nadia/ }).click();
+  await page.getByRole("button", { name: /^Nadia/ }).click();
 
   const scroller = page.locator(".chan__msgs");
   const toBottom = page.getByRole("button", { name: "Ir al último mensaje" });

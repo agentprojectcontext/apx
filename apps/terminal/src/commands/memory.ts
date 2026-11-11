@@ -59,7 +59,7 @@ export async function memory(
       }
       for (const m of r.memories)
         console.log(
-          `${m.id}  ${where(m).padEnd(24)} ${m.source === "owner" ? "you " : (m.author_agent ?? "agent").slice(0, 4).padEnd(4)}  ${m.text}`,
+          `${m.id}  ${where(m).padEnd(24)} ${m.source === "owner" ? "you " : m.source === "imported" ? "v1  " : (m.author_agent ?? "agent").slice(0, 4).padEnd(4)}  ${m.text}`,
         );
       if (!r.memories.length) console.log(query ? "(no notes match)" : "(no notes yet)");
     }

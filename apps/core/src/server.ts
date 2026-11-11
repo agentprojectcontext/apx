@@ -43,11 +43,15 @@ import { openDb, storeSize } from "./db/db.ts";
 import { type DesktopOps, systemDesktop } from "./desktop.ts";
 import { signatureFor } from "./domain/email-signature-settings.ts";
 import { cleanUpCapturedNotes } from "./domain/memory-capture-cleanup.ts";
+import { tellWaitingNotes } from "./domain/memory-notice.ts";
+import { lineage } from "./domain/projects.ts";
 import { parseRef } from "./domain/refs.ts";
 import { TERMINAL } from "./domain/runs.ts";
 import { seed } from "./domain/seed.ts";
 import { createStore } from "./domain/store.ts";
 import { announceRelease } from "./domain/whats-new.ts";
+import { createActivityReview } from "./engine/activity-review.ts";
+import { createAside } from "./engine/aside.ts";
 import { createAttention } from "./engine/attention.ts";
 import { keepAwake, sleepWatch } from "./engine/awake.ts";
 import { calendarReminders } from "./engine/calendar-reminders.ts";
@@ -82,6 +86,7 @@ import { createHarnesses, type Harness } from "./harness/index.ts";
 import { readIdentity } from "./identity.ts";
 import { createIdleTrim } from "./idle-memory.ts";
 import { type IMessageOps, systemIMessage } from "./imessage.ts";
+import { markV1Notes } from "./import/v1-memory-mark.ts";
 import { createAsana } from "./integrations/asana.ts";
 import { calendarApi } from "./integrations/calendar.ts";
 import { gmailApi } from "./integrations/gmail.ts";
@@ -116,6 +121,7 @@ import { createRouter, type Dispatch } from "./rpc/router.ts";
 import { useLocalModel } from "./rpc/transcription.ts";
 import { createSecrets } from "./secrets.ts";
 import {
+  appPorts,
   builtinTools,
   coreHandlers,
   extensionStack,
@@ -273,7 +279,7 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
     ? createHeadlessBrowser({
         dir: path.join(config.home, "browser"),
         chrome: typeof config.headless === "string" ? config.headless : undefined,
-        blockedPorts: () => new Set([String(listening)]),
+        blockedPorts: () => appPorts(listening, config.allowedOrigins),
         onChange: (tabs) => {
           if (!broker.withCap(BROWSER_CAP)) bus.emit({ type: "browser.tabs", tabs });
         },
@@ -446,6 +452,7 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
   });
   const { hooks, plugins, extensions } = extensionStack({ store, secrets, bus, log, home: config.home });
   const upkeep = createUpkeep({ store, llm, log });
+  const aside = createAside({ store, llm });
   const services = createServices({
     store,
     secrets,
@@ -542,11 +549,14 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
       },
     },
     outside: {
-      secret: (ref, project) => secrets.resolveIn(ref, project) !== undefined,
+      secret: (ref, project) => secrets.resolveIn(ref, lineage(store.projects, project)) !== undefined,
       allowHttp: config.flowHttpAllow,
       home: config.home,
     },
-    http: { policy: flowHttpPolicy(config.flowHttpAllow), secret: (ref, project) => secrets.resolveIn(ref, project) },
+    http: {
+      policy: flowHttpPolicy(config.flowHttpAllow),
+      secret: (ref, project) => secrets.resolveIn(ref, lineage(store.projects, project)),
+    },
     home: config.home,
     tell: (event) => bus.emit(event),
   });
@@ -574,9 +584,15 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
         emailAdapter(c, password, {
           dir: path.join(config.home, "channels", c.id),
           signature: () => signatureFor(store, "smtp", c.id, c.email?.address),
+          owner: (address) => store.persons.byAddress(c.id, address)?.role === "owner",
         }),
       whatsapp: (c) =>
-        whatsappAdapter({ dir: path.join(config.home, "channels", c.id), selfOwner: c.self_owner === true, log }),
+        whatsappAdapter({
+          dir: path.join(config.home, "channels", c.id),
+          selfOwner: c.self_owner === true,
+          rooms: (c.rooms?.rooms ?? []).map((r) => r.id),
+          log,
+        }),
       // Messages' database on this Mac: no secret; it refuses to start anywhere else.
       imessage: (c, s) => imessageAdapter(c, s, { dir: path.join(config.home, "channels", c.id) }),
       googlechat: (c, secret) => googlechatAdapter(c, secret),
@@ -677,6 +693,12 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
     },
     (thread, stage) => bus.emit({ type: "computer.progress", thread_id: thread, stage }),
   );
+  const activityReview = createActivityReview({
+    store,
+    llm,
+    models: () => upkeep.auxModels(),
+    ...(opts.clock ? { now: opts.clock } : {}),
+  });
   const scheduler = officeScheduler({
     store,
     admit: (a) => engine.admit(a),
@@ -685,6 +707,7 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
     openHeld: () => channels.openHeld((a) => engine.admit(a)),
     flowTick: (at) => flows.tick(at),
     checks: (remind) => [
+      activityReview.check,
       storage.check,
       retention.check,
       localApps.check,
@@ -696,7 +719,7 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
             // The lead can be days: enough events that a busy week is not cut short.
             (await calendarApi(google).list({ from, to, max: 250, calendar: "primary" })).events,
         },
-        remind: (texts, events) => remind(texts, `event:${events.map((e) => e.id).join(",")}`),
+        remind,
       }),
       mailCheck({
         store,
@@ -752,6 +775,7 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
 
   const dispatch = createRouter(
     coreHandlers({
+      activityReview,
       vm,
       internal,
       permissions,
@@ -780,6 +804,7 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
       llmLabel: () => llm.label(),
       engine,
       upkeep,
+      aside,
       groups,
       memory,
       memoryMaintenance,
@@ -839,6 +864,9 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
   routed = dispatch;
   const cleanup = cleanUpCapturedNotes(store);
   if (cleanup) log.info(cleanup, "captured memory cleanup: retired noisy automatic notes");
+  const v1Marked = markV1Notes(store, config.v1.home);
+  if (v1Marked?.marked) log.info(v1Marked, "memory: marked the notes brought over from APX v1");
+  tellWaitingNotes(store);
   memoryMaintenance.start();
 
   const transport = await listen(config, { dispatch, store, log, identity, broker, bus, vm });
@@ -925,6 +953,7 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
       await widgetPages?.closeAll().catch(() => {});
       headless?.close();
       scheduler.stop();
+      await activityReview.close();
       stopFlowEvents();
       await flows.close();
       await news.stop();
@@ -935,6 +964,7 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
       webhooks.close();
       await hookListener.close();
       await engine.stop();
+      aside.stop();
       await upkeep.stop();
       await memoryMaintenance.stop();
       await memory.stop();

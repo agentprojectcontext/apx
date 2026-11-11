@@ -64,3 +64,16 @@ test("on a phone-sized window nothing scrolls sideways", async ({ page }) => {
     if (await nav.isVisible()) await nav.click();
   }
 });
+
+test("on a phone the chat header's subtitle stops before its tools", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await open(page, "#thread=home");
+  const header = page.locator(".chat__header");
+  const subtitle = header.locator(".chat__crumb .chat__agentbtn");
+  await expect(subtitle).toBeVisible();
+  const right = (await subtitle.boundingBox()) ?? { x: 0, width: 0 };
+  const tools = (await header.locator(".chat__tools").boundingBox()) ?? { x: 0 };
+  expect(right.x + right.width).toBeLessThanOrEqual(tools.x);
+  // Cut short, not overflowing: what does not fit ends in an ellipsis.
+  await expect(subtitle).toHaveCSS("text-overflow", "ellipsis");
+});

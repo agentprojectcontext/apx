@@ -29,9 +29,17 @@ test("accepting a proposed review invokes its reviewer rather than the assignee"
       ["scout"],
       "accepting an already-review card starts its reviewer",
     );
+    // The review's report goes back to the task's agent, who delivers it (DECISIONS.md#d-208).
+    const vera = await waitFor(
+      () => env.core.store.threads.byTask(task.id).find((thread) => thread.agent_ids[0] === "vera"),
+      "the assignee hears the review",
+    );
+    await env.settle(vera.id);
+    const first = env.core.store.runs.list(vera.id, 20).at(-1);
+    const origin = first?.input?.origin;
     assert.ok(
-      !env.core.store.threads.byTask(task.id).some((thread) => thread.agent_ids[0] === "vera"),
-      "the original assignee is not restarted in review",
+      origin?.kind === "agent" && origin.id === "scout",
+      "the original assignee is not restarted in review: it starts only on the reviewer's report",
     );
   } finally {
     await env.core.close();

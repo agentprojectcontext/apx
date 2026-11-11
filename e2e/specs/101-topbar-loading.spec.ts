@@ -64,7 +64,7 @@ test("el consumo IA mantiene tarjetas skeleton al cargar, actualizar y reabrir",
   await expect(summary.locator(".apx-meter")).toHaveCount(0);
   expect(calls).toBe(1);
   pending.release();
-  await expect(summary.getByText("63% disponible")).toBeVisible();
+  await expect(summary.getByText("63 % libre")).toBeVisible();
   await expect(page.getByTestId("engine-usage-quick")).toHaveText("63%");
   response = {
     ...report,
@@ -76,9 +76,9 @@ test("el consumo IA mantiene tarjetas skeleton al cargar, actualizar y reabrir",
   pending = gate();
   await summary.getByRole("button", { name: "Actualizar" }).click();
   await expect(preview).toBeVisible();
-  await expect(summary.getByText("63% disponible")).toHaveCount(0);
+  await expect(summary.getByText("63 % libre")).toHaveCount(0);
   pending.release();
-  await expect(summary.getByText("20% disponible")).toBeVisible();
+  await expect(summary.getByText("20 % libre")).toBeVisible();
   await expect(page.getByTestId("engine-usage-quick")).toHaveText("20%");
   expect(calls).toBe(2);
   await page.keyboard.press("Escape");
@@ -86,7 +86,7 @@ test("el consumo IA mantiene tarjetas skeleton al cargar, actualizar y reabrir",
   await trigger.click();
   await expect(preview).toBeVisible();
   pending.release();
-  await expect(summary.getByText("20% disponible")).toBeVisible();
+  await expect(summary.getByText("20 % libre")).toBeVisible();
 });
 
 for (const outcome of ["ready", "empty", "failed"] as const) {
@@ -219,16 +219,13 @@ test("cuatro engines se ven de un vistazo y colapsan en una barra ocupada y con 
   await expect(tip).toContainText("claude · Sesión (5 h) · 63% disponible");
   await expect(tip).toContainText("claude · Semanal · 20% disponible");
   await expect(tip).toContainText("gemini · Semanal · 20% disponible");
-  // Exercise the real bar's optional occupants without depending on an updater or a live run.
+  // Exercise the real bar's optional occupants without depending on an updater (the running indicator is always there).
   await page.locator(".topbar__right").evaluate((right) => {
-    for (const name of ["updatepill", "updatepill", "running"]) {
+    for (let i = 0; i < 2; i++) {
       const button = document.createElement("button");
-      button.className = name;
-      button.innerHTML =
-        '<svg width="14" height="14"></svg>' +
-        (name === "running" ? "" : '<span class="updatepill__label">Update available</span>');
-      if (name === "updatepill") (right.querySelector(".topbar__activity") ?? right).append(button);
-      else right.prepend(button);
+      button.className = "updatepill";
+      button.innerHTML = '<svg width="14" height="14"></svg><span class="updatepill__label">Update available</span>';
+      (right.querySelector(".topbar__activity") ?? right).append(button);
     }
   });
   for (const platform of ["", "is-desktop is-win", "is-desktop is-linux", "is-desktop is-mac"]) {
@@ -242,6 +239,8 @@ test("cuatro engines se ven de un vistazo y colapsan en una barra ocupada y con 
       await expect(async () => {
         const metrics = await page.locator(".topbar").evaluate((bar) => {
           const search = bar.querySelector(".topbar__search")?.getBoundingClientRect();
+          // The history arrows lead the search box: the pair is what sits on the window's centre.
+          const group = bar.querySelector(".topbar__center")?.getBoundingClientRect();
           const right = bar.querySelector(".topbar__right")?.getBoundingClientRect();
           const controls = [...bar.querySelectorAll(".topbar__left > button, .topbar__right button, .topbar__search")]
             .map((button) => button.getBoundingClientRect())
@@ -249,7 +248,7 @@ test("cuatro engines se ven de un vistazo y colapsan en una barra ocupada y con 
           return {
             overflow: bar.scrollWidth - bar.clientWidth,
             overlap: search && right ? search.right - right.left : 999,
-            center: search ? Math.abs(search.left + search.width / 2 - innerWidth / 2) : 999,
+            center: group ? Math.abs(group.left + group.width / 2 - innerWidth / 2) : 999,
             collisions: controls.flatMap((a, i) =>
               controls.slice(i + 1).filter((b) => Math.min(a.right, b.right) - Math.max(a.left, b.left) > 1),
             ).length,
@@ -291,12 +290,12 @@ test("barra compacta sin overflow conserva accesos, idioma en submenú y tema ac
   await page.keyboard.press("Escape");
   await page.setViewportSize({ width: 1280, height: 844 });
   await page.getByRole("button", { name: /^Cuenta/ }).click();
-  await page.getByRole("menuitem", { name: "Idioma", exact: true }).hover();
+  await page.getByRole("menuitem", { name: /^Idioma/ }).hover();
   await expect(page.getByRole("menuitem", { name: "English" })).toBeVisible();
   await page.getByRole("menuitem", { name: "English" }).click();
   await expect(page.getByRole("button", { name: /^Account/ })).toBeVisible();
   await page.getByRole("button", { name: /^Account/ }).click();
-  await page.getByRole("menuitem", { name: "Language", exact: true }).hover();
+  await page.getByRole("menuitem", { name: /^Language/ }).hover();
   await page.getByRole("menuitem", { name: "Español" }).click();
   await openSettings(page);
   await page.getByRole("button", { name: "Apariencia", exact: true }).click();

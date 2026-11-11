@@ -60,6 +60,7 @@ test("linking the owner's own phone: a QR waits in the app, and once scanned the
   const linked = await channel();
   assert.equal(linked?.qr, undefined, "the QR is gone once spent");
   assert.equal(linked?.account, "+5491100000001");
+  assert.equal(linked?.account_name, "Acme line", "the profile name says whose WhatsApp it is");
   const { persons } = await env.client.call("contacts.list", {});
   assert.ok(persons.find((p) => p.role === "owner")?.addresses.some((a) => a.external_id === wa.owner));
   // POSIX modes only: Windows reports fixed bits that say nothing about who may read the folder.
@@ -433,7 +434,7 @@ test("a contact's video, a document of any type and a too-big file: kept to play
   );
 });
 
-test("groups, and the owner writing to a friend on their phone, never reach the agent", async () => {
+test("an unlisted group, and the owner writing to a friend on their phone, never reach the agent", async () => {
   const calls = llm.calls.length;
   wa.message(ANA, "group news", { group: "120363000000000001@g.us" });
   wa.ownerTo(ANA, "see you tonight");

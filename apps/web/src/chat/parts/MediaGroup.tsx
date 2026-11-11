@@ -7,6 +7,7 @@ import { mediaUrl } from "../../data/media.ts";
 import { useT } from "../../i18n/index.ts";
 import { useImageMenu } from "./imageMenu.tsx";
 import type { ImageLike, MediaBlock, VideoPart } from "./mediaGroups.ts";
+import "../../styles/chat-cards.css";
 import "../../styles/media.css";
 
 const SAFE = /^(https?:|data:image\/)/i;

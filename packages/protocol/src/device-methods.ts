@@ -299,6 +299,21 @@ export const deviceMethods = {
     }),
     effect: true,
   },
+  /**
+   * The computer the core runs on, as the Computers view lists it: its name and system, whether the desktop app lends
+   * it for computer use now, and the agents whose turns used it in the last few minutes.
+   */
+  "computers.host": {
+    params: z.object({}).strict(),
+    result: z.object({
+      name: z.string(),
+      os: z.enum(["macos", "windows", "linux", "other"]),
+      computer_use: z.boolean(),
+      agents: z.array(z.object({ id: Id, name: z.string() })),
+    }),
+    effect: false,
+    access: "human",
+  },
   "devices.revoke": {
     params: z.object({ id: Id }).strict(),
     result: z.object({ revoked: z.boolean() }),

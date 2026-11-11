@@ -6,6 +6,7 @@ import { engineOf } from "../domain/refs.ts";
 import { type Attachment, ownerOrigin, publicRun, TERMINAL } from "../domain/runs.ts";
 import type { Store } from "../domain/store.ts";
 import { previewOf } from "../domain/threads.ts";
+import type { Aside } from "../engine/aside.ts";
 import { agentTripped, tree, tripped } from "../engine/breaker.ts";
 import type { Admit, Engine } from "../engine/engine.ts";
 import { goOn } from "../engine/go-on.ts";
@@ -108,6 +109,7 @@ export function threadHandlers(
   store: Store,
   engine: Engine,
   upkeep: Pick<Upkeep, "compact">,
+  aside: Pick<Aside, "ask">,
   groups?: Pick<Groups, "enabled" | "is" | "send" | "stop">,
 ) {
   const threadAgent = (threadId: string) => {
@@ -492,6 +494,7 @@ export function threadHandlers(
       if (!store.threads.get(thread)) throw notFound(`thread ${thread}`);
       return upkeep.compact(thread);
     },
+    "threads.aside": (p) => aside.ask(p),
     "threads.read": ({ thread }) => {
       if (!store.threads.get(thread)) throw notFound(`thread ${thread}`);
       store.tx(() => {

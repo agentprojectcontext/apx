@@ -91,7 +91,7 @@ function recipients(store: Store, task: Task, closer: string, created: Record<st
       add(from.thread, from.run);
   }
   const coordination = coordinatedTaskSource(store, task);
-  if (coordination) add(coordination.thread, coordination.run.id);
+  if (coordination && coordination.run.agent_id !== closer) add(coordination.thread, coordination.run.id);
   if (task.created_by !== closer) add(created.from_thread, created.from_run, task.created_by);
   // The super-agent hears of every task its team closes, so the owner does: unless it gave or closed it itself.
   const boss = store.agents.list().find((a) => a.kind === "secretary");

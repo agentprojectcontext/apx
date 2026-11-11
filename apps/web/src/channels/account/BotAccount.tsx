@@ -197,23 +197,13 @@ export function useTokens(kind: BotKind) {
 }
 
 /** A new bot account: how to make the bot, its token(s), and Connect, which makes the account with them. */
-export function BotConnect({ kind, create, id }: { kind: BotKind; create: Create; id: string }) {
+export function BotConnect({ kind, create }: { kind: BotKind; create: Create }) {
   const t = useT();
   const tokens = useTokens(kind);
   const [busy, setBusy] = useState(false);
   const connect = async () => {
     setBusy(true);
-    await create(
-      {
-        agent_id: "",
-        enabled: true,
-        strangers: "pair",
-        concurrency: "steer",
-        owner_thread: "home",
-        ...(SELF_OWNER.includes(kind) ? { self_owner: true } : {}),
-      },
-      tokens.joined,
-    );
+    await create(SELF_OWNER.includes(kind) ? { self_owner: true } : {}, tokens.joined);
     setBusy(false);
   };
   return (
@@ -237,7 +227,8 @@ export function BotConnect({ kind, create, id }: { kind: BotKind; create: Create
           </Button>
         </div>
       </div>
-      {WEBHOOK_KINDS.includes(kind) && <PublicAddress channelId={id} />}
+      {/* The account's own address shows once it is made: its id is the core's to give. */}
+      {WEBHOOK_KINDS.includes(kind) && <PublicAddress />}
     </>
   );
 }
@@ -381,7 +372,7 @@ export function BotAccount({ kind, ...pane }: PaneProps & { kind: BotKind }) {
           <StoredToken channel={channel} kind={kind} onSave={saveNow} />
         </SettingRow>
       )}
-      <OwnerLink channelId={channel.id} name={name} />
+      <OwnerLink channelId={channel.id} type={channel.type} name={name} />
       {WEBHOOK_KINDS.includes(kind) && <PublicAddress channelId={channel.id} />}
     </>
   );

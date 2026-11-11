@@ -101,6 +101,8 @@ test("panel actions use fixed IPC channels and normalize browser, attention and 
     ["setTitleBar", ["dark"], "desktop:titlebar", ["dark"]],
     ["setLanguage", [123], "desktop:language", ["123"]],
     ["menuAction", ["about"], "desktop:menu-action", ["about"]],
+    ["nameServer", ["Northwind box"], "desktop:server-name", ["Northwind box"]],
+    ["nameServer", [42], "desktop:server-name", ["42"]],
   ];
   for (const [method, args, channel, forwarded] of cases) {
     call("apxDesktop", method, ...args);
@@ -122,6 +124,9 @@ test("panel requests return native replies without exposing a general invoke cap
     ["browserFrame", [], "panel:browser-frame", []],
     ["stopComputer", [], "computer:stop", []],
     ["pickFolder", [], "panel:pick-folder", []],
+    ["servers", [], "desktop:servers", []],
+    ["openServer", ["url:https://apx.example.com"], "desktop:open-server", ["url:https://apx.example.com"]],
+    ["openServer", [7], "desktop:open-server", ["7"]],
     ["memory", [], "desktop:memory", []],
     ["updateStatus", [true], "desktop:update-status", [true]],
     ["updateStatus", ["true"], "desktop:update-status", [false]],

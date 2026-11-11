@@ -1,14 +1,16 @@
 // Email: a mailbox read over IMAP (new mail by UID, waiting with IDLE) and answered over SMTP, with Node's own
 // sockets. Each sender is one conversation; answers go back in the same mail thread (Re:, In-Reply-To, References).
-// Automatic mail (auto-replies, lists, bounces, our own) is never read, so two robots never answer each other.
+// Automatic mail is kept without starting replies; our own mail is skipped to avoid echo loops.
 // What it remembers (the mailbox's UIDVALIDITY, the last UID read, each sender's thread) lives in the channel's folder.
 import fs from "node:fs";
 import path from "node:path";
-import type { ChannelEmail } from "@apx/protocol";
+import type { ChannelEmail, MailMark } from "@apx/protocol";
+import type { Inbound } from "../domain/channels.ts";
 import { type EmailSignature, renderEmailDraft, withEmailSignature } from "../domain/email-signature.ts";
 import { errorMessage } from "../errors.ts";
+import { readMailHistory } from "./email-history.ts";
 import { Imap, ImapRefused } from "./email-imap.ts";
-import { decodeWords, header, messageIds, parseAddress, parseMail, stripQuoted } from "./email-mime.ts";
+import { decodeWords, header, mailHtml, messageIds, parseAddress, parseMail, stripQuoted } from "./email-mime.ts";
 import { composeMail, isAuthRefusal, smtpCheck, smtpSend } from "./email-smtp.ts";
 import { type Endpoint, isLoopback } from "./email-socket.ts";
 import { numberedOptions, sleep } from "./net.ts";
@@ -18,6 +20,7 @@ import {
   type ChannelAdapter,
   ChannelRefused,
   fileName,
+  type MailHistoryResult,
   SendError,
 } from "./types.ts";
 
@@ -33,6 +36,8 @@ const PER_ROUND = 50;
 /** IDLE is renewed before servers drop it (RFC 2177: at most 29 minutes). */
 const WAIT_MS = 10 * 60_000;
 const POLL_MS = 60_000;
+/** How often a server with no Spam folder found is asked again. */
+const SPAM_LOOK_MS = 6 * 60 * 60_000;
 const MAX_BACKOFF_MS = 5 * 60_000;
 /** Senders whose threads are remembered, the most recent ones. */
 const MAX_THREADS = 500;
@@ -49,6 +54,10 @@ type State = {
   started?: string;
   checked?: string;
   threads: Record<string, Thread>;
+  /** The server's Spam folder, read from when it was found on (none: not found yet, or the server has none). */
+  spam?: { mailbox: string; uidvalidity: number; last_uid: number } | undefined;
+  /** When the Spam folder was last looked for, so a server without one is asked again only now and then. */
+  spam_looked?: number;
 };
 
 /** Mail no person wrote, or that must not be answered: auto-replies, lists, bounces, robots. */
@@ -59,7 +68,9 @@ export function isAutomatic(h: ReturnType<typeof parseMail>["headers"], from: st
   if (["x-autoreply", "x-autorespond", "list-id", "list-unsubscribe", "feedback-id"].some((k) => h.has(k))) return true;
   if (/^multipart\/report/i.test(header(h, "content-type") ?? "")) return true;
   const local = from.split("@")[0] ?? "";
-  return /^(mailer-daemon|postmaster|no-?reply|do-?not-?reply|bounces?|notifications?)([+._-]|$)/i.test(local);
+  if (/^(mailer-daemon|postmaster|bounces?|notifications?)([+._-]|$)/i.test(local)) return true;
+  // "noreply" anywhere among its parts: security-noreply@, messages-noreply@, no_reply.billing@.
+  return /(^|[+._-])(no-?reply|do-?not-?reply)([+._-]|$)/i.test(local);
 }
 
 /**
@@ -88,11 +99,10 @@ export function verifiedSender(h: ReturnType<typeof parseMail>["headers"], from:
     });
 }
 
-/** Whether `address` is on the allow list (an exact address, or "@domain"). An empty list allows anyone. */
-function allowedSender(allowed: readonly string[], address: string): boolean {
-  if (!allowed.length) return true;
+/** Whether `address` is on a list of exact addresses and "@domain" entries. */
+function onList(list: readonly string[], address: string): boolean {
   const a = address.toLowerCase();
-  return allowed.some((x) => {
+  return list.some((x) => {
     const e = x.trim().toLowerCase();
     return e.startsWith("@") ? a.endsWith(e) : e === a;
   });
@@ -112,6 +122,8 @@ export function emailAdapter(
   opts: {
     dir: string;
     signature?: (() => EmailSignature | undefined) | undefined;
+    /** One of the owner's own addresses on this account: always read, and only when its server verified it. */
+    owner?: ((address: string) => boolean) | undefined;
   },
 ) {
   const mail: ChannelEmail | undefined = config.email;
@@ -121,6 +133,7 @@ export function emailAdapter(
   const state: State = readState(stateFile);
   let imap: Imap | undefined;
   let loop: Promise<void> | undefined;
+  let restoring: Promise<MailHistoryResult> | undefined;
   const user = mail?.username || mail?.address || "";
   const auth = { user, pass: secret ?? "" };
 
@@ -139,7 +152,13 @@ export function emailAdapter(
   }
 
   /** One message: who, which thread, the new words; then handed over as received (or as a numbered option picked). */
-  function handle(raw: Buffer, uid: number, truncated: boolean, io: AdapterIO): void {
+  function message(
+    raw: Buffer,
+    uid: number,
+    truncated: boolean,
+    history?: { validity: number; arrived?: number | undefined },
+    folder?: "spam",
+  ): Inbound | undefined {
     if (!mail) return;
     let m: ReturnType<typeof parseMail>;
     try {
@@ -149,9 +168,30 @@ export function emailAdapter(
     }
     const from = parseAddress(header(m.headers, "from"));
     if (!from || from.address === mail.address.toLowerCase()) return;
-    if (isAutomatic(m.headers, from.address) || !allowedSender(mail.allowed, from.address)) return;
-    // A From line is easy to forge: mail its server did not verify could pass for the owner. Dropped, unanswered.
-    if (!mail.trust_unverified && !verifiedSender(m.headers, from.address)) return;
+    const owner = opts.owner?.(from.address) === true;
+    const verified = verifiedSender(m.headers, from.address);
+    // A From line is easy to forge: unverified mail from the owner's own address is dropped, never kept as theirs.
+    if (owner && !verified) return;
+    // Everything else is kept; what no person wrote, or nobody vouched for, is marked: shown to the owner, never
+    // answered, told or given to the agent. The owner's own addresses pass "Who may write" and "Never read".
+    const mark: MailMark | undefined =
+      folder === "spam"
+        ? "spam"
+        : owner
+          ? isAutomatic(m.headers, from.address)
+            ? "automatic"
+            : undefined
+          : onList(mail.blocked ?? [], from.address)
+            ? "blocked"
+            : mail.allowed.length > 0 && !onList(mail.allowed, from.address)
+              ? "outside"
+              : !mail.trust_unverified && !verified
+                ? "unverified"
+                : isAutomatic(m.headers, from.address)
+                  ? "automatic"
+                  : undefined;
+    // Recovered history keeps its own rule: only mail it would have read then.
+    if (history && mark && mark !== "automatic") return;
     const id = messageIds(header(m.headers, "message-id"))[0];
     const subject = decodeWords(header(m.headers, "subject") ?? "")
       .replace(/[\p{Cc}\p{Cf}]/gu, "")
@@ -161,11 +201,12 @@ export function emailAdapter(
     const chain = [...(refs.length ? refs : messageIds(header(m.headers, "in-reply-to"))), ...(id ? [id] : [])];
     const fresh = !before || baseSubject(before.subject) !== baseSubject(subject);
     // Remembered before it is handed over: the pairing code or the answer replies to this very message.
-    state.threads[from.address] = {
-      subject: fresh ? subject : (before?.subject ?? subject),
-      ids: chain.slice(-10),
-      at: Date.now(),
-    };
+    if (!history && !mark)
+      state.threads[from.address] = {
+        subject: fresh ? subject : (before?.subject ?? subject),
+        ids: chain.slice(-10),
+        at: Date.now(),
+      };
 
     let text = stripQuoted(m.text).slice(0, MAX_TEXT);
     const files: Array<{ name: string; mime: string; data: string }> = [];
@@ -177,20 +218,31 @@ export function emailAdapter(
     }
     if (listed.length) text += `\n[attachments not kept: ${listed.join("; ")}]`;
     if (m.truncated) text += "\n[the message was too big: its end was cut]";
-    if (fresh && subject) text = `[subject: ${subject}]\n${text}`;
+    if ((history || fresh) && subject) text = `[subject: ${subject}]\n${text}`;
+    if (history)
+      text = `[historical mail${history.arrived !== undefined ? `; received: ${new Date(history.arrived).toISOString()}` : ""}]\n${text}`;
 
     const sender = { id: from.address, name: from.name ? `${from.name} (${from.address})` : from.address };
-    const picked = options.pick(from.address, stripQuoted(m.text));
-    io.receive({
+    const shownAs = mailHtml(m.html);
+    const picked = !history && !mark ? options.pick(from.address, stripQuoted(m.text)) : undefined;
+    return {
       // The Message-ID dedupes a mail read again (another UID, the mailbox rebuilt); the UID when it has none.
-      external_id: id ? `mid:${id.toLowerCase()}` : `uid:${state.uidvalidity ?? 0}:${uid}`,
+      external_id: id ? `mid:${id.toLowerCase()}` : `uid:${history?.validity ?? state.uidvalidity ?? 0}:${uid}`,
       conversation: from.address,
       sender,
       text: text.trim(),
       private: true,
-      ...(picked ? { action: picked } : {}),
+      ...(history?.arrived !== undefined ? { mail_received_at: new Date(history.arrived).toISOString() } : {}),
+      ...(history
+        ? { mail_handling: "history" as const }
+        : mark
+          ? { mail_handling: "marked" as const, mail_mark: mark }
+          : picked
+            ? { action: picked }
+            : {}),
       ...(files.length ? { files } : {}),
-    });
+      ...(shownAs ? { html: shownAs } : {}),
+    };
   }
 
   /** The messages after the last UID read, oldest first; each one is stored before the next UID is remembered. */
@@ -201,11 +253,55 @@ export function emailAdapter(
       const got = await box.fetch(uid, MAX_FETCH);
       // Mail the server received before the channel first started is history, also when it is read again.
       const old = got?.arrived !== undefined && state.started !== undefined && got.arrived < Date.parse(state.started);
-      if (got && !old) handle(got.raw, uid, got.size > got.raw.length, io);
+      const incoming = got && !old ? message(got.raw, uid, got.size > got.raw.length) : undefined;
+      if (incoming) io.receive(incoming);
       state.last_uid = uid;
       save();
     }
     state.checked = new Date().toISOString();
+    await spamRound(box, io);
+  }
+
+  /**
+   * New mail the server's spam filter moved to its Spam folder, kept marked as spam. The folder is found by its \\Junk
+   * flag or a usual name; reading it starts at the moment it was found, like the inbox. The inbox is opened again after.
+   */
+  async function spamRound(box: Imap, io: AdapterIO): Promise<void> {
+    if (!mail) return;
+    if (!state.spam) {
+      if (Date.now() - (state.spam_looked ?? 0) < SPAM_LOOK_MS) return;
+      state.spam_looked = Date.now();
+      const folders = await box.list().catch(() => []);
+      const found =
+        folders.find((f) => f.flags.some((x) => /^\\junk$/i.test(x))) ??
+        folders.find((f) => /(^|[./])(spam|junk|bulk mail|correo no deseado)$/i.test(f.name));
+      if (!found || found.name === mail.mailbox) return save();
+      const info = await box.examine(found.name);
+      state.spam = { mailbox: found.name, uidvalidity: info.uidvalidity, last_uid: (info.uidnext ?? 1) - 1 };
+      save();
+      await box.examine(mail.mailbox);
+      return;
+    }
+    const spam = state.spam;
+    try {
+      const info = await box.examine(spam.mailbox);
+      if (info.uidvalidity !== spam.uidvalidity) {
+        state.spam = { ...spam, uidvalidity: info.uidvalidity, last_uid: (info.uidnext ?? 1) - 1 };
+        return save();
+      }
+      const uids = (await box.search(`UID ${spam.last_uid + 1}:*`))
+        .filter((u) => u > spam.last_uid)
+        .slice(0, PER_ROUND);
+      for (const uid of uids) {
+        const got = await box.fetch(uid, MAX_FETCH);
+        const incoming = got ? message(got.raw, uid, got.size > got.raw.length, undefined, "spam") : undefined;
+        if (incoming) io.receive({ ...incoming, external_id: `${incoming.external_id}:spam` });
+        spam.last_uid = uid;
+        save();
+      }
+    } finally {
+      await box.examine(mail.mailbox);
+    }
   }
 
   /** Opens the mailbox; a new UIDVALIDITY (or the first start) decides where reading begins. */
@@ -289,7 +385,7 @@ export function emailAdapter(
     async stop() {
       ac.abort();
       imap?.close();
-      await loop?.catch(() => {});
+      await Promise.all([loop?.catch(() => {}), restoring?.catch(() => {})]);
     },
     async forget() {
       fs.rmSync(stateFile, { force: true });
@@ -330,6 +426,25 @@ export function emailAdapter(
       };
       save();
       return { external_id: out.id };
+    },
+    async mailHistory(request, receive) {
+      if (!mail) throw new Error("this channel has no mailbox");
+      if (restoring) throw new Error("mail recovery is already running for this account");
+      restoring = readMailHistory({
+        request,
+        receive,
+        message,
+        mailbox: mail.mailbox,
+        boundary: { uidvalidity: state.uidvalidity, last_uid: state.last_uid ?? 0 },
+        maxFetch: MAX_FETCH,
+        signal: ac.signal,
+        connect: (signal) => Imap.connect(mail.imap, auth.user, auth.pass, signal),
+      });
+      try {
+        return await restoring;
+      } finally {
+        restoring = undefined;
+      }
     },
     async compose(m) {
       if (!mail) throw new SendError("fatal", "the email channel has no mailbox");

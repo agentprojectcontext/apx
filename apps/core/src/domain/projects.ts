@@ -1,4 +1,4 @@
-import { Autonomy, type Project } from "@apx/protocol";
+import { Autonomy, BASE_PROJECT_ID, type Project } from "@apx/protocol";
 import type { Selectable } from "kysely";
 import type { ProjectsTable } from "../db/schema.ts";
 import { now, opt, qb, type Sql } from "./sql.ts";
@@ -25,6 +25,7 @@ const toProject = (r: Selectable<ProjectsTable>): ProjectRecord => ({
   ...(r.context_chars ? { agents_md_chars: r.context_chars } : {}),
   ...autonomyOf(r.autonomy),
   ...foldersOf(r.read_only_folders),
+  ...opt("parent", r.parent_id),
 });
 
 /** A stored list of folders; anything that is not a list of strings reads as none. */
@@ -194,9 +195,94 @@ export function projectsRepo({ one, all, run }: Sql, changed: () => void) {
           .where("id", "=", id),
       );
     },
-    /** Retain the indexed record for existing chats and tasks, without listing or watching it. */
+    /** Makes it a subproject of `parent` (a project id or BASE_PROJECT_ID), already checked; undefined detaches it. */
+    setParent(id: string, parent: string | undefined): void {
+      write(
+        qb
+          .updateTable("projects")
+          .set({ parent_id: parent ?? null })
+          .where("id", "=", id),
+      );
+    },
+    /** Its registered subprojects (BASE_PROJECT_ID: the base project's). */
+    children(id: string): ProjectRecord[] {
+      return all(
+        qb.selectFrom("projects").selectAll().where("parent_id", "=", id).where("registered", "=", 1).orderBy("name"),
+      ).map(shape);
+    },
+    /**
+     * Retain the indexed record for existing chats and tasks, without listing or watching it. Its subprojects become
+     * projects of their own, and a subproject stops being one: brought back, it is a project of its own.
+     */
     unregister(id: string): void {
-      write(qb.updateTable("projects").set({ registered: 0 }).where("id", "=", id));
+      write(qb.updateTable("projects").set({ parent_id: null }).where("parent_id", "=", id));
+      write(qb.updateTable("projects").set({ registered: 0, parent_id: null }).where("id", "=", id));
     },
   };
+}
+
+type ProjectsRepo = ReturnType<typeof projectsRepo>;
+
+/**
+ * Where a subproject takes what is kept per project from: its parent's id, or `project: undefined` (the global scope)
+ * for a subproject of the base project. Undefined for a project of its own.
+ */
+export function inheritsFrom(
+  projects: Pick<ProjectsRepo, "get">,
+  id: string | undefined,
+): { project: string | undefined } | undefined {
+  const parent = id ? projects.get(id)?.parent : undefined;
+  if (parent === BASE_PROJECT_ID) return { project: undefined };
+  const p = parentOf(projects, id);
+  return p ? { project: p.id } : undefined;
+}
+
+/**
+ * The real project a subproject takes its agents and resources from: its parent when that is a registered project.
+ * Undefined for a project of its own and for a subproject of the base project, whose agents and resources (the global
+ * ones) every project already takes.
+ */
+export function parentOf(projects: Pick<ProjectsRepo, "get">, id: string | undefined): ProjectRecord | undefined {
+  const parent = id ? projects.get(id)?.parent : undefined;
+  if (!parent || parent === BASE_PROJECT_ID) return undefined;
+  const p = projects.get(parent);
+  return p && p.registered !== false ? p : undefined;
+}
+
+/** The projects whose own resources a project takes, nearest first: itself, then its parent (one level). */
+export function lineage(projects: Pick<ProjectsRepo, "get">, id: string | undefined): string[] {
+  if (!id) return [];
+  const parent = parentOf(projects, id);
+  return parent ? [id, parent.id] : [id];
+}
+
+/**
+ * Whether an agent of `home` (undefined: a global agent) works in `project` (undefined: the base project): a global
+ * agent everywhere, a project's agent in its own project and in that project's subprojects.
+ */
+export function worksIn(
+  projects: Pick<ProjectsRepo, "get">,
+  home: string | undefined,
+  project: string | undefined,
+): boolean {
+  if (!home) return true;
+  return lineage(projects, project).includes(home);
+}
+
+/**
+ * Why `id` (undefined: a project being created) cannot become a subproject of `parent`, or undefined when it can: the
+ * parent is the base project or a registered project of its own, not `id` itself, and `id` has no subprojects.
+ */
+export function parentProblem(
+  projects: Pick<ProjectsRepo, "get" | "children">,
+  id: string | undefined,
+  parent: string,
+): string | undefined {
+  if (parent === id) return "a project cannot be its own subproject";
+  if (id && projects.children(id).length) return "a project with subprojects cannot become a subproject";
+  if (parent === BASE_PROJECT_ID) return undefined;
+  const p = projects.get(parent);
+  if (!p || p.registered === false) return `no project ${parent}`;
+  if (p.parent) return `${p.name} is a subproject: subprojects have none of their own`;
+  return undefined;
 }

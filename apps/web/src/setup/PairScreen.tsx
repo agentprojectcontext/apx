@@ -3,12 +3,17 @@ import { Button, Icons, Input } from "@apx/ui";
 import { type FormEvent, useState } from "react";
 import logo from "../assets/logo.png";
 import { pairWith, thisDevice } from "../data/pairing.ts";
-import { useT } from "../i18n/index.ts";
+import { usePack, useT } from "../i18n/index.ts";
 import { BuildVersion } from "./BuildVersion.tsx";
 import { StepHead } from "./StepsIntro.tsx";
 
-/** The whole window while the core asks this panel for a token: a one-time code from the owner pairs it. */
+/** Its strings load with it (the "setup" pack): nothing shows until they are here. */
 export function PairScreen() {
+  return usePack("setup") ? <PairScreenBody /> : null;
+}
+
+/** The whole window while the core asks this panel for a token: a one-time code from the owner pairs it. */
+function PairScreenBody() {
   const t = useT();
   const [code, setCode] = useState("");
   const [busy, setBusy] = useState(false);

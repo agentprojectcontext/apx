@@ -12,7 +12,7 @@ export interface MessageProps {
   meta?: ReactNode;
   /**
    * Controls for this one message (copy, fork, read aloud), shown on hover or keyboard focus: at the end of the meta
-   * line when there is one, else in a row that opens under the bubble and moves the next message down.
+   * line when there is one, else in a row kept under the bubble so nothing moves when they show.
    */
   actions?: ReactNode;
   /** Reaction emoji pinned to the bubble's bottom corner. */

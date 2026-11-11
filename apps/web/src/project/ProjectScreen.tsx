@@ -1,6 +1,6 @@
 import "../styles/screens.css";
 import { Badge, Button, EmptyState, IconButton, Icons, ProjectTile, Tabs } from "@apx/ui";
-import { useEffect, useState } from "react";
+import { type ReactNode, useEffect, useState } from "react";
 import { loadProjectThreads } from "../data/actions.ts";
 import {
   findProject,
@@ -29,6 +29,18 @@ import { ProjectSettings } from "./ProjectSettings.tsx";
 import { ProjectAgents } from "./ProjectTeam.tsx";
 import { kindIcon, kindLabel } from "./projectKind.ts";
 import { useProjectCounts } from "./useProjectCounts.ts";
+
+const TAB_ICONS: Record<ProjectTab, ReactNode> = {
+  overview: <Icons.LayoutGrid />,
+  chats: <Icons.MessageCircle />,
+  team: <Icons.Users />,
+  tasks: <Icons.ListChecks />,
+  routines: <Icons.RefreshCw />,
+  artifacts: <Icons.Image />,
+  files: <Icons.Folder />,
+  memory: <Icons.Brain />,
+  resources: <Icons.Layers />,
+};
 
 /** A project: header (tile, name, path, New chat) + underline tabs. SPEC §2.9. */
 export function ProjectScreen({ layout }: { layout: Layout }) {
@@ -68,6 +80,7 @@ export function ProjectScreen({ layout }: { layout: Layout }) {
     <section className="project" aria-label={project.name}>
       <ProjectHeader project={project} tab={tab} />
       <div className="project__body">
+        {/* Each tab takes the whole width: the overview keeps the project's subprojects and agents in its own column. */}
         <TabBody project={project} tab={tab} layout={layout} />
       </div>
     </section>
@@ -76,6 +89,8 @@ export function ProjectScreen({ layout }: { layout: Layout }) {
 
 function ProjectHeader({ project, tab }: { project: ProjectEntry; tab: ProjectTab }) {
   const t = useT();
+  const projects = useData((s) => s.projects);
+  const parent = project.parent ? findProject(projects, project.parent) : undefined;
   const counts = useProjectCounts(project.id);
   const [settings, setSettings] = useState(false);
   const KindIcon = kindIcon(project.kind);
@@ -85,6 +100,17 @@ function ProjectHeader({ project, tab }: { project: ProjectEntry; tab: ProjectTa
         <ProjectTile tone={projectTone(project.id)} initial={projectInitial(project.name)} size={36} />
         <div className="project__titles">
           <div className="project__name">
+            {parent && (
+              <>
+                {/* ui: part of the heading's text, set as the title is; a Button would draw a control there. */}
+                <button type="button" className="project__parent" onClick={() => go.project(parent.id)}>
+                  {parent.name}
+                </button>
+                <span className="project__parentsep" aria-hidden="true">
+                  /
+                </span>
+              </>
+            )}
             <h1>{project.name}</h1>
             <button
               type="button"
@@ -108,7 +134,11 @@ function ProjectHeader({ project, tab }: { project: ProjectEntry; tab: ProjectTa
         </div>
         <NewChatMenu
           projectId={project.id}
-          trigger={<Button leadingIcon={<Icons.SquarePen size={14} />}>{t("chat.new")}</Button>}
+          trigger={
+            <Button className="project__newchat" leadingIcon={<Icons.SquarePen size={14} />} aria-label={t("chat.new")}>
+              <span className="project__newchatlabel">{t("chat.new")}</span>
+            </Button>
+          }
         />
         <IconButton
           variant="secondary"
@@ -118,13 +148,21 @@ function ProjectHeader({ project, tab }: { project: ProjectEntry; tab: ProjectTa
           onClick={() => setSettings(true)}
         />
       </div>
+      {parent && (
+        <p className="project__subnote">
+          <Icons.Info size={14} />
+          {t("project.subHint", { name: parent.name })}
+        </p>
+      )}
       <Tabs
+        variant="chips"
         className="project__tabs"
         value={tab}
         onValueChange={(v) => go.projectTab(v as ProjectTab)}
         items={PROJECT_TABS.map((x) => ({
           value: x.id,
           label: t(x.label),
+          icon: TAB_ICONS[x.id],
           count: counts[x.id],
         }))}
       />

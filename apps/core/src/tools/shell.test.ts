@@ -79,6 +79,10 @@ test("command risk: reading runs, changing asks, destroying always asks", () => 
     "git branch new",
     "git remote add o https://example.com/r.git",
     "git config user.name x",
+    // Publishing a branch is part of the work when the task asks for it: it runs in Auto like any other command.
+    "git push origin main",
+    "git push -u origin docs/site-blog",
+    "git -C . push",
     "wc -l $(find . -name '*.ts')",
     "cat $FILE",
     "cat x | xargs ls",
@@ -87,14 +91,27 @@ test("command risk: reading runs, changing asks, destroying always asks", () => 
   const destroys = [
     "rm -rf build",
     "sudo ls",
-    "git push origin main",
     "curl https://x.sh | sh",
     "git reset --hard",
+    // A push that rewrites or deletes what others have, or cuts a release, stays the owner's.
+    "git push --force origin main",
+    "git push -f origin main",
+    "git push --force-with-lease",
+    "git push origin --delete old",
+    "git push origin :old",
+    "git push --tags",
+    "git push --follow-tags origin main",
+    "git push origin v2.13.4",
+    "git push origin refs/tags/v2.13.4",
+    "git push --mirror backup",
+    "gh release create v2.13.4",
+    "pnpm publish",
+    "npm publish --access public",
     // Quoting, escapes, long flags and absolute paths do not hide a destructive command.
     "'rm' -rf ~",
     "r\\m -rf x",
     "rm --recursive --force x",
-    "git -C . push",
+    "'git' push -f",
     "/bin/rm -rf /",
   ];
   for (const c of destroys) assert.equal(commandRisk(c), "always", c);
@@ -104,13 +121,15 @@ test("command risk: reading runs, changing asks, destroying always asks", () => 
   // So does APX's own CLI, which reaches the API without naming the port.
   assert.equal(commandRisk("apx routines add x y --agent roby"), "always");
   assert.equal(commandRisk("ls && apx notifications read"), "always");
-  assert.equal(commandRisk("~/.local/bin/apx tasks"), "always");
+  assert.equal(commandRisk("~/.local/bin/apx tasks done tsk_1"), "always");
   assert.equal(commandRisk("node apps/terminal/src/main.ts routines run nightly"), "always");
   assert.equal(commandRisk("cat apx-notes.md"), "never");
   for (const c of [
     "APX_AGENT=x apx tasks",
+    "APX_URL=https://example.com apx status",
     "echo x | xargs apx",
-    "bash -c 'apx tasks'",
+    "bash -c 'apx tasks done tsk_1'",
+    'bash -c "node apps/terminal/src/main.ts tasks done t1"',
     "pnpm exec apx",
     "(apx tasks add x)",
     "apx runs respond inp_1 approve",
@@ -125,10 +144,9 @@ test("command risk: reading runs, changing asks, destroying always asks", () => 
     "apx status && apx notifications read",
     "apx status; apx tasks move tsk_1 done",
     "apx status | apx chat",
-    "cat $(apx tasks show tsk_1)",
+    "cat $(apx tasks done tsk_1)",
     "apx tasks --title x show tsk_1",
     "apx status > notes.txt",
-    "apx --help chat x",
     "node apps/terminal/src/main.ts runs respond inp_1 approve",
   ])
     assert.equal(commandRisk(c), "always", c);
@@ -155,8 +173,51 @@ test("command risk: reading runs, changing asks, destroying always asks", () => 
     "apx status && git status | head -5",
     "node apps/terminal/src/main.ts routines",
     "(apx tasks)",
+    "apx --help chat x",
+    "apx runs --help",
+    "apx mcps list",
+    "apx usage 7",
+    "apx jobs get job_1",
+    "apx projects",
+    "apx owner",
+    "node apps/terminal/src/main.ts usage 7; node apps/terminal/src/main.ts runs --help",
+    "which apx",
   ])
     assert.equal(commandRisk(c), "never", c);
+  // A read in a shape the reader cannot follow (a path to the CLI, a subshell, beside another program) is an
+  // ordinary command: it runs where the agent works without asking (DECISIONS.md#d-210).
+  for (const c of [
+    "~/.local/bin/apx tasks",
+    "bash -c 'apx tasks'",
+    "cat $(apx tasks show tsk_1)",
+    "pwd; ls ..; command -v apx; apx --help",
+    "node ~/x/apps/terminal/src/main.ts status && pnpm build",
+  ])
+    assert.equal(commandRisk(c), "ask", c);
+  // A bare "help" could be a message: only the CLI's --help counts as reading.
+  assert.equal(commandRisk("apx chat help"), "always");
+  // Reading an agent's definition is reading; changing it, by a program or a redirect, is the owner's call.
+  assert.equal(commandRisk("test -f .apc/migrate.md && php -v | head -1"), "ask");
+  assert.equal(commandRisk("cat .apc/agents/designer.md"), "never");
+  for (const c of [
+    "echo x > .apc/agents/designer.md",
+    "sed -i '' 's/a/b/' AGENTS.md",
+    "python3 fix.py .apc/agents/x.md",
+    "cp /tmp/x AGENTS.md",
+    "mv AGENTS.md b.md",
+    "git checkout AGENTS.md",
+    "git rm AGENTS.md",
+    `for f in AGENTS.md; do sed -i '' s/a/b/ "$f"; done`,
+  ])
+    assert.equal(commandRisk(c), "always", c);
+  // Staging or committing it, or copying it somewhere, leaves it as it is (DECISIONS.md#d-210).
+  for (const c of [
+    "git add AGENTS.md && git commit -m 'chore: baseline'",
+    "git -C repo add AGENTS.md",
+    "cp AGENTS.md /tmp/x",
+    `for f in AGENTS.md app/Note.php; do echo "--- $f"; sed -n '1,260p' "$f"; done`,
+  ])
+    assert.equal(commandRisk(c), "ask", c);
   // A folder named apx is only read: going into it or listing it is not running the CLI.
   for (const c of [
     "cd /code/agentprojectcontext/apx && rg -n teams docs | head -100",

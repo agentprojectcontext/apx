@@ -6,6 +6,7 @@ import { z } from "zod";
 import type { AgentRecord } from "../domain/agents.ts";
 import { canReadChat as canRead } from "../domain/chat-access.ts";
 import { messageQuery } from "../domain/messages.ts";
+import { worksIn } from "../domain/projects.ts";
 import type { Store } from "../domain/store.ts";
 import { cap, untrusted } from "./result.ts";
 import { defineTool, type Tool } from "./types.ts";
@@ -27,7 +28,7 @@ function searchScope(store: Store, agent: AgentRecord, query: string) {
   const used = new Set<number>();
   const named = store.agents
     .list()
-    .filter((a) => !a.project_id || a.project_id === agent.project_id)
+    .filter((a) => !a.project_id || worksIn(store.projects, a.project_id, agent.project_id))
     .map((a) => ({ agent: a, words: wordsOf(a.name) }))
     .sort((a, b) => b.words.length - a.words.length)
     .filter((a) => {

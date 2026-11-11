@@ -14,7 +14,7 @@ test("delegations past the cap show as queued, then run as the others end", asyn
   if (!agent) throw new Error("Missing super-agent");
   const root = await rpc<Thread>("threads.create", { kind: "loose", agent_id: agent.id, title: "Four parts" });
   await page.setViewportSize({ width: 1920, height: 1080 });
-  await open(page, `#thread=${root.id}&panel=processes`);
+  await open(page, `#thread=${root.id}&panel=agents`);
   const mainChat = page.locator(".workspace > .chat");
   const composer = mainChat.getByRole("textbox").last();
   await composer.fill("start four slow workers");
@@ -26,7 +26,7 @@ test("delegations past the cap show as queued, then run as the others end", asyn
 
   const side = page.getByRole("complementary", { name: "Panel lateral" });
   await expect(side.getByText("Activos (4)")).toBeVisible();
-  await expect(side.locator(".processes__row").getByText("En cola", { exact: true })).toHaveCount(QUEUED);
+  await expect(side.locator(".agents__row").getByText("En cola", { exact: true })).toHaveCount(QUEUED);
 
   // Opening the queued session says it starts once a slot frees (a delegated session is read-only: no composer).
   await cards
@@ -35,7 +35,7 @@ test("delegations past the cap show as queued, then run as the others end", asyn
     .getByRole("button", { name: /^Abrir conversación con/ })
     .click();
   await expect(page.getByText(/^En cola: .+ empieza cuando termine una de las delegaciones en curso$/)).toBeVisible();
-  await side.getByRole("button", { name: "Volver a procesos del chat" }).click();
+  await side.getByRole("tab", { name: /^Todos \(/ }).click();
 
   await expect(side.getByText("Terminados (4)")).toBeVisible({ timeout: 15_000 });
   await expect(cards.getByText("En cola", { exact: true })).toHaveCount(0);

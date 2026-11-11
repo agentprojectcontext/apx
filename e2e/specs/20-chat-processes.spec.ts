@@ -20,21 +20,21 @@ test("chat processes open A2A beside its parent, maximize and stay scoped to eac
   await expect(side.getByText("Last line of the report.")).toBeVisible();
   await expect(mainChat).toHaveAttribute("aria-label", /Source review|start a worker/);
   await expect(page).toHaveURL(new RegExp(`thread=${root.id}`));
-  await side.getByRole("button", { name: "Volver a procesos del chat" }).click();
+  await side.getByRole("tab", { name: /^Todos \(/ }).click();
   await expect(side.getByText("Terminados (1)")).toBeVisible();
-  await side.locator(".processes__row").click();
+  await side.locator(".agents__row").click();
   await side.getByRole("button", { name: "Abrir conversación completa" }).click();
   await expect(side).toBeHidden();
   await expect(mainChat.getByText("Last line of the report.")).toBeVisible();
   await expect(page).not.toHaveURL(new RegExp(`thread=${root.id}`));
 
   const other = await rpc<Thread>("threads.create", { kind: "loose", agent_id: agent.id, title: "Other chat" });
-  await open(page, `#thread=${other.id}&panel=processes`);
+  await open(page, `#thread=${other.id}&panel=agents`);
   await expect(side.getByText("Terminados (0)")).toBeVisible();
-  await expect(side.locator(".processes__row")).toHaveCount(0);
+  await expect(side.locator(".agents__row")).toHaveCount(0);
   await side.getByRole("button", { name: "Cerrar panel" }).click();
   await mainChat.getByRole("button", { name: "Terminal", exact: true }).click();
-  await expect(side.getByText("El agente no corrió comandos en este chat")).toBeVisible();
+  await expect(side.getByText("No hay terminales abiertas")).toBeVisible();
   await expect(side.getByRole("button", { name: "Nueva terminal" })).toHaveCount(1);
   await mainChat.getByRole("button", { name: "Cambios", exact: true }).click();
   await expect(side.getByText("No hay cambios registrados en este chat")).toBeVisible();

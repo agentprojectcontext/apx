@@ -55,7 +55,7 @@ test("dictar deja solo el texto; un audio adjunto conserva audio y texto", async
     await expect
       .poll(() =>
         page
-          .locator(".voice-recording__bars > span")
+          .locator(".composer__wave > span")
           .evaluateAll((bars) =>
             bars.some((bar) => Number((bar as HTMLElement).style.transform.match(/scaleY\(([^)]+)/)?.[1]) > 0.2),
           ),
@@ -115,5 +115,41 @@ test("dictar deja solo el texto; un audio adjunto conserva audio y texto", async
     await env.core.close();
     await env.cleanup();
     await new Promise<void>((resolve) => server.close(() => resolve()));
+  }
+});
+
+test("un dictado que no se pudo pasar a texto queda adjunto como nota de voz", async ({ page, context }) => {
+  const listener = net.createServer();
+  await new Promise<void>((resolve) => listener.listen(0, "127.0.0.1", resolve));
+  const port = (listener.address() as AddressInfo).port;
+  await new Promise<void>((resolve) => listener.close(() => resolve()));
+  const env = await startCore({ port, llm: scriptedLlm(() => say("Heard it")) });
+  try {
+    await env.client.call("setup.finish", {});
+    await context.grantPermissions(["microphone"], { origin: env.core.url });
+    await page.route("**/rpc/media.listen", (route) =>
+      route.fulfill({ json: { ok: true, result: { text: "", live: false } } }),
+    );
+    // The engine fails: the recording must not be lost with it.
+    await page.route("**/rpc/media.transcribe", (route) =>
+      route.fulfill({
+        json: { ok: false, error: { code: "unavailable", message: "The transcription engine is off" } },
+      }),
+    );
+    await page.goto(env.core.url);
+    const input = page.getByRole("textbox", { name: /^Escribile a/ });
+    await expect(input).toBeVisible();
+    await page.getByRole("button", { name: "Dictar", exact: true }).click();
+    await expect(page.getByText("Grabando", { exact: true })).toBeVisible();
+    await expect(page.locator(".voice-recording__time")).not.toHaveText("0:00");
+    await page.getByRole("button", { name: "Terminar de dictar", exact: true }).click();
+    await expect(page.locator(".attchip.is-audio")).toBeVisible();
+    await expect(input).toHaveValue("");
+    await page.getByRole("button", { name: "Enviar", exact: true }).click();
+    await expect(page.locator(".transcript__files .audiopart")).toHaveCount(1);
+  } finally {
+    await page.goto("about:blank");
+    await env.core.close();
+    await env.cleanup();
   }
 });

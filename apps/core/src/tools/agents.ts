@@ -5,7 +5,7 @@ import { planSteps } from "@apx/protocol/task-plan";
 import { z } from "zod";
 import type { AgentRecord } from "../domain/agents.ts";
 import { APX_SERVER } from "../domain/approvals.ts";
-import type { ProjectRecord } from "../domain/projects.ts";
+import { type ProjectRecord, worksIn } from "../domain/projects.ts";
 import type { Store } from "../domain/store.ts";
 import { ownerWordsOf } from "../domain/task-asked.ts";
 import { budgetLeft } from "../engine/breaker.ts";
@@ -136,7 +136,7 @@ export function agentTools(store: Store): Tool[] {
     defineTool({
       name: "delegate",
       description:
-        "Hand work to another agent or to a worker you define (it uses your model and tools); give one, not both. Task assignment already starts its executor: do not also delegate that work. A worker of your own is for substantial independent work that would overwhelm your context, or when the owner asks for a helper or a review. In task give the goal, your findings, paths checked, a method that works, the project and the expected result. Asking an agent again continues its session. The answer comes back within wait_s, or later in a new turn: never poll for it.",
+        "Hand work to another agent or to a worker you define (it uses your model and tools); give one, not both. Task assignment already starts its executor: do not also delegate that work. A worker of your own: for large independent work, or when the owner asks for a helper or a review. In task give the goal, your findings, paths checked, a method that works, the project and the expected result; no way out (if not possible, report). Asking an agent again continues its session. The answer comes back within wait_s, or later in a new turn: never poll for it.",
       args: z
         .object({
           agent: z.string().optional().describe("agent id or unique name"),
@@ -239,7 +239,7 @@ export function agentTools(store: Store): Tool[] {
  * project. A string: why none.
  */
 function projectOf(store: Store, ref: string, agent: AgentRecord): ProjectRecord | string {
-  const all = store.projects.list().filter((p) => !agent.project_id || p.id === agent.project_id);
+  const all = store.projects.list().filter((p) => worksIn(store.projects, agent.project_id, p.id));
   const q = ref.trim();
   const absolute = path.isAbsolute(q) ? path.resolve(q) : undefined;
   const pathProject = all

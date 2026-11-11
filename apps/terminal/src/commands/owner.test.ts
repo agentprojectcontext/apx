@@ -8,7 +8,10 @@ const me = { name: "Alex", about: "Runs Acme.", language: "en", timezone: "" };
 test("owner prints who you are; set sends only the identity's keys", async () => {
   const { client, calls } = recordingClient({ "owner.get": me, "owner.set": { ...me, timezone: "Europe/Madrid" } });
   const out = await printed(() => owner(client, []));
-  assert.match(out, /^Name: +Alex\nLanguage: +en\nTime zone: +this machine's\n\nRuns Acme\.$/);
+  assert.match(
+    out,
+    /^Name: +Alex\nLanguage: +en\nTime zone: +this machine's\nPublish: +without asking \(a release always asks\)\n\nRuns Acme\.$/,
+  );
   assert.match(await printed(() => owner(client, ["set", "timezone=Europe/Madrid"])), /Time zone: +Europe\/Madrid/);
   assert.deepEqual(calls, [
     ["owner.get", {}],
@@ -16,6 +19,8 @@ test("owner prints who you are; set sends only the identity's keys", async () =>
   ]);
   assert.deepEqual(ownerPatchOf(["about=a=b", "name="]), { about: "a=b", name: "" });
   assert.throws(() => ownerPatchOf(["phone=1"]), /unknown: phone/);
+  assert.deepEqual(ownerPatchOf(["publish=ask"]), { publish: "ask" });
+  assert.throws(() => ownerPatchOf(["publish=sometimes"]), /publish is auto or ask/);
   assert.throws(() => ownerPatchOf([]), /apx owner set/);
   assert.throws(() => ownerPatchOf(["name"]), /expected key=value/);
 });

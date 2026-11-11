@@ -37,6 +37,19 @@ sea la autonomía. El agente inicia sesión con una variable que guardaste para 
 Además, a los agentes se les indica que nunca te pidan contraseñas por chat.
 </Aside>
 
+Los demás campos: después de que el agente leyó una página, tipear espera tu OK. En Auto no lo espera en una página
+que sirve tu propia computadora (`localhost`, `127.0.0.1`), como la app que está armando.
+
+## Cuando una página pregunta
+
+Algunas páginas preguntan con un cuadro propio: "¿Borrar este elemento?", "¿Salir de esta página?", un nombre para
+escribir. El agente ve el cuadro cuando lee la página y lo responde, Aceptar o Cancelar, en vez de quedarse trabado
+detrás. En la app de APX el cuadro también aparece en tu pantalla y lo podés responder vos; cuando el agente responde,
+se cierra. Mientras tenés el control de la pestaña, sus cuadros son tuyos: el agente espera.
+
+Las páginas en la app de APX no pueden pedirte que escribas texto en un cuadro así (la app nunca mostró ese tipo). En
+el navegador propio de APX, el que se usa con la app cerrada, el agente escribe la respuesta.
+
 ## Iniciar sesión con tus claves guardadas
 
 Un agente puede iniciar sesión por vos sin ver nunca tu contraseña. Guardala una vez y decí para qué sitios es:
@@ -100,12 +113,15 @@ Cuando un agente arma un sitio o una landing y la abre en el navegador (una dire
 podés señalar lo que querés cambiar en vez de describirlo. Apretá **Editar** en la barra del navegador:
 
 1. Pasá el mouse por la página: se resalta la parte que tenés debajo. Hacé clic en un título, un botón o una imagen
-   para elegirlo.
+   para elegirlo. O elegilo en **Elementos**, la lista del panel de edición con cada parte de la página según lo que es
+   (título, texto, botón, enlace, imagen, campo) y lo que dice: al pasar el mouse por una fila, esa parte se resalta en
+   la página.
 2. El panel de edición muestra sus campos: **Texto**, **Color del texto**, **Fondo**, **Tamaño de letra**,
    **Espaciado** y **¿Algo más?** para lo que prefieras decir con palabras. Lo que cambiás se ve en la página al
    instante, solo en tu vista: el código de la página no se toca y al recargar vuelve como estaba.
-3. Hacé clic en otra parte para editar esa. **Tus cambios** lista solo las partes que cambiaste, numeradas como en la
-   página y marcadas **Cambiado**; una parte que solo miraste no queda.
+3. Hacé clic en otra parte para editar esa, o volvé a **Elementos** con la flecha junto a su nombre. **Tus cambios**
+   lista solo las partes que cambiaste, numeradas como en la página y marcadas **Cambiado**, y **Elementos** las marca
+   con un punto; una parte que solo miraste no queda.
 4. **Pedirle a Vera** pone los cambios en el cuadro de mensaje del chat con palabras simples: la página y cada parte
    por lo que dice y lo que hay que cambiar. Sumá lo que quieras y envialo: nada se manda solo. **Descartar**, o Esc,
    deja la página como estaba.
@@ -121,6 +137,19 @@ campo de contraseña, código o tarjeta se puede elegir pero nunca se lee ni se 
 > Dejá el naranja.
 >
 > **Vera:** Listo: el botón dice "Pedí tu demo", un poco más grande y sigue naranja. Te la recargué.
+
+## Lo que los agentes hacen sin JavaScript
+
+Casi todo lo que los agentes pedían hacer con JavaScript, el navegador lo hace solo, sin preguntarte:
+
+- **Adónde lleva un link**: la vista de la página que lee el agente muestra la dirección de cada link.
+- **Editores de texto enriquecido** (la caja de un post o un comentario que no es un campo común) aparecen como campos
+  donde puede escribir.
+- **Listas**: escribir en una lista desplegable elige la opción con ese texto.
+- **Archivos**: escribir en un campo de archivo la ruta completa de un archivo de su carpeta o su carpeta temporal lo
+  adjunta. Solo puede adjuntar un archivo que puede leer; nunca de la carpeta de APX.
+
+JavaScript queda para lo que nada de esto cubre, y siempre pregunta.
 
 ## Ejecución de JavaScript aprobada
 

@@ -44,7 +44,6 @@ export const enFiles = {
   "panel.document.hint": "Read documents from this chat",
   "document.label": "Document",
   "document.list": "Documents in this chat",
-  "document.back": "All documents ({n})",
   "document.empty": "No documents yet",
   "document.emptyBody": "Reports, plans and reference documents opened by your agent appear here.",
   "document.source": "View source",

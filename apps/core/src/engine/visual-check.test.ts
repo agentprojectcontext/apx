@@ -30,6 +30,11 @@ test("an agent working in a project is told to look at a visible change running,
   const { project } = await env.client.call("projects.register", { path: folder.path });
   const t = await env.client.call("threads.create", { kind: "loose", agent_id: "superagent", project_id: project.id });
   assert.ok((await systemOf(t.id)).includes(VISUAL_CHECK));
+  // A browser that cannot show it is the agent's to fix before anything is called unverified (DECISIONS.md#d-210).
+  assert.match(
+    VISUAL_CHECK,
+    /fix a browser in the way \(tabs, a dialog, the size\) first; only what none shows is UNVERIFIED/,
+  );
 });
 
 test("a chat outside any project is not told it", async () => {

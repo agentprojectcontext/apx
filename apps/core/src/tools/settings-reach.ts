@@ -41,6 +41,9 @@ export const OWNER_ONLY: Readonly<Record<string, string>> = {
   "email.signature_import": "it only fills the owner's signature editor with Gmail's; saving it is theirs",
   "engines.set_usage": "the owner chooses whether APX queries and displays their external account limits",
   "secrets.set": SECRET,
+  "channels.add": "a new account starts with its sign-in, which is the owner's to give (Channels › New channel)",
+  "contacts.add":
+    "the panel's one-step Add contact; agents add a contact and its address with contacts.set and contacts.address",
   "secrets.set_sites":
     "where agents may sign in with a stored secret is the owner's to say; an agent asks with its own card (DECISIONS.md#d-193)",
   "providers.set": SECRET,
@@ -130,6 +133,7 @@ export const OWNER_ONLY: Readonly<Record<string, string>> = {
   "terminal.resize": PANEL,
   "terminal.close": PANEL,
   "threads.compact": PANEL,
+  "threads.aside": "the owner's own question beside a chat, answered by that chat's agent; an agent asks in a chat",
   "threads.flow_editor": "the Flow editor says which Flow its own chat draws; agents read it in that chat's turns",
   "threads.delete": PANEL,
   "threads.fork": PANEL,
@@ -148,6 +152,8 @@ export const OWNER_ONLY: Readonly<Record<string, string>> = {
   "environments.display": PANEL,
   "environments.screen": PANEL,
   "channels.recover": PANEL,
+  "channels.email_history":
+    "the owner explicitly imports private mailbox history with apx channels email-history; agents must not import it unasked",
   "surfaces.import": PANEL,
   "sessions.resume": PANEL,
   "runs.respond": AS_OWNER,

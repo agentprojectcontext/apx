@@ -1,13 +1,23 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
+import { enAccount } from "./account-en.ts";
+import { esAccount } from "./account-es.ts";
+import { enActivityReview } from "./activity-review-en.ts";
+import { esActivityReview } from "./activity-review-es.ts";
 import { enApprovals } from "./approvals-en.ts";
 import { esApprovals } from "./approvals-es.ts";
 import { enComputer } from "./computer-en.ts";
 import { esComputer } from "./computer-es.ts";
 import { en as base } from "./en.ts";
 import { enEmailSignatures } from "./en-email-signatures.ts";
+import { enResources } from "./en-resources.ts";
+import { enSetup } from "./en-setup.ts";
+import { enTeam } from "./en-team.ts";
 import { es as esBase } from "./es.ts";
 import { esEmailSignatures } from "./es-email-signatures.ts";
+import { esResources } from "./es-resources.ts";
+import { esSetup } from "./es-setup.ts";
+import { esTeam } from "./es-team.ts";
 import { enFlow } from "./flow-en.ts";
 import { esFlow } from "./flow-es.ts";
 import { enIngress } from "./ingress-en.ts";
@@ -24,6 +34,59 @@ import { enSysUsage } from "./sysusage-en.ts";
 import { esSysUsage } from "./sysusage-es.ts";
 import { enThreadDialogs } from "./thread-dialogs-en.ts";
 import { esThreadDialogs } from "./thread-dialogs-es.ts";
+
+test("the setup screens' strings load with them, never with the first screen", async () => {
+  const { loadMessages, loadPack } = await import("./messages.ts");
+  for (const lang of ["en", "es"] as const) {
+    const messages = await loadMessages(lang);
+    // What other screens show from setup stays in the language itself.
+    assert.equal(messages["setup.project.pick"], lang === "en" ? "Choose folder" : "Elegir carpeta");
+    for (const key of Object.keys(enSetup) as (keyof typeof enSetup)[]) assert.equal(messages[key], undefined);
+    assert.deepEqual(await loadPack("setup", lang), lang === "en" ? enSetup : esSetup);
+  }
+});
+
+test("the team pack's strings load with its screens, never with the first screen", async () => {
+  const { loadMessages, loadPack } = await import("./messages.ts");
+  for (const lang of ["en", "es"] as const) {
+    const messages = await loadMessages(lang);
+    assert.equal(messages["team.new.title"], lang === "en" ? "New agent" : "Nuevo agente");
+    for (const key of Object.keys(enTeam) as (keyof typeof enTeam)[]) assert.equal(messages[key], undefined);
+    assert.deepEqual(await loadPack("team", lang), lang === "en" ? enTeam : esTeam);
+  }
+});
+
+test("the resources pack's strings load with its screens, never with the first screen", async () => {
+  const { loadMessages, loadPack } = await import("./messages.ts");
+  for (const lang of ["en", "es"] as const) {
+    const messages = await loadMessages(lang);
+    assert.equal(messages["res.tab.skills"], lang === "en" ? "Skills" : "Skills");
+    for (const key of Object.keys(enResources) as (keyof typeof enResources)[]) assert.equal(messages[key], undefined);
+    assert.deepEqual(await loadPack("resources", lang), lang === "en" ? enResources : esResources);
+  }
+});
+
+test("an account's settings strings load only when they open, in either language", async () => {
+  const { loadMessages, loadPack } = await import("./messages.ts");
+  for (const lang of ["en", "es"] as const) {
+    const messages = await loadMessages(lang);
+    assert.equal(messages["chs.new"] !== undefined, true);
+    for (const key of Object.keys(enAccount) as (keyof typeof enAccount)[]) assert.equal(messages[key], undefined);
+    assert.deepEqual(await loadPack("account", lang), lang === "en" ? enAccount : esAccount);
+  }
+});
+
+test("activity review details stay off the first screen while its navigation remains translated", async () => {
+  const { loadMessages, loadPack } = await import("./messages.ts");
+  for (const lang of ["en", "es"] as const) {
+    const messages = await loadMessages(lang);
+    assert.equal(messages["config.activityReview"], lang === "en" ? "Activity review" : "Revisión y mejoras");
+    for (const key of Object.keys(enActivityReview) as (keyof typeof enActivityReview)[]) {
+      assert.equal(messages[key], undefined);
+    }
+    assert.deepEqual(await loadPack("activityReview", lang), lang === "en" ? enActivityReview : esActivityReview);
+  }
+});
 
 test("approval details do not load with the first screen in either language", async () => {
   const { loadMessages, loadPack } = await import("./messages.ts");
@@ -106,6 +169,8 @@ test("secretary capability strings load only with the super-agent's settings in 
 // A pack's strings belong to the language as much as the main chunk's.
 const en = {
   ...base,
+  ...enAccount,
+  ...enActivityReview,
   ...enApprovals,
   ...enComputer,
   ...enReceived,
@@ -117,9 +182,14 @@ const en = {
   ...enIngress,
   ...enFlow,
   ...enSecretary,
+  ...enSetup,
+  ...enResources,
+  ...enTeam,
 };
 const es = {
   ...esBase,
+  ...esAccount,
+  ...esActivityReview,
   ...esApprovals,
   ...esComputer,
   ...esReceived,
@@ -131,6 +201,9 @@ const es = {
   ...esIngress,
   ...esFlow,
   ...esSecretary,
+  ...esSetup,
+  ...esResources,
+  ...esTeam,
 };
 
 // Each language is loaded alone, so a key it lacks would show as the bare key.

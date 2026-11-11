@@ -211,6 +211,28 @@ test("a file from another version, or one that is not an export, is refused and 
   await assert.rejects(target.client.call("instance.import", { file: { ...file, version: 2 } }), /newer APX/);
 });
 
+test("a subproject comes back under its project; a parent left out of the copy leaves it a project of its own", async () => {
+  const file = await exported();
+  const crafted = {
+    ...file,
+    projects: [
+      { id: "p_suptop", name: "Top" },
+      { id: "p_supkid", name: "Kid", parent: "p_suptop" },
+      { id: "p_supbase", name: "Base kid", parent: "~default" },
+      { id: "p_suplost", name: "Lost", parent: "p_notincopy" },
+    ],
+  };
+  await target.client.call("instance.import", { file: crafted });
+  const t = target.core.store.projects;
+  assert.equal(t.get("p_supkid")?.parent, "p_suptop");
+  assert.equal(t.get("p_supbase")?.parent, "~default");
+  assert.equal(t.get("p_suplost")?.parent, undefined);
+  // The export carries the link too.
+  const sub = (await source.client.call("projects.create", { name: "Sub", parent: project })).project;
+  const again = await exported();
+  assert.equal(again.projects.find((p) => p.id === sub.id)?.parent, project);
+});
+
 test("a copy's read-only folders pass the owner's own check: APX's home never becomes one", async () => {
   const file = await exported();
   const there = homes[1]?.path as string;
@@ -492,4 +514,31 @@ test("an import that outlives its deadline stops and says so; importing again fi
   await assert.rejects(applyImport({ ...deps, setChannel: stuck }, crafted, deadline.signal), ImportOutOfTime);
   const done = await applyImport({ ...deps, setChannel: async () => {} }, crafted);
   assert.equal(byId(done, "channels", "tg_late")?.action, "add");
+});
+
+test("a channel's contacts agent is this install's: the other super-agent is mapped, a missing one is skipped", async () => {
+  const file = await exported();
+  const tg = file.channels.find((ch) => ch.id === "tg");
+  const own = file.agents.find((a) => a.kind === "secretary");
+  assert.ok(tg && own);
+  const crafted: InstanceFile = {
+    ...file,
+    // The file's super-agent has another id than this install's.
+    agents: file.agents.map((a) => (a.kind === "secretary" ? { ...a, id: "sec_elsewhere" } : a)),
+    channels: [
+      { ...tg, id: "tg_mapped", label: "Mapped bot", agent_id: "sec_elsewhere", contacts_agent_id: "sec_elsewhere" },
+      { ...tg, id: "tg_orphan", label: "Orphan bot", agent_id: "sec_elsewhere", contacts_agent_id: "nobody" },
+    ],
+  };
+  const preview = await target.client.call("instance.preview_import", { file: crafted });
+  assert.equal(byId(preview, "channels", "tg_orphan")?.reason, "agent_missing");
+  await target.client.call("instance.import", { file: crafted });
+  const saved = target.core.store.settings.read("channels");
+  const mapped = saved.find((c) => c.id === "tg_mapped");
+  assert.deepEqual([mapped?.agent_id, mapped?.contacts_agent_id], [SUPER_AGENT_ID, SUPER_AGENT_ID]);
+  assert.equal(
+    saved.find((c) => c.id === "tg_orphan"),
+    undefined,
+    "a channel whose contacts have no agent here is not made",
+  );
 });

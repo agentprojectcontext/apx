@@ -22,6 +22,7 @@ import {
 } from "./connection.ts";
 import { type EmbeddedCore, isUp, startEmbeddedCore, waitUp } from "./core-process.ts";
 import { type Remote, reachRemote, type WaitDeps, waitingHtml } from "./remote-wait.ts";
+import { loadServers, nameServer, rememberServer, serverId, serverViews } from "./servers.ts";
 import { appKeyPath, askpassSupported, authorizeKey, ensureAppKey, localSshVersion } from "./ssh-login.ts";
 import {
   installArgs,
@@ -57,6 +58,7 @@ export function createConnector(opts: {
   const corePort = Number(new URL(opts.coreUrl).port || 7440);
   // Asked once (installed or from a checkout) and kept; APX_CONNECTION=local skips the question (tests, scripts).
   let conn: Connection | undefined = initialConnection(dataDir);
+  if (conn) rememberServer(dataDir, conn);
   let core: EmbeddedCore | undefined;
   let tunnel: Tunnel | undefined;
   // The remote panel (an address or SSH) is on screen: losing its server from here on waits for it again.
@@ -83,6 +85,34 @@ export function createConnector(opts: {
 
   ipcMain.on("desktop:core-local", (e) => {
     e.returnValue = conn?.mode === "local" && opts.isOwnWindow(e.sender);
+  });
+
+  // The top bar's server list: the servers this app used, which one is in use and whether each answers now.
+  ipcMain.handle("desktop:servers", async (e) => {
+    if (e.sender !== opts.panel) return undefined;
+    return { servers: await serverViews(loadServers(dataDir), conn, probe) };
+  });
+
+  // Back to a server from that list, through the same choice the first-run screen makes; one that does not answer
+  // keeps the window where it is.
+  ipcMain.handle("desktop:open-server", async (e, id: unknown): Promise<Answer> => {
+    const revision = connectionRevision;
+    if (e.sender !== opts.panel) return { ok: false, error: "not allowed" };
+    const known = loadServers(dataDir).find((s) => serverId(s.connection) === id);
+    if (!known) return { ok: false, reason: "unknown" };
+    if (conn && serverId(conn) === id) return { ok: true };
+    if (!(await reachable(known.connection))) return { ok: false, reason: "notReachable" };
+    if (connectionRevision !== revision) return { ok: false, error: "The connection changed" };
+    // The tunnel to the server left behind goes now, so its end is not read as this connection dropping.
+    openedRemote = false;
+    tunnel?.stop();
+    tunnel = undefined;
+    return choose(known.connection, revision, false);
+  });
+
+  // The computer name the panel's core reports, kept for the list.
+  ipcMain.on("desktop:server-name", (e, name: unknown) => {
+    if (e.sender === opts.panel && conn) nameServer(dataDir, conn, name);
   });
 
   ipcMain.handle("connect:local", async (e, access: unknown): Promise<Answer> => {
@@ -212,6 +242,24 @@ export function createConnector(opts: {
     });
   }
 
+  /** Whether a server in the list answers now; over SSH that would open a tunnel, so it is not asked. */
+  async function probe(c: Connection): Promise<boolean | undefined> {
+    if (c.mode === "local") return isUp(opts.coreUrl);
+    if (c.mode === "url") return isUp(c.url);
+    return undefined;
+  }
+
+  /** Whether switching to it will open: an installed app starts its own core; anything else must answer first. */
+  async function reachable(c: Connection): Promise<boolean> {
+    if (c.mode === "local") return app.isPackaged || (await isUp(opts.coreUrl));
+    if (c.mode === "url") return isUp(c.url);
+    try {
+      return await sshCoreUp(c.target);
+    } catch {
+      return false;
+    }
+  }
+
   async function sshCoreUp(target: string, wait = 15_000): Promise<boolean> {
     const probe = startTunnel(target, corePort, () => {});
     try {
@@ -238,7 +286,8 @@ export function createConnector(opts: {
     while (Date.now() < until && (await isUp(opts.coreUrl))) await new Promise((r) => setTimeout(r, 200));
   }
 
-  async function choose(c: Connection, expectedRevision: number): Promise<Answer> {
+  /** `firstRun`: chosen on the first-run screen (the panel then says APX is installed), not picked from the list. */
+  async function choose(c: Connection, expectedRevision: number, firstRun = true): Promise<Answer> {
     if (connectionRevision !== expectedRevision) return { ok: false, error: "The connection changed" };
     const revision = ++connectionRevision;
     opts.disconnected();
@@ -251,8 +300,9 @@ export function createConnector(opts: {
     const previous = loadConnection(dataDir);
     if (c.mode === "local" && previous?.mode === "local" && previous.home) c = previous;
     saveConnection(dataDir, c);
+    rememberServer(dataDir, c);
     conn = c;
-    await open(true);
+    await open(firstRun);
     return { ok: true };
   }
 

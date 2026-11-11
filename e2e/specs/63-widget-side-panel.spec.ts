@@ -25,7 +25,7 @@ test("a widget shows in the side panel, the chat keeps a card of it, and it come
     .locator(".surfaceframe")
     .evaluate((el) => Number.parseFloat(getComputedStyle(el).paddingTop));
   expect(widgetInset).toBeGreaterThanOrEqual(16);
-  await expect(panel.getByRole("button", { name: "Todos los widgets (1)" })).toBeVisible();
+  await expect(page.locator(".sidepanel").getByRole("tab", { name: "Todos (1)" })).toBeVisible();
   const card = transcript.locator(".surfacecard--aside");
   await expect(card).toContainText("Coverage audit");
   await expect(card).toContainText("Se muestra en el panel lateral");

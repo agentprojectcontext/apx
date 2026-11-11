@@ -1,5 +1,6 @@
-import { type AgentListing, parentIn, reportsOf, teamHead } from "@apx/protocol";
+import { type AgentListing, BASE_PROJECT_ID, parentIn, reportsOf, teamHead } from "@apx/protocol";
 import { type AgentRecord, publicAgent } from "./agents.ts";
+import { parentOf } from "./projects.ts";
 import type { Store } from "./store.ts";
 
 /**
@@ -31,4 +32,20 @@ export function agentDirectory(store: Store): AgentListing[] {
       leads: reportsOf(team, a).map((r) => r.id),
     };
   });
+}
+
+/**
+ * The agents that work in one project (BASE_PROJECT_ID: the base project's global agents): its own, then the ones it
+ * takes from its parent marked `inherited_from`. Undefined for a project APX does not know.
+ */
+export function projectTeam(store: Store, projectId: string): AgentListing[] | undefined {
+  const all = agentDirectory(store);
+  if (projectId === BASE_PROJECT_ID) return all.filter((a) => !a.project_id);
+  const project = store.projects.get(projectId);
+  if (!project) return undefined;
+  const own = all.filter((a) => a.project_id === projectId);
+  const from = project.parent === BASE_PROJECT_ID ? BASE_PROJECT_ID : parentOf(store.projects, projectId)?.id;
+  if (!from) return own;
+  const inherited = all.filter((a) => (from === BASE_PROJECT_ID ? !a.project_id : a.project_id === from));
+  return [...own, ...inherited.map((a) => ({ ...a, inherited_from: from }))];
 }

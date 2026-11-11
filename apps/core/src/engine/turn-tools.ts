@@ -4,7 +4,7 @@ import { BROWSER_CAP, CHROME_CAP } from "@apx/protocol";
 import { memorySettings } from "../domain/memory-settings.ts";
 import { answersChecked, inChrome, type Origin, ownerAsked } from "../domain/runs.ts";
 import type { Store } from "../domain/store.ts";
-import { CONTACT_TOOLS, contactToolNames } from "../tools/contact.ts";
+import { CONTACT_TOOLS, contactHolder, contactToolNames } from "../tools/contact.ts";
 import { STICKER_TOOL, stickersFor } from "../tools/directory.ts";
 import { IMESSAGE_TOOLS } from "../tools/imessage.ts";
 import { MCP_CALL, MCP_SEARCH, mcpBridge } from "../tools/mcp-bridge.ts";
@@ -168,7 +168,7 @@ export async function turnTools(deps: TurnDeps, turn: Turn) {
   // see the contact-only tools.
   const forContact =
     turn.audience.kind === "contact"
-      ? new Set([...contactToolNames(turn.audience.person), ...(turn.web ? WEB_TOOLS : []), STICKER_TOOL])
+      ? new Set([...contactToolNames(contactHolder(turn.audience)), ...(turn.web ? WEB_TOOLS : []), STICKER_TOOL])
       : new Set<string>();
   const narrowed = inherit(
     turn.agent,

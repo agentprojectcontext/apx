@@ -60,15 +60,6 @@ export async function loadChannels(): Promise<void> {
   }
 }
 
-/**
- * The id of a new account of `type`: the type itself for the first one (as the setup and `apx channels add` make it),
- * a random one for each further account, which never shows its number, address or token.
- */
-export function newChannelId(type: ChannelInfo["type"], taken: readonly Pick<ChannelInfo, "id">[]): string {
-  if (!taken.some((c) => c.id === type)) return type;
-  return `${type}-${crypto.randomUUID().replaceAll("-", "").slice(0, 10)}`;
-}
-
 export type ChannelDraft = {
   type?: ChannelInfo["type"];
   label?: string;
@@ -88,8 +79,18 @@ export type ChannelDraft = {
   research?: ChannelInfo["research"];
   /** When it answers contacts; none: at any hour (kept on every save). */
   hours?: ChannelInfo["hours"] | undefined;
+  /** Its notices silenced (kept on every save). */
+  quiet?: boolean | undefined;
   /** Email: the mailbox and its servers (kept on every save). */
   email?: ChannelInfo["email"];
+  /** What its contacts' chats may do unless set for one of them (kept on every save). */
+  contacts?: ChannelInfo["contacts"];
+  /** The owner's notes and rules for everyone on it, and whether only the owner is answered (kept on every save). */
+  knowledge?: string | undefined;
+  rules?: string | undefined;
+  owner_only?: boolean | undefined;
+  /** Automatic answers to its contacts per hour (kept on every save). */
+  limits?: ChannelInfo["limits"];
 };
 
 /** What a save sends for an account as it is now: every setting it keeps, so a change of one drops none. */
@@ -106,7 +107,13 @@ export const draftOf = (c: ChannelInfo): ChannelDraft => ({
   reactions: c.reactions,
   research: c.research,
   hours: c.hours,
+  ...(c.quiet ? { quiet: true } : {}),
   ...(c.email ? { email: c.email } : {}),
+  ...(c.contacts ? { contacts: c.contacts } : {}),
+  ...(c.knowledge ? { knowledge: c.knowledge } : {}),
+  ...(c.rules ? { rules: c.rules } : {}),
+  ...(c.owner_only ? { owner_only: true } : {}),
+  ...(c.limits ? { limits: c.limits } : {}),
 });
 
 /** Lets agents read and send iMessages on this Mac (or stops them). */
@@ -137,6 +144,25 @@ const TYPES = [
   "teams",
   "line",
 ] as const satisfies readonly ChannelInfo["type"][];
+
+/** What a new account is made with: the core names it and gives it the rest (the super-agent answers it). */
+export type NewAccount = Partial<Pick<ChannelInfo, "label" | "self_owner" | "email">>;
+
+/** Makes a new account of `type` with its sign-in, when there is one; its id, or undefined (and a notice). */
+export async function addChannel(
+  type: ChannelInfo["type"],
+  account: NewAccount,
+  token?: string,
+): Promise<string | undefined> {
+  try {
+    const r = await client.call("channels.add", { type, ...account, ...(token ? { token } : {}) });
+    store.set({ channels: r.channels });
+    return r.id;
+  } catch (e) {
+    notify(t("error.channels", { error: errText(e) }));
+    return undefined;
+  }
+}
 
 /** Saves a channel (and its token when one was typed); the core restarts it. */
 export async function saveChannel(id: string, draft: ChannelDraft | null, token?: string): Promise<boolean> {
@@ -197,14 +223,11 @@ export async function addOwnerAddress(channel: string, address: string): Promise
 
 /** A new contact on an account: their name and their address there (a number, a user); none is made if it is wrong. */
 export async function addContact(channel: string, name: string, address: string): Promise<boolean> {
-  let made: string | undefined;
   try {
-    made = (await client.call("contacts.set", { name, role: "contact" })).id;
-    await client.call("contacts.address", { channel, address, person: made });
+    await client.call("contacts.add", { channel, name, address });
     await loadChannels();
     return true;
   } catch (e) {
-    if (made) await client.call("contacts.remove", { id: made }).catch(() => undefined);
     notify(t("error.channels", { error: errText(e) }));
     return false;
   }
@@ -230,6 +253,24 @@ export async function setPersonRole(p: Person, role: "contact" | "blocked"): Pro
     notify(t("error.channels", { error: errText(e) }));
   }
   await loadChannels();
+}
+
+/** An email account stops reading this sender, or their whole domain (blocked, card kept); `undo` reads them again. */
+export async function neverRead(
+  person: string,
+  channel: string,
+  scope: "address" | "domain",
+  undo = false,
+): Promise<boolean> {
+  try {
+    const { blocked } = await client.call("contacts.never_read", { person, channel, scope, undo });
+    notify(t(undo ? "ch.readAgainDone" : "ch.neverReadDone", { who: blocked }), "info");
+    await loadChannels();
+    return true;
+  } catch (e) {
+    notify(t("error.channels", { error: errText(e) }));
+    return false;
+  }
 }
 
 export async function removePerson(id: string): Promise<void> {
@@ -267,9 +308,10 @@ export type ContactDraft = {
   rules?: string;
   muted?: boolean;
   supervised?: boolean;
-  /** Answered at any hour, past the attention hours of the channel they write on. */
-  any_hour?: boolean;
-  perms?: Partial<Person["perms"]>;
+  /** The rights set for this person: a value sets one, null gives it back to the account they write on. */
+  perms?: { [K in keyof Person["perms"]]?: boolean | null };
+  /** Who answers them instead of the account's contacts agent; null gives them back to the account's. */
+  agent_id?: string | null;
 };
 
 export async function saveContact(id: string, draft: ContactDraft): Promise<boolean> {

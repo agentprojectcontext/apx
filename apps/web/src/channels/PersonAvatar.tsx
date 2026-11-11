@@ -50,7 +50,16 @@ export function PersonAvatar({
       {...(name ? { role: "img", "aria-label": name } : {})}
       style={
         size
-          ? { width: size, height: size, display: "inline-flex", flex: "none", overflow: "hidden", borderRadius: "50%" }
+          ? {
+              width: size,
+              height: size,
+              display: "inline-flex",
+              alignItems: "center",
+              justifyContent: "center",
+              flex: "none",
+              overflow: "hidden",
+              borderRadius: "50%",
+            }
           : undefined
       }
     >

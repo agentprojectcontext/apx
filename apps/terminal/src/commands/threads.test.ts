@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import path from "node:path";
 import { test } from "node:test";
+import { BASE_PROJECT_ID } from "@apx/protocol";
 import { printed, recordingClient } from "./testing.ts";
 import { mcps, projects, skills, threads } from "./threads.ts";
 
@@ -121,6 +122,42 @@ test("projects create and set send only what was given, and a wrong kind never r
     ["projects.update", { project: "p_nw", description: "" }],
     ["projects.update", { project: "p_nw", autonomy: "accept_edits" }],
   ]);
+});
+
+test("projects create --parent makes a subproject, and detach or --parent none makes it a project of its own", async () => {
+  const project = { id: "p_shop", name: "Shop", parent: "p_nw", path: "/work/northwind/shop", present: true };
+  const { client, calls } = recordingClient({
+    "projects.create": { project, agents: 0 },
+    "projects.update": { project: { ...project, parent: undefined } },
+  });
+  await printed(() => projects(client, ["create", "Shop"], { parent: "p_nw" }));
+  await printed(() => projects(client, ["create", "Garden"], { parent: "base" }));
+  assert.match(await printed(() => projects(client, ["detach", "p_shop"])), /project of its own/);
+  await printed(() => projects(client, ["set", "p_shop"], { parent: "none" }));
+  await assert.rejects(projects(client, ["create", "X"], { parent: "none" }), /--parent is a project id/);
+  await assert.rejects(projects(client, ["detach"]), /usage: apx projects detach/);
+  assert.deepEqual(calls, [
+    ["projects.create", { name: "Shop", parent: "p_nw" }],
+    ["projects.create", { name: "Garden", parent: BASE_PROJECT_ID }],
+    ["projects.update", { project: "p_shop", parent: null }],
+    ["projects.update", { project: "p_shop", parent: null }],
+  ]);
+});
+
+test("projects list says whose subproject each one is", async () => {
+  const { client } = recordingClient({
+    "projects.list": {
+      projects: [
+        { id: "p_nw", name: "Northwind", present: true },
+        { id: "p_shop", name: "Shop", present: true, parent: "p_nw" },
+        { id: "p_garden", name: "Garden", present: true, parent: BASE_PROJECT_ID },
+      ],
+      base: { name: "Base" },
+    },
+  });
+  const out = await printed(() => projects(client, ["list"]));
+  assert.match(out, /Shop .* subproject of Northwind/);
+  assert.match(out, /Garden .* subproject of the base project/);
 });
 
 test("projects folders add, list and remove a read-only folder through projects.update", async () => {

@@ -16,18 +16,24 @@ composer, the commands you can type, and the side panel that shows what the agen
 ## The Inbox
 
 **Inbox** in the sidebar lists every chat you have: Home's, each agent's, group chats, code sessions and the chats
-that tasks and routines open. Pick how to see them with the switch at the top:
+that tasks and routines open. Its tabs split them into **Chats**, **Tasks** (each task's chats together) and
+**Routines** (each routine's runs together), pinned ones first and then the newest.
 
-| View | What it shows |
-|---|---|
-| **Tree** | Chats grouped by project, then by agent, so you see who you talked to in Acme Store at a glance. |
-| **Activity** | Chats by time: In progress, Today, Yesterday, This week, Earlier. |
-| **By chat** | One flat list, newest first. |
+<Shot name="inbox" alt="The Inbox with its Chats, Tasks and Routines tabs and the chats listed under them" caption="The Inbox" />
 
-<Shot name="inbox" alt="The Inbox in Tree view: Home's chat, chats with project agents and a group chat, grouped by project and agent" caption="The Inbox, Tree view" />
+At the top, **New chat** opens a chat with any agent of the current project (or Home). **Search chats** puts a search
+field where the tabs are and narrows the tab you are on as you type; Escape, the × or leaving it empty brings the tabs
+back. **Filter chats** keeps only the agents or projects you pick, shown as chips under the tabs. Its **Channels** tab
+lists each channel account you have chats on (Email, each WhatsApp or Telegram line…): click one to hide its chats from
+the Inbox, again to show them. **Group chats by channel** puts each account's chats under one row that opens to list
+them. Both are remembered on that device; picking an account in the sidebar still shows its chats.
 
-**Search chats** filters the list as you type, and **New chat** opens a chat with any agent of the current project
-(or Home). A chat's menu lets you pin it to the top, rename it, mark it read,
+Picking an account in the sidebar turns the list into that account's own. Its top line says which one it is (the number,
+the address or the bot) and who answers it, with a search field under it. Each chat shows what was written last on one
+line, and a mail shows its subject and two lines. Under that is how the person relates to you and who answers them
+("Associate · Roby answers").
+
+A chat's menu lets you pin it to the top, rename it, mark it read,
 archive it or delete it. Home's main chat cannot be archived or deleted: it is the one conversation you always have.
 
 **Since 2.11.1**, **Mark all as read** asks you to confirm before clearing unread
@@ -69,12 +75,13 @@ You don't have to wait for the agent to finish, and you don't have to stop it:
 
 - **Enter** sends. The agent reads your message at its next step (after the tool or the answer it is on) and goes on
   with it in mind. The message stays where you wrote it, and what the agent says after reading it comes below. Until it
-  reads it, **Send now** shows under the message: the agent stops the step it is on and reads your message at once,
+  reads it, the message says **Waiting**, with **Send now** beside it: the agent stops the step it is on and reads your message at once,
   keeping what it did so far. A teammate it was waiting for keeps working, and its answer comes in when it is ready.
   **Remove** takes the message back before the agent reads it. Once it has read it, two ticks and **Now** show under the message.
 - **Ctrl/⌘+Enter** puts the message **in line** for when the agent finishes what it is doing. Messages in line wait
-  below the chat with an outlined bubble, in the order they will run. Until their turn starts you can **Edit** them,
-  move them **up** or **down**, **Remove** them, or **Send now**.
+  in a list above the box you write in, one per line, in the order they will run. Until their turn starts you can
+  drag one by its handle to another place (or focus the handle and use ↑ and ↓), **Edit** it, **Remove** it, or
+  **Send now**. The arrow at the list's top folds it away.
 - **In a Claude Code session** it works the same way: Claude reads your message once the command or edit it is on
   finishes, in the same turn. If it is writing its answer, your message runs right after it.
   **Send now** stops what Claude is doing and it reads your message at once.
@@ -107,7 +114,8 @@ The box at the bottom ("Message Lucía…") is where you write. A few things it 
   is used, as a percentage, and opens the Usage panel; when it fills, older turns are summarized
   ([Compaction](/concepts/conversations/#compaction)).
 - **Voice dictation.** **Dictate** turns speech into text in the field, to review before you send it; the recording
-  itself is not attached. Stop and dictate again to add more. While it records, its button is the only stop, and send
+  itself is not attached, unless it couldn't be turned into words: then it stays attached as a voice note, so nothing
+  you said is lost. Stop and dictate again to add more. While it records, its button is the only stop, and send
   comes back once the words are in. Install a local transcription model (whisper.cpp) in Settings › Voices to keep it
   on your machine and see the words as you speak.
 - **Keys.** Enter sends (if the agent is working, it reads it at its next step; in a Codex session it stops the turn
@@ -117,6 +125,18 @@ The box at the bottom ("Message Lucía…") is where you write. A few things it 
 Attachment drafts, including uploads in progress, survive switching chats within the page. Select a thumbnail to
 preview its file. Unlike saved draft text, attachment drafts do not survive reloading or closing the page; they are
 not durable file storage.
+
+### Side question
+
+**Since 2.14.0**, **+** › **Side question** asks the chat's agent something quick about the chat without adding to
+it: what was decided, a name it used, a short recap. A small panel opens over the composer; ask, and follow up there.
+
+- The agent answers on the chat's model and reads the chat as it stands, but cannot use tools or act from the panel.
+  If the question needs that, ask in the chat.
+- Neither the question nor the answer is added to the chat, and the agent does not see them in later turns. They are
+  not saved: closing the panel (its **×** or Esc) lets them go.
+- Its tokens count in **Usage** as **Side questions**, with the chat they were about.
+- Not offered in a new chat before its first message, or in a Claude Code, Codex or other engine's own session.
 
 ### Channel identity and delegated replies
 
@@ -172,11 +192,12 @@ The switcher at the right of the chat header opens a side panel. Each view shows
 |---|---|
 | **Browser** | The page your agent drives, live. You can take control. See [Browser](/office/browser/). |
 | **Documents** | Reports, plans and reference documents the agent opened for you. |
-| **Terminal** | The commands the agent ran (with what they printed) and your own shell in the chat's folder. |
+| **Terminal** | Your own shells in the chat's folder, one tab each; **+** opens another. |
 | **Files** | The folder this chat works in, plus its temporary files. |
 | **Changes** | Edits the agent recorded, by last turn or all turns, and the current folder's diff, file by file. |
-| **Chat processes** | This chat's subagents and commands: active and finished. |
-| **Widget** | What the agent built for you in this chat. See [Board and widgets](/office/board/). |
+| **Chat processes** | The commands the agent ran here, active and finished: open one to see what it printed, live while it runs, and stop it. |
+| **Chat agents** | The agents this chat called ("Roby → Fausto"), active and finished: open one to read its chat. |
+| **Artifacts** | What the agent built for you in this chat: widgets, apps and web pages. See [Board and widgets](/office/board/). |
 | **Usage** | Tokens, runs and cost of this chat, and whether they were included in a plan or paid per token. |
 
 <Tabs>
@@ -239,6 +260,11 @@ the computer APX runs on, or copy its path.
 
 Files your agents only worked with while doing a task (screenshots, temporary files) are not listed: only what a
 message shows.
+
+**Artifacts**, the last kind, lists every widget, app and web page your agents made, open or closed, so one you
+closed is easy to find again. The project filter, the search and the order work the same. Click a card to open it;
+its buttons go to the chat it was made in, at the message that shows it, and **More** has the rest of its menu (open
+in a new window, share, memory, download, pin it to its project's board or to Apps).
 
 ## Quick chat from the tray
 

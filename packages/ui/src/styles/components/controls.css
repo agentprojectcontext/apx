@@ -105,6 +105,8 @@
   display: inline-grid;
   place-items: center;
   flex-shrink: 0;
+  /* The browser's button padding would push the icon off-centre in the smaller sizes. */
+  padding: 0;
   border: 1px solid transparent;
   background: transparent;
   color: var(--apx-fg-muted);
@@ -794,6 +796,48 @@
 .apx-tabs--underline .apx-tabs__tab[data-active] {
   color: var(--apx-fg);
   border-bottom-color: var(--apx-selection);
+}
+/* Button tabs: the segmented switch's track (the Inbox's), each section a wide button with its icon and count. */
+.apx-tabs--buttons .apx-tabs__list {
+  width: fit-content;
+  max-width: 100%;
+  gap: 2px;
+  padding: 3px;
+  border-radius: var(--apx-control-radius);
+  background: var(--apx-fill);
+}
+.apx-tabs--buttons .apx-tabs__tab {
+  height: 30px;
+  padding: 0 14px;
+  border-radius: var(--apx-control-radius);
+  font-size: var(--apx-text-sm);
+}
+.apx-tabs--buttons .apx-tabs__tab[data-active] {
+  background: var(--apx-surface);
+  color: var(--apx-fg);
+  box-shadow: var(--apx-shadow-sm);
+}
+/* Chips: each section its own rounded button, wrapping onto a second line rather than leaving the screen. */
+.apx-tabs--chips .apx-tabs__list {
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.apx-tabs--chips .apx-tabs__tab {
+  height: 32px;
+  gap: 8px;
+  padding: 0 14px;
+  border-radius: var(--apx-radius-pill);
+  background: var(--apx-fill);
+  font-size: var(--apx-text-sm);
+  font-weight: var(--apx-weight-regular);
+}
+.apx-tabs--chips .apx-tabs__tab:hover {
+  background: var(--apx-fill-hover);
+  color: var(--apx-fg);
+}
+.apx-tabs--chips .apx-tabs__tab[data-active] {
+  background: var(--apx-fill-strong);
+  color: var(--apx-fg);
 }
 /* Pill tabs share SegmentedControl's track so the active tab reads the same way. */
 .apx-tabs--pill .apx-tabs__list {

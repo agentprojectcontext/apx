@@ -14,9 +14,10 @@ test("the base project is renamed and made a company, with areas and roles its a
   await page.getByRole("option", { name: /Empresa/ }).click();
   await settings.getByRole("button", { name: "Guardar" }).click();
   await expect(page.getByRole("heading", { name: "Northwind HQ", level: 1 })).toBeVisible();
-  // Everywhere it is named: the breadcrumb, and its tile's initial in the sidebar.
-  await expect(page.locator(".topbar__crumbs")).toContainText("Northwind HQ");
-  await expect(page.locator('.sidebar [data-project-id="~default"]')).toContainText("N");
+  // Everywhere it is named: the sidebar row, with its tile's initial.
+  const row = page.locator('.sidebar [data-project-id="~default"]');
+  await expect(row).toHaveAttribute("aria-label", "Northwind HQ");
+  await expect(row).toContainText("N");
 
   // A company shows its areas and roles.
   await page.locator(".project__tabs").getByRole("tab", { name: "Agentes" }).click();

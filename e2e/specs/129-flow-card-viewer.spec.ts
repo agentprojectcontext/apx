@@ -86,9 +86,14 @@ for (const phone of [false, true]) {
     for (const role of ["textbox", "combobox", "switch", "checkbox", "radio"] as const)
       await expect(viewer.getByRole(role)).toHaveCount(0);
     await expect(viewer.locator(".react-flow__node.draggable")).toHaveCount(0);
+    // Back is independent of pan/drag gestures, which can clear selection or move steps offscreen.
+    await sheet.getByRole("button", { name: "Todos los pasos" }).click();
+    await expect(viewer.getByRole("complementary", { name: "Ajustes del paso" })).toHaveCount(0);
+    await viewer.getByRole("button", { name: "Encuadrar", exact: true }).click();
     // A step dragged stays where it was, and dragging from a step's way out to another joins nothing.
     const hook = nodes.filter({ hasText: "New lead" }).first();
-    await expect(hook).toBeVisible();
+    await expect(hook).toBeInViewport({ ratio: 0.99 });
+    await hook.hover();
     const where = await hook.getAttribute("style");
     const from = await hook.boundingBox();
     if (from) {
@@ -110,9 +115,6 @@ for (const phone of [false, true]) {
     await expect(viewer.locator(".react-flow__edge")).toHaveCount(1);
     await expect(viewer.getByRole("button", { name: /Guardar|Probar|Borrar|Eliminar|Sumar/ })).toHaveCount(0);
 
-    // Back to every step, then closed with Esc.
-    await sheet.getByRole("button", { name: "Todos los pasos" }).click();
-    await expect(viewer.getByRole("complementary", { name: "Ajustes del paso" })).toHaveCount(0);
     await page.keyboard.press("Escape");
     await expect(viewer).toBeHidden();
 

@@ -1,3 +1,4 @@
+import "../styles/panel-parts.css";
 import type { AuxPurpose, Message, Run } from "@apx/protocol";
 import { Badge, EmptyState, Icons } from "@apx/ui";
 import { useMemo } from "react";
@@ -25,12 +26,15 @@ const AUX_LABEL: Record<AuxPurpose, MessageKey> = {
   title: "usage.aux.title",
   memory_capture: "mem.auto_capture",
   memory_dream: "mem.auto_dream",
+  activity_review: "config.activityReview",
   summary: "usage.aux.summary",
   room: "usage.aux.room",
   commit: "usage.aux.commit",
   suggestion: "usage.aux.suggestion",
   news: "usage.aux.news",
   sticker: "usage.aux.sticker",
+  aside: "usage.aux.aside",
+  mail: "usage.aux.mail",
 };
 
 function secs(run: Run): number | undefined {

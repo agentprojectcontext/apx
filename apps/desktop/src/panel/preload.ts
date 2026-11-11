@@ -1,7 +1,8 @@
 // Sandboxed preload for APX's own pages (the panel and the quick chat): the few things the web UI asks of the shell.
 import { contextBridge, ipcRenderer } from "electron";
 
-type Bounds = { x: number; y: number; width: number; height: number };
+/** `behind`: keep the page at this place and size, but under the panel (something covers it for a moment). */
+type Bounds = { x: number; y: number; width: number; height: number; behind?: boolean };
 
 // Kept from the window's own reports (sent at load and on every change), so a late reader gets it too.
 let fullScreen = false;
@@ -85,6 +86,12 @@ contextBridge.exposeInMainWorld("apxDesktop", {
   setLanguage: (language: string) => ipcRenderer.send("desktop:language", String(language)),
   /** Runs an app menu item (about, update, change-connection): Windows and Linux have no menu bar to show it. */
   menuAction: (id: string) => ipcRenderer.send("desktop:menu-action", String(id)),
+  /** The servers this app has used, newest first: which one is in use and whether each answers now. */
+  servers: (): Promise<unknown> => ipcRenderer.invoke("desktop:servers"),
+  /** Opens one of those servers in this window; an answer that comes back says why it could not. */
+  openServer: (id: string): Promise<unknown> => ipcRenderer.invoke("desktop:open-server", String(id)),
+  /** The computer name the server in use reports, so the list can show it when another one is in use. */
+  nameServer: (name: string) => ipcRenderer.send("desktop:server-name", String(name)),
   pickFolder: (): Promise<string | undefined> => ipcRenderer.invoke("panel:pick-folder"),
   memory: (): Promise<unknown> => ipcRenderer.invoke("desktop:memory"),
   /** Whether a newer APX app is out (check: ask the release feed now). */

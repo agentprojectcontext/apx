@@ -14,9 +14,16 @@ test("the owner edits a message and asks again for an answer; what came after go
     await expect(main.locator("p", { hasText: `Got it: ${text}` })).toBeVisible();
   }
 
-  // The last message: edited in place, no question (only its own answer is replaced).
+  // Its controls show on hover in a row kept for them: the answer under it does not move.
   const last = main.locator(".apx-msg--user", { hasText: "Northwind dos" });
+  const below = main.locator("p", { hasText: "Got it: Northwind dos" });
+  const before = (await below.boundingBox())?.y;
   await last.hover();
+  await expect(last.getByRole("button", { name: "Editar mensaje" })).toBeVisible();
+  await expect(last.locator(".apx-msg__actions")).toHaveCSS("opacity", "1");
+  expect((await below.boundingBox())?.y).toBe(before);
+
+  // The last message: edited in place, no question (only its own answer is replaced).
   await last.getByRole("button", { name: "Editar mensaje" }).click();
   const editor = main.getByRole("textbox", { name: "Editar mensaje" });
   await editor.fill("Northwind tres");

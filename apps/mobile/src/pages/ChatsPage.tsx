@@ -24,6 +24,7 @@ export function ChatsPage({
   filter,
   setFilter,
   menu,
+  taskMenu,
   openArchived,
 }: {
   data: Workspace;
@@ -40,6 +41,8 @@ export function ChatsPage({
   setFilter: (next: ChatFilter) => void;
   /** A long press on a chat: its own actions. */
   menu?: (thread: Thread) => void;
+  /** A long press on a task's row: the task's options. */
+  taskMenu?: (taskId: string) => void;
   /** Opens the archived chats; offered while there are some. */
   openArchived?: () => void;
 }) {
@@ -50,12 +53,17 @@ export function ChatsPage({
   const [refreshing, setRefreshing] = useState(false);
   const [filters, setFilters] = useState(false);
   const working = useMemo(() => workingNow(data.threads, data.jobs.running), [data.threads, data.jobs.running]);
-  const tree = useMemo(() => inboxTree(data.threads, { ...filter, project }), [data.threads, filter, project]);
+  const tree = useMemo(
+    () => inboxTree(data.threads, { ...filter, project }, data.tasks),
+    [data.threads, data.tasks, filter, project],
+  );
   const rows = useMemo(() => searchInbox(tree, query, (node) => inboxTitle(node, data)), [tree, query, data]);
   const searching = !!query?.trim();
   const archived = useMemo(
-    () => inboxTree(data.threads, { routines: true, project: "all", archived: true }).flatMap(nodeThreads).length,
-    [data.threads],
+    () =>
+      inboxTree(data.threads, { routines: true, project: "all", archived: true }, data.tasks).flatMap(nodeThreads)
+        .length,
+    [data.threads, data.tasks],
   );
   const listedAgents = useMemo(
     () =>
@@ -71,61 +79,82 @@ export function ChatsPage({
     <View style={s.root}>
       {/* Title, search and filters stay put; only the list under them scrolls. */}
       <View style={s.header}>
-        <Text accessibilityRole="header" style={[type.largeTitle, { flex: 1 }]}>
+        <Text accessibilityRole="header" style={s.title}>
           {t("navChats")}
         </Text>
         <View>
           <IconButton
             icon="ListFilter"
             label={t(filtering(filter) ? "filterChatsOn" : "filterChats")}
+            size={18}
             color={filtering(filter) ? theme.fg : theme.fgMuted}
             onPress={() => setFilters(true)}
           />
-          {filtering(filter) ? <Dot size={8} style={s.filterDot} /> : null}
+          {filtering(filter) ? <Dot size={7} style={s.filterDot} /> : null}
         </View>
         <IconButton
           icon="Search"
           label={t("searchChats")}
+          size={18}
+          color={query === undefined ? theme.fgMuted : theme.fg}
           onPress={() => setQuery((q) => (q === undefined ? "" : undefined))}
         />
         <Pressable accessibilityRole="button" accessibilityLabel={t("navMore")} onPress={account} style={s.account}>
-          <OwnerAvatar name={data.owner} online={online} />
+          <OwnerAvatar name={data.owner} online={online} size={28} />
         </Pressable>
       </View>
-      {query !== undefined ? (
-        <View style={s.search}>
-          <Icon name="Search" size={16} color={theme.fgSubtle} />
-          <TextInput
-            autoFocus
-            value={query}
-            onChangeText={setQuery}
-            accessibilityLabel={t("searchChats")}
-            placeholder={t("searchChats")}
-            placeholderTextColor={theme.fgSubtle}
-            returnKeyType="search"
-            style={s.searchInput}
-          />
-          <IconButton icon="X" label={t("back")} size={16} color={theme.fgMuted} onPress={() => setQuery(undefined)} />
-        </View>
-      ) : null}
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        style={{ flexGrow: 0 }}
-        contentContainerStyle={s.chips}
-      >
-        <Chip label={t("all")} selected={project === "all"} onPress={() => setProject("all")} />
-        <Chip label={t("defaultProject")} selected={project === "default"} onPress={() => setProject("default")} />
-        {projects.map((item) => (
-          <Chip key={item.id} label={item.name} selected={project === item.id} onPress={() => setProject(item.id)} />
-        ))}
-      </ScrollView>
+      {/* Searching takes the projects' place: the list under it stays where it was. */}
+      <View style={s.switch}>
+        {query !== undefined ? (
+          <View style={s.search}>
+            <Icon name="Search" size={15} color={theme.fgSubtle} />
+            <TextInput
+              autoFocus
+              value={query}
+              onChangeText={setQuery}
+              accessibilityLabel={t("searchChats")}
+              placeholder={t("searchChats")}
+              placeholderTextColor={theme.fgSubtle}
+              returnKeyType="search"
+              style={s.searchInput}
+            />
+            <IconButton
+              icon="X"
+              label={t("closeSearch")}
+              size={15}
+              color={theme.fgMuted}
+              style={s.searchClose}
+              onPress={() => setQuery(undefined)}
+            />
+          </View>
+        ) : (
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.chips}>
+            <Chip label={t("all")} selected={project === "all"} onPress={() => setProject("all")} />
+            <Chip label={t("defaultProject")} selected={project === "default"} onPress={() => setProject("default")} />
+            {projects.map((item) => (
+              <Chip
+                key={item.id}
+                label={item.name}
+                selected={project === item.id}
+                onPress={() => setProject(item.id)}
+              />
+            ))}
+          </ScrollView>
+        )}
+      </View>
       <FlatList
         testID="chats-list"
         data={rows}
         keyExtractor={(node) => node.key}
         renderItem={({ item }) => (
-          <InboxRow node={item} data={data} open={open} {...(menu ? { menu } : {})} searching={searching} />
+          <InboxRow
+            node={item}
+            data={data}
+            open={open}
+            {...(menu ? { menu } : {})}
+            {...(taskMenu ? { taskMenu } : {})}
+            searching={searching}
+          />
         )}
         initialNumToRender={14}
         windowSize={7}
@@ -177,7 +206,14 @@ export function ChatsPage({
       />
       <Fab icon="SquarePen" label={t("newChat")} onPress={create} />
       {filters ? (
-        <ChatFilterSheet filter={filter} agents={listedAgents} onChange={setFilter} onClose={() => setFilters(false)} />
+        <ChatFilterSheet
+          filter={filter}
+          agents={listedAgents}
+          channels={data.channels}
+          threads={data.threads}
+          onChange={setFilter}
+          onClose={() => setFilters(false)}
+        />
       ) : null}
     </View>
   );
@@ -221,13 +257,15 @@ function WorkChip({ thread, job, data, onPress }: { thread: Thread; job?: Job; d
 
 const useStyles = makeStyles((theme) => ({
   root: { flex: 1, backgroundColor: theme.bg },
-  header: { height: 60, flexDirection: "row", alignItems: "center", gap: 8, paddingLeft: 20, paddingRight: 8 },
-  account: { width: 44, height: 44, alignItems: "center", justifyContent: "center" },
+  header: { height: 52, flexDirection: "row", alignItems: "center", gap: 2, paddingLeft: 16, paddingRight: 8 },
+  title: { flex: 1, color: theme.fg, fontSize: 22, fontWeight: "600" },
+  account: { width: 40, height: 44, alignItems: "center", justifyContent: "center" },
+  // The projects and the search share one row of the same height.
+  switch: { height: 44, justifyContent: "center" },
   search: {
-    height: 40,
+    height: 36,
     marginHorizontal: 16,
-    marginBottom: 8,
-    paddingLeft: 14,
+    paddingLeft: 12,
     borderRadius: 999,
     backgroundColor: theme.fill,
     flexDirection: "row",
@@ -235,6 +273,7 @@ const useStyles = makeStyles((theme) => ({
     gap: 8,
   },
   searchInput: { flex: 1, color: theme.fg, fontSize: 15, paddingVertical: 0 },
+  searchClose: { width: 36, height: 36 },
   workingLabel: { paddingTop: 4, paddingHorizontal: 20, paddingBottom: 8 },
   strip: { gap: 8, paddingHorizontal: 16, paddingBottom: 12 },
   work: {
@@ -248,9 +287,9 @@ const useStyles = makeStyles((theme) => ({
     gap: 10,
   },
   workTitle: { color: theme.fg, fontSize: 13, fontWeight: "500" },
-  chips: { gap: 8, paddingHorizontal: 16, paddingBottom: 8 },
-  filterDot: { position: "absolute", top: 10, right: 10, backgroundColor: theme.brand },
-  archived: { flexDirection: "row", alignItems: "center", gap: 12, paddingVertical: 8, paddingHorizontal: 16 },
-  archivedIcon: { width: 42, height: 34, alignItems: "center", justifyContent: "center" },
+  chips: { gap: 8, paddingHorizontal: 16, alignItems: "center" },
+  filterDot: { position: "absolute", top: 11, right: 11, backgroundColor: theme.brand },
+  archived: { flexDirection: "row", alignItems: "center", gap: 10, paddingVertical: 8, paddingHorizontal: 16 },
+  archivedIcon: { width: 30, height: 30, alignItems: "center", justifyContent: "center" },
   archivedLabel: { flex: 1, color: theme.fg, fontSize: 15, fontWeight: "500" },
 }));

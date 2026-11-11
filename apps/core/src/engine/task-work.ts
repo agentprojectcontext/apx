@@ -13,7 +13,7 @@ import { noticeTaskReview } from "../domain/task-attention.ts";
 import { taskReviewHandoff } from "../domain/tasks.ts";
 import { type HeldTask, previewOf } from "../domain/threads.ts";
 import { badRequest, conflict } from "../errors.ts";
-import { taskWords } from "../tools/tasks.ts";
+import { asWritten, taskWords } from "../tools/tasks.ts";
 import { agentTrip, heldNotice, trip } from "./breaker.ts";
 import { REVIEW } from "./context.ts";
 import { actionsOf, reportCard } from "./delegation.ts";
@@ -77,6 +77,8 @@ export function ask(
   author: Author,
   into: Thread = sessionFor(store, task, agentId),
   parts: Part[] = [{ type: "text", text }],
+  /** The agent works the task as its owner (not as a reviewer handed it): framed to go on until it is delivered. */
+  own = agentId === task.assignee,
 ) {
   const thread = into;
   // Work an agent gives spends against the chat it gave it from (DECISIONS.md#d-080).
@@ -88,6 +90,7 @@ export function ask(
   const origin = originOf(asker);
   if ((origin.kind === "user" || origin.kind === "agent") && typeof assignment?.data.assignment_id === "string")
     origin.task_assignment = { task: task.id, id: assignment.data.assignment_id };
+  if (origin.kind === "agent" && own) origin.on_task = task.id;
   return admit({
     thread_id: thread.id,
     agent_id: agentId,
@@ -188,7 +191,7 @@ export function startTaskWork(
     hold(store, task, agentId, asker);
     return undefined;
   }
-  const ownWords = task.created_by === "owner";
+  const ownWords = asWritten(store, task).created_by === "owner";
   const assignment = store.tasks.events(task.id).findLast((event) => typeof event.data.assignment_id === "string");
   const review = taskReviewHandoff(assignment?.data.review_handoff);
   const reviewRequest =
@@ -198,9 +201,7 @@ export function startTaskWork(
     assignment?.data.from_run === asker.run_id &&
     assignment.data.from_thread === asker.thread_id;
   const workText = ownWords ? [task.title, task.description].filter(Boolean).join("\n\n") : "Work on this task.";
-  const text = reviewRequest
-    ? `Independently review this task's delivery. Report what you verified and any required corrections. ${REVIEW}\n\n${workText}`
-    : workText;
+  const text = reviewRequest ? `Independently review this task's delivery. ${REVIEW}\n\n${workText}` : workText;
   const author: Author =
     asker.kind === "agent" ? { kind: "agent", id: asker.id } : ownWords ? { kind: "user" } : { kind: "system" };
   const self =
@@ -209,13 +210,16 @@ export function startTaskWork(
     asker.id === agentId &&
     checkSelfHandoff(store, asker, task.project_id);
   const source = self ? store.threads.get(asker.thread_id) : undefined;
-  const work = ask(store, admit, task, agentId, text, asker, author, sessionFor(store, task, agentId, source));
+  const session = sessionFor(store, task, agentId, source);
+  const work = ask(store, admit, task, agentId, text, asker, author, session, [{ type: "text", text }], !reviewRequest);
   if (self) markHandoff(store, task, asker, work);
   // A project's head that starts a task from its own chat is its coordinator: the result of that task returns there.
-  if (asker.kind === "agent" && projectCoordinatorChat(store, task, { id: asker.id, thread_id: asker.thread_id }))
-    store.threads.mergeContext(task.thread_id, {
-      coordination_from: { thread: asker.thread_id, run: asker.run_id, work_run: work.id },
-    });
+  // Anyone else's start ends that coordination (DECISIONS.md#d-207).
+  const coordinates =
+    asker.kind === "agent" && projectCoordinatorChat(store, task, { id: asker.id, thread_id: asker.thread_id });
+  store.threads.mergeContext(task.thread_id, {
+    coordination_from: coordinates ? { thread: asker.thread_id, run: asker.run_id, work_run: work.id } : undefined,
+  });
   const sourceRun = asker.kind === "agent" ? store.runs.get(asker.run_id) : undefined;
   if (asker.kind === "agent" && sourceRun && !sourceRun.ended_at) {
     const previous = store.threads.context(asker.thread_id).task_dispatches;
@@ -310,7 +314,8 @@ const MAX_COMMENT_ASKS = 2;
 
 /**
  * An agent's comment on a task @mentioning teammates: each is asked in a consult there, and its answer comes back to
- * the asking agent's chat for the task. Said from inside a consult or a delegation, it asks no one (no chains).
+ * the asking agent's chat for the task; the task's own agent hears it in its chat for the task instead. Said from
+ * inside a consult or a delegation, it asks no one (no chains).
  */
 export function consultFromAgent(
   store: Store,
@@ -333,7 +338,12 @@ export function consultFromAgent(
   return mentioned(store, text, task.project_id)
     .filter((a) => a.id !== agent.id)
     .slice(0, MAX_COMMENT_ASKS)
-    .flatMap((a) => consult(store, admit, task, a, text, { by: agent.id, asker }) ?? []);
+    .flatMap((a) =>
+      // The task's own agent works it in its chat for the task: a teammate's word reaches it there, not on the side.
+      a.id === task.assignee
+        ? [ask(store, admit, task, a.id, text, asker, { kind: "agent", id: agent.id })]
+        : (consult(store, admit, task, a, text, { by: agent.id, asker }) ?? []),
+    );
 }
 
 /** The owner's comment's @mentions of anyone but the task's own agent, each answered in a consult. */
@@ -516,8 +526,21 @@ export function reviewRequested(store: Store, admit: AdmitFn, task: Task): RunRe
     return undefined;
   }
   store.notifications.resolve("task", `review:${task.id}`);
+  // Its agent already asked the reviewer on the task and it is still checking: that consult is the review, so the
+  // work is not checked twice at once (DECISIONS.md#d-210).
+  const asked = store.threads.sessions(task.thread_id).find((t) => {
+    const c = store.threads.context(t.id).consult;
+    return (
+      c && !c.review && t.agent_ids[0] === reviewer.id && c.asker?.agent === task.assignee && store.threads.busy([t.id])
+    );
+  });
+  const held = asked && store.threads.context(asked.id).consult;
+  if (asked && held) {
+    store.threads.mergeContext(asked.id, { consult: { task: held.task, card: held.card, review: true } });
+    return undefined;
+  }
   const doer = task.assignee ? (store.agents.get(task.assignee)?.name ?? task.assignee) : "its agent";
-  const text = `Review task ${task.id}, done by ${doer}: check the work against what the task asks, running the checks you can (tests, the page, the data). Answer "Approved" (or "Aprobado") with what you checked, or what must change and why.`;
+  const text = `Check task ${task.id}, done by ${doer}, against what it asks, running the checks you can (tests, the page, the data). ${REVIEW}`;
   return consult(store, admit, task, reviewer, text, { by: task.assignee ?? "owner", trigger: "system", review: true });
 }
 
@@ -608,8 +631,9 @@ function responseMetadata(store: Store, task: Task, run: RunRecord, answered: bo
 const APPROVED = /^\W*(approved|aprobad[oa])\b/i;
 
 /**
- * A review came back: approved, the owner hears it is ready to close; with changes asked, the task's agent gets the
- * verdict in its chat for the task, as the reviewer's words (an agent's, not the owner's), and goes on.
+ * A review came back: the task's agent gets the report in its chat for the task, as the reviewer's words (an agent's,
+ * not the owner's), and decides what to fix before it delivers (DECISIONS.md#d-208). With no agent on it, or its
+ * agent paused, the owner hears it is ready to close.
  */
 function reviewEnded(store: Store, admit: AdmitFn, task: Task, run: RunRecord, verdict: string): void {
   const reviewer = store.agents.get(run.agent_id);
@@ -618,14 +642,17 @@ function reviewEnded(store: Store, admit: AdmitFn, task: Task, run: RunRecord, v
   if (task.state !== "open" || task.status !== "review" || task.proposed) return;
   const doer = task.assignee && store.agents.get(task.assignee) ? task.assignee : undefined;
   const paused = doer && (trip(store, task.thread_id) || agentTrip(store, task.thread_id, doer));
-  if (APPROVED.test(verdict) || !doer || paused) {
+  if (!doer || paused) {
     noticeTaskReview(store, task, `${name}: ${previewOf(verdict)}`);
     return;
   }
-  // Back to work, so putting it in review again asks for the next round.
+  // Back to its agent, who delivers it; putting it in review again asks for the next round.
   store.tasks.change(task.id, { status: "doing" }, run.agent_id);
-  deliverToCoordinator(store, admit, task, run, name, verdict);
-  const text = `${name} reviewed the task and asks for changes:\n${verdict.slice(0, 4000)}\n\nFix what must change, check it, then put it back in review (task_update status review).`;
+  const clean = APPROVED.test(verdict);
+  if (!clean) deliverToCoordinator(store, admit, task, run, name, verdict);
+  const text = clean
+    ? `${name} checked the task and found nothing that fails:\n${verdict.slice(0, 4000)}\n\nIt is yours to deliver: finish what the task asks (publish it if it says so), then close it with task_close.`
+    : `${name} checked the task:\n${verdict.slice(0, 4000)}\n\nA report, not a verdict: you own the task. Fix what breaks what was asked; what does not, you may leave and say in your report. Then deliver it, or put it back in review if a fix needs checking.`;
   const asker: Asker = { kind: "agent", id: run.agent_id, name, thread_id: run.thread_id, run_id: run.id, depth: 1 };
   ask(store, admit, task, doer, text, asker, { kind: "agent", id: run.agent_id }, sessionFor(store, task, doer), [
     {
@@ -657,7 +684,8 @@ export function deliverToCoordinator(
   admit({
     thread_id: from.thread,
     agent_id: from.run.agent_id,
-    trigger: "system",
+    // A team's result, like the task's close report (reportClose): at the coordinator's depth, no owner standing.
+    trigger: "a2a_result",
     origin: {
       kind: "task_feedback",
       task_id: task.id,
@@ -667,7 +695,7 @@ export function deliverToCoordinator(
       run_id: run.id,
     },
     text: verdict.slice(0, 4000),
-    depth: 1,
+    depth: from.run.depth,
   });
 }
 

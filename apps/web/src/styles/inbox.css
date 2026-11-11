@@ -17,7 +17,50 @@
 .inbox__titlerow {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 2px;
+}
+.inbox__titlerow .inbox__title {
+  margin-right: 6px;
+}
+/* New chat apart from the two that narrow the list. */
+.inbox__headsep {
+  flex: none;
+  width: 1px;
+  height: 14px;
+  margin: 0 4px;
+  background: var(--apx-border);
+}
+/* The tabs, or the search in their place: one row of the same height, so the list never moves. */
+.inbox__switch {
+  display: flex;
+  align-items: center;
+  min-height: 34px;
+}
+.inbox__seek {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+  animation: inbox-seek var(--apx-duration) ease-out;
+}
+.inbox__seekfield {
+  flex: 1;
+  min-width: 0;
+}
+@keyframes inbox-seek {
+  from {
+    opacity: 0;
+    transform: scaleX(0.96);
+  }
+}
+.inbox__seek {
+  transform-origin: right center;
+}
+@media (prefers-reduced-motion: reduce) {
+  .inbox__seek {
+    animation: none;
+  }
 }
 .inbox__title {
   flex: 1;
@@ -34,44 +77,6 @@
   min-height: 0;
   overflow-y: auto;
   padding: 0 8px 16px;
-}
-.inbox__group + .inbox__group {
-  margin-top: 6px;
-}
-.inbox__grouphead {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  width: 100%;
-  height: 30px;
-  padding: 0 8px;
-  border: 0;
-  border-radius: var(--apx-row-radius);
-  background: none;
-  color: var(--apx-fg-muted);
-  font-size: var(--apx-text-xs);
-  font-weight: var(--apx-weight-semibold);
-  cursor: pointer;
-}
-.inbox__grouphead:hover {
-  background: var(--apx-fill-hover);
-}
-.inbox__groupname {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.inbox__groupcount {
-  font-weight: var(--apx-weight-regular);
-  color: var(--apx-fg-subtle);
-}
-.inbox__grouprun {
-  font-weight: var(--apx-weight-medium);
-  color: var(--apx-brand);
-  white-space: nowrap;
-}
-.inbox__groupspacer {
-  flex: 1;
 }
 .inbox__skeleton {
   display: flex;
@@ -93,11 +98,12 @@
 .threadrow__preview {
   display: inline;
 }
+/* Working: the same quiet loader as the top bar's running count, not the brand colour of a state. */
 .threadrow__spin {
   display: inline-block;
   vertical-align: -2px;
   margin-right: 6px;
-  color: var(--apx-brand);
+  color: var(--apx-fg-muted);
 }
 .threadrow__waiting {
   color: var(--apx-warning-soft-fg);
@@ -113,7 +119,7 @@
   border: 0;
   border-radius: var(--apx-row-radius);
   background: var(--apx-fill-hover);
-  color: var(--apx-brand);
+  color: var(--apx-fg-muted);
   font: inherit;
   font-size: var(--apx-text-xs);
   vertical-align: middle;
@@ -197,11 +203,13 @@ button.chatprocesses {
   color: var(--apx-fg-subtle);
 }
 
-/* Archived chats: one quiet row at the end of the list that unfolds them. */
-.inbox__archived {
-  margin-top: 8px;
-  padding-top: 6px;
-  border-top: 1px solid var(--apx-border);
+/* A contact silenced or supervised: a small mark after their name. */
+.threadrow__mark {
+  display: inline-grid;
+  place-items: center;
+  flex: none;
+  margin-left: 4px;
+  color: var(--apx-fg-subtle);
 }
 
 /* Compact faces retain their column, including group and caller badges. */
@@ -231,14 +239,495 @@ button.chatprocesses {
   right: -5px;
   bottom: -2px;
 }
+/* Two lines per chat, like the Slim design: title, project and time; then who and what kind. */
+/* The face close to the row's edge and to its words, as the design has it. */
 .inbox .threadrow {
-  padding: 8px 10px;
-  gap: 10px;
+  padding: 6px 10px 6px 6px;
+  gap: 8px;
+  border-radius: 10px;
 }
-.routinebundle > .tree__sessions {
+.inbox .threadrow .apx-convrow__title {
+  font-size: var(--apx-text-md);
+  color: var(--apx-fg-muted);
+}
+.inbox .threadrow.is-unread .apx-convrow__title {
+  color: var(--apx-fg);
+}
+.inbox .threadrow .apx-convrow__preview {
+  font-size: 11.5px;
+  color: var(--apx-fg-subtle);
+}
+.inbox .threadrow.is-unread .apx-convrow__time {
+  color: var(--apx-brand-soft-fg);
+}
+.inbox .threadrow .apx-convrow__unread {
+  background: var(--apx-brand);
+  color: var(--apx-bg);
+}
+/* A project's name in its own colour, like the design's badges. */
+.projbadge {
+  flex: 0 1 auto;
+  min-width: 0;
+  max-width: 120px;
+  padding: 0 6px;
+  overflow: hidden;
+  border-radius: 999px;
+  font-size: 11px;
+  line-height: 16px;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  background: var(--apx-fill-strong);
+  color: var(--apx-fg-muted);
+}
+.projbadge.has-channel {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.projbadge.has-channel > svg {
+  flex: none;
+}
+.projbadge.is-brand {
+  background: var(--apx-brand-soft);
+  color: var(--apx-brand-soft-fg);
+}
+.projbadge.is-info {
+  background: var(--apx-info-soft);
+  color: var(--apx-info-soft-fg);
+}
+.projbadge.is-violet {
+  background: var(--apx-violet-soft);
+  color: var(--apx-violet-soft-fg);
+}
+.projbadge.is-warning {
+  background: var(--apx-warning-soft);
+  color: var(--apx-warning-soft-fg);
+}
+.projbadge.is-danger {
+  background: var(--apx-danger-soft);
+  color: var(--apx-danger-soft-fg);
+}
+.threadrow-wrap {
+  position: relative;
   min-width: 0;
 }
-.routinebundle .tree__agentmeta {
-  flex: none;
+/* Pointed at (or with its menu open), a row shows "···" where its time was; the fold by the title stays free. */
+.threadrow__more {
+  position: absolute;
+  z-index: 2;
+  top: 5px;
+  right: 6px;
+  display: none;
+}
+.threadrow__more .apx-iconbtn {
+  width: 24px;
+  height: 24px;
+  min-width: 0;
+  padding: 0;
+  border-radius: 6px;
+}
+.threadrow-wrap:hover > .threadrow__more,
+.threadrow-wrap:focus-within > .threadrow__more,
+.threadrow__more:has([aria-expanded="true"]) {
+  display: flex;
+}
+.threadrow-wrap:hover .apx-convrow__time,
+.threadrow-wrap:focus-within .apx-convrow__time,
+.threadrow-wrap:has(.threadrow__more [aria-expanded="true"]) .apx-convrow__time {
+  visibility: hidden;
+}
+.inbox__tabcount {
+  margin-left: 6px;
+  font-size: 11px;
+  color: var(--apx-fg-subtle);
+}
+.inbox__tabname {
+  position: relative;
+}
+/* News in a tab not shown: a dot over the end of its name. */
+.inbox__tabnews {
+  position: absolute;
+  top: -1px;
+  right: -6px;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--apx-brand);
+}
+.inbox__tabwork {
+  display: inline-grid;
+  place-items: center;
+  margin-left: 4px;
+  color: var(--apx-brand-soft-fg);
+}
+.inboxsec {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.inboxsec__head {
+  display: flex;
+  align-items: center;
+  height: 26px;
+  margin-top: 6px;
+  padding: 0 10px;
+  font-size: 11.5px;
+  color: var(--apx-fg-subtle);
+}
+.inbox .inboxsec__toggle {
+  align-items: center;
+  margin-top: 6px;
+  padding: 4px 10px;
+  gap: 6px;
+  color: var(--apx-fg-subtle);
+}
+.inboxsec__toggle .apx-convrow__title,
+.inboxsec__toggle .apx-convrow__time {
+  margin-left: 0;
+  font-size: 11.5px;
+  font-weight: var(--apx-weight-regular);
+  color: var(--apx-fg-subtle);
+}
+.inboxsec__toggle .apx-convrow__bottom {
+  display: none;
+}
+.routinerow__state {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--apx-info-soft-fg);
+}
+.routinerow__state.is-running {
+  color: var(--apx-brand-soft-fg);
+}
+.routinerow__dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--apx-info);
+}
+.routinerow__state.is-running .routinerow__dot {
+  background: var(--apx-brand);
+}
+.routinerow__state.is-failed {
+  color: var(--apx-danger-soft-fg);
+}
+.routinerow__state.is-failed .routinerow__dot {
+  background: var(--apx-danger);
+}
+.routinerow__state.is-pending,
+.routinerow__state.is-waiting {
+  color: var(--apx-warning-soft-fg);
+}
+.routinerow__state.is-pending .routinerow__dot,
+.routinerow__state.is-waiting .routinerow__dot {
+  background: var(--apx-warning);
+}
+.routinerow__runs {
+  vertical-align: -2px;
+}
+
+/* The tabs are the Inbox's main switch: taller, like the design's. */
+.inbox__views.apx-segmented {
+  width: 100%;
+  height: 34px;
+  padding: 3px;
+}
+.inbox__views .apx-segmented__item {
+  flex: 1;
+  height: 28px;
+  font-size: var(--apx-text-sm);
+}
+/* The filter: agents or projects with their counts, the chosen ones ticked. */
+.inboxfilter.apx-popover {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 6px;
+}
+.inboxfilter__tabs .apx-tabs__list {
+  width: 100%;
+}
+.inboxfilter__tabs .apx-tabs__tab {
+  flex: 1;
+  justify-content: center;
+}
+.inboxfilter__list {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  max-height: min(320px, 50vh);
+  overflow-y: auto;
+}
+.inboxfilter__list .apx-pickrow {
+  min-height: 32px;
+  padding: 4px 8px;
+}
+.inboxfilter__list .apx-pickrow.is-selected {
+  background: var(--apx-brand-soft);
+}
+.inboxfilter__sub.apx-pickrow {
+  padding-left: 28px;
+}
+.inboxfilter__mark {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  color: var(--apx-fg-subtle);
+}
+.inboxfilter__check {
+  display: inline-flex;
+  width: 14px;
+  color: var(--apx-brand);
+}
+.inboxfilter__foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  padding: 6px 2px 0;
+  border-top: 1px solid var(--apx-border);
+}
+.inboxfilter__chips {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+}
+.inboxfilter__chip.apx-btn {
+  height: 24px;
+  max-width: 100%;
+  background: var(--apx-brand-soft);
+  color: var(--apx-brand-soft-fg);
+}
+
+/* A chat's second line: who speaks and where, then its project as a small badge. */
+.threadrow__line {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+.threadrow__who {
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
   white-space: nowrap;
+}
+.threadrow__dot {
+  flex: none;
+}
+/* The face of the agent who answers, before the words that name it (lists, an account's header). */
+.answerer {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+}
+.threadrow__line .projbadge {
+  flex: 0 0 auto;
+  max-width: 16ch;
+  font-size: 10.5px;
+  line-height: 15px;
+}
+
+/* The chevron of a chat's nested sessions, right after its title: it sits over the slot the title line leaves. */
+.rowfold__slot {
+  flex: none;
+  width: 18px;
+  height: 18px;
+  margin-left: -2px;
+}
+.apx-iconbtn.rowfold {
+  position: absolute;
+  z-index: 1;
+  width: 18px;
+  height: 18px;
+  min-width: 0;
+  color: var(--apx-fg-subtle);
+}
+.apx-iconbtn.rowfold:hover {
+  background: var(--apx-fill-strong);
+  color: var(--apx-fg);
+}
+.apx-iconbtn.rowfold svg {
+  width: 12px;
+  height: 12px;
+  transform: rotate(-90deg);
+  transition: transform var(--apx-duration);
+}
+.apx-iconbtn.rowfold.is-open svg {
+  transform: none;
+}
+.delegated.is-inline .delegated__list {
+  margin: 2px 0 4px 13px;
+}
+
+/* The filter's button while something is chosen: brand-soft, with how many in a pill on its corner. */
+.apx-iconbtn.inboxfilter__btn {
+  position: relative;
+  overflow: visible;
+}
+.apx-iconbtn.inboxfilter__btn.is-on {
+  background: var(--apx-brand-soft);
+  color: var(--apx-brand-soft-fg);
+}
+.inboxfilter__count {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  display: inline-grid;
+  place-items: center;
+  min-width: 15px;
+  height: 15px;
+  padding: 0 4px;
+  box-sizing: border-box;
+  border-radius: 999px;
+  background: var(--apx-brand);
+  color: var(--apx-bg);
+  font-size: 10px;
+  font-weight: var(--apx-weight-semibold);
+  line-height: 1;
+}
+
+/* The Inbox narrowed to one channel account: the account as its title, switching accounts from it. */
+.inbox__account {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin: -4px -4px 0 -6px;
+}
+.inbox__accounttools {
+  display: inline-flex;
+  flex: none;
+  gap: 4px;
+}
+/* On a phone the account's tools are in its menu: the name needs the room. */
+@media (max-width: 640px) {
+  .inbox__accounttools {
+    display: none;
+  }
+}
+.apx-btn.inbox__accountbtn {
+  flex: 1;
+  min-width: 0;
+  height: auto;
+  justify-content: flex-start;
+  gap: 10px;
+  padding: 5px 6px;
+  border-radius: 10px;
+  text-align: left;
+}
+.inbox__accountbtn[aria-expanded="true"] {
+  background: var(--apx-fill);
+}
+.inbox__accountbtn > .apx-btn__label {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+.inbox__accounttext {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+}
+.inbox__accountname {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+  font-size: 15px;
+  font-weight: var(--apx-weight-semibold);
+  letter-spacing: -0.01em;
+  color: var(--apx-fg);
+}
+.inbox__accountchev {
+  display: inline-flex;
+  flex: none;
+  color: var(--apx-fg-subtle);
+}
+.inbox__accountlabel,
+.inbox__accountsub {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.inbox__accountsub {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: var(--apx-text-xs);
+  font-weight: var(--apx-weight-regular);
+  color: var(--apx-fg-subtle);
+}
+.inbox__accountsubtext {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* "New chat": each agent's name, then its role at the row's end. */
+.newchat .apx-menu__text {
+  flex: none;
+  max-width: 110px;
+}
+.newchat .apx-select__hint {
+  flex: 1 1 0;
+  min-width: 0;
+  max-width: none;
+  text-align: right;
+}
+/* Under a task, each chat reads "Agent: what it said last". */
+.taskbundle .tree__sessionwho::after {
+  content: ":";
+}
+/* The filter's channels tab: what the Inbox leaves out shows faded; grouping sits under the list. */
+.inboxfilter__empty {
+  margin: 0;
+  padding: 12px 8px;
+  color: var(--apx-fg-subtle);
+  font-size: var(--apx-text-sm);
+}
+.inboxfilter__group {
+  padding: 8px 10px 4px;
+  border-top: 1px solid var(--apx-border);
+}
+
+/* One account's own list: what was written last on one line ("…"), then who they are and who answers them. */
+.inbox .threadrow--account .apx-convrow__preview {
+  font-size: var(--apx-text-xs);
+  color: var(--apx-fg-muted);
+}
+.inbox .threadrow--account.is-unread .apx-convrow__preview {
+  color: var(--apx-fg);
+}
+.threadrow--account .apx-convrow__meta {
+  margin-top: 2px;
+}
+/* A mail shows its subject, then two lines of it. */
+.inbox .threadrow--mail .apx-convrow__preview {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  white-space: normal;
+}
+.threadrow__subject {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--apx-fg);
+  font-weight: var(--apx-weight-medium);
+}
+.threadrow--mail .threadrow__said {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+.inbox__accountfind {
+  margin-top: -2px;
 }

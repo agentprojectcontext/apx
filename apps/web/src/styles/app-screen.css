@@ -1,0 +1,41 @@
+/* An app or page opened on its own screen: loaded with it, not the first screen. */
+/* ── App screen ────────────────────────────────────────────────────────────── */
+.appscreen {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  background: var(--apx-surface);
+}
+.appscreen__head {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: 52px;
+  padding: 0 14px 0 10px;
+  border-bottom: 1px solid var(--apx-border);
+}
+.appscreen__titles {
+  flex: 1;
+  min-width: 0;
+}
+.appscreen__title {
+  font-size: var(--apx-text-md);
+  font-weight: var(--apx-weight-semibold);
+}
+.appscreen__sub {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--apx-text-2xs);
+  color: var(--apx-fg-subtle);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.appscreen__body {
+  flex: 1;
+  min-height: 0;
+  padding: 0;
+}

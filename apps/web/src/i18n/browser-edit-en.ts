@@ -1,6 +1,7 @@
 // The browser panel's edit mode: loaded with it (usePack in BrowserEdit.tsx), never with the first screen.
 export const enBrowserEdit = {
-  "bedit.pickHint": "Click the part you want to change · Esc to leave",
+  "bedit.pickHint": "Edit mode · click a part",
+  "bedit.pickEsc": "· Esc to leave",
   "bedit.page": "Page in edit mode",
   "bedit.emptyTitle": "Pick something to change",
   "bedit.emptyBody":
@@ -17,6 +18,15 @@ export const enBrowserEdit = {
   "bedit.sensitive": "This field takes a password, a code or card details: it can't be changed here.",
   "bedit.live": "You see it in the page now. It stays when the agent makes the change.",
   "bedit.liveSave": "You see it in the page now. It stays when you save.",
+  "bedit.back": "Back to elements",
+  "bedit.elements": "Elements",
+  "bedit.elementsHint": "Click one on the page or pick it here.",
+  "bedit.kind.heading": "Heading",
+  "bedit.kind.text": "Text",
+  "bedit.kind.button": "Button",
+  "bedit.kind.link": "Link",
+  "bedit.kind.image": "Image",
+  "bedit.kind.field": "Field",
   "bedit.list": "Your changes",
   "bedit.changed": "Changed",
   "bedit.remove": "Remove",

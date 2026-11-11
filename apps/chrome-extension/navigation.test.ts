@@ -112,6 +112,8 @@ for (const surface of ["quick", "panel"] as const) {
       const previous = await client.call("threads.get", { thread: "home" });
       await box.fill("/new");
       await expect(frame.locator(".slash__row.is-active .slash__name")).toHaveText("/new");
+      await box.press("Tab");
+      await expect(box).toHaveValue("/new ");
       await box.press("Enter");
       await expect(box).toBeEmpty();
       await expect(reply).toHaveCount(0);

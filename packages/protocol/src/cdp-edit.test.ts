@@ -15,13 +15,24 @@ type Node = {
 };
 
 /** A page of a few nodes over fake CDP: answers what edit mode asks and keeps the DOM changes it makes. */
-function fakePage(nodes: Node[], at: number, view: { scroll?: number; content?: number; scrolled?: number } = {}) {
+type View = {
+  scroll?: number;
+  content?: number;
+  scrolled?: number;
+  /** The page's body; DOM.getDocument then answers the whole tree. */
+  body?: Node[];
+  /** A node's border quad, or null where the page does not draw it. */
+  boxes?: Record<number, number[] | null>;
+  roles?: Record<number, string>;
+};
+
+function fakePage(nodes: Node[], at: number, view: View = {}) {
   const byId = new Map<number, Node>();
   const index = (n: Node) => {
     byId.set(n.backendNodeId, n);
     for (const c of n.children ?? []) index(c);
   };
-  for (const n of nodes) index(n);
+  for (const n of [...nodes, ...(view.body ?? [])]) index(n);
   const calls: string[] = [];
   const points: Array<{ x: number; y: number }> = [];
   let pageY = view.scroll ?? 0;
@@ -38,15 +49,25 @@ function fakePage(nodes: Node[], at: number, view: { scroll?: number; content?: 
           cssVisualViewport: { clientWidth: 1000, clientHeight: 500, pageX: 0, pageY },
           cssContentSize: { width: 1000, height: view.content ?? 500 },
         };
-      case "DOM.getDocument":
+      case "DOM.getDocument": {
+        const body: Node = { nodeType: 1, nodeName: "BODY", localName: "body", backendNodeId: 3, children: view.body };
         return {
           root: {
             nodeType: 9,
             nodeName: "#document",
             backendNodeId: 1,
-            children: [{ nodeType: 1, nodeName: "HTML", backendNodeId: 2 }],
+            children: [
+              {
+                nodeType: 1,
+                nodeName: "HTML",
+                localName: "html",
+                backendNodeId: 2,
+                ...(view.body ? { children: [body] } : {}),
+              },
+            ],
           },
         };
+      }
       case "CSS.enable":
         return {};
       case "DOM.scrollIntoViewIfNeeded":
@@ -63,10 +84,16 @@ function fakePage(nodes: Node[], at: number, view: { scroll?: number; content?: 
       case "DOM.pushNodesByBackendIdsToFrontend":
         // The fake's node ids are the backend ids.
         return { nodeIds: (params.backendNodeIds as number[]).filter((id) => byId.has(id)) };
-      case "Accessibility.getPartialAXTree":
+      case "Accessibility.getPartialAXTree": {
+        const role = view.roles?.[params.backendNodeId as number];
+        if (role !== undefined) return { nodes: [{ role: { value: role }, name: { value: "" } }] };
         return { nodes: [{ role: { value: "button" }, name: { value: "Book a demo" } }] };
-      case "DOM.getBoxModel":
-        return { model: { border: [100, 50, 300, 50, 300, 100, 100, 100] } };
+      }
+      case "DOM.getBoxModel": {
+        const quad = view.boxes?.[params.backendNodeId as number];
+        if (quad === null) throw new Error("Could not compute box model.");
+        return { model: { border: quad ?? [100, 50, 300, 50, 300, 100, 100, 100] } };
+      }
       case "CSS.getComputedStyleForNode":
         return {
           computedStyle: [
@@ -119,6 +146,7 @@ test("inspect names the element under a point, with its text, place and look", a
     role: "button",
     name: "Book a demo",
     selector: "a.cta.big",
+    kind: "button",
     text: "Book a demo",
     sensitive: false,
     box: { x: 0.1, y: 0.1, width: 0.2, height: 0.1 },
@@ -161,6 +189,96 @@ test("inspect never reads a password field and offers nothing over the page body
   assert.equal(pw?.selector, "input#pw");
   const body: Node = { nodeType: 1, nodeName: "BODY", localName: "body", backendNodeId: 1 };
   assert.equal(await new PageEdits(fakePage([body], 1).send).inspect(0.5, 0.5), null);
+});
+
+const el = (backendNodeId: number, tag: string, attributes: string[], children: Node[] = []): Node => ({
+  nodeType: 1,
+  nodeName: tag.toUpperCase(),
+  localName: tag,
+  backendNodeId,
+  attributes,
+  children,
+});
+const text = (backendNodeId: number, value: string): Node => ({
+  nodeType: 3,
+  nodeName: "#text",
+  nodeValue: value,
+  backendNodeId,
+});
+
+/** A landing: a title, a link whose words sit in a span, an icon button, a picture, a password, and what is not drawn. */
+function landing(): Node[] {
+  return [
+    el(10, "h1", [], [text(11, "Northwind tea")]),
+    el(12, "p", [], [text(13, "Fresh leaves, "), el(14, "b", [], [text(15, "every week")])]),
+    el(16, "a", ["href", "#demo"], [el(17, "span", [], [text(18, "Book a demo")])]),
+    el(19, "button", ["aria-label", "Close"], [el(20, "svg", [], [])]),
+    el(21, "img", ["src", "tea.png", "alt", "Tea cups"]),
+    el(22, "input", ["type", "password", "autocomplete", "current-password"]),
+    el(23, "input", ["type", "hidden", "value", "x"]),
+    el(24, "script", [], [text(25, "track()")]),
+    el(26, "div", ["hidden", ""], [text(27, "Secret menu")]),
+    el(28, "p", [], [text(29, "   ")]),
+    el(30, "span", [], [text(31, "Not drawn")]),
+    el(32, "footer", [], [text(33, "Below the fold")]),
+  ];
+}
+
+test("the list names each part of the page the owner can pick, in page order, with what it is", async () => {
+  const page = fakePage([], 0, {
+    body: landing(),
+    boxes: { 30: null, 32: [0, 600, 1000, 600, 1000, 700, 0, 700] },
+    roles: { 10: "heading", 14: "generic", 17: "generic", 19: "button", 21: "image", 22: "textbox", 32: "contentinfo" },
+  });
+  const list = await new PageEdits(page.send).list();
+  assert.deepEqual(
+    list.map((e) => [e.node, e.kind, e.text]),
+    [
+      [10, "heading", "Northwind tea"],
+      // A part of a paragraph with words of its own; the paragraph's other words are not one text to rewrite.
+      [14, "text", "every week"],
+      // The span holds the link's words: it is listed, as the link.
+      [17, "link", "Book a demo"],
+      [19, "button", null],
+      [21, "image", null],
+      [22, "field", null],
+      [32, "text", "Below the fold"],
+    ],
+  );
+  const password = list.find((e) => e.node === 22);
+  assert.equal(password?.sensitive, true);
+  assert.equal(password?.name, "");
+  // Each part has the box inspect gives it; one outside the visible page has none.
+  assert.deepEqual(list[0]?.box, { x: 0.1, y: 0.1, width: 0.2, height: 0.1 });
+  assert.equal(list.at(-1)?.box, null);
+  assert.ok(!page.calls.some((m) => m.startsWith("Runtime.")));
+});
+
+test("the list stops at its cap, and over a whole page places parts on the whole page", async () => {
+  const many = Array.from({ length: 30 }, (_, i) => el(100 + 2 * i, "li", [], [text(101 + 2 * i, `Item ${i}`)]));
+  const capped = await new PageEdits(fakePage([], 0, { body: many }).send).list(undefined, 5);
+  assert.deepEqual(
+    capped.map((e) => e.text),
+    ["Item 0", "Item 1", "Item 2", "Item 3", "Item 4"],
+  );
+  const page = fakePage([], 0, {
+    body: landing(),
+    content: 2000,
+    boxes: { 30: null, 32: [0, 1500, 1000, 1500, 1000, 1600, 0, 1600] },
+  });
+  const whole = await new PageEdits(page.send).list({ height: 2000 });
+  assert.deepEqual(whole.at(-1)?.box, { x: 0, y: 0.75, width: 1, height: 0.05 });
+  // Listing moves nothing: the page is not scrolled.
+  assert.ok(!page.calls.includes("DOM.scrollIntoViewIfNeeded"));
+});
+
+test("the list shows the page's own text of a part whose edit is shown", async () => {
+  const page = fakePage([], 0, { body: landing() });
+  const edits = new PageEdits(page.send);
+  await edits.show([{ node: 10, text: "Northwind teas" }]);
+  assert.equal(page.byId.get(11)?.nodeValue, "Northwind teas");
+  const list = await edits.list();
+  assert.equal(list[0]?.text, "Northwind tea");
 });
 
 test("shown edits replace the earlier ones and an empty list puts the page back", async () => {

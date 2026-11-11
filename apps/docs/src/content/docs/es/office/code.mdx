@@ -36,11 +36,11 @@ libertad.
 
 ### Dónde una tarea cambia código
 
-**Desde 2.11.1**, antes de cambiar código para una tarea, el agente sigue la elección
-guardada del proyecto: trabajar en el checkout o en un worktree de Git. Si ninguna nota del proyecto lo indica,
-te pregunta: **Worktree now**, **Worktree always**, **Here now**, **Here always** u **Other**. Una respuesta “always”
-se guarda para ese proyecto; “now” vale solo para esta elección. Esas opciones llegan con esos nombres en inglés.
-Esto elige dónde trabajar, no cambia la política de escritura ni el nivel de autonomía.
+Antes de cambiar código para una tarea, el agente trabaja donde dice el AGENTS.md del proyecto o una nota del
+proyecto: en el checkout o en un worktree de Git. Si ninguno lo dice, decide sin preguntarte: una carpeta que no es un
+repositorio Git se trabaja en el lugar, un checkout de Git lleva un worktree. Guarda esa elección como nota del
+proyecto, así todos los agentes de ahí hacen lo mismo, y la podés cambiar como cualquier otra nota. Esto elige dónde
+trabajar, no cambia la política de escritura ni el nivel de autonomía.
 
 Si usa un worktree, el agente primero revisa los worktrees y ramas relacionados con la tarea y sigue en el que ya
 cubre el trabajo. Solo si no hay uno crea una rama con nombre dentro de `.worktrees/` en el proyecto. Después de
@@ -70,6 +70,9 @@ Abrí el panel lateral desde el encabezado del chat. Cuando hay código de por m
 | **Terminal** | Cada comando que corrió el agente, con lo que imprimió, en primer plano o de fondo. **Abrir una terminal** te da tu propia terminal en la misma carpeta. |
 | **Archivos** | La carpeta del chat (**Carpeta del chat**) y sus archivos de trabajo (**Temporales**). Abrí un archivo para leerlo; el Markdown se lee como página. |
 | **Cambios** | Las ediciones que registró el agente, del **Último turno** o de **Todos los turnos**, y el diff de git de la **Carpeta actual**, archivo por archivo. |
+
+Un comando que no pudo arrancar figura como **No se pudo iniciar**, con el motivo en su salida. Ya no está activo;
+corregí el comando o el problema que indica antes de pedirle al agente que vuelva a intentarlo.
 
 <Shot name="chat-terminal" alt="Un chat de código con el panel lateral Terminal abierto, mostrando el comando de tests que corrió el agente y su salida" caption="El panel Terminal: los comandos del agente y tu propia terminal" />
 

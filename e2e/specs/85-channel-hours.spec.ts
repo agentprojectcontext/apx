@@ -1,7 +1,7 @@
 // A channel's attention hours: the owner turns them on in the channel's settings (days and times in their time zone);
 // a contact who writes outside them is kept unanswered, and the chat is answered once the channel answers again.
 import type { Page } from "@playwright/test";
-import { expect, open, rpc, test, until, world } from "./kit.ts";
+import { ACCOUNT_NAME, expect, open, rpc, test, until, world } from "./kit.ts";
 
 const buyer = { id: 8585, name: "Northwind Buyer" };
 type Hours = { days: number[]; from: string; to: string };
@@ -18,8 +18,8 @@ test("attention hours: set in the channel's settings, a contact waits outside th
   // The waiting chat is answered on the office clock's next tick, up to 15 s after the hours end.
   test.setTimeout(60_000);
   await open(page);
-  await page.getByRole("button", { name: "Telegram", exact: true }).first().click();
-  await page.getByRole("button", { name: "Configuración del canal" }).click();
+  await page.getByRole("button", { name: ACCOUNT_NAME.telegram, exact: true }).first().click();
+  await page.getByRole("button", { name: "Editar cuenta" }).click();
   await page.getByRole("dialog").getByRole("button", { name: "Comportamiento" }).click();
   const hours = page.getByRole("switch", { name: "Horario de atención" });
   await expect(hours).not.toBeChecked();
@@ -63,8 +63,8 @@ test("attention hours: set in the channel's settings, a contact waits outside th
   expect(await world.llmCalls()).toBe(calls);
 
   // Without hours the channel answers again: the office clock answers the waiting chat on its next tick.
-  await page.getByRole("button", { name: "Telegram", exact: true }).first().click();
-  await page.getByRole("button", { name: "Configuración del canal" }).click();
+  await page.getByRole("button", { name: ACCOUNT_NAME.telegram, exact: true }).first().click();
+  await page.getByRole("button", { name: "Editar cuenta" }).click();
   await page.getByRole("dialog").getByRole("button", { name: "Comportamiento" }).click();
   await page.getByRole("switch", { name: "Horario de atención" }).click();
   await page.getByRole("button", { name: "Guardar y cerrar" }).click();

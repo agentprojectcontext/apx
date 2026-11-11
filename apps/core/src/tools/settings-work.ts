@@ -1,6 +1,7 @@
 // apx_settings, where the work happens and what it draws on: projects, memory, skills, MCP servers and extensions on
 // or off, media services and widgets. A project's autonomy and read-only folders and memory's model stay the owner's
 // (DECISIONS.md#d-060). An MCP server names its keys as secret://NAME, never their value (DECISIONS.md#d-141).
+import { BASE_PROJECT_ID } from "@apx/protocol";
 import { memorySettings } from "../domain/memory-settings.ts";
 import { keyLike } from "../log.ts";
 import { imageDefaultsOf } from "../services/registry.ts";
@@ -65,13 +66,18 @@ export const WORK: Readonly<Record<string, Setting>> = {
       store.projects
         .list()
         .map((p) => {
-          const bits = [p.kind ?? "", p.path ? `folder ${p.path}` : "kept by APX", p.present ? "" : "folder away"];
+          const bits = [
+            p.kind ?? "",
+            p.path ? `folder ${p.path}` : "kept by APX",
+            p.present ? "" : "folder away",
+            p.parent ? `subproject of ${p.parent === BASE_PROJECT_ID ? "the base project" : p.parent}` : "",
+          ];
           return `- ${inlineName(p.name)} [${p.id}] (${bits.filter(Boolean).join(", ")})${p.description ? `: ${p.description.slice(0, 160)}` : ""}`;
         })
         .join("\n") || "no projects yet.",
   },
   "projects.create": {
-    does: "create a project (name, kind, description) in a folder (path, made if missing) or kept by APX",
+    does: `create a project (name, kind, description) in a folder (path, made if missing) or kept by APX; parent (a project id, or ${BASE_PROJECT_ID} for the base project) makes it a subproject, in the parent's folder unless path, using the parent's agents`,
     named: ["name", "path"],
     says: (p) => `Create the project ${inlineName(str(p.name) || str(p.path))}${p.path ? ` in ${str(p.path)}` : ""}`,
   },
@@ -86,7 +92,7 @@ export const WORK: Readonly<Record<string, Setting>> = {
     says: (p, { store }) => `Stop listing ${projectName(store, p.project)} (its files and chats stay)`,
   },
   "projects.update": {
-    does: "change a project (project, and only what changes: name, description, kind); autonomy and read-only folders stay the owner's",
+    does: "change a project (project, and only what changes: name, description, kind, parent; parent null makes a subproject a project of its own); autonomy and read-only folders stay the owner's",
     says: (p, { store }) => `Change ${projectName(store, p.project)}`,
     refuse: (p, { store }) => {
       const cur = store.projects.get(str(p.project)) as Params | undefined;
@@ -94,7 +100,9 @@ export const WORK: Readonly<Record<string, Setting>> = {
     },
     now: (p, { store }) => {
       const cur = store.projects.get(str(p.project));
-      return cur && { project: cur.id, name: cur.name, description: cur.description, kind: cur.kind };
+      return (
+        cur && { project: cur.id, name: cur.name, description: cur.description, kind: cur.kind, parent: cur.parent }
+      );
     },
   },
   "projects.update_base": {
@@ -107,6 +115,21 @@ export const WORK: Readonly<Record<string, Setting>> = {
     does: "a project's helper, which suggests the next step (project; enabled, goal, first_result)",
     says: (p, { store }) => `Change the helper of ${projectName(store, p.project)}`,
     now: (p, { store }) => ({ project: p.project, ...store.settings.read("project_helper")[str(p.project)] }),
+  },
+  "activity_review.settings": {
+    does: "whether APX reviews new activity and proposes improvements; daily or weekly, extra details",
+    read: (_p, { store }) => JSON.stringify(store.settings.read("activity_review")),
+  },
+  "activity_review.configure": {
+    does: "configure activity review (enabled, frequency daily or weekly, extra_details); always proposal-only",
+    says: () => "Change activity review and improvement proposals",
+    whole: true,
+    now: (_p, { store }) => store.settings.read("activity_review"),
+    keep: (p, { store }) => ({
+      ...merged(store.settings.read("activity_review"), p),
+      expected: store.settings.read("activity_review"),
+    }),
+    asks: "card",
   },
   "memory.settings": {
     does: "how notes are searched and how long chats are kept small",
@@ -126,6 +149,11 @@ export const WORK: Readonly<Record<string, Setting>> = {
     does: "confirm a note an agent wrote about the owner, so every agent reads it (id)",
     named: ["id"],
     says: (p, { store }) => `Confirm the note ${noteText(store, p.id)}`,
+  },
+  "memory.confirm_all": {
+    does: "confirm several notes agents wrote about the owner at once (ids)",
+    named: ["ids"],
+    says: (p) => `Confirm ${Array.isArray(p.ids) ? p.ids.length : 0} notes about the owner`,
   },
   "memory.restore": {
     does: "bring a forgotten note back (id)",
@@ -234,10 +262,15 @@ export const WORK: Readonly<Record<string, Setting>> = {
     says: (p, { store }) => `Turn the MCP server ${str(p.server)} ${on(p.on)} in ${projectName(store, p.project)}`,
   },
   "integrations.settings": {
-    does: "an integration's own settings (id; google-calendar: event reminders on or off, how many minutes before and every how many minutes Calendar is looked at; gmail: the mail check on or off, every how many minutes, important mail only)",
+    does: "an integration's own settings (id; google-calendar: event reminders on or off, how many minutes before, every how many minutes Calendar is looked at, and the events muted; gmail: the mail check on or off, every how many minutes, important mail only)",
     read: (p, { store }) =>
       str(p.id) === "google-calendar"
-        ? `event reminders: ${JSON.stringify(store.settings.read("calendar_reminders"))}`
+        ? `event reminders: ${JSON.stringify(store.settings.read("calendar_reminders"))}\nmuted events: ${
+            store.settings
+              .read("calendar_muted")
+              .map((m) => `${inlineName(m.title || m.series)} [${m.series}]`)
+              .join(", ") || "none"
+          }`
         : str(p.id) === "gmail"
           ? `mail check: ${JSON.stringify(store.settings.read("mail_check"))}`
           : "no settings of its own",
@@ -261,6 +294,15 @@ export const WORK: Readonly<Record<string, Setting>> = {
         : str(p.id) === "gmail"
           ? { id: p.id, mail: store.settings.read("mail_check") }
           : undefined,
+  },
+  "integrations.mute_event": {
+    does: "stop or resume reminders of a Google Calendar event and the rest of its series (series: the event's series, or its id when it has none; title; muted)",
+    says: (p) => `${p.muted ? "Stop" : "Resume"} reminders of ${inlineName(str(p.title) || str(p.series))}`,
+    named: ["series", "title"],
+    now: (p, { store }) => ({
+      series: p.series,
+      muted: store.settings.read("calendar_muted").some((m) => m.series === str(p.series)),
+    }),
   },
   "extensions.enable": {
     does: "turn an installed extension on or off (id, enabled)",

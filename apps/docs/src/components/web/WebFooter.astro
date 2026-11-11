@@ -1,6 +1,8 @@
 ---
 import { getCollection } from "astro:content";
 import logo from "../../assets/logo.png";
+import { ABOUT } from "../../data/about";
+import { PROFILES } from "../../data/brand";
 import { comparisons, labels } from "../../data/comparisons";
 import { sitePath } from "../../doc-routes.mjs";
 import { HOME, type Lang } from "../../i18n/home";
@@ -34,6 +36,8 @@ const product: Group = {
   title: t.product,
   links: [
     [t.newIn, href(`${pre}/#new`)],
+    ["Blog", href(`${pre}/blog/`)],
+    [ABOUT[lang].nav, href(`${pre}/about/`)],
     [t.download, href(`${pre}/#download`)],
     [t.questions, href(`${pre}/#questions`)],
     [t.phone, href(`${pre}/devices/phone/`)],
@@ -88,11 +92,8 @@ const compare: Group = {
     ...comparisons.map((item) => [`APX vs ${item.name}`, href(`${pre}/compare/${item.slug}/`)] as const),
   ],
 };
-const socials = [
-  { name: "GitHub", url: github },
-  { name: "Discord", url: "https://discord.gg/vxdZuT5WuE" },
-  { name: "YouTube", url: "https://www.youtube.com/@apx-agents" },
-] as const;
+type FooterProfile = Extract<(typeof PROFILES)[number], { footer: true }>;
+const socials = PROFILES.filter((profile): profile is FooterProfile => profile.footer);
 const platforms = [
   { name: "mac", label: "macOS" },
   { name: "windows", label: "Windows" },

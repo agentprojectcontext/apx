@@ -113,12 +113,16 @@ export function createSecrets(
     listed(name: string): boolean {
       return Object.hasOwn(read(), name);
     },
-    /** Like resolve, but a project's own value for a `secret://` name comes first. */
-    resolveIn(ref: string | undefined, projectId: string | undefined): string | undefined {
-      if (projectId && ref?.startsWith("secret://")) {
-        const own = api.resolve(`secret://${projectSecretName(projectId, ref.slice(9))}`);
-        if (own !== undefined) return own;
-      }
+    /**
+     * Like resolve, but a project's own value for a `secret://` name comes first. Given several (a subproject and its
+     * parent: domain/projects.ts lineage), the nearest one's own value wins.
+     */
+    resolveIn(ref: string | undefined, projects: string | readonly string[] | undefined): string | undefined {
+      if (ref?.startsWith("secret://"))
+        for (const id of typeof projects === "string" ? [projects] : (projects ?? [])) {
+          const own = api.resolve(`secret://${projectSecretName(id, ref.slice(9))}`);
+          if (own !== undefined) return own;
+        }
       return api.resolve(ref);
     },
     list(): Array<{ name: string; updated_at: string; hint?: string; sites: SecretSite[]; last_used?: SecretUse }> {

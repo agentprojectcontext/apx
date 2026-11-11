@@ -6,6 +6,19 @@ type ConnectAnswer =
 /** A question ssh asks while logging in: masked (`secret`) for a password or passphrase, plain for yes/no. */
 export type SshPrompt = { id: string; text: string; secret: boolean };
 
+/** A server the desktop app has used: this computer's APX or a remote one. */
+export type KnownServer = {
+  id: string;
+  kind: "local" | "remote";
+  /** The computer name its core reported, when it did. */
+  name?: string;
+  /** Where a remote one is reached. */
+  host?: string;
+  current: boolean;
+  /** Whether it answers now; absent for the one in use and when the app did not ask. */
+  online?: boolean;
+};
+
 /** The desktop app's own update (it carries its own core). */
 export type DesktopUpdate = {
   current: string;
@@ -51,8 +64,11 @@ declare global {
       updateAuth?(token?: string): void;
       /** Whether the core runs on this computer; false for one at an address or over SSH. */
       coreLocal?: boolean;
-      /** Where to place the real browser view, in viewport CSS pixels (integers); null hides it. */
-      setBrowserBounds(bounds: { x: number; y: number; width: number; height: number } | null): void;
+      /**
+       * Where to place the real browser view, in viewport CSS pixels (integers); null hides it. `behind` keeps it at
+       * that place and size under the panel while something covers it.
+       */
+      setBrowserBounds(bounds: { x: number; y: number; width: number; height: number; behind?: boolean } | null): void;
       /** A still of the page the native browser view shows (a data URL), to stand in while it steps behind. */
       browserFrame?(): Promise<string | null>;
       /** Which tab the native browser view shows. */
@@ -101,6 +117,12 @@ declare global {
       setLanguage?(language: string): void;
       /** Windows/Linux: match the native title-bar overlay to the panel theme. */
       setTitleBar?(mode: "light" | "dark"): void;
+      /** The servers this app has used, newest first. Missing in builds from before it kept them. */
+      servers?(): Promise<{ servers: KnownServer[] } | undefined>;
+      /** Opens one of those servers in this window; an answer that comes back says why it could not. */
+      openServer?(id: string): Promise<ConnectAnswer | undefined>;
+      /** Tells the app the computer name of the server in use, for its list. */
+      nameServer?(name: string): void;
       /** The system's folder dialog; undefined when the owner cancels. */
       pickFolder?(): Promise<string | undefined>;
       /** Whether a newer APX app is out; `check` asks the release feed now. */

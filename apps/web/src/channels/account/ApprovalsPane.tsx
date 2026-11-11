@@ -1,4 +1,5 @@
 import type { ChannelInfo } from "@apx/protocol";
+import { channelKindRules } from "@apx/protocol/client";
 import { EmptyState, Icons, SegmentedControl, SettingRow } from "@apx/ui";
 import { useMemo } from "react";
 import { type ChannelDraft, useChannels } from "../../data/channels.ts";
@@ -6,11 +7,16 @@ import { type MessageKey, useT } from "../../i18n/index.ts";
 import { PairingRow } from "../StartRows.tsx";
 import type { PaneProps } from "./types.ts";
 
-/** On the owner's own WhatsApp number a stranger never gets a code from it: "pair" only lists them. */
-const listsOnly = (c: Pick<ChannelInfo, "type" | "self_owner">) => c.type === "whatsapp" && c.self_owner === true;
-const HINT: Record<ChannelInfo["strangers"] | "list", MessageKey> = {
+/**
+ * On the owner's own WhatsApp number, or a kind that never sends codes (email), a stranger never gets a code: "pair"
+ * only lists them.
+ */
+const listsOnly = (c: Pick<ChannelInfo, "type" | "self_owner">) =>
+  (c.type === "whatsapp" && c.self_owner === true) || channelKindRules(c.type).strangersListed;
+const HINT: Record<ChannelInfo["strangers"] | "list" | "listMail", MessageKey> = {
   pair: "ch.strangersHint.pair",
   list: "ch.strangersHint.list",
+  listMail: "ch.strangersHint.listMail",
   ask: "ch.strangersHint.ask",
   answer: "ch.strangersHint.answer",
   ignore: "ch.strangersHint.ignore",
@@ -22,12 +28,16 @@ export function ApprovalsPane({ channel, draft, set }: PaneProps) {
   const all = useChannels((s) => s.pairing);
   const requests = useMemo(() => all.filter((r) => r.channel === channel.id), [all, channel.id]);
   const lists = listsOnly({ type: channel.type, self_owner: draft.self_owner });
+  // A kind that never sends codes says nothing goes to them; the owner's own number, that nothing goes from it.
+  const hint =
+    draft.strangers !== "pair" || !lists
+      ? draft.strangers
+      : channelKindRules(channel.type).strangersListed
+        ? "listMail"
+        : "list";
   return (
     <>
-      <SettingRow
-        title={t("tg.strangers")}
-        description={t(HINT[draft.strangers === "pair" && lists ? "list" : draft.strangers])}
-      >
+      <SettingRow title={t("tg.strangers")} description={t(HINT[hint])}>
         <SegmentedControl
           size="sm"
           label={t("tg.strangers")}

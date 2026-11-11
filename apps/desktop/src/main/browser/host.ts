@@ -159,16 +159,17 @@ export class BrowserHost extends EventEmitter<{ changed: [] }> {
       case "browser.click": {
         const p = browserMethods["browser.click"].params.parse(raw);
         const tab = this.#drive(p.tab, p.by);
-        await tab.cdp.click(p.ref);
-        await this.#settle(tab);
-        return { ok: true, url: tab.wc.getURL() };
+        const dialog = await tab.cdp.click(p.ref);
+        if (!dialog) await this.#settle(tab);
+        return { ok: true, url: tab.wc.getURL(), ...(dialog ? { dialog } : {}) };
       }
       case "browser.type": {
         const p = browserMethods["browser.type"].params.parse(raw);
         const tab = this.#drive(p.tab, p.by);
-        await tab.cdp.type(p.ref, p.text, p.submit);
-        if (p.submit) await this.#settle(tab);
-        return { ok: true, url: tab.wc.getURL() };
+        // The node itself checks the page is one this computer serves, at the moment it types (DECISIONS.md#d-212).
+        const dialog = await tab.cdp.type(p.ref, p.text, p.submit, p.local_only ? blockedPorts : undefined, p.upload);
+        if (p.submit && !dialog) await this.#settle(tab);
+        return { ok: true, url: tab.wc.getURL(), ...(dialog ? { dialog } : {}) };
       }
       case BROWSER_FILL_SECRET: {
         const p = BrowserFillSecret.parse(raw);
@@ -194,6 +195,10 @@ export class BrowserHost extends EventEmitter<{ changed: [] }> {
         const p = browserMethods["browser.inspect"].params.parse(raw);
         return { element: await this.#get(p.tab).cdp.inspect(p.x, p.y) };
       }
+      case "browser.edit_elements": {
+        const p = browserMethods["browser.edit_elements"].params.parse(raw);
+        return { elements: await this.#get(p.tab).cdp.editElements() };
+      }
       case "browser.preview_edits": {
         const p = browserMethods["browser.preview_edits"].params.parse(raw);
         const tab = this.#get(p.tab);
@@ -205,6 +210,7 @@ export class BrowserHost extends EventEmitter<{ changed: [] }> {
       case "browser.text": {
         const p = browserMethods["browser.text"].params.parse(raw);
         const tab = this.#readable(p.tab);
+        tab.cdp.assertNoDialog();
         const wc = tab.wc;
         // Isolated world: the page's scripts cannot see or patch this read.
         // Resolves to the script's value (a string), not to an array of results.

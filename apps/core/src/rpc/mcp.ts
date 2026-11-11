@@ -87,9 +87,15 @@ export function mcpHandlers(mcp: Mcp, store: Store, switchable: (name: string) =
     "mcp.set": ({ name, server, project }) => {
       if (Array.isArray(server?.args) && JSON.stringify(server.args).includes("secret://"))
         throw badRequest(ARGS_SECRET);
+      if (server?.project && !store.projects.get(server.project)) throw notFound(`project ${server.project}`);
+      if (project && server?.project !== undefined)
+        throw badRequest("a repository server cannot set private availability");
       if (!project) {
+        const before = mcp.config.global().find((d) => d.name === name);
         mcp.config.setGlobal(name, server);
-        mcp.drop({ scope: "global", name });
+        const after = mcp.config.global().find((d) => d.name === name);
+        // Availability alone does not change a tool contract; credential-specific grants stay separately bound.
+        mcp.drop({ scope: "global", name }, Boolean(before && after && before.hash === after.hash));
         return { servers: mcp.status() };
       }
       if (!store.projects.get(project)?.path) throw notFound(`project ${project}`);

@@ -3,6 +3,7 @@
 // Either may run on APX's harness or a CLI's own session; delegating to other agents is off unless the step allows it.
 import type { FlowNode } from "@apx/protocol/flow-graph";
 import type { AgentRecord } from "./domain/agents.ts";
+import { worksIn } from "./domain/projects.ts";
 import { harnessOf, parseRef } from "./domain/refs.ts";
 import type { Store } from "./domain/store.ts";
 import type { FlowStepContext, ThreadContext } from "./domain/threads.ts";
@@ -30,7 +31,7 @@ export function planFlowAiStep(store: Store, projectId: string, node: AiNode, in
     : node.agent
       ? store.agents.get(node.agent)
       : undefined;
-  if (!agent || (!node.bot && agent.project_id && agent.project_id !== projectId)) return undefined;
+  if (!agent || (!node.bot && !worksIn(store.projects, agent.project_id, projectId))) return undefined;
   const engine = flowEngineOf(node);
   const data = `Untrusted input JSON:\n${JSON.stringify(input)}`;
   if (engine) {

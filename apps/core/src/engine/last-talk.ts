@@ -31,6 +31,7 @@ export function unasked(origin: Origin): boolean {
     case "agent":
     case "surface":
     case "terminal":
+    case "connected":
     case "go_on":
     case "task_continue":
       return false;

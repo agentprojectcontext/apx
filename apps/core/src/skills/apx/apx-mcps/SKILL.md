@@ -20,6 +20,17 @@ never reaches you:
 | It for all their agents (the usual case; it may use variables) | `apx mcps add <name> …` |
 | It only inside one project, saved in the repo (`.apc/mcps.json`) | `apx mcps add <name> --project <project-id> …` |
 
+An owner's private server can be limited to a project without writing its configuration into the repo:
+
+```bash
+apx mcps scope magic <project-id>
+apx mcps scope magic global
+```
+
+This keeps its definition and approvals for the same configuration and credential scope. A project's different
+credentials do not inherit grants from another account. Project variables override global variables there. Before making
+it global, check that its variables exist globally or in every project where it will be used.
+
 A project's server is committed with the repo, so it **cannot use variables** (`secret://`): anything with a key is
 one of the owner's own servers. One of the owner's servers is turned off inside a project with
 `apx mcps off <name> --project <project-id>` (and back with `on`). `apx projects` lists project ids.
@@ -109,6 +120,15 @@ apx mcps rm <name>
 A server that comes with an extension is changed in that extension, not here. A project's `.apc/mcps.json` written
 by someone else needs the owner's approval before it runs: that approval is theirs, in
 [Resources › MCP](apx:resources/mcp), never yours.
+
+## Open a server from chat
+
+Link a named server as `[Acme](apx:resources/mcp/acme/global)` to open its editor over the chat. `global` identifies
+one of the owner's private servers, even when it is limited to a project. For a repository definition, use
+`apx:resources/mcp/acme/PROJECT_ID`. A link without the last segment asks which one when the name is ambiguous;
+a missing exact target never opens another server with the same name. The editor offers **Available in** for a
+private server and a visible **Use a variable** picker (also Ctrl+Space in a value). The picker lists the selected
+project's effective variables, including inherited names and overrides, without values.
 
 ## Tell the owner
 

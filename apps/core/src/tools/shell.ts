@@ -10,8 +10,9 @@ import { namesApc } from "../engine/paths.ts";
 import { AGENT_WORKSPACE } from "../environments/worker.ts";
 import { insideReal } from "../paths.ts";
 import { commandShell } from "../processes.ts";
+import { apxReads } from "./apx-reads.ts";
 import { namedPaths } from "./command-paths.ts";
-import { readsOnly } from "./command-reads.ts";
+import { mayChange, readsOnly } from "./command-reads.ts";
 import {
   type Access,
   folderAccess,
@@ -29,7 +30,27 @@ import { untrusted } from "./result.ts";
 import { type Confirm, defineTool, type Tool } from "./types.ts";
 
 const DESTRUCTIVE =
-  /\b(sudo|su|doas|mkfs|dd|shutdown|reboot|halt|diskutil|launchctl|crontab|shred|srm)\b|\brm\b[^|;&]*\s(-\w*[rf]|--recursive|--force)|\bgit\b[^|;&]*\s(push|reset\s+--hard|clean\b|filter-branch|update-ref\s+-d)|\b(curl|wget|fetch)\b[^|]*\|\s*(sudo\s+)?(ba|z|da|k)?sh\b|\bchmod\b[^|;&]*\s-\w*R|\bchown\b[^|;&]*\s-\w*R|:\(\)\s*\{|\/dev\/(sd|disk|nvme)/;
+  /\b(sudo|su|doas|mkfs|dd|shutdown|reboot|halt|diskutil|launchctl|crontab|shred|srm)\b|\brm\b[^|;&]*\s(-\w*[rf]|--recursive|--force)|\bgit\b[^|;&]*\s(reset\s+--hard|clean\b|filter-branch|update-ref\s+-d)|\b(curl|wget|fetch)\b[^|]*\|\s*(sudo\s+)?(ba|z|da|k)?sh\b|\bchmod\b[^|;&]*\s-\w*R|\bchown\b[^|;&]*\s-\w*R|:\(\)\s*\{|\/dev\/(sd|disk|nvme)/;
+
+/**
+ * A push that rewrites or deletes what others have, or that cuts a release (a tag, a package, a GitHub release). A
+ * plain push of a branch is part of the work a task asks for and runs like any command (DECISIONS.md#d-208).
+ */
+const RELEASES =
+  /\bgit\b[^|;&]*\spush\b[^|;&]*(\s(-\w*[fd]\w*|--force\S*|--delete|--tags|--follow-tags|--mirror|--prune)\b|\s\+|\s:\S|\srefs\/tags\/|\sv?\d+\.\d+(\.\d+)?\S*(\s|$))|\bgh\s+release\s+(create|upload|delete|edit)\b|\b(npm|pnpm|yarn|bun)\s+publish\b|\bcargo\s+publish\b|\btwine\s+upload\b/;
+
+/** A push of a branch: publishing the work, which the owner may want to be asked about (`publish: ask`). */
+const PUSH = /\bgit\b[^|;&]*\spush\b/;
+
+/**
+ * Whether a command keeps the owner's card in every mode, Total included, until they grant it for the agent: a
+ * release always, a plain push when the owner asked to be asked before publishing (DECISIONS.md#d-208).
+ */
+function publishCard(command: string, publish: "auto" | "ask"): "grant" | undefined {
+  const c = command.trim();
+  if (RELEASES.test(c) || RELEASES.test(normalize(c))) return "grant";
+  return publish === "ask" && (PUSH.test(c) || PUSH.test(normalize(c))) ? "grant" : undefined;
+}
 
 /** The command as the shell will mostly see it: quotes and escapes dropped, paths to programs reduced to names. */
 const normalize = (c: string) =>
@@ -76,6 +97,7 @@ export function broadScan(command: string, home = os.homedir()): string | undefi
 export function commandRisk(command: string, apxPort?: number): Confirm {
   const c = command.trim();
   if (DESTRUCTIVE.test(c) || DESTRUCTIVE.test(normalize(c))) return "always";
+  if (RELEASES.test(c) || RELEASES.test(normalize(c))) return "always";
   // A command that talks to APX's own API could act as the owner (answer its own confirmation): always asked.
   if (apxPort && new RegExp(`(127\\.0\\.0\\.1|localhost|\\[::1\\]|0\\.0\\.0\\.0):${apxPort}\\b`).test(c))
     return "always";
@@ -85,7 +107,7 @@ export function commandRisk(command: string, apxPort?: number): Confirm {
   // Anything else APX's own CLI does, which finds the port by itself, could act as the owner too.
   if (runsApxCli(c)) return "always";
   // APC definitions and AGENTS.md set agents' modes: changed by a command as by file_write, the owner says yes first.
-  return c.split(/[\s;&|<>()'"`=]+/).some((w) => w && namesApc(w)) ? "always" : "ask";
+  return mayChange(c, namesApc) ? "always" : "ask";
 }
 
 /** Programs that run the command after them: `env apx …`, `xargs apx`, `bash -c "apx …"`, `pnpm exec apx`. */
@@ -119,14 +141,34 @@ const LAUNCHERS = new Set([
  * after it, so `cd ~/code/apx` or `ls /…/apx` only read a folder of that name.
  */
 function runsApxCli(command: string): boolean {
-  if (/(^|[\s;&|(`"'])[\w./-]*apps\/terminal\/src\/main\.ts(\s|$|["'])/.test(command)) return true;
+  // A part that only reads with the CLI (`apx status`, `apx --help`) acts as nobody, whatever else the line does.
+  const acts = (args: string[]) =>
+    !apxReads(
+      args.map((text) => ({ text, prose: false, unknown: /[$`]/.test(text), brace: text.includes("{"), tilde: false })),
+    );
   for (const part of command.replace(/["'\\]/g, "").split(/[;&|\n(`]|\$\(/)) {
-    for (const word of part.trim().split(/\s+/)) {
+    const words = part.trim().split(/\s+/);
+    // A variable set for the CLI could point it at another server with the owner's credentials: it acts, reading or not.
+    const set = words.findIndex((w) => /^\w+=/.test(w));
+    for (const [i, word] of words.entries()) {
+      // The CLI run from a checkout, by node or by path.
+      if (/(^|\/)apps\/terminal\/src\/main\.ts$/.test(word)) {
+        if ((set >= 0 && set < i) || acts(words.slice(i + 1))) return true;
+        break;
+      }
       // Variables set for the program, a launcher's flags and its numbers (`timeout 30`) come before it.
       if (/^\w+=/.test(word) || word.startsWith("-") || /^\d+[smhd]?$/.test(word)) continue;
       const program = path.basename(word);
-      if (program === "apx" || program === "apx.exe" || program === "apx.cmd") return true;
-      if (!LAUNCHERS.has(program)) break;
+      if (program === "apx" || program === "apx.exe" || program === "apx.cmd") {
+        if ((set >= 0 && set < i) || acts(words.slice(i + 1))) return true;
+        break;
+      }
+      // `command -v apx` only looks it up; `node` may be running the CLI's entry, next.
+      if (
+        (!LAUNCHERS.has(program) && program !== "node") ||
+        (program === "command" && /^-[vV]$/.test(words[i + 1] ?? ""))
+      )
+        break;
     }
   }
   return false;
@@ -262,6 +304,7 @@ export function shellTools(
       }),
       effect: "external",
       confirm: (a) => commandRisk(a.command, apxPort()),
+      keepsCard: (a) => publishCard(a.command, store.settings.read("owner_profile").publish ?? "auto"),
       // A command that could only be refused is not put to the owner.
       check(a, ctx) {
         if (vm?.hasThread(ctx.thread.id)) {

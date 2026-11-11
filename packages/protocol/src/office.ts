@@ -111,6 +111,11 @@ export const RoutineRun = z.object({
   delivered: z.boolean().optional(),
   /** false: the pre-command's result said not to call the model, so the run spent no tokens. */
   model_called: z.boolean().optional(),
+  /**
+   * Which version of the routine's instructions it ran (routines.runs): 1 for the oldest listed, one more each time
+   * the instructions differ from the run before.
+   */
+  prompt_version: z.number().int().min(1).optional(),
 });
 export type RoutineRun = z.infer<typeof RoutineRun>;
 
@@ -245,7 +250,7 @@ export const ActiveProfile = z.object({
 export type ActiveProfile = z.infer<typeof ActiveProfile>;
 
 /** What a notice in the attention tray is about. */
-export const NotificationKind = z.enum(["input", "task", "due", "routine", "channel", "agent", "run"]);
+export const NotificationKind = z.enum(["input", "task", "due", "routine", "channel", "agent", "run", "memory"]);
 export type NotificationKind = z.infer<typeof NotificationKind>;
 
 /**

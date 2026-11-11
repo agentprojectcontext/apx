@@ -1,4 +1,5 @@
 /* Usage: the topbar dropdown, the dialog and Advanced's overview (UsagePanels.tsx). */
+/* The quota pill: each engine's mark and what is left of it. */
 .topbar .engine-usage-trigger {
   width: auto;
   display: inline-flex;
@@ -7,26 +8,59 @@
   gap: 6px;
   flex: none;
   height: 30px;
-  padding: 0 8px;
+  padding: 0 10px;
   border: 0;
-  border-radius: var(--apx-control-radius);
+  border-radius: var(--apx-radius-pill);
   background: transparent;
   color: var(--apx-fg-muted);
   font-size: var(--apx-text-xs);
+  font-variant-numeric: tabular-nums;
 }
 .engine-usage-trigger:hover {
   background: var(--apx-fill-hover);
   color: var(--apx-fg);
 }
+.topbar .engine-usage-trigger[data-popup-open] {
+  background: var(--apx-fill-strong);
+  color: var(--apx-fg);
+}
+/* One row per engine: mark 16, name, what is left at the right; the bar and its reset under it. */
 .engine-usage__engine {
-  border-top: 1px solid var(--apx-border);
-  padding-top: 10px;
+  gap: 6px;
+}
+.engine-usage__row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  font-size: var(--apx-text-sm);
+}
+.engine-usage__name {
+  min-width: 0;
+  margin: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--apx-text-sm);
+  font-weight: var(--apx-weight-regular);
+}
+.engine-usage__left {
+  margin-left: auto;
+}
+.engine-usage__checked {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+}
+.engine-usage__engine .apx-meter__track {
+  height: 6px;
+  background: var(--apx-fill-strong);
 }
 .engine-usage-quick,
 .engine-usage-quick__item {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
+  gap: 5px;
 }
 .engine-usage-quick {
   gap: 10px;
@@ -298,4 +332,28 @@
   display: grid;
   gap: 2px;
   text-align: left;
+}
+/* Reduced (the owner's choice in its popover): the bolt and one small bar, the tightest quota's share left. */
+.engine-usage-quick.engine-usage-mini {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.engine-usage-mini__bar {
+  width: 22px;
+  height: 4px;
+  overflow: hidden;
+  border-radius: 2px;
+  background: var(--apx-fill-strong);
+}
+.engine-usage-mini__bar > span {
+  display: block;
+  height: 100%;
+  background: var(--apx-brand);
+}
+.engine-usage-mini.is-warning .engine-usage-mini__bar > span {
+  background: var(--apx-warning);
+}
+.engine-usage-mini.is-danger .engine-usage-mini__bar > span {
+  background: var(--apx-danger);
 }

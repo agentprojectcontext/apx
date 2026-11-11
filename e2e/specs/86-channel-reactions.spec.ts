@@ -1,6 +1,6 @@
 // A contact's sticker and the agent's reaction to it: the emoji in sight on the picture (never under it), the Inbox
 // saying it reacted instead of the signal, and the chat opened from the Inbox reading as it does in its channel.
-import { expect, open, rpc, test, until, world } from "./kit.ts";
+import { ACCOUNT_NAME, expect, open, rpc, test, until, world } from "./kit.ts";
 
 const OLGA = { phone: "5491100000012@s.whatsapp.net", name: "Olga" };
 // A 1×1 WebP, the file a WhatsApp sticker is.
@@ -16,8 +16,8 @@ test("the agent reacts to a sticker: the emoji shows on it, and the Inbox says s
   await world.whatsapp.media(OLGA, { stickerMessage: { mimetype: "image/webp" }, bytes: WEBP });
 
   await open(page);
-  await page.getByRole("button", { name: "WhatsApp", exact: true }).click();
-  await page.locator(".chan__rows").getByRole("button", { name: /Olga/ }).click();
+  await page.getByRole("button", { name: ACCOUNT_NAME.whatsapp, exact: true }).click();
+  await page.getByRole("button", { name: /^Olga/ }).click();
   const sticker = page
     .locator(".chan__bubble")
     .filter({ has: page.locator("img") })
@@ -40,14 +40,12 @@ test("the agent reacts to a sticker: the emoji shows on it, and the Inbox says s
   expect(covered).toBe(false);
   expect(await world.whatsapp.sentTo(OLGA.phone)).not.toContain("REACT ❤️");
 
-  // The Inbox says what the agent did, not the signal it wrote.
+  // The chat's preview says what the agent did, not the signal it wrote (Inbox rows show no preview).
   const { threads } = await rpc<{ threads: Array<{ id: string; title: string; preview: string }> }>("threads.list");
   const chat = threads.find((t) => t.title === "Olga");
   expect(chat?.preview).toBe("Reaccionó con ❤️");
   // Opened from the Inbox, the chat is the channel's: who answers, the sticker with the emoji on it, the card.
   await open(page, `#thread=${chat?.id}`);
-  await page.getByRole("radio", { name: "Por chat" }).click();
-  await expect(page.getByText("Reaccionó con ❤️").first()).toBeVisible();
   await expect(page.getByRole("textbox", { name: /qué contestarle a Olga/ })).toBeVisible();
   await expect(page.getByRole("radio", { name: "Escribo yo" })).toBeVisible();
   await expect(page.getByRole("img", { name: /^Reacción de .+: ❤️$/ })).toBeVisible();
@@ -58,8 +56,8 @@ test("the channel's settings list the stickers kept: one no model saw waits; the
   page,
 }) => {
   await open(page);
-  await page.getByRole("button", { name: "WhatsApp", exact: true }).click();
-  await page.getByRole("button", { name: "Configuración del canal" }).click();
+  await page.getByRole("button", { name: ACCOUNT_NAME.whatsapp, exact: true }).click();
+  await page.getByRole("button", { name: "Editar cuenta" }).click();
   await page.getByRole("dialog").getByRole("button", { name: "Stickers y emojis" }).click();
   await expect(page.getByText("Stickers", { exact: true })).toBeVisible();
   // New ones are the agent's by default; this one no model could see, so it waits for the owner.

@@ -50,6 +50,31 @@ test("recover asks for a chat's lost files and prints what came and why the rest
   await assert.rejects(channels(client, ["recover"], {}), /apx channels recover/);
 });
 
+test("email history imports one bounded page and resumes only with a complete cursor", async () => {
+  const result = {
+    stored: 3,
+    already_seen: 1,
+    skipped: 0,
+    failed: 0,
+    scanned: 4,
+    next_uid: 4,
+    uidvalidity: 7,
+    has_more: false,
+  };
+  const { client, calls } = recordingClient({ "channels.email_history": result });
+  const first = await printed(() => channels(client, ["email-history", "email"], {}));
+  assert.deepEqual(JSON.parse(first), result);
+  await printed(() => channels(client, ["email-history", "email", "4", "7"], {}));
+  assert.deepEqual(calls, [
+    ["channels.email_history", { channel: "email" }],
+    ["channels.email_history", { channel: "email", after_uid: 4, uidvalidity: 7 }],
+  ]);
+  for (const args of [[], ["email", "4"], ["email", "no", "7"], ["email", "4", "7", "extra"]]) {
+    await assert.rejects(channels(client, ["email-history", ...args], {}), /apx channels email-history/);
+  }
+  assert.equal(calls.length, 2, "invalid recovery arguments make no call");
+});
+
 test("supervise finds the contact by name; suggestions are listed, sent with the owner's text or dropped", async () => {
   const draft = {
     id: "sug_1",

@@ -7,11 +7,11 @@ import type { Store } from "../domain/store.ts";
 import { previewOf } from "../domain/threads.ts";
 import { audienceOf } from "../engine/audience.ts";
 import type { Services } from "../services/registry.ts";
-import { agentProject, answersInHome } from "./agent-project.ts";
+import { agentProject, answersInHome, contactAnswerer } from "./agent-project.ts";
 import type { createDelivery } from "./delivery.ts";
 import type { createPoster, Posted } from "./post.ts";
-import { type createRooms, quietMentions, roomMentions } from "./rooms.ts";
-import { type ChannelAdapter, type ChannelConfig, contactAgentOf, type Presence } from "./types.ts";
+import { type createRooms, quietMentions, roomMentions, roomsOff, roomsReadOnly } from "./rooms.ts";
+import type { ChannelAdapter, ChannelConfig, Presence } from "./types.ts";
 
 const AVATAR_TTL_MS = 24 * 3600_000;
 const SETTLE_POLL_MS = 100;
@@ -75,9 +75,11 @@ export function createOutgoing(deps: {
 
   /**
    * A person's chat on a channel: the one with their latest words (on `channel`, an id or type, when given), else a new
-   * empty one on the first channel that knows them, its answers going back to them.
+   * empty one on the first channel that knows them, its answers going back to them. Only from an account `by` answers
+   * (none, or the super-agent: the owner's own); when no such account knows them and several others do, it asks which,
+   * rather than write from another business's number.
    */
-  function chatWith(personId: string, channel?: string, exact = false) {
+  function chatWith(personId: string, channel?: string, exact = false, by?: string) {
     const person = store.persons.get(personId);
     if (!person || person.role === "blocked") throw new Error(`${personId} is not one of the owner's contacts`);
     const wanted = exact ? channel : channel?.toLowerCase();
@@ -93,7 +95,19 @@ export function createOutgoing(deps: {
           ? `${person.name} has no address on ${channel}`
           : `${person.name} has no address on any channel APX runs`,
       );
-    const pick = [...options].sort(
+    const sender = (agent: string) =>
+      by && !answersInHome(store, by) ? agent === by : agent === by || answersInHome(store, agent);
+    // The agent that answers them there: the owner's on the channel, a contact's its contacts agent.
+    const own = options.filter((o) =>
+      sender(person.role === "owner" ? o.cfg.agent_id : contactAnswerer(store, o.cfg, person)),
+    );
+    const accounts = [...new Map(options.map((o) => [o.cfg.id, o.cfg])).values()];
+    if (!own.length && accounts.length > 1)
+      throw new Error(
+        `${person.name} is on several accounts: ${accounts.map((c) => `${c.label} (${c.id})`).join(", ")}; ` +
+          "say which one to write from (channel: its id)",
+      );
+    const pick = [...(own.length ? own : options)].sort(
       (a, b) =>
         (b.chat?.updated_at ?? "").localeCompare(a.chat?.updated_at ?? "") || Number(b.running) - Number(a.running),
     )[0] as (typeof options)[number];
@@ -101,11 +115,12 @@ export function createOutgoing(deps: {
     let thread =
       pick.chat ?? (owner && answersInHome(store, pick.cfg.agent_id) ? store.threads.get(HOME_THREAD_ID) : undefined);
     if (!thread) {
+      const agent = owner ? pick.cfg.agent_id : contactAnswerer(store, pick.cfg, person);
       thread = store.threads.create({
         kind: "channel",
         title: person.name,
-        agent_ids: [owner ? pick.cfg.agent_id : contactAgentOf(pick.cfg)],
-        project_id: agentProject(store, owner ? pick.cfg.agent_id : contactAgentOf(pick.cfg)),
+        agent_ids: [agent],
+        project_id: agentProject(store, agent),
         channel: { id: pick.cfg.id, conversation: pick.conversation, person_id: person.id },
       });
       store.threads.mergeContext(thread.id, { reply_to: { channel: pick.cfg.id, conversation: pick.conversation } });
@@ -136,7 +151,7 @@ export function createOutgoing(deps: {
       omit_signature?: boolean | undefined;
     },
   ): Posted {
-    const { pick, owner, thread } = chatWith(personId, o.channel, o.exact);
+    const { person, pick, owner, thread } = chatWith(personId, o.channel, o.exact, o.by);
     // The chat's agent answers the contact's reply knowing it wrote this first (the owner's own chat logs its turns).
     const recent = recentOf(thread.id);
     // To the owner on a chat app it is a notice like any other: without sound in their quiet hours.
@@ -144,7 +159,7 @@ export function createOutgoing(deps: {
     const outbox = post(thread, pick.cfg.id, pick.conversation, text, {
       ...o,
       // A Flow's message reaches them from the channel's agent, so the chat shows it as that agent's.
-      by: o.by ?? (o.flow ? pick.cfg.agent_id : undefined),
+      by: o.by ?? (o.flow ? (owner ? pick.cfg.agent_id : contactAnswerer(store, pick.cfg, person)) : undefined),
       logged: !owner && !o.flow,
       silent,
     });
@@ -203,6 +218,14 @@ export function createOutgoing(deps: {
     text: string,
     o: { by?: string | undefined; files?: string[] | undefined },
   ): Posted {
+    if (roomsOff(cfg))
+      throw new Error(
+        `${cfg.label ?? cfg.id} has its groups and rooms turned off: nothing is posted in "${r.name || r.id}". The owner turns them on in the account's Rooms settings`,
+      );
+    if (roomsReadOnly(cfg))
+      throw new Error(
+        `${cfg.label ?? cfg.id} is the owner's own phone: a post in "${r.name || r.id}" would be the owner speaking. The owner allows it in the account's Rooms settings`,
+      );
     const thread = rooms.thread(cfg, r);
     const recent = recentOf(thread.id);
     const named = roomMentions(quietMentions(text), store.channels.inbox.people(cfg.id, r.id));

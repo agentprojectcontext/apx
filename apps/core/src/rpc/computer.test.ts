@@ -117,6 +117,11 @@ test("computer use exists only while the desktop lends it; in Auto a look at the
   await owner.call("threads.send", { thread, text: "list" });
   await settle(thread);
   assert.doesNotMatch(await last(thread), /screen_snapshot/);
+  const idle = await owner.call("computers.host", {});
+  assert.ok(idle.name.length > 0, "the computer has a name to list it by");
+  assert.equal(idle.os, process.platform === "darwin" ? "macos" : process.platform === "win32" ? "windows" : "linux");
+  assert.equal(idle.computer_use, false, "no desktop lends it yet");
+  assert.deepEqual(idle.agents, []);
 
   desktop = await new ApxClient({ url: core.url }).connect("node", ["browser", "computer", "computer.pointer"]);
   desktopHandler = async (method, params) => {
@@ -150,6 +155,13 @@ test("computer use exists only while the desktop lends it; in Auto a look at the
   await owner.call("threads.send", { thread, text: "look at my screen" });
   await settle(thread);
   assert.equal((await owner.call("runs.pending", { thread })).inputs.length, 0, "a look is a read: no card");
+  const busy = await owner.call("computers.host", {});
+  assert.equal(busy.computer_use, true);
+  assert.deepEqual(
+    busy.agents.map((a) => a.id),
+    ["superagent"],
+    "the agent that just looked is listed as using it",
+  );
   const parts = (await owner.call("threads.get", { thread })).messages.flatMap((m) => m.parts);
   // The chat shows "controlling the computer" and the live view, not a picture per look.
   assert.ok(!parts.some((p) => p.type === "image"), "no picture of the screen lands in the chat");

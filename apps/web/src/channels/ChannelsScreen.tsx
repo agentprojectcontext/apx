@@ -1,26 +1,20 @@
 import "../styles/screens.css";
 import type { ChannelInfo } from "@apx/protocol";
-import {
-  AgentAvatar,
-  Badge,
-  Button,
-  ContextMenu,
-  EmptyState,
-  IconButton,
-  Icons,
-  PickRow,
-  ProjectTile,
-  SegmentedControl,
-} from "@apx/ui";
+import { AgentAvatar, Badge, Button, ContextMenu, EmptyState, IconButton, Icons, PickRow, ProjectTile } from "@apx/ui";
 import { useEffect, useState } from "react";
+import { SectionPage } from "../common/SectionPage.tsx";
 import { loadChannels, useChannels } from "../data/channels.ts";
 import { blobOf } from "../data/identity.ts";
 import { useData } from "../data/state.ts";
 import { useT } from "../i18n/index.ts";
 import { go } from "../shell/nav.ts";
 import { accountItems, accountLine } from "./accountMenu.tsx";
+import { accountName } from "./accountName.ts";
+import { agentName, answerersOf, answersLine, sentence } from "./answerers.ts";
+import { ChoiceChips } from "./ChoiceChips.tsx";
 import { type AccountCounts, useAccountCounts } from "./counts.ts";
-import { KindTile } from "./KindIcon.tsx";
+import { ContactFlags, useAccountFlags } from "./flags.tsx";
+import { KindIcon, KindTile } from "./KindIcon.tsx";
 import { CHANNEL_KIND_IDS, CHANNEL_KINDS, isChannelKind } from "./kinds.ts";
 
 const ALL = "all";
@@ -40,29 +34,29 @@ export function ChannelsScreen() {
   const kinds = CHANNEL_KIND_IDS.filter((k) => channels.some((c) => c.type === k));
   const shown = filter === ALL ? channels : channels.filter((c) => c.type === filter);
   return (
-    <section className="page page--channels" aria-label={t("nav.channels")}>
-      <header className="page__head page__head--row">
-        <div>
-          <h1 className="page__title">{t("nav.channels")}</h1>
-          <p className="page__lead">{t("chs.lead")}</p>
-        </div>
-        <Button leadingIcon={<Icons.Plus size={14} />} onClick={() => go.newChannel()}>
-          {t("chs.new")}
-        </Button>
-      </header>
+    <SectionPage
+      className="page--channels"
+      bodyClassName="page"
+      label={t("nav.channels")}
+      title={t("nav.channels")}
+      lead={t("chs.lead")}
+      action={{ label: t("chs.new"), hint: t("section.channels.newHint"), onClick: () => go.newChannel() }}
+    >
       <div className="chs">
         {kinds.length > 1 && (
-          <SegmentedControl
-            size="sm"
+          <ChoiceChips
             className="chs__filter"
             label={t("nav.channels")}
             value={kinds.includes(filter as never) ? filter : ALL}
-            onValueChange={setFilter}
+            onChange={(v) => setFilter(v ?? ALL)}
             options={[
-              { value: ALL, label: `${t("chs.all")} ${channels.length}` },
+              { value: ALL, label: t("chs.all"), aside: channels.length, hint: t("chs.filter.all") },
               ...kinds.map((k) => ({
                 value: k,
-                label: `${t(CHANNEL_KINDS[k].name)} ${channels.filter((c) => c.type === k).length}`,
+                label: t(CHANNEL_KINDS[k].name),
+                icon: <KindIcon kind={k} size={13} />,
+                aside: channels.filter((c) => c.type === k).length,
+                hint: t("chs.filter.kind", { app: t(CHANNEL_KINDS[k].name) }),
               })),
             ]}
           />
@@ -91,17 +85,20 @@ export function ChannelsScreen() {
           </>
         )}
       </div>
-    </section>
+    </SectionPage>
   );
 }
 
 function AccountRow({ channel, counts }: { channel: ChannelInfo; counts: AccountCounts | undefined }) {
   const t = useT();
-  const agent = useData((s) => s.agents[channel.agent_id]);
+  const agents = useData((s) => s.agents);
+  const { owner, contacts } = answerersOf(channel, agents);
   const kind = isChannelKind(channel.type) ? channel.type : undefined;
   const waiting = counts?.waiting ?? 0;
   const unread = counts?.unread ?? 0;
   const status = channel.enabled ? channel.status : "off";
+  const name = accountName(channel, t);
+  const flags = useAccountFlags(channel, true);
   return (
     <ContextMenu
       items={accountItems(channel, t, waiting)}
@@ -120,7 +117,9 @@ function AccountRow({ channel, counts }: { channel: ChannelInfo; counts: Account
         }
         title={
           <span className="chs__name">
-            {channel.label}
+            <span className="chs__label" title={name}>
+              {name}
+            </span>
             {waiting > 0 && <Badge tone="warning">{t("chs.waiting", { n: waiting })}</Badge>}
           </span>
         }
@@ -128,9 +127,21 @@ function AccountRow({ channel, counts }: { channel: ChannelInfo; counts: Account
         onClick={() => go.channel(channel.id)}
       />
       <span className="chs__meta">
-        <span className="chs__agent">
-          {agent && <AgentAvatar name={agent.name} blob={blobOf(agent)} size={18} animated={false} />}
-          {agent?.name ?? channel.agent_id}
+        {/* What it does for everyone on it; what it does not, dimmed. */}
+        <ContactFlags className="chs__marks" flags={flags} />
+        <span className="chs__agents" title={answersLine({ owner, contacts }, t)}>
+          <span className="chs__agent">
+            {owner && <AgentAvatar name={owner.name} blob={blobOf(owner)} size={18} animated={false} />}
+            {sentence(agentName(owner, t))}
+          </span>
+          {contacts && (
+            <span className="chs__agent">
+              {contacts.agent && (
+                <AgentAvatar name={contacts.agent.name} blob={blobOf(contacts.agent)} size={18} animated={false} />
+              )}
+              {sentence(t("chs.forContacts", { agent: agentName(contacts.agent, t) }))}
+            </span>
+          )}
         </span>
         <span className={`chs__status is-${status}`}>
           <span className="chs__dot" />
@@ -139,16 +150,22 @@ function AccountRow({ channel, counts }: { channel: ChannelInfo; counts: Account
       </span>
       <span className="chs__unread">{unread > 0 && <span className="chan__unread">{unread}</span>}</span>
       <span className="chs__actions">
-        <Button size="sm" variant="secondary" onClick={() => go.channel(channel.id)}>
-          {t("chs.open")}
-        </Button>
+        {/* The row opens the account; these are the same tools as on top of its list. */}
         {kind && (
-          <IconButton
-            size="sm"
-            label={t("chs.settings", { name: channel.label })}
-            icon={<Icons.Pencil size={14} />}
-            onClick={() => go.channelSettings(kind, channel.id)}
-          />
+          <>
+            <IconButton
+              size="sm"
+              label={t("chs.contactsOf", { name })}
+              icon={<Icons.Users size={14} />}
+              onClick={() => go.channelSettings(kind, channel.id, "contacts")}
+            />
+            <IconButton
+              size="sm"
+              label={t("chs.settings", { name })}
+              icon={<Icons.Settings size={14} />}
+              onClick={() => go.channelSettings(kind, channel.id)}
+            />
+          </>
         )}
       </span>
     </ContextMenu>

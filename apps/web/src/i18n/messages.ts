@@ -20,6 +20,14 @@ export function loadMessages(lang: Language): Promise<Messages> {
 
 /** Strings only one late screen shows: loaded with it (index.ts usePack), never with the first screen. */
 const PACKS = {
+  account: {
+    en: () => import("./account-en.ts").then((m) => m.enAccount),
+    es: () => import("./account-es.ts").then((m) => m.esAccount),
+  },
+  activityReview: {
+    en: () => import("./activity-review-en.ts").then((m) => m.enActivityReview),
+    es: () => import("./activity-review-es.ts").then((m) => m.esActivityReview),
+  },
   approvals: {
     en: () => import("./approvals-en.ts").then((m) => m.enApprovals),
     es: () => import("./approvals-es.ts").then((m) => m.esApprovals),
@@ -67,6 +75,21 @@ const PACKS = {
   signIn: {
     en: () => import("./signin-en.ts").then((m) => m.enSignIn),
     es: () => import("./signin-es.ts").then((m) => m.esSignIn),
+  },
+  // The first run, the connection and pairing screens and About: every screen under setup/.
+  setup: {
+    en: () => import("./en-setup.ts").then((m) => m.enSetup),
+    es: () => import("./es-setup.ts").then((m) => m.esSetup),
+  },
+  // An agent's editor, a project's team and org chart, and the agents' settings.
+  team: {
+    en: () => import("./en-team.ts").then((m) => m.enTeam),
+    es: () => import("./es-team.ts").then((m) => m.esTeam),
+  },
+  // Skills, MCP, integrations, variables and extensions: the Resources screen and what opens from it.
+  resources: {
+    en: () => import("./en-resources.ts").then((m) => m.enResources),
+    es: () => import("./es-resources.ts").then((m) => m.esResources),
   },
   usage: {
     en: () => import("./sysusage-en.ts").then((m) => m.enSysUsage),

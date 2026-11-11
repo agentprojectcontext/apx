@@ -1,0 +1,15 @@
+---
+import { getCollection } from "astro:content";
+import BlogPage from "../../../../components/blog/BlogPage.astro";
+import { blogArchive } from "../../../../data/blog.mjs";
+
+export async function getStaticPaths() {
+  const { totalPages } = blogArchive(await getCollection("blog"), "es");
+  return Array.from({ length: totalPages - 1 }, (_, i) => ({
+    params: { page: String(i + 2) },
+    props: { page: i + 2 },
+  }));
+}
+const { page } = Astro.props;
+---
+<BlogPage lang="es" page={page} />

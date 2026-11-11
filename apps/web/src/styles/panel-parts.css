@@ -1,0 +1,589 @@
+/* What the side panel's tabs show (changes, processes, usage, files, widgets): loaded with them, not the first screen. */
+.widgets {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 14px;
+}
+.widgets__item {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 12px 12px;
+  border: 1px solid var(--apx-border);
+  border-radius: var(--apx-radius-lg);
+  background: var(--apx-surface);
+}
+.widgets__head {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.widgets__title {
+  flex: 1;
+  min-width: 0;
+  font-size: var(--apx-text-sm);
+  font-weight: var(--apx-weight-semibold);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.chatusage {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 16px;
+}
+.chatusage__context {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.chatusage__contexttext {
+  font-size: var(--apx-text-sm);
+  color: var(--apx-fg);
+}
+.chatusage__bar {
+  height: 4px;
+  border-radius: 2px;
+  background: var(--apx-fill);
+  overflow: hidden;
+}
+.chatusage__bar > span {
+  display: block;
+  height: 100%;
+  background: var(--apx-accent);
+}
+.chatusage__kv {
+  margin: 0;
+}
+.chatusage__row {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--apx-border);
+  font-size: var(--apx-text-sm);
+}
+.chatusage__row dt {
+  color: var(--apx-fg-muted);
+}
+.chatusage__row dd {
+  margin: 0;
+  font-family: var(--apx-meta-font);
+  text-align: right;
+}
+.chatusage__label {
+  font-size: var(--apx-text-xs);
+  color: var(--apx-fg-subtle);
+}
+.chatusage__runs {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.chatusage__run {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: var(--apx-text-xs);
+  color: var(--apx-fg-muted);
+}
+.chatusage__when {
+  flex: 1;
+}
+.chatusage__dur {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Recorded edits and working tree changes share one folding row per file. */
+.wchanges__bar {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px 4px;
+  font-size: var(--apx-text-xs);
+  color: var(--apx-fg-muted);
+}
+.wchanges__where {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.wchanges__stat,
+.wchanges__add,
+.wchanges__del {
+  font-family: var(--apx-font-mono);
+  font-size: var(--apx-text-xs);
+  font-variant-numeric: tabular-nums;
+}
+.wchanges__add {
+  color: var(--apx-brand);
+}
+.wchanges__del {
+  color: var(--apx-danger);
+}
+.wchanges__scratch {
+  padding-top: 12px;
+}
+.wchanges__scratch .apx-section-label,
+.wchanges__hint {
+  padding: 0 12px;
+}
+.wchanges__hint {
+  margin: 2px 0 8px;
+  color: var(--apx-fg-subtle);
+  font-size: var(--apx-text-xs);
+}
+.wchanges__list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.wchanges__file {
+  border-bottom: 1px solid var(--apx-border);
+  overflow: hidden;
+}
+.wchanges__row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  min-height: 32px;
+  padding: 4px 10px 4px 8px;
+  border: 0;
+  background: none;
+  color: var(--apx-fg);
+  font: inherit;
+  font-size: var(--apx-text-sm);
+  text-align: left;
+  cursor: pointer;
+}
+.wchanges__row:hover {
+  background: var(--apx-fill-hover);
+}
+.wchanges__row svg {
+  flex: none;
+  color: var(--apx-fg-muted);
+}
+.wchanges__path {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-family: var(--apx-font-mono);
+  font-size: var(--apx-text-xs);
+  white-space: nowrap;
+}
+.wchanges__scope {
+  max-width: 60%;
+}
+.wchanges__notice {
+  margin: 8px 12px;
+  color: var(--apx-fg-muted);
+  font-family: var(--apx-font-sans);
+  font-size: var(--apx-text-xs);
+}
+.wchanges__dir {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--apx-fg-subtle);
+  font-size: var(--apx-text-xs);
+}
+.wchanges__spacer {
+  flex: 1;
+}
+.wchanges__badge {
+  padding: 0 6px;
+  border-radius: var(--apx-radius-pill);
+  background: var(--apx-fill);
+  color: var(--apx-fg-muted);
+  font-size: calc(11px * var(--apx-text-scale, 1));
+}
+.wchanges__error {
+  margin: 8px 12px;
+  color: var(--apx-fg-subtle);
+  font-size: var(--apx-text-xs);
+}
+.wchanges__loading {
+  height: 60px;
+  margin: 8px;
+}
+.diff {
+  border-top: 1px solid var(--apx-border);
+  overflow-x: auto;
+  font-family: var(--apx-font-mono);
+  font-size: calc(12px * var(--apx-text-scale, 1));
+  line-height: 1.55;
+}
+.diff__line {
+  display: grid;
+  grid-template-columns: 40px 16px max-content;
+  min-width: 100%;
+}
+.diff__n {
+  padding-right: 8px;
+  color: var(--apx-fg-subtle);
+  text-align: right;
+  user-select: none;
+}
+.diff__sign {
+  color: var(--apx-fg-subtle);
+  user-select: none;
+}
+.diff__text {
+  padding-right: 12px;
+  white-space: pre;
+}
+.diff__line--add {
+  background: color-mix(in srgb, var(--apx-brand) 14%, transparent);
+}
+.diff__line--add .diff__sign {
+  color: var(--apx-brand);
+}
+.diff__line--del {
+  background: color-mix(in srgb, var(--apx-danger) 14%, transparent);
+}
+.diff__line--del .diff__sign {
+  color: var(--apx-danger);
+}
+.diff__line--hunk {
+  background: var(--apx-fill);
+  color: var(--apx-fg-subtle);
+}
+.diff__line--hunk .diff__text {
+  padding: 2px 0;
+}
+.widgetchat__preview {
+  flex: none;
+  max-height: 40%;
+  overflow: auto;
+  border: 1px solid var(--apx-border);
+  border-radius: var(--apx-radius-lg);
+}
+.widgetchat__waiting {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  padding: 14px;
+  border: 1px dashed var(--apx-border);
+  border-radius: var(--apx-radius-lg);
+  color: var(--apx-fg-muted);
+  font-size: var(--apx-text-sm);
+}
+.widgetchat__chat {
+  flex: 1 1 0;
+  min-height: 120px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* ── Tool tabs: the list chip, then each opened item (PanelTabs) ───────────── */
+.ptabs {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--apx-border);
+}
+.ptabs__strip {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.ptabs__trail {
+  flex: none;
+  display: flex;
+  align-items: center;
+}
+.ptabs__tab {
+  flex: 0 1 auto;
+  min-width: 0;
+  max-width: 170px;
+  display: inline-flex;
+  align-items: center;
+  height: 28px;
+  border-radius: 8px;
+  color: var(--apx-fg-muted);
+}
+.ptabs__tab:hover {
+  background: var(--apx-fill-hover);
+  color: var(--apx-fg);
+}
+.ptabs__tab.is-on {
+  background: var(--apx-fill-strong);
+  color: var(--apx-fg);
+}
+.ptabs__tab .ptabs__pick {
+  flex: 1;
+  min-width: 0;
+  height: 28px;
+  gap: 6px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: inherit;
+  font-size: calc(12px * var(--apx-text-scale, 1));
+  font-weight: 400;
+}
+.ptabs__tab .ptabs__pick:hover {
+  background: transparent;
+  color: inherit;
+}
+.ptabs__tab.has-close .ptabs__pick {
+  padding-right: 4px;
+}
+.ptabs__pick .apx-btn__label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.ptabs__pick svg {
+  flex: none;
+}
+.ptabs__note {
+  color: var(--apx-fg-subtle);
+}
+.ptabs__tab .ptabs__close {
+  flex: none;
+  width: 18px;
+  height: 18px;
+  min-width: 18px;
+  margin-right: 5px;
+  padding: 0;
+  border-radius: 5px;
+  color: var(--apx-fg-subtle);
+}
+.ptabs__tab .ptabs__close:hover {
+  background: var(--apx-fill-strong);
+  color: var(--apx-fg);
+}
+.ptabs__dot {
+  flex: none;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--apx-fg-subtle);
+}
+.ptabs__dot.is-busy,
+.ptabs__dot.is-agent,
+.ptabs__dot.is-handoff {
+  background: var(--apx-warning);
+}
+.ptabs__dot.is-handoff {
+  animation: ptabs-pulse 1.2s ease-in-out infinite;
+}
+.ptabs__dot.is-user {
+  background: var(--apx-brand);
+}
+@keyframes ptabs-pulse {
+  50% {
+    opacity: 0.35;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ptabs__dot.is-handoff {
+    animation: none;
+  }
+}
+.ptabs__new {
+  flex: none;
+}
+
+/* A tool's list: group headings and rows that open an item as a tab. */
+.plist {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 10px;
+  overflow-y: auto;
+}
+.plist > * {
+  flex: none;
+}
+.plist__group {
+  margin: 0;
+  padding: 10px 8px 4px;
+  color: var(--apx-fg-subtle);
+  font-size: calc(12px * var(--apx-text-scale, 1));
+  font-weight: 400;
+}
+.plist__group:first-child {
+  padding-top: 2px;
+}
+.plist .plist__row {
+  min-height: 0;
+  padding: 9px 10px;
+}
+.plist__mono {
+  font-family: var(--apx-font-mono);
+}
+.plist__empty {
+  margin: 0;
+  padding: 10px 8px;
+  color: var(--apx-fg-subtle);
+  font-size: calc(12px * var(--apx-text-scale, 1));
+}
+/* The chat's own turn: its transcript is already beside the panel, nothing to open. */
+.plist .agents__row.is-own:hover {
+  background: transparent;
+}
+.chatfiles > .chatfiles__note {
+  padding: 8px 14px 0;
+}
+
+/* An agent drives the screen: the page dimmed behind who it is and one button to take control. */
+.ctrllock {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  background: color-mix(in oklab, var(--apx-bg) 55%, transparent);
+  backdrop-filter: blur(2px);
+}
+.ctrllock__card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  max-width: 280px;
+  padding: 20px 24px;
+  border: 1px solid var(--apx-border);
+  border-radius: 16px;
+  background: var(--apx-surface-raised);
+  box-shadow: var(--apx-shadow-md);
+  text-align: center;
+  cursor: default;
+}
+.ctrllock__text {
+  margin: 0;
+  font-size: var(--apx-text-sm);
+  text-wrap: pretty;
+}
+.ctrllock__hint {
+  margin: 0;
+  color: var(--apx-fg-subtle);
+  font-size: calc(11px * var(--apx-text-scale, 1));
+  text-wrap: pretty;
+}
+
+/* Chat processes: the commands the agent ran; one opened shows what it printed. */
+.procs__row .apx-pickrow__title {
+  font-size: var(--apx-text-xs);
+}
+.procs__exit {
+  flex: none;
+  color: var(--apx-fg-subtle);
+}
+.procs__exit.is-running {
+  color: var(--apx-brand);
+}
+.procs__exit.is-failed {
+  color: var(--apx-danger);
+}
+.procs__view {
+  overflow: hidden;
+}
+.procs__head {
+  flex: none;
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 10px 10px 10px 14px;
+  border-bottom: 1px solid var(--apx-border);
+}
+.procs__headmain {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.procs__cmd {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  font-family: var(--apx-font-mono);
+  font-size: var(--apx-text-xs);
+  word-break: break-all;
+}
+.procs__meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  font-size: var(--apx-text-xs);
+}
+.procs__cwd {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--apx-fg-subtle);
+}
+.procs__out {
+  flex: 1;
+  min-height: 0;
+  margin: 0;
+  padding: 10px 14px;
+  overflow: auto;
+  font-family: var(--apx-font-mono);
+  font-size: calc(12px * var(--apx-text-scale, 1));
+  line-height: 1.5;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+/* Terminal: the owner's shells, one tab each */
+.term {
+  overflow: hidden;
+}
+.term__loading {
+  height: 80px;
+  margin: 10px;
+}
+.term__view {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+.term__xterm {
+  flex: 1;
+  min-height: 0;
+  padding: 6px 4px 4px 10px;
+}
+.term__note {
+  margin: 8px 10px 0;
+  color: var(--apx-fg-subtle);
+  font-size: var(--apx-text-xs);
+}

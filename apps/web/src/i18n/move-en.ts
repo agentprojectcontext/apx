@@ -85,6 +85,7 @@ export const enMove = {
   "move.setting.email_signatures": "Email signatures",
   "move.setting.email_signature_default": "Default signature",
   "move.setting.calendar_reminders": "Calendar reminders",
+  "move.setting.calendar_muted": "Calendar events not reminded of",
   "move.setting.mail_check": "Mail check",
   "move.setting.other": "A preference",
 } as const;

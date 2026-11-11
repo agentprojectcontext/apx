@@ -60,6 +60,13 @@ test("Windows without Git Bash runs PowerShell with the command encoded, quotes 
   assert.equal(commandShell("win32", { PATH: "C:\\PS7" }, has("C:\\PS7\\pwsh.exe")).file, "C:\\PS7\\pwsh.exe");
 });
 
+test("null bytes are rejected before any shell can encode the command", () => {
+  assert.throws(
+    () => spawnCommand(`echo a${String.fromCharCode(0)}b`, { cwd: process.cwd(), env: {}, stdio: "ignore" }),
+    { name: "TypeError", message: "The command must be a string without null bytes." },
+  );
+});
+
 test("the chosen shell executes a command and returns its output", async () => {
   const child = spawnCommand("echo apx-ready", {
     cwd: process.cwd(),

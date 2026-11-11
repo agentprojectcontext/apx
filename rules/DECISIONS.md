@@ -2166,7 +2166,7 @@ or the platform gets 503. It is not a client↔core call, so it is not a router 
 each adapter verifies its platform's own signature (Teams' Bot Framework JWT, LINE's HMAC) over the bytes as they came
 and refuses what it cannot verify. A failure's detail stays in the log.
 
-What publishes that port is the owner's choice (`webhooks.set`, Settings › Channels › Public address), kept and applied
+What publishes that port is the owner's choice (`webhooks.set`, Public address, in a Teams or LINE account's settings and in Settings › Devices), kept and applied
 again at every start (`webhooks.ts`): Tailscale Funnel on HTTPS port 8443 (443 stays what `apx tailscale connect`
 serves to the tailnet, and only APX's own Funnel is undone when it is turned off); ngrok, started and watched by the
 core, which remembers the last address ngrok gave and tells the owner only when one is new (a free account usually
@@ -2340,7 +2340,7 @@ connected one comes first.
 
 - **When the card appears:** only when the best match is not connected. Up to three of the unconnected matches go on a
   "Suggested connections" card in the answer; Connect opens that integration's form in the chat, a channel opens its
-  setup in Settings › Channels. The agent is told what it showed and to stop there until the owner says it is
+  setup in the Channels screen. The agent is told what it showed and to stop there until the owner says it is
   connected. An already connected match gets no card: the agent is told to use it. No match: the agent says APX does
   not connect to it yet.
 - **Never in sealed chats:** a contact's or a room's turn gets only the tools the owner allowed for that person, and
@@ -2669,7 +2669,8 @@ agents stopped short. Each answers a stop seen in real work:
 - **A task turn that ends with the task in progress goes on at once** (`engine/task-continue.ts`), numbered "part k of
   at most 9", telling the agent to finish, verify and close, mark it waiting on the owner with why, or say what blocks
   it. Not after a part that made no progress (`progress.ts` `stalled`), past `MAX_AUTO_PARTS` in a row, in review,
-  or while a subtask, a helper, a background command, a question or the breaker is still to come. The stall watch
+  or while a subtask, a helper, a teammate it asked on the task, a background command, a question or the breaker is
+  still to come. The stall watch
   (20 minutes, then the owner) stays for what this does not catch.
 - **Repeating a call is reminded, not cut.** Only the same call in a row counts (arguments compared with their keys
   in order): a reminder at the third and fifth, tools off at the eighth. Returning to a read between other work is
@@ -3614,6 +3615,7 @@ adding a restriction, without one step of its plan working.
   notes, or Blocked with the one thing that blocks it; notes never block and they ask for no other round. The task
   block asks for one review when a whole change is done, not one per part. "Approved with notes" opens with "Approved",
   so a task review (D-128) reads it as approved.
+  *Amended by [D-208](#d-208) (2026-11-08): a review reports and never blocks; the task's agent decides.*
 
 - **Fewer, shorter task comments**: a task's conversation is read by people, and one agent left 56 dense comments on
   one task. `task_comment` takes one comment per task per turn (a second is refused: the rest goes in the answer) and
@@ -4176,6 +4178,11 @@ project's agents, so a project's agent could never answer a channel.
 - **An account is a channel.** A second account of an app gets its own id (the app's name for the first, a random
   suffix after it, never the number or token), its own sign-in, contacts, chats, outbox and sidebar row, and a name
   numbered from the second on ("WhatsApp 2") that the owner can change. A save without a name keeps the saved one.
+- **The core makes a new account** (`channels.add`): it mints the id, names it, has the super-agent answer it and gives it
+  the defaults every account starts with (`CHANNEL_DEFAULTS`), so no client repeats them. iMessage is one per Mac, in
+  `channels.add` and `channels.set` alike (two would read one Messages database and answer twice). An account added
+  but never connected (the panel closed meanwhile) is dropped when the core starts again. `contacts.add` makes a contact
+  and its address in one transaction, and refuses an address someone already has.
 - **Who answers.** `agent_id` answers the owner in the channel's own chat; `contacts_agent_id` (none: `agent_id`)
   answers its contacts and rooms. The picker lists the super-agent and each project's head (`teamHead`); the rest of
   a team is reached through its head. A chat takes the project of the agent that answers it.
@@ -4185,6 +4192,10 @@ project's agents, so a project's agent could never answer a channel.
   only a channel it answers may take the owner there. A channel answered by another agent keeps the owner in its own
   chat (`channels.set` saves `owner_thread: "own"` for it, and inbound and outgoing never fall back to Home); the
   settings show "Own chat" fixed and say why.
+- **Saved channels keep their meaning.** Before, Home took the owner's words whoever `agent_id` was, so that agent in
+  practice answered only contacts. A store migration (the way stored values move, as in [D-106](#d-106)) saves each such
+  channel as it worked: `contacts_agent_id` the old agent, `agent_id` the super-agent, Home kept. A channel already on
+  its own chat, answered by the super-agent, or with a contacts agent of its own is left as it is.
 - **Contacts stay sealed** (D-014, D-022) whoever answers them. A project's head answering a contact gets no more
   tools than the super-agent would.
 - **Channels is a screen of its own**, beside Flows in the sidebar, not a section of Settings: it lists every account
@@ -4193,9 +4204,12 @@ project's agents, so a project's agent could never answer a channel.
   act at once. A new account opens on its connection and keeps the rest closed until it is connected. What is not one
   account's (when unanswered questions follow the owner) moved to Settings › Interruptions; links to the old place
   (`apx:settings/channels`) open the screen.
+- **What a contact's chat may do is set per account** (`ChannelInfo.contacts`: requests, appointments, the owner's
+  notes, any hour), and a person keeps only the rights the owner set on their card (`Person.perms`, partial), which win
+  on every account; null gives one back. Owner notices go out only on an account the super-agent answers.
 
-Rejected: removing Home as the destination of the owner's words, migrating saved settings to "own chat" at boot (it
-breaks the one conversation and a migration belongs to `doctor --fix`), resetting a chat's agents on every incoming
+Rejected: removing Home as the destination of the owner's words, migrating saved settings to "own chat" (it breaks
+the one conversation), reading old settings the old way at every load (a shim kept forever, rule 14), resetting a chat's agents on every incoming
 message (it undoes hand-overs), and per-channel "customer service" modes that give admitted contacts, strangers
 included, the agent's tools and MCP servers, with a model's JSON answer as the gate in the reviewed mode. Contacts'
 messages are untrusted (rule 10); opening tools to them needs its own design: the exact tools the owner lends, what
@@ -4207,11 +4221,12 @@ each may reach, and who confirms what.
 Start times, the hourly pickup and the stall check each listed the 500 most recently active open tasks and filtered
 them in code, so in an office with more open tasks an eligible older one was never seen (#139).
 
-- **Start times and pickup filter in SQL** (`domain/task-lanes.ts`): open, not proposed or in review, described, an
-  agent that exists, no chat yet, not held, start time come (pickup: assigned since `task_work_since`), ordered as
-  before (start time; priority then nearest due date) and limited to the three that start. Every condition the start
-  checks again is in the query, so a task that cannot start never takes a slot; a tripped chain turns into a hold and
-  leaves the query. No cursor or saved state is needed.
+- **Start times and pickup filter in SQL** (`domain/task-lanes.ts`): open, not proposed or in review, described (blank
+  as the start reads it: SQLite's `trim()` is given every character JavaScript's `trim()` strips), an agent that exists,
+  no chat yet, not held, start time come (pickup: assigned since `task_work_since`), ordered as before (start time;
+  priority then nearest due date) and limited to the three that start. Every condition the start checks again is in the
+  query, so a task that cannot start never takes a slot; a tripped chain turns into a hold and leaves the query. No
+  cursor or saved state is needed.
 - **Stall recovery walks a cursor.** Whether a task stalled depends on its chats' last turns, which SQL does not filter
   cheaply, so the check takes the next 100 tasks in progress (in progress, an existing agent, not awaiting the owner,
   no open subtask) after a cursor saved in settings (`task_stall_after`), wraps once to the start, and asks at most
@@ -4236,21 +4251,344 @@ happened to work it had started itself.
 
 - **Recorded at the start** (`startTaskWork` in `engine/task-work.ts`): when the head starts a task from a project chat
   that is not a task's own, the task's chat keeps `coordination_from` (that chat, the head's run, the work run). A held
-  start that resumes later goes through the same place, so it is recorded then.
+  start that resumes later goes through the same place, so it is recorded then. Any other start (the owner's, another
+  agent's, the head's from elsewhere) clears it: it is the coordination that most recently started the task.
 - **Trusted only if it checks out** (`coordinatedTaskSource` in `engine/task-report.ts`): the record counts only while
   the head's run is in that chat, the chat is in the task's project, and the work run is in a chat of that task, was
   started by that same run and began after it. Anything else, a forged or stale record included, is ignored.
-- **What the head hears**: the task's close report, as any recipient (D-076's report). A reviewer that sends the task
-  back (`reviewEnded`) also tells the head with a `task_feedback` turn, framed as team feedback and not an approval,
-  once per reviewer run (`coordination_feedback` in the head's chat) and not while that chat is paused (D-081).
+- **What the head hears**: the task's close report, as any recipient (D-076's report), unless it closed the task itself.
+  A reviewer that sends the task back (`reviewEnded`) also tells the head with a `task_feedback` turn, framed as team
+  feedback and not an approval, once per reviewer run (`coordination_feedback` in the head's chat) and not while that
+  chat is paused (D-081).
 - **No new authority**: hearing a result grants nothing. What the head does next goes through the same assignment,
   proposal and review rules (D-079, D-131).
 
 Rejected: sending results to every project chat of the head (the owner would see reports in chats that never asked),
 and trusting `coordination_from` without checking the runs (a task chat's context is not proof of who started it).
 
+<a id="d-208"></a>
+## D-208 — 2026-11-08 — A task's agent carries it to delivery; publishing is medium, a release is hard
+A blog the owner asked to publish sat finished on a branch for a day: its agent read "do not push unless authorized"
+in its role, every teammate it asked answered as a gate, and a plain push of the site waited for the owner like an
+`rm -rf`. The owner's rule: easy things that can be undone are published, hard ones are asked.
+
+- **Publishing a branch is a medium action** (`tools/shell.ts`): a plain `git push` runs in Auto like any other
+  command. A push that rewrites or deletes what others have (`--force`, `--delete`, `:branch`, `+ref`, `--mirror`,
+  `--prune`) or cuts a release (a tag, `--tags`, `gh release`, `npm publish` and the like) stays `always`, the
+  hard kind, and keeps its card in Total too (`publishCard`, `keepsCard: "grant"`): only the owner's "always for this
+  agent" skips it.
+- **The owner may want to be asked before publishing**: `publish: ask` on the owner (Settings › Account, `apx owner
+  set publish=ask`) makes a plain push keep its card the same way. The default, `auto`, publishes without asking.
+- **Reviews inform, never gate** (`REVIEW` in `engine/context.ts`, `reviewEnded` in `engine/task-work.ts`): a reviewer
+  reports what works, what fails (and whether it breaks what was asked) and what it could not check, opening with
+  "Approved" when nothing asked fails. Either way the task goes back to its agent: a clean report says it is theirs
+  to deliver, a failing one is "a report, not a verdict". Only with no agent on it, or its agent paused, does the owner
+  hear it is ready to close. Amends D-188's one verdict (Approved, Approved with notes, Blocked), whose "Blocked" read as
+  a stop every teammate could pull.
+- **The agent on a task delivers it** (`engine/office.ts`): it owns the task until it is delivered; publishing it,
+  when the task asks, is part of the work. A step that can be undone it does; a hard one (a release or tag, a payment,
+  a production data migration, a message as the owner) waits for the owner. It closes with what works, what is left
+  and how ready it is, 1 to 5.
+- **Whoever gave the task checks the delivery** (`DELIVERY_CHECK` in `engine/context.ts`, the `task_result` framing):
+  1-2 goes back to its agent with `task_close state:open, rework:true` and what to fix, without asking the owner; from
+  3 up it sees that what was to be published is out, puts only a hard step to the owner with a recommendation, and
+  always tells the owner how it ended. For the owner's tasks that is the super-agent.
+- **A part does not start while a teammate it asked is still answering** (`engine/task-continue.ts`): the answer
+  comes back to the chat on its own.
+
+Rejected: a score threshold the core enforces (the score is the agent's word, and what decides is whether a step can
+be undone), and a separate "ready" status (closing with the report already reaches whoever gave the task).
+
 <a id="d-209"></a>
-## D-209 — 2026-11-08 — Proposed, not accepted: group chats split front from back, and a router picks who answers
+## D-209 — 2026-11-08 — An agent's place in its team is told by APX, not written in its prompt
+Role prompts named people ("You report to Pia", "goes to Lorena, never to Saba") and broke whenever the team changed:
+an agent followed a name instead of the work. Every agent already has `parent:` and `area:` in its file.
+
+- **The system prompt says it** (`teamPlace` in `engine/context.ts`, `placeOf` in `engine/turn.ts`): under the
+  agent's first line, who it answers to (its `parent:`, resolved in its own project first) and its area, and that work
+  outside its area goes to that area's agent or to the super-agent when none fits. The super-agent and an agent with
+  neither get no line. It changes only when the team does, so the prompt stays cacheable.
+- Role prompts keep the craft (how to build, what to check) and name roles, never people.
+
+Rejected: a written chart of who talks to whom (the owner's own diagram drifts from the team, and a hand-kept chart in
+every prompt is what broke).
+
+
+<a id="d-210"></a>
+## D-210 — 2026-11-09 — Agents carry work through; "blocked" is what is out of their reach
+Task chats stopped far more than they finished: in a week of the owner's office 266 answers ended "Status: blocked"
+against 211 "done". The four-line report every message between agents asked for (`REPORT` in `engine/context.ts`)
+had only those two states, so work left came out as "blocked" (one agent listed the 15 articles it had still to write
+as its unblock), and it reached the agent's own task too: the task's start, a teammate's answer ("go on with the
+task", next to "your final answer goes back to them") and a review all came as a one-off ask to answer once.
+
+- **The report has a middle state**: done, partial (what is left and why it stopped) or blocked, defined as nothing
+  more in the agent's reach (access, a login, an owner's decision). It does the work as far as its tools reach first.
+- **The agent's own task is not a one-off ask** (`on_task` on the agent origin, set in `ask()` in
+  `engine/task-work.ts` when the agent is the task's assignee and not a reviewer handed it): a teammate's message
+  there is framed as work on the task, which it carries until `task_close`, stopping only for what the owner must do
+  (`awaits_owner`) or what nothing in its reach can fix. No report envelope, no "goes back".
+- **A teammate's `@name` of the task's own agent reaches its chat for the task** (`consultFromAgent`): before, it
+  opened a consult on the side that told the agent "the task's work is not yours", so the super-agent's "go on" to the
+  agent on the task was answered in a side chat while the work stood still.
+- **Recovery reads as sentences** (`RECOVERY`): find why, fix it with its own tools and permissions (another way or
+  source, freeing its own tabs or processes), retry only after a change, and only then report blocked, with the
+  error, the attempts and what is needed. Never around access, a login, a quota or a handoff.
+- **A task whose way stops leading to the goal changes plan** (`taskBlock`): the owner hears only what only they can
+  give or decide.
+
+- **Checking is progress** (`stalled` in `engine/progress.ts`, `continueTask`): one part that only reads after one
+  that changed something (the turn that started the stretch counts) is verifying, so the next part starts; two
+  reading parts in a row still stop it.
+- **An agent naming a task's own agent again wakes it** (`resuming` in `rpc/tasks.ts`): the super-agent's
+  `task_update` with the same assignee answered "updated" while the agent stayed idle, and it told the owner the work
+  had resumed. The owner's edits from the panel carry every field, so they never restart the work.
+- **A partial delegation is carried on** (`REDIRECT_NOTE`): with nothing waiting on the owner, its caller has what is
+  left done instead of only reporting it.
+- **Where code goes is the agents' call** (`CODE_PLACE`): the project's AGENTS.md or note, else not a git repository
+  means in place and a checkout means a worktree, saved as a project note. Replaces the five-option question to the
+  owner, which the owner added for lack of a rule and found out of place.
+
+- **The super-agent picks how to split work** (its role line in `systemPrompt`): several pieces and the owner did not
+  say how, it picks (one task each, a plan first, or doing it) and says which in a line, asking only before a large
+  fan-out. Amends D-160's ask-every-time.
+- **One review at a time** (`reviewRequested`): an agent that @mentioned its reviewer and then put the task in
+  review started two checks of the same work by the same agent, each asking the owner for the same browser steps.
+  A consult its agent opened with the reviewer and still running becomes the review.
+- **A brief gives no way out** (`delegate`'s description): the super-agent's briefs added "if it cannot be done,
+  return evidence" or "no retries", which the delegate read as permission to stop at the first obstacle.
+- **A profile is a layer, never a stricter mode** (`examples/profiles/secretary`): the secretary's "sending or
+  changing anything outward: confirm first" asked for more than the owner's permission mode, even in Total. It now
+  goes ahead with the work and prepares what the mode leaves to the owner.
+
+- **Commands ask by what they do, not by the word apx** (`runsApxCli`, `apxReads`, `mayChange`): in the week's real
+  asks every command naming APX was "high impact": `apx mcps list`, `apx usage 7`, `apx --help` beside `ls ..`,
+  `command -v apx`, `test -f .apc/migrate.md`. A part that only reads with the CLI now acts as nobody, whatever else
+  the line does (any `--help`, `mcps list`, `usage`, `jobs`, `projects`, `models`, `artifacts`, `skills`, `owner`,
+  `news`); `command -v` only looks it up; AGENTS.md or `.apc/` count only where a part of the command could change them
+  (not a reader, or a redirect into them). What stays always: the CLI acting as the owner (`runs respond`, `owner
+  set`, `tasks done`, `chat`…), any CLI run with a variable set before it (it could point the CLI elsewhere with the
+  owner's credentials), APX's API by its port, destructive commands and releases. Amends D-197.
+- **The visual check fixes the browser first** (`VISUAL_CHECK`): a tab limit, a dialog or the size is the agent's to
+  fix before it calls a change unverified.
+- **Giving up comes after trying**: the promise line says "if you cannot after trying, say why and who can", and a
+  worker calls a source unreadable only once another way to it failed too (another URL, a copy, a search).
+- **Staging or copying AGENTS.md is not changing it** (`mayChange`): `git add`, `commit`, `diff`, `log`, `show` and
+  the like leave the file as it is, and a program whose paths are all known changes it only where it writes there
+  (`cp AGENTS.md /tmp/x` reads it). A program the path analysis cannot follow (`python3 fix.py AGENTS.md`) still asks.
+  A `for` loop's list is only names: it counts as a change only when a part of the loop's body could change anything
+  (`for f in AGENTS.md …; do sed -n … "$f"; done` reads).
+
+- **Git follows what was asked, in the prompt, not a gate** (`GIT_ASKED`, told to whoever can change files): commit,
+  pull, merge or push only when the owner or the task asked, or a project rule or note says how (web straight to
+  main, a tag from staging to main after preflight and verify); else one `ask_owner`. The shell's own levels are
+  unchanged (a plain push follows the owner's publish setting; a force push, a tag or a release always asks). The
+  realistic owner's system budget rises to 8,150 for it (`rules/PROMPT_SIZE.md`).
+
+- **The browser does what agents used JavaScript for** (`CdpPage` in `packages/protocol/src/cdp.ts`, `browser_type`):
+  of the week's 22 JavaScript asks, nearly all read a link's address or a field, picked a list option, filled a rich
+  text editor or attached a file. The page view now shows each link's address and makes a contenteditable editor a
+  field with a ref; typing in a native list picks the option with that text through APX's own fixed function (no agent
+  script); typing a full path into a file field attaches the file when the core found it inside what the agent may
+  read (`folderAccess`, never on the isolated computer), and a file field refuses plain text. `browser_evaluate` says it
+  is the last resort; it still always asks (D-165 unchanged).
+
+Apart from these narrower command asks, none of this changes a permission, an approval, a hard step or a spend
+limit: what waits for the owner still does.
+
+<a id="d-211"></a>
+## D-211 — 2026-11-09 — Memory the owner can keep up with: v1 notes marked, shared notes tidied, logs refused, waiting notes told
+The owner's Memory tab had 386 notes "about you", 348 of them v1 imports labeled "written by you", a few agent notes
+waiting under "To confirm" that nobody heard about, an "outside content" badge on nearly every agent note, and project
+notes that read like release logs. AutoDream ran daily and changed nothing: it only read each agent's private
+notebook. Amends D-013, D-111 and D-112:
+
+- **Imported is a source of its own** (`source: "imported"`). The v1 import saves it; a one-time startup pass marks
+  earlier imports by exact text against v1's note files (HISTORY.md#v1-imported-notes). Imported notes are reached by
+  search only, never as standing notes; agents read them as possibly outdated and may correct them; the owner's edit
+  or confirmation makes one theirs. The owner's own notes stay untouchable.
+- **AutoDream has two shelves.** Besides the private notebook, a daily pass per place tidies its shared notes (the
+  project's, or the global ones outside a project) written by agents or imported, never the owner's or a note waiting
+  for the owner. The same rules hold: the helper only names ids, exact duplicates merge, retirement needs a separate
+  review, stale notes go only past 40, and a fifth per day is counted per place across its agents. The shelf is in the
+  job's id (`dream:shared:`), so the queue and its settings did not change.
+- **Shared notes keep what stays true.** An agent's `memory.add` for the project or global scope refuses a report of
+  work done (a commit hash or CI run id with a word like committed or released, or a dated entry); an agent's own
+  notebook may still keep a diary.
+- **Waiting notes are told.** One `memory` notice stays in the tray while any note about the owner waits, and
+  "Confirm all" confirms the listed ones. The outside-content marker still governs how agents read a note but is not
+  shown: it marked almost every agent note and offered no action (rule 31).
+
+<a id="d-212"></a>
+## D-212 — 2026-11-09 — In Auto, typing on a page this computer serves does not wait for the owner
+Amends D-106 for `browser_type`. Its level is `untrusted`, so in Auto, once a page was read in the turn, every typing
+call waited for the owner. Most such asks came from the visual check APX tells agents to do on their own app
+(`VISUAL_CHECK`): an agent filling a form of its Laravel app at `127.0.0.1:8127` asked three times in a row, its
+reviewer twice more, and the owner found them pointless. The asks guard against a page steering the agent into handing
+data to someone else's site. A page this computer serves is reached by a command just as well (`curl` to the same
+port), and in Auto the agent runs commands in its folder without asking, whatever the turn read; `urlConfirm`
+(D-057, D-121) already treats loopback hosts that way.
+
+- **Only in Auto**: where a command runs unasked. Accept edits asks before a command that changes something, so typing
+  there still asks; Manual, Plan and an agent's own rule apply as for any call; Total never asked.
+- **What counts**: an `http(s)` address on `localhost`, `*.localhost`, `127.x.x.x` or `[::1]` (`servedHere` in
+  `@apx/protocol/cdp`, the host test `urlConfirm` also uses), not on one of APX's own ports, where typing would act as
+  the owner: the core's, the panel dev server's and any extra allowed origin on loopback (`appPorts`), which the core's
+  headless browser now also refuses to load, as the desktop does. `0.0.0.0`, LAN addresses and `.local` names do not
+  count.
+- **Decided from the browser, now**: before the card, the executor asks the tool (`Tool.onThisComputer`), which reads
+  the tab's address from the browser that holds it (`browser.tabs`, answered by the node), within 5 seconds or the card
+  shows as before. When it is served here the call's level is `never`.
+- **Checked by the browser as it types**: the call carries `local_only`, and the node (the desktop's tabs, the core's
+  headless Chrome, the isolated computer's browser, all through `CdpPage.type`) reads the frame tree and the document
+  from CDP, not from page JavaScript: before focusing the field, the tab's address and the origin of the frame holding
+  the field must both be served here; right before the text goes in, both again, and the field must still hold the
+  focus (read from an isolated world, up through shadow hosts and the frames it can see). Otherwise it refuses with
+  `conflict` and nothing is typed. A page that redirected since the core looked gets nothing, and the agent's next call
+  sees the new address and waits for the owner. A field in a frame from another site points to `browser_handoff`. A
+  page's `prompt()` box (typed through `dialog-text`) has no field: its answer goes only when the frame that opened it,
+  as the browser's dialog event reports it, is served here.
+- **Not in the owner's Chrome**: its extension does not check the page, so the tool never exempts a Chrome tab and the
+  router refuses a `local_only` call routed there.
+- **Unchanged**: password, one-time code and card fields are refused as before (D-193 is the only way to fill one);
+  clicks were never gated; `browser_evaluate` keeps its own card (D-165).
+
+Known limits: any loopback service counts, not only the agent's own app: a web terminal or notebook on localhost, or a
+port forwarded elsewhere (an SSH tunnel). In Auto a command reaches them as well, so this adds no new reach, but tying
+the exemption to ports the agent's own commands listen on would be narrower. A frame whose parent is another local
+origin cannot see that parent's focus. The last check narrows, but cannot close, the instant before the text goes in.
+
+Rejected: trusting the core's cached tab address (a redirect makes it stale); exempting a page on the agent's word (a
+model-set argument); asking the node for a verdict without binding the typing to it (the page can move between the two
+calls); the exemption in Accept edits, where it would reach what a command there may not.
+
+<a id="d-213"></a>
+## D-213 — 2026-11-09 — What the owner asks in a room that needs tools is handed to Home, never only promised
+A room's turn has no tools (D-041, D-063), so when the owner asked there for something that needed them the prompt
+had the agent "say you will pick it up with them on another channel". Nothing recorded or did it: a promise, against
+the main prompt's own rule that a promise is not an action.
+
+- **The room answer ends with `HANDOFF`** when the owner's message needs tools (`roomPrompt`). The line is a signal,
+  like `SKIP` and `REACT`: `roomHandoff` (`engine/room-handoff.ts`, run from the engine's `ended`, before the channel
+  manager posts the answer) takes it out of the answer kept and posted. An answer that was only the line is replaced
+  by a short "on it, I'll tell you in private" in the owner's language.
+- **Only the owner's own words move**, from a turn whose origin is the room message marked owner by account
+  (`role: "owner"`): the run's input text, verbatim, never the model's text and never a member's. From any other
+  message the line is only removed, so nobody in a room can turn their text into a request, whatever the model says.
+- **Home does it, by the owner's rules on that platform** (D-144, D-150). On a channel whose owner acts on their word
+  (Telegram, WhatsApp, Signal) the words are kept in Home as the owner's (`via` the channel) and start a turn there
+  that is told which room they came from. Elsewhere (Discord, Slack…) they go through `relayOwnerWords` like the
+  owner's other words there: the super-agent checks them in Home's owner-check sub-thread, and the result returns to
+  Home as a delegated result.
+- **The result never goes back to the room.** The Home turn has no `reply_to` of its own and the relay leaves Home's
+  untouched (`owner_check.reply_to` is optional now): answers reach the owner where Home talks to them (Home's last
+  channel, or the app).
+
+- **A burst goes whole.** A room answers one person's quick messages as one (D-041), so the owner's messages kept
+  unanswered right before the one answered go with it, oldest first: only theirs, with nobody else's message or an
+  answer between, each within 15 s of the next.
+
+<a id="d-214"></a>
+## D-214 — 2026-11-09 — A kind of channel fixes the choices that do not fit it; email is mail, not a chat
+The account settings were made for chat apps: a pairing code for the owner and for strangers, Home or the account's own
+chat, and what a message does while the agent works. On an email account each of these was wrong: the owner had to
+mail the bot and paste back a code, every stranger's mail got a code in reply (an answer to spam and to forged
+senders), the owner's mail could land in Home, and "interrupt" or "slip in" mean nothing for mail.
+
+- **`channelKindRules(type)`** (`packages/protocol/src/constants.ts`) says, per kind, how the owner marks their own
+  address (`code` or `address`), whether "pair" only lists strangers, and what it fixes (`ownerThread`, `concurrency`).
+  Chat apps get the default (everything offered); email fixes its own chat and a queue, lists strangers and takes typed
+  addresses. Another kind gets rules by adding a row, not a branch in a screen.
+- **The core applies them**: the manager reads and saves an account with what its kind fixes (`kindFixed`), so a saved
+  "home" or "steer" on an email account never takes effect; inbound lists a stranger of a listing kind like one on the
+  owner's own number (no code, no tray notice: the request waits in Approvals with what they wrote). The panel only
+  hides the rows a kind fixes and shows the address field instead of the code.
+- **The owner's addresses on email are typed** (`contacts.address`, the mailbox's own refused) and trusted only when
+  the owner's server verified them: mail from them skips "Who may write" and is dropped unverified even with "Read
+  unverified mail" on.
+
+Known limit: one conversation per sender, as before; each mail shows as a card in it, but a new subject from the same
+person is not a conversation of its own.
+
+Rejected: a code mailed to the owner as on chat apps (the step the owner found confusing, and a reply to any forged
+From); per-screen `type === "email"` checks (the next kind would copy them).
+
+<a id="d-215"></a>
+## D-215 — 2026-11-08 — A side question is one model call beside the chat, not a turn in it
+
+The owner wants to ask a chat's agent something quick (what was decided, a name it used) without the question and its
+answer landing in a long chat and in every later turn's context. The composer's **+ › Side question** does that.
+
+- **One call, no thread** (`engine/aside.ts`, `threads.aside`): the chat's model as its next turn would pick it (the
+  chat's choice, the agent's, the default, the router; never a CLI), a short system prompt in the agent's name and voice,
+  and the chat as read-only context (the model log since the last summary, the summary first, shaped like
+  compaction's transcript and capped at 60k characters). No tools. Follow-ups pass the side conversation back
+  (`earlier`, at most 10 exchanges): the server keeps nothing.
+- **What is kept**: only its tokens, in `aux_calls` with the purpose `aside` and the chat's id (Usage shows them). No
+  message, run, thread or memory; the next turn never sees it, and no search, title, compaction or notification finds it.
+- **Limits**: a 60 s deadline (the client waits 75 s), `effect: true` so a retried request gets the same answer instead of
+  a second call, owner-only access. Not in an engine's own session, which keeps its own transcript and runs only its CLI.
+- **The panel** keeps the side conversation in memory per chat while it is open, so a layout change does not lose it;
+  closing it lets it go.
+
+Rejected: a turn on a hidden child thread (every listing of sub-threads, delegation counts, search, memory capture,
+titles and notifications would have to learn to skip it, and the agent could act with tools from a place the chat never
+shows), and a turn in the chat marked as hidden (it would still enter the model's context unless every history builder
+learned the mark).
+
+<a id="d-217"></a>
+## D-217 — 2026-11-11 — A mailbox brings every mail in and marks what no person wrote; marked mail is the owner's only
+An email account dropped mail it would not answer (unverified senders, "Never read", outside "Who may write") and
+never saw the server's Spam folder, so the owner could not tell what arrived. Every mail is now brought in.
+
+- **One mark per mail** (`MailMark`: automatic, spam, unverified, blocked, outside), decided by the adapter in that
+  order of reasons: the Spam folder, the "Never read" list, "Who may write", the server's verdict, then automatic
+  headers. The owner's own addresses only get "automatic"; unverified mail from them is still dropped (a forgery).
+- **Marked mail is kept for the owner only** (`mail_handling: "marked"`, the passive path): shown with its mark, never
+  answered, never told, never written to the agent's context, never counted unread. The owner chose this so spam
+  cannot instruct the agent.
+- **The Spam folder** is found by its `\Junk` flag (RFC 6154) or a usual name, read from the moment it is found, on
+  the same connection after each inbox round; its mail gets its own id so a mail later moved to the inbox is read.
+- **The list shows people by default**: a chat with only marked mail carries its latest mark (`Thread.mail_mark`, from
+  its context); the first mail a person wrote makes it a person's chat for good.
+
+Known limit: chats of automatic mail kept before this carry no mark until their sender writes again (a data migration
+was not worth a schema step).
+
+<a id="d-216"></a>
+## D-216 — 2026-11-11 — WhatsApp groups are rooms; on the owner's own phone they are only read until the owner allows more
+WhatsApp read only one-to-one chats, and owners asked for their groups to work like Telegram's and Discord's. A
+WhatsApp account now has `rooms` as D-041 sets them (deny by default, a mode per group, the owner's notes, rules,
+names and limits, sealed turns), with what is particular to a linked phone:
+
+- **Picked from the account's groups.** The adapter lists the groups the line is in (`groupFetchAllParticipating`),
+  each saying whether it may write there (only admins may, in some); a community's parent is not offered. A group's id
+  is its WhatsApp address (`…@g.us`). An unlisted group is neither stored nor answered, as before.
+- **Calling the line**: an @mention of its number or private id, a reply to one of its messages, or one of its names as
+  a whole word. The @mention is taken out of the text. Answers quote the message they answer; a file or a voice note in
+  a group is named, not downloaded.
+- **A line of its own** (`self_owner` off) is the agent's number: its groups work like a bot's. What someone types on
+  that line's phone in a group is nobody's, as in its chats.
+- **The owner's own phone** (`self_owner` on) speaks as the owner: anything posted from it reads as them. So its listed
+  groups are only read (kept in the group's chat, never answered, whatever mode is saved) until the owner turns on
+  `rooms.as_owner` ("Answer in groups as me") in the account's Rooms settings. The core enforces it in three places: a
+  room message's decision (`roomsReadOnly` in `channels/rooms.ts`), an agent's post in a room (`channels.post` and a
+  Flow's post are refused) and a room turn's answer (what the owner asked from the app stays in the app; the composer
+  there offers only the owner's own words, sent from their number). What the owner types in a group on their phone is kept as the owner's words. An @mention of
+  the owner or a reply to them is the owner being addressed, not the agent: there the agent is called only by name.
+  Allowed, the room's prompt tells the agent its words go out from the owner's own number.
+
+- **Groups and rooms off, on any channel** (`rooms.off`, `roomsOff` in `channels/rooms.ts`): one switch per account
+  drops everything that arrives from its rooms before it is stored (`receive` in `channels/inbound.ts`), and refuses
+  a post in one. The list and its settings stay, so turning it back on needs nothing else. Off is not "read": read
+  keeps what is said, off keeps nothing.
+
+Rejected: answering in groups from the owner's phone by default (a member could make the owner "say" anything), a
+switch per group (one account-wide choice is the explicit one the owner makes; each group's mode still applies), and
+reading every group to offer it (the list comes from WhatsApp; nothing of an unlisted group is stored).
+
+<a id="d-218"></a>
+## D-218 — 2026-11-08 — Proposed, not accepted: group chats split front from back, and a router picks who answers
 
 **Status: a proposal for the owner to accept or reject.** The measurements, the mechanics compared and the prototype
 are in [GROUP_CHAT.md](GROUP_CHAT.md); the prototype runs only with `APX_GROUP_CHATS=on`.

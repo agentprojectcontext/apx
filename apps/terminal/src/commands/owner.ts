@@ -3,7 +3,8 @@ import type { ApxClient } from "@apx/protocol/client";
 
 const USAGE = {
   owner: `apx owner                                  Who you are, for your agents
-apx owner set key=value…                   name, about, language (es, en…), timezone (America/New_York; "" = this machine's)`,
+apx owner set key=value…                   name, about, language (es, en…), timezone (America/New_York; "" = this machine's),
+                                           publish (auto: agents publish what can be undone; ask: they ask you first)`,
   org: `apx org [--project p]                      A project's areas and roles (no project: the base project's)
 apx org set [--project p] < org.json       Replace them: {"areas": [{"slug", "name"}], "roles": [{"slug", "name", "area"}]}`,
   profiles: `apx profiles [list]                        Profiles, the one the super-agent runs and the routines it keeps
@@ -12,7 +13,7 @@ apx profiles off                           Run none: the super-agent only answer
 apx profiles restore <routine>             Put back a profile routine's default prompt`,
 };
 
-const OWNER_KEYS = ["name", "about", "language", "timezone"] as const;
+const OWNER_KEYS = ["name", "about", "language", "timezone", "publish"] as const;
 
 /** key=value pairs, in order; the value may hold "=" and may be empty. */
 function pairsOf(pairs: string[]): Record<string, string> {
@@ -31,7 +32,9 @@ export function ownerPatchOf(pairs: string[]) {
   const unknown = Object.keys(patch).filter((k) => !(OWNER_KEYS as readonly string[]).includes(k));
   if (!pairs.length || unknown.length)
     throw new Error(`${unknown.length ? `unknown: ${unknown.join(", ")}\n\n` : ""}${USAGE.owner}`);
-  return patch;
+  if (patch.publish !== undefined && patch.publish !== "auto" && patch.publish !== "ask")
+    throw new Error(`publish is auto or ask, got "${patch.publish}"`);
+  return patch as Record<string, string> & { publish?: "auto" | "ask" };
 }
 
 export async function owner(client: ApxClient, [sub, ...pairs]: string[]) {
@@ -44,6 +47,7 @@ export async function owner(client: ApxClient, [sub, ...pairs]: string[]) {
   console.log(`Name:      ${me.name || "(not set)"}`);
   console.log(`Language:  ${me.language}`);
   console.log(`Time zone: ${me.timezone || "this machine's"}`);
+  console.log(`Publish:   ${me.publish === "ask" ? "asks you first" : "without asking (a release always asks)"}`);
   if (me.about.trim()) console.log(`\n${me.about.trim()}`);
 }
 

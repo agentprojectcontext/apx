@@ -48,6 +48,12 @@ export const AUTONOMY_RULES: Record<Autonomy, Required<AgentRules>> = {
   total: { read: "auto", write: "auto", outside: "auto", irreversible: "auto" },
 };
 
+/**
+ * How a subproject names the base project as its parent (the base has no id of its own elsewhere: it is the absence of
+ * a project). Never a real project's id, which always starts with `p_`.
+ */
+export const BASE_PROJECT_ID = "~default";
+
 /** The base project (no folder): the owner may name it, describe it and give it a kind, like any other. */
 export const BaseProject = z.object({
   name: z.string().trim().min(1).max(80),
@@ -111,6 +117,12 @@ export const Project = z.object({
   read_only_folders: z.array(z.string()).optional(),
   /** AGENTS.md's length when it is past AGENTS_MD_LIMIT: its agents get the head and tail, not all of it. */
   agents_md_chars: z.number().int().optional(),
+  /**
+   * Set on a subproject: the project it belongs to, or BASE_PROJECT_ID for the base project. One level only (a
+   * subproject has none of its own). Its parent's agents work in it, and it takes its parent's variables, skills, MCP
+   * servers and apps under its own; its memory is its own. Kept by APX, never in the folder.
+   */
+  parent: Id.optional(),
 });
 export type Project = z.infer<typeof Project>;
 
@@ -248,6 +260,11 @@ export const AgentListing = Agent.extend({
   reports_to: z.object({ id: Id, name: z.string() }).nullable(),
   /** Ids of the agents that report to it. */
   leads: z.array(Id),
+  /**
+   * Only in a project's listing (agents.list `project_id`): set on an agent the project takes from its parent, the
+   * parent's id (BASE_PROJECT_ID for the base project's agents). Absent on the project's own agents.
+   */
+  inherited_from: Id.optional(),
 });
 export type AgentListing = z.infer<typeof AgentListing>;
 
@@ -288,6 +305,13 @@ export const WritePolicy = z.enum(["ask", "auto", "read-only"]);
 export type WritePolicy = z.infer<typeof WritePolicy>;
 export type ThreadKind = z.infer<typeof ThreadKind>;
 
+/**
+ * Why a mail is kept but neither answered, told nor given to the agent: written by no person, in the server's Spam
+ * folder, not verified by its server, from a "Never read" address, or from outside "Who may write".
+ */
+export const MailMark = z.enum(["automatic", "spam", "unverified", "blocked", "outside"]);
+export type MailMark = z.infer<typeof MailMark>;
+
 export const Thread = z.object({
   id: Id,
   kind: ThreadKind,
@@ -316,6 +340,8 @@ export const Thread = z.object({
   engine: z.string().optional(),
   /** Channel threads: the conversation on a channel (a Telegram chat…) and the person on the other side. */
   channel: z.object({ id: z.string(), conversation: z.string(), person_id: Id.optional() }).optional(),
+  /** A mailbox chat holding only marked mail (none once its sender writes a mail a person wrote): the latest mark. */
+  mail_mark: MailMark.optional(),
   /** The chat's own model, picked in its composer; absent = the agent's. */
   model_choice: ModelChoice.optional(),
   /** The chat in which the super-agent told what an update brought: that release's version. */
@@ -434,7 +460,7 @@ export type PendingInput = z.infer<typeof PendingInput>;
 
 /**
  * Something the owner can connect, offered by an agent for what they asked: an integration (an account like Figma or
- * GitHub, Resources › Integrations) or a channel (an app like WhatsApp, Settings › Channels). `coming`: not yet.
+ * GitHub, Resources › Integrations) or a channel (an app like WhatsApp, the Channels screen). `coming`: not yet.
  */
 export const ConnectOffer = z.object({
   kind: z.enum(["integration", "channel"]),
@@ -729,8 +755,11 @@ export const AuxPurpose = z.enum([
   "suggestion",
   "memory_capture",
   "memory_dream",
+  "activity_review",
   "news",
   "sticker",
+  "aside",
+  "mail",
 ]);
 export type AuxPurpose = z.infer<typeof AuxPurpose>;
 
@@ -845,6 +874,8 @@ export const Job = z.object({
   /** Terminal jobs: where the command runs, how it exited, and whether it was started in the background. */
   cwd: z.string().optional(),
   exit_code: z.number().int().optional(),
+  /** Terminal jobs that never started: the reason the process could not be created. */
+  start_error: z.string().optional(),
   background: z.boolean().optional(),
   started_at: z.string(),
   ended_at: z.string().optional(),
@@ -919,7 +950,8 @@ export const Memory = z.object({
   /** `procedure`: how the agent did something that worked, kept as history (never as an instruction). */
   kind: z.enum(["user", "feedback", "project", "reference", "procedure"]).optional(),
   evidence: z.array(MemoryEvidence).optional(),
-  source: z.enum(["owner", "agent"]),
+  /** `imported`: brought over from APX v1, neither the owner's word nor checked by an agent since. */
+  source: z.enum(["owner", "agent", "imported"]),
   /** The agent that wrote it, and the thread and run it learned it in. */
   author_agent: Id.optional(),
   thread_id: Id.optional(),
@@ -954,18 +986,36 @@ export type Address = z.infer<typeof Address>;
 export const PersonRelation = z.enum(PERSON_RELATIONS);
 export type PersonRelation = z.infer<typeof PersonRelation>;
 /**
- * What a contact's chat may do besides talking. All off by default: each one gives the sealed turn exactly one
- * narrow tool (see DECISIONS.md#d-022).
+ * What a contact's chat may do besides talking, and whether it is answered past the attention hours. Each tool one gives
+ * the sealed turn exactly one narrow tool (see DECISIONS.md#d-022). An account sets them for its contacts
+ * (`ChannelInfo.contacts`, all off unless set); a person keeps only the ones the owner set for them, which win.
  */
-export const PersonPerms = z.object({
+const RIGHTS = {
   /** Note an appointment they ask for, for the owner to confirm. */
-  appointments: z.boolean().default(false),
+  appointments: z.boolean(),
   /** Note a request they make (a purchase, a favor) as a task for the owner. */
-  requests: z.boolean().default(false),
+  requests: z.boolean(),
   /** Answer from the owner's own notes (global ones only, read-only). */
-  notes: z.boolean().default(false),
-});
+  notes: z.boolean(),
+  /** Answered at any hour, past the attention hours of the account they write on. */
+  any_hour: z.boolean(),
+};
+/** The rights set somewhere (an account, a person): one not set follows the next place, and in the end is off. */
+export const PersonPerms = z.object(RIGHTS).partial();
 export type PersonPerms = z.infer<typeof PersonPerms>;
+export const ContactRights = z.object({
+  appointments: z.boolean().default(false),
+  requests: z.boolean().default(false),
+  notes: z.boolean().default(false),
+  any_hour: z.boolean().default(false),
+});
+export type ContactRights = z.infer<typeof ContactRights>;
+/** A person's rights on one account: what the owner set for them, the account's for the rest. */
+export const contactRightsOf = (perms: PersonPerms | undefined, account: PersonPerms | undefined): ContactRights =>
+  ContactRights.parse({
+    ...account,
+    ...Object.fromEntries(Object.entries(perms ?? {}).filter(([, v]) => v !== undefined)),
+  });
 export const Person = z.object({
   id: Id,
   name: z.string(),
@@ -985,9 +1035,13 @@ export const Person = z.object({
    * Silenced and supervised exclude each other (setting one clears the other).
    */
   supervised: z.boolean().default(false),
-  /** Answered at any hour, past the attention hours of the channel they write on. */
-  any_hour: z.boolean().default(false),
-  perms: PersonPerms.default({ appointments: false, requests: false, notes: false }),
+  /** The rights the owner set for them; the rest follow the account they write on (`ChannelInfo.contacts`). */
+  perms: PersonPerms.default({}),
+  /**
+   * The agent that answers this contact on every channel, instead of each account's contacts agent. None: the
+   * account's. Never set for the owner.
+   */
+  agent_id: Id.optional(),
   addresses: z.array(Address),
   created_at: z.string(),
 });
@@ -1052,19 +1106,34 @@ export const RoomMode = z.enum(["always", "mention", "useful", "read"]);
 export type RoomMode = z.infer<typeof RoomMode>;
 
 /**
- * Public rooms (a Discord server's channels, Telegram groups). Deny by default: a room that is not listed does not exist for APX. People
+ * Public rooms (a Discord server's channels, Telegram and WhatsApp groups). Deny by default: a room that is not listed does not exist for APX. People
  * there are strangers in public: the agent answers sealed (no tools, no memory, nothing of the owner's), by the owner's
  * knowledge and rules.
  */
 export const ChannelRooms = z.object({
   rooms: z
     // A Teams group chat's id runs to about 90 characters.
-    .array(z.object({ id: z.string().min(1).max(120), name: z.string().max(80).default(""), mode: RoomMode }))
+    .array(
+      z.object({
+        id: z.string().min(1).max(120),
+        name: z.string().max(80).default(""),
+        mode: RoomMode,
+        /** The agent that answers this room, when it is not the account's contacts agent. */
+        agent_id: z.string().min(1).max(120).optional(),
+      }),
+    )
     .max(50),
   /** Words that count as calling the bot (besides an @mention or a reply to it). */
   names: z.array(z.string().min(1).max(40)).max(10).default([]),
   /** Answer only the owner in rooms; everyone else is read, never answered. */
   owner_only: z.boolean().default(false),
+  /**
+   * A line that is the owner's own phone (WhatsApp `self_owner`): whether the agent may speak in its groups, which reads
+   * as the owner speaking. Unset: its groups are only read. See DECISIONS.md#d-216
+   */
+  as_owner: z.boolean().optional(),
+  /** Every room is dropped: nothing said there is kept or answered, and the list stays for when they are on again. */
+  off: z.boolean().optional(),
   /** What it can do and answer there: written by the owner, public. */
   knowledge: z.string().max(12_000).default(""),
   /** Hard rules for what it says there; they go last and win. */
@@ -1081,6 +1150,16 @@ export const ChannelRooms = z.object({
     .default({ user_cooldown_s: 20, room_replies_per_hour: 30, checks_per_hour: 120 }),
 });
 export type ChannelRooms = z.infer<typeof ChannelRooms>;
+
+/**
+ * How many automatic answers an account gives its contacts in an hour: each one, and all of them together (0: no cap
+ * for the account). Past either, messages are kept unanswered and the owner hears it once. Rooms keep their own limits.
+ */
+export const ChannelLimits = z.object({
+  per_contact_hour: z.number().int().min(1).max(600).default(20),
+  per_account_hour: z.number().int().min(0).max(5000).default(0),
+});
+export type ChannelLimits = z.infer<typeof ChannelLimits>;
 
 /** How a mail server is reached: TLS from the start (993, 465), STARTTLS (143, 587), or plain (this machine only). */
 export const MailServer = z.object({
@@ -1105,11 +1184,17 @@ export const ChannelEmail = z.object({
   imap: MailServer,
   smtp: MailServer,
   mailbox: z.string().min(1).max(200).default("INBOX"),
-  /** Only mail from these addresses (or "@domain") is read; empty: anyone (strangers get a pairing code). */
+  /**
+   * Only mail from these addresses (or "@domain") is read, besides the owner's own; empty: anyone (strangers are only
+   * listed for the owner, never mailed a code).
+   */
   allowed: z.array(z.string().min(3).max(254)).max(100).default([]),
+  /** Mail from these addresses (or "@domain") is never read, nor listed for the owner; the owner's own still is. */
+  blocked: z.array(z.string().min(3).max(254)).max(200).default([]),
   /**
    * Also read mail its server could not verify (no DKIM, SPF or DMARC pass for the sender's domain). Off: such mail is
-   * dropped, since anyone can write the owner's address in a From line.
+   * dropped, since anyone can write the owner's address in a From line. Mail from the owner's own addresses is always
+   * dropped unverified.
    */
   trust_unverified: z.boolean().default(false),
 });
@@ -1149,7 +1234,8 @@ export const ChannelInfo = z.object({
   /** The agent that answers the contacts and rooms of this channel, when it is not `agent_id`. */
   contacts_agent_id: Id.optional(),
   /**
-   * What a stranger's first message gets: a pairing code the owner approves (on the owner's own number: only listed),
+   * What a stranger's first message gets: a pairing code the owner approves (on the owner's own number and on email:
+   * only listed),
    * a notice asking the owner first, an answer right away as a new contact, or nothing.
    */
   strangers: ChannelStrangers,
@@ -1162,7 +1248,7 @@ export const ChannelInfo = z.object({
    * its own the agent answers on, and the owner writes to it from their phone (linked with a code or by number).
    */
   self_owner: z.boolean().optional(),
-  /** Discord: the server rooms it reads and may speak in; Telegram: its groups. None: only direct messages. */
+  /** Discord: the server rooms it reads and may speak in; Telegram and WhatsApp: its groups. None: only direct messages. */
   rooms: ChannelRooms.optional(),
   /** The agent may answer with an emoji on their message instead of words (none set: it may). See DECISIONS.md#d-204 */
   reactions: z.boolean().optional(),
@@ -1170,6 +1256,21 @@ export const ChannelInfo = z.object({
   research: ChannelResearch.optional(),
   /** When it answers contacts; none: at any hour. The owner is always answered. */
   hours: ChannelHours.optional(),
+  /**
+   * Its notices are silenced: what happens on it (someone new writing, a draft waiting, a reply that could not go) stays
+   * out of the owner's tray and chat app; failures still arrive. It is all still in the account.
+   */
+  quiet: z.boolean().optional(),
+  /** What its contacts' chats may do unless the owner set it for one of them (none: all off). */
+  contacts: PersonPerms.optional(),
+  /** The owner's notes for every contact and room of the account: what it can do and answer there. */
+  knowledge: z.string().max(12_000).optional(),
+  /** The owner's rules for every contact and room of the account; a contact's or a room's own go after and win. */
+  rules: z.string().max(2000).optional(),
+  /** Only the owner is answered: contacts' and rooms' messages are kept, never answered. */
+  owner_only: z.boolean().optional(),
+  /** Automatic answers to its contacts per hour (none set: 20 each, no cap for the account). */
+  limits: ChannelLimits.optional(),
   /** Email: the mailbox and its servers. */
   email: ChannelEmail.optional(),
   token_set: z.boolean(),
@@ -1179,6 +1280,8 @@ export const ChannelInfo = z.object({
   error: z.string().optional(),
   /** The account the channel runs as (a bot's @name, a WhatsApp number). */
   account: z.string().optional(),
+  /** The name the app gives that account, when it has one besides `account` (a WhatsApp profile, a bot's name). */
+  account_name: z.string().optional(),
   /** WhatsApp: the QR to scan from the phone to link the account, while one is waiting. Owner-only, never logged. */
   qr: z.string().optional(),
 });
@@ -1336,8 +1439,26 @@ export const OwnerIdentity = z.object({
     .default("es"),
   /** IANA ("America/Argentina/Buenos_Aires"); empty: this machine's. */
   timezone: z.string().max(60).default(""),
+  /**
+   * Publishing a task's work that can be undone (a plain push of a branch): `auto` runs it in Auto, `ask` waits for the
+   * owner in every mode. A release, a tag or a forced push always waits (DECISIONS.md#d-208).
+   */
+  publish: z.enum(["auto", "ask"]).default("auto"),
 });
 export type OwnerIdentity = z.infer<typeof OwnerIdentity>;
+/**
+ * What `owner.set` changes: only the fields given. Defaults stay out, so saving one field never resets the others.
+ */
+export const OwnerPatch = z
+  .object({
+    name: z.string().trim().max(80),
+    about: z.string().max(2000),
+    language: z.string().regex(/^[a-z]{2}$/),
+    timezone: z.string().max(60),
+    publish: z.enum(["auto", "ask"]),
+  })
+  .partial()
+  .strict();
 
 export const MemorySettings = z.object({
   mode: z.enum(["notes", "semantic", "off"]),

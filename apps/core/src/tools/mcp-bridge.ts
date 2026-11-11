@@ -41,7 +41,7 @@ export function mcpBridge(servers: string[], load: () => Promise<Tool[]>): Tool[
   return [
     defineTool({
       name: MCP_SEARCH,
-      description: `Find tools of the owner's MCP servers (${servers.join(", ")}) by words, or list one server's. Returns each tool's name, what it does and its arguments; run one with ${MCP_CALL}.`,
+      description: `Find tools of the owner's MCP servers (${servers.join(", ")}) by words, or list one server's. Returns each tool's name, what it does and its arguments; run one with ${MCP_CALL}. To open a server's editor from chat, link apx:resources/mcp/NAME (apx-mcps explains exact scopes).`,
       args: z.object({
         query: z.string().max(200).optional().describe("words for what you want to do"),
         server: z.string().max(64).optional().describe("only this server; without a query, lists all its tools"),

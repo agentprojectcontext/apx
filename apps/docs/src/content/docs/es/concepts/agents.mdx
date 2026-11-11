@@ -111,7 +111,7 @@ and follow up until they close. When a decision needs the owner, ask once, clear
 | `description` | Para qué está el agente. También se pone delante de las instrucciones cuando el cuerpo no lo dice. |
 | `icon` | El blobo del agente (`orbita`, `menta`, `cobalto`…). |
 | `emoji` | Un emoji opcional que se guarda con el agente (los archivos de otras herramientas suelen traer uno). |
-| `parent` | El agente al que reporta, por su slug (o su id completo). Si no está, reporta a Home. |
+| `parent` | El agente al que reporta, por su slug (o su id completo). Si no está, reporta a Home. APX le dice al agente a quién responde y su `area`, así sus instrucciones nunca necesitan nombrar personas. |
 | `area` | El área a la que pertenece, para el organigrama (`product`, `engineering`…). |
 | `autonomy` | Su modo de permisos: `manual`, `auto` (por defecto), `accept_edits`, `plan` o `total`. Mirá [Autonomía y seguridad](/es/concepts/autonomy/). |
 | `personality` | Cómo suena, aparte de lo que hace. Hasta 1.000 caracteres. |
@@ -176,7 +176,8 @@ Cambiá campos con pares `clave=valor` (`name`, `role`, `slug`, `parent`, `blob`
 
 <Terminal command="apx agents set 3f9a1c0d7e21-vera parent=lucia blob=cobalto">{`Vera (3f9a1c0d7e21-vera) · vera · Marketing`}</Terminal>
 
-Archivá uno. Su archivo pasa a `.apc/agents/.archived/` (nunca se borra) y sus chats quedan:
+Archivá uno. Su archivo pasa a `.apc/agents/.archived/` (nunca se borra) y sus chats quedan. Un agente que responde
+un canal se archiva recién cuando elegís quién responde ese canal en su lugar:
 
 <Terminal command="apx agents archive 3f9a1c0d7e21-vera">{`archived; file moved to ~/work/acme-store/.apc/agents/.archived/vera.md`}</Terminal>
 
@@ -202,6 +203,11 @@ La pestaña **Agentes** dibuja tu equipo de dos maneras:
 
 - **Jerarquía**: un árbol armado con el `parent:` de cada agente. Los que no tienen parent reportan a Home.
 - **Áreas y roles**: los agentes agrupados por su `area:`, con las áreas y roles del proyecto.
+
+Las instrucciones de un agente son para su oficio: cómo trabaja y qué revisa. A quién responde y qué puede publicar lo
+dice APX. Para revisar que ninguna instrucción de tus agentes siga frenando el trabajo (personas nombradas como jefes,
+"no pushees salvo autorización", aprobaciones que tiene que dar un revisor), pedile a tu super-agente "Revisá las
+instrucciones de mis agentes": te dice qué cambiaría en cada uno y no cambia nada hasta que digas que sí.
 
 <Shot name="org" alt="La vista Areas and roles: áreas Product, Engineering y Growth con sus roles y agentes" caption="Agentes › Áreas y roles" />
 
@@ -234,9 +240,12 @@ recibió al principio; si todavía está trabajando, la nueva pregunta queda apa
 La respuesta vuelve en el mismo turno si es rápida, o más tarde como un turno nuevo que despierta a quien la pidió. El
 chat muestra una tarjeta con el avance, el informe completo (plegado hasta que lo abrís) y cuánto tardó.
 
-Un agente al que le delegan no contesta "ya voy" primero: hace el trabajo y responde una sola vez, terminando
-siempre con las mismas cuatro líneas (Status: done o blocked, Result, Evidence: lo que mostraron sus herramientas,
-Unblock: lo que necesita, o none). Nunca le devuelve la tarea a quien se la pidió. Con vos, los agentes contestan
+Un agente al que le delegan no contesta "ya voy" primero: hace el trabajo hasta donde llegan sus herramientas y
+responde una sola vez, terminando siempre con las mismas cuatro líneas (Status: done, partial o blocked, Result,
+Evidence: lo que mostraron sus herramientas, Unblock: lo que necesita, o none). Partial es que hizo una parte y dice
+qué falta; blocked, que ya no hay nada a su alcance, como un acceso, un login o una decisión tuya, después de
+intentarlo. Nunca le devuelve la tarea a quien se la pidió. En su propia tarea un agente no reporta así: la tarea, la
+respuesta de un compañero o una revisión que le llega ahí es trabajo con el que sigue hasta cerrarla. Con vos, los agentes contestan
 directo, sin repetir tu pregunta.
 
 Cuando un agente le pide algo a dos o más ayudantes en el mismo turno, sus respuestas le llegan juntas: cada tarjeta

@@ -82,6 +82,8 @@ export function spawnCommand(
   command: string,
   o: { cwd: string; env: Record<string, string>; stdio: StdioOptions },
 ): ChildProcess {
+  // Reject before PowerShell encodes the command and hides null bytes from Node's argument validation.
+  if (command.includes("\0")) throw new TypeError("The command must be a string without null bytes.");
   const sh = commandShell();
   return spawn(sh.file, sh.args(command), {
     cwd: o.cwd,

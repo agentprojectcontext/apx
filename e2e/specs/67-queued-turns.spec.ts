@@ -12,7 +12,7 @@ test("a queued delegation result shows, named, with its chat's working turn in t
   if (!agent) throw new Error("Missing super-agent");
   const root = await rpc<Thread>("threads.create", { kind: "loose", agent_id: agent.id, title: "Parity audit" });
   await page.setViewportSize({ width: 1920, height: 1080 });
-  await open(page, `#thread=${root.id}&panel=processes`);
+  await open(page, `#thread=${root.id}&panel=agents`);
   // Other specs share this core and may leave chats working or waiting: the popover's counts are read as a change.
   const tabs = page.locator(".running__tabs .running__tabn");
   await page.locator("button.running").click();
@@ -26,7 +26,7 @@ test("a queued delegation result shows, named, with its chat's working turn in t
   const side = page.getByRole("complementary", { name: "Panel lateral" });
   // The chat's own turn, the result queued behind it; the helper's conversation is over.
   await expect(side.getByText("Activos (2)")).toBeVisible();
-  await expect(side.locator(".processes__row.is-own")).toContainText("Trabajando");
+  await expect(side.locator(".agents__row.is-own")).toContainText("En curso");
   await expect(side.locator(".turns__row")).toHaveCount(1);
   await expect(side.locator(".turns__row")).toContainText("Resultado de Scout");
   await expect(side.locator(".turns__row")).toContainText("En cola");

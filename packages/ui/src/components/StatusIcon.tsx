@@ -1,4 +1,4 @@
-import { Check, Circle, X } from "lucide-react";
+import { Check, Clock, X } from "lucide-react";
 import { cx } from "../cx";
 import { Spinner } from "./Spinner";
 
@@ -10,7 +10,7 @@ export interface StatusIconProps {
   className?: string;
 }
 
-/** Tiny state glyph for steps and tool calls: ✓ done, spinner running, ✕ failed, ○ pending. */
+/** Tiny state glyph for steps and tool calls: ✓ done, spinner running, ✕ failed, a clock for pending. */
 export function StatusIcon({ status, size = 14, className }: StatusIconProps) {
   const cls = cx("apx-status", `is-${status}`, className);
   if (status === "running")
@@ -28,7 +28,7 @@ export function StatusIcon({ status, size = 14, className }: StatusIconProps) {
   if (status === "pending")
     return (
       <span className={cls}>
-        <Circle size={size - 3} strokeWidth={2} />
+        <Clock size={size - 2} strokeWidth={2} />
       </span>
     );
   return (

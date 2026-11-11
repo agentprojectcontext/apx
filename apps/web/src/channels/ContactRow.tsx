@@ -1,9 +1,10 @@
-import type { ChannelType, Person, Thread } from "@apx/protocol";
-import { Icons, Tooltip } from "@apx/ui";
-import type { ReactNode } from "react";
+import type { Agent, ChannelType, Person, Thread } from "@apx/protocol";
+import { Tooltip } from "@apx/ui";
 import { shortWhen } from "../common/format.ts";
 import type { PresenceState } from "../data/channels.ts";
-import { type MessageKey, useT } from "../i18n/index.ts";
+import { useT } from "../i18n/index.ts";
+import { AnswersLine } from "./AnswererFace.tsx";
+import { ContactFlags, useContactFlags } from "./flags.tsx";
 import { PersonAvatar } from "./PersonAvatar.tsx";
 import { initials, RELATION_KEY } from "./people.ts";
 
@@ -41,52 +42,12 @@ export function ContactFace({
   );
 }
 
-const PERM_FLAGS: Array<{ key: keyof Person["perms"]; icon: ReactNode; label: MessageKey }> = [
-  { key: "appointments", icon: <Icons.Calendar size={12} />, label: "ch.perm.appointments" },
-  { key: "requests", icon: <Icons.ListChecks size={12} />, label: "ch.perm.requests" },
-  { key: "notes", icon: <Icons.BookOpen size={12} />, label: "ch.perm.notes" },
-];
-
-const hasFlags = (p: Person | undefined) =>
-  Boolean(p && (p.muted || p.supervised || p.rules?.trim() || Object.values(p.perms).some(Boolean)));
-
-/** What is set for a contact, as small marks: silenced, rules of their own, and each thing their chat may do. */
-function ContactFlags({ person }: { person: Person | undefined }) {
-  const t = useT();
-  if (!person || !hasFlags(person)) return null;
-  const flags = [
-    // Someone who wrote first stays silenced until the owner reviews them.
-    ...(person.muted
-      ? [
-          {
-            key: "muted",
-            icon: <Icons.BellOff size={12} />,
-            label: t(person.unreviewed ? "ch.unreviewed" : "ch.muted"),
-          },
-        ]
-      : []),
-    ...(person.supervised ? [{ key: "supervised", icon: <Icons.Eye size={12} />, label: t("ch.supervised") }] : []),
-    ...(person.rules?.trim() ? [{ key: "rules", icon: <Icons.FileText size={12} />, label: t("ch.flag.rules") }] : []),
-    ...PERM_FLAGS.filter((f) => person.perms[f.key]).map((f) => ({ key: f.key, icon: f.icon, label: t(f.label) })),
-  ];
-  return (
-    <span className="chan__flags">
-      {flags.map((f) => (
-        <Tooltip key={f.key} content={f.label}>
-          <span className="chan__flag" role="img" aria-label={f.label}>
-            {f.icon}
-          </span>
-        </Tooltip>
-      ))}
-    </span>
-  );
-}
-
 export function ContactRow({
   row,
   type,
   channelId,
   presence,
+  agent,
   selected,
   onPick,
 }: {
@@ -94,6 +55,8 @@ export function ContactRow({
   type: ChannelType;
   channelId: string;
   presence: PresenceState | undefined;
+  /** Who answers them here: their own agent, or the account's. */
+  agent: Agent | undefined;
   selected: boolean;
   onPick(): void;
 }) {
@@ -102,6 +65,7 @@ export function ContactRow({
   const name = person?.name ?? thread?.title ?? "";
   const relation = person?.relation ? t(RELATION_KEY[person.relation]) : undefined;
   const unread = thread?.unread ?? 0;
+  const flags = useContactFlags(person, channelId);
   return (
     <li>
       <button
@@ -122,12 +86,10 @@ export function ContactRow({
             </span>
             {unread > 0 && <span className="chan__unread">{unread}</span>}
           </span>
-          {(relation || hasFlags(person)) && (
-            <span className="chan__rowtop">
-              <span className="chan__rel">{relation}</span>
-              <ContactFlags person={person} />
-            </span>
-          )}
+          <span className="chan__rowtop chan__rowanswer">
+            <AnswersLine className="chan__rel" lead={[relation]} agent={agent} />
+            <ContactFlags flags={flags} />
+          </span>
         </span>
       </button>
     </li>

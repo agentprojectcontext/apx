@@ -128,12 +128,12 @@ test("Google Calendar's reminders are its own settings: off, 30 minutes ahead an
   assert.deepEqual(list.find((i) => i.id === "gmail")?.settings, ["mail", "signature"]);
   assert.equal(list.find((i) => i.id === "github")?.settings, undefined, "nothing to configure, no settings");
   const read = () => env.client.call("integrations.settings", { id: "google-calendar" });
-  assert.deepEqual(await read(), { reminders: { enabled: false, lead_min: 30, every_min: 5 } });
+  assert.deepEqual(await read(), { reminders: { enabled: false, lead_min: 30, every_min: 5 }, muted: [] });
   await env.client.call("integrations.configure", { id: "google-calendar", reminders: { enabled: true } });
   await env.client.call("integrations.configure", { id: "google-calendar", reminders: { lead_min: 1440 } });
   assert.deepEqual(
     await read(),
-    { reminders: { enabled: true, lead_min: 1440, every_min: 5 } },
+    { reminders: { enabled: true, lead_min: 1440, every_min: 5 }, muted: [] },
     "a field left out keeps its value",
   );
   assert.deepEqual(env.core.store.settings.read("calendar_reminders"), { enabled: true, lead_min: 1440, every_min: 5 });
@@ -145,9 +145,37 @@ test("Google Calendar's reminders are its own settings: off, 30 minutes ahead an
   assert.deepEqual(await env.client.call("integrations.settings", { id: "github" }), {});
   assert.deepEqual(
     await read(),
-    { reminders: { enabled: true, lead_min: 1440, every_min: 5 } },
+    { reminders: { enabled: true, lead_min: 1440, every_min: 5 }, muted: [] },
     "a refused change changes nothing",
   );
+});
+
+test("an event's series is muted from its reminder notice, listed in Calendar's settings and unmuted there", async () => {
+  const store = env.core.store;
+  store.notifications.add({ kind: "due", level: "info", title: "Merienda", body: "At 17:00", ref: "event:merienda" });
+  const muted = await env.client.call("integrations.mute_event", {
+    series: "merienda",
+    title: "Merienda",
+    muted: true,
+  });
+  assert.deepEqual(
+    muted.muted?.map((m) => [m.series, m.title]),
+    [["merienda", "Merienda"]],
+  );
+  assert.equal(
+    store.notifications.list({ unreadOnly: true, limit: 50 }).some((n) => n.ref === "event:merienda"),
+    false,
+    "its open notice leaves the tray",
+  );
+  await env.client.call("integrations.mute_event", { series: "merienda", muted: true });
+  const read = await env.client.call("integrations.settings", { id: "google-calendar" });
+  assert.deepEqual(
+    read.muted?.map((m) => [m.series, m.title]),
+    [["merienda", "Merienda"]],
+    "muting again keeps one entry and its title",
+  );
+  const back = await env.client.call("integrations.mute_event", { series: "merienda", muted: false });
+  assert.deepEqual(back.muted, []);
 });
 
 test("Gmail's mail check is its own setting: off, every 5 minutes and any mail until the owner changes it", async () => {

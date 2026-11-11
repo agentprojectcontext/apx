@@ -15,6 +15,7 @@ export {
   CHANNEL_DEFAULTS,
   CHECK_EVERY,
   CHROME_VIA,
+  channelKindRules,
   DAILY_MEMORY_CALLS,
   DOCUMENT_MAX_BYTES,
   ErrorCode,
@@ -49,6 +50,7 @@ function clientDeadline(method: string, params: unknown, fallback: number): numb
   if (method === "environments.control") return 20_000;
   if (method === "environments.command") return 60_000;
   if (method === "engines.usage") return 35_000;
+  if (method === "channels.email_history") return 100_000;
   if (method === "browser.handoff") return ((params as { timeout_s?: number })?.timeout_s ?? 300) * 1000 + 20_000;
   if (method === "browser.import_cookies") return 130_000;
   // Opening a tab in the owner's Chrome may start Chrome first and wait for its extension (the server: about 30 s).
@@ -68,6 +70,8 @@ function clientDeadline(method: string, params: unknown, fallback: number): numb
   if (method === "models.list") return 150_000;
   // Summarizing waits on an auxiliary model call of up to 90 s.
   if (method === "threads.compact") return 120_000;
+  // A side question waits on one model call of up to 60 s.
+  if (method === "threads.aside") return 75_000;
   // A homelab GPU may queue an image for minutes (the server gives up at 11); speech at 2.
   if (method === "media.image") return 12 * 60_000;
   if (method === "media.speak") return 150_000;

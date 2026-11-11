@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { notify } from "../../data/notices.ts";
 import { cloneAgents, installTemplates, loadTemplates } from "../../data/team.ts";
 import { useT } from "../../i18n/index.ts";
-import { scheduleText } from "../../routines/Schedule.tsx";
+import { scheduleText } from "../../routines/scheduleText.ts";
 import { CloneFromProject } from "./CloneFromProject.tsx";
 
 type Templates = { teams: TeamTemplate[]; singles: AgentTemplate[] };

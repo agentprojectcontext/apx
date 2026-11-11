@@ -70,8 +70,12 @@ test("dream reads the correction's evidence and retries unknown identifiers befo
     env.core.store.settings.set("memory_dream_snapshot:superagent:", legacyFingerprint);
     await env.client.call("memory.set_settings", { mode: "notes", auto_dream: true, auto_compact: false });
     await env.client.call("memory.maintenance", { dream: true });
-    await waitFor(() => env.core.store.memoryWork.recent().some((j) => j.kind === "dream" && !!j.error));
-    const job = env.core.store.memoryWork.recent().find((j) => j.kind === "dream");
+    await waitFor(() =>
+      env.core.store.memoryWork
+        .recent()
+        .some((j) => j.kind === "dream" && !j.id.startsWith("dream:shared:") && !!j.error),
+    );
+    const job = env.core.store.memoryWork.recent().find((j) => j.kind === "dream" && !j.id.startsWith("dream:shared:"));
     assert.ok(job);
     assert.deepEqual(JSON.parse(job.result ?? "{}"), {});
     assert.equal(env.core.store.memories.get(old.id)?.forgotten_at, undefined);

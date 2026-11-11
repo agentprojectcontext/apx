@@ -1,4 +1,4 @@
-/* ── Inbox views: tree (1b) and activity (1c) ──────────────────────────────── */
+/* ── Inbox rows: tabs, the rows under a chat, task and routine (SessionRow) ─── */
 .inbox__views {
   display: flex;
   width: 100%;
@@ -6,49 +6,6 @@
 .inbox__views .apx-segmented__item {
   flex: 1;
   justify-content: center;
-}
-.tree__project {
-  padding: 6px 4px 10px;
-}
-.tree__projecthead {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 6px 8px;
-  font-size: var(--apx-text-xs);
-  font-weight: var(--apx-weight-medium);
-  color: var(--apx-fg-subtle);
-}
-.tree__unreaddot {
-  width: 6px;
-  height: 6px;
-  margin: 0 5px;
-  border-radius: 50%;
-  background: var(--apx-fg);
-}
-.tree__unreadlist {
-  display: flex;
-  flex-direction: column;
-}
-.tree__agent {
-  padding: 2px 0 6px;
-}
-.tree__agenthead {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  width: 100%;
-  padding: 4px 8px;
-  border: 0;
-  border-radius: var(--apx-radius-sm);
-  background: none;
-  color: inherit;
-  font: inherit;
-  text-align: left;
-  cursor: pointer;
-}
-.tree__agenthead:hover {
-  background: var(--apx-fill);
 }
 .tree__code,
 .tree__routine {
@@ -62,24 +19,9 @@
   align-items: center;
   gap: 4px;
 }
-.tree__agentname {
-  font-size: var(--apx-text-sm);
-  font-weight: var(--apx-weight-semibold);
-}
 .tree__agentmeta {
   font-size: var(--apx-text-xs);
   color: var(--apx-fg-subtle);
-}
-.tree__channel .tree__agentname {
-  font-weight: normal;
-  flex: 1;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.tree__channel .tree__agentmeta {
-  flex: none;
 }
 .tree__sessions {
   display: flex;
@@ -97,8 +39,10 @@
   align-items: center;
   gap: 6px;
   min-width: 0;
-  height: 30px;
+  height: 28px;
   padding: 0 8px;
+  /* Two lit rows next to each other stay apart. */
+  margin-block: 1px;
   border: 0;
   border-radius: var(--apx-row-radius);
   background: transparent;
@@ -106,13 +50,10 @@
   font-size: var(--apx-text-sm);
   cursor: pointer;
 }
-.tree__session:hover,
-.activity__row:hover {
+.tree__session:hover {
   background: var(--apx-fill-hover);
 }
-.tree__session.is-selected,
-.tree__channel.is-selected,
-.activity__row.is-selected {
+.tree__session.is-selected {
   background: var(--apx-row-selected-bg);
   box-shadow: inset 0 0 0 1px var(--apx-row-selected-border);
 }
@@ -120,41 +61,16 @@
   flex: none;
   font-weight: var(--apx-weight-medium);
 }
+/* A task and its unfolded sessions read as one group, with room before the next task. */
 .taskbundle {
-  padding: 2px 0 6px;
+  padding: 0 0 4px;
 }
-.taskbundle__head {
-  display: flex;
-  align-items: center;
-  gap: 2px;
+.taskbundle:has(> .tree__sessions) {
+  padding-bottom: 10px;
 }
-.taskbundle__task {
-  display: flex;
-  flex: 1;
-  align-items: center;
-  gap: 6px;
-  min-width: 0;
-  height: 30px;
-  padding: 0 8px 0 4px;
-  border: 0;
-  border-radius: var(--apx-row-radius);
-  background: none;
-  color: inherit;
-  font: inherit;
-  font-size: var(--apx-text-sm);
-  text-align: left;
-  cursor: pointer;
-}
-.taskbundle__task:hover {
-  background: var(--apx-fill-hover);
-}
-.taskbundle__chevron {
-  flex: none;
-  color: var(--apx-fg-subtle);
-}
-/* The guide line of the task's chats runs down from its chevron. */
+/* The guide line of the task's other sessions runs down from under its face. */
 .taskbundle .tree__sessions {
-  margin-left: 11px;
+  margin-left: 22px;
 }
 /* A chat's delegated chats: a chevron before its row folds them; they hang from a guide line under it. */
 .delegated__head {
@@ -214,6 +130,36 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+/* A routine's runs grouped as one row (Inbox list, tree and activity views). */
+.taskbundle__head {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+.taskbundle__task {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  height: 30px;
+  padding: 0 8px 0 4px;
+  border: 0;
+  border-radius: var(--apx-row-radius);
+  background: none;
+  color: inherit;
+  font: inherit;
+  font-size: var(--apx-text-sm);
+  text-align: left;
+  cursor: pointer;
+}
+.taskbundle__task:hover {
+  background: var(--apx-fill-hover);
+}
+.taskbundle__chevron {
+  flex: none;
+  color: var(--apx-fg-subtle);
+}
 .taskbundle__icon {
   flex: none;
   color: var(--apx-fg-subtle);
@@ -271,66 +217,27 @@
   color: var(--apx-fg-subtle);
   cursor: pointer;
 }
-.activity__group {
-  padding: 6px 4px 8px;
-}
-.activity__label {
-  padding: 6px 8px;
-  font-size: var(--apx-text-xs);
-  font-weight: var(--apx-weight-medium);
-  color: var(--apx-fg-subtle);
-}
-.activity__row {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  width: 100%;
-  padding: 7px 8px;
-  border: 0;
-  border-radius: var(--apx-row-radius);
-  background: transparent;
-  text-align: left;
-  cursor: pointer;
-}
-.activity__body {
-  display: flex;
-  flex: 1;
-  flex-direction: column;
-  min-width: 0;
-  gap: 2px;
-}
-.activity__title {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  min-width: 0;
-  font-size: var(--apx-text-sm);
-  font-weight: var(--apx-weight-medium);
-}
-.activity__text,
-.activity__meta {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.activity__meta {
-  display: flex;
-  align-items: center;
-  gap: 5px;
-  font-size: var(--apx-text-xs);
-  color: var(--apx-fg-subtle);
-}
-.activity__side {
-  display: flex;
-  flex: none;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: 4px;
-}
 /* Unread: bold, after the plain rules it overrides. */
-.tree__session.is-unread .tree__sessiontitle,
-.tree__channel.is-unread .tree__agentname,
-.activity__row.is-unread .activity__text {
+.tree__session.is-unread .tree__sessiontitle {
   font-weight: var(--apx-weight-semibold);
   color: var(--apx-fg);
+}
+/* A channel account's chats together: its row, then its chats hanging from the shared branch line. */
+.channelbundle__face {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+}
+.channelbundle:has(> .channelbundle__chats) {
+  padding-bottom: 6px;
+}
+/* Its chats are two-line rows: the line drops from under the channel's mark and each elbow reaches a chat's face. */
+.channelbundle__chats {
+  --apx-branch-mid: 26px;
+  padding-left: 13px;
+}
+.channelbundle .channelbundle__chats > :last-child::before {
+  width: 16px;
 }

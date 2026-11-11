@@ -14,7 +14,7 @@ import { worksInFolder } from "../domain/threads.ts";
 import { errorMessage } from "../errors.ts";
 import type { TurnIO } from "../harness/index.ts";
 import { MCP_CALL, MCP_SEARCH, unwrapCall } from "../tools/mcp-bridge.ts";
-import { authorize, decide, keepsCard, sessionGate } from "../tools/policy.ts";
+import { authorize, type Decision, decide, keepsCard, modeOf, sessionGate } from "../tools/policy.ts";
 import { cap, UNTRUSTED_MARK } from "../tools/result.ts";
 import { commandRisk } from "../tools/shell.ts";
 import type { CheckContext, Confirm, ScopedThread, Tool, ToolContext } from "../tools/types.ts";
@@ -67,6 +67,33 @@ async function precheck(tool: Tool, args: Record<string, unknown>, ctx: CheckCon
   } catch (err) {
     return failure(err);
   }
+}
+
+/** Longest the check of where a call acts may take: past it the owner's card is shown as before. */
+const HERE_CHECK_MS = 5000;
+
+/**
+ * In Auto, a call that acts only on a page this computer serves runs unasked: no more than a command the agent may
+ * already run there. The node checks the page again as it acts (DECISIONS.md#d-212).
+ */
+async function onThisComputer(
+  tool: Tool,
+  args: Record<string, unknown>,
+  agent: AgentRecord,
+  untrusted: boolean,
+  asked: Decision,
+  signal: AbortSignal,
+  call: ToolContext["call"],
+): Promise<Decision | undefined> {
+  if (asked.kind !== "confirm" || modeOf(agent) !== "auto" || tool.confirm(args) !== "untrusted") return undefined;
+  const stop = AbortSignal.any([signal, AbortSignal.timeout(HERE_CHECK_MS)]);
+  if (!tool.onThisComputer || stop.aborted) return undefined;
+  const local = await Promise.race([
+    tool.onThisComputer(args, { agent, call }).catch(() => false),
+    new Promise<false>((resolve) => stop.addEventListener("abort", () => resolve(false), { once: true })),
+  ]);
+  const here = local ? authorize(tool, args, agent, untrusted, "never") : undefined;
+  return here?.kind === "allow" ? here : undefined;
 }
 
 /** How much of a call the confirmation card shows: the owner must see everything they approve. */
@@ -283,7 +310,11 @@ export function createExecutor(o: {
       return { ok: false, text: parsed.error };
     }
     const args = parsed.args;
-    const decision = authorize(tool, args, agent, untrusted);
+    const asked = authorize(tool, args, agent, untrusted);
+    const here = await onThisComputer(tool, args, agent, untrusted, asked, signal, (method, params) =>
+      o.call(method, params, { run, callId }),
+    );
+    const decision = here ?? asked;
     if (decision.kind === "deny") {
       card("error", "turned off");
       return {
@@ -434,6 +465,7 @@ export function createExecutor(o: {
       // Only the tool's own work stops for the owner's words; their cards above still answer to the turn.
       signal: step ? AbortSignal.any([signal, step]) : signal,
       untrusted: () => untrusted,
+      ...(here ? { onThisComputer: true as const } : {}),
       ...(o.inView ? { inView: () => o.inView as ReadonlySet<string> } : {}),
       approvalFor: (n) => byName.get(n)?.approval,
       approvalTools: () => [...byName.values()].filter((t) => t.approval).map((t) => t.name),

@@ -77,6 +77,20 @@ const entry = (id: string, since = "2.7.3"): NewsEntry => ({
   ],
 });
 
+test("contextual connection news only reaches owners with a private MCP server", () => {
+  const entry = NEWS.find((item) => item.id === "mcp-context");
+  assert.ok(entry);
+  const { store, done } = setup();
+  try {
+    assert.equal(entry.applies(newsFacts(store)), false);
+    store.settings.set("mcp_servers", JSON.stringify({ mcpServers: { acme: { url: "https://example.com/mcp" } } }));
+    assert.equal(entry.applies(newsFacts(store)), true);
+    assert.equal(newsFacts(store).mcp, 1);
+  } finally {
+    done();
+  }
+});
+
 test("compacting the chats' file is told only while a big store keeps its free space", async () => {
   const compact = NEWS.find((item) => item.id === "store-compact");
   assert.ok(compact);
@@ -216,6 +230,33 @@ test("an upgrade with one entry that applies runs one capped, toolless call and 
     assert.equal(llm.calls.length, 1, "told once");
   } finally {
     done();
+  }
+});
+
+test("the offer names the buttons as the owner sees them, in their language", async () => {
+  const spanish = setup({ entries: [entry("a")] });
+  try {
+    ownerWrote(spanish.store);
+    await spanish.news.atBoot("2.7.2");
+    const input = String(spanish.llm.calls[0]?.messages.at(-1)?.content);
+    assert.match(input, /then offer: "Hacer a", "Otro a"\./);
+    assert.doesNotMatch(input, /"Do a"/);
+    assert.deepEqual(
+      spanish.notices[0]?.body.buttons?.map((b) => b.label),
+      ["Hacer a", "Otro a"],
+    );
+  } finally {
+    spanish.done();
+  }
+  const english = setup({ entries: [entry("a")] });
+  try {
+    english.store.settings.set("owner_language", "en");
+    ownerWrote(english.store);
+    await english.news.atBoot("2.7.2");
+    const input = String(english.llm.calls[0]?.messages.at(-1)?.content);
+    assert.match(input, /then offer: "Do a", "Other a"\./);
+  } finally {
+    english.done();
   }
 });
 
@@ -421,6 +462,29 @@ test("more integrations reach an owner who connected one; new channels an owner 
     } as const;
     store.settings.write("channels", [{ ...telegram, strangers: "pair", concurrency: "steer", owner_thread: "home" }]);
     assert.equal(applies("more-channels"), true);
+  } finally {
+    done();
+  }
+});
+
+test("the prompt review is offered to an owner whose agents have instructions of their own, with its skill", () => {
+  const { store, done } = setup();
+  try {
+    const review = NEWS.find((item) => item.id === "agent-prompts");
+    assert.ok(review);
+    store.agents.upsert({ id: "plain", name: "Plain", role: "Helper", kind: "agent", browser_profile: "shared" });
+    assert.equal(review.applies(newsFacts(store)), false, "no agent with a prompt of its own");
+    store.agents.upsert({
+      id: "dev",
+      name: "Dev",
+      role: "Developer",
+      kind: "agent",
+      browser_profile: "shared",
+      prompt: "You report to Ana. Do not push unless authorized.",
+    });
+    assert.equal(review.applies(newsFacts(store)), true);
+    assert.match(review.text, /load_skill apx-agent-prompts/);
+    assert.match(review.text, /Change nothing until the owner says yes/);
   } finally {
     done();
   }

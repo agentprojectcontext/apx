@@ -5,6 +5,7 @@ import "../styles/usage.css";
 import { refreshUsage, useUsage } from "../data/usage.ts";
 import { type DesktopMemory, homeDisk, type ProcessRow, processRows, ramSplit, size } from "../data/usageModel.ts";
 import { type T, usePack, useT } from "../i18n/index.ts";
+import { BarShowChoice } from "./BarShowChoice.tsx";
 import { go, useNav } from "./nav.ts";
 import { UsageLoading as Loading } from "./UsageLoading.tsx";
 
@@ -46,6 +47,7 @@ function Summary({ onClose }: { onClose: () => void }) {
         {t("sysUsage.openFull")}
         <Icons.ChevronRight size={14} />
       </button>
+      <BarShowChoice pref="resourcesBar" />
     </div>
   );
 }

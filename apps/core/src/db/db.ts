@@ -2,6 +2,7 @@
 import path from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import { defaultHome, legacyHome } from "../config.ts";
+import { reconcileHotfixLineage } from "./migration-hotfix.ts";
 import { reconcileMigrationLineage } from "./migration-lineage.ts";
 import { MIGRATIONS } from "./migrations.ts";
 
@@ -72,6 +73,7 @@ function migrate(db: Db, home: string): void {
     throw new Error("Unsupported database schema_version; keep the data and use a matching program version");
   }
   version = reconcileMigrationLineage(db, home, version);
+  version = reconcileHotfixLineage(db, home, version);
   for (const [i, sql] of MIGRATIONS.entries()) {
     if (i < version) continue;
     db.exec("BEGIN");

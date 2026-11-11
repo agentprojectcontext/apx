@@ -33,3 +33,17 @@ export function htmlPreviewDoc(html: string, nonce: string, opts: { scripts?: bo
 addEventListener("load",size);document.addEventListener("DOMContentLoaded",size);if(window.ResizeObserver)new ResizeObserver(size).observe(document.documentElement);})();</script>`;
   return injectSurfaceHead(html, head);
 }
+
+const ENTITIES: Record<string, string> = { amp: "&", lt: "<", gt: ">", quot: '"', "#39": "'", nbsp: " " };
+
+/** What an HTML block calls itself, for its frame's header: its `<title>`, else its first heading, as plain text. */
+export function htmlTitle(html: string): string | undefined {
+  const found =
+    /<title[^>]*>([\s\S]*?)<\/title>/i.exec(html)?.[1] ?? /<h([1-3])[^>]*>([\s\S]*?)<\/h\1>/i.exec(html)?.[2];
+  const text = found
+    ?.replace(/<[^>]*>/g, "")
+    .replace(/&(amp|lt|gt|quot|#39|nbsp);/g, (_, e: string) => ENTITIES[e] ?? "")
+    .replace(/\s+/g, " ")
+    .trim();
+  return text ? text.slice(0, 120) : undefined;
+}

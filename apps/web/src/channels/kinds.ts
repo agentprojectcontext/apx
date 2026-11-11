@@ -1,3 +1,4 @@
+import type { ChannelInfo } from "@apx/protocol";
 import type { MessageKey } from "../i18n/index.ts";
 
 /**
@@ -20,7 +21,7 @@ export const CHANNEL_KINDS = {
   nextcloud: { name: "channel.nextcloud.name", text: "channel.nextcloud.text", tone: "info", soon: false },
   irc: { name: "channel.irc.name", text: "channel.irc.text", tone: "neutral", soon: false },
   twitch: { name: "channel.twitch.name", text: "channel.twitch.text", tone: "violet", soon: false },
-  // Both deliver only to a webhook: they need the public address (Settings › Channels, in their own screen).
+  // Both deliver only to a webhook: they need the public address (shown in their account settings, and in Settings › Devices).
   teams: { name: "channel.teams.name", text: "channel.teams.text", tone: "violet", soon: false },
   line: { name: "channel.line.name", text: "channel.line.text", tone: "brand", soon: false },
 } as const satisfies Record<string, { name: MessageKey; text: MessageKey; tone: string; soon: boolean }>;
@@ -29,3 +30,45 @@ export type ChannelKind = keyof typeof CHANNEL_KINDS;
 export const CHANNEL_KIND_IDS = Object.keys(CHANNEL_KINDS) as ChannelKind[];
 
 export const isChannelKind = (v: string): v is ChannelKind => Object.hasOwn(CHANNEL_KINDS, v);
+
+/** The kinds whose account lists rooms or groups the agent reads and may speak in. */
+const ROOMS_KINDS = [
+  "discord",
+  "telegram",
+  "whatsapp",
+  "googlechat",
+  "nextcloud",
+  "irc",
+  "twitch",
+  "teams",
+  "line",
+] as const;
+export type RoomsKind = (typeof ROOMS_KINDS)[number];
+export const isRoomsKind = (k: string): k is RoomsKind => (ROOMS_KINDS as readonly string[]).includes(k);
+
+/** What the app's people call its shared places: WhatsApp's groups, Google Chat's spaces, Discord's rooms. */
+export type RoomsWord = "groups" | "spaces" | "rooms";
+const WORD: Readonly<Record<string, RoomsWord>> = {
+  whatsapp: "groups",
+  telegram: "groups",
+  line: "groups",
+  signal: "groups",
+  googlechat: "spaces",
+};
+export const roomsWord = (kind: string): RoomsWord => WORD[kind] ?? "rooms";
+
+const OPEN_KEY = {
+  groups: "ch.groups.open",
+  spaces: "ch.spaces.open",
+  rooms: "ch.rooms.open",
+} as const satisfies Record<RoomsWord, MessageKey>;
+const ONE_KEY = { groups: "ch.card.group", spaces: "ch.card.space", rooms: "ch.card.room" } as const satisfies Record<
+  RoomsWord,
+  MessageKey
+>;
+
+/** The button to an account's rooms, in the app's word ("Groups", "Spaces", "Rooms"). */
+export const roomsOpenKey = (kind: string): MessageKey => OPEN_KEY[roomsWord(kind)];
+
+/** One group's or room's chat, in the app's word ("Group", "Space", "Room"). */
+export const roomWord = (channel: ChannelInfo): MessageKey => ONE_KEY[roomsWord(channel.type)];

@@ -7,7 +7,7 @@ import type { ProviderConfig } from "../config.ts";
 import { createSecrets } from "../secrets.ts";
 import { toAnthropic } from "./anthropic-messages.ts";
 import { createLlm, retryWait } from "./llm.ts";
-import { ProviderError, resetOf } from "./types.ts";
+import { limitKind, ProviderError, resetOf } from "./types.ts";
 
 const home = fs.mkdtempSync(path.join(os.tmpdir(), "apx-llm-"));
 const secrets = createSecrets(home, "file", {});
@@ -552,6 +552,49 @@ test("a key to fix is told as such, even when another model hit a limit; a short
   assert.equal(new ProviderError("rate_limit", "HTTP 429: slow down").limit, true, "unsaid: may be long");
 });
 
+test("a request a backup model refuses does not hide the first model's limit: the work waits for its reset", async () => {
+  const reset = new Date(Math.ceil(Date.now() / 1000) * 1000 + 3600_000);
+  const llm = createLlm({
+    providers: () => providers,
+    secrets,
+    firstByteMs: 1000,
+    retryDelayMs: 5,
+    fetchImpl: (async (_url: string, init: RequestInit) => {
+      const model = (JSON.parse(String(init.body)) as { model: string }).model;
+      if (model === "m1")
+        return new Response(
+          JSON.stringify({ error: { type: "usage_limit_reached", resets_at: Math.floor(reset.getTime() / 1000) } }),
+          { status: 429 },
+        );
+      return new Response("Function call is missing a thought_signature", { status: 400 });
+    }) as typeof fetch,
+  });
+  const err = await llm
+    .complete({ models: ["pa/m1", "pb/m3"], messages: [], tools: [], signal: new AbortController().signal })
+    .then(
+      () => undefined,
+      (e: unknown) => e,
+    );
+  assert.ok(err instanceof ProviderError);
+  assert.ok(
+    err.limit,
+    `a limit, so the stopped turn resumes at the reset; got ${err instanceof Error ? err.message : err}`,
+  );
+  assert.equal(err.resetsAt, reset.toISOString());
+  assert.match(err.message, /pb\/m3: .*thought_signature/);
+
+  // With no model at its limit, the refusal is what the chain ends with.
+  const alone = await llm
+    .complete({ models: ["pb/m3"], messages: [], tools: [], signal: new AbortController().signal })
+    .then(
+      () => undefined,
+      (e: unknown) => e,
+    );
+  assert.ok(alone instanceof ProviderError);
+  assert.equal(alone.kind, "bad_request");
+  assert.equal(alone.limit, false);
+});
+
 test("a chain that fails for other reasons only is not a usage limit", async () => {
   const llm = createLlm({
     providers: () => providers,
@@ -594,6 +637,20 @@ test("a 429's reset is read from Retry-After or the body, and an implausible one
   assert.equal(resetOf("You exceeded your current quota", undefined, now), undefined);
   assert.equal(resetOf(JSON.stringify({ resets_at: 1 }), undefined, now), undefined, "long past");
   assert.equal(resetOf(JSON.stringify({ resets_at: "2027-03-02T10:00:00Z" }), undefined, now), undefined, "a year out");
+});
+
+test("a pause to slow down is told apart from a plan that is out, in every wording providers use", () => {
+  // OpenAI's standard pause says "limit reached" too: it is a wait of seconds, not the plan's limit.
+  assert.equal(
+    limitKind("rate_limit_exceeded Rate limit reached for gpt-5 in organization org-x. Try again in 2s."),
+    "rate_limit",
+  );
+  assert.equal(limitKind("Too many requests, slow down"), "rate_limit");
+  assert.equal(limitKind("usage_limit_reached The usage limit has been reached"), "quota");
+  assert.equal(limitKind("You exceeded your current quota, please check your plan and billing details."), "quota");
+  assert.equal(limitKind("You have exceeded your monthly included credits"), "quota");
+  assert.equal(limitKind("insufficient_quota"), "quota");
+  assert.equal(limitKind("The image you provided requires 70161 patches, exceeding the limit of 30000."), undefined);
 });
 
 test("a request the plan refuses is not its usage limit: the model is asked again next turn; the plan's limit holds it", async () => {

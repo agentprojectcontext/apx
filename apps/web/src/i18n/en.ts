@@ -1,6 +1,11 @@
 import { noticeEn } from "@apx/protocol/notices";
+import type { enAccount } from "./account-en.ts";
+import type { enActivityReview } from "./activity-review-en.ts";
 import type { ApprovalKey } from "./approvals-en.ts";
 import type { BrowserEditKey } from "./browser-edit-en.ts";
+import { enChannelsSlim } from "./channels-slim-en.ts";
+import { enChatSlim } from "./chat-slim-en.ts";
+import { enComposerSlim } from "./composer-slim-en.ts";
 import type { ComputerKey } from "./computer-en.ts";
 import { enChannels } from "./en-channels.ts";
 import { enChat } from "./en-chat.ts";
@@ -9,22 +14,35 @@ import { enEngines } from "./en-engines.ts";
 import { enFiles } from "./en-files.ts";
 import { enHelper } from "./en-helper.ts";
 import { enOffice } from "./en-office.ts";
-import { enResources } from "./en-resources.ts";
-import { enSetup } from "./en-setup.ts";
-import { enTeam } from "./en-team.ts";
+import type { enResources } from "./en-resources.ts";
+import type { enSetup } from "./en-setup.ts";
+import type { enTeam } from "./en-team.ts";
 import { enTelemetry } from "./en-telemetry.ts";
+import { enFilesArtifacts } from "./files-artifacts-en.ts";
 import type { enFlow } from "./flow-en.ts";
+import { enInboxSlim } from "./inbox-slim-en.ts";
 import type { enIngress } from "./ingress-en.ts";
 import type { enMove } from "./move-en.ts";
+import { enPanelAgents } from "./panel-agents-en.ts";
+import { enPanelTabs } from "./panel-tabs-en.ts";
+import { enProjectSlim } from "./project-slim-en.ts";
 import type { ReceivedKey } from "./received-en.ts";
+import { enResourcesShared } from "./resources-shared-en.ts";
+import { enRoutineChat } from "./routine-chat-en.ts";
 import type { enSecretary } from "./secretary-en.ts";
+import { enSectionPages } from "./section-pages-en.ts";
+import { enSetupShared } from "./setup-shared-en.ts";
+import { enShellSlim } from "./shell-slim-en.ts";
 import type { enSignIn } from "./signin-en.ts";
 import type { enStorage } from "./storage-en.ts";
 import type { SysUsageKey } from "./sysusage-en.ts";
+import { enTeamShared } from "./team-shared-en.ts";
 import type { enThreadDialogs } from "./thread-dialogs-en.ts";
+import { enTopbar } from "./topbar-en.ts";
 
 // UI strings, English: the source of truth. Every key lives here; `{name}` placeholders are filled by t().
 export const en = {
+  "config.activityReview": "Activity review",
   "panel.computer": "Computer",
   "panel.computer.hint": "See the agent's Linux computer",
   "computer.screen": "Live VM desktop",
@@ -46,14 +64,26 @@ export const en = {
   ...noticeEn,
   ...enHelper,
   ...enOffice,
-  ...enTeam,
+  ...enTeamShared,
   ...enChannels,
-  ...enSetup,
+  ...enSetupShared,
   ...enChat,
+  ...enChatSlim,
   ...enFiles,
-  ...enResources,
+  ...enFilesArtifacts,
+  ...enResourcesShared,
   ...enEngines,
   ...enTelemetry,
+  ...enRoutineChat,
+  ...enSectionPages,
+  ...enTopbar,
+  ...enShellSlim,
+  ...enComposerSlim,
+  ...enPanelTabs,
+  ...enPanelAgents,
+  ...enProjectSlim,
+  ...enInboxSlim,
+  ...enChannelsSlim,
   "engineUsage.title": "AI quotas",
   "engineUsage.remaining": "{pct}% remaining",
   "engineUsage.primary": "Current window",
@@ -205,13 +235,19 @@ export const en = {
   "connection.connecting": "Connecting",
 
   // Topbar, sidebar, account
-  "topbar.location": "Location",
   "topbar.search": "Search or jump to…",
+  "server.label": "APX in use: {name}",
+  "server.local": "Local",
+  "server.offline": "Not connected",
+  "server.change": "Connect to another APX…",
   "update.pill": "Update · {n}",
   "update.pillVersion": "APX {v} · Update",
   "help.label": "Help",
   "help.labelNew": "Help · there is news",
+  "help.labelNewHint": "Help · there is news. Opening All the news marks it all as seen",
+  "help.moreUnread": "{n} more unread",
   "help.whatsNew": "What's new",
+  "help.unread": "New",
   "help.changelog": "All the news",
   "help.guides": "Guides",
   "help.discord": "Join Discord",
@@ -333,9 +369,30 @@ export const en = {
   "nav.inbox": "Inbox",
   "nav.tasks": "Tasks",
   "nav.flows": "Flows",
+  "nav.routines": "Routines",
+  "nav.newChat": "New chat",
+  "nav.showInSidebar": "Show in the sidebar",
+  "nav.showViews": "Views",
+  "nav.showSections": "Sections",
+  "nav.empty.apps": "No apps yet. Ask an agent to build one, or install one with the arrow.",
+  "nav.empty.sessions":
+    "No coding app found on this computer. Install Claude Code or Codex to see their sessions here.",
   "nav.itemOptions": "Options for {name}",
   "nav.open": "Open",
   "project.unregister": "Unregister project",
+  "project.newSub": "New subproject",
+  "project.detach": "Make it a project of its own",
+  "project.detached": "{name} is a project of its own now",
+  "project.moveUnder": "Move into",
+  "project.movedUnder": "{name} is now a subproject of {parent}",
+  "project.subOf": "Subproject of {name}",
+  "project.subHint":
+    "Works with the agents, skills, MCP servers and variables of {name}. Its chats, tasks, routines, artifacts, files and memory are its own.",
+  "project.new.inside": "Inside",
+  "project.new.insideNone": "None: a project of its own",
+  "project.new.inParent": "In its project's folder",
+  "project.new.subHint":
+    "A subproject uses the agents and resources of its project, so it needs no team of its own. Its memory, chats and files stay apart.",
   "project.unregisterTitle": "Unregister {name}?",
   "project.unregisterBody":
     "The folder and its files, chats and tasks are kept. Register it again to restore the project.",
@@ -357,6 +414,7 @@ export const en = {
   "project.new.inFolder": "In a folder",
   "project.new.noFolder": "No folder",
   "project.new.apxHint": "It is made inside APX's folder:",
+  "project.new.parentHint": "It is made inside its project's folder:",
   "project.new.example": "My project",
   "project.new.nameFromFolder": "The folder's",
   "project.new.path": "Folder",
@@ -395,7 +453,6 @@ export const en = {
   "running.label": "Processes",
   "running.aria": "{working} running, {waiting} waiting, {background} in the background",
   "running.tab.agents": "Agents",
-  "running.tab.background": "Background",
   "running.waitingForYou": "Waiting for you",
   "running.stop": "Stop",
   "running.stop.title": "Stop {agent}?",
@@ -446,10 +503,16 @@ export const en = {
 
   // Inbox and chat list
   "inbox.projectChats": "{project} chats",
-  "inbox.view": "How to list chats",
-  "inbox.view.tree": "Tree",
-  "inbox.view.activity": "Activity",
-  "inbox.view.chats": "By chat",
+  "inbox.tabs": "Show",
+  "inbox.tab.chats": "Chats",
+  "inbox.tab.tasks": "Tasks",
+  "inbox.tab.routines": "Routines",
+  "inbox.tabNews": "New messages",
+  "inbox.tabWorking": "Something is running",
+  "inbox.pinned": "Pinned",
+  "inbox.recent": "Recent",
+  "inbox.tabEmpty.tasks": "No task chats here yet",
+  "inbox.tabEmpty.routines": "No routine has run yet",
   "inbox.when.running": "In progress",
   "inbox.when.today": "Today",
   "inbox.when.yesterday": "Yesterday",
@@ -458,6 +521,15 @@ export const en = {
   "inbox.showMore": "Show {n} more",
   "inbox.showLess": "Show less",
   "inbox.taskBundle.chats": "{n} chats",
+  "inbox.taskBundle.agents": "{n} agents",
+  "tasks.row.pending": "To do",
+  "tasks.header.show": "See the task",
+  "tasks.header.hide": "Hide the task",
+  "tasks.header.task": "Task",
+  "tasks.header.session": "{name}'s session",
+  "tasks.header.sessions": "The task's sessions",
+  "tasks.header.noWords": "Nothing said yet",
+  "inbox.taskBundle.chatsOne": "1 chat",
   "inbox.taskBundle.open": "Show the task's chats",
   "inbox.taskBundle.close": "Hide the task's chats",
   "inbox.delegated.open": "Show the chats it delegated",
@@ -468,10 +540,27 @@ export const en = {
     "Coding session: the agent works inside the folder {folder} (reads, edits files and runs commands there)",
   "nav.externalSession": "External session",
   "thread.code": "Code",
-  "inbox.search": "Search chats",
   "inbox.filter": "Filter chats",
   "inbox.filter.show": "Show",
   "inbox.filter.routines": "Routine news",
+  "inbox.filter.on": "Filter chats ({n} chosen)",
+  "inbox.filter.agents": "Agents",
+  "inbox.filter.projects": "Projects",
+  "inbox.filter.clear": "Clear filters",
+  "inbox.filter.clearShort": "Clear",
+  "inbox.filter.none": "Nothing here matches the filter",
+  "inbox.filter.remove": "Stop filtering by {name}",
+  "inbox.filter.channels": "Channels",
+  "inbox.filter.noChannels": "No channel chats here yet",
+  "inbox.filter.byChannel": "Group chats by channel",
+  "inbox.channelBundle.chats": "{n} chats",
+  "inbox.channelBundle.open": "Show this channel's chats",
+  "inbox.channelBundle.close": "Hide this channel's chats",
+  "inbox.searchOpen": "Search chats",
+  "inbox.searchIn.chats": "Search chats",
+  "inbox.searchIn.tasks": "Search tasks",
+  "inbox.searchIn.routines": "Search routines",
+  "inbox.searchClose": "Close search",
   "inbox.markAllRead": "Mark all as read",
   "inbox.unread": "Unread",
   "inbox.offline.title": "Offline",
@@ -510,12 +599,10 @@ export const en = {
   "write.auto": "Edits freely",
   "write.read-only": "Read-only",
   "changes.title": "{n} uncommitted",
-  "changes.edited": "Files edited: {n}",
+  "changes.edited": "Files edited {n}",
   "changes.scratchEdited": "Files in the temp folder: {n}",
   "changes.scratch": "Chat's temp folder",
   "changes.scratchHint": "The agent's scratch work: not changes to your folders.",
-  "changes.heading.one": "Changes: {n} edited file",
-  "changes.heading.many": "Changes: {n} edited files",
   "changes.scope": "Choose changes",
   "changes.latest": "Last turn",
   "changes.all": "All turns",
@@ -529,8 +616,11 @@ export const en = {
   "chat.back": "Back to the chat",
   "chat.toList": "Back to the chats",
   "chat.hideTools": "Hide tools",
-  "chat.toolsHint": "Show or hide each step the agent took (tools it used, what they returned)",
   "chat.showTools": "Show tools",
+  "chat.roomCardOpen": "Open when the agent speaks here and the rules",
+  "chat.roomCardClose": "Close the card",
+  "chat.headerSuper": "{name} · Super-agent, in all your projects",
+  "chat.headerEngine": "{engine} · Direct session",
   "chat.pick.title": "Pick a chat",
   "chat.pick.body": "Or start a new one with your super-agent.",
   "chat.offline.title": "No connection to the core",
@@ -595,7 +685,6 @@ export const en = {
   "widget.toPanel": "Show in the side panel",
   "widget.inPanel": "Showing in the side panel",
   "widget.showHere": "Show here",
-  "widgets.all": "All widgets ({n})",
   "widgets.empty": "No widgets in this chat",
   "widgets.emptyBody":
     "Widgets the agent builds in this chat show here. Pin one to keep it on the project's board too.",
@@ -739,17 +828,16 @@ export const en = {
   "processes.done": "Finished ({n})",
   "processes.empty": "No subagents in this chat yet",
   "processes.maximize": "Open conversation full size",
-  "processes.back": "Back to chat processes",
   "processes.failed": "Could not load chat processes",
   "changes.reportedEmpty": "No changes reported in this chat",
   "panel.terminal": "Terminal",
   "panel.files": "Files",
-  "panel.widget": "Widget",
+  "panel.widget": "Artifacts",
   "panel.usage": "Usage",
   "panel.browser.hint": "Browser: the page your agent drives; you can take over",
   "panel.terminal.hint": "Terminal: the commands the agent ran, and your own shell in the folder",
   "panel.files.hint": "Files: the folder this chat works in",
-  "panel.widget.hint": "Widgets: what the agent built for you in this chat",
+  "panel.widget.hint": "Artifacts: what the agent built for you in this chat",
   "panel.usage.hint": "Usage: tokens and cost of this chat",
   "panel.side": "Side panel",
   "panel.close": "Close panel",
@@ -786,6 +874,7 @@ export const en = {
   "terminal.stopped": "Stopped",
   "terminal.exit": "Exited with {code}",
   "terminal.done": "Done",
+  "terminal.startFailed": "Could not start",
   "terminal.background": "Background",
   "terminal.stop": "Stop",
   "terminal.exitedLine": "[the terminal ended with {code}]",
@@ -932,6 +1021,12 @@ export const en = {
   "overview.now": "Now",
   "overview.nothingRunning": "Nothing running in this project.",
   "overview.team": "Agents",
+  "overview.subprojects": "Subprojects",
+  "overview.otherSubs": "Other subprojects of {name}",
+  "overview.subUses": "Uses the agents of {name}",
+  "overview.subOwn": "Own agents and those of {name}",
+  "overview.fromParent": "From {name}",
+  "overview.noSubs": "Split a project into parts that share its agents: a website, an app, a client.",
   "overview.agentsCount.one": "1 agent",
   "overview.agentsCount.other": "{n} agents",
   "overview.noAgents": "This project has no agents of its own yet.",
@@ -1104,6 +1199,8 @@ export const en = {
   "appearance.textSize": "Text size",
   "appearance.textSizeHint":
     "Interface and chat text on this device. 100% is normal. Images, embedded apps, terminals and browser zoom stay unchanged.",
+  "appearance.compact": "Compact sidebar",
+  "appearance.compactHint": "Each section is one row and its items open beside it. In a short window it stays compact.",
   "appearance.font": "Interface font",
   "appearance.fontHint": "Menus, sidebars and panels.",
   "appearance.fontLabel": "Font",
@@ -1305,13 +1402,26 @@ export const en = {
     "The auxiliary model selects exact owner quotes. Memories stay private to this agent and project.",
   "mem.auto_dream": "AutoDream",
   "mem.auto_dream.hint":
-    "Once a day after new work, review equivalent private notes and combine duplicates. Conflicts stay separate; changes can be undone.",
+    "Once a day, tidies each agent's notebook and the notes a project or your agents share: merges duplicates and retires what a newer note corrects. Your own notes stay as they are; changes can be undone.",
   "mem.dailyCalls": "Daily memory call limit",
   "mem.dailyCalls.hint":
     "Capture and AutoDream share this limit. Each call has bounded input and output; token use appears in Usage. Zero pauses model calls.",
   "mem.backfill": "Review earlier chats",
   "mem.dreamNow": "Review duplicates now",
-  "mem.job.completed": "Completed",
+  "mem.job.capture": "Memories from {agent}",
+  "mem.job.notebook": "{agent}'s notebook",
+  "mem.job.sharedProject": "Notes shared in {place}",
+  "mem.job.sharedGlobal": "Notes about you",
+  "mem.job.waitBudget": "Waits for tomorrow's limit",
+  "mem.job.waitAgent": "Waits for {agent} to finish",
+  "mem.job.waitModel": "Waits for a memory model",
+  "mem.job.saved": "Notes saved: {n}",
+  "mem.job.nothingNew": "Nothing new to save",
+  "mem.job.merged": "Duplicates merged: {n}",
+  "mem.job.retired": "Outdated retired: {n}",
+  "mem.job.redated": "Dated: {n}",
+  "mem.job.unchanged": "Checked, nothing to change",
+  "mem.job.tooMany": "No change: too many to retire",
   "mem.job.failed": "Failed",
   "mem.job.working": "Working",
   "mem.job.pending": "Waiting",
@@ -1358,6 +1468,9 @@ export const en = {
   "memory.notebookOf": "{name}'s notebook",
   "memory.byYou": "By you",
   "memory.byAgent": "An agent",
+  "memory.fromV1": "Brought over from APX v1",
+  "memory.fromV1Hint":
+    "It came with what you imported from the previous version. It may be out of date: your agents use it only when it comes up and may correct it. Edit it to vouch for it.",
   "memory.edit": "Edit note",
   "memory.remove": "Remove note",
   "error.memory": "Memory: {error}",
@@ -1373,14 +1486,15 @@ export const en = {
   "memory.lead.forgotten": "Notes you or an agent forgot. No agent sees them; bring one back or delete it for good.",
   "memory.empty.forgotten": "Nothing forgotten.",
   "memory.pending": "To confirm",
-  "memory.pendingHint": "An agent learned this about you. It only stands in every chat once you confirm it.",
+  "memory.pendingHint":
+    "An agent learned this about you. Until you confirm it, your agents use it only when it comes up.",
+  "memory.pendingBar":
+    "{n} to confirm: what your agents learned about you. Once confirmed, every agent keeps them in mind in every chat.",
   "memory.confirm": "Confirm",
+  "memory.confirmAll": "Confirm all",
   "memory.origin": "Open the chat",
   "memory.restore": "Bring back",
   "memory.deleteForever": "Delete for good",
-  "memory.tainted": "From outside content",
-  "memory.taintedHint":
-    "Saved with outside content in the chat. Agents read it as data, not as your word; edit it to vouch for it.",
   "tg.step1": "In Telegram, open @BotFather, send /newbot and follow the steps.",
   "tg.step2": "Paste the token it gives you below and pick who answers.",
   "tg.step3": "Write to your bot: it replies with a code. Type it below in “This is my Telegram”.",
@@ -1634,58 +1748,10 @@ export const en = {
   "common.more": "More",
   "svc.modelWhisperCppHint":
     "The ggml model file. APX starts whisper.cpp when a voice note arrives and stops it after 10 minutes unused. It needs whisper.cpp and ffmpeg installed.",
-  "rooms.title": "Server rooms",
-  "rooms.lead":
-    "The rooms of your server where the bot reads and may speak. A room not on the list does not exist for APX. There it answers in public and sealed: no memory and nothing of yours, also when you write; at most it searches the web, as “Search the web” says.",
-  "rooms.mode": "Mode of {room}",
   "rooms.mode.mention": "When called",
   "rooms.mode.useful": "When useful",
   "rooms.mode.always": "Always",
   "rooms.mode.read": "Read only",
-  "rooms.modeHint.mention": "Answers when someone says its name, @mentions it or replies to it.",
-  "rooms.modeHint.useful":
-    "Also when nobody calls it: a cheap model reads each message and answers only if it is worth it, by your criterion below.",
-  "rooms.modeHint.always": "Answers every message, within the room's limits.",
-  "rooms.modeHint.read": "Never answers; it keeps what is said so your agents can read it.",
-  "rooms.remove": "Remove {room}",
-  "rooms.name": "Room name",
-  "rooms.namePlaceholder": "general",
-  "rooms.id": "Room id",
-  "rooms.idPlaceholder": "Channel id (123456789012345678)",
-  "rooms.add": "Add room",
-  "rooms.pick": "Add a room from the server…",
-  "rooms.allListed": "Every room of the server is listed",
-  "rooms.byId": "Add by ID",
-  "rooms.cannotWrite": "Cannot write",
-  "rooms.cannotWriteHint": "The bot may read but not post here: give its role “Send messages” in this room on Discord.",
-  "rooms.idHint":
-    "In Discord, turn on Developer Mode (Settings › Advanced) and right-click the channel › Copy Channel ID.",
-  "rooms.names": "What calls it",
-  "rooms.namesHint": "Words that count as calling it, besides an @mention or a reply to it. Comma-separated.",
-  "rooms.ownerOnly": "Answers only you",
-  "rooms.ownerOnlyHint": "In rooms it reads everyone but answers only you.",
-  "rooms.knowledge": "What it knows and can answer",
-  "rooms.knowledgeHint": "Your notes for that community: what the project is, where the docs are. They are public.",
-  "rooms.rules": "Rules",
-  "rooms.rulesHint": "What it must never say or do there. They go last and win over everything else.",
-  "rooms.replyWhen": "When an answer is worth it",
-  "rooms.replyWhenHint": "For “When useful” rooms: a cheap model reads each uncalled message and decides by this.",
-  "rooms.limits": "Limits",
-  "rooms.limitsHint": "So it does not answer too much in a busy room. They do not apply to you.",
-  "rooms.cooldown": "Seconds between answers to one person",
-  "rooms.perHour": "Answers per hour in a room",
-  "rooms.tg.title": "Groups",
-  "rooms.tg.lead":
-    "The Telegram groups where the bot reads and may speak. A group not on the list does not exist for APX. There it answers in public and sealed: no memory and nothing of yours, also when you write; at most it searches the web, as “Search the web” says.",
-  "rooms.tg.privacy":
-    "To read every message of a group, turn off the bot's Group Privacy in @BotFather (/mybots › Bot Settings › Group Privacy), then remove the bot from the group and add it again. With it on, Telegram only hands the bot messages that @mention it or reply to it.",
-  "rooms.tg.pick": "Add a group the bot is in…",
-  "rooms.tg.allListed": "Every group the bot was seen in is listed",
-  "rooms.tg.none": "No groups yet: add the bot to a group or write there",
-  "rooms.tg.namePlaceholder": "Team",
-  "rooms.tg.idPlaceholder": "Group id (-1001234567890)",
-  "rooms.tg.idHint":
-    "Telegram cannot list a bot's groups: one shows up here once the bot is added to it or someone writes there while it runs.",
   "dc.step1": "In the Discord Developer Portal, create an application and open Bot.",
   "dc.step2": "Turn on Message Content Intent, then Reset Token and copy it.",
   "dc.step3": "Under Installation, add the bot to your account (or to a server you are in), so you can write to it.",
@@ -1801,7 +1867,7 @@ export const en = {
     "On: its news always arrives, even at night or past the daily cap (for a morning or evening brief). Off: it goes through your interruption budget.",
   "nudge.where": "Chat app for notices",
   "nudge.whereHint":
-    "The app and your paired phones always get them (pair one in Devices). Pick a chat app to get them there too, or none.",
+    "The app and your paired phones always get them (pair one in Devices). Pick one of the chat accounts your super-agent answers to get them there too, or none.",
   "nudge.whereAuto": "The first channel that knows you",
   "nudge.whereNone": "None, only in the app",
   "devices.push.expo": "Push",
@@ -1876,6 +1942,8 @@ export const en = {
 /** Every key the panel may show: these, and those of the packs loaded with their screens (messages.ts PACKS). */
 export type MessageKey =
   | keyof typeof en
+  | keyof typeof enAccount
+  | keyof typeof enActivityReview
   | ApprovalKey
   | BrowserEditKey
   | ComputerKey
@@ -1888,4 +1956,7 @@ export type MessageKey =
   | keyof typeof enThreadDialogs
   | keyof typeof enIngress
   | keyof typeof enFlow
-  | keyof typeof enSecretary;
+  | keyof typeof enSecretary
+  | keyof typeof enSetup
+  | keyof typeof enTeam
+  | keyof typeof enResources;

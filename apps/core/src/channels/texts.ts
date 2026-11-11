@@ -10,6 +10,8 @@ const es = {
     `${name} quiere hablar por ${label} (código ${code}). Aprobalo en la lista de ${label}.`,
   askOwner: (name: string, label: string, text: string) =>
     `${name} te escribió por ${label}${text ? `: «${text}»` : "."} ¿Le contesto?`,
+  mailArrived: (name: string, label: string, subject: string, line: string) =>
+    `Correo de ${name} en ${label}\n${subject || "(sin asunto)"}${line ? `\n${line}` : ""}`,
   wroteFirst: (name: string, label: string, text: string) =>
     `${name} te escribió por ${label}${text ? `: «${text}»` : "."} No le contesto: quedó como contacto sin revisar.`,
   answering: (name: string, label: string) => `${name} te escribió por ${label}: le contesto como contacto nuevo.`,
@@ -45,6 +47,8 @@ const es = {
   stickerMissing: (words: string, where: string) =>
     `No mandé el sticker «${words}» en ${where}: no tengo uno guardado de este canal que diga eso. No se envió nada.`,
   tooMany: (name: string) => `${name} escribe mucho seguido: pausé sus respuestas automáticas por una hora.`,
+  accountCap: (label: string) =>
+    `${label} llegó al tope de respuestas por hora: los mensajes de sus contactos quedan sin contestar hasta que se libere.`,
   roomCap: (room: string) =>
     `Llegué al tope de respuestas por hora en ${room}: sigo leyendo, contesto cuando se libere.`,
   roomFailed: (room: string, why: string) => `No pude responder en ${room}: ${why}`,
@@ -107,6 +111,8 @@ const en: typeof es = {
     `${name} wants to talk on ${label} (code ${code}). Approve it in the ${label} list.`,
   askOwner: (name, label, text) => `${name} wrote to you on ${label}${text ? `: "${text}"` : "."} Shall I answer?`,
   answering: (name, label) => `${name} wrote to you on ${label}: I'm answering them as a new contact.`,
+  mailArrived: (name, label, subject, line) =>
+    `Mail from ${name} on ${label}\n${subject || "(no subject)"}${line ? `\n${line}` : ""}`,
   wroteFirst: (name, label, text) =>
     `${name} wrote to you on ${label}${text ? `: "${text}"` : "."} I'm not answering: they're kept as an unreviewed contact.`,
   answer: "Answer them",
@@ -141,6 +147,8 @@ const en: typeof es = {
   stickerMissing: (words, where) =>
     `I didn't send the sticker "${words}" in ${where}: I have none kept from this channel that says that. Nothing was sent.`,
   tooMany: (name) => `${name} is writing a lot in a row: I paused their automatic answers for an hour.`,
+  accountCap: (label) =>
+    `${label} hit its hourly cap of answers: its contacts' messages wait unanswered until it frees up.`,
   roomCap: (room) => `I hit the hourly cap of answers in ${room}: I keep reading and answer once it frees up.`,
   roomFailed: (room, why) => `I couldn't answer in ${room}: ${why}`,
   notHandled: (name, why) => `I couldn't handle a message from ${name}: ${why}`,

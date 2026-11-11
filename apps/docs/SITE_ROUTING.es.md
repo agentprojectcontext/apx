@@ -59,3 +59,7 @@ Los enlaces de descarga (los botones y tarjetas de Inicio y el botón de descarg
 La dependencia explícita `@astrojs/sitemap` reutiliza la integración ya requerida por Starlight. Se declara directamente para configurar filtros e idiomas mediante su API soportada, excluyendo compatibilidad sin modificar XML generado ni depender de imports transitivos.
 
 Docs impact: updated — este archivo, su versión inglesa, README y las guías bilingües de comparativas explican las nuevas rutas y límites. Sin cambios de core, protocolo, estado privado ni autorización.
+
+## Quién es APX, para los buscadores
+
+`src/data/brand.ts` tiene la definición de APX en una línea y sus perfiles públicos. El home publica una `Organization` (`https://apxagent.app/#organization`) cuyo `sameAs` lista cada perfil, y el `SoftwareApplication` y el `WebSite` la señalan como editora. `/about/` y `/es/about/` repiten la definición, los datos y los perfiles como `AboutPage`. Los íconos sociales del pie salen de la misma lista. Cuando exista un perfil público nuevo (una ficha en un directorio, una cuenta social), agregalo a `PROFILES`; las fichas y las bios arrancan con la misma definición.

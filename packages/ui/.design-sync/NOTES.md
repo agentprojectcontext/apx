@@ -1,5 +1,7 @@
 # design-sync notes — @apx/ui
 
+- SegmentedControl accepts `disabled` for the whole radio group, including keyboard interaction; preserve it on re-sync.
+
 - Claude Design project: "APX UI" (`adfa91bc-fe19-4d97-a98e-d968b4457ebe`), first synced 2026-09-30 with 38 components, all authored and graded good. Re-syncs take the atomic path: fetch `_ds_sync.json` into `.design-sync/.cache/remote-sync.json`, then run `resync.mjs --remote …`.
 
 - Config home is `apx-v2/packages/ui` (the DS package itself). Run everything from there.

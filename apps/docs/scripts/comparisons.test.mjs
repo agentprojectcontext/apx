@@ -65,6 +65,15 @@ test("comparison copy preserves platform, scheduling and execution distinctions"
   assert.ok(openclaw.rowSources[5].includes("https://docs.openclaw.ai/automation/cron-jobs"));
 });
 
+test("Manus comparison distinguishes local execution from cloud planning", () => {
+  const manus = comparisons.find((item) => item.slug === "manus");
+  assert.ok(manus.rowSources[2].includes("https://manus.im/docs/features/desktop"));
+  assert.match(manus.rows[2].en, /Work locally.*computer.*plans in the cloud/);
+  assert.match(manus.rows[2].es, /Work locally.*computadora.*planifica en la nube/);
+  assert.match(manus.detail.en, /local execution.*cloud planning/);
+  assert.match(manus.detail.es, /ejecución local.*planificación en la nube/);
+});
+
 test("GitHub evidence is pinned and license copy preserves exceptions", () => {
   assert.match(checked, /^\d{4}-\d{2}-\d{2}$/);
   const sources = [

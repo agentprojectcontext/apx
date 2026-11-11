@@ -33,7 +33,7 @@ test("topbar preserves counters and quotas until its actual controls no longer f
   await expect(page.getByTestId("usage-button")).toHaveAccessibleName(/Sistema|Recursos del sistema/);
 
   // Opening a menu must not count its invisible focus guards as overflowing controls.
-  await page.locator(".topbar__agent").click();
+  await page.getByRole("button", { name: /^Cuenta/ }).click();
   await expect(page.getByRole("menu")).toBeVisible();
   await expect(right).toHaveAttribute("data-fit", "0");
   await expect(quota).toBeVisible();
@@ -58,6 +58,17 @@ test("topbar preserves counters and quotas until its actual controls no longer f
       await expect(page.locator(".usage-btn__gauge")).toBeVisible();
     }
   }
+  // On a phone-width bar the "more" menu lives inside the row: its focus guards must not change the density either.
+  await page.setViewportSize({ width: 600, height: 900 });
+  await expect(page.locator(".topbar__more")).toBeVisible();
+  // Equal reads can still be the previous wide layout: wait for the phone's measured density.
+  const fit = "4";
+  await expect(right).toHaveAttribute("data-fit", fit);
+  await page.locator(".topbar__more").click();
+  await expect(page.getByRole("menu")).toBeVisible();
+  await expect(right).toHaveAttribute("data-fit", fit);
+  await page.keyboard.press("Escape");
+  await expect(page.getByRole("menu")).toHaveCount(0);
   await page.setViewportSize({ width: 1440, height: 900 });
 
   // The same viewport can need a compact layout when native controls occupy the right edge.

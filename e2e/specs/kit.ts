@@ -120,6 +120,14 @@ export const world = {
     presence: (jid: string, online: boolean) => post(`${phone}/presence`, { jid, online }),
     /** Someone puts an emoji on the last message sent to them ("": takes it off). */
     react: (from: { phone: string; name: string }, emoji: string) => post(`${phone}/react`, { from, emoji }),
+    /** The line is added to a group (`announce`: only admins may write there). */
+    joinGroup: (group: string, subject: string, announce = false) =>
+      post(`${phone}/group/join`, { group, subject, announce }),
+    /** Someone writes in a group (`mention`: they @mention the line). */
+    inGroup: (from: { phone: string; name: string }, group: string, text: string, mention = false) =>
+      post(`${phone}/group/message`, { from, group, text, mention }),
+    /** The owner types in a group on the line's phone. */
+    ownerInGroup: (group: string, text: string) => post(`${phone}/group/owner`, { group, text }),
     sentTo: async (jid: string) =>
       (
         (await (await fetch(`${phone}/sent?jid=${encodeURIComponent(jid)}`)).json()) as {
@@ -158,6 +166,7 @@ export const test = base.extend<{
   welcome: boolean;
   desktopInstallNotice: boolean;
   diskWarning: boolean;
+  compactSidebar: boolean;
 }>({
   // The corner cards and the welcome cover what sits under them, so they start closed unless a spec is about them.
   cornerCards: [false, { option: true }],
@@ -165,7 +174,15 @@ export const test = base.extend<{
   desktopInstallNotice: [false, { option: true }],
   // The machine running the tests may be short of disk: its warning card stays out unless a spec is about it.
   diskWarning: [false, { option: true }],
-  page: async ({ page, cornerCards, welcome, desktopInstallNotice, diskWarning }, use) => {
+  // The sidebar is compact by default (each section one row); specs list its items inline unless one is about the compact one.
+  compactSidebar: [false, { option: true }],
+  page: async ({ page, cornerCards, welcome, desktopInstallNotice, diskWarning, compactSidebar }, use) => {
+    if (!compactSidebar) {
+      await cardSidebar(page);
+      // Below 760px of height the panel folds the sidebar whatever the choice (devices['Desktop Chrome'] is 720).
+      const size = page.viewportSize();
+      if (size && size.height < 800) await page.setViewportSize({ width: size.width, height: 800 });
+    }
     if (!diskWarning) {
       const gb = 1024 ** 3;
       await page.route("**/rpc/storage.status", (route) =>
@@ -213,7 +230,24 @@ export const test = base.extend<{
 });
 export { expect };
 
+/**
+ * What the sidebar calls the emulated accounts: the name their app gives them (the fake phone's WhatsApp profile, the
+ * fake bot's name), since a name that only repeats the app's says nothing its icon does not.
+ */
+export const ACCOUNT_NAME = { whatsapp: "Acme line", telegram: "Acme Desk", discord: "@apx_test_bot" } as const;
+
 /** Opens the panel (the setup wizard stays closed unless a test wants it). */
+/** The sidebar's sections as cards (the compact sidebar folds each into one row): set before `open`. */
+export async function cardSidebar(page: Page) {
+  await page.addInitScript(() => {
+    // It also runs in sandboxed widget frames, which have no storage.
+    try {
+      const prefs = JSON.parse(localStorage.getItem("apx.prefs") ?? "{}");
+      localStorage.setItem("apx.prefs", JSON.stringify({ ...prefs, sidebarCompact: false }));
+    } catch {}
+  });
+}
+
 export async function open(page: Page, hash = "") {
   await page.goto(`/${hash}`);
   await expect(page.getByRole("button", { name: "Inbox" })).toBeVisible();

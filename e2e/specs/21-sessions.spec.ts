@@ -14,21 +14,19 @@ test("right-click a session: pin it to the top, rename it, archive and unarchive
   await open(page);
   const menuItem = (name: string) => page.getByRole("menuitem", { name });
 
-  // Tree: pinning moves the session to the top of its agent's list, with a pin on it.
-  const branch = page.locator(".tree__agent", { hasText: "Sesión Beta" });
-  await expect(branch.locator(".tree__session").first()).toContainText("Sesión Beta");
-  await branch.locator(".tree__session", { hasText: "Sesión Alfa" }).click({ button: "right" });
-  await menuItem("Fijar arriba").click();
-  await expect(branch.locator(".tree__session").first()).toContainText("Sesión Alfa");
-  await expect(branch.locator(".tree__session").first().getByRole("img", { name: "Fijado" })).toBeVisible();
-
-  // Activity: pinned chats lead the list.
-  await page.getByRole("radio", { name: "Actividad" }).click();
-  await expect(page.locator(".activity__row").first()).toContainText("Sesión Alfa");
-
-  // By chat: rename through the menu's dialog; an empty name goes back to the automatic title.
-  await page.getByRole("radio", { name: "Por chat" }).click();
+  // Pinning moves the session above the newer one, with a pin on it.
   const row = (text: string) => page.locator(".inbox__list .apx-convrow", { hasText: text });
+  const order = async () => (await page.locator(".inbox__list .apx-convrow").allTextContents()).join("|");
+  await expect(row("Sesión Beta")).toBeVisible();
+  expect(await order()).toMatch(/Sesión Beta.*Sesión Alfa/);
+  await row("Sesión Alfa").click({ button: "right" });
+  await menuItem("Fijar arriba").click();
+  await expect.poll(order).toMatch(/Sesión Alfa.*Sesión Beta/);
+  await expect(
+    page.locator(".inboxsec").filter({ hasText: "Fijados" }).locator(".apx-convrow", { hasText: "Sesión Alfa" }),
+  ).toBeVisible();
+
+  // Rename through the menu's dialog; an empty name goes back to the automatic title.
   await row("Sesión Alfa").click({ button: "right" });
   await menuItem("Renombrar").click();
   const rename = page.getByRole("dialog", { name: "Renombrar chat" });
@@ -47,12 +45,14 @@ test("right-click a session: pin it to the top, rename it, archive and unarchive
   await row("Sesión Alfa").click({ button: "right" });
   await menuItem("Archivar").click();
   await expect(row("Sesión Alfa")).toBeHidden();
-  await page.getByRole("button", { name: /Archivados/ }).click();
-  const archived = page.locator(".inbox__archived .apx-convrow", { hasText: "Sesión Alfa" });
+  await page.locator(".inboxsec__toggle", { hasText: "Archivados" }).click();
+  const archived = page.locator(".inboxsec", { hasText: "Archivados" }).locator(".apx-convrow", {
+    hasText: "Sesión Alfa",
+  });
   await expect(archived).toBeVisible();
   await archived.click({ button: "right" });
   await menuItem("Desarchivar").click();
-  await expect(page.locator(".inbox__archived")).toHaveCount(0);
+  await expect(page.locator(".inboxsec__toggle", { hasText: "Archivados" })).toHaveCount(0);
   await expect(row("Sesión Alfa")).toBeVisible();
 
   // Delete asks first, then the chat is gone for good.

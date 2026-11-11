@@ -11,6 +11,8 @@ export type InboxAction =
   | { kind: "rerun"; routine: string }
   /** A delegated session a limit stopped: one more turn. */
   | { kind: "continue"; session: string }
+  /** A calendar event's reminders stop, for it and the rest of its series. */
+  | { kind: "muteEvent"; series: string; title: string }
   | { kind: "dismiss" };
 
 /** One card in the inbox: something an agent or the office is waiting on the owner for. */
@@ -135,6 +137,20 @@ function noticeItem(
       secondary: failed && routine ? { label: "view", action: open } : { label: "done", action: { kind: "dismiss" } },
     };
   }
+  // A calendar event's reminder names its series: it can be told never to come again.
+  if (notice.kind === "due" && notice.ref?.startsWith("event:"))
+    return {
+      ...base,
+      label: "inboxEvent",
+      tone: "info",
+      context: ctx(name),
+      icon: "Calendar",
+      primary: { label: "done", action: { kind: "dismiss" } },
+      secondary: {
+        label: "muteEvent",
+        action: { kind: "muteEvent", series: notice.ref.slice("event:".length), title: notice.title },
+      },
+    };
   if (notice.kind === "task" || notice.kind === "due") {
     const task = data.tasks.find((item) => item.id === notice.ref);
     const blocked = notice.kind === "task";

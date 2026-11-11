@@ -11,8 +11,13 @@ test.beforeAll(async () => {
 test("the chat list resizes from its edge and never folds away; an icon button says what it does", async ({ page }) => {
   await open(page);
   await expect(page.getByRole("button", { name: "Plegar la lista" })).toHaveCount(0);
-  await page.getByRole("button", { name: /herramientas/ }).hover();
-  await expect(page.getByText(/cada paso del agente/)).toBeVisible();
+  // The chat's icon buttons are named on hover; the tools switch lives in its "Más" menu.
+  const more = page.getByRole("button", { name: "Más", exact: true });
+  await more.hover();
+  await expect(page.locator(".apx-tooltip[data-open]")).toHaveText("Más");
+  await more.click();
+  await expect(page.getByRole("menuitem", { name: "Mostrar herramientas" })).toBeVisible();
+  await page.keyboard.press("Escape");
 
   const handle = page.getByRole("separator", { name: "Cambiar el ancho de la lista" });
   const before = await handle.getAttribute("aria-valuenow");

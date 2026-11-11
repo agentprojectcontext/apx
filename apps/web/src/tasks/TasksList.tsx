@@ -8,26 +8,20 @@ import {
   Icons,
   ProjectTile,
   SegmentedControl,
+  Select,
   Spinner,
 } from "@apx/ui";
 import { type CSSProperties, type ReactNode, useEffect, useMemo, useState } from "react";
 import { aheadLabel, dueLabel, shortWhen } from "../common/format.ts";
-import { SearchSelect } from "../common/pickers/SearchSelect.tsx";
+import { ProjectSelect } from "../common/ProjectSelect.tsx";
 import { useLongPressDrag } from "../common/useLongPressDrag.ts";
-import {
-  blobOf,
-  DEFAULT_PID,
-  inProject,
-  projectEntries,
-  projectInitial,
-  projectName,
-  projectTone,
-} from "../data/identity.ts";
+import { blobOf, DEFAULT_PID, inProject, projectEntries, projectName, projectTone } from "../data/identity.ts";
 import { setPrefs, usePrefs } from "../data/prefs.ts";
 import { useData } from "../data/state.ts";
 import { taskChatIds } from "../data/taskChats.ts";
 import { loadTasks, useTasks } from "../data/tasks.ts";
 import { type MessageKey, type T, useT } from "../i18n/index.ts";
+import { ProjectEmpty } from "../project/ProjectEmpty.tsx";
 import { nav, useNav } from "../shell/nav.ts";
 import { AcceptProposals } from "./AcceptProposals.tsx";
 import { CommitmentMeta } from "./Commitments.tsx";
@@ -102,6 +96,8 @@ export function TasksList({
   const ready = useTasks((s) => s.ready);
   const runs = useData((s) => s.runs);
   const [kind, setKind] = useState<Kind>("all");
+  /** One group alone (every task of it, no "See more"), or every group. */
+  const [state, setState] = useState<GroupId | "all">("all");
   const open = useNav((s) => s.taskId);
   const setOpen = (taskId: string | undefined) => nav.set({ taskId });
   const [more, setMore] = useState<Set<GroupId>>(new Set());
@@ -141,7 +137,9 @@ export function TasksList({
   const { top, children } = useMemo(() => nestTasks(shown), [shown]);
   const filled = groupTasks(top, running);
   // While dragging every group is a place to drop, empty ones too.
-  const groups = drag ? GROUP_ORDER.map((id) => filled.find((g) => g.id === id) ?? { id, items: [] }) : filled;
+  const groups = drag
+    ? GROUP_ORDER.map((id) => filled.find((g) => g.id === id) ?? { id, items: [] })
+    : filled.filter((g) => state === "all" || g.id === state);
   // Only a task of this list opens beside it (a project's tab never shows another project's task).
   const current = open ? scoped.find((x) => x.id === open) : undefined;
   /** A task's row, then its subtasks' rows under it (while unfolded), indented a level each. */
@@ -197,24 +195,32 @@ export function TasksList({
             }))}
           />
           {global && (
-            <SearchSelect
+            <ProjectSelect
               label={t("pickers.project")}
-              searchPlaceholder={t("pickers.searchProject")}
-              emptyLabel={t("pickers.noMatch")}
-              size="sm"
               className="tasks__project"
-              value={filter ?? ALL_PROJECTS}
-              onValueChange={(v) => setPrefs({ tasksProject: v ?? ALL_PROJECTS })}
+              value={filter || "all"}
+              onChange={(v) => setPrefs({ tasksProject: v === "all" ? ALL_PROJECTS : v })}
               options={[
-                { value: ALL_PROJECTS, label: t("tasks.allProjects"), icon: <Icons.Layers size={14} /> },
-                ...projectEntries(projects).map((p) => ({
-                  value: p.id,
-                  label: p.name,
-                  icon: <ProjectTile tone={projectTone(p.id)} initial={projectInitial(p.name)} size={16} />,
-                })),
+                { id: "all", label: t("tasks.allProjects") },
+                ...projectEntries(projects).map((p) => ({ id: p.id, label: p.name })),
               ]}
             />
           )}
+          <Select
+            size="sm"
+            className="tasks__state"
+            label={t("tasks.stateFilter")}
+            value={state}
+            onValueChange={(v) => setState(GROUP_ORDER.find((g) => g === v) ?? "all")}
+            options={[
+              { value: "all", label: t("tasks.allStates") },
+              ...GROUP_ORDER.map((g) => ({
+                value: g,
+                label: t(GROUP_LABEL[g]),
+                hint: String(filled.find((x) => x.id === g)?.items.length ?? 0),
+              })),
+            ]}
+          />
           <span className="board__spacer" />
           {!global && (
             <Button size="sm" leadingIcon={<Icons.Plus size={14} />} onClick={() => setCreating(true)}>
@@ -222,14 +228,24 @@ export function TasksList({
             </Button>
           )}
         </div>
-        {ready && !shown.length ? (
+        {ready && !scoped.length && projectId ? (
+          <ProjectEmpty name={projectName(projects, projectId)} />
+        ) : ready && !shown.length ? (
           <EmptyState variant="dashed" size="lg" icon={<Icons.ListChecks />} title={t("tasks.emptyTitle")}>
             {t("tasks.empty")}
           </EmptyState>
+        ) : ready && !groups.length ? (
+          <EmptyState variant="dashed" icon={<Icons.ListChecks />} title={t("tasks.stateEmpty")}>
+            <Button size="sm" variant="secondary" onClick={() => setState("all")}>
+              {t("tasks.allStates")}
+            </Button>
+          </EmptyState>
         ) : (
           groups.map((g) => {
-            const folded = g.id === "closed" && !closedOpen && !drag;
-            const limit = global && !more.has(g.id) ? GLOBAL_PEEK : Number.POSITIVE_INFINITY;
+            // Picked alone in the state filter, a group shows every task it has, the closed ones too.
+            const alone = state === g.id;
+            const folded = g.id === "closed" && !closedOpen && !drag && !alone;
+            const limit = global && !more.has(g.id) && !alone ? GLOBAL_PEEK : Number.POSITIVE_INFINITY;
             const items = folded ? [] : g.items.slice(0, limit);
             const hidden = folded ? 0 : g.items.length - items.length;
             return (

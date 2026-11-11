@@ -36,6 +36,21 @@ test("the pickup skips what cannot start and begins the rest by priority, then n
     assert.equal(store.threads.byTask(id).length, 0, "never started by the pickup");
 });
 
+test("blank descriptions of any whitespace never take the clock's slots from work that can start", (t) => {
+  const env = laneFixture(t);
+  const store = env.store;
+  store.settings.set("task_work_since", new Date(Date.now() - 60_000).toISOString());
+  // Every character a start reads as blank: tabs, line breaks, no-break and ideographic spaces, a byte-order mark.
+  const blanks = ["\n\t", "\r\n", "\t\v\f", "\u00a0\u3000", "\ufeff\u2028"];
+  for (const description of blanks) env.create({ priority: "urgent", start_at: LONG_AGO, description });
+  const scheduled = env.create({ start_at: "2021-01-01T00:00:00.000Z" });
+  startScheduled(store, env.admit, new Date());
+  assert.deepEqual(startedIds(env), [scheduled.id], "the scheduled task starts past the blank ones");
+  const picked = env.create({ priority: "low" });
+  pickUpTasks(store, env.admit);
+  assert.deepEqual(startedIds(env), [scheduled.id, picked.id], "the pickup starts past them too");
+});
+
 test("a scheduled task an agent gave while paused waits for its chain, not the clock", (t) => {
   const env = laneFixture(t);
   const store = env.store;

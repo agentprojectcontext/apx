@@ -2,12 +2,15 @@
 import type { Author, SharedFile, SharedKind } from "@apx/protocol";
 import { AgentAvatar, Avatar, Button, IconButton, Icons, Tooltip } from "@apx/ui";
 import type { ReactNode } from "react";
+import { shortWhen } from "../common/format.ts";
 import { client } from "../data/client.ts";
+import { DEFAULT_PID, projectName } from "../data/identity.ts";
 import { mediaUrl } from "../data/media.ts";
 import { notify } from "../data/notices.ts";
 import { useOwnerName } from "../data/owner.ts";
 import { useData } from "../data/state.ts";
 import { currentLocale, type MessageKey, useT } from "../i18n/index.ts";
+import { ProjectBadge } from "../inbox/ProjectBadge.tsx";
 import { go } from "../shell/nav.ts";
 
 export const ONE: Record<SharedKind, MessageKey> = {
@@ -52,6 +55,30 @@ export function Sender({ author, size = 18 }: { author: Author; size?: number })
         <Avatar name={author.kind === "user" ? owner || name : name} size={size} />
       )}
       <span>{name}</span>
+    </span>
+  );
+}
+
+/** A card's second line: who made or sent it and when, then its project as a coloured tag. */
+export function CardLine({
+  author,
+  at,
+  projectId,
+  hint,
+}: {
+  author: Author;
+  at: string;
+  projectId: string | undefined;
+  hint?: string;
+}) {
+  const projects = useData((s) => s.projects);
+  return (
+    <span className="sharedf__line" title={hint}>
+      <Sender author={author} size={14} />
+      <time className="sharedf__when" dateTime={at} title={when(at)}>
+        {shortWhen(at)}
+      </time>
+      <ProjectBadge id={projectId ?? DEFAULT_PID} name={projectName(projects, projectId)} />
     </span>
   );
 }

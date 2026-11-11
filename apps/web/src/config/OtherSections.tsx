@@ -1,5 +1,5 @@
 import type { OwnerIdentity } from "@apx/protocol";
-import { Badge, Icons, Input, SegmentedControl, SettingRow, Textarea } from "@apx/ui";
+import { Badge, Icons, Input, SegmentedControl, SettingRow, Switch, Textarea } from "@apx/ui";
 import { useEffect, useState } from "react";
 import { LanguageSelect, TimezoneSelect } from "../common/pickers/LocaleSelect.tsx";
 import { client } from "../data/client.ts";
@@ -103,6 +103,7 @@ export function AppearanceSection() {
   const look = usePrefs((s) => s.look);
   const font = usePrefs((s) => s.font);
   const textSize = usePrefs((s) => s.textSize);
+  const compact = usePrefs((s) => s.sidebarCompact);
   const width = usePrefs((s) => s.transcriptWidth);
   const lang = useLanguage();
   return (
@@ -127,6 +128,13 @@ export function AppearanceSection() {
           value={String(textSize)}
           onValueChange={(v) => setPrefs({ textSize: textSizeOf(Number(v)) })}
           options={TEXT_SIZES.map((size) => ({ value: String(size), label: `${size}%` }))}
+        />
+      </SettingRow>
+      <SettingRow title={t("appearance.compact")} description={t("appearance.compactHint")}>
+        <Switch
+          checked={compact}
+          aria-label={t("appearance.compact")}
+          onCheckedChange={(on) => setPrefs({ sidebarCompact: on })}
         />
       </SettingRow>
       <SettingRow title={t("appearance.width")} description={t("appearance.widthHint")}>

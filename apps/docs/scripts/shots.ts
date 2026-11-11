@@ -55,6 +55,7 @@ const child = spawn(process.execPath, ["--no-warnings", path.join(root, "apps/co
     APX_SECRETS: "file",
     APX_UPDATES: "off",
     APX_RELEASES: "off",
+    APX_TELEMETRY: "off",
     APX_AGENT_NAME: "Nova",
     APX_V1_HOME: path.join(dir, "no-v1"),
     APX_V1_URL: "http://127.0.0.1:9",
@@ -122,13 +123,27 @@ const at = (hash: string) => async (p: Page) => {
   await p.goto(`${core}/#${hash}`);
   await p.getByRole("button", { name: "Inbox" }).first().waitFor();
 };
+/** The account menu at the sidebar's foot: Settings, the phone, the first-run setup. */
+const accountMenu = async (p: Page, item: string) => {
+  await p
+    .getByRole("button", { name: /^Account/ })
+    .first()
+    .click();
+  await p.getByRole("menuitem", { name: item, exact: true }).first().click();
+};
 const settings = (label: string) => async (p: Page) => {
   await at("thread=home")(p);
   await p.keyboard.press("ControlOrMeta+Comma");
+  // The dialog loads when first opened: wait for it before falling back to the menu.
   const dialog = p.getByRole("dialog", { name: "Settings" });
-  if (!(await dialog.isVisible().catch(() => false)))
-    await p.getByRole("button", { name: "Settings", exact: true }).first().click();
-  await dialog.getByText(label, { exact: true }).first().click();
+  if (
+    !(await dialog.waitFor({ timeout: 5000 }).then(
+      () => true,
+      () => false,
+    ))
+  )
+    await accountMenu(p, "Settings");
+  await dialog.getByRole("button", { name: label, exact: true }).first().click();
 };
 const project = (tab: string) => at(`project=${ids.acme}&tab=${tab}`);
 const resources = (seg: string) => async (p: Page) => {
@@ -212,7 +227,7 @@ const SHOTS: Shot[] = [
   { name: "settings-engines", go: settings("Engines and models") },
   { name: "settings-router", go: settings("Router") },
   { name: "settings-memory", go: settings("Memory") },
-  { name: "settings-profile", go: settings("Profile") },
+  { name: "settings-profile", go: settings("Super-agent") },
   { name: "settings-interruptions", go: settings("Interruptions") },
   // The Channels screen in the sidebar (Channels left Settings); the file keeps its name for the pages that show it.
   { name: "settings-channels", go: at("view=channels") },
@@ -227,7 +242,9 @@ const SHOTS: Shot[] = [
     name: "app-widget",
     go: async (p) => {
       await at("thread=home")(p);
-      await p.getByRole("complementary").getByRole("button", { name: "BTC market panel" }).first().click();
+      // The sidebar's Apps row opens its list beside it.
+      await p.getByRole("complementary", { name: "Navigation" }).getByRole("button", { name: /^Apps/ }).click();
+      await p.getByText("BTC market panel", { exact: true }).first().click();
       // The widget fetches Binance's live figures (or falls back to sample ones) before it draws.
       await p.frameLocator("iframe").first().locator("body[data-state]").waitFor({ timeout: 20_000 });
     },
@@ -236,31 +253,23 @@ const SHOTS: Shot[] = [
     name: "phone-pair",
     go: async (p) => {
       await at("thread=home")(p);
-      await p.getByRole("button", { name: "More options" }).first().click();
-      await p.getByText("Open on your phone", { exact: true }).first().click();
+      await accountMenu(p, "Open on your phone");
     },
   },
   {
     name: "wizard-welcome",
     go: async (p) => {
       await at("thread=home")(p);
-      await p
-        .getByRole("button", { name: /^Account/ })
-        .first()
-        .click();
-      await p.getByText("First-run setup", { exact: true }).first().click();
+      await accountMenu(p, "First-run setup");
     },
   },
   {
     name: "wizard-agent",
     go: async (p) => {
       await at("thread=home")(p);
-      await p
-        .getByRole("button", { name: /^Account/ })
-        .first()
-        .click();
-      await p.getByText("First-run setup", { exact: true }).first().click();
-      await p.getByText("Start from scratch", { exact: true }).first().click();
+      await accountMenu(p, "First-run setup");
+      // Without v1 on the machine the welcome has one way in.
+      await p.getByRole("button", { name: "Start", exact: true }).first().click();
     },
   },
   { name: "phone-home", go: at("thread=home"), phone: true },
@@ -272,7 +281,7 @@ const prefs = async (p: Page, mode: "light" | "dark") =>
     try {
       localStorage.setItem("apx.mode", mode);
       localStorage.setItem("apx.prefs", JSON.stringify({ language: "en", look: "minimal", displayName: "Alex" }));
-      localStorage.setItem("apx.corner", JSON.stringify({ discord: true, star: true }));
+      localStorage.setItem("apx.corner", JSON.stringify({ discord: true, star: true, welcome: true }));
     } catch {}
   }, mode);
 // The demo lives in a temp folder; it shows the way a reader's own one would, under ~ (kept so across re-renders).
@@ -322,7 +331,12 @@ for (const theme of ["light", "dark"] as const)
       log(`✓ ${file}`);
     } catch (e) {
       failed++;
-      log(`✗ ${file}: ${(e as Error).message.split("\n")[0]}`);
+      log(
+        `✗ ${file}: ${(e as Error).message
+          .split("\n")
+          .slice(0, process.env.SHOTS_KEEP ? 12 : 1)
+          .join("\n  ")}`,
+      );
       if (process.env.SHOTS_KEEP)
         fs.writeFileSync(
           path.join(dir, `${file}.aria.yml`),

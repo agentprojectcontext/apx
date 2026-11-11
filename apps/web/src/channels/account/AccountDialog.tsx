@@ -1,34 +1,27 @@
 import "../../styles/screens.css";
 import type { ChannelInfo } from "@apx/protocol";
-import { SUPER_AGENT_ID } from "@apx/protocol/client";
 import { Button, Dialog, Icons, Kbd, Menu, NavItem, PickRow } from "@apx/ui";
 import { type CSSProperties, type ReactNode, useEffect, useState } from "react";
 import { MOD } from "../../common/modKey.ts";
 import { SectionHead } from "../../config/SectionHead.tsx";
-import {
-  type ChannelDraft,
-  draftOf,
-  loadChannels,
-  newChannelId,
-  saveChannel,
-  useChannels,
-} from "../../data/channels.ts";
+import { addChannel, type ChannelDraft, draftOf, loadChannels, saveChannel, useChannels } from "../../data/channels.ts";
 import { useData } from "../../data/state.ts";
-import { type MessageKey, useT } from "../../i18n/index.ts";
+import { type MessageKey, usePack, useT } from "../../i18n/index.ts";
 import { LAYOUT } from "../../shell/layout.ts";
 import { type AccountEdit, go, type AccountPane as Pane, useNav } from "../../shell/nav.ts";
 import { accountLine } from "../accountMenu.tsx";
+import { accountName } from "../accountName.ts";
 import { useAccountCounts } from "../counts.ts";
 import { KindTile } from "../KindIcon.tsx";
-import { CHANNEL_KINDS, isChannelKind } from "../kinds.ts";
+import { CHANNEL_KINDS, isChannelKind, isRoomsKind, roomsWord } from "../kinds.ts";
 import { AccountPane, NewAccountPane } from "./AccountPane.tsx";
 import { ActivityPane } from "./ActivityPane.tsx";
-import { AnswerPane } from "./AnswerPane.tsx";
 import { ApprovalsPane } from "./ApprovalsPane.tsx";
 import { BehaviorPane } from "./BehaviorPane.tsx";
 import { ContactsPane } from "./ContactsPane.tsx";
 import { keptAfter } from "./draft.ts";
-import { isRoomsKind, RoomsSection } from "./RoomsPane.tsx";
+import { RoomsSection } from "./RoomsPane.tsx";
+import { clearRemoveAsk, removeAsked } from "./removeAsk.ts";
 import { hasStickersPane, StickersPane } from "./StickersPane.tsx";
 import type { Create, PaneProps } from "./types.ts";
 
@@ -44,7 +37,6 @@ const GROUPS: { label: MessageKey; panes: { id: Pane; icon: ReactNode }[] }[] = 
     label: "acct.group.general",
     panes: [
       { id: "account", icon: <Icons.Settings /> },
-      { id: "answer", icon: <Icons.Bot /> },
       { id: "behavior", icon: <Icons.ListChecks /> },
       { id: "stickers", icon: <Icons.Sparkles /> },
       { id: "rooms", icon: <Icons.Hash /> },
@@ -62,25 +54,13 @@ const GROUPS: { label: MessageKey; panes: { id: Pane; icon: ReactNode }[] }[] = 
 
 const LEAD: Record<Pane, MessageKey> = {
   account: "acct.lead.account",
-  answer: "acct.lead.answer",
   behavior: "acct.lead.behavior",
   stickers: "acct.lead.stickers",
-  rooms: "acct.lead.behavior",
+  rooms: "acct.lead.rooms",
   contacts: "acct.lead.contacts",
   approvals: "acct.lead.approvals",
   activity: "acct.lead.activity",
 };
-
-/**
- * A new account's id: iMessage is one per Mac; a mailbox gets an id of its own, as it always did (its signatures are
- * kept by it); the rest are named by `newChannelId`.
- */
-const accountId = (kind: keyof typeof CHANNEL_KINDS, channels: readonly { id: string }[]) =>
-  kind === "imessage"
-    ? "imessage"
-    : kind === "email"
-      ? `email-${crypto.randomUUID().replaceAll("-", "").slice(0, 24)}`
-      : newChannelId(kind, channels);
 
 /** "New channel" and an account's settings, whichever is open. */
 export function ChannelDialogs() {
@@ -89,9 +69,33 @@ export function ChannelDialogs() {
   return (
     <>
       {pick && <KindPicker />}
-      {edit && <AccountDialog key={`${edit.kind}:${edit.id ?? "new"}`} edit={edit} />}
+      {edit && <WithStrings key={`${edit.kind}:${edit.id ?? "new"}`} edit={edit} />}
     </>
   );
+}
+
+/** An account's settings, or only the question to disconnect it when "Disconnect" was picked in its menu. */
+function AccountOrRemove({ edit }: { edit: AccountEdit }) {
+  const t = useT();
+  const [removing] = useState(() => removeAsked(edit.id));
+  useEffect(() => clearRemoveAsk(), []);
+  const channel = useChannels((s) => s.channels.find((c) => c.id === edit.id));
+  if (!removing || !channel) return <AccountDialog edit={edit} />;
+  return (
+    <Confirm
+      danger
+      title={t("acct.removeTitle", { name: channel.label })}
+      body={t("acct.removeBody")}
+      yes={t("acct.disconnect")}
+      onYes={() => void saveChannel(channel.id, null).then(() => go.closeChannelDialogs())}
+      onClose={() => go.closeChannelDialogs()}
+    />
+  );
+}
+
+/** The account's settings, or the question to disconnect it, once their strings are here: a moment on the first open. */
+function WithStrings({ edit }: { edit: AccountEdit }) {
+  return usePack("account") ? <AccountOrRemove edit={edit} /> : null;
 }
 
 /** The apps to connect, each with how it connects; iMessage, one per Mac, opens its settings when it is on. */
@@ -175,7 +179,6 @@ function AccountDialog({ edit }: { edit: AccountEdit }) {
   const channels = useChannels((s) => s.channels);
   const agents = useData((s) => s.agents);
   const counts = useAccountCounts();
-  const [newId] = useState(() => accountId(edit.kind, channels));
   const [made, setMade] = useState<string>();
   const [pane, setPane] = useState<Pane>(edit.pane);
   const [edits, setEdits] = useState<Partial<ChannelDraft>>({});
@@ -210,20 +213,15 @@ function AccountDialog({ edit }: { edit: AccountEdit }) {
     if (ok) setEdits((now) => keptAfter(now, sent));
     return ok;
   };
-  const create: Create = async (b, secret) => {
+  const create: Create = async (account, secret) => {
     const sent = edits;
-    const secretary = Object.values(agents).find((a) => a.kind === "secretary")?.id ?? SUPER_AGENT_ID;
-    const label = edits.label?.trim() || b.label;
-    const ok = await saveChannel(
-      newId,
-      { ...b, type: edit.kind, agent_id: b.agent_id || secretary, ...(label ? { label } : {}) },
-      secret,
-    );
-    if (ok) {
-      setMade(newId);
+    const label = edits.label?.trim() || account.label;
+    const id = await addChannel(edit.kind, { ...account, ...(label ? { label } : {}) }, secret);
+    if (id) {
+      setMade(id);
       setEdits((now) => keptAfter(now, sent));
     }
-    return ok;
+    return Boolean(id);
   };
   const close = () => go.closeChannelDialogs();
   // A new account half made (never connected) is not kept; a connected one is, as it is.
@@ -275,7 +273,7 @@ function AccountDialog({ edit }: { edit: AccountEdit }) {
     if (!channel) return undefined;
     const c = counts.get(channel.id);
     if (p === "account") return t(`tg.status.${channel.enabled ? channel.status : "off"}`);
-    if (p === "answer") return agents[draft?.agent_id ?? channel.agent_id]?.name;
+    if (p === "behavior") return agents[draft?.agent_id ?? channel.agent_id]?.name;
     if (p === "rooms") return channel.rooms?.rooms.length || undefined;
     if (p === "approvals") return c?.waiting || undefined;
     return undefined;
@@ -284,6 +282,11 @@ function AccountDialog({ edit }: { edit: AccountEdit }) {
     (s) => s.persons.filter((p) => channel && p.addresses.some((a) => a.channel === channel.id)).length,
   );
   const shown: Pane = open ? pane : "account";
+  // The rooms part takes the platform's own word: Groups on WhatsApp, Spaces on Google Chat, Rooms on Discord.
+  const word = roomsWord(edit.kind);
+  const paneLabel = (p: Pane): string => t(p === "rooms" ? `acct.pane.${word}` : `acct.pane.${p}`);
+  const paneIcon = (p: { id: Pane; icon: ReactNode }): ReactNode =>
+    p.id === "rooms" && word === "groups" ? <Icons.MessagesSquare /> : p.icon;
 
   return (
     <Dialog
@@ -316,8 +319,8 @@ function AccountDialog({ edit }: { edit: AccountEdit }) {
                 <NavItem
                   key={p.id}
                   className="config__navitem"
-                  icon={p.icon}
-                  label={t(`acct.pane.${p.id}`)}
+                  icon={paneIcon(p)}
+                  label={paneLabel(p.id)}
                   disabled={!open && p.id !== "account"}
                   count={p.id === "contacts" ? contactsCount : undefined}
                   trailing={open ? <span className="acct__trail">{trailing(p.id)}</span> : undefined}
@@ -333,15 +336,19 @@ function AccountDialog({ edit }: { edit: AccountEdit }) {
         <div className="config__content">
           <div className="config__inner">
             <SectionHead
-              title={t(`acct.pane.${shown}`)}
-              lead={t(isNew && !connected && shown === "account" ? "acct.lead.accountNew" : LEAD[shown])}
+              title={paneLabel(shown)}
+              lead={t(
+                isNew && !connected && shown === "account"
+                  ? "acct.lead.accountNew"
+                  : shown === "rooms"
+                    ? `acct.lead.${word}`
+                    : LEAD[shown],
+              )}
             />
             {!paneProps || (isNew && !made) ? (
-              <NewAccountPane kind={edit.kind} id={newId} label={edits.label ?? ""} set={set} create={create} />
+              <NewAccountPane kind={edit.kind} label={edits.label ?? ""} set={set} create={create} />
             ) : shown === "account" ? (
               <AccountPane kind={edit.kind} onRemove={() => setAsking("remove")} {...paneProps} />
-            ) : shown === "answer" ? (
-              <AnswerPane {...paneProps} />
             ) : shown === "behavior" ? (
               <BehaviorPane {...paneProps} />
             ) : shown === "stickers" ? (
@@ -350,10 +357,11 @@ function AccountDialog({ edit }: { edit: AccountEdit }) {
               <RoomsSection
                 channel={{ ...paneProps.channel, ...(paneProps.draft.rooms ? { rooms: paneProps.draft.rooms } : {}) }}
                 kind={edit.kind}
+                ownLine={edit.kind === "whatsapp" && paneProps.draft.self_owner === true}
                 save={async (rooms) => set({ rooms })}
               />
             ) : shown === "contacts" ? (
-              <ContactsPane channel={paneProps.channel} />
+              <ContactsPane {...paneProps} />
             ) : shown === "approvals" ? (
               <ApprovalsPane {...paneProps} />
             ) : (
@@ -466,7 +474,7 @@ function Head({
           items={[
             { type: "label" as const, label: t("chs.accounts") },
             ...channels.map((c) => ({
-              label: c.label,
+              label: accountName(c, t),
               icon: isChannelKind(c.type) ? <KindTile kind={c.type} size={14} /> : <Icons.Send />,
               checked: c.id === channel?.id,
               onSelect: () => onSwitch(c),
