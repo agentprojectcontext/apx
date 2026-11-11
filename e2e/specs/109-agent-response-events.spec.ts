@@ -2,7 +2,7 @@ import { callTool, say, scriptedLlm, startCore } from "../../apps/core/src/engin
 import { waitFor } from "../../apps/core/src/testkit/platform.ts";
 import { expect, test } from "./kit.ts";
 
-test("a task consult shows as one card where it was asked, survives reload and does not turn the chat into a group", async ({
+test("a task consult shows as one closed row where it was asked, survives reload and does not turn the chat into a group", async ({
   page,
 }) => {
   let release: () => void = () => {};
@@ -43,18 +43,19 @@ test("a task consult shows as one card where it was asked, survives reload and d
     await expect(event).toContainText("Holder → Helper");
     await expect(event).toContainText("@helper check the tests");
     await expect(page.locator(".transcript__agent-event")).toHaveCount(0);
+    await expect(event).toContainText("Trabajando");
     release();
-    await expect(event).toContainText("Respuesta de Helper");
-    await expect(event).toContainText("Consult evidence: tests passed.");
+    await expect(event).toContainText("Listo");
     await expect(page.locator(".transcript .turn__agentbtn")).toHaveCount(0);
     await expect(page.locator(".transcript")).toContainText("Holder consolidated the report.");
-    // Told once: the answer handed to the holder is not a second box under its card.
-    await expect(page.getByText("Consult evidence: tests passed.", { exact: false })).toHaveCount(1);
+    // Its row stays closed, and the answer handed to the holder is no second box under it: the answer is in the
+    // helper's conversation, which the row opens.
+    await expect(page.getByText("Consult evidence: tests passed.", { exact: false })).toHaveCount(0);
     await expect(page.locator(".transcript__agent-event, .transcript__answered")).toHaveCount(0);
     await page.reload();
     await expect(event).toHaveCount(1);
-    await expect(event).toContainText("Respuesta de Helper");
-    await expect(event).toContainText("Consult evidence: tests passed.");
+    await expect(event).toContainText("Holder → Helper");
+    await expect(event).toContainText("Listo");
     const loaded = await env.client.call("threads.get", { thread: chat.id });
     expect(loaded.thread.agent_ids).toEqual(["superagent"]);
     const response = loaded.messages.flatMap((m) =>
@@ -140,14 +141,11 @@ for (const outcome of ["empty", "failed", "step_limit"] as const) {
       await page.goto(`${env.core.url}/#thread=${chat.id}`);
       await env.client.call("threads.send", { thread: chat.id, text: "Check the outcome" });
       const event = page.locator(".transcript .apx-subthread");
-      const title = outcome === "step_limit" ? "Avance de Helper" : "Mensaje de Helper";
       const status = outcome === "empty" ? "Terminó sin respuesta" : outcome === "failed" ? "Falló" : "Sin pasos";
-      await expect(event).toContainText(title);
+      await expect(event).toContainText("Roby → Helper");
       await expect(event).toContainText(status);
-      await expect(event).not.toContainText("Respuesta de");
       await expect(page.locator(".transcript__agent-event")).toHaveCount(0);
       await page.reload();
-      await expect(event).toContainText(title);
       await expect(event).toContainText(status);
       const loaded = await env.client.call("threads.get", { thread: chat.id });
       const response = loaded.messages.flatMap((m) =>
@@ -159,7 +157,7 @@ for (const outcome of ["empty", "failed", "step_limit"] as const) {
       await page.goto(`${env.core.url}/#thread=${created.thread_id}`);
       const card = page.locator(".transcript .apx-subthread");
       await expect(card).toContainText(status);
-      await expect(card).toContainText(title);
+      await expect(card).toContainText("Roby → Helper");
       await env.settle(chat.id);
     } finally {
       await page.goto("about:blank");

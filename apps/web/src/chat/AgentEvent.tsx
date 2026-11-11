@@ -1,14 +1,12 @@
 import "./AgentEvent.css";
 import type { Agent, Message } from "@apx/protocol";
-import { AgentAvatar, Button, Icons, MarkdownView, SubthreadCard } from "@apx/ui";
+import { AgentAvatar, Button, Icons, SubthreadCard } from "@apx/ui";
 import type { ReactNode } from "react";
-import { useMarkdownLabels } from "../common/useMarkdownLabels.ts";
 import { blobOf } from "../data/identity.ts";
-import { useData } from "../data/state.ts";
 import { useT } from "../i18n/index.ts";
 import { go, nav } from "../shell/nav.ts";
-import { answerText, responseOf } from "./agentEvent.ts";
-import { failedLine, responseStatus, responseTitle } from "./responseStatus.ts";
+import { responseOf } from "./agentEvent.ts";
+import { failedLine, responseStatus } from "./responseStatus.ts";
 
 /**
  * Reports are events in the holder's chat, never extra conversation participants. A teammate's answer on a task is its
@@ -54,29 +52,24 @@ export function AgentEvent({
   );
 }
 
-/** A teammate's answer that reached this chat with no card of its own here (asked elsewhere, or before cards). */
+/**
+ * A teammate's answer that reached this chat with no card of its own here (asked elsewhere, or before cards): its closed
+ * row, as the card shows where it was asked, opening the teammate's conversation.
+ */
 function AnswerCard({ message, agent, asker }: { message: Message; agent?: Agent; asker?: Agent }) {
   const t = useT();
-  const mdLabels = useMarkdownLabels();
   const response = responseOf(message);
-  const project = useData((s) => s.projects.find((p) => p.id === response?.project_id)?.name);
   if (!response) return null;
   const name = agent?.name ?? t("chat.theAgent");
   const st = responseStatus(response);
-  const said = message.parts.flatMap((p) => (p.type === "text" ? [p.text] : [])).join("\n\n");
-  const failed = failedLine(response.failed, t);
   return (
     <SubthreadCard
       avatar={<AgentAvatar name={name} blob={blobOf(agent)} size={24} />}
-      title={t(responseTitle(response), { name })}
-      subtitle={[`${asker?.name ?? t("common.agent")} → ${name}`, response.title, project].filter(Boolean).join(" · ")}
+      title={response.title}
+      subtitle={`${asker?.name ?? t("common.agent")} → ${name}`}
       status={st.status}
-      statusLabel={t(st.label)}
-      summary={<MarkdownView source={answerText(said)} size="sm" labels={mdLabels} />}
-      meta={failed}
+      statusLabel={<span title={failedLine(response.failed, t)}>{t(st.label)}</span>}
       openLabel={t("subthread.open", { name })}
-      moreLabel={t("subthread.more")}
-      lessLabel={t("subthread.less")}
       onOpen={() => go.subthread(response.thread_id)}
     />
   );

@@ -33,12 +33,3 @@ export function answerCards(messages: readonly Message[]): Map<string, { card: s
   });
   return out;
 }
-
-/** What the teammate answered, out of the words APX handed the asker with it ("Scout answered…: <answer> Go on…"). */
-export function answerText(text: string): string {
-  const head = /^[^\n]* (?:answered your question on task|checked the task)[^\n]*:\n/.exec(text);
-  if (!head) return text;
-  const rest = text.slice(head[0].length);
-  const tail = rest.search(/\n\n(?:Go on with the task\.|It is yours to deliver:|A report, not a verdict:)/);
-  return (tail >= 0 ? rest.slice(0, tail) : rest).trim();
-}
