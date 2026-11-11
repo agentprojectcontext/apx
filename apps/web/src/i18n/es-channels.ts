@@ -21,9 +21,20 @@ export const esChannels: Partial<Record<MessageKey, string>> = {
   "ch.neverRead": "No leer nunca más",
   "ch.neverReadDomain": "Todo lo de @{domain}",
   "ch.neverReadHint":
-    "Desde ahora su correo se saltea; esta ficha y el chat quedan, y acá mismo lo podés volver a leer.",
+    "Desde ahora su correo queda marcado No leer nunca: no se contesta y tu agente no lo lee. Esta ficha y el chat quedan, y acá mismo lo podés volver a leer.",
   "ch.readAgainDone": "{who} se vuelve a leer.",
   "ch.neverReadDone": "{who} ya no se lee.",
+  "ch.mailView": "Mostrar",
+  "ch.mailView.people": "Correo de personas",
+  "ch.mailView.marked": "Solo correo marcado",
+  "ch.mailView.all": "Todo el correo",
+  "ch.mailHidden": "{n} chats con correo marcado ocultos · Mostrar",
+  "ch.mark.automatic": "Automático",
+  "ch.mark.spam": "Spam",
+  "ch.mark.unverified": "Sin verificar",
+  "ch.mark.blocked": "No leer nunca",
+  "ch.mark.outside": "Fuera de la lista",
+  "ch.markHint": "Guardado para vos: no se contesta y tu agente no lo lee.",
   "ch.strangersHint.listMail": "Queda anotado acá para que lo apruebes; no se le manda ningún correo.",
   "ch.strangersHint.ask":
     "Te llega un aviso con quién escribió y qué dijo. Si decís que sí (con su botón o diciéndoselo a tu agente), se le contesta ese mensaje.",
@@ -105,6 +116,7 @@ export const esChannels: Partial<Record<MessageKey, string>> = {
   "ch.room.writeMe": "Escribí en {room}…",
   "ch.room.hint.agent": "{agent} escribe el mensaje y lo publica en {room}; nadie ahí ve lo que le decís a {agent}.",
   "ch.room.hint.me": "Sale en {room} tal cual lo escribís, desde la cuenta de {agent}.",
+  "ch.room.hint.mine": "Sale en {room} tal cual lo escribís, desde tu número. {agent} solo lee este grupo.",
   "ch.room.noFiles": "Para publicar archivos, pedíselo a {agent}.",
   "ch.muted": "Silenciado",
   "ch.unreviewed": "Sin revisar: no se le contesta",
@@ -226,10 +238,10 @@ export const esChannels: Partial<Record<MessageKey, string>> = {
   "em.edit": "Cambiar servidores",
   "em.allowed": "Quién puede escribir",
   "em.allowedHint":
-    "Solo se lee el correo de estas direcciones (o @dominio). Vacío: cualquiera; qué pasa con quien no conocés lo elegís en Aprobaciones.",
+    "Solo se contesta el correo de estas direcciones (o @dominio); el resto queda marcado Fuera de la lista. Vacío: cualquiera; qué pasa con quien no conocés lo elegís en Aprobaciones.",
   "em.blocked": "No leer nunca",
   "em.blockedHint":
-    "El correo de estas direcciones (o @dominio) se saltea: no se contesta ni queda para que lo apruebes.",
+    "El correo de estas direcciones (o @dominio) queda marcado No leer nunca: no se contesta, no te avisa ni queda para que lo apruebes.",
   "em.blockedPlaceholder": "news@example.com, @linkedin.com",
   "em.mine": "Tus direcciones",
   "em.mineHint":
@@ -238,7 +250,7 @@ export const esChannels: Partial<Record<MessageKey, string>> = {
   "em.allowedPlaceholder": "ana@example.org, @acme.com",
   "em.unverified": "Leer correo sin verificar",
   "em.unverifiedHint":
-    "El correo que su servidor no pudo verificar (DKIM, SPF o DMARC) se descarta, porque cualquiera puede poner tu dirección como remitente. Activalo solo si tu servidor de correo no verifica remitentes. El correo de tus propias direcciones siempre tiene que estar verificado.",
+    "Apagado: el correo que su servidor no pudo verificar (DKIM, SPF o DMARC) queda marcado Sin verificar y nunca se contesta, porque cualquiera puede poner tu dirección como remitente. Activalo solo si tu servidor de correo no verifica remitentes. El correo de tus propias direcciones siempre tiene que estar verificado.",
   "em.passwordStored": "Guardada de forma segura; nunca vuelve a esta pantalla.",
   "em.passwordChange": "Cambiar contraseña",
   "em.passwordFix": "Escribí la contraseña de nuevo para conectarla.",

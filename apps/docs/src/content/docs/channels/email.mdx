@@ -33,18 +33,29 @@ An email account never mails a code to someone it does not know: with **List the
 what they wrote, and nothing is sent until you approve them. Start with a narrow allowlist and review the
 [supervised reply mode](/channels/supervised/).
 
-**Never read** takes addresses or domains (`@example.com`) whose mail is skipped: not answered and not left in
-**Approvals**. Automatic mail (newsletters, auto-replies, bounces and senders such as `security-noreply@`) that
-passes the same sender checks and incoming filters is kept in its sender's chat, without starting a reply. An
-unknown automatic sender is kept unreviewed, even if ordinary strangers receive answers. Choosing to ignore strangers
-still ignores unknown senders. Mail sent from the connected mailbox itself is skipped to avoid echo loops.
+## Marked mail
+
+Every mail that reaches the inbox, and the server's **Spam** folder, is brought in. A mail a person wrote is handled
+as above; any other is kept in its sender's chat with a mark at its foot and is never answered, never told to you and
+never given to the agent:
+
+- **Automatic**: no person wrote it (newsletters, auto-replies, bounces, senders such as `security-noreply@`).
+- **Spam**: your mail server put it in its Spam folder (found by its Junk flag or a usual name, read about every ten
+  minutes or as soon as new mail arrives).
+- **Unverified**: its server could not verify the sender (DKIM, SPF or DMARC), while **Read unverified mail** is off.
+- **Never read**: its address or domain is on the account's **Never read** list.
+- **Outside who may write**: **Who may write** has addresses and this sender is not among them.
+
+The account's list shows people by default; its filter button shows all mail or one mark, and a line at the end says
+how many chats of marked mail are hidden. A chat leaves the marked ones for good once its sender writes a mail a
+person wrote. Mail sent from the connected mailbox itself is skipped to avoid echo loops, and unverified mail from your
+own address is dropped: it is never kept as yours.
 
 Mail from **Your addresses** counts as yours only when your mail server verified it (DKIM, SPF or DMARC), even with
 **Read unverified mail** on. Your mail goes to the account's own chat, one mail after another: email has no Home
 switch and no **While it is working** choice.
 
-By default APX drops messages whose sender domain the mail server could not verify with DKIM, SPF or DMARC.
-**Read unverified mail** weakens that protection: enable it only if you understand why your server does not check
+**Read unverified mail** weakens the sender check: enable it only if you understand why your server does not check
 senders. A From address is not proof that you authorized an instruction. Incoming email remains outside content.
 
 ## Reading received mail
@@ -57,8 +68,7 @@ switch off reads them again.
 
 ## What you are told
 
-When someone you have not reviewed writes, or new automatic mail arrives from a sender you have not silenced,
-you get an alert only for mail the auxiliary model marks as important
+When someone you have not reviewed writes a mail a person wrote, you get an alert only for mail the auxiliary model marks as important
 (a person writing to you, money, accounts, deadlines), like a mail app's alert: sender, subject and one short line,
 plain, without the body or links. Newsletters, promotions and pitches stay in the account's chats without a notice.
 Without an auxiliary model no alert is sent.

@@ -305,6 +305,13 @@ export const WritePolicy = z.enum(["ask", "auto", "read-only"]);
 export type WritePolicy = z.infer<typeof WritePolicy>;
 export type ThreadKind = z.infer<typeof ThreadKind>;
 
+/**
+ * Why a mail is kept but neither answered, told nor given to the agent: written by no person, in the server's Spam
+ * folder, not verified by its server, from a "Never read" address, or from outside "Who may write".
+ */
+export const MailMark = z.enum(["automatic", "spam", "unverified", "blocked", "outside"]);
+export type MailMark = z.infer<typeof MailMark>;
+
 export const Thread = z.object({
   id: Id,
   kind: ThreadKind,
@@ -333,6 +340,8 @@ export const Thread = z.object({
   engine: z.string().optional(),
   /** Channel threads: the conversation on a channel (a Telegram chat…) and the person on the other side. */
   channel: z.object({ id: z.string(), conversation: z.string(), person_id: Id.optional() }).optional(),
+  /** A mailbox chat holding only marked mail (none once its sender writes a mail a person wrote): the latest mark. */
+  mail_mark: MailMark.optional(),
   /** The chat's own model, picked in its composer; absent = the agent's. */
   model_choice: ModelChoice.optional(),
   /** The chat in which the super-agent told what an update brought: that release's version. */
@@ -1097,7 +1106,7 @@ export const RoomMode = z.enum(["always", "mention", "useful", "read"]);
 export type RoomMode = z.infer<typeof RoomMode>;
 
 /**
- * Public rooms (a Discord server's channels, Telegram groups). Deny by default: a room that is not listed does not exist for APX. People
+ * Public rooms (a Discord server's channels, Telegram and WhatsApp groups). Deny by default: a room that is not listed does not exist for APX. People
  * there are strangers in public: the agent answers sealed (no tools, no memory, nothing of the owner's), by the owner's
  * knowledge and rules.
  */
@@ -1118,6 +1127,13 @@ export const ChannelRooms = z.object({
   names: z.array(z.string().min(1).max(40)).max(10).default([]),
   /** Answer only the owner in rooms; everyone else is read, never answered. */
   owner_only: z.boolean().default(false),
+  /**
+   * A line that is the owner's own phone (WhatsApp `self_owner`): whether the agent may speak in its groups, which reads
+   * as the owner speaking. Unset: its groups are only read. See DECISIONS.md#d-216
+   */
+  as_owner: z.boolean().optional(),
+  /** Every room is dropped: nothing said there is kept or answered, and the list stays for when they are on again. */
+  off: z.boolean().optional(),
   /** What it can do and answer there: written by the owner, public. */
   knowledge: z.string().max(12_000).default(""),
   /** Hard rules for what it says there; they go last and win. */
@@ -1232,7 +1248,7 @@ export const ChannelInfo = z.object({
    * its own the agent answers on, and the owner writes to it from their phone (linked with a code or by number).
    */
   self_owner: z.boolean().optional(),
-  /** Discord: the server rooms it reads and may speak in; Telegram: its groups. None: only direct messages. */
+  /** Discord: the server rooms it reads and may speak in; Telegram and WhatsApp: its groups. None: only direct messages. */
   rooms: ChannelRooms.optional(),
   /** The agent may answer with an emoji on their message instead of words (none set: it may). See DECISIONS.md#d-204 */
   reactions: z.boolean().optional(),

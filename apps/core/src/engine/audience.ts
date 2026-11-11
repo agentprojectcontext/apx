@@ -20,7 +20,14 @@ import { inlineName, untrusted } from "../tools/result.ts";
 export type AccountNotes = { knowledge?: string | undefined; rules?: string | undefined };
 
 /** A public room of a server: who is in it is a crowd, the owner included (what is said there is public). */
-export type Room = { name: string; settings: ChannelRooms; platform?: string | undefined };
+export type Room = {
+  name: string;
+  settings: ChannelRooms;
+  platform?: string | undefined;
+  /** The account is the owner's own phone: what the agent posts there reads as the owner's words. */
+  ownLine?: boolean | undefined;
+};
+const PLACES: Record<string, string> = { telegram: "a Telegram group", whatsapp: "a WhatsApp group" };
 
 export type Audience =
   | { kind: "owner" }
@@ -49,7 +56,7 @@ export function audienceOf(store: Store, thread: Pick<Thread, "id" | "channel">)
       name: `#${name}`,
       channel: ch.id,
       account: notesOf(cfg),
-      room: { name, settings, platform: cfg?.type },
+      room: { name, settings, platform: cfg?.type, ...(cfg?.self_owner ? { ownLine: true } : {}) },
     };
   }
   if (!ch?.person_id) return { kind: "owner" };
@@ -150,7 +157,7 @@ export function roomPrompt(
 ): string {
   const s = room.settings;
   return [
-    `You are ${agent.name}, answering in #${room.name}, ${room.platform === "telegram" ? "a Telegram group" : "a public room of a Discord server"}. Everything you write is posted publicly there.`,
+    `You are ${agent.name}, answering in #${room.name}, ${PLACES[room.platform ?? ""] ?? "a public room of a Discord server"}. Everything you write is posted publicly there${room.ownLine ? ", from your owner's own number: the group reads it as your owner speaking" : ""}.`,
     "",
     "## Rules",
     `- This turn has ${web ? "only web search and reading" : "no tools"}, no private memory and no access to your owner's machine, files, projects or other chats. Never say or guess anything private about your owner.`,

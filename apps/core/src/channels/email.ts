@@ -4,7 +4,7 @@
 // What it remembers (the mailbox's UIDVALIDITY, the last UID read, each sender's thread) lives in the channel's folder.
 import fs from "node:fs";
 import path from "node:path";
-import type { ChannelEmail } from "@apx/protocol";
+import type { ChannelEmail, MailMark } from "@apx/protocol";
 import type { Inbound } from "../domain/channels.ts";
 import { type EmailSignature, renderEmailDraft, withEmailSignature } from "../domain/email-signature.ts";
 import { errorMessage } from "../errors.ts";
@@ -36,6 +36,8 @@ const PER_ROUND = 50;
 /** IDLE is renewed before servers drop it (RFC 2177: at most 29 minutes). */
 const WAIT_MS = 10 * 60_000;
 const POLL_MS = 60_000;
+/** How often a server with no Spam folder found is asked again. */
+const SPAM_LOOK_MS = 6 * 60 * 60_000;
 const MAX_BACKOFF_MS = 5 * 60_000;
 /** Senders whose threads are remembered, the most recent ones. */
 const MAX_THREADS = 500;
@@ -52,6 +54,10 @@ type State = {
   started?: string;
   checked?: string;
   threads: Record<string, Thread>;
+  /** The server's Spam folder, read from when it was found on (none: not found yet, or the server has none). */
+  spam?: { mailbox: string; uidvalidity: number; last_uid: number } | undefined;
+  /** When the Spam folder was last looked for, so a server without one is asked again only now and then. */
+  spam_looked?: number;
 };
 
 /** Mail no person wrote, or that must not be answered: auto-replies, lists, bounces, robots. */
@@ -151,6 +157,7 @@ export function emailAdapter(
     uid: number,
     truncated: boolean,
     history?: { validity: number; arrived?: number | undefined },
+    folder?: "spam",
   ): Inbound | undefined {
     if (!mail) return;
     let m: ReturnType<typeof parseMail>;
@@ -162,16 +169,29 @@ export function emailAdapter(
     const from = parseAddress(header(m.headers, "from"));
     if (!from || from.address === mail.address.toLowerCase()) return;
     const owner = opts.owner?.(from.address) === true;
-    const automatic = isAutomatic(m.headers, from.address);
-    // Who may write (empty: anyone) and who never: the owner's own addresses are read whatever the lists say.
-    if (
-      !owner &&
-      ((mail.allowed.length > 0 && !onList(mail.allowed, from.address)) || onList(mail.blocked ?? [], from.address))
-    )
-      return;
-    // A From line is easy to forge: mail its server did not verify could pass for the owner. Dropped, unanswered;
-    // from the owner's own address, even when the owner chose to read unverified mail.
-    if ((owner || !mail.trust_unverified) && !verifiedSender(m.headers, from.address)) return;
+    const verified = verifiedSender(m.headers, from.address);
+    // A From line is easy to forge: unverified mail from the owner's own address is dropped, never kept as theirs.
+    if (owner && !verified) return;
+    // Everything else is kept; what no person wrote, or nobody vouched for, is marked: shown to the owner, never
+    // answered, told or given to the agent. The owner's own addresses pass "Who may write" and "Never read".
+    const mark: MailMark | undefined =
+      folder === "spam"
+        ? "spam"
+        : owner
+          ? isAutomatic(m.headers, from.address)
+            ? "automatic"
+            : undefined
+          : onList(mail.blocked ?? [], from.address)
+            ? "blocked"
+            : mail.allowed.length > 0 && !onList(mail.allowed, from.address)
+              ? "outside"
+              : !mail.trust_unverified && !verified
+                ? "unverified"
+                : isAutomatic(m.headers, from.address)
+                  ? "automatic"
+                  : undefined;
+    // Recovered history keeps its own rule: only mail it would have read then.
+    if (history && mark && mark !== "automatic") return;
     const id = messageIds(header(m.headers, "message-id"))[0];
     const subject = decodeWords(header(m.headers, "subject") ?? "")
       .replace(/[\p{Cc}\p{Cf}]/gu, "")
@@ -181,7 +201,7 @@ export function emailAdapter(
     const chain = [...(refs.length ? refs : messageIds(header(m.headers, "in-reply-to"))), ...(id ? [id] : [])];
     const fresh = !before || baseSubject(before.subject) !== baseSubject(subject);
     // Remembered before it is handed over: the pairing code or the answer replies to this very message.
-    if (!history)
+    if (!history && !mark)
       state.threads[from.address] = {
         subject: fresh ? subject : (before?.subject ?? subject),
         ids: chain.slice(-10),
@@ -204,7 +224,7 @@ export function emailAdapter(
 
     const sender = { id: from.address, name: from.name ? `${from.name} (${from.address})` : from.address };
     const shownAs = mailHtml(m.html);
-    const picked = !history && !automatic ? options.pick(from.address, stripQuoted(m.text)) : undefined;
+    const picked = !history && !mark ? options.pick(from.address, stripQuoted(m.text)) : undefined;
     return {
       // The Message-ID dedupes a mail read again (another UID, the mailbox rebuilt); the UID when it has none.
       external_id: id ? `mid:${id.toLowerCase()}` : `uid:${history?.validity ?? state.uidvalidity ?? 0}:${uid}`,
@@ -215,8 +235,8 @@ export function emailAdapter(
       ...(history?.arrived !== undefined ? { mail_received_at: new Date(history.arrived).toISOString() } : {}),
       ...(history
         ? { mail_handling: "history" as const }
-        : automatic
-          ? { mail_handling: "automatic" as const }
+        : mark
+          ? { mail_handling: "marked" as const, mail_mark: mark }
           : picked
             ? { action: picked }
             : {}),
@@ -239,6 +259,49 @@ export function emailAdapter(
       save();
     }
     state.checked = new Date().toISOString();
+    await spamRound(box, io);
+  }
+
+  /**
+   * New mail the server's spam filter moved to its Spam folder, kept marked as spam. The folder is found by its \\Junk
+   * flag or a usual name; reading it starts at the moment it was found, like the inbox. The inbox is opened again after.
+   */
+  async function spamRound(box: Imap, io: AdapterIO): Promise<void> {
+    if (!mail) return;
+    if (!state.spam) {
+      if (Date.now() - (state.spam_looked ?? 0) < SPAM_LOOK_MS) return;
+      state.spam_looked = Date.now();
+      const folders = await box.list().catch(() => []);
+      const found =
+        folders.find((f) => f.flags.some((x) => /^\\junk$/i.test(x))) ??
+        folders.find((f) => /(^|[./])(spam|junk|bulk mail|correo no deseado)$/i.test(f.name));
+      if (!found || found.name === mail.mailbox) return save();
+      const info = await box.examine(found.name);
+      state.spam = { mailbox: found.name, uidvalidity: info.uidvalidity, last_uid: (info.uidnext ?? 1) - 1 };
+      save();
+      await box.examine(mail.mailbox);
+      return;
+    }
+    const spam = state.spam;
+    try {
+      const info = await box.examine(spam.mailbox);
+      if (info.uidvalidity !== spam.uidvalidity) {
+        state.spam = { ...spam, uidvalidity: info.uidvalidity, last_uid: (info.uidnext ?? 1) - 1 };
+        return save();
+      }
+      const uids = (await box.search(`UID ${spam.last_uid + 1}:*`))
+        .filter((u) => u > spam.last_uid)
+        .slice(0, PER_ROUND);
+      for (const uid of uids) {
+        const got = await box.fetch(uid, MAX_FETCH);
+        const incoming = got ? message(got.raw, uid, got.size > got.raw.length, undefined, "spam") : undefined;
+        if (incoming) io.receive({ ...incoming, external_id: `${incoming.external_id}:spam` });
+        spam.last_uid = uid;
+        save();
+      }
+    } finally {
+      await box.examine(mail.mailbox);
+    }
   }
 
   /** Opens the mailbox; a new UIDVALIDITY (or the first start) decides where reading begins. */

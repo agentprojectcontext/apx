@@ -259,10 +259,18 @@ test("verified automatic mail is kept for an unknown or approved sender, never a
     f.imap.deliver(automatic("forged@example.net", false).raw);
     f.imap.deliver(automatic("sender@blocked.example").raw);
     await waitFor(() => f.messages("news@example.net").length === 2, "approved automatic sender also kept");
+    // Unverified and blocked mail is kept too, marked for the owner only (DECISIONS.md#d-217).
+    await waitFor(() => f.messages("sender@blocked.example").length === 1, "blocked mail kept, marked");
+    await waitFor(() => f.messages("forged@example.net").length === 1, "unverified mail kept, marked");
     const replay = await f.client.call("channels.email_history", { channel: "email" });
     assert.deepEqual([replay.stored, replay.already_seen, replay.skipped], [0, 2, 2]);
-    assert.equal(f.messages("forged@example.net").length, 0);
-    assert.equal(f.messages("sender@blocked.example").length, 0);
+    const markOf = (who: string) => f.messages(who)[0]?.parts.flatMap((p) => (p.type === "notice" ? [p.code] : []));
+    assert.deepEqual(markOf("forged@example.net"), ["mail.unverified"]);
+    assert.deepEqual(markOf("sender@blocked.example"), ["mail.blocked"]);
+    assert.deepEqual(markOf("news@example.net"), ["mail.automatic"]);
+    const forged = f.core.store.threads.byConversation("email", "forged@example.net");
+    assert.equal(forged?.mail_mark, "unverified", "a chat with only marked mail says so");
+    assert.equal(f.core.store.modelLog.list(forged?.id ?? "").length, 0, "marked mail never reaches the agent");
     assert.equal(f.smtp.sent.length, 0, "no pairing, draft, or automatic reply");
     assert.equal(
       f.core.store.runs.list(f.core.store.threads.byConversation("email", "news@example.net")?.id ?? "").length,

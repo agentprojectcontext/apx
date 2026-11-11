@@ -32,7 +32,17 @@ export const CHANNEL_KIND_IDS = Object.keys(CHANNEL_KINDS) as ChannelKind[];
 export const isChannelKind = (v: string): v is ChannelKind => Object.hasOwn(CHANNEL_KINDS, v);
 
 /** The kinds whose account lists rooms or groups the agent reads and may speak in. */
-const ROOMS_KINDS = ["discord", "telegram", "googlechat", "nextcloud", "irc", "twitch", "teams", "line"] as const;
+const ROOMS_KINDS = [
+  "discord",
+  "telegram",
+  "whatsapp",
+  "googlechat",
+  "nextcloud",
+  "irc",
+  "twitch",
+  "teams",
+  "line",
+] as const;
 export type RoomsKind = (typeof ROOMS_KINDS)[number];
 export const isRoomsKind = (k: string): k is RoomsKind => (ROOMS_KINDS as readonly string[]).includes(k);
 

@@ -32,6 +32,7 @@ import { SUBPROJECTS_NEWS } from "./subprojects.ts";
 import { TASK_COMMENTS_NEWS } from "./task-comments.ts";
 import { TASK_GOALS_NEWS } from "./task-goals.ts";
 import { TASK_REGROUP_NEWS } from "./task-regroup.ts";
+import { WHATSAPP_GROUPS_NEWS } from "./whatsapp-groups.ts";
 
 /** What an entry may ask about this install before it is told. */
 export type NewsFacts = {
@@ -47,6 +48,8 @@ export type NewsFacts = {
   channels: number;
   /** An SMTP mailbox is configured as an Email channel. */
   email: boolean;
+  /** A WhatsApp account is connected. */
+  whatsapp?: boolean;
   /** Catalog integrations the owner connected (GitHub, Notion…). */
   integrations: number;
   /** The owner's private MCP connections, including project-limited ones. */
@@ -135,6 +138,7 @@ export const NEWS: readonly NewsEntry[] = [
   AGENT_PROMPTS_NEWS,
   TASK_GOALS_NEWS,
   CHANNEL_AGENTS_NEWS,
+  WHATSAPP_GROUPS_NEWS,
   CONTACT_AGENT_NEWS,
   ROOM_AGENT_NEWS,
   TASK_COMMENTS_NEWS,
@@ -689,6 +693,7 @@ export const newsFacts = (store: Store, o: { hermes?: boolean; storeSize?: Store
   rooms: store.settings.read("channels").some((c) => (c.rooms?.rooms.length ?? 0) > 0),
   eventReminders: signedIn(store, "google-calendar") && store.settings.read("calendar_reminders").enabled,
   email: store.settings.read("channels").some((c) => c.type === "email" && c.email !== undefined),
+  whatsapp: store.settings.read("channels").some((c) => c.type === "whatsapp"),
   integrations: connectedIntegrations(store),
   mcp: ownMcpServers(store).length,
   computer: computerHost() !== undefined && store.projects.list().length > 0,

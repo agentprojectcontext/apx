@@ -1365,3 +1365,29 @@
 .chan__switches label {
   overflow-wrap: anywhere;
 }
+
+/* A mailbox's search and its filter of marked mail, side by side. */
+.chan__find {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.chan__find > :first-child {
+  flex: 1;
+  min-width: 0;
+}
+/* Why a kept mail is not answered (spam, automatic…), at its foot. */
+.chan__mark {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  align-self: flex-start;
+  padding: 1px 8px;
+  border-radius: var(--apx-radius-pill);
+  border: 1px solid var(--apx-border);
+  font-size: var(--apx-text-xs);
+  color: var(--apx-fg-subtle);
+}
+.chan__hidden {
+  margin: 6px 12px;
+}

@@ -4513,6 +4513,7 @@ person is not a conversation of its own.
 Rejected: a code mailed to the owner as on chat apps (the step the owner found confusing, and a reply to any forged
 From); per-screen `type === "email"` checks (the next kind would copy them).
 
+<a id="d-215"></a>
 ## D-215 — 2026-11-08 — A side question is one model call beside the chat, not a turn in it
 
 The owner wants to ask a chat's agent something quick (what was decided, a name it used) without the question and its
@@ -4534,3 +4535,54 @@ Rejected: a turn on a hidden child thread (every listing of sub-threads, delegat
 titles and notifications would have to learn to skip it, and the agent could act with tools from a place the chat never
 shows), and a turn in the chat marked as hidden (it would still enter the model's context unless every history builder
 learned the mark).
+
+<a id="d-217"></a>
+## D-217 — 2026-11-11 — A mailbox brings every mail in and marks what no person wrote; marked mail is the owner's only
+An email account dropped mail it would not answer (unverified senders, "Never read", outside "Who may write") and
+never saw the server's Spam folder, so the owner could not tell what arrived. Every mail is now brought in.
+
+- **One mark per mail** (`MailMark`: automatic, spam, unverified, blocked, outside), decided by the adapter in that
+  order of reasons: the Spam folder, the "Never read" list, "Who may write", the server's verdict, then automatic
+  headers. The owner's own addresses only get "automatic"; unverified mail from them is still dropped (a forgery).
+- **Marked mail is kept for the owner only** (`mail_handling: "marked"`, the passive path): shown with its mark, never
+  answered, never told, never written to the agent's context, never counted unread. The owner chose this so spam
+  cannot instruct the agent.
+- **The Spam folder** is found by its `\Junk` flag (RFC 6154) or a usual name, read from the moment it is found, on
+  the same connection after each inbox round; its mail gets its own id so a mail later moved to the inbox is read.
+- **The list shows people by default**: a chat with only marked mail carries its latest mark (`Thread.mail_mark`, from
+  its context); the first mail a person wrote makes it a person's chat for good.
+
+Known limit: chats of automatic mail kept before this carry no mark until their sender writes again (a data migration
+was not worth a schema step).
+
+<a id="d-216"></a>
+## D-216 — 2026-11-11 — WhatsApp groups are rooms; on the owner's own phone they are only read until the owner allows more
+WhatsApp read only one-to-one chats, and owners asked for their groups to work like Telegram's and Discord's. A
+WhatsApp account now has `rooms` as D-041 sets them (deny by default, a mode per group, the owner's notes, rules,
+names and limits, sealed turns), with what is particular to a linked phone:
+
+- **Picked from the account's groups.** The adapter lists the groups the line is in (`groupFetchAllParticipating`),
+  each saying whether it may write there (only admins may, in some); a community's parent is not offered. A group's id
+  is its WhatsApp address (`…@g.us`). An unlisted group is neither stored nor answered, as before.
+- **Calling the line**: an @mention of its number or private id, a reply to one of its messages, or one of its names as
+  a whole word. The @mention is taken out of the text. Answers quote the message they answer; a file or a voice note in
+  a group is named, not downloaded.
+- **A line of its own** (`self_owner` off) is the agent's number: its groups work like a bot's. What someone types on
+  that line's phone in a group is nobody's, as in its chats.
+- **The owner's own phone** (`self_owner` on) speaks as the owner: anything posted from it reads as them. So its listed
+  groups are only read (kept in the group's chat, never answered, whatever mode is saved) until the owner turns on
+  `rooms.as_owner` ("Answer in groups as me") in the account's Rooms settings. The core enforces it in three places: a
+  room message's decision (`roomsReadOnly` in `channels/rooms.ts`), an agent's post in a room (`channels.post` and a
+  Flow's post are refused) and a room turn's answer (what the owner asked from the app stays in the app; the composer
+  there offers only the owner's own words, sent from their number). What the owner types in a group on their phone is kept as the owner's words. An @mention of
+  the owner or a reply to them is the owner being addressed, not the agent: there the agent is called only by name.
+  Allowed, the room's prompt tells the agent its words go out from the owner's own number.
+
+- **Groups and rooms off, on any channel** (`rooms.off`, `roomsOff` in `channels/rooms.ts`): one switch per account
+  drops everything that arrives from its rooms before it is stored (`receive` in `channels/inbound.ts`), and refuses
+  a post in one. The list and its settings stay, so turning it back on needs nothing else. Off is not "read": read
+  keeps what is said, off keeps nothing.
+
+Rejected: answering in groups from the owner's phone by default (a member could make the owner "say" anything), a
+switch per group (one account-wide choice is the explicit one the owner makes; each group's mode still applies), and
+reading every group to offer it (the list comes from WhatsApp; nothing of an unlisted group is stored).
