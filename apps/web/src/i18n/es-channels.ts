@@ -20,7 +20,8 @@ export const esChannels: Partial<Record<MessageKey, string>> = {
   "ch.strangersHint.list": "Queda anotado acá para que lo apruebes; desde tu número no se le manda nada.",
   "ch.neverRead": "No leer nunca más",
   "ch.neverReadDomain": "Todo lo de @{domain}",
-  "ch.neverReadHint": "Desde ahora su correo queda marcado No leer nunca: no se contesta y tu agente no lo lee. Esta ficha y el chat quedan, y acá mismo lo podés volver a leer.",
+  "ch.neverReadHint":
+    "Desde ahora su correo queda marcado No leer nunca: no se contesta y tu agente no lo lee. Esta ficha y el chat quedan, y acá mismo lo podés volver a leer.",
   "ch.readAgainDone": "{who} se vuelve a leer.",
   "ch.neverReadDone": "{who} ya no se lee.",
   "ch.mailView": "Mostrar",

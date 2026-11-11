@@ -18,7 +18,8 @@ export const enChannels = {
   "ch.strangersHint.list": "They are listed here for you to approve; nothing is sent to them from your number.",
   "ch.neverRead": "Never read again",
   "ch.neverReadDomain": "Everything from @{domain}",
-  "ch.neverReadHint": "From now on their mail is kept marked Never read: not answered, and your agent does not read it. This card and the chat stay, and you can read them again here.",
+  "ch.neverReadHint":
+    "From now on their mail is kept marked Never read: not answered, and your agent does not read it. This card and the chat stay, and you can read them again here.",
   "ch.readAgainDone": "{who} is read again.",
   "ch.neverReadDone": "{who} is not read anymore.",
   "ch.mailView": "Show",
