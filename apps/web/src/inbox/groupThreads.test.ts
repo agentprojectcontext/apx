@@ -3,7 +3,7 @@ import { test } from "node:test";
 import type { Thread } from "@apx/protocol";
 import {
   archivedThreads,
-  bundleChannels,
+  bundleChats,
   bundleTasks,
   delegatedByChat,
   inboxEntries,
@@ -170,10 +170,41 @@ test("chats on one channel account go together where its newest chat is", () => 
     thread("d", on("wa_sales")),
     thread("e", on("wa_home")),
   ];
-  const got = bundleChannels(list).map((e) =>
-    e.kind === "thread" ? e.thread.id : `${e.account}:${e.threads.map((t) => t.id).join(",")}`,
-  );
+  const got = bundleChats(list).map(entryId);
   assert.deepEqual(got, ["wa_sales:a,d", "b", "mail:c", "wa_home:e"]);
+  assert.deepEqual(bundleChats(list, false).map(entryId), ["a", "b", "c", "d", "e"], "not grouped by account");
+});
+
+const entryId = (e: ReturnType<typeof bundleChats>[number]) =>
+  e.kind === "thread"
+    ? e.thread.id
+    : `${e.kind === "channel" ? e.account : "calls"}:${e.threads.map((t) => t.id).join(",")}`;
+
+test("every call goes into one Calls row where the newest call is, grouped by account or not", () => {
+  const list = [
+    thread("a"),
+    thread("b", { kind: "call" }),
+    thread("c", { channel: { id: "wa_sales", conversation: "c1" } as Thread["channel"] }),
+    thread("d", { kind: "call" }),
+  ];
+  assert.deepEqual(bundleChats(list).map(entryId), ["a", "calls:b,d", "wa_sales:c"]);
+  assert.deepEqual(bundleChats(list, false).map(entryId), ["a", "calls:b,d", "c"]);
+});
+
+test("what a call asked the super-agent hangs under the call, never as a row of its own", () => {
+  const threads = {
+    call: thread("call", { kind: "call" }),
+    ask: thread("ask", { kind: "agent", parent_id: "call" }),
+    other: thread("other", { kind: "agent" }),
+  };
+  assert.deepEqual(
+    delegatedByChat(threads)
+      .get("call")
+      ?.map((t) => t.id),
+    ["ask"],
+  );
+  assert.deepEqual(rows(threads).sort(), ["call", "other"]);
+  assert.equal(standsAlone(threads.ask, { ask: threads.ask }), true, "its call is not loaded");
 });
 
 test("one tab's or one section's Mark all as read takes its chats and what hangs under them, nothing else", () => {

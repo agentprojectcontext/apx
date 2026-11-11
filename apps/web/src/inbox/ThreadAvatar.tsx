@@ -50,6 +50,10 @@ export function ThreadAvatar({
     <span className="threadavatar" style={{ width: slot, minWidth: slot, height: slot, gap: 4 }}>
       {thread.engine ? (
         <EngineIcon engine={thread.engine} tile size={size} />
+      ) : thread.kind === "call" ? (
+        <span className="threadavatar__call" style={{ width: size, height: size }}>
+          <Icons.Phone size={Math.round(size * 0.55)} />
+        </span>
       ) : helper ? (
         <span className="threadavatar__helper" title={t("subthread.worker")} style={{ width: size, height: size }}>
           <Icons.Bot size={Math.round(size * 0.6)} />

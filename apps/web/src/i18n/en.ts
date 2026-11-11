@@ -3,6 +3,8 @@ import type { enAccount } from "./account-en.ts";
 import type { enActivityReview } from "./activity-review-en.ts";
 import type { ApprovalKey } from "./approvals-en.ts";
 import type { BrowserEditKey } from "./browser-edit-en.ts";
+import type { enCall } from "./call-en.ts";
+import { enCallSlim } from "./call-slim-en.ts";
 import { enChannelsSlim } from "./channels-slim-en.ts";
 import { enChatSlim } from "./chat-slim-en.ts";
 import { enComposerSlim } from "./composer-slim-en.ts";
@@ -86,6 +88,7 @@ export const en = {
   ...enProjectSlim,
   ...enInboxSlim,
   ...enChannelsSlim,
+  ...enCallSlim,
   "engineUsage.title": "AI quotas",
   "engineUsage.remaining": "{pct}% remaining",
   "engineUsage.primary": "Current window",
@@ -1947,6 +1950,7 @@ export type MessageKey =
   | keyof typeof enAccount
   | keyof typeof enGroup
   | keyof typeof enActivityReview
+  | keyof typeof enCall
   | ApprovalKey
   | BrowserEditKey
   | ComputerKey

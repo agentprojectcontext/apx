@@ -14,6 +14,7 @@ import { useData } from "../data/state.ts";
 import { type T, useT } from "../i18n/index.ts";
 import { AccountLine } from "../lazy.ts";
 import { useNav } from "../shell/nav.ts";
+import { chatTitle } from "./chatTitle.ts";
 import { ProjectBadge } from "./ProjectBadge.tsx";
 import { useRowFold } from "./RowFold.tsx";
 import { ThreadAvatar } from "./ThreadAvatar.tsx";
@@ -66,7 +67,7 @@ export function ThreadRow({ thread, agent, selected, account = false, bundled = 
           selected={selected}
           onClick={onOpen}
           avatar={<ThreadAvatar thread={thread} agent={agent} size={own ? 32 : 22} slot={own ? 36 : 28} />}
-          title={thread.kind === "routine" ? routineName(thread) : thread.title}
+          title={thread.kind === "routine" ? routineName(thread) : chatTitle(thread, t, true)}
           titleTag={
             <>
               {fold.slot}
@@ -107,17 +108,19 @@ export function ThreadRow({ thread, agent, selected, account = false, bundled = 
                   </>
                 )}
                 {/* A chat with no project (the super-agent's) is the base project's: its badge says so. A channel
-                    chat says its project only when it has one of its own. */}
-                {!inProject && (!thread.channel || (thread.project_id && thread.project_id !== DEFAULT_PID)) && (
-                  <>
-                    <span className="threadrow__dot">·</span>
-                    <ProjectBadge
-                      id={thread.project_id ?? DEFAULT_PID}
-                      name={projectName(projects, thread.project_id)}
-                      channel={thread.channel ? undefined : channel}
-                    />
-                  </>
-                )}
+                    chat says its project only when it has one of its own; a call already says it is personal. */}
+                {!inProject &&
+                  thread.kind !== "call" &&
+                  (!thread.channel || (thread.project_id && thread.project_id !== DEFAULT_PID)) && (
+                    <>
+                      <span className="threadrow__dot">·</span>
+                      <ProjectBadge
+                        id={thread.project_id ?? DEFAULT_PID}
+                        name={projectName(projects, thread.project_id)}
+                        channel={thread.channel ? undefined : channel}
+                      />
+                    </>
+                  )}
               </span>
             )
           }
@@ -192,12 +195,14 @@ export function PinMark() {
 
 /**
  * Where the chat happens, after who speaks in it: the channel's app for a contact's chat, "External session" for an
- * engine's, nothing for a group (its line names its members), and otherwise the agent's role (or what kind of chat it is).
+ * engine's, nothing for a group (its line names its members), "Personal" for a call, and otherwise the agent's role (or
+ * what kind of chat it is).
  */
 function contextOf(thread: Thread, agent: Agent | undefined, t: T): string {
   if (thread.engine) return t("nav.externalSession");
   if (thread.kind === "group") return "";
   if (thread.kind === "a2a") return t("thread.a2a");
+  if (thread.kind === "call") return t("call.personal");
   if (thread.kind === "routine") return t("thread.routineOf", { name: routineName(thread) });
   if (thread.flow) return t("thread.flowStep");
   return agent?.role || (thread.kind === "home" ? t("thread.home") : t("thread.chat"));

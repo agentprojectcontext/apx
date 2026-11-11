@@ -102,6 +102,8 @@ export default defineConfig(({ mode }) => {
               // The APX Kit, for pages opened outside a widget frame (inside one it is already inline).
               "/_apx/": core,
               "/ws": { target: core.replace(/^http/, "ws"), ws: true },
+              // A voice call's audio, both ways.
+              "/voice-call": { target: core.replace(/^http/, "ws"), ws: true },
             },
     },
   };

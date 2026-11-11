@@ -235,6 +235,15 @@ button.chatprocesses {
   background: var(--apx-fill-strong);
   color: var(--apx-fg-muted);
 }
+/* A call with the super-agent: a phone where its face would be. */
+.threadavatar__call {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: var(--apx-brand-soft);
+  color: var(--apx-brand-soft-fg);
+}
 .threadavatar__group {
   position: absolute;
   display: inline-flex;

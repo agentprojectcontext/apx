@@ -6,6 +6,8 @@ import { enActivityReview } from "./activity-review-en.ts";
 import { esActivityReview } from "./activity-review-es.ts";
 import { enApprovals } from "./approvals-en.ts";
 import { esApprovals } from "./approvals-es.ts";
+import { enCall } from "./call-en.ts";
+import { esCall } from "./call-es.ts";
 import { enComputer } from "./computer-en.ts";
 import { esComputer } from "./computer-es.ts";
 import { en as base } from "./en.ts";
@@ -166,12 +168,23 @@ test("secretary capability strings load only with the super-agent's settings in 
   }
 });
 
+test("the call card's strings load only with the card in both languages", async () => {
+  const { loadMessages, loadPack } = await import("./messages.ts");
+  for (const lang of ["en", "es"] as const) {
+    const base = await loadMessages(lang);
+    assert.equal(base["call.again"], lang === "en" ? "Call again" : "Volver a llamar");
+    for (const key of Object.keys(enCall) as (keyof typeof enCall)[]) assert.equal(base[key], undefined);
+    assert.deepEqual(await loadPack("call", lang), lang === "en" ? enCall : esCall);
+  }
+});
+
 // A pack's strings belong to the language as much as the main chunk's.
 const en = {
   ...base,
   ...enAccount,
   ...enActivityReview,
   ...enApprovals,
+  ...enCall,
   ...enComputer,
   ...enReceived,
   ...enSysUsage,
@@ -191,6 +204,7 @@ const es = {
   ...esAccount,
   ...esActivityReview,
   ...esApprovals,
+  ...esCall,
   ...esComputer,
   ...esReceived,
   ...esSysUsage,

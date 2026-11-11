@@ -6,7 +6,8 @@ import { DELEGATED_SHOWN } from "../data/identity.ts";
 import { useData, useShownAgents } from "../data/state.ts";
 import { useT } from "../i18n/index.ts";
 import { go } from "../shell/nav.ts";
-import { delegatedByChat } from "./groupThreads.ts";
+import { chatTitle } from "./chatTitle.ts";
+import { delegatedByChat, isDelegated } from "./groupThreads.ts";
 import { SessionRow } from "./InboxViews.tsx";
 import { FoldContext } from "./RowFold.tsx";
 import { selectionPath } from "./selectionPath.ts";
@@ -117,7 +118,7 @@ export function ListedChat(props: {
   ancestors?: string[];
   inline?: boolean;
 }) {
-  return !props.nested && props.thread.kind === "a2a" && props.thread.parent_id ? (
+  return !props.nested && isDelegated(props.thread) && props.thread.parent_id ? (
     <DelegatedFrom parentId={props.thread.parent_id}>{props.children}</DelegatedFrom>
   ) : (
     <WithDelegated {...props} />
@@ -137,7 +138,7 @@ function DelegatedFrom({ parentId, children }: { parentId: string; children: Rea
       <button type="button" className="delegated__from" onClick={() => go.inboxThread(parentId)}>
         <Icons.Reply size={12} />
         <span className="delegated__fromtext">
-          {parent ? t("inbox.delegated.from", { chat: parent.title }) : t("inbox.delegated.fromUnknown")}
+          {parent ? t("inbox.delegated.from", { chat: chatTitle(parent, t) }) : t("inbox.delegated.fromUnknown")}
         </span>
       </button>
     </div>

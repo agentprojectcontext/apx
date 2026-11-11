@@ -13,12 +13,13 @@ import { isNewChat } from "../data/newChat.ts";
 import { useData } from "../data/state.ts";
 import { updateThread } from "../data/threadAdmin.ts";
 import { useT } from "../i18n/index.ts";
+import { chatTitle } from "../inbox/chatTitle.ts";
 import { ProjectBadge } from "../inbox/ProjectBadge.tsx";
 import { ThreadAvatar } from "../inbox/ThreadAvatar.tsx";
 import { PinMark } from "../inbox/ThreadRow.tsx";
 import { threadMenu } from "../inbox/threadActions.tsx";
 import { useThreadChannel } from "../inbox/useThreadChannel.ts";
-import { ChannelFace, GroupPart, TaskCrumb, TaskStateButton } from "../lazy.ts";
+import { CallAgain, CallButton, ChannelFace, GroupPart, TaskCrumb, TaskStateButton } from "../lazy.ts";
 import { PanelSwitcher } from "../panel/PanelSwitcher.tsx";
 import { go, useNav } from "../shell/nav.ts";
 import { toggleGroupCard, toggleRoomCard, useGroupCard, useRoomCard } from "./roomCard.ts";
@@ -75,6 +76,8 @@ export function ChatHeader({
   const project = projects.find((p) => p.id === thread.project_id);
   const tools = useNav((s) => s.tools);
   const sub = thread.kind === "a2a" || thread.parent_id != null;
+  // What a call asked the super-agent: its chat says it came from the call.
+  const fromCall = useData((s) => (thread.parent_id ? s.threads[thread.parent_id]?.kind === "call" : false));
   // An engine session is the engine itself: its name and icon, not the agent that owns the run.
   const engine = useEngineLabel(thread.engine);
   const agents = useData((s) => s.agents);
@@ -117,7 +120,7 @@ export function ChatHeader({
         <div className="chat__title">
           <span className="chat__name">
             {thread.pinned && <PinMark />}
-            {sub || thread.channel || engine ? name : (task ?? thread.title)}
+            {sub || thread.channel || engine ? name : (task ?? chatTitle(thread, t))}
           </span>
           {project && <ProjectBadge id={project.id} name={project.name} channel={channelKind} />}
           <ChatProcesses thread={thread.id} onOpen={go.processes} />
@@ -137,16 +140,18 @@ export function ChatHeader({
           {agent && !group && !engine && !thread.channel && !sub && !thread.task_id && (
             <Tooltip content={agentHint}>
               <button type="button" className="chat__agentbtn" onClick={() => go.agent(agent.id)}>
-                {agent.kind === "secretary"
-                  ? t("chat.headerSuper", { name: agent.name })
-                  : agent.role
-                    ? `${agent.name} · ${agent.role}`
-                    : agent.name}
+                {thread.kind === "call"
+                  ? `${agent.name} · ${t("call.personal")}`
+                  : agent.kind === "secretary"
+                    ? t("chat.headerSuper", { name: agent.name })
+                    : agent.role
+                      ? `${agent.name} · ${agent.role}`
+                      : agent.name}
               </button>
             </Tooltip>
           )}
           {engine && <span>{t("chat.headerEngine", { engine })}</span>}
-          {sub && <Tag>{t("thread.a2a")}</Tag>}
+          {sub && <Tag>{t(fromCall ? "call.from" : "thread.a2a")}</Tag>}
           {thread.flow && (
             <button
               type="button"
@@ -192,6 +197,10 @@ export function ChatHeader({
         )}
       </div>
       <div className="chat__tools">
+        <Suspense fallback={null}>
+          {thread.kind === "home" && agent?.kind === "secretary" && <CallButton agent={agent} />}
+          {thread.kind === "call" && <CallAgain thread={thread.id} />}
+        </Suspense>
         {thread.task_id && (
           <Suspense fallback={null}>
             <TaskStateButton taskId={thread.task_id} />
