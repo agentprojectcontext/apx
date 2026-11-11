@@ -1,0 +1,51 @@
+---
+title: Llamadas
+description: Hablale a tu super-agente con la voz, mientras lo que necesita trabajo de verdad sigue durante la llamada.
+sidebar:
+  order: 10
+---
+
+import { Aside, Steps } from "@astrojs/starlight/components";
+
+Llamá a tu super-agente y hablale como por teléfono. Un modelo de voz rápido en tu Mac te contesta enseguida. Cuando le
+pedís algo que necesita trabajo de verdad (qué hay en un proyecto, un mail, tu calendario, algo de la web), la voz te
+dice que está en eso y tu super-agente lo hace mientras seguís hablando. Escuchás la respuesta apenas está lista, nunca
+encima de lo que estás diciendo.
+
+## Hacer una llamada
+
+Tocá el botón del teléfono arriba en el panel, o en el chat de tu super-agente. La primera vez elegí una voz de mujer o
+de hombre; APX la recuerda. Hablá normal: podés interrumpir a la voz en cualquier momento, y si decís "dale, te espero"
+se queda callada hasta que haya novedades.
+
+Cada llamada es un chat en el grupo **Llamadas** del Inbox. Ahí está lo que dijiste y lo que te contestó la voz, y cada
+cosa que le pidió a tu super-agente aparece dentro de la llamada como una tarjeta: abrila para ver cómo se hizo. Si
+llamás de nuevo desde el chat de una llamada, sigue en ese mismo chat.
+
+## Qué necesita una llamada
+
+- Una Mac con Apple silicon: los modelos de voz corren en su GPU.
+- [uv](https://docs.astral.sh/uv/) (`brew install uv`): la primera vez trae el Python y los paquetes del motor de voz.
+- Una voz clonada: una grabación corta y limpia `<nombre>.wav` en la carpeta de voces (por defecto `voices` en la casa
+  de APX) y, si la tenés, `<nombre>.json` con lo que dice la grabación (`{"refText": "…"}`), que hace el clon más fiel.
+- Un modelo de voz rápido. Por defecto, `qwen3:4b-instruct` en Ollama en esta Mac. También sirve uno en otra máquina
+  tuya, si no se usa para otra cosa: un servidor compartido puede hacer esperar a la voz.
+
+<Aside>
+La primera llamada descarga los modelos de voz (unos GB) y puede tardar unos minutos. Después una llamada arranca en
+segundos; el motor se apaga a los 10 minutos sin llamadas para que sus modelos dejen libre la GPU.
+</Aside>
+
+## Ajustes
+
+Las llamadas se configuran en `core.env` en la casa de APX (reiniciá el core después de un cambio):
+
+| Variable | Por defecto | Qué define |
+|---|---|---|
+| `APX_VOICE_LLM_URL` | `APX_OLLAMA_URL` | Dónde corre el modelo de voz: un servidor Ollama, o uno compatible con OpenAI. |
+| `APX_VOICE_LLM_MODEL` | `qwen3:4b-instruct` | El modelo de voz. |
+| `APX_VOICE_LLM_KIND` | `ollama` | `openai` para un servidor compatible con OpenAI. |
+| `APX_VOICE_LLM_KEY_REF` | ninguna | Una referencia a un secreto (`secret://…`) con la clave de ese servidor. |
+| `APX_VOICE_VOICES` | `<casa>/voices` | La carpeta con las voces clonadas. |
+| `APX_VOICE_FEMALE`, `APX_VOICE_MALE` | `female`, `male` | Qué grabación usa cada voz (su nombre sin `.wav`). |
+| `APX_VOICE_TTS_MODEL` | `Qwen/Qwen3-TTS-12Hz-1.7B-Base` | El modelo de voz sintetizada: un id de Hugging Face o una carpeta local. |

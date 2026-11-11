@@ -4797,3 +4797,31 @@ the asked teammate's own leading mention goes, since the row already names them.
 
 Rejected: keeping the side opening and only marking it read (the click still showed another conversation in the
 middle), and renaming the stored titles in the core (the threads already kept would still show ids).
+
+## D-226 — 2026-11-11 — A voice call is one chat; the voice is a fast model and the super-agent works inside it
+The owner wanted to talk to the super-agent by voice, as fluidly as a phone call. The super-agent's own model (a
+subscription model over the internet) took 6 s to answer a trivial question: too slow to talk with. So a call has two
+models with two jobs. A **voice model** (fast, chosen by the owner: a local or a dedicated server) talks, decides when
+real work is needed and never makes an answer up. The **super-agent**, with its usual model and tools, does that work
+inside the call.
+
+- **One chat.** A call is a thread of kind `call` with the super-agent (`engine/calls.ts`). What the owner says and
+  what the voice answers are written there, one message per turn. An ask is a sub-chat with the super-agent, kind
+  `agent` and `parent_id` the call, shown in the voice's message as a `subthread` card that settles with the answer.
+  A prototype that opened a new chat per ask left three or four loose chats per call.
+- **Not `delegate`.** The voice is not an agent's turn, and the super-agent cannot delegate to itself; the ask is the
+  owner's own words relayed, so its run has the owner's origin and the super-agent's usual checks (D-106, D-108).
+  It starts through `engine.admit`, the core's one way to start a turn, never a second path between agents (rule 2).
+- **The answer is read as it comes.** The super-agent is asked for one or two sentences to be said aloud, and the
+  voice reads them as soon as nobody is talking. Sending them back through the voice model made the owner wait (a
+  shared model server queued it 20 s behind the super-agent's own work) and once let it make a result up.
+- **The engine is APX's own process** (`services/voice-engine.ts` → `voice/engine.py`, run with `uv`): started for a
+  call on loopback behind a secret, stopped after 10 minutes without one so its models leave the GPU. Audio goes over
+  `/voice-call` with a single-use ticket from the human-only `calls.start` (the `/vm-display` pattern); the voice's
+  frames to the core are written down, the live ones go to the panel.
+- **Echo.** Chrome's echo canceller ignores Web Audio output, so the voice heard itself and talked over itself: the
+  panel plays it through a local WebRTC loop, which the canceller hears.
+
+Rejected: a channel (it would bring a channel's send path, rewind refusal and avatar), and `threads.send` with an agent
+override (a client choosing who answers in a thread).
+

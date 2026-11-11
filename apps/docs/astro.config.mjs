@@ -115,6 +115,7 @@ export default defineConfig({
             "docs/office/secretary",
             "docs/office/code",
             "docs/office/email",
+            "docs/office/calls",
           ],
         },
         {

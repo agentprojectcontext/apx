@@ -45,6 +45,7 @@ import { watchAgentReviews } from "./domain/agent-review.ts";
 import { signatureFor } from "./domain/email-signature-settings.ts";
 import { cleanUpCapturedNotes } from "./domain/memory-capture-cleanup.ts";
 import { tellWaitingNotes } from "./domain/memory-notice.ts";
+import { ownerIdentity } from "./domain/owner.ts";
 import { lineage } from "./domain/projects.ts";
 import { parseRef } from "./domain/refs.ts";
 import { TERMINAL } from "./domain/runs.ts";
@@ -56,6 +57,7 @@ import { createAside } from "./engine/aside.ts";
 import { createAttention } from "./engine/attention.ts";
 import { keepAwake, sleepWatch } from "./engine/awake.ts";
 import { calendarReminders } from "./engine/calendar-reminders.ts";
+import { createCalls } from "./engine/calls.ts";
 import { createEngine, type RunTimers } from "./engine/engine.ts";
 import { createGroups } from "./engine/group.ts";
 import type { InputWaits } from "./engine/inputs.ts";
@@ -138,6 +140,7 @@ import { createModelInstaller } from "./services/local-whisper.ts";
 import { createPush } from "./services/push.ts";
 import { createServices } from "./services/registry.ts";
 import { mediaData } from "./services/uploads.ts";
+import { createVoiceEngine } from "./services/voice-engine.ts";
 import { createSignIn } from "./sign-in.ts";
 import { syncRuntimeSkills } from "./skills/runtimes.ts";
 import { skillsFor } from "./skills/skills.ts";
@@ -666,6 +669,16 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
       groups.afterRun(run);
     },
   });
+  const voice = {
+    engine: createVoiceEngine({
+      log,
+      config: config.voice,
+      home: config.home,
+      resolveKey: async (ref) => secrets.resolve(ref),
+      owner: () => ownerIdentity(store).name,
+    }),
+    calls: createCalls({ store, bus, admit: engine.admit, log }),
+  };
   const groups = createGroups({
     store,
     admit: engine.admit,
@@ -832,6 +845,7 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
       chatgpt: { login: chatgpt, v1Home: config.v1.home },
       localModels,
       localEmbeds,
+      voice,
       app: {
         harnesses,
         v1: config.v1,
@@ -879,7 +893,7 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
   tellWaitingNotes(store);
   memoryMaintenance.start();
 
-  const transport = await listen(config, { dispatch, store, log, identity, broker, bus, vm });
+  const transport = await listen(config, { dispatch, store, log, identity, broker, bus, vm, voice });
   listening = transport.port;
   // Agents' shells and harnesses reach this core with `apx`, whatever the owner's PATH holds.
   try {
@@ -946,6 +960,7 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
     flows,
     telemetry,
     computer: vm,
+    voice,
     async close() {
       stopAgentReviews();
       awake.close();
@@ -961,6 +976,7 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
       telemetry.stop();
       chatgpt.stop();
       localModels.cancel();
+      voice.engine.close();
       await widgetPages?.closeAll().catch(() => {});
       headless?.close();
       scheduler.stop();

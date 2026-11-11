@@ -1,0 +1,51 @@
+---
+title: Calls
+description: Talk to your super-agent by voice, while what needs real work keeps going during the call.
+sidebar:
+  order: 10
+---
+
+import { Aside, Steps } from "@astrojs/starlight/components";
+
+Call your super-agent and talk to it like on the phone. A fast voice model on your Mac answers right away. When you
+ask for something that needs real work (what is in a project, a mail, your calendar, something on the web), the voice
+says it is on it and your super-agent does it while you keep talking. You hear the answer as soon as it is ready,
+never over your own words.
+
+## Make a call
+
+Press the phone button at the top of the panel, or in your super-agent's chat. Pick a female or male voice the first
+time; APX remembers it. Speak normally: you can interrupt the voice at any moment, and saying "ok, I'll wait" leaves
+it quiet until there is news.
+
+Each call is one chat in the **Calls** group of the Inbox. What you said and what the voice answered are there, and
+each thing it asked your super-agent shows inside the call as a card: open it to see how it was done. Calling again
+from a call's chat goes on in that same chat.
+
+## What a call needs
+
+- A Mac with Apple silicon: the speech models run on its GPU.
+- [uv](https://docs.astral.sh/uv/) (`brew install uv`): it brings the voice engine's Python and packages the first time.
+- A cloned voice: a short, clean recording `<name>.wav` in the voices folder (by default `voices` in APX's home), and,
+  if you have it, `<name>.json` with what the recording says (`{"refText": "…"}`), which makes the clone more faithful.
+- A fast voice model. By default, `qwen3:4b-instruct` on Ollama on this Mac. A model on another machine of yours works
+  too, if it is used for nothing else: a shared server can make the voice wait.
+
+<Aside>
+The first call downloads the speech models (a few GB) and can take some minutes. After that a call starts in seconds;
+the engine stops after 10 minutes without calls so its models leave the GPU.
+</Aside>
+
+## Settings
+
+Calls are set in `core.env` in APX's home (restart the core after a change):
+
+| Variable | Default | What it sets |
+|---|---|---|
+| `APX_VOICE_LLM_URL` | `APX_OLLAMA_URL` | Where the voice model runs: an Ollama server, or an OpenAI-compatible one. |
+| `APX_VOICE_LLM_MODEL` | `qwen3:4b-instruct` | The voice model. |
+| `APX_VOICE_LLM_KIND` | `ollama` | `openai` for an OpenAI-compatible server. |
+| `APX_VOICE_LLM_KEY_REF` | none | A secret reference (`secret://…`) for that server's key. |
+| `APX_VOICE_VOICES` | `<home>/voices` | The folder with the cloned voices. |
+| `APX_VOICE_FEMALE`, `APX_VOICE_MALE` | `female`, `male` | Which recording each voice uses (its name without `.wav`). |
+| `APX_VOICE_TTS_MODEL` | `Qwen/Qwen3-TTS-12Hz-1.7B-Base` | The speech model: a Hugging Face id or a local folder. |

@@ -39,6 +39,7 @@ import { SUBPROJECTS_NEWS } from "./subprojects.ts";
 import { TASK_COMMENTS_NEWS } from "./task-comments.ts";
 import { TASK_GOALS_NEWS } from "./task-goals.ts";
 import { TASK_REGROUP_NEWS } from "./task-regroup.ts";
+import { VOICE_CALLS_NEWS } from "./voice-calls.ts";
 import { WHATSAPP_GROUPS_NEWS } from "./whatsapp-groups.ts";
 
 /** What an entry may ask about this install before it is told. */
@@ -175,6 +176,7 @@ export const NEWS: readonly NewsEntry[] = [
   SIDE_QUESTION_NEWS,
   MEMORY_REVIEW_NEWS,
   GROUP_CHATS_NEWS,
+  VOICE_CALLS_NEWS,
   {
     id: "storage-screen",
     since: "2.13.0",

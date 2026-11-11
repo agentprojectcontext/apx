@@ -299,7 +299,19 @@ export const TERMINAL_RUN_STATES: readonly RunState[] = ["completed", "failed", 
 export const RunEndReason = z.enum(["normal", "step_limit", "failed", "canceled", "deadline", "provider_limit"]);
 export type RunEndReason = z.infer<typeof RunEndReason>;
 
-export const ThreadKind = z.enum(["home", "agent", "loose", "a2a", "group", "code", "channel", "task", "routine"]);
+/** `call`: a voice call with the super-agent (call-methods.ts). */
+export const ThreadKind = z.enum([
+  "home",
+  "agent",
+  "loose",
+  "a2a",
+  "group",
+  "code",
+  "channel",
+  "task",
+  "routine",
+  "call",
+]);
 /** What an agent may change in a code thread's folder: ask each time, change files freely, or only read. */
 export const WritePolicy = z.enum(["ask", "auto", "read-only"]);
 export type WritePolicy = z.infer<typeof WritePolicy>;
