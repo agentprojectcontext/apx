@@ -18,9 +18,9 @@ test("Telegram groups: a group the bot is in is picked from the list, and the bo
   await page.getByRole("button", { name: "Editar cuenta" }).click();
   await page
     .getByRole("dialog")
-    .getByRole("button", { name: /^Salas/ })
+    .getByRole("button", { name: /^Grupos/ })
     .click();
-  await expect(page.getByText("Grupos", { exact: true })).toBeVisible();
+  await expect(page.getByRole("dialog").getByRole("heading", { name: "Grupos" })).toBeVisible();
   await expect(page.getByText(/Group Privacy/)).toBeVisible();
   const pick = page.getByRole("combobox", { name: "Agregar un grupo donde está el bot…" });
   await pick.click();
