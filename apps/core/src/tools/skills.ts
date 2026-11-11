@@ -1,7 +1,7 @@
 // load_skill: an agent reads the know-how a skill brings, when a task matches its one-line description.
 import { z } from "zod";
 import type { Store } from "../domain/store.ts";
-import { readSkillFile, type SkillRoots, skillFiles, skillsFor } from "../skills/skills.ts";
+import { canonicalSkillName, readSkillFile, type SkillRoots, skillFiles, skillsFor } from "../skills/skills.ts";
 import { artifactSources } from "./folders.ts";
 import { cap } from "./result.ts";
 import { defineTool, type Tool } from "./types.ts";
@@ -21,7 +21,7 @@ export function skillTools(store: Store, roots: SkillRoots): Tool[] {
           : `Loaded the skill ${String(a.name)}`,
       async run(a, ctx) {
         const skill = skillsFor(store, roots, ctx.thread.project_id).find(
-          (s) => s.name.toLowerCase() === a.name.toLowerCase(),
+          (s) => s.name.toLowerCase() === canonicalSkillName(a.name),
         );
         if (!skill) return `no skill named ${a.name}`;
         // Paths a skill names by placeholder: where this chat's artifact sources live, and the skill's own folder.

@@ -39,6 +39,10 @@ export type SkillRoots = { home: string; apps?: RuntimeHomes | undefined };
 export const APX_SKILLS_DIR = path.join(import.meta.dirname, "apx");
 const isApx = (s: Skill) => s.source === "apx";
 
+/** Old prompts and saved skill selections resolve to the single maintained guide. */
+export const canonicalSkillName = (name: string): string =>
+  name.toLowerCase() === "apx-agent-prompts" ? "apx-agents" : name.toLowerCase();
+
 /** Skills the owner turned off: "*" everywhere, or per project id. Kept in settings, never in the skill's folder. */
 type OffList = Record<string, string[]>;
 /** In a project's list: it does not take the owner's global skills at all (its own ones still count). */
@@ -189,7 +193,7 @@ export function allSkills(store: Store, roots: SkillRoots, projectId: string | u
  * link, is not a copy). A name of one of APX's own is APX's alone: another would change how agents learn to change APX.
  */
 function firstPerName(found: Skill[]): Skill[] {
-  const reserved = new Set(found.filter(isApx).map((s) => s.name));
+  const reserved = new Set([...found.filter(isApx).map((s) => s.name), "apx-agent-prompts"]);
   const first = new Map<string, { skill: Skill; dirs: Set<string> }>();
   for (const s of found) {
     if (!isApx(s) && reserved.has(s.name)) continue;
@@ -214,7 +218,7 @@ export const skillPath = (dir: string) => tildeHome(path.join(dir, "SKILL.md"));
  * means all.
  */
 export function agentSkills(agent: AgentRecord, all: Skill[]): Skill[] {
-  const wanted = new Set((agent.skills ?? []).map((s) => s.toLowerCase()));
+  const wanted = new Set((agent.skills ?? []).map(canonicalSkillName));
   const named = (s: Skill) => wanted.has(s.name.toLowerCase());
   return all.some(named) ? all.filter((s) => isApx(s) || named(s)) : all;
 }

@@ -87,7 +87,7 @@ test("only the super-agent is offered agent_set", async () => {
 test("reading an agent's definition and prompt needs no OK", async () => {
   assert.match(
     await ask("show me Acme Writer"),
-    /^Acme Writer \(id: acme-writer\)\nrole: Writes copy\nprompt:\nWrite long\.$/,
+    /^Acme Writer \(id: acme-writer\)\nrole: Writes copy\nrevision: [a-f0-9]{64}\nprompt:\nWrite long\.$/,
   );
 });
 

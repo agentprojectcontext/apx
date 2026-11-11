@@ -10,7 +10,15 @@ import { projectSecretName, type Secrets, splitSecretName } from "../secrets.ts"
 import { skillInfo, writeSkill } from "../skills/edit.ts";
 import { type GitRunner, type ImportTarget, importSkills, previewSkills } from "../skills/import.ts";
 import { type RuntimeHomes, syncRuntimeSkills } from "../skills/runtimes.ts";
-import { allSkills, NO_GLOBALS, readSkillFile, setSkillOn, skillFiles, skillsOff } from "../skills/skills.ts";
+import {
+  allSkills,
+  canonicalSkillName,
+  NO_GLOBALS,
+  readSkillFile,
+  setSkillOn,
+  skillFiles,
+  skillsOff,
+} from "../skills/skills.ts";
 import type { Handlers } from "./router.ts";
 
 /** Where each stored secret is named: the owner's MCP servers, providers, channels, and services' own keys. */
@@ -43,7 +51,7 @@ export function resourceHandlers(deps: {
   const { store, home, mcp } = deps;
   const roots = { home, apps: deps.runtimeHomes };
   const find = (name: string, project: string | undefined) => {
-    const s = allSkills(store, roots, project).find((x) => x.name === name);
+    const s = allSkills(store, roots, project).find((x) => x.name === canonicalSkillName(name));
     if (!s) throw notFound(`skill ${name}`);
     return s;
   };

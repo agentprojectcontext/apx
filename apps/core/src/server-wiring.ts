@@ -437,11 +437,6 @@ export function coreHandlers(d: HandlerDeps & { vm?: Computer | undefined }) {
       widgetPages: d.widgetPages,
     }),
     ...agents,
-    "agents.create": (p: Parameters<(typeof agents)["agents.create"]>[0], ctx: CallContext) => {
-      const r = agents["agents.create"](p);
-      added(ctx, { what: "agent", id: r.id, name: r.name });
-      return r;
-    },
     ...teamHandlers(d.store, d.apc, d.templateRoots, (s) => d.scheduler.nextFor(s)),
     ...fileHandlers(d.store, d.desktop, d.app.home),
     ...gitHandlers(d.store, d.upkeep),

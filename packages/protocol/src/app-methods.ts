@@ -408,8 +408,22 @@ export const appMethods = {
   /** One agent with its prompt (the system prompt the owner writes; lists leave it out). */
   "agents.get": {
     params: z.object({ agent: Id }).strict(),
-    result: z.object({ agent: Agent, prompt: z.string() }),
+    result: z.object({ agent: Agent, prompt: z.string(), revision: z.string() }),
     effect: false,
+    access: "human",
+  },
+  "agents.review_queue": {
+    params: z.object({ project_id: Id.optional() }).strict(),
+    result: z.object({
+      agents: z.array(z.object({ agent: Id, name: z.string(), project_id: Id.optional(), revision: z.string() })),
+    }),
+    effect: false,
+    access: "human",
+  },
+  "agents.review_ack": {
+    params: z.object({ agent: Id, if_revision: z.string().regex(/^[a-f0-9]{64}$/) }).strict(),
+    result: z.object({ ok: z.literal(true) }),
+    effect: true,
     access: "human",
   },
   "agents.update": {
@@ -419,6 +433,11 @@ export const appMethods = {
         browser_profile: z.enum(["shared", "isolated", "incognito"]).optional(),
         /** null = back to the install default. */
         model_choice: ModelChoice.nullable().optional(),
+        /** Apply a reviewed proposal only if its instructions and project context are unchanged. */
+        if_revision: z
+          .string()
+          .regex(/^[a-f0-9]{64}$/)
+          .optional(),
         /** Definition fields: written to the agent's file for project agents. */
         name: z.string().min(1).max(80).optional(),
         role: z.string().max(200).optional(),

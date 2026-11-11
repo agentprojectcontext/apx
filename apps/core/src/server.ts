@@ -41,6 +41,7 @@ import { type CoreConfig, OAUTH_CHATGPT } from "./config.ts";
 import { coreLogSink } from "./core-log.ts";
 import { openDb, storeSize } from "./db/db.ts";
 import { type DesktopOps, systemDesktop } from "./desktop.ts";
+import { watchAgentReviews } from "./domain/agent-review.ts";
 import { signatureFor } from "./domain/email-signature-settings.ts";
 import { cleanUpCapturedNotes } from "./domain/memory-capture-cleanup.ts";
 import { tellWaitingNotes } from "./domain/memory-notice.ts";
@@ -693,6 +694,7 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
     },
     (thread, stage) => bus.emit({ type: "computer.progress", thread_id: thread, stage }),
   );
+  const stopAgentReviews = watchAgentReviews(store, bus);
   const activityReview = createActivityReview({
     store,
     llm,
@@ -937,6 +939,7 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
     telemetry,
     computer: vm,
     async close() {
+      stopAgentReviews();
       awake.close();
       sleep?.close();
       clearInterval(awakeTick);

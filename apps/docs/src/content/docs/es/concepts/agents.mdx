@@ -21,6 +21,28 @@ Un agente tiene nombre, cara, rol, instrucciones y herramientas que puede usar. 
 opciones, otro implementar un cambio y otro revisarlo. Son roles que configurás, no una promesa de que el trabajo
 salga bien sin revisión. Empezá desde la pestaña **Agentes** del proyecto para crear uno o importar una plantilla.
 
+## Revisá los agentes después de un cambio
+
+Desde la 2.14, APX incluye una sola guía nativa, **apx-agents**, para crear, editar, clonar, importar y revisar
+agentes. Los pedidos existentes de `apx-agent-prompts` cargan esa misma guía; no hay una segunda copia activa.
+Pedile a tu super-agente que revise un agente en su proyecto de destino, especialmente después de copiarlo desde
+otro equipo. Los datos compartidos del proyecto van en AGENTS.md, no en instrucciones reutilizables que arrastren
+rutas o personas de otro proyecto.
+
+APX agrupa los agentes modificados en avisos de revisión. Cubre creación, edición, clonación e importación internas,
+y cambios externos en `.apc/agents/*.md` de proyectos registrados cuando el observador del proyecto los indexa.
+No recorre cualquier Markdown ni carpetas sin registrar. Los agentes existentes se toman como punto de partida al
+iniciar el detector por primera vez; los cambios posteriores, incluidos los encontrados después de reiniciar,
+quedan pendientes de revisión. Un aviso significa que la definición cambió, no que APX encontró un error. No se
+llama a un modelo por cada guardado y el aviso nunca bloquea el trabajo.
+
+Pedí «Revisá mis agentes modificados, sin editarlos». El super-agente usa `agent_set` con `review: true`, revisa tandas
+chicas en contexto y propone un antes y después. Vos elegís qué aplicar. Los cambios revisados usan la revisión leída
+antes de la propuesta: instrucciones o contexto más nuevos generan un conflicto en vez de sobrescribirse. Una
+actualización revisada resuelve su pendiente; un cambio posterior abre otro. Si no hay nada que corregir, el
+super-agente puede marcarlo como revisado con tu acuerdo. La revisión es pasiva por defecto: guardar un archivo no
+dispara una reescritura autónoma ni una revisión semántica en segundo plano.
+
 ## Conservá el contexto junto al trabajo
 
 Los proyectos de APX siguen [APC (Agent Project Context)](/es/concepts/projects/): un `AGENTS.md` en la raíz y una carpeta

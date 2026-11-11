@@ -20,7 +20,7 @@ export const AGENT_PROMPTS_NEWS: NewsEntry = {
     "release, a payment or a message as the owner waits for them. Reviews report and never block; whoever gave the " +
     "task checks the delivery and tells the owner. APX tells each agent whom it answers to and its area. The owner's " +
     "agents may have instructions that still gate this (people named as bosses, 'do not push unless authorized', " +
-    "mandatory approvals). Offer to review them: load_skill apx-agent-prompts and follow it. Change nothing until " +
+    "mandatory approvals). Offer to review them: load_skill apx-agents and follow it. Change nothing until " +
     "the owner says yes to each agent's change.",
   actions: [
     {

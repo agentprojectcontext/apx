@@ -6,6 +6,7 @@
 export const BY_TOOL: Readonly<Record<string, string>> = {
   "agents.create": "agent_set",
   "agents.update": "agent_set",
+  "agents.review_ack": "agent_set",
   "agents.archive": "agent_set",
   "org.set": "agent_set",
   "agents.set_limits": "agent_limits",

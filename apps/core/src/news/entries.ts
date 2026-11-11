@@ -8,6 +8,7 @@ import { CATALOG } from "../integrations/catalog.ts";
 import { ACTIVITY_REVIEW_NEWS } from "./activity-review.ts";
 import { AGENT_FALLBACKS_NEWS } from "./agent-fallbacks.ts";
 import { AGENT_PROMPTS_NEWS } from "./agent-prompts.ts";
+import { AGENT_REVIEW_NEWS } from "./agent-review.ts";
 import { BROWSER_EDIT_NEWS } from "./browser-edit.ts";
 import { BROWSER_JAVASCRIPT_NEWS } from "./browser-javascript.ts";
 import { BROWSER_SIGN_IN_NEWS } from "./browser-sign-in.ts";
@@ -139,6 +140,7 @@ export const NEWS: readonly NewsEntry[] = [
   ROOM_HANDOFF_NEWS,
   ACTIVITY_REVIEW_NEWS,
   AGENT_PROMPTS_NEWS,
+  AGENT_REVIEW_NEWS,
   TASK_GOALS_NEWS,
   CHANNEL_AGENTS_NEWS,
   WHATSAPP_GROUPS_NEWS,

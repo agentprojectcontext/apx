@@ -57,6 +57,19 @@ are rechecked before an atomic task-proposal/notification/runtime commit. No age
 The maintained base prompt cannot be replaced; optional details remain untrusted data. See the secretary guide for
 sampling/cost limits and exclusions. This is bounded assistance, not full-thread auditing or semantic deduplication.
 
+### Agent lifecycle review (planned for 2.14)
+
+`domain/agent-review.ts` observes the existing coalesced `team.updated` event. Agent creation, definition edits,
+clones, imports and APC file reindexing converge there. Revision fingerprints and pending agents persist in a
+versioned setting; the first start baselines existing definitions, later starts detect changes against that baseline.
+There is no per-save model call or additional file watcher. One unread attention notice per project (or global team)
+is replaced on further changes. The owner asks the super-agent to load the single native `apx-agents` guide and
+review a bounded batch; `apx-agent-prompts` remains a reserved load alias, not another catalog entry.
+Owner-only `agents.review_queue` and `agents.review_ack`, plus `agent_set`'s review mode, expose this procedure.
+`agents.get` returns a revision; optional `agents.update.if_revision` reindexes a file-backed definition and refuses
+stale proposals before writing. Checked prompt updates acknowledge the resulting version to avoid review loops.
+Ordinary edits retain their existing behavior. Notifications are passive; no autonomous semantic review is scheduled.
+
 ## 2. How a call flows
 
 ```

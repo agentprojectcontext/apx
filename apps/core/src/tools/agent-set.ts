@@ -3,6 +3,7 @@
 // it are set here too (DECISIONS.md#d-195).
 import { type Organization, randomAgentName } from "@apx/protocol";
 import { z } from "zod";
+import { agentRevision, pendingAgentReviews } from "../domain/agent-review.ts";
 import type { AgentRecord } from "../domain/agents.ts";
 import type { Store } from "../domain/store.ts";
 import { defineTool, type Tool } from "./types.ts";
@@ -27,6 +28,7 @@ function card(store: Store, a: AgentRecord): string {
     a.personality ? `personality: ${a.personality}` : "",
     a.model_choice?.model ? `model: ${a.model_choice.model}` : "",
     a.model_choice?.fallbacks?.length ? `fallbacks: ${a.model_choice.fallbacks.join(", ")}` : "",
+    `revision: ${agentRevision(store, a)}`,
     "prompt:",
     a.prompt || "(empty)",
   ]
@@ -92,6 +94,15 @@ export function agentSetTools(store: Store): Tool[] {
     orchestrator: z.boolean().optional(),
     description: z.string().max(400).optional(),
     prompt: z.string().max(100_000).optional(),
+    if_revision: z
+      .string()
+      .regex(/^[a-f0-9]{64}$/)
+      .optional()
+      .describe("revision read before proposing a prompt change"),
+    review: z
+      .boolean()
+      .optional()
+      .describe("list agents awaiting review; with agent and if_revision, mark reviewed without changing instructions"),
     personality: z.string().max(1000).optional(),
     parent: z.string().max(64).optional().describe("who it reports to"),
     project: z.string().optional(),
@@ -112,12 +123,14 @@ export function agentSetTools(store: Store): Tool[] {
       a.personality,
       a.parent,
       a.fallbacks,
-    ].some((v) => v !== undefined) || a.archive === true;
+    ].some((v) => v !== undefined) ||
+    a.archive === true ||
+    (!!a.agent && a.review === true);
   return [
     defineTool({
       name: "agent_set",
       description:
-        "Run the team: no args: team, areas, roles; only agent: read it; create (slug, role; name only if the owner gave one; project: id/name, else this chat), change (only what's given; prompt replaces) or archive one.",
+        "Run the team: no args: team, areas, roles; only agent: read it; create (slug, role; name only if the owner gave one; project: id/name, else this chat), change (only what's given; prompt replaces; if_revision protects reviewed edits) or archive one. review: true lists pending reviews; with agent and if_revision marks reviewed.",
       args,
       effect: "local",
       confirm: (a) => (changes(a) ? "always" : "never"),
@@ -145,6 +158,12 @@ export function agentSetTools(store: Store): Tool[] {
       },
       async run(a, ctx) {
         let cur: AgentRecord | undefined;
+        if (a.review && !a.agent) {
+          const target = a.project ? projectOf(store, a.project) : undefined;
+          if (typeof target === "string") return target;
+          const pid = target?.id ?? ctx.thread.project_id;
+          return JSON.stringify({ agents: pendingAgentReviews(store, pid) });
+        }
         if (!a.agent && !changes(a)) {
           const target = a.project ? projectOf(store, a.project) : undefined;
           if (typeof target === "string") return target;
@@ -214,12 +233,17 @@ export function agentSetTools(store: Store): Tool[] {
           const home = made.project_id ? (store.projects.get(made.project_id)?.name ?? made.project_id) : "";
           return `created: ${made.name} (id: ${made.id}) ${home ? `in the project ${home}` : "as a global agent (no project)"}`;
         }
+        if (a.review) {
+          if (!a.if_revision) return "Read the agent and provide if_revision before marking it reviewed";
+          await asOwner("agents.review_ack", { agent: cur.id, if_revision: a.if_revision });
+          return `reviewed: ${cur.name}`;
+        }
         if (a.archive) {
           const r = await asOwner("agents.archive", { agent: cur.id });
           // What the agent tells the owner: it is gone from the team, and where to bring it back or delete it.
           return `removed ${cur.name}: it is off the team and out of every list${r.moved_to ? ` (its file is kept in ${r.moved_to})` : ""}. Tell the owner they can bring it back whenever they want, or delete it for good, in [Config › Agents](apx:settings/agents).`;
         }
-        const { agent: _a, archive: _x, project: _p, area: _ar, fallbacks, ...fields } = a;
+        const { agent: _a, archive: _x, project: _p, area: _ar, review: _r, fallbacks, ...fields } = a;
         const choice = cur.model_choice;
         const now = await asOwner("agents.update", {
           agent: cur.id,

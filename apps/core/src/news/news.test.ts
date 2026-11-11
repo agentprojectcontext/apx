@@ -483,7 +483,7 @@ test("the prompt review is offered to an owner whose agents have instructions of
       prompt: "You report to Ana. Do not push unless authorized.",
     });
     assert.equal(review.applies(newsFacts(store)), true);
-    assert.match(review.text, /load_skill apx-agent-prompts/);
+    assert.match(review.text, /load_skill apx-agents/);
     assert.match(review.text, /Change nothing until the owner says yes/);
   } finally {
     done();

@@ -20,6 +20,26 @@ An agent has a name, a face, a role, instructions and tools it may use. For exam
 a developer can implement a change and a reviewer can check it. These are roles you configure, not a promise that a
 task succeeds without review. Start from the project's **Agents** tab to create an agent or import a template.
 
+## Review agents after changes
+
+Starting with 2.14, APX includes one native guide, **apx-agents**, for creating, editing, cloning, importing and
+reviewing agents. Existing requests for `apx-agent-prompts` load this same guide; there is no second active copy.
+Ask your super-agent to review an agent in its destination project, especially after copying it from another team.
+Shared project facts belong in AGENTS.md, not in reusable instructions that carry another project's paths or people.
+
+APX groups changed agents into review notices. Internal creation, edits, clones and imports are covered, as are
+external changes to registered projects' `.apc/agents/*.md` files once the existing project watcher indexes them.
+It does not scan arbitrary Markdown or unregistered folders. Existing agents are baselined when the detector first
+starts; later changes, including changes found after restarting, become pending reviews. An alert means the definition
+changed, not that APX found an error. No model is called for each save, and the notice never blocks work.
+
+Ask “Review my changed agents, without editing them.” The super-agent uses `agent_set` with `review: true`, checks
+small batches in context, and proposes before/after changes. You choose which to apply. Reviewed changes use the
+revision read before the proposal: newer instructions or project context cause a conflict instead of being overwritten.
+A reviewed update clears its pending review; a later change opens a new one. If nothing needs changing, the
+super-agent can mark it reviewed with your agreement. Reviews are passive by default: no autonomous rewrite or
+background semantic review runs merely because a file was saved.
+
 ## Keep project context with the work
 
 APX projects follow [APC (Agent Project Context)](/concepts/projects/): a root `AGENTS.md` and an `.apc/` folder.

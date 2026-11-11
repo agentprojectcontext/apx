@@ -13,6 +13,7 @@ import {
 } from "../apc/write.ts";
 import { contactAgentOf } from "../channels/types.ts";
 import { agentDirectory, projectTeam } from "../domain/agent-directory.ts";
+import { acknowledgeAgentReview, agentRevision, pendingAgentReviews } from "../domain/agent-review.ts";
 import { type AgentRecord, publicAgent, rulesText } from "../domain/agents.ts";
 import type { EngineIds } from "../domain/refs.ts";
 import type { Store } from "../domain/store.ts";
@@ -97,6 +98,16 @@ export function agentHandlers(store: Store, apc: ApcSync, engines: EngineIds, to
     return publicAgent(a);
   };
 
+  const reviewedCurrent = (id: string, revision: string): AgentRecord => {
+    const before = store.agents.get(id);
+    if (before?.source === "apc" && before.project_id) apc.register(rootOf(before.project_id));
+    const cur = store.agents.get(id);
+    if (!cur || !store.agents.active(id)) throw notFound(`agent ${id}`);
+    if (agentRevision(store, cur) !== revision)
+      throw conflict("The agent changed since this review; read it again before applying the proposal");
+    return cur;
+  };
+
   return {
     "agents.list": ({ project_id }) => ({
       agents: project_id === undefined ? agentDirectory(store) : teamIn(project_id),
@@ -107,7 +118,7 @@ export function agentHandlers(store: Store, apc: ApcSync, engines: EngineIds, to
     "agents.get": ({ agent }) => {
       const a = store.agents.get(agent);
       if (!a) throw notFound(`agent ${agent}`);
-      return { agent: publicAgent(a), prompt: a.prompt };
+      return { agent: publicAgent(a), prompt: a.prompt, revision: agentRevision(store, a) };
     },
 
     "agents.create": (p) => {
@@ -157,8 +168,14 @@ export function agentHandlers(store: Store, apc: ApcSync, engines: EngineIds, to
 
     "agents.clone": (p) => cloneAgents(store, apc, p),
 
+    "agents.review_queue": ({ project_id }) => ({ agents: pendingAgentReviews(store, project_id) }),
+    "agents.review_ack": (p) => {
+      const cur = reviewedCurrent(p.agent, p.if_revision);
+      acknowledgeAgentReview(store, cur);
+      return { ok: true as const };
+    },
     "agents.update": (p) => {
-      const cur = store.agents.get(p.agent);
+      const cur = p.if_revision ? reviewedCurrent(p.agent, p.if_revision) : store.agents.get(p.agent);
       if (!cur) throw notFound(`agent ${p.agent}`);
       const model_choice = p.model_choice;
       checkChoice(model_choice);
@@ -215,6 +232,7 @@ export function agentHandlers(store: Store, apc: ApcSync, engines: EngineIds, to
       const now = store.agents.get(cur.id) ?? cur;
       if (model_choice !== undefined || p.browser_profile)
         setLocal(now, { browser_profile: p.browser_profile, model_choice });
+      if (p.if_revision && p.prompt !== undefined) acknowledgeAgentReview(store, store.agents.get(cur.id) ?? now);
       return fresh(cur.id);
     },
 
