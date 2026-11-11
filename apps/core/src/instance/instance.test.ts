@@ -153,6 +153,12 @@ test("the preview says what an import does, and the import does just that; what 
   assert.ok(t.memories.standing(100).some((m) => m.text === "Northwind buys in spring."));
   const nora = t.agents.list().find((a) => a.name === "Nora");
   assert.match(nora?.prompt ?? "", /secret:\/\/acme_key/);
+  assert.ok(nora);
+  const reviews = await target.client.call("agents.review_queue", {});
+  assert.ok(
+    reviews.agents.some((a) => a.agent === nora.id),
+    "an imported definition is offered for contextual review",
+  );
 });
 
 test("importing the same file twice changes nothing the second time", async () => {
