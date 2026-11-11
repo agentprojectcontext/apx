@@ -274,6 +274,18 @@ privados, no los archivos multimedia ni los secretos del llavero; mantenela prot
 y guardá por separado la base fallida y sus archivos WAL antes de reemplazarla. Usá una versión del programa
 compatible con el esquema original de esa copia.
 
+### Actualizar desde el hotfix v2.13.4
+
+Las versiones de desarrollo posteriores a v2.13.4 reconocen la base de ese hotfix por separado del historial de
+migraciones de desarrollo. Antes de unir ambos historiales, el arranque comprueba el esquema completo del hotfix y
+guarda una copia consistente y privada de la base en `backups/migration-hotfix-<id-único>/apx.db`. Los cambios
+pendientes y el contador de migraciones se confirman juntos; si falla la actualización, se revierte y podés
+reintentar después de resolver la causa. Se conservan los motivos de fallos de comandos y los chats existentes.
+Al volver a abrir no se repiten las conversiones de canales ni de permisos de contactos. Los esquemas mezclados
+no reconocidos se rechazan en vez de adivinar. Mantené el backup protegido y detené los otros cores que compartan
+la carpeta antes de reintentar. El hotfix no puede abrir una base de desarrollo más nueva; esto no permite
+volver a una versión anterior.
+
 ## Desinstalar
 
 Desinstalar saca el programa y su servicio. **Tus datos quedan** en `~/.apx/v2`; borrá esa carpeta vos si querés

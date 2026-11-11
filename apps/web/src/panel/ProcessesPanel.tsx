@@ -21,13 +21,15 @@ const running = (job: Job) => job.state === "working" && !job.ended_at;
 const commandOf = (job: Job) => job.title.replace(/^Ran\s+/, "");
 
 const statusOf = (t: T, job: Job) =>
-  running(job)
-    ? t("terminal.running")
-    : job.state === "canceled"
-      ? t("terminal.stopped")
-      : job.exit_code != null
-        ? t("terminal.exit", { code: job.exit_code })
-        : t("terminal.done");
+  job.start_error
+    ? t("terminal.startFailed")
+    : running(job)
+      ? t("terminal.running")
+      : job.state === "canceled"
+        ? t("terminal.stopped")
+        : job.exit_code != null
+          ? t("terminal.exit", { code: job.exit_code })
+          : t("terminal.done");
 
 const failed = (job: Job) => job.state === "failed" || (job.exit_code != null && job.exit_code !== 0);
 

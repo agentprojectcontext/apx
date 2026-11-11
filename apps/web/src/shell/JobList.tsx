@@ -85,13 +85,15 @@ function JobCard({ job: j, now, onOpen }: { job: Job; now: number; onOpen: (job:
       ? j.activity
       : waiting && j.from
         ? `${turnName(t, j.from)} · ${t(STATE_KEY[j.state])}`
-        : t(STATE_KEY[j.state]);
+        : j.start_error
+          ? t("terminal.startFailed")
+          : t(STATE_KEY[j.state]);
   const currentProject = j.thread_project_name ?? j.thread_project_id;
   const projectContext =
     j.thread_project_id !== j.project_id && currentProject
       ? t("job.currentChatProject", { project: currentProject })
       : undefined;
-  const details = [j.title, t("job.startedIn", { origin }), projectContext, activity, ...meta]
+  const details = [j.title, t("job.startedIn", { origin }), projectContext, activity, j.start_error, ...meta]
     .filter(Boolean)
     .join("\n");
   return (

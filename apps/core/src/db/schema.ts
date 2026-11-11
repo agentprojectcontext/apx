@@ -248,6 +248,7 @@ export interface JobsTable {
   started_at: string;
   ended_at: string | null;
   proc_start: string | null;
+  start_error: string | null;
 }
 
 export interface MediaTable {
