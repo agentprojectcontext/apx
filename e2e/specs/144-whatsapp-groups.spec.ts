@@ -40,10 +40,10 @@ async function lineAs(selfOwner: boolean): Promise<void> {
 async function openRooms(page: Page) {
   await open(page, "#view=channels");
   await page.getByRole("button", { name: "Configuración de WhatsApp" }).click();
-  // The part of the account's own dialog: the screen behind it may have a "Salas" too (Discord's rooms).
+  // The part of the account's own dialog, named as WhatsApp names them.
   const dialog = page.getByRole("dialog", { name: "WhatsApp" });
-  await dialog.getByRole("button", { name: /^Salas/ }).click();
-  await expect(dialog.getByRole("heading", { name: "Salas" })).toBeVisible();
+  await dialog.getByRole("button", { name: /^Grupos/ }).click();
+  await expect(dialog.getByRole("heading", { name: "Grupos" })).toBeVisible();
 }
 const save = (page: Page) => page.getByRole("button", { name: /^Guardar (⌘|Ctrl)/ }).click();
 
@@ -123,7 +123,7 @@ test("with groups and rooms turned off a listed group is dropped, and the list c
 }) => {
   await lineAs(false);
   await openRooms(page);
-  const on = page.getByRole("switch", { name: "Grupos y salas" });
+  const on = page.getByRole("switch", { name: "Usar grupos" });
   await expect(on).toBeChecked();
   await on.click();
   await expect(page.getByText(/Apagado, todo lo que llega de ellos se descarta/)).toBeVisible();

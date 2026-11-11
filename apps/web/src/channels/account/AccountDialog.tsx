@@ -19,7 +19,7 @@ import { ApprovalsPane } from "./ApprovalsPane.tsx";
 import { BehaviorPane } from "./BehaviorPane.tsx";
 import { ContactsPane } from "./ContactsPane.tsx";
 import { keptAfter } from "./draft.ts";
-import { isRoomsKind, RoomsSection } from "./RoomsPane.tsx";
+import { isRoomsKind, RoomsSection, roomsWord } from "./RoomsPane.tsx";
 import { clearRemoveAsk, removeAsked } from "./removeAsk.ts";
 import { hasStickersPane, StickersPane } from "./StickersPane.tsx";
 import type { Create, PaneProps } from "./types.ts";
@@ -281,6 +281,11 @@ function AccountDialog({ edit }: { edit: AccountEdit }) {
     (s) => s.persons.filter((p) => channel && p.addresses.some((a) => a.channel === channel.id)).length,
   );
   const shown: Pane = open ? pane : "account";
+  // The rooms part takes the platform's own word: Groups on WhatsApp, Spaces on Google Chat, Rooms on Discord.
+  const word = roomsWord(edit.kind);
+  const paneLabel = (p: Pane): string => t(p === "rooms" ? `acct.pane.${word}` : `acct.pane.${p}`);
+  const paneIcon = (p: { id: Pane; icon: ReactNode }): ReactNode =>
+    p.id === "rooms" && word === "groups" ? <Icons.MessagesSquare /> : p.icon;
 
   return (
     <Dialog
@@ -313,8 +318,8 @@ function AccountDialog({ edit }: { edit: AccountEdit }) {
                 <NavItem
                   key={p.id}
                   className="config__navitem"
-                  icon={p.icon}
-                  label={t(`acct.pane.${p.id}`)}
+                  icon={paneIcon(p)}
+                  label={paneLabel(p.id)}
                   disabled={!open && p.id !== "account"}
                   count={p.id === "contacts" ? contactsCount : undefined}
                   trailing={open ? <span className="acct__trail">{trailing(p.id)}</span> : undefined}
@@ -330,8 +335,14 @@ function AccountDialog({ edit }: { edit: AccountEdit }) {
         <div className="config__content">
           <div className="config__inner">
             <SectionHead
-              title={t(`acct.pane.${shown}`)}
-              lead={t(isNew && !connected && shown === "account" ? "acct.lead.accountNew" : LEAD[shown])}
+              title={paneLabel(shown)}
+              lead={t(
+                isNew && !connected && shown === "account"
+                  ? "acct.lead.accountNew"
+                  : shown === "rooms"
+                    ? `acct.lead.${word}`
+                    : LEAD[shown],
+              )}
             />
             {!paneProps || (isNew && !made) ? (
               <NewAccountPane kind={edit.kind} label={edits.label ?? ""} set={set} create={create} />

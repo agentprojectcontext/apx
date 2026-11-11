@@ -33,6 +33,16 @@ const ROOMS_KINDS = [
 type RoomsKind = (typeof ROOMS_KINDS)[number];
 export const isRoomsKind = (k: string): k is RoomsKind => (ROOMS_KINDS as readonly string[]).includes(k);
 
+/** What the platform's people call its shared places: WhatsApp's groups, Google Chat's spaces, Discord's rooms. */
+export type RoomsWord = "groups" | "spaces" | "rooms";
+const WORD: Partial<Record<RoomsKind, RoomsWord>> = {
+  whatsapp: "groups",
+  telegram: "groups",
+  line: "groups",
+  googlechat: "spaces",
+};
+export const roomsWord = (kind: string): RoomsWord => (isRoomsKind(kind) ? (WORD[kind] ?? "rooms") : "rooms");
+
 /**
  * A Discord channel id; a Telegram group's id (negative, -100… for a supergroup); a WhatsApp group's address
  * (…@g.us, an older one with its creator's number in front); a Google Chat space; a Nextcloud
@@ -171,12 +181,12 @@ export function RoomsSection({
     />
   );
   const toggle = (
-    <SettingRow title={t("rooms.on")} description={t("rooms.onHint")}>
+    <SettingRow title={t(`rooms.on.${roomsWord(kind)}`)} description={t("rooms.onHint")}>
       <Switch
         size="sm"
         checked={cur.off !== true}
         onCheckedChange={(on) => set({ off: !on })}
-        aria-label={t("rooms.on")}
+        aria-label={t(`rooms.on.${roomsWord(kind)}`)}
       />
     </SettingRow>
   );
@@ -184,7 +194,8 @@ export function RoomsSection({
   return (
     <>
       {toggle}
-      <SubHead>{t(words.title)}</SubHead>
+      {/* The pane's own title already names the platform's groups; only Discord's rooms belong to a server. */}
+      {kind === "discord" && <SubHead>{t(words.title)}</SubHead>}
       <p className="pform__hint">{t(words.lead)}</p>
       {kind === "telegram" && <p className="pform__hint">{t("rooms.tg.privacy")}</p>}
       {ownLine && (
@@ -288,7 +299,7 @@ export function RoomsSection({
               disabled={!validId}
               onClick={add}
             >
-              {t("rooms.add")}
+              {t(`rooms.add.${roomsWord(kind)}`)}
             </Button>
           </div>
         )}
@@ -346,7 +357,7 @@ export function RoomsSection({
             onSave={(v) => set({ limits: { ...cur.limits, user_cooldown_s: v } })}
           />
           <Limit
-            label={t("rooms.perHour")}
+            label={t(`rooms.perHour.${roomsWord(kind)}`)}
             value={cur.limits.room_replies_per_hour}
             min={1}
             max={600}
