@@ -99,12 +99,10 @@
 .project__tabs .apx-tabs__list {
   border-bottom: 0;
 }
-/* A project's header and its tabs sit in the middle of a wide window, as one page, not edge to edge. */
+/* A project's header and its tabs take the window's width, as Resources does. */
 .project__head,
 .project__body {
   width: 100%;
-  max-width: calc(var(--shell-project-max-w) + 48px);
-  margin-inline: auto;
   box-sizing: border-box;
 }
 .project__head {

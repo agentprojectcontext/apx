@@ -12,7 +12,7 @@ import { useNav } from "../shell/nav.ts";
 import { archivedThreads, inboxEntries, unreadUnder } from "./groupThreads.ts";
 import { InboxFilterChips, InboxFilterMenu } from "./InboxFilterMenu.tsx";
 import { ChatsTab, RoutinesTab, TasksTab } from "./InboxTabs.tsx";
-import { filterCount, passesFilter, soleFilter, useInboxFilter } from "./inboxFilter.ts";
+import { agentsOnly, filterCount, passesFilter, soleFilter, useInboxFilter } from "./inboxFilter.ts";
 import { NewChatMenu, startChat, useChatAgents } from "./NewChatMenu.tsx";
 
 /** Chat list: every chat grouped by project (Inbox), or one project's chats (project › Chats). */
@@ -25,8 +25,11 @@ export function InboxList() {
   const offline = useData((s) => s.connection === "offline");
   const [query, setQuery] = useState("");
   const [searching, setSearching] = useState(false);
-  const filter = useInboxFilter((s) => s);
-  const hidden = usePrefs((s) => s.inboxHiddenChannels);
+  const inboxFilter = useInboxFilter((s) => s);
+  const inboxHidden = usePrefs((s) => s.inboxHiddenChannels);
+  // In a project only its agents narrow the list; what the Inbox was narrowed to stays the Inbox's.
+  const filter = useMemo(() => (projectId ? agentsOnly(inboxFilter) : inboxFilter), [projectId, inboxFilter]);
+  const hidden = useMemo(() => (projectId ? [] : inboxHidden), [projectId, inboxHidden]);
   const filtered = filterCount(filter) > 0 || hidden.length > 0;
   const channels = useChannels((s) => s.channels);
   // Narrowed to one channel account, the Inbox is that account's: its header, its chats.
@@ -140,7 +143,7 @@ export function InboxList() {
                 onMouseDown={(e) => searching && e.preventDefault()}
                 onClick={() => (searching ? closeSearch() : setSearching(true))}
               />
-              <InboxFilterMenu threads={allListed} />
+              <InboxFilterMenu threads={allListed} agentsOnly={Boolean(projectId)} />
             </div>
             {/* Searching takes the tabs' place: the list under it stays where it was. */}
             <div className="inbox__switch">
@@ -209,7 +212,7 @@ export function InboxList() {
                 />
               )}
             </div>
-            <InboxFilterChips />
+            <InboxFilterChips agentsOnly={Boolean(projectId)} />
           </>
         )}
       </div>

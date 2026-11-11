@@ -587,7 +587,6 @@ export const es: Partial<Record<MessageKey, string>> = {
   "thread.chat": "Chat",
 
   // Chat
-  "chat.newCodeWith": "Nueva sesión de código con",
   "write.ask": "Pregunta antes de cambiar",
   "write.auto": "Edita libremente",
   "write.read-only": "Sólo lectura",

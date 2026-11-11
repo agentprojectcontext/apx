@@ -35,6 +35,14 @@ export function clearFilter(): void {
   store.set(EMPTY);
 }
 
+/** A project's chats narrow by its agents only: what else the Inbox holds (accounts, projects…) stays out of it. */
+export const agentsOnly = (f: InboxFilter): InboxFilter => ({ ...EMPTY, agents: f.agents });
+
+/** Clears the agents picked, leaving what else the Inbox holds. */
+export function clearAgents(): void {
+  store.set({ agents: [] });
+}
+
 /** Clears what the filter picks and shows every channel account again. */
 export function clearAll(): void {
   clearFilter();

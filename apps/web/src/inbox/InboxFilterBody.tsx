@@ -9,7 +9,14 @@ import { blobOf, inProject, nestProjects, projectEntries, projectInitial, projec
 import { setPrefs, usePrefs } from "../data/prefs.ts";
 import { useData, useShownAgents } from "../data/state.ts";
 import { useT } from "../i18n/index.ts";
-import { clearAll, filterCount, toggleFilter, toggleHiddenChannel, useInboxFilter } from "./inboxFilter.ts";
+import {
+  clearAgents,
+  clearAll,
+  filterCount,
+  toggleFilter,
+  toggleHiddenChannel,
+  useInboxFilter,
+} from "./inboxFilter.ts";
 
 type Kind = "channels" | "agents" | "projects";
 
@@ -17,14 +24,16 @@ type Kind = "channels" | "agents" | "projects";
  * What the filter's popover holds, loaded when it first opens: channel accounts to show or hide (and whether their
  * chats go together), agents or projects to pick, and a way to clear them.
  */
-export function InboxFilterBody({ threads }: { threads: Thread[] }) {
+export function InboxFilterBody({ threads, agentsOnly = false }: { threads: Thread[]; agentsOnly?: boolean }) {
   const t = useT();
   const agents = useShownAgents();
   const chosen = useInboxFilter((s) => s);
   const hidden = usePrefs((s) => s.inboxHiddenChannels);
-  const active = filterCount(chosen) + hidden.length;
+  const active = agentsOnly ? chosen.agents.length : filterCount(chosen) + hidden.length;
   const projects = useData((s) => s.projects);
-  const [kind, setKind] = useState<Kind>("channels");
+  const [picked, setKind] = useState<Kind>("channels");
+  // A project's list narrows by its agents alone.
+  const kind: Kind = agentsOnly ? "agents" : picked;
   const agentRows = useMemo(() => {
     const n = new Map<string, number>();
     for (const th of threads) for (const id of th.agent_ids) n.set(id, (n.get(id) ?? 0) + 1);
@@ -45,17 +54,19 @@ export function InboxFilterBody({ threads }: { threads: Thread[] }) {
   );
   return (
     <>
-      <Tabs
-        variant="pill"
-        className="inboxfilter__tabs"
-        value={kind}
-        onValueChange={(v) => setKind(v === "projects" || v === "agents" ? v : "channels")}
-        items={[
-          { value: "channels", label: t("inbox.filter.channels") },
-          { value: "agents", label: t("inbox.filter.agents") },
-          { value: "projects", label: t("inbox.filter.projects") },
-        ]}
-      />
+      {!agentsOnly && (
+        <Tabs
+          variant="pill"
+          className="inboxfilter__tabs"
+          value={kind}
+          onValueChange={(v) => setKind(v === "projects" || v === "agents" ? v : "channels")}
+          items={[
+            { value: "channels", label: t("inbox.filter.channels") },
+            { value: "agents", label: t("inbox.filter.agents") },
+            { value: "projects", label: t("inbox.filter.projects") },
+          ]}
+        />
+      )}
       <div className="inboxfilter__list">
         {kind === "channels" ? (
           <ChannelRows threads={threads} hidden={hidden} />
@@ -93,7 +104,7 @@ export function InboxFilterBody({ threads }: { threads: Thread[] }) {
       {kind === "channels" && <GroupSwitch />}
       {active > 0 && (
         <div className="inboxfilter__foot">
-          <Button size="sm" variant="ghost" onClick={clearAll}>
+          <Button size="sm" variant="ghost" onClick={agentsOnly ? clearAgents : clearAll}>
             {t("inbox.filter.clear")}
           </Button>
         </div>

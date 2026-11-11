@@ -143,6 +143,7 @@ function ProjectHeader({ project, tab }: { project: ProjectEntry; tab: ProjectTa
         <IconButton
           variant="secondary"
           size="lg"
+          shape="circle"
           label={t("project.settings")}
           icon={<Icons.Settings size={16} />}
           onClick={() => setSettings(true)}

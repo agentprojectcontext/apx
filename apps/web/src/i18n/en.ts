@@ -594,7 +594,6 @@ export const en = {
   "thread.chat": "Chat",
 
   // Chat
-  "chat.newCodeWith": "New code session with",
   "write.ask": "Asks before changes",
   "write.auto": "Edits freely",
   "write.read-only": "Read-only",

@@ -9,18 +9,18 @@ import { usePrefs } from "../data/prefs.ts";
 import { useData, useShownAgents } from "../data/state.ts";
 import { useT } from "../i18n/index.ts";
 import { InboxFilterBody } from "../lazy.ts";
-import { clearFilter, type FilterKind, filterCount, toggleFilter, useInboxFilter } from "./inboxFilter.ts";
+import { clearAgents, clearFilter, type FilterKind, filterCount, toggleFilter, useInboxFilter } from "./inboxFilter.ts";
 
 /**
  * The Inbox's filter: show or hide channel accounts, pick agents or projects (each with how many chats it has here);
  * the chosen ones show as chips under the tabs.
  */
-export function InboxFilterMenu({ threads }: { threads: Thread[] }) {
+export function InboxFilterMenu({ threads, agentsOnly = false }: { threads: Thread[]; agentsOnly?: boolean }) {
   const t = useT();
   const chosen = useInboxFilter((s) => s);
   // Hidden channel accounts count too: something is left out of the list.
   const hidden = usePrefs((s) => s.inboxHiddenChannels.length);
-  const active = filterCount(chosen) + hidden;
+  const active = agentsOnly ? chosen.agents.length : filterCount(chosen) + hidden;
   return (
     <Popover
       align="end"
@@ -45,16 +45,16 @@ export function InboxFilterMenu({ threads }: { threads: Thread[] }) {
       }
     >
       <Suspense fallback={<Spinner size={14} />}>
-        <InboxFilterBody threads={threads} />
+        <InboxFilterBody threads={threads} agentsOnly={agentsOnly} />
       </Suspense>
     </Popover>
   );
 }
 
 /** What the Inbox is narrowed to, as chips under the tabs; each one's × takes it out. */
-export function InboxFilterChips() {
+export function InboxFilterChips({ agentsOnly = false }: { agentsOnly?: boolean }) {
   const t = useT();
-  const chips = useFilterChips();
+  const chips = useFilterChips().filter((c) => !agentsOnly || c.kind === "agents");
   if (!chips.length) return null;
   return (
     <div className="inboxfilter__chips">
@@ -71,7 +71,7 @@ export function InboxFilterChips() {
           {label}
         </Button>
       ))}
-      <Button size="sm" variant="ghost" onClick={clearFilter}>
+      <Button size="sm" variant="ghost" onClick={agentsOnly ? clearAgents : clearFilter}>
         {t("inbox.filter.clearShort")}
       </Button>
     </div>

@@ -26,9 +26,9 @@ export function useChatAgents(projectId: string | undefined): Agent[] {
 }
 
 /** Open a new chat with `agent` in a nav project (undefined / the base space = no project): made when first sent. */
-export function startChat(agent: Agent, projectId: string | undefined, code = false): void {
+export function startChat(agent: Agent, projectId: string | undefined): void {
   const project = realProjectId(projectId);
-  const id = newChatId({ agent: agent.id, ...(project ? { project } : {}), code });
+  const id = newChatId({ agent: agent.id, ...(project ? { project } : {}) });
   if (projectId) go.project(projectId, "chats", id);
   else go.thread(id);
 }
@@ -36,7 +36,7 @@ export function startChat(agent: Agent, projectId: string | undefined, code = fa
 /**
  * "New chat with <agent>" picker around any trigger, with a search box: the agents used lately first, then all of
  * them by project. From the Inbox every project's agents are there (the chat goes to the agent's project); in a
- * project, its own and the super-agent, plus code sessions when the project has its folder on disk. Under the list,
+ * project, its own and the super-agent. Under the list,
  * "New agent" makes one (in the project, or a global one) and opens a chat with it.
  *
  * Without `side`, the sidebar's picker (no project, opening the chat in the panel) opens beside the sidebar; the
@@ -64,8 +64,6 @@ export function NewChatMenu({
   const projects = useData((s) => s.projects);
   const pid = realProjectId(projectId);
   const all = useAgentOptions(projectId, !projectId, projectId ? "secretary" : "all");
-  // A code session needs the project's folder on disk.
-  const onDisk = projects.some((p) => p.id === pid && p.path && p.present);
   const [creating, setCreating] = useState(false);
   const beside = !projectId && !onStart;
   const home = findProject(projects, projectId ?? DEFAULT_PID);
@@ -97,28 +95,20 @@ export function NewChatMenu({
           : [];
       }),
       ...all,
-      ...(onDisk
-        ? all.map((o) => ({
-            value: `code:${o.value}`,
-            label: o.label,
-            icon: <Icons.Code size={16} />,
-            group: t("chat.newCodeWith"),
-          }))
-        : []),
     ];
-  }, [all, threads, projectId, onDisk, t]);
+  }, [all, threads, projectId, t]);
 
   const pick = (value: string | null) => {
     if (!value) return;
-    const [kind, id] = value.includes(":") ? value.split(":") : ["", value];
+    const id = value.startsWith("recent:") ? value.slice("recent:".length) : value;
     const agent = agents[id ?? ""];
     if (!agent) return;
     if (onStart) {
       const project = projectId ? pid : agent.project_id;
-      onStart(newChatId({ agent: agent.id, ...(project ? { project } : {}), code: kind === "code" }));
+      onStart(newChatId({ agent: agent.id, ...(project ? { project } : {}) }));
       return;
     }
-    if (projectId) return startChat(agent, projectId, kind === "code");
+    if (projectId) return startChat(agent, projectId);
     // From the Inbox: the chat belongs to the agent's project, and opens here.
     go.thread(newChatId({ agent: agent.id, ...(agent.project_id ? { project: agent.project_id } : {}) }));
   };

@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import type { Project, Thread } from "@apx/protocol";
-import { type InboxFilter, passesFilter, soleFilter } from "./inboxFilter.ts";
+import { agentsOnly, type InboxFilter, passesFilter, soleFilter } from "./inboxFilter.ts";
 
 const chat = (agent: string, project?: string, extra: Partial<Thread> = {}) =>
   ({
@@ -75,4 +75,13 @@ test("a hidden account's chats are left out, unless the filter picks that accoun
   assert.equal(passesFilter(contact("wa_sales"), none, projects, kindOf, hidden), true);
   assert.equal(passesFilter(chat("roby"), none, projects, kindOf, hidden), true);
   assert.equal(passesFilter(contact("mail"), on({ accounts: ["mail"] }), projects, kindOf, hidden), true);
+});
+
+test("a project's chats keep only the agents picked: an account the Inbox was narrowed to does not hide them", () => {
+  const inbox = on({ agents: ["scout"], accounts: ["wa_sales"], projects: ["p_web"] });
+  const scoped = agentsOnly(inbox);
+  assert.deepEqual(scoped, on({ agents: ["scout"] }));
+  assert.equal(passesFilter(chat("scout", "p_acme"), scoped, projects), true);
+  assert.equal(passesFilter(chat("roby", "p_acme"), scoped, projects), false);
+  assert.equal(passesFilter(chat("scout", "p_acme"), agentsOnly(on({ accounts: ["wa_sales"] })), projects), true);
 });
