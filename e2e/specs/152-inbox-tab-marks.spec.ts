@@ -26,12 +26,12 @@ test("a tab shows a spinner while its chat runs and a dot for its news until it 
     await expect(tab("Tareas")).toBeChecked();
 
     await env.client.call("threads.send", { thread: chat.id, text: "revisá el contrato de Northwind" });
-    await expect(tab("Chats").getByRole("img", { name: "Hay algo en curso" })).toBeVisible();
-    await expect(tab("Tareas").getByRole("img", { name: "Hay algo en curso" })).toHaveCount(0);
+    await expect(tab("Chats").getByRole("img", { name: /en curso$/ })).toBeVisible();
+    await expect(tab("Tareas").getByRole("img", { name: /en curso$/ })).toHaveCount(0);
 
     release();
     await env.settle(chat.id);
-    await expect(tab("Chats").getByRole("img", { name: "Hay algo en curso" })).toHaveCount(0);
+    await expect(tab("Chats").getByRole("img", { name: /en curso$/ })).toHaveCount(0);
     await expect(tab("Chats").getByRole("img", { name: "Mensajes nuevos" })).toBeVisible();
     await expect(tab("Tareas").getByRole("img", { name: "Mensajes nuevos" })).toHaveCount(0);
 
@@ -40,6 +40,8 @@ test("a tab shows a spinner while its chat runs and a dot for its news until it 
     await expect(tab("Chats").getByRole("img", { name: "Mensajes nuevos" })).toHaveCount(0);
     await expect(inbox.locator(".apx-convrow.is-unread")).toHaveCount(1);
   } finally {
+    // A failed check must not leave the model held: closing the core waits for its run.
+    release();
     await page.goto("about:blank");
     await env.core.close();
     await env.cleanup();
