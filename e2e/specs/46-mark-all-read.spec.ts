@@ -181,5 +181,21 @@ test.describe("barra compacta", () => {
     await expect(page.getByRole("menuitem", { name: "Marcar todo como leído", exact: true })).toBeDisabled();
     await page.keyboard.press("Escape");
     await expect(openItem).toHaveCount(0);
+
+    // A pick inside the flyout closes it, even when it keeps the place shown (an account narrows the Inbox already
+    // narrowed to it): once from the row, once from its menu's "Open".
+    const flyout = page.getByRole("dialog", { name: "Canales" });
+    for (const how of ["row", "menu"] as const) {
+      await section("Canales").hover();
+      await expect(flyout).toBeVisible();
+      const row = page.locator('[data-channel-id="telegram"]');
+      if (how === "row") await row.getByRole("button").first().click();
+      else {
+        await row.click({ button: "right" });
+        await page.getByRole("menuitem", { name: "Abrir", exact: true }).click();
+      }
+      await expect(flyout).toBeHidden();
+      await page.mouse.move(900, 500);
+    }
   });
 });

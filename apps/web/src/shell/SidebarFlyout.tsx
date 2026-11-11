@@ -1,5 +1,5 @@
 import { Icons, Popover } from "@apx/ui";
-import { type ReactNode, useEffect, useRef, useState } from "react";
+import { type MouseEvent, type ReactNode, useEffect, useRef, useState } from "react";
 import { useNav } from "./nav.ts";
 import { SidebarTooltipButton } from "./SidebarNavRow.tsx";
 
@@ -56,6 +56,14 @@ export function SidebarFlyout({
     watch.observe(el, { subtree: true, attributes: true, attributeFilter: ["data-popup-open"] });
     return () => watch.disconnect();
   }, [open]);
+  // A pick inside (a row, or an item of its menu) is done with the flyout, even when it keeps the same place (an
+  // account narrows the Inbox already shown). A row's "…" only opens its menu.
+  const picked = (event: MouseEvent<HTMLDivElement>) => {
+    const target = (event.target as HTMLElement).closest("button, [role='menuitem']");
+    if (!target || target.closest("[data-sidebar-actions]")) return;
+    deferred.current = false;
+    setOpen(false);
+  };
   // A pick inside opens another place: the flyout steps aside for it.
   const where = useNav((s) => `${s.view}|${s.projectId}|${s.channelId}|${s.engineId}|${s.appId}`);
   useEffect(() => {
@@ -99,7 +107,9 @@ export function SidebarFlyout({
       {empty && !count ? (
         <p className="sideflyout__empty">{empty}</p>
       ) : (
-        <div ref={list} className="sideflyout__list">
+        // biome-ignore lint/a11y/noStaticElementInteractions: it only listens for a pick its rows already handle.
+        // biome-ignore lint/a11y/useKeyWithClickEvents: Enter on a row is a click, so it lands here too.
+        <div ref={list} className="sideflyout__list" onClick={picked}>
           {children}
         </div>
       )}

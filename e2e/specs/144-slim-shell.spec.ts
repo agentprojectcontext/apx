@@ -86,8 +86,9 @@ test("a subproject shows its project, can become a project of its own and move i
   const { projects } = await rpc<{ projects: Project[] }>("projects.list");
   expect(projects.find((p) => p.id === web.id)?.parent).toBeUndefined();
 
-  // And back: any project without subprojects of its own moves into another from its menu.
-  await page.locator(".sidebar").getByRole("button", { name: "Proyectos", exact: true }).hover();
+  // And back: any project without subprojects of its own moves into another from its menu. The pick closed the
+  // flyout, so it opens again from its row.
+  await page.locator(".sidebar").getByRole("button", { name: "Proyectos", exact: true }).click();
   await expect(flyout).toBeVisible();
   await flyout.getByText("Web slim", { exact: true }).click({ button: "right" });
   await page.getByRole("menuitem", { name: "Mover dentro de" }).hover();
