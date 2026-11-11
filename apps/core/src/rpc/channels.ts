@@ -77,7 +77,8 @@ export function channelHandlers(store: Store, channels: Channels, nudges: Pick<N
         })),
     }),
     "channels.set": async ({ id, channel, token }) => {
-      for (const agent of [channel?.agent_id, channel?.contacts_agent_id])
+      const roomAgents = (channel?.rooms?.rooms ?? []).map((r) => r.agent_id);
+      for (const agent of [channel?.agent_id, channel?.contacts_agent_id, ...roomAgents])
         if (agent && !store.agents.active(agent)) throw notFound(`agent ${agent}`);
       if (channel?.type === "telegram" && !token && !channels.info().find((c) => c.id === id)?.token_set)
         throw badRequest("a Telegram channel needs its bot token (from @BotFather)");

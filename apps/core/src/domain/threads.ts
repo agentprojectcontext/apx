@@ -533,11 +533,14 @@ export function threadsRepo({ one, all, run }: Sql, bus: Bus, endSession: (threa
       fromProject?: string | undefined;
       /** People whose own agent answers them: their chats stay as they are. */
       except?: ReadonlySet<string>;
+      /** Rooms (by conversation) whose own agent answers them: their chats stay as they are. */
+      exceptRooms?: ReadonlySet<string>;
     }) {
       for (const r of all(qb.selectFrom("threads").selectAll().where("channel", "=", o.channel))) {
         const t = toThread(r);
         if ((t.channel?.person_id === o.owner) !== o.owners || t.agent_ids[0] !== o.from) continue;
         if (t.channel?.person_id && o.except?.has(t.channel.person_id)) continue;
+        if (!t.channel?.person_id && t.channel?.conversation && o.exceptRooms?.has(t.channel.conversation)) continue;
         repo.write(t.id, {
           agent_ids: JSON.stringify([o.to, ...t.agent_ids.filter((a) => a !== o.from && a !== o.to)]),
           ...(t.project_id === o.fromProject ? { project_id: o.project ?? null } : {}),

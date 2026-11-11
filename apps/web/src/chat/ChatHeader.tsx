@@ -78,7 +78,7 @@ export function ChatHeader({
   // A group's or room's chat (a channel chat with nobody behind it) opens its card from here.
   const room = Boolean(thread.channel && !thread.channel.person_id);
   const roomChannel = useChannels((s) => s.channels.find((c) => c.id === thread.channel?.id));
-  const roomOpen = useRoomCard(thread.id);
+  const roomOpen = useRoomCard();
   const channelKind = useThreadChannel(thread);
   const requestedRef = thread.model_choice?.model;
   const requested = requestedRef ? splitRef(requestedRef) : undefined;
@@ -198,7 +198,7 @@ export function ChatHeader({
               label={t(roomWord(roomChannel))}
               tooltip={t(roomOpen ? "chat.roomCardClose" : "chat.roomCardOpen")}
               active={roomOpen}
-              onClick={() => toggleRoomCard(thread.id)}
+              onClick={toggleRoomCard}
             />
           ) : (
             <Button
@@ -208,7 +208,7 @@ export function ChatHeader({
               leadingIcon={<Icons.Users size={14} />}
               aria-pressed={roomOpen}
               title={t(roomOpen ? "chat.roomCardClose" : "chat.roomCardOpen")}
-              onClick={() => toggleRoomCard(thread.id)}
+              onClick={toggleRoomCard}
             >
               {t(roomWord(roomChannel))}
             </Button>

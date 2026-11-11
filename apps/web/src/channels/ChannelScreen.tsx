@@ -1,5 +1,5 @@
 import "../styles/screens.css";
-import type { ChannelInfo, RoomMode, Thread } from "@apx/protocol";
+import type { Agent, ChannelInfo, RoomMode, Thread } from "@apx/protocol";
 import { EmptyState, IconButton, Icons, Menu, ProjectTile, SearchField } from "@apx/ui";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { ChatView } from "../chat/ChatView.tsx";
@@ -9,14 +9,14 @@ import { useData } from "../data/state.ts";
 import { type MessageKey, useT } from "../i18n/index.ts";
 import { SidePanel } from "../panel/SidePanel.tsx";
 import { go, nav, useNav } from "../shell/nav.ts";
+import { AnswererFace } from "./AnswererFace.tsx";
 import { agentName, answerersOf, answersLine } from "./answerers.ts";
 import { ChannelConversation } from "./ChannelConversation.tsx";
 import { ContactPanel } from "./ContactPanel.tsx";
 import { ContactRow, type Row } from "./ContactRow.tsx";
 import { useAccountCounts } from "./counts.ts";
 import { KindIcon, KindTile } from "./KindIcon.tsx";
-import { isChannelKind } from "./kinds.ts";
-import { RoomPanel } from "./RoomPanel.tsx";
+import { GROUP_KINDS, isChannelKind, isRoomsKind } from "./kinds.ts";
 import { LinkMe, LinkPhone, OwnerRow, ownerOn, PairingRow } from "./StartRows.tsx";
 
 /** A saved contact picked before they have a chat: the list's selection names them instead of a chat. */
@@ -117,10 +117,6 @@ export function ChannelScreen() {
   const shownRooms = rooms.filter((th) => !query || th.title.toLowerCase().includes(query.toLowerCase()));
   const room = picked ? rooms.find((th) => th.id === picked) : undefined;
   const roomOpen = Boolean(room);
-  // A room picked shows its card again on wide screens: its chat header has no button for it.
-  useEffect(() => {
-    if (room?.id && window.innerWidth >= 1280) setCard(true);
-  }, [room?.id]);
   const current = rows.find((r) => r.key === picked);
   const waiting = pairing.filter((r) => r.channel === channelId);
   const linked = ownerOn(persons, channelId ?? "");
@@ -143,7 +139,7 @@ export function ChannelScreen() {
 
   return (
     <section
-      className={`chan${current || ownerOpen || roomOpen ? " has-chat" : ""}${(current || room) && card && !ownerOpen ? " has-card" : ""}`}
+      className={`chan${current || ownerOpen || roomOpen ? " has-chat" : ""}${current && !room && card && !ownerOpen ? " has-card" : ""}`}
       aria-label={channel.label}
     >
       <aside className="chan__list">
@@ -164,6 +160,7 @@ export function ChannelScreen() {
               key={th.id}
               thread={th}
               channel={channel}
+              agent={agents[th.agent_ids[0] ?? ""]}
               selected={th.id === picked}
               onPick={() => go.channel(channel.id, th.id)}
             />
@@ -175,6 +172,9 @@ export function ChannelScreen() {
               type={channel.type}
               channelId={channel.id}
               presence={r.person ? presence[r.person.id] : undefined}
+              agent={
+                agents[r.thread?.agent_ids[0] ?? r.person?.agent_id ?? channel.contacts_agent_id ?? channel.agent_id]
+              }
               selected={r.key === picked}
               onPick={() => go.channel(channel.id, r.key)}
             />
@@ -189,10 +189,7 @@ export function ChannelScreen() {
           {...(ownerTarget === "home" ? { via: { channel: channel.id, label: channel.label } } : {})}
         />
       ) : room ? (
-        <>
-          <OpenChat threadId={room.id} />
-          {card && <RoomPanel key={room.id} thread={room} channel={channel} onClose={() => setCard(false)} />}
-        </>
+        <OpenChat threadId={room.id} />
       ) : current ? (
         <>
           <ChannelConversation
@@ -250,6 +247,7 @@ function ChannelHead({ channel }: { channel: ChannelInfo }) {
   const channels = useChannels((s) => s.channels);
   const counts = useAccountCounts();
   const kind = isChannelKind(channel.type) ? channel.type : undefined;
+  const answerers = answerersOf(channel, agents);
   return (
     <header className="chan__head">
       {kind ? <KindTile kind={kind} size={32} /> : <ProjectTile tone="info" icon={<Icons.Send />} size={32} />}
@@ -264,9 +262,11 @@ function ChannelHead({ channel }: { channel: ChannelInfo }) {
             </span>
             <span className="chan__meta">
               <span className={`chan__status is-${channel.status}`} />
-              <span className="chan__metatext" title={answersLine(answerersOf(channel, agents), t)}>
+              <AnswererFace agent={answerers.owner} />
+              {answerers.contacts && <AnswererFace agent={answerers.contacts.agent} />}
+              <span className="chan__metatext" title={answersLine(answerers, t)}>
                 {channel.account ? `${channel.account} · ` : ""}
-                {answersLine(answerersOf(channel, agents), t)}
+                {answersLine(answerers, t)}
               </span>
             </span>
           </button>
@@ -288,6 +288,14 @@ function ChannelHead({ channel }: { channel: ChannelInfo }) {
       />
       {kind && (
         <>
+          {isRoomsKind(kind) && (
+            <IconButton
+              size="sm"
+              label={t(GROUP_KINDS.has(kind) ? "ch.groups.open" : "ch.rooms.open")}
+              icon={<Icons.Hash size={14} />}
+              onClick={() => go.channelSettings(kind, channel.id, "rooms")}
+            />
+          )}
           <IconButton
             size="sm"
             label={t("chs.contacts")}
@@ -309,11 +317,13 @@ function ChannelHead({ channel }: { channel: ChannelInfo }) {
 function RoomRow({
   thread,
   channel,
+  agent,
   selected,
   onPick,
 }: {
   thread: Thread;
   channel: ChannelInfo;
+  agent: Agent | undefined;
   selected: boolean;
   onPick(): void;
 }) {
@@ -339,7 +349,12 @@ function RoomRow({
             <span className="chan__preview">{thread.preview}</span>
             {thread.unread > 0 && <span className="chan__unread">{thread.unread}</span>}
           </span>
-          {mode && <span className="chan__rel">{t(ROOM_MODE_KEY[mode])}</span>}
+          <span className="chan__rowtop chan__rowanswer">
+            <AnswererFace agent={agent} />
+            <span className="chan__rel">
+              {[agent?.name, mode ? t(ROOM_MODE_KEY[mode]) : undefined].filter(Boolean).join(" · ")}
+            </span>
+          </span>
         </span>
       </button>
     </li>

@@ -12,10 +12,10 @@ import { previewOf } from "../domain/threads.ts";
 import type { RunTimers } from "../engine/engine.ts";
 import type { Log } from "../log.ts";
 import type { InternalCall } from "../rpc/internal.ts";
-import { agentProject } from "./agent-project.ts";
+import { agentProject, roomAnswerer } from "./agent-project.ts";
 import type { TellOwner } from "./owner-notices.ts";
 import { channelTexts } from "./texts.ts";
-import { type ChannelConfig, contactAgentOf } from "./types.ts";
+import type { ChannelConfig } from "./types.ts";
 
 const HOUR_MS = 3_600_000;
 /** Several messages from one person this close together are one question: one answer, to the last. */
@@ -130,14 +130,15 @@ export function createRooms(deps: {
   };
 
   /** The room's chat (one per room), made the first time something is said there. */
-  function roomThread(cfg: ChannelConfig, room: { id: string; name: string }): Thread {
+  function roomThread(cfg: ChannelConfig, room: { id: string; name: string; agent_id?: string | undefined }): Thread {
     const known = store.threads.byConversation(cfg.id, room.id);
     if (known) return known;
+    const agent = roomAnswerer(store, cfg, room);
     const t = store.threads.create({
       kind: "channel",
       title: `#${room.name || room.id}`,
-      agent_ids: [contactAgentOf(cfg)],
-      project_id: agentProject(store, contactAgentOf(cfg)),
+      agent_ids: [agent],
+      project_id: agentProject(store, agent),
       channel: { id: cfg.id, conversation: room.id },
     });
     store.threads.mergeContext(t.id, { room: { name: room.name || room.id } });

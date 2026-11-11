@@ -24,7 +24,7 @@ import type { Secrets } from "../secrets.ts";
 import { splitSpoken } from "../services/audio.ts";
 import type { Services } from "../services/registry.ts";
 import { addedUnconnected, dropUnconnected, keptConnected, kindFixed, restartsFor } from "./accounts.ts";
-import { agentProject } from "./agent-project.ts";
+import { agentProject, roomAnswerer } from "./agent-project.ts";
 import { createChannelMail } from "./channel-mail.ts";
 import { createDelivery } from "./delivery.ts";
 import { guardReply } from "./guard.ts";
@@ -145,6 +145,12 @@ export function createChannels(deps: {
     const except = new Set(
       store.persons.list().flatMap((p) => (p.agent_id && store.agents.get(p.agent_id) ? [p.id] : [])),
     );
+    // A room with an agent of its own, before or after, is handed below; the others follow the account.
+    const ownRoom = (r: { agent_id?: string | undefined } | undefined) =>
+      Boolean(r?.agent_id && store.agents.get(r.agent_id));
+    const beforeRooms = new Map((before.rooms?.rooms ?? []).map((r) => [r.id, r]));
+    const handed = (after.rooms?.rooms ?? []).filter((r) => ownRoom(r) || ownRoom(beforeRooms.get(r.id)));
+    const exceptRooms = new Set(handed.map((r) => r.id));
     for (const [owners, from, to] of moves)
       if (from !== to)
         store.threads.moveAnswerer({
@@ -155,8 +161,14 @@ export function createChannels(deps: {
           to,
           project: agentProject(store, to),
           except,
+          exceptRooms,
           fromProject: agentProject(store, from),
         });
+    for (const room of handed) {
+      const to = roomAnswerer(store, after, room);
+      const thread = store.threads.byConversation(id, room.id);
+      if (thread && thread.agent_ids[0] !== to) store.threads.handTo(thread, to, agentProject(store, to));
+    }
   };
 
   const delivery = createDelivery({

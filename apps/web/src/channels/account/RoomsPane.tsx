@@ -5,6 +5,7 @@ import { SubHead } from "../../config/SectionHead.tsx";
 import { client } from "../../data/client.ts";
 import { useData } from "../../data/state.ts";
 import { type MessageKey, useT } from "../../i18n/index.ts";
+import type { RoomsKind } from "../kinds.ts";
 import { Limit } from "./parts.tsx";
 
 const MODES: RoomMode[] = ["mention", "useful", "always", "read"];
@@ -19,9 +20,6 @@ const EMPTY: ChannelRooms = {
 };
 
 type ServerRoom = { id: string; name: string; server: string; writable: boolean };
-const ROOMS_KINDS = ["discord", "telegram", "googlechat", "nextcloud", "irc", "twitch", "teams", "line"] as const;
-type RoomsKind = (typeof ROOMS_KINDS)[number];
-export const isRoomsKind = (k: string): k is RoomsKind => (ROOMS_KINDS as readonly string[]).includes(k);
 
 /**
  * A Discord channel id; a Telegram group's id (negative, -100… for a supergroup); a Google Chat space; a Nextcloud

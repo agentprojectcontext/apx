@@ -157,7 +157,7 @@
   min-width: 0;
   min-height: 0;
 }
-.chan__owner > :not(.sidepanel) {
+.chan__owner > :not(.sidepanel, .chan__card) {
   flex: 1;
   min-width: 0;
 }
@@ -316,6 +316,17 @@
 }
 .chan__rel:empty {
   flex: 1;
+}
+/* Who answers them (face and name), then how they relate to the owner; the marks go to the end. */
+.chan__rowanswer {
+  gap: 5px;
+}
+.chan__rowanswer .chan__rel {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 /* What is set for a contact: small marks at the end of their row. */
 .chan__flags {
@@ -726,7 +737,8 @@
     grid-template-columns: minmax(0, 1fr);
   }
   .chan.has-chat .chan__list,
-  .chan:not(.has-chat) .chan__chat {
+  .chan:not(.has-chat) .chan__chat,
+  .chan:not(.has-chat) > .chan__pick {
     display: none;
   }
   .chan__back {

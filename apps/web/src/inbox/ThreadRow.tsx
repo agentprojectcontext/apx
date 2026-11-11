@@ -1,5 +1,6 @@
 import type { Agent, Thread } from "@apx/protocol";
 import { ContextMenu, ConversationRow, IconButton, Icons, Menu, Spinner } from "@apx/ui";
+import { AnswererFace } from "../channels/AnswererFace.tsx";
 import { CHANNEL_KINDS, type ChannelKind } from "../channels/kinds.ts";
 import { ChatProcesses } from "../common/ChatProcesses.tsx";
 import { shortWhen } from "../common/format.ts";
@@ -57,6 +58,8 @@ export function ThreadRow({ thread, agent, selected, onOpen }: ThreadRowProps) {
           unread={thread.unread}
           preview={
             <span className="threadrow__line">
+              {/* A channel chat's own face is the person's or the room's: the agent who answers it shows here. */}
+              {thread.channel && !engine && <AnswererFace agent={agent} />}
               <span className="threadrow__who">
                 {waiting && <span className="threadrow__waiting">{t("thread.waiting")} · </span>}
                 {[who, contextOf(thread, agent, t, channel)].filter(Boolean).join(" · ")}

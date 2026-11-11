@@ -24,6 +24,7 @@ import { MOVE_BACKUP_NEWS } from "./move-backup.ts";
 import { OLDER_NEWS } from "./older-entries.ts";
 import { QUEUED_MESSAGES_NEWS } from "./queued-messages.ts";
 import { QUICK_CHAT_NEWS } from "./quick-chat.ts";
+import { ROOM_AGENT_NEWS } from "./room-agent.ts";
 import { ROOM_HANDOFF_NEWS } from "./room-handoff.ts";
 import { SIDE_QUESTION_NEWS } from "./side-question.ts";
 import { STORE_COMPACT_NEWS } from "./store-compact.ts";
@@ -135,6 +136,7 @@ export const NEWS: readonly NewsEntry[] = [
   TASK_GOALS_NEWS,
   CHANNEL_AGENTS_NEWS,
   CONTACT_AGENT_NEWS,
+  ROOM_AGENT_NEWS,
   TASK_COMMENTS_NEWS,
   COMPUTER_POINTER_NEWS,
   TASK_REGROUP_NEWS,
