@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { Message, Thread } from "@apx/protocol";
-import { answerCards, answerText, isAgentEvent, responseOf } from "./agentEvent.ts";
+import { answerCards, isAgentEvent, responseOf } from "./agentEvent.ts";
 
 const thread = Thread.parse({
   id: "chat",
@@ -107,18 +107,4 @@ test("a teammate's answer points at its card when the chat shows it, and is told
   assert.deepEqual(cards.get("a1"), { card: "c1", next: true });
   assert.deepEqual(cards.get("a2"), { card: "c2", next: false });
   assert.equal(cards.get("a3"), undefined);
-});
-
-test("the answer shown is the teammate's words, without what APX told the asker around them", () => {
-  assert.equal(
-    answerText("Scout answered your question on task task_1:\nUse the staging DB.\n\nGo on with the task."),
-    "Use the staging DB.",
-  );
-  assert.equal(
-    answerText(
-      "Scout checked the task and found nothing that fails:\nApproved.\n\nIt is yours to deliver: finish what the task asks.",
-    ),
-    "Approved.",
-  );
-  assert.equal(answerText("A plain report."), "A plain report.");
 });

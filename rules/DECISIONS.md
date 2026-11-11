@@ -4643,6 +4643,10 @@ A task's conversation names the agent that works the task and the task's current
 created with, and a task's row counts every agent that took part (`Task.agents`: its agent, those with a chat for it,
 the teammates asked on it).
 
+Between agents the card is drawn closed, as a delegation at work is (the request, "Ramiro → Bruno", its state and a
+chevron), in the asker's chat and on the task; it opens the teammate's conversation beside the chat, where the answer
+and its steps are. A card for the owner's own question on a task keeps its answer shown: it answers them.
+
 Rejected: putting the card inside the asker's live answer, as a delegation's is (a consult can end while that answer is
 still being written, and a card settled outside the turn's display would be overwritten by it), and dropping the
 answer's message (the asker's next turn would show with nothing above it saying why).

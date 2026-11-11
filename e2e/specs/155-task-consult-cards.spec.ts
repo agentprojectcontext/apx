@@ -23,7 +23,9 @@ const preview: Tool = {
   },
 };
 
-test("a teammate asked on a task answers in one card where the asker asked", async ({ page }) => {
+test("a teammate asked on a task is one closed row where the asker asked, opening its conversation", async ({
+  page,
+}) => {
   let taskId = "";
   let asked = false;
   const env = await startCore({
@@ -73,17 +75,18 @@ test("a teammate asked on a task answers in one card where the asker asked", asy
     await page.goto(`${env.core.url}/#thread=${chat()?.id}`);
     const transcript = page.locator(".transcript");
     const cards = transcript.locator(".apx-subthread");
+    // One closed row where Ramiro asked: who asked whom and what, and how it went.
     await expect(cards).toHaveCount(1);
-    await expect(cards).toContainText("Respuesta de Bruno");
     await expect(cards).toContainText("Ramiro → Bruno");
-    await expect(cards).toContainText("Approved: no blocking findings.");
-    // Which step failed, not only that one did.
-    await expect(cards).toContainText("Falló:");
-    await expect(cards).toContainText("Deploy the preview");
-    // The answer is told once: no second card or box with the words handed to Ramiro.
-    await expect(transcript.locator(".transcript__agent-event")).toHaveCount(0);
+    await expect(cards).toContainText("@bruno review the finished diff, read only");
+    await expect(cards).toContainText("Fallaron algunas acciones");
+    await expect(cards.locator(".apx-subthread__report, .apx-subthread__meta")).toHaveCount(0);
+    // Which steps failed, on its state.
+    await expect(cards.getByTitle("Falló: Deploy the preview")).toBeVisible();
+    // The answer is told once, in Bruno's conversation: not in the row, nor in a box with the words handed to Ramiro.
+    await expect(transcript.locator(".transcript__agent-event, .transcript__answered")).toHaveCount(0);
     await expect(transcript).not.toContainText("answered your question");
-    await expect(transcript.getByText("Approved: no blocking findings.")).toHaveCount(1);
+    await expect(transcript).not.toContainText("Approved: no blocking findings.");
     await expect(transcript).toContainText("Going on with the review.");
     if (SHOTS) {
       await page.screenshot({ path: `${SHOTS}/asker-chat.png` });
@@ -91,10 +94,11 @@ test("a teammate asked on a task answers in one card where the asker asked", asy
       await page.screenshot({ path: `${SHOTS}/asker-chat-phone.png` });
       await page.setViewportSize({ width: 1280, height: 800 });
     }
-    // Its head opens Bruno's conversation beside the chat.
+    // A click opens Bruno's conversation beside the chat, as a delegation's row does: the question, his steps, his answer.
     await cards.getByRole("button", { name: "Abrir conversación con Bruno" }).click();
     const side = page.getByRole("complementary", { name: "Panel lateral" });
     await expect(side).toContainText("review the finished diff");
+    await expect(side).toContainText("1 falló");
     await expect(side).toContainText("Approved: no blocking findings.");
     if (SHOTS) await page.screenshot({ path: `${SHOTS}/asker-side.png` });
 
@@ -104,6 +108,12 @@ test("a teammate asked on a task answers in one card where the asker asked", asy
     await expect(header).toContainText("Lead cards ignore disabled attributes");
     await expect(header).toContainText("Ramiro");
     await expect(header).not.toContainText("Super-agente");
+    // There too, the teammate's card is its closed row.
+    const taskCard = page.locator(".transcript .apx-subthread");
+    await expect(taskCard).toHaveCount(1);
+    await expect(taskCard).toContainText("Ramiro → Bruno");
+    await expect(taskCard).toContainText("Lead cards ignore disabled attributes");
+    await expect(taskCard.locator(".apx-subthread__report")).toHaveCount(0);
     if (SHOTS) {
       await page.screenshot({ path: `${SHOTS}/task-conversation.png` });
       await page.setViewportSize({ width: 390, height: 844 });
@@ -127,7 +137,7 @@ test("a teammate asked on a task answers in one card where the asker asked", asy
   }
 });
 
-test("an answer that reached a chat without its card shows as that card, once", async ({ page }) => {
+test("an answer that reached a chat without its card shows as that closed row, once", async ({ page }) => {
   const env = await startCore({ port: 0, llm: scriptedLlm(() => say("ok")) });
   try {
     const store = env.core.store;
@@ -158,11 +168,11 @@ test("an answer that reached a chat without its card shows as that card, once", 
     await page.goto(`${env.core.url}/#thread=${chat.id}`);
     const card = page.locator(".transcript .apx-subthread");
     await expect(card).toHaveCount(1);
-    await expect(card).toContainText("Respuesta de Bruno");
-    await expect(card).toContainText("Ramiro → Bruno · Lead cards ignore disabled attributes");
-    await expect(card).toContainText("Use the staging database.");
-    await expect(card).toContainText("Falló: Updated task task_nope");
-    await expect(card).not.toContainText("Go on with the task");
+    await expect(card).toContainText("Ramiro → Bruno");
+    await expect(card).toContainText("Lead cards ignore disabled attributes");
+    await expect(card).toContainText("Fallaron algunas acciones");
+    await expect(card.getByTitle("Falló: Updated task task_nope")).toBeVisible();
+    await expect(card).not.toContainText("Use the staging database.");
     await expect(page.locator(".transcript__agent-event")).toHaveCount(0);
   } finally {
     await page.goto("about:blank");
