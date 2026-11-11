@@ -1,6 +1,6 @@
 // Usability guards over the main screens: every control has a name a screen reader can say, and on a phone-sized
 // window nothing scrolls sideways.
-import { expect, open, test } from "./kit.ts";
+import { ACCOUNT_NAME, expect, open, test } from "./kit.ts";
 
 const SCREENS: Array<[string, Array<[role: "button" | "tab", name: string | RegExp]>]> = [
   ["inbox", []],
@@ -21,7 +21,7 @@ const SCREENS: Array<[string, Array<[role: "button" | "tab", name: string | RegE
     ],
   ],
   ["resources", [["button", "Recursos"]]],
-  ["telegram", [["button", "Telegram"]]],
+  ["telegram", [["button", ACCOUNT_NAME.telegram]]],
   ["engine", [["button", "Claude Code"]]],
 ];
 
