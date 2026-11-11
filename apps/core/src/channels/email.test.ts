@@ -14,7 +14,7 @@ import { emailAdapter, isAutomatic, verifiedSender } from "./email.ts";
 import { htmlToText, parseAddress, parseMail, splitMessage, stripQuoted } from "./email-mime.ts";
 import { composeMail, dotStuff, smtpSend } from "./email-smtp.ts";
 import { type FakeImap, type FakeSmtp, fakeImap, fakeSmtp, mail, type SentMail } from "./fake-email.test-support.ts";
-import { firstLine } from "./inbound.ts";
+import { firstLine } from "./mail-notices.ts";
 import { SendError } from "./types.ts";
 
 const USER = "agent@example.org";
@@ -114,7 +114,16 @@ describe("reading mail", () => {
       verifiedSender(h(["mx.example.net; dkim=none", "forged; dmarc=pass header.from=example.org"]), "a@example.org"),
       false,
     );
-    assert.equal(verifiedSender(h([]), "a@example.org"), false);
+    assert.equal(verifiedSender(h([]), "a@example.org"), false, "no verdict is not verification");
+    for (const verdict of [
+      "mx.example.net; dmarc=fail header.from=example.org",
+      "mx.example.net; spf=softfail smtp.mailfrom=example.org",
+      "mx.example.net; dkim=temperror header.d=example.org",
+      "mx.example.net; unparseable",
+      "mx.example.net; dkim=pass header.d=example.org.evil.test",
+    ]) {
+      assert.equal(verifiedSender(h([verdict]), "a@example.org"), false, verdict);
+    }
   });
 });
 
@@ -370,7 +379,7 @@ describe("the email channel", () => {
     assert.equal(llm.calls.length, after1 + 4, "relayed like any message of the owner");
   });
 
-  test("auto-replies, bulk mail, bounces and forged senders never reach the agent", async () => {
+  test("automatic mail is kept and only checked for importance; forged senders and our own mail are dropped", async () => {
     await running();
     const calls = llm.calls.length;
     const sent = smtp.sent.length;
@@ -391,7 +400,19 @@ describe("the email channel", () => {
     const marker = mail({ from: OWNER, to: USER, subject: "Re: Hello", text: "still here" });
     imap.deliver(marker.raw);
     await waitFor(() => to("owner@example.org").some((m) => m.text.includes("You said: still here")), "marker answer");
-    assert.equal(llm.calls.length, calls + 2);
+    const checks = llm.calls
+      .slice(calls)
+      .filter((c) => String(c.messages[0]?.content ?? "").startsWith("You mark incoming email"));
+    assert.equal(checks.length, 3, "each automatic mail is judged for an alert, never a reply");
+    assert.equal(llm.calls.length, calls + 5, "three importance checks and the marker's ordinary owner turn");
+    const bounce = env.core.store.threads.byConversation("email", "mailer-daemon@example.org");
+    assert.ok(
+      bounce &&
+        env.core.store.messages
+          .list(bounce.id)
+          .some((m) => m.parts.some((p) => p.type === "text" && p.text.includes("bounce"))),
+      "bounce is kept",
+    );
     assert.equal(smtp.sent.length, sent + 1);
   });
 
@@ -473,14 +494,14 @@ describe("the email channel", () => {
         /Correo de|Mail from/.test(n.body ?? ""),
       );
     const before = (await alerts()).length;
-    imap.deliver(
-      mail({
-        from: "Promo <deals@launch.example>",
-        to: USER,
-        subject: "Boost your launch",
-        text: "Get 10x upvotes today: https://launch.example/track?u=1\n\nLong pitch...",
-      }).raw,
-    );
+    const sent = smtp.sent.length;
+    const promo = mail({
+      from: "Promo <deals@launch.example>",
+      to: USER,
+      subject: "Boost your launch",
+      text: "Get 10x upvotes today: https://launch.example/track?u=1\n\nLong pitch...",
+    });
+    imap.deliver(promo.raw);
     const body = `Hello,\nyour invoice is overdue: please pay by Friday https://billing.example/i/42\n\n${"details ".repeat(400)}`;
     imap.deliver(mail({ from: "Billing <ana@billing.example>", to: USER, subject: "Invoice 42", text: body }).raw);
     await waitFor(async () => (await alerts()).length > before, "an alert");
@@ -496,6 +517,36 @@ describe("the email channel", () => {
     assert.match(text, /invoice is overdue/);
     assert.doesNotMatch(text, /https?:|billing\.example\/i|details details|\[subject:/, "no links, no body, no marker");
     assert.ok(text.length < 260, text);
+    for (const address of ["deals@launch.example", "ana@billing.example"]) {
+      const person = env.core.store.persons.byAddress("email", address);
+      assert.equal(person?.unreviewed, true, "capture does not approve an unknown sender");
+      assert.equal(person?.muted, true, "unknown senders cannot trigger replies");
+      const thread = env.core.store.threads.byConversation("email", address);
+      assert.ok(thread, "mail is visible even when its importance judgment suppresses the alert");
+      const shown = (await env.client.call("threads.get", { thread: thread.id })).messages;
+      assert.equal(shown.length, 1);
+      assert.ok(shown[0]?.parts.some((p) => p.type === "text" && p.text.includes("[subject:")));
+    }
+    await env.client.call("channels.set", { id: "email", channel: { ...base, strangers: "ask", enabled: false } });
+    await env.client.call("channels.set", { id: "email", channel: { ...base, strangers: "ask", enabled: true } });
+    await running();
+    imap.deliver(promo.raw);
+    imap.deliver(
+      mail({ from: "Promo <deals@launch.example>", to: USER, subject: "Follow-up", text: "Another pitch" }).raw,
+    );
+    const promoThread = env.core.store.threads.byConversation("email", "deals@launch.example");
+    assert.ok(promoThread);
+    await waitFor(async () => {
+      const r = await env.client.call("threads.get", { thread: promoThread.id });
+      return r.messages.length === 2;
+    }, "a new mail survives reconnection while the replay remains deduplicated");
+    assert.equal(env.core.store.persons.byAddress("email", "deals@launch.example")?.unreviewed, true);
+    assert.ok(
+      smtp.sent
+        .slice(sent)
+        .every((m) => !m.to.some((a) => ["deals@launch.example", "ana@billing.example"].includes(a))),
+      "capture and the owner's alert never answer unreviewed senders",
+    );
     await env.client.call("channels.set", { id: "email", channel: base });
     await running();
   });

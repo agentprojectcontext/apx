@@ -107,6 +107,7 @@ Usage:
   apx channels [add|rm|outbox]   Channels (Telegram bots); apx channels add telegram <id> --agent <a>
   apx channels send <channel> <contact> <text…>   Write to a contact yourself, in their chat on that channel
   apx channels recover <thread>   Ask the channel again for files that never arrived in a chat
+  apx channels email-history <channel> [after_uid uidvalidity]   Import one page of old mail quietly
   apx contacts [add|block|rm]    People APX talks to on channels
   apx pairing [me|ok|no <code>]  Approve who wrote to a channel
   apx compact <thread>    Summarize a thread's older turns now (APX's own loop; Claude Code and Codex compact their own)

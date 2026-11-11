@@ -34,8 +34,10 @@ todos. Una cuenta de email nunca le manda un código por correo a quien no conoc
 revisá las [respuestas supervisadas](/es/channels/supervised/).
 
 **No leer nunca** acepta direcciones o dominios (`@example.com`) cuyo correo se saltea: no se contesta ni queda en
-**Aprobaciones**. El correo que no escribió una persona (boletines con enlace para darse de baja, respuestas
-automáticas, rebotes y remitentes como `security-noreply@`) se saltea sin anotarse.
+**Aprobaciones**. El correo automático (boletines, respuestas automáticas, rebotes y remitentes como `security-noreply@`)
+que pasa los mismos controles de remitente y filtros de entrada se guarda en el chat del remitente, sin iniciar una
+respuesta. Un remitente automático desconocido queda sin revisar, aunque los desconocidos comunes reciban respuestas.
+Si elegís ignorar desconocidos, se siguen ignorando. El correo enviado desde el propio buzón conectado se saltea para evitar ecos.
 
 El correo de **Tus direcciones** cuenta como tuyo solo si tu servidor de correo lo verificó (DKIM, SPF o DMARC),
 aunque **Leer correo sin verificar** esté activo. Tu correo va al chat propio de la cuenta, uno después del otro:
@@ -56,10 +58,44 @@ bloqueado, su ficha y el chat quedan, y apagar el switch lo vuelve a leer.
 
 ## Qué te avisa
 
-Cuando te escribe alguien que no revisaste, te avisa solo del correo que el modelo auxiliar marca como importante
+Cuando te escribe alguien que no revisaste, o llega correo automático nuevo de un remitente que no silenciaste,
+te avisa solo del correo que el modelo auxiliar marca como importante
 (una persona que te escribe, plata, cuentas, vencimientos), como el aviso de una app de correo: remitente, asunto y
 una línea corta, en texto simple, sin el cuerpo ni enlaces. Boletines, promociones y propuestas comerciales quedan en
 los chats de la cuenta sin aviso. Sin modelo auxiliar no avisa.
+
+## Recuperá correo anterior
+
+IMAP permite leer mensajes que siguen en el buzón elegido, pero APX arranca desde el final al conectarse por primera
+vez y después lee mensajes nuevos por UID. Reconectar no importa correo anterior ni vuelve a intentar los mensajes
+que antes se filtraron. No incluye otras carpetas, mensajes borrados ni correo que el servidor ya no conserva.
+
+Podés importar explícitamente una página de hasta 25 mensajes:
+
+```bash
+apx channels email-history email
+```
+
+Reemplazá `email` por el identificador de cuenta que muestra `apx channels`. El resultado JSON informa `stored`
+(guardados), `already_seen` (ya registrados), `skipped` (omitidos), `failed` (fallidos), `has_more`, `next_uid` y
+`uidvalidity`. Si `has_more` es verdadero, pasá los valores devueltos a la página siguiente:
+`apx channels email-history email NEXT_UID UIDVALIDITY`. Frená ante errores; si el servidor renumera el buzón,
+volvé a empezar desde la primera página. Los mensajes ya registrados no se importan dos veces. `already_seen`
+incluye mensajes nuevos cuyo procesamiento normal sigue en curso. Una importación silenciosa fallida revierte lo
+escrito en el chat y su contexto y deja ese UID para reintentar: después de resolver el error, repetí la página con
+una solicitud nueva. Los mensajes nuevos fallidos se informan como fallos y no se reintentan silenciosamente porque
+podrían haber generado una respuesta.
+
+La recuperación solo examina los UID que el lector de correo nuevo ya pasó: no puede consumir un mensaje recién
+llegado antes de su aviso o respuesta normal. Se rechaza la numeración ausente o cambiada. Guardar un remitente no
+cambia cómo se aplica la política de desconocidos a sus correos personales posteriores; tu decisión explícita sobre
+un contacto sigue teniendo prioridad. Un operador ya abierto recibe los mensajes recuperados sin una avalancha de no leídos.
+
+La recuperación usa una conexión aparte de solo lectura: no marca correo como leído, no cambia el cursor de correo
+nuevo, no inicia turnos, no responde ni genera avisos de importancia. Conserva la fecha de llegada del servidor.
+Siguen aplicándose las listas permitidas, bloqueos, la opción de ignorar desconocidos y la verificación de remitentes:
+no todo mensaje examinado se guarda. El método de protocolo `channels.email_history` admite páginas de hasta 50.
+Importar historial sigue siendo una acción del dueño porque incorpora correspondencia privada anterior a APX.
 
 ## Respuestas, firmas y diagnóstico
 

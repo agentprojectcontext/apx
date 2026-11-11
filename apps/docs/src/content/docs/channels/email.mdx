@@ -34,8 +34,10 @@ what they wrote, and nothing is sent until you approve them. Start with a narrow
 [supervised reply mode](/channels/supervised/).
 
 **Never read** takes addresses or domains (`@example.com`) whose mail is skipped: not answered and not left in
-**Approvals**. Mail that no person wrote (newsletters with an unsubscribe link, auto-replies, bounces and senders
-such as `security-noreply@`) is skipped without being listed.
+**Approvals**. Automatic mail (newsletters, auto-replies, bounces and senders such as `security-noreply@`) that
+passes the same sender checks and incoming filters is kept in its sender's chat, without starting a reply. An
+unknown automatic sender is kept unreviewed, even if ordinary strangers receive answers. Choosing to ignore strangers
+still ignores unknown senders. Mail sent from the connected mailbox itself is skipped to avoid echo loops.
 
 Mail from **Your addresses** counts as yours only when your mail server verified it (DKIM, SPF or DMARC), even with
 **Read unverified mail** on. Your mail goes to the account's own chat, one mail after another: email has no Home
@@ -55,10 +57,42 @@ switch off reads them again.
 
 ## What you are told
 
-When someone you have not reviewed writes, you get an alert only for mail the auxiliary model marks as important
+When someone you have not reviewed writes, or new automatic mail arrives from a sender you have not silenced,
+you get an alert only for mail the auxiliary model marks as important
 (a person writing to you, money, accounts, deadlines), like a mail app's alert: sender, subject and one short line,
 plain, without the body or links. Newsletters, promotions and pitches stay in the account's chats without a notice.
 Without an auxiliary model no alert is sent.
+
+## Recover older mail
+
+IMAP can read messages retained in the selected mailbox, but APX starts at its end on the first connection and
+then reads new messages by UID. Reconnecting does not import older mail or revisit messages previously filtered out.
+Other folders, deleted messages and mail no longer retained by the server are not included.
+
+The owner can explicitly import one page of up to 25 messages with:
+
+```bash
+apx channels email-history email
+```
+
+Replace `email` with the account ID shown by `apx channels`. The JSON result reports `stored`, `already_seen`,
+`skipped`, `failed`, `has_more`, `next_uid` and `uidvalidity`. If `has_more` is true, pass the returned cursor and
+mailbox numbering to the next page: `apx channels email-history email NEXT_UID UIDVALIDITY`. Stop on errors;
+if the server renumbers the mailbox, restart from the first page. Already recorded messages are not imported twice.
+`already_seen` includes live messages still being processed normally. A failed silent import rolls back its display
+and context writes and leaves its UID for retry: after fixing the error, repeat that page with a new request. Failed
+live messages are reported as failures rather than silently retried, because they may already have caused an answer.
+
+Recovery only examines UIDs the live reader has already passed, so it cannot consume a newly arrived message before
+its normal alert or answer. A missing or changed mailbox numbering is refused. Capturing a sender does not change
+how their later personal mail follows the account's stranger policy; an explicit contact decision still wins.
+An already-open operator receives recovered message updates without an unread-message flood.
+
+Recovery uses a separate read-only connection: it does not mark mail as read, change the live cursor, start agent
+turns, send replies or issue importance alerts. Recovered mail keeps the server's arrival date. Existing allowlists,
+blocks, stranger-ignore settings and sender verification still apply, so scanned messages are not all necessarily
+stored. The protocol method `channels.email_history` supports pages of up to 50 messages; importing history remains
+an owner-only action because it brings private old correspondence into APX.
 
 ## Replies, signatures and recovery
 

@@ -14,6 +14,8 @@ export type Epoch = { upto: number; summary: string; untrusted: boolean; runs: n
 
 /** What the context builder, the upkeep and the channels keep per thread. */
 export type ThreadContext = {
+  /** Mail capture alone leaves an unknown sender under the account's stranger policy. */
+  mail_capture_only?: boolean;
   /** Answers go back to this channel conversation while the last words came from it (in a room, as a reply to `message`). */
   reply_to?: { channel: string; conversation: string; message?: string | undefined };
   /** The other side's last message on a channel: the platform's id for it (to react to it) and its message here. */

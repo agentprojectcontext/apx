@@ -55,6 +55,14 @@ export function channelHandlers(store: Store, channels: Channels, nudges: Pick<N
   };
   return {
     "channels.list": () => ({ channels: channels.info() }),
+    "channels.email_history": async ({ channel, ...request }) => {
+      if (!channels.info().some((c) => c.id === channel)) throw notFound(`channel ${channel}`);
+      try {
+        return await channels.mailHistory(channel, request);
+      } catch (err) {
+        throw badRequest(errorMessage(err));
+      }
+    },
     // Open to agents: what channel_list shows. Disabled channels are not there for them.
     "channels.overview": () => ({
       channels: channels

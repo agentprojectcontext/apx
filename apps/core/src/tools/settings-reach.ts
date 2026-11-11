@@ -150,6 +150,8 @@ export const OWNER_ONLY: Readonly<Record<string, string>> = {
   "environments.display": PANEL,
   "environments.screen": PANEL,
   "channels.recover": PANEL,
+  "channels.email_history":
+    "the owner explicitly imports private mailbox history with apx channels email-history; agents must not import it unasked",
   "surfaces.import": PANEL,
   "sessions.resume": PANEL,
   "runs.respond": AS_OWNER,
