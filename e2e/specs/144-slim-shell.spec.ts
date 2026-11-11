@@ -91,8 +91,11 @@ test("a subproject shows its project, can become a project of its own and move i
   await page.locator(".sidebar").getByRole("button", { name: "Proyectos", exact: true }).click();
   await expect(flyout).toBeVisible();
   await flyout.getByText("Web slim", { exact: true }).click({ button: "right" });
+  // With every suite's projects the list is long: the pick goes by keyboard, never crossing other rows.
   await page.getByRole("menuitem", { name: "Mover dentro de" }).hover();
-  await page.getByRole("menuitem", { name: "Northwind slim" }).click();
+  const target = page.getByRole("menuitem", { name: "Northwind slim" });
+  await target.focus();
+  await target.press("Enter");
   await expect(page.getByText("Web slim ahora es subproyecto de Northwind slim")).toBeVisible();
   await expect(page.locator(".project__parent")).toHaveText("Northwind slim");
   const after = await rpc<{ projects: Project[] }>("projects.list");
