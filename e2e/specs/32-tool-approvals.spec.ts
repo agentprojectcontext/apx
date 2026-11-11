@@ -40,7 +40,8 @@ test("right-click permissions update the list indicator, persist and open the in
     await page.getByRole("menuitem", { name: "Permisos de tools", exact: true }).hover();
     await page.getByRole("menuitem", { name: "Todas permitidas", exact: true }).click();
     await expect(row.getByRole("img", { name: "Permisos de tools: Todas permitidas" })).toBeVisible();
-    await expect(row.locator(".apx-pickrow__dot.is-on")).toBeVisible();
+    // Allowing every tool is the server's own setting: it does not start the server, which stays ready.
+    await expect(row.getByRole("img", { name: "Listo: arranca cuando un agente lo usa" })).toBeVisible();
     await page.reload();
     await page.getByRole("radio", { name: /^MCP/ }).click();
     await expect(row.getByRole("img", { name: "Permisos de tools: Todas permitidas" })).toBeVisible();

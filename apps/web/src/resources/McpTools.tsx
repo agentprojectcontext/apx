@@ -104,7 +104,7 @@ export function McpTools({
   const toggle = (x: Permission) => {
     setPicking(false);
     // Leaving one out of "all" is a pick: the rest stay allowed one by one, and new tools will ask.
-    if (mode === "all" && tools)
+    if (saved === "all" && tools)
       return void apply(() =>
         pickMcpTools(
           s,
