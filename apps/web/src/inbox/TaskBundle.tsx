@@ -14,6 +14,7 @@ import { useT } from "../i18n/index.ts";
 import { TaskStatusHint } from "../lazy.ts";
 import { go } from "../shell/nav.ts";
 import { ListedChat } from "./Delegated.tsx";
+import { tookPart } from "./groupThreads.ts";
 import { SessionRow } from "./InboxViews.tsx";
 import { ProjectBadge } from "./ProjectBadge.tsx";
 import { FoldContext, useRowFold } from "./RowFold.tsx";
@@ -61,7 +62,8 @@ export function TaskBundle({ taskId, threads, selected }: { taskId: string; thre
   );
   const running = threads.some((th) => isWorking(th.state));
   const unread = threads.reduce((n, th) => n + th.unread, 0);
-  const who = new Set(threads.map((th) => th.agent_ids[0] ?? ""));
+  const who = tookPart(task?.agents, threads);
+  const names = [...who].map((id) => agents[id]?.name ?? id);
   const state = taskRowState(task, running, t);
   const project = task?.project_id ?? latest?.project_id ?? DEFAULT_PID;
   if (!latest) return null;
@@ -96,7 +98,10 @@ export function TaskBundle({ taskId, threads, selected }: { taskId: string; thre
                 <span className="inboxtask__count" title={t("inbox.taskBundle.chats", { n: threads.length })}>
                   <Icons.MessageSquare size={12} /> {threads.length}
                 </span>
-                <span className="inboxtask__count" title={t("inbox.taskBundle.agents", { n: who.size })}>
+                <span
+                  className="inboxtask__count"
+                  title={`${t("inbox.taskBundle.agents", { n: who.size })}: ${names.join(", ")}`}
+                >
                   <Icons.Bot size={12} /> {who.size}
                 </span>
               </span>

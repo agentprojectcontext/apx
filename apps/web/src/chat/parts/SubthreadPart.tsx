@@ -7,7 +7,7 @@ import { useOwnerName } from "../../data/owner.ts";
 import { useData } from "../../data/state.ts";
 import { useT } from "../../i18n/index.ts";
 import { go } from "../../shell/nav.ts";
-import { responseStatus, responseTitle } from "../responseStatus.ts";
+import { failedLine, responseStatus, responseTitle } from "../responseStatus.ts";
 
 /** Another agent's (or a worker's) part in this answer: what it was asked, its state and the report it gave back. */
 export function SubthreadPart({ part, from }: { part: Extract<Part, { type: "subthread" }>; from?: Agent }) {
@@ -19,6 +19,7 @@ export function SubthreadPart({ part, from }: { part: Extract<Part, { type: "sub
   const st = responseStatus(part);
   // Its answer waits for the others asked in the same turn: the caller reads them all together.
   const meta = [
+    failedLine(part.failed, t),
     part.ms !== undefined ? t("subthread.took", { time: duration(part.ms) }) : undefined,
     part.held ? t("subthread.held", { got: String(part.held.got), of: String(part.held.of) }) : undefined,
   ].filter(Boolean);

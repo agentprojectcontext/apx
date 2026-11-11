@@ -16,7 +16,7 @@ import { badRequest, conflict } from "../errors.ts";
 import { asWritten, taskWords } from "../tools/tasks.ts";
 import { agentTrip, heldNotice, trip } from "./breaker.ts";
 import { REVIEW } from "./context.ts";
-import { actionsOf, reportCard } from "./delegation.ts";
+import { actionsOf, failedSteps, reportCard } from "./delegation.ts";
 import type { AdmitFn } from "./engine.ts";
 import { mentioned, mentionsOwner, taskCommentAttention } from "./office.ts";
 import { outcomeOf } from "./run-outcome.ts";
@@ -407,25 +407,30 @@ function consult(
   const question = `${text}\n\n[Asked on task ${task.id}, assigned to ${who}. Answer the question; the task's work is not yours unless it says so.]\n${taskWords(task, task.title.slice(0, 200))}`;
   const author: Author = how.asker?.kind === "agent" ? { kind: "agent", id: how.asker.id } : { kind: "user" };
   store.messages.add({ thread_id: sub.id, author, parts: [{ type: "text", text }] });
+  const part = {
+    type: "subthread" as const,
+    thread_id: sub.id,
+    agent_id: agent.id,
+    title: task.title.slice(0, 120),
+    state: "working" as const,
+    asked_by: how.by ?? "owner",
+  };
+  // The question is the comment right above: the card names the task instead of repeating it.
   const card = store.messages.add({
     thread_id: task.thread_id,
     author: { kind: "agent", id: agent.id },
-    // The question is the comment right above: the card names the task instead of repeating it.
-    parts: [
-      {
-        type: "subthread",
-        thread_id: sub.id,
-        agent_id: agent.id,
-        title: task.title.slice(0, 120),
-        state: "working",
-        asked_by: how.by ?? "owner",
-      },
-    ],
+    parts: [part],
   });
+  // Where it asked, the card names the question instead.
+  const mine =
+    how.asker?.kind === "agent"
+      ? askerCard(store, how.asker.thread_id, { ...part, title: previewOf(text).slice(0, 120) })
+      : undefined;
   store.threads.mergeContext(sub.id, {
     consult: {
       task: task.id,
       card: card.id,
+      ...(mine ? { shown: mine } : {}),
       ...(how.review ? { review: true } : {}),
       ...(how.asker?.kind === "agent" ? { asker: { agent: how.asker.id, thread: how.asker.thread_id } } : {}),
     },
@@ -536,7 +541,9 @@ export function reviewRequested(store: Store, admit: AdmitFn, task: Task): RunRe
   });
   const held = asked && store.threads.context(asked.id).consult;
   if (asked && held) {
-    store.threads.mergeContext(asked.id, { consult: { task: held.task, card: held.card, review: true } });
+    store.threads.mergeContext(asked.id, {
+      consult: { task: held.task, card: held.card, ...(held.shown ? { shown: held.shown } : {}), review: true },
+    });
     return undefined;
   }
   const doer = task.assignee ? (store.agents.get(task.assignee)?.name ?? task.assignee) : "its agent";
@@ -544,26 +551,43 @@ export function reviewRequested(store: Store, admit: AdmitFn, task: Task): RunRe
   return consult(store, admit, task, reviewer, text, { by: task.assignee ?? "owner", trigger: "system", review: true });
 }
 
-/** A consult ended: its card in the task's conversation shows the answer; it asks no one else. */
+/**
+ * The consult's card in the chat an agent asked from, so the asker's chat shows it where it asked: never in the owner's
+ * main chat or a channel's (they reach the owner's phone), nor in a sub-thread. Its message id, when it was added.
+ */
+function askerCard(store: Store, threadId: string, part: Extract<Part, { type: "subthread" }>): string | undefined {
+  const chat = store.threads.get(threadId);
+  if (!chat || chat.archived || ownerLine(chat) || chat.kind === "a2a") return undefined;
+  return store.messages.add({ thread_id: chat.id, author: { kind: "agent", id: part.agent_id }, parts: [part] }).id;
+}
+
+/** The main chat and a channel's reach the owner's phone. */
+const ownerLine = (t: Thread): boolean => t.kind === "home" || t.kind === "channel";
+
+/** A consult ended: its cards (in the task's conversation and where it was asked) show the answer; it asks no one else. */
 function afterConsult(
   store: Store,
   admit: AdmitFn,
   run: RunRecord,
-  consulted: { task: string; card: string; review?: boolean; asker?: { agent: string; thread: string } },
+  consulted: {
+    task: string;
+    card: string;
+    shown?: string;
+    review?: boolean;
+    asker?: { agent: string; thread: string };
+  },
 ): void {
   const task = store.tasks.get(consulted.task);
-  const card = store.messages.get(consulted.card);
   const answer = textOf(store, run);
-  const index = card?.parts.findIndex((p) => p.type === "subthread") ?? -1;
-  const part = card?.parts[index];
-  if (card && part?.type === "subthread") {
+  const outcome = outcomeOf(run, Boolean(answer), actionsOf(store, run));
+  const failed = failedSteps(store, run);
+  for (const id of [consulted.card, consulted.shown]) {
+    const card = id ? store.messages.get(id) : undefined;
+    const index = card?.parts.findIndex((p) => p.type === "subthread") ?? -1;
+    const part = card?.parts[index];
+    if (!card || part?.type !== "subthread") continue;
     const parts = [...card.parts];
-    parts[index] = reportCard(
-      part,
-      run,
-      answer || run.error || `(${run.state}, no answer)`,
-      outcomeOf(run, Boolean(answer), actionsOf(store, run)),
-    );
+    parts[index] = reportCard(part, run, answer || run.error || `(${run.state}, no answer)`, outcome, failed);
     store.messages.setPart({ ...card, parts }, index);
   }
   if (!task) return;
@@ -588,9 +612,8 @@ function answerAsker(
   const current = store.tasks.get(task.id) ?? task;
   if (current.state !== "open" || !store.agents.get(askerId)) return;
   const asked = store.threads.get(from.thread);
-  // The main chat and a channel's reach the owner's phone: there the asker's reply to a teammate would land on the owner.
-  const ownerLine = asked?.kind === "home" || asked?.kind === "channel";
-  const thread = asked && !asked.archived && !ownerLine ? asked : sessionFor(store, current, askerId);
+  // There the asker's reply to a teammate would land on the owner.
+  const thread = asked && !asked.archived && !ownerLine(asked) ? asked : sessionFor(store, current, askerId);
   if (trip(store, thread.id) || agentTrip(store, thread.id, askerId)) return;
   const name = store.agents.get(run.agent_id)?.name ?? run.agent_id;
   const text =
@@ -613,6 +636,7 @@ function responseMetadata(store: Store, task: Task, run: RunRecord, answered: bo
     outcome.level === "warn" && (outcome.issue === "no_answer" || outcome.issue === "actions_failed")
       ? outcome.issue
       : undefined;
+  const failed = issue === "actions_failed" ? failedSteps(store, run) : [];
   return {
     thread_id: run.thread_id,
     run_id: run.id,
@@ -621,6 +645,7 @@ function responseMetadata(store: Store, task: Task, run: RunRecord, answered: bo
     state: run.state,
     ...(run.end_reason ? { end_reason: run.end_reason } : {}),
     ...(issue ? { issue } : {}),
+    ...(failed.length ? { failed } : {}),
     ...(store.threads.get(run.thread_id)?.project_id
       ? { project_id: store.threads.get(run.thread_id)?.project_id }
       : {}),

@@ -120,6 +120,19 @@ test("an agent's @mention on its task asks that teammate, and the answer comes b
     .flatMap((m) => m.parts)
     .find((p) => p.type === "subthread");
   assert.equal(card?.type === "subthread" && card.asked_by, "vera");
+  // Vera's chat shows the consult where she asked, as one card the answer fills in: her question, Scout's answer.
+  const mine = (await env.client.call("threads.get", { thread: chat()?.id ?? "" })).messages
+    .flatMap((m) => m.parts)
+    .filter((p) => p.type === "subthread");
+  assert.equal(mine.length, 1);
+  const shown = mine[0];
+  assert.ok(shown?.type === "subthread");
+  assert.equal(shown.thread_id, consult?.id);
+  assert.equal(shown.state, "completed");
+  assert.match(shown.title, /include taxes/);
+  assert.match(shown.summary ?? "", /totals include taxes/);
+  // Both took part in the task: its agent first.
+  assert.deepEqual((await env.client.call("tasks.get", { task: task.id })).task.agents, ["vera", "scout"]);
 });
 
 test("the answer to a question asked from the owner's chat goes to the asker's chat for the task, not the owner's", async () => {
@@ -136,6 +149,7 @@ test("the answer to a question asked from the owner's chat goes to the asker's c
   // The owner's chat (mirrored to their channels) holds only their words and the answer to them.
   const home = store.messages.list("home", 50).map((m) => JSON.stringify(m.parts));
   assert.ok(!home.some((t) => t.includes("Scout answered your question")), "no teammate's answer in the owner's chat");
+  assert.ok(!home.some((t) => t.includes('"subthread"')), "no consult card in the owner's chat either");
   assert.ok(!home.some((t) => t.includes("Go on with that, Scout")), "no words for the teammate in the owner's chat");
   assert.ok(
     store.runs.list("home").every((r) => r.trigger !== "a2a"),

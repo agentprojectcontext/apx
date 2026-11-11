@@ -89,9 +89,10 @@ export function reportCard(
   child: RunRecord,
   answer: string,
   outcome?: Outcome,
+  failed: readonly string[] = [],
 ): Part {
   const ms = tookMs(child);
-  const { issue: _was, held: _held, ...card } = p;
+  const { issue: _was, held: _held, failed: _failed, ...card } = p;
   const issue = outcome?.level === "warn" ? outcome.issue : undefined;
   return {
     ...card,
@@ -100,7 +101,16 @@ export function reportCard(
     ...(ms !== undefined ? { ms } : {}),
     ...(child.end_reason ? { end_reason: child.end_reason } : {}),
     ...(issue === "no_answer" || issue === "actions_failed" ? { issue } : {}),
+    ...(issue === "actions_failed" && failed.length ? { failed: [...failed] } : {}),
   };
+}
+
+/** The steps of a run that failed, as its chat titles them: what a card's "some actions failed" names. */
+export function failedSteps(store: Store, run: RunRecord): string[] {
+  const titles = store.messages
+    .ofRun(run.thread_id, run.id)
+    .flatMap((m) => m.parts.flatMap((p) => (p.type === "tool" && p.status === "error" ? [p.title || p.tool] : [])));
+  return [...new Set(titles)].slice(0, 5).map((t) => t.slice(0, 200));
 }
 
 /** A run a limit cut short (its steps or its time): what it gave is a progress report, not a result. */
@@ -260,7 +270,7 @@ export function createDelegations(deps: {
   }
 
   const settleCard = (parent: RunRecord, child: RunRecord, answer: string, outcome: Outcome) =>
-    updateCard(parent, child, (p) => reportCard(p, child, answer, outcome));
+    updateCard(parent, child, (p) => reportCard(p, child, answer, outcome, failedSteps(store, child)));
 
   /** Tells the owner, once per run, that the breaker holds a queued delegation; going on (or writing) starts it. */
   function holdQueued(parentThreadId: string, run: RunRecord, who: string): void {

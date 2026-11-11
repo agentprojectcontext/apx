@@ -10,6 +10,8 @@ export const esChat: Partial<Record<MessageKey, string>> = {
   "chat.agentProgress": "Avance de {name}",
   "chat.agentResponse": "Respuesta de {name}",
   "chat.agentMessage": "Mensaje de {name}",
+  "chat.answeredAbove": "{name} respondió más arriba",
+  "chat.seeAnswer": "Ver respuesta",
   "chat.plan": "Plan",
   "chat.planDone": "{done} de {count} hechos",
   "input.sessionScope": "Esta sesión",

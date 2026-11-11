@@ -166,3 +166,8 @@ export function bundleChannels(list: readonly Thread[]): ChatEntry[] {
   }
   return out;
 }
+
+/** The agents that took part in a task: those the core counts (its agent, chats, teammates asked) and its chats'. */
+export function tookPart(agents: readonly string[] | undefined, threads: readonly Thread[]): Set<string> {
+  return new Set([...(agents ?? []), ...threads.flatMap((th) => th.agent_ids[0] ?? [])]);
+}

@@ -1,0 +1,172 @@
+// An agent working a task asks a teammate on it (@mention in a task comment): the asker's chat shows the question as
+// one card where it asked, its answer and the steps that failed, never a second copy of the answer. The task's
+// conversation names the agent that works it, and the task's row counts every agent that took part.
+import { callTool, say, scriptedLlm, startCore } from "../../apps/core/src/engine/testkit.ts";
+import { waitFor } from "../../apps/core/src/testkit/platform.ts";
+import type { Tool } from "../../apps/core/src/tools/types.ts";
+import { expect, test } from "./kit.ts";
+
+const SHOTS = process.env.SHOTS;
+
+/** A step with an effect that fails as it runs: what makes an answer's "some actions failed". */
+const preview: Tool = {
+  name: "deploy_preview",
+  description: "Deploy a preview",
+  parameters: { type: "object", properties: {} },
+  parse: () => ({ ok: true, args: {} }),
+  confirm: () => "never",
+  effect: "local",
+  deadlineMs: 5_000,
+  title: () => "Deploy the preview",
+  run: async () => {
+    throw new Error("the preview server is down");
+  },
+};
+
+test("a teammate asked on a task answers in one card where the asker asked", async ({ page }) => {
+  let taskId = "";
+  let asked = false;
+  const env = await startCore({
+    port: 0,
+    extraTools: [preview],
+    llm: scriptedLlm((req, { system, said, afterTool }) => {
+      if (system.startsWith("You are Ramiro")) {
+        if (said.includes("answered your question")) return say("Going on with the review.");
+        if (afterTool) return say("Asked Bruno.");
+        if (asked) return say("Still on it.");
+        asked = true;
+        return callTool("ask", "task_comment", { task: taskId, text: "@bruno review the finished diff, read only" });
+      }
+      if (system.startsWith("You are Bruno")) {
+        if (!afterTool) return callTool("bad", "deploy_preview", {});
+        if (req.messages.at(-1)?.role === "tool") return say("Approved: no blocking findings.");
+      }
+      return say("ok");
+    }),
+  });
+  try {
+    const store = env.core.store;
+    await env.client.call("setup.finish", {});
+    await env.client.call("agents.create", { slug: "ramiro", name: "Ramiro" });
+    await env.client.call("agents.create", { slug: "bruno", name: "Bruno" });
+    // Created with nobody on it (the super-agent holds its conversation), renamed, then given to Ramiro.
+    const task = await env.client.call("tasks.create", {
+      title: "Lead card hides company",
+      description: "Fix the lead cards.",
+    });
+    taskId = task.id;
+    await env.client.call("tasks.update", { task: task.id, title: "Lead cards ignore disabled attributes" });
+    await env.client.call("tasks.update", { task: task.id, assignee: "ramiro" });
+    const chat = () => store.threads.byTask(task.id).find((t) => t.agent_ids[0] === "ramiro");
+    await waitFor(() => Boolean(chat()), "Ramiro's chat for the task");
+    const shown = () =>
+      store.messages
+        .list(chat()?.id ?? "", 50)
+        .flatMap((m) => m.parts)
+        .find((p) => p.type === "subthread");
+    await waitFor(() => shown()?.type === "subthread" && shown()?.state === "completed", "the card settles");
+    await waitFor(
+      () => store.runs.list(chat()?.id ?? "").some((r) => r.trigger === "a2a" && r.state === "completed"),
+      "Ramiro goes on with the answer",
+    );
+
+    await page.goto(`${env.core.url}/#thread=${chat()?.id}`);
+    const transcript = page.locator(".transcript");
+    const cards = transcript.locator(".apx-subthread");
+    await expect(cards).toHaveCount(1);
+    await expect(cards).toContainText("Respuesta de Bruno");
+    await expect(cards).toContainText("Ramiro → Bruno");
+    await expect(cards).toContainText("Approved: no blocking findings.");
+    // Which step failed, not only that one did.
+    await expect(cards).toContainText("Falló:");
+    await expect(cards).toContainText("Deploy the preview");
+    // The answer is told once: no second card or box with the words handed to Ramiro.
+    await expect(transcript.locator(".transcript__agent-event")).toHaveCount(0);
+    await expect(transcript).not.toContainText("answered your question");
+    await expect(transcript.getByText("Approved: no blocking findings.")).toHaveCount(1);
+    await expect(transcript).toContainText("Going on with the review.");
+    if (SHOTS) {
+      await page.screenshot({ path: `${SHOTS}/asker-chat.png` });
+      await page.setViewportSize({ width: 390, height: 844 });
+      await page.screenshot({ path: `${SHOTS}/asker-chat-phone.png` });
+      await page.setViewportSize({ width: 1280, height: 800 });
+    }
+    // Its head opens Bruno's conversation beside the chat.
+    await cards.getByRole("button", { name: "Abrir conversación con Bruno" }).click();
+    const side = page.getByRole("complementary", { name: "Panel lateral" });
+    await expect(side).toContainText("review the finished diff");
+    await expect(side).toContainText("Approved: no blocking findings.");
+    if (SHOTS) await page.screenshot({ path: `${SHOTS}/asker-side.png` });
+
+    // The task's conversation is Ramiro's task, under its current title.
+    await page.goto(`${env.core.url}/#thread=${task.thread_id}`);
+    const header = page.locator(".chat__header");
+    await expect(header).toContainText("Lead cards ignore disabled attributes");
+    await expect(header).toContainText("Ramiro");
+    await expect(header).not.toContainText("Super-agente");
+    if (SHOTS) {
+      await page.screenshot({ path: `${SHOTS}/task-conversation.png` });
+      await page.setViewportSize({ width: 390, height: 844 });
+      await page.screenshot({ path: `${SHOTS}/task-conversation-phone.png` });
+      await page.setViewportSize({ width: 1280, height: 800 });
+    }
+
+    // The task's row counts both agents.
+    await page.goto(`${env.core.url}/#view=inbox`);
+    await page
+      .getByRole("radiogroup", { name: "Mostrar" })
+      .getByRole("radio", { name: /^Tareas/ })
+      .click();
+    const row = page.locator(".taskbundle", { hasText: "Lead cards ignore disabled attributes" });
+    await expect(row.getByTitle(/^2 agentes: .*Ramiro.*Bruno|^2 agentes: .*Bruno.*Ramiro/)).toBeVisible();
+    if (SHOTS) await page.screenshot({ path: `${SHOTS}/inbox-tasks.png` });
+  } finally {
+    await page.goto("about:blank");
+    await env.core.close();
+    await env.cleanup();
+  }
+});
+
+test("an answer that reached a chat without its card shows as that card, once", async ({ page }) => {
+  const env = await startCore({ port: 0, llm: scriptedLlm(() => say("ok")) });
+  try {
+    const store = env.core.store;
+    await env.client.call("setup.finish", {});
+    await env.client.call("agents.create", { slug: "ramiro", name: "Ramiro" });
+    await env.client.call("agents.create", { slug: "bruno", name: "Bruno" });
+    const chat = await env.client.call("threads.create", { kind: "loose", agent_id: "ramiro" });
+    // As answers were kept before the asker's chat held the card (and as they still reach a chat asked from elsewhere).
+    store.messages.add({
+      thread_id: chat.id,
+      author: { kind: "agent", id: "bruno" },
+      parts: [
+        {
+          type: "text",
+          text: "Bruno answered your question on task task_1:\nUse the staging database.\n\nGo on with the task.",
+          response: {
+            thread_id: chat.id,
+            run_id: "run_1",
+            task_id: "task_1",
+            title: "Lead cards ignore disabled attributes",
+            state: "completed",
+            issue: "actions_failed",
+            failed: ["Updated task task_nope"],
+          },
+        },
+      ],
+    });
+    await page.goto(`${env.core.url}/#thread=${chat.id}`);
+    const card = page.locator(".transcript .apx-subthread");
+    await expect(card).toHaveCount(1);
+    await expect(card).toContainText("Respuesta de Bruno");
+    await expect(card).toContainText("Ramiro → Bruno · Lead cards ignore disabled attributes");
+    await expect(card).toContainText("Use the staging database.");
+    await expect(card).toContainText("Falló: Updated task task_nope");
+    await expect(card).not.toContainText("Go on with the task");
+    await expect(page.locator(".transcript__agent-event")).toHaveCount(0);
+  } finally {
+    await page.goto("about:blank");
+    await env.core.close();
+    await env.cleanup();
+  }
+});

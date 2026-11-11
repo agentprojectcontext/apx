@@ -1,5 +1,6 @@
 // The office board: tasks (tasks.*), kept current by task.updated events.
-import type { Params, Task, TaskColumn, TaskState } from "@apx/protocol";
+import type { Params, Task, TaskColumn, TaskState, Thread } from "@apx/protocol";
+import { useEffect } from "react";
 import { t } from "../i18n/index.ts";
 import { client } from "./client.ts";
 import { createStore, useSlice } from "./createStore.ts";
@@ -41,6 +42,15 @@ async function readTasks(): Promise<void> {
     store.set({ ready: true });
     fail(e);
   }
+}
+
+/** The task whose conversation this chat is (a "task" thread), read with the board when it is not loaded yet. */
+export function useConversationTask(thread: Pick<Thread, "id" | "kind"> | undefined): Task | undefined {
+  const conversation = thread?.kind === "task" ? thread.id : undefined;
+  useEffect(() => {
+    if (conversation && !tasksLoaded()) void loadTasks();
+  }, [conversation]);
+  return useTasks((s) => (conversation ? Object.values(s.tasks).find((x) => x.thread_id === conversation) : undefined));
 }
 
 const asked = new Set<string>();
