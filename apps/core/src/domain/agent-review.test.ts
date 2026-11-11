@@ -80,3 +80,37 @@ test("all writers converge, burst notices replace, no-ops stay silent and review
     await dir.remove();
   }
 });
+
+test("a failed notice write does not consume the persisted change checkpoint", async () => {
+  const dir = tempDir("apx-agent-review-atomic-");
+  const db = openDb(dir.path);
+  const bus = createBus();
+  const store = createStore(db, bus);
+  seed(store);
+  let stop = watchAgentReviews(store, bus);
+  try {
+    await drain();
+    stop();
+    const agent = store.agents.get("scout");
+    assert.ok(agent);
+    store.agents.upsert({ ...agent, prompt: "Changed while stopped" });
+    await drain();
+    const add = store.notifications.add;
+    store.notifications.add = () => {
+      throw new Error("notice write failed");
+    };
+    try {
+      assert.throws(() => watchAgentReviews(store, bus), /notice write failed/);
+      assert.equal(pendingAgentReviews(store).length, 0, "failed scan rolls back its pending checkpoint too");
+    } finally {
+      store.notifications.add = add;
+    }
+    stop = watchAgentReviews(store, bus);
+    assert.equal(pendingAgentReviews(store).length, 1, "the changed definition is detected again");
+    assert.ok(store.notifications.hasUnread("agent", "agent-review:global"));
+  } finally {
+    stop();
+    db.close();
+    await dir.remove();
+  }
+});

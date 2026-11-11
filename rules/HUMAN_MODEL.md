@@ -61,7 +61,8 @@ sampling/cost limits and exclusions. This is bounded assistance, not full-thread
 
 `domain/agent-review.ts` observes the existing coalesced `team.updated` event. Agent creation, definition edits,
 clones, imports and APC file reindexing converge there. Revision fingerprints and pending agents persist in a
-versioned setting; the first start baselines existing definitions, later starts detect changes against that baseline.
+versioned setting, committed atomically with their notices; the first start baselines existing definitions, later
+starts detect changes against that baseline.
 There is no per-save model call or additional file watcher. One unread attention notice per project (or global team)
 is replaced on further changes. The owner asks the super-agent to load the single native `apx-agents` guide and
 review a bounded batch; `apx-agent-prompts` remains a reserved load alias, not another catalog entry.
