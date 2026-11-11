@@ -3,11 +3,12 @@ import fs from "node:fs";
 import path from "node:path";
 import { test } from "node:test";
 import { say, scriptedLlm, startCore } from "../engine/testkit.ts";
-import { tempDir, waitFor } from "../testkit/platform.ts";
+import { manualTimers, tempDir, waitFor } from "../testkit/platform.ts";
 
 test("real core detects internal and external agent edits, rejects stale reviews and avoids apply loops", async () => {
   const llm = scriptedLlm(() => say("ok"));
-  const env = await startCore({ llm });
+  const watchClock = manualTimers();
+  const env = await startCore({ llm, projectWatchTimers: watchClock });
   const dir = tempDir("apx-agent-files-");
   try {
     const project = (await env.client.call("projects.register", { path: dir.path, init: true })).project;
@@ -38,6 +39,8 @@ test("real core detects internal and external agent edits, rejects stale reviews
     await env.client.call("projects.sync", { project: project.id });
     assert.equal((await queue()).agents.length, 0, "reindex does not requeue reviewed changes");
     fs.writeFileSync(file, fs.readFileSync(file, "utf8").replace("Reviewed instructions", "Another external edit"));
+    await waitFor(() => watchClock.pending() > 0, "file watcher schedules its debounce");
+    watchClock.tick(400);
     await waitFor(async () => (await queue()).agents.length === 1, "watcher review without explicit sync");
     const edited = await env.client.call("agents.get", { agent: made.id });
     assert.equal(edited.prompt, "Another external edit");
