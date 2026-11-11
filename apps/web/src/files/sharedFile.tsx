@@ -1,7 +1,7 @@
 // What a shared file's card and preview both show: its kind's icon, who sent it, when, and what can be done with it.
 import type { Author, SharedFile, SharedKind } from "@apx/protocol";
 import { AgentAvatar, Avatar, Button, IconButton, Icons, Tooltip } from "@apx/ui";
-import type { ReactNode } from "react";
+import { createContext, type ReactNode, useContext } from "react";
 import { shortWhen } from "../common/format.ts";
 import { client } from "../data/client.ts";
 import { DEFAULT_PID, projectName } from "../data/identity.ts";
@@ -12,6 +12,9 @@ import { useData } from "../data/state.ts";
 import { currentLocale, type MessageKey, useT } from "../i18n/index.ts";
 import { ProjectBadge } from "../inbox/ProjectBadge.tsx";
 import { go } from "../shell/nav.ts";
+
+/** Inside one project's tab every card is that project's: they leave its name out. */
+export const OneProject = createContext(false);
 
 export const ONE: Record<SharedKind, MessageKey> = {
   image: "shared.one.image",
@@ -72,13 +75,14 @@ export function CardLine({
   hint?: string;
 }) {
   const projects = useData((s) => s.projects);
+  const oneProject = useContext(OneProject);
   return (
     <span className="sharedf__line" title={hint}>
       <Sender author={author} size={14} />
       <time className="sharedf__when" dateTime={at} title={when(at)}>
         {shortWhen(at)}
       </time>
-      <ProjectBadge id={projectId ?? DEFAULT_PID} name={projectName(projects, projectId)} />
+      {!oneProject && <ProjectBadge id={projectId ?? DEFAULT_PID} name={projectName(projects, projectId)} />}
     </span>
   );
 }

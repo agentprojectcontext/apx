@@ -123,7 +123,7 @@ function DocumentBody({ doc }: { doc: DocRef }) {
 }
 
 /** A document's text, read from its file: rendered markdown, or its source as written. */
-export function DocumentText({ doc, raw }: { doc: DocRef; raw: boolean }) {
+function DocumentText({ doc, raw }: { doc: DocRef; raw: boolean }) {
   const t = useT();
   const mdLabels = useMarkdownLabels();
   const [source, setSource] = useState<string>();

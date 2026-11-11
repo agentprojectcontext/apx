@@ -2,6 +2,7 @@
 // link it does not know (shown as its label).
 import { openMcp } from "../data/mcpPeek.ts";
 import { CONFIG_SECTIONS, type ConfigSection, go, nav, RESOURCE_TABS, type ResourceTab } from "../shell/nav.ts";
+import { projectTabFrom } from "../shell/projectTabs.ts";
 
 const isIn = <T extends string>(list: readonly T[], v: string | undefined): v is T =>
   v !== undefined && (list as readonly string[]).includes(v);
@@ -73,8 +74,7 @@ export function appPlace(href: string): AppPlace | undefined {
       return a ? { kind: "chat", id: a, open: () => go.inboxThread(a) } : undefined;
     case "project": {
       if (!a) return undefined;
-      const tab = b === "chats" || b === "tasks" || b === "files" ? b : "overview";
-      return { kind: "project", id: a, open: () => go.project(a, tab) };
+      return { kind: "project", id: a, open: () => go.project(a, projectTabFrom(b)) };
     }
     default:
       return undefined;

@@ -13,16 +13,17 @@ import {
 } from "../data/identity.ts";
 import { parseNewChat } from "../data/newChat.ts";
 import { useData } from "../data/state.ts";
+import { FilesScreen } from "../files/FilesScreen.tsx";
 import { useT } from "../i18n/index.ts";
 import { NewChatMenu } from "../inbox/NewChatMenu.tsx";
 import { ResourcesView } from "../resources/ResourcesView.tsx";
 import { RoutinesPane } from "../routines/RoutinesPane.tsx";
 import { ChatWorkspace } from "../shell/ChatWorkspace.tsx";
 import type { Layout } from "../shell/layout.ts";
-import { go, nav, PROJECT_TABS, type ProjectTab, useNav } from "../shell/nav.ts";
+import { go, nav, useNav } from "../shell/nav.ts";
+import { PROJECT_TABS, type ProjectTab } from "../shell/projectTabs.ts";
 import { ProjectTasks } from "../tasks/TasksList.tsx";
 import { ProjectFiles } from "./files/ProjectFiles.tsx";
-import { ProjectArtifacts } from "./ProjectArtifacts.tsx";
 import { ProjectMemory } from "./ProjectMemory.tsx";
 import { ProjectOverview } from "./ProjectOverview.tsx";
 import { ProjectSettings } from "./ProjectSettings.tsx";
@@ -36,8 +37,8 @@ const TAB_ICONS: Record<ProjectTab, ReactNode> = {
   team: <Icons.Users />,
   tasks: <Icons.ListChecks />,
   routines: <Icons.RefreshCw />,
-  artifacts: <Icons.Image />,
-  files: <Icons.Folder />,
+  shared: <Icons.Paperclip />,
+  folder: <Icons.Folder />,
   memory: <Icons.Brain />,
   resources: <Icons.Layers />,
 };
@@ -184,9 +185,9 @@ function TabBody({ project, tab, layout }: { project: ProjectEntry; tab: Project
       return <ProjectTasks projectId={project.id} />;
     case "routines":
       return <RoutinesPane projectId={project.id} />;
-    case "artifacts":
-      return <ProjectArtifacts key={project.id} project={project} />;
-    case "files":
+    case "shared":
+      return <FilesScreen key={project.id} within={project} />;
+    case "folder":
       return <ProjectFiles key={project.id} project={project} />;
     case "memory":
       return <ProjectMemory project={project} />;

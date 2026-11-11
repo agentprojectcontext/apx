@@ -6,13 +6,13 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useMediaUrl } from "../chat/parts/useMediaUrl.ts";
 import { SectionPage } from "../common/SectionPage.tsx";
 import { client } from "../data/client.ts";
-import { DEFAULT_PID, projectEntries } from "../data/identity.ts";
+import { DEFAULT_PID, type ProjectEntry, projectEntries } from "../data/identity.ts";
 import { posterUrl } from "../data/media.ts";
 import { useData } from "../data/state.ts";
 import { type MessageKey, useT } from "../i18n/index.ts";
 import { ArtifactGrid, useArtifacts } from "./ArtifactCards.tsx";
 import { SharedPreview } from "./SharedPreview.tsx";
-import { CardLine, kindIcon, ONE, SharedActions } from "./sharedFile.tsx";
+import { CardLine, kindIcon, ONE, OneProject, SharedActions } from "./sharedFile.tsx";
 
 type Kind = SharedKind | "all" | "artifact";
 const KINDS: { id: Kind; label: MessageKey }[] = [
@@ -98,12 +98,14 @@ function Card({ file, onOpen }: { file: SharedFile; onOpen: () => void }) {
 /**
  * Every file sent in a chat, as cards by kind, project and name; one opens live over the list. Artifacts, open or
  * closed, are one more kind: listed from what the panel already holds, with the same project, search and order.
+ * Inside a project's tab (`within`) it shows that project's only, under the project's own header.
  */
-export function FilesScreen() {
+export function FilesScreen({ within }: { within?: ProjectEntry } = {}) {
   const t = useT();
   const projects = useData((s) => s.projects);
   const [kind, setKind] = useState<Kind>("all");
-  const [project, setProject] = useState("");
+  const [picked, setProject] = useState("");
+  const project = within?.id ?? picked;
   const [order, setOrder] = useState<SharedOrder>("new");
   const [typed, setTyped] = useState("");
   const [query, setQuery] = useState("");
@@ -160,97 +162,99 @@ export function FilesScreen() {
 
   const entries = projectEntries(projects);
   return (
-    <div className="resv sharedf">
-      {shown && <SharedPreview file={shown} onBack={back} onStep={items.length > 1 ? step : undefined} />}
-      <SectionPage
-        className="sharedf__list"
-        label={t("nav.files")}
-        title={t("nav.files")}
-        lead={t(showArtifacts ? "files.artifacts.lead" : "shared.lead")}
-        tabs={
-          <SegmentedControl
-            label={t("shared.kinds")}
-            value={kind}
-            onValueChange={(v) => setKind(v as Kind)}
-            options={KINDS.map((k) => ({
-              value: k.id,
-              label: (
-                <span className="secpage__tab">
-                  {t(k.label)}
-                  {countOf(k.id) !== undefined && <span className="secpage__count">{countOf(k.id)}</span>}
-                </span>
-              ),
-            }))}
-          />
-        }
-        tools={
-          <Select
-            size="sm"
-            className="sharedf__select"
-            label={t("shared.order")}
-            value={order}
-            onValueChange={(v) => setOrder((v as SharedOrder | null) ?? "new")}
-            options={ORDERS.map((o) => ({ value: o.id, label: t(o.label) }))}
-          />
-        }
-        search={{ value: typed, onChange: setTyped, placeholder: t("shared.search") }}
-        scopes={
-          entries.length < 2
-            ? undefined
-            : {
-                label: t("shared.project"),
-                value: project || "all",
-                onChange: (id) => setProject(id === "all" ? "" : id),
-                options: [
-                  { id: "all", label: t("section.scope.all") },
-                  ...entries.map((p) => ({ id: p.id, label: p.name })),
-                ],
-              }
-        }
-      >
-        <div className="sharedf__body">
-          {showArtifacts ? (
-            artifacts.length ? (
-              <ArtifactGrid items={artifacts} />
-            ) : (
+    <OneProject.Provider value={Boolean(within)}>
+      <div className="resv sharedf">
+        {shown && <SharedPreview file={shown} onBack={back} onStep={items.length > 1 ? step : undefined} />}
+        <SectionPage
+          className="sharedf__list"
+          label={t("nav.files")}
+          title={within ? undefined : t("nav.files")}
+          lead={t(showArtifacts ? "files.artifacts.lead" : "shared.lead")}
+          tabs={
+            <SegmentedControl
+              label={t("shared.kinds")}
+              value={kind}
+              onValueChange={(v) => setKind(v as Kind)}
+              options={KINDS.map((k) => ({
+                value: k.id,
+                label: (
+                  <span className="secpage__tab">
+                    {t(k.label)}
+                    {countOf(k.id) !== undefined && <span className="secpage__count">{countOf(k.id)}</span>}
+                  </span>
+                ),
+              }))}
+            />
+          }
+          tools={
+            <Select
+              size="sm"
+              className="sharedf__select"
+              label={t("shared.order")}
+              value={order}
+              onValueChange={(v) => setOrder((v as SharedOrder | null) ?? "new")}
+              options={ORDERS.map((o) => ({ value: o.id, label: t(o.label) }))}
+            />
+          }
+          search={{ value: typed, onChange: setTyped, placeholder: t("shared.search") }}
+          scopes={
+            within || entries.length < 2
+              ? undefined
+              : {
+                  label: t("shared.project"),
+                  value: project || "all",
+                  onChange: (id) => setProject(id === "all" ? "" : id),
+                  options: [
+                    { id: "all", label: t("section.scope.all") },
+                    ...entries.map((p) => ({ id: p.id, label: p.name })),
+                  ],
+                }
+          }
+        >
+          <div className="sharedf__body">
+            {showArtifacts ? (
+              artifacts.length ? (
+                <ArtifactGrid items={artifacts} />
+              ) : (
+                <EmptyState
+                  icon={<Icons.LayoutGrid />}
+                  title={t(
+                    query
+                      ? "files.artifacts.emptySearch"
+                      : project
+                        ? "files.artifacts.emptyProject"
+                        : "files.artifacts.empty",
+                  )}
+                >
+                  {!query && !project ? t("files.artifacts.emptyText") : undefined}
+                </EmptyState>
+              )
+            ) : error ? (
+              <EmptyState icon={<Icons.TriangleAlert />} title={t("shared.error", { error })} />
+            ) : !items.length && !loading ? (
               <EmptyState
-                icon={<Icons.LayoutGrid />}
-                title={t(
-                  query
-                    ? "files.artifacts.emptySearch"
-                    : project
-                      ? "files.artifacts.emptyProject"
-                      : "files.artifacts.empty",
-                )}
+                icon={<Icons.Paperclip />}
+                title={t(query ? "shared.emptySearch" : kind === "all" ? "shared.empty" : "shared.emptyKind")}
               >
-                {!query && !project ? t("files.artifacts.emptyText") : undefined}
+                {!query && kind === "all" ? t("shared.emptyText") : undefined}
               </EmptyState>
-            )
-          ) : error ? (
-            <EmptyState icon={<Icons.TriangleAlert />} title={t("shared.error", { error })} />
-          ) : !items.length && !loading ? (
-            <EmptyState
-              icon={<Icons.Paperclip />}
-              title={t(query ? "shared.emptySearch" : kind === "all" ? "shared.empty" : "shared.emptyKind")}
-            >
-              {!query && kind === "all" ? t("shared.emptyText") : undefined}
-            </EmptyState>
-          ) : (
-            <ul className="sharedf__grid">
-              {items.map((f, i) => (
-                <Card key={`${f.message_id}:${f.media_id}`} file={f} onOpen={() => setOpen(i)} />
-              ))}
-            </ul>
-          )}
-          {more && !error && (
-            <div className="sharedf__more">
-              <Button variant="secondary" size="sm" loading={loading} onClick={() => void load(items.length)}>
-                {t("shared.more")}
-              </Button>
-            </div>
-          )}
-        </div>
-      </SectionPage>
-    </div>
+            ) : (
+              <ul className="sharedf__grid">
+                {items.map((f, i) => (
+                  <Card key={`${f.message_id}:${f.media_id}`} file={f} onOpen={() => setOpen(i)} />
+                ))}
+              </ul>
+            )}
+            {more && !error && (
+              <div className="sharedf__more">
+                <Button variant="secondary" size="sm" loading={loading} onClick={() => void load(items.length)}>
+                  {t("shared.more")}
+                </Button>
+              </div>
+            )}
+          </div>
+        </SectionPage>
+      </div>
+    </OneProject.Provider>
   );
 }

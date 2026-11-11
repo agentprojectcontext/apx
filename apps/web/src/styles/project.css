@@ -607,71 +607,6 @@
   flex-direction: column;
   gap: 6px;
 }
-.artifacts__title {
-  overflow-wrap: anywhere;
-}
-.artifacts__chat {
-  padding: 0;
-  border: 0;
-  background: none;
-  color: var(--apx-fg-muted);
-  font: inherit;
-  cursor: pointer;
-}
-.artifacts__open {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 0;
-  border: 0;
-  background: none;
-  color: var(--apx-fg);
-  font: inherit;
-  font-size: var(--apx-text-sm);
-  font-weight: 500;
-  text-align: left;
-  cursor: pointer;
-}
-.artifacts__chat:hover {
-  color: var(--apx-fg);
-  text-decoration: underline;
-}
-.artifacts__open:hover .artifacts__title {
-  text-decoration: underline;
-}
-.artifacts__row.is-selected {
-  background: var(--apx-fill-strong);
-}
-/* An artifact beside the list: icon actions in its head, the widget filling the rest, a document scrolling. */
-.drawer.artifactpanel {
-  overflow: hidden;
-}
-.artifactpanel__actions {
-  display: flex;
-  align-items: center;
-  gap: 2px;
-}
-.artifactpanel > .artifactpanel__body {
-  flex: 1 1 0;
-  min-height: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  overflow-y: auto;
-}
-.artifactpanel__body--widget {
-  overflow: hidden;
-  border: 1px solid var(--apx-border);
-  border-radius: var(--apx-radius-lg);
-}
-.artifactpanel__file {
-  overflow: hidden;
-  color: var(--apx-fg-muted);
-  font-family: var(--apx-font-mono);
-  font-size: var(--apx-text-2xs);
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
 .memory__editbar {
   display: flex;
   justify-content: flex-end;
@@ -1039,131 +974,6 @@
   color: var(--apx-fg-subtle);
 }
 
-/* ── Artifacts gallery ── */
-.projart__grid {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-  /* The grid scrolls: its rows keep the cards' height instead of sharing the room. */
-  grid-auto-rows: max-content;
-  align-content: start;
-  gap: 14px;
-}
-/* Only the gallery scrolls, as the memory list does. */
-.memory > .projart__grid {
-  flex: 0 1 auto;
-  min-height: 0;
-  overflow-y: auto;
-}
-.projart {
-  position: relative;
-  min-width: 0;
-  border: 1px solid var(--apx-border);
-  border-radius: var(--apx-radius-lg);
-  background: var(--apx-surface);
-  overflow: hidden;
-}
-.projart:hover {
-  border-color: var(--apx-border-strong);
-}
-.projart.is-selected {
-  border-color: var(--apx-fg-muted);
-}
-.projart__open {
-  display: flex;
-  flex-direction: column;
-  width: 100%;
-  padding: 0;
-  border: 0;
-  background: none;
-  color: var(--apx-fg);
-  font: inherit;
-  text-align: left;
-  cursor: pointer;
-}
-.projart__thumb {
-  position: relative;
-  height: 120px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  background: var(--apx-fill);
-  color: var(--apx-fg-subtle);
-}
-.projart__kind {
-  font-size: var(--apx-text-2xs);
-}
-.projart__mark {
-  position: absolute;
-  top: 8px;
-  left: 8px;
-  padding: 0 6px;
-  border-radius: var(--apx-radius-pill);
-  background: var(--apx-surface);
-  color: var(--apx-fg-muted);
-  font-size: var(--apx-text-2xs);
-  line-height: 16px;
-}
-.projart__body {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  min-width: 0;
-  padding: 10px 12px 12px;
-}
-.projart__title {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  font-size: var(--apx-text-sm);
-  font-weight: var(--apx-weight-medium);
-}
-.projart__meta {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  min-width: 0;
-  font-size: var(--apx-text-2xs);
-  color: var(--apx-fg-subtle);
-}
-.projart__who {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  min-width: 0;
-  overflow: hidden;
-  white-space: nowrap;
-}
-.projart__who > span {
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-.projart__when {
-  flex: 1;
-  min-width: 0;
-  white-space: nowrap;
-}
-.projart__who + .projart__when::before {
-  content: "· ";
-}
-.projart__meta > .subbadge {
-  flex: none;
-}
-.projart__chat {
-  position: absolute;
-  top: 6px;
-  right: 6px;
-  opacity: 0;
-}
-.projart:hover .projart__chat,
-.projart:focus-within .projart__chat {
-  opacity: 1;
-}
-
 /* ── Memory list: rows with a Brain tile, the note, what it is, its subproject and date ── */
 .memory__list:has(> .memrow) {
   gap: 2px;
@@ -1235,11 +1045,6 @@
     opacity: 1;
   }
 }
-@media (hover: none) {
-  .projart__chat {
-    opacity: 1;
-  }
-}
 
 /* ── A project's tabs: content in cards, never lines running into the window's edges ────────────────── */
 .project__body .secpage__head,
@@ -1254,6 +1059,10 @@
   border: 1px solid var(--apx-border);
   border-radius: var(--apx-radius-lg);
   overflow: hidden;
+}
+/* Without a switch above it (the base project's folder), the card keeps its distance from the tabs. */
+.project__body .chatfiles > :first-child:not(.chatfiles__bar) {
+  margin-top: 12px;
 }
 @media (max-width: 640px) {
   .project__body .secpage__body.resv__body,

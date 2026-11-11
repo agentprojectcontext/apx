@@ -5,7 +5,7 @@ import { loadRoutines, useRoutines } from "../data/routines.ts";
 import { useData } from "../data/state.ts";
 import { loadTasks, tasksLoaded, useTasks } from "../data/tasks.ts";
 import { standsAlone } from "../inbox/groupThreads.ts";
-import type { ProjectTab } from "../shell/nav.ts";
+import type { ProjectTab } from "../shell/projectTabs.ts";
 
 export function useProjectCounts(pid: string): Partial<Record<ProjectTab, number>> {
   const agents = useData((s) => s.agents);
