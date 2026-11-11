@@ -136,6 +136,16 @@ export class Imap {
     return { uidvalidity: num("UIDVALIDITY") ?? 0, ...(uidnext ? { uidnext } : {}) };
   }
 
+  /** The mailbox's folders, each with its flags (RFC 6154 marks the spam one \\Junk). */
+  async list(): Promise<Array<{ name: string; flags: string[] }>> {
+    const r = await this.command('LIST "" "*"');
+    return r.flatMap((x) => {
+      const m = /^\* LIST \(([^)]*)\) (?:"[^"]*"|NIL) (?:"((?:[^"\\]|\\.)*)"|(\S+))\s*$/i.exec(x.line);
+      const name = m ? (m[2]?.replace(/\\(.)/g, "$1") ?? m[3]) : undefined;
+      return m && name ? [{ name, flags: (m[1] ?? "").split(/\s+/).filter(Boolean) }] : [];
+    });
+  }
+
   /** UIDs matching a search ("UID 41:*", "SINCE 1-Oct-2026"), in order. */
   async search(criteria: string): Promise<number[]> {
     this.arrived = false;

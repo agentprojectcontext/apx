@@ -4534,3 +4534,22 @@ Rejected: a turn on a hidden child thread (every listing of sub-threads, delegat
 titles and notifications would have to learn to skip it, and the agent could act with tools from a place the chat never
 shows), and a turn in the chat marked as hidden (it would still enter the model's context unless every history builder
 learned the mark).
+
+<a id="d-215"></a>
+## D-215 — 2026-11-11 — A mailbox brings every mail in and marks what no person wrote; marked mail is the owner's only
+An email account dropped mail it would not answer (unverified senders, "Never read", outside "Who may write") and
+never saw the server's Spam folder, so the owner could not tell what arrived. Every mail is now brought in.
+
+- **One mark per mail** (`MailMark`: automatic, spam, unverified, blocked, outside), decided by the adapter in that
+  order of reasons: the Spam folder, the "Never read" list, "Who may write", the server's verdict, then automatic
+  headers. The owner's own addresses only get "automatic"; unverified mail from them is still dropped (a forgery).
+- **Marked mail is kept for the owner only** (`mail_handling: "marked"`, the passive path): shown with its mark, never
+  answered, never told, never written to the agent's context, never counted unread. The owner chose this so spam
+  cannot instruct the agent.
+- **The Spam folder** is found by its `\Junk` flag (RFC 6154) or a usual name, read from the moment it is found, on
+  the same connection after each inbox round; its mail gets its own id so a mail later moved to the inbox is read.
+- **The list shows people by default**: a chat with only marked mail carries its latest mark (`Thread.mail_mark`, from
+  its context); the first mail a person wrote makes it a person's chat for good.
+
+Known limit: chats of automatic mail kept before this carry no mark until their sender writes again (a data migration
+was not worth a schema step).

@@ -1,6 +1,6 @@
 import "../styles/screens.css";
 import type { ChannelInfo, RoomMode, Thread } from "@apx/protocol";
-import { EmptyState, IconButton, Icons, Menu, ProjectTile, SearchField } from "@apx/ui";
+import { Button, EmptyState, IconButton, Icons, Menu, ProjectTile, SearchField } from "@apx/ui";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { ChatView } from "../chat/ChatView.tsx";
 import { shortWhen } from "../common/format.ts";
@@ -21,6 +21,19 @@ import { LinkMe, LinkPhone, OwnerRow, ownerOn, PairingRow } from "./StartRows.ts
 
 /** A saved contact picked before they have a chat: the list's selection names them instead of a chat. */
 const PERSON_PICK = "person:";
+
+/** What a mailbox's list shows: people (the default), everything, or the chats of one kind of marked mail. */
+const MAIL_VIEWS = ["people", "all", "automatic", "spam", "unverified", "blocked", "outside"] as const;
+type MailView = (typeof MAIL_VIEWS)[number];
+const MAIL_VIEW_LABEL: Record<MailView, MessageKey> = {
+  people: "ch.mailView.people",
+  all: "ch.mailView.all",
+  automatic: "ch.mark.automatic",
+  spam: "ch.mark.spam",
+  unverified: "ch.mark.unverified",
+  blocked: "ch.mark.blocked",
+  outside: "ch.mark.outside",
+};
 
 const ROOM_MODE_KEY: Record<RoomMode, MessageKey> = {
   always: "rooms.mode.always",
@@ -45,6 +58,7 @@ export function ChannelScreen() {
   const threads = useData((s) => s.threads);
   const agents = useData((s) => s.agents);
   const [query, setQuery] = useState("");
+  const [mailView, setMailView] = useState<MailView>("people");
   // The card sits beside the chat on wide screens; on narrow ones it covers it, so it starts closed there.
   const [card, setCard] = useState(() => window.innerWidth >= 1280);
   // Someone new may write while this list is open: it is read again every few seconds, as the settings do.
@@ -99,12 +113,18 @@ export function ChannelScreen() {
     for (const id of unknown) asked.current.add(id);
     void loadChannels();
   }, [rows]);
+  // A mailbox lists people by default; the filter shows the chats of marked mail (spam, automatic…) too, or one kind.
+  const mailbox = channel?.type === "email";
+  const marked = mailbox ? rows.filter((r) => r.thread?.mail_mark).length : 0;
+  const inView = (r: Row) =>
+    !mailbox || mailView === "all" || (mailView === "people" ? !r.thread?.mail_mark : r.thread?.mail_mark === mailView);
   const shown = rows.filter(
     (r) =>
-      !query ||
-      `${r.person?.name ?? r.thread?.title ?? ""} ${r.person?.nickname ?? ""}`
-        .toLowerCase()
-        .includes(query.toLowerCase()),
+      inView(r) &&
+      (!query ||
+        `${r.person?.name ?? r.thread?.title ?? ""} ${r.person?.nickname ?? ""}`
+          .toLowerCase()
+          .includes(query.toLowerCase())),
   );
   // A room's chat is the one chat with no person behind it: everyone there writes into it.
   const rooms = useMemo(
@@ -148,12 +168,35 @@ export function ChannelScreen() {
     >
       <aside className="chan__list">
         <ChannelHead channel={channel} />
-        <SearchField
-          aria-label={t("ch.search")}
-          placeholder={t("ch.search")}
-          value={query}
-          onChange={(e) => setQuery(e.currentTarget.value)}
-        />
+        <div className="chan__find">
+          <SearchField
+            aria-label={t("ch.search")}
+            placeholder={t("ch.search")}
+            value={query}
+            onChange={(e) => setQuery(e.currentTarget.value)}
+          />
+          {mailbox && (
+            <Menu
+              align="end"
+              items={[
+                { type: "label" as const, label: t("ch.mailView") },
+                ...MAIL_VIEWS.map((v) => ({
+                  label: t(MAIL_VIEW_LABEL[v]),
+                  checked: mailView === v,
+                  onSelect: () => setMailView(v),
+                })),
+              ]}
+              trigger={
+                <IconButton
+                  size="sm"
+                  variant={mailView === "people" ? "ghost" : "secondary"}
+                  label={t("ch.mailView")}
+                  icon={<Icons.Filter size={14} />}
+                />
+              }
+            />
+          )}
+        </div>
         <ul className="chan__rows">
           {!query && !linked && channel.type === "telegram" && <LinkMe channel={channel} />}
           {!query && !linked && channel.type === "whatsapp" && !channel.self_owner && <LinkPhone channel={channel} />}
@@ -180,6 +223,13 @@ export function ChannelScreen() {
             />
           ))}
           {query && !shown.length && !shownRooms.length && <li className="chan__nobody">{t("res.noMatch")}</li>}
+          {!query && mailView === "people" && marked > 0 && (
+            <li>
+              <Button variant="link" size="sm" className="chan__hidden" onClick={() => setMailView("all")}>
+                {t("ch.mailHidden", { n: marked })}
+              </Button>
+            </li>
+          )}
         </ul>
         <p className="chan__foot">{t("ch.foot", { agent: agentName(agents[channel.agent_id], t) })}</p>
       </aside>

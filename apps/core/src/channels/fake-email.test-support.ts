@@ -41,6 +41,8 @@ export type FakeImap = {
   port: number;
   /** Drops a message (raw RFC 5322) into the mailbox, received now or `at`; returns its UID. */
   deliver(raw: string, at?: Date): number;
+  /** The server's spam filter put a message in its Spam folder (listed with \\Junk). */
+  deliverSpam(raw: string): number;
   /** The server renumbers the mailbox (a new UIDVALIDITY): every message gets a new UID. */
   renumber(): void;
   /** How many messages were fetched. */
@@ -63,6 +65,11 @@ export async function fakeImap(opts: {
   let fetched = 0;
   let readOnlyViolations = 0;
   let box: Array<{ uid: number; raw: string; at: Date }> = [];
+  const junk: Array<{ uid: number; raw: string; at: Date }> = [];
+  let junkUid = 1;
+  /** The folder each session opened last. */
+  const opened = new Map<net.Socket, "inbox" | "junk">();
+  const cur = (sock: net.Socket) => (opened.get(sock) === "junk" ? junk : box);
   const idling = new Map<net.Socket, string>();
   /** How many messages each session was told of. */
   const seen = new Map<net.Socket, number>();
@@ -73,6 +80,7 @@ export async function fakeImap(opts: {
     sockets.add(sock);
     sock.on("close", () => {
       sockets.delete(sock);
+      opened.delete(sock);
       idling.delete(sock);
     });
     const send = (s: string) => sock.writable && sock.write(`${s}\r\n`);
@@ -120,10 +128,17 @@ export async function fakeImap(opts: {
           (/^(STORE|COPY|MOVE|EXPUNGE)\b/i.test(args) || (/^FETCH\b/i.test(args) && !/BODY\.PEEK\[\]/i.test(args))))
       )
         readOnlyViolations++;
+      if (c === "LIST") {
+        send('* LIST (\\HasNoChildren) "." "INBOX"');
+        send('* LIST (\\HasNoChildren \\Junk) "." "INBOX.Spam"');
+        return send(`${tag} OK`);
+      }
       if (c === "EXAMINE" || c === "SELECT") {
-        send(`* ${box.length} EXISTS`);
-        if (!opts.omitUidvalidity) send(`* OK [UIDVALIDITY ${uidvalidity}] UIDs valid`);
-        send(`* OK [UIDNEXT ${nextUid}] next`);
+        const spam = /INBOX\.Spam/i.test(args);
+        opened.set(sock, spam ? "junk" : "inbox");
+        send(`* ${(spam ? junk : box).length} EXISTS`);
+        if (!opts.omitUidvalidity) send(`* OK [UIDVALIDITY ${spam ? 77 : uidvalidity}] UIDs valid`);
+        send(`* OK [UIDNEXT ${spam ? junkUid : nextUid}] next`);
         return send(`${tag} OK [READ-ONLY] done`);
       }
       if (c === "NOOP") return send(`${tag} OK`);
@@ -133,13 +148,17 @@ export async function fakeImap(opts: {
       }
       if (c === "UID" && /^SEARCH /i.test(args)) {
         const q = args.slice(7);
-        const max = box.at(-1)?.uid;
+        const max = cur(sock).at(-1)?.uid;
         const from = /^UID (\d+):\*$/i.exec(q);
         const uids = from
-          ? box.filter((m) => m.uid >= Number(from[1])).map((m) => m.uid)
+          ? cur(sock)
+              .filter((m) => m.uid >= Number(from[1]))
+              .map((m) => m.uid)
           : /^UID \*$/i.test(q)
-            ? box.slice(-1).map((m) => m.uid)
-            : box.map((m) => m.uid);
+            ? cur(sock)
+                .slice(-1)
+                .map((m) => m.uid)
+            : cur(sock).map((m) => m.uid);
         // RFC 3501: "n:*" always includes the highest UID, even below n.
         if (from && !uids.length && max) uids.push(max);
         send(`* SEARCH${uids.map((u) => ` ${u}`).join("")}`);
@@ -149,8 +168,8 @@ export async function fakeImap(opts: {
         const uid = Number(args.split(" ")[1]);
         const respond = () => {
           if (sock.destroyed) return;
-          const i = box.findIndex((m) => m.uid === uid);
-          const m = box[i];
+          const i = cur(sock).findIndex((m) => m.uid === uid);
+          const m = cur(sock)[i];
           if (m) {
             fetched++;
             const bytes = Buffer.from(m.raw, "utf8");
@@ -188,6 +207,11 @@ export async function fakeImap(opts: {
         s.write(`* ${box.length} EXISTS\r\n`);
         seen.set(s, box.length);
       }
+      return uid;
+    },
+    deliverSpam(raw) {
+      const uid = junkUid++;
+      junk.push({ uid, raw, at: new Date() });
       return uid;
     },
     renumber() {

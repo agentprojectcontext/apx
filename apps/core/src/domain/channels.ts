@@ -3,7 +3,7 @@
 // silently repeated).
 
 import { randomInt } from "node:crypto";
-import type { OutboxItem, PairingRequest } from "@apx/protocol";
+import type { MailMark, OutboxItem, PairingRequest } from "@apx/protocol";
 import { type Selectable, sql } from "kysely";
 import type { OutboxTable, PairingTable } from "../db/schema.ts";
 import { newId, now, opt, qb, type Sql } from "./sql.ts";
@@ -18,8 +18,13 @@ export const ownerActsOn = (type: string | undefined): boolean => type !== undef
 
 /** What an adapter hands over for one platform message. */
 export type Inbound = {
-  /** Automatic mail is kept without starting a reply; historical mail also suppresses alerts. Set only by adapters. */
-  mail_handling?: "automatic" | "history" | undefined;
+  /**
+   * Automatic mail is kept without starting a reply; historical mail also suppresses alerts; marked mail (`mail_mark`)
+   * is kept for the owner only: no reply, no alert, nothing in the agent's context. Set only by adapters.
+   */
+  mail_handling?: "automatic" | "history" | "marked" | undefined;
+  /** Why marked mail is only kept (with `mail_handling: "marked"`). */
+  mail_mark?: MailMark | undefined;
   /** The IMAP server's arrival time for an explicitly recovered message. */
   mail_received_at?: string | undefined;
   /** A mail's HTML (already made safe), kept to show it as it was sent; the agent reads `text`. */
