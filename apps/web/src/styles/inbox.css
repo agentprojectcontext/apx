@@ -32,6 +32,7 @@
 }
 /* The tabs, or the search in their place: one row of the same height, so the list never moves. */
 .inbox__switch {
+  container: inbox-switch / inline-size;
   display: flex;
   align-items: center;
   min-height: 34px;
@@ -336,13 +337,14 @@ button.chatprocesses {
 .threadrow-wrap:has(.threadrow__more [aria-expanded="true"]) .apx-convrow__time {
   visibility: hidden;
 }
-.inbox__tabcount {
-  margin-left: 6px;
-  font-size: 11px;
-  color: var(--apx-fg-subtle);
-}
 .inbox__tabname {
   position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+/* Only a narrow Inbox swaps the names for the sidebar's marks. */
+.inbox__tabicon {
+  display: none;
 }
 /* News in a tab not shown: a dot over the end of its name. */
 .inbox__tabnews {
@@ -354,11 +356,53 @@ button.chatprocesses {
   border-radius: 50%;
   background: var(--apx-brand);
 }
+/* Running now: a live dot and how many of its rows, never the tab's total. */
 .inbox__tabwork {
-  display: inline-grid;
-  place-items: center;
-  margin-left: 4px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
   color: var(--apx-brand-soft-fg);
+  font-size: var(--apx-text-xs);
+  font-weight: var(--apx-weight-semibold);
+  font-variant-numeric: tabular-nums;
+}
+.inbox__tabworkdot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--apx-brand);
+  animation: apx-pulse 1.6s ease-in-out infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .inbox__tabworkdot {
+    animation: none;
+  }
+}
+@container inbox-switch (max-width: 300px) {
+  .inbox__tabicon {
+    display: block;
+  }
+  .inbox__tabtext {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+  .inbox__views .apx-segmented__item {
+    gap: 4px;
+    padding: 0 4px;
+  }
+  .inbox__tabnews {
+    top: -3px;
+    right: -4px;
+  }
+}
+@container inbox-switch (max-width: 140px) {
+  .inbox__tabworkn {
+    display: none;
+  }
 }
 .inboxsec {
   display: flex;

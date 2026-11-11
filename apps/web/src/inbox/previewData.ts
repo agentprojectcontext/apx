@@ -33,6 +33,7 @@ export const previewThreads = [
     title: "Launch team",
     agent_ids: ["assistant", "researcher", "reviewer"],
     preview: "The team is reviewing the launch checklist.",
+    state: "working",
   }),
   chat("caller", { title: "Compare suppliers", unread: 2 }),
   chat("consult", {
@@ -88,7 +89,12 @@ export const previewThreads = [
     updated_at: ago(0),
   }),
   chat("quiet-routine", { kind: "routine", routine_id: "daily", archived: true }),
-  chat("task-dev", { task_id: "preview-task", title: "Prepare release", preview: "Implementation complete." }),
+  chat("task-dev", {
+    task_id: "preview-task",
+    title: "Prepare release",
+    preview: "Writing the changelog.",
+    state: "working",
+  }),
   chat("task-review", {
     task_id: "preview-task",
     title: "Prepare release",
@@ -101,6 +107,6 @@ export const previewThreads = [
     agent_ids: ["researcher"],
     title: "Assistant → Researcher: Check dependencies",
   }),
-  chat("engine", { kind: "code", engine: "codex", title: "Update the dashboard" }),
+  chat("engine", { kind: "code", engine: "codex", title: "Update the dashboard", state: "working" }),
   chat("old", { title: "Last week's notes", updated_at: ago(120) }),
 ];
