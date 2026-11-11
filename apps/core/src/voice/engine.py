@@ -468,7 +468,9 @@ class Call:
             return
         await self.send({"type": "heard", "text": new})  # the chat already shows what was carried
         text, self.carry = " ".join(t for t in (self.carry, new) if t), ""
-        if self.tasks and ACK.match(text):
+        last = next((m["content"] for m in reversed(self.history) if m["role"] == "assistant"), "")
+        # An acknowledgement asks for nothing, unless it answers a question ("¿lo busco?" "dale").
+        if ACK.match(text) and (self.tasks or not last.rstrip().endswith("?")):
             self.history += [{"role": "user", "content": f"{text}\n{self.note()}"}, {"role": "assistant", "content": "[[skip]]"}]
             await self.send({"type": "state", "state": "listening"})
             return
