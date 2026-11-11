@@ -68,6 +68,9 @@ SKIP = re.compile(r"\[\[\s*skip\s*\]\]", re.I)
 NOISE = re.compile(r"(subt[ií]tulos|amara\.org|gracias por ver|thanks for watching)", re.I)
 BYE_HEARD = re.compile(r"\b(chau|chao|adi[oó]s|hasta luego|nos vemos|bye|goodbye|see you)\b", re.I)
 MARKUP = re.compile(r"[*_#`]+")
+# "ok, I'll wait" while a task runs: nothing to say, and a small model does not always keep quiet when told to.
+ACK = re.compile(r"^\W*((dale|ok(ay)?|genial|buen[ií]simo|b[aá]rbaro|perfecto|listo|joya|va|bueno|s[ií]|gracias|"
+                 r"te espero|espero|ah[ií] espero|no hay drama|tranqui|good|great|thanks|cool|sure|i'?ll wait)\W*){1,4}$", re.I)
 
 PROMPT = """You are {name}, {owner}'s personal assistant in APX, talking with {owner} on a voice call.
 
@@ -465,6 +468,10 @@ class Call:
             return
         await self.send({"type": "heard", "text": new})  # the chat already shows what was carried
         text, self.carry = " ".join(t for t in (self.carry, new) if t), ""
+        if self.tasks and ACK.match(text):
+            self.history += [{"role": "user", "content": f"{text}\n{self.note()}"}, {"role": "assistant", "content": "[[skip]]"}]
+            await self.send({"type": "state", "state": "listening"})
+            return
         try:
             await self.reply(text, text)
         except asyncio.CancelledError:
