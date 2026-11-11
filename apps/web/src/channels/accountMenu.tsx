@@ -86,7 +86,9 @@ export function accountLine(channel: ChannelInfo, t: T): string {
   ]
     .filter(Boolean)
     .join(" · ");
-  return line || appName(channel, t);
+  // Named after its app with nothing else to say yet (still connecting): no line that repeats the name.
+  const app = appName(channel, t);
+  return line || (accountName(channel, t) === app ? "" : app);
 }
 
 /** One of an account's own tools: its rooms, its contacts, its settings. */
