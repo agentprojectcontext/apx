@@ -379,7 +379,7 @@ describe("the email channel", () => {
     assert.equal(llm.calls.length, after1 + 4, "relayed like any message of the owner");
   });
 
-  test("automatic mail is kept and only checked for importance; forged senders and our own mail are dropped", async () => {
+  test("automatic mail is kept marked, never judged, told or answered; forged owner mail and our own are dropped", async () => {
     await running();
     const calls = llm.calls.length;
     const sent = smtp.sent.length;
@@ -403,8 +403,8 @@ describe("the email channel", () => {
     const checks = llm.calls
       .slice(calls)
       .filter((c) => String(c.messages[0]?.content ?? "").startsWith("You mark incoming email"));
-    assert.equal(checks.length, 3, "each automatic mail is judged for an alert, never a reply");
-    assert.equal(llm.calls.length, calls + 5, "three importance checks and the marker's ordinary owner turn");
+    assert.equal(checks.length, 0, "marked mail is never judged for an alert");
+    assert.equal(llm.calls.length, calls + 2, "only the marker's ordinary owner turn");
     const bounce = env.core.store.threads.byConversation("email", "mailer-daemon@example.org");
     assert.ok(
       bounce &&
@@ -414,6 +414,28 @@ describe("the email channel", () => {
       "bounce is kept",
     );
     assert.equal(smtp.sent.length, sent + 1);
+  });
+
+  test("mail the server put in Spam is kept marked spam: never answered, judged or given to the agent", async () => {
+    await running();
+    const calls = llm.calls.length;
+    const sent = smtp.sent.length;
+    const junk = mail({ from: "Hire <hello@superemployee.example>", to: USER, subject: "Hire faster", text: "pitch" });
+    imap.deliverSpam(junk.raw);
+    // New inbox mail wakes the reader; the Spam folder is read in the same round.
+    imap.deliver(mail({ from: OWNER, to: USER, subject: "Re: Hello", text: "after spam" }).raw);
+    await waitFor(() => to("owner@example.org").some((m) => m.text.includes("You said: after spam")), "marker answer");
+    const spam = await waitFor(
+      () => env.core.store.threads.byConversation("email", "hello@superemployee.example"),
+      "spam kept",
+    );
+    assert.equal(spam.mail_mark, "spam");
+    const kept = env.core.store.messages.list(spam.id);
+    assert.ok(kept.some((m) => m.parts.some((p) => p.type === "notice" && p.code === "mail.spam")));
+    assert.equal(env.core.store.modelLog.list(spam.id).length, 0);
+    assert.equal(llm.calls.length, calls + 2, "only the marker's turn");
+    assert.equal(smtp.sent.length, sent + 1, "nothing sent to the spammer");
+    assert.equal(imap.readOnlyViolations(), 0, "the Spam folder is only read");
   });
 
   test("a stranger is only listed for the owner to approve: no mail goes to them, never the agent", async () => {
@@ -598,7 +620,7 @@ describe("the email channel", () => {
     assert.equal(llm.calls.length, calls + 2);
   });
 
-  test("a blocked address or domain is never read nor listed; the owner's own address still is", async () => {
+  test("a blocked address or domain is kept marked, never answered nor listed; the owner's own address still is read", async () => {
     const base = settings();
     await env.client.call("channels.set", {
       id: "email",

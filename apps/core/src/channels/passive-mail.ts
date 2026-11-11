@@ -37,10 +37,16 @@ export function createPassiveMail(deps: {
   const keep = quietMessage(store);
   return (row: Pick<InboxRow, "id" | "channel" | "payload">): "done" | "ignored" => {
     const m = row.payload;
+    // Automatic mail kept before marks existed carries no mark of its own.
+    const mark = m.mail_handling === "marked" ? m.mail_mark : m.mail_handling === "automatic" ? "automatic" : undefined;
     const kept = store.tx(() => {
       const cfg = deps.configs().find((c) => c.id === row.channel);
       let person = store.persons.byAddress(row.channel, m.sender.id);
-      if (cfg?.type !== "email" || person?.role === "blocked" || (!person && cfg.strangers === "ignore")) {
+      // Marked mail is kept from anyone, blocked or not; never as the owner's (a mark on their address is a forgery).
+      const refused = mark
+        ? person?.role === "owner" && mark !== "automatic"
+        : person?.role === "blocked" || (!person && cfg?.strangers === "ignore");
+      if (cfg?.type !== "email" || refused) {
         store.channels.inbox.done(row.id, "ignored");
         return undefined;
       }
@@ -51,6 +57,8 @@ export function createPassiveMail(deps: {
       }
       const thread = deps.thread(cfg, m, person);
       if (fresh) store.threads.mergeContext(thread.id, { mail_capture_only: true });
+      if (mark && !store.threads.context(thread.id).mail_people)
+        store.threads.mergeContext(thread.id, { mail_mark: mark });
       let text = m.text;
       const files: string[] = [];
       for (const file of m.files ?? []) {
@@ -78,6 +86,7 @@ export function createPassiveMail(deps: {
           at: m.mail_received_at,
           historical: m.mail_handling === "history",
           deferEvent: true,
+          mark,
         },
       );
       store.channels.inbox.done(row.id, "done");
@@ -88,7 +97,7 @@ export function createPassiveMail(deps: {
       const message = store.messages.get(kept.id);
       if (message) deps.bus.emit({ type: "message.created", message });
       deps.keepHtml(kept.thread.id, m, kept.id);
-      if (m.mail_handling !== "history" && (kept.person.unreviewed || !kept.person.muted))
+      if (!mark && m.mail_handling !== "history" && (kept.person.unreviewed || !kept.person.muted))
         deps.report(kept.cfg, kept.person, m.sender.id, kept.text, kept.thread.id);
     } catch (err) {
       deps.log.warn({ inbox: row.id, err: errorMessage(err, 200) }, "stored mail not announced");

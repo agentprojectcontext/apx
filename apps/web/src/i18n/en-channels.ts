@@ -18,10 +18,19 @@ export const enChannels = {
   "ch.strangersHint.list": "They are listed here for you to approve; nothing is sent to them from your number.",
   "ch.neverRead": "Never read again",
   "ch.neverReadDomain": "Everything from @{domain}",
-  "ch.neverReadHint":
-    "Their mail is skipped from now on; this card and the chat stay, and you can read them again here.",
+  "ch.neverReadHint": "From now on their mail is kept marked Never read: not answered, and your agent does not read it. This card and the chat stay, and you can read them again here.",
   "ch.readAgainDone": "{who} is read again.",
   "ch.neverReadDone": "{who} is not read anymore.",
+  "ch.mailView": "Show",
+  "ch.mailView.people": "People",
+  "ch.mailView.all": "All mail",
+  "ch.mailHidden": "{n} chats of marked mail hidden · Show",
+  "ch.mark.automatic": "Automatic",
+  "ch.mark.spam": "Spam",
+  "ch.mark.unverified": "Unverified",
+  "ch.mark.blocked": "Never read",
+  "ch.mark.outside": "Outside who may write",
+  "ch.markHint": "Kept for you: it is not answered and your agent does not read it.",
   "ch.strangersHint.listMail": "They are listed here for you to approve; no mail is sent to them.",
   "ch.strangersHint.ask":
     "You get a notice with who wrote and what. Say yes (its button, or tell your agent) and their message is answered.",
@@ -208,9 +217,10 @@ export const enChannels = {
   "em.edit": "Change servers",
   "em.allowed": "Who may write",
   "em.allowedHint":
-    "Only mail from these addresses (or @domain) is read. Empty: anyone; what people you don't know get is set in Approvals.",
+    "Only mail from these addresses (or @domain) is answered; the rest is kept marked Outside who may write. Empty: anyone; what people you don't know get is set in Approvals.",
   "em.blocked": "Never read",
-  "em.blockedHint": "Mail from these addresses (or @domain) is skipped: not answered and not left for you to approve.",
+  "em.blockedHint":
+    "Mail from these addresses (or @domain) is kept marked Never read: not answered, not told and not left for you to approve.",
   "em.blockedPlaceholder": "news@example.com, @linkedin.com",
   "em.mine": "Your addresses",
   "em.mineHint":
@@ -219,7 +229,7 @@ export const enChannels = {
   "em.allowedPlaceholder": "ana@example.org, @acme.com",
   "em.unverified": "Read unverified mail",
   "em.unverifiedHint":
-    "Mail its server could not verify (DKIM, SPF or DMARC) is dropped, since anyone can write your address as the sender. Turn it on only if your mail server does not check senders. Mail from your own addresses always needs it.",
+    "Off: mail its server could not verify (DKIM, SPF or DMARC) is kept marked Unverified and never answered, since anyone can write your address as the sender. Turn it on only if your mail server does not check senders. Mail from your own addresses always needs it.",
   "em.passwordStored": "Stored securely; it never comes back to this screen.",
   "em.passwordChange": "Change password",
   "em.passwordFix": "Type the password again to connect it.",

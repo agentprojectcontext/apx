@@ -19,7 +19,7 @@ import { shortWhen } from "../common/format.ts";
 import { loadThread, markRead, send } from "../data/actions.ts";
 import { openContactChat, type PresenceState, recoverFiles, sendDirect } from "../data/channels.ts";
 import { useData } from "../data/state.ts";
-import { useT } from "../i18n/index.ts";
+import { type MessageKey, useT } from "../i18n/index.ts";
 import { EmailCard, MediaGroup, ReceivedMail } from "../lazy.ts";
 import { go } from "../shell/nav.ts";
 import { addressText, ContactFace, ContactFlags, useContactFlags } from "./ContactRow.tsx";
@@ -228,6 +228,14 @@ export function ChannelConversation(props: {
   );
 }
 
+const MARK_LABEL: Record<string, MessageKey> = {
+  "mail.automatic": "ch.mark.automatic",
+  "mail.spam": "ch.mark.spam",
+  "mail.unverified": "ch.mark.unverified",
+  "mail.blocked": "ch.mark.blocked",
+  "mail.outside": "ch.mark.outside",
+};
+
 function Bubble({ m, agentName, mail }: { m: Message; agentName: string; mail: boolean }) {
   const t = useT();
   const said = m.parts
@@ -241,6 +249,8 @@ function Bubble({ m, agentName, mail }: { m: Message; agentName: string; mail: b
     ? m.parts.find((p) => p.type === "file" && p.mime === "text/html" && p.name === "mail.html")
     : undefined;
   const files = bubbleFiles(m.parts).filter((p) => p !== formatted);
+  // A kept mail nobody answers (spam, automatic…) says why at its foot.
+  const marks = m.parts.flatMap((p) => (p.type === "notice" && p.code.startsWith("mail.") ? [p.code] : []));
   const actions = m.parts.flatMap((p) => (p.type === "tool" && p.status !== "error" ? [p.title] : []));
   const out = m.author.kind === "agent" || m.author.kind === "user";
   // The owner's words to the agent (what to answer) read apart from what was sent to the contact.
@@ -291,6 +301,11 @@ function Bubble({ m, agentName, mail }: { m: Message; agentName: string; mail: b
           ) : (
             words && <p className="chan__text">{words}</p>
           )}
+          {marks.map((code) => (
+            <span key={code} className="chan__mark" title={t("ch.markHint")}>
+              <Icons.Tag size={12} /> {t(MARK_LABEL[code] ?? "ch.mark.automatic")}
+            </span>
+          ))}
           {m.reactions?.length ? (
             <span className="chan__reactions">
               <ReactionList list={m.reactions} agentName={agentName} />

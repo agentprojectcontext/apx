@@ -305,6 +305,13 @@ export const WritePolicy = z.enum(["ask", "auto", "read-only"]);
 export type WritePolicy = z.infer<typeof WritePolicy>;
 export type ThreadKind = z.infer<typeof ThreadKind>;
 
+/**
+ * Why a mail is kept but neither answered, told nor given to the agent: written by no person, in the server's Spam
+ * folder, not verified by its server, from a "Never read" address, or from outside "Who may write".
+ */
+export const MailMark = z.enum(["automatic", "spam", "unverified", "blocked", "outside"]);
+export type MailMark = z.infer<typeof MailMark>;
+
 export const Thread = z.object({
   id: Id,
   kind: ThreadKind,
@@ -333,6 +340,8 @@ export const Thread = z.object({
   engine: z.string().optional(),
   /** Channel threads: the conversation on a channel (a Telegram chat…) and the person on the other side. */
   channel: z.object({ id: z.string(), conversation: z.string(), person_id: Id.optional() }).optional(),
+  /** A mailbox chat holding only marked mail (none once its sender writes a mail a person wrote): the latest mark. */
+  mail_mark: MailMark.optional(),
   /** The chat's own model, picked in its composer; absent = the agent's. */
   model_choice: ModelChoice.optional(),
   /** The chat in which the super-agent told what an update brought: that release's version. */

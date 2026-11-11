@@ -305,6 +305,10 @@ export function createInbound(deps: {
    * the agent reads the words, never the markup.
    */
   function keepMail(threadId: string, m: Inbound, messageId: string): void {
+    // A mail a person wrote makes a mailbox chat a person's for good: it leaves the marked ones in the list.
+    const at = store.threads.get(threadId)?.channel?.id;
+    if (!m.mail_handling && deps.configs().find((c) => c.id === at)?.type === "email")
+      store.threads.mergeContext(threadId, { mail_people: true, mail_mark: undefined });
     const message = m.html ? store.messages.get(messageId) : undefined;
     if (!m.html || !message) return;
     try {

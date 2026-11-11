@@ -33,19 +33,33 @@ todos. Una cuenta de email nunca le manda un código por correo a quien no conoc
 **Aprobaciones** con lo que escribió, y no se le manda nada hasta que lo apruebes. Empezá con una lista acotada y
 revisá las [respuestas supervisadas](/es/channels/supervised/).
 
-**No leer nunca** acepta direcciones o dominios (`@example.com`) cuyo correo se saltea: no se contesta ni queda en
-**Aprobaciones**. El correo automático (boletines, respuestas automáticas, rebotes y remitentes como `security-noreply@`)
-que pasa los mismos controles de remitente y filtros de entrada se guarda en el chat del remitente, sin iniciar una
-respuesta. Un remitente automático desconocido queda sin revisar, aunque los desconocidos comunes reciban respuestas.
-Si elegís ignorar desconocidos, se siguen ignorando. El correo enviado desde el propio buzón conectado se saltea para evitar ecos.
+## Correo marcado
+
+Se trae todo el correo que llega a la bandeja de entrada y a la carpeta **Spam** del servidor. El que escribió una
+persona se maneja como arriba; cualquier otro queda en el chat de su remitente con una marca al pie, y nunca se
+contesta, nunca te avisa y nunca le llega al agente:
+
+- **Automático**: no lo escribió una persona (boletines, respuestas automáticas, rebotes, remitentes como
+  `security-noreply@`).
+- **Spam**: tu servidor de correo lo puso en su carpeta Spam (se encuentra por su marca Junk o un nombre habitual, y se
+  lee cada unos diez minutos o apenas llega correo nuevo).
+- **Sin verificar**: su servidor no pudo verificar al remitente (DKIM, SPF o DMARC) y **Leer correo sin verificar**
+  está apagado.
+- **No leer nunca**: su dirección o dominio está en la lista **No leer nunca** de la cuenta.
+- **Fuera de la lista**: **Quién puede escribir** tiene direcciones y este remitente no está.
+
+La lista de la cuenta muestra personas por defecto; su botón de filtro muestra todo el correo o una marca, y una línea
+al final dice cuántos chats de correo marcado están ocultos. Un chat deja de estar marcado para siempre cuando su
+remitente escribe un correo de persona. El correo enviado desde el propio buzón se saltea para evitar ecos, y el
+correo sin verificar desde tu propia dirección se descarta: nunca se guarda como tuyo.
 
 El correo de **Tus direcciones** cuenta como tuyo solo si tu servidor de correo lo verificó (DKIM, SPF o DMARC),
 aunque **Leer correo sin verificar** esté activo. Tu correo va al chat propio de la cuenta, uno después del otro:
 email no tiene el selector de Home ni la opción **Mientras trabaja**.
 
-Por defecto APX descarta mensajes cuyo dominio remitente el servidor no pudo verificar con DKIM, SPF o DMARC.
-**Leer correo no verificado** debilita esa protección: activalo solo si entendés por qué tu servidor no verifica
-remitentes. Una dirección From no prueba que autorizaste una instrucción. El correo entrante sigue siendo contenido externo.
+**Leer correo sin verificar** debilita el control del remitente: activalo solo si entendés por qué tu servidor no
+verifica remitentes. Una dirección From no prueba que autorizaste una instrucción. El correo entrante sigue siendo
+contenido externo.
 
 ## Leer el correo recibido
 
@@ -58,8 +72,7 @@ bloqueado, su ficha y el chat quedan, y apagar el switch lo vuelve a leer.
 
 ## Qué te avisa
 
-Cuando te escribe alguien que no revisaste, o llega correo automático nuevo de un remitente que no silenciaste,
-te avisa solo del correo que el modelo auxiliar marca como importante
+Cuando te escribe alguien que no revisaste un correo de persona, te avisa solo del correo que el modelo auxiliar marca como importante
 (una persona que te escribe, plata, cuentas, vencimientos), como el aviso de una app de correo: remitente, asunto y
 una línea corta, en texto simple, sin el cuerpo ni enlaces. Boletines, promociones y propuestas comerciales quedan en
 los chats de la cuenta sin aviso. Sin modelo auxiliar no avisa.
