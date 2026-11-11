@@ -135,49 +135,59 @@
 }
 
 /* ── Overview ──────────────────────────────────────────────────────────────── */
-/* The whole overview scrolls as one page; the board may take the full width, the rest keeps the page's. */
-/* The widgets on the left (three quarters), the project's summary on the right (one quarter), both always so. */
+/* The whole overview scrolls as one page: the numbers and the widgets in the wide column, the cards in the narrow
+   one beside them. A board given the whole width (or a narrow window) puts the cards under it, side by side. */
 .overview {
   flex: 1;
   min-width: 0;
   overflow: auto;
   display: grid;
-  grid-template-columns: minmax(0, 3fr) minmax(260px, 1fr);
+  grid-template-columns: minmax(0, 1fr) minmax(280px, 340px);
   align-items: start;
-  gap: 24px;
+  gap: 20px;
   padding: 24px;
   box-sizing: border-box;
 }
 .overview__main {
   display: flex;
   flex-direction: column;
-  gap: 24px;
+  gap: 20px;
   min-width: 0;
 }
 .overview__side {
-  position: sticky;
-  top: 0;
   display: flex;
   flex-direction: column;
-  gap: 24px;
+  gap: 16px;
   min-width: 0;
+}
+.overview.is-wide {
+  grid-template-columns: minmax(0, 1fr);
+}
+.overview.is-wide .overview__side {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(280px, 100%), 1fr));
+  align-items: start;
 }
 @media (max-width: 900px) {
   .overview {
     grid-template-columns: minmax(0, 1fr);
   }
   .overview__side {
-    position: static;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(min(280px, 100%), 1fr));
+    align-items: start;
+  }
+}
+@media (max-width: 600px) {
+  .overview {
+    padding: 16px;
   }
 }
 .overview__block {
   display: flex;
   flex-direction: column;
-  gap: 24px;
-  min-width: 0;
-}
-.overview__block {
   gap: 8px;
+  min-width: 0;
 }
 .overview__h {
   display: flex;
@@ -187,14 +197,8 @@
   font-size: var(--apx-text-sm);
   font-weight: var(--apx-weight-semibold);
 }
-/* The summary column's headings read as the side column's: small and quiet. */
-.overview__side .overview__h {
-  align-items: center;
-  font-size: var(--apx-text-xs);
-  font-weight: var(--apx-weight-medium);
-  color: var(--apx-fg-subtle);
-}
 .overview__link {
+  flex: none;
   margin-left: auto;
   padding: 0;
   border: 0;
@@ -205,39 +209,6 @@
 }
 .overview__link:hover {
   color: var(--apx-fg);
-}
-.overview__run {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 12px 14px;
-  border: 1px solid var(--apx-border);
-  border-radius: var(--apx-radius-md);
-  background: var(--apx-surface);
-  text-align: left;
-}
-.overview__run:hover {
-  border-color: var(--apx-border-strong);
-}
-.overview__runtext {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-}
-.overview__runtitle {
-  font-size: var(--apx-text-md);
-  font-weight: var(--apx-weight-medium);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.overview__runsub {
-  font-size: var(--apx-text-xs);
-  color: var(--apx-fg-muted);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 .overview__pills {
   display: flex;
@@ -250,9 +221,10 @@
   gap: 8px;
   max-width: 100%;
   padding: 4px 12px 4px 4px;
-  border: 0;
+  border: 1px solid var(--apx-border);
   border-radius: var(--apx-radius-pill);
-  background: var(--apx-fill);
+  background: transparent;
+  color: var(--apx-fg);
 }
 .overview__pill:hover {
   background: var(--apx-fill-hover);
@@ -261,69 +233,55 @@
   font-size: var(--apx-text-sm);
   font-weight: var(--apx-weight-medium);
   white-space: nowrap;
-}
-.overview__pillrole {
-  font-size: var(--apx-text-xs);
-  color: var(--apx-fg-subtle);
   overflow: hidden;
   text-overflow: ellipsis;
-  white-space: nowrap;
 }
+/* Four numbers in a row, two by two on a phone; each opens its tab. */
 .overview__stats {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 8px;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+}
+@media (max-width: 700px) {
+  .overview__stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 .overview__stat {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  gap: 2px;
-  padding: 12px;
-  border: 0;
-  border-radius: var(--apx-radius-md);
-  background: var(--apx-fill);
+  gap: 4px;
+  min-width: 0;
+  padding: 14px 16px;
+  border: 1px solid var(--apx-border);
+  border-radius: var(--apx-radius-lg);
+  background: var(--apx-surface);
+  color: var(--apx-fg);
   text-align: left;
 }
 .overview__stat:hover {
-  background: var(--apx-fill-hover);
+  border-color: var(--apx-border-strong);
+}
+.overview__statl {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--apx-text-xs);
+  color: var(--apx-fg-muted);
 }
 .overview__statv {
-  font-size: calc(22px * var(--apx-text-scale, 1));
+  font-size: calc(24px * var(--apx-text-scale, 1));
   font-weight: var(--apx-weight-semibold);
   line-height: 1.2;
   font-variant-numeric: tabular-nums;
 }
-.overview__statl {
-  font-size: var(--apx-text-xs);
-  color: var(--apx-fg-muted);
-}
-.overview__row {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 6px 0;
-  border: 0;
-  background: none;
-  text-align: left;
-  color: var(--apx-fg-muted);
-}
-.overview__rowname {
-  flex: 1;
-  min-width: 0;
+.overview__statn {
+  max-width: 100%;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-size: var(--apx-text-sm);
-  color: var(--apx-fg);
-}
-.overview__row:hover:not(:disabled) .overview__rowname {
-  text-decoration: underline;
-  text-underline-offset: 2px;
-}
-.overview__rowwhen {
-  flex: none;
-  font-size: var(--apx-text-xs);
+  font-size: var(--apx-text-2xs);
   color: var(--apx-fg-subtle);
 }
 .overview__unread {
@@ -651,11 +609,6 @@
 /* The project's board: pinned widgets as many columns as fit, each as tall as its widget; the overview scrolls. */
 .projboard {
   width: 100%;
-  max-width: var(--shell-project-max-w);
-  margin: 0 auto;
-}
-.projboard.is-wide {
-  max-width: none;
 }
 .projboard__bar {
   display: flex;
@@ -773,6 +726,51 @@
 .projboard__askers {
   justify-content: center;
 }
+/* No widgets yet: one card that says what they are and how to get one, as tall as its words. */
+.projboard__empty {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px 16px;
+  padding: 16px 20px;
+  border: 1px solid var(--apx-border);
+  border-radius: var(--apx-radius-lg);
+  background: var(--apx-surface);
+}
+.projboard__emptyicon {
+  width: 36px;
+  height: 36px;
+  display: grid;
+  place-items: center;
+  border-radius: var(--apx-radius-md);
+  background: var(--apx-fill);
+  color: var(--apx-fg-muted);
+}
+.projboard__emptytext {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  color: var(--apx-fg-muted);
+}
+.projboard__emptytitle {
+  margin: 0;
+  font-size: var(--apx-text-sm);
+  font-weight: var(--apx-weight-semibold);
+  color: var(--apx-fg);
+}
+.projboard__empty .projboard__askers {
+  grid-column: 1 / -1;
+  justify-content: flex-start;
+}
+@media (max-width: 600px) {
+  .projboard__empty {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+  .projboard__empty .projboard__addactions {
+    grid-column: 1 / -1;
+  }
+}
 .projboard__head {
   padding: 8px 10px 8px 8px;
   border-bottom: 1px solid var(--apx-border);
@@ -867,22 +865,33 @@
   font-size: var(--apx-text-sm);
 }
 
-/* ── Subprojects and agents, in the overview's column ─────────────────────── */
+/* ── The overview's side cards: review, what waits, latest chats, agents, subprojects ── */
 .projside__block {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 10px;
   min-width: 0;
+  padding: 14px 16px;
+  border: 1px solid var(--apx-border);
+  border-radius: var(--apx-radius-lg);
+  background: var(--apx-surface);
 }
 .projside__h {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
   min-height: 22px;
   margin: 0;
-  font-size: var(--apx-text-xs);
-  font-weight: var(--apx-weight-medium);
-  color: var(--apx-fg-subtle);
+  font-size: var(--apx-text-sm);
+  font-weight: var(--apx-weight-semibold);
+  color: var(--apx-fg);
+}
+.projside__mark {
+  flex: none;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--apx-danger);
 }
 .projside__htext {
   flex: 1;
@@ -896,6 +905,79 @@
   font-size: var(--apx-text-xs);
   line-height: 1.5;
   color: var(--apx-fg-subtle);
+}
+/* Rows run edge to edge of the card, a line between each. */
+.projside__rows {
+  display: flex;
+  flex-direction: column;
+  margin: 0 -16px -14px;
+  border-top: 1px solid var(--apx-border);
+}
+.projside__row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  padding: 10px 16px;
+  border: 0;
+  border-bottom: 1px solid var(--apx-border);
+  background: transparent;
+  color: var(--apx-fg);
+  text-align: left;
+}
+.projside__row:last-child {
+  border-bottom: 0;
+  border-radius: 0 0 var(--apx-radius-lg) var(--apx-radius-lg);
+}
+.projside__row:hover {
+  background: var(--apx-fill-hover);
+}
+.projside__rowicon {
+  flex: none;
+  width: 24px;
+  height: 24px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--apx-fill);
+  color: var(--apx-fg-muted);
+}
+.projside__rowtext {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+.projside__rowname,
+.projside__rowsub {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.projside__rowname {
+  font-size: var(--apx-text-sm);
+}
+.projside__rowsub {
+  font-size: var(--apx-text-xs);
+  color: var(--apx-fg-subtle);
+}
+.projside__rowwhen {
+  flex: none;
+  font-size: var(--apx-text-2xs);
+  color: var(--apx-fg-subtle);
+}
+.projside__helper {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 10px;
+}
+.projside__gaps {
+  margin: 0;
+  padding-left: 18px;
+  font-size: var(--apx-text-xs);
+  line-height: 1.6;
+  color: var(--apx-fg);
 }
 .projside__sub {
   display: flex;
@@ -922,8 +1004,7 @@
   flex-direction: column;
 }
 .projside__subname,
-.projside__subnote,
-.projside__agentname {
+.projside__subnote {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -935,36 +1016,6 @@
 .projside__subnote {
   font-size: var(--apx-text-2xs);
 }
-.projside__agent {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  min-width: 0;
-  padding: 6px 8px;
-  border: 0;
-  border-radius: var(--apx-row-radius);
-  background: transparent;
-  color: var(--apx-fg);
-  text-align: left;
-}
-.projside__agent:hover {
-  background: var(--apx-fill-hover);
-}
-.projside__agentname {
-  flex: 1;
-  min-width: 0;
-  font-size: var(--apx-text-sm);
-}
-.projside__agentfrom {
-  flex: none;
-  max-width: 50%;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  font-size: var(--apx-text-2xs);
-  color: var(--apx-fg-subtle);
-}
-
 /* A project tab with nothing in it yet. */
 .projempty {
   margin: 0;

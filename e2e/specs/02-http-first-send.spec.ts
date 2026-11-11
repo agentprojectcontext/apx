@@ -77,25 +77,32 @@ test("a failed first send restores files and retries on the created chat without
   await expect(page.locator(".attchips")).toHaveCount(0);
 });
 
-test("project helper starts a chat over insecure HTTP with secure idempotency keys", async ({ page }) => {
+test("reviewing a project with an agent starts a chat over insecure HTTP with secure idempotency keys", async ({
+  page,
+}) => {
   const { project } = await rpc<Result<"projects.create">>("projects.create", { name: "HTTP helper" });
   await page.goto(`http://panel.test:${process.env.E2E_PORT ?? 7460}/#project=${project.id}&tab=overview`);
   expect(await page.evaluate(() => isSecureContext)).toBe(false);
-  await page.getByRole("button", { name: "Revisar contexto del proyecto" }).click();
-  const helper = page.getByRole("dialog", { name: "Revisar contexto del proyecto" });
-  await helper.getByRole("textbox", { name: "¿Qué debería lograr este proyecto?" }).fill("Review the catalog");
-  await helper.getByRole("textbox", { name: "¿Cuál sería un primer resultado útil?" }).fill("A short plan");
   const keys: string[] = [];
   page.on("request", (r) => {
     if (/\/rpc\/threads\.(create|send)$/.test(r.url())) keys.push(r.headers()["idempotency-key"] ?? "");
   });
-  await helper.getByRole("button", { name: "Enviar resumen y empezar" }).click();
-  await expect(helper).toBeHidden();
+  await page
+    .getByRole("region", { name: "Revisar el proyecto" })
+    .getByRole("button", { name: /^Hablarlo con / })
+    .click();
+  const chat = page.getByRole("complementary", { name: "Revisión del proyecto" });
+  await expect(chat.getByRole("textbox")).toHaveValue(/^Revisemos este proyecto/);
+  await chat.getByRole("button", { name: "Enviar", exact: true }).click();
+  await expect
+    .poll(async () => (await rpc<Result<"threads.list">>("threads.list", { project_id: project.id })).threads.length)
+    .toBe(1);
   const { threads } = await rpc<Result<"threads.list">>("threads.list", { project_id: project.id });
-  expect(threads).toHaveLength(1);
   const details = await rpc<Result<"threads.get">>("threads.get", { thread: threads[0]?.id });
+  await expect
+    .poll(async () => (await rpc<Result<"threads.get">>("threads.get", { thread: threads[0]?.id })).runs.length)
+    .toBe(1);
   expect(details.messages.filter((message) => message.author.kind === "user")).toHaveLength(1);
-  expect(details.runs).toHaveLength(1);
   expect(keys).toHaveLength(2);
   expect(new Set(keys).size).toBe(2);
   for (const key of keys) expect(key).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/);

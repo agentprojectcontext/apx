@@ -20,12 +20,11 @@ export function SubprojectsBlock({ project }: { project: ProjectEntry }) {
   const owner = parent ?? project;
   const list = subprojectsOf(entries, owner.id).filter((p) => p.id !== project.id);
   if (parent && list.length === 0) return null;
+  const title = parent ? t("overview.otherSubs", { name: parent.name }) : t("overview.subprojects");
   return (
-    <section className="projside__block">
+    <section className="projside__block" aria-label={title}>
       <h2 className="projside__h">
-        <span className="projside__htext">
-          {parent ? t("overview.otherSubs", { name: parent.name }) : t("overview.subprojects")}
-        </span>
+        <span className="projside__htext">{title}</span>
         {!parent && (
           <IconButton
             size="sm"

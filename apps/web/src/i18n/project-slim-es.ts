@@ -5,7 +5,6 @@ import type { MessageKey } from "./en.ts";
 export const esProjectSlim: Partial<Record<MessageKey, string>> = {
   "projside.label": "Subproyectos y agentes",
   "projside.openSub": "Abrir {name}",
-  "projside.openAgent": "Ver a {name} en su equipo",
   "projside.own": "Propio",
   "projside.everywhere": "Todos",
   "project.emptyTab": "Todavía no hay nada acá en {name}.",

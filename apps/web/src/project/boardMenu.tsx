@@ -12,7 +12,7 @@ import { askForWidget } from "../surfaces/widgetChatActions.ts";
 export type BoardChoices = {
   /** The header's "+": loading one, and asking an agent for a new one. */
   menu: MenuEntry[];
-  /** Only loading one: this project's own widgets and copies from other projects. */
+  /** Only loading one: this project's own widgets, copies from other projects and one from a file. */
   load: MenuEntry[];
   /** Who can make a new one: the project's agents, then the super-agent. */
   askers: Agent[];
@@ -74,9 +74,10 @@ export function useBoardChoices(projectId: string, mine: SurfaceSummary[]): Boar
           items: widgets.map((w) => ({ label: w.title, onSelect: () => void copySurface(w.id, here, true) })),
         })),
       },
+      { label: t("artifact.install"), icon: <Icons.Upload />, onSelect: () => openInstall(here) },
     ];
     const menu: MenuEntry[] = [
-      ...load.slice(0, -1),
+      ...load.slice(0, -2),
       {
         type: "submenu",
         label: t("board.ask"),
@@ -89,8 +90,7 @@ export function useBoardChoices(projectId: string, mine: SurfaceSummary[]): Boar
             }))
           : [{ label: t("board.noAgents"), disabled: true }],
       },
-      ...load.slice(-1),
-      { label: t("artifact.install"), icon: <Icons.Upload />, onSelect: () => openInstall(here) },
+      ...load.slice(-2),
     ];
     return { menu, load, askers, ask, askerLabel };
   }, [t, agents, projects, surfaces, superAgent, projectId, mine]);

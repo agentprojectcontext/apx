@@ -77,8 +77,9 @@ project context, memory, open tasks and existing chats; settings keep the opt-in
 fingerprints, not new permissions. Context inserted into a brief or prompt proposal is escaped JSON, explicitly
 marked as untrusted reference data. The panel previews the complete before/after and asks separately before
 applying proposed instructions to an unchanged, empty agent draft. Dismissal or navigation never applies them;
-only the existing `agents.create` operation persists a new agent. Starting work uses the existing `threads.send`
-operation; preparation never blocks creation or ordinary chat.
+only the existing `agents.create` operation persists a new agent. The overview's review card shows only the gaps in
+plain words and opens a chat whose first message the owner reads, changes and sends through the existing
+`threads.send`; the panel never shows the brief. Preparation never blocks creation or ordinary chat.
 
 Node capabilities (`browser.*`): the handler is `apps/core/src/rpc/browser.ts`, which asks
 `apps/core/src/nodes/broker.ts` to send the same method + params to the connected desktop over its socket; the

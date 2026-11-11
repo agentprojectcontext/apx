@@ -126,14 +126,49 @@ export function TileWidth({
   );
 }
 
-/** The board's last place: a dashed tile to make a new widget with one of the agents, or load one that exists. */
-export function BoardAddTile({ choices, empty }: { choices: BoardChoices; empty: boolean }) {
+/** The board's last tile: create another widget with an agent, or load one that exists. */
+export function BoardAddTile({ choices }: { choices: BoardChoices }) {
   const t = useT();
   const [picking, setPicking] = useState(false);
   return (
     <div className="projboard__add">
       <Icons.LayoutGrid size={18} className="projboard__addicon" />
-      <p className="projboard__addtext">{empty ? t("board.empty") : t("board.more")}</p>
+      <p className="projboard__addtext">{t("board.more")}</p>
+      <BoardActions choices={choices} picking={picking} setPicking={setPicking} />
+    </div>
+  );
+}
+
+/** A board with no widgets: what a widget is and how to get one, in one card instead of an empty grid. */
+export function BoardEmpty({ choices }: { choices: BoardChoices }) {
+  const t = useT();
+  const [picking, setPicking] = useState(false);
+  return (
+    <div className="projboard__empty">
+      <span className="projboard__emptyicon">
+        <Icons.LayoutGrid size={18} />
+      </span>
+      <div className="projboard__emptytext">
+        <h2 className="projboard__emptytitle">{t("board.none")}</h2>
+        <p className="projboard__addtext">{t("board.empty")}</p>
+      </div>
+      <BoardActions choices={choices} picking={picking} setPicking={setPicking} />
+    </div>
+  );
+}
+
+function BoardActions({
+  choices,
+  picking,
+  setPicking,
+}: {
+  choices: BoardChoices;
+  picking: boolean;
+  setPicking(on: boolean): void;
+}) {
+  const t = useT();
+  return (
+    <>
       <div className="projboard__addactions">
         <Button
           variant="secondary"
@@ -167,6 +202,6 @@ export function BoardAddTile({ choices, empty }: { choices: BoardChoices; empty:
           )}
         </div>
       )}
-    </div>
+    </>
   );
 }

@@ -1,10 +1,13 @@
 import type { Result } from "@apx/protocol";
-import { Button, Dialog, Field, Textarea } from "@apx/ui";
+import { Button, Dialog, Field, Icons, Textarea } from "@apx/ui";
 import { useEffect, useState } from "react";
 import { client } from "../data/client.ts";
 import { notify } from "../data/notices.ts";
+import { useData } from "../data/state.ts";
 import { useT } from "../i18n/index.ts";
-
+import { askAbout } from "../surfaces/widgetChatActions.ts";
+import { OverviewCard } from "./OverviewCards.tsx";
+import { helperGaps } from "./overviewData.ts";
 import { type AcceptProposal, PromptProposal } from "./PromptProposal.tsx";
 import type { AgentDraft } from "./prompt-proposal.ts";
 import { useHelperActions } from "./useHelperActions.ts";
@@ -12,14 +15,18 @@ import { useHelperActions } from "./useHelperActions.ts";
 type Review = Result<"projects.helper_review">;
 const report = (e: unknown) => notify(e instanceof Error ? e.message : String(e), "error");
 
+/**
+ * The overview's card for going over the project with its lead agent (or the super-agent): what is missing, and a
+ * chat that opens over the page with the first words ready for the owner to change or send.
+ */
 export function ProjectHelper({ project }: { project: string }) {
   const t = useT();
+  const agents = useData((s) => s.agents);
   const [review, setReview] = useState<Review>();
-  const [open, setOpen] = useState(false);
   useEffect(() => {
     let live = true;
     client
-      .call("projects.helper_review", { project })
+      .call("projects.helper_review", { project, manual: true })
       .then((r) => {
         if (live) setReview(r);
       })
@@ -28,17 +35,36 @@ export function ProjectHelper({ project }: { project: string }) {
       live = false;
     };
   }, [project]);
+  const agent = review?.recipient ? agents[review.recipient] : undefined;
+  if (!review || !agent) return null;
+  const gaps = helperGaps(review).map((g) => ("name" in g ? t(g.key, { name: g.name }) : t(g.key)));
   return (
-    <section className="overview__block">
-      <Button variant="secondary" onClick={() => setOpen(true)}>
-        {t("helper.review")}
-      </Button>
-      {review?.offer && <p>{t("helper.offer")}</p>}
-      {open && <HelperDialog project={project} onClose={() => setOpen(false)} onChanged={setReview} />}
-    </section>
+    <OverviewCard title={t("helper.title")} mark={gaps.length > 0}>
+      <div className="projside__helper">
+        {gaps.length > 0 && (
+          <ul className="projside__gaps" aria-label={t("helper.missing")}>
+            {gaps.map((g) => (
+              <li key={g}>{g}</li>
+            ))}
+          </ul>
+        )}
+        <p className="projside__hint">{t("helper.pitch", { name: agent.name })}</p>
+        <Button
+          size="sm"
+          variant="secondary"
+          leadingIcon={<Icons.MessageCircle size={14} />}
+          onClick={() =>
+            void askAbout(agent.id, project, { title: t("helper.chatTitle"), draft: t("helper.chatDraft") })
+          }
+        >
+          {t("helper.talk", { name: agent.name })}
+        </Button>
+      </div>
+    </OverviewCard>
   );
 }
 
+/** A new agent's draft checked against the project: what it lacks, and instructions APX proposes from its goal. */
 export function HelperDialog({
   project,
   draft,
@@ -47,8 +73,8 @@ export function HelperDialog({
   onChanged,
 }: {
   project: string;
-  draft?: { role: string; prompt: string };
-  onAccept?: AcceptProposal;
+  draft: AgentDraft;
+  onAccept: AcceptProposal;
   onClose(): void;
   onChanged?(review: Review): void;
 }) {
@@ -57,17 +83,16 @@ export function HelperDialog({
   const [reviewedDraft, setReviewedDraft] = useState<AgentDraft>();
   const [goal, setGoal] = useState("");
   const [result, setResult] = useState("");
-  const { busy, locked, close, prepare, toggle } = useHelperActions({
+  const { busy, close, prepare } = useHelperActions({
     project,
     draft,
     goal,
     result,
     review,
-    title: t("helper.review"),
     onClose,
     onReview: (next) => {
       setReview(next);
-      setReviewedDraft(draft ? { ...draft } : undefined);
+      setReviewedDraft({ ...draft });
       onChanged?.(next);
     },
   });
@@ -76,11 +101,11 @@ export function HelperDialog({
     setReview(undefined);
     setReviewedDraft(undefined);
     client
-      .call("projects.helper_review", { project, manual: true, ...(draft ? { draft } : {}) })
+      .call("projects.helper_review", { project, manual: true, draft })
       .then((r) => {
         if (live) {
           setReview(r);
-          setReviewedDraft(draft ? { ...draft } : undefined);
+          setReviewedDraft({ ...draft });
           setGoal(r.goal);
           setResult(r.first_result);
         }
@@ -93,7 +118,7 @@ export function HelperDialog({
   return (
     <Dialog
       open
-      title={t("helper.review")}
+      title={t("helper.agentReview")}
       description={t("helper.body")}
       onOpenChange={(o) => !o && !busy && void close()}
       footer={
@@ -101,14 +126,9 @@ export function HelperDialog({
           <Button variant="secondary" disabled={busy} onClick={() => void close()}>
             {t("common.close")}
           </Button>
-          <Button variant="secondary" disabled={!review || locked} onClick={() => void prepare(false)}>
+          <Button disabled={!review} loading={busy} onClick={() => void prepare()}>
             {t("helper.prepare")}
           </Button>
-          {!draft && (
-            <Button disabled={!review?.recipient} loading={busy} onClick={() => void prepare(true)}>
-              {t("helper.start")}
-            </Button>
-          )}
         </>
       }
     >
@@ -118,10 +138,9 @@ export function HelperDialog({
           expected={reviewedDraft}
           goal={goal}
           result={result}
-          busy={locked}
+          busy={busy}
           setGoal={setGoal}
           setResult={setResult}
-          toggle={toggle}
           onAccept={onAccept}
           onClose={onClose}
         />
@@ -138,7 +157,6 @@ function HelperFields({
   busy,
   setGoal,
   setResult,
-  toggle,
   onAccept,
   onClose,
 }: {
@@ -149,22 +167,13 @@ function HelperFields({
   busy: boolean;
   setGoal(v: string): void;
   setResult(v: string): void;
-  toggle(): Promise<void>;
-  onAccept?: AcceptProposal | undefined;
+  onAccept: AcceptProposal;
   onClose(): void;
 }) {
   const t = useT();
   return (
     <div className="taskform">
-      <Button variant="secondary" disabled={busy} onClick={() => void toggle()}>
-        {review.enabled ? t("helper.turnOff") : t("helper.turnOn")}
-      </Button>
-      {review.missing.length === 0 && review.agent_gaps.length === 0 && <p>{t("helper.ready")}</p>}
-      {review.agent_gaps.map((a) => (
-        <p key={a.id}>
-          {a.name}: {a.missing.map((gap) => t(`helper.gap.${gap}`)).join(", ")}
-        </p>
-      ))}
+      {review.missing.length === 0 && <p>{t("helper.ready")}</p>}
       {review.missing.includes("goal") && (
         <Field label={t("helper.goal")}>
           {(id) => (
@@ -206,8 +215,7 @@ function HelperFields({
         </Field>
       )}
       {review.missing.includes("role") && <p>{t("helper.roleMissing")}</p>}
-      <pre style={{ whiteSpace: "pre-wrap" }}>{review.brief}</pre>
-      {review.suggested_prompt && expected && onAccept && (
+      {review.suggested_prompt && expected && (
         <PromptProposal
           proposed={review.suggested_prompt}
           expected={expected}
