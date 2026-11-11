@@ -25,6 +25,7 @@ const toJob = (r: Selectable<JobsTable>): JobRecord => ({
   background: Boolean(r.background),
   started_at: r.started_at,
   ...opt("ended_at", r.ended_at),
+  ...opt("start_error", r.start_error),
 });
 
 export const publicJob = ({ pid: _p, proc_start: _s, ...rest }: JobRecord): Job => rest;
@@ -74,11 +75,12 @@ export function jobsRepo({ one, all, run }: Sql, bus: Bus) {
       id: string,
       state: "completed" | "failed" | "canceled",
       exitCode?: number | undefined,
+      startError?: string | undefined,
     ): JobRecord | undefined {
       const changes = run(
         qb
           .updateTable("jobs")
-          .set({ state, exit_code: exitCode ?? null, ended_at: now() })
+          .set({ state, exit_code: exitCode ?? null, start_error: startError ?? null, ended_at: now() })
           .where("id", "=", id)
           .where("state", "=", "working"),
       );

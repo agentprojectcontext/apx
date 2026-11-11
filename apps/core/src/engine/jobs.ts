@@ -26,6 +26,7 @@ export function createJobs(deps: {
   home: string;
   log: Log;
   admit: AdmitFn;
+  spawn?: typeof spawnCommand;
   /** Hands the end to the agent's running turn; false when none can take it, and it gets a turn of its own. */
   steer?: (a: Admit) => boolean;
 }) {
@@ -103,6 +104,17 @@ export function createJobs(deps: {
         cwd: o.cwd,
         background: o.background,
       });
+      let child: ReturnType<typeof spawnCommand>;
+      try {
+        // Child commands retain their agent identity; the CLI must not treat them as the owner.
+        const env = { ...commandEnv(), ...(o.agent_id ? { [AGENT_ENV]: o.agent_id } : {}) };
+        child = (deps.spawn ?? spawnCommand)(o.command, { cwd: o.cwd, env, stdio: ["ignore", "pipe", "pipe"] });
+      } catch (err) {
+        const reason = err instanceof Error ? err.message : String(err);
+        store.jobs.finish(job.id, "failed", undefined, reason);
+        fs.appendFileSync(fileOf(job.id), `\n[could not start: ${reason}]\n`);
+        throw new Error(`Command could not start: ${reason}`, { cause: err });
+      }
       const out = fs.createWriteStream(fileOf(job.id), { flags: "a" });
       let written = 0;
       const write = (chunk: Buffer) => {
@@ -110,9 +122,6 @@ export function createJobs(deps: {
         written += chunk.length;
         out.write(written > OUTPUT_CAP ? Buffer.concat([chunk, Buffer.from("\n[output cut by APX]\n")]) : chunk);
       };
-      // An agent's command says whose it is: `apx chat` run there refuses to speak as the owner (it asks with delegate).
-      const env = { ...commandEnv(), ...(o.agent_id ? { [AGENT_ENV]: o.agent_id } : {}) };
-      const child = spawnCommand(o.command, { cwd: o.cwd, env, stdio: ["ignore", "pipe", "pipe"] });
       if (child.pid) {
         store.jobs.setPid(job.id, child.pid);
         void processStart(child.pid).then(
@@ -131,12 +140,12 @@ export function createJobs(deps: {
       const done = new Promise<JobRecord>((resolve) => {
         let ending = false;
         // `error` and `close` can both fire for one process: it ends (and wakes the agent) once.
-        const end = (state: "completed" | "failed" | "canceled", code?: number) => {
+        const end = (state: "completed" | "failed" | "canceled", code?: number, startError?: string) => {
           if (ending) return;
           ending = true;
           clearTimeout(lifetime);
           out.end(() => {
-            const final = store.jobs.finish(job.id, state, code) ?? (store.jobs.get(job.id) as JobRecord);
+            const final = store.jobs.finish(job.id, state, code, startError) ?? (store.jobs.get(job.id) as JobRecord);
             procs.delete(job.id);
             wake(final);
             resolve(final);
@@ -144,7 +153,7 @@ export function createJobs(deps: {
         };
         child.on("error", (err) => {
           write(Buffer.from(`\n[could not start: ${err.message}]\n`));
-          end("failed");
+          end("failed", undefined, err.message);
         });
         child.on("close", (code) => end(killed ? "canceled" : code === 0 ? "completed" : "failed", code ?? undefined));
       });

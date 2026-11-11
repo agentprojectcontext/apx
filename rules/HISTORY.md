@@ -32,6 +32,19 @@ actual provenance. A concurrent writer detected across backup and write-lock
 acquisition aborts the repair. A backup or transaction failure leaves the original schema counter and data intact.
 **Where:** `apps/core/src/db/{db,migration-lineage}.ts`; migration-lineage regression tests; EN/ES installation guides.
 
+<a id="hotfix-migration-lineage"></a>
+### A released hotfix may have a different migration suffix
+**Rule:** the v2.13.4 hotfix's migration 109 adds `jobs.start_error`; staging keeps its original migrations
+109–114 and adds that column at 115. Only the exact hotfix-109 schema is reconciled: compare every schema object
+with the canonical 108-entry prefix plus the hotfix column, save a private consistent backup, revalidate under
+`BEGIN IMMEDIATE`, apply canonical 109–114 and mark 115 in the same transaction. A concurrent writer or any failure
+aborts the whole reconciliation. Existing staging databases follow their normal suffix; reopening never repeats
+channel or permission conversions. Unknown mixed schemas fail closed.
+**Why:** inserting the hotfix migration into staging would renumber migrations already applied. Merely appending
+the column would instead skip staging109 for hotfix databases and later fail on the duplicate column. The older
+101–108 reconciler only repairs additive changes and cannot safely absorb this transforming suffix.
+**Where:** `apps/core/src/db/{db,migration-hotfix}.ts`; migration-hotfix regression tests; EN/ES installation guides.
+
 <a id="task-execution-handoff"></a>
 ### A self-task transfers execution, not just a board entry
 **Rule:** an immediate self-assignment transfers execution to the task session. The source run stops using tools;

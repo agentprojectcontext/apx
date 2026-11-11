@@ -265,6 +265,17 @@ data folder before retrying. The automatic copy contains private chat data, not 
 protected. To restore it, stop APX and keep the failed database and its WAL files separately before replacing the
 database. Use a program version compatible with that copy's original schema.
 
+### Updating from the v2.13.4 hotfix
+
+Development builds after v2.13.4 recognize that hotfix's database separately from the development branch's
+migration history. Before joining the two histories, startup checks the complete hotfix schema and saves a
+consistent, private database-only copy in `backups/migration-hotfix-<unique-id>/apx.db`. The pending changes and
+migration counter then commit together; failed upgrades roll back and can be retried after resolving the cause.
+Command failure reasons and existing chats stay intact. Reopening does not repeat channel or contact-rights
+conversions. Unrecognized mixed schemas are refused rather than guessed. Keep the backup protected and stop other
+cores sharing the data folder before retrying. The hotfix itself cannot open a newer development database;
+this is not a downgrade path.
+
 ## Uninstall
 
 Uninstalling removes the program and its service. **Your data stays** in `~/.apx/v2`; delete that folder yourself
