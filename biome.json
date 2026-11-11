@@ -247,6 +247,7 @@
                       "**/AgentEvent.tsx",
                       "**/SubthreadPart.tsx",
                       "**/TaskBundle.tsx",
+                      "**/ChannelBundle.tsx",
                       "**/TaskPeek.tsx",
                       "**/McpPeek.tsx",
                       "**/TasksScreen.tsx",

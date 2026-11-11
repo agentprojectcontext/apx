@@ -25,13 +25,15 @@ export function InboxList() {
   const [query, setQuery] = useState("");
   const [searching, setSearching] = useState(false);
   const filter = useInboxFilter((s) => s);
-  const filtered = filterCount(filter) > 0;
+  const hidden = usePrefs((s) => s.inboxHiddenChannels);
+  const filtered = filterCount(filter) > 0 || hidden.length > 0;
   const channels = useChannels((s) => s.channels);
   // Narrowed to one channel account, the Inbox is that account's: its header, its chats.
   const sole = soleFilter(filter);
   const account = !projectId && sole?.kind === "accounts" ? channels.find((c) => c.id === sole.id) : undefined;
   const chatAgents = useChatAgents(projectId);
 
+  const byChannel = usePrefs((s) => s.inboxByChannel);
   const savedTab = usePrefs((s) => s.inboxTab);
   const tab: InboxTab = account ? "chats" : savedTab;
   const routineOpen = useNav((s) => s.routineId != null);
@@ -46,13 +48,13 @@ export function InboxList() {
   const allListed = useMemo(() => entries.flatMap((e) => (e.kind === "thread" ? [e.thread] : e.threads)), [entries]);
   const tabs = useMemo(() => {
     const kindOf = (id: string) => channels.find((c) => c.id === id)?.type;
-    const ok = (th: Thread) => passesFilter(th, filter, projects, kindOf);
+    const ok = (th: Thread) => passesFilter(th, filter, projects, kindOf, hidden);
     return {
       chats: entries.flatMap((e) => (e.kind === "thread" && ok(e.thread) ? [e.thread] : [])),
       tasks: entries.flatMap((e) => (e.kind === "task" && e.threads.some(ok) ? [e] : [])),
       routines: entries.flatMap((e) => (e.kind === "routine" && e.threads.some(ok) ? [e] : [])),
     };
-  }, [entries, filter, projects, channels]);
+  }, [entries, filter, projects, channels, hidden]);
   // Each tab tells from outside whether something in it is running and whether it holds news.
   const marks = useMemo(() => {
     const of = (list: Thread[]) => ({
@@ -211,7 +213,8 @@ export function InboxList() {
             />
           )
         ) : (
-          <ChatsTab entries={tabs.chats} archived={archived} />
+          // One account's own list has nothing to group.
+          <ChatsTab entries={tabs.chats} archived={archived} byChannel={byChannel && !account} />
         )}
       </div>
     </section>

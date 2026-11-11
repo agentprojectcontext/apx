@@ -670,3 +670,14 @@ button.chatprocesses {
 .taskbundle .tree__sessionwho::after {
   content: ":";
 }
+/* The filter's channels tab: what the Inbox leaves out shows faded; grouping sits under the list. */
+.inboxfilter__empty {
+  margin: 0;
+  padding: 12px 8px;
+  color: var(--apx-fg-subtle);
+  font-size: var(--apx-text-sm);
+}
+.inboxfilter__group {
+  padding: 8px 10px 4px;
+  border-top: 1px solid var(--apx-border);
+}
