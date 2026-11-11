@@ -1,9 +1,8 @@
 import type { Agent, Thread } from "@apx/protocol";
 import { ContextMenu, ConversationRow, IconButton, Icons, Menu, Spinner } from "@apx/ui";
-import { AnswererFace, AnswersLine } from "../channels/AnswererFace.tsx";
+import { Suspense } from "react";
+import { AnswererFace } from "../channels/AnswererFace.tsx";
 import { accountName } from "../channels/accountName.ts";
-import { ContactFlags, useContactFlags } from "../channels/flags.tsx";
-import { RELATION_KEY } from "../channels/people.ts";
 import { ChatProcesses } from "../common/ChatProcesses.tsx";
 import { shortWhen } from "../common/format.ts";
 import { useEngineLabel } from "../common/useEngineLabel.ts";
@@ -11,6 +10,7 @@ import { useChannels } from "../data/channels.ts";
 import { DEFAULT_PID, isWorking, projectName, routineName } from "../data/identity.ts";
 import { useData } from "../data/state.ts";
 import { type T, useT } from "../i18n/index.ts";
+import { AccountLine } from "../lazy.ts";
 import { useNav } from "../shell/nav.ts";
 import { ProjectBadge } from "./ProjectBadge.tsx";
 import { useRowFold } from "./RowFold.tsx";
@@ -67,7 +67,15 @@ export function ThreadRow({ thread, agent, selected, account = false, bundled = 
           }
           time={shortWhen(thread.updated_at)}
           unread={thread.unread}
-          {...(own ? { meta: <AccountLine thread={thread} agent={agent} /> } : {})}
+          {...(own
+            ? {
+                meta: (
+                  <Suspense fallback={null}>
+                    <AccountLine thread={thread} agent={agent} />
+                  </Suspense>
+                ),
+              }
+            : {})}
           preview={
             own ? (
               <Said thread={thread} mail={channel === "email"} />
@@ -130,21 +138,6 @@ function Said({ thread, mail }: { thread: Thread; mail: boolean }) {
       <span className="threadrow__subject">{text.slice(0, cut)}</span>
       <span className="threadrow__said">{text.slice(cut + 3)}</span>
     </>
-  );
-}
-
-/** Under it, who they are to the owner and who answers them ("Associate · Roby answers"), with what is set for them. */
-function AccountLine({ thread, agent }: { thread: Thread; agent: Agent | undefined }) {
-  const t = useT();
-  const person = useChannels((s) => s.persons.find((p) => p.id === thread.channel?.person_id));
-  const relation = person?.relation ? t(RELATION_KEY[person.relation]) : undefined;
-  const flags = useContactFlags(person, thread.channel?.id ?? "");
-  return (
-    <span className="threadrow__line">
-      {thread.state === "input-required" && <span className="threadrow__waiting">{t("thread.waiting")} · </span>}
-      <AnswersLine className="threadrow__who" lead={[relation]} agent={agent} />
-      <ContactFlags flags={flags} />
-    </span>
   );
 }
 

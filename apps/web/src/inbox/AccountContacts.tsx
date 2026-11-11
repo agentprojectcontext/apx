@@ -1,6 +1,6 @@
 import type { ChannelInfo, Person } from "@apx/protocol";
 import { Avatar, ConversationRow } from "@apx/ui";
-import { AnswersLine } from "../channels/AnswererFace.tsx";
+import { AnswersLine } from "../channels/AnswersLine.tsx";
 import { addressText } from "../channels/ContactRow.tsx";
 import { ContactFlags, useContactFlags } from "../channels/flags.tsx";
 import { PersonAvatar } from "../channels/PersonAvatar.tsx";

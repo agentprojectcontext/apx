@@ -3,7 +3,7 @@ import { Tooltip } from "@apx/ui";
 import { shortWhen } from "../common/format.ts";
 import type { PresenceState } from "../data/channels.ts";
 import { useT } from "../i18n/index.ts";
-import { AnswersLine } from "./AnswererFace.tsx";
+import { AnswersLine } from "./AnswersLine.tsx";
 import { ContactFlags, useContactFlags } from "./flags.tsx";
 import { PersonAvatar } from "./PersonAvatar.tsx";
 import { initials, RELATION_KEY } from "./people.ts";

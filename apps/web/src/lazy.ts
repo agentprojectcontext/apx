@@ -63,6 +63,8 @@ export const AsidePanel = lazy(() => import("./chat/composer/AsidePanel.tsx").th
 export const AccountHeader = lazy(() =>
   import("./inbox/AccountHeader.tsx").then((m) => ({ default: m.AccountHeader })),
 );
+// An account's own list: who each one is to the owner, who answers them and what is set for them.
+export const AccountLine = lazy(() => import("./inbox/AccountLine.tsx").then((m) => ({ default: m.AccountLine })));
 export const TitleTooltips = lazy(() =>
   import("./common/TitleTooltips.tsx").then((m) => ({ default: m.TitleTooltips })),
 );

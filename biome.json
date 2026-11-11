@@ -233,6 +233,7 @@
                       "**/AsidePanel.tsx",
                       "**/AccountHeader.tsx",
                       "**/AccountContacts.tsx",
+                      "**/AccountLine.tsx",
                       "**/TitleTooltips.tsx",
                       "**/FlowDetail.tsx",
                       "**/FlowEditor.tsx",
