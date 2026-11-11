@@ -194,10 +194,11 @@ test("one account's list shows what was written: a mail's subject and two lines,
 
   await sidebar.getByRole("button", { name: "ventas@example.com", exact: true }).first().click();
   await page.setViewportSize({ width: 390, height: 800 });
-  // A phone opens the account's newest chat: wait for it or the list before stepping back.
-  await expect(back.or(row).first()).toBeVisible();
-  if (await back.isVisible()) await back.click();
-  await expect(row.locator(".threadrow__subject")).toBeVisible();
+  // A phone may open the account's newest chat a moment later: step back whenever it shows, until the list does.
+  await expect(async () => {
+    if (await back.isVisible()) await back.click();
+    await expect(row.locator(".threadrow__subject")).toBeVisible({ timeout: 1000 });
+  }).toPass({ timeout: 10_000 });
   await page.screenshot({ path: "test-results/inbox-account-mail-phone.png" });
   expect(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth)).toBe(false);
 });
