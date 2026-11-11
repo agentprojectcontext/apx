@@ -66,6 +66,13 @@ Human-only protocol operations run through the private router:
 3. Send `Authorization: Bearer <token>` on every webhook POST. Use a different token for every integration/route.
 4. `public_routes.revoke {"path":"/flows/<path>"}` removes that credential immediately. A revoked or old rotated token
    cannot deliver an event; another endpoint's token never works here. A deleted destination is no longer a public route.
+   Bearer-protected requests are checked both before reading the body and immediately before delivery: a token revoked
+   or rotated during an upload receives 401, without forwarding the bearer to the Flow. This does not cancel work
+   already admitted before revocation.
+
+**Español:** Las solicitudes con token se validan antes de leer el cuerpo y justo antes de entregar el evento.
+Si el token se revoca o rota durante la subida, reciben 401 y no se entrega el evento. El token no se pasa al Flow.
+Esto no cancela trabajo ya admitido antes de la revocación.
 
 Tokens have 256 random bits and live in APX's Secrets backend (OS keyring when available; protected file otherwise).
 SQLite settings and idempotent management replies contain references only. Rotation immediately replaces the active

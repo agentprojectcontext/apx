@@ -8,7 +8,7 @@ import { nextFlowTick } from "../domain/flow-schedules.ts";
 import { FlowPathError } from "../domain/flows.ts";
 import { flowCronProblem } from "../domain/schedule.ts";
 import type { Store } from "../domain/store.ts";
-import { badRequest, notFound } from "../errors.ts";
+import { badRequest, CallError, notFound } from "../errors.ts";
 import { type FlowModelCheck, type Flows, flowGraphIssues, flowTimeZone, validateFlowBinding } from "../flows.ts";
 import { flowGraphHandlers, pathRefused } from "./flow-graphs.ts";
 import { flowTestHandlers } from "./flow-tests.ts";
@@ -136,14 +136,20 @@ export function flowHandlers(
       const before = store.flows.get(flow);
       let result: { retired: boolean };
       try {
-        result = store.flows.retire(flow);
-      } catch {
+        result = store.tx(() => {
+          const retired = store.flows.retire(flow);
+          if (before) credentials.deactivate(`/flows/${before.path ?? flow}`);
+          return retired;
+        });
+      } catch (error) {
+        // A full credential cleanup journal says so itself; the Flow's own refusals get the general advice.
+        if (error instanceof CallError) throw error;
         throw badRequest(
           "Disable the Flow, let its runs end and publish or discard unpublished changes before retiring it; the identifier stays reserved",
         );
       }
       try {
-        credentials.revoke(`/flows/${before?.path ?? flow}`);
+        credentials.finishRevocations();
       } catch {
         throw badRequest("Flow data is absent, but credential cleanup failed; retry retirement to finish cleanup");
       }
