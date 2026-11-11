@@ -6,7 +6,7 @@ import { useEffect, useState } from "react";
 import { forAgents, useModels } from "../data/models.ts";
 import { listSecrets } from "../data/resources.ts";
 import { useT } from "../i18n/index.ts";
-import { VariableDialog } from "../resources/VariablesTab.tsx";
+import { VariableDialog } from "../resources/VariableDialog.tsx";
 import { AiFields, aiNote, taskHint } from "./AiFields.tsx";
 import { CaseFields } from "./CaseFields.tsx";
 import { type Address, HookFields } from "./HookFields.tsx";

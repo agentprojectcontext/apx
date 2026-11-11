@@ -1,13 +1,15 @@
-import { Badge, Button, Checkbox, ContextMenu, Dialog, EmptyState, IconButton, Icons, Input } from "@apx/ui";
-import { useEffect, useState } from "react";
+import { Badge, Button, ContextMenu, Dialog, EmptyState, IconButton, Icons } from "@apx/ui";
+import { useEffect, useRef, useState } from "react";
 import { client } from "../data/client.ts";
 import { projectName } from "../data/identity.ts";
 import { notify } from "../data/notices.ts";
 import { type SecretInfo, setSecret } from "../data/resources.ts";
 import { useData } from "../data/state.ts";
 import { usePack, useT } from "../i18n/index.ts";
+import { useNav } from "../shell/nav.ts";
 import type { TabProps } from "./ResourcesView.tsx";
 import { SignInSitesDialog, siteLabel } from "./SignInSites.tsx";
+import { VariableDialog } from "./VariableDialog.tsx";
 
 type Row = {
   name: string;
@@ -20,16 +22,7 @@ type Row = {
   sites: SecretInfo["sites"];
   lastUsed?: SecretInfo["last_used"];
 };
-const keyOf = (r: Row) => `${r.project ?? ""}/${r.name}`;
-const NAME = /^[a-zA-Z0-9][a-zA-Z0-9_.-]{0,63}$/;
-
-/** A name as the owner types it, written as an env name: upper case, a space or dash becomes "_" ("github token" → "GITHUB_TOKEN"). */
-export const toVarName = (typed: string) =>
-  typed
-    .toUpperCase()
-    .replace(/[\s-]+/g, "_")
-    .replace(/[^A-Z0-9_.]/g, "")
-    .slice(0, 64);
+const keyOf = (r: Pick<Row, "name" | "project">) => `${r.project ?? ""}/${r.name}`;
 
 /**
  * Variables: the stored secrets MCP servers, providers and channels name as `secret://NAME`. Values never come back
@@ -45,6 +38,11 @@ function VariablesTabBody({ projectId, query, scope, adding, setAdding, res, own
   const [editing, setEditing] = useState<Row>();
   const [removing, setRemoving] = useState<Row>();
   const [signing, setSigning] = useState<Row>();
+  // A link from where a variable is used picks its row.
+  const variable = useNav((s) => s.variable);
+  const variableIn = useNav((s) => s.variableIn);
+  const wanted = variable ? keyOf({ name: variable, project: variableIn }) : undefined;
+  const pickedRow = useRef<HTMLTableRowElement>(null);
   // In a project: the global values and this project's own; globally: every value, each with its project.
   const stored: Row[] = (res.data.secrets ?? [])
     .filter((s) => !projectId || s.project_id === projectId || (!s.project_id && !ownOnly))
@@ -70,6 +68,12 @@ function VariablesTabBody({ projectId, query, scope, adding, setAdding, res, own
   const rows: Row[] = [...stored, ...empty]
     .filter((r) => !query || `${r.name} ${r.usedIn.join(" ")}`.toLowerCase().includes(query))
     .sort((a, b) => a.name.localeCompare(b.name) || Number(Boolean(a.project)) - Number(Boolean(b.project)));
+  // The one in that scope, else the first of that name (a link that cannot tell which one a server uses).
+  const match = rows.find((r) => keyOf(r) === wanted) ?? rows.find((r) => r.name === variable);
+  const picked = match && keyOf(match);
+  useEffect(() => {
+    if (picked) pickedRow.current?.scrollIntoView({ block: "center" });
+  }, [picked]);
   const reload = async () => {
     await res.loadSecrets();
     await res.loadServers();
@@ -97,10 +101,23 @@ function VariablesTabBody({ projectId, query, scope, adding, setAdding, res, own
             {rows.map((r) => (
               <ContextMenu
                 key={keyOf(r)}
-                render={<tr className={projectId && !r.project && own.has(r.name) ? "is-shadowed" : undefined} />}
+                render={
+                  <tr
+                    ref={keyOf(r) === picked ? pickedRow : undefined}
+                    aria-selected={keyOf(r) === picked || undefined}
+                    className={
+                      [
+                        projectId && !r.project && own.has(r.name) ? "is-shadowed" : "",
+                        keyOf(r) === picked ? "is-picked" : "",
+                      ]
+                        .filter(Boolean)
+                        .join(" ") || undefined
+                    }
+                  />
+                }
                 items={[
                   {
-                    label: r.stored ? t("res.varReplaceShort") : t("res.varSetShort"),
+                    label: r.stored ? t("res.edit") : t("res.varSetShort"),
                     icon: <Icons.Pencil size={14} />,
                     onSelect: () => setEditing(r),
                   },
@@ -159,7 +176,7 @@ function VariablesTabBody({ projectId, query, scope, adding, setAdding, res, own
                 <td className="resvars__actions">
                   <IconButton
                     size="sm"
-                    label={r.stored ? t("res.varReplace", { name: r.name }) : t("res.varSetValue", { name: r.name })}
+                    label={r.stored ? t("res.varEdit", { name: r.name }) : t("res.varSetValue", { name: r.name })}
                     icon={<Icons.Pencil size={14} />}
                     onClick={() => setEditing(r)}
                   />
@@ -244,84 +261,6 @@ function VariablesTabBody({ projectId, query, scope, adding, setAdding, res, own
         </Dialog>
       )}
     </div>
-  );
-}
-
-/** New variable, or a new value for one: the old value is replaced, never shown. */
-export function VariableDialog(props: {
-  row: Pick<Row, "name" | "project"> | undefined;
-  projectId: string | undefined;
-  onClose(): void;
-  onSaved(name: string): void;
-}) {
-  const { row, onClose, onSaved } = props;
-  const t = useT();
-  const projects = useData((s) => s.projects);
-  const [name, setName] = useState(row?.name ?? "");
-  // A new value from a project's view is that project's own unless the owner says otherwise.
-  const [onlyHere, setOnlyHere] = useState(row ? Boolean(row.project) : Boolean(props.projectId));
-  const project = row ? row.project : onlyHere ? props.projectId : undefined;
-  const [value, setValue] = useState("");
-  const [busy, setBusy] = useState(false);
-  const valid = NAME.test(name) && value.length > 0;
-  return (
-    <Dialog
-      open
-      onOpenChange={(o) => !o && onClose()}
-      title={row ? t("res.varReplace", { name: row.name }) : t("res.newVariable")}
-      description={t("res.varDialogLead")}
-      footer={
-        <>
-          <Button variant="secondary" onClick={onClose}>
-            {t("common.cancel")}
-          </Button>
-          <Button
-            disabled={!valid}
-            loading={busy}
-            onClick={() => {
-              setBusy(true);
-              void setSecret(name, value, project).then((r) => {
-                setBusy(false);
-                if (r) onSaved(name);
-              });
-            }}
-          >
-            {t("common.save")}
-          </Button>
-        </>
-      }
-    >
-      <div className="pform">
-        <div className="pform__field">
-          <span className="pform__label">{t("res.varName")}</span>
-          <Input
-            aria-label={t("res.varName")}
-            value={name}
-            disabled={Boolean(row)}
-            placeholder="GITHUB_TOKEN"
-            onChange={(e) => setName(toVarName(e.currentTarget.value))}
-          />
-        </div>
-        {!row && props.projectId && (
-          <Checkbox
-            checked={onlyHere}
-            onCheckedChange={setOnlyHere}
-            label={t("res.varOnlyHere", { project: projectName(projects, props.projectId) })}
-            description={t("res.varOnlyHereHint")}
-          />
-        )}
-        <div className="pform__field">
-          <span className="pform__label">{t("res.varValue")}</span>
-          <Input
-            aria-label={t("res.varValue")}
-            type="password"
-            autoComplete="off"
-            value={value}
-            onChange={(e) => setValue(e.currentTarget.value)}
-          />
-        </div>
-      </div>
-    </Dialog>
   );
 }
 

@@ -33,8 +33,8 @@ test("a variable value can be replaced without showing the old value, then remov
   await expect(page.getByText("NORTHWIND_REPLACE")).toBeVisible();
   await expect(page.getByText("northwind-old-value")).toBeHidden();
 
-  await page.getByRole("button", { name: "Reemplazar el valor de NORTHWIND_REPLACE" }).click();
-  const replace = page.getByRole("dialog", { name: "Reemplazar el valor de NORTHWIND_REPLACE" });
+  await page.getByRole("button", { name: "Editar NORTHWIND_REPLACE" }).click();
+  const replace = page.getByRole("dialog", { name: "Editar NORTHWIND_REPLACE" });
   await replace.getByLabel("Valor").fill("northwind-new-value");
   await replace.getByRole("button", { name: "Guardar" }).click();
   await expect(replace).toBeHidden();

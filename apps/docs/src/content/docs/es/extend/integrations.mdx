@@ -152,6 +152,11 @@ Una variable puede tener un valor **solo para un proyecto**. En los chats de ese
 valor en lugar del global (la fila dice **Pisa la global**). Sirve cuando un proyecto necesita otra cuenta, como el
 token de GitHub de un cliente.
 
+Para mover una variable a otro proyecto, o a todos, editala y cambiá **Disponible en**: el valor se va con ella, así
+que no lo volvés a escribir (dejá **Valor** vacío para mantenerlo). Los servidores la encuentran por nombre en su nuevo
+lugar; donde ya no está disponible dejan de encontrarla. Si el otro lugar ya tiene una variable con ese nombre, no se
+mueve nada.
+
 ### Desde la terminal
 
 El valor se lee de la entrada estándar, nunca de la línea de comandos, así no queda en el historial de la shell ni en

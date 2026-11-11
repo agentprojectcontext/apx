@@ -2,8 +2,8 @@ import { Button, IconButton, Icons, Input } from "@apx/ui";
 import { useRef, useState } from "react";
 import { useT } from "../i18n/index.ts";
 import { VarField, type VarFieldHandle } from "./VarField.tsx";
+import { toVarName } from "./VariableDialog.tsx";
 import { VariablePicker } from "./VariablePicker.tsx";
-import { toVarName } from "./VariablesTab.tsx";
 
 export type Pair = { key: string; value: string };
 

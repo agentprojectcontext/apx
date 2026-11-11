@@ -4,7 +4,7 @@
 import path from "node:path";
 import { lineage } from "../domain/projects.ts";
 import type { Store } from "../domain/store.ts";
-import { badRequest, errorMessage, notFound } from "../errors.ts";
+import { badRequest, conflict, errorMessage, notFound } from "../errors.ts";
 import type { McpConfig, McpDef } from "../mcp/config.ts";
 import { projectSecretName, type Secrets, splitSecretName } from "../secrets.ts";
 import { skillInfo, writeSkill } from "../skills/edit.ts";
@@ -96,6 +96,14 @@ export function resourceHandlers(deps: {
             return { ...s, used_in: [...(used.get(s.name) ?? []), ...service] };
           }),
       };
+    },
+    "secrets.move": ({ name, project, to }) => {
+      for (const id of [project, to]) if (id && !store.projects.get(id)) throw notFound(`project ${id}`);
+      const key = (id: string | null | undefined) => (id ? projectSecretName(id, name) : name);
+      const moved = deps.secrets.move(key(project), key(to));
+      if (moved === "missing") throw notFound(`variable ${name}`);
+      if (moved === "taken") throw conflict(`${name} already has a value there`);
+      return { ok: true as const };
     },
     "secrets.reveal": ({ name, project }) => {
       const value = deps.secrets.resolve(`secret://${project ? projectSecretName(project, name) : name}`);

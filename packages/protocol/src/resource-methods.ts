@@ -168,6 +168,23 @@ export const resourceMethods = {
     effect: true,
     access: "human",
   },
+  /**
+   * Moves a stored variable to another project, or to the global ones (`to: null`); its value never leaves the core.
+   * References stay `secret://NAME`: what uses it finds it wherever it now lives. Refused when the other place already
+   * has one of that name.
+   */
+  "secrets.move": {
+    params: z
+      .object({
+        name: z.string().regex(/^[a-zA-Z0-9][a-zA-Z0-9_.-]{0,63}$/),
+        project: Id.optional(),
+        to: Id.nullable(),
+      })
+      .strict(),
+    result: z.object({ ok: z.literal(true) }),
+    effect: true,
+    access: "human",
+  },
   "secrets.reveal": {
     params: z.object({ name: z.string().regex(/^[a-zA-Z0-9][a-zA-Z0-9_.-]{0,63}$/), project: Id.optional() }).strict(),
     result: z.object({ value: z.string() }),

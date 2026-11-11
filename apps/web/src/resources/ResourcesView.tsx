@@ -1,5 +1,5 @@
 import { Button, Icons, Menu, SegmentedControl } from "@apx/ui";
-import { type ReactNode, useState } from "react";
+import { type ReactNode, useEffect, useState } from "react";
 import { SectionPage } from "../common/SectionPage.tsx";
 import { type ProjectEntry, projectName } from "../data/identity.ts";
 import { useData } from "../data/state.ts";
@@ -42,10 +42,21 @@ export function ResourcesView({ project }: { project?: ProjectEntry }) {
   const t = useT();
   const projects = useData((s) => s.projects);
   const tab = useNav((s) => s.resourcesTab);
+  const variable = useNav((s) => s.variable);
+  const variableIn = useNav((s) => s.variableIn);
   const [query, setQuery] = useState("");
   const [picked, setScope] = useState<ScopeFilter>("all");
   const [adding, setAdding] = useState(false);
   const [ownOnly, setOwnOnly] = useState(false);
+  // A link to a variable (from where it is used) finds it: its name searched, in every scope.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: the same name in another project is a new link
+  useEffect(() => {
+    if (!variable) return;
+    setQuery(variable);
+    setScope("all");
+    setOwnOnly(false);
+    setAdding(false);
+  }, [variable, variableIn]);
   const [engines, setEngines] = useState<ReadonlySet<SkillEngine>>(new Set());
   const projectId = project && !project.isDefault ? project.id : undefined;
   // Default's resources are the global ones, which every project takes: no other scope to pick there.

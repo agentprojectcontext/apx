@@ -2,6 +2,33 @@ import { forwardRef, useEffect, useImperativeHandle, useRef } from "react";
 
 /** A stored secret named in a value. */
 const REF = /secret:\/\/([a-zA-Z0-9_.-]+)/g;
+/** A zero-width space beside a chip: the browser has no place for the cursor next to an uneditable node otherwise. */
+const ANCHOR = "\u200b";
+
+const isChip = (n: Node | null): n is HTMLElement => n instanceof HTMLElement && Boolean(n.dataset.var);
+
+/** A text node before a leading chip and after every chip, so text can be typed on either side. */
+function padChips(root: HTMLElement): void {
+  if (isChip(root.firstChild)) root.prepend(document.createTextNode(ANCHOR));
+  for (const n of [...root.childNodes]) {
+    if (!isChip(n)) continue;
+    const next = n.nextSibling;
+    // An empty text node (left by splitting at its end) holds no cursor either.
+    if (!(next instanceof Text)) n.after(document.createTextNode(ANCHOR));
+    else if (!next.data) next.data = ANCHOR;
+  }
+}
+
+/** Puts the cursor in a text node, at `offset`. */
+function caretAt(text: Text, offset: number): Range {
+  const r = document.createRange();
+  r.setStart(text, offset);
+  r.collapse(true);
+  const sel = window.getSelection();
+  sel?.removeAllRanges();
+  sel?.addRange(r);
+  return r;
+}
 
 export type VarFieldHandle = { insert(name: string): void };
 
@@ -9,9 +36,9 @@ export type VarFieldHandle = { insert(name: string): void };
 function serialize(root: HTMLElement): string {
   let out = "";
   for (const n of root.childNodes) {
-    if (n instanceof HTMLElement && n.dataset.var) out += `secret://${n.dataset.var}`;
+    if (isChip(n)) out += `secret://${n.dataset.var}`;
     // Contenteditable inserts non-breaking spaces at the caret; connection values need ordinary spaces.
-    else out += (n.textContent ?? "").replaceAll("\u00a0", " ");
+    else out += (n.textContent ?? "").replaceAll("\u00a0", " ").replaceAll(ANCHOR, "");
   }
   return out;
 }
@@ -65,9 +92,15 @@ export const VarField = forwardRef<
       at = m.index + m[0].length;
     }
     if (at < text.length) el.append(document.createTextNode(text.slice(at)));
+    padChips(el);
   };
   const emit = () => {
-    if (root.current) onChange(serialize(root.current));
+    const el = root.current;
+    if (!el) return;
+    const value = serialize(el);
+    // Nothing left but cursor anchors: empty, so the placeholder shows again.
+    if (!value && el.childNodes.length) el.replaceChildren();
+    onChange(value);
   };
   const remember = () => {
     const sel = window.getSelection();
@@ -91,16 +124,24 @@ export const VarField = forwardRef<
         r.deleteContents();
         r.insertNode(node);
       } else el.append(node);
-      // The cursor goes right after the chip.
-      const after = document.createRange();
-      after.setStartAfter(node);
-      after.collapse(true);
-      el.focus();
-      const sel = window.getSelection();
-      sel?.removeAllRanges();
-      sel?.addRange(after);
-      caret.current = after.cloneRange();
+      padChips(el);
+      const after = node.nextSibling as Text;
       emit();
+      // The cursor goes right after the chip, once the menu it was picked from has closed and given focus back.
+      const place = () => {
+        if (!after.isConnected) return;
+        el.focus();
+        // Past its anchor, or at the start of the text that follows it.
+        caret.current = caretAt(after, after.data.startsWith(ANCHOR) ? 1 : 0).cloneRange();
+      };
+      place();
+      // Only if the menu took the cursor away: typing may already have started after the chip.
+      requestAnimationFrame(() => {
+        const sel = window.getSelection();
+        const inside =
+          document.activeElement === el && sel?.rangeCount && el.contains(sel.getRangeAt(0).startContainer);
+        if (!inside) place();
+      });
     },
   }));
 
@@ -120,6 +161,17 @@ export const VarField = forwardRef<
       onKeyUp={remember}
       onMouseUp={remember}
       onBlur={remember}
+      onFocus={() => {
+        // Focus without a cursor inside (a menu gave it back): the cursor goes where it was, else at the end.
+        const el = root.current;
+        const sel = window.getSelection();
+        if (!el || (sel?.rangeCount && el.contains(sel.getRangeAt(0).startContainer))) return;
+        const r = caret.current;
+        if (r && el.contains(r.startContainer)) {
+          sel?.removeAllRanges();
+          sel?.addRange(r);
+        } else if (el.lastChild instanceof Text) caretAt(el.lastChild, el.lastChild.length);
+      }}
       onKeyDown={(e) => {
         if (e.key === "Enter") e.preventDefault();
         if (e.code === "Space" && e.ctrlKey && onSuggest) {
