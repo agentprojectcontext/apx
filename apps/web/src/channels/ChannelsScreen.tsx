@@ -9,9 +9,11 @@ import { useData } from "../data/state.ts";
 import { useT } from "../i18n/index.ts";
 import { go } from "../shell/nav.ts";
 import { accountItems, accountLine } from "./accountMenu.tsx";
+import { accountName } from "./accountName.ts";
 import { agentName, answerersOf, answersLine, sentence } from "./answerers.ts";
 import { ChoiceChips } from "./ChoiceChips.tsx";
 import { type AccountCounts, useAccountCounts } from "./counts.ts";
+import { ContactFlags, useAccountFlags } from "./flags.tsx";
 import { KindIcon, KindTile } from "./KindIcon.tsx";
 import { CHANNEL_KIND_IDS, CHANNEL_KINDS, isChannelKind } from "./kinds.ts";
 
@@ -95,6 +97,8 @@ function AccountRow({ channel, counts }: { channel: ChannelInfo; counts: Account
   const waiting = counts?.waiting ?? 0;
   const unread = counts?.unread ?? 0;
   const status = channel.enabled ? channel.status : "off";
+  const name = accountName(channel, t);
+  const flags = useAccountFlags(channel);
   return (
     <ContextMenu
       items={accountItems(channel, t, waiting)}
@@ -113,10 +117,11 @@ function AccountRow({ channel, counts }: { channel: ChannelInfo; counts: Account
         }
         title={
           <span className="chs__name">
-            <span className="chs__label" title={channel.label}>
-              {channel.label}
+            <span className="chs__label" title={name}>
+              {name}
             </span>
             {waiting > 0 && <Badge tone="warning">{t("chs.waiting", { n: waiting })}</Badge>}
+            <ContactFlags flags={flags} />
           </span>
         }
         description={accountLine(channel, t)}
@@ -150,7 +155,7 @@ function AccountRow({ channel, counts }: { channel: ChannelInfo; counts: Account
         {kind && (
           <IconButton
             size="sm"
-            label={t("chs.settings", { name: channel.label })}
+            label={t("chs.settings", { name })}
             icon={<Icons.Pencil size={14} />}
             onClick={() => go.channelSettings(kind, channel.id)}
           />

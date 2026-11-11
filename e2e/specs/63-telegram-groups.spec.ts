@@ -1,6 +1,6 @@
 // Telegram groups, emulated: the bot learns the groups it is in from what arrives (Telegram cannot list them), the
 // owner picks one in the channel's settings, and from then on the bot reads it and answers there when @mentioned.
-import { expect, open, rpc, test, until, world } from "./kit.ts";
+import { ACCOUNT_NAME, expect, open, rpc, test, until, world } from "./kit.ts";
 
 const group = { id: -1001234500001, title: "Acme team" };
 const ana = { id: 6262, name: "Ana", username: "ana_acme" };
@@ -14,7 +14,7 @@ test("Telegram groups: a group the bot is in is picked from the list, and the bo
   // A group nobody listed yet: kept out, but now offered to pick.
   await world.telegramGroup(ana, group, "is the bot here?");
   await open(page);
-  await page.getByRole("button", { name: "Telegram", exact: true }).first().click();
+  await page.getByRole("button", { name: ACCOUNT_NAME.telegram, exact: true }).first().click();
   await page.getByRole("button", { name: "Editar cuenta" }).click();
   await page
     .getByRole("dialog")

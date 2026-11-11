@@ -1,6 +1,7 @@
 import type { Thread } from "@apx/protocol";
 import { Button, IconButton, Icons, Popover, Spinner } from "@apx/ui";
 import { Suspense } from "react";
+import { accountName } from "../channels/accountName.ts";
 import { CHANNEL_KINDS, isChannelKind } from "../channels/kinds.ts";
 import { useChannels } from "../data/channels.ts";
 import { projectEntries } from "../data/identity.ts";
@@ -91,7 +92,7 @@ function useFilterChips(): { kind: FilterKind; id: string; label: string }[] {
     projects: (id) => projectEntries(projects).find((p) => p.id === id)?.name ?? id,
     accounts: (id) => {
       const channel = channels.find((c) => c.id === id);
-      return channel ? channel.label || app(channel.type) : id;
+      return channel ? accountName(channel, t) : id;
     },
     channels: app,
     engines: (id) => engines.find((e) => e.id === id)?.label ?? id,

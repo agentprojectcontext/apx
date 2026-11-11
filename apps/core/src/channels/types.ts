@@ -85,7 +85,7 @@ export type AdapterIO = {
    */
   room?(r: { id: string; name: string; left?: boolean }): void;
   /** Connected as this account; `owner` is the owner's own address on it (a linked device is the owner). */
-  identified?(who: { account: string; owner?: string }): void;
+  identified?(who: { account: string; owner?: string; name?: string }): void;
   /**
    * This channel's public address for its platform's webhooks (`<base>/hooks/<channel id>`), when the owner turned
    * one on (an account's settings › Public address); none otherwise. It can change while the channel runs (ngrok).
@@ -118,7 +118,7 @@ export interface ChannelAdapter {
    * Starts receiving; resolves with the account it runs as (a bot's @name) once connected, or `waiting` when linking or
    * connecting goes on in the background (a QR to scan, a socket's handshake) and `io.status` says when it runs.
    */
-  start(io: AdapterIO): Promise<{ account?: string; waiting?: boolean }>;
+  start(io: AdapterIO): Promise<{ account?: string; name?: string; waiting?: boolean }>;
   stop(): Promise<void>;
   /** The channel is removed: drop its persisted state, even if start was never called. */
   forget?(): Promise<void>;

@@ -230,6 +230,12 @@ export const test = base.extend<{
 });
 export { expect };
 
+/**
+ * What the sidebar calls the emulated accounts: the name their app gives them (the fake phone's WhatsApp profile, the
+ * fake bot's name), since a name that only repeats the app's says nothing its icon does not.
+ */
+export const ACCOUNT_NAME = { whatsapp: "Acme line", telegram: "Acme Desk", discord: "@apx_test_bot" } as const;
+
 /** Opens the panel (the setup wizard stays closed unless a test wants it). */
 /** The sidebar's sections as cards (the compact sidebar folds each into one row): set before `open`. */
 export async function cardSidebar(page: Page) {

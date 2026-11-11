@@ -105,7 +105,7 @@ export function fakeWhatsApp(owner = OWNER_PN) {
   });
   const open = () => {
     if (!sock) return;
-    sock.user = { id: owner.replace("@", ":7@"), lid: OWNER_LID };
+    sock.user = { id: owner.replace("@", ":7@"), lid: OWNER_LID, name: "Acme line" };
     sock.emit("connection.update", { connection: "open" });
   };
   const deliver = (m: WaMessage) => {

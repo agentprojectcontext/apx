@@ -1,6 +1,6 @@
 // Telegram, emulated: a stranger writes to the bot and gets a code; the owner links it as their own account in the
 // channel's view; from then on what they write reaches the super-agent and its answer goes back on Telegram.
-import { expect, open, test, until, world } from "./kit.ts";
+import { ACCOUNT_NAME, expect, open, test, until, world } from "./kit.ts";
 
 const owner = { id: 4242, name: "Ana" };
 
@@ -10,7 +10,7 @@ test("the owner links their Telegram with the code and talks to the super-agent 
   const code = /\b(\d{6})\b/.exec(reply.text ?? "")?.[1] ?? "";
 
   await open(page);
-  await page.getByRole("button", { name: "Telegram", exact: true }).first().click();
+  await page.getByRole("button", { name: ACCOUNT_NAME.telegram, exact: true }).first().click();
   // The pairing request is listed (in the account's approvals) with what they wrote; the code links the account as the owner's.
   await page.getByRole("button", { name: "Editar cuenta" }).click();
   const dialog = page.getByRole("dialog");

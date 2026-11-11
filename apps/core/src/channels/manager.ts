@@ -66,6 +66,8 @@ type Live = {
   status: ChannelInfo["status"];
   error?: string | undefined;
   account?: string | undefined;
+  /** The name the app gives the account (a WhatsApp profile, a bot's name). */
+  name?: string | undefined;
   /** A QR to link the account, while one is waiting to be scanned. */
   qr?: string | undefined;
 };
@@ -583,8 +585,9 @@ export function createChannels(deps: {
         },
         receipt: (externalId, state) => delivery.receipt(config.id, externalId, state),
         room: (g) => sawGroup(config.id, g),
-        identified: ({ account, owner }) => {
+        identified: ({ account, owner, name }) => {
           l.account = account;
+          if (name) l.name = name;
           if (!owner) return;
           // The owner's own phone: whoever writes from it is the owner. A line of its own is nobody: the owner is
           // the phone they write to it from.
@@ -604,6 +607,7 @@ export function createChannels(deps: {
         signal: ac.signal,
       });
       if (r.account) l.account = r.account;
+      if (r.name) l.name = r.name;
       if (l.status === "starting" && !r.waiting) {
         l.status = "running";
         up();
@@ -674,6 +678,7 @@ export function createChannels(deps: {
         status: l?.status ?? "off",
         ...(l?.error ? { error: l.error } : {}),
         ...(l?.account ? { account: l.account } : {}),
+        ...(l?.name && l.name !== l.account ? { account_name: l.name } : {}),
         ...(l?.qr ? { qr: l.qr } : {}),
       };
     });

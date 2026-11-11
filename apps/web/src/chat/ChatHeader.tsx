@@ -97,16 +97,7 @@ export function ChatHeader({
           onClick={() => thread.parent_id && go.thread(thread.parent_id)}
         />
       )}
-      <ThreadAvatar
-        thread={thread}
-        agent={agent}
-        size={28}
-        slot={32}
-        editable
-        online={!sub}
-        animated
-        channelMark={compact ? "badge" : true}
-      />
+      <ThreadAvatar thread={thread} agent={agent} size={28} slot={32} editable online={!sub} animated />
       <div className="chat__titles">
         {/* The chat first, with its project; under it who answers there. */}
         <div className="chat__title">

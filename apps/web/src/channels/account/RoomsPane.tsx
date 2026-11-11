@@ -5,7 +5,7 @@ import { SubHead } from "../../config/SectionHead.tsx";
 import { client } from "../../data/client.ts";
 import { useData } from "../../data/state.ts";
 import { type MessageKey, useT } from "../../i18n/index.ts";
-import { isRoomsKind, type RoomsKind } from "../kinds.ts";
+import { type RoomsKind, roomsWord } from "../kinds.ts";
 import { Limit } from "./parts.tsx";
 
 const MODES: RoomMode[] = ["mention", "useful", "always", "read"];
@@ -20,16 +20,6 @@ const EMPTY: ChannelRooms = {
 };
 
 type ServerRoom = { id: string; name: string; server: string; writable: boolean };
-
-/** What the platform's people call its shared places: WhatsApp's groups, Google Chat's spaces, Discord's rooms. */
-export type RoomsWord = "groups" | "spaces" | "rooms";
-const WORD: Partial<Record<RoomsKind, RoomsWord>> = {
-  whatsapp: "groups",
-  telegram: "groups",
-  line: "groups",
-  googlechat: "spaces",
-};
-export const roomsWord = (kind: string): RoomsWord => (isRoomsKind(kind) ? (WORD[kind] ?? "rooms") : "rooms");
 
 /**
  * A Discord channel id; a Telegram group's id (negative, -100… for a supergroup); a WhatsApp group's address

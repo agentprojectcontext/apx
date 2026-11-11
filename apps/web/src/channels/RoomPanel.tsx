@@ -10,7 +10,7 @@ import { usePack, useT } from "../i18n/index.ts";
 import { go } from "../shell/nav.ts";
 import { CardField, ChatCard } from "./ChatCard.tsx";
 import { ChoiceChips } from "./ChoiceChips.tsx";
-import { GROUP_KINDS, isChannelKind, roomWord } from "./kinds.ts";
+import { isChannelKind, roomsWord, roomWord } from "./kinds.ts";
 
 const MODES: RoomMode[] = ["mention", "useful", "always", "read"];
 /**
@@ -29,7 +29,7 @@ export function RoomPanel({ thread, channel, onClose }: { thread: Thread; channe
   const [other, setOther] = useState(Boolean(room?.agent_id));
   const accountAgent = useData((s) => s.agents[channel.contacts_agent_id ?? channel.agent_id]);
   const [busy, setBusy] = useState(false);
-  const group = GROUP_KINDS.has(channel.type);
+  const group = roomsWord(channel.type) === "groups";
   const kind = isChannelKind(channel.type) ? channel.type : undefined;
   const ownAgent = other ? agentId : undefined;
   const dirty = mode !== room?.mode || rules !== (rooms?.rules ?? "") || ownAgent !== room?.agent_id;

@@ -60,6 +60,7 @@ test("linking the owner's own phone: a QR waits in the app, and once scanned the
   const linked = await channel();
   assert.equal(linked?.qr, undefined, "the QR is gone once spent");
   assert.equal(linked?.account, "+5491100000001");
+  assert.equal(linked?.account_name, "Acme line", "the profile name says whose WhatsApp it is");
   const { persons } = await env.client.call("contacts.list", {});
   assert.ok(persons.find((p) => p.role === "owner")?.addresses.some((a) => a.external_id === wa.owner));
   // POSIX modes only: Windows reports fixed bits that say nothing about who may read the folder.

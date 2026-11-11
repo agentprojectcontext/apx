@@ -12,14 +12,16 @@ import { ListColumn } from "../shell/ListColumn.tsx";
 import { LAYOUT } from "../shell/layout.ts";
 import { go, nav, useNav } from "../shell/nav.ts";
 import { useShellLayout } from "../shell/useShellLayout.ts";
-import { AnswererFace } from "./AnswererFace.tsx";
+import { AnswersLine } from "./AnswererFace.tsx";
+import { accountName, accountWhere } from "./accountName.ts";
 import { answerersOf, answersLine } from "./answerers.ts";
 import { ChannelConversation } from "./ChannelConversation.tsx";
 import { ContactPanel } from "./ContactPanel.tsx";
 import { ContactRow, type Row } from "./ContactRow.tsx";
 import { useAccountCounts } from "./counts.ts";
+import { ContactFlags, useAccountFlags } from "./flags.tsx";
 import { KindIcon, KindTile } from "./KindIcon.tsx";
-import { GROUP_KINDS, isChannelKind, isRoomsKind } from "./kinds.ts";
+import { isChannelKind, isRoomsKind, roomsOpenKey } from "./kinds.ts";
 import { LinkMe, LinkPhone, OwnerRow, ownerOn, PairingRow } from "./StartRows.tsx";
 
 /** A saved contact picked before they have a chat: the list's selection names them instead of a chat. */
@@ -311,6 +313,8 @@ function ChannelHead({ channel }: { channel: ChannelInfo }) {
   const counts = useAccountCounts();
   const kind = isChannelKind(channel.type) ? channel.type : undefined;
   const answerers = answerersOf(channel, agents);
+  const name = accountName(channel, t);
+  const flags = useAccountFlags(channel);
   return (
     <header className="chan__head">
       {kind ? <KindTile kind={kind} size={26} /> : <ProjectTile tone="info" icon={<Icons.Send />} size={26} />}
@@ -318,21 +322,21 @@ function ChannelHead({ channel }: { channel: ChannelInfo }) {
         align="start"
         trigger={
           // ui: the menu opens from the account's name and line, two lines no kit button holds.
-          <button type="button" className="chan__titles chan__switch" title={t("chs.switch")}>
+          <button type="button" className="chan__titles chan__switch">
             <span className="chan__name">
-              {channel.label}
+              {name}
               <Icons.ChevronDown size={14} />
             </span>
             <span className="chan__meta">
               {/* Only an account that is not up says so here; its number and details are in its settings. */}
               {channel.status !== "running" && <span className={`chan__status is-${channel.status}`} />}
-              <AnswererFace agent={answerers.owner} />
-              {answerers.contacts && <AnswererFace agent={answerers.contacts.agent} />}
-              <span className="chan__metatext" title={answersLine(answerers, t)}>
-                {[channel.account ?? channel.email?.address, answersLine(answerers, t)]
-                  .filter((x) => x && x !== channel.label)
-                  .join(" · ")}
-              </span>
+              <AnswersLine
+                className="chan__metatext"
+                lead={[accountWhere(channel, name)]}
+                agent={answerers.owner}
+                text={answersLine(answerers, t)}
+              />
+              <ContactFlags flags={flags} />
             </span>
           </button>
         }
@@ -341,7 +345,7 @@ function ChannelHead({ channel }: { channel: ChannelInfo }) {
           ...channels.map((c) => {
             const n = (counts.get(c.id)?.unread ?? 0) + (counts.get(c.id)?.waiting ?? 0);
             return {
-              label: n ? `${c.label} · ${n}` : c.label,
+              label: n ? `${accountName(c, t)} · ${n}` : accountName(c, t),
               icon: isChannelKind(c.type) ? <KindIcon kind={c.type} /> : <Icons.Send />,
               checked: c.id === channel.id,
               onSelect: () => go.channel(c.id),
@@ -356,7 +360,7 @@ function ChannelHead({ channel }: { channel: ChannelInfo }) {
           {isRoomsKind(kind) && (
             <IconButton
               size="sm"
-              label={t(GROUP_KINDS.has(kind) ? "ch.groups.open" : "ch.rooms.open")}
+              label={t(roomsOpenKey(kind))}
               icon={<Icons.Hash size={14} />}
               onClick={() => go.channelSettings(kind, channel.id, "rooms")}
             />
@@ -415,12 +419,7 @@ function RoomRow({
             {thread.unread > 0 && <span className="chan__unread">{thread.unread}</span>}
           </span>
           <span className="chan__rowtop chan__rowanswer">
-            <AnswererFace agent={agent} />
-            <span className="chan__rel">
-              {[mode ? t(ROOM_MODE_KEY[mode]) : undefined, agent ? t("ch.answersBy", { agent: agent.name }) : undefined]
-                .filter(Boolean)
-                .join(" · ")}
-            </span>
+            <AnswersLine className="chan__rel" lead={[mode ? t(ROOM_MODE_KEY[mode]) : undefined]} agent={agent} />
           </span>
         </span>
       </button>

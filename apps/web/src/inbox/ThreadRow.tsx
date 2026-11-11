@@ -1,6 +1,6 @@
 import type { Agent, Thread } from "@apx/protocol";
 import { ContextMenu, ConversationRow, IconButton, Icons, Menu, Spinner } from "@apx/ui";
-import { AnswererFace } from "../channels/AnswererFace.tsx";
+import { AnswererFace, AnswersLine } from "../channels/AnswererFace.tsx";
 import { CHANNEL_KINDS, type ChannelKind } from "../channels/kinds.ts";
 import { RELATION_KEY } from "../channels/people.ts";
 import { ChatProcesses } from "../common/ChatProcesses.tsx";
@@ -48,7 +48,7 @@ export function ThreadRow({ thread, agent, selected, account = false, onOpen }: 
           className={`threadrow${own ? " threadrow--account" : ""}${own && channel === "email" ? " threadrow--mail" : ""}`}
           selected={selected}
           onClick={onOpen}
-          avatar={<ThreadAvatar thread={thread} agent={agent} size={own ? 32 : 24} slot={own ? 36 : 28} />}
+          avatar={<ThreadAvatar thread={thread} agent={agent} size={own ? 32 : 22} slot={own ? 36 : 28} />}
           title={thread.kind === "routine" ? routineName(thread) : thread.title}
           titleTag={
             <>
@@ -124,11 +124,8 @@ function AccountLine({ thread, agent }: { thread: Thread; agent: Agent | undefin
   const relation = person?.relation ? t(RELATION_KEY[person.relation]) : undefined;
   return (
     <span className="threadrow__line">
-      <AnswererFace agent={agent} />
-      <span className="threadrow__who">
-        {thread.state === "input-required" && <span className="threadrow__waiting">{t("thread.waiting")} · </span>}
-        {[relation, agent ? t("ch.answersBy", { agent: agent.name }) : undefined].filter(Boolean).join(" · ")}
-      </span>
+      {thread.state === "input-required" && <span className="threadrow__waiting">{t("thread.waiting")} · </span>}
+      <AnswersLine className="threadrow__who" lead={[relation]} agent={agent} />
     </span>
   );
 }

@@ -39,7 +39,8 @@ export async function fakeTelegram(token: string) {
       if (bot !== `bot${token}`) return reply(401, { ok: false, error_code: 401, description: "Unauthorized" });
       const forced = failures.get(method)?.shift();
       if (forced) return reply(forced.status, forced.body);
-      if (method === "getMe") return reply(200, { ok: true, result: { id: 1, username: "apx_test_bot" } });
+      if (method === "getMe")
+        return reply(200, { ok: true, result: { id: 1, username: "apx_test_bot", first_name: "Acme Desk" } });
       if (method === "getFile")
         return reply(200, {
           ok: true,

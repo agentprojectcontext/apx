@@ -1,8 +1,9 @@
 import type { ChannelInfo } from "@apx/protocol";
 import { Icons } from "@apx/ui";
 import { accountItems } from "../channels/accountMenu.tsx";
+import { accountName } from "../channels/accountName.ts";
 import { KindTile } from "../channels/KindIcon.tsx";
-import { CHANNEL_KINDS, isChannelKind } from "../channels/kinds.ts";
+import { isChannelKind } from "../channels/kinds.ts";
 import { useT } from "../i18n/index.ts";
 import { soleFilter, useInboxFilter } from "../inbox/inboxFilter.ts";
 import { openAccount } from "../inbox/openAccount.ts";
@@ -36,7 +37,7 @@ export function ChannelNavRow({
     return sole?.kind === "accounts" && sole.id === channel.id;
   });
   const kind = isChannelKind(channel.type) ? channel.type : undefined;
-  const label = channel.label || (kind ? t(CHANNEL_KINDS[kind].name) : channel.id);
+  const label = accountName(channel, t);
   const pick = () => {
     onClose();
     openAccount(channel.id);
