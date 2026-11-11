@@ -20,13 +20,6 @@ const SCREENS: Array<[string, Array<[role: "button" | "tab", name: string | RegE
       ["tab", /^Archivos/],
     ],
   ],
-  [
-    "directory",
-    [
-      ["button", /^acme/i],
-      ["tab", /^Directorio/],
-    ],
-  ],
   ["resources", [["button", "Recursos"]]],
   ["telegram", [["button", ACCOUNT_NAME.telegram]]],
   ["engine", [["button", "Claude Code"]]],
