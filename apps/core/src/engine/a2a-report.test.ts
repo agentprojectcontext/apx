@@ -2,14 +2,35 @@
 // turn between them.
 import assert from "node:assert/strict";
 import { after, before, test } from "node:test";
+import type { Tool } from "../tools/types.ts";
 import { callTool, say, scriptedLlm, startCore } from "./testkit.ts";
+
+/** A step with an effect that fails as it runs. */
+const deploy: Tool = {
+  name: "deploy_preview",
+  description: "Deploy a preview",
+  parameters: { type: "object", properties: {} },
+  parse: () => ({ ok: true, args: {} }),
+  confirm: () => "never",
+  effect: "local",
+  deadlineMs: 5_000,
+  title: () => "Deploy the preview",
+  run: async () => {
+    throw new Error("the preview server is down");
+  },
+};
 
 const SHAPE = /Status: done, partial .* or blocked .*; Result:; Evidence: .*; Unblock: /;
 const REPORT = "Status: done\nResult: the build passes\nEvidence: pnpm build exited 0\nUnblock: none";
 
 let builder = "";
 const llm = scriptedLlm((_req, { system, said, afterTool }) => {
+  if (system.startsWith("You are Builder") && said.includes("Deploy it") && !afterTool)
+    return callTool("d1", "deploy_preview", {});
+  if (system.startsWith("You are Builder") && afterTool) return say("Status: blocked\nResult: not deployed");
   if (system.startsWith("You are Builder")) return say(SHAPE.test(said) ? REPORT : "Got it, on it.");
+  if (said.includes("deploy the preview") && !afterTool)
+    return callTool("b2", "delegate", { agent: builder, task: "Deploy it." });
   if (said.includes("ask the builder") && !afterTool)
     return callTool("b1", "delegate", { agent: builder, task: "Check the build." });
   return say("The build passes.");
@@ -17,7 +38,7 @@ const llm = scriptedLlm((_req, { system, said, afterTool }) => {
 
 let env: Awaited<ReturnType<typeof startCore>>;
 before(async () => {
-  env = await startCore({ llm });
+  env = await startCore({ llm, extraTools: [deploy] });
   builder = (await env.client.call("agents.create", { slug: "builder", name: "Builder" })).id;
 });
 after(async () => {
@@ -42,4 +63,21 @@ test("a delegated task asks for the four-line report, and the caller gets it in 
 
   const back = llm.calls.at(-1)?.messages.find((m) => m.role === "tool");
   assert.match(String(back?.content), /Status: done\nResult: the build passes\nEvidence: .*\nUnblock: none/);
+});
+
+test("a delegated run whose step failed says which on its card", async () => {
+  const chat = await env.client.call("threads.create", { kind: "loose", agent_id: "superagent" });
+  await env.client.call("threads.send", { thread: chat.id, text: "deploy the preview" });
+  await env.settle(chat.id);
+  const [sub] = env.core.store.threads.sessions(chat.id);
+  assert.ok(sub);
+  await env.settle(sub.id);
+  await env.settle(chat.id);
+  const card = env.core.store.messages
+    .list(chat.id, 20)
+    .flatMap((m) => m.parts)
+    .find((p) => p.type === "subthread");
+  assert.ok(card?.type === "subthread");
+  assert.equal(card.issue, "actions_failed");
+  assert.deepEqual(card.failed, ["Deploy the preview"]);
 });

@@ -23,24 +23,16 @@
 .transcript__agent-event[open] > summary > svg:first-child {
   transform: rotate(90deg);
 }
-.transcript__event-state {
-  margin-left: auto;
-  color: var(--apx-fg-muted);
-}
-.transcript__event-source {
-  display: block;
-  text-align: left;
-  margin: 0 12px 10px;
-  color: var(--apx-fg-muted);
-  font-size: var(--apx-text-sm);
-  overflow-wrap: anywhere;
-}
-.transcript__event-source:hover {
-  color: var(--apx-fg);
-}
 .transcript__event-body {
   padding: 0 12px 12px;
 }
 .transcript__event-body .turn {
   margin: 0;
+}
+.transcript__answered {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--apx-fg-muted);
+  font-size: var(--apx-text-sm);
 }

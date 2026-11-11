@@ -58,10 +58,13 @@ export function ChatHeader({
   agent,
   wide,
   compact = false,
+  task,
 }: {
   thread: Thread;
   agent: Agent | undefined;
   wide: boolean;
+  /** A task's conversation: the task's title (its chat keeps the one it was created with). */
+  task?: string;
   /** Phone width: a back button returns to the chat list. */
   compact?: boolean;
 }) {
@@ -103,17 +106,18 @@ export function ChatHeader({
         <div className="chat__title">
           <span className="chat__name">
             {thread.pinned && <PinMark />}
-            {sub || thread.channel || engine ? name : thread.title}
+            {sub || thread.channel || engine ? name : (task ?? thread.title)}
           </span>
           {project && <ProjectBadge id={project.id} name={project.name} channel={channelKind} />}
           <ChatProcesses thread={thread.id} onOpen={go.processes} />
         </div>
-        <div className={thread.task_id ? "chat__crumb is-task" : "chat__crumb"}>
+        <div className={thread.task_id || task !== undefined ? "chat__crumb is-task" : "chat__crumb"}>
           {thread.task_id && (
             <Suspense fallback={null}>
               <TaskCrumb thread={thread} taskId={thread.task_id} />
             </Suspense>
           )}
+          {task !== undefined && <span>{t("tasks.header.task")}</span>}
           {agent && !engine && !thread.channel && !sub && !thread.task_id && (
             <Tooltip content={agentHint}>
               <button type="button" className="chat__agentbtn" onClick={() => go.agent(agent.id)}>

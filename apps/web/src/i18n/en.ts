@@ -660,6 +660,7 @@ export const en = {
   "subthread.less": "Show less",
   "subthread.noAnswer": "Ended without an answer",
   "subthread.actionsFailed": "Some actions failed",
+  "subthread.failedSteps": "Failed: {steps}",
 
   // Widgets, apps, sharing
   "widget.gone": "“{title}” no longer exists.",

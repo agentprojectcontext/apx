@@ -192,6 +192,14 @@ export function checkSettle(t: Task, outcome: CommitmentOutcome | "renegotiated"
   dueOf(due_at);
 }
 
+/** Its agent first, then the others that took part, each once. */
+const tookPart = (assignee: string | null, agents: string | null): string[] => [
+  ...new Set([
+    ...(assignee ? [assignee] : []),
+    ...(JSON.parse(agents ?? "[]") as (string | null)[]).flatMap((a) => a ?? []),
+  ]),
+];
+
 /** Tasks with the name of their commitment's person. */
 const tasksQuery = () =>
   qb
@@ -206,9 +214,19 @@ const tasksQuery = () =>
         .whereRef("threads.task_id", "=", "tasks.id")
         .select((c) => c.fn.countAll<number>().as("n"))
         .as("chats"),
+    )
+    // Who took part: each chat's agent for it, and each teammate asked on its conversation (task-work.ts consult).
+    .select(
+      raw<
+        string | null
+      >`(select json_group_array(a) from (select distinct json_extract(t.agent_ids, '$[0]') as a from threads t where t.task_id = tasks.id or t.parent_id = tasks.thread_id))`.as(
+        "agents",
+      ),
     );
 
-const toTask = (r: Selectable<TasksTable> & { person_name: string | null; chats: number | null }): Task => ({
+const toTask = (
+  r: Selectable<TasksTable> & { person_name: string | null; chats: number | null; agents: string | null },
+): Task => ({
   id: r.id,
   ...opt("project_id", r.project_id),
   title: r.title,
@@ -241,6 +259,7 @@ const toTask = (r: Selectable<TasksTable> & { person_name: string | null; chats:
   ...(r.outcome === "kept" || r.outcome === "missed" || r.outcome === "dropped" ? { outcome: r.outcome } : {}),
   renegotiated: r.renegotiated,
   chats: Number(r.chats ?? 0),
+  agents: tookPart(r.assignee, r.agents),
   created_by: r.created_by,
   created_at: r.created_at,
   updated_at: r.updated_at,

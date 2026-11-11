@@ -53,7 +53,14 @@ export type ThreadContext = {
   flow_step?: FlowStepContext;
   /** A consult an @mention in a task opened: the task, and the card in its conversation that shows the answer. */
   /** `asker`: the agent that asked on the task and the chat it asked from, where it hears the answer. */
-  consult?: { task: string; card: string; review?: boolean; asker?: { agent: string; thread: string } };
+  consult?: {
+    task: string;
+    card: string;
+    /** Its card in the chat an agent asked from (task-work.ts askerCard). */
+    shown?: string;
+    review?: boolean;
+    asker?: { agent: string; thread: string };
+  };
   /** On a task's conversation: the close (its place in the task's history) already reported to whoever created it. */
   close_reported?: number;
   /**

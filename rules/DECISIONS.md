@@ -4623,3 +4623,26 @@ The list shows each server's tools and permission state without starting it: wha
 
 Rejected: a per-server flag outside the approvals store (a second place to revoke and to bind to the definition), and
 re-approving every listed tool when a server starts in "all" (a grant made without the owner looking at that tool).
+
+<a id="d-220"></a>
+## D-220 — 2026-11-11 — A teammate asked on a task shows as one card where the agent asked
+
+D-132 brought a consult's answer back to the asking agent's chat as the teammate's words, and the panel drew those
+words as a box of their own (an "agent event"), while the consult's card lived only in the task's conversation. The
+owner read it as the same exchange twice, in two designs, with no trace in the asker's chat of where it asked, and a
+"some actions failed" that named none of them.
+
+Now the consult adds its card to the chat the agent asked from too (`askerCard` in `task-work.ts`; its id in the
+consult's `shown`), never to the owner's main chat or a channel's, nor to a sub-thread. Both cards settle together
+with the answer, and a card whose run had failed steps names them (`failed`, the steps' titles), on delegations too.
+What the model reads is unchanged: the answer still reaches the asker as a turn with the teammate's words (D-132). In
+the panel that message points at the card above it, or says nothing when the card is right above; an answer that
+reached a chat without its card (asked from the owner's chat, or kept before this) is drawn as that same card.
+
+A task's conversation names the agent that works the task and the task's current title, not the agent and title it was
+created with, and a task's row counts every agent that took part (`Task.agents`: its agent, those with a chat for it,
+the teammates asked on it).
+
+Rejected: putting the card inside the asker's live answer, as a delegation's is (a consult can end while that answer is
+still being written, and a card settled outside the turn's display would be overwritten by it), and dropping the
+answer's message (the asker's next turn would show with nothing above it saying why).
