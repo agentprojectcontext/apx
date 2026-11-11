@@ -164,8 +164,15 @@ export const strictestWrite = (first: Write, ...rest: Write[]): Write =>
   rest.reduce((m, w) => (WRITE_STRICTNESS[w] > WRITE_STRICTNESS[m] ? w : m), first);
 
 const PREVIEW_CHARS = 160;
-/** A chat's last line in a list; a mail's leading "[subject: …]" (email.ts) shows as its subject. */
-export const previewOf = (text: string) => text.replace(/^\[subject: ([^\]\n]*)\]\n?/, "$1 · ").slice(0, PREVIEW_CHARS);
+/**
+ * A chat's last line in a list; a mail's leading "[subject: …]" (email.ts) shows as its subject, and the note on mail
+ * read from before the mailbox was added ("[historical mail; …]") is the agent's, not the list's.
+ */
+export const previewOf = (text: string) =>
+  text
+    .replace(/^\[historical mail[^\]\n]*\]\n?/, "")
+    .replace(/^\[subject: ([^\]\n]*)\]\n?/, "$1 · ")
+    .slice(0, PREVIEW_CHARS);
 
 export function threadsRepo({ one, all, run }: Sql, bus: Bus, endSession: (thread: string) => void = () => {}) {
   const repo = {
