@@ -218,6 +218,11 @@ export const ComputerProgress = lazy(() =>
   import("./computers/ComputerProgress.tsx").then((m) => ({ default: m.ComputerProgress })),
 );
 export const ContactChat = lazy(() => import("./channels/ContactChat.tsx").then((m) => ({ default: m.ContactChat })));
+// A saved contact with no chat yet, picked in their account's Inbox list, and those contacts' rows under its chats.
+export const ContactPick = lazy(() => import("./channels/ContactChat.tsx").then((m) => ({ default: m.ContactPick })));
+export const AccountContacts = lazy(() =>
+  import("./inbox/AccountContacts.tsx").then((m) => ({ default: m.AccountContacts })),
+);
 export const RoomPanel = lazy(() => import("./channels/RoomPanel.tsx").then((m) => ({ default: m.RoomPanel })));
 export const ChannelFace = lazy(() => import("./inbox/ChannelFace.tsx").then((m) => ({ default: m.ChannelFace })));
 
