@@ -111,30 +111,26 @@ for (const language of ["en", "es"] as const) {
         await capture(page, frame, language, "empty");
         const model = frame.locator(".composer__model");
         await model.click();
-        await expect(frame.locator(".mchoice")).toBeVisible();
-        await expect(frame.locator(".mchoice__fallback")).toHaveCount(2);
-        await expect(frame.locator(".mchoice")).not.toContainText("Router");
+        await expect(frame.locator(".mslim")).toBeVisible();
+        // Under the list: what runs now, and a way to leave the choice to the router.
+        await expect(frame.locator(".mslim__slot[role=status]")).toBeVisible();
         await expect(
-          frame.getByRole("button", { name: language === "es" ? "Elegir automáticamente" : "Choose automatically" }),
+          frame.getByRole("button", { name: language === "es" ? "Dejar solo el router" : "Leave only the router" }),
         ).toBeVisible();
         await expect(frame.getByRole("searchbox")).toBeVisible();
         const option = frame.getByRole("option", { name: new RegExp(LONG_MODEL) });
         const label = option.locator(".mlist__name");
-        const ref = option.locator(".mlist__ref");
-        await expect(ref).toBeVisible();
-        await expect(ref).toHaveText(`custom/${LONG_MODEL}`);
-        for (const locator of [label, ref]) {
-          const fits = await locator.evaluate(
-            (element) =>
-              element.scrollWidth <= element.clientWidth + 1 && element.scrollHeight <= element.clientHeight + 1,
-          );
-          assert.equal(fits, true);
-        }
+        await expect(label).toHaveText(LONG_MODEL);
+        await expect(option).toHaveAttribute("title", `custom/${LONG_MODEL}`);
+        const fits = await label.evaluate(
+          (element) =>
+            element.scrollWidth <= element.clientWidth + 1 && element.scrollHeight <= element.clientHeight + 1,
+        );
+        assert.equal(fits, true);
         await option.click();
         await expect(model).toContainText(LONG_MODEL);
-        const current = frame.locator(".mchoice__current");
-        await expect(current).toContainText(LONG_MODEL);
-        assert.equal(await current.evaluate((element) => element.scrollWidth <= element.clientWidth + 1), true);
+        const current = frame.locator(".mslim__slot[role=status] .mslim__name");
+        await expect(current).toHaveText(LONG_MODEL);
         await capture(page, frame, language, "model-menu");
         await page.keyboard.press("Escape");
         await expect(frame.locator(".mchoice")).toBeHidden();
