@@ -170,8 +170,20 @@ export function RoomsSection({
       onBlur={(e) => e.currentTarget.value !== cur[key] && set({ [key]: e.currentTarget.value })}
     />
   );
+  const toggle = (
+    <SettingRow title={t("rooms.on")} description={t("rooms.onHint")}>
+      <Switch
+        size="sm"
+        checked={cur.off !== true}
+        onCheckedChange={(on) => set({ off: !on })}
+        aria-label={t("rooms.on")}
+      />
+    </SettingRow>
+  );
+  if (cur.off) return toggle;
   return (
     <>
+      {toggle}
       <SubHead>{t(words.title)}</SubHead>
       <p className="pform__hint">{t(words.lead)}</p>
       {kind === "telegram" && <p className="pform__hint">{t("rooms.tg.privacy")}</p>}

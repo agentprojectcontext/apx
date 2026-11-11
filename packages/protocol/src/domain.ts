@@ -1112,9 +1112,11 @@ export const ChannelRooms = z.object({
   owner_only: z.boolean().default(false),
   /**
    * A line that is the owner's own phone (WhatsApp `self_owner`): whether the agent may speak in its groups, which reads
-   * as the owner speaking. Unset: its groups are only read. See DECISIONS.md#d-210
+   * as the owner speaking. Unset: its groups are only read. See DECISIONS.md#d-216
    */
   as_owner: z.boolean().optional(),
+  /** Every room is dropped: nothing said there is kept or answered, and the list stays for when they are on again. */
+  off: z.boolean().optional(),
   /** What it can do and answer there: written by the owner, public. */
   knowledge: z.string().max(12_000).default(""),
   /** Hard rules for what it says there; they go last and win. */

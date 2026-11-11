@@ -91,6 +91,9 @@ export const esAccount: Record<keyof typeof enAccount, string> = {
     "En Discord, activá Modo desarrollador (Ajustes › Avanzado) y hacé clic derecho en el canal › Copiar ID del canal.",
   "rooms.names": "Cómo lo llaman",
   "rooms.namesHint": "Palabras que cuentan como llamarlo, además de @mencionarlo o responderle. Separadas por coma.",
+  "rooms.on": "Grupos y salas",
+  "rooms.onHint":
+    "Apagado, todo lo que llega de ellos se descarta: no se guarda ni se contesta. Tu lista queda para cuando los vuelvas a prender.",
   "rooms.ownerOnly": "Solo te contesta a vos",
   "rooms.ownerOnlyHint": "En las salas lee a todos pero solo te responde a vos.",
   "rooms.knowledge": "Lo que sabe y puede responder",

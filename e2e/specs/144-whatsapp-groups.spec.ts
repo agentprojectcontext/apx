@@ -15,7 +15,7 @@ type Listed = {
     status: string;
     self_owner?: boolean;
     agent_id: string;
-    rooms?: { rooms: Array<{ id: string; mode: string }>; as_owner?: boolean };
+    rooms?: { rooms: Array<{ id: string; mode: string }>; as_owner?: boolean; off?: boolean };
   }>;
 };
 const line = async () => (await rpc<Listed>("channels.list")).channels.find((c) => c.id === "whatsapp");
@@ -116,4 +116,30 @@ test("on a line of its own, an @mention of the line in a listed group is answere
   await world.whatsapp.inGroup(ANA, TEAM.id, "¿cómo instalo la app?", true);
   await until(async () => (await world.whatsapp.sentTo(TEAM.id)).length > before);
   expect(await world.whatsapp.sentTo(ANA.phone)).toEqual([]);
+});
+
+test("with groups and rooms turned off a listed group is dropped, and the list comes back when they are on again", async ({
+  page,
+}) => {
+  await lineAs(false);
+  await openRooms(page);
+  const on = page.getByRole("switch", { name: "Grupos y salas" });
+  await expect(on).toBeChecked();
+  await on.click();
+  await expect(page.getByText(/Apagado, todo lo que llega de ellos se descarta/)).toBeVisible();
+  await expect(page.getByRole("combobox", { name: `Modo de ${TEAM.name}` })).toBeHidden();
+  await save(page);
+  await until(async () => (await line())?.rooms?.off === true);
+
+  const before = (await world.whatsapp.sentTo(TEAM.id)).length;
+  const calls = await world.llmCalls();
+  await world.whatsapp.inGroup(ANA, TEAM.id, "¿hay alguien leyendo?", true);
+  await new Promise((r) => setTimeout(r, 300));
+  expect((await world.whatsapp.sentTo(TEAM.id)).length).toBe(before);
+  expect(await world.llmCalls()).toBe(calls);
+
+  await on.click();
+  await expect(page.getByRole("combobox", { name: `Modo de ${TEAM.name}` })).toBeVisible();
+  await save(page);
+  await until(async () => (await line())?.rooms?.off === false);
 });

@@ -366,7 +366,7 @@ export function createChannels(deps: {
     const audience = thread ? audienceOf(store, thread) : undefined;
     const why = (run.error ?? "").replace(/^Could not finish: /, "").slice(0, 200);
     const room = audience?.kind === "contact" ? audience.room : undefined;
-    // A group on the owner's own phone the agent may not speak in: its answer stays in the app. See DECISIONS.md#d-210
+    // A group on the owner's own phone the agent may not speak in: its answer stays in the app. See DECISIONS.md#d-216
     const cfg = configs().find((c) => c.id === to.channel);
     if (room && cfg && roomsReadOnly(cfg)) return;
     if (!out && run.state === "failed" && room) {

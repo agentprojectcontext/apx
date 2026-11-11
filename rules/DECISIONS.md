@@ -4557,6 +4557,11 @@ names and limits, sealed turns), with what is particular to a linked phone:
   the owner or a reply to them is the owner being addressed, not the agent: there the agent is called only by name.
   Allowed, the room's prompt tells the agent its words go out from the owner's own number.
 
+- **Groups and rooms off, on any channel** (`rooms.off`, `roomsOff` in `channels/rooms.ts`): one switch per account
+  drops everything that arrives from its rooms before it is stored (`receive` in `channels/inbound.ts`), and refuses
+  a post in one. The list and its settings stay, so turning it back on needs nothing else. Off is not "read": read
+  keeps what is said, off keeps nothing.
+
 Rejected: answering in groups from the owner's phone by default (a member could make the owner "say" anything), a
 switch per group (one account-wide choice is the explicit one the owner makes; each group's mode still applies), and
 reading every group to offer it (the list comes from WhatsApp; nothing of an unlisted group is stored).

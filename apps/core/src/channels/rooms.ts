@@ -58,8 +58,11 @@ export function roomDecision(o: {
 
 /**
  * A line that is the owner's own phone speaks in a group as the owner: its groups are only read until the owner allows
- * the agent to answer there as them. See DECISIONS.md#d-210
+ * the agent to answer there as them. See DECISIONS.md#d-216
  */
+/** The owner turned the account's groups and rooms off: what arrives from them is dropped. */
+export const roomsOff = (cfg: Pick<ChannelConfig, "rooms">): boolean => cfg.rooms?.off === true;
+
 export const roomsReadOnly = (cfg: Pick<ChannelConfig, "self_owner" | "rooms">): boolean =>
   cfg.self_owner === true && cfg.rooms?.as_owner !== true;
 
@@ -287,7 +290,7 @@ export function createRooms(deps: {
     handle(cfg: ChannelConfig, m: Inbound, rowId: string): Promise<"done" | "ignored"> {
       const settings = cfg.rooms;
       const room = settings?.rooms.find((r) => r.id === m.conversation);
-      if (!settings || !room || !m.text.trim()) return Promise.resolve("ignored");
+      if (!settings || settings.off || !room || !m.text.trim()) return Promise.resolve("ignored");
       const thread = roomThread(cfg, room);
       const who = authorOf(cfg, m);
       const called = Boolean(m.room?.called) || calledByName(m.text, settings.names);

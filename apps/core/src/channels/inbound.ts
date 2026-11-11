@@ -32,7 +32,7 @@ import type { ChannelNotice, TellOwner } from "./owner-notices.ts";
 import { capturedSender, createPassiveMail } from "./passive-mail.ts";
 import { quietMessage } from "./quiet-message.ts";
 import { restoreMail } from "./restore-mail.ts";
-import type { createRooms } from "./rooms.ts";
+import { type createRooms, roomsOff } from "./rooms.ts";
 import type { Stickers } from "./stickers.ts";
 import type { Suggestions } from "./suggestions.ts";
 import { channelTexts } from "./texts.ts";
@@ -85,9 +85,16 @@ export function createInbound(deps: {
   /** The options ticked so far on a multi-choice question, by input. */
   const ticked = new Map<string, Set<number>>();
 
-  /** Stores a one-to-one message (or one in a listed room) and handles it; other groups are never stored nor answered. */
+  /**
+   * Stores a one-to-one message (or one in a listed room, while the account's rooms are on) and handles it; other
+   * groups are never stored nor answered.
+   */
   function receive(channel: string, m: Inbound): void {
     if (!m.private && !m.room) return;
+    if (!m.private) {
+      const cfg = deps.configs().find((c) => c.id === channel);
+      if (cfg && roomsOff(cfg)) return;
+    }
     const id = store.channels.inbox.add(channel, m);
     if (id) queueMicrotask(() => void process({ id, channel, payload: m }));
   }

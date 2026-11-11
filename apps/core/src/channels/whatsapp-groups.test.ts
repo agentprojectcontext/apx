@@ -227,3 +227,24 @@ test("allowed, the agent speaks as the owner only when called by name: an @menti
   const call = llm.calls.findLast((c) => String(c.messages[0]?.content).includes("#Acme team"));
   assert.match(String(call?.messages[0]?.content), /from your owner's own number/);
 });
+
+test("with the account's groups turned off, a listed group is dropped and nothing is posted; on again, the list is intact", async () => {
+  await configure({ self_owner: false, rooms: ROOMS({ off: true }) });
+  assert.equal((await channel())?.rooms?.off, true);
+  const calls = llm.calls.length;
+  const sent = posts(GROUPS.all).length;
+  wa.inGroup(ANA, GROUPS.all, "is anyone reading this group?", { mention: true });
+  await pause(200);
+  assert.ok(!kept(GROUPS.all).includes("is anyone reading this group?"), "not kept");
+  assert.equal(posts(GROUPS.all).length, sent, "not answered");
+  assert.equal(llm.calls.length, calls);
+  await assert.rejects(
+    env.client.call("channels.post", { room: "Acme everyone", text: "hello all", channel: "whatsapp" }),
+    /turned off/,
+  );
+
+  await configure({ self_owner: false, rooms: ROOMS({ off: false }), reconnects: false });
+  assert.equal((await channel())?.rooms?.rooms.length, 2, "the list stayed");
+  await settled(() => wa.inGroup(ANA, GROUPS.all, "back on?"));
+  await waitFor(() => answerTo(GROUPS.all, "back on?"), "answered again");
+});

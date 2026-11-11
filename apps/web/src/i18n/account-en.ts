@@ -89,6 +89,9 @@ export const enAccount = {
     "In Discord, turn on Developer Mode (Settings › Advanced) and right-click the channel › Copy Channel ID.",
   "rooms.names": "What calls it",
   "rooms.namesHint": "Words that count as calling it, besides an @mention or a reply to it. Comma-separated.",
+  "rooms.on": "Groups and rooms",
+  "rooms.onHint":
+    "Off, everything that arrives from them is dropped: nothing is kept or answered. Your list stays for when you turn them on again.",
   "rooms.ownerOnly": "Answers only you",
   "rooms.ownerOnlyHint": "In rooms it reads everyone but answers only you.",
   "rooms.knowledge": "What it knows and can answer",

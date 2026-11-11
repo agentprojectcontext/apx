@@ -1,7 +1,7 @@
 // WhatsApp on the owner's own account, as a linked device (Baileys). The owner talks to their agent in "Message
 // yourself"; anyone else is a contact the owner approved, and nobody else ever gets an answer from the owner's number.
 // Groups are read only when the owner listed them (rooms). The library loads with the first WhatsApp channel; the
-// credentials folder IS the account (kept at 0700). See DECISIONS.md#d-025, DECISIONS.md#d-210
+// credentials folder IS the account (kept at 0700). See DECISIONS.md#d-025, DECISIONS.md#d-216
 import fs from "node:fs";
 import path from "node:path";
 import { UPLOAD_LIMITS } from "@apx/protocol";
