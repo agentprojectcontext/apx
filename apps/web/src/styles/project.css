@@ -1026,9 +1026,34 @@
 }
 
 /* ── Memory list: rows with a Brain tile, the note's first lines, what it is, its subproject and date ── */
-/* The notes take the window's width, as the project page does; the review sits at the end of the filters' row. */
+/* The notes take the window's width, as the project page does; the review sits at the end of the filters' row. A
+   note or the review opens as a column beside the list, under the project's header and tabs. */
 .memory.memory--notes {
   max-width: none;
+  flex-direction: row;
+  gap: 16px;
+}
+.memory--notes > .memory__main {
+  flex: 1 1 0;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.memory__main > * {
+  flex: none;
+}
+.memory__main > .memory__list {
+  flex: 0 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+}
+/* A phone has room for one: the open note or review, and its × goes back to the list. */
+@media (max-width: 767px) {
+  .memory--notes.has-side > .memory__main {
+    display: none;
+  }
 }
 .memory__reviewbtn {
   margin-left: auto;

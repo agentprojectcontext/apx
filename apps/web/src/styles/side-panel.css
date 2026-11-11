@@ -95,8 +95,8 @@
 /* The page under an open drawer makes room for it, so the list sits beside the detail; a narrow page keeps ~480px
    of list and lets the drawer cover the rest. */
 @media (min-width: 768px) {
-  .page:has(.drawer:not(.drawer--inset, .drawer--peek)),
-  .project__body:has(.drawer:not(.drawer--inset, .drawer--peek)) {
+  .page:has(.drawer:not(.drawer--inset, .drawer--peek, .drawer--docked)),
+  .project__body:has(.drawer:not(.drawer--inset, .drawer--peek, .drawer--docked)) {
     padding-right: min(584px, max(0px, 100% - 480px));
   }
 }
@@ -140,6 +140,28 @@
 @media (prefers-reduced-motion: no-preference) {
   .chat > :not(.chat__header, .drawer) {
     transition: margin-right 0.2s ease;
+  }
+}
+/* A column of its parent's row (a tab's body), beside the list there; on a phone it takes the row's whole width. */
+.drawer.drawer--docked {
+  position: relative;
+  top: auto;
+  right: auto;
+  bottom: auto;
+  left: auto;
+  z-index: auto;
+  flex: none;
+  width: min(520px, 45%);
+  min-height: 0;
+  max-height: 100%;
+  box-shadow: none;
+}
+@media (max-width: 767px) {
+  .drawer.drawer--docked {
+    flex: 1 1 auto;
+    width: auto;
+    border: 1px solid var(--apx-border);
+    border-radius: 16px;
   }
 }
 /* Over a canvas: a card inside its parent, a bottom sheet on a phone. */

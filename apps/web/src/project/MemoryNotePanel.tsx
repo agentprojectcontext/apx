@@ -98,6 +98,7 @@ export function MemoryNotePanel({
   };
   return (
     <Drawer
+      docked
       className="memnote"
       label={t("memory.panel.label")}
       title={kind(note)}

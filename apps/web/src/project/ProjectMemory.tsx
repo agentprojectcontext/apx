@@ -117,74 +117,76 @@ function MemoryBody({ project }: { project: ProjectEntry }) {
   ];
 
   return (
-    <div className="memory memory--notes">
-      <div className="team__head">
-        <div className="team__titles">
-          <div className="team__note">{t(`memory.lead.${filter}`)}</div>
-        </div>
-        <SegmentedControl
-          size="sm"
-          label={t("memory.view")}
-          value={filter}
-          onValueChange={(v) => setFilter(v as Filter)}
-          options={options}
-        />
-        {tabReviewer && (
-          <Button
+    <div className={side ? "memory memory--notes has-side" : "memory memory--notes"}>
+      <div className="memory__main">
+        <div className="team__head">
+          <div className="team__titles">
+            <div className="team__note">{t(`memory.lead.${filter}`)}</div>
+          </div>
+          <SegmentedControl
             size="sm"
-            className="memory__reviewbtn"
-            variant="secondary"
-            leadingIcon={<Icons.MessageCircle size={14} />}
-            onClick={() => void review(placeOf())}
-          >
-            {t("memory.review.with", { name: tabReviewer })}
-          </Button>
+            label={t("memory.view")}
+            value={filter}
+            onValueChange={(v) => setFilter(v as Filter)}
+            options={options}
+          />
+          {tabReviewer && (
+            <Button
+              size="sm"
+              className="memory__reviewbtn"
+              variant="secondary"
+              leadingIcon={<Icons.MessageCircle size={14} />}
+              onClick={() => void review(placeOf())}
+            >
+              {t("memory.review.with", { name: tabReviewer })}
+            </Button>
+          )}
+        </div>
+
+        {!project.isDefault && filter === "project" && (
+          <div className="memory__file">
+            <Icons.FileText size={14} />
+            <span>
+              {t("memory.fileBefore")}
+              <code>.apc/memory.md</code>
+              {t("memory.fileAfter")}
+            </span>
+          </div>
+        )}
+
+        {filter !== "forgotten" && <PendingBar notes={notes} onConfirmed={load} />}
+
+        <SearchField
+          size="sm"
+          placeholder={t("memory.search")}
+          value={query}
+          onChange={(e) => setQuery(e.currentTarget.value)}
+        />
+
+        {notes && !notes.length ? (
+          <ProjectEmpty name={project.name}>
+            {query ? t("memory.noMatch") : filter === "project" ? undefined : t(`memory.empty.${filter}`)}
+          </ProjectEmpty>
+        ) : (
+          <ul className="memory__list" aria-label={t("project.tab.memory")}>
+            {notes?.map((m) => (
+              <NoteRow
+                key={m.id}
+                note={m}
+                sub={subOf(m.project_id)}
+                selected={shown?.id === m.id}
+                onOpen={() => {
+                  if (side && "chat" in side) closeReview(side.chat);
+                  setSide(shown?.id === m.id ? undefined : { note: m.id });
+                }}
+              />
+            ))}
+          </ul>
+        )}
+        {(filter === "project" || filter === "global") && (
+          <AddNote key={filter} scope={filter} projectId={project.id} onAdded={load} />
         )}
       </div>
-
-      {!project.isDefault && filter === "project" && (
-        <div className="memory__file">
-          <Icons.FileText size={14} />
-          <span>
-            {t("memory.fileBefore")}
-            <code>.apc/memory.md</code>
-            {t("memory.fileAfter")}
-          </span>
-        </div>
-      )}
-
-      {filter !== "forgotten" && <PendingBar notes={notes} onConfirmed={load} />}
-
-      <SearchField
-        size="sm"
-        placeholder={t("memory.search")}
-        value={query}
-        onChange={(e) => setQuery(e.currentTarget.value)}
-      />
-
-      {notes && !notes.length ? (
-        <ProjectEmpty name={project.name}>
-          {query ? t("memory.noMatch") : filter === "project" ? undefined : t(`memory.empty.${filter}`)}
-        </ProjectEmpty>
-      ) : (
-        <ul className="memory__list" aria-label={t("project.tab.memory")}>
-          {notes?.map((m) => (
-            <NoteRow
-              key={m.id}
-              note={m}
-              sub={subOf(m.project_id)}
-              selected={shown?.id === m.id}
-              onOpen={() => {
-                if (side && "chat" in side) closeReview(side.chat);
-                setSide(shown?.id === m.id ? undefined : { note: m.id });
-              }}
-            />
-          ))}
-        </ul>
-      )}
-      {(filter === "project" || filter === "global") && (
-        <AddNote key={filter} scope={filter} projectId={project.id} onAdded={load} />
-      )}
       {shown && (
         <MemoryNotePanel
           key={`${shown.id}:${shown.revision ?? 0}`}

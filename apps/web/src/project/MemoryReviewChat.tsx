@@ -40,6 +40,7 @@ export function MemoryReviewChat({
   const name = agent?.name ?? "";
   return (
     <Drawer
+      docked
       className="widgetchat memreview"
       label={t("memory.review.drawer", { name })}
       title={t("memory.review.drawer", { name })}
