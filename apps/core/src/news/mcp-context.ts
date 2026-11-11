@@ -9,7 +9,7 @@ export const MCP_CONTEXT_NEWS: NewsEntry = {
     es: "Abrí una conexión MCP desde un enlace del chat, elegí sus variables por nombre y decidí qué proyecto puede usarla.",
   },
   applies: (facts) => (facts.mcp ?? 0) > 0,
-  text: "MCP links can now open the connection editor over the current chat. Link apx:resources/mcp/NAME/global for an owner's private server, including one limited to a project, or apx:resources/mcp/NAME/PROJECT_ID for a repository definition. Private connections have Available in: all projects or one project, without copying their secrets into the repository. Environment and header fields have a visible variable picker, also opened with Ctrl+Space. It lists the selected project's effective variable names, including overrides, never values. Offer to inspect the owner's connections and help limit one to the right project; never assume similarly named variables have equal values.",
+  text: "MCP links can now open the connection editor over the current chat. Link apx:resources/mcp/NAME/global for an owner's private server, including one limited to a project, or apx:resources/mcp/NAME/PROJECT_ID for a repository definition. Private connections have Lives in: global or one project, without copying their secrets into the repository. Environment and header fields have a visible variable picker, also opened with Ctrl+Space. It lists the selected project's effective variable names, including overrides, never values. Offer to inspect the owner's connections and help limit one to the right project; never assume similarly named variables have equal values.",
   actions: [
     {
       label: { en: "Review my connections", es: "Revisar mis conexiones" },

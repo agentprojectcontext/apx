@@ -15,6 +15,8 @@ export type ApprovalTarget = {
   permanent: boolean;
   project_id?: string | undefined;
   browser?: BrowserConsentContext | undefined;
+  /** A grant under this key covers the tool too: an MCP server's "allow all" (mcp/approval.ts). */
+  group?: string | undefined;
 };
 /** Grants that are one agent's even "for this chat": another agent in that chat is not covered (DECISIONS.md#d-151). */
 const PER_AGENT = new Set([COMPUTER_GRANT]);
@@ -45,7 +47,10 @@ export const nativeApproval = (tool: string): ApprovalTarget => ({
  * The grant for a tool's calls that always ask: its own key, so an OK given for the tool's ordinary calls never
  * covers them, and an OK given for them never covers more than they are. DECISIONS.md#d-089
  */
-export const strictApproval = (a: ApprovalTarget): ApprovalTarget => ({ ...a, key: `${a.key}${STRICT_APPROVAL}` });
+export const strictApproval = ({ group: _g, ...a }: ApprovalTarget): ApprovalTarget => ({
+  ...a,
+  key: `${a.key}${STRICT_APPROVAL}`,
+});
 
 /** The key prefix of a folder an agent may change for good, from a folder card's "always" (DECISIONS.md#d-108). */
 const WRITE_FOLDER = `${APX_SERVER}:write_folder:`;
@@ -163,7 +168,7 @@ export function approvalsRepo(q: Sql) {
         read().some(
           (g) =>
             g.scope === "always" &&
-            g.key === a.key &&
+            (g.key === a.key || (!!a.group && g.key === a.group)) &&
             (!g.agent_id || g.agent_id === agent) &&
             (!g.condition || matchesCondition(g.condition, args)),
         ) ||

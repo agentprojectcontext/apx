@@ -48,6 +48,11 @@
 .resv__rows .apx-pickrow {
   padding: 7px 12px;
 }
+/* An MCP's projects, picked in its dialog: a field-wide menu button. */
+.mcp-editor__reach {
+  justify-content: space-between;
+  width: 100%;
+}
 .resv__group + .resv__group {
   margin-top: 10px;
 }

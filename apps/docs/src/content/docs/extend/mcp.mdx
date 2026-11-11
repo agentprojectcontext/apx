@@ -48,9 +48,11 @@ apx mcps scope github acme-store           # only this project
 apx mcps scope github global               # available everywhere again
 ```
 
-In the connection editor, **Available in** offers **All projects** or a project by name. Save applies the change;
-Cancel leaves its availability unchanged. Repository connections keep belonging to their repository and do not offer
-this private-availability control.
+In the connection editor, **Lives in** offers **Global** or a project by name: a server that lives in a project is
+listed among that project's own, and only its agents use it. For a global server, **Available in** picks the projects
+it is on in (**All projects**, or some of them); the same switches show under **By project** in its detail, and the
+list says **In 2 of 3** instead of **Global** while it is off somewhere. Save applies both; Cancel leaves them
+unchanged. Repository connections keep belonging to their repository and do not offer these controls.
 
 Before making it global, check that its variables exist in the places where you will use it. Project variables are
 not copied into the global store. The editor names any variables that need a value in the selected scope; you can
@@ -126,8 +128,15 @@ Add `--project <id>` for a project's server, and `--scope global|project` when a
 Each server has **Tool permissions**:
 
 - **Ask first**: each agent asks you before using a tool that changes something.
-- **All allowed**: no agent asks for these tools. If the server or a tool changes, they ask again.
-- **Some**: click a tool to allow it (green) or to make it ask again.
+- **All allowed**: no agent asks for its tools, ones the server adds later included. If the server's definition
+  changes, they ask again.
+- **Some**: click a tool to allow it (green) or to make it ask again. Tools the server adds later ask first, even when
+  you had picked every tool; leaving one tool out of **All allowed** turns it into **Some**.
+
+The list shows each server's tools and permissions as they were the last time it ran, so you see them without
+opening it. Hover a server's dot for what it means: filled, running now; ring, ready (it starts when an agent uses
+it); amber, it needs you (approve it or sign in); red, it did not start. Click one of its variables to open it in
+**Variables**.
 
 On top of that, an agent's own autonomy and its `tools:` list still apply, and anything you approved "always" for one
 agent or chat shows under **Allowed for one agent or chat**. See [Autonomy](/concepts/autonomy/).

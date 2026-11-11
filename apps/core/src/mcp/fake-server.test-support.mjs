@@ -31,4 +31,13 @@ server.registerTool(
     ],
   }),
 );
+// A server that gains a tool between starts: the name written in this file, when there is one.
+const extra =
+  process.env.EXTRA_TOOL_FILE && fs.existsSync(process.env.EXTRA_TOOL_FILE)
+    ? fs.readFileSync(process.env.EXTRA_TOOL_FILE, "utf8").trim()
+    : "";
+if (extra)
+  server.registerTool(extra, { description: "Added later", inputSchema: {} }, async () => ({
+    content: [{ type: "text", text: extra }],
+  }));
 await server.connect(new StdioServerTransport());

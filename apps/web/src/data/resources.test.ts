@@ -131,37 +131,27 @@ test("inline browser errors suppress duplicate notices without silencing other a
   assert.deepEqual(calls.at(-1), ["tools.revoke", { key: "mcp:read" }]);
 });
 
-test("bulk MCP mode only changes tools not already at the requested approval state", async (t) => {
-  const calls = mockRpc(t, {
-    "mcp.tools": {
-      tools: [
-        { name: "read", key: "mcp:read", approved: false },
-        { name: "write", key: "mcp:write", approved: true },
-      ],
-    },
-    "mcp.approveTool": {},
-    "tools.revoke": {},
-  });
+test("an MCP's mode is one server setting; picking some clears it and approves just those", async (t) => {
+  const calls = mockRpc(t, { "mcp.toolMode": { server: {} }, "mcp.approveTool": {} });
   const server = { scope: "project", name: "local", project_id: "prj_1" } as McpServerStatus;
   assert.deepEqual(await resources.setMcpToolMode(server, "all", "prj_1"), { ok: true });
-  assert.deepEqual(await resources.setMcpToolMode(server, "ask", "prj_1"), { ok: true });
+  assert.deepEqual(await resources.pickMcpTools(server, ["read"], "prj_1"), { ok: true });
   assert.deepEqual(calls, [
-    ["mcp.tools", { scope: "project", server: "local", project: "prj_1" }],
+    ["mcp.toolMode", { scope: "project", server: "local", mode: "all", project: "prj_1" }],
+    ["mcp.toolMode", { scope: "project", server: "local", mode: "ask", project: "prj_1" }],
     ["mcp.approveTool", { scope: "project", server: "local", tool: "read", project: "prj_1" }],
-    ["mcp.tools", { scope: "project", server: "local", project: "prj_1" }],
-    ["tools.revoke", { key: "mcp:write" }],
   ]);
 });
 
 test("resource batches stop on server errors and expose a user-facing notice", async (t) => {
   t.mock.timers.enable({ apis: ["setTimeout"] });
-  const calls = mockRpc(t, { "mcp.tools": { tools: [], error: "server unavailable" }, "mcp.approveTool": {} });
+  const calls = mockRpc(t, { "mcp.toolMode": new Error("server unavailable"), "mcp.approveTool": {} });
   assert.equal(
-    await resources.setMcpToolMode({ scope: "global", name: "broken" } as McpServerStatus, "all"),
+    await resources.pickMcpTools({ scope: "global", name: "broken" } as McpServerStatus, ["read"]),
     undefined,
   );
   assert.deepEqual(
     calls.map(([method]) => method),
-    ["mcp.tools"],
+    ["mcp.toolMode"],
   );
 });

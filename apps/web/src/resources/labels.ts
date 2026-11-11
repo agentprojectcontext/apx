@@ -48,6 +48,15 @@ export const STATUS_KEY: Record<McpServerStatus["status"], MessageKey> = {
   error: "mcp.status.error",
 };
 
+/** What each dot of a server says on hover: filled (running) and ring (ready) are both green. */
+export const DOT_KEY: Record<ReturnType<typeof mcpDot>, MessageKey> = {
+  on: "res.dot.on",
+  idle: "res.dot.idle",
+  warning: "res.dot.warning",
+  error: "res.dot.error",
+  off: "res.dot.off",
+};
+
 /** A server that starts when an agent first uses it ("off" while enabled) is ready, not off: a ring, not grey. */
 export function mcpDot(s: McpServerStatus): "on" | "idle" | "off" | "error" | "warning" {
   if (s.off_here || s.status === "disabled") return "off";

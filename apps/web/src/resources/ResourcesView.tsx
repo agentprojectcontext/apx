@@ -1,10 +1,10 @@
 import { Button, Icons, Menu, SegmentedControl } from "@apx/ui";
-import { type ReactNode, useState } from "react";
+import { type ReactNode, useEffect, useState } from "react";
 import { SectionPage } from "../common/SectionPage.tsx";
 import { type ProjectEntry, projectName } from "../data/identity.ts";
 import { useData } from "../data/state.ts";
 import { type MessageKey, useT } from "../i18n/index.ts";
-import { go, type ResourceTab, useNav } from "../shell/nav.ts";
+import { go, nav, type ResourceTab, useNav } from "../shell/nav.ts";
 import { BrowserConsents } from "./BrowserConsents.tsx";
 import { ExtensionsTab } from "./ExtensionsTab.tsx";
 import { IntegrationsTab } from "./IntegrationsTab.tsx";
@@ -43,7 +43,14 @@ export function ResourcesView({ project }: { project?: ProjectEntry }) {
   const t = useT();
   const projects = useData((s) => s.projects);
   const tab = useNav((s) => s.resourcesTab);
-  const [query, setQuery] = useState("");
+  const find = useNav((s) => s.resourcesFind);
+  const [query, setQuery] = useState(find ?? "");
+  // A link that names what to find (a server's variable) fills the search once, then lets the owner change it.
+  useEffect(() => {
+    if (find === undefined) return;
+    setQuery(find);
+    nav.set({ resourcesFind: undefined });
+  }, [find]);
   const [picked, setScope] = useState<ScopeFilter>("all");
   const [adding, setAdding] = useState(false);
   const [ownOnly, setOwnOnly] = useState(false);

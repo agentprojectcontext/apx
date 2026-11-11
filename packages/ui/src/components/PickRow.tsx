@@ -11,6 +11,8 @@ export interface PickRowProps {
   trailing?: ReactNode;
   /** A small status dot at the end: on (brand), idle (brand ring: ready, not running), off (subtle), error, warning. */
   dot?: "on" | "idle" | "off" | "error" | "warning";
+  /** What the dot means, said on hover and to screen readers ("Running", "Ready, idle"). */
+  dotLabel?: string;
   /** Monospace title (ids: skills, servers, variables). */
   mono?: boolean;
   selected?: boolean;
@@ -27,6 +29,7 @@ export function PickRow({
   leading,
   trailing,
   dot,
+  dotLabel,
   mono = false,
   selected = false,
   muted = false,
@@ -46,7 +49,12 @@ export function PickRow({
         {description && <span className="apx-pickrow__desc">{description}</span>}
       </span>
       {trailing && <span className="apx-pickrow__trail">{trailing}</span>}
-      {dot && <span className={`apx-pickrow__dot is-${dot}`} />}
+      {dot &&
+        (dotLabel ? (
+          <span className={`apx-pickrow__dot is-${dot}`} title={dotLabel} role="img" aria-label={dotLabel} />
+        ) : (
+          <span className={`apx-pickrow__dot is-${dot}`} />
+        ))}
     </button>
   );
 }

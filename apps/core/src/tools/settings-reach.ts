@@ -78,6 +78,7 @@ export const OWNER_ONLY: Readonly<Record<string, string>> = {
   "flows.history_restore": "the owner brings back an earlier drawing from the Flow's page, having looked at it",
   "flows.path_set": "a new address stops the old one, which the services that call it still use",
   "mcp.approveTool": POWER,
+  "mcp.toolMode": POWER,
   "environments.enable": POWER,
   "environments.bind": POWER,
   "telemetry.set": POWER,

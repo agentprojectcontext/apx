@@ -294,6 +294,8 @@ export const resourceMethods = {
     params: McpTarget,
     result: z.object({
       tools: z.array(z.object({ name: z.string(), key: z.string(), permanent: z.boolean(), approved: z.boolean() })),
+      /** all: every tool, those it adds later too; some: the tools approved one by one; ask: none. */
+      mode: z.enum(["ask", "all", "some"]).optional(),
       /** Why the server did not start, so it has no tools to show. */
       error: z.string().optional(),
     }),
@@ -327,6 +329,16 @@ export const resourceMethods = {
     effect: true,
     access: "human",
     replay: false,
+  },
+  /**
+   * Every agent may use all of a server's tools without asking, tools it adds later included ("all"), or none of them
+   * ("ask": its grants for every agent go). Picking some is approving tools one by one (mcp.approveTool).
+   */
+  "mcp.toolMode": {
+    params: McpTarget.extend({ mode: z.enum(["ask", "all"]) }).strict(),
+    result: z.object({ server: McpServerStatus }),
+    effect: true,
+    access: "human",
   },
   "mcp.approveTool": {
     params: McpTarget.extend({ tool: z.string() }),
@@ -375,8 +387,10 @@ export const resourceMethods = {
             url: z.string().url().optional(),
             headers: z.record(z.string(), z.string()).optional(),
             enabled: z.boolean().optional(),
-            /** Private owner server availability; null makes it available everywhere. Never saved in a repo. */
+            /** Where one of the owner's servers lives: a project (it runs only there), or null: global. Never saved in a repo. */
             project: Id.nullable().optional(),
+            /** A global server: the projects it is turned off in; every other project gets it. */
+            off_in: z.array(Id).optional(),
           })
           .strict()
           .refine((s) => !!s.command !== !!s.url, "give either command or url")
