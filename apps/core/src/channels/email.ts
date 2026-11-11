@@ -380,7 +380,8 @@ export function emailAdapter(
           : err;
       }
       loop = run(io, box.value);
-      return { account: mail.address };
+      // Running once the mailbox is open and its numbering read: recovering history before that has no boundary.
+      return { account: mail.address, waiting: true };
     },
     async stop() {
       ac.abort();

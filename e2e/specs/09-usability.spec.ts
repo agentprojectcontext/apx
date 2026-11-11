@@ -16,7 +16,7 @@ const SCREENS: Array<[string, Array<[role: "button" | "tab", name: string | RegE
   [
     "files",
     [
-      ["button", /^acme/i],
+      ["button", /^acme$/i],
       ["tab", /^Archivos/],
     ],
   ],
