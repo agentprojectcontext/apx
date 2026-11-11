@@ -123,6 +123,23 @@ for (const width of [1440, 412]) {
     const head = page.locator(".chan__head");
     await expect(head.getByRole("img", { name: `Atiende ${superagent.name}` })).toBeVisible();
     await expect(head.getByRole("button", { name: "Salas" })).toBeVisible();
+    // As slim as the Inbox's: the app and who answers, never the account's number; no note under the list.
+    await expect(head.locator(".chan__metatext")).toHaveText(`Discord · Atiende ${superagent.name}`);
+    await expect(page.getByText("Conversaciones con otras personas", { exact: false })).toHaveCount(0);
+    if (width >= 1280) {
+      // Its edge resizes it, like the Inbox's list.
+      const edge = page.getByRole("separator", { name: "Cambiar el ancho de la lista" });
+      const before = (await page.locator(".chan__list").boundingBox())?.width ?? 0;
+      const box = await edge.boundingBox();
+      if (!box) throw new Error("no list edge");
+      await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+      await page.mouse.down();
+      await page.mouse.move(box.x + 60, box.y + box.height / 2, { steps: 4 });
+      await page.mouse.up();
+      await expect
+        .poll(async () => (await page.locator(".chan__list").boundingBox())?.width ?? 0)
+        .toBeGreaterThan(before + 30);
+    }
     const row = page.locator(".chan__row", { hasText: "#general" });
     await expect(row.getByRole("img", { name: `Atiende ${superagent.name}` })).toBeVisible();
     if (SHOTS) await page.screenshot({ path: `${SHOTS}/channel-screen-${width}.png` });
