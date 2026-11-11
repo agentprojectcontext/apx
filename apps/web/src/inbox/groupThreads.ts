@@ -79,6 +79,28 @@ export const unreadListed = (threads: Record<string, Thread>, opts: Filter): str
     .filter((t) => t.unread > 0)
     .map((t) => t.id);
 
+/** The unread among `roots` and the chats delegated under them (one tab's or one section's "Mark all as read"). */
+export function unreadUnder(threads: Record<string, Thread>, roots: readonly Thread[]): string[] {
+  const nested = delegatedByChat(threads);
+  const seen = new Set<string>();
+  const out: string[] = [];
+  const pending = [...roots];
+  while (pending.length) {
+    const t = pending.pop();
+    if (!t || seen.has(t.id)) continue;
+    seen.add(t.id);
+    if (t.unread > 0) out.push(t.id);
+    pending.push(...(nested.get(t.id) ?? []));
+  }
+  return out;
+}
+
+/** Every unread chat `keep` takes, archived ones too: what a sidebar row counts (a channel account, an engine). */
+export const unreadWhere = (threads: Record<string, Thread>, keep: (t: Thread) => boolean): string[] =>
+  Object.values(threads)
+    .filter((t) => t.unread > 0 && keep(t))
+    .map((t) => t.id);
+
 /** The archived chats, most recent first: shown apart, under Archived. */
 export function archivedThreads(threads: Record<string, Thread>, opts: Filter): Thread[] {
   return visible(threads, opts, (t) => !!t.archived && isTopLevel(t)).sort(newest);

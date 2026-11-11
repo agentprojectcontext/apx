@@ -1,7 +1,10 @@
 import { Icons, Popover } from "@apx/ui";
-import { type ReactNode, useEffect, useState } from "react";
+import { type ReactNode, useEffect, useRef, useState } from "react";
 import { useNav } from "./nav.ts";
 import { SidebarTooltipButton } from "./SidebarNavRow.tsx";
+
+/** Whether one of a row's menus (their triggers say so) is open in `el`. */
+const menuOpenIn = (el: HTMLElement | null) => Boolean(el?.querySelector("[data-popup-open]"));
 
 /**
  * A sidebar section folded into one row (the compact sidebar): its icon, name and count; resting on it or clicking it
@@ -33,6 +36,26 @@ export function SidebarFlyout({
   children: ReactNode;
 }) {
   const [open, setOpen] = useState(false);
+  const list = useRef<HTMLDivElement>(null);
+  // A row's menu (right click or its "…") opens outside the flyout: leaving for it must not close the flyout, which
+  // would take the row and its menu with it. The flyout closes once that menu does.
+  const deferred = useRef(false);
+  const change = (next: boolean) => {
+    deferred.current = !next && menuOpenIn(list.current);
+    if (!deferred.current) setOpen(next);
+  };
+  useEffect(() => {
+    const el = list.current;
+    if (!open || !el) return;
+    const watch = new MutationObserver(() => {
+      if (deferred.current && !menuOpenIn(el)) {
+        deferred.current = false;
+        setOpen(false);
+      }
+    });
+    watch.observe(el, { subtree: true, attributes: true, attributeFilter: ["data-popup-open"] });
+    return () => watch.disconnect();
+  }, [open]);
   // A pick inside opens another place: the flyout steps aside for it.
   const where = useNav((s) => `${s.view}|${s.projectId}|${s.channelId}|${s.engineId}|${s.appId}`);
   useEffect(() => {
@@ -44,7 +67,7 @@ export function SidebarFlyout({
       align="start"
       width={272}
       open={open}
-      onOpenChange={setOpen}
+      onOpenChange={change}
       openOnHover
       label={title}
       className="sideflyout"
@@ -76,7 +99,9 @@ export function SidebarFlyout({
       {empty && !count ? (
         <p className="sideflyout__empty">{empty}</p>
       ) : (
-        <div className="sideflyout__list">{children}</div>
+        <div ref={list} className="sideflyout__list">
+          {children}
+        </div>
       )}
     </Popover>
   );

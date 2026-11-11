@@ -1,14 +1,15 @@
-import { Icons, Popover, SectionLabel } from "@apx/ui";
+import { ContextMenu, Icons, type MenuEntry, Popover, SectionLabel } from "@apx/ui";
 import { type KeyboardEvent, type PointerEvent, type ReactNode, useRef } from "react";
 import { SIDEBAR_MIN_ROWS, type SidebarRows, setSidebarRows, useSidebarRows } from "../data/prefs.ts";
 import { useT } from "../i18n/index.ts";
 import { SidebarFlyout } from "./SidebarFlyout.tsx";
 import { SidebarTooltipButton } from "./SidebarNavRow.tsx";
+import { useSidebarMenu } from "./sidebarParts.ts";
 
 /**
  * One section of the sidebar as a card: its title (with the fold toggle and its "+"), then its rows. In the rail the
  * title hides and the "+" is the card's first icon. `compact` folds the whole section into one row (`icon`, `count`)
- * whose rows open beside it.
+ * whose rows open beside it. A right click on it (not on one of its rows) offers `menu`, then the sidebar's own menu.
  */
 export function SidebarSection({
   rail,
@@ -24,6 +25,7 @@ export function SidebarSection({
   running,
   active,
   empty,
+  menu = [],
   children,
 }: {
   rail: boolean;
@@ -40,26 +42,36 @@ export function SidebarSection({
   active?: boolean;
   /** What a compact section says while it has nothing in it. */
   empty?: string;
+  /** The section's own actions ("Mark all as read"). */
+  menu?: MenuEntry[];
   children?: ReactNode;
 }) {
+  const sidebarMenu = useSidebarMenu();
+  const items: MenuEntry[] = menu.length ? [...menu, { type: "separator" }, ...sidebarMenu] : sidebarMenu;
   if (compact && icon)
     return (
-      <SidebarFlyout
-        rail={rail}
-        title={title}
-        icon={icon}
-        count={count}
-        unread={unread}
-        running={running}
-        active={active}
-        action={action}
-        empty={empty}
-      >
-        {children}
-      </SidebarFlyout>
+      // Its flyout's rows keep their own menus; its title, its empty space and the row itself open this one.
+      <ContextMenu items={items} render={<div />}>
+        <SidebarFlyout
+          rail={rail}
+          title={title}
+          icon={icon}
+          count={count}
+          unread={unread}
+          running={running}
+          active={active}
+          action={action}
+          empty={empty}
+        >
+          {children}
+        </SidebarFlyout>
+      </ContextMenu>
     );
   return (
-    <fieldset aria-label={title} className={rail ? "sidebar__group is-rail" : "sidebar__group"}>
+    <ContextMenu
+      items={items}
+      render={<fieldset aria-label={title} className={rail ? "sidebar__group is-rail" : "sidebar__group"} />}
+    >
       {rail ? (
         action && <div className="sidebar__railaction">{action}</div>
       ) : (
@@ -82,7 +94,7 @@ export function SidebarSection({
         </SectionLabel>
       )}
       {children}
-    </fieldset>
+    </ContextMenu>
   );
 }
 

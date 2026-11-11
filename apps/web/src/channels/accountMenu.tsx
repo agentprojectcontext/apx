@@ -1,15 +1,24 @@
 // What a right click on a channel account offers, the same in the Channels screen and in the sidebar.
-import type { ChannelInfo } from "@apx/protocol";
+import type { ChannelInfo, Thread } from "@apx/protocol";
 import { Icons, type MenuEntry } from "@apx/ui";
+import { markAllRead } from "../data/actions.ts";
 import { draftOf, saveChannel } from "../data/channels.ts";
 import type { T } from "../i18n/index.ts";
+import { unreadWhere } from "../inbox/groupThreads.ts";
 import { go } from "../shell/nav.ts";
 import { askRemove } from "./account/removeAsk.ts";
 import { accountName, accountWhere, appName } from "./accountName.ts";
 import { KindIcon } from "./KindIcon.tsx";
 import { isChannelKind } from "./kinds.ts";
 
-export function accountItems(channel: ChannelInfo, t: T, waiting: number, before?: () => void): MenuEntry[] {
+export function accountItems(
+  channel: ChannelInfo,
+  t: T,
+  waiting: number,
+  threads: Record<string, Thread>,
+  before?: () => void,
+): MenuEntry[] {
+  const unread = unreadWhere(threads, (thread) => thread.channel?.id === channel.id);
   const kind = isChannelKind(channel.type) ? channel.type : undefined;
   const run = (f: () => void) => () => {
     before?.();
@@ -58,6 +67,12 @@ export function accountItems(channel: ChannelInfo, t: T, waiting: number, before
       label: t(channel.enabled ? "chs.turnOff" : "chs.turnOn"),
       icon: <Icons.Power />,
       onSelect: run(() => void saveChannel(channel.id, { ...draftOf(channel), enabled: !channel.enabled })),
+    },
+    {
+      label: t("inbox.markAllRead"),
+      icon: <Icons.CheckCheck />,
+      disabled: unread.length === 0,
+      onSelect: run(() => markAllRead(unread)),
     },
     ...(kind
       ? [

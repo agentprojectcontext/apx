@@ -1,10 +1,12 @@
 import { IconButton, Icons, NavItem } from "@apx/ui";
 import { useMemo, useState } from "react";
 import { useAccountCounts } from "../channels/counts.ts";
+import { markAllRead } from "../data/actions.ts";
 import { useChannels } from "../data/channels.ts";
 import { setPrefs, usePrefs, useSidebarRows } from "../data/prefs.ts";
 import { useData } from "../data/state.ts";
 import { useT } from "../i18n/index.ts";
+import { unreadWhere } from "../inbox/groupThreads.ts";
 import { soleFilter, useInboxFilter } from "../inbox/inboxFilter.ts";
 import { ChannelNavRow } from "./ChannelNavRow.tsx";
 import { go, useNav } from "./nav.ts";
@@ -55,6 +57,7 @@ export function ChannelsNav({ rail, compact = false }: { rail: boolean; compact?
     (channel) => (view === "channel" && channel.id === channelId) || (view === "inbox" && channel.id === filtered),
   );
   const hiddenUnread = rest.reduce((sum, channel) => sum + (counts.get(channel.id) ?? 0), 0);
+  const unreadIds = useMemo(() => unreadWhere(threads, (thread) => !!thread.channel), [threads]);
   const totalUnread = ordered.reduce((sum, channel) => sum + (counts.get(channel.id) ?? 0), 0);
 
   const move = (id: string, index: number) => {
@@ -105,6 +108,14 @@ export function ChannelsNav({ rail, compact = false }: { rail: boolean; compact?
       folded={folded}
       unread={totalUnread}
       unreadLabel={t("nav.channelsUnread", { unread: totalUnread })}
+      menu={[
+        {
+          label: t("inbox.markAllRead"),
+          icon: <Icons.CheckCheck />,
+          disabled: unreadIds.length === 0,
+          onSelect: () => markAllRead(unreadIds),
+        },
+      ]}
       onToggle={() => {
         setMoreOpen(false);
         setPrefs({ channelsFolded: !folded });
