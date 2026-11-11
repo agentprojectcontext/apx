@@ -4513,6 +4513,7 @@ person is not a conversation of its own.
 Rejected: a code mailed to the owner as on chat apps (the step the owner found confusing, and a reply to any forged
 From); per-screen `type === "email"` checks (the next kind would copy them).
 
+<a id="d-215"></a>
 ## D-215 — 2026-11-08 — A side question is one model call beside the chat, not a turn in it
 
 The owner wants to ask a chat's agent something quick (what was decided, a name it used) without the question and its
@@ -4535,8 +4536,8 @@ titles and notifications would have to learn to skip it, and the agent could act
 shows), and a turn in the chat marked as hidden (it would still enter the model's context unless every history builder
 learned the mark).
 
-<a id="d-215"></a>
-## D-215 — 2026-11-11 — A mailbox brings every mail in and marks what no person wrote; marked mail is the owner's only
+<a id="d-217"></a>
+## D-217 — 2026-11-11 — A mailbox brings every mail in and marks what no person wrote; marked mail is the owner's only
 An email account dropped mail it would not answer (unverified senders, "Never read", outside "Who may write") and
 never saw the server's Spam folder, so the owner could not tell what arrived. Every mail is now brought in.
 

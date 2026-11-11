@@ -259,7 +259,7 @@ test("verified automatic mail is kept for an unknown or approved sender, never a
     f.imap.deliver(automatic("forged@example.net", false).raw);
     f.imap.deliver(automatic("sender@blocked.example").raw);
     await waitFor(() => f.messages("news@example.net").length === 2, "approved automatic sender also kept");
-    // Unverified and blocked mail is kept too, marked for the owner only (DECISIONS.md#d-215).
+    // Unverified and blocked mail is kept too, marked for the owner only (DECISIONS.md#d-217).
     await waitFor(() => f.messages("sender@blocked.example").length === 1, "blocked mail kept, marked");
     await waitFor(() => f.messages("forged@example.net").length === 1, "unverified mail kept, marked");
     const replay = await f.client.call("channels.email_history", { channel: "email" });
