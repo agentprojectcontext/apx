@@ -63,6 +63,8 @@
 }
 .answers__lead {
   flex: 0 1000 auto;
+  /* Never cut down to nothing: a lone "·" would be left. */
+  min-width: 4ch;
 }
 .answers__sep {
   flex: none;
