@@ -1,9 +1,11 @@
 import type { EngineStatus } from "@apx/protocol";
 import { EngineIcon, engineBrand, Icons } from "@apx/ui";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { markAllRead } from "../data/actions.ts";
 import { rememberSidebar, setPrefs, usePrefs, useSidebarRows } from "../data/prefs.ts";
 import { useData } from "../data/state.ts";
 import { useT } from "../i18n/index.ts";
+import { unreadWhere } from "../inbox/groupThreads.ts";
 import { onlyFilter, soleFilter, useInboxFilter } from "../inbox/inboxFilter.ts";
 import { go, useNav } from "./nav.ts";
 import { orderItems, SidebarNavRow } from "./SidebarNavRow.tsx";
@@ -18,6 +20,9 @@ export function ExternalSessionsNav({ rail, compact = false }: { rail: boolean; 
   const folded = usePrefs((s) => s.externalSessionsFolded);
   const saved = usePrefs((s) => s.engineOrder);
   const engines = useData((s) => s.engines);
+  const threads = useData((s) => s.threads);
+  // Sessions of an outside engine are the chats that name it.
+  const unread = useMemo(() => unreadWhere(threads, (thread) => !!thread.engine), [threads]);
   const view = useNav((s) => s.view);
   const engineId = useNav((s) => s.engineId);
   const filtered = useInboxFilter((f) => {
@@ -73,6 +78,15 @@ export function ExternalSessionsNav({ rail, compact = false }: { rail: boolean; 
         { label: t("nav.open"), icon: <Icons.Inbox />, onSelect: () => open(engine.id) },
         { label: t("nav.engineSessions"), icon: <Icons.Terminal />, onSelect: () => sessions(engine.id) },
         { label: t("nav.engineSettings"), icon: <Icons.Settings />, onSelect: () => go.config("external") },
+        {
+          label: t("inbox.markAllRead"),
+          icon: <Icons.CheckCheck />,
+          disabled: !unread.some((id) => threads[id]?.engine === engine.id),
+          onSelect: () => {
+            setMoreOpen(false);
+            markAllRead(unread.filter((id) => threads[id]?.engine === engine.id));
+          },
+        },
         { type: "separator" },
         ...orderItems(t, engine.id, order, move),
       ]}
@@ -88,6 +102,14 @@ export function ExternalSessionsNav({ rail, compact = false }: { rail: boolean; 
       running={shown.some((engine) => engine.logged_in)}
       active={view === "engine"}
       empty={t("nav.empty.sessions")}
+      menu={[
+        {
+          label: t("inbox.markAllRead"),
+          icon: <Icons.CheckCheck />,
+          disabled: unread.length === 0,
+          onSelect: () => markAllRead(unread),
+        },
+      ]}
       folded={folded}
       onToggle={() => {
         setMoreOpen(false);

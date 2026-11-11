@@ -92,6 +92,7 @@ export function ChannelsScreen() {
 function AccountRow({ channel, counts }: { channel: ChannelInfo; counts: AccountCounts | undefined }) {
   const t = useT();
   const agents = useData((s) => s.agents);
+  const threads = useData((s) => s.threads);
   const { owner, contacts } = answerersOf(channel, agents);
   const kind = isChannelKind(channel.type) ? channel.type : undefined;
   const waiting = counts?.waiting ?? 0;
@@ -101,7 +102,7 @@ function AccountRow({ channel, counts }: { channel: ChannelInfo; counts: Account
   const flags = useAccountFlags(channel, true);
   return (
     <ContextMenu
-      items={accountItems(channel, t, waiting)}
+      items={accountItems(channel, t, waiting, threads)}
       render={<li className={`chs__row${channel.enabled ? "" : " is-off"}`} />}
     >
       <PickRow

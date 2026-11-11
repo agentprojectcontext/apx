@@ -4,6 +4,7 @@ import { accountItems } from "../channels/accountMenu.tsx";
 import { accountName } from "../channels/accountName.ts";
 import { KindTile } from "../channels/KindIcon.tsx";
 import { isChannelKind } from "../channels/kinds.ts";
+import { useData } from "../data/state.ts";
 import { useT } from "../i18n/index.ts";
 import { soleFilter, useInboxFilter } from "../inbox/inboxFilter.ts";
 import { openAccount } from "../inbox/openAccount.ts";
@@ -36,6 +37,7 @@ export function ChannelNavRow({
     const sole = soleFilter(f);
     return sole?.kind === "accounts" && sole.id === channel.id;
   });
+  const threads = useData((s) => s.threads);
   const kind = isChannelKind(channel.type) ? channel.type : undefined;
   const label = accountName(channel, t);
   const pick = () => {
@@ -55,7 +57,7 @@ export function ChannelNavRow({
       order={order}
       onMove={onMove}
       items={[
-        ...accountItems(channel, t, waiting, onClose),
+        ...accountItems(channel, t, waiting, threads, onClose),
         { type: "separator" },
         ...orderItems(t, channel.id, order, onMove),
       ]}

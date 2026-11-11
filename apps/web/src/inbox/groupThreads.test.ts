@@ -11,6 +11,8 @@ import {
   pinnedFirst,
   standsAlone,
   unreadListed,
+  unreadUnder,
+  unreadWhere,
 } from "./groupThreads.ts";
 
 const thread = (id: string, extra: Partial<Thread> = {}): Thread =>
@@ -171,4 +173,21 @@ test("chats on one channel account go together where its newest chat is", () => 
     e.kind === "thread" ? e.thread.id : `${e.account}:${e.threads.map((t) => t.id).join(",")}`,
   );
   assert.deepEqual(got, ["wa_sales:a,d", "b", "mail:c", "wa_home:e"]);
+});
+
+test("one tab's or one section's Mark all as read takes its chats and what hangs under them, nothing else", () => {
+  const threads = {
+    task: thread("task", { kind: "task", task_id: "t1", unread: 1 }),
+    sub: thread("sub", { kind: "a2a", parent_id: "task", unread: 3 }),
+    quiet: thread("quiet", { kind: "task", task_id: "t1" }),
+    chat: thread("chat", { unread: 2, channel: { id: "acc_1" } as Thread["channel"] }),
+    other: thread("other", { unread: 1, channel: { id: "acc_2" } as Thread["channel"] }),
+  };
+  assert.deepEqual(unreadUnder(threads, [threads.task, threads.quiet]).sort(), ["sub", "task"]);
+  assert.deepEqual(unreadUnder(threads, [threads.chat]), ["chat"], "another tab's chats stay unread");
+  assert.deepEqual(
+    unreadWhere(threads, (t) => t.channel?.id === "acc_1"),
+    ["chat"],
+  );
+  assert.deepEqual(unreadWhere(threads, (t) => !!t.channel).sort(), ["chat", "other"]);
 });

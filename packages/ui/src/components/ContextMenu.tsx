@@ -20,7 +20,9 @@ export function ContextMenu({ children, items, disabled, className, render }: Co
   const { portalRef } = useApx();
   return (
     <BaseContextMenu.Root disabled={disabled}>
-      <BaseContextMenu.Trigger {...(render ? { render, className } : { className: cx("apx-ctxmenu", className) })}>
+      <BaseContextMenu.Trigger
+        {...(render ? { render, ...(className ? { className } : {}) } : { className: cx("apx-ctxmenu", className) })}
+      >
         {children}
       </BaseContextMenu.Trigger>
       <BaseContextMenu.Portal container={portalRef}>

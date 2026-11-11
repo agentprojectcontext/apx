@@ -1,5 +1,6 @@
 import { IconButton, Icons, ProjectTile } from "@apx/ui";
 import { Suspense, useEffect, useMemo, useRef, useState } from "react";
+import { markAllRead } from "../data/actions.ts";
 import {
   inInbox,
   inProject,
@@ -171,6 +172,7 @@ export function ProjectsNav({ rail, compact = false }: { rail: boolean; compact?
     />
   );
 
+  const unreadIds = [...unread.entries()].flatMap(([pid, ids]) => (pid ? ids : []));
   const unreadTotal = [...unread.values()].reduce((n, ids) => n + ids.length, 0);
   const noop = () => {};
   return (
@@ -185,6 +187,14 @@ export function ProjectsNav({ rail, compact = false }: { rail: boolean; compact?
         unread={compact ? unreadTotal : 0}
         running={running.size > 0}
         active={view === "project"}
+        menu={[
+          {
+            label: t("inbox.markAllRead"),
+            icon: <Icons.CheckCheck />,
+            disabled: unreadIds.length === 0,
+            onSelect: () => markAllRead(unreadIds),
+          },
+        ]}
         folded={folded}
         onToggle={() => {
           setMoreOpen(false);

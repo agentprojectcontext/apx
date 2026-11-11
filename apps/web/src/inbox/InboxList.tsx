@@ -1,6 +1,7 @@
 import type { Thread } from "@apx/protocol";
 import { Button, EmptyState, IconButton, Icons, SearchField, SegmentedControl, Skeleton, Spinner } from "@apx/ui";
 import { Suspense, useEffect, useMemo, useState } from "react";
+import { markAllRead } from "../data/actions.ts";
 import { useChannels } from "../data/channels.ts";
 import { findProject, isWorking } from "../data/identity.ts";
 import { type InboxTab, setPrefs, usePrefs } from "../data/prefs.ts";
@@ -8,7 +9,7 @@ import { useData } from "../data/state.ts";
 import { useT } from "../i18n/index.ts";
 import { AccountHeader } from "../lazy.ts";
 import { useNav } from "../shell/nav.ts";
-import { archivedThreads, inboxEntries } from "./groupThreads.ts";
+import { archivedThreads, inboxEntries, unreadUnder } from "./groupThreads.ts";
 import { InboxFilterChips, InboxFilterMenu } from "./InboxFilterMenu.tsx";
 import { ChatsTab, RoutinesTab, TasksTab } from "./InboxTabs.tsx";
 import { filterCount, passesFilter, soleFilter, useInboxFilter } from "./inboxFilter.ts";
@@ -55,6 +56,21 @@ export function InboxList() {
       routines: entries.flatMap((e) => (e.kind === "routine" && e.threads.some(ok) ? [e] : [])),
     };
   }, [entries, filter, projects, channels, hidden]);
+  // What each tab's "Mark all as read" takes: its rows and the chats delegated under them.
+  const unreadByTab = useMemo(
+    () => ({
+      chats: unreadUnder(threads, tabs.chats),
+      tasks: unreadUnder(
+        threads,
+        tabs.tasks.flatMap((e) => e.threads),
+      ),
+      routines: unreadUnder(
+        threads,
+        tabs.routines.flatMap((e) => e.threads),
+      ),
+    }),
+    [threads, tabs],
+  );
   // Each tab tells from outside whether something in it is running and whether it holds news.
   const marks = useMemo(() => {
     const of = (list: Thread[]) => ({
@@ -159,6 +175,17 @@ export function InboxList() {
                   label={t("inbox.tabs")}
                   value={tab}
                   onValueChange={(v) => setPrefs({ inboxTab: v as InboxTab })}
+                  menu={(v) => {
+                    const ids = unreadByTab[v as InboxTab];
+                    return [
+                      {
+                        label: t("inbox.markAllRead"),
+                        icon: <Icons.CheckCheck />,
+                        disabled: ids.length === 0,
+                        onSelect: () => markAllRead(ids),
+                      },
+                    ];
+                  }}
                   options={(["chats", "tasks", "routines"] as const).map((v) => ({
                     value: v,
                     label: (
