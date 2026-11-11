@@ -103,3 +103,12 @@ test("the filter hides a channel account and groups each account's chats under o
   const overflow = await page.evaluate(() => document.documentElement.scrollWidth > innerWidth);
   expect(overflow).toBe(false);
 });
+
+test("a super-agent chat with no project carries the base project's badge", async ({ page }) => {
+  const { base } = await rpc<{ base: { name: string } }>("projects.list");
+  await rpc("threads.create", { kind: "loose", agent_id: "superagent", title: "Sin proyecto" });
+  await open(page);
+  const row = page.locator(".inbox__list .threadrow", { hasText: "Sin proyecto" });
+  await expect(row.locator(".projbadge")).toHaveCount(1);
+  await expect(row.locator(".projbadge")).toHaveText(base.name);
+});
