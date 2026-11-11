@@ -198,7 +198,8 @@ for (const width of [412, 1280]) {
         await expect(avatar.getByRole("img", { name: agent.name, exact: true })).toHaveCount(0);
       }
       await expect(avatar.locator(".threadavatar__channel")).toHaveCount(0);
-      if (item.platform) await expect(row).toContainText(item.platform);
+      // A channel chat names its account in a badge with its app's mark; the line does not say the app in words.
+      if (item.platform) await expect(row.locator(".projbadge.has-channel")).toBeVisible();
     }
     for (const item of cases) {
       const row = page.locator(".inbox__list .apx-convrow").filter({ hasText: item.title }).first();

@@ -76,6 +76,11 @@ test("the filter hides a channel account and groups each account's chats under o
   await expect(list.getByText("Plan de la semana")).toBeVisible();
   await expect(filter).toHaveAccessibleName(/1/);
 
+  // A channel chat's badge names its account (with its app's mark), not the base project; the line says no app.
+  const pedido = list.locator(".threadrow", { hasText: "Pedido Acme" });
+  await expect(pedido.locator(".projbadge")).toHaveText("WhatsApp ventas");
+  await expect(pedido.locator(".threadrow__who")).not.toContainText("WhatsApp");
+
   // Hidden stays hidden on this device.
   await page.keyboard.press("Escape");
   await page.reload();
@@ -93,6 +98,8 @@ test("the filter hides a channel account and groups each account's chats under o
   await page.screenshot({ path: "test-results/inbox-channels-grouped.png" });
   await sales.locator(".channelbundle__head").click();
   await expect(sales.locator(".channelbundle__chats").getByText("Pedido Acme")).toBeVisible();
+  // Under its account's row a chat does not name the account again.
+  await expect(sales.locator(".channelbundle__chats .projbadge")).toHaveCount(0);
   await page.screenshot({ path: "test-results/inbox-channels-open.png" });
 
   await page.setViewportSize({ width: 390, height: 800 });

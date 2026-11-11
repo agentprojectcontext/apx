@@ -1,8 +1,8 @@
 import type { Agent, Thread } from "@apx/protocol";
 import { ContextMenu, ConversationRow, IconButton, Icons, Menu, Spinner } from "@apx/ui";
 import { AnswererFace, AnswersLine } from "../channels/AnswererFace.tsx";
+import { accountName } from "../channels/accountName.ts";
 import { ContactFlags, useContactFlags } from "../channels/flags.tsx";
-import { CHANNEL_KINDS, type ChannelKind } from "../channels/kinds.ts";
 import { RELATION_KEY } from "../channels/people.ts";
 import { ChatProcesses } from "../common/ChatProcesses.tsx";
 import { shortWhen } from "../common/format.ts";
@@ -24,6 +24,8 @@ export type ThreadRowProps = {
   selected: boolean;
   /** Listed in one channel account's own list: what was written last, and who they are and who answers them. */
   account?: boolean;
+  /** Listed under its channel account's row, which already names the account. */
+  bundled?: boolean;
   onOpen: () => void;
 };
 
@@ -31,9 +33,12 @@ export type ThreadRowProps = {
  * A chat in a list, two lines: its title (with the chevron of its nested sessions) and when; then who speaks in it,
  * where, and its project (outside the project). Resting on it shows pin and archive; the rest is in its menu.
  */
-export function ThreadRow({ thread, agent, selected, account = false, onOpen }: ThreadRowProps) {
+export function ThreadRow({ thread, agent, selected, account = false, bundled = false, onOpen }: ThreadRowProps) {
   const t = useT();
   const channel = useThreadChannel(thread);
+  const channelAccount = useChannels((s) =>
+    thread.channel ? s.channels.find((c) => c.id === thread.channel?.id) : undefined,
+  );
   const engine = useEngineLabel(thread.engine);
   const projects = useData((s) => s.projects);
   const inProject = useNav((s) => s.view === "project");
@@ -72,16 +77,25 @@ export function ThreadRow({ thread, agent, selected, account = false, onOpen }: 
                 {thread.channel && !engine && <AnswererFace agent={agent} />}
                 <span className="threadrow__who">
                   {waiting && <span className="threadrow__waiting">{t("thread.waiting")} · </span>}
-                  {[who, contextOf(thread, agent, t, channel)].filter(Boolean).join(" · ")}
+                  {/* A channel chat's badge names its account, so the line does not say the app again. */}
+                  {[who, channel ? undefined : contextOf(thread, agent, t)].filter(Boolean).join(" · ")}
                 </span>
-                {/* A chat with no project (the super-agent's) is the base project's: its badge says so. */}
-                {!inProject && (
+                {/* Under its account's row the account is already said; elsewhere its badge names it. */}
+                {channelAccount && !bundled && (
+                  <>
+                    <span className="threadrow__dot">·</span>
+                    <ProjectBadge id={channelAccount.id} name={accountName(channelAccount, t)} channel={channel} />
+                  </>
+                )}
+                {/* A chat with no project (the super-agent's) is the base project's: its badge says so. A channel
+                    chat says its project only when it has one of its own. */}
+                {!inProject && (!thread.channel || (thread.project_id && thread.project_id !== DEFAULT_PID)) && (
                   <>
                     <span className="threadrow__dot">·</span>
                     <ProjectBadge
                       id={thread.project_id ?? DEFAULT_PID}
                       name={projectName(projects, thread.project_id)}
-                      channel={channel}
+                      channel={thread.channel ? undefined : channel}
                     />
                   </>
                 )}
@@ -170,9 +184,8 @@ export function PinMark() {
  * Where the chat happens, after who speaks in it: the channel's app for a contact's chat, "External session" for an
  * engine's, the group's name for a group, and otherwise the agent's role (or what kind of chat it is).
  */
-function contextOf(thread: Thread, agent: Agent | undefined, t: T, channel: ChannelKind | undefined): string {
+function contextOf(thread: Thread, agent: Agent | undefined, t: T): string {
   if (thread.engine) return t("nav.externalSession");
-  if (channel) return t(CHANNEL_KINDS[channel].name);
   if (thread.kind === "group") return thread.title;
   if (thread.kind === "a2a") return t("thread.a2a");
   if (thread.kind === "routine") return t("thread.routineOf", { name: routineName(thread) });

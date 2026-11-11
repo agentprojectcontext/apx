@@ -102,10 +102,12 @@ export function ChatRow({
   thread,
   selected,
   account = false,
+  bundled = false,
 }: {
   thread: Thread;
   selected: string | undefined;
   account?: boolean;
+  bundled?: boolean;
 }) {
   const agents = useShownAgents();
   return (
@@ -115,6 +117,7 @@ export function ChatRow({
         agent={threadAgent(thread, agents)}
         selected={thread.id === selected}
         account={account}
+        bundled={bundled}
         onOpen={() => go.thread(thread.id)}
       />
     </ListedChat>

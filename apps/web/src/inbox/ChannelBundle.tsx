@@ -38,7 +38,7 @@ export function ChannelBundle({
       {open && (
         <div className="tree__sessions apx-branches channelbundle__chats">
           {threads.map((th) => (
-            <ChatRow key={th.id} thread={th} selected={selected} />
+            <ChatRow key={th.id} thread={th} selected={selected} bundled />
           ))}
         </div>
       )}
