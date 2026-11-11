@@ -40,6 +40,8 @@
 
 .apx-pickrow {
   display: flex;
+  /* A long list scrolls; its rows keep their height instead of squeezing their text. */
+  flex: none;
   align-items: center;
   gap: 10px;
   width: 100%;
