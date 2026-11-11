@@ -97,12 +97,8 @@ export function agentSetTools(store: Store): Tool[] {
     if_revision: z
       .string()
       .regex(/^[a-f0-9]{64}$/)
-      .optional()
-      .describe("revision read before proposing a prompt change"),
-    review: z
-      .boolean()
-      .optional()
-      .describe("list agents awaiting review; with agent and if_revision, mark reviewed without changing instructions"),
+      .optional(),
+    review: z.boolean().optional(),
     personality: z.string().max(1000).optional(),
     parent: z.string().max(64).optional().describe("who it reports to"),
     project: z.string().optional(),
@@ -130,7 +126,7 @@ export function agentSetTools(store: Store): Tool[] {
     defineTool({
       name: "agent_set",
       description:
-        "Run the team: no args: team, areas, roles; only agent: read it; create (slug, role; name only if the owner gave one; project: id/name, else this chat), change (only what's given; prompt replaces; if_revision protects reviewed edits) or archive one. review: true lists pending reviews; with agent and if_revision marks reviewed.",
+        "Manage agents; load apx-agents first. No args: team; agent: read. Create: slug, role. review: queue/ack.",
       args,
       effect: "local",
       confirm: (a) => (changes(a) ? "always" : "never"),

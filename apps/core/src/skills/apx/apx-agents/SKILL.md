@@ -20,7 +20,9 @@ description: Create, edit, clone, import and review APX agents in their destinat
    grants. Preserve safety rules and valid craft. Do not bulk-rewrite for style or erase deliberate owner rules.
 4. Propose a focused role, short description and complete instructions with clear outcomes, constraints, verification
    and reporting. Explain each consequential change and show before/after or a diff. Ask for approval before writing.
-   A role is a short title, not the instructions. Use `agent_set` for creation/editing. For cloning, use
+   A role is a short title, not the instructions. Use `agent_set` for creation/editing: `project` is the destination
+   id/name (otherwise this chat's project); omit `name` unless the owner gave one, so APX supplies a person's name.
+   Only fields supplied are changed; `prompt` replaces the whole instructions. For cloning, use
    `apx agents clone --help` and select the destination explicitly. For outside definitions or a whole setup, load
    `apx-import` and follow its preview/selection process; then review the resulting agents here.
 5. Read back the result. Verify its destination, prompt, role, hierarchy and available capabilities. Creation or a
