@@ -1,5 +1,5 @@
 import type { Thread } from "@apx/protocol";
-import { Button, EmptyState, IconButton, Icons, SearchField, SegmentedControl, Skeleton, Spinner } from "@apx/ui";
+import { Button, EmptyState, IconButton, Icons, SearchField, SegmentedControl, Skeleton } from "@apx/ui";
 import { Suspense, useEffect, useMemo, useState } from "react";
 import { markAllRead } from "../data/actions.ts";
 import { useChannels } from "../data/channels.ts";
@@ -14,6 +14,14 @@ import { InboxFilterChips, InboxFilterMenu } from "./InboxFilterMenu.tsx";
 import { ChatsTab, RoutinesTab, TasksTab } from "./InboxTabs.tsx";
 import { filterCount, passesFilter, soleFilter, useInboxFilter } from "./inboxFilter.ts";
 import { NewChatMenu, startChat, useChatAgents } from "./NewChatMenu.tsx";
+
+const TAB_ORDER = ["chats", "tasks", "routines"] as const;
+// The same marks as the sidebar's; a narrow Inbox shows them in place of the names.
+const TAB_ICON = {
+  chats: <Icons.MessageSquare size={14} className="inbox__tabicon" aria-hidden />,
+  tasks: <Icons.ListChecks size={14} className="inbox__tabicon" aria-hidden />,
+  routines: <Icons.Clock size={14} className="inbox__tabicon" aria-hidden />,
+};
 
 /** Chat list: every chat grouped by project (Inbox), or one project's chats (project › Chats). */
 export function InboxList() {
@@ -71,16 +79,16 @@ export function InboxList() {
     }),
     [threads, tabs],
   );
-  // Each tab tells from outside whether something in it is running and whether it holds news.
+  // Each tab tells from outside how many of its rows are running and whether it holds news; never its total.
   const marks = useMemo(() => {
-    const of = (list: Thread[]) => ({
-      working: list.some((th) => isWorking(th.state)),
-      news: list.some((th) => th.unread > 0),
+    const of = (rows: Thread[][]) => ({
+      working: rows.filter((r) => r.some((th) => isWorking(th.state))).length,
+      news: rows.some((r) => r.some((th) => th.unread > 0)),
     });
     return {
-      chats: of(tabs.chats),
-      tasks: of(tabs.tasks.flatMap((e) => e.threads)),
-      routines: of(tabs.routines.flatMap((e) => e.threads)),
+      chats: of(tabs.chats.map((th) => [th])),
+      tasks: of(tabs.tasks.map((e) => e.threads)),
+      routines: of(tabs.routines.map((e) => e.threads)),
     };
   }, [tabs]);
   const archived = useMemo(() => archivedThreads(threads, { projectId, query }), [threads, projectId, query]);
@@ -186,21 +194,26 @@ export function InboxList() {
                       },
                     ];
                   }}
-                  options={(["chats", "tasks", "routines"] as const).map((v) => ({
+                  options={TAB_ORDER.map((v) => ({
                     value: v,
                     label: (
                       <>
                         <span className="inbox__tabname">
-                          {t(`inbox.tab.${v}`)}
+                          {TAB_ICON[v]}
+                          <span className="inbox__tabtext">{t(`inbox.tab.${v}`)}</span>
                           {/* The tab on screen already shows its unread rows. */}
                           {marks[v].news && v !== tab && (
                             <span className="inbox__tabnews" role="img" aria-label={t("inbox.tabNews")} />
                           )}
                         </span>
-                        <span className="inbox__tabcount">{tabs[v].length}</span>
-                        {marks[v].working && (
-                          <span className="inbox__tabwork" role="img" aria-label={t("inbox.tabWorking")}>
-                            <Spinner size={10} />
+                        {marks[v].working > 0 && (
+                          <span
+                            className="inbox__tabwork"
+                            role="img"
+                            aria-label={t("inbox.tabWorking", { count: marks[v].working })}
+                          >
+                            <span className="inbox__tabworkdot" />
+                            <span className="inbox__tabworkn">{marks[v].working > 99 ? "99+" : marks[v].working}</span>
                           </span>
                         )}
                       </>
