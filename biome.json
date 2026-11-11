@@ -232,6 +232,7 @@
                       "**/ContextCard.tsx",
                       "**/AsidePanel.tsx",
                       "**/AccountHeader.tsx",
+                      "**/AccountContacts.tsx",
                       "**/TitleTooltips.tsx",
                       "**/FlowDetail.tsx",
                       "**/FlowEditor.tsx",

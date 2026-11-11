@@ -87,6 +87,8 @@ export type NavState = {
   threadId: string | undefined;
   /** The routine whose runs are open in the Inbox as one chat (instead of a thread). */
   routineId: string | undefined;
+  /** A saved contact with no chat yet, open in the Inbox narrowed to their account (instead of a thread). */
+  contactId: string | undefined;
   appId: string | undefined;
   panel: PanelKind | null;
   /** The side panel takes half the chat area (files, changes, a terminal), instead of its usual column. */
@@ -218,6 +220,7 @@ export const nav = createStore<NavState>({
   projectTab: "overview",
   threadId: "home",
   routineId: undefined,
+  contactId: undefined,
   appId: undefined,
   panel: null,
   panelWide: false,
@@ -259,6 +262,7 @@ const PLACE = [
   "projectTab",
   "threadId",
   "routineId",
+  "contactId",
   "appId",
   "channelId",
   "channelThread",
@@ -377,6 +381,12 @@ nav.subscribe(() => {
   if (left) nav.set({ panel: null });
 });
 
+// A contact picked before they have a chat gives way to whatever opens next: a chat, a routine, another screen.
+nav.subscribe(() => {
+  const s = nav.get();
+  if (s.contactId && (s.threadId || s.routineId || s.view !== "inbox")) nav.set({ contactId: undefined });
+});
+
 // A deep link followed in place (a link in a message, the address bar); replaceState above never fires this.
 window.addEventListener("hashchange", () => nav.set({ view: "inbox", panel: null, ...fromHash() }));
 
@@ -450,6 +460,10 @@ export const go = {
   /** Always the Inbox, whatever is open (running pill, deep links). */
   inboxThread(threadId: string) {
     nav.set({ view: "inbox", threadId, routineId: undefined, listInFront: false });
+  },
+  /** A saved contact with no chat yet, beside the account's list in the Inbox: their card and a field to write. */
+  contact(personId: string) {
+    nav.set({ view: "inbox", contactId: personId, threadId: undefined, routineId: undefined, listInFront: false });
   },
   /** A routine's runs as one chat in the Inbox. */
   routine(routineId: string) {

@@ -11,7 +11,7 @@ test("a saved contact with no chat: listed, an empty chat to ask the agent to wr
   const nora = await rpc<{ id: string }>("contacts.set", { name: "Nora" });
   await rpc("contacts.address", { channel: "whatsapp", address: "+54 9 11 0000-0011", person: nora.id });
 
-  // A contact nobody wrote to has no chat in the Inbox: the channel's own screen lists them.
+  // A contact nobody wrote to has no chat yet: the channel's own screen lists them (as the account's Inbox list does).
   await open(page, "#channel=whatsapp");
   const row = page.locator(".chan__rows").getByRole("button", { name: /Nora/ });
   await expect(row).toContainText("+5491100000011");

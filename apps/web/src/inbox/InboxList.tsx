@@ -7,8 +7,9 @@ import { findProject, isWorking } from "../data/identity.ts";
 import { type InboxTab, setPrefs, usePrefs } from "../data/prefs.ts";
 import { useData } from "../data/state.ts";
 import { useT } from "../i18n/index.ts";
-import { AccountHeader } from "../lazy.ts";
+import { AccountContacts, AccountHeader } from "../lazy.ts";
 import { useNav } from "../shell/nav.ts";
+import { contactsWithoutChat } from "./accountContacts.ts";
 import { archivedThreads, inboxEntries, unreadUnder } from "./groupThreads.ts";
 import { InboxFilterChips, InboxFilterMenu } from "./InboxFilterMenu.tsx";
 import { ChatsTab, RoutinesTab, TasksTab } from "./InboxTabs.tsx";
@@ -44,6 +45,12 @@ export function InboxList() {
   const sole = soleFilter(filter);
   const account = !projectId && sole?.kind === "accounts" ? channels.find((c) => c.id === sole.id) : undefined;
   const chatAgents = useChatAgents(projectId);
+  const persons = useChannels((s) => s.persons);
+  // An account's list ends with the contacts it can reach who have no chat yet.
+  const contacts = useMemo(
+    () => (account ? contactsWithoutChat(persons, threads, account.id, query) : []),
+    [account, persons, threads, query],
+  );
 
   const byChannel = usePrefs((s) => s.inboxByChannel);
   const savedTab = usePrefs((s) => s.inboxTab);
@@ -236,7 +243,7 @@ export function InboxList() {
           </EmptyState>
         ) : !ready ? (
           <InboxSkeleton />
-        ) : allListed.length === 0 && archived.length === 0 ? (
+        ) : allListed.length === 0 && archived.length === 0 && contacts.length === 0 ? (
           <EmptyState
             icon={<Icons.Inbox />}
             title={query ? t("inbox.noResults") : t("inbox.empty")}
@@ -275,6 +282,14 @@ export function InboxList() {
             archived={archived}
             byChannel={byChannel && !account}
             account={Boolean(account)}
+            tail={
+              account &&
+              contacts.length > 0 && (
+                <Suspense fallback={null}>
+                  <AccountContacts account={account} contacts={contacts} />
+                </Suspense>
+              )
+            }
           />
         )}
       </div>

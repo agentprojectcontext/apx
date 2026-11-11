@@ -49,6 +49,8 @@ export function ChannelConversation(props: {
   card: boolean;
   onToggleCard(): void;
   onBack(): void;
+  /** Where a chat made for a contact who had none opens: by default, picked in its channel's list. */
+  onOpened?(threadId: string): void;
 }) {
   const t = useT();
   const { thread, person, channel } = props;
@@ -80,7 +82,7 @@ export function ChannelConversation(props: {
     // A contact with no chat yet: it is made now, and the list picks it.
     if (!id && person) {
       id = (await openContactChat(person.id, channel.id))?.id;
-      if (id) go.channel(channel.id, id);
+      if (id) (props.onOpened ?? ((made: string) => go.channel(channel.id, made)))(id);
     }
     let ok = Boolean(id);
     if (id && mode === "me") ok = await sendDirect(id, words);

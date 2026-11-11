@@ -62,12 +62,15 @@ export function ChatsTab({
   archived,
   byChannel = false,
   account = false,
+  tail,
 }: {
   entries: Thread[];
   archived: Thread[];
   byChannel?: boolean;
   /** The list is one channel account's: its rows say what was written and who answers, not where. */
   account?: boolean;
+  /** Rows after the recent chats (an account's contacts with no chat yet). */
+  tail?: ReactNode;
 }) {
   const t = useT();
   const selected = useNav((s) => s.threadId);
@@ -88,7 +91,17 @@ export function ChatsTab({
   return (
     <>
       {pinned.length > 0 && <InboxSection label={t("inbox.pinned")}>{pinned.map(row)}</InboxSection>}
-      {pinned.length > 0 ? <InboxSection label={t("inbox.recent")}>{recent}</InboxSection> : recent}
+      {pinned.length > 0 ? (
+        <InboxSection label={t("inbox.recent")}>
+          {recent}
+          {tail}
+        </InboxSection>
+      ) : (
+        <>
+          {recent}
+          {tail}
+        </>
+      )}
       {archived.length > 0 && (
         <InboxSection label={t("inbox.archived")} count={archived.length} foldKey="section:archived">
           {archived.map(row)}
