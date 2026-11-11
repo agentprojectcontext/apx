@@ -106,14 +106,25 @@ export function memoryTools(store: Store): Tool[] {
     defineTool({
       name: "recall",
       description:
-        "Search your notes and the owner's (global, this project, your own) by words. Notes relevant to each message already appear in its [memory] block; use this to look for something specific.",
-      args: z.object({ query: z.string().trim().min(2).max(300), limit: z.number().int().min(1).max(20).optional() }),
+        "Find notes by words; with no query, the newest (offset pages on). Each message's [memory] block already has the relevant ones.",
+      args: z.object({
+        query: z.string().trim().min(2).max(300).optional(),
+        limit: z.number().int().min(1).max(20).optional(),
+        offset: z.number().int().optional(),
+      }),
       effect: "none",
       deadlineMs: 5_000,
-      title: (a) => `Searched memory for "${String(a.query ?? "").slice(0, 60)}"`,
+      title: (a) =>
+        a.query ? `Searched memory for "${String(a.query).slice(0, 60)}"` : "Listed the newest memory notes",
       async run(a, ctx) {
-        const { memories } = await ctx.call("memory.list", { query: a.query, limit: a.limit ?? 8 });
-        return notesText(memories, 8000).text ?? "no notes match.";
+        const limit = a.limit ?? 8;
+        const offset = Math.min(Math.max(a.offset ?? 0, 0), 500 - limit);
+        const { memories } = await ctx.call("memory.list", {
+          ...(a.query ? { query: a.query } : {}),
+          limit: offset + limit,
+        });
+        const page = memories.slice(offset);
+        return notesText(page, 8000).text ?? (offset ? "no more notes." : "no notes match.");
       },
     }),
     defineTool({

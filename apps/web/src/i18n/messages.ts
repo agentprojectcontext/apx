@@ -91,6 +91,11 @@ const PACKS = {
     en: () => import("./en-resources.ts").then((m) => m.enResources),
     es: () => import("./es-resources.ts").then((m) => m.esResources),
   },
+  // A project's Memory tab: the note beside the list and the review chat.
+  memory: {
+    en: () => import("./memory-panel-en.ts").then((m) => m.enMemoryPanel),
+    es: () => import("./memory-panel-es.ts").then((m) => m.esMemoryPanel),
+  },
   usage: {
     en: () => import("./sysusage-en.ts").then((m) => m.enSysUsage),
     es: () => import("./sysusage-es.ts").then((m) => m.esSysUsage),

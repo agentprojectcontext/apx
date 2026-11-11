@@ -161,9 +161,9 @@ test("memory history shows the old text before restoring a revision", async ({ p
   const note = await rpc<Memory>("memory.add", { scope: "global", text: initial });
   await rpc("memory.add", { id: note.id, scope: "global", text: changed });
   await open(page, "#project=~default&tab=memory");
-  const row = page.locator(".memory__row").filter({ hasText: changed });
-  await row.getByRole("button", { name: "Fuentes e historial" }).click();
-  const previous = row.locator(".memory__history li").filter({ hasText: "Revisión 1" });
+  await page.locator(".memory__row").filter({ hasText: changed }).getByRole("button").click();
+  const panel = page.getByRole("complementary", { name: "Nota de memoria" });
+  const previous = panel.locator(".memory__history li").filter({ hasText: "Revisión 1" });
   await expect(previous.getByText(initial, { exact: true })).toBeVisible();
   await previous.getByRole("button", { name: "Restaurar esta revisión" }).click();
   await expect
@@ -171,7 +171,7 @@ test("memory history shows the old text before restoring a revision", async ({ p
       async () => (await rpc<{ memories: Memory[] }>("memory.list", {})).memories.find((m) => m.id === note.id)?.text,
     )
     .toBe(initial);
-  await expect(page.locator(".memory__text").getByText(initial, { exact: true })).toBeVisible();
+  await expect(panel.locator(".memnote__text")).toHaveText(initial);
 });
 
 test("memory maintenance reports failure, releases busy controls and retries the intended action", async ({ page }) => {

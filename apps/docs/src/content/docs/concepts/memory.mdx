@@ -88,7 +88,8 @@ Notes never go in the system prompt. Instead, when an agent answers in a thread:
    message IDs. Older turns of the current chat can return when they no longer fit its context, without duplicating
    visible turns. This also works on older chats without a helper model. Greetings do not trigger retrieval.
 5. Whenever it needs more detail, it searches with `recall`, or uses `read_chat` with `around` and the source message ID
-   to read older messages beyond the latest page.
+   to read older messages beyond the latest page. `recall` with no words lists the newest notes it may see, a page at
+   a time, which is how a review goes through them all.
 
 Edited or forgotten notes invalidate older injected snapshots and their derived replies. Compaction summaries are
 invalidated too, so a stale summary cannot reintroduce an old note. Original conversation records remain readable.
@@ -158,11 +159,19 @@ jobs. Exhausted daily quotas defer model calls until the next UTC day; historica
 ## See, confirm and undo
 
 A project's **Memory** tab shows its notes and lets you switch between **This project**, **Agents' notebooks**,
-**About you** and **Forgotten**. Search them, add one, edit or remove any.
+**About you** and **Forgotten**. Each note is a short row (its first two lines, what kind of note it is, who wrote it
+and when); search them or add one. Click a note to open it beside the list: its whole text, **Edit note** and **Remove note**,
+**Open the chat** it was learned in, and its sources and earlier revisions.
+
+**Review with** the super-agent (on **This project** and **About you**, and on any note's panel) opens a chat with it
+beside the list, its first message ready: go through the notes together, one by one, and it proposes what to keep, fix,
+merge or forget, and waits for your ok before changing a note. Opened from a note, the message quotes it and the chat
+steps back to that note. A note in an agent's notebook is reviewed with that agent. The list reads again after each of
+its answers; a review closed before you send anything is not kept.
 
 <Shot name="memory" alt="Acme Store's Memory tab: project notes with who wrote each one, and a search box" caption="A project's Memory tab" />
 
-- Notes **To confirm** come first in **About you**, each with a **Confirm** button and a link to the chat where the
+- Notes **To confirm** come first in **About you**; each one's panel has **Confirm** and a link to the chat where the
   agent learned it. A bar above them says how many wait and **Confirm all** confirms the ones listed at once. While
   any waits, the bell shows one **Learned something about you** notice with the newest; it opens **About you** and
   goes once none waits.

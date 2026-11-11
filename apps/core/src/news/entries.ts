@@ -21,6 +21,7 @@ import { HERMES_IMPORT_NEWS } from "./hermes-import.ts";
 import { LOCAL_MODELS_NEWS } from "./local-models.ts";
 import { MCP_CONTEXT_NEWS } from "./mcp-context.ts";
 import { MCP_REACH_NEWS } from "./mcp-reach.ts";
+import { MEMORY_REVIEW_NEWS } from "./memory-review.ts";
 import { MOVE_BACKUP_NEWS } from "./move-backup.ts";
 import { OLDER_NEWS } from "./older-entries.ts";
 import { QUEUED_MESSAGES_NEWS } from "./queued-messages.ts";
@@ -159,6 +160,7 @@ export const NEWS: readonly NewsEntry[] = [
   BROWSER_SIGN_IN_NEWS,
   STORE_COMPACT_NEWS,
   SIDE_QUESTION_NEWS,
+  MEMORY_REVIEW_NEWS,
   {
     id: "storage-screen",
     since: "2.13.0",
