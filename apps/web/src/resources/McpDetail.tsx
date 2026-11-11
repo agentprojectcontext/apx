@@ -2,7 +2,7 @@ import type { McpServerStatus } from "@apx/protocol";
 import { Badge, Button, Icons, Switch, Tag } from "@apx/ui";
 import { useEffect, useState } from "react";
 import { projectName } from "../data/identity.ts";
-import { listMcp, signInMcp, testMcp, toggleMcp, trustMcp } from "../data/resources.ts";
+import { signInMcp, testMcp, toggleMcp, trustMcp } from "../data/resources.ts";
 import { useData } from "../data/state.ts";
 import { useT } from "../i18n/index.ts";
 import { go } from "../shell/nav.ts";
@@ -77,7 +77,7 @@ export function McpDetail({
     <article className="resd">
       <header className="resd__head">
         <h2 className="resd__name">{s.name}</h2>
-        <OriginChip project={shared ? undefined : s.project_id} />
+        <OriginChip project={shared ? undefined : s.project_id} offIn={s.off_in} />
         <Tag>{t("res.kind.mcp")}</Tag>
         {inherited && <Badge>{t("res.inherited")}</Badge>}
         <span className="resd__spacer" />
@@ -176,8 +176,8 @@ export function McpDetail({
               key={v.name}
               type="button"
               className={v.set ? "resd__var" : "resd__var is-missing"}
-              title={v.set ? t("res.varSet") : t("res.varMissing")}
-              onClick={() => go.resourcesTab("variables")}
+              title={`${v.set ? t("res.varSet") : t("res.varMissing")} · ${t("res.openVariable", { name: v.name })}`}
+              onClick={() => go.variable(v.name)}
             >
               {v.name}
             </button>
@@ -196,37 +196,16 @@ export function McpDetail({
         onLoaded={() => void onChanged()}
       />
 
-      {!projectId && shared && <AvailableIn server={s.name} onChanged={onChanged} />}
+      {!projectId && shared && (
+        <ByProject
+          name={s.name}
+          origin={undefined}
+          isOn={(id) => id === undefined || !s.off_in.includes(id)}
+          onToggle={(id, on) => {
+            if (id) void toggleMcp(id, s.name, on).then((r) => r && onChanged());
+          }}
+        />
+      )}
     </article>
-  );
-}
-
-/** Globally: one switch per project and subproject to turn this server off (or back on) there. */
-function AvailableIn({ server, onChanged }: { server: string; onChanged(): Promise<void> | void }) {
-  const projects = useData((s) => s.projects);
-  const [off, setOff] = useState<Record<string, boolean>>({});
-  const ids = projects
-    .filter((p) => p.registered !== false)
-    .map((p) => p.id)
-    .join(",");
-  useEffect(() => {
-    const read = async (id: string) =>
-      [id, (await listMcp(id))?.find((x) => x.name === server && x.scope === "global")?.off_here ?? false] as const;
-    void Promise.all(ids.split(",").filter(Boolean).map(read)).then((pairs) => setOff(Object.fromEntries(pairs)));
-  }, [server, ids]);
-  return (
-    <ByProject
-      name={server}
-      origin={undefined}
-      isOn={(id) => id === undefined || !off[id]}
-      onToggle={(id, on) => {
-        if (!id) return;
-        void toggleMcp(id, server, on).then((r) => {
-          if (!r) return;
-          setOff((o) => ({ ...o, [id]: !on }));
-          return onChanged();
-        });
-      }}
-    />
   );
 }

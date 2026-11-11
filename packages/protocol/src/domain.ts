@@ -1574,6 +1574,8 @@ export const McpServerStatus = z.object({
   only: z.boolean().default(false),
   /** A global server turned off inside the project asked about. */
   off_here: z.boolean().default(false),
+  /** A global server: the projects it is turned off in (every other project gets it). */
+  off_in: z.array(Id).default([]),
   /**
    * As it is defined, to edit it: one the owner added in APX (values hold secret:// references, never the secrets) or
    * a project's file. Absent for an extension's servers (they come with the extension).

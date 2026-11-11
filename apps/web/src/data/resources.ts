@@ -80,6 +80,8 @@ export type McpDraft = {
   headers?: Record<string, string>;
   enabled?: boolean;
   project?: string | null;
+  /** A global server: the projects it is turned off in. */
+  off_in?: string[];
 };
 
 /** Adds or replaces one of the owner's servers (or, with `project`, one in its .apc/mcps.json); null removes it. */
@@ -114,15 +116,18 @@ export const mcpPermissions = (s: McpServerStatus, project?: string) =>
 export const approveMcpTool = (s: McpServerStatus, tool: string, project?: string) =>
   attempt(() => client.call("mcp.approveTool", { scope: s.scope, server: s.name, tool, ...scoped(project) }));
 
-/** Uses the same current contracts as individual toggles; a failure stops the batch and shows a notice. */
+/** "all": every tool, those the server adds later too; "ask": none. A server setting: it needs no running server. */
 export const setMcpToolMode = (s: McpServerStatus, mode: "ask" | "all", project?: string) =>
   attempt(async () => {
-    const { tools, error } = await client.call("mcp.tools", { scope: s.scope, server: s.name, ...scoped(project) });
-    if (error) throw new Error(error);
-    for (const tool of tools) {
-      if (mode === "all" && !tool.approved)
-        await client.call("mcp.approveTool", { scope: s.scope, server: s.name, tool: tool.name, ...scoped(project) });
-      if (mode === "ask" && tool.approved) await client.call("tools.revoke", { key: tool.key });
-    }
+    await client.call("mcp.toolMode", { scope: s.scope, server: s.name, mode, ...scoped(project) });
+    return { ok: true };
+  });
+
+/** Only these tools, picked one by one (new ones will ask); a failure stops the batch and shows a notice. */
+export const pickMcpTools = (s: McpServerStatus, tools: string[], project?: string) =>
+  attempt(async () => {
+    await client.call("mcp.toolMode", { scope: s.scope, server: s.name, mode: "ask", ...scoped(project) });
+    for (const tool of tools)
+      await client.call("mcp.approveTool", { scope: s.scope, server: s.name, tool, ...scoped(project) });
     return { ok: true };
   });

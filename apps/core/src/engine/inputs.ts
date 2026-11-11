@@ -148,7 +148,11 @@ export function createInputs(deps: {
         continue;
       const grant = store.approvals
         .list(r.thread_id)
-        .find((g) => g.key === r.approval?.key && (!g.agent_id || g.agent_id === r.agent_id));
+        .find(
+          (g) =>
+            (g.key === r.approval?.key || (!!r.approval?.group && g.key === r.approval.group)) &&
+            (!g.agent_id || g.agent_id === r.agent_id),
+        );
       const settled = store.inputs.settle(r.id, "approved", undefined, grant?.scope);
       if (!settled) continue;
       const listener = waiting.get(r.id);

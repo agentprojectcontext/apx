@@ -20,6 +20,7 @@ import { EXTERNAL_SESSIONS_NEWS } from "./external-sessions.ts";
 import { HERMES_IMPORT_NEWS } from "./hermes-import.ts";
 import { LOCAL_MODELS_NEWS } from "./local-models.ts";
 import { MCP_CONTEXT_NEWS } from "./mcp-context.ts";
+import { MCP_REACH_NEWS } from "./mcp-reach.ts";
 import { MOVE_BACKUP_NEWS } from "./move-backup.ts";
 import { OLDER_NEWS } from "./older-entries.ts";
 import { QUEUED_MESSAGES_NEWS } from "./queued-messages.ts";
@@ -130,6 +131,7 @@ export const NEWS: readonly NewsEntry[] = [
     ],
   },
 
+  MCP_REACH_NEWS,
   MCP_CONTEXT_NEWS,
   EVENT_MUTE_NEWS,
   SUBPROJECTS_NEWS,

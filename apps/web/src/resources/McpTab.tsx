@@ -6,13 +6,14 @@ import { setMcp, setMcpToolMode, toggleMcp, trustMcp } from "../data/resources.t
 import { useData } from "../data/state.ts";
 import { useT } from "../i18n/index.ts";
 import { OriginChip } from "./ByProject.tsx";
-import { mcpDot, STATUS_KEY } from "./labels.ts";
+import { DOT_KEY, mcpDot, STATUS_KEY } from "./labels.ts";
 import { McpDetail } from "./McpDetail.tsx";
 import { McpDialog } from "./McpDialog.tsx";
 import type { TabProps } from "./ResourcesView.tsx";
-import { ScopedGroups, useInheritance } from "./ScopedGroups.tsx";
+import { ResourceRows, ScopedGroups, useInheritance } from "./ScopedGroups.tsx";
 
-const keyOf = (s: McpServerStatus) => `${s.scope}:${s.project_id ?? ""}:${s.name}`;
+/** The owner's servers have one name each wherever they live: moving one into a project keeps it picked. */
+const keyOf = (s: McpServerStatus) => `${s.scope}:${s.scope === "project" ? (s.project_id ?? "") : ""}:${s.name}`;
 /** Every project gets it (an owner's server limited to one project belongs to that project). */
 const isGlobal = (s: McpServerStatus) => s.scope === "global" && !s.only;
 
@@ -143,12 +144,13 @@ export function McpTab({ projectId, query, scope, adding, setAdding, res, ownOnl
         description={s.off_here ? t("res.offHere") : s.tools ? t("mcp.tools", { n: s.tools }) : t(STATUS_KEY[s.status])}
         trailing={
           <>
-            {!projectId && <OriginChip project={isGlobal(s) ? undefined : s.project_id} />}
+            {!projectId && <OriginChip project={isGlobal(s) ? undefined : s.project_id} offIn={s.off_in} />}
             <Tag>{s.transport}</Tag>
             <PermissionIndicator mode={s.tool_permission_mode} />
           </>
         }
         dot={mcpDot(s)}
+        dotLabel={t(DOT_KEY[mcpDot(s)])}
         muted={s.off_here || s.status === "disabled"}
         selected={keyOf(s) === picked}
         onClick={() => setPicked(keyOf(s))}
@@ -208,7 +210,7 @@ export function McpTab({ projectId, query, scope, adding, setAdding, res, ownOnl
             />
           ) : (
             // Globally one list, global ones first: each row says where it lives.
-            groups.flatMap((g) => g.items).map(row)
+            <ResourceRows>{groups.flatMap((g) => g.items).map(row)}</ResourceRows>
           )
         }
         detail={

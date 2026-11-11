@@ -3,7 +3,9 @@ import "./mcp-editor.css";
 import type { McpServerStatus } from "@apx/protocol";
 import { Button, Dialog, Input, SegmentedControl } from "@apx/ui";
 import { useState } from "react";
+import { projectName } from "../data/identity.ts";
 import { type McpDraft, setMcp } from "../data/resources.ts";
+import { useData } from "../data/state.ts";
 import { useT } from "../i18n/index.ts";
 import { McpAvailability } from "./McpAvailability.tsx";
 import { type Pair, PairsEditor, pairsToRecord } from "./PairsEditor.tsx";
@@ -31,6 +33,7 @@ export function McpDialog(props: {
   onSaved(name: string): void;
 }) {
   const t = useT();
+  const projects = useData((s) => s.projects);
   const def = props.server?.definition;
   const [available, setAvailable] = useState(
     props.server
@@ -39,6 +42,7 @@ export function McpDialog(props: {
         : "global"
       : (props.projectId ?? "global"),
   );
+  const [offIn, setOffIn] = useState<string[]>(props.server?.off_in ?? []);
   const privateServer = props.server?.scope !== "project";
   const [name, setName] = useState(props.server?.name ?? "");
   const [kind, setKind] = useState(def?.url ? "url" : "command");
@@ -57,7 +61,10 @@ export function McpDialog(props: {
       kind === "command"
         ? { command: parts[0] ?? "", args: parts.slice(1), env: extra }
         : { url, headers: extra, ...(def?.env ? { env: def.env } : {}) };
-    if (privateServer) server.project = available === "global" ? null : available;
+    if (privateServer) {
+      server.project = available === "global" ? null : available;
+      if (available === "global") server.off_in = offIn;
+    }
     // An edit keeps whether it was turned off.
     if (props.server && !props.server.enabled) server.enabled = false;
     const r = await setMcp(name, server, props.server?.scope === "project" ? props.server.project_id : undefined);
@@ -140,12 +147,21 @@ export function McpDialog(props: {
             onChange={setPairs}
           />
         </div>
-        {privateServer && (
+        {privateServer ? (
           <McpAvailability
-            value={available}
-            onChange={setAvailable}
+            lives={available}
+            onLives={setAvailable}
+            offIn={offIn}
+            onOffIn={setOffIn}
             values={[...pairs.map((pair) => pair.value), ...(kind === "url" ? Object.values(def?.env ?? {}) : [])]}
           />
+        ) : (
+          <div className="pform__field">
+            <span className="pform__label">{t("res.mcpLives")}</span>
+            <p className="resd__note">
+              {t("res.mcpLivesRepo", { name: projectName(projects, props.server?.project_id) })}
+            </p>
+          </div>
         )}
         {failed && (
           <p role="alert" className="resd__error">

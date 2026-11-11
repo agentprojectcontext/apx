@@ -1,7 +1,14 @@
 import type { McpServerStatus, ToolApproval } from "@apx/protocol";
 import { Button, Icons, SegmentedControl } from "@apx/ui";
 import { useEffect, useState } from "react";
-import { approveMcpTool, listApprovals, mcpPermissions, revokeApproval, setMcpToolMode } from "../data/resources.ts";
+import {
+  approveMcpTool,
+  listApprovals,
+  mcpPermissions,
+  pickMcpTools,
+  revokeApproval,
+  setMcpToolMode,
+} from "../data/resources.ts";
 import { useData } from "../data/state.ts";
 import { useT } from "../i18n/index.ts";
 import { serverApproval } from "./serverId.ts";
@@ -45,6 +52,7 @@ export function McpTools({
   const agents = useData((st) => st.agents);
   const threads = useData((st) => st.threads);
   const [tools, setTools] = useState<Permission[]>();
+  const [saved, setSaved] = useState<Mode>();
   const [failed, setFailed] = useState<string>();
   const [grants, setGrants] = useState<ToolApproval[]>([]);
   const [picking, setPicking] = useState(false);
@@ -56,6 +64,7 @@ export function McpTools({
     const [list, all] = await Promise.all([mcpPermissions(s, project), listApprovals()]);
     if (list) {
       setTools(list.error ? undefined : list.tools);
+      setSaved(list.mode);
       setFailed(list.error);
     }
     setGrants((all ?? []).filter(ofServer(s)).filter((g) => g.agent_id || g.thread_id));
@@ -74,7 +83,8 @@ export function McpTools({
   }, [pickRequest]);
 
   const allowed = tools?.filter((x) => x.approved).length ?? 0;
-  const mode: Mode = picking ? "some" : !allowed ? "ask" : allowed === tools?.length ? "all" : "some";
+  // "All" is the server's own setting (new tools included); every tool picked one by one is still "some".
+  const mode: Mode = picking ? "some" : (saved ?? (allowed ? "some" : "ask"));
   const apply = async (change: () => Promise<unknown>) => {
     setBusy(true);
     try {
@@ -93,6 +103,15 @@ export function McpTools({
   };
   const toggle = (x: Permission) => {
     setPicking(false);
+    // Leaving one out of "all" is a pick: the rest stay allowed one by one, and new tools will ask.
+    if (mode === "all" && tools)
+      return void apply(() =>
+        pickMcpTools(
+          s,
+          tools.filter((y) => y.name !== x.name).map((y) => y.name),
+          project,
+        ),
+      );
     void apply(() => (x.approved ? revokeApproval(x.key) : approveMcpTool(s, x.name, project)));
   };
 
@@ -119,7 +138,7 @@ export function McpTools({
       </div>
       {tools && tools.length > 0 && (
         <p className="resd__muted">
-          {mode === "some" ? t("res.toolsPick") : t(mode === "all" ? "res.toolsAllHelp" : "res.toolsAskHelp")}
+          {t(mode === "some" ? "res.toolsPick" : mode === "all" ? "res.toolsAllHelp" : "res.toolsAskHelp")}
         </p>
       )}
       {shown.length ? (

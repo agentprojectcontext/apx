@@ -169,6 +169,18 @@ export function mcpConfig(store: Store) {
       all[projectId] = [...list];
       store.settings.write("mcp_off", all);
     },
+    /** A global server turned off in exactly these projects (and on in every other one), in one write. */
+    setOffIn(name: string, projects: string[]): void {
+      const all = store.settings.read("mcp_off");
+      for (const id of new Set([...Object.keys(all), ...projects])) {
+        const list = new Set(all[id] ?? []);
+        if (projects.includes(id)) list.add(name);
+        else list.delete(name);
+        if (list.size) all[id] = [...list];
+        else delete all[id];
+      }
+      store.settings.write("mcp_off", all);
+    },
     /** Adds, replaces or (null) removes a server in a project's .apc/mcps.json, keeping the rest of the file. */
     setProject(projectId: string, name: string, server: Record<string, unknown> | null): void {
       const p = store.projects.get(projectId);

@@ -39,6 +39,20 @@
 .secpage__body.resv__body {
   flex-direction: row;
 }
+/* One look for every Resources list (globally and in a project): roomy rows, apart enough that two lit rows never touch. */
+.resv__rows {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.resv__rows .apx-pickrow {
+  padding: 7px 12px;
+}
+/* An MCP's projects, picked in its dialog: a field-wide menu button. */
+.mcp-editor__reach {
+  justify-content: space-between;
+  width: 100%;
+}
 .resv__group + .resv__group {
   margin-top: 10px;
 }

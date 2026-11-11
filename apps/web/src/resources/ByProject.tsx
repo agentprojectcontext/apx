@@ -4,10 +4,30 @@ import { useData } from "../data/state.ts";
 import { useT } from "../i18n/index.ts";
 import { ProjectBadge } from "../inbox/ProjectBadge.tsx";
 
-/** Where a resource lives: "Global", or its project's name in that project's colour. */
-export function OriginChip({ project }: { project: string | undefined }) {
+/** The projects a global resource can be on in, and those of them it is turned off in. */
+export function useReach(offIn: readonly string[] = []) {
+  const projects = useData((s) => s.projects).filter((p) => p.registered !== false);
+  const off = projects.filter((p) => offIn.includes(p.id));
+  return { total: projects.length, on: projects.length - off.length, off };
+}
+
+/**
+ * Where a resource lives: "Global", or its project's name in that project's colour. A global one turned off in some
+ * projects says in how many it is on (`offIn`), never "Global" as if it were everywhere.
+ */
+export function OriginChip({ project, offIn }: { project: string | undefined; offIn?: readonly string[] }) {
   const t = useT();
   const projects = useData((s) => s.projects);
+  const reach = useReach(offIn);
+  if (!project && reach.off.length)
+    return (
+      <span
+        className="projbadge is-global"
+        title={t("res.reach.offIn", { list: reach.off.map((p) => p.name).join(", ") })}
+      >
+        {t("res.reach.some", { n: reach.on, total: reach.total })}
+      </span>
+    );
   if (!project) return <span className="projbadge is-global">{t("res.scope.global")}</span>;
   const name = projects.find((p) => p.id === project)?.name ?? project;
   return <ProjectBadge id={project} name={name} />;

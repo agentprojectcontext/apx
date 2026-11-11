@@ -4605,3 +4605,21 @@ chat over 32 messages on a real model, and half and 15% projected to 96. Rejecte
 teammates' tool output and its cache breaks as the window slides), and a rolling summary (cheapest, but it forgot a
 fact the owner asked for later; kept for rooms with many agents). Open: moving the agent's name after the prefix all
 agents share (about 8% more cached), a member asking another directly, and the panel's way to make a group.
+
+<a id="d-219"></a>
+## D-219 — 2026-11-11 — An MCP server's "All allowed" is one grant for the server, not one per tool
+
+"All allowed" on a server used to approve each tool it listed then, so a tool the server added later asked again and
+the server read "Some". The owner wants "all" to stay all. It is now one owner-wide grant for the server
+(`mcpServerApproval` in `mcp/approval.ts`, tool `*`), bound like a tool's grant to the server's definition and the
+project whose variables it runs with, but to no tool contract: every tool's approval names it as its `group`, and
+`approvals.allows` takes either key. A changed definition, revoking or removing the server drops it with the rest.
+A call that always asks (`strictApproval`) never takes the group. Picking tools one by one is "Some", even when every
+current tool is picked: new ones ask. Grants made before this read as "Some" until the owner picks "All allowed" again;
+no migration guesses that intent.
+
+The list shows each server's tools and permission state without starting it: what it listed last
+(`mcp_tools_seen`, its names and approval keys for that definition) and the grants as they are now.
+
+Rejected: a per-server flag outside the approvals store (a second place to revoke and to bind to the definition), and
+re-approving every listed tool when a server starts in "all" (a grant made without the owner looking at that tool).

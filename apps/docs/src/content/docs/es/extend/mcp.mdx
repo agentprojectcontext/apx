@@ -49,9 +49,11 @@ apx mcps scope github acme-store           # solo este proyecto
 apx mcps scope github global               # disponible en todos otra vez
 ```
 
-En el editor, **Disponible en** ofrece **Todos los proyectos** o un proyecto por nombre. Guardar aplica el cambio;
-Cancelar deja su disponibilidad como estaba. Las conexiones del repositorio siguen perteneciendo a su repositorio
-y no ofrecen este control de disponibilidad privada.
+En el editor, **Vive en** ofrece **Global** o un proyecto por nombre: un servidor que vive en un proyecto aparece
+entre los propios de ese proyecto y solo lo usan sus agentes. Para uno global, **Disponible en** elige los proyectos
+donde está prendido (**Todos los proyectos** o algunos); los mismos switches están en **Por proyecto** en su detalle, y
+la lista dice **En 2 de 3** en vez de **Global** mientras esté apagado en alguno. Guardar aplica los dos; Cancelar los
+deja como estaban. Las conexiones del repositorio siguen perteneciendo a su repositorio y no ofrecen estos controles.
 
 Antes de hacerlo global, comprobá que sus variables existan donde lo vas a usar. Las variables del proyecto no se
 copian al almacenamiento global. El editor indica qué variables necesitan un valor en el ámbito elegido; podés
@@ -128,9 +130,15 @@ Sumá `--project <id>` para un servidor de proyecto, y `--scope global|project` 
 Cada servidor tiene **Permisos de tools**:
 
 - **Preguntar**: cada agente te pide permiso antes de usar una tool que cambia algo.
-- **Todas permitidas**: ningún agente pide permiso para estas tools. Si el servidor o una tool cambian, se vuelve a
-  preguntar.
-- **Algunas**: tocá una tool para permitirla (verde) o para que vuelva a preguntar.
+- **Todas permitidas**: ningún agente pide permiso para sus tools, tampoco para las que el servidor agregue después.
+  Si cambia la definición del servidor, se vuelve a preguntar.
+- **Algunas**: tocá una tool para permitirla (verde) o para que vuelva a preguntar. Las tools que el servidor agregue
+  después preguntan primero, aunque hayas elegido todas; sacar una tool de **Todas permitidas** la pasa a **Algunas**.
+
+La lista muestra las tools y los permisos de cada servidor como estaban la última vez que corrió, sin tener que
+abrirlo. Pasá el mouse sobre su punto para ver qué significa: lleno, corriendo ahora; anillo, listo (arranca cuando un
+agente lo usa); ámbar, te necesita (aprobalo o iniciá sesión); rojo, no arrancó. Tocá una de sus variables para
+abrirla en **Variables**.
 
 Encima de eso siguen valiendo la autonomía de cada agente y su lista `tools:`, y lo que aprobaste "siempre" para un
 agente o un chat aparece en **Permitidas para un agente o un chat**. Mirá [Autonomía](/es/concepts/autonomy/).

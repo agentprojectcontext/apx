@@ -182,6 +182,19 @@ export const SETTINGS = {
   imessage: entry(z.object({ on: z.boolean().catch(false) }), { on: false }),
   skills_off: entry(OffLists, {}),
   mcp_off: entry(OffLists, {}),
+  /**
+   * Each MCP server's tools as last listed, by connection key: the list tells their names and permissions before the
+   * server starts again. Only for the definition (`hash`) they came from.
+   */
+  mcp_tools_seen: entry(
+    z
+      .record(
+        z.string(),
+        z.object({ hash: z.string(), tools: z.array(z.object({ name: z.string(), key: z.string() })) }),
+      )
+      .catch({}),
+    {},
+  ),
   model_default: entry(ModelChoice.nullable(), null),
   model_router: entry(RouterConfig, { rules: [], chain: [] }),
   image_defaults: entry(ImageDefaults.partial(), {}),

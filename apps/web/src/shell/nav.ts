@@ -109,6 +109,8 @@ export type NavState = {
   listInFront: boolean;
   /** Tab of Resources (global, and inside a project). */
   resourcesTab: ResourceTab;
+  /** What Resources searches for once it shows (a variable named on a server): taken and cleared there. */
+  resourcesFind: string | undefined;
   /** The channel open in the channel view, and the contact's chat picked in it. */
   channelId: string | undefined;
   channelThread: string | undefined;
@@ -227,6 +229,7 @@ export const nav = createStore<NavState>({
   palette: false,
   listInFront: false,
   resourcesTab: "skills",
+  resourcesFind: undefined,
   channelId: undefined,
   channelThread: undefined,
   engineId: undefined,
@@ -522,6 +525,14 @@ export const go = {
   },
   resourcesTab(tab: ResourceTab) {
     nav.set({ resourcesTab: tab });
+  },
+  /** Variables with this one found: in the open project's Resources when a project is open, else the global screen. */
+  variable(name: string) {
+    nav.set((s) =>
+      s.view === "project"
+        ? { projectTab: "resources", resourcesTab: "variables", resourcesFind: name }
+        : { view: "resources", resourcesTab: "variables", resourcesFind: name },
+    );
   },
   config(section: ConfigSection | null = "account") {
     nav.set({ config: section });

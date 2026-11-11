@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { after, before, test } from "node:test";
 import { say, scriptedLlm, startCore } from "../engine/testkit.ts";
-import { type ApprovalTarget, matchesCondition, nativeApproval } from "./approvals.ts";
+import { type ApprovalTarget, matchesCondition, nativeApproval, strictApproval } from "./approvals.ts";
 
 let env: Awaited<ReturnType<typeof startCore>>;
 before(async () => {
@@ -98,4 +98,17 @@ test("a grant for this chat outlives a core restart, and ends when the chat is a
     await again.core.close();
     await first.cleanup();
   }
+});
+
+test("a server's grant covers each of its tools, but never their calls that always ask", () => {
+  const store = env.core.store;
+  const server: ApprovalTarget = { key: "srv-all", server: "srv", tool: "*", permanent: false };
+  const tool: ApprovalTarget = { key: "srv-echo", server: "srv", tool: "echo", permanent: false, group: server.key };
+  assert.ok(!store.approvals.allows(tool));
+  store.approvals.grant(server, "always", "");
+  assert.ok(store.approvals.allows(tool));
+  assert.ok(!store.approvals.allows({ ...tool, group: "other" }));
+  assert.ok(!store.approvals.allows(strictApproval(tool)));
+  store.approvals.revoke(server.key);
+  assert.ok(!store.approvals.allows(tool));
 });

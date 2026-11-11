@@ -44,7 +44,7 @@ test("chat editor chooses effective variables with the keyboard, preserves text 
     await expect(page.getByText("No hay variables disponibles", { exact: true })).toBeVisible();
     await page.getByRole("searchbox", { name: /Buscar variables/ }).press("Escape");
     await expect(dialog).toBeVisible();
-    await dialog.getByRole("combobox", { name: "Disponible en" }).click();
+    await dialog.getByRole("combobox", { name: "Vive en" }).click();
     await page.getByRole("option", { name: "Acme workspace", exact: true }).click();
     const field = dialog.getByRole("textbox", { name: "Valor TOKEN", exact: true });
     await field.fill("Bearer ");
@@ -64,8 +64,8 @@ test("chat editor chooses effective variables with the keyboard, preserves text 
     expect(JSON.stringify(server)).not.toContain("fixture-account-value");
     await expect(page.getByRole("button", { name: "Acme", exact: true })).toBeFocused();
     await page.getByRole("button", { name: "Acme", exact: true }).click();
-    await dialog.getByRole("combobox", { name: "Disponible en" }).click();
-    await page.getByRole("option", { name: "Todos los proyectos", exact: true }).click();
+    await dialog.getByRole("combobox", { name: "Vive en" }).click();
+    await page.getByRole("option", { name: "Global", exact: true }).click();
     await expect(dialog.getByRole("status")).toContainText("PROJECT_ONLY");
     await dialog.getByRole("button", { name: "Cancelar", exact: true }).click();
     expect((await env.client.call("mcp.list", {})).servers.find((s) => s.name === "acme")?.only).toBe(true);
@@ -92,7 +92,7 @@ test("an ambiguous name asks which connection and never offers private variables
     await page.getByRole("button", { name: "acme · Acme workspace", exact: true }).click();
     const dialog = page.getByRole("dialog", { name: "Editar acme" });
     await expect(dialog.getByRole("textbox", { name: "Comando", exact: true })).toHaveValue("acme-project-command");
-    await expect(dialog.getByRole("combobox", { name: "Disponible en" })).toHaveCount(0);
+    await expect(dialog.getByRole("combobox", { name: "Vive en" })).toHaveCount(0);
     await expect(dialog.getByRole("button", { name: /Usar una variable/ })).toHaveCount(0);
   } finally {
     await page.goto("about:blank");
@@ -132,7 +132,7 @@ for (const language of ["en", "es"] as const) {
         await expect(page.getByRole("option", { name: "ACME_TOKEN", exact: true })).toBeVisible();
         await page.screenshot({ path: info.outputPath("picker-filled.png"), fullPage: true });
         await page.getByRole("searchbox", { name: /^(Buscar variables|Search variables)/ }).press("Escape");
-        await dialog.getByRole("combobox", { name: es ? "Disponible en" : "Available in" }).click();
+        await dialog.getByRole("combobox", { name: es ? "Vive en" : "Lives in" }).click();
         await page.getByRole("option", { name: "Acme workspace", exact: true }).click();
         await dialog.getByRole("button", { name: es ? "Guardar" : "Save", exact: true }).click();
         await expect(dialog).toBeHidden();
@@ -182,7 +182,7 @@ test("a late variable response from another scope cannot replace the current cho
     await dialog.getByRole("button", { name: /Usar una variable/ }).click();
     await seen.promise;
     await page.getByRole("searchbox", { name: /Buscar variables/ }).press("Escape");
-    await dialog.getByRole("combobox", { name: "Disponible en" }).click();
+    await dialog.getByRole("combobox", { name: "Vive en" }).click();
     await page.getByRole("option", { name: "Acme workspace", exact: true }).click();
     await dialog.getByRole("button", { name: /Usar una variable/ }).click();
     await expect(page.getByRole("option", { name: "PROJECT_ONLY", exact: true })).toBeVisible();

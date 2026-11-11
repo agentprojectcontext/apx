@@ -19,8 +19,9 @@ export const esResources: Partial<Record<MessageKey, string>> = {
   "res.toolsMode.unknown": "Sin verificar: abrí el servidor para cargar sus tools",
   "res.toolsAskHelp": "Cada agente te pide permiso antes de usar una tool que cambia algo.",
   "res.toolsAllHelp":
-    "Ningún agente pide permiso para estas tools. Si el servidor o una tool cambian, se vuelve a preguntar.",
-  "res.toolsPick": "Tocá una tool para permitirla (verde) o para que vuelva a preguntar.",
+    "Ningún agente pide permiso para sus tools, tampoco para las que agregue después. Si el servidor cambia, se vuelve a preguntar.",
+  "res.toolsPick":
+    "Tocá una tool para permitirla (verde) o para que vuelva a preguntar. Las tools que agregue después preguntan primero.",
   "res.toolsGrants": "Permitidas para un agente o un chat",
   "res.toolsLoading": "Cargando tools…",
   "res.toolsOff": "Aprobá y activá el servidor para ver sus tools.",
@@ -409,4 +410,17 @@ export const esResources: Partial<Record<MessageKey, string>> = {
   "int.search": "Buscar integraciones",
   "int.browserNote":
     "No hay nada que escribir: al conectarla se abre su inicio de sesión en tu navegador, si tiene uno. Los agentes la usan a través de su servidor.",
+  "res.dot.on": "Corriendo: conectado ahora",
+  "res.dot.idle": "Listo: arranca cuando un agente lo usa",
+  "res.dot.warning": "Te necesita: aprobalo o iniciá sesión",
+  "res.dot.error": "No arrancó: abrilo para ver por qué",
+  "res.dot.off": "Apagado",
+  "res.mcpLives": "Vive en",
+  "res.mcpLivesHint": "Solo lo usan los agentes de {name}.",
+  "res.mcpLivesRepo": "El archivo del proyecto {name}. Solo lo usan sus agentes.",
+  "res.mcpSome": "{n} de {total} proyectos",
+  "res.mcpOnlyIn": "Solo {name}",
+  "res.reach.some": "En {n} de {total}",
+  "res.reach.offIn": "Apagado en: {list}",
+  "res.openVariable": "Abrir {name} en Variables",
 };

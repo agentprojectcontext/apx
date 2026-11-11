@@ -9,7 +9,7 @@ import { AddSkill, type ImportStart } from "./AddSkill.tsx";
 import { OriginChip } from "./ByProject.tsx";
 import { copyTag, ENGINE_LABEL, engineOf, inEngines, sourceTag, unusedIn } from "./labels.ts";
 import type { TabProps } from "./ResourcesView.tsx";
-import { ScopedGroups, useInheritance } from "./ScopedGroups.tsx";
+import { ResourceRows, ScopedGroups, useInheritance } from "./ScopedGroups.tsx";
 import { SkillDetail } from "./SkillDetail.tsx";
 
 const keyOf = (s: SkillInfo) => `${s.scope}:${s.project_id ?? ""}:${s.name}`;
@@ -200,7 +200,7 @@ export function SkillsTab({ projectId, query, scope, adding, setAdding, res, own
             />
           ) : (
             // Globally one list, global ones first: each row says where it lives.
-            groups.flatMap((g) => g.items).map(row)
+            <ResourceRows>{groups.flatMap((g) => g.items).map(row)}</ResourceRows>
           )
         }
         detail={
