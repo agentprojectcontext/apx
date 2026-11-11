@@ -24,7 +24,7 @@ import { useLanguage, useT } from "../i18n/index.ts";
 import { AgentEvent, EmailCard, MediaGroup, TaskDescription } from "../lazy.ts";
 import { nav, useNav } from "../shell/nav.ts";
 import { AgentTurn } from "./AgentTurn.tsx";
-import { isAgentEvent, isIndividualChat } from "./agentEvent.ts";
+import { answerCards, isAgentEvent, isIndividualChat } from "./agentEvent.ts";
 import { MessageActions } from "./MessageActions.tsx";
 import { FilePart } from "./parts/FilePart.tsx";
 import { imageGenerationRuns } from "./parts/imageGeneration.ts";
@@ -115,6 +115,7 @@ export function Transcript({ thread, comments = false, via }: { thread: Thread; 
   };
 
   const planAt = useMemo(() => latestPlan(messages), [messages]);
+  const answered = useMemo(() => answerCards(messages), [messages]);
   const working = isWorking(thread.state);
   const reactionsOf = (m: Msg) =>
     m.reactions?.length ? <ReactionList list={m.reactions} agentName={agent?.name ?? ""} /> : undefined;
@@ -196,7 +197,7 @@ export function Transcript({ thread, comments = false, via }: { thread: Thread; 
               </SystemNote>
             ) : isAgentEvent(thread, msg) ? (
               <Suspense fallback={<SystemNote>{textOf(msg)}</SystemNote>}>
-                <AgentEvent message={msg} agent={agents[msg.author.id]}>
+                <AgentEvent message={msg} agent={agents[msg.author.id]} asker={agent} card={answered.get(msg.id)}>
                   <AgentTurn
                     thread={thread}
                     message={msg}

@@ -651,6 +651,7 @@ export const es: Partial<Record<MessageKey, string>> = {
   "subthread.less": "Mostrar menos",
   "subthread.noAnswer": "Terminó sin respuesta",
   "subthread.actionsFailed": "Fallaron algunas acciones",
+  "subthread.failedSteps": "Falló: {steps}",
 
   // Widgets, apps, compartir
   "widget.gone": "«{title}» ya no existe.",

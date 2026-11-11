@@ -10,6 +10,7 @@ import {
   listedThreads,
   pinnedFirst,
   standsAlone,
+  tookPart,
   unreadListed,
   unreadUnder,
   unreadWhere,
@@ -190,4 +191,12 @@ test("one tab's or one section's Mark all as read takes its chats and what hangs
     ["chat"],
   );
   assert.deepEqual(unreadWhere(threads, (t) => !!t.channel).sort(), ["chat", "other"]);
+});
+
+test("a task's row counts every agent that took part, its agent first, each once", () => {
+  const chats = [thread("a", { agent_ids: ["ramiro"] }), thread("bb", { agent_ids: ["superagent", "ramiro"] })];
+  // The core counts the teammates asked on it, whose consults are not the task's chats.
+  assert.deepEqual([...tookPart(["ramiro", "bruno"], chats)], ["ramiro", "bruno", "superagent"]);
+  // A core that does not count them yet: the chats' agents still are.
+  assert.deepEqual([...tookPart(undefined, chats)], ["ramiro", "superagent"]);
 });

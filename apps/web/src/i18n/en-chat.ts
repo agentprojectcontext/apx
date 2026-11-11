@@ -8,6 +8,8 @@ export const enChat = {
   "chat.agentProgress": "Progress from {name}",
   "chat.agentResponse": "Response from {name}",
   "chat.agentMessage": "Message from {name}",
+  "chat.answeredAbove": "{name} answered above",
+  "chat.seeAnswer": "See the answer",
   "chat.plan": "Plan",
   "chat.planDone": "{done} of {count} done",
   "input.sessionScope": "This session",

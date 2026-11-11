@@ -490,6 +490,8 @@ const KnownPart = z.discriminatedUnion("type", [
         state: RunState,
         end_reason: RunEndReason.optional(),
         issue: z.enum(["no_answer", "actions_failed"]).optional(),
+        /** The steps that failed (their titles), when some of its actions did. */
+        failed: z.array(z.string().max(200)).max(5).optional(),
         project_id: Id.optional(),
       })
       .optional(),
@@ -523,6 +525,8 @@ const KnownPart = z.discriminatedUnion("type", [
     asked_by: z.string().optional(),
     /** A completed run that did not go well: it gave no answer, or some of its actions failed. */
     issue: z.enum(["no_answer", "actions_failed"]).optional(),
+    /** The steps that failed (their titles), when some of its actions did. */
+    failed: z.array(z.string().max(200)).max(5).optional(),
     /** Its answer waits for the others asked in the same turn: how many of them are in (DECISIONS.md#d-194). */
     held: z.object({ got: z.number().int().nonnegative(), of: z.number().int().positive() }).optional(),
   }),

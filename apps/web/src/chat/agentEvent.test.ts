@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { Message, Thread } from "@apx/protocol";
-import { isAgentEvent, responseOf } from "./agentEvent.ts";
+import { answerCards, isAgentEvent, responseOf } from "./agentEvent.ts";
 
 const thread = Thread.parse({
   id: "chat",
@@ -77,4 +77,34 @@ test("a subthread card is already an event and is not wrapped twice", () => {
     }),
     false,
   );
+});
+
+test("a teammate's answer points at its card when the chat shows it, and is told there once", () => {
+  const card = (id: string, consult: string) =>
+    Message.parse({
+      ...message,
+      id,
+      parts: [{ type: "subthread", thread_id: consult, agent_id: "helper", title: "Q", state: "completed" }],
+    });
+  const answer = (id: string, consult: string) =>
+    Message.parse({
+      ...message,
+      id,
+      parts: [{ type: "text", text: "A", response: { ...response, thread_id: consult } }],
+    });
+  const said = Message.parse({ ...message, id: "said", author: { kind: "agent", id: "holder" } });
+  const cards = answerCards([
+    card("c1", "consult"),
+    answer("a1", "consult"),
+    said,
+    // Asked again in the same consult: the latest card is the one answered.
+    card("c2", "consult"),
+    said,
+    answer("a2", "consult"),
+    // Asked from elsewhere: no card here, the answer is its own card.
+    answer("a3", "other"),
+  ]);
+  assert.deepEqual(cards.get("a1"), { card: "c1", next: true });
+  assert.deepEqual(cards.get("a2"), { card: "c2", next: false });
+  assert.equal(cards.get("a3"), undefined);
 });

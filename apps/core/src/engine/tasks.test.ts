@@ -367,7 +367,16 @@ test("an agent's @mention in a task comment asks that agent, and the answer come
   assert.deepEqual(store.threads.context(consult?.id ?? "").consult?.asker, { agent: "vera", thread: chat.id });
   await env.settle(consult?.id ?? "");
   await env.settle(chat.id);
-  const back = store.messages.list(chat.id, 50).find((m) => m.author.kind === "agent" && m.author.id === "superagent");
+  const fromRoby = store.messages
+    .list(chat.id, 50)
+    .filter((m) => m.author.kind === "agent" && m.author.id === "superagent");
+  // Vera's chat shows the consult where she asked (its card), then the answer handed to her.
+  const [card, back] = fromRoby;
+  assert.equal(fromRoby.length, 2);
+  assert.deepEqual(
+    card?.parts.map((p) => p.type === "subthread" && p.thread_id),
+    [consult?.id],
+  );
   assert.match(JSON.stringify(back?.parts), /Roby (answered|could not answer) your question/);
   const reply = back?.parts.find((p) => p.type === "text");
   const child = store.runs.list(consult?.id ?? "")[0];

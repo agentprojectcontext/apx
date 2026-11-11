@@ -74,6 +74,8 @@ export const Task = z.object({
   /** Last time anything happened: an edit, a comment, a turn. */
   /** How many chats its agents worked it in (each agent that took it has one). */
   chats: z.number().int().nonnegative().default(0),
+  /** The agents that took part: its agent, those with a chat for it and the teammates asked on it. */
+  agents: z.array(z.string()).optional(),
   activity_at: z.string(),
 });
 export type Task = z.infer<typeof Task>;

@@ -9,6 +9,7 @@ import { threadAgent } from "../data/identity.ts";
 import { retryNow } from "../data/live.ts";
 import { isNewChat, useNewChat } from "../data/newChat.ts";
 import { useData } from "../data/state.ts";
+import { useConversationTask } from "../data/tasks.ts";
 import { useT } from "../i18n/index.ts";
 import { ComputerProgress, ContactChat, RoomPanel, ScreenLive } from "../lazy.ts";
 import { go, useNav } from "../shell/nav.ts";
@@ -47,6 +48,7 @@ export function ChatView({
   const visible = usePageVisible();
   const offline = useData((s) => s.connection === "offline");
   const contact = useContactChat(thread);
+  const task = useConversationTask(thread);
   // A room's card docked beside the chat leaves its header the room of a narrow one: the panels go in a menu.
   const roomCard = useRoomCard();
   const docked = Boolean(thread?.channel && !thread.channel.person_id) && roomCard && window.innerWidth >= 1280;
@@ -118,14 +120,21 @@ export function ChatView({
         <ContactChat thread={thread} />
       </Suspense>
     );
-  const agent = threadAgent(thread, agents);
+  // A task's conversation is its agent's: the one it was created with may no longer work it.
+  const agent = (task?.assignee ? agents[task.assignee] : undefined) ?? threadAgent(thread, agents);
   // An archived or deleted agent's old chat still shows who it was.
   const shown = agent ?? threadAgent(thread, former);
   const readOnly = thread.kind === "a2a" || thread.parent_id != null;
   return (
     <>
       <section className="chat" aria-label={thread.title}>
-        <ChatHeader thread={thread} agent={shown} wide={wideHeader && !docked} compact={compact} />
+        <ChatHeader
+          thread={thread}
+          agent={shown}
+          wide={wideHeader && !docked}
+          compact={compact}
+          {...(task ? { task: task.title } : {})}
+        />
         <Transcript thread={thread} {...(via ? { via: via.channel } : {})} />
         {via ? (
           <div className="chat__readonly">

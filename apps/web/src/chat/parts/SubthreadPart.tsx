@@ -7,9 +7,12 @@ import { useOwnerName } from "../../data/owner.ts";
 import { useData } from "../../data/state.ts";
 import { useT } from "../../i18n/index.ts";
 import { go } from "../../shell/nav.ts";
-import { responseStatus, responseTitle } from "../responseStatus.ts";
+import { failedLine, responseStatus, responseTitle } from "../responseStatus.ts";
 
-/** Another agent's (or a worker's) part in this answer: what it was asked, its state and the report it gave back. */
+/**
+ * Another agent's (or a worker's) part in this answer: what it was asked, its state and the report it gave back. A
+ * teammate an agent asked on a task is only its row.
+ */
 export function SubthreadPart({ part, from }: { part: Extract<Part, { type: "subthread" }>; from?: Agent }) {
   const t = useT();
   const mdLabels = useMarkdownLabels();
@@ -19,6 +22,7 @@ export function SubthreadPart({ part, from }: { part: Extract<Part, { type: "sub
   const st = responseStatus(part);
   // Its answer waits for the others asked in the same turn: the caller reads them all together.
   const meta = [
+    failedLine(part.failed, t),
     part.ms !== undefined ? t("subthread.took", { time: duration(part.ms) }) : undefined,
     part.held ? t("subthread.held", { got: String(part.held.got), of: String(part.held.of) }) : undefined,
   ].filter(Boolean);
@@ -26,6 +30,20 @@ export function SubthreadPart({ part, from }: { part: Extract<Part, { type: "sub
   // A consult on a task names who asked; a delegation's asker is the message's author.
   const askedBy =
     part.asked_by === "owner" ? ownerName || t("account.you") : (asker?.name ?? from?.name ?? t("common.agent"));
+  // One agent asking another on a task is one closed row, as a delegation at work is: who asked whom and what. Its
+  // answer and its steps are in its conversation, which the row opens. The owner's own question keeps its answer shown.
+  if (part.asked_by !== undefined && part.asked_by !== "owner")
+    return (
+      <SubthreadCard
+        avatar={<AgentAvatar name={name} blob={blobOf(target)} size={24} animated={part.state === "working"} />}
+        title={part.title}
+        subtitle={`${askedBy} → ${name}`}
+        status={st.status}
+        statusLabel={<span title={failedLine(part.failed, t)}>{t(st.label)}</span>}
+        openLabel={t("subthread.open", { name })}
+        onOpen={() => go.subthread(part.thread_id)}
+      />
+    );
   return (
     <SubthreadCard
       avatar={
