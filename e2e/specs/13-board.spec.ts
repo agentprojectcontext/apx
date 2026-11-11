@@ -47,7 +47,7 @@ test("a pinned widget lives on its project's board and is updated by its name", 
   await expect(board.getByRole("article")).toHaveCount(0);
 });
 
-test("a widget never pinned is added from the board's +, once, and opens beside its project's widget list", async ({
+test("a widget never pinned is added from the board's +, once, and opens from its project's Files › Artifacts", async ({
   page,
 }) => {
   const projects = (await rpc<{ projects: Array<{ id: string; name: string }> }>("projects.list")).projects;
@@ -77,14 +77,12 @@ test("a widget never pinned is added from the board's +, once, and opens beside 
   await page.keyboard.press("Escape");
 
   await page.getByRole("tab", { name: "Archivos" }).click();
-  await page.getByRole("radio", { name: "Widgets" }).click();
-  await page.getByRole("button", { name: /Ventas del año/ }).click();
-  const panel = page.getByRole("complementary", { name: "Ventas del año" });
-  await expect(panel.frameLocator("iframe").getByText("Año: 900")).toBeVisible();
-  await expect(panel.getByRole("separator")).toBeVisible();
-  await panel.getByRole("button", { name: "Cerrar" }).click();
-  await expect(panel).toBeHidden();
+  await page.getByRole("radio", { name: /^Artefactos/ }).click();
+  await page.getByRole("button", { name: "Abrir Ventas del año" }).click();
+  await expect(page.locator(".appscreen__title")).toHaveText("Ventas del año");
+  await expect(page.frameLocator(".livelayer__box[data-shown] iframe").getByText("Año: 900")).toBeVisible();
 
+  await page.getByRole("button", { name: "Northwind", exact: true }).click();
   await page.getByRole("tab", { name: "Resumen" }).click();
   await board.getByRole("article", { name: "Ventas del año" }).getByRole("button", { name: "Más" }).click();
   await page.getByRole("menuitem", { name: /^Quitar del tablero/ }).click();
@@ -96,7 +94,7 @@ test("the base project's files are APX's work folder, where its chats work", asy
     .getByRole("button", { name: /^Default/ })
     .first()
     .click();
-  await page.getByRole("tab", { name: "Archivos" }).click();
+  await page.getByRole("tab", { name: "Directorio" }).click();
   await expect(page.getByText("Carpeta de trabajo de APX", { exact: true })).toBeVisible();
   await expect(page.getByText("Sin carpeta en esta máquina")).toHaveCount(0);
 });

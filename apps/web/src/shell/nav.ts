@@ -3,7 +3,7 @@ import type { ApxMode } from "@apx/ui";
 import type { ChannelKind } from "../channels/kinds.ts";
 import { createStore, useSlice } from "../data/createStore.ts";
 import { rememberSidebar } from "../data/prefs.ts";
-import type { MessageKey } from "../i18n/index.ts";
+import { type ProjectTab, projectTabFrom } from "./projectTabs.ts";
 
 export type PanelKind =
   | "computer"
@@ -31,19 +31,6 @@ type View =
   | "channels"
   | "channel"
   | "engine";
-
-export const PROJECT_TABS = [
-  { id: "overview", label: "project.tab.overview" },
-  { id: "chats", label: "project.tab.chats" },
-  { id: "team", label: "project.tab.team" },
-  { id: "tasks", label: "project.tab.tasks" },
-  { id: "routines", label: "project.tab.routines" },
-  { id: "artifacts", label: "project.tab.artifacts" },
-  { id: "files", label: "project.tab.files" },
-  { id: "memory", label: "project.tab.memory" },
-  { id: "resources", label: "project.tab.resources" },
-] as const satisfies readonly { id: string; label: MessageKey }[];
-export type ProjectTab = (typeof PROJECT_TABS)[number]["id"];
 
 export const CONFIG_SECTIONS = [
   "account",
@@ -165,7 +152,6 @@ const PANELS: readonly PanelKind[] = [
   "processes",
   "document",
 ];
-const TAB_IDS: readonly string[] = PROJECT_TABS.map((t) => t.id);
 const VIEWS: readonly string[] = ["tasks", "flows", "routines", "resources", "files", "computers", "channels"];
 
 /** Deep links: #thread=<id>&panel=<kind>, #app=<id>, #project=<id>&tab=<tab>, #view=tasks&task=<id>. */
@@ -190,7 +176,7 @@ function fromHash(): Partial<NavState> {
       ? {
           view: "project" as const,
           projectId: project,
-          projectTab: (tab && TAB_IDS.includes(tab) ? tab : "overview") as ProjectTab,
+          projectTab: projectTabFrom(tab),
         }
       : {}),
     ...(view && VIEWS.includes(view) ? { view: view as View } : {}),

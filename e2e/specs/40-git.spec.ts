@@ -1,4 +1,4 @@
-// A project's repository from Files → Git: what changed, staging it, committing it, and the history.
+// A project's repository from Directory → Git: what changed, staging it, committing it, and the history.
 import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import os from "node:os";
@@ -19,7 +19,7 @@ test("changes are staged and committed from the Git view, and the commit opens f
   const { project } = await rpc<{ project: { id: string } }>("projects.register", { path: repo });
 
   try {
-    await open(page, `#project=${project.id}&tab=files`);
+    await open(page, `#project=${project.id}&tab=folder`);
     await page.getByRole("radio", { name: "Git" }).click();
     const side = page.getByRole("navigation", { name: "Control de versiones" });
     await side.getByTitle("AGENTS.md", { exact: true }).click();
