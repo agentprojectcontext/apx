@@ -4477,10 +4477,11 @@ the main prompt's own rule that a promise is not an action.
   (`role: "owner"`): the run's input text, verbatim, never the model's text and never a member's. From any other
   message the line is only removed, so nobody in a room can turn their text into a request, whatever the model says.
 - **Home does it, by the owner's rules on that platform** (D-144, D-150). On a channel whose owner acts on their word
-  (Telegram, WhatsApp, Signal) the words are kept in Home as the owner's (`via` the channel) and start a turn there
-  that is told which room they came from. Elsewhere (Discord, Slack…) they go through `relayOwnerWords` like the
-  owner's other words there: the super-agent checks them in Home's owner-check sub-thread, and the result returns to
-  Home as a delegated result. (Since D-224 these words are no longer kept in Home: they stay in the room's chat.)
+  (Telegram, WhatsApp, Signal) the words are kept in Home as the owner's (`via` the channel; since D-224 only carried in
+  the turn's input) and start a turn there that is told which room they came from. Elsewhere (Discord, Slack…) they go
+  through `relayOwnerWords` like the owner's other words there: the super-agent checks them in Home's owner-check
+  sub-thread, and the result returns to Home as a delegated result. (Since D-224 the owner's words are no longer kept in
+  Home on any platform: they stay in the room's chat.)
 - **The result never goes back to the room.** The Home turn has no `reply_to` of its own and the relay leaves Home's
   untouched (`owner_check.reply_to` is optional now): answers reach the owner where Home talks to them (Home's last
   channel, or the app).
@@ -4765,13 +4766,13 @@ wrote `SKIP`, and the word itself reached WhatsApp: the signal was only taken ou
   every time); with files, or to anyone else, it still does.
 - **`SKIP` is never words**, whatever started the turn: any finished turn whose whole answer is `SKIP` sends nothing
   and shows nothing, on every channel and in the app.
-- **What the owner says in a room stays in the room's chat** (supersedes D-213's "kept in Home" for the checked
-  path). On a channel the super-agent checks (Discord, Slack…, D-144) a request handed on from a room is no longer kept
-  in Home as a message from the owner's account there: they wrote in a room, not to Home. `relayOwnerWords` with a
-  `room` keeps no message and leaves Home's preview alone; the check, its sub-thread and the model's record of the
-  words are unchanged, and the result's turn in Home answers where Home talks to the owner, as above. A Telegram,
-  WhatsApp or Signal group, where the owner acts on their word, still starts Home's turn with the words as the
-  owner's.
+- **What the owner says in a room stays in the room's chat** (supersedes D-213's "kept in Home", on every platform).
+  A request handed on from a room or group is no longer kept in Home as a message: the owner wrote in a room, not to
+  Home. Only what they say to the agent one-to-one goes to Home (or that channel's own chat). The work is still done
+  from Home by the owner's rules on that platform: on Discord, Slack and the rest the super-agent checks the words
+  first (D-144; `relayOwnerWords` with a `room` keeps no message and leaves Home's preview alone, the check and its
+  sub-thread unchanged); on a Telegram, WhatsApp or Signal group Home's turn starts at once with the words in its input
+  (`handOn`, origin `user` with no message). Either way the answer goes where Home talks to the owner, as above.
 
 This changes one earlier behavior: a delegated result that came in after the owner wrote in the app went back to the
 chat app the work started on; it now stays in the app, where they last were.

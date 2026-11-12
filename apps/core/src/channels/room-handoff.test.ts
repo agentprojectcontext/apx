@@ -117,13 +117,16 @@ test("the owner's request in a group is done in Home and answered in private, ne
   await waitFor(() => texts(tg.messagesTo(OWNER_TG.id)).includes("Report filed."), "the result in the owner's chat");
   const group = texts(tg.messagesTo(GROUP));
   assert.deepEqual(group, ["On it, you will hear back in private."]);
-  const words = home().find(
-    (m) =>
-      m.author.kind === "user" &&
-      m.via === "tg" &&
-      m.parts.some((p) => p.type === "text" && p.text === "please file the report"),
+  // The words stay in the group's chat, where they were said; Home's turn carries them (DECISIONS.md#d-224).
+  assert.equal(homeSays("please file the report"), false);
+  const room = env.core.store.threads.byConversation("tg", String(GROUP));
+  assert.ok(
+    room &&
+      env.core.store.messages
+        .list(room.id)
+        .some((m) => m.parts.some((p) => p.type === "text" && p.text === "please file the report")),
+    "the owner's words in the group's chat",
   );
-  assert.ok(words, "the owner's own words, as they wrote them, in Home");
   const run = env.core.store.runs
     .list(HOME_THREAD_ID, 20)
     .find((r) => r.input?.origin.kind === "user" && r.input.text.includes("please file the report"));
