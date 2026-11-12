@@ -4667,3 +4667,23 @@ task's conversation opens as it was left in the asker's chat.
 Rejected: a "Show answer" / "Hide" button on the row's right (a second control competing with the state), and an
 open-conversation icon on the row (two click targets in one row on a phone).
 
+
+<a id="d-222"></a>
+## D-222 — 2026-11-12 — A caller's newer words join the session's turn at work
+
+An agent that asked a teammate for work and then sent that session something newer (the owner's "pause everything",
+a changed plan) had it queued as a turn of its own behind the one at work. The running turn never saw it: a release
+was published more than an hour after the pause was in that chat, and the next turns then ran the stale orders one by
+one. Now `delegate` to a session whose turn is still working on an earlier ask, in our loop or Claude Code's (the
+engine's `steerable`), hands the words to that turn at its next step, as the owner's Enter does (D-186): framed as the
+asker's newer words, which it follows over the earlier request when they pause, stop or change it. The message shows
+in the session's chat, the caller is told it went into the turn at work, and that turn's one answer goes back as for
+the first ask. A turn that ends before taking the words runs them as a turn of its own, reporting to the same caller.
+
+Two tasks for the same session from one turn of the caller (a fan-out) still queue: they are separate work, not a
+correction. An outside engine that takes words only between turns (Codex, ACP) still queues; the caller can stop that
+session instead.
+
+Rejected: stopping the running turn on any newer message (a correction would lose the work in progress, and the turn
+already reads the words before its next step), and leaving the line as it was with a note to the caller (it was the
+caller's words that went unseen, not the caller who was unaware).
