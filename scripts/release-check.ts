@@ -24,7 +24,14 @@ export const RELEASE_BRANCH = "main";
 export const VERIFY_WORKFLOW = "verify.yml";
 const DEFAULT_REPO = "agentprojectcontext/apx";
 
-export type VerifyRun = { databaseId: number; status: string; conclusion: string; url: string; headSha: string };
+export type VerifyRun = {
+  databaseId: number;
+  status: string;
+  conclusion: string;
+  url: string;
+  headSha: string;
+  displayTitle?: string;
+};
 export type Verdict = { verified: true; run: VerifyRun } | { verified: false; pending?: VerifyRun; reason: string };
 
 /** The newest verify run of the commit decides, as the publish job reads it (`gh run list` is newest first). */
@@ -146,13 +153,17 @@ export function check(argv: readonly string[], run: Run = exec, log = console.lo
       "--limit",
       "20",
       "--json",
-      "databaseId,status,conclusion,url,headSha",
+      "databaseId,status,conclusion,url,headSha,displayTitle",
     ]);
     if (upgrade.status !== 0) {
       log(`release:check: minor upgrade evidence is unavailable: ${upgrade.stderr.trim()}`);
       return 1;
     }
-    const result = verdict(sha, JSON.parse(upgrade.stdout) as VerifyRun[]);
+    const title = `Minor upgrade ${tag} from ${previous ?? "none"}`;
+    const result = verdict(
+      sha,
+      (JSON.parse(upgrade.stdout) as VerifyRun[]).filter((run) => run.displayTitle === title),
+    );
     if (!result.verified) {
       log(
         `release:check: minor ${tag} needs successful isolated core and remote-client upgrade proof for ${sha}: ${result.reason}`,

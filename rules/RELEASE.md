@@ -82,9 +82,24 @@ not impose the matrix on patches and never authorizes a tag. Compare against the
 only the patch digit: after a failed `x.y.0`, publishing `x.y.1` still introduces a minor.
 
 `release:check --tag` and the publication job require a successful `minor-upgrade.yml` run on the exact candidate
-commit on `main` for such a minor. A missing workflow/run fails closed. The isolated matrix runner and its evidence
-artifact must be implemented before this requirement can pass; a green ordinary `verify` is insufficient.
-`release:check --check-tag <tag> <ref>` performs the same checks without creating or pushing any tag.
+commit on `main`, named for both the target and the previous published release. Missing, stale, failed or ongoing
+evidence fails closed; a green ordinary `verify` is insufficient. Dispatch it after that commit reaches `main`,
+without creating a tag:
+
+```bash
+gh workflow run minor-upgrade.yml --ref main -f previous=2.14.0 -f target=2.15.0
+```
+
+The workflow builds the exact candidate, downloads and checksum-checks the previous official daemon and desktop
+ZIP, and runs `scripts/minor-upgrade.ts`. Separate temporary homes hold the installed core and remote desktop
+client. The daemon uses the previous installed updater; the native app uses its real download, swap and restart
+bridge. An `open` wrapper forwards to the real macOS launcher with an isolated profile, so relaunch cannot attach
+to the developer's desktop session. Receipts include commit/artifact hashes, health/data checks, process logs and
+native before/after screenshots; even a failed run keeps its available evidence as an Actions artifact.
+
+This matrix currently runs on macOS arm64. It is not Linux, Windows, SSH-transport or mobile upgrade proof; report
+those separately if required for a change. A native launch or debugger failure fails the matrix, never skips the
+client journey. `release:check --check-tag <tag> <ref>` performs the same checks without creating or pushing a tag.
 
 ## Tagging a release
 

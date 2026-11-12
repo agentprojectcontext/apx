@@ -1,0 +1,58 @@
+name: minor-upgrade
+run-name: Minor upgrade v${{ inputs.target }} from v${{ inputs.previous }}
+
+on:
+  workflow_dispatch:
+    inputs:
+      previous:
+        description: Previous published version, without v
+        required: true
+      target:
+        description: Candidate minor version, without v
+        required: true
+
+permissions:
+  contents: read
+
+concurrency:
+  group: minor-upgrade-${{ github.ref }}-${{ inputs.target }}
+  cancel-in-progress: false
+
+jobs:
+  mac-arm64:
+    name: Installed core and remote desktop upgrade (macOS arm64)
+    runs-on: macos-latest
+    timeout-minutes: 45
+    env:
+      GH_TOKEN: ${{ github.token }}
+      APX_VERSION: ${{ inputs.target }}
+      PREVIOUS: ${{ inputs.previous }}
+      TARGET: ${{ inputs.target }}
+      CSC_IDENTITY_AUTO_DISCOVERY: "false"
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24.11"
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Validate version arguments before building
+        run: node -e 'import("./scripts/minor-upgrade.ts").then(m => m.upgradeArgs(["--previous",process.env.PREVIOUS,"--target",process.env.TARGET,"--candidate","out","--report","out/minor-upgrade/result.json"]))'
+      - name: Build the exact candidate without a tag or publication
+        run: pnpm package:mac
+      - name: Upgrade installed core and native remote client in isolated homes
+        run: node scripts/minor-upgrade.ts --previous "$PREVIOUS" --target "$TARGET" --candidate out --report out/minor-upgrade/result.json
+      - name: Keep receipts, process logs and native screenshots even on failure
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: minor-upgrade-${{ inputs.target }}-${{ github.sha }}
+          path: |
+            out/minor-upgrade/result.json
+            out/minor-upgrade/upgrade-*/*.log
+            out/minor-upgrade/upgrade-*/client-home/*.png
+          if-no-files-found: warn
+          retention-days: 30

@@ -50,7 +50,11 @@ test("arguments: a ref, --wait, --tag v2.x.y and --repo", () => {
 });
 
 /** A fake git and gh: the commands asked for, answering from `runs`. */
-function fake(runs: VerifyRun[][], upgrades: VerifyRun[] = [run()], previous = "v2.9.1") {
+function fake(
+  runs: VerifyRun[][],
+  upgrades: VerifyRun[] = [run({ displayTitle: "Minor upgrade v2.10.0 from v2.9.1" })],
+  previous = "v2.9.1",
+) {
   const calls: string[] = [];
   const exec = (command: string, args: string[]) => {
     calls.push(`${command} ${args.join(" ")}`);
@@ -92,7 +96,10 @@ test("a minor cannot tag without exact-commit successful upgrade evidence, inclu
     [run({ conclusion: "failure" })],
     [run({ headSha: "b".repeat(40) })],
   ]) {
-    const f = fake([[run()]], upgrades);
+    const f = fake(
+      [[run()]],
+      upgrades.map((r) => ({ ...r, displayTitle: "Minor upgrade v2.10.1 from v2.9.1" })),
+    );
     assert.equal(
       check(["--tag", "v2.10.1"], f.exec, () => {}),
       1,
@@ -102,6 +109,17 @@ test("a minor cannot tag without exact-commit successful upgrade evidence, inclu
   assert.equal(needsMinorUpgrade("v2.10.1", "v2.9.1"), true);
   assert.equal(needsMinorUpgrade("v2.10.1", "v2.10.0"), false);
   assert.equal(needsMinorUpgrade("v2.10.0", undefined), true);
+});
+
+test("upgrade proof for a different target or baseline cannot approve the candidate", () => {
+  for (const title of ["Minor upgrade v2.11.0 from v2.9.1", "Minor upgrade v2.10.0 from v2.8.0", "minor-upgrade"]) {
+    const f = fake([[run()]], [run({ displayTitle: title })]);
+    assert.equal(
+      check(["--check-tag", "v2.10.0"], f.exec, () => {}),
+      1,
+    );
+    assert.ok(!f.calls.some((c) => c.startsWith("git tag") || c.startsWith("git push")));
+  }
 });
 
 test("patch does not require upgrade workflow; publish-only checking never tags or pushes", () => {
