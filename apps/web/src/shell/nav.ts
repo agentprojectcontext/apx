@@ -602,19 +602,6 @@ export const go = {
       return { panel: "agents", panelThread: thread, panelParent: s.threadId, listInFront: false };
     });
   },
-  /** A sub-chat beside the chat it came from, which opens where it lives (an Inbox list's teammate conversation). */
-  subthreadOf(parent: string, thread: string) {
-    nav.set((s) => ({
-      ...(s.view === "project" && s.projectTab === "chats" ? {} : { view: "inbox" as const }),
-      threadId: parent,
-      routineId: undefined,
-      peekTaskId: undefined,
-      panel: "agents" as const,
-      panelThread: thread,
-      panelParent: parent,
-      listInFront: false,
-    }));
-  },
   /** The agents the open chat called (its delegated conversations). */
   agents() {
     nav.set({ panel: "agents", panelThread: undefined, panelParent: undefined });

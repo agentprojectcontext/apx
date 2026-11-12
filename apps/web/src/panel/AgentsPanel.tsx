@@ -4,8 +4,10 @@ import { AgentAvatar, Button, EmptyState, IconButton, Icons, Skeleton, Spinner }
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Transcript } from "../chat/Transcript.tsx";
 import { shortWhen } from "../common/format.ts";
+import { ASKED, namedTitle } from "../common/mentionNames.ts";
+import { usePageVisible } from "../common/useInView.ts";
 import { useNow } from "../common/useNow.ts";
-import { loadThread } from "../data/actions.ts";
+import { loadThread, markRead } from "../data/actions.ts";
 import { client } from "../data/client.ts";
 import { blobOf, isWorking, threadAgent } from "../data/identity.ts";
 import { queuedTurnsOf } from "../data/jobs.ts";
@@ -87,6 +89,12 @@ export function AgentsPanel() {
   useEffect(() => {
     if (selected && loadState == null) void loadThread(selected);
   }, [selected, loadState]);
+  // Seen beside the chat is seen: its row in the Inbox stops showing it unread, as when it is opened as the chat.
+  const visible = usePageVisible();
+  const unread = thread?.unread ?? 0;
+  useEffect(() => {
+    if (selected && unread > 0 && visible && loadState === "ready") void markRead(selected);
+  }, [selected, unread, visible, loadState]);
   const current = (children ?? []).map((th) => threads[th.id] ?? th);
   const active = current.filter((th) => going(th.state));
   const done = current.filter((th) => !going(th.state));
@@ -98,18 +106,19 @@ export function AgentsPanel() {
   const tabs = open.flatMap((id) => {
     const th = threads[id] ?? children?.find((x) => x.id === id);
     return th
-      ? [{ id, label: th.title || t("thread.a2a"), dot: going(th.state) ? ("busy" as const) : ("idle" as const) }]
+      ? [{ id, label: titleOf(th) || t("thread.a2a"), dot: going(th.state) ? ("busy" as const) : ("idle" as const) }]
       : [];
   });
   /** "Roby → Fausto: task": who asked, who works on it and what (delegated chats are titled so already). */
-  const titleOf = (th: Thread) => {
-    if (th.title.includes(" → ")) return th.title;
+  function titleOf(th: Thread) {
     const callee = threadAgent(th, agents);
+    const title = namedTitle(th.title, agents, callee?.id);
+    if (ASKED.test(th.title)) return title;
     const parent = th.parent_id ? threads[th.parent_id] : undefined;
     const caller = parent && threadAgent(parent, agents);
     const pair = caller && callee && caller.id !== callee.id ? `${caller.name} → ${callee.name}` : callee?.name;
-    return pair ? `${pair}: ${th.title}` : th.title;
-  };
+    return pair ? `${pair}: ${title}` : title;
+  }
   const row = (th: Thread) => {
     const agent = threadAgent(th, agents);
     return (

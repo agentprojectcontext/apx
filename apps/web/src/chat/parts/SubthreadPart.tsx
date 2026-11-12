@@ -1,6 +1,7 @@
 import type { Agent, Part } from "@apx/protocol";
 import { AgentAvatar, Icons, MarkdownView, SubthreadCard } from "@apx/ui";
 import { duration } from "../../common/format.ts";
+import { namedMentions } from "../../common/mentionNames.ts";
 import { useMarkdownLabels } from "../../common/useMarkdownLabels.ts";
 import { blobOf } from "../../data/identity.ts";
 import { useOwnerName } from "../../data/owner.ts";
@@ -20,6 +21,7 @@ export function SubthreadPart({ part, from }: { part: Extract<Part, { type: "sub
   const target = useData((s) => s.agents[part.agent_id] ?? s.former[part.agent_id]);
   const asker = useData((s) => (part.asked_by ? (s.agents[part.asked_by] ?? s.former[part.asked_by]) : undefined));
   const ownerName = useOwnerName();
+  const agents = useData((s) => s.agents);
   const st = responseStatus(part);
   const failed = failedLine(part.failed, t);
   // The owner's own question on a task keeps its answer in view (DECISIONS.md#d-220).
@@ -39,7 +41,7 @@ export function SubthreadPart({ part, from }: { part: Extract<Part, { type: "sub
           <AgentAvatar name={name} blob={blobOf(target)} size={24} animated={part.state === "working"} />
         )
       }
-      title={part.title}
+      title={namedMentions(part.title, agents, part.agent_id)}
       subtitle={`${askedBy} → ${name}${part.worker ? ` · ${t("subthread.worker")}` : ""}`}
       status={st.status}
       statusLabel={<span title={failed}>{t(st.label)}</span>}
