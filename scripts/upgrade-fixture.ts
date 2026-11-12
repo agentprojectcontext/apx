@@ -33,7 +33,7 @@ export async function command(
   return out;
 }
 
-export async function stop(child: ChildProcess) {
+async function stop(child: ChildProcess) {
   if (child.exitCode !== null || child.signalCode !== null) return;
   const ended = once(child, "exit");
   child.kill("SIGTERM");
@@ -46,30 +46,47 @@ export async function stop(child: ChildProcess) {
 }
 
 export async function bundledCore(root: string, env: NodeJS.ProcessEnv, logFile: string) {
-  const child = spawn(path.join(root, "node/bin/node"), [path.join(root, "apps/core/src/main.ts")], {
-    env,
-    stdio: ["ignore", "pipe", "pipe"],
-  });
+  let stopping = false;
+  let failure: Error | undefined;
   let log = "";
   const keep = (bytes: Buffer) => {
     const text = bytes.toString();
     log = (log + text).slice(-32_000);
     fs.appendFileSync(logFile, text);
   };
-  child.stdout.on("data", keep);
-  child.stderr.on("data", keep);
+  const launch = () => {
+    const child = spawn(path.join(root, "node/bin/node"), [path.join(root, "apps/core/src/main.ts")], {
+      env: { ...env, APX_SUPERVISED: "1" },
+      stdio: ["ignore", "pipe", "pipe"],
+    });
+    child.stdout.on("data", keep);
+    child.stderr.on("data", keep);
+    child.on("error", (error) => {
+      failure = error;
+    });
+    child.once("exit", (code) => {
+      if (code === 75 && !stopping) current = launch();
+    });
+    return child;
+  };
+  let current = launch();
+  const close = async () => {
+    stopping = true;
+    await stop(current);
+  };
   try {
     const url = await waitFor(
       () => {
-        if (child.exitCode !== null || child.signalCode !== null) throw new Error(log);
+        if (failure) throw failure;
+        if (current.exitCode !== null || current.signalCode !== null) throw new Error(log);
         return /apx core listening[^\n]*"url":"([^"]+)/.exec(log)?.[1];
       },
       "isolated installed core",
       { ms: 30_000 },
     );
-    return { child, url, client: new ApxClient({ url, timeoutMs: 120_000 }) };
+    return { close, url, client: new ApxClient({ url, timeoutMs: 120_000 }) };
   } catch (error) {
-    await stop(child);
+    await close();
     throw error;
   }
 }

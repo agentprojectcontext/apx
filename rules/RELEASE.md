@@ -92,8 +92,9 @@ gh workflow run minor-upgrade.yml --ref main -f previous=2.14.0 -f target=2.15.0
 
 The workflow builds the exact candidate, downloads and checksum-checks the previous official daemon and desktop
 ZIP, and runs `scripts/minor-upgrade.ts`. Separate temporary homes hold the installed core and remote desktop
-client. The daemon uses the previous installed updater; the native app uses its real download, swap and restart
-bridge. An `open` wrapper forwards to the real macOS launcher with an isolated profile, so relaunch cannot attach
+client. The daemon uses the previous installed updater and preserves a demo chat, task, memory, agent and home
+identity. Its fixture supervisor restarts only its own child on the normal restart exit code; the native app uses
+its real download, swap and restart bridge. An `open` wrapper forwards to the real macOS launcher with an isolated profile, so relaunch cannot attach
 to the developer's desktop session. Receipts include commit/artifact hashes, health/data checks, process logs and
 native before/after screenshots; even a failed run keeps its available evidence as an Actions artifact.
 

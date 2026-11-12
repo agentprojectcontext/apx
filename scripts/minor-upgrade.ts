@@ -6,7 +6,7 @@ import { fileURLToPath } from "node:url";
 import { compareVersions } from "../packages/protocol/src/releases.ts";
 import { previousRelease, type ReleaseRow } from "./release-previous.ts";
 import { upgradeDesktop } from "./upgrade-desktop.ts";
-import { bundledCore, command, previousArtifacts, releaseFixture, stop } from "./upgrade-fixture.ts";
+import { bundledCore, command, previousArtifacts, releaseFixture } from "./upgrade-fixture.ts";
 
 export function upgradeArgs(args: string[]) {
   const values = new Map<string, string>();
@@ -74,8 +74,14 @@ async function upgradeCore(o: Options, work: string, feed: string) {
       agent_id: agent.id,
       title: "Upgrade preserved chat",
     });
+    const task = await active.client.call("tasks.create", {
+      title: "Upgrade preserved task",
+      goal: "Keep fixture data",
+      description: "Isolated upgrade fixture",
+    });
+    const memory = await active.client.call("memory.add", { text: "Upgrade fixture preference", scope: "global" });
     env.APX_PORT = new URL(active.url).port;
-    await stop(active.child);
+    await active.close();
     const old = path.join(versions, o.previous);
     const log = await command(
       path.join(old, "node/bin/node"),
@@ -94,13 +100,32 @@ async function upgradeCore(o: Options, work: string, feed: string) {
       (await active.client.call("threads.get", { thread: thread.id })).thread.title,
       "Upgrade preserved chat",
     );
+    assert.equal((await active.client.call("tasks.get", { task: task.id })).task.goal, "Keep fixture data");
+    assert.ok(
+      (await active.client.call("memory.list", { scope: "global" })).memories.some(
+        (m) => m.id === memory.id && m.text === memory.text,
+      ),
+    );
+    assert.ok((await active.client.call("agents.list", {})).agents.some((a) => a.id === agent.id));
+    assert.equal(
+      (await active.client.call("system.update_state", {})).supported,
+      true,
+      "isolated server must support coordinated updates",
+    );
     return {
       active,
       thread: thread.id,
-      result: { installed_updater: true, health: true, data_preserved: true, before, after },
+      result: {
+        installed_updater: true,
+        health: true,
+        data_preserved: true,
+        preserved: ["chat", "task", "memory", "agent", "home identity"],
+        before,
+        after,
+      },
     };
   } catch (error) {
-    await stop(active.child);
+    await active.close();
     throw error;
   }
 }
@@ -186,7 +211,7 @@ export async function runUpgrade(o: Options) {
     save();
     throw error;
   } finally {
-    if (core) await stop(core.active.child);
+    if (core) await core.active.close();
     if (feed) await feed.close();
   }
 }
