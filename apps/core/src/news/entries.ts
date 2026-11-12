@@ -20,6 +20,7 @@ import { EVENT_MUTE_NEWS } from "./event-mute.ts";
 import { EXTERNAL_SESSIONS_NEWS } from "./external-sessions.ts";
 import { HEADLINE_MODELS_NEWS } from "./headline-models.ts";
 import { HERMES_IMPORT_NEWS } from "./hermes-import.ts";
+import { HOME_CHANNEL_SWITCH_NEWS } from "./home-channel-switch.ts";
 import { LOCAL_MODELS_NEWS } from "./local-models.ts";
 import { MCP_CONTEXT_NEWS } from "./mcp-context.ts";
 import { MCP_REACH_NEWS } from "./mcp-reach.ts";
@@ -144,6 +145,7 @@ export const NEWS: readonly NewsEntry[] = [
   EVENT_MUTE_NEWS,
   SUBPROJECTS_NEWS,
   ROOM_HANDOFF_NEWS,
+  HOME_CHANNEL_SWITCH_NEWS,
   ACTIVITY_REVIEW_NEWS,
   AGENT_PROMPTS_NEWS,
   AGENT_REVIEW_NEWS,

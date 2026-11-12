@@ -1,12 +1,11 @@
 // A room's turn has no tools (D-041). When the owner asks there for something that needs them, the room's agent says it
 // is on its way and ends its answer with HANDOFF: APX takes that line out of what is posted and hands the owner's own
-// message (never the model's words, never a member's) to Home, where it gets done and answered in private.
-// See DECISIONS.md#d-213
+// message (never the model's words, never a member's) to Home, where it gets done and answered in private; the words
+// stay in the room's chat. See DECISIONS.md#d-213, #d-224
 import { ownerActsOn } from "../domain/channels.ts";
 import type { RunRecord } from "../domain/runs.ts";
 import { HOME_THREAD_ID } from "../domain/seed.ts";
 import type { Store } from "../domain/store.ts";
-import { previewOf } from "../domain/threads.ts";
 import { errorMessage } from "../errors.ts";
 import type { Log } from "../log.ts";
 import { inlineName } from "../tools/result.ts";
@@ -108,24 +107,17 @@ function handOn(
     });
     return;
   }
-  store.tx(() => {
-    const message = store.messages.add({
-      thread_id: HOME_THREAD_ID,
-      author: { kind: "user" },
-      via: owner.channel,
-      parts: [{ type: "text", text: words }],
-    });
-    store.threads.patch(HOME_THREAD_ID, { preview: previewOf(words) });
-    admit({
-      thread_id: HOME_THREAD_ID,
-      agent_id: agent.id,
-      trigger: "user",
-      origin: { kind: "user", message_id: message.id },
-      text: [
-        `Your owner wrote this in ${where}, where they were told it is on its way and they will hear back in private:`,
-        words,
-        "Do it here. Your answer reaches them privately, never in that room unless they ask you to post there.",
-      ].join("\n\n"),
-    });
+  // The words stay in the room's chat, where they were said: Home's turn carries them, no message of its own
+  // (DECISIONS.md#d-224).
+  admit({
+    thread_id: HOME_THREAD_ID,
+    agent_id: agent.id,
+    trigger: "user",
+    origin: { kind: "user" },
+    text: [
+      `Your owner wrote this in ${where}, where they were told it is on its way and they will hear back in private:`,
+      words,
+      "Do it here. Your answer reaches them privately, never in that room unless they ask you to post there.",
+    ].join("\n\n"),
   });
 }

@@ -8,6 +8,7 @@ import path from "node:path";
 import { z } from "zod";
 import { meansOwner, OWNER_ID } from "../domain/persons.ts";
 import type { Store } from "../domain/store.ts";
+import { SKIP_ANSWER } from "../engine/routines.ts";
 import { channelsOn } from "./directory.ts";
 import { folderAccess, readsOutside, workDir } from "./folders.ts";
 import { untrusted } from "./result.ts";
@@ -131,18 +132,20 @@ export function messageTools(store: Store, home: string): Tool[] {
     defineTool({
       name: "message_contact",
       description:
-        'Message a person on the owner\'s channels: a contact (\'tell Alex…\') or the owner (to="me"). to: a name, id or "me"; channel: default where they last talked; files: paths in your work folder, any file you can read for to="me" (20 MB max). Plain text, no Markdown, in first person as the owner\'s assistant, only what the owner asked for. It cannot be taken back; the result shows the end of that chat: check it before saying it went.',
+        "Message a contact ('tell Alex…') or the owner (to=\"me\") on a channel. to: a name or id; channel: default where they last talked; files: paths in your work folder (any you can read for me, 20 MB max); stay: the owner asked to go on there. Plain text, no Markdown, first person as the owner's assistant, only what was asked. It cannot be undone; check the end of that chat in the result before saying it went.",
       args: z.object({
         to: z.string().trim().min(1).max(120),
         omit_signature: z.boolean().optional().describe("email only: omit the configured signature"),
         text: z.string().trim().min(1).max(4000),
         channel: z.string().max(60).optional(),
         files: z.array(z.string().min(1).max(500)).max(5).optional(),
+        stay: z.boolean().optional(),
       }),
       effect: "message",
       when: () => channelsOn(store),
-      // Words go to someone else: asked while outside content is in the turn, unless the agent's autonomy is total.
-      confirm: "untrusted",
+      // Words go to someone else: asked while outside content is in the turn, unless the agent's autonomy is total. Words
+      // to the owner alone are what an answer would say there (DECISIONS.md#d-224).
+      confirm: (a) => (meansOwner(a.to) && !a.files?.length ? "never" : "untrusted"),
       outside: (a, ctx) => readsOutside(store, home, ctx.thread, (a.files as string[] | undefined) ?? []),
       deadlineMs: 15_000,
       title: (a) => `Wrote to ${String(a.to ?? "a contact")}`,
@@ -158,6 +161,7 @@ export function messageTools(store: Store, home: string): Tool[] {
           ...(a.omit_signature !== undefined ? { omit_signature: a.omit_signature } : {}),
           ...(a.channel ? { channel: a.channel } : {}),
           ...(files.ids.length ? { files: files.ids } : {}),
+          ...(a.stay && who.id === OWNER_ID ? { stay: true } : {}),
         });
         if ("withheld" in r) {
           if (r.withheld === "app_only")
@@ -166,7 +170,11 @@ export function messageTools(store: Store, home: string): Tool[] {
             ? `held: the owner's quiet hours are on; the text goes when they end${files.ids.length ? ", without the files" : ""}. Do not send it again.`
             : "not sent: the owner's notice budget did not let it through (today's cap, another notice too soon, or a kind they marked unhelpful). Do not retry; it stays in this chat.";
         }
-        return sentNote(who.name, r, files.ids.length, "contact_chat");
+        const sent = sentNote(who.name, r, files.ids.length, "contact_chat");
+        if (r.moved === undefined) return sent;
+        return r.moved
+          ? `${sent}\nThe conversation moved there: your answers (this turn's too) and your team's results reach them on ${r.channel} until they write elsewhere. Do not repeat what you sent: answer ${SKIP_ANSWER} unless there is more.`
+          : `${sent}\nSent once; the conversation did not move (only Home moves, when the owner asks).`;
       },
     }),
     defineTool({

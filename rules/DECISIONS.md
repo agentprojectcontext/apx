@@ -4477,10 +4477,11 @@ the main prompt's own rule that a promise is not an action.
   (`role: "owner"`): the run's input text, verbatim, never the model's text and never a member's. From any other
   message the line is only removed, so nobody in a room can turn their text into a request, whatever the model says.
 - **Home does it, by the owner's rules on that platform** (D-144, D-150). On a channel whose owner acts on their word
-  (Telegram, WhatsApp, Signal) the words are kept in Home as the owner's (`via` the channel) and start a turn there
-  that is told which room they came from. Elsewhere (Discord, Slack…) they go through `relayOwnerWords` like the
-  owner's other words there: the super-agent checks them in Home's owner-check sub-thread, and the result returns to
-  Home as a delegated result.
+  (Telegram, WhatsApp, Signal) the words are kept in Home as the owner's (`via` the channel; since D-224 only carried in
+  the turn's input) and start a turn there that is told which room they came from. Elsewhere (Discord, Slack…) they go
+  through `relayOwnerWords` like the owner's other words there: the super-agent checks them in Home's owner-check
+  sub-thread, and the result returns to Home as a delegated result. (Since D-224 the owner's words are no longer kept in
+  Home on any platform: they stay in the room's chat.)
 - **The result never goes back to the room.** The Home turn has no `reply_to` of its own and the relay leaves Home's
   untouched (`owner_check.reply_to` is optional now): answers reach the owner where Home talks to them (Home's last
   channel, or the app).
@@ -4735,3 +4736,47 @@ Rejected: offering every project's MCP tools to a routine with no project (it wo
 projects the owner did not put it in), letting a routine's Total override the agent's own rules (D-090: the owner's
 explicit rule for a risk is over any mode, and D-172 already works this way), and a separate "Ask" mode for routines
 (Manual is that mode's name everywhere else in the app).
+
+<a id="d-224"></a>
+## D-224 — 2026-11-12 — Home follows the owner across chat apps, and moves when they ask
+
+The owner wrote on WhatsApp "let's go on in Telegram". The super-agent said yes, but the work it had delegated from
+WhatsApp kept answering there: a delegated result's turn took the channel of the turn that delegated
+(`fanout.ts` copied the parent's `reply_to`). Answering those results, it sometimes decided nothing was worth saying and
+wrote `SKIP`, and the word itself reached WhatsApp: the signal was only taken out of turns that answer a message
+(`signals.ts` checked `SKIP` for chats, mail and routines, not for delegated results).
+
+- **An answer to a message goes where the message was written** (as before): the owner's words on WhatsApp are
+  answered on WhatsApp, on Telegram on Telegram, in the app in the app. Without being told anything, each keeps its
+  thread of talk.
+- **What comes later in Home follows the owner.** A delegated result, the owner check's answer (D-144), a background
+  job that ended: their turn has no destination of its own (`laterReplyTo` in `engine/home-channel.ts`), so the engine
+  takes where Home talks to the owner when it starts (`reply_to` in Home's context: the chat app they last wrote on, or
+  none after they wrote in the app). Delegated agents are never bound to the channel the work started on. Other chats
+  (a contact's, a room, the owner's own chat for one channel) keep the turn's destination: each has one place to talk.
+- **The owner can move Home.** `message_contact` with `to="me"`, a `channel` and `stay` (`channels.message`'s `stay`)
+  sends the line on the new chat app at once ("I'll go on here") and moves Home there: its context's `reply_to` and
+  every turn of Home not ended yet (the one moving it too, so its last words go to the new place, or nothing with
+  `SKIP`). The old chat gets nothing more. It moves only from Home, only to a chat of the owner's that lands in Home,
+  and only on the owner's own request (`askedByOwner`): an unasked message to the owner never moves anything. Writing
+  again on any chat app, or in the app, moves Home there as before. Without `stay` it is a one-off send ("send me this
+  on Telegram") and nothing moves.
+- **A message to the owner alone needs no OK.** `message_contact` to the owner without files is what an answer would
+  say there, so it no longer waits for a confirmation when outside content is in the turn (moving back and forth asked
+  every time); with files, or to anyone else, it still does.
+- **`SKIP` is never words**, whatever started the turn: any finished turn whose whole answer is `SKIP` sends nothing
+  and shows nothing, on every channel and in the app.
+- **What the owner says in a room stays in the room's chat** (supersedes D-213's "kept in Home", on every platform).
+  A request handed on from a room or group is no longer kept in Home as a message: the owner wrote in a room, not to
+  Home. Only what they say to the agent one-to-one goes to Home (or that channel's own chat). The work is still done
+  from Home by the owner's rules on that platform: on Discord, Slack and the rest the super-agent checks the words
+  first (D-144; `relayOwnerWords` with a `room` keeps no message and leaves Home's preview alone, the check and its
+  sub-thread unchanged); on a Telegram, WhatsApp or Signal group Home's turn starts at once with the words in its input
+  (`handOn`, origin `user` with no message). Either way the answer goes where Home talks to the owner, as above.
+
+This changes one earlier behavior: a delegated result that came in after the owner wrote in the app went back to the
+chat app the work started on; it now stays in the app, where they last were.
+
+Rejected: a tool of its own to move Home (the owner's words already go through `message_contact`, and a tool more is
+paid on every turn, rule 23); moving Home whenever the owner names another app (a one-off "send me this there" must
+not move the talk); answering a delegated result on every chat app it touched.

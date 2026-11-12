@@ -234,6 +234,8 @@ export function threadHandlers(
         text,
         attachments: files,
       });
+      // Outside a room the words are always kept in the chat.
+      if (!sent.message) throw notFound("the kept message");
       return { message: sent.message, run: publicRun(sent.run) };
     }
     if (owner && mode === "interrupt") engine.interrupt(threadId);
