@@ -3,7 +3,7 @@ import type { NewsEntry } from "./entries.ts";
 // Told once to an owner with more than one channel: Home moves to another chat app when they ask (DECISIONS.md#d-224).
 export const HOME_CHANNEL_SWITCH_NEWS: NewsEntry = {
   id: "home-channel-switch",
-  since: "2.15.0",
+  since: "2.14.3",
   title: {
     en: "Move the conversation to another chat app",
     es: "Mové la conversación a otra app de chat",

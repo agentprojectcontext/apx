@@ -2,7 +2,7 @@ import type { NewsEntry } from "./entries.ts";
 
 export const HEADLINE_MODELS_NEWS: NewsEntry = {
   id: "headline-models-2026-11",
-  since: "2.15.0",
+  since: "2.14.3",
   title: {
     en: "Gemini 4 Argon and GPT-6 Astra are ready for your agents",
     es: "Gemini 4 Argon y GPT-6 Astra ya están para tus agentes",

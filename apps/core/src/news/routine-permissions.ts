@@ -2,7 +2,7 @@ import type { NewsEntry } from "./entries.ts";
 
 export const ROUTINE_PERMISSIONS_NEWS: NewsEntry = {
   id: "routine-permissions",
-  since: "2.15.0",
+  since: "2.14.3",
   title: {
     en: "Routines work with their agent's full toolkit, on the permissions you pick",
     es: "Las rutinas trabajan con todas las herramientas de su agente, con los permisos que elijas",
