@@ -143,7 +143,11 @@ export function RoutineEditor({ draft, onClose }: { draft: RoutineDraft; onClose
           </Field>
           {!shell && (
             <Field label={t("routines.anchor")} hint={t("routines.anchorHint")}>
-              <Switch checked={d.anchor} label={t("routines.anchor")} onCheckedChange={(anchor) => set({ anchor })} />
+              <Switch
+                checked={d.anchor}
+                aria-label={t("routines.anchor")}
+                onCheckedChange={(anchor) => set({ anchor })}
+              />
             </Field>
           )}
           {!shell && d.action !== "message" && (
