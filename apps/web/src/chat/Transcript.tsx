@@ -18,13 +18,12 @@ import { dayLabel, sameDay } from "../common/format.ts";
 import { useEngineLabel } from "../common/useEngineLabel.ts";
 import { useChannels } from "../data/channels.ts";
 import { blobOf, isWorking, routineName, threadAgent } from "../data/identity.ts";
-import { useOwnerName } from "../data/owner.ts";
 import { useData, useShownAgents } from "../data/state.ts";
 import { useLanguage, useT } from "../i18n/index.ts";
 import { AgentEvent, EmailCard, MediaGroup, TaskDescription } from "../lazy.ts";
 import { nav, useNav } from "../shell/nav.ts";
 import { AgentTurn } from "./AgentTurn.tsx";
-import { answerCards, isAgentEvent, isIndividualChat } from "./agentEvent.ts";
+import { answerCards, isAgentEvent } from "./agentEvent.ts";
 import { MessageActions } from "./MessageActions.tsx";
 import { FilePart } from "./parts/FilePart.tsx";
 import { imageGenerationRuns } from "./parts/imageGeneration.ts";
@@ -34,6 +33,7 @@ import { NoticePart } from "./parts/NoticePart.tsx";
 import { latestPlan } from "./planLast.ts";
 import { quotedIndex, quoteParts, splitQuote } from "./quote.ts";
 import { Regenerate, UserMessage } from "./Rewind.tsx";
+import { isRoom, ownerOnChannel } from "./room.ts";
 import { PersonFace, Speaker } from "./Speaker.tsx";
 
 const EMPTY: Msg[] = [];
@@ -63,20 +63,7 @@ export function Transcript({ thread, comments = false, via }: { thread: Thread; 
   );
   const mailChannels = useMemo(() => new Set(mailIds.split(" ")), [mailIds]);
   const scroll = useRef<StickyScrollHandle>(null);
-  const multiAgent =
-    !isIndividualChat(thread) &&
-    (thread.kind === "group" ||
-      thread.kind === "a2a" ||
-      thread.kind === "task" ||
-      thread.agent_ids.length > 1 ||
-      new Set(messages.flatMap((m) => (m.author.kind === "agent" ? [m.author.id] : []))).size > 1);
-  // Several speakers (agents, or people on a channel): each one's face and name over their words, all at the left.
-  const room =
-    multiAgent ||
-    thread.kind === "channel" ||
-    thread.kind === "group" ||
-    messages.some((m) => m.author.kind === "person");
-  const ownerName = useOwnerName() || t("account.you");
+  const room = useMemo(() => isRoom(thread, messages), [thread, messages]);
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: day labels are re-made when the language changes
   const rows = useMemo(() => {
@@ -148,8 +135,7 @@ export function Transcript({ thread, comments = false, via }: { thread: Thread; 
               <RoutinePrompt name={routineName(thread)} text={textOf(msg)} />
             ) : msg.author.kind === "user" ? (
               <>
-                {room && <Speaker face={<PersonFace name={ownerName} />} name={ownerName} />}
-                <UserMedia message={msg} from={room ? "agent" : "user"} />
+                <UserMedia message={msg} from="user" />
                 <UserMessage
                   thread={thread}
                   message={msg}
@@ -160,6 +146,30 @@ export function Transcript({ thread, comments = false, via }: { thread: Thread; 
                   <UserFiles message={msg} />
                   <UserText text={textOf(msg)} sourceOf={(quote) => quoted(msg.id, quote)} />
                 </UserMessage>
+              </>
+            ) : ownerOnChannel(msg) ? (
+              <>
+                <UserMedia message={msg} from="user" />
+                {(textOf(msg) || bubbleFiles(msg.parts).length > 0) && (
+                  <Message
+                    from="user"
+                    variant="bubble"
+                    meta={<ViaMark thread={thread} message={msg} />}
+                    reactions={reactionsOf(msg)}
+                    actions={
+                      <MessageActions
+                        thread={thread}
+                        message={msg}
+                        text={textOf(msg)}
+                        speechKey={msg.id}
+                        speak={false}
+                      />
+                    }
+                  >
+                    <UserFiles message={msg} />
+                    <UserText text={textOf(msg)} sourceOf={(quote) => quoted(msg.id, quote)} />
+                  </Message>
+                )}
               </>
             ) : msg.author.kind === "system" ? (
               <SystemMessage message={msg} />

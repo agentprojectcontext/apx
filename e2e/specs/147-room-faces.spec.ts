@@ -1,4 +1,5 @@
-// In a chat with several speakers each one's face sits over their words: initials stay in the middle of the circle.
+// In a chat with several speakers each one's face sits over their words, initials in the middle of the circle; the
+// owner's own words, typed here or come in on a channel, stay on their side without a face.
 import type { Message, Thread } from "../../packages/protocol/src/index.ts";
 import { expect, open, rpc, test } from "./kit.ts";
 
@@ -23,6 +24,14 @@ test("a room's letter faces keep their initials centred", async ({ page }) => {
       parts: [{ type: "text", text: "Buenas" }],
       created_at: at,
     },
+    {
+      id: "f3",
+      thread_id: thread.id,
+      seq: 3,
+      author: { kind: "person", id: "owner", name: "Acme Owner", channel: "discord" },
+      parts: [{ type: "text", text: "Sigo por acá" }],
+      created_at: at,
+    },
   ];
   await page.route("**/rpc/threads.get", async (route) => {
     if (route.request().postDataJSON().thread !== thread.id) return route.continue();
@@ -30,7 +39,8 @@ test("a room's letter faces keep their initials centred", async ({ page }) => {
   });
   await open(page, `#thread=${thread.id}`);
   const faces = page.locator(".transcript__face");
-  await expect(faces).toHaveCount(2);
+  await expect(faces).toHaveCount(1);
+  await expect(page.locator(".apx-msg--user")).toHaveCount(2);
   for (const face of await faces.all()) {
     const offset = await face.evaluate((el) => {
       const box = el.getBoundingClientRect();
@@ -42,7 +52,7 @@ test("a room's letter faces keep their initials centred", async ({ page }) => {
     });
     expect(offset).toBeLessThanOrEqual(1.5);
   }
-  await expect(faces.nth(1)).toHaveText("NO");
+  await expect(faces.first()).toHaveText("NO");
   await page.unrouteAll({ behavior: "wait" });
   await rpc("threads.delete", { thread: thread.id });
 });

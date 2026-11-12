@@ -101,6 +101,16 @@ export async function loadTabs(): Promise<void> {
   }
 }
 
+/** The owner's sent-but-unconfirmed copies still missing from a fresh read: one already stored there is not shown twice. */
+export function pendingCopies(held: readonly Message[], read: readonly Message[]): Message[] {
+  const firstText = (m: Message) => (m.parts[0]?.type === "text" ? m.parts[0].text : undefined);
+  return held.filter(
+    (copy) =>
+      copy.id.startsWith("local_") &&
+      !read.some((m) => m.author.kind === "user" && m.seq > copy.seq - 1 && firstText(m) === firstText(copy)),
+  );
+}
+
 export async function loadThread(id: string): Promise<void> {
   const load = data.get().threadLoad[id];
   if (load === "loading") return;
@@ -108,7 +118,7 @@ export async function loadThread(id: string): Promise<void> {
   try {
     const r = await client.call("threads.get", { thread: id });
     data.set((s) => {
-      const local = (s.messages[id] ?? []).filter((m) => m.id.startsWith("local_"));
+      const local = pendingCopies(s.messages[id] ?? [], r.messages);
       return {
         threads: { ...s.threads, [id]: r.thread },
         messages: { ...s.messages, [id]: [...r.messages, ...local].sort((a, b) => a.seq - b.seq) },
