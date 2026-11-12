@@ -1,13 +1,18 @@
 import type { Job, Thread } from "@apx/protocol";
 
-/** Descendants belong to the current chat, including workers delegated by its subagents. */
-export function chatDescendants(threads: readonly Thread[], root: string): Thread[] {
+/**
+ * Descendants belong to the current chat, including workers delegated by its subagents; so do the teammates it `asked`
+ * on its task (they hang under the task's conversation) and theirs.
+ */
+export function chatDescendants(threads: readonly Thread[], root: string, asked: readonly string[] = []): Thread[] {
   const byId = new Map(threads.map((thread) => [thread.id, thread]));
+  const own = new Set(asked);
   return threads.filter((thread) => {
+    if (own.has(thread.id)) return thread.id !== root;
     const seen = new Set([thread.id]);
     let parent = thread.parent_id;
     while (parent) {
-      if (parent === root) return thread.id !== root;
+      if (parent === root || own.has(parent)) return thread.id !== root;
       if (seen.has(parent)) return false;
       seen.add(parent);
       parent = byId.get(parent)?.parent_id;

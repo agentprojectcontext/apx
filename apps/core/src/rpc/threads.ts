@@ -296,10 +296,13 @@ export function threadHandlers(
         return { threads: [...threads, ...extra], delegated: store.threads.delegatedCounts(ids) };
       }
       if (!store.threads.get(root_thread)) throw notFound(`thread ${root_thread}`);
+      const asked = store.threads.consultsFrom(root_thread, include_archived);
       return {
-        threads: store.threads
-          .descendants(root_thread, include_archived)
-          .filter((t) => (!project_id || t.project_id === project_id) && (!engine || t.engine === engine)),
+        threads: [
+          ...store.threads.descendants(root_thread, include_archived),
+          ...asked.flatMap((c) => [c, ...store.threads.descendants(c.id, include_archived)]),
+        ].filter((t) => (!project_id || t.project_id === project_id) && (!engine || t.engine === engine)),
+        ...(asked.length ? { asked: asked.map((c) => c.id) } : {}),
       };
     },
     "threads.get": ({ thread }, ctx) => {

@@ -841,6 +841,8 @@ export const JobFrom = z.object({
   ]),
   /** Who sent it (the helper, the contact, the routine, the surface), when it has a name. */
   name: z.string().optional(),
+  /** The conversation it comes from, when another agent's (a teammate asked, a delegated chat): it opens there. */
+  thread: Id.optional(),
 });
 export type JobFrom = z.infer<typeof JobFrom>;
 

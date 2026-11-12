@@ -107,14 +107,17 @@ export function ChannelScreen() {
           Number(a.person?.muted ?? false) - Number(b.person?.muted ?? false) ||
           b.thread.updated_at.localeCompare(a.thread.updated_at),
       );
-    // Saved contacts reachable here who have no chat yet go after the chats, by name.
+    // Saved contacts reachable here who have no chat yet go after the chats, by name. One the owner just blocked from
+    // their open card stays while it is open, so the card does not vanish under the switch they turned.
     const talked = new Set(chats.map((r) => r.person?.id));
+    const listed = (p: (typeof persons)[number]) =>
+      p.role === "contact" || (p.role === "blocked" && picked === `${PERSON_PICK}${p.id}`);
     const others = persons
-      .filter((p) => p.role === "contact" && !talked.has(p.id) && p.addresses.some((a) => a.channel === channelId))
+      .filter((p) => listed(p) && !talked.has(p.id) && p.addresses.some((a) => a.channel === channelId))
       .sort((a, b) => a.name.localeCompare(b.name))
       .map((p) => ({ key: `${PERSON_PICK}${p.id}`, person: p }));
     return [...chats, ...others];
-  }, [threads, persons, channelId]);
+  }, [threads, persons, channelId, picked]);
   // A chat with someone not in the list yet (a contact just approved): fetch the contacts again, once per person.
   const asked = useRef(new Set<string>());
   useEffect(() => {

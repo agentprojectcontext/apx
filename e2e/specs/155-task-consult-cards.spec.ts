@@ -1,6 +1,7 @@
 // An agent working a task asks a teammate on it (@mention in a task comment): the asker's chat shows the question as
 // one card where it asked, its answer and the steps that failed, never a second copy of the answer. The task's
-// conversation names the agent that works it, and the task's row counts every agent that took part.
+// conversation names the agent that works it, and the task's row counts every agent that took part and unfolds to the
+// conversations of the teammates asked on it; the asker's chat lists them among the agents it called.
 import { callTool, say, scriptedLlm, startCore } from "../../apps/core/src/engine/testkit.ts";
 import { waitFor } from "../../apps/core/src/testkit/platform.ts";
 import type { Tool } from "../../apps/core/src/tools/types.ts";
@@ -101,6 +102,53 @@ test("a teammate asked on a task is one closed row where the asker asked, openin
     await expect(side).toContainText("1 falló");
     await expect(side).toContainText("Approved: no blocking findings.");
     if (SHOTS) await page.screenshot({ path: `${SHOTS}/asker-side.png` });
+    // The chat's agents list it as a teammate Ramiro called: who asked whom, how it ended and when; it opens again.
+    await side.getByRole("tab", { name: /^Todos \(1\)/ }).click();
+    const called = side.locator(".agents__row", { hasText: "Ramiro → Bruno" });
+    await expect(called).toHaveCount(1);
+    await expect(called).toContainText("@bruno review the finished diff");
+    await expect(called).toContainText("Listo");
+    await expect(side).toContainText("Terminados (1)");
+    await expect(side).not.toContainText("Este chat todavía no llamó a otros agentes");
+    if (SHOTS) {
+      await page.screenshot({ path: `${SHOTS}/asker-agents.png` });
+      await page.setViewportSize({ width: 390, height: 844 });
+      await page.screenshot({ path: `${SHOTS}/asker-agents-phone.png` });
+      await page.setViewportSize({ width: 1280, height: 800 });
+    }
+    await called.click();
+    await expect(side).toContainText("Approved: no blocking findings.");
+
+    // The task's row counts both agents, and Ramiro's chat with Bruno's conversation.
+    await page.goto(`${env.core.url}/#view=inbox`);
+    await page
+      .getByRole("radiogroup", { name: "Mostrar" })
+      .getByRole("radio", { name: /^Tareas/ })
+      .click();
+    const row = page.locator(".taskbundle", { hasText: "Lead cards ignore disabled attributes" });
+    await expect(row.getByTitle(/^2 agentes: .*Ramiro.*Bruno|^2 agentes: .*Bruno.*Ramiro/)).toBeVisible();
+    await expect(row.getByTitle("2 chats")).toBeVisible();
+    // It unfolds to the teammates asked on it: Bruno, with what Ramiro asked him.
+    const teammate = row.locator(".tree__session", { hasText: "Bruno" });
+    await expect(teammate).toHaveCount(0);
+    await row.getByRole("button", { name: "Ver los chats de la tarea" }).click();
+    await expect(teammate).toHaveCount(1);
+    await expect(teammate).toContainText("@bruno review the finished diff, read only");
+    await expect(teammate).not.toContainText("Ramiro →");
+    if (SHOTS) {
+      await page.screenshot({ path: `${SHOTS}/inbox-tasks.png` });
+      await page.setViewportSize({ width: 390, height: 844 });
+      await page.getByRole("button", { name: "Volver a los chats" }).click();
+      await page.screenshot({ path: `${SHOTS}/inbox-tasks-phone.png` });
+      await page.setViewportSize({ width: 1280, height: 800 });
+    }
+    // A click opens his conversation beside the task's, as the row in the task's conversation does.
+    await teammate.click();
+    await expect(page.locator(".chat__header")).toContainText("Lead cards ignore disabled attributes");
+    const beside = page.getByRole("complementary", { name: "Panel lateral" });
+    await expect(beside).toContainText("Approved: no blocking findings.");
+    await expect(teammate).toHaveClass(/is-selected/);
+    if (SHOTS) await page.screenshot({ path: `${SHOTS}/inbox-teammate-open.png` });
 
     // The task's conversation is Ramiro's task, under its current title.
     await page.goto(`${env.core.url}/#thread=${task.thread_id}`);
@@ -120,16 +168,6 @@ test("a teammate asked on a task is one closed row where the asker asked, openin
       await page.screenshot({ path: `${SHOTS}/task-conversation-phone.png` });
       await page.setViewportSize({ width: 1280, height: 800 });
     }
-
-    // The task's row counts both agents.
-    await page.goto(`${env.core.url}/#view=inbox`);
-    await page
-      .getByRole("radiogroup", { name: "Mostrar" })
-      .getByRole("radio", { name: /^Tareas/ })
-      .click();
-    const row = page.locator(".taskbundle", { hasText: "Lead cards ignore disabled attributes" });
-    await expect(row.getByTitle(/^2 agentes: .*Ramiro.*Bruno|^2 agentes: .*Bruno.*Ramiro/)).toBeVisible();
-    if (SHOTS) await page.screenshot({ path: `${SHOTS}/inbox-tasks.png` });
   } finally {
     await page.goto("about:blank");
     await env.core.close();

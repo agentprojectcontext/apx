@@ -704,6 +704,11 @@ export const appMethods = {
       threads: z.array(Thread),
       /** With `delegated`: how many chats (not archived) each listed chat delegated, for the ones that did. */
       delegated: z.record(z.string(), z.number().int().nonnegative()).optional(),
+      /**
+       * With `root_thread`: the teammates its agent asked on its task from it. They hang under the task's conversation;
+       * they and theirs are listed as the chat's own.
+       */
+      asked: z.array(Id).optional(),
     }),
     effect: false,
   },

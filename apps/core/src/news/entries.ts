@@ -113,7 +113,7 @@ export type NewsEntry = {
 export const NEWS: readonly NewsEntry[] = [
   {
     id: "email-retained-history",
-    since: "2.13.5",
+    since: "2.14.0",
     title: {
       en: "Keep automatic mail without automatic replies",
       es: "Guardá correo automático sin respuestas automáticas",
@@ -205,7 +205,7 @@ export const NEWS: readonly NewsEntry[] = [
   },
   {
     id: "email-as-mail",
-    since: "2.13.4",
+    since: "2.14.0",
     title: { en: "Received mail looks like mail", es: "El correo recibido se ve como correo" },
     about: {
       en: "Mail that reaches an Email account shows as it was sent, pictures hidden until you ask, and you can stop reading a sender or a whole domain from their card.",
