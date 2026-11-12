@@ -27,7 +27,7 @@ const cx = (...c: Array<string | false>) => c.filter(Boolean).join(" ");
 
 /**
  * A chat in a branch; `withAgent` names its agent first (a task's chats are several agents'), `label` replaces its
- * name.
+ * name, `onOpen` replaces opening it as the chat.
  */
 export function SessionRow({
   thread,
@@ -35,12 +35,14 @@ export function SessionRow({
   selected,
   withAgent = false,
   label,
+  onOpen,
 }: {
   thread: Thread;
   agent: Agent | undefined;
   selected: boolean;
   withAgent?: boolean;
   label?: string | undefined;
+  onOpen?: (() => void) | undefined;
 }) {
   const t = useT();
   const engine = useEngineLabel(thread.engine);
@@ -50,7 +52,7 @@ export function SessionRow({
       <button
         type="button"
         className={cx("tree__session", selected && "is-selected", thread.unread > 0 && "is-unread")}
-        onClick={() => go.thread(thread.id)}
+        onClick={onOpen ?? (() => go.thread(thread.id))}
       >
         {isWorking(thread.state) && <Spinner size={12} />}
         {thread.state === "input-required" && <Icons.Hand size={12} className="tree__waiting" />}
