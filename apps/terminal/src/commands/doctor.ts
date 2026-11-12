@@ -193,10 +193,28 @@ export function compactionLines(r: StoreCompaction): string[] {
 /** `apx doctor`: why the core does not answer here, and the one thing to run next; `fix` also compacts the store. */
 export async function doctor(o: {
   json?: boolean | undefined;
+  schema?: boolean | undefined;
   env?: NodeJS.ProcessEnv;
   fix?: Pick<ApxClient, "call">;
 }): Promise<void> {
   const env = o.env ?? process.env;
+  if (o.schema) {
+    if (o.fix) throw new Error("Schema diagnosis is read-only; run doctor --fix separately.");
+    if (env.APX_URL)
+      throw new Error("Schema diagnosis is local only. Select APX_HOME on the affected server and unset APX_URL.");
+    const result = execFileSync(
+      process.execPath,
+      [path.join(path.dirname(coreMain()), "db", "doctor-repair-main.ts"), "--schema"],
+      {
+        env: { ...env, APX_HOME: apxHome(env) },
+        encoding: "utf8",
+        timeout: 120_000,
+        maxBuffer: 8 * 1024 * 1024,
+      },
+    );
+    console.log(JSON.stringify(JSON.parse(result), null, 2));
+    return;
+  }
   const { url } = localConnection(env);
   const install = installOf(env);
   const feed = feedOf(env);

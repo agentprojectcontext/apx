@@ -51,6 +51,7 @@ Usage:
   apx doctor [--json]     Why the core does not answer on this machine, and what to run next
   apx doctor --fix        Repair recognized migrations offline; with a running core, reclaim old history and disk space
   apx doctor fix          Alias for doctor --fix
+  apx doctor --schema     Read-only local schema report as JSON, including all structural differences; works offline
   apx devices [list|pair|revoke <id>] [--json]
   apx tailscale [status|connect|off]   Expose APX through Tailscale (must already be logged in)
   apx mcp tools <server> [<tool>] [--project <id>] [--scope global|project] [--json]
@@ -282,6 +283,7 @@ function argumentsOf() {
       connect: { type: "string" },
       memory: { type: "boolean" },
       fix: { type: "boolean" },
+      schema: { type: "boolean" },
     },
   });
 }
@@ -324,7 +326,11 @@ try {
     case "doctor":
       if (rest.length > 1 || (rest.length === 1 && rest[0] !== "fix"))
         throw new Error("Usage: apx doctor [--fix | fix] [--json]");
-      await doctor({ json: values.json, ...(values.fix || rest[0] === "fix" ? { fix: client } : {}) });
+      await doctor({
+        json: values.json,
+        schema: values.schema,
+        ...(values.fix || rest[0] === "fix" ? { fix: client } : {}),
+      });
       break;
     case "devices":
     case "tailscale":

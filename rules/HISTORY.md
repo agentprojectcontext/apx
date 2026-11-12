@@ -41,7 +41,11 @@ with the canonical 108-entry prefix plus the hotfix column, save a private consi
 aborts the whole reconciliation. Existing staging databases follow their normal suffix; reopening never repeats
 channel or permission conversions. Unknown mixed schemas fail closed, except plain indexes added by hand to APX's
 tables: they are dropped inside the transaction after the backup (which keeps them). Unique indexes, names any
-migration uses, and extra tables, views or triggers are still refused.
+migration uses, and extra tables, views or triggers are still refused. The observed `flow_schedules` variant with
+one final nullable `activated_at TEXT` column is also accepted only when its remaining declaration matches exactly,
+including the foreign key. Its values are preserved without being interpreted or copied to `since`; different types,
+defaults, constraints or other added columns are refused. The checked v2.14.1 macOS ARM64 core archive and its tagged
+migration source contain no such column, so this exception records an observed schema, not a claimed official lineage.
 **Why:** inserting the hotfix migration into staging would renumber migrations already applied. v2.14.0 refused
 to start for an owner whose agent had added two read-speed indexes; an index holds no data, so refusing it only
 stranded the install. Merely appending

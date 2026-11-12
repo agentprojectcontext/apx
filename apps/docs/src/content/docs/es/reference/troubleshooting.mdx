@@ -43,10 +43,21 @@ existe), o con `pnpm dev` desde el código. Si arranca y se cae, leé su log.
 Ejecutá `apx doctor --fix` (o `apx doctor fix`) en el servidor afectado con su `APX_HOME`, sin `APX_URL`.
 Con el core caído puede reconciliar el esquema hotfix 109 exacto y reconocido con el esquema integrado 115.
 Rechaza un daemon activo, otras conexiones a la base y tablas, vistas, triggers o índices únicos desconocidos.
-Los índices agregados a mano se quitan (el backup los conserva); nunca reinicia la versión. El backup SQLite privado en `<APX_HOME>/backups/` incluye datos confirmados en WAL.
+Los índices agregados a mano se quitan (el backup los conserva); nunca reinicia la versión.
+La extensión observada `flow_schedules.activated_at TEXT`, final y que admite nulos, se conserva con sus valores
+solo si las demás declaraciones coinciden; no se interpreta como cursor del horario ni prueba de una migración oficial. El backup SQLite privado en `<APX_HOME>/backups/` incluye datos confirmados en WAL.
 La reparación es transaccional y valida integridad y claves foráneas antes de confirmar; un fallo conserva el estado
 original e informa el backup si llegó a crearlo. No sobrescribas la base ni borres sus archivos WAL por tu cuenta.
 Después de un éxito, arrancá APX normalmente y ejecutá `apx doctor` para comprobarlo; la reparación no reinicia servicios.
+
+Para un diagnóstico estructural completo, ejecutá `apx doctor --schema --json > apx-schema-report.json` en ese
+servidor con su `APX_HOME` y sin `APX_URL`. Funciona con el core detenido y abre la base en modo solo lectura.
+El JSON enumera todas las diferencias contra la referencia de la versión registrada y, por separado, contra el
+destino instalado: tablas, columnas, claves foráneas, índices, vistas y triggers. Informa diferencias en las
+declaraciones sin exportar cuerpos SQL, valores por defecto, filas del dueño, logs ni credenciales. Revisá los
+nombres de objetos antes de compartir el reporte. Para el hotfix publicado con schema109 usa la referencia de
+esa release, no la109 de la rama de integración. El reporte no modifica la base ni autoriza reparaciones;
+`--schema` no se puede combinar con `--fix`.
 Si no reconoce el esquema, conservá los datos y compartí el diagnóstico y las definiciones del esquema con soporte.
 Con el core activo, `--fix` mantiene la compactación del historial en lugar de reparar migraciones offline.
 

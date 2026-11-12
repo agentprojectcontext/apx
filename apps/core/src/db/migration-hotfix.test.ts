@@ -3,6 +3,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import { test } from "node:test";
+import { flowSchedulesRepo } from "../domain/flow-schedules.ts";
 import { tempDir } from "../testkit/platform.ts";
 import { openDb } from "./db.ts";
 import { reconcileHotfixLineage } from "./migration-hotfix.ts";
@@ -188,7 +189,64 @@ test("indexes added by hand to a hotfix database are dropped, kept in the backup
   }
 });
 
+test("the observed hotfix schedule extension preserves its values through upgrade and reopen", async () => {
+  await using home = tempDir();
+  const db = fixture(home.path, 109, true);
+  db.exec(`
+    ALTER TABLE flow_schedules ADD COLUMN activated_at TEXT;
+    INSERT INTO projects (id, name, created_at) VALUES ('schedule-project', 'Acme', '2026-01-01');
+    INSERT INTO flows (id, project_id, enabled, predicates, table_key)
+      VALUES ('scheduled', 'schedule-project', 1, '[]', 'latest');
+    INSERT INTO flow_schedules (flow_id, since, skipped, skipped_at, activated_at)
+      VALUES ('scheduled', '2026-01-02', 3, '2026-01-03', '2026-01-04');
+    CREATE INDEX runs_usage_started ON runs(started_at) WHERE model IS NOT NULL;
+    CREATE INDEX threads_held_count ON threads(json_array_length(context, '$.held'));
+  `);
+  const expected = db.prepare("SELECT * FROM flow_schedules").all();
+  db.close();
+  for (const attempt of [1, 2]) {
+    const upgraded = openDb(home.path);
+    try {
+      assert.equal(upgraded.prepare("SELECT value FROM meta WHERE key='schema_version'").get()?.value, "115");
+      assert.deepEqual(upgraded.prepare("SELECT * FROM flow_schedules").all(), expected, `open ${attempt}`);
+      healthy(upgraded);
+    } finally {
+      upgraded.close();
+    }
+  }
+  const backups = fs.readdirSync(path.join(home.path, "backups"));
+  assert.equal(backups.length, 1);
+  const saved = new DatabaseSync(path.join(home.path, "backups", backups[0] ?? "", "apx.db"), { readOnly: true });
+  try {
+    assert.deepEqual(saved.prepare("SELECT * FROM flow_schedules").all(), expected);
+    assert.equal(saved.prepare("SELECT value FROM meta WHERE key='schema_version'").get()?.value, "109");
+    assert.ok(saved.prepare("SELECT name FROM sqlite_schema WHERE name='threads_held_count'").get());
+  } finally {
+    saved.close();
+  }
+  const current = openDb(home.path);
+  try {
+    const schedules = flowSchedulesRepo(current);
+    assert.equal(schedules.since("scheduled"), "2026-01-02");
+    schedules.reset("scheduled", new Date("2026-02-01T00:00:00Z"));
+    schedules.skip("scheduled", new Date("2026-02-02T00:00:00Z"));
+    assert.equal(schedules.since("scheduled"), "2026-02-02T00:00:00.000Z");
+    assert.equal(schedules.skips("scheduled").skipped, 4);
+    assert.equal(current.prepare("SELECT activated_at FROM flow_schedules").get()?.activated_at, "2026-01-04");
+    healthy(current);
+  } finally {
+    current.close();
+  }
+});
+
 for (const alteration of [
+  "DROP TABLE flow_schedules; CREATE TABLE flow_schedules (flow_id TEXT PRIMARY KEY, since TEXT NOT NULL, skipped INTEGER NOT NULL DEFAULT 0, skipped_at TEXT, activated_at TEXT)",
+  "ALTER TABLE flow_schedules ADD COLUMN activated_at TEXT; CREATE TRIGGER changed_schedule AFTER INSERT ON flow_schedules BEGIN UPDATE flow_schedules SET since='changed' WHERE flow_id=NEW.flow_id; END",
+  "ALTER TABLE flow_schedules ADD COLUMN activated_at INTEGER",
+  "ALTER TABLE flow_schedules ADD COLUMN activated_at TEXT DEFAULT 'Unknown'",
+  "ALTER TABLE flow_schedules ADD COLUMN activated_at TEXT NOT NULL DEFAULT ''",
+  "ALTER TABLE flow_schedules ADD COLUMN activated_at TEXT; ALTER TABLE flow_schedules ADD COLUMN custom TEXT",
+  "ALTER TABLE flow_schedules ADD COLUMN activated_at TEXT; ALTER TABLE flow_schedules RENAME COLUMN since TO previous_since",
   "CREATE UNIQUE INDEX runs_one_start ON runs(id, started_at)",
   "CREATE INDEX runs_since ON runs(started_at); CREATE TABLE notes_by_hand (id TEXT)",
   "CREATE VIEW recent_runs AS SELECT id FROM runs",

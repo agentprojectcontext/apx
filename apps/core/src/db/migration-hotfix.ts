@@ -31,7 +31,17 @@ function foreignIndex(object: SchemaObject, tables: Set<string>): boolean {
   return !MIGRATIONS.some((sql) => name.test(sql));
 }
 
-/** Returns the hand-added indexes to drop; everything else must match the hotfix schema exactly. */
+// See HISTORY.md#hotfix-migration-lineage. Preserve the observed nullable extension without interpreting its data.
+function sameHotfixTable(found: SchemaObject, expected: SchemaObject): boolean {
+  if (sameSchemaSql(found.sql, expected.sql)) return true;
+  return (
+    expected.type === "table" &&
+    expected.name === "flow_schedules" &&
+    sameSchemaSql(found.sql, expected.sql?.replace(/\)\s*$/, ", activated_at TEXT)") ?? null)
+  );
+}
+
+/** Returns the extra indexes to drop; table differences are limited to the observed schedule extension. */
 function validate(db: DatabaseSync, reference: DatabaseSync): string[] {
   if (db.prepare("SELECT value FROM meta WHERE key = 'schema_version'").get()?.value !== String(HOTFIX)) {
     reject("database version changed during reconciliation");
@@ -45,12 +55,7 @@ function validate(db: DatabaseSync, reference: DatabaseSync): string[] {
   if (actual.length !== expected.length) reject("unrecognized schema objects");
   for (const object of expected) {
     const found = actual.find((row) => row.name === object.name);
-    if (
-      !found ||
-      found.type !== object.type ||
-      found.tbl_name !== object.tbl_name ||
-      !sameSchemaSql(found.sql, object.sql)
-    ) {
+    if (!found || found.type !== object.type || found.tbl_name !== object.tbl_name || !sameHotfixTable(found, object)) {
       reject(`incompatible schema object ${object.name}`);
     }
   }

@@ -273,7 +273,9 @@ consistent, private database-only copy in `backups/migration-hotfix-<unique-id>/
 migration counter then commit together; failed upgrades roll back and can be retried after resolving the cause.
 Command failure reasons and existing chats stay intact. Reopening does not repeat channel or contact-rights
 conversions. Indexes added by hand (not unique ones) are removed, since they only speed up reads; the backup keeps
-them. Other unrecognized schemas, such as extra tables, are refused rather than guessed. Keep the backup protected and stop other
+them. One observed schedule-table extension, a final nullable `activated_at TEXT` column, is preserved with its
+values when the rest of the schema matches exactly. It does not replace the schedule's `since` value. Other
+unrecognized schemas, such as extra tables or different column definitions, are refused rather than guessed. Keep the backup protected and stop other
 cores sharing the data folder before retrying. The hotfix itself cannot open a newer development database;
 this is not a downgrade path.
 

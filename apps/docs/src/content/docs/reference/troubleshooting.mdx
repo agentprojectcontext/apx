@@ -43,10 +43,20 @@ Otherwise start it with the desktop app, `apx service install` (or `apx service 
 Run `apx doctor --fix` (or `apx doctor fix`) on the affected server with its `APX_HOME`, without `APX_URL`.
 With the core down, this can reconcile the exact recognized hotfix schema 109 into the integrated schema 115.
 It refuses an active daemon, other database connections and unknown tables, views, triggers or unique indexes.
-Indexes added by hand are removed (the backup keeps them); it never resets the version. A private SQLite backup in `<APX_HOME>/backups/` includes committed WAL data.
+Indexes added by hand are removed (the backup keeps them); it never resets the version.
+The observed final nullable `flow_schedules.activated_at TEXT` extension and its values are kept only when every
+other declaration matches; it is not interpreted as a schedule cursor or evidence of an official migration. A private SQLite backup in `<APX_HOME>/backups/` includes committed WAL data.
 Repair runs transactionally and validates integrity and foreign keys before commit; a failure keeps the original
 state and reports the backup when one was made. Do not overwrite the database or delete its WAL files yourself.
 After success, start APX normally and run `apx doctor` to check it; repair does not restart any service.
+
+For a complete structural diagnosis, run `apx doctor --schema --json > apx-schema-report.json` on that server
+with its `APX_HOME` and without `APX_URL`. This works with the core stopped and opens the database read-only.
+The JSON lists all differences from the recorded version's reference and separately from the installed target:
+tables, columns, foreign keys, indexes, views and triggers. It reports declaration differences without exporting
+SQL bodies, default values, owner rows, logs or credentials. Review object names before sharing the report.
+For the published schema109 hotfix it selects that release's reference rather than the integration branch's109.
+The report does not change the database or authorize repairs; `--schema` cannot be combined with `--fix`.
 If the schema is not recognized, keep the data and share the diagnosis and schema definitions with support.
 With a running core, `--fix` retains its history-compaction behavior instead of doing offline migration repair.
 

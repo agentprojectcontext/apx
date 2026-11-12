@@ -22,7 +22,17 @@ function fixture(home: string): DatabaseSync {
 
 test("offline repair runs as a core process without a server, with a consistent private backup", async () => {
   await using home = tempDir();
-  fixture(home.path).close();
+  const source = fixture(home.path);
+  source.exec(`
+    ALTER TABLE flow_schedules ADD COLUMN activated_at TEXT;
+    INSERT INTO projects (id, name, created_at) VALUES ('p', 'Acme', '2026-01-01');
+    INSERT INTO flows (id, project_id, enabled, predicates, table_key) VALUES ('f', 'p', 1, '[]', 'latest');
+    INSERT INTO flow_schedules (flow_id, since, skipped, skipped_at, activated_at)
+      VALUES ('f', '2026-01-02', 4, '2026-01-03', '2026-01-04');
+    CREATE INDEX runs_usage_started ON runs(started_at) WHERE model IS NOT NULL;
+    CREATE INDEX threads_held_count ON threads(json_array_length(context, '$.held'));
+  `);
+  source.close();
   const r = spawnSync(process.execPath, [path.join(import.meta.dirname, "doctor-repair-main.ts")], {
     env: { ...process.env, APX_HOME: home.path },
     encoding: "utf8",
@@ -41,6 +51,21 @@ test("offline repair runs as a core process without a server, with a consistent 
       assert.equal(db.prepare("SELECT value FROM meta WHERE key='kept'").get()?.value, "Committed data");
       assert.equal(db.prepare("SELECT value FROM meta WHERE key='schema_version'").get()?.value, version);
       assert.equal(db.prepare("PRAGMA quick_check").get()?.quick_check, "ok");
+      assert.deepEqual(db.prepare("PRAGMA foreign_key_check").all(), []);
+      assert.deepEqual(
+        { ...db.prepare("SELECT * FROM flow_schedules WHERE flow_id='f'").get() },
+        {
+          flow_id: "f",
+          since: "2026-01-02",
+          skipped: 4,
+          skipped_at: "2026-01-03",
+          activated_at: "2026-01-04",
+        },
+      );
+      assert.equal(
+        Boolean(db.prepare("SELECT name FROM sqlite_schema WHERE name='runs_usage_started'").get()),
+        version === "109",
+      );
     } finally {
       db.close();
     }
