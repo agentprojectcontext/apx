@@ -48,20 +48,36 @@ test("offline repair runs as a core process without a server, with a consistent 
   if (process.platform !== "win32") assert.equal(fs.statSync(result.backup).mode & 0o777, 0o600);
 });
 
-test("unknown indexes are refused without deleting them or changing data", async () => {
+test("a hand-added index is dropped by the repair; an unknown table is refused without changing data", async () => {
   await using home = tempDir();
   const db = fixture(home.path);
-  db.exec("CREATE INDEX runs_usage_started ON runs(started_at)");
+  db.exec("CREATE INDEX runs_usage_started ON runs(started_at) WHERE model IS NOT NULL");
   db.close();
-  assert.throws(() => repairOfflineDatabase(home.path), /unrecognized schema objects/);
-  const check = new DatabaseSync(path.join(home.path, "apx.db"));
+  const repaired = repairOfflineDatabase(home.path);
+  assert.equal(repaired.version, 115);
+  const check = new DatabaseSync(path.join(home.path, "apx.db"), { readOnly: true });
+  const saved = new DatabaseSync(repaired.backup, { readOnly: true });
   try {
-    assert.equal(check.prepare("SELECT value FROM meta WHERE key='schema_version'").get()?.value, "109");
-    assert.ok(check.prepare("SELECT name FROM sqlite_schema WHERE name='runs_usage_started'").get());
+    assert.equal(check.prepare("SELECT name FROM sqlite_schema WHERE name='runs_usage_started'").get(), undefined);
     assert.equal(check.prepare("SELECT value FROM meta WHERE key='kept'").get()?.value, "Committed data");
-    assert.equal(fs.existsSync(path.join(home.path, "backups")), false);
+    assert.ok(saved.prepare("SELECT name FROM sqlite_schema WHERE name='runs_usage_started'").get());
   } finally {
     check.close();
+    saved.close();
+  }
+
+  await using other = tempDir();
+  const unknown = fixture(other.path);
+  unknown.exec("CREATE TABLE notes_by_hand (id TEXT)");
+  unknown.close();
+  assert.throws(() => repairOfflineDatabase(other.path), /unrecognized schema objects/);
+  const kept = new DatabaseSync(path.join(other.path, "apx.db"), { readOnly: true });
+  try {
+    assert.equal(kept.prepare("SELECT value FROM meta WHERE key='schema_version'").get()?.value, "109");
+    assert.ok(kept.prepare("SELECT name FROM sqlite_schema WHERE name='notes_by_hand'").get());
+    assert.equal(fs.existsSync(path.join(other.path, "backups")), false);
+  } finally {
+    kept.close();
   }
 });
 

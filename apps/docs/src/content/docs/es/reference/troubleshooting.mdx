@@ -42,8 +42,8 @@ existe), o con `pnpm dev` desde el código. Si arranca y se cae, leé su log.
 
 Ejecutá `apx doctor --fix` (o `apx doctor fix`) en el servidor afectado con su `APX_HOME`, sin `APX_URL`.
 Con el core caído puede reconciliar el esquema hotfix 109 exacto y reconocido con el esquema integrado 115.
-Rechaza un daemon activo, otras conexiones a la base y objetos de esquema desconocidos. Nunca elimina un índice
-desconocido ni reinicia la versión. El backup SQLite privado en `<APX_HOME>/backups/` incluye datos confirmados en WAL.
+Rechaza un daemon activo, otras conexiones a la base y tablas, vistas, triggers o índices únicos desconocidos.
+Los índices agregados a mano se quitan (el backup los conserva); nunca reinicia la versión. El backup SQLite privado en `<APX_HOME>/backups/` incluye datos confirmados en WAL.
 La reparación es transaccional y valida integridad y claves foráneas antes de confirmar; un fallo conserva el estado
 original e informa el backup si llegó a crearlo. No sobrescribas la base ni borres sus archivos WAL por tu cuenta.
 Después de un éxito, arrancá APX normalmente y ejecutá `apx doctor` para comprobarlo; la reparación no reinicia servicios.

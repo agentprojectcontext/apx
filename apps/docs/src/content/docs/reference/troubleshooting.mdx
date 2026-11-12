@@ -42,8 +42,8 @@ Otherwise start it with the desktop app, `apx service install` (or `apx service 
 
 Run `apx doctor --fix` (or `apx doctor fix`) on the affected server with its `APX_HOME`, without `APX_URL`.
 With the core down, this can reconcile the exact recognized hotfix schema 109 into the integrated schema 115.
-It refuses an active daemon, other database connections and unknown schema objects. It never removes an unknown
-index or resets the version. A private SQLite backup in `<APX_HOME>/backups/` includes committed WAL data.
+It refuses an active daemon, other database connections and unknown tables, views, triggers or unique indexes.
+Indexes added by hand are removed (the backup keeps them); it never resets the version. A private SQLite backup in `<APX_HOME>/backups/` includes committed WAL data.
 Repair runs transactionally and validates integrity and foreign keys before commit; a failure keeps the original
 state and reports the backup when one was made. Do not overwrite the database or delete its WAL files yourself.
 After success, start APX normally and run `apx doctor` to check it; repair does not restart any service.

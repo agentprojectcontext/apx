@@ -39,8 +39,12 @@ acquisition aborts the repair. A backup or transaction failure leaves the origin
 with the canonical 108-entry prefix plus the hotfix column, save a private consistent backup, revalidate under
 `BEGIN IMMEDIATE`, apply canonical 109–114 and mark 115 in the same transaction. A concurrent writer or any failure
 aborts the whole reconciliation. Existing staging databases follow their normal suffix; reopening never repeats
-channel or permission conversions. Unknown mixed schemas fail closed.
-**Why:** inserting the hotfix migration into staging would renumber migrations already applied. Merely appending
+channel or permission conversions. Unknown mixed schemas fail closed, except plain indexes added by hand to APX's
+tables: they are dropped inside the transaction after the backup (which keeps them). Unique indexes, names any
+migration uses, and extra tables, views or triggers are still refused.
+**Why:** inserting the hotfix migration into staging would renumber migrations already applied. v2.14.0 refused
+to start for an owner whose agent had added two read-speed indexes; an index holds no data, so refusing it only
+stranded the install. Merely appending
 the column would instead skip staging109 for hotfix databases and later fail on the duplicate column. The older
 101–108 reconciler only repairs additive changes and cannot safely absorb this transforming suffix.
 **Where:** `apps/core/src/db/{db,migration-hotfix}.ts`; migration-hotfix regression tests; EN/ES installation guides.

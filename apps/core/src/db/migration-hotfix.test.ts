@@ -155,7 +155,43 @@ test("a failed hotfix reconciliation rolls back all transformations, keeps a pri
   }
 });
 
+test("indexes added by hand to a hotfix database are dropped, kept in the backup, and the upgrade continues", async () => {
+  await using home = tempDir();
+  const db = fixture(home.path, 109, true);
+  db.exec(`
+    CREATE INDEX runs_usage_started ON runs(started_at) WHERE model IS NOT NULL;
+    CREATE INDEX threads_held_count ON threads(json_array_length(context, '$.held'));
+  `);
+  db.close();
+  const upgraded = openDb(home.path);
+  try {
+    assert.equal(upgraded.prepare("SELECT value FROM meta WHERE key = 'schema_version'").get()?.value, "115");
+    assert.equal(upgraded.prepare("SELECT start_error FROM jobs").get()?.start_error, "Kept launch reason");
+    assert.equal(upgraded.prepare("SELECT parts FROM messages WHERE id = 'message'").get()?.parts, "[]");
+    for (const name of ["runs_usage_started", "threads_held_count"]) {
+      assert.equal(upgraded.prepare("SELECT name FROM sqlite_schema WHERE name = ?").get(name), undefined);
+    }
+    healthy(upgraded);
+  } finally {
+    upgraded.close();
+  }
+  const directory = path.join(home.path, "backups", fs.readdirSync(path.join(home.path, "backups"))[0] ?? "");
+  const backup = new DatabaseSync(path.join(directory, "apx.db"), { readOnly: true });
+  try {
+    assert.equal(backup.prepare("SELECT value FROM meta WHERE key = 'schema_version'").get()?.value, "109");
+    assert.match(
+      String(backup.prepare("SELECT sql FROM sqlite_schema WHERE name = 'runs_usage_started'").get()?.sql),
+      /WHERE model IS NOT NULL/,
+    );
+  } finally {
+    backup.close();
+  }
+});
+
 for (const alteration of [
+  "CREATE UNIQUE INDEX runs_one_start ON runs(id, started_at)",
+  "CREATE INDEX runs_since ON runs(started_at); CREATE TABLE notes_by_hand (id TEXT)",
+  "CREATE VIEW recent_runs AS SELECT id FROM runs",
   "ALTER TABLE jobs DROP COLUMN start_error; ALTER TABLE jobs ADD COLUMN start_error INTEGER",
   "ALTER TABLE jobs DROP COLUMN start_error; ALTER TABLE jobs ADD COLUMN start_error TEXT DEFAULT 'Unknown'",
   "CREATE INDEX tasks_start ON tasks(state, start_at) WHERE start_at IS NOT NULL",
