@@ -265,12 +265,15 @@ export function createEngine(deps: {
     }
     return undefined;
   };
-  /** Hands a result to the agent's running turn instead of a turn of its own; false when none can take it. */
-  const steerResult = (a: Admit): boolean => {
+  /**
+   * Hands a result (or `framed` words) to the agent's running turn instead of a turn of its own; undefined when none
+   * can take it. A turn that ends before taking it runs `a` as a turn of its own.
+   */
+  const steerResult = (a: Admit, framed?: string): RunRecord | undefined => {
     const run = steerable(a.thread_id, a.agent_id);
-    if (!run) return false;
-    steered.set(run.id, [...(steered.get(run.id) ?? []), { text: frameInput(a.origin, a.text), apx: a }]);
-    return true;
+    if (!run) return undefined;
+    steered.set(run.id, [...(steered.get(run.id) ?? []), { text: framed ?? frameInput(a.origin, a.text), apx: a }]);
+    return run;
   };
   const waiters = new Map<string, Set<(run: RunRecord) => void>>();
   let stopping = false;
@@ -282,6 +285,7 @@ export function createEngine(deps: {
     ended,
     windowMs: (threadId) => runLimit(store, threadId, "a2a", deps).ms,
     deliver: (parent, child, stopped) => fanout.arrive(parent, child, stopped),
+    steer: steerResult,
   });
 
   const fanout = createFanout({
@@ -293,7 +297,13 @@ export function createEngine(deps: {
     mark: (parent, child, held) => delegations.mark(parent, child, held),
   });
 
-  const jobs = createJobs({ store, home: deps.home, log, admit: (a) => admit(a), steer: (a) => steerResult(a) });
+  const jobs = createJobs({
+    store,
+    home: deps.home,
+    log,
+    admit: (a) => admit(a),
+    steer: (a) => Boolean(steerResult(a)),
+  });
 
   // The turn's clock stops while it waits for the owner: their time to answer is not the agent's time to work.
   const inputs = createInputs({

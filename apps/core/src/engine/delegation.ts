@@ -10,13 +10,20 @@ import { previewOf, strictestWrite, type Worker, worksInFolder } from "../domain
 import { agentReply } from "../tools/agents.ts";
 import { folderInProject } from "../tools/folders.ts";
 import { modeOf, withProjectAutonomy } from "../tools/policy.ts";
+import { fromTeam, inlineName } from "../tools/result.ts";
 import { ancestors } from "./ancestry.ts";
 import { agentTripped, heldNotice, tellStuck, tripped } from "./breaker.ts";
 import type { Display } from "./display.ts";
+import type { Admit } from "./engine.ts";
 import { MAX_ACTIVE_DELEGATIONS, MAX_DEPTH } from "./limits.ts";
 import { MAX_AUTO_PARTS, stalled } from "./progress.ts";
 import { answerOf as answered, type Outcome, outcomeNote, outcomeOf } from "./run-outcome.ts";
 import { runLineage } from "./task-handoff.ts";
+
+/** A teammate's newer words reaching the turn already working on what it asked before (DECISIONS.md#d-222). */
+function teamAddsMidTurn(from: string, text: string): string {
+  return `${fromTeam("agent_message", { from }, text)}\n${inlineName(from)}, who asked for the work you are doing, wrote this while you were at it. It is newer than that request: if it pauses, stops or changes it, follow it before your next step, and say what you stopped.`;
+}
 
 export type Caller = { run: RunRecord; agent: AgentRecord; display: Display };
 
@@ -236,6 +243,11 @@ export function createDelegations(deps: {
   ended(run: RunRecord): void;
   /** A delegated run's first deadline in a thread, written to its row until its clock moves it. */
   windowMs(threadId: string): number;
+  /**
+   * Hands `framed` words to the running turn of `a.agent_id` in `a.thread_id` when its loop takes words mid-turn;
+   * undefined when none can. A turn that ends before taking them runs `a` instead.
+   */
+  steer?(a: Admit, framed: string): RunRecord | undefined;
 }) {
   const { store } = deps;
   /** Child run → the caller still waiting for it inside its turn. */
@@ -597,6 +609,42 @@ export function createDelegations(deps: {
       const spentOwn = agentTripped(store, parentThread.id, to.id, worker?.name ?? to.name);
       if (spentOwn)
         return `refused: ${spentOwn}. Give this work to another agent (list_agents shows what each has left), or tell the owner.`;
+      // A session still at work on an earlier ask takes the caller's newer words at its next step, as the owner's Enter
+      // does: a pause or a change of plan must not wait behind the turn it is about. Two tasks in one fan-out still
+      // queue (DECISIONS.md#d-222).
+      const atWork = existing
+        ? store.runs.list(existing.id, 5).find((r) => r.state === "working" && r.agent_id === to.id)
+        : undefined;
+      if (existing && atWork && atWork.parent_run_id !== from.run.id) {
+        const origin = {
+          kind: "agent" as const,
+          id: from.agent.id,
+          name: from.agent.name,
+          thread_id: parentThread.id,
+          run_id: from.run.id,
+        };
+        const into = deps.steer?.(
+          {
+            thread_id: existing.id,
+            agent_id: to.id,
+            trigger: "a2a",
+            origin,
+            text: task,
+            parent_run_id: from.run.id,
+            depth: from.run.depth + 1,
+          },
+          teamAddsMidTurn(from.agent.name, task),
+        );
+        if (into) {
+          store.messages.add({
+            thread_id: existing.id,
+            author: { kind: "agent", id: from.agent.id },
+            parts: [{ type: "text", text: task }],
+          });
+          const name = existing.session ?? existing.id;
+          return `sent: ${worker?.name ?? to.name} was still working in session "${name}" and takes this at its next step, inside that turn. Its answer comes back like the earlier one: do not delegate it again or wait for it; tell the owner and go on.`;
+        }
+      }
       // Past the cap it waits in a durable queue rather than being refused: a refusal was easy to drop. See DECISIONS.md#d-096
       const queued = store.runs.activeDelegations(parentThread.id) >= MAX_ACTIVE_DELEGATIONS;
       deps.live.set(from.run.id, from.display);
