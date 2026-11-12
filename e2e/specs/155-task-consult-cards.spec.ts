@@ -24,7 +24,7 @@ const preview: Tool = {
   },
 };
 
-test("a teammate asked on a task is one closed row where the asker asked, opening its conversation", async ({
+test("a teammate asked on a task is one row where the asker asked, unfolding its answer and opening its conversation", async ({
   page,
 }) => {
   let taskId = "";
@@ -81,10 +81,10 @@ test("a teammate asked on a task is one closed row where the asker asked, openin
     await expect(cards).toContainText("Ramiro → Bruno");
     await expect(cards).toContainText("@bruno review the finished diff, read only");
     await expect(cards).toContainText("Fallaron algunas acciones");
-    await expect(cards.locator(".apx-subthread__report, .apx-subthread__meta")).toHaveCount(0);
+    await expect(cards.locator(".apx-subthread__body")).toHaveCount(0);
     // Which steps failed, on its state.
     await expect(cards.getByTitle("Falló: Deploy the preview")).toBeVisible();
-    // The answer is told once, in Bruno's conversation: not in the row, nor in a box with the words handed to Ramiro.
+    // The answer is told once, folded in the row: not in a box with the words handed to Ramiro.
     await expect(transcript.locator(".transcript__agent-event, .transcript__answered")).toHaveCount(0);
     await expect(transcript).not.toContainText("answered your question");
     await expect(transcript).not.toContainText("Approved: no blocking findings.");
@@ -95,8 +95,26 @@ test("a teammate asked on a task is one closed row where the asker asked, openin
       await page.screenshot({ path: `${SHOTS}/asker-chat-phone.png` });
       await page.setViewportSize({ width: 1280, height: 800 });
     }
-    // A click opens Bruno's conversation beside the chat, as a delegation's row does: the question, his steps, his answer.
-    await cards.getByRole("button", { name: "Abrir conversación con Bruno" }).click();
+    // The row unfolds his answer and which steps failed, and folds it again.
+    const head = cards.getByRole("button", { name: /Ramiro → Bruno/ });
+    await head.click();
+    await expect(head).toHaveAttribute("aria-expanded", "true");
+    await expect(cards).toContainText("Approved: no blocking findings.");
+    await expect(cards.locator(".apx-subthread__meta")).toHaveText("Falló: Deploy the preview");
+    if (SHOTS) await page.screenshot({ path: `${SHOTS}/asker-chat-open.png` });
+    // At phone width the chat is drawn again, and the card stays unfolded.
+    await page.setViewportSize({ width: 390, height: 844 });
+    await expect(head).toHaveAttribute("aria-expanded", "true");
+    await expect(cards).toContainText("Approved: no blocking findings.");
+    if (SHOTS) await page.screenshot({ path: `${SHOTS}/asker-chat-open-phone.png` });
+    await page.setViewportSize({ width: 1280, height: 800 });
+    await expect(head).toHaveAttribute("aria-expanded", "true");
+    await head.click();
+    await expect(cards.locator(".apx-subthread__body")).toHaveCount(0);
+    await expect(transcript).not.toContainText("Approved: no blocking findings.");
+    // Its foot opens Bruno's conversation beside the chat, as a delegation's does: the question, his steps, his answer.
+    await head.click();
+    await cards.getByRole("button", { name: "Abrir el chat de Bruno" }).click();
     const side = page.getByRole("complementary", { name: "Panel lateral" });
     await expect(side).toContainText("review the finished diff");
     await expect(side).toContainText("1 falló");
@@ -156,12 +174,16 @@ test("a teammate asked on a task is one closed row where the asker asked, openin
     await expect(header).toContainText("Lead cards ignore disabled attributes");
     await expect(header).toContainText("Ramiro");
     await expect(header).not.toContainText("Super-agente");
-    // There too, the teammate's card is its closed row.
+    // There too, the teammate's card is its row.
     const taskCard = page.locator(".transcript .apx-subthread");
     await expect(taskCard).toHaveCount(1);
     await expect(taskCard).toContainText("Ramiro → Bruno");
     await expect(taskCard).toContainText("Lead cards ignore disabled attributes");
-    await expect(taskCard.locator(".apx-subthread__report")).toHaveCount(0);
+    // Left unfolded in Ramiro's chat, it is unfolded here too; its row folds it.
+    await expect(taskCard).toContainText("Approved: no blocking findings.");
+    if (SHOTS) await page.screenshot({ path: `${SHOTS}/task-conversation-open.png` });
+    await taskCard.locator(".apx-subthread__head").click();
+    await expect(taskCard.locator(".apx-subthread__body")).toHaveCount(0);
     if (SHOTS) {
       await page.screenshot({ path: `${SHOTS}/task-conversation.png` });
       await page.setViewportSize({ width: 390, height: 844 });

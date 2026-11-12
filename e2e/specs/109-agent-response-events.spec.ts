@@ -48,8 +48,7 @@ test("a task consult shows as one closed row where it was asked, survives reload
     await expect(event).toContainText("Listo");
     await expect(page.locator(".transcript .turn__agentbtn")).toHaveCount(0);
     await expect(page.locator(".transcript")).toContainText("Holder consolidated the report.");
-    // Its row stays closed, and the answer handed to the holder is no second box under it: the answer is in the
-    // helper's conversation, which the row opens.
+    // Its row stays closed, and the answer handed to the holder is no second box under it: the row unfolds it.
     await expect(page.getByText("Consult evidence: tests passed.", { exact: false })).toHaveCount(0);
     await expect(page.locator(".transcript__agent-event, .transcript__answered")).toHaveCount(0);
     await page.reload();
@@ -62,7 +61,12 @@ test("a task consult shows as one closed row where it was asked, survives reload
       m.parts.flatMap((p) => (p.type === "text" && p.response ? [p.response] : [])),
     )[0];
     expect(response?.task_id).toBe(task);
-    await event.getByRole("button", { name: /Abrir conversación con Helper/ }).click();
+    const row = event.getByRole("button", { name: /Holder → Helper/ });
+    await expect(row).toHaveAttribute("aria-expanded", "false");
+    await row.click();
+    await expect(row).toHaveAttribute("aria-expanded", "true");
+    await expect(event).toContainText("Consult evidence: tests passed.");
+    await event.getByRole("button", { name: "Abrir el chat de Helper" }).click();
     await expect(page).toHaveURL(/panel=agents/);
     await expect(page.getByRole("complementary", { name: "Panel lateral" })).toContainText(
       "Consult evidence: tests passed.",

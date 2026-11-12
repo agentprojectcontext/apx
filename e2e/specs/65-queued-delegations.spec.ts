@@ -29,11 +29,9 @@ test("delegations past the cap show as queued, then run as the others end", asyn
   await expect(side.locator(".agents__row").getByText("En cola", { exact: true })).toHaveCount(QUEUED);
 
   // Opening the queued session says it starts once a slot frees (a delegated session is read-only: no composer).
-  await cards
-    .filter({ hasText: "En cola" })
-    .first()
-    .getByRole("button", { name: /^Abrir conversación con/ })
-    .click();
+  const queued = cards.nth(await cards.evaluateAll((els) => els.findIndex((e) => e.textContent?.includes("En cola"))));
+  await queued.locator(".apx-subthread__head").click();
+  await queued.getByRole("button", { name: /^Abrir el chat de/ }).click();
   await expect(page.getByText(/^En cola: .+ empieza cuando termine una de las delegaciones en curso$/)).toBeVisible();
   await side.getByRole("tab", { name: /^Todos \(/ }).click();
 

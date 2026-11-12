@@ -7,8 +7,6 @@ export const esChat: Partial<Record<MessageKey, string>> = {
   "chat.modelFallbackHint": "Esta vez su modelo no respondió y contestó uno de respaldo.",
   "chat.modelRequested": "Solicitado:",
   "chat.modelEngineDefault": "Predeterminado de {engine}",
-  "chat.agentProgress": "Avance de {name}",
-  "chat.agentResponse": "Respuesta de {name}",
   "chat.agentMessage": "Mensaje de {name}",
   "chat.answeredAbove": "{name} respondió más arriba",
   "chat.seeAnswer": "Ver respuesta",

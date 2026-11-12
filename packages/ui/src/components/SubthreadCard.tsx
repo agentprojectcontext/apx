@@ -1,5 +1,5 @@
 import { ChevronRight } from "lucide-react";
-import { type ReactNode, useLayoutEffect, useRef, useState } from "react";
+import { type ReactNode, useId, useState } from "react";
 import { cx } from "../cx";
 import { Spinner } from "./Spinner";
 
@@ -14,21 +14,27 @@ export interface SubthreadCardProps {
   status?: "running" | "done" | "failed" | "waiting";
   /** State label ("Working", "Done", "Failed"). */
   statusLabel?: ReactNode;
-  /** The report it handed back (rendered Markdown, say): folded to a few lines, unfolded on demand. */
+  /** How long it took, under the state ("42 s"). */
+  time?: ReactNode;
+  /** The answer it handed back (rendered Markdown, say), shown when the row is unfolded. */
   summary?: ReactNode;
-  /** A line under the report ("Took 3 min 10 s"). */
+  /** A line under the answer ("Failed: send mail"). */
   meta?: ReactNode;
-  /** Opens the sub-thread. */
+  /** Unfolded on first render (the owner's own question keeps its answer in view). */
+  defaultOpen?: boolean;
+  /** Whether it is unfolded, when the caller keeps that (so it survives the card being drawn again). */
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
+  /** Opens the sub-thread: the action at the foot of the unfolded card. */
   onOpen?: () => void;
+  /** The foot action's text ("Open Bruno's chat"). */
   openLabel?: string;
-  moreLabel?: string;
-  lessLabel?: string;
   className?: string;
 }
 
 /**
- * Agent-to-agent card inside a chat: who was asked what and its state (the head opens the sub-thread), then the
- * report it handed back, folded when long.
+ * Agent-to-agent card inside a chat: one row with who was asked what, its state and time. The row unfolds the answer,
+ * with the action that opens the sub-thread at its foot.
  */
 export function SubthreadCard({
   avatar,
@@ -36,63 +42,57 @@ export function SubthreadCard({
   subtitle,
   status = "running",
   statusLabel,
+  time,
   summary,
   meta,
+  defaultOpen = false,
+  open: shown,
+  onOpenChange,
   onOpen,
   openLabel = "Open",
-  moreLabel = "Show more",
-  lessLabel = "Show less",
   className,
 }: SubthreadCardProps) {
-  const body = useRef<HTMLDivElement>(null);
-  const [open, setOpen] = useState(false);
-  const [long, setLong] = useState(false);
-  const hasReport = Boolean(summary);
-  // The report mounts when the run ends, and the folded box keeps its height as it grows: watch what is inside it.
-  useLayoutEffect(() => {
-    const el = body.current;
-    if (!el || open || !hasReport) return;
-    const measure = () => setLong(el.scrollHeight > el.clientHeight + 2);
-    measure();
-    const ro = typeof ResizeObserver === "undefined" ? undefined : new ResizeObserver(measure);
-    ro?.observe(el);
-    for (const child of el.children) ro?.observe(child);
-    return () => ro?.disconnect();
-  }, [open, hasReport]);
+  const [own, setOwn] = useState(defaultOpen);
+  const open = shown ?? own;
+  const body = useId();
   return (
-    <div className={cx("apx-subthread", className)}>
-      <button type="button" className="apx-subthread__head" onClick={onOpen} aria-label={openLabel}>
+    <div className={cx("apx-subthread", open && "is-open", className)}>
+      <button
+        type="button"
+        className="apx-subthread__head"
+        aria-expanded={open}
+        aria-controls={open ? body : undefined}
+        onClick={() => {
+          setOwn(!open);
+          onOpenChange?.(!open);
+        }}
+      >
+        <ChevronRight size={14} className="apx-subthread__chevron" aria-hidden />
         <span className="apx-subthread__avatar">{avatar}</span>
         <span className="apx-subthread__main">
-          <span className="apx-subthread__top">
-            <span className="apx-subthread__title">{title}</span>
-            <span className={cx("apx-subthread__state", `is-${status}`)}>
-              {status === "running" && <Spinner size={12} />}
-              {statusLabel}
-            </span>
-          </span>
+          <span className="apx-subthread__title">{title}</span>
           {subtitle && <span className="apx-subthread__sub">{subtitle}</span>}
         </span>
-        <ChevronRight size={14} className="apx-subthread__chevron" />
+        <span className="apx-subthread__side">
+          <span className={cx("apx-subthread__state", `is-${status}`)}>
+            {status === "running" && <Spinner size={12} />}
+            {statusLabel}
+          </span>
+          {time && <span className="apx-subthread__time">{time}</span>}
+        </span>
       </button>
-      {summary && (
-        <div className="apx-subthread__report">
-          <div ref={body} className={cx("apx-subthread__summary", !open && "is-folded", !open && long && "is-long")}>
-            {summary}
-          </div>
-          {(long || open) && (
-            <button
-              type="button"
-              className="apx-subthread__more"
-              aria-expanded={open}
-              onClick={() => setOpen((o) => !o)}
-            >
-              {open ? lessLabel : moreLabel}
+      {open && (
+        <div id={body} className="apx-subthread__body">
+          {summary && <div className="apx-subthread__summary">{summary}</div>}
+          {meta && <div className="apx-subthread__meta">{meta}</div>}
+          {onOpen && (
+            <button type="button" className="apx-subthread__open" onClick={onOpen}>
+              {openLabel}
+              <ChevronRight size={13} aria-hidden />
             </button>
           )}
         </div>
       )}
-      {meta && <div className="apx-subthread__meta">{meta}</div>}
     </div>
   );
 }

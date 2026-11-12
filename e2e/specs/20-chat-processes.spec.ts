@@ -15,7 +15,8 @@ test("chat processes open A2A beside its parent, maximize and stay scoped to eac
   await composer.press("Enter");
   const card = mainChat.locator(".apx-subthread").last();
   await expect(card.getByText("Listo")).toBeVisible();
-  await card.getByRole("button", { name: /Abrir conversación con Researcher/ }).click();
+  await card.getByRole("button", { name: /→ Researcher/ }).click();
+  await card.getByRole("button", { name: "Abrir el chat de Researcher" }).click();
   const side = page.getByRole("complementary", { name: "Panel lateral" });
   await expect(side.getByText("Last line of the report.")).toBeVisible();
   await expect(mainChat).toHaveAttribute("aria-label", /Source review|start a worker/);
