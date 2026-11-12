@@ -8,7 +8,7 @@ import type { ProviderConfig } from "../config.ts";
 import { openDb } from "../db/db.ts";
 import { createStore } from "../domain/store.ts";
 import { createSecrets } from "../secrets.ts";
-import { createCatalog } from "./catalog.ts";
+import { createCatalog, fromProviderList } from "./catalog.ts";
 
 test("the catalog asks each engine for its models, caches them and keeps the last good list on failure", async () => {
   const home = fs.mkdtempSync(path.join(os.tmpdir(), "apx-catalog-"));
@@ -137,4 +137,30 @@ test("a signed-in plan's models are asked to the plan with its sign-in, never re
     db.close();
     fs.rmSync(home, { recursive: true, force: true });
   }
+});
+
+test("only models an agent's turn can run on are offered for agents; switched-off ones are left out", () => {
+  const list = fromProviderList([
+    { id: "models/gemini-4-argon", display_name: "Gemini 4 Argon" },
+    { id: "models/gemini-3.8-live" },
+    { id: "models/lyria-3.5" },
+    { id: "models/deep-research-preview-04-2026" },
+    { id: "meta-llama/llama-prompt-guard-2-22m" },
+    { id: "canopylabs/orpheus-v1-english" },
+    { id: "qwen/qwen3.6-27b", active: false },
+    { id: "openai/gpt-oss-120b", active: true },
+    { id: "acme/chat-no-tools", name: "Acme: Chat", supported_parameters: ["temperature"] },
+    {
+      id: "acme/chat-tools",
+      supported_parameters: ["tools", "temperature"],
+      architecture: { output_modalities: ["text"] },
+    },
+    { id: "acme/painter", supported_parameters: ["tools"], architecture: { output_modalities: ["image"] } },
+  ]);
+  assert.deepEqual(
+    list.filter((m) => m.chat).map((m) => m.id),
+    ["gemini-4-argon", "openai/gpt-oss-120b", "acme/chat-tools"],
+  );
+  assert.ok(!list.some((m) => m.id === "qwen/qwen3.6-27b"));
+  assert.equal(list.find((m) => m.id === "acme/chat-no-tools")?.name, "Acme: Chat");
 });

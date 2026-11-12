@@ -16,9 +16,23 @@ function parseChoice(arg: string | undefined, router: boolean): ModelChoice | nu
   return { model: arg, router };
 }
 
-export async function models(client: ApxClient, [sub, ...args]: string[], o: { refresh?: boolean; router?: boolean }) {
+export async function models(
+  client: ApxClient,
+  [sub, ...args]: string[],
+  o: { refresh?: boolean; router?: boolean; json?: boolean },
+) {
   if (!sub || sub === "list") {
     const { engines } = await client.call("models.list", { refresh: o.refresh ?? false });
+    if (o.json) {
+      // Every model, not only the chat ones, with what each agent and the router use: what a catalog check compares.
+      const [config, { agents }] = await Promise.all([
+        client.call("models.config", {}),
+        client.call("agents.list", {}),
+      ]);
+      const choices = agents.map((a) => ({ agent: a.id, model_choice: a.model_choice ?? null }));
+      console.log(JSON.stringify({ engines, config, agents: choices }, null, 1));
+      return;
+    }
     for (const e of engines) {
       console.log(`${e.id} — ${e.label}${e.available ? "" : " (not available)"}${e.detail ? ` · ${e.detail}` : ""}`);
       for (const m of e.models.filter((x) => x.chat).slice(0, 40))

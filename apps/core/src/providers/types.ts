@@ -98,10 +98,16 @@ export function limitKind(said: string): "quota" | "rate_limit" | undefined {
   return undefined;
 }
 
-function classifyHttp(status: number, body: string, headers?: Headers): ProviderError {
+/** How providers say a model id is retired or unknown (Groq, OpenRouter and Gemini answer 400 for some). */
+const MODEL_GONE =
+  /model_not_found|model_decommissioned|decommissioned|not a valid model|(model|models\/)[^\n]{0,120}(not found|does not exist|no longer (available|supported))/i;
+const GONE_HINT = "this model is no longer offered: pick another in Settings → Engines and models";
+
+export function classifyHttp(status: number, body: string, headers?: Headers): ProviderError {
   const text = body.slice(0, 300);
   if (status === 401 || status === 403) return new ProviderError("auth", `HTTP ${status}: ${text}`);
-  if (status === 404) return new ProviderError("model_gone", `HTTP 404: ${text}`);
+  if (status === 404 || (status === 400 && MODEL_GONE.test(body)))
+    return new ProviderError("model_gone", `${GONE_HINT} (HTTP ${status}: ${text})`);
   if (status === 429) {
     // Providers use 429 both for "slow down" and for "your plan is out"; the body tells them apart.
     return new ProviderError(limitKind(body) ?? "rate_limit", `HTTP 429: ${text}`, resetOf(body, headers));

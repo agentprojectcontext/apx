@@ -1,7 +1,8 @@
 // How many tokens a model reads at most, by name, for the composer's "38k / 200k". Unknown models get no figure.
 const WINDOWS: ReadonlyArray<[RegExp, number]> = [
+  [/claude-(opus|sonnet|haiku|fable|mythos)-5/, 1_000_000],
   [/claude/, 200_000],
-  [/gemini-(1\.5|2|3)/, 1_048_576],
+  [/gemini-([1-9]|flash|pro)/, 1_048_576],
   [/gpt-5/, 400_000],
   [/gpt-4\.1/, 1_047_576],
   [/gpt-4o|o[134](-|$)/, 128_000],

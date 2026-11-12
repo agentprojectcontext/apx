@@ -162,7 +162,7 @@ Usage:
   apx agents model <agent> <engine/model | engine | router | default> [--router] [--fallbacks <ref>,<ref>]
                            An agent's model; --router keeps the router as its fallback
 
-  apx models [--refresh]  Every engine and the models it offers (asked to the engine)
+  apx models [--refresh] [--json]  Every engine and the models it offers (asked to the engine)
   apx models config       The install default and the router
   apx models default <engine/model | engine | router> [--router]
   apx models chain <ref> [<ref>…]      The router's fallback chain, in order

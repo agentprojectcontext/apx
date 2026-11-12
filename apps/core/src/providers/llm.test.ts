@@ -7,7 +7,7 @@ import type { ProviderConfig } from "../config.ts";
 import { createSecrets } from "../secrets.ts";
 import { toAnthropic } from "./anthropic-messages.ts";
 import { createLlm, retryWait } from "./llm.ts";
-import { limitKind, ProviderError, resetOf } from "./types.ts";
+import { classifyHttp, limitKind, ProviderError, resetOf } from "./types.ts";
 
 const home = fs.mkdtempSync(path.join(os.tmpdir(), "apx-llm-"));
 const secrets = createSecrets(home, "file", {});
@@ -739,4 +739,56 @@ test("Gemini gets a placeholder signature on tool calls another model made; othe
   assert.deepEqual(gemini[1]?.extra_content, own);
   const other = sent["a.test"]?.[1]?.tool_calls ?? [];
   assert.equal(other[0]?.extra_content, undefined);
+});
+
+test("a model the provider retired is told as such and the provider's next model still answers", async () => {
+  const seen: string[] = [];
+  const llm = createLlm({
+    providers: () => providers,
+    secrets,
+    firstByteMs: 1000,
+    retryDelayMs: 5,
+    fetchImpl: (async (_url: string, init: RequestInit) => {
+      const model = (JSON.parse(String(init.body)) as { model: string }).model;
+      seen.push(model);
+      if (model === "m1")
+        return new Response(
+          JSON.stringify({
+            error: { message: "The model `m1` has been decommissioned", code: "model_decommissioned" },
+          }),
+          { status: 400 },
+        );
+      return new Response(JSON.stringify({ choices: [{ message: { content: "ok" }, finish_reason: "stop" }] }));
+    }) as typeof fetch,
+  });
+  const out = await llm.complete({
+    models: ["pa/m1", "pa/m2"],
+    messages: [{ role: "user", content: "hi" }],
+    tools: [],
+    signal: new AbortController().signal,
+  });
+  assert.equal(out.model, "pa/m2", "a retired model does not rule out its provider");
+  assert.deepEqual(seen, ["m1", "m2"], "not retried");
+  assert.match(out.failed?.[0]?.why ?? "", /no longer offered/);
+
+  await assert.rejects(
+    llm.complete({
+      models: ["pa/m1"],
+      messages: [{ role: "user", content: "hi" }],
+      tools: [],
+      signal: new AbortController().signal,
+    }),
+    (e: unknown) => e instanceof ProviderError && e.kind === "model_gone" && /Engines and models/.test(e.message),
+  );
+});
+
+test("retired or unknown model answers are told apart from a plain bad request", () => {
+  for (const [status, body, kind] of [
+    [400, "Unsupported parameter: temperature", "bad_request"],
+    [400, '{"error":{"message":"openai/gpt-x is not a valid model ID"}}', "model_gone"],
+    [404, '{"error":{"code":404,"message":"models/gemini-9 is not found for API version v1beta"}}', "model_gone"],
+    [400, "The model `qwen-old` does not exist or you do not have access to it.", "model_gone"],
+  ] as const) {
+    assert.equal(classifyHttp(status, body).kind, kind, body);
+  }
 });
