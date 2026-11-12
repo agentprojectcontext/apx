@@ -5,9 +5,10 @@ import type { Message, Task, Thread } from "../../packages/protocol/src/index.ts
 import { expect, open, rpc, test } from "./kit.ts";
 
 for (const mode of ["dark", "light"] as const) {
-  test(`task status hover keeps ${mode} surfaces and readable semantic colors`, async ({ page }) => {
+  test(`task status hover keeps ${mode} surfaces and readable semantic colors`, async ({ page }, testInfo) => {
     await page.addInitScript((value) => localStorage.setItem("apx.mode", value), mode);
     await rpc("setup.finish", {});
+    const again = testInfo.retry + testInfo.repeatEachIndex;
     const { project } = await rpc<{ project: { id: string } }>("projects.create", { name: "Task hint project" });
     const agent = await rpc<{ id: string }>("agents.create", {
       project_id: project.id,
@@ -15,7 +16,8 @@ for (const mode of ["dark", "light"] as const) {
       name: "Builder",
     });
     const task = await rpc<Task>("tasks.create", {
-      title: `Task hint ${mode}: audit and update the documentation for the task workflow, including archived conversations and status transitions without losing any details`,
+      // A retry (or a repeat) makes a task of its own: the first try's is still listed.
+      title: `Task hint ${mode}${again ? ` ${again}` : ""}: audit and update the documentation for the task workflow, including archived conversations and status transitions without losing any details`,
       description: "Check the task status hint.",
       status: "doing",
       project: project.id,
@@ -32,9 +34,13 @@ for (const mode of ["dark", "light"] as const) {
       .getByRole("radio", { name: /^Tareas/ })
       .click();
     const title = page.locator(".taskbundle__title").filter({ hasText: task.title });
-    await title.hover();
     const hint = page.locator(".apx-tooltip[data-open]");
-    await expect(hint.locator(".task-status-hint__title")).toHaveText(task.title);
+    // The list may redraw under the pointer while it loads: rest on the title again until its hint opens.
+    await expect(async () => {
+      await page.mouse.move(0, 0);
+      await title.hover();
+      await expect(hint.locator(".task-status-hint__title")).toHaveText(task.title, { timeout: 1500 });
+    }).toPass({ timeout: 15_000 });
     await expect(hint.locator(".apx-badge")).toHaveText("Hecha");
     await expect(hint).toHaveText(`${task.title}Hecha`);
     const titleLayout = await hint.locator(".task-status-hint__title").evaluate((el) => ({
