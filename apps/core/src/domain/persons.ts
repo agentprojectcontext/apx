@@ -49,6 +49,18 @@ export type PersonDetails = {
   agent_id?: string | null | undefined;
 };
 
+/** Someone who wrote on a channel account: their address there, the name they last signed with, when and where. */
+export type Seen = {
+  address: string;
+  name: string;
+  last_at: string;
+  thread_id: string;
+  messages: number;
+  person_id?: string;
+};
+/** Enough for a community's regulars; the rest wrote longest ago. */
+const SEEN_LIMIT = 1000;
+
 type Decision = Pick<Person, "role" | "muted" | "supervised" | "unreviewed" | "perms">;
 
 /**
@@ -327,6 +339,76 @@ export function personsRepo({ one, all, run, tx }: Sql) {
         );
         if (!addressesOf(a.person_id).length) repo.remove(a.person_id);
         return true;
+      });
+    },
+    /**
+     * "This is not me": one of the owner's addresses becomes a new contact's, unreviewed (silenced until the owner
+     * decides). With no other owner address on that channel, the owner's chats there go with it, as `giveToOwner`
+     * brought them.
+     */
+    takeFromOwner(addressId: string, name: string): Person | undefined {
+      return tx(() => {
+        const a = one(qb.selectFrom("addresses").selectAll().where("id", "=", addressId));
+        if (a?.person_id !== OWNER_ID) return undefined;
+        const p = repo.create({ name, role: "contact", unreviewed: true });
+        run(qb.updateTable("addresses").set({ person_id: p.id }).where("id", "=", addressId));
+        const stays = addressesOf(OWNER_ID).some((x) => x.channel === a.channel);
+        if (!stays)
+          run(
+            qb
+              .updateTable("threads")
+              .set({ person_id: p.id })
+              .where("channel", "=", a.channel)
+              .where("person_id", "=", OWNER_ID),
+          );
+        return repo.get(p.id);
+      });
+    },
+    /**
+     * Everyone who wrote on a channel account, in its rooms or in private, newest first. A room speaker with no person
+     * on file signs as `<platform>:<address>`; one on file signs with their person id, read back to their address.
+     */
+    seenOn(channel: string, platform: string, limit = SEEN_LIMIT): Seen[] {
+      const rows = all(
+        qb
+          .selectFrom("messages as m")
+          .innerJoin("threads as t", "t.id", "m.thread_id")
+          .where("t.channel", "=", channel)
+          .where(sql<string>`json_extract(m.author, '$.kind')`, "=", "person")
+          .groupBy(sql`json_extract(m.author, '$.id')`)
+          // SQLite takes the bare columns from the row max() picked: the latest name and chat.
+          .select([
+            sql<string>`json_extract(m.author, '$.id')`.as("author"),
+            sql<string>`max(m.created_at)`.as("last_at"),
+            sql<string | null>`json_extract(m.author, '$.name')`.as("name"),
+            "m.thread_id",
+            sql<number>`count(*)`.as("messages"),
+          ])
+          .orderBy("last_at", "desc")
+          .limit(limit),
+      );
+      const prefix = `${platform}:`;
+      const byAddress = new Map<string, Seen>();
+      for (const r of rows) {
+        const address = r.author.startsWith(prefix)
+          ? r.author.slice(prefix.length)
+          : repo.get(r.author)?.addresses.find((x) => x.channel === channel)?.external_id;
+        if (!address) continue;
+        const was = byAddress.get(address);
+        // Rows come newest first: a second one for the same address only adds its count.
+        if (was) was.messages += r.messages;
+        else
+          byAddress.set(address, {
+            address,
+            name: r.name || address,
+            last_at: r.last_at,
+            thread_id: r.thread_id,
+            messages: r.messages,
+          });
+      }
+      return [...byAddress.values()].map((s) => {
+        const id = repo.byAddress(channel, s.address)?.id;
+        return id ? { ...s, person_id: id } : s;
       });
     },
     unlink(addressId: string): boolean {

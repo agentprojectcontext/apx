@@ -1,51 +1,109 @@
 import type { Person } from "@apx/protocol";
-import { Button, EmptyState, IconButton, Icons, Input, Menu, PickRow, SearchField, SettingRow, Switch } from "@apx/ui";
+import {
+  Button,
+  Dialog,
+  EmptyState,
+  IconButton,
+  Icons,
+  Input,
+  Menu,
+  PickRow,
+  SearchField,
+  Select,
+  SettingRow,
+  Switch,
+} from "@apx/ui";
 import { useMemo, useState } from "react";
 import { shortWhen } from "../../common/format.ts";
 import { SubHead } from "../../config/SectionHead.tsx";
 import {
+  accountPeople,
   addContact,
   type ChannelDraft,
+  claimAddress,
+  keepSeen,
   removePerson,
+  type Seen,
+  saveContact,
   setPersonRole,
-  unlinkAddress,
+  unclaimAddress,
   useChannels,
+  useSeen,
 } from "../../data/channels.ts";
 import { useData } from "../../data/state.ts";
 import { type MessageKey, useT } from "../../i18n/index.ts";
 import { go } from "../../shell/nav.ts";
 import { PersonAvatar } from "../PersonAvatar.tsx";
 import { phoneOf } from "../PhoneForm.tsx";
-import { initials, RELATION_KEY } from "../people.ts";
+import { initials, RELATION_KEY, RELATIONS } from "../people.ts";
 import type { PaneProps } from "./types.ts";
 
 /** A saved contact picked before they have a chat: the channel list names them instead of a chat. */
 const PERSON_PICK = "person:";
 
-/** Everyone on the account, those who wrote and those added by hand: a search, Add contact, and each one's chat. */
+/** One line of the list: someone on file with an address here, or someone who only wrote (in a room, mostly). */
+type Row = {
+  key: string;
+  name: string;
+  address: string | undefined;
+  person: Person | undefined;
+  /** Where they last wrote, when only that is known. */
+  seen: Seen | undefined;
+  chat: { id: string; at: string } | undefined;
+  /** Their last message here, in private or in a room. */
+  at: string | undefined;
+};
+
+/** What the owner is asked before an address changes hands: becoming theirs, or no longer. */
+type Asking = { kind: "mine" | "notMine"; row: Row };
+
+/**
+ * Everyone on the account: those who wrote (in private or in its rooms) and those added by hand, a search, Add contact,
+ * each one's relation, and which addresses are the owner's.
+ */
 export function ContactsPane({ channel, draft, set }: PaneProps) {
   const t = useT();
   const persons = useChannels((s) => s.persons);
   const threads = useData((s) => s.threads);
+  const seen = useSeen(channel.id);
   const [query, setQuery] = useState("");
   const [adding, setAdding] = useState(false);
+  const [asking, setAsking] = useState<Asking | null>(null);
   const rows = useMemo(() => {
     const chats = new Map<string, { id: string; at: string }>();
     for (const th of Object.values(threads))
       if (th.channel?.id === channel.id && th.channel.person_id)
         chats.set(th.channel.person_id, { id: th.id, at: th.updated_at });
-    return persons
-      .filter((p) => p.addresses.some((a) => a.channel === channel.id))
-      .map((p) => ({ person: p, chat: chats.get(p.id) }))
-      .sort(
-        (a, b) =>
-          Number(b.person.role === "owner") - Number(a.person.role === "owner") ||
-          (b.chat?.at ?? "").localeCompare(a.chat?.at ?? "") ||
-          a.person.name.localeCompare(b.person.name),
-      );
-  }, [persons, threads, channel.id]);
+    const wrote = new Map(seen.map((s) => [s.address, s]));
+    const latest = (...at: (string | undefined)[]) => at.filter(Boolean).sort().at(-1);
+    const { onFile, wroteOnly } = accountPeople(persons, seen, channel.id);
+    const out: Row[] = onFile.map((p) => {
+      const address = p.addresses.find((a) => a.channel === channel.id)?.external_id;
+      const chat = chats.get(p.id);
+      const last = p.addresses.filter((a) => a.channel === channel.id).map((a) => wrote.get(a.external_id)?.last_at);
+      return { key: p.id, name: p.name, address, person: p, seen: undefined, chat, at: latest(chat?.at, ...last) };
+    });
+    for (const s of wroteOnly)
+      out.push({
+        key: `seen:${s.address}`,
+        name: s.name,
+        address: s.address,
+        person: undefined,
+        seen: s,
+        chat: undefined,
+        at: s.last_at,
+      });
+    return out.sort(
+      (a, b) =>
+        Number(b.person?.role === "owner") - Number(a.person?.role === "owner") ||
+        (b.at ?? "").localeCompare(a.at ?? "") ||
+        a.name.localeCompare(b.name),
+    );
+  }, [persons, threads, seen, channel.id]);
   const q = query.trim().toLowerCase();
-  const shown = rows.filter((r) => !q || `${r.person.name} ${r.person.nickname ?? ""}`.toLowerCase().includes(q));
+  const shown = rows.filter(
+    (r) => !q || `${r.name} ${r.person?.nickname ?? ""} ${r.address ?? ""}`.toLowerCase().includes(q),
+  );
   return (
     <>
       <ContactDefaults draft={draft} set={set} />
@@ -74,8 +132,8 @@ export function ContactsPane({ channel, draft, set }: PaneProps) {
             <span />
           </div>
           <ul className="acct__tbody" aria-label={t("acct.pane.contacts")}>
-            {shown.map(({ person, chat }) => (
-              <ContactLine key={person.id} person={person} channelId={channel.id} chat={chat} />
+            {shown.map((row) => (
+              <ContactLine key={row.key} row={row} channelId={channel.id} ask={(kind) => setAsking({ kind, row })} />
             ))}
           </ul>
           {!shown.length && <p className="acct__none">{t("res.noMatch")}</p>}
@@ -85,64 +143,138 @@ export function ContactsPane({ channel, draft, set }: PaneProps) {
           {t("acct.noContacts")}
         </EmptyState>
       )}
+      {asking && <AskMine asking={asking} channelId={channel.id} done={() => setAsking(null)} />}
     </>
   );
 }
 
-function ContactLine({
-  person,
-  channelId,
-  chat,
-}: {
-  person: Person;
-  channelId: string;
-  chat: { id: string; at: string } | undefined;
-}) {
+function ContactLine({ row, channelId, ask }: { row: Row; channelId: string; ask(kind: Asking["kind"]): void }) {
   const t = useT();
-  const address = person.addresses.find((a) => a.channel === channelId);
-  const owner = person.role === "owner";
+  const { person, seen, chat } = row;
+  const owner = person?.role === "owner";
   const open = () => {
     go.closeChannelDialogs();
-    go.channel(channelId, chat?.id ?? `${PERSON_PICK}${person.id}`);
+    go.channel(channelId, chat?.id ?? (person ? `${PERSON_PICK}${person.id}` : (seen?.thread_id ?? "")));
   };
+  const handle = row.address ? phoneOf(row.address) : undefined;
+  const items = owner
+    ? [{ label: t("acct.notMine"), onSelect: () => ask("notMine") }]
+    : person
+      ? [
+          { label: t("acct.openChat"), onSelect: open },
+          { label: t("ch.claim"), onSelect: () => ask("mine") },
+          person.role === "blocked"
+            ? { label: t("tg.unblock"), onSelect: () => void setPersonRole(person, "contact") }
+            : { label: t("tg.block"), onSelect: () => void setPersonRole(person, "blocked") },
+          { type: "separator" as const },
+          { label: t("tg.forget"), danger: true, onSelect: () => void removePerson(person.id) },
+        ]
+      : [
+          { label: t("acct.openWhere"), onSelect: open },
+          { label: t("ch.claim"), onSelect: () => ask("mine") },
+        ];
   return (
-    <li className={`acct__trow${person.role === "blocked" ? " is-off" : ""}`}>
+    <li className={`acct__trow${person?.role === "blocked" ? " is-off" : ""}`}>
       <PickRow
         className="acct__person"
-        leading={<PersonAvatar personId={person.id} name={person.name} fallback={initials(person.name)} size={28} />}
-        title={owner ? t("ch.youNamed", { name: person.name }) : person.name}
-        description={address ? phoneOf(address.external_id) : undefined}
+        leading={<PersonAvatar personId={person?.id} name={row.name} fallback={initials(row.name)} size={28} />}
+        title={owner ? t("ch.youNamed", { name: row.name }) : row.name}
+        description={owner && handle ? t("acct.youBy", { address: handle }) : handle}
         {...(owner ? {} : { onClick: open })}
       />
-      <span className="acct__muted">
-        {person.role === "blocked"
-          ? t("tg.role.blocked")
-          : person.relation
-            ? t(RELATION_KEY[person.relation])
-            : owner
-              ? t("tg.role.owner")
-              : ""}
-      </span>
-      <span className="acct__muted">{chat ? shortWhen(chat.at) : t("acct.noMessages")}</span>
+      {owner || person?.role === "blocked" ? (
+        <span className="acct__muted">{t(owner ? "tg.role.owner" : "tg.role.blocked")}</span>
+      ) : (
+        <RelationPick row={row} channelId={channelId} />
+      )}
+      <span className="acct__muted">{row.at ? shortWhen(row.at) : t("acct.noMessages")}</span>
       <span>
         <Menu
           align="end"
           trigger={<IconButton size="sm" label={t("chat.more")} icon={<Icons.Ellipsis size={14} />} />}
-          items={
-            owner
-              ? [{ label: t("tg.unlink"), danger: true, onSelect: () => address && void unlinkAddress(address.id) }]
-              : [
-                  { label: t("acct.openChat"), onSelect: open },
-                  person.role === "blocked"
-                    ? { label: t("tg.unblock"), onSelect: () => void setPersonRole(person, "contact") }
-                    : { label: t("tg.block"), onSelect: () => void setPersonRole(person, "blocked") },
-                  { type: "separator" as const },
-                  { label: t("tg.forget"), danger: true, onSelect: () => void removePerson(person.id) },
-                ]
-          }
+          items={items}
         />
       </span>
     </li>
+  );
+}
+
+/**
+ * Their relation, set right from the list. Someone who only wrote is kept as a contact the owner has not reviewed:
+ * a relation answers nobody who was not answered before.
+ */
+function RelationPick({ row, channelId }: { row: Row; channelId: string }) {
+  const t = useT();
+  const [busy, setBusy] = useState(false);
+  const pick = async (v: string) => {
+    const relation = RELATIONS.find((r) => r === v);
+    setBusy(true);
+    if (row.person) await saveContact(row.person.id, { name: row.person.name, relation: relation ?? null });
+    else if (row.address && relation) await keepSeen(channelId, row.address, "contact", relation);
+    setBusy(false);
+  };
+  // One cell of the row, whatever the picker renders beside its button.
+  return (
+    <span className="acct__relation">
+      <Select
+        size="sm"
+        label={t("acct.relationOf", { name: row.name })}
+        placeholder={t("ch.relation.none")}
+        value={row.person?.relation ?? ""}
+        disabled={busy}
+        onValueChange={(v) => void pick(v ?? "")}
+        options={[
+          { value: "", label: t("ch.relation.none") },
+          ...RELATIONS.map((r) => ({ value: r, label: t(RELATION_KEY[r]) })),
+        ]}
+      />
+    </span>
+  );
+}
+
+/** Before an address becomes the owner's, or stops being theirs: what changes, said in the owner's words. */
+function AskMine({ asking, channelId, done }: { asking: Asking; channelId: string; done(): void }) {
+  const t = useT();
+  const [busy, setBusy] = useState(false);
+  const { row, kind } = asking;
+  const shownAddress = row.address ? phoneOf(row.address) : row.name;
+  const address = row.person?.addresses.find((a) => a.channel === channelId && a.external_id === row.address);
+  const confirm = async () => {
+    setBusy(true);
+    const ok =
+      kind === "notMine"
+        ? Boolean(address) && (await unclaimAddress(address?.id ?? ""))
+        : address
+          ? await claimAddress(address.id)
+          : Boolean(row.address) && (await keepSeen(channelId, row.address ?? "", "owner"));
+    setBusy(false);
+    if (ok) done();
+  };
+  const body =
+    kind === "notMine"
+      ? t("acct.notMine.body", { address: shownAddress })
+      : row.person
+        ? t("acct.mine.bodyContact", { address: shownAddress, name: row.name })
+        : t("acct.mine.body", { address: shownAddress });
+  return (
+    <Dialog
+      open
+      size="sm"
+      onOpenChange={(o) => !o && done()}
+      title={t(kind === "notMine" ? "acct.notMine.title" : "acct.mine.title")}
+      description={body}
+      closeLabel={t("common.close")}
+      footer={
+        <>
+          <Button variant="secondary" onClick={done}>
+            {t("common.cancel")}
+          </Button>
+          <Button variant={kind === "notMine" ? "danger" : "primary"} loading={busy} onClick={() => void confirm()}>
+            {t(kind === "notMine" ? "acct.notMine.do" : "ch.claim.do")}
+          </Button>
+        </>
+      }
+    />
   );
 }
 

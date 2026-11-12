@@ -4,7 +4,17 @@ import { Button, Dialog, Icons, Kbd, Menu, NavItem, PickRow } from "@apx/ui";
 import { type CSSProperties, type ReactNode, useEffect, useState } from "react";
 import { MOD } from "../../common/modKey.ts";
 import { SectionHead } from "../../config/SectionHead.tsx";
-import { addChannel, type ChannelDraft, draftOf, loadChannels, saveChannel, useChannels } from "../../data/channels.ts";
+import {
+  accountPeople,
+  addChannel,
+  type ChannelDraft,
+  draftOf,
+  loadChannels,
+  loadSeen,
+  saveChannel,
+  useChannels,
+  useSeen,
+} from "../../data/channels.ts";
 import { useData } from "../../data/state.ts";
 import { type MessageKey, usePack, useT } from "../../i18n/index.ts";
 import { LAYOUT } from "../../shell/layout.ts";
@@ -278,9 +288,15 @@ function AccountDialog({ edit }: { edit: AccountEdit }) {
     if (p === "approvals") return c?.waiting || undefined;
     return undefined;
   };
-  const contactsCount = useChannels(
-    (s) => s.persons.filter((p) => channel && p.addresses.some((a) => a.channel === channel.id)).length,
-  );
+  const seen = useSeen(channel?.id ?? "");
+  useEffect(() => {
+    if (channel?.id) void loadSeen(channel.id);
+  }, [channel?.id]);
+  const contactsCount = useChannels((s) => {
+    if (!channel) return 0;
+    const { onFile, wroteOnly } = accountPeople(s.persons, seen, channel.id);
+    return onFile.length + wroteOnly.length;
+  });
   const shown: Pane = open ? pane : "account";
   // The rooms part takes the platform's own word: Groups on WhatsApp, Spaces on Google Chat, Rooms on Discord.
   const word = roomsWord(edit.kind);
@@ -358,6 +374,7 @@ function AccountDialog({ edit }: { edit: AccountEdit }) {
                 channel={{ ...paneProps.channel, ...(paneProps.draft.rooms ? { rooms: paneProps.draft.rooms } : {}) }}
                 kind={edit.kind}
                 ownLine={edit.kind === "whatsapp" && paneProps.draft.self_owner === true}
+                accountOwnerOnly={paneProps.draft.owner_only === true}
                 save={async (rooms) => set({ rooms })}
               />
             ) : shown === "contacts" ? (

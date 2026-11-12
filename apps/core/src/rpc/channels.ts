@@ -297,6 +297,43 @@ export function channelHandlers(store: Store, channels: Channels, nudges: Pick<N
       return { blocked };
     },
     "contacts.claim": ({ address }) => ({ moved: store.persons.giveToOwner(address) }),
+    "contacts.unclaim": ({ address }) => {
+      const mine = store.persons.owner().addresses.find((a) => a.id === address);
+      if (!mine) throw notFound(`address ${address} of yours`);
+      const cfg = channels.info().find((c) => c.id === mine.channel);
+      const signed = cfg && store.persons.seenOn(cfg.id, cfg.type).find((s) => s.address === mine.external_id)?.name;
+      // An address the owner typed carries the account's own label: their id says more than that.
+      const label = mine.label && mine.label !== cfg?.label ? mine.label : undefined;
+      const name = (signed ?? label ?? mine.external_id).slice(0, 80);
+      const person = store.persons.takeFromOwner(address, name);
+      if (!person) throw notFound(`address ${address} of yours`);
+      return person;
+    },
+    "contacts.seen": ({ channel }) => {
+      const cfg = channels.info().find((c) => c.id === channel);
+      if (!cfg) throw notFound(`channel ${channel}`);
+      return { seen: store.persons.seenOn(cfg.id, cfg.type) };
+    },
+    "contacts.keep": ({ channel, address, as, relation }) => {
+      const cfg = channels.info().find((c) => c.id === channel);
+      if (!cfg) throw notFound(`channel ${channel}`);
+      // Only an address that wrote here, exactly as the platform wrote it: nothing typed is trusted as someone's.
+      const seen = store.persons.seenOn(cfg.id, cfg.type).find((s) => s.address === address);
+      if (!seen) throw notFound(`nobody wrote from ${address} on ${cfg.label}`);
+      const holder = store.persons.byAddress(cfg.id, address);
+      if (holder)
+        throw conflict(`${address} on ${cfg.label} is already ${holder.role === "owner" ? "yours" : holder.name}`);
+      const id = store.tx(() => {
+        const who =
+          as === "owner"
+            ? store.persons.owner()
+            : store.persons.create({ name: seen.name.slice(0, 80), role: "contact", unreviewed: true });
+        store.persons.link(who.id, { channel: cfg.id, external_id: address, label: seen.name });
+        if (relation && who.role !== "owner") store.persons.update(who.id, { relation });
+        return who.id;
+      });
+      return store.persons.get(id) as NonNullable<ReturnType<typeof store.persons.get>>;
+    },
     "contacts.avatar": async ({ person }) => {
       if (!store.persons.get(person)) throw notFound(`person ${person}`);
       const media = await channels.avatar(person);

@@ -1537,7 +1537,6 @@ export const en = {
   "tg.role.owner": "You",
   "tg.role.contact": "Contact",
   "tg.role.blocked": "Blocked",
-  "tg.unlink": "Unlink this address",
   "tg.block": "Block",
   "tg.unblock": "Unblock",
   "tg.forget": "Forget this person",

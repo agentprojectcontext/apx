@@ -1530,7 +1530,6 @@ export const es: Partial<Record<MessageKey, string>> = {
   "tg.role.owner": "Vos",
   "tg.role.contact": "Contacto",
   "tg.role.blocked": "Bloqueado",
-  "tg.unlink": "Desvincular esta dirección",
   "tg.block": "Bloquear",
   "tg.unblock": "Desbloquear",
   "tg.forget": "Olvidar a esta persona",

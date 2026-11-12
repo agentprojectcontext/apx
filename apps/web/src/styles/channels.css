@@ -1189,7 +1189,7 @@
 .acct__thead,
 .acct__trow {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 120px 110px 32px;
+  grid-template-columns: minmax(0, 1fr) 150px 110px 32px;
   align-items: center;
   gap: 12px;
   padding: 8px 4px;
@@ -1200,6 +1200,12 @@
 }
 .acct__trow {
   border-top: 1px solid var(--apx-border);
+}
+.acct__relation {
+  min-width: 0;
+}
+.acct__relation .apx-select {
+  width: 100%;
 }
 .acct__trow.is-off {
   opacity: 0.6;
@@ -1312,10 +1318,11 @@
   .acct__thead {
     display: none;
   }
+  /* On a phone the relation stays, settable; when they last wrote gives way. */
   .acct__trow {
-    grid-template-columns: minmax(0, 1fr) auto 32px;
+    grid-template-columns: minmax(0, 1fr) 130px 32px;
   }
-  .acct__trow > :nth-child(2) {
+  .acct__trow > :nth-child(3) {
     display: none;
   }
 }

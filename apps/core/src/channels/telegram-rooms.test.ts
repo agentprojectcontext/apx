@@ -137,6 +137,13 @@ test("a mention group keeps every message and answers only when called, in the g
 
   tg.message(ANA, "thanks!", chat, { reply_to_message: { from: { id: BOT.id, first_name: "bot" } } });
   await waitFor(() => posts(GROUPS.team).length === 2, "answered as a reply to it");
+
+  // Who spoke in the group is listed among the account's people by their Telegram id, without being made a contact.
+  const seen = (await env.client.call("contacts.seen", { channel: "tg" })).seen.find(
+    (s) => s.address === String(ANA.id),
+  );
+  assert.equal(seen?.messages, 3);
+  assert.equal(seen?.person_id, undefined);
 });
 
 test("a group's turn is sealed: no tools, a Telegram group, the owner's notes", async () => {
