@@ -192,6 +192,18 @@ jobs:
             exit 1
           fi
           gh run watch "$run" -R "$GITHUB_REPOSITORY" --exit-status --interval 30
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.tag || github.ref }}
+          fetch-depth: 0
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24.11"
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Require isolated upgrade evidence for a minor
+        run: pnpm release:check --check-tag "$TAG" "$TAG"
       - run: gh release edit "$TAG" -R "$GITHUB_REPOSITORY" --draft=false --latest="${{ vars.APX_V2_LATEST == 'true' }}"
 
   # Once every file is published, announce the release with v1's webhook.
