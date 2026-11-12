@@ -6,7 +6,7 @@ import path from "node:path";
 import { _electron, chromium, type Page } from "@playwright/test";
 import { waitFor } from "../apps/core/src/testkit/platform.ts";
 import type { ApxClient } from "../packages/protocol/src/client.ts";
-import { appVersion } from "./upgrade-fixture.ts";
+import { appVersion, isolatedHomeEnv } from "./upgrade-fixture.ts";
 
 type Options = {
   bundle: string;
@@ -36,13 +36,13 @@ async function desktopProfile(o: Options) {
   fs.writeFileSync(
     path.join(bin, "open"),
     `#!/bin/sh
-exec /usr/bin/open -n --env "HOME=$HOME" --env "APX_HOME=$APX_HOME" --env "APX_DESKTOP_DATA=$APX_DESKTOP_DATA" --env "APX_URL=$APX_URL" --env "APX_RELEASES=$APX_RELEASES" --env "APX_QUIT_CONFIRM=off" --env "APX_TELEMETRY=off" --env "APX_RUNTIME_SKILLS=off" "$@" --args "--remote-debugging-port=$APX_UPGRADE_CDP_PORT"
+exec /usr/bin/open -n --env "HOME=$HOME" --env "APX_HOME=$APX_HOME" --env "APX_APPS_HOME=$APX_APPS_HOME" --env "APX_DESKTOP_DATA=$APX_DESKTOP_DATA" --env "APX_URL=$APX_URL" --env "APX_TOKEN=" --env "APX_RELEASES=$APX_RELEASES" --env "APX_QUIT_CONFIRM=off" --env "APX_TELEMETRY=off" --env "APX_RUNTIME_SKILLS=off" "$@" --args "--remote-debugging-port=$APX_UPGRADE_CDP_PORT"
 `,
     { mode: 0o755 },
   );
   const env = {
-    ...process.env,
-    HOME: o.home,
+    ...isolatedHomeEnv(o.home),
+    APX_TOKEN: "",
     APX_HOME: path.join(o.home, "unused-local-core"),
     APX_DESKTOP_DATA: data,
     APX_URL: o.url,

@@ -3,9 +3,10 @@ import { createHash } from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import { test } from "node:test";
+import { samePath } from "../apps/core/src/paths.ts";
 import { tempDir } from "../apps/core/src/testkit/platform.ts";
 import { upgradeArgs } from "./minor-upgrade.ts";
-import { checkedArtifact, command, releaseFixture } from "./upgrade-fixture.ts";
+import { checkedArtifact, command, isolatedHomeEnv, releaseFixture } from "./upgrade-fixture.ts";
 
 const args = ["--previous", "2.13.4", "--target", "2.14.0", "--candidate", "out", "--report", "out/proof.json"];
 
@@ -19,6 +20,22 @@ test("matrix arguments are explicit, increasing and reject unknown or duplicate 
   assert.throws(() => upgradeArgs([...args, "--target", "2.15.0"]), /Usage/);
   assert.throws(() => upgradeArgs(args.map((v) => (v === "2.14.0" ? "2.13.3" : v))), /increasing/);
   assert.throws(() => upgradeArgs(args.map((v) => (v === "2.14.0" ? "v2.14.0" : v))), /increasing/);
+});
+
+test("fixture home isolates external app discovery and does not inherit a live connection or token", async () => {
+  await using home = tempDir();
+  const env = isolatedHomeEnv(home.path, {
+    HOME: "/unrelated",
+    APX_APPS_HOME: "/unrelated",
+    APX_HOME: "/unrelated",
+    APX_URL: "http://127.0.0.1:7440",
+    APX_TOKEN: "fixture-token",
+  });
+  assert.ok(samePath(env.HOME, home.path));
+  assert.ok(samePath(env.APX_HOME, home.path));
+  assert.ok(samePath(env.APX_APPS_HOME, home.path));
+  assert.equal(env.APX_URL, undefined);
+  assert.equal(env.APX_TOKEN, undefined);
 });
 
 function artifact(home: string, name: string) {

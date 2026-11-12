@@ -10,6 +10,10 @@ import { ApxClient } from "../packages/protocol/src/client.ts";
 
 export const hashFile = (file: string) => createHash("sha256").update(fs.readFileSync(file)).digest("hex");
 
+export function isolatedHomeEnv(home: string, base: NodeJS.ProcessEnv = process.env) {
+  return { ...base, HOME: home, APX_APPS_HOME: home, APX_HOME: home, APX_TOKEN: undefined, APX_URL: undefined };
+}
+
 export async function command(
   command: string,
   args: string[],

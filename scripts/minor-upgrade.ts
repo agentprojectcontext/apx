@@ -6,7 +6,7 @@ import { fileURLToPath } from "node:url";
 import { compareVersions } from "../packages/protocol/src/releases.ts";
 import { previousRelease, type ReleaseRow } from "./release-previous.ts";
 import { upgradeDesktop } from "./upgrade-desktop.ts";
-import { bundledCore, command, previousArtifacts, releaseFixture } from "./upgrade-fixture.ts";
+import { bundledCore, command, isolatedHomeEnv, previousArtifacts, releaseFixture } from "./upgrade-fixture.ts";
 
 export function upgradeArgs(args: string[]) {
   const values = new Map<string, string>();
@@ -51,8 +51,7 @@ async function upgradeCore(o: Options, work: string, feed: string) {
   fs.renameSync(path.join(versions, "apx"), path.join(versions, o.previous));
   fs.symlinkSync(`versions/${o.previous}`, path.join(app, "current"));
   const env = {
-    ...process.env,
-    APX_HOME: home,
+    ...isolatedHomeEnv(home),
     APX_APP: app,
     APX_PORT: "0",
     APX_URL: undefined,
