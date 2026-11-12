@@ -94,6 +94,24 @@ test("the pre-repair copy includes committed WAL rows and is kept in a private d
   }
 });
 
+test("lineage recovery refuses a user trigger whose name starts with sqlite but not its reserved prefix", async () => {
+  await using home = tempDir();
+  const db = fixture(home.path, 103);
+  db.exec(MIGRATIONS[105] ?? "");
+  db.exec(
+    "UPDATE meta SET value = '105' WHERE key = 'schema_version'; CREATE TRIGGER sqliteExtra AFTER INSERT ON model_log BEGIN SELECT 1; END",
+  );
+  const before = rows(db);
+  try {
+    assert.throws(() => openDb(home.path), /Cannot reconcile database migrations/);
+    assert.deepEqual(rows(db), before);
+    assert.equal(db.prepare("SELECT value FROM meta WHERE key = 'schema_version'").get()?.value, "105");
+    assert.deepEqual(backups(home.path), []);
+  } finally {
+    db.close();
+  }
+});
+
 function rows(db: DatabaseSync) {
   return db.prepare("SELECT * FROM model_log ORDER BY rowid").all();
 }

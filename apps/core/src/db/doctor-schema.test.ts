@@ -27,6 +27,7 @@ test("schema diagnosis lists simultaneous table, column, FK, index, view and tri
     DROP INDEX tasks_start;
     CREATE INDEX extra_read_index ON tasks(title);
     CREATE TABLE extra_table (id TEXT REFERENCES projects(id));
+    CREATE TABLE sqliteExtra (id TEXT);
     CREATE VIEW extra_view AS SELECT 'private-view-value';
     CREATE TRIGGER extra_trigger AFTER INSERT ON extra_table BEGIN SELECT 'private-trigger-value'; END;
     ALTER TABLE flow_schedules RENAME TO old_schedules;
@@ -42,6 +43,7 @@ test("schema diagnosis lists simultaneous table, column, FK, index, view and tri
     "tasks_start",
     "extra_read_index",
     "extra_table",
+    "sqliteExtra",
     "extra_view",
     "extra_trigger",
   ]) {

@@ -7,7 +7,7 @@ import { MIGRATIONS } from "./migrations.ts";
 type ObjectRow = { type: string; name: string; tbl_name: string; sql: string | null };
 const objects = (db: DatabaseSync) =>
   db
-    .prepare("SELECT type, name, tbl_name, sql FROM sqlite_schema WHERE name NOT LIKE 'sqlite_%' ORDER BY type, name")
+    .prepare("SELECT type, name, tbl_name, sql FROM sqlite_schema WHERE name NOT GLOB 'sqlite_*' ORDER BY type, name")
     .all() as ObjectRow[];
 const quote = (name: string) => `"${name.replaceAll('"', '""')}"`;
 

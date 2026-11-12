@@ -50,7 +50,7 @@ const quote = (name: string) => `"${name.replaceAll('"', '""')}"`;
 const tableColumns = (db: DatabaseSync, table: string) =>
   db.prepare(`PRAGMA table_xinfo(${quote(table)})`).all() as Column[];
 const objects = (db: DatabaseSync) =>
-  db.prepare("SELECT type, name, tbl_name, sql FROM sqlite_schema WHERE name NOT LIKE 'sqlite_%'").all() as ObjectRow[];
+  db.prepare("SELECT type, name, tbl_name, sql FROM sqlite_schema WHERE name NOT GLOB 'sqlite_*'").all() as ObjectRow[];
 const columnShape = (column: Column) =>
   JSON.stringify([column.type.toUpperCase(), column.notnull, column.dflt_value, column.pk, column.hidden]);
 

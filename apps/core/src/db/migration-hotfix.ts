@@ -10,7 +10,7 @@ const INTEGRATED = 115;
 type SchemaObject = { type: string; name: string; tbl_name: string; sql: string | null };
 const objects = (db: DatabaseSync) =>
   db
-    .prepare("SELECT type, name, tbl_name, sql FROM sqlite_schema WHERE name NOT LIKE 'sqlite_%'")
+    .prepare("SELECT type, name, tbl_name, sql FROM sqlite_schema WHERE name NOT GLOB 'sqlite_*'")
     .all() as SchemaObject[];
 
 function reject(detail: string): never {

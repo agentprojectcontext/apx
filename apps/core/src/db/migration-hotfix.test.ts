@@ -250,6 +250,7 @@ for (const alteration of [
   "CREATE UNIQUE INDEX runs_one_start ON runs(id, started_at)",
   "CREATE INDEX runs_since ON runs(started_at); CREATE TABLE notes_by_hand (id TEXT)",
   "CREATE VIEW recent_runs AS SELECT id FROM runs",
+  "CREATE TABLE sqliteExtra (id TEXT)",
   "ALTER TABLE jobs DROP COLUMN start_error; ALTER TABLE jobs ADD COLUMN start_error INTEGER",
   "ALTER TABLE jobs DROP COLUMN start_error; ALTER TABLE jobs ADD COLUMN start_error TEXT DEFAULT 'Unknown'",
   "CREATE INDEX tasks_start ON tasks(state, start_at) WHERE start_at IS NOT NULL",
