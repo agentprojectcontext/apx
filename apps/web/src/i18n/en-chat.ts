@@ -5,8 +5,6 @@ export const enChat = {
   "chat.modelFallbackHint": "Its own model did not answer this time, so a fallback model did.",
   "chat.modelRequested": "Requested:",
   "chat.modelEngineDefault": "{engine} default",
-  "chat.agentProgress": "Progress from {name}",
-  "chat.agentResponse": "Response from {name}",
   "chat.agentMessage": "Message from {name}",
   "chat.answeredAbove": "{name} answered above",
   "chat.seeAnswer": "See the answer",

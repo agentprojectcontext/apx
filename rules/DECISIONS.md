@@ -4650,3 +4650,20 @@ and its steps are. A card for the owner's own question on a task keeps its answe
 Rejected: putting the card inside the asker's live answer, as a delegation's is (a consult can end while that answer is
 still being written, and a card settled outside the turn's display would be overwritten by it), and dropping the
 answer's message (the asker's next turn would show with nothing above it saying why).
+
+## D-221 — 2026-11-11 — A teammate's card is one row that unfolds its answer
+
+Amends D-220. A delegation's card showed its report folded under the head with "Show more", while a consult between
+agents was a closed row whose click left the chat for the teammate's conversation: two designs for the same thing, and
+reading an answer meant opening another conversation. Now every agent-to-agent card (`SubthreadCard`) is one row, like
+the app's other folding rows: a chevron at its left, the request and "Ramiro → Bruno", the state and the time on its
+right. A click on the row unfolds the answer, the failed steps and "Open Bruno's chat" at its foot; the row never opens
+the conversation by itself. Cards start folded, except the owner's own question on a task, which answers them.
+
+The panel remembers which cards are unfolded by the teammate's conversation for the page's life
+(`apps/web/src/chat/unfolded.ts`): a resize between phone and desktop draws the chat again, and the same card in the
+task's conversation opens as it was left in the asker's chat.
+
+Rejected: a "Show answer" / "Hide" button on the row's right (a second control competing with the state), and an
+open-conversation icon on the row (two click targets in one row on a phone).
+

@@ -132,7 +132,7 @@ test("tarea: equipo del proyecto, menciones, respuesta, estados y comentario sep
     await expect
       .poll(async () => (await env.client.call("tasks.get", { task: task.id })).sessions.map((s) => s.agent_ids[0]))
       .toEqual([builder.id]);
-    await expect(drawer.getByRole("button", { name: "Abrir conversación con Roby" })).toBeVisible();
+    await expect(drawer.getByRole("button", { name: "Abrir el chat de Roby" })).toBeVisible();
     // Under its properties, its sessions list Roby's consult beside Builder's chat; the button beside them, its usage.
     await drawer.getByRole("button", { name: /^Sesiones · 2$/ }).click();
     await expect(drawer.locator(".taskwork__chat", { hasText: "Consulta" })).toContainText("Roby");
@@ -211,7 +211,7 @@ test("tarea: equipo del proyecto, menciones, respuesta, estados y comentario sep
     // A consult's card opens its chat from the task too, where no chat is open beside it.
     await page
       .getByRole("complementary", { name: task.title })
-      .getByRole("button", { name: "Abrir conversación con Roby" })
+      .getByRole("button", { name: "Abrir el chat de Roby" })
       .click();
     await expect(page.locator(".chat__header")).toContainText("Roby");
   } finally {

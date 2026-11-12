@@ -714,7 +714,7 @@
 }
 
 /* ── SubthreadCard ─────────────────────────────────────────────────────────── */
-/* On the page itself, a thin soft outline around it; the head lights up under the pointer. */
+/* On the page itself, a thin soft outline around it; the row lights up under the pointer and unfolds the answer. */
 .apx-subthread {
   display: flex;
   flex-direction: column;
@@ -728,9 +728,9 @@
 .apx-subthread__head {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
   width: 100%;
-  padding: 10px 12px;
+  padding: 10px 12px 10px 8px;
   border: 0;
   border-radius: inherit;
   background: none;
@@ -740,8 +740,20 @@
   cursor: pointer;
   transition: background var(--apx-duration);
 }
+.apx-subthread.is-open .apx-subthread__head {
+  border-bottom-left-radius: 0;
+  border-bottom-right-radius: 0;
+}
 .apx-subthread__head:hover {
   background: var(--apx-fill-hover);
+}
+.apx-subthread__chevron {
+  flex-shrink: 0;
+  color: var(--apx-fg-subtle);
+  transition: transform var(--apx-duration) var(--apx-ease);
+}
+.apx-subthread__head[aria-expanded="true"] .apx-subthread__chevron {
+  transform: rotate(90deg);
 }
 .apx-subthread__avatar {
   display: inline-flex;
@@ -754,26 +766,37 @@
   flex-direction: column;
   gap: 1px;
 }
-.apx-subthread__top {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  min-width: 0;
-}
+/* Up to two lines, so a narrow screen still reads what was asked next to its state. */
 .apx-subthread__title {
-  flex: 1;
-  min-width: 0;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  overflow: hidden;
+  overflow-wrap: anywhere;
   font-size: var(--apx-text-sm);
   font-weight: var(--apx-weight-medium);
+}
+.apx-subthread__sub {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  font-size: var(--apx-text-xs);
+  color: var(--apx-fg-muted);
+}
+.apx-subthread__side {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+  flex-shrink: 0;
+  max-width: 45%;
+  text-align: right;
 }
 .apx-subthread__state {
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  flex-shrink: 0;
   font-size: var(--apx-text-xs);
   color: var(--apx-brand-soft-fg);
 }
@@ -786,21 +809,18 @@
 .apx-subthread__state.is-waiting {
   color: var(--apx-warning-soft-fg);
 }
-.apx-subthread__sub {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+.apx-subthread__time {
   font-size: var(--apx-text-xs);
-  color: var(--apx-fg-muted);
+  color: var(--apx-fg-subtle);
+  font-variant-numeric: tabular-nums;
 }
-/* The report sits under the head, lined up with the title (avatar 24px + gap). */
-.apx-subthread__report {
+/* The answer lines up with the avatar (chevron 14px + gap), the open action at its foot. */
+.apx-subthread__body {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  gap: 4px;
-  margin: -2px 12px 0 46px;
-  padding-bottom: 10px;
+  gap: 8px;
+  padding: 2px 12px 10px 30px;
 }
 .apx-subthread__summary {
   width: 100%;
@@ -808,40 +828,31 @@
   color: var(--apx-fg-muted);
   overflow-wrap: anywhere;
 }
-.apx-subthread__summary.is-folded {
-  max-height: 9.5em;
-  overflow: hidden;
-}
-.apx-subthread__summary.is-long {
-  mask-image: linear-gradient(to bottom, #000 70%, transparent);
-}
 .apx-subthread__summary > :first-child {
   margin-top: 0;
 }
 .apx-subthread__summary > :last-child {
   margin-bottom: 0;
 }
-.apx-subthread__more {
+.apx-subthread__meta {
+  font-size: var(--apx-text-xs);
+  color: var(--apx-fg-subtle);
+}
+.apx-subthread__open {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
   padding: 0;
   border: 0;
   background: none;
   color: var(--apx-brand-soft-fg);
   font: inherit;
   font-size: var(--apx-text-xs);
+  font-weight: var(--apx-weight-medium);
   cursor: pointer;
 }
-.apx-subthread__more:hover {
+.apx-subthread__open:hover {
   text-decoration: underline;
-}
-.apx-subthread__meta {
-  padding: 6px 12px 8px;
-  border-top: 1px solid color-mix(in oklch, var(--apx-border) 75%, transparent);
-  font-size: var(--apx-text-xs);
-  color: var(--apx-fg-subtle);
-}
-.apx-subthread__chevron {
-  flex-shrink: 0;
-  color: var(--apx-fg-subtle);
 }
 
 /* An @mention, in a message or as it is typed. */

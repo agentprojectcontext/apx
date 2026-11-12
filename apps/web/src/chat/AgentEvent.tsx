@@ -7,6 +7,7 @@ import { useT } from "../i18n/index.ts";
 import { go, nav } from "../shell/nav.ts";
 import { responseOf } from "./agentEvent.ts";
 import { failedLine, responseStatus } from "./responseStatus.ts";
+import { useUnfolded } from "./unfolded.ts";
 
 /**
  * Reports are events in the holder's chat, never extra conversation participants. A teammate's answer on a task is its
@@ -53,12 +54,13 @@ export function AgentEvent({
 }
 
 /**
- * A teammate's answer that reached this chat with no card of its own here (asked elsewhere, or before cards): its closed
- * row, as the card shows where it was asked, opening the teammate's conversation.
+ * A teammate's answer that reached this chat with no card of its own here (asked elsewhere, or before cards): the same
+ * row as the card where it was asked, unfolding to the way into the teammate's conversation.
  */
 function AnswerCard({ message, agent, asker }: { message: Message; agent?: Agent; asker?: Agent }) {
   const t = useT();
   const response = responseOf(message);
+  const [open, setOpen] = useUnfolded(response?.thread_id ?? message.id, false);
   if (!response) return null;
   const name = agent?.name ?? t("chat.theAgent");
   const st = responseStatus(response);
@@ -69,6 +71,9 @@ function AnswerCard({ message, agent, asker }: { message: Message; agent?: Agent
       subtitle={`${asker?.name ?? t("common.agent")} → ${name}`}
       status={st.status}
       statusLabel={<span title={failedLine(response.failed, t)}>{t(st.label)}</span>}
+      meta={failedLine(response.failed, t)}
+      open={open}
+      onOpenChange={setOpen}
       openLabel={t("subthread.open", { name })}
       onOpen={() => go.subthread(response.thread_id)}
     />
