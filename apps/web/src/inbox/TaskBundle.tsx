@@ -1,29 +1,33 @@
 import "../styles/inbox-parts.css";
 import type { Thread } from "@apx/protocol";
-import { ContextMenu, ConversationRow, IconButton, Icons, Menu, type MenuEntry, Spinner } from "@apx/ui";
-import { type ReactNode, Suspense, useEffect } from "react";
+import { Button, ContextMenu, ConversationRow, IconButton, Icons, Menu, type MenuEntry, Spinner } from "@apx/ui";
+import { type ReactNode, Suspense, useEffect, useState } from "react";
 import { shortWhen } from "../common/format.ts";
 import { taskStateActions } from "../common/taskStateActions.tsx";
 import { taskRowState } from "../common/taskStatus.ts";
-import { DEFAULT_PID, isWorking, projectName } from "../data/identity.ts";
+import { loadDelegated } from "../data/actions.ts";
+import { DEFAULT_PID, DELEGATED_SHOWN, isWorking, projectName } from "../data/identity.ts";
 import { useData, useShownAgents } from "../data/state.ts";
 import { archiveTaskChats } from "../data/taskChats.ts";
 import { ensureTask, useTasks } from "../data/tasks.ts";
 import { updateThread } from "../data/threadAdmin.ts";
 import { useT } from "../i18n/index.ts";
 import { TaskStatusHint } from "../lazy.ts";
-import { go } from "../shell/nav.ts";
+import { go, useNav } from "../shell/nav.ts";
 import { ListedChat } from "./Delegated.tsx";
-import { tookPart } from "./groupThreads.ts";
+import { delegatedByChat, tookPart } from "./groupThreads.ts";
 import { SessionRow } from "./InboxViews.tsx";
 import { ProjectBadge } from "./ProjectBadge.tsx";
 import { FoldContext, useRowFold } from "./RowFold.tsx";
 import { ThreadAvatar } from "./ThreadAvatar.tsx";
 import { useOpenRow } from "./useOpenRow.ts";
 
+const NONE: Thread[] = [];
+
 /**
  * One task in the Inbox: its latest chat's face, its title and when, then its state, how many chats and agents work
- * it and its project. A click opens its latest chat; the chevron by the title unfolds every chat (remembered).
+ * it and its project. A click opens its latest chat; the chevron by the title unfolds its other chats and the
+ * conversations of the teammates asked on it (remembered).
  */
 export function TaskBundle({ taskId, threads, selected }: { taskId: string; threads: Thread[]; selected?: string }) {
   const t = useT();
@@ -54,12 +58,20 @@ export function TaskBundle({ taskId, threads, selected }: { taskId: string; thre
       onSelect: () => void archiveTaskChats(taskId, !archived),
     },
   ];
-  // The row is its latest chat; unfolding lists the task's other sessions.
+  // The row is its latest chat; unfolding lists the task's other sessions and its teammates' conversations.
   const others = sorted.slice(1);
+  const home = task?.thread_id;
+  const loaded = useData((s) => s.threads);
+  const teammates = (home && delegatedByChat(loaded).get(home)) || NONE;
+  const counted = useData((s) => (home ? (s.delegated[home] ?? 0) : 0));
+  const asked = Math.max(counted, teammates.length);
+  const beside = useNav((s) => s.panelThread);
+  const shown = (k: Thread) => k.id === selected || (selected === home && beside === k.id);
   const [open, setOpen] = useOpenRow(
     `task:${taskId}`,
-    others.some((th) => th.id === selected),
+    others.some((th) => th.id === selected) || teammates.some(shown),
   );
+  const chats = threads.length + asked;
   const running = threads.some((th) => isWorking(th.state));
   const unread = threads.reduce((n, th) => n + th.unread, 0);
   const who = tookPart(task?.agents, threads);
@@ -71,7 +83,7 @@ export function TaskBundle({ taskId, threads, selected }: { taskId: string; thre
     <div className="taskbundle">
       <FoldContext.Provider
         value={
-          others.length
+          others.length || asked
             ? {
                 open,
                 toggle: () => setOpen(!open),
@@ -95,8 +107,8 @@ export function TaskBundle({ taskId, threads, selected }: { taskId: string; thre
                   <span className="routinerow__dot" />
                   {state.label}
                 </span>
-                <span className="inboxtask__count" title={t("inbox.taskBundle.chats", { n: threads.length })}>
-                  <Icons.MessageSquare size={12} /> {threads.length}
+                <span className="inboxtask__count" title={t("inbox.taskBundle.chats", { n: chats })}>
+                  <Icons.MessageSquare size={12} /> {chats}
                 </span>
                 <span
                   className="inboxtask__count"
@@ -111,7 +123,7 @@ export function TaskBundle({ taskId, threads, selected }: { taskId: string; thre
           }
         />
       </FoldContext.Provider>
-      {open && others.length > 0 && (
+      {open && chats > 1 && (
         <div className="tree__sessions apx-branches">
           {others.map((th) => (
             <ListedChat key={th.id} thread={th} selected={selected}>
@@ -124,9 +136,56 @@ export function TaskBundle({ taskId, threads, selected }: { taskId: string; thre
               />
             </ListedChat>
           ))}
+          {home && <Teammates home={home} kids={teammates} total={asked} selected={selected} shown={shown} />}
         </div>
       )}
     </div>
+  );
+}
+
+/** "Ramiro → Bruno: the question": under the task, the row names the teammate; the question tells them apart. */
+const ASKED = /^[^→\n]*→[^:\n]*:\s*/;
+
+/**
+ * The conversations of the teammates asked on a task, newest first: a few, then the rest on request. Each opens beside
+ * the task's conversation, as its card there does.
+ */
+function Teammates(props: {
+  home: string;
+  kids: Thread[];
+  total: number;
+  selected: string | undefined;
+  shown: (k: Thread) => boolean;
+}) {
+  const t = useT();
+  const agents = useShownAgents();
+  const [all, setAll] = useState(false);
+  const listed = all ? props.kids : props.kids.slice(0, DELEGATED_SHOWN);
+  const more = props.total - listed.length;
+  const showMore = () => {
+    setAll(true);
+    if (props.kids.length < props.total) void loadDelegated(props.home);
+  };
+  return (
+    <>
+      {listed.map((k) => (
+        <ListedChat key={k.id} thread={k} selected={props.selected} nested ancestors={[props.home]}>
+          <SessionRow
+            thread={k}
+            agent={agents[k.agent_ids[0] ?? ""]}
+            selected={props.shown(k)}
+            withAgent
+            label={k.title.replace(ASKED, "")}
+            onOpen={() => go.subthreadOf(props.home, k.id)}
+          />
+        </ListedChat>
+      ))}
+      {more > 0 && (
+        <Button variant="link" size="sm" className="tree__more" onClick={showMore}>
+          {t("inbox.showMore", { n: more })}
+        </Button>
+      )}
+    </>
   );
 }
 
