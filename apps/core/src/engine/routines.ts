@@ -75,6 +75,8 @@ export function createScheduler(deps: {
         agent_ids: [r.agent_id],
         project_id: r.project_id,
       });
+      // Its runs act as the owner chose on the routine, in this chat only (DECISIONS.md#d-223).
+      if (r.autonomy) store.threads.mergeContext(thread.id, { routine_autonomy: r.autonomy });
       // The prompt is the owner's own words, written when they set the routine up.
       store.messages.add({ thread_id: thread.id, author: { kind: "user" }, parts: [{ type: "text", text: r.prompt }] });
       store.threads.patch(thread.id, { preview: previewOf(r.prompt) });

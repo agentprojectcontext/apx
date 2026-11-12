@@ -1856,6 +1856,18 @@ export const es: Partial<Record<MessageKey, string>> = {
   "nudge.open": "Abrir Interrupciones",
   "routines.anchor": "Llega siempre",
   "routines.maxSteps": "Pasos por corrida",
+  "routines.autonomy": "Permisos",
+  "routines.autonomy.agent": "Como su agente",
+  "routines.autonomy.manual": "Manual",
+  "routines.autonomy.auto": "Auto",
+  "routines.autonomy.total": "Total",
+  "routines.autonomyHint.agent": "Cada corrida te pide lo que su agente te pediría en un chat con vos.",
+  "routines.autonomyHint.manual": "Cada corrida te pide permiso antes de cada acción que cambia algo.",
+  "routines.autonomyHint.auto":
+    "Cada corrida trabaja en su proyecto sin preguntar, y pregunta solo mensajes, pagos, borrar y escribir fuera de tus proyectos.",
+  "routines.autonomyHint.total": "Cada corrida hace todo sin preguntarte, aunque su agente suela preguntar.",
+  "routines.autonomyNote":
+    "Solo las corridas de esta rutina: su agente mantiene sus propios permisos en todo lo demás.",
   "routines.maxStepsHint":
     "Cuántas llamadas al modelo puede hacer cada corrida antes de tener que responder (de 5 a 200). Vacío: {steps}.",
   "routines.anchorHint":

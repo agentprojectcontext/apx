@@ -45,6 +45,7 @@ export const InstanceRoutine = Routine.pick({
   call_model: true,
   anchor: true,
   max_steps: true,
+  autonomy: true,
   origin: true,
   enabled: true,
 });

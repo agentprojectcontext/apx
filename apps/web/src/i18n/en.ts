@@ -1853,6 +1853,17 @@ export const en = {
   "nudge.open": "Open Interruptions",
   "routines.anchor": "Always arrives",
   "routines.maxSteps": "Steps per run",
+  "routines.autonomy": "Permissions",
+  "routines.autonomy.agent": "As its agent",
+  "routines.autonomy.manual": "Manual",
+  "routines.autonomy.auto": "Auto",
+  "routines.autonomy.total": "Total",
+  "routines.autonomyHint.agent": "Each run asks you what its agent would ask in a chat with you.",
+  "routines.autonomyHint.manual": "Each run asks you before every action that changes something.",
+  "routines.autonomyHint.auto":
+    "Each run works in its project without asking, and asks only for messages, payments, deleting and writing outside your projects.",
+  "routines.autonomyHint.total": "Each run does everything without asking you, even if its agent usually asks.",
+  "routines.autonomyNote": "Only this routine's runs: its agent keeps its own permissions everywhere else.",
   "routines.maxStepsHint": "How many model calls each run may make before it must answer (5 to 200). Empty: {steps}.",
   "routines.anchorHint":
     "On: its news always arrives, even at night or past the daily cap (for a morning or evening brief). Off: it goes through your interruption budget.",

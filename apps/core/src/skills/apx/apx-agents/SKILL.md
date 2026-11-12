@@ -67,6 +67,9 @@ yes to that agent's change.
 - **Reviews inform, never gate.** A reviewer reports what works, what fails and what it could not check. The task's
   agent decides what to fix.
 - **Whoever gave the task checks the delivery** and tells the owner how it ended.
+- **Working alone is not working with less.** A routine or task run has the tools its agent has when the owner talks
+  to it in that project. How freely a routine acts is the owner's choice on the routine (`routine_set autonomy`:
+  manual, auto, total; `agent` goes back to the agent's own mode), never a prompt's.
 
 ## What to look for, agent by agent
 

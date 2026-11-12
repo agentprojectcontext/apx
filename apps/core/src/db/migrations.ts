@@ -1247,4 +1247,6 @@ export const MIGRATIONS: readonly string[] = [
   // The agent that answers a contact on every channel, instead of each account's contacts agent (null: the account's).
   `ALTER TABLE persons ADD COLUMN agent_id TEXT;`,
   `ALTER TABLE jobs ADD COLUMN start_error TEXT;`,
+  // How a routine's runs act, over its agent's own mode (null: the agent's own; DECISIONS.md#d-223).
+  `ALTER TABLE routines ADD COLUMN autonomy TEXT;`,
 ];

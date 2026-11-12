@@ -13,6 +13,8 @@ const CALLS: Record<string, [string, object]> = {
     { routine: "weather-acme", prompt: "Say the weather in one line", run_now: true },
   ],
   "turn off weather-acme": ["routine_set", { routine: "weather-acme", enabled: false }],
+  "let weather-acme work alone": ["routine_set", { routine: "weather-acme", autonomy: "total" }],
+  "let weather-acme act as you do": ["routine_set", { routine: "weather-acme", autonomy: "agent" }],
 };
 const llm = scriptedLlm((req, { said, afterTool }) => {
   if (afterTool) return say(String(req.messages.at(-1)?.content));
@@ -104,4 +106,17 @@ test("routine_set changes only what it is given, by name, and can run the routin
   const off = await byName("weather-acme");
   assert.equal(off?.enabled, false);
   assert.equal(off?.prompt, "Say the weather in one line");
+});
+
+test("routine_set sets how a routine's runs act; Total waits for the owner's card even on Total", async () => {
+  await env.client.call("agents.update", { agent: "superagent", autonomy: "total" });
+  try {
+    // On Total the super-agent's changes run alone, but letting a routine act on Total is the owner's call.
+    assert.match(await ask("let weather-acme work alone", "approve"), /saved: - weather-acme .*acts total/);
+    assert.equal((await byName("weather-acme"))?.autonomy, "total");
+    assert.doesNotMatch(await ask("let weather-acme act as you do"), /acts total/);
+    assert.equal((await byName("weather-acme"))?.autonomy, undefined);
+  } finally {
+    await env.client.call("agents.update", { agent: "superagent", autonomy: "auto" });
+  }
 });

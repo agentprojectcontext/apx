@@ -1,6 +1,6 @@
 // Threads, what was said in them (messages, for people) and what the model saw (model_log, for the model).
 // Two projections of one conversation: the UI never reads the model log and the model never reads display parts.
-import type { MailMark, ModelChoice, Thread } from "@apx/protocol";
+import type { MailMark, ModelChoice, RoutineAutonomy, Thread } from "@apx/protocol";
 import type { Updateable } from "kysely";
 import { sql } from "kysely";
 import type { Bus } from "../bus.ts";
@@ -51,6 +51,8 @@ export type ThreadContext = {
   mail_people?: boolean;
   /** A Flow's AI model step: what it may do beyond answering (DECISIONS.md#d-172). */
   flow_step?: FlowStepContext;
+  /** A routine run's chat: the mode its routine acts in, over its agent's own (DECISIONS.md#d-223). */
+  routine_autonomy?: RoutineAutonomy;
   /** A consult an @mention in a task opened: the task, and the card in its conversation that shows the answer. */
   /** `asker`: the agent that asked on the task and the chat it asked from, where it hears the answer. */
   consult?: {

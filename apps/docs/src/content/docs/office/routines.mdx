@@ -339,6 +339,27 @@ Routine news normally goes through your [interruption budget](/office/secretary/
 cap, gaps, quiet hours. Turn on **Always arrives** for a routine you never want held back, like a morning brief: its
 news arrives even at night or past the cap, and does not count against it.
 
+## Where it runs and what it may do
+
+A routine runs in a project: pick it in the editor's **Project**, or pick one of a project's agents and the routine goes
+in that project. Its runs have what that agent has when you talk to it there: the project's MCP servers, skills,
+secrets and folder, and your Chrome when it is connected. A routine with no project runs in the base project, so a
+project's own connections are not there.
+
+**Permissions** says how freely its runs act:
+
+| Choice | Each run |
+|---|---|
+| **As its agent** | Asks you what its agent would ask in a chat with you. The default. |
+| **Manual** | Asks you before every action that changes something. |
+| **Auto** | Works in its project without asking, and asks only for messages, payments, deleting and writing outside your projects. |
+| **Total** | Does everything without asking you, even if its agent usually asks. For agents that must run on their own. |
+
+It applies only to that routine's runs: the agent keeps its own permissions in every other chat, and nothing becomes a
+permanent approval. The agent's own rules for a kind of action still apply (an action its rules turn off stays off),
+and the few changes that always wait for you (to your MCP servers, channels or an agent's limits, for example) still
+do. Your super-agent can set a routine's permissions when it makes one; making it **Total** always asks you first.
+
 ## Run now and the activation bars
 
 **Run now** starts a routine immediately, whatever its schedule. Each routine shows its **last activations** as 14
@@ -359,13 +380,17 @@ Each run is an ordinary chat of its own, so you can open it and see exactly what
 <Terminal command="apx routines help">{`apx routines                                   Routines and when they run next
 apx routines add <name> <prompt…> --agent a [--project p] (--cron "30 8 * * 1-5" | --every 60 | --at <ISO date>)
                  [--pre "<command>"] [--call always|output|fails|never] [--post "<command>"]
+                 [--max-steps 5-200] [--autonomy manual|auto|total]
                                                 The pre-command's output reaches the prompt at {{pre_output}}
+apx routines edit <id> [--autonomy manual|auto|total|default] …
+                                                Change only what is given
 apx routines run <id>                          Run now
 apx routines on|off <id>
 apx routines rm <id>
 apx routines log <id>                          Recent runs`}</Terminal>
 
-With no `--cron`, `--every` or `--at`, the routine runs by hand. `--every` is in minutes. The CLI creates agent
+With no `--cron`, `--every` or `--at`, the routine runs by hand. Without `--project`, a project agent's routine runs in
+that agent's project. `--autonomy` sets its permissions; `default` goes back to its agent's own. `--every` is in minutes. The CLI creates agent
 routines; message, shell and watcher routines and anchors are set in the panel.
 
 ```bash

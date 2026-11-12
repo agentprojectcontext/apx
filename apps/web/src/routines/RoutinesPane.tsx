@@ -40,6 +40,7 @@ export function RoutinesPane({ projectId }: { projectId: string }) {
     call_model: "always",
     anchor: false,
     max_steps: "",
+    autonomy: "",
     enabled: true,
   };
 

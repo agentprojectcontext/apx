@@ -40,6 +40,16 @@ test("edit replaces the schedule and commands when they are given", () => {
   assert.equal(params.name, "morning");
 });
 
+test("edit sets how a routine's runs act, and default goes back to its agent's mode", () => {
+  assert.equal(editOf(routine, { autonomy: "total" }, undefined).autonomy, "total");
+  assert.equal(editOf(routine, { autonomy: "default" }, undefined).autonomy, null);
+  assert.equal("autonomy" in editOf(routine, {}, undefined), false);
+  assert.throws(
+    () => editOf(routine, { autonomy: "wild" }, undefined),
+    /--autonomy is one of: manual, auto, total, default/,
+  );
+});
+
 const weather = { ...routine, id: "rtn_w", name: "weather-acme", project_id: undefined } as Routine;
 const twinA = { ...routine, id: "rtn_a", name: "digest", project_id: "p_acme" } as Routine;
 const twinB = { ...routine, id: "rtn_b", name: "digest", agent_id: "superagent", project_id: "p_north" } as Routine;

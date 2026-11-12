@@ -29,6 +29,7 @@ import { QUEUED_MESSAGES_NEWS } from "./queued-messages.ts";
 import { QUICK_CHAT_NEWS } from "./quick-chat.ts";
 import { ROOM_AGENT_NEWS } from "./room-agent.ts";
 import { ROOM_HANDOFF_NEWS } from "./room-handoff.ts";
+import { ROUTINE_PERMISSIONS_NEWS } from "./routine-permissions.ts";
 import { SIDE_QUESTION_NEWS } from "./side-question.ts";
 import { STORE_COMPACT_NEWS } from "./store-compact.ts";
 import { SUBPROJECTS_NEWS } from "./subprojects.ts";
@@ -86,6 +87,8 @@ export type NewsFacts = {
   rooms?: boolean;
   /** Google Calendar's event reminders are on. */
   eventReminders?: boolean;
+  /** Routines an agent answers (not a message or a command alone). */
+  routines?: number;
 };
 
 export type NewsAction = {
@@ -133,6 +136,7 @@ export const NEWS: readonly NewsEntry[] = [
     ],
   },
 
+  ROUTINE_PERMISSIONS_NEWS,
   MCP_REACH_NEWS,
   MCP_CONTEXT_NEWS,
   EVENT_MUTE_NEWS,
@@ -709,6 +713,7 @@ export const newsFacts = (store: Store, o: { hermes?: boolean; storeSize?: Store
   localModels: store.settings.read("local_models_seen").length > 0,
   ownModels: store.agents.list().filter((a) => a.model_choice?.model).length,
   projects: store.projects.list().length,
+  routines: store.routines.list().filter((r) => r.action === "agent" || r.action === "watch").length,
   promptedAgents: store.agents.list().filter((a) => a.kind !== "secretary" && a.prompt.trim()).length,
 });
 

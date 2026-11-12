@@ -1,6 +1,6 @@
 // Routines: work an agent does on a schedule. The row says what and when; each run is a normal run (its state lives
 // in runs) in a conversation of its own, listed in routine_runs.
-import type { CallModel, Routine, RoutineAction, RoutineRun, RunState, Schedule } from "@apx/protocol";
+import type { CallModel, Routine, RoutineAction, RoutineAutonomy, RoutineRun, RunState, Schedule } from "@apx/protocol";
 import type { Selectable } from "kysely";
 import type { RoutinesTable } from "../db/schema.ts";
 import { newId, now, opt, qb, type Sql } from "./sql.ts";
@@ -18,6 +18,7 @@ const toRoutine = (r: Selectable<RoutinesTable>, last: RoutineRun | undefined): 
   call_model: r.call_model as CallModel,
   anchor: Boolean(r.anchor),
   ...(r.max_steps === null ? {} : { max_steps: r.max_steps }),
+  ...(r.autonomy ? { autonomy: r.autonomy as RoutineAutonomy } : {}),
   ...opt("origin", r.origin),
   enabled: Boolean(r.enabled),
   ...opt("next_run_at", r.next_run_at),
@@ -39,6 +40,7 @@ export type RoutineDraft = {
   call_model: CallModel;
   anchor?: boolean | undefined;
   max_steps?: number | undefined;
+  autonomy?: RoutineAutonomy | undefined;
   origin?: string | undefined;
   enabled: boolean;
   next_run_at: string | undefined;
@@ -51,6 +53,7 @@ const commands = (d: RoutineDraft) => ({
   call_model: d.call_model,
   anchor: d.anchor ? 1 : 0,
   max_steps: d.max_steps ?? null,
+  autonomy: d.autonomy ?? null,
   origin: d.origin ?? null,
 });
 
