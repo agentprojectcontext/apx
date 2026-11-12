@@ -1,7 +1,8 @@
 // An agent working a task asks a teammate on it (@mention in a task comment): the asker's chat shows the question as
 // one card where it asked, its answer and the steps that failed, never a second copy of the answer. The task's
 // conversation names the agent that works it, and the task's row counts every agent that took part and unfolds to the
-// conversations of the teammates asked on it; the asker's chat lists them among the agents it called.
+// conversations of the teammates asked on it, each opening as the chat (D-222); the asker's chat lists them among the
+// agents it called. Seen anywhere, beside the chat or as the chat, a teammate's conversation is read.
 import { callTool, say, scriptedLlm, startCore } from "../../apps/core/src/engine/testkit.ts";
 import { waitFor } from "../../apps/core/src/testkit/platform.ts";
 import type { Tool } from "../../apps/core/src/tools/types.ts";
@@ -73,13 +74,23 @@ test("a teammate asked on a task is one row where the asker asked, unfolding its
       "Ramiro goes on with the answer",
     );
 
+    const card = shown();
+    const bruno = card?.type === "subthread" ? card.thread_id : "";
+    // One conversation with Bruno on the task: the card in Ramiro's chat and the task's point at the same one.
+    expect(store.threads.sessions(task.thread_id).filter((t) => t.agent_ids[0] === "bruno")).toHaveLength(1);
+    const unread = () => store.threads.get(bruno)?.unread ?? 0;
+    // His conversation waits to be read.
+    store.threads.patch(bruno, { unread: 1 }, false);
+
     await page.goto(`${env.core.url}/#thread=${chat()?.id}`);
     const transcript = page.locator(".transcript");
     const cards = transcript.locator(".apx-subthread");
     // One closed row where Ramiro asked: who asked whom and what, and how it went.
     await expect(cards).toHaveCount(1);
     await expect(cards).toContainText("Ramiro → Bruno");
-    await expect(cards).toContainText("@bruno review the finished diff, read only");
+    // What he was asked, without his own @mention: the row names him.
+    await expect(cards).toContainText("review the finished diff, read only");
+    await expect(cards).not.toContainText("@bruno");
     await expect(cards).toContainText("Fallaron algunas acciones");
     await expect(cards.locator(".apx-subthread__body")).toHaveCount(0);
     // Which steps failed, on its state.
@@ -119,12 +130,16 @@ test("a teammate asked on a task is one row where the asker asked, unfolding its
     await expect(side).toContainText("review the finished diff");
     await expect(side).toContainText("1 falló");
     await expect(side).toContainText("Approved: no blocking findings.");
+    // Read beside the chat, it is read.
+    await waitFor(() => unread() === 0, "his conversation is read once seen beside the chat");
     if (SHOTS) await page.screenshot({ path: `${SHOTS}/asker-side.png` });
     // The chat's agents list it as a teammate Ramiro called: who asked whom, how it ended and when; it opens again.
     await side.getByRole("tab", { name: /^Todos \(1\)/ }).click();
     const called = side.locator(".agents__row", { hasText: "Ramiro → Bruno" });
     await expect(called).toHaveCount(1);
-    await expect(called).toContainText("@bruno review the finished diff");
+    // Who was asked shows by name once: not again as the request's @mention.
+    await expect(called).toContainText("Ramiro → Bruno: review the finished diff");
+    await expect(called).not.toContainText("@bruno");
     await expect(called).toContainText("Listo");
     await expect(side).toContainText("Terminados (1)");
     await expect(side).not.toContainText("Este chat todavía no llamó a otros agentes");
@@ -138,7 +153,9 @@ test("a teammate asked on a task is one row where the asker asked, unfolding its
     await expect(side).toContainText("Approved: no blocking findings.");
 
     // The task's row counts both agents, and Ramiro's chat with Bruno's conversation.
+    // Away from the chat where it was seen, his conversation has news again.
     await page.goto(`${env.core.url}/#view=inbox`);
+    store.threads.patch(bruno, { unread: 1 }, false);
     await page
       .getByRole("radiogroup", { name: "Mostrar" })
       .getByRole("radio", { name: /^Tareas/ })
@@ -151,8 +168,11 @@ test("a teammate asked on a task is one row where the asker asked, unfolding its
     await expect(teammate).toHaveCount(0);
     await row.getByRole("button", { name: "Ver los chats de la tarea" }).click();
     await expect(teammate).toHaveCount(1);
-    await expect(teammate).toContainText("@bruno review the finished diff, read only");
+    await expect(teammate).toContainText("review the finished diff, read only");
+    await expect(teammate).not.toContainText("@bruno");
     await expect(teammate).not.toContainText("Ramiro →");
+    // Unread, the row says so.
+    await expect(teammate).toHaveClass(/is-unread/);
     if (SHOTS) {
       await page.screenshot({ path: `${SHOTS}/inbox-tasks.png` });
       await page.setViewportSize({ width: 390, height: 844 });
@@ -160,13 +180,22 @@ test("a teammate asked on a task is one row where the asker asked, unfolding its
       await page.screenshot({ path: `${SHOTS}/inbox-tasks-phone.png` });
       await page.setViewportSize({ width: 1280, height: 800 });
     }
-    // A click opens his conversation beside the task's, as the row in the task's conversation does.
+    // A click opens his conversation as the chat, as a delegated chat under its caller does in Chats; read, the row
+    // loses its mark.
     await teammate.click();
-    await expect(page.locator(".chat__header")).toContainText("Lead cards ignore disabled attributes");
-    const beside = page.getByRole("complementary", { name: "Panel lateral" });
-    await expect(beside).toContainText("Approved: no blocking findings.");
+    await expect(page).toHaveURL(new RegExp(`thread=${bruno}`));
+    await expect(page.locator(".chat__header")).toContainText("Ramiro → Bruno: review the finished diff");
+    await expect(page.locator(".chat__header")).not.toContainText("@bruno");
+    await expect(page.locator(".chat .transcript").first()).toContainText("Approved: no blocking findings.");
     await expect(teammate).toHaveClass(/is-selected/);
-    if (SHOTS) await page.screenshot({ path: `${SHOTS}/inbox-teammate-open.png` });
+    await expect(teammate).not.toHaveClass(/is-unread/);
+    await waitFor(() => unread() === 0, "his conversation is read once opened from the task's row");
+    if (SHOTS) {
+      await page.screenshot({ path: `${SHOTS}/inbox-teammate-open.png` });
+      await page.setViewportSize({ width: 390, height: 844 });
+      await page.screenshot({ path: `${SHOTS}/inbox-teammate-open-phone.png` });
+      await page.setViewportSize({ width: 1280, height: 800 });
+    }
 
     // The task's conversation is Ramiro's task, under its current title.
     await page.goto(`${env.core.url}/#thread=${task.thread_id}`);

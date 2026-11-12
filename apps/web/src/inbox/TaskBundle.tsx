@@ -3,6 +3,7 @@ import type { Thread } from "@apx/protocol";
 import { Button, ContextMenu, ConversationRow, IconButton, Icons, Menu, type MenuEntry, Spinner } from "@apx/ui";
 import { type ReactNode, Suspense, useEffect, useState } from "react";
 import { shortWhen } from "../common/format.ts";
+import { ASKED, namedMentions } from "../common/mentionNames.ts";
 import { taskStateActions } from "../common/taskStateActions.tsx";
 import { taskRowState } from "../common/taskStatus.ts";
 import { loadDelegated } from "../data/actions.ts";
@@ -13,7 +14,7 @@ import { ensureTask, useTasks } from "../data/tasks.ts";
 import { updateThread } from "../data/threadAdmin.ts";
 import { useT } from "../i18n/index.ts";
 import { TaskStatusHint } from "../lazy.ts";
-import { go, useNav } from "../shell/nav.ts";
+import { go } from "../shell/nav.ts";
 import { ListedChat } from "./Delegated.tsx";
 import { delegatedByChat, tookPart } from "./groupThreads.ts";
 import { SessionRow } from "./InboxViews.tsx";
@@ -65,11 +66,9 @@ export function TaskBundle({ taskId, threads, selected }: { taskId: string; thre
   const teammates = (home && delegatedByChat(loaded).get(home)) || NONE;
   const counted = useData((s) => (home ? (s.delegated[home] ?? 0) : 0));
   const asked = Math.max(counted, teammates.length);
-  const beside = useNav((s) => s.panelThread);
-  const shown = (k: Thread) => k.id === selected || (selected === home && beside === k.id);
   const [open, setOpen] = useOpenRow(
     `task:${taskId}`,
-    others.some((th) => th.id === selected) || teammates.some(shown),
+    [...others, ...teammates].some((th) => th.id === selected),
   );
   const chats = threads.length + asked;
   const running = threads.some((th) => isWorking(th.state));
@@ -136,27 +135,18 @@ export function TaskBundle({ taskId, threads, selected }: { taskId: string; thre
               />
             </ListedChat>
           ))}
-          {home && <Teammates home={home} kids={teammates} total={asked} selected={selected} shown={shown} />}
+          {home && <Teammates home={home} kids={teammates} total={asked} selected={selected} />}
         </div>
       )}
     </div>
   );
 }
 
-/** "Ramiro → Bruno: the question": under the task, the row names the teammate; the question tells them apart. */
-const ASKED = /^[^→\n]*→[^:\n]*:\s*/;
-
 /**
- * The conversations of the teammates asked on a task, newest first: a few, then the rest on request. Each opens beside
- * the task's conversation, as its card there does.
+ * The conversations of the teammates asked on a task, newest first: a few, then the rest on request. Each opens as the
+ * chat, as a delegated chat does under its caller in Chats (see DECISIONS.md#d-222).
  */
-function Teammates(props: {
-  home: string;
-  kids: Thread[];
-  total: number;
-  selected: string | undefined;
-  shown: (k: Thread) => boolean;
-}) {
+function Teammates(props: { home: string; kids: Thread[]; total: number; selected: string | undefined }) {
   const t = useT();
   const agents = useShownAgents();
   const [all, setAll] = useState(false);
@@ -173,10 +163,9 @@ function Teammates(props: {
           <SessionRow
             thread={k}
             agent={agents[k.agent_ids[0] ?? ""]}
-            selected={props.shown(k)}
+            selected={k.id === props.selected}
             withAgent
-            label={k.title.replace(ASKED, "")}
-            onOpen={() => go.subthreadOf(props.home, k.id)}
+            label={namedMentions(k.title.replace(ASKED, ""), agents, k.agent_ids[0])}
           />
         </ListedChat>
       ))}

@@ -4,6 +4,7 @@ import { Suspense } from "react";
 import { roomWord } from "../channels/kinds.ts";
 import { useAgentHint } from "../common/AgentFace.tsx";
 import { ChatProcesses } from "../common/ChatProcesses.tsx";
+import { namedTitle } from "../common/mentionNames.ts";
 import { useEngineLabel } from "../common/useEngineLabel.ts";
 import { compactThread } from "../data/actions.ts";
 import { useChannels } from "../data/channels.ts";
@@ -76,7 +77,12 @@ export function ChatHeader({
   const sub = thread.kind === "a2a" || thread.parent_id != null;
   // An engine session is the engine itself: its name and icon, not the agent that owns the run.
   const engine = useEngineLabel(thread.engine);
-  const name = sub || thread.channel ? thread.title : (engine ?? agent?.name ?? thread.title);
+  const agents = useData((s) => s.agents);
+  const name = thread.channel
+    ? thread.title
+    : sub
+      ? namedTitle(thread.title, agents, thread.agent_ids[0])
+      : (engine ?? agent?.name ?? thread.title);
   const catalog = useModels((s) => s.catalog);
   // A group's or room's chat (a channel chat with nobody behind it) opens its card from here.
   const room = Boolean(thread.channel && !thread.channel.person_id);

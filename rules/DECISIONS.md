@@ -4667,3 +4667,22 @@ task's conversation opens as it was left in the asker's chat.
 Rejected: a "Show answer" / "Hide" button on the row's right (a second control competing with the state), and an
 open-conversation icon on the row (two click targets in one row on a phone).
 
+
+<a id="d-222"></a>
+## D-222 — 2026-11-12 — A task's teammate conversation opens as the chat
+
+Supersedes the navigation of D-220 and D-221 from the Inbox. A task's row unfolded into the conversations of the
+teammates asked on it, and a click on one opened the task's conversation with the teammate read-only beside it. The
+owner opened a session and got another conversation in the middle, the one asked about only at the side, while the
+delegated chats under Home in Chats open as themselves. Now a teammate's row under its task opens that conversation as
+the chat, the same as in Chats. Seeing it beside the chat stays where it was: the card's "Open Bruno's chat" and the
+chat's agents panel.
+
+A conversation is read wherever the owner sees it: opened as the chat, or beside it in the agents panel. Before, only
+the chat marked it read, so a teammate's row stayed unread after being looked at beside the chat.
+
+Lists and the agents panel show the agents a request @mentions by name: a mention by id reads as the agent's name, and
+the asked teammate's own leading mention goes, since the row already names them.
+
+Rejected: keeping the side opening and only marking it read (the click still showed another conversation in the
+middle), and renaming the stored titles in the core (the threads already kept would still show ids).
