@@ -1,11 +1,16 @@
 import fs from "node:fs";
 import path from "node:path";
 import { DatabaseSync } from "node:sqlite";
+import { defaultHome, legacyHome } from "../config.ts";
 import { acquireDaemonLock } from "../daemon-lock.ts";
+import { samePath } from "../paths.ts";
 import { reconcileHotfixLineage } from "./migration-hotfix.ts";
 
 /** Offline maintenance uses the daemon's exclusion boundary, never a second live writer. */
 export function repairOfflineDatabase(home: string): { repaired: boolean; version: number; backup: string } {
+  if (process.env.NODE_TEST_CONTEXT && [defaultHome(), legacyHome()].some((real) => samePath(home, real))) {
+    throw new Error("refusing to repair the real home from a test run; pass an isolated home");
+  }
   const file = path.join(home, "apx.db");
   if (!fs.existsSync(file)) throw new Error("No existing database to repair. Check APX_HOME; no database was created.");
   const lock = acquireDaemonLock(home);

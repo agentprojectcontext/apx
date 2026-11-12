@@ -4,6 +4,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import { test } from "node:test";
+import { defaultHome, legacyHome } from "../config.ts";
 import { acquireDaemonLock } from "../daemon-lock.ts";
 import { tempDir } from "../testkit/platform.ts";
 import { repairOfflineDatabase } from "./doctor-repair.ts";
@@ -101,6 +102,11 @@ test("failed post-repair foreign key validation rolls back and preserves the bac
     check.close();
   }
   assert.equal(fs.readdirSync(path.join(home.path, "backups")).length, 1);
+});
+
+test("test runners cannot repair either real home", () => {
+  assert.throws(() => repairOfflineDatabase(defaultHome()), /refusing to repair the real home from a test/);
+  assert.throws(() => repairOfflineDatabase(legacyHome()), /refusing to repair the real home from a test/);
 });
 
 test("a missing database is not silently created", async () => {
