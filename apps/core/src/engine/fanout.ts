@@ -7,6 +7,7 @@ import { fromTeam } from "../tools/result.ts";
 import { keepWhilePaused } from "./breaker.ts";
 import { actionsNote, delegationResult, endedAs, endNote, resultOf } from "./delegation.ts";
 import type { AdmitFn, RunTimers } from "./engine.ts";
+import { laterReplyTo } from "./home-channel.ts";
 import { outcomeNote } from "./run-outcome.ts";
 
 /** A delegated run that ended, and why APX stopped going on with it (a limit cut it short), if it did. */
@@ -49,7 +50,7 @@ export function deliverResults(store: Store, admit: AdmitFn, parent: RunRecord, 
           },
     text: told.length === 1 ? one.answer : `${told.map((t) => t.result.name).join(", ")} answered.`,
     depth: parent.depth,
-    reply_to: parent.input?.reply_to,
+    reply_to: laterReplyTo(store, parent.thread_id, parent.input?.reply_to),
   });
 }
 

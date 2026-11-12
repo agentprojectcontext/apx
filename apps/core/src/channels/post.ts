@@ -13,6 +13,8 @@ export type Posted = {
   /** Its outbox item: how the send went. */
   outbox: string;
   recent: Array<{ from: "them" | "you" | "owner"; text: string }>;
+  /** The chat it went to on the platform. */
+  at?: { channel: string; conversation: string };
 };
 
 export function createPoster(store: Store, delivery: Pick<ReturnType<typeof createDelivery>, "enqueue">) {

@@ -149,6 +149,16 @@ test("on Discord the owner's words from a room go through the super-agent's chec
   );
   const runs = env.core.store.runs.list(HOME_THREAD_ID, 50);
   assert.ok(!runs.some((r) => r.input?.origin.kind === "user" && r.input.text.includes("check the deploy")));
+  // The words stay in the room's chat: Home never shows them as a message of its own (DECISIONS.md#d-224).
+  assert.equal(homeSays("check the deploy please"), false);
+  const room = env.core.store.threads.byConversation("dc", ROOM);
+  assert.ok(
+    room &&
+      env.core.store.messages
+        .list(room.id)
+        .some((m) => m.parts.some((p) => p.type === "text" && p.text === "check the deploy please")),
+    "the owner's words in the room's chat",
+  );
   const check = llm.calls.find((c) => String(c.messages.at(-1)?.content).includes("Judge first"));
   assert.match(String(check?.messages.at(-1)?.content), /in #help \(a public room on/);
   assert.match(String(check?.messages.at(-1)?.content), /trust="untrusted"/);

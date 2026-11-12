@@ -10,6 +10,7 @@ import { processStart, spawnCommand, stopTree } from "../processes.ts";
 import { keepWhilePaused } from "./breaker.ts";
 import { frameInput } from "./context.ts";
 import type { Admit, AdmitFn } from "./engine.ts";
+import { laterReplyTo } from "./home-channel.ts";
 
 /** Set on an agent's commands, so the apx CLI knows an agent runs it, not the owner. */
 const AGENT_ENV = "APX_AGENT";
@@ -69,7 +70,9 @@ export function createJobs(deps: {
         exit_code: job.exit_code ?? null,
       },
       text: read(job.id, undefined, WAKE_TAIL).output || "(no output)",
-      reply_to: job.run_id ? store.runs.get(job.run_id)?.input?.reply_to : undefined,
+      reply_to: job.run_id
+        ? laterReplyTo(store, job.thread_id, store.runs.get(job.run_id)?.input?.reply_to)
+        : undefined,
     };
     const kept = keepWhilePaused(store, {
       thread_id: job.thread_id,

@@ -13,6 +13,7 @@ import { inlineName, untrusted } from "../tools/result.ts";
 import { tree } from "./breaker.ts";
 import { actionsOf, sessionOf } from "./delegation.ts";
 import type { AdmitFn } from "./engine.ts";
+import { laterReplyTo } from "./home-channel.ts";
 import { answerOf } from "./run-outcome.ts";
 
 /** How far each platform's word for the sender goes, for the super-agent to weigh (none: an account the platform checks). */
@@ -37,13 +38,14 @@ export type OwnerWords = {
 
 /**
  * Keeps the words in the owner's chat as a sender's, not the owner's, and asks the super-agent about them. Returns the
- * message kept and the super-agent's run.
+ * message kept (none for words said in a room: they stay in the room's chat, DECISIONS.md#d-224) and the super-agent's
+ * run.
  */
 export function relayOwnerWords(
   store: Store,
   admit: AdmitFn,
   w: OwnerWords,
-): { message: ReturnType<Store["messages"]["add"]>; run: RunRecord } {
+): { message: ReturnType<Store["messages"]["add"]> | undefined; run: RunRecord } {
   const cfg = store.settings.read("channels").find((c) => c.id === w.channel.id);
   const label = inlineName(cfg?.label ?? w.channel.id);
   const boss = store.agents.list().find((a) => a.kind === "secretary");
@@ -56,14 +58,18 @@ export function relayOwnerWords(
   // Words handed on from a room are answered where Home is, never in the room.
   const reply_to = w.room ? w.room.reply_to : { channel: w.channel.id, conversation: w.channel.conversation };
   return store.tx(() => {
-    const message = store.messages.add({
-      thread_id: w.threadId,
-      author: { kind: "person", id: w.channel.person_id, name: w.channel.name, channel: w.channel.id },
-      via: w.channel.id,
-      parts: [{ type: "text", text: w.text }, ...w.attachments.flatMap((f) => partOf(store, f.media_id))],
-    });
-    store.threads.patch(w.threadId, { preview: previewOf(w.text) });
-    if (!w.room) store.threads.mergeContext(w.threadId, { reply_to });
+    const message = w.room
+      ? undefined
+      : store.messages.add({
+          thread_id: w.threadId,
+          author: { kind: "person", id: w.channel.person_id, name: w.channel.name, channel: w.channel.id },
+          via: w.channel.id,
+          parts: [{ type: "text", text: w.text }, ...w.attachments.flatMap((f) => partOf(store, f.media_id))],
+        });
+    if (!w.room) {
+      store.threads.patch(w.threadId, { preview: previewOf(w.text) });
+      store.threads.mergeContext(w.threadId, { reply_to });
+    }
     const checker = boss.name;
     store.modelLog.append(w.threadId, undefined, [
       { role: "user", content: words },
@@ -139,7 +145,7 @@ export function relayEnded(store: Store, admit: AdmitFn, run: RunRecord): void {
       session: OWNER_CHECK,
     },
     text: answerOf(store, run) ?? run.error ?? `(${run.state}, no answer)`,
-    ...(check.reply_to ? { reply_to: check.reply_to } : {}),
+    ...(check.reply_to ? { reply_to: laterReplyTo(store, check.thread, check.reply_to) } : {}),
   });
   // This turn stands for the owner's own, which never counted as unattended: what agents spend is counted after it,
   // so neither the check nor this answer piles up into a pause (engine/breaker.ts). A new run's started_at is when it

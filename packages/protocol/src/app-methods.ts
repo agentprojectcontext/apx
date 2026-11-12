@@ -1234,9 +1234,11 @@ export const appMethods = {
         channel: z.string().max(60).optional(),
         /** Files to send with it (media ids): images as images, anything else as a document. */
         files: z.array(Id).max(5).optional(),
+        /** To the owner, who asked to go on there: Home answers on that chat from now on (DECISIONS.md#d-224). */
+        stay: z.boolean().optional(),
       })
       .strict(),
-    result: z.union([Sent, Withheld]),
+    result: z.union([Sent.extend({ moved: z.boolean().optional() }), Withheld]),
     effect: true,
   },
   /**

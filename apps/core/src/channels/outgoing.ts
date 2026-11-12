@@ -167,7 +167,13 @@ export function createOutgoing(deps: {
       store.modelLog.append(thread.id, undefined, [
         { role: "user", content: `[Your owner's flow "${o.flow}" sent this in this chat:]\n${text}` },
       ]);
-    return { thread: thread.id, channel: pick.cfg.label, recent, outbox };
+    return {
+      thread: thread.id,
+      channel: pick.cfg.label,
+      recent,
+      outbox,
+      at: { channel: pick.cfg.id, conversation: pick.conversation },
+    };
   }
 
   /**

@@ -15,9 +15,11 @@ import { appOnly, noticePrefs, saveNoticePrefs } from "../domain/notices.ts";
 import { ownerTimeZone } from "../domain/owner.ts";
 import { OWNER_ID } from "../domain/persons.ts";
 import { ownerAsked } from "../domain/runs.ts";
+import { HOME_THREAD_ID } from "../domain/seed.ts";
 import type { Sticker } from "../domain/stickers.ts";
 import type { Store } from "../domain/store.ts";
 import { previewOf } from "../domain/threads.ts";
+import { moveHome } from "../engine/home-channel.ts";
 import type { Nudges } from "../engine/nudges.ts";
 import { badRequest, CallError, conflict, errorMessage, notFound } from "../errors.ts";
 import type { Handlers } from "./router.ts";
@@ -27,7 +29,7 @@ const SETTLE_MS = 8_000;
 
 export function channelHandlers(store: Store, channels: Channels, nudges: Pick<Nudges, "offer">) {
   /** A message an agent sent, with how it went: an agent must not say it went when the platform refused it. */
-  const withDelivery = async ({ outbox, ...sent }: ReturnType<Channels["postInRoom"]>) => ({
+  const withDelivery = async ({ outbox, at: _at, ...sent }: ReturnType<Channels["postInRoom"]>) => ({
     ...sent,
     delivery: await channels.settled(outbox, SETTLE_MS),
   });
@@ -114,7 +116,7 @@ export function channelHandlers(store: Store, channels: Channels, nudges: Pick<N
       return { ok: true as const };
     },
     // Open to agents (the owner's, never a contact's turn): their way to write to a contact for the owner.
-    "channels.message": async ({ person, text, channel, files, omit_signature }, ctx) => {
+    "channels.message": async ({ person, text, channel, files, omit_signature, stay }, ctx) => {
       let sent: ReturnType<typeof channels.messageContact> | undefined;
       const send = () => {
         try {
@@ -149,7 +151,11 @@ export function channelHandlers(store: Store, channels: Channels, nudges: Pick<N
         if (state === "held" || state === "dropped") return { withheld: state };
       } else send();
       if (!sent) throw badRequest("the owner has no chat app to write to");
-      return withDelivery(sent);
+      // Only Home moves, and only when the owner asked for it there (DECISIONS.md#d-224).
+      const at = stay && person === OWNER_ID && sent.thread === HOME_THREAD_ID ? sent.at : undefined;
+      const moved = Boolean(at && ctx.agent?.thread_id === HOME_THREAD_ID && askedByOwner(ctx.agent.run_id));
+      if (moved && at) moveHome(store, at);
+      return { ...(await withDelivery(sent)), ...(stay ? { moved } : {}) };
     },
     // Open to agents like channels.message: their way to post in a public room for the owner.
     "channels.post": async ({ room, text, channel, files }, ctx) => {
