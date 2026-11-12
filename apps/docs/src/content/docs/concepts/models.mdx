@@ -47,6 +47,15 @@ Open **Settings › Engines and models**. Under **Model APIs (APX's own loop)**,
 kind; the address fills in. Paste the key (APX stores it in the secret store and never shows it again) and the
 model list is asked to the provider itself.
 
+The list stays current on its own: APX asks the provider again once a day (`apx models --refresh` asks now), so new
+models appear and retired ones leave. Models an agent cannot run on (voice, images, music, live audio, guards, or a
+model the provider says takes no tools) stay listed but are not offered for agents. Being listed does not mean your key
+can use a model for free; that depends on your plan with the provider.
+
+A refresh never changes a model an agent or the router already uses. If the provider retires that model, the turn moves
+to the next model in its fallbacks and the router's chain, and the notice says the model is no longer offered so you can
+pick another one.
+
 Presets: **OpenCode Zen**, **Gemini**, **Anthropic**, **OpenAI**, **OpenRouter**, **Groq**, **Cerebras**,
 **DeepSeek**, **Mistral**, **Ollama**, **LM Studio**, and **OpenAI-compatible** for anything else that speaks that
 API. Ollama and LM Studio run on your machine and need no key.
@@ -205,18 +214,19 @@ codex — Codex
   codex/gpt-6-sol
 gemini — Gemini
   gemini/gemini-3.8-flash
-  gemini/gemini-3.8-pro
+  gemini/gemini-4-carbon
 chatgpt — Codex
   chatgpt/gpt-6-sol
 ollama — Ollama (not available)`}</Terminal>
 
 The list starts with the CLIs (`claude`, `codex`, any ACP agents), whose models you use in their own sessions, then
 your providers. Each engine is asked for its own list; `apx models --refresh` asks again instead of using the
-day-old cache.
+day-old cache. `apx models --json` prints every model, voice and image ones included, with what each agent and the
+router use.
 
 <Terminal command="apx models config">{`default: router
 router chain: gemini/gemini-3.8-flash → chatgpt/gpt-6-sol
-  rule {"has_image":true} → gemini/gemini-3.8-pro  # photos and screenshots`}</Terminal>
+  rule {"has_image":true} → gemini/gemini-4-carbon  # photos and screenshots`}</Terminal>
 
 | Command | Does |
 |---|---|
@@ -229,7 +239,7 @@ A rules file is a list. Every condition in `when` must hold; `model` is what the
 
 ```json title="rules.json"
 [
-  { "when": { "has_image": true }, "model": "gemini/gemini-3.8-pro", "note": "photos and screenshots" },
+  { "when": { "has_image": true }, "model": "gemini/gemini-4-carbon", "note": "photos and screenshots" },
   { "when": { "triggers": ["routine"], "max_chars": 2000 }, "model": "ollama" },
   { "when": { "keywords": ["contract", "invoice"] }, "model": "chatgpt/gpt-6-sol#high" }
 ]

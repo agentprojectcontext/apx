@@ -5,6 +5,7 @@ import type { AddressInfo } from "node:net";
 import os from "node:os";
 import path from "node:path";
 import { after, before, test } from "node:test";
+import { PINNED } from "../models/pinned.ts";
 import { generateImage, IMAGE_PROBE } from "./images.ts";
 import { reach } from "./reach.ts";
 import { speak } from "./speech.ts";
@@ -60,6 +61,10 @@ before(async () => {
       if (path === "/v1/audio/speech") {
         res.writeHead(200, { "content-type": "audio/wav" });
         return res.end(Buffer.from("RIFFfake"));
+      }
+      if (path.startsWith("/v1beta/models/retired-tts")) {
+        res.writeHead(404);
+        return res.end("models/retired-tts is not found");
       }
       if (path.startsWith("/v1beta/models/"))
         return json({
@@ -168,6 +173,22 @@ test("OpenAI-compatible images; QVox speech gets its style and language; Gemini 
   const call = seen.findLast((s) => s.path.startsWith("/v1beta/models/"));
   assert.equal(call?.headers["x-goog-api-key"], "gk");
   assert.ok(!call?.path.includes("gk"), "the key never goes in the URL");
+  assert.equal(call?.path, `/v1beta/models/${PINNED.geminiSpeech.id}:generateContent`, "no model chosen: the default");
+});
+
+test("Gemini voice on a model Google retired falls back to the current default", async () => {
+  const before = seen.length;
+  const g = await speak(
+    svc({ kind: "speech", dialect: "gemini-speech", label: "Gemini", model: "retired-tts" }),
+    { text: "hola" },
+    "gk",
+    signal(),
+  );
+  assert.equal(g.bytes.subarray(0, 4).toString(), "RIFF");
+  assert.deepEqual(
+    seen.slice(before).map((s) => s.path.split(":")[0]),
+    ["/v1beta/models/retired-tts", `/v1beta/models/${PINNED.geminiSpeech.id}`],
+  );
 });
 
 test("with references, OpenAI-compatible images go to the edits endpoint as files; word-only servers refuse them", async () => {

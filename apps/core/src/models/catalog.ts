@@ -66,8 +66,38 @@ export function cachedCatalog(store: Store, id: string): CatalogEngine | undefin
   }
 }
 
-// Ids that name non-chat models (speech, embeddings, images…); they stay listed but are not offered for agents.
-const NOT_CHAT = /(embed|tts|audio|speech|transcri|whisper|image|imagen|veo|dall-e|moderation|aqa|realtime)/i;
+// Ids that name models an agent's turn cannot run on (speech, embeddings, images, music, live audio, guards,
+// providers' own agents…); they stay listed but are not offered for agents.
+const NOT_CHAT =
+  /(embed|tts|audio|speech|transcri|whisper|image|imagen|veo|dall-e|moderation|aqa|realtime|lyria|nano-banana|omni|robotics|computer-use|deep-research|antigravity|guard|orpheus|translate|(^|[-/])live([-/]|$))/i;
+
+/** A model as a provider's list gives it; OpenRouter says what it supports, Groq whether it still runs. */
+type Listed = {
+  id: string;
+  display_name?: string;
+  name?: string;
+  active?: boolean;
+  supported_parameters?: string[];
+  architecture?: { output_modalities?: string[] };
+};
+
+/** An agent's turn needs text out and, when the provider says what a model supports, tool calls. */
+function runsTurns(m: Listed, id: string): boolean {
+  if (NOT_CHAT.test(id)) return false;
+  if (m.supported_parameters && !m.supported_parameters.includes("tools")) return false;
+  const out = m.architecture?.output_modalities;
+  return !out || out.includes("text");
+}
+
+/** A provider's list as the catalog keeps it: models it says are switched off are left out. */
+export function fromProviderList(data: ReadonlyArray<Listed>): CatalogModel[] {
+  return data
+    .filter((m) => m.active !== false)
+    .map((m) => {
+      const id = m.id.replace(/^models\//, "");
+      return { id, name: m.display_name ?? m.name ?? id, chat: runsTurns(m, id) };
+    });
+}
 
 async function providerModels(p: ProviderConfig, key: string, fetchImpl: typeof fetch): Promise<CatalogModel[]> {
   const base = p.base_url.replace(/\/$/, "");
@@ -82,11 +112,7 @@ async function providerModels(p: ProviderConfig, key: string, fetchImpl: typeof 
           signal: AbortSignal.timeout(10_000),
         });
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
-  const body = (await res.json()) as { data?: Array<{ id: string; display_name?: string }> };
-  return (body.data ?? []).map((m) => {
-    const id = m.id.replace(/^models\//, "");
-    return { id, name: m.display_name ?? id, chat: !NOT_CHAT.test(id) };
-  });
+  return fromProviderList(((await res.json()) as { data?: Listed[] }).data ?? []);
 }
 
 async function claudeModels(): Promise<CatalogModel[]> {

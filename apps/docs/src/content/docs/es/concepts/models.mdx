@@ -50,6 +50,16 @@ Abrí **Configuración › Motores y modelos**. En **APIs de modelos (loop propi
 elegí su tipo; la dirección se completa sola. Pegá la key (APX la guarda en el almacén de secretos y no la vuelve a
 mostrar) y la lista de modelos se le pide al proveedor mismo.
 
+La lista se mantiene al día sola: APX se la vuelve a pedir al proveedor una vez por día (`apx models --refresh` la pide
+ya), así aparecen los modelos nuevos y se van los retirados. Los modelos con los que un agente no puede trabajar (voz,
+imágenes, música, audio en vivo, guardas, o uno que según el proveedor no usa herramientas) siguen en la lista pero no se
+ofrecen para agentes. Que un modelo esté en la lista no quiere decir que tu key lo pueda usar gratis; eso depende de tu
+plan con el proveedor.
+
+Una actualización nunca cambia el modelo que ya usa un agente o el router. Si el proveedor retira ese modelo, el turno
+pasa al siguiente de sus modelos de respaldo y de la cadena del router, y el aviso dice que el modelo ya no se ofrece
+para que elijas otro.
+
 Presets: **OpenCode Zen**, **Gemini**, **Anthropic**, **OpenAI**, **OpenRouter**, **Groq**, **Cerebras**,
 **DeepSeek**, **Mistral**, **Ollama**, **LM Studio**, y **OpenAI-compatible** para cualquier otra cosa que hable esa
 API. Ollama y LM Studio corren en tu máquina y no necesitan key.
@@ -215,18 +225,19 @@ codex — Codex
   codex/gpt-6-sol
 gemini — Gemini
   gemini/gemini-3.8-flash
-  gemini/gemini-3.8-pro
+  gemini/gemini-4-carbon
 chatgpt — Codex
   chatgpt/gpt-6-sol
 ollama — Ollama (not available)`}</Terminal>
 
 La lista arranca con las CLIs (`claude`, `codex`, los agentes ACP), cuyos modelos usás en sus propias sesiones, y
 sigue con tus proveedores. A cada motor se le pide su propia lista; `apx models --refresh` vuelve a preguntar en vez
-de usar la caché de un día.
+de usar la caché de un día. `apx models --json` muestra todos los modelos, también los de voz e imagen, con lo que usa
+cada agente y el router.
 
 <Terminal command="apx models config">{`default: router
 router chain: gemini/gemini-3.8-flash → chatgpt/gpt-6-sol
-  rule {"has_image":true} → gemini/gemini-3.8-pro  # photos and screenshots`}</Terminal>
+  rule {"has_image":true} → gemini/gemini-4-carbon  # photos and screenshots`}</Terminal>
 
 | Comando | Hace |
 |---|---|
@@ -240,7 +251,7 @@ regla:
 
 ```json title="rules.json"
 [
-  { "when": { "has_image": true }, "model": "gemini/gemini-3.8-pro", "note": "photos and screenshots" },
+  { "when": { "has_image": true }, "model": "gemini/gemini-4-carbon", "note": "photos and screenshots" },
   { "when": { "triggers": ["routine"], "max_chars": 2000 }, "model": "ollama" },
   { "when": { "keywords": ["contrato", "factura"] }, "model": "chatgpt/gpt-6-sol#high" }
 ]

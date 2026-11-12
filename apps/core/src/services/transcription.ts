@@ -2,6 +2,7 @@
 // itself; "whisper-local" is a whisper server already running on this Mac (faster-whisper or mlx-whisper) that reads
 // the audio from a path; "openai-transcribe" uploads it to any OpenAI-compatible endpoint.
 import { errorMessage } from "../errors.ts";
+import { PINNED } from "../models/pinned.ts";
 import { joinUrl, type ServiceConfig, ServiceError } from "./types.ts";
 import type { WhisperCpp } from "./whisper-cpp.ts";
 
@@ -27,7 +28,7 @@ async function whisperLocal(s: ServiceConfig, a: Audio, signal: AbortSignal, f: 
 async function openaiTranscribe(s: ServiceConfig, a: Audio, key: string | undefined, signal: AbortSignal, f: Fetch) {
   const form = new FormData();
   form.set("file", new Blob([new Uint8Array(a.bytes)], { type: a.mime }), "voice.ogg");
-  form.set("model", s.model || "whisper-1");
+  form.set("model", s.model || PINNED.openaiTranscription.id);
   if (s.language) form.set("language", s.language);
   const res = await f(joinUrl(s.base_url, "/v1/audio/transcriptions"), {
     method: "POST",

@@ -3,6 +3,7 @@
 // 16-bit PCM, which is wrapped in a WAV header here.
 
 import { errorMessage } from "../errors.ts";
+import { PINNED } from "../models/pinned.ts";
 import { joinUrl, type ServiceConfig, ServiceError, SPEECH_TIMEOUT_MS, type SpeechResult } from "./types.ts";
 
 type Fetch = typeof fetch;
@@ -28,7 +29,7 @@ async function openaiSpeech(
     body: JSON.stringify({
       input: r.text,
       response_format: stock ? "mp3" : "wav",
-      ...(s.model ? { model: s.model } : stock ? { model: "tts-1" } : {}),
+      ...(s.model ? { model: s.model } : stock ? { model: PINNED.openaiSpeech.id } : {}),
       ...(voice ? { voice } : stock ? { voice: "alloy" } : {}),
       // OpenAI's gpt-4o voices read `instructions`; QVox reads `instruct` and `language`.
       ...(style ? (stock ? { instructions: style } : { instruct: style }) : {}),
@@ -70,21 +71,24 @@ async function geminiSpeech(
   f: Fetch,
 ) {
   if (!key) throw new Error("needs a Gemini API key");
-  const model = s.model || "gemini-2.5-flash-preview-tts";
   const style = r.style ?? s.style;
   // The key goes in a header, never in the URL (URLs end up in logs).
-  const res = await f(joinUrl(s.base_url, `/v1beta/models/${encodeURIComponent(model)}:generateContent`), {
-    method: "POST",
-    headers: { "content-type": "application/json", "x-goog-api-key": key },
-    body: JSON.stringify({
-      contents: [{ parts: [{ text: style ? `${style}: ${r.text}` : r.text }] }],
-      generationConfig: {
-        responseModalities: ["AUDIO"],
-        speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: r.voice ?? s.voice ?? "Kore" } } },
-      },
-    }),
-    signal,
-  });
+  const ask = (model: string) =>
+    f(joinUrl(s.base_url, `/v1beta/models/${encodeURIComponent(model)}:generateContent`), {
+      method: "POST",
+      headers: { "content-type": "application/json", "x-goog-api-key": key },
+      body: JSON.stringify({
+        contents: [{ parts: [{ text: style ? `${style}: ${r.text}` : r.text }] }],
+        generationConfig: {
+          responseModalities: ["AUDIO"],
+          speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: r.voice ?? s.voice ?? "Kore" } } },
+        },
+      }),
+      signal,
+    });
+  let res = await ask(s.model || PINNED.geminiSpeech.id);
+  // A voice model Google retired answers 404: the current default speaks instead of the voice going silent.
+  if (res.status === 404 && s.model && s.model !== PINNED.geminiSpeech.id) res = await ask(PINNED.geminiSpeech.id);
   if (!res.ok) throw new Error(`HTTP ${res.status}: ${(await res.text()).slice(0, 200)}`);
   const j = (await res.json()) as {
     candidates?: Array<{ content?: { parts?: Array<{ inlineData?: { data?: string; mimeType?: string } }> } }>;
