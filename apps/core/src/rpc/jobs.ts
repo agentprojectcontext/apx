@@ -14,10 +14,11 @@ const newest = (a: Job, b: Job) => (b.ended_at ?? b.started_at).localeCompare(a.
 function fromOf(origin: Origin): JobFrom {
   switch (origin.kind) {
     case "agent":
+    case "delegation_result":
+      return { kind: origin.kind, name: origin.name, thread: origin.thread_id };
     case "channel":
     case "routine":
     case "task_result":
-    case "delegation_result":
     case "added":
       return { kind: origin.kind, name: origin.name };
     case "delegation_results":

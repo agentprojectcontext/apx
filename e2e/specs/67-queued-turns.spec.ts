@@ -1,5 +1,6 @@
 // A helper's result that arrives while its caller is still working waits as a turn of that chat: the running
-// popover and the chat's processes both list it under the working turn, named after the helper, with the same count.
+// popover and the chat's processes both list it under the working turn, named after the helper, with the same count;
+// in the chat's agents it opens the helper's conversation.
 import type { Agent, Thread } from "../../packages/protocol/src/domain.ts";
 import { expect, open, rpc, test } from "./kit.ts";
 
@@ -40,6 +41,12 @@ test("a queued delegation result shows, named, with its chat's working turn in t
   await expect(list.locator(".turns__row")).toHaveCount(1);
   await expect(list.locator(".turns__row")).toContainText("Resultado de Scout");
   await page.keyboard.press("Escape");
+
+  // In the chat's agents it opens Scout's conversation, where it comes from.
+  if (process.env.SHOTS) await side.screenshot({ path: `${process.env.SHOTS}/queued-turn.png` });
+  await side.locator(".turns__row").click();
+  await expect(side.getByRole("tab", { selected: true })).toContainText("Scout");
+  await side.getByRole("tab", { name: /^Todos/ }).click();
 
   // Once the caller's turn ends, the result runs and nothing is left waiting.
   await expect(side.getByText("Activos (0)")).toBeVisible({ timeout: 20_000 });

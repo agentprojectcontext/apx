@@ -38,12 +38,25 @@ export function turnName(t: T, from: JobFrom | undefined): string {
   }
 }
 
-/** A chat's turns waiting behind the one in progress, nested under it in the popover and the chat's processes. */
-export function QueuedTurns({ turns, now, onOpen }: { turns: Job[]; now: number; onOpen?: () => void }) {
+/**
+ * A chat's turns waiting behind the one in progress, nested under it in the popover and the chat's processes.
+ * `onOpen` makes the turns `canOpen` takes (all without it) open what they come from.
+ */
+export function QueuedTurns({
+  turns,
+  now,
+  onOpen,
+  canOpen,
+}: {
+  turns: Job[];
+  now: number;
+  onOpen?: (turn: Job) => void;
+  canOpen?: (turn: Job) => boolean;
+}) {
   const t = useT();
   if (!turns.length) return null;
   return (
-    <div className="turns">
+    <div className="turns apx-branches">
       {turns.map((j) => {
         const body = (
           <>
@@ -53,8 +66,14 @@ export function QueuedTurns({ turns, now, onOpen }: { turns: Job[]; now: number;
             <span className="turns__time">{elapsed(j.started_at, now)}</span>
           </>
         );
-        return onOpen ? (
-          <button key={j.id} type="button" className="turns__row" title={t("turn.queuedAfter")} onClick={onOpen}>
+        return onOpen && (!canOpen || canOpen(j)) ? (
+          <button
+            key={j.id}
+            type="button"
+            className="turns__row"
+            title={t("turn.queuedAfter")}
+            onClick={() => onOpen(j)}
+          >
             {body}
           </button>
         ) : (

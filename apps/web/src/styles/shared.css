@@ -140,14 +140,14 @@
 .selectbtn__chevron {
   flex: none;
 }
-/* A chat's queued turns, nested under its working turn (running popover, chat processes). */
+/* A chat's queued turns, nested under its working turn (running popover, chat processes), on the shared branch line. */
 .turns {
+  --apx-branch-mid: 15px;
   display: flex;
   flex-direction: column;
   gap: 2px;
   margin-left: 24px;
-  padding-left: 10px;
-  border-left: 1px solid var(--apx-border);
+  padding-left: 11px;
 }
 .turns__row {
   display: flex;

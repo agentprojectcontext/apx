@@ -31,6 +31,20 @@ test("a chat includes nested workers and archived children, excluding the same a
   );
 });
 
+test("the teammates a chat asked on its task, and those they called, are the chat's; the task's others are not", () => {
+  const threads = [
+    thread("root"),
+    thread("asked", "task"),
+    thread("theirs", "asked"),
+    thread("owner-asked", "task"),
+    thread("child", "root"),
+  ];
+  assert.deepEqual(
+    chatDescendants(threads, "root", ["asked"]).map((t) => t.id),
+    ["asked", "theirs", "child"],
+  );
+});
+
 test("missing ancestors and malformed parent cycles cannot pull unrelated work into a chat", () => {
   const threads = [
     thread("root"),

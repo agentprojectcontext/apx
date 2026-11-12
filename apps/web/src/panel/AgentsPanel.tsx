@@ -34,8 +34,9 @@ const statusOf = (t: T, state: Thread["state"]) =>
           : t("run.done");
 
 /**
- * The agents this chat called: its own turn and those queued behind it, then each conversation it (or an agent it
- * called) handed to another agent, opened as a tab beside the chat's transcript.
+ * The agents this chat called: its own turn and those queued behind it (one a teammate sent opens their
+ * conversation), then each conversation it (or an agent it called) handed to another agent or asked a teammate on its
+ * task, opened as a tab beside the chat's transcript.
  */
 export function AgentsPanel() {
   const t = useT();
@@ -60,7 +61,7 @@ export function AgentsPanel() {
         include_subthreads: true,
         include_archived: true,
       });
-      const scoped = chatDescendants(all.threads, root);
+      const scoped = chatDescendants(all.threads, root, all.asked);
       setChildren(scoped);
       setError(false);
       data.set((s) => ({ threads: { ...s.threads, ...Object.fromEntries(scoped.map((th) => [th.id, th])) } }));
@@ -211,7 +212,12 @@ export function AgentsPanel() {
               )}
             </div>
           )}
-          <QueuedTurns turns={queued} now={now} />
+          <QueuedTurns
+            turns={queued}
+            now={now}
+            canOpen={(j) => current.some((th) => th.id === j.from?.thread)}
+            onOpen={(j) => j.from?.thread && go.subthread(j.from.thread)}
+          />
           {active.map(row)}
           {!activeCount && <p className="plist__empty">{t("running.empty")}</p>}
           <PanelGroup title={t("processes.done", { n: done.length })} />
