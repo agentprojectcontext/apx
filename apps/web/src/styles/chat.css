@@ -517,25 +517,20 @@
 .transcript__face.has-picture {
   background: none;
 }
-.transcript--room .transcript__row > .apx-msg:not(.is-waiting),
+.transcript--room .transcript__row > .apx-msg:not(.is-waiting):not(.apx-msg--user),
 .transcript--room .turn > :not(.transcript__speaker) {
   margin-left: 34px;
 }
-.transcript--room .apx-msg--user:not(.is-waiting) {
-  justify-content: flex-start;
-}
-.transcript--room .apx-msg:not(.is-waiting) .apx-msg__col {
+/* The owner's own words stay on their side, in a bubble, even where everyone else reads at the left. */
+.transcript--room .apx-msg:not(.is-waiting):not(.apx-msg--user) .apx-msg__col {
   align-items: stretch;
   max-width: 100%;
 }
-.transcript--room .apx-msg:not(.is-waiting) .apx-msg__bubble {
+.transcript--room .apx-msg:not(.is-waiting):not(.apx-msg--user) .apx-msg__bubble {
   padding: 0;
   border-color: transparent;
   background: transparent;
   color: var(--apx-fg);
-}
-.transcript--room .apx-msg--user .apx-msg__meta {
-  flex-direction: row;
 }
 
 /* Minimal look: the agent writes as plain text on the chat, the owner's messages keep a quiet bubble. Wherever a

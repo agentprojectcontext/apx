@@ -343,3 +343,15 @@ test("stop, input responses and compaction target the selected entity and keep a
     ["threads.compact", { thread: "thr_1" }],
   ]);
 });
+
+test("a reload keeps a sent copy until its message is stored, and never shows both", () => {
+  const sent = (id: string, seq: number, text: string): Message => ({
+    ...message(id, seq),
+    parts: [{ type: "text", text }],
+  });
+  const copy = sent("local_1", 4.5, "Is the Acme folder there?");
+  const older = sent("msg_1", 2, "Is the Acme folder there?");
+  assert.deepEqual(actions.pendingCopies([copy], [older]), [copy], "an older message with the same words is not it");
+  assert.deepEqual(actions.pendingCopies([copy], [older, sent("msg_5", 5, "Is the Acme folder there?")]), []);
+  assert.deepEqual(actions.pendingCopies([older, copy], [sent("msg_5", 5, "Something else")]), [copy]);
+});
