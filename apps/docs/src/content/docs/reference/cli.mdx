@@ -50,7 +50,7 @@ console doesn't start: `apx` prints the help instead.
 | `apx wizard` | Guided terminal setup and maintenance. |
 | `apx upgrade --check` | Is there a newer APX? |
 | `apx upgrade` | Apply it, the same as **Update now** in the panel. When the core does not answer, an APX installed with the install script updates itself anyway: it downloads the newest bundle, checks it and has the service start it. `apx update` is the same command. |
-| `apx doctor` | Why the core does not answer on this computer (what its log says, the service, a newer release) and the one command to run next. Works without the core; `--json`. `--fix` also compacts the chats' database and gives the space back to the disk (needs the core). |
+| `apx doctor` | Why the core does not answer on this computer (what its log says, the service, a newer release) and the one command to run next. Works without the core; `--json`. `--fix` (alias `doctor fix`) repairs recognized hotfix migrations with the core down, making a private consistent backup first; unknown schemas are refused. With the core running it compacts chat history and reclaims disk space. |
 | `apx logs` | The newest lines of the core's log, through the core: `-n 200`, `--level info\|warn\|error`, `--grep text`, `--scope core\|output`, `--json`. With no core answering, the file on this computer. |
 | `apx service logs` | The log file on this computer (`<home>/logs/core.log`); `-n 100`, `-f` to follow it. |
 | `apx daemon` | Explains which `apx service` command to use (the background core is now a service). |

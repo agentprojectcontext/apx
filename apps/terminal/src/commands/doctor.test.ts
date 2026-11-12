@@ -42,6 +42,16 @@ test("an error before the core's last start is history, not the cause", () => {
   assert.deepEqual(d.next, ["apx service restart"]);
 });
 
+test("migration rejection suggests bounded offline repair rather than a restart loop", () => {
+  const d = diagnose(
+    facts({ log: ["Cannot reconcile hotfix database: unrecognized schema objects"], service: "stopped" }),
+  );
+  assert.equal(d.ok, false);
+  assert.match(d.lines.join("\n"), /database does not match/);
+  assert.match(d.next.join("\n"), /doctor --fix.*unknown schema changes require support/);
+  assert.ok(!d.next.includes("apx service restart"));
+});
+
 test("a taken port names the command that shows who holds it", () => {
   const d = diagnose(facts({ log: ["Error: listen EADDRINUSE: address already in use 127.0.0.1:7440"] }));
   assert.ok(d.lines.includes("Why: Another program already uses port 7440."));

@@ -41,7 +41,12 @@ function validate(db: DatabaseSync, reference: DatabaseSync): void {
 
 // See HISTORY.md#hotfix-migration-lineage.
 /** Joins the published hotfix's exact schema to staging without replaying existing transformations. */
-export function reconcileHotfixLineage(db: DatabaseSync, home: string, version: number): number {
+export function reconcileHotfixLineage(
+  db: DatabaseSync,
+  home: string,
+  version: number,
+  reportBackup?: (file: string) => void,
+): number {
   if (version < HOTFIX || version >= INTEGRATED) return version;
   const hasReason = db
     .prepare("PRAGMA table_xinfo(jobs)")
@@ -61,6 +66,7 @@ export function reconcileHotfixLineage(db: DatabaseSync, home: string, version: 
     const backup = path.join(directory, "apx.db");
     db.prepare("VACUUM INTO ?").run(backup);
     fs.chmodSync(backup, 0o600);
+    reportBackup?.(backup);
     db.exec("BEGIN IMMEDIATE");
     try {
       if (db.prepare("PRAGMA data_version").get()?.data_version !== before) {

@@ -38,6 +38,18 @@ instalado con el script de instalación; la app de escritorio se reemplaza bajan
 Si no, arrancalo con la app de escritorio, con `apx service install` (o `apx service restart` si el servicio ya
 existe), o con `pnpm dev` desde el código. Si arranca y se cae, leé su log.
 
+### Una migración impide arrancar
+
+Ejecutá `apx doctor --fix` (o `apx doctor fix`) en el servidor afectado con su `APX_HOME`, sin `APX_URL`.
+Con el core caído puede reconciliar el esquema hotfix 109 exacto y reconocido con el esquema integrado 115.
+Rechaza un daemon activo, otras conexiones a la base y objetos de esquema desconocidos. Nunca elimina un índice
+desconocido ni reinicia la versión. El backup SQLite privado en `<APX_HOME>/backups/` incluye datos confirmados en WAL.
+La reparación es transaccional y valida integridad y claves foráneas antes de confirmar; un fallo conserva el estado
+original e informa el backup si llegó a crearlo. No sobrescribas la base ni borres sus archivos WAL por tu cuenta.
+Después de un éxito, arrancá APX normalmente y ejecutá `apx doctor` para comprobarlo; la reparación no reinicia servicios.
+Si no reconoce el esquema, conservá los datos y compartí el diagnóstico y las definiciones del esquema con soporte.
+Con el core activo, `--fix` mantiene la compactación del historial en lugar de reparar migraciones offline.
+
 ## Dónde están los logs
 
 Corra como corra APX (la app de escritorio, el servicio o `pnpm dev`), el core escribe su log en el mismo archivo,
