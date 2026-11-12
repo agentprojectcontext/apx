@@ -18,6 +18,7 @@ import { COMPUTER_POINTER_NEWS } from "./computer-pointer.ts";
 import { CONTACT_AGENT_NEWS } from "./contact-agent.ts";
 import { EVENT_MUTE_NEWS } from "./event-mute.ts";
 import { EXTERNAL_SESSIONS_NEWS } from "./external-sessions.ts";
+import { HEADLINE_MODELS_NEWS } from "./headline-models.ts";
 import { HERMES_IMPORT_NEWS } from "./hermes-import.ts";
 import { LOCAL_MODELS_NEWS } from "./local-models.ts";
 import { MCP_CONTEXT_NEWS } from "./mcp-context.ts";
@@ -137,6 +138,7 @@ export const NEWS: readonly NewsEntry[] = [
   },
 
   ROUTINE_PERMISSIONS_NEWS,
+  HEADLINE_MODELS_NEWS,
   MCP_REACH_NEWS,
   MCP_CONTEXT_NEWS,
   EVENT_MUTE_NEWS,
