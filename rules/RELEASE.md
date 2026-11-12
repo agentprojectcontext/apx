@@ -94,8 +94,9 @@ The workflow builds the exact candidate, downloads and checksum-checks the previ
 ZIP, and runs `scripts/minor-upgrade.ts`. Separate temporary homes hold the installed core and remote desktop
 client. The daemon uses the previous installed updater and preserves a demo chat, task, memory, agent and home
 identity. Its fixture supervisor restarts only its own child on the normal restart exit code; the native app uses
-its real download, swap and restart bridge. An `open` wrapper forwards to the real macOS launcher with an isolated profile, so relaunch cannot attach
-to the developer's desktop session. Receipts include commit/artifact hashes, health/data checks, process logs and
+its real download, swap and restart bridge. An `open` wrapper forwards to the real macOS launcher with an isolated profile and the same mock keychain as
+the initial test launch, so relaunch cannot attach to the developer's desktop session or prompt for its login keychain.
+This fixture flag is not a production keychain configuration. Receipts include commit/artifact hashes, health/data checks, process logs and
 native before/after screenshots; even a failed run keeps its available evidence as an Actions artifact.
 
 This matrix currently runs on macOS arm64. It is not Linux, Windows, SSH-transport or mobile upgrade proof; report

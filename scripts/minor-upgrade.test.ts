@@ -6,6 +6,7 @@ import { test } from "node:test";
 import { samePath } from "../apps/core/src/paths.ts";
 import { tempDir } from "../apps/core/src/testkit/platform.ts";
 import { upgradeArgs } from "./minor-upgrade.ts";
+import { relaunchArguments, relaunchEndpoint } from "./upgrade-desktop.ts";
 import { checkedArtifact, command, isolatedHomeEnv, releaseFixture } from "./upgrade-fixture.ts";
 
 const args = ["--previous", "2.13.4", "--target", "2.14.0", "--candidate", "out", "--report", "out/proof.json"];
@@ -36,6 +37,23 @@ test("fixture home isolates external app discovery and does not inherit a live c
   assert.ok(samePath(env.APX_APPS_HOME, home.path));
   assert.equal(env.APX_URL, undefined);
   assert.equal(env.APX_TOKEN, undefined);
+});
+
+test("native relaunch keeps the fixture keychain without opening the real login keychain", () => {
+  assert.deepEqual(relaunchArguments(42420), ["--use-mock-keychain", "--remote-debugging-port=42420"]);
+  assert.throws(() => relaunchArguments(0));
+  assert.throws(() => relaunchArguments(65536));
+});
+
+test("relaunch debugger binds the reserved loopback port and refuses stale or outside endpoints", () => {
+  assert.equal(
+    relaunchEndpoint("42420\n/devtools/browser/abc-123\n", 42420),
+    "ws://127.0.0.1:42420/devtools/browser/abc-123",
+  );
+  assert.equal(relaunchEndpoint("42421\n/devtools/browser/abc-123\n", 42420), undefined);
+  assert.equal(relaunchEndpoint("42420\nwss://example.com/devtools/browser/abc-123", 42420), undefined);
+  assert.equal(relaunchEndpoint("42420\n/devtools/browser/../../private", 42420), undefined);
+  assert.equal(relaunchEndpoint("", 42420), undefined);
 });
 
 function artifact(home: string, name: string) {

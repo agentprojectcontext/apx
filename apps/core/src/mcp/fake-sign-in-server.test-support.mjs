@@ -8,8 +8,8 @@ import { z } from "zod";
 const signed = () => fs.existsSync(process.env.SIGNED_FILE ?? "");
 fs.writeFileSync(`${process.env.OPENED_LOG}.pid`, String(process.pid));
 if (!signed()) {
-  process.stderr.write("\nPlease authorize this client by visiting:\nhttps://shop.example.com/authorize?state=1\n\n");
   fs.appendFileSync(process.env.OPENED_LOG ?? "", "opened\n");
+  process.stderr.write("\nPlease authorize this client by visiting:\nhttps://shop.example.com/authorize?state=1\n\n");
   // Like a sign-in that ran out of time: the page it opened answers nobody now.
   if (process.env.GIVE_UP) process.exit(1);
   while (!signed()) await new Promise((r) => setTimeout(r, 50));

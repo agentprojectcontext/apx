@@ -3,7 +3,7 @@ import { once } from "node:events";
 import fs from "node:fs";
 import http from "node:http";
 import path from "node:path";
-import { _electron, chromium, type Page } from "@playwright/test";
+import { type BrowserContext, chromium, type Page } from "@playwright/test";
 import { waitFor } from "../apps/core/src/testkit/platform.ts";
 import type { ApxClient } from "../packages/protocol/src/client.ts";
 import { appVersion, isolatedHomeEnv } from "./upgrade-fixture.ts";
@@ -32,11 +32,14 @@ async function desktopProfile(o: Options) {
   await new Promise<void>((resolve) => reservation.close(() => resolve()));
   const bin = path.join(o.home, "bin");
   fs.mkdirSync(bin);
-  // OS open still launches the actual replacement; only its profile and diagnostic port are fixed to this fixture.
+  const args = relaunchArguments(port)
+    .map((arg) => JSON.stringify(arg))
+    .join(" ");
+  // Keep the replacement on the fixture's mock keychain too, without prompting for the real login keychain.
   fs.writeFileSync(
     path.join(bin, "open"),
     `#!/bin/sh
-exec /usr/bin/open -n --env "HOME=$HOME" --env "APX_HOME=$APX_HOME" --env "APX_APPS_HOME=$APX_APPS_HOME" --env "APX_DESKTOP_DATA=$APX_DESKTOP_DATA" --env "APX_URL=$APX_URL" --env "APX_TOKEN=" --env "APX_RELEASES=$APX_RELEASES" --env "APX_QUIT_CONFIRM=off" --env "APX_TELEMETRY=off" --env "APX_RUNTIME_SKILLS=off" "$@" --args "--remote-debugging-port=$APX_UPGRADE_CDP_PORT"
+exec /usr/bin/open -n --env "HOME=$HOME" --env "APX_HOME=$APX_HOME" --env "APX_APPS_HOME=$APX_APPS_HOME" --env "APX_DESKTOP_DATA=$APX_DESKTOP_DATA" --env "APX_URL=$APX_URL" --env "APX_TOKEN=" --env "APX_RELEASES=$APX_RELEASES" --env "APX_QUIT_CONFIRM=off" --env "APX_TELEMETRY=off" --env "APX_RUNTIME_SKILLS=off" "$@" --args ${args}
 `,
     { mode: 0o755 },
   );
@@ -50,14 +53,14 @@ exec /usr/bin/open -n --env "HOME=$HOME" --env "APX_HOME=$APX_HOME" --env "APX_A
     APX_QUIT_CONFIRM: "off",
     APX_TELEMETRY: "off",
     APX_RUNTIME_SKILLS: "off",
-    APX_UPGRADE_CDP_PORT: String(port),
     PATH: `${bin}:${process.env.PATH ?? ""}`,
   };
   return { data, port, env };
 }
 
-async function stageAndRestart(panel: Page, app: Awaited<ReturnType<typeof _electron.launch>>, home: string) {
+async function stageAndRestart(panel: Page, app: BrowserContext, home: string) {
   await panel.locator(".shell").waitFor({ timeout: 30_000 });
+  await panel.getByText("Upgrade preserved chat", { exact: true }).first().waitFor({ timeout: 30_000 });
   await panel.screenshot({ path: path.join(home, "desktop-before.png") });
   await panel.evaluate(() =>
     (window as unknown as { apxDesktop: { updateStatus(check: boolean): Promise<unknown> } }).apxDesktop.updateStatus(
@@ -105,6 +108,17 @@ async function checkClient(page: Page, o: Options) {
   await page.screenshot({ path: path.join(o.home, "desktop-after.png") });
 }
 
+export function relaunchArguments(port: number) {
+  assert.ok(Number.isSafeInteger(port) && port > 0 && port <= 65535);
+  return ["--use-mock-keychain", `--remote-debugging-port=${port}`];
+}
+
+export function relaunchEndpoint(text: string, port: number): string | undefined {
+  const [actual, target] = text.trim().split(/\r?\n/);
+  if (Number(actual) !== port || !target || !/^\/devtools\/browser\/[a-z0-9-]+$/i.test(target)) return undefined;
+  return `ws://127.0.0.1:${port}${target}`;
+}
+
 async function stopRelaunched(pid: number) {
   const exited = () => {
     try {
@@ -133,16 +147,31 @@ export async function upgradeDesktop(o: Options) {
   const before = await o.client.call("system.health", {});
   await o.client.call("setup.finish", {});
   assert.equal(appVersion(o.bundle), o.previous);
-  let app: Awaited<ReturnType<typeof _electron.launch>> | undefined;
+  let app: BrowserContext | undefined;
   let browser: Awaited<ReturnType<typeof chromium.connectOverCDP>> | undefined;
   let relaunchedPid: number | undefined;
   try {
-    app = await _electron.launch({ executablePath: path.join(o.bundle, "Contents/MacOS/APX"), env, timeout: 60_000 });
-    assert.equal(await app.evaluate(({ app }) => app.getVersion()), o.previous);
-    const panel = await waitFor(() => app?.windows().find((p) => p.url().startsWith(o.url)), "previous remote panel", {
+    app = await chromium.launchPersistentContext(data, {
+      executablePath: path.join(o.bundle, "Contents/MacOS/APX"),
+      env,
+      headless: false,
+      ignoreDefaultArgs: ["--no-startup-window"],
+      timeout: 60_000,
+    });
+    const panel = await waitFor(() => app?.pages().find((p) => p.url().startsWith(o.url)), "previous remote panel", {
       ms: 30_000,
     });
-    const previousPid = app.process().pid;
+    const running = await panel.evaluate(
+      async () =>
+        (
+          await (
+            window as unknown as { apxDesktop: { updateStatus(): Promise<{ current: string }> } }
+          ).apxDesktop.updateStatus()
+        ).current,
+    );
+    assert.equal(running, o.previous);
+    const previousPid = Number(/-(\d+)$/.exec(fs.readlinkSync(path.join(data, "SingletonLock")))?.[1]);
+    assert.ok(Number.isSafeInteger(previousPid) && previousPid > 1 && previousPid !== process.pid);
     await stageAndRestart(panel, app, o.home);
     app = undefined;
     await waitFor(
@@ -170,18 +199,18 @@ export async function upgradeDesktop(o: Options) {
       "isolated relaunched app PID",
       { ms: 30_000 },
     );
-    await waitFor(
-      async () => {
+    const endpoint = await waitFor(
+      () => {
         try {
-          return (await fetch(`http://127.0.0.1:${port}/json/version`, { signal: AbortSignal.timeout(2000) })).ok;
+          return relaunchEndpoint(fs.readFileSync(path.join(data, "DevToolsActivePort"), "utf8"), port);
         } catch {
-          return false;
+          return undefined;
         }
       },
       "OS-relaunched client debugger",
       { ms: 30_000 },
     );
-    browser = await chromium.connectOverCDP(`http://127.0.0.1:${port}`, { timeout: 30_000 });
+    browser = await chromium.connectOverCDP(endpoint, { timeout: 30_000 });
     const updated = await waitFor(
       () =>
         browser
