@@ -77,6 +77,7 @@ test("hot reads use an index on every large table, and paged lists never sort th
       ["threads.descendants", () => store.threads.descendants("th_a")],
       ["threads.delegatedCounts", () => store.threads.delegatedCounts(["th_a", "th_b"])],
       ["threads.askedFrom", () => store.threads.askedFrom("th_a")],
+      ["threads.consultsFrom", () => store.threads.consultsFrom("th_a")],
       ["threads.unreadByAgents", () => store.threads.unreadByAgents()],
       ["threads.holding", () => store.threads.holding()],
       ["threads.list by project", () => store.threads.list({ project_id: "p_a" })],

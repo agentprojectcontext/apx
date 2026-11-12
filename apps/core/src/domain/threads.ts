@@ -337,6 +337,26 @@ export function threadsRepo({ one, all, run }: Sql, bus: Bus, endSession: (threa
         qb.selectFrom("threads").select("id").where(sql`json_extract(context, '$.asked_from')`, "=", threadId),
       ).map((r) => r.id);
     },
+    /**
+     * The teammates an agent asked on its task from `chat`: they hang under the task's conversation, not under the
+     * chat, so they are found through the chat's task.
+     */
+    consultsFrom(chat: string, includeArchived = false): Thread[] {
+      const task = one(qb.selectFrom("threads").select("task_id").where("id", "=", chat))?.task_id;
+      const home = task && one(qb.selectFrom("tasks").select("thread_id").where("id", "=", task))?.thread_id;
+      if (!home) return [];
+      return all(
+        qb
+          .selectFrom("threads")
+          .selectAll()
+          .where("parent_id", "=", home)
+          .where("kind", "=", "a2a")
+          .$if(!includeArchived, (q) => q.where("archived", "=", 0))
+          .orderBy("updated_at", "desc"),
+      )
+        .filter((r) => (JSON.parse(r.context) as ThreadContext).consult?.asker?.thread === chat)
+        .map(toThread);
+    },
     /** The a2a sessions a thread opened, newest first. */
     sessions(parentId: string): Thread[] {
       return all(

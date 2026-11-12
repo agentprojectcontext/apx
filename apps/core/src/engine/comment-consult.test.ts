@@ -133,6 +133,14 @@ test("an agent's @mention on its task asks that teammate, and the answer comes b
   assert.match(shown.summary ?? "", /totals include taxes/);
   // Both took part in the task: its agent first.
   assert.deepEqual((await env.client.call("tasks.get", { task: task.id })).task.agents, ["vera", "scout"]);
+  // Her chat's agents list the consult as hers, though it hangs under the task's conversation.
+  const called = await env.client.call("threads.list", { root_thread: chat()?.id ?? "", include_subthreads: true });
+  assert.deepEqual(called.asked, [consult?.id]);
+  assert.ok(called.threads.some((t) => t.id === consult?.id));
+  // The turn Scout's answer started names his conversation, where it opens from.
+  const { running, finished } = await env.client.call("jobs.list", { finished: 50 });
+  const answered = [...running, ...finished].find((j) => j.thread_id === chat()?.id && j.from?.kind === "agent");
+  assert.equal(answered?.from?.thread, consult?.id);
 });
 
 test("the answer to a question asked from the owner's chat goes to the asker's chat for the task, not the owner's", async () => {
