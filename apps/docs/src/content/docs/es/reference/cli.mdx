@@ -49,7 +49,7 @@ pipe) la consola no arranca: `apx` muestra la ayuda.
 | `apx wizard` | Configuración y mantenimiento guiados en la terminal. |
 | `apx upgrade --check` | ¿Hay un APX más nuevo? |
 | `apx upgrade` | Aplicarlo, igual que **Actualizar ahora** en el panel. Si el core no responde, un APX instalado con el script de instalación se actualiza igual: baja el paquete más nuevo, lo verifica y hace que el servicio lo arranque. `apx update` es el mismo comando. |
-| `apx doctor` | Por qué el core no responde en esta computadora (qué dice su log, el servicio, si hay una versión más nueva) y el comando a correr. Funciona sin el core; `--json`. `--fix` además compacta la base de datos de los chats y le devuelve el espacio al disco (necesita el core). |
+| `apx doctor` | Por qué el core no responde en esta computadora (qué dice su log, el servicio, si hay una versión más nueva) y el comando a correr. Funciona sin el core; `--json`. `--fix` (alias `doctor fix`) repara migraciones hotfix reconocidas con el core caído y crea antes un backup privado y consistente; rechaza esquemas desconocidos. Con el core activo compacta el historial y recupera espacio. |
 | `apx logs` | Las líneas más nuevas del log del core, a través del core: `-n 200`, `--level info\|warn\|error`, `--grep texto`, `--scope core\|output`, `--json`. Si ningún core responde, el archivo de esta computadora. |
 | `apx service logs` | El archivo de log de esta computadora (`<home>/logs/core.log`); `-n 100`, `-f` para seguirlo. |
 | `apx daemon` | Explica qué comando `apx service` usar (el core en segundo plano ahora es un servicio). |

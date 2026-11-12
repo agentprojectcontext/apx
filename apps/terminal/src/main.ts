@@ -49,7 +49,8 @@ Usage:
   apx desktop             The desktop app (downloads and opens its installer when it is not here)
   apx upgrade [--check] [--json]   Check or apply the core's updater (a server install updates itself even when its core is down)
   apx doctor [--json]     Why the core does not answer on this machine, and what to run next
-  apx doctor --fix        Also trim old chat history the models no longer read and give the space back to the disk
+  apx doctor --fix        Repair recognized migrations offline; with a running core, reclaim old history and disk space
+  apx doctor fix          Alias for doctor --fix
   apx devices [list|pair|revoke <id>] [--json]
   apx tailscale [status|connect|off]   Expose APX through Tailscale (must already be logged in)
   apx mcp tools <server> [<tool>] [--project <id>] [--scope global|project] [--json]
@@ -321,7 +322,9 @@ try {
       }
       break;
     case "doctor":
-      await doctor({ json: values.json, ...(values.fix ? { fix: client } : {}) });
+      if (rest.length > 1 || (rest.length === 1 && rest[0] !== "fix"))
+        throw new Error("Usage: apx doctor [--fix | fix] [--json]");
+      await doctor({ json: values.json, ...(values.fix || rest[0] === "fix" ? { fix: client } : {}) });
       break;
     case "devices":
     case "tailscale":

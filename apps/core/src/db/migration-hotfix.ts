@@ -19,12 +19,29 @@ function reject(detail: string): never {
   );
 }
 
-function validate(db: DatabaseSync, reference: DatabaseSync): void {
+const quoted = (name: string) => `"${name.replaceAll('"', '""')}"`;
+const escaped = (name: string) => name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+// An index someone added by hand only speeds up reads: dropping it loses no data, and the backup keeps its definition.
+// A UNIQUE one constrains data, and a name APX's migrations use means a mixed lineage: both stay refused.
+function foreignIndex(object: SchemaObject, tables: Set<string>): boolean {
+  if (object.type !== "index" || !object.sql || !tables.has(object.tbl_name)) return false;
+  if (/^\s*create\s+unique\b/i.test(object.sql)) return false;
+  const name = new RegExp(`(^|[^\\w$])${escaped(object.name)}($|[^\\w$])`, "i");
+  return !MIGRATIONS.some((sql) => name.test(sql));
+}
+
+/** Returns the hand-added indexes to drop; everything else must match the hotfix schema exactly. */
+function validate(db: DatabaseSync, reference: DatabaseSync): string[] {
   if (db.prepare("SELECT value FROM meta WHERE key = 'schema_version'").get()?.value !== String(HOTFIX)) {
     reject("database version changed during reconciliation");
   }
-  const actual = objects(db);
   const expected = objects(reference);
+  const known = new Set(expected.map((object) => object.name));
+  const tables = new Set(expected.filter((object) => object.type === "table").map((object) => object.name));
+  const extra = objects(db).filter((object) => !known.has(object.name));
+  if (!extra.every((object) => foreignIndex(object, tables))) reject("unrecognized schema objects");
+  const actual = objects(db).filter((object) => known.has(object.name));
   if (actual.length !== expected.length) reject("unrecognized schema objects");
   for (const object of expected) {
     const found = actual.find((row) => row.name === object.name);
@@ -37,11 +54,17 @@ function validate(db: DatabaseSync, reference: DatabaseSync): void {
       reject(`incompatible schema object ${object.name}`);
     }
   }
+  return extra.map((object) => object.name);
 }
 
 // See HISTORY.md#hotfix-migration-lineage.
 /** Joins the published hotfix's exact schema to staging without replaying existing transformations. */
-export function reconcileHotfixLineage(db: DatabaseSync, home: string, version: number): number {
+export function reconcileHotfixLineage(
+  db: DatabaseSync,
+  home: string,
+  version: number,
+  reportBackup?: (file: string) => void,
+): number {
   if (version < HOTFIX || version >= INTEGRATED) return version;
   const hasReason = db
     .prepare("PRAGMA table_xinfo(jobs)")
@@ -61,12 +84,13 @@ export function reconcileHotfixLineage(db: DatabaseSync, home: string, version: 
     const backup = path.join(directory, "apx.db");
     db.prepare("VACUUM INTO ?").run(backup);
     fs.chmodSync(backup, 0o600);
+    reportBackup?.(backup);
     db.exec("BEGIN IMMEDIATE");
     try {
       if (db.prepare("PRAGMA data_version").get()?.data_version !== before) {
         reject("another connection changed the database during backup; stop other cores and retry");
       }
-      validate(db, reference);
+      for (const name of validate(db, reference)) db.exec(`DROP INDEX ${quoted(name)}`);
       for (const sql of MIGRATIONS.slice(HOTFIX - 1, INTEGRATED - 1)) db.exec(sql);
       if (db.prepare("PRAGMA quick_check").get()?.quick_check !== "ok") reject("database integrity check failed");
       if (db.prepare("PRAGMA foreign_key_check").all().length) reject("database foreign key check failed");

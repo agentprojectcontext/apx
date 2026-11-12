@@ -68,6 +68,40 @@ troubleshooting and engineering rules; update/create affected pages in English a
 and distinguish candidate-only features from the currently tagged version. Record specific no-change reasons
 and unresolved gaps. Do not infer coverage from release news, green builds or commit titles alone.
 
+## Mandatory minor upgrade proof
+
+Before publishing a new minor, exercise the previous **published** version and the candidate artifacts in an
+isolated core/home (a separate core, VM or container), never the developer's live installation. Seed representative
+demo data, update through the installed updater, verify startup/health and check that the data survives. Also update
+the previous desktop client while connected to an external core, then verify reconnection and a basic operation.
+Unit migration fixtures, a fresh install and a build smoke test do not replace either journey.
+
+Keep previous/candidate versions and commit/artifact hashes, commands, outcomes and logs/screenshots. Unsupported
+or unexercised platform paths remain unverified. Missing or failed evidence blocks a minor; this policy alone does
+not impose the matrix on patches and never authorizes a tag. Compare against the previous published release, not
+only the patch digit: after a failed `x.y.0`, publishing `x.y.1` still introduces a minor.
+
+`release:check --tag` and the publication job require a successful `minor-upgrade.yml` run on the exact candidate
+commit on `main`, named for both the target and the previous published release. Missing, stale, failed or ongoing
+evidence fails closed; a green ordinary `verify` is insufficient. Dispatch it after that commit reaches `main`,
+without creating a tag:
+
+```bash
+gh workflow run minor-upgrade.yml --ref main -f previous=2.14.0 -f target=2.15.0
+```
+
+The workflow builds the exact candidate, downloads and checksum-checks the previous official daemon and desktop
+ZIP, and runs `scripts/minor-upgrade.ts`. Separate temporary homes hold the installed core and remote desktop
+client. The daemon uses the previous installed updater and preserves a demo chat, task, memory, agent and home
+identity. Its fixture supervisor restarts only its own child on the normal restart exit code; the native app uses
+its real download, swap and restart bridge. An `open` wrapper forwards to the real macOS launcher with an isolated profile, so relaunch cannot attach
+to the developer's desktop session. Receipts include commit/artifact hashes, health/data checks, process logs and
+native before/after screenshots; even a failed run keeps its available evidence as an Actions artifact.
+
+This matrix currently runs on macOS arm64. It is not Linux, Windows, SSH-transport or mobile upgrade proof; report
+those separately if required for a change. A native launch or debugger failure fails the matrix, never skips the
+client journey. `release:check --check-tag <tag> <ref>` performs the same checks without creating or pushing a tag.
+
 ## Tagging a release
 
 `main` first takes `staging`, fast-forward only, so it holds exactly what was verified there:

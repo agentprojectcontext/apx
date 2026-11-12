@@ -272,7 +272,8 @@ migration history. Before joining the two histories, startup checks the complete
 consistent, private database-only copy in `backups/migration-hotfix-<unique-id>/apx.db`. The pending changes and
 migration counter then commit together; failed upgrades roll back and can be retried after resolving the cause.
 Command failure reasons and existing chats stay intact. Reopening does not repeat channel or contact-rights
-conversions. Unrecognized mixed schemas are refused rather than guessed. Keep the backup protected and stop other
+conversions. Indexes added by hand (not unique ones) are removed, since they only speed up reads; the backup keeps
+them. Other unrecognized schemas, such as extra tables, are refused rather than guessed. Keep the backup protected and stop other
 cores sharing the data folder before retrying. The hotfix itself cannot open a newer development database;
 this is not a downgrade path.
 

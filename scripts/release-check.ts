@@ -7,12 +7,31 @@
 import { spawnSync } from "node:child_process";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { previousRelease, type ReleaseRow } from "./release-previous.ts";
+
+export const MINOR_UPGRADE_WORKFLOW = "minor-upgrade.yml";
+
+/** A skipped/failed minor tag never makes the first published build of that minor a patch. */
+export function needsMinorUpgrade(tag: string, previous: string | undefined): boolean {
+  if (!previous) return true;
+  const parts = (v: string) => v.replace(/^v/, "").split(".").map(Number);
+  const target = parts(tag);
+  const prior = parts(previous);
+  return target[0] !== prior[0] || target[1] !== prior[1];
+}
 
 export const RELEASE_BRANCH = "main";
 export const VERIFY_WORKFLOW = "verify.yml";
 const DEFAULT_REPO = "agentprojectcontext/apx";
 
-export type VerifyRun = { databaseId: number; status: string; conclusion: string; url: string; headSha: string };
+export type VerifyRun = {
+  databaseId: number;
+  status: string;
+  conclusion: string;
+  url: string;
+  headSha: string;
+  displayTitle?: string;
+};
 export type Verdict = { verified: true; run: VerifyRun } | { verified: false; pending?: VerifyRun; reason: string };
 
 /** The newest verify run of the commit decides, as the publish job reads it (`gh run list` is newest first). */
@@ -51,17 +70,21 @@ export function parseArgs(argv: readonly string[]) {
   };
   const wait = rest.includes("--wait");
   const tag = take("--tag");
+  const checkTag = take("--check-tag");
+  if (tag && checkTag) throw new Error("use --tag or --check-tag, not both");
+  if (checkTag && !isReleaseTag(checkTag)) throw new Error(`${checkTag} is not a release tag (v2.x.y)`);
   const repo = take("--repo") ?? process.env.APX_RELEASE_REPO ?? DEFAULT_REPO;
   const positional = rest.filter((a) => a !== "--wait");
   if (positional.some((a) => a.startsWith("-")))
     throw new Error(`unknown flag ${positional.find((a) => a.startsWith("-"))}`);
   if (positional.length > 1) throw new Error("one ref at most");
   if (tag && !isReleaseTag(tag)) throw new Error(`${tag} is not a release tag (v2.x.y)`);
-  return { ref: positional[0] ?? "HEAD", wait, tag, repo };
+  return { ref: positional[0] ?? "HEAD", wait, tag, repo, ...(checkTag ? { checkTag } : {}) };
 }
 
 export function check(argv: readonly string[], run: Run = exec, log = console.log): number {
-  const { ref, wait, tag, repo } = parseArgs(argv);
+  const { ref, wait, tag: createTag, checkTag, repo } = parseArgs(argv);
+  const tag = createTag ?? checkTag;
   const resolved = run("git", ["rev-parse", "--verify", `${ref}^{commit}`]);
   if (resolved.status !== 0) {
     log(`release:check: ${ref} is not a commit here`);
@@ -100,6 +123,58 @@ export function check(argv: readonly string[], run: Run = exec, log = console.lo
   }
   log(`release:check: ${sha.slice(0, 12)} passed verify (${v.run.url})`);
   if (!tag) return 0;
+  const releases = run("gh", [
+    "api",
+    "--paginate",
+    `repos/${repo}/releases?per_page=100`,
+    "--jq",
+    ".[] | {tag_name, draft}",
+  ]);
+  if (releases.status !== 0) throw new Error(`cannot identify the previous published release: ${releases.stderr}`);
+  const previous = previousRelease(
+    tag,
+    releases.stdout
+      .split("\n")
+      .filter((line) => line.trim())
+      .map((line) => JSON.parse(line) as ReleaseRow),
+  );
+  if (needsMinorUpgrade(tag, previous)) {
+    const upgrade = run("gh", [
+      "run",
+      "list",
+      "-R",
+      repo,
+      "--workflow",
+      MINOR_UPGRADE_WORKFLOW,
+      "--branch",
+      RELEASE_BRANCH,
+      "--commit",
+      sha,
+      "--limit",
+      "20",
+      "--json",
+      "databaseId,status,conclusion,url,headSha,displayTitle",
+    ]);
+    if (upgrade.status !== 0) {
+      log(`release:check: minor upgrade evidence is unavailable: ${upgrade.stderr.trim()}`);
+      return 1;
+    }
+    const title = `Minor upgrade ${tag} from ${previous ?? "none"}`;
+    const result = verdict(
+      sha,
+      (JSON.parse(upgrade.stdout) as VerifyRun[]).filter((run) => run.displayTitle === title),
+    );
+    if (!result.verified) {
+      log(
+        `release:check: minor ${tag} needs successful isolated core and remote-client upgrade proof for ${sha}: ${result.reason}`,
+      );
+      return 1;
+    }
+    log(
+      `release:check: minor upgrade matrix passed (${result.run.url}); previous published release ${previous ?? "none"}`,
+    );
+  }
+  if (!createTag) return 0;
   for (const [command, args] of [
     ["git", ["tag", tag, sha]],
     ["git", ["push", "origin", `refs/tags/${tag}`]],
