@@ -97,6 +97,7 @@ export function routineHandlers(store: Store, scheduler: Scheduler, profileRoots
       call_model,
       anchor,
       max_steps,
+      autonomy,
       enabled,
     }) => {
       try {
@@ -107,7 +108,9 @@ export function routineHandlers(store: Store, scheduler: Scheduler, profileRoots
       const a = store.agents.get(agent);
       if (!a) throw notFound(`agent ${agent}`);
       if (project && !store.projects.get(project)) throw notFound(`project ${project}`);
-      if (!worksIn(store.projects, a.project_id, project))
+      // Without a project it runs where its agent works: a project agent's run needs that project's tools.
+      const where = project ?? a.project_id;
+      if (!worksIn(store.projects, a.project_id, where))
         throw badRequest(`${a.name} belongs to another project; pick one of this project's agents or a global one`);
       const next = enabled ? scheduler.nextFor(schedule) : undefined;
       if (enabled && schedule.kind === "once" && !next) throw badRequest("that moment has passed");
@@ -117,7 +120,7 @@ export function routineHandlers(store: Store, scheduler: Scheduler, profileRoots
       const draft = {
         name,
         agent_id: agent,
-        project_id: project,
+        project_id: where,
         schedule,
         action: act,
         prompt,
@@ -126,6 +129,7 @@ export function routineHandlers(store: Store, scheduler: Scheduler, profileRoots
         call_model: call_model ?? was?.call_model ?? "always",
         anchor: anchor ?? was?.anchor ?? false,
         max_steps: max_steps === null ? undefined : (max_steps ?? was?.max_steps),
+        autonomy: autonomy === null ? undefined : (autonomy ?? was?.autonomy),
         origin: was?.origin,
         enabled,
         next_run_at: next,

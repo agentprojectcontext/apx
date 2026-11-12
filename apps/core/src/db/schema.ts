@@ -550,6 +550,7 @@ export interface RoutinesTable {
   anchor: Generated<number>;
   origin: string | null;
   max_steps: number | null;
+  autonomy: string | null;
 }
 
 export interface RunContextsTable {

@@ -1,5 +1,5 @@
 // Routines (routines.*): read when their screen opens and after every change; runs show up as normal runs.
-import type { CallModel, Routine, RoutineAction, RoutineRun, Schedule } from "@apx/protocol";
+import type { CallModel, Routine, RoutineAction, RoutineAutonomy, RoutineRun, Schedule } from "@apx/protocol";
 import { t } from "../i18n/index.ts";
 import { client } from "./client.ts";
 import { createStore, useSlice } from "./createStore.ts";
@@ -47,6 +47,8 @@ export type RoutineDraft = {
   anchor: boolean;
   /** Model calls each run may make; empty = what any routine gets. */
   max_steps: string;
+  /** How its runs act; empty = as its agent does. */
+  autonomy: RoutineAutonomy | "";
   enabled: boolean;
 };
 
@@ -66,6 +68,7 @@ export async function saveRoutine(d: RoutineDraft): Promise<boolean> {
       call_model: d.call_model,
       anchor: d.anchor,
       max_steps: d.max_steps.trim() ? Number(d.max_steps) : null,
+      autonomy: d.autonomy || null,
       enabled: d.enabled,
     });
     await loadRoutines();
@@ -89,6 +92,7 @@ export const draftOf = (r: Routine): RoutineDraft => ({
   call_model: r.call_model,
   anchor: r.anchor,
   max_steps: r.max_steps ? String(r.max_steps) : "",
+  autonomy: r.autonomy ?? "",
   enabled: r.enabled,
 });
 

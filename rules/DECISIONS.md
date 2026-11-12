@@ -3938,6 +3938,7 @@ launcher (`pnpm exec apx`, `bash -c`), `secrets` in any form, and the `127.0.0.1
 
 <a id="d-198"></a>
 ## D-198 — 2026-11-05 — Agents work in the owner's Chrome only for what they wrote in its side panel
+*Revised by [D-223](#d-223) (2026-11-12): a routine and a task the owner created reach their Chrome too.*
 
 The owner wanted APX's Chrome extension to do what browser extensions of other agent apps do: drive their real
 Chrome, where they are signed in. APX already has two browsers (the desktop app's embedded one and the core's
@@ -4687,3 +4688,50 @@ session instead.
 Rejected: stopping the running turn on any newer message (a correction would lose the work in progress, and the turn
 already reads the words before its next step), and leaving the line as it was with a note to the caller (it was the
 caller's words that went unseen, not the caller who was unaware).
+
+<a id="d-223"></a>
+## D-223 — 2026-11-12 — Working alone is not working with less: a routine or task run has its agent's tools, and a routine acts as the owner chose on it
+
+A routine assigned to the agent an owner talks to in a project answered "I don't have this tool available" for that
+project's MCP tools, which the same agent used when asked in chat. Reproduced on a scratch core: the chat ran in the
+project, and the routine, made on the Routines page (which since 2.14 lists every project's routines) with no project
+picked, ran in none, so the project's MCP servers, skills, secrets and folder were not there and `mcp_search` and
+`mcp_call` were not offered at all. The editor had no way to say where a routine runs; a project agent could only be
+picked with the page filtered to its project. The owner's rule, beyond the fix: **an agent does not have fewer tools
+when it works on its own than when the owner talks to it**, and how freely a routine acts is the owner's choice on that
+routine.
+
+- **Where it runs.** The routine editor asks for its project, and lists every agent: picking a project's agent puts the
+  routine in that project (as the task form does). `routines.set` without a project puts a project agent's routine in
+  the agent's project instead of refusing it. A global agent's routine with no project still runs in the base project:
+  that is a real choice, and its run has what the agent has in a base-project chat.
+- **Same tools.** A routine run (it runs the owner's own words, scheduled) and a turn in the chat of a task the owner
+  created get the owner's connected Chrome as the owner's own turns do (`ownersWork` in `domain/runs.ts`, used by
+  `engine/turn-tools.ts` and `rpc/browser.ts`). This revises D-198, which refused routines. Another agent's request, a
+  contact's turn and a task an agent created still never reach the owner's Chrome. Everything else a turn gets was
+  already the same; a regression test pins the MCP tools (`engine/routine-tools.test.ts`).
+- **A routine's permissions.** `Routine.autonomy` (`manual`, `auto`, `total`; absent: the agent's own mode), set in the
+  editor ("Permissions": As its agent, Manual, Auto, Total), `apx routines add|edit --autonomy`, and the super-agent's
+  `routine_set autonomy` (`agent` goes back to the agent's own). Each run's chat keeps it in its context
+  (`routine_autonomy`), and `permissions.agentIn` reads it as it reads a Flow step's mode (D-172): it is the mode over
+  the agent's own, the agent's own per-risk rules still apply (a risk its rules turn off stays off, a rule `ask` still
+  asks), and helpers the run delegates to work in it like any caller's mode (D-106). It never becomes a grant: no
+  approval is written, the agent's other chats keep its own mode, and only the runs of that routine (and the owner's
+  replies in a run's own chat, which continue that run's work) act on it. Total is for routines whose agent is limited
+  by nature and must run unattended.
+- **What Total does and does not lift.** A routine on Total is the agent on Total for those runs, so rule 10's "except
+  in total" applies: strong actions (sending or posting as the owner, paying, writing outside the owner's projects)
+  run without a card, as they do for an agent the owner set to Total. What keeps its card in every mode still keeps it
+  (`keepsCard`, D-143 and D-203: MCP servers, channels, an agent's limits, publishing a widget…), browser JavaScript
+  still needs its own consent (D-165, which never covers a routine), the embedded browser still never types passwords
+  or payment data (D-193), and a change to what the owner set up still needs their own word (`ownerSetting`, D-140): a
+  routine is not the owner speaking.
+- **Who sets Total.** The owner, in the editor or the CLI. The super-agent may set a routine's level, but making one
+  Total keeps its card in every mode, the super-agent's own Total included: a routine on Total gives its agent more
+  than that agent has, which only the owner grants. A routine brought from another computer on Total arrives off
+  (`instance/plan.ts`), as one with a command does.
+
+Rejected: offering every project's MCP tools to a routine with no project (it would reach servers and secrets of
+projects the owner did not put it in), letting a routine's Total override the agent's own rules (D-090: the owner's
+explicit rule for a risk is over any mode, and D-172 already works this way), and a separate "Ask" mode for routines
+(Manual is that mode's name everywhere else in the app).

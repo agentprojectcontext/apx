@@ -78,6 +78,7 @@ export function RoutinesScreen() {
     call_model: "always",
     anchor: false,
     max_steps: "",
+    autonomy: "",
     enabled: true,
   };
   // Counted before the state filter, so each tab says how many it would show.

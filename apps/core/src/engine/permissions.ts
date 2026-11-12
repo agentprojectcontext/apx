@@ -39,10 +39,11 @@ export function createPermissions(o: { store: Store; home: string }) {
 
   /** The agent as it acts in a thread: its own mode, else its project's; a helper in its callers' (DECISIONS.md#d-106). */
   const agentIn = (agent: AgentRecord, threadId: string): AgentRecord => {
-    // A Flow step's mode is the one the owner picked on it, over the agent's own, and its helpers work in it too
-    // (DECISIONS.md#d-172).
+    // A Flow step's or a routine's mode is the one the owner picked on it, over the agent's own, and its helpers work
+    // in it too (DECISIONS.md#d-172, DECISIONS.md#d-223).
     const asIn = (a: AgentRecord, thread: string) => {
-      const mode = store.threads.context(thread).flow_step?.autonomy;
+      const ctx = store.threads.context(thread);
+      const mode = ctx.flow_step?.autonomy ?? ctx.routine_autonomy;
       return mode ? { ...a, autonomy: mode } : withProjectAutonomy(store, a);
     };
     const callers = ancestors(store, threadId).flatMap((t) => {

@@ -33,6 +33,7 @@ function line(store: Store, r: Routine): string {
     `agent ${r.agent_id}`,
     project ? `project ${project}` : "",
     when(r.schedule),
+    r.autonomy ? `acts ${r.autonomy}` : "",
     r.enabled ? "on" : "off",
     r.last_run_at ? `last ${at(r.last_run_at)}` : "",
     r.enabled && r.next_run_at ? `next ${at(r.next_run_at)}` : "",
@@ -65,7 +66,7 @@ export function routineTools(store: Store): Tool[] {
     defineTool({
       name: "routine_set",
       description:
-        "Create a routine (name, prompt, one of cron/every_min/at) or change one (routine: id or name; only what you give changes; prompt replaces it whole: read it with routine_list). enabled: on/off; run_now: run it now, also on create or change. Each change waits for the owner's OK, so make it one call.",
+        "Create a routine (name, prompt, one of cron/every_min/at) or change one (routine: id or name; only what you give changes; a prompt replaces it whole). run_now: also runs it; autonomy: how its runs act (agent: as its agent). Asks the owner: one call.",
       args: z.object({
         routine: z.string().trim().min(1).max(120).optional().describe("omit to create one"),
         name: z.string().trim().min(1).max(120).optional(),
@@ -74,11 +75,14 @@ export function routineTools(store: Store): Tool[] {
         every_min: z.number().int().min(5).max(44_640).optional(),
         at: z.string().max(40).optional().describe("ISO date: runs once then"),
         agent: z.string().trim().min(1).max(120).optional().describe("id or name; default you"),
+        autonomy: z.enum(["manual", "auto", "total", "agent"]).optional(),
         enabled: z.boolean().optional(),
         run_now: z.boolean().optional(),
       }),
       effect: "local",
       confirm: "always",
+      // Letting a routine act on Total is the owner's own choice, whatever this agent's mode (DECISIONS.md#d-223).
+      keepsCard: (a) => (a.autonomy === "total" ? "card" : undefined),
       deadlineMs: 15_000,
       title: (a) => (a.routine ? `Changed the routine ${a.routine}` : `Created the routine ${a.name ?? ""}`),
       async run(a, ctx) {
@@ -109,7 +113,7 @@ export function routineTools(store: Store): Tool[] {
         const prompt = a.prompt ?? was?.prompt;
         const next = schedule ?? was?.schedule;
         if (!name || !prompt || !next) return "a new routine needs name, prompt and one of cron, every_min or at";
-        const changes = a.name || a.prompt || schedule || a.agent || a.enabled !== undefined;
+        const changes = a.name || a.prompt || schedule || a.agent || a.enabled !== undefined || a.autonomy;
         let r = was;
         if (!was || changes)
           r = await ctx.callAsOwner("routines.set", {
@@ -121,6 +125,7 @@ export function routineTools(store: Store): Tool[] {
               : {}),
             schedule: next,
             prompt,
+            ...(a.autonomy ? { autonomy: a.autonomy === "agent" ? null : a.autonomy } : {}),
             enabled: a.enabled ?? was?.enabled ?? true,
           });
         if (!r) return "nothing to change";

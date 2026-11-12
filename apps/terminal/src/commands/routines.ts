@@ -1,16 +1,19 @@
 // apx routines: an agent's scheduled work from the terminal.
 import fs from "node:fs";
-import { CallModel, type Routine, type Schedule } from "@apx/protocol";
+import { CallModel, type Routine, RoutineAutonomy, type Schedule } from "@apx/protocol";
 import type { ApxClient } from "@apx/protocol/client";
 
 const USAGE = `apx routines                                   Routines and when they run next
 apx routines add <name> <prompt…> --agent a [--project p] (--cron "30 8 * * 1-5" | --every 60 | --at <ISO date>)
                  [--pre "<command>"] [--call always|output|succeeds|fails|never] [--post "<command>"]
-                 [--max-steps 5-200]           The pre-command's output reaches the prompt at {{pre_output}}
+                 [--max-steps 5-200] [--autonomy manual|auto|total]
+                                                The pre-command's output reaches the prompt at {{pre_output}}
 apx routines show <routine>                    Its schedule, commands and full prompt
 apx routines edit <routine> [<prompt…> | --prompt-file f] [--name n] [--cron …|--every …|--at …]
                  [--pre "<command>"] [--call …] [--post "<command>"] [--max-steps n|default]
-                                                Change only what is given
+                 [--autonomy manual|auto|total|default]
+                                                Change only what is given; --autonomy is how its runs act,
+                                                over its agent's mode (default: the agent's own)
 apx routines run <routine>                     Run now
 apx routines on|off <routine>
 apx routines rm <routine>
@@ -29,6 +32,7 @@ type Opts = {
   name?: string | undefined;
   promptFile?: string | undefined;
   maxSteps?: string | undefined;
+  autonomy?: string | undefined;
 };
 
 const scheduleOf = (o: Opts): Schedule =>
@@ -70,9 +74,18 @@ export function editOf(r: Routine, o: Opts, prompt: string | undefined) {
     ...(o.post === undefined ? {} : { post_command: o.post }),
     ...(o.call ? { call_model: callModel(o.call) } : {}),
     ...(o.maxSteps === undefined ? {} : { max_steps: maxSteps(o.maxSteps) }),
+    ...(o.autonomy === undefined ? {} : { autonomy: autonomyOf(o.autonomy) }),
     enabled: r.enabled,
   };
 }
+
+/** --autonomy: how a routine's runs act, or "default" for its agent's own mode. */
+const autonomyOf = (v: string): RoutineAutonomy | null => {
+  if (v === "default") return null;
+  const r = RoutineAutonomy.safeParse(v);
+  if (!r.success) throw new Error(`--autonomy is one of: ${RoutineAutonomy.options.join(", ")}, default`);
+  return r.data;
+};
 
 /** --max-steps: a number of model calls per run, or "default" for what any routine gets. */
 const maxSteps = (v: string): number | null => {
@@ -125,6 +138,7 @@ export async function routines(client: ApxClient, [sub, id, ...rest]: string[], 
       ...(opts.post ? { post_command: opts.post } : {}),
       ...(opts.call ? { call_model: callModel(opts.call) } : {}),
       ...(opts.maxSteps ? { max_steps: maxSteps(opts.maxSteps) } : {}),
+      ...(opts.autonomy && opts.autonomy !== "default" ? { autonomy: autonomyOf(opts.autonomy) } : {}),
     });
     console.log(`${r.id}  next: ${when(r.next_run_at)}`);
     return;
@@ -137,6 +151,7 @@ export async function routines(client: ApxClient, [sub, id, ...rest]: string[], 
     if (r.pre_command) console.log(`pre:  ${r.pre_command}`);
     if (r.post_command) console.log(`post: ${r.post_command}`);
     if (r.max_steps) console.log(`steps: ${r.max_steps} per run`);
+    console.log(`acts: ${r.autonomy ?? "as its agent"}`);
     console.log(`\n${r.prompt}`);
     return;
   }

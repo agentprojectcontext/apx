@@ -173,6 +173,25 @@ export function ownerAsked(
   return ownerAsked(askedIn(o.input_id), askedIn, depth + 1);
 }
 
+/** A task chat of a task the owner created themselves (an agent's task is not their word). */
+export const ownersTask = (tasks: { get(id: string): { created_by: string } | undefined }, taskId?: string): boolean =>
+  Boolean(taskId) && tasks.get(taskId ?? "")?.created_by === "owner";
+
+/**
+ * The owner's own work, for the tools it gets: what ownerAsked says, a routine they scheduled (it runs their words)
+ * and a task they created. An agent on its own has the tools it has when the owner talks to it (DECISIONS.md#d-223).
+ */
+export function ownersWork(
+  o: Origin | undefined,
+  askedIn: (inputId: string) => Origin | undefined,
+  ownerTask: boolean,
+  depth = 0,
+): boolean {
+  if (ownerOrigin(o) || o?.kind === "routine" || ownerTask) return true;
+  if (o?.kind !== "input_answer" || depth >= 10) return false;
+  return ownersWork(askedIn(o.input_id), askedIn, false, depth + 1);
+}
+
 /** The session of the sub-thread where the super-agent checks words a channel could not vouch for (DECISIONS.md#d-144). */
 export const OWNER_CHECK = "owner-check";
 

@@ -371,7 +371,8 @@ function planRoutines(deps: ImportDeps, file: InstanceFile, c: Ctx) {
     const action = !shaped ? "add" : same(compared(shaped), compared(want)) ? "same" : "update";
     // A command runs on this computer: a routine with one, or one whose work changed, waits for the owner.
     const commands = Boolean(want.pre_command || want.post_command || want.action === "shell");
-    const wait = commands || Boolean(here);
+    // So does one that would act on Total here: how freely it acts is this owner's choice (DECISIONS.md#d-223).
+    const wait = commands || Boolean(here) || want.autonomy === "total";
     push(
       "routines",
       r.id,

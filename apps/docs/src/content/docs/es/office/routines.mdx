@@ -363,6 +363,28 @@ un tope diario, espacios entre avisos, horario de silencio. Prendé **Llega siem
 que se frene, como un resumen de la mañana: sus novedades llegan aunque sea de noche o ya se haya llegado al tope, y
 no cuentan para él.
 
+## Dónde corre y qué puede hacer
+
+Una rutina corre en un proyecto: elegilo en **Proyecto** del editor, o elegí un agente de un proyecto y la rutina queda
+en ese proyecto. Sus corridas tienen lo que ese agente tiene cuando le hablás ahí: los servidores MCP, skills,
+secretos y carpeta del proyecto, y tu Chrome cuando está conectado. Una rutina sin proyecto corre en el proyecto base,
+así que las conexiones propias de un proyecto no están.
+
+**Permisos** dice con cuánta libertad actúan sus corridas:
+
+| Opción | Cada corrida |
+|---|---|
+| **Como su agente** | Te pide lo que su agente te pediría en un chat con vos. Es la opción por defecto. |
+| **Manual** | Te pide permiso antes de cada acción que cambia algo. |
+| **Auto** | Trabaja en su proyecto sin preguntar, y pregunta solo mensajes, pagos, borrar y escribir fuera de tus proyectos. |
+| **Total** | Hace todo sin preguntarte, aunque su agente suela preguntar. Para agentes que tienen que correr solos. |
+
+Vale solo para las corridas de esa rutina: el agente mantiene sus propios permisos en cualquier otro chat, y nada queda
+como aprobación permanente. Las reglas propias del agente para un tipo de acción siguen valiendo (una acción que sus
+reglas apagan sigue apagada), y los pocos cambios que siempre te esperan (a tus servidores MCP, canales o los límites
+de un agente, por ejemplo) te siguen esperando. Tu super-agente puede elegir los permisos de una rutina cuando la arma;
+ponerla en **Total** siempre te pregunta antes.
+
 ## Correr ahora y las barras de activación
 
 **Correr ahora** arranca una rutina en el momento, tenga el horario que tenga. Cada rutina muestra sus **últimas
@@ -383,13 +405,17 @@ Cada corrida es un chat propio, así que podés abrirla y ver exactamente qué h
 <Terminal command="apx routines help">{`apx routines                                   Routines and when they run next
 apx routines add <name> <prompt…> --agent a [--project p] (--cron "30 8 * * 1-5" | --every 60 | --at <ISO date>)
                  [--pre "<command>"] [--call always|output|fails|never] [--post "<command>"]
+                 [--max-steps 5-200] [--autonomy manual|auto|total]
                                                 The pre-command's output reaches the prompt at {{pre_output}}
+apx routines edit <id> [--autonomy manual|auto|total|default] …
+                                                Change only what is given
 apx routines run <id>                          Run now
 apx routines on|off <id>
 apx routines rm <id>
 apx routines log <id>                          Recent runs`}</Terminal>
 
-Sin `--cron`, `--every` ni `--at`, la rutina corre a mano. `--every` va en minutos. La CLI crea rutinas de agente;
+Sin `--cron`, `--every` ni `--at`, la rutina corre a mano. Sin `--project`, la rutina de un agente de proyecto corre
+en el proyecto de ese agente. `--autonomy` fija sus permisos; `default` vuelve a los de su agente. `--every` va en minutos. La CLI crea rutinas de agente;
 las de mensaje, shell y vigía, y las anclas, se configuran en el panel.
 
 ```bash

@@ -440,6 +440,7 @@ try {
         name: values.name,
         promptFile: values["prompt-file"],
         maxSteps: values["max-steps"],
+        autonomy: values.autonomy,
       });
       break;
     case "memory":

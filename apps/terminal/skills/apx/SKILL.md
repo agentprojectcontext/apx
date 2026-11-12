@@ -87,6 +87,7 @@ apx tasks say <id> <text…>                    # comment; @agent asks that agen
 
 apx routines                                  # scheduled work and when it runs next
 apx routines add <name> <prompt…> --agent a (--cron "30 8 * * 1-5" | --every 60 | --at <ISO date>)
+apx routines edit <id> --autonomy total        # how its runs act: manual|auto|total, default = its agent's mode
 apx routines run|on|off|rm|log <id>
 
 apx memory [words]                            # notes agents keep between threads (newest, or best matches)

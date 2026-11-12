@@ -10,7 +10,7 @@ import {
   type TabInfo,
 } from "@apx/protocol";
 import type { Bus } from "../bus.ts";
-import { inChrome, ownerAsked, TERMINAL } from "../domain/runs.ts";
+import { inChrome, ownersTask, ownersWork, TERMINAL } from "../domain/runs.ts";
 import type { Store } from "../domain/store.ts";
 import type { Computer } from "../environments/computer.ts";
 import { conflict, unauthorized, unavailable } from "../errors.ts";
@@ -79,8 +79,12 @@ export function browserHandlers(
   const runOf = (ctx: Ctx) => (ctx.agent ? store?.runs.get(ctx.agent.run_id) : undefined);
   /** An agent's call in a turn written in APX's panel in Chrome: all of its browsing is in the owner's Chrome. */
   const chromeTurn = (ctx: Ctx): boolean => inChrome(runOf(ctx)?.input?.origin, askedIn);
-  /** The owner's own turn (their words, or their answer in a turn they asked for): it may also use their Chrome. */
-  const ownersTurn = (ctx: Ctx): boolean => ownerAsked(runOf(ctx)?.input?.origin, askedIn);
+  /** The owner's own work (their turn, routine or task; DECISIONS.md#d-223): it may also use their Chrome. */
+  const ownersTurn = (ctx: Ctx): boolean => {
+    const run = runOf(ctx);
+    const task = run && store?.threads.get(run.thread_id)?.task_id;
+    return ownersWork(run?.input?.origin, askedIn, Boolean(store && ownersTask(store.tasks, task)));
+  };
   /** A call for the owner's Chrome in any other turn: a tab of theirs, or a new one asked for there. */
   const forChrome = (method: BrowserMethod, params: unknown): boolean =>
     method === "browser.open"
@@ -200,7 +204,8 @@ export function browserHandlers(
       if (chromeTurn(ctx)) return (await inOwnersChrome(method, params)) as never;
       if (forChrome(method, params)) {
         // A contact's words, a routine or another agent never reach the owner's signed-in Chrome.
-        if (ctx.agent && !ownersTurn(ctx)) throw unauthorized("only a turn the owner asked for may use their Chrome");
+        if (ctx.agent && !ownersTurn(ctx))
+          throw unauthorized("only the owner's own work (their turn, routine or task) may use their Chrome");
         return (await inOwnersChrome(method, params)) as never;
       }
       const isLocal = local();

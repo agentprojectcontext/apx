@@ -135,6 +135,13 @@ export type CallModel = z.infer<typeof CallModel>;
 export const RoutineAction = z.enum(["agent", "message", "shell", "watch", "relay"]);
 export type RoutineAction = z.infer<typeof RoutineAction>;
 
+/**
+ * How a routine's runs act, over its agent's own mode: ask before every change, Auto, or Total (nothing waits for the
+ * owner). Absent: the agent's own mode. It never reaches the agent's other chats (DECISIONS.md#d-223).
+ */
+export const RoutineAutonomy = z.enum(["manual", "auto", "total"]);
+export type RoutineAutonomy = z.infer<typeof RoutineAutonomy>;
+
 /** Work an agent does on its own on a schedule; the owner hears back only when there is something to say. */
 export const Routine = z.object({
   id: Id,
@@ -153,6 +160,8 @@ export const Routine = z.object({
   anchor: z.boolean().default(false),
   /** Model calls each run may make before it must answer; absent: what any run no one watches gets. */
   max_steps: z.number().int().optional(),
+  /** How its runs act, over the agent's own mode; absent: the agent's own. */
+  autonomy: RoutineAutonomy.optional(),
   /** Seeded by a profile ("secretary:day-open"): the profile keeps its schedule, and can restore its prompt. */
   origin: z.string().optional(),
   enabled: z.boolean(),
