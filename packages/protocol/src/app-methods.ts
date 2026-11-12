@@ -1694,6 +1694,55 @@ export const appMethods = {
     access: "human",
   },
   /**
+   * "This is not me": one of the owner's addresses becomes a contact the owner has not reviewed (kept silenced, never
+   * answered until approved), with its chats on that channel. Named as they last signed there, else by the address.
+   */
+  "contacts.unclaim": {
+    params: z.object({ address: Id }).strict(),
+    result: Person,
+    effect: true,
+    access: "human",
+  },
+  /**
+   * Everyone who wrote on a channel account, in its rooms or in private, newest first: their address there, the name
+   * they last wrote under, when, where and how often. `person_id` when the address is someone's on file. Only people:
+   * the platforms' bots never reach APX.
+   */
+  "contacts.seen": {
+    params: z.object({ channel: z.string().min(1).max(32) }).strict(),
+    result: z.object({
+      seen: z.array(
+        z.object({
+          address: z.string(),
+          name: z.string(),
+          last_at: z.string(),
+          thread_id: z.string(),
+          messages: z.number().int(),
+          person_id: Id.optional(),
+        }),
+      ),
+    }),
+    effect: false,
+    access: "human",
+  },
+  /**
+   * Someone who wrote on the account (in `contacts.seen`, with no one's address yet) kept as a person: the owner
+   * ("this is me"), or a contact the owner has not reviewed, so listing them answers them no more than before.
+   */
+  "contacts.keep": {
+    params: z
+      .object({
+        channel: z.string().min(1).max(32),
+        address: z.string().min(1).max(200),
+        as: z.enum(["contact", "owner"]),
+        relation: PersonRelation.optional(),
+      })
+      .strict(),
+    result: Person,
+    effect: true,
+    access: "human",
+  },
+  /**
    * The owner's own Claude Code or Codex sessions on this machine (read from ~/.claude, ~/.codex), newest first;
    * those APX already goes on with are left out (they are its chats).
    */

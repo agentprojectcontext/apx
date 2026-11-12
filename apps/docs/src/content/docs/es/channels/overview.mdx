@@ -18,10 +18,11 @@ la barra lateral, bajo **Canales**, con sus contactos y sus chats; su nombre arr
 
 La configuración de una cuenta está agrupada en partes y se guarda junta con **Guardar**: **Cuenta** (su nombre,
 conexión y sesión), **Quién responde** (con quién hablás, dónde van tus mensajes, quién responde a tus contactos),
-**Comportamiento** (un mensaje mientras trabaja, la web, el horario, **Solo te contesta a vos**, **Límites**, y **Lo que sabe y
+**Comportamiento** (un mensaje mientras trabaja, la web, el horario, **Solo te contesta a vos** en toda la cuenta, **Límites**, y **Lo que sabe y
 puede responder** y **Reglas** para todos los que escriben a la cuenta; las reglas propias de una sala o de un contacto
 van después y ganan), **Stickers y emojis** en las apps de chat,
-**Grupos**, **Espacios** o **Salas** donde la app los tiene (con el nombre que usa la app), **Contactos** (todas las personas de la cuenta, y **Agregar contacto**),
+**Grupos**, **Espacios** o **Salas** donde la app los tiene (con el nombre que usa la app), **Contactos** (quienes escribieron en la cuenta, por privado o en sus salas, y los que agregaste; ver
+[Quién está en una cuenta](#quién-está-en-una-cuenta)),
 **Aprobaciones** (qué recibe alguien nuevo, y quién espera) y **Actividad** (lo que salió). Una cuenta nueva abre en
 **Cuenta**: ponele nombre y conectala; el resto se habilita cuando está conectada, y **Crear canal** la guarda.
 
@@ -134,6 +135,22 @@ apx pairing ok 482913 "Ana"    # aprobar como contacto
 apx pairing no 482913          # descartar el pedido
 apx pairing me 482913          # esta dirección es mía (tuya, la del dueño)
 ```
+
+## Quién está en una cuenta
+
+**Contactos** de una cuenta lista a todos los que escribieron en ella, por privado o en sus salas y grupos, y a los que
+agregaste con **Agregar contacto**: su nombre, su dirección ahí, su relación y cuándo escribieron por última vez. Estar
+en la lista no le da nada a nadie: quien solo habló en una sala no es contacto hasta que lo hagas contacto, y ahí se
+le responde solo como diga la sala. Los bots de las plataformas nunca aparecen.
+
+- **Relación**, desde la misma lista. Quien solo escribió en una sala pasa a ser un contacto sin revisar: queda
+  silenciado, así que nadie le responde por privado hasta que lo apruebes (en su ficha o desde tu aviso).
+- **Ver dónde escribió** abre la sala de su último mensaje.
+- **Vos** es la fila con las direcciones que APX reconoce como tuyas, y dice cuál: lo que se escriba desde ellas cuenta
+  como tuyo. Una dirección pasa a ser tuya con `apx pairing me <código>`, **Soy yo** en una aprobación, o **Esta cuenta
+  es mía** en el menú de una fila (te pregunta antes; un contacto con esa dirección se borra). **Esta cuenta no es mía**
+  también pregunta antes, y la vuelve un contacto sin revisar. En Discord y Slack tu super-agente igual revisa que
+  seas vos antes de que APX actúe sobre lo que escribís.
 
 ## Los contactos están sellados
 

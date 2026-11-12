@@ -8,21 +8,8 @@ import { useData } from "../data/state.ts";
 import { type MessageKey, useT } from "../i18n/index.ts";
 import { CardField, ChatCard } from "./ChatCard.tsx";
 import { PersonAvatar } from "./PersonAvatar.tsx";
-import { initials, RELATION_KEY } from "./people.ts";
+import { initials, RELATION_KEY, RELATIONS } from "./people.ts";
 import { ownerOn } from "./StartRows.tsx";
-
-/** The relations, the ones most chats need first. */
-const RELATIONS: NonNullable<Person["relation"]>[] = [
-  "client",
-  "lead",
-  "associate",
-  "provider",
-  "family",
-  "friend",
-  "partner",
-  "coworker",
-  "other",
-];
 
 /** The rights a contact's card sets, in the order it shows them. */
 const RIGHTS = ["appointments", "requests", "notes", "any_hour"] as const;

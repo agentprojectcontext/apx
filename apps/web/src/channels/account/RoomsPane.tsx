@@ -117,12 +117,15 @@ export function RoomsSection({
   channel,
   kind,
   ownLine = false,
+  accountOwnerOnly = false,
   save,
 }: {
   channel: ChannelInfo;
   kind: RoomsKind;
   /** The line is the owner's own phone: the agent speaks in its groups only once the owner allows it. */
   ownLine?: boolean;
+  /** The whole account answers only the owner (Behavior): the rooms' own switch would say nothing more. */
+  accountOwnerOnly?: boolean;
   save(rooms: ChannelRooms): Promise<unknown>;
 }) {
   const t = useT();
@@ -301,14 +304,16 @@ export function RoomsSection({
           }}
         />
       </SettingRow>
-      <SettingRow title={t("rooms.ownerOnly")} description={t("rooms.ownerOnlyHint")}>
-        <Switch
-          size="sm"
-          checked={cur.owner_only}
-          onCheckedChange={(on) => set({ owner_only: on })}
-          aria-label={t("rooms.ownerOnly")}
-        />
-      </SettingRow>
+      {!accountOwnerOnly && (
+        <SettingRow title={t(`rooms.ownerOnly.${roomsWord(kind)}`)} description={t("rooms.ownerOnlyHint")}>
+          <Switch
+            size="sm"
+            checked={cur.owner_only}
+            onCheckedChange={(on) => set({ owner_only: on })}
+            aria-label={t(`rooms.ownerOnly.${roomsWord(kind)}`)}
+          />
+        </SettingRow>
+      )}
       <div className="pform__field">
         <span className="pform__label">{t("rooms.knowledge")}</span>
         {text("knowledge", 12_000, 6, t("rooms.knowledge"))}

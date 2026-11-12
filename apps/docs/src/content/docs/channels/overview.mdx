@@ -18,9 +18,10 @@ waiting; a row opens its chats, and its two buttons its contacts and its setting
 
 An account's settings are grouped in parts and saved together with **Save**: **Account** (its name, connection and
 sign-in), **Who answers** (who you talk to, where your messages go, who answers your contacts), **Behavior** (a
-message while it works, the web, hours, **Only answers you**, **Limits**, and **What it knows and can answer** and **Rules** for
+message while it works, the web, hours, **Only answers you** on the whole account, **Limits**, and **What it knows and can answer** and **Rules** for
 everyone who writes to the account; a room's or a contact's own rules go after and win), **Stickers and emoji** in chat apps, **Groups**, **Spaces** or **Rooms** where the app has them (named as the app names them),
-**Contacts** (everyone on the account, and **Add contact**), **Approvals** (what someone new gets, and who waits) and
+**Contacts** (everyone who wrote on the account, in private or in its rooms, and those you added; see
+[Who is on an account](#who-is-on-an-account)), **Approvals** (what someone new gets, and who waits) and
 **Activity** (what went out). A new account opens on **Account**: name it and connect it; the other parts open once it
 is connected, and **Create channel** keeps it.
 
@@ -133,6 +134,22 @@ apx pairing ok 482913 "Ana"    # approve as a contact
 apx pairing no 482913          # drop the request
 apx pairing me 482913          # this address is mine (yours, the owner's)
 ```
+
+## Who is on an account
+
+An account's **Contacts** lists everyone who wrote on it, in private or in its rooms and groups, and those you added
+with **Add contact**: their name, their address there, their relation and when they last wrote. Being listed gives
+nobody anything: someone who only spoke in a room is not a contact until you make them one, and is answered there only
+as the room's settings say. The platforms' bots are never listed.
+
+- **Relation**, right from the list. Someone who only wrote in a room becomes a contact you haven't reviewed: kept
+  silenced, so nobody answers them in private until you approve them (on their card or from your notice).
+- **Open where they wrote** opens the room of their last message.
+- **You** is the row with the addresses APX knows as yours, saying which: what is written from them counts as yours.
+  An address becomes yours with `apx pairing me <code>`, **It's me** in an approval, or **This account is mine** in a
+  row's menu (asked first; a contact with that address is removed). **This account is not mine** asks first too, and
+  turns it back into a contact you haven't reviewed. On Discord and Slack your super-agent still checks it's really
+  you before APX acts on what you write.
 
 ## Contacts are sealed
 
