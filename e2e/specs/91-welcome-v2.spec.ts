@@ -1,4 +1,4 @@
-// The welcome slides: said once per device and film, one scene of the docs site's film per slide; where it cannot
+// The welcome slides: said once per device and film, each slide a clip from the docs site; where one cannot
 // load, each slide's still stays in its place. Outside hosts are stood in for: the sandbox never reaches them.
 import { expect, open, test } from "./kit.ts";
 
@@ -41,14 +41,16 @@ test("the last slide ends with Vamos", async ({ page }) => {
   await expect(dialog).toBeHidden();
 });
 
-test("someone who closed the v2 welcome still sees the new slides once", async ({ page }) => {
-  await page.route("https://apxagent.app/**", (route) => route.abort("aborted"));
-  // What a device that closed the v2 welcome kept.
-  await page.addInitScript(() => {
-    try {
-      localStorage.setItem("apx.corner", JSON.stringify({ discord: true, star: true, welcome: true }));
-    } catch {}
+// What a device kept after closing an earlier welcome: the v2 one, then the single-film one.
+for (const kept of [true, "whats-new-2.14"]) {
+  test(`someone who closed an earlier welcome (${kept}) sees the new slides once`, async ({ page }) => {
+    await page.route("https://apxagent.app/**", (route) => route.abort("aborted"));
+    await page.addInitScript((kept) => {
+      try {
+        localStorage.setItem("apx.corner", JSON.stringify({ discord: true, star: true, welcome: kept }));
+      } catch {}
+    }, kept);
+    await open(page);
+    await expect(page.getByRole("dialog", { name: "Lo nuevo de APX" })).toBeVisible();
   });
-  await open(page);
-  await expect(page.getByRole("dialog", { name: "Lo nuevo de APX" })).toBeVisible();
-});
+}

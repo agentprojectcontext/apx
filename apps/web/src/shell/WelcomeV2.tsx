@@ -18,12 +18,10 @@ import { enWelcome, type WelcomeKey } from "../i18n/welcome-en.ts";
 import { esWelcome } from "../i18n/welcome-es.ts";
 import { WELCOME_FILM, WELCOME_SLIDES } from "./welcomeFilm.ts";
 
-// What changed since 2.14, one scene per slide, played from the docs site with no player chrome. Its titles are
-// written in each language, so each has its own cut; where it cannot load, each slide's still stays in its place.
-const FILM = {
-  es: "https://apxagent.app/media/apx-whats-new-es.mp4",
-  en: "https://apxagent.app/media/apx-whats-new-en.mp4",
-};
+// What changed since 2.14, one section per slide, each its own short clip with music, played from the docs site with no
+// player chrome. Their titles are written in each language, so each has its own cut; where one cannot load, that
+// slide's still stays in its place.
+const clip = (lang: "es" | "en", key: string) => `https://apxagent.app/media/whats-new/${lang}/${key}.mp4`;
 const POSTERS = [slide1, slide2, slide3, slide4, slide5, slide6, slide7, slide8, slide9, slide10];
 /** How far a finger must travel sideways to change slides. */
 const SWIPE_PX = 48;
@@ -39,41 +37,14 @@ function Welcome() {
   const es = useLanguage() === "es";
   const w = es ? esWelcome : enWelcome;
   const [at, setAt] = useState(0);
-  const [failed, setFailed] = useState(false);
+  const [failed, setFailed] = useState<number[]>([]);
   const [sound, setSound] = useState(false);
-  const video = useRef<HTMLVideoElement>(null);
   const touchX = useRef<number | null>(null);
   const last = WELCOME_SLIDES.length - 1;
   const slide = WELCOME_SLIDES[at] ?? WELCOME_SLIDES[0];
-  const title = w[`welcome.${slide.key}.title` as WelcomeKey];
+  const title = w[`welcome.${slide}.title` as WelcomeKey];
   const close = () => closeCard({ welcome: WELCOME_FILM });
   const go = (step: number) => setAt((i) => Math.max(0, Math.min(last, i + step)));
-
-  // Each slide plays its own stretch of the film and holds its last frame.
-  useEffect(() => {
-    const v = video.current;
-    if (!v || failed) return;
-    let frame = 0;
-    const watch = () => {
-      if (v.currentTime >= slide.end) {
-        v.pause();
-        return;
-      }
-      frame = requestAnimationFrame(watch);
-    };
-    const start = () => {
-      v.currentTime = slide.start;
-      // Muted it may start on its own; a refused start waits for the film to be ready and tries again.
-      v.play().catch(() => v.addEventListener("canplay", () => v.play().catch(() => {}), { once: true }));
-      frame = requestAnimationFrame(watch);
-    };
-    if (v.readyState >= 1) start();
-    else v.addEventListener("loadedmetadata", start, { once: true });
-    return () => {
-      cancelAnimationFrame(frame);
-      v.removeEventListener("loadedmetadata", start);
-    };
-  }, [slide, failed]);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -119,7 +90,7 @@ function Welcome() {
       {at === last && <Confetti />}
       <div className="welcome__slide">
         <h3 className="welcome__slidetitle">{title}</h3>
-        <p className="welcome__slidetext">{w[`welcome.${slide.key}.text` as WelcomeKey]}</p>
+        <p className="welcome__slidetext">{w[`welcome.${slide}.text` as WelcomeKey]}</p>
       </div>
       <div
         className="welcome__video"
@@ -134,20 +105,20 @@ function Welcome() {
           go(to < from ? 1 : -1);
         }}
       >
-        {failed ? (
+        {failed.includes(at) ? (
           <img src={POSTERS[at]} alt={title} />
         ) : (
           <>
             <video
-              ref={video}
-              src={es ? FILM.es : FILM.en}
+              key={slide}
+              src={clip(es ? "es" : "en", slide)}
               poster={POSTERS[at]}
               aria-label={title}
               muted={!sound}
               autoPlay
               playsInline
               preload="auto"
-              onError={() => setFailed(true)}
+              onError={() => setFailed((f) => [...f, at])}
             />
             <IconButton
               className="welcome__sound"
