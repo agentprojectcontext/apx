@@ -135,6 +135,13 @@ export const callMethods = {
     access: "human",
     replay: false,
   },
+  /** The call card is open: the voice starts loading what a call needs, so the call begins without a wait. */
+  "calls.prepare": {
+    params: z.object({}).strict(),
+    result: Ok,
+    effect: false,
+    access: "human",
+  },
   /** Words the owner types in the chat of the call going on: the voice takes them as said and answers aloud. */
   "calls.say": {
     params: z.object({ thread_id: Id, text: z.string().trim().min(1).max(4000) }).strict(),

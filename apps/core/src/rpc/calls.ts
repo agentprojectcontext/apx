@@ -69,6 +69,11 @@ export function callHandlers(d: VoiceDeps | undefined) {
         thread: p.thread,
       });
     },
+    "calls.prepare": () => {
+      // Only where a call could start now: never downloads, never wakes a voice that is off.
+      if (d && !callStatus().missing && d.engine.installed()) d.engine.prepare();
+      return { ok: true as const };
+    },
     "calls.say": ({ thread_id, text }) => {
       if (!d?.calls.typed(thread_id, text)) throw unavailable("this call is not going on");
       return { ok: true as const };

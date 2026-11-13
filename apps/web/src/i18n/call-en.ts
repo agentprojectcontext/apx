@@ -11,7 +11,7 @@ export const enCall = {
   "callCard.call": "Call",
   "callCard.calling": "Calling…",
   "callCard.preparing": "Getting the voice ready…",
-  "callCard.preparingHint": "The first call takes a little longer.",
+  "callCard.preparingHint": "Getting the voice ready: the first call after a while takes a few more seconds.",
   "callCard.listening": "Listening",
   "callCard.thinking": "Thinking…",
   "callCard.speaking": "Speaking…",

@@ -88,10 +88,12 @@ export function createVoiceEngine(deps: {
     ...extra,
   });
 
-  function logTo(child: ChildProcess): () => string {
+  function logTo(child: ChildProcess, withStdout = false): () => string {
     fs.mkdirSync(path.join(deps.home, "logs"), { recursive: true });
     const out = fs.createWriteStream(path.join(deps.home, "logs", "voice.log"), { flags: "a" });
     let stderr = "";
+    // What the engine says of itself (its timings) goes to the log too; the prefetch's stdout is its progress.
+    if (withStdout) child.stdout?.on("data", (d) => out.write(d));
     child.stderr?.on("data", (d) => {
       out.write(d);
       stderr = (stderr + String(d)).slice(-2000);
@@ -122,10 +124,10 @@ export function createVoiceEngine(deps: {
     const port = await freePort();
     const secret = crypto.randomBytes(24).toString("base64url");
     const child = run(bin, ["run", "--script", ENGINE, "--port", String(port)], {
-      stdio: ["ignore", "ignore", "pipe"],
+      stdio: ["ignore", "pipe", "pipe"],
       env: env({ VOICE_SECRET: secret }),
     });
-    const tail = logTo(child);
+    const tail = logTo(child, true);
     const url = `http://127.0.0.1:${port}`;
     const ready = (async () => {
       const until = Date.now() + START_TIMEOUT_MS;
@@ -243,6 +245,14 @@ export function createVoiceEngine(deps: {
         if (!install) this.startInstall();
         await new Promise((r) => setTimeout(r, 1000));
       }
+    },
+
+    /** Starts the engine (if it is not up) and has it load what a call uses, without waiting for it. */
+    prepare(): void {
+      void (async () => {
+        const r = await up();
+        await fetch(`${r.url}/prepare`, { method: "POST", headers: { "x-voice-secret": r.secret } });
+      })().catch((err) => deps.log.warn({ err: err instanceof Error ? err.message : String(err) }, "voice prepare"));
     },
 
     /** One line in one of APX's voices ("es-AR-female"), as WAV. */

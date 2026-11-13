@@ -128,6 +128,18 @@ class Ears:
     def final(self, pcm, lang=None, prompt=None):
         return hearing.submit(self._final, pcm, lang, prompt)
 
+    def _after(self, pcm, lang, hint, before):
+        # The pieces before were queued first on this same single thread: they are done, and give the context.
+        said = " ".join(f.result()[0] for f in before if f.done() and not f.exception()).strip()
+        t = time.monotonic()
+        out = self._final(pcm, lang, f"{hint} {said[-100:]}".strip())
+        print(f"[voice] heard {len(pcm) / SR_IN:.1f}s in {time.monotonic() - t:.2f}s", flush=True)
+        return out
+
+    def final_after(self, pcm, lang, hint, before):
+        """One piece of what the owner says, heard with what they said before it as context."""
+        return hearing.submit(self._after, pcm, lang, hint, list(before))
+
     def partial(self, pcm, lang=None, prompt=None):
         return cpu.submit(self._partial, pcm, lang, prompt)
 

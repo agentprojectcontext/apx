@@ -56,6 +56,8 @@ VAD_ON, VAD_ON_SPEAKING = 0.5, 0.8  # higher while the voice speaks: what leaks 
 START_FRAMES, BARGE_FRAMES = 3, 6
 EARLY_STT_MS, TURN_CHECK_MS, TURN_MAX_MS = 64, 160, 900
 MIN_SPEECH_MS, PARTIAL_EVERY_S = 250, 0.7
+PIECE_MIN_S = 2.0  # a mid-thought pause after this much speech hears that piece with the good model meanwhile
+REST_ALONE_S = 1.5  # a last bit shorter than this is heard together with the piece before it
 FRAME_MS = FRAME / SR_IN * 1000
 QUIET_BEFORE_NEWS_S = 0.8
 TOLD_SENTENCES = 3
@@ -178,6 +180,15 @@ async def health(request: Request):
     return {"ok": speech is not None, **(speech.loaded() if speech else {})}
 
 
+@app.post("/prepare")
+async def prepare(request: Request):
+    """The call card opened: what a call uses loads now, so the call begins at once."""
+    if not allowed(request.headers.get("x-voice-secret")):
+        return JSONResponse({"error": "forbidden"}, status_code=403)
+    asyncio.create_task(asyncio.to_thread(speech.for_call))
+    return {"ok": True}
+
+
 @app.post("/speech")
 async def speak(request: Request):
     """One line in one of APX's voices, as a WAV: an agent's voice note."""
@@ -233,8 +244,8 @@ class Call:
             who=q.get("who") or f"{owner}'s personal assistant in APX",
             reach=q.get("reach") or f"{owner}'s projects, agents, memory, mail, calendar, web and tools")}
         self.thoughts, self.thought_n = {}, 0
-        self.said_this_turn = False
-        self.unheard_audio = []  # what the owner said that is not answered yet, heard again as one
+        self.answered = False  # the voice began answering what is in `unheard`
+        self.pieces, self.seg, self.seg_voiced = [], 0, 0  # what is heard of the words being said, where the rest begins
         self.said = deque(maxlen=6)  # (words, when it finished) of the voice's last lines
         self.shown = None  # the last step of the chain that shows lines' words as their audio plays
         self.lines = []  # the lines still being shown, cut by an interruption
@@ -380,17 +391,12 @@ class Call:
         line = GREETING[self.style].format(owner=f" {self.owner}" if self.owner else "")
         self.history.append({"role": "assistant", "content": line})
         await self.send({"type": "state", "state": "speaking"})
-        pcm = await asyncio.to_thread(speech.mouth.line, line, self.lang, self.voice)
-        start = time.monotonic()
-        self.playing_until = start + len(pcm) / 2 / SR_OUT
-        self.show(line, start, {"end": self.playing_until, "cut": False})
-        self.said.append((set(WORD.findall(line.lower())), self.playing_until))
-        for i in range(0, len(pcm), SR_OUT):  # half-second chunks: an interruption drops what is not played yet
-            await self.ws.send_bytes(pcm[i:i + SR_OUT])
+        t = time.monotonic()
+        await self.say(line)  # streamed: its first words play while the rest is still being made
+        print(f"[voice] greeted in {time.monotonic() - t:.1f}s", flush=True)
         self.turn_end()
 
     async def reply(self, text, heard):
-        self.said_this_turn = False
         self.history.append({"role": "user", "content": f"{text}\n{self.note()}"})
         messages = [self.system, *self.history]
         await self.send({"type": "state", "state": "thinking"})
@@ -419,7 +425,7 @@ class Call:
                     await self.send({"type": "state", "state": "speaking"})
                 await self.say(line)
                 spoken.append(line)
-                self.said_this_turn = True
+                self.answered = True
         except asyncio.CancelledError:
             filler.cancel()
             if not spoken:  # the owner went on before a word was said: their words join the next turn
@@ -500,11 +506,13 @@ class Call:
             if self.run >= START_FRAMES:
                 self.in_speech, self.utt, self.silence = True, list(self.preroll), 0
                 self.speech_frames, self.checked, self.barged, self.stt, self.partial_at = self.run, False, False, None, 0
+                self.pieces, self.seg, self.seg_voiced = [], 0, self.run
                 self.last_voice = now
             return
         self.utt.append(frame)
         if voiced:
             self.speech_frames += 1
+            self.seg_voiced += 1
             self.run = self.run + 1 if self.silence == 0 else 1
             if self.silence:
                 self.silence, self.checked, self.stt = 0, False, None
@@ -517,12 +525,17 @@ class Call:
         self.silence += 1
         quiet = self.silence * FRAME_MS
         if quiet >= EARLY_STT_MS and self.stt is None:
-            self.stt = speech.ears.final(np.concatenate(self.utt), self.lang, self.hint)
+            self.stt = speech.ears.final_after(np.concatenate(self.utt[self.seg:]), self.lang, self.hint, self.before())
         if quiet >= TURN_CHECK_MS and not self.checked:
             self.checked = True
             p_end = await asyncio.to_thread(speech.turn.prob, np.concatenate(self.utt))
             if p_end >= 0.5:
                 return await self.commit()
+            rest = self.utt[self.seg:]
+            if self.stt and len(rest) * FRAME / SR_IN >= PIECE_MIN_S:
+                # A pause mid-thought: what was heard so far is kept, and at the end only the last bit is left to hear.
+                self.pieces.append((rest, self.stt))
+                self.seg, self.stt, self.seg_voiced = len(self.utt), False, 0
         if quiet >= TURN_MAX_MS:
             await self.commit()
 
@@ -530,42 +543,80 @@ class Call:
         if (talking and not self.barged) or (self.partial_task and not self.partial_task.done()):
             return
         heard_s = len(self.utt) * FRAME / SR_IN
-        if heard_s - self.partial_at < PARTIAL_EVERY_S:
+        if heard_s - self.partial_at < PARTIAL_EVERY_S or len(self.utt) <= self.seg:
             return
         self.partial_at = heard_s
-        self.partial_task = asyncio.create_task(self.partial(np.concatenate(self.utt)))
+        self.partial_task = asyncio.create_task(self.partial(np.concatenate(self.utt[self.seg:])))
+
+    def before(self):
+        """What the owner said before the piece being heard, not answered yet: its context."""
+        return [*self.unheard, *(f for _, f in self.pieces)]
 
     async def partial(self, audio):
+        """The good model's pieces so far, then the quick one's guess at the rest."""
         try:
             text = await asyncio.wrap_future(speech.ears.partial(audio, self.lang, self.hint))
         except Exception:
             return
-        if text and self.in_speech and not NOISE.search(text):
+        done = " ".join(f.result()[0] for _, f in self.pieces if f.done() and not f.exception())
+        text = " ".join(t for t in (done, text) if t and not NOISE.search(t)).strip()
+        if text and self.in_speech:
             await self.send({"type": "partial", "text": text})
 
     async def commit(self):
         stt, barged, speech_ms = self.stt, self.barged, self.speech_frames * FRAME_MS
-        audio = np.concatenate(self.utt)
-        self.in_speech, self.utt, self.run, self.stt = False, [], 0, None
+        rest, pieces, rest_voiced_ms = self.utt[self.seg:], self.pieces, self.seg_voiced * FRAME_MS
+        self.in_speech, self.utt, self.run, self.stt, self.pieces, self.seg = False, [], 0, None, [], 0
         self.preroll.clear()
-        if speech_ms < MIN_SPEECH_MS or (self.speaking() and not barged):
+        if speech_ms < MIN_SPEECH_MS:
             await self.send({"type": "partial", "text": ""})
             return
-        # The owner went on before the voice answered: their words so far are heard again as one, with their context,
-        # instead of piece by piece (whisper gets a cut-off phrase wrong).
-        going_on = bool(self.reply_task and not self.reply_task.done() and self.unheard_audio and not self.speaking()
-                        and not self.said_this_turn)
-        self.unheard_audio = [*self.unheard_audio, audio] if going_on else [audio]
-        if going_on:
-            stt = speech.ears.final(np.concatenate(self.unheard_audio), self.lang, self.hint)
-        stt = stt or speech.ears.final(audio, self.lang, self.hint)
-        self.unheard = [stt]
+        # Said over the voice without cutting it: the owner going on, or the voice's own echo. The words decide.
+        over = self.speaking() and not barged
+        rest_s = len(rest) * FRAME / SR_IN
+        if rest_voiced_ms < MIN_SPEECH_MS:
+            stt = None  # after the last piece only silence came: nothing more to hear
+        elif pieces and rest_s < REST_ALONE_S:
+            # Heard alone, a short last bit comes out as nonsense: it goes with the piece before it.
+            last, _ = pieces.pop()
+            stt = speech.ears.final_after(np.concatenate([*last, *rest]), self.lang, self.hint,
+                                          [*self.unheard, *(f for _, f in pieces)])
+        elif not stt and rest_s * 1000 >= MIN_SPEECH_MS:
+            stt = speech.ears.final_after(np.concatenate(rest), self.lang, self.hint,
+                                          [*self.unheard, *(f for _, f in pieces)])
+        heard = [*(f for _, f in pieces), *([stt] if stt else [])]
+        if over:
+            # The voice keeps talking while these words are heard; only words that are not its echo stop it.
+            asyncio.create_task(self.overheard(heard))
+            return
+        # The owner went on before the voice answered this request: what they said is one request, one message.
+        going_on = bool(self.reply_task and not self.reply_task.done() and self.unheard and not self.answered)
+        self.unheard = [*self.unheard, *heard] if going_on else heard
         if self.reply_task and not self.reply_task.done():
             self.reply_task.cancel()
         self.reply_task = asyncio.create_task(self.answer(self.unheard, going_on))
 
+    async def overheard(self, heard):
+        texts = []
+        for f in heard:
+            try:
+                texts.append((await asyncio.wrap_future(f))[0].strip())
+            except Exception:
+                pass
+        text = " ".join(t for t in texts if t)
+        if not text or NOISE.search(text) or self.echo(text) or self.hinted(text):
+            await self.send({"type": "partial", "text": ""})
+            return
+        self.barge_in()
+        await self.send({"type": "interrupted"})
+        if self.reply_task and not self.reply_task.done():
+            self.reply_task.cancel()
+        self.unheard = heard
+        self.reply_task = asyncio.create_task(self.answer(heard))
+
     async def answer(self, stts, whole=False):
         """`whole`: the words heard again as one with what came before, which they replace."""
+        self.answered = False
         texts = []
         for f in stts:
             try:  # shielded: a newer turn takes over these same transcriptions
@@ -633,7 +684,9 @@ async def call(ws: WebSocket):
         return
     await ws.accept()
     await ws.send_text(json.dumps({"type": "preparing"}))
+    t = time.monotonic()
     await asyncio.to_thread(speech.for_call)  # the first call after a while loads hearing and turn taking
+    print(f"[voice] ready for a call in {time.monotonic() - t:.1f}s", flush=True)
     c = Call(ws, ws.query_params)
     await c.send({"type": "ready"})
     watcher = asyncio.create_task(c.watch())

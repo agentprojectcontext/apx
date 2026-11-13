@@ -67,8 +67,15 @@ export function CallCard() {
     return () => clearInterval(tick);
   }, [since]);
 
-  // It rings while the call connects, until the agent answers.
+  // It rings while the call connects, until the agent answers; a wait of more than a moment says why.
   const ringing = stage === "calling" || stage === "preparing";
+  const [slow, setSlow] = useState(false);
+  useEffect(() => {
+    setSlow(false);
+    if (!ringing) return;
+    const t = setTimeout(() => setSlow(true), 3000);
+    return () => clearTimeout(t);
+  }, [ringing]);
   useEffect(() => {
     if (!ringing || !chosen.current.sound) return;
     const tone = ringback();
@@ -78,6 +85,8 @@ export function CallCard() {
   // What calls need may have changed since the button first asked (a model or the voice set up meanwhile).
   useEffect(() => {
     void loadCallStatus();
+    // The voice starts loading now, while the owner picks: the call begins without a wait.
+    void client.call("calls.prepare", {}).catch(() => {});
   }, []);
 
   // Closing the card hangs up.
@@ -236,7 +245,9 @@ export function CallCard() {
       {small && busy ? null : (
         <>
           {stage === "live" && partial && <p className="callcard__caption">{partial}</p>}
-          {stage === "preparing" && <p className="callcard__hint">{t("callCard.preparingHint")}</p>}
+          {(stage === "preparing" || (ringing && slow)) && (
+            <p className="callcard__hint">{t("callCard.preparingHint")}</p>
+          )}
           {(problem || (missing && !busy)) && (
             <p className="callcard__problem" role="alert">
               {t(problem ?? (missing ? `callCard.missing.${missing}` : "callCard.failed"), { name })}

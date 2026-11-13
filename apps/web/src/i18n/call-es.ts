@@ -12,7 +12,7 @@ export const esCall: Record<keyof typeof enCall, string> = {
   "callCard.call": "Llamar",
   "callCard.calling": "Llamando…",
   "callCard.preparing": "Preparando la voz…",
-  "callCard.preparingHint": "La primera llamada tarda un poco más.",
+  "callCard.preparingHint": "Preparando la voz: la primera llamada después de un rato tarda unos segundos más.",
   "callCard.listening": "Escuchando",
   "callCard.thinking": "Pensando…",
   "callCard.speaking": "Hablando…",
