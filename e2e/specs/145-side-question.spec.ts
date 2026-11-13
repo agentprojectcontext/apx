@@ -1,4 +1,4 @@
-// A side question (DECISIONS.md#d-210): from the composer's + the owner asks the chat's agent something quick, the
+// A side question (DECISIONS.md#d-215): from the composer's + the owner asks the chat's agent something quick, the
 // answer shows over the composer only, and nothing of it enters the chat.
 import type { Thread } from "../../packages/protocol/src/domain.ts";
 import { expect, open, rpc, test, until } from "./kit.ts";

@@ -343,7 +343,7 @@ export function createFlows(deps: {
         const flow = store.flows.get(s.flow);
         if (!flow) continue;
         const when = due.toISOString();
-        // A run that outlasts its interval does not pile up the next ones behind it (DECISIONS.md#d-169).
+        // A run that outlasts its interval does not pile up the next ones behind it (DECISIONS.md#d-168).
         if (busy.has(s.flow)) {
           store.flowSchedules.skip(s.flow, at);
           deps.log.info({ flow: s.flow, due: when }, "a scheduled Flow time was skipped: its last run is still going");

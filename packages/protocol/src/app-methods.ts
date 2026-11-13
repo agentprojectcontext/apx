@@ -258,7 +258,7 @@ export const appMethods = {
     effect: true,
     access: "human",
   },
-  // Release news the super-agent tells the owner (DECISIONS.md#d-116).
+  // Release news the super-agent tells the owner (DECISIONS.md#d-117).
   /** The news APX carries: whether each was told (or known from the start) and whether it applies to this owner. */
   "system.news": {
     params: z.object({}).strict(),
