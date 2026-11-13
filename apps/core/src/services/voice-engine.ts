@@ -81,6 +81,8 @@ export function createVoiceEngine(deps: {
     VOICE_TIER: machine().tier,
     VOICE_PARENT_PID: String(process.pid),
     VOICE_OWNER: deps.owner?.() ?? "",
+    // The owner's own recordings, used before APX's voices of the same name (es-AR-female.wav…).
+    VOICE_VOICES: path.join(deps.home, "voices"),
     ...extra,
   });
 

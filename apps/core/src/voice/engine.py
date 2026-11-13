@@ -66,6 +66,8 @@ SKIP = re.compile(r"\[\[\s*skip\s*\]\]", re.I)
 NOISE = re.compile(r"(subt[ií]tulos|amara\.org|gracias por ver|thanks for watching)", re.I)
 BYE_HEARD = re.compile(r"\b(chau|chao|adi[oó]s|hasta luego|nos vemos|bye|goodbye|see you)\b", re.I)
 MARKUP = re.compile(r"[*_#`]+")
+WORD = re.compile(r"\w+")
+ECHO_S = 8  # what the voice said this recently, heard back word for word, is its own echo
 # "ok, I'll wait" while a task runs: nothing to say, and a small model does not always keep quiet when told to.
 ACK = re.compile(r"^\W*((dale|ok(ay)?|genial|buen[ií]simo|b[aá]rbaro|perfecto|listo|joya|va|bueno|s[ií]|gracias|"
                  r"te espero|espero|ah[ií] espero|no hay drama|tranqui|good|great|thanks|cool|sure|i'?ll wait)\W*){1,4}$", re.I)
@@ -229,6 +231,7 @@ class Call:
             who=q.get("who") or f"{owner}'s personal assistant in APX",
             reach=q.get("reach") or f"{owner}'s projects, agents, memory, mail, calendar, web and tools")}
         self.thoughts, self.thought_n = {}, 0
+        self.said = deque(maxlen=6)  # (words, when it finished) of the voice's last lines
         self.history, self.tasks, self.news = [], {}, deque()
         self.pending = np.zeros(0, dtype=np.float32)
         self.preroll, self.utt = deque(maxlen=8), []
@@ -264,7 +267,19 @@ class Call:
         finally:
             self.stop.set()
             speech.last_use = time.monotonic()
+            self.said.append((set(WORD.findall(text.lower())), self.playing_until))
         await self.send({"type": "said", "text": text})
+
+    def echo(self, heard):
+        """The microphone picked up the voice itself (speakers, no headphones): nearly every word heard was just said."""
+        words = WORD.findall(heard.lower())
+        if not words:
+            return False
+        now = time.monotonic()
+        for said, until in self.said:
+            if now - until < ECHO_S and sum(w in said for w in words) >= max(1, round(len(words) * 0.75)):
+                return True
+        return False
 
     def note(self):
         running = [f'- task {n} "{t}": running for {int(time.monotonic() - s)} s, no answer yet (never guess it)'
@@ -305,6 +320,7 @@ class Call:
         await self.send({"type": "state", "state": "speaking"})
         pcm = await asyncio.to_thread(speech.mouth.line, line, self.lang, self.voice)
         self.playing_until = time.monotonic() + len(pcm) / 2 / SR_OUT
+        self.said.append((set(WORD.findall(line.lower())), self.playing_until))
         for i in range(0, len(pcm), SR_OUT):  # half-second chunks: an interruption drops what is not played yet
             await self.ws.send_bytes(pcm[i:i + SR_OUT])
         await self.send({"type": "said", "text": line})
@@ -482,7 +498,7 @@ class Call:
         self.unheard = []
         new = " ".join(t for t in texts if t)
         await self.send({"type": "partial", "text": ""})
-        if not new or NOISE.search(new):
+        if not new or NOISE.search(new) or self.echo(new):
             await self.send({"type": "state", "state": "listening"})
             return
         await self.send({"type": "heard", "text": new})  # the chat already shows what was carried

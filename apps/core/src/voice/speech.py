@@ -135,7 +135,7 @@ class Ears:
 class Mouth:
     """Qwen3-TTS Base on MLX, cloning a voice in context from a recording and what it says."""
 
-    def __init__(self, model, voices: Path):
+    def __init__(self, model, voices):
         self.model_id, self.voices, self.refs, self.model, self.lines = model, voices, {}, None, {}
         speaking.submit(self._load).result()
 
@@ -146,8 +146,8 @@ class Mouth:
     def _ref(self, name):
         if name not in self.refs:
             from mlx_audio.utils import load_audio
-            audio = next(p for p in (self.voices / f"{name}.flac", self.voices / f"{name}.wav") if p.exists())
-            meta = self.voices / f"{name}.json"
+            audio = next(p for d in self.voices for p in (d / f"{name}.flac", d / f"{name}.wav") if p.exists())
+            meta = audio.with_suffix(".json")
             text = json.loads(meta.read_text()).get("refText") if meta.exists() else None
             self.refs[name] = (load_audio(str(audio), sample_rate=SR_OUT), text or None)
         return self.refs[name]
@@ -186,7 +186,9 @@ class Speech:
     """The engine's parts, each loaded the first time it is used and kept while the engine runs."""
 
     def __init__(self):
-        self.voices = Path(os.environ.get("VOICE_VOICES") or VOICES)
+        # The owner's own recordings (<home>/voices/es-AR-female.wav…) come before APX's: they never ship with it.
+        own = Path(os.environ["VOICE_VOICES"]) if os.environ.get("VOICE_VOICES") else None
+        self.voices = [d for d in (own, VOICES) if d and d.is_dir()]
         self.models = tier()
         self._lock = threading.Lock()
         self._vad = self._turn = self._ears = self._mouth = None
@@ -219,7 +221,7 @@ class Speech:
 
     def voice(self, name):
         """One of APX's voices ("es-AR-female"); an unknown name gets the first one of its gender, then any."""
-        have = sorted({p.stem for p in self.voices.iterdir() if p.suffix in (".flac", ".wav")})
+        have = sorted({p.stem for d in self.voices for p in d.iterdir() if p.suffix in (".flac", ".wav")})
         if name in have:
             return name
         gender = name.rsplit("-", 1)[-1]
