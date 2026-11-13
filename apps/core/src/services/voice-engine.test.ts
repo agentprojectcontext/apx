@@ -31,18 +31,36 @@ function fakeUv(lines: string[], code: number, seen: string[][]) {
   }) as unknown as Spawn;
 }
 
-test("the voice runs on Apple silicon with enough memory, lighter below 16 GB, and says what is missing", (t) => {
+test("the voice runs on Apple silicon with enough memory, the larger models from 32 GB or when picked, and says what is missing", (t) => {
   const tmp = tempDir();
   t.after(() => tmp.remove());
-  const at = (platform: NodeJS.Platform, arch: string, memoryGb: number, uv = "/opt/homebrew/bin/uv") =>
-    createVoiceEngine({ log: quiet, home: tmp.path, platform, arch, memoryGb, uv: () => uv || undefined });
+  const at = (
+    platform: NodeJS.Platform,
+    arch: string,
+    memoryGb: number,
+    uv = "/opt/homebrew/bin/uv",
+    quality: "auto" | "light" | "full" = "auto",
+  ) =>
+    createVoiceEngine({
+      log: quiet,
+      home: tmp.path,
+      platform,
+      arch,
+      memoryGb,
+      uv: () => uv || undefined,
+      quality: () => quality,
+    });
   const cases = [
     [at("linux", "x64", 64), { tier: "none", memory_gb: 64, missing: "platform" }],
     [at("darwin", "x64", 32), { tier: "none", memory_gb: 32, missing: "platform" }],
     [at("darwin", "arm64", 6), { tier: "none", memory_gb: 6, missing: "memory" }],
     [at("darwin", "arm64", 8), { tier: "light", memory_gb: 8 }],
-    [at("darwin", "arm64", 24), { tier: "full", memory_gb: 24 }],
-    [at("darwin", "arm64", 24, ""), { tier: "full", memory_gb: 24, missing: "uv" }],
+    [at("darwin", "arm64", 24), { tier: "light", memory_gb: 24 }],
+    [at("darwin", "arm64", 32), { tier: "full", memory_gb: 32 }],
+    [at("darwin", "arm64", 24, undefined, "full"), { tier: "full", memory_gb: 24 }],
+    [at("darwin", "arm64", 12, undefined, "full"), { tier: "light", memory_gb: 12 }],
+    [at("darwin", "arm64", 64, undefined, "light"), { tier: "light", memory_gb: 64 }],
+    [at("darwin", "arm64", 32, ""), { tier: "full", memory_gb: 32, missing: "uv" }],
   ] as const;
   for (const [engine, want] of cases) {
     assert.deepEqual(engine.machine(), want);
@@ -74,6 +92,18 @@ test("installing downloads the models with their progress, and a call waits for 
   assert.ok(seen.some((a) => a.includes("--prefetch")));
   assert.equal(seen.filter((a) => a.includes("--prefetch")).length, 1, "downloaded once");
   const again = createVoiceEngine({ log: quiet, home: tmp.path, platform: "darwin", arch: "arm64", memoryGb: 24 });
+  assert.equal(
+    createVoiceEngine({
+      log: quiet,
+      home: tmp.path,
+      platform: "darwin",
+      arch: "arm64",
+      memoryGb: 24,
+      quality: () => "full",
+    }).installed(),
+    false,
+    "the larger models are another download",
+  );
   assert.equal(again.installed(), true, "known on disk at the next start, without asking the engine");
   again.close();
 });

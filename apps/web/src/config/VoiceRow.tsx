@@ -61,7 +61,22 @@ export function VoiceRow({ kind, status: s }: { kind: "speech" | "transcription"
             )}
           </div>
         )}
-        {can && s.tier === "light" && speech && <div className="res__desc">{t("voice.light")}</div>}
+        {can && s.tier === "light" && speech && !s.can_full && <div className="res__desc">{t("voice.light")}</div>}
+        {can && speech && s.can_full && (
+          <div className="voicerow__line">
+            <SegmentedControl
+              size="sm"
+              label={t("voice.quality")}
+              value={s.tier === "full" ? "full" : "light"}
+              onValueChange={(v) => void run(() => setVoice({ quality: v === "full" ? "full" : "light" }), t)}
+              options={[
+                { value: "light", label: t("voice.quality.light") },
+                { value: "full", label: t("voice.quality.full") },
+              ]}
+            />
+            <span className="res__desc">{t("voice.qualityHint")}</span>
+          </div>
+        )}
         {can && !s.installed && !downloading && !speech && <div className="res__desc">{t("voice.installsAbove")}</div>}
         {can && speech && !s.installed && !downloading && (
           <div className="voicerow__line">

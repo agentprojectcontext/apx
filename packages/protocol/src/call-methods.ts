@@ -23,6 +23,10 @@ export type NativeVoice = z.infer<typeof NativeVoice>;
 export const VoiceTier = z.enum(["full", "light", "none"]);
 export type VoiceTier = z.infer<typeof VoiceTier>;
 
+/** Which models the owner wants: `auto` is the lighter ones on a Mac with less than 32 GB, the larger ones above. */
+export const VoiceQuality = z.enum(["auto", "light", "full"]);
+export type VoiceQuality = z.infer<typeof VoiceQuality>;
+
 /** Why APX's own voice cannot run here: not a Mac with Apple silicon, too little memory, or uv is missing. */
 export const VoiceMissing = z.enum(["platform", "memory", "uv"]);
 export type VoiceMissing = z.infer<typeof VoiceMissing>;
@@ -50,6 +54,9 @@ export const VoiceStatus = z.object({
   voice: NativeVoice,
   /** Calls are offered (the owner may want APX's voice without calls). */
   calls: z.boolean(),
+  quality: VoiceQuality,
+  /** This Mac has the memory for the larger models (16 GB or more). */
+  can_full: z.boolean(),
   /**
    * The model a call talks with: absent, the owner's main model; otherwise a model APX has (any provider, including a
    * server of their own added as a provider). The agent called works with its own model either way.
@@ -102,6 +109,7 @@ export const callMethods = {
         enabled: z.boolean().optional(),
         voice: NativeVoice.optional(),
         calls: z.boolean().optional(),
+        quality: VoiceQuality.optional(),
         call_model: ModelRef.nullable().optional(),
       })
       .strict(),

@@ -319,6 +319,8 @@ export function testConfig(over: Partial<CoreConfig> & { home: string }): CoreCo
     hermes: path.join(over.home, "hermes-home"),
     native,
     runtimeSkills: { homes: { home: over.home, ...native }, auto: false },
+    // A test never downloads APX's voice (gigabytes, and a process that outlives the test).
+    voice: { auto: false },
     updates: "off",
     whatsNew: false,
     news: false,

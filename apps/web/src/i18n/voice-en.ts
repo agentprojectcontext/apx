@@ -15,6 +15,11 @@ export const enVoice = {
   "voice.failed": "The download stopped: {error}",
   "voice.retry": "Retry",
   "voice.light": "This computer uses the lighter voice: it needs less memory and sounds a little less natural.",
+  "voice.quality": "Quality",
+  "voice.quality.light": "Light",
+  "voice.quality.full": "Full",
+  "voice.qualityHint":
+    "Full sounds more natural and takes about 6 GB of memory; light takes about 3 GB and keeps your Mac quicker.",
   "voice.on": "Use APX's voice",
   "voice.gender": "Voice",
   "voice.female": "Female",

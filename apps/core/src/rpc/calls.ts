@@ -25,6 +25,8 @@ const NONE: VoiceStatus = {
   running: false,
   voice: { gender: "female", locale: "es-AR" },
   calls: false,
+  quality: "auto",
+  can_full: false,
 };
 
 export type VoiceDeps = { calls: Calls; engine: VoiceEngine; native: NativeVoiceSettings };

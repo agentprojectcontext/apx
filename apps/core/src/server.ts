@@ -458,7 +458,12 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
   const { hooks, plugins, extensions } = extensionStack({ store, secrets, bus, log, home: config.home });
   const upkeep = createUpkeep({ store, llm, log });
   const aside = createAside({ store, llm });
-  const voiceEngine = createVoiceEngine({ log, home: config.home, owner: () => ownerIdentity(store).name });
+  const voiceEngine = createVoiceEngine({
+    log,
+    home: config.home,
+    owner: () => ownerIdentity(store).name,
+    quality: () => store.settings.read("voice").quality ?? "auto",
+  });
   const services = createServices({
     voice: voiceEngine,
     store,

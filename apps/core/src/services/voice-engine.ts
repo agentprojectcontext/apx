@@ -8,7 +8,7 @@ import fs from "node:fs";
 import net from "node:net";
 import os from "node:os";
 import path from "node:path";
-import type { VoiceMissing, VoiceTier } from "@apx/protocol";
+import type { VoiceMissing, VoiceQuality, VoiceTier } from "@apx/protocol";
 import WebSocket from "ws";
 import type { Log } from "../log.ts";
 import { findProgram } from "../programs.ts";
@@ -18,9 +18,14 @@ const IDLE_MS = 10 * 60_000;
 const SPEAK_TIMEOUT_MS = 90_000;
 const ENGINE = path.join(import.meta.dirname, "../voice/engine.py");
 
-/** Below this much memory the voice does not run; below FULL_GB it runs its lighter models. */
+/**
+ * Below MIN_GB the voice does not run. On its own it runs the larger models from AUTO_FULL_GB: with less, the 6 GB
+ * they take with everything else open sent them to swap and the voice slowed tenfold. The owner may pick them from
+ * FULL_GB.
+ */
 const MIN_GB = 8;
 const FULL_GB = 16;
+const AUTO_FULL_GB = 32;
 
 export type VoiceMachine = { tier: VoiceTier; memory_gb: number; missing?: VoiceMissing | undefined };
 
@@ -49,7 +54,16 @@ const freePort = () =>
     });
   });
 
-type Running = { child: ChildProcess; url: string; secret: string; ready: Promise<void>; used: number; calls: number };
+type Running = {
+  child: ChildProcess;
+  url: string;
+  secret: string;
+  ready: Promise<void>;
+  used: number;
+  calls: number;
+  /** Started with models the owner has since changed: stopped once no call uses it. */
+  stale?: boolean;
+};
 
 export function createVoiceEngine(deps: {
   log: Log;
@@ -61,6 +75,8 @@ export function createVoiceEngine(deps: {
   platform?: NodeJS.Platform;
   arch?: string;
   memoryGb?: number;
+  /** The models the owner picked (auto: by this Mac's memory). */
+  quality?: () => VoiceQuality;
   spawn?: typeof spawn;
   uv?: () => string | undefined;
 }) {
@@ -74,8 +90,9 @@ export function createVoiceEngine(deps: {
     if ((deps.platform ?? process.platform) !== "darwin" || (deps.arch ?? process.arch) !== "arm64")
       return { tier: "none", memory_gb, missing: "platform" };
     if (memory_gb < MIN_GB) return { tier: "none", memory_gb, missing: "memory" };
-    const tier = memory_gb >= FULL_GB ? "full" : "light";
-    return { tier, memory_gb, ...(uv() ? {} : { missing: "uv" as const }) };
+    const q = deps.quality?.() ?? "auto";
+    const full = q === "full" ? memory_gb >= FULL_GB : q === "auto" && memory_gb >= AUTO_FULL_GB;
+    return { tier: full ? "full" : "light", memory_gb, ...(uv() ? {} : { missing: "uv" as const }) };
   }
 
   const env = (extra: Record<string, string>) => ({
@@ -191,6 +208,14 @@ export function createVoiceEngine(deps: {
 
   return {
     machine,
+    canFull: () => machine().tier !== "none" && (deps.memoryGb ?? Math.round(os.totalmem() / 2 ** 30)) >= FULL_GB,
+    /** The models changed: the engine starts again with them, now or once the call going on ends. */
+    restart(): void {
+      const r = current;
+      if (!r) return;
+      if (r.calls === 0) stop();
+      else r.stale = true;
+    },
     /** This machine's models are on disk. */
     installed,
     install: (): Install | undefined => (install ? { ...install } : undefined),
@@ -278,6 +303,7 @@ export function createVoiceEngine(deps: {
       ws.on("close", () => {
         r.calls = Math.max(0, r.calls - 1);
         r.used = Date.now();
+        if (r.stale && r.calls === 0 && current === r) stop();
       });
       await new Promise<void>((resolve, reject) => {
         ws.once("open", () => resolve());

@@ -27,6 +27,7 @@ import {
   TaskColumn,
   TelemetryEvent,
   TelemetryStage,
+  VoiceQuality,
 } from "@apx/protocol";
 import { z } from "zod";
 import { DEFAULT_COLUMNS } from "./tasks.ts";
@@ -216,6 +217,7 @@ export const SETTINGS = {
         enabled: z.boolean().optional(),
         voice: NativeVoice.optional(),
         calls: z.boolean().optional(),
+        quality: VoiceQuality.optional(),
         call_model: ModelRef.optional(),
       })
       .catch({}),

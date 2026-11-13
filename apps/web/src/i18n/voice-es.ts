@@ -16,6 +16,11 @@ export const esVoice: Record<keyof typeof enVoice, string> = {
   "voice.failed": "La descarga se cortó: {error}",
   "voice.retry": "Reintentar",
   "voice.light": "Esta computadora usa la voz liviana: necesita menos memoria y suena un poco menos natural.",
+  "voice.quality": "Calidad",
+  "voice.quality.light": "Liviana",
+  "voice.quality.full": "Completa",
+  "voice.qualityHint":
+    "La completa suena más natural y usa unos 6 GB de memoria; la liviana usa unos 3 GB y deja tu Mac más ágil.",
   "voice.on": "Usar la voz de APX",
   "voice.gender": "Voz",
   "voice.female": "Femenina",
