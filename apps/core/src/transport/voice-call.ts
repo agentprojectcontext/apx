@@ -10,7 +10,9 @@ import type { Gate } from "./guard.ts";
 
 /** A call never outlives this: its deadline (AGENTS.md rule 9). */
 const CALL_MAX_MS = 2 * 60 * 60_000;
-const RECORDED = new Set(["heard", "said", "turn_end", "ask", "think", "think_stop"]);
+const RECORDED = new Set(["heard", "said", "saying", "turn_end", "ask", "think", "think_stop"]);
+/** Written down and shown live too. */
+const BOTH = new Set(["partial"]);
 
 /**
  * A call's audio both ways between the panel and the voice engine, plus its live state as JSON text frames. The
@@ -104,6 +106,7 @@ export function attachVoiceCall(server: Server, deps: { calls: Calls; engine: Vo
       } catch {
         return;
       }
+      if (BOTH.has(e.type ?? "")) deps.calls.hear(call.thread, e as EngineEvent);
       if (RECORDED.has(e.type ?? "")) {
         deps.calls.hear(call.thread, e as EngineEvent);
         return;

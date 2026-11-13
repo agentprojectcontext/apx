@@ -35,6 +35,8 @@ export type CallSetup = {
   /** How the voice presents itself ("Acme's personal assistant in APX"), and what its agent can reach. */
   who: string;
   reach: string;
+  /** The agents' names, for transcription. */
+  names: string;
 };
 
 const freePort = () =>

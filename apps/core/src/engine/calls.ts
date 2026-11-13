@@ -22,6 +22,8 @@ const TICKET_MS = 60_000;
 const THINK_MS = 60_000;
 const THINK_MAX_TOKENS = 400;
 const MAX_MESSAGES = 80;
+/** Tools by which an agent hands an ask on: its answer comes back to the ask's chat later. */
+const HANDOFF = new Set(["delegate", "task_create"]);
 
 /** What the agent is told with every ask: the owner hears its answer read as is. */
 const ASK = {
@@ -33,8 +35,13 @@ const ASK = {
 
 /** What the engine tells about the call (the rest of its frames go to the panel untouched). */
 export type EngineEvent =
-  | { type: "heard"; text: string }
+  /** `whole`: the owner's words since the voice last answered, heard again as one: they replace that message. */
+  | { type: "heard"; text: string; whole?: boolean }
   | { type: "said"; text: string }
+  /** What the owner is saying right now (empty: what was heard is dropped, noise or the voice's own echo). */
+  | { type: "partial"; text: string }
+  /** The words of the line being spoken so far, as its audio plays. */
+  | { type: "saying"; text: string }
   | { type: "turn_end" }
   | { type: "ask"; n: number; task: string; heard?: string }
   | { type: "think"; id: number; messages: unknown }
@@ -45,16 +52,30 @@ export type EngineEvent =
  * model's reply as it streams.
  */
 export type ToEngine =
-  | { type: "result"; n: number; state: "done" | "failed"; text: string }
+  /** `working`: what the agent said on handing the ask on; its result comes later as another result. */
+  | { type: "result"; n: number; state: "done" | "failed" | "working"; text: string; by?: string }
   | { type: "thought"; id: number; text: string }
   | { type: "thought_end"; id: number; error?: string };
 
-type Ask = { n: number; call: string; sub: string; message: string; started: number; lang: "es" | "en" };
+type Ask = {
+  n: number;
+  call: string;
+  sub: string;
+  message: string;
+  started: number;
+  lang: "es" | "en";
+};
 type Live = {
   thread: string;
   agent: string;
   lang: "es" | "en";
   speaking?: string;
+  /** The voice's message text before the line being spoken. */
+  spoken: string;
+  /** The owner's words in the chat while they still speak (and what the message said before), finished or dropped. */
+  hearing?: { id: string; base: string };
+  /** The owner's last message, while the voice has said nothing after it: what they say next joins it. */
+  owner?: { id: string; text: string };
   send?: (f: ToEngine) => void;
   hangUp?: () => void;
   thinking: Map<number, AbortController>;
@@ -98,7 +119,7 @@ export function createCalls(deps: {
   const now = deps.now ?? Date.now;
   const tickets = new Map<string, CallTicket>();
   let live: Live | undefined;
-  /** Asks by the agent's run that answers them. */
+  /** Asks by the sub-chat that answers them: the agent's turn, and its turns again as what it delegated comes back. */
   const asks = new Map<string, Ask>();
 
   const boss = () => store.agents.list().find((a) => a.kind === "secretary");
@@ -115,8 +136,21 @@ export function createCalls(deps: {
   /** The voice's message of this turn: its sentences go into one message, and the cards of what it asked too. */
   function voiceMessage(l: Live): string {
     if (l.speaking && store.messages.get(l.speaking)) return l.speaking;
+    l.owner = undefined;
     l.speaking = store.messages.add({ thread_id: l.thread, author: { kind: "agent", id: l.agent }, parts: [] }).id;
     return l.speaking;
+  }
+
+  /** Sets the text of a message's last text part (or adds one), announcing only that part. */
+  function setText(messageId: string, text: string) {
+    const msg = store.messages.get(messageId);
+    if (!msg) return;
+    const at = msg.parts.findLastIndex((p) => p.type === "text");
+    const last = msg.parts.length - 1;
+    if (at >= 0 && at === last) {
+      const parts = msg.parts.map((p, i) => (i === at && p.type === "text" ? { ...p, text } : p));
+      store.messages.setPart({ ...msg, parts }, at);
+    } else store.messages.update({ ...msg, parts: [...msg.parts, { type: "text", text }] });
   }
 
   function addPart(messageId: string, add: (parts: Part[]) => Part[]) {
@@ -142,22 +176,26 @@ export function createCalls(deps: {
       { type: "subthread", thread_id: sub.id, agent_id: agent.id, title: task.slice(0, 120), state: "working" },
     ]);
     // The owner's own words, relayed by the voice: the agent's turn is the owner's, with its usual checks and model.
-    const run = deps.admit({ thread_id: sub.id, agent_id: agent.id, trigger: "user", origin: { kind: "user" }, text });
-    asks.set(run.id, { n, call: l.thread, sub: sub.id, message, started: now(), lang: l.lang });
+    deps.admit({ thread_id: sub.id, agent_id: agent.id, trigger: "user", origin: { kind: "user" }, text });
+    asks.set(sub.id, { n, call: l.thread, sub: sub.id, message, started: now(), lang: l.lang });
   }
 
   function answered(run: RunRecord) {
-    const a = asks.get(run.id);
+    const a = asks.get(run.thread_id);
     if (!a || !TERMINAL.has(run.state)) return;
-    asks.delete(run.id);
     const answer = answerOf(store, run)?.trim() ?? "";
+    // The agent handed the work on (a task for a teammate, a delegation): what it says now is said, and the call keeps
+    // listening to this chat, where the teammate's report wakes it with the result.
+    const waiting =
+      run.state === "completed" && store.runs.steps(run.id).some((s) => HANDOFF.has(s.tool) && s.state === "ok");
+    if (!waiting) asks.delete(run.thread_id);
     const done = run.state === "completed" && Boolean(answer);
     addPart(a.message, (parts) =>
       parts.map((p) =>
         p.type === "subthread" && p.thread_id === a.sub
           ? {
               ...p,
-              state: run.state,
+              state: waiting ? "working" : run.state,
               ...(answer ? { summary: answer.slice(0, 4000) } : {}),
               ms: Math.max(0, now() - a.started),
               ...(run.end_reason ? { end_reason: run.end_reason } : {}),
@@ -165,7 +203,18 @@ export function createCalls(deps: {
           : p,
       ),
     );
-    if (live?.thread === a.call) live.send?.({ type: "result", n: a.n, state: done ? "done" : "failed", text: answer });
+    if (live?.thread === a.call && (answer || !waiting)) {
+      // A teammate's report woke the agent: the voice says who finished.
+      const origin = run.trigger === "a2a_result" ? run.input?.origin : undefined;
+      const by = origin?.kind === "agent" ? origin.name : undefined;
+      live.send?.({
+        type: "result",
+        n: a.n,
+        state: waiting ? "working" : done ? "done" : "failed",
+        text: answer,
+        ...(by ? { by } : {}),
+      });
+    }
   }
 
   /** One spoken reply from the call's model, streamed to the engine as it comes. */
@@ -213,7 +262,7 @@ export function createCalls(deps: {
   }
 
   deps.bus.on((e) => {
-    if (e.type !== "run.updated" || !asks.has(e.run.id)) return;
+    if (e.type !== "run.updated" || !asks.has(e.run.thread_id)) return;
     const run = store.runs.get(e.run.id);
     if (run) answered(run);
   });
@@ -253,7 +302,7 @@ export function createCalls(deps: {
       if (live) throw conflict("a call is already going on");
       const agent = callable(t.agent);
       const lang = t.locale === "en-US" ? "en" : "es";
-      live = { thread: t.thread, agent: agent.id, lang, thinking: new Map() };
+      live = { thread: t.thread, agent: agent.id, lang, thinking: new Map(), spoken: "" };
       log.info({ thread: t.thread, agent: agent.id }, "call started");
       const owner = ownerIdentity(store).name;
       const ownerName = owner || "the owner";
@@ -268,6 +317,12 @@ export function createCalls(deps: {
           who: isBoss
             ? `${ownerName}'s personal assistant in APX`
             : `one of ${ownerName}'s agents in APX${agent.role ? ` (${agent.role})` : ""}`,
+          // What whisper is told to expect: the agents' names, said often on a call.
+          names: store.agents
+            .list()
+            .map((x) => x.name)
+            .slice(0, 30)
+            .join(", "),
           reach: isBoss
             ? `all of ${ownerName}'s projects, agents, memory, mail, calendar, web and tools`
             : `${agent.name}'s own projects, tools and memory`,
@@ -285,22 +340,55 @@ export function createCalls(deps: {
     hear(thread: string, e: EngineEvent) {
       const l = live;
       if (!l || l.thread !== thread) return;
-      if (e.type === "heard") {
+      const join = (a: string, b: string) => `${a} ${b}`.trim();
+      if (e.type === "partial") {
+        // The owner's words show in the chat as they speak, in their last message while the voice has not answered it;
+        // empty drops them (noise, or the voice's own echo).
+        if (e.text.trim()) {
+          if (!l.hearing || !store.messages.get(l.hearing.id)) {
+            const last = l.owner && store.messages.get(l.owner.id) ? l.owner : undefined;
+            l.hearing = last
+              ? { id: last.id, base: last.text }
+              : {
+                  id: store.messages.add({ thread_id: thread, author: { kind: "user" }, parts: [] }).id,
+                  base: "",
+                };
+          }
+          setText(l.hearing.id, join(l.hearing.base, e.text));
+        } else if (l.hearing) {
+          if (l.hearing.base) setText(l.hearing.id, l.hearing.base);
+          else store.messages.drop(thread, [l.hearing.id]);
+          l.hearing = undefined;
+        }
+      } else if (e.type === "heard") {
         if (!e.text.trim()) return;
         l.speaking = undefined;
-        store.messages.add({ thread_id: thread, author: { kind: "user" }, parts: [{ type: "text", text: e.text }] });
+        l.spoken = "";
+        const last = l.owner && store.messages.get(l.owner.id) ? l.owner : undefined;
+        const into =
+          l.hearing && store.messages.get(l.hearing.id) ? l.hearing : last && { id: last.id, base: last.text };
+        const text = e.whole ? e.text : join(into?.base ?? "", e.text);
+        const id =
+          into?.id ??
+          store.messages.add({ thread_id: thread, author: { kind: "user" }, parts: [{ type: "text", text }] }).id;
+        if (into) setText(id, text);
+        l.owner = { id, text };
+        l.hearing = undefined;
         preview(thread, e.text);
-      } else if (e.type === "said") {
+      } else if (e.type === "saying" || e.type === "said") {
+        // The line being spoken grows word by word with its audio; "said" ends it.
+        const fresh = !l.speaking || !store.messages.get(l.speaking);
         const id = voiceMessage(l);
-        addPart(id, (parts) => {
-          const last = parts.at(-1);
-          return last?.type === "text"
-            ? [...parts.slice(0, -1), { ...last, text: `${last.text} ${e.text}`.trim() }]
-            : [...parts, { type: "text", text: e.text }];
-        });
-        preview(thread, e.text);
+        if (fresh) l.spoken = "";
+        const text = `${l.spoken} ${e.text}`.trim();
+        setText(id, text);
+        if (e.type === "said") {
+          l.spoken = text;
+          preview(thread, e.text);
+        }
       } else if (e.type === "turn_end") {
         l.speaking = undefined;
+        l.spoken = "";
       } else if (e.type === "ask") {
         ask(l, e.n, e.task, e.heard);
       } else if (e.type === "think") {

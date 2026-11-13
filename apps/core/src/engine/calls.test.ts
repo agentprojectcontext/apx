@@ -2,19 +2,34 @@ import assert from "node:assert/strict";
 import { after, before, test } from "node:test";
 import { waitFor } from "../testkit/platform.ts";
 import { createCalls, type ToEngine } from "./calls.ts";
-import { say, scriptedLlm, startCore } from "./testkit.ts";
+import { callTool, say, scriptedLlm, startCore } from "./testkit.ts";
 
-const llm = scriptedLlm((_req, { said }) =>
-  said.includes("Pedido por voz")
-    ? say("Tenés dos tareas vencidas. La más vieja es de septiembre.")
-    : said.includes("(Note.")
-      ? say("Dale, dejame que lo veo. [[task: listar las tareas vencidas]]")
-      : say("ok"),
+let scout = "";
+const llm = scriptedLlm((_req, { system, said, afterTool }) =>
+  system.startsWith("You are Scout")
+    ? say("Agent UI es una interfaz para trabajar con agentes.")
+    : said.includes("<delegation_result")
+      ? say("Scout encontró que Agent UI es una interfaz para trabajar con agentes.")
+      : said.includes("Pedido por voz") && said.includes("Scout") && afterTool
+        ? say("Le encargué a Scout la búsqueda; te cuento cuando termine.")
+        : said.includes("Pedido por voz") && said.includes("Scout")
+          ? callTool("t1", "task_create", {
+              title: "Buscar qué es Agent UI",
+              assignee: scout,
+              goal: "Saber qué es Agent UI",
+              description: "- Buscá qué es Agent UI.",
+            })
+          : said.includes("Pedido por voz")
+            ? say("Tenés dos tareas vencidas. La más vieja es de septiembre.")
+            : said.includes("(Note.")
+              ? say("Dale, dejame que lo veo. [[task: listar las tareas vencidas]]")
+              : say("ok"),
 );
 
 let env: Awaited<ReturnType<typeof startCore>>;
 before(async () => {
   env = await startCore({ llm });
+  scout = "scout"; // one of the agents every install starts with
 });
 after(async () => {
   await env.core.close();
@@ -83,6 +98,42 @@ test("what the owner says and what the voice answers are written in the call, on
   assert.equal(env.core.store.threads.get(thread_id)?.preview, "Otra cosa.");
 });
 
+test("the chat follows the call live: the owner's words as they speak, joined until the voice answers, and its words as they play", () => {
+  const calls = callsAt({ t: 0 });
+  const { thread_id, ticket } = calls.start({ voice: "female", locale: "es-AR" });
+  calls.redeem(ticket);
+  const texts = () =>
+    env.core.store.messages
+      .list(thread_id)
+      .map((m) => [m.author.kind, m.parts.map((p) => (p.type === "text" ? p.text : p.type)).join("|")]);
+
+  calls.hear(thread_id, { type: "partial", text: "Quiero que" });
+  assert.deepEqual(texts(), [["user", "Quiero que"]], "shown while it is being said");
+  calls.hear(thread_id, { type: "partial", text: "Quiero que revises" });
+  calls.hear(thread_id, { type: "heard", text: "Quiero que revises las rutinas." });
+  calls.hear(thread_id, { type: "partial", text: "" });
+  calls.hear(thread_id, { type: "partial", text: "y los flujos" });
+  assert.deepEqual(texts(), [["user", "Quiero que revises las rutinas. y los flujos"]], "a pause keeps one message");
+  calls.hear(thread_id, { type: "partial", text: "" });
+  assert.deepEqual(texts(), [["user", "Quiero que revises las rutinas."]], "noise or echo is taken back");
+  calls.hear(thread_id, { type: "heard", text: "Y los flujos." });
+
+  calls.hear(thread_id, { type: "saying", text: "Dale," });
+  calls.hear(thread_id, { type: "saying", text: "Dale, ya" });
+  assert.deepEqual(texts().at(-1), ["agent", "Dale, ya"], "the voice's words show as they play");
+  calls.hear(thread_id, { type: "said", text: "Dale, ya lo veo." });
+  calls.hear(thread_id, { type: "saying", text: "Un momento." });
+  calls.hear(thread_id, { type: "said", text: "Un momento." });
+  calls.hear(thread_id, { type: "turn_end" });
+  calls.hear(thread_id, { type: "partial", text: "Gracias" });
+  assert.deepEqual(texts(), [
+    ["user", "Quiero que revises las rutinas. Y los flujos."],
+    ["agent", "Dale, ya lo veo. Un momento."],
+    ["user", "Gracias"],
+  ]);
+  calls.end(thread_id);
+});
+
 test("what the voice asks runs as the super-agent in a chat under the call, shown as a card that settles with the answer", async () => {
   const calls = callsAt({ t: 0 });
   const { thread_id, ticket } = calls.start({ voice: "female", locale: "es-AR" });
@@ -122,6 +173,63 @@ test("what the voice asks runs as the super-agent in a chat under the call, show
   );
   const asked = llm.calls.find((c) => String(c.messages.at(-1)?.content).includes("Pedido por voz"));
   assert.match(String(asked?.messages.at(-1)?.content), /«¿Qué tengo vencido\?»/, "the owner's own words go along");
+  calls.end(thread_id);
+});
+
+test("an ask the agent hands to a teammate is told as handed on, and its result is told when the report comes back", async () => {
+  const calls = callsAt({ t: 0 });
+  const { thread_id, ticket } = calls.start({ voice: "female", locale: "es-AR" });
+  calls.redeem(ticket);
+  const told: ToEngine[] = [];
+  calls.attach(
+    thread_id,
+    (f) => told.push(f),
+    () => {},
+  );
+  calls.hear(thread_id, {
+    type: "ask",
+    n: 1,
+    task: "pedile a Scout que busque Agent UI",
+    heard: "que Scout busque Agent UI",
+  });
+  const sub = env.core.store.threads.children(thread_id)[0] ?? "";
+  await waitFor(async () => told.length > 0, "what the agent says on handing it on");
+  assert.deepEqual(told[0], {
+    type: "result",
+    n: 1,
+    state: "working",
+    text: "Le encargué a Scout la búsqueda; te cuento cuando termine.",
+  });
+  const card = () =>
+    env.core.store.messages
+      .list(thread_id)
+      .flatMap((m) => m.parts)
+      .find((p) => p.type === "subthread");
+  assert.equal(card()?.type === "subthread" && card()?.state, "working", "the card keeps working while Scout does");
+
+  // Scout's report comes back to the ask's chat, as a closed task's does.
+  env.core.engine.admit({
+    thread_id: sub,
+    agent_id: "superagent",
+    trigger: "a2a_result",
+    origin: {
+      kind: "agent",
+      id: scout,
+      name: "Scout",
+      thread_id: sub,
+      run_id: env.core.store.runs.latestId(sub) ?? "",
+    },
+    text: "<delegation_result>Agent UI es una interfaz para trabajar con agentes.</delegation_result>",
+  });
+  await waitFor(async () => told.length > 1, "the result once the report is in");
+  assert.deepEqual(told[1], {
+    type: "result",
+    n: 1,
+    state: "done",
+    text: "Scout encontró que Agent UI es una interfaz para trabajar con agentes.",
+    by: "Scout",
+  });
+  assert.equal(card()?.type === "subthread" && card()?.state, "completed");
   calls.end(thread_id);
 });
 
