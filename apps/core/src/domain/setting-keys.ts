@@ -212,7 +212,12 @@ export const SETTINGS = {
    */
   voice: entry(
     z
-      .object({ enabled: z.boolean().optional(), voice: NativeVoice.optional(), call_model: ModelRef.optional() })
+      .object({
+        enabled: z.boolean().optional(),
+        voice: NativeVoice.optional(),
+        calls: z.boolean().optional(),
+        call_model: ModelRef.optional(),
+      })
       .catch({}),
     {},
   ),

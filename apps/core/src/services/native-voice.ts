@@ -83,6 +83,7 @@ export function createNativeVoice(deps: {
       ...(install ? { install } : {}),
       running: engine.running(),
       voice: voice(),
+      calls: settings().calls ?? true,
       ...(call_model ? { call_model } : {}),
     };
   }
@@ -127,10 +128,12 @@ export function createNativeVoice(deps: {
     set(p: {
       enabled?: boolean | undefined;
       voice?: NativeVoice | undefined;
+      calls?: boolean | undefined;
       call_model?: ModelRef | null | undefined;
     }) {
       save({
         ...(p.enabled !== undefined ? { enabled: p.enabled } : {}),
+        ...(p.calls !== undefined ? { calls: p.calls } : {}),
         ...(p.voice ? { voice: p.voice } : {}),
         ...(p.call_model !== undefined ? { call_model: p.call_model ?? undefined } : {}),
       });

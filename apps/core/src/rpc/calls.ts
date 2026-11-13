@@ -13,6 +13,7 @@ const NEEDS = {
   uv: "calls need uv (brew install uv)",
   off: "APX's voice is turned off",
   model: "calls need a model APX can call directly",
+  disabled: "calls are turned off in Settings › Calls",
 } as const;
 
 const NONE: VoiceStatus = {
@@ -23,6 +24,7 @@ const NONE: VoiceStatus = {
   installed: false,
   running: false,
   voice: { gender: "female", locale: "es-AR" },
+  calls: false,
 };
 
 export type VoiceDeps = { calls: Calls; engine: VoiceEngine; native: NativeVoiceSettings };
@@ -32,7 +34,7 @@ export function callHandlers(d: VoiceDeps | undefined) {
     if (!d) return { ready: false, running: false, missing: "platform" };
     const v = d.native.status();
     const missing: CallStatus["missing"] =
-      v.missing ?? (!v.enabled ? "off" : !d.calls.hasModel() ? "model" : undefined);
+      v.missing ?? (!v.calls ? "disabled" : !v.enabled ? "off" : !d.calls.hasModel() ? "model" : undefined);
     const live = d.calls.status().live;
     return {
       // Not downloaded yet is not missing: the first call waits for it.

@@ -34,6 +34,7 @@ export const enCall = {
   "callCard.missing.uv": "Calls need uv on this Mac. Install it with “brew install uv” in a terminal, then try again.",
   "callCard.missing.off": "APX's voice is turned off.",
   "callCard.missing.model": "Calls need a model APX can call directly.",
+  "callCard.missing.disabled": "Calls are turned off. Turn them on in Settings › Calls.",
   "callCard.openVoices": "Turn it on in Settings",
   "callCard.openModels": "Choose a model in Settings",
 };

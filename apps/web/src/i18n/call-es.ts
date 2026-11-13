@@ -36,6 +36,7 @@ export const esCall: Record<keyof typeof enCall, string> = {
     "Las llamadas necesitan uv en esta Mac. Instalalo con “brew install uv” en una terminal y probá de nuevo.",
   "callCard.missing.off": "La voz de APX está apagada.",
   "callCard.missing.model": "Las llamadas necesitan un modelo al que APX pueda llamar directamente.",
+  "callCard.missing.disabled": "Las llamadas están apagadas. Prendelas en Ajustes › Llamadas.",
   "callCard.openVoices": "Encenderla en Configuración",
   "callCard.openModels": "Elegir un modelo en Configuración",
 };

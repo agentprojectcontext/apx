@@ -48,6 +48,8 @@ export const VoiceStatus = z.object({
   running: z.boolean(),
   /** The voice agents speak with, and the one a call starts with. */
   voice: NativeVoice,
+  /** Calls are offered (the owner may want APX's voice without calls). */
+  calls: z.boolean(),
   /**
    * The model a call talks with: absent, the owner's main model; otherwise a model APX has (any provider, including a
    * server of their own added as a provider). The agent called works with its own model either way.
@@ -62,8 +64,11 @@ export const CallStatus = z.object({
   ready: z.boolean(),
   /** The voice engine is loaded now (a call starts at once); otherwise the first call loads it. */
   running: z.boolean(),
-  /** What is missing when not ready: the voice cannot run here, is off, or there is no model to talk with. */
-  missing: z.enum(["platform", "memory", "uv", "off", "model"]).optional(),
+  /**
+   * What is missing when not ready: the voice cannot run here, is off, there is no model to talk with, or the owner
+   * turned calls off (`disabled`: no call buttons).
+   */
+  missing: z.enum(["platform", "memory", "uv", "off", "model", "disabled"]).optional(),
   /** The call going on now, if any. */
   live: Id.optional(),
   /** The voice a call starts with. */
@@ -87,12 +92,16 @@ export const callMethods = {
     effect: true,
     access: "human",
   },
-  /** Turns APX's own voice on or off, picks its voice, and the model calls talk with (`null`: the main model). */
+  /**
+   * Turns APX's own voice on or off, picks its voice, turns calls on or off, and picks the model calls talk with
+   * (`null`: the main model).
+   */
   "voice.set": {
     params: z
       .object({
         enabled: z.boolean().optional(),
         voice: NativeVoice.optional(),
+        calls: z.boolean().optional(),
         call_model: ModelRef.nullable().optional(),
       })
       .strict(),
