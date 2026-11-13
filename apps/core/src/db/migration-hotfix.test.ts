@@ -9,6 +9,9 @@ import { openDb } from "./db.ts";
 import { reconcileHotfixLineage } from "./migration-hotfix.ts";
 import { MIGRATIONS } from "./migrations.ts";
 
+/** Opening runs every migration after the reconciled 115, so a database ends at the newest one. */
+const LATEST = String(MIGRATIONS.length);
+
 function fixture(home: string, version: number, hotfix = false): DatabaseSync {
   const db = new DatabaseSync(path.join(home, "apx.db"));
   db.exec("CREATE TABLE meta (key TEXT PRIMARY KEY, value TEXT NOT NULL)");
@@ -49,7 +52,7 @@ for (const origin of [108, 109, 110, 111, 112, 113, 114, 115, "hotfix109"] as co
     fixture(home.path, hotfix ? 109 : origin, hotfix).close();
     const db = openDb(home.path);
     try {
-      assert.equal(db.prepare("SELECT value FROM meta WHERE key = 'schema_version'").get()?.value, "115");
+      assert.equal(db.prepare("SELECT value FROM meta WHERE key = 'schema_version'").get()?.value, LATEST);
       assert.equal(db.prepare("SELECT parts FROM messages WHERE id = 'message'").get()?.parts, "[]");
       assert.equal(db.prepare("SELECT thread_id FROM jobs WHERE id = 'job'").get()?.thread_id, "kept");
       assert.equal(
@@ -99,7 +102,7 @@ test("a fresh database reaches the integrated schema", async () => {
   await using home = tempDir();
   const db = openDb(home.path);
   try {
-    assert.equal(db.prepare("SELECT value FROM meta WHERE key = 'schema_version'").get()?.value, "115");
+    assert.equal(db.prepare("SELECT value FROM meta WHERE key = 'schema_version'").get()?.value, LATEST);
     assert.ok(
       db
         .prepare("PRAGMA table_xinfo(jobs)")
@@ -166,7 +169,7 @@ test("indexes added by hand to a hotfix database are dropped, kept in the backup
   db.close();
   const upgraded = openDb(home.path);
   try {
-    assert.equal(upgraded.prepare("SELECT value FROM meta WHERE key = 'schema_version'").get()?.value, "115");
+    assert.equal(upgraded.prepare("SELECT value FROM meta WHERE key = 'schema_version'").get()?.value, LATEST);
     assert.equal(upgraded.prepare("SELECT start_error FROM jobs").get()?.start_error, "Kept launch reason");
     assert.equal(upgraded.prepare("SELECT parts FROM messages WHERE id = 'message'").get()?.parts, "[]");
     for (const name of ["runs_usage_started", "threads_held_count"]) {
@@ -207,7 +210,7 @@ test("the observed hotfix schedule extension preserves its values through upgrad
   for (const attempt of [1, 2]) {
     const upgraded = openDb(home.path);
     try {
-      assert.equal(upgraded.prepare("SELECT value FROM meta WHERE key='schema_version'").get()?.value, "115");
+      assert.equal(upgraded.prepare("SELECT value FROM meta WHERE key='schema_version'").get()?.value, LATEST);
       assert.deepEqual(upgraded.prepare("SELECT * FROM flow_schedules").all(), expected, `open ${attempt}`);
       healthy(upgraded);
     } finally {
