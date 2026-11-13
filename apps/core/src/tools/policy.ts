@@ -15,8 +15,11 @@ import { SUPER_AGENT_TOOLS } from "./agent-set.ts";
 import type { Reach } from "./folders.ts";
 import type { Confirm, Effect, KeepsCard, Tool, UntrustedWhy } from "./types.ts";
 
-/** Why the owner is asked: always, outside content in the turn, the action's kind, or an agent that asks for all. */
-export type ConfirmWhy = "always" | "untrusted" | "needs_ok" | "asks_every" | "rule" | UntrustedWhy;
+/**
+ * Why the owner is asked: always, a call that asks in every mode (`kept`), outside content in the turn, the action's
+ * kind, or an agent that asks for all.
+ */
+export type ConfirmWhy = "always" | "kept" | "untrusted" | "needs_ok" | "asks_every" | "rule" | UntrustedWhy;
 
 /** The mode an agent works in: its own, else its project's (withProjectAutonomy), else the default. */
 export const modeOf = (agent: Pick<AgentRecord, "autonomy">): Autonomy => agent.autonomy ?? DEFAULT_AUTONOMY;
@@ -134,7 +137,7 @@ export function authorize(
   if (d.kind === "allow" && keeps)
     return {
       kind: "confirm",
-      why: "always",
+      why: "kept",
       reason: keeps === "card" ? "this change always waits for you" : KEPT_CARD,
     };
   // The tool names what outside content could do through this call, so the card says it (DECISIONS.md#d-121).
