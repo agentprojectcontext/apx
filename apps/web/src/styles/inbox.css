@@ -246,8 +246,6 @@ button.chatprocesses {
 .threadavatar__group.is-1 {
   right: 0;
   bottom: 0;
-  border-radius: 50%;
-  box-shadow: 0 0 0 2px var(--apx-bg);
 }
 /* Two lines per chat, like the Slim design: title, project and time; then who and what kind. */
 /* The face close to the row's edge and to its words, as the design has it. */
