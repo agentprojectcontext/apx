@@ -13,6 +13,7 @@ import { go } from "../shell/nav.ts";
 import { type CallLine, openLine, openMic } from "./callLine.ts";
 import { closeCall, loadCallStatus } from "./callStatus.ts";
 import { saveLocale, saveVoice, startingVoice } from "./callVoice.ts";
+import { ringback } from "./ringback.ts";
 
 type Stage = "setup" | "calling" | "preparing" | "live" | "ended";
 type Talk = Extract<CallFrame, { type: "state" }>["state"];
@@ -60,6 +61,14 @@ export function CallCard() {
     const tick = setInterval(() => setNow(Date.now()), 1000);
     return () => clearInterval(tick);
   }, [since]);
+
+  // It rings while the call connects, until the agent answers.
+  const ringing = stage === "calling" || stage === "preparing";
+  useEffect(() => {
+    if (!ringing || !chosen.current.sound) return;
+    const tone = ringback();
+    return () => tone.stop();
+  }, [ringing]);
 
   // What calls need may have changed since the button first asked (a model or the voice set up meanwhile).
   useEffect(() => {
