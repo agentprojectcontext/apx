@@ -113,6 +113,8 @@ for (const language of ["en", "es"] as const) {
         await model.click();
         await expect(frame.locator(".mchoice")).toBeVisible();
         await expect(frame.locator(".mslim__slot")).toHaveCount(1);
+        // The list's loading placeholder is a status too: read the choice once the models are in.
+        await expect(frame.locator(".mchoice .mskel")).toHaveCount(0);
         await expect(frame.locator('.mchoice [role="status"]')).toContainText("sample-one");
         await expect(
           frame.getByRole("button", { name: language === "es" ? "Dejar solo el router" : "Leave only the router" }),

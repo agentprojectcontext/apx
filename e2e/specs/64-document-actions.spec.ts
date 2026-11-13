@@ -17,11 +17,16 @@ test("a document names its file and offers its folder, open apart and download w
   const transcript = page.locator(".transcript");
   const card = transcript.locator(".documentpart__wrap");
   await expect(card).toContainText("notes/report.md");
+  // The turn's last words land under the card and move it; point at it once the chat holds still.
+  await expect(transcript).toContainText("Got it: open a report");
   await card.hover();
   for (const name of ["Mostrar en Finder", "Abrir en su app", "Descargar"])
     await expect(card.getByRole("button", { name })).toBeVisible();
   const download = page.waitForEvent("download");
-  await card.getByRole("button", { name: "Descargar" }).click();
+  // From the keyboard, as focus shows the actions too: a pointer hit-test over the card is unreliable after a long run.
+  const save = card.getByRole("button", { name: "Descargar" });
+  await save.focus();
+  await page.keyboard.press("Enter");
   expect((await download).suggestedFilename()).toBe("report.md");
 
   await card.locator(".documentpart").click();

@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { _electron, type ElectronApplication, expect, type Page, test } from "@playwright/test";
+import { WELCOME_FILM } from "../../apps/web/src/shell/welcomeFilm.ts";
 import { rpc, world } from "../specs/kit.ts";
 
 export async function launchDesktop(home: string): Promise<ElectronApplication> {
@@ -85,11 +86,11 @@ export async function assertDesktopHeader(app: ElectronApplication, main: Page):
 
 export async function assertFullscreenBar(app: ElectronApplication, main: Page): Promise<void> {
   // The welcome and corner cards would cover the screen: seen already, as in the panel's own specs.
-  await main.evaluate(() => {
-    localStorage.setItem("apx.corner", JSON.stringify({ discord: true, star: true, welcome: true }));
+  await main.evaluate((film) => {
+    localStorage.setItem("apx.corner", JSON.stringify({ discord: true, star: true, welcome: film }));
     location.hash = "#view=flows";
     location.reload();
-  });
+  }, WELCOME_FILM);
   await main.getByRole("button", { name: /^(Nuevo flow|New flow)$/ }).click();
   const bar = main.locator(".fe-top.window-bar.is-desktop");
   await expect(bar).toBeVisible();
