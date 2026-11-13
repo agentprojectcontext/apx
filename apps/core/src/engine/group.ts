@@ -1,8 +1,8 @@
-// A group chat of the owner and two to five agents, behind APX_GROUP_CHATS (a proposal: rules/GROUP_CHAT.md). The group's
-// chat holds only the owner's words and each agent's answers. Every member works in a closed chat of its own under it,
+// A group chat of the owner and two to five agents (D-218, rules/GROUP_CHAT.md). The group's chat holds only the owner's words and each agent's answers. Every member works in a closed chat of its own under it,
 // whose turn reads what the group said since its last one: its history grows with answers, never with a teammate's
 // tool steps, and stays append-only so its prompt cache holds. Who answers: the members an @mention names, else a
-// cheap model's pick, one after the other so the next one reads the answer before it.
+// cheap model's pick, one after the other so the next one reads the answer before it; a member an answer @mentions
+// answers next, once per owner message.
 import type { Message, Thread } from "@apx/protocol";
 import type { AuxAbout } from "../domain/aux-calls.ts";
 import { type RunRecord, TERMINAL } from "../domain/runs.ts";
@@ -61,8 +61,10 @@ export function createGroup(store: Store, o: { agent_ids: string[]; title?: stri
 
 export type Groups = ReturnType<typeof createGroups>;
 
-export function createGroups(deps: { store: Store; admit: AdmitFn; judge?: Judge | undefined; enabled: boolean }) {
+export function createGroups(deps: { store: Store; admit: AdmitFn; judge?: Judge | undefined }) {
   const { store } = deps;
+  /** Bumped by Stop: a router pick that lands after it starts nobody. */
+  const stops = new Map<string, number>();
   const stateOf = (groupId: string) => store.threads.context(groupId).group;
   const nameOf = (id: string) => inlineName(store.agents.get(id)?.name ?? id) || id;
 
@@ -84,6 +86,14 @@ export function createGroups(deps: { store: Store; admit: AdmitFn; judge?: Judge
     return { thread: t, first: true };
   }
 
+  const intro = (others: string[]) =>
+    `[group chat] You are in a group chat with your owner and ${others.join(", ")}. Each turn here brings what the group said since your last one. Answer only your part, short; what you answer is posted in the group. Do not repeat what a teammate already said. To ask a teammate, @mention them in your answer: they answer next.`;
+
+  /** The group shows it is at work while anyone in it is (the panel's "writing" line and Stop). */
+  const showState = (groupId: string, state: "working" | "completed") => {
+    if (store.threads.get(groupId)?.state !== state) store.threads.patch(groupId, { state }, false);
+  };
+
   const line = (m: Message) =>
     m.author.kind === "agent"
       ? fromTeam("agent_message", { from: nameOf(m.author.id) }, textOf(m).slice(0, ANSWER_CHARS))
@@ -99,10 +109,17 @@ export function createGroups(deps: { store: Store; admit: AdmitFn; judge?: Judge
     const before = recent.slice(0, Math.max(at, 0));
     const after = at >= 0 ? recent.slice(at + 1) : recent;
     const others = members.filter((id) => id !== agentId).map(nameOf);
+    // Called in by a teammate's @mention after it already answered the owner: the new lines, then that ask.
+    if (at < 0)
+      return [
+        first ? intro(others) : "",
+        `[the group since your last turn, oldest first]\n${recent.map(line).join("\n")}`,
+        "A teammate named you above: answer what they asked of you, short.",
+      ]
+        .filter(Boolean)
+        .join("\n\n");
     return [
-      first
-        ? `[group chat] You are in a group chat with your owner and ${others.join(", ")}. Each turn here brings what the group said since your last one. Answer only your part, short; what you answer is posted in the group. Do not repeat what a teammate already said.`
-        : "",
+      first ? intro(others) : "",
       before.length ? `[the group since your last turn, oldest first]\n${before.map(line).join("\n")}` : "",
       at >= 0 ? textOf(recent[at] as Message) : "",
       after.length
@@ -131,13 +148,16 @@ export function createGroups(deps: { store: Store; admit: AdmitFn; judge?: Judge
     if (!group || !g || speakingNow(g)) return undefined;
     for (;;) {
       const [agentId, ...rest] = g.queue;
-      if (!agentId) return undefined;
+      if (!agentId) {
+        showState(groupId, "completed");
+        return undefined;
+      }
       // What the group said since this member's last turn, without its own answers.
       const said = store.messages
         .list(groupId, 500)
         .filter((m) => m.seq > (g?.seen[agentId] ?? 0) && !(m.author.kind === "agent" && m.author.id === agentId));
       // Asked twice before it answered once: its earlier turn already read the owner's words.
-      if (!said.some((m) => m.author.kind === "user")) {
+      if (!said.some((m) => m.author.kind === "user") && !g.pulled?.includes(agentId)) {
         g = { ...g, queue: rest };
         store.threads.mergeContext(groupId, { group: g });
         continue;
@@ -153,6 +173,7 @@ export function createGroups(deps: { store: Store; admit: AdmitFn; judge?: Judge
       store.threads.mergeContext(groupId, {
         group: { ...g, queue: rest, speaking: run.id, seen: { ...g.seen, [agentId]: said.at(-1)?.seq ?? 0 } },
       });
+      showState(groupId, "working");
       return run;
     }
   }
@@ -196,10 +217,17 @@ export function createGroups(deps: { store: Store; admit: AdmitFn; judge?: Judge
     }
   }
 
+  /** Members a teammate's answer @mentions, not yet called in since the owner's latest words, in the order written. */
+  function pulledBy(g: GroupState, author: string, text: string): string[] {
+    const projects = new Set(g.members.map((id) => store.agents.get(id)?.project_id));
+    return [...new Set([...projects].flatMap((p) => mentioned(store, text, p, author).map((a) => a.id)))].filter(
+      (id) => g.members.includes(id) && !g.pulled?.includes(id) && !g.queue.includes(id),
+    );
+  }
+
   return {
-    enabled: deps.enabled,
-    /** Whether a thread is a group chat this core runs as one. */
-    is: (threadId: string) => deps.enabled && Boolean(stateOf(threadId)),
+    /** Whether a thread is a group chat. */
+    is: (threadId: string) => Boolean(stateOf(threadId)),
     /** The owner's words in the group: kept, then answered by who they are for; the run answering now, if any. */
     async send(groupId: string, text: string): Promise<{ message: Message; run: RunRecord | undefined }> {
       const group = store.threads.get(groupId);
@@ -210,9 +238,14 @@ export function createGroups(deps: { store: Store; admit: AdmitFn; judge?: Judge
         store.threads.patch(groupId, { preview: previewOf(text) });
         return m;
       });
-      const picked = await speakers(group, g.members, text);
+      // At work while the router picks, so the owner sees the group took the message.
+      showState(groupId, "working");
+      const epoch = stops.get(groupId) ?? 0;
+      const picked = (await speakers(group, g.members, text)).filter(() => (stops.get(groupId) ?? 0) === epoch);
       const now = stateOf(groupId) ?? g;
-      store.threads.mergeContext(groupId, { group: { ...now, queue: [...now.queue, ...picked] } });
+      store.threads.mergeContext(groupId, {
+        group: { ...now, queue: [...now.queue, ...picked.filter((id) => !now.queue.includes(id))], pulled: [] },
+      });
       const started = next(groupId);
       const after = stateOf(groupId);
       const speaking = after && speakingNow(after);
@@ -226,28 +259,40 @@ export function createGroups(deps: { store: Store; admit: AdmitFn; judge?: Judge
       // A turn a restart cut off is picked back up by a new run that resumes it.
       if (g.speaking !== run.id && g.speaking !== run.input?.resume_of) return;
       const answer = run.state === "completed" ? answerOf(store, run)?.trim() : undefined;
+      const said = answer && answer !== SKIP_ANSWER ? answer : undefined;
+      // A teammate asked by name answers next, ahead of the rest of the line.
+      const pulled = said ? pulledBy(g, run.agent_id, said) : [];
       store.tx(() => {
-        if (answer && answer !== SKIP_ANSWER) {
+        if (said) {
           store.messages.add({
             thread_id: groupId,
             author: { kind: "agent", id: run.agent_id },
-            parts: [{ type: "text", text: answer }],
+            parts: [{ type: "text", text: said }],
           });
-          store.threads.patch(groupId, { preview: previewOf(`${nameOf(run.agent_id)}: ${answer}`) });
+          store.threads.patch(groupId, { preview: previewOf(`${nameOf(run.agent_id)}: ${said}`) });
         } else if (run.state === "failed")
           store.messages.add({
             thread_id: groupId,
             author: { kind: "system" },
             parts: [{ type: "text", text: `${nameOf(run.agent_id)} could not answer this time.` }],
           });
-        store.threads.mergeContext(groupId, { group: { ...g, speaking: undefined } });
+        store.threads.mergeContext(groupId, {
+          group: {
+            ...g,
+            speaking: undefined,
+            queue: [...pulled, ...g.queue],
+            pulled: [...(g.pulled ?? []), ...pulled],
+          },
+        });
       });
       next(groupId);
     },
     /** Stopping the group: nobody else in line answers (canceling its chat stops the member answering now). */
     stop(groupId: string): void {
       const g = stateOf(groupId);
-      if (g) store.threads.mergeContext(groupId, { group: { ...g, queue: [], speaking: undefined } });
+      if (!g) return;
+      stops.set(groupId, (stops.get(groupId) ?? 0) + 1);
+      store.threads.mergeContext(groupId, { group: { ...g, queue: [], speaking: undefined, pulled: [] } });
     },
   };
 }

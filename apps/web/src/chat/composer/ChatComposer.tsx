@@ -80,6 +80,8 @@ export function ChatComposer({
   // A recording that could not become words is attached instead, so nothing said is lost.
   const mic = useDictation(made, appendWords, (audio) => att.restore([audio]));
   const micBusy = mic.state === "recording" || mic.state === "starting" || mic.state === "transcribing";
+  // A group takes no files yet.
+  const group = thread.kind === "group";
   // The one shortcut worth knowing while the agent works, under the box; not while the mic has the field.
   const queueHint = isWorking(thread.state) && !micBusy ? t("composer.queueHint", { mod: MOD }) : undefined;
   const over = useFileDrop(box, (files) => {
@@ -130,6 +132,7 @@ export function ChatComposer({
       return command();
     }
     if (att.uploading) return notify(t("composer.stillUploading"), "info");
+    if (group && (att.ready || refs.length)) return notify(t("group.noFiles"), "info");
     if (room && direct && refs.length) return notify(t("ch.room.noFiles", { agent: agentName }), "info");
     const attachments = att.take();
     const added = takeRefs(thread.id);
@@ -234,11 +237,19 @@ export function ChatComposer({
             ? t("composer.offline")
             : room
               ? t(direct ? "ch.room.writeMe" : "ch.room.writeAgent", { agent: agentName, room })
-              : (placeholder ?? t("composer.placeholder", { name: engine ?? agentName }))
+              : group
+                ? t("group.placeholder", { name: thread.title })
+                : (placeholder ?? t("composer.placeholder", { name: engine ?? agentName }))
         }
         labels={{ stop: t("composer.stop"), send: t("composer.send") }}
         // Claude Code takes words mid-turn as our own loop does; other engines stop and read them (DECISIONS.md#d-196).
-        sendHint={t(thread.engine && thread.engine !== "claude" ? "composer.sendHintStop" : "composer.sendHint")}
+        sendHint={t(
+          group
+            ? "group.sendHint"
+            : thread.engine && thread.engine !== "claude"
+              ? "composer.sendHintStop"
+              : "composer.sendHint",
+        )}
         value={text}
         onValueChange={setText}
         // Files or context alone can go: the agent reads them.
@@ -272,46 +283,48 @@ export function ChatComposer({
         inputAria={slash.aria}
         toolbar={
           <>
-            <Suspense
-              fallback={
-                <IconButton
-                  size="md"
-                  shape="circle"
-                  className="composer__plus"
-                  label={t("composer.add")}
-                  icon={<Icons.Plus size={16} />}
-                  disabled
+            {!group && (
+              <Suspense
+                fallback={
+                  <IconButton
+                    size="md"
+                    shape="circle"
+                    className="composer__plus"
+                    label={t("composer.add")}
+                    icon={<Icons.Plus size={16} />}
+                    disabled
+                  />
+                }
+              >
+                <PlusMenu
+                  thread={thread}
+                  made={made}
+                  disabled={offline || micBusy}
+                  direct={Boolean(thread.engine)}
+                  connectors={slash.connectors}
+                  onOpen={slash.loadConnectors}
+                  onFiles={() => pick(files.current)}
+                  onAudio={() => pick(audio.current)}
+                  onSkill={() => {
+                    slash.skills();
+                    backToField();
+                  }}
+                  onConnector={(name) => {
+                    slash.connector(name);
+                    backToField();
+                  }}
+                  onCommands={() => {
+                    slash.commands();
+                    backToField();
+                  }}
+                  onContext={(ref) => {
+                    addRef(thread.id, ref);
+                    backToField();
+                  }}
+                  onAside={fresh || thread.engine ? undefined : () => openAside(thread.id)}
                 />
-              }
-            >
-              <PlusMenu
-                thread={thread}
-                made={made}
-                disabled={offline || micBusy}
-                direct={Boolean(thread.engine)}
-                connectors={slash.connectors}
-                onOpen={slash.loadConnectors}
-                onFiles={() => pick(files.current)}
-                onAudio={() => pick(audio.current)}
-                onSkill={() => {
-                  slash.skills();
-                  backToField();
-                }}
-                onConnector={(name) => {
-                  slash.connector(name);
-                  backToField();
-                }}
-                onCommands={() => {
-                  slash.commands();
-                  backToField();
-                }}
-                onContext={(ref) => {
-                  addRef(thread.id, ref);
-                  backToField();
-                }}
-                onAside={fresh || thread.engine ? undefined : () => openAside(thread.id)}
-              />
-            </Suspense>
+              </Suspense>
+            )}
             {mic.state !== "unsupported" && (
               <span className="composer__voice">
                 {mic.state === "recording" && <MicWave levels={mic.levels} />}
@@ -365,17 +378,19 @@ export function ChatComposer({
         )}
         {queueHint && <p className="chat__composer-hint is-queue">{queueHint}</p>}
         <span className="composer__spacer" />
-        {!direct && <ChatModel thread={thread} agent={agent} />}
-        <ContextChip
-          context={contextOf(runs)}
-          spent={spentOf(usage?.totals)}
-          run={contextRunOf(runs)}
-          thread={made}
-          engine={Boolean(thread.engine)}
-          totals={usage?.totals}
-          model={lastModel}
-          loading={!fresh && usage === undefined && !contextOf(runs)}
-        />
+        {!direct && !group && <ChatModel thread={thread} agent={agent} />}
+        {!group && (
+          <ContextChip
+            context={contextOf(runs)}
+            spent={spentOf(usage?.totals)}
+            run={contextRunOf(runs)}
+            thread={made}
+            engine={Boolean(thread.engine)}
+            totals={usage?.totals}
+            model={lastModel}
+            loading={!fresh && usage === undefined && !contextOf(runs)}
+          />
+        )}
       </div>
     </div>
   );

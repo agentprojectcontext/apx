@@ -20,7 +20,7 @@ import { useChannels } from "../data/channels.ts";
 import { blobOf, isWorking, routineName, threadAgent } from "../data/identity.ts";
 import { useData, useShownAgents } from "../data/state.ts";
 import { useLanguage, useT } from "../i18n/index.ts";
-import { AgentEvent, EmailCard, MediaGroup, TaskDescription } from "../lazy.ts";
+import { AgentEvent, EmailCard, GroupPart, MediaGroup, TaskDescription } from "../lazy.ts";
 import { nav, useNav } from "../shell/nav.ts";
 import { AgentTurn } from "./AgentTurn.tsx";
 import { answerCards, isAgentEvent } from "./agentEvent.ts";
@@ -115,7 +115,12 @@ export function Transcript({ thread, comments = false, via }: { thread: Thread; 
         className="chat__scroll"
         contentClassName={room ? "transcript transcript--room" : "transcript"}
       >
-        {rows.length === 0 && !working && (
+        {rows.length === 0 && !working && thread.kind === "group" && (
+          <Suspense fallback={null}>
+            <GroupPart part="empty" thread={thread} />
+          </Suspense>
+        )}
+        {rows.length === 0 && !working && thread.kind !== "group" && (
           <EmptyState
             icon={<Icons.MessageCircle />}
             title={t("chat.with", { name: engineLabel ?? agent?.name ?? thread.title })}
@@ -236,7 +241,12 @@ export function Transcript({ thread, comments = false, via }: { thread: Thread; 
             )}
           </div>
         ))}
-        {working && (
+        {working && thread.kind === "group" && (
+          <Suspense fallback={null}>
+            <GroupPart part="activity" thread={thread} />
+          </Suspense>
+        )}
+        {working && thread.kind !== "group" && (
           <div className="transcript__activity">
             <ActivityPill
               tone="brand"

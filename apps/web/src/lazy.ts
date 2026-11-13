@@ -308,6 +308,13 @@ export const NewAgentDialog = lazy(
   withPacks(["team"], () => import("./project/team/AgentDialogs.tsx").then((m) => ({ default: m.NewAgentDialog }))),
 );
 
+// "New group" from the new-chat picker: two to five agents in one chat (D-218).
+export const NewGroupDialog = lazy(() =>
+  import("./groups/NewGroupDialog.tsx").then((m) => ({ default: m.NewGroupDialog })),
+);
+// A group chat's members under its name, who is answering, and its first screen.
+export const GroupPart = lazy(() => import("./groups/GroupPart.tsx").then((m) => ({ default: m.GroupPart })));
+
 export const QrSvg = lazy(() => import("./common/QrSvg.tsx").then((m) => ({ default: m.QrSvg })));
 
 // Plain modules loaded on first use.

@@ -111,6 +111,24 @@ From the terminal, the same conversation is one command away:
 
 <Terminal command={`apx chat "What's blocking the spring launch?" --agent <lucia-id>`}>{`# without --agent it goes to Home, your secretary`}</Terminal>
 
+## Group chats
+
+A group chat is you and two to five agents in one conversation. Open **New chat** and pick **New group** under the
+list, tick the agents (in a project, its agents and your super-agent; from the Inbox, any of them) and give it a name
+if you want one; without a name it is named after its members.
+
+When you write, the agents your message is for answer, one after the other, so each one reads the answers before it:
+
+- **@name** asks that agent (or several, in the order you name them).
+- Otherwise APX picks the fewest agents whose role your message needs, usually one; ask "everyone" or "all of you" and
+  they all answer. A thanks or a hello goes to the first member. Without an auxiliary model, the first member answers.
+- An agent can ask a teammate by writing **@name** in its answer: that teammate answers next, once per message of yours.
+
+The group shows only your words and each agent's answer. Each agent does its work (tools, pages, files) in a chat of
+its own under the group: click its name under the group's name to open it. **Stop** stops the agent answering and
+the ones waiting their turn. What you write while one answers reaches the next agent's turn. Groups take text for now,
+not files.
+
 ## The composer
 
 The box at the bottom ("Message Lucía…") is where you write. A few things it does:

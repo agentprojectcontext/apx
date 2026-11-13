@@ -1,7 +1,7 @@
 # Group chats of several agents
 
-**Status: accepted** ([D-218](DECISIONS.md#d-218), 2026-11-12). The prototype still runs only behind
-`APX_GROUP_CHATS=on` (off by default) until it ships.
+**Status: shipped** ([D-218](DECISIONS.md#d-218), accepted 2026-11-12). On in every core; the owner makes a group
+from the panel's **New chat → New group**. [What shipped](#what-shipped) says what it does and what it does not.
 
 The owner wants a chat with two to five agents and themselves, and later Slack-like rooms with many agents where only
 the one or two who matter answer. Done naively, every agent re-reads the whole conversation on every message, so the
@@ -141,9 +141,7 @@ group, its only misses were a question to marketing that the script also meant f
 Measured on Gemini over 32 heavy messages it billed 28% of the naive group chat and 64% of a shared transcript with the
 same router; projected to 96 messages, 15% and half.
 
-## The prototype
-
-`APX_GROUP_CHATS=on` turns it on; nothing changes for a core without it.
+## What shipped
 
 - `threads.group` `{agent_ids (2–5), title?}` makes a chat of kind `group` (the panel already shows a group: faces,
   each message's speaker). Owner-only.
@@ -156,17 +154,25 @@ same router; projected to 96 messages, 15% and half.
   turn leaves a one-line note instead. What the owner writes while a member works reaches that member's next turn. A
   turn a restart resumes keeps its place; one cut off and not resumed frees the line. `threads.cancel` on the group
   empties the line and stops the member answering.
+- A member that @mentions a teammate in its answer puts that teammate next in line, once per owner message
+  (`pulled` in the group's state), so two members cannot keep calling each other. Its turn reads the group's new lines
+  and is told a teammate named it.
+- The group's own state is `working` from the owner's message until the line is empty (`completed`), so the panel's
+  activity line and **Stop** work on the group; the line names the member answering (from its chat under the group).
+- The panel: **New group** under the new-chat picker opens a dialog (two to five agents, an optional name); the
+  group's header lists its members, each opening its chat under the group; the composer takes text only and always
+  queues; its Inbox row names the members. `e2e/specs/156-group-chat.spec.ts` covers it.
 - The router's calls count as the auxiliary model's "room" purpose in Usage.
 - Tests: `apps/core/src/engine/group.test.ts` (the second member reads the first's answer and never its tool steps;
   an `@mention` skips the router; a member's next turn brings only what is new; words written while a member works
-  reach its next turn; a failed turn leaves a note and the next member answers; no flag, no group).
+  reach its next turn; a failed turn leaves a note and the next member answers; a teammate an answer @mentions answers
+  next, once; the group shows it is at work and Stop ends the line).
 - Tried on a scratch core with Gemini (2026-11-08): "Theo and Mara, in one line each…" went to both (3.8 s), "@mara one
   line for the landing page" to Mara alone without a router call (2.0 s), "Thanks!" to the first member (2.7 s); each
-  worked in its own chat under the group. Not looked at in the panel yet.
+  worked in its own chat under the group.
 
-Not in the prototype: a member asking another member directly (it is an `a2a` chat, so it names the teammate instead,
-as a delegate does; the owner or an `@mention` asks them), streaming the answer into the group while it is written,
-files, the panel's composer for making a group, and channels.
+Not shipped: streaming the answer into the group while it is written, files, channels, making a group from the phone
+app or by the super-agent, and the shared prefix across agents.
 
 ## Toward rooms with many agents
 

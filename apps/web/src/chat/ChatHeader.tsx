@@ -18,7 +18,7 @@ import { ThreadAvatar } from "../inbox/ThreadAvatar.tsx";
 import { PinMark } from "../inbox/ThreadRow.tsx";
 import { threadMenu } from "../inbox/threadActions.tsx";
 import { useThreadChannel } from "../inbox/useThreadChannel.ts";
-import { ChannelFace, TaskCrumb, TaskStateButton } from "../lazy.ts";
+import { ChannelFace, GroupPart, TaskCrumb, TaskStateButton } from "../lazy.ts";
 import { PanelSwitcher } from "../panel/PanelSwitcher.tsx";
 import { go, useNav } from "../shell/nav.ts";
 import { toggleRoomCard, useRoomCard } from "./roomCard.ts";
@@ -89,6 +89,7 @@ export function ChatHeader({
   const roomChannel = useChannels((s) => s.channels.find((c) => c.id === thread.channel?.id));
   const roomOpen = useRoomCard();
   const channelKind = useThreadChannel(thread);
+  const group = thread.kind === "group";
   const requestedRef = thread.model_choice?.model;
   const requested = requestedRef ? splitRef(requestedRef) : undefined;
   const requestedName = requestedRef && modelOf(requestedRef, catalog)?.name;
@@ -124,7 +125,12 @@ export function ChatHeader({
             </Suspense>
           )}
           {task !== undefined && <span>{t("tasks.header.task")}</span>}
-          {agent && !engine && !thread.channel && !sub && !thread.task_id && (
+          {group && (
+            <Suspense fallback={null}>
+              <GroupPart part="members" thread={thread} />
+            </Suspense>
+          )}
+          {agent && !group && !engine && !thread.channel && !sub && !thread.task_id && (
             <Tooltip content={agentHint}>
               <button type="button" className="chat__agentbtn" onClick={() => go.agent(agent.id)}>
                 {agent.kind === "secretary"
@@ -233,11 +239,15 @@ export function ChatHeader({
                   keepOpen: true,
                   onSelect: go.toggleTools,
                 },
-                {
-                  label: t("chat.compact"),
-                  icon: <Icons.Layers size={14} />,
-                  onSelect: () => void compactThread(thread.id),
-                },
+                ...(group
+                  ? []
+                  : [
+                      {
+                        label: t("chat.compact"),
+                        icon: <Icons.Layers size={14} />,
+                        onSelect: () => void compactThread(thread.id),
+                      },
+                    ]),
               ],
             })}
           />

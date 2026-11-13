@@ -45,7 +45,16 @@ export function ThreadRow({ thread, agent, selected, account = false, bundled = 
   const fold = useRowFold();
   const working = isWorking(thread.state);
   const waiting = thread.state === "input-required";
-  const who = engine ?? agent?.name ?? thread.title;
+  // A group's line names its members; its own name is the row's title.
+  const members = useData((s) =>
+    thread.kind === "group"
+      ? thread.agent_ids
+          .map((id) => s.agents[id]?.name)
+          .filter(Boolean)
+          .join(", ")
+      : undefined,
+  );
+  const who = members || (engine ?? agent?.name ?? thread.title);
   const own = account && Boolean(thread.channel);
   return (
     <div className="threadrow-wrap" ref={fold.wrap}>
@@ -175,11 +184,11 @@ export function PinMark() {
 
 /**
  * Where the chat happens, after who speaks in it: the channel's app for a contact's chat, "External session" for an
- * engine's, the group's name for a group, and otherwise the agent's role (or what kind of chat it is).
+ * engine's, nothing for a group (its line names its members), and otherwise the agent's role (or what kind of chat it is).
  */
 function contextOf(thread: Thread, agent: Agent | undefined, t: T): string {
   if (thread.engine) return t("nav.externalSession");
-  if (thread.kind === "group") return thread.title;
+  if (thread.kind === "group") return "";
   if (thread.kind === "a2a") return t("thread.a2a");
   if (thread.kind === "routine") return t("thread.routineOf", { name: routineName(thread) });
   if (thread.flow) return t("thread.flowStep");

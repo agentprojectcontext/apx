@@ -4586,8 +4586,8 @@ was not worth a schema step).
 
 <a id="d-218"></a>
 ## D-218 — 2026-11-08 — Group chats split front from back, and a router picks who answers
-**Status: accepted by the owner on 2026-11-12.** The measurements, the mechanics compared and the prototype are in
-[GROUP_CHAT.md](GROUP_CHAT.md); the prototype still runs only with `APX_GROUP_CHATS=on` until it ships.
+**Status: accepted by the owner on 2026-11-12, and shipped:** on in every core (no flag), made from the panel's
+**New group**. The measurements, the mechanics compared and what shipped are in [GROUP_CHAT.md](GROUP_CHAT.md).
 
 A group chat of the owner and two to five agents would keep only the owner's words and each agent's final answer.
 Each member works in a closed chat of its own under the group (an `a2a` sub-thread, like a delegation), whose turn
@@ -4599,8 +4599,12 @@ Measured on a scripted launch chat with four agents: everyone answering every me
 with tool-heavy turns the split billed 64% of a shared transcript with the same router and 28% of the naive group
 chat over 32 messages on a real model, and half and 15% projected to 96. Rejected for this size of group: one shared transcript (it fills its window with
 teammates' tool output and its cache breaks as the window slides), and a rolling summary (cheapest, but it forgot a
-fact the owner asked for later; kept for rooms with many agents). Open: moving the agent's name after the prefix all
-agents share (about 8% more cached), a member asking another directly, and the panel's way to make a group.
+fact the owner asked for later; kept for rooms with many agents). Settled when it shipped: the owner makes a group in
+the panel (New chat → New group, two to five agents, an optional name); a member asks a teammate by @mentioning them
+in its answer, and that teammate answers next, once per owner message, so two agents cannot keep calling each other;
+the group shows it is at work, and who answers, while a member's turn runs. Groups are made by the owner only, take
+text only, and are not on channels. Still open: moving the agent's name after the prefix all agents share (about 8%
+more cached), streaming an answer into the group while it is written.
 
 <a id="d-219"></a>
 ## D-219 — 2026-11-11 — An MCP server's "All allowed" is one grant for the server, not one per tool

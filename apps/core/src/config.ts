@@ -128,8 +128,6 @@ export type CoreConfig = {
    * test cores start off, APX_NEWS=on turns it on there).
    */
   news: boolean;
-  /** Group chats of the owner and several agents, a prototype (APX_GROUP_CHATS=on; off by default, rules/GROUP_CHAT.md). */
-  groupChats: boolean;
   /** A supervisor starts the core again when it exits to update (`pnpm app` sets APX_SUPERVISED=1). */
   supervised: boolean;
   /** APX_APP: where install.sh/ps1 put this daemon (its bundles and `current`); unset for a checkout or the app. */
@@ -282,7 +280,6 @@ export function loadConfig(processEnv: NodeJS.ProcessEnv = process.env, readCore
     updates: env.APX_UPDATES === "off" ? "off" : env.APX_UPDATES === "app" ? "app" : "on",
     whatsNew: env.APX_WHATS_NEW !== "off",
     news: env.APX_NEWS !== "off",
-    groupChats: env.APX_GROUP_CHATS === "on",
     supervised: env.APX_SUPERVISED === "1",
     app: env.APX_APP || undefined,
     releases: env.APX_RELEASES === "off" ? undefined : env.APX_RELEASES || RELEASE_FEED,

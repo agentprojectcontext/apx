@@ -1,0 +1,17 @@
+/* A group's members, one line under its name: each opens its work in the group. */
+.chat__members {
+  display: flex;
+  gap: 4px;
+  min-width: 0;
+  overflow: hidden;
+}
+.chat__members > span {
+  display: inline-flex;
+  min-width: 0;
+}
+.chat__members .chat__member {
+  height: auto;
+  padding: 0;
+  font: inherit;
+  color: inherit;
+}

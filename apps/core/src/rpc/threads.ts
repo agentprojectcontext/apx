@@ -110,7 +110,7 @@ export function threadHandlers(
   engine: Engine,
   upkeep: Pick<Upkeep, "compact">,
   aside: Pick<Aside, "ask">,
-  groups?: Pick<Groups, "enabled" | "is" | "send" | "stop">,
+  groups?: Pick<Groups, "is" | "send" | "stop">,
 ) {
   const threadAgent = (threadId: string) => {
     const thread = store.threads.get(threadId);
@@ -315,7 +315,7 @@ export function threadHandlers(
     },
     "threads.create": (params, ctx) => createThread(store, params, ctx),
     "threads.group": ({ agent_ids, title }) => {
-      if (!groups?.enabled) throw conflict("group chats are off in this core (APX_GROUP_CHATS=on turns them on)");
+      if (!groups) throw conflict("group chats are not available in this core");
       try {
         return createGroup(store, { agent_ids, title });
       } catch (err) {
@@ -355,7 +355,8 @@ export function threadHandlers(
       if (groups?.is(thread)) {
         if (ctx.actor !== "human" || ctx.agent || ctx.channel || ctx.client)
           throw unauthorized("only the owner writes in a group chat");
-        if (attachments?.length || mode !== "queue") throw badRequest("a group chat takes queued text messages");
+        // Members answer in line, so words written while one works always wait for the next turn.
+        if (attachments?.length || mode === "interrupt") throw badRequest("a group chat takes text messages");
         return groups.send(thread, text).then(({ message, run }) => {
           if (!run) throw conflict("nobody in the group could answer");
           return { message, run: publicRun(run) };

@@ -740,7 +740,7 @@ export const appMethods = {
     effect: true,
   },
   /**
-   * A group chat of the owner and 2–5 agents (a prototype behind APX_GROUP_CHATS; rules/GROUP_CHAT.md). Its messages go
+   * A group chat of the owner and 2–5 agents (D-218, rules/GROUP_CHAT.md). Its messages go
    * through threads.send; each answer comes from the agents an @mention names, or the ones a cheap model picks.
    */
   "threads.group": {
