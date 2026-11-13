@@ -67,6 +67,10 @@ export function callHandlers(d: VoiceDeps | undefined) {
         thread: p.thread,
       });
     },
+    "calls.say": ({ thread_id, text }) => {
+      if (!d?.calls.typed(thread_id, text)) throw unavailable("this call is not going on");
+      return { ok: true as const };
+    },
     "calls.end": ({ thread_id }) => {
       d?.calls.end(thread_id);
       return { ok: true as const };

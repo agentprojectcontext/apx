@@ -12,4 +12,5 @@ export const enCallSlim = {
   "call.again": "Call again",
   "call.back": "Back to the call",
   "call.from": "From a call",
+  "call.noFiles": "Files can't go into a call: send them once it ends.",
 };

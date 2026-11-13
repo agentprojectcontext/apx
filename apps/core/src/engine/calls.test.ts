@@ -316,6 +316,26 @@ test("what the call says comes from the call's model, streamed to the voice and 
   none.end(again.thread_id);
 });
 
+test("what the owner types in the call's chat during the call is theirs, and goes to the voice to answer aloud", () => {
+  const calls = callsAt({ t: 0 });
+  const { thread_id, ticket } = calls.start({ voice: "female", locale: "es-AR" });
+  assert.equal(calls.typed(thread_id, "hola"), false, "not before the call is on");
+  calls.redeem(ticket);
+  const told: ToEngine[] = [];
+  calls.attach(
+    thread_id,
+    (f) => told.push(f),
+    () => {},
+  );
+  assert.equal(calls.typed(thread_id, "Buscá las novedades de NVIDIA"), true);
+  assert.deepEqual(told, [{ type: "typed", text: "Buscá las novedades de NVIDIA" }]);
+  const last = env.core.store.messages.list(thread_id).at(-1);
+  assert.equal(last?.author.kind, "user");
+  assert.deepEqual(last?.parts, [{ type: "text", text: "Buscá las novedades de NVIDIA" }]);
+  calls.end(thread_id);
+  assert.equal(calls.typed(thread_id, "otra"), false, "after it ends, typing is a chat again");
+});
+
 test("calls from the panel say plainly what this machine still needs", async () => {
   const status = await env.client.call("calls.status", {});
   if (status.ready) return; // a Mac that runs the voice, with a model: nothing is missing

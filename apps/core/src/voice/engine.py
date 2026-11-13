@@ -602,6 +602,24 @@ class Call:
             await self.say(FAILED[self.lang])
         await self.send({"type": "state", "state": "listening"})
 
+    def typed(self, text):
+        """Words the owner typed in the call's chat (already written there): answered aloud like words said."""
+        self.barge_in()
+        if self.reply_task and not self.reply_task.done():
+            self.reply_task.cancel()
+
+        async def run():
+            try:
+                await self.reply(text, text)
+            except asyncio.CancelledError:
+                raise
+            except Exception as e:
+                print(f"[voice] typed: {e!r}", flush=True)
+                await self.say(FAILED[self.lang])
+            await self.send({"type": "state", "state": "listening"})
+
+        self.reply_task = asyncio.create_task(run())
+
     async def watch(self):
         while True:
             await asyncio.sleep(0.2)
@@ -633,6 +651,8 @@ async def call(ws: WebSocket):
                     c.news.append((int(f["n"]), f.get("state", "done"), f.get("text", ""), f.get("by") or ""))
                 elif f.get("type") in ("thought", "thought_end"):
                     c.thought(f)
+                elif f.get("type") == "typed" and str(f.get("text") or "").strip():
+                    c.typed(str(f["text"]).strip())
     except WebSocketDisconnect:
         pass
     finally:

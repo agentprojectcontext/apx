@@ -55,7 +55,9 @@ export type ToEngine =
   /** `working`: what the agent said on handing the ask on; its result comes later as another result. */
   | { type: "result"; n: number; state: "done" | "failed" | "working"; text: string; by?: string }
   | { type: "thought"; id: number; text: string }
-  | { type: "thought_end"; id: number; error?: string };
+  | { type: "thought_end"; id: number; error?: string }
+  /** Words the owner typed in the call's chat, answered aloud as if said. */
+  | { type: "typed"; text: string };
 
 type Ask = {
   n: number;
@@ -396,6 +398,20 @@ export function createCalls(deps: {
       } else if (e.type === "think_stop") {
         l.thinking.get(e.id)?.abort();
       }
+    },
+
+    /** What the owner typed in the live call's chat: written as theirs and answered aloud. False when not live. */
+    typed(thread: string, text: string): boolean {
+      const l = live;
+      if (!l || l.thread !== thread || !l.send) return false;
+      l.speaking = undefined;
+      l.spoken = "";
+      l.owner = undefined;
+      l.hearing = undefined;
+      store.messages.add({ thread_id: thread, author: { kind: "user" }, parts: [{ type: "text", text }] });
+      preview(thread, text);
+      l.send({ type: "typed", text });
+      return true;
     },
 
     /** The call is over (hung up, the socket dropped, the engine stopped). Asks still running finish in their chats. */

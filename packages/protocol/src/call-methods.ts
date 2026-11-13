@@ -126,6 +126,13 @@ export const callMethods = {
     access: "human",
     replay: false,
   },
+  /** Words the owner types in the chat of the call going on: the voice takes them as said and answers aloud. */
+  "calls.say": {
+    params: z.object({ thread_id: Id, text: z.string().trim().min(1).max(4000) }).strict(),
+    result: Ok,
+    effect: true,
+    access: "human",
+  },
   "calls.end": {
     params: z.object({ thread_id: Id }).strict(),
     result: Ok,

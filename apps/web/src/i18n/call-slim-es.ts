@@ -13,4 +13,5 @@ export const esCallSlim: Partial<Record<MessageKey, string>> = {
   "call.again": "Volver a llamar",
   "call.back": "Volver a la llamada",
   "call.from": "De una llamada",
+  "call.noFiles": "Los archivos no entran en una llamada: mandalos cuando termine.",
 };
