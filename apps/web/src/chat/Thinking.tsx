@@ -2,6 +2,7 @@ import { ActivityPill } from "@apx/ui";
 import { type ReactNode, useEffect, useState } from "react";
 import { useData } from "../data/state.ts";
 import { useT } from "../i18n/index.ts";
+import { thinkingLine } from "./thinkingLine.ts";
 
 /**
  * A chat's agent at work before its answer shows: how long it has been at it and, for models that say it, what it is
@@ -18,8 +19,7 @@ export function Thinking({ threadId, name, face }: { threadId: string; name: str
   }, []);
   const secs = Math.round((now - since) / 1000);
   const label = t(text ? "chat.agentThinking" : "chat.agentWorking", { name });
-  // Its summary comes in parts, a bold title then its words: the newest words.
-  const last = text?.split("\n\n").at(-1);
+  const last = thinkingLine(text);
   return (
     <div className="transcript__activity transcript__activity--thinking">
       <ActivityPill tone="brand" label={secs >= 3 ? `${label} · ${secs} s` : label} from={face} />
