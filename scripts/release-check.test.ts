@@ -89,6 +89,22 @@ test("an unverified commit is never tagged, and a verified one is tagged and pus
   assert.ok(passed.calls.includes("git push origin refs/tags/v2.10.0"));
 });
 
+test("a release whose news or slides say another version is not tagged", () => {
+  const f = fake([[run()]]);
+  let checked = "";
+  const exec = (command: string, args: string[]) => {
+    if (command !== "node") return f.exec(command, args);
+    checked = args.join(" ");
+    return { status: 1, stdout: "", stderr: "" };
+  };
+  assert.equal(
+    check(["--tag", "v2.10.0"], exec, () => {}),
+    1,
+  );
+  assert.equal(checked, "scripts/check-since.ts --release v2.10.0");
+  assert.ok(!f.calls.some((c) => c.startsWith("git tag") || c.startsWith("git push")));
+});
+
 test("a minor cannot tag without exact-commit successful upgrade evidence, including a spent .0 tag", () => {
   for (const upgrades of [
     [],
