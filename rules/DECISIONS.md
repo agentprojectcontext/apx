@@ -30,7 +30,8 @@ The embedded browser needs Chromium with CDP and isolated session partitions; th
 (WKWebView on macOS) offers neither. Evidence in `plan/research/06-navegador.md`.
 
 <a id="d-005"></a>
-## D-005 — 2026-09-30 — `packages/ui` lint findings as warnings (ratchet) — closed 2026-09-30
+## D-005 — 2026-09-30 — `packages/ui` lint findings as warnings (ratchet)
+*Closed 2026-09-30: every finding is fixed and the override is gone.*
 The design system predated the lint gate and had a11y/array-key findings, so a `biome.json` override downgraded
 them to warnings while the gate landed. All findings are fixed and the override is removed: `packages/ui` now gets
 the full rule set like every other package. Lists whose items carry no id key by content (`src/keys.ts`), not by
@@ -1559,73 +1560,70 @@ leave a procedure note.
 
 <a id="d-114"></a>
 ## D-114 — 2026-10-20 — Evidence-backed learning and reviewed retirement
-D-112's lexical checks protect numbers and vocabulary, but cannot establish who prefers which format or whether a
-reason was actually stated. Capture now reads at most three eligible owner turns, anchored before the source run,
-and keeps up to four literal evidence quotes. Deterministic checks remain; a separate helper call validates each
-candidate's relationships, scope, exceptions and reasons. Only an unambiguous supported verdict receives an internal
-certificate bound to the exact text and evidence. `memory.add` requires it for automatic synthesis. Explicit
-`remember` remains the agent's immediate write path and carries no claim of automatic semantic validation.
-
-Windows with no durable lexical cue skip extraction without skipping historical indexing. Imperative use requests
-remain transient unless an explicit standing-policy cue changes their scope. Accent folding must not turn the Spanish
-imperative into a standing usage assertion, including inside a quoted fallback for the current deliverable. Both
-auxiliary prompts distinguish such fallbacks from durable preferences. Extraction and review each reserve one logical
-gateway call from the existing daily memory allowance. Checkpoints
-retain extraction and verdicts across retries and quota deferral, so a second-stage limit does not repeat extraction.
-Capture checks owner-message identifiers before checkpointing. Unknown source references are retried within the same
-attempt and call budgets; invalid legacy references discard their checkpoint instead of completing silently without a note.
-The gateway may retry a transient transport failure; the allowance counts gateway requests, not HTTP attempts. Settings,
-source eligibility, exclusions and project boundaries are rechecked before later calls and before persistence.
-
-Procedure history now requires the owner's actual positive confirmation or the narrow observable criterion that a
-complete file read exactly matches an earlier successful write to the same path. A tool's `ok` state alone never
-establishes success. Evidence stores the confirmation message or the verified write/read call IDs in an optional
-`verification` object, using existing JSON and revision storage. `memory.add` recomputes the proof and checks an
-internal text certificate. Missing legacy metadata remains historical, never upgraded to verified success.
-Safe method targets include export routes; failed attempts have a distinct section validated against error steps.
-Each step is kept as a reduced gist (`domain/procedure-steps.ts`: host for links, program and decisive flags for
-commands, scratch/work-relative paths), lookups are dropped, and failed attempts (error steps, or commands that exited
-non-zero) before the method are named by program with a short reason. `memory.add` recomputes those reductions and
-accepts only quoted fragments contained in one of the run's own steps.
-Procedure notes remain tainted historical data, grant no permissions and require current-state checks before reuse.
-Other outcomes, such as an API mutation or a browser action, need owner confirmation until a concrete observable
-criterion exists; this change does not treat generic tool outputs as proof.
-
-AutoDream retirement receives a second semantic review for the same assertion and scope, with explicit replacement
-or supported expiry. Verdicts judge the proposed retirement: an explicit newer correction contradicting the old
-content can support retirement; disagreement between the notes is not itself an unsupported-retirement verdict.
-Internal certificates bind both note revisions and texts. The canonical handler retains private
-scope, taint, snapshot revisions, notebook and daily forget-share guards. Concurrent edits do not become processed
-merely because they appeared after the model read its snapshot. Exact duplicate consolidation remains deterministic.
-Dream proposals read bounded literal source excerpts as historical data, so a correction omitted from a short
-summary remains available. Unknown note identifiers reject the proposal before checkpointing; invalid legacy
-checkpoints are discarded within the existing retry and call budgets. A policy-versioned fingerprint makes
-existing notebooks eligible for that review. Relative dates use the owner's local source day only when the
-sources agree on that day; mixed-day or missing sources stay unchanged rather than guessing an anchor.
-Sharing a previously cited source does not deduplicate a new assertion: exact fact text does, with semantic
-review and canonical source checks still required.
-
-Editing the text clears its former evidence. A later supported capture can certify that same private note in place,
-using its expected revision and the current source thread and run. Repairable notes are omitted from extraction's
-duplicate hints; pending global notes cannot block private capture. The canonical handler validates the target's
-agent and project, not just the requested scope. Direct agent text edits in eligible owner chats also update provenance,
-so a former origin in another chat cannot bypass a prior fork's cutoff. Workers retain the original boundary.
-Forget exclusions hide private copies by text, source quote
-or source run, including after permanent deletion of the original note.
-
-The five shared prompt rules now cover evidence already present, permitted recovery, role-appropriate delegation,
-known methods in handoffs and scoped memory with supported reasons. Dynamic memory stays in turn input; no new tool,
-permission or prompt-budget exception is introduced. Engine sessions remain outside APX's automatic memory boundary
-(D-113); a CLI session is not an API-backed APX agent.
-
-Behavioral evaluation uses isolated homes, fresh conversations, real model decisions and temporary artifact tools.
-The live runner is opt-in, has explicit call/output caps and stores local reports outside version control. Scripted
-regressions establish infrastructure behavior; they are not evidence of real learning. Artifact scoring rejects
-negated format matches, string success flags, missing outputs, exports without subsequent observation and automatic
-notes sourced from evaluation requests rather than prior teaching. Reports
-retain failures and model/configuration provenance; passing a finite evaluation never guarantees universal fidelity.
-Known-method handoffs check the recipient's first asset attempt, not a preliminary check by the parent; reusing a
-known failed download path also fails the evaluation. The delegated instructions remain available in episode traces.
+- **Capture is checked against the owner's own words.** D-112's lexical checks protect numbers and vocabulary, but
+  cannot establish who prefers which format or whether a reason was actually stated. Capture now reads at most three
+  eligible owner turns, anchored before the source run, and keeps up to four literal evidence quotes. Deterministic
+  checks remain; a separate helper call validates each candidate's relationships, scope, exceptions and reasons. Only
+  an unambiguous supported verdict receives an internal certificate bound to the exact text and evidence. `memory.add`
+  requires it for automatic synthesis. Explicit `remember` remains the agent's immediate write path and carries no
+  claim of automatic semantic validation.
+- **Capture fails safe and spends no extra budget.** Windows with no durable lexical cue skip extraction without
+  skipping historical indexing. Imperative use requests remain transient unless an explicit standing-policy cue
+  changes their scope. Accent folding must not turn the Spanish imperative into a standing usage assertion, including
+  inside a quoted fallback for the current deliverable. Both auxiliary prompts distinguish such fallbacks from durable
+  preferences. Extraction and review each reserve one logical gateway call from the existing daily memory allowance.
+  Checkpoints retain extraction and verdicts across retries and quota deferral, so a second-stage limit does not
+  repeat extraction. Capture checks owner-message identifiers before checkpointing. Unknown source references are
+  retried within the same attempt and call budgets; invalid legacy references discard their checkpoint instead of
+  completing silently without a note. The gateway may retry a transient transport failure; the allowance counts
+  gateway requests, not HTTP attempts. Settings, source eligibility, exclusions and project boundaries are rechecked
+  before later calls and before persistence.
+- **Procedures count only what was observed.** Procedure history now requires the owner's actual positive confirmation
+  or the narrow observable criterion that a complete file read exactly matches an earlier successful write to the same
+  path. A tool's `ok` state alone never establishes success. Evidence stores the confirmation message or the verified
+  write/read call IDs in an optional `verification` object, using existing JSON and revision storage. `memory.add`
+  recomputes the proof and checks an internal text certificate. Missing legacy metadata remains historical, never
+  upgraded to verified success. Safe method targets include export routes; failed attempts have a distinct section
+  validated against error steps. Each step is kept as a reduced gist (`domain/procedure-steps.ts`: host for links,
+  program and decisive flags for commands, scratch/work-relative paths), lookups are dropped, and failed attempts
+  (error steps, or commands that exited non-zero) before the method are named by program with a short reason.
+  `memory.add` recomputes those reductions and accepts only quoted fragments contained in one of the run's own steps.
+  Procedure notes remain tainted historical data, grant no permissions and require current-state checks before reuse.
+  Other outcomes, such as an API mutation or a browser action, need owner confirmation until a concrete observable
+  criterion exists; this change does not treat generic tool outputs as proof.
+- **AutoDream retires a note only after a second review.** AutoDream retirement receives a second semantic review for
+  the same assertion and scope, with explicit replacement or supported expiry. Verdicts judge the proposed retirement:
+  an explicit newer correction contradicting the old content can support retirement; disagreement between the notes is
+  not itself an unsupported-retirement verdict. Internal certificates bind both note revisions and texts. The
+  canonical handler retains private scope, taint, snapshot revisions, notebook and daily forget-share guards.
+  Concurrent edits do not become processed merely because they appeared after the model read its snapshot. Exact
+  duplicate consolidation remains deterministic. Dream proposals read bounded literal source excerpts as historical
+  data, so a correction omitted from a short summary remains available. Unknown note identifiers reject the proposal
+  before checkpointing; invalid legacy checkpoints are discarded within the existing retry and call budgets. A
+  policy-versioned fingerprint makes existing notebooks eligible for that review. Relative dates use the owner's local
+  source day only when the sources agree on that day; mixed-day or missing sources stay unchanged rather than guessing
+  an anchor. Sharing a previously cited source does not deduplicate a new assertion: exact fact text does, with
+  semantic review and canonical source checks still required.
+- **Edits and forgetting keep provenance.** Editing the text clears its former evidence. A later supported capture can
+  certify that same private note in place, using its expected revision and the current source thread and run.
+  Repairable notes are omitted from extraction's duplicate hints; pending global notes cannot block private capture.
+  The canonical handler validates the target's agent and project, not just the requested scope. Direct agent text
+  edits in eligible owner chats also update provenance, so a former origin in another chat cannot bypass a prior
+  fork's cutoff. Workers retain the original boundary. Forget exclusions hide private copies by text, source quote or
+  source run, including after permanent deletion of the original note.
+- **Prompts and tools stay as they were.** The five shared prompt rules now cover evidence already present, permitted
+  recovery, role-appropriate delegation, known methods in handoffs and scoped memory with supported reasons. Dynamic
+  memory stays in turn input; no new tool, permission or prompt-budget exception is introduced. Engine sessions remain
+  outside APX's automatic memory boundary (D-113); a CLI session is not an API-backed APX agent.
+- **Evaluation is real, opt-in and capped.** Behavioral evaluation uses isolated homes, fresh conversations, real
+  model decisions and temporary artifact tools. The live runner is opt-in, has explicit call/output caps and stores
+  local reports outside version control. Scripted regressions establish infrastructure behavior; they are not evidence
+  of real learning. Artifact scoring rejects negated format matches, string success flags, missing outputs, exports
+  without subsequent observation and automatic notes sourced from evaluation requests rather than prior teaching.
+  Reports retain failures and model/configuration provenance; passing a finite evaluation never guarantees universal
+  fidelity. Known-method handoffs check the recipient's first asset attempt, not a preliminary check by the parent;
+  reusing a known failed download path also fails the evaluation. The delegated instructions remain available in
+  episode traces.
 
 <a id="d-115"></a>
 ## D-115 — 2026-10-21 — One permissions service: every path asks it, and a thread without reach cannot be judged
@@ -3427,7 +3425,6 @@ tool (they are the data Flows read and save, and the skill explains them togethe
 
 <a id="d-182"></a>
 ## D-182 — 2026-10-29 — A Flow's triggers are set without cron or a second screen: days and times, GET, and the key in the card
-
 The owner never wants to type cron, and wants a schedule like "Monday at 04:00, 05:00 and 06:00, Wednesday at 09:15".
 The webhook card showed the address twice with two copy buttons and a line saying who can call it is managed in
 Devices, while the only way to get the key callers need was a separate Devices screen that lists enabled Flows only.
@@ -3497,7 +3494,6 @@ Windows differs in what it can promise, and the guest is checked for each point,
 
 <a id="d-184"></a>
 ## D-184 — 2026-10-31 — The super-agent publishes and runs a Flow when the owner asks, each after a card
-
 The owner asked the super-agent to make a test Flow, then "turn it on and try it with a curl". It drew and validated
 the Flow, but could not go further: publishing and running by hand were the owner's, in the editor (D-174), and a
 webhook's key never reaches a model, so the curl it offered could not have worked. Its `flows.set {enabled: true}`
@@ -3518,7 +3514,6 @@ key to call it (a key never reaches a model, D-139), and turning on without publ
 
 <a id="d-185"></a>
 ## D-185 — 2026-11-02 — Storage: the home by area, clearing only what APX rebuilds, and a low-disk warning
-
 The owner could see how big the APX folder was (system.usage, by folder) but not what of it they could let go, nor was
 anyone told when the disk ran out under APX. Settings › Storage now shows the home by area in the owner's words (chats,
 memory and files; projects; agents' computers; browser; local models; logs; caches; backups; the rest) and one action,
@@ -3551,7 +3546,6 @@ memory and files; projects; agents' computers; browser; local models; logs; cach
 
 <a id="d-186"></a>
 ## D-186 — 2026-11-02 — Writing while the agent works: sent, sent now, or in line
-
 The owner's words written while an agent works either went into its running turn at the next step (Enter) or waited
 for the turn to end (Ctrl/⌘+Enter), with nothing in the chat to tell them apart, no way to make a sent one land sooner,
 and no way to fix one that waited. Now each is the owner's choice and shows as such:
@@ -3580,7 +3574,6 @@ cannot take. [D-189](#d-189) makes Enter do the same there. With no turn at work
 
 <a id="d-187"></a>
 ## D-187 — 2026-11-02 — A task carries the owner's words and a goal; its plan is steps
-
 The owner asked the super-agent, over a few messages, to copy what an open-source desktop agent does well: its smooth,
 animated cursor, one per agent. The super-agent wrote the task as a 600-word brief and added criteria nobody said ("no
 drawn cursor on top", "never more than one agent on the computer"), the opposite of the reference. The agent doing it
@@ -3614,7 +3607,6 @@ and keeping every owner message of the chat (Home mixes unrelated requests).
 
 <a id="d-188"></a>
 ## D-188 — 2026-11-02 — Agents on a task pause when they get nowhere; a review ends in one verdict
-
 With the spend limits off by default (D-160), nothing stopped an agent that kept working without getting anywhere. On
 one task an agent spent about eight hours and seventy delegations, most of them review rounds by two teammates, each
 adding a restriction, without one step of its plan working.
@@ -3639,14 +3631,16 @@ adding a restriction, without one step of its plan working.
   one task. `task_comment` takes one comment per task per turn (a second is refused: the rest goes in the answer) and
   at most 1,500 characters, and is for what others must know now: blocked, a decision, done. Progress shows in the
   plan; helpers comment only when they find a block or something for the owner to decide.
-  *Superseded by [D-202](#d-202) (2026-11-06): one comment a turn was not enough, since every continuation is a turn.*
+  *Amended by [D-202](#d-202) (2026-11-06): one comment a turn stays, but it was not enough, since every continuation is
+  a turn; a comment now also has to pass `commentNoise`'s rules.*
 
 Rejected: a cap on delegations per task (good work also delegates; what matters is that steps get done), and resetting
 the count on any plan rewrite (an agent could rewrite its plan to go on forever).
 
 <a id="d-189"></a>
-## D-189 — 2026-11-02 — Enter on an agent in an outside engine's session sends now (amended by D-196)
-
+## D-189 — 2026-11-02 — Enter on an agent in an outside engine's session sends now
+*Amended by [D-196](#d-196) (2026-11-05): Claude Code takes the owner's words mid-turn, so Enter there no longer stops
+its turn.*
 [D-186](#d-186) left Enter in line behind a Claude Code or Codex turn, since those cannot take words mid-turn, and the
 owner then had to click **Send now** on every message. In their session Enter is now **Send now** (the owner's choice):
 `threads.send` with `mode: "steer"`, once the message is admitted behind a turn of a harness other than `native`, calls
@@ -3666,7 +3660,6 @@ this holds only for Codex and ACP.
 
 <a id="d-190"></a>
 ## D-190 — 2026-11-02 — Asking the same teammate or helper again goes on in the same conversation
-
 D-129 gave delegations one session per teammate. Two paths still opened a new sub-thread per ask: an @mention of a
 teammate on a task (D-120, D-132) and a delegation to a worker. The owner saw several sessions with the same
 teammate, each without what the last one learned.
@@ -3685,7 +3678,6 @@ different askers (the answer goes to whoever asked, so two askers would read eac
 
 <a id="d-191"></a>
 ## D-191 — 2026-11-02 — Every chat's multi-step work has a plan, shown live under the agent's answer
-
 Only tasks had a plan (D-187, D-188); in a loose chat, Home or a code chat the owner could not see where a long piece of
 work stood until the agent answered. They want it like a coding agent's checklist, in every chat, and not left to the
 agent to decide for work of several steps.
@@ -3727,7 +3719,6 @@ still keeps its plan as it stood.
 
 <a id="d-192"></a>
 ## D-192 — 2026-11-05 — Moving or backing up a setup: one file without secrets, imported after a preview
-
 The owner had no way to take what they made in APX to another computer, nor to keep a copy of it apart from the
 database backups (which carry chats and every row, and only work on the same install). Now **Settings › Move or back
 up**, `apx export` and `apx import` make and read one JSON file (`instance.export`, `instance.preview_import`,
@@ -3776,7 +3767,6 @@ account's, and a provider would send it to the address the file gives).
 
 <a id="d-193"></a>
 ## D-193 — 2026-11-05 — An agent signs in with a stored secret it never sees
-
 Amends rule 10. Until now the embedded browser never typed a password, one-time code or card data: the agent handed
 the tab to the owner. Now an agent may put one of the owner's stored secrets into a sign-in field, and the value never
 reaches the model, the transcript, the run's steps, logs, traces or a picture of the tab.
@@ -3855,7 +3845,6 @@ granted from an agent's card (only the owner sets one, in Variables).
 
 <a id="d-194"></a>
 ## D-194 — 2026-11-05 — Teammates asked in one turn answer the caller in one turn
-
 An agent that asked three teammates at once got three result turns, one per answer, and told the owner three times. Now
 the answers of a fan-out reach the caller together (`engine/fanout.ts`).
 
@@ -3883,7 +3872,6 @@ per chat and survives restarts).
 
 <a id="d-195"></a>
 ## D-195 — 2026-11-05 — An agent has its own fallback models before the router's chain
-
 An agent with a model of its own ran on that model and then, when it allowed, on the router's one general chain. The
 owner wants each agent to have its model and its own fallbacks, with the router's chain still after them, and the agent
 back on its model by itself once its limit resets.
@@ -3912,7 +3900,6 @@ returns to the main model once its hold lifts).
 
 <a id="d-196"></a>
 ## D-196 — 2026-11-05 — Claude Code takes the owner's words mid-turn
-
 D-189 made Enter stop a Claude Code turn and send, since outside engines were taken to read words only between turns.
 The Agent SDK does take them mid-turn: in streaming input (an async-iterable `prompt`), a user message written while a
 turn runs is queued and folded into that turn between tool rounds, and the result lists it in `user_message_uuids`. A
@@ -3940,7 +3927,6 @@ take words mid-turn), and ACP (v1 has no way to add a user message to a running 
 <a id="d-197"></a>
 ## D-197 — 2026-11-05 — Reading through APX's own CLI does not wait for the owner
 *Amended by [D-210](#d-210) (2026-11-09): commands ask by what they do, not by naming the CLI.*
-
 Every command that ran APX's CLI from an agent's shell (`apx …`, `node …/apps/terminal/src/main.ts …`) was `always`,
 so in Auto even `apx status` put a "high-impact action" card in front of the owner, mid-work. The rule exists because
 the CLI reaches the API without naming its port and could act for the owner: answer its own confirmation, add a
@@ -3958,7 +3944,6 @@ launcher (`pnpm exec apx`, `bash -c`), `secrets` in any form, and the `127.0.0.1
 <a id="d-198"></a>
 ## D-198 — 2026-11-05 — Agents work in the owner's Chrome only for what they wrote in its side panel
 *Revised by [D-223](#d-223) (2026-11-12): a routine and a task the owner created reach their Chrome too.*
-
 The owner wanted APX's Chrome extension to do what browser extensions of other agent apps do: drive their real
 Chrome, where they are signed in. APX already has two browsers (the desktop app's embedded one and the core's
 headless one), and the owner decided which one a turn uses: **the owner's Chrome only for words written in APX's
@@ -4011,7 +3996,6 @@ filled from the owner's saved passwords can be sent by an agent's click: the cre
 
 <a id="d-199"></a>
 ## D-199 — 2026-11-05 — An outside engine's checklist is APX's plan
-
 D-191 gave every chat a plan, but Claude Code, Codex and ACP sessions run their own loops: a Codex or ACP agent's
 checklist never reached the chat, and Claude Code was never told to use APX's `plan`. The owner wants those engines to
 work with APX's plan, cards and approvals instead of their own.
@@ -4037,7 +4021,6 @@ and also telling Codex and ACP agents to call APX's `plan` (two plans for one tu
 
 <a id="d-200"></a>
 ## D-200 — 2026-11-05 — The chats' history is trimmed to what a model can still read, and the file gives space back
-
 A heavy user's `apx.db` reached 4 GB and the panel slowed; the owner's was 1.1 GB after a month. Nothing pruned,
 compacted or vacuumed it, and a tool result was kept up to three times: the step's `output` (the whole text, up to
 2 MB, for `read_output`), the step's `result` (its first 4,000 characters, read by recovery, recall, memory procedures
@@ -4084,7 +4067,6 @@ space).
 
 <a id="d-201"></a>
 ## D-201 — 2026-11-05 — A large store stays fast through indexes, not a second thread
-
 An owner's store reached 4 GB and the panel froze. `node:sqlite` runs on the core's only thread (D-015), so every
 statement that walks a whole table stops RPC, channels and the panel for as long as it reads. On a 4.5 GB copy the core
 blocked 6.2 s and 3.4 s at startup (8.4 s of SQL) and up to 0.6 s on a panel reload; static files waited a second
@@ -4111,7 +4093,6 @@ The migration reads each indexed table once: on a 4.5 GB store it took 0.2 to 4.
 
 <a id="d-202"></a>
 ## D-202 — 2026-11-06 — Comments when the plan is done or to ask someone; one agent works a task, help at the end
-
 D-188's one comment a turn did not stop the noise: a payments task reached 171 comments in a day, and a scheduler task
 23 in one night. Every continuation, result and review round is a new turn, so the agent on it posted its progress in
 each, and the reviewers it asked (security, QA, architecture) posted their verdicts on the task as well as answering
@@ -4170,7 +4151,6 @@ definitions (rules/PROMPT_SIZE.md) for the same rule, which `Setting.asks` alrea
 
 <a id="d-204"></a>
 ## D-204 — 2026-11-06 — The agent decides whether a message needs an answer; the owner only allows emoji or not
-
 A closing message ("ok", "gracias", "jaja", a lone emoji, "no gastes más tokens") was spotted by a word list
 (Spanish and some English, at most eight words) and settled before the model: left in silence, or with **React**
 answered by rule (❤️ for thanks, 😂 for a laugh, 👍 otherwise). The agent could already choose silence (`SKIP`) or any
@@ -4190,7 +4170,6 @@ language ("merci", "obrigado" reached the model anyway).
 
 <a id="d-205"></a>
 ## D-205 — 2026-11-08 — Each channel account is a channel, answered by the super-agent or a project's head
-
 People run several businesses or projects through chat apps: two WhatsApp numbers, a bot per project. A channel had
 one `agent_id`, the panel assumed one account per app (`id === type`), and its picker offered only the default
 project's agents, so a project's agent could never answer a channel.
@@ -4237,7 +4216,6 @@ each may reach, and who confirms what.
 
 <a id="d-206"></a>
 ## D-206 — 2026-11-08 — The office clock filters task eligibility in SQL; stall recovery walks a cursor
-
 Start times, the hourly pickup and the stall check each listed the 500 most recently active open tasks and filtered
 them in code, so in an office with more open tasks an eligible older one was never seen (#139).
 
@@ -4263,7 +4241,6 @@ them in code, so in an office with more open tasks an eligible older one was nev
 
 <a id="d-207"></a>
 ## D-207 — 2026-11-08 — A project head's task reports back to the chat it was started from
-
 A project's head (the team head the agent directory names) that hands a task to a specialist from its own project chat never heard how it
 ended: the close report went to whoever created the task and to the super-agent, and a reviewer's request for changes
 went only to the task's author. The head then reported "assigned" to the owner and stopped, or asked the owner what
@@ -4484,6 +4461,7 @@ calls); the exemption in Accept edits, where it would reach what a command there
 
 <a id="d-213"></a>
 ## D-213 — 2026-11-09 — What the owner asks in a room that needs tools is handed to Home, never only promised
+*Amended by [D-224](#d-224) (2026-11-12): the owner's words stay in the room's chat; Home's turn only carries them.*
 A room's turn has no tools (D-041, D-063), so when the owner asked there for something that needed them the prompt
 had the agent "say you will pick it up with them on another channel". Nothing recorded or did it: a promise, against
 the main prompt's own rule that a promise is not an action.
@@ -4495,12 +4473,11 @@ the main prompt's own rule that a promise is not an action.
 - **Only the owner's own words move**, from a turn whose origin is the room message marked owner by account
   (`role: "owner"`): the run's input text, verbatim, never the model's text and never a member's. From any other
   message the line is only removed, so nobody in a room can turn their text into a request, whatever the model says.
-- **Home does it, by the owner's rules on that platform** (D-144, D-150). On a channel whose owner acts on their word
-  (Telegram, WhatsApp, Signal) the words are kept in Home as the owner's (`via` the channel; since D-224 only carried in
-  the turn's input) and start a turn there that is told which room they came from. Elsewhere (Discord, Slack…) they go
-  through `relayOwnerWords` like the owner's other words there: the super-agent checks them in Home's owner-check
-  sub-thread, and the result returns to Home as a delegated result. (Since D-224 the owner's words are no longer kept in
-  Home on any platform: they stay in the room's chat.)
+- **Home does it, by the owner's rules on that platform** (D-144, D-150). The words stay in the room's chat and are
+  never kept in Home as a message (D-224). On a channel whose owner acts on their word (Telegram, WhatsApp, Signal)
+  Home's turn starts at once with the words in its input, told which room they came from. Elsewhere (Discord,
+  Slack…) they go through `relayOwnerWords` like the owner's other words there: the super-agent checks them in Home's
+  owner-check sub-thread, and the result returns to Home as a delegated result.
 - **The result never goes back to the room.** The Home turn has no `reply_to` of its own and the relay leaves Home's
   untouched (`owner_check.reply_to` is optional now): answers reach the owner where Home talks to them (Home's last
   channel, or the app).
@@ -4536,7 +4513,6 @@ From); per-screen `type === "email"` checks (the next kind would copy them).
 
 <a id="d-215"></a>
 ## D-215 — 2026-11-08 — A side question is one model call beside the chat, not a turn in it
-
 The owner wants to ask a chat's agent something quick (what was decided, a name it used) without the question and its
 answer landing in a long chat and in every later turn's context. The composer's **+ › Side question** does that.
 
@@ -4609,10 +4585,9 @@ Known limit: chats of automatic mail kept before this carry no mark until their 
 was not worth a schema step).
 
 <a id="d-218"></a>
-## D-218 — 2026-11-08 — Proposed, not accepted: group chats split front from back, and a router picks who answers
-
-**Status: a proposal for the owner to accept or reject.** The measurements, the mechanics compared and the prototype
-are in [GROUP_CHAT.md](GROUP_CHAT.md); the prototype runs only with `APX_GROUP_CHATS=on`.
+## D-218 — 2026-11-08 — Group chats split front from back, and a router picks who answers
+**Status: accepted by the owner on 2026-11-12.** The measurements, the mechanics compared and the prototype are in
+[GROUP_CHAT.md](GROUP_CHAT.md); the prototype still runs only with `APX_GROUP_CHATS=on` until it ships.
 
 A group chat of the owner and two to five agents would keep only the owner's words and each agent's final answer.
 Each member works in a closed chat of its own under the group (an `a2a` sub-thread, like a delegation), whose turn
@@ -4629,7 +4604,6 @@ agents share (about 8% more cached), a member asking another directly, and the p
 
 <a id="d-219"></a>
 ## D-219 — 2026-11-11 — An MCP server's "All allowed" is one grant for the server, not one per tool
-
 "All allowed" on a server used to approve each tool it listed then, so a tool the server added later asked again and
 the server read "Some". The owner wants "all" to stay all. It is now one owner-wide grant for the server
 (`mcpServerApproval` in `mcp/approval.ts`, tool `*`), bound like a tool's grant to the server's definition and the
@@ -4648,7 +4622,6 @@ re-approving every listed tool when a server starts in "all" (a grant made witho
 <a id="d-220"></a>
 ## D-220 — 2026-11-11 — A teammate asked on a task shows as one card where the agent asked
 *Amended by [D-221](#d-221) (2026-11-11): every agent-to-agent card is one row that unfolds its answer in place; its navigation from the Inbox is superseded by [D-225](#d-225) (2026-11-12).*
-
 D-132 brought a consult's answer back to the asking agent's chat as the teammate's words, and the panel drew those
 words as a box of their own (an "agent event"), while the consult's card lived only in the task's conversation. The
 owner read it as the same exchange twice, in two designs, with no trace in the asker's chat of where it asked, and a
@@ -4676,7 +4649,6 @@ answer's message (the asker's next turn would show with nothing above it saying 
 <a id="d-221"></a>
 ## D-221 — 2026-11-11 — A teammate's card is one row that unfolds its answer
 *Its navigation from the Inbox is superseded by [D-225](#d-225) (2026-11-12): a teammate's row under its task opens that conversation as the chat.*
-
 Amends D-220. A delegation's card showed its report folded under the head with "Show more", while a consult between
 agents was a closed row whose click left the chat for the teammate's conversation: two designs for the same thing, and
 reading an answer meant opening another conversation. Now every agent-to-agent card (`SubthreadCard`) is one row, like
@@ -4694,7 +4666,6 @@ open-conversation icon on the row (two click targets in one row on a phone).
 
 <a id="d-222"></a>
 ## D-222 — 2026-11-12 — A caller's newer words join the session's turn at work
-
 An agent that asked a teammate for work and then sent that session something newer (the owner's "pause everything",
 a changed plan) had it queued as a turn of its own behind the one at work. The running turn never saw it: a release
 was published more than an hour after the pause was in that chat, and the next turns then ran the stale orders one by
@@ -4714,7 +4685,6 @@ caller's words that went unseen, not the caller who was unaware).
 
 <a id="d-223"></a>
 ## D-223 — 2026-11-12 — Working alone is not working with less: a routine or task run has its agent's tools, and a routine acts as the owner chose on it
-
 A routine assigned to the agent an owner talks to in a project answered "I don't have this tool available" for that
 project's MCP tools, which the same agent used when asked in chat. Reproduced on a scratch core: the chat ran in the
 project, and the routine, made on the Routines page (which since 2.14 lists every project's routines) with no project
@@ -4761,7 +4731,6 @@ explicit rule for a risk is over any mode, and D-172 already works this way), an
 
 <a id="d-224"></a>
 ## D-224 — 2026-11-12 — Home follows the owner across chat apps, and moves when they ask
-
 The owner wrote on WhatsApp "let's go on in Telegram". The super-agent said yes, but the work it had delegated from
 WhatsApp kept answering there: a delegated result's turn took the channel of the turn that delegated
 (`fanout.ts` copied the parent's `reply_to`). Answering those results, it sometimes decided nothing was worth saying and
@@ -4805,7 +4774,6 @@ not move the talk); answering a delegated result on every chat app it touched.
 
 <a id="d-225"></a>
 ## D-225 — 2026-11-12 — A task's teammate conversation opens as the chat
-
 Supersedes the navigation of D-220 and D-221 from the Inbox. A task's row unfolded into the conversations of the
 teammates asked on it, and a click on one opened the task's conversation with the teammate read-only beside it. The
 owner opened a session and got another conversation in the middle, the one asked about only at the side, while the

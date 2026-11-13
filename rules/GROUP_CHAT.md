@@ -1,7 +1,7 @@
 # Group chats of several agents
 
-**Status: a proposal** ([D-218](DECISIONS.md#d-218)), with a prototype behind `APX_GROUP_CHATS=on` (off by default).
-Nothing here is accepted yet: the owner decides.
+**Status: accepted** ([D-218](DECISIONS.md#d-218), 2026-11-12). The prototype still runs only behind
+`APX_GROUP_CHATS=on` (off by default) until it ships.
 
 The owner wants a chat with two to five agents and themselves, and later Slack-like rooms with many agents where only
 the one or two who matter answer. Done naively, every agent re-reads the whole conversation on every message, so the
