@@ -3,25 +3,38 @@ import type { Thread } from "@apx/protocol";
 import { Button, Checkbox, Dialog, Field, Input, SearchField } from "@apx/ui";
 import { useMemo, useState } from "react";
 import { useAgentOptions } from "../common/pickers/agentOptions.tsx";
-import { createGroup } from "../data/actions.ts";
+import { client } from "../data/client.ts";
+import { realProjectId } from "../data/identity.ts";
+import { notify } from "../data/notices.ts";
+import { data } from "../data/state.ts";
 import { useT } from "../i18n/index.ts";
+import { go } from "../shell/nav.ts";
 
 const MAX = 5;
+
+/** Makes the group in the core and keeps it here; says why when it could not. */
+async function createGroup(agentIds: string[], title?: string): Promise<Thread | undefined> {
+  try {
+    const thread = await client.call("threads.group", { agent_ids: agentIds, ...(title ? { title } : {}) });
+    data.set((s) => ({
+      threads: { ...s.threads, [thread.id]: thread },
+      messages: { ...s.messages, [thread.id]: s.messages[thread.id] ?? [] },
+      threadLoad: { ...s.threadLoad, [thread.id]: "ready" },
+    }));
+    return thread;
+  } catch (e) {
+    notify(e instanceof Error ? e.message : String(e), "error");
+    return undefined;
+  }
+}
 
 /**
  * "New group": two to five agents and an optional name. In a project its own agents and the super-agent; from the
  * Inbox every project's, by project.
  */
-export function NewGroupDialog({
-  projectId,
-  onClose,
-  onCreated,
-}: {
-  projectId: string | undefined;
-  onClose(): void;
-  onCreated(thread: Thread): void;
-}) {
+export function NewGroupDialog({ projectId: navProject, onClose }: { projectId: string | undefined; onClose(): void }) {
   const t = useT();
+  const projectId = realProjectId(navProject);
   const options = useAgentOptions(projectId, !projectId, projectId ? "secretary" : "all");
   const [picked, setPicked] = useState<string[]>([]);
   const [name, setName] = useState("");
@@ -41,7 +54,10 @@ export function NewGroupDialog({
     setBusy(true);
     const made = await createGroup(picked, name.trim() || undefined);
     setBusy(false);
-    if (made) onCreated(made);
+    if (!made) return;
+    onClose();
+    if (navProject) go.project(navProject, "chats", made.id);
+    else go.thread(made.id);
   };
   return (
     <Dialog

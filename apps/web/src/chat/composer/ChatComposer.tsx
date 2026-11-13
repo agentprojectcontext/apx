@@ -80,12 +80,11 @@ export function ChatComposer({
   // A recording that could not become words is attached instead, so nothing said is lost.
   const mic = useDictation(made, appendWords, (audio) => att.restore([audio]));
   const micBusy = mic.state === "recording" || mic.state === "starting" || mic.state === "transcribing";
-  // A group's members answer in line, so its words always wait for the turn at work; it takes no files yet.
+  // A group takes no files yet.
   const group = thread.kind === "group";
   // The one shortcut worth knowing while the agent works, under the box; not while the mic has the field.
-  const queueHint = isWorking(thread.state) && !micBusy && !group ? t("composer.queueHint", { mod: MOD }) : undefined;
+  const queueHint = isWorking(thread.state) && !micBusy ? t("composer.queueHint", { mod: MOD }) : undefined;
   const over = useFileDrop(box, (files) => {
-    if (group) return notify(t("group.noFiles"), "info");
     if (!micBusy) att.add(files);
   });
   // A queued delegation is work the owner can stop too.

@@ -166,15 +166,7 @@ export function NewChatMenu({
       </Suspense>
       {grouping && (
         <Suspense fallback={null}>
-          <NewGroupDialog
-            projectId={pid}
-            onClose={() => setGrouping(false)}
-            onCreated={(g) => {
-              setGrouping(false);
-              if (projectId) go.project(projectId, "chats", g.id);
-              else go.thread(g.id);
-            }}
-          />
+          <NewGroupDialog projectId={projectId} onClose={() => setGrouping(false)} />
         </Suspense>
       )}
       {creating && home && (

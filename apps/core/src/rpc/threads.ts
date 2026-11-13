@@ -355,7 +355,8 @@ export function threadHandlers(
       if (groups?.is(thread)) {
         if (ctx.actor !== "human" || ctx.agent || ctx.channel || ctx.client)
           throw unauthorized("only the owner writes in a group chat");
-        if (attachments?.length || mode !== "queue") throw badRequest("a group chat takes queued text messages");
+        // Members answer in line, so words written while one works always wait for the next turn.
+        if (attachments?.length || mode === "interrupt") throw badRequest("a group chat takes text messages");
         return groups.send(thread, text).then(({ message, run }) => {
           if (!run) throw conflict("nobody in the group could answer");
           return { message, run: publicRun(run) };

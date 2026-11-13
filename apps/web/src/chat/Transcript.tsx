@@ -20,11 +20,10 @@ import { useChannels } from "../data/channels.ts";
 import { blobOf, isWorking, routineName, threadAgent } from "../data/identity.ts";
 import { useData, useShownAgents } from "../data/state.ts";
 import { useLanguage, useT } from "../i18n/index.ts";
-import { AgentEvent, EmailCard, MediaGroup, TaskDescription } from "../lazy.ts";
+import { AgentEvent, EmailCard, GroupPart, MediaGroup, TaskDescription } from "../lazy.ts";
 import { nav, useNav } from "../shell/nav.ts";
 import { AgentTurn } from "./AgentTurn.tsx";
 import { answerCards, isAgentEvent } from "./agentEvent.ts";
-import { useGroupChat } from "./groupChat.ts";
 import { MessageActions } from "./MessageActions.tsx";
 import { FilePart } from "./parts/FilePart.tsx";
 import { imageGenerationRuns } from "./parts/imageGeneration.ts";
@@ -65,7 +64,6 @@ export function Transcript({ thread, comments = false, via }: { thread: Thread; 
   const mailChannels = useMemo(() => new Set(mailIds.split(" ")), [mailIds]);
   const scroll = useRef<StickyScrollHandle>(null);
   const room = useMemo(() => isRoom(thread, messages), [thread, messages]);
-  const group = useGroupChat(thread);
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: day labels are re-made when the language changes
   const rows = useMemo(() => {
@@ -117,15 +115,12 @@ export function Transcript({ thread, comments = false, via }: { thread: Thread; 
         className="chat__scroll"
         contentClassName={room ? "transcript transcript--room" : "transcript"}
       >
-        {rows.length === 0 && !working && group && (
-          <EmptyState
-            icon={<Icons.Users />}
-            title={t("group.emptyTitle", { names: group.members.map((a) => a.name).join(", ") })}
-          >
-            {t("group.emptyBody")}
-          </EmptyState>
+        {rows.length === 0 && !working && thread.kind === "group" && (
+          <Suspense fallback={null}>
+            <GroupPart part="empty" thread={thread} />
+          </Suspense>
         )}
-        {rows.length === 0 && !working && !group && (
+        {rows.length === 0 && !working && thread.kind !== "group" && (
           <EmptyState
             icon={<Icons.MessageCircle />}
             title={t("chat.with", { name: engineLabel ?? agent?.name ?? thread.title })}
@@ -246,16 +241,12 @@ export function Transcript({ thread, comments = false, via }: { thread: Thread; 
             )}
           </div>
         ))}
-        {working && group && (
-          <div className="transcript__activity">
-            <ActivityPill
-              tone="brand"
-              label={group.speaker ? t("group.answering", { name: group.speaker.name }) : t("group.picking")}
-              from={group.speaker && <AgentAvatar name={group.speaker.name} blob={blobOf(group.speaker)} size={22} />}
-            />
-          </div>
+        {working && thread.kind === "group" && (
+          <Suspense fallback={null}>
+            <GroupPart part="activity" thread={thread} />
+          </Suspense>
         )}
-        {working && !group && (
+        {working && thread.kind !== "group" && (
           <div className="transcript__activity">
             <ActivityPill
               tone="brand"

@@ -18,10 +18,9 @@ import { ThreadAvatar } from "../inbox/ThreadAvatar.tsx";
 import { PinMark } from "../inbox/ThreadRow.tsx";
 import { threadMenu } from "../inbox/threadActions.tsx";
 import { useThreadChannel } from "../inbox/useThreadChannel.ts";
-import { ChannelFace, TaskCrumb, TaskStateButton } from "../lazy.ts";
+import { ChannelFace, GroupPart, TaskCrumb, TaskStateButton } from "../lazy.ts";
 import { PanelSwitcher } from "../panel/PanelSwitcher.tsx";
 import { go, useNav } from "../shell/nav.ts";
-import { useGroupChat } from "./groupChat.ts";
 import { toggleRoomCard, useRoomCard } from "./roomCard.ts";
 
 const POLICIES: WritePolicy[] = ["ask", "auto", "read-only"];
@@ -90,7 +89,7 @@ export function ChatHeader({
   const roomChannel = useChannels((s) => s.channels.find((c) => c.id === thread.channel?.id));
   const roomOpen = useRoomCard();
   const channelKind = useThreadChannel(thread);
-  const group = useGroupChat(thread);
+  const group = thread.kind === "group";
   const requestedRef = thread.model_choice?.model;
   const requested = requestedRef ? splitRef(requestedRef) : undefined;
   const requestedName = requestedRef && modelOf(requestedRef, catalog)?.name;
@@ -127,25 +126,9 @@ export function ChatHeader({
           )}
           {task !== undefined && <span>{t("tasks.header.task")}</span>}
           {group && (
-            <span className="chat__members">
-              {group.members.map((a, i) => {
-                const chat = group.chats[a.id];
-                return (
-                  <span key={a.id}>
-                    <Button
-                      variant="link"
-                      size="sm"
-                      className="chat__member"
-                      {...(chat ? { title: t("group.memberChat", { name: a.name }) } : {})}
-                      onClick={() => (chat ? go.thread(chat) : go.agent(a.id))}
-                    >
-                      {a.name}
-                    </Button>
-                    {i < group.members.length - 1 && ","}
-                  </span>
-                );
-              })}
-            </span>
+            <Suspense fallback={null}>
+              <GroupPart part="members" thread={thread} />
+            </Suspense>
           )}
           {agent && !group && !engine && !thread.channel && !sub && !thread.task_id && (
             <Tooltip content={agentHint}>

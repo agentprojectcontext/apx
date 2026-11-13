@@ -7,6 +7,8 @@ import { useData, useShownAgents } from "../data/state.ts";
 
 export interface GroupView {
   members: Agent[];
+  /** The members' names, for a line. */
+  names: string;
   /** The member answering now, while the group is at work (undefined while it picks who answers). */
   speaker: Agent | undefined;
   /** Each member's own chat under the group, once it worked there. */
@@ -33,6 +35,11 @@ export function useGroupChat(thread: Thread): GroupView | undefined {
       if (isWorking(t.state)) speaking = id;
     }
     const members = thread.agent_ids.flatMap((id) => (agents[id] ? [agents[id]] : []));
-    return { members, speaker: speaking && isWorking(thread.state) ? agents[speaking] : undefined, chats };
+    return {
+      members,
+      names: members.map((a) => a.name).join(", "),
+      speaker: speaking && isWorking(thread.state) ? agents[speaking] : undefined,
+      chats,
+    };
   }, [group, threads, thread.id, thread.agent_ids, thread.state, agents]);
 }

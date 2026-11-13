@@ -312,6 +312,8 @@ export const NewAgentDialog = lazy(
 export const NewGroupDialog = lazy(() =>
   import("./groups/NewGroupDialog.tsx").then((m) => ({ default: m.NewGroupDialog })),
 );
+// A group chat's members under its name, who is answering, and its first screen.
+export const GroupPart = lazy(() => import("./groups/GroupPart.tsx").then((m) => ({ default: m.GroupPart })));
 
 export const QrSvg = lazy(() => import("./common/QrSvg.tsx").then((m) => ({ default: m.QrSvg })));
 
