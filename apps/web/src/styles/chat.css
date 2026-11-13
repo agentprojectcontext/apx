@@ -607,3 +607,10 @@
   overflow: hidden;
   text-overflow: ellipsis;
 }
+
+/* On a phone the header keeps the call's name: a call's "Call again" is the phone alone. */
+@media (max-width: 639px) {
+  .callagain__label {
+    display: none;
+  }
+}

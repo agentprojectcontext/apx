@@ -63,10 +63,12 @@ export function CallAgain({ thread, agent }: { thread: string; agent: string | u
     <Button
       size="sm"
       variant="secondary"
+      className="callagain"
+      aria-label={t("call.again")}
       leadingIcon={<Icons.Phone size={14} />}
       onClick={() => openCall({ agent, thread })}
     >
-      {t("call.again")}
+      <span className="callagain__label">{t("call.again")}</span>
     </Button>
   );
 }
