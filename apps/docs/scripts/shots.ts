@@ -11,7 +11,7 @@ import path from "node:path";
 import { chromium, type Page } from "@playwright/test";
 import sharp from "sharp";
 import { fakeTelegram } from "../../../apps/core/src/channels/fake-telegram.test-support.ts";
-import { WELCOME_FILM } from "../../../apps/web/src/shell/welcomeFilm.ts";
+import { ALL_SLIDES } from "../../../apps/web/src/shell/welcomeFilm.ts";
 import { demoLlm } from "./demo-llm.ts";
 import { seed, writeDemoWorld, writeHomeSkills } from "./demo-seed.ts";
 
@@ -279,14 +279,14 @@ const SHOTS: Shot[] = [
 const browser = await chromium.launch({ executablePath: process.env.SHOTS_CHROMIUM || undefined });
 const prefs = async (p: Page, mode: "light" | "dark") =>
   p.addInitScript(
-    ({ mode, film }) => {
+    ({ mode, seen }) => {
       try {
         localStorage.setItem("apx.mode", mode);
         localStorage.setItem("apx.prefs", JSON.stringify({ language: "en", look: "minimal", displayName: "Alex" }));
-        localStorage.setItem("apx.corner", JSON.stringify({ discord: true, star: true, welcome: film }));
+        localStorage.setItem("apx.corner", JSON.stringify({ discord: true, star: true, welcomeSeen: seen }));
       } catch {}
     },
-    { mode, film: WELCOME_FILM },
+    { mode, seen: ALL_SLIDES },
   );
 // The demo lives in a temp folder; it shows the way a reader's own one would, under ~ (kept so across re-renders).
 const tidyPaths = (p: Page) =>
