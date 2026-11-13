@@ -176,7 +176,10 @@ test("asked in the app for their Chrome, the agent opens and reads a tab there; 
       text: "check the late orders in my Chrome",
     });
     await env.settle(thread, 15_000);
-    assert.match(lastSaid(asked.id), /only the owner's own work \(their turn, routine or task\) may use their Chrome/);
+    assert.match(
+      lastSaid(asked.id),
+      /only the owner's own work \(their turn, routine or task, or a helper's part of it\) may use their Chrome/,
+    );
     assert.equal(calls.filter((c) => c.node === "chrome").length, 0);
   } finally {
     chrome.close();

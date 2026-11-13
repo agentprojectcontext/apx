@@ -43,7 +43,7 @@ export function createChromeTabs(deps: {
   const add = (row: ChromeTabRow): Tab => {
     const t: Tab = {
       chrome: row.tab,
-      page: new CdpPage(sendTo(row.tab), { selectAllModifiers: deps.selectAllModifiers }),
+      page: new CdpPage(sendTo(row.tab), { selectAllModifiers: deps.selectAllModifiers, ownersBrowser: true }),
       control: { kind: "idle" },
       url: row.url,
       title: row.title,
