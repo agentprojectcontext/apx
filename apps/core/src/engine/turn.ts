@@ -18,6 +18,7 @@ import { memorySettings } from "../domain/memory-settings.ts";
 import { ownerIdentity, ownerTimeZone } from "../domain/owner.ts";
 import { worksIn } from "../domain/projects.ts";
 import { engineOf, harnessOf, isCliRef } from "../domain/refs.ts";
+import { failureOf } from "../domain/run-failure.ts";
 import { inChrome, type RunRecord, runsOnComputer } from "../domain/runs.ts";
 import type { Store } from "../domain/store.ts";
 import { previewOf, type Worker, worksInFolder } from "../domain/threads.ts";
@@ -963,8 +964,12 @@ function failRun(
       ? `Stopped by the model provider's usage limit${until ? `, which lifts at ${until}` : " (it did not say when it lifts)"}.`
       : `Could not finish: ${short}`;
   if (!canceled) deps.log.warn({ thread: t.turn.thread.id, agent: t.turn.agent.id, err: reason }, "run failed");
+  // Why, in a person's words when it is a known kind (no connection, too slow…); the raw reason stays as its detail.
+  const kind =
+    canceled || limit ? undefined : failureOf(reason, t.signal.reason instanceof DeadlineExceeded ? "deadline" : null);
+  const known = kind && kind !== "other" ? kind : undefined;
   // Every model tried and none answered (out of quota, signed out, down): said as such, the reasons below it.
-  const noModel = t.err instanceof ProviderError;
+  const noModel = t.err instanceof ProviderError && !known;
   if (canceled) t.display.notice("info", "run.canceled", message);
   else
     t.display.notice(
@@ -972,7 +977,13 @@ function failRun(
       noModel ? "run.noModel" : "run.failed",
       limit ? message : noModel ? "No model could answer." : message,
       {
-        vars: limit ? (until ? { variant: "limit", until } : { variant: "limitUnknown" }) : {},
+        vars: limit
+          ? until
+            ? { variant: "limit", until }
+            : { variant: "limitUnknown" }
+          : known
+            ? { variant: known }
+            : {},
         detail: reason.slice(0, 2000),
       },
     );

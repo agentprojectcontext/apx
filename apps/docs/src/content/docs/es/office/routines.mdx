@@ -395,11 +395,17 @@ activaciones** como 14 barras, de la más vieja a la más nueva:
 |---|---|
 | **La acción corrió** | Corrió y no tenía nada para contarte. |
 | **Te avisó** | Corrió y te mandó algo. |
-| **Salteada, 0 tokens** | No se llamó al modelo (el pre-comando no lo pidió, o no había nada nuevo para vigilar). |
+| **Sin novedades, 0 tokens** | No se llamó al modelo (el pre-comando no lo pidió, o no había nada nuevo para vigilar). |
 | **Falló** | La corrida falló. |
 | **No corrió** | Un momento en que tenía que correr y no corrió. |
 
-Cada corrida es un chat propio, así que podés abrirla y ver exactamente qué hizo el agente.
+Cada corrida es un chat propio, así que podés abrirla y ver exactamente qué hizo el agente. En el chat de la rutina,
+la línea de cada corrida dice cómo terminó. Una corrida sin nada que valga contarte (el agente respondió `SKIP`, o no
+se llamó al modelo) muestra la etiqueta **Sin novedades**, la misma en todos lados donde aparece (su chat, los chats archivados). Una
+corrida que falló dice por qué en pocas palabras: **Sin conexión** (APX no pudo llegar al proveedor del modelo),
+**Tardó demasiado**, **Límite de uso**, **Sesión vencida**, **Pedido rechazado**, **Proveedor caído** o **APX se
+reinició**. Apoyá el puntero encima para leer la frase completa; el chat de la corrida guarda el motivo técnico en
+**Detalles**.
 
 ## Desde la terminal
 

@@ -1,7 +1,10 @@
 import type { Agent, Thread } from "@apx/protocol";
 import { ContextMenu, Icons, Spinner, Tooltip } from "@apx/ui";
+import type { ReactNode } from "react";
 import { KindIcon } from "../channels/KindIcon.tsx";
 import { CHANNEL_KINDS } from "../channels/kinds.ts";
+import { isSkipAnswer } from "../channels/signal.ts";
+import { QuietBadge } from "../chat/QuietMark.tsx";
 import { ChatProcesses } from "../common/ChatProcesses.tsx";
 import { shortWhen } from "../common/format.ts";
 import { useEngineLabel } from "../common/useEngineLabel.ts";
@@ -15,11 +18,17 @@ import { useThreadChannel } from "./useThreadChannel.ts";
 
 /**
  * A chat's name for a list: its title, or what was said last when the title only repeats the agent's name. A routine
- * run's is what it told (its routine shows by its mark).
+ * run's is what it told (its routine shows by its mark), or its name and the badge when it had nothing to tell.
  */
-function chatLabel(thread: Thread, agent: Agent | undefined, generic: string): string {
+function chatLabel(thread: Thread, agent: Agent | undefined, generic: string): ReactNode {
   const plain = !thread.title || thread.title === agent?.name || thread.title === generic || thread.kind === "routine";
   const said = thread.preview.split("\n").find((l) => l.trim()) ?? "";
+  if (plain && isSkipAnswer(said))
+    return (
+      <>
+        {thread.kind === "routine" ? routineName(thread) : thread.title} <QuietBadge />
+      </>
+    );
   return plain && said ? said.replace(/\*\*|`|^\s*(#+|>|[-*])\s+/g, "") : thread.title;
 }
 

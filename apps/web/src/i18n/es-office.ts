@@ -162,7 +162,7 @@ export const esOffice: Partial<Record<MessageKey, string>> = {
   "routines.col.activations": "Últimas activaciones",
   "routines.col.next": "Próxima",
   "routines.legend.ran": "La acción corrió",
-  "routines.legend.skipped": "Salteada, 0 tokens",
+  "routines.legend.skipped": "Sin novedades, 0 tokens",
   "routines.legend.failed": "Falló",
   "routines.legend.told": "Te avisó",
   "routines.legend.none": "No corrió",

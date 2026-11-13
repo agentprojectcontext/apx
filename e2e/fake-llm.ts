@@ -417,6 +417,8 @@ export async function fakeLlm() {
         relay && "said" in relay ? relay.said : lastWords(body.messages ?? []),
       );
       calls.push({ model: body.model ?? "", said });
+      // The provider out of reach: the connection drops before any answer (a routine run that fails for it).
+      if (/^lose the connection/i.test(said)) return req.socket.destroy();
       // A plan out of its usage limit: an agent with fallbacks goes on with the next model.
       if (body.model === "fake-limited") {
         res.writeHead(429, { "content-type": "application/json" });
@@ -432,6 +434,7 @@ export async function fakeLlm() {
       const text =
         (system.startsWith("You pick who answers") ? groupPick(textOf(body.messages?.at(-1))) : undefined) ??
         signed ??
+        (/^nothing worth telling/i.test(said) ? "SKIP" : undefined) ??
         (relay && "check" in relay
           ? "It is the owner: answer them."
           : system.startsWith("You are Researcher, a worker")

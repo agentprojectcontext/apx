@@ -1,11 +1,20 @@
 import type { Part } from "@apx/protocol";
+import { plainNotice } from "@apx/protocol/notices";
 import { ActionGroup, Button, Icons } from "@apx/ui";
 import { Suspense } from "react";
-import { isKey, useT } from "../../i18n/index.ts";
+import { isKey, type MessageKey, useT } from "../../i18n/index.ts";
 import { ComputerNotice, DelegationActions, GoOn } from "../../lazy.ts";
 import { appPlace } from "../appLinks.ts";
+import { QuietMark } from "../QuietMark.tsx";
 
 type NoticeData = Extract<Part, { type: "notice" }>;
+
+/** A routine that ran without calling the model: nothing new, said with the same badge as an agent's SKIP. */
+const QUIET: Record<string, MessageKey> = {
+  "routine.watch.quiet": "quiet.noModel",
+  "routine.relay.quiet": "quiet.noModel",
+  "routine.skipped": "quiet.preCommand",
+};
 
 /**
  * Something the system says about a turn (interrupted, another model took over, no answer). Never the agent's words.
@@ -21,10 +30,13 @@ export function NoticePart({ part }: { part: NoticeData }) {
         <ComputerNotice part={part} />
       </Suspense>
     );
+  const quiet = QUIET[part.code];
+  if (quiet) return <QuietMark note={t(quiet)} />;
   // A `variant` picks one wording of the code (`notice.<code>.<variant>`).
   const key = `notice.${part.code}${part.vars?.variant ? `.${part.vars.variant}` : ""}`;
   // The core's English text carries details (e.g. the error); the translation is used when it is the plain case.
-  const text = isKey(key) && (part.vars || !part.text.includes(":")) ? t(key, part.vars) : part.text;
+  const plain = isKey(key) && plainNotice(part);
+  const text = plain ? t(key, part.vars) : part.text;
   // A `link` (apx:settings/…) is where the owner changes what the notice is about, labelled `notice.<code>.link`.
   const linkKey = `notice.${part.code}.link`;
   const linkLabel = isKey(linkKey) ? t(linkKey) : undefined;
@@ -56,7 +68,16 @@ export function NoticePart({ part }: { part: NoticeData }) {
     return (
       <div className="notice notice--error" role="alert">
         {text}
-        {part.detail && <pre className="notice__detail">{part.detail}</pre>}
+        {/* Said in plain words, the technical reason is there to open, not on screen. */}
+        {part.detail &&
+          (plain ? (
+            <details className="notice__more">
+              <summary>{t("notice.details")}</summary>
+              <pre className="notice__detail">{part.detail}</pre>
+            </details>
+          ) : (
+            <pre className="notice__detail">{part.detail}</pre>
+          ))}
       </div>
     );
   const Icon = part.level === "warn" ? Icons.TriangleAlert : Icons.Info;

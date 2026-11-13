@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { dayLabel } from "../common/format.ts";
 import { useT } from "../i18n/index.ts";
 import { railWindow } from "./railWindow.ts";
-import { outcomeMarks, toneOf } from "./runOutcome.ts";
+import { markText, outcomeMarks, toneOf } from "./runOutcome.ts";
 
 /**
  * A slim timeline on the chat's edge: one mark per run, coloured by how it ended; a mark scrolls to its run. With more
@@ -53,7 +53,7 @@ export function RunRail({
         {runs.slice(from, to).map((run, k) => {
           const i = from + k;
           const label = `${dayLabel(run.started_at)} · ${outcomeMarks(run, action)
-            .map((m) => t(m.key))
+            .map((m) => markText(m, t))
             .join(" · ")}`;
           return (
             <Tooltip key={run.run_id} content={label} side="left">

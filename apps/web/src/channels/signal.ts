@@ -8,3 +8,6 @@ export function isSignal(text: string): boolean {
   if (/^[*_`]*(SKIP|REACT[\s:*_`]+\S{1,16}|STICKER[\s:*_`]+[^\n]{1,120})[\s.*_`!]*$/iu.test(t)) return true;
   return t.length > 0 && t.length <= 7 && ["SKIP", "REACT", "STICKER"].some((w) => w.startsWith(t));
 }
+
+/** The whole answer is SKIP ("SKIP", "**skip**.", "`SKIP`"): the agent had nothing worth saying, as the core reads it. */
+export const isSkipAnswer = (text: string): boolean => text.replace(/[.\s*_`~"'!]/g, "").toUpperCase() === "SKIP";

@@ -159,7 +159,7 @@ export const enOffice = {
   "routines.col.activations": "Last activations",
   "routines.col.next": "Next",
   "routines.legend.ran": "The action ran",
-  "routines.legend.skipped": "Skipped, 0 tokens",
+  "routines.legend.skipped": "Nothing new, 0 tokens",
   "routines.legend.failed": "Failed",
   "routines.legend.told": "Told you",
   "routines.legend.none": "Did not run",
