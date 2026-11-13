@@ -3,6 +3,8 @@ import { ContextMenu, ConversationRow, IconButton, Icons, Menu, Spinner } from "
 import { Suspense } from "react";
 import { AnswererFace } from "../channels/AnswererFace.tsx";
 import { accountName } from "../channels/accountName.ts";
+import { isSkipAnswer } from "../channels/signal.ts";
+import { QuietBadge } from "../chat/QuietMark.tsx";
 import { ChatProcesses } from "../common/ChatProcesses.tsx";
 import { shortWhen } from "../common/format.ts";
 import { useEngineLabel } from "../common/useEngineLabel.ts";
@@ -140,6 +142,12 @@ export function ThreadRow({ thread, agent, selected, account = false, bundled = 
  */
 function Said({ thread, mail }: { thread: Thread; mail: boolean }) {
   const text = thread.preview.replace(/\s+/g, " ").trim();
+  if (isSkipAnswer(text))
+    return (
+      <span className="threadrow__said">
+        <QuietBadge />
+      </span>
+    );
   const cut = mail ? text.indexOf(" · ") : -1;
   if (cut < 0) return <span className="threadrow__said">{text}</span>;
   return (

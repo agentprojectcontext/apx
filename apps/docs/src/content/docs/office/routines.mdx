@@ -371,11 +371,16 @@ bars, oldest to newest:
 |---|---|
 | **The action ran** | It ran and had nothing to tell you. |
 | **Told you** | It ran and sent you something. |
-| **Skipped, 0 tokens** | The model was not called (the pre-command did not ask for it, or nothing new to watch). |
+| **Nothing new, 0 tokens** | The model was not called (the pre-command did not ask for it, or nothing new to watch). |
 | **Failed** | The run failed. |
 | **Did not run** | A time it should have run and did not. |
 
-Each run is an ordinary chat of its own, so you can open it and see exactly what the agent did.
+Each run is an ordinary chat of its own, so you can open it and see exactly what the agent did. In the routine's chat,
+each run's line says how it ended. A run with nothing worth telling you (the agent answered `SKIP`, or the model was
+not called) shows a **Nothing new** badge, the same one wherever that run shows up (its chat, the archived chats). A failed run says why
+in a few words: **No connection** (APX could not reach the model provider), **Took too long**, **Usage limit**,
+**Signed out**, **Request refused**, **Provider down** or **APX restarted**. Rest the pointer on it for the whole
+sentence; the run's chat keeps the technical reason under **Details**.
 
 ## From the terminal
 

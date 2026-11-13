@@ -16,4 +16,12 @@ export const enRoutineChat = {
   "routineChat.notFound.body": "It may have been deleted. Pick another one from the list.",
   "routineChat.empty.title": "It has not run yet",
   "routineChat.empty.body": "Each time it runs, what it did shows up here, one run after the other.",
+  // Why a run failed, short, beside "Failed" on its line; the whole sentence is the run's notice.
+  "routineChat.failure.network": "No connection",
+  "routineChat.failure.timeout": "Took too long",
+  "routineChat.failure.limit": "Usage limit",
+  "routineChat.failure.signed_out": "Signed out",
+  "routineChat.failure.refused": "Request refused",
+  "routineChat.failure.down": "Provider down",
+  "routineChat.failure.restart": "APX restarted",
 };

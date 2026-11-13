@@ -74,6 +74,13 @@ export const noticeEn = {
   "notice.run.resumed": "Interrupted by a restart of APX; picking it back up.",
   "notice.run.canceled": "Canceled.",
   "notice.run.failed": "Could not finish.",
+  "notice.run.failed.network": "Could not reach the model provider: no connection.",
+  "notice.run.failed.timeout": "It took too long and was stopped.",
+  "notice.run.failed.limit": "The model provider's usage limit was reached.",
+  "notice.run.failed.signed_out": "The model provider asks to sign in again.",
+  "notice.run.failed.refused": "The model provider refused the request.",
+  "notice.run.failed.down": "The model provider is down or overloaded.",
+  "notice.run.failed.restart": "APX restarted while it was running.",
   "notice.run.empty": "Finished without a message.",
   "notice.harness.fallback": "The chosen engine was not available; answered with the built-in model.",
   "notice.info": "Note",
@@ -162,6 +169,13 @@ export const noticeEs: Record<NoticeKey, string> = {
   "notice.run.resumed": "Se interrumpió por un reinicio de APX; lo retomo.",
   "notice.run.canceled": "Cancelado.",
   "notice.run.failed": "No pude terminar.",
+  "notice.run.failed.network": "No se pudo llegar al proveedor del modelo: sin conexión.",
+  "notice.run.failed.timeout": "Tardó demasiado y se detuvo.",
+  "notice.run.failed.limit": "Se alcanzó el límite de uso del proveedor del modelo.",
+  "notice.run.failed.signed_out": "El proveedor del modelo pide volver a iniciar sesión.",
+  "notice.run.failed.refused": "El proveedor del modelo rechazó el pedido.",
+  "notice.run.failed.down": "El proveedor del modelo no responde o está saturado.",
+  "notice.run.failed.restart": "APX se reinició mientras corría.",
   "notice.run.empty": "Terminó sin mensaje.",
   "notice.harness.fallback": "El motor elegido no estaba disponible; respondió el modelo propio.",
   "notice.info": "Nota",
@@ -184,16 +198,22 @@ export const noticeKey = (part: { code: string; vars?: Record<string, string | n
   `notice.${part.code}${part.vars?.variant ? `.${part.vars.variant}` : ""}`;
 
 /**
- * A notice in `lang`: the translation when there is one and the notice is the plain case (it has vars, or its English
- * carries no details after a colon), else the core's own text.
+ * Whether a notice reads from its translation: there is one and the notice is the plain case (it has vars, its English
+ * is the known wording, or it carries no details after a colon); else the core's own text is shown.
  */
+export function plainNotice(part: { code: string; text: string; vars?: Record<string, string | number> | undefined }) {
+  const key = noticeKey(part);
+  if (!Object.hasOwn(noticeEn, key)) return false;
+  return Boolean(part.vars) || !part.text.includes(":") || part.text === noticeEn[key as NoticeKey];
+}
+
+/** A notice in `lang`: its translation in the plain case (see `plainNotice`), else the core's own text. */
 export function noticeText(
   part: { code: string; text: string; vars?: Record<string, string | number> | undefined },
   lang: keyof typeof NOTICES,
 ): string {
-  const key = noticeKey(part);
-  if (!Object.hasOwn(noticeEn, key) || (!part.vars && part.text.includes(":"))) return part.text;
-  return fill(NOTICES[lang][key as NoticeKey], part.vars);
+  if (!plainNotice(part)) return part.text;
+  return fill(NOTICES[lang][noticeKey(part) as NoticeKey], part.vars);
 }
 
 /**

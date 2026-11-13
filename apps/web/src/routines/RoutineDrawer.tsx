@@ -7,7 +7,8 @@ import { formatSeconds, shortWhen } from "../common/format.ts";
 import { loadThread } from "../data/actions.ts";
 import { useData } from "../data/state.ts";
 import { type MessageKey, useT } from "../i18n/index.ts";
-import { ActivationBars, barKey, barOf, hasAgent, useRuns } from "./ActivationBars.tsx";
+import { ActivationBars, barKey, useRuns } from "./ActivationBars.tsx";
+import { barOf, hasAgent } from "./runOutcome.ts";
 import { scheduleText } from "./scheduleText.ts";
 
 const CALL_KEY: Record<Routine["call_model"], MessageKey> = {

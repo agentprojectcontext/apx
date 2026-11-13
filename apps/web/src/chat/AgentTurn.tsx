@@ -11,7 +11,7 @@ import {
 } from "@apx/ui";
 import { type ReactNode, Suspense, useState } from "react";
 import { DeliveryTicks, ReactionList, ViaMark } from "../channels/MessageMarks.tsx";
-import { isSignal } from "../channels/signal.ts";
+import { isSignal, isSkipAnswer } from "../channels/signal.ts";
 import { useMarkdownLabels } from "../common/useMarkdownLabels.ts";
 import { blobOf } from "../data/identity.ts";
 import { baseRef, effortLabel, modelOf, splitRef, useModels } from "../data/models.ts";
@@ -44,6 +44,7 @@ import { NoticePart } from "./parts/NoticePart.tsx";
 import { PlanPart } from "./parts/PlanPart.tsx";
 import { ToolGroup } from "./parts/ToolGroup.tsx";
 import { planLast } from "./planLast.ts";
+import { QuietMark } from "./QuietMark.tsx";
 import { type ReplySegment, replySegments } from "./replySegments.ts";
 import { Speaker } from "./Speaker.tsx";
 import { taskCodeSpan } from "./TaskChip.tsx";
@@ -184,8 +185,16 @@ export function AgentTurn({
     </MessageMeta>
   );
 
-  // The chips label an answer: a finished turn that said nothing (a mail it let pass, a signal) shows nothing at all.
-  if (!live && tools.length === 0 && items.length === 0) return null;
+  // The chips label an answer: a finished turn that said nothing (a mail it let pass, a signal) shows nothing at all,
+  // but for SKIP, which says there was nothing worth telling.
+  if (!live && tools.length === 0 && items.length === 0) {
+    if (!message.parts.some((p) => p.type === "text" && isSkipAnswer(p.text))) return null;
+    return (
+      <div className="turn">
+        <QuietMark />
+      </div>
+    );
+  }
   return (
     <div className="turn">
       {avatar && <Speaker face={avatar} name={engine?.label ?? agent?.name} />}

@@ -3,6 +3,7 @@
 import type { CallModel, Routine, RoutineAction, RoutineAutonomy, RoutineRun, RunState, Schedule } from "@apx/protocol";
 import type { Selectable } from "kysely";
 import type { RoutinesTable } from "../db/schema.ts";
+import { failureOf } from "./run-failure.ts";
 import { newId, now, opt, qb, type Sql } from "./sql.ts";
 
 const toRoutine = (r: Selectable<RoutinesTable>, last: RoutineRun | undefined): Routine => ({
@@ -61,7 +62,17 @@ export function routinesRepo({ one, all, run }: Sql) {
   const runsQuery = qb
     .selectFrom("routine_runs as rr")
     .innerJoin("runs as r", "r.id", "rr.run_id")
-    .select(["rr.run_id", "rr.thread_id", "rr.started_at", "rr.delivered", "rr.model_called", "r.state", "r.ended_at"]);
+    .select([
+      "rr.run_id",
+      "rr.thread_id",
+      "rr.started_at",
+      "rr.delivered",
+      "rr.model_called",
+      "r.state",
+      "r.ended_at",
+      "r.error",
+      "r.end_reason",
+    ]);
   type RunRow = {
     run_id: string;
     thread_id: string;
@@ -70,6 +81,8 @@ export function routinesRepo({ one, all, run }: Sql) {
     model_called: number | null;
     state: string;
     ended_at: string | null;
+    error: string | null;
+    end_reason: string | null;
   };
   const toRun = (r: RunRow): RoutineRun => ({
     run_id: r.run_id,
@@ -79,7 +92,12 @@ export function routinesRepo({ one, all, run }: Sql) {
     ...opt("ended_at", r.ended_at),
     ...(r.delivered === null ? {} : { delivered: Boolean(r.delivered) }),
     ...(r.model_called === null ? {} : { model_called: Boolean(r.model_called) }),
+    ...failed(r),
   });
+  const failed = (r: RunRow): Pick<RoutineRun, "failure"> => {
+    const failure = r.state === "failed" ? failureOf(r.error, r.end_reason) : undefined;
+    return failure ? { failure } : {};
+  };
   const lastOf = (id: string) => {
     const r = one(runsQuery.where("rr.routine_id", "=", id).orderBy("rr.started_at", "desc").limit(1));
     return r ? toRun(r) : undefined;

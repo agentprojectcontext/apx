@@ -103,6 +103,10 @@ export const Schedule = z.discriminatedUnion("kind", [
 ]);
 export type Schedule = z.infer<typeof Schedule>;
 
+/** Why a run failed, in kinds a person understands: the app words each one (the raw error stays in the run). */
+export const RunFailure = z.enum(["network", "timeout", "limit", "signed_out", "refused", "down", "restart", "other"]);
+export type RunFailure = z.infer<typeof RunFailure>;
+
 /** One run of a routine: its own conversation, and whether the owner was told (false = nothing worth saying). */
 export const RoutineRun = z.object({
   run_id: Id,
@@ -118,6 +122,8 @@ export const RoutineRun = z.object({
    * the instructions differ from the run before.
    */
   prompt_version: z.number().int().min(1).optional(),
+  /** A failed run: why, as a kind (see RunFailure). */
+  failure: RunFailure.optional(),
 });
 export type RoutineRun = z.infer<typeof RoutineRun>;
 

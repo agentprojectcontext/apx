@@ -20,6 +20,21 @@ test("the core's own text stays when there is no translation or it carries detai
   assert.equal(noticeText({ code: "run.failed", text: "Could not finish." }, "es"), "No pude terminar.");
 });
 
+test("a notice whose own wording has a colon still reads translated: only details keep the core's text", () => {
+  const quiet = { code: "routine.watch.quiet", text: "Nothing new to watch: the model was not called." };
+  assert.equal(noticeText(quiet, "es"), "Nada nuevo que vigilar: no se llamó al modelo.");
+});
+
+test("a failure said by its kind reads in plain words; the raw reason is not its text", () => {
+  const failed = {
+    code: "run.failed",
+    text: "Could not finish: acme/model-1: fetch failed (ENOTFOUND)",
+    vars: { variant: "network" },
+  };
+  assert.equal(noticeText(failed, "es"), "No se pudo llegar al proveedor del modelo: sin conexión.");
+  assert.doesNotMatch(noticeText(failed, "en"), /ENOTFOUND|acme/);
+});
+
 test("every app reads the chat app for notices the same way; an old phone choice is the app only (DECISIONS.md#d-161)", () => {
   assert.equal(noticeChannelChoice(undefined), "auto");
   assert.equal(noticeChannelChoice("none"), "none");

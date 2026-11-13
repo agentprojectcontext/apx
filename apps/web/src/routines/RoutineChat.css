@@ -90,20 +90,12 @@
   white-space: nowrap;
 }
 .rtchat__mark {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  white-space: nowrap;
+  flex: none;
 }
-.rtchat__mark::before {
-  content: "";
-  width: 5px;
-  height: 5px;
-  border-radius: 50%;
-  background: var(--rtchat-tone);
-}
-.rtchat__mark.is-failed {
-  color: var(--apx-danger);
+/* The run's line already says it had nothing new: its chat does not say it again. */
+.rtchat__run .turn:has(> .quietmark:only-child),
+.rtchat__run .quietmark {
+  display: none;
 }
 .rtchat .is-ran {
   --rtchat-tone: var(--apx-brand);

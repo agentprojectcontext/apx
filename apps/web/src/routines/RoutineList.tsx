@@ -6,7 +6,8 @@ import { blobOf } from "../data/identity.ts";
 import { draftOf, removeRoutine, runRoutine, saveRoutine } from "../data/routines.ts";
 import { useData } from "../data/state.ts";
 import { useT } from "../i18n/index.ts";
-import { ActivationBars, hasAgent, useRuns } from "./ActivationBars.tsx";
+import { ActivationBars, useRuns } from "./ActivationBars.tsx";
+import { hasAgent } from "./runOutcome.ts";
 import { scheduleText } from "./scheduleText.ts";
 
 export type RoutineGroup = { id: string; title?: ReactNode; routines: Routine[] };

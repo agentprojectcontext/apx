@@ -1,9 +1,33 @@
 import type { Message, Routine, RoutineRun } from "@apx/protocol";
 import type { MessageKey } from "../i18n/index.ts";
-import { barOf } from "./ActivationBars.tsx";
+
+/** An agent answers (agent), watches (watch) or tells the team news (relay): each has one and can spare a model call. */
+export const hasAgent = (a: Routine["action"]) => a === "agent" || a === "watch" || a === "relay";
+
+/** How one activation ended: it failed, is still running, was skipped (no tokens spent), told the owner, or ran. */
+export const barOf = (x: RoutineRun, action: Routine["action"]) => {
+  if (x.state === "failed") return "is-failed";
+  if (x.state !== "completed" && x.state !== "canceled") return "is-live";
+  // A message or a shell job never calls a model: it ran when it sent or ran its command.
+  const skipped = hasAgent(action) ? x.model_called === false : action === "message" && !x.delivered;
+  if (skipped) return "is-skipped";
+  return x.delivered ? "is-told" : "is-ran";
+};
 
 export type OutcomeTone = "ran" | "told" | "skipped" | "failed" | "live";
-export type OutcomeMark = { key: MessageKey; tone: OutcomeTone };
+/**
+ * One mark on a run's line. `quiet`: nothing worth telling, drawn as the shared skip badge. `reason`: why it failed,
+ * short, with `detail` the whole sentence.
+ */
+export type OutcomeMark = {
+  key: MessageKey;
+  tone: OutcomeTone;
+  quiet?: true;
+  reason?: MessageKey;
+  detail?: MessageKey;
+};
+
+const QUIET: OutcomeMark = { key: "quiet.label", tone: "skipped", quiet: true };
 
 /** How a run ended, as the marks the run's divider shows: the same meanings and colours as the activation bars. */
 export function outcomeMarks(run: RoutineRun, action: Routine["action"]): OutcomeMark[] {
@@ -14,15 +38,32 @@ export function outcomeMarks(run: RoutineRun, action: Routine["action"]): Outcom
         { key: "routines.legend.told", tone: "told" },
       ];
     case "is-ran":
-      return [{ key: "routines.legend.ran", tone: "ran" }];
+      // The agent ran and answered SKIP: nothing worth telling this time (its dot keeps the colour of a run).
+      return run.state === "completed" && run.delivered === false && hasAgent(action)
+        ? [{ ...QUIET, tone: "ran" }]
+        : [{ key: "routines.legend.ran", tone: "ran" }];
     case "is-skipped":
-      return [{ key: "routines.legend.skipped", tone: "skipped" }];
-    case "is-failed":
-      return [{ key: "routines.legend.failed", tone: "failed" }];
+      return [QUIET];
+    case "is-failed": {
+      const why = run.failure && run.failure !== "other" ? run.failure : undefined;
+      return [
+        {
+          key: "routines.legend.failed",
+          tone: "failed",
+          ...(why
+            ? { reason: `routineChat.failure.${why}` as const, detail: `notice.run.failed.${why}` as const }
+            : {}),
+        },
+      ];
+    }
     case "is-live":
       return [{ key: "routines.running", tone: "live" }];
   }
 }
+
+/** A mark in words, for a tooltip or a list: "Failed · No connection". */
+export const markText = (m: OutcomeMark, t: (k: MessageKey) => string) =>
+  m.reason ? `${t(m.key)} · ${t(m.reason)}` : t(m.key);
 
 /** The tone of a run's mark in the timeline: told outranks ran. */
 export const toneOf = (run: RoutineRun, action: Routine["action"]): OutcomeTone =>
