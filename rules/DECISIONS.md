@@ -3,6 +3,11 @@
 Durable architectural choices. Code points here with `See DECISIONS.md#d-NNN`. Product-level reasoning lives in
 `plan/`.
 
+Each entry is `## D-NNN — date — title` under its own `d-NNN` anchor, in number order; a number is never reused.
+A later entry that amends or supersedes one says so, and the older one carries a pointer to it under its title. Two
+numbers were taken twice by parallel branches and stay so: the second entry of each keeps a suffixed anchor
+(`#d-059-routines`, `#d-182-news`). Number 146 was never used. `pnpm check:decisions` checks all of this.
+
 <a id="d-001"></a>
 ## D-001 — 2026-09-30 — TypeScript everywhere, run natively on Node 24
 Core, terminal and protocol are `.ts` executed by Node's type stripping: no build step, no `tsx`. Consequence:
@@ -37,6 +42,7 @@ Fewer dependencies and one fast binary. Vitest may be added for `apps/web` compo
 
 <a id="d-007"></a>
 ## D-007 — 2026-10-01 — Claude and Codex run as harnesses with the user's own login
+*Amended by [D-042](#d-042) (2026-10-05): the ChatGPT plan runs in APX's own loop, and the Claude and Codex harnesses keep to APX's tools; and by [D-043](#d-043) (2026-10-05): agents and the router run on model APIs, CLIs only in their own sessions.*
 An agent's turn can run inside the user's installed `claude` (Claude Agent SDK, `pathToClaudeCodeExecutable`) or
 `codex` (Codex SDK). APX never implements their OAuth nor reads, copies or refreshes their tokens: each CLI uses
 its own login on the user's machine. APX keeps identity, system prompt and tools: Claude gets APX tools as an
@@ -103,6 +109,7 @@ and an approval that arrives after its turn ended allows exactly one identical c
 
 <a id="d-013"></a>
 ## D-013 — 2026-10-01 — Memory is scoped notes in the preamble; long threads get a summarized epoch
+*Amended by [D-211](#d-211) (2026-11-09): imported notes are marked, AutoDream also tidies shared notes, shared notes refuse logs, and waiting notes are told.*
 Memory is one table of short notes with a scope: `global` (about the owner, every agent), `project` (agents in a
 thread of that project) or `agent` (one agent's notebook), searched with SQLite FTS5 (accents ignored). Notes never go
 in the system prompt: the first turn of an agent in a thread gets its standing notes (global and its own) plus what
@@ -302,6 +309,7 @@ owner approves that call; ignoring needs no approval.
 
 <a id="d-028"></a>
 ## D-028 — 2026-10-03 — Each message picks its skills by meaning, ranked against each skill's own floor
+*Revised by [D-051](#d-051) (2026-10-07): a skill matched by meaning is only recommended; the agent loads it.*
 The catalog in the system prompt names skills; models still skip them and answer that they cannot do what a skill
 covers. So, with an embedding engine set up (and `skill_picker` on, the default), each owner-side message is compared
 with every skill's description: the clear winner goes into that turn's input whole, up to two more by name, and the
@@ -474,6 +482,7 @@ room summaries and similarity recall over older room messages, and a bot-role me
 
 <a id="d-042"></a>
 ## D-042 — 2026-10-05 — The ChatGPT plan as a model in APX's own loop; Claude and Codex harnesses keep to APX's tools
+*Amended by [D-043](#d-043) (2026-10-05): agents and the router run on model APIs; CLIs run only in their own sessions.*
 Amends D-007. Running Codex as a harness meant an agent's turn ran the owner's whole Codex app: its own shell, search,
 browser and sub-agents, and the owner's own MCP servers and plugins, outside APX's policy. As v1 did, the plan is now
 also a provider (`chatgpt`, transport `chatgpt-responses`: the Responses API the plan serves at
@@ -685,19 +694,6 @@ The G0 audit (plan/parity/07-seguridad.md) left holes open for the owner to deci
   password, api_key, authorization, cookie…) become `[redacted]`, and key shapes anywhere in a string (`sk-`, `ghp_`,
   `xox?-`, `AIza`, bot tokens, JWTs, `Bearer …`, `?key=`) too. `secret://` references and counts stay.
 
-<a id="d-103"></a>
-## D-103 — 2026-10-08 — Google Calendar and Gmail are APX's own tools behind the owner's Google sign-in
-The owner brings their own OAuth client (Cloud Console, Desktop app or Web application); APX ships no client id. The
-sign-in needs no route of its own in the core: the redirect URI is the panel's `/oauth/google` page on the core's
-loopback address (the SPA fallback serves it), and that page hands the code to `integrations.oauth_finish`. The
-consent URL carries PKCE (S256) and a state signed with a per-process key, valid ten minutes and used once. The
-client secret and one refresh token per integration are secrets; access tokens live only in memory. The tools are
-built-in tools with `Tool.when` (offered only while that integration is connected and on in the thread's project),
-not an MCP server: no maintained server takes a refresh token by reference, a server per account would hold tokens
-outside the core, and the tools need APX's confirmations and outside-data framing. Events and mail come back as
-untrusted data; creating or changing an event and writing a draft are `ask`; mail leaves only as a draft the owner
-approved sending (`gmail_send_draft`, `always`), never in one silent step.
-
 <a id="d-058"></a>
 ## D-058 — 2026-10-08 — The desktop app downloads its update and asks when to restart
 D-044 had macOS open the disk image for the owner to drag in, because an unsigned app cannot use the system's silent
@@ -727,6 +723,18 @@ the app and `apx routines edit` use. It never sets a pre- or post-command or a s
 the owner's machine on a schedule and stay in the app and the terminal. Removing a routine stays the owner's too.
 `routine_list` with a name returns that routine's whole prompt, so an agent edits the text it read, not a guess.
 
+<a id="d-059"></a>
+## D-059 — 2026-10-10 — A sealed chat may search the web, as its channel allows
+D-014 sealed rooms and contacts' chats with no tools, so the owner asking the agent in a public Discord room to look
+something up got "I can't from here". A channel now says who may have its sealed chats search the web and read public
+pages (`research`: `off`, `owner`, `everyone`; unset means `owner`): `owner` opens it only to a turn the owner started
+(their message in a room, checked by account, or their words in a contact's chat from the app). It adds exactly
+`web_search` and `web_read` and nothing else: no shell, files, browser, memory, projects or MCP. Both tools already
+reach only public addresses (resolved names included, never this machine or the local network) and return untrusted
+data; a page's address carrying values still asks after outside content, as D-057 says. What a sealed turn could leak
+through them is only what it holds: the room's public talk, or a contact's own chat (and the owner's general
+notes, where the owner let that person's chat read them).
+
 <a id="d-060"></a>
 ## D-060 — 2026-10-10 — The super-agent runs the team with `agent_set`; the owner approves each change
 v1 had nine tools to manage agents (create, import, configure, rename, remove, set a prompt, set identity…), offered
@@ -739,18 +747,6 @@ models and the browser profile are not among its fields: how far an agent may ac
 (the fallbacks behind a model the owner picked are, since [D-195](#d-195)). A
 rename keeps the agent's id, so threads, tasks, routines and messages that point at it need no rewrite; a project
 agent's new slug keeps the old one as an alias and moves its reports' `parent` along.
-
-<a id="d-059"></a>
-## D-059 — 2026-10-10 — A sealed chat may search the web, as its channel allows
-D-014 sealed rooms and contacts' chats with no tools, so the owner asking the agent in a public Discord room to look
-something up got "I can't from here". A channel now says who may have its sealed chats search the web and read public
-pages (`research`: `off`, `owner`, `everyone`; unset means `owner`): `owner` opens it only to a turn the owner started
-(their message in a room, checked by account, or their words in a contact's chat from the app). It adds exactly
-`web_search` and `web_read` and nothing else: no shell, files, browser, memory, projects or MCP. Both tools already
-reach only public addresses (resolved names included, never this machine or the local network) and return untrusted
-data; a page's address carrying values still asks after outside content, as D-057 says. What a sealed turn could leak
-through them is only what it holds: the room's public talk, or a contact's own chat (and the owner's general
-notes, where the owner let that person's chat read them).
 
 <a id="d-061"></a>
 ## D-061 — 2026-10-11 — An outside engine's session has an idle deadline, not a fixed one
@@ -834,6 +830,7 @@ in the system prompt: shown as "loose", a model passed it to `delegate` as a pro
 
 <a id="d-069"></a>
 ## D-069 — 2026-10-13 — The owner sets how far agents go on their own; agents make projects through `apx projects`
+*Its defaults are superseded by [D-160](#d-160) (2026-10-27): limits are the owner's to turn on.*
 The breaker's 16 turns and 600k tokens (counted since the owner last wrote in a conversation tree) were constants: an
 owner whose agents research for a while hit "Paused" with no way to move it. They are now the owner's, in Config ›
 Agents (`agents.limits` / `agents.set_limits`, setting `agent_limits`), each one on or off (0 = no limit), and the
@@ -995,6 +992,7 @@ task while that tree is paused does not start it: the start is kept in the givin
 
 <a id="d-081"></a>
 ## D-081 — 2026-10-15 — A paused chain goes on with a fresh budget or with no limit this round
+*Its defaults are superseded by [D-160](#d-160) (2026-10-27): limits are the owner's to turn on.*
 With task chats in one tree (D-080), 16 turns or 600k tokens can stop a long orchestrated task halfway, and "write to
 continue" meant typing something to let it go on. A paused notice (`breaker.paused`, `breaker.held`) now names its
 chat (`vars.thread`) and offers two buttons over `threads.go_on`: **Restart the budget** (`reset`: the count starts
@@ -1314,6 +1312,19 @@ project or not, with no card and nothing kept. APX's home stays refused, other c
 project's read-only folders stay read-only, since those roots come first. Outside harnesses (Claude Code, Codex) keep
 their own sandboxes; this is the folder rule of APX's tools.
 
+<a id="d-103"></a>
+## D-103 — 2026-10-08 — Google Calendar and Gmail are APX's own tools behind the owner's Google sign-in
+The owner brings their own OAuth client (Cloud Console, Desktop app or Web application); APX ships no client id. The
+sign-in needs no route of its own in the core: the redirect URI is the panel's `/oauth/google` page on the core's
+loopback address (the SPA fallback serves it), and that page hands the code to `integrations.oauth_finish`. The
+consent URL carries PKCE (S256) and a state signed with a per-process key, valid ten minutes and used once. The
+client secret and one refresh token per integration are secrets; access tokens live only in memory. The tools are
+built-in tools with `Tool.when` (offered only while that integration is connected and on in the thread's project),
+not an MCP server: no maintained server takes a refresh token by reference, a server per account would hold tokens
+outside the core, and the tools need APX's confirmations and outside-data framing. Events and mail come back as
+untrusted data; creating or changing an event and writing a draft are `ask`; mail leaves only as a draft the owner
+approved sending (`gmail_send_draft`, `always`), never in one silent step.
+
 <a id="d-104"></a>
 ## D-104 — 2026-10-17 — A delegation works in a folder of its project, never with more writes than its caller
 An orchestrator delegating review or fixes into one git worktree under its project could only name the project: the
@@ -1351,6 +1362,7 @@ held. The continuation remains subject to its run limits and is never continued 
 
 <a id="d-106"></a>
 ## D-106 — 2026-10-17 — Five permission modes, Auto by default: agents ask only for strong actions
+*Amended by [D-212](#d-212) (2026-11-09) for `browser_type`: in Auto, typing on a page this computer serves does not wait for the owner.*
 Agents stopped far too often. An agent on total autonomy in Home was refused a read of another project's file; a
 marketing agent delegated work by the secretary (total) stopped on a card for a plain inspection command, because a
 delegated run took the strictest autonomy of its chain and its own project's default was `standard`; and continuing a
@@ -1465,6 +1477,7 @@ characters and the headings of the rest; the 200,000 limit, its marker and the o
 
 <a id="d-111"></a>
 ## D-111 — 2026-10-19 — Memory continuity: automatic own-chat recall, grounded capture and reversible AutoDream
+*Amended by [D-211](#d-211) (2026-11-09): AutoDream also tidies each place's shared notes.*
 Ordinary owner turns should carry useful context into another chat without depending on a model choosing `remember`.
 Automatic recall uses existing chat access policy plus stricter participation, same-project and owner-origin checks;
 contacts, rooms, clients, subthreads, workers and direct engine sessions stay excluded. Literal historical owner
@@ -1505,6 +1518,7 @@ quotas defer model calls until the next UTC day without blocking historical retr
 
 <a id="d-112"></a>
 ## D-112 — 2026-10-20 — Memory notes in the agent's words, procedures that worked, an always-loaded index, fuller AutoDream
+*Amended by [D-211](#d-211) (2026-11-09): AutoDream also tidies each place's shared notes, and shared notes refuse logs.*
 Verbatim owner quotes made poor notes: requests and status lines were saved as facts, and nothing remembered how the
 agent itself got something done, so "do it like you did today" found nothing. Notes now follow the shape a working
 agent writes for itself, and D-111's "capture selects exact owner quotes" becomes "capture keeps an exact owner quote
@@ -1985,6 +1999,7 @@ guests on purpose (an invitation, or `notify_guests`), and such a call is `alway
 
 <a id="d-131"></a>
 ## D-131 — 2026-10-22 — One owner per task, hand-offs through tasks, and follow-ups an agent proposes
+*Its fan-out check is superseded by [D-160](#d-160) (2026-10-27).*
 **One owner per task.** The agent a task is given to carries it end to end; it uses its own workers for separate
 context and asks another agent a quick question with `delegate`. Work for another agent goes through a sub-task, not a
 chat, so it has a state, an owner and a history.
@@ -2330,6 +2345,7 @@ checks what opening the inbox fetches, the late parts included.
 
 Measured on the built panel and in the e2e sandbox (JS heap after opening the inbox, median of 5): first load
 379.3 → 324.7 KB gz, entry 272.8 → 260.7 KB gz, heap 11.1 → 7.3 MB.
+
 <a id="d-148"></a>
 ## D-148 — 2026-10-23 — An agent offers to connect what a request needs, never from a sealed chat
 Asked for something an app or channel the owner has not connected would do (open a Figma file, send it on WhatsApp),
@@ -2618,6 +2634,7 @@ documentation relevance. See [WORKFLOW.md](WORKFLOW.md#documentation-impact-cont
 
 <a id="d-160"></a>
 ## D-160 — 2026-10-27 — Agents finish what they were asked: limits are the owner's to turn on, and the super-agent asks how in its own words
+*Amended by [D-210](#d-210) (2026-11-09): the super-agent picks how to split work and asks only before a large fan-out.*
 Supersedes the defaults of [D-069](#d-069) and [D-081](#d-081), and the fan-out check of [D-131](#d-131). A night's
 three tasks stalled: 30 unattended turns went fast because every background command that ended woke its agent as a
 turn; past it every result paused the chain and told the owner's Telegram, in English, once per result (about thirty
@@ -3442,6 +3459,20 @@ No news entry: these are fields of the editor, not something the super-agent off
 schedule object (a migration for every schedule Flow and a second reader in every place a cron is read), a key in the
 query string (it ends up in logs and proxies), and a GET without a key (an address anyone can trigger).
 
+<a id="d-182-news"></a>
+## D-182 — 2026-10-30 — Release news live in a Help menu; the super-agent names one thing
+(Note, 2026-11-05: this entry repeats the number of the Flow triggers entry above, which is [D-182](#d-182); links
+to this one use `#d-182-news`.)
+Told all at once (D-117), a release with many entries made the super-agent's message a list owners skimmed past, and
+once read nothing let them go back to it. Now the sidebar foot has a Help menu: the newest entries that apply, then
+every release in a dialog, each entry with what it lets the owner do and a button that asks the super-agent for it
+(the action's prompt, sent to Home), plus the guides, the Discord and feedback. Each entry carries `title` and `about`
+in English and Spanish, written for the owner: the panel shows its own language, and `text` stays what the model is
+told. The super-agent's message is one or two sentences with the thing that matters most in bold, pointing to Help ›
+What's new for the rest; without a model it is one line with the first entry's title in bold and the rest counted.
+The Help button carries a dot while an entry that applies was not there the last time the menu opened on that device
+(kept per device, like the corner cards); a device that never opened it counts the newest release's entries as new.
+
 <a id="d-183"></a>
 ## D-183 — 2026-10-29 — The isolated computer runs on Linux and Windows too, each with Lima's own driver
 The computer ([D-151](#d-151), [D-152](#d-152)) only ran on macOS with Apple Silicon. `environments/host.ts` now picks
@@ -3463,20 +3494,6 @@ Windows differs in what it can promise, and the guest is checked for each point,
 - WSL sizes memory and CPUs for all distributions in `.wslconfig`; the computer's settings do not change them.
 - A host agent that died with the core leaves a pid Lima on Windows cannot inspect past: a dead `ha.pid` is dropped,
   a folder from a cut-short setup is cleared, and stopping terminates the distribution when Lima cannot.
-
-<a id="d-182-news"></a>
-## D-182 — 2026-10-30 — Release news live in a Help menu; the super-agent names one thing
-(Note, 2026-11-05: this entry repeats the number of the Flow triggers entry above, which is [D-182](#d-182); links
-to this one use `#d-182-news`.)
-Told all at once (D-117), a release with many entries made the super-agent's message a list owners skimmed past, and
-once read nothing let them go back to it. Now the sidebar foot has a Help menu: the newest entries that apply, then
-every release in a dialog, each entry with what it lets the owner do and a button that asks the super-agent for it
-(the action's prompt, sent to Home), plus the guides, the Discord and feedback. Each entry carries `title` and `about`
-in English and Spanish, written for the owner: the panel shows its own language, and `text` stays what the model is
-told. The super-agent's message is one or two sentences with the thing that matters most in bold, pointing to Help ›
-What's new for the rest; without a model it is one line with the first entry's title in bold and the rest counted.
-The Help button carries a dot while an entry that applies was not there the last time the menu opened on that device
-(kept per device, like the corner cards); a device that never opened it counts the newest release's entries as new.
 
 <a id="d-184"></a>
 ## D-184 — 2026-10-31 — The super-agent publishes and runs a Flow when the owner asks, each after a card
@@ -3560,6 +3577,7 @@ cut off before the turn took them run as a turn of their own. An outside engine 
 the line stays) and runs the message first (`now: true`). It also does so for a message with files, which a running turn
 cannot take. [D-189](#d-189) makes Enter do the same there. With no turn at work it only goes first (`now: false`). Channel messages are unchanged: the owner's steer as before, and no
 `waiting` (the app shows them as delivered).
+
 <a id="d-187"></a>
 ## D-187 — 2026-11-02 — A task carries the owner's words and a goal; its plan is steps
 
@@ -3625,8 +3643,8 @@ adding a restriction, without one step of its plan working.
 
 Rejected: a cap on delegations per task (good work also delegates; what matters is that steps get done), and resetting
 the count on any plan rewrite (an agent could rewrite its plan to go on forever).
-<a id="d-189"></a>
 
+<a id="d-189"></a>
 ## D-189 — 2026-11-02 — Enter on an agent in an outside engine's session sends now (amended by D-196)
 
 [D-186](#d-186) left Enter in line behind a Claude Code or Codex turn, since those cannot take words mid-turn, and the
@@ -3921,6 +3939,7 @@ take words mid-turn), and ACP (v1 has no way to add a user message to a running 
 
 <a id="d-197"></a>
 ## D-197 — 2026-11-05 — Reading through APX's own CLI does not wait for the owner
+*Amended by [D-210](#d-210) (2026-11-09): commands ask by what they do, not by naming the CLI.*
 
 Every command that ran APX's CLI from an agent's shell (`apx …`, `node …/apps/terminal/src/main.ts …`) was `always`,
 so in Auto even `apx status` put a "high-impact action" card in front of the owner, mid-work. The rule exists because
@@ -4538,25 +4557,6 @@ titles and notifications would have to learn to skip it, and the agent could act
 shows), and a turn in the chat marked as hidden (it would still enter the model's context unless every history builder
 learned the mark).
 
-<a id="d-217"></a>
-## D-217 — 2026-11-11 — A mailbox brings every mail in and marks what no person wrote; marked mail is the owner's only
-An email account dropped mail it would not answer (unverified senders, "Never read", outside "Who may write") and
-never saw the server's Spam folder, so the owner could not tell what arrived. Every mail is now brought in.
-
-- **One mark per mail** (`MailMark`: automatic, spam, unverified, blocked, outside), decided by the adapter in that
-  order of reasons: the Spam folder, the "Never read" list, "Who may write", the server's verdict, then automatic
-  headers. The owner's own addresses only get "automatic"; unverified mail from them is still dropped (a forgery).
-- **Marked mail is kept for the owner only** (`mail_handling: "marked"`, the passive path): shown with its mark, never
-  answered, never told, never written to the agent's context, never counted unread. The owner chose this so spam
-  cannot instruct the agent.
-- **The Spam folder** is found by its `\Junk` flag (RFC 6154) or a usual name, read from the moment it is found, on
-  the same connection after each inbox round; its mail gets its own id so a mail later moved to the inbox is read.
-- **The list shows people by default**: a chat with only marked mail carries its latest mark (`Thread.mail_mark`, from
-  its context); the first mail a person wrote makes it a person's chat for good.
-
-Known limit: chats of automatic mail kept before this carry no mark until their sender writes again (a data migration
-was not worth a schema step).
-
 <a id="d-216"></a>
 ## D-216 — 2026-11-11 — WhatsApp groups are rooms; on the owner's own phone they are only read until the owner allows more
 WhatsApp read only one-to-one chats, and owners asked for their groups to work like Telegram's and Discord's. A
@@ -4588,6 +4588,25 @@ names and limits, sealed turns), with what is particular to a linked phone:
 Rejected: answering in groups from the owner's phone by default (a member could make the owner "say" anything), a
 switch per group (one account-wide choice is the explicit one the owner makes; each group's mode still applies), and
 reading every group to offer it (the list comes from WhatsApp; nothing of an unlisted group is stored).
+
+<a id="d-217"></a>
+## D-217 — 2026-11-11 — A mailbox brings every mail in and marks what no person wrote; marked mail is the owner's only
+An email account dropped mail it would not answer (unverified senders, "Never read", outside "Who may write") and
+never saw the server's Spam folder, so the owner could not tell what arrived. Every mail is now brought in.
+
+- **One mark per mail** (`MailMark`: automatic, spam, unverified, blocked, outside), decided by the adapter in that
+  order of reasons: the Spam folder, the "Never read" list, "Who may write", the server's verdict, then automatic
+  headers. The owner's own addresses only get "automatic"; unverified mail from them is still dropped (a forgery).
+- **Marked mail is kept for the owner only** (`mail_handling: "marked"`, the passive path): shown with its mark, never
+  answered, never told, never written to the agent's context, never counted unread. The owner chose this so spam
+  cannot instruct the agent.
+- **The Spam folder** is found by its `\Junk` flag (RFC 6154) or a usual name, read from the moment it is found, on
+  the same connection after each inbox round; its mail gets its own id so a mail later moved to the inbox is read.
+- **The list shows people by default**: a chat with only marked mail carries its latest mark (`Thread.mail_mark`, from
+  its context); the first mail a person wrote makes it a person's chat for good.
+
+Known limit: chats of automatic mail kept before this carry no mark until their sender writes again (a data migration
+was not worth a schema step).
 
 <a id="d-218"></a>
 ## D-218 — 2026-11-08 — Proposed, not accepted: group chats split front from back, and a router picks who answers
@@ -4628,6 +4647,7 @@ re-approving every listed tool when a server starts in "all" (a grant made witho
 
 <a id="d-220"></a>
 ## D-220 — 2026-11-11 — A teammate asked on a task shows as one card where the agent asked
+*Amended by [D-221](#d-221) (2026-11-11): every agent-to-agent card is one row that unfolds its answer in place; its navigation from the Inbox is superseded by [D-225](#d-225) (2026-11-12).*
 
 D-132 brought a consult's answer back to the asking agent's chat as the teammate's words, and the panel drew those
 words as a box of their own (an "agent event"), while the consult's card lived only in the task's conversation. The
@@ -4653,7 +4673,9 @@ Rejected: putting the card inside the asker's live answer, as a delegation's is 
 still being written, and a card settled outside the turn's display would be overwritten by it), and dropping the
 answer's message (the asker's next turn would show with nothing above it saying why).
 
+<a id="d-221"></a>
 ## D-221 — 2026-11-11 — A teammate's card is one row that unfolds its answer
+*Its navigation from the Inbox is superseded by [D-225](#d-225) (2026-11-12): a teammate's row under its task opens that conversation as the chat.*
 
 Amends D-220. A delegation's card showed its report folded under the head with "Show more", while a consult between
 agents was a closed row whose click left the chat for the teammate's conversation: two designs for the same thing, and
