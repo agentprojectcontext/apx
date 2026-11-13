@@ -242,6 +242,9 @@ apx pairing           # strangers waiting for your approval
   there too.
 - **A person is blocked**: blocked people get no answer. Check `apx contacts`.
 - **A send is `uncertain`**: the core was cut while sending, so it can't know whether it arrived. It isn't sent twice.
+  When WhatsApp's connection drops before a message leaves, APX knows it did not go and sends it again once connected.
+- **An answer shows it failed though you got part of it**: an agent's answer can go out in more than one message (its
+  first words, then the rest when it finishes). The mark under the answer shows how its last message went.
 - **Two APX answer the same bot**: don't run APX v1 and v2 with the same bot. Installing v2 stops v1's daemon for this
   reason.
 

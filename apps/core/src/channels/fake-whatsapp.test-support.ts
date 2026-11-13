@@ -8,7 +8,7 @@ import type { WaContent, WaKey } from "./whatsapp-content.ts";
 
 const OWNER_PN = "5491100000001@s.whatsapp.net";
 const OWNER_LID = "100000000000001@lid";
-const REASON = { loggedOut: 401, restartRequired: 515, timedOut: 408 };
+const REASON = { loggedOut: 401, restartRequired: 515, timedOut: 408, connectionClosed: 428 };
 const PIXEL = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==";
 
 export type Person = { phone: string; name: string; lid?: string };
@@ -34,6 +34,7 @@ export function fakeWhatsApp(owner = OWNER_PN) {
   const lids = new Map<string, string>();
   /** The device's id store stopped answering: a lookup never ends. */
   let stalled = false;
+  let closeNext = false;
   const never = () => new Promise<undefined>(() => {});
   /** Numbers nobody has WhatsApp on (anyone else has it); and every number this device asked about. */
   const absent = new Set<string>();
@@ -53,6 +54,10 @@ export function fakeWhatsApp(owner = OWNER_PN) {
         for (const fn of listeners.get(event) ?? []) fn(arg);
       },
       async sendMessage(jid: string, content: Record<string, unknown>, opts?: { quoted?: WaMessage }) {
+        if (closeNext) {
+          closeNext = false;
+          throw Object.assign(new Error("Connection Closed"), { output: { statusCode: REASON.connectionClosed } });
+        }
         const id = `OUT-${++seq}`;
         const quoted = opts?.quoted?.key.id;
         sent.push({ id, jid, content, ...(quoted ? { quoted } : {}) });
@@ -170,6 +175,10 @@ export function fakeWhatsApp(owner = OWNER_PN) {
         connection: "close",
         lastDisconnect: { error: { message: "restart required", output: { statusCode: REASON.restartRequired } } },
       });
+    },
+    /** The connection drops as the next message is about to go: Baileys throws before writing it. */
+    closeOnNextSend() {
+      closeNext = true;
     },
     /** The QR expires with nobody scanning it. */
     expire() {
