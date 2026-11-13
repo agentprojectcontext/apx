@@ -46,8 +46,8 @@ navegador se guarda su propia llave. El panel se acomoda a la pantalla angosta.
 
 Toda vinculación funciona igual, sea un teléfono, un navegador u otra computadora:
 
-- El código tiene **8 caracteres**, sin los que se confunden (ni `0`/`O`, ni `1`/`I`), y vive **10 minutos** en la
-  memoria del core. Reiniciar el core anula los códigos pendientes.
+- El código tiene **8 caracteres**, sin los que se confunden (ni `0`/`O`, ni `1`/`I`), y dura **10 minutos**,
+  aunque el core se reinicie mientras tanto. El core guarda solo su hash.
 - Sirve **una vez**. El dispositivo lo cambia por una llave propia; el core guarda solo el hash de esa llave.
 - **Cinco códigos incorrectos** anulan todos los pendientes y pausan la vinculación por **cinco minutos**.
 - El QR lleva un enlace `apx://pair?…` con el código y las direcciones donde se puede llegar al core. Si configurás
