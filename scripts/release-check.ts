@@ -175,6 +175,15 @@ export function check(argv: readonly string[], run: Run = exec, log = console.lo
     );
   }
   if (!createTag) return 0;
+  // What people are told is new must say this release (check-since.ts); it reads this checkout, so it runs on its HEAD.
+  const head = run("git", ["rev-parse", "HEAD"]);
+  if (head.status === 0 && head.stdout.trim() === sha) {
+    if (run("node", ["scripts/check-since.ts", "--release", tag], true).status !== 0) {
+      log(`release:check: news or welcome slides do not say ${tag}; fix their since and run it again`);
+      return 1;
+    }
+  } else
+    log(`release:check: ${sha.slice(0, 12)} is not this checkout's HEAD; run pnpm check:since --release ${tag} there`);
   for (const [command, args] of [
     ["git", ["tag", tag, sha]],
     ["git", ["push", "origin", `refs/tags/${tag}`]],

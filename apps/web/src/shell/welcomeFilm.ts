@@ -3,9 +3,9 @@
  * (media/whats-new/<lang>/<key>.mp4), with the first release that has it. A new feature goes at the top.
  */
 export const WELCOME_SLIDES = [
-  { key: "groups", since: "2.14.4" },
-  { key: "group-answers", since: "2.14.4" },
-  { key: "group-card", since: "2.14.4" },
+  { key: "groups", since: "2.15.0" },
+  { key: "group-answers", since: "2.15.0" },
+  { key: "group-card", since: "2.15.0" },
   { key: "sidebar", since: "2.14.0" },
   { key: "projects", since: "2.14.0" },
   { key: "routines", since: "2.14.0" },
