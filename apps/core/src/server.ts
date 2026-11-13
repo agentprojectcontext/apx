@@ -666,7 +666,13 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
       groups.afterRun(run);
     },
   });
-  const groups = createGroups({ store, admit: engine.admit, judge: upkeep.judge });
+  const groups = createGroups({
+    store,
+    admit: engine.admit,
+    judge: upkeep.judge,
+    agentModels: upkeep.agentModels,
+    auxModels: () => upkeep.auxModels(),
+  });
   // The Mac stays awake while APX works for the owner: a turn, a command, or a computer coming up (engine/awake.ts).
   const awake = keepAwake({
     busy: () =>

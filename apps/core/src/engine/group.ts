@@ -30,7 +30,14 @@ type GroupState = NonNullable<ReturnType<Store["threads"]["context"]>["group"]>;
 type Judge = (system: string, user: string, about: AuxAbout, models?: string[]) => Promise<string | undefined>;
 
 /** A group's members and the models it uses, as the owner sees and changes them. */
-export type GroupSettings = { agent_ids: string[]; models: Record<string, string>; router_model?: string };
+export type GroupSettings = {
+  agent_ids: string[];
+  models: Record<string, string>;
+  model?: string;
+  router_model?: string;
+  /** What runs when nothing is picked here: each member's own first model, and the auxiliary one. */
+  defaults: { members: Record<string, string>; router?: string };
+};
 
 const textOf = (m: Message) =>
   m.parts
@@ -77,7 +84,14 @@ export function createGroup(store: Store, o: { agent_ids: string[]; title?: stri
 
 export type Groups = ReturnType<typeof createGroups>;
 
-export function createGroups(deps: { store: Store; admit: AdmitFn; judge?: Judge | undefined }) {
+export function createGroups(deps: {
+  store: Store;
+  admit: AdmitFn;
+  judge?: Judge | undefined;
+  /** The models an agent's own turns go to, and the auxiliary ones: shown as what runs when nothing is picked. */
+  agentModels?: (agentId: string) => string[];
+  auxModels?: () => string[];
+}) {
   const { store } = deps;
   /** Bumped by Stop: a router pick that lands after it starts nobody. */
   const stops = new Map<string, number>();
@@ -180,7 +194,7 @@ export function createGroups(deps: { store: Store; admit: AdmitFn; judge?: Judge
       }
       const { thread, first } = memberChat(group, agentId);
       // The model the owner set for this member here, or none: its chat then follows the agent's own.
-      const model = g.models?.[agentId];
+      const model = g.model ?? g.models?.[agentId];
       if (store.threads.context(thread.id).model_choice?.model !== model)
         store.threads.mergeContext(thread.id, { model_choice: model ? { model, router: true } : undefined });
       const run = deps.admit({
@@ -255,15 +269,34 @@ export function createGroups(deps: { store: Store; admit: AdmitFn; judge?: Judge
     settings(groupId: string): GroupSettings {
       const g = stateOf(groupId);
       if (!g) throw new Error(`group chat ${groupId} not found`);
-      return { agent_ids: g.members, models: g.models ?? {}, ...(g.router ? { router_model: g.router } : {}) };
+      const own = Object.fromEntries(
+        g.members.flatMap((id) => {
+          const first = deps.agentModels?.(id)[0];
+          return first ? [[id, first]] : [];
+        }),
+      );
+      const aux = deps.auxModels?.()[0];
+      return {
+        agent_ids: g.members,
+        models: g.models ?? {},
+        ...(g.model ? { model: g.model } : {}),
+        ...(g.router ? { router_model: g.router } : {}),
+        defaults: { members: own, ...(aux ? { router: aux } : {}) },
+      };
     },
     /**
      * Changes who is in the group (2–5 agents; a member taken out keeps its chat under the group), the model each one
-     * answers with here (null: its own), and the model that picks who answers (null: the auxiliary one).
+     * answers with here (null: its own) or one for all of them (null: each its own), and the model that picks who
+     * answers (null: the auxiliary one).
      */
     configure(
       groupId: string,
-      o: { agent_ids?: string[]; models?: Record<string, string | null>; router_model?: string | null },
+      o: {
+        agent_ids?: string[];
+        models?: Record<string, string | null>;
+        model?: string | null;
+        router_model?: string | null;
+      },
     ): GroupSettings {
       const g = stateOf(groupId);
       if (!g) throw new Error(`group chat ${groupId} not found`);
@@ -275,10 +308,11 @@ export function createGroups(deps: { store: Store; admit: AdmitFn; judge?: Judge
       }
       for (const id of Object.keys(models)) if (!members.includes(id)) delete models[id];
       const router = o.router_model === undefined ? g.router : (o.router_model ?? undefined);
+      const model = o.model === undefined ? g.model : (o.model ?? undefined);
       store.tx(() => {
         if (o.agent_ids) store.threads.write(groupId, { agent_ids: JSON.stringify(members) });
         store.threads.mergeContext(groupId, {
-          group: { ...g, members, queue: g.queue.filter((id) => members.includes(id)), models, router },
+          group: { ...g, members, queue: g.queue.filter((id) => members.includes(id)), models, model, router },
         });
       });
       return this.settings(groupId);

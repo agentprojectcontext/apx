@@ -327,9 +327,9 @@ export function threadHandlers(
       if (!groups?.is(thread)) throw notFound(`group chat ${thread}`);
       return groups.settings(thread);
     },
-    "threads.group_set": ({ thread, agent_ids, models, router_model }) => {
+    "threads.group_set": ({ thread, agent_ids, models, model, router_model }) => {
       if (!groups?.is(thread)) throw notFound(`group chat ${thread}`);
-      for (const ref of [...Object.values(models ?? {}), router_model])
+      for (const ref of [...Object.values(models ?? {}), model, router_model])
         if (ref) {
           const why = checkModel?.(ref);
           if (why) throw badRequest(why);
@@ -338,6 +338,7 @@ export function threadHandlers(
         return groups.configure(thread, {
           ...(agent_ids ? { agent_ids } : {}),
           ...(models ? { models } : {}),
+          ...(model !== undefined ? { model } : {}),
           ...(router_model !== undefined ? { router_model } : {}),
         });
       } catch (err) {

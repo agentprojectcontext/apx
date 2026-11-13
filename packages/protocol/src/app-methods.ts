@@ -763,8 +763,8 @@ export const appMethods = {
     access: "human",
   },
   /**
-   * Changes a group chat's members (2–5), a member's model there (null: the agent's own) or the model that picks who
-   * answers (null: the auxiliary model). Only what is given changes.
+   * Changes a group chat's members (2–5), a member's model there (null: the agent's own), one model for all of them
+   * (null: each its own) or the model that picks who answers (null: the auxiliary model). Only what is given changes.
    */
   "threads.group_set": {
     params: z
@@ -772,6 +772,7 @@ export const appMethods = {
         thread: Id,
         agent_ids: z.array(Id).min(2).max(5).optional(),
         models: z.record(Id, z.string().max(200).nullable()).optional(),
+        model: z.string().max(200).nullable().optional(),
         router_model: z.string().max(200).nullable().optional(),
       })
       .strict(),

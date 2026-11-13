@@ -47,12 +47,19 @@ test("a group shows the answer as it is written, offers its members after @, and
   // The card: add Pia, take Lena out.
   await page.locator(".chat__header").getByRole("button", { name: "Grupo" }).click();
   const card = page.getByRole("complementary", { name: "Grupo" });
-  await expect(card.getByText("Lena", { exact: true })).toBeVisible();
-  await card.getByRole("combobox", { name: "Sumar un agente" }).click();
-  await page.getByRole("option", { name: /Pia/ }).click();
-  await expect(card.getByText("Pia", { exact: true })).toBeVisible();
+  const member = (name: string) => card.locator(".groupcard__member", { hasText: name });
+  await expect(member("Lena")).toBeVisible();
+  // With two members nobody can be taken out.
+  await expect(card.getByRole("button", { name: "Sacar a Lena" })).toHaveCount(0);
+  // Models come first: each member shows the model it runs on, and one model for everyone is a switch.
+  await expect(card.getByRole("switch", { name: "Mismo modelo para todos" })).not.toBeChecked();
+  await expect(card.getByRole("button", { name: "Modelo de Lena" })).toContainText("el suyo");
+  await expect(card.getByRole("button", { name: "Sobre el modelo que elige quién responde" })).toBeVisible();
+  await card.getByRole("button", { name: "Sumar un agente" }).click();
+  await page.getByRole("menuitem", { name: /Pia/ }).click();
+  await expect(card.getByRole("button", { name: "Sacar a Pia" })).toBeVisible();
   await card.getByRole("button", { name: "Sacar a Lena" }).click();
-  await expect(card.getByText("Lena", { exact: true })).toHaveCount(0);
+  await expect(member("Lena")).toHaveCount(0);
   await expect
     .poll(async () => (await rpc<{ thread: Thread }>("threads.get", { thread: group.id })).thread.agent_ids)
     .toEqual([omar.id, pia.id]);

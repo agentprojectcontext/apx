@@ -363,6 +363,7 @@ export function createUpkeep(deps: { store: Store; llm: Llm; log: Log }) {
 
   return {
     auxModels,
+    agentModels,
     voiceModels,
     memory: (agentId: string, system: string, user: string, about: AuxAbout) => ask(about, agentId, system, user),
     /**

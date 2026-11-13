@@ -256,3 +256,25 @@ test("the owner changes who is in the group, a member's model there and the rout
     await env.core.close();
   }
 });
+
+test("one model for the whole group goes over each member's, and the card is told what runs otherwise", async () => {
+  const { env, llm, ids, chat, said } = await group({ router: ["Theo"] });
+  try {
+    const set = await env.client.call("threads.group_set", {
+      thread: chat.id,
+      models: { [ids.Mara ?? ""]: "fake/fake-2" },
+      model: "fake/fake-4",
+    });
+    assert.equal(set.model, "fake/fake-4");
+    assert.ok(set.defaults.members[ids.Theo ?? ""], "each member's own model is named");
+    await env.client.call("threads.send", { thread: chat.id, text: "@Mara and @Theo, one line each" });
+    await said(3);
+    for (const name of ["Mara", "Theo"])
+      assert.equal(llm.calls.find((r) => system(r).startsWith(`You are ${name}`))?.models[0], "fake/fake-4");
+    const off = await env.client.call("threads.group_set", { thread: chat.id, model: null });
+    assert.equal(off.model, undefined);
+    assert.deepEqual(off.models, { [ids.Mara ?? ""]: "fake/fake-2" }, "each member's pick is kept for when it is off");
+  } finally {
+    await env.core.close();
+  }
+});

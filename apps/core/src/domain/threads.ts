@@ -98,6 +98,8 @@ export type ThreadContext = {
     pulled?: string[] | undefined;
     /** The model each member answers with here, by agent id; absent = the agent's own. */
     models?: Record<string, string> | undefined;
+    /** One model every member answers with here, over `models`; absent = each its own. */
+    model?: string | undefined;
     /** The model that picks who answers; absent = the auxiliary model. */
     router?: string | undefined;
   };
