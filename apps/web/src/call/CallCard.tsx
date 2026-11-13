@@ -61,6 +61,11 @@ export function CallCard() {
     return () => clearInterval(tick);
   }, [since]);
 
+  // What calls need may have changed since the button first asked (a model or the voice set up meanwhile).
+  useEffect(() => {
+    void loadCallStatus();
+  }, []);
+
   // Closing the card hangs up.
   useEffect(
     () => () => {
