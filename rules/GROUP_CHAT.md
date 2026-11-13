@@ -167,7 +167,9 @@ same router; projected to 96 messages, 15% and half.
   without "@" is a mention too (no router call); "@" in the composer lists the members; the group's card
   (`threads.group_get` / `threads.group_set`) adds and takes out members, sets a member's model for the group only
   (its chat's `model_choice`) or one for everyone, and the router's model (`router` in the group's state, else the
-  auxiliary model). The first owner test waited 3–13 s per message on a local auxiliary model (Qwen 14B) before anyone
+  auxiliary model). One model for everyone is a switch of its own (`model` in the group's state, over each member's pick,
+which is kept for when it is off), and the card names what runs when nothing is picked (`defaults`). The first owner
+test waited 3–13 s per message on a local auxiliary model (Qwen 14B) before anyone
   answered; that is what the router-model setting is for.
 - The router's calls count as the auxiliary model's "room" purpose in Usage.
 - Tests: `apps/core/src/engine/group.test.ts` (the second member reads the first's answer and never its tool steps;

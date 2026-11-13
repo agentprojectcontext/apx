@@ -364,7 +364,11 @@ export type Thread = z.infer<typeof Thread>;
 export const GroupSettings = z.object({
   agent_ids: z.array(Id),
   models: z.record(Id, z.string()),
+  /** One model for every member, over `models`. */
+  model: z.string().optional(),
   router_model: z.string().optional(),
+  /** What runs when nothing is picked in the group: each member's own first model, and the auxiliary one. */
+  defaults: z.object({ members: z.record(Id, z.string()), router: z.string().optional() }),
 });
 export type GroupSettings = z.infer<typeof GroupSettings>;
 

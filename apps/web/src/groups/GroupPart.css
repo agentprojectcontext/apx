@@ -15,18 +15,50 @@
   font: inherit;
   color: inherit;
 }
-.groupcard__members {
+.groupcard__section {
   display: flex;
   flex-direction: column;
   gap: 10px;
-  margin: 0 0 8px;
+  padding-top: 14px;
+  border-top: 1px solid var(--apx-border);
+}
+.groupcard__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.groupcard__title {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+}
+.groupcard__count {
+  margin-left: 4px;
+  font-weight: 400;
+  color: var(--apx-fg-muted);
+}
+.groupcard__label {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 4px;
+  font-size: 12px;
+  color: var(--apx-fg-muted);
+}
+.groupcard__list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0;
   padding: 0;
   list-style: none;
 }
-.groupcard__member {
+.groupcard__row {
   display: flex;
-  flex-direction: column;
-  gap: 4px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-width: 0;
 }
 .groupcard__who,
 .groupcard__model {
@@ -35,14 +67,25 @@
   gap: 6px;
   min-width: 0;
 }
-.groupcard__name {
+.groupcard__who {
+  flex: 0 1 auto;
+}
+.groupcard__row > .groupcard__model {
   flex: 1;
+  justify-content: flex-end;
+}
+.groupcard__text {
+  display: flex;
+  flex-direction: column;
   min-width: 0;
+}
+.groupcard__name,
+.groupcard__role {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.groupcard__model > :first-child {
-  flex: 1;
-  min-width: 0;
+.groupcard__role {
+  font-size: 12px;
+  color: var(--apx-fg-muted);
 }
