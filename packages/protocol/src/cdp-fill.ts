@@ -116,6 +116,38 @@ const FOCUSED = `function () {
   }
 }`;
 
+/**
+ * Whether acting on this node would send a password the browser holds: its form (or its document, with no form) has a
+ * password field the browser filled from saved logins or that has a value. Read from an isolated world (a frame of
+ * another process from its own); a node that cannot be read counts as one that would.
+ */
+export async function sendsPassword(send: CdpSend, backendNodeId: number): Promise<boolean> {
+  const at = await nodeFrame(send, backendNodeId).catch(() => undefined);
+  const objectId = at?.frameId
+    ? await resolveIn(send, backendNodeId, at.frameId).catch(() => undefined)
+    : (await send<{ object: { objectId?: string } }>("DOM.resolveNode", { backendNodeId }).catch(() => undefined))
+        ?.object.objectId;
+  if (!objectId) return true;
+  const r = await send<{ result: { value?: unknown }; exceptionDetails?: unknown }>("Runtime.callFunctionOn", {
+    objectId,
+    functionDeclaration: SENDS_PASSWORD,
+    returnByValue: true,
+  });
+  return Boolean(r.exceptionDetails) || r.result.value !== false;
+}
+
+const SENDS_PASSWORD = `function () {
+  const form = this.form || (this.closest ? this.closest("form") : null);
+  const fields = form ? Array.from(form.elements) : Array.from(this.ownerDocument.querySelectorAll("input"));
+  const filled = (f) => {
+    for (const sel of [":autofill", ":-webkit-autofill"]) {
+      try { if (f.matches(sel)) return true; } catch {}
+    }
+    return Boolean(f.value);
+  };
+  return fields.some((f) => f.localName === "input" && String(f.type).toLowerCase() === "password" && filled(f));
+}`;
+
 async function resolveIn(send: CdpSend, backendNodeId: number, frameId: string): Promise<string> {
   const { executionContextId } = await send<{ executionContextId: number }>("Page.createIsolatedWorld", {
     frameId,

@@ -3944,6 +3944,8 @@ launcher (`pnpm exec apx`, `bash -c`), `secrets` in any form, and the `127.0.0.1
 <a id="d-198"></a>
 ## D-198 — 2026-11-05 — Agents work in the owner's Chrome only for what they wrote in its side panel
 *Revised by [D-223](#d-223) (2026-11-12): a routine and a task the owner created reach their Chrome too.*
+*Revised by [D-226](#d-226) (2026-11-13): a helper delegated to for such work reaches it too, and a form holding a
+password is the owner's to send.*
 The owner wanted APX's Chrome extension to do what browser extensions of other agent apps do: drive their real
 Chrome, where they are signed in. APX already has two browsers (the desktop app's embedded one and the core's
 headless one), and the owner decided which one a turn uses: **the owner's Chrome only for words written in APX's
@@ -3990,9 +3992,9 @@ Revised 2026-11-06 at the owner's request: a call for their Chrome with no Chrom
 extension (`nodes/chrome-launch.ts`, Chrome first) and waits for it to connect. The agent hears what the owner has to
 do only after that: add the extension, turn it on, or open Chrome. The side panel is never needed for the connection.
 
-Known limits, left for later: with the extension in more than one browser or profile, the Chrome node that connected
-last serves every Chrome turn. Work an agent delegates from a Chrome turn uses APX's own browser. A login form Chrome
-filled from the owner's saved passwords can be sent by an agent's click: the credential guard covers typing.
+Known limit, left for later: with the extension in more than one browser or profile, the Chrome node that connected
+last serves every Chrome turn. (Work delegated from a Chrome turn and a login form Chrome filled were limits here too:
+[D-226](#d-226) closes both.)
 
 <a id="d-199"></a>
 ## D-199 — 2026-11-05 — An outside engine's checklist is APX's plan
@@ -4797,3 +4799,33 @@ the asked teammate's own leading mention goes, since the row already names them.
 
 Rejected: keeping the side opening and only marking it read (the click still showed another conversation in the
 middle), and renaming the stored titles in the core (the threads already kept would still show ids).
+
+<a id="d-226"></a>
+## D-226 — 2026-11-13 — What an agent does for the owner's work reaches their Chrome; a form holding a password is theirs to send
+D-198 kept the owner's Chrome to their own turns, and D-223 added their routines and the tasks they created. Work an
+agent handed to a teammate from one of those still used APX's own browser, so a routine that delegated "check the late
+orders in my Chrome" got a helper that could not. The owner decided: **a helper inherits the reach of the turn it works
+for**, and since routines now drive Chrome unwatched, the D-198 limit on autofilled logins is closed in the same change.
+
+- **One rule, walked up the chain** (`chromeReach` in `domain/runs.ts`, used by `engine/turn-tools.ts` and
+  `rpc/browser.ts`). A turn reaches the owner's Chrome as `all` (written in APX's panel in Chrome: every browser call
+  goes there) or `asked` (the owner's words, answers, routine or task: `browser_open` with `chrome` and `c<n>` tabs), or
+  not at all. An own agent's request (`agent` origin) takes the reach of the run that asked (`run_id`), a delegated
+  result's turn the reach of the run that delegated (the child's `parent_run_id`), an answer the reach of the run that
+  asked it; at most ten hops. So a helper of a side-panel turn browses only in Chrome, a helper of an app turn may ask
+  for it, and the delegating agent goes on with the same reach when it hears back.
+- **Still never in Chrome**: a contact's or a room's turn, mail, an outside app's agent (`external`, `client:…`) even
+  naming the owner's run, an agent asked by another agent with no owner's work above it, and a task an agent gave
+  (`task_assignment`; D-223). The owner's Chrome mark on messages (`via`) stays on their own words and the answer to
+  them, not on a helper's.
+- **A routine needs no switch of its own.** Asked again, the owner kept D-223: a routine has its agent's tools and its
+  own permission level (`Routine.autonomy`), and a new tab in Chrome is an `ask` action like any other.
+- **A form holding a password is the owner's to send.** In the owner's Chrome (`CdpPage` with `ownersBrowser`, set by
+  `apx chrome-host`), a click, or typing with Enter, on an element whose form (or document, with no form) has a password
+  field Chrome filled (`:autofill`) or with a value is refused with `credential_field`; the agent asks the owner to
+  sign in and goes on. Read from an isolated world; a node that cannot be read counts as holding one. APX's own browsers
+  are unchanged: there the agent sends the form after a sign-in it filled from a stored secret (D-193).
+
+Rejected: a per-routine Chrome switch (the owner's D-223 rule: an agent alone has the tools it has when the owner talks
+to it), a `chrome` parameter on `delegate` (a tool field paid on every turn, rule 23, for what the chain already says),
+and refusing every click in a form with a password field, filled or not (an empty one sends nothing of the owner's).
