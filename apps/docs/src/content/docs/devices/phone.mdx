@@ -45,8 +45,8 @@ adapts to the narrow screen.
 
 Every pairing works the same way, whether it's a phone, a browser or another computer:
 
-- The code has **8 characters**, without look-alikes (no `0`/`O`, no `1`/`I`), and lives **10 minutes** in the core's
-  memory. Restarting the core voids pending codes.
+- The code has **8 characters**, without look-alikes (no `0`/`O`, no `1`/`I`), and lasts **10 minutes**,
+  even if the core restarts meanwhile. The core stores only its hash.
 - It works **once**. The device trades it for a key of its own; the core stores only that key's hash.
 - **Five wrong codes** void every pending code and pause pairing for **five minutes**.
 - The QR carries an `apx://pair?…` link with the code and the addresses the core can be reached on. If you set

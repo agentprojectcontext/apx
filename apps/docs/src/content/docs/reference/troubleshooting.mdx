@@ -221,7 +221,7 @@ APX_HOST`, for example): the process environment always wins.
 
 | What you see | Why, and what to do |
 |---|---|
-| "That code is wrong or expired" | Codes last 10 minutes and work once. Restarting the core also voids them. Ask for a new one. |
+| "That code is wrong or expired" | Codes last 10 minutes and work once; five wrong ones pause pairing for five minutes. Ask for a new one. |
 | "Too many wrong codes" | Five wrong codes pause pairing for five minutes. Wait, then ask for a new code. |
 | "Your phone cannot reach this core yet" | The core only listens on its own computer. Expose it (LAN or Tailscale), restart it and pair again. |
 | The phone can't connect at all | It isn't on the same network (LAN) or in your tailnet (Tailscale), or the address is wrong. Try the address in the phone's browser. |

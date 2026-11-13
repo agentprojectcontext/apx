@@ -334,7 +334,7 @@ only after it is stored; Discord does not redeliver a message sent while the soc
 <a id="d-030"></a>
 ## D-030 — 2026-10-03 — Devices pair with a one-time code and keep a key of their own
 A phone (or another computer) reaches the core through the same protocol as the panel. It does not get the core's
-token: the panel asks for a one-time code (8 characters without look-alikes, 10 minutes, kept in memory), shown as a
+token: the panel asks for a one-time code (8 characters without look-alikes, 10 minutes, kept as a hash in the store so a restart does not void it), shown as a
 QR with the addresses the core listens on (`apx://pair?c=…&u=…`); the device trades it in `devices.pair`, the one
 method callable without a token (`open` in the registry), for a key of its own (`apxd_…`, only its sha256 stored).
 That key passes the gate like the core's token, as the owner, and is revoked alone. Five wrong codes void every
