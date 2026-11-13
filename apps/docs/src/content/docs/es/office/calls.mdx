@@ -1,51 +1,60 @@
 ---
-title: Llamadas
-description: Hablale a tu super-agente con la voz, mientras lo que necesita trabajo de verdad sigue durante la llamada.
+title: Llamadas y la voz de APX
+description: La voz propia de APX dice las notas de voz de tus agentes y escucha las tuyas, y te deja llamar a cualquier agente y seguir hablando mientras trabaja.
 sidebar:
   order: 10
 ---
 
-import { Aside, Steps } from "@astrojs/starlight/components";
+import { Aside } from "@astrojs/starlight/components";
 
-Llamá a tu super-agente y hablale como por teléfono. Un modelo de voz rápido en tu Mac te contesta enseguida. Cuando le
-pedís algo que necesita trabajo de verdad (qué hay en un proyecto, un mail, tu calendario, algo de la web), la voz te
-dice que está en eso y tu super-agente lo hace mientras seguís hablando. Escuchás la respuesta apenas está lista, nunca
-encima de lo que estás diciendo.
+APX tiene una voz propia que corre en tu Mac. Tus agentes dicen sus notas de voz con ella, escribe las notas de voz que
+les mandás, y te deja **llamar** a cualquiera de tus agentes y hablarle como por teléfono.
+
+## La voz de APX
+
+Abrí **Ajustes › Voces**. Arriba está la voz propia de APX:
+
+- **Mujer u hombre**, en **Español (Argentina)**, **Español** (neutro) o **English (US)**. Tocá **Escuchar** para oírla.
+  La voz que elegís es con la que hablan tus agentes y con la que empieza una llamada.
+- En una Mac con Apple silicon se descarga sola la primera vez (unos 6 GB; 3 GB en una Mac con menos de 16 GB de
+  memoria, que usa una voz más liviana). Ahí podés seguir la descarga, o apagar la voz.
+- Necesita [uv](https://docs.astral.sh/uv/) (`brew install uv`), que trae lo que la voz necesita para correr.
+- Con menos de 8 GB de memoria, o en otra computadora, la voz de APX no corre: usá un servicio de voz tuyo en
+  **Avanzado** (OpenAI, Gemini, QVox o cualquier servidor compatible), y uno de transcripción para tus notas de voz.
+
+Cuando está lista es la primera voz y la primera transcripción de la lista, así que tus agentes la usan salvo que pongas
+otro servicio primero en **Avanzado**. Las voces son de APX, hechas para APX: no son la voz de ninguna persona real.
+
+<Aside>
+La voz se carga cuando algo la necesita y libera la memoria después de 10 minutos sin uso. La primera nota de voz o
+llamada después de un rato tarda unos segundos más.
+</Aside>
 
 ## Hacer una llamada
 
-Tocá el botón del teléfono arriba en el panel, o en el chat de tu super-agente. La primera vez elegí una voz de mujer o
-de hombre; APX la recuerda. Hablá normal: podés interrumpir a la voz en cualquier momento, y si decís "dale, te espero"
-se queda callada hasta que haya novedades.
+Tocá el botón del teléfono arriba del panel para llamar a tu super-agente, o **Llamar** en el perfil de cualquier agente,
+en su menú o en su chat. Elegí la voz y el acento; APX los recuerda. Hablá normal: podés interrumpir a la voz cuando
+quieras, y decir "dale, te espero" la deja callada hasta que haya novedades.
 
-Cada llamada es un chat en el grupo **Llamadas** del Inbox. Ahí está lo que dijiste y lo que te contestó la voz, y cada
-cosa que le pidió a tu super-agente aparece dentro de la llamada como una tarjeta: abrila para ver cómo se hizo. Si
-llamás de nuevo desde el chat de una llamada, sigue en ese mismo chat.
+Cuando pedís algo que necesita trabajo de verdad (qué hay en un proyecto, un mail, tu calendario, algo de la web), la voz
+te dice que está en eso y el agente que llamaste lo hace mientras seguís hablando. Pedí varias cosas a la vez y cada una
+corre por su lado; escuchás cada respuesta apenas está lista, nunca encima de lo que decís.
 
-## Qué necesita una llamada
+## Dónde quedan las llamadas
 
-- Una Mac con Apple silicon: los modelos de voz corren en su GPU.
-- [uv](https://docs.astral.sh/uv/) (`brew install uv`): la primera vez trae el Python y los paquetes del motor de voz.
-- Una voz clonada: una grabación corta y limpia `<nombre>.wav` en la carpeta de voces (por defecto `voices` en la casa
-  de APX) y, si la tenés, `<nombre>.json` con lo que dice la grabación (`{"refText": "…"}`), que hace el clon más fiel.
-- Un modelo de voz rápido. Por defecto, `qwen3:4b-instruct` en Ollama en esta Mac. También sirve uno en otra máquina
-  tuya, si no se usa para otra cosa: un servidor compartido puede hacer esperar a la voz.
+Cada llamada es un chat en el grupo **Llamadas** de la Bandeja, con lo que dijiste y lo que contestó la voz. Cada cosa
+que le pidió al agente cuelga dentro de la llamada como una tarjeta: abrila para ver cómo se hizo. Llamar de nuevo desde
+el chat de una llamada sigue en ese mismo chat.
 
-<Aside>
-La primera llamada descarga los modelos de voz (unos GB) y puede tardar unos minutos. Después una llamada arranca en
-segundos; el motor se apaga a los 10 minutos sin llamadas para que sus modelos dejen libre la GPU.
-</Aside>
+## El modelo con el que habla una llamada
 
-## Ajustes
+Una llamada habla con **tu modelo principal**, el que APX usa por defecto, así que no hay nada que configurar. Para usar
+otro, elegilo en **Ajustes › Voces › Modelo para llamadas**: cualquier modelo que tenga APX, incluido un servidor tuyo
+agregado como proveedor. Un modelo chico y rápido hace que la charla se sienta más ágil. El agente que llamás siempre
+trabaja con su propio modelo.
 
-Las llamadas se configuran en `core.env` en la casa de APX (reiniciá el core después de un cambio):
+## Ajustes en `core.env`
 
-| Variable | Por defecto | Qué define |
+| Variable | Por defecto | Qué ajusta |
 |---|---|---|
-| `APX_VOICE_LLM_URL` | `APX_OLLAMA_URL` | Dónde corre el modelo de voz: un servidor Ollama, o uno compatible con OpenAI. |
-| `APX_VOICE_LLM_MODEL` | `qwen3:4b-instruct` | El modelo de voz. |
-| `APX_VOICE_LLM_KIND` | `ollama` | `openai` para un servidor compatible con OpenAI. |
-| `APX_VOICE_LLM_KEY_REF` | ninguna | Una referencia a un secreto (`secret://…`) con la clave de ese servidor. |
-| `APX_VOICE_VOICES` | `<casa>/voices` | La carpeta con las voces clonadas. |
-| `APX_VOICE_FEMALE`, `APX_VOICE_MALE` | `female`, `male` | Qué grabación usa cada voz (su nombre sin `.wav`). |
-| `APX_VOICE_TTS_MODEL` | `Qwen/Qwen3-TTS-12Hz-1.7B-Base` | El modelo de voz sintetizada: un id de Hugging Face o una carpeta local. |
+| `APX_VOICE_AUTO` | `on` en el home por defecto | `on` u `off`: descargar la voz de APX sola donde esta Mac la corre. Un core con su propio `APX_HOME` no lo hace, salvo que diga `on`. |

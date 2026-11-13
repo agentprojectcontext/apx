@@ -1,51 +1,59 @@
 ---
-title: Calls
-description: Talk to your super-agent by voice, while what needs real work keeps going during the call.
+title: Calls and APX's voice
+description: APX's own voice speaks your agents' voice notes and hears yours, and lets you call any agent and keep talking while it works.
 sidebar:
   order: 10
 ---
 
-import { Aside, Steps } from "@astrojs/starlight/components";
+import { Aside } from "@astrojs/starlight/components";
 
-Call your super-agent and talk to it like on the phone. A fast voice model on your Mac answers right away. When you
-ask for something that needs real work (what is in a project, a mail, your calendar, something on the web), the voice
-says it is on it and your super-agent does it while you keep talking. You hear the answer as soon as it is ready,
-never over your own words.
+APX has a voice of its own that runs on your Mac. Your agents speak their voice notes with it, it writes down the voice
+notes you send them, and it lets you **call** any of your agents and talk to it like on the phone.
+
+## APX's voice
+
+Open **Settings › Voices**. At the top is APX's own voice:
+
+- **Female or male**, in **Spanish (Argentina)**, **Spanish** (neutral) or **English (US)**. Press **Listen** to hear
+  it. The voice you pick is the one your agents speak with, and the one a call starts with.
+- On a Mac with Apple silicon it downloads on its own the first time (about 6 GB; 3 GB on a Mac with less than 16 GB of
+  memory, which runs a lighter voice). You can follow the download there, or turn the voice off.
+- It needs [uv](https://docs.astral.sh/uv/) (`brew install uv`), which brings what the voice runs on.
+- With less than 8 GB of memory, or on another computer, APX's voice does not run: use a voice service of your own
+  under **Advanced** (OpenAI, Gemini, QVox or any compatible server), and a transcription service for your voice notes.
+
+Once it is ready it is the first voice and the first transcription in the list, so your agents use it unless you put
+another service first under **Advanced**. The voices are APX's own, made for it: no real person's voice.
+
+<Aside>
+The voice loads when something needs it and leaves memory after 10 minutes unused. The first voice note or call after a
+while takes some seconds more.
+</Aside>
 
 ## Make a call
 
-Press the phone button at the top of the panel, or in your super-agent's chat. Pick a female or male voice the first
-time; APX remembers it. Speak normally: you can interrupt the voice at any moment, and saying "ok, I'll wait" leaves
-it quiet until there is news.
+Press the phone button at the top of the panel to call your super-agent, or **Call** on any agent's profile, its menu
+or its chat. Pick the voice and the accent; APX remembers them. Speak normally: you can interrupt the voice at any
+moment, and saying "ok, I'll wait" leaves it quiet until there is news.
 
-Each call is one chat in the **Calls** group of the Inbox. What you said and what the voice answered are there, and
-each thing it asked your super-agent shows inside the call as a card: open it to see how it was done. Calling again
-from a call's chat goes on in that same chat.
+When you ask for something that needs real work (what is in a project, a mail, your calendar, something on the web),
+the voice says it is on it and the agent you called does it while you keep talking. Ask for several things at once and
+each one runs on its own; you hear each answer as soon as it is ready, never over your own words.
 
-## What a call needs
+## Where calls go
 
-- A Mac with Apple silicon: the speech models run on its GPU.
-- [uv](https://docs.astral.sh/uv/) (`brew install uv`): it brings the voice engine's Python and packages the first time.
-- A cloned voice: a short, clean recording `<name>.wav` in the voices folder (by default `voices` in APX's home), and,
-  if you have it, `<name>.json` with what the recording says (`{"refText": "…"}`), which makes the clone more faithful.
-- A fast voice model. By default, `qwen3:4b-instruct` on Ollama on this Mac. A model on another machine of yours works
-  too, if it is used for nothing else: a shared server can make the voice wait.
+Each call is one chat in the **Calls** group of the Inbox, with what you said and what the voice answered. Each thing it
+asked the agent hangs inside the call as a card: open it to see how it was done. Calling again from a call's chat goes
+on in that same chat.
 
-<Aside>
-The first call downloads the speech models (a few GB) and can take some minutes. After that a call starts in seconds;
-the engine stops after 10 minutes without calls so its models leave the GPU.
-</Aside>
+## The model a call talks with
 
-## Settings
+A call talks with **your main model**, the one APX uses by default, so there is nothing to set up. To use another one,
+pick it in **Settings › Voices › Model for calls**: any model APX has, including a server of your own added as a
+provider. A small, fast model makes the conversation feel quicker. The agent you call always works with its own model.
 
-Calls are set in `core.env` in APX's home (restart the core after a change):
+## Settings in `core.env`
 
 | Variable | Default | What it sets |
 |---|---|---|
-| `APX_VOICE_LLM_URL` | `APX_OLLAMA_URL` | Where the voice model runs: an Ollama server, or an OpenAI-compatible one. |
-| `APX_VOICE_LLM_MODEL` | `qwen3:4b-instruct` | The voice model. |
-| `APX_VOICE_LLM_KIND` | `ollama` | `openai` for an OpenAI-compatible server. |
-| `APX_VOICE_LLM_KEY_REF` | none | A secret reference (`secret://…`) for that server's key. |
-| `APX_VOICE_VOICES` | `<home>/voices` | The folder with the cloned voices. |
-| `APX_VOICE_FEMALE`, `APX_VOICE_MALE` | `female`, `male` | Which recording each voice uses (its name without `.wav`). |
-| `APX_VOICE_TTS_MODEL` | `Qwen/Qwen3-TTS-12Hz-1.7B-Base` | The speech model: a Hugging Face id or a local folder. |
+| `APX_VOICE_AUTO` | `on` for the default home | `on` or `off`: download APX's voice on its own where this Mac runs it. A core with its own `APX_HOME` doesn't, unless this says `on`. |

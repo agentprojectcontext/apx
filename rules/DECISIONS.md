@@ -4798,30 +4798,39 @@ the asked teammate's own leading mention goes, since the row already names them.
 Rejected: keeping the side opening and only marking it read (the click still showed another conversation in the
 middle), and renaming the stored titles in the core (the threads already kept would still show ids).
 
-## D-226 — 2026-11-11 — A voice call is one chat; the voice is a fast model and the super-agent works inside it
-The owner wanted to talk to the super-agent by voice, as fluidly as a phone call. The super-agent's own model (a
-subscription model over the internet) took 6 s to answer a trivial question: too slow to talk with. So a call has two
-models with two jobs. A **voice model** (fast, chosen by the owner: a local or a dedicated server) talks, decides when
-real work is needed and never makes an answer up. The **super-agent**, with its usual model and tools, does that work
-inside the call.
+<a id="d-226"></a>
+## D-226 — 2026-11-13 — APX has a voice of its own; a call is one chat with any agent, talking with the owner's model
+The owner wanted to talk to their agents by voice, as fluidly as a phone call, and wanted voice to be part of APX rather
+than a server to install (QVox) and a model server to run for the voice. A prototype proved the pieces on a Mac: voice
+activity and end of turn, whisper, Qwen3-TTS, and a model that talks while the agent works.
 
-- **One chat.** A call is a thread of kind `call` with the super-agent (`engine/calls.ts`). What the owner says and
-  what the voice answers are written there, one message per turn. An ask is a sub-chat with the super-agent, kind
-  `agent` and `parent_id` the call, shown in the voice's message as a `subthread` card that settles with the answer.
-  A prototype that opened a new chat per ask left three or four loose chats per call.
-- **Not `delegate`.** The voice is not an agent's turn, and the super-agent cannot delegate to itself; the ask is the
-  owner's own words relayed, so its run has the owner's origin and the super-agent's usual checks (D-106, D-108).
-  It starts through `engine.admit`, the core's one way to start a turn, never a second path between agents (rule 2).
-- **The answer is read as it comes.** The super-agent is asked for one or two sentences to be said aloud, and the
-  voice reads them as soon as nobody is talking. Sending them back through the voice model made the owner wait (a
-  shared model server queued it 20 s behind the super-agent's own work) and once let it make a result up.
-- **The engine is APX's own process** (`services/voice-engine.ts` → `voice/engine.py`, run with `uv`): started for a
-  call on loopback behind a secret, stopped after 10 minutes without one so its models leave the GPU. Audio goes over
-  `/voice-call` with a single-use ticket from the human-only `calls.start` (the `/vm-display` pattern); the voice's
-  frames to the core are written down, the live ones go to the panel.
-- **Echo.** Chrome's echo canceller ignores Web Audio output, so the voice heard itself and talked over itself: the
-  panel plays it through a local WebRTC loop, which the canceller hears.
+- **APX's own voice** (`services/voice-engine.ts` → `voice/engine.py`, run with `uv`, MLX on Apple silicon): one
+  process for calls, the agents' voice notes (`POST /speech`) and transcription (`POST /transcribe`), on loopback behind
+  a secret, each part loaded when first used and the whole stopped after 10 minutes unused. It is the media services'
+  dialect `apx-voice` (`services/native-voice.ts`), put first of the speech and transcription services once, when it
+  arrives; after that the owner's order stands.
+- **Where it runs.** Apple silicon with 16 GB or more runs the larger models (Qwen3-TTS 1.7B, whisper large-v3-turbo);
+  from 8 GB the lighter ones (0.6B, whisper small); below that, or off Apple silicon, it does not run and the owner's
+  own services stay. Where it runs it is on and downloads on its own (6 or 3 GB, with its progress); a scratch core
+  (its own `APX_HOME`) does not. A file under `<home>/voice` says a download finished, so a start spawns nothing to know.
+- **Voices of its own.** Female and male in Argentine Spanish, neutral Spanish and American English, made with Qwen3-TTS
+  VoiceDesign from a description (`scripts/voice-design.py`) and cloned in context by the Base model. A prototype cloned
+  voice-library previews of real voice actors; those cannot ship.
+- **One chat, any agent.** A call is a thread of kind `call` with one agent (`engine/calls.ts`). What the owner says and
+  what the voice answers are written there, one message per turn. An ask is a sub-chat with that agent, kind `agent`
+  and `parent_id` the call, shown as a `subthread` card that settles with the answer; several run at once.
+- **Not `delegate`.** The voice is not an agent's turn, and an agent cannot delegate to itself; the ask is the owner's
+  own words relayed, so its run has the owner's origin, the agent's own model and its usual checks (D-106, D-108). It
+  starts through `engine.admit`, the core's one way to start a turn, never a second path between agents (rule 2).
+- **The model a call talks with runs in the core.** By default the owner's main model (`upkeep.agentModels()`), or the
+  one they pick for calls; the engine asks with `think` frames and the core streams the reply back, with no tools and
+  counted as aux calls (`call`). Keys stay in the core, any provider works, and nothing needs a model server of its own.
+  An earlier version gave the engine its own model server: a shared one queued it 20 s behind APX's own work.
+- **The answer is read as it comes.** The agent is asked for one or two sentences to be said aloud, and the voice reads
+  them as soon as nobody is talking, with no model in between (it once made a result up).
+- **Echo.** Chrome's echo canceller ignores Web Audio output, so the voice heard itself: the panel plays it through a
+  local WebRTC loop, which the canceller hears.
 
-Rejected: a channel (it would bring a channel's send path, rewind refusal and avatar), and `threads.send` with an agent
-override (a client choosing who answers in a thread).
-
+Rejected: a channel (it would bring a channel's send path, rewind refusal and avatar); `threads.send` with an agent
+override (a client choosing who answers in a thread); a dedicated small voice model by default (one more thing to set
+up, and the owner's main model answers well enough to start).
