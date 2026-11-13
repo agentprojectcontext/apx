@@ -26,6 +26,8 @@
   position: absolute;
   top: 6px;
   right: 6px;
+  /* Over the card whatever order the stylesheets load in. */
+  z-index: 1;
   display: flex;
   gap: 2px;
   border-radius: var(--apx-radius-md);

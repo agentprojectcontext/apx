@@ -4,17 +4,7 @@ import { Button, Dialog, Icons, Kbd, Menu, NavItem, PickRow } from "@apx/ui";
 import { type CSSProperties, type ReactNode, useEffect, useState } from "react";
 import { MOD } from "../../common/modKey.ts";
 import { SectionHead } from "../../config/SectionHead.tsx";
-import {
-  accountPeople,
-  addChannel,
-  type ChannelDraft,
-  draftOf,
-  loadChannels,
-  loadSeen,
-  saveChannel,
-  useChannels,
-  useSeen,
-} from "../../data/channels.ts";
+import { addChannel, type ChannelDraft, draftOf, loadChannels, saveChannel, useChannels } from "../../data/channels.ts";
 import { useData } from "../../data/state.ts";
 import { type MessageKey, usePack, useT } from "../../i18n/index.ts";
 import { LAYOUT } from "../../shell/layout.ts";
@@ -33,6 +23,7 @@ import { keptAfter } from "./draft.ts";
 import { RoomsSection } from "./RoomsPane.tsx";
 import { clearRemoveAsk, removeAsked } from "./removeAsk.ts";
 import { hasStickersPane, StickersPane } from "./StickersPane.tsx";
+import { accountPeople, loadSeen, useSeen } from "./seen.ts";
 import type { Create, PaneProps } from "./types.ts";
 
 // The dialog portals outside .shell, so it gets its sizes here instead of the --shell-* variables.

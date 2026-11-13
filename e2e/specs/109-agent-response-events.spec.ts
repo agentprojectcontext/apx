@@ -41,7 +41,9 @@ test("a task consult shows as one closed row where it was asked, survives reload
     const event = page.locator(".transcript .apx-subthread");
     await expect(event).toHaveCount(1);
     await expect(event).toContainText("Holder → Helper");
-    await expect(event).toContainText("@helper check the tests");
+    // The row already names who was asked, so the question drops its leading @helper (DECISIONS.md#d-225).
+    await expect(event).toContainText("check the tests");
+    await expect(event).not.toContainText("@helper");
     await expect(page.locator(".transcript__agent-event")).toHaveCount(0);
     await expect(event).toContainText("Trabajando");
     release();

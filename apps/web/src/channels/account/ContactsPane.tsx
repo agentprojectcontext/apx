@@ -17,18 +17,13 @@ import { useMemo, useState } from "react";
 import { shortWhen } from "../../common/format.ts";
 import { SubHead } from "../../config/SectionHead.tsx";
 import {
-  accountPeople,
   addContact,
   type ChannelDraft,
   claimAddress,
-  keepSeen,
   removePerson,
-  type Seen,
   saveContact,
   setPersonRole,
-  unclaimAddress,
   useChannels,
-  useSeen,
 } from "../../data/channels.ts";
 import { useData } from "../../data/state.ts";
 import { type MessageKey, useT } from "../../i18n/index.ts";
@@ -36,6 +31,7 @@ import { go } from "../../shell/nav.ts";
 import { PersonAvatar } from "../PersonAvatar.tsx";
 import { phoneOf } from "../PhoneForm.tsx";
 import { initials, RELATION_KEY, RELATIONS } from "../people.ts";
+import { accountPeople, keepSeen, type Seen, unclaimAddress, useSeen } from "./seen.ts";
 import type { PaneProps } from "./types.ts";
 
 /** A saved contact picked before they have a chat: the channel list names them instead of a chat. */
