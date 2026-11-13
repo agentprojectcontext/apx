@@ -20,6 +20,7 @@ import type { enTeam } from "./en-team.ts";
 import { enTelemetry } from "./en-telemetry.ts";
 import { enFilesArtifacts } from "./files-artifacts-en.ts";
 import type { enFlow } from "./flow-en.ts";
+import type { enGroup } from "./group-en.ts";
 import { enInboxSlim } from "./inbox-slim-en.ts";
 import type { enIngress } from "./ingress-en.ts";
 import type { enMemoryPanel } from "./memory-panel-en.ts";
@@ -1944,6 +1945,7 @@ export const en = {
 export type MessageKey =
   | keyof typeof en
   | keyof typeof enAccount
+  | keyof typeof enGroup
   | keyof typeof enActivityReview
   | ApprovalKey
   | BrowserEditKey

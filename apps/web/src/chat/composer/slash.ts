@@ -27,9 +27,12 @@ export function commandOf(text: string): CommandId | undefined {
   return COMMANDS.find((c) => !c.sub && (c.id === name || c.aliases.includes(name)))?.id;
 }
 
-/** A "$" being typed at the end of the field ("… $lin"): what follows it, to list skills and connectors. */
-export function dollarQuery(text: string): { start: number; query: string } | undefined {
-  const m = /(?:^|\s)\$([\p{L}\p{N}_.:-]*)$/u.exec(text);
+/**
+ * A "$" (or `mark`, "@" in a group) being typed at the end of the field ("… $lin"): what follows it, to list skills
+ * and connectors (or members).
+ */
+export function dollarQuery(text: string, mark: "$" | "@" = "$"): { start: number; query: string } | undefined {
+  const m = (mark === "$" ? /(?:^|\s)\$([\p{L}\p{N}_.:-]*)$/u : /(?:^|\s)@([\p{L}\p{N}_.:-]*)$/u).exec(text);
   if (!m || text.slice(m.index).includes("\n")) return undefined;
   const query = m[1] ?? "";
   return { start: text.length - query.length - 1, query };

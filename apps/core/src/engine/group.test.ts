@@ -208,3 +208,51 @@ test("the group shows it is at work while a member answers, and Stop ends the li
     await env.core.close();
   }
 });
+
+test("a member named without @ answers with no router call", async () => {
+  const { env, llm, ids, chat, said } = await group({ router: ["Theo"] });
+  try {
+    await env.client.call("threads.send", { thread: chat.id, text: "no sé por qué no responde Mara?" });
+    const messages = await said(2);
+    const last = messages.at(-1)?.author;
+    assert.equal(last?.kind === "agent" ? last.id : last?.kind, ids.Mara);
+    assert.equal(llm.calls.filter((r) => system(r).startsWith(ROUTER)).length, 0, "no router call");
+  } finally {
+    await env.core.close();
+  }
+});
+
+test("the owner changes who is in the group, a member's model there and the router's model", async () => {
+  const { env, llm, ids, chat, said } = await group({ router: ["Theo"] });
+  try {
+    const iris = (await env.client.call("agents.create", { slug: "iris", name: "Iris" })).id;
+    const set = await env.client.call("threads.group_set", {
+      thread: chat.id,
+      agent_ids: ["superagent", ids.Theo ?? "", iris],
+      models: { [ids.Theo ?? ""]: "fake/fake-2" },
+      router_model: "fake/fake-3",
+    });
+    assert.deepEqual(set.agent_ids, ["superagent", ids.Theo, iris]);
+    assert.deepEqual(set.models, { [ids.Theo ?? ""]: "fake/fake-2" });
+    assert.equal(set.router_model, "fake/fake-3");
+    assert.deepEqual((await env.client.call("threads.get", { thread: chat.id })).thread.agent_ids, set.agent_ids);
+    // Nobody named: the router picks, on its own model.
+    await env.client.call("threads.send", { thread: chat.id, text: "What does hosting cost?" });
+    await said(2);
+    const router = llm.calls.find((r) => system(r).startsWith(ROUTER));
+    assert.deepEqual(router?.models, ["fake/fake-3"], "the router runs on the model picked for it");
+    const theo = llm.calls.find((r) => system(r).startsWith("You are Theo"));
+    assert.equal(theo?.models[0], "fake/fake-2", "Theo answers with the model set for him in the group");
+    // Back to his own model and the auxiliary router; a group keeps two to five members.
+    const reset = await env.client.call("threads.group_set", {
+      thread: chat.id,
+      models: { [ids.Theo ?? ""]: null },
+      router_model: null,
+    });
+    assert.deepEqual(reset.models, {});
+    assert.equal(reset.router_model, undefined);
+    await assert.rejects(env.client.call("threads.group_set", { thread: chat.id, agent_ids: [iris, iris] }), /2 to 5/);
+  } finally {
+    await env.core.close();
+  }
+});

@@ -56,11 +56,12 @@ export function ThreadAvatar({
         </span>
       ) : (
         faces.map((face, i) => (
-          <span key={face?.id ?? i} className={group && i > 0 ? "threadavatar__group" : undefined}>
+          <span key={face?.id ?? i} className={group ? `threadavatar__group is-${i}` : undefined}>
             {face ? (
               <AgentFace
                 agent={face}
-                size={group ? slot : size}
+                // A group's two faces share the slot, one up and left, the other down and right.
+                size={group ? Math.round(slot * 0.66) : size}
                 editable={editable}
                 online={online}
                 animated={animated}

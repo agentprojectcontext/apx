@@ -96,6 +96,10 @@ const PACKS = {
     en: () => import("./memory-panel-en.ts").then((m) => m.enMemoryPanel),
     es: () => import("./memory-panel-es.ts").then((m) => m.esMemoryPanel),
   },
+  group: {
+    en: () => import("./group-en.ts").then((m) => m.enGroup),
+    es: () => import("./group-es.ts").then((m) => m.esGroup),
+  },
   usage: {
     en: () => import("./sysusage-en.ts").then((m) => m.enSysUsage),
     es: () => import("./sysusage-es.ts").then((m) => m.esSysUsage),

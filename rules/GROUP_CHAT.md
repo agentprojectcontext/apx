@@ -162,6 +162,13 @@ same router; projected to 96 messages, 15% and half.
 - The panel: **New group** under the new-chat picker opens a dialog (two to five agents, an optional name); the
   group's header lists its members, each opening its chat under the group; the composer takes text only and always
   queues; its Inbox row names the members. `e2e/specs/156-group-chat.spec.ts` covers it.
+- After it shipped (owner's feedback the next morning): the member answering streams its words into the group (the
+  panel reads its chat under the group while it runs); each answer carries the model that wrote it; a member named
+  without "@" is a mention too (no router call); "@" in the composer lists the members; the group's card
+  (`threads.group_get` / `threads.group_set`) adds and takes out members, sets a member's model for the group only
+  (its chat's `model_choice`) or one for everyone, and the router's model (`router` in the group's state, else the
+  auxiliary model). The first owner test waited 3–13 s per message on a local auxiliary model (Qwen 14B) before anyone
+  answered; that is what the router-model setting is for.
 - The router's calls count as the auxiliary model's "room" purpose in Usage.
 - Tests: `apps/core/src/engine/group.test.ts` (the second member reads the first's answer and never its tool steps;
   an `@mention` skips the router; a member's next turn brings only what is new; words written while a member works
@@ -171,8 +178,8 @@ same router; projected to 96 messages, 15% and half.
   line for the landing page" to Mara alone without a router call (2.0 s), "Thanks!" to the first member (2.7 s); each
   worked in its own chat under the group.
 
-Not shipped: streaming the answer into the group while it is written, files, channels, making a group from the phone
-app or by the super-agent, and the shared prefix across agents.
+Not shipped: files, channels, making a group from the phone app or by the super-agent, and the shared prefix across
+agents.
 
 ## Toward rooms with many agents
 

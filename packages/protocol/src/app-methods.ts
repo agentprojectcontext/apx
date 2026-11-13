@@ -23,6 +23,7 @@ import {
   ChatgptStatus,
   ContactSuggestion,
   EngineStatus,
+  GroupSettings,
   Id,
   ImageDefaults,
   Job,
@@ -751,6 +752,30 @@ export const appMethods = {
       })
       .strict(),
     result: Thread,
+    effect: true,
+    access: "human",
+  },
+  /** A group chat's members, the model each answers with there, and the model that picks who answers. */
+  "threads.group_get": {
+    params: z.object({ thread: Id }).strict(),
+    result: GroupSettings,
+    effect: false,
+    access: "human",
+  },
+  /**
+   * Changes a group chat's members (2–5), a member's model there (null: the agent's own) or the model that picks who
+   * answers (null: the auxiliary model). Only what is given changes.
+   */
+  "threads.group_set": {
+    params: z
+      .object({
+        thread: Id,
+        agent_ids: z.array(Id).min(2).max(5).optional(),
+        models: z.record(Id, z.string().max(200).nullable()).optional(),
+        router_model: z.string().max(200).nullable().optional(),
+      })
+      .strict(),
+    result: GroupSettings,
     effect: true,
     access: "human",
   },

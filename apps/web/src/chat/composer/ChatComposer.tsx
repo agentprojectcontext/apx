@@ -99,7 +99,12 @@ export function ChatComposer({
   const direct = chosen || ownerOnly;
   const aside = useAsideOpen(thread.id);
   const agentName = agent?.name ?? t("composer.yourAgent");
-  const slash = useSlashMenu({ thread, agent, text, setText, busy, onNew });
+  const shownAgents = useData((s) => s.agents);
+  const members = useMemo(
+    () => (group ? thread.agent_ids.flatMap((id) => (shownAgents[id] ? [shownAgents[id]] : [])) : undefined),
+    [group, thread.agent_ids, shownAgents],
+  );
+  const slash = useSlashMenu({ thread, agent, members, text, setText, busy, onNew });
   const runs = useMemo(
     () =>
       Object.values(runsById)

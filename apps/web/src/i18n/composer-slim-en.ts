@@ -15,6 +15,7 @@ export const enComposerSlim = {
   "composer.context": "Context for the next message",
   "composer.removeContext": "Remove {name}",
   "slash.kind.mcp": "MCP",
+  "slash.kind.agent": "Agent",
   "composer.useSkill": "Use a skill",
   "composer.connectors": "Connectors and MCP",
   "composer.commands": "Commands",

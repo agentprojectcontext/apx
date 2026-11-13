@@ -4604,7 +4604,7 @@ the panel (New chat → New group, two to five agents, an optional name); a memb
 in its answer, and that teammate answers next, once per owner message, so two agents cannot keep calling each other;
 the group shows it is at work, and who answers, while a member's turn runs. Groups are made by the owner only, take
 text only, and are not on channels. Still open: moving the agent's name after the prefix all agents share (about 8%
-more cached), streaming an answer into the group while it is written.
+more cached).
 
 <a id="d-219"></a>
 ## D-219 — 2026-11-11 — An MCP server's "All allowed" is one grant for the server, not one per tool

@@ -25,8 +25,11 @@ type Skills = ReadonlyArray<{ name: string; description: string }>;
 /** A connector (MCP server) the agent can use here, as the "$" list and the + menu show it. */
 export type Connector = { name: string; target: string };
 
-/** A row of the menu: what "/" lists, or a connector after "$". */
-type Item = SlashItem | { kind: "mcp"; name: string; description: string };
+/** A row of the menu: what "/" lists, a connector after "$", or a group's member after "@". */
+type Item =
+  | SlashItem
+  | { kind: "mcp"; name: string; description: string }
+  | { kind: "agent"; name: string; description: string; tag: string };
 
 const KIND: Record<Item["kind"], MessageKey> = {
   command: "slash.kind.command",
@@ -34,6 +37,7 @@ const KIND: Record<Item["kind"], MessageKey> = {
   model: "slash.kind.model",
   effort: "slash.kind.effort",
   mcp: "slash.kind.mcp",
+  agent: "slash.kind.agent",
 };
 
 const usable = (s: McpServerStatus) => s.enabled && !s.off_here && s.status !== "disabled" && s.status !== "off";
@@ -47,6 +51,8 @@ const usable = (s: McpServerStatus) => s.enabled && !s.off_here && s.status !== 
 export function useSlashMenu(o: {
   thread: Thread;
   agent: Agent | undefined;
+  /** A group's members, offered after "@". */
+  members?: Agent[] | undefined;
   text: string;
   setText: (v: string) => void;
   busy: boolean;
@@ -67,7 +73,8 @@ export function useSlashMenu(o: {
   const direct = Boolean(thread.engine);
   const slashOpen = text.startsWith("/") && !text.includes("\n") && closedFor !== text;
   const dollar = direct || closedFor === text ? undefined : dollarQuery(text);
-  const open = slashOpen || dollar !== undefined;
+  const at = o.members && closedFor !== text ? dollarQuery(text, "@") : undefined;
+  const open = slashOpen || dollar !== undefined || at !== undefined;
   // A new chat not made yet has nothing to compact.
   const fresh = isNewChat(thread.id);
 
@@ -91,6 +98,17 @@ export function useSlashMenu(o: {
   const current = thread.model_choice?.model ?? agent?.model_choice?.model;
   const items = useMemo((): Item[] => {
     if (!open) return [];
+    if (at)
+      return dollarRank(
+        (o.members ?? []).map((a) => ({
+          kind: "agent" as const,
+          name: a.name,
+          description: a.role ?? "",
+          // How the core finds it: its name when it is one word, else its file name or id.
+          tag: /^[\p{L}\p{N}][\p{L}\p{N}_-]*$/u.test(a.name) ? a.name : (a.slug ?? a.id),
+        })),
+        at.query,
+      );
     if (dollar)
       return dollarRank(
         [
@@ -112,7 +130,7 @@ export function useSlashMenu(o: {
     })
       .filter((i) => !(direct && i.kind === "command" && (i.id === "compact" || i.id === "skills")))
       .filter((i) => !(fresh && i.kind === "command" && i.id === "compact"));
-  }, [open, dollar, text, catalog, skills, connectors, direct, fresh, thread.engine, current, o.busy]);
+  }, [open, at, o.members, dollar, text, catalog, skills, connectors, direct, fresh, thread.engine, current, o.busy]);
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: only a change of the typed text decides it
   useEffect(() => {
@@ -154,6 +172,7 @@ export function useSlashMenu(o: {
     return true;
   };
   const pick = (item: Item) => {
+    if (item.kind === "agent") return at && setText(`${text.slice(0, at.start)}@${item.tag} `);
     if (dollar) {
       const before = text.slice(0, dollar.start).trimEnd();
       // A skill named first is loaded whole by the core; a connector is named where it was typed.
@@ -258,19 +277,19 @@ const rowKey = (i: Item) =>
     ? `c:${i.id}`
     : i.kind === "skill"
       ? `s:${i.name}`
-      : i.kind === "mcp"
-        ? `m:${i.name}`
+      : i.kind === "mcp" || i.kind === "agent"
+        ? `${i.kind}:${i.name}`
         : i.kind === "model"
           ? i.ref
           : i.effort;
 
 function Row({ item, dollar }: { item: Item; dollar: boolean }) {
   const t = useT();
-  if (item.kind === "mcp")
+  if (item.kind === "mcp" || item.kind === "agent")
     return (
       <>
         <span className="slash__icon">
-          <Icons.Layers size={14} />
+          {item.kind === "agent" ? <Icons.AtSign size={14} /> : <Icons.Layers size={14} />}
         </span>
         <span className="slash__name">{item.name}</span>
         <span className="slash__desc">{item.description}</span>
