@@ -2,29 +2,32 @@ import "../styles/welcome.css";
 import { Button, Dialog } from "@apx/ui";
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import poster from "../assets/welcome-v2.jpg";
+import poster from "../assets/welcome-whats-new.jpg";
 import { closeCard, useClosedCards } from "../data/cornerCards.ts";
 import { useLanguage, useT } from "../i18n/index.ts";
 import { enWelcome } from "../i18n/welcome-en.ts";
 import { esWelcome } from "../i18n/welcome-es.ts";
+import { WELCOME_FILM } from "./welcomeFilm.ts";
 
-// The launch film: no voice, so one cut serves every language. Played from the docs site with no player chrome; where
-// it cannot load, YouTube's no-cookie player plays it in the same place.
-const FILM = "https://apxagent.app/media/apx-v2.mp4";
-const YOUTUBE = "https://www.youtube-nocookie.com/embed/biFjPPuvg9o?rel=0&modestbranding=1";
-const YOUTUBE_URL = "https://youtu.be/biFjPPuvg9o";
+// What changed since 2.14, played from the docs site with no player chrome. Its titles are written in each language,
+// so each has its own cut; where it cannot load, its poster stays in its place.
+const FILM = {
+  es: "https://apxagent.app/media/apx-whats-new-es.mp4",
+  en: "https://apxagent.app/media/apx-whats-new-en.mp4",
+};
 
-/** Said once per device: v2 is the release. The one celebration APX shows as a dialog; closing it in any way is seen. */
+/** Said once per device and film: closing it in any way is seen, and a new film shows once again. */
 export function WelcomeV2() {
-  const seen = useClosedCards((s) => s.welcome);
+  const seen = useClosedCards((s) => s.welcome === WELCOME_FILM);
   return seen ? null : <Welcome />;
 }
 
 function Welcome() {
   const t = useT();
-  const w = useLanguage() === "es" ? esWelcome : enWelcome;
-  const [fallback, setFallback] = useState(false);
-  const watch = () => window.open(YOUTUBE_URL, "_blank", "noopener,noreferrer");
+  const es = useLanguage() === "es";
+  const w = es ? esWelcome : enWelcome;
+  const [failed, setFailed] = useState(false);
+  const close = () => closeCard({ welcome: WELCOME_FILM });
   return (
     <Dialog
       defaultOpen
@@ -34,30 +37,17 @@ function Welcome() {
       description={w["welcome.desc"]}
       closeLabel={t("common.close")}
       onOpenChange={(open) => {
-        if (!open) closeCard({ welcome: true });
+        if (!open) close();
       }}
-      footer={
-        <>
-          <Button variant="secondary" onClick={watch}>
-            {w["welcome.youtube"]}
-          </Button>
-          <Button onClick={() => closeCard({ welcome: true })}>{w["welcome.cta"]}</Button>
-        </>
-      }
+      footer={<Button onClick={close}>{w["welcome.cta"]}</Button>}
     >
       <Confetti />
       <div className="welcome__video">
-        {fallback ? (
-          <iframe
-            src={YOUTUBE}
-            title={w["welcome.video"]}
-            allow="autoplay; encrypted-media; picture-in-picture; fullscreen"
-            allowFullScreen
-            referrerPolicy="strict-origin-when-cross-origin"
-          />
+        {failed ? (
+          <img src={poster} alt={w["welcome.video"]} />
         ) : (
           <video
-            src={FILM}
+            src={es ? FILM.es : FILM.en}
             poster={poster}
             aria-label={w["welcome.video"]}
             autoPlay
@@ -65,7 +55,7 @@ function Welcome() {
             loop
             playsInline
             controls
-            onError={() => setFallback(true)}
+            onError={() => setFailed(true)}
           />
         )}
       </div>

@@ -1,4 +1,4 @@
-/* The welcome to v2: the film fills the dialog's width at 16:9; the confetti falls over the whole window. */
+/* The welcome film fills the dialog's width at 16:9; the confetti falls over the whole window. */
 .welcome__video {
   position: relative;
   aspect-ratio: 16 / 9;
@@ -6,7 +6,7 @@
   overflow: hidden;
   background: #000; /* ui: letterbox behind a video, black in either theme. */
 }
-.welcome__video iframe,
+.welcome__video img,
 .welcome__video video {
   position: absolute;
   inset: 0;
