@@ -21,6 +21,8 @@ export const esCall: Record<keyof typeof enCall, string> = {
   "callCard.soundOff": "Quitar el sonido",
   "callCard.soundOn": "Activar el sonido",
   "callCard.hangUp": "Colgar",
+  "callCard.fold": "Achicar",
+  "callCard.unfold": "Ver la llamada completa",
   "callCard.ended": "Llamada terminada",
   "callCard.end.engine": "La voz se detuvo. Probá de nuevo en un momento.",
   "callCard.end.network": "Se cortó la conexión.",

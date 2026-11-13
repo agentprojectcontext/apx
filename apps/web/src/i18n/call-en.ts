@@ -20,6 +20,8 @@ export const enCall = {
   "callCard.soundOff": "Turn sound off",
   "callCard.soundOn": "Turn sound on",
   "callCard.hangUp": "Hang up",
+  "callCard.fold": "Make smaller",
+  "callCard.unfold": "Show the whole call",
   "callCard.ended": "Call ended",
   "callCard.end.engine": "The voice stopped. Try again in a moment.",
   "callCard.end.network": "The connection dropped.",

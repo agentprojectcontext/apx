@@ -13,6 +13,7 @@ import { go } from "../shell/nav.ts";
 import { type CallLine, openLine, openMic } from "./callLine.ts";
 import { closeCall, loadCallStatus } from "./callStatus.ts";
 import { saveLocale, saveVoice, startingVoice } from "./callVoice.ts";
+import { useCardPlace } from "./cardPlace.ts";
 import { ringback } from "./ringback.ts";
 
 type Stage = "setup" | "calling" | "preparing" | "live" | "ended";
@@ -43,6 +44,10 @@ export function CallCard() {
   const [picked, setPicked] = useState<{ voice?: CallVoice; locale?: VoiceLocale }>({});
   const { voice, locale } = { ...startingVoice(status, lang), ...picked };
   const [stage, setStage] = useState<Stage>("setup");
+  // Folded to its head (face, state, time, hang up) so it covers less; moved anywhere by its head.
+  const [small, setSmall] = useState(false);
+  const card = useRef<HTMLElement>(null);
+  const placed = useCardPlace(card);
   const [talk, setTalk] = useState<Talk>("listening");
   const [partial, setPartial] = useState("");
   const [muted, setMuted] = useState(false);
@@ -190,12 +195,15 @@ export function CallCard() {
 
   return (
     <section
+      ref={card}
       className="callcard"
+      style={placed.style}
       aria-label={t("callCard.label", { name })}
       data-stage={stage}
+      data-small={small ? "" : undefined}
       data-talk={stage === "live" ? talk : undefined}
     >
-      <div className="callcard__head">
+      <div className="callcard__head" onPointerDown={placed.onPointerDown}>
         <span className="callcard__face">
           {agent ? <AgentFace agent={agent} size={36} /> : <Icons.Phone size={16} aria-hidden="true" />}
         </span>
@@ -206,98 +214,125 @@ export function CallCard() {
           </div>
         </div>
         {since !== undefined && busy && <span className="callcard__time">{clock(now - since)}</span>}
+        {busy && (
+          <IconButton
+            size="sm"
+            label={t(small ? "callCard.unfold" : "callCard.fold")}
+            icon={small ? <Icons.Maximize2 size={14} /> : <Icons.Minus size={14} />}
+            onClick={() => setSmall(!small)}
+          />
+        )}
+        {busy && small && (
+          <IconButton
+            size="sm"
+            className="callcard__hangup"
+            label={t("callCard.hangUp")}
+            icon={<Icons.PhoneOff size={14} />}
+            onClick={hangUp}
+          />
+        )}
         {!busy && <IconButton size="sm" label={t("common.close")} icon={<Icons.X size={14} />} onClick={closeCall} />}
       </div>
-      {stage === "live" && partial && <p className="callcard__caption">{partial}</p>}
-      {stage === "preparing" && <p className="callcard__hint">{t("callCard.preparingHint")}</p>}
-      {(problem || (missing && !busy)) && (
-        <p className="callcard__problem" role="alert">
-          {t(problem ?? (missing ? `callCard.missing.${missing}` : "callCard.failed"), { name })}
-        </p>
-      )}
-      {!problem && !busy && (missing === "off" || missing === "model") && (
-        <Button
-          size="sm"
-          variant="secondary"
-          fullWidth
-          onClick={() => {
-            closeCall();
-            go.config(missing === "off" ? "voices" : "engines");
-          }}
-        >
-          {t(missing === "off" ? "callCard.openVoices" : "callCard.openModels")}
-        </Button>
-      )}
-      {stage === "setup" && (
-        <div className="callcard__voice">
-          <span>{t("callCard.voice")}</span>
-          <SegmentedControl
-            size="sm"
-            label={t("callCard.voice")}
-            value={voice}
-            onValueChange={(v) => {
-              const next: CallVoice = v === "male" ? "male" : "female";
-              setPicked((p) => ({ ...p, voice: next }));
-              saveVoice(next);
-            }}
-            options={[
-              { value: "female", label: t("callCard.female") },
-              { value: "male", label: t("callCard.male") },
-            ]}
-          />
-        </div>
-      )}
-      {stage === "setup" && (
-        <div className="callcard__voice">
-          <span>{t("callCard.accent")}</span>
-          <Select
-            size="sm"
-            label={t("callCard.accent")}
-            value={locale}
-            onValueChange={(v) => {
-              const next = LOCALES.find((l) => l === v);
-              if (!next) return;
-              setPicked((p) => ({ ...p, locale: next }));
-              saveLocale(next);
-            }}
-            options={LOCALES.map((l) => ({ value: l, label: t(`callCard.locale.${l}`) }))}
-          />
-        </div>
-      )}
-      {busy ? (
-        <div className="callcard__controls">
-          <IconButton
-            variant="secondary"
-            shape="circle"
-            label={t(muted ? "callCard.unmute" : "callCard.mute")}
-            active={muted}
-            icon={muted ? <Icons.MicOff size={16} /> : <Icons.Mic size={16} />}
-            onClick={() => {
-              chosen.current.muted = !muted;
-              setMuted(!muted);
-              line.current?.setMuted(!muted);
-            }}
-          />
-          <IconButton
-            variant="secondary"
-            shape="circle"
-            label={t(sound ? "callCard.soundOff" : "callCard.soundOn")}
-            active={!sound}
-            icon={sound ? <Icons.Volume2 size={16} /> : <Icons.VolumeOff size={16} />}
-            onClick={() => {
-              chosen.current.sound = !sound;
-              setSound(!sound);
-              line.current?.setSound(!sound);
-            }}
-          />
-          <Button variant="danger" size="sm" leadingIcon={<Icons.PhoneOff size={14} />} onClick={hangUp}>
-            {t("callCard.hangUp")}
-          </Button>
-        </div>
-      ) : (
-        <Button size="sm" fullWidth leadingIcon={<Icons.Phone size={14} />} disabled={!ready || !agent} onClick={start}>
-          {stage === "ended" ? t("call.again") : t("callCard.call")}
-        </Button>
+      {small && busy ? null : (
+        <>
+          {stage === "live" && partial && <p className="callcard__caption">{partial}</p>}
+          {stage === "preparing" && <p className="callcard__hint">{t("callCard.preparingHint")}</p>}
+          {(problem || (missing && !busy)) && (
+            <p className="callcard__problem" role="alert">
+              {t(problem ?? (missing ? `callCard.missing.${missing}` : "callCard.failed"), { name })}
+            </p>
+          )}
+          {!problem && !busy && (missing === "off" || missing === "model") && (
+            <Button
+              size="sm"
+              variant="secondary"
+              fullWidth
+              onClick={() => {
+                closeCall();
+                go.config(missing === "off" ? "voices" : "engines");
+              }}
+            >
+              {t(missing === "off" ? "callCard.openVoices" : "callCard.openModels")}
+            </Button>
+          )}
+          {stage === "setup" && (
+            <div className="callcard__voice">
+              <span>{t("callCard.voice")}</span>
+              <SegmentedControl
+                size="sm"
+                label={t("callCard.voice")}
+                value={voice}
+                onValueChange={(v) => {
+                  const next: CallVoice = v === "male" ? "male" : "female";
+                  setPicked((p) => ({ ...p, voice: next }));
+                  saveVoice(next);
+                }}
+                options={[
+                  { value: "female", label: t("callCard.female") },
+                  { value: "male", label: t("callCard.male") },
+                ]}
+              />
+            </div>
+          )}
+          {stage === "setup" && (
+            <div className="callcard__voice">
+              <span>{t("callCard.accent")}</span>
+              <Select
+                size="sm"
+                label={t("callCard.accent")}
+                value={locale}
+                onValueChange={(v) => {
+                  const next = LOCALES.find((l) => l === v);
+                  if (!next) return;
+                  setPicked((p) => ({ ...p, locale: next }));
+                  saveLocale(next);
+                }}
+                options={LOCALES.map((l) => ({ value: l, label: t(`callCard.locale.${l}`) }))}
+              />
+            </div>
+          )}
+          {busy ? (
+            <div className="callcard__controls">
+              <IconButton
+                variant="secondary"
+                shape="circle"
+                label={t(muted ? "callCard.unmute" : "callCard.mute")}
+                active={muted}
+                icon={muted ? <Icons.MicOff size={16} /> : <Icons.Mic size={16} />}
+                onClick={() => {
+                  chosen.current.muted = !muted;
+                  setMuted(!muted);
+                  line.current?.setMuted(!muted);
+                }}
+              />
+              <IconButton
+                variant="secondary"
+                shape="circle"
+                label={t(sound ? "callCard.soundOff" : "callCard.soundOn")}
+                active={!sound}
+                icon={sound ? <Icons.Volume2 size={16} /> : <Icons.VolumeOff size={16} />}
+                onClick={() => {
+                  chosen.current.sound = !sound;
+                  setSound(!sound);
+                  line.current?.setSound(!sound);
+                }}
+              />
+              <Button variant="danger" size="sm" leadingIcon={<Icons.PhoneOff size={14} />} onClick={hangUp}>
+                {t("callCard.hangUp")}
+              </Button>
+            </div>
+          ) : (
+            <Button
+              size="sm"
+              fullWidth
+              leadingIcon={<Icons.Phone size={14} />}
+              disabled={!ready || !agent}
+              onClick={start}
+            >
+              {stage === "ended" ? t("call.again") : t("callCard.call")}
+            </Button>
+          )}
+        </>
       )}
     </section>
   );
