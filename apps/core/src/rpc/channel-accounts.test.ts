@@ -59,6 +59,32 @@ test("the core names a new account and gives it what every account starts with",
   assert.equal(mail.channels.find((c) => c.id === mail.id)?.concurrency, "queue");
 });
 
+test("saving an account's settings keeps the name the owner gave it, unless the save names it again", async (t) => {
+  const env = await core(t);
+  const made = await env.client.call("channels.add", { type: "whatsapp", label: "Acme bot", self_owner: false });
+  const now = made.channels.find((c) => c.id === made.id);
+  assert.ok(now);
+  const settings = {
+    type: "whatsapp" as const,
+    agent_id: now.agent_id,
+    enabled: now.enabled,
+    strangers: now.strangers,
+    owner_thread: now.owner_thread,
+  };
+  const nameOf = (r: { channels: { id: string; label: string }[] }) => r.channels.find((c) => c.id === made.id)?.label;
+
+  const unnamed = await env.client.call("channels.set", {
+    id: made.id,
+    channel: { ...settings, concurrency: "queue" },
+  });
+  assert.equal(nameOf(unnamed), "Acme bot", "a save that leaves the name out keeps it");
+  assert.equal(unnamed.channels.find((c) => c.id === made.id)?.concurrency, "queue");
+  const blank = await env.client.call("channels.set", { id: made.id, channel: { ...settings, label: "" } });
+  assert.equal(nameOf(blank), "Acme bot", "an empty name is no name");
+  const renamed = await env.client.call("channels.set", { id: made.id, channel: { ...settings, label: "Northwind" } });
+  assert.equal(nameOf(renamed), "Northwind");
+});
+
 test("iMessage is one per Mac, whichever way a second one is asked for", async (t) => {
   const env = await core(t);
   const made = await env.client.call("channels.add", { type: "imessage" });
