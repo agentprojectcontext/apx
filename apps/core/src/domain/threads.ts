@@ -96,6 +96,10 @@ export type ThreadContext = {
     seen: Record<string, number>;
     /** Members a teammate's answer @mentioned since the owner's latest message: each is called in once. */
     pulled?: string[] | undefined;
+    /** The model each member answers with here, by agent id; absent = the agent's own. */
+    models?: Record<string, string> | undefined;
+    /** The model that picks who answers; absent = the auxiliary model. */
+    router?: string | undefined;
   };
   /** A member's own chat under a group chat: the group's thread id. */
   member_of?: string;

@@ -110,7 +110,8 @@ export function threadHandlers(
   engine: Engine,
   upkeep: Pick<Upkeep, "compact">,
   aside: Pick<Aside, "ask">,
-  groups?: Pick<Groups, "is" | "send" | "stop">,
+  groups?: Pick<Groups, "is" | "send" | "stop" | "settings" | "configure">,
+  checkModel?: (ref: string) => string | undefined,
 ) {
   const threadAgent = (threadId: string) => {
     const thread = store.threads.get(threadId);
@@ -318,6 +319,27 @@ export function threadHandlers(
       if (!groups) throw conflict("group chats are not available in this core");
       try {
         return createGroup(store, { agent_ids, title });
+      } catch (err) {
+        throw badRequest((err as Error).message);
+      }
+    },
+    "threads.group_get": ({ thread }) => {
+      if (!groups?.is(thread)) throw notFound(`group chat ${thread}`);
+      return groups.settings(thread);
+    },
+    "threads.group_set": ({ thread, agent_ids, models, router_model }) => {
+      if (!groups?.is(thread)) throw notFound(`group chat ${thread}`);
+      for (const ref of [...Object.values(models ?? {}), router_model])
+        if (ref) {
+          const why = checkModel?.(ref);
+          if (why) throw badRequest(why);
+        }
+      try {
+        return groups.configure(thread, {
+          ...(agent_ids ? { agent_ids } : {}),
+          ...(models ? { models } : {}),
+          ...(router_model !== undefined ? { router_model } : {}),
+        });
       } catch (err) {
         throw badRequest((err as Error).message);
       }

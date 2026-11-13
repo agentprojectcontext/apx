@@ -72,6 +72,7 @@ export const OWNER_ONLY: Readonly<Record<string, string>> = {
   "models.set_config": POWER,
   "threads.model": POWER,
   "threads.group": "the owner picks who is in a group chat in the panel (D-218)",
+  "threads.group_set": "the owner changes a group chat's members and models in its card (D-218)",
   "tools.grant_set": POWER,
   "tools.revoke": POWER,
   "mcp.trust": POWER,

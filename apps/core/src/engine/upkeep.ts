@@ -375,8 +375,12 @@ export function createUpkeep(deps: { store: Store; llm: Llm; log: Log }) {
         ? ask(about, undefined, system, user, { models, images: [image] })
         : Promise.resolve(undefined);
     },
-    /** A one-shot answer from the auxiliary model (a room's "is this worth answering?"); none without one. */
-    judge: (system: string, user: string, about: AuxAbout) => ask(about, undefined, system, user),
+    /**
+     * A one-shot answer from the auxiliary model (a room's "is this worth answering?"), or from `models` when the
+     * owner picked others for it (a group's router); none without one.
+     */
+    judge: (system: string, user: string, about: AuxAbout, models?: string[]) =>
+      ask(about, undefined, system, user, models?.length ? { models } : {}),
     /**
      * A long read for an agent (an imported chat's digest): on the models that agent already sends its turns to, the
      * auxiliary one after them, with more time than a title gets.

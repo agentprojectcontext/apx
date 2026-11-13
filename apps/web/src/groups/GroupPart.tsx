@@ -1,16 +1,34 @@
 import "./GroupPart.css";
 import type { Thread } from "@apx/protocol";
 import { ActivityPill, AgentAvatar, Button, EmptyState, Icons } from "@apx/ui";
+import { useEffect } from "react";
+import { AgentTurn } from "../chat/AgentTurn.tsx";
+import { loadThread } from "../data/actions.ts";
 import { blobOf } from "../data/identity.ts";
+import { useData } from "../data/state.ts";
 import { useT } from "../i18n/index.ts";
 import { go } from "../shell/nav.ts";
-import { useGroupChat } from "./groupChat.ts";
+import { GroupCard } from "./GroupCard.tsx";
+import { type GroupView, useGroupChat } from "./groupChat.ts";
 
 /**
  * A group chat's own parts of the chat screen: its members under its name (each opens its work in the group), who
  * is answering while it works, and what an empty group says.
  */
-export function GroupPart({ part, thread }: { part: "members" | "activity" | "empty"; thread: Thread }) {
+export function GroupPart({
+  part,
+  thread,
+  onClose,
+}: {
+  part: "members" | "activity" | "empty" | "card";
+  thread: Thread;
+  onClose?: () => void;
+}) {
+  if (part === "card") return <GroupCard thread={thread} onClose={onClose ?? (() => {})} />;
+  return <InChat part={part} thread={thread} />;
+}
+
+function InChat({ part, thread }: { part: "members" | "activity" | "empty"; thread: Thread }) {
   const t = useT();
   const group = useGroupChat(thread);
   if (!group) return null;
@@ -20,18 +38,7 @@ export function GroupPart({ part, thread }: { part: "members" | "activity" | "em
         {t("group.emptyBody")}
       </EmptyState>
     );
-  if (part === "activity") {
-    const who = group.speaker;
-    return (
-      <div className="transcript__activity">
-        <ActivityPill
-          tone="brand"
-          label={who ? t("group.answering", { name: who.name }) : t("group.picking")}
-          from={who && <AgentAvatar name={who.name} blob={blobOf(who)} size={22} />}
-        />
-      </div>
-    );
-  }
+  if (part === "activity") return <Answering group={group} />;
   return (
     <span className="chat__members">
       {group.members.map((a, i) => {
@@ -52,5 +59,43 @@ export function GroupPart({ part, thread }: { part: "members" | "activity" | "em
         );
       })}
     </span>
+  );
+}
+
+/** The member answering now: its words as it writes them, or who is about to answer. */
+function Answering({ group }: { group: GroupView }) {
+  const t = useT();
+  const who = group.speaker;
+  const chatId = who ? group.chats[who.id] : undefined;
+  const chat = useData((s) => (chatId ? s.threads[chatId] : undefined));
+  const loaded = useData((s) => (chatId ? s.messages[chatId] !== undefined : false));
+  const last = useData((s) => (chatId ? s.messages[chatId]?.at(-1) : undefined));
+  // Its chat is read once it starts, so what it writes arrives here as it goes.
+  useEffect(() => {
+    if (chatId && !loaded) void loadThread(chatId);
+  }, [chatId, loaded]);
+  const writing = last?.author.kind === "agent" && last.parts.some((p) => p.type === "text" && p.text.trim());
+  if (who && chat && last && writing)
+    return (
+      <div className="transcript__row">
+        <AgentTurn
+          thread={chat}
+          message={last}
+          agent={who}
+          showAvatar
+          showTools={false}
+          showSkills={false}
+          showPlan={false}
+        />
+      </div>
+    );
+  return (
+    <div className="transcript__activity">
+      <ActivityPill
+        tone="brand"
+        label={who ? t("group.answering", { name: who.name }) : t("group.picking")}
+        from={who && <AgentAvatar name={who.name} blob={blobOf(who)} size={22} />}
+      />
+    </div>
   );
 }

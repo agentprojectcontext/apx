@@ -447,7 +447,9 @@ export async function fakeLlm() {
                         JSON.stringify(body.messages?.findLast((m) => m.role === "user")?.content),
                       )
                     ? "REACT ❤️"
-                    : (reviewTable(said) ?? `Got it: ${said || "(nothing)"}`));
+                    : /^write slowly/i.test(said)
+                      ? `Got it: ${said}. ${"One more line of the answer, still being written. ".repeat(4)}Done.`
+                      : (reviewTable(said) ?? `Got it: ${said || "(nothing)"}`));
       // "fill the context" reads as a long chat: most of a 128k window (a qwen model's).
       const read = /fill the context/i.test(said) ? 82_000 : 120;
       const usage = { prompt_tokens: read, completion_tokens: 8, total_tokens: read + 8 };
@@ -489,11 +491,25 @@ export async function fakeLlm() {
         }
         res.writeHead(200, { "content-type": "text/event-stream", "cache-control": "no-cache" });
         const send = (o: unknown) => res.write(`data: ${JSON.stringify(o)}\n\n`);
-        for (const part of text.match(/[\s\S]{1,12}/g) ?? [text])
+        const chunks = text.match(/[\s\S]{1,12}/g) ?? [text];
+        const end = () => {
+          send({ id: "fake", choices: [{ index: 0, delta: {}, finish_reason: "stop" }] });
+          send({ id: "fake", choices: [], usage });
+          res.end("data: [DONE]\n\n");
+        };
+        // "write slowly": a piece every 150 ms, so a test sees the answer grow as a real model's does.
+        if (/^write slowly/i.test(said)) {
+          const next = (i: number) => {
+            if (res.writableEnded) return;
+            if (i >= chunks.length) return end();
+            send({ id: "fake", choices: [{ index: 0, delta: { content: chunks[i] }, finish_reason: null }] });
+            setTimeout(() => next(i + 1), 150);
+          };
+          return next(0);
+        }
+        for (const part of chunks)
           send({ id: "fake", choices: [{ index: 0, delta: { content: part }, finish_reason: null }] });
-        send({ id: "fake", choices: [{ index: 0, delta: {}, finish_reason: "stop" }] });
-        send({ id: "fake", choices: [], usage });
-        res.end("data: [DONE]\n\n");
+        end();
       };
       const keepGoing = KEEP_GOING.test(said) && body.messages?.at(-1)?.role === "tool";
       const long = system.startsWith("Take your time");

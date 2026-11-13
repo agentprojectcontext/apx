@@ -15,3 +15,34 @@
   font: inherit;
   color: inherit;
 }
+.groupcard__members {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: 0 0 8px;
+  padding: 0;
+  list-style: none;
+}
+.groupcard__member {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.groupcard__who,
+.groupcard__model {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+.groupcard__name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.groupcard__model > :first-child {
+  flex: 1;
+  min-width: 0;
+}

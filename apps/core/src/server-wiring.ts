@@ -347,7 +347,7 @@ export function coreHandlers(d: HandlerDeps & { vm?: Computer | undefined }) {
       d.signIn && { secrets: d.secrets, signIn: d.signIn },
       d.ownersChrome,
     ),
-    ...threadHandlers(d.store, d.engine, d.upkeep, d.aside, d.groups),
+    ...threadHandlers(d.store, d.engine, d.upkeep, d.aside, d.groups, (ref) => refProblem(ref, d.engines, undefined)),
     ...threadAdminHandlers(d.store, d.app.home, d.vm?.beforeDelete),
     ...runHandlers(d.store, d.engine),
     ...jobHandlers(d.store, d.engine),

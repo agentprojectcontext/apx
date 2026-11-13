@@ -360,6 +360,14 @@ export const Thread = z.object({
 });
 export type Thread = z.infer<typeof Thread>;
 
+/** A group chat's members in order, the model each answers with there (by agent id) and the model that picks who answers. */
+export const GroupSettings = z.object({
+  agent_ids: z.array(Id),
+  models: z.record(Id, z.string()),
+  router_model: z.string().optional(),
+});
+export type GroupSettings = z.infer<typeof GroupSettings>;
+
 export const Author = z.discriminatedUnion("kind", [
   /** `direct`: the owner wrote to a contact themselves (sent as is), rather than telling the agent what to answer. */
   z.object({ kind: z.literal("user"), direct: z.boolean().optional() }),

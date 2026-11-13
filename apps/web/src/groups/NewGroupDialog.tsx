@@ -7,7 +7,7 @@ import { client } from "../data/client.ts";
 import { realProjectId } from "../data/identity.ts";
 import { notify } from "../data/notices.ts";
 import { data } from "../data/state.ts";
-import { useT } from "../i18n/index.ts";
+import { usePack, useT } from "../i18n/index.ts";
 import { go } from "../shell/nav.ts";
 
 const MAX = 5;
@@ -32,7 +32,13 @@ async function createGroup(agentIds: string[], title?: string): Promise<Thread |
  * "New group": two to five agents and an optional name. In a project its own agents and the super-agent; from the
  * Inbox every project's, by project.
  */
-export function NewGroupDialog({ projectId: navProject, onClose }: { projectId: string | undefined; onClose(): void }) {
+type Props = { projectId: string | undefined; onClose(): void };
+
+export function NewGroupDialog(props: Props) {
+  return usePack("group") ? <NewGroupBody {...props} /> : null;
+}
+
+function NewGroupBody({ projectId: navProject, onClose }: Props) {
   const t = useT();
   const projectId = realProjectId(navProject);
   const options = useAgentOptions(projectId, !projectId, projectId ? "secretary" : "all");

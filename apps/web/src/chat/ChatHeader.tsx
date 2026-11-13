@@ -21,7 +21,7 @@ import { useThreadChannel } from "../inbox/useThreadChannel.ts";
 import { ChannelFace, GroupPart, TaskCrumb, TaskStateButton } from "../lazy.ts";
 import { PanelSwitcher } from "../panel/PanelSwitcher.tsx";
 import { go, useNav } from "../shell/nav.ts";
-import { toggleRoomCard, useRoomCard } from "./roomCard.ts";
+import { toggleGroupCard, toggleRoomCard, useGroupCard, useRoomCard } from "./roomCard.ts";
 
 const POLICIES: WritePolicy[] = ["ask", "auto", "read-only"];
 
@@ -87,9 +87,13 @@ export function ChatHeader({
   // A group's or room's chat (a channel chat with nobody behind it) opens its card from here.
   const room = Boolean(thread.channel && !thread.channel.person_id);
   const roomChannel = useChannels((s) => s.channels.find((c) => c.id === thread.channel?.id));
-  const roomOpen = useRoomCard();
+  const roomCardOpen = useRoomCard();
+  const groupCardOpen = useGroupCard();
   const channelKind = useThreadChannel(thread);
   const group = thread.kind === "group";
+  const roomOpen = group ? groupCardOpen : roomCardOpen;
+  const toggleCard = group ? toggleGroupCard : toggleRoomCard;
+  const pillWord = group ? "ch.card.group" : roomChannel ? roomWord(roomChannel) : "ch.card.room";
   const requestedRef = thread.model_choice?.model;
   const requested = requestedRef ? splitRef(requestedRef) : undefined;
   const requestedName = requestedRef && modelOf(requestedRef, catalog)?.name;
@@ -193,8 +197,7 @@ export function ChatHeader({
             <TaskStateButton taskId={thread.task_id} />
           </Suspense>
         )}
-        {room &&
-          roomChannel &&
+        {((room && roomChannel) || group) &&
           // On a phone the pill is its icon alone: the chat's name needs the room.
           (compact ? (
             <IconButton
@@ -202,10 +205,10 @@ export function ChatHeader({
               variant="secondary"
               className={roomOpen ? "chat__roompill is-on" : "chat__roompill"}
               icon={<Icons.Users size={14} />}
-              label={t(roomWord(roomChannel))}
-              tooltip={t(roomOpen ? "chat.roomCardClose" : "chat.roomCardOpen")}
+              label={t(pillWord)}
+              tooltip={t(roomOpen ? "chat.roomCardClose" : group ? "group.cardOpen" : "chat.roomCardOpen")}
               active={roomOpen}
-              onClick={toggleRoomCard}
+              onClick={toggleCard}
             />
           ) : (
             <Button
@@ -214,10 +217,10 @@ export function ChatHeader({
               className={roomOpen ? "chat__roompill is-on" : "chat__roompill"}
               leadingIcon={<Icons.Users size={14} />}
               aria-pressed={roomOpen}
-              title={t(roomOpen ? "chat.roomCardClose" : "chat.roomCardOpen")}
-              onClick={toggleRoomCard}
+              title={t(roomOpen ? "chat.roomCardClose" : group ? "group.cardOpen" : "chat.roomCardOpen")}
+              onClick={toggleCard}
             >
-              {t(roomWord(roomChannel))}
+              {t(pillWord)}
             </Button>
           ))}
         {/* A new chat has nothing to rename, archive or compact until its first message makes it. */}
