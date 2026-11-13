@@ -94,6 +94,12 @@ export function ChatHeader({
   const groupCardOpen = useGroupCard();
   const channelKind = useThreadChannel(thread);
   const group = thread.kind === "group";
+  // A call to the agent of a one-agent chat, as long as it is still on the team (the top bar has the super-agent's).
+  const callable = useData((s) =>
+    agent && !engine && !thread.channel && ["home", "agent", "loose"].includes(thread.kind)
+      ? Boolean(s.agents[agent.id])
+      : false,
+  );
   const roomOpen = group ? groupCardOpen : roomCardOpen;
   const toggleCard = group ? toggleGroupCard : toggleRoomCard;
   const pillWord = group ? "ch.card.group" : roomChannel ? roomWord(roomChannel) : "ch.card.room";
@@ -198,8 +204,8 @@ export function ChatHeader({
       </div>
       <div className="chat__tools">
         <Suspense fallback={null}>
-          {thread.kind === "home" && agent?.kind === "secretary" && <CallButton agent={agent} />}
-          {thread.kind === "call" && <CallAgain thread={thread.id} />}
+          {callable && agent && <CallButton agent={agent} />}
+          {thread.kind === "call" && <CallAgain thread={thread.id} agent={thread.agent_ids[0]} />}
         </Suspense>
         {thread.task_id && (
           <Suspense fallback={null}>

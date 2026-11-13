@@ -1,5 +1,5 @@
-import type { CallVoice } from "@apx/protocol";
-import { calls } from "../data/calls.ts";
+import { useEffect } from "react";
+import { calls, useCalls } from "../data/calls.ts";
 import { client } from "../data/client.ts";
 
 let loading: Promise<void> | undefined;
@@ -16,24 +16,19 @@ export function loadCallStatus(): Promise<void> {
   return loading;
 }
 
+/**
+ * Whether calls can ever run here (not a Mac with Apple silicon: never), asking the core once when a call button first
+ * shows. The card says what else is missing.
+ */
+export function useCanCall(): boolean {
+  const status = useCalls((s) => s.status);
+  useEffect(() => {
+    if (!calls.get().status) void loadCallStatus();
+  }, []);
+  return status !== undefined && status.missing !== "platform";
+}
+
 export function closeCall(): void {
   calls.set({ card: undefined, live: undefined });
   void loadCallStatus();
-}
-
-const VOICE_KEY = "apx.callVoice";
-
-/** The voice chosen last on this device. */
-export function savedVoice(): CallVoice {
-  try {
-    return window.localStorage.getItem(VOICE_KEY) === "male" ? "male" : "female";
-  } catch {
-    return "female";
-  }
-}
-
-export function saveVoice(voice: CallVoice): void {
-  try {
-    window.localStorage.setItem(VOICE_KEY, voice);
-  } catch {}
 }

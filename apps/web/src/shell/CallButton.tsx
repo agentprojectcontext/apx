@@ -1,8 +1,8 @@
 import type { Agent } from "@apx/protocol";
 import { Button, IconButton, Icons } from "@apx/ui";
-import { useEffect } from "react";
-import { loadCallStatus } from "../call/callStatus.ts";
-import { calls, openCall, useCalls } from "../data/calls.ts";
+import { useCanCall } from "../call/callStatus.ts";
+import { openCall, useCalls } from "../data/calls.ts";
+import { useData } from "../data/state.ts";
 import { useT } from "../i18n/index.ts";
 import { go } from "./nav.ts";
 
@@ -10,53 +10,63 @@ import { go } from "./nav.ts";
 const useLiveCall = (): string | undefined => useCalls((s) => s.live ?? s.status?.live);
 
 /**
- * A call to the super-agent (the top bar, its chat's header): opens the call card, or, during a call (marked), goes
- * back to it. Hidden where calls can never run (not a Mac with Apple silicon); otherwise the card says what is missing.
+ * A call to an agent (the top bar's for the super-agent, an agent's chat and profile): opens the call card, or, during
+ * a call (marked), goes back to it. Hidden where calls can never run (not a Mac with Apple silicon); otherwise the
+ * card says what is missing. `labeled`: a button with its words, instead of an icon.
  */
-export function CallButton({ agent, className }: { agent: Agent; className?: string }) {
+export function CallButton({
+  agent,
+  className,
+  labeled = false,
+}: {
+  agent: Agent;
+  className?: string;
+  labeled?: boolean;
+}) {
   const t = useT();
-  const status = useCalls((s) => s.status);
+  const canCall = useCanCall();
   const live = useLiveCall();
-  useKnownStatus();
-  if (!status || status.missing === "platform") return null;
-  return live ? (
-    <IconButton
+  if (!canCall) return null;
+  const label = live ? t("call.back") : t("call.start", { name: agent.name });
+  const onClick = () => (live ? go.inboxThread(live) : openCall({ agent: agent.id }));
+  return labeled ? (
+    <Button
       size="sm"
+      variant="secondary"
       className={className}
-      mark="brand"
-      label={t("call.back")}
-      icon={<Icons.Phone size={14} />}
-      onClick={() => go.inboxThread(live)}
-    />
+      leadingIcon={<Icons.Phone size={14} />}
+      onClick={onClick}
+    >
+      {label}
+    </Button>
   ) : (
     <IconButton
       size="sm"
       className={className}
-      label={t("call.start", { name: agent.name })}
+      {...(live ? { mark: "brand" as const } : {})}
+      label={label}
       icon={<Icons.Phone size={14} />}
-      onClick={() => openCall()}
+      onClick={onClick}
     />
   );
 }
 
-/** In a call's chat: call again, in this same chat. Gone while a call goes on. */
-export function CallAgain({ thread }: { thread: string }) {
+/** In a call's chat: call its agent again, in this same chat. Gone while a call goes on, or when the agent is gone. */
+export function CallAgain({ thread, agent }: { thread: string; agent: string | undefined }) {
   const t = useT();
-  const status = useCalls((s) => s.status);
+  const canCall = useCanCall();
   const live = useLiveCall();
   const open = useCalls((s) => s.card != null);
-  useKnownStatus();
-  if (!status || status.missing === "platform" || live || open) return null;
+  const here = useData((s) => (agent ? Boolean(s.agents[agent]) : false));
+  if (!canCall || live || open || !agent || !here) return null;
   return (
-    <Button size="sm" variant="secondary" leadingIcon={<Icons.Phone size={14} />} onClick={() => openCall(thread)}>
+    <Button
+      size="sm"
+      variant="secondary"
+      leadingIcon={<Icons.Phone size={14} />}
+      onClick={() => openCall({ agent, thread })}
+    >
       {t("call.again")}
     </Button>
   );
-}
-
-/** Asks once whether calls can run here, when the first button that needs it shows. */
-function useKnownStatus() {
-  useEffect(() => {
-    if (!calls.get().status) void loadCallStatus();
-  }, []);
 }

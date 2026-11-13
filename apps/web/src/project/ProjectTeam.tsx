@@ -1,7 +1,9 @@
 import type { Agent } from "@apx/protocol";
 import { AgentAvatar, Button, ContextMenu, IconButton, Icons, Menu, SegmentedControl, Tabs } from "@apx/ui";
 import { type ReactNode, useMemo, useState } from "react";
+import { useCanCall } from "../call/callStatus.ts";
 import { AgentModelPicker } from "../config/models/AgentModelPicker.tsx";
+import { calls, openCall } from "../data/calls.ts";
 import { PROFILE_KEY } from "../data/engines.ts";
 import { blobOf, type ProjectEntry, realProjectId, teamOf } from "../data/identity.ts";
 import { useOrg } from "../data/org.ts";
@@ -65,6 +67,7 @@ function ProjectTeam({ project, switcher }: { project: ProjectEntry; switcher?: 
   const { info, live } = useTeamInfo(lead?.id, lead ? leadLabel(lead, t) : "");
   const current = team.find((a) => a.id === selected);
   const org = useOrg(project.id);
+  const canCall = useCanCall();
   const actions: AgentActions = {
     onOpen: (a) => {
       setMode("tree");
@@ -72,6 +75,16 @@ function ProjectTeam({ project, switcher }: { project: ProjectEntry; switcher?: 
     },
     onEdit: setEditing,
     onChat: (a) => startChat(a, project.id),
+    // During a call it goes back to it, as the call button does.
+    ...(canCall
+      ? {
+          onCall: (a: Agent) => {
+            const live = calls.get().live ?? calls.get().status?.live;
+            if (live) go.inboxThread(live);
+            else openCall({ agent: a.id });
+          },
+        }
+      : {}),
     onDelete: setDeleting,
     isOrchestrator: (a) => leads(a),
     onOrchestrator: (a) => void updateAgent(a.id, { orchestrator: !leads(a) }),

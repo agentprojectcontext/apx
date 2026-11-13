@@ -1,4 +1,4 @@
-// Calls with the super-agent, where the first screen shows them: the top bar's button, a call's row and its header.
+// Calls with an agent, where the first screen shows them: the top bar's button, a call's row and its header.
 // The call card's own strings load with it (call-en.ts).
 export const enCallSlim = {
   "call.titled": "Call · {when}",

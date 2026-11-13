@@ -191,6 +191,15 @@ test("every call goes into one Calls row where the newest call is, grouped by ac
   assert.deepEqual(bundleChats(list, false).map(entryId), ["a", "calls:b,d", "c"]);
 });
 
+test("calls with any agent go into the same Calls row", () => {
+  const list = [
+    thread("b", { kind: "call", agent_ids: ["superagent"] }),
+    thread("c", { kind: "call", agent_ids: ["dev"] }),
+    thread("d", { kind: "call", agent_ids: ["design"] }),
+  ];
+  assert.deepEqual(bundleChats(list).map(entryId), ["calls:b,c,d"]);
+});
+
 test("what a call asked the super-agent hangs under the call, never as a row of its own", () => {
   const threads = {
     call: thread("call", { kind: "call" }),

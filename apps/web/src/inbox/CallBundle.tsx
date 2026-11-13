@@ -9,12 +9,12 @@ import { FoldContext, useRowFold } from "./RowFold.tsx";
 import { useOpenRow } from "./useOpenRow.ts";
 
 /**
- * Every call with the super-agent as one row: how many and what was said last. A click unfolds the calls under it
- * (remembered), each with what it asked the super-agent under it; the call on screen keeps it open.
+ * Every call, with any agent, as one row: how many and what was said last. A click unfolds the calls under it
+ * (remembered), each with what it asked under it; the call on screen keeps it open.
  */
 export function CallBundle({ threads, selected }: { threads: Thread[]; selected: string | undefined }) {
   const t = useT();
-  // What a call asked the super-agent, on screen, keeps its call's row open too.
+  // What a call asked its agent, on screen, keeps its call's row open too.
   const parent = useData((s) => (selected ? s.threads[selected]?.parent_id : undefined));
   const [open, setOpen] = useOpenRow(
     "calls",

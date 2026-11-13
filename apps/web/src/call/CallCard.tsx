@@ -1,7 +1,8 @@
 import "../styles/call.css";
-import type { CallFrame, CallVoice } from "@apx/protocol";
-import { Button, IconButton, Icons, SegmentedControl } from "@apx/ui";
+import type { CallFrame, CallVoice, VoiceLocale } from "@apx/protocol";
+import { Button, IconButton, Icons, SegmentedControl, Select } from "@apx/ui";
 import { useEffect, useRef, useState } from "react";
+import { AgentFace } from "../common/AgentFace.tsx";
 import { calls, useCalls } from "../data/calls.ts";
 import { client } from "../data/client.ts";
 import { secretary } from "../data/identity.ts";
@@ -10,7 +11,8 @@ import { useData } from "../data/state.ts";
 import { type MessageKey, useT } from "../i18n/index.ts";
 import { go } from "../shell/nav.ts";
 import { type CallLine, openLine, openMic } from "./callLine.ts";
-import { closeCall, loadCallStatus, savedVoice, saveVoice } from "./callStatus.ts";
+import { closeCall, loadCallStatus } from "./callStatus.ts";
+import { saveLocale, saveVoice, startingVoice } from "./callVoice.ts";
 
 type Stage = "setup" | "calling" | "preparing" | "live" | "ended";
 type Talk = Extract<CallFrame, { type: "state" }>["state"];
@@ -21,18 +23,24 @@ const END_REASON: Record<string, MessageKey> = {
   max_duration: "callCard.end.max_duration",
 };
 
+const LOCALES: readonly VoiceLocale[] = ["es-AR", "es", "en-US"];
+
 /**
- * A call with the super-agent, floating over its chat: the voice to use before it starts, then who and how it is
- * going (listening, thinking, speaking), how long, what the owner is saying now, and mute, sound and hang up.
+ * A call with an agent (the super-agent unless another was chosen), floating over its chat: the voice and accent to
+ * use before it starts, then who and how it is going (listening, thinking, speaking), how long, what the owner is
+ * saying now, and mute, sound and hang up.
  */
 export function CallCard() {
   const t = useT();
-  const agent = useData((s) => secretary(s.agents));
+  const called = useCalls((s) => s.card?.agent);
+  const agent = useData((s) => (called ? s.agents[called] : secretary(s.agents)));
   const name = agent?.name ?? "";
   const thread = useCalls((s) => s.card?.thread);
   const status = useCalls((s) => s.status);
   const lang = usePrefs((s) => s.language);
-  const [voice, setVoice] = useState<CallVoice>(savedVoice);
+  // What the owner picked on this card; until then, the last pick on this device or the voice set in Settings.
+  const [picked, setPicked] = useState<{ voice?: CallVoice; locale?: VoiceLocale }>({});
+  const { voice, locale } = { ...startingVoice(status, lang), ...picked };
   const [stage, setStage] = useState<Stage>("setup");
   const [talk, setTalk] = useState<Talk>("listening");
   const [partial, setPartial] = useState("");
@@ -90,6 +98,7 @@ export function CallCard() {
   };
 
   const start = async () => {
+    if (!agent) return;
     hungUp.current = false;
     setProblem(undefined);
     setPartial("");
@@ -109,7 +118,12 @@ export function CallCard() {
     };
     let placed: { thread_id: string; ticket: string };
     try {
-      placed = await client.call("calls.start", { voice, lang, ...(thread ? { thread } : {}) });
+      placed = await client.call("calls.start", {
+        agent_id: agent.id,
+        voice,
+        locale,
+        ...(thread ? { thread } : {}),
+      });
     } catch (err) {
       stop();
       setProblem((err as { code?: string }).code === "conflict" ? "callCard.busy" : "callCard.failed");
@@ -147,7 +161,7 @@ export function CallCard() {
   };
 
   const ready = status?.ready !== false;
-  const missing = !ready && status?.missing ? (`callCard.missing.${status.missing}` as const) : undefined;
+  const missing = !ready && status?.missing ? status.missing : undefined;
   const busy = stage === "calling" || stage === "preparing" || stage === "live";
   const state =
     stage === "calling"
@@ -168,8 +182,8 @@ export function CallCard() {
       data-talk={stage === "live" ? talk : undefined}
     >
       <div className="callcard__head">
-        <span className="callcard__face" aria-hidden="true">
-          <Icons.Phone size={16} />
+        <span className="callcard__face">
+          {agent ? <AgentFace agent={agent} size={36} /> : <Icons.Phone size={16} aria-hidden="true" />}
         </span>
         <div className="callcard__who">
           <div className="callcard__name">{name}</div>
@@ -184,8 +198,21 @@ export function CallCard() {
       {stage === "preparing" && <p className="callcard__hint">{t("callCard.preparingHint")}</p>}
       {(problem || (missing && !busy)) && (
         <p className="callcard__problem" role="alert">
-          {t(problem ?? missing ?? "callCard.failed", { name })}
+          {t(problem ?? (missing ? `callCard.missing.${missing}` : "callCard.failed"), { name })}
         </p>
+      )}
+      {!problem && !busy && (missing === "off" || missing === "model") && (
+        <Button
+          size="sm"
+          variant="secondary"
+          fullWidth
+          onClick={() => {
+            closeCall();
+            go.config(missing === "off" ? "voices" : "engines");
+          }}
+        >
+          {t(missing === "off" ? "callCard.openVoices" : "callCard.openModels")}
+        </Button>
       )}
       {stage === "setup" && (
         <div className="callcard__voice">
@@ -196,13 +223,30 @@ export function CallCard() {
             value={voice}
             onValueChange={(v) => {
               const next: CallVoice = v === "male" ? "male" : "female";
-              setVoice(next);
+              setPicked((p) => ({ ...p, voice: next }));
               saveVoice(next);
             }}
             options={[
               { value: "female", label: t("callCard.female") },
               { value: "male", label: t("callCard.male") },
             ]}
+          />
+        </div>
+      )}
+      {stage === "setup" && (
+        <div className="callcard__voice">
+          <span>{t("callCard.accent")}</span>
+          <Select
+            size="sm"
+            label={t("callCard.accent")}
+            value={locale}
+            onValueChange={(v) => {
+              const next = LOCALES.find((l) => l === v);
+              if (!next) return;
+              setPicked((p) => ({ ...p, locale: next }));
+              saveLocale(next);
+            }}
+            options={LOCALES.map((l) => ({ value: l, label: t(`callCard.locale.${l}`) }))}
           />
         </div>
       )}
@@ -237,7 +281,7 @@ export function CallCard() {
           </Button>
         </div>
       ) : (
-        <Button size="sm" fullWidth leadingIcon={<Icons.Phone size={14} />} disabled={!ready} onClick={start}>
+        <Button size="sm" fullWidth leadingIcon={<Icons.Phone size={14} />} disabled={!ready || !agent} onClick={start}>
           {stage === "ended" ? t("call.again") : t("callCard.call")}
         </Button>
       )}

@@ -1,6 +1,6 @@
 import type { MessageKey } from "./en.ts";
 
-// Llamadas con el super-agente, donde las muestra la primera pantalla: el botón de la barra, la fila y el encabezado.
+// Llamadas con un agente, donde las muestra la primera pantalla: el botón de la barra, la fila y el encabezado.
 export const esCallSlim: Partial<Record<MessageKey, string>> = {
   "call.titled": "Llamada · {when}",
   "call.name": "Llamada",

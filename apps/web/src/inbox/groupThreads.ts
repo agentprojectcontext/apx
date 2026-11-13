@@ -149,7 +149,7 @@ export function bundleTasks(list: Thread[]): ListEntry[] {
 
 /**
  * A row of the Chats tab: a chat, (`channel`) every chat on one channel account together, or (`calls`) every call with
- * the super-agent.
+ * any agent.
  */
 export type ChatEntry =
   | { kind: "thread"; thread: Thread }

@@ -1,6 +1,6 @@
 import { type Agent, Autonomy, DEFAULT_AUTONOMY, names, parentIn, reportsOf } from "@apx/protocol";
 import { AgentAvatar, Button, Dialog, EngineIcon, IconButton, Icons, Menu, Tabs } from "@apx/ui";
-import { type ReactNode, useEffect, useMemo, useState } from "react";
+import { type ReactNode, Suspense, useEffect, useMemo, useState } from "react";
 import { shortWhen } from "../../common/format.ts";
 import { AgentModelPicker } from "../../config/models/AgentModelPicker.tsx";
 import { setAgentBrowserProfile } from "../../data/actions.ts";
@@ -13,6 +13,7 @@ import { useData } from "../../data/state.ts";
 import { useTasks } from "../../data/tasks.ts";
 import { getAgent, setAgentParent, updateAgent } from "../../data/team.ts";
 import { useLanguage, useT } from "../../i18n/index.ts";
+import { CallButton } from "../../lazy.ts";
 import { go } from "../../shell/nav.ts";
 import { AgentActivity } from "./AgentActivity.tsx";
 import { AgentBudgetField } from "./AgentBudgetField.tsx";
@@ -180,9 +181,14 @@ export function AgentDetail({
       {agent.role && <div className="teamdetail__role">{agent.role}</div>}
       {agent.description && <p className="teamdetail__desc">{agent.description}</p>}
       {agent.kind === "secretary" && <SuperAgentLinks />}
-      <Button size="sm" leadingIcon={<Icons.MessageCircle size={14} />} onClick={onChat}>
-        {t("team.chatWith", { name: agent.name })}
-      </Button>
+      <div className="teamdetail__actions">
+        <Button size="sm" leadingIcon={<Icons.MessageCircle size={14} />} onClick={onChat}>
+          {t("team.chatWith", { name: agent.name })}
+        </Button>
+        <Suspense fallback={null}>
+          <CallButton agent={agent} labeled />
+        </Suspense>
+      </div>
 
       <div className="teamdetail__stats">
         <Stat value={stats.chats} label={t("agent.stats.chats")} />
