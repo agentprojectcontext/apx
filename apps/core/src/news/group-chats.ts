@@ -3,7 +3,7 @@ import type { NewsEntry } from "./entries.ts";
 // Told once to an owner with an agent besides the super-agent: a chat with several of them at once (D-218).
 export const GROUP_CHATS_NEWS: NewsEntry = {
   id: "group-chats",
-  since: "2.14.3",
+  since: "2.15.0",
   title: { en: "Talk to several agents in one chat", es: "Hablá con varios agentes en un chat" },
   about: {
     en: "Make a group of two to five agents from New chat. When you write, the ones your message is for answer, one after the other; @name asks one of them.",
