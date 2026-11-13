@@ -5,7 +5,9 @@ import path from "node:path";
 import { lineage } from "../domain/projects.ts";
 import type { Store } from "../domain/store.ts";
 import { badRequest, conflict, errorMessage, notFound } from "../errors.ts";
+import { CATALOG, integrationSecret } from "../integrations/catalog.ts";
 import type { McpConfig, McpDef } from "../mcp/config.ts";
+import { systemSecretOwner } from "../secret-names.ts";
 import { projectSecretName, type Secrets, splitSecretName } from "../secrets.ts";
 import { skillInfo, writeSkill } from "../skills/edit.ts";
 import { type GitRunner, type ImportTarget, importSkills, previewSkills } from "../skills/import.ts";
@@ -44,6 +46,8 @@ export function resourceHandlers(deps: {
   home: string;
   secrets: Secrets;
   mcp: McpConfig;
+  /** The model providers' ids: each keeps its key under its own id. */
+  providerIds?: () => string[];
   runtimeHomes: RuntimeHomes;
   /** Clones a repository to import skills from; tests pass their own. */
   git?: GitRunner;
@@ -87,6 +91,12 @@ export function resourceHandlers(deps: {
         ? scopes.flatMap((scope) => all.filter((s) => splitSecretName(s.name).project_id === scope))
         : all;
       const seen = new Set<string>();
+      const known = {
+        providers: deps.providerIds?.() ?? [],
+        integrations: CATALOG.flatMap((e) =>
+          e.fields.filter((f) => f.secret).map((f) => integrationSecret(e.id, f.name)),
+        ),
+      };
       return {
         secrets: visible
           .filter((s) => {
@@ -99,9 +109,11 @@ export function resourceHandlers(deps: {
           .map((s) => {
             const { project_id, name } = splitSecretName(s.name);
             if (project_id) return { ...s, name, project_id, used_in: used.get(`${project_id}/${name}`) ?? [] };
-            // A service keeps its key under service-<id>: that name says where it is used.
-            const service = s.name.startsWith("service-") ? [`service:${s.name.slice(8)}`] : [];
-            return { ...s, used_in: [...(used.get(s.name) ?? []), ...service] };
+            // One APX keeps for itself: its name says where it is used.
+            const owner = systemSecretOwner(s.name, known);
+            const where = used.get(s.name) ?? [];
+            if (!owner) return { ...s, used_in: where };
+            return { ...s, system: true, used_in: where.includes(owner) ? where : [...where, owner] };
           }),
       };
     },

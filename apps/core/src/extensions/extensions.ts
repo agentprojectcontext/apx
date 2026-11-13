@@ -16,8 +16,9 @@ const MANIFEST = "apx-extension.json";
 const MAX_FILES = 2000;
 const MAX_BYTES = 50 * 1024 * 1024;
 
-/** The name an extension's own secret is stored under. Names have no "-", so `ext-<id>-<name>` cannot be read two ways. */
-export const extSecret = (id: string, name: string) => `ext-${id}-${name}`;
+import { extensionSecret as extSecret } from "../secret-names.ts";
+
+export { extSecret };
 
 /** A `secret://name` anywhere in a value (the same names the MCP manager resolves). */
 export const SECRET_REF = /secret:\/\/([a-zA-Z0-9_.-]+)/g;

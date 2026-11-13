@@ -109,6 +109,32 @@ test("variables: a hint only for long values, and where each one is used", async
   assert.ok(!JSON.stringify(secrets).includes("ghp_0123"), "values never leave the core");
 });
 
+test("variables APX keeps for itself are told apart from the owner's, with where each one belongs", async () => {
+  const provider = (await env.client.call("providers.list", {})).providers[0]?.id;
+  assert.ok(provider, "the test core has a provider");
+  const kept = {
+    [provider]: `provider:${provider}`,
+    "channel-telegram": "channel:telegram",
+    "service-qvox": "service:qvox",
+    chatgpt_login: "provider:chatgpt",
+    "ext-acme_tools-api_key": "extension:acme_tools",
+    "github-token": "integration:github",
+    "gmail-refresh_token": "integration:gmail",
+    "artifact.stats.refresh-token": "artifact:stats",
+  };
+  for (const name of [...Object.keys(kept), "ACME_TOKEN", "deploy-token"])
+    await env.client.call("secrets.set", { name, value: "a-value-long-enough" });
+  await env.client.call("secrets.set", { name: "ACME_TOKEN", value: "a-value-long-enough", project });
+  const { secrets } = await env.client.call("secrets.list", {});
+  for (const [name, where] of Object.entries(kept)) {
+    const s = secrets.find((x) => x.name === name && !x.project_id);
+    assert.equal(s?.system, true, name);
+    assert.ok(s?.used_in.includes(where), `${name} belongs to ${where}`);
+  }
+  for (const s of secrets.filter((x) => x.name === "ACME_TOKEN" || x.name === "deploy-token"))
+    assert.equal(s.system, undefined, `${s.name} is the owner's`);
+});
+
 test("variable choices resolve project and parent overrides without duplicate names or other projects", async () => {
   const child = (await env.client.call("projects.create", { name: "Acme variables", parent: project })).project.id;
   const other = (await env.client.call("projects.create", { name: "Northwind variables" })).project.id;

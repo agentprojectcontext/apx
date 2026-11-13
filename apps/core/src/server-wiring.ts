@@ -403,6 +403,7 @@ export function coreHandlers(d: HandlerDeps & { vm?: Computer | undefined }) {
       secrets: d.secrets,
       mcp: d.mcp.config,
       runtimeHomes: d.runtimeHomes,
+      providerIds: () => d.providers.all().map((p) => p.id),
     }),
     ...providerHandlers(d.providers, d.secrets, d.chatgpt),
     ...instanceHandlers({

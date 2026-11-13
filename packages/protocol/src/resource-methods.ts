@@ -136,6 +136,8 @@ export const SecretInfo = z.object({
   hint: z.string().optional(),
   /** Where it is named: "mcp:github", "provider:openai", "service:qvox", "channel:telegram". */
   used_in: z.array(z.string()).default([]),
+  /** APX keeps it for itself (a provider's key, a channel's token, a sign-in it holds); the screen it names manages it. */
+  system: z.boolean().optional(),
   /** Sites where agents may sign in with it, and into which field (DECISIONS.md#d-193). */
   sites: z.array(SecretSite).default([]),
   /** The last sign-in an agent made with it. */

@@ -4,6 +4,7 @@ import { PublicEndpointPath as Path } from "@apx/protocol";
 import { z } from "zod";
 import type { Store } from "./domain/store.ts";
 import { badRequest } from "./errors.ts";
+import { PUBLIC_TOKEN_PREFIX } from "./secret-names.ts";
 import type { Secrets } from "./secrets.ts";
 import type { PublicRoute, PublicRoutes } from "./transport/hooks.ts";
 
@@ -93,7 +94,7 @@ export function createPublicCredentials(deps: { store: Store; secrets: Secrets; 
       const queued = pending();
       if (queued.length >= 1000) throw badRequest("public credential cleanup is full; restore secret storage first");
       if (!before && saved.length >= 1000) throw badRequest("too many public endpoints");
-      const name = `public-token-${randomBytes(16).toString("hex")}`;
+      const name = `${PUBLIC_TOKEN_PREFIX}${randomBytes(16).toString("hex")}`;
       const entry = { path: pathname, secret_ref: `secret://${name}`, rotated_at: new Date().toISOString() };
       // Journal before touching the external secret store: an interrupted creation is never untracked.
       savePending([...queued, entry.secret_ref]);

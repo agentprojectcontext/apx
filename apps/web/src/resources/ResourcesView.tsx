@@ -34,6 +34,9 @@ const OWN_NOTE = {
 /** "all", "global" or a project id: which scope the global screen lists. */
 export type ScopeFilter = string;
 
+/** Which variables the list shows: the owner's, those agents may sign in with, or the ones APX keeps for itself. */
+export type VarKind = "own" | "login" | "system";
+
 /**
  * Resources: skills, MCP servers, integrations, variables and extensions, in full tabs. The same screen globally
  * (with scope chips) and inside a project (its own plus the inherited global ones, which it can turn off here).
@@ -48,6 +51,7 @@ export function ResourcesView({ project }: { project?: ProjectEntry }) {
   const [picked, setScope] = useState<ScopeFilter>("all");
   const [adding, setAdding] = useState(false);
   const [ownOnly, setOwnOnly] = useState(false);
+  const [varKind, setVarKind] = useState<VarKind>("own");
   // A link to a variable (from where it is used) finds it: its name searched, in every scope.
   // biome-ignore lint/correctness/useExhaustiveDependencies: the same name in another project is a new link
   useEffect(() => {
@@ -67,6 +71,12 @@ export function ResourcesView({ project }: { project?: ProjectEntry }) {
     projects.filter((p) => p.path && p.registered !== false).map((p) => p.id),
   );
   const { skills, servers, secrets, extensions } = res.data;
+  // A link to one APX keeps for itself opens the system ones.
+  const linkedSystem = Boolean(variable && secrets?.some((s) => s.name === variable && s.system));
+  // biome-ignore lint/correctness/useExhaustiveDependencies: the same name in another project is a new link
+  useEffect(() => {
+    if (variable) setVarKind(linkedSystem ? "system" : "own");
+  }, [variable, variableIn, linkedSystem]);
   const counts: Record<ResourceTab, number | undefined> = {
     skills: skills?.length,
     mcp: servers?.length,
@@ -75,7 +85,7 @@ export function ResourcesView({ project }: { project?: ProjectEntry }) {
     variables:
       secrets &&
       new Set([
-        ...secrets.map((x) => x.name),
+        ...secrets.filter((x) => !x.system).map((x) => x.name),
         ...(servers ?? []).flatMap((srv) => srv.vars.filter((v) => !v.set).map((v) => v.name)),
       ]).size,
     extensions: extensions?.length,
@@ -90,6 +100,7 @@ export function ResourcesView({ project }: { project?: ProjectEntry }) {
     res,
     ownOnly: Boolean(projectId) && ownOnly && OWN_TABS.includes(tab),
     engines,
+    varKind,
   };
   const toggleEngine = (e: SkillEngine) =>
     setEngines((now) => {
@@ -98,7 +109,7 @@ export function ResourcesView({ project }: { project?: ProjectEntry }) {
       return next;
     });
   // A project's own or all of them (where a project can have its own), and for skills the engines they live in.
-  const filters = (tab === "skills" || (Boolean(projectId) && OWN_TABS.includes(tab))) && (
+  const filters = (tab === "skills" || tab === "variables" || (Boolean(projectId) && OWN_TABS.includes(tab))) && (
     <span className="resv__filters">
       {projectId && (
         <SegmentedControl
@@ -109,6 +120,19 @@ export function ResourcesView({ project }: { project?: ProjectEntry }) {
           options={[
             { value: "all", label: t("res.show.all") },
             { value: "project", label: t("res.show.project") },
+          ]}
+        />
+      )}
+      {tab === "variables" && (
+        <SegmentedControl
+          size="sm"
+          label={t("res.varKind")}
+          value={varKind}
+          onValueChange={(v) => setVarKind(v as VarKind)}
+          options={[
+            { value: "own", label: t("res.varKind.own") },
+            { value: "login", label: t("res.varKind.login") },
+            { value: "system", label: t("res.varKind.system") },
           ]}
         />
       )}
@@ -255,4 +279,6 @@ export type TabProps = {
   ownOnly?: boolean;
   /** Skills living in these engines (or with a copy there); empty: all. */
   engines?: ReadonlySet<SkillEngine>;
+  /** Variables: the owner's, those agents sign in with, or the ones APX keeps for itself. */
+  varKind?: VarKind;
 };

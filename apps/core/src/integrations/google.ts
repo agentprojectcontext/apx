@@ -5,6 +5,7 @@
 import { randomUUID } from "node:crypto";
 import { signatureFor } from "../domain/email-signature-settings.ts";
 import type { Store } from "../domain/store.ts";
+import { GOOGLE_CLIENT_SECRET, googleRefreshSecret } from "../secret-names.ts";
 import type { Secrets } from "../secrets.ts";
 import { GOOGLE_INTEGRATIONS, type GoogleId } from "./catalog.ts";
 import {
@@ -23,8 +24,8 @@ const OAUTH_PATH = "/oauth/google";
 const FLOW_TTL_MS = 10 * 60_000;
 
 const CLIENT_ID = "google_client_id";
-const CLIENT_SECRET = "google-client_secret";
-const refreshName = (id: GoogleId) => `${id}-refresh_token`;
+const CLIENT_SECRET = GOOGLE_CLIENT_SECRET;
+const refreshName = (id: GoogleId) => googleRefreshSecret(id);
 const accountKey = (id: GoogleId) => `google_account:${id}`;
 /** Which client signed an integration in: its refresh token works only with that one. */
 const clientKey = (id: GoogleId) => `google_client:${id}`;
