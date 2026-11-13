@@ -36,4 +36,44 @@ test("a turn's thinking is shown live, cleared once it answers, and kept nowhere
   }
 });
 
+test("what it last thought stays while it uses its tools, until it writes", async () => {
+  const seen: string[] = [];
+  let calls = 0;
+  let duringTools: string[] = [];
+  const llm: Llm = {
+    label: () => "fake/fake-1",
+    async complete(req) {
+      calls++;
+      if (calls === 1) {
+        req.onThinking?.("**Listing the agents**");
+        return {
+          model: "fake/fake-1",
+          finish: "tool_calls",
+          message: {
+            role: "assistant",
+            content: "",
+            tool_calls: [{ id: "c1", type: "function", function: { name: "list_agents", arguments: "{}" } }],
+          },
+        };
+      }
+      duringTools = [...seen];
+      req.onText?.("Two agents.");
+      return { model: "fake/fake-1", finish: "stop", message: { role: "assistant", content: "Two agents." } };
+    },
+  };
+  const env = await startCore({ llm });
+  env.core.bus.on((e) => {
+    if (e.type === "run.thinking") seen.push(e.text);
+  });
+  try {
+    const { run } = await env.client.call("threads.send", { thread: "home", text: "Who is here?" });
+    await waitFor(() => TERMINAL_STATES.has(env.core.store.runs.get(run.id)?.state ?? ""), "the turn ended");
+    assert.equal(calls, 2, "the tool ran and the model was asked again");
+    assert.deepEqual(duringTools, ["**Listing the agents**"], "not cleared by the tool call");
+    assert.equal(seen.at(-1), "", "cleared once it writes");
+  } finally {
+    await env.core.close();
+  }
+});
+
 const TERMINAL_STATES = new Set(["completed", "failed", "canceled"]);
