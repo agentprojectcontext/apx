@@ -3,7 +3,9 @@
 // (DECISIONS.md#d-059-routines).
 import type { Routine, Schedule } from "@apx/protocol";
 import { z } from "zod";
+import type { AgentRecord } from "../domain/agents.ts";
 import type { Store } from "../domain/store.ts";
+import { modeOf, withProjectAutonomy } from "./policy.ts";
 import { defineTool, type Tool } from "./types.ts";
 
 const when = (s: Schedule) =>
@@ -25,6 +27,27 @@ function find(store: Store, ref: string): { routine: Routine } | { error: string
   if (named.length === 1 && named[0]) return { routine: named[0] };
   if (named.length > 1) return { error: `"${ref}" names ${named.map((r) => r.id).join(", ")}; use the id` };
   return { error: `no routine "${ref}"; routine_list shows them` };
+}
+
+/** Whether an agent already works on Total, by its own mode or its project's (never a routine run's mode over it). */
+const onTotal = (store: Store, id: string | undefined) => {
+  const agent = id ? store.agents.get(id) : undefined;
+  return !!agent && modeOf(withProjectAutonomy(store, agent)) === "total";
+};
+
+/**
+ * `autonomy: "total"` on a routine whose agent is already on Total, and that holds no lower level: it gives that agent
+ * nothing it lacks, so it changes nothing and asks nobody (DECISIONS.md#d-223).
+ */
+function sameTotal(store: Store, a: { routine?: string; agent?: string; autonomy?: string }, caller: AgentRecord) {
+  if (a.autonomy !== "total") return false;
+  const found = a.routine ? find(store, a.routine) : undefined;
+  if (found && "error" in found) return false;
+  const was = found?.routine;
+  if (was?.autonomy && was.autonomy !== "total") return false;
+  const named = a.agent ? store.agents.resolve(a.agent, caller.project_id) : undefined;
+  if (named && "error" in named) return false;
+  return onTotal(store, named?.agent.id ?? was?.agent_id ?? caller.id);
 }
 
 function line(store: Store, r: Routine): string {
@@ -66,7 +89,7 @@ export function routineTools(store: Store): Tool[] {
     defineTool({
       name: "routine_set",
       description:
-        "Create a routine (name, prompt, one of cron/every_min/at) or change one (routine: id or name; only what you give changes; a prompt replaces it whole). run_now: also runs it; autonomy: how its runs act (agent: as its agent). Asks the owner: one call.",
+        "Create a routine (name, prompt, one of cron/every_min/at) or change one (routine: id/name; only what you give changes; a prompt replaces it whole). run_now: also runs it. autonomy only if the owner asks (agent: its agent's). Asks the owner: one call.",
       args: z.object({
         routine: z.string().trim().min(1).max(120).optional().describe("omit to create one"),
         name: z.string().trim().min(1).max(120).optional(),
@@ -81,8 +104,13 @@ export function routineTools(store: Store): Tool[] {
       }),
       effect: "local",
       confirm: "always",
-      // Letting a routine act on Total is the owner's own choice, whatever this agent's mode (DECISIONS.md#d-223).
-      keepsCard: (a) => (a.autonomy === "total" ? "card" : undefined),
+      // Only an agent on Total may ask for Total, and giving it to an agent that lacks it is the owner's own choice,
+      // whatever this agent's mode (DECISIONS.md#d-223).
+      check: (a, ctx) => {
+        if (a.autonomy === "total" && !onTotal(store, ctx.agent.id))
+          throw new Error("only the owner sets a routine to total, in its editor; leave autonomy out");
+      },
+      keepsCard: (a, agent) => (a.autonomy === "total" && !sameTotal(store, a, agent) ? "card" : undefined),
       deadlineMs: 15_000,
       title: (a) => (a.routine ? `Changed the routine ${a.routine}` : `Created the routine ${a.name ?? ""}`),
       async run(a, ctx) {
@@ -109,11 +137,12 @@ export function routineTools(store: Store): Tool[] {
           agent = found.agent;
         }
         if (!agent) return `no agent ${was?.agent_id ?? ""}`;
+        const autonomy = sameTotal(store, a, ctx.agent) ? undefined : a.autonomy;
         const name = a.name ?? was?.name;
         const prompt = a.prompt ?? was?.prompt;
         const next = schedule ?? was?.schedule;
         if (!name || !prompt || !next) return "a new routine needs name, prompt and one of cron, every_min or at";
-        const changes = a.name || a.prompt || schedule || a.agent || a.enabled !== undefined || a.autonomy;
+        const changes = a.name || a.prompt || schedule || a.agent || a.enabled !== undefined || autonomy;
         let r = was;
         if (!was || changes)
           r = await ctx.callAsOwner("routines.set", {
@@ -125,7 +154,7 @@ export function routineTools(store: Store): Tool[] {
               : {}),
             schedule: next,
             prompt,
-            ...(a.autonomy ? { autonomy: a.autonomy === "agent" ? null : a.autonomy } : {}),
+            ...(autonomy ? { autonomy: autonomy === "agent" ? null : autonomy } : {}),
             enabled: a.enabled ?? was?.enabled ?? true,
           });
         if (!r) return "nothing to change";

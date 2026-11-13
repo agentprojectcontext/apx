@@ -4723,9 +4723,13 @@ routine.
   still needs its own consent (D-165, which never covers a routine), the embedded browser still never types passwords
   or payment data (D-193), and a change to what the owner set up still needs their own word (`ownerSetting`, D-140): a
   routine is not the owner speaking.
-- **Who sets Total.** The owner, in the editor or the CLI. The super-agent may set a routine's level, but making one
-  Total keeps its card in every mode, the super-agent's own Total included: a routine on Total gives its agent more
-  than that agent has, which only the owner grants. A routine brought from another computer on Total arrives off
+- **Who sets Total.** The owner, in the editor or the CLI. An agent leaves a routine's level out unless the owner asks
+  (`routine_set`'s description). Only an agent on Total may ask for Total (`check` refuses it otherwise, before any
+  card). Giving Total to an agent that is not on Total keeps its card in every mode, the asking agent's Total included:
+  it gives that agent more than it has, which only the owner grants. For a routine whose agent is already on Total
+  (its own, or another's on Total) and that holds no lower level, it gives nothing: no card, and the routine keeps
+  acting as its agent, so it follows that agent if the owner later lowers it. The card that asks in every mode says so
+  (`kept` in `engine/owner-words.ts`), not Auto's "high-impact" line. A routine brought from another computer on Total arrives off
   (`instance/plan.ts`), as one with a command does.
 
 Rejected: offering every project's MCP tools to a routine with no project (it would reach servers and secrets of

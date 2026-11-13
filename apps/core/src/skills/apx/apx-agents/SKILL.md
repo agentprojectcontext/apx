@@ -69,7 +69,9 @@ yes to that agent's change.
 - **Whoever gave the task checks the delivery** and tells the owner how it ended.
 - **Working alone is not working with less.** A routine or task run has the tools its agent has when the owner talks
   to it in that project. How freely a routine acts is the owner's choice on the routine (`routine_set autonomy`:
-  manual, auto, total; `agent` goes back to the agent's own mode), never a prompt's.
+  manual, auto, total; `agent` goes back to the agent's own mode), never a prompt's. Leave it out unless the owner
+  asks: a reminder or a check needs only its agent's mode. Total only from an agent on Total, and giving it to an agent
+  that is not on Total asks the owner.
 
 ## What to look for, agent by agent
 
