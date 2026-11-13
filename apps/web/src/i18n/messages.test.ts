@@ -36,6 +36,8 @@ import { enSysUsage } from "./sysusage-en.ts";
 import { esSysUsage } from "./sysusage-es.ts";
 import { enThreadDialogs } from "./thread-dialogs-en.ts";
 import { esThreadDialogs } from "./thread-dialogs-es.ts";
+import { enVoice } from "./voice-en.ts";
+import { esVoice } from "./voice-es.ts";
 
 test("the setup screens' strings load with them, never with the first screen", async () => {
   const { loadMessages, loadPack } = await import("./messages.ts");
@@ -178,6 +180,15 @@ test("the call card's strings load only with the card in both languages", async 
   }
 });
 
+test("the Voices settings' strings load only with that section in both languages", async () => {
+  const { loadMessages, loadPack } = await import("./messages.ts");
+  for (const lang of ["en", "es"] as const) {
+    const base = await loadMessages(lang);
+    for (const key of Object.keys(enVoice) as (keyof typeof enVoice)[]) assert.equal(base[key], undefined);
+    assert.deepEqual(await loadPack("voice", lang), lang === "en" ? enVoice : esVoice);
+  }
+});
+
 // A pack's strings belong to the language as much as the main chunk's.
 const en = {
   ...base,
@@ -189,6 +200,7 @@ const en = {
   ...enReceived,
   ...enSysUsage,
   ...enStorage,
+  ...enVoice,
   ...enSignIn,
   ...enEmailSignatures,
   ...enThreadDialogs,
@@ -209,6 +221,7 @@ const es = {
   ...esReceived,
   ...esSysUsage,
   ...esStorage,
+  ...esVoice,
   ...esSignIn,
   ...esEmailSignatures,
   ...esThreadDialogs,

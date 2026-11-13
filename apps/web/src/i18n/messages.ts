@@ -32,6 +32,10 @@ const PACKS = {
     en: () => import("./call-en.ts").then((m) => m.enCall),
     es: () => import("./call-es.ts").then((m) => m.esCall),
   },
+  voice: {
+    en: () => import("./voice-en.ts").then((m) => m.enVoice),
+    es: () => import("./voice-es.ts").then((m) => m.esVoice),
+  },
   approvals: {
     en: () => import("./approvals-en.ts").then((m) => m.enApprovals),
     es: () => import("./approvals-es.ts").then((m) => m.esApprovals),

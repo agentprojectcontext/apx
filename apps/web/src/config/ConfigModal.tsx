@@ -23,6 +23,7 @@ import { RouterSection } from "./RouterSection.tsx";
 import { ServicesSection } from "./ServicesSection.tsx";
 import { SoundsSection } from "./SoundsSection.tsx";
 import { StorageSection } from "./StorageSection.tsx";
+import { VoiceSection } from "./VoiceSection.tsx";
 
 type NavEntry = { id: ConfigSection; label: MessageKey; icon: ReactNode; soon?: boolean };
 
@@ -164,7 +165,7 @@ function Body({ section }: { section: ConfigSection }) {
     case "memory":
       return <MemorySection />;
     case "voices":
-      return <ServicesSection kind="speech" />;
+      return <VoiceSection />;
     case "images":
       return <ServicesSection kind="image" />;
     case "activity-review":

@@ -43,6 +43,7 @@ import type { SysUsageKey } from "./sysusage-en.ts";
 import { enTeamShared } from "./team-shared-en.ts";
 import type { enThreadDialogs } from "./thread-dialogs-en.ts";
 import { enTopbar } from "./topbar-en.ts";
+import type { enVoice } from "./voice-en.ts";
 
 // UI strings, English: the source of truth. Every key lives here; `{name}` placeholders are filled by t().
 export const en = {
@@ -1957,6 +1958,7 @@ export type MessageKey =
   | ReceivedKey
   | SysUsageKey
   | keyof typeof enStorage
+  | keyof typeof enVoice
   | keyof typeof enSignIn
   | keyof typeof enMove
   | keyof typeof enMemoryPanel

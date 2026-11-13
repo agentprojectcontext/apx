@@ -1,0 +1,36 @@
+import type { enVoice } from "./voice-en.ts";
+
+export const esVoice: Record<keyof typeof enVoice, string> = {
+  "voice.lead": "Cómo hablan tus agentes, cómo tus notas de voz se vuelven texto y con quién hablás en una llamada.",
+  "voice.title": "La voz de APX",
+  "voice.about":
+    "Corre en esta computadora: lee en voz alta los mensajes de tus agentes, escribe lo que grabás y habla con vos en las llamadas.",
+  "voice.missing.platform": "Necesita una Mac con Apple silicon.",
+  "voice.missing.memory": "Esta computadora no tiene memoria suficiente.",
+  "voice.missing.uv": "Necesita uv en esta Mac. Instalalo con este comando y volvé:",
+  "voice.elsewhere": "Podés usar otro servicio de voz en Avanzado.",
+  "voice.install": "Instalar",
+  "voice.installHint": "Una descarga de unos pocos GB, una sola vez.",
+  "voice.downloading": "Descargando… {pct}%",
+  "voice.failed": "La descarga se cortó: {error}",
+  "voice.retry": "Reintentar",
+  "voice.light": "Esta computadora usa la voz liviana: necesita menos memoria y suena un poco menos natural.",
+  "voice.on": "Usar la voz de APX",
+  "voice.gender": "Voz",
+  "voice.female": "Femenina",
+  "voice.male": "Masculina",
+  "voice.accent": "Acento",
+  "voice.locale.es-AR": "Español (Argentina)",
+  "voice.locale.es": "Español",
+  "voice.locale.en-US": "Inglés (EE. UU.)",
+  "voice.listen": "Escuchar",
+  "voice.calls": "Llamadas",
+  "voice.callModel": "Modelo para llamadas",
+  "voice.callModelHint":
+    "Con quién hablás en una llamada. El agente al que llamás sigue trabajando con su propio modelo.",
+  "voice.mainModel": "Tu modelo principal",
+  "voice.pickModel": "Otro modelo",
+  "voice.advanced": "Avanzado",
+  "voice.advancedHint": "Otros servicios de voz y de transcripción, probados en orden.",
+  "voice.error": "No se pudo cambiar la voz de APX: {error}",
+};

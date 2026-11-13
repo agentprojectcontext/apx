@@ -1,6 +1,6 @@
 import type { ImageDefaults, ServiceInfo, ServiceKind, ServiceTest } from "@apx/protocol";
 import { Badge, Button, EmptyState, IconButton, Icons, Input, SettingRow, Switch, Textarea } from "@apx/ui";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { client } from "../data/client.ts";
 import { mediaUrl } from "../data/media.ts";
 import { notify } from "../data/notices.ts";
@@ -15,19 +15,27 @@ const errText = (e: unknown) => (e instanceof Error ? e.message : String(e));
 
 /**
  * Images or Voices: the owner's services in the order they are tried, a test, and (images) the shared defaults. One
- * that does not answer says why. `onChange` hears the list each time it is read again (after an edit, too).
+ * that does not answer says why. `onChange` hears the list each time it is read again (after an edit, too). APX's own
+ * voice is not listed: the core manages it, Settings › Voices shows it on its own. `bare`: inside a section that has
+ * its own heading; `localTranscription`: offer to install transcription on this machine.
  */
 export function ServicesSection({
   kind,
   embedded = false,
+  bare = false,
+  localTranscription = true,
   onChange,
 }: {
   kind: ServiceKind;
   embedded?: boolean;
+  bare?: boolean;
+  localTranscription?: boolean;
   onChange?: (services: ServiceInfo[]) => void;
 }) {
   const t = useT();
-  const [services, setServices] = useState<ServiceInfo[]>();
+  // Every service in its order (the order is saved whole), and the ones listed here.
+  const [all, setAll] = useState<ServiceInfo[]>();
+  const services = useMemo(() => all?.filter((s) => s.dialect !== "apx-voice"), [all]);
   // Why each one that does not answer does not (asked again with "Test connection").
   const [why, setWhy] = useState<Record<string, ServiceTest>>({});
   const [defaults, setDefaults] = useState<ImageDefaults>();
@@ -41,20 +49,20 @@ export function ServicesSection({
   const retest = useCallback(async (s: ServiceInfo) => {
     const r = await testService(settingsOf(s), s.id);
     setWhy((w) => ({ ...w, [s.id]: r }));
-    setServices((list) => list?.map((x) => (x.id === s.id ? { ...x, status: r.ok ? "reachable" : "unreachable" } : x)));
+    setAll((list) => list?.map((x) => (x.id === s.id ? { ...x, status: r.ok ? "reachable" : "unreachable" } : x)));
   }, []);
 
   const load = useCallback(async () => {
     try {
       const r = await client.call("services.list", { kind });
-      setServices(r.services);
+      setAll(r.services);
       setDefaults(r.image_defaults);
       changed.current?.(r.services);
-      for (const s of r.services) if (s.status === "unreachable") void retest(s);
+      for (const s of r.services) if (s.status === "unreachable" && s.dialect !== "apx-voice") void retest(s);
       // The chat's read-aloud buttons follow whether a voice is set up.
       if (kind === "speech") void refreshSpeech();
     } catch (e) {
-      setServices([]);
+      setAll([]);
       notify(t("error.services", { error: errText(e) }));
     }
   }, [kind, t, retest]);
@@ -71,11 +79,11 @@ export function ServicesSection({
     await load();
   };
   const move = (i: number, by: -1 | 1) => {
-    if (!services) return;
-    const ids = services.map((s) => s.id);
-    const [id] = ids.splice(i, 1);
-    if (!id) return;
-    ids.splice(i + by, 0, id);
+    const a = services?.[i]?.id;
+    const b = services?.[i + by]?.id;
+    if (!all || !a || !b) return;
+    // Swapped in the whole order, so services not listed here keep their place.
+    const ids = all.map((s) => (s.id === a ? b : s.id === b ? a : s.id));
     void call(() => client.call("services.order", { kind, ids }));
   };
   const toggle = (s: ServiceInfo, on: boolean) => {
@@ -85,7 +93,7 @@ export function ServicesSection({
 
   return (
     <>
-      {!embedded && (
+      {!embedded && !bare && (
         <SectionHead
           title={t(kind === "image" ? "config.images" : "config.voices")}
           lead={t(kind === "image" ? "svc.image.lead" : "svc.speech.lead")}
@@ -181,7 +189,7 @@ export function ServicesSection({
         <>
           <SubHead>{t("svc.transcription")}</SubHead>
           <p className="config__lead">{t("svc.transcription.lead")}</p>
-          <LocalTranscription onInstalled={refreshTranscription} />
+          {localTranscription && <LocalTranscription onInstalled={refreshTranscription} />}
           <ServicesSection key={transcriptionKey} kind="transcription" embedded />
         </>
       )}
