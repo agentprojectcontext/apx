@@ -96,6 +96,7 @@ pnpm --filter @apx/ui build        # design system dist/ (what web and design-sy
 ```bash
 pnpm lint                          # Biome; `pnpm lint:fix` applies safe fixes
 pnpm check:private                 # public-safe gate (AGENTS.md rule 17)
+pnpm check:decisions               # DECISIONS.md numbered and anchored, every link and D-NNN to a decision that exists
 pnpm check:commits HEAD^..HEAD     # this commit only; use a base..head range for a change, see rules/RELEASE.md
 pnpm check:schema                  # apps/core/src/db/schema.ts matches the migrations (`node apps/core/scripts/schema.ts` rewrites it)
 pnpm check:ui                      # panel screens use @apx/ui controls and tokens (AGENTS.md rule 32)
@@ -186,7 +187,7 @@ While developing against a scratch state, set `APX_HOME` to a temp dir so `~/.ap
 
 ## 5. All at once
 ```bash
-pnpm preflight                     # check:private, check:schema, lint, check:ui, check:dead, typecheck, unit tests
+pnpm preflight                     # check:private, check:decisions, check:schema, lint, check:ui, check:dead, typecheck, unit tests
 pnpm verify                        # preflight, all-suite execution coverage, then lightness budgets
 pnpm verify --stream               # the same, with every step's output as it runs
 ```
