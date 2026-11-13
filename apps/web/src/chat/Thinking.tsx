@@ -18,8 +18,8 @@ export function Thinking({ threadId, name, face }: { threadId: string; name: str
   }, []);
   const secs = Math.round((now - since) / 1000);
   const label = t(text ? "chat.agentThinking" : "chat.agentWorking", { name });
-  // Its summary comes in parts, each with a bold title: the newest one, as plain words.
-  const last = text?.split(/\n\n/).at(-1)?.replace(/\*\*/g, "").trim();
+  // Its summary comes in parts, a bold title then its words: the newest words.
+  const last = text?.split("\n\n").at(-1);
   return (
     <div className="transcript__activity transcript__activity--thinking">
       <ActivityPill tone="brand" label={secs >= 3 ? `${label} · ${secs} s` : label} from={face} />
