@@ -18,6 +18,7 @@ import { COMPUTER_POINTER_NEWS } from "./computer-pointer.ts";
 import { CONTACT_AGENT_NEWS } from "./contact-agent.ts";
 import { EVENT_MUTE_NEWS } from "./event-mute.ts";
 import { EXTERNAL_SESSIONS_NEWS } from "./external-sessions.ts";
+import { GROUP_CHATS_NEWS } from "./group-chats.ts";
 import { HEADLINE_MODELS_NEWS } from "./headline-models.ts";
 import { HERMES_IMPORT_NEWS } from "./hermes-import.ts";
 import { HOME_CHANNEL_SWITCH_NEWS } from "./home-channel-switch.ts";
@@ -91,6 +92,8 @@ export type NewsFacts = {
   eventReminders?: boolean;
   /** Routines an agent answers (not a message or a command alone). */
   routines?: number;
+  /** Agents besides the super-agent (a group chat needs two in all). */
+  agents?: number;
 };
 
 export type NewsAction = {
@@ -171,6 +174,7 @@ export const NEWS: readonly NewsEntry[] = [
   STORE_COMPACT_NEWS,
   SIDE_QUESTION_NEWS,
   MEMORY_REVIEW_NEWS,
+  GROUP_CHATS_NEWS,
   {
     id: "storage-screen",
     since: "2.13.0",
@@ -719,6 +723,7 @@ export const newsFacts = (store: Store, o: { hermes?: boolean; storeSize?: Store
   projects: store.projects.list().length,
   routines: store.routines.list().filter((r) => r.action === "agent" || r.action === "watch").length,
   promptedAgents: store.agents.list().filter((a) => a.kind !== "secretary" && a.prompt.trim()).length,
+  agents: store.agents.list().filter((a) => a.kind !== "secretary").length,
 });
 
 /** The action a channel button stands for. */

@@ -110,7 +110,7 @@ export function threadHandlers(
   engine: Engine,
   upkeep: Pick<Upkeep, "compact">,
   aside: Pick<Aside, "ask">,
-  groups?: Pick<Groups, "enabled" | "is" | "send" | "stop">,
+  groups?: Pick<Groups, "is" | "send" | "stop">,
 ) {
   const threadAgent = (threadId: string) => {
     const thread = store.threads.get(threadId);
@@ -315,7 +315,7 @@ export function threadHandlers(
     },
     "threads.create": (params, ctx) => createThread(store, params, ctx),
     "threads.group": ({ agent_ids, title }) => {
-      if (!groups?.enabled) throw conflict("group chats are off in this core (APX_GROUP_CHATS=on turns them on)");
+      if (!groups) throw conflict("group chats are not available in this core");
       try {
         return createGroup(store, { agent_ids, title });
       } catch (err) {

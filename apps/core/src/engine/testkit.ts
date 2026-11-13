@@ -141,8 +141,6 @@ export async function startCore(opts: {
   flowHttpAllow?: string[];
   /** Reads a project folder at start instead of the worker threads (a test holds one or answers it). */
   projectRead?: ReadProjectFiles;
-  /** Group chats of several agents (off, as in a default install). */
-  groupChats?: boolean;
 }) {
   const home = opts.home ?? fs.mkdtempSync(path.join(os.tmpdir(), "apx-engine-"));
   // A provider named "fake" so refs like "fake/fake-1" are valid; the scripted model answers for it.
@@ -159,7 +157,6 @@ export async function startCore(opts: {
       ...(opts.googleClient ? { googleClient: opts.googleClient } : {}),
       ...(opts.expoPushUrl ? { expoPushUrl: opts.expoPushUrl } : {}),
       ...(opts.flowHttpAllow ? { flowHttpAllow: opts.flowHttpAllow } : {}),
-      ...(opts.groupChats ? { groupChats: true } : {}),
     }),
     {
       quiet: true,

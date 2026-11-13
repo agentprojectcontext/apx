@@ -21,6 +21,7 @@ import { useThreadChannel } from "../inbox/useThreadChannel.ts";
 import { ChannelFace, TaskCrumb, TaskStateButton } from "../lazy.ts";
 import { PanelSwitcher } from "../panel/PanelSwitcher.tsx";
 import { go, useNav } from "../shell/nav.ts";
+import { useGroupChat } from "./groupChat.ts";
 import { toggleRoomCard, useRoomCard } from "./roomCard.ts";
 
 const POLICIES: WritePolicy[] = ["ask", "auto", "read-only"];
@@ -89,6 +90,7 @@ export function ChatHeader({
   const roomChannel = useChannels((s) => s.channels.find((c) => c.id === thread.channel?.id));
   const roomOpen = useRoomCard();
   const channelKind = useThreadChannel(thread);
+  const group = useGroupChat(thread);
   const requestedRef = thread.model_choice?.model;
   const requested = requestedRef ? splitRef(requestedRef) : undefined;
   const requestedName = requestedRef && modelOf(requestedRef, catalog)?.name;
@@ -124,7 +126,28 @@ export function ChatHeader({
             </Suspense>
           )}
           {task !== undefined && <span>{t("tasks.header.task")}</span>}
-          {agent && !engine && !thread.channel && !sub && !thread.task_id && (
+          {group && (
+            <span className="chat__members">
+              {group.members.map((a, i) => {
+                const chat = group.chats[a.id];
+                return (
+                  <span key={a.id}>
+                    <Button
+                      variant="link"
+                      size="sm"
+                      className="chat__member"
+                      {...(chat ? { title: t("group.memberChat", { name: a.name }) } : {})}
+                      onClick={() => (chat ? go.thread(chat) : go.agent(a.id))}
+                    >
+                      {a.name}
+                    </Button>
+                    {i < group.members.length - 1 && ","}
+                  </span>
+                );
+              })}
+            </span>
+          )}
+          {agent && !group && !engine && !thread.channel && !sub && !thread.task_id && (
             <Tooltip content={agentHint}>
               <button type="button" className="chat__agentbtn" onClick={() => go.agent(agent.id)}>
                 {agent.kind === "secretary"
@@ -233,11 +256,15 @@ export function ChatHeader({
                   keepOpen: true,
                   onSelect: go.toggleTools,
                 },
-                {
-                  label: t("chat.compact"),
-                  icon: <Icons.Layers size={14} />,
-                  onSelect: () => void compactThread(thread.id),
-                },
+                ...(group
+                  ? []
+                  : [
+                      {
+                        label: t("chat.compact"),
+                        icon: <Icons.Layers size={14} />,
+                        onSelect: () => void compactThread(thread.id),
+                      },
+                    ]),
               ],
             })}
           />

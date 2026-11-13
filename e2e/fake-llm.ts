@@ -56,6 +56,29 @@ function ownerCheck(messages: Message[]): { check: true } | { said: string } | u
   return body === undefined ? undefined : { said: lastWords([{ role: "user", content: body }]) };
 }
 
+/**
+ * A group chat's router (engine/group.ts): the agents whose role the owner's newest words name, everyone for
+ * "everyone", else the first.
+ */
+function groupPick(user: string): string {
+  const roster = [...user.matchAll(/^- .+? \(([^)]+)\)(?:: (.*))?$/gm)].map((m) => ({
+    id: m[1] ?? "",
+    role: m[2] ?? "",
+  }));
+  const words = (/Newest message from the owner:\n([\s\S]*?)\n\nJSON only\./.exec(user)?.[1] ?? "").toLowerCase();
+  const named = roster.filter((a) => a.role && words.includes(a.role.toLowerCase()));
+  const speakers = /everyone|todos/.test(words) ? roster : named.length ? named : roster.slice(0, 1);
+  return JSON.stringify({ speakers: speakers.map((a) => a.id) });
+}
+
+/** A group member's turn after teammates answered: the owner's words, not APX's note under them. */
+function groupWords(messages: Message[], said: string): string {
+  if (said !== "Add only what is yours.") return said;
+  const text = textOf(messages.findLast((m) => m.role === "user"));
+  const before = text.split("[teammates who already answered")[0] ?? "";
+  return lastWords([{ role: "user", content: before }]);
+}
+
 /** Embeddings, Ollama-style: pictures point one way, anything else (each a bit apart) another. */
 function vectorOf(text: string): number[] {
   if (/image|imagen|picture|dibujo/i.test(text)) return [1, 0, 0, 0.2];
@@ -389,7 +412,10 @@ export async function fakeLlm() {
       bodies.push(raw);
       const body = (raw ? JSON.parse(raw) : {}) as { model?: string; messages?: Message[]; stream?: boolean };
       const relay = ownerCheck(body.messages ?? []);
-      const said = relay && "said" in relay ? relay.said : lastWords(body.messages ?? []);
+      const said = groupWords(
+        body.messages ?? [],
+        relay && "said" in relay ? relay.said : lastWords(body.messages ?? []),
+      );
       calls.push({ model: body.model ?? "", said });
       // A plan out of its usage limit: an agent with fallbacks goes on with the next model.
       if (body.model === "fake-limited") {
@@ -404,6 +430,7 @@ export async function fakeLlm() {
         ? `Done: ${textOf(body.messages?.findLast((m) => m.role === "tool"))}`
         : undefined;
       const text =
+        (system.startsWith("You pick who answers") ? groupPick(textOf(body.messages?.at(-1))) : undefined) ??
         signed ??
         (relay && "check" in relay
           ? "It is the owner: answer them."

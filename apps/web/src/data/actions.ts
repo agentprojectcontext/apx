@@ -173,7 +173,8 @@ export async function send(
       thread: threadId,
       text,
       // Written while the agent works, it joins that turn instead of cutting it (the core queues it when it can't).
-      mode: busy && !opts.queue ? "steer" : "queue",
+      // A group's members answer in line: what is written while one works reaches its next turn.
+      mode: busy && !opts.queue && data.get().threads[threadId]?.kind !== "group" ? "steer" : "queue",
       ...(files.length ? { attachments: files.map((f) => f.id) } : {}),
       ...(inChrome() ? { via: "chrome" as const } : {}),
     });
@@ -227,6 +228,22 @@ export async function createThread(
     threadLoad: { ...s.threadLoad, [thread.id]: "ready" },
   }));
   return thread;
+}
+
+/** A group chat of the owner and 2–5 agents; says why when it could not. */
+export async function createGroup(agentIds: string[], title?: string): Promise<Thread | undefined> {
+  try {
+    const thread = await client.call("threads.group", { agent_ids: agentIds, ...(title ? { title } : {}) });
+    data.set((s) => ({
+      threads: { ...s.threads, [thread.id]: thread },
+      messages: { ...s.messages, [thread.id]: s.messages[thread.id] ?? [] },
+      threadLoad: { ...s.threadLoad, [thread.id]: "ready" },
+    }));
+    return thread;
+  } catch (e) {
+    notify(errText(e), "error");
+    return undefined;
+  }
 }
 
 /** Makes a new chat (see newChat.ts) in the core, with the model picked in it before; says why when it could not. */
