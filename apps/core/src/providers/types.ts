@@ -185,6 +185,8 @@ export type TransportRequest = {
   maxOutputTokens?: number | undefined;
   /** Streaming: receives the text accumulated so far. */
   onText?: ((soFar: string) => void) | undefined;
+  /** Streaming: what the model says of its reasoning so far, for models that send a summary of it. */
+  onThinking?: ((soFar: string) => void) | undefined;
   /** Silence allowed before the first byte. */
   firstByteMs: number;
   fetchImpl: typeof fetch;

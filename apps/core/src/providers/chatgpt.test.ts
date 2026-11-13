@@ -349,3 +349,34 @@ test("text cut mid-emoji in the history goes out well-formed, the whole emoji ke
   const output = (JSON.parse(sent) as { input: Array<{ output?: string }> }).input.find((i) => i.output)?.output;
   assert.equal(output, 'link "free �" and 💬');
 });
+
+test("the reasoning summary arrives as it is written, parts a blank line apart, before the answer", async () => {
+  const events = [
+    { type: "response.reasoning_summary_part.added" },
+    { type: "response.reasoning_summary_text.delta", delta: "Reading the " },
+    { type: "response.reasoning_summary_text.delta", delta: "question" },
+    { type: "response.reasoning_summary_part.added" },
+    { type: "response.reasoning_summary_text.delta", delta: "Checking the plan" },
+    { type: "response.output_text.delta", delta: "ok" },
+    { type: "response.completed", response: { status: "completed" } },
+  ];
+  const fetchImpl: typeof fetch = async () =>
+    new Response(events.map((e) => `data: ${JSON.stringify(e)}\n\n`).join(""), {
+      headers: { "content-type": "text/event-stream" },
+    });
+  const seen: string[] = [];
+  const out = await chatgptResponses({
+    baseUrl: "https://example.com/codex",
+    key: "k",
+    model: "gpt-x",
+    effort: "medium",
+    messages: [{ role: "user", content: "go" }],
+    tools: [],
+    signal: new AbortController().signal,
+    firstByteMs: 5_000,
+    fetchImpl,
+    onThinking: (s) => seen.push(s),
+  });
+  assert.deepEqual(seen, ["Reading the ", "Reading the question", "Reading the question\n\nChecking the plan"]);
+  assert.equal(out.message.content, "ok");
+});

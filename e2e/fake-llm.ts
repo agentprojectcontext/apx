@@ -500,6 +500,27 @@ export async function fakeLlm() {
           send({ id: "fake", choices: [], usage });
           res.end("data: [DONE]\n\n");
         };
+        // "think first": a reasoning model's thinking, said aloud a piece at a time, then the answer.
+        if (/^think first/i.test(said)) {
+          const thoughts = [
+            "**Reading the ask**\n\nThe owner wants a plan. ",
+            "**Checking the dates**\n\nLaunch is close.",
+          ];
+          const next = (i: number) => {
+            if (res.writableEnded) return;
+            if (i < thoughts.length) {
+              send({
+                id: "fake",
+                choices: [{ index: 0, delta: { reasoning_content: thoughts[i] }, finish_reason: null }],
+              });
+              return void setTimeout(() => next(i + 1), 1200);
+            }
+            for (const part of chunks)
+              send({ id: "fake", choices: [{ index: 0, delta: { content: part }, finish_reason: null }] });
+            end();
+          };
+          return next(0);
+        }
         // "write slowly": a piece every 150 ms, so a test sees the answer grow as a real model's does.
         if (/^write slowly/i.test(said)) {
           const next = (i: number) => {

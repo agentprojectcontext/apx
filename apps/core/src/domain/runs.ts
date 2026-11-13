@@ -284,6 +284,10 @@ const runTokens = raw<number>`max(coalesce(json_extract(usage, '$.input'), 0) - 
 export function runsRepo({ one, all, run }: Sql, bus: Bus) {
   const emit = (r: RunRecord) => bus.emit({ type: "run.updated", run: publicRun(r) });
   const repo = {
+    /** What the turn's model is thinking now, shown live and never stored; "" when it stopped. */
+    thinking(r: Pick<RunRecord, "id" | "thread_id">, text: string): void {
+      bus.emit({ type: "run.thinking", run_id: r.id, thread_id: r.thread_id, text });
+    },
     get(id: string): RunRecord | undefined {
       const r = one(qb.selectFrom("runs").selectAll().where("id", "=", id));
       return r ? toRun(r) : undefined;

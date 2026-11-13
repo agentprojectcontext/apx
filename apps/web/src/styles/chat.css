@@ -183,6 +183,10 @@
 }
 .transcript__quotetext {
   opacity: 0.75;
+}
+/* A quote, or what the agent is thinking under its pill: three lines at most. */
+.transcript__quotetext,
+.transcript__thinking {
   white-space: pre-wrap;
   display: -webkit-box;
   -webkit-box-orient: vertical;
@@ -193,6 +197,18 @@
 .transcript__activity {
   display: flex;
   padding-top: 4px;
+}
+/* What the agent is thinking, under its pill: the newest part, quiet and short. */
+.transcript__activity--thinking {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+}
+.transcript__thinking {
+  max-width: 64ch;
+  margin: 0 0 0 30px;
+  font-size: var(--apx-text-xs);
+  color: var(--apx-fg-muted);
 }
 .apx-msg.is-pending {
   opacity: 0.6;

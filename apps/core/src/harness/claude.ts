@@ -305,6 +305,7 @@ async function attempt(
   const onAbort = () => ac.abort();
   io.signal.addEventListener("abort", onAbort, { once: true });
   let text = "";
+  let thinking = "";
   // A finished answer before words the SDK ran right after it: kept above the next one.
   let prefix = "";
   // The turn's own model call is writing: a "send now" drops what it wrote so far.
@@ -370,12 +371,18 @@ async function attempt(
         if (!main) continue;
         if (ev.type === "message_start") {
           text = "";
+          thinking = "";
           streaming = true;
           reportModel(ev.message.model);
         } else if (ev.type === "message_stop") streaming = false;
         if (ev.type === "content_block_delta" && ev.delta.type === "text_delta") {
           text += ev.delta.text;
           io.onText(prefix + text);
+        }
+        // Claude's thinking, when it streams it in words (a summary on newer models), shown live and not kept.
+        if (ev.type === "content_block_delta" && ev.delta.type === "thinking_delta") {
+          thinking += ev.delta.thinking;
+          io.onThinking?.(thinking);
         }
       } else if (m.type === "assistant") {
         o.tally.call(m.message.id, m.message.usage, !m.parent_tool_use_id);

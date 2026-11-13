@@ -35,6 +35,7 @@ import { quotedIndex, quoteParts, splitQuote } from "./quote.ts";
 import { Regenerate, UserMessage } from "./Rewind.tsx";
 import { isRoom, ownerOnChannel } from "./room.ts";
 import { PersonFace, Speaker } from "./Speaker.tsx";
+import { Thinking } from "./Thinking.tsx";
 
 const EMPTY: Msg[] = [];
 
@@ -247,13 +248,11 @@ export function Transcript({ thread, comments = false, via }: { thread: Thread; 
           </Suspense>
         )}
         {working && thread.kind !== "group" && (
-          <div className="transcript__activity">
-            <ActivityPill
-              tone="brand"
-              label={t("chat.agentWorking", { name: agent?.name ?? t("chat.theAgent") })}
-              from={agent && <AgentAvatar name={agent.name} blob={blobOf(agent)} size={22} />}
-            />
-          </div>
+          <Thinking
+            threadId={thread.id}
+            name={agent?.name ?? t("chat.theAgent")}
+            face={agent && <AgentAvatar name={agent.name} blob={blobOf(agent)} size={22} />}
+          />
         )}
         {thread.state === "queued" && (
           <div className="transcript__activity">

@@ -28,6 +28,8 @@ export type LlmRequest = {
   tools: ToolSpec[];
   signal: AbortSignal;
   onText?: ((soFar: string) => void) | undefined;
+  /** What the model says of its reasoning so far (a summary), for models that send one. */
+  onThinking?: ((soFar: string) => void) | undefined;
   /** Stable per conversation (a thread id), for providers' prompt caches. */
   cacheKey?: string | undefined;
   maxOutputTokens?: number | undefined;
@@ -225,6 +227,7 @@ export function createLlm(opts: {
               cacheKey: req.cacheKey,
               maxOutputTokens: req.maxOutputTokens,
               onText,
+              onThinking: req.onThinking,
               firstByteMs: opts.firstByteMs,
               fetchImpl: opts.fetchImpl ?? fetch,
             });
