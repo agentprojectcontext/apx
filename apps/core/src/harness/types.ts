@@ -29,6 +29,8 @@ export type TurnIO = {
   /** Whether outside content is in this turn so far (or was in this engine session before: it keeps it). */
   outside(): boolean;
   onText(soFar: string): void;
+  /** What the model says of its reasoning before it answers, as it comes (a summary; models that send one). */
+  onThinking?(soFar: string): void;
   /** The engine's reported model; undefined clears an abandoned attempt before a retry. */
   onModel?(model: string | undefined): void;
   /** This turn's tokens so far, reported as they grow: a turn that fails or is canceled still shows what it spent. */

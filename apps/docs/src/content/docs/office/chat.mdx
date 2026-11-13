@@ -51,6 +51,11 @@ Right-click where you want to clear them: **Inbox** in the sidebar (every chat),
 Open a chat and write. The agent's face and name sit in the header; click them (**View** its name) to open the agent
 side panel with its role, model and memory.
 
+Before it writes, the chat says the agent is working and for how long. Models that reason first (ChatGPT's with an
+effort set, Claude, and the ones that think aloud on OpenRouter, DeepSeek or Ollama) say what they are thinking about:
+**Robina is thinking…** with the newest part of it under it, as it comes. It goes once the answer starts and is not
+kept in the chat.
+
 While it works you see each step as it happens: tools it used, pages it opened, agents it asked. Once done they fold
 into one line, such as **4 steps · 12 s**, that opens on click into each step in words ("Read notes.md", "Searched
 prices 2026") with an icon for its kind of action (the web, a file read, a file written, memory). Only a step that

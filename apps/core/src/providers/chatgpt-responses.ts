@@ -167,6 +167,7 @@ export const chatgptResponses: Transport = async (req) => {
     const reasoning: Reasoning[] = [];
     // A model may send its message only whole (no deltas), or a refusal: both still answer the turn.
     let whole = "";
+    let thinking = "";
     let refusal = "";
     let ended: Event["response"] | undefined;
     for await (const data of sseData(res, touch)) {
@@ -181,6 +182,14 @@ export const chatgptResponses: Transport = async (req) => {
         case "response.output_text.delta":
           out += ev.delta ?? "";
           req.onText?.(out);
+          break;
+        // The reasoning summary the request asks for, in parts: a blank line between them.
+        case "response.reasoning_summary_part.added":
+          if (thinking) thinking += "\n\n";
+          break;
+        case "response.reasoning_summary_text.delta":
+          thinking += ev.delta ?? "";
+          req.onThinking?.(thinking);
           break;
         case "response.output_item.added":
           if (it?.type === "function_call" && it.id)

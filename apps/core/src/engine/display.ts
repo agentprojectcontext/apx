@@ -6,6 +6,8 @@ import type { Message, Part } from "@apx/protocol";
 import type { Store } from "../domain/store.ts";
 
 const TEXT_THROTTLE_MS = 120;
+/** The model's thinking, live: at most one update every so often, never stored. */
+const THINKING_THROTTLE_MS = 250;
 
 export type Display = ReturnType<typeof openDisplay>;
 
@@ -34,7 +36,27 @@ export function openDisplay(store: Store, message: Message) {
     }
     setAt(segment, { type: "text", text });
   };
+  let thinkingAt = 0;
+  let thinkingShown = false;
+  let pendingThinking: string | undefined;
+  let thinkingTimer: ReturnType<typeof setTimeout> | undefined;
+  const run = () => (current.run_id ? { id: current.run_id, thread_id: current.thread_id } : undefined);
+  const showThinking = (text: string) => {
+    const r = run();
+    if (!r) return;
+    thinkingAt = Date.now();
+    thinkingShown = Boolean(text);
+    store.runs.thinking(r, text);
+  };
+  /** The model wrote or did something: what it was thinking is no longer what it is doing. */
+  const stopThinking = () => {
+    if (thinkingTimer) clearTimeout(thinkingTimer);
+    thinkingTimer = undefined;
+    pendingThinking = undefined;
+    if (thinkingShown) showThinking("");
+  };
   const flush = () => {
+    stopThinking();
     if (textTimer) clearTimeout(textTimer);
     textTimer = undefined;
     if (pendingText !== undefined) writeText(pendingText);
@@ -101,8 +123,20 @@ export function openDisplay(store: Store, message: Message) {
       segment = undefined;
       return next;
     },
+    /** What the model says of its reasoning before it answers: shown live (throttled), never kept in the message. */
+    thinking(soFar: string) {
+      if (!soFar.trim()) return;
+      if (Date.now() - thinkingAt >= THINKING_THROTTLE_MS) return showThinking(soFar);
+      pendingThinking = soFar;
+      thinkingTimer ??= setTimeout(() => {
+        thinkingTimer = undefined;
+        if (pendingThinking !== undefined) showThinking(pendingThinking);
+        pendingThinking = undefined;
+      }, THINKING_THROTTLE_MS);
+    },
     /** Streaming text: at most one update every ~120 ms; the last value is never lost. */
     text(soFar: string) {
+      if (soFar) stopThinking();
       if (Date.now() - lastText >= TEXT_THROTTLE_MS) return writeText(soFar);
       pendingText = soFar;
       textTimer ??= setTimeout(() => {

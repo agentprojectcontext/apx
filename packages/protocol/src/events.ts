@@ -75,6 +75,11 @@ export const CoreEvent = z.discriminatedUnion("type", [
     thread_id: Id,
     stage: z.enum(["creating", "loading", "ready", "failed"]),
   }),
+  /**
+   * What a turn's model is thinking, as far as it says (its reasoning summary), while it has not started its answer:
+   * shown live and never kept. An empty text: it stopped thinking.
+   */
+  z.object({ type: z.literal("run.thinking"), run_id: Id, thread_id: Id, text: z.string() }),
   /** The disk holding the APX home ran low or has room again, or space was freed: read `storage.status` again. */
   z.object({ type: z.literal("storage.changed") }),
   /** A model app on this computer (Ollama, LM Studio) was found, opened or closed: read `models.list` again. */

@@ -80,6 +80,10 @@ export function nativeHarness(llm: Llm): Harness {
             io.alive?.();
             io.onText(prefix + s);
           },
+          onThinking: (s) => {
+            io.alive?.();
+            io.onThinking?.(s);
+          },
         });
         io.signal.throwIfAborted();
         io.alive?.();

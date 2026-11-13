@@ -3,6 +3,7 @@ import type { Thread } from "@apx/protocol";
 import { ActivityPill, AgentAvatar, Button, EmptyState, Icons } from "@apx/ui";
 import { useEffect } from "react";
 import { AgentTurn } from "../chat/AgentTurn.tsx";
+import { Thinking } from "../chat/Thinking.tsx";
 import { loadThread } from "../data/actions.ts";
 import { blobOf } from "../data/identity.ts";
 import { useData } from "../data/state.ts";
@@ -89,13 +90,14 @@ function Answering({ group }: { group: GroupView }) {
         />
       </div>
     );
+  // The member at work, before it writes: how long, and what it is thinking when its model says.
+  if (who && chatId)
+    return (
+      <Thinking threadId={chatId} name={who.name} face={<AgentAvatar name={who.name} blob={blobOf(who)} size={22} />} />
+    );
   return (
     <div className="transcript__activity">
-      <ActivityPill
-        tone="brand"
-        label={who ? t("group.answering", { name: who.name }) : t("group.picking")}
-        from={who && <AgentAvatar name={who.name} blob={blobOf(who)} size={22} />}
-      />
+      <ActivityPill tone="brand" label={t("group.picking")} />
     </div>
   );
 }

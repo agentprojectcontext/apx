@@ -245,5 +245,9 @@ function apply(ev: CoreEvent): void {
     case "computer.progress":
       data.set((s) => ({ computerProgress: { ...s.computerProgress, [ev.thread_id]: ev.stage } }));
       return;
+    case "run.thinking":
+      // An empty text: it stopped thinking (the core says so whenever a turn writes, acts or ends).
+      data.set((s) => ({ thinking: { ...s.thinking, [ev.thread_id]: ev.text } }));
+      return;
   }
 }
