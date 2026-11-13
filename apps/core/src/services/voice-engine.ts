@@ -160,7 +160,12 @@ export function createVoiceEngine(deps: {
     return r;
   }
 
-  async function post(p: string, body: string | Uint8Array<ArrayBuffer>, type: string, signal: AbortSignal): Promise<Response> {
+  async function post(
+    p: string,
+    body: string | Uint8Array<ArrayBuffer>,
+    type: string,
+    signal: AbortSignal,
+  ): Promise<Response> {
     const r = await up();
     r.calls++;
     try {

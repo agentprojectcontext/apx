@@ -21,7 +21,7 @@ function write(key: string, value: string): void {
 }
 
 /** The voice chosen last on this device, if any. */
-export function savedVoice(): CallVoice | undefined {
+function savedVoice(): CallVoice | undefined {
   const v = read(VOICE_KEY);
   return v === "male" || v === "female" ? v : undefined;
 }
@@ -31,7 +31,7 @@ export function saveVoice(voice: CallVoice): void {
 }
 
 /** The accent chosen last on this device, if any. */
-export function savedLocale(): VoiceLocale | undefined {
+function savedLocale(): VoiceLocale | undefined {
   const parsed = Locale.safeParse(read(LOCALE_KEY));
   return parsed.success ? parsed.data : undefined;
 }

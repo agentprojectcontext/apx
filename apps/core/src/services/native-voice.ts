@@ -8,12 +8,12 @@ import type { Log } from "../log.ts";
 import type { Services } from "./registry.ts";
 import type { VoiceEngine } from "./voice-engine.ts";
 
-export const NATIVE_SPEECH = "apx-voice";
-export const NATIVE_EARS = "apx-voice-ears";
+const NATIVE_SPEECH = "apx-voice";
+const NATIVE_EARS = "apx-voice-ears";
 
 const BASE = "http://127.0.0.1";
 
-export const voiceId = (v: NativeVoice) => `${v.locale}-${v.gender}`;
+const voiceId = (v: NativeVoice) => `${v.locale}-${v.gender}`;
 
 export function createNativeVoice(deps: {
   store: Store;
