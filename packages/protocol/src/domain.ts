@@ -299,7 +299,7 @@ export const TERMINAL_RUN_STATES: readonly RunState[] = ["completed", "failed", 
 export const RunEndReason = z.enum(["normal", "step_limit", "failed", "canceled", "deadline", "provider_limit"]);
 export type RunEndReason = z.infer<typeof RunEndReason>;
 
-/** `call`: a voice call with the super-agent (call-methods.ts). */
+/** `call`: a voice call with an agent (call-methods.ts). */
 export const ThreadKind = z.enum([
   "home",
   "agent",
@@ -1350,6 +1350,8 @@ export const ServiceDialect = z.enum([
   "whisper-local",
   "whisper-cpp",
   "openai-transcribe",
+  /** APX's own voice on this machine (voice-methods in call-methods.ts): it speaks and transcribes. */
+  "apx-voice",
 ]);
 export type ServiceDialect = z.infer<typeof ServiceDialect>;
 
