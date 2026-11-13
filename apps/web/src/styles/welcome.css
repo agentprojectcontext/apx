@@ -1,4 +1,31 @@
-/* The welcome film fills the dialog's width at 16:9; the confetti falls over the whole window. */
+/* The welcome slides: a title and a line over the film's scene at 16:9; the confetti falls over the whole window. */
+.welcome__slide {
+  margin-bottom: var(--apx-space-3);
+}
+.welcome__slidetitle {
+  margin: 0 0 var(--apx-space-1);
+  font-size: var(--apx-text-md);
+  font-weight: var(--apx-weight-semibold);
+}
+.welcome__slidetext {
+  margin: 0;
+  color: var(--apx-fg-muted);
+  font-size: var(--apx-text-sm);
+}
+/* Skip and the count on the left; Back and Next on the right. */
+.welcome__skip {
+  margin-right: auto;
+}
+.welcome__step {
+  color: var(--apx-fg-muted);
+  font-size: var(--apx-text-sm);
+  margin-right: var(--apx-space-2);
+}
+.welcome__sound {
+  position: absolute;
+  right: var(--apx-space-2);
+  bottom: var(--apx-space-2);
+}
 .welcome__video {
   position: relative;
   aspect-ratio: 16 / 9;

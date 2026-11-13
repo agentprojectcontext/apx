@@ -1,20 +1,32 @@
 import "../styles/welcome.css";
-import { Button, Dialog } from "@apx/ui";
+import { Button, Dialog, IconButton, Icons } from "@apx/ui";
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import poster from "../assets/welcome-whats-new.jpg";
+import slide1 from "../assets/welcome/slide-1.jpg";
+import slide2 from "../assets/welcome/slide-2.jpg";
+import slide3 from "../assets/welcome/slide-3.jpg";
+import slide4 from "../assets/welcome/slide-4.jpg";
+import slide5 from "../assets/welcome/slide-5.jpg";
+import slide6 from "../assets/welcome/slide-6.jpg";
+import slide7 from "../assets/welcome/slide-7.jpg";
+import slide8 from "../assets/welcome/slide-8.jpg";
+import slide9 from "../assets/welcome/slide-9.jpg";
+import slide10 from "../assets/welcome/slide-10.jpg";
 import { closeCard, useClosedCards } from "../data/cornerCards.ts";
 import { useLanguage, useT } from "../i18n/index.ts";
-import { enWelcome } from "../i18n/welcome-en.ts";
+import { enWelcome, type WelcomeKey } from "../i18n/welcome-en.ts";
 import { esWelcome } from "../i18n/welcome-es.ts";
-import { WELCOME_FILM } from "./welcomeFilm.ts";
+import { WELCOME_FILM, WELCOME_SLIDES } from "./welcomeFilm.ts";
 
-// What changed since 2.14, played from the docs site with no player chrome. Its titles are written in each language,
-// so each has its own cut; where it cannot load, its poster stays in its place.
+// What changed since 2.14, one scene per slide, played from the docs site with no player chrome. Its titles are
+// written in each language, so each has its own cut; where it cannot load, each slide's still stays in its place.
 const FILM = {
   es: "https://apxagent.app/media/apx-whats-new-es.mp4",
   en: "https://apxagent.app/media/apx-whats-new-en.mp4",
 };
+const POSTERS = [slide1, slide2, slide3, slide4, slide5, slide6, slide7, slide8, slide9, slide10];
+/** How far a finger must travel sideways to change slides. */
+const SWIPE_PX = 48;
 
 /** Said once per device and film: closing it in any way is seen, and a new film shows once again. */
 export function WelcomeV2() {
@@ -26,37 +38,126 @@ function Welcome() {
   const t = useT();
   const es = useLanguage() === "es";
   const w = es ? esWelcome : enWelcome;
+  const [at, setAt] = useState(0);
   const [failed, setFailed] = useState(false);
+  const [sound, setSound] = useState(false);
+  const video = useRef<HTMLVideoElement>(null);
+  const touchX = useRef<number | null>(null);
+  const last = WELCOME_SLIDES.length - 1;
+  const slide = WELCOME_SLIDES[at] ?? WELCOME_SLIDES[0];
+  const title = w[`welcome.${slide.key}.title` as WelcomeKey];
   const close = () => closeCard({ welcome: WELCOME_FILM });
+  const go = (step: number) => setAt((i) => Math.max(0, Math.min(last, i + step)));
+
+  // Each slide plays its own stretch of the film and holds its last frame.
+  useEffect(() => {
+    const v = video.current;
+    if (!v || failed) return;
+    let frame = 0;
+    const watch = () => {
+      if (v.currentTime >= slide.end) {
+        v.pause();
+        return;
+      }
+      frame = requestAnimationFrame(watch);
+    };
+    const start = () => {
+      v.currentTime = slide.start;
+      // Muted it may start on its own; a refused start waits for the film to be ready and tries again.
+      v.play().catch(() => v.addEventListener("canplay", () => v.play().catch(() => {}), { once: true }));
+      frame = requestAnimationFrame(watch);
+    };
+    if (v.readyState >= 1) start();
+    else v.addEventListener("loadedmetadata", start, { once: true });
+    return () => {
+      cancelAnimationFrame(frame);
+      v.removeEventListener("loadedmetadata", start);
+    };
+  }, [slide, failed]);
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "ArrowRight") go(1);
+      else if (e.key === "ArrowLeft") go(-1);
+    };
+    // Captured: the dialog keeps the keys that reach its popup to itself.
+    window.addEventListener("keydown", onKey, true);
+    return () => window.removeEventListener("keydown", onKey, true);
+  });
+
   return (
     <Dialog
       defaultOpen
       size="lg"
       className="welcome"
       title={w["welcome.title"]}
-      description={w["welcome.desc"]}
       closeLabel={t("common.close")}
       onOpenChange={(open) => {
         if (!open) close();
       }}
-      footer={<Button onClick={close}>{w["welcome.cta"]}</Button>}
+      footer={
+        <>
+          <Button variant="ghost" className="welcome__skip" onClick={close}>
+            {w["welcome.skip"]}
+          </Button>
+          <span className="welcome__step">
+            {w["welcome.step"].replace("{n}", String(at + 1)).replace("{total}", String(last + 1))}
+          </span>
+          {at > 0 && (
+            <Button variant="secondary" onClick={() => go(-1)}>
+              {w["welcome.back"]}
+            </Button>
+          )}
+          {at < last ? (
+            <Button onClick={() => go(1)}>{w["welcome.next"]}</Button>
+          ) : (
+            <Button onClick={close}>{w["welcome.cta"]}</Button>
+          )}
+        </>
+      }
     >
-      <Confetti />
-      <div className="welcome__video">
+      {at === last && <Confetti />}
+      <div className="welcome__slide">
+        <h3 className="welcome__slidetitle">{title}</h3>
+        <p className="welcome__slidetext">{w[`welcome.${slide.key}.text` as WelcomeKey]}</p>
+      </div>
+      <div
+        className="welcome__video"
+        onTouchStart={(e) => {
+          touchX.current = e.touches[0]?.clientX ?? null;
+        }}
+        onTouchEnd={(e) => {
+          const from = touchX.current;
+          const to = e.changedTouches[0]?.clientX;
+          touchX.current = null;
+          if (from == null || to == null || Math.abs(to - from) < SWIPE_PX) return;
+          go(to < from ? 1 : -1);
+        }}
+      >
         {failed ? (
-          <img src={poster} alt={w["welcome.video"]} />
+          <img src={POSTERS[at]} alt={title} />
         ) : (
-          <video
-            src={es ? FILM.es : FILM.en}
-            poster={poster}
-            aria-label={w["welcome.video"]}
-            autoPlay
-            muted
-            loop
-            playsInline
-            controls
-            onError={() => setFailed(true)}
-          />
+          <>
+            <video
+              ref={video}
+              src={es ? FILM.es : FILM.en}
+              poster={POSTERS[at]}
+              aria-label={title}
+              muted={!sound}
+              autoPlay
+              playsInline
+              preload="auto"
+              onError={() => setFailed(true)}
+            />
+            <IconButton
+              className="welcome__sound"
+              variant="secondary"
+              size="sm"
+              label={sound ? w["welcome.soundOff"] : w["welcome.soundOn"]}
+              icon={sound ? <Icons.Volume2 /> : <Icons.VolumeOff />}
+              onClick={() => setSound((on) => !on)}
+            />
+          </>
         )}
       </div>
     </Dialog>
