@@ -251,7 +251,10 @@ apx pairing           # desconocidos esperando tu aprobación
   que la respuesta también está ahí.
 - **Una persona está bloqueada**: las personas bloqueadas no reciben respuesta. Revisá `apx contacts`.
 - **Un envío quedó `uncertain`**: el core se cortó mientras mandaba, así que no puede saber si llegó. No se manda dos
-  veces.
+  veces. Si la conexión de WhatsApp se corta antes de que salga un mensaje, APX sabe que no salió y lo manda de nuevo
+  cuando vuelve a conectar.
+- **Una respuesta dice que falló aunque te llegó una parte**: la respuesta de un agente puede salir en más de un mensaje
+  (sus primeras palabras y el resto cuando termina). La marca debajo de la respuesta muestra cómo le fue al último.
 - **Dos APX contestan el mismo bot**: no corras APX v1 y v2 con el mismo bot. Por eso instalar v2 frena el daemon de v1.
 
 Más en [Canales](/es/channels/overview/).

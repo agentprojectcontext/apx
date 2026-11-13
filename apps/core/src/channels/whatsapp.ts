@@ -37,7 +37,7 @@ export type WaLib = {
   ): Promise<Buffer>;
   fetchLatestBaileysVersion?(): Promise<{ version: number[] }>;
   Browsers?: { macOS(name: string): [string, string, string] };
-  DisconnectReason: { loggedOut: number; restartRequired: number; timedOut: number };
+  DisconnectReason: { loggedOut: number; restartRequired: number; timedOut: number; connectionClosed: number };
 };
 export type WaSocket = {
   ev: { on(event: string, listener: (arg: never) => void): void };
@@ -612,6 +612,10 @@ export function whatsappAdapter(opts: {
       remember(id);
       return id;
     } catch (err) {
+      // Baileys throws this before it writes the message: nothing left, so it is sent again once connected.
+      const code = (err as { output?: { statusCode?: number } }).output?.statusCode;
+      if (code !== undefined && code === lib?.DisconnectReason.connectionClosed)
+        throw new SendError("retry", errorMessage(err));
       throw new SendError("uncertain", errorMessage(err));
     }
   }

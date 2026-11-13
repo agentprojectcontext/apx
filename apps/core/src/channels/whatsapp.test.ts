@@ -176,6 +176,19 @@ test("a stranger gets nothing from the owner's number; approved, they get answer
   );
 });
 
+test("an answer cut by a closed connection goes again, instead of staying unknown", async () => {
+  wa.closeOnNextSend();
+  wa.message(ANA, "still there?");
+  // Baileys refused it before writing anything, so the outbox sends it again after a short wait.
+  await waitFor(() => wa.textsTo(ANA.phone).some((t) => t.includes("still there?")), "the answer, sent again", {
+    ms: 15_000,
+  });
+  const { threads } = await env.client.call("threads.list", {});
+  const ana = threads.find((t) => t.channel?.id === "whatsapp" && t.title === "Ana");
+  const last = async () => (await env.client.call("threads.get", { thread: ana?.id ?? "" })).messages.at(-1);
+  await waitFor(async () => (await last())?.delivery === "sent", "taken by WhatsApp");
+});
+
 test("what is sent to a contact shows how far it got: sent, then on their phone, then read", async () => {
   const { threads } = await env.client.call("threads.list", {});
   const ana = threads.find((t) => t.channel?.id === "whatsapp" && t.title === "Ana");
