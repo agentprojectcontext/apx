@@ -9,6 +9,14 @@ export const esWelcome: Record<WelcomeKey, string> = {
   "welcome.cta": "Vamos",
   "welcome.soundOn": "Activar el sonido",
   "welcome.soundOff": "Silenciar",
+  "welcome.groups.title": "Chats en grupo",
+  "welcome.groups.text":
+    "Desde Nuevo chat armás un grupo de dos a cinco agentes y les escribís a todos en el mismo chat.",
+  "welcome.group-answers.title": "Responde quien corresponde",
+  "welcome.group-answers.text":
+    "Cada mensaje lo responde el agente al que va, y lo ves escribir. Nombrá a alguien, con o sin @, para preguntarle.",
+  "welcome.group-card.title": "Cada uno con su modelo",
+  "welcome.group-card.text": "En Grupo elegís con qué modelo responde cada agente, y sumás o sacás agentes.",
   "welcome.sidebar.title": "Barra lateral compacta",
   "welcome.sidebar.text":
     "Con clic derecho en la barra lateral la hacés compacta. Cada sección abre su lista al costado.",
