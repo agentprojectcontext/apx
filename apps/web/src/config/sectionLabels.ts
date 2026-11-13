@@ -9,6 +9,8 @@ export const CONFIG_SECTION_LABELS: Partial<Record<ConfigSection, MessageKey>> =
   engines: "config.engines",
   agents: "config.agents",
   memory: "config.memory",
+  voices: "config.voices",
+  calls: "config.calls",
   interruptions: "config.interruptions",
   "activity-review": "config.activityReview",
   profile: "config.profile",

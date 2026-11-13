@@ -1,41 +1,44 @@
 import type { ImageDefaults, ServiceInfo, ServiceKind, ServiceTest } from "@apx/protocol";
 import { Badge, Button, EmptyState, IconButton, Icons, Input, SettingRow, Switch, Textarea } from "@apx/ui";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { client } from "../data/client.ts";
 import { mediaUrl } from "../data/media.ts";
 import { notify } from "../data/notices.ts";
 import { refreshSpeech } from "../data/speech.ts";
+import { useVoice } from "../data/voice.ts";
 import { useT } from "../i18n/index.ts";
 import { LocalTranscription } from "./LocalTranscription.tsx";
 import { SectionHead, SubHead } from "./SectionHead.tsx";
 import { ServiceDialog } from "./ServiceDialog.tsx";
 import { checkText, settingsOf, testService } from "./serviceCheck.ts";
+import { VoiceRow } from "./VoiceRow.tsx";
 
 const errText = (e: unknown) => (e instanceof Error ? e.message : String(e));
 
 /**
  * Images or Voices: the owner's services in the order they are tried, a test, and (images) the shared defaults. One
- * that does not answer says why. `onChange` hears the list each time it is read again (after an edit, too). APX's own
- * voice is not listed: the core manages it, Settings › Voices shows it on its own. `bare`: inside a section that has
- * its own heading; `localTranscription`: offer to install transcription on this machine.
+ * that does not answer says why. `onChange` hears the list each time it is read again (after an edit, too). Voices and
+ * transcription start with APX's own voice: in its place in the order once it runs, on top (fixed) until then. `bare`:
+ * inside a section that has its own heading.
  */
 export function ServicesSection({
   kind,
   embedded = false,
   bare = false,
-  localTranscription = true,
   onChange,
 }: {
   kind: ServiceKind;
   embedded?: boolean;
   bare?: boolean;
-  localTranscription?: boolean;
   onChange?: (services: ServiceInfo[]) => void;
 }) {
   const t = useT();
-  // Every service in its order (the order is saved whole), and the ones listed here.
-  const [all, setAll] = useState<ServiceInfo[]>();
-  const services = useMemo(() => all?.filter((s) => s.dialect !== "apx-voice"), [all]);
+  const [services, setServices] = useState<ServiceInfo[]>();
+  const voice = useVoice();
+  const ours = kind === "speech" || kind === "transcription" ? voice : undefined;
+  // APX's voice is listed by the core only while it runs; until then its row stays on top.
+  const oursListed = Boolean(services?.some((s) => s.dialect === "apx-voice"));
+  const oursOn = Boolean(ours?.installed && ours.enabled);
   // Why each one that does not answer does not (asked again with "Test connection").
   const [why, setWhy] = useState<Record<string, ServiceTest>>({});
   const [defaults, setDefaults] = useState<ImageDefaults>();
@@ -49,26 +52,28 @@ export function ServicesSection({
   const retest = useCallback(async (s: ServiceInfo) => {
     const r = await testService(settingsOf(s), s.id);
     setWhy((w) => ({ ...w, [s.id]: r }));
-    setAll((list) => list?.map((x) => (x.id === s.id ? { ...x, status: r.ok ? "reachable" : "unreachable" } : x)));
+    setServices((list) => list?.map((x) => (x.id === s.id ? { ...x, status: r.ok ? "reachable" : "unreachable" } : x)));
   }, []);
 
   const load = useCallback(async () => {
     try {
       const r = await client.call("services.list", { kind });
-      setAll(r.services);
+      setServices(r.services);
       setDefaults(r.image_defaults);
       changed.current?.(r.services);
       for (const s of r.services) if (s.status === "unreachable" && s.dialect !== "apx-voice") void retest(s);
       // The chat's read-aloud buttons follow whether a voice is set up.
       if (kind === "speech") void refreshSpeech();
     } catch (e) {
-      setAll([]);
+      setServices([]);
       notify(t("error.services", { error: errText(e) }));
     }
   }, [kind, t, retest]);
+  // Read again when APX's voice starts or stops running: its row comes and goes from the order.
   useEffect(() => {
+    void oursOn;
     void load();
-  }, [load]);
+  }, [load, oursOn]);
 
   const call = async (work: () => Promise<unknown>) => {
     try {
@@ -79,11 +84,11 @@ export function ServicesSection({
     await load();
   };
   const move = (i: number, by: -1 | 1) => {
-    const a = services?.[i]?.id;
-    const b = services?.[i + by]?.id;
-    if (!all || !a || !b) return;
-    // Swapped in the whole order, so services not listed here keep their place.
-    const ids = all.map((s) => (s.id === a ? b : s.id === b ? a : s.id));
+    if (!services) return;
+    const ids = services.map((s) => s.id);
+    const [id] = ids.splice(i, 1);
+    if (!id) return;
+    ids.splice(i + by, 0, id);
     void call(() => client.call("services.order", { kind, ids }));
   };
   const toggle = (s: ServiceInfo, on: boolean) => {
@@ -109,7 +114,7 @@ export function ServicesSection({
           }
         />
       )}
-      {services && !services.length ? (
+      {services && !services.length && !ours ? (
         <EmptyState
           variant="dashed"
           size="sm"
@@ -119,61 +124,33 @@ export function ServicesSection({
         </EmptyState>
       ) : (
         <ul className="res__list">
+          {ours && !oursListed && services && (
+            <li className="res__row voicerow">
+              <Order />
+              <VoiceRow kind={kind === "speech" ? "speech" : "transcription"} status={ours} />
+            </li>
+          )}
           {services?.map((s, i) => (
-            <li key={s.id} className={s.enabled ? "res__row" : "res__row is-off"}>
-              <div className="svc__order">
-                <IconButton
-                  size="sm"
-                  label={t("svc.up")}
-                  icon={<Icons.ChevronUp size={12} />}
-                  disabled={i === 0}
-                  onClick={() => move(i, -1)}
+            <li
+              key={s.id}
+              className={`res__row${s.enabled ? "" : " is-off"}${ours && s.dialect === "apx-voice" ? " voicerow" : ""}`}
+            >
+              <Order
+                up={i > 0 ? () => move(i, -1) : undefined}
+                down={i < services.length - 1 ? () => move(i, 1) : undefined}
+              />
+              {ours && s.dialect === "apx-voice" ? (
+                <VoiceRow kind={kind === "speech" ? "speech" : "transcription"} status={ours} />
+              ) : (
+                <ServiceRow
+                  s={s}
+                  why={why[s.id]}
+                  onToggle={(on) => toggle(s, on)}
+                  onCheck={() => void retest(s)}
+                  onEdit={() => setEditing(s)}
+                  onRemove={() => void call(() => client.call("services.set", { id: s.id, service: null }))}
                 />
-                <IconButton
-                  size="sm"
-                  label={t("svc.down")}
-                  icon={<Icons.ChevronDown size={12} />}
-                  disabled={i === services.length - 1}
-                  onClick={() => move(i, 1)}
-                />
-              </div>
-              <div className="res__main">
-                <div className="res__name">
-                  {s.label} <span className="svc__dialect">{s.dialect}</span>
-                </div>
-                <div className="res__desc res__mono">
-                  {s.dialect === "codex-images" ? t("svc.codexWhere") : s.base_url}
-                  {s.model ? ` · ${s.model}` : ""}
-                </div>
-                {s.status === "unreachable" && why[s.id] && !why[s.id]?.ok && (
-                  <div className="res__desc svc__why" role="status">
-                    {checkText(t, why[s.id] as ServiceTest)}
-                  </div>
-                )}
-              </div>
-              <Badge tone={s.status === "reachable" ? "brand" : s.status === "unreachable" ? "danger" : "neutral"} dot>
-                {t(`svc.status.${s.status}`)}
-              </Badge>
-              <Switch size="sm" checked={s.enabled} onCheckedChange={(on) => toggle(s, on)} label={t("providers.on")} />
-              <IconButton
-                size="sm"
-                label={t("svc.check")}
-                icon={<Icons.RefreshCw size={14} />}
-                disabled={!s.enabled}
-                onClick={() => void retest(s)}
-              />
-              <IconButton
-                size="sm"
-                label={t("providers.edit")}
-                icon={<Icons.Pencil size={14} />}
-                onClick={() => setEditing(s)}
-              />
-              <IconButton
-                size="sm"
-                label={t("providers.remove")}
-                icon={<Icons.Trash2 size={14} />}
-                onClick={() => void call(() => client.call("services.set", { id: s.id, service: null }))}
-              />
+              )}
             </li>
           ))}
         </ul>
@@ -189,7 +166,10 @@ export function ServicesSection({
         <>
           <SubHead>{t("svc.transcription")}</SubHead>
           <p className="config__lead">{t("svc.transcription.lead")}</p>
-          {localTranscription && <LocalTranscription onInstalled={refreshTranscription} />}
+          {/* Transcription on this machine is offered only where APX's own voice can't hear for the owner. */}
+          {(!voice || voice.tier === "none" || !voice.enabled) && (
+            <LocalTranscription onInstalled={refreshTranscription} />
+          )}
           <ServicesSection key={transcriptionKey} kind="transcription" embedded />
         </>
       )}
@@ -207,6 +187,67 @@ export function ServicesSection({
           }}
         />
       )}
+    </>
+  );
+}
+
+/** Moves a row up or down the order; without either, the row stays where it is. */
+function Order({ up, down }: { up?: () => void; down?: () => void }) {
+  const t = useT();
+  return (
+    <div className="svc__order">
+      <IconButton size="sm" label={t("svc.up")} icon={<Icons.ChevronUp size={12} />} disabled={!up} onClick={up} />
+      <IconButton
+        size="sm"
+        label={t("svc.down")}
+        icon={<Icons.ChevronDown size={12} />}
+        disabled={!down}
+        onClick={down}
+      />
+    </div>
+  );
+}
+
+/** One of the owner's own services: where it is, whether it answers (and why not), on/off, check, edit, remove. */
+function ServiceRow(props: {
+  s: ServiceInfo;
+  why: ServiceTest | undefined;
+  onToggle(on: boolean): void;
+  onCheck(): void;
+  onEdit(): void;
+  onRemove(): void;
+}) {
+  const t = useT();
+  const { s, why } = props;
+  return (
+    <>
+      <div className="res__main">
+        <div className="res__name">
+          {s.label} <span className="svc__dialect">{s.dialect}</span>
+        </div>
+        <div className="res__desc res__mono">
+          {s.dialect === "codex-images" ? t("svc.codexWhere") : s.base_url}
+          {s.model ? ` · ${s.model}` : ""}
+        </div>
+        {s.status === "unreachable" && why && !why.ok && (
+          <div className="res__desc svc__why" role="status">
+            {checkText(t, why)}
+          </div>
+        )}
+      </div>
+      <Badge tone={s.status === "reachable" ? "brand" : s.status === "unreachable" ? "danger" : "neutral"} dot>
+        {t(`svc.status.${s.status}`)}
+      </Badge>
+      <Switch size="sm" checked={s.enabled} onCheckedChange={props.onToggle} label={t("providers.on")} />
+      <IconButton
+        size="sm"
+        label={t("svc.check")}
+        icon={<Icons.RefreshCw size={14} />}
+        disabled={!s.enabled}
+        onClick={props.onCheck}
+      />
+      <IconButton size="sm" label={t("providers.edit")} icon={<Icons.Pencil size={14} />} onClick={props.onEdit} />
+      <IconButton size="sm" label={t("providers.remove")} icon={<Icons.Trash2 size={14} />} onClick={props.onRemove} />
     </>
   );
 }

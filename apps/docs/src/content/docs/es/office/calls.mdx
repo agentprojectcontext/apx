@@ -12,18 +12,21 @@ les mandás, y te deja **llamar** a cualquiera de tus agentes y hablarle como po
 
 ## La voz de APX
 
-Abrí **Ajustes › Voces**. Arriba está la voz propia de APX:
+Abrí **Ajustes › Voces**. Es una sola lista de voces que se prueban en orden: habla la primera que responde. La voz propia
+de APX es la primera fila, **APX — En esta computadora**, con su interruptor:
 
-- **Mujer u hombre**, en **Español (Argentina)**, **Español** (neutro) o **English (US)**. Tocá **Escuchar** para oírla.
+- **Femenina o masculina**, en **Español (Argentina)**, **Español** (neutro) o **English (US)**. Tocá **Escuchar** para oírla.
   La voz que elegís es con la que hablan tus agentes y con la que empieza una llamada.
 - En una Mac con Apple silicon se descarga sola la primera vez (unos 6 GB; 3 GB en una Mac con menos de 16 GB de
-  memoria, que usa una voz más liviana). Ahí podés seguir la descarga, o apagar la voz.
+  memoria, que usa una voz más liviana). En su fila podés seguir la descarga, instalarla desde ahí o apagar la voz.
 - Necesita [uv](https://docs.astral.sh/uv/) (`brew install uv`), que trae lo que la voz necesita para correr.
 - Con menos de 8 GB de memoria, o en otra computadora, la voz de APX no corre: usá un servicio de voz tuyo en
-  **Avanzado** (OpenAI, Gemini, QVox o cualquier servidor compatible), y uno de transcripción para tus notas de voz.
+  la misma lista (OpenAI, Gemini, QVox o cualquier servidor compatible), y uno de transcripción para tus notas de voz.
+  La fila dice por qué no puede correr.
 
-Cuando está lista es la primera voz y la primera transcripción de la lista, así que tus agentes la usan salvo que pongas
-otro servicio primero en **Avanzado**. Las voces son de APX, hechas para APX: no son la voz de ninguna persona real.
+Abajo están tus propios servicios de voz; **Agregar** suma otro y las flechas cambian el orden. **Transcripción**, más
+abajo, funciona igual: APX primero y después los tuyos. Cuando está lista, la voz de APX es la primera en las dos, así
+que tus agentes la usan salvo que subas otro servicio por encima. Las voces son de APX, hechas para APX: no son la voz de ninguna persona real.
 
 ### Una voz tuya
 
@@ -38,6 +41,9 @@ llamada después de un rato tarda unos segundos más.
 </Aside>
 
 ## Hacer una llamada
+
+Las llamadas están activadas salvo que las apagues: **Ajustes › Llamadas › Permitir llamadas**. Con las llamadas
+apagadas los botones del teléfono se ocultan, y tus agentes igual hablan y escuchan notas de voz.
 
 Tocá el botón del teléfono arriba del panel para llamar a tu super-agente, o **Llamar** en el perfil de cualquier agente,
 en su menú o en su chat. Elegí la voz y el acento; APX los recuerda. Hablá normal: podés interrumpir a la voz cuando
@@ -60,7 +66,7 @@ el chat de una llamada sigue en ese mismo chat.
 ## El modelo con el que habla una llamada
 
 Una llamada habla con **tu modelo principal**, el que APX usa por defecto, así que no hay nada que configurar. Para usar
-otro, elegilo en **Ajustes › Voces › Modelo para llamadas**: cualquier modelo que tenga APX, incluido un servidor tuyo
+otro, elegilo en **Ajustes › Llamadas › Modelo para llamadas**: cualquier modelo que tenga APX, incluido un servidor tuyo
 agregado como proveedor. Un modelo chico y rápido hace que la charla se sienta más ágil. El agente que llamás siempre
 trabaja con su propio modelo.
 

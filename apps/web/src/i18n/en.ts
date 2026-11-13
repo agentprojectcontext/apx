@@ -1636,6 +1636,7 @@ export const en = {
   "tg.code": "Code",
   "tg.link": "Link",
   "config.voices": "Voices",
+  "config.calls": "Calls",
   "config.images": "Images",
   "svc.image.lead": "Tried in this order; the first that answers draws. Local, another machine or an API.",
   "svc.speech.lead": "Tried in this order; the first that answers speaks.",

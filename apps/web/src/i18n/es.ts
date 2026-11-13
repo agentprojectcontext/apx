@@ -1626,6 +1626,7 @@ export const es: Partial<Record<MessageKey, string>> = {
   "tg.code": "Código",
   "tg.link": "Vincular",
   "config.voices": "Voces",
+  "config.calls": "Llamadas",
   "config.images": "Imágenes",
   "svc.image.lead":
     "Se prueban en este orden; dibuja el primero que responde. Puede ser local, otra máquina o una API.",

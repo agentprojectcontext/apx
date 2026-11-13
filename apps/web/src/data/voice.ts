@@ -1,6 +1,6 @@
 // APX's own voice: whether it can run here, its download, whether it is on, its voice and the model calls talk with.
 
-import type { ModelRef, NativeVoice, VoiceStatus } from "@apx/protocol";
+import type { NativeVoice, Params, VoiceStatus } from "@apx/protocol";
 import { client } from "./client.ts";
 import { createStore, useSlice } from "./createStore.ts";
 import { refreshSpeech } from "./speech.ts";
@@ -30,12 +30,8 @@ export async function installVoice(): Promise<void> {
   voice.set({ status: await client.call("voice.install", {}) });
 }
 
-/** Turns it on or off, picks its voice, or the model calls talk with (`null`: the owner's main model). */
-export async function setVoice(patch: {
-  enabled?: boolean;
-  voice?: NativeVoice;
-  call_model?: ModelRef | null;
-}): Promise<void> {
+/** On or off, its voice, whether calls are offered, or the model calls talk with (`null`: the owner's main model). */
+export async function setVoice(patch: Params<"voice.set">): Promise<void> {
   voice.set({ status: await client.call("voice.set", patch) });
   // Read-aloud buttons follow whether some voice speaks.
   if (patch.enabled !== undefined) void refreshSpeech();

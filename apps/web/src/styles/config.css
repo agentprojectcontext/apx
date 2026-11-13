@@ -585,6 +585,37 @@
 .res__row.is-off {
   opacity: 0.6;
 }
+/* APX's own voice as the first service: where it runs, and its voice picker and install inside the row. */
+.res__row.voicerow {
+  flex-wrap: wrap;
+}
+/* Under the row, past its order arrows, so the accents fit at phone width. */
+.voicerow__picker {
+  flex-basis: 100%;
+  margin-top: 0;
+  padding-left: 32px;
+}
+.voicerow__picker > * {
+  max-width: 100%;
+  overflow-x: auto;
+}
+@media (max-width: 640px) {
+  .voicerow__picker {
+    padding-left: 0;
+  }
+}
+.voicerow__where {
+  margin-left: 6px;
+  font-size: var(--apx-text-xs);
+  color: var(--apx-fg-subtle);
+}
+.voicerow__line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-top: 6px;
+}
 .svc__test {
   display: flex;
   flex-direction: column;
