@@ -15,6 +15,7 @@ import { summary } from "../domain/surfaces.ts";
 import { badRequest, notFound, unauthorized, unavailable } from "../errors.ts";
 import type { PageCall, PageCheck } from "../nodes/page-check.ts";
 import { editDocument, type WidgetPages } from "../nodes/widget-pages.ts";
+import { artifactSecretPrefix } from "../secret-names.ts";
 import { type Secrets, splitSecretName } from "../secrets.ts";
 import { withKit } from "../surface-kit.ts";
 import { builtFromFiles } from "../tools/artifact-files.ts";
@@ -65,7 +66,7 @@ export function artifactHandlers(deps: {
   });
   /** The secret keys this artifact has values for (its project's own and global ones), never the values. */
   const secretKeysOf = (s: Surface) => {
-    const prefix = `artifact.${s.name}.`;
+    const prefix = artifactSecretPrefix(s.name);
     const keys = new Set<string>();
     for (const { name } of secrets.list()) {
       const { project_id, name: plain } = splitSecretName(name);

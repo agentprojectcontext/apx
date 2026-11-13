@@ -5,9 +5,9 @@ import { projectName } from "../data/identity.ts";
 import { notify } from "../data/notices.ts";
 import { type SecretInfo, setSecret } from "../data/resources.ts";
 import { useData } from "../data/state.ts";
-import { usePack, useT } from "../i18n/index.ts";
+import { type MessageKey, usePack, useT } from "../i18n/index.ts";
 import { useNav } from "../shell/nav.ts";
-import type { TabProps } from "./ResourcesView.tsx";
+import type { TabProps, VarKind } from "./ResourcesView.tsx";
 import { SignInSitesDialog, siteLabel } from "./SignInSites.tsx";
 import { VariableDialog } from "./VariableDialog.tsx";
 
@@ -20,9 +20,40 @@ type Row = {
   usedIn: string[];
   /** Where agents may sign in with it (DECISIONS.md#d-193). */
   sites: SecretInfo["sites"];
+  /** APX keeps it for itself: it is changed where that was connected, not here. */
+  system?: boolean | undefined;
   lastUsed?: SecretInfo["last_used"];
 };
 const keyOf = (r: Pick<Row, "name" | "project">) => `${r.project ?? ""}/${r.name}`;
+
+/** What each kind of list says above it, and when it is empty. */
+const KIND_NOTE = {
+  own: "res.varsNote",
+  login: "res.varKind.loginNote",
+  system: "res.varKind.systemNote",
+} as const satisfies Record<VarKind, MessageKey>;
+/** Where APX uses one it keeps for itself ("provider:openai"), in words. */
+const OWNER = {
+  provider: "res.varOwner.provider",
+  channel: "res.varOwner.channel",
+  service: "res.varOwner.service",
+  integration: "res.varOwner.integration",
+  extension: "res.varOwner.extension",
+  artifact: "res.varOwner.artifact",
+} as const satisfies Record<string, MessageKey>;
+function whereLabel(t: ReturnType<typeof useT>, where: string): string {
+  if (where === "public") return t("res.varOwner.public");
+  const [kind = "", name = ""] = where.split(/:(.*)/);
+  return kind in OWNER ? t(OWNER[kind as keyof typeof OWNER], { name }) : where;
+}
+const usedLabel = (t: ReturnType<typeof useT>, r: Row) =>
+  (r.system ? r.usedIn.map((w) => whereLabel(t, w)) : r.usedIn).join(", ");
+
+const KIND_EMPTY = {
+  own: "res.noVariables",
+  login: "res.noLoginVariables",
+  system: "res.noSystemVariables",
+} as const satisfies Record<VarKind, MessageKey>;
 
 /**
  * Variables: the stored secrets MCP servers, providers and channels name as `secret://NAME`. Values never come back
@@ -32,7 +63,7 @@ export function VariablesTab(props: TabProps) {
   return usePack("signIn") ? <VariablesTabBody {...props} /> : null;
 }
 
-function VariablesTabBody({ projectId, query, scope, adding, setAdding, res, ownOnly }: TabProps) {
+function VariablesTabBody({ projectId, query, scope, adding, setAdding, res, ownOnly, varKind = "own" }: TabProps) {
   const t = useT();
   const projects = useData((s) => s.projects);
   const [editing, setEditing] = useState<Row>();
@@ -56,6 +87,7 @@ function VariablesTabBody({ projectId, query, scope, adding, setAdding, res, own
       usedIn: s.used_in,
       sites: s.sites,
       lastUsed: s.last_used,
+      system: s.system,
     }));
   const own = new Set(stored.filter((r) => r.project).map((r) => r.name));
   const missing = new Map<string, string[]>();
@@ -66,6 +98,7 @@ function VariablesTabBody({ projectId, query, scope, adding, setAdding, res, own
         missing.set(v.name, [...(missing.get(v.name) ?? []), `mcp:${srv.name}`]);
   const empty: Row[] = [...missing].map(([name, usedIn]) => ({ name, stored: false, usedIn, sites: [] }));
   const rows: Row[] = [...stored, ...empty]
+    .filter((r) => (varKind === "system" ? r.system : !r.system && (varKind === "own" || r.sites.length > 0)))
     .filter((r) => !query || `${r.name} ${r.usedIn.join(" ")}`.toLowerCase().includes(query))
     .sort((a, b) => a.name.localeCompare(b.name) || Number(Boolean(a.project)) - Number(Boolean(b.project)));
   // The one in that scope, else the first of that name (a link that cannot tell which one a server uses).
@@ -81,10 +114,10 @@ function VariablesTabBody({ projectId, query, scope, adding, setAdding, res, own
 
   return (
     <div className="resvars">
-      <p className="resvars__note">{t("res.varsNote")}</p>
+      <p className="resvars__note">{t(KIND_NOTE[varKind])}</p>
       {res.data.secrets && !rows.length ? (
         <EmptyState variant="dashed" icon={<Icons.KeyRound />}>
-          {query ? t("res.noMatch") : t("res.noVariables")}
+          {query ? t("res.noMatch") : t(KIND_EMPTY[varKind])}
         </EmptyState>
       ) : (
         <table className="resvars__table">
@@ -116,11 +149,15 @@ function VariablesTabBody({ projectId, query, scope, adding, setAdding, res, own
                   />
                 }
                 items={[
-                  {
-                    label: r.stored ? t("res.edit") : t("res.varSetShort"),
-                    icon: <Icons.Pencil size={14} />,
-                    onSelect: () => setEditing(r),
-                  },
+                  ...(r.system
+                    ? []
+                    : [
+                        {
+                          label: r.stored ? t("res.edit") : t("res.varSetShort"),
+                          icon: <Icons.Pencil size={14} />,
+                          onSelect: () => setEditing(r),
+                        },
+                      ]),
                   {
                     label: t("res.copyName"),
                     icon: <Icons.Copy size={14} />,
@@ -128,11 +165,15 @@ function VariablesTabBody({ projectId, query, scope, adding, setAdding, res, own
                   },
                   ...(r.stored
                     ? [
-                        {
-                          label: t("res.signIn.menu"),
-                          icon: <Icons.LogIn size={14} />,
-                          onSelect: () => setSigning(r),
-                        },
+                        ...(r.system
+                          ? []
+                          : [
+                              {
+                                label: t("res.signIn.menu"),
+                                icon: <Icons.LogIn size={14} />,
+                                onSelect: () => setSigning(r),
+                              },
+                            ]),
                         { type: "separator" as const },
                         {
                           label: t("res.remove"),
@@ -158,7 +199,7 @@ function VariablesTabBody({ projectId, query, scope, adding, setAdding, res, own
                   {r.stored ? <Reveal row={r} /> : <span className="resvars__missing">{t("res.noValue")}</span>}
                 </td>
                 <td className="resvars__used">
-                  {r.usedIn.join(", ") || (r.sites.length ? "" : "—")}
+                  {usedLabel(t, r) || (r.sites.length ? "" : "—")}
                   {r.sites.length > 0 && (
                     <span className="resvars__sites">
                       {r.sites.some((x) => x.origin === "*") ? (
@@ -174,13 +215,15 @@ function VariablesTabBody({ projectId, query, scope, adding, setAdding, res, own
                   )}
                 </td>
                 <td className="resvars__actions">
-                  <IconButton
-                    size="sm"
-                    label={r.stored ? t("res.varEdit", { name: r.name }) : t("res.varSetValue", { name: r.name })}
-                    icon={<Icons.Pencil size={14} />}
-                    onClick={() => setEditing(r)}
-                  />
-                  {r.stored && (
+                  {!r.system && (
+                    <IconButton
+                      size="sm"
+                      label={r.stored ? t("res.varEdit", { name: r.name }) : t("res.varSetValue", { name: r.name })}
+                      icon={<Icons.Pencil size={14} />}
+                      onClick={() => setEditing(r)}
+                    />
+                  )}
+                  {r.stored && !r.system && (
                     <IconButton
                       size="sm"
                       label={t("res.signIn.title", { name: r.name })}
@@ -254,9 +297,11 @@ function VariablesTabBody({ projectId, query, scope, adding, setAdding, res, own
           }
         >
           <p className="resd__note">
-            {removing.usedIn.length
-              ? t("res.varRemoveUsed", { where: removing.usedIn.join(", ") })
-              : t("res.varRemoveBody")}
+            {removing.system
+              ? t("res.varRemoveSystem", { where: usedLabel(t, removing) })
+              : removing.usedIn.length
+                ? t("res.varRemoveUsed", { where: removing.usedIn.join(", ") })
+                : t("res.varRemoveBody")}
           </p>
         </Dialog>
       )}

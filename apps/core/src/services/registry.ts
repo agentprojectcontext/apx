@@ -9,6 +9,7 @@ import type { MediaRecord } from "../domain/media.ts";
 import type { Store } from "../domain/store.ts";
 import { errorMessage } from "../errors.ts";
 import type { Log } from "../log.ts";
+import { serviceSecret } from "../secret-names.ts";
 import type { Secrets } from "../secrets.ts";
 import { toOggOpus } from "./audio.ts";
 import type { CodexImages } from "./codex-images.ts";
@@ -81,7 +82,7 @@ export function createServices(deps: {
   const f = deps.fetch ?? fetch;
   const whisperCpp = deps.whisperCpp ?? createWhisperCpp({ log });
   const status = new Map<string, { ok: boolean; at: number }>();
-  const keyName = (id: string) => `service-${id}`;
+  const keyName = serviceSecret;
   const keyOf = (s: ServiceConfig) => (s.needs_key ? secrets.resolve(`secret://${keyName(s.id)}`) : undefined);
 
   const all = (): ServiceConfig[] => store.settings.read("services");

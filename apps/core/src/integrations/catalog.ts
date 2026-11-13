@@ -279,8 +279,9 @@ export const CATALOG: IntegrationEntry[] = [
   signIn("gamma", "Gamma", "Presentations and documents.", "https://mcp.gamma.app/mcp"),
 ];
 
-/** The secret a field of an integration is kept under. */
-export const integrationSecret = (id: string, field: string) => `${id}-${field}`;
+import { integrationSecret } from "../secret-names.ts";
+
+export { integrationSecret };
 
 /** The server of an entry with the owner's values in: secrets by reference, the rest as typed. */
 export function serverFor(e: IntegrationEntry, values: Record<string, string>, refused = false) {
