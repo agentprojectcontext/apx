@@ -10,11 +10,12 @@ import type { Gate } from "./guard.ts";
 
 /** A call never outlives this: its deadline (AGENTS.md rule 9). */
 const CALL_MAX_MS = 2 * 60 * 60_000;
-const RECORDED = new Set(["heard", "said", "turn_end", "ask"]);
+const RECORDED = new Set(["heard", "said", "turn_end", "ask", "think", "think_stop"]);
 
 /**
  * A call's audio both ways between the panel and the voice engine, plus its live state as JSON text frames. The
- * single-use ticket comes from the human-only `calls.start`; what the call says is written to its thread by `calls`.
+ * single-use ticket comes from the human-only `calls.start`; what the call says is written to its thread by `calls`,
+ * which also runs the model the call talks with.
  */
 export function attachVoiceCall(server: Server, deps: { calls: Calls; engine: VoiceEngine; gate: Gate; log: Log }) {
   const wss = new WebSocketServer({ noServer: true, maxPayload: 256 * 1024 });
@@ -69,7 +70,11 @@ export function attachVoiceCall(server: Server, deps: { calls: Calls; engine: Vo
 
     if (deps.engine.loading()) tell({ type: "preparing" });
     try {
-      engine = await deps.engine.open({ voice: call.voice, lang: call.lang, owner: call.owner, agent: call.agent });
+      // The first call on a computer that has not downloaded the voice yet waits for it.
+      const stop = new AbortController();
+      panel.once("close", () => stop.abort());
+      await deps.engine.whenInstalled(stop.signal);
+      engine = await deps.engine.open(call.setup);
     } catch (err) {
       deps.log.warn({ err: errorMessage(err, 300) }, "voice engine did not start");
       end("engine");

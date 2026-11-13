@@ -6,7 +6,6 @@ import { CORE_ENV_FILE, coreEnvDefaults, parseCoreEnv, RELEASE_FEED } from "@apx
 import { browserDataDirs } from "./nodes/chrome-host.ts";
 import { samePath } from "./paths.ts";
 import { type SecretsBackend, systemBackend } from "./secrets-stores.ts";
-import type { VoiceConfig } from "./services/voice-engine.ts";
 import { TELEMETRY_SINK } from "./telemetry-sink.ts";
 
 /**
@@ -109,11 +108,8 @@ export type CoreConfig = {
   chromeHost: string[];
   /** Ollama on this machine, for memory's embedding models (APX_OLLAMA_URL; a test points it elsewhere). */
   ollamaUrl: string;
-  /**
-   * Voice calls (services/voice-engine.ts): the voice model (APX_VOICE_LLM_URL, _MODEL, _KIND ollama|openai, _KEY_REF)
-   * and the cloned voices (APX_VOICE_VOICES folder, APX_VOICE_FEMALE, APX_VOICE_MALE, APX_VOICE_TTS_MODEL).
-   */
-  voice: VoiceConfig;
+  /** APX's own voice (services/native-voice.ts): download it on its own where it runs (APX_VOICE_AUTO on|off). */
+  voice: { auto: boolean };
   /**
    * Model apps looked for on this computer, their chat models offered with no setup (APX_LOCAL_MODELS: "off", or
    * `id:port` pairs of LOCAL_APPS; a test core looks for none).
@@ -278,16 +274,8 @@ export function loadConfig(processEnv: NodeJS.ProcessEnv = process.env, readCore
       auto: env.APX_RUNTIME_SKILLS === "on" || (!env.APX_HOME && env.APX_RUNTIME_SKILLS !== "off"),
     },
     ollamaUrl: env.APX_OLLAMA_URL || "http://127.0.0.1:11434",
-    voice: {
-      llmUrl: env.APX_VOICE_LLM_URL || env.APX_OLLAMA_URL || "http://127.0.0.1:11434",
-      llmModel: env.APX_VOICE_LLM_MODEL || "qwen3:4b-instruct",
-      llmKind: env.APX_VOICE_LLM_KIND === "openai" ? "openai" : "ollama",
-      llmKey: env.APX_VOICE_LLM_KEY_REF || undefined,
-      voices: env.APX_VOICE_VOICES || path.join(env.APX_HOME ?? defaultHome(), "voices"),
-      female: env.APX_VOICE_FEMALE || "female",
-      male: env.APX_VOICE_MALE || "male",
-      ttsModel: env.APX_VOICE_TTS_MODEL || "Qwen/Qwen3-TTS-12Hz-1.7B-Base",
-    },
+    // A scratch core (its own APX_HOME) does not download the voice on its own.
+    voice: { auto: env.APX_VOICE_AUTO === "on" || (!env.APX_HOME && env.APX_VOICE_AUTO !== "off") },
     localModels: localApps(env.APX_LOCAL_MODELS),
     providers: [...custom, ...DEFAULT_PROVIDERS],
     secrets: env.APX_SECRETS === "file" ? "file" : systemBackend(),

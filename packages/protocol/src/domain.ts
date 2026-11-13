@@ -788,6 +788,8 @@ export const AuxPurpose = z.enum([
   "sticker",
   "aside",
   "mail",
+  /** What a voice call says (the model it talks with). */
+  "call",
 ]);
 export type AuxPurpose = z.infer<typeof AuxPurpose>;
 

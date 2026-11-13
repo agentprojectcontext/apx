@@ -137,6 +137,7 @@ import {
 import { CODEX_IMAGE_SERVICE, CODEX_IMAGES, createCodexImages } from "./services/codex-images.ts";
 import { createLocalEmbeddings } from "./services/local-embed.ts";
 import { createModelInstaller } from "./services/local-whisper.ts";
+import { createNativeVoice } from "./services/native-voice.ts";
 import { createPush } from "./services/push.ts";
 import { createServices } from "./services/registry.ts";
 import { mediaData } from "./services/uploads.ts";
@@ -457,7 +458,9 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
   const { hooks, plugins, extensions } = extensionStack({ store, secrets, bus, log, home: config.home });
   const upkeep = createUpkeep({ store, llm, log });
   const aside = createAside({ store, llm });
+  const voiceEngine = createVoiceEngine({ log, home: config.home, owner: () => ownerIdentity(store).name });
   const services = createServices({
+    voice: voiceEngine,
     store,
     secrets,
     home: config.home,
@@ -669,16 +672,28 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
       groups.afterRun(run);
     },
   });
+  const native = createNativeVoice({ store, services, engine: voiceEngine, log, auto: config.voice.auto });
   const voice = {
-    engine: createVoiceEngine({
+    engine: voiceEngine,
+    native,
+    calls: createCalls({
+      store,
+      bus,
+      admit: engine.admit,
       log,
-      config: config.voice,
-      home: config.home,
-      resolveKey: async (ref) => secrets.resolve(ref),
-      owner: () => ownerIdentity(store).name,
+      llm,
+      // The owner's pick for calls, else their main model; the agent called keeps its own for the work.
+      models: () => {
+        const m = native.callModel();
+        return m ? [m] : upkeep.agentModels();
+      },
     }),
-    calls: createCalls({ store, bus, admit: engine.admit, log }),
   };
+  try {
+    native.boot();
+  } catch (err) {
+    log.warn({ err: errorMessage(err, 300) }, "APX's voice did not start");
+  }
   const groups = createGroups({
     store,
     admit: engine.admit,
@@ -977,6 +992,7 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
       chatgpt.stop();
       localModels.cancel();
       voice.engine.close();
+      voice.native.close();
       await widgetPages?.closeAll().catch(() => {});
       headless?.close();
       scheduler.stop();

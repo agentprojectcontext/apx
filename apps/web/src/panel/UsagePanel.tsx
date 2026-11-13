@@ -34,6 +34,7 @@ const AUX_LABEL: Record<AuxPurpose, MessageKey> = {
   news: "usage.aux.news",
   sticker: "usage.aux.sticker",
   aside: "usage.aux.aside",
+  call: "usage.aux.call",
   mail: "usage.aux.mail",
 };
 

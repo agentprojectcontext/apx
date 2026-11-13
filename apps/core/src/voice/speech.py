@@ -1,4 +1,6 @@
-"""The voice engine's ears and mouth: voice activity, end of turn, transcription and a cloned voice.
+"""The voice engine's ears and mouth: voice activity, end of turn, transcription and APX's own voices.
+
+Each part loads the first time it is needed: a voice note only loads the mouth, a transcription only the ears.
 
 Each MLX model (whisper, Qwen3-TTS) always runs on its own thread: MLX keeps per-thread state, and a thread apiece
 means hearing the owner never waits for a line being spoken. The small ONNX models and the CPU whisper for live
@@ -16,6 +18,20 @@ import numpy as np
 SR_IN, SR_OUT = 16000, 24000
 FRAME = 512  # 32 ms at 16 kHz: what the VAD model takes
 LANGS = {"es": "spanish", "en": "english"}
+VOICES = Path(__file__).parent / "voices"
+
+# What each tier runs (VOICE_TIER, services/voice-engine.ts): "light" fits a Mac with less memory.
+MODELS = {
+    "full": {"tts": "Qwen/Qwen3-TTS-12Hz-1.7B-Base", "stt": "mlx-community/whisper-large-v3-turbo",
+             "draft": "Systran/faster-whisper-base"},
+    "light": {"tts": "Qwen/Qwen3-TTS-12Hz-0.6B-Base", "stt": "mlx-community/whisper-small-mlx",
+              "draft": "Systran/faster-whisper-base"},
+}
+SMALL = [("onnx-community/silero-vad", "onnx/model.onnx"), ("pipecat-ai/smart-turn-v3", "smart-turn-v3.2-cpu.onnx")]
+
+
+def tier():
+    return MODELS.get(os.environ.get("VOICE_TIER", "full"), MODELS["full"])
 
 hearing = ThreadPoolExecutor(max_workers=1, thread_name_prefix="mlx-whisper")
 speaking = ThreadPoolExecutor(max_workers=1, thread_name_prefix="mlx-tts")
@@ -84,12 +100,18 @@ class EndOfTurn:
 class Ears:
     """whisper large-v3-turbo on MLX for what was said; a small CPU whisper for what is being said."""
 
-    def __init__(self, model="mlx-community/whisper-large-v3-turbo", draft="Systran/faster-whisper-base"):
+    def __init__(self, model, draft):
         import mlx_whisper  # noqa: F401  (loaded on its thread at the first call)
-        from faster_whisper import WhisperModel
-        self.model = model
-        self.draft = WhisperModel(draft, device="cpu", compute_type="int8", cpu_threads=4)
+        self.model, self.draft_id, self._draft = model, draft, None
         self.draft_lock = threading.Lock()
+
+    @property
+    def draft(self):
+        """The CPU whisper for live captions: only calls need it."""
+        if self._draft is None:
+            from faster_whisper import WhisperModel
+            self._draft = WhisperModel(self.draft_id, device="cpu", compute_type="int8", cpu_threads=4)
+        return self._draft
 
     def _final(self, pcm, lang, prompt):
         import mlx_whisper
@@ -124,9 +146,10 @@ class Mouth:
     def _ref(self, name):
         if name not in self.refs:
             from mlx_audio.utils import load_audio
-            wav, meta = self.voices / f"{name}.wav", self.voices / f"{name}.json"
+            audio = next(p for p in (self.voices / f"{name}.flac", self.voices / f"{name}.wav") if p.exists())
+            meta = self.voices / f"{name}.json"
             text = json.loads(meta.read_text()).get("refText") if meta.exists() else None
-            self.refs[name] = (load_audio(str(wav), sample_rate=SR_OUT), text or None)
+            self.refs[name] = (load_audio(str(audio), sample_rate=SR_OUT), text or None)
         return self.refs[name]
 
     @staticmethod
@@ -160,23 +183,89 @@ class Mouth:
 
 
 class Speech:
+    """The engine's parts, each loaded the first time it is used and kept while the engine runs."""
+
     def __init__(self):
-        cache = Path(os.environ.get("VOICE_CACHE", Path.home() / ".cache/apx-voice"))
-        os.environ.setdefault("HF_HOME", str(cache / "hf"))
-        self.voices = Path(os.environ["VOICE_VOICES"])
-        self.vad, self.turn = Vad(), EndOfTurn()
-        self.ears = Ears()
-        self.mouth = Mouth(os.environ.get("VOICE_TTS_MODEL", "Qwen/Qwen3-TTS-12Hz-1.7B-Base"), self.voices)
+        self.voices = Path(os.environ.get("VOICE_VOICES") or VOICES)
+        self.models = tier()
+        self._lock = threading.Lock()
+        self._vad = self._turn = self._ears = self._mouth = None
         self.last_use = time.monotonic()
-        self.warm()
+
+    def _once(self, attr, make):
+        with self._lock:
+            if getattr(self, attr) is None:
+                setattr(self, attr, make())
+            return getattr(self, attr)
+
+    @property
+    def vad(self):
+        return self._once("_vad", Vad)
+
+    @property
+    def turn(self):
+        return self._once("_turn", EndOfTurn)
+
+    @property
+    def ears(self):
+        return self._once("_ears", lambda: Ears(self.models["stt"], self.models["draft"]))
+
+    @property
+    def mouth(self):
+        return self._once("_mouth", lambda: Mouth(self.models["tts"], self.voices))
+
+    def loaded(self):
+        return {"mouth": self._mouth is not None, "ears": self._ears is not None}
 
     def voice(self, name):
-        return name if (self.voices / f"{name}.wav").exists() else next(
-            p.stem for p in sorted(self.voices.glob("*.wav")))
+        """One of APX's voices ("es-AR-female"); an unknown name gets the first one of its gender, then any."""
+        have = sorted({p.stem for p in self.voices.iterdir() if p.suffix in (".flac", ".wav")})
+        if name in have:
+            return name
+        gender = name.rsplit("-", 1)[-1]
+        return next((v for v in have if v.endswith(f"-{gender}")), have[0])
+
+    def for_call(self):
+        """Everything a call uses, loaded before it begins."""
+        _ = self.vad, self.turn, self.ears.draft
+        self.warm()
 
     def warm(self):
-        """Loads whisper and keeps both MLX models resident: macOS compresses an idle model, and the next line waits."""
-        self.ears.final(np.zeros(SR_IN, dtype=np.float32), "es").result()
-        voice = self.voice(os.environ.get("VOICE_FEMALE", ""))
-        self.mouth.speak("Hola.", "es", voice, lambda _: None, threading.Event()).result()
+        """Keeps the loaded MLX models resident: macOS compresses an idle model, and the next line waits."""
+        if self._ears is not None:
+            self.ears.final(np.zeros(SR_IN, dtype=np.float32), "es").result()
+        if self._mouth is not None or self._ears is None:
+            self.mouth.speak("Hola.", "es", self.voice("es-AR-female"), lambda _: None, threading.Event()).result()
         self.last_use = time.monotonic()
+
+
+def prefetch(report):
+    """Downloads every model of this machine's tier, reporting bytes as they arrive (voice.install)."""
+    from huggingface_hub import HfApi, constants, hf_hub_download
+    api, files = HfApi(), []
+    for repo in (tier()["tts"], tier()["stt"], tier()["draft"]):
+        files += [(repo, f.rfilename, f.size or 0) for f in api.model_info(repo, files_metadata=True).siblings]
+    files += [(repo, name, 0) for repo, name in SMALL]
+    total, state = sum(size for *_, size in files), {"done": 0, "repo": None, "stop": False}
+
+    def partial():  # a big file says nothing until it is done: count what reached its .incomplete file
+        repo = state["repo"]
+        if not repo:
+            return 0
+        blobs = Path(constants.HF_HUB_CACHE) / f"models--{repo.replace('/', '--')}" / "blobs"
+        return sum(p.stat().st_size for p in blobs.glob("*.incomplete")) if blobs.exists() else 0
+
+    def tick():
+        while not state["stop"]:
+            report(min(total, state["done"] + partial()), total)
+            time.sleep(1)
+
+    threading.Thread(target=tick, daemon=True).start()
+    try:
+        for repo, name, size in files:
+            state["repo"] = repo
+            hf_hub_download(repo, name)
+            state["done"] += size
+    finally:
+        state["stop"] = True
+    report(total, total)

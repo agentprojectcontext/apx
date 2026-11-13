@@ -101,6 +101,7 @@ export const enChat = {
   "usage.aux.news": "Release news",
   "usage.aux.sticker": "Sticker meanings",
   "usage.aux.aside": "Side questions",
+  "usage.aux.call": "Voice calls",
   "usage.state.submitted": "Queued",
   "usage.state.working": "Working",
   "usage.state.waiting": "Waiting for you",

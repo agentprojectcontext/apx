@@ -1,32 +1,71 @@
-// Voice calls from the panel (engine/calls.ts, services/voice-engine.ts, transport/voice-call.ts).
+// APX's own voice and voice calls from the panel (services/native-voice.ts, engine/calls.ts,
+// services/voice-engine.ts, transport/voice-call.ts).
+import type { CallStatus, VoiceStatus } from "@apx/protocol";
 import type { Calls } from "../engine/calls.ts";
 import { unavailable } from "../errors.ts";
+import type { NativeVoiceSettings } from "../services/native-voice.ts";
 import type { VoiceEngine } from "../services/voice-engine.ts";
 import type { Handlers } from "./router.ts";
 
 const NEEDS = {
   platform: "calls need a Mac with Apple silicon",
+  memory: "this computer does not have enough memory for calls",
   uv: "calls need uv (brew install uv)",
-  voice: "calls need a cloned voice in the voices folder",
+  off: "APX's voice is turned off",
+  model: "calls need a model APX can call directly",
 } as const;
 
-export function callHandlers(d: { calls: Calls; engine: VoiceEngine } | undefined) {
+const NONE: VoiceStatus = {
+  tier: "none",
+  memory_gb: 0,
+  missing: "platform",
+  enabled: false,
+  installed: false,
+  running: false,
+  voice: { gender: "female", locale: "es-AR" },
+};
+
+export type VoiceDeps = { calls: Calls; engine: VoiceEngine; native: NativeVoiceSettings };
+
+export function callHandlers(d: VoiceDeps | undefined) {
+  function callStatus(): CallStatus {
+    if (!d) return { ready: false, running: false, missing: "platform" };
+    const v = d.native.status();
+    const missing: CallStatus["missing"] =
+      v.missing ?? (!v.enabled ? "off" : !d.calls.hasModel() ? "model" : undefined);
+    const live = d.calls.status().live;
+    return {
+      // Not downloaded yet is not missing: the first call waits for it.
+      ready: !missing,
+      running: v.running,
+      ...(missing ? { missing } : {}),
+      ...(live ? { live } : {}),
+      voice: v.voice,
+    };
+  }
+
   return {
-    "calls.status": () => {
-      if (!d) return { ready: false, running: false, missing: "platform" as const };
-      const s = d.engine.status();
-      const live = d.calls.status().live;
-      return {
-        ready: s.ready,
-        running: s.running,
-        ...(s.missing ? { missing: s.missing } : {}),
-        ...(live ? { live } : {}),
-      };
+    "voice.status": () => d?.native.status() ?? NONE,
+    "voice.install": async () => {
+      if (!d) throw unavailable(NEEDS.platform);
+      return d.native.install();
     },
+    "voice.set": (p) => {
+      if (!d) throw unavailable(NEEDS.platform);
+      return d.native.set(p);
+    },
+    "calls.status": callStatus,
     "calls.start": (p) => {
-      const missing = d ? d.engine.status().missing : "platform";
-      if (!d || missing) throw unavailable(NEEDS[missing ?? "platform"]);
-      return d.calls.start(p);
+      const s = callStatus();
+      if (!d || s.missing) throw unavailable(NEEDS[s.missing ?? "platform"]);
+      if (!d.engine.installed()) d.native.install();
+      const v = d.native.voice();
+      return d.calls.start({
+        agent_id: p.agent_id,
+        voice: p.voice ?? v.gender,
+        locale: p.locale ?? v.locale,
+        thread: p.thread,
+      });
     },
     "calls.end": ({ thread_id }) => {
       d?.calls.end(thread_id);

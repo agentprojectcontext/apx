@@ -103,6 +103,7 @@ export const esChat: Partial<Record<MessageKey, string>> = {
   "usage.aux.news": "Novedades",
   "usage.aux.sticker": "Significado de stickers",
   "usage.aux.aside": "Preguntas aparte",
+  "usage.aux.call": "Llamadas de voz",
   "usage.state.submitted": "En cola",
   "usage.state.working": "Trabajando",
   "usage.state.waiting": "Te espera",

@@ -3,7 +3,6 @@
 # dependencies = [
 #   "fastapi>=0.115",
 #   "uvicorn[standard]>=0.32",
-#   "httpx>=0.27",
 #   "numpy>=1.26",
 #   "onnxruntime>=1.19",
 #   "huggingface_hub>=0.26",
@@ -14,15 +13,19 @@
 #   "soundfile>=0.12",
 # ]
 # ///
-"""APX's voice engine for calls (services/voice-engine.ts starts it, transport/voice-call.ts relays one call).
+"""APX's own voice (services/voice-engine.ts starts it): calls, voice notes and transcription on this Mac.
 
-It hears the owner, answers with a fast voice model and speaks with a cloned voice. What needs real work it asks the
-core for ([[task: …]] → an "ask" frame); the core runs the super-agent and sends the answer back as a "result" frame,
-which is read to the owner as soon as nobody is talking.
+A call (transport/voice-call.ts relays it): it hears the owner, answers through the core's model ("think" frames: the
+core runs the model the owner chose) and speaks with one of APX's voices. What needs real work it asks the core for
+([[task: …]] → an "ask" frame); the core runs the agent called and sends the answer back as a "result" frame, read to
+the owner as soon as nobody is talking.
 
-Up from the core: binary 16 kHz mono PCM16, and JSON {"type": "result", n, state, text}.
-Down to the core: binary 24 kHz mono PCM16, and JSON frames: heard, said, turn_end, ask (written in the call's
-thread), partial, interrupted, state, ready, end (shown live).
+Up from the core: binary 16 kHz mono PCM16, and JSON {"type": "result", n, state, text} or {"type": "thought", id,
+text} / {"type": "thought_end", id, error?}. Down to the core: binary 24 kHz mono PCM16, and JSON frames: heard,
+said, turn_end, ask (written in the call's thread), think (a model call), partial, interrupted, state, ready, end.
+
+Also: POST /speech {text, voice, lang} → WAV (an agent's voice note), POST /transcribe?lang= <audio bytes> → {text},
+and `--prefetch`, which only downloads the models, printing {"received", "total"} lines.
 """
 import argparse
 import asyncio
@@ -37,20 +40,15 @@ from collections import deque
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-import httpx  # noqa: E402
 import numpy as np  # noqa: E402
 import uvicorn  # noqa: E402
 from fastapi import FastAPI, Request, WebSocket, WebSocketDisconnect  # noqa: E402
-from fastapi.responses import JSONResponse  # noqa: E402
+from fastapi.responses import JSONResponse, Response  # noqa: E402
 
+import speech as parts  # noqa: E402
 from speech import FRAME, SR_IN, SR_OUT, Speech  # noqa: E402
 
 SECRET = os.environ.get("VOICE_SECRET", "")
-LLM_URL = os.environ.get("VOICE_LLM_URL", "http://127.0.0.1:11434").rstrip("/")
-LLM_MODEL = os.environ.get("VOICE_LLM_MODEL", "qwen3:4b-instruct")
-LLM_KIND = os.environ.get("VOICE_LLM_KIND", "ollama")
-LLM_KEY = os.environ.get("VOICE_LLM_KEY", "")
-VOICES = {"female": os.environ.get("VOICE_FEMALE", ""), "male": os.environ.get("VOICE_MALE", "")}
 OWNER = os.environ.get("VOICE_OWNER", "")
 
 # Turn taking, in 32 ms frames.
@@ -72,23 +70,23 @@ MARKUP = re.compile(r"[*_#`]+")
 ACK = re.compile(r"^\W*((dale|ok(ay)?|genial|buen[ií]simo|b[aá]rbaro|perfecto|listo|joya|va|bueno|s[ií]|gracias|"
                  r"te espero|espero|ah[ií] espero|no hay drama|tranqui|good|great|thanks|cool|sure|i'?ll wait)\W*){1,4}$", re.I)
 
-PROMPT = """You are {name}, {owner}'s personal assistant in APX, talking with {owner} on a voice call.
+PROMPT = """You are {name}, {who}, talking with {owner} on a voice call.
 
 ## How you talk
 
 - This is speech, not chat. Answer in one to three short sentences. No lists, no markdown, no emojis, no parentheses, no URLs.
 - Speak only the call language given in the note at the end of each turn. Never repeat or translate what you said into another language.
-- In Spanish use Argentine Spanish with voseo ("querés", "decime", "fijate").
+- {accent}
 - The note says whether your voice is male or female: use that grammatical gender for yourself.
 - {owner}'s words reach you through speech-to-text. When something sounds misheard and the meaning is unclear, ask in a few words.
 - Be warm and direct. Do not end every answer with a question.
 
 ## Work in the background
 
-You cannot look anything up or do anything yourself during the call. Behind you, {name} works with all of {owner}'s projects, agents, memory, mail, calendar, web and tools. A task you start runs there while you keep talking.
+You cannot look anything up or do anything yourself during the call. Behind you, {name} works with everything {name} can reach in APX: {reach}. A task you start runs there while you keep talking, and several can run at once.
 
 - When {owner} asks for something that needs real information or an action outside this conversation (a project, a mail, the calendar, the web, the news, a file, sending or changing anything, anything you would otherwise have to guess), never make the answer up. Say one short sentence that you are on it, like "Dale, dejame que lo veo." and end that same reply with the tag [[task: the full request, clear and self-contained, in {owner}'s language]]. The tag is never read aloud.
-- One tag per request. No task for small talk, for what you already know from this call, or for a task already running.
+- One tag per request; several requests in one turn get one tag each. No task for small talk, for what you already know from this call, or for a task already running.
 - The note lists the tasks running behind you. When asked, say what is still running and for how long. Keep talking about anything else meanwhile.
 - When a task finishes, its answer is read to {owner} right away and a note brings you the full answer: use it for follow-up questions, do not repeat it.
 - Never say a task is done, and never describe or guess what it will find, unless a note brought its answer.
@@ -98,7 +96,14 @@ You cannot look anything up or do anything yourself during the call. Behind you,
 
 When {owner} says goodbye, answer with one short goodbye.
 """
-GREETING = {"es": "Hola{owner}, ¿en qué te ayudo?", "en": "Hi{owner}, what can I do for you?"}
+GREETING = {"es-AR": "Hola{owner}, ¿en qué te ayudo?", "es": "Hola{owner}, ¿en qué te puedo ayudar?",
+            "en": "Hi{owner}, what can I do for you?"}
+ACCENT = {
+    "es-AR": 'In Spanish use Argentine Spanish with voseo ("querés", "decime", "fijate").',
+    "es": 'In Spanish use neutral Latin American Spanish with "tú" ("quieres", "dime", "fíjate"), no regional slang.',
+    "en": "Use natural American English.",
+}
+TONGUE = {"es-AR": "Spanish, Argentine with voseo", "es": "Spanish, neutral with tú", "en": "English"}
 STT_HINT = {"es": "Hola {name}, ¿me ayudás con algo? APX.", "en": "Hi {name}, can you help me with something? APX."}
 HOLD_ON = {"es": "Dame un segundo.", "en": "Give me a second."}
 HOLD_ON_S = 4  # the voice model is this slow to start: say so instead of going quiet
@@ -106,44 +111,16 @@ FAILED = {"es": "No pude terminar lo que me pediste.", "en": "I couldn't finish 
 
 speech: Speech | None = None
 app = FastAPI(docs_url=None, redoc_url=None, openapi_url=None)
-http = httpx.AsyncClient(timeout=httpx.Timeout(120, connect=5))
-llm_state = {"system": None, "used": 0.0}
 
 
 def allowed(secret):
     return bool(SECRET) and hmac.compare_digest(secret or "", SECRET)
 
 
-# ---- the voice model ----
-
-async def llm_stream(messages):
-    if LLM_KIND == "openai":
-        body = {"model": LLM_MODEL, "messages": messages, "stream": True, "temperature": 0.6, "max_tokens": 220}
-        headers = {"authorization": f"Bearer {LLM_KEY}"} if LLM_KEY else {}
-        async with http.stream("POST", f"{LLM_URL}/chat/completions", json=body, headers=headers) as r:
-            r.raise_for_status()
-            async for line in r.aiter_lines():
-                if line.startswith("data: ") and line != "data: [DONE]":
-                    for ch in json.loads(line[6:]).get("choices", []):
-                        yield (ch.get("delta") or {}).get("content") or ""
-        return
-    # Ollama's own API: its OpenAI-compatible one ignores the context size, and the default cuts the prompt.
-    body = {"model": LLM_MODEL, "messages": messages, "stream": True, "think": False, "keep_alive": "30m",
-            "options": {"num_ctx": 8192, "temperature": 0.6, "num_predict": 220}}
-    async with http.stream("POST", f"{LLM_URL}/api/chat", json=body) as r:
-        r.raise_for_status()
-        async for line in r.aiter_lines():
-            if line.strip():
-                d = json.loads(line)
-                if "error" in d:
-                    raise RuntimeError(d["error"])
-                yield (d.get("message") or {}).get("content") or ""
-
-
-async def sentences(messages):
+async def sentences(stream):
     """The reply sentence by sentence as it streams; a sentence holding an unclosed tag waits for its end."""
     buf = ""
-    async for piece in llm_stream(messages):
+    async for piece in stream:
         buf += piece
         while True:
             m = SENTENCE_END.search(buf)
@@ -158,19 +135,6 @@ async def sentences(messages):
 
 def clean(text):
     return re.sub(r"\s+", " ", MARKUP.sub("", text)).strip()
-
-
-async def keep_llm_warm():
-    """A shared model server drops a prompt it has not seen in a while; reading it again costs seconds."""
-    while True:
-        await asyncio.sleep(10)
-        if llm_state["system"] and time.monotonic() - llm_state["used"] > 45:
-            llm_state["used"] = time.monotonic()
-            try:
-                async for _ in llm_stream([llm_state["system"], {"role": "user", "content": "Hola."}]):
-                    break
-            except Exception as e:
-                print(f"[voice] llm keep-warm: {e}", flush=True)
 
 
 async def keep_speech_warm():
@@ -198,13 +162,7 @@ async def follow_core():
 async def startup():
     global speech
     asyncio.create_task(follow_core())
-    speech = await asyncio.to_thread(Speech)
-    for lang, line in GREETING.items():
-        for v in VOICES.values():
-            if v:
-                await asyncio.to_thread(speech.mouth.line, line.format(owner=f" {OWNER}" if OWNER else ""), lang,
-                                        speech.voice(v))
-    asyncio.create_task(keep_llm_warm())
+    speech = Speech()
     asyncio.create_task(keep_speech_warm())
     print("[voice] ready", flush=True)
 
@@ -213,19 +171,64 @@ async def startup():
 async def health(request: Request):
     if not allowed(request.headers.get("x-voice-secret")):
         return JSONResponse({"ok": False}, status_code=403)
-    return {"ok": speech is not None}
+    return {"ok": speech is not None, **(speech.loaded() if speech else {})}
+
+
+@app.post("/speech")
+async def speak(request: Request):
+    """One line in one of APX's voices, as a WAV: an agent's voice note."""
+    if not allowed(request.headers.get("x-voice-secret")):
+        return JSONResponse({"error": "forbidden"}, status_code=403)
+    body = await request.json()
+    text = clean(str(body.get("text") or ""))[:4000]
+    if not text:
+        return JSONResponse({"error": "no text"}, status_code=400)
+    voice = speech.voice(str(body.get("voice") or "es-AR-female"))
+    lang = "en" if voice.startswith("en") else "es"
+    out = []
+    await asyncio.to_thread(lambda: speech.mouth.speak(text, lang, voice, out.append, threading.Event()).result())
+    speech.last_use = time.monotonic()
+    pcm = b"".join(out)
+    return Response(wav(pcm, SR_OUT), media_type="audio/wav")
+
+
+@app.post("/transcribe")
+async def transcribe(request: Request):
+    """What a recording says (16 kHz mono PCM16, decoded by the core): a voice note the owner sent."""
+    if not allowed(request.headers.get("x-voice-secret")):
+        return JSONResponse({"error": "forbidden"}, status_code=403)
+    data = await request.body()
+    pcm = np.frombuffer(data[: len(data) // 2 * 2], dtype=np.int16).astype(np.float32) / 32768
+    lang = request.query_params.get("lang") or None
+    text, heard = await asyncio.wrap_future(speech.ears.final(pcm, lang, None))
+    speech.last_use = time.monotonic()
+    return {"text": text, "language": heard}
+
+
+def wav(pcm, rate):
+    import struct
+    return b"RIFF" + struct.pack("<I4s4sIHHIIHH4sI", 36 + len(pcm), b"WAVE", b"fmt ", 16, 1, 1, rate, rate * 2, 2, 16,
+                                 b"data", len(pcm)) + pcm
 
 
 # ---- one call ----
 
 class Call:
-    def __init__(self, ws, voice, lang, owner, name):
-        self.ws, self.lang, self.owner, self.name = ws, lang if lang in ("es", "en") else "es", owner, name or "APX"
+    def __init__(self, ws, q):
+        self.ws, self.owner, self.name = ws, q.get("owner", ""), q.get("agent") or "APX"
+        self.locale = q.get("locale") if q.get("locale") in ("es-AR", "es", "en-US") else "es-AR"
+        self.lang = "en" if self.locale == "en-US" else "es"
+        self.style = "en" if self.lang == "en" else self.locale
         self.hint = STT_HINT[self.lang].format(name=self.name)
-        self.gender = "male" if voice == "male" else "female"
-        self.voice = speech.voice(VOICES[self.gender])
+        self.gender = "male" if q.get("voice") == "male" else "female"
+        self.voice = speech.voice(f"{self.locale}-{self.gender}")
         self.vad = speech.vad.stream()
-        self.system = {"role": "system", "content": PROMPT.format(name=self.name, owner=owner or "the owner")}
+        owner = self.owner or "the owner"
+        self.system = {"role": "system", "content": PROMPT.format(
+            name=self.name, owner=owner, accent=ACCENT[self.style],
+            who=q.get("who") or f"{owner}'s personal assistant in APX",
+            reach=q.get("reach") or f"{owner}'s projects, agents, memory, mail, calendar, web and tools")}
+        self.thoughts, self.thought_n = {}, 0
         self.history, self.tasks, self.news = [], {}, deque()
         self.pending = np.zeros(0, dtype=np.float32)
         self.preroll, self.utt = deque(maxlen=8), []
@@ -267,20 +270,37 @@ class Call:
         running = [f'- task {n} "{t}": running for {int(time.monotonic() - s)} s, no answer yet (never guess it)'
                    for n, (t, s) in self.tasks.items()]
         tasks = "Background tasks:\n" + "\n".join(running) if running else "No background tasks."
-        tongue = "Spanish, Argentine with voseo" if self.lang == "es" else "English"
+        tongue = TONGUE[self.style]
         return f"(Note. Call language: {tongue}. Your voice: {self.gender}. {tasks})"
 
-    async def warm(self):
-        """Reads the prompt while the greeting plays: a model that has not seen it takes seconds on the first answer."""
-        llm_state.update(system=self.system, used=time.monotonic())
+    async def think(self, messages):
+        """The reply as the core's model streams it: the core runs the model the owner chose for calls."""
+        self.thought_n += 1
+        k, q = self.thought_n, asyncio.Queue()
+        self.thoughts[k] = q
+        ended = False
         try:
-            async for _ in llm_stream([self.system, {"role": "user", "content": "Hola."}]):
-                break
-        except Exception as e:
-            print(f"[voice] llm warm: {e!r}", flush=True)
+            await self.send({"type": "think", "id": k, "messages": messages})
+            while True:
+                kind, text = await q.get()
+                if kind == "end":
+                    ended = True
+                    if text:
+                        raise RuntimeError(text)
+                    return
+                yield text
+        finally:
+            self.thoughts.pop(k, None)
+            if not ended:  # a reply cut short (the owner went on) stops its model call too
+                asyncio.ensure_future(self.send({"type": "think_stop", "id": k}))
+
+    def thought(self, f):
+        q = self.thoughts.get(int(f.get("id") or 0))
+        if q:
+            q.put_nowait(("end", f.get("error") or "") if f["type"] == "thought_end" else ("text", f.get("text", "")))
 
     async def greet(self):
-        line = GREETING[self.lang].format(owner=f" {self.owner}" if self.owner else "")
+        line = GREETING[self.style].format(owner=f" {self.owner}" if self.owner else "")
         self.history.append({"role": "assistant", "content": line})
         await self.send({"type": "state", "state": "speaking"})
         pcm = await asyncio.to_thread(speech.mouth.line, line, self.lang, self.voice)
@@ -293,7 +313,6 @@ class Call:
     async def reply(self, text, heard):
         self.history.append({"role": "user", "content": f"{text}\n{self.note()}"})
         messages = [self.system, *self.history]
-        llm_state.update(system=self.system, used=time.monotonic())
         await self.send({"type": "state", "state": "thinking"})
         spoken, skipped = [], False
         self.carry = ""
@@ -305,7 +324,7 @@ class Call:
                 await filler if holding["speaking"] else filler.cancel()
 
         try:
-            async for raw in sentences(messages):
+            async for raw in sentences(self.think(messages)):
                 if SKIP.search(raw):
                     skipped, raw = True, SKIP.sub("", raw)
                 for m in TASK.finditer(raw):
@@ -495,13 +514,9 @@ async def call(ws: WebSocket):
         await ws.close(code=1008)
         return
     await ws.accept()
-    q = ws.query_params
-    c = Call(ws, q.get("voice", "female"), q.get("lang", "es"), q.get("owner", ""), q.get("agent", ""))
-    await c.send({"type": "preparing"})
-    try:  # the first answer would wait while the model reads its prompt: read it before the call begins
-        await asyncio.wait_for(c.warm(), 90)
-    except asyncio.TimeoutError:
-        print("[voice] the voice model did not answer while preparing", flush=True)
+    await ws.send_text(json.dumps({"type": "preparing"}))
+    await asyncio.to_thread(speech.for_call)  # the first call after a while loads hearing and turn taking
+    c = Call(ws, ws.query_params)
     await c.send({"type": "ready"})
     watcher = asyncio.create_task(c.watch())
     c.reply_task = asyncio.create_task(c.greet())
@@ -516,6 +531,8 @@ async def call(ws: WebSocket):
                 f = json.loads(msg["text"])
                 if f.get("type") == "result":
                     c.news.append((int(f["n"]), f.get("state", "done"), f.get("text", "")))
+                elif f.get("type") in ("thought", "thought_end"):
+                    c.thought(f)
     except WebSocketDisconnect:
         pass
     finally:
@@ -525,6 +542,10 @@ async def call(ws: WebSocket):
 
 if __name__ == "__main__":
     ap = argparse.ArgumentParser()
-    ap.add_argument("--port", type=int, required=True)
+    ap.add_argument("--port", type=int)
+    ap.add_argument("--prefetch", action="store_true")
     a = ap.parse_args()
+    if a.prefetch:
+        parts.prefetch(lambda got, total: print(json.dumps({"received": got, "total": total}), flush=True))
+        sys.exit(0)
     uvicorn.run(app, host="127.0.0.1", port=a.port, log_level="warning", ws_max_size=1 << 20)

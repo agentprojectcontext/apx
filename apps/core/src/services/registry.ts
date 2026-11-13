@@ -10,7 +10,7 @@ import type { Store } from "../domain/store.ts";
 import { errorMessage } from "../errors.ts";
 import type { Log } from "../log.ts";
 import type { Secrets } from "../secrets.ts";
-import { toOggOpus } from "./audio.ts";
+import { toOggOpus, toPcm16k } from "./audio.ts";
 import type { CodexImages } from "./codex-images.ts";
 import { EMBED_PROBE, embed } from "./embeddings.ts";
 import { generateImage, IMAGE_PROBE } from "./images.ts";
@@ -18,6 +18,7 @@ import { reach } from "./reach.ts";
 import { SPEECH_PROBE, speak } from "./speech.ts";
 import { TRANSCRIBE_PROBE, transcribe } from "./transcription.ts";
 import { type ImageReference, PROBE_TIMEOUT_MS, type ServiceConfig } from "./types.ts";
+import type { VoiceEngine } from "./voice-engine.ts";
 import { createWhisperCpp, type WhisperCpp } from "./whisper-cpp.ts";
 
 /** The bottom layer under every image: a service's own defaults and the call's arguments go on top. */
@@ -76,6 +77,8 @@ export function createServices(deps: {
   whisperCpp?: WhisperCpp;
   /** The owner's Codex drawing on their ChatGPT plan, when this core can run it. */
   codexImages?: CodexImages;
+  /** APX's own voice on this machine (dialect "apx-voice"). */
+  voice?: VoiceEngine;
 }) {
   const { store, secrets, log } = deps;
   const f = deps.fetch ?? fetch;
@@ -88,6 +91,24 @@ export function createServices(deps: {
   const save = (list: ServiceConfig[]) => store.settings.write("services", list);
   const ofKind = (kind: ServiceKind) => all().filter((s) => s.kind === kind);
 
+  /** APX's own voice where it is installed; otherwise a service of that dialect cannot answer. */
+  const native = (s: ServiceConfig) => {
+    if (!deps.voice?.installed()) throw new Error(`${s.label}: APX's voice is not installed`);
+    return deps.voice;
+  };
+  const speakWith = (s: ServiceConfig, r: { text: string; voice?: string | undefined }, signal: AbortSignal) =>
+    s.dialect === "apx-voice"
+      ? native(s).speak(r.text, r.voice ?? s.voice ?? "es-AR-female", signal)
+      : speak(s, r, keyOf(s), signal, f);
+  const transcribeWith = async (
+    s: ServiceConfig,
+    a: { path: string; bytes: Buffer; mime: string },
+    signal: AbortSignal,
+  ) =>
+    s.dialect === "apx-voice"
+      ? native(s).transcribe(await toPcm16k(a.bytes), s.language, signal)
+      : transcribe(s, a, keyOf(s), signal, f, whisperCpp);
+
   async function check(s: ServiceConfig): Promise<boolean> {
     const cached = status.get(s.id);
     if (cached && Date.now() - cached.at < STATUS_TTL_MS) return cached.ok;
@@ -96,9 +117,11 @@ export function createServices(deps: {
     const ok =
       s.dialect === "whisper-cpp"
         ? whisperCpp.available(s.model)
-        : s.dialect === "codex-images"
-          ? Boolean(await deps.codexImages?.available())
-          : (await reach(s, path, keyOf(s), f, PROBE_TIMEOUT_MS)).ok;
+        : s.dialect === "apx-voice"
+          ? Boolean(deps.voice?.installed())
+          : s.dialect === "codex-images"
+            ? Boolean(await deps.codexImages?.available())
+            : (await reach(s, path, keyOf(s), f, PROBE_TIMEOUT_MS)).ok;
     status.set(s.id, { ok, at: Date.now() });
     return ok;
   }
@@ -226,7 +249,7 @@ export function createServices(deps: {
       signal: AbortSignal,
     ) {
       const { out, service, skipped } = await firstThatWorks(candidates("speech", c.service), (s) =>
-        speak(s, { text: c.text, voice: c.voice }, keyOf(s), signal, f),
+        speakWith(s, { text: c.text, voice: c.voice }, signal),
       );
       const media = saveFile(out.bytes, out.mime, {
         kind: "audio",
@@ -255,7 +278,7 @@ export function createServices(deps: {
     ) {
       const media = a.media ?? saveFile(a.bytes, a.mime, { kind: "audio", thread_id: a.thread });
       const { out } = await firstThatWorks(candidates("transcription"), (s) =>
-        transcribe(s, { path: media.path, bytes: a.bytes, mime: a.mime }, keyOf(s), signal, f, whisperCpp),
+        transcribeWith(s, { path: media.path, bytes: a.bytes, mime: a.mime }, signal),
       );
       return { text: out, media };
     },
@@ -268,11 +291,15 @@ export function createServices(deps: {
           ? whisperCpp.available(s.model)
             ? { ok: true }
             : { ok: false, problem: "other" as const, detail: "whisper-server or the model file is missing" }
-          : s.dialect === "codex-images"
-            ? (await deps.codexImages?.available())
+          : s.dialect === "apx-voice"
+            ? deps.voice?.installed()
               ? { ok: true }
-              : { ok: false, problem: "other" as const, detail: "Codex is not installed or not signed in here" }
-            : await reach(cfg, PROBES[s.kind][s.dialect] ?? "/", apiKey ?? (saved ? keyOf(cfg) : undefined), f);
+              : { ok: false, problem: "other" as const, detail: "APX's voice is not installed on this computer" }
+            : s.dialect === "codex-images"
+              ? (await deps.codexImages?.available())
+                ? { ok: true }
+                : { ok: false, problem: "other" as const, detail: "Codex is not installed or not signed in here" }
+              : await reach(cfg, PROBES[s.kind][s.dialect] ?? "/", apiKey ?? (saved ? keyOf(cfg) : undefined), f);
       if (saved) status.set(saved.id, { ok: r.ok, at: Date.now() });
       return r;
     },
@@ -287,9 +314,7 @@ export function createServices(deps: {
      * otherwise the original audio.
      */
     async voiceNote(text: string, thread: string | undefined, signal: AbortSignal) {
-      const { out, service } = await firstThatWorks(candidates("speech"), (s) =>
-        speak(s, { text }, keyOf(s), signal, f),
-      );
+      const { out, service } = await firstThatWorks(candidates("speech"), (s) => speakWith(s, { text }, signal));
       try {
         const ogg = await toOggOpus(out.bytes);
         return saveFile(ogg, "audio/ogg", { kind: "audio", thread_id: thread, service: service.id, prompt: text });
