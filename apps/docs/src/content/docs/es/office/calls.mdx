@@ -25,6 +25,13 @@ Abrí **Ajustes › Voces**. Arriba está la voz propia de APX:
 Cuando está lista es la primera voz y la primera transcripción de la lista, así que tus agentes la usan salvo que pongas
 otro servicio primero en **Avanzado**. Las voces son de APX, hechas para APX: no son la voz de ninguna persona real.
 
+### Una voz tuya
+
+Para usar una grabación tuya en lugar de una voz de APX, ponela en la carpeta `voices` del home de APX con el nombre de
+esa voz: `es-AR-female.wav`, `es-AR-male.wav`, `es-female.wav`, `es-male.wav`, `en-US-female.wav` o `en-US-male.wav`.
+Sumá un `.json` con el mismo nombre y lo que dice la grabación (`{"refText": "…"}`): la voz la copia con más
+fidelidad. Funciona mejor una grabación limpia de 10 a 30 segundos. Usá solo una voz que tengas derecho a usar.
+
 <Aside>
 La voz se carga cuando algo la necesita y libera la memoria después de 10 minutos sin uso. La primera nota de voz o
 llamada después de un rato tarda unos segundos más.

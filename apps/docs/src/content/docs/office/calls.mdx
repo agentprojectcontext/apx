@@ -25,6 +25,13 @@ Open **Settings › Voices**. At the top is APX's own voice:
 Once it is ready it is the first voice and the first transcription in the list, so your agents use it unless you put
 another service first under **Advanced**. The voices are APX's own, made for it: no real person's voice.
 
+### A voice of your own
+
+To use a recording of your own instead of one of APX's voices, put it in the `voices` folder of APX's home with that
+voice's name: `es-AR-female.wav`, `es-AR-male.wav`, `es-female.wav`, `es-male.wav`, `en-US-female.wav` or
+`en-US-male.wav`. Add a `.json` with the same name and what the recording says (`{"refText": "…"}`): the voice copies
+it more faithfully. A clean recording of 10 to 30 seconds works best. Use only a voice you have the right to use.
+
 <Aside>
 The voice loads when something needs it and leaves memory after 10 minutes unused. The first voice note or call after a
 while takes some seconds more.
