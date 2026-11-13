@@ -139,7 +139,16 @@ function VoicePicker({ voice }: { voice: NativeVoice }) {
           const locale = LOCALES.find((l) => l === v);
           if (locale) pick({ ...voice, locale });
         }}
-        options={LOCALES.map((l) => ({ value: l, label: t(`voice.locale.${l}`) }))}
+        // A phone shows the short name (CSS), so the three fit side by side.
+        options={LOCALES.map((l) => ({
+          value: l,
+          label: (
+            <>
+              <span className="voicerow__long">{t(`voice.locale.${l}`)}</span>
+              <span className="voicerow__short">{t(`voice.short.${l}`)}</span>
+            </>
+          ),
+        }))}
       />
       <Button
         size="sm"
