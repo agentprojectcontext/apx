@@ -8,6 +8,9 @@ import type { TaskComment } from "../src/tasks/comments";
 import type { TaskActions } from "../src/tasks/TaskMenu";
 import { deferred } from "./transport.test-support";
 
+// Answers drawn here may hold cards with pictures; the native media library is not in tests.
+jest.mock("../src/chat/mediaFiles", () => ({}));
+
 const task: Task = {
   id: "tsk_one",
   title: "Review",

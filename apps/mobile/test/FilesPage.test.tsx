@@ -5,6 +5,9 @@ import { t } from "../src/i18n";
 import { type FileActions, FilesPage } from "../src/pages/FilesPage";
 import { deferred } from "./transport.test-support";
 
+// Answers drawn here may hold cards with pictures; the native media library is not in tests.
+jest.mock("../src/chat/mediaFiles", () => ({}));
+
 const metrics = { frame: { x: 0, y: 0, width: 390, height: 844 }, insets: { top: 20, right: 0, bottom: 20, left: 0 } };
 const data = {
   ...emptyWorkspace,
