@@ -73,7 +73,7 @@
   display: inline-flex;
   width: 60px;
 }
-.topbar__right:is([data-fit="3"], [data-fit="4"]) {
+.topbar__right:is([data-fit="3"], [data-fit="4"], [data-fit="5"]) {
   .engine-usage-trigger__loading {
     width: 14px;
   }
