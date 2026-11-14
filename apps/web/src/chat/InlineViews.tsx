@@ -26,7 +26,7 @@ const initials = (title: string) =>
     .map((w) => w[0]?.toUpperCase() ?? "")
     .join("");
 
-export function ToneBadge({ label, tone }: { label: string; tone: Tone }) {
+function ToneBadge({ label, tone }: { label: string; tone: Tone }) {
   return (
     <Badge tone={BADGE[tone]} dot={tone !== "neutral"}>
       {label}
