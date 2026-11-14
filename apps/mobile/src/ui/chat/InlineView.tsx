@@ -164,7 +164,7 @@ const useStyles = makeStyles((theme) => ({
   badges: { flexDirection: "row", flexWrap: "wrap", gap: 6 },
   fields: { gap: 6 },
   field: { flexDirection: "row", gap: 16 },
-  fieldLabel: { color: theme.subtle, fontSize: 13, minWidth: 80 },
+  fieldLabel: { color: theme.subtle, fontSize: 13, minWidth: 80, maxWidth: "40%" },
   fieldValue: { color: theme.fg, fontSize: 13, flex: 1 },
   divider: { height: 1, backgroundColor: theme.border, marginVertical: 2 },
   details: { borderRadius: theme.radiusMd, backgroundColor: theme.fill },

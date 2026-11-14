@@ -31,8 +31,8 @@ own cards. Always keep a complete text answer outside the block: channels (Whats
 - `title` and `fallback` (what a client that cannot draw it shows) — `fallback` is required.
 - `layout`: `grid` (cards side by side, a picture on top) or `list` (one under another, the picture beside).
 - Per item, only `id` and `title` are required. `eyebrow`: a short label above the title (kind, year, date).
-  `description`: one or two lines. `badges`: up to 8 short tags. `fields`: up to 8 label/value rows (price, times,
-  rating). `details`: longer text the owner opens.
+  `description`: one or two lines. `badges`: up to 8 short tags. `fields`: up to 8 label/value rows of short facts
+  (price, times, rating); a sentence goes in `description` or `details`. `details`: longer text the owner opens.
 - `image` is a picture already in APX: its media id (`med_…`), from a picture you generated, one the owner sent, or
   one you attached. A web address is not drawn: the whole block shows its fallback.
 - Up to 12 items. `"example": true` marks invented or sample data.
