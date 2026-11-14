@@ -4111,7 +4111,7 @@ is asked something. Three agents also worked one task at once, each asked mid-wa
   while any step but the last is left (the last may be the review), and with no plan, unless the owner started the
   turn. Work for someone else becomes a subtask; a lead (a CEO or CTO agent) plans with tasks and subtasks. An
   `@teammate` in a comment still opens a consult on the task (D-132), so asking stays visible and bounded (two a
-  comment, and a consult asks nobody).
+  comment, and a consult asks nobody). *Amended by [D-228](#d-228): a worker of the agent's own may help at any point.*
 - **Two at once**: `MAX_ACTIVE_DELEGATIONS` goes from three to two; the next ones wait in D-096's queue.
 - **No blank runs**: an answer posted on a task joins its text parts only, so the tool calls between them no longer
   leave dozens of empty lines.
@@ -4869,3 +4869,45 @@ activity and end of turn, whisper, Qwen3-TTS, and a model that talks while the a
 Rejected: a channel (it would bring a channel's send path, rewind refusal and avatar); `threads.send` with an agent
 override (a client choosing who answers in a thread); a dedicated small voice model by default (one more thing to set
 up, and the owner's main model answers well enough to start).
+
+<a id="d-228"></a>
+## D-228 — 2026-11-14 — What a run records is what happened; a long turn re-sends only recent output
+A user moved a coding project from APX to Claude Code and Codex: in APX their agents had made branches full of
+decisions and little code. An outside audit reproduced, with APX's own loop and scripted models, how APX's records
+can count that as progress: a command that exited 7 was a step `ok`; reading files through `shell` was an action
+while `file_read` was not; a task whose only work was `implementation-plan.md` closed as done; a worker the developer
+template recommends was refused mid-plan; a long reading turn ran out of context at 42 reads with an `auth` error.
+
+- **A failed command is a failed step** (`commandFailed` in `tools/shell.ts`, `ToolFailed` in `tools/types.ts`): a
+  foreground command that exits non-zero or is stopped at its timeout throws `ToolFailed`; the model reads the same
+  text, the step and its card are `error`. Exit 1 of a search or comparison (`rg`, `grep`, `diff`, `test`, `git diff`)
+  is an answer. In a delegated run's actions, a call that failed and later passed with the same arguments (a test red,
+  then green) is not listed as failed (`actionsOf`).
+- **A read is recorded as a read**: a step's effect is `none` when the tool says the call only reads (`Tool.reads`, the
+  same judgment the policy makes), so `stalled` no longer counts `cat`/`rg` through `shell` as having changed anything,
+  and crash recovery drops an interrupted read instead of reporting its effect unknown.
+- **Claude's own tools end with their result** (`harness/claude.ts`): a `tool_use` starts its step `running`; the
+  `tool_result` with the same id ends it `ok` or, with `is_error`, `error`.
+- **Documents alone are asked about once** (`tools/task-evidence.ts`): when the assignee closes its task as done and
+  every change its runs on the task made (with their workers') was a document (`.md`, `.txt`…) and it ran no command,
+  the close is refused once, saying which documents; closing again passes (`documents_checked` on the task's
+  conversation), so a task that wanted a document costs one extra call.
+- **A worker may help mid-plan** (`midPlan` in `tools/agents.ts`): D-202's rule keeps other agents out until the plan's
+  last step; a worker of the agent's own is its help with the work, not another owner of it. The refusal is now a
+  failed step.
+- **A long turn re-sends recent output** (`harness/output-trim.ts`, `harness/native.ts`): every model call re-sends the
+  turn's tool results. Once they pass 40% of the model's context or 240k characters (about 60k tokens), older results
+  over 400 characters become the same stub old turns get ("call it again if you need it"), down to half of that; the
+  newest two stay whole, calls stay paired and the model log keeps everything. Clearing in steps keeps the prefix the
+  same between clearings, so the provider's cache still holds. The history projection does the same to the newest turn
+  when it alone passes its budget.
+- **Too long is `context`, and is tried once more**: a 400/413 that says the prompt is too long, or every model
+  passed over because the chat does not fit, is a `context` error, no longer `auth`; the native loop then keeps only
+  the newest result and calls once more.
+- **Team messages pass on work**: SAFETY now names contacts' and outside agents' messages as data, and says the owner's
+  own agents (`trust="team"`) pass on work, matching `frameInput` (D-071).
+
+Rejected: counting lines, files or branches as progress (they reward the same churn), a review round on every close
+(D-188), turning every non-zero exit into a turn error (a search that finds nothing exits 1), and clearing output on
+every call (it would change the cached prefix each time).
+

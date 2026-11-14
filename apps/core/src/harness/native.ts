@@ -3,10 +3,11 @@
 
 import { TURN_STEPS } from "@apx/protocol";
 import type { Llm } from "../providers/llm.ts";
-import type { ChatItem, ModelFailure, Usage } from "../providers/types.ts";
+import { type ChatItem, type ModelFailure, ProviderError, type Usage } from "../providers/types.ts";
 import { readsImages } from "../providers/vision.ts";
 import { contextWindow } from "../providers/windows.ts";
 import { modelSpec } from "../tools/types.ts";
+import { clearOlderOutput, outputChars } from "./output-trim.ts";
 import type { Harness } from "./types.ts";
 
 /**
@@ -27,6 +28,12 @@ const LOOKS_AGAIN = new Set(["screen_snapshot", "browser_snapshot"]);
 const READS_AGAIN = new Set(["browser_text"]);
 /** A picture that comes beside a whole text answer: shown only to a model known to read images. */
 const PICTURE_BESIDE_TEXT = new Set(["browser_snapshot"]);
+/**
+ * A turn's tool output may fill this share of the model's context, and at most TURN_OUTPUT_MAX characters (about 60k
+ * tokens), before its older results are cleared down to half of it: every call re-sends them (DECISIONS.md#d-228).
+ */
+const TURN_OUTPUT_SHARE = 0.4;
+const TURN_OUTPUT_MAX = 240_000;
 
 /**
  * A note from APX to the model mid-turn. Sent as a tagged user item: some providers fold every system item into
@@ -53,6 +60,17 @@ export function nativeHarness(llm: Llm): Harness {
     id: "native",
     async run(io) {
       const messages: ChatItem[] = [{ role: "system", content: io.system }, ...io.history, io.input];
+      // This turn's own items start here: only they are cleared, the history was projected to fit already.
+      const start = messages.length;
+      /** Clears this turn's older output past `keep` characters; whether anything changed. */
+      const clear = (keep: number, min?: number) => {
+        const turn = messages.slice(start);
+        const cleared = clearOlderOutput(turn, keep, min);
+        if (cleared.every((m, i) => m === turn[i])) return false;
+        messages.splice(start, turn.length, ...cleared);
+        return true;
+      };
+      let squeezed = false;
       const push = (...items: ChatItem[]) => {
         messages.push(...items);
         io.log(items);
@@ -112,7 +130,15 @@ export function nativeHarness(llm: Llm): Harness {
         for (const t of io.takeSteered?.() ?? []) push({ role: "user", content: t });
         // The owner's "send now" stops this step only: a cut answer is dropped, the loop takes their words next.
         const cut = io.stepSignal?.();
+        const window = usage.window ?? (model ? contextWindow(model) : undefined);
+        const budget = Math.min(TURN_OUTPUT_MAX, window ? window * 4 * TURN_OUTPUT_SHARE : TURN_OUTPUT_MAX);
+        if (outputChars(messages.slice(start)) > budget) clear(budget / 2);
         const c = await step(true, cut).catch((err: unknown) => {
+          // A chat too long for the model: once, keep only the newest results and try again.
+          if (err instanceof ProviderError && err.kind === "context" && !squeezed && !io.signal.aborted) {
+            squeezed = true;
+            if (clear(0, 1)) return undefined;
+          }
           if (io.signal.aborted || !cut?.aborted) throw err;
           io.onText(prefix);
           return undefined;
