@@ -1,7 +1,7 @@
 // APX's own voice as the owner sees it (voice.status / voice.install / voice.set): on by default wherever this machine
 // runs it, downloaded on its own there, and then the first voice and the first transcription of the media services,
 // so agents speak and hear with it unless the owner puts another service first. Other machines get none, and the
-// owner's own services. See DECISIONS.md#d-226
+// owner's own services. See DECISIONS.md#d-227
 import type { ModelRef, NativeVoice, ServiceSettings, VoiceQuality, VoiceStatus } from "@apx/protocol";
 import type { Store } from "../domain/store.ts";
 import type { Log } from "../log.ts";

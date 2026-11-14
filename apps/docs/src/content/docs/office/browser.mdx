@@ -224,14 +224,18 @@ With APX's extension for Chrome, agents can also work in your own Chrome, where 
 - What you write in that side panel always uses your Chrome. Anywhere else (the app, your phone, a channel as you),
   agents use APX's own browser unless you ask for your Chrome ("do it in my Chrome") or a site needs your login: then
   they open a tab in the **APX** group, asking your OK first unless the agent's mode lets it act alone. A contact's
-  message, a request from another agent or a task an agent created never reaches your Chrome; your routines and the
-  tasks you created do, as your own chat does.
+  message, an outside app's agent, an agent working on its own or a task an agent created never reaches your Chrome;
+  your routines and the tasks you created do, as your own chat does.
+- Work an agent hands to a teammate for you goes on in your Chrome too: a helper asked from your chat, your routine
+  or your task can use it as that chat can, and one asked from the side panel works only there. So does the agent
+  when it hears the helper's answer.
 - Agents see only the tabs in the **APX** group. To share a tab you already have open, drag it into the group; drag it
   out to take it back.
 - **Cancel** on Chrome's bar stops APX in that tab at once; it stays yours until you drag it out of the group and back
   in. The agent opens a new tab if it still needs one.
 - Passwords, one-time codes and card details are yours to type: agents refuse those fields and ask you to sign in.
-  Page JavaScript and importing logins stay in APX's own browser.
+  A form holding a password (filled by Chrome from your saved logins, or typed by you) is yours to send too: agents
+  ask you to click **Sign in** and then go on. Page JavaScript and importing logins stay in APX's own browser.
 - APX must be running on the same computer: it connects the extension by itself, in Chrome, Brave, Edge, Arc and
   Chromium on macOS and Linux. `APX_CHROME_HOST=off` turns that off.
 - You do not need to open the side panel for agents to use your Chrome: the extension connects as soon as Chrome
@@ -239,7 +243,8 @@ With APX's extension for Chrome, agents can also work in your own Chrome, where 
   for help only if the extension is missing, turned off or does not connect.
 
 <Aside type="note">
-On Windows, agents cannot use your Chrome yet; the side panel works.
+On Windows, agents cannot use your Chrome yet; the side panel works. With the extension in more than one browser or
+profile, agents use the one that connected last.
 </Aside>
 
 ## From the terminal

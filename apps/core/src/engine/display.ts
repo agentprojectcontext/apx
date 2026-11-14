@@ -48,7 +48,7 @@ export function openDisplay(store: Store, message: Message) {
     thinkingShown = Boolean(text);
     store.runs.thinking(r, text);
   };
-  /** The model wrote or did something: what it was thinking is no longer what it is doing. */
+  /** The model writes, or the run ends: what it last thought goes. A tool call keeps it, being what it is doing. */
   const stopThinking = () => {
     if (thinkingTimer) clearTimeout(thinkingTimer);
     thinkingTimer = undefined;
@@ -56,7 +56,6 @@ export function openDisplay(store: Store, message: Message) {
     if (thinkingShown) showThinking("");
   };
   const flush = () => {
-    stopThinking();
     if (textTimer) clearTimeout(textTimer);
     textTimer = undefined;
     if (pendingText !== undefined) writeText(pendingText);
@@ -164,6 +163,9 @@ export function openDisplay(store: Store, message: Message) {
       if (current.model === model && current.model_reported === model_reported) return;
       current = store.messages.update({ ...current, model, model_reported });
     },
-    close: flush,
+    close() {
+      stopThinking();
+      flush();
+    },
   };
 }

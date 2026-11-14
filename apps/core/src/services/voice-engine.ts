@@ -1,7 +1,7 @@
 // APX's own voice (voice/engine.py), run by APX itself: it speaks the agents' voice notes, transcribes recordings and
 // carries calls. Started when one of those needs it, stopped after a while unused so its models leave memory, listening
 // on loopback only behind a secret. It needs uv, which brings its Python and packages, and Apple silicon (its models
-// run on MLX). See DECISIONS.md#d-226
+// run on MLX). See DECISIONS.md#d-227
 import { type ChildProcess, spawn } from "node:child_process";
 import crypto from "node:crypto";
 import fs from "node:fs";

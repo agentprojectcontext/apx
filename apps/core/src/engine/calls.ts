@@ -2,7 +2,7 @@
 // hears and speaks; the model the call talks with runs here (the owner's main model unless they picked another); this
 // module writes the call down in its thread and takes what the voice asks to the agent called: a sub-chat nested under
 // the call, worked with that agent's own model, shown in the call as a card that settles with the answer.
-// See DECISIONS.md#d-226
+// See DECISIONS.md#d-227
 import crypto from "node:crypto";
 import type { CallVoice, Part, VoiceLocale } from "@apx/protocol";
 import type { Bus } from "../bus.ts";

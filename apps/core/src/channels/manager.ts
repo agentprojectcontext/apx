@@ -20,6 +20,7 @@ import type { Draft } from "../engine/suggest.ts";
 import { errorMessage } from "../errors.ts";
 import type { Log } from "../log.ts";
 import type { InternalCall } from "../rpc/internal.ts";
+import { channelSecret } from "../secret-names.ts";
 import type { Secrets } from "../secrets.ts";
 import { splitSpoken } from "../services/audio.ts";
 import type { Services } from "../services/registry.ts";
@@ -72,7 +73,7 @@ type Live = {
   qr?: string | undefined;
 };
 
-const tokenName = (id: string) => `channel-${id}`;
+const tokenName = channelSecret;
 const MASKED: ReadonlySet<string> = new Set(["email", "googlechat", "teams"]);
 const RETRY_MS = [10_000, 30_000, 60_000, 120_000, 300_000];
 

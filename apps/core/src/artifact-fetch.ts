@@ -1,6 +1,7 @@
 // surfaces.fetch: an artifact's HTTP call through the core, so a credential is injected here and never lives in its
 // HTML. Only origins the artifact declares (`connect`) are reached, redirects included.
 import { badRequest, CallError, unavailable } from "./errors.ts";
+import { artifactSecretPrefix } from "./secret-names.ts";
 
 const FETCH_DEADLINE_MS = 30_000;
 const FETCH_BODY_MAX = 2_000_000;
@@ -20,7 +21,7 @@ export type ArtifactFetchTarget = { name: string; project_id?: string | undefine
 
 /** The full secret name for `name` (a key or `artifact.<artifact>.<key>`), refused when it is another's. */
 export function artifactSecretName(artifact: string, name: string): string {
-  const prefix = `artifact.${artifact}.`;
+  const prefix = artifactSecretPrefix(artifact);
   const full = name.startsWith("artifact.") ? name : prefix + name;
   if (!full.startsWith(prefix) || !/^[a-z0-9][a-z0-9_-]*$/.test(full.slice(prefix.length)))
     throw badRequest(`"${name}" is not one of this artifact's secrets (they are named ${prefix}<key>)`);
@@ -79,7 +80,7 @@ export async function artifactFetch(
   let key: string | undefined;
   if (req.secret) {
     const full = artifactSecretName(target.name, req.secret.name);
-    key = full.slice(`artifact.${target.name}.`.length);
+    key = full.slice(artifactSecretPrefix(target.name).length);
     const pinned = pins.get(key);
     if (pinned && pinned !== url.origin)
       throw badRequest(`this secret is pinned to ${pinned}; the owner can reset it from the artifact's Memory dialog`);

@@ -14,8 +14,9 @@ export const CHROME_TABS_NEWS: NewsEntry = {
     "its side panel makes the agent browse in the owner's own Chrome instead of APX's browser: tabs in an orange " +
     "group called APX, where the owner is signed in and watches. Agents see only that group; the owner shares an " +
     "open tab by dragging it in, and Cancel on Chrome's bar stops APX in a tab. From the app, the phone or a " +
-    "channel the owner can also ask for their Chrome (browser_open with chrome); otherwise APX's browser is used. Agents never type passwords or card details there: the owner signs " +
-    "in. APX must be running on the same computer; it works on macOS and Linux.",
+    "channel the owner can also ask for their Chrome (browser_open with chrome); otherwise APX's browser is used. " +
+    "Their routines, their tasks and the teammates an agent delegates to for them use it too. Agents never type " +
+    "passwords or card details there, nor send a form holding a password: the owner signs in. APX must be running on the same computer; it works on macOS and Linux.",
   actions: [
     {
       label: { en: "How do I set it up?", es: "¿Cómo lo configuro?" },

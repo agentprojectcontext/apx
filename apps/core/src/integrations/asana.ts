@@ -1,7 +1,8 @@
 import type { ParsedParams, Result } from "@apx/protocol";
+import { ASANA_SECRET } from "../secret-names.ts";
 import type { Secrets } from "../secrets.ts";
 
-export const ASANA_SECRET = "asana-token";
+export { ASANA_SECRET };
 export const ASANA_FIELD = {
   name: "token",
   label: "Personal access token",
