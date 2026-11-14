@@ -1,4 +1,4 @@
-import { noticeEn } from "@apx/protocol/notices";
+import { noticeEn } from "@apx/protocol/notices-en";
 import type { enAccount } from "./account-en.ts";
 import type { enActivityReview } from "./activity-review-en.ts";
 import type { ApprovalKey } from "./approvals-en.ts";

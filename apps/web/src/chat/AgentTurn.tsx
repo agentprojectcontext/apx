@@ -27,6 +27,7 @@ import {
   InputPart,
   MediaGroup,
   MessageLink,
+  NoticePart,
   ReceivedDialog,
   SkillsPart,
   SubthreadPart,
@@ -40,7 +41,6 @@ import { FilePart } from "./parts/FilePart.tsx";
 import { imageGenerationBlocks } from "./parts/imageGeneration.ts";
 import { AudioPart } from "./parts/lazyAudio.tsx";
 import type { MediaBlock } from "./parts/mediaGroups.ts";
-import { NoticePart } from "./parts/NoticePart.tsx";
 import { PlanPart } from "./parts/PlanPart.tsx";
 import { ToolGroup } from "./parts/ToolGroup.tsx";
 import { planLast } from "./planLast.ts";
@@ -315,7 +315,11 @@ function renderCard(p: Part, agent: Agent | undefined, message: Msg): ReactNode 
     case "audio":
       return <AudioPart part={p} />;
     case "notice":
-      return <NoticePart part={p} />;
+      return (
+        <Suspense fallback={p.text}>
+          <NoticePart part={p} />
+        </Suspense>
+      );
     case "plan":
       return <PlanPart part={p} />;
     case "input":

@@ -80,7 +80,10 @@ for (const language of ["en", "es"] as const) {
       author: { kind: "agent", id: "superagent" },
       parts:
         i === 0
-          ? [{ type: "notice", level: "error", code: "verification.failed", text: "Verification failed" }]
+          ? [
+              { type: "notice", level: "error", code: "verification.failed", text: "Verification failed" },
+              { type: "notice", level: "error", code: "run.failed", text: "Could not finish." },
+            ]
           : [{ type: "text", text: `Response ${i + 1}` }],
       created_at: new Date(0).toISOString(),
       ...(model ? { model } : {}),
@@ -117,6 +120,9 @@ for (const language of ["en", "es"] as const) {
     const unconfirmed = language === "en" ? "Model unconfirmed" : "Modelo sin confirmar";
     await expect(page.locator(".transcript__speakername").filter({ hasText: "Claude Code" })).toHaveCount(5);
     await expect(page.getByText("Verification failed", { exact: true })).toBeVisible();
+    await expect(
+      page.getByText(language === "en" ? "Could not finish." : "No pude terminar.", { exact: true }),
+    ).toBeVisible();
     await expect(page.locator(".apx-msgmeta").filter({ hasText: unconfirmed })).toHaveCount(3);
     await expect(page.locator(".apx-msgmeta").filter({ hasText: "Reported model A" })).toHaveCount(1);
     await expect(page.locator(".apx-msgmeta").filter({ hasText: "Reported model B" })).toHaveCount(1);
