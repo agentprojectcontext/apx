@@ -701,6 +701,8 @@ export const es: Record<Key, string> = {
   mailCc: "Cc",
   mailFrom: "De",
   mailDate: "Fecha",
+  inlineDetails: "Ver detalles",
+  inlineExample: "Datos de ejemplo",
   mailNoSubject: "Sin asunto",
   mailSend: "Enviar",
   mailSendWith: "Enviar con",

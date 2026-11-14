@@ -50,15 +50,17 @@ export function PersonAvatar({
   const s = useStyles();
   const client = useContext(MediaClient);
   const [picture, setPicture] = useState<{ person: string; uri: string }>();
+  // Someone in a room the owner never saved is named by their app's id ("whatsapp:5491…"): no picture to ask for.
+  const saved = person && !person.includes(":") ? person : undefined;
   useEffect(() => {
-    if (!client || !person) return;
+    if (!client || !saved) return;
     let live = true;
-    void pictureOf(client, person).then((uri) => live && uri && setPicture({ person, uri }));
+    void pictureOf(client, saved).then((uri) => live && uri && setPicture({ person: saved, uri }));
     return () => {
       live = false;
     };
-  }, [client, person]);
-  const uri = picture?.person === person ? picture?.uri : undefined;
+  }, [client, saved]);
+  const uri = saved && picture?.person === saved ? picture?.uri : undefined;
   const mark = Math.max(14, Math.round(size * 0.42));
   return (
     <View accessible accessibilityRole="image" accessibilityLabel={name} style={{ width: size, height: size }}>

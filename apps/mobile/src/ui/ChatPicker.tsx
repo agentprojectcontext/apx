@@ -1,11 +1,12 @@
 import { useMemo, useState } from "react";
 import { Pressable, ScrollView, Text, TextInput, View } from "react-native";
 import { sentenceCase } from "../format";
-import { chatPreview, isWorking, listedThreads, pickAgents } from "../hooks/chatSelectors";
+import { channelIdentity, chatPreview, isWorking, listedThreads, pickAgents } from "../hooks/chatSelectors";
 import type { Agent, Thread, Workspace } from "../hooks/useWorkspace";
 import { t } from "../i18n";
 import { Icon } from "./Icon";
 import { AgentAvatar, BottomSheet, Chip, GroupLabel, Spinner, useType } from "./kit";
+import { PersonAvatar } from "./PersonAvatar";
 import { makeStyles, useTheme } from "./theme";
 
 /** Starts a chat with an agent of a project, or jumps to another chat. */
@@ -113,12 +114,19 @@ export function ChatPicker({
       ) : (
         threads.map((thread) => {
           const agent = data.agents.find((entry) => entry.id === thread.agent_ids[0]);
+          const contact = channelIdentity(thread, data);
           return (
             <Row
               key={thread.id}
               title={thread.title}
               sub={chatPreview(thread)}
-              avatar={<AgentAvatar name={agent?.name ?? thread.title} blob={agent?.blob} id={agent?.id} size={36} />}
+              avatar={
+                contact ? (
+                  <PersonAvatar person={contact.person} name={contact.name} size={36} channel={contact.type} />
+                ) : (
+                  <AgentAvatar name={agent?.name ?? thread.title} blob={agent?.blob} id={agent?.id} size={36} />
+                )
+              }
               trailing={
                 isWorking(thread.state) ? (
                   <Spinner size={14} />

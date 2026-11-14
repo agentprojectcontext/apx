@@ -1,6 +1,6 @@
 ---
 name: apx-artifacts
-description: How to build and update APX artifacts with show_widget, edit_widget and read_widget. An artifact is a widget (one HTML page in the chat or on a project's board: a chart, a dashboard, a form, a small tool) or an app (fullscreen, listed in Apps, may keep records). Use before making a widget bigger than a quick view, any app, or changing an existing artifact.
+description: How to build and update APX artifacts with show_widget, edit_widget and read_widget. An artifact is a widget (one HTML page in the chat or on a project's board: a chart, a dashboard, a form, a small tool) or an app (fullscreen, listed in Apps, may keep records). Use before making a widget bigger than a quick view, any app, or changing an existing artifact, and before showing results to compare (movies, stays, flights, products) as cards in an answer.
 ---
 
 # Artifacts in APX
@@ -26,6 +26,8 @@ through `show_widget` or by saving its page in the artifact folder below.
 
 ## Make the smallest thing that answers
 
+0. **Cards in your answer** — results the owner compares (movies, stays, flights, products) or a short set of
+   steps: an ```apx-cards or ```a2ui block in your reply, no artifact: [references/cards.md](references/cards.md).
 1. **A widget, one hand-written HTML** — almost always. A chart, a table, a status card, a form, a quick calculator, a
    view of what you just found: that is a widget, written straight into `show_widget`. Nothing sophisticated.
 2. **An app** only when the owner asks for one, or it must keep records the owner adds over time (a log, a CRM, an

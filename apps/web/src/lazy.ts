@@ -78,6 +78,8 @@ export const RewindEditor = lazy(() => import("./chat/RewindParts.tsx").then((m)
 // A message link's right-click menu, or an app link's button.
 export const MessageLink = lazy(() => import("./chat/LinkMenu.tsx").then((m) => ({ default: m.MessageLink })));
 // Parts only some messages carry and a task chat's header pieces.
+export const NoticePart = lazy(() => import("./chat/parts/NoticePart.tsx").then((m) => ({ default: m.NoticePart })));
+export const InlineView = lazy(() => import("./chat/InlineView.tsx").then((m) => ({ default: m.InlineView })));
 export const ChangesPart = lazy(() => import("./chat/parts/ChangesPart.tsx").then((m) => ({ default: m.ChangesPart })));
 export const SkillsPart = lazy(
   withPacks(["resources"], () => import("./chat/parts/SkillsPart.tsx").then((m) => ({ default: m.SkillsPart }))),
