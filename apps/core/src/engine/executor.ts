@@ -455,7 +455,9 @@ export function createExecutor(o: {
       return { ok: false, text: transferred, endTurn: true };
     }
     toolsRan++;
-    const stepId = store.runs.beginStep(run.id, { call_id: callId, tool: name, args, effect: tool.effect });
+    // A command that only reads is recorded as a read, as the policy judged it: looking around is not progress.
+    const effect = tool.reads?.(args) ? "none" : tool.effect;
+    const stepId = store.runs.beginStep(run.id, { call_id: callId, tool: name, args, effect });
     store.runs.setActivity(run.id, title, true);
     const seen: Array<{ media_id: string; mime: string }> = [];
     const ctx: Omit<ToolContext, "runCommand"> = {

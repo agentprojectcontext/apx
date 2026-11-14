@@ -4,7 +4,7 @@ import type { PendingInput } from "@apx/protocol";
 import { callTool, inputOrEnd, inputsOrEnd, say, scriptedLlm, startCore } from "../engine/testkit.ts";
 import { realpath } from "../paths.ts";
 import { removeDir } from "../testkit/platform.ts";
-import { broadScan, commandRisk, reachesOut } from "./shell.ts";
+import { broadScan, commandFailed, commandRisk, reachesOut } from "./shell.ts";
 
 test("command risk: reading runs, changing asks, destroying always asks", () => {
   for (const c of [
@@ -250,6 +250,8 @@ const llm = scriptedLlm((req, { said, afterTool }) => {
   if (said.includes("scan please"))
     return callTool("s7", "shell", { command: "find /Volumes/disk -type d -name audit -print" });
   if (said.includes("touch please")) return callTool("s4", "shell", { command: "touch made-by-agent" });
+  if (said.includes("fail please")) return callTool("f1", "shell", { command: `node -e "process.exit(7)"` });
+  if (said.includes("find nothing please")) return callTool("f2", "shell", { command: "grep -r zzz-not-here-zzz ." });
   if (said.includes("escape please")) return callTool("s5", "shell", { command: "ls", cwd: "../.." });
   if (said.includes("gone please")) return callTool("s8", "shell", { command: "ls", cwd: "gone-tree" });
   return say("ok");
@@ -478,4 +480,37 @@ test("an agent's command says whose it is, so the apx CLI does not speak as the 
   await env.client.call("threads.send", { thread: t, text: "whose please" });
   await env.settle(t);
   assert.match(lastSeen(), /agent=superagent/);
+});
+
+test("a non-zero exit is a failed command, except a search or comparison that found nothing", () => {
+  assert.equal(commandFailed("pnpm test", 0), false);
+  assert.equal(commandFailed("pnpm test", 1), true);
+  assert.equal(commandFailed(`node -e "process.exit(7)"`, 7), true);
+  assert.equal(commandFailed("rg -n TODO src", 1), false);
+  assert.equal(commandFailed("cat a | grep x", 1), false);
+  assert.equal(commandFailed("git diff --exit-code", 1), false);
+  assert.equal(commandFailed("grep x a", 2), true);
+  assert.equal(commandFailed("grep x a && pnpm build", 1), true);
+});
+
+test("a command that exits non-zero is recorded as a failed step, and the model still reads its exit and output", async () => {
+  const t = await thread();
+  await env.client.call("threads.send", { thread: t, text: "fail please" });
+  await env.settle(t);
+  assert.match(lastSeen(), /exit 7/);
+  const run = env.core.store.runs.list(t, 1)[0];
+  const step = env.core.store.runs.steps(run?.id ?? "").find((s) => s.call_id === "f1");
+  assert.equal(step?.state, "error");
+  assert.notEqual(step?.effect, "none");
+});
+
+test("a search that finds nothing is an answer, and a command that only reads is recorded as a read", async () => {
+  const t = await thread();
+  await env.client.call("threads.send", { thread: t, text: "find nothing please" });
+  await env.settle(t);
+  assert.match(lastSeen(), /exit 1/);
+  const run = env.core.store.runs.list(t, 1)[0];
+  const step = env.core.store.runs.steps(run?.id ?? "").find((s) => s.call_id === "f2");
+  assert.equal(step?.state, "ok");
+  assert.equal(step?.effect, "none");
 });
