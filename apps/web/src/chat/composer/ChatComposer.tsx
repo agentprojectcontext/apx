@@ -17,7 +17,7 @@ import { isNewChat } from "../../data/newChat.ts";
 import { notify } from "../../data/notices.ts";
 import { useData } from "../../data/state.ts";
 import { useT } from "../../i18n/index.ts";
-import { AsidePanel, AttachChips, PlusMenu, QueueTray } from "../../lazy.ts";
+import { AsidePanel, AttachChips, MicWave, PlusMenu, QueueTray, VoiceRecording } from "../../lazy.ts";
 import { go } from "../../shell/nav.ts";
 import { ContextChip } from "./ContextChip.tsx";
 import { ContextChips } from "./ContextChips.tsx";
@@ -29,7 +29,6 @@ import { useThreadUsage } from "./usage.ts";
 import { useAttachments } from "./useAttachments.ts";
 import { useDictation } from "./useDictation.ts";
 import { useFileDrop } from "./useFileDrop.ts";
-import { MicWave, VoiceRecording } from "./VoiceRecording.tsx";
 
 /**
  * The chat's composer, one line: + (files, a folder, audio, a skill, connectors, commands), the field, the mic
@@ -280,11 +279,15 @@ export function ChatComposer({
         header={
           micBusy || hearing > 0 || att.chips.length || refs.length ? (
             <>
-              <VoiceRecording
-                state={micBusy ? mic.state : hearing > 0 ? "transcribing" : "idle"}
-                seconds={mic.seconds}
-                heard={mic.heard}
-              />
+              {(micBusy || hearing > 0) && (
+                <Suspense fallback={null}>
+                  <VoiceRecording
+                    state={micBusy ? mic.state : "transcribing"}
+                    seconds={mic.seconds}
+                    heard={mic.heard}
+                  />
+                </Suspense>
+              )}
               {refs.length > 0 && <ContextChips refs={refs} onRemove={(r) => removeRef(thread.id, r)} />}
               {att.chips.length > 0 && (
                 <Suspense fallback={<div role="status">{att.chips.map((chip) => chip.name).join(", ")}</div>}>
@@ -344,7 +347,11 @@ export function ChatComposer({
             )}
             {mic.state !== "unsupported" && !inCall && (
               <span className="composer__voice">
-                {mic.state === "recording" && <MicWave levels={mic.levels} />}
+                {mic.state === "recording" && (
+                  <Suspense fallback={null}>
+                    <MicWave levels={mic.levels} />
+                  </Suspense>
+                )}
                 <IconButton
                   size="md"
                   shape="circle"

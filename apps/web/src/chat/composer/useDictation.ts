@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { type Attached, listen, transcribe, upload } from "../../data/composer.ts";
 import { notify } from "../../data/notices.ts";
 import { t } from "../../i18n/index.ts";
-import { startVoiceMeter } from "./voiceMeter.ts";
+import { loadVoiceMeter } from "../../lazy.ts";
 
 export type DictationState = "idle" | "starting" | "recording" | "transcribing" | "unsupported";
 
@@ -106,7 +106,10 @@ export function useDictation(
     setState("starting");
     let stream: MediaStream | undefined;
     try {
+      // The level meter loads while the browser asks for the microphone.
+      const meter = loadVoiceMeter();
       stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const { startVoiceMeter } = await meter;
       if (!alive.current) {
         for (const tr of stream.getTracks()) tr.stop();
         return;

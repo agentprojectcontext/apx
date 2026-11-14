@@ -30,6 +30,12 @@ export const OAuthReturn = lazy(
 export const AttachChips = lazy(() =>
   import("./chat/composer/AttachChips.tsx").then((m) => ({ default: m.AttachChips })),
 );
+// The composer's microphone while it records: what it hears and for how long.
+export const VoiceRecording = lazy(() =>
+  import("./chat/composer/VoiceRecording.tsx").then((m) => ({ default: m.VoiceRecording })),
+);
+export const SlashList = lazy(() => import("./chat/composer/SlashList.tsx").then((m) => ({ default: m.SlashList })));
+export const MicWave = lazy(() => import("./chat/composer/VoiceRecording.tsx").then((m) => ({ default: m.MicWave })));
 
 // Screens and dialogs loaded when first opened: the chat is what the panel opens on.
 export const AppScreen = lazy(() => import("./apps/AppScreen.tsx").then((m) => ({ default: m.AppScreen })));
@@ -331,3 +337,4 @@ export const QrSvg = lazy(() => import("./common/QrSvg.tsx").then((m) => ({ defa
 // Plain modules loaded on first use.
 export const loadOsNotices = () => import("./shell/osNotices.ts");
 export const loadSounds = () => import("./shell/sounds.ts");
+export const loadVoiceMeter = () => import("./chat/composer/voiceMeter.ts");
