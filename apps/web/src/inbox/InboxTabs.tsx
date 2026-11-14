@@ -6,11 +6,11 @@ import { DEFAULT_PID, isWorking, projectName, routineName, threadAgent } from ".
 import { loadRoutines, useRoutines } from "../data/routines.ts";
 import { useData, useShownAgents } from "../data/state.ts";
 import { useT } from "../i18n/index.ts";
-import { ChannelBundle, TaskBundle } from "../lazy.ts";
+import { CallBundle, ChannelBundle, TaskBundle } from "../lazy.ts";
 import { scheduleText } from "../routines/scheduleText.ts";
 import { go, useNav } from "../shell/nav.ts";
 import { ListedChat } from "./Delegated.tsx";
-import { bundleChannels, type ListEntry } from "./groupThreads.ts";
+import { bundleChats, type ListEntry } from "./groupThreads.ts";
 import { ProjectBadge } from "./ProjectBadge.tsx";
 import { ThreadAvatar } from "./ThreadAvatar.tsx";
 import { ThreadRow } from "./ThreadRow.tsx";
@@ -54,8 +54,8 @@ function InboxSection({
 }
 
 /**
- * Chats: pinned ones, then the rest by their last message; archived ones under a fold. `byChannel`: the rest's chats
- * on each channel account go under one row.
+ * Chats: pinned ones, then the rest by their last message; archived ones under a fold. The calls go under one Calls
+ * row; with `byChannel`, the rest's chats on each channel account go under one row too.
  */
 export function ChatsTab({
   entries,
@@ -77,17 +77,19 @@ export function ChatsTab({
   const pinned = entries.filter((th) => th.pinned);
   const rest = entries.filter((th) => !th.pinned);
   const row = (th: Thread) => <ChatRow key={th.id} thread={th} selected={selected} account={account} />;
-  const recent = byChannel
-    ? bundleChannels(rest).map((e) =>
-        e.kind === "thread" ? (
-          row(e.thread)
-        ) : (
-          <Suspense key={`channel:${e.account}`} fallback={null}>
-            <ChannelBundle account={e.account} threads={e.threads} selected={selected} />
-          </Suspense>
-        ),
-      )
-    : rest.map(row);
+  const recent = bundleChats(rest, byChannel).map((e) =>
+    e.kind === "thread" ? (
+      row(e.thread)
+    ) : e.kind === "calls" ? (
+      <Suspense key="calls" fallback={null}>
+        <CallBundle threads={e.threads} selected={selected} />
+      </Suspense>
+    ) : (
+      <Suspense key={`channel:${e.account}`} fallback={null}>
+        <ChannelBundle account={e.account} threads={e.threads} selected={selected} />
+      </Suspense>
+    ),
+  );
   return (
     <>
       {pinned.length > 0 && <InboxSection label={t("inbox.pinned")}>{pinned.map(row)}</InboxSection>}

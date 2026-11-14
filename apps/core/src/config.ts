@@ -108,6 +108,8 @@ export type CoreConfig = {
   chromeHost: string[];
   /** Ollama on this machine, for memory's embedding models (APX_OLLAMA_URL; a test points it elsewhere). */
   ollamaUrl: string;
+  /** APX's own voice (services/native-voice.ts): download it on its own where it runs (APX_VOICE_AUTO on|off). */
+  voice: { auto: boolean };
   /**
    * Model apps looked for on this computer, their chat models offered with no setup (APX_LOCAL_MODELS: "off", or
    * `id:port` pairs of LOCAL_APPS; a test core looks for none).
@@ -272,6 +274,8 @@ export function loadConfig(processEnv: NodeJS.ProcessEnv = process.env, readCore
       auto: env.APX_RUNTIME_SKILLS === "on" || (!env.APX_HOME && env.APX_RUNTIME_SKILLS !== "off"),
     },
     ollamaUrl: env.APX_OLLAMA_URL || "http://127.0.0.1:11434",
+    // A scratch core (its own APX_HOME) does not download the voice on its own.
+    voice: { auto: env.APX_VOICE_AUTO === "on" || (!env.APX_HOME && env.APX_VOICE_AUTO !== "off") },
     localModels: localApps(env.APX_LOCAL_MODELS),
     providers: [...custom, ...DEFAULT_PROVIDERS],
     secrets: env.APX_SECRETS === "file" ? "file" : systemBackend(),
@@ -315,6 +319,8 @@ export function testConfig(over: Partial<CoreConfig> & { home: string }): CoreCo
     hermes: path.join(over.home, "hermes-home"),
     native,
     runtimeSkills: { homes: { home: over.home, ...native }, auto: false },
+    // A test never downloads APX's voice (gigabytes, and a process that outlives the test).
+    voice: { auto: false },
     updates: "off",
     whatsNew: false,
     news: false,

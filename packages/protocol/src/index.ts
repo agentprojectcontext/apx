@@ -4,6 +4,7 @@ export * from "./app-methods.ts";
 export * from "./artifact-methods.ts";
 export * from "./asana-methods.ts";
 export * from "./browser.ts";
+export * from "./call-methods.ts";
 export * from "./chrome.ts";
 export * from "./composer-methods.ts";
 export * from "./constants.ts";

@@ -4,8 +4,12 @@ import { inInbox, inProject, isTopLevel } from "../data/identity.ts";
 /** `routines`: routine runs that told something are listed too. */
 type Filter = { projectId?: string; query?: string; routines?: boolean };
 
-/** A chat an agent delegated: it hangs under the chat it came from. */
-const isDelegated = (t: Thread) => t.kind === "a2a" && !!t.parent_id && !t.archived;
+/**
+ * A chat that hangs under the chat it came from: one an agent delegated, or what a call asked the super-agent (an
+ * agent's chat inside the call).
+ */
+export const isDelegated = (t: Pick<Thread, "kind" | "parent_id" | "archived">) =>
+  (t.kind === "a2a" || t.kind === "agent") && !!t.parent_id && !t.archived;
 
 const delegatedCache = new WeakMap<Record<string, Thread>, Map<string, Thread[]>>();
 
@@ -143,15 +147,33 @@ export function bundleTasks(list: Thread[]): ListEntry[] {
   return out;
 }
 
-/** A row of the Chats tab: a chat, or (`channel`) every chat on one channel account, together. */
-export type ChatEntry = { kind: "thread"; thread: Thread } | { kind: "channel"; account: string; threads: Thread[] };
+/**
+ * A row of the Chats tab: a chat, (`channel`) every chat on one channel account together, or (`calls`) every call with
+ * any agent.
+ */
+export type ChatEntry =
+  | { kind: "thread"; thread: Thread }
+  | { kind: "channel"; account: string; threads: Thread[] }
+  | { kind: "calls"; threads: Thread[] };
 
-/** Chats on a channel account go together, where the account's most recent one would be; the rest stay as they are. */
-export function bundleChannels(list: readonly Thread[]): ChatEntry[] {
+/**
+ * The calls go together, where the most recent one would be; with `byChannel`, so do the chats on each channel
+ * account. The rest stay as they are.
+ */
+export function bundleChats(list: readonly Thread[], byChannel = true): ChatEntry[] {
   const out: ChatEntry[] = [];
   const accounts = new Map<string, Extract<ChatEntry, { kind: "channel" }>>();
+  let calls: Extract<ChatEntry, { kind: "calls" }> | undefined;
   for (const thread of list) {
-    const account = thread.channel?.id;
+    if (thread.kind === "call") {
+      if (calls) calls.threads.push(thread);
+      else {
+        calls = { kind: "calls", threads: [thread] };
+        out.push(calls);
+      }
+      continue;
+    }
+    const account = byChannel ? thread.channel?.id : undefined;
     if (!account) {
       out.push({ kind: "thread", thread });
       continue;

@@ -6,7 +6,9 @@ import { useEngineLabel } from "../../common/useEngineLabel.ts";
 import { ModelChoicePicker } from "../../config/models/ModelPickers.tsx";
 import { cancel, loadThread, makeChat, send } from "../../data/actions.ts";
 import { openAside, useAsideOpen } from "../../data/aside.ts";
+import { useCalls } from "../../data/calls.ts";
 import { sendDirect, useChannels } from "../../data/channels.ts";
+import { client } from "../../data/client.ts";
 import { setThreadModel, transcribe } from "../../data/composer.ts";
 import { draftOf, keepDraft, subscribeDrafts } from "../../data/drafts.ts";
 import { isPending, isWorking } from "../../data/identity.ts";
@@ -82,6 +84,8 @@ export function ChatComposer({
   const micBusy = mic.state === "recording" || mic.state === "starting" || mic.state === "transcribing";
   // A group takes no files yet.
   const group = thread.kind === "group";
+  // The call going on is in this chat: typing talks to it, and its microphone is the call's.
+  const inCall = useCalls((s) => thread.kind === "call" && (s.live ?? s.status?.live) === thread.id);
   // The one shortcut worth knowing while the agent works, under the box; not while the mic has the field.
   const queueHint = isWorking(thread.state) && !micBusy ? t("composer.queueHint", { mod: MOD }) : undefined;
   const over = useFileDrop(box, (files) => {
@@ -143,6 +147,14 @@ export function ChatComposer({
     const added = takeRefs(thread.id);
     const words = withRefs(value.trim() || (attachments.length ? t("composer.attachedOnly") : ""), added);
     if (!words) return;
+    if (inCall) {
+      // Typed during the call: the voice takes the words as said and answers aloud.
+      att.restore(attachments);
+      if (attachments.length) return notify(t("call.noFiles"), "info");
+      setText("");
+      void client.call("calls.say", { thread_id: thread.id, text: words }).catch(() => setText((cur) => cur || value));
+      return;
+    }
     if (room && direct) {
       att.restore(attachments);
       if (attachments.length) return notify(t("ch.room.noFiles", { agent: agentName }), "info");
@@ -330,7 +342,7 @@ export function ChatComposer({
                 />
               </Suspense>
             )}
-            {mic.state !== "unsupported" && (
+            {mic.state !== "unsupported" && !inCall && (
               <span className="composer__voice">
                 {mic.state === "recording" && <MicWave levels={mic.levels} />}
                 <IconButton

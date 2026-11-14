@@ -4,7 +4,7 @@ import logoUrl from "../assets/logo.png";
 import { secretary } from "../data/identity.ts";
 import { useData } from "../data/state.ts";
 import { useT } from "../i18n/index.ts";
-import { EngineUsageButton, RunningIndicator, UsageButton } from "../lazy.ts";
+import { CallButton, EngineUsageButton, RunningIndicator, UsageButton } from "../lazy.ts";
 import { AttentionTray } from "./AttentionTray.tsx";
 import { useDesktopClass } from "./desktop.ts";
 import { go, useNavHistory } from "./nav.ts";
@@ -101,6 +101,12 @@ export function Topbar() {
             />
           }
         />
+        {/* A call to the super-agent, beside it and never folded away with the rest. */}
+        {sec && (
+          <Suspense fallback={null}>
+            <CallButton agent={sec} className="topbar__call" />
+          </Suspense>
+        )}
         {sec && <SuperAgentButton agent={sec} />}
       </div>
     </header>

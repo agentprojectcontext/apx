@@ -3,6 +3,8 @@ import type { enAccount } from "./account-en.ts";
 import type { enActivityReview } from "./activity-review-en.ts";
 import type { ApprovalKey } from "./approvals-en.ts";
 import type { BrowserEditKey } from "./browser-edit-en.ts";
+import type { enCall } from "./call-en.ts";
+import { enCallSlim } from "./call-slim-en.ts";
 import { enChannelsSlim } from "./channels-slim-en.ts";
 import { enChatSlim } from "./chat-slim-en.ts";
 import { enComposerSlim } from "./composer-slim-en.ts";
@@ -41,6 +43,7 @@ import type { SysUsageKey } from "./sysusage-en.ts";
 import { enTeamShared } from "./team-shared-en.ts";
 import type { enThreadDialogs } from "./thread-dialogs-en.ts";
 import { enTopbar } from "./topbar-en.ts";
+import type { enVoice } from "./voice-en.ts";
 
 // UI strings, English: the source of truth. Every key lives here; `{name}` placeholders are filled by t().
 export const en = {
@@ -86,6 +89,7 @@ export const en = {
   ...enProjectSlim,
   ...enInboxSlim,
   ...enChannelsSlim,
+  ...enCallSlim,
   "engineUsage.title": "AI quotas",
   "engineUsage.remaining": "{pct}% remaining",
   "engineUsage.primary": "Current window",
@@ -1632,6 +1636,7 @@ export const en = {
   "tg.code": "Code",
   "tg.link": "Link",
   "config.voices": "Voices",
+  "config.calls": "Calls",
   "config.images": "Images",
   "svc.image.lead": "Tried in this order; the first that answers draws. Local, another machine or an API.",
   "svc.speech.lead": "Tried in this order; the first that answers speaks.",
@@ -1947,12 +1952,14 @@ export type MessageKey =
   | keyof typeof enAccount
   | keyof typeof enGroup
   | keyof typeof enActivityReview
+  | keyof typeof enCall
   | ApprovalKey
   | BrowserEditKey
   | ComputerKey
   | ReceivedKey
   | SysUsageKey
   | keyof typeof enStorage
+  | keyof typeof enVoice
   | keyof typeof enSignIn
   | keyof typeof enMove
   | keyof typeof enMemoryPanel

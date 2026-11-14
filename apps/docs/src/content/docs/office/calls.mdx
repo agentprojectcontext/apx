@@ -1,0 +1,77 @@
+---
+title: Calls and APX's voice
+description: APX's own voice speaks your agents' voice notes and hears yours, and lets you call any agent and keep talking while it works.
+sidebar:
+  order: 10
+---
+
+import { Aside } from "@astrojs/starlight/components";
+
+APX has a voice of its own that runs on your Mac. Your agents speak their voice notes with it, it writes down the voice
+notes you send them, and it lets you **call** any of your agents and talk to it like on the phone.
+
+## APX's voice
+
+Open **Settings › Voices**. It is one list of voices, tried in order: the first that answers speaks. APX's own voice is
+the first row, **APX — On this computer**, with its switch:
+
+- **Female or male**, in **Spanish (Argentina)**, **Spanish** (neutral) or **English (US)**. Press **Listen** to hear
+  it. The voice you pick is the one your agents speak with, and the one a call starts with.
+- On a Mac with Apple silicon it downloads on its own the first time. A Mac with less than 32 GB of memory gets the
+  light voice (about 3 GB), which keeps it quick with everything else open; from 16 GB you can pick **Full** under
+  **Quality** (about 6 GB), which sounds more natural. You can follow the download there, or turn the voice off.
+- It needs [uv](https://docs.astral.sh/uv/) (`brew install uv`), which brings what the voice runs on.
+- With less than 8 GB of memory, or on another computer, APX's voice does not run: use a voice service of your own
+  in the same list (OpenAI, Gemini, QVox or any compatible server), and a transcription service for your voice notes.
+  The row says why it can't run.
+
+Below it are your own voice services; **Add** sets up another one, and the arrows change the order. **Transcription**,
+further down, works the same way: APX first, then your own. Once it is ready APX's voice is first in both, so your
+agents use it unless you move another service above it. The voices are APX's own, made for it: no real person's voice.
+
+### A voice of your own
+
+To use a recording of your own instead of one of APX's voices, put it in the `voices` folder of APX's home with that
+voice's name: `es-AR-female.wav`, `es-AR-male.wav`, `es-female.wav`, `es-male.wav`, `en-US-female.wav` or
+`en-US-male.wav`. Add a `.json` with the same name and what the recording says (`{"refText": "…"}`): the voice copies
+it more faithfully. A clean recording of 10 to 30 seconds works best. Use only a voice you have the right to use.
+
+<Aside>
+The voice loads when something needs it and leaves memory after 10 minutes unused. The first voice note or call after a
+while takes some seconds more.
+</Aside>
+
+## Make a call
+
+Calls are on unless you turn them off: **Settings › Calls › Allow calls**. With calls off the phone buttons are hidden,
+and your agents still speak and hear voice notes.
+
+Press the phone button at the top of the panel to call your super-agent, or **Call** on any agent's profile, its menu
+or its chat. Pick the voice and the accent; APX remembers them. Speak normally: you can interrupt the voice at any
+moment, and saying "ok, I'll wait" leaves it quiet until there is news.
+
+What you say shows in the call's chat as you speak, and the voice's words as it says them. You can also type in the
+call's chat while it goes on: the voice takes it as said and answers aloud. The call card moves anywhere by its top
+and folds to it, so it never covers what you need.
+
+When you ask for something that needs real work (what is in a project, a mail, your calendar, something on the web),
+the voice says it is on it and the agent you called does it while you keep talking. Ask for several things at once and
+each one runs on its own; you hear each answer as soon as it is ready, never over your own words.
+
+## Where calls go
+
+Each call is one chat in the **Calls** group of the Inbox, with what you said and what the voice answered. Each thing it
+asked the agent hangs inside the call as a card: open it to see how it was done. Calling again from a call's chat goes
+on in that same chat.
+
+## The model a call talks with
+
+A call talks with **your main model**, the one APX uses by default, so there is nothing to set up. To use another one,
+pick it in **Settings › Calls › Model for calls**: any model APX has, including a server of your own added as a
+provider. A small, fast model makes the conversation feel quicker. The agent you call always works with its own model.
+
+## Settings in `core.env`
+
+| Variable | Default | What it sets |
+|---|---|---|
+| `APX_VOICE_AUTO` | `on` for the default home | `on` or `off`: download APX's voice on its own where this Mac runs it. A core with its own `APX_HOME` doesn't, unless this says `on`. |

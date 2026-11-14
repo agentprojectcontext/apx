@@ -299,7 +299,19 @@ export const TERMINAL_RUN_STATES: readonly RunState[] = ["completed", "failed", 
 export const RunEndReason = z.enum(["normal", "step_limit", "failed", "canceled", "deadline", "provider_limit"]);
 export type RunEndReason = z.infer<typeof RunEndReason>;
 
-export const ThreadKind = z.enum(["home", "agent", "loose", "a2a", "group", "code", "channel", "task", "routine"]);
+/** `call`: a voice call with an agent (call-methods.ts). */
+export const ThreadKind = z.enum([
+  "home",
+  "agent",
+  "loose",
+  "a2a",
+  "group",
+  "code",
+  "channel",
+  "task",
+  "routine",
+  "call",
+]);
 /** What an agent may change in a code thread's folder: ask each time, change files freely, or only read. */
 export const WritePolicy = z.enum(["ask", "auto", "read-only"]);
 export type WritePolicy = z.infer<typeof WritePolicy>;
@@ -776,6 +788,8 @@ export const AuxPurpose = z.enum([
   "sticker",
   "aside",
   "mail",
+  /** What a voice call says (the model it talks with). */
+  "call",
 ]);
 export type AuxPurpose = z.infer<typeof AuxPurpose>;
 
@@ -1338,6 +1352,8 @@ export const ServiceDialect = z.enum([
   "whisper-local",
   "whisper-cpp",
   "openai-transcribe",
+  /** APX's own voice on this machine (voice-methods in call-methods.ts): it speaks and transcribes. */
+  "apx-voice",
 ]);
 export type ServiceDialect = z.infer<typeof ServiceDialect>;
 

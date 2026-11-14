@@ -28,6 +28,14 @@ const PACKS = {
     en: () => import("./activity-review-en.ts").then((m) => m.enActivityReview),
     es: () => import("./activity-review-es.ts").then((m) => m.esActivityReview),
   },
+  call: {
+    en: () => import("./call-en.ts").then((m) => m.enCall),
+    es: () => import("./call-es.ts").then((m) => m.esCall),
+  },
+  voice: {
+    en: () => import("./voice-en.ts").then((m) => m.enVoice),
+    es: () => import("./voice-es.ts").then((m) => m.esVoice),
+  },
   approvals: {
     en: () => import("./approvals-en.ts").then((m) => m.enApprovals),
     es: () => import("./approvals-es.ts").then((m) => m.esApprovals),

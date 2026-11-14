@@ -235,6 +235,28 @@ button.chatprocesses {
   background: var(--apx-fill-strong);
   color: var(--apx-fg-muted);
 }
+/* A call's small phone, on the face of the agent called. */
+.threadavatar__callmark {
+  position: absolute;
+  right: -3px;
+  bottom: -2px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: var(--apx-brand-soft);
+  color: var(--apx-brand-soft-fg);
+  box-shadow: 0 0 0 1.5px var(--apx-surface);
+}
+/* A call whose agent is gone: a phone where its face would be. */
+.threadavatar__call {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: var(--apx-brand-soft);
+  color: var(--apx-brand-soft-fg);
+}
 .threadavatar__group {
   position: absolute;
   display: inline-flex;

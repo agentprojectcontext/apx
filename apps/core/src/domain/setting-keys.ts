@@ -15,7 +15,9 @@ import {
   ImageDefaults,
   MemorySettings,
   ModelChoice,
+  ModelRef,
   MutedEvent,
+  NativeVoice,
   NoticePrefs,
   Organization,
   ProviderInfo,
@@ -25,6 +27,7 @@ import {
   TaskColumn,
   TelemetryEvent,
   TelemetryStage,
+  VoiceQuality,
 } from "@apx/protocol";
 import { z } from "zod";
 import { DEFAULT_COLUMNS } from "./tasks.ts";
@@ -204,6 +207,22 @@ export const SETTINGS = {
   acp_agents: entry(listOf(AcpAgent), []),
   /** The owner's media services, in the order they are tried. */
   services: entry(listOf(ServiceSettings.extend({ id: z.string() })), []),
+  /**
+   * APX's own voice (services/native-voice.ts): on or off (unset: on wherever it runs), the voice agents speak with, and
+   * the model calls talk with (unset: the owner's main model).
+   */
+  voice: entry(
+    z
+      .object({
+        enabled: z.boolean().optional(),
+        voice: NativeVoice.optional(),
+        calls: z.boolean().optional(),
+        quality: VoiceQuality.optional(),
+        call_model: ModelRef.optional(),
+      })
+      .catch({}),
+    {},
+  ),
   /** Services APX added on its own once (Codex's images): one the owner removed is not added again. */
   services_offered: entry(z.array(z.string()).catch([]), []),
   channels: entry(listOf(Channel), []),

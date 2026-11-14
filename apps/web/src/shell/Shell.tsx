@@ -1,6 +1,7 @@
 import type { CSSProperties } from "react";
 import { Suspense, useEffect } from "react";
 import { applyDesktopPrefs } from "../config/desktopPrefs.ts";
+import { useCalls } from "../data/calls.ts";
 import { useSlice } from "../data/createStore.ts";
 import { mcpPeek } from "../data/mcpPeek.ts";
 import { usePrefs } from "../data/prefs.ts";
@@ -8,6 +9,7 @@ import { data } from "../data/state.ts";
 import { useThreadDialog } from "../data/threadAdmin.ts";
 import {
   AppScreen,
+  CallCard,
   ChannelDialogs,
   ChannelScreen,
   ChannelsScreen,
@@ -66,6 +68,7 @@ export function Shell() {
   const threadDialog = useThreadDialog() != null;
   const phone = useNav((s) => s.phone);
   const usageDialog = useNav((s) => s.usageDialog);
+  const callCard = useCalls((s) => s.card != null);
   const mcpDialog = useSlice(mcpPeek, (s) => s.target != null);
   // A task opened from a chat floats over it; the Tasks screen shows its own beside the list.
   const peek = useNav((s) => s.peekTaskId != null && s.view !== "tasks");
@@ -192,6 +195,11 @@ export function Shell() {
       {live && (
         <Suspense fallback={null}>
           <LiveLayer />
+        </Suspense>
+      )}
+      {callCard && (
+        <Suspense fallback={null}>
+          <CallCard />
         </Suspense>
       )}
       <Toasts />

@@ -107,6 +107,15 @@ export const ChannelBundle = lazy(() =>
   import("./inbox/ChannelBundle.tsx").then((m) => ({ default: m.ChannelBundle })),
 );
 export const TaskBundle = lazy(() => import("./inbox/TaskBundle.tsx").then((m) => ({ default: m.TaskBundle })));
+// The Inbox's Calls row, once there is a call.
+export const CallBundle = lazy(() => import("./inbox/CallBundle.tsx").then((m) => ({ default: m.CallBundle })));
+// The call buttons (top bar, the super-agent's chat, a call's chat) show once calls can run here; the card that places
+// and holds a call, with its audio, once one is pressed.
+export const CallButton = lazy(() => import("./shell/CallButton.tsx").then((m) => ({ default: m.CallButton })));
+export const CallAgain = lazy(() => import("./shell/CallButton.tsx").then((m) => ({ default: m.CallAgain })));
+export const CallCard = lazy(
+  withPacks(["call"], () => import("./call/CallCard.tsx").then((m) => ({ default: m.CallCard }))),
+);
 export const SubthreadPart = lazy(() =>
   import("./chat/parts/SubthreadPart.tsx").then((m) => ({ default: m.SubthreadPart })),
 );
