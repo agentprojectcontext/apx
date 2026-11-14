@@ -41,13 +41,17 @@ export function createNativeVoice(deps: {
   const enabled = () => settings().enabled ?? engine.machine().tier !== "none";
   const usable = () => enabled() && !engine.machine().missing && engine.installed();
 
-  /** The media services follow the voice: first of their kind while it can answer, gone while it cannot. */
+  /**
+   * The media services follow the voice: there while it is on here, gone while it is off. While new models download
+   * they keep their place, and media go to the next service until it can answer.
+   */
   function sync(): void {
     const has = services.has;
-    if (!usable()) {
+    if (!enabled() || engine.machine().missing) {
       for (const id of [NATIVE_SPEECH, NATIVE_EARS]) if (has(id)) services.set(id, null);
       return;
     }
+    if (!engine.installed() && !has(NATIVE_SPEECH)) return;
     const lang = voice().locale.slice(0, 2);
     const speech: ServiceSettings = {
       kind: "speech",

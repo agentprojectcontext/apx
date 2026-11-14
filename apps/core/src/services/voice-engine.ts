@@ -25,6 +25,8 @@ const KEEP_ENV = new Set(["PATH", "HOME", "USER", "TMPDIR", "LANG", "SHELL", "XD
  * FULL_GB.
  */
 const MIN_GB = 8;
+/** The models in voice/speech.py MODELS: a new one makes a machine that has the old ones download it first. */
+const MODELS_REV = 2;
 const FULL_GB = 16;
 const AUTO_FULL_GB = 32;
 
@@ -125,9 +127,16 @@ export function createVoiceEngine(deps: {
     return () => stderr;
   }
 
-  /** Written once a download of this tier's models finished: they are on disk. */
+  /** Written once a download of this tier's models finished: they are on disk, unless the models changed since. */
   const marker = (tier = machine().tier) => path.join(deps.home, "voice", `installed-${tier}.json`);
-  const installed = () => machine().tier !== "none" && fs.existsSync(marker());
+  const installed = () => {
+    if (machine().tier === "none") return false;
+    try {
+      return JSON.parse(fs.readFileSync(marker(), "utf8")).rev === MODELS_REV;
+    } catch {
+      return false;
+    }
+  };
 
   const stop = () => {
     current?.child.kill();
@@ -278,7 +287,7 @@ export function createVoiceEngine(deps: {
         if (code === 0) {
           install = undefined;
           fs.mkdirSync(path.dirname(marker(tier)), { recursive: true });
-          fs.writeFileSync(marker(tier), JSON.stringify({ at: new Date().toISOString() }));
+          fs.writeFileSync(marker(tier), JSON.stringify({ at: new Date().toISOString(), rev: MODELS_REV }));
           deps.log.info({ tier }, "voice installed");
           if (!installed() && !machine().missing) this.startInstall();
         } else failed(tail().trim().split("\n").at(-1) || `exit ${code}`);

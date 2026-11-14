@@ -79,7 +79,9 @@ export function createServices(deps: {
   /** The owner's Codex drawing on their ChatGPT plan, when this core can run it. */
   codexImages?: CodexImages;
   /** APX's own voice on this machine (dialect "apx-voice"). */
-  voice?: VoiceEngine;
+  voice?: Pick<VoiceEngine, "installed" | "speak" | "transcribe">;
+  /** Any recording as 16 kHz mono PCM16, what APX's voice hears (ffmpeg by default). */
+  toPcm?: (audio: Buffer) => Promise<Buffer>;
 }) {
   const { store, secrets, log } = deps;
   const f = deps.fetch ?? fetch;
@@ -107,7 +109,7 @@ export function createServices(deps: {
     signal: AbortSignal,
   ) =>
     s.dialect === "apx-voice"
-      ? native(s).transcribe(await toPcm16k(a.bytes), s.language, signal)
+      ? native(s).transcribe(await (deps.toPcm ?? toPcm16k)(a.bytes), s.language, signal)
       : transcribe(s, a, keyOf(s), signal, f, whisperCpp);
 
   async function check(s: ServiceConfig): Promise<boolean> {
@@ -304,9 +306,14 @@ export function createServices(deps: {
       if (saved) status.set(saved.id, { ok: r.ok, at: Date.now() });
       return r;
     },
-    /** Words heard so far, from whisper.cpp on this machine only (free, in memory); undefined without it. */
+    /**
+     * Words heard so far, from an engine on this machine only (free, in memory): APX's voice or whisper.cpp;
+     * undefined without one. APX's voice also starts here, so it is up by the time the recording ends.
+     */
     async listen(bytes: Buffer, mime: string, signal: AbortSignal): Promise<string | undefined> {
       const s = ofKind("transcription").find((x) => x.enabled);
+      if (s?.dialect === "apx-voice" && deps.voice?.installed())
+        return transcribeWith(s, { path: "", bytes, mime }, signal);
       if (s?.dialect !== "whisper-cpp" || !whisperCpp.available(s.model)) return undefined;
       return transcribe(s, { path: "", bytes, mime }, undefined, signal, f, whisperCpp);
     },
