@@ -317,7 +317,7 @@ export function Places({ node }: { node: Of<"places"> }) {
       {place && (
         <div className="apx-inline__actions apx-inline__actions--start">
           <a
-            className="apx-inline__action"
+            className="apx-btn apx-btn--primary apx-btn--sm apx-inline__action"
             href={`https://www.google.com/maps/dir/?api=1&destination=${place.lat},${place.lng}`}
             target="_blank"
             rel="noopener noreferrer"
@@ -326,7 +326,12 @@ export function Places({ node }: { node: Of<"places"> }) {
             {t("cards.directions")}
           </a>
           {place.url && (
-            <a className="apx-inline__link" href={place.url} target="_blank" rel="noopener noreferrer">
+            <a
+              className="apx-btn apx-btn--ghost apx-btn--sm apx-inline__action"
+              href={place.url}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
               {t("cards.open")}
             </a>
           )}

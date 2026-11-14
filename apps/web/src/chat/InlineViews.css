@@ -349,18 +349,6 @@
 .apx-inline__actions--start > * {
   flex: 0 0 auto;
 }
-.apx-inline .apx-inline__link {
-  display: inline-flex;
-  align-items: center;
-  height: 28px;
-  padding: 0 10px;
-  color: var(--apx-fg-muted);
-  font-size: var(--apx-text-sm);
-  text-decoration: none;
-}
-.apx-inline .apx-inline__link:hover {
-  color: var(--apx-fg);
-}
 
 /* Book a day and time */
 .apx-slots-field {

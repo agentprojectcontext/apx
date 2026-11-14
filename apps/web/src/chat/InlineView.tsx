@@ -204,7 +204,13 @@ function draw(node: InlineNode, i: number): ReactNode {
       return <hr key={i} className="apx-inline__divider" />;
     case "link":
       return (
-        <a key={i} className="apx-inline__action" href={node.url} target="_blank" rel="noopener noreferrer">
+        <a
+          key={i}
+          className="apx-btn apx-btn--primary apx-btn--sm apx-inline__action"
+          href={node.url}
+          target="_blank"
+          rel="noopener noreferrer"
+        >
           {node.label}
           <Icons.ExternalLink size={13} />
         </a>
