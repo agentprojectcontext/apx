@@ -54,3 +54,50 @@ test("the words heard while recording come from whisper.cpp on this machine, and
     await env.cleanup();
   }
 });
+
+test("with APX's voice first, the words heard while recording come from it, and none once it is not installed", async () => {
+  const env = await startCore({ llm: scriptedLlm(() => say("ok")) });
+  let installed = true;
+  const heard: { bytes: number; lang: string | undefined }[] = [];
+  const services = createServices({
+    store: env.core.store,
+    secrets: env.core.secrets,
+    home: env.home,
+    log: createLog("test", true),
+    voice: {
+      installed: () => installed,
+      speak: async () => ({ bytes: Buffer.alloc(0), mime: "audio/wav" }),
+      transcribe: async (pcm, lang) => {
+        heard.push({ bytes: pcm.length, lang });
+        return "Roby, ¿descargás el último capítulo?";
+      },
+    },
+    toPcm: async (audio) => Buffer.concat([audio, audio]),
+  });
+  const dir = path.join(env.home, "media");
+  const media = () => (fs.existsSync(dir) ? fs.readdirSync(dir, { recursive: true }) : []);
+  try {
+    services.set("apx-voice-ears", {
+      kind: "transcription",
+      dialect: "apx-voice",
+      label: "APX",
+      base_url: "http://127.0.0.1",
+      enabled: true,
+      needs_key: false,
+    });
+    const before = media();
+    const audio = Buffer.alloc(1000, 1);
+    assert.equal(
+      await services.listen(audio, "audio/webm", AbortSignal.timeout(5000)),
+      "Roby, ¿descargás el último capítulo?",
+    );
+    assert.deepEqual(heard, [{ bytes: 2000, lang: undefined }], "the recording reaches the voice as PCM");
+    assert.deepEqual(media(), before);
+    installed = false;
+    assert.equal(await services.listen(audio, "audio/webm", AbortSignal.timeout(5000)), undefined);
+  } finally {
+    services.close();
+    await env.core.close();
+    await env.cleanup();
+  }
+});

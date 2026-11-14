@@ -20,11 +20,12 @@ FRAME = 512  # 32 ms at 16 kHz: what the VAD model takes
 LANGS = {"es": "spanish", "en": "english"}
 VOICES = Path(__file__).parent / "voices"
 
-# What each tier runs (VOICE_TIER, services/voice-engine.ts): "light" fits a Mac with less memory.
+# What each tier runs (VOICE_TIER, services/voice-engine.ts): "light" fits a Mac with less memory. Changing a model
+# means bumping MODELS_REV there, so machines that have the old ones get the new ones before they are used.
 MODELS = {
     "full": {"tts": "Qwen/Qwen3-TTS-12Hz-1.7B-Base", "stt": "mlx-community/whisper-large-v3-turbo",
              "draft": "Systran/faster-whisper-base"},
-    "light": {"tts": "Qwen/Qwen3-TTS-12Hz-0.6B-Base", "stt": "mlx-community/whisper-small-mlx",
+    "light": {"tts": "Qwen/Qwen3-TTS-12Hz-0.6B-Base", "stt": "mlx-community/whisper-large-v3-turbo-q4",
               "draft": "Systran/faster-whisper-base"},
 }
 SMALL = [("onnx-community/silero-vad", "onnx/model.onnx"), ("pipecat-ai/smart-turn-v3", "smart-turn-v3.2-cpu.onnx")]

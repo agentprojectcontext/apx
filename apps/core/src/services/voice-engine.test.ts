@@ -1,5 +1,7 @@
 import assert from "node:assert/strict";
 import { EventEmitter } from "node:events";
+import fs from "node:fs";
+import path from "node:path";
 import { PassThrough } from "node:stream";
 import { test } from "node:test";
 import { tempDir, waitFor } from "../testkit/platform.ts";
@@ -139,4 +141,16 @@ test("a machine that cannot run the voice refuses to install it", (t) => {
   const engine = createVoiceEngine({ log: quiet, home: tmp.path, platform: "linux", arch: "x64", memoryGb: 64 });
   t.after(() => engine.close());
   assert.throws(() => engine.startInstall(), /cannot run on this computer/);
+});
+
+test("models installed before a change of models count as missing, so the new ones download before they are used", (t) => {
+  const tmp = tempDir();
+  t.after(() => tmp.remove());
+  const at = () => createVoiceEngine({ log: quiet, home: tmp.path, platform: "darwin", arch: "arm64", memoryGb: 24 });
+  const dir = path.join(tmp.path, "voice");
+  fs.mkdirSync(dir, { recursive: true });
+  fs.writeFileSync(path.join(dir, "installed-light.json"), JSON.stringify({ at: "2026-11-01T00:00:00.000Z" }));
+  const old = at();
+  assert.equal(old.installed(), false);
+  old.close();
 });

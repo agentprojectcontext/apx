@@ -4842,11 +4842,12 @@ activity and end of turn, whisper, Qwen3-TTS, and a model that talks while the a
   dialect `apx-voice` (`services/native-voice.ts`), put first of the speech and transcription services once, when it
   arrives; after that the owner's order stands.
 - **Where it runs.** On Apple silicon with 32 GB or more it runs the larger models (Qwen3-TTS 1.7B, whisper
-  large-v3-turbo, 6 GB); from 8 GB the lighter ones (0.6B, whisper small, 3 GB), and the owner may pick the larger
+  large-v3-turbo, 6 GB); from 8 GB the lighter ones (0.6B, whisper large-v3-turbo in 4 bits, 3 GB; whisper small misheard Spanish), and the owner may pick the larger
   ones from 16 GB (Settings › Voices › Quality). On a 24 GB Mac with the owner's usual apps open the larger models went
   to swap and the voice slowed tenfold. Below 8 GB, or off Apple silicon, it does not run and the owner's own services
   stay. Where it runs it is on and downloads on its own; a scratch core (its own `APX_HOME`) does not. A file under
-  `<home>/voice` says a download finished, so a start spawns nothing to know.
+  `<home>/voice` says a download of the current models finished, so a start spawns nothing to know; when the models
+  change it no longer counts and they download again, while the services keep their place and media go to the next one.
 - **Voices of its own.** Female and male in Argentine Spanish, neutral Spanish and American English, made with Qwen3-TTS
   VoiceDesign from a description (`scripts/voice-design.py`) and cloned in context by the Base model. A prototype cloned
   voice-library previews of real voice actors; those cannot ship.
