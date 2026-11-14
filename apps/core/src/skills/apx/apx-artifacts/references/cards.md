@@ -35,7 +35,10 @@ own cards. Always keep a complete text answer outside the block: channels (Whats
   `description`: one or two lines. `badges`: up to 8 short tags. `fields`: up to 8 label/value rows of short facts
   (price, times, rating); a sentence goes in `description` or `details`. `details`: longer text the owner opens.
 - `image`: the picture's `https` address, taken from the page you read (the poster, the hotel photo, the product
-  shot), or a media id (`med_…`) of one in APX. Add one whenever the source shows it: cards read far better with it.
+  shot), at least 600 px wide when the page offers sizes, or a media id (`med_…`) of one in APX. Add one whenever
+  the source shows it: cards read far better with it.
+- `images`: up to 8 more pictures of the same result (rooms, views): the card shows the first with a "+N" that opens
+  them all.
 - `action`: one button that opens the result's page (`label` up to 40 characters, `url` `https`), such as "Ver en
   Netflix", "Ver en Booking" or "Comprar". Only pages you read or found; never a guessed address.
 - An address that is not `https` makes the whole block show its fallback.

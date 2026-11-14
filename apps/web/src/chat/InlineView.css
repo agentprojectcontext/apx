@@ -114,6 +114,42 @@
 .apx-inline__card > .apx-inline__column > .apx-inline__image--banner:first-child {
   margin: -16px -18px 4px;
 }
+.apx-inline__open {
+  position: relative;
+  display: block;
+  padding: 0;
+  border: 0;
+  cursor: zoom-in;
+  font: inherit;
+}
+.apx-inline__open:focus-visible {
+  outline: 2px solid var(--apx-accent);
+  outline-offset: -2px;
+}
+.apx-inline__more {
+  position: absolute;
+  right: 10px;
+  bottom: 10px;
+  padding: 3px 9px;
+  border-radius: var(--apx-radius-pill);
+  background: color-mix(in srgb, var(--apx-bg) 78%, transparent);
+  color: var(--apx-fg);
+  font-size: var(--apx-text-xs);
+  font-weight: 600;
+  backdrop-filter: blur(6px);
+}
+.apx-inline .apx-inline__ghost {
+  display: block;
+  width: auto;
+  height: auto;
+  margin: -16px -18px 4px;
+  aspect-ratio: 16 / 9;
+  max-height: 160px;
+  border-radius: 0;
+}
+.apx-inline__loading {
+  color: var(--apx-fg-muted);
+}
 .apx-inline__image--thumb {
   width: 96px;
   aspect-ratio: 2 / 3;
@@ -239,7 +275,8 @@
     width: 76px;
   }
 }
-.apx-inline__action {
+/* Above the answer's own link style (.apx-md a). */
+.apx-inline .apx-inline__action {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -254,9 +291,9 @@
   font-weight: 550;
   text-decoration: none;
 }
-.apx-inline__action:hover {
+.apx-inline .apx-inline__action:hover {
   background: var(--apx-accent-hover);
 }
-.apx-inline__details + .apx-inline__action {
+.apx-inline .apx-inline__details + .apx-inline__action {
   margin-top: 0;
 }

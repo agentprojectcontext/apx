@@ -1,22 +1,67 @@
+import type { Part } from "@apx/protocol";
 import { type InlineNode, isMediaId, parseInlineBlock } from "@apx/protocol/inline-ui";
-import { Badge, IconButton, Icons } from "@apx/ui";
-import { type ReactNode, useRef, useState } from "react";
+import { Badge, IconButton, Icons, Skeleton } from "@apx/ui";
+import { type ReactNode, Suspense, useRef, useState } from "react";
 import { useT } from "../i18n/index.ts";
+import { MediaGroup } from "../lazy.ts";
 import { useMediaUrl } from "./parts/useMediaUrl.ts";
 import "./InlineView.css";
+
+type ImagePart = Extract<Part, { type: "image" }>;
+const toPart = (src: string, alt: string): ImagePart =>
+  isMediaId(src) ? { type: "image", media_id: src, mime: "image/jpeg", alt } : { type: "image", url: src, alt };
 
 function Picture({ node }: { node: Extract<InlineNode, { kind: "image" }> }) {
   const own = isMediaId(node.src);
   const held = useMediaUrl(own ? node.src : undefined);
   const [broken, setBroken] = useState(false);
+  const [open, setOpen] = useState(false);
   const src = own ? held : node.src;
   if (broken) return null;
+  const cls = `apx-inline__image apx-inline__image--${node.shape}`;
+  const img = src && (
+    <img src={src} alt={node.alt} loading="lazy" referrerPolicy="no-referrer" onError={() => setBroken(true)} />
+  );
+  if (!node.gallery) return <div className={cls}>{img}</div>;
+  const parts = node.gallery.map((g) => toPart(g, node.alt));
   return (
-    <div className={`apx-inline__image apx-inline__image--${node.shape}`}>
-      {src && (
-        <img src={src} alt={node.alt} loading="lazy" referrerPolicy="no-referrer" onError={() => setBroken(true)} />
+    <>
+      <button type="button" className={`${cls} apx-inline__open`} onClick={() => setOpen(true)}>
+        {img}
+        <span className="apx-inline__more">+{node.gallery.length - 1}</span>
+      </button>
+      {open && (
+        <Suspense fallback={null}>
+          <MediaGroup
+            block={{ kind: "images", parts, key: node.src }}
+            view={{ start: 0, onClose: () => setOpen(false) }}
+          />
+        </Suspense>
       )}
-    </div>
+    </>
+  );
+}
+
+/** What shows while the agent is still writing the block: two cards taking shape, never its code. */
+function Loading() {
+  const t = useT();
+  return (
+    <section className="apx-inline" aria-busy="true" aria-label={t("chat.inline.loading")}>
+      <div className="apx-inline__head">
+        <div className="apx-inline__heading apx-inline__loading">{t("chat.inline.loading")}</div>
+      </div>
+      <div className="apx-inline__track">
+        {[0, 1, 2].map((i) => (
+          <div key={i} className="apx-inline__card">
+            <Skeleton shape="block" className="apx-inline__ghost" />
+            <Skeleton width="40%" />
+            <Skeleton width="75%" height={16} />
+            <Skeleton />
+            <Skeleton width="85%" />
+          </div>
+        ))}
+      </div>
+    </section>
   );
 }
 
@@ -147,8 +192,19 @@ function draw(node: InlineNode, i: number): ReactNode {
 }
 
 /** An ```apx-cards or ```a2ui block as cards; its fallback text when it asks for more, its code when unreadable. */
-export function InlineView({ lang, code, pre }: { lang: string; code: string; pre: ReactNode }) {
+export function InlineView({
+  lang,
+  code,
+  pre,
+  writing = false,
+}: {
+  lang: string;
+  code: string;
+  pre: ReactNode;
+  writing?: boolean;
+}) {
   const t = useT();
+  if (writing) return <Loading />;
   const block = parseInlineBlock(lang, code);
   if (!block) return pre;
   if (block.kind === "fallback") return <p>{block.text}</p>;

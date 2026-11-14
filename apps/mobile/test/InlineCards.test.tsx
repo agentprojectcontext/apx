@@ -41,6 +41,7 @@ test("an agent's results show as cards on the phone, and their details open", as
           fields: [{ label: "Length", value: "108 min" }],
           details: "An invented journey to the moon.",
           image: "https://example.com/moon.jpg",
+          images: ["https://example.com/moon-2.jpg"],
           action: { label: "Watch it", url: "https://example.com/watch/moon" },
         },
         { id: "north", title: "Northbound" },
@@ -57,6 +58,7 @@ test("an agent's results show as cards on the phone, and their details open", as
   expect(ui.getByText("An invented journey to the moon.")).toBeTruthy();
   expect(ui.queryByText(/"items"/)).toBeNull();
   expect(ui.getByText("1 / 2")).toBeTruthy();
+  expect(ui.getByText("+1")).toBeTruthy();
   expect(ui.getByLabelText("The quiet moon").props.source).toEqual({ uri: "https://example.com/moon.jpg" });
   const open = jest.spyOn(Linking, "openURL").mockResolvedValue(true);
   await act(async () => fireEvent.press(ui.getByText("Watch it")));

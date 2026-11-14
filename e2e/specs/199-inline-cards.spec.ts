@@ -29,6 +29,8 @@ test("an agent's results and A2UI cards draw as APX cards, open their details an
               { label: "Dónde", value: "Sin confirmar" },
             ],
             details: "Una expedición imaginaria a la Luna.",
+            images: [media.hotel, media.flight],
+            action: { label: "Ver la ficha", url: "https://example.com/luna" },
           },
           {
             id: "coast",
@@ -128,7 +130,14 @@ test("an agent's results and A2UI cards draw as APX cards, open their details an
     await expect(views).toHaveCount(3);
     const movies = views.nth(0);
     await expect(movies.getByText("Datos de ejemplo")).toBeVisible();
-    await expect(movies.locator("img")).toHaveCount(2);
+    await expect(movies.locator(".apx-inline__track img")).toHaveCount(2);
+    await expect(movies.getByRole("link", { name: "Ver la ficha" })).toHaveAttribute("href", "https://example.com/luna");
+    await expect(movies.getByText("1 / 2")).toBeVisible();
+    await movies.getByText("+2").click();
+    const viewer = page.getByRole("dialog");
+    await expect(viewer.getByText("1 / 3")).toBeVisible();
+    await page.keyboard.press("Escape");
+    await expect(viewer).toHaveCount(0);
     await expect(movies.getByText("Una expedición imaginaria a la Luna.")).toBeHidden();
     await movies.getByText("Ver detalles").first().click();
     await expect(movies.getByText("Una expedición imaginaria a la Luna.")).toBeVisible();

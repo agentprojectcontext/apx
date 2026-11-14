@@ -57,6 +57,25 @@ test("a results list becomes a grid of cards in APX Kit order", () => {
   });
 });
 
+test("a result with several pictures shows the first and opens them all", () => {
+  const items = [
+    { id: "h", title: "Lakeside", image: "https://example.com/a.jpg", images: ["https://example.com/a.jpg", "med_b1"] },
+  ];
+  const block = parseInlineBlock("apx-cards", JSON.stringify({ ...movies, items }));
+  const card = block?.kind === "view" && "children" in block.view.root ? block.view.root.children[0] : undefined;
+  assert.deepEqual(card?.kind === "card" && card.children[0], {
+    kind: "image",
+    src: "https://example.com/a.jpg",
+    alt: "Lakeside",
+    shape: "banner",
+    gallery: ["https://example.com/a.jpg", "med_b1"],
+  });
+  for (const images of ["https://example.com/a.jpg", ["http://example.com/a.jpg"], Array(9).fill("med_x")]) {
+    const bad = [{ id: "h", title: "Lakeside", images }];
+    assert.equal(parseInlineBlock("apx-cards", JSON.stringify({ ...movies, items: bad }))?.kind, "fallback");
+  }
+});
+
 test("a list layout puts the picture beside the words", () => {
   const block = parseInlineBlock("apx-cards", JSON.stringify({ ...movies, layout: "list" }));
   assert.equal(block?.kind === "view" && block.view.root.kind, "column");

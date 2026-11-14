@@ -7,6 +7,7 @@ import { type InlineNode, isMediaId, type InlineView as View_ } from "../../prot
 import { Icon } from "../Icon";
 import { Button, Tag } from "../kit";
 import { useMediaUri } from "../media/context";
+import { MediaViewer } from "../media/MediaViewer";
 import { makeStyles, useTheme } from "../theme";
 
 type Of<K extends InlineNode["kind"]> = Extract<InlineNode, { kind: K }>;
@@ -27,11 +28,31 @@ function Accent() {
   );
 }
 
+const toItem = (src: string, alt: string): MediaItem =>
+  isMediaId(src)
+    ? { key: src, kind: "image", media_id: src, mime: "image/jpeg", name: alt || src }
+    : { key: src, kind: "image", url: src, mime: "image/jpeg", name: alt || src };
+
 function Picture({ node, inCard }: { node: Of<"image">; inCard: boolean }) {
-  return isMediaId(node.src) ? (
+  const s = useStyles();
+  const [open, setOpen] = useState(false);
+  const shown = isMediaId(node.src) ? (
     <HeldPicture node={node} inCard={inCard} />
   ) : (
     <Frame node={node} inCard={inCard} uri={node.src} />
+  );
+  if (!node.gallery) return shown;
+  const items = node.gallery.map((g) => toItem(g, node.alt));
+  return (
+    <>
+      <Pressable accessibilityRole="imagebutton" accessibilityLabel={t("inlinePhotos")} onPress={() => setOpen(true)}>
+        {shown}
+        <View style={s.more}>
+          <Text style={s.moreText}>+{node.gallery.length - 1}</Text>
+        </View>
+      </Pressable>
+      {open && <MediaViewer items={items} start={0} onClose={() => setOpen(false)} />}
+    </>
   );
 }
 
@@ -205,6 +226,17 @@ const useStyles = makeStyles((theme) => ({
   heading: { color: theme.fg, fontSize: 15, fontWeight: "600" },
   stack: { gap: 12 },
   carousel: { gap: 6 },
+  more: {
+    position: "absolute",
+    right: 10,
+    bottom: 14,
+    paddingHorizontal: 9,
+    paddingVertical: 3,
+    borderRadius: 999,
+    backgroundColor: theme.surface,
+    opacity: 0.92,
+  },
+  moreText: { color: theme.fg, fontSize: 12, fontWeight: "600" },
   track: { gap: 12 },
   count: { alignSelf: "center", color: theme.muted, fontSize: 12, fontVariant: ["tabular-nums"] },
   column: { gap: 8 },

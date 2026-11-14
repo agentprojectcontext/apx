@@ -10,7 +10,8 @@ export type InlineNode =
   | { kind: "row"; children: InlineNode[] }
   | { kind: "grid"; children: InlineNode[] }
   | { kind: "text"; text: string; style: "eyebrow" | "title" | "body" | "caption" }
-  | { kind: "image"; src: string; shape: "banner" | "thumb"; alt: string }
+  /** `gallery`: every picture of the result, this one first, when it has more than one to open and step through. */
+  | { kind: "image"; src: string; shape: "banner" | "thumb"; alt: string; gallery?: string[] }
   | { kind: "link"; label: string; url: string }
   | { kind: "badges"; items: string[] }
   | { kind: "fields"; rows: { label: string; value: string }[] }
@@ -53,6 +54,17 @@ function https(v: unknown): v is string {
 /** Whether an image's `src` is a picture APX holds (loaded through the core) rather than a web address. */
 export const isMediaId = (src: string): boolean => MEDIA.test(src);
 const picture = (v: unknown): v is string => typeof v === "string" && (MEDIA.test(v) || https(v));
+
+const MAX_PHOTOS = 8;
+
+function photos(first: unknown, more: unknown): string[] | false {
+  if (first !== undefined && !picture(first)) return false;
+  if (more !== undefined && (!Array.isArray(more) || more.length > MAX_PHOTOS || !more.every(picture))) return false;
+  return [...new Set([...(first === undefined ? [] : [first]), ...((more as string[] | undefined) ?? [])])].slice(
+    0,
+    MAX_PHOTOS,
+  );
+}
 
 function action(v: unknown): InlineNode | undefined | false {
   if (v === undefined) return undefined;
@@ -117,13 +129,13 @@ function cards(value: Record<string, unknown>): InlineNode | undefined {
     const eyebrow = optional(item.eyebrow, 80);
     const description = optional(item.description, 600);
     const details = optional(item.details, 1500);
-    const image = item.image;
+    const pictures = photos(item.image, item.images);
     const tags = badges(item.badges);
     const rows = fields(item.fields);
     const link = action(item.action);
     if (eyebrow === false || description === false || details === false || tags === false || rows === false)
       return undefined;
-    if (link === false || (image !== undefined && !picture(image))) return undefined;
+    if (link === false || pictures === false) return undefined;
     const body: InlineNode[] = [];
     if (eyebrow) body.push({ kind: "text", text: eyebrow, style: "eyebrow" });
     body.push({ kind: "text", text: item.title, style: "title" });
@@ -132,7 +144,10 @@ function cards(value: Record<string, unknown>): InlineNode | undefined {
     if (rows?.length) body.push({ kind: "fields", rows });
     if (details) body.push({ kind: "details", children: [{ kind: "text", text: details, style: "body" }] });
     if (link) body.push(link);
-    const shown = image ? ({ kind: "image", src: image, alt: item.title } as const) : undefined;
+    const [image] = pictures;
+    const shown = image
+      ? ({ kind: "image", src: image, alt: item.title, ...(pictures.length > 1 ? { gallery: pictures } : {}) } as const)
+      : undefined;
     out.push(
       !shown
         ? { kind: "card", children: body }

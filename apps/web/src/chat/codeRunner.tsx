@@ -50,10 +50,11 @@ export function replyBlock(
     </pre>
   );
   // ```apx-cards and ```a2ui are cards drawn in the answer; a block APX cannot read shows as code.
-  if (!writing && INLINE_LANGS.has(block.lang)) {
+  // While the agent writes one, the cards show taking shape instead of its code.
+  if (INLINE_LANGS.has(block.lang)) {
     return (
-      <Suspense fallback={pre}>
-        <InlineView lang={block.lang} code={block.code} pre={pre} />
+      <Suspense fallback={writing ? null : pre}>
+        <InlineView lang={block.lang} code={block.code} pre={pre} writing={writing} />
       </Suspense>
     );
   }

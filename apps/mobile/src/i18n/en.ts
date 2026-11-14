@@ -699,6 +699,7 @@ export const en = {
   mailDate: "Date",
   inlineDetails: "Show details",
   inlineExample: "Example data",
+  inlinePhotos: "See the photos",
   mailNoSubject: "No subject",
   mailSend: "Send",
   mailSendWith: "Send with",

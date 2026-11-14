@@ -4,6 +4,7 @@ import type { MessageKey } from "./en.ts";
 export const esChatSlim: Partial<Record<MessageKey, string>> = {
   "chat.inline.details": "Ver detalles",
   "chat.inline.example": "Datos de ejemplo",
+  "chat.inline.loading": "Armando las tarjetas…",
   "chat.changes.showMore": "Ver {n} más",
   "chat.changes.showLess": "Ver menos",
   "quiet.label": "Sin novedades",
