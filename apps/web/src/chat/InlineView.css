@@ -18,10 +18,41 @@
   font-weight: var(--apx-weight-semibold);
   color: var(--apx-fg);
 }
-.apx-inline__grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(min(100%, 220px), 1fr));
+.apx-inline__carousel {
+  min-width: 0;
+}
+.apx-inline__track {
+  display: flex;
+  align-items: stretch;
   gap: 12px;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  scroll-snap-type: x mandatory;
+  scrollbar-width: none;
+}
+.apx-inline__track::-webkit-scrollbar {
+  display: none;
+}
+.apx-inline__track > * {
+  flex: 0 0 min(300px, 86%);
+  scroll-snap-align: start;
+}
+.apx-inline__track > :only-child {
+  flex-basis: min(380px, 100%);
+}
+.apx-inline__bar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  margin-top: 8px;
+}
+.apx-inline__count {
+  min-width: 48px;
+  text-align: center;
+  color: var(--apx-fg-muted);
+  font-size: var(--apx-text-xs);
+  font-variant-numeric: tabular-nums;
 }
 .apx-inline__column {
   display: flex;
@@ -42,6 +73,7 @@
   flex: 1;
 }
 .apx-inline__card {
+  container: apx-inline-card / inline-size;
   position: relative;
   display: flex;
   flex-direction: column;
@@ -119,13 +151,26 @@
 }
 .apx-inline__fields {
   display: grid;
-  grid-template-columns: fit-content(40%) minmax(0, 1fr);
-  gap: 6px 16px;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 8px;
   margin: 2px 0 0;
   font-size: var(--apx-text-sm);
 }
 .apx-inline__fields > div {
-  display: contents;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+/* A narrow card stacks each label over its value; a wide one sets them side by side. */
+@container apx-inline-card (min-width: 380px) {
+  .apx-inline__fields {
+    grid-template-columns: fit-content(40%) minmax(0, 1fr);
+    gap: 6px 16px;
+  }
+  .apx-inline__fields > div {
+    display: contents;
+  }
 }
 .apx-inline__fields dt {
   color: var(--apx-fg-subtle);
@@ -193,4 +238,25 @@
   .apx-inline__image--thumb {
     width: 76px;
   }
+}
+.apx-inline__action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: 32px;
+  margin-top: auto;
+  padding: 0 14px;
+  border-radius: var(--apx-radius-pill);
+  background: var(--apx-accent);
+  color: var(--apx-accent-fg);
+  font-size: var(--apx-text-sm);
+  font-weight: 550;
+  text-decoration: none;
+}
+.apx-inline__action:hover {
+  background: var(--apx-accent-hover);
+}
+.apx-inline__details + .apx-inline__action {
+  margin-top: 0;
 }

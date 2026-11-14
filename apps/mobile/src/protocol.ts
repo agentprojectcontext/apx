@@ -32,6 +32,7 @@ export {
   INLINE_LANGS,
   type InlineNode,
   type InlineView,
+  isMediaId,
   parseInlineBlock,
 } from "../../../packages/protocol/src/inline-ui.ts";
 export type { MailRoute, SentDraft } from "../../../packages/protocol/src/mail-methods.ts";

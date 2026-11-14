@@ -15,8 +15,9 @@ const movies = {
       badges: ["Drama", "Drama", "108 min"],
       fields: [{ label: "Year", value: "2024" }],
       details: "An invented journey to the moon.",
+      action: { label: "Watch", url: "https://example.com/watch/m1" },
     },
-    { id: "m2", title: "Northbound" },
+    { id: "m2", title: "Northbound", image: "https://example.com/northbound.jpg" },
   ],
   fallback: "Two movie ideas: The quiet moon and Northbound.",
 };
@@ -34,16 +35,23 @@ test("a results list becomes a grid of cards in APX Kit order", () => {
         {
           kind: "card",
           children: [
-            { kind: "image", media: "med_abc123", alt: "The quiet moon", shape: "banner" },
+            { kind: "image", src: "med_abc123", alt: "The quiet moon", shape: "banner" },
             { kind: "text", text: "Movie · 2024", style: "eyebrow" },
             { kind: "text", text: "The quiet moon", style: "title" },
             { kind: "text", text: "A space drama.", style: "body" },
             { kind: "badges", items: ["Drama", "108 min"] },
             { kind: "fields", rows: [{ label: "Year", value: "2024" }] },
             { kind: "details", children: [{ kind: "text", text: "An invented journey to the moon.", style: "body" }] },
+            { kind: "link", label: "Watch", url: "https://example.com/watch/m1" },
           ],
         },
-        { kind: "card", children: [{ kind: "text", text: "Northbound", style: "title" }] },
+        {
+          kind: "card",
+          children: [
+            { kind: "image", src: "https://example.com/northbound.jpg", alt: "Northbound", shape: "banner" },
+            { kind: "text", text: "Northbound", style: "title" },
+          ],
+        },
       ],
     },
   });
@@ -56,9 +64,23 @@ test("a list layout puts the picture beside the words", () => {
   assert.equal(first?.kind === "card" && first.children[0]?.kind, "row");
 });
 
-test("a block that asks for what APX does not draw shows its fallback, never a remote picture", () => {
-  for (const image of ["https://example.com/poster.jpg", "javascript:alert(1)", "asset:movie"]) {
+test("a block that asks for what APX does not draw shows its fallback, never a local or plain-text address", () => {
+  const bad = [
+    "http://example.com/poster.jpg",
+    "javascript:alert(1)",
+    "asset:movie",
+    "file:///etc/passwd",
+    "https://a b",
+  ];
+  for (const image of bad) {
     const items = [{ ...movies.items[0], image }];
+    assert.deepEqual(parseInlineBlock("apx-cards", JSON.stringify({ ...movies, items })), {
+      kind: "fallback",
+      text: movies.fallback,
+    });
+  }
+  for (const action of [...bad.map((url) => ({ label: "Open", url })), { label: "", url: "https://example.com" }]) {
+    const items = [{ ...movies.items[0], action }];
     assert.deepEqual(parseInlineBlock("apx-cards", JSON.stringify({ ...movies, items })), {
       kind: "fallback",
       text: movies.fallback,
@@ -112,7 +134,7 @@ test("A2UI's basic catalog is drawn with APX pieces", () => {
       {
         kind: "column",
         children: [
-          { kind: "image", media: "med_golf1", shape: "banner", alt: "A green" },
+          { kind: "image", src: "med_golf1", shape: "banner", alt: "A green" },
           { kind: "text", text: "Warm up", style: "title" },
           { kind: "text", text: "Ten minutes of swings.", style: "body" },
           { kind: "text", text: "Day 1", style: "caption" },
@@ -143,7 +165,7 @@ test("A2UI actions, bindings, unknown parts, cycles and loose parts fall back", 
       { id: "root", component: "Text", text: "Hi" },
       { id: "loose", component: "Text", text: "Nobody points here" },
     ],
-    [{ id: "root", component: "Image", url: "https://example.com/x.png" }],
+    [{ id: "root", component: "Image", url: "http://example.com/x.png" }],
   ];
   for (const components of cases)
     assert.equal(

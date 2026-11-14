@@ -1,11 +1,11 @@
 import { useMemo, useState } from "react";
-import { Image, Pressable, Text, View } from "react-native";
+import { Image, Linking, Pressable, ScrollView, Text, View } from "react-native";
 import Svg, { Defs, LinearGradient, Rect, Stop } from "react-native-svg";
 import type { MediaItem } from "../../chat/media";
 import { t } from "../../i18n";
-import type { InlineNode, InlineView as View_ } from "../../protocol";
+import { type InlineNode, isMediaId, type InlineView as View_ } from "../../protocol";
 import { Icon } from "../Icon";
-import { Tag } from "../kit";
+import { Button, Tag } from "../kit";
 import { useMediaUri } from "../media/context";
 import { makeStyles, useTheme } from "../theme";
 
@@ -28,16 +28,74 @@ function Accent() {
 }
 
 function Picture({ node, inCard }: { node: Of<"image">; inCard: boolean }) {
-  const s = useStyles();
-  const item = useMemo<MediaItem>(
-    () => ({ key: node.media, kind: "image", media_id: node.media, mime: "image/jpeg", name: node.media }),
-    [node.media],
+  return isMediaId(node.src) ? (
+    <HeldPicture node={node} inCard={inCard} />
+  ) : (
+    <Frame node={node} inCard={inCard} uri={node.src} />
   );
-  const { uri } = useMediaUri(item);
+}
+
+/** A picture APX holds, loaded through the core. */
+function HeldPicture({ node, inCard }: { node: Of<"image">; inCard: boolean }) {
+  const item = useMemo<MediaItem>(
+    () => ({ key: node.src, kind: "image", media_id: node.src, mime: "image/jpeg", name: node.src }),
+    [node.src],
+  );
+  return <Frame node={node} inCard={inCard} uri={useMediaUri(item).uri} />;
+}
+
+/** A picture that failed to load leaves no empty frame behind. */
+function Frame({ node, inCard, uri }: { node: Of<"image">; inCard: boolean; uri?: string }) {
+  const s = useStyles();
+  const [broken, setBroken] = useState(false);
+  if (broken) return null;
   const style = node.shape === "thumb" ? s.thumb : [s.banner, inCard && s.bleed];
   return (
     <View style={style}>
-      {uri && <Image source={{ uri }} style={s.fill} accessibilityLabel={node.alt} resizeMode="cover" />}
+      {uri && (
+        <Image
+          source={{ uri }}
+          style={s.fill}
+          accessibilityLabel={node.alt}
+          resizeMode="cover"
+          onError={() => setBroken(true)}
+        />
+      )}
+    </View>
+  );
+}
+
+/** Cards side by side to swipe through, with the one shown and how many there are. */
+function Carousel({ node }: { node: Of<"grid"> }) {
+  const s = useStyles();
+  const [width, setWidth] = useState(0);
+  const [index, setIndex] = useState(0);
+  // Until the row is measured, a phone-sized card keeps it from drawing empty.
+  const card = width ? Math.round(width * 0.86) : 300;
+  const many = node.children.length > 1;
+  return (
+    <View onLayout={(e) => setWidth(e.nativeEvent.layout.width)} style={s.carousel}>
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        decelerationRate="fast"
+        snapToInterval={card + 12}
+        contentContainerStyle={s.track}
+        onScroll={(e) => setIndex(Math.round(e.nativeEvent.contentOffset.x / (card + 12)))}
+        scrollEventThrottle={32}
+      >
+        {node.children.map((c, i) => (
+          // biome-ignore lint/suspicious/noArrayIndexKey: a view's pieces never reorder
+          <View key={i} style={{ width: many || !width ? card : width }}>
+            <Piece node={c} inCard={false} />
+          </View>
+        ))}
+      </ScrollView>
+      {many && (
+        <Text style={s.count}>
+          {Math.min(index + 1, node.children.length)} / {node.children.length}
+        </Text>
+      )}
     </View>
   );
 }
@@ -92,6 +150,18 @@ function Piece({ node, inCard }: { node: InlineNode; inCard: boolean }) {
       return <Details node={node} />;
     case "divider":
       return <View style={s.divider} />;
+    case "link":
+      return (
+        <Button
+          label={node.label}
+          size="sm"
+          icon="ExternalLink"
+          accessibilityHint={node.url}
+          onPress={() => void Linking.openURL(node.url)}
+        />
+      );
+    case "grid":
+      return <Carousel node={node} />;
     case "card":
       return (
         <View style={s.card}>
@@ -102,7 +172,6 @@ function Piece({ node, inCard }: { node: InlineNode; inCard: boolean }) {
     case "row":
       return <View style={s.row}>{node.children.map((c, i) => draw(c, i, false))}</View>;
     default:
-      // On a phone a grid is one card under another.
       return (
         <View style={node.kind === "column" && inCard ? s.column : s.stack}>
           {node.children.map((c, i) => draw(c, i, inCard && i === 0))}
@@ -135,9 +204,13 @@ const useStyles = makeStyles((theme) => ({
   head: { flexDirection: "row", flexWrap: "wrap", alignItems: "center", gap: 8 },
   heading: { color: theme.fg, fontSize: 15, fontWeight: "600" },
   stack: { gap: 12 },
+  carousel: { gap: 6 },
+  track: { gap: 12 },
+  count: { alignSelf: "center", color: theme.muted, fontSize: 12, fontVariant: ["tabular-nums"] },
   column: { gap: 8 },
   row: { flexDirection: "row", gap: 12, alignItems: "flex-start" },
   card: {
+    flexGrow: 1,
     gap: 8,
     paddingHorizontal: 16,
     paddingVertical: 14,

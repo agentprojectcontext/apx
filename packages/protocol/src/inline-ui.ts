@@ -1,7 +1,7 @@
 // Cards an agent shows inside its answer, as a fenced block. Two ways in, one tree out: ```apx-cards for a list of
 // results (movies, stays, flights…) and ```a2ui for a composition of A2UI's basic catalog. Both become the same
 // bounded tree of APX pieces, drawn the same way by the panel and the phone. Shared by both.
-// Nothing in a block can run code, load a remote address or act: images are pictures already in APX (media ids).
+// Nothing in a block can run code: pictures are media ids or https addresses, and a card's one action opens an https page.
 
 /** A piece of a card. Text styles follow APX Kit: eyebrow, title, body and caption. */
 export type InlineNode =
@@ -10,7 +10,8 @@ export type InlineNode =
   | { kind: "row"; children: InlineNode[] }
   | { kind: "grid"; children: InlineNode[] }
   | { kind: "text"; text: string; style: "eyebrow" | "title" | "body" | "caption" }
-  | { kind: "image"; media: string; shape: "banner" | "thumb"; alt: string }
+  | { kind: "image"; src: string; shape: "banner" | "thumb"; alt: string }
+  | { kind: "link"; label: string; url: string }
   | { kind: "badges"; items: string[] }
   | { kind: "fields"; rows: { label: string; value: string }[] }
   | { kind: "details"; label?: string; children: InlineNode[] }
@@ -30,6 +31,7 @@ const MAX_ITEMS = 12;
 const MAX_NODES = 60;
 const MAX_DEPTH = 10;
 const MEDIA = /^med_[A-Za-z0-9_-]{1,80}$/;
+const MAX_URL = 2000;
 const ID = /^[A-Za-z_][A-Za-z0-9_-]{0,39}$/;
 export const A2UI_BASIC_CATALOG = "https://a2ui.org/specification/v1_0/catalogs/basic/catalog.json";
 
@@ -37,6 +39,26 @@ const record = (v: unknown): v is Record<string, unknown> => v !== null && typeo
 const text = (v: unknown, max: number): v is string => typeof v === "string" && v.trim().length > 0 && v.length <= max;
 const optional = (v: unknown, max: number): string | undefined | false =>
   v === undefined ? undefined : text(v, max) ? v : false;
+
+/** A picture or page address a card may use: https only, so a block never reaches a local or plain-text address. */
+function https(v: unknown): v is string {
+  if (typeof v !== "string" || v.length > MAX_URL || /\s/.test(v)) return false;
+  try {
+    return new URL(v).protocol === "https:";
+  } catch {
+    return false;
+  }
+}
+
+/** Whether an image's `src` is a picture APX holds (loaded through the core) rather than a web address. */
+export const isMediaId = (src: string): boolean => MEDIA.test(src);
+const picture = (v: unknown): v is string => typeof v === "string" && (MEDIA.test(v) || https(v));
+
+function action(v: unknown): InlineNode | undefined | false {
+  if (v === undefined) return undefined;
+  if (!record(v) || !text(v.label, 40) || !https(v.url)) return false;
+  return { kind: "link", label: v.label, url: v.url };
+}
 
 function json(code: string): unknown {
   if (code.length > MAX_CODE) return undefined;
@@ -98,9 +120,10 @@ function cards(value: Record<string, unknown>): InlineNode | undefined {
     const image = item.image;
     const tags = badges(item.badges);
     const rows = fields(item.fields);
+    const link = action(item.action);
     if (eyebrow === false || description === false || details === false || tags === false || rows === false)
       return undefined;
-    if (image !== undefined && (typeof image !== "string" || !MEDIA.test(image))) return undefined;
+    if (link === false || (image !== undefined && !picture(image))) return undefined;
     const body: InlineNode[] = [];
     if (eyebrow) body.push({ kind: "text", text: eyebrow, style: "eyebrow" });
     body.push({ kind: "text", text: item.title, style: "title" });
@@ -108,9 +131,10 @@ function cards(value: Record<string, unknown>): InlineNode | undefined {
     if (tags?.length) body.push({ kind: "badges", items: tags });
     if (rows?.length) body.push({ kind: "fields", rows });
     if (details) body.push({ kind: "details", children: [{ kind: "text", text: details, style: "body" }] });
-    const picture = image ? ({ kind: "image", media: image, alt: item.title } as const) : undefined;
+    if (link) body.push(link);
+    const shown = image ? ({ kind: "image", src: image, alt: item.title } as const) : undefined;
     out.push(
-      !picture
+      !shown
         ? { kind: "card", children: body }
         : layout === "list"
           ? {
@@ -119,13 +143,13 @@ function cards(value: Record<string, unknown>): InlineNode | undefined {
                 {
                   kind: "row",
                   children: [
-                    { ...picture, shape: "thumb" },
+                    { ...shown, shape: "thumb" },
                     { kind: "column", children: body },
                   ],
                 },
               ],
             }
-          : { kind: "card", children: [{ ...picture, shape: "banner" }, ...body] },
+          : { kind: "card", children: [{ ...shown, shape: "banner" }, ...body] },
     );
   }
   return { kind: layout === "list" ? "column" : "grid", children: out };
@@ -135,7 +159,7 @@ type A2Component = Record<string, unknown> & { id: string; component: string };
 
 /**
  * ```a2ui: `{ messages: [createSurface, updateComponents], fallback }` in A2UI v1.0 with the basic catalog. Literal
- * values only (no data bindings, functions or actions): Text, Image (a media id), Row, Column, List, Card, Divider and
+ * values only (no data bindings, functions or actions): Text, Image (a media id or https address), Row, Column, List, Card, Divider and
  * Modal, drawn as an expandable section. Icon is left out. Anything else draws the fallback.
  */
 function a2ui(value: Record<string, unknown>): InlineNode | undefined {
@@ -188,10 +212,10 @@ function a2ui(value: Record<string, unknown>): InlineNode | undefined {
         return { kind: "text", text: c.text, style };
       }
       case "Image": {
-        if (typeof c.url !== "string" || !MEDIA.test(c.url)) return undefined;
+        if (!picture(c.url)) return undefined;
         const small = c.variant === "icon" || c.variant === "avatar" || c.variant === "smallFeature";
         const alt = typeof c.description === "string" ? c.description.slice(0, 200) : "";
-        return { kind: "image", media: c.url, shape: small ? "thumb" : "banner", alt };
+        return { kind: "image", src: c.url, shape: small ? "thumb" : "banner", alt };
       }
       case "Icon":
         return null;

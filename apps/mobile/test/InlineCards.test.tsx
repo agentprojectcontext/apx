@@ -1,4 +1,5 @@
 import { act, fireEvent, render } from "@testing-library/react-native";
+import { Linking } from "react-native";
 import { t } from "../src/i18n";
 import type { ApxClient, Message } from "../src/protocol";
 import { ChatMessage } from "../src/ui/ChatMessage";
@@ -39,6 +40,8 @@ test("an agent's results show as cards on the phone, and their details open", as
           badges: ["Drama"],
           fields: [{ label: "Length", value: "108 min" }],
           details: "An invented journey to the moon.",
+          image: "https://example.com/moon.jpg",
+          action: { label: "Watch it", url: "https://example.com/watch/moon" },
         },
         { id: "north", title: "Northbound" },
       ],
@@ -53,6 +56,11 @@ test("an agent's results show as cards on the phone, and their details open", as
   await act(async () => fireEvent.press(ui.getByText(t("inlineDetails"))));
   expect(ui.getByText("An invented journey to the moon.")).toBeTruthy();
   expect(ui.queryByText(/"items"/)).toBeNull();
+  expect(ui.getByText("1 / 2")).toBeTruthy();
+  expect(ui.getByLabelText("The quiet moon").props.source).toEqual({ uri: "https://example.com/moon.jpg" });
+  const open = jest.spyOn(Linking, "openURL").mockResolvedValue(true);
+  await act(async () => fireEvent.press(ui.getByText("Watch it")));
+  expect(open).toHaveBeenCalledWith("https://example.com/watch/moon");
 });
 
 test("an A2UI block the phone cannot draw shows its fallback text, not its code", async () => {
