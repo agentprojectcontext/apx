@@ -89,6 +89,38 @@ test("an agent's results and A2UI cards draw as APX cards, open their details an
           },
         ],
       }),
+    pick: () =>
+      fence("apx-cards", {
+        view: "choice",
+        title: "Auriculares",
+        note: "Precios de hoy",
+        quantity: 3,
+        fallback: "Bruma Lite $64.900 o Pulso Pro $98.500.",
+        options: [
+          { id: "bruma", title: "Bruma Lite", price: "$64.900", rating: "4,2" },
+          {
+            id: "pulso",
+            title: "Pulso Pro",
+            price: "$98.500",
+            was: "$118.000",
+            badge: { label: "Recomendado", tone: "info" },
+          },
+        ],
+        submit: { label: "Seguir con esta" },
+      }),
+    book: () =>
+      fence("apx-cards", {
+        view: "booking",
+        fallback: "Hostería del Bosque: hoy 21:00.",
+        place: { title: "Hostería del Bosque", rating: "4,6" },
+        days: [
+          { label: "Hoy", sub: "vie 14" },
+          { label: "Lun", sub: "cerrado", off: true },
+        ],
+        times: ["20:00", { label: "20:30", off: true }, "21:00"],
+        people: { min: 1, max: 6, value: 2 },
+        submit: { label: "Reservar" },
+      }),
     buy: () =>
       fence("a2ui", {
         fallback: "No puedo comprar desde acá: te dejo el enlace en texto.",
@@ -122,35 +154,58 @@ test("an agent's results and A2UI cards draw as APX cards, open their details an
     media = { movie: await upload("movie"), hotel: await upload("hotel"), flight: await upload("flight") };
     const chat = await env.client.call("threads.create", { kind: "loose", agent_id: "superagent" });
     await page.goto(`${env.core.url}/#thread=${chat.id}`);
-    for (const said of ["movies", "flights", "golf", "buy"]) {
+    for (const said of ["movies", "flights", "golf", "buy", "pick", "book"]) {
       await env.client.call("threads.send", { thread: chat.id, text: said });
       await env.settle(chat.id);
     }
     const views = page.locator(".apx-inline");
-    await expect(views).toHaveCount(3);
+    await expect(views).toHaveCount(5);
     const movies = views.nth(0);
     await expect(movies.getByText("Datos de ejemplo")).toBeVisible();
     await expect(movies.locator(".apx-inline__track img")).toHaveCount(2);
-    await expect(movies.getByRole("link", { name: "Ver la ficha" })).toHaveAttribute("href", "https://example.com/luna");
+    await expect(movies.getByRole("link", { name: "Ver la ficha" })).toHaveAttribute(
+      "href",
+      "https://example.com/luna",
+    );
     await expect(movies.getByText("1 / 2")).toBeVisible();
     await movies.getByText("+2").click();
     const viewer = page.getByRole("dialog");
     await expect(viewer.getByText("1 / 3")).toBeVisible();
     await page.keyboard.press("Escape");
     await expect(viewer).toHaveCount(0);
-    await expect(movies.getByText("Una expedición imaginaria a la Luna.")).toBeHidden();
-    await movies.getByText("Ver detalles").first().click();
-    await expect(movies.getByText("Una expedición imaginaria a la Luna.")).toBeVisible();
+    await expect(page.getByText("Una expedición imaginaria a la Luna.")).toBeHidden();
+    await movies.getByRole("button", { name: "Ver detalles" }).first().click();
+    const details = page.getByRole("dialog");
+    await expect(details.getByText("Una expedición imaginaria a la Luna.")).toBeVisible();
+    await expect(details.getByText("A. Rivera")).toBeVisible();
+    await page.keyboard.press("Escape");
     await expect(views.nth(2).getByText("Diez minutos de swings suaves.")).toBeVisible();
     await expect(page.getByText("No puedo comprar desde acá: te dejo el enlace en texto.")).toBeVisible();
     await expect(page.getByRole("button", { name: "Comprar" })).toHaveCount(0);
-    for (const [i, name] of ["movies", "flights", "golf"].entries())
+    // Choosing writes to the chat as the owner, only once something is chosen.
+    const pick = views.nth(3);
+    const go = pick.getByRole("button", { name: "Seguir con esta" });
+    await expect(go).toBeDisabled();
+    await pick.getByText("Pulso Pro").click();
+    await pick.getByRole("button", { name: "Más" }).click();
+    await go.click();
+    await expect(page.getByText("Quiero 2 × Pulso Pro ($98.500). Confirmame antes de pagar.")).toBeVisible();
+    await expect(pick.getByRole("button", { name: "Enviado" })).toBeDisabled();
+    const book = views.nth(4);
+    await expect(book.getByRole("button", { name: /Lun/ })).toBeDisabled();
+    await book.getByRole("button", { name: /Hoy/ }).click();
+    await book.getByRole("button", { name: "21:00" }).click();
+    await book.getByRole("button", { name: "Reservar" }).click();
+    await expect(
+      page.getByText("Reservá en Hostería del Bosque: Hoy vie 14 a las 21:00, 2 personas. Confirmame antes de pagar."),
+    ).toBeVisible();
+    for (const [i, name] of ["movies", "flights", "golf", "pick", "book"].entries())
       await views.nth(i).screenshot({ path: info.outputPath(`${name}-desktop.png`) });
     await page.setViewportSize({ width: 390, height: 844 });
     await expect(movies.getByText("La luna tranquila")).toBeVisible();
     const width = await page.evaluate(() => document.documentElement.scrollWidth);
     expect(width).toBeLessThanOrEqual(390);
-    for (const [i, name] of ["movies", "flights", "golf"].entries())
+    for (const [i, name] of ["movies", "flights", "golf", "pick", "book"].entries())
       await views.nth(i).screenshot({ path: info.outputPath(`${name}-phone.png`) });
   } finally {
     await page.goto("about:blank");
