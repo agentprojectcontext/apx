@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useContext, useMemo, useState } from "react";
 import { Image, Linking, Pressable, ScrollView, Text, View } from "react-native";
 import Svg, { Defs, LinearGradient, Rect, Stop } from "react-native-svg";
 import type { MediaItem } from "../../chat/media";
@@ -8,8 +8,10 @@ import { BottomSheet, Button, Tag } from "../kit";
 import { useMediaUri } from "../media/context";
 import { MediaViewer } from "../media/MediaViewer";
 import { makeStyles, useTheme } from "../theme";
-
-type Of<K extends InlineNode["kind"]> = Extract<InlineNode, { kind: K }>;
+import { Agenda, Code, Head, Status, Steps } from "./InlineFacts";
+import { InlineAsk, type Of, Rating, SendButton } from "./InlineParts";
+import { Booking, Choice, Compare } from "./InlinePick";
+import { Places } from "./InlinePlaces";
 
 /** APX Kit's accent: a thin brand-to-violet line on top of each card. */
 function Accent() {
@@ -137,6 +139,28 @@ function Details({ node }: { node: Of<"details"> }) {
   );
 }
 
+/** A card's buttons side by side; a lone button that writes to the chat is its main one. */
+function Actions({ node }: { node: Of<"actions"> }) {
+  const s = useStyles();
+  const canAsk = Boolean(useContext(InlineAsk));
+  const shown = node.children.filter((c) => c.kind !== "ask" || canAsk);
+  if (!shown.length) return null;
+  return (
+    <View style={s.actions}>
+      {shown.map((c, i) => (
+        // biome-ignore lint/suspicious/noArrayIndexKey: a view's pieces never reorder
+        <View key={i} style={s.action}>
+          {c.kind === "ask" ? (
+            <SendButton label={c.label} text={c.text} primary={shown.length === 1} />
+          ) : (
+            <Piece node={c} inCard={false} />
+          )}
+        </View>
+      ))}
+    </View>
+  );
+}
+
 function Piece({ node, inCard }: { node: InlineNode; inCard: boolean }) {
   const s = useStyles();
   switch (node.kind) {
@@ -187,16 +211,29 @@ function Piece({ node, inCard }: { node: InlineNode; inCard: boolean }) {
         </View>
       );
     case "actions":
-      return (
-        <View style={s.actions}>
-          {node.children.map((c, i) => (
-            // biome-ignore lint/suspicious/noArrayIndexKey: a view's pieces never reorder
-            <View key={i} style={s.action}>
-              <Piece node={c} inCard={false} />
-            </View>
-          ))}
-        </View>
-      );
+      return <Actions node={node} />;
+    case "ask":
+      return <SendButton label={node.label} text={node.text} primary={false} />;
+    case "head":
+      return <Head node={node} />;
+    case "rating":
+      return <Rating value={node.value} />;
+    case "status":
+      return <Status node={node} />;
+    case "code":
+      return <Code node={node} />;
+    case "steps":
+      return <Steps node={node} />;
+    case "agenda":
+      return <Agenda node={node} />;
+    case "choice":
+      return <Choice node={node} />;
+    case "compare":
+      return <Compare node={node} />;
+    case "booking":
+      return <Booking node={node} />;
+    case "places":
+      return <Places node={node} />;
     case "card":
       return (
         <View style={s.card}>

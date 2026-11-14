@@ -4,6 +4,7 @@ import { type Block, type Inline, parseMarkdown, plainText } from "../chat/markd
 import { t } from "../i18n";
 import { EMAIL_LANG, parseEmailBlock, parseInlineBlock } from "../protocol";
 import { EmailCard } from "./chat/EmailCard";
+import { InlineAsk } from "./chat/InlineParts";
 import { InlineView } from "./chat/InlineView";
 import { copyText } from "./copy";
 import { Icon } from "./Icon";
@@ -191,10 +192,13 @@ export function Markdown({
   text,
   color: tint,
   selectable = true,
+  onAsk,
 }: {
   text: string;
   color?: string;
   selectable?: boolean;
+  /** Writes to the chat as the owner, for the cards' buttons that ask the agent something. */
+  onAsk?: (text: string) => Promise<unknown>;
 }) {
   const theme = useTheme();
   const color = tint ?? theme.fg;
@@ -202,9 +206,11 @@ export function Markdown({
   const blocks = useMemo(() => parseMarkdown(text), [text]);
   return (
     <Selectable.Provider value={selectable}>
-      <View style={s.root}>
-        <Blocks blocks={blocks} color={color} />
-      </View>
+      <InlineAsk.Provider value={onAsk}>
+        <View style={s.root}>
+          <Blocks blocks={blocks} color={color} />
+        </View>
+      </InlineAsk.Provider>
     </Selectable.Provider>
   );
 }

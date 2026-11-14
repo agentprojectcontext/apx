@@ -157,7 +157,11 @@ export function ChatMessage({
             delayLongPress={350}
             style={({ pressed }) => [s.bubble, mine ? s.mineBox : s.theirs, pressed && { opacity: 0.85 }]}
           >
-            {mine ? <Text style={s.mineText}>{part.text}</Text> : <Markdown text={part.text} selectable={false} />}
+            {mine ? (
+              <Text style={s.mineText}>{part.text}</Text>
+            ) : (
+              <Markdown text={part.text} selectable={false} onAsk={send} />
+            )}
           </Pressable>
         );
       case "input":

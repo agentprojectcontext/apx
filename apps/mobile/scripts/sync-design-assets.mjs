@@ -88,6 +88,9 @@ const names = [
   "Sparkles",
   "ExternalLink",
   "Mail",
+  "Star",
+  "Minus",
+  "MapPin",
 ];
 const icons = {};
 for (const name of names) {
