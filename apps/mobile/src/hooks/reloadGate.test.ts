@@ -110,3 +110,16 @@ test("a stopped gate starts nothing more", async () => {
   gate.later();
   assert.equal(reload.stats().started, 0);
 });
+
+test("a gate stopped by an unmount reloads again once its screen mounts again", async () => {
+  let runs = 0;
+  const gate = reloadGate(async () => {
+    runs++;
+  }, 3000);
+  gate.stop();
+  await gate.now();
+  assert.equal(runs, 0);
+  gate.start();
+  await gate.now();
+  assert.equal(runs, 1);
+});

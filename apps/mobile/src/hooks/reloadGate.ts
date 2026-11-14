@@ -62,5 +62,10 @@ export function reloadGate(run: () => Promise<void>, gapMs: number, timers: Gate
     timer = undefined;
   };
 
-  return { now, later, stop, busy: () => Boolean(running) };
+  // A screen mounted again with the same gate takes it up again.
+  const start = (): void => {
+    stopped = false;
+  };
+
+  return { now, later, start, stop, busy: () => Boolean(running) };
 }

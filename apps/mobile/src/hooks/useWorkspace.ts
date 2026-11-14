@@ -348,6 +348,7 @@ export function useWorkspace(creds: Creds) {
   const refresh = gate.now;
 
   useEffect(() => {
+    gate.start();
     void gate.now();
     // Away from the screen the lists wait: coming back reloads them once.
     const timer = setInterval(() => {
