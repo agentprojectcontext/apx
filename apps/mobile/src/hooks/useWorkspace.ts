@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { AppState } from "react-native";
 import { APP_CLIENT } from "../appInfo";
 import { newChatThread, parseNewChat } from "../chat/newChat";
 import type { Creds } from "../creds";
@@ -22,6 +23,7 @@ import { taskComments } from "../tasks/comments";
 import { DEFAULT_COLUMNS, type TaskColumn, type TaskPatch } from "../tasks/fields";
 import { continueSession } from "./continueSession";
 import { keepSame, RELOADS } from "./keepSame";
+import { reloadGate } from "./reloadGate";
 
 export type Agent = {
   id: string;
@@ -210,6 +212,10 @@ export type Workspace = {
   disk?: { free_bytes: number; low: boolean };
 };
 
+/** Between two reloads of the whole workspace; live events keep the lists current in between. */
+const RELOAD_GAP_MS = 3000;
+const away = () => AppState.currentState === "background";
+
 export const emptyWorkspace: Workspace = {
   threads: [],
   projects: [],
@@ -331,26 +337,36 @@ export function useWorkspace(creds: Creds) {
     );
   }, [client]);
 
-  const refresh = useCallback(async () => {
-    await loadPrimary();
-    await loadSecondary();
-  }, [loadPrimary, loadSecondary]);
+  const gate = useMemo(
+    () =>
+      reloadGate(async () => {
+        await loadPrimary();
+        await loadSecondary();
+      }, RELOAD_GAP_MS),
+    [loadPrimary, loadSecondary],
+  );
+  const refresh = gate.now;
 
   useEffect(() => {
-    void loadPrimary();
-    void loadSecondary();
+    void gate.now();
+    // Away from the screen the lists wait: coming back reloads them once.
     const timer = setInterval(() => {
-      void loadPrimary();
-      void loadSecondary();
+      if (!away()) gate.later();
     }, 30_000);
-    return () => clearInterval(timer);
-  }, [loadPrimary, loadSecondary]);
+    const app = AppState.addEventListener("change", (state) => {
+      if (state === "active") void gate.now();
+    });
+    return () => {
+      clearInterval(timer);
+      app.remove();
+      gate.stop();
+    };
+  }, [gate]);
 
   useEffect(() => {
     let socket: ApxSocket | undefined;
     let stopped = false;
     let retryTimer: ReturnType<typeof setTimeout> | undefined;
-    let syncTimer: ReturnType<typeof setTimeout> | undefined;
     let attempt = 0;
     const connect = async (): Promise<void> => {
       try {
@@ -399,12 +415,8 @@ export function useWorkspace(creds: Creds) {
                 ),
               }));
           }
-          // Throttled, and only for what the lists show: a reload per streamed step kept the phone busy.
-          if (!syncTimer && RELOADS.has(event.type))
-            syncTimer = setTimeout(() => {
-              syncTimer = undefined;
-              void refresh();
-            }, 1500);
+          // Only for what the lists show, one reload at a time; in the background the next return reloads.
+          if (RELOADS.has(event.type) && !away()) gate.later();
         });
         await refresh();
         await socket.closed;
@@ -423,9 +435,8 @@ export function useWorkspace(creds: Creds) {
       stopped = true;
       socket?.close();
       if (retryTimer) clearTimeout(retryTimer);
-      if (syncTimer) clearTimeout(syncTimer);
     };
-  }, [client, refresh, creds.device]);
+  }, [client, refresh, gate, creds.device]);
 
   const openThread = useCallback(
     async (threadId: string) => {

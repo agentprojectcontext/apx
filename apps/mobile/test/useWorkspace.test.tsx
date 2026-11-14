@@ -141,6 +141,40 @@ test("socket closure reconnects after one second and unmount cancels further rec
   expect(net.sockets.every((socket) => socket.readyState === 3)).toBe(true);
 });
 
+test("a busy office never stacks workspace reloads while one is still downloading", async () => {
+  let active = 0;
+  let most = 0;
+  const held: Array<() => void> = [];
+  const hook = await mount();
+  net.responses["threads.list"] = () => {
+    active++;
+    most = Math.max(most, active);
+    return new Promise((resolve) =>
+      held.push(() => {
+        active--;
+        resolve({ threads: [thread] });
+      }),
+    );
+  };
+  const socket = net.sockets[0];
+  const before = net.calls.filter((call) => call.method === "threads.list").length;
+  // Each step of every agent's run reports an event; a slow connection keeps the reload in flight meanwhile.
+  for (let i = 0; i < 20; i++) {
+    await act(async () => socket?.event({ type: "run.updated", run: { id: `run_${i}`, thread_id: thread.id } }));
+    await act(() => jest.advanceTimersByTimeAsync(1500));
+  }
+  await act(() => jest.advanceTimersByTimeAsync(60_000));
+  expect(most).toBe(1);
+  expect(net.calls.filter((call) => call.method === "threads.list").length - before).toBe(1);
+  // Once it lands, the events that came meanwhile bring one more reload, not one each.
+  await act(async () => held.shift()?.());
+  await act(() => jest.advanceTimersByTimeAsync(0));
+  await act(() => jest.advanceTimersByTimeAsync(3000));
+  expect(net.calls.filter((call) => call.method === "threads.list").length - before).toBe(2);
+  for (const release of held.splice(0)) await act(async () => release());
+  await hook.unmount();
+});
+
 test("a socket whose welcome arrives after unmount is closed without refreshing data", async () => {
   net.restore();
   net = transport({ holdWelcome: true });
