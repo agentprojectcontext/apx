@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { voiceLevel } from "./voiceMeter.ts";
+import { loadVoiceMeter } from "../../lazy.ts";
+
+const { voiceLevel } = await loadVoiceMeter();
 
 test("a silent mic stays flat, and louder samples make a stronger bounded signal", () => {
   assert.equal(voiceLevel(new Uint8Array()), 0);
