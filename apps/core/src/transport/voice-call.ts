@@ -35,7 +35,13 @@ export function attachVoiceCall(server: Server, deps: { calls: Calls; engine: Vo
       socket.end("HTTP/1.1 403 Forbidden\r\nConnection: close\r\n\r\n");
       return;
     }
+    // An upgrade that never completes (the socket closed first) must not leave the call taken.
+    let upgraded = false;
+    socket.once("close", () => {
+      if (!upgraded) deps.calls.end(call.thread);
+    });
     wss.handleUpgrade(req, socket, head, (panel) => {
+      upgraded = true;
       void relay(panel, call);
       wss.emit("connection", panel, req);
     });

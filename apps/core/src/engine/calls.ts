@@ -22,8 +22,6 @@ const TICKET_MS = 60_000;
 const THINK_MS = 60_000;
 const THINK_MAX_TOKENS = 400;
 const MAX_MESSAGES = 80;
-/** Tools by which an agent hands an ask on: its answer comes back to the ask's chat later. */
-const HANDOFF = new Set(["delegate", "task_create"]);
 
 /** What the agent is told with every ask: the owner hears its answer read as is. */
 const ASK = {
@@ -62,6 +60,8 @@ export type ToEngine =
 type Ask = {
   n: number;
   call: string;
+  /** The call it was asked in: a later call in the same chat numbers its asks from 1 again. */
+  from: Live;
   sub: string;
   message: string;
   started: number;
@@ -95,7 +95,10 @@ export type CallTicket = {
 function spoken(raw: unknown): ChatItem[] {
   if (!Array.isArray(raw)) return [];
   const out: ChatItem[] = [];
-  for (const m of raw.slice(-MAX_MESSAGES)) {
+  // The system prompt always goes: a long call keeps its rules and the [[task:]] protocol.
+  const system = raw.filter((m) => (m as { role?: unknown })?.role === "system");
+  const rest = raw.filter((m) => (m as { role?: unknown })?.role !== "system").slice(-MAX_MESSAGES);
+  for (const m of [...system, ...rest]) {
     const role = (m as { role?: unknown })?.role;
     const content = (m as { content?: unknown })?.content;
     if (typeof content !== "string") continue;
@@ -179,7 +182,23 @@ export function createCalls(deps: {
     ]);
     // The owner's own words, relayed by the voice: the agent's turn is the owner's, with its usual checks and model.
     deps.admit({ thread_id: sub.id, agent_id: agent.id, trigger: "user", origin: { kind: "user" }, text });
-    asks.set(sub.id, { n, call: l.thread, sub: sub.id, message, started: now(), lang: l.lang });
+    asks.set(sub.id, { n, call: l.thread, from: l, sub: sub.id, message, started: now(), lang: l.lang });
+  }
+
+  /**
+   * The agent handed the ask to someone whose report comes back to this chat: a delegation, or a task assigned to a
+   * teammate. A task only noted down (no assignee, a proposal, a promise, its own) brings nothing back.
+   */
+  function handedOn(run: RunRecord): boolean {
+    const agent = store.agents.get(run.agent_id);
+    const self = new Set([run.agent_id, agent?.name.toLowerCase()].filter(Boolean));
+    return store.runs.steps(run.id).some((s) => {
+      if (s.state !== "ok") return false;
+      if (s.tool === "delegate") return true;
+      if (s.tool !== "task_create") return false;
+      const to = typeof s.args.assignee === "string" ? s.args.assignee.trim().toLowerCase() : "";
+      return Boolean(to) && !self.has(to) && !s.args.propose && !s.args.owed_by;
+    });
   }
 
   function answered(run: RunRecord) {
@@ -188,8 +207,7 @@ export function createCalls(deps: {
     const answer = answerOf(store, run)?.trim() ?? "";
     // The agent handed the work on (a task for a teammate, a delegation): what it says now is said, and the call keeps
     // listening to this chat, where the teammate's report wakes it with the result.
-    const waiting =
-      run.state === "completed" && store.runs.steps(run.id).some((s) => HANDOFF.has(s.tool) && s.state === "ok");
+    const waiting = run.state === "completed" && handedOn(run);
     if (!waiting) asks.delete(run.thread_id);
     const done = run.state === "completed" && Boolean(answer);
     addPart(a.message, (parts) =>
@@ -205,7 +223,7 @@ export function createCalls(deps: {
           : p,
       ),
     );
-    if (live?.thread === a.call && (answer || !waiting)) {
+    if (live === a.from && (answer || !waiting)) {
       // A teammate's report woke the agent: the voice says who finished.
       const origin = run.trigger === "a2a_result" ? run.input?.origin : undefined;
       const by = origin?.kind === "agent" ? origin.name : undefined;
@@ -285,6 +303,7 @@ export function createCalls(deps: {
         thread = store.threads.create({ kind: "call", title: "Call", agent_ids: [agent.id] });
         store.threads.mergeContext(thread.id, { titled: true });
       }
+      for (const [k, t] of tickets) if (t.until < now()) tickets.delete(k);
       const ticket = crypto.randomBytes(24).toString("base64url");
       tickets.set(ticket, {
         thread: thread.id,

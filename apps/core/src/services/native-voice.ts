@@ -59,7 +59,8 @@ export function createNativeVoice(deps: {
       voice: voiceId(voice()),
       language: lang,
     };
-    const ears: ServiceSettings = { ...speech, kind: "transcription", voice: undefined };
+    // Voice notes come in any language (a contact may write in English): whisper tells which.
+    const ears: ServiceSettings = { ...speech, kind: "transcription", voice: undefined, language: undefined };
     const fresh = !has(NATIVE_SPEECH);
     services.set(NATIVE_SPEECH, speech);
     services.set(NATIVE_EARS, ears);

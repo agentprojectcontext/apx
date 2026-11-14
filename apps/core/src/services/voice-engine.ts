@@ -17,6 +17,7 @@ const START_TIMEOUT_MS = 5 * 60_000; // the first start after an update installs
 const IDLE_MS = 10 * 60_000;
 const SPEAK_TIMEOUT_MS = 90_000;
 const ENGINE = path.join(import.meta.dirname, "../voice/engine.py");
+const KEEP_ENV = new Set(["PATH", "HOME", "USER", "TMPDIR", "LANG", "SHELL", "XDG_CACHE_HOME", "SSL_CERT_FILE"]);
 
 /**
  * Below MIN_GB the voice does not run. On its own it runs the larger models from AUTO_FULL_GB: with less, the 6 GB
@@ -95,9 +96,14 @@ export function createVoiceEngine(deps: {
     return { tier: full ? "full" : "light", memory_gb, ...(uv() ? {} : { missing: "uv" as const }) };
   }
 
-  const env = (extra: Record<string, string>) => ({
-    ...process.env,
-    VOICE_TIER: machine().tier,
+  // What the engine needs from the core's environment, and nothing else: never APX's token or any key.
+  const env = (extra: Record<string, string>, tier = machine().tier) => ({
+    ...Object.fromEntries(
+      Object.entries(process.env).filter(
+        ([k]) => KEEP_ENV.has(k) || k.startsWith("HF_") || k.startsWith("UV_") || k.startsWith("LC_"),
+      ),
+    ),
+    VOICE_TIER: tier,
     VOICE_PARENT_PID: String(process.pid),
     VOICE_OWNER: deps.owner?.() ?? "",
     // The owner's own recordings, used before APX's voices of the same name (es-AR-female.wav…).
@@ -120,7 +126,7 @@ export function createVoiceEngine(deps: {
   }
 
   /** Written once a download of this tier's models finished: they are on disk. */
-  const marker = () => path.join(deps.home, "voice", `installed-${machine().tier}.json`);
+  const marker = (tier = machine().tier) => path.join(deps.home, "voice", `installed-${tier}.json`);
   const installed = () => machine().tier !== "none" && fs.existsSync(marker());
 
   const stop = () => {
@@ -135,7 +141,16 @@ export function createVoiceEngine(deps: {
   }, 30_000);
   idle.unref();
 
-  async function start(): Promise<Running> {
+  /** One engine at a time: requests that come while it starts share that start. */
+  let starting: Promise<Running> | undefined;
+  function start(): Promise<Running> {
+    starting ??= spawnEngine().finally(() => {
+      starting = undefined;
+    });
+    return starting;
+  }
+
+  async function spawnEngine(): Promise<Running> {
     const bin = uv();
     if (!bin) throw new Error("uv is not installed (brew install uv)");
     const port = await freePort();
@@ -146,9 +161,14 @@ export function createVoiceEngine(deps: {
     });
     const tail = logTo(child, true);
     const url = `http://127.0.0.1:${port}`;
+    let spawnError: Error | undefined;
+    child.on("error", (err) => {
+      spawnError = err;
+    });
     const ready = (async () => {
       const until = Date.now() + START_TIMEOUT_MS;
       while (Date.now() < until) {
+        if (spawnError) throw new Error(`the voice engine could not start: ${spawnError.message}`);
         if (child.exitCode !== null)
           throw new Error(`the voice engine stopped: ${tail().trim().split("\n").at(-1) ?? ""}`);
         try {
@@ -228,10 +248,12 @@ export function createVoiceEngine(deps: {
       const bin = uv();
       if (machine().missing || !bin) throw new Error("APX's voice cannot run on this computer");
       if (install?.state === "downloading") return;
+      // The tier this download is for: the owner may pick another meanwhile, which is then downloaded after it.
+      const tier = machine().tier;
       install = { state: "downloading", received: 0, total: 0 };
       const child = run(bin, ["run", "--script", ENGINE, "--prefetch"], {
         stdio: ["ignore", "pipe", "pipe"],
-        env: env({}),
+        env: env({}, tier),
       });
       const tail = logTo(child);
       let buf = "";
@@ -255,9 +277,10 @@ export function createVoiceEngine(deps: {
       child.on("exit", (code) => {
         if (code === 0) {
           install = undefined;
-          fs.mkdirSync(path.dirname(marker()), { recursive: true });
-          fs.writeFileSync(marker(), JSON.stringify({ at: new Date().toISOString() }));
-          deps.log.info({ tier: machine().tier }, "voice installed");
+          fs.mkdirSync(path.dirname(marker(tier)), { recursive: true });
+          fs.writeFileSync(marker(tier), JSON.stringify({ at: new Date().toISOString() }));
+          deps.log.info({ tier }, "voice installed");
+          if (!installed() && !machine().missing) this.startInstall();
         } else failed(tail().trim().split("\n").at(-1) || `exit ${code}`);
       });
     },

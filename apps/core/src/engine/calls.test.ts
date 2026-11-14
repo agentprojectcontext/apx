@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { after, before, test } from "node:test";
+import { callHandlers } from "../rpc/calls.ts";
 import { waitFor } from "../testkit/platform.ts";
 import { createCalls, type ToEngine } from "./calls.ts";
 import { callTool, say, scriptedLlm, startCore } from "./testkit.ts";
@@ -10,20 +11,24 @@ const llm = scriptedLlm((_req, { system, said, afterTool }) =>
     ? say("Agent UI es una interfaz para trabajar con agentes.")
     : said.includes("<delegation_result")
       ? say("Scout encontró que Agent UI es una interfaz para trabajar con agentes.")
-      : said.includes("Pedido por voz") && said.includes("Scout") && afterTool
-        ? say("Le encargué a Scout la búsqueda; te cuento cuando termine.")
-        : said.includes("Pedido por voz") && said.includes("Scout")
-          ? callTool("t1", "task_create", {
-              title: "Buscar qué es Agent UI",
-              assignee: scout,
-              goal: "Saber qué es Agent UI",
-              description: "- Buscá qué es Agent UI.",
-            })
-          : said.includes("Pedido por voz")
-            ? say("Tenés dos tareas vencidas. La más vieja es de septiembre.")
-            : said.includes("(Note.")
-              ? say("Dale, dejame que lo veo. [[task: listar las tareas vencidas]]")
-              : say("ok"),
+      : said.includes("Pedido por voz") && said.includes("anotá") && afterTool
+        ? say("Listo, lo anoté.")
+        : said.includes("Pedido por voz") && said.includes("anotá")
+          ? callTool("n1", "task_create", { title: "Llamar al dentista" })
+          : said.includes("Pedido por voz") && said.includes("Scout") && afterTool
+            ? say("Le encargué a Scout la búsqueda; te cuento cuando termine.")
+            : said.includes("Pedido por voz") && said.includes("Scout")
+              ? callTool("t1", "task_create", {
+                  title: "Buscar qué es Agent UI",
+                  assignee: scout,
+                  goal: "Saber qué es Agent UI",
+                  description: "- Buscá qué es Agent UI.",
+                })
+              : said.includes("Pedido por voz")
+                ? say("Tenés dos tareas vencidas. La más vieja es de septiembre.")
+                : said.includes("(Note.")
+                  ? say("Dale, dejame que lo veo. [[task: listar las tareas vencidas]]")
+                  : say("ok"),
 );
 
 let env: Awaited<ReturnType<typeof startCore>>;
@@ -336,9 +341,29 @@ test("what the owner types in the call's chat during the call is theirs, and goe
   assert.equal(calls.typed(thread_id, "otra"), false, "after it ends, typing is a chat again");
 });
 
+test("a task only noted down settles the ask: nothing is coming back", async () => {
+  const calls = callsAt({ t: 0 });
+  const { thread_id, ticket } = calls.start({ voice: "female", locale: "es-AR" });
+  calls.redeem(ticket);
+  const told: ToEngine[] = [];
+  calls.attach(
+    thread_id,
+    (f) => told.push(f),
+    () => {},
+  );
+  calls.hear(thread_id, { type: "ask", n: 1, task: "anotá llamar al dentista", heard: "anotá llamar al dentista" });
+  await waitFor(async () => told.length > 0, "the answer");
+  assert.deepEqual(told[0], { type: "result", n: 1, state: "done", text: "Listo, lo anoté." });
+  const card = env.core.store.messages
+    .list(thread_id)
+    .flatMap((m) => m.parts)
+    .find((p) => p.type === "subthread");
+  assert.equal(card?.type === "subthread" && card.state, "completed");
+  calls.end(thread_id);
+});
+
 test("calls from the panel say plainly what this machine still needs", async () => {
-  const status = await env.client.call("calls.status", {});
-  if (status.ready) return; // a Mac that runs the voice, with a model: nothing is missing
-  assert.ok(status.missing);
-  await assert.rejects(env.client.call("calls.start", { voice: "female" }, "k-1"), /calls need|turned off|memory/);
+  const handlers = callHandlers(undefined);
+  assert.deepEqual(handlers["calls.status"](), { ready: false, running: false, missing: "platform" });
+  assert.throws(() => handlers["calls.start"]({}), /calls need a Mac with Apple silicon/);
 });

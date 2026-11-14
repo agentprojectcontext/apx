@@ -241,7 +241,7 @@ class Speech:
 
     def for_call(self):
         """Everything a call uses, loaded before it begins."""
-        _ = self.vad, self.turn, self.ears.draft
+        _ = self.vad, self.turn, self.ears.draft, self.mouth  # the mouth too: a call speaks first
         self.warm()
 
     def warm(self):
