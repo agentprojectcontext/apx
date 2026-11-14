@@ -20,7 +20,7 @@ import { useChannels } from "../data/channels.ts";
 import { blobOf, isWorking, routineName, threadAgent } from "../data/identity.ts";
 import { useData, useShownAgents } from "../data/state.ts";
 import { useLanguage, useT } from "../i18n/index.ts";
-import { AgentEvent, EmailCard, GroupPart, MediaGroup, TaskDescription } from "../lazy.ts";
+import { AgentEvent, EmailCard, GroupPart, MediaGroup, NoticePart, TaskDescription } from "../lazy.ts";
 import { nav, useNav } from "../shell/nav.ts";
 import { AgentTurn } from "./AgentTurn.tsx";
 import { answerCards, isAgentEvent } from "./agentEvent.ts";
@@ -29,7 +29,6 @@ import { FilePart } from "./parts/FilePart.tsx";
 import { imageGenerationRuns } from "./parts/imageGeneration.ts";
 import { AudioPart } from "./parts/lazyAudio.tsx";
 import { bubbleFiles, mediaBlocks, withoutFilesNote } from "./parts/mediaGroups.ts";
-import { NoticePart } from "./parts/NoticePart.tsx";
 import { latestPlan } from "./planLast.ts";
 import { quotedIndex, quoteParts, splitQuote } from "./quote.ts";
 import { Regenerate, UserMessage } from "./Rewind.tsx";
@@ -277,7 +276,9 @@ function SystemMessage({ message }: { message: Msg }) {
     <>
       {notices.map((p, i) => (
         // biome-ignore lint/suspicious/noArrayIndexKey: a message's parts never reorder.
-        <NoticePart key={i} part={p} />
+        <Suspense key={i} fallback={p.text}>
+          <NoticePart part={p} />
+        </Suspense>
       ))}
     </>
   );

@@ -2,9 +2,11 @@ import type { Thread } from "@apx/protocol";
 import { EMAIL_LANG, parseEmailBlock } from "@apx/protocol/email-block";
 import type { CodeRenderer } from "@apx/ui";
 import { Fragment, type ReactNode, Suspense } from "react";
-import { CodeBlock, EmailCard, RunnableCode } from "../lazy.ts";
+import { CodeBlock, EmailCard, InlineView, RunnableCode } from "../lazy.ts";
 
 const SHELL_LANGS: ReadonlySet<string> = new Set(["bash", "sh", "zsh", "shell", "console", "fish"]);
+// INLINE_LANGS in @apx/protocol/inline-ui, written here so the parser loads only with the cards.
+const INLINE_LANGS: ReadonlySet<string> = new Set(["apx-cards", "a2ui"]);
 
 /**
  * A fenced shell block an agent wrote gets run and copy buttons (in the chat's folder, or else APX's work folder); an
@@ -47,6 +49,14 @@ export function replyBlock(
       <code>{block.code}</code>
     </pre>
   );
+  // ```apx-cards and ```a2ui are cards drawn in the answer; a block APX cannot read shows as code.
+  if (!writing && INLINE_LANGS.has(block.lang)) {
+    return (
+      <Suspense fallback={pre}>
+        <InlineView lang={block.lang} code={block.code} pre={pre} />
+      </Suspense>
+    );
+  }
   // A new key once it is whole, so the frame starts again on what it draws.
   return writing ? (
     <Suspense key="writing" fallback={pre}>
