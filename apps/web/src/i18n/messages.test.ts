@@ -8,6 +8,8 @@ import { enApprovals } from "./approvals-en.ts";
 import { esApprovals } from "./approvals-es.ts";
 import { enCall } from "./call-en.ts";
 import { esCall } from "./call-es.ts";
+import { enCards } from "./cards-en.ts";
+import { esCards } from "./cards-es.ts";
 import { enComputer } from "./computer-en.ts";
 import { esComputer } from "./computer-es.ts";
 import { en as base } from "./en.ts";
@@ -177,6 +179,15 @@ test("the call card's strings load only with the card in both languages", async 
     assert.equal(base["call.again"], lang === "en" ? "Call again" : "Volver a llamar");
     for (const key of Object.keys(enCall) as (keyof typeof enCall)[]) assert.equal(base[key], undefined);
     assert.deepEqual(await loadPack("call", lang), lang === "en" ? enCall : esCall);
+  }
+});
+
+test("the answer cards' strings load only with the cards in both languages", async () => {
+  const { loadMessages, loadPack } = await import("./messages.ts");
+  for (const lang of ["en", "es"] as const) {
+    const base = await loadMessages(lang);
+    for (const key of Object.keys(enCards) as (keyof typeof enCards)[]) assert.equal(base[key], undefined);
+    assert.deepEqual(await loadPack("cards", lang), lang === "en" ? enCards : esCards);
   }
 });
 

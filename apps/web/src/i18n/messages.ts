@@ -36,6 +36,10 @@ const PACKS = {
     en: () => import("./voice-en.ts").then((m) => m.enVoice),
     es: () => import("./voice-es.ts").then((m) => m.esVoice),
   },
+  cards: {
+    en: () => import("./cards-en.ts").then((m) => m.enCards),
+    es: () => import("./cards-es.ts").then((m) => m.esCards),
+  },
   approvals: {
     en: () => import("./approvals-en.ts").then((m) => m.enApprovals),
     es: () => import("./approvals-es.ts").then((m) => m.esApprovals),

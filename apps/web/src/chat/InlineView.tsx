@@ -2,10 +2,26 @@ import type { Part } from "@apx/protocol";
 import { type InlineNode, isMediaId, parseInlineBlock } from "@apx/protocol/inline-ui";
 import { Badge, Button, Dialog, IconButton, Icons, Skeleton } from "@apx/ui";
 import { type ReactNode, Suspense, useRef, useState } from "react";
-import { useT } from "../i18n/index.ts";
+import { send } from "../data/actions.ts";
+import { usePack, useT } from "../i18n/index.ts";
 import { MediaGroup } from "../lazy.ts";
+import {
+  Agenda,
+  AskButton,
+  AskContext,
+  Booking,
+  Choice,
+  Code,
+  Compare,
+  Head,
+  Places,
+  Rating,
+  Status,
+  Steps,
+} from "./InlineViews.tsx";
 import { useMediaUrl } from "./parts/useMediaUrl.ts";
 import "./InlineView.css";
+import "./InlineViews.css";
 
 type ImagePart = Extract<Part, { type: "image" }>;
 const toPart = (src: string, alt: string): ImagePart =>
@@ -195,6 +211,40 @@ function draw(node: InlineNode, i: number): ReactNode {
       );
     case "grid":
       return <Carousel key={i}>{node.children}</Carousel>;
+    case "ask":
+      return <AskButton key={i} label={node.label} text={node.text} />;
+    case "actions": {
+      // The first button that writes to the chat leads, unless the group already opens a page.
+      const lead = node.children.some((c) => c.kind === "link") ? -1 : node.children.findIndex((c) => c.kind === "ask");
+      return (
+        <div key={i} className="apx-inline__actions">
+          {node.children.map((c, j) =>
+            // biome-ignore lint/suspicious/noArrayIndexKey: a card's buttons never reorder
+            c.kind === "ask" ? <AskButton key={j} label={c.label} text={c.text} primary={j === lead} /> : draw(c, j),
+          )}
+        </div>
+      );
+    }
+    case "head":
+      return <Head key={i} node={node} />;
+    case "rating":
+      return <Rating key={i} value={node.value} />;
+    case "choice":
+      return <Choice key={i} node={node} />;
+    case "compare":
+      return <Compare key={i} node={node} />;
+    case "places":
+      return <Places key={i} node={node} />;
+    case "booking":
+      return <Booking key={i} node={node} />;
+    case "status":
+      return <Status key={i} node={node} />;
+    case "code":
+      return <Code key={i} node={node} />;
+    case "steps":
+      return <Steps key={i} node={node} />;
+    case "agenda":
+      return <Agenda key={i} node={node} />;
     default:
       return (
         <div key={i} className={`apx-inline__${node.kind}`}>
@@ -210,27 +260,34 @@ export function InlineView({
   code,
   pre,
   writing = false,
+  threadId,
 }: {
   lang: string;
   code: string;
   pre: ReactNode;
   writing?: boolean;
+  /** The chat a card's buttons write to; without it they are not shown. */
+  threadId?: string;
 }) {
   const t = useT();
-  if (writing) return <Loading />;
+  const ready = usePack("cards");
+  if (writing || !ready) return <Loading />;
   const block = parseInlineBlock(lang, code);
   if (!block) return pre;
   if (block.kind === "fallback") return <p>{block.text}</p>;
   const { title, example, root } = block.view;
+  const ask = threadId ? (text: string) => send(threadId, text) : undefined;
   return (
-    <section className="apx-inline" aria-label={title}>
-      {(title || example) && (
-        <div className="apx-inline__head">
-          {title && <div className="apx-inline__heading">{title}</div>}
-          {example && <Badge>{t("chat.inline.example")}</Badge>}
-        </div>
-      )}
-      {draw(root, 0)}
-    </section>
+    <AskContext.Provider value={ask}>
+      <section className="apx-inline" aria-label={title}>
+        {(title || example) && (
+          <div className="apx-inline__head">
+            {title && <div className="apx-inline__heading">{title}</div>}
+            {example && <Badge>{t("chat.inline.example")}</Badge>}
+          </div>
+        )}
+        {draw(root, 0)}
+      </section>
+    </AskContext.Provider>
   );
 }

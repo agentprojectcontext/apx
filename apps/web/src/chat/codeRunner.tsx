@@ -54,7 +54,7 @@ export function replyBlock(
   if (INLINE_LANGS.has(block.lang)) {
     return (
       <Suspense fallback={writing ? null : pre}>
-        <InlineView lang={block.lang} code={block.code} pre={pre} writing={writing} />
+        <InlineView lang={block.lang} code={block.code} pre={pre} writing={writing} threadId={thread.id} />
       </Suspense>
     );
   }

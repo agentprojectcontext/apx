@@ -45,6 +45,10 @@
       "count": 1,
       "reason": "custom-styled row, chip, tab or card control; moving it to Button/IconButton changes its look, so it needs a reviewed screenshot (rule 32)"
     },
+    "apps/web/src/chat/InlineViews.tsx": {
+      "count": 4,
+      "reason": "answer card choices drawn as part of the card: a comparison's column, a map pin, a place row and a day or time slot"
+    },
     "apps/web/src/chat/InlineView.tsx": {
       "count": 1,
       "reason": "a card's picture that opens its photos, the picture itself is the control"

@@ -26,8 +26,9 @@ through `show_widget` or by saving its page in the artifact folder below.
 
 ## Make the smallest thing that answers
 
-0. **Cards in your answer** — results the owner compares (movies, stays, flights, products) or a short set of
-   steps: an ```apx-cards or ```a2ui block in your reply, no artifact: [references/cards.md](references/cards.md).
+0. **Cards in your answer** — results the owner compares (movies, stays, flights, products), one option to buy, a
+   side-by-side comparison, places, a booking, a confirmation or a plan by days: an ```apx-cards or ```a2ui block in
+   your reply, no artifact: [references/cards.md](references/cards.md).
 1. **A widget, one hand-written HTML** — almost always. A chart, a table, a status card, a form, a quick calculator, a
    view of what you just found: that is a widget, written straight into `show_widget`. Nothing sophisticated.
 2. **An app** only when the owner asks for one, or it must keep records the owner adds over time (a log, a CRM, an
