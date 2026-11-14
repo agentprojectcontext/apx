@@ -16,6 +16,7 @@ const movies = {
       fields: [{ label: "Year", value: "2024" }],
       details: "An invented journey to the moon.",
       action: { label: "Watch", url: "https://example.com/watch/m1" },
+      highlight: { value: "4.5 / 5", label: "Rating" },
     },
     { id: "m2", title: "Northbound", image: "https://example.com/northbound.jpg" },
   ],
@@ -40,9 +41,24 @@ test("a results list becomes a grid of cards in APX Kit order", () => {
             { kind: "text", text: "The quiet moon", style: "title" },
             { kind: "text", text: "A space drama.", style: "body" },
             { kind: "badges", items: ["Drama", "108 min"] },
-            { kind: "fields", rows: [{ label: "Year", value: "2024" }] },
-            { kind: "details", children: [{ kind: "text", text: "An invented journey to the moon.", style: "body" }] },
-            { kind: "link", label: "Watch", url: "https://example.com/watch/m1" },
+            { kind: "highlight", value: "4.5 / 5", label: "Rating" },
+            {
+              kind: "actions",
+              children: [
+                {
+                  kind: "details",
+                  title: "The quiet moon",
+                  children: [
+                    { kind: "image", src: "med_abc123", alt: "The quiet moon", shape: "banner" },
+                    { kind: "text", text: "A space drama.", style: "body" },
+                    { kind: "fields", rows: [{ label: "Year", value: "2024" }] },
+                    { kind: "text", text: "An invented journey to the moon.", style: "body" },
+                    { kind: "link", label: "Watch", url: "https://example.com/watch/m1" },
+                  ],
+                },
+                { kind: "link", label: "Watch", url: "https://example.com/watch/m1" },
+              ],
+            },
           ],
         },
         {
@@ -104,6 +120,10 @@ test("a block that asks for what APX does not draw shows its fallback, never a l
       kind: "fallback",
       text: movies.fallback,
     });
+  }
+  for (const highlight of [{ value: "" }, { label: "Price" }, "x".repeat(41), 42]) {
+    const items = [{ ...movies.items[0], highlight }];
+    assert.equal(parseInlineBlock("apx-cards", JSON.stringify({ ...movies, items }))?.kind, "fallback");
   }
   const many = Array.from({ length: 13 }, (_, i) => ({ id: `m${i}`, title: "x" }));
   assert.equal(parseInlineBlock("apx-cards", JSON.stringify({ ...movies, items: many }))?.kind, "fallback");

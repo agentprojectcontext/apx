@@ -1,6 +1,6 @@
 import type { Part } from "@apx/protocol";
 import { type InlineNode, isMediaId, parseInlineBlock } from "@apx/protocol/inline-ui";
-import { Badge, IconButton, Icons, Skeleton } from "@apx/ui";
+import { Badge, Button, Dialog, IconButton, Icons, Skeleton } from "@apx/ui";
 import { type ReactNode, Suspense, useRef, useState } from "react";
 import { useT } from "../i18n/index.ts";
 import { MediaGroup } from "../lazy.ts";
@@ -131,11 +131,17 @@ function Carousel({ children }: { children: InlineNode[] }) {
 
 function Details({ node }: { node: Extract<InlineNode, { kind: "details" }> }) {
   const t = useT();
+  const [open, setOpen] = useState(false);
+  const label = node.label ?? t("chat.inline.details");
   return (
-    <details className="apx-inline__details">
-      <summary>{node.label ?? t("chat.inline.details")}</summary>
-      <div>{node.children.map(draw)}</div>
-    </details>
+    <>
+      <Button variant="secondary" size="sm" onClick={() => setOpen(true)}>
+        {label}
+      </Button>
+      <Dialog open={open} onOpenChange={setOpen} title={node.title ?? label} size="md">
+        <div className="apx-inline apx-inline__dialog">{node.children.map(draw)}</div>
+      </Dialog>
+    </>
   );
 }
 
@@ -171,6 +177,13 @@ function draw(node: InlineNode, i: number): ReactNode {
       );
     case "details":
       return <Details key={i} node={node} />;
+    case "highlight":
+      return (
+        <div key={i} className="apx-inline__highlight">
+          {node.label && <span>{node.label}</span>}
+          <strong>{node.value}</strong>
+        </div>
+      );
     case "divider":
       return <hr key={i} className="apx-inline__divider" />;
     case "link":

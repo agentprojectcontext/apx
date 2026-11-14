@@ -4,8 +4,7 @@ import Svg, { Defs, LinearGradient, Rect, Stop } from "react-native-svg";
 import type { MediaItem } from "../../chat/media";
 import { t } from "../../i18n";
 import { type InlineNode, isMediaId, type InlineView as View_ } from "../../protocol";
-import { Icon } from "../Icon";
-import { Button, Tag } from "../kit";
+import { BottomSheet, Button, Tag } from "../kit";
 import { useMediaUri } from "../media/context";
 import { MediaViewer } from "../media/MediaViewer";
 import { makeStyles, useTheme } from "../theme";
@@ -121,23 +120,20 @@ function Carousel({ node }: { node: Of<"grid"> }) {
   );
 }
 
+/** A button that opens the result's facts and longer text in a sheet, leaving the cards around as they are. */
 function Details({ node }: { node: Of<"details"> }) {
-  const theme = useTheme();
   const s = useStyles();
   const [open, setOpen] = useState(false);
+  const label = node.label ?? t("inlineDetails");
   return (
-    <View style={s.details}>
-      <Pressable
-        style={s.summary}
-        accessibilityRole="button"
-        accessibilityState={{ expanded: open }}
-        onPress={() => setOpen(!open)}
-      >
-        <Icon name={open ? "ChevronDown" : "ChevronRight"} size={14} color={theme.subtle} />
-        <Text style={s.summaryText}>{node.label ?? t("inlineDetails")}</Text>
-      </Pressable>
-      {open && <View style={s.detailsBody}>{node.children.map((c, i) => draw(c, i, false))}</View>}
-    </View>
+    <>
+      <Button label={label} size="sm" variant="secondary" onPress={() => setOpen(true)} />
+      {open && (
+        <BottomSheet title={node.title ?? label} onClose={() => setOpen(false)}>
+          <ScrollView contentContainerStyle={s.sheet}>{node.children.map((c, i) => draw(c, i, false))}</ScrollView>
+        </BottomSheet>
+      )}
+    </>
   );
 }
 
@@ -183,6 +179,24 @@ function Piece({ node, inCard }: { node: InlineNode; inCard: boolean }) {
       );
     case "grid":
       return <Carousel node={node} />;
+    case "highlight":
+      return (
+        <View>
+          {node.label && <Text style={s.caption}>{node.label}</Text>}
+          <Text style={s.highlight}>{node.value}</Text>
+        </View>
+      );
+    case "actions":
+      return (
+        <View style={s.actions}>
+          {node.children.map((c, i) => (
+            // biome-ignore lint/suspicious/noArrayIndexKey: a view's pieces never reorder
+            <View key={i} style={s.action}>
+              <Piece node={c} inCard={false} />
+            </View>
+          ))}
+        </View>
+      );
     case "card":
       return (
         <View style={s.card}>
@@ -226,6 +240,10 @@ const useStyles = makeStyles((theme) => ({
   heading: { color: theme.fg, fontSize: 15, fontWeight: "600" },
   stack: { gap: 12 },
   carousel: { gap: 6 },
+  sheet: { gap: 12, paddingHorizontal: 16, paddingBottom: 24 },
+  highlight: { color: theme.fg, fontSize: 20, fontWeight: "700", fontVariant: ["tabular-nums"] },
+  actions: { flexDirection: "row", gap: 8, marginTop: "auto", paddingTop: 4 },
+  action: { flex: 1 },
   more: {
     position: "absolute",
     right: 10,
@@ -272,8 +290,4 @@ const useStyles = makeStyles((theme) => ({
   fieldLabel: { color: theme.subtle, fontSize: 13, minWidth: 80, maxWidth: "40%" },
   fieldValue: { color: theme.fg, fontSize: 13, flex: 1 },
   divider: { height: 1, backgroundColor: theme.border, marginVertical: 2 },
-  details: { borderRadius: theme.radiusMd, backgroundColor: theme.fill },
-  summary: { flexDirection: "row", alignItems: "center", gap: 8, paddingHorizontal: 12, paddingVertical: 9 },
-  summaryText: { color: theme.fg, fontSize: 13, fontWeight: "600" },
-  detailsBody: { gap: 6, paddingHorizontal: 12, paddingBottom: 10 },
 }));

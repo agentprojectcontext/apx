@@ -9,13 +9,18 @@ export type InlineNode =
   | { kind: "column"; children: InlineNode[] }
   | { kind: "row"; children: InlineNode[] }
   | { kind: "grid"; children: InlineNode[] }
+  /** A card's buttons, side by side at its foot. */
+  | { kind: "actions"; children: InlineNode[] }
   | { kind: "text"; text: string; style: "eyebrow" | "title" | "body" | "caption" }
   /** `gallery`: every picture of the result, this one first, when it has more than one to open and step through. */
   | { kind: "image"; src: string; shape: "banner" | "thumb"; alt: string; gallery?: string[] }
   | { kind: "link"; label: string; url: string }
   | { kind: "badges"; items: string[] }
   | { kind: "fields"; rows: { label: string; value: string }[] }
-  | { kind: "details"; label?: string; children: InlineNode[] }
+  /** The one figure a result is chosen by (a price, a rating), large on its card. */
+  | { kind: "highlight"; value: string; label?: string }
+  /** A button that opens its content in a dialog titled `title` (or `label`), never stretching the cards around. */
+  | { kind: "details"; label?: string; title?: string; children: InlineNode[] }
   | { kind: "divider" };
 
 export type InlineView = { title?: string; example: boolean; root: InlineNode };
@@ -64,6 +69,14 @@ function photos(first: unknown, more: unknown): string[] | false {
     0,
     MAX_PHOTOS,
   );
+}
+
+function highlight(v: unknown): InlineNode | undefined | false {
+  if (v === undefined) return undefined;
+  if (text(v, 40)) return { kind: "highlight", value: v };
+  if (!record(v) || !text(v.value, 40)) return false;
+  const label = optional(v.label, 60);
+  return label === false ? false : { kind: "highlight", value: v.value, ...(label ? { label } : {}) };
 }
 
 function action(v: unknown): InlineNode | undefined | false {
@@ -133,21 +146,31 @@ function cards(value: Record<string, unknown>): InlineNode | undefined {
     const tags = badges(item.badges);
     const rows = fields(item.fields);
     const link = action(item.action);
+    const figure = highlight(item.highlight);
     if (eyebrow === false || description === false || details === false || tags === false || rows === false)
       return undefined;
-    if (link === false || pictures === false) return undefined;
+    if (link === false || pictures === false || figure === false) return undefined;
+    const [image] = pictures;
+    const shown = image
+      ? ({ kind: "image", src: image, alt: item.title, ...(pictures.length > 1 ? { gallery: pictures } : {}) } as const)
+      : undefined;
+    // The card shows what a result is chosen by; its facts and longer text open in a dialog.
+    const more: InlineNode[] = [];
+    if (shown) more.push({ ...shown, shape: "banner" });
+    if (description) more.push({ kind: "text", text: description, style: "body" });
+    if (rows?.length) more.push({ kind: "fields", rows });
+    if (details) more.push({ kind: "text", text: details, style: "body" });
+    if (link) more.push(link);
+    const buttons: InlineNode[] = [];
+    if (rows?.length || details) buttons.push({ kind: "details", title: item.title, children: more });
+    if (link) buttons.push(link);
     const body: InlineNode[] = [];
     if (eyebrow) body.push({ kind: "text", text: eyebrow, style: "eyebrow" });
     body.push({ kind: "text", text: item.title, style: "title" });
     if (description) body.push({ kind: "text", text: description, style: "body" });
     if (tags?.length) body.push({ kind: "badges", items: tags });
-    if (rows?.length) body.push({ kind: "fields", rows });
-    if (details) body.push({ kind: "details", children: [{ kind: "text", text: details, style: "body" }] });
-    if (link) body.push(link);
-    const [image] = pictures;
-    const shown = image
-      ? ({ kind: "image", src: image, alt: item.title, ...(pictures.length > 1 ? { gallery: pictures } : {}) } as const)
-      : undefined;
+    if (figure) body.push(figure);
+    if (buttons.length) body.push({ kind: "actions", children: buttons });
     out.push(
       !shown
         ? { kind: "card", children: body }

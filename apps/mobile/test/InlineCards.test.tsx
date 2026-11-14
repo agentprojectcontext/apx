@@ -42,6 +42,7 @@ test("an agent's results show as cards on the phone, and their details open", as
           details: "An invented journey to the moon.",
           image: "https://example.com/moon.jpg",
           images: ["https://example.com/moon-2.jpg"],
+          highlight: { value: "4.5 / 5", label: "Rating" },
           action: { label: "Watch it", url: "https://example.com/watch/moon" },
         },
         { id: "north", title: "Northbound" },
@@ -51,17 +52,19 @@ test("an agent's results show as cards on the phone, and their details open", as
   expect(ui.getByText("Movie ideas")).toBeTruthy();
   expect(ui.getByText(t("inlineExample"))).toBeTruthy();
   expect(ui.getByText("Movie · 2024")).toBeTruthy();
-  expect(ui.getByText("108 min")).toBeTruthy();
+  expect(ui.getByText("4.5 / 5")).toBeTruthy();
+  expect(ui.queryByText("108 min")).toBeNull();
   expect(ui.getByText("Northbound")).toBeTruthy();
   expect(ui.queryByText("An invented journey to the moon.")).toBeNull();
   await act(async () => fireEvent.press(ui.getByText(t("inlineDetails"))));
   expect(ui.getByText("An invented journey to the moon.")).toBeTruthy();
+  expect(ui.getByText("108 min")).toBeTruthy();
   expect(ui.queryByText(/"items"/)).toBeNull();
   expect(ui.getByText("1 / 2")).toBeTruthy();
-  expect(ui.getByText("+1")).toBeTruthy();
-  expect(ui.getByLabelText("The quiet moon").props.source).toEqual({ uri: "https://example.com/moon.jpg" });
+  expect(ui.getAllByText("+1")[0]).toBeTruthy();
+  expect(ui.getAllByLabelText("The quiet moon")[0].props.source).toEqual({ uri: "https://example.com/moon.jpg" });
   const open = jest.spyOn(Linking, "openURL").mockResolvedValue(true);
-  await act(async () => fireEvent.press(ui.getByText("Watch it")));
+  await act(async () => fireEvent.press(ui.getAllByText("Watch it")[0]));
   expect(open).toHaveBeenCalledWith("https://example.com/watch/moon");
 });
 
