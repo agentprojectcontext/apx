@@ -42,7 +42,8 @@ test("topbar preserves counters and quotas until its actual controls no longer f
   for (const width of [1040, 1440, 1040, 1920]) {
     await page.setViewportSize({ width, height: 900 });
     if (width === 1040) {
-      await expect(right).toHaveAttribute("data-fit", "4");
+      // Right at the edge with the call button: the fourth step, or the last one (tighter room between controls).
+      await expect(right).toHaveAttribute("data-fit", /^[45]$/);
       await expect(quota).toBeHidden();
       await expect(counters).toBeHidden();
       await expect(page.locator(".topbar__agentname")).toBeHidden();
@@ -62,7 +63,7 @@ test("topbar preserves counters and quotas until its actual controls no longer f
   await page.setViewportSize({ width: 600, height: 900 });
   await expect(page.locator(".topbar__more")).toBeVisible();
   // Equal reads can still be the previous wide layout: wait for the phone's measured density.
-  const fit = "4";
+  const fit = "5";
   await expect(right).toHaveAttribute("data-fit", fit);
   await page.locator(".topbar__more").click();
   await expect(page.getByRole("menu")).toBeVisible();

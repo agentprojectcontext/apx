@@ -32,6 +32,7 @@ test("a global agent is created from the team, edited and deleted from its right
     "Ver detalle",
     "Editar",
     "Chatear",
+    "Llamar",
     "Orquestador",
     "Borrar agente",
   ]);
@@ -55,7 +56,7 @@ test("a global agent is created from the team, edited and deleted from its right
   await page.getByRole("radio", { name: "Lista" }).click();
   const row = page.locator(".team__row").first();
   await row.getByRole("button", { name: /^Opciones de / }).click();
-  await expect(page.getByRole("menuitem")).toHaveText(["Ver detalle", "Editar", "Chatear", "Borrar agente"]);
+  await expect(page.getByRole("menuitem")).toHaveText(["Ver detalle", "Editar", "Chatear", "Llamar", "Borrar agente"]);
   await expect(page.getByText("El super-agente no se puede borrar")).toBeVisible();
 });
 
