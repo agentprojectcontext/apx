@@ -147,8 +147,8 @@ Above the description, a task shows where its work must arrive and what you said
   with the button to let them go on, and once in your notifications. A step done, or your message, starts the count
   over.
 - **One agent does the work, one review at the end**: the agent on a task does it itself. It asks another agent only
-  once the rest of its plan is done, usually for a review (unless you ask it for help sooner). Work for someone else
-  becomes a subtask. The reviewer reports what works, what fails and what it could not check; it never approves or
+  once the rest of its plan is done, usually for a review (unless you ask it for help sooner); a worker of its own
+  (a search, a log, a first look at the diff) may help it at any point. Work for someone else becomes a subtask. The reviewer reports what works, what fails and what it could not check; it never approves or
   blocks. The task goes back to its agent, who decides what to fix and delivers it.
 - **The agent on a task delivers it**: when the task asks to publish or deploy, that is part of the work. A step that
   can be undone (pushing a branch, a deploy) it does; a hard one (a release or tag, a payment, a production data
@@ -207,7 +207,8 @@ When an agent's turn on a task ends with the task still in progress (it ran out 
 continue"), its next part starts at once, numbered, up to nine. It stops when the agent closes the task, marks it
 waiting on you with what you must do, says what blocks it, or when a part got nowhere. One part that only checks what
 the part before it changed counts as progress; two parts in a row that only look things up do not. Closing its own
-work as done, an agent must say what it verified. When another agent names a task's own agent again while it is not
+work as done, an agent must say what it verified; if all its work on the task only wrote documents (a plan, notes) and
+ran no command, it is asked once whether a document was what the task wanted, and closes again only if it was. When another agent names a task's own agent again while it is not
 working on it, it goes on.
 
 If a task stays in progress with nothing running on it (no turn for 20 minutes, within a day of its last one), APX asks

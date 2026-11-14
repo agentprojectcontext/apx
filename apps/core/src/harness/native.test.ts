@@ -3,8 +3,9 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { callTool, say, scriptedLlm } from "../engine/testkit.ts";
-import type { ChatItem } from "../providers/types.ts";
+import { type ChatItem, ProviderError } from "../providers/types.ts";
 import { MAX_STEPS, nativeHarness } from "./native.ts";
+import { clearOlderOutput, outputChars } from "./output-trim.ts";
 import type { TurnIO } from "./types.ts";
 
 const toolResults = (messages: ChatItem[]) => messages.filter((m) => m.role === "tool").length;
@@ -143,4 +144,68 @@ test("the usage reported while a turn runs names the window of the model that an
   } as unknown as TurnIO;
   await nativeHarness(llm).run(io);
   assert.deepEqual(seen.at(-1), { input: 5000, output: 3, context: 5000, window: 200_000 });
+});
+
+test("older output is cleared once kept results fill the budget: calls stay paired, the newest stay whole", () => {
+  const items: ChatItem[] = [{ role: "user", content: "go" }];
+  for (let i = 0; i < 6; i++)
+    items.push(
+      {
+        role: "assistant",
+        content: "",
+        tool_calls: [{ id: `c${i}`, type: "function", function: { name: "file_read", arguments: "{}" } }],
+      },
+      { role: "tool", tool_call_id: `c${i}`, content: String(i).repeat(1000) },
+    );
+  const out = clearOlderOutput(items, 2500);
+  const results = out.filter((m) => m.role === "tool").map((m) => String(m.content));
+  assert.deepEqual(
+    results.map((r) => r.startsWith("[earlier output of file_read omitted: 1000 chars")),
+    [true, true, true, true, false, false],
+  );
+  assert.equal(out.length, items.length);
+  assert.deepEqual(clearOlderOutput(out, 2500), out, "clearing again changes nothing");
+  assert.equal(clearOlderOutput(items, 0, 1).filter((m) => m.role === "tool" && m.content.length === 1000).length, 1);
+});
+
+test("a long reading turn re-sends a bounded context: older results are cleared, the work goes on", async () => {
+  // 60 reads of 12k characters (the cap of one result): 720k characters if all were kept.
+  const { out, ran, seen } = await turn(
+    (done) => (done >= 60 ? say("read them all") : callTool(`r${done}`, "file_read", { path: `f${done}.ts` })),
+    (_name, args) => `${String(args.path)}\n${"x".repeat(12_000)}`,
+  );
+  assert.equal(out.text, "read them all");
+  assert.equal(ran.length, 60);
+  assert.ok(outputChars(seen) <= 240_000, `kept ${outputChars(seen)} characters of output`);
+  const last = seen.filter((m) => m.role === "tool").at(-1);
+  assert.match(String(last?.content), /^f59\.ts/, "the newest result is whole");
+});
+
+test("a chat too long for the model is retried once with only the newest results", async () => {
+  let refused = 0;
+  const llm = scriptedLlm((req) => {
+    if (outputChars(req.messages) > 30_000) {
+      refused++;
+      throw new ProviderError("context", "fake/fake-1: prompt is too long");
+    }
+    const done = toolResults(req.messages);
+    return done >= 4 ? say("done") : callTool(`r${done}`, "file_read", { path: `f${done}` });
+  });
+  const io = {
+    system: "system",
+    history: [],
+    input: { role: "user", content: "go" },
+    tools: [{ type: "function", function: { name: "any", description: "", parameters: {} } }],
+    models: ["fake/fake-1"],
+    signal: new AbortController().signal,
+    thread: { id: "t1" },
+    onText() {},
+    log() {},
+    async execute() {
+      return { ok: true, text: "y".repeat(9_000) };
+    },
+  } as unknown as TurnIO;
+  const out = await nativeHarness(llm).run(io);
+  assert.equal(out.text, "done");
+  assert.equal(refused, 1, "one squeeze was enough");
 });

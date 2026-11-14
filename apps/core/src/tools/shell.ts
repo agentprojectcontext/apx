@@ -27,7 +27,7 @@ import {
   scratchRoot,
 } from "./folders.ts";
 import { untrusted } from "./result.ts";
-import { type Confirm, defineTool, type Tool } from "./types.ts";
+import { type Confirm, defineTool, type Tool, ToolFailed } from "./types.ts";
 
 const DESTRUCTIVE =
   /\b(sudo|su|doas|mkfs|dd|shutdown|reboot|halt|diskutil|launchctl|crontab|shred|srm)\b|\brm\b[^|;&]*\s(-\w*[rf]|--recursive|--force)|\bgit\b[^|;&]*\s(reset\s+--hard|clean\b|filter-branch|update-ref\s+-d)|\b(curl|wget|fetch)\b[^|]*\|\s*(sudo\s+)?(ba|z|da|k)?sh\b|\bchmod\b[^|;&]*\s-\w*R|\bchown\b[^|;&]*\s-\w*R|:\(\)\s*\{|\/dev\/(sd|disk|nvme)/;
@@ -262,6 +262,20 @@ export function commandFolder(
   return judgeCommand(roots, a.command, where.at, { home, project: Boolean(thread.project_id) }) ?? where;
 }
 
+/** Commands whose exit 1 means "nothing found" or "they differ", an answer rather than a failure. */
+const ANSWERS_WITH_ONE = /^(?:\w+=\S*\s+)*(?:rg|grep|egrep|fgrep|ag|diff|cmp|test|\[|git\s+(?:diff|grep))\b/;
+
+/** Whether a foreground command that ended with `code` failed: what its step records, while the model reads its output. */
+export function commandFailed(command: string, code: number | undefined): boolean {
+  if (code === 0) return false;
+  const last =
+    command
+      .split(/\|\|?|&&|;|\n/)
+      .at(-1)
+      ?.trim() ?? "";
+  return !(code === 1 && ANSWERS_WITH_ONE.test(last));
+}
+
 /** How long a background job may run when the agent does not say: servers and watchers pass a longer timeout_s. */
 const BACKGROUND_S = 3600;
 
@@ -343,7 +357,9 @@ export function shellTools(
       async run(a, ctx) {
         if (vm?.hasThread(ctx.thread.id)) {
           const result = await ctx.call("environments.command", { thread: ctx.thread.id, command: a.command });
-          return `Computer ${AGENT_WORKSPACE} · exit ${result.code}\n${untrusted("command_output", {}, result.output)}`;
+          const text = `Computer ${AGENT_WORKSPACE} · exit ${result.code}\n${untrusted("command_output", {}, result.output)}`;
+          if (commandFailed(a.command, result.code)) throw new ToolFailed(text);
+          return text;
         }
         // Links resolved: a symlink inside the project must not run the command somewhere else.
         const where = commandFolder(store, home, ctx.thread, a);
@@ -363,7 +379,9 @@ export function shellTools(
         if (a.background)
           return `started job ${r.job.id} in the background (${cwd}); it stops after ${limit}s. You will get the end of its output when it ends; shell_output reads it now.`;
         const exit = r.job.state === "canceled" ? `stopped after ${limit}s` : `exit ${r.job.exit_code ?? "?"}`;
-        return `${exit} · ${cwd}\n${untrusted("command_output", { job: r.job.id }, r.output || "(no output)")}`;
+        const text = `${exit} · ${cwd}\n${untrusted("command_output", { job: r.job.id }, r.output || "(no output)")}`;
+        if (r.job.state === "canceled" || commandFailed(a.command, r.job.exit_code)) throw new ToolFailed(text);
+        return text;
       },
     }),
     defineTool({

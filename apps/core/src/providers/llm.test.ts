@@ -788,7 +788,38 @@ test("retired or unknown model answers are told apart from a plain bad request",
     [400, '{"error":{"message":"openai/gpt-x is not a valid model ID"}}', "model_gone"],
     [404, '{"error":{"code":404,"message":"models/gemini-9 is not found for API version v1beta"}}', "model_gone"],
     [400, "The model `qwen-old` does not exist or you do not have access to it.", "model_gone"],
+    [
+      400,
+      '{"error":{"code":"context_length_exceeded","message":"maximum context length is 128000 tokens"}}',
+      "context",
+    ],
+    [
+      400,
+      '{"type":"error","error":{"type":"invalid_request_error","message":"prompt is too long: 210000 tokens"}}',
+      "context",
+    ],
+    [413, "Request too large: too many tokens", "context"],
   ] as const) {
     assert.equal(classifyHttp(status, body).kind, kind, body);
   }
+});
+
+test("a chat no model's context fits fails as too long, not as a sign-in to fix", async () => {
+  const llm = createLlm({
+    providers: () => providers,
+    secrets,
+    firstByteMs: 1000,
+    fetchImpl: (async () => {
+      throw new Error("not called: the chat does not fit");
+    }) as unknown as typeof fetch,
+  });
+  await assert.rejects(
+    llm.complete({
+      models: ["pa/llama-small"],
+      messages: [{ role: "user", content: "x".repeat(600_000) }],
+      tools: [],
+      signal: new AbortController().signal,
+    }),
+    (e: unknown) => e instanceof ProviderError && e.kind === "context" && /smaller than this chat/.test(e.message),
+  );
 });

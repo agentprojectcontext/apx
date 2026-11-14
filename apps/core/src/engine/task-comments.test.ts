@@ -10,7 +10,7 @@ import { callTool, say, scriptedLlm, startCore } from "./testkit.ts";
 /** What each tool call answered, by the marker of the case that made it. */
 const results = new Map<string, string[]>();
 const taskOf = (text: string) => /Task (task_\w+):/.exec(text)?.[1] ?? "";
-const CASES = ["NOTE-CASE", "HELPER-CASE", "MIDPLAN-CASE", "DONE-CASE", "BLANKS-CASE", "TIDY-CASE"];
+const CASES = ["NOTE-CASE", "HELPER-CASE", "MIDPLAN-CASE", "WORKER-CASE", "DONE-CASE", "BLANKS-CASE", "TIDY-CASE"];
 
 const llm = scriptedLlm((req, { system, said, afterTool }) => {
   const all = JSON.stringify(req.messages);
@@ -44,6 +44,16 @@ const llm = scriptedLlm((req, { system, said, afterTool }) => {
       if (tools === 0) return callTool("m0", "plan", { steps: "- [~] Paint the hall\n- [ ] Review it" });
       if (tools === 1) return callTool("m1", "delegate", { agent: "scout", task: "Which paint is best?" });
       return say("Painting.");
+    }
+    if (marker === "WORKER-CASE") {
+      if (tools === 0) return callTool("w0", "plan", { steps: "- [~] Find the leak\n- [ ] Fix it\n- [ ] Review it" });
+      if (tools === 1)
+        return callTool("w1", "delegate", {
+          worker: { name: "searcher", instructions: "Search the logs and report the lines that matter." },
+          task: "Find where the pipe leaks in the logs.",
+          wait_s: 0,
+        });
+      return say("Searching.");
     }
     if (marker === "DONE-CASE") {
       if (tools === 0) return callTool("d0", "plan", { steps: "- [x] Sweep\n- [x] Check the floor" });
@@ -123,6 +133,12 @@ test("whoever works a task is not given helpers mid-plan", async () => {
   const { chat } = await work("Paint the hall", "MIDPLAN-CASE");
   assert.match(String(results.get("MIDPLAN-CASE")), /not asked: you do this task.s work yourself/);
   assert.deepEqual(env.core.store.threads.sessions(chat), [], "no session opened");
+});
+
+test("whoever works a task may use a worker of its own mid-plan: help with the work, not another owner of it", async () => {
+  const { chat } = await work("Fix the leak", "WORKER-CASE");
+  assert.doesNotMatch(String(results.get("WORKER-CASE")), /not asked/);
+  assert.equal(env.core.store.threads.sessions(chat).length, 1, "the worker's session opened");
 });
 
 test("a plan done is worth one comment", async () => {

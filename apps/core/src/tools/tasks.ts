@@ -20,6 +20,7 @@ import { mentioned, mentionsOwner } from "../engine/office.ts";
 import { badRequest, CallError } from "../errors.ts";
 import { readsOutside } from "./folders.ts";
 import { cap, fromTeam, inlineName, untrusted } from "./result.ts";
+import { documentsOnly } from "./task-evidence.ts";
 import { type CheckContext, defineTool, type Tool, type ToolContext } from "./types.ts";
 
 const attachmentsArg = z
@@ -571,6 +572,14 @@ export function taskTools(store: Store, home: string): Tool[] {
           throw badRequest(
             "note: say in a line what you verified (a test or build that passed, a page or file you checked). If it is not verified yet, verify it first; if something is left, do it before closing.",
           );
+        // Writing about the work is not doing it: asked once, so a task that wanted a document still closes.
+        const docs = a.state === "done" && t.assignee === ctx.agent.id ? documentsOnly(store, t) : undefined;
+        if (docs && !store.threads.context(t.thread_id).documents_checked) {
+          store.threads.mergeContext(t.thread_id, { documents_checked: true });
+          throw badRequest(
+            `not closed: this task's work only wrote ${docs.slice(0, 3).join(", ")} and ran no command. If the task asked for a change (code, a fix, a setup), make it and check it now, then close. If a document was the deliverable, close again.`,
+          );
+        }
       },
       deadlineMs: 5_000,
       title: (a) => `Marked ${String(a.task ?? "")} ${String(a.state ?? "")}`,
