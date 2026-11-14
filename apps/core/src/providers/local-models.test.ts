@@ -73,6 +73,33 @@ async function setup(apps: LocalApp[], builtIn: ProviderConfig[] = []) {
   };
 }
 
+test("local image and decision models stay listed without being offered for agent turns", async () => {
+  const app = await fakeApp([
+    "x/flux2-klein:latest",
+    "x/flux2-klein:4b-fp8",
+    "gemini-decision-1",
+    "flux2-chat:latest",
+    "decision-assistant:latest",
+  ]);
+  try {
+    await using env = await setup([{ id: "ollama", label: "Ollama", port: app.port }]);
+    const engine = await env.engine("ollama");
+    assert.equal(engine?.available, true);
+    assert.deepEqual(
+      engine?.models.map((m) => [m.id, m.chat]),
+      [
+        ["x/flux2-klein:latest", false],
+        ["x/flux2-klein:4b-fp8", false],
+        ["gemini-decision-1", false],
+        ["flux2-chat:latest", true],
+        ["decision-assistant:latest", true],
+      ],
+    );
+  } finally {
+    await app.close();
+  }
+});
+
 test("a model app running on this computer is found and its chat models listed, with no setup", async () => {
   const app = await fakeApp(["llama3.2:latest", "nomic-embed-text:latest", "bge-m3:latest"]);
   await using env = await setup([{ id: "ollama", label: "Ollama", port: app.port }]);

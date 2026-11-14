@@ -15,6 +15,10 @@ test("models known to read images, known not to, and unknown ones", () => {
     "ollama/qwen2.5-vl:7b",
     "openrouter/meta-llama/llama-3.2-11b-vision-instruct",
     "ollama/gemma3:12b",
+    "google/gemma-4-26b-a4b-it",
+    "google/gemma-4-31b-it",
+    "ollama/gemma4:31b",
+    "ollama/gemma4:26b-a4b",
   ])
     assert.equal(readsImages(m), true, m);
   for (const m of [
@@ -27,5 +31,6 @@ test("models known to read images, known not to, and unknown ones", () => {
     "mistral/codestral-latest",
   ])
     assert.equal(readsImages(m), false, m);
-  for (const m of ["fake/fake-1", "ollama/phi4", "ollama/qwen3:8b"]) assert.equal(readsImages(m), undefined, m);
+  for (const m of ["fake/fake-1", "ollama/phi4", "ollama/qwen3:8b", "google/gemma-40-31b"])
+    assert.equal(readsImages(m), undefined, m);
 });

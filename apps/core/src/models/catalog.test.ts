@@ -144,6 +144,10 @@ test("only models an agent's turn can run on are offered for agents; switched-of
     { id: "models/gemini-4-argon", display_name: "Gemini 4 Argon" },
     { id: "models/gemini-3.8-live" },
     { id: "models/lyria-3.5" },
+    { id: "models/gemini-decision-1" },
+    { id: "ollama/x/flux2-klein:latest" },
+    { id: "acme/flux2-chat" },
+    { id: "acme/decision-assistant" },
     { id: "models/deep-research-preview-04-2026" },
     { id: "meta-llama/llama-prompt-guard-2-22m" },
     { id: "canopylabs/orpheus-v1-english" },
@@ -159,7 +163,7 @@ test("only models an agent's turn can run on are offered for agents; switched-of
   ]);
   assert.deepEqual(
     list.filter((m) => m.chat).map((m) => m.id),
-    ["gemini-4-argon", "openai/gpt-oss-120b", "acme/chat-tools"],
+    ["gemini-4-argon", "acme/flux2-chat", "acme/decision-assistant", "openai/gpt-oss-120b", "acme/chat-tools"],
   );
   assert.ok(!list.some((m) => m.id === "qwen/qwen3.6-27b"));
   assert.equal(list.find((m) => m.id === "acme/chat-no-tools")?.name, "Acme: Chat");

@@ -47,6 +47,17 @@ Gemini routes some deprecated ids to their replacement for a while, so those kee
 | Example ids in docs | `apps/docs/src/content/docs/concepts/models.mdx`, `agents.mdx`, `conversations.mdx` (English and `es/`) | the live catalog (`apx models`) |
 | Provider presets (address only, no models) | `apps/web/src/config/models/providerPresets.ts` | provider docs |
 
+The OpenAI image service preset uses `gpt-image-2.5-sunburst` for new services. Existing image services keep their
+saved model, including compatible servers with their own ids; no silent migration changes the model or its cost.
+For an OpenAI service still using the retired `gpt-image-1`, edit its model in Settings → Images and save it before
+generating or editing again. Both operations use the saved model.
+
+Context windows distinguish API models from subscription defaults: GPT-6 Astra, Luna, Sol and GPT-6.1 Sol/Terra have a
+1,050,000-token API window; the `codex/` and `chatgpt/` refs use a 500,000-token fallback. A window reported by the
+running provider takes precedence. Gemma 4's 12B, 26B A4B and 31B variants use 256K, E2B/E4B use 128K, and GPT-OSS
+20B/120B use 131,072. Gemma 4 reads images; GPT-OSS does not. Decision-only Gemini and FLUX.2 Klein image models
+stay listed but are not offered for agent turns, including locally discovered lists.
+
 A Gemini voice saved with a model Google retired falls back to `PINNED.geminiSpeech` on 404. Embedding defaults are
 not swapped silently: vectors from another model do not mix, so a retired embedding model needs a release that
 re-indexes.

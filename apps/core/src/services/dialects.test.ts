@@ -146,9 +146,16 @@ test("stable-diffusion.cpp: queued job polled until done; an abandoned job is ca
 });
 
 test("OpenAI-compatible images; QVox speech gets its style and language; Gemini PCM becomes WAV", async () => {
-  const img = await generateImage(svc({ dialect: "openai-images", model: "gpt-image-1" }), req, "k", signal());
+  const img = await generateImage(
+    svc({ dialect: "openai-images", model: "gpt-image-2.5-sunburst" }),
+    req,
+    "k",
+    signal(),
+  );
   assert.equal(img.images[0]?.mime, "image/png");
   assert.equal(seen.findLast((s) => s.path === "/v1/images/generations")?.body.size, "512x512");
+  assert.equal(seen.findLast((s) => s.path === "/v1/images/generations")?.body.model, "gpt-image-2.5-sunburst");
+  assert.equal(img.model, "gpt-image-2.5-sunburst");
 
   const voice = await speak(
     svc({ kind: "speech", dialect: "openai-speech", label: "QVox", voice: "narrator", language: "es", style: "calm" }),
@@ -176,6 +183,14 @@ test("OpenAI-compatible images; QVox speech gets its style and language; Gemini 
   assert.equal(call?.path, `/v1beta/models/${PINNED.geminiSpeech.id}:generateContent`, "no model chosen: the default");
 });
 
+test("saved image model choices are sent unchanged to compatible servers", async () => {
+  for (const model of ["gpt-image-1", "custom-image-model"]) {
+    const img = await generateImage(svc({ dialect: "openai-images", model }), req, "k", signal());
+    assert.equal(img.model, model);
+    assert.equal(seen.findLast((s) => s.path === "/v1/images/generations")?.body.model, model);
+  }
+});
+
 test("Gemini voice on a model Google retired falls back to the current default", async () => {
   const before = seen.length;
   const g = await speak(
@@ -197,14 +212,19 @@ test("with references, OpenAI-compatible images go to the edits endpoint as file
     const ref = path.join(dir, "reel.png");
     fs.writeFileSync(ref, PNG);
     const withRef = { ...req, references: [{ path: ref, mime: "image/png" }] };
-    const img = await generateImage(svc({ dialect: "openai-images", model: "gpt-image-1" }), withRef, "k", signal());
+    const img = await generateImage(
+      svc({ dialect: "openai-images", model: "gpt-image-2.5-sunburst" }),
+      withRef,
+      "k",
+      signal(),
+    );
     assert.equal(img.images[0]?.mime, "image/png");
     const edit = seen.findLast((s) => s.path === "/v1/images/edits");
     assert.match(String(edit?.headers["content-type"]), /multipart\/form-data/);
     const raw = String(edit?.body.raw);
     assert.match(raw, /name="image\[\]"; filename="reel.png"/);
     assert.match(raw, /name="prompt"\r\n\r\na fox/);
-    assert.match(raw, /name="model"\r\n\r\ngpt-image-1/);
+    assert.match(raw, /name="model"\r\n\r\ngpt-image-2\.5-sunburst/);
     await assert.rejects(generateImage(svc({}), withRef, undefined, signal()), /cannot draw from reference images/);
   } finally {
     fs.rmSync(dir, { recursive: true, force: true });

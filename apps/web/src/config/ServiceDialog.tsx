@@ -33,7 +33,7 @@ const PRESETS: Record<ServiceKind, Preset[]> = {
       dialect: "openai-images",
       base_url: "https://api.openai.com",
       needs_key: true,
-      model: "gpt-image-1",
+      model: "gpt-image-2.5-sunburst",
     },
     {
       id: "compatible",
