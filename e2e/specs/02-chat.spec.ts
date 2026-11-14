@@ -109,11 +109,11 @@ test("a turn that picked skills but said nothing leaves no chips behind", async 
     const last = (await env.client.call("threads.get", { thread: chat.id })).messages.at(-1);
     expect(last?.author.kind).toBe("agent");
     expect(last?.parts.some((p) => p.type === "skills")).toBe(true);
-    // Its row is on the page and draws no turn: no chips over no answer.
+    // Its row says only that there was nothing new: no chips over no answer.
     const row = page.locator(`.transcript__row[data-msg="${last?.id}"]`);
-    await expect(row).toBeAttached();
-    await expect(row.locator(".turn")).toHaveCount(0);
-    await expect(row).toBeHidden();
+    await expect(row.locator(".quietmark")).toBeVisible();
+    await expect(row.locator(".turn__skills")).toHaveCount(0);
+    await expect(row.getByText("SKIP")).toHaveCount(0);
     await expect(page.locator(".transcript .turn__skills")).toHaveCount(1);
   } finally {
     await page.goto("about:blank");
