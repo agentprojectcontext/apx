@@ -138,19 +138,19 @@ export function Choice({ node }: { node: Of<"choice"> }) {
   const name = `choice-${node.options.map((o) => o.id).join("-")}`;
   return (
     <>
-      <div className="apx-choices" role="radiogroup">
+      <div className="apx-picks" role="radiogroup">
         {node.options.map((o) => (
-          <label key={o.id} className="apx-choice">
+          <label key={o.id} className="apx-pick">
             <input type="radio" name={name} checked={picked === o.id} onChange={() => setPicked(o.id)} />
-            <span className="apx-choice__tile" aria-hidden="true">
+            <span className="apx-pick__tile" aria-hidden="true">
               {o.image ? <img src={o.image} alt="" referrerPolicy="no-referrer" /> : initials(o.title)}
             </span>
-            <span className="apx-choice__body">
-              <span className="apx-choice__title">
+            <span className="apx-pick__body">
+              <span className="apx-pick__title">
                 {o.title}
                 {o.badge && <ToneBadge {...o.badge} />}
               </span>
-              {o.description && <span className="apx-choice__sub">{o.description}</span>}
+              {o.description && <span className="apx-pick__sub">{o.description}</span>}
               {o.rating && <Rating value={o.rating} />}
             </span>
             {o.price && (
@@ -233,13 +233,21 @@ export function Compare({ node }: { node: Of<"compare"> }) {
   );
 }
 
-/** Where each point sits in the box, as percentages, with a margin so pins never touch the edge. */
+/**
+ * Where each point sits in the 16:9 box, as percentages: one scale for both axes (longitude narrowed by latitude) so
+ * distances look true, centred, with a margin so pins never touch the edge.
+ */
 function project(points: { lat: number; lng: number }[]) {
-  const lats = points.map((p) => p.lat);
-  const lngs = points.map((p) => p.lng);
-  const [south, north, west, east] = [Math.min(...lats), Math.max(...lats), Math.min(...lngs), Math.max(...lngs)];
-  const span = (lo: number, hi: number, v: number) => (hi === lo ? 50 : 14 + ((v - lo) / (hi - lo)) * 72);
-  return (p: { lat: number; lng: number }) => ({ x: span(west, east, p.lng), y: 100 - span(south, north, p.lat) });
+  const shrink = Math.cos((points.reduce((sum, p) => sum + p.lat, 0) / points.length) * (Math.PI / 180));
+  const xs = points.map((p) => p.lng * shrink);
+  const ys = points.map((p) => p.lat);
+  const [x0, x1, y0, y1] = [Math.min(...xs), Math.max(...xs), Math.min(...ys), Math.max(...ys)];
+  const scale = Math.min(x1 > x0 ? (16 * 0.76) / (x1 - x0) : Infinity, y1 > y0 ? (9 * 0.66) / (y1 - y0) : Infinity);
+  const k = Number.isFinite(scale) ? scale : 0;
+  return (p: { lat: number; lng: number }) => ({
+    x: ((8 + (p.lng * shrink - (x0 + x1) / 2) * k) / 16) * 100,
+    y: ((4.5 - (p.lat - (y0 + y1) / 2) * k) / 9) * 100 + 4,
+  });
 }
 
 export function Places({ node }: { node: Of<"places"> }) {
@@ -404,7 +412,7 @@ export function Booking({ node }: { node: Of<"booking"> }) {
 
 export function Status({ node }: { node: Of<"status"> }) {
   return (
-    <div className="apx-status">
+    <div className="apx-receipt-status">
       <Badge tone={BADGE[node.tone]}>
         {node.tone === "success" && <Icons.Check size={12} />}
         {node.label}
@@ -443,10 +451,10 @@ export function Code({ node }: { node: Of<"code"> }) {
 
 export function Steps({ node }: { node: Of<"steps"> }) {
   return (
-    <span className="apx-steps" role="img" aria-label={`${node.done} / ${node.total}`}>
+    <span className="apx-receipt-steps" role="img" aria-label={`${node.done} / ${node.total}`}>
       {Array.from({ length: node.total }, (_, i) => (
         // biome-ignore lint/suspicious/noArrayIndexKey: positional dots
-        <span key={i} className="apx-step" data-done={i < node.done || undefined} />
+        <span key={i} className="apx-receipt-step" data-done={i < node.done || undefined} />
       ))}
     </span>
   );

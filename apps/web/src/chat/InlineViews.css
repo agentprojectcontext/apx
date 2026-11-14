@@ -48,12 +48,12 @@
 }
 
 /* Choose one option */
-.apx-choices {
+.apx-picks {
   display: flex;
   flex-direction: column;
   gap: 6px;
 }
-.apx-choice {
+.apx-pick {
   display: flex;
   align-items: center;
   gap: 12px;
@@ -64,19 +64,19 @@
   cursor: pointer;
   transition: border-color 0.14s;
 }
-.apx-choice:hover {
+.apx-pick:hover {
   border-color: var(--apx-border-strong);
 }
-.apx-choice:has(input:checked) {
+.apx-pick:has(input:checked) {
   border-color: var(--apx-brand);
   box-shadow: 0 0 0 1px var(--apx-brand);
 }
-.apx-choice > input {
+.apx-pick > input {
   flex: none;
   margin: 0;
   accent-color: var(--apx-brand);
 }
-.apx-choice__tile {
+.apx-pick__tile {
   display: grid;
   flex: none;
   place-items: center;
@@ -88,19 +88,19 @@
   color: var(--apx-fg-subtle);
   font-weight: 650;
 }
-.apx-choice__tile > img {
+.apx-pick__tile > img {
   width: 100%;
   height: 100%;
   object-fit: cover;
 }
-.apx-choice__body {
+.apx-pick__body {
   display: flex;
   flex: 1;
   flex-direction: column;
   gap: 2px;
   min-width: 0;
 }
-.apx-choice__title {
+.apx-pick__title {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
@@ -109,7 +109,7 @@
   font-weight: 550;
   color: var(--apx-fg);
 }
-.apx-choice__sub {
+.apx-pick__sub {
   font-size: var(--apx-text-xs);
   color: var(--apx-fg-muted);
 }
@@ -161,6 +161,8 @@
 }
 .apx-vs {
   width: 100%;
+  min-width: 480px;
+  table-layout: fixed;
   border-collapse: separate;
   border-spacing: 0;
   font-size: var(--apx-text-sm);
@@ -176,10 +178,12 @@
   border-top: 0;
   vertical-align: bottom;
 }
+.apx-vs thead th:first-child {
+  width: 26%;
+}
 .apx-vs tbody th {
   font-weight: 500;
   color: var(--apx-fg-subtle);
-  white-space: nowrap;
 }
 .apx-vs td[data-best] {
   color: var(--apx-brand-soft-fg);
@@ -416,7 +420,7 @@
 }
 
 /* A confirmation */
-.apx-status {
+.apx-receipt-status {
   display: flex;
   align-items: center;
   gap: 10px;
@@ -432,17 +436,17 @@
   align-items: center;
   gap: 8px;
 }
-.apx-steps {
+.apx-receipt-steps {
   display: inline-flex;
   gap: 5px;
 }
-.apx-step {
+.apx-receipt-step {
   width: 7px;
   height: 7px;
   border-radius: var(--apx-radius-pill);
   background: var(--apx-fill-strong);
 }
-.apx-step[data-done] {
+.apx-receipt-step[data-done] {
   background: var(--apx-brand);
 }
 

@@ -117,7 +117,8 @@ out and APX writes a clear default that asks you to confirm before paying.
 ````
 
 `compare` — columns are the options (2–4), rows the attributes (up to 12, one value per column); `best` marks the
-best cells of a row by column index, `recommended` the column that starts picked:
+best cells of a row by column index, `recommended` the column that starts picked. A cell is a few words ("US$ 12",
+"Git push", "Incluida"); the reasons go in your text:
 
 ````
 ```apx-cards
