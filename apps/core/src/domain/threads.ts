@@ -129,6 +129,8 @@ export type ThreadContext = {
   progress_at?: string;
   /** On a task's conversation: the stretch without progress the owner was already told about (its start). */
   stuck_told?: string;
+  /** On a task's conversation: its assignee was asked once whether documents alone were what it asked for. */
+  documents_checked?: boolean;
   /** Brought from the owner's Claude Code or Codex: that session. */
   /** Fork relatives do not automatically recall each other beyond their copied history. */
   memory_family?: string;
