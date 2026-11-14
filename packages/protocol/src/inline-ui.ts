@@ -1,7 +1,13 @@
 // Cards an agent shows inside its answer, as a fenced block. Two ways in, one tree out: ```apx-cards for a list of
 // results (movies, stays, flights…) and ```a2ui for a composition of A2UI's basic catalog. Both become the same
 // bounded tree of APX pieces, drawn the same way by the panel and the phone. Shared by both.
-// Nothing in a block can run code: pictures are media ids or https addresses, and a card's one action opens an https page.
+// Nothing in a block can run code: pictures are media ids or https addresses, and a button opens an https page or
+// writes a message to the chat as the owner.
+import { https, isMediaId, optional, picture, record, text } from "./inline-check.ts";
+import { VIEWS, type ViewNode, viewCard } from "./inline-views.ts";
+
+export type * from "./inline-views.ts";
+export { isMediaId };
 
 /** A piece of a card. Text styles follow APX Kit: eyebrow, title, body and caption. */
 export type InlineNode =
@@ -21,7 +27,8 @@ export type InlineNode =
   | { kind: "highlight"; value: string; label?: string }
   /** A button that opens its content in a dialog titled `title` (or `label`), never stretching the cards around. */
   | { kind: "details"; label?: string; title?: string; children: InlineNode[] }
-  | { kind: "divider" };
+  | { kind: "divider" }
+  | ViewNode;
 
 export type InlineView = { title?: string; example: boolean; root: InlineNode };
 
@@ -36,29 +43,8 @@ const MAX_CODE = 32_000;
 const MAX_ITEMS = 12;
 const MAX_NODES = 60;
 const MAX_DEPTH = 10;
-const MEDIA = /^med_[A-Za-z0-9_-]{1,80}$/;
-const MAX_URL = 2000;
 const ID = /^[A-Za-z_][A-Za-z0-9_-]{0,39}$/;
 export const A2UI_BASIC_CATALOG = "https://a2ui.org/specification/v1_0/catalogs/basic/catalog.json";
-
-const record = (v: unknown): v is Record<string, unknown> => v !== null && typeof v === "object" && !Array.isArray(v);
-const text = (v: unknown, max: number): v is string => typeof v === "string" && v.trim().length > 0 && v.length <= max;
-const optional = (v: unknown, max: number): string | undefined | false =>
-  v === undefined ? undefined : text(v, max) ? v : false;
-
-/** A picture or page address a card may use: https only, so a block never reaches a local or plain-text address. */
-function https(v: unknown): v is string {
-  if (typeof v !== "string" || v.length > MAX_URL || /\s/.test(v)) return false;
-  try {
-    return new URL(v).protocol === "https:";
-  } catch {
-    return false;
-  }
-}
-
-/** Whether an image's `src` is a picture APX holds (loaded through the core) rather than a web address. */
-export const isMediaId = (src: string): boolean => MEDIA.test(src);
-const picture = (v: unknown): v is string => typeof v === "string" && (MEDIA.test(v) || https(v));
 
 const MAX_PHOTOS = 8;
 
@@ -79,10 +65,13 @@ function highlight(v: unknown): InlineNode | undefined | false {
   return label === false ? false : { kind: "highlight", value: v.value, ...(label ? { label } : {}) };
 }
 
+/** A result's own button: it opens its https page, or writes `ask` to the chat (choosing it, asking for more). */
 function action(v: unknown): InlineNode | undefined | false {
   if (v === undefined) return undefined;
-  if (!record(v) || !text(v.label, 40) || !https(v.url)) return false;
-  return { kind: "link", label: v.label, url: v.url };
+  if (!record(v) || !text(v.label, 40)) return false;
+  if (https(v.url) && v.ask === undefined) return { kind: "link", label: v.label, url: v.url };
+  if (text(v.ask, 300) && v.url === undefined) return { kind: "ask", label: v.label, text: v.ask };
+  return false;
 }
 
 function json(code: string): unknown {
@@ -103,9 +92,12 @@ export function parseInlineBlock(lang: string, code: string): InlineBlock | unde
   const value = json(code);
   if (!record(value) || !text(value.fallback, 4000)) return undefined;
   const fallback = value.fallback;
-  const root = lang === CARDS_LANG ? cards(value) : a2ui(value);
+  const view = lang === CARDS_LANG ? (value.view ?? "cards") : "a2ui";
+  if (view !== "a2ui" && !(VIEWS as readonly unknown[]).includes(view)) return { kind: "fallback", text: fallback };
+  const root = view === "a2ui" ? a2ui(value) : view === "cards" ? cards(value) : viewCard(view as string, value);
   if (!root) return { kind: "fallback", text: fallback };
-  const title = optional(value.title, 120);
+  // The other views carry their title inside their card.
+  const title = view === "cards" || view === "a2ui" ? optional(value.title, 120) : undefined;
   if (title === false) return { kind: "fallback", text: fallback };
   return {
     kind: "view",
