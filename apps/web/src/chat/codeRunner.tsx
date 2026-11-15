@@ -1,7 +1,8 @@
 import type { Thread } from "@apx/protocol";
 import { EMAIL_LANG, parseEmailBlock } from "@apx/protocol/email-block";
-import type { CodeRenderer } from "@apx/ui";
+import { type CodeRenderer, Skeleton } from "@apx/ui";
 import { Fragment, type ReactNode, Suspense } from "react";
+import { useT } from "../i18n/index.ts";
 import { CodeBlock, EmailCard, InlineView, RunnableCode } from "../lazy.ts";
 
 const SHELL_LANGS: ReadonlySet<string> = new Set(["bash", "sh", "zsh", "shell", "console", "fish"]);
@@ -49,11 +50,11 @@ export function replyBlock(
       <code>{block.code}</code>
     </pre>
   );
-  // ```apx-cards and ```a2ui are cards drawn in the answer; a block APX cannot read shows as code.
-  // While the agent writes one, the cards show taking shape instead of its code.
+  // ```apx-cards and ```a2ui are cards drawn in the answer; a block APX cannot read shows as code. While the agent
+  // writes one, or while the cards' code loads (a reload), a placeholder shows instead of its code.
   if (INLINE_LANGS.has(block.lang)) {
     return (
-      <Suspense fallback={writing ? null : pre}>
+      <Suspense fallback={<CardsWait />}>
         <InlineView lang={block.lang} code={block.code} pre={pre} writing={writing} threadId={thread.id} />
       </Suspense>
     );
@@ -67,5 +68,15 @@ export function replyBlock(
     <Fragment key="whole">
       {runnableCode(thread, messageId)(block.code, block.lang || undefined, pre, block.lang)}
     </Fragment>
+  );
+}
+
+/** Where the cards will be while their code loads: their own skeleton comes with it. */
+function CardsWait() {
+  const t = useT();
+  return (
+    <div role="status" aria-busy="true" aria-label={t("chat.inline.loading")}>
+      <Skeleton shape="block" height={220} />
+    </div>
   );
 }
