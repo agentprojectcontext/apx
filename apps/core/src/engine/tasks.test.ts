@@ -702,5 +702,8 @@ test("a task's chat decides where code work goes without asking the owner, and r
     /first git worktree list and the branches on this task's subject, and go on in the one that exists/,
   );
   assert.match(block, /under \.worktrees\/ at the project root \(never a parent folder, \.apc or \.claude\)/);
-  assert.match(block, /never detached\. Remove it and its branch once merged/);
+  assert.match(
+    block,
+    /never detached\. Commit your work on its branch before closing, and name the branch in the close note\. Remove it/,
+  );
 });
