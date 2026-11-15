@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { deferMethod } from "./defer-method.ts";
 import { schemaFields } from "./schema-fields.ts";
 
 export const UpdateTarget = z
@@ -17,41 +18,36 @@ export const UpdateCoordination = z.object(
 
 export const updateCoordinationMethods = {
   /** A shared pinned release; only the core confirms completion after running that version. */
-  "system.update_state": {
-    params: z.object({}).strict(),
-    result: z.object(
-      schemaFields({
-        coordination_protocol: () => z.literal(1),
-        running: () => z.string(),
-        coordination: () => UpdateCoordination.nullable(),
-        supported: () => z.boolean(),
-        error: () => z.string().optional(),
+  "system.update_state": deferMethod({
+    params: () => z.object({}).strict(),
+    result: () =>
+      z.object({
+        coordination_protocol: z.literal(1),
+        running: z.string(),
+        coordination: UpdateCoordination.nullable(),
+        supported: z.boolean(),
+        error: z.string().optional(),
       }),
-    ),
     effect: false,
     access: "human",
-  },
+  }),
   /** Validates the server and requesting Desktop assets before recording a shared target. */
-  "system.update_prepare": {
-    params: z
-      .object(
-        schemaFields({
-          target: () => UpdateTarget,
-          desktop: () =>
-            z
-              .object(
-                schemaFields({
-                  os: () => z.enum(["linux", "mac", "win"]),
-                  arch: () => z.enum(["x64", "arm64"]),
-                }),
-              )
-              .strict(),
-          format: () => z.literal("zip").optional(),
-        }),
-      )
-      .strict(),
-    result: UpdateCoordination,
+  "system.update_prepare": deferMethod({
+    params: () =>
+      z
+        .object({
+          target: UpdateTarget,
+          desktop: z
+            .object({
+              os: z.enum(["linux", "mac", "win"]),
+              arch: z.enum(["x64", "arm64"]),
+            })
+            .strict(),
+          format: z.literal("zip").optional(),
+        })
+        .strict(),
+    result: () => UpdateCoordination,
     effect: true,
     access: "human",
-  },
+  }),
 } as const;

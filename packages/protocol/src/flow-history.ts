@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { deferMethod } from "./defer-method.ts";
 import { FlowDraftGraph, FlowGraphDocument } from "./flow-graph.ts";
 import { schemaFields } from "./schema-fields.ts";
 
@@ -33,56 +34,51 @@ export type FlowHistoryEntry = z.infer<typeof FlowHistoryEntry>;
  * project); bringing an entry back is the owner's, and never publishes.
  */
 export const flowHistoryMethods = {
-  "flows.history": {
-    params: z
-      .object(
-        schemaFields({
-          flow: () => FlowId,
-        }),
-      )
-      .strict(),
-    result: z
-      .object(
-        schemaFields({
-          entries: () => z.array(FlowHistoryEntry),
-        }),
-      )
-      .strict(),
+  "flows.history": deferMethod({
+    params: () =>
+      z
+        .object({
+          flow: FlowId,
+        })
+        .strict(),
+    result: () =>
+      z
+        .object({
+          entries: z.array(FlowHistoryEntry),
+        })
+        .strict(),
     effect: false,
-  },
-  "flows.history_get": {
-    params: z
-      .object(
-        schemaFields({
-          flow: () => FlowId,
-          entry: () => Entry,
-        }),
-      )
-      .strict(),
-    result: z
-      .object(
-        schemaFields({
-          entry: () => FlowHistoryEntry,
-          graph: () => FlowDraftGraph,
-        }),
-      )
-      .strict(),
+  }),
+  "flows.history_get": deferMethod({
+    params: () =>
+      z
+        .object({
+          flow: FlowId,
+          entry: Entry,
+        })
+        .strict(),
+    result: () =>
+      z
+        .object({
+          entry: FlowHistoryEntry,
+          graph: FlowDraftGraph,
+        })
+        .strict(),
     effect: false,
-  },
+  }),
   /** The entry's drawing becomes the draft; what runs stays as it is until the owner saves it. */
-  "flows.history_restore": {
-    params: z
-      .object(
-        schemaFields({
-          flow: () => FlowId,
-          entry: () => Entry,
-          expectedVersion: () => z.number().int().min(1).nullable(),
-          confirm: () => z.literal(true),
-        }),
-      )
-      .strict(),
-    result: FlowGraphDocument,
+  "flows.history_restore": deferMethod({
+    params: () =>
+      z
+        .object({
+          flow: FlowId,
+          entry: Entry,
+          expectedVersion: z.number().int().min(1).nullable(),
+          confirm: z.literal(true),
+        })
+        .strict(),
+    result: () => FlowGraphDocument,
     effect: true,
     access: "human",
-  },
+  }),
 } as const;

@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { deferMethod } from "./defer-method.ts";
 import { schemaFields } from "./schema-fields.ts";
 
 export const ActivityReviewSettings = z
@@ -25,22 +26,21 @@ export const ActivityReviewStatus = z.object(
 export type ActivityReviewStatus = z.infer<typeof ActivityReviewStatus>;
 
 export const activityReviewMethods = {
-  "activity_review.settings": {
-    params: z.object({}).strict(),
-    result: ActivityReviewStatus,
+  "activity_review.settings": deferMethod({
+    params: () => z.object({}).strict(),
+    result: () => ActivityReviewStatus,
     effect: false,
     access: "human",
-  },
-  "activity_review.configure": {
-    params: ActivityReviewSettings.partial()
-      .extend(
-        schemaFields({
-          expected: () => ActivityReviewSettings.optional(),
-        }),
-      )
-      .strict(),
-    result: ActivityReviewStatus,
+  }),
+  "activity_review.configure": deferMethod({
+    params: () =>
+      ActivityReviewSettings.partial()
+        .extend({
+          expected: ActivityReviewSettings.optional(),
+        })
+        .strict(),
+    result: () => ActivityReviewStatus,
     effect: true,
     access: "human",
-  },
+  }),
 } as const;

@@ -252,8 +252,9 @@ keep the original gate. On macOS, compare `vmmap -summary <pid>` dirty/compresse
 sizes with the V8 heap; do not attribute every RSS difference to compression. CI's Linux job checks the budget on
 another allocator and platform too.
 
-Protocol object fields use `schemaFields` to defer unused field trees through Zod's native shape getters. Objects
-stay real Zod instances; their first `.shape`, validation or JSON Schema conversion resolves the same field schemas,
+Protocol methods use `deferMethod` to construct each real params/result schema once on first access. Authorization
+and idempotency metadata stays eager. Shared object fields use `schemaFields` to defer unused child trees through
+Zod's native shape getters. Objects stay real Zod instances; their first `.shape`, validation or JSON Schema conversion resolves the same field schemas,
 including through `.extend`, `.omit` and `.partial`. The isolated startup regression bounds live schema objects,
 not platform-dependent byte sizes or elapsed time. Changes here also compare public schemas and every method's
 metadata and input/output JSON Schema, materialize the full contract, exercise real cold/warm calls and preserve

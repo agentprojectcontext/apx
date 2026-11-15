@@ -2,6 +2,7 @@
 // sizes come from a bounded walk in the background; the disk's free space is read on each call. See
 // DECISIONS.md#d-185
 import { z } from "zod";
+import { deferMethod } from "./defer-method.ts";
 import { schemaFields } from "./schema-fields.ts";
 
 /** Areas of the APX home, each a set of its folders and files (apps/core/src/storage.ts says which). */
@@ -120,80 +121,76 @@ const Freed = z.object(
 
 export const storageMethods = {
   /** The APX home by area and what clearing would free; `refresh` measures again now. */
-  "storage.usage": {
-    params: z
-      .object(
-        schemaFields({
-          refresh: () => z.boolean().default(false),
-        }),
-      )
-      .strict(),
-    result: StorageUsage,
+  "storage.usage": deferMethod({
+    params: () =>
+      z
+        .object({
+          refresh: z.boolean().default(false),
+        })
+        .strict(),
+    result: () => StorageUsage,
     effect: false,
-  },
+  }),
   /** Free space on the disk holding the APX home: cheap, for the low-disk warning. */
-  "storage.status": {
-    params: z.object({}).strict(),
-    result: DiskStatus,
+  "storage.status": deferMethod({
+    params: () => z.object({}).strict(),
+    result: () => DiskStatus,
     effect: false,
-  },
+  }),
   /** Removes only what APX rebuilds on its own (caches, rotated and old logs); never chats, memory or projects. */
-  "storage.clear": {
-    params: z.object({}).strict(),
-    result: z.object(
-      schemaFields({
-        freed_bytes: () => z.number(),
-        files: () => z.number(),
+  "storage.clear": deferMethod({
+    params: () => z.object({}).strict(),
+    result: () =>
+      z.object({
+        freed_bytes: z.number(),
+        files: z.number(),
       }),
-    ),
     effect: true,
     access: "human",
-  },
+  }),
   /**
    * Trims what the chats' history keeps beyond what any model can still read (whole outputs it already holds, old
    * turns far behind every chat's view), then gives the free space back to the disk. `apx doctor --fix` calls it.
    */
-  "storage.compact": {
-    params: z.object({}).strict(),
-    result: StoreCompaction,
+  "storage.compact": deferMethod({
+    params: () => z.object({}).strict(),
+    result: () => StoreCompaction,
     effect: true,
     access: "human",
-  },
+  }),
   /** The agents' computers on this disk, each with its size and whether it is on. */
-  "storage.computers.list": {
-    params: z.object({}).strict(),
-    result: z.object(
-      schemaFields({
-        computers: () => z.array(StorageComputer),
+  "storage.computers.list": deferMethod({
+    params: () => z.object({}).strict(),
+    result: () =>
+      z.object({
+        computers: z.array(StorageComputer),
       }),
-    ),
     effect: false,
-  },
+  }),
   /**
    * Deletes a computer the list named, with everything inside it; refused while it is on. The agents' computer is set
    * up again from scratch the next time an agent needs it.
    */
-  "storage.computers.delete": {
-    params: ItemId,
-    result: Freed,
+  "storage.computers.delete": deferMethod({
+    params: () => ItemId,
+    result: () => Freed,
     effect: true,
     access: "human",
-  },
+  }),
   /** Copies of the database in the backups folder, newest first. */
-  "storage.backups.list": {
-    params: z.object({}).strict(),
-    result: z.object(
-      schemaFields({
-        backups: () => z.array(StorageBackup),
+  "storage.backups.list": deferMethod({
+    params: () => z.object({}).strict(),
+    result: () =>
+      z.object({
+        backups: z.array(StorageBackup),
       }),
-    ),
     effect: false,
-  },
+  }),
   /** Deletes a backup copy the list named. */
-  "storage.backups.delete": {
-    params: ItemId,
-    result: Freed,
+  "storage.backups.delete": deferMethod({
+    params: () => ItemId,
+    result: () => Freed,
     effect: true,
     access: "human",
-  },
+  }),
 } as const;

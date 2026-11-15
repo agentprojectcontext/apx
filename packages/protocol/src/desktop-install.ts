@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { deferMethod } from "./defer-method.ts";
 import type { MethodDef } from "./methods.ts";
 import { schemaFields } from "./schema-fields.ts";
 
@@ -15,27 +16,27 @@ export const DesktopInstallStatus = z.object(
 export type DesktopInstallStatus = z.infer<typeof DesktopInstallStatus>;
 
 export const desktopInstallMethods = {
-  "desktop.install_status": {
-    params: z.object({}).strict(),
-    result: DesktopInstallStatus,
+  "desktop.install_status": deferMethod({
+    params: () => z.object({}).strict(),
+    result: () => DesktopInstallStatus,
     effect: false,
     access: "human",
     local: true,
-  },
-  "desktop.install": {
-    params: z.object({}).strict(),
-    result: DesktopInstallStatus,
+  }),
+  "desktop.install": deferMethod({
+    params: () => z.object({}).strict(),
+    result: () => DesktopInstallStatus,
     effect: true,
     access: "human",
     local: true,
     replay: false,
-  },
-  "desktop.install_cancel": {
-    params: z.object({}).strict(),
-    result: DesktopInstallStatus,
+  }),
+  "desktop.install_cancel": deferMethod({
+    params: () => z.object({}).strict(),
+    result: () => DesktopInstallStatus,
     effect: true,
     access: "human",
     local: true,
     replay: false,
-  },
+  }),
 } as const satisfies Record<string, MethodDef>;

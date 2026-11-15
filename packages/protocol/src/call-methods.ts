@@ -3,6 +3,7 @@
 // talks with a model (their main one unless they pick another), and what needs real work goes to that agent inside the
 // call, shown there as a card.
 import { z } from "zod";
+import { deferMethod } from "./defer-method.ts";
 import { Id, ModelRef } from "./domain.ts";
 import { schemaFields } from "./schema-fields.ts";
 
@@ -103,106 +104,101 @@ const Ok = z.object(
 );
 
 export const callMethods = {
-  "voice.status": {
-    params: z.object({}).strict(),
-    result: VoiceStatus,
+  "voice.status": deferMethod({
+    params: () => z.object({}).strict(),
+    result: () => VoiceStatus,
     effect: false,
     access: "human",
-  },
+  }),
   /** Downloads the voice's models (done on its own where the machine can run it well). */
-  "voice.install": {
-    params: z.object({}).strict(),
-    result: VoiceStatus,
+  "voice.install": deferMethod({
+    params: () => z.object({}).strict(),
+    result: () => VoiceStatus,
     effect: true,
     access: "human",
-  },
+  }),
   /**
    * Turns APX's own voice on or off, picks its voice, turns calls on or off, and picks the model calls talk with
    * (`null`: the main model).
    */
-  "voice.set": {
-    params: z
-      .object(
-        schemaFields({
-          enabled: () => z.boolean().optional(),
-          voice: () => NativeVoice.optional(),
-          calls: () => z.boolean().optional(),
-          quality: () => VoiceQuality.optional(),
-          call_model: () => ModelRef.nullable().optional(),
-        }),
-      )
-      .strict(),
-    result: VoiceStatus,
+  "voice.set": deferMethod({
+    params: () =>
+      z
+        .object({
+          enabled: z.boolean().optional(),
+          voice: NativeVoice.optional(),
+          calls: z.boolean().optional(),
+          quality: VoiceQuality.optional(),
+          call_model: ModelRef.nullable().optional(),
+        })
+        .strict(),
+    result: () => VoiceStatus,
     effect: true,
     access: "human",
-  },
-  "calls.status": {
-    params: z.object({}).strict(),
-    result: CallStatus,
+  }),
+  "calls.status": deferMethod({
+    params: () => z.object({}).strict(),
+    result: () => CallStatus,
     effect: false,
     access: "human",
-  },
+  }),
   /**
    * Opens a call with an agent (the super-agent when none is named): its thread, and a single-use ticket for the
    * /voice-call socket that carries the audio both ways (16 kHz mono PCM up, 24 kHz mono PCM down) and the call's live
    * state as JSON text frames.
    */
-  "calls.start": {
-    params: z
-      .object(
-        schemaFields({
-          agent_id: () => Id.optional(),
-          voice: () => CallVoice.optional(),
-          locale: () => VoiceLocale.optional(),
+  "calls.start": deferMethod({
+    params: () =>
+      z
+        .object({
+          agent_id: Id.optional(),
+          voice: CallVoice.optional(),
+          locale: VoiceLocale.optional(),
           /** Calling again from a call's chat goes on in that thread. */
-          thread: () => Id.optional(),
-        }),
-      )
-      .strict(),
-    result: z.object(
-      schemaFields({
-        thread_id: () => Id,
-        ticket: () => z.string(),
-        expires_in: () => z.number(),
+          thread: Id.optional(),
+        })
+        .strict(),
+    result: () =>
+      z.object({
+        thread_id: Id,
+        ticket: z.string(),
+        expires_in: z.number(),
       }),
-    ),
     effect: true,
     access: "human",
     replay: false,
-  },
+  }),
   /** The call card is open: the voice starts loading what a call needs, so the call begins without a wait. */
-  "calls.prepare": {
-    params: z.object({}).strict(),
-    result: Ok,
+  "calls.prepare": deferMethod({
+    params: () => z.object({}).strict(),
+    result: () => Ok,
     effect: false,
     access: "human",
-  },
+  }),
   /** Words the owner types in the chat of the call going on: the voice takes them as said and answers aloud. */
-  "calls.say": {
-    params: z
-      .object(
-        schemaFields({
-          thread_id: () => Id,
-          text: () => z.string().trim().min(1).max(4000),
-        }),
-      )
-      .strict(),
-    result: Ok,
+  "calls.say": deferMethod({
+    params: () =>
+      z
+        .object({
+          thread_id: Id,
+          text: z.string().trim().min(1).max(4000),
+        })
+        .strict(),
+    result: () => Ok,
     effect: true,
     access: "human",
-  },
-  "calls.end": {
-    params: z
-      .object(
-        schemaFields({
-          thread_id: () => Id,
-        }),
-      )
-      .strict(),
-    result: Ok,
+  }),
+  "calls.end": deferMethod({
+    params: () =>
+      z
+        .object({
+          thread_id: Id,
+        })
+        .strict(),
+    result: () => Ok,
     effect: true,
     access: "human",
-  },
+  }),
 } as const;
 
 /** Live frames on the /voice-call socket, from the core to the panel (audio travels as binary frames). */

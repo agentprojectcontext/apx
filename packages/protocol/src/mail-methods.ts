@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { deferMethod } from "./defer-method.ts";
 import type { MethodDef } from "./methods.ts";
 import { schemaFields } from "./schema-fields.ts";
 
@@ -29,43 +30,39 @@ const Emails = z.array(z.email()).max(50);
 
 export const mailMethods = {
   /** How the owner can send a draft from a chat, and which of `sent` (draft keys) they already sent. */
-  "mail.routes": {
-    params: z
-      .object(
-        schemaFields({
-          sent: () => z.array(DraftKey).max(100).default([]),
-        }),
-      )
-      .strict(),
-    result: z.object(
-      schemaFields({
-        routes: () => z.array(MailRoute),
-        sent: () => z.array(SentDraft),
+  "mail.routes": deferMethod({
+    params: () =>
+      z
+        .object({
+          sent: z.array(DraftKey).max(100).default([]),
+        })
+        .strict(),
+    result: () =>
+      z.object({
+        routes: z.array(MailRoute),
+        sent: z.array(SentDraft),
       }),
-    ),
     effect: false,
     access: "human",
-  },
+  }),
   /** The owner sends a draft an agent wrote, as they reviewed it, through one route. A key already sent is refused. */
-  "mail.send": {
-    params: z
-      .object(
-        schemaFields({
-          route: () => MailRoute.pick({ kind: true, id: true }),
-          key: () => DraftKey,
-          to: () => Emails.min(1),
-          cc: () => Emails.default([]),
-          subject: () =>
-            z
-              .string()
-              .max(300)
-              .regex(/^[^\r\n]*$/),
-          body: () => z.string().min(1).max(20_000),
-        }),
-      )
-      .strict(),
-    result: SentDraft,
+  "mail.send": deferMethod({
+    params: () =>
+      z
+        .object({
+          route: MailRoute.pick({ kind: true, id: true }),
+          key: DraftKey,
+          to: Emails.min(1),
+          cc: Emails.default([]),
+          subject: z
+            .string()
+            .max(300)
+            .regex(/^[^\r\n]*$/),
+          body: z.string().min(1).max(20000),
+        })
+        .strict(),
+    result: () => SentDraft,
     effect: true,
     access: "human",
-  },
+  }),
 } as const satisfies Record<string, MethodDef>;

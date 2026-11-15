@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { deferMethod } from "./defer-method.ts";
 import type { MethodDef } from "./methods.ts";
 import { schemaFields } from "./schema-fields.ts";
 
@@ -36,35 +37,33 @@ export const EngineUsagePreferences = z.object(
   }),
 );
 export const engineUsageMethods = {
-  "engines.usage_preferences": {
-    params: z.object({}).strict(),
-    result: EngineUsagePreferences,
+  "engines.usage_preferences": deferMethod({
+    params: () => z.object({}).strict(),
+    result: () => EngineUsagePreferences,
     effect: false,
     access: "human",
-  },
-  "engines.set_usage": {
-    params: z
-      .object(
-        schemaFields({
-          engine: () => z.string().regex(/^[a-z0-9][a-z0-9:_-]{0,63}$/),
-          enabled: () => z.boolean(),
-        }),
-      )
-      .strict(),
-    result: EngineUsagePreferences,
+  }),
+  "engines.set_usage": deferMethod({
+    params: () =>
+      z
+        .object({
+          engine: z.string().regex(/^[a-z0-9][a-z0-9:_-]{0,63}$/),
+          enabled: z.boolean(),
+        })
+        .strict(),
+    result: () => EngineUsagePreferences,
     effect: true,
     access: "human",
-  },
-  "engines.usage": {
+  }),
+  "engines.usage": deferMethod({
     /** all: every detected engine, also those the owner keeps out of the top bar, for an agent the owner asks. */
-    params: z
-      .object(
-        schemaFields({
-          all: () => z.boolean().optional(),
-        }),
-      )
-      .strict(),
-    result: EngineUsageReport,
+    params: () =>
+      z
+        .object({
+          all: z.boolean().optional(),
+        })
+        .strict(),
+    result: () => EngineUsageReport,
     effect: false,
-  },
+  }),
 } as const satisfies Record<string, MethodDef>;

@@ -2,6 +2,7 @@
 // updated) under a random install id, and — only if the owner said yes — a daily count of tokens and of what it holds.
 // Nothing the owner wrote, no names, paths, models or keys. See rules/DECISIONS.md#d-092.
 import { z } from "zod";
+import { deferMethod } from "./defer-method.ts";
 import { schemaFields } from "./schema-fields.ts";
 
 /** The lifecycle steps, in the order an install goes through them; `updated` repeats on each new version. */
@@ -88,34 +89,32 @@ export const TelemetryState = z.object(
 export type TelemetryState = z.infer<typeof TelemetryState>;
 
 export const telemetryMethods = {
-  "telemetry.get": {
-    params: z.object({}).strict(),
-    result: TelemetryState,
+  "telemetry.get": deferMethod({
+    params: () => z.object({}).strict(),
+    result: () => TelemetryState,
     effect: false,
     access: "human",
-  },
+  }),
   /** The owner's answer on usage statistics (the first one also sends the `consent` step). */
-  "telemetry.set": {
-    params: z
-      .object(
-        schemaFields({
-          usage: () => z.boolean(),
-        }),
-      )
-      .strict(),
-    result: TelemetryState,
+  "telemetry.set": deferMethod({
+    params: () =>
+      z
+        .object({
+          usage: z.boolean(),
+        })
+        .strict(),
+    result: () => TelemetryState,
     effect: true,
     access: "human",
-  },
+  }),
   /** The panel opened on this install: sends the `opened` step the first time. */
-  "telemetry.seen": {
-    params: z.object({}).strict(),
-    result: z.object(
-      schemaFields({
-        ok: () => z.literal(true),
+  "telemetry.seen": deferMethod({
+    params: () => z.object({}).strict(),
+    result: () =>
+      z.object({
+        ok: z.literal(true),
       }),
-    ),
     effect: true,
     access: "human",
-  },
+  }),
 } as const;

@@ -1,6 +1,7 @@
 // Browser commands. Defined once: operators and agent tools call them on the core, the core forwards the same
 // method + params to a node that offers the "browser" capability (the desktop app), which executes them.
 import { z } from "zod";
+import { deferMethod } from "./defer-method.ts";
 import { schemaFields } from "./schema-fields.ts";
 
 export const BROWSER_CAP = "browser";
@@ -158,408 +159,366 @@ export const ElementEdit = z
 export type ElementEdit = z.infer<typeof ElementEdit>;
 
 export const browserMethods = {
-  "browser.tabs": {
-    params: z.object({}).strict(),
-    result: z.object(
-      schemaFields({
-        tabs: () => z.array(TabInfo),
+  "browser.tabs": deferMethod({
+    params: () => z.object({}).strict(),
+    result: () =>
+      z.object({
+        tabs: z.array(TabInfo),
       }),
-    ),
     effect: false,
-  },
-  "browser.open": {
-    params: z
-      .object(
-        schemaFields({
-          url: () => Url,
-          profile: () => BrowserProfile.default("shared"),
-          by: () => By,
+  }),
+  "browser.open": deferMethod({
+    params: () =>
+      z
+        .object({
+          url: Url,
+          profile: BrowserProfile.default("shared"),
+          by: By,
           /** In the owner's own Chrome, through APX's extension, instead of APX's browser (DECISIONS.md#d-198). */
-          chrome: () => z.boolean().optional(),
-        }),
-      )
-      .strict(),
-    result: TabInfo,
+          chrome: z.boolean().optional(),
+        })
+        .strict(),
+    result: () => TabInfo,
     effect: true,
-  },
-  "browser.navigate": {
-    params: z
-      .object(
-        schemaFields({
-          tab: () => Tab,
-          url: () => Url,
-          by: () => By,
-        }),
-      )
-      .strict(),
-    result: z.object(
-      schemaFields({
-        url: () => z.string(),
-        title: () => z.string(),
+  }),
+  "browser.navigate": deferMethod({
+    params: () =>
+      z
+        .object({
+          tab: Tab,
+          url: Url,
+          by: By,
+        })
+        .strict(),
+    result: () =>
+      z.object({
+        url: z.string(),
+        title: z.string(),
       }),
-    ),
     effect: true,
-  },
-  "browser.history": {
-    params: z
-      .object(
-        schemaFields({
-          tab: () => Tab,
-          action: () => z.enum(["back", "forward", "reload"]),
-          by: () => By,
-        }),
-      )
-      .strict(),
-    result: z.object(
-      schemaFields({
-        url: () => z.string(),
-        title: () => z.string(),
+  }),
+  "browser.history": deferMethod({
+    params: () =>
+      z
+        .object({
+          tab: Tab,
+          action: z.enum(["back", "forward", "reload"]),
+          by: By,
+        })
+        .strict(),
+    result: () =>
+      z.object({
+        url: z.string(),
+        title: z.string(),
       }),
-    ),
     effect: true,
-  },
-  "browser.snapshot": {
-    params: z
-      .object(
-        schemaFields({
-          tab: () => Tab,
-          max_chars: () => z.number().int().min(500).max(100_000).default(20_000),
-        }),
-      )
-      .strict(),
+  }),
+  "browser.snapshot": deferMethod({
+    params: () =>
+      z
+        .object({
+          tab: Tab,
+          max_chars: z.number().int().min(500).max(100000).default(20000),
+        })
+        .strict(),
     /** `tree` is untrusted web content, already wrapped as such by the node. */
-    result: z.object(
-      schemaFields({
-        url: () => z.string(),
-        title: () => z.string(),
-        tree: () => z.string(),
-        document: () => z.string().optional(),
-        refs: () => z.number().int(),
-        truncated: () => z.boolean(),
+    result: () =>
+      z.object({
+        url: z.string(),
+        title: z.string(),
+        tree: z.string(),
+        document: z.string().optional(),
+        refs: z.number().int(),
+        truncated: z.boolean(),
       }),
-    ),
     effect: false,
-  },
-  "browser.click": {
-    params: z
-      .object(
-        schemaFields({
-          tab: () => Tab,
-          ref: () => Ref,
-          by: () => By,
-        }),
-      )
-      .strict(),
+  }),
+  "browser.click": deferMethod({
+    params: () =>
+      z
+        .object({
+          tab: Tab,
+          ref: Ref,
+          by: By,
+        })
+        .strict(),
     /** `dialog`: the click opened one, and the page waits for its answer. */
-    result: z.object(
-      schemaFields({
-        ok: () => z.literal(true),
-        url: () => z.string(),
-        dialog: () => BrowserDialog.optional(),
+    result: () =>
+      z.object({
+        ok: z.literal(true),
+        url: z.string(),
+        dialog: BrowserDialog.optional(),
       }),
-    ),
     effect: true,
-  },
-  "browser.type": {
-    params: z
-      .object(
-        schemaFields({
-          tab: () => Tab,
-          ref: () => Ref,
-          text: () => z.string().max(10_000),
-          submit: () => z.boolean().default(false),
-          by: () => By,
+  }),
+  "browser.type": deferMethod({
+    params: () =>
+      z
+        .object({
+          tab: Tab,
+          ref: Ref,
+          text: z.string().max(10000),
+          submit: z.boolean().default(false),
+          by: By,
           /** Type only if the page and the field's frame are served by this computer (DECISIONS.md#d-212). */
-          local_only: () => z.boolean().optional(),
+          local_only: z.boolean().optional(),
           /** `text` is a local file the core checked the agent may read: a file field gets it attached. */
-          upload: () => z.boolean().optional(),
-        }),
-      )
-      .strict(),
-    result: z.object(
-      schemaFields({
-        ok: () => z.literal(true),
-        url: () => z.string(),
-        dialog: () => BrowserDialog.optional(),
+          upload: z.boolean().optional(),
+        })
+        .strict(),
+    result: () =>
+      z.object({
+        ok: z.literal(true),
+        url: z.string(),
+        dialog: BrowserDialog.optional(),
       }),
-    ),
     effect: true,
-  },
-  "browser.approval_context": {
-    params: z
-      .object(
-        schemaFields({
-          tab: () => Tab,
-          origin: () => Url,
-          document: () => z.string().min(1).max(500),
-        }),
-      )
-      .strict(),
-    result: z.object(
-      schemaFields({
-        epoch: () => z.string().min(1).max(500),
+  }),
+  "browser.approval_context": deferMethod({
+    params: () =>
+      z
+        .object({
+          tab: Tab,
+          origin: Url,
+          document: z.string().min(1).max(500),
+        })
+        .strict(),
+    result: () =>
+      z.object({
+        epoch: z.string().min(1).max(500),
       }),
-    ),
     effect: false,
-  },
-  "browser.evaluate": {
-    params: z
-      .object(
-        schemaFields({
-          tab: () => Tab,
-          origin: () => Url,
-          document: () => z.string().min(1).max(500),
-          script: () => z.string().min(1).max(64_000),
-          epoch: () => z.string().min(1).max(500).optional(),
-          by: () => By,
-        }),
-      )
-      .strict(),
-    result: z.object(
-      schemaFields({
-        url: () => z.string(),
-        json: () => z.string().max(16_000),
+  }),
+  "browser.evaluate": deferMethod({
+    params: () =>
+      z
+        .object({
+          tab: Tab,
+          origin: Url,
+          document: z.string().min(1).max(500),
+          script: z.string().min(1).max(64000),
+          epoch: z.string().min(1).max(500).optional(),
+          by: By,
+        })
+        .strict(),
+    result: () =>
+      z.object({
+        url: z.string(),
+        json: z.string().max(16000),
       }),
-    ),
     effect: true,
     access: "human",
-  },
-  "browser.screenshot": {
-    params: z
-      .object(
-        schemaFields({
-          tab: () => Tab,
-        }),
-      )
-      .strict(),
-    result: z.object(
-      schemaFields({
-        mime: () => z.literal("image/jpeg"),
-        data: () => z.string(),
-        bytes: () => z.number().int(),
+  }),
+  "browser.screenshot": deferMethod({
+    params: () =>
+      z
+        .object({
+          tab: Tab,
+        })
+        .strict(),
+    result: () =>
+      z.object({
+        mime: z.literal("image/jpeg"),
+        data: z.string(),
+        bytes: z.number().int(),
       }),
-    ),
     effect: false,
-  },
+  }),
   /** Edit mode: the element under a point of the visible page (fractions 0–1), or null. Owner only. */
-  "browser.inspect": {
-    params: z
-      .object(
-        schemaFields({
-          tab: () => Tab,
-          x: () => Fraction,
-          y: () => Fraction,
-        }),
-      )
-      .strict(),
-    result: z.object(
-      schemaFields({
-        element: () => PickedElement.nullable(),
+  "browser.inspect": deferMethod({
+    params: () =>
+      z
+        .object({
+          tab: Tab,
+          x: Fraction,
+          y: Fraction,
+        })
+        .strict(),
+    result: () =>
+      z.object({
+        element: PickedElement.nullable(),
       }),
-    ),
     effect: false,
     access: "human",
-  },
+  }),
   /**
    * Edit mode: the page's parts the owner can pick, in page order (at most EDIT_ELEMENTS_MAX), each as `browser.inspect`
    * describes it; a part outside the visible page has no box. Owner only.
    */
-  "browser.edit_elements": {
-    params: z
-      .object(
-        schemaFields({
-          tab: () => Tab,
-        }),
-      )
-      .strict(),
-    result: z.object(
-      schemaFields({
-        elements: () => z.array(PickedElement).max(EDIT_ELEMENTS_MAX),
+  "browser.edit_elements": deferMethod({
+    params: () =>
+      z
+        .object({
+          tab: Tab,
+        })
+        .strict(),
+    result: () =>
+      z.object({
+        elements: z.array(PickedElement).max(EDIT_ELEMENTS_MAX),
       }),
-    ),
     effect: false,
     access: "human",
-  },
+  }),
   /**
    * Edit mode: shows exactly these edits in the page, only in the owner's view, until it reloads; elements edited before
    * and not listed go back. An empty list undoes all. Refused while an agent drives the tab.
    */
-  "browser.preview_edits": {
-    params: z
-      .object(
-        schemaFields({
-          tab: () => Tab,
-          edits: () => z.array(ElementEdit).max(50),
-        }),
-      )
-      .strict(),
-    result: z.object(
-      schemaFields({
-        shown: () => z.number().int(),
+  "browser.preview_edits": deferMethod({
+    params: () =>
+      z
+        .object({
+          tab: Tab,
+          edits: z.array(ElementEdit).max(50),
+        })
+        .strict(),
+    result: () =>
+      z.object({
+        shown: z.number().int(),
       }),
-    ),
     effect: true,
     access: "human",
-  },
+  }),
   /** The human's hand from any operator: take the tab, give it back, or finish a handoff. */
-  "browser.control": {
-    params: z
-      .object(
-        schemaFields({
-          tab: () => Tab,
-          mode: () => z.enum(["user", "idle", "done"]),
-        }),
-      )
-      .strict(),
-    result: TabInfo,
+  "browser.control": deferMethod({
+    params: () =>
+      z
+        .object({
+          tab: Tab,
+          mode: z.enum(["user", "idle", "done"]),
+        })
+        .strict(),
+    result: () => TabInfo,
     effect: true,
     access: "human",
-  },
+  }),
   /** The agent hands the tab to the human (login, 2FA, captcha) and waits until they finish or the deadline passes. */
-  "browser.handoff": {
-    params: z
-      .object(
-        schemaFields({
-          tab: () => Tab,
-          reason: () => z.string().max(300),
-          by: () => By,
-          timeout_s: () => z.number().int().min(10).max(900).default(300),
-        }),
-      )
-      .strict(),
-    result: z.object(
-      schemaFields({
-        resolved: () => z.boolean(),
-        url: () => z.string(),
-        title: () => z.string(),
+  "browser.handoff": deferMethod({
+    params: () =>
+      z
+        .object({
+          tab: Tab,
+          reason: z.string().max(300),
+          by: By,
+          timeout_s: z.number().int().min(10).max(900).default(300),
+        })
+        .strict(),
+    result: () =>
+      z.object({
+        resolved: z.boolean(),
+        url: z.string(),
+        title: z.string(),
       }),
-    ),
     effect: true,
-  },
+  }),
   /** Visible text of the page, paginated. Untrusted web content. */
-  "browser.text": {
-    params: z
-      .object(
-        schemaFields({
-          tab: () => Tab,
-          offset: () => z.number().int().min(0).default(0),
-          max_chars: () => z.number().int().min(200).max(50_000).default(8_000),
-        }),
-      )
-      .strict(),
-    result: z.object(
-      schemaFields({
-        url: () => z.string(),
-        text: () => z.string(),
-        total: () => z.number().int(),
-        truncated: () => z.boolean(),
+  "browser.text": deferMethod({
+    params: () =>
+      z
+        .object({
+          tab: Tab,
+          offset: z.number().int().min(0).default(0),
+          max_chars: z.number().int().min(200).max(50000).default(8000),
+        })
+        .strict(),
+    result: () =>
+      z.object({
+        url: z.string(),
+        text: z.string(),
+        total: z.number().int(),
+        truncated: z.boolean(),
       }),
-    ),
     effect: false,
-  },
+  }),
   /** Browsers whose sessions can be imported (detected on the desktop). Human-only. */
-  "browser.cookie_sources": {
-    params: z.object({}).strict(),
-    result: z.object(
-      schemaFields({
-        sources: () =>
-          z.array(
-            z.object(
-              schemaFields({
-                id: () => z.string(),
-                browser: () => z.string(),
-                profile: () => z.string(),
-                family: () => z.enum(["firefox", "chromium"]),
-              }),
-            ),
-          ),
+  "browser.cookie_sources": deferMethod({
+    params: () => z.object({}).strict(),
+    result: () =>
+      z.object({
+        sources: z.array(
+          z.object({
+            id: z.string(),
+            browser: z.string(),
+            profile: z.string(),
+            family: z.enum(["firefox", "chromium"]),
+          }),
+        ),
       }),
-    ),
     effect: false,
     access: "human",
-  },
+  }),
   /** Domains with cookies in a source, with counts only — never values. */
-  "browser.cookie_domains": {
-    params: z
-      .object(
-        schemaFields({
-          source: () => z.string(),
-          filter: () => z.string().max(100).default(""),
-        }),
-      )
-      .strict(),
-    result: z.object(
-      schemaFields({
-        domains: () =>
-          z.array(
-            z.object(
-              schemaFields({
-                domain: () => z.string(),
-                count: () => z.number().int(),
-              }),
-            ),
-          ),
+  "browser.cookie_domains": deferMethod({
+    params: () =>
+      z
+        .object({
+          source: z.string(),
+          filter: z.string().max(100).default(""),
+        })
+        .strict(),
+    result: () =>
+      z.object({
+        domains: z.array(
+          z.object({
+            domain: z.string(),
+            count: z.number().int(),
+          }),
+        ),
       }),
-    ),
     effect: false,
     access: "human",
-  },
+  }),
   /** Copies the chosen domains' cookies into an APX profile. Values stay on the desktop. Human-only. */
-  "browser.import_cookies": {
-    params: z
-      .object(
-        schemaFields({
-          source: () => z.string(),
-          domains: () => z.array(z.string().max(253)).min(1).max(50),
-          profile: () =>
-            z.union([z.literal("shared"), z.string().regex(/^agent:[a-z0-9][a-z0-9-]{0,63}$/)]).default("shared"),
-        }),
-      )
-      .strict(),
-    result: z.object(
-      schemaFields({
-        imported: () => z.number().int(),
-        skipped: () => z.number().int(),
-        failed: () => z.number().int(),
+  "browser.import_cookies": deferMethod({
+    params: () =>
+      z
+        .object({
+          source: z.string(),
+          domains: z.array(z.string().max(253)).min(1).max(50),
+          profile: z
+            .union([z.literal("shared"), z.string().regex(/^agent:[a-z0-9][a-z0-9-]{0,63}$/)])
+            .default("shared"),
+        })
+        .strict(),
+    result: () =>
+      z.object({
+        imported: z.number().int(),
+        skipped: z.number().int(),
+        failed: z.number().int(),
       }),
-    ),
     effect: true,
     access: "human",
-  },
+  }),
   /**
    * An APX agent's turn only: puts a stored secret the owner marked for the tab's site into a sign-in field. The core
    * resolves it and the browser checks site, frame and field; the value never comes back. See DECISIONS.md#d-193
    */
-  "browser.sign_in": {
-    params: z
-      .object(
-        schemaFields({
-          tab: () => Tab,
-          ref: () => Ref,
-          secret: () => SecretName,
-          kind: () => SecretFieldKind,
-          by: () => By,
-        }),
-      )
-      .strict(),
-    result: SignInResult,
+  "browser.sign_in": deferMethod({
+    params: () =>
+      z
+        .object({
+          tab: Tab,
+          ref: Ref,
+          secret: SecretName,
+          kind: SecretFieldKind,
+          by: By,
+        })
+        .strict(),
+    result: () => SignInResult,
     effect: true,
-  },
-  "browser.close": {
-    params: z
-      .object(
-        schemaFields({
-          tab: () => Tab,
-        }),
-      )
-      .strict(),
-    result: z.object(
-      schemaFields({
-        ok: () => z.literal(true),
+  }),
+  "browser.close": deferMethod({
+    params: () =>
+      z
+        .object({
+          tab: Tab,
+        })
+        .strict(),
+    result: () =>
+      z.object({
+        ok: z.literal(true),
       }),
-    ),
     effect: true,
-  },
+  }),
 } as const;
 
 export type BrowserMethod = keyof typeof browserMethods;

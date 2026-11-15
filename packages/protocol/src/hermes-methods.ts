@@ -1,6 +1,7 @@
 // Moving from Hermes: what a Hermes home folder holds, as APX would take it (preview), and taking it (import). The
 // import does exactly what the preview listed; a second import of the same folder changes nothing.
 import { z } from "zod";
+import { deferMethod } from "./defer-method.ts";
 import { schemaFields } from "./schema-fields.ts";
 
 export const HermesItem = z.object(
@@ -32,28 +33,26 @@ const HermesSource = z
 
 export const hermesMethods = {
   /** What importing a Hermes home folder (~/.hermes) would add, update or skip, and why. Reads it only. */
-  "hermes.preview": {
-    params: HermesSource,
-    result: z.object(
-      schemaFields({
-        items: () => z.array(HermesItem),
+  "hermes.preview": deferMethod({
+    params: () => HermesSource,
+    result: () =>
+      z.object({
+        items: z.array(HermesItem),
       }),
-    ),
     effect: false,
     access: "human",
-  },
+  }),
   /**
    * Imports what the preview lists: each profile an agent, its memory as notes, its skills, its cron jobs as routines
    * turned off, its MCP servers (with secret:// references left empty, and off). A secret it finds is never copied.
    */
-  "hermes.import": {
-    params: HermesSource,
-    result: z.object(
-      schemaFields({
-        items: () => z.array(HermesItem),
+  "hermes.import": deferMethod({
+    params: () => HermesSource,
+    result: () =>
+      z.object({
+        items: z.array(HermesItem),
       }),
-    ),
     effect: true,
     access: "human",
-  },
+  }),
 } as const;

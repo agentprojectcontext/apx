@@ -1,6 +1,7 @@
 // Moving an APX setup to another computer, or keeping a copy of it: one file without secrets, and an import that says
 // first what it adds or changes. See DECISIONS.md#d-192
 import { z } from "zod";
+import { deferMethod } from "./defer-method.ts";
 import { Agent, Author, Autonomy, ChannelInfo, Id, MemoryScope } from "./domain.ts";
 import { FlowDraftGraph } from "./flow-graph.ts";
 import { FlowDefinition } from "./flow-methods.ts";
@@ -275,41 +276,38 @@ const ImportParams = z
 
 export const instanceMethods = {
   /** This setup as one file, without secret values; chats and table rows only when asked. */
-  "instance.export": {
-    params: z
-      .object(
-        schemaFields({
-          chats: () => z.boolean().default(false),
-          rows: () => z.boolean().default(false),
-        }),
-      )
-      .strict(),
-    result: z.object(
-      schemaFields({
-        file: () => InstanceFile,
-        name: () => z.string(),
-        bytes: () => z.number(),
+  "instance.export": deferMethod({
+    params: () =>
+      z
+        .object({
+          chats: z.boolean().default(false),
+          rows: z.boolean().default(false),
+        })
+        .strict(),
+    result: () =>
+      z.object({
+        file: InstanceFile,
+        name: z.string(),
+        bytes: z.number(),
       }),
-    ),
     effect: false,
     access: "human",
-  },
+  }),
   /** What importing the file would add, change, keep or leave out, without changing anything. */
-  "instance.preview_import": {
-    params: ImportParams,
-    result: InstancePlan,
+  "instance.preview_import": deferMethod({
+    params: () => ImportParams,
+    result: () => InstancePlan,
     effect: false,
     access: "human",
-  },
+  }),
   /** Imports the file as the preview said; the same file a second time changes nothing. */
-  "instance.import": {
-    params: ImportParams,
-    result: InstancePlan.extend(
-      schemaFields({
-        applied: () => z.number(),
+  "instance.import": deferMethod({
+    params: () => ImportParams,
+    result: () =>
+      InstancePlan.extend({
+        applied: z.number(),
       }),
-    ),
     effect: true,
     access: "human",
-  },
+  }),
 } as const;

@@ -1,6 +1,7 @@
 // A project's tables (DECISIONS.md#d-176): named, with columns in order and rows by key, read and filled by Flows, by
 // the owner on the Flows screen's Tables and by their agents' tools. A table exists once created, empty or not.
 import { z } from "zod";
+import { deferMethod } from "./defer-method.ts";
 import { FLOW_TABLE_COLUMNS, FlowColumnName, FlowTableName } from "./flow-graph.ts";
 import { schemaFields } from "./schema-fields.ts";
 
@@ -36,169 +37,154 @@ const Changed = z.object(
 
 export const tableMethods = {
   /** The tables of a project, or of every project the caller reaches, most recently changed first. */
-  "tables.list": {
-    params: z
-      .object(
-        schemaFields({
-          project: () => Id.optional(),
-        }),
-      )
-      .strict(),
-    result: z.object(
-      schemaFields({
-        tables: () => z.array(TableInfo),
+  "tables.list": deferMethod({
+    params: () =>
+      z
+        .object({
+          project: Id.optional(),
+        })
+        .strict(),
+    result: () =>
+      z.object({
+        tables: z.array(TableInfo),
       }),
-    ),
     effect: false,
-  },
+  }),
   /** One table: its columns and a page of its rows, newest first; `cursor` is the previous page's `nextCursor`. */
-  "tables.get": {
-    params: z
-      .object(
-        schemaFields({
+  "tables.get": deferMethod({
+    params: () =>
+      z
+        .object({
           ...Table,
-          limit: () => z.number().int().min(1).max(200).default(50),
-          cursor: () => z.string().min(1).max(200).optional(),
-        }),
-      )
-      .strict(),
-    result: z.object(
-      schemaFields({
-        table: () => TableInfo,
-        rows: () => z.array(TableRow),
-        nextCursor: () => z.string().nullable(),
+          limit: z.number().int().min(1).max(200).default(50),
+          cursor: z.string().min(1).max(200).optional(),
+        })
+        .strict(),
+    result: () =>
+      z.object({
+        table: TableInfo,
+        rows: z.array(TableRow),
+        nextCursor: z.string().nullable(),
       }),
-    ),
     effect: false,
-  },
-  "tables.create": {
-    params: z
-      .object(
-        schemaFields({
-          project: () => Id,
-          name: () => FlowTableName,
-          columns: () => z.array(FlowColumnName).max(FLOW_TABLE_COLUMNS).optional(),
-        }),
-      )
-      .strict(),
-    result: Changed,
+  }),
+  "tables.create": deferMethod({
+    params: () =>
+      z
+        .object({
+          project: Id,
+          name: FlowTableName,
+          columns: z.array(FlowColumnName).max(FLOW_TABLE_COLUMNS).optional(),
+        })
+        .strict(),
+    result: () => Changed,
     effect: true,
-  },
+  }),
   /** Flows that name the old name stop until the owner picks the table again (`table_missing`). */
-  "tables.rename": {
-    params: z
-      .object(
-        schemaFields({
+  "tables.rename": deferMethod({
+    params: () =>
+      z
+        .object({
           ...Table,
-          name: () => FlowTableName,
-        }),
-      )
-      .strict(),
-    result: Changed,
+          name: FlowTableName,
+        })
+        .strict(),
+    result: () => Changed,
     effect: true,
-  },
+  }),
   /** The table and every row in it. */
-  "tables.remove": {
-    params: z.object(Table).strict(),
-    result: z.object(
-      schemaFields({
-        removed: () => z.boolean(),
+  "tables.remove": deferMethod({
+    params: () => z.object(Table).strict(),
+    result: () =>
+      z.object({
+        removed: z.boolean(),
       }),
-    ),
     effect: true,
-  },
-  "tables.column_add": {
-    params: z
-      .object(
-        schemaFields({
+  }),
+  "tables.column_add": deferMethod({
+    params: () =>
+      z
+        .object({
           ...Table,
-          column: () => FlowColumnName,
-        }),
-      )
-      .strict(),
-    result: Changed,
+          column: FlowColumnName,
+        })
+        .strict(),
+    result: () => Changed,
     effect: true,
-  },
+  }),
   /** Renames the column in every row too. */
-  "tables.column_rename": {
-    params: z
-      .object(
-        schemaFields({
+  "tables.column_rename": deferMethod({
+    params: () =>
+      z
+        .object({
           ...Table,
-          column: () => FlowColumnName,
-          name: () => FlowColumnName,
-        }),
-      )
-      .strict(),
-    result: Changed,
+          column: FlowColumnName,
+          name: FlowColumnName,
+        })
+        .strict(),
+    result: () => Changed,
     effect: true,
-  },
+  }),
   /**
    * Marks a column required or not: a save that would leave it empty in a row is refused, and a Flow's save that
    * doesn't fill it is unfinished. Rows saved before keep what they have.
    */
-  "tables.column_required": {
-    params: z
-      .object(
-        schemaFields({
+  "tables.column_required": deferMethod({
+    params: () =>
+      z
+        .object({
           ...Table,
-          column: () => FlowColumnName,
-          required: () => z.boolean(),
-        }),
-      )
-      .strict(),
-    result: Changed,
+          column: FlowColumnName,
+          required: z.boolean(),
+        })
+        .strict(),
+    result: () => Changed,
     effect: true,
-  },
+  }),
   /** Removes the column and its value from every row. */
-  "tables.column_remove": {
-    params: z
-      .object(
-        schemaFields({
+  "tables.column_remove": deferMethod({
+    params: () =>
+      z
+        .object({
           ...Table,
-          column: () => FlowColumnName,
-        }),
-      )
-      .strict(),
-    result: Changed,
+          column: FlowColumnName,
+        })
+        .strict(),
+    result: () => Changed,
     effect: true,
-  },
+  }),
   /**
    * Saves a row under `key`: the columns given change, the others keep their values (`replace`: the row is only
    * these). A column the table doesn't have yet is added.
    */
-  "tables.write": {
-    params: z
-      .object(
-        schemaFields({
+  "tables.write": deferMethod({
+    params: () =>
+      z
+        .object({
           ...Table,
-          key: () => RowKey,
-          values: () => z.record(FlowColumnName, z.unknown()),
-          replace: () => z.boolean().optional(),
-        }),
-      )
-      .strict(),
-    result: z.object(
-      schemaFields({
-        row: () => TableRow,
+          key: RowKey,
+          values: z.record(FlowColumnName, z.unknown()),
+          replace: z.boolean().optional(),
+        })
+        .strict(),
+    result: () =>
+      z.object({
+        row: TableRow,
       }),
-    ),
     effect: true,
-  },
-  "tables.delete_rows": {
-    params: z
-      .object(
-        schemaFields({
+  }),
+  "tables.delete_rows": deferMethod({
+    params: () =>
+      z
+        .object({
           ...Table,
-          keys: () => z.array(RowKey).min(1).max(100),
-        }),
-      )
-      .strict(),
-    result: z.object(
-      schemaFields({
-        deleted: () => z.number().int(),
+          keys: z.array(RowKey).min(1).max(100),
+        })
+        .strict(),
+    result: () =>
+      z.object({
+        deleted: z.number().int(),
       }),
-    ),
     effect: true,
-  },
+  }),
 } as const;

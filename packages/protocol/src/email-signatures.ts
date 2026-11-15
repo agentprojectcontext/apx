@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { deferMethod } from "./defer-method.ts";
 import type { MethodDef } from "./methods.ts";
 import { schemaFields } from "./schema-fields.ts";
 
@@ -114,109 +115,97 @@ export const EmailSignatureKey = z
   .strict();
 
 export const emailSignatureMethods = {
-  "email.signature_default_get": {
-    params: z.object({}).strict(),
-    result: z.object(
-      schemaFields({
-        signature: () => EmailSignatureValue.nullable(),
+  "email.signature_default_get": deferMethod({
+    params: () => z.object({}).strict(),
+    result: () =>
+      z.object({
+        signature: EmailSignatureValue.nullable(),
       }),
-    ),
     effect: false,
     access: "human",
-  },
-  "email.signature_default_set": {
-    params: z
-      .object(
-        schemaFields({
-          signature: () => EmailSignatureValue.nullable(),
-          expected: () => EmailSignatureValue.nullable(),
-        }),
-      )
-      .strict(),
-    result: z.object(
-      schemaFields({
-        signature: () => EmailSignatureValue.nullable(),
+  }),
+  "email.signature_default_set": deferMethod({
+    params: () =>
+      z
+        .object({
+          signature: EmailSignatureValue.nullable(),
+          expected: EmailSignatureValue.nullable(),
+        })
+        .strict(),
+    result: () =>
+      z.object({
+        signature: EmailSignatureValue.nullable(),
       }),
-    ),
     effect: true,
     access: "human",
-  },
-  "email.signature_upsert": {
-    params: z
-      .object(
-        schemaFields({
-          signature: () => EmailSignatureEntry,
-          expected: () => EmailSignatureEntry.nullable(),
-        }),
-      )
-      .strict(),
-    result: z.object(
-      schemaFields({
-        signature: () => EmailSignatureEntry,
+  }),
+  "email.signature_upsert": deferMethod({
+    params: () =>
+      z
+        .object({
+          signature: EmailSignatureEntry,
+          expected: EmailSignatureEntry.nullable(),
+        })
+        .strict(),
+    result: () =>
+      z.object({
+        signature: EmailSignatureEntry,
       }),
-    ),
     effect: true,
     access: "human",
-  },
-  "email.signature_remove": {
-    params: z
-      .object(
-        schemaFields({
-          key: () => EmailSignatureKey,
-          expected: () => EmailSignatureEntry,
-        }),
-      )
-      .strict(),
-    result: z.object(
-      schemaFields({
-        removed: () => z.boolean(),
+  }),
+  "email.signature_remove": deferMethod({
+    params: () =>
+      z
+        .object({
+          key: EmailSignatureKey,
+          expected: EmailSignatureEntry,
+        })
+        .strict(),
+    result: () =>
+      z.object({
+        removed: z.boolean(),
       }),
-    ),
     effect: true,
     access: "human",
-  },
+  }),
   /** The signature a connected Gmail account has in Gmail, made fit for APX; nothing is saved. */
-  "email.signature_import": {
-    params: z
-      .object(
-        schemaFields({
-          account: () => z.email().max(254),
-        }),
-      )
-      .strict(),
-    result: z.object(
-      schemaFields({
-        text: () => z.string(),
-        html: () => z.string().optional(),
+  "email.signature_import": deferMethod({
+    params: () =>
+      z
+        .object({
+          account: z.email().max(254),
+        })
+        .strict(),
+    result: () =>
+      z.object({
+        text: z.string(),
+        html: z.string().optional(),
       }),
-    ),
     effect: false,
     access: "human",
-  },
-  "email.signatures_get": {
-    params: z.object({}).strict(),
-    result: z.object(
-      schemaFields({
-        signatures: () => EmailSignatures,
+  }),
+  "email.signatures_get": deferMethod({
+    params: () => z.object({}).strict(),
+    result: () =>
+      z.object({
+        signatures: EmailSignatures,
       }),
-    ),
     effect: false,
     access: "human",
-  },
-  "email.signatures_set": {
-    params: z
-      .object(
-        schemaFields({
-          signatures: () => EmailSignatures,
-        }),
-      )
-      .strict(),
-    result: z.object(
-      schemaFields({
-        signatures: () => EmailSignatures,
+  }),
+  "email.signatures_set": deferMethod({
+    params: () =>
+      z
+        .object({
+          signatures: EmailSignatures,
+        })
+        .strict(),
+    result: () =>
+      z.object({
+        signatures: EmailSignatures,
       }),
-    ),
     effect: true,
     access: "human",
-  },
+  }),
 } as const satisfies Record<string, MethodDef>;

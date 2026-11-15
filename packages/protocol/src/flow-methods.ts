@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { deferMethod } from "./defer-method.ts";
 import { FlowDraftGraph, FlowGraphDocument, flowGraphMethods } from "./flow-graph.ts";
 import { flowHistoryMethods } from "./flow-history.ts";
 import { FLOW_PATH, FLOW_PATH_SAVED } from "./flow-path.ts";
@@ -119,287 +120,258 @@ export type FlowEventCursor = z.infer<typeof FlowEventCursor>;
 export const flowMethods = {
   ...flowGraphMethods,
   ...flowHistoryMethods,
-  "flows.list": {
-    params: z
-      .object(
-        schemaFields({
-          project: () => Id.optional(),
-        }),
-      )
-      .strict(),
+  "flows.list": deferMethod({
+    params: () =>
+      z
+        .object({
+          project: Id.optional(),
+        })
+        .strict(),
     /**
      * `published`: for each Flow that runs a drawing, its revision and step kinds in the order they run.
      * `schedules`: for each that runs on a schedule, its cron and next time (null while off), and how many times
      * were skipped since it was turned on because its last run was still going; `time_zone` is the owner's, the one
      * crons run in.
      */
-    result: z.object(
-      schemaFields({
-        flows: () => z.array(FlowDefinition),
-        published: () =>
-          z
-            .record(
-              z.string(),
-              z.object(
-                schemaFields({
-                  revision: () => z.number().int(),
-                  kinds: () => z.array(z.string()),
-                }),
-              ),
-            )
-            .default({}),
+    result: () =>
+      z.object({
+        flows: z.array(FlowDefinition),
+        published: z
+          .record(
+            z.string(),
+            z.object({
+              revision: z.number().int(),
+              kinds: z.array(z.string()),
+            }),
+          )
+          .default({}),
         /**
          * For each Flow with a saved draft that is not what runs: its version and step kinds in the order they would
          * run. The list shows these, marked as a draft, instead of what runs.
          */
-        drafts: () =>
-          z
-            .record(
-              z.string(),
-              z.object(
-                schemaFields({
-                  version: () => z.number().int(),
-                  kinds: () => z.array(z.string()),
-                }),
-              ),
-            )
-            .default({}),
-        schedules: () =>
-          z
-            .record(
-              z.string(),
-              z.object(
-                schemaFields({
-                  cron: () => z.string(),
-                  next_at: () => z.string().nullable(),
-                  skipped: () => z.number().int().default(0),
-                  skipped_at: () => z.string().nullable().default(null),
-                }),
-              ),
-            )
-            .default({}),
-        time_zone: () => z.string().default("UTC"),
+        drafts: z
+          .record(
+            z.string(),
+            z.object({
+              version: z.number().int(),
+              kinds: z.array(z.string()),
+            }),
+          )
+          .default({}),
+        schedules: z
+          .record(
+            z.string(),
+            z.object({
+              cron: z.string(),
+              next_at: z.string().nullable(),
+              skipped: z.number().int().default(0),
+              skipped_at: z.string().nullable().default(null),
+            }),
+          )
+          .default({}),
+        time_zone: z.string().default("UTC"),
       }),
-    ),
     effect: false,
     access: "human",
-  },
-  "flows.set": { params: FlowDefinition, result: FlowDefinition, effect: true, access: "human" },
+  }),
+  "flows.set": deferMethod({
+    params: () => FlowDefinition,
+    result: () => FlowDefinition,
+    effect: true,
+    access: "human",
+  }),
   /**
    * A new Flow in a project, off, with this drawing as its draft: what an agent's tool makes when asked for a Flow
    * (DECISIONS.md#d-174). Its identifier comes from the name; turning it on and publishing stay the owner's.
    */
-  "flows.create": {
-    params: z
-      .object(
-        schemaFields({
-          project: () => Id,
-          name: () => z.string().trim().min(1).max(120),
-          graph: () => FlowDraftGraph,
+  "flows.create": deferMethod({
+    params: () =>
+      z
+        .object({
+          project: Id,
+          name: z.string().trim().min(1).max(120),
+          graph: FlowDraftGraph,
           /** The address the owner chose before saving; else one from the name. */
-          path: () => z.string().regex(FLOW_PATH).optional(),
-        }),
-      )
-      .strict(),
-    result: z
-      .object(
-        schemaFields({
-          flow: () => FlowDefinition,
-          document: () => FlowGraphDocument,
-        }),
-      )
-      .strict(),
+          path: z.string().regex(FLOW_PATH).optional(),
+        })
+        .strict(),
+    result: () =>
+      z
+        .object({
+          flow: FlowDefinition,
+          document: FlowGraphDocument,
+        })
+        .strict(),
     effect: true,
-  },
+  }),
   /**
    * Whether a Flow can take this address: `taken` by another Flow, `invalid` or `reserved` as written; `free` is the
    * first free one from it (itself when it is free). `flow`: the Flow asking, whose own address is free to it.
    */
-  "flows.path_check": {
-    params: z
-      .object(
-        schemaFields({
-          path: () => z.string().max(200),
-          flow: () => Id.optional(),
-        }),
-      )
-      .strict(),
-    result: z
-      .object(
-        schemaFields({
-          ok: () => z.boolean(),
-          problem: () => z.enum(["taken", "invalid", "reserved"]).nullable(),
-          free: () => z.string(),
-        }),
-      )
-      .strict(),
+  "flows.path_check": deferMethod({
+    params: () =>
+      z
+        .object({
+          path: z.string().max(200),
+          flow: Id.optional(),
+        })
+        .strict(),
+    result: () =>
+      z
+        .object({
+          ok: z.boolean(),
+          problem: z.enum(["taken", "invalid", "reserved"]).nullable(),
+          free: z.string(),
+        })
+        .strict(),
     effect: false,
     access: "human",
-  },
+  }),
   /** A new address for a Flow: the old one stops answering at once; its key, if it had one, moves with it. */
-  "flows.path_set": {
-    params: z
-      .object(
-        schemaFields({
-          flow: () => Id,
-          path: () => z.string().regex(FLOW_PATH),
-        }),
-      )
-      .strict(),
-    result: FlowDefinition,
+  "flows.path_set": deferMethod({
+    params: () =>
+      z
+        .object({
+          flow: Id,
+          path: z.string().regex(FLOW_PATH),
+        })
+        .strict(),
+    result: () => FlowDefinition,
     effect: true,
     access: "human",
-  },
+  }),
   /** The key a webhook Flow's callers send as `Authorization: Bearer <key>`; null before it has one. */
-  "flows.token": {
-    params: z
-      .object(
-        schemaFields({
-          flow: () => Id,
-        }),
-      )
-      .strict(),
-    result: FlowToken,
+  "flows.token": deferMethod({
+    params: () =>
+      z
+        .object({
+          flow: Id,
+        })
+        .strict(),
+    result: () => FlowToken,
     effect: false,
     access: "human",
-  },
+  }),
   /**
    * A new key for a webhook Flow's address, made by APX or the owner's own (`token`, 24 to 200 letters, digits, `.`,
    * `_`, `~` or `-`); the old one stops working at once.
    */
-  "flows.token_rotate": {
-    params: z
-      .object(
-        schemaFields({
-          flow: () => Id,
-          token: () =>
-            z
-              .string()
-              .regex(/^[A-Za-z0-9._~-]{24,200}$/)
-              .optional(),
-        }),
-      )
-      .strict(),
-    result: FlowToken,
+  "flows.token_rotate": deferMethod({
+    params: () =>
+      z
+        .object({
+          flow: Id,
+          token: z
+            .string()
+            .regex(/^[A-Za-z0-9._~-]{24,200}$/)
+            .optional(),
+        })
+        .strict(),
+    result: () => FlowToken,
     effect: true,
     access: "human",
-  },
-  "flows.rows": {
-    params: z
-      .object(
-        schemaFields({
-          flow: () => Id,
-          limit: () => z.number().int().min(1).max(100).default(50),
-          cursor: () => z.string().min(1).max(200).optional(),
-        }),
-      )
-      .strict(),
-    result: z.object(
-      schemaFields({
-        rows: () =>
-          z.array(
-            z.object(
-              schemaFields({
-                key: () => z.string(),
-                value: () => z.unknown(),
-                updated_at: () => z.string().optional(),
-              }),
-            ),
-          ),
-        nextCursor: () => z.string().nullable(),
+  }),
+  "flows.rows": deferMethod({
+    params: () =>
+      z
+        .object({
+          flow: Id,
+          limit: z.number().int().min(1).max(100).default(50),
+          cursor: z.string().min(1).max(200).optional(),
+        })
+        .strict(),
+    result: () =>
+      z.object({
+        rows: z.array(
+          z.object({
+            key: z.string(),
+            value: z.unknown(),
+            updated_at: z.string().optional(),
+          }),
+        ),
+        nextCursor: z.string().nullable(),
       }),
-    ),
     effect: false,
     access: "human",
-  },
-  "flows.write": {
-    params: z
-      .object(
-        schemaFields({
-          flow: () => Id,
-          key: () => z.string().min(1).max(128),
-          value: () => z.unknown(),
-        }),
-      )
-      .strict(),
-    result: z.object(
-      schemaFields({
-        written: () => z.boolean(),
+  }),
+  "flows.write": deferMethod({
+    params: () =>
+      z
+        .object({
+          flow: Id,
+          key: z.string().min(1).max(128),
+          value: z.unknown(),
+        })
+        .strict(),
+    result: () =>
+      z.object({
+        written: z.boolean(),
       }),
-    ),
     effect: true,
     access: "human",
-  },
-  "flows.events": {
-    params: z
-      .object(
-        schemaFields({
-          flow: () => Id,
-          limit: () => z.number().int().min(1).max(100).default(50),
-          cursor: () => FlowEventCursor.optional(),
-        }),
-      )
-      .strict(),
-    result: z.object(
-      schemaFields({
-        events: () => z.array(FlowEvent),
-        nextCursor: () => FlowEventCursor.nullable(),
+  }),
+  "flows.events": deferMethod({
+    params: () =>
+      z
+        .object({
+          flow: Id,
+          limit: z.number().int().min(1).max(100).default(50),
+          cursor: FlowEventCursor.optional(),
+        })
+        .strict(),
+    result: () =>
+      z.object({
+        events: z.array(FlowEvent),
+        nextCursor: FlowEventCursor.nullable(),
       }),
-    ),
     effect: false,
     access: "human",
-  },
-  "flows.retire": {
-    params: z
-      .object(
-        schemaFields({
-          flow: () => Id,
-          confirm: () => z.literal(true),
-          exported: () => z.literal(true),
-        }),
-      )
-      .strict(),
-    result: z.object(
-      schemaFields({
-        retired: () => z.boolean(),
+  }),
+  "flows.retire": deferMethod({
+    params: () =>
+      z
+        .object({
+          flow: Id,
+          confirm: z.literal(true),
+          exported: z.literal(true),
+        })
+        .strict(),
+    result: () =>
+      z.object({
+        retired: z.boolean(),
       }),
-    ),
     effect: true,
     access: "human",
-  },
+  }),
   /** Would this data get past these checks? Nothing is saved, admitted or sent. */
-  "flows.try": {
-    params: z
-      .object(
-        schemaFields({
-          predicates: () => FlowPredicates,
-          data: () => z.unknown(),
-        }),
-      )
-      .strict(),
-    result: z.object(
-      schemaFields({
-        matches: () => z.boolean(),
+  "flows.try": deferMethod({
+    params: () =>
+      z
+        .object({
+          predicates: FlowPredicates,
+          data: z.unknown(),
+        })
+        .strict(),
+    result: () =>
+      z.object({
+        matches: z.boolean(),
       }),
-    ),
     effect: false,
     access: "human",
-  },
-  "flows.retry": {
-    params: z
-      .object(
-        schemaFields({
-          flow: () => Id,
-          event: () => z.string().min(1).max(256),
-        }),
-      )
-      .strict(),
-    result: z.object(
-      schemaFields({
-        queued: () => z.boolean(),
+  }),
+  "flows.retry": deferMethod({
+    params: () =>
+      z
+        .object({
+          flow: Id,
+          event: z.string().min(1).max(256),
+        })
+        .strict(),
+    result: () =>
+      z.object({
+        queued: z.boolean(),
       }),
-    ),
     effect: true,
     access: "human",
-  },
+  }),
 } as const;

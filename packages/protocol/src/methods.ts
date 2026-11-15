@@ -8,6 +8,7 @@ import { asanaMethods } from "./asana-methods.ts";
 import { browserMethods } from "./browser.ts";
 import { callMethods } from "./call-methods.ts";
 import { channelMethods } from "./channel-methods.ts";
+import { deferMethod } from "./defer-method.ts";
 import { desktopInstallMethods } from "./desktop-install.ts";
 import { deviceMethods } from "./device-methods.ts";
 import { emailSignatureMethods } from "./email-signatures.ts";
@@ -81,51 +82,47 @@ export type MethodDef = {
 };
 
 export const methods = {
-  "system.health": {
-    params: z.object({}).strict(),
-    result: Health,
+  "system.health": deferMethod({
+    params: () => z.object({}).strict(),
+    result: () => Health,
     effect: false,
-  },
-  "system.ping": {
-    params: z
-      .object(
-        schemaFields({
-          echo: () => z.string().max(200).optional(),
-        }),
-      )
-      .strict(),
-    result: z.object(
-      schemaFields({
-        pong: () => z.string(),
-        at: () => z.string(),
+  }),
+  "system.ping": deferMethod({
+    params: () =>
+      z
+        .object({
+          echo: z.string().max(200).optional(),
+        })
+        .strict(),
+    result: () =>
+      z.object({
+        pong: z.string(),
+        at: z.string(),
       }),
-    ),
     effect: false,
-  },
+  }),
   /** The newest lines of the core's log (<home>/logs/core.log) that match, oldest first; `more`: older ones match too. */
-  "system.logs": {
-    params: z
-      .object(
-        schemaFields({
-          limit: () => z.number().int().min(1).max(1000).default(300),
-          level: () => z.enum(["info", "warn", "error"]).optional(),
-          scope: () => z.string().max(80).optional(),
-          q: () => z.string().max(200).optional(),
-        }),
-      )
-      .strict(),
-    result: z.object(
-      schemaFields({
-        path: () => z.string(),
-        exists: () => z.boolean(),
-        lines: () => z.array(LogLine),
-        scopes: () => z.array(z.string()),
-        more: () => z.boolean(),
+  "system.logs": deferMethod({
+    params: () =>
+      z
+        .object({
+          limit: z.number().int().min(1).max(1000).default(300),
+          level: z.enum(["info", "warn", "error"]).optional(),
+          scope: z.string().max(80).optional(),
+          q: z.string().max(200).optional(),
+        })
+        .strict(),
+    result: () =>
+      z.object({
+        path: z.string(),
+        exists: z.boolean(),
+        lines: z.array(LogLine),
+        scopes: z.array(z.string()),
+        more: z.boolean(),
       }),
-    ),
     effect: false,
     access: "human",
-  },
+  }),
   ...browserMethods,
   ...appMethods,
   ...channelMethods,

@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { deferMethod } from "./defer-method.ts";
 import { schemaFields } from "./schema-fields.ts";
 
 const Gid = z.string().regex(/^\d+$/).max(40);
@@ -85,29 +86,27 @@ const Result = z.object(
   }),
 );
 export const asanaMethods = {
-  "asana.read": {
-    params: z
-      .object(
-        schemaFields({
-          project: () => z.string().optional(),
-          request: () => AsanaRead,
-        }),
-      )
-      .strict(),
-    result: Result,
+  "asana.read": deferMethod({
+    params: () =>
+      z
+        .object({
+          project: z.string().optional(),
+          request: AsanaRead,
+        })
+        .strict(),
+    result: () => Result,
     effect: false,
-  },
-  "asana.write": {
-    params: z
-      .object(
-        schemaFields({
-          project: () => z.string().optional(),
-          request: () => AsanaWrite,
-        }),
-      )
-      .strict(),
-    result: Result,
+  }),
+  "asana.write": deferMethod({
+    params: () =>
+      z
+        .object({
+          project: z.string().optional(),
+          request: AsanaWrite,
+        })
+        .strict(),
+    result: () => Result,
     effect: true,
     access: "human",
-  },
+  }),
 } as const;

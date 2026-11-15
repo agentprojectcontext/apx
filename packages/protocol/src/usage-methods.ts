@@ -1,6 +1,7 @@
 // What the computer has and what APX takes of it: memory, CPU, disk, the APX home by part, and the Linux VM when
 // there is one. Read-only; the home's sizes are measured in the background and kept a while (a walk is slow).
 import { z } from "zod";
+import { deferMethod } from "./defer-method.ts";
 import { schemaFields } from "./schema-fields.ts";
 import { StorageArea } from "./storage-methods.ts";
 
@@ -92,15 +93,14 @@ export type SystemUsage = z.infer<typeof SystemUsage>;
 
 export const usageMethods = {
   /** Memory, CPU and disk of the computer, and what the core takes; `disk` adds the APX home's size by part. */
-  "system.usage": {
-    params: z
-      .object(
-        schemaFields({
-          disk: () => z.boolean().default(false),
-        }),
-      )
-      .strict(),
-    result: SystemUsage,
+  "system.usage": deferMethod({
+    params: () =>
+      z
+        .object({
+          disk: z.boolean().default(false),
+        })
+        .strict(),
+    result: () => SystemUsage,
     effect: false,
-  },
+  }),
 } as const;
