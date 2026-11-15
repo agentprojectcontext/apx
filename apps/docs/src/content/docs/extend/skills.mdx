@@ -70,7 +70,8 @@ the ones to copy; a name already taken is kept unless you choose to replace it. 
 
 ## How agents pick them
 
-Every agent gets a short catalog of the skills it can use. With an embedding engine set up (**Settings › Memory ›
+Every agent gets a short catalog of the skills it can use: one line each, the project's first, and past 30 skills
+only their names. With an embedding engine set up (**Settings › Memory ›
 Pick skills by meaning**), each message you send is also compared with your skills by meaning, and up to three that
 fit are suggested to the agent for that turn. The agent judges them and loads the ones it needs with `load_skill`.
 You see the pick as chips over the answer: loaded, suggested, or considered.

@@ -4944,3 +4944,19 @@ status changes, one note).
 Rejected: hiding the plan tool (the owner reads it and the progress guard counts it), deferring every rarely used tool
 (the super-agent's own tools are what most owners use: a search before each would add calls), and a lower reasoning
 effort by default (output was not the cost).
+
+<a id="d-230"></a>
+## D-230 — 2026-11-15 — A task's chat gets the task's notes, and a long skills catalog names the rest
+After [D-229](#d-229), the owner's own install still sent per call a 9.3k-character skills catalog (60 skills of the
+owner's other agent apps, video and design among them, a line of up to 180 characters each) and, in a code task's
+chat, 4.6k of memory: the eight newest global notes (golf lessons, v1 session reports) besides the project's.
+
+- **A chat working a task recalls like a helper's turn** (`recallFor`'s `delegated`, for a thread with a `task_id`):
+  the project's standing notes and the agent's own, and a global note only when it shares distinctive words with the
+  task. The owner's other chats keep their standing global notes.
+- **The catalog describes 30 skills and names the rest** (`skillCatalog`): the project's skills first, a line of up to
+  100 characters each, then `Also:` with the next 90 names; past 120, a count. `load_skill` works with any name, and
+  the per-message pick ([D-028](#d-028)) still brings a matching skill by meaning.
+
+Rejected: dropping the catalog for the pick alone (a slow or missing embedding engine would leave the agent blind to
+its skills), and filtering skills by the agent's role (no reliable signal; an agent's `skills:` list already narrows it).

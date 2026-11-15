@@ -39,8 +39,8 @@ function relatedToTask(note: Memory, task: string): boolean {
 }
 
 /**
- * `from`: the oldest model log seq still in the model's view. `delegated`: a helper's turn, which is about the task
- * it was handed: no standing global notes, and a global match only when it shares words with the task.
+ * `from`: the oldest model log seq still in the model's view. `delegated`: a helper's turn or a task's chat, about its task:
+ * no standing global notes, and a global match only when it shares words with the task.
  * Returns the block and, when something changed, the bookkeeping to store once the input's seq is known.
  */
 export async function recallFor(

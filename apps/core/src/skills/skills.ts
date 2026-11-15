@@ -74,8 +74,10 @@ export function skillOn(
   return !(projectId && off[projectId]?.includes(name));
 }
 
-/** Skills listed in the prompt at most: past this the catalog says how many more there are. */
-const CATALOG_MAX = 60;
+/** Skills the catalog describes in a line each; the rest go by name only, up to CATALOG_MAX (rules/PROMPT_SIZE.md). */
+const CATALOG_DESCRIBED = 30;
+const CATALOG_MAX = 120;
+const CATALOG_LINE = 100;
 const NAME = /^[a-zA-Z0-9][a-zA-Z0-9_.-]{0,63}$/;
 
 /**
@@ -225,25 +227,29 @@ export function agentSkills(agent: AgentRecord, all: Skill[]): Skill[] {
 
 /**
  * For the system prompt: APX's own guides by name in one sentence (they are always there, so they must cost little),
- * then one line per other skill (first sentence of the description, capped).
+ * then one short line per other skill, the project's first; past CATALOG_DESCRIBED only their names.
  */
 export function skillCatalog(skills: Skill[]): string {
   const apx = skills.filter(isApx).map((s) => s.name);
   const guides = apx.length
     ? `APX guides (${apx.join(", ")}): load_skill the right one first. Change APX via its tools or \`apx\`, never by editing files.`
     : "";
-  const own = skills.filter((s) => !isApx(s));
+  const own = skills
+    .filter((s) => !isApx(s))
+    .sort((a, b) => Number(b.scope === "project") - Number(a.scope === "project"));
   if (!own.length) return guides ? `## Skills\n${guides}` : "";
   const line = (s: Skill) => {
     const first = s.description.split(/(?<=[.!?])\s/)[0] ?? "";
-    return `- ${s.name}: ${first.length > 180 ? `${first.slice(0, 177)}…` : first}`;
+    return `- ${s.name}: ${first.length > CATALOG_LINE ? `${first.slice(0, CATALOG_LINE - 1)}…` : first}`;
   };
+  const named = own.slice(CATALOG_DESCRIBED, CATALOG_MAX).map((s) => s.name);
   const more = own.length - CATALOG_MAX;
   return [
     "## Skills",
     ...(guides ? [guides] : []),
     "Know-how you can load when a task matches one: call load_skill with its name before doing the task.",
-    ...own.slice(0, CATALOG_MAX).map(line),
+    ...own.slice(0, CATALOG_DESCRIBED).map(line),
+    ...(named.length ? [`Also: ${named.join(", ")}.`] : []),
     ...(more > 0 ? [`(${more} more not listed; load_skill works with any skill's name)`] : []),
   ].join("\n");
 }
