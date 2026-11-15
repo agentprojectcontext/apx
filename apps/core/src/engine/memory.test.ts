@@ -346,7 +346,8 @@ test("a delegated turn ignores global notes that only share the owner's generic 
 test("a delegated turn takes a note brought over from v1 only when it shares more than a code task's usual words", async () => {
   const store = env.core.store;
   const byWords = async (o: { query: string; limit: number }) => store.memories.list(o);
-  const task = "Fix the invoice total in src/billing.js for discount codes (an unknown code is ignored) and add tests; npm test must pass.";
+  const task =
+    "Fix the invoice total in src/billing.js for discount codes (an unknown code is ignored) and add tests; npm test must pass.";
   store.memories.add({
     scope: "global",
     text: "Claude Code finished the session with every test green and pushed the code.",
