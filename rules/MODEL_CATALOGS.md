@@ -52,11 +52,16 @@ saved model, including compatible servers with their own ids; no silent migratio
 For an OpenAI service still using the retired `gpt-image-1`, edit its model in Settings → Images and save it before
 generating or editing again. Both operations use the saved model.
 
-Context windows distinguish API models from subscription defaults: GPT-6 Astra, Luna, Sol and GPT-6.1 Sol/Terra have a
-1,050,000-token API window; the `codex/` and `chatgpt/` refs use a 500,000-token fallback. A window reported by the
-running provider takes precedence. Gemma 4's 12B, 26B A4B and 31B variants use 256K, E2B/E4B use 128K, and GPT-OSS
+Context windows distinguish API models from subscription defaults: GPT-5.6 Sol, GPT-6 Astra, Luna, Sol and GPT-6.1
+Sol/Terra have a 1,050,000-token API window; GPT-6 `codex/` and `chatgpt/` refs use a 500,000-token fallback.
+A window reported by the running provider takes precedence. Gemma 4's 12B, 26B A4B and 31B variants use 256K, E2B/E4B use 128K, and GPT-OSS
 20B/120B use 131,072. Gemma 4 reads images; GPT-OSS does not. Decision-only Gemini and FLUX.2 Klein image models
 stay listed but are not offered for agent turns, including locally discovered lists.
+
+The documented Claude Opus 4.6/4.7/4.8 and Sonnet 4.6 windows are 1,000,000 tokens; older Claude 4 variants keep
+200,000. These fallbacks describe capabilities, not which models an account can access. Sources:
+[OpenAI GPT-5.6 Sol](https://developers.openai.com/api/docs/models/gpt-5.6-sol) and
+[Claude models overview](https://platform.claude.com/docs/en/models/overview).
 
 A Gemini voice saved with a model Google retired falls back to `PINNED.geminiSpeech` on 404. Embedding defaults are
 not swapped silently: vectors from another model do not mix, so a retired embedding model needs a release that

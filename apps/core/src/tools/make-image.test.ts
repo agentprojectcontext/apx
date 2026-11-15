@@ -40,7 +40,7 @@ before(async () => {
       dialect: "openai-images",
       label: "OpenAI",
       base_url: `http://127.0.0.1:${(api.address() as AddressInfo).port}`,
-      model: "gpt-image-1",
+      model: "gpt-image-2.5-sunburst",
       enabled: true,
       needs_key: false,
     },
@@ -65,6 +65,7 @@ test("make_image draws from a file in the work folder and from an earlier drawin
   const edit = calls.at(-1);
   assert.equal(edit?.path, "/v1/images/edits");
   assert.match(String(edit?.type), /multipart\/form-data/);
+  assert.match(String(edit?.body), /name="model"\r\n\r\ngpt-image-2\.5-sunburst\r\n/);
   assert.ok(edit?.body.includes(PNG), "the reference's bytes reach the service");
   const drawn = /\((med_[0-9a-f]{16})\)/.exec(first.reply)?.[1];
   assert.ok(drawn, first.reply);
@@ -81,6 +82,7 @@ test("make_image draws from a file in the work folder and from an earlier drawin
 test("without references it asks the generations endpoint and persists the generating call on the image", async () => {
   const { thread } = await draw([]);
   assert.equal(calls.at(-1)?.path, "/v1/images/generations");
+  assert.equal((JSON.parse(String(calls.at(-1)?.body)) as { model: string }).model, "gpt-image-2.5-sunburst");
   const chat = await env.client.call("threads.get", { thread: thread.id });
   const parts = chat.messages.flatMap((m) => m.parts);
   const image = parts.find((p) => p.type === "image");
