@@ -4953,7 +4953,9 @@ chat, 4.6k of memory: the eight newest global notes (golf lessons, v1 session re
 
 - **A chat working a task recalls like a helper's turn** (`recallFor`'s `delegated`, for a thread with a `task_id`):
   the project's standing notes and the agent's own, and a global note only when it shares distinctive words with the
-  task. The owner's other chats keep their standing global notes.
+  task. The owner's other chats keep their standing global notes. A note brought over from v1 needs three shared
+  words, not two: its session reports ("Claude Code finished… tests green") share "code" and "tests" with any code
+  task.
 - **The catalog describes 30 skills and names the rest** (`skillCatalog`): the project's skills first, a line of up to
   100 characters each, then `Also:` with the next 90 names; past 120, a count. `load_skill` works with any name, and
   the per-message pick ([D-028](#d-028)) still brings a matching skill by meaning.
