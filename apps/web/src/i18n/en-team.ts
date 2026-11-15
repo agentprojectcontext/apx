@@ -39,6 +39,7 @@ export const enTeam = {
   "team.new.promptHint": "How it thinks and works. You can change it later.",
   "team.menu.open": "See details",
   "team.menu.edit": "Edit",
+  "team.menu.call": "Call",
   "team.menu.delete": "Delete agent",
   "team.menu.superLocked": "The super-agent cannot be deleted",
   "team.menu.options": "Options for {name}",

@@ -17,6 +17,7 @@ export const esComposerSlim: Partial<Record<MessageKey, string>> = {
   "composer.context": "Contexto del próximo mensaje",
   "composer.removeContext": "Quitar {name}",
   "slash.kind.mcp": "MCP",
+  "slash.kind.agent": "Agente",
   "composer.useSkill": "Usar una skill",
   "composer.connectors": "Conectores y MCP",
   "composer.commands": "Comandos",

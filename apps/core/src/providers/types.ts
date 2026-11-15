@@ -103,6 +103,10 @@ const MODEL_GONE =
   /model_not_found|model_decommissioned|decommissioned|not a valid model|(model|models\/)[^\n]{0,120}(not found|does not exist|no longer (available|supported))/i;
 const GONE_HINT = "this model is no longer offered: pick another in Settings → Engines and models";
 
+/** How providers say a request is longer than the model's context (OpenAI, Anthropic, Gemini, OpenRouter, Ollama). */
+const TOO_LONG =
+  /context_length_exceeded|context length|context window|prompt is too long|input is too long|too many (input )?tokens|maximum (context|number of tokens)|exceeds the (maximum|max)[^\n]{0,40}tokens/i;
+
 export function classifyHttp(status: number, body: string, headers?: Headers): ProviderError {
   const text = body.slice(0, 300);
   if (status === 401 || status === 403) return new ProviderError("auth", `HTTP ${status}: ${text}`);
@@ -114,6 +118,8 @@ export function classifyHttp(status: number, body: string, headers?: Headers): P
   }
   if (status === 0 || status >= 500)
     return new ProviderError(status === 0 ? "network" : "overloaded", `HTTP ${status}: ${text}`);
+  if ((status === 400 || status === 413) && TOO_LONG.test(body))
+    return new ProviderError("context", `this chat is longer than the model's context (HTTP ${status}: ${text})`);
   return new ProviderError("bad_request", `HTTP ${status}: ${text}`);
 }
 
@@ -185,6 +191,8 @@ export type TransportRequest = {
   maxOutputTokens?: number | undefined;
   /** Streaming: receives the text accumulated so far. */
   onText?: ((soFar: string) => void) | undefined;
+  /** Streaming: what the model says of its reasoning so far, for models that send a summary of it. */
+  onThinking?: ((soFar: string) => void) | undefined;
   /** Silence allowed before the first byte. */
   firstByteMs: number;
   fetchImpl: typeof fetch;

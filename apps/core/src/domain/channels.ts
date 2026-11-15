@@ -531,6 +531,19 @@ export function channelsRepo({ one, all, run }: Sql) {
         );
         return r ? toOut(r) : undefined;
       },
+      /** The last send queued for a message: a message the agent kept writing goes out in several sends. */
+      latestFor(messageId: string): OutboxRow | undefined {
+        const r = one(
+          qb
+            .selectFrom("outbox")
+            .selectAll()
+            .where("message_id", "=", messageId)
+            .orderBy("created_at", "desc")
+            .orderBy("id", "desc")
+            .limit(1),
+        );
+        return r ? toOut(r) : undefined;
+      },
       /** The newest sends, of one channel when given. */
       recent(limit: number, channel?: string): OutboxRow[] {
         let q = qb.selectFrom("outbox").selectAll();

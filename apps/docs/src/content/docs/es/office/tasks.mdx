@@ -40,7 +40,7 @@ declarar que son trabajos independientes.
 | Campo | Valores |
 |---|---|
 | **Tipo** | **Tarea** (trabajo de un proyecto), **Compromiso** (algo prometido con alguien) o **Recado** (algo chico para hacer al pasar: comprar, llamar, retirar). |
-| **Columna** | **Por planificar** (recién llegada, las nuevas caen acá), **Para hacer** (decidida, es lo próximo), **En curso** (alguien la está haciendo), **Revisión** (terminada, falta revisarla). |
+| **Columna** | **Por planificar** (recién llegada, las nuevas caen acá), **Para hacer** (decidida, es lo próximo), **En curso** (alguien la está haciendo; la tarea de un agente pasa acá cuando escribe su plan), **Revisión** (terminada, falta revisarla). |
 | **Prioridad** | Urgente, Alta, Normal, Baja. |
 | **Quién la hace** | Un agente, o nadie. Elegir un agente de un proyecto pone la tarea en ese proyecto. |
 | **Vencimiento y recordatorio** | Cuando vence, 1 hora antes, 1 día antes, otro momento o sin recordatorio. |
@@ -150,8 +150,9 @@ Arriba de la descripción, una tarea muestra adónde tiene que llegar su trabajo
   motivo en el chat, con el botón para dejarlos seguir, y una vez en tus notificaciones. Un paso hecho, o tu mensaje,
   vuelve a empezar la cuenta.
 - **Un agente hace el trabajo, una revisión al final**: el agente de una tarea la hace él mismo. Le pide algo a otro
-  agente recién cuando terminó el resto de su plan, en general una revisión (salvo que vos le pidas ayuda antes). Lo
-  que tiene que hacer otro pasa a ser una subtarea. Quien revisa informa qué funciona, qué falla y qué no pudo probar;
+  agente recién cuando terminó el resto de su plan, en general una revisión (salvo que vos le pidas ayuda antes); un
+  worker propio (una búsqueda, un log, una primera mirada al diff) lo puede ayudar en cualquier momento. Lo que tiene
+  que hacer otro pasa a ser una subtarea. Quien revisa informa qué funciona, qué falla y qué no pudo probar;
   nunca aprueba ni bloquea. La tarea vuelve a su agente, que decide qué arreglar y la entrega.
 - **El agente de una tarea la entrega**: cuando la tarea pide publicar o desplegar, eso es parte del trabajo. Un paso
   que se puede deshacer (subir una rama, un deploy) lo hace; uno difícil (una versión o un tag, un pago, una migración
@@ -212,7 +213,10 @@ Cuando el turno de un agente en una tarea termina con la tarea todavía en curso
 después"), su parte siguiente arranca enseguida, numerada, hasta nueve. Para cuando el agente cierra la tarea, la marca
 esperándote con lo que tenés que hacer, dice qué lo bloquea, o cuando una parte no avanzó. Una parte que solo revisa lo
 que cambió la anterior cuenta como avance; dos partes seguidas que solo consultan, no. Para cerrar su trabajo como
-hecho, el agente tiene que decir qué verificó. Cuando otro agente vuelve a nombrar al agente de la tarea mientras no la
+hecho, el agente tiene que decir qué verificó; si todo lo que hizo en la tarea fue escribir documentos (un plan, notas)
+sin correr ningún comando, se le pregunta una vez si un documento era lo que la tarea pedía, y vuelve a cerrar solo si
+lo era. Si deja cambios sin commitear en su propio worktree de git, se le pide una vez que los commitee en la rama y la
+nombre en la nota. Cuando otro agente vuelve a nombrar al agente de la tarea mientras no la
 está trabajando, este sigue.
 
 Si una tarea sigue en curso sin nada corriendo (ningún turno en 20 minutos, dentro del día de su último turno), APX le

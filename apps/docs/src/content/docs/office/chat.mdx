@@ -51,6 +51,11 @@ Right-click where you want to clear them: **Inbox** in the sidebar (every chat),
 Open a chat and write. The agent's face and name sit in the header; click them (**View** its name) to open the agent
 side panel with its role, model and memory.
 
+Before it writes, the chat says the agent is working and for how long. Models that reason first (ChatGPT's with an
+effort set, Claude, and the ones that think aloud on OpenRouter, DeepSeek or Ollama) say what they are thinking about:
+**Robina is thinking…** with the newest part of it under it, as it comes. It goes once the answer starts and is not
+kept in the chat.
+
 While it works you see each step as it happens: tools it used, pages it opened, agents it asked. Once done they fold
 into one line, such as **4 steps · 12 s**, that opens on click into each step in words ("Read notes.md", "Searched
 prices 2026") with an icon for its kind of action (the web, a file read, a file written, memory). Only a step that
@@ -111,6 +116,33 @@ From the terminal, the same conversation is one command away:
 
 <Terminal command={`apx chat "What's blocking the spring launch?" --agent <lucia-id>`}>{`# without --agent it goes to Home, your secretary`}</Terminal>
 
+## Group chats
+
+A group chat is you and two to five agents in one conversation. Open **New chat** and pick **New group** under the
+list, tick the agents (in a project, its agents and your super-agent; from the Inbox, any of them) and give it a name
+if you want one; without a name it is named after its members.
+
+When you write, the agents your message is for answer, one after the other, so each one reads the answers before it:
+
+- **@name** asks that agent (or several, in the order you name them). Typing **@** lists the group's members. A name
+  without the @ ("Nati, what do you think?") works the same.
+- Otherwise a model picks the fewest agents whose role your message needs, usually one; ask "everyone" or "all of you"
+  and they all answer. A thanks or a hello goes to the first member. That model is your auxiliary model unless you pick
+  another in the group's card; a slow local one makes this wait show. Without one, the first member answers.
+- An agent can ask a teammate by writing **@name** in its answer: that teammate answers next, once per message of yours.
+
+The group shows only your words and each agent's answer, written as it comes, with the model that wrote it under it.
+Each agent does its work (tools, pages, files) in a chat of its own under the group: click its name under the group's
+name to open it.
+
+**Group** in the header opens the group's card. **Models** comes first: each member shows the model it answers with
+(its own unless you pick another for this group), **Same model for everyone** puts them all on one model while it is
+on, and **Model that picks who answers** shows your auxiliary model unless you pick another (the **?** beside it says
+what it does). **Members** follows: **+** adds an agent (up to five), and with three or more each can be taken out. A
+model picked here is for the group only: the agent keeps its own everywhere else. **Stop** stops the agent answering and
+the ones waiting their turn. What you write while one answers reaches the next agent's turn. Groups take text for now,
+not files.
+
 ## The composer
 
 The box at the bottom ("Message Lucía…") is where you write. A few things it does:
@@ -123,8 +155,8 @@ The box at the bottom ("Message Lucía…") is where you write. A few things it 
 - **Voice dictation.** **Dictate** turns speech into text in the field, to review before you send it; the recording
   itself is not attached, unless it couldn't be turned into words: then it stays attached as a voice note, so nothing
   you said is lost. Stop and dictate again to add more. While it records, its button is the only stop, and send
-  comes back once the words are in. Install a local transcription model (whisper.cpp) in Settings › Voices to keep it
-  on your machine and see the words as you speak.
+  comes back once the words are in. With APX's voice, or a local transcription model (whisper.cpp), first in
+  Settings › Voices, it all stays on your machine and you see the words as you speak.
 - **Keys.** Enter sends (if the agent is working, it reads it at its next step; in a Codex session it stops the turn
   and runs the message at once). Ctrl/⌘+Enter puts it in line for when
   it finishes; while the agent works, a line under the composer reminds you. Shift+Enter adds a line.
@@ -234,6 +266,15 @@ and its code comes in line by line; a page or diagram appears when the block is 
   nothing from the web, so pictures from other sites do not appear.
 - **Mermaid** diagrams in a `mermaid` block are drawn as a picture, with the same switch to their code. When the code
   is not a valid diagram, its code shows with a note.
+- **Results to compare** (movies, stays, flights, products) can come as cards inside the answer, on the panel and on
+  the phone: a picture, a short label, the title, tags and the figure that matters (such as the price). **Show
+  details** opens the rest in a window, and a button opens the result's page or tells the agent your pick. Slide
+  through them with the arrows. Ask for them in your own words ("show them as cards"). Cards marked **Example data**
+  are invented. Channels such as WhatsApp or Telegram get the same answer as text.
+- **Other cards** fit what you have to do: choose one option with its price and quantity, compare two to four side
+  by side (the best of each row stands out), find places on a street map with directions (its streets load from Esri's maps, which see the area shown), pick a day and time to book, see
+  a confirmation with its code, or follow a plan by days. Choosing or booking writes your answer in the chat; the
+  agent confirms with you before paying or booking anything.
 - **Files** an agent attaches show as a card with their name and size: **Download** saves them, and **Open** shows a
   PDF or a text file (CSV, Markdown, code) inside APX, as text, without running it.
 

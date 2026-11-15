@@ -299,7 +299,19 @@ export const TERMINAL_RUN_STATES: readonly RunState[] = ["completed", "failed", 
 export const RunEndReason = z.enum(["normal", "step_limit", "failed", "canceled", "deadline", "provider_limit"]);
 export type RunEndReason = z.infer<typeof RunEndReason>;
 
-export const ThreadKind = z.enum(["home", "agent", "loose", "a2a", "group", "code", "channel", "task", "routine"]);
+/** `call`: a voice call with an agent (call-methods.ts). */
+export const ThreadKind = z.enum([
+  "home",
+  "agent",
+  "loose",
+  "a2a",
+  "group",
+  "code",
+  "channel",
+  "task",
+  "routine",
+  "call",
+]);
 /** What an agent may change in a code thread's folder: ask each time, change files freely, or only read. */
 export const WritePolicy = z.enum(["ask", "auto", "read-only"]);
 export type WritePolicy = z.infer<typeof WritePolicy>;
@@ -359,6 +371,18 @@ export const Thread = z.object({
   updated_at: z.string(),
 });
 export type Thread = z.infer<typeof Thread>;
+
+/** A group chat's members in order, the model each answers with there (by agent id) and the model that picks who answers. */
+export const GroupSettings = z.object({
+  agent_ids: z.array(Id),
+  models: z.record(Id, z.string()),
+  /** One model for every member, over `models`. */
+  model: z.string().optional(),
+  router_model: z.string().optional(),
+  /** What runs when nothing is picked in the group: each member's own first model, and the auxiliary one. */
+  defaults: z.object({ members: z.record(Id, z.string()), router: z.string().optional() }),
+});
+export type GroupSettings = z.infer<typeof GroupSettings>;
 
 export const Author = z.discriminatedUnion("kind", [
   /** `direct`: the owner wrote to a contact themselves (sent as is), rather than telling the agent what to answer. */
@@ -764,6 +788,8 @@ export const AuxPurpose = z.enum([
   "sticker",
   "aside",
   "mail",
+  /** What a voice call says (the model it talks with). */
+  "call",
 ]);
 export type AuxPurpose = z.infer<typeof AuxPurpose>;
 
@@ -1326,6 +1352,8 @@ export const ServiceDialect = z.enum([
   "whisper-local",
   "whisper-cpp",
   "openai-transcribe",
+  /** APX's own voice on this machine (voice-methods in call-methods.ts): it speaks and transcribes. */
+  "apx-voice",
 ]);
 export type ServiceDialect = z.infer<typeof ServiceDialect>;
 

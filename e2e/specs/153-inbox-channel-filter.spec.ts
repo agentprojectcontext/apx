@@ -104,8 +104,11 @@ test("the filter hides a channel account and groups each account's chats under o
 
   await page.setViewportSize({ width: 390, height: 800 });
   const toList = page.locator(".chat__header").getByRole("button", { name: "Volver a los chats" });
+  const opened = sales.locator(".channelbundle__chats").getByText("Pedido Acme");
+  // At phone width the chat that was open beside the list takes the screen; it may draw a moment after the resize.
+  await expect(toList.or(opened)).toBeVisible();
   if (await toList.isVisible()) await toList.click();
-  await expect(sales.locator(".channelbundle__chats").getByText("Pedido Acme")).toBeVisible();
+  await expect(opened).toBeVisible();
   await page.screenshot({ path: "test-results/inbox-channels-phone.png" });
   const overflow = await page.evaluate(() => document.documentElement.scrollWidth > innerWidth);
   expect(overflow).toBe(false);

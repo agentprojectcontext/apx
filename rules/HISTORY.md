@@ -506,3 +506,12 @@ browser's click raced its 10-second load wait against 1.5 s and left the wait ru
 after the tab closed; the wait itself is bounded now. Where: `packages/protocol/src/cdp-dialog.ts`,
 `apps/desktop/src/main/browser/cdp.ts`, `apps/core/src/nodes/headless-browser.ts`; tests in `cdp-dialog.test.ts`,
 `host.test.ts`, `headless-browser.test.ts` (real Chromium).
+
+<a id="welcome-slides-seen"></a>
+### The welcome remembers each slide, not one film
+
+Up to 2.14.3 the welcome kept one id per device (`apx.corner.welcome`, last `whats-new-2.14.3`): a new id showed every
+slide again, the ones already seen too. Each slide now carries the release it shipped in (`since`), the device keeps the
+keys it has seen (`welcomeSeen`), and a slide stops showing two minor releases after its own (`slidesToShow`). A device
+that had closed `whats-new-2.14.3` reads as having seen the ten 2.14.0 slides (`seenBefore`); that mapping leaves with
+those slides at 2.16.0. Where: `apps/web/src/shell/welcomeFilm.ts`, `WelcomeV2.tsx`, `data/cornerCards.ts`.

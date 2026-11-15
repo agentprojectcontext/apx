@@ -6,6 +6,7 @@ import { client } from "../data/client.ts";
 import { isListed, projectInitial, projectTone } from "../data/identity.ts";
 import { useData } from "../data/state.ts";
 import { type MessageKey, useT } from "../i18n/index.ts";
+import { chatTitle } from "../inbox/chatTitle.ts";
 import { type ConfigSection, go, useNav } from "./nav.ts";
 
 type Item = { key: string; group: MessageKey; title: string; detail?: string; icon: ReactNode; run(): void };
@@ -113,9 +114,9 @@ export function CommandPalette() {
       .map((th) => ({
         key: `t:${th.id}`,
         group: "palette.chats",
-        title: th.title || t("palette.untitled"),
+        title: chatTitle(th, t) || t("palette.untitled"),
         ...(th.preview ? { detail: th.preview } : {}),
-        icon: <Icons.MessageSquare size={15} />,
+        icon: th.kind === "call" ? <Icons.Phone size={15} /> : <Icons.MessageSquare size={15} />,
         run: close(() => go.thread(th.id)),
       }));
     const projectItems: Item[] = projects
@@ -136,7 +137,7 @@ export function CommandPalette() {
       icon: <AgentAvatar name={a.name} blob={a.blob} size={18} animated={false} />,
       run: close(() => {
         const chat = Object.values(threads)
-          .filter((th) => isListed(th) && th.agent_ids?.[0] === a.id)
+          .filter((th) => isListed(th) && th.kind !== "call" && th.agent_ids?.[0] === a.id)
           .sort((x, y) => y.updated_at.localeCompare(x.updated_at))[0];
         if (chat) go.thread(chat.id);
         else go.inbox();

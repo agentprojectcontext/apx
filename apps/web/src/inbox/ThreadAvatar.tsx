@@ -7,7 +7,8 @@ import { useT } from "../i18n/index.ts";
 import { ChannelFace } from "../lazy.ts";
 
 /**
- * Keep the avatar column aligned; a delegated session shows its recipient with its caller as a small badge. A helper
+ * Keep the avatar column aligned; a delegated session shows its recipient with its caller as a small badge, a call the
+ * agent called with a small phone. A helper
  * has no face of its own: a helper mark, with the agent that started it as the badge.
  */
 export function ThreadAvatar({
@@ -50,17 +51,22 @@ export function ThreadAvatar({
     <span className="threadavatar" style={{ width: slot, minWidth: slot, height: slot, gap: 4 }}>
       {thread.engine ? (
         <EngineIcon engine={thread.engine} tile size={size} />
+      ) : thread.kind === "call" && !agent ? (
+        <span className="threadavatar__call" style={{ width: size, height: size }}>
+          <Icons.Phone size={Math.round(size * 0.55)} />
+        </span>
       ) : helper ? (
         <span className="threadavatar__helper" title={t("subthread.worker")} style={{ width: size, height: size }}>
           <Icons.Bot size={Math.round(size * 0.6)} />
         </span>
       ) : (
         faces.map((face, i) => (
-          <span key={face?.id ?? i} className={group && i > 0 ? "threadavatar__group" : undefined}>
+          <span key={face?.id ?? i} className={group ? `threadavatar__group is-${i}` : undefined}>
             {face ? (
               <AgentFace
                 agent={face}
-                size={group ? slot : size}
+                // A group's two faces share the slot, one up and left, the other down and right.
+                size={group ? Math.round(slot * 0.66) : size}
                 editable={editable}
                 online={online}
                 animated={animated}
@@ -70,6 +76,15 @@ export function ThreadAvatar({
             )}
           </span>
         ))
+      )}
+      {/* A call shows who was called, with a phone on it. */}
+      {thread.kind === "call" && agent && (
+        <span
+          className="threadavatar__callmark"
+          style={{ width: Math.max(10, Math.round(size * 0.5)), height: Math.max(10, Math.round(size * 0.5)) }}
+        >
+          <Icons.Phone size={Math.max(6, Math.round(size * 0.3))} />
+        </span>
       )}
       {badge && (
         <span className="threadavatar__caller">

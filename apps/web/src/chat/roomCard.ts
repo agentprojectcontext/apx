@@ -9,3 +9,6 @@ const wide = () => window.innerWidth >= 1280;
 export const useRoomCard = () => useSlice(store, (s) => s.shown ?? wide());
 export const toggleRoomCard = () => store.set((s) => ({ shown: !(s.shown ?? wide()) }));
 export const closeRoomCard = () => store.set({ shown: false });
+/** A group chat's card opens only when the owner asks for it: the chat is what they came for. */
+export const useGroupCard = () => useSlice(store, (s) => s.shown === true);
+export const toggleGroupCard = () => store.set((s) => ({ shown: s.shown !== true }));

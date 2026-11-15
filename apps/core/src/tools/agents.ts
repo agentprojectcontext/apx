@@ -12,14 +12,15 @@ import { budgetLeft } from "../engine/breaker.ts";
 import { sessionOf } from "../engine/delegation.ts";
 import { isInside } from "../paths.ts";
 import { cap, fromTeam } from "./result.ts";
-import { defineTool, type Tool } from "./types.ts";
+import { defineTool, type Tool, ToolFailed } from "./types.ts";
 
 /** A session in one of these states is still at work: its caller may stop it. */
 const AT_WORK = new Set(["submitted", "working", "queued", "input-required"]);
 
 /**
  * Whoever works a task does it and asks for one review at the end: mid-plan, other agents are not asked (the owner
- * may still ask for them). Work for someone else becomes a subtask (DECISIONS.md#d-202).
+ * may still ask for them). Work for someone else becomes a subtask (DECISIONS.md#d-202). A worker of its own is its
+ * help with this work (a search, a log, a first look at the diff), never another owner of it: always allowed.
  */
 function midPlan(store: Store, taskId: string | undefined, agentId: string, runId: string): string | undefined {
   const task = taskId ? store.tasks.get(taskId) : undefined;
@@ -28,7 +29,7 @@ function midPlan(store: Store, taskId: string | undefined, agentId: string, runI
   const steps = planSteps(task.plan ?? "") ?? [];
   // The last step may be the review itself.
   if (steps.length && steps.slice(0, -1).every((s) => s.state === "done")) return undefined;
-  return "not asked: you do this task's work yourself. Finish your plan's steps; hand work for someone else as a subtask (task_create with parent), and ask one reviewer once the rest of the plan is done.";
+  return "not asked: you do this task's work yourself; a worker of your own may help with it. Finish your plan's steps; hand work for someone else as a subtask (task_create with parent), and ask one reviewer once the rest of the plan is done.";
 }
 
 export function agentTools(store: Store): Tool[] {
@@ -168,8 +169,8 @@ export function agentTools(store: Store): Tool[] {
       cut: "The teammate keeps working; its answer comes back in a new turn: do not delegate it again.",
       title: (a) => `Asked ${String(a.worker?.name ?? a.agent ?? a.session)}`,
       async run(a, ctx) {
-        const early = midPlan(store, ctx.thread.task_id, ctx.agent.id, ctx.run.id);
-        if (early) return early;
+        const early = a.worker ? undefined : midPlan(store, ctx.thread.task_id, ctx.agent.id, ctx.run.id);
+        if (early) throw new ToolFailed(early);
         let agent: AgentRecord | undefined;
         if (a.agent) {
           const found = store.agents.resolve(a.agent, ctx.thread.project_id);

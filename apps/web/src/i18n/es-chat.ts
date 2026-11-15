@@ -103,6 +103,7 @@ export const esChat: Partial<Record<MessageKey, string>> = {
   "usage.aux.news": "Novedades",
   "usage.aux.sticker": "Significado de stickers",
   "usage.aux.aside": "Preguntas aparte",
+  "usage.aux.call": "Llamadas de voz",
   "usage.state.submitted": "En cola",
   "usage.state.working": "Trabajando",
   "usage.state.waiting": "Te espera",
@@ -187,4 +188,15 @@ export const esChat: Partial<Record<MessageKey, string>> = {
   "mail.outlookWeb": "Outlook en la web",
   "mail.more": "Ver todo",
   "mail.less": "Ver menos",
+  "chat.agentThinking": "{name} está pensando…",
+  "group.new": "Nuevo grupo",
+  "group.picking": "Eligiendo quién responde…",
+  "group.placeholder": "Escribile a {name}…",
+  "group.sendHint": "Enter: enviar · Shift+Enter: nueva línea · @nombre: preguntarle a alguien",
+  "group.noFiles": "Todavía no se pueden enviar archivos en un grupo. Mandalos en un chat con un agente.",
+  "group.emptyTitle": "Grupo con {names}",
+  "group.emptyBody":
+    "Escribile a todos. Responden los agentes a quienes va tu mensaje; nombrá a uno, con o sin @, para preguntarle.",
+  "group.cardOpen": "Ver quién está en el grupo y con qué modelo responde cada uno",
+  "group.memberChat": "Abrir el trabajo de {name} en este grupo",
 };

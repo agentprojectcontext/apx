@@ -373,3 +373,26 @@ textarea.inputcard__detail {
   opacity: 0.75;
   color: var(--apx-fg);
 }
+
+/* Nothing worth telling (SKIP, a routine that did not call the model): the shared badge, as a chat line. */
+.quietmark {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  min-height: 24px;
+  padding: 2px 0;
+  font-size: var(--apx-text-xs);
+  color: var(--apx-fg-subtle);
+}
+.quietbadge {
+  flex: none;
+}
+.notice__more {
+  margin-top: 4px;
+}
+.notice__more > summary {
+  cursor: pointer;
+  font-size: var(--apx-text-xs);
+  opacity: 0.8;
+}

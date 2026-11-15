@@ -1,22 +1,23 @@
-// Speech as a Telegram voice note: OGG/Opus, converted with the ffmpeg on this machine. Without ffmpeg the audio goes
-// as a plain audio file instead.
+// Audio converted with the ffmpeg on this machine: speech as a Telegram voice note (OGG/Opus; without ffmpeg the audio
+// goes as a plain audio file instead), and recordings as the PCM APX's own voice transcribes.
 import { spawn } from "node:child_process";
 
 const CONVERT_MS = 60_000;
 
-export function toOggOpus(input: Buffer): Promise<Buffer> {
+export const toOggOpus = (input: Buffer) => convert(input, ["-c:a", "libopus", "-b:a", "32k", "-f", "ogg"]);
+
+/** Any recording as 16 kHz mono 16-bit PCM: what APX's own voice transcribes. */
+export const toPcm16k = (input: Buffer) => convert(input, ["-ac", "1", "-ar", "16000", "-f", "s16le"]);
+
+function convert(input: Buffer, out: string[]): Promise<Buffer> {
   return new Promise((resolve, reject) => {
-    const p = spawn(
-      "ffmpeg",
-      ["-hide_banner", "-loglevel", "error", "-i", "pipe:0", "-c:a", "libopus", "-b:a", "32k", "-f", "ogg", "pipe:1"],
-      {
-        stdio: ["pipe", "pipe", "pipe"],
-      },
-    );
-    const out: Buffer[] = [];
+    const p = spawn("ffmpeg", ["-hide_banner", "-loglevel", "error", "-i", "pipe:0", ...out, "pipe:1"], {
+      stdio: ["pipe", "pipe", "pipe"],
+    });
+    const chunks: Buffer[] = [];
     let err = "";
     const timer = setTimeout(() => p.kill("SIGKILL"), CONVERT_MS);
-    p.stdout.on("data", (c: Buffer) => out.push(c));
+    p.stdout.on("data", (c: Buffer) => chunks.push(c));
     p.stderr.on("data", (c: Buffer) => {
       err += c.toString();
     });
@@ -26,7 +27,7 @@ export function toOggOpus(input: Buffer): Promise<Buffer> {
     });
     p.on("close", (code) => {
       clearTimeout(timer);
-      if (code === 0) resolve(Buffer.concat(out));
+      if (code === 0) resolve(Buffer.concat(chunks));
       else reject(new Error(`ffmpeg: ${err.trim().slice(0, 200) || `exit ${code}`}`));
     });
     p.stdin.end(input);

@@ -1,10 +1,13 @@
 import type { Thread } from "@apx/protocol";
 import { EMAIL_LANG, parseEmailBlock } from "@apx/protocol/email-block";
-import type { CodeRenderer } from "@apx/ui";
+import { type CodeRenderer, Skeleton } from "@apx/ui";
 import { Fragment, type ReactNode, Suspense } from "react";
-import { CodeBlock, EmailCard, RunnableCode } from "../lazy.ts";
+import { useT } from "../i18n/index.ts";
+import { CodeBlock, EmailCard, InlineView, RunnableCode } from "../lazy.ts";
 
 const SHELL_LANGS: ReadonlySet<string> = new Set(["bash", "sh", "zsh", "shell", "console", "fish"]);
+// INLINE_LANGS in @apx/protocol/inline-ui, written here so the parser loads only with the cards.
+const INLINE_LANGS: ReadonlySet<string> = new Set(["apx-cards", "a2ui"]);
 
 /**
  * A fenced shell block an agent wrote gets run and copy buttons (in the chat's folder, or else APX's work folder); an
@@ -47,6 +50,15 @@ export function replyBlock(
       <code>{block.code}</code>
     </pre>
   );
+  // ```apx-cards and ```a2ui are cards drawn in the answer; a block APX cannot read shows as code. While the agent
+  // writes one, or while the cards' code loads (a reload), a placeholder shows instead of its code.
+  if (INLINE_LANGS.has(block.lang)) {
+    return (
+      <Suspense fallback={<CardsWait />}>
+        <InlineView lang={block.lang} code={block.code} pre={pre} writing={writing} threadId={thread.id} />
+      </Suspense>
+    );
+  }
   // A new key once it is whole, so the frame starts again on what it draws.
   return writing ? (
     <Suspense key="writing" fallback={pre}>
@@ -56,5 +68,15 @@ export function replyBlock(
     <Fragment key="whole">
       {runnableCode(thread, messageId)(block.code, block.lang || undefined, pre, block.lang)}
     </Fragment>
+  );
+}
+
+/** Where the cards will be while their code loads: their own skeleton comes with it. */
+function CardsWait() {
+  const t = useT();
+  return (
+    <div role="status" aria-busy="true" aria-label={t("chat.inline.loading")}>
+      <Skeleton shape="block" height={220} />
+    </div>
   );
 }

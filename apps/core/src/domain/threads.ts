@@ -89,7 +89,20 @@ export type ThreadContext = {
    * A group chat (engine/group.ts): its members, who answers next, the run answering now and, per member, the last
    * message of the group it has read.
    */
-  group?: { members: string[]; queue: string[]; speaking?: string | undefined; seen: Record<string, number> };
+  group?: {
+    members: string[];
+    queue: string[];
+    speaking?: string | undefined;
+    seen: Record<string, number>;
+    /** Members a teammate's answer @mentioned since the owner's latest message: each is called in once. */
+    pulled?: string[] | undefined;
+    /** The model each member answers with here, by agent id; absent = the agent's own. */
+    models?: Record<string, string> | undefined;
+    /** One model every member answers with here, over `models`; absent = each its own. */
+    model?: string | undefined;
+    /** The model that picks who answers; absent = the auxiliary model. */
+    router?: string | undefined;
+  };
   /** A member's own chat under a group chat: the group's thread id. */
   member_of?: string;
   /** A task chat that stalled: when APX last asked its agent to go on, and the stop since then the owner was told of. */
@@ -116,6 +129,10 @@ export type ThreadContext = {
   progress_at?: string;
   /** On a task's conversation: the stretch without progress the owner was already told about (its start). */
   stuck_told?: string;
+  /** On a task's conversation: its assignee was asked once whether documents alone were what it asked for. */
+  documents_checked?: boolean;
+  /** On a task's conversation: its assignee was asked once to commit work left in its worktree. */
+  commit_checked?: boolean;
   /** Brought from the owner's Claude Code or Codex: that session. */
   /** Fork relatives do not automatically recall each other beyond their copied history. */
   memory_family?: string;

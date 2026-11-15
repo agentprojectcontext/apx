@@ -1,13 +1,22 @@
 import type { Routine, RoutineRun } from "@apx/protocol";
-import { Icons, Skeleton, Tag } from "@apx/ui";
+import { Badge, type BadgeProps, Icons, Skeleton, Tag } from "@apx/ui";
 import { memo, useEffect } from "react";
+import { QuietBadge } from "../chat/QuietMark.tsx";
 import { Transcript } from "../chat/Transcript.tsx";
 import { dayLabel } from "../common/format.ts";
 import { usePageVisible } from "../common/useInView.ts";
 import { loadThread, markRead } from "../data/actions.ts";
 import { useData } from "../data/state.ts";
 import { useT } from "../i18n/index.ts";
-import { outcomeMarks, promptOf } from "./runOutcome.ts";
+import { markText, type OutcomeTone, outcomeMarks, promptOf } from "./runOutcome.ts";
+
+const BADGE_TONE: Record<OutcomeTone, NonNullable<BadgeProps["tone"]>> = {
+  ran: "brand",
+  told: "info",
+  skipped: "neutral",
+  failed: "danger",
+  live: "violet",
+};
 
 /**
  * One run inside the routine's chat: a line with when it ran and how it ended, its instructions folded, then what was
@@ -56,11 +65,21 @@ export const RunBlock = memo(function RunBlock({
         )}
         <div className="rtchat__divider">
           <span className="rtchat__when">{when}</span>
-          {outcomeMarks(run, routine.action).map((m) => (
-            <span key={m.key} className={`rtchat__mark is-${m.tone}`}>
-              {t(m.key)}
-            </span>
-          ))}
+          {outcomeMarks(run, routine.action).map((m) =>
+            m.quiet ? (
+              <QuietBadge key={m.key} className="rtchat__mark" />
+            ) : (
+              <Badge
+                key={m.key}
+                tone={BADGE_TONE[m.tone]}
+                dot
+                className="rtchat__mark"
+                title={m.detail ? t(m.detail) : undefined}
+              >
+                {markText(m, t)}
+              </Badge>
+            ),
+          )}
         </div>
         {prompt != null && (
           <details className="rtchat__prompt">

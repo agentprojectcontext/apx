@@ -71,8 +71,8 @@ export const OWNER_ONLY: Readonly<Record<string, string>> = {
   "webhooks.set": MACHINE,
   "models.set_config": POWER,
   "threads.model": POWER,
-  "threads.group":
-    "a prototype behind APX_GROUP_CHATS (rules/GROUP_CHAT.md); the owner makes a group while it is tried",
+  "threads.group": "the owner picks who is in a group chat in the panel (D-218)",
+  "threads.group_set": "the owner changes a group chat's members and models in its card (D-218)",
   "tools.grant_set": POWER,
   "tools.revoke": POWER,
   "mcp.trust": POWER,
@@ -123,6 +123,8 @@ export const OWNER_ONLY: Readonly<Record<string, string>> = {
   "profiles.install": MACHINE,
   "embeddings.install": MACHINE,
   "transcription.install": MACHINE,
+  "voice.install": MACHINE,
+  "voice.set": `${POWER}; APX's voice and the model calls talk with are set in Settings › Voices`,
   "files.keep": PANEL,
   "files.open": PANEL,
   "files.rename": PANEL,
@@ -158,6 +160,10 @@ export const OWNER_ONLY: Readonly<Record<string, string>> = {
   "environments.appearance": PANEL,
   "environments.display": PANEL,
   "environments.screen": PANEL,
+  // A call is the owner speaking: no agent opens or closes one.
+  "calls.start": AS_OWNER,
+  "calls.end": AS_OWNER,
+  "calls.say": AS_OWNER,
   "channels.recover": PANEL,
   "channels.email_history":
     "the owner explicitly imports private mailbox history with apx channels email-history; agents must not import it unasked",

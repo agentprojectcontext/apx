@@ -84,6 +84,9 @@ Each Google part connects on its own, so you choose what your agents reach: **Go
 | Gmail | Send mail. With your own client: also search and read mail, and write drafts | Sending always asks; writing a draft asks |
 | Google Drive | Write Docs and share them; find and read them. With your own client: find and read your whole Drive (Docs, Sheets, Slides, text files) | Sharing |
 
+Agents find these tools when a request needs them (through `mcp_search`, like an MCP server's), so a chat that does
+not touch your calendar or mail does not pay for them on every step.
+
 APX's sign-in asks Google only for what it can get verified without a paid security review, so it cannot read your mail
 or the rest of your Drive. To read mail, connect your mailbox in **Channels › New channel › Email**; for the whole of Gmail and Drive,
 use your own OAuth client.

@@ -13,6 +13,7 @@ const llm = scriptedLlm((_req, { said }) => {
   if (said.includes("check the invoices")) return say("Two new invoices from Northwind.");
   if (said.includes("anything new?")) return say("**SKIP**");
   if (said.includes("break now")) throw new Error("quota exceeded");
+  if (said.includes("offline now")) throw new Error("acme/model-1: fetch failed (ENOTFOUND)");
   return say("ok");
 });
 
@@ -116,6 +117,7 @@ test("run now, a failed run is reported, and bad schedules are refused", async (
   await env.client.call("routines.run", { routine: r.id });
   await ended(r.id, 1);
   assert.equal((await runsOf(r.id))[0]?.state, "failed");
+  assert.equal((await runsOf(r.id))[0]?.failure, "limit");
   await waitFor(() => tg.messagesTo(OWNER_CHAT).some((m) => /Breaker/.test(String(m.body.text))), "failure told");
 
   await assert.rejects(
@@ -136,6 +138,25 @@ test("run now, a failed run is reported, and bad schedules are refused", async (
     }),
     (e: unknown) => e instanceof ApxError && /passed/.test(e.message),
   );
+});
+
+test("a failed run says why as a kind, and its chat says it in plain words with the raw reason as detail", async () => {
+  const r = await env.client.call("routines.set", {
+    name: "Offline",
+    agent: "superagent",
+    schedule: { kind: "manual" },
+    prompt: "offline now",
+  });
+  await env.client.call("routines.run", { routine: r.id });
+  await ended(r.id, 1);
+  const [run] = await runsOf(r.id);
+  assert.equal(run?.state, "failed");
+  assert.equal(run?.failure, "network");
+  const { messages } = await env.client.call("threads.get", { thread: run?.thread_id ?? "" });
+  const notice = messages.flatMap((m) => m.parts).find((p) => p.type === "notice" && p.code === "run.failed");
+  assert.ok(notice?.type === "notice");
+  assert.equal(notice.vars?.variant, "network");
+  assert.match(notice.detail ?? "", /ENOTFOUND/);
 });
 
 test("a new routine keeps an imminent slot; a running one is not started again; run now conflicts", async () => {

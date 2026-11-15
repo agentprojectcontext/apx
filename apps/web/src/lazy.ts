@@ -30,6 +30,12 @@ export const OAuthReturn = lazy(
 export const AttachChips = lazy(() =>
   import("./chat/composer/AttachChips.tsx").then((m) => ({ default: m.AttachChips })),
 );
+// The composer's microphone while it records: what it hears and for how long.
+export const VoiceRecording = lazy(() =>
+  import("./chat/composer/VoiceRecording.tsx").then((m) => ({ default: m.VoiceRecording })),
+);
+export const SlashList = lazy(() => import("./chat/composer/SlashList.tsx").then((m) => ({ default: m.SlashList })));
+export const MicWave = lazy(() => import("./chat/composer/VoiceRecording.tsx").then((m) => ({ default: m.MicWave })));
 
 // Screens and dialogs loaded when first opened: the chat is what the panel opens on.
 export const AppScreen = lazy(() => import("./apps/AppScreen.tsx").then((m) => ({ default: m.AppScreen })));
@@ -78,6 +84,8 @@ export const RewindEditor = lazy(() => import("./chat/RewindParts.tsx").then((m)
 // A message link's right-click menu, or an app link's button.
 export const MessageLink = lazy(() => import("./chat/LinkMenu.tsx").then((m) => ({ default: m.MessageLink })));
 // Parts only some messages carry and a task chat's header pieces.
+export const NoticePart = lazy(() => import("./chat/parts/NoticePart.tsx").then((m) => ({ default: m.NoticePart })));
+export const InlineView = lazy(() => import("./chat/InlineView.tsx").then((m) => ({ default: m.InlineView })));
 export const ChangesPart = lazy(() => import("./chat/parts/ChangesPart.tsx").then((m) => ({ default: m.ChangesPart })));
 export const SkillsPart = lazy(
   withPacks(["resources"], () => import("./chat/parts/SkillsPart.tsx").then((m) => ({ default: m.SkillsPart }))),
@@ -105,6 +113,15 @@ export const ChannelBundle = lazy(() =>
   import("./inbox/ChannelBundle.tsx").then((m) => ({ default: m.ChannelBundle })),
 );
 export const TaskBundle = lazy(() => import("./inbox/TaskBundle.tsx").then((m) => ({ default: m.TaskBundle })));
+// The Inbox's Calls row, once there is a call.
+export const CallBundle = lazy(() => import("./inbox/CallBundle.tsx").then((m) => ({ default: m.CallBundle })));
+// The call buttons (top bar, the super-agent's chat, a call's chat) show once calls can run here; the card that places
+// and holds a call, with its audio, once one is pressed.
+export const CallButton = lazy(() => import("./shell/CallButton.tsx").then((m) => ({ default: m.CallButton })));
+export const CallAgain = lazy(() => import("./shell/CallButton.tsx").then((m) => ({ default: m.CallAgain })));
+export const CallCard = lazy(
+  withPacks(["call"], () => import("./call/CallCard.tsx").then((m) => ({ default: m.CallCard }))),
+);
 export const SubthreadPart = lazy(() =>
   import("./chat/parts/SubthreadPart.tsx").then((m) => ({ default: m.SubthreadPart })),
 );
@@ -308,8 +325,16 @@ export const NewAgentDialog = lazy(
   withPacks(["team"], () => import("./project/team/AgentDialogs.tsx").then((m) => ({ default: m.NewAgentDialog }))),
 );
 
+// "New group" from the new-chat picker: two to five agents in one chat (D-218).
+export const NewGroupDialog = lazy(() =>
+  import("./groups/NewGroupDialog.tsx").then((m) => ({ default: m.NewGroupDialog })),
+);
+// A group chat's members under its name, who is answering, and its first screen.
+export const GroupPart = lazy(() => import("./groups/GroupPart.tsx").then((m) => ({ default: m.GroupPart })));
+
 export const QrSvg = lazy(() => import("./common/QrSvg.tsx").then((m) => ({ default: m.QrSvg })));
 
 // Plain modules loaded on first use.
 export const loadOsNotices = () => import("./shell/osNotices.ts");
 export const loadSounds = () => import("./shell/sounds.ts");
+export const loadVoiceMeter = () => import("./chat/composer/voiceMeter.ts");

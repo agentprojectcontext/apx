@@ -110,7 +110,8 @@ export function threadHandlers(
   engine: Engine,
   upkeep: Pick<Upkeep, "compact">,
   aside: Pick<Aside, "ask">,
-  groups?: Pick<Groups, "enabled" | "is" | "send" | "stop">,
+  groups?: Pick<Groups, "is" | "send" | "stop" | "settings" | "configure">,
+  checkModel?: (ref: string) => string | undefined,
 ) {
   const threadAgent = (threadId: string) => {
     const thread = store.threads.get(threadId);
@@ -315,9 +316,31 @@ export function threadHandlers(
     },
     "threads.create": (params, ctx) => createThread(store, params, ctx),
     "threads.group": ({ agent_ids, title }) => {
-      if (!groups?.enabled) throw conflict("group chats are off in this core (APX_GROUP_CHATS=on turns them on)");
+      if (!groups) throw conflict("group chats are not available in this core");
       try {
         return createGroup(store, { agent_ids, title });
+      } catch (err) {
+        throw badRequest((err as Error).message);
+      }
+    },
+    "threads.group_get": ({ thread }) => {
+      if (!groups?.is(thread)) throw notFound(`group chat ${thread}`);
+      return groups.settings(thread);
+    },
+    "threads.group_set": ({ thread, agent_ids, models, model, router_model }) => {
+      if (!groups?.is(thread)) throw notFound(`group chat ${thread}`);
+      for (const ref of [...Object.values(models ?? {}), model, router_model])
+        if (ref) {
+          const why = checkModel?.(ref);
+          if (why) throw badRequest(why);
+        }
+      try {
+        return groups.configure(thread, {
+          ...(agent_ids ? { agent_ids } : {}),
+          ...(models ? { models } : {}),
+          ...(model !== undefined ? { model } : {}),
+          ...(router_model !== undefined ? { router_model } : {}),
+        });
       } catch (err) {
         throw badRequest((err as Error).message);
       }
@@ -355,7 +378,8 @@ export function threadHandlers(
       if (groups?.is(thread)) {
         if (ctx.actor !== "human" || ctx.agent || ctx.channel || ctx.client)
           throw unauthorized("only the owner writes in a group chat");
-        if (attachments?.length || mode !== "queue") throw badRequest("a group chat takes queued text messages");
+        // Members answer in line, so words written while one works always wait for the next turn.
+        if (attachments?.length || mode === "interrupt") throw badRequest("a group chat takes text messages");
         return groups.send(thread, text).then(({ message, run }) => {
           if (!run) throw conflict("nobody in the group could answer");
           return { message, run: publicRun(run) };

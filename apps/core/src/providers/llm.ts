@@ -28,6 +28,8 @@ export type LlmRequest = {
   tools: ToolSpec[];
   signal: AbortSignal;
   onText?: ((soFar: string) => void) | undefined;
+  /** What the model says of its reasoning so far (a summary), for models that send one. */
+  onThinking?: ((soFar: string) => void) | undefined;
   /** Stable per conversation (a thread id), for providers' prompt caches. */
   cacheKey?: string | undefined;
   maxOutputTokens?: number | undefined;
@@ -225,6 +227,7 @@ export function createLlm(opts: {
               cacheKey: req.cacheKey,
               maxOutputTokens: req.maxOutputTokens,
               onText,
+              onThinking: req.onThinking,
               firstByteMs: opts.firstByteMs,
               fetchImpl: opts.fetchImpl ?? fetch,
             });
@@ -278,8 +281,10 @@ export function createLlm(opts: {
       // Every model's reason, not only the last one's: the owner needs to see why the first choice failed.
       const reasons = failed.map((f) => `${f.model}: ${f.why}`).join("\n");
       if (limited.length && !broken) throw limitError(limited, reasons);
+      // Every model passed over because the chat no longer fits it: the chat must shrink, no key is at fault.
+      const tooLong = failed.length > 0 && failed.every((f) => f.why.startsWith("its context ("));
       throw new ProviderError(
-        broken?.kind ?? refused?.kind ?? last?.kind ?? "auth",
+        broken?.kind ?? refused?.kind ?? last?.kind ?? (tooLong ? "context" : "auth"),
         reasons || last?.message || "no usable model provider",
       );
     },

@@ -390,7 +390,8 @@ export function messagesRepo({ one, all, run }: Sql, bus: Bus) {
     sentOn(id: string, channel: string): void {
       const was = repo.get(id);
       if (!was || was.via === channel) {
-        repo.setDelivery(id, "pending");
+        // Another send of the same message: it has not left yet, whatever the earlier one reached.
+        repo.resetDelivery(id, "pending");
         return;
       }
       const delivery = was.delivery ?? "pending";
@@ -403,6 +404,13 @@ export function messagesRepo({ one, all, run }: Sql, bus: Bus) {
       if (!was) return;
       const before = was.delivery ? DELIVERY_RANK[was.delivery] : -1;
       if (DELIVERY_RANK[state] <= before) return;
+      run(qb.updateTable("messages").set({ delivery: state }).where("id", "=", id));
+      bus.emit({ type: "message.updated", message: { ...was, delivery: state } });
+    },
+    /** Where a message's latest send stands, even behind what an earlier send of it reached (a later one failed). */
+    resetDelivery(id: string, state: MessageDelivery): void {
+      const was = repo.get(id);
+      if (!was || was.delivery === state) return;
       run(qb.updateTable("messages").set({ delivery: state }).where("id", "=", id));
       bus.emit({ type: "message.updated", message: { ...was, delivery: state } });
     },

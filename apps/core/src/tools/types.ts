@@ -26,6 +26,12 @@ export type UntrustedWhy = "url_data";
 /** How a call keeps its card where the mode would skip it (Tool.keepsCard). */
 export type KeepsCard = "card" | "grant";
 
+/**
+ * Thrown by a tool whose call ran but did not do what it was for (a command that exited non-zero): the model reads
+ * the message as the result, and the step is recorded as an error, not as done.
+ */
+export class ToolFailed extends Error {}
+
 /** The thread a tool call runs in, with how far its agent reaches: made only by engine/permissions.ts. */
 export type ScopedThread = Thread & FolderThread;
 

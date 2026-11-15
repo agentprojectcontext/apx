@@ -87,3 +87,10 @@ test("a $ at the end of the field asks for skills and connectors", () => {
     "by what it does",
   );
 });
+
+test("in a group, an @ being typed at the end lists members by what follows it", () => {
+  assert.deepEqual(dollarQuery("hola @na", "@"), { start: 5, query: "na" });
+  assert.deepEqual(dollarQuery("@", "@"), { start: 0, query: "" });
+  assert.equal(dollarQuery("mail me at user@example", "@"), undefined);
+  assert.equal(dollarQuery("@nati que bien", "@"), undefined);
+});

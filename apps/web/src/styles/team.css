@@ -187,6 +187,11 @@
   align-items: center;
   gap: 12px;
 }
+.teamdetail__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
 .teamdetail__names {
   flex: 1;
   min-width: 0;

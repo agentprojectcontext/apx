@@ -40,7 +40,8 @@ export function attachWs(
     bus: Bus;
     gate: Gate;
     deviceOf?: (token: string) => { id: string; name: string } | undefined;
-    streamPath?: string | undefined;
+    /** Paths other sockets on this server handle (the VM display, calls): left to them. */
+    streamPaths?: readonly string[] | undefined;
     clientOf?: ClientLookup;
   },
 ) {
@@ -63,7 +64,7 @@ export function attachWs(
   server.on("upgrade", (req, socket, head) => {
     const pathname = new URL(req.url ?? "/", "http://core").pathname;
     if (pathname !== "/ws") {
-      if (pathname !== deps.streamPath) socket.destroy();
+      if (!deps.streamPaths?.includes(pathname)) socket.destroy();
       return;
     }
     wss.handleUpgrade(req, socket, head, (ws) => wss.emit("connection", ws, req));

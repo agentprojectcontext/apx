@@ -18,4 +18,11 @@ export const esRoutineChat: Partial<Record<MessageKey, string>> = {
   "routineChat.notFound.body": "Puede que la hayan borrado. Elegí otra de la lista.",
   "routineChat.empty.title": "Todavía no corrió",
   "routineChat.empty.body": "Cada vez que corra, lo que hizo aparece acá, una ejecución tras otra.",
+  "routineChat.failure.network": "Sin conexión",
+  "routineChat.failure.timeout": "Tardó demasiado",
+  "routineChat.failure.limit": "Límite de uso",
+  "routineChat.failure.signed_out": "Sesión vencida",
+  "routineChat.failure.refused": "Pedido rechazado",
+  "routineChat.failure.down": "Proveedor caído",
+  "routineChat.failure.restart": "APX se reinició",
 };

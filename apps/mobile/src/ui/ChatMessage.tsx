@@ -24,7 +24,6 @@ import { SkillsRow } from "./chat/SkillsRow";
 import { SubthreadCard } from "./chat/SubthreadCard";
 import { TakenMark, useTaken, type WaitingActions, WaitingControls } from "./chat/WaitingControls";
 import { Icon } from "./Icon";
-import { AgentAvatar } from "./kit";
 import { Markdown } from "./Markdown";
 import { MessageSheet } from "./MessageSheet";
 import { ImageGrid } from "./media/ImageGrid";
@@ -32,6 +31,7 @@ import { MediaRow } from "./media/MediaRow";
 import { MediaSheet } from "./media/MediaSheet";
 import { MediaViewer } from "./media/MediaViewer";
 import { VideoCarousel } from "./media/VideoCarousel";
+import { PersonAvatar } from "./PersonAvatar";
 import { makeStyles, useTheme } from "./theme";
 
 export type { ContinueSession, GoOn, Respond };
@@ -157,7 +157,11 @@ export function ChatMessage({
             delayLongPress={350}
             style={({ pressed }) => [s.bubble, mine ? s.mineBox : s.theirs, pressed && { opacity: 0.85 }]}
           >
-            {mine ? <Text style={s.mineText}>{part.text}</Text> : <Markdown text={part.text} selectable={false} />}
+            {mine ? (
+              <Text style={s.mineText}>{part.text}</Text>
+            ) : (
+              <Markdown text={part.text} selectable={false} onAsk={send} />
+            )}
           </Pressable>
         );
       case "input":
@@ -229,7 +233,7 @@ export function ChatMessage({
       <View style={[s.wrap, mine ? s.mineWrap : s.theirsWrap]}>
         {author.kind === "person" ? (
           <View style={s.person}>
-            <AgentAvatar name={author.name} size={26} />
+            <PersonAvatar person={author.id} name={author.name} size={26} />
             <View style={s.personBody}>{content}</View>
           </View>
         ) : event ? (

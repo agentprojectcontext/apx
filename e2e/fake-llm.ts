@@ -56,6 +56,29 @@ function ownerCheck(messages: Message[]): { check: true } | { said: string } | u
   return body === undefined ? undefined : { said: lastWords([{ role: "user", content: body }]) };
 }
 
+/**
+ * A group chat's router (engine/group.ts): the agents whose role the owner's newest words name, everyone for
+ * "everyone", else the first.
+ */
+function groupPick(user: string): string {
+  const roster = [...user.matchAll(/^- .+? \(([^)]+)\)(?:: (.*))?$/gm)].map((m) => ({
+    id: m[1] ?? "",
+    role: m[2] ?? "",
+  }));
+  const words = (/Newest message from the owner:\n([\s\S]*?)\n\nJSON only\./.exec(user)?.[1] ?? "").toLowerCase();
+  const named = roster.filter((a) => a.role && words.includes(a.role.toLowerCase()));
+  const speakers = /everyone|todos/.test(words) ? roster : named.length ? named : roster.slice(0, 1);
+  return JSON.stringify({ speakers: speakers.map((a) => a.id) });
+}
+
+/** A group member's turn after teammates answered: the owner's words, not APX's note under them. */
+function groupWords(messages: Message[], said: string): string {
+  if (said !== "Add only what is yours.") return said;
+  const text = textOf(messages.findLast((m) => m.role === "user"));
+  const before = text.split("[teammates who already answered")[0] ?? "";
+  return lastWords([{ role: "user", content: before }]);
+}
+
 /** Embeddings, Ollama-style: pictures point one way, anything else (each a bit apart) another. */
 function vectorOf(text: string): number[] {
   if (/image|imagen|picture|dibujo/i.test(text)) return [1, 0, 0, 0.2];
@@ -389,8 +412,13 @@ export async function fakeLlm() {
       bodies.push(raw);
       const body = (raw ? JSON.parse(raw) : {}) as { model?: string; messages?: Message[]; stream?: boolean };
       const relay = ownerCheck(body.messages ?? []);
-      const said = relay && "said" in relay ? relay.said : lastWords(body.messages ?? []);
+      const said = groupWords(
+        body.messages ?? [],
+        relay && "said" in relay ? relay.said : lastWords(body.messages ?? []),
+      );
       calls.push({ model: body.model ?? "", said });
+      // The provider out of reach: the connection drops before any answer (a routine run that fails for it).
+      if (/^lose the connection/i.test(said)) return req.socket.destroy();
       // A plan out of its usage limit: an agent with fallbacks goes on with the next model.
       if (body.model === "fake-limited") {
         res.writeHead(429, { "content-type": "application/json" });
@@ -404,7 +432,9 @@ export async function fakeLlm() {
         ? `Done: ${textOf(body.messages?.findLast((m) => m.role === "tool"))}`
         : undefined;
       const text =
+        (system.startsWith("You pick who answers") ? groupPick(textOf(body.messages?.at(-1))) : undefined) ??
         signed ??
+        (/^nothing worth telling/i.test(said) ? "SKIP" : undefined) ??
         (relay && "check" in relay
           ? "It is the owner: answer them."
           : system.startsWith("You are Researcher, a worker")
@@ -420,7 +450,9 @@ export async function fakeLlm() {
                         JSON.stringify(body.messages?.findLast((m) => m.role === "user")?.content),
                       )
                     ? "REACT ❤️"
-                    : (reviewTable(said) ?? `Got it: ${said || "(nothing)"}`));
+                    : /^write slowly/i.test(said)
+                      ? `Got it: ${said}. ${"One more line of the answer, still being written. ".repeat(4)}Done.`
+                      : (reviewTable(said) ?? `Got it: ${said || "(nothing)"}`));
       // "fill the context" reads as a long chat: most of a 128k window (a qwen model's).
       const read = /fill the context/i.test(said) ? 82_000 : 120;
       const usage = { prompt_tokens: read, completion_tokens: 8, total_tokens: read + 8 };
@@ -462,11 +494,46 @@ export async function fakeLlm() {
         }
         res.writeHead(200, { "content-type": "text/event-stream", "cache-control": "no-cache" });
         const send = (o: unknown) => res.write(`data: ${JSON.stringify(o)}\n\n`);
-        for (const part of text.match(/[\s\S]{1,12}/g) ?? [text])
+        const chunks = text.match(/[\s\S]{1,12}/g) ?? [text];
+        const end = () => {
+          send({ id: "fake", choices: [{ index: 0, delta: {}, finish_reason: "stop" }] });
+          send({ id: "fake", choices: [], usage });
+          res.end("data: [DONE]\n\n");
+        };
+        // "think first": a reasoning model's thinking, said aloud a piece at a time, then the answer.
+        if (/^think first/i.test(said)) {
+          const thoughts = [
+            "**Reading the ask**\n\nThe owner wants a plan. ",
+            "**Checking the dates**\n\nLaunch is close.",
+          ];
+          const next = (i: number) => {
+            if (res.writableEnded) return;
+            if (i < thoughts.length) {
+              send({
+                id: "fake",
+                choices: [{ index: 0, delta: { reasoning_content: thoughts[i] }, finish_reason: null }],
+              });
+              return void setTimeout(() => next(i + 1), 1200);
+            }
+            for (const part of chunks)
+              send({ id: "fake", choices: [{ index: 0, delta: { content: part }, finish_reason: null }] });
+            end();
+          };
+          return next(0);
+        }
+        // "write slowly": a piece every 150 ms, so a test sees the answer grow as a real model's does.
+        if (/^write slowly/i.test(said)) {
+          const next = (i: number) => {
+            if (res.writableEnded) return;
+            if (i >= chunks.length) return end();
+            send({ id: "fake", choices: [{ index: 0, delta: { content: chunks[i] }, finish_reason: null }] });
+            setTimeout(() => next(i + 1), 150);
+          };
+          return next(0);
+        }
+        for (const part of chunks)
           send({ id: "fake", choices: [{ index: 0, delta: { content: part }, finish_reason: null }] });
-        send({ id: "fake", choices: [{ index: 0, delta: {}, finish_reason: "stop" }] });
-        send({ id: "fake", choices: [], usage });
-        res.end("data: [DONE]\n\n");
+        end();
       };
       const keepGoing = KEEP_GOING.test(said) && body.messages?.at(-1)?.role === "tool";
       const long = system.startsWith("Take your time");

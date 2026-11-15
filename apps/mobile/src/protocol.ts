@@ -28,6 +28,14 @@ export type {
   TaskEvent,
   Thread,
 } from "../../../packages/protocol/src/index.ts";
+export { MAP_CREDIT, mapFrame } from "../../../packages/protocol/src/inline-map.ts";
+export {
+  INLINE_LANGS,
+  type InlineNode,
+  type InlineView,
+  isMediaId,
+  parseInlineBlock,
+} from "../../../packages/protocol/src/inline-ui.ts";
 export type { MailRoute, SentDraft } from "../../../packages/protocol/src/mail-methods.ts";
 export { noticeChannelChoice, noticeText } from "../../../packages/protocol/src/notices.ts";
 export { type PlanStep, planSteps } from "../../../packages/protocol/src/task-plan.ts";

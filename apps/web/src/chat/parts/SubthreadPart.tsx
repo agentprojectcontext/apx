@@ -42,7 +42,13 @@ export function SubthreadPart({ part, from }: { part: Extract<Part, { type: "sub
         )
       }
       title={namedMentions(part.title, agents, part.agent_id)}
-      subtitle={`${askedBy} → ${name}${part.worker ? ` · ${t("subthread.worker")}` : ""}`}
+      subtitle={[
+        // Asked by the same agent (a call asking its own super-agent): who asked whom says nothing.
+        askedBy === name ? undefined : `${askedBy} → ${name}`,
+        part.worker ? t("subthread.worker") : undefined,
+      ]
+        .filter(Boolean)
+        .join(" · ")}
       status={st.status}
       statusLabel={<span title={failed}>{t(st.label)}</span>}
       time={

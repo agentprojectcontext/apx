@@ -334,7 +334,7 @@ only after it is stored; Discord does not redeliver a message sent while the soc
 <a id="d-030"></a>
 ## D-030 — 2026-10-03 — Devices pair with a one-time code and keep a key of their own
 A phone (or another computer) reaches the core through the same protocol as the panel. It does not get the core's
-token: the panel asks for a one-time code (8 characters without look-alikes, 10 minutes, kept in memory), shown as a
+token: the panel asks for a one-time code (8 characters without look-alikes, 10 minutes, kept as a hash in the store so a restart does not void it), shown as a
 QR with the addresses the core listens on (`apx://pair?c=…&u=…`); the device trades it in `devices.pair`, the one
 method callable without a token (`open` in the registry), for a key of its own (`apxd_…`, only its sha256 stored).
 That key passes the gate like the core's token, as the owner, and is revoked alone. Five wrong codes void every
@@ -3944,6 +3944,8 @@ launcher (`pnpm exec apx`, `bash -c`), `secrets` in any form, and the `127.0.0.1
 <a id="d-198"></a>
 ## D-198 — 2026-11-05 — Agents work in the owner's Chrome only for what they wrote in its side panel
 *Revised by [D-223](#d-223) (2026-11-12): a routine and a task the owner created reach their Chrome too.*
+*Revised by [D-226](#d-226) (2026-11-13): a helper delegated to for such work reaches it too, and a form holding a
+password is the owner's to send.*
 The owner wanted APX's Chrome extension to do what browser extensions of other agent apps do: drive their real
 Chrome, where they are signed in. APX already has two browsers (the desktop app's embedded one and the core's
 headless one), and the owner decided which one a turn uses: **the owner's Chrome only for words written in APX's
@@ -3990,9 +3992,9 @@ Revised 2026-11-06 at the owner's request: a call for their Chrome with no Chrom
 extension (`nodes/chrome-launch.ts`, Chrome first) and waits for it to connect. The agent hears what the owner has to
 do only after that: add the extension, turn it on, or open Chrome. The side panel is never needed for the connection.
 
-Known limits, left for later: with the extension in more than one browser or profile, the Chrome node that connected
-last serves every Chrome turn. Work an agent delegates from a Chrome turn uses APX's own browser. A login form Chrome
-filled from the owner's saved passwords can be sent by an agent's click: the credential guard covers typing.
+Known limit, left for later: with the extension in more than one browser or profile, the Chrome node that connected
+last serves every Chrome turn. (Work delegated from a Chrome turn and a login form Chrome filled were limits here too:
+[D-226](#d-226) closes both.)
 
 <a id="d-199"></a>
 ## D-199 — 2026-11-05 — An outside engine's checklist is APX's plan
@@ -4109,7 +4111,7 @@ is asked something. Three agents also worked one task at once, each asked mid-wa
   while any step but the last is left (the last may be the review), and with no plan, unless the owner started the
   turn. Work for someone else becomes a subtask; a lead (a CEO or CTO agent) plans with tasks and subtasks. An
   `@teammate` in a comment still opens a consult on the task (D-132), so asking stays visible and bounded (two a
-  comment, and a consult asks nobody).
+  comment, and a consult asks nobody). *Amended by [D-228](#d-228): a worker of the agent's own may help at any point.*
 - **Two at once**: `MAX_ACTIVE_DELEGATIONS` goes from three to two; the next ones wait in D-096's queue.
 - **No blank runs**: an answer posted on a task joins its text parts only, so the tool calls between them no longer
   leave dozens of empty lines.
@@ -4586,8 +4588,8 @@ was not worth a schema step).
 
 <a id="d-218"></a>
 ## D-218 — 2026-11-08 — Group chats split front from back, and a router picks who answers
-**Status: accepted by the owner on 2026-11-12.** The measurements, the mechanics compared and the prototype are in
-[GROUP_CHAT.md](GROUP_CHAT.md); the prototype still runs only with `APX_GROUP_CHATS=on` until it ships.
+**Status: accepted by the owner on 2026-11-12, and shipped:** on in every core (no flag), made from the panel's
+**New group**. The measurements, the mechanics compared and what shipped are in [GROUP_CHAT.md](GROUP_CHAT.md).
 
 A group chat of the owner and two to five agents would keep only the owner's words and each agent's final answer.
 Each member works in a closed chat of its own under the group (an `a2a` sub-thread, like a delegation), whose turn
@@ -4599,8 +4601,12 @@ Measured on a scripted launch chat with four agents: everyone answering every me
 with tool-heavy turns the split billed 64% of a shared transcript with the same router and 28% of the naive group
 chat over 32 messages on a real model, and half and 15% projected to 96. Rejected for this size of group: one shared transcript (it fills its window with
 teammates' tool output and its cache breaks as the window slides), and a rolling summary (cheapest, but it forgot a
-fact the owner asked for later; kept for rooms with many agents). Open: moving the agent's name after the prefix all
-agents share (about 8% more cached), a member asking another directly, and the panel's way to make a group.
+fact the owner asked for later; kept for rooms with many agents). Settled when it shipped: the owner makes a group in
+the panel (New chat → New group, two to five agents, an optional name); a member asks a teammate by @mentioning them
+in its answer, and that teammate answers next, once per owner message, so two agents cannot keep calling each other;
+the group shows it is at work, and who answers, while a member's turn runs. Groups are made by the owner only, take
+text only, and are not on channels. Still open: moving the agent's name after the prefix all agents share (about 8%
+more cached).
 
 <a id="d-219"></a>
 ## D-219 — 2026-11-11 — An MCP server's "All allowed" is one grant for the server, not one per tool
@@ -4719,9 +4725,13 @@ routine.
   still needs its own consent (D-165, which never covers a routine), the embedded browser still never types passwords
   or payment data (D-193), and a change to what the owner set up still needs their own word (`ownerSetting`, D-140): a
   routine is not the owner speaking.
-- **Who sets Total.** The owner, in the editor or the CLI. The super-agent may set a routine's level, but making one
-  Total keeps its card in every mode, the super-agent's own Total included: a routine on Total gives its agent more
-  than that agent has, which only the owner grants. A routine brought from another computer on Total arrives off
+- **Who sets Total.** The owner, in the editor or the CLI. An agent leaves a routine's level out unless the owner asks
+  (`routine_set`'s description). Only an agent on Total may ask for Total (`check` refuses it otherwise, before any
+  card). Giving Total to an agent that is not on Total keeps its card in every mode, the asking agent's Total included:
+  it gives that agent more than it has, which only the owner grants. For a routine whose agent is already on Total
+  (its own, or another's on Total) and that holds no lower level, it gives nothing: no card, and the routine keeps
+  acting as its agent, so it follows that agent if the owner later lowers it. The card that asks in every mode says so
+  (`kept` in `engine/owner-words.ts`), not Auto's "high-impact" line. A routine brought from another computer on Total arrives off
   (`instance/plan.ts`), as one with a command does.
 
 Rejected: offering every project's MCP tools to a routine with no project (it would reach servers and secrets of
@@ -4789,3 +4799,148 @@ the asked teammate's own leading mention goes, since the row already names them.
 
 Rejected: keeping the side opening and only marking it read (the click still showed another conversation in the
 middle), and renaming the stored titles in the core (the threads already kept would still show ids).
+
+<a id="d-226"></a>
+## D-226 — 2026-11-13 — What an agent does for the owner's work reaches their Chrome; a form holding a password is theirs to send
+D-198 kept the owner's Chrome to their own turns, and D-223 added their routines and the tasks they created. Work an
+agent handed to a teammate from one of those still used APX's own browser, so a routine that delegated "check the late
+orders in my Chrome" got a helper that could not. The owner decided: **a helper inherits the reach of the turn it works
+for**, and since routines now drive Chrome unwatched, the D-198 limit on autofilled logins is closed in the same change.
+
+- **One rule, walked up the chain** (`chromeReach` in `domain/runs.ts`, used by `engine/turn-tools.ts` and
+  `rpc/browser.ts`). A turn reaches the owner's Chrome as `all` (written in APX's panel in Chrome: every browser call
+  goes there) or `asked` (the owner's words, answers, routine or task: `browser_open` with `chrome` and `c<n>` tabs), or
+  not at all. An own agent's request (`agent` origin) takes the reach of the run that asked (`run_id`), a delegated
+  result's turn the reach of the run that delegated (the child's `parent_run_id`), an answer the reach of the run that
+  asked it; at most ten hops. So a helper of a side-panel turn browses only in Chrome, a helper of an app turn may ask
+  for it, and the delegating agent goes on with the same reach when it hears back.
+- **Still never in Chrome**: a contact's or a room's turn, mail, an outside app's agent (`external`, `client:…`) even
+  naming the owner's run, an agent asked by another agent with no owner's work above it, and a task an agent gave
+  (`task_assignment`; D-223). The owner's Chrome mark on messages (`via`) stays on their own words and the answer to
+  them, not on a helper's.
+- **A routine needs no switch of its own.** Asked again, the owner kept D-223: a routine has its agent's tools and its
+  own permission level (`Routine.autonomy`), and a new tab in Chrome is an `ask` action like any other.
+- **A form holding a password is the owner's to send.** In the owner's Chrome (`CdpPage` with `ownersBrowser`, set by
+  `apx chrome-host`), a click, or typing with Enter, on an element whose form (or document, with no form) has a password
+  field Chrome filled (`:autofill`) or with a value is refused with `credential_field`; the agent asks the owner to
+  sign in and goes on. Read from an isolated world; a node that cannot be read counts as holding one. APX's own browsers
+  are unchanged: there the agent sends the form after a sign-in it filled from a stored secret (D-193).
+
+Rejected: a per-routine Chrome switch (the owner's D-223 rule: an agent alone has the tools it has when the owner talks
+to it), a `chrome` parameter on `delegate` (a tool field paid on every turn, rule 23, for what the chain already says),
+and refusing every click in a form with a password field, filled or not (an empty one sends nothing of the owner's).
+
+<a id="d-227"></a>
+## D-227 — 2026-11-13 — APX has a voice of its own; a call is one chat with any agent, talking with the owner's model
+The owner wanted to talk to their agents by voice, as fluidly as a phone call, and wanted voice to be part of APX rather
+than a server to install (QVox) and a model server to run for the voice. A prototype proved the pieces on a Mac: voice
+activity and end of turn, whisper, Qwen3-TTS, and a model that talks while the agent works.
+
+- **APX's own voice** (`services/voice-engine.ts` → `voice/engine.py`, run with `uv`, MLX on Apple silicon): one
+  process for calls, the agents' voice notes (`POST /speech`) and transcription (`POST /transcribe`), on loopback behind
+  a secret, each part loaded when first used and the whole stopped after 10 minutes unused. It is the media services'
+  dialect `apx-voice` (`services/native-voice.ts`), put first of the speech and transcription services once, when it
+  arrives; after that the owner's order stands.
+- **Where it runs.** On Apple silicon with 32 GB or more it runs the larger models (Qwen3-TTS 1.7B, whisper
+  large-v3-turbo, 6 GB); from 8 GB the lighter ones (0.6B, whisper large-v3-turbo in 4 bits, 3 GB; whisper small misheard Spanish), and the owner may pick the larger
+  ones from 16 GB (Settings › Voices › Quality). On a 24 GB Mac with the owner's usual apps open the larger models went
+  to swap and the voice slowed tenfold. Below 8 GB, or off Apple silicon, it does not run and the owner's own services
+  stay. Where it runs it is on and downloads on its own; a scratch core (its own `APX_HOME`) does not. A file under
+  `<home>/voice` says a download of the current models finished, so a start spawns nothing to know; when the models
+  change it no longer counts and they download again, while the services keep their place and media go to the next one.
+- **Voices of its own.** Female and male in Argentine Spanish, neutral Spanish and American English, made with Qwen3-TTS
+  VoiceDesign from a description (`scripts/voice-design.py`) and cloned in context by the Base model. A prototype cloned
+  voice-library previews of real voice actors; those cannot ship.
+- **One chat, any agent.** A call is a thread of kind `call` with one agent (`engine/calls.ts`). What the owner says and
+  what the voice answers are written there, one message per turn. An ask is a sub-chat with that agent, kind `agent`
+  and `parent_id` the call, shown as a `subthread` card that settles with the answer; several run at once.
+- **Not `delegate`.** The voice is not an agent's turn, and an agent cannot delegate to itself; the ask is the owner's
+  own words relayed, so its run has the owner's origin, the agent's own model and its usual checks (D-106, D-108). It
+  starts through `engine.admit`, the core's one way to start a turn, never a second path between agents (rule 2).
+- **The model a call talks with runs in the core.** By default the owner's main model (`upkeep.agentModels()`), or the
+  one they pick for calls; the engine asks with `think` frames and the core streams the reply back, with no tools and
+  counted as aux calls (`call`). Keys stay in the core, any provider works, and nothing needs a model server of its own.
+  An earlier version gave the engine its own model server: a shared one queued it 20 s behind APX's own work.
+- **The answer is read as it comes.** The agent is asked for one or two sentences to be said aloud, and the voice reads
+  them as soon as nobody is talking, with no model in between (it once made a result up).
+- **Echo.** Chrome's echo canceller ignores Web Audio output, so the voice heard itself: the panel plays it through a
+  local WebRTC loop, which the canceller hears.
+
+Rejected: a channel (it would bring a channel's send path, rewind refusal and avatar); `threads.send` with an agent
+override (a client choosing who answers in a thread); a dedicated small voice model by default (one more thing to set
+up, and the owner's main model answers well enough to start).
+
+<a id="d-228"></a>
+## D-228 — 2026-11-14 — What a run records is what happened; a long turn re-sends only recent output
+A user moved a coding project from APX to Claude Code and Codex: in APX their agents had made branches full of
+decisions and little code. An outside audit reproduced, with APX's own loop and scripted models, how APX's records
+can count that as progress: a command that exited 7 was a step `ok`; reading files through `shell` was an action
+while `file_read` was not; a task whose only work was `implementation-plan.md` closed as done; a worker the developer
+template recommends was refused mid-plan; a long reading turn ran out of context at 42 reads with an `auth` error.
+
+- **A failed command is a failed step** (`commandFailed` in `tools/shell.ts`, `ToolFailed` in `tools/types.ts`): a
+  foreground command that exits non-zero or is stopped at its timeout throws `ToolFailed`; the model reads the same
+  text, the step and its card are `error`. Exit 1 of a search or comparison (`rg`, `grep`, `diff`, `test`, `git diff`)
+  is an answer. In a delegated run's actions, a call that failed and later passed with the same arguments (a test red,
+  then green) is not listed as failed (`actionsOf`).
+- **A read is recorded as a read**: a step's effect is `none` when the tool says the call only reads (`Tool.reads`, the
+  same judgment the policy makes), so `stalled` no longer counts `cat`/`rg` through `shell` as having changed anything,
+  and crash recovery drops an interrupted read instead of reporting its effect unknown.
+- **Claude's own tools end with their result** (`harness/claude.ts`): a `tool_use` starts its step `running`; the
+  `tool_result` with the same id ends it `ok` or, with `is_error`, `error`.
+- **Documents alone are asked about once** (`tools/task-evidence.ts`): when the assignee closes its task as done and
+  every change its runs on the task made (with their workers') was a document (`.md`, `.txt`…) and it ran no command,
+  the close is refused once, saying which documents; closing again passes (`documents_checked` on the task's
+  conversation), so a task that wanted a document costs one extra call.
+- **Work left in its worktree is asked about once** (`uncommittedWork` in `tools/task-evidence.ts`): in a live run the
+  developer fixed the code in its own worktree, closed the task as done and never committed, so the project's checkout
+  showed nothing. Closing as done, the folders its runs wrote to or ran commands in are checked; a linked git worktree
+  among them with uncommitted changes refuses the close once, naming the folder and branch (`commit_checked`). Only
+  worktrees: one is made for a piece of work, while the owner's own checkout may hold their changes. Merging stays the
+  owner's or the project's call.
+- **A worker may help mid-plan** (`midPlan` in `tools/agents.ts`): D-202's rule keeps other agents out until the plan's
+  last step; a worker of the agent's own is its help with the work, not another owner of it. The refusal is now a
+  failed step.
+- **A long turn re-sends recent output** (`harness/output-trim.ts`, `harness/native.ts`): every model call re-sends the
+  turn's tool results. Once they pass 40% of the model's context or 240k characters (about 60k tokens), older results
+  over 400 characters become the same stub old turns get ("call it again if you need it"), down to half of that; the
+  newest two stay whole, calls stay paired and the model log keeps everything. Clearing in steps keeps the prefix the
+  same between clearings, so the provider's cache still holds. The history projection does the same to the newest turn
+  when it alone passes its budget.
+- **Too long is `context`, and is tried once more**: a 400/413 that says the prompt is too long, or every model
+  passed over because the chat does not fit, is a `context` error, no longer `auth`; the native loop then keeps only
+  the newest result and calls once more.
+- **Team messages pass on work**: SAFETY now names contacts' and outside agents' messages as data, and says the owner's
+  own agents (`trust="team"`) pass on work, matching `frameInput` (D-071).
+
+Rejected: counting lines, files or branches as progress (they reward the same churn), a review round on every close
+(D-188), turning every non-zero exit into a turn error (a search that finds nothing exits 1), and clearing output on
+every call (it would change the cached prefix each time).
+
+
+<a id="d-229"></a>
+## D-229 — 2026-11-14 — A task takes fewer calls, and a connected app's tools are found, not sent every call
+Owners report that APX spends many tokens and steps on one thing. Measured on a small code task run through APX's own
+loop: ChatGPT took 19 model calls and 312k input tokens; Gemini 3.5 Flash about 22 calls and 377k, and hit Gemini's
+per-minute limit 25 seconds in (120k tokens in 8 calls). Output was under 2k tokens in both: the cost is what every call
+re-sends. Each call carried about 18k tokens before the conversation: 46k chars of tool definitions (74 tools, 60% of
+the call), 19k of system prompt and 8k of turn input. Seven of the 19 calls were bookkeeping (four plan updates, two
+status changes, one note).
+
+- **The plan moves the card** (`tasks.update`): the assignee writing its task's plan while the task sits before
+  Doing moves it to Doing, so no `task_update` call starts the work. The owner's edits never move it.
+- **Closing finishes the step** (`tasks.close`): the assignee closing as done marks the plan's step in progress done;
+  pending steps stay as they were. The task block says to close with no plan or status update first, to mark steps in
+  the same response as the next call, and to use review only when the work must be checked before it is done.
+- **A connected app's tools are found** (`appOf` in `tools/mcp-bridge.ts`, `turnTools`): Calendar, Gmail, Drive and
+  Asana tools (9k chars with Google connected) are no longer sent on every call; `mcp_search` names the connected apps
+  and finds their tools like an MCP server's (D-053), and `mcp_call` runs them, or the model names one directly once
+  found. Every check, card and step is that tool's own. A turn whose tools were named one by one (a worker, WhatsApp's
+  handoff) keeps them direct. `mcp_call` still refuses APX's other tools.
+- **Engineering templates name their tools** (`tools:` in the product team's developer, QA, architect and security):
+  files, shell, tasks, memory, the browser, delegation, MCP and the web, without widgets, channels, contacts, routines
+  or account tools.
+
+Rejected: hiding the plan tool (the owner reads it and the progress guard counts it), deferring every rarely used tool
+(the super-agent's own tools are what most owners use: a search before each would add calls), and a lower reasoning
+effort by default (output was not the cost).

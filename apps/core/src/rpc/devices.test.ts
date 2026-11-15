@@ -4,11 +4,15 @@ import os from "node:os";
 import path from "node:path";
 import { after, before, test } from "node:test";
 import { ApxClient, ApxError, pairingLink } from "@apx/protocol/client";
+import { createBus } from "../bus.ts";
 import { testConfig } from "../config.ts";
+import { openDb } from "../db/db.ts";
+import { createStore } from "../domain/store.ts";
 import { say, scriptedLlm } from "../engine/testkit.ts";
 import { createCore } from "../server.ts";
 import { reachableAt } from "../server-wiring.ts";
-import { removeDir } from "../testkit/platform.ts";
+import { removeDir, tempDir } from "../testkit/platform.ts";
+import { deviceHandlers } from "./devices.ts";
 
 const TOKEN = "core-token-for-devices";
 let core: Awaited<ReturnType<typeof createCore>>;
@@ -213,4 +217,58 @@ test("the QR names the code and every address; a core on all interfaces lists it
   assert.deepEqual(reachableAt("127.0.0.1", 7440), []);
   assert.deepEqual(reachableAt("apx.example.com", 7440), ["http://apx.example.com:7440"]);
   for (const u of reachableAt("0.0.0.0", 7440)) assert.match(u, /^http:\/\/\d+\.\d+\.\d+\.\d+:7440$/);
+});
+
+test("a code shown before the core restarts still pairs after it, once", async () => {
+  const dir = tempDir("apx-devices-restart-");
+  const config = { ...testConfig({ home: dir.path }), token: TOKEN };
+  let first: Awaited<ReturnType<typeof createCore>> | undefined = await createCore(config, {
+    quiet: true,
+    llm: scriptedLlm(() => say("ok")),
+  });
+  let second: Awaited<ReturnType<typeof createCore>> | undefined;
+  try {
+    const { code } = await new ApxClient({ url: first.url, token: TOKEN }).call("devices.pair_start", {});
+    await first.close();
+    first = undefined;
+    second = await createCore(config, { quiet: true, llm: scriptedLlm(() => say("ok")) });
+    const phone = new ApxClient({ url: second.url });
+    const { device } = await phone.call("devices.pair", { code, name: "After restart" });
+    assert.equal(device.name, "After restart");
+    await assert.rejects(phone.call("devices.pair", { code, name: "Twice" }), unauthorized);
+  } finally {
+    await first?.close();
+    await second?.close();
+    await dir.remove();
+  }
+});
+
+test("a restart neither stretches a code's ten minutes nor lifts the pause after wrong codes", async () => {
+  const dir = tempDir("apx-devices-clock-");
+  const db = openDb(dir.path);
+  let t = Date.parse("2026-01-01T00:00:00Z");
+  const clock = () => t;
+  const boot = () => deviceHandlers(createStore(db, createBus()), { addresses: () => [], clock });
+  const pair = (h: ReturnType<typeof boot>, code: string) => () =>
+    h["devices.pair"]({ code, name: "x", platform: "other" });
+  try {
+    const before = boot();
+    const late = before["devices.pair_start"]().code;
+    t += 9 * 60_000;
+    const after = boot();
+    t += 2 * 60_000;
+    assert.throws(pair(after, late), /unknown or expired/);
+
+    const kept = after["devices.pair_start"]().code;
+    // The expired code was the first wrong one.
+    for (let i = 1; i < 5; i++) assert.throws(pair(after, `WRONG${i}XX`), /unknown or expired/);
+    const again = boot();
+    assert.throws(pair(again, kept), /too many wrong codes/);
+    t += 5 * 60_000;
+    // The pause voided the code that was waiting: a new one is asked for.
+    assert.throws(pair(again, kept), /unknown or expired/);
+  } finally {
+    db.close();
+    await dir.remove();
+  }
 });

@@ -11,11 +11,11 @@ import { isNewChat, useNewChat } from "../data/newChat.ts";
 import { useData } from "../data/state.ts";
 import { useConversationTask } from "../data/tasks.ts";
 import { useT } from "../i18n/index.ts";
-import { ComputerProgress, ContactChat, RoomPanel, ScreenLive } from "../lazy.ts";
+import { ComputerProgress, ContactChat, GroupPart, RoomPanel, ScreenLive } from "../lazy.ts";
 import { go, useNav } from "../shell/nav.ts";
 import { ChatHeader } from "./ChatHeader.tsx";
 import { ChatComposer } from "./composer/ChatComposer.tsx";
-import { closeRoomCard, useRoomCard } from "./roomCard.ts";
+import { closeRoomCard, useGroupCard, useRoomCard } from "./roomCard.ts";
 import { Transcript } from "./Transcript.tsx";
 
 const COMPUTER = Boolean(window.apxDesktop?.onComputerActivity);
@@ -51,7 +51,10 @@ export function ChatView({
   const task = useConversationTask(thread);
   // A room's card docked beside the chat leaves its header the room of a narrow one: the panels go in a menu.
   const roomCard = useRoomCard();
-  const docked = Boolean(thread?.channel && !thread.channel.person_id) && roomCard && window.innerWidth >= 1280;
+  const groupCard = useGroupCard();
+  const docked =
+    (thread?.kind === "group" ? groupCard : Boolean(thread?.channel && !thread.channel.person_id) && roomCard) &&
+    window.innerWidth >= 1280;
 
   useEffect(() => {
     if (threadId && ready && load == null && !isNewChat(threadId)) void loadThread(threadId);
@@ -194,7 +197,14 @@ function ChatSkeleton() {
  */
 function RoomCard({ thread }: { thread: Thread }) {
   const open = useRoomCard();
+  const groupOpen = useGroupCard();
   const channel = useChannels((s) => s.channels.find((c) => c.id === thread.channel?.id));
+  if (thread.kind === "group")
+    return groupOpen ? (
+      <Suspense fallback={null}>
+        <GroupPart part="card" thread={thread} onClose={closeRoomCard} />
+      </Suspense>
+    ) : null;
   if (!open || !channel || !thread.channel || thread.channel.person_id) return null;
   return (
     <Suspense fallback={null}>

@@ -149,6 +149,13 @@ new, in English and Spanish and in their words; `text` is what the super-agent i
 they have not heard that applies; a fresh install hears none. Before tagging, check that each owner-facing `feat`
 since the last tag either has an entry or is not worth offering.
 
+`since` is a real release, never a guess. `pnpm check:since` (in preflight) reads every news entry and welcome slide:
+one the newest release tag already has keeps its `since`; one no release has yet must name the next release of its
+line, which is the next minor for `staging`'s work and the next patch (or minor) for `main`'s. A release already cut
+without it is refused. Staging ships in the next minor, so a feature merged into `staging` after `v2.14.3` says
+`2.15.0`, not `2.14.4`. `release:check --tag v2.x.y` runs `check:since --release v2.x.y` on its HEAD and tags only
+when everything new since the last tag says that version.
+
 ## Issues a release fixes
 
 A commit that fixes a GitHub issue ends its message with a trailer, one per issue: `Issue: #105`. Once that commit

@@ -1,6 +1,6 @@
 // Pairing the owner's devices: the panel asks for a one-time code (shown as a QR with the core's addresses), the device
-// trades it for a token of its own. Codes live in memory for 10 minutes; too many wrong ones void them all for a while,
-// so a code cannot be guessed from the network.
+// trades it for a token of its own. Codes last 10 minutes, stored as hashes so one still on screen survives a restart;
+// too many wrong ones void them all for a while, so a code cannot be guessed from the network.
 import { randomInt } from "node:crypto";
 import type { Store } from "../domain/store.ts";
 import { CallError } from "../errors.ts";
@@ -19,42 +19,52 @@ export function deviceHandlers(
   opts: { addresses: () => string[]; clock?: () => number; onRevoke?: (id: string) => void } = { addresses: () => [] },
 ) {
   const clock = opts.clock ?? Date.now;
-  const codes = new Map<string, number>();
-  let misses = 0;
-  let lockedUntil = 0;
-
+  const typedCode = (code: string) => store.devices.codeHash(code.toUpperCase().replace(/[\s-]/g, ""));
   const newCode = () => Array.from({ length: CODE_LEN }, () => ALPHABET[randomInt(ALPHABET.length)]).join("");
-  const sweep = () => {
-    for (const [c, until] of codes) if (until <= clock()) codes.delete(c);
+  /** The stored state without the codes that ran out. */
+  const pending = () => {
+    const state = store.devices.pairing();
+    for (const [c, until] of Object.entries(state.codes)) if (until <= clock()) delete state.codes[c];
+    return state;
   };
 
   return {
     "devices.pair_start": () => {
-      sweep();
+      const state = pending();
       const code = newCode();
       const until = clock() + CODE_TTL_MS;
-      codes.set(code, until);
+      state.codes[typedCode(code)] = until;
+      store.devices.savePairing(state);
       return { code, expires_at: new Date(until).toISOString(), urls: opts.addresses() };
     },
-    "devices.pair_cancel": ({ code }) => ({ canceled: codes.delete(code.toUpperCase().replace(/[\s-]/g, "")) }),
+    "devices.pair_cancel": ({ code }) => {
+      const state = pending();
+      const hash = typedCode(code);
+      const canceled = hash in state.codes;
+      delete state.codes[hash];
+      store.devices.savePairing(state);
+      return { canceled };
+    },
     "devices.pair": ({ code, name, platform }) => {
-      sweep();
-      if (clock() < lockedUntil)
+      const state = pending();
+      if (clock() < state.locked_until)
         throw new CallError({
           code: "unauthorized",
           message: "too many wrong codes: ask for a new one in a few minutes",
         });
-      const typed = code.toUpperCase().replace(/[\s-]/g, "");
-      if (!codes.has(typed)) {
-        if (++misses >= MAX_MISSES) {
-          codes.clear();
-          misses = 0;
-          lockedUntil = clock() + LOCKOUT_MS;
+      const hash = typedCode(code);
+      if (!(hash in state.codes)) {
+        if (++state.misses >= MAX_MISSES) {
+          state.codes = {};
+          state.misses = 0;
+          state.locked_until = clock() + LOCKOUT_MS;
         }
+        store.devices.savePairing(state);
         throw new CallError({ code: "unauthorized", message: "unknown or expired code" });
       }
-      codes.delete(typed);
-      misses = 0;
+      delete state.codes[hash];
+      state.misses = 0;
+      store.devices.savePairing(state);
       return store.devices.create(name, platform);
     },
     "devices.list": () => ({ devices: store.devices.list() }),

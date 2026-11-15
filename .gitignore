@@ -50,3 +50,7 @@ e2e/install/authorized_keys
 .apc
 
 *.log
+
+# Python caches from the voice engine (apps/core/src/voice)
+__pycache__/
+.ruff_cache/

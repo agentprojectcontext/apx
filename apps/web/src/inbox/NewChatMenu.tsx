@@ -6,7 +6,7 @@ import { DEFAULT_PID, findProject, inProject, isListed, realProjectId } from "..
 import { newChatId } from "../data/newChat.ts";
 import { useData } from "../data/state.ts";
 import { useT } from "../i18n/index.ts";
-import { NewAgentDialog, SearchSelect } from "../lazy.ts";
+import { NewAgentDialog, NewGroupDialog, SearchSelect } from "../lazy.ts";
 import { go } from "../shell/nav.ts";
 
 /** Agents the owner talked to lately, shown first. */
@@ -65,6 +65,7 @@ export function NewChatMenu({
   const pid = realProjectId(projectId);
   const all = useAgentOptions(projectId, !projectId, projectId ? "secretary" : "all");
   const [creating, setCreating] = useState(false);
+  const [grouping, setGrouping] = useState(false);
   const beside = !projectId && !onStart;
   const home = findProject(projects, projectId ?? DEFAULT_PID);
 
@@ -134,22 +135,40 @@ export function NewChatMenu({
             onStart || !home
               ? undefined
               : (close) => (
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    leadingIcon={<Icons.Plus size={14} />}
-                    title={t("team.new.title")}
-                    onClick={() => {
-                      close();
-                      setCreating(true);
-                    }}
-                  >
-                    {t("team.new.title")}
-                  </Button>
+                  <>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      leadingIcon={<Icons.Plus size={14} />}
+                      title={t("team.new.title")}
+                      onClick={() => {
+                        close();
+                        setCreating(true);
+                      }}
+                    >
+                      {t("team.new.title")}
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      leadingIcon={<Icons.Users size={14} />}
+                      onClick={() => {
+                        close();
+                        setGrouping(true);
+                      }}
+                    >
+                      {t("group.new")}
+                    </Button>
+                  </>
                 )
           }
         />
       </Suspense>
+      {grouping && (
+        <Suspense fallback={null}>
+          <NewGroupDialog projectId={projectId} onClose={() => setGrouping(false)} />
+        </Suspense>
+      )}
       {creating && home && (
         <Suspense fallback={null}>
           <NewAgentDialog

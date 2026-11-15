@@ -45,6 +45,7 @@ import { watchAgentReviews } from "./domain/agent-review.ts";
 import { signatureFor } from "./domain/email-signature-settings.ts";
 import { cleanUpCapturedNotes } from "./domain/memory-capture-cleanup.ts";
 import { tellWaitingNotes } from "./domain/memory-notice.ts";
+import { ownerIdentity } from "./domain/owner.ts";
 import { lineage } from "./domain/projects.ts";
 import { parseRef } from "./domain/refs.ts";
 import { TERMINAL } from "./domain/runs.ts";
@@ -56,6 +57,7 @@ import { createAside } from "./engine/aside.ts";
 import { createAttention } from "./engine/attention.ts";
 import { keepAwake, sleepWatch } from "./engine/awake.ts";
 import { calendarReminders } from "./engine/calendar-reminders.ts";
+import { createCalls } from "./engine/calls.ts";
 import { createEngine, type RunTimers } from "./engine/engine.ts";
 import { createGroups } from "./engine/group.ts";
 import type { InputWaits } from "./engine/inputs.ts";
@@ -135,9 +137,11 @@ import {
 import { CODEX_IMAGE_SERVICE, CODEX_IMAGES, createCodexImages } from "./services/codex-images.ts";
 import { createLocalEmbeddings } from "./services/local-embed.ts";
 import { createModelInstaller } from "./services/local-whisper.ts";
+import { createNativeVoice } from "./services/native-voice.ts";
 import { createPush } from "./services/push.ts";
 import { createServices } from "./services/registry.ts";
 import { mediaData } from "./services/uploads.ts";
+import { createVoiceEngine } from "./services/voice-engine.ts";
 import { createSignIn } from "./sign-in.ts";
 import { syncRuntimeSkills } from "./skills/runtimes.ts";
 import { skillsFor } from "./skills/skills.ts";
@@ -454,7 +458,14 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
   const { hooks, plugins, extensions } = extensionStack({ store, secrets, bus, log, home: config.home });
   const upkeep = createUpkeep({ store, llm, log });
   const aside = createAside({ store, llm });
+  const voiceEngine = createVoiceEngine({
+    log,
+    home: config.home,
+    owner: () => ownerIdentity(store).name,
+    quality: () => store.settings.read("voice").quality ?? "auto",
+  });
   const services = createServices({
+    voice: voiceEngine,
     store,
     secrets,
     home: config.home,
@@ -666,7 +677,35 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
       groups.afterRun(run);
     },
   });
-  const groups = createGroups({ store, admit: engine.admit, judge: upkeep.judge, enabled: config.groupChats });
+  const native = createNativeVoice({ store, services, engine: voiceEngine, log, auto: config.voice.auto });
+  const voice = {
+    engine: voiceEngine,
+    native,
+    calls: createCalls({
+      store,
+      bus,
+      admit: engine.admit,
+      log,
+      llm,
+      // The owner's pick for calls, else their main model; the agent called keeps its own for the work.
+      models: () => {
+        const m = native.callModel();
+        return m ? [m] : upkeep.agentModels();
+      },
+    }),
+  };
+  try {
+    native.boot();
+  } catch (err) {
+    log.warn({ err: errorMessage(err, 300) }, "APX's voice did not start");
+  }
+  const groups = createGroups({
+    store,
+    admit: engine.admit,
+    judge: upkeep.judge,
+    agentModels: upkeep.agentModels,
+    auxModels: () => upkeep.auxModels(),
+  });
   // The Mac stays awake while APX works for the owner: a turn, a command, or a computer coming up (engine/awake.ts).
   const awake = keepAwake({
     busy: () =>
@@ -826,6 +865,7 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
       chatgpt: { login: chatgpt, v1Home: config.v1.home },
       localModels,
       localEmbeds,
+      voice,
       app: {
         harnesses,
         v1: config.v1,
@@ -873,7 +913,7 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
   tellWaitingNotes(store);
   memoryMaintenance.start();
 
-  const transport = await listen(config, { dispatch, store, log, identity, broker, bus, vm });
+  const transport = await listen(config, { dispatch, store, log, identity, broker, bus, vm, voice });
   listening = transport.port;
   // Agents' shells and harnesses reach this core with `apx`, whatever the owner's PATH holds.
   try {
@@ -940,6 +980,7 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
     flows,
     telemetry,
     computer: vm,
+    voice,
     async close() {
       stopAgentReviews();
       awake.close();
@@ -955,6 +996,8 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
       telemetry.stop();
       chatgpt.stop();
       localModels.cancel();
+      voice.engine.close();
+      voice.native.close();
       await widgetPages?.closeAll().catch(() => {});
       headless?.close();
       scheduler.stop();

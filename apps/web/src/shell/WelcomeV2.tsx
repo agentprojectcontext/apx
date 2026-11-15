@@ -1,7 +1,10 @@
 import "../styles/welcome.css";
 import { Button, Dialog, IconButton, Icons } from "@apx/ui";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import group1 from "../assets/welcome/group-1.jpg";
+import group2 from "../assets/welcome/group-2.jpg";
+import group3 from "../assets/welcome/group-3.jpg";
 import slide1 from "../assets/welcome/slide-1.jpg";
 import slide2 from "../assets/welcome/slide-2.jpg";
 import slide3 from "../assets/welcome/slide-3.jpg";
@@ -16,23 +19,41 @@ import { closeCard, useClosedCards } from "../data/cornerCards.ts";
 import { useLanguage, useT } from "../i18n/index.ts";
 import { enWelcome, type WelcomeKey } from "../i18n/welcome-en.ts";
 import { esWelcome } from "../i18n/welcome-es.ts";
-import { WELCOME_FILM, WELCOME_SLIDES } from "./welcomeFilm.ts";
+import { type SlideKey, seenBefore, slidesToShow, type WelcomeSlide } from "./welcomeFilm.ts";
 
-// What changed since 2.14, one section per slide, each its own short clip with music, played from the docs site with no
-// player chrome. Their titles are written in each language, so each has its own cut; where one cannot load, that
-// slide's still stays in its place.
+// What is new, one feature per slide, each its own short clip with music, played from the docs site with no player
+// chrome. Their titles are written in each language, so each has its own cut; where one cannot load, that slide's
+// still stays in its place.
 const clip = (lang: "es" | "en", key: string) => `https://apxagent.app/media/whats-new/${lang}/${key}.mp4`;
-const POSTERS = [slide1, slide2, slide3, slide4, slide5, slide6, slide7, slide8, slide9, slide10];
+const POSTERS: Record<SlideKey, string> = {
+  groups: group1,
+  "group-answers": group2,
+  "group-card": group3,
+  sidebar: slide1,
+  projects: slide2,
+  routines: slide3,
+  inbox: slide4,
+  channels: slide5,
+  signin: slide6,
+  apps: slide7,
+  flows: slide8,
+  gauges: slide9,
+  review: slide10,
+};
 /** How far a finger must travel sideways to change slides. */
 const SWIPE_PX = 48;
 
-/** Said once per device and film: closing it in any way is seen, and a new film shows once again. */
+/** Each slide is said once per device: closing the welcome in any way has seen the ones it held. */
 export function WelcomeV2() {
-  const seen = useClosedCards((s) => s.welcome === WELCOME_FILM);
-  return seen ? null : <Welcome />;
+  const kept = useClosedCards((s) => s.welcomeSeen);
+  const film = useClosedCards((s) => s.welcome);
+  const seen = useMemo(() => kept ?? seenBefore(film), [kept, film]);
+  const slides = useMemo(() => slidesToShow(import.meta.env.VITE_APX_VERSION, seen), [seen]);
+  if (!slides.length) return null;
+  return <Welcome slides={slides} onClose={() => closeCard({ welcomeSeen: [...seen, ...slides.map((s) => s.key)] })} />;
 }
 
-function Welcome() {
+function Welcome({ slides, onClose }: { slides: WelcomeSlide[]; onClose(): void }) {
   const t = useT();
   const es = useLanguage() === "es";
   const w = es ? esWelcome : enWelcome;
@@ -40,10 +61,10 @@ function Welcome() {
   const [failed, setFailed] = useState<number[]>([]);
   const [sound, setSound] = useState(false);
   const touchX = useRef<number | null>(null);
-  const last = WELCOME_SLIDES.length - 1;
-  const slide = WELCOME_SLIDES[at] ?? WELCOME_SLIDES[0];
+  const last = slides.length - 1;
+  const slide: SlideKey = (slides[at] ?? slides[0])?.key ?? "groups";
   const title = w[`welcome.${slide}.title` as WelcomeKey];
-  const close = () => closeCard({ welcome: WELCOME_FILM });
+  const close = onClose;
   const go = (step: number) => setAt((i) => Math.max(0, Math.min(last, i + step)));
 
   useEffect(() => {
@@ -106,13 +127,13 @@ function Welcome() {
         }}
       >
         {failed.includes(at) ? (
-          <img src={POSTERS[at]} alt={title} />
+          <img src={POSTERS[slide]} alt={title} />
         ) : (
           <>
             <video
               key={slide}
               src={clip(es ? "es" : "en", slide)}
-              poster={POSTERS[at]}
+              poster={POSTERS[slide]}
               aria-label={title}
               muted={!sound}
               autoPlay

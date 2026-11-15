@@ -29,7 +29,7 @@ const ROUTER = "You pick who answers";
 const lastUser = (r: LlmRequest) => String(r.messages.findLast((m) => m.role === "user")?.content ?? "");
 const system = (r: LlmRequest) => String(r.messages[0]?.content ?? "");
 
-async function group(o: { router: string[]; maraFails?: boolean }) {
+async function group(o: { router: string[]; maraFails?: boolean; maraSays?: string }) {
   const ids: Record<string, string> = {};
   const llm = scriptedLlm((_req, ctx) => {
     if (ctx.system.startsWith(ROUTER)) return say(JSON.stringify({ speakers: o.router.map((n) => ids[n]) }));
@@ -37,11 +37,11 @@ async function group(o: { router: string[]; maraFails?: boolean }) {
       return ctx.afterTool ? say("Hosting is 1,240 USD a month.") : callTool("c1", "lookup", { about: "hosting" });
     if (ctx.system.startsWith("You are Mara")) {
       if (o.maraFails) throw new Error("the model is down");
-      return say("Price it at 6 USD a month.");
+      return say(o.maraSays ?? "Price it at 6 USD a month.");
     }
     return say("Noted.");
   });
-  const env = await startCore({ llm, aux: true, groupChats: true, extraTools: [lookup] });
+  const env = await startCore({ llm, aux: true, extraTools: [lookup] });
   for (const name of ["Theo", "Mara"])
     ids[name] = (await env.client.call("agents.create", { slug: name.toLowerCase(), name })).id;
   const chat = await env.client.call("threads.group", { agent_ids: ["superagent", ids.Theo ?? "", ids.Mara ?? ""] });
@@ -154,11 +154,126 @@ test("a member whose turn fails leaves a note, and the next in line still answer
   }
 });
 
-test("a core without the flag makes no group chats", async () => {
-  const env = await startCore({ llm: scriptedLlm(() => say("ok")) });
+test("a teammate an answer @mentions answers next, once per owner message", async () => {
+  const { env, llm, ids, chat, said } = await group({ router: ["Mara"], maraSays: "@theo what does hosting cost?" });
   try {
-    const theo = (await env.client.call("agents.create", { slug: "theo", name: "Theo" })).id;
-    await assert.rejects(env.client.call("threads.group", { agent_ids: ["superagent", theo] }), /group chats are off/);
+    await env.client.call("threads.send", { thread: chat.id, text: "What should we charge?" });
+    const messages = await said(3);
+    assert.deepEqual(
+      messages.map((m) => (m.author.kind === "agent" ? m.author.id : m.author.kind)),
+      ["user", ids.Mara, ids.Theo],
+    );
+    const theo = lastUser(llm.calls.find((r) => system(r).startsWith("You are Theo")) as LlmRequest);
+    assert.match(theo, /<agent_message from="Mara" trust="team">\n@theo what does hosting cost\?/);
+    await waitFor(
+      async () => (await env.client.call("threads.get", { thread: chat.id })).thread.state === "completed",
+      "the group at rest",
+    );
+    // Theo's answer names nobody, and Mara is not called in twice for the same owner message.
+    const got = await env.client.call("threads.get", { thread: chat.id });
+    assert.equal(got.messages.length, 3);
+    assert.equal(llm.calls.filter((r) => system(r).startsWith("You are Mara")).length, 1);
+  } finally {
+    await env.core.close();
+  }
+});
+
+test("the group shows it is at work while a member answers, and Stop ends the line", async () => {
+  const { env, chat } = await group({ router: ["Theo", "Mara"] });
+  let open = () => {};
+  gate = new Promise((resolve) => {
+    open = resolve;
+  });
+  try {
+    await env.client.call("threads.send", { thread: chat.id, text: "Hosting and price?" });
+    await waitFor(
+      async () => (await env.client.call("threads.get", { thread: chat.id })).thread.state === "working",
+      "the group at work",
+    );
+    await env.client.call("threads.cancel", { thread: chat.id });
+    open();
+    await waitFor(
+      async () => (await env.client.call("threads.get", { thread: chat.id })).thread.state !== "working",
+      "the group stopped",
+    );
+    const got = await env.client.call("threads.get", { thread: chat.id });
+    // Theo was stopped and Mara, next in line, never started.
+    assert.deepEqual(
+      got.messages.map((m) => m.author.kind),
+      ["user"],
+    );
+    assert.ok(env.core.store.threads.sessions(chat.id).every((t) => t.agent_ids[0] !== chat.agent_ids[2]));
+  } finally {
+    gate = undefined;
+    await env.core.close();
+  }
+});
+
+test("a member named without @ answers with no router call", async () => {
+  const { env, llm, ids, chat, said } = await group({ router: ["Theo"] });
+  try {
+    await env.client.call("threads.send", { thread: chat.id, text: "no sé por qué no responde Mara?" });
+    const messages = await said(2);
+    const last = messages.at(-1)?.author;
+    assert.equal(last?.kind === "agent" ? last.id : last?.kind, ids.Mara);
+    assert.equal(llm.calls.filter((r) => system(r).startsWith(ROUTER)).length, 0, "no router call");
+  } finally {
+    await env.core.close();
+  }
+});
+
+test("the owner changes who is in the group, a member's model there and the router's model", async () => {
+  const { env, llm, ids, chat, said } = await group({ router: ["Theo"] });
+  try {
+    const iris = (await env.client.call("agents.create", { slug: "iris", name: "Iris" })).id;
+    const set = await env.client.call("threads.group_set", {
+      thread: chat.id,
+      agent_ids: ["superagent", ids.Theo ?? "", iris],
+      models: { [ids.Theo ?? ""]: "fake/fake-2" },
+      router_model: "fake/fake-3",
+    });
+    assert.deepEqual(set.agent_ids, ["superagent", ids.Theo, iris]);
+    assert.deepEqual(set.models, { [ids.Theo ?? ""]: "fake/fake-2" });
+    assert.equal(set.router_model, "fake/fake-3");
+    assert.deepEqual((await env.client.call("threads.get", { thread: chat.id })).thread.agent_ids, set.agent_ids);
+    // Nobody named: the router picks, on its own model.
+    await env.client.call("threads.send", { thread: chat.id, text: "What does hosting cost?" });
+    await said(2);
+    const router = llm.calls.find((r) => system(r).startsWith(ROUTER));
+    assert.deepEqual(router?.models, ["fake/fake-3"], "the router runs on the model picked for it");
+    const theo = llm.calls.find((r) => system(r).startsWith("You are Theo"));
+    assert.equal(theo?.models[0], "fake/fake-2", "Theo answers with the model set for him in the group");
+    // Back to his own model and the auxiliary router; a group keeps two to five members.
+    const reset = await env.client.call("threads.group_set", {
+      thread: chat.id,
+      models: { [ids.Theo ?? ""]: null },
+      router_model: null,
+    });
+    assert.deepEqual(reset.models, {});
+    assert.equal(reset.router_model, undefined);
+    await assert.rejects(env.client.call("threads.group_set", { thread: chat.id, agent_ids: [iris, iris] }), /2 to 5/);
+  } finally {
+    await env.core.close();
+  }
+});
+
+test("one model for the whole group goes over each member's, and the card is told what runs otherwise", async () => {
+  const { env, llm, ids, chat, said } = await group({ router: ["Theo"] });
+  try {
+    const set = await env.client.call("threads.group_set", {
+      thread: chat.id,
+      models: { [ids.Mara ?? ""]: "fake/fake-2" },
+      model: "fake/fake-4",
+    });
+    assert.equal(set.model, "fake/fake-4");
+    assert.ok(set.defaults.members[ids.Theo ?? ""], "each member's own model is named");
+    await env.client.call("threads.send", { thread: chat.id, text: "@Mara and @Theo, one line each" });
+    await said(3);
+    for (const name of ["Mara", "Theo"])
+      assert.equal(llm.calls.find((r) => system(r).startsWith(`You are ${name}`))?.models[0], "fake/fake-4");
+    const off = await env.client.call("threads.group_set", { thread: chat.id, model: null });
+    assert.equal(off.model, undefined);
+    assert.deepEqual(off.models, { [ids.Mara ?? ""]: "fake/fake-2" }, "each member's pick is kept for when it is off");
   } finally {
     await env.core.close();
   }

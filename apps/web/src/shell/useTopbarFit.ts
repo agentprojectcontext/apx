@@ -44,7 +44,7 @@ export function useTopbarFit() {
       bar?.style.setProperty("--topbar-search-w", `${SEARCH.icon}px`);
       const left = row.getBoundingClientRect().left;
       const minimum = Number(getComputedStyle(row).getPropertyValue("--topbar-min-fit")) || 0;
-      for (let density = minimum; density <= 4; density++) {
+      for (let density = minimum; density <= 5; density++) {
         row.dataset.fit = String(density);
         if (
           ![...row.children].some((child) => {

@@ -2,12 +2,12 @@
 // and what is turned on; MCP's join behind the bridge on first use, and never in a contact's turn.
 import { BROWSER_CAP, CHROME_CAP } from "@apx/protocol";
 import { memorySettings } from "../domain/memory-settings.ts";
-import { answersChecked, inChrome, type Origin, ownersTask, ownersWork } from "../domain/runs.ts";
+import { answersChecked, chromeReach, type Origin, ownersTask, reachIn } from "../domain/runs.ts";
 import type { Store } from "../domain/store.ts";
 import { CONTACT_TOOLS, contactHolder, contactToolNames } from "../tools/contact.ts";
 import { STICKER_TOOL, stickersFor } from "../tools/directory.ts";
 import { IMESSAGE_TOOLS } from "../tools/imessage.ts";
-import { MCP_CALL, MCP_SEARCH, mcpBridge } from "../tools/mcp-bridge.ts";
+import { appOf, MCP_CALL, MCP_SEARCH, mcpBridge } from "../tools/mcp-bridge.ts";
 import { inherit } from "../tools/policy.ts";
 import type { Tool } from "../tools/types.ts";
 import { COMPUTER_TOOL } from "../tools/vm.ts";
@@ -124,12 +124,9 @@ const VM_HOST_TOOLS = new Set([
 export async function turnTools(deps: TurnDeps, turn: Turn) {
   const inVm = deps.vm?.hasThread(turn.thread.id);
   // Browser tools are offered with no other browser in a turn from APX's panel in Chrome, and in the owner's own work
-  // (their turn, their routine, their task) while their Chrome is connected: those can browse there.
-  const askedIn = (id: string) => deps.store.runs.get(deps.store.inputs.get(id)?.run_id ?? "")?.input?.origin;
-  const chrome =
-    inChrome(turn.input.origin, askedIn) ||
-    (Boolean(deps.hasCap?.(CHROME_CAP)) &&
-      ownersWork(turn.input.origin, askedIn, ownersTask(deps.store.tasks, turn.thread.task_id)));
+  // (their turn, routine or task, and what their agents do for it) while their Chrome is connected: those browse there.
+  const reach = chromeReach(turn.input.origin, ownersTask(deps.store.tasks, turn.thread.task_id), reachIn(deps.store));
+  const chrome = reach === "all" || (reach === "asked" && Boolean(deps.hasCap?.(CHROME_CAP)));
   // Offered only to an agent the owner allowed: one without it never asks to use it (DECISIONS.md#d-154).
   const computerOn = Boolean(deps.vm?.serves(turn.thread.id) && deps.vm.permitted(turn.agent.id, turn.thread.id));
   const sealed = turn.audience.kind === "contact";
@@ -196,5 +193,12 @@ export async function turnTools(deps: TurnDeps, turn: Turn) {
       ((callers.length < MAX_DEPTH && !turn.worker) || !SESSION_TOOLS.has(t.name)) &&
       (!only || only.has(t.name) || (t.name === MCP_SEARCH && only.has(MCP_CALL))),
   );
-  return { policy, tools, mcpLate };
+  // A connected app's tools are found and run through the bridge, unless the turn's tools were named one by one.
+  const apps = only ? [] : tools.filter((t) => appOf(t.name));
+  if (!apps.length) return { policy, tools, mcpLate };
+  const late = async () => [...apps, ...(await mcpLate())];
+  const direct = tools.filter((t) => !appOf(t.name) && t.name !== MCP_SEARCH && t.name !== MCP_CALL);
+  const appNames = [...new Set(apps.map((t) => appOf(t.name) ?? ""))];
+  const mcp = tools.some((t) => t.name === MCP_SEARCH) ? servers : [];
+  return { policy, tools: [...direct, ...mcpBridge(mcp, late, appNames)], mcpLate: late };
 }

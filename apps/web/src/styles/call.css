@@ -1,0 +1,147 @@
+/* The call card: floating under the top bar at the right, over the call's chat, clear of the composer. */
+.callcard {
+  position: fixed;
+  top: calc(var(--shell-topbar-h, 44px) + 12px);
+  right: 16px;
+  z-index: 40;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: min(300px, calc(100vw - 32px));
+  padding: 12px;
+  border: 1px solid var(--apx-border);
+  border-radius: var(--apx-radius-md);
+  background: var(--apx-surface-raised);
+  box-shadow: var(--apx-shadow-md);
+  color: var(--apx-fg);
+  font-size: var(--apx-text-sm);
+}
+.callcard__head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+}
+.callcard__head:active {
+  cursor: grabbing;
+}
+/* Folded: its head alone. */
+.callcard[data-small] {
+  width: auto;
+  min-width: 220px;
+  padding: 8px 10px;
+}
+.callcard__face {
+  position: relative;
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: var(--apx-brand-soft);
+  color: var(--apx-brand-soft-fg);
+}
+/* While the voice speaks, a ring breathes around its face. */
+.callcard[data-talk="speaking"] .callcard__face::after {
+  content: "";
+  position: absolute;
+  inset: -4px;
+  border: 2px solid var(--apx-brand);
+  border-radius: 50%;
+  opacity: 0.5;
+  animation: callcard-breathe 1.2s ease-in-out infinite;
+}
+@keyframes callcard-breathe {
+  50% {
+    transform: scale(1.08);
+    opacity: 0.15;
+  }
+}
+.callcard__who {
+  flex: 1;
+  min-width: 0;
+}
+.callcard__name {
+  overflow: hidden;
+  font-weight: var(--apx-weight-semibold);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.callcard__state {
+  color: var(--apx-fg-muted);
+  font-size: var(--apx-text-xs);
+}
+.callcard__time {
+  flex: none;
+  color: var(--apx-fg-muted);
+  font-family: var(--apx-font-mono);
+  font-size: var(--apx-text-xs);
+  font-variant-numeric: tabular-nums;
+}
+.callcard__head .apx-iconbtn {
+  flex: none;
+  width: 24px;
+  height: 24px;
+  color: var(--apx-fg-subtle);
+}
+.callcard__caption,
+.callcard__hint,
+.callcard__problem {
+  margin: 0;
+  line-height: 1.45;
+  text-wrap: pretty;
+}
+/* What the owner is saying now, the newest words in view. */
+.callcard__caption {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  color: var(--apx-fg);
+  font-style: italic;
+}
+.callcard__hint {
+  color: var(--apx-fg-muted);
+  font-size: var(--apx-text-xs);
+}
+.callcard__problem {
+  color: var(--apx-fg-muted);
+}
+.callcard__voice {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  color: var(--apx-fg-muted);
+  font-size: var(--apx-text-xs);
+}
+.callcard__controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.callcard__controls > .apx-btn {
+  flex: 1;
+}
+@media (prefers-reduced-motion: reduce) {
+  .callcard[data-talk="speaking"] .callcard__face::after {
+    animation: none;
+  }
+}
+/* On a phone it spans the width under the top bar. */
+@media (max-width: 639px) {
+  .callcard {
+    left: 16px;
+    right: 16px;
+    width: auto;
+  }
+}
+.callcard__head .callcard__hangup {
+  color: var(--apx-danger-soft-fg);
+  background: var(--apx-danger-soft);
+}

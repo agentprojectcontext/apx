@@ -41,6 +41,7 @@ export const esTeam: Partial<Record<MessageKey, string>> = {
   "team.new.promptHint": "Cómo piensa y trabaja. Lo podés cambiar después.",
   "team.menu.open": "Ver detalle",
   "team.menu.edit": "Editar",
+  "team.menu.call": "Llamar",
   "team.menu.delete": "Borrar agente",
   "team.menu.superLocked": "El super-agente no se puede borrar",
   "team.menu.options": "Opciones de {name}",

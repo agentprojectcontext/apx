@@ -56,12 +56,19 @@ export function createDelivery(deps: {
     if (next) kick(Math.max(50, Date.parse(next) - Date.now()));
   }
 
+  /**
+   * A message sent in several sends (the agent kept writing after its first words) shows how its last send went: an
+   * earlier send's receipt never covers a later one that failed or is still waiting.
+   */
+  const latest = (o: OutboxRow): o is OutboxRow & { message_id: string } =>
+    !!o.message_id && store.channels.outbox.latestFor(o.message_id)?.id === o.id;
+
   async function sendOne(o: OutboxRow): Promise<void> {
     const target = deps.target(o.channel);
     if (!target?.running) {
       if (!deps.configured(o.channel)) {
         store.channels.outbox.fail(o.id, "failed", "channel removed");
-        if (o.message_id) store.messages.setDelivery(o.message_id, "failed");
+        if (latest(o)) store.messages.resetDelivery(o.message_id, "failed");
         deps.failed?.(o);
       } else store.channels.outbox.retry(o.id, new Date(Date.now() + NOT_RUNNING_RETRY_MS), "channel is not running");
       return;
@@ -80,7 +87,7 @@ export function createDelivery(deps: {
       });
       const r = await target.adapter.send(o.conversation, o.body, files);
       store.channels.outbox.sent(o.id, r.external_id);
-      if (o.message_id) store.messages.setDelivery(o.message_id, "sent");
+      if (latest(o)) store.messages.setDelivery(o.message_id, "sent");
       // The platform uses another address for this chat (a number missing its country code): the contact and the
       // chat move to it, so their answer comes back to the same person and thread.
       if (r.address && r.address !== o.conversation) {
@@ -110,7 +117,7 @@ export function createDelivery(deps: {
     // An error we cannot classify may have happened after the platform took the message.
     const state = err instanceof SendError && err.kind === "fatal" ? "failed" : "uncertain";
     store.channels.outbox.fail(o.id, state, msg);
-    if (o.message_id) store.messages.setDelivery(o.message_id, "failed");
+    if (latest(o)) store.messages.resetDelivery(o.message_id, "failed");
     log.warn({ channel: o.channel, outbox: o.id, err: msg, state }, "channel send did not go through");
     if (state === "failed") deps.failed?.({ ...o, error: msg });
   }
@@ -127,7 +134,7 @@ export function createDelivery(deps: {
     /** The platform says a sent message reached their device or was seen. */
     receipt(channel: string, externalId: string, state: "delivered" | "read"): void {
       const o = store.channels.outbox.byExternal(channel, externalId);
-      if (o?.message_id) store.messages.setDelivery(o.message_id, state);
+      if (o && latest(o)) store.messages.setDelivery(o.message_id, state);
     },
     kick,
     stop(): void {

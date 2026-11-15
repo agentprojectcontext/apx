@@ -101,6 +101,7 @@ export const enChat = {
   "usage.aux.news": "Release news",
   "usage.aux.sticker": "Sticker meanings",
   "usage.aux.aside": "Side questions",
+  "usage.aux.call": "Voice calls",
   "usage.state.submitted": "Queued",
   "usage.state.working": "Working",
   "usage.state.waiting": "Waiting for you",
@@ -185,4 +186,15 @@ export const enChat = {
   "mail.outlookWeb": "Outlook on the web",
   "mail.more": "Show all",
   "mail.less": "Show less",
+  "chat.agentThinking": "{name} is thinking…",
+  "group.new": "New group",
+  "group.picking": "Choosing who answers…",
+  "group.placeholder": "Message {name}…",
+  "group.sendHint": "Enter: send · Shift+Enter: new line · @name: ask someone by name",
+  "group.noFiles": "Files can't be sent in a group chat yet. Send them in a chat with one agent.",
+  "group.emptyTitle": "Group with {names}",
+  "group.emptyBody":
+    "Write to everyone. The agents your message is for answer; name one, with or without @, to ask them.",
+  "group.cardOpen": "See who is in the group and the model each answers with",
+  "group.memberChat": "Open {name}'s work in this group",
 };

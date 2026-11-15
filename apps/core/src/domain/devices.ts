@@ -32,8 +32,32 @@ const toDevice = (r: Row): Device => {
   };
 };
 
+/** Pending pairing codes (by hash, with when each runs out) and the wrong-code count: kept so a restart voids neither. */
+export type PairingState = { codes: Record<string, number>; misses: number; locked_until: number };
+const PAIRING_KEY = "devices:pairing";
+const noPairing = (): PairingState => ({ codes: {}, misses: 0, locked_until: 0 });
+
 export function devicesRepo({ one, all, run }: Sql) {
   return {
+    codeHash: hashOf,
+    pairing(): PairingState {
+      const raw = one(qb.selectFrom("meta").select("value").where("key", "=", PAIRING_KEY))?.value;
+      try {
+        const v = raw ? (JSON.parse(raw) as Partial<PairingState>) : {};
+        return { ...noPairing(), ...v };
+      } catch {
+        return noPairing();
+      }
+    },
+    savePairing(state: PairingState): void {
+      const value = JSON.stringify(state);
+      run(
+        qb
+          .insertInto("meta")
+          .values({ key: PAIRING_KEY, value })
+          .onConflict((c) => c.column("key").doUpdateSet({ value })),
+      );
+    },
     list(): Device[] {
       return all(qb.selectFrom("devices").selectAll().where("revoked_at", "is", null).orderBy("created_at")).map(
         toDevice,

@@ -2,10 +2,11 @@
 // kept in the secret store and refreshed here. Never Codex CLI's tokens (each keeps its own refresh family).
 // See DECISIONS.md#d-042
 import fs from "node:fs";
+import { CHATGPT_SECRET } from "../secret-names.ts";
 import type { Secrets } from "../secrets.ts";
 
 const CLIENT_ID = "app_EMoamEEZ73f0CkXaXp7hrann";
-const SECRET = "chatgpt_login";
+const SECRET = CHATGPT_SECRET;
 /** Refresh this long before the access token runs out. */
 const SKEW_S = 120;
 const DEVICE_WINDOW_MS = 15 * 60_000;

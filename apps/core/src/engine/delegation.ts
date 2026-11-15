@@ -185,8 +185,15 @@ export function delegationResult(
 /** The calls with an effect APX recorded in a run, and how each ended ("show_widget ok", "message_contact error ×2"). */
 export function actionsOf(store: Store, run: RunRecord): string[] {
   const counts = new Map<string, number>();
-  for (const s of store.runs.steps(run.id)) {
+  const steps = store.runs.steps(run.id);
+  // A call that failed and then worked when run again (a test red, then green) is done, not a failed action.
+  const passedLater = (i: number) => {
+    const sig = `${steps[i]?.tool}:${JSON.stringify(steps[i]?.args)}`;
+    return steps.slice(i + 1).some((s) => s.state === "ok" && `${s.tool}:${JSON.stringify(s.args)}` === sig);
+  };
+  for (const [i, s] of steps.entries()) {
     if (s.effect === "none" || !["ok", "error", "unknown"].includes(s.state)) continue;
+    if (s.state === "error" && passedLater(i)) continue;
     // A tool name can come from an MCP server: kept to a plain identifier.
     const key = `${s.tool.replace(/[^\w.-]/g, "").slice(0, 60)} ${s.state}`;
     counts.set(key, (counts.get(key) ?? 0) + 1);

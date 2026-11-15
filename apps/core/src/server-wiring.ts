@@ -39,6 +39,7 @@ import { agentHandlers } from "./rpc/agents.ts";
 import { appHandlers } from "./rpc/app.ts";
 import { asanaHandlers } from "./rpc/asana.ts";
 import { browserHandlers, type OwnersChrome } from "./rpc/browser.ts";
+import { callHandlers } from "./rpc/calls.ts";
 import { channelHandlers } from "./rpc/channels.ts";
 import { clientHandlers } from "./rpc/clients.ts";
 import { composerHandlers } from "./rpc/composer.ts";
@@ -125,6 +126,7 @@ import { webTools } from "./tools/web.ts";
 import { type Gate, originsFor } from "./transport/guard.ts";
 import { httpHandler } from "./transport/http.ts";
 import { attachVmDisplay } from "./transport/vm-display.ts";
+import { attachVoiceCall } from "./transport/voice-call.ts";
 import { attachWs } from "./transport/ws.ts";
 import type { Updates } from "./updates.ts";
 
@@ -261,6 +263,8 @@ type HandlerDeps = {
   chatgpt: Parameters<typeof providerHandlers>[2];
   localModels: Parameters<typeof transcriptionHandlers>[1];
   localEmbeds: Parameters<typeof embeddingHandlers>[0];
+  /** Voice calls: the engine that hears and speaks, and the calls it writes down. */
+  voice?: Parameters<typeof callHandlers>[0];
   app: Omit<Parameters<typeof appHandlers>[0], "store" | "secrets" | "services">;
   apc: Parameters<typeof agentHandlers>[1];
   templateRoots: Parameters<typeof teamHandlers>[2];
@@ -347,7 +351,7 @@ export function coreHandlers(d: HandlerDeps & { vm?: Computer | undefined }) {
       d.signIn && { secrets: d.secrets, signIn: d.signIn },
       d.ownersChrome,
     ),
-    ...threadHandlers(d.store, d.engine, d.upkeep, d.aside, d.groups),
+    ...threadHandlers(d.store, d.engine, d.upkeep, d.aside, d.groups, (ref) => refProblem(ref, d.engines, undefined)),
     ...threadAdminHandlers(d.store, d.app.home, d.vm?.beforeDelete),
     ...runHandlers(d.store, d.engine),
     ...jobHandlers(d.store, d.engine),
@@ -362,6 +366,7 @@ export function coreHandlers(d: HandlerDeps & { vm?: Computer | undefined }) {
     ...mailHandlers(d.store, d.google, d.channels),
     ...mediaHandlers(d.services, d.store),
     ...transcriptionHandlers(d.services, d.localModels),
+    ...callHandlers(d.voice),
     ...embeddingHandlers(d.localEmbeds, () => d.memory.engine()),
     ...taskHandlers(d.store, d.engine, d.app.home, d.vm?.beforeDelete),
     ...routineHandlers(d.store, d.scheduler, d.profileRoots),
@@ -403,6 +408,7 @@ export function coreHandlers(d: HandlerDeps & { vm?: Computer | undefined }) {
       secrets: d.secrets,
       mcp: d.mcp.config,
       runtimeHomes: d.runtimeHomes,
+      providerIds: () => d.providers.all().map((p) => p.id),
     }),
     ...providerHandlers(d.providers, d.secrets, d.chatgpt),
     ...instanceHandlers({
@@ -549,6 +555,7 @@ export async function listen(
     broker: NodeBroker;
     bus: Bus;
     vm?: Computer | undefined;
+    voice?: Parameters<typeof callHandlers>[0];
   },
 ) {
   const allowedOrigins = originsFor(`http://${config.host}:${config.port || 7440}`, config.allowedOrigins);
@@ -573,8 +580,9 @@ export async function listen(
   server.keepAliveTimeout = KEEP_ALIVE_MS;
   server.headersTimeout = KEEP_ALIVE_MS + 1000;
   const display = d.vm ? attachVmDisplay(server, d.vm, gate) : undefined;
+  const calls = d.voice ? attachVoiceCall(server, { ...d.voice, gate, log: d.log }) : undefined;
   const wss = attachWs(server, {
-    streamPath: d.vm ? "/vm-display" : undefined,
+    streamPaths: [...(d.vm ? ["/vm-display"] : []), ...(calls ? ["/voice-call"] : [])],
     dispatch: d.dispatch,
     identity: d.identity,
     log: d.log,
@@ -597,6 +605,7 @@ export async function listen(
     url: `http://${config.host}:${port}`,
     async close() {
       display?.close();
+      calls?.close();
       for (const client of wss.clients) client.terminate();
       await new Promise<void>((resolve) => wss.close(() => resolve()));
       server.closeAllConnections();

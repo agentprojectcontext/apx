@@ -4,20 +4,8 @@ import { shortWhen } from "../common/format.ts";
 import { useNow } from "../common/useNow.ts";
 import { routineRuns } from "../data/routines.ts";
 import { type MessageKey, useT } from "../i18n/index.ts";
+import { barOf } from "./runOutcome.ts";
 import { activationSlots } from "./slots.ts";
-
-/** An agent answers (agent), watches (watch) or tells the team news (relay): each has one and can spare a model call. */
-export const hasAgent = (a: Routine["action"]) => a === "agent" || a === "watch" || a === "relay";
-
-/** How one activation ended: it failed, is still running, was skipped (no tokens spent), told the owner, or ran. */
-export const barOf = (x: RoutineRun, action: Routine["action"]) => {
-  if (x.state === "failed") return "is-failed";
-  if (x.state !== "completed" && x.state !== "canceled") return "is-live";
-  // A message or a shell job never calls a model: it ran when it sent or ran its command.
-  const skipped = hasAgent(action) ? x.model_called === false : action === "message" && !x.delivered;
-  if (skipped) return "is-skipped";
-  return x.delivered ? "is-told" : "is-ran";
-};
 
 const BAR_KEY: Record<ReturnType<typeof barOf>, MessageKey> = {
   "is-failed": "routines.legend.failed",

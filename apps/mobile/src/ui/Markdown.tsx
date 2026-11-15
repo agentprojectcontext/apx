@@ -2,8 +2,10 @@ import { createContext, useContext, useMemo, useState } from "react";
 import { Linking, Pressable, ScrollView, Text, View } from "react-native";
 import { type Block, type Inline, parseMarkdown, plainText } from "../chat/markdown";
 import { t } from "../i18n";
-import { EMAIL_LANG, parseEmailBlock } from "../protocol";
+import { EMAIL_LANG, parseEmailBlock, parseInlineBlock } from "../protocol";
 import { EmailCard } from "./chat/EmailCard";
+import { InlineAsk } from "./chat/InlineParts";
+import { InlineView } from "./chat/InlineView";
 import { copyText } from "./copy";
 import { Icon } from "./Icon";
 import { makeStyles, useTheme } from "./theme";
@@ -77,6 +79,14 @@ function Blocks({ blocks, color }: { blocks: Block[]; color: string }) {
       case "code": {
         const mail = block.lang === EMAIL_LANG ? parseEmailBlock(block.text) : undefined;
         if (mail) return <EmailCard key={key} mail={mail} />;
+        const inline = parseInlineBlock(block.lang ?? "", block.text);
+        if (inline?.kind === "view") return <InlineView key={key} view={inline.view} />;
+        if (inline)
+          return (
+            <Text key={key} selectable={selectable} style={[s.text, { color }]}>
+              {inline.text}
+            </Text>
+          );
         return (
           <View key={key}>
             <Text selectable={selectable} style={s.code}>
@@ -182,10 +192,13 @@ export function Markdown({
   text,
   color: tint,
   selectable = true,
+  onAsk,
 }: {
   text: string;
   color?: string;
   selectable?: boolean;
+  /** Writes to the chat as the owner, for the cards' buttons that ask the agent something. */
+  onAsk?: (text: string) => Promise<unknown>;
 }) {
   const theme = useTheme();
   const color = tint ?? theme.fg;
@@ -193,9 +206,11 @@ export function Markdown({
   const blocks = useMemo(() => parseMarkdown(text), [text]);
   return (
     <Selectable.Provider value={selectable}>
-      <View style={s.root}>
-        <Blocks blocks={blocks} color={color} />
-      </View>
+      <InlineAsk.Provider value={onAsk}>
+        <View style={s.root}>
+          <Blocks blocks={blocks} color={color} />
+        </View>
+      </InlineAsk.Provider>
     </Selectable.Provider>
   );
 }

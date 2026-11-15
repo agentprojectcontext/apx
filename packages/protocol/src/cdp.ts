@@ -5,7 +5,7 @@ import type { BrowserDialog, BrowserFillSecret, ElementEdit, PickedElement, Sign
 import { isDialogRef, PageDialog } from "./cdp-dialog.ts";
 import { PageEdits } from "./cdp-edit.ts";
 import { captureDocument, evaluatePage } from "./cdp-evaluate.ts";
-import { holdsFocus, nodeFrame, SecretFields } from "./cdp-fill.ts";
+import { holdsFocus, nodeFrame, SecretFields, sendsPassword } from "./cdp-fill.ts";
 
 export { scrubDeep } from "./cdp-fill.ts";
 
@@ -108,14 +108,21 @@ export class CdpPage {
   readonly #edits: PageEdits;
   readonly #secrets: SecretFields;
   readonly #dialog: PageDialog;
+  readonly #ownersBrowser: boolean;
 
   /**
    * `selectAllModifiers`: the modifier bits for "select all" on the machine the page runs on (Meta=4 on a Mac).
    * `dialogAnswered`: called after the agent answered a JavaScript dialog.
+   * `ownersBrowser`: the owner's own browser, which fills their saved logins: a form holding a password is sent only
+   * by them (DECISIONS.md#d-226).
    */
-  constructor(send: CdpSend, opts: { selectAllModifiers: number; dialogAnswered?: () => void }) {
+  constructor(
+    send: CdpSend,
+    opts: { selectAllModifiers: number; dialogAnswered?: () => void; ownersBrowser?: boolean },
+  ) {
     this.#send = send;
     this.#selectAll = opts.selectAllModifiers;
+    this.#ownersBrowser = opts.ownersBrowser === true;
     this.#edits = new PageEdits(send);
     this.#secrets = new SecretFields(send);
     this.#dialog = new PageDialog(send, opts.dialogAnswered);
@@ -296,6 +303,7 @@ export class CdpPage {
       return undefined;
     }
     this.assertNoDialog();
+    await this.#assertNotSendingPassword(this.#backend(ref));
     const { x, y } = await this.#center(ref);
     const press = { x, y, button: "left", clickCount: 1 };
     return (
@@ -329,6 +337,7 @@ export class CdpPage {
     this.assertNoDialog();
     const backendNodeId = this.#backend(ref);
     await this.#assertNotCredentialField(backendNodeId);
+    if (submit) await this.#assertNotSendingPassword(backendNodeId);
     if (localOnly) await this.#assertServedHere(backendNodeId, localOnly);
     // A list or a file field takes a choice or a file, not keystrokes: APX's own fixed steps, no agent script.
     const control = await this.#control(backendNodeId);
@@ -461,6 +470,15 @@ export class CdpPage {
       throw new ApxError({
         code: "conflict",
         message: "the field lost the focus before typing (the page moved it): take a new snapshot and try again",
+      });
+  }
+
+  async #assertNotSendingPassword(backendNodeId: number): Promise<void> {
+    if (this.#ownersBrowser && (await sendsPassword(this.#send, backendNodeId)))
+      throw new ApxError({
+        code: "credential_field",
+        message:
+          "this form holds a password the owner's browser filled: ask the owner to send it themselves, then go on",
       });
   }
 

@@ -179,6 +179,11 @@ function apply(ev: CoreEvent): void {
           if (list) scheduleRefetch();
           return {};
         }
+        // A part past the end means one before it was missed: the refetch brings the message whole, without a hole.
+        if (ev.index > cur.parts.length) {
+          scheduleRefetch();
+          return {};
+        }
         const parts = [...cur.parts];
         parts[ev.index] = ev.part;
         return { messages: { ...s.messages, [ev.thread_id]: upsertMessage(list, { ...cur, parts }) } };
@@ -244,6 +249,10 @@ function apply(ev: CoreEvent): void {
       return;
     case "computer.progress":
       data.set((s) => ({ computerProgress: { ...s.computerProgress, [ev.thread_id]: ev.stage } }));
+      return;
+    case "run.thinking":
+      // An empty text: it stopped thinking (the core says so whenever a turn writes, acts or ends).
+      data.set((s) => ({ thinking: { ...s.thinking, [ev.thread_id]: ev.text } }));
       return;
   }
 }

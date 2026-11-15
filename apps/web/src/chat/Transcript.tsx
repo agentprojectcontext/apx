@@ -20,7 +20,7 @@ import { useChannels } from "../data/channels.ts";
 import { blobOf, isWorking, routineName, threadAgent } from "../data/identity.ts";
 import { useData, useShownAgents } from "../data/state.ts";
 import { useLanguage, useT } from "../i18n/index.ts";
-import { AgentEvent, EmailCard, MediaGroup, TaskDescription } from "../lazy.ts";
+import { AgentEvent, EmailCard, GroupPart, MediaGroup, NoticePart, TaskDescription } from "../lazy.ts";
 import { nav, useNav } from "../shell/nav.ts";
 import { AgentTurn } from "./AgentTurn.tsx";
 import { answerCards, isAgentEvent } from "./agentEvent.ts";
@@ -29,12 +29,12 @@ import { FilePart } from "./parts/FilePart.tsx";
 import { imageGenerationRuns } from "./parts/imageGeneration.ts";
 import { AudioPart } from "./parts/lazyAudio.tsx";
 import { bubbleFiles, mediaBlocks, withoutFilesNote } from "./parts/mediaGroups.ts";
-import { NoticePart } from "./parts/NoticePart.tsx";
 import { latestPlan } from "./planLast.ts";
 import { quotedIndex, quoteParts, splitQuote } from "./quote.ts";
 import { Regenerate, UserMessage } from "./Rewind.tsx";
 import { isRoom, ownerOnChannel } from "./room.ts";
 import { PersonFace, Speaker } from "./Speaker.tsx";
+import { Thinking } from "./Thinking.tsx";
 
 const EMPTY: Msg[] = [];
 
@@ -115,7 +115,12 @@ export function Transcript({ thread, comments = false, via }: { thread: Thread; 
         className="chat__scroll"
         contentClassName={room ? "transcript transcript--room" : "transcript"}
       >
-        {rows.length === 0 && !working && (
+        {rows.length === 0 && !working && thread.kind === "group" && (
+          <Suspense fallback={null}>
+            <GroupPart part="empty" thread={thread} />
+          </Suspense>
+        )}
+        {rows.length === 0 && !working && thread.kind !== "group" && (
           <EmptyState
             icon={<Icons.MessageCircle />}
             title={t("chat.with", { name: engineLabel ?? agent?.name ?? thread.title })}
@@ -236,14 +241,17 @@ export function Transcript({ thread, comments = false, via }: { thread: Thread; 
             )}
           </div>
         ))}
-        {working && (
-          <div className="transcript__activity">
-            <ActivityPill
-              tone="brand"
-              label={t("chat.agentWorking", { name: agent?.name ?? t("chat.theAgent") })}
-              from={agent && <AgentAvatar name={agent.name} blob={blobOf(agent)} size={22} />}
-            />
-          </div>
+        {working && thread.kind === "group" && (
+          <Suspense fallback={null}>
+            <GroupPart part="activity" thread={thread} />
+          </Suspense>
+        )}
+        {working && thread.kind !== "group" && (
+          <Thinking
+            threadId={thread.id}
+            name={agent?.name ?? t("chat.theAgent")}
+            face={agent && <AgentAvatar name={agent.name} blob={blobOf(agent)} size={22} />}
+          />
         )}
         {thread.state === "queued" && (
           <div className="transcript__activity">
@@ -268,7 +276,9 @@ function SystemMessage({ message }: { message: Msg }) {
     <>
       {notices.map((p, i) => (
         // biome-ignore lint/suspicious/noArrayIndexKey: a message's parts never reorder.
-        <NoticePart key={i} part={p} />
+        <Suspense key={i} fallback={p.text}>
+          <NoticePart part={p} />
+        </Suspense>
       ))}
     </>
   );

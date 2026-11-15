@@ -13,15 +13,16 @@ import { isNewChat } from "../data/newChat.ts";
 import { useData } from "../data/state.ts";
 import { updateThread } from "../data/threadAdmin.ts";
 import { useT } from "../i18n/index.ts";
+import { chatTitle } from "../inbox/chatTitle.ts";
 import { ProjectBadge } from "../inbox/ProjectBadge.tsx";
 import { ThreadAvatar } from "../inbox/ThreadAvatar.tsx";
 import { PinMark } from "../inbox/ThreadRow.tsx";
 import { threadMenu } from "../inbox/threadActions.tsx";
 import { useThreadChannel } from "../inbox/useThreadChannel.ts";
-import { ChannelFace, TaskCrumb, TaskStateButton } from "../lazy.ts";
+import { CallAgain, CallButton, ChannelFace, GroupPart, TaskCrumb, TaskStateButton } from "../lazy.ts";
 import { PanelSwitcher } from "../panel/PanelSwitcher.tsx";
 import { go, useNav } from "../shell/nav.ts";
-import { toggleRoomCard, useRoomCard } from "./roomCard.ts";
+import { toggleGroupCard, toggleRoomCard, useGroupCard, useRoomCard } from "./roomCard.ts";
 
 const POLICIES: WritePolicy[] = ["ask", "auto", "read-only"];
 
@@ -75,6 +76,8 @@ export function ChatHeader({
   const project = projects.find((p) => p.id === thread.project_id);
   const tools = useNav((s) => s.tools);
   const sub = thread.kind === "a2a" || thread.parent_id != null;
+  // What a call asked the super-agent: its chat says it came from the call.
+  const fromCall = useData((s) => (thread.parent_id ? s.threads[thread.parent_id]?.kind === "call" : false));
   // An engine session is the engine itself: its name and icon, not the agent that owns the run.
   const engine = useEngineLabel(thread.engine);
   const agents = useData((s) => s.agents);
@@ -87,8 +90,19 @@ export function ChatHeader({
   // A group's or room's chat (a channel chat with nobody behind it) opens its card from here.
   const room = Boolean(thread.channel && !thread.channel.person_id);
   const roomChannel = useChannels((s) => s.channels.find((c) => c.id === thread.channel?.id));
-  const roomOpen = useRoomCard();
+  const roomCardOpen = useRoomCard();
+  const groupCardOpen = useGroupCard();
   const channelKind = useThreadChannel(thread);
+  const group = thread.kind === "group";
+  // A call to the agent of a one-agent chat, as long as it is still on the team (the top bar has the super-agent's).
+  const callable = useData((s) =>
+    agent && !engine && !thread.channel && ["home", "agent", "loose"].includes(thread.kind)
+      ? Boolean(s.agents[agent.id])
+      : false,
+  );
+  const roomOpen = group ? groupCardOpen : roomCardOpen;
+  const toggleCard = group ? toggleGroupCard : toggleRoomCard;
+  const pillWord = group ? "ch.card.group" : roomChannel ? roomWord(roomChannel) : "ch.card.room";
   const requestedRef = thread.model_choice?.model;
   const requested = requestedRef ? splitRef(requestedRef) : undefined;
   const requestedName = requestedRef && modelOf(requestedRef, catalog)?.name;
@@ -112,7 +126,7 @@ export function ChatHeader({
         <div className="chat__title">
           <span className="chat__name">
             {thread.pinned && <PinMark />}
-            {sub || thread.channel || engine ? name : (task ?? thread.title)}
+            {sub || thread.channel || engine ? name : (task ?? chatTitle(thread, t))}
           </span>
           {project && <ProjectBadge id={project.id} name={project.name} channel={channelKind} />}
           <ChatProcesses thread={thread.id} onOpen={go.processes} />
@@ -124,19 +138,26 @@ export function ChatHeader({
             </Suspense>
           )}
           {task !== undefined && <span>{t("tasks.header.task")}</span>}
-          {agent && !engine && !thread.channel && !sub && !thread.task_id && (
+          {group && (
+            <Suspense fallback={null}>
+              <GroupPart part="members" thread={thread} />
+            </Suspense>
+          )}
+          {agent && !group && !engine && !thread.channel && !sub && !thread.task_id && (
             <Tooltip content={agentHint}>
               <button type="button" className="chat__agentbtn" onClick={() => go.agent(agent.id)}>
-                {agent.kind === "secretary"
-                  ? t("chat.headerSuper", { name: agent.name })
-                  : agent.role
-                    ? `${agent.name} · ${agent.role}`
-                    : agent.name}
+                {thread.kind === "call"
+                  ? `${agent.name} · ${t("call.personal")}`
+                  : agent.kind === "secretary"
+                    ? t("chat.headerSuper", { name: agent.name })
+                    : agent.role
+                      ? `${agent.name} · ${agent.role}`
+                      : agent.name}
               </button>
             </Tooltip>
           )}
           {engine && <span>{t("chat.headerEngine", { engine })}</span>}
-          {sub && <Tag>{t("thread.a2a")}</Tag>}
+          {sub && <Tag>{t(fromCall ? "call.from" : "thread.a2a")}</Tag>}
           {thread.flow && (
             <button
               type="button"
@@ -182,13 +203,16 @@ export function ChatHeader({
         )}
       </div>
       <div className="chat__tools">
+        <Suspense fallback={null}>
+          {callable && agent && <CallButton agent={agent} />}
+          {thread.kind === "call" && <CallAgain thread={thread.id} agent={thread.agent_ids[0]} />}
+        </Suspense>
         {thread.task_id && (
           <Suspense fallback={null}>
             <TaskStateButton taskId={thread.task_id} />
           </Suspense>
         )}
-        {room &&
-          roomChannel &&
+        {((room && roomChannel) || group) &&
           // On a phone the pill is its icon alone: the chat's name needs the room.
           (compact ? (
             <IconButton
@@ -196,10 +220,10 @@ export function ChatHeader({
               variant="secondary"
               className={roomOpen ? "chat__roompill is-on" : "chat__roompill"}
               icon={<Icons.Users size={14} />}
-              label={t(roomWord(roomChannel))}
-              tooltip={t(roomOpen ? "chat.roomCardClose" : "chat.roomCardOpen")}
+              label={t(pillWord)}
+              tooltip={t(roomOpen ? "chat.roomCardClose" : group ? "group.cardOpen" : "chat.roomCardOpen")}
               active={roomOpen}
-              onClick={toggleRoomCard}
+              onClick={toggleCard}
             />
           ) : (
             <Button
@@ -208,10 +232,10 @@ export function ChatHeader({
               className={roomOpen ? "chat__roompill is-on" : "chat__roompill"}
               leadingIcon={<Icons.Users size={14} />}
               aria-pressed={roomOpen}
-              title={t(roomOpen ? "chat.roomCardClose" : "chat.roomCardOpen")}
-              onClick={toggleRoomCard}
+              title={t(roomOpen ? "chat.roomCardClose" : group ? "group.cardOpen" : "chat.roomCardOpen")}
+              onClick={toggleCard}
             >
-              {t(roomWord(roomChannel))}
+              {t(pillWord)}
             </Button>
           ))}
         {/* A new chat has nothing to rename, archive or compact until its first message makes it. */}
@@ -233,11 +257,15 @@ export function ChatHeader({
                   keepOpen: true,
                   onSelect: go.toggleTools,
                 },
-                {
-                  label: t("chat.compact"),
-                  icon: <Icons.Layers size={14} />,
-                  onSelect: () => void compactThread(thread.id),
-                },
+                ...(group
+                  ? []
+                  : [
+                      {
+                        label: t("chat.compact"),
+                        icon: <Icons.Layers size={14} />,
+                        onSelect: () => void compactThread(thread.id),
+                      },
+                    ]),
               ],
             })}
           />

@@ -68,8 +68,10 @@ test("other failures keep their own reason", async () => {
   const t = await turn("broken: write the report");
   assert.equal(t.runs[0]?.end_reason, "failed");
   assert.equal(t.runs[0]?.resets_at, undefined);
+  // Told as its own kind (a provider asking to sign in again), never as a usage limit.
   const notice = t.messages.at(-1)?.parts.find((p) => p.type === "notice");
-  assert.deepEqual(notice?.type === "notice" && notice.vars, {});
+  assert.equal(notice?.type === "notice" && notice.code, "run.failed");
+  assert.deepEqual(notice?.type === "notice" && notice.vars, { variant: "signed_out" });
 });
 
 test("the owner hears once per stall, not once per stopped run; a new stall after the reset is told again", async () => {

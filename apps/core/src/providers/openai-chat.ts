@@ -111,6 +111,7 @@ export const openaiChat: Transport = async (req) => {
       };
     }
     let text = "";
+    let thinking = "";
     let finish: Finish = "other";
     let usage: Usage | undefined;
     const calls: ToolCall[] = [];
@@ -132,6 +133,14 @@ export const openaiChat: Transport = async (req) => {
       if (delta.content) {
         text += delta.content;
         req.onText?.(text);
+      }
+      // Models that think aloud send it beside the answer (DeepSeek, OpenRouter, Ollama): shown live, not kept here.
+      const thought =
+        (delta as { reasoning_content?: unknown; reasoning?: unknown }).reasoning_content ??
+        (delta as { reasoning?: unknown }).reasoning;
+      if (typeof thought === "string" && thought) {
+        thinking += thought;
+        req.onThinking?.(thinking);
       }
       for (const tc of delta.tool_calls ?? []) {
         const i = tc.index ?? calls.length;

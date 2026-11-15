@@ -1,40 +1,19 @@
 import type { Agent, McpServerStatus, Thread } from "@apx/protocol";
-import { Icons } from "@apx/ui";
-import { type KeyboardEvent, type ReactNode, useEffect, useId, useMemo, useRef, useState } from "react";
+import { type KeyboardEvent, Suspense, useEffect, useId, useMemo, useRef, useState } from "react";
 import { cancel, compactThread } from "../../data/actions.ts";
 import { setThreadModel } from "../../data/composer.ts";
 import { forAgents, loadCatalog, modelOf, splitRef, useModels, withEffort } from "../../data/models.ts";
 import { isNewChat, newChatId } from "../../data/newChat.ts";
 import { listMcp, listSkills } from "../../data/resources.ts";
-import { type MessageKey, useT } from "../../i18n/index.ts";
+import { SlashList } from "../../lazy.ts";
 import { go } from "../../shell/nav.ts";
-import { type CommandId, commandOf, dollarQuery, dollarRank, type SlashItem, slashItems } from "./slash.ts";
-
-const ICON: Record<CommandId, ReactNode> = {
-  new: <Icons.SquarePen size={14} />,
-  compact: <Icons.Layers size={14} />,
-  model: <Icons.Sparkles size={14} />,
-  effort: <Icons.Brain size={14} />,
-  stop: <Icons.Square size={14} />,
-  usage: <Icons.Activity size={14} />,
-  skills: <Icons.BookOpen size={14} />,
-};
+import { type CommandId, commandOf, dollarQuery, dollarRank, slashItems } from "./slash.ts";
+import type { Item } from "./slashItem.ts";
 
 type Skills = ReadonlyArray<{ name: string; description: string }>;
 
 /** A connector (MCP server) the agent can use here, as the "$" list and the + menu show it. */
 export type Connector = { name: string; target: string };
-
-/** A row of the menu: what "/" lists, or a connector after "$". */
-type Item = SlashItem | { kind: "mcp"; name: string; description: string };
-
-const KIND: Record<Item["kind"], MessageKey> = {
-  command: "slash.kind.command",
-  skill: "slash.kind.skill",
-  model: "slash.kind.model",
-  effort: "slash.kind.effort",
-  mcp: "slash.kind.mcp",
-};
 
 const usable = (s: McpServerStatus) => s.enabled && !s.off_here && s.status !== "disabled" && s.status !== "off";
 
@@ -47,13 +26,14 @@ const usable = (s: McpServerStatus) => s.enabled && !s.off_here && s.status !== 
 export function useSlashMenu(o: {
   thread: Thread;
   agent: Agent | undefined;
+  /** A group's members, offered after "@". */
+  members?: Agent[] | undefined;
   text: string;
   setText: (v: string) => void;
   busy: boolean;
   onNew?: (id: string) => void;
 }) {
   const { thread, agent, text, setText } = o;
-  const t = useT();
   const id = useId();
   const catalog = useModels((s) => s.catalog);
   const catalogLoad = useModels((s) => s.catalogLoad);
@@ -67,7 +47,8 @@ export function useSlashMenu(o: {
   const direct = Boolean(thread.engine);
   const slashOpen = text.startsWith("/") && !text.includes("\n") && closedFor !== text;
   const dollar = direct || closedFor === text ? undefined : dollarQuery(text);
-  const open = slashOpen || dollar !== undefined;
+  const at = o.members && closedFor !== text ? dollarQuery(text, "@") : undefined;
+  const open = slashOpen || dollar !== undefined || at !== undefined;
   // A new chat not made yet has nothing to compact.
   const fresh = isNewChat(thread.id);
 
@@ -91,6 +72,17 @@ export function useSlashMenu(o: {
   const current = thread.model_choice?.model ?? agent?.model_choice?.model;
   const items = useMemo((): Item[] => {
     if (!open) return [];
+    if (at)
+      return dollarRank(
+        (o.members ?? []).map((a) => ({
+          kind: "agent" as const,
+          name: a.name,
+          description: a.role ?? "",
+          // How the core finds it: its name when it is one word, else its file name or id.
+          tag: /^[\p{L}\p{N}][\p{L}\p{N}_-]*$/u.test(a.name) ? a.name : (a.slug ?? a.id),
+        })),
+        at.query,
+      );
     if (dollar)
       return dollarRank(
         [
@@ -112,7 +104,7 @@ export function useSlashMenu(o: {
     })
       .filter((i) => !(direct && i.kind === "command" && (i.id === "compact" || i.id === "skills")))
       .filter((i) => !(fresh && i.kind === "command" && i.id === "compact"));
-  }, [open, dollar, text, catalog, skills, connectors, direct, fresh, thread.engine, current, o.busy]);
+  }, [open, at, o.members, dollar, text, catalog, skills, connectors, direct, fresh, thread.engine, current, o.busy]);
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: only a change of the typed text decides it
   useEffect(() => {
@@ -154,6 +146,7 @@ export function useSlashMenu(o: {
     return true;
   };
   const pick = (item: Item) => {
+    if (item.kind === "agent") return at && setText(`${text.slice(0, at.start)}@${item.tag} `);
     if (dollar) {
       const before = text.slice(0, dollar.start).trimEnd();
       // A skill named first is loaded whole by the core; a connector is named where it was typed.
@@ -200,27 +193,17 @@ export function useSlashMenu(o: {
   const optId = (i: number) => `${id}-o${i}`;
   const shown = open && items.length > 0;
   const popup = shown ? (
-    <div className="slash" id={`${id}-list`} role="listbox" aria-label={t("slash.label")}>
-      {items.map((item, i) => (
-        <div
-          key={rowKey(item)}
-          id={optId(i)}
-          role="option"
-          aria-selected={i === active}
-          tabIndex={-1}
-          className={`slash__row${i === active ? " is-active" : ""}`}
-          onMouseEnter={() => setActive(i)}
-          // Keep the focus in the field: the pick happens on mouse down, before the blur.
-          onMouseDown={(e) => {
-            e.preventDefault();
-            pick(item);
-          }}
-        >
-          <Row item={item} dollar={Boolean(dollar)} />
-          <span className="slash__kind">{t(KIND[item.kind])}</span>
-        </div>
-      ))}
-    </div>
+    <Suspense fallback={null}>
+      <SlashList
+        id={id}
+        items={items}
+        active={active}
+        dollar={Boolean(dollar)}
+        optId={optId}
+        onHover={setActive}
+        onPick={pick}
+      />
+    </Suspense>
   ) : undefined;
 
   return {
@@ -251,56 +234,4 @@ export function useSlashMenu(o: {
     },
     aria: { controls: `${id}-list`, expanded: shown, activedescendant: shown ? optId(active) : undefined },
   };
-}
-
-const rowKey = (i: Item) =>
-  i.kind === "command"
-    ? `c:${i.id}`
-    : i.kind === "skill"
-      ? `s:${i.name}`
-      : i.kind === "mcp"
-        ? `m:${i.name}`
-        : i.kind === "model"
-          ? i.ref
-          : i.effort;
-
-function Row({ item, dollar }: { item: Item; dollar: boolean }) {
-  const t = useT();
-  if (item.kind === "mcp")
-    return (
-      <>
-        <span className="slash__icon">
-          <Icons.Layers size={14} />
-        </span>
-        <span className="slash__name">{item.name}</span>
-        <span className="slash__desc">{item.description}</span>
-      </>
-    );
-  if (item.kind === "command")
-    return (
-      <>
-        <span className="slash__icon">{ICON[item.id]}</span>
-        <span className="slash__name">/{item.id}</span>
-        <span className="slash__desc">{t(`slash.${item.id}` as MessageKey)}</span>
-      </>
-    );
-  if (item.kind === "skill")
-    return (
-      <>
-        <span className="slash__icon">
-          <Icons.BookOpen size={14} />
-        </span>
-        <span className="slash__name">{dollar ? item.name : `/${item.name}`}</span>
-        <span className="slash__desc">{item.description || t("slash.skill")}</span>
-      </>
-    );
-  const name = item.kind === "model" ? item.label : item.effort;
-  const desc = item.kind === "model" ? item.ref : t("slash.effortRow");
-  return (
-    <>
-      <span className="slash__icon">{item.current ? <Icons.Check size={14} /> : null}</span>
-      <span className="slash__name">{name}</span>
-      <span className="slash__desc">{desc}</span>
-    </>
-  );
 }

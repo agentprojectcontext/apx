@@ -1,7 +1,8 @@
 import { esHelper } from "./es-helper.ts";
 // UI strings, Spanish (Rioplatense, voseo). A missing key falls back to English.
 
-import { noticeEs } from "@apx/protocol/notices";
+import { noticeEs } from "@apx/protocol/notices-es";
+import { esCallSlim } from "./call-slim-es.ts";
 import { esChannelsSlim } from "./channels-slim-es.ts";
 import { esChatSlim } from "./chat-slim-es.ts";
 import { esComposerSlim } from "./composer-slim-es.ts";
@@ -69,6 +70,7 @@ export const es: Partial<Record<MessageKey, string>> = {
   ...esProjectSlim,
   ...esInboxSlim,
   ...esChannelsSlim,
+  ...esCallSlim,
   "engineUsage.title": "Cuotas de IA",
   "engineUsage.remaining": "{pct}% disponible",
   "engineUsage.primary": "Ventana actual",
@@ -1624,6 +1626,7 @@ export const es: Partial<Record<MessageKey, string>> = {
   "tg.code": "Código",
   "tg.link": "Vincular",
   "config.voices": "Voces",
+  "config.calls": "Llamadas",
   "config.images": "Imágenes",
   "svc.image.lead":
     "Se prueban en este orden; dibuja el primero que responde. Puede ser local, otra máquina o una API.",

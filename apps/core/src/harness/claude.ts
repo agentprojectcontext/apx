@@ -305,6 +305,7 @@ async function attempt(
   const onAbort = () => ac.abort();
   io.signal.addEventListener("abort", onAbort, { once: true });
   let text = "";
+  let thinking = "";
   // A finished answer before words the SDK ran right after it: kept above the next one.
   let prefix = "";
   // The turn's own model call is writing: a "send now" drops what it wrote so far.
@@ -320,6 +321,8 @@ async function attempt(
     io.onModel?.(`claude/${reported}`);
   };
   let sessionId = o.resume;
+  /** Claude's own tool calls still waiting for their result, by tool_use id. */
+  const builtins = new Map<string, { callId: string; title: string; kind: string }>();
   // The call each stream is on (the turn's own, keyed "", and each subagent's), for the tokens its deltas add.
   const current = new Map<string, string>();
   const input = inputStream();
@@ -370,12 +373,18 @@ async function attempt(
         if (!main) continue;
         if (ev.type === "message_start") {
           text = "";
+          thinking = "";
           streaming = true;
           reportModel(ev.message.model);
         } else if (ev.type === "message_stop") streaming = false;
         if (ev.type === "content_block_delta" && ev.delta.type === "text_delta") {
           text += ev.delta.text;
           io.onText(prefix + text);
+        }
+        // Claude's thinking, when it streams it in words (a summary on newer models), shown live and not kept.
+        if (ev.type === "content_block_delta" && ev.delta.type === "thinking_delta") {
+          thinking += ev.delta.thinking;
+          io.onThinking?.(thinking);
         }
       } else if (m.type === "assistant") {
         o.tally.call(m.message.id, m.message.usage, !m.parent_tool_use_id);
@@ -387,16 +396,25 @@ async function attempt(
         for (const b of m.message.content)
           if (b.type === "tool_use" && !b.name.startsWith("mcp__apx__")) {
             o.counts.builtins++;
-            io.observe({
+            const call = {
               callId: b.id,
               title: `${b.name}: ${subjectOf(b.input as Record<string, unknown>).slice(0, 160)}`,
               kind: KIND[b.name] ?? "other",
-              status: "ok",
-            });
+            };
+            // Running until its result says how it went: a failed edit is not recorded as done.
+            builtins.set(b.id, call);
+            io.observe({ ...call, status: "running" });
           }
         // Its tools run now: words that arrived go in, and the SDK folds them in after this round.
         if (m.message.content.some((b) => b.type === "tool_use")) words.take("next");
       } else if (m.type === "user") {
+        const content = m.message.content;
+        for (const b of typeof content === "string" ? [] : content) {
+          const call = b.type === "tool_result" ? builtins.get(b.tool_use_id) : undefined;
+          if (!call || b.type !== "tool_result") continue;
+          builtins.delete(b.tool_use_id);
+          io.observe({ ...call, status: b.is_error ? "error" : "ok" });
+        }
         if (!m.parent_tool_use_id) words.take("next");
       } else if (m.type === "result") {
         sessionId = m.session_id;

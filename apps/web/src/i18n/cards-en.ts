@@ -1,0 +1,21 @@
+// What the answer cards' views say: choosing, comparing, places, booking, a confirmation and a plan. Loaded with them.
+export const enCards = {
+  "cards.choose": "Choose an option",
+  "cards.chooseTime": "Choose a day and time",
+  "cards.day": "Day",
+  "cards.time": "Time",
+  "cards.people": "{count} people",
+  "cards.person": "1 person",
+  "cards.fewer": "Fewer",
+  "cards.more": "More",
+  "cards.directions": "Directions",
+  "cards.open": "Open",
+  "cards.you": "You are here",
+  "cards.copy": "Copy",
+  "cards.copied": "Copied",
+  "cards.sent": "Sent",
+  "cards.option": "Option {n}",
+  "cards.askChoice": "I want {quantity} × {option} ({price}). Confirm with me before paying.",
+  "cards.askCompare": "Let's go with {option}.",
+  "cards.askBooking": "Book {what} on {day} at {time} for {people}. Confirm with me before paying.",
+};

@@ -9,6 +9,13 @@ export const enWelcome = {
   "welcome.cta": "Let's go",
   "welcome.soundOn": "Turn sound on",
   "welcome.soundOff": "Turn sound off",
+  "welcome.groups.title": "Group chats",
+  "welcome.groups.text": "From New chat, make a group of two to five agents and write to all of them in one chat.",
+  "welcome.group-answers.title": "The right one answers",
+  "welcome.group-answers.text":
+    "Each message is answered by the agent it is meant for, and you watch it write. Name someone, with or without @, to ask them.",
+  "welcome.group-card.title": "Each one with its model",
+  "welcome.group-card.text": "In Group you choose the model each agent answers with, and add or remove agents.",
   "welcome.sidebar.title": "A compact sidebar",
   "welcome.sidebar.text": "Right-click the sidebar to make it compact. Each section opens its list beside it.",
   "welcome.projects.title": "Projects inside projects",

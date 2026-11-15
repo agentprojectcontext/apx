@@ -23,6 +23,21 @@ const llm = scriptedLlm(async (req, { system, said, afterTool }) => {
     if (!afterTool) return callTool("ask", "task_comment", { task, text: "@scout are the numbers final?" });
     return say("Waiting for Scout's answer.");
   }
+  if (all.includes("Plan the sum fix")) {
+    const tools = req.messages.filter((m) => m.role === "tool").length;
+    if (tools === 0)
+      return callTool("p0", "file_write", { path: "implementation-plan.md", content: "Make sum return a + b." });
+    if (tools <= 2)
+      return callTool(`p${tools}`, "task_close", { task, state: "done", note: "checked the plan document reads well" });
+    return say(String(req.messages.at(-1)?.content));
+  }
+  if (all.includes("Fix the sum")) {
+    const tools = req.messages.filter((m) => m.role === "tool").length;
+    if (tools === 0)
+      return callTool("f0", "file_write", { path: "sum.js", content: "export const sum = (a, b) => a + b;\n" });
+    if (tools === 1) return callTool("f1", "task_close", { task, state: "done", note: "sum.js now returns a + b" });
+    return say("Done.");
+  }
   if (all.includes("Close it bare")) {
     if (!afterTool) return callTool("bare", "task_close", { task, state: "done" });
     return say(String(req.messages.at(-1)?.content));
@@ -129,4 +144,28 @@ test("the agent that did the work closes it as done only saying what it verified
     .join("\n");
   assert.match(said, /note: say in a line what you verified/);
   assert.equal(env.core.store.tasks.get(task.id)?.state, "open");
+});
+
+test("a task whose work only wrote documents is asked once whether that was the deliverable; a code change closes at once", async () => {
+  const planned = await env.client.call("tasks.create", {
+    title: "Plan the sum fix",
+    description: "sum(2, 3) must return 5: fix sum.js and check it.",
+    assignee: "vera",
+  });
+  await waitFor(() => env.core.store.tasks.get(planned.id)?.state === "done", "closed on the second try");
+  const seen = env.core.store.threads
+    .byTask(planned.id)
+    .flatMap((t) => env.core.store.runs.list(t.id, 20))
+    .flatMap((r) => env.core.store.modelLog.forRun(r.id) as Array<{ role: string; content?: unknown }>)
+    .filter((m) => m.role === "tool")
+    .map((m) => String(m.content));
+  assert.match(seen[1] ?? "", /not closed: this task's work only wrote implementation-plan\.md and ran no command/);
+  assert.match(seen[2] ?? "", /now done/);
+
+  const fixed = await env.client.call("tasks.create", {
+    title: "Fix the sum",
+    description: "sum(2, 3) must return 5.",
+    assignee: "vera",
+  });
+  await waitFor(() => env.core.store.tasks.get(fixed.id)?.state === "done", "closed at once");
 });

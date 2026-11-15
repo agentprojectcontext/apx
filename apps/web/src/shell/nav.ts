@@ -43,6 +43,7 @@ export const CONFIG_SECTIONS = [
   "profile",
   "memory",
   "voices",
+  "calls",
   "images",
   "interruptions",
   "activity-review",

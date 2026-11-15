@@ -10,7 +10,7 @@ import {
   type TabInfo,
 } from "@apx/protocol";
 import type { Bus } from "../bus.ts";
-import { inChrome, ownersTask, ownersWork, TERMINAL } from "../domain/runs.ts";
+import { chromeReach, reachIn, TERMINAL } from "../domain/runs.ts";
 import type { Store } from "../domain/store.ts";
 import type { Computer } from "../environments/computer.ts";
 import { conflict, unauthorized, unavailable } from "../errors.ts";
@@ -75,16 +75,16 @@ export function browserHandlers(
   });
   const backend = () => (local() ? "headless" : (broker.withCap(BROWSER_CAP)?.session ?? "unavailable"));
   type Ctx = Parameters<Handler<"browser.tabs">>[1];
-  const askedIn = (id: string) => store?.runs.get(store.inputs.get(id)?.run_id ?? "")?.input?.origin;
-  const runOf = (ctx: Ctx) => (ctx.agent ? store?.runs.get(ctx.agent.run_id) : undefined);
-  /** An agent's call in a turn written in APX's panel in Chrome: all of its browsing is in the owner's Chrome. */
-  const chromeTurn = (ctx: Ctx): boolean => inChrome(runOf(ctx)?.input?.origin, askedIn);
-  /** The owner's own work (their turn, routine or task; DECISIONS.md#d-223): it may also use their Chrome. */
-  const ownersTurn = (ctx: Ctx): boolean => {
-    const run = runOf(ctx);
-    const task = run && store?.threads.get(run.thread_id)?.task_id;
-    return ownersWork(run?.input?.origin, askedIn, Boolean(store && ownersTask(store.tasks, task)));
+  /** What the agent's turn may do in the owner's Chrome (DECISIONS.md#d-223, #d-226). */
+  const reach = store && reachIn(store);
+  const reachOf = (ctx: Ctx) => {
+    const run = ctx.agent && reach?.run(ctx.agent.run_id);
+    return run && reach ? chromeReach(run.origin, run.ownerTask, reach) : undefined;
   };
+  /** An agent's call in a turn written in APX's panel in Chrome (or work done for one): all its browsing is there. */
+  const chromeTurn = (ctx: Ctx): boolean => reachOf(ctx) === "all";
+  /** The owner's own work, or what their agents do for it: it may also use their Chrome. */
+  const ownersTurn = (ctx: Ctx): boolean => reachOf(ctx) !== undefined;
   /** A call for the owner's Chrome in any other turn: a tab of theirs, or a new one asked for there. */
   const forChrome = (method: BrowserMethod, params: unknown): boolean =>
     method === "browser.open"
@@ -203,9 +203,11 @@ export function browserHandlers(
       // The owner's own tabs: nothing is held or bound here, their Chrome closes nothing for being idle.
       if (chromeTurn(ctx)) return (await inOwnersChrome(method, params)) as never;
       if (forChrome(method, params)) {
-        // A contact's words, a routine or another agent never reach the owner's signed-in Chrome.
+        // A contact's words, an outside app or an agent working on its own never reach the owner's signed-in Chrome.
         if (ctx.agent && !ownersTurn(ctx))
-          throw unauthorized("only the owner's own work (their turn, routine or task) may use their Chrome");
+          throw unauthorized(
+            "only the owner's own work (their turn, routine or task, or a helper's part of it) may use their Chrome",
+          );
         return (await inOwnersChrome(method, params)) as never;
       }
       const isLocal = local();

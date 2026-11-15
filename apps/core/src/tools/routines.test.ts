@@ -15,6 +15,11 @@ const CALLS: Record<string, [string, object]> = {
   "turn off weather-acme": ["routine_set", { routine: "weather-acme", enabled: false }],
   "let weather-acme work alone": ["routine_set", { routine: "weather-acme", autonomy: "total" }],
   "let weather-acme act as you do": ["routine_set", { routine: "weather-acme", autonomy: "agent" }],
+  "let weather-acme act alone": ["routine_set", { routine: "weather-acme", autonomy: "auto" }],
+  "give Helper a check that works alone": [
+    "routine_set",
+    { name: "helper-check", prompt: "Check the build", every_min: 60, agent: "Helper", autonomy: "total" },
+  ],
 };
 const llm = scriptedLlm((req, { said, afterTool }) => {
   if (afterTool) return say(String(req.messages.at(-1)?.content));
@@ -108,13 +113,32 @@ test("routine_set changes only what it is given, by name, and can run the routin
   assert.equal(off?.prompt, "Say the weather in one line");
 });
 
-test("routine_set sets how a routine's runs act; Total waits for the owner's card even on Total", async () => {
+test("routine_set sets how a routine's runs act; Total asks only when it gives an agent more than it has", async () => {
+  await env.client.call("agents.create", { slug: "helper", name: "Helper", prompt: "Checks things" });
+  // On Auto the super-agent cannot ask for Total at all: refused before any card, nothing changes.
+  assert.match(await ask("let weather-acme work alone"), /only the owner sets a routine to total/);
+  assert.equal((await byName("weather-acme"))?.autonomy, undefined);
+
   await env.client.call("agents.update", { agent: "superagent", autonomy: "total" });
   try {
-    // On Total the super-agent's changes run alone, but letting a routine act on Total is the owner's call.
-    assert.match(await ask("let weather-acme work alone", "approve"), /saved: - weather-acme .*acts total/);
-    assert.equal((await byName("weather-acme"))?.autonomy, "total");
-    assert.doesNotMatch(await ask("let weather-acme act as you do"), /acts total/);
+    // Its own routine on Total gives it nothing it lacks: no card, and the routine keeps acting as its agent.
+    assert.doesNotMatch(await ask("let weather-acme work alone"), /acts total/);
+    assert.equal((await byName("weather-acme"))?.autonomy, undefined);
+
+    // Giving Total to an agent on Auto is the owner's call, even from the super-agent on Total, and the card says so.
+    const thread = await env.client.call("threads.create", { kind: "loose", agent_id: "superagent", title: "Helper" });
+    await env.client.call("threads.send", { thread: thread.id, text: "give Helper a check that works alone" });
+    const pending: Array<{ id: string; tool?: string; prompt?: string }> = await inputsOrEnd(env.client, thread.id);
+    assert.equal(pending[0]?.tool, "routine_set");
+    assert.match(pending[0]?.prompt ?? "", /te pregunta siempre, en cualquier modo/);
+    await env.client.call("runs.respond", { input: pending[0]?.id ?? "", decision: "approve" });
+    await env.settle(thread.id);
+    assert.match(lastSeen(), /saved: - helper-check .*agent helper.*acts total/);
+    assert.equal((await byName("helper-check"))?.autonomy, "total");
+
+    // A lower level is a choice of its own: setting it, and going back to its agent's, needs no card on Total.
+    assert.match(await ask("let weather-acme act alone"), /acts auto/);
+    assert.doesNotMatch(await ask("let weather-acme act as you do"), /acts /);
     assert.equal((await byName("weather-acme"))?.autonomy, undefined);
   } finally {
     await env.client.call("agents.update", { agent: "superagent", autonomy: "auto" });

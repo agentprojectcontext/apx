@@ -1,7 +1,7 @@
 // What every spec shares: the core's protocol, the outside world (e2e/env.ts's control API), and a page that fails
 // its test on any console error or uncaught exception.
 import { test as base, expect, type Page } from "@playwright/test";
-import { WELCOME_FILM } from "../../apps/web/src/shell/welcomeFilm.ts";
+import { ALL_SLIDES } from "../../apps/web/src/shell/welcomeFilm.ts";
 import { startPageCoverage } from "../coverage.ts";
 
 const core = `http://127.0.0.1:${process.env.E2E_PORT ?? 7460}`;
@@ -211,7 +211,7 @@ export const test = base.extend<{
             if (!localStorage.getItem("apx.corner")) localStorage.setItem("apx.corner", JSON.stringify(seed));
           } catch {}
         },
-        { ...(cornerCards ? {} : { discord: true, star: true }), ...(welcome ? {} : { welcome: WELCOME_FILM }) },
+        { ...(cornerCards ? {} : { discord: true, star: true }), ...(welcome ? {} : { welcomeSeen: ALL_SLIDES }) },
       );
     const errors: string[] = [];
     page.on("console", (m) => {

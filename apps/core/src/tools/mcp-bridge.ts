@@ -13,8 +13,15 @@ const SCHEMA_CAP = 2_000;
 
 const words = (s: string): string[] => s.toLowerCase().match(/[\p{L}\p{N}]{2,}/gu) ?? [];
 
-/** The server a tool belongs to, from its "[server] …" description. */
-const serverOf = (t: Tool) => /^\[([^\]]+)\]/.exec(t.description)?.[1] ?? "";
+/**
+ * Apps the owner connects (Gmail, Calendar…) whose tools are found like an MCP server's instead of sent on every call:
+ * most turns use none of them (DECISIONS.md#d-229). By the tool name's first word.
+ */
+const APPS: Record<string, string> = { calendar: "calendar", gmail: "gmail", drive: "drive", asana: "asana" };
+export const appOf = (name: string): string | undefined => APPS[name.split("_")[0] ?? ""];
+
+/** The server a tool belongs to, from its "[server] …" description, or the app it works on. */
+const serverOf = (t: Tool) => /^\[([^\]]+)\]/.exec(t.description)?.[1] ?? appOf(t.name) ?? "";
 
 /** Best first: words in the tool's name count double. */
 function rank(tools: Tool[], query: string): Tool[] {
@@ -37,24 +44,31 @@ function rank(tools: Tool[], query: string): Tool[] {
  * description, so the model knows what exists without loading anything). `load` starts the servers on first use.
  * mcp_call never runs here: the executor turns it into a call of the tool it names, with that tool's own checks.
  */
-export function mcpBridge(servers: string[], load: () => Promise<Tool[]>): Tool[] {
+export function mcpBridge(servers: string[], load: () => Promise<Tool[]>, apps: string[] = []): Tool[] {
+  const where = [
+    apps.length ? `the owner's connected apps (${apps.join(", ")})` : "",
+    servers.length ? `${apps.length ? "" : "the owner's "}MCP servers (${servers.join(", ")})` : "",
+  ]
+    .filter(Boolean)
+    .join(" and ");
+  const sources = [...apps, ...servers];
   return [
     defineTool({
       name: MCP_SEARCH,
-      description: `Find tools of the owner's MCP servers (${servers.join(", ")}) by words, or list one server's. Returns each tool's name, what it does and its arguments; run one with ${MCP_CALL}. To open a server's editor from chat, link apx:resources/mcp/NAME (apx-mcps explains exact scopes).`,
+      description: `Find tools of ${where} by words, or list one's. Returns each tool's name, what it does and its arguments; run one with ${MCP_CALL}.${servers.length ? " To open a server's editor from chat, link apx:resources/mcp/NAME (apx-mcps explains exact scopes)." : ""}`,
       args: z.object({
         query: z.string().max(200).optional().describe("words for what you want to do"),
-        server: z.string().max(64).optional().describe("only this server; without a query, lists all its tools"),
+        server: z.string().max(64).optional().describe("only this server or app; without a query, lists all its tools"),
       }),
       effect: "none",
       deadlineMs: 45_000,
-      title: (a) => `Searched MCP tools${a.query ? `: ${a.query}` : a.server ? ` of ${a.server}` : ""}`,
+      title: (a) => `Searched tools${a.query ? `: ${a.query}` : a.server ? ` of ${a.server}` : ""}`,
       async run(a) {
         const all = await load();
         const pool = a.server ? all.filter((t) => serverOf(t) === a.server) : all;
         if (!pool.length)
           return a.server
-            ? `no tools from ${a.server} (not started, or not one of: ${servers.join(", ")})`
+            ? `no tools from ${a.server} (not started, or not one of: ${sources.join(", ")})`
             : "no MCP server answered";
         if (!a.query)
           return cap(pool.map((t) => `- ${t.name}: ${t.description.replace(/\s+/g, " ").slice(0, 160)}`).join("\n"));
@@ -70,14 +84,14 @@ export function mcpBridge(servers: string[], load: () => Promise<Tool[]>): Tool[
     }),
     defineTool({
       name: MCP_CALL,
-      description: `Run an MCP tool found with ${MCP_SEARCH}: its exact name and its arguments. To pass a file, give the value apx-file:<path> or a med_ id of this chat: APX sends it as that field takes it (base64, or a path to a local server).`,
+      description: `Run a tool found with ${MCP_SEARCH}: its exact name and its arguments.${servers.length ? " To pass a file to an MCP tool, give the value apx-file:<path> or a med_ id of this chat: APX sends it as that field takes it (base64, or a path to a local server)." : ""}`,
       args: z.object({
-        tool: z.string().min(1).max(64).describe("the tool's name as mcp_search gave it (mcp_…)"),
+        tool: z.string().min(1).max(64).describe("the tool's name as mcp_search gave it"),
         args: z.record(z.string(), z.unknown()).optional().describe("its arguments, as its schema says"),
       }),
       effect: "none",
       deadlineMs: 5_000,
-      title: (a) => `Ran ${a.tool ?? "an MCP tool"}`,
+      title: (a) => `Ran ${a.tool ?? "a tool"}`,
       async run() {
         throw new Error(`${MCP_CALL} is resolved before it runs`);
       },
