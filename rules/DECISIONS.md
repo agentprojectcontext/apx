@@ -4944,3 +4944,40 @@ status changes, one note).
 Rejected: hiding the plan tool (the owner reads it and the progress guard counts it), deferring every rarely used tool
 (the super-agent's own tools are what most owners use: a search before each would add calls), and a lower reasoning
 effort by default (output was not the cost).
+
+<a id="d-230"></a>
+## D-230 — 2026-11-15 — A task's chat gets the task's notes, and a long skills catalog names the rest
+After [D-229](#d-229), the owner's own install still sent per call a 9.3k-character skills catalog (60 skills of the
+owner's other agent apps, video and design among them, a line of up to 180 characters each) and, in a code task's
+chat, 4.6k of memory: the eight newest global notes (golf lessons, v1 session reports) besides the project's.
+
+- **A chat working a task recalls like a helper's turn** (`recallFor`'s `delegated`, for a thread with a `task_id`):
+  the project's standing notes and the agent's own, and a global note only when it shares distinctive words with the
+  task. The owner's other chats keep their standing global notes. A note brought over from v1 never comes in on its
+  own there, only through `recall`: its session reports ("Claude Code finished the fix… tests green") share "fix",
+  "code" and "tests" with any code task, so no count of shared words tells them apart.
+- **The catalog describes 30 skills and names the rest** (`skillCatalog`): the project's skills first, a line of up to
+  100 characters each, then `Also:` with the next 90 names; past 120, a count. `load_skill` works with any name, and
+  the per-message pick ([D-028](#d-028)) still brings a matching skill by meaning.
+
+Rejected: dropping the catalog for the pick alone (a slow or missing embedding engine would leave the agent blind to
+its skills), and filtering skills by the agent's role (no reliable signal; an agent's `skills:` list already narrows it).
+
+<a id="d-231"></a>
+## D-231 — 2026-11-15 — APX downloads ffmpeg when the computer has none
+Voice notes (any engine: APX's voice, whisper.cpp) and voice replies on Telegram need ffmpeg. The install script put
+it there; the desktop installers do not, so an owner who installed the app had whisper.cpp set up (the model download
+turned it on) and every voice note failed with `ffmpeg: command not found`.
+
+- **The core gets it on first need** (`services/ffmpeg.ts`): the ffmpeg on the PATH or where package managers put it,
+  else `<home>/bin/ffmpeg`, else a download of ffmpeg-static's `b6.1.1` gzipped build for this system
+  (darwin/linux arm64 and x64, win32 x64), checked against the sha256 GitHub publishes for that asset and pinned in
+  code. It is fetched at startup and after a transcription model download when a voice service is on, so the first
+  note does not wait for it.
+- **whisper.cpp no longer converts** (`--convert` dropped): APX hands it a 16 kHz WAV it made with that ffmpeg, so one
+  ffmpeg serves every engine and the shell lookup `--convert` does (`sh -c ffmpeg`) is gone.
+- Updating the build means a new tag and its five digests in `BUILDS`, each checked by downloading it.
+
+Rejected: shipping ffmpeg in the installers (35–80 MB more on each, for owners who may never use voice); a WASM
+decoder in Node (heavy, slow, and a second codec stack to keep); asking the owner to install it (the failure this
+fixes).

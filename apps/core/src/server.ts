@@ -467,8 +467,12 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
   };
   const localModels = createModelInstaller({
     dir: path.join(config.home, "models"),
-    onReady: (_id, file) => useLocalModel(services, file, store.settings.get("owner_language") || "es"),
+    onReady: (_id, file) => {
+      useLocalModel(services, file, store.settings.get("owner_language") || "es");
+      services.prepareAudio();
+    },
   });
+  services.prepareAudio();
   const localEmbeds = createLocalEmbeddings({
     url: config.ollamaUrl,
     onReady: (model) => useLocalEmbedder(services, config.ollamaUrl, model),

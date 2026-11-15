@@ -1744,7 +1744,7 @@ export const en = {
   "time.tomorrowAt": "Tomorrow · {time}",
   "common.more": "More",
   "svc.modelWhisperCppHint":
-    "The ggml model file. APX starts whisper.cpp when a voice note arrives and stops it after 10 minutes unused. It needs whisper.cpp and ffmpeg installed.",
+    "The ggml model file. APX starts whisper.cpp when a voice note arrives and stops it after 10 minutes unused. It needs whisper.cpp installed.",
   "rooms.mode.mention": "When called",
   "rooms.mode.useful": "When useful",
   "rooms.mode.always": "Always",

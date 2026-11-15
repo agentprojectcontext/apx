@@ -22,6 +22,7 @@ import { type ContinueSession, type GoOn, NoticeCard, type SessionState } from "
 import { PlanCard } from "./chat/PlanCard";
 import { SkillsRow } from "./chat/SkillsRow";
 import { SubthreadCard } from "./chat/SubthreadCard";
+import { SurfaceCard } from "./chat/SurfaceCard";
 import { TakenMark, useTaken, type WaitingActions, WaitingControls } from "./chat/WaitingControls";
 import { Icon } from "./Icon";
 import { Markdown } from "./Markdown";
@@ -195,14 +196,7 @@ export function ChatMessage({
           </View>
         );
       case "surface":
-        return (
-          <View key={key} style={s.line}>
-            <Icon name="LayoutGrid" size={14} color={theme.fgMuted} />
-            <Text numberOfLines={1} style={s.lineText}>
-              {part.title}
-            </Text>
-          </View>
-        );
+        return <SurfaceCard key={key} part={part} client={client} />;
       default:
         return null;
     }

@@ -106,4 +106,5 @@ The budget above is the floor. On the owner's machine (2026-10-07) ten ordinary 
 62k tokens per call, when every MCP tool was sent: 64,432 tokens for a one-line answer. With `mcp_search` and
 `mcp_call` the same call is 11,838 tokens, and from a chat's second call the ChatGPT plan reads about 97% of it from
 its prompt cache ([D-053](DECISIONS.md#d-053)). Thirty skills add about 1,000 tokens to the system prompt's catalog
-(33 per skill).
+(33 per skill, lines capped at 100 characters); past thirty a skill adds only its name, about 5 tokens
+([D-230](DECISIONS.md#d-230)).

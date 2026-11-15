@@ -78,7 +78,10 @@ Notes never go in the system prompt. Instead, when an agent answers in a thread:
 
 1. On its **first turn** in that thread it gets its standing notes: up to 8 of the global ones and up to 8 from its
    own notebook, newest first, plus **up to 5 notes that match your message and recent owner turns**. Relevant matches
-   get space before standing notes; one oversized note cannot hide the smaller notes after it.
+   get space before standing notes; one oversized note cannot hide the smaller notes after it. A chat working a
+   task, or a turn another agent handed over, is about that task: instead of the global notes it gets the project's,
+   and a global note comes in only when it shares words with the task. Notes brought over from APX v1 don't come in
+   on their own there; `recall` finds them.
 2. Your turns also carry an **index of the agent's own notebook**: one short line per note not shown whole (its kind,
    date and what it is about), newest first, within 2,000 characters. A note worded unlike your message ("do it like
    you did today") is still in view, and `recall` brings its full text; notes past the limit are reached by search.

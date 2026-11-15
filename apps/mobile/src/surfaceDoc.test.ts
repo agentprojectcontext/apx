@@ -25,6 +25,14 @@ test("only this page's prompts, after a real touch, reach the agent", () => {
   assert.equal(readSurfaceMessage("not json", "n1"), undefined);
 });
 
+test("a page says how tall its content is, so a widget in a chat takes just its room", () => {
+  const msg = (m: object) => JSON.stringify({ apx: "n1", kind: "size", ...m });
+  assert.deepEqual(readSurfaceMessage(msg({ h: 412 }), "n1"), { size: 412 });
+  assert.equal(readSurfaceMessage(msg({ h: "tall" }), "n1"), undefined);
+  assert.equal(readSurfaceMessage(msg({ h: 412 }), "n2"), undefined);
+  assert.match(surfaceDoc("<p>hi</p>", { mode: "dark", nonce: "n1" }), /post\(\{kind:"size",h:h\}\)/);
+});
+
 test("mobile apps fill the viewport while widgets retain their safe inset", () => {
   const app = surfaceDoc('<main class="apx-widget">Example</main>', { mode: "dark", nonce: "n", layout: "app" });
   assert.match(app, /--apx-content-width:none;--apx-page-padding:0px/);

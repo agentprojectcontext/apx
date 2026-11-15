@@ -523,7 +523,8 @@ async function buildContext(deps: TurnDeps, turn: Turn, run: RunRecord, mode: Au
         memoryQuery(store, thread.id, turn.input.text),
         ctxState,
         from,
-        turn.input.origin.kind === "agent",
+        // A chat working a task is about that task, like a helper's turn: no standing global notes.
+        turn.input.origin.kind === "agent" || Boolean(thread.task_id),
       )
     : {};
   const chats = remembers
