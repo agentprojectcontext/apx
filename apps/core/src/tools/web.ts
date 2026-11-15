@@ -3,7 +3,7 @@
 // clicks. Search reads the result pages of public engines (no key), first one that answers.
 import dns from "node:dns/promises";
 import net from "node:net";
-import { loopbackHost } from "@apx/protocol/cdp";
+import { loopbackHost } from "@apx/protocol/browser-urls";
 import { z } from "zod";
 import { untrusted } from "./result.ts";
 import { type Confirm, defineTool, type Tool } from "./types.ts";

@@ -18,31 +18,14 @@ import { createProjectReader, type ReadProjectFiles } from "./apc/project-reader
 import { createApcSync } from "./apc/sync.ts";
 import type { TemplateRoot } from "./apc/templates.ts";
 import { createBus } from "./bus.ts";
-import { discordAdapter } from "./channels/discord.ts";
-import { emailAdapter } from "./channels/email.ts";
-import { googlechatAdapter } from "./channels/googlechat.ts";
-import { imessageAdapter } from "./channels/imessage.ts";
-import { ircAdapter } from "./channels/irc.ts";
-import { lineAdapter } from "./channels/line.ts";
+import { builtinFactories } from "./channels/builtin-factories.ts";
 import { createChannels } from "./channels/manager.ts";
-import { matrixAdapter } from "./channels/matrix.ts";
-import { mattermostAdapter } from "./channels/mattermost.ts";
-import { nextcloudAdapter } from "./channels/nextcloud.ts";
-import { ntfyAdapter } from "./channels/ntfy.ts";
-import { signalAdapter } from "./channels/signal.ts";
-import { slackAdapter } from "./channels/slack.ts";
-import { smsAdapter } from "./channels/sms.ts";
-import { teamsAdapter } from "./channels/teams.ts";
-import { telegramAdapter } from "./channels/telegram.ts";
-import { twitchAdapter } from "./channels/twitch.ts";
 import type { AdapterFactory } from "./channels/types.ts";
-import { whatsappAdapter } from "./channels/whatsapp.ts";
 import { type CoreConfig, OAUTH_CHATGPT } from "./config.ts";
 import { coreLogSink } from "./core-log.ts";
 import { openDb, storeSize } from "./db/db.ts";
 import { type DesktopOps, systemDesktop } from "./desktop.ts";
 import { watchAgentReviews } from "./domain/agent-review.ts";
-import { signatureFor } from "./domain/email-signature-settings.ts";
 import { cleanUpCapturedNotes } from "./domain/memory-capture-cleanup.ts";
 import { tellWaitingNotes } from "./domain/memory-notice.ts";
 import { ownerIdentity } from "./domain/owner.ts";
@@ -583,40 +566,7 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
     secrets,
     bus,
     log,
-    factories: opts.channelAdapters ?? {
-      telegram: (c, token) => telegramAdapter(c, token, config.telegramApi ?? "https://api.telegram.org"),
-      discord: (c, token) => discordAdapter(c, token, config.discord),
-      slack: (c, token) => slackAdapter(c, token, config.slackApi ?? "https://slack.com/api"),
-      // The server's address travels in the secret with the token: these run against the owner's own server.
-      matrix: (c, secret) => matrixAdapter(c, secret),
-      mattermost: (c, secret) => mattermostAdapter(c, secret),
-      signal: (c, secret) => signalAdapter(c, secret),
-      // The secret is the mailbox's password; the servers are in the channel's settings.
-      email: (c, password) =>
-        emailAdapter(c, password, {
-          dir: path.join(config.home, "channels", c.id),
-          signature: () => signatureFor(store, "smtp", c.id, c.email?.address),
-          owner: (address) => store.persons.byAddress(c.id, address)?.role === "owner",
-        }),
-      whatsapp: (c) =>
-        whatsappAdapter({
-          dir: path.join(config.home, "channels", c.id),
-          selfOwner: c.self_owner === true,
-          rooms: (c.rooms?.rooms ?? []).map((r) => r.id),
-          log,
-        }),
-      // Messages' database on this Mac: no secret; it refuses to start anywhere else.
-      imessage: (c, s) => imessageAdapter(c, s, { dir: path.join(config.home, "channels", c.id) }),
-      googlechat: (c, secret) => googlechatAdapter(c, secret),
-      sms: (c, secret) => smsAdapter(c, secret, { dir: path.join(config.home, "channels", c.id) }),
-      ntfy: (c, secret) => ntfyAdapter(c, secret, { dir: path.join(config.home, "channels", c.id) }),
-      nextcloud: (c, secret) => nextcloudAdapter(c, secret, { dir: path.join(config.home, "channels", c.id) }),
-      irc: (c, secret) => ircAdapter(c, secret),
-      twitch: (c, secret) => twitchAdapter(c, secret),
-      // These deliver signed webhooks through the shared public ingress address.
-      line: (c, secret) => lineAdapter(c, secret, { dir: path.join(config.home, "channels", c.id) }),
-      teams: (c, secret) => teamsAdapter(c, secret, { dir: path.join(config.home, "channels", c.id) }),
-    },
+    factories: opts.channelAdapters ?? builtinFactories(config, store, log),
     ...(opts.channelRetryMs ? { retryMs: opts.channelRetryMs } : {}),
     call: internal,
     services,

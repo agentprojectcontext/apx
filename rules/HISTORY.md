@@ -127,6 +127,22 @@ elsewhere; `scripts/test-portability.ts` now finds the classes, with today's rem
 first.
 **Where:** `packages/protocol/package.json` (`exports`), `apps/*/package.json` (`workspace:*`).
 
+<a id="unused-channel-transports"></a>
+### Unconfigured channels do not load their transports
+**Rule:** built-in channel factories load their implementation on first use, not when the core starts. Keep
+synchronous factory signatures: the manager still constructs a real adapter, including its optional capabilities,
+before it starts or forgets an account. Number validation loads its numbering plans only for a supplied number.
+**Why:** loading every unused transport retained code and module state even after the startup memory trim. The
+idle RSS budget failed on an empty home as well as on the model-catalog branch; deferring those modules removes
+the unused work rather than increasing the budget or changing the benchmark. Node's synchronous ESM loading
+preserves the existing factory contract; each call still creates a separate adapter for its account. Shared address
+normalization lives separately so channel settings do not pull in the WhatsApp transport.
+The browser follows the same boundary: URL checks stay in the lightweight protocol `browser-urls` subpath;
+headless tabs and widget edit pages import the CDP implementation only when they create a page. Navigation and
+local-page rules are unchanged and remain shared with desktop consumers through the existing CDP exports.
+**Where:** `apps/core/src/channels/builtin.ts`, `builtin-factories.ts`, `phone.ts`, `whatsapp-address.ts`,
+`apps/core/src/nodes/headless-browser.ts`, `widget-pages.ts`, `packages/protocol/src/browser-urls.ts`.
+
 <a id="idle-memory"></a>
 ### An idle core gives its young generation back
 **Rule:** keep `createIdleTrim` running in the core; do not drop it for "V8 manages memory on its own".

@@ -21,7 +21,9 @@ import {
   SendError,
   type ServerRoom,
 } from "./types.ts";
+import { normalJid } from "./whatsapp-address.ts";
 import { contextOf, mediaOf, textOf, unwrap, type WaContent, type WaKey, type WaMedia } from "./whatsapp-content.ts";
+
 import { lookup, wallTimers } from "./whatsapp-lookup.ts";
 import { type Menu, optionNamed, readMenu, tapFor } from "./whatsapp-menus.ts";
 
@@ -116,13 +118,6 @@ const RESEND_WAIT_MS = 12_000;
 /** Numbers found on WhatsApp kept on one connection, so a run of sends asks once each. */
 const REACH_KEPT = 1_000;
 
-/** `5491100000000:12@s.whatsapp.net` → `5491100000000@s.whatsapp.net` (the device suffix is not the person). */
-export const normalJid = (jid: string | null | undefined): string => {
-  const s = String(jid ?? "").toLowerCase();
-  const at = s.indexOf("@");
-  if (at < 1) return "";
-  return `${s.slice(0, at).split(":")[0]}@${s.slice(at + 1)}`;
-};
 const isPhone = (jid: string) => jid.endsWith("@s.whatsapp.net");
 /** The number a private id stands for, when this device has learned it (from a send or an earlier message). */
 async function numberOf(s: WaSocket, jid: string, timers: RunTimers): Promise<string> {

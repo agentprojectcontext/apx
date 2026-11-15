@@ -2,7 +2,7 @@
 // so the owner can point at its parts. The page only gets answers to its reads; nothing it says is trusted: picking
 // and edits go through CdpPage's DOM commands, as in a browser tab.
 import type { ElementEdit, PickedElement } from "@apx/protocol";
-import { CdpPage } from "@apx/protocol/cdp";
+import type { CdpPage } from "@apx/protocol/cdp";
 import { ApxError } from "@apx/protocol/client";
 import { injectSurfaceHead, surfaceLayoutCss, WIDGET_KIT_CSS } from "../../../../packages/surfaces/src/widget-kit.ts";
 import { type PageCall, type PageCdp, withBridge } from "./page-check.ts";
@@ -144,7 +144,7 @@ export function createWidgetPages(
       of,
       whole,
       send,
-      page: new CdpPage(send, { selectAllModifiers: 0 }),
+      page: new (await import("@apx/protocol/cdp")).CdpPage(send, { selectAllModifiers: 0 }),
       stop,
       used: now(),
     });

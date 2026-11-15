@@ -2,6 +2,10 @@
 // (Electron's debugger) or the core's own headless Chrome. Refs are backendNodeIds from the accessibility tree
 // (stable while the document lives, DOM untouched).
 import type { BrowserDialog, BrowserFillSecret, ElementEdit, PickedElement, SignInResult } from "./browser.ts";
+import { servedHere } from "./browser-urls.ts";
+
+export { assertNavigable, loopbackHost, servedHere } from "./browser-urls.ts";
+
 import { isDialogRef, PageDialog } from "./cdp-dialog.ts";
 import { PageEdits } from "./cdp-edit.ts";
 import { captureDocument, evaluatePage } from "./cdp-evaluate.ts";
@@ -43,8 +47,6 @@ const CREDENTIAL_AUTOCOMPLETE = /\b(current-password|new-password|one-time-code|
 /** Widest tab picture taken, in pixels: what a model reads well, a retina tab would be twice its viewport. */
 const SHOT_WIDTH = 1280;
 
-const LOOPBACK = new Set(["127.0.0.1", "localhost", "[::1]", "0.0.0.0"]);
-
 /** APX's own step for a native list: the option whose text (or value) matches, then the events a choice sends. */
 const CHOOSE = `function (wanted) {
   const w = String(wanted).trim().toLowerCase();
@@ -57,47 +59,6 @@ const CHOOSE = `function (wanted) {
   this.dispatchEvent(new Event("change", { bubbles: true }));
   return true;
 }`;
-
-/** A host on this computer itself. */
-export function loopbackHost(hostname: string): boolean {
-  return /^(localhost|([\w-]+\.)+localhost|127(\.\d{1,3}){3}|\[::1\])$/i.test(hostname);
-}
-
-/**
- * A page this computer serves (a dev server), other than APX itself (`blockedPorts`): what is typed there stays on
- * this machine, so an agent types there without asking (DECISIONS.md#d-212).
- */
-export function servedHere(url: string, blockedPorts: ReadonlySet<string>): boolean {
-  let u: URL;
-  try {
-    u = new URL(url);
-  } catch {
-    return false;
-  }
-  if (u.protocol !== "http:" && u.protocol !== "https:") return false;
-  return loopbackHost(u.hostname) && !blockedPorts.has(u.port || (u.protocol === "https:" ? "443" : "80"));
-}
-
-/**
- * Where a tab may go: http(s) only, no credentials in the address, never APX itself (a driven tab would hold the
- * owner's controls) nor link-local or cloud-metadata addresses.
- */
-export function assertNavigable(url: string, blockedPorts: ReadonlySet<string>): void {
-  let u: URL;
-  try {
-    u = new URL(url);
-  } catch {
-    throw new ApxError({ code: "bad_request", message: `not a URL: ${url}` });
-  }
-  if (u.protocol !== "http:" && u.protocol !== "https:")
-    throw new ApxError({ code: "bad_request", message: `navigation blocked: only http(s), got ${u.protocol}` });
-  if (u.username || u.password)
-    throw new ApxError({ code: "bad_request", message: "navigation blocked: credentials in URL" });
-  if (LOOPBACK.has(u.hostname) && blockedPorts.has(u.port || "80"))
-    throw new ApxError({ code: "bad_request", message: "navigation blocked: that is APX itself" });
-  if (/^169\.254\./.test(u.hostname) || u.hostname === "metadata.google.internal")
-    throw new ApxError({ code: "bad_request", message: "navigation blocked: link-local/metadata address" });
-}
 
 export class CdpPage {
   readonly #send: CdpSend;

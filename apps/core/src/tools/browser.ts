@@ -4,7 +4,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { setTimeout } from "node:timers/promises";
 import { BROWSER_CAP, BROWSER_REF, type BrowserDialog, chromeTabId, type TabInfo } from "@apx/protocol";
-import { servedHere } from "@apx/protocol/cdp";
+import { servedHere } from "@apx/protocol/browser-urls";
 import { z } from "zod";
 import type { AgentRecord } from "../domain/agents.ts";
 import type { Store } from "../domain/store.ts";

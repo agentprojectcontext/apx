@@ -16,7 +16,8 @@ import {
   type TabControl,
   type TabInfo,
 } from "@apx/protocol";
-import { assertNavigable, CdpPage, scrubDeep } from "@apx/protocol/cdp";
+import { assertNavigable } from "@apx/protocol/browser-urls";
+import type { CdpPage } from "@apx/protocol/cdp";
 import { ApxError } from "@apx/protocol/client";
 import { findProgram } from "../programs.ts";
 import { type PageCall, type PageCdp, type PageCheck, runPageCheck } from "./page-check.ts";
@@ -407,6 +408,7 @@ export function createHeadlessBrowser(deps: {
     await send("Fetch.enable", { patterns: [{ resourceType: "Document" }] });
     const { userAgent } = await p.send<{ userAgent: string }>("Browser.getVersion");
     await send("Network.setUserAgentOverride", { userAgent: userAgent.replace("HeadlessChrome", "Chrome") });
+    const { CdpPage } = await import("@apx/protocol/cdp");
     const t: Tab = {
       id: `${deps.remote ? "vm-" : "h"}${++seq}`,
       target: targetId,
@@ -487,7 +489,9 @@ export function createHeadlessBrowser(deps: {
       const out = await serve(method, raw);
       // A page may carry a filled value on into its address or title (a form sent by GET).
       const t = tabs.get(String((raw as { tab?: unknown } | null)?.tab ?? ""));
-      return t && method !== "browser.screenshot" ? scrubDeep(out, (x) => t.page.scrub(x)) : out;
+      return t && method !== "browser.screenshot"
+        ? (await import("@apx/protocol/cdp")).scrubDeep(out, (x) => t.page.scrub(x))
+        : out;
     },
   };
 

@@ -6,7 +6,7 @@ import type { AddressInfo } from "node:net";
 import os from "node:os";
 import path from "node:path";
 import { BROWSER_CAP } from "@apx/protocol";
-import { loopbackHost } from "@apx/protocol/cdp";
+import { loopbackHost } from "@apx/protocol/browser-urls";
 import type { Bus } from "./bus.ts";
 import type { CoreConfig } from "./config.ts";
 import { nativeApproval } from "./domain/approvals.ts";

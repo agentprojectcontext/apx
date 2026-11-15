@@ -8,7 +8,7 @@ import { pairingRef } from "../channels/inbound.ts";
 import type { Channels } from "../channels/manager.ts";
 import { countryOf, whatsappDigits } from "../channels/phone.ts";
 import { autoApproves } from "../channels/stickers.ts";
-import { normalJid } from "../channels/whatsapp.ts";
+import { normalJid } from "../channels/whatsapp-address.ts";
 import { publicOutbox } from "../domain/channels.ts";
 import { dayStart } from "../domain/hours.ts";
 import { appOnly, noticePrefs, saveNoticePrefs } from "../domain/notices.ts";

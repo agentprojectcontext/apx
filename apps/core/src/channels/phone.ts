@@ -1,7 +1,17 @@
 // A phone number as WhatsApp addresses it: digits with the country code, no "+". People type numbers the local way
 // ("976 666 004", "011 15 2345-6789"); WhatsApp takes those as some other country's number and the message goes
 // nowhere, so the country code is filled in from a number APX already knows, or the number is refused.
-import { type CountryCode, parsePhoneNumberFromString } from "libphonenumber-js/min";
+import { createRequire } from "node:module";
+import type { CountryCode } from "libphonenumber-js/min";
+
+const require = createRequire(import.meta.url);
+let parser: typeof import("libphonenumber-js/min").parsePhoneNumberFromString | undefined;
+
+function parsePhoneNumberFromString(...args: Parameters<NonNullable<typeof parser>>) {
+  // Number validation is synchronous; load the numbering plans only when someone supplies a number.
+  parser ??= (require("libphonenumber-js/min") as typeof import("libphonenumber-js/min")).parsePhoneNumberFromString;
+  return parser(...args);
+}
 
 export type PhoneResult = { digits: string } | { problem: string };
 
