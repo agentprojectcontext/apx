@@ -19,6 +19,8 @@ const INDEX_HEADER = "[your notes index: one line each; recall its words for the
 const SHOWN_CAP = 200;
 /** A global note comes into a delegated turn only when it shares this many distinctive words with the task. */
 const GLOBAL_SHARED_WORDS = 2;
+/** One brought over from v1 (mostly old session reports, "Claude Code … tests") needs more to be about the task. */
+const IMPORTED_SHARED_WORDS = 3;
 /** Words every task and every owner note use; sharing them says nothing about the subject. */
 const GENERIC = new Set(
   "owner owners dueno project projects proyecto proyectos user usuario agent agents agente task tasks tarea repo check revisar".split(
@@ -35,7 +37,7 @@ function relatedToTask(note: Memory, task: string): boolean {
     .filter(({ w }) => !GENERIC.has(w));
   const have = plain(note.text).match(/[\p{L}\p{N}]{3,}/gu) ?? [];
   const shared = words.filter(({ w, prefix }) => have.some((h) => (prefix ? h.startsWith(w) : h === w)));
-  return shared.length >= GLOBAL_SHARED_WORDS;
+  return shared.length >= (note.source === "imported" ? IMPORTED_SHARED_WORDS : GLOBAL_SHARED_WORDS);
 }
 
 /**
