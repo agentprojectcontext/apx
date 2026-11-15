@@ -4892,6 +4892,12 @@ template recommends was refused mid-plan; a long reading turn ran out of context
   every change its runs on the task made (with their workers') was a document (`.md`, `.txt`…) and it ran no command,
   the close is refused once, saying which documents; closing again passes (`documents_checked` on the task's
   conversation), so a task that wanted a document costs one extra call.
+- **Work left in its worktree is asked about once** (`uncommittedWork` in `tools/task-evidence.ts`): in a live run the
+  developer fixed the code in its own worktree, closed the task as done and never committed, so the project's checkout
+  showed nothing. Closing as done, the folders its runs wrote to or ran commands in are checked; a linked git worktree
+  among them with uncommitted changes refuses the close once, naming the folder and branch (`commit_checked`). Only
+  worktrees: one is made for a piece of work, while the owner's own checkout may hold their changes. Merging stays the
+  owner's or the project's call.
 - **A worker may help mid-plan** (`midPlan` in `tools/agents.ts`): D-202's rule keeps other agents out until the plan's
   last step; a worker of the agent's own is its help with the work, not another owner of it. The refusal is now a
   failed step.

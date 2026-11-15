@@ -20,7 +20,7 @@ import { mentioned, mentionsOwner } from "../engine/office.ts";
 import { badRequest, CallError } from "../errors.ts";
 import { readsOutside } from "./folders.ts";
 import { cap, fromTeam, inlineName, untrusted } from "./result.ts";
-import { documentsOnly } from "./task-evidence.ts";
+import { documentsOnly, uncommittedWork } from "./task-evidence.ts";
 import { type CheckContext, defineTool, type Tool, type ToolContext } from "./types.ts";
 
 const attachmentsArg = z
@@ -565,7 +565,7 @@ export function taskTools(store: Store, home: string): Tool[] {
         rework: z.boolean().optional(),
       }),
       effect: "local",
-      check: (a, ctx) => {
+      check: async (a, ctx) => {
         const t = taskOf(a.task, ctx);
         // Done is a claim about the work: the one who did it says what shows it (DECISIONS.md#d-162).
         if (a.state === "done" && t.assignee === ctx.agent.id && (a.note?.trim().length ?? 0) < MIN_EVIDENCE)
@@ -580,6 +580,16 @@ export function taskTools(store: Store, home: string): Tool[] {
             `not closed: this task's work only wrote ${docs.slice(0, 3).join(", ")} and ran no command. If the task asked for a change (code, a fix, a setup), make it and check it now, then close. If a document was the deliverable, close again.`,
           );
         }
+        // Work left uncommitted in its worktree reaches nobody: asked once, so a close that means it still goes.
+        if (a.state !== "done" || t.assignee !== ctx.agent.id || store.threads.context(t.thread_id).commit_checked)
+          return;
+        const left = await uncommittedWork(store, home, t);
+        if (!left.length) return;
+        store.threads.mergeContext(t.thread_id, { commit_checked: true });
+        const where = left.map((w) => `${w.dir}${w.branch ? ` (branch ${w.branch})` : ""}: ${w.changes} changed`);
+        throw badRequest(
+          `not closed: uncommitted work in ${where.join("; ")}. Commit it on its branch, then close again and name the branch in the note. If it is not this task's work, say so in the note and close again.`,
+        );
       },
       deadlineMs: 5_000,
       title: (a) => `Marked ${String(a.task ?? "")} ${String(a.state ?? "")}`,
