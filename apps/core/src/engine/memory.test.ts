@@ -343,24 +343,22 @@ test("a delegated turn ignores global notes that only share the owner's generic 
   assert.doesNotMatch(helper.text ?? "", /sip-call-ai/, "sharing owner and project is not being about the task");
 });
 
-test("a delegated turn takes a note brought over from v1 only when it shares more than a code task's usual words", async () => {
+test("a delegated turn leaves notes brought over from v1 to recall, however many words they share", async () => {
   const store = env.core.store;
   const byWords = async (o: { query: string; limit: number }) => store.memories.list(o);
   const task =
-    "Fix the invoice total in src/billing.js for discount codes (an unknown code is ignored) and add tests; npm test must pass.";
+    "Fix the invoice total for discount codes (an unknown code is ignored) and add tests; npm test must pass.";
   store.memories.add({
     scope: "global",
-    text: "Claude Code finished the session with every test green and pushed the code.",
+    text: "Told the owner Claude Code finished the fix with every test green and pushed the code.",
     source: "imported",
   });
-  store.memories.add({
-    scope: "global",
-    text: "Invoice totals round to cents before tax; billing tests cover it.",
-    source: "imported",
-  });
+  store.memories.add({ scope: "global", text: "Invoice discount totals must pass the tax tests.", source: "owner" });
   const helper = await recallFor(store, byWords, "scout", { project_id: project }, task, {}, 0, true);
-  assert.match(helper.text ?? "", /round to cents/, "an old note about the task's subject");
-  assert.doesNotMatch(helper.text ?? "", /finished the session/, "an old session report sharing only code words");
+  assert.match(helper.text ?? "", /pass the tax tests/, "the owner's note about the task's subject");
+  assert.doesNotMatch(helper.text ?? "", /finished the fix/, "an old session report sharing fix, code and tests");
+  const direct = await recallFor(store, byWords, "scout", { project_id: project }, task, {}, 0, false);
+  assert.match(direct.text ?? "", /finished the fix/, "the owner's own chats still match it");
 });
 
 test("a delegated turn still recalls a related global note ranked behind five unrelated ones", async () => {
