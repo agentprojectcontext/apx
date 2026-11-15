@@ -28,6 +28,9 @@ try{post({kind:"call",id:id,method:String(method),params:params&&typeof params==
 window.__apxResult=function(n,m){if(n!==N||!m)return;var c=calls[m.id];if(!c)return;delete calls[m.id];if(m.ok)c.ok(m.value);else c.no(new Error(String(m.error||"call failed")));};
 window.apx=Object.freeze({host:"apx",sendPrompt:sendPrompt,call:call,visible:function(){return true;},onVisibility:function(){return function(){};}});
 window.sendPrompt=sendPrompt;
+var high=0;function size(){var b=document.body;if(!b)return;var h=Math.ceil(b.getBoundingClientRect().height);if(h!==high){high=h;post({kind:"size",h:h});}}
+addEventListener("DOMContentLoaded",function(){size();if(window.ResizeObserver)new ResizeObserver(size).observe(document.body);});
+addEventListener("load",size);
 })();`;
 }
 
@@ -76,7 +79,7 @@ export function readSurfaceMessage(
   raw: string,
   nonce: string,
   surface = "",
-): { prompt: string } | { call: SurfaceCall } | { refused: number } | undefined {
+): { prompt: string } | { call: SurfaceCall } | { refused: number } | { size: number } | undefined {
   let m: {
     apx?: unknown;
     kind?: unknown;
@@ -85,6 +88,7 @@ export function readSurfaceMessage(
     id?: unknown;
     method?: unknown;
     params?: unknown;
+    h?: unknown;
   };
   try {
     m = JSON.parse(raw) as typeof m;
@@ -99,6 +103,9 @@ export function readSurfaceMessage(
     const method = PHONE_METHODS[m.method as keyof typeof PHONE_METHODS];
     return { call: { id: m.id, method, params: { ...p, surface } } };
   }
+  // How tall the page's content is, so a widget in a chat takes just the room it needs.
+  if (m.kind === "size")
+    return typeof m.h === "number" && Number.isFinite(m.h) ? { size: Math.max(0, m.h) } : undefined;
   if (m.kind !== "prompt" || m.gesture !== true) return undefined;
   const text = typeof m.text === "string" ? m.text.trim().slice(0, 4000) : "";
   return text ? { prompt: text } : undefined;

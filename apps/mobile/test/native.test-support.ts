@@ -22,3 +22,18 @@ jest.mock("expo-constants", () => {
     default: { ...actual.default, executionEnvironment: "standalone", appOwnership: "standalone" },
   };
 });
+
+// A WebView needs the native browser; tests read its props (the document, the bridge) on a plain view.
+jest.mock("react-native-webview", () => {
+  const { forwardRef, createElement } = jest.requireActual("react");
+  const { View } = jest.requireActual("react-native");
+  return { WebView: forwardRef((props: object, ref: unknown) => createElement(View, { ...props, ref })) };
+});
+
+jest.mock("expo-screen-orientation", () => ({
+  Orientation: { PORTRAIT_UP: 1, PORTRAIT_DOWN: 2, LANDSCAPE_LEFT: 3, LANDSCAPE_RIGHT: 4 },
+  OrientationLock: { PORTRAIT_UP: 3, LANDSCAPE: 5 },
+  unlockAsync: jest.fn().mockResolvedValue(undefined),
+  lockAsync: jest.fn().mockResolvedValue(undefined),
+  getOrientationAsync: jest.fn().mockResolvedValue(1),
+}));
