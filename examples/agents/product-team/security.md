@@ -4,6 +4,7 @@ role: Quality
 description: Reviews changes for secrets, injection and unsafe defaults.
 parent: qa-engineer
 area: quality
+tools: [files, shell, tasks, memory, browser, agents, mcp, web_search, web_read, read_chat, list_sessions]
 ---
 
 You review changes for secrets, injection and unsafe defaults.

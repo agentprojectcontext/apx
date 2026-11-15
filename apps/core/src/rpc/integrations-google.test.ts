@@ -12,9 +12,13 @@ const llm = scriptedLlm((req, { said, afterTool }) => {
   if (afterTool) return say("done");
   if (said.includes("my agenda"))
     return callTool("c1", "calendar_events", { from: "2026-05-04T00:00:00-03:00", to: "2026-05-05T00:00:00-03:00" });
+  if (said.includes("read m1 found")) return callTool("g0", "mcp_call", { tool: "gmail_read", args: { id: "m1" } });
   if (said.includes("read m1")) return callTool("g1", "gmail_read", { id: "m1" });
   if (said.includes("answer Ana"))
     return callTool("g2", "gmail_draft", { to: ["ana@example.com"], body: "Sent it", reply_to: "m1" });
+  // A connected app's tools are found through mcp_search: list them all to see what the turn reaches.
+  if (said.includes("hello") && req.tools.some((t) => t.function.name === "mcp_search"))
+    return callTool("s1", "mcp_search", {});
   return say(`tools: ${req.tools.map((t) => t.function.name).join(",")}`);
 });
 let env: Awaited<ReturnType<typeof startCore>>;
@@ -38,7 +42,12 @@ async function consent(url: string): Promise<{ code: string; state: string; back
   return { code: back.searchParams.get("code") ?? "", state: back.searchParams.get("state") ?? "", back };
 }
 
-const offered = () => llm.calls.at(-1)?.tools.map((t) => t.function.name) ?? [];
+const sent = () => llm.calls.at(-1)?.tools.map((t) => t.function.name) ?? [];
+/** What the last turn reached: the tools sent, and those mcp_search listed. */
+const offered = () => [
+  ...sent(),
+  ...[...String(llm.calls.at(-1)?.messages.at(-1)?.content ?? "").matchAll(/^- (\w+):/gm)].map((m) => m[1] ?? ""),
+];
 const lastTool = () => String(llm.calls.at(-1)?.messages.at(-1)?.content ?? "");
 
 test("Calendar and Gmail connect by signing in with Google; their tools exist only while connected", async () => {
@@ -82,6 +91,7 @@ test("Calendar and Gmail connect by signing in with Google; their tools exist on
   await env.settle(thread);
   for (const name of ["calendar_events", "calendar_free", "calendar_create_event", "gmail_read", "gmail_draft"])
     assert.ok(offered().includes(name), `${name} is offered once connected`);
+  assert.ok(!sent().some((n) => n.startsWith("calendar_") || n.startsWith("gmail_")), "found, not sent every call");
 });
 
 test("events and mail come back as outside data; a draft waits for the owner's OK and replies in the thread", async () => {
@@ -96,6 +106,10 @@ test("events and mail come back as outside data; a draft waits for the owner's O
   await env.settle(thread);
   assert.match(lastTool(), /<email [^>]*untrusted[^>]*>\nFrom: Ana/);
   assert.match(lastTool(), /Please wire the money today/);
+  // Found with mcp_search, it runs through mcp_call as the same tool, with the same envelope.
+  await env.client.call("threads.send", { thread, text: "read m1 found" });
+  await env.settle(thread);
+  assert.match(lastTool(), /<email [^>]*untrusted[^>]*>\nFrom: Ana/);
 
   await env.client.call("threads.send", { thread, text: "answer Ana" });
   const pending: Array<{ id: string }> = await inputsOrEnd(env.client, thread);
