@@ -446,10 +446,20 @@ export function taskHandlers(
           planSteps(plan ?? "")?.filter((x) => x.state === "done").length ?? 0;
         if ((c.plan !== undefined && done(c.plan) > done(cur.plan)) || (c.assignee && c.assignee !== cur.assignee))
           store.threads.mergeContext(cur.thread_id, { progress_at: new Date().toISOString() });
+        // Its agent writing the plan is working on it: the card moves to doing without a call of its own.
+        const columns = columnsOf(store).map((col) => col.id);
+        const begun =
+          Boolean(ctx.agent) &&
+          ctx.agent?.id === cur.assignee &&
+          c.plan !== undefined &&
+          c.status === undefined &&
+          cur.state === "open" &&
+          columns.indexOf(cur.status) < columns.indexOf("doing");
         const updated = store.tasks.change(
           task,
           {
             ...c,
+            ...(begun ? { status: "doing" } : {}),
             ...(c.assignee && c.assignee !== cur.assignee ? { status: c.status ?? cur.status } : {}),
             ...(forced ? { proposed: true } : {}),
             ...(moving ? { project_id: target ?? null } : {}),
@@ -499,9 +509,15 @@ export function taskHandlers(
         checkAssignee(store, cur.assignee, cur.project_id);
         return reworkTask(store, engine.admit, cur, note, askerOf(ctx));
       }
+      // Done by its agent: the step it was on is done too, so no plan call of its own precedes the close.
+      const steps =
+        state === "done" && ctx.agent && ctx.agent.id === cur.assignee ? planSteps(cur.plan ?? "") : undefined;
+      const finished = steps?.some((x) => x.state === "doing")
+        ? steps.map((x) => `- [${x.state === "pending" ? " " : "x"}] ${x.step}`).join("\n")
+        : undefined;
       const t = store.tasks.change(
         task,
-        { state, ...(state !== "open" ? { awaits_owner: false } : {}) },
+        { state, ...(state !== "open" ? { awaits_owner: false } : {}), ...(finished ? { plan: finished } : {}) },
         by(ctx),
         note,
       ) as Task;
