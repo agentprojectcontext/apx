@@ -3,6 +3,7 @@
 import { z } from "zod";
 import { SecretFieldKind } from "./browser.ts";
 import { CALENDAR_LEAD, CHECK_EVERY } from "./constants.ts";
+import { deferMethod } from "./defer-method.ts";
 import { ConnectOffer, Id, McpServerStatus, ToolApproval } from "./domain.ts";
 
 /** Google Calendar tells the owner of an event this many minutes before it starts, while it is on. */
@@ -147,429 +148,447 @@ export type SecretInfo = z.infer<typeof SecretInfo>;
 
 export const resourceMethods = {
   /** Names and usage, never values; with project, one effective entry per name (project, parent, global). */
-  "secrets.list": {
-    params: z.object({ project: Id.optional() }).strict(),
-    result: z.object({ secrets: z.array(SecretInfo) }),
+  "secrets.list": deferMethod({
+    params: () => z.object({ project: Id.optional() }).strict(),
+    result: () => z.object({ secrets: z.array(SecretInfo) }),
     effect: false,
     access: "human",
-  },
+  }),
   /**
    * One variable's value, for the owner's eyes only (the eye in Resources › Variables): never an agent's, never in a
    * prompt or a log.
    */
   /** The sites where agents may sign in with a stored secret; an empty list takes them all away. */
-  "secrets.set_sites": {
-    params: z
-      .object({
-        name: z.string().regex(/^[a-zA-Z0-9][a-zA-Z0-9_.-]{0,63}$/),
-        project: Id.optional(),
-        sites: z.array(SecretSite).max(64),
-      })
-      .strict(),
-    result: z.object({ sites: z.array(SecretSite) }),
+  "secrets.set_sites": deferMethod({
+    params: () =>
+      z
+        .object({
+          name: z.string().regex(/^[a-zA-Z0-9][a-zA-Z0-9_.-]{0,63}$/),
+          project: Id.optional(),
+          sites: z.array(SecretSite).max(64),
+        })
+        .strict(),
+    result: () => z.object({ sites: z.array(SecretSite) }),
     effect: true,
     access: "human",
-  },
+  }),
   /**
    * Moves a stored variable to another project, or to the global ones (`to: null`); its value never leaves the core.
    * References stay `secret://NAME`: what uses it finds it wherever it now lives. Refused when the other place already
    * has one of that name.
    */
-  "secrets.move": {
-    params: z
-      .object({
-        name: z.string().regex(/^[a-zA-Z0-9][a-zA-Z0-9_.-]{0,63}$/),
-        project: Id.optional(),
-        to: Id.nullable(),
-      })
-      .strict(),
-    result: z.object({ ok: z.literal(true) }),
+  "secrets.move": deferMethod({
+    params: () =>
+      z
+        .object({
+          name: z.string().regex(/^[a-zA-Z0-9][a-zA-Z0-9_.-]{0,63}$/),
+          project: Id.optional(),
+          to: Id.nullable(),
+        })
+        .strict(),
+    result: () => z.object({ ok: z.literal(true) }),
     effect: true,
     access: "human",
-  },
-  "secrets.reveal": {
-    params: z.object({ name: z.string().regex(/^[a-zA-Z0-9][a-zA-Z0-9_.-]{0,63}$/), project: Id.optional() }).strict(),
-    result: z.object({ value: z.string() }),
+  }),
+  "secrets.reveal": deferMethod({
+    params: () =>
+      z.object({ name: z.string().regex(/^[a-zA-Z0-9][a-zA-Z0-9_.-]{0,63}$/), project: Id.optional() }).strict(),
+    result: () => z.object({ value: z.string() }),
     effect: false,
     access: "human",
-  },
+  }),
   /**
    * Skills agents can load: APX's own, the owner's (APX home `skills/`), a project's `.apc/skills/` with `project`, and enabled
    * extensions'. Skills the owner turned off are listed with `on: false`; agents do not see them.
    */
-  "skills.list": {
-    params: z.object({ project: Id.optional() }).strict(),
-    result: z.object({ skills: z.array(SkillInfo) }),
+  "skills.list": deferMethod({
+    params: () => z.object({ project: Id.optional() }).strict(),
+    result: () => z.object({ skills: z.array(SkillInfo) }),
     effect: false,
-  },
-  "skills.get": {
-    params: z.object({ name: SkillName, project: Id.optional() }).strict(),
-    result: z.object({ skill: SkillInfo, content: z.string(), files: z.array(z.string()) }),
+  }),
+  "skills.get": deferMethod({
+    params: () => z.object({ name: SkillName, project: Id.optional() }).strict(),
+    result: () => z.object({ skill: SkillInfo, content: z.string(), files: z.array(z.string()) }),
     effect: false,
     access: "human",
-  },
+  }),
   /**
    * Writes a skill's SKILL.md: the owner's (`global`) or the project's (`project`). Saving a global skill as `project`
    * makes the project's own copy, which takes its place there and leaves the original untouched.
    */
-  "skills.save": {
-    params: z
-      .object({
-        name: SkillName,
-        target: z.enum(["global", "project"]),
-        project: Id.optional(),
-        content: z.string().min(1).max(200_000),
-      })
-      .strict(),
-    result: z.object({ skill: SkillInfo }),
+  "skills.save": deferMethod({
+    params: () =>
+      z
+        .object({
+          name: SkillName,
+          target: z.enum(["global", "project"]),
+          project: Id.optional(),
+          content: z.string().min(1).max(200_000),
+        })
+        .strict(),
+    result: () => z.object({ skill: SkillInfo }),
     effect: true,
     access: "human",
-  },
+  }),
   /** Turns a skill off (or back on) everywhere, or only inside one project. */
-  "skills.toggle": {
-    params: z.object({ name: SkillName, project: Id.optional(), on: z.boolean() }).strict(),
-    result: z.object({ ok: z.literal(true) }),
+  "skills.toggle": deferMethod({
+    params: () => z.object({ name: SkillName, project: Id.optional(), on: z.boolean() }).strict(),
+    result: () => z.object({ ok: z.literal(true) }),
     effect: true,
     access: "human",
-  },
+  }),
   /**
    * Copies APX's skills for other agent apps (Claude Code, Codex, Cursor, ~/.agents) into each one installed, as the
    * core does at every start; `dry_run` only says what it would do. Other skills in those folders are left alone.
    */
-  "skills.runtimes": {
-    params: z.object({ dry_run: z.boolean().default(false) }).strict(),
-    result: z.object({
-      steps: z.array(
-        z.object({
-          runtime: z.string(),
-          name: z.string(),
-          dir: z.string(),
-          action: z.enum(["create", "update", "unchanged", "remove", "skip-link"]),
-        }),
-      ),
-      missing: z.array(z.object({ runtime: z.string(), dir: z.string() })),
-    }),
+  "skills.runtimes": deferMethod({
+    params: () => z.object({ dry_run: z.boolean().default(false) }).strict(),
+    result: () =>
+      z.object({
+        steps: z.array(
+          z.object({
+            runtime: z.string(),
+            name: z.string(),
+            dir: z.string(),
+            action: z.enum(["create", "update", "unchanged", "remove", "skip-link"]),
+          }),
+        ),
+        missing: z.array(z.object({ runtime: z.string(), dir: z.string() })),
+      }),
     effect: true,
     access: "human",
-  },
+  }),
   /**
    * Reads a folder, .zip or git repository and lists the skills in it, with their files and what to look at before
    * importing. Nothing is run and nothing is kept: a zip or a clone is read in a temporary folder and removed.
    */
-  "skills.preview": {
-    params: z.object({ source: SkillImportSource, ...ImportTarget }).strict(),
-    result: z.object({ candidates: z.array(SkillCandidate) }),
+  "skills.preview": deferMethod({
+    params: () => z.object({ source: SkillImportSource, ...ImportTarget }).strict(),
+    result: () => z.object({ candidates: z.array(SkillCandidate) }),
     effect: false,
     access: "human",
-  },
+  }),
   /**
    * Copies the picked skills (by candidate id) into APX's skills or a project's `.apc/skills/`: regular files only, no
    * links, nothing run. A taken folder is kept unless `replace`.
    */
-  "skills.import": {
-    params: z
-      .object({
-        source: SkillImportSource,
-        ...ImportTarget,
-        pick: z.array(z.string().max(500)).min(1).max(100),
-        replace: z.boolean().default(false),
-      })
-      .strict(),
-    result: z.object({
-      imported: z.array(SkillInfo),
-      skipped: z.array(z.object({ id: z.string(), reason: z.string() })),
-    }),
+  "skills.import": deferMethod({
+    params: () =>
+      z
+        .object({
+          source: SkillImportSource,
+          ...ImportTarget,
+          pick: z.array(z.string().max(500)).min(1).max(100),
+          replace: z.boolean().default(false),
+        })
+        .strict(),
+    result: () =>
+      z.object({
+        imported: z.array(SkillInfo),
+        skipped: z.array(z.object({ id: z.string(), reason: z.string() })),
+      }),
     effect: true,
     access: "human",
-  },
+  }),
   /** Whether a project takes the owner's global skills and MCP servers (each can still be turned off one by one). */
-  "resources.inheritance": {
-    params: z.object({ project: Id }).strict(),
-    result: z.object({ skills: z.boolean(), mcp: z.boolean() }),
+  "resources.inheritance": deferMethod({
+    params: () => z.object({ project: Id }).strict(),
+    result: () => z.object({ skills: z.boolean(), mcp: z.boolean() }),
     effect: false,
     access: "human",
-  },
+  }),
   /** A project takes the owner's global skills (or MCP servers), or none of them: only its own count there. */
-  "resources.inherit": {
-    params: z.object({ project: Id, kind: z.enum(["skills", "mcp"]), on: z.boolean() }).strict(),
-    result: z.object({ skills: z.boolean(), mcp: z.boolean() }),
+  "resources.inherit": deferMethod({
+    params: () => z.object({ project: Id, kind: z.enum(["skills", "mcp"]), on: z.boolean() }).strict(),
+    result: () => z.object({ skills: z.boolean(), mcp: z.boolean() }),
     effect: true,
     access: "human",
-  },
+  }),
   /** MCP servers: the owner's and each project's, with whether they are approved, running and on here. */
-  "tools.approvals": {
-    params: z.object({ thread: Id.optional() }).strict(),
-    result: z.object({ approvals: z.array(ToolApproval) }),
+  "tools.approvals": deferMethod({
+    params: () => z.object({ thread: Id.optional() }).strict(),
+    result: () => z.object({ approvals: z.array(ToolApproval) }),
     effect: false,
     access: "human",
-  },
-  "tools.revoke": {
-    params: z.object({ key: z.string().min(1), thread: Id.optional(), agent: Id.optional() }).strict(),
-    result: z.object({ ok: z.literal(true) }),
+  }),
+  "tools.revoke": deferMethod({
+    params: () => z.object({ key: z.string().min(1), thread: Id.optional(), agent: Id.optional() }).strict(),
+    result: () => z.object({ ok: z.literal(true) }),
     effect: true,
     access: "human",
-  },
-  "mcp.tools": {
-    params: McpTarget,
-    result: z.object({
-      tools: z.array(z.object({ name: z.string(), key: z.string(), permanent: z.boolean(), approved: z.boolean() })),
-      /** all: every tool, those it adds later too; some: the tools approved one by one; ask: none. */
-      mode: z.enum(["ask", "all", "some"]).optional(),
-      /** Why the server did not start, so it has no tools to show. */
-      error: z.string().optional(),
-    }),
+  }),
+  "mcp.tools": deferMethod({
+    params: () => McpTarget,
+    result: () =>
+      z.object({
+        tools: z.array(z.object({ name: z.string(), key: z.string(), permanent: z.boolean(), approved: z.boolean() })),
+        /** all: every tool, those it adds later too; some: the tools approved one by one; ask: none. */
+        mode: z.enum(["ask", "all", "some"]).optional(),
+        /** Why the server did not start, so it has no tools to show. */
+        error: z.string().optional(),
+      }),
     effect: true,
     access: "human",
-  },
-  "mcp.describe": {
-    params: McpTarget,
-    result: z.object({
-      tools: z.array(
-        z.object({
-          name: z.string(),
-          description: z.string().optional(),
-          inputSchema: z.record(z.string(), z.unknown()),
-        }),
-      ),
-    }),
+  }),
+  "mcp.describe": deferMethod({
+    params: () => McpTarget,
+    result: () =>
+      z.object({
+        tools: z.array(
+          z.object({
+            name: z.string(),
+            description: z.string().optional(),
+            inputSchema: z.record(z.string(), z.unknown()),
+          }),
+        ),
+      }),
     effect: true,
     access: "human",
-  },
-  "mcp.call": {
-    params: McpTarget.extend({
-      tool: z.string().min(1),
-      arguments: z.record(z.string(), z.unknown()).default({}),
-    }).strict(),
-    result: z.object({
-      content: z.array(z.record(z.string(), z.unknown())).optional(),
-      isError: z.boolean().optional(),
-      structuredContent: z.unknown().optional(),
-    }),
+  }),
+  "mcp.call": deferMethod({
+    params: () =>
+      McpTarget.extend({
+        tool: z.string().min(1),
+        arguments: z.record(z.string(), z.unknown()).default({}),
+      }).strict(),
+    result: () =>
+      z.object({
+        content: z.array(z.record(z.string(), z.unknown())).optional(),
+        isError: z.boolean().optional(),
+        structuredContent: z.unknown().optional(),
+      }),
     effect: true,
     access: "human",
     replay: false,
-  },
+  }),
   /**
    * Every agent may use all of a server's tools without asking, tools it adds later included ("all"), or none of them
    * ("ask": its grants for every agent go). Picking some is approving tools one by one (mcp.approveTool).
    */
-  "mcp.toolMode": {
-    params: McpTarget.extend({ mode: z.enum(["ask", "all"]) }).strict(),
-    result: z.object({ server: McpServerStatus }),
+  "mcp.toolMode": deferMethod({
+    params: () => McpTarget.extend({ mode: z.enum(["ask", "all"]) }).strict(),
+    result: () => z.object({ server: McpServerStatus }),
     effect: true,
     access: "human",
-  },
-  "mcp.approveTool": {
-    params: McpTarget.extend({ tool: z.string() }),
-    result: z.object({ ok: z.literal(true) }),
+  }),
+  "mcp.approveTool": deferMethod({
+    params: () => McpTarget.extend({ tool: z.string() }),
+    result: () => z.object({ ok: z.literal(true) }),
     effect: true,
     access: "human",
-  },
+  }),
   /**
    * The last lines a stdio server printed on stderr while the core runs (memory only, oldest first; values of its
    * secrets and credential-like variables masked). Empty for a server that has not started since.
    */
-  "mcp.logs": {
-    params: McpTarget.extend({ lines: z.number().int().min(1).max(300).default(100) }).strict(),
-    result: z.object({ lines: z.array(z.object({ at: z.string(), text: z.string() })) }),
+  "mcp.logs": deferMethod({
+    params: () => McpTarget.extend({ lines: z.number().int().min(1).max(300).default(100) }).strict(),
+    result: () => z.object({ lines: z.array(z.object({ at: z.string(), text: z.string() })) }),
     effect: false,
     access: "human",
-  },
-  "mcp.list": {
-    params: z.object({ project: Id.optional() }).strict(),
-    result: z.object({ servers: z.array(McpServerStatus) }),
+  }),
+  "mcp.list": deferMethod({
+    params: () => z.object({ project: Id.optional() }).strict(),
+    result: () => z.object({ servers: z.array(McpServerStatus) }),
     effect: false,
     access: "human",
-  },
+  }),
   /** Approves (or withdraws) a project's server as its file defines it now; a changed file needs approving again. */
-  "mcp.trust": {
-    params: z.object({ project: Id.optional(), server: z.string().min(1).max(64), trusted: z.boolean() }).strict(),
-    result: z.object({ server: McpServerStatus }),
+  "mcp.trust": deferMethod({
+    params: () =>
+      z.object({ project: Id.optional(), server: z.string().min(1).max(64), trusted: z.boolean() }).strict(),
+    result: () => z.object({ server: McpServerStatus }),
     effect: true,
     access: "human",
-  },
+  }),
   /**
    * Adds, replaces or (null) removes one of the owner's own servers (env and header values may hold secret://), or,
    * with `project`, one in that project's .apc/mcps.json (no secret://; approved as the owner wrote it).
    * `server.project` limits a private server to one project; null makes it global without copying variables.
    */
-  "mcp.set": {
-    params: z
-      .object({
-        name: z.string().regex(/^[a-zA-Z0-9][a-zA-Z0-9_-]{0,40}$/),
-        project: Id.optional(),
-        server: z
-          .object({
-            command: z.string().optional(),
-            args: z.array(z.string()).optional(),
-            env: z.record(z.string(), z.string()).optional(),
-            url: z.string().url().optional(),
-            headers: z.record(z.string(), z.string()).optional(),
-            enabled: z.boolean().optional(),
-            /** Where one of the owner's servers lives: a project (it runs only there), or null: global. Never saved in a repo. */
-            project: Id.nullable().optional(),
-            /** A global server: the projects it is turned off in; every other project gets it. */
-            off_in: z.array(Id).optional(),
-          })
-          .strict()
-          .refine((s) => !!s.command !== !!s.url, "give either command or url")
-          .nullable(),
-      })
-      .strict(),
-    result: z.object({ servers: z.array(McpServerStatus) }),
+  "mcp.set": deferMethod({
+    params: () =>
+      z
+        .object({
+          name: z.string().regex(/^[a-zA-Z0-9][a-zA-Z0-9_-]{0,40}$/),
+          project: Id.optional(),
+          server: z
+            .object({
+              command: z.string().optional(),
+              args: z.array(z.string()).optional(),
+              env: z.record(z.string(), z.string()).optional(),
+              url: z.string().url().optional(),
+              headers: z.record(z.string(), z.string()).optional(),
+              enabled: z.boolean().optional(),
+              /** Where one of the owner's servers lives: a project (it runs only there), or null: global. Never saved in a repo. */
+              project: Id.nullable().optional(),
+              /** A global server: the projects it is turned off in; every other project gets it. */
+              off_in: z.array(Id).optional(),
+            })
+            .strict()
+            .refine((s) => !!s.command !== !!s.url, "give either command or url")
+            .nullable(),
+        })
+        .strict(),
+    result: () => z.object({ servers: z.array(McpServerStatus) }),
     effect: true,
     access: "human",
-  },
+  }),
   /** Turns one of the owner's global servers off (or back on) inside a project; elsewhere it stays as it is. */
   /**
    * Accounts the owner can connect (GitHub, Notion, Slack…), each with its MCP server and variables: connected or not,
    * the projects it is off in, and the ones still coming.
    */
-  "integrations.list": {
-    params: z.object({}).strict(),
-    result: z.object({
-      integrations: z.array(
-        z.object({
-          id: z.string(),
-          label: z.string(),
-          description: z.string(),
-          fields: z.array(
-            z.object({
-              name: z.string(),
-              label: z.string(),
-              secret: z.boolean(),
-              placeholder: z.string().optional(),
-              url: z.string().optional(),
-              /** A secret field: whether a value is stored (it never comes back). */
-              set: z.boolean().optional(),
-              /** A plain field: what was typed, to edit it. */
-              value: z.string().optional(),
-            }),
-          ),
-          connected: z.boolean(),
-          coming: z.boolean(),
-          /** Projects where it is turned off (it is on everywhere else). */
-          off_in: z.array(Id),
-          /**
-           * One the owner signs in to (Google): the address their own OAuth client must allow as redirect, the
-           * account it is connected as, whether APX ships a client of its own (no Cloud Console needed) and which
-           * client it is signed in with.
-           */
-          /** What its settings hold, beside where it is used: an email signature, the mail check, event reminders. */
-          settings: z.array(z.enum(["signature", "reminders", "mail"])).optional(),
-          oauth: z
-            .object({
-              redirect_uri: z.string(),
-              account: z.string().optional(),
-              builtin: z.boolean().optional(),
-              client: z.enum(["apx", "own"]).optional(),
-            })
-            .optional(),
-        }),
-      ),
-    }),
+  "integrations.list": deferMethod({
+    params: () => z.object({}).strict(),
+    result: () =>
+      z.object({
+        integrations: z.array(
+          z.object({
+            id: z.string(),
+            label: z.string(),
+            description: z.string(),
+            fields: z.array(
+              z.object({
+                name: z.string(),
+                label: z.string(),
+                secret: z.boolean(),
+                placeholder: z.string().optional(),
+                url: z.string().optional(),
+                /** A secret field: whether a value is stored (it never comes back). */
+                set: z.boolean().optional(),
+                /** A plain field: what was typed, to edit it. */
+                value: z.string().optional(),
+              }),
+            ),
+            connected: z.boolean(),
+            coming: z.boolean(),
+            /** Projects where it is turned off (it is on everywhere else). */
+            off_in: z.array(Id),
+            /**
+             * One the owner signs in to (Google): the address their own OAuth client must allow as redirect, the
+             * account it is connected as, whether APX ships a client of its own (no Cloud Console needed) and which
+             * client it is signed in with.
+             */
+            /** What its settings hold, beside where it is used: an email signature, the mail check, event reminders. */
+            settings: z.array(z.enum(["signature", "reminders", "mail"])).optional(),
+            oauth: z
+              .object({
+                redirect_uri: z.string(),
+                account: z.string().optional(),
+                builtin: z.boolean().optional(),
+                client: z.enum(["apx", "own"]).optional(),
+              })
+              .optional(),
+          }),
+        ),
+      }),
     effect: false,
     access: "human",
-  },
+  }),
   /**
    * Connects one: its secrets go to the secret store, its server becomes a global one (on in every project). Again on
    * a connected one, it edits it: a field not given keeps its value.
    */
-  "integrations.connect": {
-    params: z.object({ id: z.string().max(40), values: z.record(z.string().max(40), z.string().max(4000)) }).strict(),
-    result: z.object({ connected: z.literal(true) }),
+  "integrations.connect": deferMethod({
+    params: () =>
+      z.object({ id: z.string().max(40), values: z.record(z.string().max(40), z.string().max(4000)) }).strict(),
+    result: () => z.object({ connected: z.literal(true) }),
     effect: true,
     access: "human",
-  },
+  }),
   /**
    * Starts signing in to one that uses OAuth (Google) and gives the consent URL to open in a browser. `values.client`
    * picks APX's own client ("apx") or the owner's ("own": the client typed is saved, a field left empty keeps the
    * stored one). Google sends the browser back to the panel's
    * /oauth/google page, which finishes it.
    */
-  "integrations.oauth_start": {
-    params: z
-      .object({
-        id: z.string().max(40),
-        values: z.record(z.string().max(40), z.string().max(4000)).optional(),
-        /** Other Google parts to connect in the same consent (one sign-in for Gmail, Drive and Calendar). */
-        also: z.array(z.string().max(40)).max(5).optional(),
-      })
-      .strict(),
-    result: z.object({ url: z.string() }),
+  "integrations.oauth_start": deferMethod({
+    params: () =>
+      z
+        .object({
+          id: z.string().max(40),
+          values: z.record(z.string().max(40), z.string().max(4000)).optional(),
+          /** Other Google parts to connect in the same consent (one sign-in for Gmail, Drive and Calendar). */
+          also: z.array(z.string().max(40)).max(5).optional(),
+        })
+        .strict(),
+    result: () => z.object({ url: z.string() }),
     effect: true,
     access: "human",
-  },
+  }),
   /**
    * The code and state Google sent back: a state this core signed minutes ago, used once. Open: Google returns to a
    * browser that may not be paired (the system browser), and the signed state with the core's PKCE verifier is the key.
    */
-  "integrations.oauth_finish": {
-    params: z.object({ code: z.string().min(1).max(2000), state: z.string().min(1).max(2000) }).strict(),
-    result: z.object({ id: z.string(), also: z.array(z.string()).optional(), account: z.string().optional() }),
+  "integrations.oauth_finish": deferMethod({
+    params: () => z.object({ code: z.string().min(1).max(2000), state: z.string().min(1).max(2000) }).strict(),
+    result: () => z.object({ id: z.string(), also: z.array(z.string()).optional(), account: z.string().optional() }),
     effect: true,
     access: "human",
     open: true,
-  },
+  }),
   /**
    * The integrations and channels that match words ("figma", "whatsapp"), best first, each connected or not: what an
    * agent offers the owner to connect. Open to agents: names and descriptions only.
    */
-  "integrations.find": {
-    params: z.object({ query: z.string().min(1).max(200) }).strict(),
-    result: z.object({ found: z.array(ConnectOffer.extend({ connected: z.boolean() })) }),
+  "integrations.find": deferMethod({
+    params: () => z.object({ query: z.string().min(1).max(200) }).strict(),
+    result: () => z.object({ found: z.array(ConnectOffer.extend({ connected: z.boolean() })) }),
     effect: false,
-  },
+  }),
   /** An integration's own settings, beside where it is used: Google Calendar's event reminders. */
-  "integrations.settings": {
-    params: z.object({ id: z.string().max(40) }).strict(),
-    result: IntegrationSettings,
+  "integrations.settings": deferMethod({
+    params: () => z.object({ id: z.string().max(40) }).strict(),
+    result: () => IntegrationSettings,
     effect: false,
     access: "human",
-  },
+  }),
   /** Changes an integration's own settings; a field left out keeps its value. */
-  "integrations.configure": {
-    params: z
-      .object({
-        id: z.string().max(40),
-        reminders: CalendarReminders.partial().strict().optional(),
-        mail: MailCheck.partial().strict().optional(),
-      })
-      .strict(),
-    result: IntegrationSettings,
+  "integrations.configure": deferMethod({
+    params: () =>
+      z
+        .object({
+          id: z.string().max(40),
+          reminders: CalendarReminders.partial().strict().optional(),
+          mail: MailCheck.partial().strict().optional(),
+        })
+        .strict(),
+    result: () => IntegrationSettings,
     effect: true,
     access: "human",
-  },
+  }),
   /**
    * Stops (muted) or resumes reminders of one Google Calendar event and every later one of its series. A reminder
    * notice's ref is `event:<series>`.
    */
-  "integrations.mute_event": {
-    params: z
-      .object({
-        series: z.string().min(1).max(1024),
-        /** Shown in the muted list; needed when muting. */
-        title: z.string().max(300).optional(),
-        muted: z.boolean(),
-      })
-      .strict(),
-    result: IntegrationSettings,
+  "integrations.mute_event": deferMethod({
+    params: () =>
+      z
+        .object({
+          series: z.string().min(1).max(1024),
+          /** Shown in the muted list; needed when muting. */
+          title: z.string().max(300).optional(),
+          muted: z.boolean(),
+        })
+        .strict(),
+    result: () => IntegrationSettings,
     effect: true,
     access: "human",
-  },
+  }),
   /** Disconnects one: its server and its secrets go. */
-  "integrations.disconnect": {
-    params: z.object({ id: z.string().max(40) }).strict(),
-    result: z.object({ connected: z.literal(false) }),
+  "integrations.disconnect": deferMethod({
+    params: () => z.object({ id: z.string().max(40) }).strict(),
+    result: () => z.object({ connected: z.literal(false) }),
     effect: true,
     access: "human",
-  },
-  "mcp.toggle": {
-    params: z.object({ project: Id, server: z.string().min(1).max(64), on: z.boolean() }).strict(),
-    result: z.object({ servers: z.array(McpServerStatus) }),
+  }),
+  "mcp.toggle": deferMethod({
+    params: () => z.object({ project: Id, server: z.string().min(1).max(64), on: z.boolean() }).strict(),
+    result: () => z.object({ servers: z.array(McpServerStatus) }),
     effect: true,
     access: "human",
-  },
+  }),
   /**
    * Starts a separate copy of a server and lists its tools: how long it took, or why it failed. The live connection
    * agents use is left alone. A project's server is tested only once the owner approved it (testing runs its command).
@@ -578,23 +597,25 @@ export const resourceMethods = {
    * The owner signs a server in: it starts now as the connection agents use (its sign-in page opens in their browser)
    * and answers once it is ready, failed, or waits on that page. A server that asked to sign in waits for this.
    */
-  "mcp.signIn": {
-    params: McpTarget,
-    result: z.object({ server: McpServerStatus }),
+  "mcp.signIn": deferMethod({
+    params: () => McpTarget,
+    result: () => z.object({ server: McpServerStatus }),
     effect: true,
     access: "human",
-  },
-  "mcp.test": {
-    params: z
-      .object({ scope: z.enum(["global", "project"]), server: z.string().min(1).max(64), project: Id.optional() })
-      .strict(),
-    result: z.object({
-      ok: z.boolean(),
-      ms: z.number().int(),
-      tools: z.array(z.string()),
-      error: z.string().optional(),
-    }),
+  }),
+  "mcp.test": deferMethod({
+    params: () =>
+      z
+        .object({ scope: z.enum(["global", "project"]), server: z.string().min(1).max(64), project: Id.optional() })
+        .strict(),
+    result: () =>
+      z.object({
+        ok: z.boolean(),
+        ms: z.number().int(),
+        tools: z.array(z.string()),
+        error: z.string().optional(),
+      }),
     effect: false,
     access: "human",
-  },
+  }),
 } as const;

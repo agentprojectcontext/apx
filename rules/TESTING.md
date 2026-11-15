@@ -39,6 +39,15 @@ command and static checks; they do not require rerunning application suites unle
 | Desktop / preload | Strip native event objects, return working unsubscribe functions and test native restore/minimize/focus transitions in Electron. A renderer-only check or forced focus is not native transition proof. |
 | Test tooling / coverage | Use synthetic fixtures for inventory, assertions and mappings. Cover replaced/missing build maps and chained library maps; do not read production source in behavioral tests. |
 
+### Deferred method schemas
+
+Method metadata (`effect`, `access`, `open`, `local`, `replay`) stays available before validation schemas are
+constructed. Deferred schemas return the real, memoized Zod instance on first access, including its `.shape` and
+JSON Schema conversion. Changes to this boundary compare the full registry's metadata and input/result schemas,
+materialize every affected schema in tests, and exercise authorization, invalid params and idempotency through the
+router. Record cold and warm first-use latency separately from the uninstrumented performance gate; lower idle
+memory alone does not establish an improvement.
+
 ### Evidence and run isolation
 
 - Use the CI-supported Node version from `.nvmrc` and a frozen dependency install. Mobile has its own install,

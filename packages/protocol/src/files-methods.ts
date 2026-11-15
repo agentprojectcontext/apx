@@ -1,5 +1,6 @@
 // A folder as the owner browses it (a project's, or a chat's): one level at a time, and a file's text.
 import { z } from "zod";
+import { deferMethod } from "./defer-method.ts";
 import { Author, Id } from "./domain.ts";
 
 export const FileEntry = z.object({
@@ -70,182 +71,189 @@ export const filesMethods = {
    * What is uncommitted in the folder a chat works in (its own, or its project's), per git; `git` false when the
    * folder is not in a repository.
    */
-  "files.changes": {
-    params: z.object({ thread: Id }).strict(),
-    result: z.object({ cwd: z.string(), git: z.boolean(), files: z.array(ChangedFile) }),
+  "files.changes": deferMethod({
+    params: () => z.object({ thread: Id }).strict(),
+    result: () => z.object({ cwd: z.string(), git: z.boolean(), files: z.array(ChangedFile) }),
     effect: false,
     access: "human",
-  },
+  }),
   /** Working-tree diff against HEAD, or a recorded turn's snapshot when `message` is given. Legacy records return labeled current content. */
-  "files.diff": {
-    params: z
-      .object({
-        thread: Id,
-        path: z.string().min(1).max(1000),
-        message: Id.optional(),
-        part: z.number().int().nonnegative().optional(),
-      })
-      .strict(),
-    result: z.object({
-      path: z.string(),
-      diff: z.string(),
-      truncated: z.boolean(),
-      source: z.enum(["recorded", "current"]).optional(),
-    }),
+  "files.diff": deferMethod({
+    params: () =>
+      z
+        .object({
+          thread: Id,
+          path: z.string().min(1).max(1000),
+          message: Id.optional(),
+          part: z.number().int().nonnegative().optional(),
+        })
+        .strict(),
+    result: () =>
+      z.object({
+        path: z.string(),
+        diff: z.string(),
+        truncated: z.boolean(),
+        source: z.enum(["recorded", "current"]).optional(),
+      }),
     effect: false,
     access: "human",
-  },
+  }),
   /**
    * One folder (folders first, by name); `truncated` when it holds more than the list shows. `root` is the browsed
    * folder's own path.
    */
-  "files.tree": {
-    params: z.object({ ...Where, dir: z.string().max(1000).default("") }).strict(),
-    result: z.object({ root: z.string(), entries: z.array(FileEntry), truncated: z.boolean() }),
+  "files.tree": deferMethod({
+    params: () => z.object({ ...Where, dir: z.string().max(1000).default("") }).strict(),
+    result: () => z.object({ root: z.string(), entries: z.array(FileEntry), truncated: z.boolean() }),
     effect: false,
     access: "human",
-  },
+  }),
   /** A file's text (up to 256 KB); a binary file says so instead. */
-  "files.read": {
-    params: z.object({ ...Where, path: z.string().min(1).max(1000) }).strict(),
-    result: z.object({
-      path: z.string(),
-      bytes: z.number().int(),
-      binary: z.boolean(),
-      truncated: z.boolean(),
-      text: z.string().optional(),
-      /** What `files.write` checks it still has, so an edit never overwrites a change made since (by an agent, say). */
-      version: z.string().optional(),
-    }),
+  "files.read": deferMethod({
+    params: () => z.object({ ...Where, path: z.string().min(1).max(1000) }).strict(),
+    result: () =>
+      z.object({
+        path: z.string(),
+        bytes: z.number().int(),
+        binary: z.boolean(),
+        truncated: z.boolean(),
+        text: z.string().optional(),
+        /** What `files.write` checks it still has, so an edit never overwrites a change made since (by an agent, say). */
+        version: z.string().optional(),
+      }),
     effect: false,
     access: "human",
-  },
+  }),
   /**
    * Saves an edited text file in place (one that exists, read whole, up to 256 KB). With `version`, refused when the
    * file changed since it was read; the new version comes back.
    */
-  "files.write": {
-    params: z
-      .object({
-        ...Where,
-        path: z.string().min(1).max(1000),
-        text: z.string().max(FILE_READ_LIMIT),
-        version: z.string().max(100).optional(),
-      })
-      .strict(),
-    result: z.object({ path: z.string(), bytes: z.number().int(), version: z.string() }),
+  "files.write": deferMethod({
+    params: () =>
+      z
+        .object({
+          ...Where,
+          path: z.string().min(1).max(1000),
+          text: z.string().max(FILE_READ_LIMIT),
+          version: z.string().max(100).optional(),
+        })
+        .strict(),
+    result: () => z.object({ path: z.string(), bytes: z.number().int(), version: z.string() }),
     effect: true,
     access: "human",
-  },
+  }),
   /** An image, video, audio or PDF of the project, for the viewer to show (up to 15 MB). */
-  "files.media": {
-    params: z.object({ ...Where, path: z.string().min(1).max(1000) }).strict(),
-    result: z.object({ mime: z.string(), data: z.string(), bytes: z.number().int() }),
+  "files.media": deferMethod({
+    params: () => z.object({ ...Where, path: z.string().min(1).max(1000) }).strict(),
+    result: () => z.object({ mime: z.string(), data: z.string(), bytes: z.number().int() }),
     effect: false,
     access: "human",
-  },
+  }),
   /** A file's bytes, for the owner to save on the computer the panel runs on (up to 50 MB). */
-  "files.download": {
-    params: z.object({ ...Where, path: z.string().min(1).max(1000) }).strict(),
-    result: z.object({ name: z.string(), mime: z.string(), data: z.string(), bytes: z.number().int() }),
+  "files.download": deferMethod({
+    params: () => z.object({ ...Where, path: z.string().min(1).max(1000) }).strict(),
+    result: () => z.object({ name: z.string(), mime: z.string(), data: z.string(), bytes: z.number().int() }),
     effect: false,
     access: "human",
-  },
+  }),
   /** Shows the file or folder in Finder (Explorer, the file manager) on the core's computer. */
-  "files.reveal": {
-    params: z.object({ ...Where, path: z.string().max(1000) }).strict(),
-    result: z.object({ ok: z.literal(true) }),
+  "files.reveal": deferMethod({
+    params: () => z.object({ ...Where, path: z.string().max(1000) }).strict(),
+    result: () => z.object({ ok: z.literal(true) }),
     effect: true,
     access: "human",
-  },
+  }),
   /** Opens a text document (.md, .markdown, .txt) in its default app on the core's computer. */
-  "files.open": {
-    params: z.object({ ...Where, path: z.string().min(1).max(1000) }).strict(),
-    result: z.object({ ok: z.literal(true) }),
+  "files.open": deferMethod({
+    params: () => z.object({ ...Where, path: z.string().min(1).max(1000) }).strict(),
+    result: () => z.object({ ok: z.literal(true) }),
     effect: true,
     access: "human",
-  },
+  }),
   /**
    * Opens a chat's document in its default app on the core's computer, from a copy named as the file was: the file
    * itself may have moved or be one the document does not name (files.open opens that one).
    */
-  "documents.open": {
-    params: z.object({ media_id: Id }).strict(),
-    result: z.object({ ok: z.literal(true) }),
+  "documents.open": deferMethod({
+    params: () => z.object({ media_id: Id }).strict(),
+    result: () => z.object({ ok: z.literal(true) }),
     effect: true,
     access: "human",
-  },
+  }),
   /** Renames a file or folder in place (a new name, never a new folder). */
-  "files.rename": {
-    params: z
-      .object({
-        ...Where,
-        path: z.string().min(1).max(1000),
-        name: z
-          .string()
-          .trim()
-          .min(1)
-          .max(255)
-          .refine((n) => !/[/\\]/.test(n) && n !== "." && n !== "..", "a name, not a path"),
-      })
-      .strict(),
-    result: z.object({ path: z.string() }),
+  "files.rename": deferMethod({
+    params: () =>
+      z
+        .object({
+          ...Where,
+          path: z.string().min(1).max(1000),
+          name: z
+            .string()
+            .trim()
+            .min(1)
+            .max(255)
+            .refine((n) => !/[/\\]/.test(n) && n !== "." && n !== "..", "a name, not a path"),
+        })
+        .strict(),
+    result: () => z.object({ path: z.string() }),
     effect: true,
     access: "human",
-  },
+  }),
   /**
    * Copies a file or folder of a chat's temp folder into the folder the chat works in, at its top, so it stays: the
    * system clears temp folders on its own. A taken name gets a number. Returns where it went.
    */
-  "files.keep": {
-    params: z.object({ thread: Id, path: z.string().min(1).max(1000) }).strict(),
-    result: z.object({ path: z.string() }),
+  "files.keep": deferMethod({
+    params: () => z.object({ thread: Id, path: z.string().min(1).max(1000) }).strict(),
+    result: () => z.object({ path: z.string() }),
     effect: true,
     access: "human",
-  },
+  }),
   /** Moves a file or folder to the system trash (recoverable there); never the project's folder itself. */
-  "files.trash": {
-    params: z.object({ ...Where, path: z.string().min(1).max(1000) }).strict(),
-    result: z.object({ ok: z.literal(true) }),
+  "files.trash": deferMethod({
+    params: () => z.object({ ...Where, path: z.string().min(1).max(1000) }).strict(),
+    result: () => z.object({ ok: z.literal(true) }),
     effect: true,
     access: "human",
-  },
+  }),
   /**
    * Files shared in chats: of one kind, one project's chats (`project`) or chats outside any project (`base`), whose
    * name has `query`, in `order` (newest first by default). `counts` are per kind under the same project and query.
    */
-  "media.shared": {
-    params: z
-      .object({
-        kind: SharedKind.optional(),
-        project: Id.optional(),
-        base: z.literal(true).optional(),
-        query: z.string().trim().max(200).optional(),
-        order: SharedOrder.default("new"),
-        offset: z.number().int().min(0).default(0),
-        limit: z.number().int().min(1).max(200).default(60),
-      })
-      .strict(),
-    result: z.object({
-      items: z.array(SharedFile),
-      more: z.boolean(),
-      counts: z.record(SharedKind, z.number().int()),
-    }),
+  "media.shared": deferMethod({
+    params: () =>
+      z
+        .object({
+          kind: SharedKind.optional(),
+          project: Id.optional(),
+          base: z.literal(true).optional(),
+          query: z.string().trim().max(200).optional(),
+          order: SharedOrder.default("new"),
+          offset: z.number().int().min(0).default(0),
+          limit: z.number().int().min(1).max(200).default(60),
+        })
+        .strict(),
+    result: () =>
+      z.object({
+        items: z.array(SharedFile),
+        more: z.boolean(),
+        counts: z.record(SharedKind, z.number().int()),
+      }),
     effect: false,
     access: "human",
-  },
+  }),
   /** A small JPEG of a video's first frame, base64; none when the core cannot make one (no ffmpeg). */
-  "media.poster": {
-    params: z.object({ media_id: Id }).strict(),
-    result: z.object({ data: z.string().optional() }),
+  "media.poster": deferMethod({
+    params: () => z.object({ media_id: Id }).strict(),
+    result: () => z.object({ data: z.string().optional() }),
     effect: false,
     access: "human",
-  },
+  }),
   /** Shows a file shared in a chat in Finder (Explorer, the file manager) on the core's computer. */
-  "media.reveal": {
-    params: z.object({ media_id: Id }).strict(),
-    result: z.object({ ok: z.literal(true) }),
+  "media.reveal": deferMethod({
+    params: () => z.object({ media_id: Id }).strict(),
+    result: () => z.object({ ok: z.literal(true) }),
     effect: true,
     access: "human",
-  },
+  }),
 } as const;
