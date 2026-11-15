@@ -115,3 +115,27 @@ test("v1 skills are copied once: folders without inner links, linked skills stay
   assert.deepEqual(importSkills(v1, to), []);
   for (const n of ["linked", "plain"]) await removeDir(path.join(to, n));
 });
+
+test("a long catalog describes the project's skills and the first ones, and names the rest", async () => {
+  const { skillCatalog } = await import("./skills.ts");
+  const skill = (name: string, scope: "global" | "project" = "global") => ({
+    name,
+    description: `Does ${name} things, with a long explanation that goes on well past what one catalog line should carry. Second sentence.`,
+    scope,
+    dir: `/skills/${name}`,
+    source: "owner" as const,
+    own: true,
+    copies: [],
+  });
+  const many = Array.from({ length: 130 }, (_, i) => skill(`s${String(i).padStart(3, "0")}`));
+  const catalog = skillCatalog([...many, skill("zz-project", "project")]);
+  const lines = catalog.split("\n");
+  assert.equal(lines.filter((l) => l.startsWith("- ")).length, 30);
+  assert.match(lines.find((l) => l.startsWith("- ")) ?? "", /^- zz-project: /, "the project's own skill first");
+  assert.ok(
+    lines.every((l) => !l.startsWith("- ") || l.length <= 120),
+    "short lines",
+  );
+  assert.match(catalog, /Also: s029, s030, .*s118\./, "the rest by name");
+  assert.match(catalog, /\(11 more not listed; load_skill works with any skill's name\)/);
+});

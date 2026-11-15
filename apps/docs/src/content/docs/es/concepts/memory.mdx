@@ -83,7 +83,9 @@ Las notas nunca van en el prompt de sistema. En cambio, cuando un agente respond
 
 1. En su **primer turno** en ese hilo recibe sus notas fijas: hasta 8 de las globales y hasta 8 de su propio
    cuaderno, las más nuevas primero, más **hasta 5 notas relacionadas con tu mensaje y turnos recientes**. Las
-   coincidencias relevantes tienen espacio antes de las notas fijas; una nota larga no tapa las siguientes.
+   coincidencias relevantes tienen espacio antes de las notas fijas; una nota larga no tapa las siguientes. Un chat
+   que trabaja una tarea, o un turno que le pasó otro agente, es sobre esa tarea: en vez de las notas globales recibe
+   las del proyecto, y una global entra sólo si comparte palabras con la tarea.
 2. Tus turnos también traen un **índice del cuaderno del agente**: una línea corta por cada nota que no se muestra
    entera (tipo, fecha y de qué trata), las más nuevas primero, dentro de 2.000 caracteres. Así una nota escrita
    distinto de tu mensaje ("hacelo como hiciste hoy") sigue a la vista, y `recall` trae su texto completo; las que no

@@ -72,7 +72,8 @@ reemplazarlo. Dentro de un proyecto van a su `.apc/skills/`.
 
 ## Cómo las eligen los agentes
 
-Cada agente recibe un catálogo corto de las skills que puede usar. Con un motor de embeddings configurado
+Cada agente recibe un catálogo corto de las skills que puede usar: una línea cada una, primero las del proyecto, y
+pasadas las 30 sólo sus nombres. Con un motor de embeddings configurado
 (**Configuración › Memoria › Elegir skills por significado**), cada mensaje que mandás además se compara por
 significado con tus skills, y hasta tres que encajan se le sugieren al agente para ese turno. El agente las evalúa y
 carga las que necesita con `load_skill`. La elección se ve como chips sobre la respuesta: cargada, sugerida o
