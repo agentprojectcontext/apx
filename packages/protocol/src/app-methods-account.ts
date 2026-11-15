@@ -20,33 +20,57 @@ import {
   Sticker,
   Thread,
 } from "./domain.ts";
+import { schemaFields } from "./schema-fields.ts";
 
 export const appAccountMethods = {
   /** What channels sent lately and how each delivery went (sent, uncertain, failed). */
   "channels.outbox": {
     params: z
-      .object({
-        limit: z.number().int().min(1).max(200).default(50),
-        /** Only what this account sent (its id). */
-        channel: z.string().min(1).max(64).optional(),
-      })
+      .object(
+        schemaFields({
+          limit: () => z.number().int().min(1).max(200).default(50),
+          /** Only what this account sent (its id). */
+          channel: () => z.string().min(1).max(64).optional(),
+        }),
+      )
       .strict(),
-    result: z.object({ items: z.array(OutboxItem) }),
+    result: z.object(
+      schemaFields({
+        items: () => z.array(OutboxItem),
+      }),
+    ),
     effect: false,
     access: "human",
   },
   /** The stickers kept from a channel type, the most used first, named or not, blocked or not. */
   "stickers.list": {
-    params: z.object({ platform: z.string().min(1).max(40) }).strict(),
+    params: z
+      .object(
+        schemaFields({
+          platform: () => z.string().min(1).max(40),
+        }),
+      )
+      .strict(),
     /** `auto`: new stickers are the agent's to use as they come (the default), else each waits for the owner's OK. */
-    result: z.object({ stickers: z.array(Sticker), auto: z.boolean() }),
+    result: z.object(
+      schemaFields({
+        stickers: () => z.array(Sticker),
+        auto: () => z.boolean(),
+      }),
+    ),
     effect: false,
     access: "human",
   },
   /** The owner's words for what a sticker means (no model names it again), or whether the agent may send it. */
   "stickers.set": {
     params: z
-      .object({ id: Id, meaning: z.string().trim().min(1).max(160).optional(), blocked: z.boolean().optional() })
+      .object(
+        schemaFields({
+          id: () => Id,
+          meaning: () => z.string().trim().min(1).max(160).optional(),
+          blocked: () => z.boolean().optional(),
+        }),
+      )
       .strict(),
     result: Sticker,
     effect: true,
@@ -57,15 +81,35 @@ export const appAccountMethods = {
    * no model could see, always waits.
    */
   "stickers.auto": {
-    params: z.object({ on: z.boolean() }).strict(),
-    result: z.object({ on: z.boolean() }),
+    params: z
+      .object(
+        schemaFields({
+          on: () => z.boolean(),
+        }),
+      )
+      .strict(),
+    result: z.object(
+      schemaFields({
+        on: () => z.boolean(),
+      }),
+    ),
     effect: true,
     access: "human",
   },
   /** Forgets a sticker and its file; if someone sends it again it is kept and named again. */
   "stickers.remove": {
-    params: z.object({ id: Id }).strict(),
-    result: z.object({ removed: z.boolean() }),
+    params: z
+      .object(
+        schemaFields({
+          id: () => Id,
+        }),
+      )
+      .strict(),
+    result: z.object(
+      schemaFields({
+        removed: () => z.boolean(),
+      }),
+    ),
     effect: true,
     access: "human",
   },
@@ -74,7 +118,14 @@ export const appAccountMethods = {
    * sent until someone writes in it).
    */
   "channels.open": {
-    params: z.object({ person: Id, channel: z.string().min(1).max(60) }).strict(),
+    params: z
+      .object(
+        schemaFields({
+          person: () => Id,
+          channel: () => z.string().min(1).max(60),
+        }),
+      )
+      .strict(),
     result: Thread,
     effect: true,
     access: "human",
@@ -85,10 +136,28 @@ export const appAccountMethods = {
    * (Discord's permissions for its roles in that room; always true for a Telegram group).
    */
   "channels.rooms": {
-    params: z.object({ channel: z.string().min(1).max(60) }).strict(),
-    result: z.object({
-      rooms: z.array(z.object({ id: z.string(), name: z.string(), server: z.string(), writable: z.boolean() })),
-    }),
+    params: z
+      .object(
+        schemaFields({
+          channel: () => z.string().min(1).max(60),
+        }),
+      )
+      .strict(),
+    result: z.object(
+      schemaFields({
+        rooms: () =>
+          z.array(
+            z.object(
+              schemaFields({
+                id: () => z.string(),
+                name: () => z.string(),
+                server: () => z.string(),
+                writable: () => z.boolean(),
+              }),
+            ),
+          ),
+      }),
+    ),
     effect: false,
     access: "human",
   },
@@ -97,10 +166,27 @@ export const appAccountMethods = {
    * Asking starts listening for them, so the first answer may be empty.
    */
   "channels.presence": {
-    params: z.object({ channel: z.string().min(1).max(60) }).strict(),
-    result: z.object({
-      people: z.array(z.object({ person_id: Id, online: z.boolean(), last_seen: z.string().optional() })),
-    }),
+    params: z
+      .object(
+        schemaFields({
+          channel: () => z.string().min(1).max(60),
+        }),
+      )
+      .strict(),
+    result: z.object(
+      schemaFields({
+        people: () =>
+          z.array(
+            z.object(
+              schemaFields({
+                person_id: () => Id,
+                online: () => z.boolean(),
+                last_seen: () => z.string().optional(),
+              }),
+            ),
+          ),
+      }),
+    ),
     effect: false,
     access: "human",
   },
@@ -110,28 +196,68 @@ export const appAccountMethods = {
    * be online — and put in their messages. Starts no turn. `missing` says why each one did not come.
    */
   "channels.recover": {
-    params: z.object({ thread: Id }).strict(),
-    result: z.object({
-      /** Messages waiting for their file. */
-      asked: z.number().int(),
-      recovered: z.array(z.object({ message_id: z.string(), name: z.string() })),
-      missing: z.array(z.object({ message_id: z.string(), reason: z.string() })),
-      /** Why nothing was tried, or why nothing came. */
-      reason: z.string().optional(),
-    }),
+    params: z
+      .object(
+        schemaFields({
+          thread: () => Id,
+        }),
+      )
+      .strict(),
+    result: z.object(
+      schemaFields({
+        /** Messages waiting for their file. */
+        asked: () => z.number().int(),
+        recovered: () =>
+          z.array(
+            z.object(
+              schemaFields({
+                message_id: () => z.string(),
+                name: () => z.string(),
+              }),
+            ),
+          ),
+        missing: () =>
+          z.array(
+            z.object(
+              schemaFields({
+                message_id: () => z.string(),
+                reason: () => z.string(),
+              }),
+            ),
+          ),
+        /** Why nothing was tried, or why nothing came. */
+        reason: () => z.string().optional(),
+      }),
+    ),
     effect: true,
     access: "human",
   },
   /** iMessage on this Mac as agent tools (read recent messages, send one with the owner's OK); off until turned on. */
   "imessage.get": {
     params: z.object({}).strict(),
-    result: z.object({ available: z.boolean(), on: z.boolean() }),
+    result: z.object(
+      schemaFields({
+        available: () => z.boolean(),
+        on: () => z.boolean(),
+      }),
+    ),
     effect: false,
     access: "human",
   },
   "imessage.set": {
-    params: z.object({ on: z.boolean() }).strict(),
-    result: z.object({ available: z.boolean(), on: z.boolean() }),
+    params: z
+      .object(
+        schemaFields({
+          on: () => z.boolean(),
+        }),
+      )
+      .strict(),
+    result: z.object(
+      schemaFields({
+        available: () => z.boolean(),
+        on: () => z.boolean(),
+      }),
+    ),
     effect: true,
     access: "human",
   },
@@ -139,51 +265,74 @@ export const appAccountMethods = {
   /** The desktop app's settings: quick chat shortcut, start at login, and computer use on this computer. */
   "desktop.get": {
     params: z.object({}).strict(),
-    result: z.object({
-      shortcut: z.string(),
-      launch_at_login: z.boolean(),
-      computer_use: z.boolean(),
-      /** The Mac stays awake while APX works for the owner (macOS). */
-      keep_awake: z.boolean(),
-    }),
+    result: z.object(
+      schemaFields({
+        shortcut: () => z.string(),
+        launch_at_login: () => z.boolean(),
+        computer_use: () => z.boolean(),
+        /** The Mac stays awake while APX works for the owner (macOS). */
+        keep_awake: () => z.boolean(),
+      }),
+    ),
     effect: false,
     access: "human",
   },
   "desktop.set": {
     params: z
-      .object({
-        shortcut: z.string().max(60),
-        launch_at_login: z.boolean(),
-        computer_use: z.boolean().default(false),
-        keep_awake: z.boolean().default(true),
-      })
+      .object(
+        schemaFields({
+          shortcut: () => z.string().max(60),
+          launch_at_login: () => z.boolean(),
+          computer_use: () => z.boolean().default(false),
+          keep_awake: () => z.boolean().default(true),
+        }),
+      )
       .strict(),
-    result: z.object({
-      shortcut: z.string(),
-      launch_at_login: z.boolean(),
-      computer_use: z.boolean(),
-      keep_awake: z.boolean(),
-    }),
+    result: z.object(
+      schemaFields({
+        shortcut: () => z.string(),
+        launch_at_login: () => z.boolean(),
+        computer_use: () => z.boolean(),
+        keep_awake: () => z.boolean(),
+      }),
+    ),
     effect: true,
     access: "human",
   },
   /** Image and voice services in the owner's order, with whether each answers now; and the shared image defaults. */
   "services.list": {
-    params: z.object({ kind: ServiceKind.optional() }).strict(),
-    result: z.object({ services: z.array(ServiceInfo), image_defaults: ImageDefaults }),
+    params: z
+      .object(
+        schemaFields({
+          kind: () => ServiceKind.optional(),
+        }),
+      )
+      .strict(),
+    result: z.object(
+      schemaFields({
+        services: () => z.array(ServiceInfo),
+        image_defaults: () => ImageDefaults,
+      }),
+    ),
     effect: false,
     access: "human",
   },
   /** Adds, changes or (null) removes a service; `api_key` goes to the secret store and never comes back. */
   "services.set": {
     params: z
-      .object({
-        id: z.string().regex(/^[a-z0-9][a-z0-9-]{0,31}$/),
-        service: ServiceSettings.nullable(),
-        api_key: z.string().min(1).max(4000).optional(),
-      })
+      .object(
+        schemaFields({
+          id: () => z.string().regex(/^[a-z0-9][a-z0-9-]{0,31}$/),
+          service: () => ServiceSettings.nullable(),
+          api_key: () => z.string().min(1).max(4000).optional(),
+        }),
+      )
       .strict(),
-    result: z.object({ services: z.array(ServiceInfo) }),
+    result: z.object(
+      schemaFields({
+        services: () => z.array(ServiceInfo),
+      }),
+    ),
     effect: true,
     access: "human",
   },
@@ -193,11 +342,13 @@ export const appAccountMethods = {
    */
   "services.test": {
     params: z
-      .object({
-        service: ServiceSettings,
-        id: z.string().max(32).optional(),
-        api_key: z.string().min(1).max(4000).optional(),
-      })
+      .object(
+        schemaFields({
+          service: () => ServiceSettings,
+          id: () => z.string().max(32).optional(),
+          api_key: () => z.string().min(1).max(4000).optional(),
+        }),
+      )
       .strict(),
     result: ServiceTest,
     effect: false,
@@ -215,7 +366,13 @@ export const appAccountMethods = {
    * in the order; one already on disk is only set up.
    */
   "transcription.install": {
-    params: z.object({ model: z.string().max(60) }).strict(),
+    params: z
+      .object(
+        schemaFields({
+          model: () => z.string().max(60),
+        }),
+      )
+      .strict(),
     result: LocalTranscription,
     effect: true,
     access: "human",
@@ -232,15 +389,32 @@ export const appAccountMethods = {
    * pulled first, in the background.
    */
   "embeddings.install": {
-    params: z.object({ model: z.string().regex(/^[\w.:/-]{1,80}$/) }).strict(),
+    params: z
+      .object(
+        schemaFields({
+          model: () => z.string().regex(/^[\w.:/-]{1,80}$/),
+        }),
+      )
+      .strict(),
     result: LocalEmbedding,
     effect: true,
     access: "human",
   },
   /** The order services of one kind are tried in. */
   "services.order": {
-    params: z.object({ kind: ServiceKind, ids: z.array(z.string()).max(50) }).strict(),
-    result: z.object({ services: z.array(ServiceInfo) }),
+    params: z
+      .object(
+        schemaFields({
+          kind: () => ServiceKind,
+          ids: () => z.array(z.string()).max(50),
+        }),
+      )
+      .strict(),
+    result: z.object(
+      schemaFields({
+        services: () => z.array(ServiceInfo),
+      }),
+    ),
     effect: true,
     access: "human",
   },
@@ -256,50 +430,84 @@ export const appAccountMethods = {
    */
   "media.image": {
     params: z
-      .object({
-        prompt: z.string().trim().min(1).max(4000),
-        service: z.string().optional(),
-        width: z.number().int().min(64).max(4096).optional(),
-        height: z.number().int().min(64).max(4096).optional(),
-        steps: z.number().int().min(1).max(200).optional(),
-        negative_prompt: z.string().max(2000).optional(),
-        count: z.number().int().min(1).max(4).optional(),
-        seed: z.number().int().optional(),
-        /** Images (media ids, from this chat when `thread` is given) the drawing works from. */
-        references: z.array(Id).max(4).optional(),
-        thread: Id.optional(),
-      })
+      .object(
+        schemaFields({
+          prompt: () => z.string().trim().min(1).max(4000),
+          service: () => z.string().optional(),
+          width: () => z.number().int().min(64).max(4096).optional(),
+          height: () => z.number().int().min(64).max(4096).optional(),
+          steps: () => z.number().int().min(1).max(200).optional(),
+          negative_prompt: () => z.string().max(2000).optional(),
+          count: () => z.number().int().min(1).max(4).optional(),
+          seed: () => z.number().int().optional(),
+          /** Images (media ids, from this chat when `thread` is given) the drawing works from. */
+          references: () => z.array(Id).max(4).optional(),
+          thread: () => Id.optional(),
+        }),
+      )
       .strict(),
-    result: z.object({
-      media: z.array(z.object({ id: Id, mime: z.string() })),
-      service: z.string(),
-      model: z.string().optional(),
-      /** Services tried before this one, and why each failed. */
-      skipped: z.array(z.string()),
-    }),
+    result: z.object(
+      schemaFields({
+        media: () =>
+          z.array(
+            z.object(
+              schemaFields({
+                id: () => Id,
+                mime: () => z.string(),
+              }),
+            ),
+          ),
+        service: () => z.string(),
+        model: () => z.string().optional(),
+        /** Services tried before this one, and why each failed. */
+        skipped: () => z.array(z.string()),
+      }),
+    ),
     effect: true,
   },
   /** Speaks text with the first voice service that answers (or `service`). */
   "media.speak": {
     params: z
-      .object({
-        text: z.string().trim().min(1).max(4000),
-        service: z.string().optional(),
-        voice: z.string().max(100).optional(),
-        thread: Id.optional(),
-      })
+      .object(
+        schemaFields({
+          text: () => z.string().trim().min(1).max(4000),
+          service: () => z.string().optional(),
+          voice: () => z.string().max(100).optional(),
+          thread: () => Id.optional(),
+        }),
+      )
       .strict(),
-    result: z.object({
-      media: z.object({ id: Id, mime: z.string() }),
-      service: z.string(),
-      skipped: z.array(z.string()),
-    }),
+    result: z.object(
+      schemaFields({
+        media: () =>
+          z.object(
+            schemaFields({
+              id: () => Id,
+              mime: () => z.string(),
+            }),
+          ),
+        service: () => z.string(),
+        skipped: () => z.array(z.string()),
+      }),
+    ),
     effect: true,
   },
   /** The bytes of an image or audio APX made, base64. */
   "media.get": {
-    params: z.object({ id: Id }).strict(),
-    result: z.object({ mime: z.string(), data: z.string(), bytes: z.number().int() }),
+    params: z
+      .object(
+        schemaFields({
+          id: () => Id,
+        }),
+      )
+      .strict(),
+    result: z.object(
+      schemaFields({
+        mime: () => z.string(),
+        data: () => z.string(),
+        bytes: () => z.number().int(),
+      }),
+    ),
     effect: false,
   },
   "notices.get": {
@@ -310,14 +518,38 @@ export const appAccountMethods = {
   },
   /** The latest messages APX meant to send unasked (newest first), and how many count today against the cap. */
   "notices.log": {
-    params: z.object({ limit: z.number().int().min(1).max(200).default(50) }).strict(),
-    result: z.object({ items: z.array(Nudge), today: z.object({ sent: z.number().int(), cap: z.number().int() }) }),
+    params: z
+      .object(
+        schemaFields({
+          limit: () => z.number().int().min(1).max(200).default(50),
+        }),
+      )
+      .strict(),
+    result: z.object(
+      schemaFields({
+        items: () => z.array(Nudge),
+        today: () =>
+          z.object(
+            schemaFields({
+              sent: () => z.number().int(),
+              cap: () => z.number().int(),
+            }),
+          ),
+      }),
+    ),
     effect: false,
     access: "human",
   },
   /** The owner's 👍/👎 on a message APX sent unasked (null takes it back). A kind marked 👎 again and again stops. */
   "notices.feedback": {
-    params: z.object({ id: Id, feedback: z.enum(["up", "down"]).nullable() }).strict(),
+    params: z
+      .object(
+        schemaFields({
+          id: () => Id,
+          feedback: () => z.enum(["up", "down"]).nullable(),
+        }),
+      )
+      .strict(),
     result: Nudge,
     effect: true,
     access: "human",
@@ -330,37 +562,46 @@ export const appAccountMethods = {
   },
   "contacts.list": {
     params: z.object({}).strict(),
-    result: z.object({ persons: z.array(Person) }),
+    result: z.object(
+      schemaFields({
+        persons: () => z.array(Person),
+      }),
+    ),
     effect: false,
     access: "human",
   },
   /** Creates (no id) or changes a person; the owner stays the owner. */
   "contacts.set": {
     params: z
-      .object({
-        id: Id.optional(),
-        name: z.string().trim().min(1).max(80),
-        role: PersonRole.optional(),
-        note: z.string().max(500).optional(),
-        nickname: z.string().trim().max(40).optional(),
-        relation: PersonRelation.nullable().optional(),
-        rules: z.string().max(1000).optional(),
-        muted: z.boolean().optional(),
-        supervised: z.boolean().optional(),
-        /** Who answers them instead of each account's contacts agent; null gives them back to the account's. */
-        agent_id: Id.nullable().optional(),
-        // Only the rights sent change; null gives one back to the account they write on.
-        perms: z
-          .object({
-            appointments: z.boolean().nullable(),
-            requests: z.boolean().nullable(),
-            notes: z.boolean().nullable(),
-            any_hour: z.boolean().nullable(),
-          })
-          .partial()
-          .strict()
-          .optional(),
-      })
+      .object(
+        schemaFields({
+          id: () => Id.optional(),
+          name: () => z.string().trim().min(1).max(80),
+          role: () => PersonRole.optional(),
+          note: () => z.string().max(500).optional(),
+          nickname: () => z.string().trim().max(40).optional(),
+          relation: () => PersonRelation.nullable().optional(),
+          rules: () => z.string().max(1000).optional(),
+          muted: () => z.boolean().optional(),
+          supervised: () => z.boolean().optional(),
+          /** Who answers them instead of each account's contacts agent; null gives them back to the account's. */
+          agent_id: () => Id.nullable().optional(),
+          // Only the rights sent change; null gives one back to the account they write on.
+          perms: () =>
+            z
+              .object(
+                schemaFields({
+                  appointments: () => z.boolean().nullable(),
+                  requests: () => z.boolean().nullable(),
+                  notes: () => z.boolean().nullable(),
+                  any_hour: () => z.boolean().nullable(),
+                }),
+              )
+              .partial()
+              .strict()
+              .optional(),
+        }),
+      )
       .strict(),
     result: Person,
     effect: true,
@@ -369,13 +610,19 @@ export const appAccountMethods = {
   /** Replies drafted for supervised contacts, newest first: the pending ones by default. */
   "contacts.suggestions.list": {
     params: z
-      .object({
-        state: z.enum(["pending", "sent", "discarded", "superseded", "all"]).default("pending"),
-        person: Id.optional(),
-        limit: z.number().int().min(1).max(200).default(50),
-      })
+      .object(
+        schemaFields({
+          state: () => z.enum(["pending", "sent", "discarded", "superseded", "all"]).default("pending"),
+          person: () => Id.optional(),
+          limit: () => z.number().int().min(1).max(200).default(50),
+        }),
+      )
       .strict(),
-    result: z.object({ suggestions: z.array(ContactSuggestion) }),
+    result: z.object(
+      schemaFields({
+        suggestions: () => z.array(ContactSuggestion),
+      }),
+    ),
     effect: false,
     access: "human",
   },
@@ -385,23 +632,43 @@ export const appAccountMethods = {
    */
   "contacts.suggestions.send": {
     params: z
-      .object({
-        id: Id,
-        text: z.string().trim().min(1).max(4000).optional(),
-        author: z.enum(["agent", "owner"]).default("agent"),
-      })
+      .object(
+        schemaFields({
+          id: () => Id,
+          text: () => z.string().trim().min(1).max(4000).optional(),
+          author: () => z.enum(["agent", "owner"]).default("agent"),
+        }),
+      )
       .strict(),
-    result: z.object({
-      suggestion: ContactSuggestion,
-      delivery: z.object({ state: OutboxState, error: z.string().optional() }),
-    }),
+    result: z.object(
+      schemaFields({
+        suggestion: () => ContactSuggestion,
+        delivery: () =>
+          z.object(
+            schemaFields({
+              state: () => OutboxState,
+              error: () => z.string().optional(),
+            }),
+          ),
+      }),
+    ),
     effect: true,
     access: "human",
   },
   /** Drops a pending suggestion: nothing is sent, the contact stays supervised. */
   "contacts.suggestions.discard": {
-    params: z.object({ id: Id }).strict(),
-    result: z.object({ suggestion: ContactSuggestion }),
+    params: z
+      .object(
+        schemaFields({
+          id: () => Id,
+        }),
+      )
+      .strict(),
+    result: z.object(
+      schemaFields({
+        suggestion: () => ContactSuggestion,
+      }),
+    ),
     effect: true,
     access: "human",
   },

@@ -1,14 +1,17 @@
 // A folder as the owner browses it (a project's, or a chat's): one level at a time, and a file's text.
 import { z } from "zod";
 import { Author, Id } from "./domain.ts";
+import { schemaFields } from "./schema-fields.ts";
 
-export const FileEntry = z.object({
-  name: z.string(),
-  /** Relative to the project's folder, with "/" separators. */
-  path: z.string(),
-  kind: z.enum(["dir", "file"]),
-  bytes: z.number().int().optional(),
-});
+export const FileEntry = z.object(
+  schemaFields({
+    name: () => z.string(),
+    /** Relative to the project's folder, with "/" separators. */
+    path: () => z.string(),
+    kind: () => z.enum(["dir", "file"]),
+    bytes: () => z.number().int().optional(),
+  }),
+);
 export type FileEntry = z.infer<typeof FileEntry>;
 
 /** What the viewer shows at most of one file. */
@@ -20,12 +23,14 @@ export const FILE_MEDIA_LIMIT = 15 * 1024 * 1024;
 export const FILE_DOWNLOAD_LIMIT = 50 * 1024 * 1024;
 
 /** An uncommitted file in a chat's folder, per git: its status letters and the lines added and removed. */
-export const ChangedFile = z.object({
-  path: z.string(),
-  status: z.string(),
-  added: z.number().int().optional(),
-  removed: z.number().int().optional(),
-});
+export const ChangedFile = z.object(
+  schemaFields({
+    path: () => z.string(),
+    status: () => z.string(),
+    added: () => z.number().int().optional(),
+    removed: () => z.number().int().optional(),
+  }),
+);
 export type ChangedFile = z.infer<typeof ChangedFile>;
 
 /** What a file shared in a chat is, by its MIME type: Documents is everything that is not a picture, video or sound. */
@@ -36,22 +41,24 @@ export const SharedOrder = z.enum(["new", "old", "az", "za"]);
 export type SharedOrder = z.infer<typeof SharedOrder>;
 
 /** A file a message shows (sent by the owner, a contact or an agent), with where it was said. */
-export const SharedFile = z.object({
-  media_id: Id,
-  kind: SharedKind,
-  mime: z.string(),
-  /** The file's own name, or how it was asked for when APX made it; empty when it has neither. */
-  name: z.string(),
-  bytes: z.number().int(),
-  /** Where it is kept on the core's computer. */
-  path: z.string(),
-  thread_id: Id,
-  thread_title: z.string(),
-  project_id: Id.optional(),
-  message_id: Id,
-  author: Author,
-  created_at: z.string(),
-});
+export const SharedFile = z.object(
+  schemaFields({
+    media_id: () => Id,
+    kind: () => SharedKind,
+    mime: () => z.string(),
+    /** The file's own name, or how it was asked for when APX made it; empty when it has neither. */
+    name: () => z.string(),
+    bytes: () => z.number().int(),
+    /** Where it is kept on the core's computer. */
+    path: () => z.string(),
+    thread_id: () => Id,
+    thread_title: () => z.string(),
+    project_id: () => Id.optional(),
+    message_id: () => Id,
+    author: () => Author,
+    created_at: () => z.string(),
+  }),
+);
 export type SharedFile = z.infer<typeof SharedFile>;
 
 /**
@@ -71,27 +78,43 @@ export const filesMethods = {
    * folder is not in a repository.
    */
   "files.changes": {
-    params: z.object({ thread: Id }).strict(),
-    result: z.object({ cwd: z.string(), git: z.boolean(), files: z.array(ChangedFile) }),
+    params: z
+      .object(
+        schemaFields({
+          thread: () => Id,
+        }),
+      )
+      .strict(),
+    result: z.object(
+      schemaFields({
+        cwd: () => z.string(),
+        git: () => z.boolean(),
+        files: () => z.array(ChangedFile),
+      }),
+    ),
     effect: false,
     access: "human",
   },
   /** Working-tree diff against HEAD, or a recorded turn's snapshot when `message` is given. Legacy records return labeled current content. */
   "files.diff": {
     params: z
-      .object({
-        thread: Id,
-        path: z.string().min(1).max(1000),
-        message: Id.optional(),
-        part: z.number().int().nonnegative().optional(),
-      })
+      .object(
+        schemaFields({
+          thread: () => Id,
+          path: () => z.string().min(1).max(1000),
+          message: () => Id.optional(),
+          part: () => z.number().int().nonnegative().optional(),
+        }),
+      )
       .strict(),
-    result: z.object({
-      path: z.string(),
-      diff: z.string(),
-      truncated: z.boolean(),
-      source: z.enum(["recorded", "current"]).optional(),
-    }),
+    result: z.object(
+      schemaFields({
+        path: () => z.string(),
+        diff: () => z.string(),
+        truncated: () => z.boolean(),
+        source: () => z.enum(["recorded", "current"]).optional(),
+      }),
+    ),
     effect: false,
     access: "human",
   },
@@ -100,23 +123,45 @@ export const filesMethods = {
    * folder's own path.
    */
   "files.tree": {
-    params: z.object({ ...Where, dir: z.string().max(1000).default("") }).strict(),
-    result: z.object({ root: z.string(), entries: z.array(FileEntry), truncated: z.boolean() }),
+    params: z
+      .object(
+        schemaFields({
+          ...Where,
+          dir: () => z.string().max(1000).default(""),
+        }),
+      )
+      .strict(),
+    result: z.object(
+      schemaFields({
+        root: () => z.string(),
+        entries: () => z.array(FileEntry),
+        truncated: () => z.boolean(),
+      }),
+    ),
     effect: false,
     access: "human",
   },
   /** A file's text (up to 256 KB); a binary file says so instead. */
   "files.read": {
-    params: z.object({ ...Where, path: z.string().min(1).max(1000) }).strict(),
-    result: z.object({
-      path: z.string(),
-      bytes: z.number().int(),
-      binary: z.boolean(),
-      truncated: z.boolean(),
-      text: z.string().optional(),
-      /** What `files.write` checks it still has, so an edit never overwrites a change made since (by an agent, say). */
-      version: z.string().optional(),
-    }),
+    params: z
+      .object(
+        schemaFields({
+          ...Where,
+          path: () => z.string().min(1).max(1000),
+        }),
+      )
+      .strict(),
+    result: z.object(
+      schemaFields({
+        path: () => z.string(),
+        bytes: () => z.number().int(),
+        binary: () => z.boolean(),
+        truncated: () => z.boolean(),
+        text: () => z.string().optional(),
+        /** What `files.write` checks it still has, so an edit never overwrites a change made since (by an agent, say). */
+        version: () => z.string().optional(),
+      }),
+    ),
     effect: false,
     access: "human",
   },
@@ -126,42 +171,99 @@ export const filesMethods = {
    */
   "files.write": {
     params: z
-      .object({
-        ...Where,
-        path: z.string().min(1).max(1000),
-        text: z.string().max(FILE_READ_LIMIT),
-        version: z.string().max(100).optional(),
-      })
+      .object(
+        schemaFields({
+          ...Where,
+          path: () => z.string().min(1).max(1000),
+          text: () => z.string().max(FILE_READ_LIMIT),
+          version: () => z.string().max(100).optional(),
+        }),
+      )
       .strict(),
-    result: z.object({ path: z.string(), bytes: z.number().int(), version: z.string() }),
+    result: z.object(
+      schemaFields({
+        path: () => z.string(),
+        bytes: () => z.number().int(),
+        version: () => z.string(),
+      }),
+    ),
     effect: true,
     access: "human",
   },
   /** An image, video, audio or PDF of the project, for the viewer to show (up to 15 MB). */
   "files.media": {
-    params: z.object({ ...Where, path: z.string().min(1).max(1000) }).strict(),
-    result: z.object({ mime: z.string(), data: z.string(), bytes: z.number().int() }),
+    params: z
+      .object(
+        schemaFields({
+          ...Where,
+          path: () => z.string().min(1).max(1000),
+        }),
+      )
+      .strict(),
+    result: z.object(
+      schemaFields({
+        mime: () => z.string(),
+        data: () => z.string(),
+        bytes: () => z.number().int(),
+      }),
+    ),
     effect: false,
     access: "human",
   },
   /** A file's bytes, for the owner to save on the computer the panel runs on (up to 50 MB). */
   "files.download": {
-    params: z.object({ ...Where, path: z.string().min(1).max(1000) }).strict(),
-    result: z.object({ name: z.string(), mime: z.string(), data: z.string(), bytes: z.number().int() }),
+    params: z
+      .object(
+        schemaFields({
+          ...Where,
+          path: () => z.string().min(1).max(1000),
+        }),
+      )
+      .strict(),
+    result: z.object(
+      schemaFields({
+        name: () => z.string(),
+        mime: () => z.string(),
+        data: () => z.string(),
+        bytes: () => z.number().int(),
+      }),
+    ),
     effect: false,
     access: "human",
   },
   /** Shows the file or folder in Finder (Explorer, the file manager) on the core's computer. */
   "files.reveal": {
-    params: z.object({ ...Where, path: z.string().max(1000) }).strict(),
-    result: z.object({ ok: z.literal(true) }),
+    params: z
+      .object(
+        schemaFields({
+          ...Where,
+          path: () => z.string().max(1000),
+        }),
+      )
+      .strict(),
+    result: z.object(
+      schemaFields({
+        ok: () => z.literal(true),
+      }),
+    ),
     effect: true,
     access: "human",
   },
   /** Opens a text document (.md, .markdown, .txt) in its default app on the core's computer. */
   "files.open": {
-    params: z.object({ ...Where, path: z.string().min(1).max(1000) }).strict(),
-    result: z.object({ ok: z.literal(true) }),
+    params: z
+      .object(
+        schemaFields({
+          ...Where,
+          path: () => z.string().min(1).max(1000),
+        }),
+      )
+      .strict(),
+    result: z.object(
+      schemaFields({
+        ok: () => z.literal(true),
+      }),
+    ),
     effect: true,
     access: "human",
   },
@@ -170,26 +272,43 @@ export const filesMethods = {
    * itself may have moved or be one the document does not name (files.open opens that one).
    */
   "documents.open": {
-    params: z.object({ media_id: Id }).strict(),
-    result: z.object({ ok: z.literal(true) }),
+    params: z
+      .object(
+        schemaFields({
+          media_id: () => Id,
+        }),
+      )
+      .strict(),
+    result: z.object(
+      schemaFields({
+        ok: () => z.literal(true),
+      }),
+    ),
     effect: true,
     access: "human",
   },
   /** Renames a file or folder in place (a new name, never a new folder). */
   "files.rename": {
     params: z
-      .object({
-        ...Where,
-        path: z.string().min(1).max(1000),
-        name: z
-          .string()
-          .trim()
-          .min(1)
-          .max(255)
-          .refine((n) => !/[/\\]/.test(n) && n !== "." && n !== "..", "a name, not a path"),
-      })
+      .object(
+        schemaFields({
+          ...Where,
+          path: () => z.string().min(1).max(1000),
+          name: () =>
+            z
+              .string()
+              .trim()
+              .min(1)
+              .max(255)
+              .refine((n) => !/[/\\]/.test(n) && n !== "." && n !== "..", "a name, not a path"),
+        }),
+      )
       .strict(),
-    result: z.object({ path: z.string() }),
+    result: z.object(
+      schemaFields({
+        path: () => z.string(),
+      }),
+    ),
     effect: true,
     access: "human",
   },
@@ -198,15 +317,37 @@ export const filesMethods = {
    * system clears temp folders on its own. A taken name gets a number. Returns where it went.
    */
   "files.keep": {
-    params: z.object({ thread: Id, path: z.string().min(1).max(1000) }).strict(),
-    result: z.object({ path: z.string() }),
+    params: z
+      .object(
+        schemaFields({
+          thread: () => Id,
+          path: () => z.string().min(1).max(1000),
+        }),
+      )
+      .strict(),
+    result: z.object(
+      schemaFields({
+        path: () => z.string(),
+      }),
+    ),
     effect: true,
     access: "human",
   },
   /** Moves a file or folder to the system trash (recoverable there); never the project's folder itself. */
   "files.trash": {
-    params: z.object({ ...Where, path: z.string().min(1).max(1000) }).strict(),
-    result: z.object({ ok: z.literal(true) }),
+    params: z
+      .object(
+        schemaFields({
+          ...Where,
+          path: () => z.string().min(1).max(1000),
+        }),
+      )
+      .strict(),
+    result: z.object(
+      schemaFields({
+        ok: () => z.literal(true),
+      }),
+    ),
     effect: true,
     access: "human",
   },
@@ -216,35 +357,59 @@ export const filesMethods = {
    */
   "media.shared": {
     params: z
-      .object({
-        kind: SharedKind.optional(),
-        project: Id.optional(),
-        base: z.literal(true).optional(),
-        query: z.string().trim().max(200).optional(),
-        order: SharedOrder.default("new"),
-        offset: z.number().int().min(0).default(0),
-        limit: z.number().int().min(1).max(200).default(60),
-      })
+      .object(
+        schemaFields({
+          kind: () => SharedKind.optional(),
+          project: () => Id.optional(),
+          base: () => z.literal(true).optional(),
+          query: () => z.string().trim().max(200).optional(),
+          order: () => SharedOrder.default("new"),
+          offset: () => z.number().int().min(0).default(0),
+          limit: () => z.number().int().min(1).max(200).default(60),
+        }),
+      )
       .strict(),
-    result: z.object({
-      items: z.array(SharedFile),
-      more: z.boolean(),
-      counts: z.record(SharedKind, z.number().int()),
-    }),
+    result: z.object(
+      schemaFields({
+        items: () => z.array(SharedFile),
+        more: () => z.boolean(),
+        counts: () => z.record(SharedKind, z.number().int()),
+      }),
+    ),
     effect: false,
     access: "human",
   },
   /** A small JPEG of a video's first frame, base64; none when the core cannot make one (no ffmpeg). */
   "media.poster": {
-    params: z.object({ media_id: Id }).strict(),
-    result: z.object({ data: z.string().optional() }),
+    params: z
+      .object(
+        schemaFields({
+          media_id: () => Id,
+        }),
+      )
+      .strict(),
+    result: z.object(
+      schemaFields({
+        data: () => z.string().optional(),
+      }),
+    ),
     effect: false,
     access: "human",
   },
   /** Shows a file shared in a chat in Finder (Explorer, the file manager) on the core's computer. */
   "media.reveal": {
-    params: z.object({ media_id: Id }).strict(),
-    result: z.object({ ok: z.literal(true) }),
+    params: z
+      .object(
+        schemaFields({
+          media_id: () => Id,
+        }),
+      )
+      .strict(),
+    result: z.object(
+      schemaFields({
+        ok: () => z.literal(true),
+      }),
+    ),
     effect: true,
     access: "human",
   },

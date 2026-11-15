@@ -1,6 +1,7 @@
 // Methods behind the app screens.
 import { z } from "zod";
 import { Id, Run, SurfaceOrigin, SurfaceState, SurfaceSummary } from "./domain.ts";
+import { schemaFields } from "./schema-fields.ts";
 
 export const appMediaMethods = {
   /**
@@ -9,8 +10,21 @@ export const appMediaMethods = {
    * stored in one of that project's chats. Only refs written in the widget's own HTML resolve.
    */
   "surfaces.media": {
-    params: z.object({ surface: Id, ref: z.string().trim().min(1).max(1000) }).strict(),
-    result: z.object({ mime: z.string(), data: z.string(), bytes: z.number().int() }),
+    params: z
+      .object(
+        schemaFields({
+          surface: () => Id,
+          ref: () => z.string().trim().min(1).max(1000),
+        }),
+      )
+      .strict(),
+    result: z.object(
+      schemaFields({
+        mime: () => z.string(),
+        data: () => z.string(),
+        bytes: () => z.number().int(),
+      }),
+    ),
     effect: false,
     access: "human",
   },
@@ -20,23 +34,26 @@ export const appMediaMethods = {
    */
   "surfaces.show": {
     params: z
-      .object({
-        name: z
-          .string()
-          .min(1)
-          .max(60)
-          .regex(/^[a-z0-9][a-z0-9-]*$/),
-        title: z.string().min(1).max(120),
-        html: z.string().min(1).max(400_000),
-        pinned: z.boolean().optional(),
-        app: z.boolean().optional(),
-        page: z.boolean().optional(),
-        /** Origins it may read live data from ([] removes them; absent keeps the current ones). */
-        connect: z.array(SurfaceOrigin).max(5).optional(),
-        thread: Id.optional(),
-        /** Without a thread (`apx artifacts push`): the project it belongs to; none makes it global. */
-        project: Id.optional(),
-      })
+      .object(
+        schemaFields({
+          name: () =>
+            z
+              .string()
+              .min(1)
+              .max(60)
+              .regex(/^[a-z0-9][a-z0-9-]*$/),
+          title: () => z.string().min(1).max(120),
+          html: () => z.string().min(1).max(400_000),
+          pinned: () => z.boolean().optional(),
+          app: () => z.boolean().optional(),
+          page: () => z.boolean().optional(),
+          /** Origins it may read live data from ([] removes them; absent keeps the current ones). */
+          connect: () => z.array(SurfaceOrigin).max(5).optional(),
+          thread: () => Id.optional(),
+          /** Without a thread (`apx artifacts push`): the project it belongs to; none makes it global. */
+          project: () => Id.optional(),
+        }),
+      )
       .strict(),
     result: SurfaceSummary,
     effect: true,
@@ -46,7 +63,15 @@ export const appMediaMethods = {
    * origins, its name kept unless that project has one by it ("-2" then). Not linked to the original afterwards.
    */
   "surfaces.copy": {
-    params: z.object({ surface: Id, project_id: Id.nullable(), pinned: z.boolean().default(false) }).strict(),
+    params: z
+      .object(
+        schemaFields({
+          surface: () => Id,
+          project_id: () => Id.nullable(),
+          pinned: () => z.boolean().default(false),
+        }),
+      )
+      .strict(),
     result: SurfaceSummary,
     effect: true,
     access: "human",
@@ -57,18 +82,21 @@ export const appMediaMethods = {
    */
   "surfaces.import_page": {
     params: z
-      .object({
-        project_id: Id,
-        path: z.string().min(1).max(1000),
-        name: z
-          .string()
-          .min(1)
-          .max(60)
-          .regex(/^[a-z0-9][a-z0-9-]*$/)
-          .optional(),
-        title: z.string().trim().min(1).max(120).optional(),
-        pinned: z.boolean().default(true),
-      })
+      .object(
+        schemaFields({
+          project_id: () => Id,
+          path: () => z.string().min(1).max(1000),
+          name: () =>
+            z
+              .string()
+              .min(1)
+              .max(60)
+              .regex(/^[a-z0-9][a-z0-9-]*$/)
+              .optional(),
+          title: () => z.string().trim().min(1).max(120).optional(),
+          pinned: () => z.boolean().default(true),
+        }),
+      )
       .strict(),
     result: SurfaceSummary,
     effect: true,
@@ -76,16 +104,18 @@ export const appMediaMethods = {
   },
   "surfaces.update": {
     params: z
-      .object({
-        surface: Id,
-        /** On its project's board; never a web page's. */
-        pinned: z.boolean().optional(),
-        /** What it is (an app); making one an app also lists it in Apps. */
-        app: z.boolean().optional(),
-        page: z.boolean().optional(),
-        /** Listed in Apps, whatever it is. */
-        in_apps: z.boolean().optional(),
-      })
+      .object(
+        schemaFields({
+          surface: () => Id,
+          /** On its project's board; never a web page's. */
+          pinned: () => z.boolean().optional(),
+          /** What it is (an app); making one an app also lists it in Apps. */
+          app: () => z.boolean().optional(),
+          page: () => z.boolean().optional(),
+          /** Listed in Apps, whatever it is. */
+          in_apps: () => z.boolean().optional(),
+        }),
+      )
       .strict(),
     result: SurfaceSummary,
     effect: true,
@@ -95,14 +125,31 @@ export const appMediaMethods = {
    * Owner only.
    */
   "surfaces.remove": {
-    params: z.object({ surface: Id }).strict(),
-    result: z.object({ removed: z.literal(true) }),
+    params: z
+      .object(
+        schemaFields({
+          surface: () => Id,
+        }),
+      )
+      .strict(),
+    result: z.object(
+      schemaFields({
+        removed: () => z.literal(true),
+      }),
+    ),
     effect: true,
     access: "human",
   },
   /** Publishes (or revokes) a surface as an artifact: a standalone page at /a/<token>, isolated from the API. */
   "surfaces.share": {
-    params: z.object({ surface: Id, shared: z.boolean() }).strict(),
+    params: z
+      .object(
+        schemaFields({
+          surface: () => Id,
+          shared: () => z.boolean(),
+        }),
+      )
+      .strict(),
     result: SurfaceSummary,
     effect: true,
     access: "human",
@@ -112,14 +159,38 @@ export const appMediaMethods = {
    * Refused past SURFACE_STATE_MAX characters of JSON. The page and its version stay as they are.
    */
   "surfaces.set_state": {
-    params: z.object({ surface: Id, patch: SurfaceState, replace: z.boolean().optional() }).strict(),
-    result: z.object({ state: SurfaceState }),
+    params: z
+      .object(
+        schemaFields({
+          surface: () => Id,
+          patch: () => SurfaceState,
+          replace: () => z.boolean().optional(),
+        }),
+      )
+      .strict(),
+    result: z.object(
+      schemaFields({
+        state: () => SurfaceState,
+      }),
+    ),
     effect: true,
   },
   /** A widget's sendPrompt(): the text goes to the thread that owns the surface, as the user. */
   "surfaces.prompt": {
-    params: z.object({ surface: Id, text: z.string().min(1).max(4000) }).strict(),
-    result: z.object({ thread: Id, run: Run }),
+    params: z
+      .object(
+        schemaFields({
+          surface: () => Id,
+          text: () => z.string().min(1).max(4000),
+        }),
+      )
+      .strict(),
+    result: z.object(
+      schemaFields({
+        thread: () => Id,
+        run: () => Run,
+      }),
+    ),
     effect: true,
   },
 } as const;

@@ -19,12 +19,17 @@ import { filesMethods } from "./files-methods.ts";
 import { gitMethods } from "./git-methods.ts";
 import { officeMethods } from "./office-methods.ts";
 import { resourceMethods } from "./resource-methods.ts";
+import { schemaFields } from "./schema-fields.ts";
 import { teamMethods } from "./team-methods.ts";
 
 export const appSetupMethods = {
   "memory.status": {
     params: z.object({}).strict(),
-    result: z.object({ jobs: MemoryJobs }),
+    result: z.object(
+      schemaFields({
+        jobs: () => MemoryJobs,
+      }),
+    ),
     effect: false,
     access: "human",
   },
@@ -45,36 +50,52 @@ export const appSetupMethods = {
    */
   "setup.status": {
     params: z.object({}).strict(),
-    result: z.object({
-      done: z.boolean(),
-      fresh: z.boolean(),
-      v1: z
-        .object({
-          home: z.string(),
-          version: z.string().optional(),
-          agent_name: z.string().optional(),
-          /** The super-agent's face in v1 (a blob name), shown before the import brings it. */
-          agent_blob: z.string().optional(),
-          owner_name: z.string().optional(),
-          projects: z.number().int(),
-        })
-        .nullable(),
-      /** This APX's own home, where its data lives (as the owner knows it: ~/…). */
-      home: z.string(),
-      /** The folder of this APX's command (apps/terminal), to put `apx` on the PATH from there. */
-      terminal: z.string().optional(),
-      /** APX v1's daemon still answers beside this one: routines and bots would run twice. */
-      v1_running: z.boolean().optional(),
-    }),
+    result: z.object(
+      schemaFields({
+        done: () => z.boolean(),
+        fresh: () => z.boolean(),
+        v1: () =>
+          z
+            .object(
+              schemaFields({
+                home: () => z.string(),
+                version: () => z.string().optional(),
+                agent_name: () => z.string().optional(),
+                /** The super-agent's face in v1 (a blob name), shown before the import brings it. */
+                agent_blob: () => z.string().optional(),
+                owner_name: () => z.string().optional(),
+                projects: () => z.number().int(),
+              }),
+            )
+            .nullable(),
+        /** This APX's own home, where its data lives (as the owner knows it: ~/…). */
+        home: () => z.string(),
+        /** The folder of this APX's command (apps/terminal), to put `apx` on the PATH from there. */
+        terminal: () => z.string().optional(),
+        /** APX v1's daemon still answers beside this one: routines and bots would run twice. */
+        v1_running: () => z.boolean().optional(),
+      }),
+    ),
     effect: false,
     access: "human",
   },
   /** What APX v1 has, per group: how many (and, for projects, their agents; for channels, their contacts). */
   "setup.v1_scan": {
     params: z.object({}).strict(),
-    result: z.object({
-      groups: z.array(z.object({ id: V1Group, count: z.number().int(), detail: z.string().optional() })),
-    }),
+    result: z.object(
+      schemaFields({
+        groups: () =>
+          z.array(
+            z.object(
+              schemaFields({
+                id: () => V1Group,
+                count: () => z.number().int(),
+                detail: () => z.string().optional(),
+              }),
+            ),
+          ),
+      }),
+    ),
     effect: false,
     access: "human",
   },
@@ -83,8 +104,19 @@ export const appSetupMethods = {
    * Telegram bot v2 already has stays.
    */
   "setup.import_v1": {
-    params: z.object({ groups: z.array(V1Group).min(1) }).strict(),
-    result: z.object({ imported: z.record(z.string(), z.number().int()), errors: z.array(z.string()) }),
+    params: z
+      .object(
+        schemaFields({
+          groups: () => z.array(V1Group).min(1),
+        }),
+      )
+      .strict(),
+    result: z.object(
+      schemaFields({
+        imported: () => z.record(z.string(), z.number().int()),
+        errors: () => z.array(z.string()),
+      }),
+    ),
     effect: true,
     access: "human",
   },
@@ -95,7 +127,12 @@ export const appSetupMethods = {
    */
   "setup.take_over_cli": {
     params: z.object({}).strict(),
-    result: z.object({ ok: z.boolean(), detail: z.string() }),
+    result: z.object(
+      schemaFields({
+        ok: () => z.boolean(),
+        detail: () => z.string(),
+      }),
+    ),
     effect: true,
     access: "human",
   },
@@ -104,14 +141,29 @@ export const appSetupMethods = {
    * personalities to pick. Once per install, and only into an empty chat; `sent` says whether it greeted now.
    */
   "setup.greet": {
-    params: z.object({ language: z.string().regex(/^[a-z]{2}$/) }).strict(),
-    result: z.object({ thread: Id, sent: z.boolean() }),
+    params: z
+      .object(
+        schemaFields({
+          language: () => z.string().regex(/^[a-z]{2}$/),
+        }),
+      )
+      .strict(),
+    result: z.object(
+      schemaFields({
+        thread: () => Id,
+        sent: () => z.boolean(),
+      }),
+    ),
     effect: true,
     access: "human",
   },
   "setup.finish": {
     params: z.object({}).strict(),
-    result: z.object({ done: z.literal(true) }),
+    result: z.object(
+      schemaFields({
+        done: () => z.literal(true),
+      }),
+    ),
     effect: true,
     access: "human",
   },
@@ -120,15 +172,23 @@ export const appSetupMethods = {
    * newer releases; for the core the desktop app carries (`app`), newer releases the app installs. `check` asks now.
    */
   "system.updates": {
-    params: z.object({ check: z.boolean().default(false) }).strict(),
-    result: z.object({
-      source: z.enum(["git", "release", "app", "none"]),
-      behind: z.number().int(),
-      latest: z.string().optional(),
-      changes: z.array(z.string()),
-      checked_at: z.string().optional(),
-      error: z.string().optional(),
-    }),
+    params: z
+      .object(
+        schemaFields({
+          check: () => z.boolean().default(false),
+        }),
+      )
+      .strict(),
+    result: z.object(
+      schemaFields({
+        source: () => z.enum(["git", "release", "app", "none"]),
+        behind: () => z.number().int(),
+        latest: () => z.string().optional(),
+        changes: () => z.array(z.string()),
+        checked_at: () => z.string().optional(),
+        error: () => z.string().optional(),
+      }),
+    ),
     effect: false,
     access: "human",
   },
@@ -139,15 +199,25 @@ export const appSetupMethods = {
    */
   "system.update": {
     params: z
-      .object({
-        target: z
-          .string()
-          .regex(/^\d+\.\d+\.\d+$/)
-          .max(40)
-          .optional(),
-      })
+      .object(
+        schemaFields({
+          target: () =>
+            z
+              .string()
+              .regex(/^\d+\.\d+\.\d+$/)
+              .max(40)
+              .optional(),
+        }),
+      )
       .strict(),
-    result: z.object({ ok: z.boolean(), restart: z.boolean(), log: z.string(), target: z.string().optional() }),
+    result: z.object(
+      schemaFields({
+        ok: () => z.boolean(),
+        restart: () => z.boolean(),
+        log: () => z.string(),
+        target: () => z.string().optional(),
+      }),
+    ),
     effect: true,
     access: "human",
   },
@@ -155,21 +225,52 @@ export const appSetupMethods = {
   /** The news APX carries: whether each was told (or known from the start) and whether it applies to this owner. */
   "system.news": {
     params: z.object({}).strict(),
-    result: z.object({
-      entries: z.array(
-        z.object({
-          id: z.string(),
-          since: z.string(),
-          /** The owner's words (`about`: what they can do now), in English and Spanish: the panel shows its language. */
-          title: z.object({ en: z.string(), es: z.string() }),
-          about: z.object({ en: z.string(), es: z.string() }),
-          seen: z.boolean(),
-          applies: z.boolean(),
-          /** `prompt`: what asking the super-agent for it says, as the owner's words. */
-          actions: z.array(z.object({ label: z.object({ en: z.string(), es: z.string() }), prompt: z.string() })),
-        }),
-      ),
-    }),
+    result: z.object(
+      schemaFields({
+        entries: () =>
+          z.array(
+            z.object(
+              schemaFields({
+                id: () => z.string(),
+                since: () => z.string(),
+                /** The owner's words (`about`: what they can do now), in English and Spanish: the panel shows its language. */
+                title: () =>
+                  z.object(
+                    schemaFields({
+                      en: () => z.string(),
+                      es: () => z.string(),
+                    }),
+                  ),
+                about: () =>
+                  z.object(
+                    schemaFields({
+                      en: () => z.string(),
+                      es: () => z.string(),
+                    }),
+                  ),
+                seen: () => z.boolean(),
+                applies: () => z.boolean(),
+                /** `prompt`: what asking the super-agent for it says, as the owner's words. */
+                actions: () =>
+                  z.array(
+                    z.object(
+                      schemaFields({
+                        label: () =>
+                          z.object(
+                            schemaFields({
+                              en: () => z.string(),
+                              es: () => z.string(),
+                            }),
+                          ),
+                        prompt: () => z.string(),
+                      }),
+                    ),
+                  ),
+              }),
+            ),
+          ),
+      }),
+    ),
     effect: false,
   },
   /**
@@ -177,46 +278,64 @@ export const appSetupMethods = {
    * that apply. `voiced`: the super-agent's model wrote it; `sent`: a channel or the phone took it.
    */
   "system.news_tell": {
-    params: z.object({ ids: z.array(z.string().max(80)).max(20).optional() }).strict(),
-    result: z.object({
-      told: z.array(z.string()),
-      thread: z.string().optional(),
-      sent: z.boolean(),
-      voiced: z.boolean(),
-    }),
+    params: z
+      .object(
+        schemaFields({
+          ids: () => z.array(z.string().max(80)).max(20).optional(),
+        }),
+      )
+      .strict(),
+    result: z.object(
+      schemaFields({
+        told: () => z.array(z.string()),
+        thread: () => z.string().optional(),
+        sent: () => z.boolean(),
+        voiced: () => z.boolean(),
+      }),
+    ),
     effect: true,
     access: "human",
   },
   "system.import_v1": {
     params: z
-      .object({
-        keys: z.boolean().default(false),
-        skills: z.boolean().default(false),
-        services: z.boolean().default(false),
-      })
+      .object(
+        schemaFields({
+          keys: () => z.boolean().default(false),
+          skills: () => z.boolean().default(false),
+          services: () => z.boolean().default(false),
+        }),
+      )
       .strict(),
-    result: z.object({
-      projects: z.number().int(),
-      agents: z.number().int(),
-      keys: z.array(z.string()),
-      skills: z.array(z.string()).default([]),
-      services: z.array(z.string()).default([]),
-    }),
+    result: z.object(
+      schemaFields({
+        projects: () => z.number().int(),
+        agents: () => z.number().int(),
+        keys: () => z.array(z.string()),
+        skills: () => z.array(z.string()).default([]),
+        services: () => z.array(z.string()).default([]),
+      }),
+    ),
     effect: true,
     access: "human",
   },
   "secrets.set": {
     params: z
-      .object({
-        /** The same shape `secret://NAME` references accept (an MCP env var name like GH_TOKEN works as is). */
-        name: z.string().regex(/^[a-zA-Z0-9][a-zA-Z0-9_.-]{0,63}$/),
-        /** null removes it. */
-        value: z.string().min(1).max(16_384).nullable(),
-        /** A project's own value, over the global one for that project's MCP servers. */
-        project: Id.optional(),
-      })
+      .object(
+        schemaFields({
+          /** The same shape `secret://NAME` references accept (an MCP env var name like GH_TOKEN works as is). */
+          name: () => z.string().regex(/^[a-zA-Z0-9][a-zA-Z0-9_.-]{0,63}$/),
+          /** null removes it. */
+          value: () => z.string().min(1).max(16_384).nullable(),
+          /** A project's own value, over the global one for that project's MCP servers. */
+          project: () => Id.optional(),
+        }),
+      )
       .strict(),
-    result: z.object({ ok: z.literal(true) }),
+    result: z.object(
+      schemaFields({
+        ok: () => z.literal(true),
+      }),
+    ),
     effect: true,
     access: "human",
   },
@@ -225,9 +344,20 @@ export const appSetupMethods = {
      * `project_id`: only the agents that work in that project (BASE_PROJECT_ID: the base project's), its own first,
      * then the ones it takes from its parent, marked `inherited_from`.
      */
-    params: z.object({ project_id: Id.optional() }).strict(),
+    params: z
+      .object(
+        schemaFields({
+          project_id: () => Id.optional(),
+        }),
+      )
+      .strict(),
     /** `former`: agents archived or deleted, so the chats they spoke in still show their name and face. */
-    result: z.object({ agents: z.array(AgentListing), former: z.array(Agent).default([]) }),
+    result: z.object(
+      schemaFields({
+        agents: () => z.array(AgentListing),
+        former: () => z.array(Agent).default([]),
+      }),
+    ),
     effect: false,
   },
   /**
@@ -236,23 +366,26 @@ export const appSetupMethods = {
    */
   "agents.create": {
     params: z
-      .object({
-        project_id: Id.optional(),
-        slug: z
-          .string()
-          .regex(/^[a-z][a-z0-9_-]*$/)
-          .max(64),
-        name: z.string().min(1).max(80),
-        role: z.string().max(200).default(""),
-        description: z.string().max(2000).optional(),
-        prompt: z.string().max(100_000).default(""),
-        parent: z.string().max(64).optional(),
-        blob: z.string().max(40).optional(),
-        model_choice: ModelChoice.optional(),
-        area: z.string().trim().max(60).optional(),
-        personality: z.string().max(1000).optional(),
-        orchestrator: z.boolean().optional(),
-      })
+      .object(
+        schemaFields({
+          project_id: () => Id.optional(),
+          slug: () =>
+            z
+              .string()
+              .regex(/^[a-z][a-z0-9_-]*$/)
+              .max(64),
+          name: () => z.string().min(1).max(80),
+          role: () => z.string().max(200).default(""),
+          description: () => z.string().max(2000).optional(),
+          prompt: () => z.string().max(100_000).default(""),
+          parent: () => z.string().max(64).optional(),
+          blob: () => z.string().max(40).optional(),
+          model_choice: () => ModelChoice.optional(),
+          area: () => z.string().trim().max(60).optional(),
+          personality: () => z.string().max(1000).optional(),
+          orchestrator: () => z.boolean().optional(),
+        }),
+      )
       .strict(),
     result: Agent,
     effect: true,
@@ -260,29 +393,66 @@ export const appSetupMethods = {
   },
   /** Removes an agent: a project agent's file moves to .apc/agents/.archived/ (never deleted); threads keep it. */
   "agents.archive": {
-    params: z.object({ agent: Id }).strict(),
-    result: z.object({ ok: z.literal(true), moved_to: z.string().optional() }),
+    params: z
+      .object(
+        schemaFields({
+          agent: () => Id,
+        }),
+      )
+      .strict(),
+    result: z.object(
+      schemaFields({
+        ok: () => z.literal(true),
+        moved_to: () => z.string().optional(),
+      }),
+    ),
     effect: true,
     access: "human",
   },
   /** Archived agents (every project's, or one's): the owner brings one back or deletes it for good. */
   "agents.archived": {
-    params: z.object({ project_id: Id.optional() }).strict(),
-    result: z.object({ agents: z.array(Agent) }),
+    params: z
+      .object(
+        schemaFields({
+          project_id: () => Id.optional(),
+        }),
+      )
+      .strict(),
+    result: z.object(
+      schemaFields({
+        agents: () => z.array(Agent),
+      }),
+    ),
     effect: false,
     access: "human",
   },
   /** Brings an archived agent back: a project agent's file returns to .apc/agents/ and it shows again. */
   "agents.restore": {
-    params: z.object({ agent: Id }).strict(),
+    params: z
+      .object(
+        schemaFields({
+          agent: () => Id,
+        }),
+      )
+      .strict(),
     result: Agent,
     effect: true,
     access: "human",
   },
   /** Deletes an archived agent for good: its file and its own notes go; the chats it was in keep its name. */
   "agents.delete": {
-    params: z.object({ agent: Id }).strict(),
-    result: z.object({ ok: z.literal(true) }),
+    params: z
+      .object(
+        schemaFields({
+          agent: () => Id,
+        }),
+      )
+      .strict(),
+    result: z.object(
+      schemaFields({
+        ok: () => z.literal(true),
+      }),
+    ),
     effect: true,
     access: "human",
   },
@@ -292,72 +462,129 @@ export const appSetupMethods = {
    */
   "agents.tools": {
     params: z.object({}).strict(),
-    result: z.object({
-      tools: z.array(z.object({ name: z.string(), group: z.string().optional(), kept: z.boolean(), risk: ToolRisk })),
-    }),
+    result: z.object(
+      schemaFields({
+        tools: () =>
+          z.array(
+            z.object(
+              schemaFields({
+                name: () => z.string(),
+                group: () => z.string().optional(),
+                kept: () => z.boolean(),
+                risk: () => ToolRisk,
+              }),
+            ),
+          ),
+      }),
+    ),
     effect: false,
     access: "human",
   },
   /** One agent with its prompt (the system prompt the owner writes; lists leave it out). */
   "agents.get": {
-    params: z.object({ agent: Id }).strict(),
-    result: z.object({ agent: Agent, prompt: z.string(), revision: z.string() }),
+    params: z
+      .object(
+        schemaFields({
+          agent: () => Id,
+        }),
+      )
+      .strict(),
+    result: z.object(
+      schemaFields({
+        agent: () => Agent,
+        prompt: () => z.string(),
+        revision: () => z.string(),
+      }),
+    ),
     effect: false,
     access: "human",
   },
   "agents.review_queue": {
-    params: z.object({ project_id: Id.optional() }).strict(),
-    result: z.object({
-      agents: z.array(z.object({ agent: Id, name: z.string(), project_id: Id.optional(), revision: z.string() })),
-    }),
+    params: z
+      .object(
+        schemaFields({
+          project_id: () => Id.optional(),
+        }),
+      )
+      .strict(),
+    result: z.object(
+      schemaFields({
+        agents: () =>
+          z.array(
+            z.object(
+              schemaFields({
+                agent: () => Id,
+                name: () => z.string(),
+                project_id: () => Id.optional(),
+                revision: () => z.string(),
+              }),
+            ),
+          ),
+      }),
+    ),
     effect: false,
     access: "human",
   },
   "agents.review_ack": {
-    params: z.object({ agent: Id, if_revision: z.string().regex(/^[a-f0-9]{64}$/) }).strict(),
-    result: z.object({ ok: z.literal(true) }),
+    params: z
+      .object(
+        schemaFields({
+          agent: () => Id,
+          if_revision: () => z.string().regex(/^[a-f0-9]{64}$/),
+        }),
+      )
+      .strict(),
+    result: z.object(
+      schemaFields({
+        ok: () => z.literal(true),
+      }),
+    ),
     effect: true,
     access: "human",
   },
   "agents.update": {
     params: z
-      .object({
-        agent: Id,
-        browser_profile: z.enum(["shared", "isolated", "incognito"]).optional(),
-        /** null = back to the install default. */
-        model_choice: ModelChoice.nullable().optional(),
-        /** Apply a reviewed proposal only if its instructions and project context are unchanged. */
-        if_revision: z
-          .string()
-          .regex(/^[a-f0-9]{64}$/)
-          .optional(),
-        /** Definition fields: written to the agent's file for project agents. */
-        name: z.string().min(1).max(80).optional(),
-        role: z.string().max(200).optional(),
-        description: z.string().max(2000).optional(),
-        /** The team area it belongs to (shown as a pill on the team chart). */
-        area: z.string().trim().max(60).optional(),
-        prompt: z.string().max(100_000).optional(),
-        /** How it comes across, apart from its instructions ("" clears it). */
-        personality: z.string().max(1000).optional(),
-        /** How often it stops for the owner's yes; null: none of its own, as far as its project says. Owner only. */
-        autonomy: Autonomy.nullable().optional(),
-        parent: z.string().max(64).optional(),
-        blob: z.string().max(40).optional(),
-        /** The tools (or groups) it may use, and the skills it works with; [] goes back to all of them. */
-        tools: z.array(z.string().trim().min(1).max(80)).max(200).optional(),
-        skills: z.array(z.string().trim().min(1).max(120)).max(200).optional(),
-        /** Runs its team (false clears it). */
-        orchestrator: z.boolean().optional(),
-        /** Its own rules by risk; null: none, its autonomy decides. Owner only. */
-        rules: AgentRules.nullable().optional(),
-        /** Renames the file (project agents); the agent keeps its id and the old slug is kept as an alias. */
-        slug: z
-          .string()
-          .regex(/^[a-z][a-z0-9_-]*$/)
-          .max(64)
-          .optional(),
-      })
+      .object(
+        schemaFields({
+          agent: () => Id,
+          browser_profile: () => z.enum(["shared", "isolated", "incognito"]).optional(),
+          /** null = back to the install default. */
+          model_choice: () => ModelChoice.nullable().optional(),
+          /** Apply a reviewed proposal only if its instructions and project context are unchanged. */
+          if_revision: () =>
+            z
+              .string()
+              .regex(/^[a-f0-9]{64}$/)
+              .optional(),
+          /** Definition fields: written to the agent's file for project agents. */
+          name: () => z.string().min(1).max(80).optional(),
+          role: () => z.string().max(200).optional(),
+          description: () => z.string().max(2000).optional(),
+          /** The team area it belongs to (shown as a pill on the team chart). */
+          area: () => z.string().trim().max(60).optional(),
+          prompt: () => z.string().max(100_000).optional(),
+          /** How it comes across, apart from its instructions ("" clears it). */
+          personality: () => z.string().max(1000).optional(),
+          /** How often it stops for the owner's yes; null: none of its own, as far as its project says. Owner only. */
+          autonomy: () => Autonomy.nullable().optional(),
+          parent: () => z.string().max(64).optional(),
+          blob: () => z.string().max(40).optional(),
+          /** The tools (or groups) it may use, and the skills it works with; [] goes back to all of them. */
+          tools: () => z.array(z.string().trim().min(1).max(80)).max(200).optional(),
+          skills: () => z.array(z.string().trim().min(1).max(120)).max(200).optional(),
+          /** Runs its team (false clears it). */
+          orchestrator: () => z.boolean().optional(),
+          /** Its own rules by risk; null: none, its autonomy decides. Owner only. */
+          rules: () => AgentRules.nullable().optional(),
+          /** Renames the file (project agents); the agent keeps its id and the old slug is kept as an alias. */
+          slug: () =>
+            z
+              .string()
+              .regex(/^[a-z][a-z0-9_-]*$/)
+              .max(64)
+              .optional(),
+        }),
+      )
       .strict(),
     result: Agent,
     effect: true,
@@ -369,38 +596,81 @@ export const appSetupMethods = {
    */
   "tools.grant_set": {
     params: z
-      .object({
-        key: z.string().min(1),
-        agent: Id.optional(),
-        condition: z.string().max(200).optional(),
-        expires_at: z.string().datetime().or(z.literal("")).optional(),
-      })
+      .object(
+        schemaFields({
+          key: () => z.string().min(1),
+          agent: () => Id.optional(),
+          condition: () => z.string().max(200).optional(),
+          expires_at: () => z.string().datetime().or(z.literal("")).optional(),
+        }),
+      )
       .strict(),
-    result: z.object({ approval: ToolApproval }),
+    result: z.object(
+      schemaFields({
+        approval: () => ToolApproval,
+      }),
+    ),
     effect: true,
     access: "human",
   },
   /** Every engine with the models it offers, asked to the engine (cached for a day; `refresh` asks again). */
   "models.list": {
-    params: z.object({ refresh: z.boolean().default(false) }).strict(),
-    result: z.object({ engines: z.array(CatalogEngine) }),
+    params: z
+      .object(
+        schemaFields({
+          refresh: () => z.boolean().default(false),
+        }),
+      )
+      .strict(),
+    result: z.object(
+      schemaFields({
+        engines: () => z.array(CatalogEngine),
+      }),
+    ),
     effect: false,
   },
   /** The install default for agents without their own choice, and the router. */
   "models.config": {
     params: z.object({}).strict(),
-    result: z.object({ default: ModelChoice, router: RouterConfig }),
+    result: z.object(
+      schemaFields({
+        default: () => ModelChoice,
+        router: () => RouterConfig,
+      }),
+    ),
     effect: false,
   },
   "models.set_config": {
-    params: z.object({ default: ModelChoice.optional(), router: RouterConfig.optional() }).strict(),
-    result: z.object({ default: ModelChoice, router: RouterConfig }),
+    params: z
+      .object(
+        schemaFields({
+          default: () => ModelChoice.optional(),
+          router: () => RouterConfig.optional(),
+        }),
+      )
+      .strict(),
+    result: z.object(
+      schemaFields({
+        default: () => ModelChoice,
+        router: () => RouterConfig,
+      }),
+    ),
     effect: true,
     access: "human",
   },
   "engines.status": {
-    params: z.object({ refresh: z.boolean().default(false) }).strict(),
-    result: z.object({ engines: z.array(EngineStatus) }),
+    params: z
+      .object(
+        schemaFields({
+          refresh: () => z.boolean().default(false),
+        }),
+      )
+      .strict(),
+    result: z.object(
+      schemaFields({
+        engines: () => z.array(EngineStatus),
+      }),
+    ),
     effect: false,
   },
 } as const;

@@ -25,6 +25,7 @@ import {
   ProviderTransport,
   RoomMode,
 } from "./domain.ts";
+import { schemaFields } from "./schema-fields.ts";
 
 export const appConversationMethods = {
   /**
@@ -32,7 +33,13 @@ export const appConversationMethods = {
    * APX v1's own sign-in. Never Codex CLI's.
    */
   "chatgpt.connect": {
-    params: z.object({ via: z.enum(["device", "v1"]) }).strict(),
+    params: z
+      .object(
+        schemaFields({
+          via: () => z.enum(["device", "v1"]),
+        }),
+      )
+      .strict(),
     result: ChatgptStatus,
     effect: true,
     access: "human",
@@ -45,7 +52,11 @@ export const appConversationMethods = {
   },
   "providers.list": {
     params: z.object({}).strict(),
-    result: z.object({ providers: z.array(ProviderInfo) }),
+    result: z.object(
+      schemaFields({
+        providers: () => z.array(ProviderInfo),
+      }),
+    ),
     effect: false,
     access: "human",
   },
@@ -55,24 +66,33 @@ export const appConversationMethods = {
    */
   "providers.set": {
     params: z
-      .object({
-        id: z.string().regex(/^[a-z0-9][a-z0-9-]{0,31}$/),
-        provider: z
-          .object({
-            label: z.string().max(60).optional(),
-            preset: z.string().max(32).optional(),
-            transport: ProviderTransport,
-            base_url: z.string().url(),
-            models: z.array(z.string().min(1)).max(200).optional(),
-            enabled: z.boolean().optional(),
-            needs_key: z.boolean().optional(),
-          })
-          .strict()
-          .nullable(),
-        api_key: z.string().min(1).max(4000).optional(),
-      })
+      .object(
+        schemaFields({
+          id: () => z.string().regex(/^[a-z0-9][a-z0-9-]{0,31}$/),
+          provider: () =>
+            z
+              .object(
+                schemaFields({
+                  label: () => z.string().max(60).optional(),
+                  preset: () => z.string().max(32).optional(),
+                  transport: () => ProviderTransport,
+                  base_url: () => z.string().url(),
+                  models: () => z.array(z.string().min(1)).max(200).optional(),
+                  enabled: () => z.boolean().optional(),
+                  needs_key: () => z.boolean().optional(),
+                }),
+              )
+              .strict()
+              .nullable(),
+          api_key: () => z.string().min(1).max(4000).optional(),
+        }),
+      )
       .strict(),
-    result: z.object({ providers: z.array(ProviderInfo) }),
+    result: z.object(
+      schemaFields({
+        providers: () => z.array(ProviderInfo),
+      }),
+    ),
     effect: true,
     access: "human",
   },
@@ -83,38 +103,57 @@ export const appConversationMethods = {
    * work; `cached` prompt tokens are counted inside `input`).
    */
   "usage.summary": {
-    params: z.object({ since: z.string().optional(), project: Id.optional(), thread: Id.optional() }).strict(),
-    result: z.object({
-      since: z.string(),
-      totals: z
-        .object({
-          runs: z.number().int(),
-          failed: z.number().int(),
-          seconds: z.number(),
-          input: z.number().int(),
-          output: z.number().int(),
-          cached: z.number().int(),
-        })
-        .optional(),
-      models: z.array(
-        z.object({
-          model: z.string(),
-          billing: z.enum(["included", "metered"]),
-          runs: z.number().int(),
-          input: z.number().int(),
-          output: z.number().int(),
+    params: z
+      .object(
+        schemaFields({
+          since: () => z.string().optional(),
+          project: () => Id.optional(),
+          thread: () => Id.optional(),
         }),
-      ),
-      aux: z.array(
-        z.object({
-          purpose: AuxPurpose,
-          model: z.string(),
-          calls: z.number().int(),
-          input: z.number().int(),
-          output: z.number().int(),
-        }),
-      ),
-    }),
+      )
+      .strict(),
+    result: z.object(
+      schemaFields({
+        since: () => z.string(),
+        totals: () =>
+          z
+            .object(
+              schemaFields({
+                runs: () => z.number().int(),
+                failed: () => z.number().int(),
+                seconds: () => z.number(),
+                input: () => z.number().int(),
+                output: () => z.number().int(),
+                cached: () => z.number().int(),
+              }),
+            )
+            .optional(),
+        models: () =>
+          z.array(
+            z.object(
+              schemaFields({
+                model: () => z.string(),
+                billing: () => z.enum(["included", "metered"]),
+                runs: () => z.number().int(),
+                input: () => z.number().int(),
+                output: () => z.number().int(),
+              }),
+            ),
+          ),
+        aux: () =>
+          z.array(
+            z.object(
+              schemaFields({
+                purpose: () => AuxPurpose,
+                model: () => z.string(),
+                calls: () => z.number().int(),
+                input: () => z.number().int(),
+                output: () => z.number().int(),
+              }),
+            ),
+          ),
+      }),
+    ),
     effect: false,
   },
   /**
@@ -123,19 +162,25 @@ export const appConversationMethods = {
    */
   "memory.list": {
     params: z
-      .object({
-        query: z.string().max(500).optional(),
-        scope: MemoryScope.optional(),
-        project: Id.optional(),
-        agent: Id.optional(),
-        /** Only the notes waiting for the owner to confirm them (true), or only the ones that stand (false). */
-        pending: z.boolean().optional(),
-        /** The forgotten notes instead (the owner's only). */
-        forgotten: z.boolean().optional(),
-        limit: z.number().int().min(1).max(500).default(100),
-      })
+      .object(
+        schemaFields({
+          query: () => z.string().max(500).optional(),
+          scope: () => MemoryScope.optional(),
+          project: () => Id.optional(),
+          agent: () => Id.optional(),
+          /** Only the notes waiting for the owner to confirm them (true), or only the ones that stand (false). */
+          pending: () => z.boolean().optional(),
+          /** The forgotten notes instead (the owner's only). */
+          forgotten: () => z.boolean().optional(),
+          limit: () => z.number().int().min(1).max(500).default(100),
+        }),
+      )
       .strict(),
-    result: z.object({ memories: z.array(Memory) }),
+    result: z.object(
+      schemaFields({
+        memories: () => z.array(Memory),
+      }),
+    ),
     effect: false,
   },
   /** Who the owner is, for their agents (name, about, language, time zone). */
@@ -153,12 +198,14 @@ export const appConversationMethods = {
   },
   "memory.settings": {
     params: z.object({}).strict(),
-    result: MemorySettings.extend({
-      indexed: z.number().int(),
-      total: z.number().int(),
-      /** The embedding engine and model in use ("Ollama · bge-m3"), when one is set up. */
-      embedder: z.string().optional(),
-    }),
+    result: MemorySettings.extend(
+      schemaFields({
+        indexed: () => z.number().int(),
+        total: () => z.number().int(),
+        /** The embedding engine and model in use ("Ollama · bge-m3"), when one is set up. */
+        embedder: () => z.string().optional(),
+      }),
+    ),
     effect: false,
     access: "human",
   },
@@ -171,31 +218,69 @@ export const appConversationMethods = {
   /** Indexes, by meaning, the notes not indexed yet with the current embedding engine. */
   "memory.reindex": {
     params: z.object({}).strict(),
-    result: z.object({ indexed: z.number().int(), total: z.number().int(), engine: z.string().optional() }),
+    result: z.object(
+      schemaFields({
+        indexed: () => z.number().int(),
+        total: () => z.number().int(),
+        engine: () => z.string().optional(),
+      }),
+    ),
     effect: true,
     access: "human",
   },
   "memory.maintenance": {
-    params: z.object({ backfill: z.boolean().optional(), dream: z.boolean().optional() }).strict(),
-    result: z.object({ queued: z.number().int(), jobs: MemoryJobs }),
+    params: z
+      .object(
+        schemaFields({
+          backfill: () => z.boolean().optional(),
+          dream: () => z.boolean().optional(),
+        }),
+      )
+      .strict(),
+    result: z.object(
+      schemaFields({
+        queued: () => z.number().int(),
+        jobs: () => MemoryJobs,
+      }),
+    ),
     effect: true,
     access: "human",
   },
   "memory.history": {
-    params: z.object({ id: Id }).strict(),
-    result: z.object({
-      versions: z.array(z.object({ revision: z.number().int(), note: Memory, reason: z.string(), at: z.string() })),
-    }),
+    params: z
+      .object(
+        schemaFields({
+          id: () => Id,
+        }),
+      )
+      .strict(),
+    result: z.object(
+      schemaFields({
+        versions: () =>
+          z.array(
+            z.object(
+              schemaFields({
+                revision: () => z.number().int(),
+                note: () => Memory,
+                reason: () => z.string(),
+                at: () => z.string(),
+              }),
+            ),
+          ),
+      }),
+    ),
     effect: false,
     access: "human",
   },
   "memory.undo": {
     params: z
-      .object({
-        id: Id,
-        revision: z.number().int().positive(),
-        expected_revision: z.number().int().positive().optional(),
-      })
+      .object(
+        schemaFields({
+          id: () => Id,
+          revision: () => z.number().int().positive(),
+          expected_revision: () => z.number().int().positive().optional(),
+        }),
+      )
       .strict(),
     result: Memory,
     effect: true,
@@ -203,16 +288,30 @@ export const appConversationMethods = {
   },
   "memory.consolidate": {
     params: z
-      .object({
-        notes: z
-          .array(z.object({ id: Id, revision: z.number().int().positive() }))
-          .min(2)
-          .max(8),
-        /** `shared`: the notes the agent's place shares (the project's, or the global ones), not its own notebook. */
-        shelf: z.enum(["notebook", "shared"]).optional(),
-      })
+      .object(
+        schemaFields({
+          notes: () =>
+            z
+              .array(
+                z.object(
+                  schemaFields({
+                    id: () => Id,
+                    revision: () => z.number().int().positive(),
+                  }),
+                ),
+              )
+              .min(2)
+              .max(8),
+          /** `shared`: the notes the agent's place shares (the project's, or the global ones), not its own notebook. */
+          shelf: () => z.enum(["notebook", "shared"]).optional(),
+        }),
+      )
       .strict(),
-    result: z.object({ merged: z.boolean() }),
+    result: z.object(
+      schemaFields({
+        merged: () => z.boolean(),
+      }),
+    ),
     effect: true,
   },
   /**
@@ -221,43 +320,63 @@ export const appConversationMethods = {
    */
   "memory.tidy": {
     params: z
-      .object({
-        retire: z
-          .array(
-            z.object({
-              id: Id,
-              revision: z.number().int().positive(),
-              by: Id.optional(),
-              by_revision: z.number().int().positive().optional(),
-            }),
-          )
-          .max(8)
-          .optional(),
-        redate: z
-          .array(z.object({ id: Id, revision: z.number().int().positive() }))
-          .max(32)
-          .optional(),
-        shelf: z.enum(["notebook", "shared"]).optional(),
-      })
+      .object(
+        schemaFields({
+          retire: () =>
+            z
+              .array(
+                z.object(
+                  schemaFields({
+                    id: () => Id,
+                    revision: () => z.number().int().positive(),
+                    by: () => Id.optional(),
+                    by_revision: () => z.number().int().positive().optional(),
+                  }),
+                ),
+              )
+              .max(8)
+              .optional(),
+          redate: () =>
+            z
+              .array(
+                z.object(
+                  schemaFields({
+                    id: () => Id,
+                    revision: () => z.number().int().positive(),
+                  }),
+                ),
+              )
+              .max(32)
+              .optional(),
+          shelf: () => z.enum(["notebook", "shared"]).optional(),
+        }),
+      )
       .strict(),
-    result: z.object({ retired: z.number().int(), redated: z.number().int() }),
+    result: z.object(
+      schemaFields({
+        retired: () => z.number().int(),
+        redated: () => z.number().int(),
+      }),
+    ),
     effect: true,
   },
   /** An agent's note goes to its own thread's project (`project`) or to itself (`agent`); `id` edits one in place. */
   "memory.add": {
     params: z
-      .object({
-        text: z.string().trim().min(1).max(2000),
-        scope: MemoryScope,
-        project: Id.optional(),
-        agent: Id.optional(),
-        id: Id.optional(),
-        kind: Memory.shape.kind,
-        evidence: z.array(MemoryEvidence).max(8).optional(),
-        expected_revision: z.number().int().positive().optional(),
-        /** Set by an agent's tool when outside content is in its turn (agents' notes default to tainted). */
-        tainted: z.boolean().optional(),
-      })
+      .object(
+        schemaFields({
+          text: () => z.string().trim().min(1).max(2000),
+          scope: () => MemoryScope,
+          project: () => Id.optional(),
+          agent: () => Id.optional(),
+          id: () => Id.optional(),
+          kind: () => Memory.shape.kind,
+          evidence: () => z.array(MemoryEvidence).max(8).optional(),
+          expected_revision: () => z.number().int().positive().optional(),
+          /** Set by an agent's tool when outside content is in its turn (agents' notes default to tainted). */
+          tainted: () => z.boolean().optional(),
+        }),
+      )
       .strict(),
     result: Memory,
     effect: true,
@@ -267,27 +386,60 @@ export const appConversationMethods = {
    * wrote that it can see; the owner forgets any, and with `forever` deletes it for good.
    */
   "memory.remove": {
-    params: z.object({ id: Id, forever: z.boolean().optional() }).strict(),
-    result: z.object({ removed: z.boolean() }),
+    params: z
+      .object(
+        schemaFields({
+          id: () => Id,
+          forever: () => z.boolean().optional(),
+        }),
+      )
+      .strict(),
+    result: z.object(
+      schemaFields({
+        removed: () => z.boolean(),
+      }),
+    ),
     effect: true,
   },
   /** The owner confirms a note an agent wrote about them, so it stands in every agent's turns. */
   "memory.confirm": {
-    params: z.object({ id: Id }).strict(),
+    params: z
+      .object(
+        schemaFields({
+          id: () => Id,
+        }),
+      )
+      .strict(),
     result: Memory,
     effect: true,
     access: "human",
   },
   /** The owner confirms several notes agents wrote about them at once; ids already confirmed or gone are skipped. */
   "memory.confirm_all": {
-    params: z.object({ ids: z.array(Id).min(1).max(500) }).strict(),
-    result: z.object({ confirmed: z.number().int() }),
+    params: z
+      .object(
+        schemaFields({
+          ids: () => z.array(Id).min(1).max(500),
+        }),
+      )
+      .strict(),
+    result: z.object(
+      schemaFields({
+        confirmed: () => z.number().int(),
+      }),
+    ),
     effect: true,
     access: "human",
   },
   /** Brings a forgotten note back. */
   "memory.restore": {
-    params: z.object({ id: Id }).strict(),
+    params: z
+      .object(
+        schemaFields({
+          id: () => Id,
+        }),
+      )
+      .strict(),
     result: Memory,
     effect: true,
     access: "human",
@@ -295,7 +447,11 @@ export const appConversationMethods = {
   /** The owner's channels (Telegram bots…), their settings and whether each is running. */
   "channels.list": {
     params: z.object({}).strict(),
-    result: z.object({ channels: z.array(ChannelInfo) }),
+    result: z.object(
+      schemaFields({
+        channels: () => z.array(ChannelInfo),
+      }),
+    ),
     effect: false,
     access: "human",
   },
@@ -305,17 +461,30 @@ export const appConversationMethods = {
    */
   "channels.overview": {
     params: z.object({}).strict(),
-    result: z.object({
-      channels: z.array(
-        z.object({
-          id: z.string(),
-          type: ChannelType,
-          label: z.string(),
-          status: ChannelInfo.shape.status,
-          rooms: z.array(z.object({ name: z.string(), mode: RoomMode })),
-        }),
-      ),
-    }),
+    result: z.object(
+      schemaFields({
+        channels: () =>
+          z.array(
+            z.object(
+              schemaFields({
+                id: () => z.string(),
+                type: () => ChannelType,
+                label: () => z.string(),
+                status: () => ChannelInfo.shape.status,
+                rooms: () =>
+                  z.array(
+                    z.object(
+                      schemaFields({
+                        name: () => z.string(),
+                        mode: () => RoomMode,
+                      }),
+                    ),
+                  ),
+              }),
+            ),
+          ),
+      }),
+    ),
     effect: false,
   },
   /**
@@ -324,37 +493,46 @@ export const appConversationMethods = {
    */
   "channels.set": {
     params: z
-      .object({
-        id: z.string().regex(/^[a-z0-9][a-z0-9-]{0,31}$/),
-        channel: z
-          .object({
-            type: ChannelType,
-            label: z.string().max(60).optional(),
-            enabled: z.boolean().default(true),
-            agent_id: Id,
-            contacts_agent_id: Id.optional(),
-            strangers: ChannelStrangers.default(CHANNEL_DEFAULTS.strangers),
-            concurrency: z.enum(["queue", "interrupt", "steer"]).default(CHANNEL_DEFAULTS.concurrency),
-            owner_thread: z.enum(["home", "own"]).default(CHANNEL_DEFAULTS.owner_thread),
-            self_owner: z.boolean().optional(),
-            rooms: ChannelRooms.optional(),
-            reactions: z.boolean().optional(),
-            research: ChannelResearch.default(CHANNEL_DEFAULTS.research),
-            hours: ChannelHours.optional(),
-            quiet: z.boolean().optional(),
-            email: ChannelEmail.optional(),
-            contacts: PersonPerms.optional(),
-            knowledge: z.string().max(12_000).optional(),
-            rules: z.string().max(2000).optional(),
-            owner_only: z.boolean().optional(),
-            limits: ChannelLimits.optional(),
-          })
-          .nullable(),
-        // A Google service account key travels whole (about 2.3 KB).
-        token: z.string().min(8).max(8000).optional(),
-      })
+      .object(
+        schemaFields({
+          id: () => z.string().regex(/^[a-z0-9][a-z0-9-]{0,31}$/),
+          channel: () =>
+            z
+              .object(
+                schemaFields({
+                  type: () => ChannelType,
+                  label: () => z.string().max(60).optional(),
+                  enabled: () => z.boolean().default(true),
+                  agent_id: () => Id,
+                  contacts_agent_id: () => Id.optional(),
+                  strangers: () => ChannelStrangers.default(CHANNEL_DEFAULTS.strangers),
+                  concurrency: () => z.enum(["queue", "interrupt", "steer"]).default(CHANNEL_DEFAULTS.concurrency),
+                  owner_thread: () => z.enum(["home", "own"]).default(CHANNEL_DEFAULTS.owner_thread),
+                  self_owner: () => z.boolean().optional(),
+                  rooms: () => ChannelRooms.optional(),
+                  reactions: () => z.boolean().optional(),
+                  research: () => ChannelResearch.default(CHANNEL_DEFAULTS.research),
+                  hours: () => ChannelHours.optional(),
+                  quiet: () => z.boolean().optional(),
+                  email: () => ChannelEmail.optional(),
+                  contacts: () => PersonPerms.optional(),
+                  knowledge: () => z.string().max(12_000).optional(),
+                  rules: () => z.string().max(2000).optional(),
+                  owner_only: () => z.boolean().optional(),
+                  limits: () => ChannelLimits.optional(),
+                }),
+              )
+              .nullable(),
+          // A Google service account key travels whole (about 2.3 KB).
+          token: () => z.string().min(8).max(8000).optional(),
+        }),
+      )
       .strict(),
-    result: z.object({ channels: z.array(ChannelInfo) }),
+    result: z.object(
+      schemaFields({
+        channels: () => z.array(ChannelInfo),
+      }),
+    ),
     effect: true,
     access: "human",
   },
@@ -364,9 +542,19 @@ export const appConversationMethods = {
    */
   "channels.send": {
     params: z
-      .object({ thread: Id, text: z.string().trim().min(1).max(4000), omit_signature: z.boolean().optional() })
+      .object(
+        schemaFields({
+          thread: () => Id,
+          text: () => z.string().trim().min(1).max(4000),
+          omit_signature: () => z.boolean().optional(),
+        }),
+      )
       .strict(),
-    result: z.object({ ok: z.literal(true) }),
+    result: z.object(
+      schemaFields({
+        ok: () => z.literal(true),
+      }),
+    ),
     effect: true,
     access: "human",
   },
@@ -379,19 +567,28 @@ export const appConversationMethods = {
    */
   "channels.message": {
     params: z
-      .object({
-        person: Id,
-        text: z.string().trim().min(1).max(4000),
-        omit_signature: z.boolean().optional(),
-        /** A channel id or type ("whatsapp"); absent: the one the contact used last. */
-        channel: z.string().max(60).optional(),
-        /** Files to send with it (media ids): images as images, anything else as a document. */
-        files: z.array(Id).max(5).optional(),
-        /** To the owner, who asked to go on there: Home answers on that chat from now on (DECISIONS.md#d-224). */
-        stay: z.boolean().optional(),
-      })
+      .object(
+        schemaFields({
+          person: () => Id,
+          text: () => z.string().trim().min(1).max(4000),
+          omit_signature: () => z.boolean().optional(),
+          /** A channel id or type ("whatsapp"); absent: the one the contact used last. */
+          channel: () => z.string().max(60).optional(),
+          /** Files to send with it (media ids): images as images, anything else as a document. */
+          files: () => z.array(Id).max(5).optional(),
+          /** To the owner, who asked to go on there: Home answers on that chat from now on (DECISIONS.md#d-224). */
+          stay: () => z.boolean().optional(),
+        }),
+      )
       .strict(),
-    result: z.union([Sent.extend({ moved: z.boolean().optional() }), Withheld]),
+    result: z.union([
+      Sent.extend(
+        schemaFields({
+          moved: () => z.boolean().optional(),
+        }),
+      ),
+      Withheld,
+    ]),
     effect: true,
   },
   /**
@@ -401,14 +598,16 @@ export const appConversationMethods = {
    */
   "channels.post": {
     params: z
-      .object({
-        room: z.string().trim().min(1).max(80),
-        text: z.string().trim().min(1).max(4000),
-        /** A channel id or type ("discord"), for two rooms of the same name on different channels. */
-        channel: z.string().max(60).optional(),
-        /** Files to send with it (media ids): images as images, anything else as a document. */
-        files: z.array(Id).max(5).optional(),
-      })
+      .object(
+        schemaFields({
+          room: () => z.string().trim().min(1).max(80),
+          text: () => z.string().trim().min(1).max(4000),
+          /** A channel id or type ("discord"), for two rooms of the same name on different channels. */
+          channel: () => z.string().max(60).optional(),
+          /** Files to send with it (media ids): images as images, anything else as a document. */
+          files: () => z.array(Id).max(5).optional(),
+        }),
+      )
       .strict(),
     result: Sent,
     effect: true,

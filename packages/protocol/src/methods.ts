@@ -17,6 +17,7 @@ import { flowMethods } from "./flow-methods.ts";
 import { hermesMethods } from "./hermes-methods.ts";
 import { instanceMethods } from "./instance-methods.ts";
 import { mailMethods } from "./mail-methods.ts";
+import { schemaFields } from "./schema-fields.ts";
 import { storageMethods } from "./storage-methods.ts";
 import { tableMethods } from "./table-methods.ts";
 import { telemetryMethods } from "./telemetry-methods.ts";
@@ -25,37 +26,43 @@ import { threadMethods } from "./thread-methods.ts";
 import { updateCoordinationMethods } from "./update-coordination.ts";
 import { usageMethods } from "./usage-methods.ts";
 
-export const SubsystemStatus = z.object({
-  status: z.enum(["ok", "degraded", "down", "off"]),
-  detail: z.string().optional(),
-});
+export const SubsystemStatus = z.object(
+  schemaFields({
+    status: () => z.enum(["ok", "degraded", "down", "off"]),
+    detail: () => z.string().optional(),
+  }),
+);
 
-export const Health = z.object({
-  name: z.literal("apx-core"),
-  version: z.string(),
-  /** Git sha of the running code: answers "is the daemon running my code?". */
-  code_sha: z.string(),
-  home_id: z.string(),
-  protocol: z.number().int(),
-  started_at: z.string(),
-  uptime_s: z.number(),
-  /** What the core process takes in memory (resident), in MB. */
-  rss_mb: z.number().optional(),
-  subsystems: z.record(z.string(), SubsystemStatus),
-  /** The panel build the core serves now (its entry file): a panel showing another one is out of date. */
-  panel: z.string().optional(),
-});
+export const Health = z.object(
+  schemaFields({
+    name: () => z.literal("apx-core"),
+    version: () => z.string(),
+    /** Git sha of the running code: answers "is the daemon running my code?". */
+    code_sha: () => z.string(),
+    home_id: () => z.string(),
+    protocol: () => z.number().int(),
+    started_at: () => z.string(),
+    uptime_s: () => z.number(),
+    /** What the core process takes in memory (resident), in MB. */
+    rss_mb: () => z.number().optional(),
+    subsystems: () => z.record(z.string(), SubsystemStatus),
+    /** The panel build the core serves now (its entry file): a panel showing another one is out of date. */
+    panel: () => z.string().optional(),
+  }),
+);
 export type Health = z.infer<typeof Health>;
 
-export const LogLine = z.object({
-  t: z.string().optional(),
-  level: z.enum(["info", "warn", "error"]),
-  /** Who wrote it: the core's logger, or "output" for anything else the process printed (a crash's trace). */
-  scope: z.string(),
-  msg: z.string(),
-  /** The line's other fields, as JSON. */
-  detail: z.string().optional(),
-});
+export const LogLine = z.object(
+  schemaFields({
+    t: () => z.string().optional(),
+    level: () => z.enum(["info", "warn", "error"]),
+    /** Who wrote it: the core's logger, or "output" for anything else the process printed (a crash's trace). */
+    scope: () => z.string(),
+    msg: () => z.string(),
+    /** The line's other fields, as JSON. */
+    detail: () => z.string().optional(),
+  }),
+);
 export type LogLine = z.infer<typeof LogLine>;
 
 export type MethodDef = {
@@ -80,27 +87,42 @@ export const methods = {
     effect: false,
   },
   "system.ping": {
-    params: z.object({ echo: z.string().max(200).optional() }).strict(),
-    result: z.object({ pong: z.string(), at: z.string() }),
+    params: z
+      .object(
+        schemaFields({
+          echo: () => z.string().max(200).optional(),
+        }),
+      )
+      .strict(),
+    result: z.object(
+      schemaFields({
+        pong: () => z.string(),
+        at: () => z.string(),
+      }),
+    ),
     effect: false,
   },
   /** The newest lines of the core's log (<home>/logs/core.log) that match, oldest first; `more`: older ones match too. */
   "system.logs": {
     params: z
-      .object({
-        limit: z.number().int().min(1).max(1000).default(300),
-        level: z.enum(["info", "warn", "error"]).optional(),
-        scope: z.string().max(80).optional(),
-        q: z.string().max(200).optional(),
-      })
+      .object(
+        schemaFields({
+          limit: () => z.number().int().min(1).max(1000).default(300),
+          level: () => z.enum(["info", "warn", "error"]).optional(),
+          scope: () => z.string().max(80).optional(),
+          q: () => z.string().max(200).optional(),
+        }),
+      )
       .strict(),
-    result: z.object({
-      path: z.string(),
-      exists: z.boolean(),
-      lines: z.array(LogLine),
-      scopes: z.array(z.string()),
-      more: z.boolean(),
-    }),
+    result: z.object(
+      schemaFields({
+        path: () => z.string(),
+        exists: () => z.boolean(),
+        lines: () => z.array(LogLine),
+        scopes: () => z.array(z.string()),
+        more: () => z.boolean(),
+      }),
+    ),
     effect: false,
     access: "human",
   },

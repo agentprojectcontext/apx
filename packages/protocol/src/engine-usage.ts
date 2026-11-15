@@ -1,29 +1,40 @@
 import { z } from "zod";
 import type { MethodDef } from "./methods.ts";
+import { schemaFields } from "./schema-fields.ts";
 
-export const EngineUsageWindow = z.object({
-  id: z.enum(["primary", "secondary"]),
-  used_percent: z.number().min(0).max(100),
-  window_minutes: z.number().int().positive().optional(),
-  resets_at: z.iso.datetime().optional(),
-});
-export const EngineUsage = z.object({
-  id: z.string(),
-  label: z.string(),
-  cli_installed: z.boolean(),
-  available: z.boolean(),
-  status: z.enum(["ok", "unavailable"]),
-  source: z.enum(["codex_app_server", "claude_cli", "none"]),
-  windows: z.array(EngineUsageWindow),
-  reason: z.enum(["unsupported", "cli_not_found", "not_available"]).optional(),
-});
-export const EngineUsageReport = z.object({
-  checked_at: z.iso.datetime(),
-  engines: z.array(EngineUsage),
-});
+export const EngineUsageWindow = z.object(
+  schemaFields({
+    id: () => z.enum(["primary", "secondary"]),
+    used_percent: () => z.number().min(0).max(100),
+    window_minutes: () => z.number().int().positive().optional(),
+    resets_at: () => z.iso.datetime().optional(),
+  }),
+);
+export const EngineUsage = z.object(
+  schemaFields({
+    id: () => z.string(),
+    label: () => z.string(),
+    cli_installed: () => z.boolean(),
+    available: () => z.boolean(),
+    status: () => z.enum(["ok", "unavailable"]),
+    source: () => z.enum(["codex_app_server", "claude_cli", "none"]),
+    windows: () => z.array(EngineUsageWindow),
+    reason: () => z.enum(["unsupported", "cli_not_found", "not_available"]).optional(),
+  }),
+);
+export const EngineUsageReport = z.object(
+  schemaFields({
+    checked_at: () => z.iso.datetime(),
+    engines: () => z.array(EngineUsage),
+  }),
+);
 export type EngineUsageReport = z.infer<typeof EngineUsageReport>;
 export type EngineUsageWindow = z.infer<typeof EngineUsageWindow>;
-export const EngineUsagePreferences = z.object({ engines: z.record(z.string(), z.boolean()) });
+export const EngineUsagePreferences = z.object(
+  schemaFields({
+    engines: () => z.record(z.string(), z.boolean()),
+  }),
+);
 export const engineUsageMethods = {
   "engines.usage_preferences": {
     params: z.object({}).strict(),
@@ -32,14 +43,27 @@ export const engineUsageMethods = {
     access: "human",
   },
   "engines.set_usage": {
-    params: z.object({ engine: z.string().regex(/^[a-z0-9][a-z0-9:_-]{0,63}$/), enabled: z.boolean() }).strict(),
+    params: z
+      .object(
+        schemaFields({
+          engine: () => z.string().regex(/^[a-z0-9][a-z0-9:_-]{0,63}$/),
+          enabled: () => z.boolean(),
+        }),
+      )
+      .strict(),
     result: EngineUsagePreferences,
     effect: true,
     access: "human",
   },
   "engines.usage": {
     /** all: every detected engine, also those the owner keeps out of the top bar, for an agent the owner asks. */
-    params: z.object({ all: z.boolean().optional() }).strict(),
+    params: z
+      .object(
+        schemaFields({
+          all: () => z.boolean().optional(),
+        }),
+      )
+      .strict(),
     result: EngineUsageReport,
     effect: false,
   },

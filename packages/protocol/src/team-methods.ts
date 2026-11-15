@@ -2,6 +2,7 @@
 import { z } from "zod";
 import { Agent, Id, Organization, ProjectKind } from "./domain.ts";
 import { Routine, RoutineAction, Schedule } from "./office.ts";
+import { schemaFields } from "./schema-fields.ts";
 
 /** Where a template comes from: shipped with APX, or the owner's v1 vault (read, never written). */
 export const TemplateSource = z.enum(["apx", "v1"]);
@@ -11,51 +12,59 @@ export type TemplateSource = z.infer<typeof TemplateSource>;
  * A routine an agent template comes with, from `<slug>.routines.json` beside its file: installing the agent in a
  * project adds it there, on, so an executive team runs its own rituals without any project profile.
  */
-export const TemplateRoutine = z.object({
-  name: z.string().trim().min(1).max(80),
-  schedule: Schedule,
-  action: RoutineAction.extract(["agent", "watch"]).default("agent"),
-  prompt: z.string().min(1).max(8000),
-});
+export const TemplateRoutine = z.object(
+  schemaFields({
+    name: () => z.string().trim().min(1).max(80),
+    schedule: () => Schedule,
+    action: () => RoutineAction.extract(["agent", "watch"]).default("agent"),
+    prompt: () => z.string().min(1).max(8000),
+  }),
+);
 export type TemplateRoutine = z.infer<typeof TemplateRoutine>;
 
-export const AgentTemplate = z.object({
-  /** Opaque id to install it with (source, team and slug). */
-  id: z.string(),
-  source: TemplateSource,
-  slug: z.string(),
-  name: z.string(),
-  role: z.string(),
-  description: z.string().optional(),
-  /** Slug of the member it reports to inside its team. */
-  parent: z.string().optional(),
-  area: z.string().optional(),
-  /** The team's top: no parent inside the team. */
-  lead: z.boolean(),
-  /** What it does on its own once installed: each routine's name and when it runs. */
-  routines: z.array(TemplateRoutine.pick({ name: true, schedule: true })).default([]),
-});
+export const AgentTemplate = z.object(
+  schemaFields({
+    /** Opaque id to install it with (source, team and slug). */
+    id: () => z.string(),
+    source: () => TemplateSource,
+    slug: () => z.string(),
+    name: () => z.string(),
+    role: () => z.string(),
+    description: () => z.string().optional(),
+    /** Slug of the member it reports to inside its team. */
+    parent: () => z.string().optional(),
+    area: () => z.string().optional(),
+    /** The team's top: no parent inside the team. */
+    lead: () => z.boolean(),
+    /** What it does on its own once installed: each routine's name and when it runs. */
+    routines: () => z.array(TemplateRoutine.pick({ name: true, schedule: true })).default([]),
+  }),
+);
 export type AgentTemplate = z.infer<typeof AgentTemplate>;
 
-export const TeamTemplate = z.object({
-  id: z.string(),
-  source: TemplateSource,
-  name: z.string(),
-  description: z.string().optional(),
-  /** The kind of project it makes (TEAM.md's `kind:`): installing its members turns the project into one. */
-  kind: ProjectKind.optional(),
-  members: z.array(AgentTemplate),
-});
+export const TeamTemplate = z.object(
+  schemaFields({
+    id: () => z.string(),
+    source: () => TemplateSource,
+    name: () => z.string(),
+    description: () => z.string().optional(),
+    /** The kind of project it makes (TEAM.md's `kind:`): installing its members turns the project into one. */
+    kind: () => ProjectKind.optional(),
+    members: () => z.array(AgentTemplate),
+  }),
+);
 export type TeamTemplate = z.infer<typeof TeamTemplate>;
 
 /**
  * How far agents may go on their own (delegating, waking each other with results) in one conversation before they
  * wait for the owner, counted since the owner last wrote there. 0 = no limit.
  */
-export const AgentLimits = z.object({
-  runs: z.number().int().min(0).max(10_000),
-  tokens: z.number().int().min(0).max(1_000_000_000),
-});
+export const AgentLimits = z.object(
+  schemaFields({
+    runs: () => z.number().int().min(0).max(10_000),
+    tokens: () => z.number().int().min(0).max(1_000_000_000),
+  }),
+);
 export type AgentLimits = z.infer<typeof AgentLimits>;
 
 /**
@@ -71,7 +80,12 @@ export const teamMethods = {
   /** Teams and single agents that can be added to a project. Every team member is also offered on its own. */
   "agents.templates": {
     params: z.object({}).strict(),
-    result: z.object({ teams: z.array(TeamTemplate), singles: z.array(AgentTemplate) }),
+    result: z.object(
+      schemaFields({
+        teams: () => z.array(TeamTemplate),
+        singles: () => z.array(AgentTemplate),
+      }),
+    ),
     effect: false,
     access: "human",
   },
@@ -84,21 +98,33 @@ export const teamMethods = {
    */
   "agents.install": {
     params: z
-      .object({
-        project_id: Id.optional(),
-        templates: z.array(z.string()).min(1).max(50),
-        hang_under: z.string().max(64).optional(),
-      })
+      .object(
+        schemaFields({
+          project_id: () => Id.optional(),
+          templates: () => z.array(z.string()).min(1).max(50),
+          hang_under: () => z.string().max(64).optional(),
+        }),
+      )
       .strict(),
-    result: z.object({
-      installed: z.array(Agent),
-      /** The routines the installed agents came with, added to the project and on. */
-      routines: z.array(Routine).default([]),
-      /** The kind the project took from the team, and its areas and roles after the install. */
-      project_kind: ProjectKind.optional(),
-      organization: Organization.optional(),
-      skipped: z.array(z.object({ template: z.string(), reason: z.string() })),
-    }),
+    result: z.object(
+      schemaFields({
+        installed: () => z.array(Agent),
+        /** The routines the installed agents came with, added to the project and on. */
+        routines: () => z.array(Routine).default([]),
+        /** The kind the project took from the team, and its areas and roles after the install. */
+        project_kind: () => ProjectKind.optional(),
+        organization: () => Organization.optional(),
+        skipped: () =>
+          z.array(
+            z.object(
+              schemaFields({
+                template: () => z.string(),
+                reason: () => z.string(),
+              }),
+            ),
+          ),
+      }),
+    ),
     effect: true,
     access: "human",
   },
@@ -109,24 +135,41 @@ export const teamMethods = {
    */
   "agents.clone": {
     params: z
-      .object({
-        agents: z.array(Id).min(1).max(50),
-        project_id: Id.optional(),
-        rename: z.boolean().default(false),
-        hang_under: z.string().max(64).optional(),
-      })
+      .object(
+        schemaFields({
+          agents: () => z.array(Id).min(1).max(50),
+          project_id: () => Id.optional(),
+          rename: () => z.boolean().default(false),
+          hang_under: () => z.string().max(64).optional(),
+        }),
+      )
       .strict(),
-    result: z.object({
-      cloned: z.array(Agent),
-      skipped: z.array(z.object({ agent: z.string(), reason: z.string() })),
-    }),
+    result: z.object(
+      schemaFields({
+        cloned: () => z.array(Agent),
+        skipped: () =>
+          z.array(
+            z.object(
+              schemaFields({
+                agent: () => z.string(),
+                reason: () => z.string(),
+              }),
+            ),
+          ),
+      }),
+    ),
     effect: true,
     access: "human",
   },
   /** The limits in force (0: none) and `defaults`, what turning them on starts from. */
   "agents.limits": {
     params: z.object({}).strict(),
-    result: AgentLimits.extend({ defaults: AgentLimits, agents: AgentBudgets }),
+    result: AgentLimits.extend(
+      schemaFields({
+        defaults: () => AgentLimits,
+        agents: () => AgentBudgets,
+      }),
+    ),
     effect: false,
     access: "human",
   },
@@ -138,8 +181,19 @@ export const teamMethods = {
   },
   /** Gives one agent a budget of its own (null takes it away); returns every agent's. */
   "agents.set_agent_limits": {
-    params: z.object({ agent: z.string().min(1), limits: AgentBudget.strict().nullable() }).strict(),
-    result: z.object({ agents: AgentBudgets }),
+    params: z
+      .object(
+        schemaFields({
+          agent: () => z.string().min(1),
+          limits: () => AgentBudget.strict().nullable(),
+        }),
+      )
+      .strict(),
+    result: z.object(
+      schemaFields({
+        agents: () => AgentBudgets,
+      }),
+    ),
     effect: true,
     access: "human",
   },

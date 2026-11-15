@@ -1,5 +1,6 @@
 import { z } from "zod";
 import type { MethodDef } from "./methods.ts";
+import { schemaFields } from "./schema-fields.ts";
 
 const TAGS = new Set(["p", "div", "span", "b", "strong", "em", "i", "u", "br", "a", "img"]);
 const VOID = new Set(["br", "img"]);
@@ -62,25 +63,30 @@ export function safeSignatureHtml(html: string): boolean {
 }
 
 export const EmailSignatureValue = z
-  .object({
-    enabled: z.boolean(),
-    text: z.string().trim().max(10_000),
-    html: z.string().max(30_000).refine(safeSignatureHtml, "Unsupported signature HTML").optional(),
-  })
+  .object(
+    schemaFields({
+      enabled: () => z.boolean(),
+      text: () => z.string().trim().max(10_000),
+      html: () => z.string().max(30_000).refine(safeSignatureHtml, "Unsupported signature HTML").optional(),
+    }),
+  )
   .strict()
   .refine((value) => !value.enabled || value.text.length > 0, "An enabled signature needs plain text");
 export type EmailSignatureValue = z.infer<typeof EmailSignatureValue>;
 
-export const EmailSignatureEntry = EmailSignatureValue.safeExtend({
-  transport: z.enum(["gmail", "smtp"]),
-  /** Gmail account address, or the SMTP channel id. */
-  account: z
-    .string()
-    .min(1)
-    .max(254)
-    .refine((value) => !/\s/.test(value) && !hasControl(value), "Invalid account"),
-  sender: z.email().max(254),
-}).strict();
+export const EmailSignatureEntry = EmailSignatureValue.safeExtend(
+  schemaFields({
+    transport: () => z.enum(["gmail", "smtp"]),
+    /** Gmail account address, or the SMTP channel id. */
+    account: () =>
+      z
+        .string()
+        .min(1)
+        .max(254)
+        .refine((value) => !/\s/.test(value) && !hasControl(value), "Invalid account"),
+    sender: () => z.email().max(254),
+  }),
+).strict();
 export type EmailSignatureEntry = z.infer<typeof EmailSignatureEntry>;
 
 export const EmailSignatures = z
@@ -98,54 +104,118 @@ export const EmailSignatures = z
   }, "Duplicate signature account and sender");
 
 export const EmailSignatureKey = z
-  .object({
-    transport: EmailSignatureEntry.shape.transport,
-    account: EmailSignatureEntry.shape.account,
-    sender: EmailSignatureEntry.shape.sender,
-  })
+  .object(
+    schemaFields({
+      transport: () => EmailSignatureEntry.shape.transport,
+      account: () => EmailSignatureEntry.shape.account,
+      sender: () => EmailSignatureEntry.shape.sender,
+    }),
+  )
   .strict();
 
 export const emailSignatureMethods = {
   "email.signature_default_get": {
     params: z.object({}).strict(),
-    result: z.object({ signature: EmailSignatureValue.nullable() }),
+    result: z.object(
+      schemaFields({
+        signature: () => EmailSignatureValue.nullable(),
+      }),
+    ),
     effect: false,
     access: "human",
   },
   "email.signature_default_set": {
-    params: z.object({ signature: EmailSignatureValue.nullable(), expected: EmailSignatureValue.nullable() }).strict(),
-    result: z.object({ signature: EmailSignatureValue.nullable() }),
+    params: z
+      .object(
+        schemaFields({
+          signature: () => EmailSignatureValue.nullable(),
+          expected: () => EmailSignatureValue.nullable(),
+        }),
+      )
+      .strict(),
+    result: z.object(
+      schemaFields({
+        signature: () => EmailSignatureValue.nullable(),
+      }),
+    ),
     effect: true,
     access: "human",
   },
   "email.signature_upsert": {
-    params: z.object({ signature: EmailSignatureEntry, expected: EmailSignatureEntry.nullable() }).strict(),
-    result: z.object({ signature: EmailSignatureEntry }),
+    params: z
+      .object(
+        schemaFields({
+          signature: () => EmailSignatureEntry,
+          expected: () => EmailSignatureEntry.nullable(),
+        }),
+      )
+      .strict(),
+    result: z.object(
+      schemaFields({
+        signature: () => EmailSignatureEntry,
+      }),
+    ),
     effect: true,
     access: "human",
   },
   "email.signature_remove": {
-    params: z.object({ key: EmailSignatureKey, expected: EmailSignatureEntry }).strict(),
-    result: z.object({ removed: z.boolean() }),
+    params: z
+      .object(
+        schemaFields({
+          key: () => EmailSignatureKey,
+          expected: () => EmailSignatureEntry,
+        }),
+      )
+      .strict(),
+    result: z.object(
+      schemaFields({
+        removed: () => z.boolean(),
+      }),
+    ),
     effect: true,
     access: "human",
   },
   /** The signature a connected Gmail account has in Gmail, made fit for APX; nothing is saved. */
   "email.signature_import": {
-    params: z.object({ account: z.email().max(254) }).strict(),
-    result: z.object({ text: z.string(), html: z.string().optional() }),
+    params: z
+      .object(
+        schemaFields({
+          account: () => z.email().max(254),
+        }),
+      )
+      .strict(),
+    result: z.object(
+      schemaFields({
+        text: () => z.string(),
+        html: () => z.string().optional(),
+      }),
+    ),
     effect: false,
     access: "human",
   },
   "email.signatures_get": {
     params: z.object({}).strict(),
-    result: z.object({ signatures: EmailSignatures }),
+    result: z.object(
+      schemaFields({
+        signatures: () => EmailSignatures,
+      }),
+    ),
     effect: false,
     access: "human",
   },
   "email.signatures_set": {
-    params: z.object({ signatures: EmailSignatures }).strict(),
-    result: z.object({ signatures: EmailSignatures }),
+    params: z
+      .object(
+        schemaFields({
+          signatures: () => EmailSignatures,
+        }),
+      )
+      .strict(),
+    result: z.object(
+      schemaFields({
+        signatures: () => EmailSignatures,
+      }),
+    ),
     effect: true,
     access: "human",
   },

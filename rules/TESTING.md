@@ -245,12 +245,19 @@ A core on a temp home with the fake model: startup, idle memory and CPU, protoco
 once quiet again, and the panel's first load (gzip). Each number has a budget in `scripts/perf-budget.json`;
 going over fails. Raising a budget is a regression: it needs a reason in the commit body.
 
-The memory numbers are `ps` RSS. On macOS the memory compressor takes a varying part of the core's malloc pages
-out of it, so the same commit reads anywhere from ~90 to ~145 MB idle (and `rss_after_turns_mb` swings the same
-way) depending on how loaded the machine is. A difference between two commits measured once each on a Mac says
-nothing. Compare them where nothing is compressed: CI's Linux job, or a `node:24` container (within ~1 MB from
-run to run). On a Mac, `vmmap -summary <pid>` lists each region's dirty and compressed sizes; their sum stays
-about the same between a low reading and a high one.
+The memory numbers are `ps` RSS. Native allocator layout, retained resident pages and the operating system's
+compression can vary that number without the same change in useful live objects. A single before/after pair does
+not establish an improvement or identify its cause. Preserve every sample in a predefined consecutive cohort and
+keep the original gate. On macOS, compare `vmmap -summary <pid>` dirty/compressed sizes and malloc live/resident
+sizes with the V8 heap; do not attribute every RSS difference to compression. CI's Linux job checks the budget on
+another allocator and platform too.
+
+Protocol object fields use `schemaFields` to defer unused field trees through Zod's native shape getters. Objects
+stay real Zod instances; their first `.shape`, validation or JSON Schema conversion resolves the same field schemas,
+including through `.extend`, `.omit` and `.partial`. The isolated startup regression bounds live schema objects,
+not platform-dependent byte sizes or elapsed time. Changes here also compare public schemas and every method's
+metadata and input/output JSON Schema, materialize the full contract, exercise real cold/warm calls and preserve
+authorization, strict validation, defaults and refinements. A lower idle number alone is not enough.
 
 The first load is read from the built `apps/web/dist` (`scripts/bundle.ts`), never from source:
 `initial_bundle_gzip_kb` is what `index.html` names plus the chunks it imports statically; `boot_gzip_kb` adds the

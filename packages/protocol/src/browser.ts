@@ -1,6 +1,7 @@
 // Browser commands. Defined once: operators and agent tools call them on the core, the core forwards the same
 // method + params to a node that offers the "browser" capability (the desktop app), which executes them.
 import { z } from "zod";
+import { schemaFields } from "./schema-fields.ts";
 
 export const BROWSER_CAP = "browser";
 
@@ -13,21 +14,45 @@ export const BrowserProfile = z.union([
 export type BrowserProfile = z.infer<typeof BrowserProfile>;
 
 export const TabControl = z.discriminatedUnion("kind", [
-  z.object({ kind: z.literal("agent"), by: z.string(), since: z.string() }),
-  z.object({ kind: z.literal("handoff"), by: z.string(), reason: z.string(), since: z.string() }),
-  z.object({ kind: z.literal("user"), since: z.string() }),
-  z.object({ kind: z.literal("idle") }),
+  z.object(
+    schemaFields({
+      kind: () => z.literal("agent"),
+      by: () => z.string(),
+      since: () => z.string(),
+    }),
+  ),
+  z.object(
+    schemaFields({
+      kind: () => z.literal("handoff"),
+      by: () => z.string(),
+      reason: () => z.string(),
+      since: () => z.string(),
+    }),
+  ),
+  z.object(
+    schemaFields({
+      kind: () => z.literal("user"),
+      since: () => z.string(),
+    }),
+  ),
+  z.object(
+    schemaFields({
+      kind: () => z.literal("idle"),
+    }),
+  ),
 ]);
 export type TabControl = z.infer<typeof TabControl>;
 
-export const TabInfo = z.object({
-  tab: z.string(),
-  url: z.string(),
-  title: z.string(),
-  profile: BrowserProfile,
-  control: TabControl,
-  consent_epoch: z.string().max(100).optional(),
-});
+export const TabInfo = z.object(
+  schemaFields({
+    tab: () => z.string(),
+    url: () => z.string(),
+    title: () => z.string(),
+    profile: () => BrowserProfile,
+    control: () => TabControl,
+    consent_epoch: () => z.string().max(100).optional(),
+  }),
+);
 export type TabInfo = z.infer<typeof TabInfo>;
 
 const Tab = z.string().min(1);
@@ -53,13 +78,15 @@ export const SecretFieldKind = z.enum(["password", "username", "otp"]);
 export type SecretFieldKind = z.infer<typeof SecretFieldKind>;
 
 /** `filled`, or `refused` with why; the site it went to (or would have). Never the value. */
-export const SignInResult = z.object({
-  outcome: z.enum(["filled", "refused"]),
-  origin: z.string().max(4096),
-  reason: z.string().max(500).optional(),
-  /** The page copied the value elsewhere: it was cleared, and the page is kept from the agent. */
-  leaked: z.boolean().optional(),
-});
+export const SignInResult = z.object(
+  schemaFields({
+    outcome: () => z.enum(["filled", "refused"]),
+    origin: () => z.string().max(4096),
+    reason: () => z.string().max(500).optional(),
+    /** The page copied the value elsewhere: it was cleared, and the page is kept from the agent. */
+    leaked: () => z.boolean().optional(),
+  }),
+);
 export type SignInResult = z.infer<typeof SignInResult>;
 
 /** What a part of a page is to the person editing it: a title, a run of text, a button, a link, a picture or a field. */
@@ -70,140 +97,266 @@ export type ElementKind = z.infer<typeof ElementKind>;
 export const EDIT_ELEMENTS_MAX = 200;
 
 /** An element of the page the owner picked in edit mode. Its name and text are untrusted page content. */
-export const PickedElement = z.object({
-  /** The page's own id for the element while its document lives (a backend node id). */
-  node: z.number().int().positive(),
-  tag: z.string(),
-  role: z.string(),
-  name: z.string(),
-  selector: z.string(),
-  kind: ElementKind.optional(),
-  /** Its text when it holds just one, so it can be rewritten; null otherwise. */
-  text: z.string().nullable(),
-  /** A password, one-time code or card field: never read nor edited. */
-  sensitive: z.boolean(),
-  /** Where it sits, as fractions of the visible page. */
-  box: z.object({ x: z.number(), y: z.number(), width: z.number(), height: z.number() }).nullable(),
-  style: z.object({
-    color: z.string().optional(),
-    background: z.string().optional(),
-    font_size: z.number().optional(),
-    padding: z.number().optional(),
+export const PickedElement = z.object(
+  schemaFields({
+    /** The page's own id for the element while its document lives (a backend node id). */
+    node: () => z.number().int().positive(),
+    tag: () => z.string(),
+    role: () => z.string(),
+    name: () => z.string(),
+    selector: () => z.string(),
+    kind: () => ElementKind.optional(),
+    /** Its text when it holds just one, so it can be rewritten; null otherwise. */
+    text: () => z.string().nullable(),
+    /** A password, one-time code or card field: never read nor edited. */
+    sensitive: () => z.boolean(),
+    /** Where it sits, as fractions of the visible page. */
+    box: () =>
+      z
+        .object(
+          schemaFields({
+            x: () => z.number(),
+            y: () => z.number(),
+            width: () => z.number(),
+            height: () => z.number(),
+          }),
+        )
+        .nullable(),
+    style: () =>
+      z.object(
+        schemaFields({
+          color: () => z.string().optional(),
+          background: () => z.string().optional(),
+          font_size: () => z.number().optional(),
+          padding: () => z.number().optional(),
+        }),
+      ),
   }),
-});
+);
 export type PickedElement = z.infer<typeof PickedElement>;
 
 export const ElementEdit = z
-  .object({
-    node: z.number().int().positive(),
-    text: z.string().max(2000).optional(),
-    style: z
-      .object({
-        color: HexColor.optional(),
-        background: HexColor.optional(),
-        font_size: z.number().int().min(6).max(200).optional(),
-        padding: z.number().int().min(0).max(200).optional(),
-      })
-      .strict()
-      .optional(),
-  })
+  .object(
+    schemaFields({
+      node: () => z.number().int().positive(),
+      text: () => z.string().max(2000).optional(),
+      style: () =>
+        z
+          .object(
+            schemaFields({
+              color: () => HexColor.optional(),
+              background: () => HexColor.optional(),
+              font_size: () => z.number().int().min(6).max(200).optional(),
+              padding: () => z.number().int().min(0).max(200).optional(),
+            }),
+          )
+          .strict()
+          .optional(),
+    }),
+  )
   .strict();
 export type ElementEdit = z.infer<typeof ElementEdit>;
 
 export const browserMethods = {
   "browser.tabs": {
     params: z.object({}).strict(),
-    result: z.object({ tabs: z.array(TabInfo) }),
+    result: z.object(
+      schemaFields({
+        tabs: () => z.array(TabInfo),
+      }),
+    ),
     effect: false,
   },
   "browser.open": {
     params: z
-      .object({
-        url: Url,
-        profile: BrowserProfile.default("shared"),
-        by: By,
-        /** In the owner's own Chrome, through APX's extension, instead of APX's browser (DECISIONS.md#d-198). */
-        chrome: z.boolean().optional(),
-      })
+      .object(
+        schemaFields({
+          url: () => Url,
+          profile: () => BrowserProfile.default("shared"),
+          by: () => By,
+          /** In the owner's own Chrome, through APX's extension, instead of APX's browser (DECISIONS.md#d-198). */
+          chrome: () => z.boolean().optional(),
+        }),
+      )
       .strict(),
     result: TabInfo,
     effect: true,
   },
   "browser.navigate": {
-    params: z.object({ tab: Tab, url: Url, by: By }).strict(),
-    result: z.object({ url: z.string(), title: z.string() }),
+    params: z
+      .object(
+        schemaFields({
+          tab: () => Tab,
+          url: () => Url,
+          by: () => By,
+        }),
+      )
+      .strict(),
+    result: z.object(
+      schemaFields({
+        url: () => z.string(),
+        title: () => z.string(),
+      }),
+    ),
     effect: true,
   },
   "browser.history": {
-    params: z.object({ tab: Tab, action: z.enum(["back", "forward", "reload"]), by: By }).strict(),
-    result: z.object({ url: z.string(), title: z.string() }),
+    params: z
+      .object(
+        schemaFields({
+          tab: () => Tab,
+          action: () => z.enum(["back", "forward", "reload"]),
+          by: () => By,
+        }),
+      )
+      .strict(),
+    result: z.object(
+      schemaFields({
+        url: () => z.string(),
+        title: () => z.string(),
+      }),
+    ),
     effect: true,
   },
   "browser.snapshot": {
-    params: z.object({ tab: Tab, max_chars: z.number().int().min(500).max(100_000).default(20_000) }).strict(),
+    params: z
+      .object(
+        schemaFields({
+          tab: () => Tab,
+          max_chars: () => z.number().int().min(500).max(100_000).default(20_000),
+        }),
+      )
+      .strict(),
     /** `tree` is untrusted web content, already wrapped as such by the node. */
-    result: z.object({
-      url: z.string(),
-      title: z.string(),
-      tree: z.string(),
-      document: z.string().optional(),
-      refs: z.number().int(),
-      truncated: z.boolean(),
-    }),
+    result: z.object(
+      schemaFields({
+        url: () => z.string(),
+        title: () => z.string(),
+        tree: () => z.string(),
+        document: () => z.string().optional(),
+        refs: () => z.number().int(),
+        truncated: () => z.boolean(),
+      }),
+    ),
     effect: false,
   },
   "browser.click": {
-    params: z.object({ tab: Tab, ref: Ref, by: By }).strict(),
+    params: z
+      .object(
+        schemaFields({
+          tab: () => Tab,
+          ref: () => Ref,
+          by: () => By,
+        }),
+      )
+      .strict(),
     /** `dialog`: the click opened one, and the page waits for its answer. */
-    result: z.object({ ok: z.literal(true), url: z.string(), dialog: BrowserDialog.optional() }),
+    result: z.object(
+      schemaFields({
+        ok: () => z.literal(true),
+        url: () => z.string(),
+        dialog: () => BrowserDialog.optional(),
+      }),
+    ),
     effect: true,
   },
   "browser.type": {
     params: z
-      .object({
-        tab: Tab,
-        ref: Ref,
-        text: z.string().max(10_000),
-        submit: z.boolean().default(false),
-        by: By,
-        /** Type only if the page and the field's frame are served by this computer (DECISIONS.md#d-212). */
-        local_only: z.boolean().optional(),
-        /** `text` is a local file the core checked the agent may read: a file field gets it attached. */
-        upload: z.boolean().optional(),
-      })
+      .object(
+        schemaFields({
+          tab: () => Tab,
+          ref: () => Ref,
+          text: () => z.string().max(10_000),
+          submit: () => z.boolean().default(false),
+          by: () => By,
+          /** Type only if the page and the field's frame are served by this computer (DECISIONS.md#d-212). */
+          local_only: () => z.boolean().optional(),
+          /** `text` is a local file the core checked the agent may read: a file field gets it attached. */
+          upload: () => z.boolean().optional(),
+        }),
+      )
       .strict(),
-    result: z.object({ ok: z.literal(true), url: z.string(), dialog: BrowserDialog.optional() }),
+    result: z.object(
+      schemaFields({
+        ok: () => z.literal(true),
+        url: () => z.string(),
+        dialog: () => BrowserDialog.optional(),
+      }),
+    ),
     effect: true,
   },
   "browser.approval_context": {
-    params: z.object({ tab: Tab, origin: Url, document: z.string().min(1).max(500) }).strict(),
-    result: z.object({ epoch: z.string().min(1).max(500) }),
+    params: z
+      .object(
+        schemaFields({
+          tab: () => Tab,
+          origin: () => Url,
+          document: () => z.string().min(1).max(500),
+        }),
+      )
+      .strict(),
+    result: z.object(
+      schemaFields({
+        epoch: () => z.string().min(1).max(500),
+      }),
+    ),
     effect: false,
   },
   "browser.evaluate": {
     params: z
-      .object({
-        tab: Tab,
-        origin: Url,
-        document: z.string().min(1).max(500),
-        script: z.string().min(1).max(64_000),
-        epoch: z.string().min(1).max(500).optional(),
-        by: By,
-      })
+      .object(
+        schemaFields({
+          tab: () => Tab,
+          origin: () => Url,
+          document: () => z.string().min(1).max(500),
+          script: () => z.string().min(1).max(64_000),
+          epoch: () => z.string().min(1).max(500).optional(),
+          by: () => By,
+        }),
+      )
       .strict(),
-    result: z.object({ url: z.string(), json: z.string().max(16_000) }),
+    result: z.object(
+      schemaFields({
+        url: () => z.string(),
+        json: () => z.string().max(16_000),
+      }),
+    ),
     effect: true,
     access: "human",
   },
   "browser.screenshot": {
-    params: z.object({ tab: Tab }).strict(),
-    result: z.object({ mime: z.literal("image/jpeg"), data: z.string(), bytes: z.number().int() }),
+    params: z
+      .object(
+        schemaFields({
+          tab: () => Tab,
+        }),
+      )
+      .strict(),
+    result: z.object(
+      schemaFields({
+        mime: () => z.literal("image/jpeg"),
+        data: () => z.string(),
+        bytes: () => z.number().int(),
+      }),
+    ),
     effect: false,
   },
   /** Edit mode: the element under a point of the visible page (fractions 0–1), or null. Owner only. */
   "browser.inspect": {
-    params: z.object({ tab: Tab, x: Fraction, y: Fraction }).strict(),
-    result: z.object({ element: PickedElement.nullable() }),
+    params: z
+      .object(
+        schemaFields({
+          tab: () => Tab,
+          x: () => Fraction,
+          y: () => Fraction,
+        }),
+      )
+      .strict(),
+    result: z.object(
+      schemaFields({
+        element: () => PickedElement.nullable(),
+      }),
+    ),
     effect: false,
     access: "human",
   },
@@ -212,8 +365,18 @@ export const browserMethods = {
    * describes it; a part outside the visible page has no box. Owner only.
    */
   "browser.edit_elements": {
-    params: z.object({ tab: Tab }).strict(),
-    result: z.object({ elements: z.array(PickedElement).max(EDIT_ELEMENTS_MAX) }),
+    params: z
+      .object(
+        schemaFields({
+          tab: () => Tab,
+        }),
+      )
+      .strict(),
+    result: z.object(
+      schemaFields({
+        elements: () => z.array(PickedElement).max(EDIT_ELEMENTS_MAX),
+      }),
+    ),
     effect: false,
     access: "human",
   },
@@ -222,14 +385,32 @@ export const browserMethods = {
    * and not listed go back. An empty list undoes all. Refused while an agent drives the tab.
    */
   "browser.preview_edits": {
-    params: z.object({ tab: Tab, edits: z.array(ElementEdit).max(50) }).strict(),
-    result: z.object({ shown: z.number().int() }),
+    params: z
+      .object(
+        schemaFields({
+          tab: () => Tab,
+          edits: () => z.array(ElementEdit).max(50),
+        }),
+      )
+      .strict(),
+    result: z.object(
+      schemaFields({
+        shown: () => z.number().int(),
+      }),
+    ),
     effect: true,
     access: "human",
   },
   /** The human's hand from any operator: take the tab, give it back, or finish a handoff. */
   "browser.control": {
-    params: z.object({ tab: Tab, mode: z.enum(["user", "idle", "done"]) }).strict(),
+    params: z
+      .object(
+        schemaFields({
+          tab: () => Tab,
+          mode: () => z.enum(["user", "idle", "done"]),
+        }),
+      )
+      .strict(),
     result: TabInfo,
     effect: true,
     access: "human",
@@ -237,56 +418,111 @@ export const browserMethods = {
   /** The agent hands the tab to the human (login, 2FA, captcha) and waits until they finish or the deadline passes. */
   "browser.handoff": {
     params: z
-      .object({
-        tab: Tab,
-        reason: z.string().max(300),
-        by: By,
-        timeout_s: z.number().int().min(10).max(900).default(300),
-      })
+      .object(
+        schemaFields({
+          tab: () => Tab,
+          reason: () => z.string().max(300),
+          by: () => By,
+          timeout_s: () => z.number().int().min(10).max(900).default(300),
+        }),
+      )
       .strict(),
-    result: z.object({ resolved: z.boolean(), url: z.string(), title: z.string() }),
+    result: z.object(
+      schemaFields({
+        resolved: () => z.boolean(),
+        url: () => z.string(),
+        title: () => z.string(),
+      }),
+    ),
     effect: true,
   },
   /** Visible text of the page, paginated. Untrusted web content. */
   "browser.text": {
     params: z
-      .object({
-        tab: Tab,
-        offset: z.number().int().min(0).default(0),
-        max_chars: z.number().int().min(200).max(50_000).default(8_000),
-      })
+      .object(
+        schemaFields({
+          tab: () => Tab,
+          offset: () => z.number().int().min(0).default(0),
+          max_chars: () => z.number().int().min(200).max(50_000).default(8_000),
+        }),
+      )
       .strict(),
-    result: z.object({ url: z.string(), text: z.string(), total: z.number().int(), truncated: z.boolean() }),
+    result: z.object(
+      schemaFields({
+        url: () => z.string(),
+        text: () => z.string(),
+        total: () => z.number().int(),
+        truncated: () => z.boolean(),
+      }),
+    ),
     effect: false,
   },
   /** Browsers whose sessions can be imported (detected on the desktop). Human-only. */
   "browser.cookie_sources": {
     params: z.object({}).strict(),
-    result: z.object({
-      sources: z.array(
-        z.object({ id: z.string(), browser: z.string(), profile: z.string(), family: z.enum(["firefox", "chromium"]) }),
-      ),
-    }),
+    result: z.object(
+      schemaFields({
+        sources: () =>
+          z.array(
+            z.object(
+              schemaFields({
+                id: () => z.string(),
+                browser: () => z.string(),
+                profile: () => z.string(),
+                family: () => z.enum(["firefox", "chromium"]),
+              }),
+            ),
+          ),
+      }),
+    ),
     effect: false,
     access: "human",
   },
   /** Domains with cookies in a source, with counts only — never values. */
   "browser.cookie_domains": {
-    params: z.object({ source: z.string(), filter: z.string().max(100).default("") }).strict(),
-    result: z.object({ domains: z.array(z.object({ domain: z.string(), count: z.number().int() })) }),
+    params: z
+      .object(
+        schemaFields({
+          source: () => z.string(),
+          filter: () => z.string().max(100).default(""),
+        }),
+      )
+      .strict(),
+    result: z.object(
+      schemaFields({
+        domains: () =>
+          z.array(
+            z.object(
+              schemaFields({
+                domain: () => z.string(),
+                count: () => z.number().int(),
+              }),
+            ),
+          ),
+      }),
+    ),
     effect: false,
     access: "human",
   },
   /** Copies the chosen domains' cookies into an APX profile. Values stay on the desktop. Human-only. */
   "browser.import_cookies": {
     params: z
-      .object({
-        source: z.string(),
-        domains: z.array(z.string().max(253)).min(1).max(50),
-        profile: z.union([z.literal("shared"), z.string().regex(/^agent:[a-z0-9][a-z0-9-]{0,63}$/)]).default("shared"),
-      })
+      .object(
+        schemaFields({
+          source: () => z.string(),
+          domains: () => z.array(z.string().max(253)).min(1).max(50),
+          profile: () =>
+            z.union([z.literal("shared"), z.string().regex(/^agent:[a-z0-9][a-z0-9-]{0,63}$/)]).default("shared"),
+        }),
+      )
       .strict(),
-    result: z.object({ imported: z.number().int(), skipped: z.number().int(), failed: z.number().int() }),
+    result: z.object(
+      schemaFields({
+        imported: () => z.number().int(),
+        skipped: () => z.number().int(),
+        failed: () => z.number().int(),
+      }),
+    ),
     effect: true,
     access: "human",
   },
@@ -295,13 +531,33 @@ export const browserMethods = {
    * resolves it and the browser checks site, frame and field; the value never comes back. See DECISIONS.md#d-193
    */
   "browser.sign_in": {
-    params: z.object({ tab: Tab, ref: Ref, secret: SecretName, kind: SecretFieldKind, by: By }).strict(),
+    params: z
+      .object(
+        schemaFields({
+          tab: () => Tab,
+          ref: () => Ref,
+          secret: () => SecretName,
+          kind: () => SecretFieldKind,
+          by: () => By,
+        }),
+      )
+      .strict(),
     result: SignInResult,
     effect: true,
   },
   "browser.close": {
-    params: z.object({ tab: Tab }).strict(),
-    result: z.object({ ok: z.literal(true) }),
+    params: z
+      .object(
+        schemaFields({
+          tab: () => Tab,
+        }),
+      )
+      .strict(),
+    result: z.object(
+      schemaFields({
+        ok: () => z.literal(true),
+      }),
+    ),
     effect: true,
   },
 } as const;
@@ -314,7 +570,14 @@ export const BROWSER_METHODS = Object.keys(browserMethods) as BrowserMethod[];
  * an empty list (the turn ended) lets them go.
  */
 export const BROWSER_HOLD = "browser.hold";
-export const BrowserHold = z.object({ run: z.string().min(1).max(128), tabs: z.array(Tab).max(64) }).strict();
+export const BrowserHold = z
+  .object(
+    schemaFields({
+      run: () => z.string().min(1).max(128),
+      tabs: () => z.array(Tab).max(64),
+    }),
+  )
+  .strict();
 
 /**
  * Core → browser only, never a client method: fill a sign-in field with a value the core resolved from a stored
@@ -322,14 +585,16 @@ export const BrowserHold = z.object({ run: z.string().min(1).max(128), tabs: z.a
  */
 export const BROWSER_FILL_SECRET = "browser.fill_secret";
 export const BrowserFillSecret = z
-  .object({
-    tab: Tab,
-    ref: Ref,
-    by: z.string().min(1).max(64),
-    kind: SecretFieldKind,
-    origins: z.array(z.string().min(1).max(4096)).min(1).max(64),
-    value: z.string().min(1).max(16_384),
-  })
+  .object(
+    schemaFields({
+      tab: () => Tab,
+      ref: () => Ref,
+      by: () => z.string().min(1).max(64),
+      kind: () => SecretFieldKind,
+      origins: () => z.array(z.string().min(1).max(4096)).min(1).max(64),
+      value: () => z.string().min(1).max(16_384),
+    }),
+  )
   .strict();
 export type BrowserFillSecret = z.infer<typeof BrowserFillSecret>;
 

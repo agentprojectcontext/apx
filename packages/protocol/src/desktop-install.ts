@@ -1,14 +1,17 @@
 import { z } from "zod";
 import type { MethodDef } from "./methods.ts";
+import { schemaFields } from "./schema-fields.ts";
 
-export const DesktopInstallStatus = z.object({
-  available: z.boolean(),
-  installed: z.boolean(),
-  phase: z.enum(["idle", "downloading", "installing", "opening", "ready", "failed"]),
-  received: z.number().nonnegative(),
-  total: z.number().positive().optional(),
-  error: z.string().optional(),
-});
+export const DesktopInstallStatus = z.object(
+  schemaFields({
+    available: () => z.boolean(),
+    installed: () => z.boolean(),
+    phase: () => z.enum(["idle", "downloading", "installing", "opening", "ready", "failed"]),
+    received: () => z.number().nonnegative(),
+    total: () => z.number().positive().optional(),
+    error: () => z.string().optional(),
+  }),
+);
 export type DesktopInstallStatus = z.infer<typeof DesktopInstallStatus>;
 
 export const desktopInstallMethods = {

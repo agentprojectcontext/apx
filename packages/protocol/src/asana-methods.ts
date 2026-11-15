@@ -1,19 +1,44 @@
 import { z } from "zod";
+import { schemaFields } from "./schema-fields.ts";
 
 const Gid = z.string().regex(/^\d+$/).max(40);
 const Page = { limit: z.number().int().min(1).max(100).default(50), offset: z.string().max(1000).optional() };
 export const AsanaRead = z.discriminatedUnion("operation", [
-  z.object({ operation: z.literal("workspaces"), ...Page }).strict(),
-  z.object({ operation: z.literal("projects"), workspace: Gid, ...Page }).strict(),
   z
-    .object({
-      operation: z.literal("tasks"),
-      project: Gid,
-      completed: z.boolean().default(false).describe("Include completed tasks"),
-      ...Page,
-    })
+    .object(
+      schemaFields({
+        operation: () => z.literal("workspaces"),
+        ...Page,
+      }),
+    )
     .strict(),
-  z.object({ operation: z.literal("task"), task: Gid }).strict(),
+  z
+    .object(
+      schemaFields({
+        operation: () => z.literal("projects"),
+        workspace: () => Gid,
+        ...Page,
+      }),
+    )
+    .strict(),
+  z
+    .object(
+      schemaFields({
+        operation: () => z.literal("tasks"),
+        project: () => Gid,
+        completed: () => z.boolean().default(false).describe("Include completed tasks"),
+        ...Page,
+      }),
+    )
+    .strict(),
+  z
+    .object(
+      schemaFields({
+        operation: () => z.literal("task"),
+        task: () => Gid,
+      }),
+    )
+    .strict(),
 ]);
 const Fields = {
   name: z.string().min(1).max(1000).optional(),
@@ -24,20 +49,28 @@ const Fields = {
 };
 export const AsanaWrite = z.discriminatedUnion("operation", [
   z
-    .object({
-      operation: z.literal("create_task"),
-      workspace: Gid.optional(),
-      project: Gid.optional(),
-      ...Fields,
-      name: Fields.name.unwrap(),
-    })
+    .object(
+      schemaFields({
+        operation: () => z.literal("create_task"),
+        workspace: () => Gid.optional(),
+        project: () => Gid.optional(),
+        ...Fields,
+        name: () => Fields.name.unwrap(),
+      }),
+    )
     .strict()
     .refine(
       (value) => value.project !== undefined || value.workspace !== undefined,
       "a workspace or project is required",
     ),
   z
-    .object({ operation: z.literal("update_task"), task: Gid, ...Fields })
+    .object(
+      schemaFields({
+        operation: () => z.literal("update_task"),
+        task: () => Gid,
+        ...Fields,
+      }),
+    )
     .strict()
     .refine(
       (value) =>
@@ -45,15 +78,34 @@ export const AsanaWrite = z.discriminatedUnion("operation", [
       "at least one task field is required",
     ),
 ]);
-const Result = z.object({ data: z.unknown(), next_offset: z.string().optional() });
+const Result = z.object(
+  schemaFields({
+    data: () => z.unknown(),
+    next_offset: () => z.string().optional(),
+  }),
+);
 export const asanaMethods = {
   "asana.read": {
-    params: z.object({ project: z.string().optional(), request: AsanaRead }).strict(),
+    params: z
+      .object(
+        schemaFields({
+          project: () => z.string().optional(),
+          request: () => AsanaRead,
+        }),
+      )
+      .strict(),
     result: Result,
     effect: false,
   },
   "asana.write": {
-    params: z.object({ project: z.string().optional(), request: AsanaWrite }).strict(),
+    params: z
+      .object(
+        schemaFields({
+          project: () => z.string().optional(),
+          request: () => AsanaWrite,
+        }),
+      )
+      .strict(),
     result: Result,
     effect: true,
     access: "human",
