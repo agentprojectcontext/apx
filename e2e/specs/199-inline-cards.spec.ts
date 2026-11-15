@@ -228,14 +228,19 @@ test("an agent's results and A2UI cards draw as APX cards, open their details an
     release();
     await expect(views).toHaveCount(6);
     await page.unrouteAll();
-    for (const [i, name] of ["movies", "flights", "golf", "pick", "book", "places"].entries())
-      await views.nth(i).screenshot({ path: info.outputPath(`${name}-desktop.png`) });
+    const captureCards = async (layout: string) => {
+      // A responsive remount can replace a card while Playwright waits for its screenshot's stable frame.
+      for (const [i, name] of ["movies", "flights", "golf", "pick", "book", "places"].entries())
+        await expect(async () => {
+          await views.nth(i).screenshot({ path: info.outputPath(`${name}-${layout}.png`) });
+        }).toPass({ timeout: 5_000 });
+    };
+    await captureCards("desktop");
     await page.setViewportSize({ width: 390, height: 844 });
     await expect(movies.getByText("La luna tranquila")).toBeVisible();
     const width = await page.evaluate(() => document.documentElement.scrollWidth);
     expect(width).toBeLessThanOrEqual(390);
-    for (const [i, name] of ["movies", "flights", "golf", "pick", "book", "places"].entries())
-      await views.nth(i).screenshot({ path: info.outputPath(`${name}-phone.png`) });
+    await captureCards("phone");
   } finally {
     await page.goto("about:blank");
     await env.core.close();
