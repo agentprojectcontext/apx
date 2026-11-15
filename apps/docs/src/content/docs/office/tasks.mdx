@@ -208,7 +208,7 @@ continue"), its next part starts at once, numbered, up to nine. It stops when th
 waiting on you with what you must do, says what blocks it, or when a part got nowhere. One part that only checks what
 the part before it changed counts as progress; two parts in a row that only look things up do not. Closing its own
 work as done, an agent must say what it verified; if all its work on the task only wrote documents (a plan, notes) and
-ran no command, it is asked once whether a document was what the task wanted, and closes again only if it was. When another agent names a task's own agent again while it is not
+ran no command, it is asked once whether a document was what the task wanted, and closes again only if it was. If it leaves changes uncommitted in its own git worktree, it is asked once to commit them on the branch and name it in the note. When another agent names a task's own agent again while it is not
 working on it, it goes on.
 
 If a task stays in progress with nothing running on it (no turn for 20 minutes, within a day of its last one), APX asks
