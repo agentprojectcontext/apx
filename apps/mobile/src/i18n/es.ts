@@ -720,7 +720,6 @@ export const es: Record<Key, string> = {
   inlineTime: "Horario",
   inlineDirections: "Cómo llegar",
   inlineOpen: "Abrir",
-  inlineSchematicMap: "Mapa esquemático",
   inlineYouAreHere: "Estás acá",
   inlineSteps: "{done} de {total} listos",
   mailNoSubject: "Sin asunto",

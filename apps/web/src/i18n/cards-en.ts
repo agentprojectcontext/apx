@@ -10,7 +10,6 @@ export const enCards = {
   "cards.more": "More",
   "cards.directions": "Directions",
   "cards.open": "Open",
-  "cards.schematic": "Schematic map",
   "cards.you": "You are here",
   "cards.copy": "Copy",
   "cards.copied": "Copied",

@@ -1,8 +1,9 @@
 // The views of an answer card besides a list of results: choose, compare, places, booking, a confirmation and a plan.
 // Choosing writes a message to the chat as the owner (AskContext); nothing here pays or books.
+import { MAP_CREDIT, mapFrame } from "@apx/protocol/inline-map";
 import type { InlineNode, Tone } from "@apx/protocol/inline-ui";
-import { Badge, Button, IconButton, Icons, Tabs } from "@apx/ui";
-import { createContext, type ReactNode, useContext, useState } from "react";
+import { Badge, Button, IconButton, Icons, Tabs, useApx } from "@apx/ui";
+import { createContext, type ReactNode, useContext, useMemo, useState } from "react";
 import { useT } from "../i18n/index.ts";
 
 type Of<K extends InlineNode["kind"]> = Extract<InlineNode, { kind: K }>;
@@ -233,40 +234,32 @@ export function Compare({ node }: { node: Of<"compare"> }) {
   );
 }
 
-/**
- * Where each point sits in the 16:9 box, as percentages: one scale for both axes (longitude narrowed by latitude) so
- * distances look true, centred, with a margin so pins never touch the edge.
- */
-function project(points: { lat: number; lng: number }[]) {
-  const shrink = Math.cos((points.reduce((sum, p) => sum + p.lat, 0) / points.length) * (Math.PI / 180));
-  const xs = points.map((p) => p.lng * shrink);
-  const ys = points.map((p) => p.lat);
-  const [x0, x1, y0, y1] = [Math.min(...xs), Math.max(...xs), Math.min(...ys), Math.max(...ys)];
-  const scale = Math.min(x1 > x0 ? (16 * 0.76) / (x1 - x0) : Infinity, y1 > y0 ? (9 * 0.66) / (y1 - y0) : Infinity);
-  const k = Number.isFinite(scale) ? scale : 0;
-  return (p: { lat: number; lng: number }) => ({
-    x: ((8 + (p.lng * shrink - (x0 + x1) / 2) * k) / 16) * 100,
-    y: ((4.5 - (p.lat - (y0 + y1) / 2) * k) / 9) * 100 + 4,
-  });
-}
-
 export function Places({ node }: { node: Of<"places"> }) {
   const t = useT();
   const [at, setAt] = useState(node.places[0]?.id);
   const place = node.places.find((p) => p.id === at) ?? node.places[0];
-  const where = project(node.origin ? [...node.places, node.origin] : node.places);
+  const { mode } = useApx();
+  const frame = useMemo(
+    () => mapFrame(node.origin ? [...node.places, node.origin] : node.places),
+    [node.places, node.origin],
+  );
+  const where = frame.at;
   const you = node.origin && where(node.origin);
   return (
     <>
       <div className="apx-map">
-        <svg aria-hidden="true" preserveAspectRatio="none" viewBox="0 0 100 56">
-          {[14, 28, 42].map((y) => (
-            <line key={`h${y}`} x1="0" x2="100" y1={y} y2={y} />
-          ))}
-          {[20, 40, 60, 80].map((x) => (
-            <line key={`v${x}`} x1={x} x2={x} y1="0" y2="56" />
-          ))}
-        </svg>
+        {frame.tiles(mode).map((tile) => (
+          <img
+            key={tile.key}
+            className="apx-map__tile"
+            src={tile.url}
+            alt=""
+            draggable={false}
+            loading="lazy"
+            referrerPolicy="no-referrer"
+            style={{ left: `${tile.left}%`, top: `${tile.top}%`, width: `${tile.width}%`, height: `${tile.height}%` }}
+          />
+        ))}
         {you && (
           <span
             className="apx-pin apx-pin--you"
@@ -291,7 +284,7 @@ export function Places({ node }: { node: Of<"places"> }) {
             </button>
           );
         })}
-        <span className="apx-map__note">{t("cards.schematic")}</span>
+        <span className="apx-map__note">{MAP_CREDIT}</span>
       </div>
       <div className="apx-places">
         {node.places.map((p, i) => (

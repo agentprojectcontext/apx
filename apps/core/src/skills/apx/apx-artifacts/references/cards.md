@@ -133,7 +133,7 @@ best cells of a row by column index, `recommended` the column that starts picked
 ````
 
 `places` — up to 8 places with real coordinates from the source (`lat`, `lng`); `origin` is where the owner is.
-APX draws a schematic map, the list and "Cómo llegar":
+APX draws a street map with a pin per place, the list and "Cómo llegar":
 
 ````
 ```apx-cards

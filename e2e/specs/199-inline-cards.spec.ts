@@ -121,6 +121,16 @@ test("an agent's results and A2UI cards draw as APX cards, open their details an
         people: { min: 1, max: 6, value: 2 },
         submit: { label: "Reservar" },
       }),
+    places: () =>
+      fence("apx-cards", {
+        view: "places",
+        title: "Cafés cerca",
+        fallback: "Café del Puerto y Panadería Norte.",
+        places: [
+          { id: "c1", title: "Café del Puerto", lat: -34.6037, lng: -58.3816 },
+          { id: "c2", title: "Panadería Norte", lat: -34.5967, lng: -58.3813 },
+        ],
+      }),
     buy: () =>
       fence("a2ui", {
         fallback: "No puedo comprar desde acá: te dejo el enlace en texto.",
@@ -154,12 +164,12 @@ test("an agent's results and A2UI cards draw as APX cards, open their details an
     media = { movie: await upload("movie"), hotel: await upload("hotel"), flight: await upload("flight") };
     const chat = await env.client.call("threads.create", { kind: "loose", agent_id: "superagent" });
     await page.goto(`${env.core.url}/#thread=${chat.id}`);
-    for (const said of ["movies", "flights", "golf", "buy", "pick", "book"]) {
+    for (const said of ["movies", "flights", "golf", "buy", "pick", "book", "places"]) {
       await env.client.call("threads.send", { thread: chat.id, text: said });
       await env.settle(chat.id);
     }
     const views = page.locator(".apx-inline");
-    await expect(views).toHaveCount(5);
+    await expect(views).toHaveCount(6);
     const movies = views.nth(0);
     await expect(movies.getByText("Datos de ejemplo")).toBeVisible();
     await expect(movies.locator(".apx-inline__track img")).toHaveCount(2);
@@ -199,13 +209,32 @@ test("an agent's results and A2UI cards draw as APX cards, open their details an
     await expect(
       page.getByText("Reservá en Hostería del Bosque: Hoy vie 14 a las 21:00, 2 personas. Confirmame antes de pagar."),
     ).toBeVisible();
-    for (const [i, name] of ["movies", "flights", "golf", "pick", "book"].entries())
+    // Places sit on a street map, its tiles in the panel's own scheme.
+    const map = views.nth(5).locator(".apx-map");
+    await expect(map.getByRole("button", { name: "Panadería Norte" })).toBeVisible();
+    await expect(map.locator("img.apx-map__tile").first()).toHaveAttribute("src", /\/World_(Light|Dark)_Gray_Base\//);
+    // Reloaded, the cards wait as a placeholder while their code loads, never as the block the agent wrote.
+    let release = () => {};
+    const held = new Promise<void>((done) => {
+      release = done;
+    });
+    await page.route(/\/InlineView-[^/]*\.js$/, async (route) => {
+      await held;
+      await route.continue();
+    });
+    await page.reload();
+    await expect(page.getByRole("status", { name: "Armando las tarjetas…" }).first()).toBeVisible();
+    await expect(page.getByText('"title":"Ideas de películas"')).toHaveCount(0);
+    release();
+    await expect(views).toHaveCount(6);
+    await page.unrouteAll();
+    for (const [i, name] of ["movies", "flights", "golf", "pick", "book", "places"].entries())
       await views.nth(i).screenshot({ path: info.outputPath(`${name}-desktop.png`) });
     await page.setViewportSize({ width: 390, height: 844 });
     await expect(movies.getByText("La luna tranquila")).toBeVisible();
     const width = await page.evaluate(() => document.documentElement.scrollWidth);
     expect(width).toBeLessThanOrEqual(390);
-    for (const [i, name] of ["movies", "flights", "golf", "pick", "book"].entries())
+    for (const [i, name] of ["movies", "flights", "golf", "pick", "book", "places"].entries())
       await views.nth(i).screenshot({ path: info.outputPath(`${name}-phone.png`) });
   } finally {
     await page.goto("about:blank");

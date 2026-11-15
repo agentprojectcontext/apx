@@ -11,7 +11,6 @@ export const esCards: Record<keyof typeof enCards, string> = {
   "cards.more": "Más",
   "cards.directions": "Cómo llegar",
   "cards.open": "Abrir",
-  "cards.schematic": "Mapa esquemático",
   "cards.you": "Estás acá",
   "cards.copy": "Copiar",
   "cards.copied": "Copiado",

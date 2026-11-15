@@ -211,7 +211,7 @@
   color: var(--apx-fg-subtle);
 }
 
-/* Places on a schematic map */
+/* Places on a street map */
 .apx-map {
   position: relative;
   aspect-ratio: 16 / 9;
@@ -220,20 +220,22 @@
   border-radius: var(--apx-radius-md);
   background: var(--apx-fill);
 }
-.apx-map > svg {
+.apx-map__tile {
   position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  stroke: var(--apx-border-strong);
-  stroke-width: 0.25;
+  max-width: none;
+  user-select: none;
+  pointer-events: none;
 }
 .apx-map__note {
   position: absolute;
-  right: 8px;
-  bottom: 6px;
-  font-size: 11px;
+  right: 0;
+  bottom: 0;
+  padding: 1px 6px;
+  border-top-left-radius: var(--apx-radius-sm);
+  background: var(--apx-surface);
+  font-size: 10px;
   color: var(--apx-fg-subtle);
+  opacity: 0.85;
 }
 .apx-pin {
   position: absolute;

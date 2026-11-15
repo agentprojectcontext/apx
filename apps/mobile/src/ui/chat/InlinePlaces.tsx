@@ -1,37 +1,15 @@
-import { useState } from "react";
-import { Linking, Pressable, Text, View } from "react-native";
-import Svg, { Line } from "react-native-svg";
+import { useMemo, useState } from "react";
+import { Image, Linking, Pressable, Text, View } from "react-native";
 import { t } from "../../i18n";
+import { MAP_CREDIT, mapFrame } from "../../protocol";
 import { Button, Tag } from "../kit";
 import { makeStyles, useTheme } from "../theme";
 import { type Of, Rating, toneOf } from "./InlineParts";
 
-type Point = { lat: number; lng: number };
 const PIN = 24;
 const STEM = 7;
-const COLUMNS = [1, 2, 3, 4, 5, 6, 7].map((i) => `${(i * 100) / 8}%`);
-const ROWS = [1, 2, 3, 4].map((i) => `${(i * 100) / 5}%`);
 
-/**
- * Where each point sits in a `width` × `height` box: an equirectangular sketch (longitude narrowed by latitude), one
- * scale for both axes, centred, with room for the pins' heads at the top.
- */
-function project(points: Point[], width: number, height: number): { x: number; y: number }[] {
-  const mid = (points.reduce((n, p) => n + p.lat, 0) / points.length) * (Math.PI / 180);
-  const flat = points.map((p) => ({ x: p.lng * Math.cos(mid), y: -p.lat }));
-  const xs = flat.map((p) => p.x);
-  const ys = flat.map((p) => p.y);
-  const [minX, maxX, minY, maxY] = [Math.min(...xs), Math.max(...xs), Math.min(...ys), Math.max(...ys)];
-  const box = { left: PIN, right: width - PIN, top: PIN + STEM + 6, bottom: height - 16 };
-  const room = { x: box.right - box.left, y: box.bottom - box.top };
-  const scales = [maxX > minX ? room.x / (maxX - minX) : 0, maxY > minY ? room.y / (maxY - minY) : 0].filter(Boolean);
-  const scale = scales.length ? Math.min(...scales) : 0;
-  const cx = (box.left + box.right) / 2;
-  const cy = (box.top + box.bottom) / 2;
-  return flat.map((p) => ({ x: cx + (p.x - (minX + maxX) / 2) * scale, y: cy + (p.y - (minY + maxY) / 2) * scale }));
-}
-
-/** Places on a sketched map (no tiles, nothing loaded), a list to pick one, and the way there. */
+/** Places on a street map, a list to pick one, and the way there. */
 export function Places({ node }: { node: Of<"places"> }) {
   const theme = useTheme();
   const s = useStyles();
@@ -39,25 +17,40 @@ export function Places({ node }: { node: Of<"places"> }) {
   const [picked, setPicked] = useState(node.places[0]?.id);
   const place = node.places.find((p) => p.id === picked) ?? node.places[0];
   const height = (width * 9) / 16;
-  const at = width ? project(node.origin ? [...node.places, node.origin] : node.places, width, height) : [];
-  const you = node.origin ? at[node.places.length] : undefined;
+  const frame = useMemo(
+    () => mapFrame(node.origin ? [...node.places, node.origin] : node.places),
+    [node.places, node.origin],
+  );
+  const spot = (p: { lat: number; lng: number }) => {
+    const at = frame.at(p);
+    return { x: (at.x * width) / 100, y: (at.y * height) / 100 };
+  };
+  const you = node.origin && width ? spot(node.origin) : undefined;
   return (
     <View style={s.stack}>
       <View style={s.map} onLayout={(e) => setWidth(e.nativeEvent.layout.width)}>
-        <Svg width="100%" height="100%" style={s.grid}>
-          {COLUMNS.map((x) => (
-            <Line key={x} x1={x} x2={x} y1="0" y2="100%" stroke={theme.border} strokeWidth={1} />
+        {width > 0 &&
+          frame.tiles(theme.scheme).map((tile) => (
+            <Image
+              key={tile.key}
+              testID="map-tile"
+              source={{ uri: tile.url }}
+              accessibilityIgnoresInvertColors
+              style={{
+                position: "absolute",
+                left: (tile.left * width) / 100,
+                top: (tile.top * height) / 100,
+                width: (tile.width * width) / 100,
+                height: (tile.height * height) / 100,
+              }}
+            />
           ))}
-          {ROWS.map((y) => (
-            <Line key={y} x1="0" x2="100%" y1={y} y2={y} stroke={theme.border} strokeWidth={1} />
-          ))}
-        </Svg>
         {you && (
           <View accessibilityLabel={t("inlineYouAreHere")} style={[s.you, { left: you.x - 7, top: you.y - 7 }]} />
         )}
         {node.places.map((p, i) => {
-          const point = at[i];
-          if (!point) return null;
+          if (!width) return null;
+          const point = spot(p);
           const on = p.id === place?.id;
           return (
             <Pressable
@@ -76,7 +69,7 @@ export function Places({ node }: { node: Of<"places"> }) {
             </Pressable>
           );
         })}
-        <Text style={s.note}>{t("inlineSchematicMap")}</Text>
+        <Text style={s.note}>{MAP_CREDIT}</Text>
       </View>
       <View style={s.list}>
         {node.places.map((p, i) => {
@@ -147,7 +140,6 @@ const useStyles = makeStyles((theme) => ({
     borderRadius: theme.radiusMd,
     backgroundColor: theme.fill,
   },
-  grid: { position: "absolute", top: 0, left: 0 },
   pin: { position: "absolute", width: PIN, alignItems: "center" },
   pinHead: {
     width: PIN,
@@ -170,7 +162,18 @@ const useStyles = makeStyles((theme) => ({
     borderColor: theme.surface,
     backgroundColor: theme.info,
   },
-  note: { position: "absolute", right: 8, bottom: 6, color: theme.subtle, fontSize: 11 },
+  note: {
+    position: "absolute",
+    right: 0,
+    bottom: 0,
+    paddingHorizontal: 6,
+    paddingVertical: 1,
+    borderTopLeftRadius: theme.radiusSm,
+    backgroundColor: theme.surface,
+    color: theme.subtle,
+    fontSize: 10,
+    opacity: 0.85,
+  },
   list: { borderWidth: 1, borderColor: theme.border, borderRadius: theme.radiusMd, overflow: "hidden" },
   row: { flexDirection: "row", alignItems: "flex-start", gap: 12, paddingHorizontal: 12, paddingVertical: 10 },
   rowLine: { borderTopWidth: 1, borderTopColor: theme.border },

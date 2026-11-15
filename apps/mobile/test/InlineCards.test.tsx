@@ -2,7 +2,7 @@ import { act, fireEvent, render } from "@testing-library/react-native";
 import * as Clipboard from "expo-clipboard";
 import { Linking } from "react-native";
 import { t } from "../src/i18n";
-import type { ApxClient, Message } from "../src/protocol";
+import { type ApxClient, MAP_CREDIT, type Message } from "../src/protocol";
 import { ChatMessage } from "../src/ui/ChatMessage";
 
 jest.mock("../src/chat/mediaFiles", () => ({}));
@@ -235,7 +235,16 @@ test("places: picking one in the list gives the way there and its page", async (
       ],
     }),
   );
-  expect(ui.getByText(t("inlineSchematicMap"))).toBeTruthy();
+  let map = ui.getByText(MAP_CREDIT).parent;
+  while (map && !map.props.onLayout) map = map.parent;
+  expect(ui.queryByLabelText("1. Harbour café")).toBeNull();
+  await act(async () => {
+    if (map) fireEvent(map, "layout", { nativeEvent: { layout: { width: 320, height: 180 } } });
+  });
+  expect(ui.getByLabelText("1. Harbour café")).toBeTruthy();
+  const tiles: string[] = ui.getAllByTestId("map-tile").map((n) => n.props.source.uri);
+  expect(tiles.length).toBeGreaterThan(0);
+  expect(tiles.every((uri) => uri.startsWith("https://") && uri.includes("server.arcgisonline.com"))).toBe(true);
   expect(ui.getByText("Coffee · 300 m")).toBeTruthy();
   expect(ui.getByText("Open now")).toBeTruthy();
   expect(ui.queryByText(t("inlineOpen"))).toBeNull();

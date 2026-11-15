@@ -22,6 +22,7 @@
     "./delegation": "./src/delegation.ts",
     "./email-block": "./src/email-block.ts",
     "./inline-ui": "./src/inline-ui.ts",
+    "./inline-map": "./src/inline-map.ts",
     "./flow-graph": "./src/flow-graph.ts",
     "./flow-methods": "./src/flow-methods.ts",
     "./flow-history": "./src/flow-history.ts",

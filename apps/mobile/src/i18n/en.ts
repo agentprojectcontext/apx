@@ -716,7 +716,6 @@ export const en = {
   inlineTime: "Time",
   inlineDirections: "Directions",
   inlineOpen: "Open",
-  inlineSchematicMap: "Schematic map",
   inlineYouAreHere: "You are here",
   inlineSteps: "{done} of {total} done",
   mailNoSubject: "No subject",

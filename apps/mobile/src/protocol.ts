@@ -28,6 +28,7 @@ export type {
   TaskEvent,
   Thread,
 } from "../../../packages/protocol/src/index.ts";
+export { MAP_CREDIT, mapFrame } from "../../../packages/protocol/src/inline-map.ts";
 export {
   INLINE_LANGS,
   type InlineNode,
