@@ -11,9 +11,10 @@ import { errorMessage } from "../errors.ts";
 import type { Log } from "../log.ts";
 import { serviceSecret } from "../secret-names.ts";
 import type { Secrets } from "../secrets.ts";
-import { toOggOpus, toPcm16k } from "./audio.ts";
+import { toOggOpus, toPcm16k, toWav16k } from "./audio.ts";
 import type { CodexImages } from "./codex-images.ts";
 import { EMBED_PROBE, embed } from "./embeddings.ts";
+import { createFfmpeg, type Ffmpeg } from "./ffmpeg.ts";
 import { generateImage, IMAGE_PROBE } from "./images.ts";
 import { reach } from "./reach.ts";
 import { SPEECH_PROBE, speak } from "./speech.ts";
@@ -82,10 +83,15 @@ export function createServices(deps: {
   voice?: Pick<VoiceEngine, "installed" | "speak" | "transcribe">;
   /** Any recording as 16 kHz mono PCM16, what APX's voice hears (ffmpeg by default). */
   toPcm?: (audio: Buffer) => Promise<Buffer>;
+  /** The ffmpeg recordings and voice replies are converted with (downloaded into home/bin when missing). */
+  ffmpeg?: Ffmpeg;
 }) {
   const { store, secrets, log } = deps;
   const f = deps.fetch ?? fetch;
-  const whisperCpp = deps.whisperCpp ?? createWhisperCpp({ log });
+  const ffmpeg = deps.ffmpeg ?? createFfmpeg({ dir: path.join(deps.home, "bin"), log });
+  const toPcm = deps.toPcm ?? (async (audio: Buffer) => toPcm16k(audio, await ffmpeg.path()));
+  const whisperCpp =
+    deps.whisperCpp ?? createWhisperCpp({ log, toWav: async (audio) => toWav16k(audio, await ffmpeg.path()) });
   const status = new Map<string, { ok: boolean; at: number }>();
   const keyName = serviceSecret;
   const keyOf = (s: ServiceConfig) => (s.needs_key ? secrets.resolve(`secret://${keyName(s.id)}`) : undefined);
@@ -109,7 +115,7 @@ export function createServices(deps: {
     signal: AbortSignal,
   ) =>
     s.dialect === "apx-voice"
-      ? native(s).transcribe(await (deps.toPcm ?? toPcm16k)(a.bytes), s.language, signal)
+      ? native(s).transcribe(await toPcm(a.bytes), s.language, signal)
       : transcribe(s, a, keyOf(s), signal, f, whisperCpp);
 
   async function check(s: ServiceConfig): Promise<boolean> {
@@ -324,7 +330,7 @@ export function createServices(deps: {
     async voiceNote(text: string, thread: string | undefined, signal: AbortSignal) {
       const { out, service } = await firstThatWorks(candidates("speech"), (s) => speakWith(s, { text }, signal));
       try {
-        const ogg = await toOggOpus(out.bytes);
+        const ogg = await toOggOpus(out.bytes, await ffmpeg.path());
         return saveFile(ogg, "audio/ogg", { kind: "audio", thread_id: thread, service: service.id, prompt: text });
       } catch (err) {
         log.warn({ err: errorMessage(err, 200) }, "no ffmpeg conversion; the voice goes as a plain audio file");
@@ -340,6 +346,11 @@ export function createServices(deps: {
     embeddingLabel(): string | undefined {
       const s = ofKind("embedding").find((x) => x.enabled);
       return s ? [s.label, s.model].filter(Boolean).join(" · ") : undefined;
+    },
+    /** Gets ffmpeg ready before the first voice note, when something here transcribes or speaks. */
+    prepareAudio(): void {
+      if (all().some((s) => s.enabled && (s.kind === "transcription" || s.kind === "speech")))
+        ffmpeg.path().catch(() => {});
     },
     /** Stops what APX runs itself (its whisper.cpp). */
     close: () => whisperCpp.close(),

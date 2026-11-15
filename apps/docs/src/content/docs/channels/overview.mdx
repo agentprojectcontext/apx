@@ -297,6 +297,11 @@ Voice notes you send on Telegram or WhatsApp are transcribed and answered as tex
 **Settings › Voices** (local whisper.cpp included). Ask the agent to answer you with voice and it turns spoken answers
 on for that chat; that needs a voice in **Settings › Voices** too.
 
+Reading a voice note and sending a voice reply need ffmpeg. When the computer APX runs on has none, APX downloads its
+own copy (a 20–30 MB download, kept in `bin/` in its home folder) the first time it needs it, or as soon as a voice
+service is on. It is a static build of FFmpeg, released under the GPL, checked against the release's published
+checksum. On a system with no such build (anything but macOS, Linux or Windows on x64/arm64), install ffmpeg yourself.
+
 ## Which channels work today
 
 | Channel | State | How it connects |
