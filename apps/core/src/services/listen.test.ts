@@ -5,6 +5,7 @@ import path from "node:path";
 import { test } from "node:test";
 import { say, scriptedLlm, startCore } from "../engine/testkit.ts";
 import { createLog } from "../log.ts";
+import { wav16k } from "./audio.ts";
 import { createServices } from "./registry.ts";
 import { createWhisperCpp } from "./whisper-cpp.ts";
 
@@ -16,7 +17,13 @@ const viaNode = ((file: string, args: readonly string[], options: SpawnOptions) 
 test("the words heard while recording come from whisper.cpp on this machine, and no file is kept", async () => {
   const env = await startCore({ llm: scriptedLlm(() => say("ok")) });
   const log = createLog("test", true);
-  const whisperCpp = createWhisperCpp({ log, command: FAKE, idleMs: 200, spawn: viaNode });
+  const whisperCpp = createWhisperCpp({
+    log,
+    command: FAKE,
+    idleMs: 200,
+    spawn: viaNode,
+    toWav: async (a) => wav16k(a),
+  });
   const services = createServices({
     store: env.core.store,
     secrets: env.core.secrets,

@@ -1,5 +1,6 @@
 // whisper.cpp's `whisper-server`, run by APX itself: started on the first voice note, stopped after a while unused,
-// listening on loopback only. The owner points it at a ggml model file; ffmpeg converts the audio (--convert).
+// listening on loopback only. The owner points it at a ggml model file; APX converts each recording to WAV first, so
+// whisper.cpp never needs ffmpeg of its own.
 import { type ChildProcess, spawn } from "node:child_process";
 import fs from "node:fs";
 import net from "node:net";
@@ -8,6 +9,7 @@ import path from "node:path";
 import { errorMessage } from "../errors.ts";
 import type { Log } from "../log.ts";
 import { findProgram } from "../programs.ts";
+import { toWav16k } from "./audio.ts";
 
 const START_TIMEOUT_MS = 60_000;
 const IDLE_MS = 10 * 60_000;
@@ -40,6 +42,8 @@ export function createWhisperCpp(deps: {
   idleMs?: number;
   /** How the server is started; a test starts its stand-in through node on every system. */
   spawn?: typeof spawn;
+  /** Any recording as a 16 kHz WAV (ffmpeg on the PATH by default). */
+  toWav?: (audio: Buffer) => Promise<Buffer>;
 }) {
   const command = deps.command ?? "whisper-server";
   let current: Running | undefined;
@@ -62,17 +66,7 @@ export function createWhisperCpp(deps: {
     if (!fs.existsSync(model)) throw new Error(`no model file at ${model}`);
     const port = await freePort();
     const url = `http://127.0.0.1:${port}`;
-    const args = [
-      "-m",
-      model,
-      "--host",
-      "127.0.0.1",
-      "--port",
-      String(port),
-      "--convert",
-      "-t",
-      String(whisperThreads()),
-    ];
+    const args = ["-m", model, "--host", "127.0.0.1", "--port", String(port), "-t", String(whisperThreads())];
     const child = (deps.spawn ?? spawn)(bin, args, {
       stdio: ["ignore", "ignore", "pipe"],
     });
@@ -114,8 +108,9 @@ export function createWhisperCpp(deps: {
         throw new Error(errorMessage(err, 300));
       });
       if (current) current.used = Date.now();
+      const wav = await (deps.toWav ?? toWav16k)(a.bytes);
       const form = new FormData();
-      form.set("file", new Blob([new Uint8Array(a.bytes)], { type: a.mime }), "voice");
+      form.set("file", new Blob([new Uint8Array(wav)], { type: "audio/wav" }), "voice.wav");
       form.set("response_format", "json");
       form.set("temperature", "0");
       form.set("language", a.language || "auto");

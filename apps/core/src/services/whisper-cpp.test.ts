@@ -6,6 +6,7 @@ import path from "node:path";
 import { test } from "node:test";
 import { createLog } from "../log.ts";
 import { removeDir } from "../testkit/platform.ts";
+import { wav16k } from "./audio.ts";
 import { createWhisperCpp } from "./whisper-cpp.ts";
 
 const FAKE = path.join(import.meta.dirname, "fake-whisper-server.test-support.mjs");
@@ -17,7 +18,14 @@ test("whisper.cpp starts on the first voice note and is reused", async () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "apx-whisper-"));
   const model = path.join(dir, "ggml-small.bin");
   fs.writeFileSync(model, "model");
-  const w = createWhisperCpp({ log: createLog("test", true), command: FAKE, idleMs: 200, spawn: viaNode });
+  // APX converts the recording itself: whisper.cpp gets a WAV, whatever the note came as.
+  const w = createWhisperCpp({
+    log: createLog("test", true),
+    command: FAKE,
+    idleMs: 200,
+    spawn: viaNode,
+    toWav: async (audio) => wav16k(audio),
+  });
   try {
     assert.equal(w.available(model), true);
     assert.equal(w.available(path.join(dir, "missing.bin")), false);

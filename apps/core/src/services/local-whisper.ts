@@ -30,7 +30,7 @@ export type Machine = {
   accel: "metal" | "cpu";
   /** whisper.cpp's server is installed (where). */
   server?: string | undefined;
-  /** ffmpeg converts voice notes for it. */
+  /** ffmpeg is on this computer (APX downloads its own when it is not). */
   ffmpeg: boolean;
 };
 
@@ -59,10 +59,9 @@ export function recommend(m: Machine): string {
 
 /** How to get whisper.cpp's server on this system, when it is missing. */
 export function installHint(platform: NodeJS.Platform): string {
-  if (platform === "darwin") return "brew install whisper-cpp ffmpeg";
-  if (platform === "win32")
-    return "winget install ffmpeg, and whisper-server.exe from github.com/ggml-org/whisper.cpp/releases (in your PATH)";
-  return "brew install whisper-cpp ffmpeg (Linuxbrew), or build whisper.cpp; or use a cloud service instead";
+  if (platform === "darwin") return "brew install whisper-cpp";
+  if (platform === "win32") return "whisper-server.exe from github.com/ggml-org/whisper.cpp/releases (in your PATH)";
+  return "brew install whisper-cpp (Linuxbrew), or build whisper.cpp; or use a cloud service instead";
 }
 
 export const modelFile = (dir: string, id: string) => path.join(dir, `ggml-${id}.bin`);
