@@ -4917,3 +4917,30 @@ Rejected: counting lines, files or branches as progress (they reward the same ch
 (D-188), turning every non-zero exit into a turn error (a search that finds nothing exits 1), and clearing output on
 every call (it would change the cached prefix each time).
 
+
+<a id="d-229"></a>
+## D-229 — 2026-11-14 — A task takes fewer calls, and a connected app's tools are found, not sent every call
+Owners report that APX spends many tokens and steps on one thing. Measured on a small code task run through APX's own
+loop: ChatGPT took 19 model calls and 312k input tokens; Gemini 3.5 Flash about 22 calls and 377k, and hit Gemini's
+per-minute limit 25 seconds in (120k tokens in 8 calls). Output was under 2k tokens in both: the cost is what every call
+re-sends. Each call carried about 18k tokens before the conversation: 46k chars of tool definitions (74 tools, 60% of
+the call), 19k of system prompt and 8k of turn input. Seven of the 19 calls were bookkeeping (four plan updates, two
+status changes, one note).
+
+- **The plan moves the card** (`tasks.update`): the assignee writing its task's plan while the task sits before
+  Doing moves it to Doing, so no `task_update` call starts the work. The owner's edits never move it.
+- **Closing finishes the step** (`tasks.close`): the assignee closing as done marks the plan's step in progress done;
+  pending steps stay as they were. The task block says to close with no plan or status update first, to mark steps in
+  the same response as the next call, and to use review only when the work must be checked before it is done.
+- **A connected app's tools are found** (`appOf` in `tools/mcp-bridge.ts`, `turnTools`): Calendar, Gmail, Drive and
+  Asana tools (9k chars with Google connected) are no longer sent on every call; `mcp_search` names the connected apps
+  and finds their tools like an MCP server's (D-053), and `mcp_call` runs them, or the model names one directly once
+  found. Every check, card and step is that tool's own. A turn whose tools were named one by one (a worker, WhatsApp's
+  handoff) keeps them direct. `mcp_call` still refuses APX's other tools.
+- **Engineering templates name their tools** (`tools:` in the product team's developer, QA, architect and security):
+  files, shell, tasks, memory, the browser, delegation, MCP and the web, without widgets, channels, contacts, routines
+  or account tools.
+
+Rejected: hiding the plan tool (the owner reads it and the progress guard counts it), deferring every rarely used tool
+(the super-agent's own tools are what most owners use: a search before each would add calls), and a lower reasoning
+effort by default (output was not the cost).

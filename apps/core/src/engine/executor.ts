@@ -13,7 +13,7 @@ import type { Store } from "../domain/store.ts";
 import { worksInFolder } from "../domain/threads.ts";
 import { errorMessage } from "../errors.ts";
 import type { TurnIO } from "../harness/index.ts";
-import { MCP_CALL, MCP_SEARCH, unwrapCall } from "../tools/mcp-bridge.ts";
+import { appOf, MCP_CALL, MCP_SEARCH, unwrapCall } from "../tools/mcp-bridge.ts";
 import { authorize, type Decision, decide, keepsCard, modeOf, sessionGate } from "../tools/policy.ts";
 import { cap, UNTRUSTED_MARK } from "../tools/result.ts";
 import { commandRisk } from "../tools/shell.ts";
@@ -280,8 +280,11 @@ export function createExecutor(o: {
     if (transfer) return { ok: false, text: transfer, endTurn: true };
     // mcp_call runs the tool it names, through every check below as if the model had called that tool itself.
     const { name, args: raw } = called === MCP_CALL ? unwrapCall(given) : { name: called, args: given };
-    if (called === MCP_CALL || name === "grant_tool" || (name.startsWith("mcp_") && !byName.has(name))) await join();
-    const bridged = called !== MCP_CALL || (name.startsWith("mcp_") && name !== MCP_CALL && name !== MCP_SEARCH);
+    // A tool found through the bridge (an MCP server's, a connected app's) joins on first use, named either way.
+    if (called === MCP_CALL || name === "grant_tool" || !byName.has(name)) await join();
+    const bridged =
+      called !== MCP_CALL ||
+      ((name.startsWith("mcp_") || Boolean(appOf(name))) && name !== MCP_CALL && name !== MCP_SEARCH);
     const tool = bridged ? byName.get(name) : undefined;
     const title = tool ? toolTitle(store, tool, raw) : name;
     const began = Date.now();

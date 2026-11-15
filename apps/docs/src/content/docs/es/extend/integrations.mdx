@@ -88,6 +88,9 @@ Cada parte de Google se conecta por separado, así elegís a qué llegan tus age
 | Gmail | Enviar mails. Con tu propio cliente: además buscar y leer mails y escribir borradores | Enviar siempre pregunta; escribir un borrador pregunta |
 | Google Drive | Escribir Docs y compartirlos; buscarlos y leerlos. Con tu propio cliente: buscar y leer todo tu Drive (Docs, Sheets, Slides, archivos de texto) | Compartir |
 
+Los agentes encuentran estas tools cuando un pedido las necesita (con `mcp_search`, como las de un servidor MCP), así que
+un chat que no toca tu calendario ni tu correo no las paga en cada paso.
+
 El acceso de APX le pide a Google solo lo que puede verificarse sin una auditoría de seguridad paga, así que no lee tu
 correo ni el resto de tu Drive. Para leer mails, conectá tu casilla en **Canales › Nuevo canal › Email**; para todo Gmail y Drive, usá
 tu propio OAuth client.

@@ -45,6 +45,8 @@ How to stay within it:
 - Argument descriptions do not list an enum's values: the schema already does.
 - Tools that come and go (MCP servers', extensions') are reached through `mcp_search` and `mcp_call`, never added one
   schema each ([D-053](DECISIONS.md#d-053)).
+- A connected app's tools (Calendar, Gmail, Drive, Asana) are found the same way, not sent on every call
+  ([D-229](DECISIONS.md#d-229)).
 - APX's own skills (`apps/core/src/skills/apx/`, how to change APX itself) are always there, so the catalog names
   them in one sentence (about 50 tokens) instead of a line each; their bodies load only with `load_skill`.
 - A turn's input carries data; a fixed instruction its chat calls for (the mode, how to write on a phone chat, voice
