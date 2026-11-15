@@ -2,6 +2,12 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { readsImages } from "./vision.ts";
 
+test("Gemma 3n retains image support in local and hosted model refs", () => {
+  for (const model of ["ollama/gemma3n:e4b", "google/gemma-3n-e4b-it"]) assert.equal(readsImages(model), true, model);
+  for (const model of ["ollama/gemma4n:e4b", "google/gemma-4n-e4b-it", "google/gemma-30n-e4b-it"])
+    assert.equal(readsImages(model), undefined, model);
+});
+
 test("models known to read images, known not to, and unknown ones", () => {
   for (const m of [
     "anthropic/claude-sonnet-4-5",
