@@ -7,6 +7,7 @@ import { BottomSheet, Button, Tag } from "../kit";
 import { useMediaUri } from "../media/context";
 import { MediaViewer } from "../media/MediaViewer";
 import { makeStyles } from "../theme";
+import { card as kitCard } from "../tokens";
 import { Agenda, Code, Head, Status, Steps } from "./InlineFacts";
 import { Accent, InlineAsk, inlineBox, type Of, Rating, SendButton } from "./InlineParts";
 import { Booking, Choice, Compare } from "./InlinePick";
@@ -280,9 +281,15 @@ const useStyles = makeStyles((theme) => ({
   count: { alignSelf: "center", color: theme.muted, fontSize: 12, fontVariant: ["tabular-nums"] },
   column: { gap: 8 },
   row: { flexDirection: "row", gap: 12, alignItems: "flex-start" },
-  card: { ...inlineBox(theme), flexGrow: 1, gap: 8, paddingHorizontal: 16, paddingVertical: 14 },
+  card: {
+    ...inlineBox(theme),
+    flexGrow: 1,
+    gap: kitCard.gap,
+    paddingHorizontal: kitCard.padX,
+    paddingVertical: kitCard.padY,
+  },
   banner: { aspectRatio: 16 / 9, overflow: "hidden", backgroundColor: theme.fill, borderRadius: theme.radiusSm },
-  bleed: { marginTop: -14, marginHorizontal: -16, marginBottom: 4, borderRadius: 0 },
+  bleed: { marginTop: -kitCard.padY, marginHorizontal: -kitCard.padX, marginBottom: 4, borderRadius: 0 },
   thumb: {
     width: 76,
     aspectRatio: 2 / 3,

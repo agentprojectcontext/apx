@@ -8,6 +8,7 @@ import { Icon } from "../Icon";
 import { Button } from "../kit";
 import { useMediaUri } from "../media/context";
 import { makeStyles, type Theme, type Tone, useTheme } from "../theme";
+import { card as kitCard } from "../tokens";
 
 export type Of<K extends InlineNode["kind"]> = Extract<InlineNode, { kind: K }>;
 export type CardTone = Of<"status">["tone"];
@@ -37,8 +38,8 @@ export function Accent() {
         top: 0,
         left: 0,
         right: 0,
-        height: 3,
-        opacity: 0.85,
+        height: kitCard.line,
+        opacity: kitCard.lineOpacity,
         experimental_backgroundImage: `linear-gradient(90deg, ${theme.brand}, ${theme.violet})`,
       }}
     />

@@ -15,5 +15,7 @@ test("the cards' styles ride compact and cannot close the inline script", () => 
   const cards = source.slice(source.indexOf("s.id='apx-kit-cards'"));
   assert.doesNotMatch(cards, /\/\*/, "no comments");
   assert.doesNotMatch(cards, /</, "no raw angle bracket");
-  assert.match(cards, /padding:16px 18px/);
+  assert.match(cards, /:root\{--apx-card-pad-y:16px;--apx-card-pad-x:18px;/, "the card measures the phone syncs");
+  assert.match(cards, /padding:var\(--apx-card-pad-y\) var\(--apx-card-pad-x\)/);
+  assert.match(cards, /@media \(max-width:480px\)\{:root\{--apx-card-pad-y:14px;--apx-card-pad-x:16px;\}/);
 });
