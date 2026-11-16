@@ -19,7 +19,6 @@ import { InterruptionsSection } from "./InterruptionsSection.tsx";
 import { LogsSection } from "./LogsSection.tsx";
 import { MemorySection } from "./MemorySection.tsx";
 import { AccountSection, AppearanceSection } from "./OtherSections.tsx";
-import { ProfileSection } from "./ProfileSection.tsx";
 import { RouterSection } from "./RouterSection.tsx";
 import { ServicesSection } from "./ServicesSection.tsx";
 import { SoundsSection } from "./SoundsSection.tsx";
@@ -35,6 +34,7 @@ const GROUPS: { label: MessageKey; items: NavEntry[] }[] = [
       { id: "account", label: "config.account", icon: <Icons.User /> },
       { id: "appearance", label: "config.appearance", icon: <Icons.Sun /> },
       { id: "sounds", label: "config.sounds", icon: <Icons.Volume2 /> },
+      { id: "interruptions", label: "config.interruptions", icon: <Icons.BellOff /> },
     ],
   },
   {
@@ -52,8 +52,6 @@ const GROUPS: { label: MessageKey; items: NavEntry[] }[] = [
     label: "config.group.agents",
     items: [
       { id: "agents", label: "config.agents", icon: <Icons.Bot /> },
-      { id: "profile", label: "config.superagent", icon: <Icons.Crown /> },
-      { id: "interruptions", label: "config.interruptions", icon: <Icons.BellOff /> },
       { id: "activity-review", label: "config.activityReview", icon: <Icons.Sparkles /> },
     ],
   },
@@ -177,8 +175,6 @@ function Body({ section }: { section: ConfigSection }) {
       return <ActivityReviewSection />;
     case "interruptions":
       return <InterruptionsSection />;
-    case "profile":
-      return <ProfileSection />;
     case "browser":
       return <BrowserSection />;
     case "desktop":

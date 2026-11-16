@@ -4,7 +4,7 @@ import { Suspense, useState } from "react";
 import { blobOf } from "../data/identity.ts";
 import { useData } from "../data/state.ts";
 import { AgentEditor, SuperAgentCard } from "../lazy.ts";
-import { go } from "./nav.ts";
+import { go, useNav } from "./nav.ts";
 
 /**
  * The super-agent in the top bar. A click opens its card: what it and the agents it delegated to are doing now, its
@@ -12,7 +12,8 @@ import { go } from "./nav.ts";
  */
 export function SuperAgentButton({ agent }: { agent: Agent }) {
   const [open, setOpen] = useState(false);
-  const [editing, setEditing] = useState(false);
+  // Held in nav, so a link (its profile, how it reaches you) can open the editor on a page.
+  const editing = useNav((s) => s.superEdit);
   const homeId = useData((s) => Object.values(s.threads).find((x) => x.kind === "home")?.id);
   const openChat = () => {
     setOpen(false);
@@ -53,7 +54,7 @@ export function SuperAgentButton({ agent }: { agent: Agent }) {
               onOpenChat={openChat}
               onEdit={() => {
                 setOpen(false);
-                setEditing(true);
+                go.superEdit();
               }}
               onClose={() => setOpen(false)}
             />
@@ -62,7 +63,7 @@ export function SuperAgentButton({ agent }: { agent: Agent }) {
       </Popover>
       {editing && (
         <Suspense fallback={null}>
-          <AgentEditor agent={agent} onClose={() => setEditing(false)} />
+          <AgentEditor agent={agent} start={editing} onClose={() => go.superEdit(null)} />
         </Suspense>
       )}
     </>

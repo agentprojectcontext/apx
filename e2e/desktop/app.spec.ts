@@ -5,25 +5,27 @@
 import fs from "node:fs";
 import http from "node:http";
 import type { AddressInfo } from "node:net";
-import os from "node:os";
 import path from "node:path";
 import { type ElectronApplication, expect, type Page, test } from "@playwright/test";
+import { tempDir } from "../../apps/core/src/testkit/platform.ts";
 import { rpc, until } from "../specs/kit.ts";
 import { assertDesktopHeader, assertFullscreenBar, launchDesktop } from "./app-shell.test-support.ts";
 
 const core = `http://127.0.0.1:${process.env.E2E_PORT ?? 7460}`;
 
 let app: ElectronApplication;
+let sandbox: ReturnType<typeof tempDir>;
 let home: string;
 
 test.beforeAll(async () => {
-  home = fs.mkdtempSync(path.join(os.tmpdir(), "apx-e2e-desktop-"));
+  sandbox = tempDir("apx-e2e-desktop-");
+  home = sandbox.path;
   app = await launchDesktop(home);
 });
 
 test.afterAll(async () => {
   await app?.close();
-  fs.rmSync(home, { recursive: true, force: true });
+  await sandbox?.remove();
 });
 
 /** The menu-bar icon, which the app makes with the quick chat once it is up (the entry script keeps it for tests). */

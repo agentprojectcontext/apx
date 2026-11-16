@@ -49,7 +49,7 @@ export function AgentDetail({
   const t = useT();
   const [pending, setPending] = useState<string>();
   const [tab, setTab] = useState("summary");
-  const [editing, setEditing] = useState<false | "identity" | "prompt" | "computer">(false);
+  const [editing, setEditing] = useState<false | "identity" | "prompt" | "computer" | "profile">(false);
   /** Bumped when the editor closes, so the prompt shown is read again. */
   const [edits, setEdits] = useState(0);
   const threads = useData((s) => s.threads);
@@ -180,7 +180,7 @@ export function AgentDetail({
       </header>
       {agent.role && <div className="teamdetail__role">{agent.role}</div>}
       {agent.description && <p className="teamdetail__desc">{agent.description}</p>}
-      {agent.kind === "secretary" && <SuperAgentLinks />}
+      {agent.kind === "secretary" && <SuperAgentLinks onProfile={() => setEditing("profile")} />}
       <div className="teamdetail__actions">
         <Button size="sm" leadingIcon={<Icons.MessageCircle size={14} />} onClick={onChat}>
           {t("team.chatWith", { name: agent.name })}
@@ -336,8 +336,8 @@ function AgentPrompt({ agent, onEdit }: { agent: Agent; onEdit(): void }) {
   );
 }
 
-/** The super-agent's own settings live elsewhere: its profile, and who you are to it. */
-function SuperAgentLinks() {
+/** The super-agent's own settings: its profile (on the editor's Profile page) and who you are to it. */
+function SuperAgentLinks({ onProfile }: { onProfile(): void }) {
   const t = useT();
   const lang = useLanguage();
   const profile = useProfiles((s) => activeProfileName(s, lang));
@@ -346,7 +346,7 @@ function SuperAgentLinks() {
   }, []);
   return (
     <div className="teamdetail__super">
-      <button type="button" className="teamdetail__superlink" onClick={() => go.config("profile")}>
+      <button type="button" className="teamdetail__superlink" onClick={onProfile}>
         <Icons.Calendar size={14} />
         <span>
           {t("agent.super.profile")}: <b>{profile === undefined ? "…" : (profile ?? t("prof.none"))}</b>

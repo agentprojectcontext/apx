@@ -18,6 +18,7 @@ import { desktopAppRecord } from "./fake-desktop-app.ts";
 import { fakeLlm } from "./fake-llm.ts";
 import { fakeLocalModels } from "./fake-local-models.ts";
 import { writeFixtures } from "./fixtures.ts";
+import { coreOwnsHome, portTaken } from "./sandbox.ts";
 
 const root = path.resolve(import.meta.dirname, "..");
 export const E2E = {
@@ -28,7 +29,15 @@ export const E2E = {
   telegramToken: "123456789:AAE2eFakeTokenForTheEmulatedBot0",
   discordToken: "MTIzNDU2Nzg5MDEyMzQ1Njc4.GfAkE1.e2eFakeTokenForTheEmulatedDiscordBot",
   slackTokens: { bot: "xoxb-1234-e2e-fake-bot", app: "xapp-1-e2e-fake-app" },
+  /** Which run this sandbox belongs to (playwright.config.ts): specs refuse a control API that reports another. */
+  run: process.env.E2E_RUN ?? "manual",
 };
+// Starting beside something already listening would leave the specs talking to it instead of this sandbox.
+for (const port of [E2E.port, E2E.control, E2E.whatsapp])
+  if (await portTaken(port)) {
+    console.error(`apx e2e: port ${port} is already in use; free it or pick other E2E_* ports`);
+    process.exit(1);
+  }
 
 const dir = fs.mkdtempSync(path.join(os.tmpdir(), "apx-e2e-"));
 const llm = await fakeLlm();
@@ -135,6 +144,7 @@ const control = http.createServer((req, res) => {
     const body = (raw ? JSON.parse(raw) : {}) as Record<string, unknown>;
     if (req.url === "/info")
       return json(200, {
+        run: E2E.run,
         dir,
         repo: fx.repo,
         home: fx.home,
@@ -216,13 +226,22 @@ const control = http.createServer((req, res) => {
     json(404, { error: "no such control" });
   });
 });
+control.once("error", (error) => {
+  console.error(`apx e2e: control API: ${error.message}`);
+  core.kill("SIGKILL");
+  process.exit(1);
+});
 control.listen(E2E.control, "127.0.0.1");
 
-// Ready when the core answers.
-for (let i = 0; i < 100; i++) {
-  try {
-    if ((await fetch(`http://127.0.0.1:${E2E.port}/health`)).ok) break;
-  } catch {}
+// Ready when this sandbox's own core answers (its home's id), never whatever else took the port meanwhile.
+const coreUrl = `http://127.0.0.1:${E2E.port}`;
+const readyBy = Date.now() + 30_000;
+while (!(await coreOwnsHome(coreUrl, fx.home))) {
+  if (Date.now() > readyBy || core.exitCode !== null) {
+    console.error(`apx e2e: the sandbox core did not answer on ${E2E.port}; see ${path.join(dir, "core.log")}`);
+    core.kill("SIGKILL");
+    process.exit(1);
+  }
   await new Promise((r) => setTimeout(r, 100));
 }
 // Every agent answers with the fake model unless a test picks another.

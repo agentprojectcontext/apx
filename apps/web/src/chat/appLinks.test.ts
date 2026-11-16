@@ -42,6 +42,11 @@ test("an app link says what it opens, so its button can show the place's icon an
   assert.deepEqual(kindOf("apx:settings/channels"), { kind: "channels" });
 });
 
+test("a link to the super-agent's old place in Settings opens its editor on the Profile page", () => {
+  assert.deepEqual(kindOf("apx:settings/profile"), { kind: "superAgent" });
+  assert.equal(kindOf("apx:settings/interruptions")?.kind, "settings");
+});
+
 test("a server link opens an exact contextual editor without navigating away from the chat", () => {
   assert.deepEqual(kindOf("apx:resources/mcp/acme/global"), {
     kind: "resources",

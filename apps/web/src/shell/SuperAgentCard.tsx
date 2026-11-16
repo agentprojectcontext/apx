@@ -45,7 +45,7 @@ export function SuperAgentCard({
       icon: <Icons.Calendar />,
       onSelect: () => {
         onClose();
-        go.config("profile");
+        go.superEdit("profile");
       },
     },
     {

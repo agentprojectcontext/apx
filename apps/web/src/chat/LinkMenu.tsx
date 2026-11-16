@@ -20,6 +20,7 @@ function LinkMenu({ href, children }: { href: string; children: React.ReactEleme
 
 const PLACE_ICON: Record<AppPlace["kind"], ReactNode> = {
   settings: <Icons.Settings size={13} />,
+  superAgent: <Icons.Calendar size={13} />,
   task: <Icons.ListChecks size={13} />,
   tasks: <Icons.ListChecks size={13} />,
   flows: <Icons.GitBranch size={13} />,
@@ -46,6 +47,8 @@ function usePlaceHint(place: AppPlace | undefined): string {
       const section = CONFIG_SECTION_LABELS[place.section];
       return section ? t("link.go.settingsSection", { name: t(section) }) : t("link.go.settings");
     }
+    case "superAgent":
+      return t("link.go.superProfile");
     case "task":
       return t("link.go.task", { name: task?.title ?? id });
     case "tasks":

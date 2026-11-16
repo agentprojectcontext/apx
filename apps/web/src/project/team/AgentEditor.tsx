@@ -1,3 +1,4 @@
+import "../../styles/screens.css";
 import {
   type Agent,
   type Autonomy,
@@ -23,6 +24,7 @@ import { type Draft, type GrantChange, grantId, type PageId, sameValue } from ".
 import { IdentityPage, PromptPage, TeamPage } from "./editor/IdentityPages.tsx";
 import { useModifierHeld } from "./editor/keys.ts";
 import { ProfilePage } from "./editor/ProfilePage.tsx";
+import { ReachPage } from "./editor/ReachPage.tsx";
 import { AutonomyPage, BrowserPage, RulesPage } from "./editor/RulesPages.tsx";
 import { teamLead } from "./lead.ts";
 
@@ -35,7 +37,13 @@ const NAV: Array<{ label: MessageKey; items: Array<{ id: PageId; icon: ReactNode
       { id: "identity", icon: <Icons.User /> },
       { id: "prompt", icon: <Icons.FileText /> },
       { id: "team", icon: <Icons.Sparkles /> },
+    ],
+  },
+  {
+    label: "agentedit.group.super",
+    items: [
       { id: "profile", icon: <Icons.Calendar /> },
+      { id: "reach", icon: <Icons.Bell /> },
     ],
   },
   {
@@ -56,6 +64,9 @@ const NAV: Array<{ label: MessageKey; items: Array<{ id: PageId; icon: ReactNode
     ],
   },
 ];
+
+/** Pages only the super-agent has: what it is for and how it reaches the owner. */
+const SUPER_ONLY: ReadonlySet<PageId> = new Set(["profile", "reach"]);
 
 const SIZE = {
   width: `min(${LAYOUT.configW}px, calc(100vw - 64px))`,
@@ -224,7 +235,7 @@ export function AgentEditor({
   };
   const query = q.trim().toLowerCase();
   const matches = (id: PageId) =>
-    (id !== "profile" || isSuper) &&
+    (isSuper || !SUPER_ONLY.has(id)) &&
     (!query ||
       t(`agentedit.page.${id}`).toLowerCase().includes(query) ||
       (id === "tools" && Boolean(catalog?.some((x) => x.name.includes(query)))));
@@ -243,6 +254,8 @@ export function AgentEditor({
         return <TeamPage {...common} isSuper={isSuper} team={team} file={file} />;
       case "profile":
         return <ProfilePage agent={live} onClose={onClose} />;
+      case "reach":
+        return <ReachPage onClose={onClose} />;
       case "tools":
         return (
           <ToolsTab

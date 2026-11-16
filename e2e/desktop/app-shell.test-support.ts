@@ -2,7 +2,21 @@ import fs from "node:fs";
 import path from "node:path";
 import { _electron, type ElectronApplication, expect, type Page, test } from "@playwright/test";
 import { ALL_SLIDES } from "../../apps/web/src/shell/welcomeFilm.ts";
-import { rpc, world } from "../specs/kit.ts";
+import { assertSandboxDesktopData } from "../sandbox.ts";
+import { ownSandbox, rpc, world } from "../specs/kit.ts";
+
+/**
+ * The APX app as a test opens it: its data in a temp folder (refused otherwise), and only once the e2e core is this
+ * run's own, so nothing it saves can point the owner's app at a sandbox.
+ */
+export async function launchSandboxApp(entry: string, env: NodeJS.ProcessEnv): Promise<ElectronApplication> {
+  assertSandboxDesktopData(env.APX_DESKTOP_DATA);
+  await ownSandbox();
+  return _electron.launch({
+    args: [entry, ...(process.getuid?.() === 0 ? ["--no-sandbox"] : [])],
+    env: env as Record<string, string>,
+  });
+}
 
 export async function launchDesktop(home: string): Promise<ElectronApplication> {
   await rpc("setup.finish");
@@ -31,20 +45,17 @@ export async function launchDesktop(home: string): Promise<ElectronApplication> 
     void import(${JSON.stringify(path.resolve(import.meta.dirname, "../../apps/desktop/dist/main.js"))});
   `,
   );
-  return _electron.launch({
-    args: [entry, ...(process.getuid?.() === 0 ? ["--no-sandbox"] : [])],
-    env: {
-      ...process.env,
-      HOME: home,
-      XDG_CONFIG_HOME: path.join(home, ".config"),
-      APX_DESKTOP_DATA: path.join(home, "desktop"),
-      APX_QUIT_CONFIRM: "off",
-      APX_CONNECTION: "local",
-      APX_URL: "",
-      APX_HOME: (await world.info()).home,
-      APX_PORT: process.env.E2E_PORT ?? "7460",
-      APX_WEB_URL: "http://127.0.0.1:9",
-    },
+  return launchSandboxApp(entry, {
+    ...process.env,
+    HOME: home,
+    XDG_CONFIG_HOME: path.join(home, ".config"),
+    APX_DESKTOP_DATA: path.join(home, "desktop"),
+    APX_QUIT_CONFIRM: "off",
+    APX_CONNECTION: "local",
+    APX_URL: "",
+    APX_HOME: (await world.info()).home,
+    APX_PORT: process.env.E2E_PORT ?? "7460",
+    APX_WEB_URL: "http://127.0.0.1:9",
   });
 }
 

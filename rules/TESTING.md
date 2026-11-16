@@ -162,8 +162,9 @@ The headless browser test disables Chromium's sandbox only when the test process
 container; production browser launches retain it. On macOS, desktop coverage uses `caffeinate` for the test
 process so the display does not sleep. Start native window tests in an unlocked graphical session with an
 awake display; a sleeping or locked display cannot supply reliable native focus events.
-The coverage sandbox picks separate loopback ports so parallel checkouts do not collide; `E2E_PORT`,
-`E2E_CONTROL_PORT` and `E2E_WA_PORT` override them when debugging.
+Every Playwright run (coverage or not) picks free loopback ports and a run id in `playwright.config.ts`
+(`e2e/sandbox.ts`), so parallel checkouts and scratch cores never collide; `E2E_PORT`, `E2E_CONTROL_PORT` and
+`E2E_WA_PORT` override the ports when debugging.
 Local browser coverage runs the same three Playwright shards as CI sequentially, replaying setup for each shard
 and merging their counters into the same report. An explicit `--part=web --shard=i/3` still runs only that part.
 Each E2E command retains its 15-minute deadline; a timeout fails the run and stops its owned process tree before
@@ -204,13 +205,17 @@ duration (`node_modules/.cache/apx-verify/history.json`; none on the first run).
 ```bash
 pnpm e2e                           # builds the panel, then every spec in e2e/specs against a sandboxed core
 pnpm exec playwright test e2e/specs/06-telegram.spec.ts --headed    # one spec, watching
-E2E_KEEP=1 node e2e/env.ts         # the sandbox by hand (core :7460, control :7461); its folder stays after
+E2E_KEEP=1 node e2e/env.ts         # the sandbox by hand (core :7460, control :7461 unless E2E_* ports say); its folder stays after
 E2E_CHROMIUM=/path/to/chrome pnpm e2e   # a Chromium other than the one Playwright pins (container, distro build)
 pnpm e2e:desktop                   # the Electron app (e2e/desktop) against the same sandbox; Linux: xvfb-run -a …
 ```
 The desktop specs launch the real app with a temp `HOME` and `APX_DESKTOP_DATA` (its data folder, sessions and
 single-instance lock never touch the owner's running APX; macOS ignores `HOME` for that folder), the panel
 served by the sandbox's core, and check the window, the browser it lends to the core as a node, and the quick chat.
+They launch it only through `launchSandboxApp` (`e2e/desktop/app-shell.test-support.ts`), which refuses an
+`APX_DESKTOP_DATA` outside the temp folder or on the APX app's own folder, and first checks that the core answering on
+`E2E_PORT` is this run's own (its home's `home-id`, the control API's run id); `e2e/env.ts` refuses to start on a port
+already in use. See [HISTORY.md](HISTORY.md#e2e-foreign-core).
 `e2e/env.ts` is a whole APX apart from the owner's: a temp home and port, `APX_SECRETS=file`, a fake
 OpenAI-compatible model (`e2e/fake-llm.ts`, answers "Got it: <what you wrote>"), an emulated Telegram Bot API
 (`APX_TELEGRAM_API`), an APX v1 and Claude Code / Codex sessions to import (`e2e/fixtures.ts`), and its own "installed"
