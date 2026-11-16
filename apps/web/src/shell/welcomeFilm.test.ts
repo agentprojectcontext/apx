@@ -28,7 +28,7 @@ test("a slide stops showing two minor releases after the one it shipped in", () 
 
 test("a build that is not a release shows every slide not seen", () => {
   assert.deepEqual(keys("0.0.0", []), [...ALL_SLIDES]);
-  assert.deepEqual(keys("2.14.3-dev.4+abc1234", ["groups"]), ALL_SLIDES.slice(1));
+  assert.deepEqual(keys("2.14.3-dev.4+abc1234", [WELCOME_SLIDES[0].key]), ALL_SLIDES.slice(1));
 });
 
 test("a device that closed the single-film welcome of 2.14.3 is shown only what came after it", () => {

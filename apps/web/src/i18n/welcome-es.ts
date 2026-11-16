@@ -9,6 +9,18 @@ export const esWelcome: Record<WelcomeKey, string> = {
   "welcome.cta": "Vamos",
   "welcome.soundOn": "Activar el sonido",
   "welcome.soundOff": "Silenciar",
+  "welcome.voice.title": "La voz de APX",
+  "welcome.voice.text":
+    "Tus agentes hablan y escuchan notas de voz con la voz propia de APX. En Configuración › Voces elegís mujer u hombre y el acento.",
+  "welcome.calls.title": "Llamá a tus agentes",
+  "welcome.calls.text":
+    "Con el teléfono de arriba llamás a tu superagente, o a cualquier agente desde su chat. Le hablás y te contesta en voz alta.",
+  "welcome.call-work.title": "Trabaja mientras hablás",
+  "welcome.call-work.text":
+    "Si le pedís algo que lleva trabajo, el agente se pone con eso y la charla sigue. Te dice la respuesta cuando está lista.",
+  "welcome.call-chats.title": "Cada llamada, un chat",
+  "welcome.call-chats.text":
+    "Lo que se dijo queda en Llamadas, en el Inbox. Durante la llamada también podés escribir, y para cortar alcanza con despedirte.",
   "welcome.groups.title": "Chats en grupo",
   "welcome.groups.text":
     "Desde Nuevo chat armás un grupo de dos a cinco agentes y les escribís a todos en el mismo chat.",
