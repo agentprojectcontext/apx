@@ -124,7 +124,7 @@ export const OWNER_ONLY: Readonly<Record<string, string>> = {
   "embeddings.install": MACHINE,
   "transcription.install": MACHINE,
   "voice.install": MACHINE,
-  "voice.set": `${POWER}; APX's voice and the model calls talk with are set in Settings › Voices`,
+  "voice.set": `${POWER}; APX's voice and the model calls talk with are set in Settings › Voice and calls`,
   "files.keep": PANEL,
   "files.open": PANEL,
   "files.rename": PANEL,

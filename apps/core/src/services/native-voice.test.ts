@@ -17,6 +17,7 @@ test("APX's voice keeps the place the owner gave it while new models download, a
     install: () => undefined,
     running: () => false,
     canFull: () => true,
+    models: () => ({ speaks: "speaks", hears: "hears", size_gb: 3, folder: "~/models" }),
     restart() {},
     startInstall() {
       installs++;

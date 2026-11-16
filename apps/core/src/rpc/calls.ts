@@ -13,7 +13,7 @@ const NEEDS = {
   uv: "calls need uv (brew install uv)",
   off: "APX's voice is turned off",
   model: "calls need a model APX can call directly",
-  disabled: "calls are turned off in Settings › Calls",
+  disabled: "calls are turned off in Settings › Voice and calls",
 } as const;
 
 const NONE: VoiceStatus = {

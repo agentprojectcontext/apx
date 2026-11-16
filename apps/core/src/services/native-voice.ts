@@ -31,11 +31,11 @@ export function createNativeVoice(deps: {
     store.settings.write("voice", next);
   };
 
-  /** The voice by default follows the owner's language: Argentine Spanish unless they write in English. */
+  /** The voice by default is female and follows the owner's language: neutral Spanish unless they write in English. */
   function voice(): NativeVoice {
     const set = settings().voice;
     if (set) return set;
-    return { gender: "female", locale: store.settings.get("owner_language") === "en" ? "en-US" : "es-AR" };
+    return { gender: "female", locale: store.settings.get("owner_language") === "en" ? "en-US" : "es" };
   }
 
   const enabled = () => settings().enabled ?? engine.machine().tier !== "none";
@@ -79,6 +79,7 @@ export function createNativeVoice(deps: {
     const m = engine.machine();
     const install = engine.install();
     const call_model = settings().call_model;
+    const models = engine.models();
     return {
       tier: m.tier,
       memory_gb: m.memory_gb,
@@ -92,6 +93,7 @@ export function createNativeVoice(deps: {
       quality: settings().quality ?? "auto",
       can_full: engine.canFull(),
       ...(call_model ? { call_model } : {}),
+      ...(models ? { models } : {}),
     };
   }
 

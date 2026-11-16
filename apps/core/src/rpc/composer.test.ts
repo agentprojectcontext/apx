@@ -90,7 +90,7 @@ test("a chat's own model is kept on the thread and checked", async () => {
 test("dictation without a transcription engine says how to set one up", async () => {
   await assert.rejects(
     env.client.call("media.transcribe", { data: b64("x"), mime: "audio/webm" }),
-    /Settings › Voices/,
+    /Settings › Voice and calls/,
   );
 });
 
