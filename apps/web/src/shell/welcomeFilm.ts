@@ -3,6 +3,10 @@
  * (media/whats-new/<lang>/<key>.mp4), with the first release that has it. A new feature goes at the top.
  */
 export const WELCOME_SLIDES = [
+  { key: "voice", since: "2.15.0" },
+  { key: "calls", since: "2.15.0" },
+  { key: "call-work", since: "2.15.0" },
+  { key: "call-chats", since: "2.15.0" },
   { key: "groups", since: "2.15.0" },
   { key: "group-answers", since: "2.15.0" },
   { key: "group-card", since: "2.15.0" },
