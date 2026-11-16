@@ -2,7 +2,7 @@ import { memo, useState } from "react";
 import { Pressable, Text, View } from "react-native";
 import { listWhen } from "../format";
 import { channelIdentity, channelName, chatPreview, chatTitle, isWorking, routineName } from "../hooks/chatSelectors";
-import { type InboxNode, nodeThreads } from "../hooks/inboxTree";
+import { type InboxNode, nodeFailed, nodeThreads } from "../hooks/inboxTree";
 import type { Agent, Task, Thread, Workspace } from "../hooks/useWorkspace";
 import { type Key, t } from "../i18n";
 import { scheduleText } from "../routines/view";
@@ -129,9 +129,7 @@ export const InboxRow = memo(function InboxRow({
   const unread = threads.reduce((n, thread) => n + thread.unread, 0);
   const busy = threads.some((thread) => isWorking(thread.state));
   const waiting = threads.some((thread) => thread.state === "input-required");
-  // A routine says how its latest run ended; a chat or task, whether any of its chats failed.
-  const failed =
-    node.kind === "routine" ? node.thread.state === "failed" : threads.some((thread) => thread.state === "failed");
+  const failed = nodeFailed(node);
   const toggle = () => setExpanded((value) => !value);
   // How many chats the task has, or runs the routine has: not the sessions under them.
   const members =
