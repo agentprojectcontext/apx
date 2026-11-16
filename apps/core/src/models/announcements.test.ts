@@ -6,6 +6,7 @@ import { modelAnnouncements } from "./announcements.ts";
 const engine = (patch: Partial<CatalogEngine> = {}): CatalogEngine => ({
   id: "gemini",
   kind: "provider",
+  access: "api",
   label: "Gemini",
   available: true,
   models: [{ id: "gemini-4-hydrogen", name: "Gemini 4 Hydrogen", chat: true }],
@@ -55,6 +56,27 @@ test("a session subscription receives its own action and never the API retention
   assert.equal(combined?.destination, "models");
   assert.deepEqual(combined?.engines, ["claude", "anthropic"]);
   assert.match(combined?.access.en ?? "", /30-day/);
+});
+
+test("a built-in ChatGPT plan is not API access, alone or alongside Codex", () => {
+  const plan = engine({
+    id: "chatgpt",
+    access: "plan",
+    models: [{ id: "gpt-6.1-terra", name: "Terra", chat: true }],
+  });
+  const codex = { ...plan, id: "codex", kind: "harness" as const };
+  for (const engines of [[plan], [plan, codex]]) {
+    const [notice] = modelAnnouncements(engines);
+    assert.equal(notice?.destination, "models");
+    assert.match(notice?.access.en ?? "", /plan/);
+    assert.doesNotMatch(notice?.access.en ?? "", /API|session/);
+    assert.match(notice?.access.es ?? "", /plan/);
+    assert.doesNotMatch(notice?.access.es ?? "", /API|sesión/);
+  }
+  const [combined] = modelAnnouncements([plan, codex, { ...plan, id: "openai", access: "api" }]);
+  assert.equal(combined?.destination, "models");
+  assert.match(combined?.access.en ?? "", /API/);
+  assert.deepEqual(combined?.engines, ["chatgpt", "codex", "openai"]);
 });
 
 test("restricted and unrelated launches are not promoted from a catalog alone", () => {

@@ -101,7 +101,10 @@ The owner's APX runs a daily routine on the APX project that:
 and explicit compatibility verification). `models.list` returns one announcement per stable launch ID only when an
 available engine's non-stale list contains that exact chat model. When only external-session harnesses list it,
 the notice links to external-session settings and uses subscription-specific access wording, never API retention
-or entitlement claims. When a model API also lists it, the action opens model settings. Several engines do not create several notices.
+or entitlement claims. Signed-in providers carry `access: plan` and open model settings with plan-specific wording;
+API-key providers carry `access: api`. The catalog reapplies the current credential type even to cached lists.
+When a model API also lists it, the action opens model settings and includes API conditions. Several engines do not
+create several notices.
 The panel renders these through `CornerCards` in both sidebar modes and at phone width, never through `NoticeStrip`
 or the welcome slideshow. In the compact deck, operational warnings precede launch cards and community cards follow.
 Dismissals share the existing device-local notice storage; refreshing the catalog or updating APX does not reset them.

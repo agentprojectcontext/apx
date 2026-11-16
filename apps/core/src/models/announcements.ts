@@ -90,18 +90,24 @@ export function modelAnnouncements(engines: readonly CatalogEngine[]): ModelAnno
       (engine) => engine.available && !engine.detail && engine.models.some((m) => m.chat && m.id === launch.model),
     );
     if (!matching.length) return [];
-    const api = matching.some((engine) => engine.kind === "provider");
+    const provider = matching.some((engine) => engine.kind === "provider");
+    const api = matching.some((engine) => engine.kind === "provider" && engine.access === "api");
     return [
       {
         ...launch,
         engines: matching.map((e) => e.id),
-        destination: api ? "models" : "sessions",
+        destination: provider ? "models" : "sessions",
         access: api
           ? launch.access
-          : {
-              en: "Check the models included in your external session's plan.",
-              es: "Revisá los modelos incluidos en el plan de tu sesión externa.",
-            },
+          : provider
+            ? {
+                en: "Check the models and limits included in your connected plan.",
+                es: "Revisá los modelos y límites incluidos en tu plan conectado.",
+              }
+            : {
+                en: "Check the models included in your external session's plan.",
+                es: "Revisá los modelos incluidos en el plan de tu sesión externa.",
+              },
       },
     ];
   });

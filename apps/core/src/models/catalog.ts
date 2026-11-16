@@ -8,7 +8,7 @@ import { execFile } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import { promisify } from "node:util";
-import { CatalogEngine as CatalogEngineSchema } from "@apx/protocol";
+import { CatalogEngine as CatalogEngineSchema, type CatalogEngine as ProtocolCatalogEngine } from "@apx/protocol";
 import type { ProviderConfig } from "../config.ts";
 import type { Store } from "../domain/store.ts";
 import { errorMessage } from "../errors.ts";
@@ -33,20 +33,7 @@ export type CatalogModel = {
   efforts?: string[];
   default_effort?: string;
 };
-export type CatalogEngine = {
-  /** "claude", "codex", or a provider id ("gemini", "anthropic", …). */
-  id: string;
-  kind: "harness" | "provider";
-  label: string;
-  available: boolean;
-  /** Why it is not available, or why the list may be stale. */
-  detail?: string;
-  models: CatalogModel[];
-  fetched_at?: string;
-  starter?: string;
-  /** A model app on this computer: free, and asked again each time the list is read. */
-  local?: boolean;
-};
+export type CatalogEngine = ProtocolCatalogEngine;
 
 /**
  * Where an engine's list is kept. The version moves whenever more is read from an engine (efforts were added later),
@@ -262,7 +249,11 @@ export function createCatalog(deps: {
       if (base.local) return { ...base, available: false, models: prev?.models ?? [] };
       // A failed refresh keeps the last good list, marked stale.
       return prev?.models.length
-        ? { ...prev, detail: `could not refresh (${why}); showing the list from ${prev.fetched_at}` }
+        ? {
+            ...prev,
+            access: base.access,
+            detail: `could not refresh (${why}); showing the list from ${prev.fetched_at}`,
+          }
         : { ...base, available: false, detail: why, models: [] };
     }
   }
@@ -291,7 +282,13 @@ export function createCatalog(deps: {
     ];
     for (const p of deps.providers()) {
       out.push({
-        base: { id: p.id, kind: "provider", label: p.label || p.id, ...(p.local ? { local: true } : {}) },
+        base: {
+          id: p.id,
+          kind: "provider",
+          access: deps.signIns?.[p.key] || p.transport === "chatgpt-responses" ? "plan" : "api",
+          label: p.label || p.id,
+          ...(p.local ? { local: true } : {}),
+        },
         list: async () => {
           // Embedding-only models on a local app go under the non-chat ones, as memory's setup tells them apart.
           if (p.local && !p.models.length)
@@ -325,7 +322,7 @@ export function createCatalog(deps: {
           const hit = cached(base.id);
           const fresh = hit?.fetched_at && Date.now() - Date.parse(hit.fetched_at) < TTL_MS;
           // A local app answers at once or not at all: asked each time, so one opened or closed shows right away.
-          if (!refresh && fresh && hit && !base.local) return hit;
+          if (!refresh && fresh && hit && !base.local) return { ...hit, access: base.access };
           const key = base.id;
           const running = inflight.get(key);
           if (running) return running;

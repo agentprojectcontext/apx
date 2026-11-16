@@ -70,6 +70,8 @@ export const CatalogEngine = z.object(
     /** "claude", "codex", or a provider id ("gemini", "anthropic", …). */
     id: () => z.string(),
     kind: () => z.enum(["harness", "provider"]),
+    /** Whether a provider's model list comes from an API key or a signed-in subscription. */
+    access: () => z.enum(["api", "plan"]).optional(),
     label: () => z.string(),
     available: () => z.boolean(),
     detail: () => z.string().optional(),
