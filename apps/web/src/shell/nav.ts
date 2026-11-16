@@ -396,8 +396,9 @@ nav.subscribe(() => {
   if (s.contactId && (s.threadId || s.routineId || s.view !== "inbox")) nav.set({ contactId: undefined });
 });
 
-// A deep link followed in place (a link in a message, the address bar); replaceState above never fires this.
-window.addEventListener("hashchange", () => nav.set({ view: "inbox", panel: null, ...fromHash() }));
+// A deep link followed in place (a link in a message, the address bar); replaceState above never fires this. What it
+// names comes to the front, on a phone too.
+window.addEventListener("hashchange", () => nav.set({ view: "inbox", panel: null, listInFront: false, ...fromHash() }));
 
 /** Inbox, or a project's Chats tab: the list + chat + side panel layout. */
 export function showsChat(s: Pick<NavState, "view" | "projectTab">): boolean {
