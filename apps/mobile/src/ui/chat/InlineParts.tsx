@@ -7,13 +7,42 @@ import { type InlineNode, isMediaId } from "../../protocol";
 import { Icon } from "../Icon";
 import { Button } from "../kit";
 import { useMediaUri } from "../media/context";
-import { makeStyles, type Tone, useTheme } from "../theme";
+import { makeStyles, type Theme, type Tone, useTheme } from "../theme";
 
 export type Of<K extends InlineNode["kind"]> = Extract<InlineNode, { kind: K }>;
 export type CardTone = Of<"status">["tone"];
 
 /** Writes to the chat as the owner; absent where nothing can be sent (a preview), and then no button asks. */
 export const InlineAsk = createContext<((text: string) => Promise<unknown>) | undefined>(undefined);
+
+/** The bordered box every card view draws in (a card, a map, a list of places, a table, an option), as the panel's. */
+export const inlineBox = (theme: Theme) =>
+  ({
+    borderWidth: 1,
+    borderColor: theme.border,
+    borderRadius: theme.radiusMd,
+    backgroundColor: theme.surface,
+    overflow: "hidden",
+  }) as const;
+
+/** APX Kit's accent: a thin brand-to-violet line along a card's top edge, as wide as the card. */
+export function Accent() {
+  const theme = useTheme();
+  return (
+    <View
+      pointerEvents="none"
+      style={{
+        position: "absolute",
+        top: 0,
+        left: 0,
+        right: 0,
+        height: 3,
+        opacity: 0.85,
+        experimental_backgroundImage: `linear-gradient(90deg, ${theme.brand}, ${theme.violet})`,
+      }}
+    />
+  );
+}
 
 /** The app has no green "success" family: brand is its green. */
 export const toneOf = (tone: CardTone): Tone => (tone === "success" ? "brand" : tone);

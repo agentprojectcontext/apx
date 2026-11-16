@@ -3,7 +3,7 @@ import { Pressable, ScrollView, Text, View } from "react-native";
 import { t } from "../../i18n";
 import { Tag } from "../kit";
 import { makeStyles, useTheme } from "../theme";
-import { fill, type Of, Rating, SendButton, Stepper, Tile, toneOf } from "./InlineParts";
+import { fill, inlineBox, type Of, Rating, SendButton, Stepper, Tile, toneOf } from "./InlineParts";
 
 /** One option to pick with its price, how many, and a button that asks the agent for it. */
 export function Choice({ node }: { node: Of<"choice"> }) {
@@ -201,10 +201,7 @@ const useStyles = makeStyles((theme) => ({
     gap: 12,
     paddingHorizontal: 12,
     paddingVertical: 10,
-    borderWidth: 1,
-    borderColor: theme.border,
-    borderRadius: theme.radiusMd,
-    backgroundColor: theme.surface,
+    ...inlineBox(theme),
   },
   // A thicker brand edge stands in for the panel's ring; the padding keeps the row from shifting.
   optionOn: { borderWidth: 2, borderColor: theme.brand, paddingHorizontal: 11, paddingVertical: 9 },
@@ -231,14 +228,7 @@ const useStyles = makeStyles((theme) => ({
   // A sideways ScrollView grows by default; the table keeps its own height.
   vsScroll: { flexGrow: 0 },
   vsContent: { flexGrow: 1 },
-  vs: {
-    flexGrow: 1,
-    borderWidth: 1,
-    borderColor: theme.border,
-    borderRadius: theme.radiusMd,
-    overflow: "hidden",
-    backgroundColor: theme.surface,
-  },
+  vs: { ...inlineBox(theme), flexGrow: 1 },
   vsRow: { flexDirection: "row" },
   vsLine: { borderTopWidth: 1, borderTopColor: theme.border },
   vsLabel: { width: 96, paddingHorizontal: 12, paddingVertical: 10 },
