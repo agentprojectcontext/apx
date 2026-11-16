@@ -5091,3 +5091,32 @@ and stayed off: no voice notes spoken, no transcription by APX, no calls.
 Rejected: shipping uv in the installers (about 30 MB more for owners on other systems or without enough memory);
 asking the owner to install it (the failure this fixes).
 
+<a id="d-237"></a>
+## D-237 — 2026-11-16 — The super-agent does the work; helpers bring results back to it
+Tasks already have one agent that owns the work, with workers of its own and teammates who only review (D-131). The
+super-agent's chat did not: its line said "do it yourself or delegate it to the right agent", and each hand-off lost
+something on the way. A teammate cannot see the super-agent's own memory, its access to the owner's browser or the
+conversation: the owner wrote "insta scrap", the super-agent read the scraper, handed it to a teammate, and the note
+that already had a tested way to do it stayed in its own memory; another teammate got blocked on a login the
+super-agent then did itself.
+
+- **Small and medium work it does itself** (`systemPrompt`, the secretary's line in `engine/context.ts`): with its
+  own tools, memory and browser. It hands on only long work that belongs to one project, to that project's own agent,
+  with its notes, links and the owner's words, and finishes the request with what comes back. Several requests with no
+  way given still get its pick in a line (a task each, a plan, or itself).
+- **A result is the caller's to finish**: a `delegation_result(s)` turn says to finish the owner's request with it,
+  what is left being the caller's, before telling the owner what matters.
+- **WhatsApp's hand-off goes to a worker of its own**: the owner's WhatsApp turn keeps only note and message tools
+  (`turn-tools.ts`), so tool work is handed on; it now goes to a worker (the caller itself under a brief, with its
+  memory and browser) instead of a teammate.
+- **Unchanged**: reviews by teammates, task assignment, `delegate` as the one way agents talk (AGENTS.md rule 2), and
+  the shared rule every agent reads (now "long" instead of "substantial" independent work).
+- **The secretary profile** says the same ("do the work yourself; hand only long project work to that project's
+  agent").
+
+The realistic owner's prompt budget goes from 8,150 to 8,250 chars (8,222 now); the default turn's system prompt is
+6,047 (`rules/PROMPT_SIZE.md`).
+
+Rejected: copying the super-agent's notes into every delegated brief by code (it chooses which notes matter; a blanket
+copy costs tokens on every hand-off); taking `delegate` away from the
+super-agent (long project work and a worker on WhatsApp still need it).
