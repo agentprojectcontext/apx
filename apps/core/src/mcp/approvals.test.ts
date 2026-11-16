@@ -16,10 +16,10 @@ const llm = () =>
       return callTool("g", "grant_tool", { agent: said === "grant" ? "reader" : "superagent", tools: ["mcp_notes_*"] });
     if (said.startsWith("grant")) return say("Granted");
     if (said === "bridge" && !afterTool)
-      return callTool("b", "mcp_call", { tool: "mcp_notes_echo", args: { text: "b" } });
+      return callTool("b", "tool_run", { tool: "mcp_notes_echo", args: { text: "b" } });
     // Its result is outside data: the same tool through the bridge now waits for the owner, as a direct call does.
     if (said === "bridge" && String(req.messages.at(-1)?.content).includes("echo: b\n"))
-      return callTool("b2", "mcp_call", { tool: "mcp_notes_echo", args: { text: "b2" } });
+      return callTool("b2", "tool_run", { tool: "mcp_notes_echo", args: { text: "b2" } });
     if (said === "bridge") return say(`Bridged: ${String(req.messages.at(-1)?.content)}`);
     if (!afterTool) return callTool("first", "mcp_notes_echo", { text: `first:${said}` });
     if (String(req.messages.at(-1)?.content).includes("echo: first:"))
@@ -54,7 +54,7 @@ async function setup() {
 const chat = (e: Awaited<ReturnType<typeof setup>>, agent = "superagent") =>
   e.client.call("threads.create", { kind: "loose", agent_id: agent, project_id: e.project });
 
-test("through mcp_call an MCP tool still waits for the owner, who is asked about that tool", async () => {
+test("through tool_run an MCP tool still waits for the owner, who is asked about that tool", async () => {
   const e = await setup();
   try {
     const t = await chat(e);

@@ -12,7 +12,7 @@ const SERVER = path.join(import.meta.dirname, "../mcp/fake-server.test-support.m
 
 const llm = scriptedLlm((req, { said, afterTool }) => {
   if (afterTool) return say(`Result: ${String(req.messages.at(-1)?.content).slice(0, 300)}`);
-  if (said.includes("use echo")) return callTool("e1", "mcp_call", { tool: "mcp_notes_echo", args: { text: "hi" } });
+  if (said.includes("use echo")) return callTool("e1", "tool_run", { tool: "mcp_notes_echo", args: { text: "hi" } });
   const file = /write (\S+)/.exec(said)?.[1];
   if (file) return callTool("w1", "file_write", { path: path.join(root, file), content: "routine\n" });
   return say("ok");

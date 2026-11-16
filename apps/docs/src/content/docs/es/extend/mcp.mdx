@@ -150,16 +150,17 @@ servidores comunes sumaban 319 tools: una respuesta de una línea costaba **64.4
 
 Por eso los agentes no reciben esas tools directamente. Mientras haya algún servidor prendido y aprobado, reciben dos:
 
-- `mcp_search` busca tools por palabras o por servidor, con su descripción y sus argumentos.
-- `mcp_call` corre una por su nombre exacto.
+- `tool_search` trae tools por su nombre exacto (varias a la vez), o las busca por palabras o por servidor, con su
+  descripción y sus argumentos.
+- `tool_run` corre una por su nombre exacto, para un modelo que no llama a una tool que no se le mandó.
 
 La misma respuesta de una línea pasa a costar **11.838 tokens**, y la lista de tools no cambia de una llamada a otra,
 lo que mantiene caliente la caché de prompt del proveedor del modelo. Las aprobaciones, confirmaciones y tarjetas de
 tools en el chat funcionan igual que si el agente hubiera llamado la tool directamente.
 
 Las tools propias de APX que los agentes casi no usan (rutinas, ajustes, Flows, widgets, documentos, la pantalla de la
-computadora, pedidos de contactos, imágenes, transcripciones de video y algunas más) viajan igual: `mcp_search` las
-nombra y el agente llama a cualquiera por su nombre cuando la necesita, sin buscar antes. Si se equivoca en los
+computadora, pedidos de contactos, imágenes, transcripciones de video y algunas más) viajan igual: `tool_search` las
+nombra agrupadas por para qué sirven y el agente llama a cualquiera por su nombre cuando la necesita, sin buscar antes. Si se equivoca en los
 argumentos, la respuesta se los trae, así el siguiente intento funciona. Así una llamada común pesa más o menos un
 tercio menos.
 

@@ -88,7 +88,7 @@ Cada parte de Google se conecta por separado, así elegís a qué llegan tus age
 | Gmail | Enviar mails. Con tu propio cliente: además buscar y leer mails y escribir borradores | Enviar siempre pregunta; escribir un borrador pregunta |
 | Google Drive | Escribir Docs y compartirlos; buscarlos y leerlos. Con tu propio cliente: buscar y leer todo tu Drive (Docs, Sheets, Slides, archivos de texto) | Compartir |
 
-Los agentes encuentran estas tools cuando un pedido las necesita (con `mcp_search`, como las de un servidor MCP), así que
+Los agentes encuentran estas tools cuando un pedido las necesita (con `tool_search`, como las de un servidor MCP), así que
 un chat que no toca tu calendario ni tu correo no las paga en cada paso.
 
 El acceso de APX le pide a Google solo lo que puede verificarse sin una auditoría de seguridad paga, así que no lee tu
@@ -124,7 +124,7 @@ Si no sabés si una creación se completó, revisá Asana antes de repetirla: AP
 
 Los servidores basados en MCP arrancan con `npx`, así que la máquina donde corre el core necesita Node.js e internet la primera vez
 que arranca cada uno. Una vez conectada, una integración se porta como cualquier otro servidor MCP: tiene [permisos
-de tools](/es/extend/mcp/#permisos-de-tools), y los agentes llegan a sus tools con `mcp_search` y `mcp_call`.
+de tools](/es/extend/mcp/#permisos-de-tools), y los agentes llegan a sus tools con `tool_search` y `tool_run`.
 
 Para cambiar un token, abrí la integración y editala (un campo secreto vacío conserva el guardado). **Desconectar** la
 quita.

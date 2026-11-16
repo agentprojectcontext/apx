@@ -7,7 +7,7 @@ import type { Store } from "../domain/store.ts";
 import { CONTACT_TOOLS, contactHolder, contactToolNames } from "../tools/contact.ts";
 import { STICKER_TOOL, stickersFor } from "../tools/directory.ts";
 import { IMESSAGE_TOOLS } from "../tools/imessage.ts";
-import { appOf, foundLater, MCP_CALL, MCP_SEARCH, mcpBridge, OWN_FOUND } from "../tools/mcp-bridge.ts";
+import { appOf, foundLater, mcpBridge, OWN_FOUND, TOOL_RUN, TOOL_SEARCH } from "../tools/mcp-bridge.ts";
 import { inherit } from "../tools/policy.ts";
 import type { Tool } from "../tools/types.ts";
 import { COMPUTER_TOOL } from "../tools/vm.ts";
@@ -132,7 +132,7 @@ export async function turnTools(deps: TurnDeps, turn: Turn) {
   const sealed = turn.audience.kind === "contact";
   const callers = callersOf(deps.store, turn.thread.id);
   const step = deps.store.threads.context(turn.thread.id).flow_step;
-  // MCP tools are reached through mcp_search and mcp_call; their servers start only when one is first used.
+  // MCP tools are reached through tool_search and tool_run; their servers start only when one is first used.
   const servers = !sealed && !inVm && deps.mcpTools ? (deps.mcpServers?.(turn.thread) ?? []) : [];
   let loading: Promise<Tool[]> | undefined;
   // A contact's turn reaches no MCP tool, not even one it names without being offered it.
@@ -140,7 +140,7 @@ export async function turnTools(deps: TurnDeps, turn: Turn) {
     if (inVm || sealed || step?.bot) return Promise.resolve([]);
     loading ??= (deps.mcpTools?.(turn.thread) ?? Promise.resolve([]))
       .catch(() => [])
-      .then((all) => all.filter((t) => policy.allows(t.name) && (!only || only.has(t.name) || only.has(MCP_CALL))));
+      .then((all) => all.filter((t) => policy.allows(t.name) && (!only || only.has(t.name) || only.has(TOOL_RUN))));
     return loading;
   };
   const bridge = servers.length ? mcpBridge(servers, mcpLate) : [];
@@ -191,7 +191,7 @@ export async function turnTools(deps: TurnDeps, turn: Turn) {
       (!step?.bot || BOT_KEEPS.has(t.name)) &&
       !out?.has(t.name) &&
       ((callers.length < MAX_DEPTH && !turn.worker) || !SESSION_TOOLS.has(t.name)) &&
-      (!only || only.has(t.name) || (t.name === MCP_SEARCH && only.has(MCP_CALL))),
+      (!only || only.has(t.name) || (t.name === TOOL_SEARCH && only.has(TOOL_RUN))),
   );
   // A connected app's tools and APX's rarely used ones are found and run through the bridge, unless the turn's tools
   // were named one by one. A turn with no bridge (on the computer, a contact's, a Flow's bot) keeps APX's own direct.
@@ -200,9 +200,9 @@ export async function turnTools(deps: TurnDeps, turn: Turn) {
   if (!apps.length) return { policy, tools, mcpLate };
   const late = async () => [...apps, ...(await mcpLate())];
   const found = new Set(apps);
-  const direct = tools.filter((t) => !found.has(t) && t.name !== MCP_SEARCH && t.name !== MCP_CALL);
+  const direct = tools.filter((t) => !found.has(t) && t.name !== TOOL_SEARCH && t.name !== TOOL_RUN);
   const appNames = [...new Set(apps.flatMap((t) => appOf(t.name) ?? []))];
   const own = apps.filter((t) => OWN_FOUND.has(t.name)).map((t) => t.name);
-  const mcp = tools.some((t) => t.name === MCP_SEARCH) ? servers : [];
+  const mcp = tools.some((t) => t.name === TOOL_SEARCH) ? servers : [];
   return { policy, tools: [...direct, ...mcpBridge(mcp, late, appNames, own)], mcpLate: late };
 }

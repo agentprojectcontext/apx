@@ -126,7 +126,7 @@ Each rule says how it is enforced. `[gate]` = a command fails; `[review]` = conv
     names keep their case (iMessage, `apx`). `[review]`
 23. **Prompt budget.** What every model call carries (a default turn's system prompt and tool definitions) stays
     within [`rules/PROMPT_SIZE.md`](rules/PROMPT_SIZE.md): APX sends the least of the agent apps measured, keep it so.
-    Per-turn context goes in the input, MCP and extension tools behind `mcp_search`. `[gate]` test.
+    Per-turn context goes in the input, MCP and extension tools behind `tool_search`. `[gate]` test.
 24. **Fixes leave regression protection.** Reproduce the failure, add or strengthen a test that catches it, verify
     the fix and its callers; never loosen an assertion to accept a regression
     ([fix regression contract](rules/TESTING.md#fix-regression-contract)). `[review]`

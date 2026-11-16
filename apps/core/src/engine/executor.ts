@@ -13,7 +13,7 @@ import type { Store } from "../domain/store.ts";
 import { worksInFolder } from "../domain/threads.ts";
 import { errorMessage } from "../errors.ts";
 import type { TurnIO } from "../harness/index.ts";
-import { foundLater, MCP_CALL, MCP_SEARCH, unwrapCall } from "../tools/mcp-bridge.ts";
+import { foundLater, TOOL_RUN, TOOL_SEARCH, unwrapCall } from "../tools/mcp-bridge.ts";
 import { authorize, type Decision, decide, keepsCard, modeOf, sessionGate } from "../tools/policy.ts";
 import { cap, UNTRUSTED_MARK } from "../tools/result.ts";
 import { commandRisk } from "../tools/shell.ts";
@@ -150,7 +150,7 @@ export function createExecutor(o: {
   store: Store;
   inputs: Inputs;
   tools: Tool[];
-  /** Tools that join on first use (MCP's): mcp_call names one, and grant_tool may grant one. */
+  /** Tools that join on first use (MCP's): tool_run names one, and grant_tool may grant one. */
   late?: () => Promise<Tool[]>;
   agent: AgentRecord;
   thread: Thread;
@@ -279,13 +279,13 @@ export function createExecutor(o: {
     const run = o.run();
     const transfer = handedOff(store, run);
     if (transfer) return { ok: false, text: transfer, endTurn: true };
-    // mcp_call runs the tool it names, through every check below as if the model had called that tool itself.
-    const { name, args: raw } = called === MCP_CALL ? unwrapCall(given) : { name: called, args: given };
+    // tool_run runs the tool it names, through every check below as if the model had called that tool itself.
+    const { name, args: raw } = called === TOOL_RUN ? unwrapCall(given) : { name: called, args: given };
     // A tool found through the bridge (an MCP server's, a connected app's) joins on first use, named either way.
-    if (called === MCP_CALL || name === "grant_tool" || !byName.has(name)) await join();
+    if (called === TOOL_RUN || name === "grant_tool" || !byName.has(name)) await join();
     const bridged =
-      called !== MCP_CALL ||
-      ((name.startsWith("mcp_") || foundLater(name)) && name !== MCP_CALL && name !== MCP_SEARCH);
+      called !== TOOL_RUN ||
+      ((name.startsWith("mcp_") || foundLater(name)) && name !== TOOL_RUN && name !== TOOL_SEARCH);
     const tool = bridged ? byName.get(name) : undefined;
     const title = tool ? toolTitle(store, tool, raw) : name;
     const began = Date.now();
@@ -305,7 +305,7 @@ export function createExecutor(o: {
       card("error", "unknown tool");
       return {
         ok: false,
-        text: `unknown tool ${name}${called === MCP_CALL ? `; ${MCP_CALL} runs a tool ${MCP_SEARCH} found` : ""}`,
+        text: `unknown tool ${name}${called === TOOL_RUN ? `; ${TOOL_RUN} runs a tool ${TOOL_SEARCH} found` : ""}`,
       };
     }
     const parsed = tool.parse(raw);

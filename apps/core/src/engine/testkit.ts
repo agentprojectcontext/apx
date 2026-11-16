@@ -76,11 +76,12 @@ export function throughOwnerCheck(script: Script): Script {
 
 export const say = (content: string): { message: AssistantItem } => ({ message: { role: "assistant", content } });
 
-/** The tools a model call may use: those it was sent, and APX's own that mcp_search names (DECISIONS.md#d-233). */
+/** The tools a model call may use: those it was sent, and APX's own that tool_search names (DECISIONS.md#d-233). */
 export function offeredIn(call: Pick<LlmRequest, "tools"> | undefined): string[] {
   const tools = call?.tools ?? [];
-  const search = tools.find((t) => t.function.name === "mcp_search")?.function.description ?? "";
-  const named = /called by name like any other: ([^.]+)\./.exec(search)?.[1]?.split(", ") ?? [];
+  const search = tools.find((t) => t.function.name === "tool_search")?.function.description ?? "";
+  const groups = /by use\. ([^.]+)\./.exec(search)?.[1]?.split("; ") ?? [];
+  const named = groups.flatMap((g) => g.slice(g.indexOf(": ") + 2).split(", "));
   return [...tools.map((t) => t.function.name), ...named];
 }
 export const callTool = (id: string, name: string, args: object): { message: AssistantItem } => ({

@@ -73,9 +73,9 @@ const llm = scriptedLlm((req, { said, afterTool }) => {
   if (afterTool) return say(`Result: ${String(req.messages.at(-1)?.content).slice(0, 400)}`);
   const id = /med_[0-9a-f]{16}/.exec(said)?.[0] ?? "";
   if (said.startsWith("upload"))
-    return callTool("u1", "mcp_call", { tool: "mcp_posts_upload_media", args: { base64: id } });
+    return callTool("u1", "tool_run", { tool: "mcp_posts_upload_media", args: { base64: id } });
   if (said.startsWith("by path"))
-    return callTool("u2", "mcp_call", { tool: "mcp_posts_upload_media", args: { path: id } });
+    return callTool("u2", "tool_run", { tool: "mcp_posts_upload_media", args: { path: id } });
   if (said.startsWith("save")) return callTool("w1", "file_write", { path: said.split(" ")[2] ?? "", media: id });
   return say("ok");
 });
