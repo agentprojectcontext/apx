@@ -15,6 +15,9 @@ const errText = (e: unknown) => (e instanceof Error ? e.message : String(e));
 const fail = (e: unknown) => notify(t("error.tasks", { error: errText(e) }));
 
 export const tasksLoaded = () => store.get().ready;
+/** Each task's own chat, where the teammates asked on it hang: the Inbox lists them under the task, not loaded. */
+export const taskHomes = (): Set<string> =>
+  new Set(Object.values(store.get().tasks).flatMap((task) => (task.thread_id ? [task.thread_id] : [])));
 
 let loading: Promise<void> | undefined;
 
