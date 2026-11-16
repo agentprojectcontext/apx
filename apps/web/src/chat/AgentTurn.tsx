@@ -195,6 +195,16 @@ export function AgentTurn({
       </div>
     );
   }
+  // The turn's words when it ends in a card rather than in words; undefined otherwise.
+  const lastItem = items.at(-1);
+  const endsInCard = items.length > 1 && !(lastItem?.part.type === "text" && lastItem.segment?.kind !== "block");
+  const tail = endsInCard
+    ? items
+        .filter((it) => it.part.type === "text" && it.segment?.kind !== "block")
+        .map((it) => (it.segment?.kind === "text" ? it.segment.text : it.part.type === "text" ? it.part.text : ""))
+        .join("\n\n")
+        .trim() || undefined
+    : undefined;
   return (
     <div className="turn">
       {avatar && <Speaker face={avatar} name={engine?.label ?? agent?.name} />}
@@ -214,6 +224,9 @@ export function AgentTurn({
         const last = i === items.length - 1;
         const card = segment?.kind === "block";
         const words = part.type === "text" && !card;
+        // Words followed by a card (a greeting with choices): their controls go to the turn's last line, beside the
+        // name, instead of an empty row of their own between the words and the card.
+        const controls = tail ? last : words && (whole !== undefined || !segment);
         return (
           <Message
             key={key}
@@ -227,11 +240,11 @@ export function AgentTurn({
               ) : undefined
             }
             actions={
-              words && (whole !== undefined || !segment) ? (
+              controls ? (
                 <MessageActions
                   thread={thread}
                   message={message}
-                  text={whole ?? (part.type === "text" ? part.text : "")}
+                  text={tail ?? whole ?? (part.type === "text" ? part.text : "")}
                   speechKey={`${message.id}:${key}`}
                 >
                   {last && lookIn}
