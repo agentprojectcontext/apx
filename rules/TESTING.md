@@ -260,6 +260,14 @@ not platform-dependent byte sizes or elapsed time. Changes here also compare pub
 metadata and input/output JSON Schema, materialize the full contract, exercise real cold/warm calls and preserve
 authorization, strict validation, defaults and refinements. A lower idle number alone is not enough.
 
+Skill discovery reuses only bounded metadata (name, description and a content digest), not skill bodies or
+permission decisions. Each lookup checks file identity, size and nanosecond modification/change timestamps;
+a changed, replaced or missing file cannot reuse stale metadata. The cache is limited to 512 entries and
+512 KiB of estimated metadata. Discovery still checks project links and current enablement, while explicit
+skill loads read the current file. Regression tests cover freshness, racing reads, read failures, duplicate
+content, eviction and the real catalog/load path. Allocation profiles identify repeated parsing separately
+from retained memory; acceptance still uses the unchanged normal performance gate.
+
 The first load is read from the built `apps/web/dist` (`scripts/bundle.ts`), never from source:
 `initial_bundle_gzip_kb` is what `index.html` names plus the chunks it imports statically; `boot_gzip_kb` adds the
 heavier language chunk `main.tsx` waits for, with its own static imports — what a first screen really downloads.
