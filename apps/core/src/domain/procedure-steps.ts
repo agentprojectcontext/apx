@@ -17,7 +17,7 @@ export type Places = { work?: string | undefined };
 
 /** Steps that only looked something up; they say nothing a repeat of the method needs. */
 const NOISE =
-  /^(mcp_search|shell_output)$|(^|_)(browser_text|snapshot|take_screenshot|screenshot|tabs|tab_list|tab_select|wait_for|console_messages|network_requests|hover|resize)$/;
+  /^(tool_search|shell_output)$|(^|_)(browser_text|snapshot|take_screenshot|screenshot|tabs|tab_list|tab_select|wait_for|console_messages|network_requests|hover|resize)$/;
 export const noiseStep = (tool: string) => NOISE.test(tool);
 
 /** A step that ran but did not do its job: a tool error, or a command that exited non-zero or was stopped. */

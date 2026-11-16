@@ -54,12 +54,12 @@ test("tools: lists filter by name or group and keep the always-available tools",
   ]);
 });
 
-test("tools: a list of MCP tools still restricts once they come through mcp_search and mcp_call", () => {
-  const withBridge = [...ALL, tool("mcp_search"), tool("mcp_call")];
+test("tools: a list of MCP tools still restricts once they come through tool_search and tool_run", () => {
+  const withBridge = [...ALL, tool("tool_search"), tool("tool_run")];
   const a = agent({ tools: ["mcp_notes_echo"] });
   assert.deepEqual(
     allowedTools(a, withBridge).map((t) => t.name),
-    ["read_output", "ask_owner", "mcp_search", "mcp_call"],
+    ["read_output", "ask_owner", "tool_search", "tool_run"],
   );
   // The MCP tools that join later are held to the same list, and to every caller's up the chain.
   const p = inherit(a, [agent({ id: "boss", tools: ["mcp"] })], withBridge);

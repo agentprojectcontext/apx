@@ -52,7 +52,7 @@ const GROUPS: Record<string, (name: string) => boolean> = {
     n === "list_agents" || n === "delegate" || n === "grant_tool" || n === "agent_set" || n === "start_session",
   shell: (n) => n.startsWith("shell"),
   files: (n) => n.startsWith("file_") || n === "send_file" || n === "open_document",
-  mcp: (n) => n.startsWith("mcp_"),
+  mcp: (n) => n.startsWith("mcp_") || BRIDGE.has(n),
   memory: (n) => n === "remember" || n === "recall" || n === "forget",
   images: (n) => n === "make_image",
   tasks: (n) => n.startsWith("task_"),
@@ -73,8 +73,8 @@ export function toolCatalog(
     .map((name) => {
       const group = Object.keys(GROUPS).find((g) => GROUPS[g]?.(name));
       const tool = byName.get(name);
-      // mcp_call runs another server's tool: it acts outside unless a grant or rule says otherwise.
-      const risk = tool ? toolRisk(tool) : name === "mcp_call" ? "outside" : "read";
+      // tool_run runs another server's tool: it acts outside unless a grant or rule says otherwise.
+      const risk = tool ? toolRisk(tool) : name === "tool_run" ? "outside" : "read";
       return { name, ...(group ? { group } : {}), kept: ALWAYS.has(name), risk };
     });
 }
@@ -90,7 +90,7 @@ export function allowedTools(agent: AgentRecord, tools: Tool[]): Tool[] {
 
 /**
  * The same filter as a test on names, decided on `tools` and kept for tools that join later (MCP's, found by
- * mcp_search). MCP's two bridge tools count as naming MCP: a list of MCP tools alone still restricts.
+ * tool_search). MCP's two bridge tools count as naming MCP: a list of MCP tools alone still restricts.
  */
 function toolFilter(agent: AgentRecord, tools: Tool[]): (name: string) => boolean {
   const listed = byList(agent, tools);
@@ -111,7 +111,7 @@ function byList(agent: AgentRecord, tools: Tool[]): (name: string) => boolean {
   return (name) => ALWAYS.has(name) || match(name);
 }
 
-const BRIDGE = new Set(["mcp_search", "mcp_call"]);
+const BRIDGE = new Set(["tool_search", "tool_run"]);
 
 /**
  * `untrusted` is whether text from outside (web pages, other agents, channel messages) is in the turn's context:

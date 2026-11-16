@@ -84,7 +84,7 @@ Each Google part connects on its own, so you choose what your agents reach: **Go
 | Gmail | Send mail. With your own client: also search and read mail, and write drafts | Sending always asks; writing a draft asks |
 | Google Drive | Write Docs and share them; find and read them. With your own client: find and read your whole Drive (Docs, Sheets, Slides, text files) | Sharing |
 
-Agents find these tools when a request needs them (through `mcp_search`, like an MCP server's), so a chat that does
+Agents find these tools when a request needs them (through `tool_search`, like an MCP server's), so a chat that does
 not touch your calendar or mail does not pay for them on every step.
 
 APX's sign-in asks Google only for what it can get verified without a paid security review, so it cannot read your mail
@@ -122,7 +122,7 @@ before this change keeps its old server until you edit and save it.
 
 The MCP-based servers start with `npx`, so the machine running the core needs Node.js and internet access the first time
 each one starts. Once connected, an MCP-based integration behaves like any other MCP server: it has [tool
-permissions](/extend/mcp/#tool-permissions), and agents reach its tools through `mcp_search` and `mcp_call`.
+permissions](/extend/mcp/#tool-permissions), and agents reach its tools through `tool_search` and `tool_run`.
 
 To change a token, open the integration and edit it (an empty secret field keeps the stored one). **Disconnect**
 removes it.

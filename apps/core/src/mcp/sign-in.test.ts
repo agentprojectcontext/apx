@@ -11,8 +11,8 @@ const SERVER = path.join(import.meta.dirname, "fake-sign-in-server.test-support.
 
 const llm = scriptedLlm((req, { said, afterTool }) => {
   if (afterTool) return say(`Result: ${String(req.messages.at(-1)?.content).slice(0, 300)}`);
-  if (said.includes("find echo")) return callTool("s1", "mcp_search", { query: "echo text" });
-  if (said.includes("use echo")) return callTool("e1", "mcp_call", { tool: "mcp_shop_echo", args: { text: "hi" } });
+  if (said.includes("find echo")) return callTool("s1", "tool_search", { query: "echo text" });
+  if (said.includes("use echo")) return callTool("e1", "tool_run", { tool: "mcp_shop_echo", args: { text: "hi" } });
   return say("ok");
 });
 

@@ -34,7 +34,7 @@ const direct = "https://dl.snapcdn.app/get?token=eyJhbGciOiJIUzI1NiJ9.c2VjcmV0.s
 function reelScript(out: () => string) {
   const plan = (): Array<[string, Record<string, unknown>]> => [
     ["shell", { command: `yt-dlp -o ${out()} ${reel}` }],
-    ["mcp_search", { query: "tabs" }],
+    ["tool_search", { query: "tabs" }],
     ["mcp_playwright_browser_navigate", { url: "https://snapinsta.to/en?ref=Zm9v" }],
     ["mcp_playwright_browser_type", { element: "URL box", text: reel }],
     ["mcp_playwright_browser_snapshot", {}],
@@ -96,7 +96,7 @@ test("a confirmed reel download keeps the site, the command and what failed firs
     assert.match(steps, /`send_file` `<scratch>\/reel\.mp4`/);
     assert.match(tried, /^Tried first, failed: `yt-dlp` \(login required to view this reel\)$/);
     assert.doesNotMatch(steps, /yt-dlp/, "a failed try is never a step of the method");
-    assert.doesNotMatch(steps, /mcp_search|snapshot|_tabs/, "lookups are not the method");
+    assert.doesNotMatch(steps, /tool_search|snapshot|_tabs/, "lookups are not the method");
     assert.equal(steps.match(/browser_evaluate/g)?.length, 1, "a repeated script is said once");
     assert.match(text, /Outputs: `<scratch>\/reel\.mp4`/);
     for (const secret of ["token", "eyJhbGci", "s1gn", "igsh", "Zm9v", "Bearer", "abc123", "Authorization", "?"])
@@ -158,7 +158,7 @@ test("a step's gist keeps hosts, programs and relative paths, never a credential
     stepGist(step("file_write", { path: "D:\\work\\acme\\docs\\plan.md", content: "x" }), { work: "D:\\work\\acme" }),
     "docs/plan.md",
   );
-  assert.equal(noiseStep("mcp_search"), true);
+  assert.equal(noiseStep("tool_search"), true);
   assert.equal(noiseStep("browser_snapshot"), true);
   assert.equal(noiseStep("mcp_playwright_browser_tabs"), true);
   assert.equal(noiseStep("browser_navigate"), false);

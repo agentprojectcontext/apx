@@ -11,7 +11,7 @@ Measured on a fresh install: the secretary, a new chat, default settings, no ski
 | Part | Budget | Now (2026-10-25) |
 |---|---|---|
 | System prompt | 10,000 chars (about 2,300 tokens) | 6,173 chars on 2026-11-05 (the permission mode's text said here once instead of in every turn; the delegate and web rules short, their details in their tools; "never restating the question" added 24) |
-| Tool definitions (27, without the browser) | 30,000 chars (about 7,100 tokens) | 16,062 chars on 2026-11-15, about 3,800 tokens (APX's rarely used tools named in `mcp_search` and called by name, [D-233](DECISIONS.md#d-233); before, 24,094 with 41; the channel and contact tools and make_image only once a channel or an image service is on) |
+| Tool definitions (27, without the browser) | 30,000 chars (about 7,100 tokens) | 16,270 chars on 2026-11-16, about 3,850 tokens (APX's rarely used tools named in `tool_search` by use and called by name, [D-233](DECISIONS.md#d-233), [D-234](DECISIONS.md#d-234); before, 24,094 with 41; the channel and contact tools and make_image only once a channel or an image service is on) |
 | A turn's input before the message | — | 264 chars: one `[context]` line (time, channel, mode) and the roster when it changed |
 | A delegated task's input, besides the task | — | the caller and its rules, with the four-line report it asks for (180 chars, about 45 tokens), only in that agent's turn |
 | Browser tools (8, lent by the desktop app) | — | 811 tokens |
@@ -43,7 +43,7 @@ How to stay within it:
 - A new tool earns its place (AGENTS.md rule 15). Its description says what it does and when, once; the rule that
   applies to every turn lives in the system prompt, not repeated in a tool.
 - Argument descriptions do not list an enum's values: the schema already does.
-- Tools that come and go (MCP servers', extensions') are reached through `mcp_search` and `mcp_call`, never added one
+- Tools that come and go (MCP servers', extensions') are reached through `tool_search` and `tool_run`, never added one
   schema each ([D-053](DECISIONS.md#d-053)).
 - A connected app's tools (Calendar, Gmail, Drive, Asana) are found the same way, not sent on every call
   ([D-229](DECISIONS.md#d-229)).
@@ -103,7 +103,7 @@ What the others do that matters as much as size:
 ## In a real install
 
 The budget above is the floor. On the owner's machine (2026-10-07) ten ordinary MCP servers brought 319 tools, about
-62k tokens per call, when every MCP tool was sent: 64,432 tokens for a one-line answer. With `mcp_search` and
+62k tokens per call, when every MCP tool was sent: 64,432 tokens for a one-line answer. With `tool_search` and
 `mcp_call` the same call is 11,838 tokens, and from a chat's second call the ChatGPT plan reads about 97% of it from
 its prompt cache ([D-053](DECISIONS.md#d-053)). Thirty skills add about 1,000 tokens to the system prompt's catalog
 (33 per skill, lines capped at 100 characters); past thirty a skill adds only its name, about 5 tokens

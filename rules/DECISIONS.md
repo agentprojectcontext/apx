@@ -5034,3 +5034,19 @@ stay direct, and the rest need no search to be called.
 Rejected: a search before every deferred call (one more call each time); picking tools per message with the skill
 picker's embeddings (the prefix would change between turns and break the cache); dropping the tools (capability
 lost).
+
+<a id="d-234"></a>
+## D-234 — 2026-11-16 — The bridge is tool_search and tool_run, and names APX's tools by use
+D-233 put APX's rarely used tools behind `mcp_search`, a name that says "MCP servers" while it now finds APX's own
+tools and connected apps' too, and listed them flat, with nothing saying what each group is for.
+
+- **Renamed** `mcp_search` → `tool_search` and `mcp_call` → `tool_run` (`tools/mcp-bridge.ts`). An agent's `tools:`
+  list that names `mcp`, or any `mcp_…` name (the old ones included), still keeps the bridge (`tools/policy.ts`), so
+  no file needs migrating; no stored list named the old tools.
+- **Grouped by use**: the description lists APX's tools not sent by what they are for ("Routines: routine_list,
+  routine_set; Documents and widgets: …"), so the model knows what exists and where, without loading anything.
+- **Loaded by name**: `names` (or a query written `select:a,b`) returns those tools' arguments, several in one call,
+  as a coding agent's tool search does. Words and a server still search. Calling by name with no search still works.
+
+Rejected: adding the found tools' schemas to the turn's tool list (the cached prefix would change mid-chat); a
+deferred-names line in the system prompt (the budget is spent; the tool's description carries the same).

@@ -12,9 +12,9 @@ const SERVER = path.join(import.meta.dirname, "fake-server.test-support.mjs");
 const llm = scriptedLlm((req, { said, afterTool }) => {
   if (afterTool) return say(`Result: ${String(req.messages.at(-1)?.content).slice(0, 300)}`);
   if (said.includes("bridge shell"))
-    return callTool("x1", "mcp_call", { tool: "shell", args: { command: "echo pwned" } });
-  if (said.includes("find echo")) return callTool("s1", "mcp_search", { query: "echo text back" });
-  if (said.includes("use echo")) return callTool("e1", "mcp_call", { tool: "mcp_notes_echo", args: { text: "hi" } });
+    return callTool("x1", "tool_run", { tool: "shell", args: { command: "echo pwned" } });
+  if (said.includes("find echo")) return callTool("s1", "tool_search", { query: "echo text back" });
+  if (said.includes("use echo")) return callTool("e1", "tool_run", { tool: "mcp_notes_echo", args: { text: "hi" } });
   if (said.includes("use token")) return callTool("e2", "mcp_mine_token", {});
   if (said.includes("echo it straight")) return callTool("d1", "mcp_notes_echo", { text: "from a contact" });
   return say("ok");
@@ -65,7 +65,7 @@ test("a project's MCP server does not start until the owner approves it", async 
   assert.equal(servers.find((x) => x.name === "notes")?.status, "needs-approval");
   await turn("hello");
   assert.ok(!toolsSeen().some((n) => n.startsWith("mcp_notes")));
-  const search = llm.calls.at(-1)?.tools.find((t) => t.function.name === "mcp_search")?.function.description ?? "";
+  const search = llm.calls.at(-1)?.tools.find((t) => t.function.name === "tool_search")?.function.description ?? "";
   assert.doesNotMatch(search, /notes/, "the server is not one the turn reaches");
 });
 
@@ -75,11 +75,11 @@ test("approved, its tools are found and run through two tools; results are outsi
   await turn("hello");
   assert.equal((await env.client.call("mcp.list", { project })).servers.find((s) => s.name === "notes")?.status, "off");
   assert.deepEqual(
-    toolsSeen().filter((n) => n.startsWith("mcp_")),
-    ["mcp_search", "mcp_call"],
+    toolsSeen().filter((n) => n.startsWith("mcp_") || n.startsWith("tool_")),
+    ["tool_search", "tool_run"],
   );
   assert.match(
-    llm.calls.at(-1)?.tools.find((t) => t.function.name === "mcp_search")?.function.description ?? "",
+    llm.calls.at(-1)?.tools.find((t) => t.function.name === "tool_search")?.function.description ?? "",
     /notes/,
   );
   const found = await turn("find echo");
@@ -87,7 +87,7 @@ test("approved, its tools are found and run through two tools; results are outsi
   assert.match(found, /args: \{.*"text"/);
   assert.match(await turn("use echo"), /<mcp_result server="notes" tool="echo" trust="untrusted">\necho: hi/);
   // The bridge runs MCP tools only: an APX tool keeps to its own name and its own checks.
-  assert.match(await turn("bridge shell"), /unknown tool shell; mcp_call runs a tool mcp_search found/);
+  assert.match(await turn("bridge shell"), /unknown tool shell; tool_run runs a tool tool_search found/);
   const { servers } = await env.client.call("mcp.list", { project });
   const notes = servers.find((s) => s.name === "notes");
   assert.equal(notes?.status, "ready");

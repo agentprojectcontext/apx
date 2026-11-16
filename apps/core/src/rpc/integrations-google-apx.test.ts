@@ -20,9 +20,9 @@ const llm = scriptedLlm((req, { said, afterTool }) => {
       meet: true,
     });
   if (said.includes("find the plan")) return callTool("d1", "drive_search", { q: "plan" });
-  // A connected app's tools are found through mcp_search: list them all to see what the turn reaches.
-  if (said.includes("hello") && req.tools.some((t) => t.function.name === "mcp_search"))
-    return callTool("s1", "mcp_search", {});
+  // A connected app's tools are found through tool_search: list them all to see what the turn reaches.
+  if (said.includes("hello") && req.tools.some((t) => t.function.name === "tool_search"))
+    return callTool("s1", "tool_search", {});
   return say(`tools: ${req.tools.map((t) => t.function.name).join(",")}`);
 });
 let env: Awaited<ReturnType<typeof startCore>>;
@@ -50,7 +50,7 @@ async function signIn(id: string) {
   return env.client.call("integrations.oauth_finish", { code, state: back.searchParams.get("state") ?? "" });
 }
 
-/** What the last turn reached: the tools sent, and those mcp_search listed. */
+/** What the last turn reached: the tools sent, and those tool_search listed. */
 const offered = () => [
   ...(llm.calls.at(-1)?.tools.map((t) => t.function.name) ?? []),
   ...[...String(llm.calls.at(-1)?.messages.at(-1)?.content ?? "").matchAll(/^- (\w+):/gm)].map((m) => m[1] ?? ""),

@@ -136,7 +136,7 @@ test("a bot of the Flow answers with its own system prompt, no memory and no tea
       "search_chats",
       "search_owner_notes",
       "message_contact",
-      "mcp_search",
+      "tool_search",
     ])
       assert.ok(!toolNames(call).includes(name), `${name} is left out`);
     assert.ok(toolNames(call).includes("web_search"), "it keeps the tools that work on the task");

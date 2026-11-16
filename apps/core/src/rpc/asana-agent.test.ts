@@ -30,9 +30,9 @@ test("Asana reads are untrusted and agent writes wait for owner approval before 
     await env.client.call("integrations.connect", { id: "asana", values: { token: "example-pat" } });
     await env.client.call("threads.send", { thread, text: "read Asana" });
     await env.settle(thread);
-    // Connected, Asana is found through mcp_search rather than sent on every call (DECISIONS.md#d-229).
+    // Connected, Asana is found through tool_search rather than sent on every call (DECISIONS.md#d-229).
     assert.ok(!offered().includes("asana_read"));
-    const search = llm.calls.at(-1)?.tools.find((t) => t.function.name === "mcp_search");
+    const search = llm.calls.at(-1)?.tools.find((t) => t.function.name === "tool_search");
     assert.match(String(search?.function.description), /connected apps \(asana\)/);
     assert.match(String(llm.calls.at(-1)?.messages.at(-1)?.content), /<asana [^>]*trust="untrusted"/);
     const ctx = {

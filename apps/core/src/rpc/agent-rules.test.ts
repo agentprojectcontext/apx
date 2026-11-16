@@ -54,5 +54,5 @@ test("the tool catalog says each tool's risk", async () => {
   const { tools } = await env.client.call("agents.tools", {});
   const risk = (n: string) => tools.find((t) => t.name === n)?.risk;
   assert.equal(risk("file_read"), "read");
-  assert.equal(risk("mcp_call"), "outside");
+  assert.equal(risk("tool_run"), "outside");
 });

@@ -44,7 +44,7 @@ There is no automatic retry of a write; inspect Asana before repeating a create 
   suits them, then create the event with `meet: true` for a call. People added later go in with
   `calendar_update_event` `add_attendees`; the event keeps its id, so change it instead of making a new one.
 - The MCP-based integrations add one of the owner's MCP servers named like the integration, with its keys kept as variables. Reach
-  their tools with `mcp_search` and `mcp_call`; manage the server like any other (apx-mcps): `apx mcps check github`,
+  their tools with `tool_search` and `tool_run`; manage the server like any other (apx-mcps): `apx mcps check github`,
   or `apx mcps off github --project <id>` to keep it out of one project.
 - Disconnecting is also the owner's, in the same screen.
 

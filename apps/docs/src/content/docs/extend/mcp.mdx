@@ -148,16 +148,17 @@ brought 319 tools: a one-line answer cost **64,432 tokens** of prompt.
 
 So agents don't get those tools directly. While any server is on and approved, they get two:
 
-- `mcp_search` finds tools by words or by server, with their descriptions and arguments.
-- `mcp_call` runs one by its exact name.
+- `tool_search` loads tools by their exact names (several at once), or finds them by words or by server, with their
+  descriptions and arguments.
+- `tool_run` runs one by its exact name, for a model that will not call a tool it was not sent.
 
 The same one-line answer then costs **11,838 tokens**, and the list of tools stays the same from call to call, which
 keeps the model provider's prompt cache warm. Approvals, confirmations and the tool cards in the chat work exactly as
 if the agent had called the tool directly.
 
 APX's own tools that agents rarely need (routines, settings, Flows, widgets, documents, the computer's screen, contact
-requests, images, video transcripts and a few more) travel the same way: `mcp_search` names them, and the agent calls
-one by its name whenever it needs it, with nothing to search first. If it gets the arguments wrong, the answer brings
+requests, images, video transcripts and a few more) travel the same way: `tool_search` names them grouped by what they are for, and
+the agent calls one by its name whenever it needs it, with nothing to search first. If it gets the arguments wrong, the answer brings
 them, so the next try works. This keeps a default call about a third lighter.
 
 ## Files and images in MCP tools
