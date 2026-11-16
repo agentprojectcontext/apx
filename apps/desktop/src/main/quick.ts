@@ -36,18 +36,12 @@ export function createQuick(opts: {
   let pressedVisible: boolean | undefined;
 
   function trayImage(): Electron.NativeImage {
-    const attention = unreadCount > 0;
-    const name =
-      process.platform === "darwin"
-        ? attention && nativeTheme.shouldUseDarkColors
-          ? "tray-white"
-          : "trayTemplate"
-        : "tray-color";
+    const name = process.platform === "darwin" ? "trayTemplate" : "tray-color";
     const image = nativeImage.createFromPath(
       path.join(opts.assets, `${name}${unreadCount > 0 ? "-attention" : ""}.png`),
     );
-    // Template tinting would turn the orange badge into the system's monochrome color.
-    if (process.platform === "darwin") image.setTemplateImage(!attention);
+    // The menu bar's contrast can differ from the app theme, including with unread notifications.
+    if (process.platform === "darwin") image.setTemplateImage(true);
     return process.platform === "win32" ? image.resize({ width: 16 }) : image;
   }
 
