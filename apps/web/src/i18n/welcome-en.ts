@@ -11,7 +11,7 @@ export const enWelcome = {
   "welcome.soundOff": "Turn sound off",
   "welcome.voice.title": "APX's own voice",
   "welcome.voice.text":
-    "Your agents speak and hear voice notes with APX's own voice. In Settings › Voices you pick female or male and the accent.",
+    "Your agents speak and hear voice notes with APX's own voice. In Settings › Voice and calls you pick female or male, the language and the accent.",
   "welcome.calls.title": "Call your agents",
   "welcome.calls.text":
     "The phone button at the top calls your super-agent, or call any agent from its chat. You talk and it answers aloud.",
