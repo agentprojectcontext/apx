@@ -11,7 +11,8 @@ const subscribe = (fn: () => void) => {
 
 /** The owner's choice (on by default), and on regardless in a window too short for the cards. */
 export function useSidebarCompact(): boolean {
-  const chosen = usePrefs((s) => s.sidebarCompact);
+  // A simple panel's sidebar is always compact.
+  const chosen = usePrefs((s) => s.sidebarCompact || s.panelMode === "simple");
   const short = useSyncExternalStore(
     subscribe,
     () => window.innerHeight < COMPACT_BELOW_H,

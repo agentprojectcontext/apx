@@ -225,6 +225,11 @@ export const es: Partial<Record<MessageKey, string>> = {
   "connection.connecting": "Conectando",
 
   // Barra superior, barra lateral, cuenta
+  "mode.label": "Panel",
+  "mode.toSimple": "Pasar al panel simple",
+  "mode.toAdvanced": "Pasar al panel completo",
+  "mode.simple": "Simple",
+  "mode.advanced": "Avanzado",
   "topbar.search": "Buscar o saltar a…",
   "server.label": "APX en uso: {name}",
   "server.local": "Local",
@@ -1162,9 +1167,7 @@ export const es: Partial<Record<MessageKey, string>> = {
   "providers.remove": "Quitar",
   "providers.newTitle": "Nuevo proveedor",
   "providers.editTitle": "Editar {name}",
-  "providers.dialogLead":
-    "Una API de modelos que APX llama con su propio loop. Elegí el tipo y la dirección se completa sola.",
-  "providers.kind": "Tipo",
+  "providers.dialogLead": "Pegá su clave y listo: la dirección ya viene completa.",
   "providers.name": "Nombre",
   "providers.idHint": "Su id en los nombres de modelo: {id}/<modelo>",
   "providers.idTaken": "Ya hay un proveedor {id}",

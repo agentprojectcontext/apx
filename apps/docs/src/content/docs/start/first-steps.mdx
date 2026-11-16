@@ -9,25 +9,59 @@ import { Aside, CardGrid, LinkCard, Steps } from "@astrojs/starlight/components"
 import Shot from "../../../components/Shot.astro";
 import Terminal from "../../../components/Terminal.astro";
 
-The first time APX opens, a short wizard sets up your crew. It takes a few minutes, everything in it can be changed
-later in Settings, and you can open it again from the account menu › **First-run setup**.
+The first time APX opens, a short wizard sets it up. Everything in it can be changed later in Settings, and in the
+full panel you can open it again from the account menu › **First-run setup**.
 
 ## The setup wizard
 
-<Shot name="wizard-welcome" alt="The first-run setup on its welcome step, with the choices Start from scratch and Import from APX v1" caption="Welcome: start fresh or bring your v1 crew" />
+<Shot name="wizard-welcome" alt="The first-run setup on its welcome step, with the choices Personal assistant and Projects and team" caption="Welcome: pick how you will use APX" />
+
+The first screen asks **How will you use APX?**:
+
+- **Personal assistant** (the simple panel): one agent that helps you every day with your mail, Telegram, calls and
+  reminders. A few steps, and a panel without projects.
+- **Projects and team** (the full panel): agents for each project, tasks, flows and every setting. The steps below
+  under [Projects and team](#projects-and-team).
+
+You can switch between them any time with **Simple** and **Advanced** at the top of the panel, or ask your
+super-agent to do it.
+
+### Personal assistant
 
 <Steps>
 
-1. **Welcome.** Choose **Start from scratch**. If APX finds an APX v1 on this computer, it also offers
-   **Import from APX v1**, with how many projects it found. Importing adds a step where you pick what to bring
+1. **Its brain.** Click **ChatGPT** to sign in with your Plus or Pro plan, or **OpenRouter** to approve APX in your
+   OpenRouter account (it opens in a window of its own and starts on OpenRouter's free models). One is enough; with
+   both connected, the next step asks which goes first. A model app on this computer, such as Ollama, stays as the
+   backup without asking. **More options** lists what is connected and **Add provider** shows every kind as a card.
+
+2. **Its name and face.** Pick one of three names (the die offers three others) or write your own, and pick its face.
+
+3. **Channels.** Optional: link WhatsApp with a QR, connect Gmail, or paste a [Telegram](/channels/telegram/) bot
+   token. **Skip for now** leaves them for later.
+
+4. **Meet.** While APX gets things ready on its own (memory that searches by meaning when Ollama is here, its own
+   voice for voice notes and calls where this computer can run it, images with ChatGPT), your super-agent asks what
+   to call you, what you do, how to talk to you and what to help with first, each with answers to pick. Press **Enter
+   APX** whenever you want: the downloads go on.
+
+</Steps>
+
+On the simple panel your super-agent works on its own: it does not create projects or other agents. Ask it for
+project work and it offers to switch to the full panel.
+
+### Projects and team
+
+<Steps>
+
+1. **Welcome.** Choose **Projects and team**. If APX finds an APX v1 on this computer, it also offers
+   **Bring APX v1**, with how many projects it found. Importing adds a step where you pick what to bring
    (see [Coming from v1](/start/from-v1/)).
 
 2. **Super-agent.** This is Home, your secretary: it coordinates the rest and answers your channels. Give it a
    **Name** and pick its blob, one of 35 faces. It shows up beside the form as you choose.
 
-   <Shot name="wizard-agent" alt="The agent step: a name field, a grid of blob faces and the chosen blob shown large on the right" />
-
-3. **Engines.** Connect your models: sign in with your ChatGPT plan, or **Add API key** for
+3. **Engines.** Connect your models: sign in with your ChatGPT plan, or add a key for
    Gemini, Anthropic, OpenAI, OpenRouter and others. Local engines such as Ollama need no key. Then order the
    **Model chain** with the arrows: the first model is the default, and if it fails the next one takes over.
 

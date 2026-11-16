@@ -12,18 +12,37 @@ const store = createStore<State>({ open: false, status: undefined });
 export const useSetup = <T>(select: (s: State) => T): T => useSlice(store, select);
 const errText = (e: unknown) => (e instanceof Error ? e.message : String(e));
 
-/** Reads where the setup is; a new install that never finished it opens it. */
+/** Where an unfinished setup was left on this device (the wizard keeps it as it goes). */
+export const SETUP_RESUME_KEY = "apx.setup.resume";
+const leftUnfinished = () => {
+  try {
+    return localStorage.getItem(SETUP_RESUME_KEY) !== null;
+  } catch {
+    return false;
+  }
+};
+
+/**
+ * Reads where the setup is; a new install that never finished it opens it, and so does one left halfway here (a
+ * sign-in it started already made the install no longer new).
+ */
 export async function loadSetup(): Promise<void> {
   try {
     const status = await client.call("setup.status", {});
-    store.set((s) => ({ status, open: s.open || (!status.done && status.fresh) }));
+    store.set((s) => ({ status, open: s.open || (!status.done && (status.fresh || leftUnfinished())) }));
   } catch {
     // An older core has no setup: the panel opens as it always did.
   }
 }
 
 export const openSetup = () => store.set({ open: true });
-export const closeSetup = () => store.set({ open: false });
+/** Leaving on purpose: it does not open again by itself on the next load. */
+export const closeSetup = () => {
+  try {
+    localStorage.removeItem(SETUP_RESUME_KEY);
+  } catch {}
+  store.set({ open: false });
+};
 
 export async function finishSetup(): Promise<void> {
   try {

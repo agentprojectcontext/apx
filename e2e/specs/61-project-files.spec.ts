@@ -99,7 +99,8 @@ test("a project's Files shows its own files by kind and its artifacts; old links
     // A link to the old Files tab opens Directory: the folder and Git, widgets being under Files › Artifacts now.
     await page.goto(`${env.core.url}/#project=p_acme&tab=files`);
     await expect(page.getByRole("tab", { name: "Directorio" })).toHaveAttribute("aria-selected", "true");
-    await expect(page.getByRole("radio")).toHaveText(["Carpeta", "Git"]);
+    const directory = page.getByRole("radiogroup").filter({ has: page.getByRole("radio", { name: "Carpeta" }) });
+    await expect(directory.getByRole("radio")).toHaveText(["Carpeta", "Git"]);
   } finally {
     // Detach the browser before stopping its core: requests still on their way must not fail the page.
     await page.goto("about:blank");

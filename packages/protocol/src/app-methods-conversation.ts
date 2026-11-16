@@ -49,6 +49,27 @@ export const appConversationMethods = {
     effect: true,
     access: "human",
   }),
+  /**
+   * Starts OpenRouter's sign-in: the page to approve at, which sends the browser back to `callback` (the panel's
+   * /oauth/openrouter page) to finish it.
+   */
+  "openrouter.connect": deferMethod({
+    params: () => z.object({ callback: z.string().url().max(500) }).strict(),
+    result: () => z.object({ url: z.string() }),
+    effect: true,
+    access: "human",
+  }),
+  /**
+   * The code OpenRouter sent back, with the state this core made minutes ago (once): its key is saved and OpenRouter
+   * added. Open, like Google's: the browser it returns to may not be paired, and the core's PKCE verifier is the key.
+   */
+  "openrouter.finish": deferMethod({
+    params: () => z.object({ code: z.string().min(1).max(2000), state: z.string().min(1).max(200) }).strict(),
+    result: () => z.object({ ok: z.literal(true) }),
+    effect: true,
+    access: "human",
+    open: true,
+  }),
   "providers.list": deferMethod({
     params: () => z.object({}).strict(),
     result: () =>

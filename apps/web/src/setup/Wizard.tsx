@@ -8,22 +8,38 @@ import logo from "../assets/logo.png";
 import { bootstrap } from "../data/actions.ts";
 import { loadChannels, useChannels } from "../data/channels.ts";
 import { client } from "../data/client.ts";
+import { closeCard } from "../data/cornerCards.ts";
 import { secretary } from "../data/identity.ts";
-import { loadModelsConfig, saveModelsConfig, useModels } from "../data/models.ts";
+import { loadModelsConfig, saveModelsConfig, splitRef, useModels } from "../data/models.ts";
 import { notify } from "../data/notices.ts";
 import { updateBase } from "../data/projects.ts";
-import { addProject, closeSetup, finishSetup, importV1, scanV1, useSetup, type V1Groups } from "../data/setup.ts";
+import { useProviders } from "../data/providers.ts";
+import {
+  addProject,
+  closeSetup,
+  finishSetup,
+  importV1,
+  SETUP_RESUME_KEY as RESUME_KEY,
+  scanV1,
+  useSetup,
+  type V1Groups,
+} from "../data/setup.ts";
 import { useData } from "../data/state.ts";
 import { updateAgent } from "../data/team.ts";
 import { type MessageKey, useLanguage, usePack, useT } from "../i18n/index.ts";
 import { useDesktopClass } from "../shell/desktop.ts";
 import { LanguageMenu } from "../shell/LanguageMenu.tsx";
 import { go, useNav } from "../shell/nav.ts";
+import { setPanelMode } from "../shell/panelMode.ts";
+import { ALL_SLIDES } from "../shell/welcomeFilm.ts";
 import { BuildVersion } from "./BuildVersion.tsx";
 import { type Draft, defaultDraft } from "./draft.ts";
-import { ChannelsStep, DoneStep, EnginesStep, MemoryStep, ProjectStep } from "./StepsConfig.tsx";
+import { MeetStep } from "./MeetStep.tsx";
+import { ChannelsStep, DoneStep, EnginesStep, MemoryStep, OrderStep, ProjectStep } from "./StepsConfig.tsx";
 import { AgentStep, GROUP, ImportStep, Welcome } from "./StepsIntro.tsx";
 
+/** Simple names its steps for someone who never set up an agent. */
+const SIMPLE_KEY: Partial<Record<Step, MessageKey>> = { engines: "setup.step.brain" };
 const STEP_KEY: Record<Step, MessageKey> = {
   welcome: "setup.step.welcome",
   import: "setup.step.import",
@@ -33,12 +49,27 @@ const STEP_KEY: Record<Step, MessageKey> = {
   channels: "setup.step.channels",
   project: "setup.step.project",
   done: "setup.step.done",
+  order: "setup.step.order",
+  meet: "setup.step.meet",
 };
-type Step = "welcome" | "import" | "agent" | "engines" | "memory" | "channels" | "project" | "done";
+type Step = "welcome" | "import" | "agent" | "engines" | "order" | "memory" | "channels" | "project" | "meet" | "done";
+
+/** Where an unfinished setup was left on this device, if it is readable. */
+function resumed(): { draft: Draft; at: number } | undefined {
+  try {
+    const v = JSON.parse(localStorage.getItem(RESUME_KEY) ?? "null") as { draft?: Partial<Draft>; at?: unknown } | null;
+    if (!v?.draft || typeof v.at !== "number") return undefined;
+    return { draft: { ...defaultDraft(), ...v.draft }, at: Math.max(0, Math.floor(v.at)) };
+  } catch {
+    return undefined;
+  }
+}
 
 /** Its strings load with it (the "setup" pack): nothing shows until they are here. */
 export function Wizard() {
-  return usePack("setup") ? <WizardBody /> : null;
+  const setup = usePack("setup");
+  const resources = usePack("resources");
+  return setup && resources ? <WizardBody /> : null;
 }
 
 /**
@@ -53,25 +84,39 @@ function WizardBody() {
   const status = useSetup((s) => s.status);
   const agents = useData((s) => s.agents);
   const config = useModels((s) => s.config);
-  const [d, setD] = useState<Draft>(() => defaultDraft());
-  const [at, setAt] = useState(0);
+  const [d, setD] = useState<Draft>(() => resumed()?.draft ?? defaultDraft());
+  const [at, setAt] = useState(() => resumed()?.at ?? 0);
+  // A reload, or a sign-in that came back in another tab, opens the setup where the owner left it.
+  useEffect(() => {
+    try {
+      localStorage.setItem(RESUME_KEY, JSON.stringify({ draft: d, at }));
+    } catch {}
+  }, [d, at]);
   const [busy, setBusy] = useState(false);
   const [scan, setScan] = useState<V1Groups>();
   const set = (p: Partial<Draft>) => setD((cur) => ({ ...cur, ...p }));
   const boss = secretary(agents);
 
+  // More than one brain signed in (a model app on this computer aside): the owner says which goes first.
+  const providers = useProviders((s) => s.list);
+  const brains = new Set(
+    d.chain.map((ref) => splitRef(ref).engine).filter((id) => !providers.find((p) => p.id === id)?.local),
+  ).size;
   const steps: Step[] = useMemo(
-    () => [
-      "welcome",
-      ...(d.mode === "import" ? (["import"] as const) : []),
-      "agent",
-      "engines",
-      "memory",
-      "channels",
-      "project",
-      "done",
-    ],
-    [d.mode],
+    () =>
+      d.style === "simple"
+        ? ["welcome", "engines", ...(brains > 1 ? (["order"] as const) : []), "agent", "channels", "meet"]
+        : [
+            "welcome",
+            ...(d.mode === "import" ? (["import"] as const) : []),
+            "agent",
+            "engines",
+            "memory",
+            "channels",
+            "project",
+            "done",
+          ],
+    [d.mode, d.style, brains],
   );
   const step = steps[at] ?? "welcome";
 
@@ -96,12 +141,12 @@ function WizardBody() {
     setD((cur) => ({ ...cur, name: boss.name, blob: boss.blob ?? "", nameSet: true }));
   }, [boss, d.nameSet]);
 
-  const start = (mode: Draft["mode"]) => {
+  const start = (mode: Draft["mode"], style: Draft["style"]) => {
     const v1 = status?.v1;
     // Importing brings v1's super-agent: the preview shows its name and face from the first step.
     if (mode === "import" && (v1?.agent_name || v1?.agent_blob))
-      set({ mode, nameSet: true, name: v1.agent_name ?? d.name, blob: v1.agent_blob ?? d.blob });
-    else set({ mode });
+      set({ mode, style, nameSet: true, name: v1.agent_name ?? d.name, blob: v1.agent_blob ?? d.blob });
+    else set({ mode, style });
     setAt(1);
     if (mode === "import" && !scan) void scanV1().then(setScan);
   };
@@ -142,7 +187,9 @@ function WizardBody() {
       return true;
     }
     if (step === "agent" && boss) return updateAgent(boss.id, { name: d.name.trim(), blob: d.blob });
-    if (step === "engines" && config) {
+    // A brain is there: what runs without asking starts downloading now, while the owner names the agent.
+    if (step === "engines" && d.style === "simple") void client.call("setup.prepare", {}).catch(() => {});
+    if ((step === "engines" || step === "order") && config) {
       const [first, ...rest] = d.chain;
       const choice: ModelChoice = first ? { model: first, router: rest.length > 0 } : { router: true };
       return saveModelsConfig({ default: choice, router: { ...config.router, chain: rest } });
@@ -181,6 +228,12 @@ function WizardBody() {
   };
   // The super-agent's chat opens with its first greeting, in the language on screen.
   const finish = async () => {
+    try {
+      localStorage.removeItem(RESUME_KEY);
+    } catch {}
+    setPanelMode(d.style);
+    // Someone who just installed has nothing to compare: what is new starts with the next release.
+    closeCard({ welcomeSeen: [...ALL_SLIDES] });
     await finishSetup();
     const greeted = await client.call("setup.greet", { language: lang }).catch(() => undefined);
     await bootstrap().catch(() => {});
@@ -188,15 +241,19 @@ function WizardBody() {
   };
 
   const name = d.name.trim() || t("setup.preview.unset");
+  // Simple shows its agent floating in the name step itself, never as a side card.
+  const preview = step !== "welcome" && d.style === "advanced";
   const body: Record<Step, ReactNode> = {
     welcome: <Welcome v1={status?.v1 ?? null} agent={boss} onStart={start} />,
     import: <ImportStep home={status?.v1?.home ?? "~/.apx"} scan={scan} draft={d} set={set} />,
     agent: <AgentStep draft={d} set={set} />,
     engines: <EnginesStep draft={d} set={set} />,
+    order: <OrderStep draft={d} set={set} />,
+    meet: <MeetStep name={name} />,
     memory: <MemoryStep draft={d} set={set} />,
-    channels: <ChannelsStep name={d.name.trim() || t("agent.super")} />,
+    channels: <ChannelsStep name={d.name.trim() || t("agent.super")} simple={d.style === "simple"} />,
     project: <ProjectStep draft={d} set={set} />,
-    done: <DoneStep name={name} onFinish={() => void finish()} />,
+    done: <DoneStep name={name} simple={d.style === "simple"} onFinish={() => void finish()} />,
   };
 
   return (
@@ -216,7 +273,7 @@ function WizardBody() {
               onClick={() => setAt(i)}
             >
               <span className="wiz__bar" />
-              {t(STEP_KEY[s])}
+              {t((d.style === "simple" && SIMPLE_KEY[s]) || STEP_KEY[s])}
             </button>
           ))}
         </nav>
@@ -231,28 +288,42 @@ function WizardBody() {
           {t("setup.exit")}
         </button>
       </header>
-      <div className="wiz__scroll">
-        <div className={`wiz__grid${step === "welcome" ? " is-single" : ""}`}>
-          <div className="wiz__main">
-            {body[step]}
-            {step !== "welcome" && step !== "done" && (
-              <div className="wiz__foot">
-                {at > 0 && (
-                  <button type="button" className="wiz__back" onClick={() => setAt((i) => Math.max(i - 1, 0))}>
-                    {t("setup.back")}
-                  </button>
-                )}
-                <span className="wiz__spacer" />
-                {blocked && <span className="wiz__hint">{t(blocked)}</span>}
-                <Button size="lg" disabled={Boolean(blocked)} loading={busy} onClick={() => void next()}>
-                  {step === "project" ? t("setup.create") : t("setup.next")}
-                </Button>
-              </div>
-            )}
-          </div>
-          {step !== "welcome" && <Preview draft={d} imports={scan} />}
+      <div className={`wiz__scroll${step === "welcome" ? "" : " is-step"}`}>
+        <div className={`wiz__grid${preview ? "" : " is-single"}`}>
+          <div className="wiz__main">{body[step]}</div>
+          {preview && <Preview draft={d} imports={scan} />}
         </div>
       </div>
+      {/* Back and Continue stay at the window's foot, whatever the step holds above them. */}
+      {step !== "welcome" && step !== "done" && (
+        <div className="wiz__footbar">
+          <div className={`wiz__foot${d.style === "advanced" ? " is-wide" : ""}`}>
+            {at > 0 && (
+              <button type="button" className="wiz__back" onClick={() => setAt((i) => Math.max(i - 1, 0))}>
+                {t("setup.back")}
+              </button>
+            )}
+            <span className="wiz__spacer" />
+            {blocked && d.style === "advanced" && <span className="wiz__hint">{t(blocked)}</span>}
+            {d.style === "simple" && step === "channels" && (
+              <Button size="lg" variant="ghost" onClick={() => void next()}>
+                {t("setup.reach.skip")}
+              </Button>
+            )}
+            {/* Simple's brain needs one connected first: Continue shows once there is one. Its last step enters APX. */}
+            {!(blocked && d.style === "simple") && (
+              <Button
+                size="lg"
+                disabled={Boolean(blocked)}
+                loading={busy}
+                onClick={() => void (step === "meet" ? finish() : next())}
+              >
+                {step === "project" ? t("setup.create") : step === "meet" ? t("setup.meet.enter") : t("setup.next")}
+              </Button>
+            )}
+          </div>
+        </div>
+      )}
       <BuildVersion className={step === "welcome" ? "" : " is-side"} />
     </div>
   );
@@ -293,12 +364,13 @@ function Preview({ draft: d, imports }: { draft: Draft; imports: V1Groups | unde
         <span className={`wiz__ptag${ready ? " is-ready" : ""}`}>{t("agent.super")}</span>
       </div>
       {row("setup.preview.engines", d.chain.join(" → "), true)}
-      {row("setup.preview.memory", t(memory[d.memory]))}
+      {d.style === "advanced" && row("setup.preview.memory", t(memory[d.memory]))}
       {row("setup.preview.channels", channels.join(", "))}
-      {row(
-        "setup.preview.projects",
-        `${d.baseName.trim() || "Default"}${d.projectChoice === "folder" && d.path.trim() ? ` · ${d.path.trim().split("/").filter(Boolean).at(-1)}` : ""}`,
-      )}
+      {d.style === "advanced" &&
+        row(
+          "setup.preview.projects",
+          `${d.baseName.trim() || "Default"}${d.projectChoice === "folder" && d.path.trim() ? ` · ${d.path.trim().split("/").filter(Boolean).at(-1)}` : ""}`,
+        )}
       {d.mode === "import" && row("setup.preview.imports", t("setup.preview.groups", { n: on, total: groups.length }))}
     </aside>
   );

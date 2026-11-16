@@ -65,6 +65,7 @@ import { mediaHandlers } from "./rpc/media.ts";
 import { memoryHandlers } from "./rpc/memory.ts";
 import { noticeHandlers } from "./rpc/notices.ts";
 import { notificationHandlers } from "./rpc/notifications.ts";
+import { panelModeHandlers } from "./rpc/panel-mode.ts";
 import { phoneHandlers } from "./rpc/phone.ts";
 import { providerHandlers } from "./rpc/providers.ts";
 import { resourceHandlers } from "./rpc/resources.ts";
@@ -73,6 +74,7 @@ import { routineHandlers } from "./rpc/routines.ts";
 import { runHandlers } from "./rpc/runs.ts";
 import { sessionHandlers } from "./rpc/sessions.ts";
 import { setupHandlers } from "./rpc/setup.ts";
+import { prepareHandlers } from "./rpc/setup-prepare.ts";
 import { artifactHandlers } from "./rpc/surfaces.ts";
 import {
   newsHandlers,
@@ -368,6 +370,14 @@ export function coreHandlers(d: HandlerDeps & { vm?: Computer | undefined }) {
     ...transcriptionHandlers(d.services, d.localModels),
     ...callHandlers(d.voice),
     ...embeddingHandlers(d.localEmbeds, () => d.memory.engine()),
+    ...panelModeHandlers(d.store, d.bus),
+    ...prepareHandlers({
+      store: d.store,
+      local: d.localEmbeds,
+      engine: () => d.memory.engine(),
+      voice: d.voice,
+      chatgpt: () => d.chatgpt.login.has(),
+    }),
     ...taskHandlers(d.store, d.engine, d.app.home, d.vm?.beforeDelete),
     ...routineHandlers(d.store, d.scheduler, d.profileRoots),
     ...flowHandlers(d.store, d.flows, d.publicCredentials, d.flowModel, d.bus),

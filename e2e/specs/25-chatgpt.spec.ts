@@ -1,9 +1,9 @@
-// Engines and models: the ChatGPT plan first among the model APIs (as Codex, signed in from APX, never removed), then
+// Engines and models: the ChatGPT plan first among the model APIs (named ChatGPT, signed in from APX, never removed), then
 // the APIs, known ones shown before they are set up (and removable from the list). The CLIs live in External sessions,
 // never in a picker of models for agents.
 import { expect, open, openSettings, rpc, test } from "./kit.ts";
 
-test("the ChatGPT plan comes first as Codex, fixed, and connects with its own sign-in", async ({ page }) => {
+test("the ChatGPT plan comes first as ChatGPT, fixed, and connects with its own sign-in", async ({ page }) => {
   await rpc("setup.finish", {});
   const status = await rpc<{ connected: boolean }>("chatgpt.status");
   expect(status.connected).toBe(false);
@@ -17,15 +17,15 @@ test("the ChatGPT plan comes first as Codex, fixed, and connects with its own si
   // No CLI card here and nothing to put a CLI in the router.
   await expect(settings.getByRole("button", { name: "Usarlo en el router" })).toHaveCount(0);
   const codex = settings.locator(".pgrid > .pcard").first();
-  await expect(codex).toContainText("Codex");
-  await expect(codex).toContainText("Plan de ChatGPT");
+  await expect(codex).toContainText("ChatGPT");
+  await expect(codex).toContainText("Plan Plus o Pro");
   await expect(codex).toContainText("Sin conectar");
   await expect(codex.getByRole("button", { name: "Quitar" })).toHaveCount(0);
   await expect(settings.getByText("Solo en Claude Code")).toHaveCount(0);
 
   // ChatGPT's setting comes first: the sign-in waits until the owner says it is on.
   await codex.getByRole("button", { name: "Conectar" }).click();
-  const signIn = page.getByRole("dialog", { name: "Conectar Codex" });
+  const signIn = page.getByRole("dialog", { name: "Conectar ChatGPT" });
   await expect(signIn).toContainText("separado del de la app de Codex");
   // Signing in is one click: ChatGPT's device-code setting is only a hint once a code is out, or after a refusal.
   const start = signIn.getByRole("button", { name: "Iniciar sesión con ChatGPT" });

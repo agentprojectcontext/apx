@@ -20,7 +20,7 @@ import { NO_KEY } from "../providers/llm.ts";
 import { localModelIds } from "../providers/local-models.ts";
 import type { Secrets } from "../secrets.ts";
 import { EMBED_NAME } from "../services/local-embed.ts";
-import { starterModel } from "./starter.ts";
+import { FREE_ROUTER, starterModel } from "./starter.ts";
 
 const run = promisify(execFile);
 const TTL_MS = 24 * 3600_000;
@@ -336,7 +336,9 @@ export function createCatalog(deps: {
         // A list the owner gave (a local gateway) is in their order: its first model is the one they use.
         const own = deps.providers().find((p) => p.id === e.id)?.models[0];
         const starter = own ?? starterModel(e.models);
-        return starter ? { ...e, starter } : e;
+        // The provider's free router heads its list, where the owner looks first.
+        const models = [...e.models].sort((a, b) => Number(FREE_ROUTER.test(b.id)) - Number(FREE_ROUTER.test(a.id)));
+        return starter ? { ...e, models, starter } : { ...e, models };
       });
     },
   };

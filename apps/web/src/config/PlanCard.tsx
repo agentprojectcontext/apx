@@ -9,7 +9,7 @@ import { EngineUsageSwitch } from "./EngineUsageSwitch.tsx";
 import { PlanLogin } from "./PlanLogin.tsx";
 
 /**
- * The ChatGPT plan as a model API of APX's own loop, shown as Codex: first among the APIs, fixed (signed in or out,
+ * The ChatGPT plan as a model API of APX's own loop, shown as ChatGPT: first among the APIs, fixed (signed in or out,
  * switched on or off, never removed). Claude's plan has no counterpart: it runs only in Claude Code (D-043).
  */
 export function PlanCard({ p, compact = false }: { p: ProviderInfo; compact?: boolean }) {

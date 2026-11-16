@@ -9,25 +9,59 @@ import { Aside, CardGrid, LinkCard, Steps } from "@astrojs/starlight/components"
 import Shot from "../../../../components/Shot.astro";
 import Terminal from "../../../../components/Terminal.astro";
 
-La primera vez que abrís APX, un asistente corto arma tu equipo. Son unos minutos, todo se puede cambiar después en
-Config, y lo podés volver a abrir desde el menú de tu cuenta › **Configuración inicial**.
+La primera vez que abrís APX, un asistente corto lo deja listo. Todo se puede cambiar después en Config, y en el
+panel completo lo podés volver a abrir desde el menú de tu cuenta › **Configuración inicial**.
 
 ## El asistente de configuración
 
-<Shot name="wizard-welcome" alt="La configuración inicial en el paso de bienvenida, con las opciones Empezar de cero e Importar desde APX v1" caption="Bienvenida: arrancás de cero o traés tu equipo de v1" />
+<Shot name="wizard-welcome" alt="La configuración inicial en el paso de bienvenida, con las opciones Asistente personal y Proyectos y equipo" caption="Bienvenida: elegís cómo vas a usar APX" />
+
+La primera pantalla pregunta **¿Cómo vas a usar APX?**:
+
+- **Asistente personal** (el panel simple): un agente que te ayuda en el día a día con tu mail, Telegram, llamadas y
+  recordatorios. Pocos pasos y un panel sin proyectos.
+- **Proyectos y equipo** (el panel completo): agentes por proyecto, tareas, flows y todos los ajustes. Los pasos
+  están abajo, en [Proyectos y equipo](#proyectos-y-equipo).
+
+Podés cambiar cuando quieras con **Simple** y **Avanzado** arriba del panel, o pedírselo a tu super-agente.
+
+### Asistente personal
 
 <Steps>
 
-1. **Bienvenida.** Elegí **Empezar de cero**. Si APX encuentra un APX v1 en esta computadora, también te ofrece
-   **Importar desde APX v1**, con cuántos proyectos encontró. Importar suma un paso donde elegís qué traer (mirá
+1. **Su cerebro.** Tocá **ChatGPT** para entrar con tu plan Plus o Pro, u **OpenRouter** para aprobar APX en tu
+   cuenta de OpenRouter (se abre en una ventana aparte y arranca con los modelos gratis de OpenRouter). Con uno
+   alcanza; si conectás los dos, el paso siguiente pregunta cuál va primero. Una app de modelos en esta compu, como
+   Ollama, queda de respaldo sin preguntar. **Más opciones** lista lo que está conectado y **Agregar proveedor**
+   muestra cada tipo como una tarjeta.
+
+2. **Su nombre y su cara.** Elegí uno de tres nombres (el dado ofrece otros tres) o escribí el tuyo, y elegí su cara.
+
+3. **Canales.** Opcional: vinculá WhatsApp con un QR, conectá Gmail o pegá el token de un bot de
+   [Telegram](/es/channels/telegram/). **Saltear por ahora** los deja para después.
+
+4. **Conocerse.** Mientras APX deja listo lo suyo (memoria que busca por significado cuando hay Ollama, su propia
+   voz para notas de voz y llamadas donde esta compu la puede correr, imágenes con ChatGPT), tu super-agente te
+   pregunta cómo llamarte, a qué te dedicás, cómo hablarte y en qué ayudarte primero, cada cosa con respuestas para
+   tocar. Tocá **Entrar a APX** cuando quieras: las descargas siguen.
+
+</Steps>
+
+En el panel simple tu super-agente trabaja solo: no crea proyectos ni otros agentes. Si le pedís trabajo de un
+proyecto, te ofrece pasar al panel completo.
+
+### Proyectos y equipo
+
+<Steps>
+
+1. **Bienvenida.** Elegí **Proyectos y equipo**. Si APX encuentra un APX v1 en esta computadora, también te ofrece
+   **Traer APX v1**, con cuántos proyectos encontró. Importar suma un paso donde elegís qué traer (mirá
    [Si venís de v1](/es/start/from-v1/)).
 
 2. **Super-agente.** Es Home, tu secretaria: coordina al resto y atiende tus canales. Ponele un **Nombre** y elegí su
    blobo, una de 35 caras. Va apareciendo al lado del formulario mientras elegís.
 
-   <Shot name="wizard-agent" alt="El paso del agente: un campo de nombre, una grilla de caras de blobos y el blobo elegido en grande a la derecha" />
-
-3. **Motores.** Conectá tus modelos: iniciá sesión con tu plan de ChatGPT o tocá **Agregar API key**
+3. **Motores.** Conectá tus modelos: iniciá sesión con tu plan de ChatGPT o sumá una clave
    para Gemini, Anthropic, OpenAI, OpenRouter y otros. Los motores locales como Ollama no piden clave. Después ordená
    la **Cadena de modelos** con las flechas: el primero es el de por defecto y, si falla, toma la posta el siguiente.
 

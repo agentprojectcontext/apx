@@ -3,6 +3,7 @@
 // (DECISIONS.md#d-060). An MCP server names its keys as secret://NAME, never their value (DECISIONS.md#d-141).
 import { BASE_PROJECT_ID } from "@apx/protocol";
 import { memorySettings } from "../domain/memory-settings.ts";
+import { panelMode } from "../domain/panel-mode.ts";
 import { keyLike } from "../log.ts";
 import { imageDefaultsOf } from "../services/registry.ts";
 import { inlineName } from "./result.ts";
@@ -137,6 +138,11 @@ export const WORK: Readonly<Record<string, Setting>> = {
       Object.entries(memorySettings(store))
         .map(([k, v]) => `${k}: ${JSON.stringify(v)}`)
         .join("\n"),
+  },
+  "panel.set_mode": {
+    does: "switch the owner's panel: simple (an assistant for their day, without projects) or advanced (projects, a team of agents and every setting) (mode)",
+    says: (p) => (p.mode === "advanced" ? "Switch to the full panel" : "Switch to the simple panel"),
+    now: (_p, { store }) => ({ mode: panelMode(store) }),
   },
   "memory.set_settings": {
     does: "change memory's settings (only what changes: mode, auto_recall, auto_capture, auto_compact…); its model stays the owner's",

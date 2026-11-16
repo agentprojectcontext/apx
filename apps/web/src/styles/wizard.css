@@ -112,6 +112,25 @@
   align-content: center;
   max-width: 980px;
 }
+/* A step starts at the top and scrolls inside, its scrollbar always there so more below is plain to see. */
+.wiz__scroll.is-step {
+  overflow-y: scroll;
+  scrollbar-gutter: stable;
+}
+.wiz__scroll.is-step .wiz__grid.is-single {
+  align-content: start;
+}
+.wiz__scroll.is-step::-webkit-scrollbar {
+  width: 10px;
+}
+.wiz__scroll.is-step::-webkit-scrollbar-thumb {
+  border: 2px solid var(--apx-bg);
+  border-radius: 999px;
+  background: var(--apx-border-strong, var(--apx-fg-subtle));
+}
+.wiz__scroll.is-step::-webkit-scrollbar-track {
+  background: transparent;
+}
 @media (max-width: 1040px) {
   .wiz__grid {
     grid-template-columns: minmax(0, 1fr);
@@ -488,10 +507,13 @@ input.wiz__name {
 .wiz__hintline.is-ok {
   color: var(--apx-brand-soft-fg);
 }
+/* The QR fills the dialog's width, centred. */
 .wiz__qr {
   display: flex;
   align-items: center;
+  justify-content: center;
   gap: 14px;
+  padding: 4px 0 8px;
 }
 .wiz__inline {
   display: flex;
@@ -552,11 +574,23 @@ input.wiz__name {
   gap: 8px;
 }
 /* Footer */
+/* Back and Continue sit at the window's foot, at the edges of the step's width; the step scrolls above them. */
+.wiz__footbar {
+  flex: none;
+  border-top: 1px solid var(--apx-border);
+  background: var(--apx-bg);
+}
 .wiz__foot {
   display: flex;
   gap: 8px;
   align-items: center;
-  padding-top: 6px;
+  max-width: 980px;
+  margin: 0 auto;
+  padding: 14px 32px;
+  box-sizing: border-box;
+}
+.wiz__foot.is-wide {
+  max-width: 1180px;
 }
 .wiz__spacer {
   flex: 1;
@@ -884,4 +918,192 @@ input.wiz__name {
   color: var(--apx-fg);
   text-decoration: underline;
   text-underline-offset: 2px;
+}
+/* Simple setup: the two ways in are large, a model app stays behind them, the full grid is one click away. */
+.wiz__way {
+  padding: 22px;
+}
+.wiz__way .wiz__choicetitle {
+  align-items: center;
+  font-size: calc(17px * var(--apx-text-scale, 1));
+}
+.wiz__way .apx-badge {
+  margin-left: auto;
+}
+
+.wiz__import {
+  width: 100%;
+  max-width: 320px;
+}
+.wiz__ideas {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+/* A phone keeps Back, Skip and Continue on one row at its edges. */
+@media (max-width: 639px) {
+  .wiz__foot {
+    gap: 4px;
+    padding: 10px 16px;
+  }
+  .wiz__foot .wiz__back {
+    padding: 0 8px;
+  }
+  .wiz__foot .apx-btn {
+    padding-inline: 14px;
+  }
+}
+/* Simple's last step: what gets ready on its own beside a chat with the agent; the chat comes first when narrow. */
+.meet {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(320px, 400px);
+  gap: 32px;
+  align-items: start;
+}
+.meet__side {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  min-width: 0;
+}
+.meet__list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.meet__item {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--apx-border);
+}
+.meet__mark {
+  display: inline-flex;
+  flex: none;
+  padding-top: 2px;
+  color: var(--apx-fg-muted);
+}
+.meet__item.is-done .meet__mark {
+  color: var(--apx-brand-soft-fg);
+}
+.meet__item.is-failed .meet__mark {
+  color: var(--apx-danger);
+}
+.meet__itemmain {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+  font-size: calc(14px * var(--apx-text-scale, 1));
+}
+.meet__itemmain > span {
+  color: var(--apx-fg-muted);
+  font-size: calc(13px * var(--apx-text-scale, 1));
+}
+.meet__bar {
+  overflow: hidden;
+  height: 4px;
+  border-radius: 999px;
+  background: var(--apx-fill-hover);
+}
+.meet__bar > span {
+  display: block;
+  height: 100%;
+  background: var(--apx-brand);
+  transition: width 0.4s ease;
+}
+.meet__chat {
+  position: sticky;
+  top: 0;
+  display: flex;
+  flex-direction: column;
+  height: calc(100vh - 260px);
+  min-height: 360px;
+  overflow: hidden;
+  border: 1px solid var(--apx-border);
+  border-radius: var(--apx-radius-lg);
+  background: var(--apx-surface);
+  box-shadow: var(--apx-shadow-md);
+}
+.meet__chathead {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--apx-border);
+}
+.meet__chatbody {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+  overflow-y: auto;
+}
+.meet__skeleton {
+  flex: 1;
+  margin: 14px;
+}
+@media (max-width: 899px) {
+  .meet {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 20px;
+  }
+  .meet__chat {
+    position: static;
+    order: -1;
+    height: min(460px, calc(100vh - 240px));
+  }
+  .meet__side {
+    gap: 12px;
+  }
+  .meet__side .wiz__title,
+  .meet__side .wiz__body {
+    display: none;
+  }
+  .meet__item {
+    padding: 8px 0;
+  }
+}
+/* Simple's name step: the agent floats over the names and faces, no card around it. */
+.wiz__namerow {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 220px;
+  gap: 24px;
+  align-items: center;
+}
+.wiz__namecol {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  min-width: 0;
+}
+@media (max-width: 639px) {
+  .wiz__namerow {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .wiz__namerow .wiz__float {
+    order: -1;
+  }
+}
+.wiz__float {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  min-height: 150px;
+  font-size: calc(20px * var(--apx-text-scale, 1));
+}
+.wiz__engines.is-three {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+@media (max-width: 899px) {
+  .wiz__engines.is-three {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }

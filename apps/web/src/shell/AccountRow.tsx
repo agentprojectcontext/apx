@@ -4,6 +4,7 @@ import { openSetup } from "../data/setup.ts";
 import { LANGUAGE_NAMES, type T, useLanguage, useT } from "../i18n/index.ts";
 import { useLanguageItems } from "./LanguageMenu.tsx";
 import { go } from "./nav.ts";
+import { setPanelMode, useModeInMenu, usePanelSimple } from "./panelMode.ts";
 import { useSidebarMenu } from "./sidebarParts.ts";
 
 /** Sidebar footer: who is using the panel, with quick theme / phone / setup / usage actions and Settings. */
@@ -13,6 +14,8 @@ export function AccountRow({ rail }: { rail: boolean }) {
   const languageItems = useLanguageItems();
   const language = useLanguage();
   const compact = usePrefs((s) => s.sidebarCompact);
+  const simple = usePanelSimple();
+  const inMenu = useModeInMenu();
   const sidebarMenu = useSidebarMenu(false);
   const items: MenuEntry[] = [
     { type: "label", label: name },
@@ -21,20 +24,39 @@ export function AccountRow({ rail }: { rail: boolean }) {
       icon: <Icons.Sun />,
       onSelect: () => go.config("appearance"),
     },
+    // The top bar has the switch while it has room; under that width it is here, in either mode.
+    ...(inMenu
+      ? [
+          {
+            label: t(simple ? "mode.toAdvanced" : "mode.toSimple"),
+            icon: simple ? <Icons.LayoutGrid /> : <Icons.MessageCircle />,
+            onSelect: () => setPanelMode(simple ? "advanced" : "simple"),
+          },
+        ]
+      : []),
     { label: t("phone.open"), icon: <Icons.Smartphone />, onSelect: () => go.phone(true) },
-    { label: t("setup.menu"), icon: <Icons.Sparkles />, onSelect: openSetup },
-    { label: t("sysUsage.title"), icon: <Icons.MemoryStick />, onSelect: () => go.usageDialog(true) },
-    {
-      label: t("appearance.compact"),
-      // A checkbox: an option turned on and off, not a pick among several.
-      icon: (
-        <span className={compact ? "account__checkbox is-on" : "account__checkbox"} aria-hidden="true">
-          {compact && <Icons.Check size={10} />}
-        </span>
-      ),
-      keepOpen: true,
-      onSelect: () => setPrefs({ sidebarCompact: !compact }),
-    },
+    // A simple panel keeps its menu to the everyday: no setup again, no machine gauges, no sidebar layout.
+    ...(simple
+      ? []
+      : [
+          { label: t("setup.menu"), icon: <Icons.Sparkles />, onSelect: openSetup },
+          { label: t("sysUsage.title"), icon: <Icons.MemoryStick />, onSelect: () => go.usageDialog(true) },
+        ]),
+    ...(simple
+      ? []
+      : ([
+          {
+            label: t("appearance.compact"),
+            // A checkbox: an option turned on and off, not a pick among several.
+            icon: (
+              <span className={compact ? "account__checkbox is-on" : "account__checkbox"} aria-hidden="true">
+                {compact && <Icons.Check size={10} />}
+              </span>
+            ),
+            keepOpen: true,
+            onSelect: () => setPrefs({ sidebarCompact: !compact }),
+          },
+        ] satisfies MenuEntry[])),
     {
       type: "submenu",
       label: t("nav.showInSidebar"),

@@ -34,3 +34,11 @@ test("a provider starts the chain with its newest everyday chat model, not a pre
   assert.equal(starterModel(chat("fake-1")), "fake-1");
   assert.equal(starterModel(chat("text-embedding-3-small")), undefined);
 });
+
+test("a provider's own router over its free models starts the chain: a new account may have no credit", () => {
+  assert.equal(
+    starterModel(chat("mistralai/mistral-small-2603", "openai/gpt-5-mini", "openrouter/free", "openrouter/auto")),
+    "openrouter/free",
+  );
+  assert.equal(starterModel(chat("google/gemini-2.5-flash", "meta/llama-free-tuned")), "google/gemini-2.5-flash");
+});

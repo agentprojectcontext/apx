@@ -499,7 +499,7 @@ sign-in to Claude Code; outside code threads it sees APX's tools only.
 ## D-043 — 2026-10-05 — Agents and the router run on model APIs; CLIs run only in their own sessions
 Amends D-007 and D-042. An agent on Claude Code, Codex or an ACP agent ran that CLI's whole turn, so a chat with an
 agent behaved like the CLI and not like APX. Agents, the router (rules and chain) and the install default now take
-model APIs only: the providers APX's own loop calls, including the ChatGPT plan (`chatgpt`, shown as Codex) signed in
+model APIs only: the providers APX's own loop calls, including the ChatGPT plan (`chatgpt`, shown as ChatGPT: the name the owner pays for; it signs in the way Codex does) signed in
 from APX. Claude Code, Codex and ACP agents run only in their own sessions (`Thread.engine`, D-023), where the owner
 talks to the CLI itself; `models.set_config`, `agents.update` and `threads.model` outside a session refuse a CLI ref,
 and a choice an older APX saved is skipped when read (the router drops it, the default falls back to the router).
