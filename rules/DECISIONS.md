@@ -5073,3 +5073,21 @@ changed lines, and nobody ran it.
 Rejected: drawing the phone's cards in a WebView with the kit's CSS (one browser per card in every chat: memory,
 scroll and a blank first paint, and native buttons, pictures and sheets bridged one by one).
 
+<a id="d-236"></a>
+## D-236 — 2026-11-16 — APX downloads uv when the Mac has none
+APX's own voice runs as a Python script under uv (`uv run --script`), which brings Python and the packages the voice
+needs. The install script put uv there; an install from the app's installer did not, so the voice said "it needs uv"
+and stayed off: no voice notes spoken, no transcription by APX, no calls.
+
+- **The core gets it when the voice needs it** (`services/uv.ts`): uv on the PATH or where package managers put it,
+  else `<home>/bin/uv`, else a download of uv `0.13.8`'s `uv-aarch64-apple-darwin.tar.gz`, checked against the
+  sha256 GitHub publishes for that asset and pinned in code, with the `uv` program taken out of the archive. Only
+  Apple silicon Macs get one: the voice runs nowhere else.
+- A Mac without uv is no longer "missing" anything: installing the voice downloads uv first, then the models with it,
+  and the progress shows as the voice's download. A failed uv download shows as a failed install, retried with the
+  voice.
+- Updating uv means a new version in `RELEASE` and its digest in `BUILDS`, checked by downloading it.
+
+Rejected: shipping uv in the installers (about 30 MB more for owners on other systems or without enough memory);
+asking the owner to install it (the failure this fixes).
+

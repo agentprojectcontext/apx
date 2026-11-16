@@ -53,6 +53,8 @@ export function attachVoiceCall(server: Server, deps: { calls: Calls; engine: Vo
     };
     let engine: WebSocket | undefined;
     let ended = false;
+    // What the owner says before the voice answers (while it loads) is never heard: the call begins with its greeting.
+    let answered = false;
     const end = (reason: string) => {
       if (ended) return;
       ended = true;
@@ -66,7 +68,7 @@ export function attachVoiceCall(server: Server, deps: { calls: Calls; engine: Vo
     deadline.unref();
     panel.on("message", (data, binary) => {
       if (binary) {
-        if (engine?.readyState === engine?.OPEN) engine?.send(data, { binary: true });
+        if (answered && engine?.readyState === engine?.OPEN) engine?.send(data, { binary: true });
         return;
       }
       try {
@@ -80,30 +82,8 @@ export function attachVoiceCall(server: Server, deps: { calls: Calls; engine: Vo
       const wait = deps.engine.expectedWait();
       tell(wait ? { type: "preparing", progress: 0, left_s: wait } : { type: "preparing" });
     }
-    try {
-      // The first call on a computer that has not downloaded the voice yet waits for it.
-      const stop = new AbortController();
-      panel.once("close", () => stop.abort());
-      await deps.engine.whenInstalled(stop.signal);
-      engine = await deps.engine.open(call.setup);
-    } catch (err) {
-      deps.log.warn({ err: errorMessage(err, 300) }, "voice engine did not start");
-      end("engine");
-      return;
-    }
-    if (ended) {
-      engine.close();
-      return;
-    }
-    const link = engine;
-    deps.calls.attach(
-      call.thread,
-      (f) => {
-        if (link.readyState === link.OPEN) link.send(JSON.stringify(f));
-      },
-      () => end("hangup"),
-    );
-    link.on("message", (data, binary) => {
+    // Listened to from the moment the socket exists: the engine speaks as soon as it accepts the call.
+    const fromEngine = (data: WebSocket.RawData, binary: boolean) => {
       if (binary) {
         if (panel.readyState !== panel.OPEN || panel.bufferedAmount > 4 * 1024 * 1024) return end("network");
         panel.send(data, { binary: true });
@@ -122,9 +102,33 @@ export function attachVoiceCall(server: Server, deps: { calls: Calls; engine: Vo
       }
       const frame = CallFrame.safeParse(e);
       if (!frame.success) return;
+      if (frame.data.type === "ready") answered = true;
       if (frame.data.type === "end") end(frame.data.reason);
       else tell(frame.data);
-    });
+    };
+    try {
+      // The first call on a computer that has not downloaded the voice yet waits for it.
+      const stop = new AbortController();
+      panel.once("close", () => stop.abort());
+      await deps.engine.whenInstalled(stop.signal);
+      engine = await deps.engine.open(call.setup, fromEngine);
+    } catch (err) {
+      deps.log.warn({ err: errorMessage(err, 300) }, "voice engine did not start");
+      end("engine");
+      return;
+    }
+    if (ended) {
+      engine.close();
+      return;
+    }
+    const link = engine;
+    deps.calls.attach(
+      call.thread,
+      (f) => {
+        if (link.readyState === link.OPEN) link.send(JSON.stringify(f));
+      },
+      () => end("hangup"),
+    );
     link.on("close", () => end("engine"));
     link.on("error", () => end("engine"));
   }

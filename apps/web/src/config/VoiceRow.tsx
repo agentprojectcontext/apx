@@ -8,8 +8,10 @@ import { installVoice, loadVoice, setVoice, voiceId } from "../data/voice.ts";
 import { useT } from "../i18n/index.ts";
 
 const errText = (e: unknown) => (e instanceof Error ? e.message : String(e));
-const LOCALES: readonly VoiceLocale[] = ["es-AR", "es", "en-US"];
-/** What Listen says, in the accent picked (not the panel's language). */
+/** Each language's accents, the neutral one first. */
+const ACCENTS: Record<"es" | "en", readonly [VoiceLocale, ...VoiceLocale[]]> = { es: ["es", "es-AR"], en: ["en-US"] };
+const langOf = (l: VoiceLocale): "es" | "en" => (l.startsWith("en") ? "en" : "es");
+/** What Try says, in the accent picked (not the panel's language). */
 const SAMPLE: Record<VoiceLocale, string> = {
   "es-AR": "Hola, ¿cómo andás? Así suena mi voz.",
   es: "Hola, ¿qué tal? Así suena mi voz.",
@@ -50,6 +52,13 @@ export function VoiceRow({ kind, status: s }: { kind: "speech" | "transcription"
           APX <span className="voicerow__where">{t("voice.here")}</span>
         </div>
         <div className="res__desc">{t(speech ? "voice.speaks" : "voice.hears")}</div>
+        {can && s.models && (
+          <div className="res__desc">
+            {speech
+              ? t("voice.models.speaks", { name: s.models.speaks, gb: s.models.size_gb, folder: s.models.folder })
+              : t("voice.models.hears", { name: s.models.hears })}
+          </div>
+        )}
         {!can && (
           <div className="res__desc">
             {t(`voice.missing.${s.missing ?? "platform"}`)}
@@ -117,11 +126,13 @@ export function VoiceRow({ kind, status: s }: { kind: "speech" | "transcription"
   );
 }
 
-/** Female or male, the accent, and Listen to hear it. */
+/** Female or male, the language and then its accent, and Try to hear it. */
 function VoicePicker({ voice }: { voice: NativeVoice }) {
   const t = useT();
   const [busy, setBusy] = useState(false);
   const pick = (next: NativeVoice) => void run(() => setVoice({ voice: next }), t);
+  const lang = langOf(voice.locale);
+  const accents = ACCENTS[lang];
   const listen = async () => {
     setBusy(true);
     await run(async () => {
@@ -148,23 +159,30 @@ function VoicePicker({ voice }: { voice: NativeVoice }) {
       />
       <SegmentedControl
         size="sm"
-        label={t("voice.accent")}
-        value={voice.locale}
+        label={t("voice.language")}
+        value={lang}
         onValueChange={(v) => {
-          const locale = LOCALES.find((l) => l === v);
-          if (locale) pick({ ...voice, locale });
+          const next = v === "en" ? "en" : "es";
+          if (next !== lang) pick({ ...voice, locale: ACCENTS[next][0] });
         }}
-        // A phone shows the short name (CSS), so the three fit side by side.
-        options={LOCALES.map((l) => ({
-          value: l,
-          label: (
-            <>
-              <span className="voicerow__long">{t(`voice.locale.${l}`)}</span>
-              <span className="voicerow__short">{t(`voice.short.${l}`)}</span>
-            </>
-          ),
-        }))}
+        options={[
+          { value: "es", label: t("voice.lang.es") },
+          { value: "en", label: t("voice.lang.en") },
+        ]}
       />
+      {/* An accent to pick only where the language has more than one. */}
+      {accents.length > 1 && (
+        <SegmentedControl
+          size="sm"
+          label={t("voice.accent")}
+          value={voice.locale}
+          onValueChange={(v) => {
+            const locale = accents.find((l) => l === v);
+            if (locale) pick({ ...voice, locale });
+          }}
+          options={accents.map((l) => ({ value: l, label: t(`voice.accent.${l}`) }))}
+        />
+      )}
       <Button
         size="sm"
         variant="secondary"
@@ -172,7 +190,7 @@ function VoicePicker({ voice }: { voice: NativeVoice }) {
         leadingIcon={<Icons.Volume2 size={14} />}
         onClick={() => void listen()}
       >
-        {t("voice.listen")}
+        {t("voice.try")}
       </Button>
     </div>
   );

@@ -156,7 +156,7 @@ export const enChat = {
   "msg.reply": "Reply",
   "msg.quoteJump": "Go to the quoted message",
   "msg.stopReading": "Stop reading",
-  "msg.noVoice": "Add a voice in Settings › Voices to read aloud",
+  "msg.noVoice": "Add a voice in Settings › Voice and calls to read aloud",
   "error.fork": "Could not fork the chat: {error}",
   "error.readAloud": "Could not read it aloud: {error}",
   "choices.personality": "I'd like you to be like this: {choice}.",

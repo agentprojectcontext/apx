@@ -73,6 +73,22 @@ export const VoiceStatus = z.object(
      * server of their own added as a provider). The agent called works with its own model either way.
      */
     call_model: () => ModelRef.optional(),
+    /** What this Mac's voice is made of and where it is kept (absent where it cannot run). */
+    models: () =>
+      z
+        .object(
+          schemaFields({
+            /** The model that speaks. */
+            speaks: () => z.string(),
+            /** The model that hears (voice notes, dictation and calls). */
+            hears: () => z.string(),
+            /** About how much it downloads, all models together. */
+            size_gb: () => z.number(),
+            /** The folder the models are kept in. */
+            folder: () => z.string(),
+          }),
+        )
+        .optional(),
   }),
 );
 export type VoiceStatus = z.infer<typeof VoiceStatus>;

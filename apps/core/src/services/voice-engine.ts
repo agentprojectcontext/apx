@@ -11,7 +11,9 @@ import path from "node:path";
 import type { VoiceMissing, VoiceQuality, VoiceTier } from "@apx/protocol";
 import WebSocket from "ws";
 import type { Log } from "../log.ts";
+import { isInside } from "../paths.ts";
 import { findProgram } from "../programs.ts";
+import type { Uv } from "./uv.ts";
 
 const START_TIMEOUT_MS = 5 * 60_000; // the first start after an update installs Python packages
 const IDLE_MS = 10 * 60_000;
@@ -27,6 +29,11 @@ const KEEP_ENV = new Set(["PATH", "HOME", "USER", "TMPDIR", "LANG", "SHELL", "XD
 const MIN_GB = 8;
 /** The models in voice/speech.py MODELS: a new one makes a machine that has the old ones download it first. */
 const MODELS_REV = 2;
+/** The models of each tier as the owner reads them (speech.py MODELS), and about what they download together. */
+const MODEL_NAMES = {
+  light: { speaks: "Qwen3-TTS 0.6B", hears: "Whisper large-v3 turbo, 4-bit (MLX)", size_gb: 3 },
+  full: { speaks: "Qwen3-TTS 1.7B", hears: "Whisper large-v3 turbo (MLX)", size_gb: 6 },
+} as const;
 const FULL_GB = 16;
 const AUTO_FULL_GB = 32;
 
@@ -62,6 +69,8 @@ type Running = {
   url: string;
   secret: string;
   ready: Promise<void>;
+  /** It answered its health check: started, not starting. */
+  up?: boolean;
   used: number;
   calls: number;
   /** Started with models the owner has since changed: stopped once no call uses it. */
@@ -82,10 +91,18 @@ export function createVoiceEngine(deps: {
   quality?: () => VoiceQuality;
   spawn?: typeof spawn;
   uv?: () => string | undefined;
+  /** uv APX downloads where this Mac has none (DECISIONS.md#d-236). */
+  uvProgram?: Uv;
 }) {
   let current: Running | undefined;
   let install: Install | undefined;
-  const uv = () => (deps.uv ?? (() => findProgram("uv")))();
+  const uv = () => (deps.uv ?? (() => (deps.uvProgram ? deps.uvProgram.now() : findProgram("uv"))))();
+  /** uv now, or downloaded first where APX can get it. */
+  const getUv = async () => {
+    const bin = uv() ?? (await deps.uvProgram?.path());
+    if (!bin) throw new Error("uv is not installed (brew install uv)");
+    return bin;
+  };
   const run = deps.spawn ?? spawn;
 
   function machine(): VoiceMachine {
@@ -95,7 +112,8 @@ export function createVoiceEngine(deps: {
     if (memory_gb < MIN_GB) return { tier: "none", memory_gb, missing: "memory" };
     const q = deps.quality?.() ?? "auto";
     const full = q === "full" ? memory_gb >= FULL_GB : q === "auto" && memory_gb >= AUTO_FULL_GB;
-    return { tier: full ? "full" : "light", memory_gb, ...(uv() ? {} : { missing: "uv" as const }) };
+    const noUv = !uv() && !deps.uvProgram?.downloadable;
+    return { tier: full ? "full" : "light", memory_gb, ...(noUv ? { missing: "uv" as const } : {}) };
   }
 
   // What the engine needs from the core's environment, and nothing else: never APX's token or any key.
@@ -162,8 +180,7 @@ export function createVoiceEngine(deps: {
   }
 
   async function spawnEngine(): Promise<Running> {
-    const bin = uv();
-    if (!bin) throw new Error("uv is not installed (brew install uv)");
+    const bin = await getUv();
     const port = await freePort();
     const secret = crypto.randomBytes(24).toString("base64url");
     const child = run(bin, ["run", "--script", ENGINE, "--port", String(port)], {
@@ -195,6 +212,12 @@ export function createVoiceEngine(deps: {
       throw new Error("the voice engine did not start in time");
     })();
     const r: Running = { child, url, secret, ready, used: Date.now(), calls: 0 };
+    ready.then(
+      () => {
+        r.up = true;
+      },
+      () => {},
+    );
     current = r;
     child.on("exit", (code) => {
       if (code) deps.log.warn({ code, stderr: tail().slice(-500) }, "voice engine stopped");
@@ -249,10 +272,24 @@ export function createVoiceEngine(deps: {
     },
     /** This machine's models are on disk. */
     installed,
+    /** What this Mac's voice is made of and where its models are kept; none where it cannot run. */
+    models() {
+      const tier = machine().tier;
+      if (tier === "none") return undefined;
+      // Hugging Face's own cache, as the engine finds it: shared with other apps that use the same models.
+      const env = process.env;
+      const folder =
+        env.HF_HUB_CACHE || path.join(env.HF_HOME || path.join(os.homedir(), ".cache", "huggingface"), "hub");
+      const home = os.homedir();
+      return {
+        ...MODEL_NAMES[tier],
+        folder: isInside(home, folder) ? path.join("~", path.relative(home, folder)) : folder,
+      };
+    },
     install: (): Install | undefined => (install ? { ...install } : undefined),
     running: () => Boolean(current),
     /** Whether a call would start at once (the engine is up) or first load it. */
-    loading: () => !current,
+    loading: () => !current?.up,
     /** About how many seconds a call waits for the engine to start and load, from its recent loads; unknown before one. */
     expectedWait(): number | undefined {
       let loads: unknown;
@@ -274,44 +311,53 @@ export function createVoiceEngine(deps: {
 
     /** Downloads this machine's models (and the engine's packages), reporting progress; one at a time. */
     startInstall(): void {
-      const bin = uv();
-      if (machine().missing || !bin) throw new Error("APX's voice cannot run on this computer");
+      if (machine().missing) throw new Error("APX's voice cannot run on this computer");
       if (install?.state === "downloading") return;
       // The tier this download is for: the owner may pick another meanwhile, which is then downloaded after it.
       const tier = machine().tier;
       install = { state: "downloading", received: 0, total: 0 };
-      const child = run(bin, ["run", "--script", ENGINE, "--prefetch"], {
-        stdio: ["ignore", "pipe", "pipe"],
-        env: env({}, tier),
-      });
-      const tail = logTo(child);
-      let buf = "";
-      child.stdout?.on("data", (d) => {
-        buf += String(d);
-        const lines = buf.split("\n");
-        buf = lines.pop() ?? "";
-        for (const line of lines) {
-          try {
-            const p = JSON.parse(line) as { received?: number; total?: number };
-            if (install && typeof p.received === "number" && typeof p.total === "number")
-              install = { ...install, received: p.received, total: p.total };
-          } catch {}
-        }
-      });
-      const failed = (why: string) => {
-        install = { state: "failed", received: install?.received ?? 0, total: install?.total ?? 0, error: why };
-        deps.log.warn({ err: why }, "voice install failed");
+      // uv first, where this Mac has none: it is what downloads and runs the voice.
+      getUv().then(
+        (bin) => prefetch(bin, tier),
+        (err) => {
+          install = { state: "failed", received: 0, total: 0, error: err instanceof Error ? err.message : String(err) };
+          deps.log.warn({ err: install.error }, "voice install failed");
+        },
+      );
+      const prefetch = (bin: string, tier: VoiceMachine["tier"]) => {
+        const child = run(bin, ["run", "--script", ENGINE, "--prefetch"], {
+          stdio: ["ignore", "pipe", "pipe"],
+          env: env({}, tier),
+        });
+        const tail = logTo(child);
+        let buf = "";
+        child.stdout?.on("data", (d) => {
+          buf += String(d);
+          const lines = buf.split("\n");
+          buf = lines.pop() ?? "";
+          for (const line of lines) {
+            try {
+              const p = JSON.parse(line) as { received?: number; total?: number };
+              if (install && typeof p.received === "number" && typeof p.total === "number")
+                install = { ...install, received: p.received, total: p.total };
+            } catch {}
+          }
+        });
+        const failed = (why: string) => {
+          install = { state: "failed", received: install?.received ?? 0, total: install?.total ?? 0, error: why };
+          deps.log.warn({ err: why }, "voice install failed");
+        };
+        child.on("error", (err) => failed(err.message));
+        child.on("exit", (code) => {
+          if (code === 0) {
+            install = undefined;
+            fs.mkdirSync(path.dirname(marker(tier)), { recursive: true });
+            fs.writeFileSync(marker(tier), JSON.stringify({ at: new Date().toISOString(), rev: MODELS_REV }));
+            deps.log.info({ tier }, "voice installed");
+            if (!installed() && !machine().missing) this.startInstall();
+          } else failed(tail().trim().split("\n").at(-1) || `exit ${code}`);
+        });
       };
-      child.on("error", (err) => failed(err.message));
-      child.on("exit", (code) => {
-        if (code === 0) {
-          install = undefined;
-          fs.mkdirSync(path.dirname(marker(tier)), { recursive: true });
-          fs.writeFileSync(marker(tier), JSON.stringify({ at: new Date().toISOString(), rev: MODELS_REV }));
-          deps.log.info({ tier }, "voice installed");
-          if (!installed() && !machine().missing) this.startInstall();
-        } else failed(tail().trim().split("\n").at(-1) || `exit ${code}`);
-      });
     },
 
     /** Resolves once the models are on disk, downloading them when nobody has yet; a failed download throws. */
@@ -346,11 +392,13 @@ export function createVoiceEngine(deps: {
     },
 
     /** A socket to the engine for one call, starting the engine first when it is not up. */
-    async open(q: CallSetup): Promise<WebSocket> {
+    async open(q: CallSetup, onMessage?: (data: WebSocket.RawData, binary: boolean) => void): Promise<WebSocket> {
       const r = await up();
       const ws = new WebSocket(`${r.url.replace("http", "ws")}/call?${new URLSearchParams(q)}`, {
         headers: { "x-voice-secret": r.secret },
       });
+      // Before it opens: the first frame can arrive with the handshake itself.
+      if (onMessage) ws.on("message", onMessage);
       r.calls++;
       ws.on("close", () => {
         r.calls = Math.max(0, r.calls - 1);

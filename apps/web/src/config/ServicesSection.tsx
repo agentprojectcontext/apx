@@ -1,5 +1,5 @@
 import type { ImageDefaults, ServiceInfo, ServiceKind, ServiceTest } from "@apx/protocol";
-import { Badge, Button, EmptyState, IconButton, Icons, Input, SettingRow, Switch, Textarea } from "@apx/ui";
+import { Badge, Button, EmptyState, IconButton, Icons, Input, Select, SettingRow, Switch, Textarea } from "@apx/ui";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { client } from "../data/client.ts";
 import { mediaUrl } from "../data/media.ts";
@@ -7,7 +7,6 @@ import { notify } from "../data/notices.ts";
 import { refreshSpeech } from "../data/speech.ts";
 import { useVoice } from "../data/voice.ts";
 import { useT } from "../i18n/index.ts";
-import { LocalTranscription } from "./LocalTranscription.tsx";
 import { SectionHead, SubHead } from "./SectionHead.tsx";
 import { ServiceDialog } from "./ServiceDialog.tsx";
 import { checkText, settingsOf, testService } from "./serviceCheck.ts";
@@ -43,8 +42,6 @@ export function ServicesSection({
   const [why, setWhy] = useState<Record<string, ServiceTest>>({});
   const [defaults, setDefaults] = useState<ImageDefaults>();
   const [editing, setEditing] = useState<ServiceInfo | "new">();
-  const [transcriptionKey, setTranscriptionKey] = useState(0);
-  const refreshTranscription = useCallback(() => setTranscriptionKey((k) => k + 1), []);
   const changed = useRef(onChange);
   changed.current = onChange;
 
@@ -161,18 +158,8 @@ export function ServicesSection({
         </Button>
       </div>
 
-      {!embedded && (kind === "image" ? <ImageTest /> : kind === "speech" ? <SpeechTest /> : null)}
-      {!embedded && kind === "speech" && (
-        <>
-          <SubHead>{t("svc.transcription")}</SubHead>
-          <p className="config__lead">{t("svc.transcription.lead")}</p>
-          {/* Transcription on this machine is offered only where APX's own voice can't hear for the owner. */}
-          {(!voice || voice.tier === "none" || !voice.enabled) && (
-            <LocalTranscription onInstalled={refreshTranscription} />
-          )}
-          <ServicesSection key={transcriptionKey} kind="transcription" embedded />
-        </>
-      )}
+      {!embedded &&
+        (kind === "image" ? <ImageTest /> : kind === "speech" && services ? <SpeechTest services={services} /> : null)}
       {!embedded && kind === "image" && defaults && <Defaults value={defaults} onSaved={setDefaults} />}
 
       {editing && (
@@ -300,15 +287,18 @@ function ImageTest() {
   );
 }
 
-function SpeechTest() {
+/** Says a text with the first voice that answers, as agents would, or with the one picked. */
+function SpeechTest({ services }: { services: ServiceInfo[] }) {
   const t = useT();
   const [text, setText] = useState(t("svc.speech.sample"));
   const [busy, setBusy] = useState(false);
   const [by, setBy] = useState<string>();
+  const voices = services.filter((s) => s.enabled);
+  const [with_, setWith] = useState("first");
   const run = async () => {
     setBusy(true);
     try {
-      const r = await client.call("media.speak", { text });
+      const r = await client.call("media.speak", { text, ...(with_ !== "first" ? { service: with_ } : {}) });
       setBy(r.service);
       void new Audio(await mediaUrl(r.media.id)).play();
     } catch (e) {
@@ -322,6 +312,18 @@ function SpeechTest() {
       <div className="svc__test">
         <Textarea aria-label={t("svc.say")} rows={2} value={text} onChange={(e) => setText(e.currentTarget.value)} />
         <div className="tgtoken">
+          {voices.length > 1 && (
+            <Select
+              size="sm"
+              label={t("svc.testWith")}
+              value={with_}
+              onValueChange={(v) => setWith(v ?? "first")}
+              options={[
+                { value: "first", label: t("svc.firstVoice", { name: voices[0]?.label ?? "" }) },
+                ...voices.slice(1).map((s) => ({ value: s.id, label: s.label })),
+              ]}
+            />
+          )}
           <Button
             size="sm"
             loading={busy}
@@ -329,7 +331,7 @@ function SpeechTest() {
             leadingIcon={<Icons.Volume2 size={14} />}
             onClick={() => void run()}
           >
-            {t("svc.say")}
+            {voices.length === 1 ? t("svc.sayWith", { name: voices[0]?.label ?? "" }) : t("svc.say")}
           </Button>
           {by && <span className="pform__hint">{t("svc.spokenBy", { name: by })}</span>}
         </div>

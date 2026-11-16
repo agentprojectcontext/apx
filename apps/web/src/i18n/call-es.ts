@@ -24,6 +24,7 @@ export const esCall: Record<keyof typeof enCall, string> = {
   "callCard.soundOn": "Activar el sonido",
   "callCard.hangUp": "Colgar",
   "callCard.fold": "Achicar",
+  "callCard.openChat": "Abrir el chat de la llamada",
   "callCard.unfold": "Ver la llamada completa",
   "callCard.ended": "Llamada terminada",
   "callCard.end.engine": "La voz se detuvo. Probá de nuevo en un momento.",
@@ -38,7 +39,7 @@ export const esCall: Record<keyof typeof enCall, string> = {
     "Las llamadas necesitan uv en esta Mac. Instalalo con “brew install uv” en una terminal y probá de nuevo.",
   "callCard.missing.off": "La voz de APX está apagada.",
   "callCard.missing.model": "Las llamadas necesitan un modelo al que APX pueda llamar directamente.",
-  "callCard.missing.disabled": "Las llamadas están apagadas. Prendelas en Ajustes › Llamadas.",
+  "callCard.missing.disabled": "Las llamadas están apagadas. Prendelas en Ajustes › Voz y llamadas.",
   "callCard.openVoices": "Encenderla en Configuración",
   "callCard.openModels": "Elegir un modelo en Configuración",
 };

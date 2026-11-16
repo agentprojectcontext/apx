@@ -156,7 +156,7 @@ def ends_call(heard, said):
 
 
 LOADS = os.path.join(os.environ.get("VOICE_STATE") or ".", f"load-{os.environ.get('VOICE_TIER') or 'light'}.json")
-FIRST_LOAD_S = {"vad": 1, "turn": 3, "draft": 5, "mouth": 10, "warm": 10}  # before this Mac's own times are known
+FIRST_LOAD_S = {"vad": 1, "turn": 3, "draft": 5, "mouth": 10, "warm": 10, "greeting": 2}  # before this Mac's own times are known
 started_in = None  # seconds this engine took to start, kept with the next load from nothing
 
 
@@ -173,15 +173,18 @@ def middle(xs):
     return sorted(xs)[len(xs) // 2]
 
 
-async def load_for_call(send):
-    """Loads what a call uses, telling the panel how far it got and how long is left (as long as it usually takes)."""
+async def load_for_call(send, greeting):
+    """Loads what a call uses and makes its greeting, telling the panel how far it got and how long is left (as long
+    as it usually takes). The greeting's audio is returned ready, so the call answers with it at once."""
     global started_in
     history = load_history()
     before = {**FIRST_LOAD_S, **{k: middle(v) for k, v in history.items() if v}}
-    steps = speech.call_parts()
+    audio = []
+    steps = [*speech.call_parts(), ("greeting", lambda: False, lambda: audio.extend(greeting()))]
     cold = {name for name, loaded, _ in steps if not loaded()}
+    models_cold = cold - {"warm", "greeting"}
     # Warming loaded models is quick; warming ones just loaded takes as long as it did last time.
-    guess = {name: before[name] if name in cold and (name != "warm" or len(cold) > 1) else 0.5 for name, _, _ in steps}
+    guess = {name: before[name] if name in cold and (name != "warm" or models_cold) else 0.5 for name, _, _ in steps}
     took = {}
     for i, (name, _, load) in enumerate(steps):
         left = sum(guess[n] for n, _, _ in steps[i:])
@@ -190,7 +193,7 @@ async def load_for_call(send):
         t = time.monotonic()
         await asyncio.to_thread(load)
         took[name] = time.monotonic() - t
-    if len(cold) == len(steps):  # only a load from nothing measures what the next one will wait
+    if len(models_cold) == len(steps) - 2:  # only a load from nothing measures what the next one will wait
         if started_in is not None:
             took["start"], started_in = started_in, None
         try:
@@ -198,7 +201,7 @@ async def load_for_call(send):
                 json.dump({k: [*history.get(k, []), round(v, 1)][-3:] for k, v in took.items()}, f)
         except OSError:
             pass
-    return took
+    return took, audio
 
 
 def clean(text):
@@ -292,12 +295,30 @@ def wav(pcm, rate):
 
 # ---- one call ----
 
+def call_style(q):
+    """The call's locale, language and greeting style from its query, as `Call` reads them."""
+    locale = q.get("locale") if q.get("locale") in ("es-AR", "es", "en-US") else "es-AR"
+    lang = "en" if locale == "en-US" else "es"
+    return locale, lang, ("en" if lang == "en" else locale)
+
+
+def greeting_line(style, owner):
+    return GREETING[style].format(owner=f" {owner}" if owner else "")
+
+
+def greeting_audio(q):
+    """The greeting, spoken in the call's voice before the call is answered."""
+    locale, lang, style = call_style(q)
+    voice = speech.voice(f"{locale}-{'male' if q.get('voice') == 'male' else 'female'}")
+    out = []
+    speech.mouth.speak(greeting_line(style, q.get("owner", "")), lang, voice, out.append, threading.Event()).result()
+    return out
+
+
 class Call:
     def __init__(self, ws, q):
         self.ws, self.owner, self.name = ws, q.get("owner", ""), q.get("agent") or "APX"
-        self.locale = q.get("locale") if q.get("locale") in ("es-AR", "es", "en-US") else "es-AR"
-        self.lang = "en" if self.locale == "en-US" else "es"
-        self.style = "en" if self.lang == "en" else self.locale
+        self.locale, self.lang, self.style = call_style(q)
         self.hint = STT_HINT.format(names=q.get("names") or self.name)
         self.gender = "male" if q.get("voice") == "male" else "female"
         self.voice = speech.voice(f"{self.locale}-{self.gender}")
@@ -375,13 +396,17 @@ class Call:
         self.lines.append(line)
         return self.then(step)
 
-    async def say(self, text):
-        """Speaks one line: its audio goes down as it is made, its words show as it plays."""
+    async def say(self, text, ready=None):
+        """Speaks one line: its audio goes down as it is made (or as `ready` holds it), its words show as it plays."""
         loop, q = asyncio.get_running_loop(), asyncio.Queue()
         self.stop = threading.Event()
-        fut = speech.mouth.speak(text, self.lang, self.voice, lambda b: loop.call_soon_threadsafe(q.put_nowait, b),
-                                 self.stop)
-        fut.add_done_callback(lambda _: loop.call_soon_threadsafe(q.put_nowait, None))
+        if ready is not None:
+            for b in [*ready, None]:
+                q.put_nowait(b)
+        else:
+            fut = speech.mouth.speak(text, self.lang, self.voice, lambda b: loop.call_soon_threadsafe(q.put_nowait, b),
+                                     self.stop)
+            fut.add_done_callback(lambda _: loop.call_soon_threadsafe(q.put_nowait, None))
         line = {"end": None, "cut": False}
         started = False
         try:
@@ -451,13 +476,11 @@ class Call:
         if q:
             q.put_nowait(("end", f.get("error") or "") if f["type"] == "thought_end" else ("text", f.get("text", "")))
 
-    async def greet(self):
-        line = GREETING[self.style].format(owner=f" {self.owner}" if self.owner else "")
+    async def greet(self, audio):
+        line = greeting_line(self.style, self.owner)
         self.history.append({"role": "assistant", "content": line})
         await self.send({"type": "state", "state": "speaking"})
-        t = time.monotonic()
-        await self.say(line)  # streamed: its first words play while the rest is still being made
-        print(f"[voice] greeted in {time.monotonic() - t:.1f}s", flush=True)
+        await self.say(line, audio)  # made while the call loaded: it plays as soon as the call is answered
         self.turn_end()
 
     async def reply(self, text, heard):
@@ -758,14 +781,15 @@ async def call(ws: WebSocket):
         return
     await ws.accept()
     t = time.monotonic()
-    # The first call after a while loads hearing, turn taking and the voice.
-    took = await load_for_call(lambda f: ws.send_text(json.dumps(f)))
+    q = ws.query_params
+    # The first call after a while loads hearing, turn taking and the voice; every call makes its greeting first.
+    took, hello = await load_for_call(lambda f: ws.send_text(json.dumps(f)), lambda: greeting_audio(q))
     steps = ", ".join(f"{k} {v:.1f}s" for k, v in took.items())
     print(f"[voice] ready for a call in {time.monotonic() - t:.1f}s ({steps})", flush=True)
-    c = Call(ws, ws.query_params)
+    c = Call(ws, q)
     await c.send({"type": "ready"})
     watcher = asyncio.create_task(c.watch())
-    c.reply_task = asyncio.create_task(c.greet())
+    c.reply_task = asyncio.create_task(c.greet(hello))
     try:
         while True:
             msg = await ws.receive()
