@@ -88,13 +88,14 @@ export function Places({ node }: { node: Of<"places"> }) {
               <View style={s.rowBody}>
                 <Text style={s.title}>{p.title}</Text>
                 {p.meta && <Text style={s.meta}>{p.meta}</Text>}
+                {/* Under the name, not beside it: a phone is too narrow for both in one line. */}
+                {(p.rating || p.status) && (
+                  <View style={s.aside}>
+                    {p.rating && <Rating value={p.rating} />}
+                    {p.status && <Tag tone={toneOf(p.status.tone)}>{p.status.label}</Tag>}
+                  </View>
+                )}
               </View>
-              {(p.rating || p.status) && (
-                <View style={s.aside}>
-                  {p.rating && <Rating value={p.rating} />}
-                  {p.status && <Tag tone={toneOf(p.status.tone)}>{p.status.label}</Tag>}
-                </View>
-              )}
             </Pressable>
           );
         })}
@@ -190,7 +191,7 @@ const useStyles = makeStyles((theme) => ({
   rowBody: { flex: 1, minWidth: 0, gap: 2 },
   title: { color: theme.fg, fontSize: 14, fontWeight: "600" },
   meta: { color: theme.muted, fontSize: 12 },
-  aside: { alignItems: "flex-end", gap: 4 },
+  aside: { flexDirection: "row", flexWrap: "wrap", alignItems: "center", gap: 8, marginTop: 4 },
   buttons: { flexDirection: "row", gap: 8 },
   button: { flex: 1 },
 }));

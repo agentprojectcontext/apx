@@ -305,3 +305,19 @@ test("a plan by days shows one day at a time", async () => {
   expect(ui.getByText("Bring water")).toBeTruthy();
   expect(ui.queryByText("Leave")).toBeNull();
 });
+
+test("an answer with cards takes the bubble's full width, so sideways cards keep their height", async () => {
+  const cards = await show(
+    fence("apx-cards", {
+      items: [
+        { id: "a", title: "A" },
+        { id: "b", title: "B" },
+      ],
+    }),
+  );
+  const style = (ui: Awaited<ReturnType<typeof show>>) =>
+    JSON.stringify(first(ui.getAllByHintText(t("messageMenuHint"))).props.style);
+  expect(style(cards)).toContain('"alignSelf":"stretch"');
+  cards.unmount();
+  expect(style(await show("Just words, no cards."))).not.toContain('"alignSelf":"stretch"');
+});

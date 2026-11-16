@@ -121,11 +121,13 @@ export function Agenda({ node }: { node: Of<"agenda"> }) {
 }
 
 const useStyles = makeStyles((theme) => ({
-  head: { flexDirection: "row", alignItems: "flex-start", gap: 12 },
-  headText: { flex: 1, minWidth: 0, gap: 2 },
+  // The note drops under the title when a phone has no room for both side by side.
+  head: { flexDirection: "row", flexWrap: "wrap", alignItems: "flex-start", columnGap: 12, rowGap: 6 },
+  headText: { flexGrow: 1, flexShrink: 1, flexBasis: 180, minWidth: 0, gap: 2 },
   headTitle: { color: theme.fg, fontSize: 15, fontWeight: "600" },
   headSub: { color: theme.muted, fontSize: 13 },
   note: {
+    flexShrink: 1,
     flexDirection: "row",
     alignItems: "center",
     gap: 6,
@@ -134,7 +136,7 @@ const useStyles = makeStyles((theme) => ({
     borderRadius: 999,
     backgroundColor: theme.fill,
   },
-  noteText: { color: theme.muted, fontSize: 11 },
+  noteText: { flexShrink: 1, color: theme.muted, fontSize: 11 },
   statusRow: { flexDirection: "row", alignItems: "center", flexWrap: "wrap", gap: 8 },
   status: {
     flexDirection: "row",
