@@ -16,7 +16,7 @@ import { PROVIDER_PRESETS, presetOf } from "./models/providerPresets.ts";
 import { PlanCard } from "./PlanCard.tsx";
 
 /** Which provider dialog is open: an existing provider, a new one of a kind (preset), or none. */
-const editor = createStore<{ open: { id?: string; preset?: string } | undefined }>({ open: undefined });
+const editor = createStore<{ open: { id?: string; preset?: string; pick?: true } | undefined }>({ open: undefined });
 
 /** Known kinds the owner took off the list of suggestions (kept per device). */
 const HIDDEN_KEY = "apx.providers.hidden";
@@ -57,7 +57,7 @@ const rank = (p: ProviderInfo) => (p.enabled && p.key_set ? 0 : p.enabled ? 1 : 
  * Model APIs our own loop calls, as cards: the ChatGPT plan first (fixed), the ones set up (ready first), then the
  * known kinds not set up yet (each can be taken off the list), then a card to add any OpenAI-compatible one.
  */
-export function ProvidersGrid({ compact = false }: { compact?: boolean }) {
+export function ProvidersGrid({ compact = false, onlyReady = false }: { compact?: boolean; onlyReady?: boolean }) {
   const t = useT();
   const list = useProviders((s) => s.list);
   const open = useSlice(editor, (s) => s.open);
@@ -66,13 +66,17 @@ export function ProvidersGrid({ compact = false }: { compact?: boolean }) {
   useEffect(() => {
     void loadProviders();
   }, []);
-  const apis = list.filter((p) => !p.sign_in).sort((a, b) => rank(a) - rank(b));
+  // A setup lists only what works already: the rest is one click away under "Add provider".
+  const apis = list
+    .filter((p) => !p.sign_in && (!onlyReady || (p.enabled && p.key_set)))
+    .sort((a, b) => rank(a) - rank(b));
   const taken = new Set(apis.flatMap((p) => [p.id, kindOf(p)]));
   const unset = PROVIDER_PRESETS.filter(
     (k) =>
       k.id !== "custom" &&
       !taken.has(k.id) &&
       !hiddenIds.includes(k.id) &&
+      !onlyReady &&
       (!compact || ["gemini", "anthropic", "openai"].includes(k.id)),
   );
   const close = () => editor.set({ open: undefined });
@@ -109,12 +113,23 @@ export function ProvidersGrid({ compact = false }: { compact?: boolean }) {
             </div>
           </div>
         ))}
-        <button type="button" className="pcard pcard--add" onClick={() => editor.set({ open: { preset: "custom" } })}>
+        <button type="button" className="pcard pcard--add" onClick={() => editor.set({ open: { pick: true } })}>
           <Icons.Plus size={18} />
           <span>{t("providers.add")}</span>
         </button>
       </div>
-      {open && (
+      {open?.pick && (
+        <ProviderPicker
+          list={list}
+          onPick={(kind) => {
+            // A kind already here (a built-in waiting for its key) opens as itself, never as a second one.
+            const here = list.find((p) => !p.sign_in && (p.id === kind || kindOf(p) === kind));
+            editor.set({ open: here ? { id: here.id } : { preset: kind } });
+          }}
+          onClose={close}
+        />
+      )}
+      {open && !open.pick && (
         <ProviderDialog
           key={`${open.id ?? ""}:${open.preset ?? ""}`}
           initial={editing}
@@ -124,6 +139,47 @@ export function ProvidersGrid({ compact = false }: { compact?: boolean }) {
         />
       )}
     </>
+  );
+}
+
+/** Every kind APX knows, as cards: the ones already working are greyed. */
+function ProviderPicker({
+  list,
+  onPick,
+  onClose,
+}: {
+  list: ProviderInfo[];
+  onPick: (kind: string) => void;
+  onClose: () => void;
+}) {
+  const t = useT();
+  const ready = new Set(list.filter((p) => p.enabled && p.key_set).flatMap((p) => [p.id, kindOf(p)]));
+  return (
+    <Dialog open onOpenChange={(o) => !o && onClose()} size="lg" title={t("providers.newTitle")}>
+      <div className="ppick">
+        {PROVIDER_PRESETS.map((k) => {
+          const on = ready.has(k.id);
+          return (
+            // ui: a kind to pick, shown as a card with its mark (like the grid's own cards).
+            <button key={k.id} type="button" className="ppick__card" disabled={on} onClick={() => onPick(k.id)}>
+              <ProviderMark id={k.id} label={k.label} size={28} />
+              <span className="ppick__name">{k.id === "custom" ? t("providers.other") : k.label}</span>
+              <span className="ppick__hint">
+                {on
+                  ? t("providers.active")
+                  : t(
+                      k.id === "custom"
+                        ? "providers.otherHint"
+                        : k.needs_key
+                          ? "providers.unsetKey"
+                          : "providers.unsetLocal",
+                    )}
+              </span>
+            </button>
+          );
+        })}
+      </div>
+    </Dialog>
   );
 }
 
@@ -231,18 +287,6 @@ function ProviderDialog({
   const clash = !initial && taken.includes(id);
   const valid = /^https?:\/\/.+/.test(draft.base_url) && !clash;
 
-  const pickPreset = (pid: string) => {
-    const p = presetOf(pid);
-    if (!p) return;
-    setDraft((d) => ({
-      ...d,
-      preset: p.id,
-      transport: p.transport,
-      base_url: p.base_url,
-      needs_key: p.needs_key,
-      label: initial ? d.label : p.label,
-    }));
-  };
   const save = async () => {
     setSaving(true);
     const list = models
@@ -272,20 +316,6 @@ function ProviderDialog({
       }
     >
       <div className="pform">
-        <div className="pform__label">{t("providers.kind")}</div>
-        <div className="pform__presets">
-          {PROVIDER_PRESETS.map((p) => (
-            <button
-              key={p.id}
-              type="button"
-              className={draft.preset === p.id ? "pform__preset is-on" : "pform__preset"}
-              onClick={() => pickPreset(p.id)}
-            >
-              <ProviderMark id={p.id} label={p.label} size={18} />
-              {p.label}
-            </button>
-          ))}
-        </div>
         <div className="pform__field">
           <span className="pform__label">{t("providers.name")}</span>
           <Input
@@ -322,16 +352,19 @@ function ProviderDialog({
             <span className="pform__hint">{t("providers.keyHint")}</span>
           </div>
         )}
-        <div className="pform__field">
-          <span className="pform__label">{t("providers.fixedModels")}</span>
-          <Input
-            aria-label={t("providers.fixedModels")}
-            value={models}
-            placeholder="qwen3:8b, gemma3:4b"
-            onChange={(e) => setModels(e.currentTarget.value)}
-          />
-          <span className="pform__hint">{t("providers.fixedModelsHint")}</span>
-        </div>
+        {/* Only a server that cannot list its models needs them named; the router picks among the rest. */}
+        {(draft.preset === "custom" || models.trim() !== "") && (
+          <div className="pform__field">
+            <span className="pform__label">{t("providers.fixedModels")}</span>
+            <Input
+              aria-label={t("providers.fixedModels")}
+              value={models}
+              placeholder="qwen3:8b, gemma3:4b"
+              onChange={(e) => setModels(e.currentTarget.value)}
+            />
+            <span className="pform__hint">{t("providers.fixedModelsHint")}</span>
+          </div>
+        )}
         <Switch
           checked={draft.enabled}
           onCheckedChange={(enabled) => setDraft({ ...draft, enabled })}

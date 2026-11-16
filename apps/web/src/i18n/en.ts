@@ -1153,6 +1153,8 @@ export const en = {
   "providers.title": "Model APIs (APX's own loop)",
   "providers.lead":
     "Services billed per token that APX calls directly. Keys are stored securely and never shown again.",
+  "providers.other": "Another server",
+  "providers.otherHint": "Any OpenAI-compatible address.",
   "providers.add": "Add provider",
   "providers.active": "Active",
   "providers.noKey": "No key",
@@ -1174,8 +1176,7 @@ export const en = {
   "providers.remove": "Remove",
   "providers.newTitle": "New provider",
   "providers.editTitle": "Edit {name}",
-  "providers.dialogLead": "A model API APX calls with its own loop. Pick its kind; the address fills in.",
-  "providers.kind": "Kind",
+  "providers.dialogLead": "Paste its key and you are set: the address is already filled in.",
   "providers.name": "Name",
   "providers.idHint": "Its id in model names: {id}/<model>",
   "providers.idTaken": "There is already a provider {id}",

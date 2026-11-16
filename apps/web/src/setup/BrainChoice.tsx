@@ -1,13 +1,14 @@
 import { Badge, Button, EngineIcon, Icons, Spinner } from "@apx/ui";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { PlanLogin } from "../config/PlanLogin.tsx";
 import { ProvidersGrid } from "../config/ProvidersGrid.tsx";
 import { client } from "../data/client.ts";
 import { notify } from "../data/notices.ts";
 import { loadProviders, useProviders } from "../data/providers.ts";
+import { markSignInWindow, onSignInDone } from "../data/signInWindow.ts";
 import { type MessageKey, useT } from "../i18n/index.ts";
 
-/** The two ways in a simple setup offers: the ChatGPT plan (signed in as Codex) or an OpenRouter account. */
+/** The two ways in a simple setup offers: the ChatGPT plan or an OpenRouter account. */
 const WAYS: Array<{ id: "chatgpt" | "openrouter"; icon: string; title: MessageKey; body: MessageKey }> = [
   { id: "chatgpt", icon: "codex", title: "setup.brain.codex", body: "setup.brain.codexBody" },
   { id: "openrouter", icon: "openrouter", title: "setup.brain.openrouter", body: "setup.brain.openrouterBody" },
@@ -17,10 +18,11 @@ const POPUP_FEATURES = "popup,width=560,height=780";
 const POLL_MS = 2000;
 
 /**
- * One click per way in: ChatGPT opens its sign-in, OpenRouter its approval page; once either is connected the setup
- * goes on by itself. A model app already on this computer (Ollama) stays behind as the backup, unasked.
+ * Two cards, each with where it stands and its Connect: ChatGPT opens its sign-in here, OpenRouter its approval in a
+ * window of its own. Connecting does not move on by itself: the owner may connect both. A model app already on this
+ * computer (Ollama) stays behind as the backup, unasked.
  */
-export function BrainChoice({ onPicked }: { onPicked: () => void }) {
+export function BrainChoice() {
   const t = useT();
   const list = useProviders((s) => s.list);
   const [plan, setPlan] = useState(false);
@@ -28,39 +30,27 @@ export function BrainChoice({ onPicked }: { onPicked: () => void }) {
   const [more, setMore] = useState(false);
   const on = (id: string) => list.some((p) => p.id === id && p.enabled && p.key_set);
   const local = list.find((p) => p.local && p.enabled && p.key_set);
-  // Either way connecting (here or in its own tab) moves the setup on, once.
-  const before = useRef<Set<string>>(undefined);
+  const openRouterOn = on("openrouter");
   useEffect(() => {
-    const now = new Set(WAYS.filter((w) => on(w.id)).map((w) => w.id));
-    if (before.current && [...now].some((id) => !before.current?.has(id))) {
-      setPlan(false);
-      setWaiting(false);
-      onPicked();
-    }
-    before.current = now;
-  });
-  useEffect(() => {
-    if (!waiting) return;
+    if (!waiting || openRouterOn) return;
     const id = setInterval(() => void loadProviders(), POLL_MS);
     // The sign-in window says so the moment it is done: no need to wait for the next read.
-    const told = (e: MessageEvent) => {
-      if (e.origin === window.location.origin && e.data?.type === "apx:oauth-done") void loadProviders();
-    };
-    window.addEventListener("message", told);
+    const stop = onSignInDone(() => void loadProviders());
     return () => {
       clearInterval(id);
-      window.removeEventListener("message", told);
+      stop();
     };
-  }, [waiting]);
+  }, [waiting, openRouterOn]);
 
   const openRouter = async () => {
-    // A window of its own beside the setup, opened on the click itself so a popup blocker lets it through; pointed
-    // at OpenRouter once the core answers. The desktop app sends it to the system browser.
+    // Opened on the click itself so a popup blocker lets it through, pointed at OpenRouter once the core answers. The
+    // desktop app sends it to the system browser.
     const tab = window.apxDesktop ? null : window.open("about:blank", "apx-openrouter", POPUP_FEATURES);
     try {
       const { url } = await client.call("openrouter.connect", {
         callback: `${window.location.origin}/oauth/openrouter`,
       });
+      markSignInWindow();
       if (tab) tab.location.href = url;
       else window.open(url, "_blank");
       setWaiting(true);
@@ -75,30 +65,35 @@ export function BrainChoice({ onPicked }: { onPicked: () => void }) {
       <div className="wiz__options is-two">
         {WAYS.map((w) => {
           const connected = on(w.id);
+          const pending = w.id === "openrouter" && waiting && !connected;
           return (
-            // ui: a choice card like the setup's others (wiz__option), not a button's look.
-            <button
-              key={w.id}
-              type="button"
-              className={`wiz__option wiz__way${connected ? " is-on" : ""}`}
-              onClick={() => (w.id === "chatgpt" ? setPlan(true) : void openRouter())}
-            >
+            <div key={w.id} className={`wiz__option wiz__way${connected ? " is-on" : ""}`}>
               <span className="wiz__choicetitle">
                 <EngineIcon engine={w.icon} size={20} />
                 {t(w.title)}
-                {connected && (
-                  <Badge tone="brand" dot>
-                    {t("setup.channels.connected")}
-                  </Badge>
-                )}
+                <Badge tone={connected ? "brand" : "neutral"} dot>
+                  {t(connected ? "setup.channels.connected" : "plans.notConnected")}
+                </Badge>
               </span>
               <span className="wiz__choicebody">{t(w.body)}</span>
-              {w.id === "openrouter" && waiting && !connected && (
-                <span className="wiz__hintline">
-                  <Spinner size={12} /> {t("setup.brain.waiting")}
-                </span>
-              )}
-            </button>
+              <span className="wiz__wayfoot">
+                {pending ? (
+                  <span className="wiz__hintline">
+                    <Spinner size={12} /> {t("setup.brain.waiting")}
+                  </span>
+                ) : (
+                  <span />
+                )}
+                <Button
+                  size="sm"
+                  variant={connected ? "secondary" : "primary"}
+                  leadingIcon={connected ? <Icons.Check size={14} /> : undefined}
+                  onClick={() => (w.id === "chatgpt" ? setPlan(true) : void openRouter())}
+                >
+                  {t(connected ? "setup.brain.manage" : pending ? "setup.brain.again" : "setup.reach.connect")}
+                </Button>
+              </span>
+            </div>
           );
         })}
       </div>
@@ -113,7 +108,7 @@ export function BrainChoice({ onPicked }: { onPicked: () => void }) {
           {t(more ? "setup.brain.less" : "setup.brain.more")}
         </Button>
       </div>
-      {more && <ProvidersGrid compact />}
+      {more && <ProvidersGrid compact onlyReady />}
       {plan && <PlanLogin onClose={() => setPlan(false)} />}
     </>
   );

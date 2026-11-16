@@ -112,6 +112,25 @@
   align-content: center;
   max-width: 980px;
 }
+/* A step starts at the top and scrolls inside, its scrollbar always there so more below is plain to see. */
+.wiz__scroll.is-step {
+  overflow-y: scroll;
+  scrollbar-gutter: stable;
+}
+.wiz__scroll.is-step .wiz__grid.is-single {
+  align-content: start;
+}
+.wiz__scroll.is-step::-webkit-scrollbar {
+  width: 10px;
+}
+.wiz__scroll.is-step::-webkit-scrollbar-thumb {
+  border: 2px solid var(--apx-bg);
+  border-radius: 999px;
+  background: var(--apx-border-strong, var(--apx-fg-subtle));
+}
+.wiz__scroll.is-step::-webkit-scrollbar-track {
+  background: transparent;
+}
 @media (max-width: 1040px) {
   .wiz__grid {
     grid-template-columns: minmax(0, 1fr);
@@ -552,11 +571,23 @@ input.wiz__name {
   gap: 8px;
 }
 /* Footer */
+/* Back and Continue sit at the window's foot, at the edges of the step's width; the step scrolls above them. */
+.wiz__footbar {
+  flex: none;
+  border-top: 1px solid var(--apx-border);
+  background: var(--apx-bg);
+}
 .wiz__foot {
   display: flex;
   gap: 8px;
   align-items: center;
-  padding-top: 6px;
+  max-width: 980px;
+  margin: 0 auto;
+  padding: 14px 32px;
+  box-sizing: border-box;
+}
+.wiz__foot.is-wide {
+  max-width: 1180px;
 }
 .wiz__spacer {
   flex: 1;
@@ -889,6 +920,7 @@ input.wiz__name {
 .wiz__way {
   padding: 22px;
   min-height: 132px;
+  cursor: default;
 }
 .wiz__way .wiz__choicetitle {
   align-items: center;
@@ -897,7 +929,33 @@ input.wiz__name {
 .wiz__way .apx-badge {
   margin-left: auto;
 }
+.wiz__wayfoot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: auto;
+}
 .wiz__import {
   width: 100%;
   max-width: 320px;
+}
+.wiz__ideas {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+/* A phone keeps Back, Skip and Continue on one row at its edges. */
+@media (max-width: 639px) {
+  .wiz__foot {
+    gap: 4px;
+    padding: 10px 16px;
+  }
+  .wiz__foot .wiz__back {
+    padding: 0 8px;
+  }
+  .wiz__foot .apx-btn {
+    padding-inline: 14px;
+  }
 }

@@ -10,10 +10,11 @@ import { loadChannels, useChannels } from "../data/channels.ts";
 import { client } from "../data/client.ts";
 import { closeCard } from "../data/cornerCards.ts";
 import { secretary } from "../data/identity.ts";
-import { loadModelsConfig, saveModelsConfig, useModels } from "../data/models.ts";
+import { loadModelsConfig, saveModelsConfig, splitRef, useModels } from "../data/models.ts";
 import { notify } from "../data/notices.ts";
 import { setPrefs } from "../data/prefs.ts";
 import { updateBase } from "../data/projects.ts";
+import { useProviders } from "../data/providers.ts";
 import {
   addProject,
   closeSetup,
@@ -33,7 +34,7 @@ import { go, useNav } from "../shell/nav.ts";
 import { ALL_SLIDES } from "../shell/welcomeFilm.ts";
 import { BuildVersion } from "./BuildVersion.tsx";
 import { type Draft, defaultDraft } from "./draft.ts";
-import { ChannelsStep, DoneStep, EnginesStep, MemoryStep, ProjectStep } from "./StepsConfig.tsx";
+import { ChannelsStep, DoneStep, EnginesStep, MemoryStep, OrderStep, ProjectStep } from "./StepsConfig.tsx";
 import { AgentStep, GROUP, ImportStep, Welcome } from "./StepsIntro.tsx";
 
 /** Simple names its steps for someone who never set up an agent. */
@@ -47,8 +48,9 @@ const STEP_KEY: Record<Step, MessageKey> = {
   channels: "setup.step.channels",
   project: "setup.step.project",
   done: "setup.step.done",
+  order: "setup.step.order",
 };
-type Step = "welcome" | "import" | "agent" | "engines" | "memory" | "channels" | "project" | "done";
+type Step = "welcome" | "import" | "agent" | "engines" | "order" | "memory" | "channels" | "project" | "done";
 
 /** Where an unfinished setup was left on this device, if it is readable. */
 function resumed(): { draft: Draft; at: number } | undefined {
@@ -93,10 +95,15 @@ function WizardBody() {
   const set = (p: Partial<Draft>) => setD((cur) => ({ ...cur, ...p }));
   const boss = secretary(agents);
 
+  // More than one brain signed in (a model app on this computer aside): the owner says which goes first.
+  const providers = useProviders((s) => s.list);
+  const brains = new Set(
+    d.chain.map((ref) => splitRef(ref).engine).filter((id) => !providers.find((p) => p.id === id)?.local),
+  ).size;
   const steps: Step[] = useMemo(
     () =>
       d.style === "simple"
-        ? ["welcome", "engines", "channels", "done"]
+        ? ["welcome", "engines", ...(brains > 1 ? (["order"] as const) : []), "agent", "channels", "done"]
         : [
             "welcome",
             ...(d.mode === "import" ? (["import"] as const) : []),
@@ -107,7 +114,7 @@ function WizardBody() {
             "project",
             "done",
           ],
-    [d.mode, d.style],
+    [d.mode, d.style, brains],
   );
   const step = steps[at] ?? "welcome";
 
@@ -178,7 +185,7 @@ function WizardBody() {
       return true;
     }
     if (step === "agent" && boss) return updateAgent(boss.id, { name: d.name.trim(), blob: d.blob });
-    if (step === "engines" && config) {
+    if ((step === "engines" || step === "order") && config) {
       const [first, ...rest] = d.chain;
       const choice: ModelChoice = first ? { model: first, router: rest.length > 0 } : { router: true };
       return saveModelsConfig({ default: choice, router: { ...config.router, chain: rest } });
@@ -234,7 +241,8 @@ function WizardBody() {
     welcome: <Welcome v1={status?.v1 ?? null} agent={boss} onStart={start} />,
     import: <ImportStep home={status?.v1?.home ?? "~/.apx"} scan={scan} draft={d} set={set} />,
     agent: <AgentStep draft={d} set={set} />,
-    engines: <EnginesStep draft={d} set={set} onPicked={() => void next()} />,
+    engines: <EnginesStep draft={d} set={set} />,
+    order: <OrderStep draft={d} set={set} />,
     memory: <MemoryStep draft={d} set={set} />,
     channels: <ChannelsStep name={d.name.trim() || t("agent.super")} simple={d.style === "simple"} />,
     project: <ProjectStep draft={d} set={set} />,
@@ -273,37 +281,38 @@ function WizardBody() {
           {t("setup.exit")}
         </button>
       </header>
-      <div className="wiz__scroll">
+      <div className={`wiz__scroll${step === "welcome" ? "" : " is-step"}`}>
         <div className={`wiz__grid${step === "welcome" || d.style === "simple" ? " is-single" : ""}`}>
-          <div className="wiz__main">
-            {body[step]}
-            {step !== "welcome" && step !== "done" && (
-              <div className="wiz__foot">
-                {at > 0 && (
-                  <button type="button" className="wiz__back" onClick={() => setAt((i) => Math.max(i - 1, 0))}>
-                    {t("setup.back")}
-                  </button>
-                )}
-                <span className="wiz__spacer" />
-                {blocked && d.style === "advanced" && <span className="wiz__hint">{t(blocked)}</span>}
-                {d.style === "simple" && step === "channels" && (
-                  <Button size="lg" variant="ghost" onClick={() => void next()}>
-                    {t("setup.reach.skip")}
-                  </Button>
-                )}
-                {/* Simple's brain goes on by itself once one is picked: Continue shows only when one is there. */}
-                {!(blocked && d.style === "simple") && (
-                  <Button size="lg" disabled={Boolean(blocked)} loading={busy} onClick={() => void next()}>
-                    {step === "project" ? t("setup.create") : t("setup.next")}
-                  </Button>
-                )}
-              </div>
-            )}
-          </div>
+          <div className="wiz__main">{body[step]}</div>
           {/* Simple meets its agent at the end, by name: until then each step stands alone. */}
           {step !== "welcome" && d.style === "advanced" && <Preview draft={d} imports={scan} />}
         </div>
       </div>
+      {/* Back and Continue stay at the window's foot, whatever the step holds above them. */}
+      {step !== "welcome" && step !== "done" && (
+        <div className="wiz__footbar">
+          <div className={`wiz__foot${d.style === "advanced" ? " is-wide" : ""}`}>
+            {at > 0 && (
+              <button type="button" className="wiz__back" onClick={() => setAt((i) => Math.max(i - 1, 0))}>
+                {t("setup.back")}
+              </button>
+            )}
+            <span className="wiz__spacer" />
+            {blocked && d.style === "advanced" && <span className="wiz__hint">{t(blocked)}</span>}
+            {d.style === "simple" && step === "channels" && (
+              <Button size="lg" variant="ghost" onClick={() => void next()}>
+                {t("setup.reach.skip")}
+              </Button>
+            )}
+            {/* Simple's brain goes on by itself once one is picked: Continue shows only when one is there. */}
+            {!(blocked && d.style === "simple") && (
+              <Button size="lg" disabled={Boolean(blocked)} loading={busy} onClick={() => void next()}>
+                {step === "project" ? t("setup.create") : t("setup.next")}
+              </Button>
+            )}
+          </div>
+        </div>
+      )}
       <BuildVersion className={step === "welcome" ? "" : " is-side"} />
     </div>
   );

@@ -7,7 +7,7 @@ export const esEngines: Record<keyof typeof enEngines, string> = {
     "Con qué piensan y trabajan tus agentes: tu plan de ChatGPT y las APIs de modelos. Las CLIs como Claude Code o Codex están en Sesiones externas.",
   "providers.hide": "Quitar {name} de la lista",
   "providers.modelsAuto": "Auto",
-  "plans.codex.kind": "Plan de ChatGPT",
+  "plans.codex.kind": "Plan Plus o Pro",
   "plans.connected": "Conectado",
   "plans.notConnected": "Sin conectar",
   "plans.account": "Cuenta",
@@ -15,7 +15,7 @@ export const esEngines: Record<keyof typeof enEngines, string> = {
   "plans.modelsCount": "{count} disponibles",
   "plans.connect": "Conectar",
   "plans.manage": "Administrar",
-  "plan.login.title": "Conectar Codex",
+  "plan.login.title": "Conectar ChatGPT",
   "plan.login.lead":
     "Tus agentes usan los modelos de tu plan de ChatGPT con las herramientas y reglas de APX. APX tiene su propio login, separado del de la app de Codex.",
   "plan.login.preTitle": "Si no te deja terminar",

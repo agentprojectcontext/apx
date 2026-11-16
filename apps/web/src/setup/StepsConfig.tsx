@@ -21,7 +21,7 @@ import { EmbedderCard } from "./EmbedderCard.tsx";
 import { StepHead } from "./StepsIntro.tsx";
 
 /** Provider management is shared with settings; the wizard saves its router on Continue. Simple hides the chain. */
-export function EnginesStep({ draft: d, set, onPicked }: StepProps & { onPicked?: () => void }) {
+export function EnginesStep({ draft: d, set }: StepProps) {
   const simple = d.style === "simple";
   const t = useT();
   const providers = useProviders((s) => s.list);
@@ -43,11 +43,13 @@ export function EnginesStep({ draft: d, set, onPicked }: StepProps & { onPicked?
     const kept = d.chain.filter((ref) => ready.includes(splitRef(ref).engine));
     const started = withStarters(kept, pending.current, catalog);
     pending.current = started.waiting;
-    // Simple keeps a model app on this computer behind the one the owner signed in to.
-    const isLocal = (ref: string) => providers.some((p) => p.local && p.id === splitRef(ref).engine);
-    const chain = simple
-      ? [...started.chain.filter((r) => !isLocal(r)), ...started.chain.filter(isLocal)]
-      : started.chain;
+    // Simple leads with the account the owner signed in to (ChatGPT, then OpenRouter) and keeps a model app on this
+    // computer last, as the backup.
+    const rankOf = (ref: string) => {
+      const id = splitRef(ref).engine;
+      return id === "chatgpt" ? 0 : id === "openrouter" ? 1 : providers.some((p) => p.local && p.id === id) ? 3 : 2;
+    };
+    const chain = simple ? [...started.chain].sort((a, b) => rankOf(a) - rankOf(b)) : started.chain;
     if (chain.join() !== d.chain.join()) set({ chain });
   }, [providers, loaded, catalog, d.chain, set, simple]);
   return (
@@ -60,12 +62,27 @@ export function EnginesStep({ draft: d, set, onPicked }: StepProps & { onPicked?
       >
         {t(simple ? "setup.brain.body" : "setup.engines.body")}
       </StepHead>
-      {simple ? <BrainChoice onPicked={() => onPicked?.()} /> : <ProvidersGrid compact />}
+      {simple ? <BrainChoice /> : <ProvidersGrid compact />}
       {!simple && (
         <div className="wiz__card wiz__chain">
           <RouterChain chain={d.chain} onChange={(chain) => set({ chain })} />
         </div>
       )}
+    </>
+  );
+}
+
+/** Several brains signed in: which answers first, and who follows when it cannot. */
+export function OrderStep({ draft: d, set }: StepProps) {
+  const t = useT();
+  return (
+    <>
+      <StepHead kicker="setup.step.order" title={t("setup.order.title")} end={t("setup.order.titleGreen")} green>
+        {t("setup.order.body")}
+      </StepHead>
+      <div className="wiz__card wiz__chain">
+        <RouterChain chain={d.chain} onChange={(chain) => set({ chain })} />
+      </div>
     </>
   );
 }
@@ -498,7 +515,9 @@ export function DoneStep({ name, simple, onFinish }: { name: string; simple?: bo
       <h1 className="wiz__hero is-done">
         {name} <span className="is-green">{t("setup.done.ready")}</span>
       </h1>
-      <p className="wiz__body">{t("setup.done.body", { home: dataHome ?? "" })}</p>
+      <p className="wiz__body">
+        {simple ? t("setup.done.simpleBody", { name }) : t("setup.done.body", { home: dataHome ?? "" })}
+      </p>
       {/* With v1 installed, `apx` is v1's: one click makes it this one. */}
       {offers && (
         <div className="wiz__card wiz__takeover">

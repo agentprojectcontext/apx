@@ -1,6 +1,6 @@
 import type { Result } from "@apx/protocol";
 import { randomAgentName } from "@apx/protocol/client";
-import { AgentAvatar, BLOB_NAMES, Checkbox, IconButton, Icons, Input, Skeleton, Switch } from "@apx/ui";
+import { AgentAvatar, BLOB_NAMES, Button, Checkbox, IconButton, Icons, Input, Skeleton, Switch } from "@apx/ui";
 import { type ReactNode, useState } from "react";
 import type { V1Group, V1Groups } from "../data/setup.ts";
 import { PRIVACY_URL, setUsage, useTelemetry } from "../data/telemetry.ts";
@@ -151,6 +151,13 @@ export function Welcome({
   );
 }
 
+/** Three different names, none the one already there. */
+function threeNames(current: string): string[] {
+  const out: string[] = [];
+  while (out.length < 3) out.push(randomAgentName([current, ...out]));
+  return out;
+}
+
 export const GROUP: Record<V1Group, { label: MessageKey; body: MessageKey; icon: typeof Icons.Bot }> = {
   projects: { label: "setup.v1.projects", body: "setup.v1.projectsBody", icon: Icons.Folder },
   skills: { label: "setup.v1.skills", body: "setup.v1.skillsBody", icon: Icons.Sparkles },
@@ -222,16 +229,42 @@ export function ImportStep({ home, scan, draft: d, set }: StepProps & { home: st
   );
 }
 
-/** The super-agent's name and face. */
+/** The super-agent's name and face; simple offers three names to pick with one click. */
 export function AgentStep({ draft: d, set }: StepProps) {
   const t = useT();
+  const simple = d.style === "simple";
+  const [ideas, setIdeas] = useState<string[]>(() => threeNames(d.name));
   return (
     <>
-      <StepHead kicker="setup.agent.kicker" title={t("setup.agent.title")} end={t("setup.agent.titleMuted")}>
-        {t("setup.agent.body")}
+      <StepHead
+        kicker="setup.agent.kicker"
+        title={t(simple ? "setup.agent.simpleTitle" : "setup.agent.title")}
+        end={t(simple ? "setup.agent.simpleTitleMuted" : "setup.agent.titleMuted")}
+      >
+        {t(simple ? "setup.agent.simpleBody" : "setup.agent.body")}
       </StepHead>
+      {simple && (
+        <div className="wiz__ideas">
+          {ideas.map((n) => (
+            <Button
+              key={n}
+              size="sm"
+              variant={d.name.trim() === n ? "primary" : "secondary"}
+              onClick={() => set({ name: n })}
+            >
+              {n}
+            </Button>
+          ))}
+          <IconButton
+            size="sm"
+            label={t("setup.agent.moreNames")}
+            icon={<Icons.Dices size={16} />}
+            onClick={() => setIdeas(threeNames(d.name))}
+          />
+        </div>
+      )}
       <div className="wiz__field">
-        <span>{t("setup.agent.name")}</span>
+        <span>{t(simple ? "setup.agent.ownName" : "setup.agent.name")}</span>
         <Input
           className="wiz__name"
           aria-label={t("setup.agent.name")}

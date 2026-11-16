@@ -5,7 +5,7 @@ export const enEngines = {
     "What your agents think and work with: your ChatGPT plan and the model APIs. CLIs like Claude Code or Codex are in External sessions.",
   "providers.hide": "Take {name} off the list",
   "providers.modelsAuto": "Auto",
-  "plans.codex.kind": "ChatGPT plan",
+  "plans.codex.kind": "Plus or Pro plan",
   "plans.connected": "Connected",
   "plans.notConnected": "Not connected",
   "plans.account": "Account",
@@ -13,7 +13,7 @@ export const enEngines = {
   "plans.modelsCount": "{count} available",
   "plans.connect": "Connect",
   "plans.manage": "Manage",
-  "plan.login.title": "Connect Codex",
+  "plan.login.title": "Connect ChatGPT",
   "plan.login.lead":
     "Your agents use your ChatGPT plan's models with APX's tools and rules. APX keeps its own sign-in, apart from the Codex app's.",
   "plan.login.preTitle": "If it would not finish",

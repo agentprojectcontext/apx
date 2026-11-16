@@ -1146,6 +1146,8 @@ export const es: Partial<Record<MessageKey, string>> = {
   "providers.title": "APIs de modelos (loop propio de APX)",
   "providers.lead":
     "Servicios que se pagan por token y que APX llama directo. Las claves se guardan de forma segura y no se vuelven a mostrar.",
+  "providers.other": "Otro servidor",
+  "providers.otherHint": "Cualquier dirección compatible con OpenAI.",
   "providers.add": "Agregar proveedor",
   "providers.active": "Activo",
   "providers.noKey": "Sin clave",
@@ -1167,9 +1169,7 @@ export const es: Partial<Record<MessageKey, string>> = {
   "providers.remove": "Quitar",
   "providers.newTitle": "Nuevo proveedor",
   "providers.editTitle": "Editar {name}",
-  "providers.dialogLead":
-    "Una API de modelos que APX llama con su propio loop. Elegí el tipo y la dirección se completa sola.",
-  "providers.kind": "Tipo",
+  "providers.dialogLead": "Pegá su clave y listo: la dirección ya viene completa.",
   "providers.name": "Nombre",
   "providers.idHint": "Su id en los nombres de modelo: {id}/<modelo>",
   "providers.idTaken": "Ya hay un proveedor {id}",

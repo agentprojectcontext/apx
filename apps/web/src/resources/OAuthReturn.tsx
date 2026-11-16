@@ -2,6 +2,7 @@ import "../styles/screens.css";
 import { Button, EmptyState, Icons, Spinner } from "@apx/ui";
 import { useEffect, useState } from "react";
 import { client } from "../data/client.ts";
+import { isSignInWindow, tellSignInDone } from "../data/signInWindow.ts";
 import { useT } from "../i18n/index.ts";
 
 const NAMES: Record<string, string> = {
@@ -28,12 +29,10 @@ function finish() {
   return finishing;
 }
 
-/** Opened as a window of the panel that started the sign-in: that panel is told, and this window closes itself. */
-const POPUP = Boolean(window.opener) && window.opener !== window;
-/** How long "connected" shows before the window closes. */
+/** A window the panel opened for this sign-in: the panel is told, and this window says to close it (and tries to). */
+const POPUP = window.opener != null || isSignInWindow();
+/** How long "connected" shows before the window tries to close. */
 const CLOSE_MS = 1500;
-/** What the panel that opened the sign-in listens for. */
-const OAUTH_DONE = "apx:oauth-done";
 
 /** Hands the code to the core and says how it went; the panel that started it notices by itself. */
 export function OAuthReturn() {
@@ -50,16 +49,17 @@ export function OAuthReturn() {
     running.then(
       (r) => {
         setState({ kind: "done", ...r });
-        if (!POPUP) return;
-        try {
-          window.opener.postMessage({ type: OAUTH_DONE, id: r.id }, window.location.origin);
-        } catch {}
-        window.setTimeout(() => window.close(), CLOSE_MS);
+        tellSignInDone(r.id);
+        if (POPUP) window.setTimeout(() => window.close(), CLOSE_MS);
       },
       (e: unknown) => setState({ kind: "failed", error: e instanceof Error ? e.message : String(e) }),
     );
   }, []);
-  const open = POPUP ? undefined : (
+  const open = POPUP ? (
+    <Button size="sm" onClick={() => window.close()}>
+      {t("oauth.closeWindow")}
+    </Button>
+  ) : (
     <Button size="sm" onClick={() => window.location.replace("/")}>
       {t("oauth.open")}
     </Button>
