@@ -275,14 +275,18 @@ async def speak(request: Request):
 
 @app.post("/transcribe")
 async def transcribe(request: Request):
-    """What a recording says (16 kHz mono PCM16, decoded by the core): a voice note the owner sent."""
+    """What a recording says (16 kHz mono PCM16, decoded by the core): a voice note the owner sent. `draft=1` hears it
+    with the small CPU whisper instead, for words shown while it still records: it never waits behind the good one."""
     if not allowed(request.headers.get("x-voice-secret")):
         return JSONResponse({"error": "forbidden"}, status_code=403)
     data = await request.body()
     pcm = np.frombuffer(data[: len(data) // 2 * 2], dtype=np.int16).astype(np.float32) / 32768
     lang = request.query_params.get("lang") or None
     ears = await asyncio.to_thread(lambda: speech.ears)  # loading it never holds the event loop
-    text, heard = await asyncio.wrap_future(ears.final(pcm, lang, None))
+    if request.query_params.get("draft") == "1":
+        text, heard = await asyncio.wrap_future(ears.partial(pcm, lang, None)), lang
+    else:
+        text, heard = await asyncio.wrap_future(ears.final(pcm, lang, None))
     speech.last_use = time.monotonic()
     return {"text": text, "language": heard}
 

@@ -25,9 +25,20 @@ async function whisperLocal(s: ServiceConfig, a: Audio, signal: AbortSignal, f: 
   return (j.text ?? "").trim();
 }
 
+/** The upload's name: OpenAI-compatible servers tell the audio's format by its extension. */
+const UPLOAD_EXT: Record<string, string> = {
+  "audio/wav": "wav",
+  "audio/x-wav": "wav",
+  "audio/webm": "webm",
+  "audio/mp4": "m4a",
+  "audio/mpeg": "mp3",
+  "audio/ogg": "ogg",
+};
+export const uploadName = (mime: string) => `voice.${UPLOAD_EXT[mime.split(";")[0]?.trim() ?? ""] ?? "ogg"}`;
+
 async function openaiTranscribe(s: ServiceConfig, a: Audio, key: string | undefined, signal: AbortSignal, f: Fetch) {
   const form = new FormData();
-  form.set("file", new Blob([new Uint8Array(a.bytes)], { type: a.mime }), "voice.ogg");
+  form.set("file", new Blob([new Uint8Array(a.bytes)], { type: a.mime }), uploadName(a.mime));
   form.set("model", s.model || PINNED.openaiTranscription.id);
   if (s.language) form.set("language", s.language);
   const res = await f(joinUrl(s.base_url, "/v1/audio/transcriptions"), {

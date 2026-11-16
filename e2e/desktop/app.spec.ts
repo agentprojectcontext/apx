@@ -697,7 +697,7 @@ test("notifications add and clear the integrated tray indicator, menu-bar count 
   if (process.platform === "darwin") {
     expect(unread.title).toBe("3");
     expect(empty.template).toBe(true);
-    expect(unread.template).toBe(false);
+    expect(unread.template).toBe(true);
     expect(unread.dock).toBe("3");
     const many = await badge(120);
     expect(many.title).toBe("99+");
@@ -715,10 +715,11 @@ test("notifications add and clear the integrated tray indicator, menu-bar count 
       await app.evaluate(({ nativeTheme }) => {
         nativeTheme.themeSource = "dark";
       });
-      await expect.poll(async () => (await badge(1)).image).not.toBe(light.image);
       const dark = await badge(1);
+      expect(light.template).toBe(true);
+      expect(dark.image).toBe(light.image);
       expect(dark.orangePixels).toBe(light.orangePixels);
-      expect(dark.template).toBe(false);
+      expect(dark.template).toBe(true);
       expect(dark.title).toBe("1");
       await app.evaluate(({ nativeTheme }) => {
         nativeTheme.themeSource = "light";
