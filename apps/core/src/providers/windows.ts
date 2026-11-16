@@ -11,6 +11,7 @@ const WINDOWS: ReadonlyArray<[RegExp, number]> = [
   [/^gpt-oss[-:](?:120b|20b)(?:[-:#]|$)/, 131_072],
   [/gpt-4\.1/, 1_047_576],
   [/gpt-4o|o[134](-|$)/, 128_000],
+  [/^qwen3\.8-27b(?:#|$)/, 131_072],
   [/llama|qwen|mistral|deepseek/, 128_000],
 ];
 

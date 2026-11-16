@@ -1,10 +1,24 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { readsImages } from "./vision.ts";
+import { imageLimit, readsImages } from "./vision.ts";
+
+test("the documented Groq image cap applies only to its exact Qwen 3.8 model", () => {
+  assert.equal(imageLimit("groq/qwen/qwen3.8-27b"), 3);
+  assert.equal(imageLimit("groq/qwen/qwen3.8-27b#high"), 3);
+  for (const model of ["openrouter/qwen/qwen3.8-27b", "groq/qwen/qwen3-32b", "groq/qwen/qwen3.8-27b-preview"])
+    assert.equal(imageLimit(model), undefined, model);
+});
 
 test("Gemma 3n retains image support in local and hosted model refs", () => {
   for (const model of ["ollama/gemma3n:e4b", "google/gemma-3n-e4b-it"]) assert.equal(readsImages(model), true, model);
   for (const model of ["ollama/gemma4n:e4b", "google/gemma-4n-e4b-it", "google/gemma-30n-e4b-it"])
+    assert.equal(readsImages(model), undefined, model);
+});
+
+test("Qwen 3.8 27B reads images without assuming vision for other Qwen models", () => {
+  for (const model of ["groq/qwen/qwen3.8-27b", "openrouter/qwen/qwen3.8-27b", "groq/qwen/qwen3.8-27b#high"])
+    assert.equal(readsImages(model), true, model);
+  for (const model of ["groq/qwen/qwen3-32b", "groq/qwen/qwen3.8-270b", "groq/qwen/qwen3.8-27b-preview"])
     assert.equal(readsImages(model), undefined, model);
 });
 

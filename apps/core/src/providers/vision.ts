@@ -8,6 +8,7 @@ const TEXT_ONLY: readonly RegExp[] = [
   /llama-?3(\.[0-3])?(?!.*vision)([^0-9.]|$)/,
 ];
 const READS_IMAGES: readonly RegExp[] = [
+  /^qwen3\.8-27b(?:#|$)/,
   /claude/,
   /gemini/,
   /gemma-?(?:3n?|4)(?:[-:]|$)/,
@@ -19,6 +20,11 @@ const READS_IMAGES: readonly RegExp[] = [
   /(^|[^a-z0-9])vl([^a-z]|$)|-vl-|vision/,
   /glm-[0-9.]+v/,
 ];
+
+/** A provider-specific image cap, only where its model card documents one. */
+export function imageLimit(model: string): number | undefined {
+  return /^groq\/qwen\/qwen3\.8-27b(?:#|$)/.test(model.toLowerCase()) ? 3 : undefined;
+}
 
 /** True when a model ref ("provider/model") is known to read images, false when known not to, else undefined. */
 export function readsImages(model: string): boolean | undefined {

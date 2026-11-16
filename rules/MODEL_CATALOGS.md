@@ -58,6 +58,13 @@ A window reported by the running provider takes precedence. Gemma 4's 12B, 26B A
 20B/120B use 131,072. Gemma 4 reads images; GPT-OSS does not. Decision-only Gemini and FLUX.2 Klein image models
 stay listed but are not offered for agent turns, including locally discovered lists.
 
+Qwen 3.8 27B reads images and uses a 131,072-token context fallback, as documented in the
+[Groq model card](https://console.groq.com/docs/model/qwen/qwen3.8-27b). This exact-model fallback does not infer
+vision or a larger window for other Qwen variants; provider-reported windows still take precedence.
+Groq accepts at most three images per request for this model. If the prepared call carries more,
+APX tries the next model in the chain without silently removing an image; with no suitable fallback it
+asks for fewer images or another model. The Groq-specific cap is not inferred for other providers.
+
 The documented Claude Opus 4.6/4.7/4.8 and Sonnet 4.6 windows are 1,000,000 tokens; older Claude 4 variants keep
 200,000. These fallbacks describe capabilities, not which models an account can access. Sources:
 [OpenAI GPT-5.6 Sol](https://developers.openai.com/api/docs/models/gpt-5.6-sol) and
