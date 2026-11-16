@@ -54,3 +54,63 @@ test("a widget beside a chat takes the answer cards' look: no extra page padding
     text: "0px",
   });
 });
+
+const donut = (legend = "") => `<script src="/_apx/kit@1.js"></script>
+<main class="ax-page"><section class="ax-card"><h2>Spending in May</h2>
+<ax-donut label="$900" sub="total"${legend} data='[{"label":"Rent","value":500,"tone":"brand"},{"label":"Food","value":250,"tone":"info"},{"label":"Transport","value":100,"tone":"violet"},{"label":"Other","value":50,"tone":"warning"}]'></ax-donut>
+</section></main>`;
+
+let shownDonuts = 0;
+async function showDonut(p: Page, html: string): Promise<Frame> {
+  await rpc("setup.finish", {});
+  const chat = await rpc<{ id: string }>("threads.create", { kind: "agent", agent_id: "superagent" });
+  const shown = await rpc<{ id: string }>("surfaces.show", {
+    name: `kit-donut-${++shownDonuts}`,
+    title: "Spending",
+    thread: chat.id,
+    html,
+  });
+  await open(p, `#thread=${chat.id}&panel=widget&widget=${shown.id}`);
+  await expect.poll(() => frames(p).length).toBeGreaterThan(0);
+  const f = frames(p)[0] as Frame;
+  await expect(f.locator("ax-donut svg")).toBeVisible();
+  return f;
+}
+
+for (const width of [1280, 390])
+  test(`a donut names its slices beside it, in their colors, at ${width}px`, async ({ page: p }) => {
+    await p.setViewportSize({ width, height: 844 });
+    const f = await showDonut(p, donut());
+    const legend = f.locator(".ax-donut__legend");
+    await expect(legend).toBeVisible();
+    const read = await f.evaluate(() => {
+      const box = (el: Element) => el.getBoundingClientRect();
+      const arcs = [...document.querySelectorAll("ax-donut svg circle")].slice(1).map((c) => c.getAttribute("stroke"));
+      const swatches = [...document.querySelectorAll(".ax-donut__legend i")].map(
+        (i) => (i as HTMLElement).style.background,
+      );
+      const card = box(document.querySelector(".ax-card") as Element);
+      const leg = box(document.querySelector(".ax-donut__legend") as Element);
+      return {
+        rows: [...document.querySelectorAll(".ax-donut__legend span")].map((s) => {
+          const value = s.nextElementSibling as Element;
+          return `${s.textContent} ${value.textContent} ${value.nextElementSibling?.textContent}`;
+        }),
+        sameColors: arcs.length === 4 && arcs.every((c, i) => c === swatches[i]),
+        inside: leg.left >= card.left && leg.right <= card.right,
+        noScroll: document.documentElement.scrollWidth <= innerWidth,
+      };
+    });
+    expect(read).toEqual({
+      rows: ["Rent 500 56%", "Food 250 28%", "Transport 100 11%", "Other 50 6%"],
+      sameColors: true,
+      inside: true,
+      noScroll: true,
+    });
+  });
+
+test('a donut whose card already lists its slices drops its legend with legend="none"', async ({ page: p }) => {
+  const f = await showDonut(p, donut(' legend="none"'));
+  await expect(f.locator(".ax-ring__c b")).toHaveText("$900");
+  await expect(f.locator(".ax-donut__legend")).toHaveCount(0);
+});
