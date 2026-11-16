@@ -6,7 +6,7 @@ import type { ModelRef, NativeVoice, ServiceSettings, VoiceQuality, VoiceStatus 
 import type { Store } from "../domain/store.ts";
 import type { Log } from "../log.ts";
 import type { Services } from "./registry.ts";
-import type { VoiceEngine } from "./voice-engine.ts";
+import type { VoiceEngine, VoicePart } from "./voice-engine.ts";
 
 const NATIVE_SPEECH = "apx-voice";
 const NATIVE_EARS = "apx-voice-ears";
@@ -51,7 +51,10 @@ export function createNativeVoice(deps: {
       for (const id of [NATIVE_SPEECH, NATIVE_EARS]) if (has(id)) services.set(id, null);
       return;
     }
-    if (!engine.installed() && !has(NATIVE_SPEECH)) return;
+    // Each joins when its models are on disk (hearing can come alone), and keeps its place while new ones download.
+    const speaks = engine.installed() || has(NATIVE_SPEECH);
+    const hears = engine.installed("ears") || has(NATIVE_EARS);
+    if (!speaks && !hears) return;
     const lang = voice().locale.slice(0, 2);
     const speech: ServiceSettings = {
       kind: "speech",
@@ -65,13 +68,16 @@ export function createNativeVoice(deps: {
     };
     // Voice notes come in any language (a contact may write in English): whisper tells which.
     const ears: ServiceSettings = { ...speech, kind: "transcription", voice: undefined, language: undefined };
-    const fresh = !has(NATIVE_SPEECH);
-    services.set(NATIVE_SPEECH, speech);
-    services.set(NATIVE_EARS, ears);
     // Put first once, when it arrives; after that the owner's order stands.
-    if (fresh) {
-      services.order("speech", [NATIVE_SPEECH]);
-      services.order("transcription", [NATIVE_EARS]);
+    if (speaks) {
+      const fresh = !has(NATIVE_SPEECH);
+      services.set(NATIVE_SPEECH, speech);
+      if (fresh) services.order("speech", [NATIVE_SPEECH]);
+    }
+    if (hears) {
+      const fresh = !has(NATIVE_EARS);
+      services.set(NATIVE_EARS, ears);
+      if (fresh) services.order("transcription", [NATIVE_EARS]);
     }
   }
 
@@ -86,6 +92,7 @@ export function createNativeVoice(deps: {
       ...(m.missing ? { missing: m.missing } : {}),
       enabled: enabled(),
       installed: engine.installed(),
+      hears_installed: engine.installed("ears"),
       ...(install ? { install } : {}),
       running: engine.running(),
       voice: voice(),
@@ -97,8 +104,8 @@ export function createNativeVoice(deps: {
     };
   }
 
-  function install(): void {
-    if (!engine.installed()) engine.startInstall();
+  function install(part: VoicePart = "all"): void {
+    if (!engine.installed(part)) engine.startInstall(part);
   }
 
   /** At start: learn whether it is on disk, download it where it runs and is on, and set the services. */
@@ -118,7 +125,12 @@ export function createNativeVoice(deps: {
 
   // An install that ends sets the services up; checked now and then rather than wired into the engine.
   const watch = setInterval(() => {
-    if (engine.installed() && enabled() && !services.has(NATIVE_SPEECH)) sync();
+    if (!enabled()) return;
+    if (
+      (engine.installed() && !services.has(NATIVE_SPEECH)) ||
+      (engine.installed("ears") && !services.has(NATIVE_EARS))
+    )
+      sync();
   }, 2000);
   watch.unref();
 
@@ -130,8 +142,9 @@ export function createNativeVoice(deps: {
     usable,
     /** The model calls talk with, when the owner picked one. */
     callModel: (): ModelRef | undefined => settings().call_model,
-    async install(): Promise<VoiceStatus> {
-      install();
+    /** Downloads the voice, or (`ears`) only what hears. */
+    async install(part: VoicePart = "all"): Promise<VoiceStatus> {
+      install(part);
       return status();
     },
     set(p: {

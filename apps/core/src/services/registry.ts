@@ -101,8 +101,9 @@ export function createServices(deps: {
   const ofKind = (kind: ServiceKind) => all().filter((s) => s.kind === kind);
 
   /** APX's own voice where it is installed; otherwise a service of that dialect cannot answer. */
+  const part = (s: { kind: ServiceKind }) => (s.kind === "transcription" ? "ears" : "all");
   const native = (s: ServiceConfig) => {
-    if (!deps.voice?.installed()) throw new Error(`${s.label}: APX's voice is not installed`);
+    if (!deps.voice?.installed(part(s))) throw new Error(`${s.label}: APX's voice is not installed`);
     return deps.voice;
   };
   const speakWith = (s: ServiceConfig, r: { text: string; voice?: string | undefined }, signal: AbortSignal) =>
@@ -127,7 +128,7 @@ export function createServices(deps: {
       s.dialect === "whisper-cpp"
         ? whisperCpp.available(s.model)
         : s.dialect === "apx-voice"
-          ? Boolean(deps.voice?.installed())
+          ? Boolean(deps.voice?.installed(part(s)))
           : s.dialect === "codex-images"
             ? Boolean(await deps.codexImages?.available())
             : (await reach(s, path, keyOf(s), f, PROBE_TIMEOUT_MS)).ok;
@@ -301,7 +302,7 @@ export function createServices(deps: {
             ? { ok: true }
             : { ok: false, problem: "other" as const, detail: "whisper-server or the model file is missing" }
           : s.dialect === "apx-voice"
-            ? deps.voice?.installed()
+            ? deps.voice?.installed(part(s))
               ? { ok: true }
               : { ok: false, problem: "other" as const, detail: "APX's voice is not installed on this computer" }
             : s.dialect === "codex-images"
@@ -318,7 +319,7 @@ export function createServices(deps: {
      */
     async listen(bytes: Buffer, mime: string, signal: AbortSignal): Promise<string | undefined> {
       const s = ofKind("transcription").find((x) => x.enabled);
-      if (s?.dialect === "apx-voice" && deps.voice?.installed())
+      if (s?.dialect === "apx-voice" && deps.voice?.installed("ears"))
         return transcribeWith(s, { path: "", bytes, mime }, signal);
       if (s?.dialect !== "whisper-cpp" || !whisperCpp.available(s.model)) return undefined;
       return transcribe(s, { path: "", bytes, mime }, undefined, signal, f, whisperCpp);

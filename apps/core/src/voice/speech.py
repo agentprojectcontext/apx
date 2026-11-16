@@ -264,11 +264,13 @@ class Speech:
         self.last_use = time.monotonic()
 
 
-def prefetch(report):
-    """Downloads every model of this machine's tier, reporting bytes as they arrive (voice.install)."""
+def prefetch(report, part="all"):
+    """Downloads this machine's tier, reporting bytes as they arrive (voice.install): every model, or ("ears") only
+    what hears, for an owner who wants APX to transcribe without speaking."""
     from huggingface_hub import HfApi, constants, hf_hub_download
     api, files = HfApi(), []
-    for repo in (tier()["tts"], tier()["stt"], tier()["draft"]):
+    repos = ("stt", "draft") if part == "ears" else ("tts", "stt", "draft")
+    for repo in (tier()[k] for k in repos):
         files += [(repo, f.rfilename, f.size or 0) for f in api.model_info(repo, files_metadata=True).siblings]
     files += [(repo, name, 0) for repo, name in SMALL]
     total, state = sum(size for *_, size in files), {"done": 0, "repo": None, "stop": False}

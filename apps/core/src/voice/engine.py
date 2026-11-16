@@ -816,8 +816,9 @@ if __name__ == "__main__":
     ap = argparse.ArgumentParser()
     ap.add_argument("--port", type=int)
     ap.add_argument("--prefetch", action="store_true")
+    ap.add_argument("--part", choices=("all", "ears"), default="all")
     a = ap.parse_args()
     if a.prefetch:
-        parts.prefetch(lambda got, total: print(json.dumps({"received": got, "total": total}), flush=True))
+        parts.prefetch(lambda got, total: print(json.dumps({"received": got, "total": total}), flush=True), a.part)
         sys.exit(0)
     uvicorn.run(app, host="127.0.0.1", port=a.port, log_level="warning", ws_max_size=1 << 20)

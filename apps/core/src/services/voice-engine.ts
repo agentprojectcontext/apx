@@ -31,15 +31,23 @@ const MIN_GB = 8;
 const MODELS_REV = 2;
 /** The models of each tier as the owner reads them (speech.py MODELS), and about what they download together. */
 const MODEL_NAMES = {
-  light: { speaks: "Qwen3-TTS 0.6B", hears: "Whisper large-v3 turbo, 4-bit (MLX)", size_gb: 3 },
-  full: { speaks: "Qwen3-TTS 1.7B", hears: "Whisper large-v3 turbo (MLX)", size_gb: 6 },
+  light: { speaks: "Qwen3-TTS 0.6B", hears: "Whisper large-v3 turbo, 4-bit (MLX)", size_gb: 3, hears_gb: 0.6 },
+  full: { speaks: "Qwen3-TTS 1.7B", hears: "Whisper large-v3 turbo (MLX)", size_gb: 6, hears_gb: 1.8 },
 } as const;
 const FULL_GB = 16;
 const AUTO_FULL_GB = 32;
 
 export type VoiceMachine = { tier: VoiceTier; memory_gb: number; missing?: VoiceMissing | undefined };
 
-export type Install = { state: "downloading" | "failed"; received: number; total: number; error?: string | undefined };
+/** What a download brings: every model, or (`ears`) only what hears, for transcription without APX speaking. */
+export type VoicePart = "all" | "ears";
+export type Install = {
+  state: "downloading" | "failed";
+  received: number;
+  total: number;
+  error?: string | undefined;
+  part?: VoicePart | undefined;
+};
 
 /** What one call tells the engine: the voice, the accent, who talks and who is called. */
 export type CallSetup = {
@@ -148,14 +156,20 @@ export function createVoiceEngine(deps: {
   }
 
   /** Written once a download of this tier's models finished: they are on disk, unless the models changed since. */
-  const marker = (tier = machine().tier) => path.join(deps.home, "voice", `installed-${tier}.json`);
-  const installed = () => {
-    if (machine().tier === "none") return false;
+  const marker = (tier = machine().tier, part: VoicePart = "all") =>
+    path.join(deps.home, "voice", part === "all" ? `installed-${tier}.json` : `installed-${tier}-${part}.json`);
+  const done = (file: string) => {
     try {
-      return JSON.parse(fs.readFileSync(marker(), "utf8")).rev === MODELS_REV;
+      return JSON.parse(fs.readFileSync(file, "utf8")).rev === MODELS_REV;
     } catch {
       return false;
     }
+  };
+  /** Every model on disk; with `ears`, at least what hears (all of it counts too). */
+  const installed = (part: VoicePart = "all") => {
+    const tier = machine().tier;
+    if (tier === "none") return false;
+    return done(marker(tier)) || (part === "ears" && done(marker(tier, "ears")));
   };
 
   const stop = () => {
@@ -310,22 +324,28 @@ export function createVoiceEngine(deps: {
     },
 
     /** Downloads this machine's models (and the engine's packages), reporting progress; one at a time. */
-    startInstall(): void {
+    startInstall(part: VoicePart = "all"): void {
       if (machine().missing) throw new Error("APX's voice cannot run on this computer");
       if (install?.state === "downloading") return;
       // The tier this download is for: the owner may pick another meanwhile, which is then downloaded after it.
       const tier = machine().tier;
-      install = { state: "downloading", received: 0, total: 0 };
+      install = { state: "downloading", received: 0, total: 0, part };
       // uv first, where this Mac has none: it is what downloads and runs the voice.
       getUv().then(
         (bin) => prefetch(bin, tier),
         (err) => {
-          install = { state: "failed", received: 0, total: 0, error: err instanceof Error ? err.message : String(err) };
+          install = {
+            state: "failed",
+            received: 0,
+            total: 0,
+            error: err instanceof Error ? err.message : String(err),
+            part,
+          };
           deps.log.warn({ err: install.error }, "voice install failed");
         },
       );
       const prefetch = (bin: string, tier: VoiceMachine["tier"]) => {
-        const child = run(bin, ["run", "--script", ENGINE, "--prefetch"], {
+        const child = run(bin, ["run", "--script", ENGINE, "--prefetch", "--part", part], {
           stdio: ["ignore", "pipe", "pipe"],
           env: env({}, tier),
         });
@@ -344,17 +364,17 @@ export function createVoiceEngine(deps: {
           }
         });
         const failed = (why: string) => {
-          install = { state: "failed", received: install?.received ?? 0, total: install?.total ?? 0, error: why };
+          install = { state: "failed", received: install?.received ?? 0, total: install?.total ?? 0, error: why, part };
           deps.log.warn({ err: why }, "voice install failed");
         };
         child.on("error", (err) => failed(err.message));
         child.on("exit", (code) => {
           if (code === 0) {
             install = undefined;
-            fs.mkdirSync(path.dirname(marker(tier)), { recursive: true });
-            fs.writeFileSync(marker(tier), JSON.stringify({ at: new Date().toISOString(), rev: MODELS_REV }));
-            deps.log.info({ tier }, "voice installed");
-            if (!installed() && !machine().missing) this.startInstall();
+            fs.mkdirSync(path.dirname(marker(tier, part)), { recursive: true });
+            fs.writeFileSync(marker(tier, part), JSON.stringify({ at: new Date().toISOString(), rev: MODELS_REV }));
+            deps.log.info({ tier, part }, "voice installed");
+            if (!installed(part) && !machine().missing) this.startInstall(part);
           } else failed(tail().trim().split("\n").at(-1) || `exit ${code}`);
         });
       };

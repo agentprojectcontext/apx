@@ -47,6 +47,8 @@ export const VoiceStatus = z.object(
     enabled: () => z.boolean(),
     /** Its models are downloaded. */
     installed: () => z.boolean(),
+    /** What hears is downloaded (alone, or with the rest): APX transcribes even where it does not speak. */
+    hears_installed: () => z.boolean(),
     /** A download in progress, or the one that failed. */
     install: () =>
       z
@@ -56,6 +58,8 @@ export const VoiceStatus = z.object(
             received: () => z.number(),
             total: () => z.number(),
             error: () => z.string().optional(),
+            /** What it downloads: every model, or (`ears`) only what hears. */
+            part: () => z.enum(["all", "ears"]).optional(),
           }),
         )
         .optional(),
@@ -84,6 +88,8 @@ export const VoiceStatus = z.object(
             hears: () => z.string(),
             /** About how much it downloads, all models together. */
             size_gb: () => z.number(),
+            /** About how much only what hears downloads. */
+            hears_gb: () => z.number(),
             /** The folder the models are kept in. */
             folder: () => z.string(),
           }),
@@ -128,7 +134,8 @@ export const callMethods = {
   }),
   /** Downloads the voice's models (done on its own where the machine can run it well). */
   "voice.install": deferMethod({
-    params: () => z.object({}).strict(),
+    /** `ears`: only what hears (transcription), without APX's speaking voice. */
+    params: () => z.object({ part: z.enum(["all", "ears"]).optional() }).strict(),
     result: () => VoiceStatus,
     effect: true,
     access: "human",
