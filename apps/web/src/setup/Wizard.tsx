@@ -241,6 +241,8 @@ function WizardBody() {
   };
 
   const name = d.name.trim() || t("setup.preview.unset");
+  // Simple shows its agent once the owner names it (and not beside the chat, which takes that side).
+  const preview = step !== "welcome" && (d.style === "advanced" || step === "agent" || step === "channels");
   const body: Record<Step, ReactNode> = {
     welcome: <Welcome v1={status?.v1 ?? null} agent={boss} onStart={start} />,
     import: <ImportStep home={status?.v1?.home ?? "~/.apx"} scan={scan} draft={d} set={set} />,
@@ -287,10 +289,9 @@ function WizardBody() {
         </button>
       </header>
       <div className={`wiz__scroll${step === "welcome" ? "" : " is-step"}`}>
-        <div className={`wiz__grid${step === "welcome" || d.style === "simple" ? " is-single" : ""}`}>
+        <div className={`wiz__grid${preview ? "" : " is-single"}`}>
           <div className="wiz__main">{body[step]}</div>
-          {/* Simple meets its agent at the end, by name: until then each step stands alone. */}
-          {step !== "welcome" && d.style === "advanced" && <Preview draft={d} imports={scan} />}
+          {preview && <Preview draft={d} imports={scan} />}
         </div>
       </div>
       {/* Back and Continue stay at the window's foot, whatever the step holds above them. */}
