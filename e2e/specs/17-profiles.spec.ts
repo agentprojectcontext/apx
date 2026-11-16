@@ -1,4 +1,4 @@
-// Profiles: picked in Config › Perfil, the secretary seeds the day's open and close (always arrive) and the watch on
+// Profiles: picked on the super-agent editor's Profile page, the secretary seeds the day's open and close (always arrive) and the watch on
 // the super-agent; the time of the open is changed there and its routine follows. Another profile takes over.
 import { expect, open, rpc, test } from "./kit.ts";
 
@@ -9,17 +9,24 @@ test("picking the secretary seeds its routines; a new time moves the morning bri
   page,
 }) => {
   await open(page);
-  await page.keyboard.press("ControlOrMeta+k");
   await page
-    .getByRole("combobox", { name: "Buscar" })
-    .or(page.getByRole("textbox", { name: "Buscar" }))
-    .fill("perfil");
-  await page.getByRole("option", { name: /Perfil/ }).click();
-  const dialog = page.getByRole("dialog", { name: "Configuración" });
+    .getByRole("main")
+    .getByRole("button", { name: /^Ver a / })
+    .first()
+    .click();
+  await page
+    .locator(".teamdetail.is-panel")
+    .getByRole("button", { name: /Perfil: / })
+    .click();
+  const dialog = page.getByRole("dialog", { name: "Editar super-agente" });
   await expect(dialog.getByRole("radio", { name: /Ninguno/ })).toBeChecked();
   await dialog.getByRole("radio", { name: /Secretaria/ }).click();
-  for (const name of ["Abrir el día", "Cerrar el día", "Vigilar", "Novedades del equipo"])
+  for (const name of ["Abrir el día", "Cerrar el día", "Vigilar"])
     await expect(dialog.getByText(name, { exact: true }).last()).toBeVisible();
+  // Team news is how it reaches the owner, on its own page.
+  await dialog.getByRole("button", { name: "Cómo te avisa" }).click();
+  await expect(dialog.getByRole("switch", { name: "Novedades del equipo", exact: true })).toBeVisible();
+  await dialog.getByRole("button", { name: /^Perfil/ }).click();
 
   await dialog.getByLabel("Abrir el día", { exact: true }).fill("07:15");
   await expect

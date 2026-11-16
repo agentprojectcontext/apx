@@ -6,16 +6,17 @@ type Prefs = { channel?: string };
 test("the owner keeps the super-agent's notices in the app only", async ({ page }) => {
   const before = await rpc<Prefs>("notices.get");
   await open(page);
-  await page.keyboard.press("ControlOrMeta+k");
   await page
-    .getByRole("combobox", { name: "Buscar" })
-    .or(page.getByRole("textbox", { name: "Buscar" }))
-    .fill("perfil");
-  await page
-    .getByRole("option", { name: /^Perfil/ })
+    .getByRole("main")
+    .getByRole("button", { name: /^Ver a / })
     .first()
     .click();
-  const dialog = page.getByRole("dialog", { name: "Configuración" });
+  await page
+    .locator(".teamdetail.is-panel")
+    .getByRole("button", { name: /Perfil: / })
+    .click();
+  const dialog = page.getByRole("dialog", { name: "Editar super-agente" });
+  await dialog.getByRole("button", { name: "Cómo te avisa" }).click();
   await expect(dialog.getByText(/La app, en esta compu y en tu teléfono, siempre te avisa/)).toBeVisible();
   const where = dialog.getByRole("combobox", { name: "Por dónde te habla" });
   await where.click();
