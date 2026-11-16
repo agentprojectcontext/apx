@@ -141,10 +141,11 @@ export function useDictation(
     try {
       await take.queue;
       if (!alive.current) return;
-      // Every piece came back: those are the words. Otherwise the whole recording goes again, as one.
-      if (take.tap && !take.words.includes(undefined)) {
-        const words = said(take.words);
-        if (words) deliver.current(words);
+      // Every piece came back with words: those are the words. Otherwise (a piece failed, or a recording too short
+      // to count as speech) the whole recording goes again, as one.
+      const pieces = take.tap && !take.words.includes(undefined) ? said(take.words) : "";
+      if (pieces) {
+        deliver.current(pieces);
         return;
       }
       const words = await transcribe(audio, thread);
