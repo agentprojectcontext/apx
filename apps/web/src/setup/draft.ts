@@ -4,6 +4,8 @@ import type { V1Group } from "../data/setup.ts";
 
 export type Draft = {
   mode: "new" | "import";
+  /** Simple: a few steps for a personal assistant; advanced: every step (projects, memory, the router). */
+  style: "simple" | "advanced";
   name: string;
   blob: string;
   /** The super-agent's current name and face were read in once. */
@@ -26,6 +28,7 @@ export type Draft = {
 
 export const defaultDraft = (): Draft => ({
   mode: "new",
+  style: "simple",
   name: "",
   blob: "",
   nameSet: false,

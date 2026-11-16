@@ -189,6 +189,13 @@ export const CoreEvent = z.discriminatedUnion("type", [
       type: () => z.literal("storage.changed"),
     }),
   ),
+  /** The owner or the super-agent switched the panel between simple and advanced. */
+  z.object(
+    schemaFields({
+      type: () => z.literal("panel.mode"),
+      mode: () => z.enum(["simple", "advanced"]),
+    }),
+  ),
   /** A model app on this computer (Ollama, LM Studio) was found, opened or closed: read `models.list` again. */
   z.object(
     schemaFields({

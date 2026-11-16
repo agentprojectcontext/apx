@@ -75,7 +75,13 @@ export type Prefs = {
   /** How the top bar shows the AI quotas and the system resources: with their figures, or as a small mark. */
   quotaBar: BarShow;
   resourcesBar: BarShow;
+  /** Simple: everything but projects, with fewer settings; advanced: the whole panel. The core's word, kept here to draw at once. */
+  panelMode: PanelMode;
+  /** Sidebar views a simple panel leaves off until the owner turns them on (Flows). */
+  simpleOn: string[];
 };
+
+export type PanelMode = "simple" | "advanced";
 
 export type BarShow = "full" | "mini";
 
@@ -131,6 +137,8 @@ const DEFAULTS: Prefs = {
   noticeSound: "all",
   quotaBar: "full",
   resourcesBar: "full",
+  panelMode: "advanced",
+  simpleOn: [],
 };
 
 function load(): Prefs {
@@ -185,6 +193,8 @@ function load(): Prefs {
           : "all",
       quotaBar: raw.quotaBar === "mini" ? "mini" : "full",
       resourcesBar: raw.resourcesBar === "mini" ? "mini" : "full",
+      panelMode: raw.panelMode === "simple" ? "simple" : "advanced",
+      simpleOn: idsOf(raw.simpleOn),
     };
   } catch {
     return DEFAULTS;

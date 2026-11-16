@@ -62,10 +62,10 @@ and it lives in your menu bar or tray.
 
 3. On first run, APX asks **Where does your APX run?**
 
-   - **Server**: APX runs on this computer. The core is installed and started here. You then choose where you'll use
+   - **Local install**: APX runs on this computer. The core is installed and started here. You then choose where you'll use
      it from: **Only from this computer** (the safest), **Also from my local network**, or **Tailscale** (your
      devices from anywhere, over https; needs Tailscale installed).
-   - **Client**: APX already runs on another machine and this app only connects to it, either by **Address** (its
+   - **Remote install**: APX already runs on another machine and this app only connects to it, either by **Address** (its
      Tailscale URL, for example) or over **SSH** as `user@server`. SSH uses your own `ssh` and keys: the core stays on
      the server and no port is opened. A remote APX asks for a pairing code, which you get on that machine in
      Settings › Devices or with `apx pair`.

@@ -51,6 +51,7 @@ const AREA: Readonly<Record<string, string>> = {
   surfaces: "a widget",
   stickers: "the stickers",
   environments: "the isolated computer",
+  panel: "the panel",
 };
 
 /** What a call does, for its card's title in each language: a look, a change, or a removal, and in which area. */

@@ -199,6 +199,9 @@ export function teamPlace(
 const COMPUTER_OFF =
   "- Using the owner's own apps and screen (computer use, in the Mac and Windows app) is off. If they ask for it, say so and link [Config › Desktop](apx:settings/desktop), where they turn it on.";
 
+const SIMPLE_PANEL =
+  "The owner uses the simple panel: an assistant for their day, without projects. Do the work yourself; never create projects or agents. If they ask for project work or a team, offer the full panel and, at their word, switch it with apx_settings (panel.set_mode).";
+
 export function systemPrompt(
   agent: AgentRecord,
   thread: Pick<Thread, "kind" | "parent_id">,
@@ -222,6 +225,8 @@ export function systemPrompt(
   sections: Sections = {},
   /** Who the agent answers to and its area, from the team's own hierarchy (teamPlace). */
   place = "",
+  /** The owner uses the simple panel: the super-agent works alone and offers the full panel for projects or a team. */
+  simple = false,
 ): string {
   const lang = LANGUAGES[ownerLanguage] ?? ownerLanguage;
   return [
@@ -231,6 +236,7 @@ export function systemPrompt(
       ? // One agent does the work, helpers return results to it (DECISIONS.md#d-237).
         "You are the main secretary: do small and medium work yourself with your tools, memory and browser (a teammate has none). Hand on only long work of one project, to its own agent, with your notes, links and the owner's words; finish the request with its result. Several requests and no way given: pick (a task each, a plan, or yourself), say it in a line; ask_owner only before a large fan-out. If they said how, do that."
       : "You are a specialist agent: take your part to its end and answer with the concrete result.",
+    simple && agent.kind === "secretary" ? SIMPLE_PANEL : "",
     role ? `\n${role}` : "",
     agent.personality ? `\nYour personality: ${agent.personality}` : "",
     agent.prompt ? `\n## Your instructions\n${agent.prompt}` : "",

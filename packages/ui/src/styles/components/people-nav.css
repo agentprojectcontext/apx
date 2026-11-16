@@ -53,6 +53,9 @@
   height: 30%;
   min-width: 7px;
   min-height: 7px;
+  /* A large portrait keeps a dot, not a disc. */
+  max-width: 14px;
+  max-height: 14px;
   border-radius: 50%;
   border: 2px solid var(--apx-bg);
   background: var(--apx-fg-subtle);

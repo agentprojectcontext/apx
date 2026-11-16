@@ -176,7 +176,7 @@ const DEFAULT_PROVIDERS: ProviderConfig[] = [
   // The owner's ChatGPT plan, signed in from APX the way Codex signs in (see providers/chatgpt-login.ts).
   {
     id: "chatgpt",
-    label: "Codex",
+    label: "ChatGPT",
     transport: "chatgpt-responses",
     base_url: "https://chatgpt.com/backend-api/codex",
     key: OAUTH_CHATGPT,

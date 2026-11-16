@@ -2,15 +2,17 @@ import "../styles/screens.css";
 import { Button, EmptyState, Icons, Spinner } from "@apx/ui";
 import { useEffect, useState } from "react";
 import { client } from "../data/client.ts";
+import { isSignInWindow, tellSignInDone } from "../data/signInWindow.ts";
 import { useT } from "../i18n/index.ts";
 
 const NAMES: Record<string, string> = {
   "google-calendar": "Google Calendar",
   gmail: "Gmail",
   "google-drive": "Google Drive",
+  openrouter: "OpenRouter",
 };
 
-// Loaded only on /oauth/google. What Google sent is read once: the code leaves the address bar right away, and
+// Loaded only on /oauth/google and /oauth/openrouter. What Google sent is read once: the code leaves the address bar right away, and
 // StrictMode's second mount reuses the same call instead of spending the code twice.
 const params = new URLSearchParams(window.location.search);
 if (window.location.search) window.history.replaceState(null, "", window.location.pathname);
@@ -21,9 +23,16 @@ function finish() {
   const denied = params.get("error");
   if (denied) return Promise.reject(new Error(denied));
   if (!code || !state) return undefined;
+  if (window.location.pathname === "/oauth/openrouter")
+    finishing ??= client.call("openrouter.finish", { code, state }).then(() => ({ id: "openrouter" }));
   finishing ??= client.call("integrations.oauth_finish", { code, state });
   return finishing;
 }
+
+/** A window the panel opened for this sign-in: the panel is told, and this window says to close it (and tries to). */
+const POPUP = window.opener != null || isSignInWindow();
+/** How long "connected" shows before the window tries to close. */
+const CLOSE_MS = 1500;
 
 /** Hands the code to the core and says how it went; the panel that started it notices by itself. */
 export function OAuthReturn() {
@@ -38,11 +47,19 @@ export function OAuthReturn() {
     const running = finish();
     if (!running) return setState({ kind: "nothing" });
     running.then(
-      (r) => setState({ kind: "done", ...r }),
+      (r) => {
+        setState({ kind: "done", ...r });
+        tellSignInDone(r.id);
+        if (POPUP) window.setTimeout(() => window.close(), CLOSE_MS);
+      },
       (e: unknown) => setState({ kind: "failed", error: e instanceof Error ? e.message : String(e) }),
     );
   }, []);
-  const open = (
+  const open = POPUP ? (
+    <Button size="sm" onClick={() => window.close()}>
+      {t("oauth.closeWindow")}
+    </Button>
+  ) : (
     <Button size="sm" onClick={() => window.location.replace("/")}>
       {t("oauth.open")}
     </Button>
@@ -63,7 +80,7 @@ export function OAuthReturn() {
           action={open}
         >
           {state.account ? `${t("int.signedInAs", { account: state.account })}. ` : ""}
-          {t("oauth.doneBody")}
+          {t(POPUP ? "oauth.closing" : "oauth.doneBody")}
         </EmptyState>
       )}
       {state.kind === "failed" && (

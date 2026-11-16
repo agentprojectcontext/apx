@@ -235,13 +235,14 @@ const KnownPart = z.discriminatedUnion("type", [
     }),
   ),
   /**
-   * A few answers the agent offers (and, `custom`, one the owner writes); picking one replies with it. `for` says what
-   * the pick also sets: the agent's personality.
+   * A few answers the agent offers (and, `custom`, one the owner writes); picking one replies with it. `for` says which
+   * question of getting to know the owner it answers (setup.onboard): their name, their work, how the agent talks
+   * (which also sets its personality), what to help with first. None offered: the owner writes it.
    */
   z.object(
     schemaFields({
       type: () => z.literal("choices"),
-      for: () => z.enum(["personality"]),
+      for: () => z.enum(["name", "work", "personality", "help"]),
       options: () =>
         z.array(
           z.object(

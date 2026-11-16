@@ -13,7 +13,7 @@ import { AgentEventCard } from "./chat/AgentEventCard";
 import { BrowserCard } from "./chat/BrowserCard";
 import { formsImage, isAgentEvent } from "./chat/blocks";
 import { ChangesCard } from "./chat/ChangesCard";
-import { ChoicesCard } from "./chat/ChoicesCard";
+import { ChoicesCard, type ChoicesFor } from "./chat/ChoicesCard";
 import { ConnectCard } from "./chat/ConnectCard";
 import { EmailCard, MailContext } from "./chat/EmailCard";
 import { ImageGenerating } from "./chat/ImageGenerating";
@@ -125,10 +125,12 @@ export function ChatMessage({
     return mine ? text.join("\n\n") : text.map((one) => plainText(parseMarkdown(one))).join("\n\n");
   };
   const menu = (item: MediaItem) => setOpen({ kind: "media", item });
-  const pick = async (personality: string, said: string) => {
+  // One question of getting to know the owner: kept by the core, which asks the next; the last goes to the agent.
+  const pick = async (step: ChoicesFor, value: string, said: string) => {
     if (!client || !send || author.kind !== "agent") return;
-    await client.call("agents.update", { agent: author.id, personality });
-    await send(t("choicesPersonality", { choice: said }));
+    if (step === "personality") await client.call("agents.update", { agent: author.id, personality: value });
+    const r = await client.call("setup.onboard", { step, answer: said });
+    if (r.say) await send(r.say);
   };
   const body: ReactNode[] = rows.map((row) => {
     const key = row.key;
@@ -188,7 +190,7 @@ export function ChatMessage({
         return <BrowserCard key={key} part={part} agentName={agent?.name ?? t("theAgent")} />;
       case "choices":
         return last && client && send && author.kind === "agent" ? (
-          <ChoicesCard key={key} part={part} pick={pick} />
+          <ChoicesCard key={key} part={part} pick={(value, said) => pick(part.for, value, said)} />
         ) : null;
       case "connect":
         return <ConnectCard key={key} part={part} client={client} />;

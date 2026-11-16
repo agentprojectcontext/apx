@@ -399,6 +399,40 @@
   gap: 14px;
   text-align: left;
 }
+/* "Add provider": every kind as a card to pick. */
+.ppick {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 10px;
+}
+.ppick__card {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 14px;
+  border: 1px solid var(--apx-border);
+  border-radius: var(--apx-radius-lg);
+  background: var(--apx-surface);
+  color: var(--apx-fg);
+  text-align: left;
+  cursor: pointer;
+}
+.ppick__card:hover:not(:disabled) {
+  border-color: var(--apx-fg-subtle);
+}
+.ppick__card:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+.ppick__name {
+  font-weight: 600;
+}
+.ppick__hint {
+  color: var(--apx-fg-muted);
+  font-size: var(--apx-text-sm);
+  line-height: 1.4;
+}
 .pform__presets {
   display: flex;
   flex-wrap: wrap;
