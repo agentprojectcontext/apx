@@ -1,5 +1,5 @@
 import type { Routine } from "../../packages/protocol/src/index.ts";
-import { expect, open, openSettings, rpc, test } from "./kit.ts";
+import { expect, open, rpc, test } from "./kit.ts";
 
 test("secretary switches preserve existing instructions and are absent from New routine", async ({ page }) => {
   await rpc("setup.finish", {});
@@ -9,10 +9,21 @@ test("secretary switches preserve existing instructions and are absent from New 
   expect(news).toBeTruthy();
   await rpc("secretary.set", { action: "relay", id: news?.id, enabled: false, prompt: "Only customer deadlines" });
   await open(page);
-  await openSettings(page);
-  const config = page.getByRole("dialog", { name: "Configuración" });
-  await config.getByRole("button", { name: "Super-agente", exact: true }).click();
-  await expect(config.getByText("Capacidades de secretaría", { exact: true })).toBeVisible();
+  await page
+    .getByRole("main")
+    .getByRole("button", { name: /^Ver a / })
+    .first()
+    .click();
+  await page
+    .locator(".teamdetail.is-panel")
+    .getByRole("button", { name: /Perfil: / })
+    .click();
+  const config = page.getByRole("dialog", { name: "Editar super-agente" });
+  await config.getByRole("button", { name: "Cómo te avisa" }).click();
+  await expect(config.getByRole("combobox", { name: "Por dónde te habla" })).toBeVisible();
+  // Only rows with something to set: no heading without controls, no row that only links elsewhere.
+  await expect(config.getByText("Capacidades de secretaría", { exact: true })).toHaveCount(0);
+  await expect(config.getByText("Mails nuevos", { exact: true })).toHaveCount(0);
   const toggle = config.getByRole("switch", { name: "Novedades del equipo", exact: true });
   await expect(toggle).not.toBeChecked();
   await toggle.click();
@@ -22,19 +33,19 @@ test("secretary switches preserve existing instructions and are absent from New 
     "Only customer deadlines",
   );
   await config.getByRole("textbox", { name: "Instrucciones", exact: true }).fill("Only urgent customer deadlines");
-  await config.getByRole("button", { name: "Guardar", exact: true }).click();
+  await config.locator(".config__inner").getByRole("button", { name: "Guardar", exact: true }).click();
   await expect(config.getByRole("textbox", { name: "Instrucciones", exact: true })).toBeHidden();
   await toggle.click();
   await expect(toggle).not.toBeChecked();
+  await config.getByRole("button", { name: /^Perfil/ }).click();
   await config.getByRole("radio", { name: /Secretaria/ }).click();
+  await config.getByRole("button", { name: "Cómo te avisa" }).click();
   await expect(toggle).not.toBeChecked();
   const after = (await rpc<{ routines: Routine[] }>("routines.list", {})).routines.filter((r) => r.action === "relay");
   expect(after).toHaveLength(1);
   expect(after[0]?.id).toBe(news?.id);
   expect(after[0]?.prompt).toBe("Only urgent customer deadlines");
   expect(after[0]?.enabled).toBe(false);
-  await expect(config.getByText("Mails nuevos", { exact: true })).toBeVisible();
-  await expect(config.getByRole("button", { name: "Abrir integraciones", exact: true })).toBeVisible();
   await page.keyboard.press("Escape");
   await open(page, "#project=~default&tab=routines");
   await expect(page.locator(".rtrow", { hasText: news?.name })).toHaveCount(0);

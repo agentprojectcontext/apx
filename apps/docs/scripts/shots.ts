@@ -146,6 +146,14 @@ const settings = (label: string) => async (p: Page) => {
     await accountMenu(p, "Settings");
   await dialog.getByRole("button", { name: label, exact: true }).first().click();
 };
+/** The super-agent's editor on one of its pages, from its card in the top bar. */
+const superAgentPage = (page: string) => async (p: Page) => {
+  await at("thread=home")(p);
+  await p.locator(".topbar__agent").click();
+  await p.locator(".superagent").getByRole("button", { name: "More options" }).click();
+  await p.getByRole("menuitem", { name: "Profile", exact: true }).click();
+  if (page !== "Profile") await p.getByRole("dialog").getByRole("button", { name: page }).click();
+};
 const project = (tab: string) => at(`project=${ids.acme}&tab=${tab}`);
 const resources = (seg: string) => async (p: Page) => {
   await at("view=resources")(p);
@@ -228,7 +236,8 @@ const SHOTS: Shot[] = [
   { name: "settings-engines", go: settings("Engines and models") },
   { name: "settings-router", go: settings("Router") },
   { name: "settings-memory", go: settings("Memory") },
-  { name: "settings-profile", go: settings("Super-agent") },
+  // The super-agent's profile left Settings for its editor; the file keeps its name for the pages that show it.
+  { name: "settings-profile", go: superAgentPage("Profile") },
   { name: "settings-interruptions", go: settings("Interruptions") },
   // The Channels screen in the sidebar (Channels left Settings); the file keeps its name for the pages that show it.
   { name: "settings-channels", go: at("view=channels") },

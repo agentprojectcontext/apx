@@ -5,46 +5,26 @@ import { client } from "../data/client.ts";
 import { loadRoutines, useRoutines } from "../data/routines.ts";
 import { usePack, useT } from "../i18n/index.ts";
 import { go } from "../shell/nav.ts";
-import { SubHead } from "./SectionHead.tsx";
 
-export function SecretaryCapabilities() {
+/** Team news: one switch per relay routine (one, unless the owner made more), each with its instructions. `onLeave`: closes what it is shown in before opening a chat. */
+export function TeamNews({ onLeave }: { onLeave(): void }) {
   const strings = usePack("secretary");
-  const t = useT();
   const routines = useRoutines((s) => s.routines);
   const ready = useRoutines((s) => s.ready);
   useEffect(() => {
     void loadRoutines();
   }, []);
-  if (!strings) return <Skeleton height={80} />;
+  if (!strings || !ready) return <Skeleton height={80} />;
   const news = routines.filter((r) => r.action === "relay");
-  return (
-    <>
-      <SubHead>{t("super.capabilities")}</SubHead>
-      <p className="config__lead">{t("super.capabilitiesHint")}</p>
-      {!ready ? (
-        <Skeleton height={80} />
-      ) : news.length ? (
-        news.map((r) => <Capability key={r.id} routine={r} />)
-      ) : (
-        <Capability />
-      )}
-      <SettingRow title={t("routines.action.mail")} description={t("super.mailInGmail")}>
-        <Button
-          size="sm"
-          variant="secondary"
-          onClick={() => {
-            go.config(null);
-            go.resources("integrations");
-          }}
-        >
-          {t("super.openGmail")}
-        </Button>
-      </SettingRow>
-    </>
+  return news.length ? (
+    news.map((r) => <Capability key={r.id} routine={r} named={news.length > 1} onLeave={onLeave} />)
+  ) : (
+    <Capability onLeave={onLeave} />
   );
 }
 
-function Capability({ routine }: { routine?: Routine }) {
+/** `named`: its routine's name shows, to tell several apart. */
+function Capability({ routine, named, onLeave }: { routine?: Routine; named?: boolean; onLeave(): void }) {
   const t = useT();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -81,13 +61,13 @@ function Capability({ routine }: { routine?: Routine }) {
       </SettingRow>
       {routine && (
         <div className="tgtoken">
-          <span className="pform__hint">{routine.name}</span>
+          {named && <span className="pform__hint">{routine.name}</span>}
           {routine.last && (
             <Button
               size="sm"
               variant="ghost"
               onClick={() => {
-                go.config(null);
+                onLeave();
                 go.inboxThread(routine.last?.thread_id ?? "home");
               }}
             >

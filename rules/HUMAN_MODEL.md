@@ -139,7 +139,7 @@ agent and routine steps link their run in the router's admission transaction thr
 context. Runs have a 10-minute deadline on the injected clock. `flows.run_get` shows each step. See
 [Flows](FLOWS.md#drawn-graphs-graph-executor) and [D-167](DECISIONS.md#d-167).
 
-Secretary capabilities (team news) are configured in Settings → Super-agent, not the routine action picker. `secretary.set` reuses the existing scheduled row and its ID, prompt and history; there is no startup rewrite or replay. The switch survives profile saves and profile changes; timing values still come from profile settings.
+Team news is configured in the super-agent's editor (How it reaches you), not the routine action picker; its profile is the editor's Profile page, and Settings has no super-agent section. `secretary.set` reuses the existing scheduled row and its ID, prompt and history; there is no startup rewrite or replay. The switch survives profile saves and profile changes; timing values still come from profile settings.
 
 **Background checks** are the core's own periodic work (`engine/background.ts`): `officeScheduler` runs each on its
 `everyMs` on the office clock's beat, never two at once, and logs a failure without stopping the others. Task pickup,
