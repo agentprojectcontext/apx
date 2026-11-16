@@ -5,6 +5,8 @@ import { createStore, useSlice } from "./createStore.ts";
 
 type Closed = {
   discord: boolean;
+  /** Stable launch ids, shared by strip and corner cards; model refreshes do not reset dismissal. */
+  modelAnnouncements: string[];
   star: boolean;
   /** The version whose card was closed in this session: skipping one release is not a decision about the next. */
   update: string;
@@ -25,6 +27,9 @@ function load(): Closed {
     const raw = JSON.parse(localStorage.getItem(KEY) ?? "{}") as Partial<Closed>;
     return {
       discord: raw.discord === true,
+      modelAnnouncements: Array.isArray(raw.modelAnnouncements)
+        ? [...new Set(raw.modelAnnouncements.filter((id): id is string => typeof id === "string"))]
+        : [],
       star: raw.star === true,
       update: "",
       v1: false,
@@ -33,7 +38,16 @@ function load(): Closed {
       welcomeSeen: Array.isArray(raw.welcomeSeen) ? raw.welcomeSeen.filter((k) => typeof k === "string") : undefined,
     };
   } catch {
-    return { discord: false, star: false, update: "", v1: false, disk: false, welcome: "", welcomeSeen: undefined };
+    return {
+      discord: false,
+      modelAnnouncements: [],
+      star: false,
+      update: "",
+      v1: false,
+      disk: false,
+      welcome: "",
+      welcomeSeen: undefined,
+    };
   }
 }
 
@@ -44,8 +58,8 @@ export const useClosedCards = <T>(select: (s: Closed) => T): T => useSlice(store
 export function closeCard(patch: Partial<Closed>): void {
   store.set(patch);
   try {
-    const { discord, star, welcome, welcomeSeen } = store.get();
-    localStorage.setItem(KEY, JSON.stringify({ discord, star, welcome, welcomeSeen }));
+    const { discord, star, welcome, welcomeSeen, modelAnnouncements } = store.get();
+    localStorage.setItem(KEY, JSON.stringify({ discord, star, welcome, welcomeSeen, modelAnnouncements }));
   } catch {
     // Storage blocked: closed for this session only.
   }

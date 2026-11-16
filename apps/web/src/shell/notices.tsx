@@ -3,6 +3,8 @@ import type { ReactNode } from "react";
 import { closeCard, useClosedCards } from "../data/cornerCards.ts";
 import { diskWarning } from "../data/diskModel.ts";
 import { LINKS } from "../data/links.ts";
+import { useModels } from "../data/models.ts";
+import { usePrefs } from "../data/prefs.ts";
 import { useSetup } from "../data/setup.ts";
 import { freeText, useDiskStatus } from "../data/storage.ts";
 import { PRIVACY_URL, setUsage, useTelemetry } from "../data/telemetry.ts";
@@ -17,6 +19,7 @@ import {
   localBrowser,
   useDesktopInstall,
 } from "./desktopInstall.ts";
+import { modelNotices } from "./modelNotices.tsx";
 import { go } from "./nav.ts";
 
 type NoticeTone = "warning" | "danger" | "brand" | "neutral";
@@ -62,6 +65,8 @@ export function useNotices(): Notice[] {
   const ask = useTelemetry((s) => s.state?.enabled === true && s.state.usage === null);
   const disk = useDiskStatus();
   const desktop = useDesktopNotice(t);
+  const launches = useModels((s) => s.announcements);
+  const language = usePrefs((s) => s.language);
 
   const notices: Notice[] = [];
   // First: two APX daemons run the same routines and answer the same bots. Closed, it shows again next time.
@@ -132,6 +137,7 @@ export function useNotices(): Notice[] {
       // Closing it is a no: the card is never said twice.
       onClose: () => void setUsage(false),
     });
+  notices.push(...modelNotices(launches, closed.modelAnnouncements, language, t));
   if (!closed.discord)
     notices.push({
       id: "discord",

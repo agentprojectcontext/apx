@@ -23,6 +23,7 @@ import { createEngineUsage, detectUsageEngines } from "../harness/engine-usage.t
 import type { Harnesses } from "../harness/index.ts";
 import { ONESHOT } from "../harness/oneshot.ts";
 import { importFromV1 } from "../import/v1.ts";
+import { modelAnnouncements } from "../models/announcements.ts";
 import type { Catalog } from "../models/catalog.ts";
 import { modelSettings, refProblem } from "../models/choice.ts";
 import { projectSecretName, type Secrets } from "../secrets.ts";
@@ -129,7 +130,10 @@ export function appHandlers(deps: {
         throw notFound(`variable ${name}`);
       return { sites: unique };
     },
-    "models.list": async ({ refresh }) => ({ engines: await deps.catalog.list(refresh) }),
+    "models.list": async ({ refresh }) => {
+      const engines = await deps.catalog.list(refresh);
+      return { engines, announcements: modelAnnouncements(engines) };
+    },
     "models.config": () => ({ default: models.defaultChoice(), router: models.router() }),
     "models.set_config": (p) => {
       const refs = [p.default?.model, ...(p.router?.chain ?? []), ...(p.router?.rules.map((r) => r.model) ?? [])];

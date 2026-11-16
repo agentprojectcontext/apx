@@ -9,9 +9,10 @@ import { type Notice, useNotices } from "./notices.tsx";
  * behind it as edges and the next comes forward when it is closed. At the foot of the sidebar; floating beside it when
  * the sidebar is a rail, away from the composer.
  */
-export function CornerCards({ floating = false }: { floating?: boolean }) {
+export function CornerCards({ floating = false, modelsOnly = false }: { floating?: boolean; modelsOnly?: boolean }) {
   const t = useT();
-  const notices = useNotices();
+  const all = useNotices();
+  const notices = modelsOnly ? all.filter((notice) => notice.id.startsWith("model:")) : all;
   const front = notices[0];
   if (!front) return null;
   const behind = Math.min(notices.length - 1, 2);

@@ -2,6 +2,12 @@ import type { MessageKey } from "./en.ts";
 
 // Barra superior y sidebar: la tarjeta del super-agente, la lista de servidores, cómo se ven cuotas y recursos, la franja de avisos.
 export const esShellSlim: Partial<Record<MessageKey, string>> = {
+  "modelNotice.description":
+    "{date} · {summary} {access} {integration} Figura en tus modelos; revisá el acceso de tu cuenta antes de cambiar.",
+  "modelNotice.pending": "Todavía no se probó en APX.",
+  "modelNotice.verified": "Probado en APX.",
+  "modelNotice.source": "Anuncio oficial",
+  "modelNotice.review": "Revisar modelos",
   "bar.show": "Mostrar en la barra",
   "bar.full": "Completa",
   "bar.mini": "Reducida",

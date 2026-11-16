@@ -91,6 +91,23 @@ The owner's APX runs a daily routine on the APX project that:
 3. Compares them with every row of [What is kept by hand](#what-is-kept-by-hand): a pinned id with a shutdown date in
    the next 30 days or missing from its provider's list, a docs example id no provider lists, a new model family the
    window and image tables do not match, a new non-chat kind the catalog offers for agents.
-4. When something changed, opens an APX task to make a `fix/*` branch from `main` for the running release. For a
-   headline launch (a new flagship family), the task also proposes a news entry (`apps/core/src/news/entries.ts`,
-   rule 25).
+4. When something changed, opens an APX task on a `fix/*` branch from `staging`. Catalog maintenance and launch
+   notices are separate work: a new flagship family is considered for the secondary notice cards, not the welcome
+   slideshow or `news/entries.ts`.
+
+## Secondary launch notices
+
+`models/announcements.ts` curates official launch facts (exact ID, date, source, capabilities, access restrictions,
+and explicit compatibility verification). `models.list` returns one announcement per stable launch ID only when an
+available engine's non-stale list contains that exact chat model. Several engines do not create several notices.
+The panel renders these through `CornerCards`/`NoticeStrip`, after operational warnings and before community cards.
+Dismissals share the existing device-local notice storage; refreshing the catalog or updating APX does not reset them.
+Clearing browser storage does; dismissals do not sync across devices.
+
+A provider announcement, APX integration and actual account availability are separate evidence. All initial notices
+are explicitly pending compatibility verification; listing never promotes that state, proves entitlement or starts
+inference. Only a separately verified integration may change `integration` to `verified`. Even then the notice asks
+the owner to check account access before switching; its action opens model settings and never changes a model or
+runs a paid request. Restricted launches without an eligibility signal and unsupported image-only launches are
+excluded. Add a new launch only after reading an official source; daily list churn is not itself news. Keep English
+and Spanish copy together and preserve its ID across copy changes so a dismissed announcement stays dismissed.

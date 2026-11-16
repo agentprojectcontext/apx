@@ -54,6 +54,7 @@ export {
   EngineStatus,
   HarnessId,
   MAX_MODEL_FALLBACKS,
+  ModelAnnouncement,
   ModelChoice,
   ModelRef,
   RouterConfig,

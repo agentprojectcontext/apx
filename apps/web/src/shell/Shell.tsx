@@ -78,6 +78,7 @@ export function Shell() {
   const layout = computeLayout(width, panelOpen, chat && threadId != null, transcript, { ...own, panelWide });
   // Compact sidebar: the notices are a deck of cards at its foot. Full: a strip over the page.
   const sidebarCompact = useSidebarCompact();
+  const separateModelCards = layout.rail && (layout.compact || layout.listW === 0);
   useShortcuts();
   useDesktopBridge();
 
@@ -95,9 +96,14 @@ export function Shell() {
           fixed={layout.compact}
         />
         <main className="shell__main">
+          {separateModelCards && (
+            <Suspense fallback={null}>
+              <CornerCards modelsOnly />
+            </Suspense>
+          )}
           {!sidebarCompact && (
             <Suspense fallback={null}>
-              <NoticeStrip />
+              <NoticeStrip excludeModels={separateModelCards} />
             </Suspense>
           )}
           <div className="shell__view">
