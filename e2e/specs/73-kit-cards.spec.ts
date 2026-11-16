@@ -114,3 +114,19 @@ test('a donut whose card already lists its slices drops its legend with legend="
   await expect(f.locator(".ax-ring__c b")).toHaveText("$900");
   await expect(f.locator(".ax-donut__legend")).toHaveCount(0);
 });
+
+test("a widget's page comes over the live socket, not queued behind the panel's HTTP calls", async ({ page: p }) => {
+  const overHttp: string[] = [];
+  const overSocket: string[] = [];
+  p.on("request", (r) => {
+    if (r.url().endsWith("/rpc/surfaces.get")) overHttp.push(r.url());
+  });
+  p.on("websocket", (ws) =>
+    ws.on("framesent", (frame) => {
+      if (String(frame.payload).includes('"method":"surfaces.get"')) overSocket.push(String(frame.payload));
+    }),
+  );
+  await showDonut(p, donut());
+  expect(overSocket.length).toBeGreaterThan(0);
+  expect(overHttp).toEqual([]);
+});
