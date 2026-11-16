@@ -64,7 +64,9 @@ test("a project's MCP server does not start until the owner approves it", async 
   const { servers } = await env.client.call("mcp.list", { project });
   assert.equal(servers.find((x) => x.name === "notes")?.status, "needs-approval");
   await turn("hello");
-  assert.ok(!toolsSeen().some((n) => n.startsWith("mcp_")));
+  assert.ok(!toolsSeen().some((n) => n.startsWith("mcp_notes")));
+  const search = llm.calls.at(-1)?.tools.find((t) => t.function.name === "mcp_search")?.function.description ?? "";
+  assert.doesNotMatch(search, /notes/, "the server is not one the turn reaches");
 });
 
 test("approved, its tools are found and run through two tools; results are outside data; a project file cannot use secrets", async () => {

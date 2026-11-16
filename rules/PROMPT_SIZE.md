@@ -11,7 +11,7 @@ Measured on a fresh install: the secretary, a new chat, default settings, no ski
 | Part | Budget | Now (2026-10-25) |
 |---|---|---|
 | System prompt | 10,000 chars (about 2,300 tokens) | 6,173 chars on 2026-11-05 (the permission mode's text said here once instead of in every turn; the delegate and web rules short, their details in their tools; "never restating the question" added 24) |
-| Tool definitions (40, without the browser) | 30,000 chars (about 7,100 tokens) | 23,874 chars on 2026-10-29, about 5,700 tokens (apx_flow, 521 chars, [D-181](DECISIONS.md#d-181); the channel and contact tools and make_image only once a channel or an image service is on; repeats of system rules out of descriptions) |
+| Tool definitions (27, without the browser) | 30,000 chars (about 7,100 tokens) | 16,062 chars on 2026-11-15, about 3,800 tokens (APX's rarely used tools named in `mcp_search` and called by name, [D-233](DECISIONS.md#d-233); before, 24,094 with 41; the channel and contact tools and make_image only once a channel or an image service is on) |
 | A turn's input before the message | — | 264 chars: one `[context]` line (time, channel, mode) and the roster when it changed |
 | A delegated task's input, besides the task | — | the caller and its rules, with the four-line report it asks for (180 chars, about 45 tokens), only in that agent's turn |
 | Browser tools (8, lent by the desktop app) | — | 811 tokens |

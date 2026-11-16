@@ -13,7 +13,7 @@ import type { Store } from "../domain/store.ts";
 import { worksInFolder } from "../domain/threads.ts";
 import { errorMessage } from "../errors.ts";
 import type { TurnIO } from "../harness/index.ts";
-import { appOf, MCP_CALL, MCP_SEARCH, unwrapCall } from "../tools/mcp-bridge.ts";
+import { foundLater, MCP_CALL, MCP_SEARCH, unwrapCall } from "../tools/mcp-bridge.ts";
 import { authorize, type Decision, decide, keepsCard, modeOf, sessionGate } from "../tools/policy.ts";
 import { cap, UNTRUSTED_MARK } from "../tools/result.ts";
 import { commandRisk } from "../tools/shell.ts";
@@ -181,6 +181,7 @@ export function createExecutor(o: {
 }): Executor {
   const { store, display, signal, agent, thread } = o;
   const byName = new Map(o.tools.map((t) => [t.name, t]));
+  const offered = new Set(byName.keys());
   let joined = false;
   const join = async () => {
     if (joined || !o.late) return;
@@ -284,7 +285,7 @@ export function createExecutor(o: {
     if (called === MCP_CALL || name === "grant_tool" || !byName.has(name)) await join();
     const bridged =
       called !== MCP_CALL ||
-      ((name.startsWith("mcp_") || Boolean(appOf(name))) && name !== MCP_CALL && name !== MCP_SEARCH);
+      ((name.startsWith("mcp_") || foundLater(name)) && name !== MCP_CALL && name !== MCP_SEARCH);
     const tool = bridged ? byName.get(name) : undefined;
     const title = tool ? toolTitle(store, tool, raw) : name;
     const began = Date.now();
@@ -310,7 +311,9 @@ export function createExecutor(o: {
     const parsed = tool.parse(raw);
     if (!parsed.ok) {
       card("error", "invalid arguments");
-      return { ok: false, text: parsed.error };
+      // A found tool was called without its schema in view: the next try has it.
+      const schema = offered.has(name) ? "" : `\nargs: ${JSON.stringify(tool.parameters)}`;
+      return { ok: false, text: `${parsed.error}${schema}` };
     }
     const args = parsed.args;
     const asked = authorize(tool, args, agent, untrusted);

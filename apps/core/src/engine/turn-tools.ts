@@ -7,7 +7,7 @@ import type { Store } from "../domain/store.ts";
 import { CONTACT_TOOLS, contactHolder, contactToolNames } from "../tools/contact.ts";
 import { STICKER_TOOL, stickersFor } from "../tools/directory.ts";
 import { IMESSAGE_TOOLS } from "../tools/imessage.ts";
-import { appOf, MCP_CALL, MCP_SEARCH, mcpBridge } from "../tools/mcp-bridge.ts";
+import { appOf, foundLater, MCP_CALL, MCP_SEARCH, mcpBridge, OWN_FOUND } from "../tools/mcp-bridge.ts";
 import { inherit } from "../tools/policy.ts";
 import type { Tool } from "../tools/types.ts";
 import { COMPUTER_TOOL } from "../tools/vm.ts";
@@ -193,12 +193,16 @@ export async function turnTools(deps: TurnDeps, turn: Turn) {
       ((callers.length < MAX_DEPTH && !turn.worker) || !SESSION_TOOLS.has(t.name)) &&
       (!only || only.has(t.name) || (t.name === MCP_SEARCH && only.has(MCP_CALL))),
   );
-  // A connected app's tools are found and run through the bridge, unless the turn's tools were named one by one.
-  const apps = only ? [] : tools.filter((t) => appOf(t.name));
+  // A connected app's tools and APX's rarely used ones are found and run through the bridge, unless the turn's tools
+  // were named one by one. A turn with no bridge (on the computer, a contact's, a Flow's bot) keeps APX's own direct.
+  const bridgeable = !inVm && !sealed && !step?.bot;
+  const apps = only ? [] : tools.filter((t) => (bridgeable ? foundLater(t.name) : appOf(t.name)));
   if (!apps.length) return { policy, tools, mcpLate };
   const late = async () => [...apps, ...(await mcpLate())];
-  const direct = tools.filter((t) => !appOf(t.name) && t.name !== MCP_SEARCH && t.name !== MCP_CALL);
-  const appNames = [...new Set(apps.map((t) => appOf(t.name) ?? ""))];
+  const found = new Set(apps);
+  const direct = tools.filter((t) => !found.has(t) && t.name !== MCP_SEARCH && t.name !== MCP_CALL);
+  const appNames = [...new Set(apps.flatMap((t) => appOf(t.name) ?? []))];
+  const own = apps.filter((t) => OWN_FOUND.has(t.name)).map((t) => t.name);
   const mcp = tools.some((t) => t.name === MCP_SEARCH) ? servers : [];
-  return { policy, tools: [...direct, ...mcpBridge(mcp, late, appNames)], mcpLate: late };
+  return { policy, tools: [...direct, ...mcpBridge(mcp, late, appNames, own)], mcpLate: late };
 }

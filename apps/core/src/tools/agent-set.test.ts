@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { after, before, test } from "node:test";
 import { AGENT_NAMES } from "@apx/protocol";
-import { callTool, inputsOrEnd, say, scriptedLlm, startCore } from "../engine/testkit.ts";
+import { callTool, inputsOrEnd, offeredIn, say, scriptedLlm, startCore } from "../engine/testkit.ts";
 
 // Each owner message names the tool call the scripted model makes; the tool's result comes back as the answer.
 const CALLS: Record<string, [string, object]> = {
@@ -78,7 +78,7 @@ const agent = async (id: string) => (await env.client.call("agents.list", {})).a
 test("only the super-agent is offered agent_set", async () => {
   const offered = async (agent: string) => {
     await ask("hello", agent);
-    return llm.calls.at(-1)?.tools.map((t) => t.function.name) ?? [];
+    return offeredIn(llm.calls.at(-1));
   };
   assert.ok((await offered("superagent")).includes("agent_set"));
   assert.ok(!(await offered("acme-writer")).includes("agent_set"));
