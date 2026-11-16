@@ -141,6 +141,19 @@ export function nodeThreads(node: InboxNode): Thread[] {
   return node.kind === "channel" ? children : [node.thread, ...children];
 }
 
+/**
+ * Whether a row shows "Failed": how its latest run ended (a routine's own, or the most recently updated of a chat's or
+ * task's chats), as the panel's Inbox shows it. An old failed sub-chat does not mark a chat that went on working.
+ */
+export function nodeFailed(node: InboxNode): boolean {
+  if (node.kind === "routine") return node.thread.state === "failed";
+  const latest = nodeThreads(node).reduce<Thread | undefined>(
+    (a, b) => (a && a.updated_at >= b.updated_at ? a : b),
+    undefined,
+  );
+  return latest?.state === "failed";
+}
+
 /** A matching descendant keeps its ancestors; a matching header keeps its entire subtree. */
 export function searchInbox(
   nodes: InboxNode[],
