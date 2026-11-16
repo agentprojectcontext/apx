@@ -8,9 +8,11 @@ import logo from "../assets/logo.png";
 import { bootstrap } from "../data/actions.ts";
 import { loadChannels, useChannels } from "../data/channels.ts";
 import { client } from "../data/client.ts";
+import { closeCard } from "../data/cornerCards.ts";
 import { secretary } from "../data/identity.ts";
 import { loadModelsConfig, saveModelsConfig, useModels } from "../data/models.ts";
 import { notify } from "../data/notices.ts";
+import { setPrefs } from "../data/prefs.ts";
 import { updateBase } from "../data/projects.ts";
 import { addProject, closeSetup, finishSetup, importV1, scanV1, useSetup, type V1Groups } from "../data/setup.ts";
 import { useData } from "../data/state.ts";
@@ -19,11 +21,14 @@ import { type MessageKey, useLanguage, usePack, useT } from "../i18n/index.ts";
 import { useDesktopClass } from "../shell/desktop.ts";
 import { LanguageMenu } from "../shell/LanguageMenu.tsx";
 import { go, useNav } from "../shell/nav.ts";
+import { ALL_SLIDES } from "../shell/welcomeFilm.ts";
 import { BuildVersion } from "./BuildVersion.tsx";
 import { type Draft, defaultDraft } from "./draft.ts";
 import { ChannelsStep, DoneStep, EnginesStep, MemoryStep, ProjectStep } from "./StepsConfig.tsx";
 import { AgentStep, GROUP, ImportStep, Welcome } from "./StepsIntro.tsx";
 
+/** Simple names its steps for someone who never set up an agent. */
+const SIMPLE_KEY: Partial<Record<Step, MessageKey>> = { engines: "setup.step.brain" };
 const STEP_KEY: Record<Step, MessageKey> = {
   welcome: "setup.step.welcome",
   import: "setup.step.import",
@@ -38,7 +43,9 @@ type Step = "welcome" | "import" | "agent" | "engines" | "memory" | "channels" |
 
 /** Its strings load with it (the "setup" pack): nothing shows until they are here. */
 export function Wizard() {
-  return usePack("setup") ? <WizardBody /> : null;
+  const setup = usePack("setup");
+  const resources = usePack("resources");
+  return setup && resources ? <WizardBody /> : null;
 }
 
 /**
@@ -61,17 +68,20 @@ function WizardBody() {
   const boss = secretary(agents);
 
   const steps: Step[] = useMemo(
-    () => [
-      "welcome",
-      ...(d.mode === "import" ? (["import"] as const) : []),
-      "agent",
-      "engines",
-      "memory",
-      "channels",
-      "project",
-      "done",
-    ],
-    [d.mode],
+    () =>
+      d.style === "simple"
+        ? ["welcome", "engines", "channels", "done"]
+        : [
+            "welcome",
+            ...(d.mode === "import" ? (["import"] as const) : []),
+            "agent",
+            "engines",
+            "memory",
+            "channels",
+            "project",
+            "done",
+          ],
+    [d.mode, d.style],
   );
   const step = steps[at] ?? "welcome";
 
@@ -96,12 +106,12 @@ function WizardBody() {
     setD((cur) => ({ ...cur, name: boss.name, blob: boss.blob ?? "", nameSet: true }));
   }, [boss, d.nameSet]);
 
-  const start = (mode: Draft["mode"]) => {
+  const start = (mode: Draft["mode"], style: Draft["style"]) => {
     const v1 = status?.v1;
     // Importing brings v1's super-agent: the preview shows its name and face from the first step.
     if (mode === "import" && (v1?.agent_name || v1?.agent_blob))
-      set({ mode, nameSet: true, name: v1.agent_name ?? d.name, blob: v1.agent_blob ?? d.blob });
-    else set({ mode });
+      set({ mode, style, nameSet: true, name: v1.agent_name ?? d.name, blob: v1.agent_blob ?? d.blob });
+    else set({ mode, style });
     setAt(1);
     if (mode === "import" && !scan) void scanV1().then(setScan);
   };
@@ -181,6 +191,9 @@ function WizardBody() {
   };
   // The super-agent's chat opens with its first greeting, in the language on screen.
   const finish = async () => {
+    setPrefs({ panelMode: d.style });
+    // Someone who just installed has nothing to compare: what is new starts with the next release.
+    closeCard({ welcomeSeen: [...ALL_SLIDES] });
     await finishSetup();
     const greeted = await client.call("setup.greet", { language: lang }).catch(() => undefined);
     await bootstrap().catch(() => {});
@@ -194,7 +207,7 @@ function WizardBody() {
     agent: <AgentStep draft={d} set={set} />,
     engines: <EnginesStep draft={d} set={set} />,
     memory: <MemoryStep draft={d} set={set} />,
-    channels: <ChannelsStep name={d.name.trim() || t("agent.super")} />,
+    channels: <ChannelsStep name={d.name.trim() || t("agent.super")} simple={d.style === "simple"} />,
     project: <ProjectStep draft={d} set={set} />,
     done: <DoneStep name={name} onFinish={() => void finish()} />,
   };
@@ -216,7 +229,7 @@ function WizardBody() {
               onClick={() => setAt(i)}
             >
               <span className="wiz__bar" />
-              {t(STEP_KEY[s])}
+              {t((d.style === "simple" && SIMPLE_KEY[s]) || STEP_KEY[s])}
             </button>
           ))}
         </nav>
@@ -244,6 +257,11 @@ function WizardBody() {
                 )}
                 <span className="wiz__spacer" />
                 {blocked && <span className="wiz__hint">{t(blocked)}</span>}
+                {d.style === "simple" && step === "channels" && (
+                  <button type="button" className="wiz__back" onClick={() => void next()}>
+                    {t("setup.reach.skip")}
+                  </button>
+                )}
                 <Button size="lg" disabled={Boolean(blocked)} loading={busy} onClick={() => void next()}>
                   {step === "project" ? t("setup.create") : t("setup.next")}
                 </Button>
@@ -293,12 +311,13 @@ function Preview({ draft: d, imports }: { draft: Draft; imports: V1Groups | unde
         <span className={`wiz__ptag${ready ? " is-ready" : ""}`}>{t("agent.super")}</span>
       </div>
       {row("setup.preview.engines", d.chain.join(" → "), true)}
-      {row("setup.preview.memory", t(memory[d.memory]))}
+      {d.style === "advanced" && row("setup.preview.memory", t(memory[d.memory]))}
       {row("setup.preview.channels", channels.join(", "))}
-      {row(
-        "setup.preview.projects",
-        `${d.baseName.trim() || "Default"}${d.projectChoice === "folder" && d.path.trim() ? ` · ${d.path.trim().split("/").filter(Boolean).at(-1)}` : ""}`,
-      )}
+      {d.style === "advanced" &&
+        row(
+          "setup.preview.projects",
+          `${d.baseName.trim() || "Default"}${d.projectChoice === "folder" && d.path.trim() ? ` · ${d.path.trim().split("/").filter(Boolean).at(-1)}` : ""}`,
+        )}
       {d.mode === "import" && row("setup.preview.imports", t("setup.preview.groups", { n: on, total: groups.length }))}
     </aside>
   );

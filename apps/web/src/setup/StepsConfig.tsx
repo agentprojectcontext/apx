@@ -1,5 +1,5 @@
-import { Badge, Button, Dialog, Icons, Input, ProjectTile, Select, Spinner, Switch } from "@apx/ui";
-import { useEffect, useRef, useState } from "react";
+import { Badge, Button, Dialog, Icons, Input, IntegrationIcon, ProjectTile, Select, Spinner, Switch } from "@apx/ui";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { KindTile } from "../channels/KindIcon.tsx";
 import { QrCode } from "../common/QrCode.tsx";
 import { RouterChain } from "../config/models/RouterChain.tsx";
@@ -13,13 +13,15 @@ import { useSetup } from "../data/setup.ts";
 import { type DataState, useData } from "../data/state.ts";
 import { type MessageKey, useT } from "../i18n/index.ts";
 import { kindOptions, NO_KIND } from "../project/projectKind.ts";
+import { ConnectForm, type Integration } from "../resources/IntegrationsTab.tsx";
 import { BotCard } from "./BotCard.tsx";
 import { type Draft, type StepProps, withStarters } from "./draft.ts";
 import { EmbedderCard } from "./EmbedderCard.tsx";
 import { StepHead } from "./StepsIntro.tsx";
 
-/** Provider management is shared with settings; the wizard saves its router on Continue. */
+/** Provider management is shared with settings; the wizard saves its router on Continue. Simple hides the chain. */
 export function EnginesStep({ draft: d, set }: StepProps) {
+  const simple = d.style === "simple";
   const t = useT();
   const providers = useProviders((s) => s.list);
   const loaded = useProviders((s) => s.load);
@@ -45,17 +47,19 @@ export function EnginesStep({ draft: d, set }: StepProps) {
   return (
     <>
       <StepHead
-        kicker="setup.engines.kicker"
-        title={t("setup.engines.title")}
-        end={t("setup.engines.titleGreen")}
+        kicker={simple ? "setup.step.brain" : "setup.engines.kicker"}
+        title={t(simple ? "setup.brain.title" : "setup.engines.title")}
+        end={t(simple ? "setup.brain.titleGreen" : "setup.engines.titleGreen")}
         green
       >
-        {t("setup.engines.body")}
+        {t(simple ? "setup.brain.body" : "setup.engines.body")}
       </StepHead>
       <ProvidersGrid compact />
-      <div className="wiz__card wiz__chain">
-        <RouterChain chain={d.chain} onChange={(chain) => set({ chain })} />
-      </div>
+      {!simple && (
+        <div className="wiz__card wiz__chain">
+          <RouterChain chain={d.chain} onChange={(chain) => set({ chain })} />
+        </div>
+      )}
     </>
   );
 }
@@ -132,8 +136,26 @@ export function MemoryStep({ draft: d, set }: StepProps) {
 }
 
 /** Telegram (a token and it is up), WhatsApp (a QR from the phone), Discord and Slack (their bot's token). */
-export function ChannelsStep({ name }: { name: string }) {
+export function ChannelsStep({ name, simple }: { name: string; simple?: boolean }) {
   const t = useT();
+  if (simple)
+    return (
+      <>
+        <StepHead
+          kicker="setup.channels.kicker"
+          title={t("setup.reach.title", { name })}
+          end={t("setup.reach.titleGreen")}
+          green
+        >
+          {t("setup.reach.body")}
+        </StepHead>
+        <div className="wiz__engines">
+          <TelegramCard />
+          <GmailCard name={name} />
+          <WhatsAppCard />
+        </div>
+      </>
+    );
   return (
     <>
       <StepHead
@@ -151,6 +173,50 @@ export function ChannelsStep({ name }: { name: string }) {
         <BotCard kind="slack" line="setup.channels.slack" body="setup.channels.slackBody" />
       </div>
     </>
+  );
+}
+
+/** Gmail through Google's sign-in: the same form Resources › Integrations opens. */
+function GmailCard({ name }: { name: string }) {
+  const t = useT();
+  const [gmail, setGmail] = useState<Integration>();
+  const [open, setOpen] = useState(false);
+  const load = useCallback(async () => {
+    try {
+      const { integrations } = await client.call("integrations.list", {});
+      setGmail(integrations.find((i) => i.id === "gmail"));
+    } catch {
+      setGmail(undefined);
+    }
+  }, []);
+  useEffect(() => {
+    void load();
+  }, [load]);
+  if (!gmail) return null;
+  return (
+    <div className={`wiz__engine${gmail.connected ? " is-on" : ""}`}>
+      <div className="wiz__enginehead">
+        <IntegrationIcon id="gmail" name="Gmail" size={34} />
+        <span className="wiz__enginetitles">
+          <b className="is-mono">GMAIL</b>
+          <span>{t("setup.reach.gmail")}</span>
+        </span>
+        {gmail.connected && (
+          <Badge tone="brand" dot>
+            {t("setup.channels.connected")}
+          </Badge>
+        )}
+      </div>
+      <p className="wiz__enginebody">{t("setup.reach.gmailBody", { name })}</p>
+      {!gmail.connected && (
+        <div>
+          <Button size="sm" leadingIcon={<Icons.Mail size={14} />} onClick={() => setOpen(true)}>
+            {t("setup.reach.connect")}
+          </Button>
+        </div>
+      )}
+      {open && <ConnectForm i={gmail} title="Gmail" onClose={() => setOpen(false)} onDone={load} />}
+    </div>
   );
 }
 

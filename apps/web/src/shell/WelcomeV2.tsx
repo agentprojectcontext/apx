@@ -16,6 +16,7 @@ import slide8 from "../assets/welcome/slide-8.jpg";
 import slide9 from "../assets/welcome/slide-9.jpg";
 import slide10 from "../assets/welcome/slide-10.jpg";
 import { closeCard, useClosedCards } from "../data/cornerCards.ts";
+import { useSetup } from "../data/setup.ts";
 import { useLanguage, useT } from "../i18n/index.ts";
 import { enWelcome, type WelcomeKey } from "../i18n/welcome-en.ts";
 import { esWelcome } from "../i18n/welcome-es.ts";
@@ -49,7 +50,9 @@ export function WelcomeV2() {
   const film = useClosedCards((s) => s.welcome);
   const seen = useMemo(() => kept ?? seenBefore(film), [kept, film]);
   const slides = useMemo(() => slidesToShow(import.meta.env.VITE_APX_VERSION, seen), [seen]);
-  if (!slides.length) return null;
+  // The first-run setup is the whole window: what is new waits until it closes.
+  const setupOpen = useSetup((s) => s.open);
+  if (!slides.length || setupOpen) return null;
   return <Welcome slides={slides} onClose={() => closeCard({ welcomeSeen: [...seen, ...slides.map((s) => s.key)] })} />;
 }
 

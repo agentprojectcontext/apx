@@ -1,6 +1,6 @@
 import type { Result } from "@apx/protocol";
 import { randomAgentName } from "@apx/protocol/client";
-import { AgentAvatar, BLOB_NAMES, Button, Checkbox, IconButton, Icons, Input, Skeleton, Switch } from "@apx/ui";
+import { AgentAvatar, BLOB_NAMES, Checkbox, IconButton, Icons, Input, Skeleton, Switch } from "@apx/ui";
 import { type ReactNode, useState } from "react";
 import type { V1Group, V1Groups } from "../data/setup.ts";
 import { PRIVACY_URL, setUsage, useTelemetry } from "../data/telemetry.ts";
@@ -44,15 +44,15 @@ export function Welcome({
   v1: Result<"setup.status">["v1"];
   /** The super-agent this install has now (its name was picked at random on a fresh one). */
   agent: { name: string; blob?: string | undefined } | undefined;
-  onStart: (mode: Draft["mode"]) => void;
+  onStart: (mode: Draft["mode"], style: Draft["style"]) => void;
 }) {
   const t = useT();
   // Asked once, unticked: the answer goes with the first step the owner takes.
   const ask = useTelemetry((s) => s.state?.enabled === true && s.state.usage === null);
   const [share, setShare] = useState(false);
-  const begin = (mode: Draft["mode"]) => {
+  const begin = (mode: Draft["mode"], style: Draft["style"]) => {
     if (ask) void setUsage(share);
-    onStart(mode);
+    onStart(mode, style);
   };
   const pill = JUST_INSTALLED ? (
     <span className="wiz__pill crew__pill">
@@ -73,40 +73,49 @@ export function Welcome({
     <div className="wiz__welcome crew__stage">
       <CrewHero pill={pill} />
       <div className="wiz__welcomenext">
-        <p className="wiz__body">{t(JUST_INSTALLED ? "setup.welcome.installedBody" : "setup.welcome.body")}</p>
-        {/* Two ways in only when there is a v1 to bring; otherwise just the way in. */}
-        {v1 ? (
-          <div className="wiz__choices">
-            <button type="button" className="wiz__choice" onClick={() => begin("new")}>
-              <span className="wiz__choicetitle">
-                <Icons.Sparkles size={16} />
-                {t("setup.welcome.new")}
-              </span>
-              <span className="wiz__choicebody">{t("setup.welcome.newBody")}</span>
-            </button>
-            <button type="button" className="wiz__choice is-brand" onClick={() => begin("import")}>
-              <span className="wiz__choicetitle">
-                <Icons.Download size={16} />
-                {t("setup.welcome.import")}
-              </span>
-              <span className="wiz__choicebody">
-                {v1.version
-                  ? t(v1.projects === 1 ? "setup.welcome.importBody.one" : "setup.welcome.importBody.other", {
-                      version: v1.version,
-                      home: v1.home,
-                      projects: v1.projects,
-                    })
-                  : t(v1.projects === 1 ? "setup.welcome.importNoVersion.one" : "setup.welcome.importNoVersion.other", {
-                      home: v1.home,
-                      projects: v1.projects,
-                    })}
-              </span>
-            </button>
-          </div>
-        ) : (
-          <Button id="welcome-start" size="lg" onClick={() => begin("new")}>
-            {t(JUST_INSTALLED ? "setup.next" : "setup.welcome.start")}
-          </Button>
+        <p className="wiz__body">{t("setup.style.question")}</p>
+        {/* The way in picks the panel: a personal assistant (few steps) or projects and team (every step). */}
+        <div className="wiz__choices">
+          <button
+            type="button"
+            id="welcome-start"
+            className="wiz__choice is-brand"
+            onClick={() => begin("new", "simple")}
+          >
+            <span className="wiz__choicetitle">
+              <Icons.MessageCircle size={16} />
+              {t("setup.style.simple")}
+            </span>
+            <span className="wiz__choicebody">{t("setup.style.simpleBody")}</span>
+          </button>
+          <button type="button" className="wiz__choice" onClick={() => begin("new", "advanced")}>
+            <span className="wiz__choicetitle">
+              <Icons.Folder size={16} />
+              {t("setup.style.advanced")}
+            </span>
+            <span className="wiz__choicebody">{t("setup.style.advancedBody")}</span>
+          </button>
+        </div>
+        <span className="wiz__hintline">{t("setup.style.later")}</span>
+        {v1 && (
+          <button type="button" className="wiz__choice wiz__import" onClick={() => begin("import", "advanced")}>
+            <span className="wiz__choicetitle">
+              <Icons.Download size={16} />
+              {t("setup.style.import")}
+            </span>
+            <span className="wiz__choicebody">
+              {v1.version
+                ? t(v1.projects === 1 ? "setup.welcome.importBody.one" : "setup.welcome.importBody.other", {
+                    version: v1.version,
+                    home: v1.home,
+                    projects: v1.projects,
+                  })
+                : t(v1.projects === 1 ? "setup.welcome.importNoVersion.one" : "setup.welcome.importNoVersion.other", {
+                    home: v1.home,
+                    projects: v1.projects,
+                  })}
+            </span>
+          </button>
         )}
         {ask && (
           <div className="wiz__share">

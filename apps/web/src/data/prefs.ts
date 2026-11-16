@@ -75,7 +75,11 @@ export type Prefs = {
   /** How the top bar shows the AI quotas and the system resources: with their figures, or as a small mark. */
   quotaBar: BarShow;
   resourcesBar: BarShow;
+  /** Simple: the super-agent and its chats only; advanced: projects, team and every setting. Picked in the setup. */
+  panelMode: PanelMode;
 };
+
+export type PanelMode = "simple" | "advanced";
 
 export type BarShow = "full" | "mini";
 
@@ -131,6 +135,7 @@ const DEFAULTS: Prefs = {
   noticeSound: "all",
   quotaBar: "full",
   resourcesBar: "full",
+  panelMode: "advanced",
 };
 
 function load(): Prefs {
@@ -185,6 +190,7 @@ function load(): Prefs {
           : "all",
       quotaBar: raw.quotaBar === "mini" ? "mini" : "full",
       resourcesBar: raw.resourcesBar === "mini" ? "mini" : "full",
+      panelMode: raw.panelMode === "simple" ? "simple" : "advanced",
     };
   } catch {
     return DEFAULTS;
