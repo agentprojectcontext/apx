@@ -1,6 +1,14 @@
 /* APX Kit cards: the cards an agent draws in its answer (```apx-cards, ```a2ui and their views) and the card a
    widget gets in a chat. One source: the panel imports this file, and the core inlines it after the kit's CSS in every
-   widget (surface-kit.ts). The phone's cards follow it in apps/mobile/src/ui/chat. Tokens only. */
+   widget (surface-kit.ts). The phone's cards take the --apx-card-* measures below (its sync script writes them to
+   apps/mobile/src/ui/tokens.ts, the narrow screen's values). Tokens only. */
+:root {
+  --apx-card-pad-y: 16px;
+  --apx-card-pad-x: 18px;
+  --apx-card-gap: 8px;
+  --apx-card-line: 3px;
+  --apx-card-line-opacity: 0.85;
+}
 .apx-inline {
   display: grid;
   gap: 10px;
@@ -77,7 +85,7 @@
   container: apx-inline-card / inline-size;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: var(--apx-card-gap);
   min-width: 0;
   overflow: hidden;
   overflow-wrap: anywhere;
@@ -86,7 +94,7 @@
 .apx-inline__card,
 :where(:root[data-ax-embed]) .ax-card:where(:not(.ax-card--flat, .ax-card--tight)) {
   position: relative;
-  padding: 16px 18px;
+  padding: var(--apx-card-pad-y) var(--apx-card-pad-x);
   border: 1px solid var(--apx-border);
   border-radius: var(--apx-radius-md);
   background: var(--apx-surface);
@@ -97,9 +105,9 @@
   content: "";
   position: absolute;
   inset: 0 0 auto;
-  height: 3px;
+  height: var(--apx-card-line);
   background: linear-gradient(90deg, var(--apx-brand), var(--apx-violet));
-  opacity: 0.85;
+  opacity: var(--apx-card-line-opacity);
 }
 /* Only a widget's own cards carry the line, not tiles in its grids; overflow stays visible for menus and chart tips,
    so the line takes the card's corners. */
@@ -118,12 +126,12 @@
   object-fit: cover;
 }
 .apx-inline__image--banner {
-  margin: -16px -18px 4px;
+  margin: calc(-1 * var(--apx-card-pad-y)) calc(-1 * var(--apx-card-pad-x)) 4px;
   aspect-ratio: 16 / 9;
   max-height: 220px;
 }
 .apx-inline__card > .apx-inline__column > .apx-inline__image--banner:first-child {
-  margin: -16px -18px 4px;
+  margin: calc(-1 * var(--apx-card-pad-y)) calc(-1 * var(--apx-card-pad-x)) 4px;
 }
 .apx-inline__open {
   position: relative;
@@ -153,7 +161,7 @@
   display: block;
   width: auto;
   height: auto;
-  margin: -16px -18px 4px;
+  margin: calc(-1 * var(--apx-card-pad-y)) calc(-1 * var(--apx-card-pad-x)) 4px;
   aspect-ratio: 16 / 9;
   max-height: 160px;
   border-radius: 0;
@@ -234,13 +242,9 @@
   border-top: 1px solid var(--apx-border);
 }
 @media (max-width: 480px) {
-  .apx-inline__card,
-  :where(:root[data-ax-embed]) .ax-card:where(:not(.ax-card--flat, .ax-card--tight)) {
-    padding: 14px 16px;
-  }
-  .apx-inline__image--banner,
-  .apx-inline__card > .apx-inline__column > .apx-inline__image--banner:first-child {
-    margin: -14px -16px 4px;
+  :root {
+    --apx-card-pad-y: 14px;
+    --apx-card-pad-x: 16px;
   }
   .apx-inline__image--thumb {
     width: 76px;

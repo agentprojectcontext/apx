@@ -1,4 +1,5 @@
-// Generated from packages/ui/src/styles/tokens.css (minimal look) by scripts/sync-design-assets.mjs.
+// Generated from packages/ui/src/styles/tokens.css (minimal look) and APX Kit's cards
+// (packages/surfaces/src/kit/apx-kit-cards.css) by scripts/sync-design-assets.mjs.
 export const palettes = {
   light: {
     bg: "#faf9f7",
@@ -87,4 +88,12 @@ export const palettes = {
     rowRadius: 10,
     composerRadius: 26,
   },
+} as const;
+
+export const card = {
+  padY: 14,
+  padX: 16,
+  gap: 8,
+  line: 3,
+  lineOpacity: 0.85,
 } as const;

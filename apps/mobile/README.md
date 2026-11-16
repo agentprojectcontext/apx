@@ -47,8 +47,9 @@ Revoked credentials return to pairing on the next launch; an unreachable core ke
 ## Design and UI kit
 
 The screens follow the APX Mobile design (the panel's minimal look, dark mode). Colors and radii come from
-`packages/ui/src/styles/tokens.css` through `npm run sync:design`, which writes `src/ui/tokens.ts` along with the
-icons, blob eyes, engine marks, the panel's routine slot logic (`src/routines/slots.ts`, `cron.ts`) and the board's
+`packages/ui/src/styles/tokens.css` through `npm run sync:design`, which writes `src/ui/tokens.ts` (with the answer
+cards' padding, gap and top line taken from APX Kit's `packages/surfaces/src/kit/apx-kit-cards.css`, so a card changed
+in the kit changes here after a sync) along with the icons, blob eyes, engine marks, the panel's routine slot logic (`src/routines/slots.ts`, `cron.ts`) and the board's
 due dates and task history (`src/tasks/when.ts`, `history.ts`); never edit
 those files by hand. Screens are built from `src/ui/kit` (buttons, chips, tags, cards, list groups, the switch,
 segmented control, spinner, headers, bottom sheet, tab bar), so a style changes in one place. Every word on screen

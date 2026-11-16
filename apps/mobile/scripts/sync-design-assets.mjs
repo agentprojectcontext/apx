@@ -158,9 +158,28 @@ const palettes = {
   light: nativeTokens(light),
   dark: nativeTokens({ ...light, ...block('[data-apx-look="minimal"][data-apx-mode="dark"]') }),
 };
+// APX Kit's card measures, as a narrow screen takes them: the kit's :root, then its narrow-screen :root.
+const kitCards = readFileSync(resolve(mobile, "../../packages/surfaces/src/kit/apx-kit-cards.css"), "utf8");
+const cardVars = (from) => {
+  const start = kitCards.indexOf(":root {", from);
+  if (start < 0) throw new Error("apx-kit-cards.css: no :root block with the card measures");
+  const body = kitCards.slice(start, kitCards.indexOf("}", start));
+  return Object.fromEntries(
+    [...body.matchAll(/--apx-card-([\w-]+):\s*([\d.]+)(?:px)?;/g)].map((m) => [m[1], Number(m[2])]),
+  );
+};
+const narrow = kitCards.indexOf("@media (max-width: 480px)");
+if (narrow < 0) throw new Error("apx-kit-cards.css: no narrow-screen block");
+const cardMeasures = { ...cardVars(0), ...cardVars(narrow) };
+for (const name of ["pad-y", "pad-x", "gap", "line", "line-opacity"]) {
+  if (!(name in cardMeasures)) throw new Error(`apx-kit-cards.css: no --apx-card-${name}`);
+}
+const card = Object.fromEntries(
+  Object.entries(cardMeasures).map(([name, value]) => [name.replace(/-(\w)/g, (_, c) => c.toUpperCase()), value]),
+);
 writeFileSync(
   resolve(target, "tokens.ts"),
-  `// Generated from packages/ui/src/styles/tokens.css (minimal look) by scripts/sync-design-assets.mjs.\nexport const palettes = ${JSON.stringify(palettes, null, 2)} as const;\n`,
+  `// Generated from packages/ui/src/styles/tokens.css (minimal look) and APX Kit's cards\n// (packages/surfaces/src/kit/apx-kit-cards.css) by scripts/sync-design-assets.mjs.\nexport const palettes = ${JSON.stringify(palettes, null, 2)} as const;\n\nexport const card = ${JSON.stringify(card, null, 2)} as const;\n`,
 );
 
 mkdirSync(resolve(mobile, "assets"), { recursive: true });
