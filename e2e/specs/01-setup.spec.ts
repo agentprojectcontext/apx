@@ -232,7 +232,9 @@ test("a personal assistant takes a few steps, meets the owner while things get r
   await expect(wizard).toBeHidden();
   expect((await rpc<{ mode: string }>("panel.mode")).mode).toBe("simple");
   // The simple panel: no projects, and Advanced at the top brings them back.
-  await expect(page.getByRole("button", { name: "Simple", exact: true }).or(page.getByRole("radio", { name: "Simple" }))).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "Simple", exact: true }).or(page.getByRole("radio", { name: "Simple" })),
+  ).toBeVisible();
   await page.getByRole("radio", { name: "Avanzado" }).click();
   await until(async () => (await rpc<{ mode: string }>("panel.mode")).mode === "advanced");
 });
