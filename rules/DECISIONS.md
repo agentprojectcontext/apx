@@ -5008,3 +5008,29 @@ chats and the dropped-result retry only a silent turn.
 Rejected: a goal or mission table beside tasks (tasks already are the goal, D-162); delivering each result of a
 fan-out as it lands (more turns and tokens for the common case; the 10-minute hold stays); continuing any result turn
 with an open plan however it ended (a turn that delegated the next part or asked the owner already took its step).
+
+<a id="d-233"></a>
+## D-233 — 2026-11-15 — APX's rarely used tools are named in mcp_search, not sent on every call
+The owner's super-agent sent 67 tool definitions on every model call, 41.7k chars (about 10k tokens): more than its
+system prompt and skills together. Over a month of the owner's office (5,044 super-agent turns, 92k tool calls),
+about thirty of its tools ran in under 1% of its turns, several never: routines, settings, Flows, agent settings and
+grants, widgets, documents, sessions, the computer's screen, the browser's script, handoff and sign-in, contacts'
+requests, images, video transcripts, notices.
+
+- **They join the bridge** (`OWN_FOUND` in `tools/mcp-bridge.ts`, D-053, D-229): `mcp_search` names each of them
+  ("More APX tools, called by name like any other: …") and finds them like a connected app's, server `apx`. The model
+  calls one by its name as before, or through `mcp_call`; every check, card, confirmation and step is that tool's own.
+- **A wrong call brings the schema**: a found tool called without its arguments in view gets its argument schema
+  with the error, so the next try has it, at most one extra call on a tool most turns never use.
+- **The list does not change mid-chat**: which tools are direct is fixed by name, so the cached prefix stays the same.
+  A turn whose tools were named one by one (a worker, WhatsApp's handoff) keeps them all direct.
+
+A fresh install's super-agent sends 16.1k chars of tools instead of 24.1k (27 tools instead of 41).
+
+This revisits D-229's rejection of "deferring every rarely used tool": the tools the super-agent uses in most turns
+(commands, files, tasks, delegation, plan, memory, the web, the browser, channels, asking the owner, sending a file)
+stay direct, and the rest need no search to be called.
+
+Rejected: a search before every deferred call (one more call each time); picking tools per message with the skill
+picker's embeddings (the prefix would change between turns and break the cache); dropping the tools (capability
+lost).
