@@ -2,6 +2,7 @@ import { Icons, type MenuEntry } from "@apx/ui";
 import { createElement } from "react";
 import { setPrefs, usePrefs } from "../data/prefs.ts";
 import { type MessageKey, useT } from "../i18n/index.ts";
+import { SIMPLE_PARTS } from "./panelMode.ts";
 
 /** The sidebar's views (its top rows) and sections: the owner may hide them and change their order. */
 export const SIDEBAR_VIEWS = [
@@ -26,10 +27,11 @@ export type SectionId = (typeof SIDEBAR_SECTIONS)[number]["id"];
 type PartId = ViewId | SectionId;
 type Part = (typeof SIDEBAR_VIEWS)[number] | (typeof SIDEBAR_SECTIONS)[number];
 
-/** Whether a sidebar view or section shows: all do until the owner hides one. */
+/** Whether a sidebar view or section shows: all do until the owner hides one; a simple panel keeps only its few. */
 export function useSidebarShows(): (id: PartId) => boolean {
   const hidden = usePrefs((s) => s.navHidden);
-  return (id) => !hidden.includes(id);
+  const simple = usePrefs((s) => s.panelMode === "simple");
+  return (id) => !hidden.includes(id) && (!simple || SIMPLE_PARTS.has(id));
 }
 
 /** Ids in the owner's order: the ones they placed first, then the rest as they come. */
@@ -61,6 +63,8 @@ export function useSidebarMenu(withCompact = true): MenuEntry[] {
   const t = useT();
   const hidden = usePrefs((s) => s.navHidden);
   const compact = usePrefs((s) => s.sidebarCompact);
+  const simple = usePrefs((s) => s.panelMode === "simple");
+  const offered = (p: Part) => !simple || SIMPLE_PARTS.has(p.id);
   const part = (p: Part): MenuEntry => ({
     label: t(p.label),
     checked: !hidden.includes(p.id),
@@ -70,10 +74,10 @@ export function useSidebarMenu(withCompact = true): MenuEntry[] {
   });
   return [
     { type: "label", label: t("nav.showViews") },
-    ...SIDEBAR_VIEWS.map(part),
+    ...SIDEBAR_VIEWS.filter(offered).map(part),
     { type: "separator" },
     { type: "label", label: t("nav.showSections") },
-    ...SIDEBAR_SECTIONS.map(part),
+    ...SIDEBAR_SECTIONS.filter(offered).map(part),
     ...(withCompact
       ? ([
           { type: "separator" },

@@ -15,12 +15,13 @@ import { type MessageKey, useT } from "../i18n/index.ts";
 import { kindOptions, NO_KIND } from "../project/projectKind.ts";
 import { ConnectForm, type Integration } from "../resources/IntegrationsTab.tsx";
 import { BotCard } from "./BotCard.tsx";
+import { BrainChoice } from "./BrainChoice.tsx";
 import { type Draft, type StepProps, withStarters } from "./draft.ts";
 import { EmbedderCard } from "./EmbedderCard.tsx";
 import { StepHead } from "./StepsIntro.tsx";
 
 /** Provider management is shared with settings; the wizard saves its router on Continue. Simple hides the chain. */
-export function EnginesStep({ draft: d, set }: StepProps) {
+export function EnginesStep({ draft: d, set, onPicked }: StepProps & { onPicked?: () => void }) {
   const simple = d.style === "simple";
   const t = useT();
   const providers = useProviders((s) => s.list);
@@ -40,10 +41,15 @@ export function EnginesStep({ draft: d, set }: StepProps) {
     keyed.current = new Set(ready);
     pending.current = [...new Set([...pending.current, ...fresh])].filter((id) => ready.includes(id));
     const kept = d.chain.filter((ref) => ready.includes(splitRef(ref).engine));
-    const { chain, waiting } = withStarters(kept, pending.current, catalog);
-    pending.current = waiting;
+    const started = withStarters(kept, pending.current, catalog);
+    pending.current = started.waiting;
+    // Simple keeps a model app on this computer behind the one the owner signed in to.
+    const isLocal = (ref: string) => providers.some((p) => p.local && p.id === splitRef(ref).engine);
+    const chain = simple
+      ? [...started.chain.filter((r) => !isLocal(r)), ...started.chain.filter(isLocal)]
+      : started.chain;
     if (chain.join() !== d.chain.join()) set({ chain });
-  }, [providers, loaded, catalog, d.chain, set]);
+  }, [providers, loaded, catalog, d.chain, set, simple]);
   return (
     <>
       <StepHead
@@ -54,7 +60,7 @@ export function EnginesStep({ draft: d, set }: StepProps) {
       >
         {t(simple ? "setup.brain.body" : "setup.engines.body")}
       </StepHead>
-      <ProvidersGrid compact />
+      {simple ? <BrainChoice onPicked={() => onPicked?.()} /> : <ProvidersGrid compact />}
       {!simple && (
         <div className="wiz__card wiz__chain">
           <RouterChain chain={d.chain} onChange={(chain) => set({ chain })} />
@@ -463,13 +469,15 @@ const DONE_MS = 2400;
  * The crew is ready: a moment to read it, then the app opens by itself. With v1's `apx` on this machine the owner
  * first says whether `apx` becomes this one (a real choice, so it waits for it).
  */
-export function DoneStep({ name, onFinish }: { name: string; onFinish: () => void }) {
+export function DoneStep({ name, simple, onFinish }: { name: string; simple?: boolean; onFinish: () => void }) {
   const t = useT();
   const home = useSetup((s) => s.status?.v1?.home);
   const dataHome = useSetup((s) => s.status?.home);
   const terminal = useSetup((s) => s.status?.terminal);
   const [cli, setCli] = useState<{ busy?: boolean; ok?: boolean; skip?: boolean; detail?: string }>({});
-  const asks = Boolean(home && terminal) && !cli.ok && !cli.skip;
+  // The terminal command is for whoever uses it: a simple setup leaves it for later.
+  const offers = Boolean(home && terminal) && !simple;
+  const asks = offers && !cli.ok && !cli.skip;
   const finish = useRef(onFinish);
   finish.current = onFinish;
   useEffect(() => {
@@ -492,7 +500,7 @@ export function DoneStep({ name, onFinish }: { name: string; onFinish: () => voi
       </h1>
       <p className="wiz__body">{t("setup.done.body", { home: dataHome ?? "" })}</p>
       {/* With v1 installed, `apx` is v1's: one click makes it this one. */}
-      {home && terminal && (
+      {offers && (
         <div className="wiz__card wiz__takeover">
           <b>{t("setup.done.takeOver")}</b>
           <span>{t("setup.done.takeOverBody")}</span>

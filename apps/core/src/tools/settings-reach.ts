@@ -61,6 +61,8 @@ export const OWNER_ONLY: Readonly<Record<string, string>> = {
   "flows.token_rotate": SECRET,
   "chatgpt.connect": SECRET,
   "chatgpt.disconnect": SECRET,
+  "openrouter.connect": SECRET,
+  "openrouter.finish": SECRET,
   "integrations.connect": SECRET,
   "integrations.disconnect": SECRET,
   "integrations.oauth_start": SECRET,

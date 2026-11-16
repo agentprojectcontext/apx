@@ -885,3 +885,19 @@ input.wiz__name {
   text-decoration: underline;
   text-underline-offset: 2px;
 }
+/* Simple setup: the two ways in are large, a model app stays behind them, the full grid is one click away. */
+.wiz__way {
+  padding: 22px;
+  min-height: 132px;
+}
+.wiz__way .wiz__choicetitle {
+  align-items: center;
+  font-size: calc(17px * var(--apx-text-scale, 1));
+}
+.wiz__way .apx-badge {
+  margin-left: auto;
+}
+.wiz__import {
+  width: 100%;
+  max-width: 320px;
+}

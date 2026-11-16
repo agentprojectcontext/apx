@@ -98,6 +98,7 @@ export function Welcome({
         </div>
         <span className="wiz__hintline">{t("setup.style.later")}</span>
         {v1 && (
+          // ui: a choice card like the two above it, smaller.
           <button type="button" className="wiz__choice wiz__import" onClick={() => begin("import", "advanced")}>
             <span className="wiz__choicetitle">
               <Icons.Download size={16} />

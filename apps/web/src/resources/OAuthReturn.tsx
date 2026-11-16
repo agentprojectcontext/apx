@@ -8,9 +8,10 @@ const NAMES: Record<string, string> = {
   "google-calendar": "Google Calendar",
   gmail: "Gmail",
   "google-drive": "Google Drive",
+  openrouter: "OpenRouter",
 };
 
-// Loaded only on /oauth/google. What Google sent is read once: the code leaves the address bar right away, and
+// Loaded only on /oauth/google and /oauth/openrouter. What Google sent is read once: the code leaves the address bar right away, and
 // StrictMode's second mount reuses the same call instead of spending the code twice.
 const params = new URLSearchParams(window.location.search);
 if (window.location.search) window.history.replaceState(null, "", window.location.pathname);
@@ -21,6 +22,8 @@ function finish() {
   const denied = params.get("error");
   if (denied) return Promise.reject(new Error(denied));
   if (!code || !state) return undefined;
+  if (window.location.pathname === "/oauth/openrouter")
+    finishing ??= client.call("openrouter.finish", { code, state }).then(() => ({ id: "openrouter" }));
   finishing ??= client.call("integrations.oauth_finish", { code, state });
   return finishing;
 }

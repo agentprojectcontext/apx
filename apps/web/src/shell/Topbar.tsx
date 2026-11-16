@@ -1,4 +1,4 @@
-import { IconButton, Icons, Kbd, Menu, Tooltip } from "@apx/ui";
+import { IconButton, Icons, Kbd, Menu, SegmentedControl, Tooltip } from "@apx/ui";
 import { Suspense } from "react";
 import logoUrl from "../assets/logo.png";
 import { secretary } from "../data/identity.ts";
@@ -8,6 +8,7 @@ import { CallButton, EngineUsageButton, RunningIndicator, UsageButton } from "..
 import { AttentionTray } from "./AttentionTray.tsx";
 import { useDesktopClass } from "./desktop.ts";
 import { go, useNavHistory } from "./nav.ts";
+import { setPanelMode, usePanelMode } from "./panelMode.ts";
 import { ServerSwitch } from "./ServerSwitch.tsx";
 import { SuperAgentButton } from "./SuperAgentButton.tsx";
 import { UpdatePill, WhatsNewPill } from "./UpdatePill.tsx";
@@ -21,11 +22,24 @@ export function Topbar() {
   const canForward = useNavHistory((s) => s.canForward);
   const agents = useData((s) => s.agents);
   const sec = secretary(agents);
+  const mode = usePanelMode();
+  const simple = mode === "simple";
   return (
     <header className={`topbar${desktop}`}>
       <div className="topbar__left">
         <img className="topbar__logo" src={logoUrl} alt="APX" width={16} height={16} />
         <ServerSwitch />
+        <SegmentedControl
+          size="sm"
+          className="topbar__mode"
+          label={t("mode.label")}
+          value={mode}
+          onValueChange={(v) => setPanelMode(v === "simple" ? "simple" : "advanced")}
+          options={[
+            { value: "simple", label: t("mode.simple") },
+            { value: "advanced", label: t("mode.advanced") },
+          ]}
+        />
       </div>
       <div className="topbar__center">
         <div className="topbar__nav">
@@ -76,18 +90,23 @@ export function Topbar() {
           <WhatsNewPill />
           <UpdatePill />
         </div>
-        <div className="topbar__usage">
-          <Suspense
-            fallback={<IconButton size="sm" label={t("engineUsage.title")} icon={<Icons.Zap size={14} />} disabled />}
-          >
-            <EngineUsageButton />
-          </Suspense>
-          <Suspense
-            fallback={<IconButton size="sm" label={t("sysUsage.title")} icon={<Icons.Monitor size={14} />} disabled />}
-          >
-            <UsageButton />
-          </Suspense>
-        </div>
+        {/* What the models and the computer spend is for whoever runs projects: simple leaves it out. */}
+        {!simple && (
+          <div className="topbar__usage">
+            <Suspense
+              fallback={<IconButton size="sm" label={t("engineUsage.title")} icon={<Icons.Zap size={14} />} disabled />}
+            >
+              <EngineUsageButton />
+            </Suspense>
+            <Suspense
+              fallback={
+                <IconButton size="sm" label={t("sysUsage.title")} icon={<Icons.Monitor size={14} />} disabled />
+              }
+            >
+              <UsageButton />
+            </Suspense>
+          </div>
+        )}
         {/* System usage remains reachable when its gauge no longer fits. */}
         <Menu
           align="end"

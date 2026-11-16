@@ -5,6 +5,7 @@ import { type MessageKey, useT } from "../i18n/index.ts";
 import { MoveSection } from "../lazy.ts";
 import { LAYOUT } from "../shell/layout.ts";
 import { type ConfigSection, go, useNav } from "../shell/nav.ts";
+import { configShows, usePanelMode } from "../shell/panelMode.ts";
 import { ActivityReviewSection } from "./ActivityReviewSection.tsx";
 import { AdvancedSection } from "./AdvancedSection.tsx";
 import { AgentsSection } from "./AgentsSection.tsx";
@@ -99,9 +100,11 @@ export function ConfigModal() {
     );
     return () => cancelAnimationFrame(id);
   }, [section]);
+  const mode = usePanelMode();
   const groups = GROUPS.map((g) => ({
     label: t(g.label),
     items: g.items
+      .filter((i) => configShows(mode, i.id))
       .map((i) => ({ ...i, text: t(i.label) }))
       .filter((i) => !query || `${t(g.label)} ${i.text}`.toLowerCase().includes(query)),
   })).filter((g) => g.items.length);

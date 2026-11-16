@@ -205,11 +205,11 @@ function WizardBody() {
     welcome: <Welcome v1={status?.v1 ?? null} agent={boss} onStart={start} />,
     import: <ImportStep home={status?.v1?.home ?? "~/.apx"} scan={scan} draft={d} set={set} />,
     agent: <AgentStep draft={d} set={set} />,
-    engines: <EnginesStep draft={d} set={set} />,
+    engines: <EnginesStep draft={d} set={set} onPicked={() => void next()} />,
     memory: <MemoryStep draft={d} set={set} />,
     channels: <ChannelsStep name={d.name.trim() || t("agent.super")} simple={d.style === "simple"} />,
     project: <ProjectStep draft={d} set={set} />,
-    done: <DoneStep name={name} onFinish={() => void finish()} />,
+    done: <DoneStep name={name} simple={d.style === "simple"} onFinish={() => void finish()} />,
   };
 
   return (
@@ -258,9 +258,9 @@ function WizardBody() {
                 <span className="wiz__spacer" />
                 {blocked && <span className="wiz__hint">{t(blocked)}</span>}
                 {d.style === "simple" && step === "channels" && (
-                  <button type="button" className="wiz__back" onClick={() => void next()}>
+                  <Button size="lg" variant="ghost" onClick={() => void next()}>
                     {t("setup.reach.skip")}
-                  </button>
+                  </Button>
                 )}
                 <Button size="lg" disabled={Boolean(blocked)} loading={busy} onClick={() => void next()}>
                   {step === "project" ? t("setup.create") : t("setup.next")}

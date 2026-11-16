@@ -407,6 +407,10 @@ html[data-shortcuts-active] [data-shortcut-modifier] {
   }
 }
 @media (max-width: 639px) {
+  /* The account menu switches it on a phone. */
+  .topbar__mode {
+    display: none;
+  }
   .topbar__activity {
     position: absolute;
     left: 36px;

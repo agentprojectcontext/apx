@@ -25,6 +25,20 @@ after(async () => {
   await removeDir(home);
 });
 
+test("OpenRouter's return finishes without the core's token, yet only with a state this core made", async () => {
+  const nobody = new ApxClient({ url: core.url });
+  await assert.rejects(
+    nobody.call("openrouter.finish", { code: "c", state: "forged" }),
+    (e: unknown) => e instanceof ApxError && /expired or was already used/.test(e.message),
+    "it reaches the handler, which refuses a state it did not make",
+  );
+  await assert.rejects(
+    nobody.call("openrouter.connect", { callback: "http://127.0.0.1:7440/oauth/openrouter" }),
+    (e: unknown) => e instanceof ApxError && /bad token/.test(e.message),
+    "starting a sign-in stays the owner's",
+  );
+});
+
 test("with a core token, an outside app's client token is enough; without either the core refuses", async () => {
   const owner = new ApxClient({ url: core.url, token: TOKEN });
   const { token } = await owner.call("clients.create", { name: "Claude Code", scopes: ["chat"] });

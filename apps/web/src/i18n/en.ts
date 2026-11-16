@@ -242,6 +242,11 @@ export const en = {
   "connection.connecting": "Connecting",
 
   // Topbar, sidebar, account
+  "mode.label": "Panel",
+  "mode.toSimple": "Switch to the simple panel",
+  "mode.toAdvanced": "Switch to the full panel",
+  "mode.simple": "Simple",
+  "mode.advanced": "Advanced",
   "topbar.search": "Search or jump to…",
   "server.label": "APX in use: {name}",
   "server.local": "Local",
