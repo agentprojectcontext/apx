@@ -12,6 +12,7 @@ const WAYS: Array<{ id: "chatgpt" | "openrouter"; icon: string; title: MessageKe
   { id: "chatgpt", icon: "codex", title: "setup.brain.codex", body: "setup.brain.codexBody" },
   { id: "openrouter", icon: "openrouter", title: "setup.brain.openrouter", body: "setup.brain.openrouterBody" },
 ];
+const POPUP_FEATURES = "popup,width=560,height=780";
 /** How often the providers are read while OpenRouter's page is open elsewhere. */
 const POLL_MS = 2000;
 
@@ -41,12 +42,21 @@ export function BrainChoice({ onPicked }: { onPicked: () => void }) {
   useEffect(() => {
     if (!waiting) return;
     const id = setInterval(() => void loadProviders(), POLL_MS);
-    return () => clearInterval(id);
+    // The sign-in window says so the moment it is done: no need to wait for the next read.
+    const told = (e: MessageEvent) => {
+      if (e.origin === window.location.origin && e.data?.type === "apx:oauth-done") void loadProviders();
+    };
+    window.addEventListener("message", told);
+    return () => {
+      clearInterval(id);
+      window.removeEventListener("message", told);
+    };
   }, [waiting]);
 
   const openRouter = async () => {
-    // Opened on the click itself, so a popup blocker lets it through; pointed at OpenRouter once the core answers.
-    const tab = window.apxDesktop ? null : window.open("about:blank", "_blank");
+    // A window of its own beside the setup, opened on the click itself so a popup blocker lets it through; pointed
+    // at OpenRouter once the core answers. The desktop app sends it to the system browser.
+    const tab = window.apxDesktop ? null : window.open("about:blank", "apx-openrouter", POPUP_FEATURES);
     try {
       const { url } = await client.call("openrouter.connect", {
         callback: `${window.location.origin}/oauth/openrouter`,

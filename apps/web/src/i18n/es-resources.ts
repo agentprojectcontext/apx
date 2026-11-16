@@ -363,6 +363,7 @@ export const esResources: Partial<Record<MessageKey, string>> = {
   "oauth.doneBody": "Podés cerrar esta pestaña y volver a APX.",
   "oauth.failTitle": "No se pudo terminar de iniciar sesión",
   "oauth.nothing": "Acá no hay ningún inicio de sesión para terminar.",
+  "oauth.closing": "Esta ventana se cierra sola: seguí en APX.",
   "oauth.open": "Abrir APX",
   "int.desc.github": "Repositorios, issues y pull requests.",
   "int.desc.notion": "Páginas y bases de datos de tu workspace.",

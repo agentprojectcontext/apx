@@ -14,7 +14,16 @@ import { loadModelsConfig, saveModelsConfig, useModels } from "../data/models.ts
 import { notify } from "../data/notices.ts";
 import { setPrefs } from "../data/prefs.ts";
 import { updateBase } from "../data/projects.ts";
-import { addProject, closeSetup, finishSetup, importV1, scanV1, useSetup, type V1Groups } from "../data/setup.ts";
+import {
+  addProject,
+  closeSetup,
+  finishSetup,
+  importV1,
+  SETUP_RESUME_KEY as RESUME_KEY,
+  scanV1,
+  useSetup,
+  type V1Groups,
+} from "../data/setup.ts";
 import { useData } from "../data/state.ts";
 import { updateAgent } from "../data/team.ts";
 import { type MessageKey, useLanguage, usePack, useT } from "../i18n/index.ts";
@@ -41,6 +50,17 @@ const STEP_KEY: Record<Step, MessageKey> = {
 };
 type Step = "welcome" | "import" | "agent" | "engines" | "memory" | "channels" | "project" | "done";
 
+/** Where an unfinished setup was left on this device, if it is readable. */
+function resumed(): { draft: Draft; at: number } | undefined {
+  try {
+    const v = JSON.parse(localStorage.getItem(RESUME_KEY) ?? "null") as { draft?: Partial<Draft>; at?: unknown } | null;
+    if (!v?.draft || typeof v.at !== "number") return undefined;
+    return { draft: { ...defaultDraft(), ...v.draft }, at: Math.max(0, Math.floor(v.at)) };
+  } catch {
+    return undefined;
+  }
+}
+
 /** Its strings load with it (the "setup" pack): nothing shows until they are here. */
 export function Wizard() {
   const setup = usePack("setup");
@@ -60,8 +80,14 @@ function WizardBody() {
   const status = useSetup((s) => s.status);
   const agents = useData((s) => s.agents);
   const config = useModels((s) => s.config);
-  const [d, setD] = useState<Draft>(() => defaultDraft());
-  const [at, setAt] = useState(0);
+  const [d, setD] = useState<Draft>(() => resumed()?.draft ?? defaultDraft());
+  const [at, setAt] = useState(() => resumed()?.at ?? 0);
+  // A reload, or a sign-in that came back in another tab, opens the setup where the owner left it.
+  useEffect(() => {
+    try {
+      localStorage.setItem(RESUME_KEY, JSON.stringify({ draft: d, at }));
+    } catch {}
+  }, [d, at]);
   const [busy, setBusy] = useState(false);
   const [scan, setScan] = useState<V1Groups>();
   const set = (p: Partial<Draft>) => setD((cur) => ({ ...cur, ...p }));
@@ -191,6 +217,9 @@ function WizardBody() {
   };
   // The super-agent's chat opens with its first greeting, in the language on screen.
   const finish = async () => {
+    try {
+      localStorage.removeItem(RESUME_KEY);
+    } catch {}
     setPrefs({ panelMode: d.style });
     // Someone who just installed has nothing to compare: what is new starts with the next release.
     closeCard({ welcomeSeen: [...ALL_SLIDES] });
@@ -245,7 +274,7 @@ function WizardBody() {
         </button>
       </header>
       <div className="wiz__scroll">
-        <div className={`wiz__grid${step === "welcome" ? " is-single" : ""}`}>
+        <div className={`wiz__grid${step === "welcome" || d.style === "simple" ? " is-single" : ""}`}>
           <div className="wiz__main">
             {body[step]}
             {step !== "welcome" && step !== "done" && (
@@ -256,19 +285,23 @@ function WizardBody() {
                   </button>
                 )}
                 <span className="wiz__spacer" />
-                {blocked && <span className="wiz__hint">{t(blocked)}</span>}
+                {blocked && d.style === "advanced" && <span className="wiz__hint">{t(blocked)}</span>}
                 {d.style === "simple" && step === "channels" && (
                   <Button size="lg" variant="ghost" onClick={() => void next()}>
                     {t("setup.reach.skip")}
                   </Button>
                 )}
-                <Button size="lg" disabled={Boolean(blocked)} loading={busy} onClick={() => void next()}>
-                  {step === "project" ? t("setup.create") : t("setup.next")}
-                </Button>
+                {/* Simple's brain goes on by itself once one is picked: Continue shows only when one is there. */}
+                {!(blocked && d.style === "simple") && (
+                  <Button size="lg" disabled={Boolean(blocked)} loading={busy} onClick={() => void next()}>
+                    {step === "project" ? t("setup.create") : t("setup.next")}
+                  </Button>
+                )}
               </div>
             )}
           </div>
-          {step !== "welcome" && <Preview draft={d} imports={scan} />}
+          {/* Simple meets its agent at the end, by name: until then each step stands alone. */}
+          {step !== "welcome" && d.style === "advanced" && <Preview draft={d} imports={scan} />}
         </div>
       </div>
       <BuildVersion className={step === "welcome" ? "" : " is-side"} />

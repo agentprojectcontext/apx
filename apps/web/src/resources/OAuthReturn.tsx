@@ -28,6 +28,13 @@ function finish() {
   return finishing;
 }
 
+/** Opened as a window of the panel that started the sign-in: that panel is told, and this window closes itself. */
+const POPUP = Boolean(window.opener) && window.opener !== window;
+/** How long "connected" shows before the window closes. */
+const CLOSE_MS = 1500;
+/** What the panel that opened the sign-in listens for. */
+const OAUTH_DONE = "apx:oauth-done";
+
 /** Hands the code to the core and says how it went; the panel that started it notices by itself. */
 export function OAuthReturn() {
   const t = useT();
@@ -41,11 +48,18 @@ export function OAuthReturn() {
     const running = finish();
     if (!running) return setState({ kind: "nothing" });
     running.then(
-      (r) => setState({ kind: "done", ...r }),
+      (r) => {
+        setState({ kind: "done", ...r });
+        if (!POPUP) return;
+        try {
+          window.opener.postMessage({ type: OAUTH_DONE, id: r.id }, window.location.origin);
+        } catch {}
+        window.setTimeout(() => window.close(), CLOSE_MS);
+      },
       (e: unknown) => setState({ kind: "failed", error: e instanceof Error ? e.message : String(e) }),
     );
   }, []);
-  const open = (
+  const open = POPUP ? undefined : (
     <Button size="sm" onClick={() => window.location.replace("/")}>
       {t("oauth.open")}
     </Button>
@@ -66,7 +80,7 @@ export function OAuthReturn() {
           action={open}
         >
           {state.account ? `${t("int.signedInAs", { account: state.account })}. ` : ""}
-          {t("oauth.doneBody")}
+          {t(POPUP ? "oauth.closing" : "oauth.doneBody")}
         </EmptyState>
       )}
       {state.kind === "failed" && (

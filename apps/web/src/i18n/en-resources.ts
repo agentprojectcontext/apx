@@ -357,6 +357,7 @@ export const enResources = {
   "oauth.doneBody": "You can close this tab and go back to APX.",
   "oauth.failTitle": "The sign-in did not finish",
   "oauth.nothing": "There is no sign-in to finish here.",
+  "oauth.closing": "This window closes by itself: carry on in APX.",
   "oauth.open": "Open APX",
   "int.desc.github": "Repositories, issues and pull requests.",
   "int.desc.notion": "Pages and databases of your workspace.",

@@ -1,8 +1,8 @@
 // OpenRouter's sign-in (OAuth PKCE): the owner approves at openrouter.ai and APX gets a key of their own account.
 import crypto from "node:crypto";
 
-export const OPENROUTER_AUTH = "https://openrouter.ai/auth";
-export const OPENROUTER_KEYS = "https://openrouter.ai/api/v1/auth/keys";
+const OPENROUTER_AUTH = "https://openrouter.ai/auth";
+const OPENROUTER_KEYS = "https://openrouter.ai/api/v1/auth/keys";
 /** How long an approval started here can come back. */
 const TTL_MS = 10 * 60_000;
 const DEADLINE_MS = 20_000;
