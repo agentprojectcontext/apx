@@ -71,6 +71,8 @@ export function inboxFixtures(): Workspace {
         parent_id: "session_a",
         agent_ids: ["agent_c"],
         state: "failed",
+        // The chat's latest run, so "Launch planning" shows it failed.
+        updated_at: "2026-10-19T10:30:00Z",
       }),
       thread("run_today", "Daily review · Today", {
         kind: "routine",
