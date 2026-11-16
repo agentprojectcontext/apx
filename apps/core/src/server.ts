@@ -49,6 +49,7 @@ import { createMemoryIndex } from "./engine/memory-index.ts";
 import { createMemoryMaintenance } from "./engine/memory-maintenance.ts";
 import { createNoticePush } from "./engine/notice-push.ts";
 import { createPermissions } from "./engine/permissions.ts";
+import { continuePlan } from "./engine/plan-continue.ts";
 import type { ProfileRoot } from "./engine/profiles.ts";
 import { createSkillPicker } from "./engine/skill-pick.ts";
 import { compactBackupName, createRetention } from "./engine/store-retention.ts";
@@ -628,6 +629,7 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
       scheduler.afterRun(run);
       scheduler.stalls.afterRun(run);
       afterWorkTurn(store, engine.admit, run);
+      continuePlan(store, engine.admit, run);
       groups.afterRun(run);
     },
   });

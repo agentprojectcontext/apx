@@ -203,10 +203,12 @@ export const callMethods = {
 
 /** Live frames on the /voice-call socket, from the core to the panel (audio travels as binary frames). */
 export const CallFrame = z.discriminatedUnion("type", [
-  /** The engine is loading its models (the first call after a while). */
+  /** The engine is loading its models (the first call after a while): how far it got and about how long is left. */
   z.object(
     schemaFields({
       type: () => z.literal("preparing"),
+      progress: () => z.number().min(0).max(1).optional(),
+      left_s: () => z.number().min(0).optional(),
     }),
   ),
   z.object(

@@ -154,3 +154,23 @@ test("models installed before a change of models count as missing, so the new on
   assert.equal(old.installed(), false);
   old.close();
 });
+
+test("a call is told how long the voice usually takes to load, from its recent loads on this Mac", (t) => {
+  const tmp = tempDir();
+  t.after(() => tmp.remove());
+  const engine = createVoiceEngine({
+    log: quiet,
+    home: tmp.path,
+    platform: "darwin",
+    arch: "arm64",
+    memoryGb: 24,
+    uv: () => "/opt/homebrew/bin/uv",
+  });
+  t.after(() => engine.close());
+  assert.equal(engine.expectedWait(), undefined, "unknown before the first load");
+  fs.mkdirSync(path.join(tmp.path, "voice"), { recursive: true });
+  // One slow load among usual ones does not set the wait: the middle of the last three does.
+  const loads = { start: [3, 4, 3], draft: [57, 2.3, 2.5], mouth: [3.3, 2.1, 3], broken: "x" };
+  fs.writeFileSync(path.join(tmp.path, "voice", "load-light.json"), JSON.stringify(loads));
+  assert.equal(engine.expectedWait(), 9);
+});

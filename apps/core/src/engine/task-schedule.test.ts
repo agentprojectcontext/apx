@@ -8,6 +8,8 @@ import { say, scriptedLlm, startCore } from "./testkit.ts";
 const llm = scriptedLlm((_req, { system, said }) => {
   if (system.startsWith("You are Scout") && said.includes("Check task") && said.includes("Totals"))
     return say("Needs work: the totals round down a cent.");
+  if (system.startsWith("You are Scout") && said.includes("Check task") && said.includes("Banner"))
+    return say("Aprobado con cambios: falta el texto alternativo de la imagen.");
   if (system.startsWith("You are Scout") && said.includes("Check task")) return say("Approved: the tests pass.");
   return say("On it.");
 });
@@ -106,6 +108,18 @@ test("a review that finds nothing failing sends the task back to its agent to de
     !store.notifications.list({ unreadOnly: true, limit: 50 }).some((n) => n.ref === `review:${task.id}`),
     "the owner is not asked to close it",
   );
+});
+
+test("approved with changes is a report for the doer, not a clean pass", async () => {
+  const store = env.core.store;
+  const task = await env.client.call("tasks.create", { title: "Banner copy", assignee: "vera" });
+  await env.client.call("tasks.update", { task: task.id, status: "review", reviewer: "scout" });
+  for (const s of store.threads.sessions(task.thread_id)) await env.settle(s.id);
+  const chat = store.threads.byTask(task.id).find((t) => t.agent_ids[0] === "vera");
+  if (chat) await env.settle(chat.id);
+  const parts = JSON.stringify((await env.client.call("threads.get", { thread: chat?.id ?? "" })).messages);
+  assert.match(parts, /checked the task:/);
+  assert.doesNotMatch(parts, /found nothing that fails/);
 });
 
 test("a task created straight in review is the owner's to check", async () => {
