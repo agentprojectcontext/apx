@@ -6,7 +6,7 @@ import { appConversationMethods } from "./app-methods-conversation.ts";
 import { appMediaMethods } from "./app-methods-media.ts";
 import { appSetupMethods } from "./app-methods-setup.ts";
 
-export { SetupPrepare } from "./app-methods-setup.ts";
+export { PanelMode, SetupPrepare } from "./app-methods-setup.ts";
 
 import { appWorkspaceMethods } from "./app-methods-workspace.ts";
 

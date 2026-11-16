@@ -19,6 +19,7 @@ import {
 } from "./lazy.ts";
 import { IS_BROWSER_WINDOW } from "./panel/browserWindow.ts";
 import { useNav } from "./shell/nav.ts";
+import { loadPanelMode } from "./shell/panelMode.ts";
 import { Shell } from "./shell/Shell.tsx";
 
 /** The pages Google and OpenRouter send the browser back to after the owner signs in (the core serves the panel there). */
@@ -96,6 +97,7 @@ function Panel() {
   useEffect(() => {
     if (QUICK || IS_BROWSER_WINDOW || ARTIFACT) return;
     void loadSetup();
+    void loadPanelMode();
     void loadTelemetry();
   }, []);
   if (ARTIFACT)

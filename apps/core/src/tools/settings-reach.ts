@@ -119,6 +119,7 @@ export const OWNER_ONLY: Readonly<Record<string, string>> = {
   "setup.finish": MACHINE,
   "setup.greet": MACHINE,
   "setup.prepare": MACHINE,
+  "setup.onboard": AS_OWNER,
   "setup.prepare_status": MACHINE,
   "setup.import_v1": MACHINE,
   "setup.take_over_cli": MACHINE,

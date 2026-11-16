@@ -1,9 +1,11 @@
 // Live link to the core: one socket, events folded into the store, refetch on reconnect or seq gap.
+
 import type { CoreEvent, EventFrame } from "@apx/protocol";
 import type { ApxSocket } from "@apx/protocol/client";
 import { t } from "../i18n/index.ts";
 import { documentToOpen } from "../panel/documents.ts";
 import { go, nav } from "../shell/nav.ts";
+import { shown as shownPanelMode } from "../shell/panelMode.ts";
 import { bootstrap, refetchLoaded } from "./actions.ts";
 import { client } from "./client.ts";
 import { flowDraftChanged } from "./flowDrafts.ts";
@@ -239,6 +241,9 @@ function apply(ev: CoreEvent): void {
     case "browser.tabs":
       // The core checks a node's tabs before pushing them.
       data.set({ tabs: ev.tabs });
+      return;
+    case "panel.mode":
+      shownPanelMode(ev.mode);
       return;
     case "storage.changed":
       void loadDiskStatus();

@@ -1,4 +1,5 @@
 // One run, start to end: context in, harness loop, every tool call through one executor, an honest end state.
+
 import path from "node:path";
 import {
   type Autonomy,
@@ -16,6 +17,7 @@ import { readOrganization } from "../apc/org.ts";
 import type { AgentRecord } from "../domain/agents.ts";
 import { memorySettings } from "../domain/memory-settings.ts";
 import { ownerIdentity, ownerTimeZone } from "../domain/owner.ts";
+import { panelMode } from "../domain/panel-mode.ts";
 import { worksIn } from "../domain/projects.ts";
 import { engineOf, harnessOf, isCliRef } from "../domain/refs.ts";
 import { failureOf } from "../domain/run-failure.ts";
@@ -754,6 +756,7 @@ function systemFor(
     channelsOn(store),
     told,
     placeOf(store, turn.agent),
+    panelMode(store) === "simple",
   );
   return {
     text,

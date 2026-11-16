@@ -65,6 +65,7 @@ import { mediaHandlers } from "./rpc/media.ts";
 import { memoryHandlers } from "./rpc/memory.ts";
 import { noticeHandlers } from "./rpc/notices.ts";
 import { notificationHandlers } from "./rpc/notifications.ts";
+import { panelModeHandlers } from "./rpc/panel-mode.ts";
 import { phoneHandlers } from "./rpc/phone.ts";
 import { providerHandlers } from "./rpc/providers.ts";
 import { resourceHandlers } from "./rpc/resources.ts";
@@ -369,6 +370,7 @@ export function coreHandlers(d: HandlerDeps & { vm?: Computer | undefined }) {
     ...transcriptionHandlers(d.services, d.localModels),
     ...callHandlers(d.voice),
     ...embeddingHandlers(d.localEmbeds, () => d.memory.engine()),
+    ...panelModeHandlers(d.store, d.bus),
     ...prepareHandlers({
       store: d.store,
       local: d.localEmbeds,

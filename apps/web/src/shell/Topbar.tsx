@@ -22,6 +22,7 @@ export function Topbar() {
   const canForward = useNavHistory((s) => s.canForward);
   const agents = useData((s) => s.agents);
   const sec = secretary(agents);
+  const homeId = useData((s) => Object.values(s.threads).find((x) => x.kind === "home")?.id);
   const mode = usePanelMode();
   const simple = mode === "simple";
   return (
@@ -74,19 +75,22 @@ export function Topbar() {
       <div className="topbar__right" ref={rightRef}>
         <div className="topbar__activity">
           <AttentionTray />
-          <Suspense
-            fallback={
-              <IconButton
-                size="sm"
-                className="running"
-                label={t("running.label")}
-                icon={<Icons.Bot size={14} />}
-                disabled
-              />
-            }
-          >
-            <RunningIndicator />
-          </Suspense>
+          {/* Agents and processes at work are the team's view: a simple panel leaves them out. */}
+          {!simple && (
+            <Suspense
+              fallback={
+                <IconButton
+                  size="sm"
+                  className="running"
+                  label={t("running.label")}
+                  icon={<Icons.Bot size={14} />}
+                  disabled
+                />
+              }
+            >
+              <RunningIndicator />
+            </Suspense>
+          )}
           <WhatsNewPill />
           <UpdatePill />
         </div>
@@ -120,13 +124,22 @@ export function Topbar() {
             />
           }
         />
-        {/* A call to the super-agent, beside it and never folded away with the rest. */}
+        {/* The super-agent, then a call and a chat with it: never folded away with the rest. */}
+        {sec && <SuperAgentButton agent={sec} />}
         {sec && (
           <Suspense fallback={null}>
             <CallButton agent={sec} className="topbar__call" />
           </Suspense>
         )}
-        {sec && <SuperAgentButton agent={sec} />}
+        {sec && (
+          <IconButton
+            size="sm"
+            className="topbar__chat"
+            label={t("roby.openHint", { name: sec.name })}
+            icon={<Icons.MessageCircle size={14} />}
+            onClick={() => homeId && go.inboxThread(homeId)}
+          />
+        )}
       </div>
     </header>
   );

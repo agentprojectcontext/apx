@@ -348,3 +348,15 @@ test("an agent's place in its team comes from the team itself, not from its prom
   );
   assert.match(system, /^You are Fausto, Senior Developer[^\n]*\nYour place in the team: you answer to Pia/);
 });
+
+test("on the simple panel only the super-agent is told to work alone and offer the full panel", () => {
+  const boss = { id: "superagent", name: "Roby", role: "", kind: "secretary", prompt: "" } as Parameters<
+    typeof systemPrompt
+  >[0];
+  const worker = { ...boss, id: "writer", kind: "agent" } as Parameters<typeof systemPrompt>[0];
+  const prompt = (agent: typeof boss, simple: boolean) =>
+    systemPrompt(agent, { kind: "home" }, "es", undefined, "", "", undefined, "", "", false, true, {}, "", simple);
+  assert.match(prompt(boss, true), /simple panel.*never create projects or agents.*panel\.set_mode/s);
+  assert.doesNotMatch(prompt(boss, false), /simple panel/);
+  assert.doesNotMatch(prompt(worker, true), /simple panel/);
+});

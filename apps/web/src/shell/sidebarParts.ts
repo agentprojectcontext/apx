@@ -2,7 +2,7 @@ import { Icons, type MenuEntry } from "@apx/ui";
 import { createElement } from "react";
 import { setPrefs, usePrefs } from "../data/prefs.ts";
 import { type MessageKey, useT } from "../i18n/index.ts";
-import { SIMPLE_PARTS } from "./panelMode.ts";
+import { SIMPLE_GONE, SIMPLE_OFF } from "./panelMode.ts";
 
 /** The sidebar's views (its top rows) and sections: the owner may hide them and change their order. */
 export const SIDEBAR_VIEWS = [
@@ -27,11 +27,15 @@ export type SectionId = (typeof SIDEBAR_SECTIONS)[number]["id"];
 type PartId = ViewId | SectionId;
 type Part = (typeof SIDEBAR_VIEWS)[number] | (typeof SIDEBAR_SECTIONS)[number];
 
-/** Whether a sidebar view or section shows: all do until the owner hides one; a simple panel keeps only its few. */
+/** Whether a sidebar view or section shows: all do until the owner hides one; a simple panel leaves projects and sessions out. */
 export function useSidebarShows(): (id: PartId) => boolean {
   const hidden = usePrefs((s) => s.navHidden);
   const simple = usePrefs((s) => s.panelMode === "simple");
-  return (id) => !hidden.includes(id) && (!simple || SIMPLE_PARTS.has(id));
+  const on = usePrefs((s) => s.simpleOn);
+  return (id) =>
+    simple
+      ? !SIMPLE_GONE.has(id) && (SIMPLE_OFF.has(id) ? on.includes(id) : !hidden.includes(id))
+      : !hidden.includes(id);
 }
 
 /** Ids in the owner's order: the ones they placed first, then the rest as they come. */
@@ -64,21 +68,31 @@ export function useSidebarMenu(withCompact = true): MenuEntry[] {
   const hidden = usePrefs((s) => s.navHidden);
   const compact = usePrefs((s) => s.sidebarCompact);
   const simple = usePrefs((s) => s.panelMode === "simple");
-  const offered = (p: Part) => !simple || SIMPLE_PARTS.has(p.id);
-  const part = (p: Part): MenuEntry => ({
-    label: t(p.label),
-    checked: !hidden.includes(p.id),
-    keepOpen: true,
-    onSelect: () =>
-      setPrefs({ navHidden: hidden.includes(p.id) ? hidden.filter((x) => x !== p.id) : [...hidden, p.id] }),
-  });
+  const on = usePrefs((s) => s.simpleOn);
+  const offered = (p: Part) => !simple || !SIMPLE_GONE.has(p.id);
+  const part = (p: Part): MenuEntry =>
+    simple && SIMPLE_OFF.has(p.id)
+      ? {
+          label: t(p.label),
+          checked: on.includes(p.id),
+          keepOpen: true,
+          onSelect: () => setPrefs({ simpleOn: on.includes(p.id) ? on.filter((x) => x !== p.id) : [...on, p.id] }),
+        }
+      : {
+          label: t(p.label),
+          checked: !hidden.includes(p.id),
+          keepOpen: true,
+          onSelect: () =>
+            setPrefs({ navHidden: hidden.includes(p.id) ? hidden.filter((x) => x !== p.id) : [...hidden, p.id] }),
+        };
   return [
     { type: "label", label: t("nav.showViews") },
     ...SIDEBAR_VIEWS.filter(offered).map(part),
     { type: "separator" },
     { type: "label", label: t("nav.showSections") },
     ...SIDEBAR_SECTIONS.filter(offered).map(part),
-    ...(withCompact
+    // A simple panel's sidebar is always compact: nothing to choose.
+    ...(withCompact && !simple
       ? ([
           { type: "separator" },
           {

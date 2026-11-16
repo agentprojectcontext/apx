@@ -23,26 +23,39 @@ export function AccountRow({ rail }: { rail: boolean }) {
       icon: <Icons.Sun />,
       onSelect: () => go.config("appearance"),
     },
-    {
-      // On a phone the top bar has no room for the switch: it is here too.
-      label: t(simple ? "mode.toAdvanced" : "mode.toSimple"),
-      icon: simple ? <Icons.LayoutGrid /> : <Icons.MessageCircle />,
-      onSelect: () => setPanelMode(simple ? "advanced" : "simple"),
-    },
+    // On a phone the top bar has no room for the switch; a simple panel keeps it to the top bar.
+    ...(simple
+      ? []
+      : [
+          {
+            label: t("mode.toSimple"),
+            icon: <Icons.MessageCircle />,
+            onSelect: () => setPanelMode("simple"),
+          },
+        ]),
     { label: t("phone.open"), icon: <Icons.Smartphone />, onSelect: () => go.phone(true) },
-    { label: t("setup.menu"), icon: <Icons.Sparkles />, onSelect: openSetup },
-    { label: t("sysUsage.title"), icon: <Icons.MemoryStick />, onSelect: () => go.usageDialog(true) },
-    {
-      label: t("appearance.compact"),
-      // A checkbox: an option turned on and off, not a pick among several.
-      icon: (
-        <span className={compact ? "account__checkbox is-on" : "account__checkbox"} aria-hidden="true">
-          {compact && <Icons.Check size={10} />}
-        </span>
-      ),
-      keepOpen: true,
-      onSelect: () => setPrefs({ sidebarCompact: !compact }),
-    },
+    // A simple panel keeps its menu to the everyday: no setup again, no machine gauges, no sidebar layout.
+    ...(simple
+      ? []
+      : [
+          { label: t("setup.menu"), icon: <Icons.Sparkles />, onSelect: openSetup },
+          { label: t("sysUsage.title"), icon: <Icons.MemoryStick />, onSelect: () => go.usageDialog(true) },
+        ]),
+    ...(simple
+      ? []
+      : ([
+          {
+            label: t("appearance.compact"),
+            // A checkbox: an option turned on and off, not a pick among several.
+            icon: (
+              <span className={compact ? "account__checkbox is-on" : "account__checkbox"} aria-hidden="true">
+                {compact && <Icons.Check size={10} />}
+              </span>
+            ),
+            keepOpen: true,
+            onSelect: () => setPrefs({ sidebarCompact: !compact }),
+          },
+        ] satisfies MenuEntry[])),
     {
       type: "submenu",
       label: t("nav.showInSidebar"),

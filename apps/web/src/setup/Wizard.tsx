@@ -12,7 +12,6 @@ import { closeCard } from "../data/cornerCards.ts";
 import { secretary } from "../data/identity.ts";
 import { loadModelsConfig, saveModelsConfig, splitRef, useModels } from "../data/models.ts";
 import { notify } from "../data/notices.ts";
-import { setPrefs } from "../data/prefs.ts";
 import { updateBase } from "../data/projects.ts";
 import { useProviders } from "../data/providers.ts";
 import {
@@ -31,6 +30,7 @@ import { type MessageKey, useLanguage, usePack, useT } from "../i18n/index.ts";
 import { useDesktopClass } from "../shell/desktop.ts";
 import { LanguageMenu } from "../shell/LanguageMenu.tsx";
 import { go, useNav } from "../shell/nav.ts";
+import { setPanelMode } from "../shell/panelMode.ts";
 import { ALL_SLIDES } from "../shell/welcomeFilm.ts";
 import { BuildVersion } from "./BuildVersion.tsx";
 import { type Draft, defaultDraft } from "./draft.ts";
@@ -231,7 +231,7 @@ function WizardBody() {
     try {
       localStorage.removeItem(RESUME_KEY);
     } catch {}
-    setPrefs({ panelMode: d.style });
+    setPanelMode(d.style);
     // Someone who just installed has nothing to compare: what is new starts with the next release.
     closeCard({ welcomeSeen: [...ALL_SLIDES] });
     await finishSetup();

@@ -6,14 +6,19 @@ import { Button } from "../kit";
 import { makeStyles, useTheme } from "../theme";
 
 type ChoicesPart = Extract<Message["parts"][number], { type: "choices" }>;
-/** Sets the agent's personality, then says the pick in the chat. */
-export type PickPersonality = (personality: string, said: string) => Promise<void>;
+/** Which question of getting to know the owner a card answers. */
+export type ChoicesFor = ChoicesPart["for"];
+/** Keeps the answer (and, for how the agent talks, its personality); the next question or the agent follows. */
+export type PickAnswer = (value: string, said: string) => Promise<void>;
 
-/** Answers the agent offers, while the chat is still on them: a pick (or the owner's own words) sets its personality. */
-export function ChoicesCard({ part, pick }: { part: ChoicesPart; pick: PickPersonality }) {
+/**
+ * Answers to one question of getting to know the owner, while the chat is still on them: a pick or their own words.
+ * With no answers offered, the owner writes theirs.
+ */
+export function ChoicesCard({ part, pick }: { part: ChoicesPart; pick: PickAnswer }) {
   const theme = useTheme();
   const s = useStyles();
-  const [own, setOwn] = useState<string>();
+  const [own, setOwn] = useState<string | undefined>(part.options.length ? undefined : "");
   const [busy, setBusy] = useState<string>();
   const go = (key: string, personality: string, said: string) => {
     setBusy(key);
@@ -53,7 +58,13 @@ export function ChoicesCard({ part, pick }: { part: ChoicesPart; pick: PickPerso
             value={own}
             maxLength={1000}
             onChangeText={setOwn}
-            placeholder={t("choicesOwnPlaceholder")}
+            placeholder={t(
+              part.for === "name"
+                ? "choicesNamePlaceholder"
+                : part.for === "personality"
+                  ? "choicesOwnPlaceholder"
+                  : "choicesAnswerPlaceholder",
+            )}
             placeholderTextColor={theme.fgSubtle}
             multiline
             style={s.input}

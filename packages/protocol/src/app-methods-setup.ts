@@ -42,12 +42,50 @@ export const SetupPrepare = z.object({
 });
 export type SetupPrepare = z.infer<typeof SetupPrepare>;
 
+/** Simple: an assistant for the owner's day, without projects; advanced: projects, a team and every setting. */
+export const PanelMode = z.enum(["simple", "advanced"]);
+export type PanelMode = z.infer<typeof PanelMode>;
+
 export const appSetupMethods = {
+  "panel.mode": deferMethod({
+    params: () => z.object({}).strict(),
+    result: () => z.object({ mode: PanelMode }),
+    effect: false,
+    access: "human",
+  }),
+  /** Switches every panel of this APX between simple and advanced; the super-agent may do it at the owner's word. */
+  "panel.set_mode": deferMethod({
+    params: () => z.object({ mode: PanelMode }).strict(),
+    result: () => z.object({ mode: PanelMode }),
+    effect: true,
+    access: "human",
+  }),
   /**
    * Leaves ready what this machine can run without asking: an embedding model through Ollama (memory then searches
    * by meaning), APX's own voice (voice notes and calls), images with the ChatGPT plan. Starts once; downloads go on
    * in the background, and the result says where each part stands.
    */
+  /**
+   * The owner answered one question of getting to know them (a choices card in the super-agent's chat): kept where it
+   * belongs and shown as their words, then the next question. After the last one `say` comes back for the panel to
+   * send as the owner's message, so the agent answers it.
+   */
+  "setup.onboard": deferMethod({
+    params: () =>
+      z
+        .object({
+          step: z.enum(["name", "work", "personality", "help"]),
+          answer: z.string().trim().min(1).max(1000),
+        })
+        .strict(),
+    result: () =>
+      z.object({
+        next: z.enum(["name", "work", "personality", "help"]).optional(),
+        say: z.string().optional(),
+      }),
+    effect: true,
+    access: "human",
+  }),
   "setup.prepare": deferMethod({
     params: () => z.object({}).strict(),
     result: () => SetupPrepare,

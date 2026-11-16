@@ -75,8 +75,10 @@ export type Prefs = {
   /** How the top bar shows the AI quotas and the system resources: with their figures, or as a small mark. */
   quotaBar: BarShow;
   resourcesBar: BarShow;
-  /** Simple: the super-agent and its chats only; advanced: projects, team and every setting. Picked in the setup. */
+  /** Simple: everything but projects, with fewer settings; advanced: the whole panel. The core's word, kept here to draw at once. */
   panelMode: PanelMode;
+  /** Sidebar views a simple panel leaves off until the owner turns them on (Flows). */
+  simpleOn: string[];
 };
 
 export type PanelMode = "simple" | "advanced";
@@ -136,6 +138,7 @@ const DEFAULTS: Prefs = {
   quotaBar: "full",
   resourcesBar: "full",
   panelMode: "advanced",
+  simpleOn: [],
 };
 
 function load(): Prefs {
@@ -191,6 +194,7 @@ function load(): Prefs {
       quotaBar: raw.quotaBar === "mini" ? "mini" : "full",
       resourcesBar: raw.resourcesBar === "mini" ? "mini" : "full",
       panelMode: raw.panelMode === "simple" ? "simple" : "advanced",
+      simpleOn: idsOf(raw.simpleOn),
     };
   } catch {
     return DEFAULTS;
