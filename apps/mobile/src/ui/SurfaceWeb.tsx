@@ -1,6 +1,7 @@
 import * as ScreenOrientation from "expo-screen-orientation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Modal, Text, View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { WebView } from "react-native-webview";
 import type { Params } from "../../../../packages/protocol/src/index.ts";
 import { t } from "../i18n";
@@ -117,10 +118,22 @@ export function SurfaceFull({
   onClose: () => void;
 }) {
   const s = useStyles();
+  // Edge to edge, so the bars and a turned phone's camera cutout never cover the widget or its buttons.
+  const insets = useSafeAreaInsets();
   useTurnable(true);
   return (
-    <Modal visible animationType="slide" onRequestClose={onClose} statusBarTranslucent={false}>
-      <View style={s.full}>
+    <Modal visible animationType="slide" onRequestClose={onClose} statusBarTranslucent navigationBarTranslucent>
+      <View
+        style={[
+          s.full,
+          {
+            paddingTop: insets.top,
+            paddingBottom: insets.bottom,
+            paddingLeft: insets.left,
+            paddingRight: insets.right,
+          },
+        ]}
+      >
         <View style={s.head}>
           <Text numberOfLines={1} style={s.title}>
             {surface.title}

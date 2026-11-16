@@ -279,8 +279,9 @@ const useStyles = makeStyles((theme) => ({
   carousel: { gap: 6 },
   sheet: { gap: 12, paddingHorizontal: 16, paddingBottom: 24 },
   highlight: { color: theme.fg, fontSize: 20, fontWeight: "700", fontVariant: ["tabular-nums"] },
-  actions: { flexDirection: "row", gap: 8, marginTop: "auto", paddingTop: 4 },
-  action: { flex: 1 },
+  actions: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginTop: "auto", paddingTop: 4 },
+  // As wide as its label, growing to share the row; a button that does not fit goes to the next line.
+  action: { flexGrow: 1 },
   more: {
     position: "absolute",
     right: 10,

@@ -6,7 +6,7 @@ import { viaOf } from "../chat/via";
 import { clock } from "../format";
 import type { Agent } from "../hooks/useWorkspace";
 import { t } from "../i18n";
-import { type ApxClient, type Message, receivedMail } from "../protocol";
+import { type ApxClient, INLINE_LANGS, type Message, receivedMail } from "../protocol";
 import { ActionGroup } from "./ActionGroup";
 import { AgentEventCard } from "./chat/AgentEventCard";
 import { BrowserCard } from "./chat/BrowserCard";
@@ -156,7 +156,12 @@ export function ChatMessage({
             accessibilityHint={t("messageMenuHint")}
             onLongPress={() => setOpen({ kind: "text" })}
             delayLongPress={350}
-            style={({ pressed }) => [s.bubble, mine ? s.mineBox : s.theirs, pressed && { opacity: 0.85 }]}
+            style={({ pressed }) => [
+              s.bubble,
+              mine ? s.mineBox : s.theirs,
+              !mine && INLINE_FENCE.test(part.text) && s.wide,
+              pressed && { opacity: 0.85 },
+            ]}
           >
             {mine ? (
               <Text style={s.mineText}>{part.text}</Text>
@@ -275,6 +280,9 @@ export function ChatMessage({
   );
 }
 
+/** An answer with cards in it: its bubble takes the full width, since cards that scroll sideways have no width of their own. */
+const INLINE_FENCE = new RegExp(`^\`\`\`(${[...INLINE_LANGS].join("|")})\\s*$`, "m");
+
 const useStyles = makeStyles((theme) => ({
   wrap: { gap: 4, marginVertical: 5 },
   mineWrap: { alignSelf: "flex-end", alignItems: "flex-end", maxWidth: "82%" },
@@ -295,6 +303,7 @@ const useStyles = makeStyles((theme) => ({
     borderBottomRightRadius: 20,
     borderBottomLeftRadius: 6,
   },
+  wide: { alignSelf: "stretch" },
   mineText: { color: theme.accentFg, fontSize: 15, lineHeight: 21 },
   metaRow: { flexDirection: "row", alignItems: "center", gap: 4 },
   meta: { color: theme.fgSubtle, fontSize: 11, fontFamily: theme.mono },
