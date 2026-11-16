@@ -27,9 +27,14 @@ function newer(a: string, b: string): number {
   return a.length - b.length;
 }
 
+/** A provider's own router over its free models ("…/free"): a new account may have no credit yet, so it leads. */
+export const FREE_ROUTER = /(?:^|\/)free$/i;
+
 /** The chat model a new chain gets for this provider, or none when it lists no chat model. */
 export function starterModel(models: ReadonlyArray<{ id: string; chat: boolean }>): string | undefined {
   const chat = models.filter((m) => m.chat).map((m) => m.id);
+  const free = chat.find((id) => FREE_ROUTER.test(id));
+  if (free) return free;
   const usual = chat.filter((id) => !ODD.test(id));
   const plain = usual.filter((id) => !DATED.test(id));
   const pool = plain.length ? plain : usual.length ? usual : chat;

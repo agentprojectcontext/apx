@@ -243,51 +243,73 @@ export function AgentStep({ draft: d, set }: StepProps) {
       >
         {t(simple ? "setup.agent.simpleBody" : "setup.agent.body")}
       </StepHead>
-      {simple && (
-        <div className="wiz__float">
-          {d.blob && <AgentAvatar name={d.name || "crew"} blob={d.blob} size={120} />}
-          <b>{d.name.trim()}</b>
+      {simple ? (
+        <div className="wiz__namerow">
+          <div className="wiz__namecol">
+            <div className="wiz__ideas">
+              {ideas.map((n) => (
+                <Button
+                  key={n}
+                  size="sm"
+                  variant={d.name.trim() === n ? "primary" : "secondary"}
+                  onClick={() => set({ name: n })}
+                >
+                  {n}
+                </Button>
+              ))}
+              <IconButton
+                size="sm"
+                label={t("setup.agent.moreNames")}
+                icon={<Icons.Dices size={16} />}
+                onClick={() => setIdeas(threeNames(d.name))}
+              />
+            </div>
+            <div className="wiz__field">
+              <span>{t(simple ? "setup.agent.ownName" : "setup.agent.name")}</span>
+              <Input
+                className="wiz__name"
+                aria-label={t("setup.agent.name")}
+                placeholder={t("setup.agent.namePlaceholder")}
+                value={d.name}
+                maxLength={80}
+                onChange={(e) => set({ name: e.currentTarget.value })}
+                trailing={
+                  <IconButton
+                    size="sm"
+                    label={t("setup.agent.randomName")}
+                    icon={<Icons.Dices size={16} />}
+                    onClick={() => set({ name: randomAgentName(d.name.trim()) })}
+                  />
+                }
+              />
+            </div>
+          </div>
+          <div className="wiz__float">
+            {d.blob && <AgentAvatar name={d.name || "crew"} blob={d.blob} size={120} />}
+            <b>{d.name.trim()}</b>
+          </div>
         </div>
-      )}
-      {simple && (
-        <div className="wiz__ideas">
-          {ideas.map((n) => (
-            <Button
-              key={n}
-              size="sm"
-              variant={d.name.trim() === n ? "primary" : "secondary"}
-              onClick={() => set({ name: n })}
-            >
-              {n}
-            </Button>
-          ))}
-          <IconButton
-            size="sm"
-            label={t("setup.agent.moreNames")}
-            icon={<Icons.Dices size={16} />}
-            onClick={() => setIdeas(threeNames(d.name))}
+      ) : (
+        <div className="wiz__field">
+          <span>{t(simple ? "setup.agent.ownName" : "setup.agent.name")}</span>
+          <Input
+            className="wiz__name"
+            aria-label={t("setup.agent.name")}
+            placeholder={t("setup.agent.namePlaceholder")}
+            value={d.name}
+            maxLength={80}
+            onChange={(e) => set({ name: e.currentTarget.value })}
+            trailing={
+              <IconButton
+                size="sm"
+                label={t("setup.agent.randomName")}
+                icon={<Icons.Dices size={16} />}
+                onClick={() => set({ name: randomAgentName(d.name.trim()) })}
+              />
+            }
           />
         </div>
       )}
-      <div className="wiz__field">
-        <span>{t(simple ? "setup.agent.ownName" : "setup.agent.name")}</span>
-        <Input
-          className="wiz__name"
-          aria-label={t("setup.agent.name")}
-          placeholder={t("setup.agent.namePlaceholder")}
-          value={d.name}
-          maxLength={80}
-          onChange={(e) => set({ name: e.currentTarget.value })}
-          trailing={
-            <IconButton
-              size="sm"
-              label={t("setup.agent.randomName")}
-              icon={<Icons.Dices size={16} />}
-              onClick={() => set({ name: randomAgentName(d.name.trim()) })}
-            />
-          }
-        />
-      </div>
       <div className="wiz__field">
         <span>{t("setup.agent.blobs", { n: BLOB_NAMES.length })}</span>
         <div className="wiz__blobs">

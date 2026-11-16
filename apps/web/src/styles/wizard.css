@@ -1023,7 +1023,7 @@ input.wiz__name {
   top: 0;
   display: flex;
   flex-direction: column;
-  height: min(560px, calc(100vh - 220px));
+  height: calc(100vh - 260px);
   min-height: 360px;
   overflow: hidden;
   border: 1px solid var(--apx-border);
@@ -1071,12 +1071,31 @@ input.wiz__name {
   }
 }
 /* Simple's name step: the agent floats over the names and faces, no card around it. */
+.wiz__namerow {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 220px;
+  gap: 24px;
+  align-items: center;
+}
+.wiz__namecol {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  min-width: 0;
+}
+@media (max-width: 639px) {
+  .wiz__namerow {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .wiz__namerow .wiz__float {
+    order: -1;
+  }
+}
 .wiz__float {
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 6px;
-  align-self: center;
   min-height: 150px;
   font-size: calc(20px * var(--apx-text-scale, 1));
 }

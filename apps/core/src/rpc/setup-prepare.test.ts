@@ -82,7 +82,11 @@ test("with Ollama here, memory pulls the model that fits and then searches by me
     engine = "Ollama · bge-m3";
     timers.tick();
     assert.equal(memorySettings(store).mode, "semantic");
-    assert.equal((await h["setup.prepare_status"]()).items[0]?.state, "done");
+    assert.deepEqual((await h["setup.prepare_status"]()).items[0], {
+      id: "memory",
+      state: "done",
+      detail: "Ollama · bge-m3",
+    });
   }));
 
 test("without Ollama, memory stays notes and says why; images need the ChatGPT plan", () =>

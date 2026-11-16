@@ -82,14 +82,16 @@ function PrepareList() {
             ) : i.state === "failed" ? (
               <Icons.TriangleAlert size={16} />
             ) : (
-              <Icons.CircleDashed size={16} />
+              <Icons.X size={16} />
             )}
           </span>
           <span className="meet__itemmain">
             <b>{t(LABEL[i.id])}</b>
             <span>
               {i.state === "done"
-                ? t("setup.prepare.done")
+                ? i.detail
+                  ? t("setup.prepare.doneWith", { detail: i.detail })
+                  : t("setup.prepare.done")
                 : i.state === "failed"
                   ? t("setup.prepare.failed", { error: i.error ?? "" })
                   : i.state === "skipped" && i.reason

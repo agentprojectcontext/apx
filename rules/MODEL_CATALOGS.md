@@ -26,6 +26,8 @@ gives no text (`architecture.output_modalities`). Groq models with `active: fals
 does not mean the owner's key may use it for free.
 
 The starter model a new router chain gets (`models/starter.ts`) is picked from the provider's list by name, never named.
+A provider's own router over its free models (an id ending in `/free`, such as OpenRouter's) is the starter and heads
+that provider's list: a new account may have no credit, and a paid model would fail its first turn.
 
 ## What a refresh never changes
 

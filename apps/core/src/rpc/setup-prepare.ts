@@ -68,9 +68,10 @@ export function prepareHandlers(d: PrepareDeps) {
   }
 
   function memory(): Item {
-    if (d.engine()) {
+    const engine = d.engine();
+    if (engine) {
       if (started) toMeaning();
-      return { id: "memory", state: "done" };
+      return { id: "memory", state: "done", detail: engine };
     }
     const pull = d.local.progress();
     if (pull?.error || memoryError) return { id: "memory", state: "failed", error: pull?.error ?? memoryError };

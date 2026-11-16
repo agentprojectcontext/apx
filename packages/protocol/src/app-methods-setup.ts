@@ -35,6 +35,8 @@ export const SetupPrepare = z.object({
       /** Why a part is left out: no Ollama here, a machine that cannot run the voice, no ChatGPT plan. */
       reason: z.enum(["no-ollama", "machine", "no-chatgpt"]).optional(),
       error: z.string().optional(),
+      /** What does the work once it is ready: memory's embedding engine and model ("Ollama · bge-m3"). */
+      detail: z.string().optional(),
     }),
   ),
 });
