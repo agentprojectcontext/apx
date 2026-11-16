@@ -5,7 +5,7 @@ import { client } from "../data/client.ts";
 import { mediaUrl } from "../data/media.ts";
 import { notify } from "../data/notices.ts";
 import { installVoice, loadVoice, setVoice, voiceId } from "../data/voice.ts";
-import { useT } from "../i18n/index.ts";
+import { useLanguage, useT } from "../i18n/index.ts";
 
 const errText = (e: unknown) => (e instanceof Error ? e.message : String(e));
 /** Each language's accents, the neutral one first. */
@@ -28,20 +28,25 @@ const run = async (work: () => Promise<unknown>, t: T) => {
 };
 
 /**
- * APX's own voice as the first row of Voices (`speech`: install, on/off, its voice and Listen) or of Transcription
- * (on/off; it installs from Voices). Where it can't run, the row says why.
+ * APX's own voice as the first row of Speak (`speech`: install, on/off, its voice and Try) or of Hear (on/off, and
+ * an install of only what hears). Where it can't run, the row says why.
  */
 export function VoiceRow({ kind, status: s }: { kind: "speech" | "transcription"; status: VoiceStatus }) {
   const t = useT();
+  const lang = useLanguage();
   const speech = kind === "speech";
+  // Hearing downloads alone or with the rest; this row shows the download that brings what it needs.
+  const part = s.install?.part ?? "all";
+  const mine = speech ? part === "all" : part === "ears";
   const downloading = s.install?.state === "downloading";
-  // One row follows the download (the Voices one), so the core is asked once a second, not twice.
+  const here = speech ? s.installed : s.hears_installed;
+  // The row of the download asks the core once a second, not both rows.
   useEffect(() => {
-    if (!downloading || !speech) return;
+    if (!downloading || !mine) return;
     const iv = setInterval(() => void loadVoice(), 1000);
     return () => clearInterval(iv);
-  }, [downloading, speech]);
-  const d = s.install;
+  }, [downloading, mine]);
+  const d = mine ? s.install : undefined;
   const pct = d?.total ? Math.floor((d.received / d.total) * 100) : 0;
   const can = s.tier !== "none";
 
@@ -86,16 +91,27 @@ export function VoiceRow({ kind, status: s }: { kind: "speech" | "transcription"
             <span className="res__desc">{t("voice.qualityHint")}</span>
           </div>
         )}
-        {can && !s.installed && !downloading && !speech && <div className="res__desc">{t("voice.installsAbove")}</div>}
-        {can && speech && !s.installed && !downloading && (
+        {can && !here && !speech && downloading && part === "all" && (
+          <div className="res__desc">{t("voice.installsAbove")}</div>
+        )}
+        {can && !here && !(downloading && (mine || (!speech && part === "all"))) && (
           <div className="voicerow__line">
-            <Button size="sm" leadingIcon={<Icons.Download size={14} />} onClick={() => void run(installVoice, t)}>
+            <Button
+              size="sm"
+              leadingIcon={<Icons.Download size={14} />}
+              disabled={downloading}
+              onClick={() => void run(() => installVoice(speech ? undefined : "ears"), t)}
+            >
               {d?.state === "failed" ? t("voice.retry") : t("voice.install")}
             </Button>
-            <span className="res__desc">{t(s.tier === "light" ? "voice.installLight" : "voice.installFull")}</span>
+            <span className="res__desc">
+              {speech
+                ? t(s.tier === "light" ? "voice.installLight" : "voice.installFull")
+                : t("voice.installHear", { gb: (s.models?.hears_gb ?? 1).toLocaleString(lang) })}
+            </span>
           </div>
         )}
-        {downloading && (
+        {downloading && mine && (
           <div
             className="localstt__progress"
             role="progressbar"
@@ -107,13 +123,13 @@ export function VoiceRow({ kind, status: s }: { kind: "speech" | "transcription"
             <small>{t("voice.downloading", { pct })}</small>
           </div>
         )}
-        {speech && d?.state === "failed" && (
+        {d?.state === "failed" && (
           <div className="res__desc svc__why" role="status">
             {t("voice.failed", { error: d.error ?? "" })}
           </div>
         )}
       </div>
-      {can && s.installed && (
+      {can && here && (
         <Switch
           size="sm"
           checked={s.enabled}

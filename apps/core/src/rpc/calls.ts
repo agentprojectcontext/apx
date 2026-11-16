@@ -22,6 +22,7 @@ const NONE: VoiceStatus = {
   missing: "platform",
   enabled: false,
   installed: false,
+  hears_installed: false,
   running: false,
   voice: { gender: "female", locale: "es-AR" },
   calls: false,
@@ -50,9 +51,9 @@ export function callHandlers(d: VoiceDeps | undefined) {
 
   return {
     "voice.status": () => d?.native.status() ?? NONE,
-    "voice.install": async () => {
+    "voice.install": async (p) => {
       if (!d) throw unavailable(NEEDS.platform);
-      return d.native.install();
+      return d.native.install(p.part);
     },
     "voice.set": (p) => {
       if (!d) throw unavailable(NEEDS.platform);

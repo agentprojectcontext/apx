@@ -130,6 +130,7 @@ test("a download that fails says why, and a call waiting for it gives up", async
     received: 5,
     total: 100,
     error: "could not reach the model hub",
+    part: "all",
   });
   assert.equal(engine.installed(), false);
   await assert.rejects(engine.whenInstalled(AbortSignal.timeout(5000)), /could not reach the model hub/);
@@ -239,4 +240,26 @@ test("a voice still starting counts as loading, so a call shows its wait from th
   engine.prepare();
   await waitFor(() => engine.running(), "the engine to be starting");
   assert.equal(engine.loading(), true);
+});
+
+test("downloading only what hears asks the engine for that part and counts as hearing, not as the whole voice", async (t) => {
+  const tmp = tempDir();
+  t.after(() => tmp.remove());
+  const seen: string[][] = [];
+  const engine = createVoiceEngine({
+    log: quiet,
+    home: tmp.path,
+    platform: "darwin",
+    arch: "arm64",
+    memoryGb: 24,
+    uv: () => "/opt/homebrew/bin/uv",
+    spawn: fakeUv(['{"received": 1, "total": 1}'], 0, seen),
+  });
+  t.after(() => engine.close());
+  engine.startInstall("ears");
+  assert.equal(engine.install()?.part, "ears");
+  await waitFor(() => engine.installed("ears"), "what hears to be on disk");
+  assert.deepEqual(seen[0]?.slice(-3), ["--prefetch", "--part", "ears"]);
+  assert.equal(engine.installed(), false, "the speaking voice is still to download");
+  assert.equal(seen.length, 1, "no second download follows on its own");
 });

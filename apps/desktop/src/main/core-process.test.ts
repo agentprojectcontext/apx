@@ -34,7 +34,7 @@ function fixture(source: string) {
 const record = `
   import fs from 'node:fs';
   import path from 'node:path';
-  fs.appendFileSync(path.join(process.env.APX_HOME, 'starts'), JSON.stringify({ home: process.env.APX_HOME, port: process.env.APX_PORT, app: process.env.APX_APP, host: process.env.APX_HOST, token: process.env.APX_TOKEN }) + '\\n');
+  fs.appendFileSync(path.join(process.env.APX_HOME, 'starts'), JSON.stringify({ home: process.env.APX_HOME, port: process.env.APX_PORT, app: process.env.APX_APP, host: process.env.APX_HOST, token: process.env.APX_TOKEN, voice: process.env.APX_VOICE_AUTO, skills: process.env.APX_RUNTIME_SKILLS }) + '\\n');
 `;
 
 test("an embedded child gets its explicit local target; stop is idempotent and waits for exit", {
@@ -59,6 +59,9 @@ test("an embedded child gets its explicit local target; stop is idempotent and w
       port: "17440",
       app: "",
       host: "127.0.0.1",
+      // The installed app is the owner's own APX, not a scratch core: its voice and skills set up on their own.
+      voice: "on",
+      skills: "on",
     });
     await Promise.all([core.stop(), core.stop()]);
     await new Promise((r) => setTimeout(r, 400));

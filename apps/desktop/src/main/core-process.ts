@@ -56,6 +56,9 @@ export function startEmbeddedCore(opts: {
           NODE_COMPILE_CACHE: opts.cacheDir,
           APX_APP: "",
           APX_HOME: path.resolve(opts.home),
+          // Its own home would make it a scratch core: the owner's APX still downloads its voice and sets up skills.
+          APX_VOICE_AUTO: "on",
+          APX_RUNTIME_SKILLS: "on",
           APX_PORT: String(opts.port),
           APX_WEB_DIST: path.join(root, "apps", "web", "dist"),
           APX_UPDATES: "app",
