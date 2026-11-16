@@ -1,12 +1,24 @@
 import { useEffect, useMemo, useState } from "react";
 import { Pressable, Text, TextInput, View } from "react-native";
-import { type CatalogEngine, type ModelChoice, modelOptions } from "../chat/models";
+import {
+  baseRef,
+  type CatalogEngine,
+  chosenEffort,
+  effortOptions,
+  type ModelChoice,
+  type ModelOption,
+  modelOptions,
+  withEffort,
+} from "../chat/models";
 import { t } from "../i18n";
 import { Icon } from "./Icon";
-import { BottomSheet, Spinner } from "./kit";
+import { BottomSheet, Chip, Spinner } from "./kit";
 import { makeStyles, useTheme } from "./theme";
 
-/** Picks the chat's own model: the agent's, the router, or one model the office can run now. */
+/**
+ * Picks the chat's own model: the agent's, the router, or one model the office can run now. A model with reasoning
+ * levels opens them under its row, and a level picks it.
+ */
 export function ModelSheet({
   current,
   agentName,
@@ -27,6 +39,10 @@ export function ModelSheet({
   const s = useStyles();
   const [catalog, setCatalog] = useState<CatalogEngine[]>();
   const [query, setQuery] = useState("");
+  // The model whose levels show: the chat's own at first, then the one tapped.
+  const [open, setOpen] = useState(() => (current?.model ? baseRef(current.model) : undefined));
+  const pick = (model: ModelOption, effort = "") =>
+    onPick({ model: withEffort(model.ref, effort, model.defaultEffort), router: false });
   useEffect(() => {
     void loadCatalog()
       .then(setCatalog)
@@ -73,15 +89,34 @@ export function ModelSheet({
       {groups.map((group) => (
         <View key={group.engine}>
           <Text style={s.group}>{group.engine}</Text>
-          {group.models.map((model) => (
-            <Option
-              key={model.ref}
-              id={model.ref}
-              sub={model.name}
-              selected={current?.model?.replace(/#.*$/, "") === model.ref}
-              onPress={() => onPick({ model: model.ref, router: false })}
-            />
-          ))}
+          {group.models.map((model) => {
+            const levels = effortOptions(model, t);
+            const on = chosenEffort(current, model);
+            const expanded = levels.length > 0 && open === model.ref;
+            return (
+              <View key={model.ref}>
+                <Option
+                  id={model.ref}
+                  sub={model.name}
+                  selected={on !== undefined}
+                  {...(levels.length ? { expanded } : {})}
+                  onPress={() => (levels.length ? setOpen(expanded ? undefined : model.ref) : pick(model))}
+                />
+                {expanded ? (
+                  <View accessibilityLabel={t("effort")} style={s.levels}>
+                    {levels.map((level) => (
+                      <Chip
+                        key={level.value}
+                        label={level.label}
+                        selected={on === level.value}
+                        onPress={() => pick(model, level.value)}
+                      />
+                    ))}
+                  </View>
+                ) : null}
+              </View>
+            );
+          })}
         </View>
       ))}
       {catalog && query && groups.length === 0 ? <Text style={s.none}>{t("noModels")}</Text> : null}
@@ -93,12 +128,15 @@ function Option({
   id,
   sub,
   selected,
+  expanded,
   onPress,
   sans,
 }: {
   id: string;
   sub: string;
   selected: boolean;
+  /** Set when the row opens the model's levels instead of picking it. */
+  expanded?: boolean;
   onPress: () => void;
   sans?: boolean;
 }) {
@@ -106,8 +144,8 @@ function Option({
   const s = useStyles();
   return (
     <Pressable
-      accessibilityRole="radio"
-      accessibilityState={{ checked: selected }}
+      accessibilityRole={expanded === undefined ? "radio" : "button"}
+      accessibilityState={expanded === undefined ? { checked: selected } : { selected, expanded }}
       onPress={onPress}
       style={({ pressed }) => [s.option, (selected || pressed) && { backgroundColor: theme.fill }]}
     >
@@ -120,6 +158,9 @@ function Option({
         </Text>
       </View>
       {selected ? <Icon name="Check" size={18} color={theme.fg} /> : null}
+      {expanded !== undefined ? (
+        <Icon name={expanded ? "ChevronDown" : "ChevronRight"} size={16} color={theme.fgSubtle} />
+      ) : null}
     </Pressable>
   );
 }
@@ -148,6 +189,7 @@ const useStyles = makeStyles((theme) => ({
   id: { color: theme.fg, fontSize: 15 },
   sub: { color: theme.fgSubtle, fontSize: 12 },
   group: { color: theme.fgSubtle, fontSize: 12, paddingHorizontal: 12, paddingTop: 12, paddingBottom: 4 },
+  levels: { flexDirection: "row", flexWrap: "wrap", gap: 8, paddingHorizontal: 12, paddingTop: 4, paddingBottom: 10 },
   loading: { padding: 20, alignItems: "center" },
   none: { color: theme.fgMuted, fontSize: 13, padding: 12 },
 }));
