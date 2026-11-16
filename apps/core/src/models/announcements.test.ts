@@ -22,6 +22,7 @@ test("a verified launch is relevant only to a usable, fresh exact chat model lis
   assert.ok(ModelAnnouncement.safeParse(launch).success);
   for (const unavailable of [
     engine({ available: false }),
+    engine({ kind: "harness", id: "gemini-cli" }),
     engine({ detail: "Last list; refresh failed" }),
     engine({ models: [] }),
     engine({ models: [{ id: "gemini-4-hydrogen", name: "Hydrogen", chat: false }] }),

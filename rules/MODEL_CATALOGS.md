@@ -99,7 +99,8 @@ The owner's APX runs a daily routine on the APX project that:
 
 `models/announcements.ts` curates official launch facts (exact ID, date, source, capabilities, access restrictions,
 and explicit compatibility verification). `models.list` returns one announcement per stable launch ID only when an
-available engine's non-stale list contains that exact chat model. Several engines do not create several notices.
+available model API's non-stale list contains that exact chat model. External-session harness lists are excluded:
+API access/retention facts and the model-settings action do not describe a CLI subscription. Several engines do not create several notices.
 The panel renders these through `CornerCards`/`NoticeStrip`, after operational warnings and before community cards.
 Dismissals share the existing device-local notice storage; refreshing the catalog or updating APX does not reset them.
 Clearing browser storage does; dismissals do not sync across devices.

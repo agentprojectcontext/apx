@@ -87,7 +87,11 @@ const LAUNCHES: readonly Launch[] = [
 export function modelAnnouncements(engines: readonly CatalogEngine[]): ModelAnnouncement[] {
   return LAUNCHES.flatMap((launch) => {
     const matching = engines.filter(
-      (engine) => engine.available && !engine.detail && engine.models.some((m) => m.chat && m.id === launch.model),
+      (engine) =>
+        engine.kind === "provider" &&
+        engine.available &&
+        !engine.detail &&
+        engine.models.some((m) => m.chat && m.id === launch.model),
     );
     return matching.length ? [{ ...launch, engines: matching.map((e) => e.id) }] : [];
   });
