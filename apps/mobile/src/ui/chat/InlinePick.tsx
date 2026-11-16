@@ -225,7 +225,8 @@ const useStyles = makeStyles((theme) => ({
   optionTitle: { flexDirection: "row", flexWrap: "wrap", alignItems: "center", gap: 8 },
   title: { color: theme.fg, fontSize: 14, fontWeight: "600" },
   sub: { color: theme.muted, fontSize: 12 },
-  price: { flexDirection: "row", alignItems: "baseline", gap: 6 },
+  // The old price over the new one: side by side they took half a narrow phone's row and cut the badge.
+  price: { alignItems: "flex-end", flexShrink: 0 },
   priceText: { color: theme.fg, fontSize: 16, fontWeight: "700", fontVariant: ["tabular-nums"] },
   was: { color: theme.subtle, fontSize: 12, textDecorationLine: "line-through", fontVariant: ["tabular-nums"] },
   checkout: { gap: 12, paddingTop: 12, borderTopWidth: 1, borderTopColor: theme.border },
