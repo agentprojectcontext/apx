@@ -4981,3 +4981,30 @@ turned it on) and every voice note failed with `ffmpeg: command not found`.
 Rejected: shipping ffmpeg in the installers (35–80 MB more on each, for owners who may never use voice); a WASM
 decoder in Node (heavy, slow, and a second codec stack to keep); asking the owner to install it (the failure this
 fixes).
+
+<a id="d-232"></a>
+## D-232 — 2026-11-15 — A chat's own plan goes on after a result, and "approved with changes" is a report
+An outside study of Claude Code's agent loop against APX (an owner's, with a test through APX's core) reproduced a
+stop: a coordinator in a chat with no task saves a plan, delegates its first step, and when the result comes back
+answers "analysis in, implementation and validation remain; I'll continue", and nothing runs again. The result and
+the plan both reached it; nothing checked that the "I'll continue" happened. `continueTask` (D-162) only covers task
+chats and the dropped-result retry only a silent turn.
+
+- **A result turn that only reported goes on once** (`engine/plan-continue.ts`): a `delegation_result(s)` or
+  `task_result` turn in a chat with no task, whose plan still has steps, that ran no tool besides `plan`, did not end
+  on a question to the owner, and leaves nothing to come back (no delegation, question, held or queued turn,
+  background command, breaker) gets one `plan_continue` turn telling it to do the next step, hand it on, or say in a
+  line what it waits for. That turn is not a result, so it never chains.
+- **A draft subtask does not hold its parent**: `continueTask` waits for open subtasks someone is assigned to and
+  that are not proposals; an owner's draft under a task brings nothing back, so its parent was left to the 20-minute
+  stall watch.
+- **"Approved with changes" is a report**: the clean-pass check no longer takes "approved"/"aprobado" followed by
+  with, but, except, once, after, if, pending (or con, pero, salvo, excepto, cuando, tras, si, pendiente); that verdict
+  reaches the doer as a report to act on, not as "found nothing that fails".
+- **A rule that stops the agent is named**: the base prompt's promise rule now says to name the rule (a skill's, a
+  permission), what unblocks it and who can, and that the owner's way beats a skill's preference, safety aside. Seen
+  when an extension's skill said "no ADB" and the super-agent answered the owner's "use adb" around it.
+
+Rejected: a goal or mission table beside tasks (tasks already are the goal, D-162); delivering each result of a
+fan-out as it lands (more turns and tokens for the common case; the 10-minute hold stays); continuing any result turn
+with an open plan however it ended (a turn that delegated the next part or asked the owner already took its step).
