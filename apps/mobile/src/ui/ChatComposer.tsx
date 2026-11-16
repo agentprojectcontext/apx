@@ -138,16 +138,19 @@ export function ChatComposer({
           </Pressable>
         </View>
       </View>
+      {/* The model sits under the words, away from send and mic, and its touch area never reaches up into the line:
+          a tap meant for send must not open the model picker. */}
       <View style={s.meta}>
         <Pressable
           accessibilityRole="button"
           accessibilityLabel={t("modelForChat")}
           onPress={onModel}
-          hitSlop={8}
+          hitSlop={MODEL_SLOP}
           style={({ pressed }) => [s.model, pressed && { backgroundColor: theme.fill }]}
         >
           <Icon name="Bot" size={12} color={theme.fgSubtle} />
-          <Text numberOfLines={1} style={s.metaText}>
+          {/* Cut in the middle, so the effort at its end ("· Medium") stays on a narrow phone. */}
+          <Text numberOfLines={1} ellipsizeMode="middle" style={s.metaText}>
             {model}
           </Text>
           <Icon name="ChevronDown" size={11} color={theme.fgSubtle} />
@@ -162,6 +165,8 @@ export function ChatComposer({
     </View>
   );
 }
+
+const MODEL_SLOP = { top: 0, bottom: 8, left: 6, right: 6 };
 
 const fileIcon = (mime: string): IconName =>
   mime.startsWith("audio/")
@@ -270,14 +275,16 @@ const useStyles = makeStyles((theme) => ({
   stop: { borderWidth: 1, borderColor: theme.borderStrong, marginRight: 2 },
   meta: {
     flexDirection: "row",
-    justifyContent: "flex-end",
+    justifyContent: "space-between",
     alignItems: "center",
     gap: 10,
-    paddingHorizontal: 8,
+    // Past the + button's width, so the chip lines up with the words.
+    paddingLeft: 41,
+    paddingRight: 8,
+    marginTop: 2,
     height: 24,
   },
   model: {
-    maxWidth: 200,
     flexShrink: 1,
     flexDirection: "row",
     alignItems: "center",

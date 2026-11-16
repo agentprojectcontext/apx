@@ -13,6 +13,7 @@ import { loadCatalog, loadModelsConfig } from "./models.ts";
 import { parseNewChat, takeNewChatModel } from "./newChat.ts";
 import { notify } from "./notices.ts";
 import { hasNoticesFor } from "./notifications.ts";
+import { socketCall } from "./socketCall.ts";
 import { data, upsertMessage } from "./state.ts";
 import { openMarkReadDialog } from "./threadAdmin.ts";
 
@@ -300,7 +301,7 @@ export async function markRead(threadId: string): Promise<void> {
 
 export async function loadSurfaceDoc(id: string): Promise<void> {
   try {
-    const { state, ...doc } = await client.call("surfaces.get", { surface: id });
+    const { state, ...doc } = await socketCall("surfaces.get", { surface: id });
     data.set((s) => ({
       surfaceDocs: { ...s.surfaceDocs, [id]: doc },
       surfaceStates: { ...s.surfaceStates, [id]: state ?? {} },

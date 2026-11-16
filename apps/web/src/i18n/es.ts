@@ -1631,7 +1631,7 @@ export const es: Partial<Record<MessageKey, string>> = {
     "Escribile a tu bot desde tu propio {channel} y poné acá el código que te mandó. Nunca un código que te pase otra persona.",
   "tg.code": "Código",
   "tg.link": "Vincular",
-  "config.voices": "Voces",
+  "config.voices": "Voz y llamadas",
   "config.calls": "Llamadas",
   "config.images": "Imágenes",
   "svc.image.lead":
@@ -1678,6 +1678,9 @@ export const es: Partial<Record<MessageKey, string>> = {
   "svc.prompt": "Qué dibujar",
   "svc.generate": "Generar",
   "svc.say": "Decir esto",
+  "svc.sayWith": "Decirlo con {name}",
+  "svc.testWith": "Voz a probar",
+  "svc.firstVoice": "La primera que responda ({name})",
   "svc.spokenBy": "Habló {name}",
   "svc.image.samplePrompt": "A green origami fox on a white background, studio light",
   "svc.speech.sample": "Hola, soy APX. Esta es una prueba de voz.",
@@ -1736,9 +1739,6 @@ export const es: Partial<Record<MessageKey, string>> = {
   "mem.aux.off": "Desactivado",
   "mem.aux.pickOne": "Elegí un modelo",
   "svc.embedding.empty": "Todavía no hay motores. Sumá uno local o una API.",
-  "svc.transcription": "Transcripción",
-  "svc.transcription.lead":
-    "Las notas de voz que llegan por tus canales pasan a texto con el primer motor que responde.",
   "svc.transcription.empty":
     "Todavía no hay motor de transcripción: las notas de voz llegan como “no se pudo escuchar”.",
   "time.tomorrowAt": "Mañana · {time}",

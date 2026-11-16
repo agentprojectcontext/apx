@@ -490,6 +490,16 @@ desktop app it is Electron with `ELECTRON_RUN_AS_NODE=1` inherited (checked with
 `SyntaxError:` line for a broken module, exit 0 for a good one). It runs off the event loop, all module scripts at once,
 for at most 3 seconds, and any failure to run it passes the script. Where: `apps/core/src/tools/widget-syntax.ts`.
 
+<a id="widget-first-paint"></a>
+### A widget's page is read over the live socket
+A widget opened in a chat right after the panel loaded stayed an empty box for seconds. Its frame paints within tens of
+milliseconds once it has the page; the wait was the page itself. The panel sends some thirty calls over HTTP when it
+starts, and a browser opens only six HTTP/1.1 connections to one host (the core is plain HTTP/1.1), so `surfaces.get`
+queued behind the slow ones (update checks, usage, storage). Held three seconds by a proxy, a handful of those kept a
+chat's widget blank for 2.7 s; read over the panel's socket it painted within 0.1 s of its card. `loadSurfaceDoc` now
+reads over the socket while it is open, and over HTTP when it is not or closed meanwhile. Where:
+`apps/web/src/data/socketCall.ts`, `data/live.ts`, `data/actions.ts`; test in `data/actions.test.ts`.
+
 <a id="read-only-continuation"></a>
 ### apps-listing
 Being an app and being listed in Apps were one flag (`surfaces.app`), so the owner's "Pin to Apps" turned a widget into

@@ -70,7 +70,7 @@ test("a Claude Code session reads a delegate's late result framed, with what to 
   });
   const framed = inputs.find((i) => i.includes("<delegation_result")) ?? "";
   assert.match(framed, /All found\./);
-  assert.match(framed, /This is the result of a task you delegated earlier\. Tell the owner what matters/);
+  assert.match(framed, /This is the result of a task you delegated earlier\. Finish the owner's request with it/);
   // The owner's own words still reach the session as they are.
   assert.equal(inputs[0], "delegate please");
 });

@@ -629,18 +629,9 @@
   margin-top: 0;
   padding-left: 32px;
 }
-.voicerow__short {
-  display: none;
-}
 @media (max-width: 640px) {
   .voicerow__picker {
     padding-left: 0;
-  }
-  .voicerow__long {
-    display: none;
-  }
-  .voicerow__short {
-    display: inline;
   }
 }
 .voicerow__where {

@@ -5,11 +5,13 @@ import { client } from "../data/client.ts";
 import { mediaUrl } from "../data/media.ts";
 import { notify } from "../data/notices.ts";
 import { installVoice, loadVoice, setVoice, voiceId } from "../data/voice.ts";
-import { useT } from "../i18n/index.ts";
+import { useLanguage, useT } from "../i18n/index.ts";
 
 const errText = (e: unknown) => (e instanceof Error ? e.message : String(e));
-const LOCALES: readonly VoiceLocale[] = ["es-AR", "es", "en-US"];
-/** What Listen says, in the accent picked (not the panel's language). */
+/** Each language's accents, the neutral one first. */
+const ACCENTS: Record<"es" | "en", readonly [VoiceLocale, ...VoiceLocale[]]> = { es: ["es", "es-AR"], en: ["en-US"] };
+const langOf = (l: VoiceLocale): "es" | "en" => (l.startsWith("en") ? "en" : "es");
+/** What Try says, in the accent picked (not the panel's language). */
 const SAMPLE: Record<VoiceLocale, string> = {
   "es-AR": "Hola, ¿cómo andás? Así suena mi voz.",
   es: "Hola, ¿qué tal? Así suena mi voz.",
@@ -26,20 +28,25 @@ const run = async (work: () => Promise<unknown>, t: T) => {
 };
 
 /**
- * APX's own voice as the first row of Voices (`speech`: install, on/off, its voice and Listen) or of Transcription
- * (on/off; it installs from Voices). Where it can't run, the row says why.
+ * APX's own voice as the first row of Speak (`speech`: install, on/off, its voice and Try) or of Hear (on/off, and
+ * an install of only what hears). Where it can't run, the row says why.
  */
 export function VoiceRow({ kind, status: s }: { kind: "speech" | "transcription"; status: VoiceStatus }) {
   const t = useT();
+  const lang = useLanguage();
   const speech = kind === "speech";
+  // Hearing downloads alone or with the rest; this row shows the download that brings what it needs.
+  const part = s.install?.part ?? "all";
+  const mine = speech ? part === "all" : part === "ears";
   const downloading = s.install?.state === "downloading";
-  // One row follows the download (the Voices one), so the core is asked once a second, not twice.
+  const here = speech ? s.installed : s.hears_installed;
+  // The row of the download asks the core once a second, not both rows.
   useEffect(() => {
-    if (!downloading || !speech) return;
+    if (!downloading || !mine) return;
     const iv = setInterval(() => void loadVoice(), 1000);
     return () => clearInterval(iv);
-  }, [downloading, speech]);
-  const d = s.install;
+  }, [downloading, mine]);
+  const d = mine ? s.install : undefined;
   const pct = d?.total ? Math.floor((d.received / d.total) * 100) : 0;
   const can = s.tier !== "none";
 
@@ -50,6 +57,13 @@ export function VoiceRow({ kind, status: s }: { kind: "speech" | "transcription"
           APX <span className="voicerow__where">{t("voice.here")}</span>
         </div>
         <div className="res__desc">{t(speech ? "voice.speaks" : "voice.hears")}</div>
+        {can && s.models && (
+          <div className="res__desc">
+            {speech
+              ? t("voice.models.speaks", { name: s.models.speaks, gb: s.models.size_gb, folder: s.models.folder })
+              : t("voice.models.hears", { name: s.models.hears })}
+          </div>
+        )}
         {!can && (
           <div className="res__desc">
             {t(`voice.missing.${s.missing ?? "platform"}`)}
@@ -77,16 +91,27 @@ export function VoiceRow({ kind, status: s }: { kind: "speech" | "transcription"
             <span className="res__desc">{t("voice.qualityHint")}</span>
           </div>
         )}
-        {can && !s.installed && !downloading && !speech && <div className="res__desc">{t("voice.installsAbove")}</div>}
-        {can && speech && !s.installed && !downloading && (
+        {can && !here && !speech && downloading && part === "all" && (
+          <div className="res__desc">{t("voice.installsAbove")}</div>
+        )}
+        {can && !here && !(downloading && (mine || (!speech && part === "all"))) && (
           <div className="voicerow__line">
-            <Button size="sm" leadingIcon={<Icons.Download size={14} />} onClick={() => void run(installVoice, t)}>
+            <Button
+              size="sm"
+              leadingIcon={<Icons.Download size={14} />}
+              disabled={downloading}
+              onClick={() => void run(() => installVoice(speech ? undefined : "ears"), t)}
+            >
               {d?.state === "failed" ? t("voice.retry") : t("voice.install")}
             </Button>
-            <span className="res__desc">{t(s.tier === "light" ? "voice.installLight" : "voice.installFull")}</span>
+            <span className="res__desc">
+              {speech
+                ? t(s.tier === "light" ? "voice.installLight" : "voice.installFull")
+                : t("voice.installHear", { gb: (s.models?.hears_gb ?? 1).toLocaleString(lang) })}
+            </span>
           </div>
         )}
-        {downloading && (
+        {downloading && mine && (
           <div
             className="localstt__progress"
             role="progressbar"
@@ -98,13 +123,13 @@ export function VoiceRow({ kind, status: s }: { kind: "speech" | "transcription"
             <small>{t("voice.downloading", { pct })}</small>
           </div>
         )}
-        {speech && d?.state === "failed" && (
+        {d?.state === "failed" && (
           <div className="res__desc svc__why" role="status">
             {t("voice.failed", { error: d.error ?? "" })}
           </div>
         )}
       </div>
-      {can && s.installed && (
+      {can && here && (
         <Switch
           size="sm"
           checked={s.enabled}
@@ -117,11 +142,13 @@ export function VoiceRow({ kind, status: s }: { kind: "speech" | "transcription"
   );
 }
 
-/** Female or male, the accent, and Listen to hear it. */
+/** Female or male, the language and then its accent, and Try to hear it. */
 function VoicePicker({ voice }: { voice: NativeVoice }) {
   const t = useT();
   const [busy, setBusy] = useState(false);
   const pick = (next: NativeVoice) => void run(() => setVoice({ voice: next }), t);
+  const lang = langOf(voice.locale);
+  const accents = ACCENTS[lang];
   const listen = async () => {
     setBusy(true);
     await run(async () => {
@@ -148,23 +175,30 @@ function VoicePicker({ voice }: { voice: NativeVoice }) {
       />
       <SegmentedControl
         size="sm"
-        label={t("voice.accent")}
-        value={voice.locale}
+        label={t("voice.language")}
+        value={lang}
         onValueChange={(v) => {
-          const locale = LOCALES.find((l) => l === v);
-          if (locale) pick({ ...voice, locale });
+          const next = v === "en" ? "en" : "es";
+          if (next !== lang) pick({ ...voice, locale: ACCENTS[next][0] });
         }}
-        // A phone shows the short name (CSS), so the three fit side by side.
-        options={LOCALES.map((l) => ({
-          value: l,
-          label: (
-            <>
-              <span className="voicerow__long">{t(`voice.locale.${l}`)}</span>
-              <span className="voicerow__short">{t(`voice.short.${l}`)}</span>
-            </>
-          ),
-        }))}
+        options={[
+          { value: "es", label: t("voice.lang.es") },
+          { value: "en", label: t("voice.lang.en") },
+        ]}
       />
+      {/* An accent to pick only where the language has more than one. */}
+      {accents.length > 1 && (
+        <SegmentedControl
+          size="sm"
+          label={t("voice.accent")}
+          value={voice.locale}
+          onValueChange={(v) => {
+            const locale = accents.find((l) => l === v);
+            if (locale) pick({ ...voice, locale });
+          }}
+          options={accents.map((l) => ({ value: l, label: t(`voice.accent.${l}`) }))}
+        />
+      )}
       <Button
         size="sm"
         variant="secondary"
@@ -172,7 +206,7 @@ function VoicePicker({ voice }: { voice: NativeVoice }) {
         leadingIcon={<Icons.Volume2 size={14} />}
         onClick={() => void listen()}
       >
-        {t("voice.listen")}
+        {t("voice.try")}
       </Button>
     </div>
   );

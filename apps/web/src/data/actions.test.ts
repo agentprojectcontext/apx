@@ -9,6 +9,7 @@ Object.defineProperty(globalThis, "window", {
   value: Object.assign(new EventTarget(), { location: { origin: "http://panel.example.test" } }),
 });
 const actions = await import("./actions.ts");
+const { setLiveSocket } = await import("./socketCall.ts");
 const { newChatId } = await import("./newChat.ts");
 after(() => {
   if (windowDescriptor) Object.defineProperty(globalThis, "window", windowDescriptor);
@@ -267,6 +268,30 @@ test("surface operations retain fetched documents, update metadata, copy, publis
   await actions.surfacePrompt(surface.id, "x".repeat(5000));
   assert.deepEqual(calls.at(-1), ["surfaces.prompt", { surface: "srf_1", text: "x".repeat(4000) }]);
   assert.deepEqual(calls[2], ["surfaces.copy", { surface: "srf_1", project_id: null, pinned: true }]);
+});
+
+test("a widget's document is read over the live socket, never queued behind the panel's HTTP requests", async (t) => {
+  const surface = doc();
+  const calls = rpc(t, { "surfaces.get": surface });
+  const overSocket: [string, unknown][] = [];
+  setLiveSocket({
+    call: (async (method: string, params: unknown) => {
+      overSocket.push([method, params]);
+      return surface;
+    }) as never,
+  });
+  t.after(() => setLiveSocket(undefined));
+  await actions.loadSurfaceDoc(surface.id);
+  assert.deepEqual(overSocket, [["surfaces.get", { surface: "srf_1" }]]);
+  assert.deepEqual(calls, []);
+  assert.equal(data.get().surfaceDocs.srf_1?.html, surface.html);
+
+  // A socket that closed meanwhile: the same read goes over HTTP instead.
+  data.set(initial);
+  setLiveSocket({ call: (async () => Promise.reject(new Error("socket closed"))) as never });
+  await actions.loadSurfaceDoc(surface.id);
+  assert.deepEqual(calls, [["surfaces.get", { surface: "srf_1" }]]);
+  assert.equal(data.get().surfaceDocs.srf_1?.html, surface.html);
 });
 
 test("browser actions update tabs without duplicates, preserve other tabs and encode screenshot mime", async (t) => {

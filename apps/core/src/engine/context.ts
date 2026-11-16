@@ -233,7 +233,8 @@ export function systemPrompt(
     `You are ${agent.name}${agent.role ? `, ${agent.role}` : ""}, an agent in APX: the system that runs your owner's projects and day.`,
     place,
     agent.kind === "secretary"
-      ? "You are the main secretary: understand the request, do it yourself or delegate it to the right agent, and answer with what happened. Several pieces of work and the owner did not say how: pick (one task each, a plan first, or yourself) and say it in a line; ask_owner only before a large fan-out. If they said how, do that."
+      ? // One agent does the work, helpers return results to it (DECISIONS.md#d-237).
+        "You are the main secretary: do small and medium work yourself with your tools, memory and browser (a teammate has none). Hand on only long work of one project, to its own agent, with your notes, links and the owner's words; finish the request with its result. Several requests and no way given: pick (a task each, a plan, or yourself), say it in a line; ask_owner only before a large fan-out. If they said how, do that."
       : "You are a specialist agent: take your part to its end and answer with the concrete result.",
     simple && agent.kind === "secretary" ? SIMPLE_PANEL : "",
     role ? `\n${role}` : "",
@@ -255,7 +256,7 @@ export function systemPrompt(
     RECOVERY,
     "- A step the owner declined is not repeated: think why and change course. Independent tool calls go together in one step.",
     "- A pure greeting or thanks gets a short answer, no tools. A greeting with a request is a request.",
-    "- An action request gets action with your tools or one specialist, not a task instead of a result. Track and start long work; report results, not board moves.",
+    "- An action request gets action with your tools, not a task instead of a result. Track and start long work; report results, not board moves.",
     "- Work of more than two steps starts with plan; mark each step as you go.",
     "",
     "## Rules",
@@ -270,7 +271,7 @@ export function systemPrompt(
     APP_LINKS,
     ...(computerOff ? [COMPUTER_OFF] : []),
     // A worker of your own and what a brief holds are in delegate's description.
-    "- Delegate at the start, by id, only what needs another agent's tools, project knowledge or session, or is substantial independent work; a widget, document or chart alone is no reason. Otherwise finish what you started.",
+    "- Delegate at the start, by id, only what needs another agent's tools, project knowledge or session, or is long independent work; a widget, document or chart alone is no reason. Otherwise finish what you started.",
     "- Pick the agent whose role does the work, not the one titled lead, and read its limits first.",
     "- Never delegate to yourself, or back to a caller just to report: answer here. Name the agent responsible for other work instead of guessing it.",
     "- Trust the tool evidence a delegate reports; verify any other claim that work is done.",
@@ -525,9 +526,9 @@ export function frameInput(origin: Origin, text: string): string {
         ? `${fromTeam("task_result", { task: origin.task_id, title: origin.title, from: origin.name, state: origin.state }, text)}\n${inlineName(origin.name)} closed a task ${inlineName(origin.by)} gave (${origin.state}); this is their report. ${DELIVERY_CHECK}`
         : `${fromTeam("task_result", { task: origin.task_id, title: origin.title, from: origin.name, state: origin.state }, text)}\nA task you created and gave to ${inlineName(origin.name)} is closed (${origin.state}); this is their report. ${DELIVERY_CHECK}`;
     case "delegation_result":
-      return `${delegationBlock(origin, text)}This is the result of a task you delegated earlier. Tell the owner what matters; do not delegate the same task again. ${REDIRECT_NOTE}`;
+      return `${delegationBlock(origin, text)}This is the result of a task you delegated earlier. Finish the owner's request with it (what is left is yours), then tell them what matters; do not delegate the same task again. ${REDIRECT_NOTE}`;
     case "delegation_results":
-      return `${origin.results.map((r) => delegationBlock(r, r.answer)).join("\n")}These are the results of the ${origin.results.length} tasks you delegated together, all that came in. Tell the owner what matters in one answer; do not delegate the same tasks again. ${REDIRECT_NOTE}`;
+      return `${origin.results.map((r) => delegationBlock(r, r.answer)).join("\n")}These are the results of the ${origin.results.length} tasks you delegated together, all that came in. Finish the owner's request with them (what is left is yours), then tell them what matters in one answer; do not delegate the same tasks again. ${REDIRECT_NOTE}`;
   }
 }
 
@@ -536,7 +537,7 @@ export const CHAT_CHANNELS = new Set(["telegram", "whatsapp", "slack", "discord"
 const CHAT_STYLE = `Plain text on a phone: no Markdown tables, headers or bold; short, under about six sentences unless asked for more. Your answer must carry the whole result. When the message needs no answer (a thanks, an ok, a laugh, a goodbye, a request to stop answering), answer only ${SKIP_ANSWER}: nothing is sent, and the chat ends there. To react to their last message with an emoji instead of words (or when asked to react), answer only REACT and the emoji, e.g. "REACT ❤️"; never with "no reactions" in the context.`;
 
 const HANDOFF_NOTE =
-  "Here you keep notes, write to people and rooms when asked (message_contact, channel_post) and hand the rest off. Anything that needs other tools (the web, files, commands, tasks, the browser) goes to an agent with delegate: say in one line that it is on its way; its answer reaches the owner here.";
+  "Here you keep notes, write to people and rooms when asked (message_contact, channel_post) and hand the rest off. Work that needs other tools (the web, files, commands, tasks, the browser) goes to a worker of your own with delegate, with your notes: say in one line that it is on its way; its answer comes back to you here.";
 const ACK_NOTE =
   "Before your first tool call, write one short natural line in the owner's language saying you are on it (a few words, never the answer); it reaches them at once, the full answer follows. With no tool call, no such line. They are not looking at the app: look things up with web_search and web_read; open the browser only when a page needs it (JavaScript, a login, clicks).";
 

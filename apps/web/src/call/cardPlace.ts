@@ -33,7 +33,8 @@ function inside(p: Place, w: number, h: number): Place {
  * The card's place (undefined: where the stylesheet puts it) and the pointer handler for its head. A press on a button
  * inside the head stays a press.
  */
-export function useCardPlace(card: React.RefObject<HTMLElement | null>) {
+/** Where the card sits, moved by dragging its head; a press on the head that does not move it calls `onTap`. */
+export function useCardPlace(card: React.RefObject<HTMLElement | null>, onTap?: () => void) {
   const [place, setPlace] = useState<Place | undefined>(read);
 
   // A smaller window keeps the card in view.
@@ -57,21 +58,27 @@ export function useCardPlace(card: React.RefObject<HTMLElement | null>) {
       const head = e.currentTarget;
       head.setPointerCapture(e.pointerId);
       let last: Place | undefined;
+      let moved = false;
       const move = (ev: PointerEvent) => {
+        if (!moved && Math.hypot(ev.clientX - e.clientX, ev.clientY - e.clientY) < 4) return;
+        moved = true;
         last = inside({ x: ev.clientX - dx, y: ev.clientY - dy }, box.width, el.offsetHeight);
         setPlace(last);
       };
-      const up = () => {
+      const done = (tap: boolean) => {
         head.removeEventListener("pointermove", move);
         head.removeEventListener("pointerup", up);
-        head.removeEventListener("pointercancel", up);
+        head.removeEventListener("pointercancel", cancel);
         if (last) write(last);
+        if (tap && !moved) onTap?.();
       };
+      const up = () => done(true);
+      const cancel = () => done(false);
       head.addEventListener("pointermove", move);
       head.addEventListener("pointerup", up);
-      head.addEventListener("pointercancel", up);
+      head.addEventListener("pointercancel", cancel);
     },
-    [card],
+    [card, onTap],
   );
 
   const style = place ? { left: place.x, top: place.y, right: "auto" } : undefined;

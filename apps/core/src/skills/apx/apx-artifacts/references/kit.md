@@ -48,7 +48,8 @@ their own; the card spaces them.
 - `<ax-spark values="2,4,3,8" tone="info" fill>` — minimal trend.
 - `<ax-ago datetime="ISO">` — "3 min ago", updates itself.
 - `<ax-chart type="line|area|bar" labels="M,T,W" data='[{"name":"A","values":[1,2,3],"tone":"brand","dashed":false}]' height="200">` — axes, grid, legend, tooltip.
-- `<ax-donut size="128" label="13" sub="total" data='[{"label":"macOS","value":8}]'>`
+- `<ax-donut size="128" label="13" sub="total" data='[{"label":"macOS","value":8}]'>` — shares, with a legend (name, value, %) beside it;
+  `legend="none"` when the card already lists them.
 - `<ax-ring value="76" max="100" size="72" sub="coverage">`
 - `<ax-heat values="0,2,5,…">` — activity per day (7 rows × weeks).
 - `<ax-steps value="11101" labels="start,open,consent,setup,first message">` — a row of dots, one per step: `1` done,

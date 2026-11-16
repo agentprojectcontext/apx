@@ -125,6 +125,7 @@ import { createNativeVoice } from "./services/native-voice.ts";
 import { createPush } from "./services/push.ts";
 import { createServices } from "./services/registry.ts";
 import { mediaData } from "./services/uploads.ts";
+import { createUv } from "./services/uv.ts";
 import { createVoiceEngine } from "./services/voice-engine.ts";
 import { createSignIn } from "./sign-in.ts";
 import { syncRuntimeSkills } from "./skills/runtimes.ts";
@@ -447,6 +448,7 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
     home: config.home,
     owner: () => ownerIdentity(store).name,
     quality: () => store.settings.read("voice").quality ?? "auto",
+    uvProgram: createUv({ dir: path.join(config.home, "bin"), log }),
   });
   const services = createServices({
     voice: voiceEngine,

@@ -5073,3 +5073,50 @@ changed lines, and nobody ran it.
 Rejected: drawing the phone's cards in a WebView with the kit's CSS (one browser per card in every chat: memory,
 scroll and a blank first paint, and native buttons, pictures and sheets bridged one by one).
 
+<a id="d-236"></a>
+## D-236 — 2026-11-16 — APX downloads uv when the Mac has none
+APX's own voice runs as a Python script under uv (`uv run --script`), which brings Python and the packages the voice
+needs. The install script put uv there; an install from the app's installer did not, so the voice said "it needs uv"
+and stayed off: no voice notes spoken, no transcription by APX, no calls.
+
+- **The core gets it when the voice needs it** (`services/uv.ts`): uv on the PATH or where package managers put it,
+  else `<home>/bin/uv`, else a download of uv `0.13.8`'s `uv-aarch64-apple-darwin.tar.gz`, checked against the
+  sha256 GitHub publishes for that asset and pinned in code, with the `uv` program taken out of the archive. Only
+  Apple silicon Macs get one: the voice runs nowhere else.
+- A Mac without uv is no longer "missing" anything: installing the voice downloads uv first, then the models with it,
+  and the progress shows as the voice's download. A failed uv download shows as a failed install, retried with the
+  voice.
+- Updating uv means a new version in `RELEASE` and its digest in `BUILDS`, checked by downloading it.
+
+Rejected: shipping uv in the installers (about 30 MB more for owners on other systems or without enough memory);
+asking the owner to install it (the failure this fixes).
+
+<a id="d-237"></a>
+## D-237 — 2026-11-16 — The super-agent does the work; helpers bring results back to it
+Tasks already have one agent that owns the work, with workers of its own and teammates who only review (D-131). The
+super-agent's chat did not: its line said "do it yourself or delegate it to the right agent", and each hand-off lost
+something on the way. A teammate cannot see the super-agent's own memory, its access to the owner's browser or the
+conversation: the owner wrote "insta scrap", the super-agent read the scraper, handed it to a teammate, and the note
+that already had a tested way to do it stayed in its own memory; another teammate got blocked on a login the
+super-agent then did itself.
+
+- **Small and medium work it does itself** (`systemPrompt`, the secretary's line in `engine/context.ts`): with its
+  own tools, memory and browser. It hands on only long work that belongs to one project, to that project's own agent,
+  with its notes, links and the owner's words, and finishes the request with what comes back. Several requests with no
+  way given still get its pick in a line (a task each, a plan, or itself).
+- **A result is the caller's to finish**: a `delegation_result(s)` turn says to finish the owner's request with it,
+  what is left being the caller's, before telling the owner what matters.
+- **WhatsApp's hand-off goes to a worker of its own**: the owner's WhatsApp turn keeps only note and message tools
+  (`turn-tools.ts`), so tool work is handed on; it now goes to a worker (the caller itself under a brief, with its
+  memory and browser) instead of a teammate.
+- **Unchanged**: reviews by teammates, task assignment, `delegate` as the one way agents talk (AGENTS.md rule 2), and
+  the shared rule every agent reads (now "long" instead of "substantial" independent work).
+- **The secretary profile** says the same ("do the work yourself; hand only long project work to that project's
+  agent").
+
+The realistic owner's prompt budget goes from 8,150 to 8,250 chars (8,222 now); the default turn's system prompt is
+6,047 (`rules/PROMPT_SIZE.md`).
+
+Rejected: copying the super-agent's notes into every delegated brief by code (it chooses which notes matter; a blanket
+copy costs tokens on every hand-off); taking `delegate` away from the
+super-agent (long project work and a worker on WhatsApp still need it).

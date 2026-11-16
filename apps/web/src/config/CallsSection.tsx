@@ -1,23 +1,17 @@
 import type { VoiceStatus } from "@apx/protocol";
-import { Button, SegmentedControl, SettingRow, Skeleton, Switch } from "@apx/ui";
+import { SegmentedControl, SettingRow, Switch } from "@apx/ui";
 import { useEffect, useState } from "react";
 import { loadCallStatus } from "../call/callStatus.ts";
 import { loadCatalog, models } from "../data/models.ts";
 import { notify } from "../data/notices.ts";
 import { loadVoice, setVoice, useVoice } from "../data/voice.ts";
-import { usePack, useT } from "../i18n/index.ts";
-import { go } from "../shell/nav.ts";
+import { useT } from "../i18n/index.ts";
 import { ModelRefPicker } from "./models/ModelRefPicker.tsx";
-import { SectionHead } from "./SectionHead.tsx";
 
 const errText = (e: unknown) => (e instanceof Error ? e.message : String(e));
 
-/** Settings › Calls: whether calls are offered, and the model a call talks with. The voice is chosen in Voices. */
-export function CallsSection() {
-  return usePack("voice") ? <Calls /> : <Skeleton height={240} shape="block" />;
-}
-
-function Calls() {
+/** The calls part of Settings › Voice and calls: whether calls are offered, and the model a call talks with. */
+export function CallsSettings() {
   const t = useT();
   const s = useVoice();
   useEffect(() => {
@@ -34,7 +28,6 @@ function Calls() {
   };
   return (
     <>
-      <SectionHead title={t("config.calls")} lead={t("calls.lead")} />
       {s?.tier === "none" ? (
         <p className="config__lead">{t("calls.cantRun")}</p>
       ) : (
@@ -51,11 +44,6 @@ function Calls() {
           </>
         )
       )}
-      <div>
-        <Button size="sm" variant="secondary" onClick={() => go.config("voices")}>
-          {t("calls.openVoices")}
-        </Button>
-      </div>
     </>
   );
 }

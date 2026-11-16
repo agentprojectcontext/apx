@@ -9,6 +9,18 @@ export const enWelcome = {
   "welcome.cta": "Let's go",
   "welcome.soundOn": "Turn sound on",
   "welcome.soundOff": "Turn sound off",
+  "welcome.voice.title": "APX's own voice",
+  "welcome.voice.text":
+    "Your agents speak and hear voice notes with APX's own voice. In Settings › Voice and calls you pick female or male, the language and the accent.",
+  "welcome.calls.title": "Call your agents",
+  "welcome.calls.text":
+    "The phone button at the top calls your super-agent, or call any agent from its chat. You talk and it answers aloud.",
+  "welcome.call-work.title": "It works while you talk",
+  "welcome.call-work.text":
+    "Ask for something that takes real work and the agent gets on it while the conversation goes on. You hear the answer when it's ready.",
+  "welcome.call-chats.title": "Every call is a chat",
+  "welcome.call-chats.text":
+    "What was said stays in Calls, in the Inbox. You can also type during the call, and saying goodbye ends it.",
   "welcome.groups.title": "Group chats",
   "welcome.groups.text": "From New chat, make a group of two to five agents and write to all of them in one chat.",
   "welcome.group-answers.title": "The right one answers",
