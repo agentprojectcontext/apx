@@ -3,28 +3,26 @@
 import * as SecureStore from "expo-secure-store";
 import { useCallback, useEffect, useState } from "react";
 
-const ROUTINES = "apx.view.routines";
-const TASKS = "apx.view.tasks";
 const AGENTS = "apx.view.agents";
+const PROJECTS = "apx.view.projects";
 const HIDDEN_CHANNELS = "apx.view.hiddenChannels";
 const BY_CHANNEL = "apx.view.byChannel";
 
 /**
- * What Chats lists: routine runs and task chats (both on unless turned off), only some agents' chats, the channel
- * accounts left out, and whether each account's chats go under one row (on unless turned off).
+ * Whose chats Chats lists, as the panel's Inbox filter: only some agents' and some projects' ("default" for the Default
+ * project), the channel accounts left out, and whether each account's chats go under one row (on unless turned off).
  */
 export type ChatFilter = {
-  routines: boolean;
-  tasks: boolean;
   agents: string[];
+  projects: string[];
   hiddenChannels: string[];
   byChannel: boolean;
 };
-export const ALL_CHATS: ChatFilter = { routines: true, tasks: true, agents: [], hiddenChannels: [], byChannel: true };
+export const ALL_CHATS: ChatFilter = { agents: [], projects: [], hiddenChannels: [], byChannel: true };
 
 /** Whether the filter hides anything, for the dot on its button; grouping hides nothing. */
 export const filtering = (filter: ChatFilter): boolean =>
-  !filter.routines || !filter.tasks || filter.agents.length > 0 || filter.hiddenChannels.length > 0;
+  filter.agents.length > 0 || filter.projects.length > 0 || filter.hiddenChannels.length > 0;
 
 const ids = (value: string | null): string[] => (value ? value.split(",").filter(Boolean) : []);
 
@@ -32,14 +30,11 @@ export function useChatFilter(): [ChatFilter, (next: ChatFilter) => void] {
   const [filter, setFilter] = useState(ALL_CHATS);
   useEffect(() => {
     void Promise.all(
-      [ROUTINES, TASKS, AGENTS, HIDDEN_CHANNELS, BY_CHANNEL].map((key) =>
-        SecureStore.getItemAsync(key).catch(() => null),
-      ),
-    ).then(([routines, tasks, agents, hidden, byChannel]) =>
+      [AGENTS, PROJECTS, HIDDEN_CHANNELS, BY_CHANNEL].map((key) => SecureStore.getItemAsync(key).catch(() => null)),
+    ).then(([agents, projects, hidden, byChannel]) =>
       setFilter({
-        routines: routines !== "off",
-        tasks: tasks !== "off",
         agents: ids(agents ?? null),
+        projects: ids(projects ?? null),
         hiddenChannels: ids(hidden ?? null),
         byChannel: byChannel !== "off",
       }),
@@ -47,9 +42,8 @@ export function useChatFilter(): [ChatFilter, (next: ChatFilter) => void] {
   }, []);
   const set = useCallback((next: ChatFilter) => {
     setFilter(next);
-    SecureStore.setItemAsync(ROUTINES, next.routines ? "on" : "off").catch(() => {});
-    SecureStore.setItemAsync(TASKS, next.tasks ? "on" : "off").catch(() => {});
     SecureStore.setItemAsync(AGENTS, next.agents.join(",")).catch(() => {});
+    SecureStore.setItemAsync(PROJECTS, next.projects.join(",")).catch(() => {});
     SecureStore.setItemAsync(HIDDEN_CHANNELS, next.hiddenChannels.join(",")).catch(() => {});
     SecureStore.setItemAsync(BY_CHANNEL, next.byChannel ? "on" : "off").catch(() => {});
   }, []);

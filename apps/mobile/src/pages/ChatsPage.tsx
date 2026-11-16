@@ -2,15 +2,22 @@ import { useMemo, useState } from "react";
 import { FlatList, Pressable, RefreshControl, ScrollView, Text, TextInput, View } from "react-native";
 import { elapsed } from "../format";
 import { workingNow, workSubject } from "../hooks/chatSelectors";
-import { inboxTree, nodeThreads, searchInbox } from "../hooks/inboxTree";
+import { type InboxNode, inboxTree, nodeThreads, searchInbox } from "../hooks/inboxTree";
 import type { Agent, Job, Thread, Workspace } from "../hooks/useWorkspace";
 import { t } from "../i18n";
 import { ChatFilterSheet } from "../ui/ChatFilterSheet";
 import { Icon } from "../ui/Icon";
-import { Chip, Dot, EmptyState, Fab, IconButton, OwnerAvatar, Spinner, useType } from "../ui/kit";
+import { Dot, EmptyState, IconButton, OwnerAvatar, Segmented, Spinner, useType } from "../ui/kit";
 import { makeStyles, useTheme } from "../ui/theme";
 import { type ChatFilter, filtering } from "../viewPrefs";
 import { InboxRow, inboxTitle, ThreadAvatar } from "./InboxRows";
+
+/** As the panel's Inbox: chats, task chats and routine runs in a tab each. */
+type Tab = "chats" | "tasks" | "routines";
+const TAB_OF = { thread: "chats", channel: "chats", task: "tasks", routine: "routines" } as const;
+// A run from before routines had ids is still a routine's.
+const tabOf = (node: InboxNode): Tab => (node.thread.kind === "routine" ? "routines" : TAB_OF[node.kind]);
+const SEARCH = { chats: "searchChats", tasks: "searchTasks", routines: "searchRoutines" } as const;
 
 export function ChatsPage({
   data,
@@ -19,8 +26,6 @@ export function ChatsPage({
   create,
   account,
   refresh,
-  project,
-  setProject,
   filter,
   setFilter,
   menu,
@@ -33,10 +38,7 @@ export function ChatsPage({
   create: () => void;
   account: () => void;
   refresh: () => Promise<void>;
-  /** The project filter ("all", "default" or a project id), kept by the workspace so other pages can set it. */
-  project: string;
-  setProject: (project: string) => void;
-  /** What is listed besides the chats (routine news, task chats) and whose chats; the filter button changes it. */
+  /** Whose chats are listed (channels, agents, projects); the filter button changes it. */
   filter: ChatFilter;
   setFilter: (next: ChatFilter) => void;
   /** A long press on a chat: its own actions. */
@@ -53,16 +55,23 @@ export function ChatsPage({
   const [refreshing, setRefreshing] = useState(false);
   const [filters, setFilters] = useState(false);
   const working = useMemo(() => workingNow(data.threads, data.jobs.running), [data.threads, data.jobs.running]);
+  const [tab, setTab] = useState<Tab>("chats");
   const tree = useMemo(
-    () => inboxTree(data.threads, { ...filter, project }, data.tasks),
-    [data.threads, data.tasks, filter, project],
+    () => inboxTree(data.threads, { ...filter, routines: true, tasks: true }, data.tasks),
+    [data.threads, data.tasks, filter],
   );
-  const rows = useMemo(() => searchInbox(tree, query, (node) => inboxTitle(node, data)), [tree, query, data]);
+  const rows = useMemo(
+    () =>
+      searchInbox(
+        tree.filter((node) => tabOf(node) === tab),
+        query,
+        (node) => inboxTitle(node, data),
+      ),
+    [tree, tab, query, data],
+  );
   const searching = !!query?.trim();
   const archived = useMemo(
-    () =>
-      inboxTree(data.threads, { routines: true, project: "all", archived: true }, data.tasks).flatMap(nodeThreads)
-        .length,
+    () => inboxTree(data.threads, { routines: true, archived: true }, data.tasks).flatMap(nodeThreads).length,
     [data.threads, data.tasks],
   );
   const listedAgents = useMemo(
@@ -75,6 +84,7 @@ export function ChatsPage({
     [data.agents, data.threads, filter.agents],
   );
   const projects = data.projects.filter((item) => item.registered !== false);
+  const filtered = filtering(filter);
   return (
     <View style={s.root}>
       {/* Title, search and filters stay put; only the list under them scrolls. */}
@@ -82,28 +92,29 @@ export function ChatsPage({
         <Text accessibilityRole="header" style={s.title}>
           {t("navChats")}
         </Text>
-        <View>
-          <IconButton
-            icon="ListFilter"
-            label={t(filtering(filter) ? "filterChatsOn" : "filterChats")}
-            size={18}
-            color={filtering(filter) ? theme.fg : theme.fgMuted}
-            onPress={() => setFilters(true)}
-          />
-          {filtering(filter) ? <Dot size={7} style={s.filterDot} /> : null}
-        </View>
+        <IconButton icon="SquarePen" label={t("newChat")} size={18} color={theme.fgMuted} onPress={create} />
         <IconButton
           icon="Search"
-          label={t("searchChats")}
+          label={t(SEARCH[tab])}
           size={18}
           color={query === undefined ? theme.fgMuted : theme.fg}
           onPress={() => setQuery((q) => (q === undefined ? "" : undefined))}
         />
+        <View>
+          <IconButton
+            icon="ListFilter"
+            label={t(filtered ? "filterChatsOn" : "filterChats")}
+            size={18}
+            color={filtered ? theme.fg : theme.fgMuted}
+            onPress={() => setFilters(true)}
+          />
+          {filtered ? <Dot size={7} style={s.filterDot} /> : null}
+        </View>
         <Pressable accessibilityRole="button" accessibilityLabel={t("navMore")} onPress={account} style={s.account}>
           <OwnerAvatar name={data.owner} online={online} size={28} />
         </Pressable>
       </View>
-      {/* Searching takes the projects' place: the list under it stays where it was. */}
+      {/* Searching takes the tabs' place: the list under it stays where it was. */}
       <View style={s.switch}>
         {query !== undefined ? (
           <View style={s.search}>
@@ -112,8 +123,8 @@ export function ChatsPage({
               autoFocus
               value={query}
               onChangeText={setQuery}
-              accessibilityLabel={t("searchChats")}
-              placeholder={t("searchChats")}
+              accessibilityLabel={t(SEARCH[tab])}
+              placeholder={t(SEARCH[tab])}
               placeholderTextColor={theme.fgSubtle}
               returnKeyType="search"
               style={s.searchInput}
@@ -128,18 +139,16 @@ export function ChatsPage({
             />
           </View>
         ) : (
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.chips}>
-            <Chip label={t("all")} selected={project === "all"} onPress={() => setProject("all")} />
-            <Chip label={t("defaultProject")} selected={project === "default"} onPress={() => setProject("default")} />
-            {projects.map((item) => (
-              <Chip
-                key={item.id}
-                label={item.name}
-                selected={project === item.id}
-                onPress={() => setProject(item.id)}
-              />
-            ))}
-          </ScrollView>
+          <Segmented
+            value={tab}
+            onChange={setTab}
+            style={s.tabs}
+            options={[
+              { value: "chats", label: t("navChats") },
+              { value: "tasks", label: t("navTasks") },
+              { value: "routines", label: t("routines") },
+            ]}
+          />
         )}
       </View>
       <FlatList
@@ -160,8 +169,18 @@ export function ChatsPage({
         windowSize={7}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
-        contentContainerStyle={{ paddingBottom: 96 }}
-        ListEmptyComponent={<EmptyState title={t("noChats")} body={t("noChatsBody")} icon="MessageCircle" />}
+        contentContainerStyle={{ paddingBottom: 24 }}
+        ListEmptyComponent={
+          filtered || searching ? (
+            <EmptyState title={t("filterNone")} icon="ListFilter" />
+          ) : tab === "tasks" ? (
+            <EmptyState title={t("emptyTaskChats")} icon="ListChecks" />
+          ) : tab === "routines" ? (
+            <EmptyState title={t("emptyRoutineChats")} icon="Clock" />
+          ) : (
+            <EmptyState title={t("noChats")} body={t("noChatsBody")} icon="MessageCircle" />
+          )
+        }
         ListHeaderComponent={
           <>
             {working.length > 0 ? (
@@ -174,7 +193,7 @@ export function ChatsPage({
                 </ScrollView>
               </>
             ) : null}
-            {archived > 0 && openArchived && !searching ? (
+            {archived > 0 && openArchived && !searching && tab === "chats" ? (
               <Pressable
                 accessibilityRole="button"
                 onPress={openArchived}
@@ -204,11 +223,11 @@ export function ChatsPage({
           />
         }
       />
-      <Fab icon="SquarePen" label={t("newChat")} onPress={create} />
       {filters ? (
         <ChatFilterSheet
           filter={filter}
           agents={listedAgents}
+          projects={projects}
           channels={data.channels}
           threads={data.threads}
           onChange={setFilter}
@@ -260,7 +279,7 @@ const useStyles = makeStyles((theme) => ({
   header: { height: 52, flexDirection: "row", alignItems: "center", gap: 2, paddingLeft: 16, paddingRight: 8 },
   title: { flex: 1, color: theme.fg, fontSize: 22, fontWeight: "600" },
   account: { width: 40, height: 44, alignItems: "center", justifyContent: "center" },
-  // The projects and the search share one row of the same height.
+  // The tabs and the search share one row of the same height.
   switch: { height: 44, justifyContent: "center" },
   search: {
     height: 36,
@@ -287,7 +306,7 @@ const useStyles = makeStyles((theme) => ({
     gap: 10,
   },
   workTitle: { color: theme.fg, fontSize: 13, fontWeight: "500" },
-  chips: { gap: 8, paddingHorizontal: 16, alignItems: "center" },
+  tabs: { marginHorizontal: 16 },
   filterDot: { position: "absolute", top: 11, right: 11, backgroundColor: theme.brand },
   archived: { flexDirection: "row", alignItems: "center", gap: 10, paddingVertical: 8, paddingHorizontal: 16 },
   archivedIcon: { width: 30, height: 30, alignItems: "center", justifyContent: "center" },

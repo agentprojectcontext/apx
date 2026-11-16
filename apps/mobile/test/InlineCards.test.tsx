@@ -306,7 +306,9 @@ test("a plan by days shows one day at a time", async () => {
   expect(ui.queryByText("Leave")).toBeNull();
 });
 
-test("an answer with cards takes the bubble's full width, so sideways cards keep their height", async () => {
+test("an agent writes on the chat itself, full width, so sideways cards keep their height; only the owner has a bubble", async () => {
+  const style = (ui: Awaited<ReturnType<typeof show>>) =>
+    JSON.stringify(first(ui.getAllByHintText(t("messageMenuHint"))).props.style);
   const cards = await show(
     fence("apx-cards", {
       items: [
@@ -315,9 +317,16 @@ test("an answer with cards takes the bubble's full width, so sideways cards keep
       ],
     }),
   );
-  const style = (ui: Awaited<ReturnType<typeof show>>) =>
-    JSON.stringify(first(ui.getAllByHintText(t("messageMenuHint"))).props.style);
   expect(style(cards)).toContain('"alignSelf":"stretch"');
+  expect(style(cards)).not.toContain("backgroundColor");
   cards.unmount();
-  expect(style(await show("Just words, no cards."))).not.toContain('"alignSelf":"stretch"');
+  const mine = await render(
+    <ChatMessage
+      message={{ ...message("Hi"), author: { kind: "user" } } as unknown as Message}
+      agents={[]}
+      client={client}
+      respond={async () => {}}
+    />,
+  );
+  expect(style(mine)).toContain("backgroundColor");
 });

@@ -4,7 +4,7 @@ import { t } from "../../i18n";
 import { MAP_CREDIT, mapFrame } from "../../protocol";
 import { Button, Tag } from "../kit";
 import { makeStyles, useTheme } from "../theme";
-import { type Of, Rating, toneOf } from "./InlineParts";
+import { inlineBox, type Of, Rating, toneOf } from "./InlineParts";
 
 const PIN = 24;
 const STEM = 7;
@@ -133,14 +133,7 @@ export function Places({ node }: { node: Of<"places"> }) {
 
 const useStyles = makeStyles((theme) => ({
   stack: { gap: 12 },
-  map: {
-    aspectRatio: 16 / 9,
-    overflow: "hidden",
-    borderWidth: 1,
-    borderColor: theme.border,
-    borderRadius: theme.radiusMd,
-    backgroundColor: theme.fill,
-  },
+  map: { ...inlineBox(theme), aspectRatio: 16 / 9, backgroundColor: theme.fill },
   pin: { position: "absolute", width: PIN, alignItems: "center" },
   pinHead: {
     width: PIN,
@@ -175,7 +168,7 @@ const useStyles = makeStyles((theme) => ({
     fontSize: 10,
     opacity: 0.85,
   },
-  list: { borderWidth: 1, borderColor: theme.border, borderRadius: theme.radiusMd, overflow: "hidden" },
+  list: inlineBox(theme),
   row: { flexDirection: "row", alignItems: "flex-start", gap: 12, paddingHorizontal: 12, paddingVertical: 10 },
   rowLine: { borderTopWidth: 1, borderTopColor: theme.border },
   rowOn: { backgroundColor: theme.fill },

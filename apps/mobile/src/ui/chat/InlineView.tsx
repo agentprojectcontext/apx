@@ -1,6 +1,5 @@
 import { useContext, useMemo, useState } from "react";
 import { Image, Linking, Pressable, ScrollView, Text, View } from "react-native";
-import Svg, { Defs, LinearGradient, Rect, Stop } from "react-native-svg";
 import type { MediaItem } from "../../chat/media";
 import { t } from "../../i18n";
 import { type InlineNode, isMediaId, type InlineView as View_ } from "../../protocol";
@@ -9,25 +8,9 @@ import { useMediaUri } from "../media/context";
 import { MediaViewer } from "../media/MediaViewer";
 import { makeStyles, useTheme } from "../theme";
 import { Agenda, Code, Head, Status, Steps } from "./InlineFacts";
-import { InlineAsk, type Of, Rating, SendButton } from "./InlineParts";
+import { Accent, InlineAsk, inlineBox, type Of, Rating, SendButton } from "./InlineParts";
 import { Booking, Choice, Compare } from "./InlinePick";
 import { Places } from "./InlinePlaces";
-
-/** APX Kit's accent: a thin brand-to-violet line on top of each card. */
-function Accent() {
-  const theme = useTheme();
-  return (
-    <Svg width="100%" height={3} style={{ position: "absolute", top: 0, left: 0, right: 0 }}>
-      <Defs>
-        <LinearGradient id="accent" x1="0" y1="0" x2="1" y2="0">
-          <Stop offset="0" stopColor={theme.brand} />
-          <Stop offset="1" stopColor={theme.violet} />
-        </LinearGradient>
-      </Defs>
-      <Rect width="100%" height={3} fill="url(#accent)" />
-    </Svg>
-  );
-}
 
 const toItem = (src: string, alt: string): MediaItem =>
   isMediaId(src)
@@ -297,17 +280,7 @@ const useStyles = makeStyles((theme) => ({
   count: { alignSelf: "center", color: theme.muted, fontSize: 12, fontVariant: ["tabular-nums"] },
   column: { gap: 8 },
   row: { flexDirection: "row", gap: 12, alignItems: "flex-start" },
-  card: {
-    flexGrow: 1,
-    gap: 8,
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    overflow: "hidden",
-    borderWidth: 1,
-    borderColor: theme.border,
-    borderRadius: theme.radiusMd,
-    backgroundColor: theme.surface,
-  },
+  card: { ...inlineBox(theme), flexGrow: 1, gap: 8, paddingHorizontal: 16, paddingVertical: 14 },
   banner: { aspectRatio: 16 / 9, overflow: "hidden", backgroundColor: theme.fill, borderRadius: theme.radiusSm },
   bleed: { marginTop: -14, marginHorizontal: -16, marginBottom: 4, borderRadius: 0 },
   thumb: {

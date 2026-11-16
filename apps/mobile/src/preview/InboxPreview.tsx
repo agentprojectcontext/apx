@@ -21,7 +21,6 @@ export function InboxPreview({ exit }: { exit: () => void }) {
 
 function PreviewPanel({ exit }: { exit: () => void }) {
   const [data] = useState(inboxFixtures);
-  const [project, setProject] = useState("all");
   const [filter, setFilter] = useState(ALL_CHATS);
   const [message, setMessage] = useState(t("previewReady"));
   const theme = useTheme();
@@ -40,8 +39,6 @@ function PreviewPanel({ exit }: { exit: () => void }) {
       <ChatsPage
         data={data}
         online={false}
-        project={project}
-        setProject={setProject}
         filter={filter}
         setFilter={setFilter}
         open={(thread) => setMessage(t("previewOpened", { name: `${thread.title} (${thread.id})` }))}

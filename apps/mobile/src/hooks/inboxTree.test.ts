@@ -14,7 +14,7 @@ const thread = (id: string, patch: Partial<Thread> = {}): Thread => ({
   updated_at: "2026-10-19T10:00:00Z",
   ...patch,
 });
-const options = { routines: true, project: "all" };
+const options = { routines: true };
 const ids = (nodes: ReturnType<typeof inboxTree>) =>
   nodes
     .flatMap(nodeThreads)
@@ -76,7 +76,7 @@ test("orphan and cross-project sessions remain reachable; archived parents do no
     thread("archived", { archived: true, project_id: "p_two" }),
     thread("survivor", { kind: "a2a", parent_id: "archived", project_id: "p_two" }),
   ];
-  const nodes = inboxTree(threads, { ...options, project: "p_two" });
+  const nodes = inboxTree(threads, { ...options, projects: ["p_two"] });
   assert.deepEqual(nodes.map((node) => node.ref).sort(), ["cross", "orphan", "survivor"]);
   assert.deepEqual(ids(inboxTree(threads, options)), ["cross", "orphan", "parent", "survivor"]);
 });

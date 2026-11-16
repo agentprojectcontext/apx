@@ -21,7 +21,8 @@ const recent = (a: InboxNode, b: InboxNode) =>
 
 export type InboxFilter = {
   routines: boolean;
-  project: string;
+  /** Only chats in one of these projects ("default": the Default project); empty or none: every project. */
+  projects?: readonly string[];
   /** Task chats (a task's work and the sessions under it); on unless turned off. */
   tasks?: boolean;
   /** Only chats one of these agents is in; empty or none: every agent. */
@@ -57,6 +58,7 @@ export function inboxTree(
   };
   const agents = options.agents?.length ? new Set(options.agents) : undefined;
   const hidden = new Set(options.hiddenChannels ?? []);
+  const projects = options.projects?.length ? new Set(options.projects) : undefined;
   const nodes = new Map<string, InboxNode>();
   for (const thread of threads) {
     if (Boolean(thread.archived) !== Boolean(options.archived)) continue;
@@ -65,11 +67,7 @@ export function inboxTree(
     if (options.tasks === false && under(thread, (item) => item.kind === "task" || Boolean(item.task_id))) continue;
     if (agents && !thread.agent_ids.some((id) => agents.has(id))) continue;
     if (thread.channel && hidden.has(thread.channel.id)) continue;
-    if (
-      options.project !== "all" &&
-      (options.project === "default" ? !!thread.project_id : thread.project_id !== options.project)
-    )
-      continue;
+    if (projects && !projects.has(thread.project_id ?? "default")) continue;
     nodes.set(thread.id, { key: `thread:${thread.id}`, kind: "thread", ref: thread.id, thread, children: [] });
   }
   const roots: InboxNode[] = [];

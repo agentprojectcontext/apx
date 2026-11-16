@@ -371,7 +371,8 @@ export function EmptyState({
   children,
 }: {
   title: string;
-  body: string;
+  /** What to do about it; a title that says it all needs none, as in the panel. */
+  body?: string;
   icon?: IconName;
   tone?: Tone;
   children?: React.ReactNode;
@@ -385,7 +386,7 @@ export function EmptyState({
         <Icon name={icon} size={22} color={c.fg} />
       </View>
       <Text style={s.emptyTitle}>{title}</Text>
-      <Text style={s.emptyBody}>{body}</Text>
+      {body ? <Text style={s.emptyBody}>{body}</Text> : null}
       {children ? <View style={s.emptyActions}>{children}</View> : null}
     </View>
   );

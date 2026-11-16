@@ -1,21 +1,22 @@
 import { useMemo } from "react";
 import { Text, View } from "react-native";
 import { channelName } from "../hooks/chatSelectors";
-import type { Agent, Channel, Thread } from "../hooks/useWorkspace";
+import type { Agent, Channel, Project, Thread } from "../hooks/useWorkspace";
 import { t } from "../i18n";
 import { ALL_CHATS, type ChatFilter, filtering } from "../viewPrefs";
 import { ChannelMark } from "./ChannelMark";
 import { Icon } from "./Icon";
-import { AgentAvatar, BottomSheet, ListRow, Toggle } from "./kit";
+import { AgentAvatar, BottomSheet, ListRow, ProjectAvatar, Toggle } from "./kit";
 import { makeStyles, useTheme } from "./theme";
 
 /**
- * What Chats shows: each channel account on or off and whether their chats go together, routine news and task chats on
- * or off, and only the agents ticked. Each change applies at once.
+ * Whose chats Chats, Tasks and Routines show, as the panel's Inbox filter: each channel account on or off and whether
+ * their chats go together, only the agents ticked and only the projects ticked. Each change applies at once.
  */
 export function ChatFilterSheet({
   filter,
   agents,
+  projects,
   channels,
   threads,
   onChange,
@@ -23,6 +24,8 @@ export function ChatFilterSheet({
 }: {
   filter: ChatFilter;
   agents: Agent[];
+  /** The owner's projects besides Default. */
+  projects: Project[];
   channels: Channel[];
   /** Every chat, to count each account's. */
   threads: Thread[];
@@ -36,6 +39,12 @@ export function ChatFilterSheet({
     onChange({
       ...filter,
       agents: ticked.has(id) ? filter.agents.filter((item) => item !== id) : [...filter.agents, id],
+    });
+  const inProjects = new Set(filter.projects);
+  const tickProject = (id: string) =>
+    onChange({
+      ...filter,
+      projects: inProjects.has(id) ? filter.projects.filter((item) => item !== id) : [...filter.projects, id],
     });
   const accounts = useMemo(() => {
     const n = new Map<string, number>();
@@ -88,29 +97,6 @@ export function ChatFilterSheet({
           />
         </>
       ) : null}
-      <Text style={s.section}>{t("filterShow")}</Text>
-      <ListRow
-        label={t("filterRoutines")}
-        leading={<Icon name="Clock" size={18} color={theme.fgMuted} />}
-        chevron={false}
-        onPress={() => onChange({ ...filter, routines: !filter.routines })}
-        trailing={
-          <Toggle
-            label={t("filterRoutines")}
-            value={filter.routines}
-            onChange={(routines) => onChange({ ...filter, routines })}
-          />
-        }
-      />
-      <ListRow
-        label={t("filterTasks")}
-        leading={<Icon name="ListChecks" size={18} color={theme.fgMuted} />}
-        chevron={false}
-        onPress={() => onChange({ ...filter, tasks: !filter.tasks })}
-        trailing={
-          <Toggle label={t("filterTasks")} value={filter.tasks} onChange={(tasks) => onChange({ ...filter, tasks })} />
-        }
-      />
       <Text style={s.section}>{t("filterAgents")}</Text>
       <ListRow
         label={t("filterAllAgents")}
@@ -127,6 +113,24 @@ export function ChatFilterSheet({
           chevron={false}
           trailing={check(ticked.has(agent.id))}
           onPress={() => tick(agent.id)}
+        />
+      ))}
+      <Text style={s.section}>{t("filterProjects")}</Text>
+      <ListRow
+        label={t("filterAllProjects")}
+        leading={<Icon name="Folder" size={18} color={theme.fgMuted} />}
+        chevron={false}
+        trailing={check(inProjects.size === 0)}
+        onPress={() => onChange({ ...filter, projects: [] })}
+      />
+      {[{ id: "default", name: t("defaultProject") }, ...projects].map((project) => (
+        <ListRow
+          key={project.id}
+          label={project.name}
+          leading={<ProjectAvatar name={project.name} size={22} />}
+          chevron={false}
+          trailing={check(inProjects.has(project.id))}
+          onPress={() => tickProject(project.id)}
         />
       ))}
       {filtering(filter) ? (
