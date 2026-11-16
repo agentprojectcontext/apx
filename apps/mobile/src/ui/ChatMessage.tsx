@@ -2,6 +2,7 @@ import { type ReactNode, useMemo, useState } from "react";
 import { Pressable, Text, View } from "react-native";
 import { parseMarkdown, plainText } from "../chat/markdown";
 import { type MediaItem, mediaRows } from "../chat/media";
+import { isSkipAnswer } from "../chat/signals";
 import { viaOf } from "../chat/via";
 import { clock } from "../format";
 import type { Agent } from "../hooks/useWorkspace";
@@ -146,6 +147,14 @@ export function ChatMessage({
     switch (part.type) {
       case "text":
         if (!part.text.trim()) return null;
+        // SKIP is the agent saying there was nothing worth telling, not words for the owner.
+        if (!mine && isSkipAnswer(part.text))
+          return (
+            <View key={key} accessibilityRole="text" style={s.quiet}>
+              <Icon name="BellOff" size={11} color={theme.fgSubtle} />
+              <Text style={s.quietText}>{t("quietAnswer")}</Text>
+            </View>
+          );
         if (author.kind === "person" && mailChannels?.has(author.channel)) {
           const { subject, body } = receivedMail(part.text);
           return <EmailCard key={key} mail={{ to: [], cc: [], from: author.name, subject, date: "", body }} />;
@@ -289,6 +298,18 @@ const useStyles = makeStyles((theme) => ({
     borderBottomRightRadius: 6,
   },
   theirs: { alignSelf: "stretch", paddingVertical: 0, paddingHorizontal: 0 },
+  quiet: {
+    flexDirection: "row",
+    alignItems: "center",
+    alignSelf: "flex-start",
+    gap: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderWidth: 1,
+    borderColor: theme.border,
+    borderRadius: 999,
+  },
+  quietText: { color: theme.fgMuted, fontSize: 12 },
   mineText: { color: theme.fg, fontSize: 15, lineHeight: 21 },
   metaRow: { flexDirection: "row", alignItems: "center", gap: 4 },
   meta: { color: theme.fgSubtle, fontSize: 11, fontFamily: theme.mono },

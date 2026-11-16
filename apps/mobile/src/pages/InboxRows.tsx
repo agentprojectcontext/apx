@@ -1,5 +1,6 @@
 import { memo, useState } from "react";
 import { Pressable, Text, View } from "react-native";
+import { isSkipAnswer } from "../chat/signals";
 import { listWhen } from "../format";
 import { channelIdentity, channelName, chatPreview, chatTitle, isWorking, routineName } from "../hooks/chatSelectors";
 import { type InboxNode, nodeFailed, nodeThreads } from "../hooks/inboxTree";
@@ -143,7 +144,8 @@ export const InboxRow = memo(function InboxRow({
   const channel = node.kind === "channel";
   const state =
     node.kind === "task" || node.kind === "routine" ? rowState(node.kind, { task, busy, waiting, failed }) : undefined;
-  const said = chatPreview(node.thread) || t("noMessagesYet");
+  const last = chatPreview(node.thread);
+  const said = !last ? t("noMessagesYet") : isSkipAnswer(last) ? t("quietAnswer") : last;
   // A channel's row says who wrote last before what they said.
   const preview = channel ? `${chatTitle(node.thread)}: ${said}` : said;
   const face = nested ? NESTED_FACE : LIST_FACE;
