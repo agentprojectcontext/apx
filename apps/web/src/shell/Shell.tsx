@@ -103,7 +103,7 @@ export function Shell() {
           )}
           {!sidebarCompact && (
             <Suspense fallback={null}>
-              <NoticeStrip excludeModels={separateModelCards} />
+              <NoticeStrip />
             </Suspense>
           )}
           <div className="shell__view">
@@ -193,9 +193,9 @@ export function Shell() {
         <WelcomeV2 />
       </Suspense>
       {/* Over the foot of the list column: on a phone, or with the list hidden, it would cover the composer. */}
-      {sidebarCompact && layout.rail && !layout.compact && layout.listW > 0 && (
+      {layout.rail && !layout.compact && layout.listW > 0 && (
         <Suspense fallback={null}>
-          <CornerCards floating />
+          <CornerCards floating modelsOnly={!sidebarCompact} />
         </Suspense>
       )}
       {live && (

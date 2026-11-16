@@ -75,6 +75,8 @@ for (const compactSidebar of [true, false]) {
             "href",
             /blog.google\/.*introducing-gemini-4-hydrogen\//,
           );
+          await expect(card.getByRole("link")).toBeVisible();
+          await expect(page.locator('.noticestrip[data-card^="model:"]')).toHaveCount(0);
           await expect(page.getByRole("dialog")).toHaveCount(0);
           await page.screenshot({ path: test.info().outputPath(`launch-${language}-desktop.png`) });
           await card.getByRole("button", { name: language === "es" ? "Revisar modelos" : "Review models" }).click();
@@ -82,13 +84,7 @@ for (const compactSidebar of [true, false]) {
           await expect(page.getByRole("dialog")).toContainText("Launch models");
           await page.keyboard.press("Escape");
           await expect(card).toBeVisible();
-          const dismiss = compactSidebar
-            ? language === "es"
-              ? "Cerrar"
-              : "Close"
-            : language === "es"
-              ? "Descartar"
-              : "Dismiss";
+          const dismiss = language === "es" ? "Cerrar" : "Close";
           await card.getByRole("button", { name: dismiss, exact: true }).click();
           await expect(page.locator('[data-card="model:claude-fable-5-2-2026-11-09"]')).toBeVisible();
           await page.reload();

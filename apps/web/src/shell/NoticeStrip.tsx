@@ -8,10 +8,10 @@ import { useNotices } from "./notices.tsx";
  * The notices with the full sidebar: one at a time in a strip over the page (never over the sidebar), tinted by its
  * tone, its action at the right, and ‹ 1 of N › to step through the rest.
  */
-export function NoticeStrip({ excludeModels = false }: { excludeModels?: boolean }) {
+export function NoticeStrip() {
   const t = useT();
   const all = useNotices();
-  const notices = excludeModels ? all.filter((notice) => !notice.id.startsWith("model:")) : all;
+  const notices = all.filter((notice) => !notice.id.startsWith("model:"));
   const [at, setAt] = useState(0);
   const n = notices.length;
   if (!n) return null;
