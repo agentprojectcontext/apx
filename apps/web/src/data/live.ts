@@ -13,6 +13,7 @@ import { loadCatalog, models } from "./models.ts";
 import { loadNotifications, notificationChanged } from "./notifications.ts";
 import { denied } from "./pairing.ts";
 import { routineRunChanged } from "./routines.ts";
+import { setLiveSocket } from "./socketCall.ts";
 import { data, upsertMessage } from "./state.ts";
 import { loadDiskStatus } from "./storage.ts";
 import { loadTasks, taskChanged, taskDeleted, tasksLoaded } from "./tasks.ts";
@@ -72,6 +73,7 @@ async function connect(): Promise<void> {
     notePanel(health);
     if (gen !== generation) return s.close();
     socket = s;
+    setLiveSocket(s);
     lastSeq.clear();
     s.onEvent(onFrame);
     // Subscribe first, then read: nothing that happens in between is lost.
@@ -85,6 +87,7 @@ async function connect(): Promise<void> {
     data.set({ connection: "online", error: undefined });
     attempt = 0;
     await s.closed;
+    if (socket === s) setLiveSocket(undefined);
     if (gen !== generation) return;
     data.set({ connection: "offline", error: t("offline.lost") });
   } catch (e) {
