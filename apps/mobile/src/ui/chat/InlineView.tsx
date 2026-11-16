@@ -6,7 +6,7 @@ import { type InlineNode, isMediaId, type InlineView as View_ } from "../../prot
 import { BottomSheet, Button, Tag } from "../kit";
 import { useMediaUri } from "../media/context";
 import { MediaViewer } from "../media/MediaViewer";
-import { makeStyles, useTheme } from "../theme";
+import { makeStyles } from "../theme";
 import { Agenda, Code, Head, Status, Steps } from "./InlineFacts";
 import { Accent, InlineAsk, inlineBox, type Of, Rating, SendButton } from "./InlineParts";
 import { Booking, Choice, Compare } from "./InlinePick";
