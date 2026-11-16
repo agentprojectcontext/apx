@@ -100,11 +100,10 @@ export function WorkspaceScreen({
   const [visited, setVisited] = useState<ReadonlySet<Tab>>(() => new Set(["chats"]));
   useEffect(() => setVisited((seen) => (seen.has(tab) ? seen : new Set([...seen, tab]))), [tab]);
   const stack = usePageStack<Page>();
-  const [chatProject, setChatProject] = useState("all");
   const [chatFilter, setChatFilter] = useChatFilter();
   const unreadChats = useMemo(
-    () => inboxThreads(workspace.data.threads, chatFilter.routines).reduce((n, thread) => n + thread.unread, 0),
-    [workspace.data.threads, chatFilter.routines],
+    () => inboxThreads(workspace.data.threads, true).reduce((n, thread) => n + thread.unread, 0),
+    [workspace.data.threads],
   );
   const fileActions = useMemo(
     () => ({ tree: workspace.fileTree, read: workspace.readFile, media: workspace.fileMedia }),
@@ -203,8 +202,9 @@ export function WorkspaceScreen({
       .catch(() => undefined);
   };
   const newChat = () => setPicker("new");
+  // Another page's "its chats": the filter narrows to that project ("all": every project).
   const toChats = (project: string) => {
-    setChatProject(project);
+    setChatFilter({ ...chatFilter, projects: project === "all" ? [] : [project] });
     clear();
     setTab("chats");
   };
@@ -357,8 +357,6 @@ export function WorkspaceScreen({
             create={on.newChat}
             account={() => setTab("more")}
             refresh={workspace.refresh}
-            project={chatProject}
-            setProject={setChatProject}
             filter={chatFilter}
             setFilter={setChatFilter}
             menu={setMenu}
@@ -424,7 +422,7 @@ export function WorkspaceScreen({
         ))}
       </View>
     ),
-    [tab, visited, workspace.data, workspace.online, inbox, chatProject, chatFilter, taskActions, host, s],
+    [tab, visited, workspace.data, workspace.online, inbox, chatFilter, taskActions, host, s],
   );
   if (workspace.loading && workspace.data.threads.length === 0)
     return (

@@ -27,17 +27,18 @@ const mount = async (patch: Partial<React.ComponentProps<typeof ChatsPage>> = {}
     create: jest.fn(),
     account: jest.fn(),
     refresh: jest.fn(async () => {}),
-    project: "all",
-    setProject: jest.fn(),
     filter: ALL_CHATS,
     setFilter: jest.fn(),
     ...patch,
   };
   return { ...(await render(<ChatsPage {...props} />)), props };
 };
+const showTab = (ui: Awaited<ReturnType<typeof mount>>, name: string) =>
+  act(async () => fireEvent.press(ui.getByRole("tab", { name })));
 
 test("a routine is one row that opens its latest run; same-name routines and legacy runs stay apart", async () => {
   const ui = await mount();
+  await showTab(ui, t("routines"));
   const rows = ui.getAllByRole("button", { name: "Daily review" });
   expect(rows).toHaveLength(2);
   const first = required(rows[0]);
@@ -70,6 +71,7 @@ test("chat sessions expand recursively, keep independent open actions, unread to
 
 test("a task is its latest chat's row; its other chats nest under it by who works them", async () => {
   const ui = await mount();
+  await showTab(ui, t("navTasks"));
   const task = ui.getByRole("button", { name: "Prepare launch" });
   expect(within(task).getByText("2")).toBeVisible();
   await fireEvent.press(task);
@@ -86,6 +88,7 @@ test("a task is its latest chat's row; its other chats nest under it by who work
 test("a long press on a task's row gives the task's options", async () => {
   const taskMenu = jest.fn();
   const ui = await mount({ taskMenu });
+  await showTab(ui, t("navTasks"));
   await fireEvent(ui.getByRole("button", { name: "Prepare launch" }), "longPress");
   expect(taskMenu).toHaveBeenCalledWith("task_a");
   await ui.unmount();
@@ -101,21 +104,35 @@ test("search exposes matching nested sessions with ancestry, filters unrelated r
   expect(ui.props.open).toHaveBeenLastCalledWith(expect.objectContaining({ id: "session_b" }));
   expect(ui.queryByRole("button", { name: "Launch team" })).toBeNull();
   await fireEvent.changeText(ui.getByPlaceholderText(t("searchChats")), "No matching session");
-  expect(ui.getByText(t("noChats"))).toBeVisible();
+  expect(ui.getByText(t("filterNone"))).toBeVisible();
   await fireEvent.changeText(ui.getByPlaceholderText(t("searchChats")), "");
   expect(ui.getByRole("button", { name: "Launch team" })).toBeVisible();
   await ui.unmount();
 });
 
-test("project filtering promotes cross-project descendants and local callbacks preserve filter values", async () => {
-  const ui = await mount({ project: "project_b" });
+test("chats, tasks and routines each have a tab, as in the panel", async () => {
+  const ui = await mount();
+  expect(ui.getByRole("button", { name: "Launch planning" })).toBeVisible();
+  expect(ui.queryByRole("button", { name: "Prepare launch" })).toBeNull();
+  expect(ui.queryByRole("button", { name: "Daily review" })).toBeNull();
+  await showTab(ui, t("navTasks"));
+  expect(ui.getByRole("button", { name: "Prepare launch" })).toBeVisible();
+  expect(ui.queryByRole("button", { name: "Launch planning" })).toBeNull();
+  await showTab(ui, t("routines"));
+  expect(ui.getAllByRole("button", { name: "Daily review" }).length).toBeGreaterThan(0);
+  expect(ui.queryByRole("button", { name: "Prepare launch" })).toBeNull();
+  await ui.unmount();
+});
+
+test("the filter picks projects as it picks agents, and a new chat starts from the header", async () => {
+  const ui = await mount({ filter: { ...ALL_CHATS, projects: ["project_b"] } });
   expect(ui.getByRole("button", { name: "Northwind review" })).toBeVisible();
   expect(ui.queryByRole("button", { name: "Launch team" })).toBeNull();
+  await fireEvent.press(ui.getByRole("button", { name: t("filterChatsOn") }));
   await fireEvent.press(ui.getByText("Acme"));
-  expect(ui.props.setProject).toHaveBeenLastCalledWith("project_a");
-  await fireEvent.press(ui.getByRole("button", { name: t("filterChats") }));
-  await fireEvent.press(ui.getByRole("switch", { name: t("filterRoutines") }));
-  expect(ui.props.setFilter).toHaveBeenLastCalledWith({ ...ALL_CHATS, routines: false });
+  expect(ui.props.setFilter).toHaveBeenLastCalledWith({ ...ALL_CHATS, projects: ["project_b", "project_a"] });
+  await fireEvent.press(ui.getByText(t("filterAllProjects")));
+  expect(ui.props.setFilter).toHaveBeenLastCalledWith(ALL_CHATS);
   await fireEvent.press(ui.getByRole("button", { name: t("newChat") }));
   expect(ui.props.create).toHaveBeenCalledTimes(1);
   await ui.unmount();
@@ -168,7 +185,7 @@ test("a group pair takes a little more than one face; a delegation pair shows th
   });
   await ui.unmount();
   const row = await render(
-    <InboxRow node={required(inboxTree([home], { routines: true, project: "all" })[0])} data={data} open={jest.fn()} />,
+    <InboxRow node={required(inboxTree([home], { routines: true })[0])} data={data} open={jest.fn()} />,
   );
   expect(row.getByRole("button", { name: "Launch planning" })).toHaveStyle({ paddingVertical: 9 });
   await row.unmount();

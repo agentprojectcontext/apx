@@ -45,6 +45,8 @@ test("native preview renders the real inbox without credentials, subscriptions o
     await ui.getByTestId("chats-list").props.refreshControl.props.onRefresh();
   });
   expect(ui.getByText(t("previewRefresh"))).toBeVisible();
+  // The filter narrows to a project locally, as on the real inbox.
+  await fireEvent.press(ui.getByRole("button", { name: t("filterChats") }));
   await fireEvent.press(ui.getByText("Northwind"));
   expect(ui.getByRole("button", { name: "Northwind review" })).toBeVisible();
   expect(ui.queryByRole("button", { name: "Launch planning" })).toBeNull();
