@@ -10,6 +10,7 @@
     "android": "expo run:android",
     "typecheck": "tsc --noEmit",
     "sync:design": "node scripts/sync-design-assets.mjs",
+    "android:release": "node scripts/android-release.mjs",
     "test": "npm run test:unit && npm run test:ui",
     "test:unit": "node --test \"src/**/*.test.ts\"",
     "test:ui": "jest --runInBand"

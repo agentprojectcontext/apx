@@ -122,6 +122,10 @@ CI (`release.yml`, job `android`) runs `expo prebuild` and `./gradlew assembleRe
 - **ABIs**: arm64-v8a only (42 MB instead of 106 MB with all four). `APX_ANDROID_ABIS=armeabi-v7a,arm64-v8a,x86_64`
   builds others, locally or in CI (the workflow's `android_abis` input, or the repo variable `APX_ANDROID_ABIS`).
 
+Locally, `npm run android:release` does the same with a JDK Gradle accepts: Android builds need Java 17 or 21, and a
+newer default Java fails while compiling native modules. It takes `JAVA_HOME` if it points at one, else finds one
+(`brew install openjdk@17` on macOS), runs the prebuild only when `android/` is missing, and prints the APK's path.
+
 ```bash
-npx expo prebuild --platform android --no-install && (cd android && ./gradlew assembleRelease)
+npm run android:release
 ```
