@@ -71,7 +71,7 @@ Some agents work with you everywhere, some belong to one project, and some exist
 <CardGrid>
   <Card title="Home, the secretary" icon="star">
     Your main agent. You name it and pick its face during setup. Its chat is **Home**: one conversation that follows
-    you to every channel. It knows who you are, delegates to the rest of the crew and cannot be deleted.
+    you to every channel. It knows who you are, does small and medium work itself, hands long project work to that project's agent and cannot be deleted.
   </Card>
   <Card title="Project agents" icon="document">
     Live in a project's `.apc/agents/` folder, one markdown file each. They read the project's `AGENTS.md`, work in
@@ -255,6 +255,11 @@ instructions it was first given; one still at work stays apart.
 The answer comes back inside the same turn if it is quick, or later as a new turn that wakes the caller. The chat
 shows a row with what was asked, its progress and how long it took; a click on it unfolds the whole report, with a way
 into the delegated agent's chat at its foot.
+
+Your super-agent does small and medium requests itself, with its own tools, memory and browser: a teammate sees none
+of them, so each hand-off used to lose a note or a login on the way. It hands on only long work that belongs to one
+project, to that project's own agent, with what it knows (relevant notes, links, what you said), and when the result
+comes back it finishes your request itself. Reviews by teammates work as before.
 
 Writing again to a session that is still working on an earlier request reaches it at its next step, inside the work
 already under way, as your own words do when you press Enter: a "pause" or a change of plan applies right away

@@ -75,7 +75,7 @@ Algunos agentes trabajan con vos en todos lados, otros pertenecen a un proyecto 
 <CardGrid>
   <Card title="Home, la secretaria" icon="star">
     Tu agente principal. Le ponés nombre y cara durante la configuración. Su chat es **Home**: una sola conversación
-    que te sigue a todos los canales. Sabe quién sos, le delega al resto del equipo y no se puede borrar.
+    que te sigue a todos los canales. Sabe quién sos, hace él mismo el trabajo chico y mediano, le pasa el trabajo largo de un proyecto al agente de ese proyecto y no se puede borrar.
   </Card>
   <Card title="Agentes de proyecto" icon="document">
     Viven en la carpeta `.apc/agents/` de un proyecto, un archivo markdown cada uno. Leen el `AGENTS.md` del proyecto,
@@ -264,6 +264,11 @@ recibió al principio; si todavía está trabajando, la nueva pregunta queda apa
 La respuesta vuelve en el mismo turno si es rápida, o más tarde como un turno nuevo que despierta a quien la pidió. El
 chat muestra una fila con lo pedido, el avance y cuánto tardó; un clic en ella despliega el informe completo, con el
 acceso al chat del agente delegado al pie.
+
+Tu super-agente hace él mismo los pedidos chicos y medianos, con sus herramientas, su memoria y su navegador: un
+compañero no ve nada de eso, así que cada traspaso perdía una nota o una sesión iniciada en el camino. Solo pasa el
+trabajo largo que es de un proyecto, al agente de ese proyecto, con lo que sabe (notas útiles, links, lo que dijiste),
+y cuando vuelve el resultado termina tu pedido él mismo. Las revisiones de compañeros siguen como antes.
 
 Escribirle de nuevo a una sesión que todavía trabaja en un pedido anterior le llega en su próximo paso, dentro del
 trabajo en curso, como tus propias palabras cuando apretás Enter: una "pausa" o un cambio de plan se aplica enseguida
