@@ -4,11 +4,11 @@
 // body loads on demand.
 import fs from "node:fs";
 import path from "node:path";
+import { parseFrontmatter, textField } from "../apc/frontmatter.ts";
 import type { AgentRecord } from "../domain/agents.ts";
 import { lineage, type ProjectRecord } from "../domain/projects.ts";
 import type { Store } from "../domain/store.ts";
 import { isInside, realpath, tildeHome } from "../paths.ts";
-import { skillFileInfo } from "./file-info.ts";
 import { type RuntimeHomes, runtimes, shippedNames } from "./runtimes.ts";
 
 /** The other agent apps whose skills APX reads: `~/.<app>/skills`, and `.<app>/skills` inside a project. */
@@ -102,10 +102,11 @@ function scan(
     const file = path.join(dir, "SKILL.md");
     try {
       if (!allowLinks && (fs.lstatSync(dir).isSymbolicLink() || fs.lstatSync(file).isSymbolicLink())) return [];
-      const { name, description } = skillFileInfo(file);
+      const { fields } = parseFrontmatter(fs.readFileSync(file, "utf8"));
+      const description = (textField(fields.description) ?? "").replace(/\s+/g, " ").trim();
       // A skill the owner linked in from another app's folder says whose it is (it is shared with that app).
       const source = base.source === "owner" && isLink(dir) ? (appOf(realpath(dir)) ?? "owner") : base.source;
-      return [{ name: name ?? n, description, ...base, source, dir, copies: [] }];
+      return [{ name: textField(fields.name) ?? n, description, ...base, source, dir, copies: [] }];
     } catch {
       return [];
     }
@@ -133,7 +134,7 @@ const realDir = (dir: string) => {
 
 const sameText = (a: string, b: string) => {
   try {
-    return skillFileInfo(path.join(a, "SKILL.md")).hash === skillFileInfo(path.join(b, "SKILL.md")).hash;
+    return fs.readFileSync(path.join(a, "SKILL.md"), "utf8") === fs.readFileSync(path.join(b, "SKILL.md"), "utf8");
   } catch {
     return false;
   }

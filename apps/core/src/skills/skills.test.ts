@@ -116,33 +116,6 @@ test("v1 skills are copied once: folders without inner links, linked skills stay
   for (const n of ["linked", "plain"]) await removeDir(path.join(to, n));
 });
 
-test("a warm catalog sees edits, replacement files, removal and the current skill body", async () => {
-  const dir = path.join(env.home, "skills", "freshness");
-  const file = path.join(dir, "SKILL.md");
-  const content = (description: string, body: string) =>
-    `---\nname: freshness\ndescription: ${description}\n---\n${body}`;
-  fs.mkdirSync(dir);
-  fs.writeFileSync(file, content("Original.", "Old body"));
-  const listed = async () => (await env.client.call("skills.list", {})).skills.find((s) => s.name === "freshness");
-  assert.equal((await listed())?.description, "Original.");
-  assert.equal((await listed())?.description, "Original.");
-  fs.writeFileSync(file, content("Edited description.", "Edited body"));
-  assert.equal((await listed())?.description, "Edited description.");
-  const replacement = path.join(dir, "replacement.md");
-  fs.writeFileSync(replacement, content("Replaced description.", "Replacement body"));
-  fs.renameSync(replacement, file);
-  assert.equal((await listed())?.description, "Replaced description.");
-  const { skillsFor, readSkillFile } = await import("./skills.ts");
-  const skill = skillsFor(env.core.store, { home: env.home }, undefined).find((s) => s.name === "freshness");
-  assert.ok(skill);
-  assert.match(readSkillFile(skill), /Replacement body/);
-  fs.writeFileSync(file, content("Replaced description.", "Newest body"));
-  assert.match(readSkillFile(skill), /Newest body/);
-  fs.unlinkSync(file);
-  assert.equal(await listed(), undefined);
-  await removeDir(dir);
-});
-
 test("a long catalog describes the project's skills and the first ones, and names the rest", async () => {
   const { skillCatalog } = await import("./skills.ts");
   const skill = (name: string, scope: "global" | "project" = "global") => ({
