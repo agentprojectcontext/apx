@@ -1,9 +1,9 @@
 import { spawnSync } from "node:child_process";
 import fs from "node:fs";
-import net from "node:net";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import ts from "typescript-parser";
+import { sandboxPorts } from "../e2e/sandbox.ts";
 import { runE2ESuites } from "./coverage-e2e.ts";
 import { mergeScripts, missingSourceMaps, readCoveragePayloads, snapshotSourceMaps } from "./coverage-maps.ts";
 import { sourceMapResolver } from "./coverage-source-map.ts";
@@ -21,30 +21,6 @@ export type InstrumentedCoverage = {
 };
 type SourceFunction = FunctionCoverage & { start: number; end: number };
 export type CoverageSourceMap = { url: string; text: string; sources: string[]; mappings: string; sourceRoot?: string };
-/** Parallel checkouts need separate sandbox listeners; explicit ports remain available for debugging. */
-export async function sandboxPorts(env: NodeJS.ProcessEnv = process.env): Promise<Record<string, string>> {
-  const ports: Record<string, string> = {};
-  const servers: net.Server[] = [];
-  try {
-    for (const name of ["E2E_PORT", "E2E_CONTROL_PORT", "E2E_WA_PORT", "E2E_PAIR_PORT"]) {
-      if (env[name]) {
-        ports[name] = env[name];
-        continue;
-      }
-      const server = net.createServer();
-      servers.push(server);
-      await new Promise<void>((resolve, reject) => {
-        server.once("error", reject);
-        server.listen(0, "127.0.0.1", resolve);
-      });
-      ports[name] = String((server.address() as net.AddressInfo).port);
-    }
-    return ports;
-  } finally {
-    await Promise.all(servers.map((server) => new Promise<void>((resolve) => server.close(() => resolve()))));
-  }
-}
-
 function lineStarts(text: string): number[] {
   return [0, ...Array.from(text.matchAll(/\r\n?|\n/g), (match) => match.index + match[0].length)];
 }

@@ -195,6 +195,18 @@ Every spec shows "Open desktop" (the kit answers the install status as installed
 **Where:** `e2e/fake-desktop-app.ts`, `e2e/start-core.ts`, `e2e/env.ts`, `createCore`'s `desktopApp` option,
 `e2e/specs/81-desktop-install.spec.ts`.
 
+<a id="e2e-foreign-core"></a>
+### An e2e run talks only to the sandbox it started
+**Rule:** `playwright.config.ts` picks free ports and a run id for every run (`e2e/sandbox.ts`); `e2e/env.ts` refuses
+a port already in use and waits for a core whose `home_id` is its own home's; the specs' kit checks the control API's
+run id and the core's `home_id` before the first call; the desktop specs launch the app only through
+`launchSandboxApp`, which refuses an `APX_DESKTOP_DATA` outside the temp folder or on the APX app's own folder.
+**Why:** a desktop e2e run found a scratch core of another checkout already listening on the default port 7460, talked
+to it, and the real desktop data folder ended up with that core saved as the owner's local APX. Once its scratch home was removed the owner's app refused to open: "The saved local APX belongs
+to another installation".
+**Where:** `e2e/sandbox.ts`, `e2e/env.ts`, `e2e/specs/kit.ts`, `e2e/desktop/app-shell.test-support.ts`,
+`scripts/e2e-sandbox.test.ts`.
+
 <a id="protocol-subpaths"></a>
 ### The core imports the protocol only through `@apx/protocol` subpaths
 **Rule:** `apps/core` and `apps/terminal` never import `packages/protocol/src/…` by path; a module they need becomes a

@@ -3,6 +3,7 @@
 import { test as base, expect, type Page } from "@playwright/test";
 import { ALL_SLIDES } from "../../apps/web/src/shell/welcomeFilm.ts";
 import { startPageCoverage } from "../coverage.ts";
+import { coreOwnsHome } from "../sandbox.ts";
 
 const core = `http://127.0.0.1:${process.env.E2E_PORT ?? 7460}`;
 const control = `http://127.0.0.1:${process.env.E2E_CONTROL_PORT ?? 7461}`;
@@ -10,8 +11,25 @@ const phone = `http://127.0.0.1:${process.env.E2E_WA_PORT ?? 7462}`;
 const post = (url: string, body: unknown = {}) => fetch(url, { method: "POST", body: JSON.stringify(body) });
 let seq = 0;
 
+let checked: Promise<void> | undefined;
+/**
+ * The control API and the core are this run's sandbox (its id, its home's core), checked once before the first call:
+ * never a core someone else left on the port.
+ */
+export function ownSandbox(): Promise<void> {
+  checked ??= (async () => {
+    const info = (await (await fetch(`${control}/info`)).json()) as { run?: string; home?: string };
+    if (process.env.E2E_RUN && info.run !== process.env.E2E_RUN)
+      throw new Error(`${control} belongs to another e2e run (${info.run ?? "unknown"}), not this one`);
+    if (!info.home || !(await coreOwnsHome(core, info.home)))
+      throw new Error(`${core} is not this sandbox's core: refusing to talk to it`);
+  })();
+  return checked;
+}
+
 /** A protocol call, as the owner. */
 export async function rpc<T = Record<string, unknown>>(method: string, params: unknown = {}): Promise<T> {
+  await ownSandbox();
   const res = await fetch(`${core}/rpc/${method}`, {
     method: "POST",
     headers: { "content-type": "application/json", "idempotency-key": `e2e-${Date.now()}-${seq++}` },
@@ -24,8 +42,10 @@ export async function rpc<T = Record<string, unknown>>(method: string, params: u
 
 /** The emulated outside: where things are, a Telegram user writing, what the bot sent. */
 export const world = {
-  info: async () =>
-    (await (await fetch(`${control}/info`)).json()) as {
+  info: async () => {
+    await ownSandbox();
+    return (await (await fetch(`${control}/info`)).json()) as {
+      run: string;
       dir: string;
       repo: string;
       home: string;
@@ -37,7 +57,8 @@ export const world = {
       slack: { bot: string; app: string };
       /** A service on this computer that Flow HTTP steps may call. */
       service: string;
-    },
+    };
+  },
   /** What reached that service: each request's method, path, headers and body. */
   serviceCalls: async () =>
     (
