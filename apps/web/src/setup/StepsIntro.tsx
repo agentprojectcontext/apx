@@ -73,6 +73,7 @@ export function Welcome({
     <div className="wiz__welcome crew__stage">
       <CrewHero pill={pill} />
       <div className="wiz__welcomenext">
+        {JUST_INSTALLED && <p className="wiz__body">{t("setup.welcome.installedBody")}</p>}
         <p className="wiz__body">{t("setup.style.question")}</p>
         {/* The way in picks the panel: a personal assistant (few steps) or projects and team (every step). */}
         <div className="wiz__choices">

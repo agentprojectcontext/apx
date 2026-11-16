@@ -56,7 +56,7 @@ You don't need to open a terminal on the server. In the desktop app's first run 
 
 <Steps>
 
-1. Choose **Client**, then **SSH**, and type `user@server`. It uses your own `ssh` and keys.
+1. Choose **Remote install**, then **SSH**, and type `user@server`. It uses your own `ssh` and keys.
 
 2. If APX isn't on that server yet, the app says so and offers **Install it for me** (or **Install it myself**, which
    shows the command to run). It sends the same `install.sh` over SSH and installs the app's own version. It works on
@@ -190,7 +190,7 @@ Addresses a device may reach this core on:
 In the APX app, open Pair and paste the link, or enter an address and the code:
   apx://pair?c=ABCD2345&u=https%3A%2F%2F<machine>.<tailnet>.ts.net`}</Terminal>
 
-- **Desktop app**: on its first run choose **Client**, then either **Address** (the Tailscale or LAN address; the
+- **Desktop app**: on its first run choose **Remote install**, then either **Address** (the Tailscale or LAN address; the
   panel asks for the code) or **SSH** (`user@server`). SSH uses your own keys and forwards the core to your computer,
   so it works even when the server is exposed to nobody. Details in [Desktop app](/devices/desktop/).
 - **Phone**: scan the QR from the panel, paste the `apx://pair` link in the APX app, or open the address in the

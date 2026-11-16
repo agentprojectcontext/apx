@@ -34,6 +34,7 @@ import { ROOM_AGENT_NEWS } from "./room-agent.ts";
 import { ROOM_HANDOFF_NEWS } from "./room-handoff.ts";
 import { ROUTINE_PERMISSIONS_NEWS } from "./routine-permissions.ts";
 import { SIDE_QUESTION_NEWS } from "./side-question.ts";
+import { SIMPLE_PANEL_NEWS } from "./simple-panel.ts";
 import { STORE_COMPACT_NEWS } from "./store-compact.ts";
 import { SUBPROJECTS_NEWS } from "./subprojects.ts";
 import { TASK_COMMENTS_NEWS } from "./task-comments.ts";
@@ -177,6 +178,7 @@ export const NEWS: readonly NewsEntry[] = [
   MEMORY_REVIEW_NEWS,
   GROUP_CHATS_NEWS,
   VOICE_CALLS_NEWS,
+  SIMPLE_PANEL_NEWS,
   {
     id: "storage-screen",
     since: "2.13.0",

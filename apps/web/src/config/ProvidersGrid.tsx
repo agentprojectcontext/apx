@@ -123,7 +123,8 @@ export function ProvidersGrid({ compact = false, onlyReady = false }: { compact?
           list={list}
           onPick={(kind) => {
             // A kind already here (a built-in waiting for its key) opens as itself, never as a second one.
-            const here = list.find((p) => !p.sign_in && (p.id === kind || kindOf(p) === kind));
+            const here =
+              kind === "custom" ? undefined : list.find((p) => !p.sign_in && (p.id === kind || kindOf(p) === kind));
             editor.set({ open: here ? { id: here.id } : { preset: kind } });
           }}
           onClose={close}
@@ -158,7 +159,8 @@ function ProviderPicker({
     <Dialog open onOpenChange={(o) => !o && onClose()} size="lg" title={t("providers.newTitle")}>
       <div className="ppick">
         {PROVIDER_PRESETS.map((k) => {
-          const on = ready.has(k.id);
+          // Another server can always be added again: only a known kind is one of a kind.
+          const on = k.id !== "custom" && ready.has(k.id);
           return (
             // ui: a kind to pick, shown as a card with its mark (like the grid's own cards).
             <button key={k.id} type="button" className="ppick__card" disabled={on} onClick={() => onPick(k.id)}>

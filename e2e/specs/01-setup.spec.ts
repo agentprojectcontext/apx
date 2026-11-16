@@ -24,7 +24,7 @@ test("a new install opens the setup and imports APX v1", async ({ page }) => {
   await expect(wizard).toBeVisible();
   await expect(wizard.getByText("v1.120.0")).toBeVisible();
 
-  await wizard.getByRole("button", { name: /Importar desde APX v1/ }).click();
+  await wizard.getByRole("button", { name: /Traer APX v1/ }).click();
   await expect(wizard.getByRole("switch").first()).toBeVisible();
   await expect(wizard.getByText("Ollama · embeddinggemma:300m")).toBeVisible();
   await expect(wizard.locator(".wiz__rowname").filter({ hasText: /^Motores\s*2$/ })).toBeVisible();
@@ -44,6 +44,8 @@ test("a new install opens the setup and imports APX v1", async ({ page }) => {
   await expect(wizard.getByRole("combobox", { name: "Modelo" }).first()).toBeVisible();
   // Provider management works before leaving the wizard, including correcting a saved key.
   await wizard.getByRole("button", { name: "Agregar proveedor", exact: true }).click();
+  // Every kind is a card; another server is the OpenAI-compatible form.
+  await page.locator(".ppick__card", { hasText: "Otro servidor" }).click();
   const dialog = page.getByRole("dialog");
   await dialog.getByRole("textbox", { name: "Nombre", exact: true }).fill("Acme wizard");
   await dialog.getByRole("textbox", { name: "URL base" }).fill("http://127.0.0.1:9/v1");
@@ -106,16 +108,25 @@ test("a new install opens the setup and imports APX v1", async ({ page }) => {
   await expect(wizard.getByText("Abriendo tu chat con Robina…")).toBeVisible();
   await expect(wizard).toBeHidden();
   await expect(page).toHaveURL(/thread=home/);
-  // The super-agent greets first, in the language on screen, and its personality can be picked right there.
+  // The super-agent greets first, in the language on screen, and gets to know the owner one question at a time.
   await expect(page.getByText(/Soy Robina, tu super-agente/)).toBeVisible();
+  await page.getByRole("textbox", { name: "Tu nombre y Enter" }).fill("Ada");
+  await page.keyboard.press("Enter");
+  await expect(page.getByText("¡Un gusto, Ada! ¿A qué te dedicás?")).toBeVisible();
+  await page.getByRole("button", { name: "Estudio", exact: true }).click();
   await expect(page.getByRole("button", { name: "Directo y breve" })).toBeVisible();
   await page.getByRole("button", { name: "Otra", exact: true }).click();
   await page.getByRole("textbox", { name: /Contame cómo querés que sea/ }).fill("Con calma y paciencia");
   await page.keyboard.press("Enter");
   await expect(page.getByText("Quiero que seas así: Con calma y paciencia.").first()).toBeVisible();
   await expect(page.getByRole("button", { name: "Directo y breve" })).toBeHidden();
+  await page.getByRole("button", { name: "Ordenar mi mail", exact: true }).click();
+  await expect(page.getByText("Primero ayudame con: Ordenar mi mail.").first()).toBeVisible();
   const boss = await rpc<{ agent: { personality?: string } }>("agents.get", { agent: "superagent" });
   expect(boss.agent.personality).toBe("Con calma y paciencia");
+  const owner = await rpc<{ name: string; about?: string }>("owner.get");
+  expect(owner.name).toBe("Ada");
+  expect(owner.about).toMatch(/Work: Estudio[\s\S]*Ordenar mi mail/);
 
   // What came in.
   const projects = (await rpc<{ projects: Array<{ name: string }> }>("projects.list")).projects.map((p) => p.name);
@@ -143,7 +154,7 @@ test("the setup opens again from the account menu and starts from scratch", asyn
   await page.getByRole("menuitem", { name: "Configuración inicial" }).click();
   const wizard = page.locator(".wiz");
   await expect(wizard).toBeVisible();
-  await wizard.getByRole("button", { name: /Empezar de cero/ }).click();
+  await wizard.getByRole("button", { name: /Proyectos y equipo/ }).click();
   const name = wizard.getByRole("textbox", { name: "Nombre" });
   await expect(name).toHaveValue("Robina");
   // The dice picks another of the names a fresh install picks from.
@@ -192,13 +203,47 @@ test("the setup opens again from the account menu and starts from scratch", asyn
   await rpc("projects.update_base", { name: "Default", kind: null });
 });
 
+test("a personal assistant takes a few steps, meets the owner while things get ready, and opens the simple panel", async ({
+  page,
+}) => {
+  await openWizard(page);
+  const wizard = page.locator(".wiz");
+  await wizard.getByRole("button", { name: /Asistente personal/ }).click();
+  // Its brain: two ways in, and a chain that already has a model can go on.
+  await expect(wizard.getByRole("button", { name: /ChatGPT/ }).first()).toBeVisible();
+  await expect(wizard.getByRole("button", { name: /OpenRouter/ }).first()).toBeVisible();
+  await wizard.getByRole("button", { name: "Continuar" }).click();
+  // With more than one brain signed in, the setup first asks which goes first.
+  const order = wizard.getByText("¿Cuál va primero?");
+  await expect(order.or(wizard.locator(".wiz__ideas"))).toBeVisible();
+  if (await order.isVisible()) await wizard.getByRole("button", { name: "Continuar" }).click();
+  // Its name and face: one of three names, the agent shown as it changes.
+  const idea = wizard.locator(".wiz__ideas button").first();
+  const picked = (await idea.textContent()) ?? "";
+  await idea.click();
+  await expect(wizard.locator(".wiz__float")).toContainText(picked);
+  await wizard.getByRole("button", { name: "Continuar" }).click();
+  // Channels can wait.
+  await wizard.getByRole("button", { name: "Saltear por ahora" }).click();
+  // Meet: what gets ready on its own, beside the agent's chat.
+  await expect(wizard.locator(".meet__list li")).toHaveCount(3);
+  await expect(wizard.locator(".meet__chat")).toBeVisible();
+  await wizard.getByRole("button", { name: "Entrar a APX" }).click();
+  await expect(wizard).toBeHidden();
+  expect((await rpc<{ mode: string }>("panel.mode")).mode).toBe("simple");
+  // The simple panel: no projects, and Advanced at the top brings them back.
+  await expect(page.getByRole("button", { name: "Simple", exact: true }).or(page.getByRole("radio", { name: "Simple" }))).toBeVisible();
+  await page.getByRole("radio", { name: "Avanzado" }).click();
+  await until(async () => (await rpc<{ mode: string }>("panel.mode")).mode === "advanced");
+});
+
 test("right after the desktop app installs APX, the setup's welcome says so, once", async ({ page }) => {
   await openWizard(page, "/?welcome=installed");
   const wizard = page.locator(".wiz");
   await expect(wizard.getByText("APX está instalado")).toBeVisible();
   await expect(wizard.getByText(/APX ya está instalado; ahora armamos tu crew/)).toBeVisible();
   // v1 is on this machine: the two ways in stay.
-  await expect(wizard.getByRole("button", { name: /Importar desde APX v1/ })).toBeVisible();
+  await expect(wizard.getByRole("button", { name: /Traer APX v1/ })).toBeVisible();
   expect(new URL(page.url()).searchParams.has("welcome")).toBe(false);
   await page.reload();
   await expect(wizard.getByText("Open source")).toBeVisible();
@@ -210,11 +255,11 @@ test("the setup's header picks the language, kept like the app's own", async ({ 
   const wizard = page.locator(".wiz");
   await wizard.getByRole("button", { name: "Idioma: Español" }).click();
   await page.getByRole("menuitem", { name: "English" }).click();
-  await expect(wizard.getByRole("button", { name: /Start from scratch/ })).toBeVisible();
+  await expect(wizard.getByRole("button", { name: /Projects and team/ })).toBeVisible();
   await page.reload();
   await wizard.getByRole("button", { name: "Language: English" }).click();
   await page.getByRole("menuitem", { name: "Español" }).click();
-  await expect(wizard.getByRole("button", { name: /Empezar de cero/ })).toBeVisible();
+  await expect(wizard.getByRole("button", { name: /Proyectos y equipo/ })).toBeVisible();
 });
 
 for (const look of ["minimal", "classic"]) {
@@ -229,7 +274,7 @@ for (const look of ["minimal", "classic"]) {
       );
       await openWizard(page);
       const wizard = page.locator(".wiz");
-      await wizard.getByRole("button", { name: /Empezar de cero/ }).click();
+      await wizard.getByRole("button", { name: /Proyectos y equipo/ }).click();
       for (let i = 0; i < 4; i++) await wizard.getByRole("button", { name: "Continuar" }).click();
       await wizard.getByRole("combobox", { name: "Tipo" }).click();
       const popup = page.locator(".apx-select__popup");
