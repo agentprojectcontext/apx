@@ -15,7 +15,7 @@ import {
   type Transport,
   type Usage,
 } from "./types.ts";
-import { readsImages } from "./vision.ts";
+import { imageLimit, readsImages } from "./vision.ts";
 import { contextWindow } from "./windows.ts";
 
 export type LlmRequest = {
@@ -188,6 +188,16 @@ export function createLlm(opts: {
             model: ref,
             why: `its context (${kTokens(window)}) is smaller than this chat (${kTokens(need)})`,
           });
+          continue;
+        }
+        const imageCap = imageLimit(ref);
+        if (
+          imageCap !== undefined &&
+          messages.reduce((n, m) => n + (m.role === "user" ? (m.images?.length ?? 0) : 0), 0) > imageCap
+        ) {
+          const why = `accepts at most ${imageCap} images per request; remove an image or choose another model`;
+          refused ??= new ProviderError("bad_request", why);
+          failed.push({ model: ref, why });
           continue;
         }
         // A local server (Ollama, LM Studio) needs no key; a signed-in plan gets a fresh token per call.

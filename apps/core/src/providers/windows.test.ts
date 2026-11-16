@@ -2,6 +2,13 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { contextWindow } from "./windows.ts";
 
+test("Qwen 3.8 27B uses its documented window without changing other Qwen fallbacks", () => {
+  for (const model of ["groq/qwen/qwen3.8-27b", "openrouter/qwen/qwen3.8-27b", "groq/qwen/qwen3.8-27b#high"])
+    assert.equal(contextWindow(model), 131_072, model);
+  for (const model of ["groq/qwen/qwen3-32b", "groq/qwen/qwen3.8-270b", "groq/qwen/qwen3.8-27b-preview"])
+    assert.equal(contextWindow(model), 128_000, model);
+});
+
 test("known model families report their context window; unknown ones do not invent one", () => {
   assert.equal(contextWindow("anthropic/claude-sonnet-4-5"), 200_000);
   assert.equal(contextWindow("google/gemini-2.5-pro"), 1_048_576);
