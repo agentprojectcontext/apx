@@ -157,7 +157,9 @@ The box at the bottom ("Message Lucía…") is where you write. A few things it 
   itself is not attached, unless it couldn't be turned into words: then it stays attached as a voice note, so nothing
   you said is lost. Stop and dictate again to add more. While it records, its button is the only stop, and send
   comes back once the words are in. With APX's voice, or a local transcription model (whisper.cpp), first in
-  Settings › Voice and calls, it all stays on your machine and you see the words as you speak.
+  Settings › Voice and calls, it all stays on your machine and you see the words as you speak. The final words are
+  worked out while you talk, a few seconds at a time at each pause, so stopping only waits for the last stretch,
+  however long you spoke; the live words are a quick draft that the final ones replace.
 - **Keys.** Enter sends (if the agent is working, it reads it at its next step; in a Codex session it stops the turn
   and runs the message at once). Ctrl/⌘+Enter puts it in line for when
   it finishes; while the agent works, a line under the composer reminds you. Shift+Enter adds a line.

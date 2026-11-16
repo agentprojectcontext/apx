@@ -62,10 +62,10 @@ test("the words heard while recording come from whisper.cpp on this machine, and
   }
 });
 
-test("with APX's voice first, the words heard while recording come from it, and none once it is not installed", async () => {
+test("with APX's voice first, the live words come from its small model and the final ones from the good one", async () => {
   const env = await startCore({ llm: scriptedLlm(() => say("ok")) });
   let installed = true;
-  const heard: { bytes: number; lang: string | undefined }[] = [];
+  const heard: { bytes: number; lang: string | undefined; draft: boolean | undefined }[] = [];
   const services = createServices({
     store: env.core.store,
     secrets: env.core.secrets,
@@ -74,8 +74,8 @@ test("with APX's voice first, the words heard while recording come from it, and 
     voice: {
       installed: () => installed,
       speak: async () => ({ bytes: Buffer.alloc(0), mime: "audio/wav" }),
-      transcribe: async (pcm, lang) => {
-        heard.push({ bytes: pcm.length, lang });
+      transcribe: async (pcm, lang, _signal, draft) => {
+        heard.push({ bytes: pcm.length, lang, draft });
         return "Roby, ¿descargás el último capítulo?";
       },
     },
@@ -98,8 +98,10 @@ test("with APX's voice first, the words heard while recording come from it, and 
       await services.listen(audio, "audio/webm", AbortSignal.timeout(5000)),
       "Roby, ¿descargás el último capítulo?",
     );
-    assert.deepEqual(heard, [{ bytes: 2000, lang: undefined }], "the recording reaches the voice as PCM");
+    assert.deepEqual(heard, [{ bytes: 2000, lang: undefined, draft: true }], "the recording reaches the voice as PCM");
     assert.deepEqual(media(), before);
+    await services.transcribe({ bytes: audio, mime: "audio/wav" }, AbortSignal.timeout(5000));
+    assert.equal(heard.at(-1)?.draft, false, "the words that stay come from the good model");
     installed = false;
     assert.equal(await services.listen(audio, "audio/webm", AbortSignal.timeout(5000)), undefined);
   } finally {

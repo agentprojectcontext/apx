@@ -114,9 +114,10 @@ export function createServices(deps: {
     s: ServiceConfig,
     a: { path: string; bytes: Buffer; mime: string },
     signal: AbortSignal,
+    draft = false,
   ) =>
     s.dialect === "apx-voice"
-      ? native(s).transcribe(await toPcm(a.bytes), s.language, signal)
+      ? native(s).transcribe(await toPcm(a.bytes), s.language, signal, draft)
       : transcribe(s, a, keyOf(s), signal, f, whisperCpp);
 
   async function check(s: ServiceConfig): Promise<boolean> {
@@ -314,13 +315,14 @@ export function createServices(deps: {
       return r;
     },
     /**
-     * Words heard so far, from an engine on this machine only (free, in memory): APX's voice or whisper.cpp;
-     * undefined without one. APX's voice also starts here, so it is up by the time the recording ends.
+     * Words heard so far, from an engine on this machine only (free, in memory): APX's voice (its small model, so the
+     * final words never wait behind these) or whisper.cpp; undefined without one. APX's voice also starts here, so it
+     * is up by the time the recording ends.
      */
     async listen(bytes: Buffer, mime: string, signal: AbortSignal): Promise<string | undefined> {
       const s = ofKind("transcription").find((x) => x.enabled);
       if (s?.dialect === "apx-voice" && deps.voice?.installed("ears"))
-        return transcribeWith(s, { path: "", bytes, mime }, signal);
+        return transcribeWith(s, { path: "", bytes, mime }, signal, true);
       if (s?.dialect !== "whisper-cpp" || !whisperCpp.available(s.model)) return undefined;
       return transcribe(s, { path: "", bytes, mime }, undefined, signal, f, whisperCpp);
     },

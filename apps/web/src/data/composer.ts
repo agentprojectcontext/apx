@@ -114,6 +114,23 @@ export async function transcribe(audio: string | Blob, thread: string | undefine
 }
 
 /**
+ * One piece of a recording to text, with no notice: when a piece fails, the whole recording is transcribed again at
+ * the end (`transcribe`), which tells.
+ */
+export async function transcribePiece(audio: Blob, thread: string | undefined): Promise<string | undefined> {
+  try {
+    const r = await client.call("media.transcribe", {
+      data: await base64(audio),
+      mime: audio.type,
+      ...(thread ? { thread } : {}),
+    });
+    return r.text.trim();
+  } catch {
+    return undefined;
+  }
+}
+
+/**
  * What the microphone has heard so far, while it still records. undefined when it cannot be heard live (no engine on
  * this machine, or it failed): the words still come when it stops.
  */

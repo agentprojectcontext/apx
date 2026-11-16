@@ -404,10 +404,10 @@ export function createVoiceEngine(deps: {
       return { bytes: Buffer.from(await res.arrayBuffer()), mime: "audio/wav" };
     },
 
-    /** What a recording (16 kHz mono PCM16) says. */
-    async transcribe(pcm: Buffer, lang: string | undefined, signal: AbortSignal): Promise<string> {
-      const q = lang ? `?lang=${encodeURIComponent(lang.slice(0, 2))}` : "";
-      const res = await post(`/transcribe${q}`, new Uint8Array(pcm), "application/octet-stream", signal);
+    /** What a recording (16 kHz mono PCM16) says; `draft`: quickly, with the small model, for words shown live. */
+    async transcribe(pcm: Buffer, lang: string | undefined, signal: AbortSignal, draft = false): Promise<string> {
+      const q = new URLSearchParams({ ...(lang ? { lang: lang.slice(0, 2) } : {}), ...(draft ? { draft: "1" } : {}) });
+      const res = await post(`/transcribe?${q}`, new Uint8Array(pcm), "application/octet-stream", signal);
       return ((await res.json()) as { text?: string }).text?.trim() ?? "";
     },
 

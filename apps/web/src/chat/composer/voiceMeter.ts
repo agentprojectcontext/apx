@@ -40,3 +40,5 @@ export function startVoiceMeter(
     if (context?.state !== "closed") void context?.close().catch(() => {});
   };
 }
+
+export { createCutter, startVoiceTap, type VoiceTap, wav } from "./voiceCuts.ts";
