@@ -11,7 +11,7 @@ export const esWelcome: Record<WelcomeKey, string> = {
   "welcome.soundOff": "Silenciar",
   "welcome.voice.title": "La voz de APX",
   "welcome.voice.text":
-    "Tus agentes hablan y escuchan notas de voz con la voz propia de APX. En Configuración › Voces elegís mujer u hombre y el acento.",
+    "Tus agentes hablan y escuchan notas de voz con la voz propia de APX. En Configuración › Voz y llamadas elegís mujer u hombre, el idioma y el acento.",
   "welcome.calls.title": "Llamá a tus agentes",
   "welcome.calls.text":
     "Con el teléfono de arriba llamás a tu superagente, o a cualquier agente desde su chat. Le hablás y te contesta en voz alta.",
