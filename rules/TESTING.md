@@ -100,6 +100,7 @@ pnpm check:decisions               # DECISIONS.md numbered and anchored, every l
 pnpm check:since                   # news and welcome slides say the release that really ships them
 pnpm check:commits HEAD^..HEAD     # this commit only; use a base..head range for a change, see rules/RELEASE.md
 pnpm check:schema                  # apps/core/src/db/schema.ts matches the migrations (`node apps/core/scripts/schema.ts` rewrites it)
+pnpm check:design-sync             # the phone's synced files match the kit, packages/ui and the panel (`npm run sync:design` in apps/mobile rewrites them)
 pnpm check:ui                      # panel screens use @apx/ui controls and tokens (AGENTS.md rule 32)
 pnpm check:dead                    # knip: no file, export, type or dependency that nothing reaches
 ```
@@ -188,7 +189,7 @@ While developing against a scratch state, set `APX_HOME` to a temp dir so `~/.ap
 
 ## 5. All at once
 ```bash
-pnpm preflight                     # check:private, check:decisions, check:since, check:schema, lint, check:ui, check:dead, typecheck, unit tests
+pnpm preflight                     # check:private, check:decisions, check:since, check:schema, check:design-sync, lint, check:ui, check:dead, typecheck, unit tests
 pnpm verify                        # preflight, all-suite execution coverage, then lightness budgets
 pnpm verify --stream               # the same, with every step's output as it runs
 ```

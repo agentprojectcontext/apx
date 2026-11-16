@@ -3,6 +3,7 @@ import { Pressable, ScrollView, Text, View } from "react-native";
 import { t } from "../../i18n";
 import { Tag } from "../kit";
 import { makeStyles, useTheme } from "../theme";
+import { card as kitCard } from "../tokens";
 import { fill, inlineBox, type Of, Rating, SendButton, Stepper, Tile, toneOf } from "./InlineParts";
 
 /** One option to pick with its price, how many, and a button that asks the agent for it. */
@@ -199,12 +200,17 @@ const useStyles = makeStyles((theme) => ({
     flexDirection: "row",
     alignItems: "center",
     gap: 12,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
+    paddingHorizontal: kitCard.optionPadX,
+    paddingVertical: kitCard.optionPadY,
     ...inlineBox(theme),
   },
   // A thicker brand edge stands in for the panel's ring; the padding keeps the row from shifting.
-  optionOn: { borderWidth: 2, borderColor: theme.brand, paddingHorizontal: 11, paddingVertical: 9 },
+  optionOn: {
+    borderWidth: 2,
+    borderColor: theme.brand,
+    paddingHorizontal: kitCard.optionPadX - 1,
+    paddingVertical: kitCard.optionPadY - 1,
+  },
   radio: {
     width: 18,
     height: 18,

@@ -1,7 +1,7 @@
 // What a schedule reads as, apart from its editor: lists and the Inbox show it without loading the form.
 import type { Schedule } from "@apx/protocol";
+import { DAY_KEY } from "../common/dayKeys.ts";
 import { aheadLabel } from "../common/format.ts";
-import { DAY_KEY } from "../common/week.ts";
 import type { MessageKey, T } from "../i18n/index.ts";
 import { weeklyOf } from "./cron.ts";
 

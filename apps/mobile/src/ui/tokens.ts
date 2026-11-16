@@ -96,4 +96,6 @@ export const card = {
   gap: 8,
   line: 3,
   lineOpacity: 0.85,
+  optionPadY: 10,
+  optionPadX: 12,
 } as const;
