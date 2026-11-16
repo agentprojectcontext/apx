@@ -275,6 +275,11 @@ tells you once instead of three times. It waits at most 10 minutes after the fir
 that are in, and any that come later arrive one by one, as before. Stopping the chat lets go of what was waiting: the
 answers stay on their cards. A single delegation is not held.
 
+An agent working through its own plan in a chat (the checklist under its answer) does not stop at an answer that only
+reports: when a helper's result comes in and the agent just says what it got, with steps left, nothing running and no
+question for you, it gets one more turn to do the next step or say what blocks it. Inside a task, the task itself
+keeps it going.
+
 APX keeps delegation on a leash:
 
 | Limit | Value |

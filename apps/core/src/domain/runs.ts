@@ -69,6 +69,8 @@ export type Origin =
   | { kind: "go_on"; mode: "reset" | "release" }
   /** The agent's task turn ended with the task still in progress: APX starts its next part (engine/task-continue.ts). */
   | { kind: "task_continue"; task_id: string; title: string; part: number; of: number; from_run?: string }
+  /** A chat's own plan going on after a result turn that only reported (engine/plan-continue.ts). */
+  | { kind: "plan_continue"; from_run: string }
   /** APX found the agent's task open with nothing running on it, and asks it once to go on (engine/task-stall.ts). */
   | { kind: "stalled_task"; task_id: string; title: string }
   /** A reviewer returned a task that a project's coordinator started: the coordinator hears it (engine/task-work.ts). */
@@ -130,6 +132,7 @@ export const runsOnComputer = (o: Origin): boolean => {
     case "routine":
     case "stalled_task":
     case "task_continue":
+    case "plan_continue":
     case "task_result":
     case "task_feedback":
     case "delegation_result":

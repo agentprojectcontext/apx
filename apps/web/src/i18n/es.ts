@@ -489,6 +489,7 @@ export const es: Partial<Record<MessageKey, string>> = {
   "turn.from.stalledTask": "Retomar una tarea frenada",
   "turn.from.mail": "Mails nuevos",
   "turn.from.taskContinue": "Seguir con la tarea",
+  "turn.from.planContinue": "Seguir con el plan",
   "turn.from.other": "Próximo turno",
   "turn.queuedAfter": "En cola tras el turno en curso",
   "running.empty": "Nada corriendo ahora.",

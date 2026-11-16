@@ -503,6 +503,7 @@ export const en = {
   "turn.from.stalledTask": "Resume a stalled task",
   "turn.from.mail": "New mail",
   "turn.from.taskContinue": "Go on with the task",
+  "turn.from.planContinue": "Go on with the plan",
   "turn.from.other": "Next turn",
   "turn.queuedAfter": "Queued after the current turn",
   "running.empty": "Nothing running right now.",

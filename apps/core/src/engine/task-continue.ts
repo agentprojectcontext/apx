@@ -26,6 +26,20 @@ function awaitingTeammate(store: Store, taskThread: string, threadId: string): b
     .some((t) => store.threads.context(t.id).consult?.asker?.thread === threadId && store.threads.busy([t.id]));
 }
 
+/** Something comes back to this chat on its own: a helper's result, a question's answer, a command's end, the owner. */
+export function awaiting(store: Store, threadId: string): boolean {
+  return (
+    store.threads.busy([threadId]) ||
+    store.inputs.pending(threadId).length > 0 ||
+    store.runs.activeDelegations(threadId) > 0 ||
+    store.runs.held(threadId).length > 0 ||
+    store.jobs.running().some((j) => j.thread_id === threadId && j.background)
+  );
+}
+
+/** A subtask someone works on: its close comes back to its parent. A draft nobody holds brings nothing back. */
+const worked = (t: { assignee?: string | null; proposed?: boolean | null }) => Boolean(t.assignee) && !t.proposed;
+
 /** Starts the next part of `run`'s task when its turn ended with the task in progress and nothing else to come. */
 export function continueTask(store: Store, admit: AdmitFn, run: RunRecord): RunRecord | undefined {
   // A stopped turn is the owner's word; a failed one is the provider's or APX's, told on its own.
@@ -35,16 +49,11 @@ export function continueTask(store: Store, admit: AdmitFn, run: RunRecord): RunR
   if (!thread || !task || thread.agent_ids[0] !== run.agent_id || task.assignee !== run.agent_id) return undefined;
   // In review it is someone else's turn; otherwise the agent working it is on it, whatever column it sits in.
   if (task.state !== "open" || task.status === "review" || task.awaits_owner || task.proposed) return undefined;
-  // Something else comes back here on its own: a subtask's close, a helper's result, a teammate's answer, a command's
-  // end, the owner.
+  // Something else comes back here on its own: a subtask's close, a teammate's answer, or what `awaiting` names.
   if (
-    store.tasks.list({ state: "open", parent: task.id, limit: 1 }).length ||
-    store.threads.busy([thread.id]) ||
-    store.inputs.pending(thread.id).length ||
-    store.runs.activeDelegations(thread.id) > 0 ||
+    store.tasks.list({ state: "open", parent: task.id, limit: 50 }).some(worked) ||
+    awaiting(store, thread.id) ||
     awaitingTeammate(store, task.thread_id, thread.id) ||
-    store.runs.held(thread.id).length ||
-    store.jobs.running().some((j) => j.thread_id === thread.id && j.background) ||
     agentTrip(store, thread.id, run.agent_id)
   )
     return undefined;

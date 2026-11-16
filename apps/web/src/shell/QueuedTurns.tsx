@@ -33,6 +33,8 @@ export function turnName(t: T, from: JobFrom | undefined): string {
       return t("turn.from.stalledTask");
     case "task_continue":
       return t("turn.from.taskContinue");
+    case "plan_continue":
+      return t("turn.from.planContinue");
     default:
       return t("turn.from.other");
   }

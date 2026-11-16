@@ -6,6 +6,7 @@ import { callTool, say, scriptedLlm, startCore } from "./testkit.ts";
 // Vera works her tasks: "Ship in parts" needs two turns and closes in the second; "Spin" only looks things up.
 const taskOf = (s: string) => /(task_\w+)/.exec(s)?.[1] ?? "";
 let releaseScout: (() => void) | undefined;
+let releaseDraft: (() => void) | undefined;
 const llm = scriptedLlm(async (req, { system, said, afterTool }) => {
   if (system.startsWith("You are Scout") && said.includes("are the numbers final")) {
     if (!releaseScout) await new Promise<void>((r) => (releaseScout = r));
@@ -13,6 +14,16 @@ const llm = scriptedLlm(async (req, { system, said, afterTool }) => {
   }
   if (!system.startsWith("You are Vera")) return say("ok");
   const all = JSON.stringify(req.messages);
+  // Its own words only: other tasks' chats may come up in what it recalls.
+  if (said.includes("Beside a draft")) {
+    if (said.includes("Part 2 of at most"))
+      return afterTool
+        ? say("Done.")
+        : callTool("bd", "task_close", { task: taskOf(said), state: "done", note: "both halves shipped" });
+    if (afterTool) return say("First half done, I'll continue.");
+    await new Promise<void>((r) => (releaseDraft = r));
+    return callTool("bh", "task_comment", { task: taskOf(all), text: "First half shipped." });
+  }
   const task = taskOf(/Task (task_\w+)/.exec(all)?.[0] ?? all);
   if (all.includes("Scout answered your question")) {
     if (!afterTool)
@@ -127,6 +138,23 @@ test("an agent waiting for a teammate it asked on its task is not told to go on:
   await waitFor(() => turnsOn(task.id).some((r) => r.trigger === "a2a" && r.ended_at), "vera hears scout's answer");
   const origins = turnsOn(task.id).map((r) => r.input?.origin.kind);
   assert.notEqual(origins[1], "task_continue", `no 'go on' while scout was answering; got ${origins.join(", ")}`);
+});
+
+test("a draft subtask nobody holds does not stop its parent from going on", async () => {
+  const task = await env.client.call("tasks.create", {
+    title: "Beside a draft",
+    description: "Ship both halves.",
+    assignee: "vera",
+  });
+  await waitFor(() => releaseDraft !== undefined, "vera started");
+  // The owner notes an idea under it, for later: nobody works it, so nothing comes back from it.
+  await env.client.call("tasks.create", { title: "Later idea", description: "Maybe later.", parent: task.id });
+  releaseDraft?.();
+  await waitFor(() => env.core.store.tasks.get(task.id)?.state === "done", "closed in its second part");
+  assert.deepEqual(
+    turnsOn(task.id).map((r) => r.input?.origin.kind),
+    [turnsOn(task.id)[0]?.input?.origin.kind, "task_continue"],
+  );
 });
 
 test("the agent that did the work closes it as done only saying what it verified", async () => {

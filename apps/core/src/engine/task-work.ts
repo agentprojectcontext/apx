@@ -652,8 +652,12 @@ function responseMetadata(store: Store, task: Task, run: RunRecord, answered: bo
   };
 }
 
-/** Reviewers are told to open with this word when nothing must change; one writing in Spanish says it there. */
-const APPROVED = /^\W*(approved|aprobad[oa])\b/i;
+/**
+ * Reviewers are told to open with this word when nothing must change; one writing in Spanish says it there. "Approved
+ * with changes" or "aprobado, pero…" asks for something, so it is a report.
+ */
+const APPROVED =
+  /^\W*(approved|aprobad[oa])\b(?![\s,:;-]*(with|but|except|once|after|if|pending|con|pero|salvo|excepto|cuando|tras|si|pendiente)\b)/i;
 
 /**
  * A review came back: the task's agent gets the report in its chat for the task, as the reviewer's words (an agent's,
