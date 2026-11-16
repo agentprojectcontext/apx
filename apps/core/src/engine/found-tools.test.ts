@@ -56,6 +56,11 @@ test("tool_search loads tools by exact name, several at once, and says which are
   assert.match(back, /## show_widget\n[\s\S]*args: \{/);
   assert.match(
     back,
+    /<ax-chart[\s\S]*<ax-donut[\s\S]*never hex/,
+    "a loaded show_widget teaches the kit's charts and tones",
+  );
+  assert.match(
+    back,
     /not among the tools to load: task_list, nope; one you already have, call directly/,
     "a tool every turn has is not loaded twice",
   );
