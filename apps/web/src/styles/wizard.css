@@ -919,8 +919,6 @@ input.wiz__name {
 /* Simple setup: the two ways in are large, a model app stays behind them, the full grid is one click away. */
 .wiz__way {
   padding: 22px;
-  min-height: 132px;
-  cursor: default;
 }
 .wiz__way .wiz__choicetitle {
   align-items: center;
@@ -929,13 +927,7 @@ input.wiz__name {
 .wiz__way .apx-badge {
   margin-left: auto;
 }
-.wiz__wayfoot {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  margin-top: auto;
-}
+
 .wiz__import {
   width: 100%;
   max-width: 320px;
@@ -957,5 +949,121 @@ input.wiz__name {
   }
   .wiz__foot .apx-btn {
     padding-inline: 14px;
+  }
+}
+/* Simple's last step: what gets ready on its own beside a chat with the agent; the chat comes first when narrow. */
+.meet {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(320px, 400px);
+  gap: 32px;
+  align-items: start;
+}
+.meet__side {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  min-width: 0;
+}
+.meet__list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.meet__item {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--apx-border);
+}
+.meet__mark {
+  display: inline-flex;
+  flex: none;
+  padding-top: 2px;
+  color: var(--apx-fg-muted);
+}
+.meet__item.is-done .meet__mark {
+  color: var(--apx-brand-soft-fg);
+}
+.meet__item.is-failed .meet__mark {
+  color: var(--apx-danger);
+}
+.meet__itemmain {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+  font-size: calc(14px * var(--apx-text-scale, 1));
+}
+.meet__itemmain > span {
+  color: var(--apx-fg-muted);
+  font-size: calc(13px * var(--apx-text-scale, 1));
+}
+.meet__bar {
+  overflow: hidden;
+  height: 4px;
+  border-radius: 999px;
+  background: var(--apx-fill-hover);
+}
+.meet__bar > span {
+  display: block;
+  height: 100%;
+  background: var(--apx-brand);
+  transition: width 0.4s ease;
+}
+.meet__chat {
+  position: sticky;
+  top: 0;
+  display: flex;
+  flex-direction: column;
+  height: min(560px, calc(100vh - 220px));
+  min-height: 360px;
+  overflow: hidden;
+  border: 1px solid var(--apx-border);
+  border-radius: var(--apx-radius-lg);
+  background: var(--apx-surface);
+  box-shadow: var(--apx-shadow-md);
+}
+.meet__chathead {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--apx-border);
+}
+.meet__chatbody {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+  overflow-y: auto;
+}
+.meet__skeleton {
+  flex: 1;
+  margin: 14px;
+}
+@media (max-width: 899px) {
+  .meet {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 20px;
+  }
+  .meet__chat {
+    position: static;
+    order: -1;
+    height: min(460px, calc(100vh - 240px));
+  }
+  .meet__side {
+    gap: 12px;
+  }
+  .meet__side .wiz__title,
+  .meet__side .wiz__body {
+    display: none;
+  }
+  .meet__item {
+    padding: 8px 0;
   }
 }

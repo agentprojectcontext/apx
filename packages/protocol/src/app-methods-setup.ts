@@ -22,7 +22,42 @@ import { officeMethods } from "./office-methods.ts";
 import { resourceMethods } from "./resource-methods.ts";
 import { teamMethods } from "./team-methods.ts";
 
+/** What a simple setup leaves ready on its own: memory by meaning, APX's voice for notes and calls, images. */
+export const SetupPrepare = z.object({
+  /** The setup asked for it (until then each part only says where it stands). */
+  started: z.boolean(),
+  items: z.array(
+    z.object({
+      id: z.enum(["memory", "voice", "images"]),
+      state: z.enum(["waiting", "working", "done", "skipped", "failed"]),
+      /** 0–1 while something downloads, when its size is known. */
+      progress: z.number().min(0).max(1).optional(),
+      /** Why a part is left out: no Ollama here, a machine that cannot run the voice, no ChatGPT plan. */
+      reason: z.enum(["no-ollama", "machine", "no-chatgpt"]).optional(),
+      error: z.string().optional(),
+    }),
+  ),
+});
+export type SetupPrepare = z.infer<typeof SetupPrepare>;
+
 export const appSetupMethods = {
+  /**
+   * Leaves ready what this machine can run without asking: an embedding model through Ollama (memory then searches
+   * by meaning), APX's own voice (voice notes and calls), images with the ChatGPT plan. Starts once; downloads go on
+   * in the background, and the result says where each part stands.
+   */
+  "setup.prepare": deferMethod({
+    params: () => z.object({}).strict(),
+    result: () => SetupPrepare,
+    effect: true,
+    access: "human",
+  }),
+  "setup.prepare_status": deferMethod({
+    params: () => z.object({}).strict(),
+    result: () => SetupPrepare,
+    effect: false,
+    access: "human",
+  }),
   "memory.status": deferMethod({
     params: () => z.object({}).strict(),
     result: () =>

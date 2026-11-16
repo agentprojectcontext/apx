@@ -18,7 +18,7 @@ const POPUP_FEATURES = "popup,width=560,height=780";
 const POLL_MS = 2000;
 
 /**
- * Two cards, each with where it stands and its Connect: ChatGPT opens its sign-in here, OpenRouter its approval in a
+ * Two cards, each saying where it stands; a click connects it: ChatGPT opens its sign-in here, OpenRouter its approval in a
  * window of its own. Connecting does not move on by itself: the owner may connect both. A model app already on this
  * computer (Ollama) stays behind as the backup, unasked.
  */
@@ -31,6 +31,10 @@ export function BrainChoice() {
   const on = (id: string) => list.some((p) => p.id === id && p.enabled && p.key_set);
   const local = list.find((p) => p.local && p.enabled && p.key_set);
   const openRouterOn = on("openrouter");
+  // What is connected already (a model app on this computer, a sign-in from before) shows from the start.
+  useEffect(() => {
+    void loadProviders();
+  }, []);
   useEffect(() => {
     if (!waiting || openRouterOn) return;
     const id = setInterval(() => void loadProviders(), POLL_MS);
@@ -65,35 +69,27 @@ export function BrainChoice() {
       <div className="wiz__options is-two">
         {WAYS.map((w) => {
           const connected = on(w.id);
-          const pending = w.id === "openrouter" && waiting && !connected;
+          const pending = !connected && (w.id === "openrouter" ? waiting : plan);
           return (
-            <div key={w.id} className={`wiz__option wiz__way${connected ? " is-on" : ""}`}>
+            // ui: the whole card connects, like the setup's other choice cards (wiz__option).
+            <button
+              key={w.id}
+              type="button"
+              className={`wiz__option wiz__way${connected ? " is-on" : ""}`}
+              onClick={() => (w.id === "chatgpt" ? setPlan(true) : void openRouter())}
+            >
               <span className="wiz__choicetitle">
                 <EngineIcon engine={w.icon} size={20} />
                 {t(w.title)}
-                <Badge tone={connected ? "brand" : "neutral"} dot>
-                  {t(connected ? "setup.channels.connected" : "plans.notConnected")}
+                <Badge tone={connected ? "brand" : pending ? "info" : "neutral"} dot={!pending}>
+                  {pending && <Spinner size={10} />}
+                  {t(
+                    connected ? "setup.channels.connected" : pending ? "setup.brain.connecting" : "plans.notConnected",
+                  )}
                 </Badge>
               </span>
               <span className="wiz__choicebody">{t(w.body)}</span>
-              <span className="wiz__wayfoot">
-                {pending ? (
-                  <span className="wiz__hintline">
-                    <Spinner size={12} /> {t("setup.brain.waiting")}
-                  </span>
-                ) : (
-                  <span />
-                )}
-                <Button
-                  size="sm"
-                  variant={connected ? "secondary" : "primary"}
-                  leadingIcon={connected ? <Icons.Check size={14} /> : undefined}
-                  onClick={() => (w.id === "chatgpt" ? setPlan(true) : void openRouter())}
-                >
-                  {t(connected ? "setup.brain.manage" : pending ? "setup.brain.again" : "setup.reach.connect")}
-                </Button>
-              </span>
-            </div>
+            </button>
           );
         })}
       </div>

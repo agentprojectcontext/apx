@@ -34,6 +34,7 @@ import { go, useNav } from "../shell/nav.ts";
 import { ALL_SLIDES } from "../shell/welcomeFilm.ts";
 import { BuildVersion } from "./BuildVersion.tsx";
 import { type Draft, defaultDraft } from "./draft.ts";
+import { MeetStep } from "./MeetStep.tsx";
 import { ChannelsStep, DoneStep, EnginesStep, MemoryStep, OrderStep, ProjectStep } from "./StepsConfig.tsx";
 import { AgentStep, GROUP, ImportStep, Welcome } from "./StepsIntro.tsx";
 
@@ -49,8 +50,9 @@ const STEP_KEY: Record<Step, MessageKey> = {
   project: "setup.step.project",
   done: "setup.step.done",
   order: "setup.step.order",
+  meet: "setup.step.meet",
 };
-type Step = "welcome" | "import" | "agent" | "engines" | "order" | "memory" | "channels" | "project" | "done";
+type Step = "welcome" | "import" | "agent" | "engines" | "order" | "memory" | "channels" | "project" | "meet" | "done";
 
 /** Where an unfinished setup was left on this device, if it is readable. */
 function resumed(): { draft: Draft; at: number } | undefined {
@@ -103,7 +105,7 @@ function WizardBody() {
   const steps: Step[] = useMemo(
     () =>
       d.style === "simple"
-        ? ["welcome", "engines", ...(brains > 1 ? (["order"] as const) : []), "agent", "channels", "done"]
+        ? ["welcome", "engines", ...(brains > 1 ? (["order"] as const) : []), "agent", "channels", "meet"]
         : [
             "welcome",
             ...(d.mode === "import" ? (["import"] as const) : []),
@@ -185,6 +187,8 @@ function WizardBody() {
       return true;
     }
     if (step === "agent" && boss) return updateAgent(boss.id, { name: d.name.trim(), blob: d.blob });
+    // A brain is there: what runs without asking starts downloading now, while the owner names the agent.
+    if (step === "engines" && d.style === "simple") void client.call("setup.prepare", {}).catch(() => {});
     if ((step === "engines" || step === "order") && config) {
       const [first, ...rest] = d.chain;
       const choice: ModelChoice = first ? { model: first, router: rest.length > 0 } : { router: true };
@@ -243,6 +247,7 @@ function WizardBody() {
     agent: <AgentStep draft={d} set={set} />,
     engines: <EnginesStep draft={d} set={set} />,
     order: <OrderStep draft={d} set={set} />,
+    meet: <MeetStep name={name} />,
     memory: <MemoryStep draft={d} set={set} />,
     channels: <ChannelsStep name={d.name.trim() || t("agent.super")} simple={d.style === "simple"} />,
     project: <ProjectStep draft={d} set={set} />,
@@ -304,10 +309,15 @@ function WizardBody() {
                 {t("setup.reach.skip")}
               </Button>
             )}
-            {/* Simple's brain goes on by itself once one is picked: Continue shows only when one is there. */}
+            {/* Simple's brain needs one connected first: Continue shows once there is one. Its last step enters APX. */}
             {!(blocked && d.style === "simple") && (
-              <Button size="lg" disabled={Boolean(blocked)} loading={busy} onClick={() => void next()}>
-                {step === "project" ? t("setup.create") : t("setup.next")}
+              <Button
+                size="lg"
+                disabled={Boolean(blocked)}
+                loading={busy}
+                onClick={() => void (step === "meet" ? finish() : next())}
+              >
+                {step === "project" ? t("setup.create") : step === "meet" ? t("setup.meet.enter") : t("setup.next")}
               </Button>
             )}
           </div>
