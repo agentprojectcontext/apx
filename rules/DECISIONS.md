@@ -5050,3 +5050,26 @@ tools and connected apps' too, and listed them flat, with nothing saying what ea
 
 Rejected: adding the found tools' schemas to the turn's tool list (the cached prefix would change mid-chat); a
 deferred-names line in the system prompt (the budget is spent; the tool's description carries the same).
+
+<a id="d-235"></a>
+## D-235 — 2026-11-16 — A change to APX Kit or the design reaches the phone in the same change
+The answer cards and widgets take their look from APX Kit and `packages/ui`, which the panel imports and the core adds
+to every widget. The phone draws its cards natively and cannot read CSS, so it carries copies the design sync writes
+(`apps/mobile/scripts/sync-design-assets.mjs` → `src/ui/tokens.ts`, icons, marks, the week, routine and task logic).
+Those copies fell behind without anyone noticing: the sync wrote unformatted files, so running it showed hundreds of
+changed lines, and nobody ran it.
+
+- **One source**: the kit's cards keep their measures as `--apx-card-*` variables (padding, gap, the top line, an
+  option row's padding); the sync writes them to the phone's `card` tokens, which its cards, pictures and option rows
+  read. A card changed in the kit changes in the panel, in widgets and, after the sync, on the phone.
+- **Same change**: a change to the kit, `packages/ui` tokens or icons, or a synced panel file runs
+  `npm run sync:design` in `apps/mobile` and commits what it writes, then is checked on a phone, not only in the panel
+  (AGENTS.md rule 34).
+- **Gate**: the sync formats what it writes as the repo does, so a sync with nothing new changes nothing;
+  `pnpm check:design-sync` (in `preflight`) fails naming every synced file behind its source.
+- **Shared files hold only what both apps share**: `apps/web/src/common/week.ts` is the week's order; the panel's day
+  names moved to `common/dayKeys.ts`, since the phone has its own strings.
+
+Rejected: drawing the phone's cards in a WebView with the kit's CSS (one browser per card in every chat: memory,
+scroll and a blank first paint, and native buttons, pictures and sheets bridged one by one).
+

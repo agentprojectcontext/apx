@@ -1,6 +1,7 @@
 // The days of a week as a row of chips, Monday first: a routine's days, a channel's attention hours.
 import { type MessageKey, useT } from "../../i18n/index.ts";
-import { DAY_KEY, WEEK } from "../week.ts";
+import { DAY_KEY } from "../dayKeys.ts";
+import { WEEK } from "../week.ts";
 
 /** Ticks days on and off; the last one ticked stays (a week with no day means nothing). */
 export function WeekDays({ days, label, onChange }: { days: number[]; label: string; onChange(days: number[]): void }) {

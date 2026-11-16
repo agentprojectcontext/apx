@@ -33,7 +33,8 @@ messages or spends money on the owner's behalf).
 | News and slides versions | `pnpm check:since` | Every news entry and welcome slide no release has yet names the next release of its line (staging: the next minor), never one already cut without it; `release:check --tag` asks that all of them say the tag. It cannot tell whether a feature is worth an entry: that stays a review |
 | Private data | `pnpm check:private` | Rule 17 — local denylist (never committed) + public shapes (phone numbers, `/Users`/`/Volumes` paths); `pnpm check:commits` runs it over commit messages and authors |
 | Schema | `pnpm check:schema` | `db/schema.ts` (the typed queries' tables) matches the migrations |
-| All | `pnpm preflight` | Private data, schema, lint, UI controls and tokens, dead code, typecheck and tests; run before every push. `pnpm verify` adds e2e and perf |
+| Phone follows the kit | `pnpm check:design-sync` | Rule 34 — every file the phone syncs (`apps/mobile/scripts/sync-design-assets.mjs`: tokens and APX Kit's card measures, icons, marks, the week, routine and task logic) matches its source in `packages/ui`, `packages/surfaces/src/kit` or `apps/web`; [D-235](DECISIONS.md#d-235) |
+| All | `pnpm preflight` | Private data, schema, the phone's synced files, lint, UI controls and tokens, dead code, typecheck and tests; run before every push. `pnpm verify` adds e2e and perf |
 
 Convention-only today (review must catch them): no a2a side path (rule 2), untrusted content handling (rule 10),
 secrets by reference (rule 11), no tests reading source (rule 13), meaningful regression protection and affected

@@ -188,6 +188,11 @@ Each rule says how it is enforced. `[gate]` = a command fails; `[review]` = conv
     ([Agents reach it](rules/FLOWS.md#agents-reach-it), [D-181](rules/DECISIONS.md#d-181)). `[gate]`
     `flow-tool.test.ts` for methods and step kinds; fields `[review]`.
 
+34. **A look changed once reaches every app.** APX Kit (`packages/surfaces/src/kit`) and `packages/ui` are the one
+    source of how cards, widgets, colors and icons look. The panel and widgets read them directly; the phone gets them
+    through `npm run sync:design` in `apps/mobile`, run and committed in the same change, then checked on a phone
+    ([D-235](rules/DECISIONS.md#d-235)). `[gate]` `pnpm check:design-sync`.
+
 ### Code comments
 
 1–2 lines, only the non-obvious *why*. No history, incidents, dates or rejected alternatives in code: those go to

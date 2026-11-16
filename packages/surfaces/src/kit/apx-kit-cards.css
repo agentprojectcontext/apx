@@ -8,6 +8,8 @@
   --apx-card-gap: 8px;
   --apx-card-line: 3px;
   --apx-card-line-opacity: 0.85;
+  --apx-card-option-pad-y: 10px;
+  --apx-card-option-pad-x: 12px;
 }
 .apx-inline {
   display: grid;
@@ -378,7 +380,7 @@
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 10px 12px;
+  padding: var(--apx-card-option-pad-y) var(--apx-card-option-pad-x);
   border: 1px solid var(--apx-border);
   border-radius: var(--apx-radius-md);
   background: var(--apx-surface);

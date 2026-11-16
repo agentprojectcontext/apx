@@ -1,11 +1,29 @@
-import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
-import { dirname, resolve } from "node:path";
+import { execFileSync } from "node:child_process";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { dirname, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { runInNewContext } from "node:vm";
 
 const mobile = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const shared = resolve(mobile, "../../packages/ui");
 const target = resolve(mobile, "src/ui");
+const root = resolve(mobile, "../..");
+// With --check nothing is written: it fails when a synced file is behind its source (pnpm check:design-sync).
+const check = process.argv.includes("--check");
+const behind = [];
+/** Writes a synced file as the repo's formatter leaves it, so a sync with no source change changes nothing. */
+function out(file, content) {
+  const text =
+    typeof content === "string" && /\.(ts|tsx|mjs|js)$/.test(file)
+      ? execFileSync(resolve(root, "node_modules/.bin/biome"), ["format", `--stdin-file-path=${file}`], {
+          input: content,
+          cwd: root,
+          encoding: "utf8",
+        })
+      : content;
+  if (!check) return writeFileSync(file, text);
+  if (!existsSync(file) || !readFileSync(file).equals(Buffer.from(text))) behind.push(relative(root, file));
+}
 mkdirSync(target, { recursive: true });
 const names = [
   "MessageCircle",
@@ -108,11 +126,11 @@ for (const name of names) {
     return [tag, geometry];
   });
 }
-writeFileSync(
+out(
   resolve(target, "iconNodes.ts"),
   `// Generated from the web's Lucide library by scripts/sync-design-assets.mjs.\nexport const iconNodes = ${JSON.stringify(icons, null, 2)} as const;\n`,
 );
-writeFileSync(resolve(target, "icons.LICENSE"), readFileSync(resolve(shared, "node_modules/lucide-react/LICENSE")));
+out(resolve(target, "icons.LICENSE"), readFileSync(resolve(shared, "node_modules/lucide-react/LICENSE")));
 const source = readFileSync(resolve(shared, "src/blobs/catalog.ts"), "utf8");
 const eyes = {};
 for (const match of source.matchAll(/ {2}(\w+): \{\s*label:.*?eyeColor: "([^"]+)",\s*eyes: \[([\s\S]*?)\],/gs)) {
@@ -123,11 +141,11 @@ for (const match of source.matchAll(/ {2}(\w+): \{\s*label:.*?eyeColor: "([^"]+)
     ),
   };
 }
-writeFileSync(
+out(
   resolve(target, "blobEyes.ts"),
   `// Generated from the shared 256-unit blob catalog by scripts/sync-design-assets.mjs.\nexport const blobEyes: Record<string, { color: string; eyes: Array<{ x: number; y: number; w: number; h: number; rx: number }> }> = ${JSON.stringify(eyes, null, 2)};\n`,
 );
-writeFileSync(
+out(
   resolve(target, "engineMarks.ts"),
   `// Synced from packages/ui/src/engine-marks.ts by scripts/sync-design-assets.mjs.\n${readFileSync(resolve(shared, "src/engine-marks.ts"), "utf8")}`,
 );
@@ -171,23 +189,23 @@ const cardVars = (from) => {
 const narrow = kitCards.indexOf("@media (max-width: 480px)");
 if (narrow < 0) throw new Error("apx-kit-cards.css: no narrow-screen block");
 const cardMeasures = { ...cardVars(0), ...cardVars(narrow) };
-for (const name of ["pad-y", "pad-x", "gap", "line", "line-opacity"]) {
+for (const name of ["pad-y", "pad-x", "gap", "line", "line-opacity", "option-pad-y", "option-pad-x"]) {
   if (!(name in cardMeasures)) throw new Error(`apx-kit-cards.css: no --apx-card-${name}`);
 }
 const card = Object.fromEntries(
   Object.entries(cardMeasures).map(([name, value]) => [name.replace(/-(\w)/g, (_, c) => c.toUpperCase()), value]),
 );
-writeFileSync(
+out(
   resolve(target, "tokens.ts"),
   `// Generated from packages/ui/src/styles/tokens.css (minimal look) and APX Kit's cards\n// (packages/surfaces/src/kit/apx-kit-cards.css) by scripts/sync-design-assets.mjs.\nexport const palettes = ${JSON.stringify(palettes, null, 2)} as const;\n\nexport const card = ${JSON.stringify(card, null, 2)} as const;\n`,
 );
 
 mkdirSync(resolve(mobile, "assets"), { recursive: true });
-writeFileSync(resolve(mobile, "assets/logo.png"), readFileSync(resolve(mobile, "../web/src/assets/logo.png")));
+out(resolve(mobile, "assets/logo.png"), readFileSync(resolve(mobile, "../web/src/assets/logo.png")));
 
 // The week as both apps order it, which the routines' cron reading below imports.
 mkdirSync(resolve(mobile, "src/common"), { recursive: true });
-writeFileSync(
+out(
   resolve(mobile, "src/common/week.ts"),
   `// Synced from apps/web/src/common/week.ts by scripts/sync-design-assets.mjs.\n${readFileSync(resolve(mobile, "../web/src/common/week.ts"), "utf8")}`,
 );
@@ -199,7 +217,7 @@ for (const file of ["slots.ts", "cron.ts"]) {
     'from "@apx/protocol"',
     'from "../../../../packages/protocol/src/index.ts"',
   );
-  writeFileSync(
+  out(
     resolve(mobile, "src/routines", file),
     `// Synced from apps/web/src/routines/${file} by scripts/sync-design-assets.mjs.\n${code}`,
   );
@@ -212,7 +230,7 @@ for (const file of ["when.ts", "history.ts"]) {
     'from "@apx/protocol"',
     'from "../../../../packages/protocol/src/index.ts"',
   );
-  writeFileSync(
+  out(
     resolve(mobile, "src/tasks", file),
     `// Synced from apps/web/src/tasks/${file} by scripts/sync-design-assets.mjs.\n${code}`,
   );
@@ -227,12 +245,19 @@ const faces = Object.fromEntries(
   ]),
 );
 mkdirSync(resolve(mobile, "src/about"), { recursive: true });
-writeFileSync(
+out(
   resolve(mobile, "src/about/faces.ts"),
   `// Generated from packages/ui/src/blobs/bodies by scripts/sync-design-assets.mjs.\nexport const faces: Record<string, string> = ${JSON.stringify(faces, null, 2)};\n`,
 );
 
-writeFileSync(
+out(
   resolve(target, "channelMarks.ts"),
   `// Synced from packages/ui/src/channel-marks.ts by scripts/sync-design-assets.mjs.\n${readFileSync(resolve(shared, "src/channel-marks.ts"), "utf8")}`,
 );
+
+if (behind.length) {
+  console.error(
+    `These phone files are behind the panel, APX Kit or packages/ui:\n  ${behind.join("\n  ")}\nRun npm run sync:design in apps/mobile and commit them with the change.`,
+  );
+  process.exitCode = 1;
+}
