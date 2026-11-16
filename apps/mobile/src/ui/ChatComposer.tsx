@@ -149,7 +149,8 @@ export function ChatComposer({
           style={({ pressed }) => [s.model, pressed && { backgroundColor: theme.fill }]}
         >
           <Icon name="Bot" size={12} color={theme.fgSubtle} />
-          <Text numberOfLines={1} style={s.metaText}>
+          {/* Cut in the middle, so the effort at its end ("· Medium") stays on a narrow phone. */}
+          <Text numberOfLines={1} ellipsizeMode="middle" style={s.metaText}>
             {model}
           </Text>
           <Icon name="ChevronDown" size={11} color={theme.fgSubtle} />
@@ -284,7 +285,6 @@ const useStyles = makeStyles((theme) => ({
     height: 24,
   },
   model: {
-    maxWidth: 200,
     flexShrink: 1,
     flexDirection: "row",
     alignItems: "center",
