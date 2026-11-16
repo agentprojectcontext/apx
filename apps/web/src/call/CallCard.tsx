@@ -26,7 +26,8 @@ const END_REASON: Record<string, MessageKey> = {
   max_duration: "callCard.end.max_duration",
 };
 
-const LOCALES: readonly VoiceLocale[] = ["es-AR", "es", "en-US"];
+// Spanish first, the neutral accent before the Argentine one.
+const LOCALES: readonly VoiceLocale[] = ["es", "es-AR", "en-US"];
 
 /**
  * A call with an agent (the super-agent unless another was chosen), floating over its chat: the voice and accent to
@@ -48,7 +49,8 @@ export function CallCard() {
   // Folded to its head (face, state, time, hang up) so it covers less; moved anywhere by its head.
   const [small, setSmall] = useState(false);
   const card = useRef<HTMLElement>(null);
-  const placed = useCardPlace(card);
+  // Dragged by its head; a press on it opens the call's chat, wherever the owner went meanwhile.
+  const placed = useCardPlace(card, thread ? () => go.inboxThread(thread) : undefined);
   const [talk, setTalk] = useState<Talk>("listening");
   const [partial, setPartial] = useState("");
   const [muted, setMuted] = useState(false);
@@ -219,7 +221,11 @@ export function CallCard() {
       data-small={small ? "" : undefined}
       data-talk={stage === "live" ? talk : undefined}
     >
-      <div className="callcard__head" onPointerDown={placed.onPointerDown}>
+      <div
+        className="callcard__head"
+        onPointerDown={placed.onPointerDown}
+        title={thread ? t("callCard.openChat") : undefined}
+      >
         <span className="callcard__face">
           {agent ? <AgentFace agent={agent} size={36} /> : <Icons.Phone size={16} aria-hidden="true" />}
         </span>

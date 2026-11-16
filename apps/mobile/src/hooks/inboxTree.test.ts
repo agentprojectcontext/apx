@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { inboxTree, nodeThreads, searchInbox } from "./inboxTree.ts";
+import { inboxTree, nodeFailed, nodeThreads, searchInbox } from "./inboxTree.ts";
 import type { Thread } from "./useWorkspace";
 
 const thread = (id: string, patch: Partial<Thread> = {}): Thread => ({
@@ -197,4 +197,26 @@ test("a hidden channel account's chats leave the list; grouping puts each accoun
   assert.equal(mail?.thread.id, "mail_b");
   // Its newest chat heads it without being counted twice.
   assert.deepEqual(mail && nodeThreads(mail).map((item) => item.id), ["mail_b", "mail_a"]);
+});
+
+test("a chat shows failed only when its latest run failed, not for an old failed sub-chat", () => {
+  const [home] = inboxTree(
+    [
+      thread("home", { kind: "home", updated_at: "2026-11-16T16:27:00Z" }),
+      thread("old-delegation", { kind: "a2a", parent_id: "home", state: "failed", updated_at: "2026-11-13T18:53:00Z" }),
+      thread("recent", { kind: "a2a", parent_id: "home", updated_at: "2026-11-16T04:41:00Z" }),
+    ],
+    options,
+  );
+  assert.ok(home);
+  assert.equal(nodeFailed(home), false);
+  const [broken] = inboxTree(
+    [
+      thread("chat", { updated_at: "2026-11-16T10:00:00Z" }),
+      thread("delegation", { kind: "a2a", parent_id: "chat", state: "failed", updated_at: "2026-11-16T11:00:00Z" }),
+    ],
+    options,
+  );
+  assert.ok(broken);
+  assert.equal(nodeFailed(broken), true);
 });

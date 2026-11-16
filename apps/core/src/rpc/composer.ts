@@ -117,7 +117,7 @@ export function composerHandlers(deps: {
       const stored = media ? deps.services.read(media.id) : undefined;
       if (media && !stored) throw notFound(`audio ${media.id}`);
       if (!deps.services.hasKind("transcription"))
-        throw unavailable("no transcription engine is set up (Settings › Voices)");
+        throw unavailable("no transcription engine is set up (Settings › Voice and calls)");
       try {
         const r = await deps.services.transcribe(
           { bytes: stored?.data ?? Buffer.from(data ?? "", "base64"), mime: stored?.mime ?? mime ?? "", thread, media },

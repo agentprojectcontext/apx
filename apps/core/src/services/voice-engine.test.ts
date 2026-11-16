@@ -130,6 +130,7 @@ test("a download that fails says why, and a call waiting for it gives up", async
     received: 5,
     total: 100,
     error: "could not reach the model hub",
+    part: "all",
   });
   assert.equal(engine.installed(), false);
   await assert.rejects(engine.whenInstalled(AbortSignal.timeout(5000)), /could not reach the model hub/);
@@ -173,4 +174,92 @@ test("a call is told how long the voice usually takes to load, from its recent l
   const loads = { start: [3, 4, 3], draft: [57, 2.3, 2.5], mouth: [3.3, 2.1, 3], broken: "x" };
   fs.writeFileSync(path.join(tmp.path, "voice", "load-light.json"), JSON.stringify(loads));
   assert.equal(engine.expectedWait(), 9);
+});
+
+test("a Mac without uv is not missing anything: installing downloads uv first, then the voice with it", async (t) => {
+  const tmp = tempDir();
+  t.after(() => tmp.remove());
+  const seen: string[][] = [];
+  const bins: string[] = [];
+  let have: string | undefined;
+  const spawn = fakeUv(['{"received": 1, "total": 1}'], 0, seen);
+  const engine = createVoiceEngine({
+    log: quiet,
+    home: tmp.path,
+    platform: "darwin",
+    arch: "arm64",
+    memoryGb: 24,
+    uvProgram: {
+      now: () => have,
+      downloadable: true,
+      path: async () => {
+        have = "/apx/bin/uv";
+        return have;
+      },
+    },
+    spawn: ((bin: string, args: string[], o: object) => {
+      bins.push(bin);
+      return spawn(bin, args, o as never);
+    }) as unknown as Spawn,
+  });
+  t.after(() => engine.close());
+  assert.equal(engine.machine().missing, undefined);
+  await engine.whenInstalled(AbortSignal.timeout(5000));
+  assert.deepEqual(bins, ["/apx/bin/uv"]);
+  assert.ok(seen[0]?.includes("--prefetch"));
+});
+
+test("a voice still starting counts as loading, so a call shows its wait from the start", async (t) => {
+  const tmp = tempDir();
+  t.after(() => tmp.remove());
+  fs.mkdirSync(path.join(tmp.path, "voice"), { recursive: true });
+  fs.writeFileSync(path.join(tmp.path, "voice", "installed-light.json"), JSON.stringify({ rev: 2 }));
+  // An engine that never answers its health check until it is stopped.
+  const child = Object.assign(new EventEmitter(), {
+    stdout: new PassThrough(),
+    stderr: new PassThrough(),
+    exitCode: null as number | null,
+    kill() {},
+  });
+  const engine = createVoiceEngine({
+    log: quiet,
+    home: tmp.path,
+    platform: "darwin",
+    arch: "arm64",
+    memoryGb: 24,
+    uv: () => "/opt/homebrew/bin/uv",
+    spawn: (() => child) as unknown as Spawn,
+  });
+  t.after(() => engine.close());
+  // Stopped however the test ends, so its start gives up at once.
+  t.after(() => {
+    child.exitCode = 1;
+    child.emit("exit", 1);
+    child.emit("close", 1);
+  });
+  engine.prepare();
+  await waitFor(() => engine.running(), "the engine to be starting");
+  assert.equal(engine.loading(), true);
+});
+
+test("downloading only what hears asks the engine for that part and counts as hearing, not as the whole voice", async (t) => {
+  const tmp = tempDir();
+  t.after(() => tmp.remove());
+  const seen: string[][] = [];
+  const engine = createVoiceEngine({
+    log: quiet,
+    home: tmp.path,
+    platform: "darwin",
+    arch: "arm64",
+    memoryGb: 24,
+    uv: () => "/opt/homebrew/bin/uv",
+    spawn: fakeUv(['{"received": 1, "total": 1}'], 0, seen),
+  });
+  t.after(() => engine.close());
+  engine.startInstall("ears");
+  assert.equal(engine.install()?.part, "ears");
+  await waitFor(() => engine.installed("ears"), "what hears to be on disk");
+  assert.deepEqual(seen[0]?.slice(-3), ["--prefetch", "--part", "ears"]);
+  assert.equal(engine.installed(), false, "the speaking voice is still to download");
+  assert.equal(seen.length, 1, "no second download follows on its own");
 });

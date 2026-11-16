@@ -47,6 +47,8 @@ export const VoiceStatus = z.object(
     enabled: () => z.boolean(),
     /** Its models are downloaded. */
     installed: () => z.boolean(),
+    /** What hears is downloaded (alone, or with the rest): APX transcribes even where it does not speak. */
+    hears_installed: () => z.boolean(),
     /** A download in progress, or the one that failed. */
     install: () =>
       z
@@ -56,6 +58,8 @@ export const VoiceStatus = z.object(
             received: () => z.number(),
             total: () => z.number(),
             error: () => z.string().optional(),
+            /** What it downloads: every model, or (`ears`) only what hears. */
+            part: () => z.enum(["all", "ears"]).optional(),
           }),
         )
         .optional(),
@@ -73,6 +77,24 @@ export const VoiceStatus = z.object(
      * server of their own added as a provider). The agent called works with its own model either way.
      */
     call_model: () => ModelRef.optional(),
+    /** What this Mac's voice is made of and where it is kept (absent where it cannot run). */
+    models: () =>
+      z
+        .object(
+          schemaFields({
+            /** The model that speaks. */
+            speaks: () => z.string(),
+            /** The model that hears (voice notes, dictation and calls). */
+            hears: () => z.string(),
+            /** About how much it downloads, all models together. */
+            size_gb: () => z.number(),
+            /** About how much only what hears downloads. */
+            hears_gb: () => z.number(),
+            /** The folder the models are kept in. */
+            folder: () => z.string(),
+          }),
+        )
+        .optional(),
   }),
 );
 export type VoiceStatus = z.infer<typeof VoiceStatus>;
@@ -112,7 +134,8 @@ export const callMethods = {
   }),
   /** Downloads the voice's models (done on its own where the machine can run it well). */
   "voice.install": deferMethod({
-    params: () => z.object({}).strict(),
+    /** `ears`: only what hears (transcription), without APX's speaking voice. */
+    params: () => z.object({ part: z.enum(["all", "ears"]).optional() }).strict(),
     result: () => VoiceStatus,
     effect: true,
     access: "human",

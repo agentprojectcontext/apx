@@ -12,6 +12,7 @@ import { go, useNav } from "../shell/nav.ts";
 import { ListedChat } from "./Delegated.tsx";
 import { bundleChats, type ListEntry } from "./groupThreads.ts";
 import { ProjectBadge } from "./ProjectBadge.tsx";
+import { selectionPath } from "./selectionPath.ts";
 import { ThreadAvatar } from "./ThreadAvatar.tsx";
 import { ThreadRow } from "./ThreadRow.tsx";
 import { useOpenRow } from "./useOpenRow.ts";
@@ -24,14 +25,17 @@ function InboxSection({
   label,
   count,
   foldKey,
+  reveal = false,
   children,
 }: {
   label: string;
   count?: number;
   foldKey?: string;
+  /** The chat on screen is inside: it opens. */
+  reveal?: boolean;
   children: ReactNode;
 }) {
-  const [open, setOpen] = useOpenRow(foldKey ?? "", false);
+  const [open, setOpen] = useOpenRow(foldKey ?? "", reveal);
   if (!foldKey)
     return (
       <div className="inboxsec">
@@ -74,6 +78,12 @@ export function ChatsTab({
 }) {
   const t = useT();
   const selected = useNav((s) => s.threadId);
+  const loaded = useData((s) => s.threads);
+  // The chat on screen, or one it delegated, opens the Archived fold it sits in.
+  const archivedOpen = useMemo(() => {
+    const path = selectionPath(loaded, selected);
+    return archived.some((th) => path.has(th.id));
+  }, [loaded, selected, archived]);
   const pinned = entries.filter((th) => th.pinned);
   const rest = entries.filter((th) => !th.pinned);
   const row = (th: Thread) => <ChatRow key={th.id} thread={th} selected={selected} account={account} />;
@@ -105,7 +115,12 @@ export function ChatsTab({
         </>
       )}
       {archived.length > 0 && (
-        <InboxSection label={t("inbox.archived")} count={archived.length} foldKey="section:archived">
+        <InboxSection
+          label={t("inbox.archived")}
+          count={archived.length}
+          foldKey="section:archived"
+          reveal={archivedOpen}
+        >
           {archived.map(row)}
         </InboxSection>
       )}
@@ -171,6 +186,7 @@ function RoutineChatRow({ routineId, runs }: { routineId: string; runs: Thread[]
   const t = useT();
   const agents = useShownAgents();
   const current = useNav((s) => s.routineId);
+  const openThread = useNav((s) => s.threadId);
   const routine = useRoutines((s) => s.routines.find((r) => r.id === routineId));
   const projects = useData((s) => s.projects);
   const latest = useMemo(() => runs.reduce((a, b) => (a.updated_at >= b.updated_at ? a : b)), [runs]);
@@ -182,7 +198,8 @@ function RoutineChatRow({ routineId, runs }: { routineId: string; runs: Thread[]
   return (
     <ConversationRow
       className="threadrow routinerow"
-      selected={current === routineId}
+      // One of its runs opened on its own (a notice, a link) is this row too.
+      selected={current === routineId || runs.some((th) => th.id === openThread)}
       onClick={() => go.routine(routineId)}
       avatar={<ThreadAvatar thread={latest} agent={threadAgent(latest, agents)} size={24} slot={28} />}
       title={routine?.name ?? routineName(latest)}

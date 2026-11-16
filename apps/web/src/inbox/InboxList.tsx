@@ -1,6 +1,6 @@
 import type { Thread } from "@apx/protocol";
 import { Button, EmptyState, IconButton, Icons, SearchField, SegmentedControl, Skeleton, Spinner } from "@apx/ui";
-import { Suspense, useEffect, useMemo, useState } from "react";
+import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { markAllRead } from "../data/actions.ts";
 import { useChannels } from "../data/channels.ts";
 import { findProject, isWorking } from "../data/identity.ts";
@@ -15,6 +15,7 @@ import { InboxFilterChips, InboxFilterMenu } from "./InboxFilterMenu.tsx";
 import { ChatsTab, RoutinesTab, TasksTab } from "./InboxTabs.tsx";
 import { agentsOnly, filterCount, passesFilter, soleFilter, useInboxFilter } from "./inboxFilter.ts";
 import { NewChatMenu, startChat, useChatAgents } from "./NewChatMenu.tsx";
+import "./revealOpen.ts";
 
 const TAB_ORDER = ["chats", "tasks", "routines"] as const;
 // The same marks as the sidebar's; a narrow Inbox shows them in place of the names.
@@ -55,11 +56,29 @@ export function InboxList() {
   const byChannel = usePrefs((s) => s.inboxByChannel);
   const savedTab = usePrefs((s) => s.inboxTab);
   const tab: InboxTab = account ? "chats" : savedTab;
-  const routineOpen = useNav((s) => s.routineId != null);
-  // A routine's runs open as one chat: its row is in Routines, however it was opened (a row, a link, back).
+  const listRef = useRef<HTMLDivElement>(null);
+  const pickedAt = useRef(Number.NEGATIVE_INFINITY);
+  const openThread = useNav((s) => s.threadId);
+  const openRoutine = useNav((s) => s.routineId);
   useEffect(() => {
-    if (routineOpen) setPrefs({ inboxTab: "routines" });
-  }, [routineOpen]);
+    const list = listRef.current;
+    if (!list) return;
+    const picked = () => {
+      pickedAt.current = performance.now();
+    };
+    list.addEventListener("pointerdown", picked);
+    list.addEventListener("keydown", picked);
+    return () => {
+      list.removeEventListener("pointerdown", picked);
+      list.removeEventListener("keydown", picked);
+    };
+  }, []);
+  // The chat opened elsewhere comes into view in the list (its tab and fold open in revealOpen); one picked here stays put.
+  useEffect(() => {
+    const list = listRef.current;
+    if (!list || !ready || (!openThread && !openRoutine) || performance.now() - pickedAt.current < PICK_MS) return;
+    return revealSelected(list);
+  }, [openThread, openRoutine, ready]);
   const entries = useMemo(
     () => inboxEntries(threads, { projectId, query, routines: true }),
     [threads, projectId, query],
@@ -244,7 +263,7 @@ export function InboxList() {
           </>
         )}
       </div>
-      <div className="inbox__list">
+      <div className="inbox__list" ref={listRef}>
         {!ready && offline ? (
           <EmptyState icon={<Icons.WifiOff />} title={t("inbox.offline.title")}>
             {t("inbox.offline.body")}
@@ -319,6 +338,42 @@ function InboxSkeleton() {
       ))}
     </div>
   );
+}
+
+/** How long after a press in the list a chat that opens counts as picked there. */
+const PICK_MS = 1000;
+/** How long a chat opened elsewhere may take to show in the list (the list and its tab's rows load late). */
+const REVEAL_MS = 10_000;
+
+/**
+ * Scrolls the selected row into the middle of the list once it shows, unless it already shows whole; the owner
+ * touching the list first stops it. Returns what stops waiting.
+ */
+function revealSelected(list: HTMLElement): () => void {
+  const look = (): boolean => {
+    const row = list.querySelector<HTMLElement>(".apx-convrow.is-selected, .tree__session.is-selected");
+    if (!row) return false;
+    const box = list.getBoundingClientRect();
+    const at = row.getBoundingClientRect();
+    if (at.top < box.top || at.bottom > box.bottom) list.scrollTop += at.top - box.top - (box.height - at.height) / 2;
+    return true;
+  };
+  const watch = new MutationObserver(() => {
+    if (look()) stop();
+  });
+  const timer = setTimeout(() => stop(), REVEAL_MS);
+  const stop = () => {
+    watch.disconnect();
+    clearTimeout(timer);
+    for (const e of ["pointerdown", "keydown", "wheel"]) list.removeEventListener(e, stop);
+  };
+  if (look()) {
+    stop();
+    return stop;
+  }
+  watch.observe(list, { childList: true, subtree: true, attributes: true, attributeFilter: ["class"] });
+  for (const e of ["pointerdown", "keydown", "wheel"]) list.addEventListener(e, stop);
+  return stop;
 }
 
 /** A tab's count, short enough for its pill. */

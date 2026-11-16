@@ -13,7 +13,7 @@ const NEEDS = {
   uv: "calls need uv (brew install uv)",
   off: "APX's voice is turned off",
   model: "calls need a model APX can call directly",
-  disabled: "calls are turned off in Settings › Calls",
+  disabled: "calls are turned off in Settings › Voice and calls",
 } as const;
 
 const NONE: VoiceStatus = {
@@ -22,6 +22,7 @@ const NONE: VoiceStatus = {
   missing: "platform",
   enabled: false,
   installed: false,
+  hears_installed: false,
   running: false,
   voice: { gender: "female", locale: "es-AR" },
   calls: false,
@@ -50,9 +51,9 @@ export function callHandlers(d: VoiceDeps | undefined) {
 
   return {
     "voice.status": () => d?.native.status() ?? NONE,
-    "voice.install": async () => {
+    "voice.install": async (p) => {
       if (!d) throw unavailable(NEEDS.platform);
-      return d.native.install();
+      return d.native.install(p.part);
     },
     "voice.set": (p) => {
       if (!d) throw unavailable(NEEDS.platform);

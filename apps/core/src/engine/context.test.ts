@@ -44,6 +44,38 @@ test("the system prompt has no clock and no roster: same agent and thread, same 
   assert.doesNotMatch(a, /A turn with no tool call did nothing/);
 });
 
+test("the super-agent does small and medium work itself and finishes what it hands on (DECISIONS.md#d-237)", () => {
+  const roby = { id: "superagent", name: "Roby", role: "", kind: "secretary", prompt: "" } as Parameters<
+    typeof systemPrompt
+  >[0];
+  const own = systemPrompt(roby, { kind: "home" }, "en");
+  // Before: "do it yourself or delegate it to the right agent" sent a quick scrape to a teammate without his notes.
+  assert.doesNotMatch(own, /delegate it to the right agent/);
+  assert.match(own, /do small and medium work yourself with your tools, memory and browser \(a teammate has none\)/);
+  assert.match(
+    own,
+    /Hand on only long work of one project, to its own agent, with your notes, links and the owner's words/,
+  );
+  assert.match(own, /finish the request with its result/);
+  // A specialist keeps its own line; reviews and the shared delegation rule are untouched.
+  const helper = systemPrompt({ ...roby, id: "saba", name: "Saba", kind: "agent" }, { kind: "home" }, "en");
+  assert.doesNotMatch(helper, /small and medium work yourself/);
+  assert.match(helper, /^- Delegate at the start,/m);
+  const result = turnInput({
+    origin: {
+      kind: "delegation_result",
+      agent_id: "saba",
+      name: "Saba",
+      thread_id: "t2",
+      run_id: "r2",
+      state: "completed",
+    },
+    text: "SnapInsta works.",
+    now: new Date(0),
+  });
+  assert.match(result, /Finish the owner's request with it \(what is left is yours\), then tell them what matters/);
+});
+
 test("agents and workers recover within permissions before reporting a blocker", () => {
   const agent = { id: "helper", name: "Helper", role: "", kind: "agent", prompt: "" } as Parameters<
     typeof systemPrompt
@@ -276,6 +308,9 @@ test("the owner's channel turn says the channel and the app are one chat, and wh
   assert.match(owner("telegram"), /send_file reaches them on telegram/);
   // On WhatsApp the agent hands work off: it has no send_file to talk about.
   assert.match(owner("whatsapp"), /whatsapp and the app are this one chat/);
+  // Its tool work goes to a worker of its own, which keeps its memory and browser (DECISIONS.md#d-237).
+  assert.match(owner("whatsapp"), /goes to a worker of your own with delegate, with your notes/);
+  assert.doesNotMatch(owner("whatsapp"), /goes to an agent with delegate/);
   assert.doesNotMatch(owner("whatsapp"), /send_file/);
   assert.doesNotMatch(turnInput({ origin: { kind: "user" }, text: "hola", now: new Date(0) }), /this one chat/);
 });

@@ -10,7 +10,6 @@ import { AdvancedSection } from "./AdvancedSection.tsx";
 import { AgentsSection } from "./AgentsSection.tsx";
 import { ApiTokensSection } from "./ApiTokensSection.tsx";
 import { BrowserSection } from "./BrowserSection.tsx";
-import { CallsSection } from "./CallsSection.tsx";
 import { DesktopSection } from "./DesktopSection.tsx";
 import { DevicesSection } from "./DevicesSection.tsx";
 import { EnginesSection } from "./EnginesSection.tsx";
@@ -45,7 +44,6 @@ const GROUPS: { label: MessageKey; items: NavEntry[] }[] = [
       { id: "router", label: "config.router", icon: <Icons.Layers /> },
       { id: "memory", label: "config.memory", icon: <Icons.Brain /> },
       { id: "voices", label: "config.voices", icon: <Icons.Mic /> },
-      { id: "calls", label: "config.calls", icon: <Icons.Phone /> },
       { id: "images", label: "config.images", icon: <Icons.Image /> },
     ],
   },
@@ -169,7 +167,7 @@ function Body({ section }: { section: ConfigSection }) {
     case "voices":
       return <VoiceSection />;
     case "calls":
-      return <CallsSection />;
+      return <VoiceSection focus="calls" />;
     case "images":
       return <ServicesSection kind="image" />;
     case "activity-review":

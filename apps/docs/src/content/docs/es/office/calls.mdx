@@ -12,15 +12,23 @@ les mandás, y te deja **llamar** a cualquiera de tus agentes y hablarle como po
 
 ## La voz de APX
 
-Abrí **Ajustes › Voces**. Es una sola lista de voces que se prueban en orden: habla la primera que responde. La voz propia
-de APX es la primera fila, **APX — En esta computadora**, con su interruptor:
+Abrí **Ajustes › Voz y llamadas**. Tiene tres partes: **Hablar** (las voces con las que hablan tus agentes),
+**Escuchar** (lo que pasa a texto las notas de voz, el dictado y lo que decís en las llamadas) y **Llamadas**. Hablar y
+Escuchar son una lista cada una, que se prueba en orden: se usa la primera que responde. La voz propia de APX es la
+primera fila de las dos, **APX — En esta computadora**, con su interruptor, el modelo que usa y la carpeta donde guarda
+sus modelos:
 
-- **Femenina o masculina**, en **Español (Argentina)**, **Español** (neutro) o **English (US)**. Tocá **Escuchar** para oírla.
-  La voz que elegís es con la que hablan tus agentes y con la que empieza una llamada.
-- En una Mac con Apple silicon se descarga sola la primera vez. Una Mac con menos de 32 GB de memoria usa la voz
+- **Femenina o masculina** (femenina por defecto), el **idioma** (español o inglés) y después, en español, el
+  **acento**: neutro (Latinoamérica) o argentino. Tocá **Probar** para oírla. La voz que elegís es con la que hablan
+  tus agentes y con la que empieza una llamada. Debajo de la lista, **Probar** dice cualquier texto con la primera voz
+  que responde, o con otra que elijas.
+- En una Mac con Apple silicon se descarga sola la primera vez, también desde la app del instalador. Una Mac con menos de 32 GB de memoria usa la voz
   liviana (unos 3 GB), que la deja ágil con todo lo demás abierto; desde 16 GB podés elegir **Completa** en
   **Calidad** (unos 6 GB), que suena más natural. Ahí podés seguir la descarga, o apagar la voz.
-- Necesita [uv](https://docs.astral.sh/uv/) (`brew install uv`), que trae lo que la voz necesita para correr.
+- Corre con [uv](https://docs.astral.sh/uv/). Si esta Mac no lo tiene, APX lo descarga en su propia carpeta, así que
+  una instalación desde el instalador de la app no necesita terminal.
+- Para transcribir sin que APX hable, **Instalar** en la fila de APX debajo de **Escuchar** descarga solo lo que
+  escucha (unos 0,6 GB con la voz liviana), sin la voz que habla.
 - Con menos de 8 GB de memoria, o en otra computadora, la voz de APX no corre: usá un servicio de voz tuyo en
   la misma lista (OpenAI, Gemini, QVox o cualquier servidor compatible), y uno de transcripción para tus notas de voz.
   La fila dice por qué no puede correr.
@@ -44,16 +52,18 @@ menos, según lo que tardaron las últimas cargas en tu Mac.
 
 ## Hacer una llamada
 
-Las llamadas están activadas salvo que las apagues: **Ajustes › Llamadas › Permitir llamadas**. Con las llamadas
+Las llamadas están activadas salvo que las apagues: **Ajustes › Voz y llamadas › Llamadas › Permitir llamadas**. Con las llamadas
 apagadas los botones del teléfono se ocultan, y tus agentes igual hablan y escuchan notas de voz.
 
 Tocá el botón del teléfono arriba del panel para llamar a tu super-agente, o **Llamar** en el perfil de cualquier agente,
-en su menú o en su chat. Elegí la voz y el acento; APX los recuerda. Hablá normal: podés interrumpir a la voz cuando
-quieras, y decir "dale, te espero" la deja callada hasta que haya novedades.
+en su menú o en su chat. Elegí la voz y el acento; APX los recuerda. Suena mientras la voz carga, después la voz atiende
+con un saludo y te escucha: lo que digas antes de que atienda no se oye. Hablá normal: podés interrumpir a la voz
+cuando quieras, y decir "dale, te espero" la deja callada hasta que haya novedades.
 
 Lo que decís aparece en el chat de la llamada mientras hablás, y las palabras de la voz a medida que las dice. También
 podés escribir en el chat de la llamada mientras sigue: la voz lo toma como dicho y te contesta en voz alta. La tarjeta
-de la llamada se mueve arrastrándola desde arriba y se achica, así nunca tapa lo que necesitás.
+de la llamada se mueve arrastrándola desde arriba y se achica, así nunca tapa lo que necesitás. Un clic arriba, sin
+arrastrarla, vuelve a abrir el chat de la llamada, estés donde estés.
 
 Cuando pedís algo que necesita trabajo de verdad (qué hay en un proyecto, un mail, tu calendario, algo de la web), la voz
 te dice que está en eso y el agente que llamaste lo hace mientras seguís hablando. Pedí varias cosas a la vez y cada una
@@ -70,7 +80,7 @@ el chat de una llamada sigue en ese mismo chat.
 ## El modelo con el que habla una llamada
 
 Una llamada habla con **tu modelo principal**, el que APX usa por defecto, así que no hay nada que configurar. Para usar
-otro, elegilo en **Ajustes › Llamadas › Modelo para llamadas**: cualquier modelo que tenga APX, incluido un servidor tuyo
+otro, elegilo en **Ajustes › Voz y llamadas › Llamadas › Modelo para llamadas**: cualquier modelo que tenga APX, incluido un servidor tuyo
 agregado como proveedor. Un modelo chico y rápido hace que la charla se sienta más ágil. El agente que llamás siempre
 trabaja con su propio modelo.
 

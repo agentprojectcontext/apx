@@ -12,15 +12,22 @@ notes you send them, and it lets you **call** any of your agents and talk to it 
 
 ## APX's voice
 
-Open **Settings › Voices**. It is one list of voices, tried in order: the first that answers speaks. APX's own voice is
-the first row, **APX — On this computer**, with its switch:
+Open **Settings › Voice and calls**. It has three parts: **Speak** (the voices your agents talk with), **Hear** (what
+turns voice notes, dictation and what you say on calls into text) and **Calls**. Speak and Hear are each one list,
+tried in order: the first that answers is used. APX's own voice is the first row of both, **APX — On this computer**,
+with its switch, the model it uses and the folder its models are kept in:
 
-- **Female or male**, in **Spanish (Argentina)**, **Spanish** (neutral) or **English (US)**. Press **Listen** to hear
-  it. The voice you pick is the one your agents speak with, and the one a call starts with.
-- On a Mac with Apple silicon it downloads on its own the first time. A Mac with less than 32 GB of memory gets the
+- **Female or male** (female by default), the **language** (Spanish or English) and then, for Spanish, the **accent**:
+  neutral (Latin America) or Argentine. Press **Try** to hear it. The voice you pick is the one your agents speak
+  with, and the one a call starts with. Under the list, **Try** says any text with the first voice that answers, or
+  with another one you pick.
+- On a Mac with Apple silicon it downloads on its own the first time, from the installer's app too. A Mac with less than 32 GB of memory gets the
   light voice (about 3 GB), which keeps it quick with everything else open; from 16 GB you can pick **Full** under
   **Quality** (about 6 GB), which sounds more natural. You can follow the download there, or turn the voice off.
-- It needs [uv](https://docs.astral.sh/uv/) (`brew install uv`), which brings what the voice runs on.
+- It runs with [uv](https://docs.astral.sh/uv/). When this Mac has none, APX downloads it into its own folder, so an
+  install from the app's installer needs no terminal.
+- To transcribe without APX speaking, **Install** in APX's row under **Hear** downloads only what hears (about 0.6 GB
+  for the light voice), without the speaking voice.
 - With less than 8 GB of memory, or on another computer, APX's voice does not run: use a voice service of your own
   in the same list (OpenAI, Gemini, QVox or any compatible server), and a transcription service for your voice notes.
   The row says why it can't run.
@@ -44,16 +51,18 @@ your Mac.
 
 ## Make a call
 
-Calls are on unless you turn them off: **Settings › Calls › Allow calls**. With calls off the phone buttons are hidden,
+Calls are on unless you turn them off: **Settings › Voice and calls › Calls › Allow calls**. With calls off the phone buttons are hidden,
 and your agents still speak and hear voice notes.
 
 Press the phone button at the top of the panel to call your super-agent, or **Call** on any agent's profile, its menu
-or its chat. Pick the voice and the accent; APX remembers them. Speak normally: you can interrupt the voice at any
-moment, and saying "ok, I'll wait" leaves it quiet until there is news.
+or its chat. Pick the voice and the accent; APX remembers them. It rings while the voice loads, then the voice answers
+with a greeting and listens: what you say before it answers is not heard. Speak normally: you can interrupt the voice
+at any moment, and saying "ok, I'll wait" leaves it quiet until there is news.
 
 What you say shows in the call's chat as you speak, and the voice's words as it says them. You can also type in the
 call's chat while it goes on: the voice takes it as said and answers aloud. The call card moves anywhere by its top
-and folds to it, so it never covers what you need.
+and folds to it, so it never covers what you need. A click on its top, without dragging it, opens the call's chat
+again, wherever you went meanwhile.
 
 When you ask for something that needs real work (what is in a project, a mail, your calendar, something on the web),
 the voice says it is on it and the agent you called does it while you keep talking. Ask for several things at once and
@@ -71,7 +80,7 @@ on in that same chat.
 ## The model a call talks with
 
 A call talks with **your main model**, the one APX uses by default, so there is nothing to set up. To use another one,
-pick it in **Settings › Calls › Model for calls**: any model APX has, including a server of your own added as a
+pick it in **Settings › Voice and calls › Calls › Model for calls**: any model APX has, including a server of your own added as a
 provider. A small, fast model makes the conversation feel quicker. The agent you call always works with its own model.
 
 ## Settings in `core.env`

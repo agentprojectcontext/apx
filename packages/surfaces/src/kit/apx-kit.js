@@ -236,8 +236,12 @@ ax-chart text{font:11px var(--apx-font-sans);fill:var(--apx-fg-subtle)}
 .ax-chart__tip b{font-weight:600}.ax-chart__tip span{display:flex;align-items:center;gap:6px;justify-content:space-between}
 .ax-legend{display:flex;flex-wrap:wrap;gap:4px 14px;font-size:12px;color:var(--apx-fg-muted)}
 .ax-legend span{display:inline-flex;align-items:center;gap:6px}.ax-legend i{width:8px;height:8px;border-radius:3px}
-ax-donut,ax-ring{display:inline-grid;position:relative;place-items:center}
+ax-ring,.ax-donut__ring{display:inline-grid;position:relative;place-items:center;flex:none}
+ax-donut{display:flex;flex-wrap:wrap;align-items:center;gap:14px 24px;max-width:100%}ax-donut[legend=none]{display:inline-flex}
 ax-donut svg,ax-ring svg{display:block;transform:rotate(-90deg)}
+.ax-donut__legend{display:grid;grid-template-columns:auto minmax(0,1fr) auto auto;gap:7px 8px;align-items:center;flex:1 1 150px;min-width:0;max-width:300px;font-size:12px;color:var(--apx-fg-muted)}
+.ax-donut__legend i{width:8px;height:8px;border-radius:3px}.ax-donut__legend span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ax-donut__legend b{color:var(--apx-fg);font-weight:600;font-variant-numeric:tabular-nums;text-align:right}.ax-donut__legend small{font-size:11px;color:var(--apx-fg-subtle);font-variant-numeric:tabular-nums;text-align:right;min-width:3ch}
 .ax-ring__c{position:absolute;inset:0;display:grid;place-content:center;text-align:center;line-height:1.15}
 .ax-ring__c b{font-size:var(--fs,20px);font-weight:650;font-variant-numeric:tabular-nums;letter-spacing:-.02em}.ax-ring__c small{font-size:11px;color:var(--apx-fg-subtle)}
 ax-heat{display:block;overflow-x:auto}
@@ -607,14 +611,16 @@ ax-icon{display:inline-grid;place-items:center;width:var(--s,16px);height:var(--
       svg.onmouseleave = function () { tip.hidden = true; hl.setAttribute('opacity', 0); };
     }
   }
-  /* <ax-donut data='[{"label":"macOS","value":8}]' size="140" label="13" sub="total"> */
+  /* <ax-donut data='[{"label":"macOS","value":8}]' size="140" label="13" sub="total"> — a legend beside it; legend="none" drops it */
   class Donut extends HTMLElement {
-    static get observedAttributes() { return ['data', 'label', 'sub', 'size']; }
+    static get observedAttributes() { return ['data', 'label', 'sub', 'size', 'legend']; }
     attributeChangedCallback() { this.render(); } connectedCallback() { this.render(); }
     render() {
       var D = json(this, 'data'), sz = +this.getAttribute('size') || 140, sw = Math.max(10, sz * 0.12), r = (sz - sw) / 2, C = 2 * Math.PI * r, sum = D.reduce(function (a, d) { return a + (+d.value || 0); }, 0) || 1, off = 0, gap = D.length > 1 ? 2 : 0;
-      var arcs = D.map(function (d, i) { var len = (d.value / sum) * C, s = '<circle r="' + r + '" cx="' + sz / 2 + '" cy="' + sz / 2 + '" fill="none" stroke="' + tone(d.tone || ['brand', 'info', 'violet', 'warning', 'danger', 'neutral'][i % 6]) + '" stroke-width="' + sw + '" stroke-dasharray="' + Math.max(0, len - gap) + ' ' + C + '" stroke-dashoffset="' + -off + '"><title>' + esc(d.label) + ': ' + d.value + '</title></circle>'; off += len; return s; }).join('');
-      this.innerHTML = '<svg width="' + sz + '" height="' + sz + '"><circle r="' + r + '" cx="' + sz / 2 + '" cy="' + sz / 2 + '" fill="none" stroke="var(--apx-fill)" stroke-width="' + sw + '"/>' + arcs + '</svg><div class="ax-ring__c" style="--fs:' + Math.round(sz * 0.16) + 'px"><b>' + esc(this.getAttribute('label') || fmt(sum, 0)) + '</b><small>' + esc(this.getAttribute('sub') || '') + '</small></div>';
+      var col = function (d, i) { return tone(d.tone || ['brand', 'info', 'violet', 'warning', 'danger', 'neutral'][i % 6]); };
+      var arcs = D.map(function (d, i) { var len = (d.value / sum) * C, s = '<circle r="' + r + '" cx="' + sz / 2 + '" cy="' + sz / 2 + '" fill="none" stroke="' + col(d, i) + '" stroke-width="' + sw + '" stroke-dasharray="' + Math.max(0, len - gap) + ' ' + C + '" stroke-dashoffset="' + -off + '"><title>' + esc(d.label) + ': ' + d.value + '</title></circle>'; off += len; return s; }).join('');
+      var leg = this.getAttribute('legend') === 'none' || !D.length ? '' : '<div class="ax-donut__legend">' + D.map(function (d, i) { var p = ((+d.value || 0) / sum) * 100; return '<i style="background:' + col(d, i) + '"></i><span title="' + esc(d.label) + '">' + esc(d.label) + '</span><b>' + fmt(d.value) + '</b><small>' + fmt(p, p && p < 1 ? 1 : 0) + '%</small>'; }).join('') + '</div>';
+      this.innerHTML = '<div class="ax-donut__ring"><svg width="' + sz + '" height="' + sz + '"><circle r="' + r + '" cx="' + sz / 2 + '" cy="' + sz / 2 + '" fill="none" stroke="var(--apx-fill)" stroke-width="' + sw + '"/>' + arcs + '</svg><div class="ax-ring__c" style="--fs:' + Math.round(sz * 0.16) + 'px"><b>' + esc(this.getAttribute('label') || fmt(sum, 0)) + '</b><small>' + esc(this.getAttribute('sub') || '') + '</small></div></div>' + leg;
     }
   }
   /* <ax-ring value="76" max="100" tone="brand" size="72" sub="cobertura"> */
