@@ -23,18 +23,25 @@ const isList = (child: string[]) => {
 
 /** Splits a file into its frontmatter fields and its body. A file without frontmatter is all body. */
 export function parseFrontmatter(text: string): { fields: Fields; body: string } {
-  const all = text.replace(/\r\n/g, "\n").split("\n");
-  if (all[0]?.trim() !== "---") return { fields: {}, body: text.replace(/\r\n/g, "\n").trim() };
-  // The closing fence is a line that is exactly "---" (not "----", not "--- text").
-  const end = all.findIndex((l, i) => i > 0 && l.trim() === "---");
-  if (end < 0) return { fields: {}, body: text.replace(/\r\n/g, "\n").trim() };
-  return {
-    fields: parseLines(all.slice(1, end), ""),
-    body: all
-      .slice(end + 1)
-      .join("\n")
-      .trim(),
-  };
+  let end = text.indexOf("\n");
+  if (end < 0 || text.slice(0, end).trim() !== "---") return { fields: {}, body: text.replace(/\r\n/g, "\n").trim() };
+  const lines: string[] = [];
+  let start = end + 1;
+  while (start <= text.length) {
+    end = text.indexOf("\n", start);
+    const line = text.slice(start, end < 0 ? text.length : end);
+    // Keep body-sized arrays and joins out of repeated catalog discovery.
+    if (line.trim() === "---") {
+      return {
+        fields: parseLines(lines, ""),
+        body: (end < 0 ? "" : text.slice(end + 1)).replace(/\r\n/g, "\n").trim(),
+      };
+    }
+    lines.push(line.endsWith("\r") ? line.slice(0, -1) : line);
+    if (end < 0) break;
+    start = end + 1;
+  }
+  return { fields: {}, body: text.replace(/\r\n/g, "\n").trim() };
 }
 
 function parseLines(lines: string[], prefix: string): Fields {

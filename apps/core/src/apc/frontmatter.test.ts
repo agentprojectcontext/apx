@@ -48,6 +48,43 @@ test("frontmatter edge cases: empty frontmatter, a ---- line in the body, CRLF a
   assert.equal(p.body, "Text\n----\nMore");
 });
 
+test("only exact trimmed fences close the header, including at the end of a file", () => {
+  assert.deepEqual(parseFrontmatter(" \t---\r\nname: example\r\n \t--- \t"), {
+    fields: { name: "example" },
+    body: "",
+  });
+  for (const text of ["---", "---\nname: example", "---\nname: example\n----\n--- text\n", "---\n"]) {
+    assert.deepEqual(parseFrontmatter(text), { fields: {}, body: text.trim() });
+  }
+});
+
+test("a large body preserves lines, later fences and CRLF normalization without becoming fields", () => {
+  const lines = [
+    "# Instructions",
+    ...Array.from({ length: 10000 }, (_, i) => `Step ${i}: read the guide.`),
+    "---",
+    "name: body-only",
+    "End.",
+  ];
+  for (const newline of ["\n", "\r\n"]) {
+    const text = [
+      "---",
+      "name: example",
+      "description: >",
+      "  First line.",
+      "  Second line.",
+      "---",
+      "",
+      ...lines,
+      "",
+    ].join(newline);
+    assert.deepEqual(parseFrontmatter(text), {
+      fields: { name: "example", description: "First line. Second line." },
+      body: lines.join("\n"),
+    });
+  }
+});
+
 test("a map whose entries hold lists stays a map", () => {
   const { fields } = parseFrontmatter(
     "---\nmetadata:\n  tags:\n    - a\n    - b\n  category: devops\nservers:\n  docs:\n    args:\n      - -y\n---\n",

@@ -260,6 +260,12 @@ not platform-dependent byte sizes or elapsed time. Changes here also compare pub
 metadata and input/output JSON Schema, materialize the full contract, exercise real cold/warm calls and preserve
 authorization, strict validation, defaults and refinements. A lower idle number alone is not enough.
 
+Frontmatter parsing scans header lines only and slices the body rather than splitting and rejoining every body
+line during catalog discovery. It retains the same fence, newline, block/list and missing-header semantics.
+Regression cases include large bodies, later fences and both LF and CRLF; real skill/catalog suites check callers.
+Allocation profiles identify repeated parsing separately from retained memory; acceptance still uses the unchanged
+normal performance gate, not an instrumented low sample.
+
 The first load is read from the built `apps/web/dist` (`scripts/bundle.ts`), never from source:
 `initial_bundle_gzip_kb` is what `index.html` names plus the chunks it imports statically; `boot_gzip_kb` adds the
 heavier language chunk `main.tsx` waits for, with its own static imports — what a first screen really downloads.
