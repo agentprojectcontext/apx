@@ -1,11 +1,12 @@
 // Top bar and sidebar: the super-agent's card, the server list, how the quota and resources show, the notice strip.
 export const enShellSlim = {
-  "modelNotice.description":
-    "{date} · {summary} {access} {integration} Listed in your models; check account access before switching.",
+  "modelNotice.description": "{summary} {access} In your model list; check your account access.",
+  "modelNotice.detail": "{date} · {integration}",
   "modelNotice.pending": "Not yet tested in APX.",
   "modelNotice.verified": "Tested in APX.",
   "modelNotice.source": "Official announcement",
   "modelNotice.review": "Review models",
+  "modelNotice.reviewSessions": "Review sessions",
   "bar.show": "Show in the bar",
   "bar.full": "Full",
   "bar.mini": "Reduced",

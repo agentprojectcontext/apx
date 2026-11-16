@@ -41,6 +41,7 @@ function CornerCard({ notice: n }: { notice: Notice }) {
         <div className="corner__title">{n.title}</div>
         <IconButton size="sm" label={t("common.close")} icon={<Icons.X size={14} />} onClick={n.onClose} />
       </div>
+      {n.detail && <div className="corner__desc">{n.detail}</div>}
       <div className="corner__desc" role={n.alert ? "alert" : undefined}>
         {n.description}
         {n.link && (

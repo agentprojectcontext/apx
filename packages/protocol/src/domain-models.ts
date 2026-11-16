@@ -110,6 +110,7 @@ export const ModelAnnouncement = z.object({
   summary: AnnouncementWords,
   access: AnnouncementWords,
   engines: z.array(z.string()),
+  destination: z.enum(["models", "sessions"]),
 });
 export type ModelAnnouncement = z.infer<typeof ModelAnnouncement>;
 

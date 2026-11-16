@@ -32,6 +32,8 @@ export type Notice = {
   icon: (size: number) => ReactNode;
   title: string;
   description: string;
+  /** A short date or readiness line, kept separate from the explanation. */
+  detail?: string;
   link?: { label: string; href: string };
   /** Under the description in a card: a download's progress. */
   extra?: ReactNode;

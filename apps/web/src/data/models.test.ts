@@ -67,6 +67,7 @@ test("announcements follow the newest catalog and disappear on a failed request"
     summary: { en: "Coding", es: "Programación" },
     access: { en: "Check access", es: "Revisá el acceso" },
     engines: ["custom"],
+    destination: "models",
   };
   t.mock.method(globalThis, "fetch", async () =>
     Response.json({ ok: true, result: { engines: [engine("custom")], announcements: [launch] } }),

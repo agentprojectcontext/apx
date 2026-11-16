@@ -14,19 +14,18 @@ export function modelNotices(launches: ModelAnnouncement[], closed: string[], la
       tone: "neutral",
       icon: (size) => <Icons.Sparkles size={size} />,
       title: launch.name,
-      description: t("modelNotice.description", {
+      detail: t("modelNotice.detail", {
         date: new Intl.DateTimeFormat(language === "es" ? "es-AR" : "en-US", {
           dateStyle: "medium",
           timeZone: "UTC",
         }).format(new Date(`${launch.date}T00:00:00Z`)),
-        summary: launch.summary[words],
-        access: launch.access[words],
         integration: t(launch.integration === "verified" ? "modelNotice.verified" : "modelNotice.pending"),
       }),
+      description: t("modelNotice.description", { summary: launch.summary[words], access: launch.access[words] }),
       link: { label: t("modelNotice.source"), href: launch.source },
-      action: t("modelNotice.review"),
+      action: t(launch.destination === "sessions" ? "modelNotice.reviewSessions" : "modelNotice.review"),
       keep: true,
-      onAction: () => go.config("engines"),
+      onAction: () => go.config(launch.destination === "sessions" ? "external" : "engines"),
       onClose: () => closeCard({ modelAnnouncements: [...new Set([...closed, launch.id])] }),
     }));
 }

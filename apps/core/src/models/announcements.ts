@@ -1,6 +1,6 @@
 import type { CatalogEngine, ModelAnnouncement } from "@apx/protocol";
 
-type Launch = Omit<ModelAnnouncement, "engines">;
+type Launch = Omit<ModelAnnouncement, "engines" | "destination">;
 const google = "https://blog.google/innovation-and-ai/models-and-research/gemini-models/";
 
 const LAUNCHES: readonly Launch[] = [
@@ -45,8 +45,8 @@ const LAUNCHES: readonly Launch[] = [
       es: "El nuevo modelo de Anthropic para razonamiento exigente y tareas largas con agentes.",
     },
     access: {
-      en: "Requires 30-day data retention; check compatibility before switching.",
-      es: "Requiere retención de datos de 30 días; revisá la compatibilidad antes de cambiar.",
+      en: "Requires 30-day data retention.",
+      es: "Requiere retención de datos de 30 días.",
     },
   },
   {
@@ -87,12 +87,22 @@ const LAUNCHES: readonly Launch[] = [
 export function modelAnnouncements(engines: readonly CatalogEngine[]): ModelAnnouncement[] {
   return LAUNCHES.flatMap((launch) => {
     const matching = engines.filter(
-      (engine) =>
-        engine.kind === "provider" &&
-        engine.available &&
-        !engine.detail &&
-        engine.models.some((m) => m.chat && m.id === launch.model),
+      (engine) => engine.available && !engine.detail && engine.models.some((m) => m.chat && m.id === launch.model),
     );
-    return matching.length ? [{ ...launch, engines: matching.map((e) => e.id) }] : [];
+    if (!matching.length) return [];
+    const api = matching.some((engine) => engine.kind === "provider");
+    return [
+      {
+        ...launch,
+        engines: matching.map((e) => e.id),
+        destination: api ? "models" : "sessions",
+        access: api
+          ? launch.access
+          : {
+              en: "Check the models included in your external session's plan.",
+              es: "Revisá los modelos incluidos en el plan de tu sesión externa.",
+            },
+      },
+    ];
   });
 }
