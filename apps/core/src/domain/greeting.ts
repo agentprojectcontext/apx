@@ -10,7 +10,7 @@ import type { Store } from "./store.ts";
 export const GREETED_KEY = "setup_greeted";
 
 /** Getting to know the owner, one question at a time; each answer is kept where it belongs. */
-export const ONBOARD_STEPS = ["name", "work", "personality", "help"] as const;
+const ONBOARD_STEPS = ["name", "work", "personality", "help"] as const;
 export type OnboardStep = (typeof ONBOARD_STEPS)[number];
 
 type Lang = "en" | "es";
