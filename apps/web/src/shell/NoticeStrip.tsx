@@ -21,10 +21,9 @@ export function NoticeStrip() {
   return (
     <aside className={`noticestrip is-${notice.tone}`} aria-label={t("corner.label")} data-card={notice.id}>
       <ProjectTile tone={notice.tone} size={22} icon={notice.icon(12)} />
-      <div className="noticestrip__text" title={[notice.detail, notice.description].filter(Boolean).join(" ")}>
+      <div className="noticestrip__text" title={notice.description}>
         <span className="noticestrip__title">{notice.title}</span>
         <span className="noticestrip__desc" role={notice.alert ? "alert" : undefined}>
-          {notice.detail && `${notice.detail} `}
           {notice.description}
           {notice.link && (
             <>
