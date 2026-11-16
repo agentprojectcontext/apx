@@ -244,6 +244,12 @@ export function AgentStep({ draft: d, set }: StepProps) {
         {t(simple ? "setup.agent.simpleBody" : "setup.agent.body")}
       </StepHead>
       {simple && (
+        <div className="wiz__float">
+          {d.blob && <AgentAvatar name={d.name || "crew"} blob={d.blob} size={120} />}
+          <b>{d.name.trim()}</b>
+        </div>
+      )}
+      {simple && (
         <div className="wiz__ideas">
           {ideas.map((n) => (
             <Button

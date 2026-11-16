@@ -241,8 +241,8 @@ function WizardBody() {
   };
 
   const name = d.name.trim() || t("setup.preview.unset");
-  // Simple shows its agent once the owner names it (and not beside the chat, which takes that side).
-  const preview = step !== "welcome" && (d.style === "advanced" || step === "agent" || step === "channels");
+  // Simple shows its agent floating in the name step itself, never as a side card.
+  const preview = step !== "welcome" && d.style === "advanced";
   const body: Record<Step, ReactNode> = {
     welcome: <Welcome v1={status?.v1 ?? null} agent={boss} onStart={start} />,
     import: <ImportStep home={status?.v1?.home ?? "~/.apx"} scan={scan} draft={d} set={set} />,

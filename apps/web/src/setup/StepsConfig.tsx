@@ -172,10 +172,10 @@ export function ChannelsStep({ name, simple }: { name: string; simple?: boolean 
         >
           {t("setup.reach.body")}
         </StepHead>
-        <div className="wiz__engines">
-          <TelegramCard />
-          <GmailCard name={name} />
+        <div className="wiz__engines is-three">
           <WhatsAppCard />
+          <GmailCard name={name} />
+          <TelegramCard />
         </div>
       </>
     );
@@ -377,13 +377,14 @@ function WhatsAppCard() {
       {scanning && !running && (
         <Dialog
           open
+          size="sm"
           onOpenChange={(o) => !o && setScanning(false)}
           title={t("setup.channels.waScan")}
           description={t("wa.step2")}
         >
           <div className="wiz__qr">
             {wa?.qr ? (
-              <QrCode value={wa.qr} label={t("wa.scan")} size={220} />
+              <QrCode value={wa.qr} label={t("wa.scan")} size={280} />
             ) : (
               <span className="wiz__hintline">
                 <Spinner size={12} /> {t("wa.connecting")}

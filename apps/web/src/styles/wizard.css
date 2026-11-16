@@ -507,10 +507,13 @@ input.wiz__name {
 .wiz__hintline.is-ok {
   color: var(--apx-brand-soft-fg);
 }
+/* The QR fills the dialog's width, centred. */
 .wiz__qr {
   display: flex;
   align-items: center;
+  justify-content: center;
   gap: 14px;
+  padding: 4px 0 8px;
 }
 .wiz__inline {
   display: flex;
@@ -1065,5 +1068,23 @@ input.wiz__name {
   }
   .meet__item {
     padding: 8px 0;
+  }
+}
+/* Simple's name step: the agent floats over the names and faces, no card around it. */
+.wiz__float {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  align-self: center;
+  min-height: 150px;
+  font-size: calc(20px * var(--apx-text-scale, 1));
+}
+.wiz__engines.is-three {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+@media (max-width: 899px) {
+  .wiz__engines.is-three {
+    grid-template-columns: minmax(0, 1fr);
   }
 }
