@@ -1,36 +1,34 @@
 // The first run asks how APX is used on this computer (server or client); the answer is kept.
 import fs from "node:fs";
 import net, { type AddressInfo } from "node:net";
-import os from "node:os";
 import path from "node:path";
-import { _electron, type ElectronApplication, expect, type Page, test } from "@playwright/test";
+import { type ElectronApplication, expect, type Page, test } from "@playwright/test";
 import { testConfig } from "../../apps/core/src/config.ts";
 import { createCore } from "../../apps/core/src/server.ts";
 import { tempDir } from "../../apps/core/src/testkit/platform.ts";
 import { saveLocalTarget } from "../../packages/install/src/paths.ts";
 import { installFakeSsh } from "../fake-ssh.ts";
 import { rpc, world } from "../specs/kit.ts";
+import { launchSandboxApp } from "./app-shell.test-support.ts";
 
 const root = path.resolve(import.meta.dirname, "../..");
 const core = `http://127.0.0.1:${process.env.E2E_PORT ?? 7460}`;
+let sandbox: ReturnType<typeof tempDir>;
 let home: string;
 let coreHome: string;
 
 const launch = (env: Record<string, string> = {}) =>
-  _electron.launch({
-    args: [path.join(root, "apps/desktop"), ...(process.getuid?.() === 0 ? ["--no-sandbox"] : [])],
-    env: {
-      ...process.env,
-      HOME: home,
-      XDG_CONFIG_HOME: path.join(home, ".config"),
-      APX_DESKTOP_DATA: path.join(home, "desktop"),
-      APX_QUIT_CONFIRM: "off",
-      APX_URL: "",
-      APX_HOME: coreHome,
-      APX_PORT: process.env.E2E_PORT ?? "7460",
-      APX_WEB_URL: "http://127.0.0.1:9",
-      ...env,
-    },
+  launchSandboxApp(path.join(root, "apps/desktop"), {
+    ...process.env,
+    HOME: home,
+    XDG_CONFIG_HOME: path.join(home, ".config"),
+    APX_DESKTOP_DATA: path.join(home, "desktop"),
+    APX_QUIT_CONFIRM: "off",
+    APX_URL: "",
+    APX_HOME: coreHome,
+    APX_PORT: process.env.E2E_PORT ?? "7460",
+    APX_WEB_URL: "http://127.0.0.1:9",
+    ...env,
   });
 
 /**
@@ -83,10 +81,12 @@ async function windowAt(app: ElectronApplication, test: (url: string) => boolean
 
 test.beforeAll(async () => {
   coreHome = (await world.info()).home;
-  home = fs.mkdtempSync(path.join(os.tmpdir(), "apx-e2e-connect-"));
+  sandbox = tempDir("apx-e2e-connect-");
+  home = sandbox.path;
   fs.mkdirSync(path.join(home, "desktop"), { recursive: true });
 });
-test.afterAll(() => fs.rmSync(home, { recursive: true, force: true }));
+// Every app a test opened is closed by then (each test closes its own).
+test.afterAll(() => sandbox.remove());
 
 test("desktop installed from the web reopens the same core without another connection setup", async () => {
   const dataDir = path.join(home, "installed-desktop");
@@ -312,14 +312,17 @@ test("a direct remote connection blocks unsupported updates through the real nat
 
 test("a server that only takes a password asks for it in the terminal view, then this app's key logs in and opens it", async () => {
   fs.rmSync(path.join(home, "desktop", "connection.json"), { force: true });
-  const state = fs.mkdtempSync(path.join(os.tmpdir(), "apx-e2e-ssh-"));
+  const temp = tempDir("apx-e2e-ssh-");
+  const state = temp.path;
   installFakeSsh(state, FAKE_SSH);
+  // The forward's local end: a free port, never a usual one (the panel's dev server takes 7441).
+  const forward = await freePort();
   const app = await launch({
     PATH: `${state}${path.delimiter}${process.env.PATH ?? ""}`,
     FAKE_SSH_STATE: state,
     FAKE_SSH_NODE: process.execPath,
     FAKE_SSH_CORE_PORT: process.env.E2E_PORT ?? "7460",
-    APX_PORT: "7441",
+    APX_PORT: String(forward),
   });
   try {
     const chooser = await question(await windowAt(app, (u) => u.startsWith("apx-app://")));
@@ -346,7 +349,7 @@ test("a server that only takes a password asks for it in the terminal view, then
     await input.fill("s3cret");
     await input.press("Enter");
     // Logged in with the key it just left there, the server's APX opens.
-    await windowAt(app, (u) => u.startsWith("http://127.0.0.1:7441"));
+    await windowAt(app, (u) => u.startsWith(`http://127.0.0.1:${forward}`));
     expect(JSON.parse(fs.readFileSync(path.join(home, "desktop", "connection.json"), "utf8"))).toEqual({
       mode: "ssh",
       target: "ops@box",
@@ -362,13 +365,14 @@ test("a server that only takes a password asks for it in the terminal view, then
     expect(calls.join("\n")).not.toContain("s3cret");
   } finally {
     await app.close();
-    fs.rmSync(state, { recursive: true, force: true });
+    await temp.remove();
     fs.rmSync(path.join(home, "desktop", "connection.json"), { force: true });
   }
 });
 
 test("an occupied SSH forwarding port never adopts the unrelated local core", async () => {
-  const state = fs.mkdtempSync(path.join(os.tmpdir(), "apx-e2e-ssh-busy-"));
+  const temp = tempDir("apx-e2e-ssh-busy-");
+  const state = temp.path;
   const dataDir = path.join(home, "ssh-busy-desktop");
   installFakeSsh(state, FAKE_SSH);
   fs.writeFileSync(path.join(state, "authorized"), "");
@@ -390,7 +394,7 @@ test("an occupied SSH forwarding port never adopts the unrelated local core", as
     expect(app.windows().some((p) => p.url().startsWith(core))).toBe(false);
   } finally {
     await app.close();
-    fs.rmSync(state, { recursive: true, force: true });
+    await temp.remove();
   }
 });
 

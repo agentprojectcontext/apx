@@ -1,10 +1,14 @@
 import { defineConfig, devices } from "@playwright/test";
+import { claimSandbox } from "./e2e/sandbox.ts";
 
 // The whole app against its own core (e2e/env.ts): a temp home, a fake model and an emulated Telegram. One worker,
 // files in order: they share that core, as one owner would, from the first-run setup on. CI splits the files into
 // parts (`--shard`), each with a core of its own, so what every spec may build on is the setup project's: the first
 // run, the owner's Telegram and the WhatsApp line, replayed first in every part. Nothing else carries across specs.
-const port = Number(process.env.E2E_PORT ?? 7460);
+// Free ports and an id of this run's own: a core already on a usual port (a scratch one, another checkout's) is never
+// the one the specs talk to.
+await claimSandbox();
+const port = Number(process.env.E2E_PORT);
 // A machine with another Chromium than the one this Playwright pins (a container, a distro package) names it here.
 const executablePath = process.env.E2E_CHROMIUM || undefined;
 const SETUP = /(01-setup|06-telegram|10-whatsapp)\.spec\.ts$/;

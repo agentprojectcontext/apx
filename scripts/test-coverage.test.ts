@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import path from "node:path";
 import { test } from "node:test";
 import { pathToFileURL } from "node:url";
+import { sandboxPorts } from "../e2e/sandbox.ts";
 import { sourceMapResolver } from "./coverage-source-map.ts";
 import {
   coverageMarkdown,
@@ -9,7 +10,6 @@ import {
   coverageReport,
   mergeCoverage,
   missingParts,
-  sandboxPorts,
   unitAreas,
 } from "./test-coverage.ts";
 
