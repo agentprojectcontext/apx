@@ -78,6 +78,7 @@ export function Shell() {
   const layout = computeLayout(width, panelOpen, chat && threadId != null, transcript, { ...own, panelWide });
   // Compact sidebar: the notices are a deck of cards at its foot. Full: a strip over the page.
   const sidebarCompact = useSidebarCompact();
+  const separateModelCards = layout.rail && (layout.compact || layout.listW === 0);
   useShortcuts();
   useDesktopBridge();
 
@@ -95,6 +96,11 @@ export function Shell() {
           fixed={layout.compact}
         />
         <main className="shell__main">
+          {separateModelCards && (
+            <Suspense fallback={null}>
+              <CornerCards modelsOnly />
+            </Suspense>
+          )}
           {!sidebarCompact && (
             <Suspense fallback={null}>
               <NoticeStrip />
@@ -187,9 +193,9 @@ export function Shell() {
         <WelcomeV2 />
       </Suspense>
       {/* Over the foot of the list column: on a phone, or with the list hidden, it would cover the composer. */}
-      {sidebarCompact && layout.rail && !layout.compact && layout.listW > 0 && (
+      {layout.rail && !layout.compact && layout.listW > 0 && (
         <Suspense fallback={null}>
-          <CornerCards floating />
+          <CornerCards floating modelsOnly={!sidebarCompact} />
         </Suspense>
       )}
       {live && (

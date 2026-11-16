@@ -70,6 +70,8 @@ export const CatalogEngine = z.object(
     /** "claude", "codex", or a provider id ("gemini", "anthropic", …). */
     id: () => z.string(),
     kind: () => z.enum(["harness", "provider"]),
+    /** Whether a provider's model list comes from an API key or a signed-in subscription. */
+    access: () => z.enum(["api", "plan"]).optional(),
     label: () => z.string(),
     available: () => z.boolean(),
     detail: () => z.string().optional(),
@@ -95,6 +97,24 @@ export const CatalogEngine = z.object(
   }),
 );
 export type CatalogEngine = z.infer<typeof CatalogEngine>;
+
+const AnnouncementWords = z.object({ en: z.string(), es: z.string() });
+
+/** Official launch facts, relevant to a fresh model list; not proof of inference access or APX compatibility. */
+export const ModelAnnouncement = z.object({
+  id: z.string(),
+  model: z.string(),
+  name: z.string(),
+  date: z.string(),
+  source: z.string().url(),
+  /** Promoted only after explicit compatibility verification, never by a catalog refresh. */
+  integration: z.enum(["pending", "verified"]),
+  summary: AnnouncementWords,
+  access: AnnouncementWords,
+  engines: z.array(z.string()),
+  destination: z.enum(["models", "sessions"]),
+});
+export type ModelAnnouncement = z.infer<typeof ModelAnnouncement>;
 
 export const Agent = z.object(
   schemaFields({

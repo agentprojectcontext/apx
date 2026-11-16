@@ -242,10 +242,9 @@ export function Sidebar({
           </SidebarReorder>
         ))}
       </ContextMenu>
-      {/* With the full sidebar the notices show in a strip over the page instead (Shell). */}
-      {!rail && compact && (
+      {!rail && (
         <Suspense fallback={null}>
-          <CornerCards />
+          <CornerCards modelsOnly={!compact} />
         </Suspense>
       )}
       {!window.apxDesktop && (

@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { after, test } from "node:test";
-import type { CatalogEngine } from "@apx/protocol";
+import type { CatalogEngine, ModelAnnouncement } from "@apx/protocol";
 
 const descriptor = Object.getOwnPropertyDescriptor(globalThis, "window");
 Object.defineProperty(globalThis, "window", {
@@ -51,6 +51,39 @@ test("a provider changed while the first catalog is still loading shows up once 
     ["custom", "ollama"],
   );
   assert.equal(models.get().catalogLoad, "ready");
+  assert.deepEqual(models.get().announcements, [], "an older core without announcements remains compatible");
   // One more ask after the first, refreshing as the change asked, not one per call.
   assert.deepEqual(asked, [false, true]);
+});
+
+test("announcements follow the newest catalog and disappear on a failed request", async (t) => {
+  const launch: ModelAnnouncement = {
+    id: "new-model-launch",
+    model: "new-model",
+    name: "New model",
+    date: "2026-11-12",
+    source: "https://example.com/launch",
+    integration: "pending",
+    summary: { en: "Coding", es: "Programación" },
+    access: { en: "Check access", es: "Revisá el acceso" },
+    engines: ["custom"],
+    destination: "models",
+  };
+  t.mock.method(globalThis, "fetch", async () =>
+    Response.json({ ok: true, result: { engines: [engine("custom")], announcements: [launch] } }),
+  );
+  await loadCatalog(true);
+  assert.deepEqual(models.get().announcements, [launch]);
+  t.mock.method(globalThis, "fetch", async () =>
+    Response.json({ ok: true, result: { engines: [engine("custom")], announcements: [] } }),
+  );
+  await loadCatalog(true);
+  assert.deepEqual(models.get().announcements, []);
+  models.set({ announcements: [launch] });
+  t.mock.method(globalThis, "fetch", async () => {
+    throw new Error("offline");
+  });
+  await loadCatalog();
+  assert.deepEqual(models.get().announcements, []);
+  assert.equal(models.get().catalogLoad, "ready", "existing model selection remains usable offline");
 });

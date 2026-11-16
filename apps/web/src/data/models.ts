@@ -1,5 +1,5 @@
 // Model catalog, install default and router (D-011). Model names only ever come from the core.
-import type { CatalogEngine, ModelChoice, ModelRef, RouterConfig } from "@apx/protocol";
+import type { CatalogEngine, ModelAnnouncement, ModelChoice, ModelRef, RouterConfig } from "@apx/protocol";
 import { ApxError } from "@apx/protocol/client";
 import { registerIntegrationMarks, registerMarks } from "@apx/ui";
 import { isKey, t } from "../i18n/index.ts";
@@ -12,12 +12,18 @@ export type ModelsConfig = { default: ModelChoice; router: RouterConfig };
 
 type ModelsState = {
   catalog: CatalogEngine[];
+  announcements: ModelAnnouncement[];
   /** `unavailable` = this core does not answer models.* (older build). */
   catalogLoad: "idle" | "loading" | "ready" | "unavailable";
   config: ModelsConfig | undefined;
 };
 
-export const models = createStore<ModelsState>({ catalog: [], catalogLoad: "idle", config: undefined });
+export const models = createStore<ModelsState>({
+  catalog: [],
+  announcements: [],
+  catalogLoad: "idle",
+  config: undefined,
+});
 
 export function useModels<T>(select: (s: ModelsState) => T): T {
   return useSlice(models, select);
@@ -63,10 +69,13 @@ export async function loadCatalog(refresh = false): Promise<void> {
     try {
       const r = await client.call("models.list", { refresh });
       if (ask !== catalogAsk) return;
-      models.set({ catalog: r.engines, catalogLoad: "ready" });
+      models.set({ catalog: r.engines, announcements: r.announcements ?? [], catalogLoad: "ready" });
     } catch (e) {
       if (ask !== catalogAsk) return;
-      models.set((s) => ({ catalogLoad: missing(e) || !s.catalog.length ? "unavailable" : "ready" }));
+      models.set((s) => ({
+        announcements: [],
+        catalogLoad: missing(e) || !s.catalog.length ? "unavailable" : "ready",
+      }));
       if (refresh && !missing(e)) notify(t("error.loadModels", { error: errText(e) }));
     }
   })();

@@ -11,6 +11,7 @@ import {
   CatalogEngine,
   EngineStatus,
   Id,
+  ModelAnnouncement,
   ModelChoice,
   RouterConfig,
   ToolApproval,
@@ -628,6 +629,7 @@ export const appSetupMethods = {
     result: () =>
       z.object({
         engines: z.array(CatalogEngine),
+        announcements: z.array(ModelAnnouncement).optional(),
       }),
     effect: false,
   }),

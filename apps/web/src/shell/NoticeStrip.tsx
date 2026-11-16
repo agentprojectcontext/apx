@@ -10,7 +10,8 @@ import { useNotices } from "./notices.tsx";
  */
 export function NoticeStrip() {
   const t = useT();
-  const notices = useNotices();
+  const all = useNotices();
+  const notices = all.filter((notice) => !notice.id.startsWith("model:"));
   const [at, setAt] = useState(0);
   const n = notices.length;
   if (!n) return null;

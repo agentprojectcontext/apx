@@ -28,13 +28,36 @@ function hold(file: string): () => void {
     return () => {};
   }
   execFileSync("mkfifo", [file]);
+  // Keep a writer for the hold's lifetime; releasing must not wait for a reader to open.
+  const writer = fs.openSync(file, fs.constants.O_RDWR | fs.constants.O_NONBLOCK);
+  let released = false;
   return () => {
-    fs.writeFileSync(file, "");
-    // The folder's watcher reads it again: a plain file, not a FIFO with no writer.
-    fs.writeFileSync(`${file}.tmp`, "");
-    fs.renameSync(`${file}.tmp`, file);
+    if (released) return;
+    released = true;
+    try {
+      // Replace the entry before closing the writer so a later reader cannot wait on the old FIFO.
+      fs.writeFileSync(`${file}.tmp`, "");
+      fs.renameSync(`${file}.tmp`, file);
+    } finally {
+      fs.closeSync(writer);
+    }
   };
 }
+
+test("a held file can be released before its reader arrives", async () => {
+  const dir = tempDir("apx-reader-release-");
+  const file = path.join(dir.path, "AGENTS.md");
+  const release = hold(file);
+  try {
+    release();
+    assert.equal(fs.statSync(file).isFile(), true);
+    assert.equal(fs.readFileSync(file, "utf8"), "");
+    release();
+  } finally {
+    release();
+    await dir.remove();
+  }
+});
 
 const health = (url: string) =>
   new Promise<number>((resolve, reject) => {
@@ -141,10 +164,10 @@ test("the reader's threads keep a held read from holding up the next one", async
   const held = tempDir("apx-reader-held-");
   const ok = tempDir("apx-reader-ok-");
   const reader = createProjectReader();
+  const release = hold(path.join(held.path, "AGENTS.md"));
   try {
     makeProject(held.path, "Northwind");
     makeProject(ok.path, "Acme");
-    const release = hold(path.join(held.path, "AGENTS.md"));
     let heldDone = false;
     const heldRead = reader.read(held.path).finally(() => {
       heldDone = true;
@@ -156,6 +179,7 @@ test("the reader's threads keep a held read from holding up the next one", async
     const late = await heldRead;
     assert.equal(late.state === "read" && late.project.name, "Northwind");
   } finally {
+    release();
     reader.close();
     await held.remove();
     await ok.remove();
@@ -182,6 +206,7 @@ test("a core whose project read is held still starts and answers", async () => {
       return p?.present && !p.unreadable;
     }, "the held project to be read");
   } finally {
+    release();
     await env.core.close();
     await h.remove();
   }

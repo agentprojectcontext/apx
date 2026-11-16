@@ -55,6 +55,7 @@ test("the catalog asks each engine for its models, caches them and keeps the las
     );
     const first = await catalog.list();
     const g = first.find((e) => e.id === "g");
+    assert.equal(g?.access, "api");
     assert.deepEqual(
       g?.models.map((m) => [m.id, m.chat]),
       [
@@ -123,6 +124,11 @@ test("a signed-in plan's models are asked to the plan with its sign-in, never re
       },
     });
     const plan = (await catalog.list()).find((e) => e.id === "chatgpt");
+    assert.equal(plan?.access, "plan");
+    store.settings.set("catalog.v2:chatgpt", JSON.stringify({ ...plan, access: undefined }));
+    const cached = (await catalog.list()).find((e) => e.id === "chatgpt");
+    assert.equal(cached?.access, "plan", "old cached lists use the current credential type");
+    assert.equal(asked.length, 1, "access classification does not force a network refresh");
     assert.deepEqual(
       plan?.models.map((m) => [m.id, m.efforts]),
       [
