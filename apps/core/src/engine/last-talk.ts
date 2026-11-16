@@ -34,6 +34,7 @@ export function unasked(origin: Origin): boolean {
     case "connected":
     case "go_on":
     case "task_continue":
+    case "plan_continue":
       return false;
   }
 }

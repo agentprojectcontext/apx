@@ -508,6 +508,8 @@ export function frameInput(origin: Origin, text: string): string {
       return `APX: the owner just added the ${origin.what} ${inlineName(origin.name)} (${origin.id}). Offer them in one or two lines to look at it and adapt it (${origin.what === "project" ? "its agents, its AGENTS.md and how it fits their other projects" : "its role, model, project and what it may do"}), asking before you change anything. Nothing else.`;
     case "task_continue":
       return `APX: your task "${origin.title}" (${origin.task_id}) is still in progress and your last turn ended without closing it. Part ${origin.part} of at most ${origin.of}: check where it stands, do what is left and verify it. Done: close it with task_close and say what you verified. Waiting on the owner: task_update awaits_owner=true with why (what they need to do). Blocked by something you cannot fix: say exactly what. Do not stop just to report progress.`;
+    case "plan_continue":
+      return "APX: your plan in this chat has steps left and your last answer only reported a result. Do the next step now with your tools, or hand it to who does it; if it waits on the owner or on someone, say so in one line. A plan you dropped or finished: mark it with plan.";
     case "task_feedback":
       return `${fromTeam("task_feedback", { task: origin.task_id, title: origin.title, from: origin.name }, text)}\nA reviewer returned this still-open task to its author. This is team feedback, not an owner approval. Check current task and agent states; coordinate other eligible work if appropriate without duplicating work or bypassing approvals.`;
     case "stalled_task":

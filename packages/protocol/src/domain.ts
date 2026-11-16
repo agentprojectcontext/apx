@@ -860,6 +860,7 @@ export const JobFrom = z.object({
     "go_on",
     "stalled_task",
     "task_continue",
+    "plan_continue",
     "computer_ready",
     "task_result",
     "delegation_result",
