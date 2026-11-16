@@ -10,6 +10,7 @@ const isIn = <T extends string>(list: readonly T[], v: string | undefined): v is
 /** A place an `apx:` link names: what it is (for its icon and hint) and the move that opens it. */
 export type AppPlace =
   | { kind: "settings"; section: ConfigSection; open: () => void }
+  | { kind: "superAgent"; open: () => void }
   | { kind: "task"; id: string; open: () => void }
   | { kind: "tasks"; open: () => void }
   | { kind: "flows"; project?: string; flow?: string; open: () => void }
@@ -33,6 +34,8 @@ export function appPlace(href: string): AppPlace | undefined {
     case "config": {
       // Channels left Settings for a screen of their own; links written before still reach it.
       if (a === "channels") return { kind: "channels", open: () => go.view("channels") };
+      // The super-agent's profile left Settings for its editor; links written before open it there.
+      if (a === "profile") return { kind: "superAgent", open: () => go.superEdit("profile") };
       const section: ConfigSection | undefined = a === undefined ? "account" : isIn(CONFIG_SECTIONS, a) ? a : undefined;
       return section ? { kind: "settings", section, open: () => go.config(section) } : undefined;
     }

@@ -5,6 +5,9 @@ import { createStore, useSlice } from "../data/createStore.ts";
 import { rememberSidebar } from "../data/prefs.ts";
 import { type ProjectTab, projectTabFrom } from "./projectTabs.ts";
 
+/** The super-agent editor's pages a link can open it on. */
+export type SuperEditPage = "identity" | "profile" | "reach";
+
 export type PanelKind =
   | "computer"
   | "browser"
@@ -40,7 +43,6 @@ export const CONFIG_SECTIONS = [
   "external",
   "router",
   "agents",
-  "profile",
   "memory",
   "voices",
   "calls",
@@ -96,6 +98,8 @@ export type NavState = {
   tools: boolean;
   /** Config modal section, or null when closed. */
   config: ConfigSection | null;
+  /** The super-agent's editor, open on that page, or null when closed. */
+  superEdit: SuperEditPage | null;
   /** "New channel": the kinds to pick from, open over the screen. */
   channelPick: boolean;
   /** A channel account's settings, open over the screen. */
@@ -231,6 +235,7 @@ export const nav = createStore<NavState>({
   mode: initialMode(),
   tools: true,
   config: null,
+  superEdit: null,
   channelPick: false,
   channelEdit: null,
   phone: false,
@@ -561,6 +566,10 @@ export const go = {
   },
   config(section: ConfigSection | null = "account") {
     nav.set({ config: section });
+  },
+  /** The super-agent's editor on one of its pages (its profile, how it reaches the owner); null closes it. */
+  superEdit(page: SuperEditPage | null = "identity") {
+    nav.set({ config: null, superEdit: page });
   },
   /** "New channel": pick the kind; with `kind`, the setup of a new account of it right away. */
   newChannel(kind?: ChannelKind) {

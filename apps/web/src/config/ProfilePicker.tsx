@@ -31,7 +31,7 @@ const toCron = (time: string, days: Days) => {
 /**
  * What the super-agent is for: the profile picker, the active profile's settings and its routines. A profile gives it a
  * role in its prompt, routines on its own schedule and the settings both read; APX ships some, more install from a
- * folder. None: it only answers. Shown in Settings › Super-agent and in the super-agent's editor.
+ * folder. None: it only answers. Shown on the Profile page of the super-agent's editor.
  */
 /** `actions`: links shown under its routines. */
 export function ProfilePicker({ actions }: { actions?: ReactNode }) {

@@ -37,6 +37,7 @@ const PAGES = [
   "prompt",
   "team",
   "profile",
+  "reach",
   "tools",
   "skills",
   "autonomy",
