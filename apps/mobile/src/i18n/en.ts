@@ -154,6 +154,7 @@ export const en = {
   noChats: "No chats here",
   noChatsBody: "Try another filter or start a conversation.",
   noMessagesYet: "No messages yet.",
+  quietAnswer: "Nothing new",
   newChat: "New chat",
   chatWith: "Chat with {name}",
   chatStartHint: "Write below to get started.",
