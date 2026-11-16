@@ -2,6 +2,7 @@
 // the list is not on screen (a phone showing the chat), so going back to it finds the chat there.
 import { type InboxTab, prefs, setPrefs } from "../data/prefs.ts";
 import { data } from "../data/state.ts";
+import { taskHomes } from "../data/tasks.ts";
 import { nav } from "../shell/nav.ts";
 import { listTab } from "./listTab.ts";
 
@@ -15,7 +16,7 @@ function turnTo(tab: InboxTab): void {
 }
 
 function settle(): void {
-  const tab = listTab(data.get().threads, pending);
+  const tab = listTab(data.get().threads, pending, taskHomes());
   if (!tab) return;
   pending = undefined;
   turnTo(tab);

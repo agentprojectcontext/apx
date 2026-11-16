@@ -56,6 +56,14 @@ test("a delegated chat whose caller is not loaded stands on its own", () => {
   assert.equal(listTab(threads, "orphan"), "tasks");
 });
 
+test("a teammate asked on a task hangs under the task's own chat, not loaded, and is listed in Tasks", () => {
+  const asked = byId(thread("bruno", { kind: "a2a", parent_id: "taskhome" }));
+  assert.equal(listTab(asked, "bruno"), "chats");
+  assert.equal(listTab(asked, "bruno", new Set(["taskhome"])), "tasks");
+  const loaded = byId(thread("taskhome"), thread("bruno", { kind: "a2a", parent_id: "taskhome" }));
+  assert.equal(listTab(loaded, "bruno", new Set(["taskhome"])), "tasks");
+});
+
 test("a chat not loaded yet has no tab, and a loop of callers cannot trap it", () => {
   assert.equal(listTab(threads, "missing"), undefined);
   assert.equal(listTab(threads, undefined), undefined);
