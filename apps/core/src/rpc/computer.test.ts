@@ -7,7 +7,7 @@ import path from "node:path";
 import { after, before, test } from "node:test";
 import { ApxClient, type ApxSocket } from "@apx/protocol/client";
 import { testConfig } from "../config.ts";
-import { callTool, inputOrEnd, say, scriptedLlm } from "../engine/testkit.ts";
+import { callTool, inputOrEnd, offeredIn, say, scriptedLlm } from "../engine/testkit.ts";
 import { createCore } from "../server.ts";
 import { removeDir, waitFor } from "../testkit/platform.ts";
 import { UNTRUSTED_MARK } from "../tools/result.ts";
@@ -64,7 +64,7 @@ const llm = scriptedLlm((req, { said, afterTool }) => {
         { do: "key", keys: "enter" },
       ],
     });
-  return say(`tools: ${req.tools.map((t) => t.function.name).join(",")}`);
+  return say(`tools: ${offeredIn(req).join(",")}`);
 });
 
 let core: Awaited<ReturnType<typeof createCore>>;

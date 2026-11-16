@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { after, before, test } from "node:test";
 import { methodAccess, methods } from "@apx/protocol";
+import { offeredIn } from "../engine/testkit.ts";
 import { SPANISH_TITLES } from "../engine/tool-titles.ts";
 import { FLOW_SETTINGS } from "./flow-tool.ts";
 import { settingsCore } from "./settings.test-support.ts";
@@ -28,7 +29,7 @@ const sister = async () => (await h.env.client.call("contacts.list", {})).person
 test("only the super-agent is offered apx_settings", async () => {
   const offered = async (agent: string) => {
     await h.ask("hello", undefined, agent);
-    return h.llm.calls.at(-1)?.tools.map((t) => t.function.name) ?? [];
+    return offeredIn(h.llm.calls.at(-1));
   };
   assert.ok((await offered("superagent")).includes("apx_settings"));
   assert.ok(!(await offered("acme-writer")).includes("apx_settings"));

@@ -20,8 +20,51 @@ const words = (s: string): string[] => s.toLowerCase().match(/[\p{L}\p{N}]{2,}/g
 const APPS: Record<string, string> = { calendar: "calendar", gmail: "gmail", drive: "drive", asana: "asana" };
 export const appOf = (name: string): string | undefined => APPS[name.split("_")[0] ?? ""];
 
-/** The server a tool belongs to, from its "[server] …" description, or the app it works on. */
-const serverOf = (t: Tool) => /^\[([^\]]+)\]/.exec(t.description)?.[1] ?? appOf(t.name) ?? "";
+/**
+ * APX's own tools that under 1% of the super-agent's turns used over a month: named in mcp_search's description and
+ * called by name like a found tool, instead of a schema on every call (DECISIONS.md#d-233).
+ */
+export const OWN_FOUND: ReadonlySet<string> = new Set([
+  "routine_list",
+  "routine_set",
+  "apx_settings",
+  "apx_flow",
+  "agent_set",
+  "agent_limits",
+  "grant_tool",
+  "voice_replies",
+  "suggest_connection",
+  "commitment_settle",
+  "notify_owner",
+  "attention_hours",
+  "task_tidy",
+  "forget",
+  "list_sessions",
+  "start_session",
+  "stop_session",
+  "open_document",
+  "show_widget",
+  "edit_widget",
+  "read_widget",
+  "make_image",
+  "video_transcript",
+  "screen_open",
+  "screen_do",
+  "screen_snapshot",
+  "browser_evaluate",
+  "browser_handoff",
+  "browser_sign_in",
+  "contact_list",
+  "contact_requests",
+  "answer_contact_request",
+]);
+
+/** A tool a turn reaches through the bridge rather than in its list: a connected app's, or one of APX's rarely used. */
+export const foundLater = (name: string): boolean => Boolean(appOf(name)) || OWN_FOUND.has(name);
+
+/** The server a tool belongs to, from its "[server] …" description, the app it works on, or APX for its own. */
+const serverOf = (t: Tool) =>
+  /^\[([^\]]+)\]/.exec(t.description)?.[1] ?? appOf(t.name) ?? (OWN_FOUND.has(t.name) ? "apx" : "");
 
 /** Best first: words in the tool's name count double. */
 function rank(tools: Tool[], query: string): Tool[] {
@@ -44,18 +87,25 @@ function rank(tools: Tool[], query: string): Tool[] {
  * description, so the model knows what exists without loading anything). `load` starts the servers on first use.
  * mcp_call never runs here: the executor turns it into a call of the tool it names, with that tool's own checks.
  */
-export function mcpBridge(servers: string[], load: () => Promise<Tool[]>, apps: string[] = []): Tool[] {
+export function mcpBridge(
+  servers: string[],
+  load: () => Promise<Tool[]>,
+  apps: string[] = [],
+  own: string[] = [],
+): Tool[] {
   const where = [
     apps.length ? `the owner's connected apps (${apps.join(", ")})` : "",
     servers.length ? `${apps.length ? "" : "the owner's "}MCP servers (${servers.join(", ")})` : "",
   ]
     .filter(Boolean)
     .join(" and ");
-  const sources = [...apps, ...servers];
+  // Named here so the model calls them as it would any tool; their schema comes with a search or a wrong call.
+  const more = own.length ? `More APX tools, called by name like any other: ${own.join(", ")}. ` : "";
+  const sources = [...apps, ...servers, ...(own.length ? ["apx"] : [])];
   return [
     defineTool({
       name: MCP_SEARCH,
-      description: `Find tools of ${where} by words, or list one's. Returns each tool's name, what it does and its arguments; run one with ${MCP_CALL}.${servers.length ? " To open a server's editor from chat, link apx:resources/mcp/NAME (apx-mcps explains exact scopes)." : ""}`,
+      description: `${more}Find tools of ${where || "APX (server apx)"} by words, or list one's. Returns each tool's name, what it does and its arguments; run one with ${MCP_CALL}.${servers.length ? " To open a server's editor from chat, link apx:resources/mcp/NAME (apx-mcps explains exact scopes)." : ""}`,
       args: z.object({
         query: z.string().max(200).optional().describe("words for what you want to do"),
         server: z.string().max(64).optional().describe("only this server or app; without a query, lists all its tools"),

@@ -155,6 +155,11 @@ The same one-line answer then costs **11,838 tokens**, and the list of tools sta
 keeps the model provider's prompt cache warm. Approvals, confirmations and the tool cards in the chat work exactly as
 if the agent had called the tool directly.
 
+APX's own tools that agents rarely need (routines, settings, Flows, widgets, documents, the computer's screen, contact
+requests, images, video transcripts and a few more) travel the same way: `mcp_search` names them, and the agent calls
+one by its name whenever it needs it, with nothing to search first. If it gets the arguments wrong, the answer brings
+them, so the next try works. This keeps a default call about a third lighter.
+
 ## Files and images in MCP tools
 
 An agent can hand one of its files to an MCP tool: an image it drew, something you attached in the chat, or a file in

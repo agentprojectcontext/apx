@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { after, before, test } from "node:test";
 import { fakeTelegram } from "../channels/fake-telegram.test-support.ts";
 import { telegramAdapter } from "../channels/telegram.ts";
-import { say, scriptedLlm, startCore } from "../engine/testkit.ts";
+import { offeredIn, say, scriptedLlm, startCore } from "../engine/testkit.ts";
 import { CODEX_IMAGE_SERVICE } from "../services/codex-images.ts";
 
 // Tools that need something set up are offered once it is: every model call pays for each schema it carries.
@@ -36,7 +36,7 @@ async function turn() {
   await env.client.call("threads.send", { thread: t.id, text: "hola" });
   await env.settle(t.id);
   const call = llm.calls.at(-1);
-  return { tools: call?.tools.map((x) => x.function.name) ?? [], system: String(call?.messages[0]?.content) };
+  return { tools: offeredIn(call), system: String(call?.messages[0]?.content) };
 }
 
 test("with no channel on, the channel and contact tools and their rule stay out; suggest_connection stays in", async () => {

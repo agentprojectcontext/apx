@@ -4,6 +4,7 @@ import assert from "node:assert/strict";
 import { after, before, test } from "node:test";
 import { methods } from "@apx/protocol";
 import { FlowNode } from "@apx/protocol/flow-graph";
+import { offeredIn } from "../engine/testkit.ts";
 import { SPANISH_TITLES } from "../engine/tool-titles.ts";
 import { readSkillFile, skillsFor } from "../skills/skills.ts";
 import { FLOW_SETTINGS } from "./flow-tool.ts";
@@ -50,7 +51,7 @@ test("the apx-flows skill names every step kind, so an agent can draw a new one"
 test("only the super-agent is offered apx_flow, and its index lists Flows and tables", async () => {
   const offered = async (agent: string) => {
     await h.ask("hello", undefined, agent);
-    return h.llm.calls.at(-1)?.tools.map((t) => t.function.name) ?? [];
+    return offeredIn(h.llm.calls.at(-1));
   };
   assert.ok((await offered("superagent")).includes("apx_flow"));
   assert.ok(!(await offered("acme-writer")).includes("apx_flow"));
