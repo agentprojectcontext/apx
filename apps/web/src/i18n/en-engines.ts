@@ -32,6 +32,8 @@ export const enEngines = {
   "plan.login.connectedAs": "Connected as {account}",
   "plan.login.disconnect": "Disconnect",
   "plan.login.failed": "Could not sign in: {error}",
+  "providers.other": "Another server",
+  "providers.otherHint": "Any OpenAI-compatible address.",
   "providers.unset": "Not set up",
   "providers.setUp": "Set up",
   "providers.unsetKey": "Paste a key to use its models.",

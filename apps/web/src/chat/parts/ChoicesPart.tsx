@@ -4,6 +4,7 @@ import { Button, Icons } from "@apx/ui";
 import { useState } from "react";
 import { send } from "../../data/actions.ts";
 import { client } from "../../data/client.ts";
+import { setPrefs } from "../../data/prefs.ts";
 import { useData } from "../../data/state.ts";
 import { updateAgent } from "../../data/team.ts";
 import { type MessageKey, useT } from "../../i18n/index.ts";
@@ -42,6 +43,8 @@ export function ChoicesPart({
   const pick = async (value: string, label: string) => {
     setBusy(true);
     const kept = part.for !== "personality" || (await updateAgent(agentId, { personality: value.slice(0, 1000) }));
+    // The name the owner gave is the one the panel calls them by too (the account row, greetings).
+    if (part.for === "name") setPrefs({ displayName: label.trim().slice(0, 80) });
     if (kept) {
       const r = await client
         .call("setup.onboard", { step: part.for, answer: label.slice(0, 1000) })

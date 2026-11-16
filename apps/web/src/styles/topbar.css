@@ -342,6 +342,10 @@ html[data-shortcuts-active] [data-shortcut-modifier] {
   display: none;
 }
 .topbar__right:is([data-fit="4"], [data-fit="5"]) {
+  /* The chat is the Inbox's and ⌘J's; the call stays beside the agent. */
+  .topbar__chat {
+    display: none;
+  }
   .running {
     width: 28px;
     padding: 0;
@@ -407,10 +411,6 @@ html[data-shortcuts-active] [data-shortcut-modifier] {
   }
 }
 @media (max-width: 639px) {
-  /* The account menu switches it on a phone. */
-  .topbar__mode {
-    display: none;
-  }
   .topbar__activity {
     position: absolute;
     left: 36px;
@@ -444,5 +444,17 @@ html[data-shortcuts-active] [data-shortcut-modifier] {
   .topbar__right {
     padding-right: 4px;
     gap: 2px;
+  }
+}
+/* Below this width the bar has no room for Simple and Advanced: the account menu switches it (MODE_IN_MENU). */
+@container topbar (max-width: 1279px) {
+  .topbar__mode {
+    display: none;
+  }
+}
+/* The narrowest phones keep the call; the chat is the Inbox's and ⌘J's. */
+@media (max-width: 420px) {
+  .topbar__chat {
+    display: none;
   }
 }

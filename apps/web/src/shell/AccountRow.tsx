@@ -4,7 +4,7 @@ import { openSetup } from "../data/setup.ts";
 import { LANGUAGE_NAMES, type T, useLanguage, useT } from "../i18n/index.ts";
 import { useLanguageItems } from "./LanguageMenu.tsx";
 import { go } from "./nav.ts";
-import { setPanelMode, usePanelSimple } from "./panelMode.ts";
+import { setPanelMode, useModeInMenu, usePanelSimple } from "./panelMode.ts";
 import { useSidebarMenu } from "./sidebarParts.ts";
 
 /** Sidebar footer: who is using the panel, with quick theme / phone / setup / usage actions and Settings. */
@@ -15,6 +15,7 @@ export function AccountRow({ rail }: { rail: boolean }) {
   const language = useLanguage();
   const compact = usePrefs((s) => s.sidebarCompact);
   const simple = usePanelSimple();
+  const inMenu = useModeInMenu();
   const sidebarMenu = useSidebarMenu(false);
   const items: MenuEntry[] = [
     { type: "label", label: name },
@@ -23,16 +24,16 @@ export function AccountRow({ rail }: { rail: boolean }) {
       icon: <Icons.Sun />,
       onSelect: () => go.config("appearance"),
     },
-    // On a phone the top bar has no room for the switch; a simple panel keeps it to the top bar.
-    ...(simple
-      ? []
-      : [
+    // The top bar has the switch while it has room; under that width it is here, in either mode.
+    ...(inMenu
+      ? [
           {
-            label: t("mode.toSimple"),
-            icon: <Icons.MessageCircle />,
-            onSelect: () => setPanelMode("simple"),
+            label: t(simple ? "mode.toAdvanced" : "mode.toSimple"),
+            icon: simple ? <Icons.LayoutGrid /> : <Icons.MessageCircle />,
+            onSelect: () => setPanelMode(simple ? "advanced" : "simple"),
           },
-        ]),
+        ]
+      : []),
     { label: t("phone.open"), icon: <Icons.Smartphone />, onSelect: () => go.phone(true) },
     // A simple panel keeps its menu to the everyday: no setup again, no machine gauges, no sidebar layout.
     ...(simple

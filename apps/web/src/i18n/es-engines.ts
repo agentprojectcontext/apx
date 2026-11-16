@@ -35,6 +35,8 @@ export const esEngines: Record<keyof typeof enEngines, string> = {
   "plan.login.connectedAs": "Conectado como {account}",
   "plan.login.disconnect": "Desconectar",
   "plan.login.failed": "No se pudo iniciar sesión: {error}",
+  "providers.other": "Otro servidor",
+  "providers.otherHint": "Cualquier dirección compatible con OpenAI.",
   "providers.unset": "Sin configurar",
   "providers.setUp": "Configurar",
   "providers.unsetKey": "Pegá una clave para usar sus modelos.",

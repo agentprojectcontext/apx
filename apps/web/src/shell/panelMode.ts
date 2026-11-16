@@ -1,5 +1,6 @@
 // Simple or advanced panel: simple is everything but projects and the CLIs' sessions, with fewer settings.
 
+import { useSyncExternalStore } from "react";
 import { client } from "../data/client.ts";
 import { type PanelMode, prefs, setPrefs, usePrefs } from "../data/prefs.ts";
 import { type ConfigSection, go, nav } from "./nav.ts";
@@ -24,6 +25,17 @@ const ADVANCED_CONFIG: ReadonlySet<ConfigSection> = new Set([
 ]);
 
 export const usePanelMode = (): PanelMode => usePrefs((s) => s.panelMode);
+
+/** The window width under which the top bar leaves Simple and Advanced to the account menu (topbar.css). */
+const MODE_IN_MENU = "(max-width: 1279px)";
+const narrow = () => typeof window !== "undefined" && window.matchMedia?.(MODE_IN_MENU).matches === true;
+const onResize = (fn: () => void) => {
+  const m = window.matchMedia?.(MODE_IN_MENU);
+  m?.addEventListener("change", fn);
+  return () => m?.removeEventListener("change", fn);
+};
+/** The switch is in the account menu: the top bar has no room for it. */
+export const useModeInMenu = (): boolean => useSyncExternalStore(onResize, narrow, () => false);
 export const usePanelSimple = (): boolean => usePrefs((s) => s.panelMode === "simple");
 
 export function configShows(mode: PanelMode, section: ConfigSection): boolean {

@@ -1153,8 +1153,6 @@ export const en = {
   "providers.title": "Model APIs (APX's own loop)",
   "providers.lead":
     "Services billed per token that APX calls directly. Keys are stored securely and never shown again.",
-  "providers.other": "Another server",
-  "providers.otherHint": "Any OpenAI-compatible address.",
   "providers.add": "Add provider",
   "providers.active": "Active",
   "providers.noKey": "No key",
