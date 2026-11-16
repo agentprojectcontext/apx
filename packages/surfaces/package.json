@@ -5,7 +5,8 @@
   "description": "Widgets, apps and artifacts: manifest schema, sandbox host and the window.apx bridge. One primitive, three placements (inline, sidebar, fullscreen) + publish.",
   "type": "module",
   "exports": {
-    ".": "./src/index.ts"
+    ".": "./src/index.ts",
+    "./kit-cards.css": "./src/kit/apx-kit-cards.css"
   },
   "scripts": {
     "typecheck": "tsc -p .",

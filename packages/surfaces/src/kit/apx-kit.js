@@ -15,7 +15,8 @@
 --apx-warning:#c2650f;--apx-warning-soft:#fbecda;--apx-warning-soft-fg:#9a4d08;
 --apx-danger:#d23c3c;--apx-danger-soft:#fce8e8;--apx-danger-soft-fg:#b02a2a;
 --apx-ring:rgb(26 148 96 / .35);--apx-shadow-sm:0 1px 2px rgb(0 0 0 / .05);
---apx-radius-sm:8px;--apx-radius-md:12px;--apx-radius-lg:18px;--apx-radius-pill:999px}
+--apx-radius-sm:8px;--apx-radius-md:12px;--apx-radius-lg:18px;--apx-radius-pill:999px;
+--apx-text-xs:12px;--apx-text-sm:13px;--apx-text-md:14px;--apx-weight-semibold:600}
 :root[data-ax-mode=dark]{color-scheme:dark;
 --apx-bg:#161615;--apx-surface:#1e1e1d;--apx-surface-raised:#252524;--apx-fill:#272726;--apx-fill-hover:#2e2e2c;--apx-fill-strong:#353533;
 --apx-fg:#ededeb;--apx-fg-muted:#a6a59f;--apx-fg-subtle:#767570;--apx-border:#2c2c2a;--apx-border-strong:#3b3b38;
@@ -33,7 +34,8 @@ html,body{margin:0;background:var(--apx-bg);color:var(--apx-fg);font:14px/1.5 va
 a{color:var(--apx-fg);text-underline-offset:2px}a:hover{color:var(--apx-brand)}
 :focus-visible{outline:2px solid var(--apx-ring);outline-offset:2px}
 .ax-page{max-width:1080px;margin:0 auto;padding:28px 32px 48px;display:flex;flex-direction:column;gap:20px}
-:root[data-ax-embed] .ax-page{padding:20px 24px;gap:16px}
+:root[data-ax-embed] .ax-page{padding:0;gap:16px}
+:where(.ax-page,.ax-card,.ax-stack,.ax-header,.ax-item)>:where(h1,h2,h3,h4,h5,h6,p,ul,ol,dl,figure,blockquote){margin:0}
 .ax-stack{display:flex;flex-direction:column;gap:var(--gap,12px)}
 .ax-row{display:flex;align-items:center;flex-wrap:wrap;gap:var(--gap,8px)}
 .ax-spread{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px}
@@ -787,7 +789,7 @@ ax-icon{display:inline-grid;place-items:center;width:var(--s,16px);height:var(--
 
   window.APX = Object.assign(window.APX || {}, {
     surface: surface, style: axStyle === 'aurora' ? 'aurora' : 'base', icons: Object.keys(IC),
-    kit: '1.4.0', ask: ask, state: state, store: store, live: live, visible: shown, onVisible: onShown, db: db, fetch: apxFetch, setMode: setMode, toast: toast, refilter: function (el) { (el || document).querySelectorAll('[data-ax-filter]').forEach(function (s) { s._axApply ? s._axApply() : wireFilter(s); }); },
+    kit: '1.5.0', ask: ask, state: state, store: store, live: live, visible: shown, onVisible: onShown, db: db, fetch: apxFetch, setMode: setMode, toast: toast, refilter: function (el) { (el || document).querySelectorAll('[data-ax-filter]').forEach(function (s) { s._axApply ? s._axApply() : wireFilter(s); }); },
     fmt: fmt, esc: esc,
     onData: function (fn) { document.addEventListener('apx:data', function (e) { fn(e.detail); }); }
   });

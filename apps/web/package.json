@@ -12,6 +12,7 @@
   },
   "dependencies": {
     "@apx/protocol": "workspace:*",
+    "@apx/surfaces": "workspace:*",
     "@apx/ui": "workspace:*",
     "@base-ui/react": "^1.8.0",
     "@codemirror/commands": "^6.11.1",

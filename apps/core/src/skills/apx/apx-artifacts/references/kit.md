@@ -1,4 +1,4 @@
-# APX Kit 1.4 — reference
+# APX Kit 1.5 — reference
 
 Load it with one line in the page. APX inlines it wherever the artifact is shown (chat, board, Apps, phone, a published
 page): no build, no network, nothing to install.
@@ -9,6 +9,11 @@ page): no build, no network, nothing to install.
 
 It brings the APX tokens, light/dark theme synced with the app, components, persistent state and the bridge to the
 chat. Use its classes; write your own CSS only for one-off layout (`style="--min:240px"`, `max-width`).
+
+In APX (a chat, the side panel, the board) the host frames the widget: `ax-page` adds no padding of its own, an
+`ax-card` takes the look of the answer cards in the chat, and the cards directly in the page carry their green→violet
+line (tiles inside a grid, `--flat` and `--tight` do not). Plain headings and paragraphs in a card have no margins of
+their own; the card spaces them.
 
 ## Rules
 

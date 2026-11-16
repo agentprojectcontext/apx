@@ -20,8 +20,7 @@ import {
   Steps,
 } from "./InlineViews.tsx";
 import { useMediaUrl } from "./parts/useMediaUrl.ts";
-import "./InlineView.css";
-import "./InlineViews.css";
+import "@apx/surfaces/kit-cards.css";
 
 type ImagePart = Extract<Part, { type: "image" }>;
 const toPart = (src: string, alt: string): ImagePart =>

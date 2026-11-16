@@ -1,4 +1,321 @@
-/* The answer cards' views (InlineViews.tsx), after APX Kit 1.5's chat cards: tokens only. */
+/* APX Kit cards: the cards an agent draws in its answer (```apx-cards, ```a2ui and their views) and the card a
+   widget gets in a chat. One source: the panel imports this file, and the core inlines it after the kit's CSS in every
+   widget (surface-kit.ts). The phone's cards follow it in apps/mobile/src/ui/chat. Tokens only. */
+.apx-inline {
+  display: grid;
+  gap: 10px;
+  max-width: 760px;
+  min-width: 0;
+  margin: 4px 0;
+}
+.apx-inline__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+.apx-inline__heading {
+  font-size: var(--apx-text-md);
+  font-weight: var(--apx-weight-semibold);
+  color: var(--apx-fg);
+}
+.apx-inline__carousel {
+  min-width: 0;
+}
+.apx-inline__track {
+  display: flex;
+  align-items: stretch;
+  gap: 12px;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  scroll-snap-type: x mandatory;
+  scrollbar-width: none;
+}
+.apx-inline__track::-webkit-scrollbar {
+  display: none;
+}
+.apx-inline__track > * {
+  flex: 0 0 min(300px, 86%);
+  scroll-snap-align: start;
+}
+.apx-inline__track > :only-child {
+  flex-basis: min(380px, 100%);
+}
+.apx-inline__bar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  margin-top: 8px;
+}
+.apx-inline__count {
+  min-width: 48px;
+  text-align: center;
+  color: var(--apx-fg-muted);
+  font-size: var(--apx-text-xs);
+  font-variant-numeric: tabular-nums;
+}
+.apx-inline__column {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+.apx-inline > .apx-inline__column {
+  gap: 12px;
+}
+.apx-inline__row {
+  display: flex;
+  gap: 14px;
+  align-items: flex-start;
+  min-width: 0;
+}
+.apx-inline__row > .apx-inline__column {
+  flex: 1;
+}
+.apx-inline__card {
+  container: apx-inline-card / inline-size;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+}
+/* The card itself: an answer card, and a widget's ax-card when the kit runs embedded (a chat, the side panel). */
+.apx-inline__card,
+:where(:root[data-ax-embed]) .ax-card:where(:not(.ax-card--flat, .ax-card--tight)) {
+  position: relative;
+  padding: 16px 18px;
+  border: 1px solid var(--apx-border);
+  border-radius: var(--apx-radius-md);
+  background: var(--apx-surface);
+  box-shadow: var(--apx-shadow-sm);
+}
+.apx-inline__card::before,
+:where(:root[data-ax-embed]) :where(body, .ax-page) > .ax-card:where(:not(.ax-card--flat, .ax-card--tight))::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto;
+  height: 3px;
+  background: linear-gradient(90deg, var(--apx-brand), var(--apx-violet));
+  opacity: 0.85;
+}
+/* Only a widget's own cards carry the line, not tiles in its grids; overflow stays visible for menus and chart tips,
+   so the line takes the card's corners. */
+:where(:root[data-ax-embed]) :where(body, .ax-page) > .ax-card:where(:not(.ax-card--flat, .ax-card--tight))::before {
+  border-radius: calc(var(--apx-radius-md) - 1px) calc(var(--apx-radius-md) - 1px) 0 0;
+}
+.apx-inline__image {
+  flex-shrink: 0;
+  overflow: hidden;
+  background: var(--apx-fill);
+}
+.apx-inline__image img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.apx-inline__image--banner {
+  margin: -16px -18px 4px;
+  aspect-ratio: 16 / 9;
+  max-height: 220px;
+}
+.apx-inline__card > .apx-inline__column > .apx-inline__image--banner:first-child {
+  margin: -16px -18px 4px;
+}
+.apx-inline__open {
+  position: relative;
+  display: block;
+  padding: 0;
+  border: 0;
+  cursor: zoom-in;
+  font: inherit;
+}
+.apx-inline__open:focus-visible {
+  outline: 2px solid var(--apx-accent);
+  outline-offset: -2px;
+}
+.apx-inline__more {
+  position: absolute;
+  right: 10px;
+  bottom: 10px;
+  padding: 3px 9px;
+  border-radius: var(--apx-radius-pill);
+  background: color-mix(in srgb, var(--apx-bg) 78%, transparent);
+  color: var(--apx-fg);
+  font-size: var(--apx-text-xs);
+  font-weight: 600;
+  backdrop-filter: blur(6px);
+}
+.apx-inline .apx-inline__ghost {
+  display: block;
+  width: auto;
+  height: auto;
+  margin: -16px -18px 4px;
+  aspect-ratio: 16 / 9;
+  max-height: 160px;
+  border-radius: 0;
+}
+.apx-inline__loading {
+  color: var(--apx-fg-muted);
+}
+.apx-inline__image--thumb {
+  width: 96px;
+  aspect-ratio: 2 / 3;
+  border-radius: var(--apx-radius-sm);
+}
+.apx-inline__eyebrow {
+  font-size: var(--apx-text-xs);
+  font-weight: var(--apx-weight-semibold);
+  color: var(--apx-fg-muted);
+}
+.apx-inline__title {
+  font-size: 15px;
+  font-weight: 650;
+  line-height: 1.3;
+  letter-spacing: -0.01em;
+  color: var(--apx-fg);
+  text-wrap: balance;
+}
+.apx-inline__eyebrow + .apx-inline__title {
+  margin-top: -4px;
+}
+.apx-inline__body {
+  font-size: var(--apx-text-sm);
+  color: var(--apx-fg-muted);
+  text-wrap: pretty;
+}
+.apx-inline__caption {
+  font-size: var(--apx-text-xs);
+  color: var(--apx-fg-subtle);
+}
+.apx-inline__badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.apx-inline__fields {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 8px;
+  margin: 2px 0 0;
+  font-size: var(--apx-text-sm);
+}
+.apx-inline__fields > div {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+/* A narrow card stacks each label over its value; a wide one sets them side by side. */
+@container apx-inline-card (min-width: 380px) {
+  .apx-inline__fields {
+    grid-template-columns: fit-content(40%) minmax(0, 1fr);
+    gap: 6px 16px;
+  }
+  .apx-inline__fields > div {
+    display: contents;
+  }
+}
+.apx-inline__fields dt {
+  color: var(--apx-fg-subtle);
+}
+.apx-inline__fields dd {
+  margin: 0;
+  min-width: 0;
+  color: var(--apx-fg);
+}
+.apx-inline__divider {
+  width: 100%;
+  margin: 2px 0;
+  border: 0;
+  border-top: 1px solid var(--apx-border);
+}
+@media (max-width: 480px) {
+  .apx-inline__card,
+  :where(:root[data-ax-embed]) .ax-card:where(:not(.ax-card--flat, .ax-card--tight)) {
+    padding: 14px 16px;
+  }
+  .apx-inline__image--banner,
+  .apx-inline__card > .apx-inline__column > .apx-inline__image--banner:first-child {
+    margin: -14px -16px 4px;
+  }
+  .apx-inline__image--thumb {
+    width: 76px;
+  }
+}
+.apx-inline__dialog > a.apx-inline__action {
+  align-self: flex-start;
+  margin-top: 4px;
+}
+/* A link drawn as the app's own button: the answer's link colours (.apx-md a) never reach it. */
+.apx-inline a.apx-inline__action {
+  gap: 6px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-decoration: none;
+}
+.apx-inline a.apx-btn--primary,
+.apx-inline a.apx-btn--primary:hover {
+  color: var(--apx-accent-fg);
+}
+.apx-inline a.apx-btn--ghost,
+.apx-inline a.apx-btn--ghost:hover {
+  color: var(--apx-fg);
+}
+.apx-inline__highlight {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+.apx-inline__highlight > span {
+  color: var(--apx-fg-subtle);
+  font-size: var(--apx-text-xs);
+}
+.apx-inline__highlight > strong {
+  color: var(--apx-fg);
+  font-size: 20px;
+  font-weight: 650;
+  letter-spacing: -0.01em;
+  font-variant-numeric: tabular-nums;
+}
+.apx-inline__actions {
+  display: flex;
+  gap: 8px;
+  margin-top: auto;
+  padding-top: 4px;
+}
+.apx-inline__actions > * {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.apx-inline .apx-inline__actions > .apx-inline__action {
+  margin-top: 0;
+}
+.apx-inline__card > .apx-inline__body {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  overflow: hidden;
+}
+.apx-inline__dialog {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.apx-inline__dialog .apx-inline__image--banner {
+  margin: 0;
+  max-height: 280px;
+  border-radius: var(--apx-radius-md);
+}
+.apx-inline__dialog .apx-inline__fields {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px 16px;
+}
+
+/* The answer cards' views: choose, compare, places, booking, receipt, agenda. */
 .apx-inline > .apx-inline__card {
   max-width: 680px;
   gap: 12px;

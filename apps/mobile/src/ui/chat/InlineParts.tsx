@@ -15,7 +15,8 @@ export type CardTone = Of<"status">["tone"];
 /** Writes to the chat as the owner; absent where nothing can be sent (a preview), and then no button asks. */
 export const InlineAsk = createContext<((text: string) => Promise<unknown>) | undefined>(undefined);
 
-/** The bordered box every card view draws in (a card, a map, a list of places, a table, an option), as the panel's. */
+/** The bordered box every card view draws in (a card, a map, a list of places, a table, an option). Follows the kit's
+ * cards (packages/surfaces/src/kit/apx-kit-cards.css), the one source the panel and widgets use. */
 export const inlineBox = (theme: Theme) =>
   ({
     borderWidth: 1,
