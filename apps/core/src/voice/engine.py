@@ -39,6 +39,8 @@ import threading
 import time
 from collections import deque
 
+BORN = time.monotonic()  # how long the engine takes to start is part of the wait a call shows
+
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 import numpy as np  # noqa: E402
@@ -68,6 +70,9 @@ TASK = re.compile(r"\[\[\s*(?:task|tarea)\s*:\s*(.+?)\s*(?:\]\]|$)", re.I | re.S
 SKIP = re.compile(r"\[\[\s*skip\s*\]\]", re.I)
 NOISE = re.compile(r"(subt[ií]tulos|amara\.org|gracias por ver|thanks for watching)", re.I)
 BYE_HEARD = re.compile(r"\b(chau|chao|adi[oó]s|hasta luego|nos vemos|bye|goodbye|see you)\b", re.I)
+# Leaving without a goodbye word ("tengo que cortar"): the call ends only when the voice says goodbye back.
+LEAVING = re.compile(r"\b(cortamos|tengo que cortar|te corto|te dejo|me tengo que ir|i have to go|gotta go|"
+                     r"talk (to you )?later)\b", re.I)
 MARKUP = re.compile(r"[*_#`]+")
 WORD = re.compile(r"\w+")
 HISTORY = 60  # exchanges a call keeps for its model; the system prompt always goes
@@ -101,7 +106,7 @@ You cannot look anything up or do anything yourself during the call. Behind you,
 
 ## Ending
 
-When {owner} says goodbye, answer with one short goodbye.
+When {owner} says goodbye or has to go, answer with one short goodbye that says "chau" ("bye" in English): the call then ends.
 """
 GREETING = {"es-AR": "Hola{owner}, ¿en qué te ayudo?", "es": "Hola{owner}, ¿en qué te puedo ayudar?",
             "en": "Hi{owner}, what can I do for you?"}
@@ -143,6 +148,59 @@ async def sentences(stream):
         yield buf.strip()
 
 
+def ends_call(heard, said):
+    """A short goodbye ends the call; a longer one, or "I have to go", once the voice said goodbye back."""
+    if BYE_HEARD.search(heard) and len(heard.split()) <= 8:
+        return True
+    return bool((BYE_HEARD.search(heard) or LEAVING.search(heard)) and BYE_HEARD.search(said))
+
+
+LOADS = os.path.join(os.environ.get("VOICE_STATE") or ".", f"load-{os.environ.get('VOICE_TIER') or 'light'}.json")
+FIRST_LOAD_S = {"vad": 1, "turn": 3, "draft": 5, "mouth": 10, "warm": 10}  # before this Mac's own times are known
+started_in = None  # seconds this engine took to start, kept with the next load from nothing
+
+
+def load_history():
+    """The last three loads from nothing, part by part (the core reads them too, to tell how long a call waits)."""
+    try:
+        with open(LOADS) as f:
+            return {k: [float(x) for x in v][-3:] for k, v in json.load(f).items() if isinstance(v, list)}
+    except (OSError, ValueError, AttributeError, TypeError):
+        return {}
+
+
+def middle(xs):
+    return sorted(xs)[len(xs) // 2]
+
+
+async def load_for_call(send):
+    """Loads what a call uses, telling the panel how far it got and how long is left (as long as it usually takes)."""
+    global started_in
+    history = load_history()
+    before = {**FIRST_LOAD_S, **{k: middle(v) for k, v in history.items() if v}}
+    steps = speech.call_parts()
+    cold = {name for name, loaded, _ in steps if not loaded()}
+    # Warming loaded models is quick; warming ones just loaded takes as long as it did last time.
+    guess = {name: before[name] if name in cold and (name != "warm" or len(cold) > 1) else 0.5 for name, _, _ in steps}
+    took = {}
+    for i, (name, _, load) in enumerate(steps):
+        left = sum(guess[n] for n, _, _ in steps[i:])
+        done = sum(took.values())
+        await send({"type": "preparing", "progress": round(done / (done + left), 3), "left_s": round(left)})
+        t = time.monotonic()
+        await asyncio.to_thread(load)
+        took[name] = time.monotonic() - t
+    if len(cold) == len(steps):  # only a load from nothing measures what the next one will wait
+        if started_in is not None:
+            took["start"], started_in = started_in, None
+        try:
+            with open(LOADS, "w") as f:
+                json.dump({k: [*history.get(k, []), round(v, 1)][-3:] for k, v in took.items()}, f)
+        except OSError:
+            pass
+    return took
+
+
 def clean(text):
     return re.sub(r"\s+", " ", MARKUP.sub("", text)).strip()
 
@@ -170,10 +228,11 @@ async def follow_core():
 
 @app.on_event("startup")
 async def startup():
-    global speech
+    global speech, started_in
     asyncio.create_task(follow_core())
     speech = Speech()
     asyncio.create_task(keep_speech_warm())
+    started_in = time.monotonic() - BORN
     print("[voice] ready", flush=True)
 
 
@@ -452,7 +511,7 @@ class Call:
             self.history.append({"role": "assistant", "content": said or ("[[skip]]" if skipped else "…")})
         finally:
             self.turn_end()
-        if BYE_HEARD.search(heard) and len(heard.split()) <= 8 and spoken:
+        if spoken and ends_call(heard, " ".join(spoken)):
             await asyncio.sleep(max(0.0, self.playing_until - time.monotonic()) + 0.4)
             await self.send({"type": "end", "reason": "goodbye"})
 
@@ -698,10 +757,11 @@ async def call(ws: WebSocket):
         await ws.close(code=1008)
         return
     await ws.accept()
-    await ws.send_text(json.dumps({"type": "preparing"}))
     t = time.monotonic()
-    await asyncio.to_thread(speech.for_call)  # the first call after a while loads hearing and turn taking
-    print(f"[voice] ready for a call in {time.monotonic() - t:.1f}s", flush=True)
+    # The first call after a while loads hearing, turn taking and the voice.
+    took = await load_for_call(lambda f: ws.send_text(json.dumps(f)))
+    steps = ", ".join(f"{k} {v:.1f}s" for k, v in took.items())
+    print(f"[voice] ready for a call in {time.monotonic() - t:.1f}s ({steps})", flush=True)
     c = Call(ws, ws.query_params)
     await c.send({"type": "ready"})
     watcher = asyncio.create_task(c.watch())

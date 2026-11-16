@@ -244,9 +244,9 @@ button.chatprocesses {
   align-items: center;
   justify-content: center;
   border-radius: 50%;
-  background: var(--apx-brand-soft);
-  color: var(--apx-brand-soft-fg);
-  box-shadow: 0 0 0 1.5px var(--apx-surface);
+  /* Solid, so it reads on any row (hovered, selected) without a ring around it. */
+  background: var(--apx-brand);
+  color: var(--apx-bg);
 }
 /* A call whose agent is gone: a phone where its face would be. */
 .threadavatar__call {

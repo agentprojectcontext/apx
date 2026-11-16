@@ -1,6 +1,6 @@
 import "../styles/call.css";
 import type { CallFrame, CallVoice, VoiceLocale } from "@apx/protocol";
-import { Button, IconButton, Icons, SegmentedControl, Select } from "@apx/ui";
+import { Button, IconButton, Icons, Meter, SegmentedControl, Select } from "@apx/ui";
 import { useEffect, useRef, useState } from "react";
 import { AgentFace } from "../common/AgentFace.tsx";
 import { calls, useCalls } from "../data/calls.ts";
@@ -14,6 +14,7 @@ import { type CallLine, openLine, openMic } from "./callLine.ts";
 import { closeCall, loadCallStatus } from "./callStatus.ts";
 import { saveLocale, saveVoice, startingVoice } from "./callVoice.ts";
 import { useCardPlace } from "./cardPlace.ts";
+import { nextPrep, type Prep, prepareShown } from "./prepareBar.ts";
 import { ringback } from "./ringback.ts";
 
 type Stage = "setup" | "calling" | "preparing" | "live" | "ended";
@@ -55,6 +56,8 @@ export function CallCard() {
   const [since, setSince] = useState<number>();
   const [now, setNow] = useState(() => Date.now());
   const [problem, setProblem] = useState<MessageKey>();
+  // How far the voice got loading and how long it said was left, when it said so.
+  const [prep, setPrep] = useState<Prep>();
   const line = useRef<CallLine | undefined>(undefined);
   // The owner hung up (or closed the card) while the call was still being placed.
   const hungUp = useRef(false);
@@ -62,10 +65,10 @@ export function CallCard() {
   const chosen = useRef({ muted: false, sound: true });
 
   useEffect(() => {
-    if (since === undefined) return;
-    const tick = setInterval(() => setNow(Date.now()), 1000);
+    if (since === undefined && stage !== "preparing") return;
+    const tick = setInterval(() => setNow(Date.now()), stage === "preparing" ? 500 : 1000);
     return () => clearInterval(tick);
-  }, [since]);
+  }, [since, stage]);
 
   // It rings while the call connects, until the agent answers; a wait of more than a moment says why.
   const ringing = stage === "calling" || stage === "preparing";
@@ -112,8 +115,11 @@ export function CallCard() {
   };
 
   const onFrame = (f: CallFrame) => {
-    if (f.type === "preparing") setStage("preparing");
-    else if (f.type === "ready") {
+    if (f.type === "preparing") {
+      setStage("preparing");
+      const { progress, left_s } = f;
+      if (progress !== undefined) setPrep((p) => nextPrep(p, { progress, left: left_s ?? 0 }, Date.now()));
+    } else if (f.type === "ready") {
       setStage("live");
       setSince((s) => s ?? Date.now());
     } else if (f.type === "partial") setPartial(f.text);
@@ -133,6 +139,7 @@ export function CallCard() {
     setSince(undefined);
     setTalk("listening");
     setStage("calling");
+    setPrep(undefined);
     let mic: MediaStream;
     try {
       mic = await openMic();
@@ -245,7 +252,8 @@ export function CallCard() {
       {small && busy ? null : (
         <>
           {stage === "live" && partial && <p className="callcard__caption">{partial}</p>}
-          {(stage === "preparing" || (ringing && slow)) && (
+          {stage === "preparing" && prep && <PrepareBar prep={prep} now={now} />}
+          {(stage === "preparing" || (ringing && slow)) && !prep && (
             <p className="callcard__hint">{t("callCard.preparingHint")}</p>
           )}
           {(problem || (missing && !busy)) && (
@@ -356,4 +364,23 @@ function clock(ms: number): string {
   const h = Math.floor(s / 3600);
   const m = Math.floor((s % 3600) / 60);
   return h ? `${h}:${two(m)}:${two(s % 60)}` : `${m}:${two(s % 60)}`;
+}
+
+/** The voice loading: a bar that keeps moving between its reports, and about how long is left. */
+function PrepareBar({ prep, now }: { prep: Prep; now: number }) {
+  const t = useT();
+  const { shown, left } = prepareShown(prep, now);
+  const text = left > 1.5 ? t("callCard.left", { n: Math.ceil(left) }) : t("callCard.almost");
+  return (
+    <div className="callcard__prep">
+      <Meter
+        size="sm"
+        label={t("callCard.preparing")}
+        max={1}
+        segments={[{ value: shown, tone: "brand" }]}
+        valueText={text}
+      />
+      <p className="callcard__hint">{text}</p>
+    </div>
+  );
 }

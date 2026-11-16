@@ -76,7 +76,10 @@ export function attachVoiceCall(server: Server, deps: { calls: Calls; engine: Vo
     panel.on("close", () => end("hangup"));
     panel.on("error", () => end("hangup"));
 
-    if (deps.engine.loading()) tell({ type: "preparing" });
+    if (deps.engine.loading()) {
+      const wait = deps.engine.expectedWait();
+      tell(wait ? { type: "preparing", progress: 0, left_s: wait } : { type: "preparing" });
+    }
     try {
       // The first call on a computer that has not downloaded the voice yet waits for it.
       const stop = new AbortController();
