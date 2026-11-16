@@ -92,3 +92,36 @@ test("messages in line are edited, moved and removed, and Send now has the agent
   expect(at("third in line")).toBe(-1);
   expect(at("scratch that")).toBe(-1);
 });
+
+for (const width of [1280, 375]) {
+  test(`a focused queue hint leaves the next drag handle usable (${width}px)`, async ({ page }) => {
+    await rpc("setup.finish", {});
+    const chat = await rpc<{ id: string }>("threads.create", { kind: "loose", agent_id: "scout", title: "Drag" });
+    await open(page, `#thread=${chat.id}`);
+    await page.setViewportSize({ width, height: 800 });
+    const box = page.getByRole("textbox", { name: /Escribile/ });
+    await box.fill("work for a long while");
+    await page.keyboard.press("Enter");
+    await expect(page.locator(".turn__tools")).toContainText("Trabajando · paso 1");
+    for (const text of ["first queued", "second queued", "third queued"]) {
+      await box.fill(text);
+      await page.keyboard.press("ControlOrMeta+Enter");
+    }
+    const rows = page.locator(".queue__row");
+    await expect(rows).toHaveCount(3);
+    await rows.nth(1).getByRole("button", { name: "Mover" }).focus();
+    await expect(page.locator(".apx-tooltip[data-open]")).toHaveText("Arrastrá para ordenar, o usá ↑ y ↓");
+    await page.screenshot({ path: test.info().outputPath(`queue-hint-${width}.png`) });
+    const handle = await rows.nth(2).getByRole("button", { name: "Mover" }).boundingBox();
+    if (!handle) throw new Error("No handle");
+    await page.mouse.move(handle.x + handle.width / 2, handle.y + handle.height / 2);
+    await page.mouse.down();
+    await expect(rows.nth(2)).toHaveClass(/is-held/);
+    await page.mouse.move(handle.x + handle.width / 2, handle.y + handle.height / 2 - handle.height * 1.4, {
+      steps: 6,
+    });
+    await page.mouse.up();
+    await expect(rows.nth(1)).toContainText("third queued");
+    await expect(rows.nth(2)).toContainText("second queued");
+  });
+}

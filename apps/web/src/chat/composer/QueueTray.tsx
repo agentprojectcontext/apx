@@ -174,6 +174,7 @@ function QueueRow({
           className="queue__grip"
           label={t("waiting.move")}
           tooltip={t("waiting.moveHint")}
+          tooltipSide="right"
           icon={<Icons.GripVertical size={14} />}
           onPointerDown={grab}
           onPointerMove={follow}
