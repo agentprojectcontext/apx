@@ -109,6 +109,14 @@
   color: var(--apx-fg-muted);
   font-size: var(--apx-text-xs);
 }
+.callcard__prep {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.callcard__prep .callcard__hint {
+  font-variant-numeric: tabular-nums;
+}
 .callcard__problem {
   color: var(--apx-fg-muted);
 }

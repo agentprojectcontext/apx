@@ -110,6 +110,8 @@ export function createVoiceEngine(deps: {
     VOICE_OWNER: deps.owner?.() ?? "",
     // The owner's own recordings, used before APX's voices of the same name (es-AR-female.wav…).
     VOICE_VOICES: path.join(deps.home, "voices"),
+    // Where the engine keeps how long its last load took, to tell the next call how long it will wait.
+    VOICE_STATE: path.join(deps.home, "voice"),
     ...extra,
   });
 
@@ -251,6 +253,24 @@ export function createVoiceEngine(deps: {
     running: () => Boolean(current),
     /** Whether a call would start at once (the engine is up) or first load it. */
     loading: () => !current,
+    /** About how many seconds a call waits for the engine to start and load, from its recent loads; unknown before one. */
+    expectedWait(): number | undefined {
+      let loads: unknown;
+      try {
+        loads = JSON.parse(fs.readFileSync(path.join(deps.home, "voice", `load-${machine().tier}.json`), "utf8"));
+      } catch {
+        return undefined;
+      }
+      if (!loads || typeof loads !== "object") return undefined;
+      let total = 0;
+      for (const times of Object.values(loads)) {
+        const xs = Array.isArray(times)
+          ? times.filter((x): x is number => typeof x === "number").sort((a, b) => a - b)
+          : [];
+        total += xs[Math.floor(xs.length / 2)] ?? 0;
+      }
+      return total > 0 ? Math.round(total) : undefined;
+    },
 
     /** Downloads this machine's models (and the engine's packages), reporting progress; one at a time. */
     startInstall(): void {

@@ -240,10 +240,20 @@ class Speech:
         gender = name.rsplit("-", 1)[-1]
         return next((v for v in have if v.endswith(f"-{gender}")), have[0])
 
+    def call_parts(self):
+        """Everything a call uses, in loading order, each with whether it is loaded already."""
+        return [
+            ("vad", lambda: self._vad is not None, lambda: self.vad),
+            ("turn", lambda: self._turn is not None, lambda: self.turn),
+            ("draft", lambda: self._ears is not None and self._ears._draft is not None, lambda: self.ears.draft),
+            ("mouth", lambda: self._mouth is not None, lambda: self.mouth),  # the mouth too: a call speaks first
+            ("warm", lambda: False, self.warm),
+        ]
+
     def for_call(self):
         """Everything a call uses, loaded before it begins."""
-        _ = self.vad, self.turn, self.ears.draft, self.mouth  # the mouth too: a call speaks first
-        self.warm()
+        for _, _, load in self.call_parts():
+            load()
 
     def warm(self):
         """Keeps the loaded MLX models resident: macOS compresses an idle model, and the next line waits."""
