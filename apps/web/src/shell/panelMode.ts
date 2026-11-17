@@ -13,7 +13,6 @@ export const SIMPLE_OFF: ReadonlySet<string> = new Set(["flows"]);
 /** Settings a simple panel leaves out: they shape projects, a team of agents or the machine APX runs on. */
 const ADVANCED_CONFIG: ReadonlySet<ConfigSection> = new Set([
   "external",
-  "router",
   "agents",
   "activity-review",
   "api",

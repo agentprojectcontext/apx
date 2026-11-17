@@ -13,6 +13,7 @@ import {
 } from "../data/providers.ts";
 import { useT } from "../i18n/index.ts";
 import { PROVIDER_PRESETS, presetOf } from "./models/providerPresets.ts";
+import { OpenRouterCard } from "./OpenRouterCard.tsx";
 import { PlanCard } from "./PlanCard.tsx";
 
 /** Which provider dialog is open: an existing provider, a new one of a kind (preset), or none. */
@@ -67,13 +68,16 @@ export function ProvidersGrid({ compact = false, onlyReady = false }: { compact?
     void loadProviders();
   }, []);
   // A setup lists only what works already: the rest is one click away under "Add provider".
+  // OpenRouter has its own fixed card, second: it connects by signing in, like the plan.
+  const openrouter = list.find((p) => !p.sign_in && (p.id === "openrouter" || p.preset === "openrouter"));
   const apis = list
-    .filter((p) => !p.sign_in && (!onlyReady || (p.enabled && p.key_set)))
+    .filter((p) => !p.sign_in && p !== openrouter && (!onlyReady || (p.enabled && p.key_set)))
     .sort((a, b) => rank(a) - rank(b));
   const taken = new Set(apis.flatMap((p) => [p.id, kindOf(p)]));
   const unset = PROVIDER_PRESETS.filter(
     (k) =>
       k.id !== "custom" &&
+      k.id !== "openrouter" &&
       !taken.has(k.id) &&
       !hiddenIds.includes(k.id) &&
       !onlyReady &&
@@ -85,6 +89,11 @@ export function ProvidersGrid({ compact = false, onlyReady = false }: { compact?
     <>
       <div className={compact ? "pgrid pgrid--compact" : "pgrid"}>
         {plan && <PlanCard p={plan} compact={compact} />}
+        <OpenRouterCard
+          p={openrouter}
+          compact={compact}
+          onConfigure={() => editor.set({ open: openrouter ? { id: openrouter.id } : { preset: "openrouter" } })}
+        />
         {apis.map((p) => (
           <ProviderCard key={p.id} p={p} compact={compact} onEdit={() => editor.set({ open: { id: p.id } })} />
         ))}
@@ -215,12 +224,15 @@ function ProviderCard({ p, onEdit, compact }: { p: ProviderInfo; onEdit: () => v
         )}
       </dl>
       <div className="pcard__actions">
-        <Switch
-          size="sm"
-          checked={p.enabled}
-          onCheckedChange={(on) => void setProviderEnabled(p, on)}
-          label={t("providers.on")}
-        />
+        {/* On or off only means something once it has its key (or needs none). */}
+        {p.key_set && (
+          <Switch
+            size="sm"
+            checked={p.enabled}
+            onCheckedChange={(on) => void setProviderEnabled(p, on)}
+            label={t("providers.on")}
+          />
+        )}
         <span className="pcard__spacer" />
         <IconButton size="sm" label={t("providers.edit")} icon={<Icons.Pencil size={14} />} onClick={onEdit} />
         <IconButton

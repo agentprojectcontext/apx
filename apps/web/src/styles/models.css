@@ -320,6 +320,14 @@
     var(--apx-surface) 65%
   );
 }
+/* OpenRouter beside it: fixed and second, with its own tint. */
+.pcard--openrouter {
+  background: linear-gradient(
+    160deg,
+    color-mix(in srgb, var(--apx-violet, var(--apx-info)) 14%, var(--apx-surface)) 0%,
+    var(--apx-surface) 65%
+  );
+}
 .pcard__plan {
   font-size: var(--apx-text-xs);
   color: var(--apx-fg-muted);

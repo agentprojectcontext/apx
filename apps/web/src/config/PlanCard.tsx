@@ -46,13 +46,18 @@ export function PlanCard({ p, compact = false }: { p: ProviderInfo; compact?: bo
         )}
       </dl>
       <div className="pcard__actions">
-        <Switch
-          size="sm"
-          checked={p.enabled}
-          onCheckedChange={(on) => void setProviderEnabled(p, on)}
-          label={t("providers.on")}
-        />
-        <EngineUsageSwitch key={String(connected)} engine="codex" />
+        {/* On or off, and its usage in the top bar, only mean something once it is signed in. */}
+        {connected && (
+          <>
+            <Switch
+              size="sm"
+              checked={p.enabled}
+              onCheckedChange={(on) => void setProviderEnabled(p, on)}
+              label={t("providers.on")}
+            />
+            <EngineUsageSwitch key={String(connected)} engine="codex" />
+          </>
+        )}
         <span className="pcard__spacer" />
         <Button size="sm" variant={connected ? "secondary" : "primary"} onClick={() => setLogin(true)}>
           {t(connected ? "plans.manage" : "plans.connect")}
