@@ -50,7 +50,7 @@ test("a turn whose chat's prompt did not tell a text gets it whole, so nothing i
 test("the sections are only those a chat's turns call for: none for a plain chat with no mode", () => {
   assert.deepEqual(sectionLines({}), []);
   assert.doesNotMatch(sectionLines({ mode: "manual" }).join("\n"), /Phone chats|computer/);
-  assert.match(sectionLines({ computer: "home" }).join("\n"), /Computer: not used from Home/);
+  assert.match(sectionLines({ computer: "home" }).join("\n"), /Computer: the shared Linux one is not used from Home/);
   assert.match(sectionLines({ write: "read-only" }).join("\n"), /Writes there: read-only \(nothing here may change/);
 });
 
