@@ -373,6 +373,15 @@ notice when there is no text. Tools that touch core state call protocol methods 
 On start, `engine/recovery.ts` closes runs a crash cut (effect UNKNOWN for started tools), expired inputs and cut
 jobs are closed, and queued runs are picked up.
 
+### Owner notices (unreleased)
+
+Text notices queued to the owner's notification channel by `channels/owner-notices.ts` also persist in Home as
+system messages. The outbox retains the originating chat and references that Home message; retries and fallback
+accounts reuse it. The same transaction records an untrusted observation in Home's model history, so the next
+owner reply has its referent without treating a contact's summarized request as an owner instruction. Existing
+confirmation rules still apply to actions taken with that outside context. Input and pairing cards keep their
+existing presentation; this does not backfill earlier notices or mirror notices with no selected channel.
+
 ## 5. Auth and trust
 
 - Loopback bind needs no token; any other bind **requires** `APX_TOKEN` (enforced at startup).

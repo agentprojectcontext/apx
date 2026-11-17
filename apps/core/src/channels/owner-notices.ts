@@ -6,7 +6,10 @@ import { type OutboxRow, ownerActsOn, type Presentation } from "../domain/channe
 import { appOnly, noticePrefs, quietNow } from "../domain/notices.ts";
 import type { NewNotification } from "../domain/notifications.ts";
 import { OWNER_ID } from "../domain/persons.ts";
+import { HOME_THREAD_ID } from "../domain/seed.ts";
 import type { Store } from "../domain/store.ts";
+import { previewOf } from "../domain/threads.ts";
+import { untrusted } from "../tools/result.ts";
 import { answersInHome } from "./agent-project.ts";
 import type { Delivery } from "./delivery.ts";
 import { inputPresentation } from "./notices.ts";
@@ -49,7 +52,12 @@ export function createOwnerNotices(deps: {
    * outbox waits while it is not running); in quiet hours it arrives without sound. False when no such channel knows
    * the owner.
    */
-  function notifyOwner(body: Presentation, kind: OutboxRow["kind"] = "notice", threadId?: string): boolean {
+  function notifyOwner(
+    body: Presentation,
+    kind: OutboxRow["kind"] = "notice",
+    threadId?: string,
+    messageId?: string,
+  ): boolean {
     const prefs = noticePrefs(store);
     // The app only: what is told here is in the tray and on their phones already.
     if (appOnly(prefs)) return false;
@@ -65,7 +73,7 @@ export function createOwnerNotices(deps: {
     for (const l of order) {
       const addr = store.persons.ownerAddress(l.config.id);
       if (!addr) continue;
-      enqueue(l.config.id, addr.external_id, body, kind, threadId);
+      enqueue(l.config.id, addr.external_id, body, kind, threadId, messageId);
       return true;
     }
     return false;
@@ -99,13 +107,19 @@ export function createOwnerNotices(deps: {
     body: Presentation,
     kind: OutboxRow["kind"],
     threadId: string | undefined,
+    messageId?: string,
   ): void {
-    deps.delivery().enqueue({
-      channel,
-      conversation,
-      thread_id: threadId,
-      kind,
-      body: { ...shownOn(channel, body), ...(quietNow(store) ? { silent: true } : {}) },
+    store.tx(() => {
+      // Keep the notice once, before delivery: retries and fallback share its message, not a new chat entry.
+      if (kind === "notice" && !messageId) messageId = persistOwnerNotice(store, body, channel, threadId);
+      deps.delivery().enqueue({
+        channel,
+        conversation,
+        thread_id: threadId,
+        ...(messageId ? { message_id: messageId } : {}),
+        kind,
+        body: { ...shownOn(channel, body), ...(quietNow(store) ? { silent: true } : {}) },
+      });
     });
   }
 
@@ -128,7 +142,7 @@ export function createOwnerNotices(deps: {
   function ownerFallback(o: OutboxRow): void {
     if (o.kind === "reply" || store.persons.byAddress(o.channel, o.conversation)?.id !== OWNER_ID) return;
     const { skip: _skip, refused_by = [], ...body } = o.body;
-    if (notifyOwner({ ...body, refused_by: [...refused_by, o.channel] }, o.kind, o.thread_id)) return;
+    if (notifyOwner({ ...body, refused_by: [...refused_by, o.channel] }, o.kind, o.thread_id, o.message_id)) return;
     const texts = channelTexts(store);
     deps.attention({
       kind: "channel",
@@ -154,4 +168,21 @@ export function createOwnerNotices(deps: {
   }
 
   return { notifyOwner, tell, attention, notifyOnChat, shownOn, ownerFallback, cardFor };
+}
+
+function persistOwnerNotice(store: Store, body: Presentation, channel: string, threadId?: string): string | undefined {
+  if (!store.threads.get(HOME_THREAD_ID)) return undefined;
+  const message = store.messages.add({
+    thread_id: HOME_THREAD_ID,
+    author: { kind: "system" },
+    parts: [{ type: "text", text: body.text }],
+  });
+  store.modelLog.append(HOME_THREAD_ID, undefined, [
+    {
+      role: "user",
+      content: untrusted("owner_notice", { channel, from_chat: threadId ?? "", message: message.id }, body.text),
+    },
+  ]);
+  store.threads.patch(HOME_THREAD_ID, { preview: previewOf(body.text) });
+  return message.id;
 }

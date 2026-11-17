@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { after, before, test } from "node:test";
-import { callTool, say, scriptedLlm, startCore } from "../engine/testkit.ts";
+import { callTool, pendingInput, say, scriptedLlm, startCore } from "../engine/testkit.ts";
 import { waitFor } from "../testkit/platform.ts";
 import { fakeTelegram } from "./fake-telegram.test-support.ts";
 import { TELEGRAM_REACTIONS, telegramAdapter, telegramReaction } from "./telegram.ts";
@@ -455,6 +455,11 @@ test("the owner's own turns never get the contact-only tools", async () => {
 test("the owner's agent writes to a contact on their channel, kept in the contact's chat; a contact's turn never can", async () => {
   const before = tg.messagesTo(MAG.id).length;
   await env.client.call("threads.send", { thread: "home", text: "tell the buyer the order ships on Friday" });
+  // Contact notices are outside context: sending as the owner still needs their confirmation.
+  const input = await pendingInput(env.client, "home");
+  assert.equal(input.tool, "message_contact");
+  assert.equal(tg.messagesTo(MAG.id).length, before);
+  await env.client.call("runs.respond", { input: input.id, decision: "approve" });
   await env.settle("home");
   await waitFor(() => tg.messagesTo(MAG.id).length === before + 1, "the message on Telegram");
   assert.equal(tg.messagesTo(MAG.id).at(-1)?.body.text, "Your order ships on Friday.");
