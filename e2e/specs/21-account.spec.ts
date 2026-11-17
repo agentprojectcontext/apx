@@ -4,6 +4,31 @@ import { expect, open, rpc, test } from "./kit.ts";
 
 type Owner = { language: string; timezone: string };
 
+for (const viewport of [
+  { width: 1280, height: 800 },
+  { width: 390, height: 844 },
+]) {
+  test(`cloud account is optional and explains unavailable sign-in at ${viewport.width}px`, async ({
+    page,
+  }, testInfo) => {
+    await page.setViewportSize(viewport);
+    await open(page);
+    await page.keyboard.press("ControlOrMeta+k");
+    await page
+      .getByRole("textbox", { name: "Buscar" })
+      .or(page.getByRole("combobox", { name: "Buscar" }))
+      .fill("cuenta");
+    await page.getByRole("option", { name: /Cuenta/ }).click();
+    const account = page.getByRole("region", { name: "Cuenta en la nube", exact: true });
+    await account.scrollIntoViewIfNeeded();
+    await expect(account.getByRole("button", { name: "Iniciar sesión con Google" })).toBeDisabled();
+    await expect(account.getByText(/Podés seguir usando APX sin cuenta/)).toBeVisible();
+    await expect(account.getByText(/computadora donde corre APX/)).toBeVisible();
+    expect((await rpc<{ profile: unknown }>("account.get")).profile).toBeNull();
+    await page.screenshot({ path: testInfo.outputPath(`cloud-account-${viewport.width}.png`) });
+  });
+}
+
 test("time zone and language are picked by searching, Advanced names each part of the core, and an API token is made in its own page", async ({
   page,
 }) => {

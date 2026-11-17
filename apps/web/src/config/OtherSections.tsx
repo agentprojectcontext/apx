@@ -1,5 +1,5 @@
 import type { OwnerIdentity } from "@apx/protocol";
-import { Badge, Icons, Input, SegmentedControl, SettingRow, Switch, Textarea } from "@apx/ui";
+import { Icons, Input, SegmentedControl, SettingRow, Switch, Textarea } from "@apx/ui";
 import { useEffect, useState } from "react";
 import { LanguageSelect, TimezoneSelect } from "../common/pickers/LocaleSelect.tsx";
 import { client } from "../data/client.ts";
@@ -7,6 +7,7 @@ import { notify } from "../data/notices.ts";
 import { initialsOf, setPrefs, TEXT_SIZES, textSizeOf, usePrefs } from "../data/prefs.ts";
 import { isLanguage, LANGUAGE_NAMES, LANGUAGES, useLanguage, useT } from "../i18n/index.ts";
 import { go, useNav } from "../shell/nav.ts";
+import { CloudAccount } from "./CloudAccount.tsx";
 import { EmailSignatures } from "./EmailSignatures.tsx";
 import { SectionHead } from "./SectionHead.tsx";
 import "../styles/theme-switch.css";
@@ -88,10 +89,8 @@ export function AccountSection() {
           </SettingRow>
         </>
       )}
+      <CloudAccount />
       <EmailSignatures />
-      <SettingRow title={t("account.cloud")} description={t("account.cloudHint")}>
-        <Badge>{t("common.soon")}</Badge>
-      </SettingRow>
     </>
   );
 }

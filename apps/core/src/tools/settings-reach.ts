@@ -42,6 +42,10 @@ export const OWNER_ONLY: Readonly<Record<string, string>> = {
   "email.signature_import": "it only fills the owner's signature editor with Gmail's; saving it is theirs",
   "engines.set_usage": "the owner chooses whether APX queries and displays their external account limits",
   "secrets.set": SECRET,
+  "account.start": SECRET,
+  "account.finish": SECRET,
+  "account.rename": "the owner's public account name is theirs to choose",
+  "account.logout": "the owner signs out of their optional cloud account",
   "channels.add": "a new account starts with its sign-in, which is the owner's to give (Channels › New channel)",
   "contacts.add":
     "the panel's one-step Add contact; agents add a contact and its address with contacts.set and contacts.address",

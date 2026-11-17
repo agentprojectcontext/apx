@@ -1,0 +1,37 @@
+---
+title: Your APX account
+description: Sign in with Google, find your APX ID and choose an optional username.
+---
+
+An APX account is optional. Your projects, agents and local conversations keep working without signing in.
+Signing in does not upload or synchronize those projects or conversations, and does not connect Gmail,
+Google Calendar or Google Drive. Connect those separately in **Resources › Integrations**.
+
+## Sign in
+
+1. Open **Settings › Account**.
+2. In **Cloud account**, choose **Sign in with Google**.
+3. Finish signing in in your browser. In the desktop app, choose **Open APX** when the browser offers to return.
+4. Your account card shows your name, photo and eight-character APX ID.
+
+Keep APX running while you sign in. A sign-in expires after ten minutes; if it expires or you restart APX,
+start again from Settings. The browser and the core must run on the same computer for this sign-in flow.
+If the browser blocks the sign-in window, allow pop-ups for your APX address and try again.
+
+## Choose a username
+
+Your username is optional and unique. Use 3–24 lowercase letters, numbers or underscores, starting with a
+letter. You can type a leading `@`; APX removes it when saving. Choose **Save**. If a name is already taken,
+choose another one. Clear the field and save to remove your username. Changing your username does not
+change your APX ID.
+
+The ID uses Crockford base32, without the letters I, L, O or U. Your account profile is private; creating
+an account does not publish anything.
+
+## Sign out
+
+Choose **Sign out** on your account card. APX removes the saved session from this core. Your cloud account
+and profile remain, and your local work is not deleted. Other cores signed in to the same account stay signed in.
+
+If sign-in is not available in your build, you can keep using APX without an account. A self-hosted build
+needs its Firebase and Google client configuration; see the repository's `firebase/README.md`.

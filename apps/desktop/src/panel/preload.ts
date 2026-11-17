@@ -25,6 +25,12 @@ contextBridge.exposeInMainWorld("apxDesktop", {
     return () => ipcRenderer.removeListener("browser:popout", on);
   },
   installedBrowsers: (): Promise<unknown> => ipcRenderer.invoke("browser:installed"),
+  takeAccountReturn: (): Promise<unknown> => ipcRenderer.invoke("account:take-return"),
+  onAccountReturn: (listener: () => void) => {
+    const on = () => listener();
+    ipcRenderer.on("account:return-ready", on);
+    return () => ipcRenderer.removeListener("account:return-ready", on);
+  },
   /** `browser` undefined = the system's default browser. */
   openExternal: (url: string, browser?: string): Promise<unknown> =>
     ipcRenderer.invoke("browser:open-external", String(url), typeof browser === "string" ? browser : undefined),
