@@ -5205,8 +5205,8 @@ extension's folder) the installer for any extension, and needs APX to tell an of
   that is both a file and a folder. One top folder is taken as the extension; `__MACOSX`, `.DS_Store`, `._` files, `.git` and
   `node_modules` are left out. The copy is written with exclusive creates into a fresh folder under the home and its
   fingerprint read back from disk must equal the one computed in memory before it replaces anything.
-- **Official by fingerprint, no signature for now.** The catalog (`index.json` from the public marketplace repository,
-  schema 1) lists each id's versions with `content_hash`, the same fingerprint turning an extension on approves (paths
+- **Official by fingerprint, no signature for now.** The catalog (`index.json`, schema 1, that GitHub Pages serves
+  from the public `apx-marketplace` repository at `https://agentprojectcontext.github.io/apx-marketplace/index.json`) lists each id's versions with `content_hash`, the same fingerprint turning an extension on approves (paths
   with "/", sorted). Official = same id + version + `content_hash` under `tier: "official"`; anything else is third
   party. A signature would be signed by whoever publishes the catalog, which is us; it protects something new only once
   the catalog is served from places we do not control (mirrors), and then it is added. Provenance is stored on the
