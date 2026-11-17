@@ -1,5 +1,6 @@
 import { z } from "zod";
 import type { Google } from "./google.ts";
+import { GoogleAccessError } from "./google-errors.ts";
 
 export const SpreadsheetId = z.string().regex(/^[A-Za-z0-9_-]{1,200}$/);
 const Cell = z.union([z.string().max(2000), z.number(), z.boolean()]);
@@ -75,11 +76,7 @@ export function sheetsApi(g: Google) {
       });
     } catch (error) {
       if (signal?.aborted) throw new Error("Google Sheets request cancelled");
-      const message = error instanceof Error ? error.message : "";
-      if (
-        /not connected; connect it|Google no longer accepts the sign-in|response exceeds the size limit/.test(message)
-      )
-        throw error;
+      if (error instanceof GoogleAccessError) throw new GoogleAccessError(error.code, "Google Drive");
       throw new Error(
         "Google Sheets could not complete the request. Check file access, the Sheets API and your Google sign-in before trying again.",
       );

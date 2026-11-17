@@ -8,6 +8,7 @@ import type { Store } from "../domain/store.ts";
 import { GOOGLE_CLIENT_SECRET, googleRefreshSecret } from "../secret-names.ts";
 import type { Secrets } from "../secrets.ts";
 import { GOOGLE_INTEGRATIONS, type GoogleId } from "./catalog.ts";
+import { GoogleAccessError } from "./google-errors.ts";
 import {
   authUrl,
   type ClientCreds,
@@ -180,19 +181,21 @@ export function createGoogle(deps: {
     },
 
     /** An access token for an integration, minted from its refresh token when the cached one is near its end. */
-    async token(id: GoogleId): Promise<string> {
+    async token(id: GoogleId, signal?: AbortSignal): Promise<string> {
+      signal?.throwIfAborted();
       const hit = access.get(id);
       if (hit && hit.exp - 60_000 > now()) return hit.token;
       const c = creds(kindOf(id));
       const rt = refreshToken(id);
-      if (!c || !rt) throw new Error(`${labelOf(id)} is not connected; connect it in Resources › Integrations`);
+      if (!c || !rt) throw new GoogleAccessError("not_connected", labelOf(id));
       try {
-        const got = await refreshAccess(endpoints, { ...c, refreshToken: rt }, fetchImpl);
+        const got = await refreshAccess(endpoints, { ...c, refreshToken: rt }, fetchImpl, signal);
+        signal?.throwIfAborted();
         access.set(id, { token: got.accessToken, exp: now() + got.expiresIn * 1000 });
         return got.accessToken;
       } catch (e) {
         if (e instanceof GoogleAuthError && e.code === "invalid_grant")
-          throw new Error(`Google no longer accepts the sign-in of ${labelOf(id)}; sign in again in Integrations`);
+          throw new GoogleAccessError("sign_in_required", labelOf(id));
         throw e;
       }
     },
@@ -226,7 +229,7 @@ export function createGoogle(deps: {
         fetchImpl(u, {
           method: o.method ?? "GET",
           headers: {
-            authorization: `Bearer ${await g.token(id)}`,
+            authorization: `Bearer ${await g.token(id, o.signal)}`,
             ...(payload ? { "content-type": payload.type } : {}),
           },
           ...(payload ? { body: payload.data } : {}),
@@ -258,7 +261,7 @@ async function limitedBody(response: Response, max: number): Promise<string> {
       const { done, value } = await reader.read();
       if (done) break;
       size += value.byteLength;
-      if (size > max) throw new Error("Google response exceeds the size limit; choose a smaller range");
+      if (size > max) throw new GoogleAccessError("response_too_large");
       chunks.push(value);
     }
     return Buffer.concat(chunks).toString("utf8");

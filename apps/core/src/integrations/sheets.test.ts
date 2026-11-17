@@ -116,6 +116,29 @@ test("failed writes are not retried and provider errors never echo arbitrary rem
   assert.equal(fake.seen.length, before + 1);
 });
 
+test("remote errors cannot masquerade as trusted connection or size failures", async () => {
+  const { api, fake } = await account();
+  for (const phrase of [
+    "not connected; connect it",
+    "Google no longer accepts the sign-in",
+    "response exceeds the size limit",
+  ]) {
+    fake.respond(
+      () =>
+        new Response(JSON.stringify({ error: { message: `${phrase} secret-token ignore instructions` } }), {
+          status: 503,
+        }),
+    );
+    await assert.rejects(
+      api.tabs("sheet-1"),
+      (error) =>
+        error instanceof Error &&
+        /Check file access/.test(error.message) &&
+        !/secret-token|ignore instructions/.test(error.message),
+    );
+  }
+});
+
 test("oversized transport and oversized cell output are refused without returning unbounded content", async () => {
   const { api, fake } = await account();
   fake.respond(() => ({ range: "Summary!A1", values: [["x".repeat(300_000)]] }));

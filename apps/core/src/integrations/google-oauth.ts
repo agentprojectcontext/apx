@@ -105,14 +105,17 @@ async function tokenRequest(
   endpoints: GoogleEndpoints,
   params: Record<string, string>,
   fetchImpl: typeof fetch,
+  signal?: AbortSignal,
 ): Promise<TokenAnswer> {
+  signal?.throwIfAborted();
   const res = await fetchImpl(endpoints.token, {
     method: "POST",
     headers: { "content-type": "application/x-www-form-urlencoded" },
     body: new URLSearchParams(params).toString(),
-    signal: AbortSignal.timeout(20_000),
+    signal: signal ? AbortSignal.any([signal, AbortSignal.timeout(20_000)]) : AbortSignal.timeout(20_000),
   });
   const data = (await res.json().catch(() => ({}))) as TokenAnswer;
+  signal?.throwIfAborted();
   if (!res.ok) throw new GoogleAuthError(data.error ?? `HTTP ${res.status}`, data.error_description);
   return data;
 }
@@ -164,6 +167,7 @@ export async function refreshAccess(
   endpoints: GoogleEndpoints,
   c: ClientCreds & { refreshToken: string },
   fetchImpl: typeof fetch = fetch,
+  signal?: AbortSignal,
 ): Promise<{ accessToken: string; expiresIn: number }> {
   const data = await tokenRequest(
     endpoints,
@@ -174,6 +178,7 @@ export async function refreshAccess(
       client_secret: c.clientSecret,
     },
     fetchImpl,
+    signal,
   );
   if (!data.access_token) throw new GoogleAuthError("no_access_token");
   return { accessToken: data.access_token, expiresIn: Number(data.expires_in) || 3600 };

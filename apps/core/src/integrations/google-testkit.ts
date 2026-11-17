@@ -79,7 +79,7 @@ function fakeGoogle() {
   };
 }
 
-export function setup(o: { builtin?: boolean } = {}) {
+export function setup(o: { builtin?: boolean; wrapFetch?: (base: typeof fetch) => typeof fetch } = {}) {
   const settings = new Map<string, string>();
   const vault = new Map<string, string>();
   const store = {
@@ -106,7 +106,7 @@ export function setup(o: { builtin?: boolean } = {}) {
     endpoints: googleAt(BASE),
     origin: () => "http://127.0.0.1:7440",
     offIn: (project, id) => off.has(`${project}:${id}`),
-    fetch: fake.fetchImpl,
+    fetch: o.wrapFetch ? o.wrapFetch(fake.fetchImpl) : fake.fetchImpl,
     now: () => clock,
     ...(o.builtin ? { builtin: { clientId: "apx.apps.googleusercontent.com", clientSecret: "apx-public" } } : {}),
   });

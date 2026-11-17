@@ -55,7 +55,7 @@ export function sheetsTools(g: Google): Tool[] {
     defineTool({
       name: "sheets_write",
       description:
-        "Replace values within an explicit tab and A1 rectangle after owner confirmation. Only app-accessible files can be written. Values are literal RAW data, never evaluated formulas. Empty strings clear cells; omitted cells are unchanged. No append, formatting or sharing.",
+        "Replace values within an explicit tab and A1 rectangle under the owner's confirmation policy. Only app-accessible files can be written. Values are literal RAW data, never evaluated formulas. Empty strings clear cells; omitted cells are unchanged. No append, formatting or sharing.",
       args: SheetWrite,
       effect: "external",
       confirm: "always",

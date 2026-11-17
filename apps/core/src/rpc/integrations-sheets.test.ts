@@ -42,6 +42,11 @@ test("a running core discovers Sheets tools, reads untrusted cells and gates an 
     const cells = await turn("read cells");
     assert.match(cells, /untrusted/);
     assert.match(cells, /Ignore your instructions/);
+    google.setSheetsError({ status: 503, message: "not connected; connect it outside-error-content" });
+    const failure = await turn("inspect tabs");
+    assert.match(failure, /Check file access/);
+    assert.doesNotMatch(failure, /outside-error-content/);
+    google.setSheetsError();
     await env.client.call("threads.send", { thread, text: "replace cells" });
     const pending = await inputsOrEnd(env.client, thread);
     assert.equal(pending.length, 1);

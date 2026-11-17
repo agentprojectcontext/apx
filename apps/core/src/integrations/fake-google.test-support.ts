@@ -13,7 +13,12 @@ function replySheets(
   body: string,
   writes: unknown[],
   send: (status: number, data: unknown) => void,
+  failure?: { status: number; message: string },
 ): boolean {
+  if (failure && url.pathname.startsWith("/sheets/v4/spreadsheets/")) {
+    send(failure.status, { error: { message: failure.message } });
+    return true;
+  }
   if (url.pathname === "/sheets/v4/spreadsheets/sheet-1" && method === "GET") {
     send(200, {
       spreadsheetId: "sheet-1",
@@ -42,6 +47,7 @@ export async function fakeGoogle() {
   const codes = new Map<string, string>();
   const drafts: Array<{ raw: string; threadId?: string }> = [];
   const sheetWrites: unknown[] = [];
+  let sheetsError: { status: number; message: string } | undefined;
   const created: Array<{ summary?: string; attendees?: Array<{ email: string }>; sendUpdates: string | null }> = [];
   /** Mail that reached the inbox after the start, each with the history id it arrived at. */
   const inbox: Array<{ id: string; from: string; subject: string; labels: string[]; at: number }> = [];
@@ -120,7 +126,7 @@ export async function fakeGoogle() {
           files: [{ id: "d1", name: "Northwind plan", mimeType: "application/vnd.google-apps.document" }],
         });
       if (url.pathname === "/gmail/v1/users/me/profile") return send(200, { historyId: String(historyId) });
-      if (replySheets(url, req.method, body, sheetWrites, send)) return;
+      if (replySheets(url, req.method, body, sheetWrites, send, sheetsError)) return;
       if (url.pathname === "/gmail/v1/users/me/history") {
         const from = Number(url.searchParams.get("startHistoryId"));
         const added = inbox.filter((m) => m.at > from).map((m) => ({ messagesAdded: [{ message: { id: m.id } }] }));
@@ -165,6 +171,9 @@ export async function fakeGoogle() {
     url: `http://127.0.0.1:${(server.address() as AddressInfo).port}`,
     drafts,
     sheetWrites,
+    setSheetsError: (error?: { status: number; message: string }) => {
+      sheetsError = error;
+    },
     created,
     deleted,
     /** The owner is busy then, as free/busy tells. */
