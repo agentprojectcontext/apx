@@ -56,7 +56,7 @@ export function createOwnerNotices(deps: {
     body: Presentation,
     kind: OutboxRow["kind"] = "notice",
     threadId?: string,
-    messageId?: string,
+    history: { messageId?: string | undefined; context?: "nudge" } = {},
   ): boolean {
     const prefs = noticePrefs(store);
     // The app only: what is told here is in the tray and on their phones already.
@@ -73,7 +73,7 @@ export function createOwnerNotices(deps: {
     for (const l of order) {
       const addr = store.persons.ownerAddress(l.config.id);
       if (!addr) continue;
-      enqueue(l.config.id, addr.external_id, body, kind, threadId, messageId);
+      enqueue(l.config.id, addr.external_id, body, kind, threadId, history);
       return true;
     }
     return false;
@@ -107,11 +107,13 @@ export function createOwnerNotices(deps: {
     body: Presentation,
     kind: OutboxRow["kind"],
     threadId: string | undefined,
-    messageId?: string,
+    history: { messageId?: string | undefined; context?: "nudge" } = {},
   ): void {
     store.tx(() => {
+      let messageId = history.messageId;
       // Keep the notice once, before delivery: retries and fallback share its message, not a new chat entry.
-      if (kind === "notice" && !messageId) messageId = persistOwnerNotice(store, body, channel, threadId);
+      if (kind === "notice" && !messageId)
+        messageId = persistOwnerNotice(store, body, channel, threadId, history.context !== "nudge");
       deps.delivery().enqueue({
         channel,
         conversation,
@@ -142,7 +144,10 @@ export function createOwnerNotices(deps: {
   function ownerFallback(o: OutboxRow): void {
     if (o.kind === "reply" || store.persons.byAddress(o.channel, o.conversation)?.id !== OWNER_ID) return;
     const { skip: _skip, refused_by = [], ...body } = o.body;
-    if (notifyOwner({ ...body, refused_by: [...refused_by, o.channel] }, o.kind, o.thread_id, o.message_id)) return;
+    if (
+      notifyOwner({ ...body, refused_by: [...refused_by, o.channel] }, o.kind, o.thread_id, { messageId: o.message_id })
+    )
+      return;
     const texts = channelTexts(store);
     deps.attention({
       kind: "channel",
@@ -170,19 +175,27 @@ export function createOwnerNotices(deps: {
   return { notifyOwner, tell, attention, notifyOnChat, shownOn, ownerFallback, cardFor };
 }
 
-function persistOwnerNotice(store: Store, body: Presentation, channel: string, threadId?: string): string | undefined {
+function persistOwnerNotice(
+  store: Store,
+  body: Presentation,
+  channel: string,
+  threadId: string | undefined,
+  recordContext: boolean,
+): string | undefined {
   if (!store.threads.get(HOME_THREAD_ID)) return undefined;
   const message = store.messages.add({
     thread_id: HOME_THREAD_ID,
     author: { kind: "system" },
     parts: [{ type: "text", text: body.text }],
   });
-  store.modelLog.append(HOME_THREAD_ID, undefined, [
-    {
-      role: "user",
-      content: untrusted("owner_notice", { channel, from_chat: threadId ?? "", message: message.id }, body.text),
-    },
-  ]);
+  // Scheduler nudges already enter the next turn through sentMeanwhile.
+  if (recordContext)
+    store.modelLog.append(HOME_THREAD_ID, undefined, [
+      {
+        role: "user",
+        content: untrusted("owner_notice", { channel, from_chat: threadId ?? "", message: message.id }, body.text),
+      },
+    ]);
   store.threads.patch(HOME_THREAD_ID, { preview: previewOf(body.text) });
   return message.id;
 }

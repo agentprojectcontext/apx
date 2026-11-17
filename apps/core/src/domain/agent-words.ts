@@ -19,9 +19,9 @@ export function postAgentWords(
     /** Counted as news in the chat list: the owner was not there when it was said. */
     unread: boolean;
   },
-): void {
-  store.tx(() => {
-    store.messages.add({
+): string {
+  return store.tx(() => {
+    const message = store.messages.add({
       thread_id: o.thread_id,
       author: { kind: "agent", id: o.agent_id },
       parts: o.parts ?? [{ type: "text", text: o.text }],
@@ -32,5 +32,6 @@ export function postAgentWords(
     ]);
     const unread = (store.threads.get(o.thread_id)?.unread ?? 0) + 1;
     store.threads.patch(o.thread_id, { preview: previewOf(o.text), ...(o.unread ? { unread } : {}) });
+    return message.id;
   });
 }

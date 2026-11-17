@@ -61,6 +61,8 @@ export function sentMeanwhile(store: Store, threadId: string, runId: string, at 
         .sentFromOthers(to.channel, to.conversation, threadId, since, MEANWHILE_MAX)
         // Only the owner's own chats: what a contact's chat sent carries words (a name) the owner never wrote.
         .filter((o) => {
+          // A mirrored notice is already in this chat's history (or its nudge ledger).
+          if (o.message_id && store.messages.get(o.message_id)?.thread_id === threadId) return false;
           const chat = store.threads.get(o.thread_id ?? "");
           return Boolean(chat && audienceOf(store, chat).kind === "owner");
         })

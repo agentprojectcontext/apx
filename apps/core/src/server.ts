@@ -591,7 +591,7 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
     store,
     llm,
     models: upkeep.voiceModels,
-    notifyOwner: (body, threadId) => channels.notifyOwner(body, "notice", threadId),
+    notifyOwner: (body, threadId, messageId) => channels.notifyOwner(body, "notice", threadId, { messageId }),
     log,
     hermesHome: config.hermes,
     storeSize: () => storeSize(db),
@@ -704,7 +704,7 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
     store,
     admit: (a) => engine.admit(a),
     attention,
-    notifyOwner: (body, threadId) => channels.notifyOwner(body, "notice", threadId),
+    notifyOwner: (body, threadId) => channels.notifyOwner(body, "notice", threadId, { context: "nudge" }),
     openHeld: () => channels.openHeld((a) => engine.admit(a)),
     flowTick: (at) => flows.tick(at),
     checks: (remind) => [
