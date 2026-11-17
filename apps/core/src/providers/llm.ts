@@ -311,9 +311,13 @@ function limitError(limited: ProviderError[], reasons: string): ProviderError {
   return new ProviderError(kind, reasons, resets[0]);
 }
 
-/** A rough token count of a call (four characters each), enough to tell a 60k chat from a 4k window. */
+/**
+ * A rough token count of a call (four characters each), enough to tell a 60k chat from a 4k window. Encrypted
+ * reasoning is left out: its base64 runs to megabytes in a long turn, while the provider reads it as far fewer tokens.
+ */
 function tokensOf(req: LlmRequest): number {
-  return Math.ceil((JSON.stringify(req.messages).length + JSON.stringify(req.tools).length) / 4);
+  const words = JSON.stringify(req.messages, (k, v) => (k === "encrypted_content" ? undefined : v));
+  return Math.ceil((words.length + JSON.stringify(req.tools).length) / 4);
 }
 
 const kTokens = (n: number) => `${Math.round(n / 1000)}k tokens`;
