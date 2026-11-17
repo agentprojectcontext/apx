@@ -102,6 +102,24 @@ other variables or the environment, so a bundle can't carry your credentials els
 "secrets": [{ "name": "token", "label": "CRM API token", "url": "https://example.com/settings/tokens" }]
 ```
 
+### Manifest 2
+
+`"manifest": 2` adds what a bigger extension needs. A manifest without it reads as before.
+
+| Field | What it holds |
+|---|---|
+| `settings` | Values the owner sets, with a `type` (`string`, `number`, `boolean`, `directory`, `file`), a `label`, optional `description`, `default`, `options` (a choice), `required`. A `sensitive` one goes to the secret store and is referenced as `secret://name`; a plain one is referenced as `setting://name` in its servers' arguments, environment, address or headers. `"generate": "random"` (sensitive strings only) makes APX fill a random key at install. |
+| `agents` | Ready-made agents (`id`, `name`, `description`, `prompt`) the owner adds from its page. |
+| `pages` | Its own HTML pages (`id`, `title`, `entry`), opened from its settings in a sandboxed frame with no network. A page reads and sets only its own settings through `window.apx` (`settings.get`, `settings.set`, `secrets.has`, `secrets.set`, `close`). |
+| `apps` | Widgets or apps (`.apxart` files) the owner adds to Apps from its page. |
+| `hosts` | The hosts its code connects to, shown before it is turned on. |
+| `platforms` | The systems it runs on (`darwin`, `linux`, `win32`); it does not turn on elsewhere. |
+| `companion` | An app on another device: `name`, `platform` (`android`, `android-tv`, `ios`, `macos`, `windows`, `linux`), the app `file` in the package or a store `url`, `steps`, and `pairing`: `{ "with": "apx" }` pairs it with APX as a device (a code and QR), `{ "with": "extension", "server", "tool" }` asks the extension's own tool for the code. |
+
+Nothing an extension brings is added by itself: its agents and apps wait for **Add**, its companion app for
+**Pair**. Its settings, pages, agents and apps show on its page in the Marketplace, or with `apx extensions` in the
+terminal; `apx extensions set <id> name=value` sets them (`name=-` reads a sensitive value from stdin).
+
 ## Install it
 
 An extension comes as a folder, as an **`.apxext` file** (the folder zipped; the packages APX publishes come this way)

@@ -9,6 +9,7 @@ const USAGE = `apx extensions                                   Installed extens
 apx extensions inspect <folder|file.apxext|url>  What it would bring (nothing is installed)
 apx extensions install <folder|file.apxext|url>  Copy it in, off
 apx extensions catalog                           What APX's catalog offers (install one by its address)
+apx extensions set <id> name=value ...           Its settings (value "-": read from stdin, for a sensitive one)
 apx extensions rollback <id>                     Go back to the version installed before
 apx extensions on|off <id>
 apx extensions secret <id> <name>      Value on stdin (rm: --clear)
@@ -58,6 +59,14 @@ function show(e: ExtensionInfo): void {
     console.log(
       `  plugin: ${e.plugin.status}${e.plugin.error ? ` (${e.plugin.error})` : ""}; watches ${e.plugin.observe.join(", ") || "nothing"}${e.plugin.context ? "; adds context" : ""}${e.plugin.network ? "; internet" : ""}`,
     );
+  for (const s of e.settings)
+    console.log(
+      `  setting ${s.name}: ${s.label} (${s.sensitive ? (s.set ? "set" : "missing") : s.value === undefined ? "missing" : JSON.stringify(s.value)})`,
+    );
+  for (const a of e.agents) console.log(`  agent ${a.name}`);
+  for (const a of e.apps) console.log(`  app ${a.name ?? a.file}`);
+  if (e.companion) console.log(`  companion app: ${e.companion.name} (${e.companion.platform})`);
+  if (e.unsupported) console.log("  does not run on this computer's system");
   if (e.runs_code) console.log("  runs code on this computer: turn it on only if you trust its author");
   if (e.update) {
     console.log(`  over v${e.update.from}:`);
@@ -70,9 +79,10 @@ function show(e: ExtensionInfo): void {
 
 export async function extensions(
   client: ApxClient,
-  [sub, arg, name]: string[],
+  [sub, arg, name, ...more]: string[],
   opts: { clear?: boolean | undefined },
 ): Promise<void> {
+  const rest = name === undefined ? [] : [name, ...more];
   if (sub === "inspect" && arg) return show(await client.call("extensions.inspect", sourceOf(arg)));
   if (sub === "install" && arg) {
     const e = await client.call("extensions.install", sourceOf(arg));
@@ -81,6 +91,22 @@ export async function extensions(
     return;
   }
   if (sub === "rollback" && arg) return show(await client.call("extensions.rollback", { id: arg }));
+  if (sub === "set" && arg && rest.length) {
+    const values: Record<string, string> = {};
+    for (const pair of rest) {
+      const at = pair.indexOf("=");
+      if (at < 1) throw new Error(USAGE);
+      let value = pair.slice(at + 1);
+      // From stdin, never argv, for a sensitive one (it would show up in the process list and shell history).
+      if (value === "-") {
+        value = "";
+        for await (const chunk of process.stdin) value += String(chunk);
+        value = value.trim();
+      }
+      values[pair.slice(0, at)] = value;
+    }
+    return show(await client.call("extensions.settings", { id: arg, values }));
+  }
   if (sub === "catalog") {
     const r = await client.call("extensions.catalog", {});
     if (r.catalog === "unreachable") console.log("APX's catalog could not be reached.");

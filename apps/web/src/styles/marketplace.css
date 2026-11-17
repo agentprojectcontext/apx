@@ -222,6 +222,77 @@
   gap: 8px;
 }
 
+/* Manifest 2 on an item's page: its settings, what it brings to add, its companion app's pairing. */
+.mkt-config {
+  gap: 12px;
+}
+.mkt-page {
+  width: 100%;
+  height: min(70vh, 640px);
+  border: 1px solid var(--apx-border);
+  border-radius: var(--apx-radius-md);
+  background: var(--apx-surface);
+}
+.mkt-brought {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border: 1px solid var(--apx-border);
+  border-radius: var(--apx-radius-md);
+}
+.mkt-brought__main {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+}
+.mkt-brought__main span {
+  color: var(--apx-fg-muted);
+  font-size: var(--apx-text-sm);
+}
+.mkt-steps {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  margin: 0;
+  padding-left: 20px;
+}
+.mkt-steps > li {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.mkt-steps ul {
+  margin: 0;
+  padding-left: 18px;
+  color: var(--apx-fg-muted);
+}
+.mkt-steps__row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.mkt-code {
+  margin: 0;
+  font-family: var(--apx-font-mono);
+  font-size: var(--apx-text-xl);
+  font-weight: var(--apx-weight-semibold);
+  letter-spacing: 0.18em;
+}
+.mkt-code--text {
+  font-size: var(--apx-text-sm);
+  font-weight: var(--apx-weight-regular);
+  letter-spacing: 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.mkt-code__address {
+  font-family: var(--apx-font-mono);
+  font-size: var(--apx-text-sm);
+  overflow-wrap: anywhere;
+}
+
 @media (max-width: 760px) {
   .mkt {
     grid-template-columns: minmax(0, 1fr);

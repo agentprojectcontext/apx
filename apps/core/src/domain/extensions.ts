@@ -1,6 +1,6 @@
 // Installed extensions: the manifest as it was read at install, the copy's folder and fingerprint, on or off, where it
 // came from by fingerprint, and the version it replaced (kept to go back to).
-import type { ExtensionManifest, ExtensionProvenance } from "@apx/protocol";
+import { ExtensionManifest, type ExtensionProvenance } from "@apx/protocol";
 import { now, qb, type Sql } from "./sql.ts";
 
 /** A version kept beside the installed one: as it was when replaced, approved or not. */
@@ -23,9 +23,28 @@ export type ExtensionRecord = {
   installed_at: string;
   provenance: ExtensionProvenance;
   previous: PreviousVersion | undefined;
+  /** Its plain settings as the owner set them (manifest 2). */
+  settings: Record<string, string | number | boolean>;
 };
 
-type NewRecord = Omit<ExtensionRecord, "enabled" | "installed_at"> & {
+/** A manifest as stored: read again through the schema, so one stored before a field existed gets its default. */
+function manifestOf(raw: string): ExtensionManifest {
+  const json: unknown = JSON.parse(raw);
+  const p = ExtensionManifest.safeParse(json);
+  return p.success ? p.data : (json as ExtensionManifest);
+}
+
+function settingsOf(raw: string | null): Record<string, string | number | boolean> {
+  if (!raw) return {};
+  try {
+    const v: unknown = JSON.parse(raw);
+    return v && typeof v === "object" ? (v as Record<string, string | number | boolean>) : {};
+  } catch {
+    return {};
+  }
+}
+
+type NewRecord = Omit<ExtensionRecord, "enabled" | "installed_at" | "settings"> & {
   /** Kept on although its files changed (an official update asking for nothing more). */
   keepOn?: boolean;
   /** Set as given (going back to a version as it was approved); otherwise decided by its fingerprint. */
@@ -56,9 +75,10 @@ export function extensionsRepo({ one, all, run }: Sql) {
     installed_at: string;
     provenance: string;
     previous: string | null;
+    settings: string | null;
   }): ExtensionRecord => ({
     id: r.id,
-    manifest: JSON.parse(r.manifest) as ExtensionManifest,
+    manifest: manifestOf(r.manifest),
     hash: r.hash,
     dir: r.dir,
     source: r.source,
@@ -66,6 +86,7 @@ export function extensionsRepo({ one, all, run }: Sql) {
     installed_at: r.installed_at,
     provenance: provenanceOf(r.provenance),
     previous: previousOf(r.previous),
+    settings: settingsOf(r.settings),
   });
   const repo = {
     get(id: string): ExtensionRecord | undefined {
@@ -109,6 +130,14 @@ export function extensionsRepo({ one, all, run }: Sql) {
     /** The same files under another fingerprint (how it is computed changed); on or off stays as it is. */
     setHash(id: string, hash: string): void {
       run(qb.updateTable("extensions").set({ hash, updated_at: now() }).where("id", "=", id));
+    },
+    setSettings(id: string, values: Record<string, string | number | boolean>): void {
+      run(
+        qb
+          .updateTable("extensions")
+          .set({ settings: JSON.stringify(values), updated_at: now() })
+          .where("id", "=", id),
+      );
     },
     setEnabled(id: string, enabled: boolean): void {
       run(

@@ -13,6 +13,7 @@ import { extensionSecret as extSecret } from "../secret-names.ts";
 import type { Secrets } from "../secrets.ts";
 import { type Catalog, type CatalogCheck, downloadArchive } from "./catalog.ts";
 import { ASSET_MAX, createPackageReader, newest } from "./catalog-packages.ts";
+import { createManifestV2, settingsInfo } from "./manifest-v2.ts";
 import {
   comparePowers,
   filesOf,
@@ -24,14 +25,19 @@ import {
   readArchive,
   readFolder,
   SECRET_REF,
+  SETTING_REF,
   writePackage,
 } from "./package.ts";
 import type { Plugins } from "./plugins.ts";
 import { bringsOf, type ListingFile, listingCopy, needsOf, readListing } from "./summary.ts";
 
-export { extSecret, SECRET_REF };
+export { extSecret, SECRET_REF, SETTING_REF };
 
 const LISTING = "apx-listing.json";
+
+/** Its manifest names the systems it runs on, and this one is not among them. */
+const unsupported = (m: ExtensionManifest) =>
+  Boolean(m.platforms?.length && !m.platforms.includes(process.platform as never));
 const IMAGE: Record<string, string> = {
   ".png": "image/png",
   ".webp": "image/webp",
@@ -84,6 +90,7 @@ export function createExtensions(deps: {
   fetch?: typeof fetch;
 }) {
   const { store, secrets, plugins, catalog } = deps;
+  const v2 = createManifestV2({ store, secrets });
   const packages = createPackageReader({ home: deps.home, ...(deps.fetch ? { fetch: deps.fetch } : {}) });
   const root = path.join(deps.home, "extensions");
   /** The version an update replaced, kept to go back to; ids hold no ".", so this never names another extension. */
@@ -91,7 +98,7 @@ export function createExtensions(deps: {
 
   type Shown = Pick<
     ExtensionRecord,
-    "id" | "manifest" | "hash" | "dir" | "source" | "enabled" | "installed_at" | "provenance"
+    "id" | "manifest" | "hash" | "dir" | "source" | "enabled" | "installed_at" | "provenance" | "settings"
   > & {
     skills?: string[];
     catalog?: CatalogCheck["catalog"];
@@ -142,6 +149,12 @@ export function createExtensions(deps: {
     runs_code: Boolean(e.manifest.plugin) || Object.values(e.manifest.mcp).some((m) => m.command),
     installed_at: e.installed_at,
     provenance: e.provenance,
+    settings: settingsInfo(e, secrets),
+    agents: e.manifest.agents,
+    pages: e.manifest.pages.map((p) => ({ id: p.id, title: p.title })),
+    apps: e.manifest.apps,
+    ...(e.manifest.companion ? { companion: e.manifest.companion } : {}),
+    ...(unsupported(e.manifest) ? { unsupported: true } : {}),
     ...(e.catalog ? { catalog: e.catalog } : {}),
     ...(e.update ? { update: e.update } : {}),
   });
@@ -292,6 +305,7 @@ export function createExtensions(deps: {
       return info({
         id: manifest.id,
         manifest,
+        settings: cur?.settings ?? {},
         hash,
         dir: "",
         source,
@@ -359,6 +373,7 @@ export function createExtensions(deps: {
           previous,
           keepOn: keepsOn(cur, manifest, hash, check) && !contextTaken(id, manifest),
         });
+        v2.generate(e);
         if (e.enabled) startPlugin(e);
         return shown(e, check);
       } finally {
@@ -405,6 +420,8 @@ export function createExtensions(deps: {
       // The copy must still be what was installed.
       if (enabled && !sameFiles(e.dir, e.hash))
         throw badRequest(`${e.manifest.name} changed on disk since it was installed; install it again`);
+      if (enabled && unsupported(e.manifest))
+        throw badRequest(`${e.manifest.name} does not run on this computer's system`);
       // Any other enabled one counts, running or not: at the next start only one could take the turn context.
       const other = enabled ? contextTaken(id, e.manifest) : undefined;
       if (other) throw badRequest(`${other.manifest.name} already adds context to turns; turn it off first`);
@@ -425,6 +442,19 @@ export function createExtensions(deps: {
       fs.rmSync(path.join(deps.home, "extension-data", id), { recursive: true, force: true });
       return true;
     },
+    /** Its settings (manifest 2); a running plugin starts again with them. */
+    setSettings(id: string, values: Record<string, string | number | boolean | null>): ExtensionInfo {
+      v2.set(get(id), values);
+      const e = get(id);
+      if (e.enabled && e.manifest.plugin) {
+        plugins.stop(id);
+        startPlugin(e);
+      }
+      return shown(e);
+    },
+    page: (id: string, page: string) => v2.page(get(id), page),
+    companionFile: (id: string) => v2.companionFile(get(id)),
+    appBundle: (id: string, file: string) => v2.appBundle(get(id), file),
     setSecret(id: string, name: string, value: string | null): ExtensionInfo {
       const e = get(id);
       if (!e.manifest.secrets.some((s) => s.name === name)) throw notFound(`secret ${name} of ${id}`);

@@ -20,6 +20,54 @@ const ExtId = z.string().regex(/^[a-z0-9][a-z0-9_-]{0,19}$/);
 const ExtName = z.string().regex(/^[a-z0-9][a-z0-9_]{0,19}$/);
 
 /**
+ * A value the owner sets for an extension. `sensitive` ones are kept in the secret store (referenced as
+ * `secret://name`); the rest are stored per extension (referenced as `setting://name`). `generate`: APX fills a random
+ * one on install (a connection key the owner never needs to see).
+ */
+export const ExtensionSetting = z
+  .object(
+    schemaFields({
+      name: () => ExtName,
+      label: () => z.string().trim().min(1).max(120),
+      description: () => z.string().max(300).optional(),
+      type: () => z.enum(["string", "number", "boolean", "directory", "file"]),
+      required: () => z.boolean().default(false),
+      sensitive: () => z.boolean().default(false),
+      default: () => z.union([z.string().max(500), z.number(), z.boolean()]).optional(),
+      /** The only values a string may take (a choice). */
+      options: () => z.array(z.string().max(80)).max(20).optional(),
+      generate: () => z.literal("random").optional(),
+    }),
+  )
+  .strict();
+export type ExtensionSetting = z.infer<typeof ExtensionSetting>;
+
+/**
+ * Its app on another device. `pairing.with: "apx"`: it pairs with APX as a device (a code or QR, like the phone app).
+ * `"extension"`: it pairs with the extension itself, through one of its own tools that gives the code.
+ */
+export const ExtensionCompanion = z
+  .object(
+    schemaFields({
+      name: () => z.string().trim().min(1).max(60),
+      platform: () => z.enum(["android", "android-tv", "ios", "macos", "windows", "linux"]),
+      /** The app in the package (an .apk), offered to download. */
+      file: () => z.string().max(200).optional(),
+      /** Where to get it otherwise (a store page). */
+      url: () => z.string().max(500).startsWith("https://").optional(),
+      /** What to do on the device, in order. */
+      steps: () => z.array(z.string().max(300)).max(8).default([]),
+      pairing: () =>
+        z.discriminatedUnion("with", [
+          z.object({ with: z.literal("apx") }).strict(),
+          z.object({ with: z.literal("extension"), server: ExtName, tool: z.string().max(80) }).strict(),
+        ]),
+    }),
+  )
+  .strict();
+export type ExtensionCompanion = z.infer<typeof ExtensionCompanion>;
+
+/**
  * `apx-extension.json`: what an extension brings, readable without running anything. Paths are relative to its
  * folder; `secret://name` in an MCP server means the extension's own secret `name`, declared under `secrets`.
  */
@@ -99,6 +147,73 @@ export const ExtensionManifest = z
           )
           .strict()
           .optional(),
+      // Manifest 2 (DECISIONS.md#d-242): everything below is optional, so a manifest 1 still reads as before.
+      manifest: () => z.literal(2).optional(),
+      /** The operating systems it runs on (none: any). */
+      platforms: () =>
+        z
+          .array(z.enum(["darwin", "linux", "win32"]))
+          .max(3)
+          .optional(),
+      /** Values the owner sets: plain ones are stored per extension, `sensitive` ones go to the secret store. */
+      settings: () => z.array(ExtensionSetting).max(30).default([]),
+      /** Ready-made agents the owner can add from it. */
+      agents: () =>
+        z
+          .array(
+            z
+              .object(
+                schemaFields({
+                  id: () => ExtName,
+                  name: () => z.string().trim().min(1).max(60),
+                  description: () => z.string().max(500).default(""),
+                  /** What it does and how, as the agent's own instructions. */
+                  prompt: () => z.string().min(1).max(20_000),
+                }),
+              )
+              .strict(),
+          )
+          .max(10)
+          .default([]),
+      /** Its own pages (HTML in the package) the owner opens from its settings. */
+      pages: () =>
+        z
+          .array(
+            z
+              .object(
+                schemaFields({
+                  id: () => ExtName,
+                  title: () => z.string().trim().min(1).max(60),
+                  entry: () => z.string().max(200),
+                }),
+              )
+              .strict(),
+          )
+          .max(5)
+          .default([]),
+      /** Widgets or apps (.apxart files in the package) the owner can add to Apps. */
+      apps: () =>
+        z
+          .array(
+            z
+              .object(schemaFields({ file: () => z.string().max(200), name: () => z.string().max(60).optional() }))
+              .strict(),
+          )
+          .max(10)
+          .default([]),
+      /** The hosts its code connects to (names or `*.domain`), shown before it is turned on. */
+      hosts: () =>
+        z
+          .array(
+            z
+              .string()
+              .max(253)
+              .regex(/^(\*\.)?[a-z0-9.-]+$/),
+          )
+          .max(20)
+          .default([]),
+      /** An app on another device that works with it (a TV, a phone, a computer). */
+      companion: () => ExtensionCompanion.optional(),
     }),
   )
   .strict();
@@ -140,7 +255,7 @@ export const ExtensionSource = {
 };
 
 /** What an extension brings, to filter by: an account it connects, tools, skills, ready-made agents, a device. */
-export const ExtensionBrings = z.enum(["accounts", "tools", "skills", "agents", "devices"]);
+export const ExtensionBrings = z.enum(["accounts", "tools", "skills", "agents", "devices", "apps"]);
 export type ExtensionBrings = z.infer<typeof ExtensionBrings>;
 
 /** What it needs or does that the owner should know before installing: a Mac, an app on a phone or TV, code, cost. */
@@ -283,8 +398,22 @@ export const ExtensionInfo = z.object(
     provenance: () => ExtensionProvenance,
     brings: () => z.array(ExtensionBrings),
     needs: () => z.array(ExtensionNeeds),
-    /** The hosts its servers connect to. */
+    /** The hosts its servers connect to and the ones it declares. */
     hosts: () => z.array(z.string()),
+    /** Its settings with what is set: a plain value as stored, a sensitive one only whether it is set. */
+    settings: () =>
+      z.array(
+        ExtensionSetting.extend({
+          value: z.union([z.string(), z.number(), z.boolean()]).optional(),
+          set: z.boolean(),
+        }),
+      ),
+    agents: () => ExtensionManifest.shape.agents,
+    pages: () => z.array(z.object(schemaFields({ id: () => z.string(), title: () => z.string() }))),
+    apps: () => ExtensionManifest.shape.apps,
+    companion: () => ExtensionCompanion.optional(),
+    /** It does not run on this computer's system (its manifest names others). */
+    unsupported: () => z.boolean().optional(),
     listing: () => ExtensionListing.optional(),
     /** Why the official catalog could not be asked: none reachable now and none kept, or it needs a newer APX. */
     catalog: () => z.enum(["unreachable", "needs_update"]).optional(),

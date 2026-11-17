@@ -85,6 +85,11 @@ test("an archive that would leave its folder, hide a link or lie about its sizes
 });
 
 const m = (extra: Partial<ExtensionManifest> = {}): ExtensionManifest => ({
+  settings: [],
+  agents: [],
+  pages: [],
+  apps: [],
+  hosts: [],
   id: "crm",
   name: "CRM",
   version: "1.0.0",

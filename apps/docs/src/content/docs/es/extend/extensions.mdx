@@ -102,6 +102,24 @@ puede nombrar tus otras variables ni el entorno, así que un paquete no puede ll
 "secrets": [{ "name": "token", "label": "CRM API token", "url": "https://example.com/settings/tokens" }]
 ```
 
+### Manifest 2
+
+`"manifest": 2` suma lo que necesita una extensión más grande. Un manifest sin él se lee como antes.
+
+| Campo | Qué tiene |
+|---|---|
+| `settings` | Valores que pone el dueño, con un `type` (`string`, `number`, `boolean`, `directory`, `file`), un `label`, y opcionales `description`, `default`, `options` (una elección), `required`. Uno `sensitive` va al almacén de secretos y se usa como `secret://name`; uno común se usa como `setting://name` en los argumentos, el entorno, la dirección o los encabezados de sus servidores. `"generate": "random"` (sólo strings sensibles) hace que APX ponga una clave al azar al instalar. |
+| `agents` | Agentes listos (`id`, `name`, `description`, `prompt`) que el dueño agrega desde su ficha. |
+| `pages` | Sus propias páginas HTML (`id`, `title`, `entry`), que se abren desde su configuración en un marco aislado y sin red. Una página lee y cambia sólo sus propios ajustes con `window.apx` (`settings.get`, `settings.set`, `secrets.has`, `secrets.set`, `close`). |
+| `apps` | Widgets o apps (archivos `.apxart`) que el dueño agrega a Apps desde su ficha. |
+| `hosts` | Los hosts a los que se conecta su código, que se muestran antes de encenderla. |
+| `platforms` | Los sistemas en los que corre (`darwin`, `linux`, `win32`); en otro no se enciende. |
+| `companion` | Una app en otro dispositivo: `name`, `platform` (`android`, `android-tv`, `ios`, `macos`, `windows`, `linux`), el `file` de la app en el paquete o la `url` de una tienda, `steps`, y `pairing`: `{ "with": "apx" }` la empareja con APX como dispositivo (un código y un QR), `{ "with": "extension", "server", "tool" }` le pide el código a una herramienta de la propia extensión. |
+
+Nada de lo que trae una extensión se agrega solo: sus agentes y apps esperan a **Agregar**, su app compañera a
+**Emparejar**. Sus ajustes, páginas, agentes y apps se ven en su ficha del Marketplace, o con `apx extensions` en la
+terminal; `apx extensions set <id> name=value` los cambia (`name=-` lee un valor sensible de stdin).
+
 ## Instalala
 
 Una extensión llega como carpeta, como **archivo `.apxext`** (la carpeta comprimida; así llegan los paquetes que publica

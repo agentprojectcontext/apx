@@ -51,6 +51,10 @@ const ext = (id: string, extra: Partial<ExtensionInfo> = {}): ExtensionInfo => (
   brings: ["tools", "skills"],
   needs: ["code"],
   hosts: [],
+  settings: [],
+  agents: [],
+  pages: [],
+  apps: [],
   ...extra,
 });
 const server = (name: string, status: McpServerStatus["status"]) =>

@@ -19,6 +19,13 @@ const extension = {
   secrets: [{ name: "api", label: "API key", set: false }],
   plugin: { status: "failed", error: "invalid manifest", observe: ["task.changed"], context: true, network: true },
   runs_code: true,
+  settings: [
+    { name: "region", label: "Region", type: "string", sensitive: false, required: false, value: "eu", set: true },
+  ],
+  agents: [{ id: "host", name: "Night host" }],
+  pages: [],
+  apps: [],
+  companion: { name: "Acme TV", platform: "android-tv" },
 };
 
 test("extension inspect, install and toggles preserve exact protocol intent and show capabilities", async () => {
@@ -39,6 +46,9 @@ test("extension inspect, install and toggles preserve exact protocol intent and 
       "secret api: API key (missing)",
       "plugin: failed (invalid manifest); watches task.changed; adds context; internet",
       "runs code on this computer",
+      'setting region: Region ("eu")',
+      "agent Night host",
+      "companion app: Acme TV (android-tv)",
     ])
       assert.ok(out.includes(text), out);
     assert.equal(out.includes("Turn it on with:"), c.method === "extensions.install");
@@ -129,4 +139,13 @@ test("the catalog lists each offer with what it brings and where to install it f
     "https://dl.example.com/weather.apxext",
   ])
     assert.ok(out.includes(text), out);
+});
+
+test("settings are set as name=value pairs; a sensitive one can come from stdin", async () => {
+  const { client, calls } = recordingClient({
+    "extensions.settings": { ...extension, settings: [], agents: [], apps: [] },
+  });
+  await printed(() => extensions(client, ["set", "acme", "region=eu", "volume=12"], {}));
+  assert.deepEqual(calls, [["extensions.settings", { id: "acme", values: { region: "eu", volume: "12" } }]]);
+  await assert.rejects(extensions(client, ["set", "acme", "region"], {}), /apx extensions/);
 });

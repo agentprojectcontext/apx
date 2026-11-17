@@ -87,6 +87,8 @@ function clientDeadline(method: string, params: unknown, fallback: number): numb
   if (method === "surfaces.export" || method === "surfaces.import") return 180_000;
   // A 20 MB .apxext over a slow link, or one the core downloads (server: 60 s) and checks against the catalog (10 s).
   if (method === "extensions.inspect" || method === "extensions.install") return 120_000;
+  // A companion app (an .apk) may be 20 MB, base64.
+  if (method === "extensions.companion_file") return 120_000;
   // A 20 MB export over a slow link to a remote core; the server stops importing at 90 s.
   if (method === "instance.preview_import" || method === "instance.import") return 150_000;
   // Indexing every note by meaning may take a while on a local model.

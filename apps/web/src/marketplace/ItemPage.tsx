@@ -11,7 +11,10 @@ import type { Item } from "../resources/extensionItems.ts";
 import { ConnectForm, describe, IntegrationDetail } from "../resources/IncludedIntegration.tsx";
 import { attempt, InstalledExtras, InstalledSide } from "../resources/InstalledExtension.tsx";
 import { go } from "../shell/nav.ts";
+import { Brought } from "./Brought.tsx";
+import { CompanionDialog } from "./CompanionDialog.tsx";
 import { ItemIcon } from "./ConnectHead.tsx";
+import { ExtensionConfig } from "./ExtensionConfig.tsx";
 import { KeysDialog } from "./KeysDialog.tsx";
 import { useAsset } from "./useAsset.ts";
 
@@ -65,6 +68,9 @@ function pieces(item: Item, t: ReturnType<typeof useT>): Array<[string, string]>
       t("extx.piece.skills"),
       e?.skills.length ? t("extx.piece.skillsText", { n: e.skills.length }) : t("extx.piece.skillsSome"),
     ]);
+  if (e?.companion) out.push([t("extx.brings.devices"), t("mkt.companionPiece", { app: e.companion.name })]);
+  if (e?.agents.length) out.push([t("extx.brings.agents"), e.agents.map((a) => a.name).join(", ")]);
+  if (e?.apps.length) out.push([t("extx.brings.apps"), String(e.apps.length)]);
   if (e?.plugin) out.push([t("extx.piece.plugin"), t("ext.runsCode")]);
   if (e?.routines.length) out.push([t("extx.piece.routines"), e.routines.map((r) => r.name).join(", ")]);
   if (e?.secrets.length) out.push([t("extx.piece.keys"), e.secrets.map((s) => s.label).join(", ")]);
@@ -111,6 +117,7 @@ export function ItemPage({ item, onBack, onChanged }: { item: Item; onBack(): vo
   const projects = all.filter((p) => p.path && p.registered !== false);
   const [connecting, setConnecting] = useState(false);
   const [keys, setKeys] = useState(false);
+  const [pair, setPair] = useState(false);
   const i = item.integration;
   const tagline = copy?.tagline ?? item.tagline ?? (i ? describe(i, t) : copy?.summary || item.description);
   const about = copy?.description ?? (copy?.summary && copy.summary !== tagline ? copy.summary : undefined);
@@ -181,7 +188,16 @@ export function ItemPage({ item, onBack, onChanged }: { item: Item; onBack(): vo
         </>
       );
   } else if (item.ext)
-    side = <InstalledSide item={{ ...item, ext: item.ext }} onChanged={onChanged} onConnect={() => setKeys(true)} />;
+    side = (
+      <>
+        <InstalledSide item={{ ...item, ext: item.ext }} onChanged={onChanged} onConnect={() => setKeys(true)} />
+        {item.ext.companion && (
+          <Button variant="secondary" leadingIcon={<Icons.Smartphone size={14} />} onClick={() => setPair(true)}>
+            {t("mkt.pair")}
+          </Button>
+        )}
+      </>
+    );
   else
     side = (
       <>
@@ -298,6 +314,8 @@ export function ItemPage({ item, onBack, onChanged }: { item: Item; onBack(): vo
               <p>{copy.privacy}</p>
             </Section>
           )}
+          {item.ext && <ExtensionConfig e={item.ext} onChanged={onChanged} />}
+          {item.ext && <Brought e={item.ext} />}
           {item.ext && <InstalledExtras e={item.ext} />}
         </div>
         <aside className="extpage__side">
@@ -383,6 +401,7 @@ export function ItemPage({ item, onBack, onChanged }: { item: Item; onBack(): vo
           }}
         />
       )}
+      {pair && item.ext?.companion && <CompanionDialog item={item} ext={item.ext} onClose={() => setPair(false)} />}
       {keys && item.ext && (
         <KeysDialog
           item={item}

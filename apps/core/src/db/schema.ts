@@ -96,6 +96,7 @@ export interface ExtensionsTable {
   updated_at: string;
   provenance: Generated<string>;
   previous: string | null;
+  settings: string | null;
 }
 
 export interface FlowEventsTable {

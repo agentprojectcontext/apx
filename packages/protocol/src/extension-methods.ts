@@ -2,6 +2,7 @@
 // secrets, and browse the catalogs.
 import { z } from "zod";
 import { deferMethod } from "./defer-method.ts";
+import { ArtifactBundle } from "./domain-artifacts.ts";
 import { CatalogEntry, ExtensionInfo, ExtensionSource } from "./extensions.ts";
 
 /** An extension is read from exactly one place. */
@@ -9,7 +10,49 @@ const oneSource = (p: { path?: unknown; file?: unknown; url?: unknown }) =>
   [p.path, p.file, p.url].filter((v) => v !== undefined).length === 1;
 const SOURCE_MESSAGE = "give one of path, file or url";
 
+const SettingValue = z.union([z.string().max(10_000), z.number(), z.boolean()]).nullable();
+
 export const extensionMethods = {
+  /** Sets some of an extension's settings (null clears one); a sensitive one goes to the secret store. */
+  "extensions.settings": deferMethod({
+    params: () =>
+      z
+        .object({
+          id: z.string().max(40),
+          values: z.record(z.string().max(40), SettingValue),
+        })
+        .strict(),
+    result: () => ExtensionInfo,
+    effect: true,
+    access: "human",
+  }),
+  /** One of an installed extension's pages: its HTML, to show in a sandboxed frame. */
+  "extensions.page": deferMethod({
+    params: () =>
+      z
+        .object({
+          id: z.string().max(40),
+          page: z.string().max(40),
+        })
+        .strict(),
+    result: () => z.object({ title: z.string(), html: z.string() }),
+    effect: false,
+    access: "human",
+  }),
+  /** The companion app an installed extension carries (an .apk), to save and put on the device. */
+  "extensions.companion_file": deferMethod({
+    params: () => z.object({ id: z.string().max(40) }).strict(),
+    result: () => z.object({ name: z.string(), data: z.string() }),
+    effect: false,
+    access: "human",
+  }),
+  /** One of the widgets or apps an installed extension carries, as an artifact bundle to add to Apps. */
+  "extensions.app_bundle": deferMethod({
+    params: () => z.object({ id: z.string().max(40), file: z.string().max(200) }).strict(),
+    result: () => ArtifactBundle,
+    effect: false,
+    access: "human",
+  }),
   /** An image of an extension's listing (its icon, a screenshot), installed or in APX's catalog; none when missing. */
   "extensions.asset": deferMethod({
     params: () =>

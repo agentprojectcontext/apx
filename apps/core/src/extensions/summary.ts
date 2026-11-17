@@ -152,6 +152,9 @@ export function bringsOf(m: ExtensionManifest, l?: ListingFile): ExtensionBrings
   if (connection === "pairing") out.add("devices");
   if (Object.keys(m.mcp).length || m.plugin) out.add("tools");
   if (m.skills) out.add("skills");
+  if (m.agents.length) out.add("agents");
+  if (m.companion) out.add("devices");
+  if (m.apps.length) out.add("apps");
   return [...out];
 }
 
@@ -160,5 +163,10 @@ export function needsOf(m: ExtensionManifest, l?: ListingFile): ExtensionNeeds[]
   const out = new Set<ExtensionNeeds>();
   if (m.plugin || Object.values(m.mcp).some((s) => s.command)) out.add("code");
   if (l?.billing === "usage" || l?.billing === "paid-app") out.add("cost");
+  // An app on a device it needs, and a system it runs on only.
+  const device = m.companion?.platform;
+  if (device === "android-tv") out.add("tv");
+  else if (device === "android" || device === "ios") out.add("phone");
+  else if (device === "macos" || (m.platforms?.length === 1 && m.platforms[0] === "darwin")) out.add("mac");
   return [...out];
 }

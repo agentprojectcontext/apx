@@ -16,6 +16,14 @@ export function extensionHandlers(extensions: Extensions, mcp: Mcp) {
   return {
     "extensions.list": () => ({ extensions: extensions.list() }),
     "extensions.catalog": ({ refresh }) => extensions.catalogEntries(refresh),
+    "extensions.settings": ({ id, values }) => {
+      // Its servers start again with the new values at their next use.
+      dropServers(id);
+      return extensions.setSettings(id, values);
+    },
+    "extensions.page": ({ id, page }) => extensions.page(id, page),
+    "extensions.companion_file": ({ id }) => extensions.companionFile(id),
+    "extensions.app_bundle": ({ id, file }) => extensions.appBundle(id, file),
     "extensions.asset": async ({ id, file }) => (await extensions.asset(id, file)) ?? {},
     "extensions.inspect": ({ path, file, url }) => extensions.inspect(source(path, file, url)),
     "extensions.install": async ({ path, file, url, hash }) => {

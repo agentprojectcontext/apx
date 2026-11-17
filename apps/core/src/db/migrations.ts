@@ -1268,4 +1268,6 @@ export const MIGRATIONS: readonly string[] = [
   ALTER TABLE extensions ADD COLUMN provenance TEXT NOT NULL DEFAULT 'third_party';
   ALTER TABLE extensions ADD COLUMN previous TEXT;
   `,
+  // An extension's plain settings (manifest 2) as JSON; its sensitive ones live in the secret store.
+  `ALTER TABLE extensions ADD COLUMN settings TEXT;`,
 ];

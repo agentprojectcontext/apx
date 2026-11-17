@@ -13,6 +13,8 @@ const MAX_BYTES = 50 * 1024 * 1024;
 
 /** A `secret://name` anywhere in a value (the same names the MCP manager resolves). */
 export const SECRET_REF = /secret:\/\/([a-zA-Z0-9_.-]+)/g;
+/** A `setting://name`: one of its plain settings, filled in when its server starts. */
+export const SETTING_REF = /setting:\/\/([a-zA-Z0-9_]+)/g;
 
 /** A refused extension: the message says what is wrong with it. */
 export class PackageError extends Error {}
@@ -89,7 +91,13 @@ function checkManifest(text: string | undefined, has: (rel: string) => boolean):
     if (entry === undefined) throw new PackageError("plugin.entry points outside the extension");
     if (!has(entry)) throw new PackageError(`plugin.entry ${m.plugin.entry} does not exist`);
   }
-  const declared = new Set(m.secrets.map((s) => s.name));
+  checkV2(m, has);
+  // A sensitive setting is a secret by another name: both are referenced as secret://name.
+  const declared = new Set([
+    ...m.secrets.map((s) => s.name),
+    ...m.settings.filter((x) => x.sensitive).map((x) => x.name),
+  ]);
+  const plain = new Set(m.settings.filter((x) => !x.sensitive).map((x) => x.name));
   for (const [name, server] of Object.entries(m.mcp)) {
     if (!server.command && !server.url) throw new PackageError(`mcp ${name} needs a command or a url`);
     const values = [...Object.values(server.env), ...Object.values(server.headers), ...server.args, server.url ?? ""];
@@ -98,10 +106,53 @@ function checkManifest(text: string | undefined, has: (rel: string) => boolean):
       // Every reference, also inside text ("Bearer secret://token"), must be one of its own.
       for (const [, ref] of v.matchAll(SECRET_REF))
         if (!declared.has(ref ?? ""))
-          throw new PackageError(`mcp ${name}: secret ${ref} is not declared under secrets`);
+          throw new PackageError(`mcp ${name}: secret ${ref} is not declared under secrets or sensitive settings`);
+      for (const [, ref] of v.matchAll(SETTING_REF))
+        if (!plain.has(ref ?? "")) throw new PackageError(`mcp ${name}: setting ${ref} is not declared under settings`);
     }
   }
+  if (m.companion?.pairing.with === "extension" && !m.mcp[m.companion.pairing.server])
+    throw new PackageError(`companion pairs through mcp ${m.companion.pairing.server}, which it does not bring`);
   return m;
+}
+
+/** Manifest 2: unique names, settings that hold together, and every file it names inside it. */
+function checkV2(m: ExtensionManifest, has: (rel: string) => boolean): void {
+  const unique = (what: string, names: string[]) => {
+    const seen = new Set<string>();
+    for (const n of names) {
+      if (seen.has(n)) throw new PackageError(`${what} ${n} is declared twice`);
+      seen.add(n);
+    }
+  };
+  unique("secret or setting", [...m.secrets.map((s) => s.name), ...m.settings.map((s) => s.name)]);
+  unique(
+    "agent",
+    m.agents.map((a) => a.id),
+  );
+  unique(
+    "page",
+    m.pages.map((p) => p.id),
+  );
+  for (const s of m.settings) {
+    if (s.options && s.type !== "string") throw new PackageError(`setting ${s.name}: only a string has options`);
+    if (s.generate && !(s.sensitive && s.type === "string"))
+      throw new PackageError(`setting ${s.name}: only a sensitive string is generated`);
+    if (
+      s.default !== undefined &&
+      typeof s.default !== (s.type === "number" ? "number" : s.type === "boolean" ? "boolean" : "string")
+    )
+      throw new PackageError(`setting ${s.name}: its default is not a ${s.type}`);
+  }
+  const file = (what: string, rel: string, ext: RegExp) => {
+    const p = inside(rel);
+    if (p === undefined) throw new PackageError(`${what} points outside the extension`);
+    if (!ext.test(p)) throw new PackageError(`${what} ${rel} is not the kind of file it should be`);
+    if (!has(p)) throw new PackageError(`${what} ${rel} does not exist`);
+  };
+  for (const pg of m.pages) file(`page ${pg.id}`, pg.entry, /\.html$/i);
+  for (const a of m.apps) file("app", a.file, /\.apxart$/i);
+  if (m.companion?.file) file("companion", m.companion.file, /\.(apk|aab|zip|dmg|exe|msi|appimage)$/i);
 }
 
 /** Skill folders (each with a SKILL.md) directly under the manifest's `skills`, among the given files. */
@@ -227,7 +278,10 @@ function powersOf(m: ExtensionManifest): ExtensionPower[] {
     const host = s.url ? URL.parse(s.url)?.hostname : undefined;
     if (host) hosts.add(host);
   }
+  for (const h of m.hosts) hosts.add(h);
   for (const h of [...hosts].sort()) out.push({ kind: "host", name: h });
+  // A sensitive setting is a key like a secret: asking for a new one is asking for more.
+  for (const s of m.settings.filter((x) => x.sensitive)) out.push({ kind: "secret", name: s.name, detail: s.label });
   for (const s of m.secrets) out.push({ kind: "secret", name: s.name, detail: s.label });
   for (const r of m.routines) out.push({ kind: "routine", name: r.name });
   if (m.plugin) {

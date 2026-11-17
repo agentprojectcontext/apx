@@ -5270,3 +5270,34 @@ The Marketplace's sidebar item, its icon and its route are on the first screen: 
 Rejected: a Marketplace tab inside Resources (the owner wants it as a place); adding `brings` to the index first (the
 package is the source of truth either way); showing a package's own "verified" claim; counting an account's own plan
 as "Has a cost".
+
+<a id="d-242"></a>
+## D-242 — 2026-11-17 — Manifest 2: settings, agents, pages, apps, hosts and a companion app
+An extension that is a whole product (a TV remote, a CRM with its agents) needs more than skills, servers and secrets.
+`"manifest": 2` adds, all optional so manifest 1 still reads:
+
+- **settings**, typed (`string`, `number`, `boolean`, `directory`, `file`, with `options`, `default`, `required`).
+  Plain values live on the extension's record and fill `setting://name` in its servers when they start; `sensitive`
+  ones go to the secret store under the extension's own names and are referenced as `secret://name`, never returned.
+  `generate: "random"` makes APX create a 32-byte key at install, so the owner never handles a connection key. A
+  folder or file must exist; a choice must be one of its options. A new sensitive setting in an update counts as more.
+- **agents** and **apps** (`.apxart`) are offered on its page; nothing is added until the owner presses Add (an agent
+  through `agents.create`, an app through `surfaces.import`, the bundle read with `extensions.app_bundle`).
+- **pages** open from its settings in an iframe with `sandbox="allow-scripts allow-forms"` (no origin), a CSP with no
+  network, and `window.apx` posting to the panel, which answers only `settings.get/set`, `secrets.has/set` and `close`
+  for that extension. A page never reads a sensitive value.
+- **hosts** are shown before it is turned on with its servers' hosts. They are declared, not enforced for a command
+  server (a process); the approval still says a command server can reach any address.
+- **platforms**: on another system it installs but does not turn on.
+- **companion**: an app on a device. `pairing.with: "apx"` pairs it with APX as a device (`devices.pair_start`, code
+  and QR, done when a new device appears); `"extension"` runs the extension's own pairing tool through `mcp.call`
+  and shows its answer. The app file it carries is offered to download with `extensions.companion_file`; it is never
+  installed by APX on a device.
+- Brings: agents → Agents, a companion → Devices, apps → Apps. Needs: a companion on Android TV → TV, on Android or
+  iOS → phone, on macOS or `platforms: ["darwin"]` → Mac.
+
+Shown first on the real Android TV extension: its two secrets become an `address` setting and a generated
+`connection_key`, and its APK pairs through its own `tv_pairing` tool.
+
+Rejected: installing agents and apps with the extension (the owner adds what they want); pages with same-origin access
+(they would reach the panel's API); enforcing `hosts` on command servers (APX does not sandbox their network).

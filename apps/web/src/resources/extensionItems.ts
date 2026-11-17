@@ -21,7 +21,7 @@ type Origin = "included" | "catalog" | "own";
 /** Shown on the row: not here yet, coming, installed but off, working, or waiting on the owner. */
 type ItemState = "available" | "coming" | "off" | "on" | "attention";
 /** Why one waits on the owner. */
-type Attention = "keys" | "sign-in" | "error" | "update-waits" | "plugin";
+type Attention = "keys" | "settings" | "sign-in" | "error" | "update-waits" | "plugin";
 
 export type Item = {
   key: string;
@@ -120,6 +120,7 @@ function fromChannel(c: ChannelOffer): Item {
 
 function installed(e: ExtensionInfo, entry: CatalogEntry | undefined): Item {
   const missing = e.enabled && e.secrets.some((s) => !s.set);
+  const unset = e.enabled && e.settings.some((s) => s.required && !s.set && s.value === undefined);
   const attention: Attention | undefined = !e.enabled
     ? e.update?.adds.length
       ? "update-waits"
@@ -128,7 +129,9 @@ function installed(e: ExtensionInfo, entry: CatalogEntry | undefined): Item {
       ? "plugin"
       : missing
         ? "keys"
-        : undefined;
+        : unset
+          ? "settings"
+          : undefined;
   const update = entry && newer(entry.version, e.version) ? entry.version : undefined;
   const listing = e.listing ?? entry?.listing;
   return {

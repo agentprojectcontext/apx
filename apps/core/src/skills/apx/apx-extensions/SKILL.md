@@ -68,6 +68,21 @@ Unknown keys are refused.
 | `secrets` | Up to 10: `name` (same rule as servers), `label`, optional `url` where to get it. |
 | `plugin` | See below. |
 
+## Manifest 2 (a whole product)
+
+Add `"manifest": 2` when it needs more than skills, servers and secrets:
+
+- `settings`: typed values the owner sets (`string|number|boolean|directory|file`, `options`, `default`, `required`).
+  `sensitive: true` keeps one in the secret store (`secret://name`); a plain one fills `setting://name` in a server.
+  `"generate": "random"` on a sensitive string creates a connection key at install; never ask the owner for one.
+- `agents` (`id`, `name`, `description`, `prompt`) and `apps` (`.apxart` files): offered on its page, added by the owner.
+- `pages` (`id`, `title`, `entry` HTML): its own settings screen, sandboxed with no network; it talks through
+  `window.apx.settings.get()/set(values)`, `apx.secrets.has(name)/set(name, value)` and `apx.close()`.
+- `hosts`, `platforms` (`darwin|linux|win32`) and `companion` (an app on a TV, phone or computer: `name`, `platform`,
+  `file` or `url`, `steps`, `pairing: {with: "apx"}` or `{with: "extension", server, tool}` for its own pairing tool).
+
+Set values from the terminal with `apx extensions set <id> name=value` (`name=-` reads a sensitive value from stdin).
+
 ## A new tool: its own MCP server
 
 `node_modules` is not copied when installing, so a server inside an extension must need no packages. Start from the
