@@ -38,7 +38,9 @@ test("the Channels screen lists every account, filters by app and opens each one
 
   // Each row says what the account does for everyone on it, and what it does not (dimmed); its tools are icons.
   const row = screen.locator(".chs__row", { hasText: ACCOUNT_NAME.telegram });
-  await expect(row.getByRole("img", { name: "No toma citas" })).toBeVisible();
+  const noAppointments = row.getByRole("img", { name: "No toma citas" });
+  await expect(noAppointments).toBeVisible();
+  await expect(noAppointments).toHaveClass(/\bis-off\b/);
   await expect(row.getByRole("button", { name: `Contactos de ${ACCOUNT_NAME.telegram}` })).toBeVisible();
   await expect(row.getByRole("button", { name: "Abrir" })).toHaveCount(0);
   await screen.locator(".chs__main", { hasText: ACCOUNT_NAME.telegram }).click();

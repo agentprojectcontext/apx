@@ -258,6 +258,13 @@ keep the original gate. On macOS, compare `vmmap -summary <pid>` dirty/compresse
 sizes with the V8 heap; do not attribute every RSS difference to compression. CI's Linux job checks the budget on
 another allocator and platform too.
 
+`turn_p95_ms` over budget on one CI run is read from the `perf-reports` artifact before anything changes: each turn
+sample splits `send_ms` (the `threads.send` call) from `wait_ms`. A regression shows on every run of the commit, at
+the same turns and in the same half. Spikes scattered over different turns of the run and its `PERF_DIAGNOSTICS`
+rerun, with `turn_p50_ms` unchanged and the same code under budget on another run (its `main` twin, the next
+`staging` push, `pnpm perf` locally), are the runner: record that evidence in the change that fixes the rest of the
+red run and leave the budget alone.
+
 Protocol methods use `deferMethod` to construct each real params/result schema once on first access. Authorization
 and idempotency metadata stays eager. Shared object fields use `schemaFields` to defer unused child trees through
 Zod's native shape getters. Objects stay real Zod instances; their first `.shape`, validation or JSON Schema conversion resolves the same field schemas,
