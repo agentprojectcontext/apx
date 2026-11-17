@@ -28,11 +28,14 @@ test("a global agent is created from the team, edited and deleted from its right
   await expect(card).toBeVisible();
 
   await card.click({ button: "right" });
+  // Calling is offered only where calls can run (not on Linux, nor with calls turned off).
+  const { missing } = await rpc<{ missing?: string }>("calls.status", {});
+  const canCall = missing !== "platform" && missing !== "disabled";
   await expect(page.getByRole("menuitem")).toHaveText([
     "Ver detalle",
     "Editar",
     "Chatear",
-    "Llamar",
+    ...(canCall ? ["Llamar"] : []),
     "Orquestador",
     "Borrar agente",
   ]);
