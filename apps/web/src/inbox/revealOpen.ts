@@ -11,8 +11,16 @@ let shownRoutine = nav.get().routineId;
 /** The chat opened last, until it is loaded and its tab known. */
 let pending = shownThread;
 
+let turning = false;
+
 function turnTo(tab: InboxTab): void {
-  if (prefs.get().inboxTab !== tab) setPrefs({ inboxTab: tab });
+  if (prefs.get().inboxTab === tab) return;
+  turning = true;
+  try {
+    setPrefs({ inboxTab: tab });
+  } finally {
+    turning = false;
+  }
 }
 
 function settle(): void {
@@ -36,6 +44,15 @@ nav.subscribe(() => {
 
 data.subscribe(() => {
   if (pending) settle();
+});
+
+// A tab the owner picks while the open chat still loads is theirs: the chat no longer turns the list when it arrives.
+let pickedTab = prefs.get().inboxTab;
+prefs.subscribe(() => {
+  const tab = prefs.get().inboxTab;
+  if (tab === pickedTab) return;
+  pickedTab = tab;
+  if (!turning) pending = undefined;
 });
 
 if (shownRoutine) turnTo("routines");

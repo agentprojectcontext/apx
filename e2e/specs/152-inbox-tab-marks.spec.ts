@@ -50,3 +50,32 @@ test("a tab shows a spinner while its chat runs and a dot for its news until it 
     await env.cleanup();
   }
 });
+
+test("a tab picked while the chats still load stays picked once they arrive", async ({ page }) => {
+  const env = await startCore({ port: 0, llm: scriptedLlm(() => say("ok")) });
+  try {
+    await env.client.call("setup.finish", {});
+    // The panel opens on Home, a Chats chat; its list arrives late, as on a slow machine.
+    let letThrough = () => {};
+    const late = new Promise<void>((resolve) => {
+      letThrough = resolve;
+    });
+    await page.route("**/rpc/threads.list", async (route) => {
+      await late;
+      await route.continue();
+    });
+    await page.goto(`${env.core.url}/`);
+    const inbox = page.getByRole("region", { name: "Inbox" });
+    const tab = (name: string) => inbox.getByRole("radio", { name: new RegExp(`^${name}`) });
+    await tab("Tareas").click();
+    await expect(tab("Tareas")).toBeChecked();
+    letThrough();
+    await page.waitForResponse("**/rpc/threads.list");
+    await expect(page.locator(".chat__header")).toBeVisible();
+    await expect(tab("Tareas")).toBeChecked();
+  } finally {
+    await page.goto("about:blank");
+    await env.core.close();
+    await env.cleanup();
+  }
+});
