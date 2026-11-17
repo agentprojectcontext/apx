@@ -8,7 +8,11 @@ const SEARCH = { max: 320, icon: 30, word: 110, keys: 170 } as const;
 function used(el: Element | null): number {
   if (!el) return 0;
   const style = getComputedStyle(el);
-  const boxes = [...el.children].map((c) => c.getBoundingClientRect()).filter((b) => b.width > 0);
+  // A popup's focus guards (fixed, out of the row) are not controls the row lays out.
+  const boxes = [...el.children]
+    .filter((c) => !c.matches("[data-base-ui-focus-guard]") && getComputedStyle(c).position !== "fixed")
+    .map((c) => c.getBoundingClientRect())
+    .filter((b) => b.width > 0);
   if (!boxes.length) return 0;
   const span = Math.max(...boxes.map((b) => b.right)) - Math.min(...boxes.map((b) => b.left));
   return span + (Number.parseFloat(style.paddingLeft) || 0) + (Number.parseFloat(style.paddingRight) || 0);

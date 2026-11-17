@@ -39,6 +39,20 @@ test("search stays centered with unequal sides and notifications precede activit
   await expect(page.locator(".topbar__activity > :nth-child(2)")).toHaveClass(/running/);
 });
 
+test("opening the super-agent's card leaves the search as it was", async ({ page }) => {
+  await rpc("setup.finish");
+  await open(page);
+  await page.setViewportSize({ width: 1440, height: 900 });
+  const bar = page.locator(".topbar");
+  await expect(bar).toHaveAttribute("data-search", "full");
+  const before = await bar.evaluate((el) => el.style.getPropertyValue("--topbar-search-w"));
+  // The card's focus guards land inside the bar's right side: they are not controls it lays out.
+  await page.locator(".topbar__agent").click();
+  await expect(page.locator(".superagent")).toBeVisible();
+  await expect(bar).toHaveAttribute("data-search", "full");
+  expect(await bar.evaluate((el) => el.style.getPropertyValue("--topbar-search-w"))).toBe(before);
+});
+
 test("pending usage has one anonymous preview until the empty report arrives", async ({ page }) => {
   await rpc("setup.finish");
   const usage = Promise.withResolvers<void>();
