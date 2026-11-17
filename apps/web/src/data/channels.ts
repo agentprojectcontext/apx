@@ -85,6 +85,8 @@ export type ChannelDraft = {
   email?: ChannelInfo["email"];
   /** What its contacts' chats may do unless set for one of them (kept on every save). */
   contacts?: ChannelInfo["contacts"];
+  /** How long an appointment its contacts book lasts (kept on every save). */
+  appointment_minutes?: ChannelInfo["appointment_minutes"];
   /** The owner's notes and rules for everyone on it, and whether only the owner is answered (kept on every save). */
   knowledge?: string | undefined;
   rules?: string | undefined;
@@ -110,6 +112,7 @@ export const draftOf = (c: ChannelInfo): ChannelDraft => ({
   ...(c.quiet ? { quiet: true } : {}),
   ...(c.email ? { email: c.email } : {}),
   ...(c.contacts ? { contacts: c.contacts } : {}),
+  ...(c.appointment_minutes ? { appointment_minutes: c.appointment_minutes } : {}),
   ...(c.knowledge ? { knowledge: c.knowledge } : {}),
   ...(c.rules ? { rules: c.rules } : {}),
   ...(c.owner_only ? { owner_only: true } : {}),
@@ -309,7 +312,7 @@ export type ContactDraft = {
   muted?: boolean;
   supervised?: boolean;
   /** The rights set for this person: a value sets one, null gives it back to the account they write on. */
-  perms?: { [K in keyof Person["perms"]]?: boolean | null };
+  perms?: { [K in keyof Person["perms"]]?: Person["perms"][K] | null };
   /** Who answers them instead of the account's contacts agent; null gives them back to the account's. */
   agent_id?: string | null;
 };

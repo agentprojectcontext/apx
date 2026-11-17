@@ -12,3 +12,8 @@ export function noticeTask(n: Pick<Notification, "kind" | "ref">): string | unde
 export function noticeEvent(n: Pick<Notification, "kind" | "ref">): string | undefined {
   return n.kind === "due" && n.ref?.startsWith("event:") ? n.ref.slice(6) || undefined : undefined;
 }
+
+/** The appointment a contact booked that a channel notice is about, which the owner can cancel from it. */
+export function noticeBooking(n: Pick<Notification, "kind" | "ref">): string | undefined {
+  return n.kind === "channel" && n.ref?.startsWith("booking:") ? n.ref.slice(8) || undefined : undefined;
+}

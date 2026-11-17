@@ -174,13 +174,33 @@ que tiene configurado (silenciado, supervisado, reglas propias, qué puede hacer
   cambiar el agente de contactos de la cuenta no lo toca.
 - **Quién es**, en tus palabras. Llega solo a los turnos que le contestan a esa persona.
 - **Reglas**, que van últimas en el prompt y le ganan a la cautela del agente.
-- **Qué puede hacer esta conversación**: **Anotar citas**, **Tomar pedidos** (cada uno queda como tarea
-  para vos), **Contestar desde mis notas** (tus notas generales, de lectura) y **Responder a cualquier hora**. Cada uno
-  sigue a la cuenta de entrada (**Cuenta: Sí** o **No**), o le ponés **Sí** o **No** solo a esta persona.
+- **Qué puede hacer esta conversación**: **Citas**, **Tomar pedidos** (cada uno queda como tarea para vos),
+  **Contestar desde mis notas** (tus notas generales, de lectura) y **Responder a cualquier hora**. Cada uno sigue a la
+  cuenta de entrada (**Cuenta: …**), o lo elegís solo para esta persona: **Sí** o **No**, y para las citas **No**,
+  **Anotar** o **Agendar**.
 
 Lo que recibe de entrada cada contacto de una cuenta está en la configuración de esa cuenta, **Contactos › Para tus
 contactos, por defecto**: todo apagado hasta que prendas algo. Lo que elijas para un contacto le gana, en esa cuenta y
 en cualquier otra.
+
+### Citas
+
+Cuando un contacto pide una cita, la cuenta (o su ficha) dice qué pasa:
+
+- **No**: su agente no toma citas.
+- **Anotar**: queda como tarea para que la confirmes, y te aviso por tu canal en el momento. No se agenda nada.
+- **Agendar**: va directo a tu Google Calendar. Hace falta Google Calendar conectado y el horario de atención de la
+  cuenta; mientras falte alguno, las citas se anotan. Elegí cuánto dura cada una (de 15 a 60 minutos).
+
+Una cita agendada cae siempre en un horario libre de tu calendario, dentro del horario de atención de la cuenta, con
+dos horas de anticipación como mínimo y hasta dos semanas adelante. El agente ve solo qué horarios están libres, nunca
+tus eventos. Cada persona tiene una cita por delante a la vez y cada cuenta toma como mucho tres por día; pasado eso,
+el pedido se anota para vos. El evento se llama **Turno: nombre** (con el nombre que le diste al contacto), lleva el
+motivo que dio y no invita a nadie.
+
+Te aviso cada vez, por tu canal y en los avisos de la app. **Cancelar cita** en el aviso (o responderle «cancelalo» a
+tu agente) la saca de tu calendario y le avisa al contacto. El contacto también puede cancelar la suya desde su chat;
+te aviso. Los contactos supervisados nunca agendan: sus citas se anotan.
 - **Silenciado** (un switch): sus mensajes se guardan pero nunca llegan a un modelo. El chat de un contacto
   silenciado muestra una campana tachada junto a su nombre en el Inbox, y el de uno supervisado, un ojo.
 - **Supervisar** (un switch): no se le contesta solo; te llega la respuesta que mandaría el agente, para mandarla, editarla o
@@ -199,7 +219,7 @@ Las cuentas con salas o grupos tienen ahí un botón **Salas**, **Grupos** o **E
 Una cuenta se llama como la nombraste. Si le dejaste el nombre de la app (WhatsApp, Telegram), se llama como la app la
 nombra (tu perfil de WhatsApp, el nombre del bot) o por su número, dirección o bot; su ícono dice cuál es la app.
 Unas marcas chicas muestran lo que hace con todos los que le escriben: solo te contesta a vos, tiene horario de
-atención, tiene reglas, anota citas, toma pedidos o contesta desde tus notas. En **Administrar canales** lo que no hace
+atención, tiene reglas, anota o agenda citas, toma pedidos o contesta desde tus notas. En **Administrar canales** lo que no hace
 se ve atenuado, para comparar las cuentas de un vistazo. Pasá el mouse sobre una marca para leerla. Las marcas propias
 de un contacto aparecen al final de su fila.
 

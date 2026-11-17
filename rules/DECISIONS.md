@@ -5150,3 +5150,41 @@ default turn's is 6,074 and its tools 16,332 (`rules/PROMPT_SIZE.md`).
 Rejected: blocking a self-assigned `task_create` in Home by code (a long check, or one the owner asked to track, is a
 fair task); a time estimate in the rule (the model cannot measure it before acting, and "fits this turn" is what the
 owner sees).
+
+<a id="d-239"></a>
+## D-239 — 2026-11-17 — A contact may book on the owner's calendar, inside limits APX checks
+Until now a contact's chat never acted for the owner (D-022): an appointment they asked for became a task for the owner
+to confirm. The owner asked for a third choice, booking it straight on their Google Calendar. It is the first time a
+contact's words write to something of the owner's without a confirmation, so the owner's choice is the confirmation and
+every limit is checked by the core, never left to the model.
+
+- **A mode, not a switch.** `appointments` in `ContactRights` and `PersonPerms` is `off`, `note` (the old yes, a task
+  through `pass_request`) or `book`. A migration turns stored yes into `note` and no into `off`. Joining two cards of one
+  person keeps the lesser mode. An account sets `appointment_minutes` (15, 30, 45 or 60; 30 when unset).
+- **Book only where it can run.** `book_appointment` is offered to a contact's turn only when their mode is `book`, the
+  account has attention hours, Google Calendar is connected (and on in the chat's project) and the person is a reviewed,
+  unsilenced, unsupervised contact; otherwise their request is noted. Supervised contacts get drafts with no tools.
+- **The core makes the list of times.** Called without a start, the tool returns the free times; with one, it books only
+  if that time is still on a freshly computed list (`domain/booking-slots.ts`): inside the account's hours, on a
+  quarter-hour grid, at least two hours ahead and at most fourteen days, clear of every busy block from Google's
+  free/busy (never an event's title, guests or notes), on a day the account has fewer than three bookings, for a person
+  with no coming booking. Bookings in one core are made one at a time so two chats never take the same time.
+- **APX writes the event.** Title "Appointment: name" (the owner's name for the contact, in the owner's language), the
+  contact's reason in the description marked as theirs, on the primary calendar, no guests, no Meet, no email from
+  Google. The booking is kept in the `contact_bookings` setting.
+- **The owner is told and can undo it.** When the turn ends the owner hears it on their notice channel and in the tray,
+  as with a passed request (D-149); the tray's notice has **Cancel appointment** and the super-agent can cancel through
+  `contacts.cancel_booking` (a card) when the owner replies "cancel it". Canceling deletes the event and tells the
+  contact in a fixed sentence; a second cancel does nothing. The contact can cancel their own booking from their chat
+  (`cancel_my_appointment`), and the owner is told.
+- **What the contact hears comes from the result.** The tool returns `booked:` only after the event exists; the agent is
+  told to confirm only that, so it never promises a time the core refused.
+
+Threat model: injected instructions cannot widen the hours, the horizon or the caps (checked in code); a flood of
+bookings stops at one per person and three a day per account, on top of the per-contact rate limit; asking "what is the
+owner doing on Tuesday" gets only free times; text in the reason cannot invite anyone or send mail; a stranger cannot
+book until the owner reviews them; every booking reaches the owner at once with a one-tap undo.
+
+Rejected: letting the model read `calendar_free` itself (it would see busy blocks and could pick any time); booking
+outside the attention hours when none are set (no safe window); moving a booking from the contact's chat in this
+version (a cancel and a new booking under the same caps is enough for now; moving is noted for the owner).

@@ -1,10 +1,12 @@
 // The only tools a contact's chat can ever have, each behind a right the owner turns on for that person or for every
 // contact of the account (all off by default). They never act for the owner: one leaves a task for the owner to look at, the other reads the owner's own
-// global notes. See DECISIONS.md#d-022
+// global notes. See DECISIONS.md#d-022. The one exception, booking on the owner's calendar, is in contact-booking.ts
+// (DECISIONS.md#d-239).
 import { type ContactRights, methods, type Person, type PersonRelation, type Task } from "@apx/protocol";
 import { z } from "zod";
 import { contactRights } from "../domain/contact-rights.ts";
 import type { Store } from "../domain/store.ts";
+import { BOOK_TOOL, CANCEL_BOOKING_TOOL } from "./contact-booking.ts";
 import { untrusted } from "./result.ts";
 import { defineTool, type Tool } from "./types.ts";
 
@@ -34,7 +36,12 @@ function submittedRequest(store: Store, task: Task, thread: string) {
   };
 }
 
-export const CONTACT_TOOLS: ReadonlySet<string> = new Set(["pass_request", "search_owner_notes"]);
+export const CONTACT_TOOLS: ReadonlySet<string> = new Set([
+  "pass_request",
+  "search_owner_notes",
+  BOOK_TOOL,
+  CANCEL_BOOKING_TOOL,
+]);
 
 /** People close enough that a message they leave for the owner always reaches them (DECISIONS.md#d-149). */
 const CLOSE: ReadonlySet<PersonRelation> = new Set(["partner", "family", "friend"]);
@@ -44,7 +51,7 @@ type Holder = { rights: ContactRights; relation?: PersonRelation | undefined };
 
 /** Whether this person may leave that kind of request for the owner. */
 function mayPass(who: Holder, kind: Kind): boolean {
-  if (kind === "appointment") return who.rights.appointments;
+  if (kind === "appointment") return who.rights.appointments !== "off";
   if (kind === "request") return who.rights.requests;
   return who.rights.requests || (who.relation !== undefined && CLOSE.has(who.relation));
 }
@@ -54,6 +61,9 @@ export function contactToolNames(who: Holder | undefined): Set<string> {
   const names = new Set<string>();
   if (who && KINDS.some((k) => mayPass(who, k))) names.add("pass_request");
   if (who?.rights.notes) names.add("search_owner_notes");
+  // Each is offered only while it can run (its `when`: the calendar connected, the account's hours set, a booking to cancel).
+  if (who?.rights.appointments === "book") names.add(BOOK_TOOL);
+  if (who && who.rights.appointments !== "off") names.add(CANCEL_BOOKING_TOOL);
   return names;
 }
 

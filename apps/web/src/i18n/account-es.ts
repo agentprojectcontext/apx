@@ -70,6 +70,16 @@ export const esAccount: Record<keyof typeof enAccount, string> = {
   "acct.lead.stickers": "Cómo responde sin palabras en esta cuenta.",
   "acct.contactsDefault": "Para tus contactos, por defecto",
   "acct.contactsDefaultHint": "Lo que recibe cada contacto de esta cuenta, salvo que lo cambies en su ficha.",
+  "acct.appointmentsHint":
+    "Anotar: queda como tarea para que la confirmes. Agendar: va a tu Google Calendar en un horario libre dentro del horario de atención, con dos horas de anticipación como mínimo y hasta dos semanas. Una por persona, tres por día.",
+  "acct.appointmentsNeedCalendar":
+    "Para agendarlas, conectá Google Calendar. Mientras tanto se anotan para que las confirmes.",
+  "acct.appointmentsNeedHours":
+    "Para agendarlas, poné el horario de atención de la cuenta. Mientras tanto se anotan para que las confirmes.",
+  "acct.appointmentsNeedBoth":
+    "Para agendarlas, conectá Google Calendar y poné el horario de atención de la cuenta. Mientras tanto se anotan para que las confirmes.",
+  "acct.appointmentMinutes": "Cada cita dura",
+  "acct.minutes": "{n} minutos",
   "acct.ownerOnly": "Solo te contesta a vos",
   "acct.ownerOnlyHint": "En toda la cuenta: guarda lo que escriben los demás, pero solo te responde a vos.",
   "acct.limits": "Límites",

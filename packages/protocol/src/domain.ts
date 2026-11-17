@@ -1,6 +1,7 @@
 // Domain shapes every client renders. Implementations are grouped by the part of the workflow they describe.
 
 export {
+  AppointmentMinutes,
   ChannelEmail,
   ChannelHours,
   ChannelInfo,
@@ -64,6 +65,8 @@ export { MemorySettings, NoticePrefs, Nudge, OwnerIdentity, OwnerPatch } from ".
 export { ConnectOffer, DocumentSource, Part } from "./domain-parts.ts";
 export {
   Address,
+  AppointmentMode,
+  ContactBooking,
   ContactRights,
   ContactSuggestion,
   contactRightsOf,

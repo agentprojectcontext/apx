@@ -2,6 +2,8 @@
 import { z } from "zod";
 import { deferMethod } from "./defer-method.ts";
 import {
+  AppointmentMode,
+  ContactBooking,
   ContactSuggestion,
   Id,
   ImageDefaults,
@@ -508,6 +510,20 @@ export const appAccountMethods = {
     effect: false,
     access: "human",
   }),
+  /** Appointments contacts booked on the owner's calendar, the coming ones first; with person, only theirs. */
+  "contacts.bookings": deferMethod({
+    params: () => z.object({ person: Id.optional(), past: z.boolean().default(false) }).strict(),
+    result: () => z.object({ bookings: z.array(ContactBooking) }),
+    effect: false,
+    access: "human",
+  }),
+  /** Cancels an appointment a contact booked: its event leaves the calendar and, with tell, the contact hears it. */
+  "contacts.cancel_booking": deferMethod({
+    params: () => z.object({ id: z.string().min(1).max(64), tell: z.boolean().default(true) }).strict(),
+    result: () => z.object({ booking: ContactBooking, told: z.boolean() }),
+    effect: true,
+    access: "human",
+  }),
   /** Creates (no id) or changes a person; the owner stays the owner. */
   "contacts.set": deferMethod({
     params: () =>
@@ -527,7 +543,7 @@ export const appAccountMethods = {
           // Only the rights sent change; null gives one back to the account they write on.
           perms: z
             .object({
-              appointments: z.boolean().nullable(),
+              appointments: AppointmentMode.nullable(),
               requests: z.boolean().nullable(),
               notes: z.boolean().nullable(),
               any_hour: z.boolean().nullable(),

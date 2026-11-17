@@ -9,25 +9,27 @@ import {
   Menu,
   PickRow,
   SearchField,
+  SegmentedControl,
   Select,
   SettingRow,
   Switch,
 } from "@apx/ui";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { shortWhen } from "../../common/format.ts";
 import { SubHead } from "../../config/SectionHead.tsx";
 import {
   addContact,
-  type ChannelDraft,
   claimAddress,
   removePerson,
   saveContact,
   setPersonRole,
   useChannels,
 } from "../../data/channels.ts";
+import { client } from "../../data/client.ts";
 import { useData } from "../../data/state.ts";
 import { type MessageKey, useT } from "../../i18n/index.ts";
 import { go } from "../../shell/nav.ts";
+import { APPOINTMENT_LABEL, APPOINTMENT_MODES } from "../appointments.ts";
 import { PersonAvatar } from "../PersonAvatar.tsx";
 import { phoneOf } from "../PhoneForm.tsx";
 import { initials, RELATION_KEY, RELATIONS } from "../people.ts";
@@ -278,7 +280,7 @@ function AskMine({ asking, channelId, done }: { asking: Asking; channelId: strin
 function ContactDefaults({ draft, set }: Pick<PaneProps, "draft" | "set">) {
   const t = useT();
   const on = draft.contacts ?? {};
-  const row = (k: keyof NonNullable<ChannelDraft["contacts"]>, label: MessageKey) => (
+  const row = (k: "requests" | "notes" | "any_hour", label: MessageKey) => (
     <SettingRow key={k} title={t(label)}>
       <Switch
         size="sm"
@@ -293,11 +295,76 @@ function ContactDefaults({ draft, set }: Pick<PaneProps, "draft" | "set">) {
       <SubHead>{t("acct.contactsDefault")}</SubHead>
       <p className="config__lead">{t("acct.contactsDefaultHint")}</p>
       {row("requests", "ch.perm.requests")}
-      {row("appointments", "ch.perm.appointments")}
+      <Appointments draft={draft} set={set} />
       {row("notes", "ch.perm.notes")}
       {row("any_hour", "ch.anyHour")}
     </>
   );
+}
+
+const MINUTES = [15, 30, 45, 60] as const;
+
+/** What happens to an appointment a contact asks for: nothing, noted for the owner, or booked on their calendar. */
+function Appointments({ draft, set }: Pick<PaneProps, "draft" | "set">) {
+  const t = useT();
+  const on = draft.contacts ?? {};
+  const mode = on.appointments ?? "off";
+  const calendar = useCalendarConnected();
+  // Booking needs both; until then the core notes them for the owner to confirm.
+  const missing = mode === "book" && (calendar === false || !draft.hours);
+  return (
+    <>
+      <SettingRow title={t("ch.perm.appointments")} description={t("acct.appointmentsHint")}>
+        <SegmentedControl
+          size="sm"
+          label={t("ch.perm.appointments")}
+          value={mode}
+          onValueChange={(v) =>
+            set({ contacts: { ...on, appointments: APPOINTMENT_MODES.find((m) => m === v) ?? "off" } })
+          }
+          options={APPOINTMENT_MODES.map((m) => ({ value: m, label: t(APPOINTMENT_LABEL[m]) }))}
+        />
+      </SettingRow>
+      {missing && (
+        <p className="config__lead">
+          {t(
+            calendar === false && !draft.hours
+              ? "acct.appointmentsNeedBoth"
+              : calendar === false
+                ? "acct.appointmentsNeedCalendar"
+                : "acct.appointmentsNeedHours",
+          )}
+        </p>
+      )}
+      {mode === "book" && (
+        <SettingRow title={t("acct.appointmentMinutes")}>
+          <Select
+            size="sm"
+            label={t("acct.appointmentMinutes")}
+            value={String(draft.appointment_minutes ?? 30)}
+            onValueChange={(v) => set({ appointment_minutes: MINUTES.find((m) => String(m) === v) ?? 30 })}
+            options={MINUTES.map((m) => ({ value: String(m), label: t("acct.minutes", { n: m }) }))}
+          />
+        </SettingRow>
+      )}
+    </>
+  );
+}
+
+/** Whether Google Calendar is connected: undefined while it is being asked. */
+function useCalendarConnected(): boolean | undefined {
+  const [connected, setConnected] = useState<boolean>();
+  useEffect(() => {
+    let live = true;
+    client
+      .call("integrations.list", {})
+      .then((r) => live && setConnected(r.integrations.some((i) => i.id === "google-calendar" && i.connected)))
+      .catch(() => undefined);
+    return () => {
+      live = false;
+    };
+  }, []);
+  return connected;
 }
 
 /** A contact typed by hand: their name and their address on this account. */

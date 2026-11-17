@@ -578,3 +578,38 @@ test("a person keeps only the rights the owner turned on; the rest follow the ac
     cleanup();
   }
 });
+
+test("a yes to appointments notes them and a no stays off, for each person and each account", () => {
+  const { db, cleanup } = upgradeFrom("Appointments became a mode", (db) => {
+    const person = db.prepare(
+      "INSERT INTO persons (id, name, role, perms, created_at, updated_at) VALUES (?, ?, 'contact', ?, '2026-11-01', '2026-11-01')",
+    );
+    person.run("per_yes", "Yes", '{"appointments":true,"requests":true}');
+    person.run("per_no", "No", '{"appointments":false}');
+    person.run("per_unset", "Unset", '{"notes":true}');
+    person.run("per_bad", "Bad", "not json");
+    const channel = (id: string, contacts?: object) => ({ id, type: "telegram", label: id, contacts });
+    db.prepare("INSERT INTO meta (key, value) VALUES ('setting:channels', ?)").run(
+      JSON.stringify([
+        channel("tg-yes", { appointments: true, notes: true }),
+        channel("tg-no", { appointments: false }),
+        channel("tg-none"),
+      ]),
+    );
+  });
+  try {
+    const perms = (id: string) => String(db.prepare("SELECT perms FROM persons WHERE id = ?").get(id)?.perms);
+    assert.deepEqual(JSON.parse(perms("per_yes")), { appointments: "note", requests: true });
+    assert.deepEqual(JSON.parse(perms("per_no")), { appointments: "off" });
+    assert.deepEqual(JSON.parse(perms("per_unset")), { notes: true }, "unset still follows the account");
+    assert.equal(perms("per_bad"), "not json");
+    const saved = JSON.parse(String(db.prepare("SELECT value FROM meta WHERE key = 'setting:channels'").get()?.value));
+    assert.deepEqual(
+      saved.map((c: { contacts?: object }) => c.contacts),
+      [{ appointments: "note", notes: true }, { appointments: "off" }, undefined],
+    );
+  } finally {
+    db.close();
+    cleanup();
+  }
+});

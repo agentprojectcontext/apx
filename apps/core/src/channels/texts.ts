@@ -35,6 +35,23 @@ const es = {
   contactFailedOwner: (name: string, why: string) => `No pude responderle a ${name}: ${why}`,
   passedOn: (name: string, kind: string, summary: string, rest: string) =>
     `${name} ${kind === "appointment" ? "pidió un turno" : kind === "message" ? "te dejó un mensaje" : "te pidió algo"}: ${summary}${rest ? `\n${rest}` : ""}\nQuedó en tus tareas.`,
+  bookingWhen: (at: Date, timeZone?: string) =>
+    new Intl.DateTimeFormat("es", {
+      ...(timeZone ? { timeZone } : {}),
+      weekday: "long",
+      day: "numeric",
+      month: "long",
+      hour: "2-digit",
+      minute: "2-digit",
+      hourCycle: "h23",
+    }).format(at),
+  bookingTitle: (name: string) => `Turno: ${name}`,
+  bookingDescription: (account: string, reason: string | undefined) =>
+    `Lo agendó el contacto desde ${account}.${reason ? `\nMotivo, en sus palabras: ${reason.replace(/\s+/g, " ")}` : ""}`,
+  booked: (name: string, when: string) =>
+    `Agendé a ${name} el ${when}. Si no te sirve, cancelalo en APX o respondeme «cancelalo».`,
+  bookingCanceledByContact: (name: string, when: string) => `${name} canceló su turno del ${when}.`,
+  bookingCanceled: (when: string) => `Tu turno del ${when} fue cancelado.`,
   reactFailed: (emoji: string, where: string) =>
     `No pude reaccionar con ${emoji} en ${where}: no hay un mensaje suyo al que reaccionar o el canal no tiene reacciones. No se envió nada.`,
   reactRefused: (emoji: string, where: string, why: string) =>
@@ -135,6 +152,22 @@ const en: typeof es = {
   contactFailedOwner: (name, why) => `I couldn't answer ${name}: ${why}`,
   passedOn: (name, kind, summary, rest) =>
     `${name} ${kind === "appointment" ? "asked for an appointment" : kind === "message" ? "left you a message" : "asked you for something"}: ${summary}${rest ? `\n${rest}` : ""}\nIt's in your tasks.`,
+  bookingWhen: (at, timeZone) =>
+    new Intl.DateTimeFormat("en", {
+      ...(timeZone ? { timeZone } : {}),
+      weekday: "long",
+      day: "numeric",
+      month: "long",
+      hour: "2-digit",
+      minute: "2-digit",
+      hourCycle: "h23",
+    }).format(at),
+  bookingTitle: (name) => `Appointment: ${name}`,
+  bookingDescription: (account, reason) =>
+    `Booked by the contact on ${account}.${reason ? `\nReason, in their words: ${reason.replace(/\s+/g, " ")}` : ""}`,
+  booked: (name, when) => `I booked ${name} on ${when}. If it doesn't suit you, cancel it in APX or reply "cancel it".`,
+  bookingCanceledByContact: (name, when) => `${name} canceled their appointment on ${when}.`,
+  bookingCanceled: (when) => `Your appointment on ${when} was canceled.`,
   reactFailed: (emoji, where) =>
     `I couldn't react with ${emoji} in ${where}: there is no message of theirs to react to, or the channel has no reactions. Nothing was sent.`,
   reactRefused: (emoji, where, why) =>

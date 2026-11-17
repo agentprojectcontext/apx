@@ -176,8 +176,8 @@ test("a message held in both chats waits once, since the earlier of the two", ()
 
 test("when the owner decided about both contacts, the joined one keeps the stricter of each decision", () =>
   split(async ({ store, known, stranger }) => {
-    store.persons.update(known.id, { perms: { appointments: true, requests: true, notes: false, any_hour: true } });
-    store.persons.update(stranger.id, { muted: true, perms: { appointments: true, requests: false, notes: true } });
+    store.persons.update(known.id, { perms: { appointments: "book", requests: true, notes: false, any_hour: true } });
+    store.persons.update(stranger.id, { muted: true, perms: { appointments: "note", requests: false, notes: true } });
 
     assert.equal(await joinSplitContacts(store, "whatsapp", line), 1);
 
@@ -185,7 +185,7 @@ test("when the owner decided about both contacts, the joined one keeps the stric
     assert.equal(dana?.muted, true, "silenced under either address, silenced");
     assert.equal(dana?.supervised, false);
     // Answered at any hour was set only for one: it follows the account, as it did for the other.
-    assert.deepEqual(dana?.perms, { appointments: true, requests: false, notes: false }, "only what both may do");
+    assert.deepEqual(dana?.perms, { appointments: "note", requests: false, notes: false }, "only what both may do");
     assert.equal(dana?.unreviewed, false);
   }));
 
