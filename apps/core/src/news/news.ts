@@ -51,7 +51,7 @@ export function createNews(deps: {
   llm: Llm;
   /** The API models the super-agent's turns go to (never a CLI), then the auxiliary one. */
   models: (agentId: string) => string[];
-  notifyOwner: (body: Presentation, threadId: string) => boolean;
+  notifyOwner: (body: Presentation, threadId: string, messageId: string) => boolean;
   log: Log;
   /** APX's own entries unless a test brings its own. */
   entries?: readonly NewsEntry[];
@@ -156,7 +156,7 @@ export function createNews(deps: {
         told,
         shown.map((a) => a.label.en),
       );
-    postAgentWords(store, {
+    const messageId = postAgentWords(store, {
       thread_id: home.id,
       agent_id: boss.id,
       text,
@@ -167,7 +167,7 @@ export function createNews(deps: {
       const entry = told.find((e) => e.actions.includes(a));
       return { id: buttonId.news(entry?.id ?? "", entry?.actions.indexOf(a) ?? 0), label: labelOf(a, lang) };
     });
-    const sent = deps.notifyOwner({ text, ...(buttons.length ? { buttons } : {}) }, home.id);
+    const sent = deps.notifyOwner({ text, ...(buttons.length ? { buttons } : {}) }, home.id, messageId);
     // Posted in the app either way: the owner has it, so it is not told again.
     markSeen(told.map((e) => e.id));
     log.info({ news: told.map((e) => e.id), sent, voiced: voiced !== undefined }, "release news told");

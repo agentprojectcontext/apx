@@ -151,3 +151,66 @@ test("input and pairing cards are not copied as notices, and an unselected accou
   assert.equal((await env.client.call("threads.get", { thread: "home" })).messages.length, 0);
   assert.equal(env.core.store.modelLog.list("home").length, 0);
 });
+
+test("release news reuses its agent message in Home and appears once in reply context", async (t) => {
+  const env = await setup(t);
+  const result = await env.client.call("system.news_tell", { ids: ["artifacts-kit"] });
+  assert.equal(result.sent, true);
+  const home = await env.client.call("threads.get", { thread: "home" });
+  assert.equal(home.messages.length, 1);
+  const message = home.messages[0];
+  assert.equal(message?.author.kind, "agent");
+  const text = message?.parts.flatMap((p) => (p.type === "text" ? [p.text] : [])).join("\n");
+  assert.ok(text);
+  await waitFor(() => env.tg.messagesTo(OWNER.id).length === 1, "news sent");
+  const outbox = env.core.store.channels.outbox.recent(50);
+  assert.equal(outbox[0]?.message_id, message?.id);
+  await env.client.call("threads.send", { thread: "home", text: "Tell me more about that update" });
+  await env.settle("home");
+  assert.equal(env.llm.calls.at(-1)?.messages.filter((m) => m.content === text).length, 1);
+  assert.equal(
+    env.core.store.modelLog.list("home").filter((m) => JSON.stringify(m.item).includes("<owner_notice")).length,
+    0,
+  );
+});
+
+test("scheduler reminders appear once in Home and once in the owner's next model input", async (t) => {
+  const env = await setup(t);
+  const text = "Water the office plants";
+  const source = await env.client.call("threads.create", {
+    kind: "loose",
+    agent_id: "superagent",
+    title: "Office reminders",
+  });
+  env.core.store.threads.mergeContext("home", { reply_to: { channel: "tg", conversation: String(OWNER.id) } });
+  assert.equal(env.core.scheduler.nudges.offer({ kind: "reminder", text, asked: true, thread_id: source.id }), "sent");
+  await waitFor(() => env.tg.messagesTo(OWNER.id).length === 1, "reminder sent");
+  assert.equal((await env.client.call("threads.get", { thread: "home" })).messages.length, 1);
+  assert.equal(env.core.store.modelLog.list("home").length, 0, "the nudge ledger supplies its context");
+  env.tg.message(OWNER, "I already did that");
+  await waitFor(() => env.llm.calls.length > 0, "owner reply starts");
+  await env.settle("home");
+  const context = env.llm.calls.at(-1)?.messages.filter((m) => String(m.content).includes(text)) ?? [];
+  assert.equal(context.length, 1);
+  assert.match(String(context[0]?.content), /<sent_to_owner/);
+  assert.doesNotMatch(String(context[0]?.content), /<owner_notice/);
+  assert.equal(String(context[0]?.content).split(text).length - 1, 1, "the outbox bridge does not repeat the nudge");
+});
+
+test("Home's remembered channel address does not copy a mirrored notice back into its next input", async (t) => {
+  const env = await setup(t);
+  const source = await env.client.call("threads.create", { kind: "loose", agent_id: "superagent", title: "Side news" });
+  env.core.store.threads.mergeContext("home", { reply_to: { channel: "tg", conversation: String(OWNER.id) } });
+  const text = "The build is ready to check";
+  assert.equal(env.core.channels.notifyOwner({ text }, "notice", source.id), true);
+  await waitFor(() => env.tg.messagesTo(OWNER.id).length === 1, "notice sent");
+  env.tg.message(OWNER, "Show me that build");
+  await waitFor(() => env.llm.calls.length > 0, "owner reply starts");
+  await env.settle("home");
+  const context =
+    env.llm.calls
+      .at(-1)
+      ?.messages.map((m) => String(m.content))
+      .join("\n") ?? "";
+  assert.equal(context.split(text).length - 1, 1);
+});

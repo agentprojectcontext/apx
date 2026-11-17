@@ -381,6 +381,10 @@ accounts reuse it. The same transaction records an untrusted observation in Home
 owner reply has its referent without treating a contact's summarized request as an owner instruction. Existing
 confirmation rules still apply to actions taken with that outside context. Input and pairing cards keep their
 existing presentation; this does not backfill earlier notices or mirror notices with no selected channel.
+Release news references its existing agent message and history rather than copying them. Scheduler notices create
+one Home system message, but their nudge ledger supplies the next turn's untrusted `sentMeanwhile` context; they
+never also append an `owner_notice` observation. The outbox bridge skips messages already mirrored into the
+recipient chat, by message identity, so a reply on Telegram does not reintroduce a second copy.
 
 ## 5. Auth and trust
 
