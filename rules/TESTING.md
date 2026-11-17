@@ -263,7 +263,10 @@ sample splits `send_ms` (the `threads.send` call) from `wait_ms`. A regression s
 the same turns and in the same half. Spikes scattered over different turns of the run and its `PERF_DIAGNOSTICS`
 rerun, with `turn_p50_ms` unchanged and the same code under budget on another run (its `main` twin, the next
 `staging` push, `pnpm perf` locally), are the runner: record that evidence in the change that fixes the rest of the
-red run and leave the budget alone.
+red run and leave the budget alone. The usual cause is the runner's disk: a turn commits to SQLite about two dozen
+times, each commit fsyncs the WAL on the event loop, and a busy runner sometimes takes 100–300 ms for one fsync.
+`Performance profile (diagnostic)` (`gh workflow run performance-profile.yml --ref <branch>`) times every fsync with
+strace; match them to `turn_samples` before calling a miss noise.
 
 Protocol methods use `deferMethod` to construct each real params/result schema once on first access. Authorization
 and idempotency metadata stays eager. Shared object fields use `schemaFields` to defer unused child trees through
