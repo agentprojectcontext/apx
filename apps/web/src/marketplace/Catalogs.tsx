@@ -10,6 +10,12 @@ import { attempt } from "../resources/InstalledExtension.tsx";
 // suggested ones with one click), and the list of the added ones with what each left out and why.
 
 export type CatalogsState = Result<"extensions.catalogs">;
+
+/** The suggested catalogs' lines in the owner's language. */
+const SUGGESTED_TEXT: Record<string, MessageKey> = {
+  "anthropics/knowledge-work-plugins": "mkt.suggest.knowledgeWork",
+  "anthropics/claude-plugins-official": "mkt.suggest.claudePlugins",
+};
 type Catalog = CatalogsState["catalogs"][number];
 
 export function AddCatalogDialog({
@@ -77,7 +83,7 @@ export function AddCatalogDialog({
             <Icons.Store size={18} />
             <span className="mkt-brought__main">
               <b>{s.name}</b>
-              <span>{s.description}</span>
+              <span>{SUGGESTED_TEXT[s.source] ? t(SUGGESTED_TEXT[s.source] as MessageKey) : s.description}</span>
             </span>
             {has(s.source) ? (
               <span className="mkt-card__done">

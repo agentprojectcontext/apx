@@ -410,6 +410,8 @@ export const ExtensionInfo = z.object(
     needs: () => z.array(ExtensionNeeds),
     /** The hosts its servers connect to and the ones it declares. */
     hosts: () => z.array(z.string()),
+    /** One of its servers connects to the address the owner types in its settings. */
+    owner_host: () => z.boolean().optional(),
     /** Its settings with what is set: a plain value as stored, a sensitive one only whether it is set. */
     settings: () =>
       z.array(

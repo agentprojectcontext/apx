@@ -38,6 +38,16 @@ export function pluginLicense(files: Map<string, Buffer>, repoLicense?: string):
   return licenseOf(repoLicense);
 }
 
+/** The version a plugin's plugin.json gives, if any. */
+export function pluginVersion(files: Map<string, Buffer>): string | undefined {
+  try {
+    const p = JSON.parse(files.get(".claude-plugin/plugin.json")?.toString("utf8") ?? "{}") as { version?: unknown };
+    return typeof p.version === "string" && p.version.length <= 40 ? p.version : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
 /** An id APX takes: lowercase letters, digits, "_" and "-", up to 20 characters. */
 export const extensionId = (name: string) =>
   name
@@ -67,6 +77,48 @@ function frontmatter(text: string): { meta: Record<string, string>; body: string
   return { meta, body: (m[2] ?? "").trim() };
 }
 
+type Setting = {
+  name: string;
+  label: string;
+  type: "string";
+  sensitive: boolean;
+  required?: boolean;
+  default?: string;
+};
+
+/** Short words that are words, not acronyms. */
+const WORDS = new Set([
+  "key",
+  "app",
+  "and",
+  "for",
+  "the",
+  "use",
+  "log",
+  "set",
+  "run",
+  "max",
+  "min",
+  "new",
+  "old",
+  "tag",
+]);
+
+/** `DD_API_KEY` → "DD API key": short words kept as acronyms, the rest in lowercase, the first capitalised. */
+const labelOf = (name: string) =>
+  name
+    .split(/_+/)
+    .filter(Boolean)
+    .map((w, i) => {
+      const word = w.length <= 3 && !WORDS.has(w.toLowerCase()) ? w.toUpperCase() : w.toLowerCase();
+      return i === 0 ? word.charAt(0).toUpperCase() + word.slice(1) : word;
+    })
+    .join(" ")
+    .slice(0, 120) || name;
+
+/** A placeholder that names a key, a token or a password: kept as a secret. */
+const SENSITIVE = /KEY|TOKEN|SECRET|PASSWORD|PASSWD|CREDENTIAL|AUTH/i;
+
 type Server = {
   command?: string;
   args?: string[];
@@ -76,19 +128,44 @@ type Server = {
   headers?: Record<string, string>;
 };
 
+/**
+ * Its MCP servers: `.mcp.json`, or what plugin.json names under `mcpServers` (a file in the plugin, several, or the
+ * servers themselves).
+ */
+function serversOf(files: Map<string, Buffer>, declared: unknown, left: string[]): Record<string, Server> {
+  const read = (rel: string): Record<string, Server> => {
+    const f = rel.replace(/^\.\//, "");
+    const data = files.get(f);
+    if (!data) return {};
+    try {
+      const raw = JSON.parse(data.toString("utf8")) as { mcpServers?: Record<string, Server> };
+      return raw.mcpServers ?? {};
+    } catch {
+      left.push(f);
+      return {};
+    }
+  };
+  if (typeof declared === "string") return read(declared);
+  if (Array.isArray(declared))
+    return Object.assign({}, ...declared.filter((d): d is string => typeof d === "string").map(read));
+  if (declared && typeof declared === "object") return declared as Record<string, Server>;
+  return read(".mcp.json");
+}
+
 /** Turns a plugin's files into an extension's: what is added, and what was left out and why. */
 export function convertPlugin(
   files: Map<string, Buffer>,
-  fallback: { name: string; description?: string; version?: string },
+  /** From the catalog that lists it: its id there and the name it shows, which win over plugin.json's. */
+  fallback: { id?: string; name: string; description?: string; version?: string },
 ): { files: Map<string, Buffer>; id: string; left: string[] } {
   const out = new Map<string, Buffer>();
   const left: string[] = [];
-  let plugin: { name?: string; version?: string; description?: string } = {};
+  let plugin: { name?: string; version?: string; description?: string; mcpServers?: unknown } = {};
   try {
     plugin = JSON.parse(files.get(".claude-plugin/plugin.json")?.toString("utf8") ?? "{}");
   } catch {}
-  const name = plugin.name ?? fallback.name;
-  const id = extensionId(name);
+  const name = fallback.id ? fallback.name : (plugin.name ?? fallback.name);
+  const id = fallback.id ?? extensionId(name);
   // Skills, license and readme as they are.
   let skills = false;
   for (const [f, data] of files) {
@@ -98,34 +175,38 @@ export function convertPlugin(
     } else if (/^(LICENSE|LICENCE|COPYING|NOTICE)(\.(md|txt))?$/i.test(f) || f === "README.md") out.set(f, data);
     else if (f.startsWith("commands/") || f.startsWith("hooks/")) left.push(f.split("/")[0] ?? f);
   }
-  // Its MCP servers; `${VAR}` in them becomes a sensitive setting the owner types once.
-  const settings = new Map<string, { name: string; label: string; type: "string"; sensitive: true }>();
+  // Its MCP servers; `${VAR}` in them becomes a setting the owner types once, sensitive when it names a key.
+  const settings = new Map<string, Setting>();
   const ref = (v: string) =>
-    v.replace(/\$\{([A-Za-z_][A-Za-z0-9_]*)\}/g, (_m, n: string) => {
+    v.replace(/\$\{([A-Za-z_][A-Za-z0-9_]*)(?::-([^}]*))?\}/g, (_m, n: string, fallback: string | undefined) => {
       const s = innerName(n);
-      settings.set(s, { name: s, label: n, type: "string", sensitive: true });
-      return `secret://${s}`;
+      const sensitive = SENSITIVE.test(n);
+      settings.set(s, {
+        name: s,
+        label: labelOf(n),
+        type: "string",
+        sensitive,
+        // `${X:-…}` says it may be left out; a plain `${X}` is needed.
+        required: fallback === undefined,
+        ...(!sensitive && fallback ? { default: fallback } : {}),
+      });
+      return `${sensitive ? "secret" : "setting"}://${s}`;
     });
   const mcp: Record<string, Record<string, unknown>> = {};
-  try {
-    const raw = JSON.parse(files.get(".mcp.json")?.toString("utf8") ?? "{}") as { mcpServers?: Record<string, Server> };
-    for (const [n, s] of Object.entries(raw.mcpServers ?? {})) {
-      const key = innerName(n);
-      if (s.command) {
-        mcp[key] = {
-          command: ref(s.command),
-          args: (s.args ?? []).map(ref),
-          env: Object.fromEntries(Object.entries(s.env ?? {}).map(([k, v]) => [k, ref(String(v))])),
-        };
-      } else if (s.url?.startsWith("https://")) {
-        mcp[key] = {
-          url: ref(s.url),
-          headers: Object.fromEntries(Object.entries(s.headers ?? {}).map(([k, v]) => [k, ref(String(v))])),
-        };
-      } else left.push(`mcp ${n}`);
-    }
-  } catch {
-    if (files.has(".mcp.json")) left.push(".mcp.json");
+  for (const [n, s] of Object.entries(serversOf(files, plugin.mcpServers, left))) {
+    const key = innerName(n);
+    if (s.command) {
+      mcp[key] = {
+        command: ref(s.command),
+        args: (s.args ?? []).map(ref),
+        env: Object.fromEntries(Object.entries(s.env ?? {}).map(([k, v]) => [k, ref(String(v))])),
+      };
+    } else if (s.url?.startsWith("https://")) {
+      mcp[key] = {
+        url: ref(s.url),
+        headers: Object.fromEntries(Object.entries(s.headers ?? {}).map(([k, v]) => [k, ref(String(v))])),
+      };
+    } else left.push(`mcp ${n}`);
   }
   // Its agents (agents/*.md with name and description in their frontmatter) as ready-made agents.
   const agents = [...files]

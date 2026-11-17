@@ -21,6 +21,7 @@ import {
   fingerprint,
   hostsOf,
   legacyFingerprint,
+  ownerHost,
   type Package,
   PackageError,
   readArchive,
@@ -123,6 +124,7 @@ export function createExtensions(deps: {
       brings: bringsOf(e.manifest, listing),
       needs: needsOf(e.manifest, listing),
       hosts: hostsOf(e.manifest),
+      ...(ownerHost(e.manifest) ? { owner_host: true } : {}),
       ...(listing ? { listing: listingCopy(listing, e.manifest, e.provenance === "official") } : {}),
     };
   };

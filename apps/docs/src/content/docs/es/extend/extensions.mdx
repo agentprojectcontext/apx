@@ -202,14 +202,18 @@ Work y Claude plugins, de Anthropic) están a un clic. Todo lo que viene de ahí
 siempre queda.
 
 - APX lee su propio formato de índice y el `.claude-plugin/marketplace.json` de Claude Code. Un plugin de Claude se
-  instala convertido en extensión: sus skills, los servidores de su `.mcp.json` (un `${VAR}` se vuelve una clave que
-  escribís una vez), sus `agents/` como agentes listos, su licencia y su readme. Los comandos y hooks no tienen
-  equivalente en APX y quedan afuera.
+  instala convertido en extensión: sus skills, sus servidores MCP (del `.mcp.json` o del archivo que nombra su
+  `plugin.json`), sus `agents/` como agentes listos, su licencia y su readme. Un `${VAR}` en un servidor se vuelve un
+  ajuste que completás una vez: una clave cuando su nombre lo dice (`KEY`, `TOKEN`, `SECRET`…), si no un valor común,
+  con `${VAR:-valor}` como valor por defecto. Un servidor cuya dirección escribís vos lo avisa antes de encenderla. Los
+  comandos y hooks no tienen equivalente en APX y quedan afuera.
 - Un plugin de otro repositorio cuenta sólo si está fijado a un commit (`sha`); se lee en ese commit.
 - La licencia de cada plugin se lee antes de mostrarlo (la suya, si no la de su repositorio). Sólo se convierten las
   que permiten una copia (MIT, Apache-2.0, BSD, ISC, MPL-2.0, Unlicense, CC0, 0BSD); el resto queda listado afuera,
   con el motivo.
 - APX guarda el commit en el que leyó cada catálogo; **Volver a leer** toma el más nuevo.
+- Desde la terminal, `apx extensions catalog` muestra la dirección de cada entrada (`catalog:<catálogo>/<id>`), que
+  `apx extensions inspect` y `apx extensions install` aceptan.
 
 ### Actualizar y volver atrás
 

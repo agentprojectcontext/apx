@@ -148,7 +148,7 @@ function installed(e: ExtensionInfo, entry: CatalogEntry | undefined): Item {
     needs: e.needs,
     state: attention ? "attention" : e.enabled ? "on" : "off",
     attention,
-    version: e.version,
+    version: known(e.version),
     update,
     url: update ? entry?.url : undefined,
     listing,
@@ -158,6 +158,9 @@ function installed(e: ExtensionInfo, entry: CatalogEntry | undefined): Item {
     ...(entry ? { entry } : {}),
   };
 }
+
+/** A plugin that never said its version is listed without one. */
+const known = (v: string) => (v === "0.0.0" ? undefined : v);
 
 function offered(c: CatalogEntry): Item {
   return {
@@ -173,7 +176,7 @@ function offered(c: CatalogEntry): Item {
     brings: c.brings ?? [],
     needs: c.needs ?? [],
     state: "available",
-    version: c.version,
+    version: known(c.version),
     url: c.url,
     listing: c.listing,
     here: false,
@@ -197,6 +200,9 @@ export function buildItems(src: {
 }): Item[] {
   // APX's own entry stands for an id that an added catalog also lists.
   const byId = new Map(src.catalog.filter((c) => !c.catalog).map((c) => [c.id, c]));
+  // One installed from an added catalog keeps its place there (its source names the entry it came from).
+  const fromAdded = (e: ExtensionInfo) =>
+    src.catalog.find((c) => c.catalog && c.id === e.id && e.source.endsWith(` · ${c.name}`));
   const mine = new Set(src.installed.map((e) => e.id));
   const packaged = new Set([...byId.keys(), ...mine]);
   const connected = new Set(src.integrations.filter((i) => i.connected && !i.own).map((i) => i.id));
@@ -224,7 +230,7 @@ export function buildItems(src: {
           },
         ]
       : []),
-    ...src.installed.map((e) => installed(e, byId.get(e.id))),
+    ...src.installed.map((e) => installed(e, byId.get(e.id) ?? fromAdded(e))),
     ...src.catalog
       .filter((c) => !mine.has(c.id) && !connected.has(c.id) && (!c.catalog || !byId.has(c.id)))
       .map(offered),

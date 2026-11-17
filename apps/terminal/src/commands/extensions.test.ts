@@ -128,17 +128,34 @@ test("the catalog lists each offer with what it brings and where to install it f
           brings: ["tools"],
           needs: ["cost"],
         },
+        {
+          id: "notes",
+          name: "Notes",
+          description: "Notes for agents.",
+          categories: [],
+          version: "0.0.0",
+          provenance: "third_party",
+          catalog: "c1",
+        },
       ],
     },
+    "extensions.install": extension,
   });
   const out = await printed(() => extensions(client, ["catalog"], {}));
-  assert.deepEqual(calls, [["extensions.catalog", {}]]);
   for (const text of [
     "weather  Weather v1.0.0  · official",
     "tools, needs cost",
     "https://dl.example.com/weather.apxext",
+    "notes  Notes  · third party",
+    "catalog:c1/notes",
   ])
     assert.ok(out.includes(text), out);
+  // An added catalog's entry installs by the address the list printed.
+  await printed(() => extensions(client, ["install", "catalog:c1/notes"], {}));
+  assert.deepEqual(calls, [
+    ["extensions.catalog", {}],
+    ["extensions.install", { entry: { catalog: "c1", id: "notes" } }],
+  ]);
 });
 
 test("settings are set as name=value pairs; a sensitive one can come from stdin", async () => {

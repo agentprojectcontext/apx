@@ -6,6 +6,7 @@ import { say, scriptedLlm, startCore } from "../engine/testkit.ts";
 import { type TempDir, tempDir } from "../testkit/platform.ts";
 import { parseSource } from "./catalogs.ts";
 import { convertPlugin, licenseOf } from "./claude-plugin.ts";
+import { hostsOf, ownerHost, readFiles } from "./package.ts";
 
 const MIT = "MIT License\n\nPermission is hereby granted, free of charge, to any person obtaining a copy...";
 const PROPRIETARY = "Copyright Acme. All rights reserved. No part of this may be copied.";
@@ -85,10 +86,10 @@ test("a Claude plugin becomes an extension: skills as they are, servers with the
     headers: { Authorization: "Bearer secret://room_token" },
   });
   assert.deepEqual(
-    m.settings.map((s: { name: string; sensitive: boolean }) => [s.name, s.sensitive]),
+    m.settings.map((s: { name: string; sensitive: boolean; required: boolean }) => [s.name, s.sensitive, s.required]),
     [
-      ["crm_api_key", true],
-      ["room_token", true],
+      ["crm_api_key", true, true],
+      ["room_token", true, true],
     ],
   );
   assert.deepEqual(m.agents[0], {
@@ -97,6 +98,51 @@ test("a Claude plugin becomes an extension: skills as they are, servers with the
     description: "Pushes stuck deals.",
     prompt: "Find deals that stopped and draft a nudge.",
   });
+});
+
+test("servers plugin.json names in a file of its own; a placeholder with a default that is no key is a plain setting", () => {
+  const files = new Map(
+    Object.entries({
+      ".claude-plugin/plugin.json": JSON.stringify({
+        name: "watch",
+        version: "0.7.1",
+        mcpServers: "./.watch_mcp.json",
+      }),
+      ".watch_mcp.json": JSON.stringify({
+        mcpServers: {
+          mcp: {
+            type: "http",
+            url: `https://${placeholder("WATCH_DOMAIN:-not-setup")}/v1/mcp`,
+            headers: { WATCH_API_KEY: placeholder("WATCH_API_KEY:-") },
+          },
+        },
+      }),
+      LICENSE: MIT,
+    }).map(([k, v]) => [k, Buffer.from(v)]),
+  );
+  const out = convertPlugin(files, { id: "watch", name: "Watch", version: "0.0.0" });
+  const m = JSON.parse(out.files.get("apx-extension.json")?.toString() ?? "{}");
+  assert.equal(m.name, "Watch");
+  assert.equal(m.version, "0.7.1");
+  assert.deepEqual(m.mcp.mcp, {
+    url: "https://setting://watch_domain/v1/mcp",
+    headers: { WATCH_API_KEY: "secret://watch_api_key" },
+  });
+  assert.deepEqual(m.settings, [
+    {
+      name: "watch_domain",
+      label: "Watch domain",
+      type: "string",
+      sensitive: false,
+      required: false,
+      default: "not-setup",
+    },
+    { name: "watch_api_key", label: "Watch API key", type: "string", sensitive: true, required: false },
+  ]);
+  // The address the owner types is theirs: no host of its own, said apart.
+  const pkg = readFiles(out.files);
+  assert.deepEqual(hostsOf(pkg.manifest), []);
+  assert.equal(ownerHost(pkg.manifest), true);
 });
 
 let env: Awaited<ReturnType<typeof startCore>>;
@@ -170,6 +216,7 @@ test("an added catalog lists what it may, leaves out what it may not (license, u
   assert.equal(notes?.catalog, added.id);
   assert.equal(notes?.provenance, "third_party");
   assert.equal(notes?.license, "MIT");
+  assert.equal(notes?.version, "0.4.0");
 });
 
 test("an entry of an added catalog installs converted, third party, off", async () => {

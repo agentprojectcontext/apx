@@ -357,7 +357,8 @@ export function ItemPage({ item, onBack, onChanged }: { item: Item; onBack(): vo
               <>
                 <dt>{t("extx.kv.hosts")}</dt>
                 <dd>
-                  {hosts.length ? hosts.join(", ") : item.ext?.runs_code ? t("extx.kv.anyHost") : t("extx.kv.noHosts")}
+                  {[...hosts, ...(item.ext?.owner_host ? [t("extx.kv.yourHost")] : [])].join(", ") ||
+                    (item.ext?.runs_code ? t("extx.kv.anyHost") : t("extx.kv.noHosts"))}
                 </dd>
               </>
             )}

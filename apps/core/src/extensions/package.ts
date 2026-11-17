@@ -289,7 +289,8 @@ function powersOf(m: ExtensionManifest): ExtensionPower[] {
   for (const [name, s] of Object.entries(m.mcp)) {
     const detail = s.command ? [s.command, ...s.args].join(" ") : (s.url ?? "");
     out.push({ kind: "mcp", name, detail });
-    const host = s.url ? URL.parse(s.url)?.hostname : undefined;
+    // An address the owner types is theirs, not a host the extension picked.
+    const host = s.url && !OWNER_HOST.test(s.url) ? URL.parse(s.url)?.hostname : undefined;
     if (host) hosts.add(host);
   }
   for (const h of m.hosts) hosts.add(h);
@@ -309,6 +310,9 @@ function powersOf(m: ExtensionManifest): ExtensionPower[] {
 }
 
 /** The hosts its servers connect to. */
+/** A server address whose host is one of its settings (`https://setting://domain/…`). */
+const OWNER_HOST = /^https:\/\/(setting|secret):\/\//;
+export const ownerHost = (m: ExtensionManifest) => Object.values(m.mcp).some((s) => OWNER_HOST.test(s.url ?? ""));
 export const hostsOf = (m: ExtensionManifest) => powersOf(m).flatMap((p) => (p.kind === "host" ? [p.name] : []));
 
 const key = (p: ExtensionPower) => `${p.kind}\0${p.name}\0${p.detail ?? ""}`;

@@ -58,6 +58,8 @@ export function InstalledSide({
     await onChanged();
   };
   const missing = e.secrets.filter((s) => !s.set);
+  // A sensitive setting is a key it keeps, like a secret.
+  const keys = [...e.secrets.map((s) => s.label), ...e.settings.filter((s) => s.sensitive).map((s) => s.label)];
   const again = readAgain(e.source);
   return (
     <>
@@ -88,20 +90,18 @@ export function InstalledSide({
               onCheckedChange={(v) => setOk((o) => ({ ...o, hosts: v === true }))}
               label={
                 e.hosts.length
-                  ? t("extx.approve.hosts", { hosts: e.hosts.join(", ") })
-                  : e.runs_code
-                    ? t("extx.approve.anyHost")
-                    : t("extx.approve.noHosts")
+                  ? t(e.owner_host ? "extx.approve.hostsAndYours" : "extx.approve.hosts", { hosts: e.hosts.join(", ") })
+                  : e.owner_host
+                    ? t("extx.approve.yourHost")
+                    : e.runs_code
+                      ? t("extx.approve.anyHost")
+                      : t("extx.approve.noHosts")
               }
             />
             <Checkbox
               checked={ok.keys}
               onCheckedChange={(v) => setOk((o) => ({ ...o, keys: v === true }))}
-              label={
-                e.secrets.length
-                  ? t("extx.approve.keys", { keys: e.secrets.map((s) => s.label).join(", ") })
-                  : t("extx.approve.noKeys")
-              }
+              label={keys.length ? t("extx.approve.keys", { keys: keys.join(", ") }) : t("extx.approve.noKeys")}
             />
             <Checkbox
               checked={ok.files}
@@ -151,7 +151,7 @@ export function InstalledSide({
             leadingIcon={<Icons.RotateCcw size={14} />}
             onClick={() => void run(() => client.call("extensions.rollback", { id: e.id }))}
           >
-            {t("ext.rollback", { version: e.update.from })}
+            {e.update.from === e.version ? t("ext.rollbackSame") : t("ext.rollback", { version: e.update.from })}
           </Button>
         )}
         <Button size="sm" variant="ghost" leadingIcon={<Icons.Pencil size={14} />} onClick={() => setEditing(true)}>

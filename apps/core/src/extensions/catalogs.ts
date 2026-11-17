@@ -13,7 +13,7 @@ import { expandHome, isInside } from "../paths.ts";
 import type { GitRunner } from "../skills/import.ts";
 import { downloadArchive, fetchSmall } from "./catalog.ts";
 import { compareVersions } from "./catalog-packages.ts";
-import { convertPlugin, extensionId, licenseOf, pluginLicense } from "./claude-plugin.ts";
+import { convertPlugin, extensionId, licenseOf, pluginLicense, pluginVersion } from "./claude-plugin.ts";
 import { filesOf, type Package, readArchive, readFiles } from "./package.ts";
 
 const GIT_MS = 90_000;
@@ -125,7 +125,7 @@ export function createCatalogs(deps: { store: Store; home: string; git: GitRunne
     const entries: CatalogItem[] = [];
     const skipped: CatalogSkip[] = [];
     const plugins = (raw as { plugins?: unknown[] }).plugins ?? [];
-    const work = plugins.map(async (p0) => {
+    const one = async (p0: unknown) => {
       const p = p0 as {
         name?: string;
         displayName?: string;
@@ -155,9 +155,11 @@ export function createCatalogs(deps: { store: Store; home: string; git: GitRunne
         const dir = root ? path.resolve(root, rel) : undefined;
         if (!dir || !isInside(root as string, dir) || !fs.existsSync(dir))
           return skipped.push({ name, reason: "source" });
-        const license = pluginLicense(folderFiles(dir), repoLicense);
+        const files = folderFiles(dir);
+        const license = pluginLicense(files, repoLicense);
         if (!license) return skipped.push({ name, reason: "license" });
-        return entries.push({ ...base, license, via: { type: "path", path: rel } });
+        const version = p.version ?? pluginVersion(files);
+        return entries.push({ ...base, ...(version ? { version } : {}), license, via: { type: "path", path: rel } });
       }
       const url = src?.source === "github" && src.repo ? `https://github.com/${src.repo}.git` : src?.url;
       if (!url || !/^https:\/\//.test(url)) return skipped.push({ name, reason: "source" });
@@ -171,9 +173,9 @@ export function createCatalogs(deps: { store: Store; home: string; git: GitRunne
         ...(src.source === "git-subdir" && src.path ? { path: src.path } : {}),
       };
       return entries.push({ ...base, license, via });
-    });
+    };
     // A few at a time: each checks a license over the network.
-    for (let i = 0; i < work.length; i += 8) await Promise.all(work.slice(i, i + 8));
+    for (let i = 0; i < plugins.length; i += 8) await Promise.all(plugins.slice(i, i + 8).map(one));
     entries.sort((a, b) => a.name.localeCompare(b.name));
     return { entries, skipped };
   }
@@ -296,7 +298,12 @@ export function createCatalogs(deps: { store: Store; home: string; git: GitRunne
         }
         const files = folderFiles(dir);
         if (files.has("apx-extension.json")) return { pkg: readFiles(files), source: label };
-        const converted = convertPlugin(files, { name: e.name, description: e.description, version: e.version });
+        const converted = convertPlugin(files, {
+          id: e.id,
+          name: e.name,
+          description: e.description,
+          version: e.version,
+        });
         return { pkg: readFiles(converted.files), source: label };
       } finally {
         if (tmp) fs.rmSync(tmp, { recursive: true, force: true });

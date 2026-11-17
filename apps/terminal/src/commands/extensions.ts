@@ -6,8 +6,8 @@ import { EXTENSION_ARCHIVE_MAX, type ExtensionInfo, type ExtensionPower } from "
 import type { ApxClient } from "@apx/protocol/client";
 
 const USAGE = `apx extensions                                   Installed extensions
-apx extensions inspect <folder|file.apxext|url>  What it would bring (nothing is installed)
-apx extensions install <folder|file.apxext|url>  Copy it in, off
+apx extensions inspect <folder|file.apxext|url|catalog:<catalog>/<id>>  What it would bring (nothing is installed)
+apx extensions install <folder|file.apxext|url|catalog:<catalog>/<id>>  Copy it in, off
 apx extensions catalog                           What APX's catalog and yours offer (install one by its address)
 apx extensions catalogs [add <source>|sync <id>|rm <id>]  Your own catalogs (owner/repo, git, https index, folder)
 apx extensions set <id> name=value ...           Its settings (value "-": read from stdin, for a sensitive one)
@@ -20,8 +20,16 @@ apx extensions rm <id>`;
  * Where to read it from: an https address as given; an .apxext on this computer is sent whole (the core may run on
  * another one); anything else is a folder on the core's computer.
  */
-function sourceOf(arg: string): { url: string } | { file: { name: string; data: string } } | { path: string } {
+function sourceOf(
+  arg: string,
+):
+  | { url: string }
+  | { file: { name: string; data: string } }
+  | { path: string }
+  | { entry: { catalog: string; id: string } } {
   if (/^https:\/\//i.test(arg)) return { url: arg };
+  const entry = /^catalog:([^/]+)\/(.+)$/.exec(arg);
+  if (entry?.[1] && entry[2]) return { entry: { catalog: entry[1], id: entry[2] } };
   if (/^[a-z][a-z0-9+.-]*:\/\//i.test(arg)) throw new Error("an extension downloads only from an https address");
   if (arg.toLowerCase().endsWith(".apxext")) {
     const size = fs.statSync(arg, { throwIfNoEntry: false })?.size;
@@ -143,8 +151,11 @@ export async function extensions(
     if (r.catalog === "needs_update") console.log("Update APX to read its catalog.");
     for (const e of r.entries) {
       const extra = [...(e.brings ?? []), ...(e.needs ?? []).map((n) => `needs ${n}`)].join(", ");
-      console.log(`${e.id}  ${e.name} v${e.version}  · ${e.provenance === "official" ? "official" : "third party"}`);
-      console.log(`  ${e.description}${extra ? `\n  ${extra}` : ""}${e.url ? `\n  ${e.url}` : ""}`);
+      console.log(
+        `${e.id}  ${e.name}${e.version === "0.0.0" ? "" : ` v${e.version}`}  · ${e.provenance === "official" ? "official" : "third party"}`,
+      );
+      const from = e.url ?? (e.catalog ? `catalog:${e.catalog}/${e.id}` : "");
+      console.log(`  ${e.description}${extra ? `\n  ${extra}` : ""}${from ? `\n  ${from}` : ""}`);
     }
     return;
   }

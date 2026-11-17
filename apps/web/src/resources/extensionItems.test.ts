@@ -161,3 +161,27 @@ test("an added catalog's entries stay under it, after APX's own, and APX's entry
   assert.equal(withAdded.find((i) => i.id === "notes")?.key, "added:c1:notes");
   assert.equal(groupByCategory(withAdded).at(-1)?.id, "added:c1");
 });
+
+test("one installed from an added catalog stays under it; a namesake from elsewhere does not, and 0.0.0 is no version", () => {
+  const catalog = [
+    entry("notes", "0.0.0", { catalog: "c1", provenance: "third_party", name: "Notes" }),
+    entry("todo", "0.0.0", { catalog: "c1", provenance: "third_party", name: "Todo" }),
+  ];
+  const items = buildItems({
+    ...sources,
+    catalog,
+    installed: [
+      ext("notes", { provenance: "third_party", source: "Acme plugins · Notes", version: "0.0.0" }),
+      ext("todo", { provenance: "third_party", source: "~/work/todo" }),
+    ],
+  });
+  const notes = items.find((i) => i.id === "notes");
+  assert.equal(notes?.entry?.catalog, "c1");
+  assert.equal(notes?.version, undefined);
+  assert.equal(items.find((i) => i.id === "todo")?.entry, undefined);
+  assert.ok(
+    groupByCategory(items)
+      .find((g) => g.id === "added:c1")
+      ?.items.some((i) => i.id === "notes"),
+  );
+});
