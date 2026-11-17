@@ -56,7 +56,7 @@ test("a running core discovers Sheets tools, reads untrusted cells and gates an 
     await env.settle(thread);
     assert.deepEqual(google.sheetWrites, [{ range: "Summary!A1:B2", majorDimension: "ROWS", values: [["=1+1"]] }]);
     await env.client.call("integrations.disconnect", { id: "google-drive" });
-    assert.doesNotMatch(await turn("find sheets"), /sheets_read:/);
+    assert.doesNotMatch(await turn("find sheets"), /sheets_read/);
   } finally {
     await env.core.close();
     await env.cleanup();
