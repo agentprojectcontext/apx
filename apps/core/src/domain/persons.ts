@@ -1,6 +1,13 @@
 // People and their addresses on channels. The owner is the person with role "owner" (one, created on first use);
 // who someone is on a channel is decided only by an exact address match, never by a name.
-import { type Address, type Person, PersonPerms, PersonRelation, type PersonRole } from "@apx/protocol";
+import {
+  type Address,
+  type AppointmentMode,
+  type Person,
+  PersonPerms,
+  PersonRelation,
+  type PersonRole,
+} from "@apx/protocol";
 import { type Selectable, sql } from "kysely";
 import type { AddressesTable, PersonsTable } from "../db/schema.ts";
 import { newId, now, opt, qb, type Sql } from "./sql.ts";
@@ -28,12 +35,12 @@ function permsOf(text: string | null): PersonPerms {
 
 /** The rights set after a change: a value sets one, null gives it back to the account, undefined keeps it. */
 function permsAfter(cur: PersonPerms, change: PersonDetails["perms"]): PersonPerms {
-  const next: Record<string, boolean> = { ...cur };
+  const next: Record<string, unknown> = { ...cur };
   for (const [k, v] of Object.entries(change ?? {})) {
     if (v === null) delete next[k];
     else if (v !== undefined) next[k] = v;
   }
-  return next;
+  return PersonPerms.parse(next);
 }
 
 /** What the owner may change about a person besides name and role. */
@@ -44,7 +51,7 @@ export type PersonDetails = {
   rules?: string | undefined;
   muted?: boolean | undefined;
   supervised?: boolean | undefined;
-  perms?: { [K in keyof PersonPerms]?: boolean | null | undefined } | undefined;
+  perms?: { [K in keyof PersonPerms]?: PersonPerms[K] | null } | undefined;
   /** Who answers them instead of each account's contacts agent; null gives them back to the account's. */
   agent_id?: string | null | undefined;
 };
@@ -69,12 +76,18 @@ type Decision = Pick<Person, "role" | "muted" | "supervised" | "unreviewed" | "p
  */
 function stricterRights(a: PersonPerms, b: PersonPerms): PersonPerms {
   const out: PersonPerms = {};
-  for (const k of ["appointments", "requests", "notes", "any_hour"] as const) {
+  for (const k of ["requests", "notes", "any_hour"] as const) {
     if (a[k] === false || b[k] === false) out[k] = false;
     else if (a[k] === true && b[k] === true) out[k] = true;
   }
+  const [x, y] = [a.appointments, b.appointments];
+  if (x === "off" || y === "off") out.appointments = "off";
+  else if (x && y) out.appointments = APPOINTMENT_ORDER.indexOf(x) < APPOINTMENT_ORDER.indexOf(y) ? x : y;
   return out;
 }
+
+/** Appointment modes from the least a contact may do to the most. */
+const APPOINTMENT_ORDER: readonly AppointmentMode[] = ["off", "note", "book"];
 
 /**
  * How one person known as two is answered: what the owner decided about either (a stranger's defaults are no

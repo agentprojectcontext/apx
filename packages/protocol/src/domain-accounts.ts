@@ -71,6 +71,10 @@ export const ChannelHours = z.object(
 );
 export type ChannelHours = z.infer<typeof ChannelHours>;
 
+/** How long an appointment a contact books lasts, in minutes (none set: 30). */
+export const AppointmentMinutes = z.union([z.literal(15), z.literal(30), z.literal(45), z.literal(60)]);
+export type AppointmentMinutes = z.infer<typeof AppointmentMinutes>;
+
 export const ChannelInfo = z.object(
   schemaFields({
     id: () => z.string(),
@@ -114,6 +118,8 @@ export const ChannelInfo = z.object(
     quiet: () => z.boolean().optional(),
     /** What its contacts' chats may do unless the owner set it for one of them (none: all off). */
     contacts: () => PersonPerms.optional(),
+    /** How long an appointment its contacts book lasts. */
+    appointment_minutes: () => AppointmentMinutes.optional(),
     /** The owner's notes for every contact and room of the account: what it can do and answer there. */
     knowledge: () => z.string().max(12_000).optional(),
     /** The owner's rules for every contact and room of the account; a contact's or a room's own go after and win. */

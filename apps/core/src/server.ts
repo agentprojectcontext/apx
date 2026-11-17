@@ -136,6 +136,7 @@ import { createTelemetry } from "./telemetry.ts";
 import { type TelemetrySink, telemetrySink } from "./telemetry-sink.ts";
 import { createTerminals } from "./terminal/terminals.ts";
 import { asanaTools } from "./tools/asana.ts";
+import { bookingTools } from "./tools/contact-booking.ts";
 import { scratchRoot } from "./tools/folders.ts";
 import { googleTools } from "./tools/google.ts";
 import { imessageTools } from "./tools/imessage.ts";
@@ -411,7 +412,13 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
     store,
     config.home,
     () => listening,
-    [...imessageTools(imessage), ...googleTools(google), ...asanaTools(asana, store), ...(opts.extraTools ?? [])],
+    [
+      ...imessageTools(imessage),
+      ...googleTools(google),
+      ...bookingTools(store, google),
+      ...asanaTools(asana, store),
+      ...(opts.extraTools ?? []),
+    ],
     config.runtimeSkills.homes,
     { profiles: profileRoots, templates: templateRoots },
     vm,

@@ -10,7 +10,7 @@ import { readNotifications, useAttention } from "../data/notifications.ts";
 import { useData } from "../data/state.ts";
 import { useT } from "../i18n/index.ts";
 import { go } from "./nav.ts";
-import { noticeEvent, noticeTask } from "./noticeTarget.ts";
+import { noticeBooking, noticeEvent, noticeTask } from "./noticeTarget.ts";
 
 const KIND_ICON: Record<Notification["kind"], typeof Icons.Bell> = {
   input: Icons.Hand,
@@ -92,25 +92,39 @@ async function muteEvent(series: string, title: string, failed: (error: string) 
   }
 }
 
+/** Cancels an appointment a contact booked: it leaves the calendar and they are told. */
+async function cancelBooking(id: string, failed: (error: string) => string): Promise<void> {
+  try {
+    await client.call("contacts.cancel_booking", { id, tell: true });
+  } catch (e) {
+    notify(failed(e instanceof Error ? e.message : String(e)));
+  }
+}
+
 /**
  * A notice: who it comes from, what happened and when, the text in two lines, then who · project. A calendar
- * reminder can be told not to come again.
+ * reminder can be told not to come again; an appointment a contact booked can be canceled.
  */
 function NoticeRow({ notice: n, onOpen }: { notice: Notification; onOpen: () => void }) {
   const t = useT();
   const series = noticeEvent(n);
-  if (!series) return <NoticeButton notice={n} onOpen={onOpen} />;
+  const booking = noticeBooking(n);
+  if (!series && !booking) return <NoticeButton notice={n} onOpen={onOpen} />;
+  const failed = (error: string) => t("error.change", { error });
   return (
     <div className="attention__item">
       <NoticeButton notice={n} onOpen={onOpen} />
       <div className="attention__actions">
-        <Button
-          size="sm"
-          variant="ghost"
-          onClick={() => void muteEvent(series, n.title, (error) => t("error.change", { error }))}
-        >
-          {t("attention.muteEvent")}
-        </Button>
+        {series && (
+          <Button size="sm" variant="ghost" onClick={() => void muteEvent(series, n.title, failed)}>
+            {t("attention.muteEvent")}
+          </Button>
+        )}
+        {booking && (
+          <Button size="sm" variant="ghost" onClick={() => void cancelBooking(booking, failed)}>
+            {t("attention.cancelBooking")}
+          </Button>
+        )}
       </div>
     </div>
   );

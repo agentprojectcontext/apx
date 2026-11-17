@@ -57,6 +57,8 @@ export const SPANISH_TITLES: Record<string, (a: Args) => string> = {
   pass_request: (a) =>
     `${a.task === undefined ? "Revisó pedidos" : a.task ? "Actualizó pedido" : "Pasó el pedido"}: ${str(a.summary)}`,
   search_owner_notes: (a) => `Buscó «${str(a.query, 60)}» en tus notas`,
+  book_appointment: (a) => (a.start ? `Agendó un turno: ${str(a.start).replace("T", " ")}` : "Buscó horarios libres"),
+  cancel_my_appointment: () => "Canceló su turno",
   contact_requests: () => "Revisó quién está esperando",
   suggest_connection: (a) => `Buscó ${str(a.query, 60)} para conectar`,
   answer_contact_request: (a) => (a.decision === "answer" ? `Dejó pasar a ${str(a.code)}` : `Ignoró a ${str(a.code)}`),

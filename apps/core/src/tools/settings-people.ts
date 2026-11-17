@@ -3,6 +3,7 @@
 import { CHANNEL_DEFAULTS, type ChannelHours, type Person } from "@apx/protocol";
 import { kindFixed } from "../channels/accounts.ts";
 import { autoApproves } from "../channels/stickers.ts";
+import { contactBookings } from "../domain/contact-bookings.ts";
 import { noticePrefs } from "../domain/notices.ts";
 import { ownerIdentity, ownerTimeZone } from "../domain/owner.ts";
 import type { Store } from "../domain/store.ts";
@@ -108,11 +109,14 @@ const right =
     v === null ? account : v ? on : off;
 const RIGHT_WORDS = {
   "perms.any_hour": right("Answered at any hour", "Waits for the hours like everyone", "Hours as the account says"),
-  "perms.appointments": right(
-    "May ask for appointments",
-    "May not ask for appointments",
-    "Appointments as the account says",
-  ),
+  "perms.appointments": (v: unknown) =>
+    v === null
+      ? "Appointments as the account says"
+      : v === "book"
+        ? "Books appointments on your calendar"
+        : v === "note"
+          ? "Notes appointments for you to confirm"
+          : "May not ask for appointments",
   "perms.requests": right("May leave requests", "May not leave requests", "Requests as the account says"),
   "perms.notes": right("Answered from your notes", "Not answered from your notes", "Your notes as the account says"),
 };
@@ -152,7 +156,7 @@ export const PEOPLE: Readonly<Record<string, Setting>> = {
     },
   },
   "contacts.set": {
-    does: "change a contact (id and only what changes: note says who they are, rules how to answer them, perms {appointments, requests, notes, any_hour} true or false for this person only, null to follow the account they write on, agent_id the agent that answers them instead of each account's, null for the account's) or add one",
+    does: "change a contact (id and only what changes: note says who they are, rules how to answer them, perms {appointments off|note|book, requests, notes, any_hour true or false} for this person only, null to follow the account they write on, agent_id the agent that answers them instead of each account's, null for the account's) or add one",
     asks: contactAsks,
     says: (p, { store }) => {
       const cur = personOf(p, store);
@@ -165,6 +169,32 @@ export const PEOPLE: Readonly<Record<string, Setting>> = {
       return cur && p.name === undefined ? { ...p, name: cur.name } : p;
     },
     shows: (r) => contactLine(r as Person),
+  },
+  "contacts.bookings": {
+    does: "appointments contacts booked on the owner's calendar from their chat, coming ones first (person narrows, past true adds ended and canceled)",
+    read: (p, { store }) => {
+      const list = contactBookings(store).list(new Date(), {
+        person: typeof p.person === "string" ? p.person : undefined,
+        past: p.past === true,
+      });
+      if (!list.length) return "no appointments booked by contacts.";
+      const tz = ownerTimeZone(store);
+      return list
+        .slice(0, 30)
+        .map((b) => {
+          const who = store.persons.get(b.person_id)?.name ?? b.person_id;
+          return `${b.id} · ${inlineName(who)} · ${new Date(b.start).toLocaleString("en", { timeZone: tz })} · ${b.state}${b.canceled_by ? ` by ${b.canceled_by}` : ""}`;
+        })
+        .join("\n");
+    },
+  },
+  "contacts.cancel_booking": {
+    does: "cancel an appointment a contact booked (id from contacts.bookings): it leaves the calendar and the contact is told, unless tell false",
+    says: (p, { store }) => {
+      const b = typeof p.id === "string" ? contactBookings(store).get(p.id) : undefined;
+      const who = b ? (store.persons.get(b.person_id)?.name ?? "") : "";
+      return who ? `Cancel the appointment ${inlineName(who)} booked` : "Cancel an appointment a contact booked";
+    },
   },
   "contacts.remove": {
     does: "forget a contact (id), or only one of their addresses (address)",
@@ -216,7 +246,7 @@ export const PEOPLE: Readonly<Record<string, Setting>> = {
         .join("\n") || "no channels set up.",
   },
   "channels.set": {
-    does: "change a channel already set up (id, and under channel only what changes: label, owner_thread home|own (home only when the super-agent answers it; email is always own), agent_id (who answers the owner), contacts_agent_id (who answers its contacts and rooms), strangers, rooms, hours when it answers contacts {days 0 = Sunday, from, to HH:MM in the owner's time zone} or null for any hour, contacts {appointments, requests, notes, any_hour} what every contact may do unless set for one, knowledge and rules the owner's notes and rules for everyone on it, owner_only true answers only the owner, limits {per_contact_hour, per_account_hour 0 = no cap}, quiet true to silence its notices…); its sign-in, mail account and research stay the owner's",
+    does: "change a channel already set up (id, and under channel only what changes: label, owner_thread home|own (home only when the super-agent answers it; email is always own), agent_id (who answers the owner), contacts_agent_id (who answers its contacts and rooms), strangers, rooms, hours when it answers contacts {days 0 = Sunday, from, to HH:MM in the owner's time zone} or null for any hour, contacts {appointments off|note|book (book: on your Google Calendar, inside hours), requests, notes, any_hour} what every contact may do unless set for one, appointment_minutes 15|30|45|60 how long a booked one lasts, knowledge and rules the owner's notes and rules for everyone on it, owner_only true answers only the owner, limits {per_contact_hour, per_account_hour 0 = no cap}, quiet true to silence its notices…); its sign-in, mail account and research stay the owner's",
     asks: "card",
     says: (p, { store }) => `Change the channel ${inlineName(channelOf(store, p.id)?.label ?? str(p.id))}`,
     refuse: (p, { store }) => {

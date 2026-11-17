@@ -33,7 +33,7 @@ after(async () => {
 async function contact(o: { project?: string; agent?: string } = {}) {
   const person = await env.client.call("contacts.set", {
     name: "Acme Buyer",
-    perms: { requests: true, appointments: true },
+    perms: { requests: true, appointments: "note" },
   });
   const thread = env.core.store.threads.create({
     kind: "channel",
@@ -173,7 +173,7 @@ test("a request cannot change an appointment when its appointment permission was
   await c.submit({ kind: "appointment", summary: "Pricing call" });
   const original = c.tasks()[0];
   assert.ok(original);
-  await env.client.call("contacts.set", { id: c.person.id, name: c.person.name, perms: { appointments: false } });
+  await env.client.call("contacts.set", { id: c.person.id, name: c.person.name, perms: { appointments: "off" } });
   const revoked = await c.submit({ kind: "appointment", summary: "Move call", task: original.id });
   assert.match(revoked.result, /does not take appointments/);
   const wrongKind = await c.submit({ kind: "request", summary: "Change appointment as request", task: original.id });

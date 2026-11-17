@@ -172,9 +172,14 @@ export const enChannels = {
   "ch.rules": "Rules",
   "ch.rulesHint": "They go last in the prompt, so they win over the agent's caution.",
   "ch.may": "What this conversation may do",
-  "ch.perm.appointments": "Note appointments",
+  "ch.perm.appointments": "Appointments",
   "ch.perm.appointmentsHint":
-    "When they ask for an appointment (a day and time), it is noted as a task for you to confirm, and you are told on your channel right away. Nothing is booked.",
+    "When they ask for an appointment: nothing, noted as a task for you to confirm, or booked on your Google Calendar inside the account's attention hours. You are told right away.",
+  "ch.appt.off": "No",
+  "ch.appt.note": "Note",
+  "ch.appt.book": "Book",
+  "ch.flag.appointmentsNote": "Notes appointments",
+  "ch.flag.appointmentsBook": "Books appointments on your calendar",
   "ch.perm.requests": "Take requests",
   "ch.perm.requestsHint":
     "When they ask for something only you can do (a purchase, a favor, calling someone), it becomes a task for you and you are told right away. Your agent never does it for you.",

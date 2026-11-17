@@ -24,13 +24,19 @@ export type Address = z.infer<typeof Address>;
 export const PersonRelation = z.enum(PERSON_RELATIONS);
 export type PersonRelation = z.infer<typeof PersonRelation>;
 /**
+ * How a contact's chat handles an appointment they ask for: not at all, noted for the owner to confirm, or booked
+ * straight on the owner's Google Calendar inside the account's hours (DECISIONS.md#d-238).
+ */
+export const AppointmentMode = z.enum(["off", "note", "book"]);
+export type AppointmentMode = z.infer<typeof AppointmentMode>;
+/**
  * What a contact's chat may do besides talking, and whether it is answered past the attention hours. Each tool one gives
  * the sealed turn exactly one narrow tool (see DECISIONS.md#d-022). An account sets them for its contacts
  * (`ChannelInfo.contacts`, all off unless set); a person keeps only the ones the owner set for them, which win.
  */
 const RIGHTS = {
-  /** Note an appointment they ask for, for the owner to confirm. */
-  appointments: z.boolean(),
+  /** What happens to an appointment they ask for. */
+  appointments: AppointmentMode,
   /** Note a request they make (a purchase, a favor) as a task for the owner. */
   requests: z.boolean(),
   /** Answer from the owner's own notes (global ones only, read-only). */
@@ -43,7 +49,7 @@ export const PersonPerms = z.object(RIGHTS).partial();
 export type PersonPerms = z.infer<typeof PersonPerms>;
 export const ContactRights = z.object(
   schemaFields({
-    appointments: () => z.boolean().default(false),
+    appointments: () => AppointmentMode.default("off"),
     requests: () => z.boolean().default(false),
     notes: () => z.boolean().default(false),
     any_hour: () => z.boolean().default(false),
@@ -56,6 +62,25 @@ export const contactRightsOf = (perms: PersonPerms | undefined, account: PersonP
     ...account,
     ...Object.fromEntries(Object.entries(perms ?? {}).filter(([, v]) => v !== undefined)),
   });
+/** An appointment a contact booked on the owner's calendar from their chat (DECISIONS.md#d-238). */
+export const ContactBooking = z.object(
+  schemaFields({
+    id: () => z.string(),
+    person_id: () => Id,
+    /** The account they booked on, and their chat there. */
+    channel: () => z.string(),
+    thread_id: () => Id,
+    /** The Google Calendar event it made on the owner's primary calendar. */
+    event_id: () => z.string(),
+    start: () => z.string(),
+    end: () => z.string(),
+    state: () => z.enum(["booked", "canceled"]),
+    /** Who canceled it: the contact from their chat, or the owner. */
+    canceled_by: () => z.enum(["contact", "owner"]).optional(),
+    created_at: () => z.string(),
+  }),
+);
+export type ContactBooking = z.infer<typeof ContactBooking>;
 export const Person = z.object(
   schemaFields({
     id: () => Id,
