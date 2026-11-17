@@ -96,7 +96,8 @@ export function MarketplaceScreen() {
     [integrations, channels, catalog, res.data.extensions, res.data.servers, t],
   );
   const found = filterItems(items, query, "");
-  const current = open ? items.find((i) => i.key === open) : undefined;
+  // A link may name an extension by its id alone: the installed one first, else what offers it.
+  const current = open ? (items.find((i) => i.key === open) ?? items.find((i) => i.id === open)) : undefined;
   const mine = items.filter(isMine);
 
   return (

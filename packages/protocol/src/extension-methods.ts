@@ -135,6 +135,21 @@ export const extensionMethods = {
     access: "human",
   }),
   /** Reads an extension (a folder, an .apxext file or an https URL) without writing or running anything. */
+  /** A folder (on the core's computer) packed as an .apxext: checked, and the same extension when read back. */
+  "extensions.pack": deferMethod({
+    params: () => z.object({ path: ExtensionSource.path().unwrap() }).strict(),
+    result: () =>
+      z.object({
+        /** `<id>-<version>.apxext`. */
+        name: z.string(),
+        /** The file, base64. */
+        data: z.string(),
+        hash: z.string(),
+        size: z.number(),
+      }),
+    effect: false,
+    access: "human",
+  }),
   "extensions.inspect": deferMethod({
     params: () =>
       z

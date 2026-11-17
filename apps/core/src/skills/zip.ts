@@ -1,5 +1,5 @@
 // Reads a .zip in memory: stored and deflated entries of regular files. Folders are implied by paths; links, unsafe
-// paths, encrypted entries and zip64 archives are not read. Nothing is written or run here.
+// paths, encrypted entries and zip64 archives are not read. Writes one the same way, the same bytes for the same files.
 import zlib from "node:zlib";
 
 export type ZipFile = { path: string; data: Buffer };
@@ -84,4 +84,57 @@ export function readZip(buf: Buffer, limits: ZipLimits): { files: ZipFile[]; ski
     throw err;
   }
   return { files, skipped };
+}
+
+/** DOS date 1980-01-01, 00:00: a packed file carries no time, so the same files always pack the same. */
+const DOS_DATE = (0 << 9) | (1 << 5) | 1;
+
+/** A zip of these files, deflated, in path order, with no times or owners: the same files give the same bytes. */
+export function writeZip(files: ZipFile[]): Buffer {
+  const locals: Buffer[] = [];
+  const centrals: Buffer[] = [];
+  let offset = 0;
+  const sorted = [...files].sort((a, b) => (a.path < b.path ? -1 : a.path > b.path ? 1 : 0));
+  for (const f of sorted) {
+    const name = Buffer.from(f.path, "utf8");
+    const packed = zlib.deflateRawSync(f.data, { level: 9 });
+    const crc = zlib.crc32(f.data);
+    // UTF-8 names (bit 11).
+    const flags = 0x800;
+    const local = Buffer.alloc(30);
+    local.writeUInt32LE(LOCAL, 0);
+    local.writeUInt16LE(20, 4);
+    local.writeUInt16LE(flags, 6);
+    local.writeUInt16LE(8, 8);
+    local.writeUInt16LE(DOS_DATE, 12);
+    local.writeUInt32LE(crc, 14);
+    local.writeUInt32LE(packed.length, 18);
+    local.writeUInt32LE(f.data.length, 22);
+    local.writeUInt16LE(name.length, 26);
+    const central = Buffer.alloc(46);
+    central.writeUInt32LE(CENTRAL, 0);
+    central.writeUInt16LE((UNIX << 8) | 20, 4);
+    central.writeUInt16LE(20, 6);
+    central.writeUInt16LE(flags, 8);
+    central.writeUInt16LE(8, 10);
+    central.writeUInt16LE(DOS_DATE, 14);
+    central.writeUInt32LE(crc, 16);
+    central.writeUInt32LE(packed.length, 20);
+    central.writeUInt32LE(f.data.length, 24);
+    central.writeUInt16LE(name.length, 28);
+    central.writeUInt32LE((0o100644 << 16) >>> 0, 38);
+    central.writeUInt32LE(offset, 42);
+    locals.push(local, name, packed);
+    centrals.push(central, name);
+    offset += 30 + name.length + packed.length;
+  }
+  if (sorted.length >= 0xffff || offset >= 0xffffffff) throw new Error("too big for a zip without zip64");
+  const cd = Buffer.concat(centrals);
+  const end = Buffer.alloc(22);
+  end.writeUInt32LE(EOCD, 0);
+  end.writeUInt16LE(sorted.length, 8);
+  end.writeUInt16LE(sorted.length, 10);
+  end.writeUInt32LE(cd.length, 12);
+  end.writeUInt32LE(offset, 16);
+  return Buffer.concat([...locals, cd, end]);
 }

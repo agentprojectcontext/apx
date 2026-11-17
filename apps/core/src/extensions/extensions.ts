@@ -24,6 +24,7 @@ import {
   ownerHost,
   type Package,
   PackageError,
+  packArchive,
   readArchive,
   readFolder,
   SECRET_REF,
@@ -325,6 +326,19 @@ export function createExtensions(deps: {
         entries: [...(await packages.entries(entries, true)), ...added],
         ...(status ? { catalog: status } : {}),
       };
+    },
+    /** A folder packed as an .apxext anyone can install: checked first, and the same extension read back. */
+    async pack(dir: string): Promise<{ name: string; data: string; hash: string; size: number }> {
+      const { pkg } = await load({ path: dir });
+      let buf: Buffer;
+      try {
+        buf = packArchive(pkg);
+      } catch (err) {
+        throw badRequest(err instanceof PackageError ? err.message : errorMessage(err, 300));
+      }
+      if (buf.length > EXTENSION_ARCHIVE_MAX) throw badRequest("the extension is too big for one file");
+      const { id, version } = pkg.manifest;
+      return { name: `${id}-${version}.apxext`, data: buf.toString("base64"), hash: pkg.hash, size: buf.length };
     },
     /** What an extension would bring, where it comes from by fingerprint, and what it changes over the installed one. */
     async inspect(input: ExtensionInput): Promise<ExtensionInfo> {

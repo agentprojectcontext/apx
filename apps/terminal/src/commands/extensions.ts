@@ -8,6 +8,7 @@ import type { ApxClient } from "@apx/protocol/client";
 const USAGE = `apx extensions                                   Installed extensions
 apx extensions inspect <folder|file.apxext|url|catalog:<catalog>/<id>>  What it would bring (nothing is installed)
 apx extensions install <folder|file.apxext|url|catalog:<catalog>/<id>>  Copy it in, off
+apx extensions pack <folder> [file.apxext]       One file to share or install (<id>-<version>.apxext)
 apx extensions catalog                           What APX's catalog and yours offer (install one by its address)
 apx extensions catalogs [add <source>|sync <id>|rm <id>]  Your own catalogs (owner/repo, git, https index, folder)
 apx extensions set <id> name=value ...           Its settings (value "-": read from stdin, for a sensitive one)
@@ -37,8 +38,11 @@ function sourceOf(
     if (size > EXTENSION_ARCHIVE_MAX) throw new Error(`${arg} is larger than an extension may be`);
     return { file: { name: path.basename(arg), data: fs.readFileSync(arg).toString("base64") } };
   }
-  return { path: arg };
+  return { path: folderPath(arg) };
 }
+
+/** A folder as the person typed it: relative to where they are (the core resolves "~" on its own computer). */
+const folderPath = (arg: string) => (arg.startsWith("~") ? arg : path.resolve(arg));
 
 const POWER: Record<ExtensionPower["kind"], string> = {
   mcp: "MCP server",
@@ -97,6 +101,15 @@ export async function extensions(
     const e = await client.call("extensions.install", sourceOf(arg));
     show(e);
     if (!e.enabled) console.log(`\nTurn it on with: apx extensions on ${e.id}`);
+    return;
+  }
+  if (sub === "pack" && arg) {
+    const p = await client.call("extensions.pack", { path: folderPath(arg) });
+    const out = path.resolve(name ?? p.name);
+    if (!out.toLowerCase().endsWith(".apxext")) throw new Error("the file must end in .apxext");
+    fs.writeFileSync(out, Buffer.from(p.data, "base64"));
+    console.log(`${out}  ${(p.size / 1024).toFixed(0)} KB  · ${p.hash}`);
+    console.log(`\nInstall it with: apx extensions install ${path.relative(process.cwd(), out) || out}`);
     return;
   }
   if (sub === "rollback" && arg) return show(await client.call("extensions.rollback", { id: arg }));

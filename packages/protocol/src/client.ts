@@ -86,7 +86,8 @@ function clientDeadline(method: string, params: unknown, fallback: number): numb
   if (method === "surfaces.fetch") return 45_000;
   if (method === "surfaces.export" || method === "surfaces.import") return 180_000;
   // A 20 MB .apxext over a slow link, or one the core downloads (server: 60 s) and checks against the catalog (10 s).
-  if (method === "extensions.inspect" || method === "extensions.install") return 120_000;
+  if (method === "extensions.inspect" || method === "extensions.install" || method === "extensions.pack")
+    return 120_000;
   // Reading a catalog clones its repository and checks each plugin's license (server: 90 s per git step).
   if (method === "extensions.catalog_add" || method === "extensions.catalog_sync") return 240_000;
   // A companion app (an .apk) may be 20 MB, base64.

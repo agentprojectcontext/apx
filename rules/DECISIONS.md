@@ -5309,8 +5309,9 @@ The owner can add catalogs for themself, as Claude Desktop lists marketplaces: a
 `knowledge-work-plugins` first). Everything from them is third party; APX's catalog always stays and is never removed.
 
 - **Two formats.** APX's own `index.json` (an entry installs from its `.apxext`) and Claude Code's
-  `.claude-plugin/marketplace.json`. A Claude plugin is converted when installed: its skills as they are, `.mcp.json`
-  servers (stdio, or https with headers; a `${VAR}` becomes a sensitive setting, `secret://var`), `agents/*.md` as
+  `.claude-plugin/marketplace.json`. A Claude plugin is converted when installed: its skills as they are, its MCP servers
+  (`.mcp.json` or what `plugin.json`'s `mcpServers` names; stdio, or https with headers; a `${VAR}` becomes a setting,
+  sensitive when its name says key, token or secret, and `${VAR:-x}` gives a plain one its default), `agents/*.md` as
   manifest 2 agents, and its license, notice and readme kept beside them. Commands and hooks are left out (no APX
   counterpart). The converted files then go through the same checks, fingerprint and install as any extension.
 - **Pinned or not listed.** A plugin from another repository (`url`, `git-subdir`, `github`) counts only with a
@@ -5327,3 +5328,18 @@ The owner can add catalogs for themself, as Claude Desktop lists marketplaces: a
 Rejected: listing everything and checking licenses at install (the owner would see what they cannot use); following
 an unpinned branch for another repository (its files could change between the look and the install); converting
 commands into skills (different behaviour than their authors meant).
+
+<a id="d-244"></a>
+## D-244 — 2026-11-17 — `apx extensions pack`: the core packs a folder into the same .apxext every time
+Making an extension ends in a file to share. `apx extensions pack <folder>` asks the core (`extensions.pack`), which
+reads the folder exactly as an install would (checked manifest, links refused, `.git`, `node_modules` and what a Mac
+adds left out), writes a zip with the files in path order, deflated, with no times or owners, and reads it back: the
+packed file must have the folder's fingerprint, or nothing is returned. The terminal saves it as
+`<id>-<version>.apxext` where the person is. The same folder always gives the same bytes, so a published file can be
+rebuilt and compared.
+
+A source folder now leaves out what a Mac adds (`.DS_Store`, `._` files) as the zip reader already did, so a folder and
+its packed file have one fingerprint.
+
+Rejected: packing in the terminal (a second reader of manifests and junk rules outside the core, against rule 3); a
+plain zip of the folder (times and order change the bytes, and junk would change the fingerprint).

@@ -154,3 +154,34 @@ test("an update: official and asking for nothing more stays on; one that reaches
   assert.deepEqual(fs.readdirSync(extDir()), []);
   await refused(env.client.call("extensions.rollback", { id: "weather" }), /not found/);
 });
+
+test("a folder packs into an .apxext: the same bytes each time, the same extension once installed", async () => {
+  await using src = tempDir("apx-pack-");
+  const put = (rel: string, data: string) => {
+    fs.mkdirSync(path.dirname(path.join(src.path, rel)), { recursive: true });
+    fs.writeFileSync(path.join(src.path, rel), data);
+  };
+  put("apx-extension.json", JSON.stringify(manifest("2.0.0", { id: "packed" })));
+  put("skills/forecast/SKILL.md", "---\nname: forecast\ndescription: Forecasts.\n---\nAsk the forecast tools.\n");
+  put("server.mjs", "export {};\n");
+  // Left out like on install: what a Mac adds, and dependencies.
+  put(".DS_Store", "junk");
+  put("node_modules/dep/index.js", "module.exports = 1;\n");
+  const first = await env.client.call("extensions.pack", { path: src.path });
+  const again = await env.client.call("extensions.pack", { path: src.path });
+  assert.equal(first.name, "packed-2.0.0.apxext");
+  assert.equal(first.data, again.data);
+  const seen = await env.client.call("extensions.inspect", { path: src.path });
+  assert.equal(first.hash, seen.hash);
+  const installed = await env.client.call("extensions.install", { file: file(Buffer.from(first.data, "base64")) });
+  assert.equal(installed.hash, seen.hash);
+  assert.deepEqual(readArchive(Buffer.from(first.data, "base64")).files, [
+    "apx-extension.json",
+    "server.mjs",
+    "skills/forecast/SKILL.md",
+  ]);
+  // Checked before it is packed: a manifest an install would refuse never makes a file.
+  put("apx-extension.json", JSON.stringify({ ...manifest("2.0.1", { id: "packed" }), version: undefined }));
+  await refused(env.client.call("extensions.pack", { path: src.path }), /apx-extension.json/);
+  await env.client.call("extensions.remove", { id: "packed" });
+});

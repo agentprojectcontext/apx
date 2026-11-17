@@ -150,6 +150,8 @@ apx extensions inspect ~/work/daily-brief                          # qué traer�
 apx extensions install ~/work/daily-brief                          # una carpeta, se copia, apagada
 apx extensions install ~/Downloads/daily-brief.apxext              # un archivo en esta computadora
 apx extensions install https://example.com/daily-brief.apxext      # una descarga (solo https)
+apx extensions pack ~/work/daily-brief                             # un archivo para compartir: daily-brief-1.0.0.apxext
+apx extensions set daily-brief region=eu                           # sus ajustes (nombre=- lee uno sensible por stdin)
 apx extensions secret <id> <name>                                  # el valor de un secreto declarado, por stdin (--clear lo borra)
 apx extensions on daily-brief
 apx extensions rollback daily-brief                                # vuelve a la versión instalada antes
@@ -184,6 +186,10 @@ queda al comprimir una carpeta a mano). APX rechaza el archivo entero, antes de 
 entrada cifrada, una ruta que sale de la carpeta (`..`, una ruta absoluta), tamaños que no coinciden con lo que se
 descomprime, dos nombres que un disco tomaría como uno, más de 2000 archivos o más de 50 MB descomprimido. El archivo en
 sí pesa como mucho 20 MB. `.git`, `node_modules` y lo que agrega una Mac al comprimir (`__MACOSX`, `.DS_Store`, archivos `._`) quedan afuera.
+
+`apx extensions pack <carpeta>` lo arma por vos: revisa la carpeta primero, deja afuera lo mismo, y la misma carpeta da
+siempre el mismo archivo (`<id>-<versión>.apxext`). Para convertir un script o una app que ya tenés en una extensión,
+mirá [Llevar tu app a una extensión](/es/extend/app-to-extension/).
 
 ### Oficial o de terceros
 

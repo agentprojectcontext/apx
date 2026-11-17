@@ -5,7 +5,7 @@ description: APX's integrations, accounts the owner connects once (Google, Asana
 
 # Integrations in APX
 
-An integration is an account the owner connects once in [the Marketplace](apx:resources/extensions).
+An integration is an account the owner connects once in [the Marketplace](apx:marketplace).
 Connecting needs the owner's own sign-in or token, so **the owner does it in the app**; you send them the link, say what
 to have at hand, and use the tools once it is connected.
 
@@ -57,7 +57,7 @@ with apx-mcps. If it only has an HTTP API, a small extension can wrap it (apx-ex
 
 1. `apx mcps list` (for the MCP-based ones): is it there, and in what state?
 2. `apx mcps check <name>`: the exact error. An authentication error usually means a token expired or was revoked:
-   the owner reconnects it in [the Marketplace](apx:resources/extensions).
+   the owner reconnects it in [the Marketplace](apx:marketplace).
 3. For Asana, check its connection and project switch in the Marketplace; a rejected token must be replaced there.
 4. For Google, no `calendar_*`, `gmail_*` or `drive_*` tools means that part is not connected (or is off in this
    project). "Sign in again" in its dialog fixes a revoked or expired access.

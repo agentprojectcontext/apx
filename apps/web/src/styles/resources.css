@@ -685,6 +685,29 @@
   color: var(--apx-fg-subtle);
   font-size: var(--apx-text-xs);
 }
+.resext__guidebody ol li {
+  margin-bottom: 6px;
+}
+.resext__guidebody code {
+  display: block;
+  margin-top: 4px;
+  padding: 6px 10px;
+  overflow-x: auto;
+  border-radius: var(--apx-radius-sm);
+  background: var(--apx-fill);
+  color: var(--apx-fg);
+  font-family: var(--apx-font-mono);
+  font-size: var(--apx-text-2xs);
+  white-space: nowrap;
+}
+.resext__guidelink {
+  display: inline-flex;
+  gap: 4px;
+  align-items: center;
+  align-self: flex-start;
+  color: var(--apx-accent);
+  font-size: var(--apx-text-sm);
+}
 /* Integrations */
 .int__listhead {
   padding: 4px 8px 6px;

@@ -150,6 +150,8 @@ apx extensions inspect ~/work/daily-brief                          # what it wou
 apx extensions install ~/work/daily-brief                          # a folder, copied in, off
 apx extensions install ~/Downloads/daily-brief.apxext              # a file on this computer
 apx extensions install https://example.com/daily-brief.apxext      # a download (https only)
+apx extensions pack ~/work/daily-brief                             # one file to share: daily-brief-1.0.0.apxext
+apx extensions set daily-brief region=eu                           # its settings (name=- reads a sensitive one from stdin)
 apx extensions secret <id> <name>                                  # a declared secret's value, on stdin (--clear removes it)
 apx extensions on daily-brief
 apx extensions rollback daily-brief                                # back to the version installed before
@@ -184,6 +186,10 @@ folder by hand packs it). APX refuses the whole file, before writing anything, w
 entry, a path that leaves the folder (`..`, an absolute path), sizes that don't match what unpacks, two names one disk
 would take as one, more than 2,000 files or more than 50 MB unpacked. The file itself is at most 20 MB. `.git`,
 `node_modules`, and what a Mac adds when zipping (`__MACOSX`, `.DS_Store`, `._` files) are left out.
+
+`apx extensions pack <folder>` makes one for you: it checks the folder first, leaves the same things out, and the same
+folder always packs into the same file (`<id>-<version>.apxext`). To turn a script or an app you already have into an
+extension, see [Bring your app to an extension](/extend/app-to-extension/).
 
 ### Official or third party
 

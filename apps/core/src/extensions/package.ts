@@ -5,7 +5,7 @@ import { createHash } from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import { ExtensionManifest, type ExtensionPower } from "@apx/protocol";
-import { readZip } from "../skills/zip.ts";
+import { readZip, writeZip } from "../skills/zip.ts";
 
 const MANIFEST = "apx-extension.json";
 export const MAX_FILES = 2000;
@@ -34,6 +34,8 @@ export function filesOf(root: string, source = false): string[] {
       if (source && LEFT_OUT.has(e.name)) continue;
       const abs = path.join(dir, e.name);
       const rel = path.relative(root, abs).split(path.sep).join("/");
+      // A source folder reads like its zip would: what a Mac adds is never part of it.
+      if (source && junk(e.isDirectory() ? `${rel}/` : rel)) continue;
       if (e.isSymbolicLink()) throw new PackageError(`${rel} is a link; extensions hold plain files`);
       if (e.isDirectory()) walk(abs);
       else if (e.isFile()) {
@@ -255,6 +257,13 @@ export function readArchive(buf: Buffer): Package {
     (rel) => byPath.get(rel) ?? Buffer.alloc(0),
     (rel) => byPath.has(rel),
   );
+}
+
+/** A package as an .apxext: read back, it must be the same extension (the same fingerprint). */
+export function packArchive(pkg: Package): Buffer {
+  const buf = writeZip(pkg.files.map((f) => ({ path: f, data: pkg.read(f) })));
+  if (readArchive(buf).hash !== pkg.hash) throw new PackageError("the packed file does not read back the same");
+  return buf;
 }
 
 /** Files already in memory (a converted plugin, a folder read through git), checked like an archive's. */

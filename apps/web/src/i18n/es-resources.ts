@@ -290,29 +290,33 @@ export const esResources: Partial<Record<MessageKey, string>> = {
   "res.noOwnMcp": "Todavía no tiene servidores propios (.apc/mcps.json).",
   "ext.guide.title": "¿Cómo se hace una extensión?",
   "ext.guide.what":
-    "Una extensión es una carpeta con skills, servidores MCP, sus variables y plantillas de rutinas. Se instala y se apaga todo junto; nada corre hasta que la prendés.",
+    "Empezá por lo que ya tenés: un script (.mjs) que les da herramientas a tus agentes, una skill, una app en otro dispositivo. Una extensión es una carpeta con un apx-extension.json que dice qué trae; se instala apagada y no corre nada hasta que la encendés.",
   "ext.guide.folder": "La carpeta",
   "ext.guide.parts": "Qué puede traer",
-  "ext.guide.skills": "Skills",
-  "ext.guide.skillsBody": "una carpeta de carpetas de skills, cada una con su SKILL.md.",
-  "ext.guide.mcp": "Servidores MCP",
+  "ext.guide.mcp": "Tu script",
   "ext.guide.mcpBody":
-    "un comando (npx, uvx, ./un-script) o una URL; secret://nombre es una variable de la propia extensión.",
-  "ext.guide.secrets": "Variables",
-  "ext.guide.secretsBody": "lo que escribís una vez (un token, una API key); se guarda de forma segura.",
-  "ext.guide.routines": "Rutinas",
-  "ext.guide.routinesBody": "plantillas que sumás a Rutinas; vos elegís el agente.",
-  "ext.guide.plugin": "Plugin (opcional)",
-  "ext.guide.pluginBody":
-    "un .mjs que corre aparte, mira eventos y puede sumar contexto a tus turnos; no puede llamar a APX.",
-  "ext.guide.install": "Instalarla",
-  "ext.guide.step1":
-    "Armá la carpeta con su apx-extension.json (hay un ejemplo en examples/extensions/ del repo de APX).",
-  "ext.guide.step2":
-    "Acá, Instalar: pegá la ruta de la carpeta, Revisar e Instalar (o apx extensions install <carpeta>).",
-  "ext.guide.step3": "Llega apagada: completá sus variables y prendela.",
+    "tu .mjs como servidor MCP (node ./server.mjs), o un comando (npx, uvx) o una dirección https. setting://nombre y secret://nombre completan lo que escribió el dueño.",
+  "ext.guide.skills": "Skills",
+  "ext.guide.skillsBody":
+    "una carpeta de carpetas de skills, cada una con su SKILL.md, para que los agentes sepan cuándo y cómo usarla.",
+  "ext.guide.settings": "Ajustes",
+  "ext.guide.settingsBody":
+    "lo que el dueño completa una vez: un texto, un número, sí o no, una carpeta o un archivo. Los sensibles se guardan como claves; se puede inventar una para ellos.",
+  "ext.guide.companion": "Su app",
+  "ext.guide.companionBody":
+    "una app para una tele, un teléfono o una compu, que se ofrece para descargar y se vincula con un código: con APX como un dispositivo, o con una herramienta de la propia extensión.",
+  "ext.guide.more": "Y más",
+  "ext.guide.moreBody":
+    "agentes listos, páginas para sus ajustes, widgets (.apxart), plantillas de rutinas y un plugin.",
+  "ext.guide.install": "Revisala, empaquetala, instalala",
+  "ext.guide.step1": "Mirá qué traería, sin instalar nada:",
+  "ext.guide.step2": "Empaquetala en un archivo que podés compartir:",
+  "ext.guide.step3": "Instalala (o Agregar › Desde un archivo .apxext acá, o soltá el archivo en la ventana):",
+  "ext.guide.step4": "Llega apagada: completá sus ajustes, encendela y, si tiene app, conectala.",
   "ext.guide.safety":
-    "Prenderla aprueba exactamente los archivos que tenía: si uno cambia, se apaga hasta que la vuelvas a aprobar.",
+    "Encenderla aprueba exactamente los archivos que tenía: si cambia uno, se apaga hasta que la apruebes de nuevo.",
+  "ext.guide.doc": "Llevar tu app a una extensión, paso a paso",
+  "ext.guide.docUrl": "https://apxagent.app/es/extend/app-to-extension/",
   "int.everywhere": "Todos los proyectos",
   "int.inSome": "{n} de {total} proyectos",
   "int.connectedAs": "Conectada",

@@ -30,8 +30,9 @@ const extension = {
 
 test("extension inspect, install and toggles preserve exact protocol intent and show capabilities", async () => {
   for (const c of [
-    { args: ["inspect", "./acme"], method: "extensions.inspect", params: { path: "./acme" } },
-    { args: ["install", "./acme"], method: "extensions.install", params: { path: "./acme" } },
+    // A folder is where the person is, not where the core runs; "~" is the core's to resolve.
+    { args: ["inspect", "./acme"], method: "extensions.inspect", params: { path: path.resolve("acme") } },
+    { args: ["install", "~/work/acme"], method: "extensions.install", params: { path: "~/work/acme" } },
     { args: ["on", "acme"], method: "extensions.enable", params: { id: "acme", enabled: true } },
     { args: ["off", "acme"], method: "extensions.enable", params: { id: "acme", enabled: false } },
   ]) {
@@ -180,4 +181,16 @@ test("your own catalogs: add one by its address, see what it left out", async ()
   const out = await printed(() => extensions(client, ["catalogs", "add", "acme/plugins"], {}));
   assert.deepEqual(calls, [["extensions.catalog_add", { source: "acme/plugins" }]]);
   assert.ok(out.includes("left out closed: license"), out);
+});
+
+test("pack writes the core's .apxext where the person is, or to the file they name", async () => {
+  await using dir = tempDir("apx-cli-pack-");
+  const packed = { name: "acme-1.0.0.apxext", data: Buffer.from("PK zip").toString("base64"), hash: "abc", size: 6 };
+  const { client, calls } = recordingClient({ "extensions.pack": packed });
+  const out = path.join(dir.path, "shared.apxext");
+  const printedOut = await printed(() => extensions(client, ["pack", path.join(dir.path, "acme"), out], {}));
+  assert.deepEqual(calls, [["extensions.pack", { path: path.join(dir.path, "acme") }]]);
+  assert.equal(fs.readFileSync(out, "utf8"), "PK zip");
+  assert.ok(printedOut.includes("apx extensions install"), printedOut);
+  await assert.rejects(extensions(client, ["pack", "./acme", path.join(dir.path, "acme.zip")], {}), /\.apxext/);
 });

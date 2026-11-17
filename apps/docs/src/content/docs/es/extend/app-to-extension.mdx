@@ -1,0 +1,142 @@
+---
+title: Llevar tu app a una extensión
+description: Convertí un script o una app que ya tenés en una extensión de APX que tus agentes pueden usar, con sus ajustes, su app en otro dispositivo y un archivo para compartir. Android TV como ejemplo.
+sidebar:
+  order: 4
+---
+
+import { Aside, FileTree, Steps } from "@astrojs/starlight/components";
+import Terminal from "../../../../components/Terminal.astro";
+
+Tenés algo que anda: un script de Node que maneja un dispositivo, un servidor chico con tus propias herramientas, una
+app en una tele o un teléfono. Una [extensión](/es/extend/extensions/) lo trae a APX sin reescribirlo: tus agentes
+tienen sus herramientas, el dueño completa una vez lo que necesita y su app se vincula desde el Marketplace. Esta página
+recorre **Android TV**, una extensión con la que los agentes manejan el control de la tele a través de una app en la
+tele.
+
+## De qué partís
+
+- **Un script** (`server.mjs`) que habla MCP por stdio: lista sus herramientas y las ejecuta. Si el tuyo hace otra cosa
+  (un servidor HTTP, una CLI), sumá en la misma carpeta un servidor MCP chico que lo llame.
+- **Lo que necesita saber**: para la tele, la dirección con la que la tele llega a él y una clave que comparten la tele
+  y el script.
+- **Una app en otro dispositivo**, si tiene: `android-tv.apk`, que corre en la tele.
+
+<Aside type="caution">
+Un servidor dentro de una extensión corre desde su carpeta, sin `node_modules`. Usá sólo lo que trae Node, o empaquetá
+tus dependencias dentro del script.
+</Aside>
+
+## 1. La carpeta
+
+<FileTree>
+- android-tv/
+  - apx-extension.json qué trae
+  - server.mjs tu script, sin cambios
+  - bridge.mjs
+  - session.mjs
+  - skills/
+    - android-tv/
+      - SKILL.md cuándo y cómo la usan los agentes
+  - android-tv.apk la app para la tele
+  - apx-listing.json su página en el Marketplace (opcional)
+  - README.md
+</FileTree>
+
+La skill les dice a los agentes cuándo usar las herramientas de la extensión y qué no hacer (acá: nunca manejar la tele
+de otra forma). Su `description` es lo que lee un agente para decidir si la carga.
+
+## 2. El manifiesto
+
+```json
+{
+  "manifest": 2,
+  "id": "android_tv",
+  "name": "Android TV",
+  "version": "0.3.0",
+  "description": "Your agents control the TV: open apps, search a title, pause and change the volume.",
+  "skills": "skills",
+  "mcp": {
+    "remote": {
+      "command": "node",
+      "args": ["./server.mjs"],
+      "env": { "APX_TV_KEY": "secret://connection_key", "APX_TV_URL": "setting://address" }
+    }
+  },
+  "settings": [
+    {
+      "name": "address",
+      "label": "Address the TV reaches this extension at",
+      "description": "A private https address of this computer, never a public one.",
+      "type": "string",
+      "required": true
+    },
+    { "name": "connection_key", "label": "Connection key", "type": "string", "sensitive": true, "generate": "random" }
+  ],
+  "companion": {
+    "name": "APX TV",
+    "platform": "android-tv",
+    "file": "android-tv.apk",
+    "steps": [
+      "Install APX TV on the TV (from this computer with the file below).",
+      "Open APX TV and turn on its accessibility service when it asks.",
+      "Type the address and the code shown here."
+    ],
+    "pairing": { "with": "extension", "server": "remote", "tool": "tv_pairing" }
+  }
+}
+```
+
+- **`mcp.remote`** corre tu script desde la carpeta de la extensión. Su entorno recibe sólo lo que nombra el
+  manifiesto: `setting://address` es el valor que escribió el dueño, `secret://connection_key` la clave guardada en el
+  almacén de secretos de APX.
+- **`settings`** es lo que el dueño completa una vez, en la página de la extensión o con `apx extensions set`. Uno
+  `sensitive` se guarda como clave; `"generate": "random"` crea una al instalar, así nadie tiene que inventarla.
+- **`companion`** es la app de la tele: se ofrece para descargar desde su página, con sus pasos, y se vincula con
+  `tv_pairing`, una herramienta de tu propio servidor. Cuando esa herramienta responde
+  `{"code": "416879", "address": "https://…"}`, la página muestra la dirección y el código, grandes. Una app que se
+  vincula con APX mismo, como la del teléfono, usa `"pairing": {"with": "apx"}`.
+
+## 3. Revisala, empaquetala, instalala
+
+Mirá qué traería. No se instala ni se ejecuta nada:
+
+<Terminal command="apx extensions inspect ./android-tv">{`android_tv  Android TV v0.3.0  · off  · third party  · 38baf5b119f13cbe
+  Your agents control the TV: open apps, search a title, pause and change the volume.
+  skills: android-tv
+  mcp: android_tv-remote
+  setting address: Address the TV reaches this extension at (missing)
+  setting connection_key: Connection key (missing)
+  companion app: APX TV (android-tv)
+  runs code on this computer: turn it on only if you trust its author`}</Terminal>
+
+Empaquetala en un archivo. La misma carpeta da siempre el mismo archivo; `.git`, `node_modules` y lo que agrega una Mac
+quedan afuera:
+
+<Terminal command="apx extensions pack ./android-tv">{`~/work/android_tv-0.3.0.apxext  61 KB  · 38baf5b119f13cbe
+
+Install it with: apx extensions install android_tv-0.3.0.apxext`}</Terminal>
+
+<Steps>
+
+1. Instalala: `apx extensions install android_tv-0.3.0.apxext`, doble clic en el archivo, o **Agregar › Desde un
+   archivo .apxext** en el Marketplace. Llega apagada, con su clave ya creada.
+
+2. Completá su dirección y encendela desde su página (o `apx extensions set android_tv address=https://…` y
+   `apx extensions on android_tv`). Encenderla aprueba exactamente estos archivos y a dónde llegan.
+
+3. **Conectar** abre la vinculación: descargá la app, seguí sus pasos, **Mostrar el código**, y escribí la dirección y
+   el código en la tele.
+
+</Steps>
+
+## 4. Compartila
+
+El `.apxext` es la extensión entera. Quien la instala la ve como **De terceros**, con lo que trae antes de encenderla.
+Para publicar una versión nueva, subí `version` y empaquetá de nuevo: quien la tiene ve qué suma la nueva y puede volver
+a la anterior.
+
+<Aside>
+Una app de escritorio funciona igual: el servidor de la extensión habla con la app en la compu, y `companion` con
+`"platform": "macos"` la ofrece para descargar.
+</Aside>

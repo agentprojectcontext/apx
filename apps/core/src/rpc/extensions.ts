@@ -49,6 +49,7 @@ export function extensionHandlers(extensions: Extensions, mcp: Mcp) {
     "extensions.companion_file": ({ id }) => extensions.companionFile(id),
     "extensions.app_bundle": ({ id, file }) => extensions.appBundle(id, file),
     "extensions.asset": async ({ id, file }) => (await extensions.asset(id, file)) ?? {},
+    "extensions.pack": ({ path }) => extensions.pack(path),
     "extensions.inspect": ({ path, file, url, entry }) => extensions.inspect(source(path, file, url, entry)),
     "extensions.install": async ({ path, file, url, entry, hash }) => {
       const before = extensions.list();
