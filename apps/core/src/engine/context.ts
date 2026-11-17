@@ -256,7 +256,7 @@ export function systemPrompt(
     RECOVERY,
     "- A step the owner declined is not repeated: think why and change course. Independent tool calls go together in one step.",
     "- A pure greeting or thanks gets a short answer, no tools. A greeting with a request is a request.",
-    "- An action request gets action with your tools, not a task instead of a result. Track and start long work; report results, not board moves.",
+    "- Do now what fits this turn, not as a task; a task is for long work, another agent's, a later start, a promise to track, or if asked. Report results, not board moves.",
     "- Work of more than two steps starts with plan; mark each step as you go.",
     "",
     "## Rules",

@@ -66,4 +66,4 @@ export function computerBriefing(s: Status, agent: string, thread: string, told 
 
 /** Home stays on the Mac (DECISIONS.md#d-154): an agent allowed the computer reaches it through a task's own chat. */
 export const HOME_COMPUTER =
-  "Computer: not used from Home. For work the owner wants on it, create a task (yours or an allowed agent's): its chat can start it. If they did not say where, ask them first.";
+  "Computer: the shared Linux one is not used from Home. For work the owner wants on it, create a task (yours or an allowed agent's): its chat can start it; if they did not say where, ask first. Their own screen and browser are not it: use them here.";

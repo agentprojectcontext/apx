@@ -72,7 +72,7 @@ test("task_create tells the agent to look for the same open task before making a
   const create = llm.calls.at(-1)?.tools.find((tool) => tool.function.name === "task_create");
   assert.match(
     create?.function.description ?? "",
-    /^First task_list: if an open task is the same or close, continue that one\./,
+    /^Not for what the owner waits for here and fits this turn: do it now\. First task_list: if an open task is the same or close, continue that one\./,
   );
 });
 

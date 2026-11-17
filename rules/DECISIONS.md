@@ -5120,3 +5120,33 @@ The realistic owner's prompt budget goes from 8,150 to 8,250 chars (8,222 now); 
 Rejected: copying the super-agent's notes into every delegated brief by code (it chooses which notes matter; a blanket
 copy costs tokens on every hand-off); taking `delegate` away from the
 super-agent (long project work and a worker on WhatsApp still need it).
+
+<a id="d-238"></a>
+## D-238 — 2026-11-17 — What fits this turn is done in it; a task is for work that outlives it
+The owner wrote in Home "open my Chrome, go to Instagram, TikTok and LinkedIn and check if I have notifications". The
+super-agent ran `task_list` and `task_create` (self-assigned) instead of acting: the task's run took about 70 s, the
+answer came back to Home afterwards, and the hand-off added about 20 s and a second run to a one-minute check. Other
+times it acted directly on the same kind of request, so the owner could not predict which. Two causes:
+
+- **Home's computer line read as "no screen in Home".** The line an allowed agent reads in Home said "Computer: not
+  used from Home… create a task". It means the shared Linux computer (D-154), but the owner's own Mac (`screen_` tools,
+  their browser) is called "computer" too, and the task's brief said so: "use screen_* in a task session, not Home".
+  The line only shows when the agent is allowed the Linux computer, which is why the behaviour changed between owners
+  and days. It now names the shared Linux one and ends "Their own screen and browser are not it: use them here."
+- **The rule was a slogan, not a test.** "An action request gets action… Track and start long work" left "long" to the
+  model. The rule is now one line every agent reads, and the first clause of `task_create`:
+
+**Do now what fits this turn, not as a task.** A task is for long work, another agent's work, a later start, a
+promise to track, or when the owner asks for one. `task_create` opens with "Not for what the owner waits for here and
+fits this turn: do it now." (before its `task_list` check, so a quick request no longer reads the board first).
+
+Unchanged: self-assignment still moves the current work into the task's chat (2.11.1), long project work still goes to
+its agent (D-237), WhatsApp's narrow turn still hands tool work to a worker, and a task's own agent still carries it to
+delivery (D-208).
+
+The realistic owner's system prompt is 8,249 chars (budget 8,250, not raised: the line was shortened to fit); the
+default turn's is 6,074 and its tools 16,332 (`rules/PROMPT_SIZE.md`).
+
+Rejected: blocking a self-assigned `task_create` in Home by code (a long check, or one the owner asked to track, is a
+fair task); a time estimate in the rule (the model cannot measure it before acting, and "fits this turn" is what the
+owner sees).

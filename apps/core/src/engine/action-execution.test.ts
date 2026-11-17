@@ -99,10 +99,13 @@ test("capture-only records a task without execution or pressure to assign", asyn
 
 test("a simple action needs no task and receives action-first guidance", async () => {
   const llm = scriptedLlm((req, { afterTool, system }) => {
-    assert.match(system, /An action request gets action with your tools/);
-    assert.match(system, /report results, not board moves/);
+    assert.match(system, /Do now what fits this turn, not as a task/);
+    assert.match(system, /a task is for long work, another agent's, a later start, a promise to track, or if asked/);
     const create = req.tools.find((t) => t.function.name === "task_create");
-    assert.match(create?.function.description ?? "", /not every action/);
+    assert.match(
+      create?.function.description ?? "",
+      /^Not for what the owner waits for here and fits this turn: do it now\./,
+    );
     return afterTool ? say("The board is empty.") : callTool("read", "task_list", {});
   });
   const env = await startCore({ llm });
@@ -114,6 +117,28 @@ test("a simple action needs no task and receives action-first guidance", async (
       env.core.store.runs.steps(sent.run.id).map((s) => s.tool),
       ["task_list"],
     );
+    assert.equal(env.core.store.tasks.list({ limit: 10 }).length, 0);
+  } finally {
+    await env.core.close();
+    await env.cleanup();
+  }
+});
+
+test("a quick check of the owner's own browser asked in Home is done in the turn, not handed to a task", async () => {
+  const llm = scriptedLlm((req, { afterTool, system }) => {
+    assert.match(system, /Do now what fits this turn, not as a task/);
+    const create = req.tools.find((t) => t.function.name === "task_create");
+    assert.match(create?.function.description ?? "", /fits this turn: do it now/);
+    return afterTool ? say("No notifications.") : callTool("read", "task_list", {});
+  });
+  const env = await startCore({ llm });
+  try {
+    const sent = await env.client.call("threads.send", {
+      thread: "home",
+      text: "Open my Chrome, go to Instagram, TikTok and LinkedIn and check if I have notifications",
+    });
+    await waitFor(() => Boolean(env.core.store.runs.get(sent.run.id)?.ended_at), "home check completion");
+    assert.equal(env.core.store.runs.get(sent.run.id)?.state, "completed");
     assert.equal(env.core.store.tasks.list({ limit: 10 }).length, 0);
   } finally {
     await env.core.close();
