@@ -14,6 +14,8 @@ import {
 import { prepareLocalTarget } from "../../../packages/install/src/paths.ts";
 import { desktopSessionEnv } from "../../../packages/install/src/session.ts";
 import { createAccess, type TailscaleRun } from "./access.ts";
+import { accountClient } from "./account/client.ts";
+import { createAccount } from "./account/session.ts";
 import { createProjectReader, type ReadProjectFiles } from "./apc/project-reader.ts";
 import { createApcSync } from "./apc/sync.ts";
 import type { TemplateRoot } from "./apc/templates.ts";
@@ -355,6 +357,12 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
     offIn: (project, id) => !integrationsOff.takesGlobals(project) || integrationsOff.offIn(project).includes(id),
     // A stand-in Google never takes APX's real client.
     builtin: clientFromPair(config.googleClient) ?? (config.googleApi ? undefined : apxGoogleClient()),
+  });
+  const account = createAccount({
+    secrets,
+    client: accountClient(config.accountClient),
+    google: clientFromPair(config.googleClient) ?? (config.googleApi ? undefined : apxGoogleClient()),
+    origin: () => `http://127.0.0.1:${listening}`,
   });
   const asana = createAsana({
     secrets,
@@ -783,6 +791,7 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
 
   const dispatch = createRouter(
     coreHandlers({
+      account,
       activityReview,
       vm,
       internal,

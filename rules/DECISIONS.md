@@ -5188,3 +5188,29 @@ book until the owner reviews them; every booking reaches the owner at once with 
 Rejected: letting the model read `calendar_free` itself (it would see busy blocks and could pick any time); booking
 outside the attention hours when none are set (no safe window); moving a booking from the contact's chat in this
 version (a cancel and a new booking under the same caps is enough for now; moving is noted for the owner).
+
+<a id="d-240"></a>
+## D-240 — 2026-11-17 — Optional Firebase accounts use installed-app Google sign-in and private short IDs
+
+The APX account is optional and separate from local owner identity, Google integrations and telemetry. Signing in
+uploads only the account profile, not projects, conversations or agents. It does not publish an artifact.
+
+Use Firebase Authentication with Google and Firestore REST, without Cloud Functions or a billing upgrade. Google
+installed-app authorization uses PKCE S256, random expiring state and an HTTP `127.0.0.1` return under RFC 8252.
+The existing panel return page completes the registered protocol method; desktop hands the code back through the
+strict `apx://account/callback` path. Firebase verifies Google's ID token; the core stores Firebase ID and refresh
+tokens only as a secret. Account methods are owner-only, sanitized and never expose tokens to agents. Logout removes
+this core's saved session without deleting the cloud profile or another core's session.
+
+Each Firebase user owns one private profile with an immutable eight-character Crockford base32 ID (no I, L, O or U)
+and an optional unique username. Atomic Firestore commits create matching profile/reservation documents with
+nonexistence preconditions; renames compare revisions and reserve/release names together. Rules validate the entire
+post-write relationship. Public client configuration confers no privilege; no administrator credential is distributed.
+Ordinary accounts cannot read telemetry; anonymous telemetry writes and the dedicated reader claim retain their
+existing rules. Emulator regression tests cover both account isolation and telemetry permissions.
+
+Trade-off: this no-broker loopback flow requires the browser and core on the same computer. It does not provide
+remote-core or phone sign-in. An HTTPS broker needs a separate deployment/cost decision. Account IDs are profile
+identifiers, never public artifact link codes: each published artifact has an independent code.
+
+See [Firebase setup](../firebase/README.md) and its Spanish counterpart for configuration, rules and verification.

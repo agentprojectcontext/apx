@@ -8,6 +8,7 @@ import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import { nodeOs, targetOf } from "@apx/protocol";
+import { ACCOUNT_CLIENT_FILE, accountClient } from "../../core/src/account/client.ts";
 import { CLIENT_FILE, clientFromJson, clientFromPair } from "../../core/src/integrations/google-client.ts";
 import { stageProtocol } from "./stage-protocol.ts";
 
@@ -116,6 +117,10 @@ if (client)
     JSON.stringify({ client_id: client.clientId, client_secret: client.clientSecret }, null, 2),
   );
 console.log(client ? "Google sign-in: APX's own client" : "Google sign-in: none in this build");
+const cloudClient = accountClient(process.env.APX_ACCOUNT_CLIENT, repo);
+if (process.env.APX_ACCOUNT_CLIENT && !cloudClient) throw new Error("APX_ACCOUNT_CLIENT is not a Firebase client JSON");
+if (cloudClient) fs.writeFileSync(path.join(out, ACCOUNT_CLIENT_FILE), JSON.stringify(cloudClient));
+console.log(cloudClient ? "APX account: configured" : "APX account: not configured in this build");
 // What each release changed, read from this checkout's tags now: the installed core has no git (DECISIONS.md#d-100).
 execFileSync(
   process.execPath,

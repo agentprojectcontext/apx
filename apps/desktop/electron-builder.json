@@ -25,6 +25,7 @@
   "npmRebuild": false,
   "electronVersion": "44.5.1",
   "publish": null,
+  "protocols": [{ "name": "APX", "schemes": ["apx"] }],
   "fileAssociations": [
     {
       "ext": "apxart",

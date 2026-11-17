@@ -94,6 +94,8 @@ export type CoreConfig = {
   googleApi: string | undefined;
   /** A Google OAuth client (`client_id:client_secret`) in place of the one this build ships (APX_GOOGLE_CLIENT). */
   googleClient: string | undefined;
+  /** Public Firebase client configuration for the optional APX account. */
+  accountClient: string | undefined;
   /** iMessage tools on a Mac; APX_IMESSAGE=off hides them (a sandbox must never reach the owner's Messages). */
   imessage: boolean;
   /**
@@ -249,6 +251,7 @@ export function loadConfig(processEnv: NodeJS.ProcessEnv = process.env, readCore
     slackApi: env.APX_SLACK_API || undefined,
     googleApi: env.APX_GOOGLE_API || undefined,
     googleClient: env.APX_GOOGLE_CLIENT || undefined,
+    accountClient: env.APX_ACCOUNT_CLIENT || undefined,
     publicUrl: env.APX_PUBLIC_URL?.replace(/\/$/, "") || undefined,
     expoPushUrl: env.APX_EXPO_PUSH_URL || "https://exp.host/--/api/v2/push/send",
     imessage: env.APX_IMESSAGE !== "off",

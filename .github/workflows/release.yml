@@ -82,6 +82,7 @@ jobs:
         env:
           # APX's Google sign-in, written into the build only (DECISIONS.md#d-130); empty in a fork.
           APX_GOOGLE_CLIENT: ${{ secrets.APX_GOOGLE_CLIENT }}
+          APX_ACCOUNT_CLIENT: ${{ secrets.APX_ACCOUNT_CLIENT }}
         run: node scripts/package.ts ${{ matrix.target }}
       - name: Attach to the release
         shell: bash
