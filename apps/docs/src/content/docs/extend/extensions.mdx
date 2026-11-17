@@ -82,16 +82,21 @@ other variables or the environment, so a bundle can't carry your credentials els
 
 ## Install it
 
+An extension comes as a folder, as an **`.apxext` file** (the folder zipped; the packages APX publishes come this way)
+or from an **https address** of one. APX shows what it brings before it writes anything, and installs it off.
+
 <Tabs>
 <TabItem label="Panel">
 
 <Steps>
 
-1. Open **Resources › Extensions** and press **Install**.
+1. Double-click an `.apxext` file, or drop it on the APX window. Or open **Resources › Extensions** and press
+   **From a file** or **From a URL** (the **Install** dialog also takes a folder).
 
-2. Paste the folder's path, press **Inspect** to see what it brings, then **Install**.
+2. Look at what it brings: its skills, servers, the secrets it asks for, its plugin, and whether it is **Official**
+   or **Third party** (below). Then **Install off**.
 
-3. It arrives off. Fill in its keys (**Edit**), then turn it on.
+3. Fill in its keys (**Edit**), then turn it on.
 
 4. Its routines are suggestions: **Add to Routines** puts one in Routines, turned off until you turn it on.
 
@@ -101,19 +106,25 @@ other variables or the environment, so a bundle can't carry your credentials els
 <TabItem label="Terminal">
 
 ```bash
-apx extensions inspect ~/work/daily-brief     # what it would bring; nothing is installed
-apx extensions install ~/work/daily-brief     # copied in, off
-apx extensions secret <id> <name>             # a declared secret's value, on stdin (--clear removes it)
+apx extensions inspect ~/work/daily-brief                          # what it would bring; nothing is installed
+apx extensions install ~/work/daily-brief                          # a folder, copied in, off
+apx extensions install ~/Downloads/daily-brief.apxext              # a file on this computer
+apx extensions install https://example.com/daily-brief.apxext      # a download (https only)
+apx extensions secret <id> <name>                                  # a declared secret's value, on stdin (--clear removes it)
 apx extensions on daily-brief
-apx extensions                                # installed ones, on or off
+apx extensions rollback daily-brief                                # back to the version installed before
+apx extensions                                                     # installed ones, on or off
 apx extensions off daily-brief
 apx extensions rm daily-brief
 ```
 
+An `.apxext` given to the terminal is read on the terminal's computer and sent to the core, which may run elsewhere;
+a folder is read where the core runs.
+
 </TabItem>
 </Tabs>
 
-<Terminal command="apx extensions install ~/work/daily-brief">{`daily-brief  Daily brief v1.0.0  · off  · 3f9c1a7e5b2d8c40
+<Terminal command="apx extensions install ~/Downloads/daily-brief.apxext">{`daily-brief  Daily brief v1.0.0  · off  · official  · 3f9c1a7e5b2d8c40
   A short morning brief: open tasks, what is due, what others owe you.
   skills: daily-brief
   routines: Morning brief
@@ -123,8 +134,35 @@ Turn it on with: apx extensions on daily-brief`}</Terminal>
 <Shot name="resources-extensions" alt="Resources, Extensions tab: installed extensions with their on or off switch, skills, servers and routines" caption="Resources › Extensions" />
 
 Installing copies plain files into APX's home and fingerprints them. If the installed copy changes on disk, APX turns
-the extension off at its next start until you approve it again. To take changes from the original folder, install it
-again or use **Read again** in its detail.
+the extension off at its next start until you approve it again. To take changes from the original folder or address,
+install it again or use **Read again** / **Download it again** in its detail.
+
+### What an `.apxext` may hold
+
+It is a plain zip of the extension's folder: `apx-extension.json` at the top, or inside one top folder (how zipping a
+folder by hand packs it). APX refuses the whole file, before writing anything, when it holds a link, an encrypted
+entry, a path that leaves the folder (`..`, an absolute path), sizes that don't match what unpacks, two names one disk
+would take as one, more than 2,000 files or more than 50 MB unpacked. The file itself is at most 20 MB. `.git`,
+`node_modules`, `__MACOSX` and `.DS_Store` are left out, as from a folder.
+
+### Official or third party
+
+APX compares the extension's fingerprint (the same one turning it on approves) with APX's official catalog. It is
+**Official** when the catalog lists that id and version with exactly those files; anything else, including an official
+package with one byte changed, is **Third party**. Nothing is signed: what decides is that the files match the ones APX
+publishes. APX asks for the catalog only when you inspect or install an extension, keeps it in its home, and uses that
+copy when it can't reach it; with no copy, the dialog says it couldn't tell. A different catalog address can be set
+with `APX_MARKETPLACE_INDEX` ([Configuration](/reference/configuration/)).
+
+### Updates and going back
+
+Installing another version of one you have keeps the one before beside it. The dialog shows what the new version adds
+(a server, a host it connects to, a secret, a routine, what its plugin may reach) and what it drops.
+
+- An extension that is on **stays on** only when the new version is official and asks for nothing more.
+- Otherwise it is off until you turn it on, and its card lists what it adds.
+- **Back to 1.0.0** (the version kept) swaps it with the version kept before, each as you had approved it (on or off). Pressing it
+  again goes forward.
 
 ## Plugins
 

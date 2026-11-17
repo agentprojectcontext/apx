@@ -229,6 +229,13 @@ body:has(.projboard__grid.is-dragging) .livelayer__box[data-shown] {
   font-size: calc(13px * var(--apx-text-scale, 1));
   margin: 0;
 }
+/* An extension's card inside the install dialog (InstallExtension.tsx). */
+.install__card {
+  margin: 0;
+}
+.install__what .install__note {
+  margin-top: 6px;
+}
 
 /* An artifact's properties (ArtifactProperties.tsx). */
 .artprops__title {

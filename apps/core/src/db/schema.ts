@@ -94,6 +94,8 @@ export interface ExtensionsTable {
   enabled: Generated<number>;
   installed_at: string;
   updated_at: string;
+  provenance: Generated<string>;
+  previous: string | null;
 }
 
 export interface FlowEventsTable {

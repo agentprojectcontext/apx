@@ -82,16 +82,21 @@ puede nombrar tus otras variables ni el entorno, así que un paquete no puede ll
 
 ## Instalala
 
+Una extensión llega como carpeta, como **archivo `.apxext`** (la carpeta comprimida; así llegan los paquetes que publica
+APX) o desde una **dirección https** de uno. APX muestra qué trae antes de escribir nada, y la instala apagada.
+
 <Tabs>
 <TabItem label="Panel">
 
 <Steps>
 
-1. Abrí **Recursos › Extensiones** y tocá **Instalar**.
+1. Hacé doble clic en un archivo `.apxext`, o soltalo sobre la ventana de APX. O abrí **Recursos › Extensiones** y
+   tocá **Desde un archivo** o **Desde una URL** (el diálogo **Instalar** también acepta una carpeta).
 
-2. Pegá la ruta de la carpeta, tocá **Revisar** para ver qué trae, y después **Instalar**.
+2. Mirá qué trae: sus skills, servidores, los secretos que pide, su plugin, y si es **Oficial** o **De terceros**
+   (abajo). Después, **Instalar apagada**.
 
-3. Llega apagada. Completá sus claves (**Editar**) y encendela.
+3. Completá sus claves (**Editar**) y encendela.
 
 4. Sus rutinas son sugerencias: **Agregar a Rutinas** pone una en Rutinas, apagada hasta que la enciendas.
 
@@ -101,19 +106,25 @@ puede nombrar tus otras variables ni el entorno, así que un paquete no puede ll
 <TabItem label="Terminal">
 
 ```bash
-apx extensions inspect ~/work/daily-brief     # qué traería; no se instala nada
-apx extensions install ~/work/daily-brief     # se copia, apagada
-apx extensions secret <id> <name>             # el valor de un secreto declarado, por stdin (--clear lo borra)
+apx extensions inspect ~/work/daily-brief                          # qué traería; no se instala nada
+apx extensions install ~/work/daily-brief                          # una carpeta, se copia, apagada
+apx extensions install ~/Downloads/daily-brief.apxext              # un archivo en esta computadora
+apx extensions install https://example.com/daily-brief.apxext      # una descarga (solo https)
+apx extensions secret <id> <name>                                  # el valor de un secreto declarado, por stdin (--clear lo borra)
 apx extensions on daily-brief
-apx extensions                                # las instaladas, encendidas o apagadas
+apx extensions rollback daily-brief                                # vuelve a la versión instalada antes
+apx extensions                                                     # las instaladas, encendidas o apagadas
 apx extensions off daily-brief
 apx extensions rm daily-brief
 ```
 
+Un `.apxext` que le das a la terminal se lee en la computadora de la terminal y se manda al core, que puede correr en
+otra; una carpeta se lee donde corre el core.
+
 </TabItem>
 </Tabs>
 
-<Terminal command="apx extensions install ~/work/daily-brief">{`daily-brief  Daily brief v1.0.0  · off  · 3f9c1a7e5b2d8c40
+<Terminal command="apx extensions install ~/Downloads/daily-brief.apxext">{`daily-brief  Daily brief v1.0.0  · off  · official  · 3f9c1a7e5b2d8c40
   A short morning brief: open tasks, what is due, what others owe you.
   skills: daily-brief
   routines: Morning brief
@@ -123,8 +134,35 @@ Turn it on with: apx extensions on daily-brief`}</Terminal>
 <Shot name="resources-extensions" alt="Recursos, pestaña Extensiones: extensiones instaladas con su interruptor, skills, servidores y rutinas" caption="Recursos › Extensiones" />
 
 Instalar copia archivos comunes a la carpeta de APX y les toma una huella. Si la copia instalada cambia en el disco,
-APX apaga la extensión en el próximo arranque hasta que la vuelvas a aprobar. Para traer cambios de la carpeta
-original, instalala de nuevo o usá **Volver a leer** en su detalle.
+APX apaga la extensión en el próximo arranque hasta que la vuelvas a aprobar. Para traer cambios de la carpeta o la
+dirección original, instalala de nuevo o usá **Volver a leer** / **Volver a descargarla** en su detalle.
+
+### Qué puede tener un `.apxext`
+
+Es un zip común de la carpeta de la extensión: `apx-extension.json` arriba de todo, o dentro de una sola carpeta (como
+queda al comprimir una carpeta a mano). APX rechaza el archivo entero, antes de escribir nada, si tiene un link, una
+entrada cifrada, una ruta que sale de la carpeta (`..`, una ruta absoluta), tamaños que no coinciden con lo que se
+descomprime, dos nombres que un disco tomaría como uno, más de 2000 archivos o más de 50 MB descomprimido. El archivo en
+sí pesa como mucho 20 MB. `.git`, `node_modules`, `__MACOSX` y `.DS_Store` quedan afuera, como desde una carpeta.
+
+### Oficial o de terceros
+
+APX compara la huella de la extensión (la misma que aprueba encenderla) con el catálogo oficial de APX. Es **Oficial**
+cuando el catálogo lista ese id y esa versión con exactamente esos archivos; cualquier otra cosa, incluso un paquete
+oficial con un byte cambiado, es **De terceros**. No hay firma: lo que decide es que los archivos coincidan con los que
+publica APX. APX pide el catálogo solo cuando revisás o instalás una extensión, lo guarda en su carpeta y usa esa copia
+cuando no lo alcanza; sin copia, el diálogo avisa que no pudo saberlo. Otra dirección del catálogo se configura con
+`APX_MARKETPLACE_INDEX` ([Configuración](/es/reference/configuration/)).
+
+### Actualizar y volver atrás
+
+Instalar otra versión de una que ya tenés guarda la anterior al lado. El diálogo muestra qué suma la nueva (un
+servidor, un host al que se conecta, un secreto, una rutina, lo que puede alcanzar su plugin) y qué quita.
+
+- Una extensión encendida **sigue encendida** solo si la versión nueva es oficial y no pide nada más.
+- Si no, queda apagada hasta que la enciendas, y su tarjeta lista lo que suma.
+- **Volver a la 1.0.0** (la versión guardada) la cambia por la versión guardada, cada una como la habías aprobado (encendida o apagada).
+  Tocarlo de nuevo vuelve a la nueva.
 
 ## Plugins
 

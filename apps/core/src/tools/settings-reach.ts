@@ -125,6 +125,7 @@ export const OWNER_ONLY: Readonly<Record<string, string>> = {
   "setup.take_over_cli": MACHINE,
   "extensions.install": MACHINE,
   "extensions.remove": MACHINE,
+  "extensions.rollback": MACHINE,
   "profiles.install": MACHINE,
   "embeddings.install": MACHINE,
   "transcription.install": MACHINE,

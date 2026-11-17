@@ -817,6 +817,22 @@
   padding: 16px;
 }
 
+/* What a newer version adds over the one kept before it, while it waits to be turned on. */
+.extupdate {
+  padding: 8px 10px;
+  border: 1px solid var(--apx-border);
+  border-radius: var(--apx-radius-md);
+  background: var(--apx-surface-raised);
+}
+.extupdate p {
+  margin: 0;
+}
+.extupdate ul {
+  margin: 6px 0 0;
+  padding-left: 18px;
+  font-size: calc(13px * var(--apx-text-scale, 1));
+}
+
 /* An extension's suggested routines: what, when, and whether it is in Routines yet. */
 .extroutines {
   display: flex;

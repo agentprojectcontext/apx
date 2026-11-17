@@ -5188,3 +5188,44 @@ book until the owner reviews them; every booking reaches the owner at once with 
 Rejected: letting the model read `calendar_free` itself (it would see busy blocks and could pick any time); booking
 outside the attention hours when none are set (no safe window); moving a booking from the contact's chat in this
 version (a cancel and a new booking under the same caps is enough for now; moving is noted for the owner).
+
+<a id="d-240"></a>
+## D-240 — 2026-11-17 — Extensions install from an .apxext file or URL; official is decided by fingerprint, not signature
+Extensions installed only from a folder on the core's computer. The marketplace plan makes `.apxext` (a zip of the
+extension's folder) the installer for any extension, and needs APX to tell an official package from anything else.
+
+- **One contract, three sources.** `extensions.inspect` and `extensions.install` take exactly one of `path` (a folder
+  where the core runs), `file` (an `.apxext`, base64, at most 20 MB) or `url` (https only; a redirect may not leave
+  https; 60 s, 20 MB). Inspect writes nothing. Install takes `hash`, the fingerprint the owner looked at, and refuses
+  other files, so a URL that changes between the look and the install cannot slip in.
+- **Unpacked in memory, written into an empty staging folder.** The archive is refused whole (not skipped entry by
+  entry) on a link, an encrypted entry, another compression, a path that leaves the folder (`..`, absolute, a drive),
+  a size that does not match what inflates, declared sizes over 50 MB (checked before inflating, and each entry is
+  capped at its declared size), more than 2000 files, two names one disk takes as one (case, Unicode form) or a name
+  that is both a file and a folder. One top folder is taken as the extension; `__MACOSX`, `.DS_Store`, `.git` and
+  `node_modules` are left out. The copy is written with exclusive creates into a fresh folder under the home and its
+  fingerprint read back from disk must equal the one computed in memory before it replaces anything.
+- **Official by fingerprint, no signature for now.** The catalog (`index.json` from the public marketplace repository,
+  schema 1) lists each id's versions with `content_hash`, the same fingerprint turning an extension on approves (paths
+  with "/", sorted). Official = same id + version + `content_hash` under `tier: "official"`; anything else is third
+  party. A signature would be signed by whoever publishes the catalog, which is us; it protects something new only once
+  the catalog is served from places we do not control (mirrors), and then it is added. Provenance is stored on the
+  extension's record when it is installed.
+- **The catalog is asked only when needed.** On inspect and install, never on a timer: kept in
+  `<home>/marketplace/catalog.json` with its ETag, fresh for 10 minutes, then asked again with `If-None-Match`; 10 s and
+  5 MB at most; unreachable falls back to the kept copy, and with none the extension shows third party and says it could
+  not tell. A catalog with a newer `schema` is set aside whole ("update APX"). `APX_MARKETPLACE_INDEX` sets another
+  address (https, or http on this computer) or `off`; test cores ask none.
+- **Updates keep the version before.** Installing another version moves the installed copy to `<id>.prev` with its
+  record (manifest, fingerprint, source, provenance, on or off). The dialog shows what the new version adds or drops:
+  MCP servers (a changed command or address counts as added), the hosts they reach, secrets, routines, the plugin and
+  what it may reach or watch. One that is on stays on only when the new version is official and adds nothing;
+  otherwise it is off until the owner turns it on, as any changed files always were. `extensions.rollback` swaps the
+  two copies, each with the approval it had, after checking the kept copy's fingerprint on disk.
+- **Fingerprints use "/" on every system**, so a package matches the catalog on Windows too. An extension installed on
+  Windows before this was fingerprinted with "\": it turns off once at the next start and is turned on again by hand.
+
+Rejected: trusting the zip's own hash (it changes when the same files are recompressed); a staging token between
+inspect and install (state to expire; the fingerprint already names the files); keeping an update off even when official
+and asking for nothing more (the plan's choice: the catalog vouches for those exact files); skipping bad entries as the
+skills importer does (an extension missing a file it names would be installed half).

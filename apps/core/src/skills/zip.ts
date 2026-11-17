@@ -3,7 +3,8 @@
 import zlib from "node:zlib";
 
 export type ZipFile = { path: string; data: Buffer };
-export type ZipLimits = { entries: number; bytes: number };
+/** `strict`: an entry that would be left out (a link, an unsafe path, encryption, another compression) refuses the archive. */
+export type ZipLimits = { entries: number; bytes: number; strict?: boolean };
 
 const EOCD = 0x06054b50;
 const CENTRAL = 0x02014b50;
@@ -54,7 +55,17 @@ export function readZip(buf: Buffer, limits: ZipLimits): { files: ZipFile[]; ski
       if (raw.endsWith("/")) continue;
       const name = safeEntryPath(raw);
       // Encrypted entries and links are left out: a link could point anywhere on the machine.
-      if (!name || flags & 1 || (mode & S_IFMT) === S_IFLNK || (method !== 0 && method !== 8)) {
+      const why = !name
+        ? "points outside the folder it unpacks to"
+        : flags & 1
+          ? "is encrypted"
+          : (mode & S_IFMT) === S_IFLNK
+            ? "is a link"
+            : method !== 0 && method !== 8
+              ? "uses a compression APX does not read"
+              : undefined;
+      if (why || !name) {
+        if (limits.strict) throw new Error(`${raw} ${why}`);
         skipped.push(raw);
         continue;
       }

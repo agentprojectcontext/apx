@@ -153,6 +153,8 @@ export type CoreOptions = {
   computer?: ComputerConfig;
   /** Asana transport; tests record REST requests without contacting an account. */
   asanaFetch?: typeof fetch;
+  /** Answers the extension catalog and extension downloads (a test's stand-in for the net). */
+  extensionFetch?: typeof fetch;
   /** What asks an integration's remote server whether it takes the owner's account; tests pass a fake. */
   integrationFetch?: typeof fetch;
   quiet?: boolean;
@@ -447,7 +449,15 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
     workDir: path.join(scratchRoot(config.home), "mcp"),
     files: (thread) => agentFiles(store, config.home, thread),
   });
-  const { hooks, plugins, extensions } = extensionStack({ store, secrets, bus, log, home: config.home });
+  const { hooks, plugins, extensions } = extensionStack({
+    store,
+    secrets,
+    bus,
+    log,
+    home: config.home,
+    marketplaceIndex: config.marketplaceIndex,
+    fetch: opts.extensionFetch,
+  });
   const upkeep = createUpkeep({ store, llm, log });
   const aside = createAside({ store, llm });
   const voiceEngine = createVoiceEngine({

@@ -19,6 +19,8 @@ export {
   DAILY_MEMORY_CALLS,
   DOCUMENT_MAX_BYTES,
   ErrorCode,
+  EXTENSION_ARCHIVE_EXT,
+  EXTENSION_ARCHIVE_MAX,
   PERSON_RELATIONS,
   PROTOCOL_VERSION,
   pairingLink,
@@ -83,6 +85,8 @@ function clientDeadline(method: string, params: unknown, fallback: number): numb
   // An artifact's fetch waits up to 30 s on the outside API; a bundle may carry a 50 MB database.
   if (method === "surfaces.fetch") return 45_000;
   if (method === "surfaces.export" || method === "surfaces.import") return 180_000;
+  // A 20 MB .apxext over a slow link, or one the core downloads (server: 60 s) and checks against the catalog (10 s).
+  if (method === "extensions.inspect" || method === "extensions.install") return 120_000;
   // A 20 MB export over a slow link to a remote core; the server stops importing at 90 s.
   if (method === "instance.preview_import" || method === "instance.import") return 150_000;
   // Indexing every note by meaning may take a while on a local model.

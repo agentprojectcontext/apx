@@ -11,13 +11,15 @@ import { useT } from "../i18n/index.ts";
 import { scheduleText } from "../routines/scheduleText.ts";
 import { go } from "../shell/nav.ts";
 import { ExtensionGuide } from "./ExtensionGuide.tsx";
+import { ExtensionSummary, usePowerText } from "./ExtensionSummary.tsx";
 import { ExtensionTest } from "./ExtensionTest.tsx";
+import { openExtensionInstall, useExtensionsInstalled } from "./extensionInstall.ts";
 
 const errText = (e: unknown) => (e instanceof Error ? e.message : String(e));
 
 /**
  * Extensions, last of the Resources tabs: folders that bring skills, MCP servers and routines. Installed off; turning
- * one on approves its files. "+ Install" opens the folder picker.
+ * one on approves its files. "+ Install" opens the install dialog (a file, a URL or a folder).
  */
 export function ExtensionsTab({
   adding,
@@ -30,8 +32,7 @@ export function ExtensionsTab({
 }) {
   const t = useT();
   const [list, setList] = useState<ExtensionInfo[]>();
-  const [folder, setFolder] = useState("");
-  const [preview, setPreview] = useState<ExtensionInfo>();
+  const installed = useExtensionsInstalled();
 
   const call = useCallback(
     async <R,>(fn: () => Promise<R>): Promise<R | undefined> => {
@@ -52,57 +53,40 @@ export function ExtensionsTab({
     if (r) setList(r.extensions);
     changed.current();
   }, [call]);
+  // Again after the install dialog installs one.
   useEffect(() => {
+    void installed;
     void load();
-  }, [load]);
-
-  const inspect = async () => setPreview(await call(() => client.call("extensions.inspect", { path: folder.trim() })));
-  const install = async () => {
-    if (await call(() => client.call("extensions.install", { path: folder.trim() }))) {
-      setPreview(undefined);
-      setFolder("");
-      setAdding(false);
-      await load();
-    }
-  };
+  }, [load, installed]);
+  // "+ Install" opens the dialog; the tab itself keeps only the list.
+  useEffect(() => {
+    if (!adding) return;
+    openExtensionInstall();
+    setAdding(false);
+  }, [adding, setAdding]);
 
   return (
     <div className="resext">
       <p className="resvars__note">{t("ext.lead")}</p>
       <ExtensionGuide />
-      {adding && (
-        <>
-          <SubHead>{t("ext.add")}</SubHead>
-          <div className="tgtoken">
-            <Input
-              aria-label={t("ext.folder")}
-              placeholder={t("ext.folderHint")}
-              value={folder}
-              onChange={(e) => {
-                setFolder(e.currentTarget.value);
-                setPreview(undefined);
-              }}
-              onKeyDown={(e) => e.key === "Enter" && folder.trim() && void inspect()}
-            />
-            <Button size="sm" variant="secondary" disabled={!folder.trim()} onClick={() => void inspect()}>
-              {t("ext.inspect")}
-            </Button>
-          </div>
-        </>
-      )}
-      {preview && (
-        <div className="pcard">
-          <ExtensionSummary e={preview} />
-          <div className="pcard__actions">
-            <span className="pform__hint">{t("ext.installHint")}</span>
-            <span className="pcard__spacer" />
-            <Button size="sm" onClick={() => void install()}>
-              {t("ext.install")}
-            </Button>
-          </div>
-        </div>
-      )}
-
+      <div className="pcard__actions">
+        <Button
+          size="sm"
+          variant="secondary"
+          leadingIcon={<Icons.Upload size={14} />}
+          onClick={() => openExtensionInstall({ mode: "file" })}
+        >
+          {t("extInstall.fromFile")}
+        </Button>
+        <Button
+          size="sm"
+          variant="secondary"
+          leadingIcon={<Icons.Link size={14} />}
+          onClick={() => openExtensionInstall({ mode: "url" })}
+        >
+          {t("extInstall.fromUrl")}
+        </Button>
+      </div>
       <SubHead>{t("ext.installed")}</SubHead>
       {list && !list.length ? (
         <EmptyState variant="dashed" size="sm" icon={<Icons.Layers />}>
@@ -112,57 +96,6 @@ export function ExtensionsTab({
         list?.map((e) => <ExtensionCard key={e.id} e={e} call={call} onChanged={load} />)
       )}
     </div>
-  );
-}
-
-function ExtensionSummary({ e }: { e: ExtensionInfo }) {
-  const t = useT();
-  return (
-    <>
-      <div className="pcard__top">
-        <div className="pcard__titles">
-          <div className="pcard__name">
-            {e.name} <span className="svc__dialect">v{e.version}</span>
-          </div>
-          <div className="pcard__id">
-            {e.id} · {e.hash}
-          </div>
-        </div>
-      </div>
-      {e.description && <p className="config__lead">{e.description}</p>}
-      <dl className="pcard__rows">
-        <dt>{t("ext.skills")}</dt>
-        <dd>{e.skills.join(", ") || "—"}</dd>
-        <dt>{t("ext.mcp")}</dt>
-        <dd>{e.mcp.join(", ") || "—"}</dd>
-        {e.plugin && (
-          <>
-            <dt>{t("ext.plugin")}</dt>
-            <dd>
-              {[
-                e.plugin.observe.length ? t("ext.plugin.watches", { events: e.plugin.observe.join(", ") }) : "",
-                e.plugin.context ? t("ext.plugin.context") : "",
-                e.plugin.network ? t(e.plugin.local_network ? "ext.plugin.localNetwork" : "ext.plugin.network") : "",
-              ]
-                .filter(Boolean)
-                .join(" · ") || "—"}
-            </dd>
-          </>
-        )}
-        <dt>{t("ext.source")}</dt>
-        <dd>{e.source}</dd>
-      </dl>
-      {e.runs_code && (
-        <p className="pform__hint">
-          <Icons.TriangleAlert size={12} /> {t("ext.runsCode")}
-        </p>
-      )}
-      {e.plugin?.status === "error" && (
-        <Badge tone="danger" dot>
-          {t("ext.plugin.error", { error: e.plugin.error ?? "" })}
-        </Badge>
-      )}
-    </>
   );
 }
 
@@ -176,8 +109,12 @@ function ExtensionCard({
   onChanged: () => Promise<void>;
 }) {
   const t = useT();
+  const power = usePowerText();
   const agents = useData((s) => s.agents);
   const [editing, setEditing] = useState(false);
+  // Read again from where it came: a folder by its path, an address by downloading it; a file cannot be.
+  const isUrl = e.source.startsWith("https://");
+  const isFolder = /^(~|\/|[A-Za-z]:[\\/])/.test(e.source);
   const run = async (fn: () => Promise<unknown>) => {
     await call(fn);
     await onChanged();
@@ -202,6 +139,16 @@ function ExtensionCard({
           {t("ext.missingSecrets", { n: e.secrets.filter((s) => !s.set).length })}
         </Badge>
       )}
+      {e.update && !e.enabled && e.update.adds.length > 0 && (
+        <div className="extupdate">
+          <p className="pform__hint">{t("ext.updateAdds", { version: e.version, from: e.update.from })}</p>
+          <ul>
+            {e.update.adds.map((p) => (
+              <li key={`${p.kind}${p.name}`}>{power(p)}</li>
+            ))}
+          </ul>
+        </div>
+      )}
       {e.routines.length > 0 && <ExtensionRoutines e={e} onAdd={addRoutine} />}
       <ExtensionTest e={e} />
       <div className="pcard__actions">
@@ -212,6 +159,16 @@ function ExtensionCard({
           onCheckedChange={(on) => void run(() => client.call("extensions.enable", { id: e.id, enabled: on }))}
         />
         <span className="pcard__spacer" />
+        {e.update && (
+          <Button
+            size="sm"
+            variant="ghost"
+            leadingIcon={<Icons.RotateCcw size={14} />}
+            onClick={() => void run(() => client.call("extensions.rollback", { id: e.id }))}
+          >
+            {t("ext.rollback", { version: e.update.from })}
+          </Button>
+        )}
         <Button size="sm" variant="secondary" leadingIcon={<Icons.Pencil size={14} />} onClick={() => setEditing(true)}>
           {t("res.edit")}
         </Button>
@@ -244,18 +201,26 @@ function ExtensionCard({
                 onSave={(value) => run(() => client.call("extensions.set_secret", { id: e.id, name: s.name, value }))}
               />
             ))}
-            <span className="pform__label">{t("ext.reload")}</span>
-            <p className="pform__hint">{t("ext.reloadHint", { folder: e.source })}</p>
-            <div>
-              <Button
-                size="sm"
-                variant="secondary"
-                leadingIcon={<Icons.RefreshCw size={14} />}
-                onClick={() => void run(() => client.call("extensions.install", { path: e.source }))}
-              >
-                {t("ext.reloadButton")}
-              </Button>
-            </div>
+            {(isFolder || isUrl) && (
+              <>
+                <span className="pform__label">{t(isUrl ? "ext.redownload" : "ext.reload")}</span>
+                <p className="pform__hint">
+                  {isUrl ? t("ext.redownloadHint", { url: e.source }) : t("ext.reloadHint", { folder: e.source })}
+                </p>
+                <div>
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    leadingIcon={<Icons.RefreshCw size={14} />}
+                    onClick={() =>
+                      void run(() => client.call("extensions.install", isUrl ? { url: e.source } : { path: e.source }))
+                    }
+                  >
+                    {t(isUrl ? "ext.redownload" : "ext.reloadButton")}
+                  </Button>
+                </div>
+              </>
+            )}
           </div>
         </Dialog>
       )}

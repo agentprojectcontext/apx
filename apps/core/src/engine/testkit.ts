@@ -140,6 +140,9 @@ export async function startCore(opts: {
   /** The Google OAuth client the core ships, as `client_id:client_secret` (none: a build without one). */
   googleClient?: string;
   asanaFetch?: typeof fetch;
+  /** The extension catalog's address and what answers it and extension downloads. */
+  marketplaceIndex?: string;
+  extensionFetch?: typeof fetch;
   /** Answers an integration's account check (GitHub's server); by default it refuses nothing and is never the net. */
   integrationFetch?: typeof fetch;
   /** Where telemetry goes (a recorder); none sends nothing, like any test core. */
@@ -166,6 +169,7 @@ export async function startCore(opts: {
       ...(opts.googleClient ? { googleClient: opts.googleClient } : {}),
       ...(opts.expoPushUrl ? { expoPushUrl: opts.expoPushUrl } : {}),
       ...(opts.flowHttpAllow ? { flowHttpAllow: opts.flowHttpAllow } : {}),
+      ...(opts.marketplaceIndex ? { marketplaceIndex: opts.marketplaceIndex } : {}),
     }),
     {
       quiet: true,
@@ -180,6 +184,7 @@ export async function startCore(opts: {
           }
         : {}),
       ...(opts.asanaFetch ? { asanaFetch: opts.asanaFetch } : {}),
+      ...(opts.extensionFetch ? { extensionFetch: opts.extensionFetch } : {}),
       integrationFetch: opts.integrationFetch ?? (async () => new Response("{}", { status: 200 })),
       llm: opts.llm,
       ...(opts.harnesses ? { harnesses: opts.harnesses } : {}),

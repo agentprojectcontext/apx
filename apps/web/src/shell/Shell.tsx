@@ -21,6 +21,7 @@ import {
   FilesScreen,
   FlowsScreen,
   InstallArtifactDialog,
+  InstallExtensionDialog,
   LiveLayer,
   McpPeek,
   NoticeStrip,
@@ -35,6 +36,7 @@ import {
   WelcomeV2,
   WidgetChatHost,
 } from "../lazy.ts";
+import { useExtensionInstall } from "../resources/extensionInstall.ts";
 import { useAnyLive } from "../surfaces/liveAny.ts";
 import { useApxFiles } from "../surfaces/openedFiles.ts";
 import { widgetChatOpen } from "../surfaces/widgetChatOpen.ts";
@@ -70,6 +72,7 @@ export function Shell() {
   const usageDialog = useNav((s) => s.usageDialog);
   const callCard = useCalls((s) => s.card != null);
   const mcpDialog = useSlice(mcpPeek, (s) => s.target != null);
+  const extensionInstall = useExtensionInstall() != null;
   // A task opened from a chat floats over it; the Tasks screen shows its own beside the list.
   const peek = useNav((s) => s.peekTaskId != null && s.view !== "tasks");
   const widgetChat = useSlice(widgetChatOpen, (s) => s.threadId != null);
@@ -142,6 +145,11 @@ export function Shell() {
       <Suspense fallback={null}>
         <InstallArtifactDialog />
       </Suspense>
+      {extensionInstall && (
+        <Suspense fallback={null}>
+          <InstallExtensionDialog />
+        </Suspense>
+      )}
       {config && (
         <Suspense fallback={null}>
           <ConfigModal />

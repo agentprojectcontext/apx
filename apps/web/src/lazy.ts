@@ -143,6 +143,11 @@ export const ResourcesScreen = lazy(
 export const InstallArtifactDialog = lazy(() =>
   import("./surfaces/InstallArtifact.tsx").then((m) => ({ default: m.InstallArtifactDialog })),
 );
+export const InstallExtensionDialog = lazy(
+  withPacks(["resources"], () =>
+    import("./resources/InstallExtension.tsx").then((m) => ({ default: m.InstallExtensionDialog })),
+  ),
+);
 export const LiveLayer = lazy(() => import("./surfaces/LiveLayer.tsx").then((m) => ({ default: m.LiveLayer })));
 export const WelcomeV2 = lazy(() => import("./shell/WelcomeV2.tsx").then((m) => ({ default: m.WelcomeV2 })));
 export const CornerCards = lazy(() => import("./shell/CornerCards.tsx").then((m) => ({ default: m.CornerCards })));

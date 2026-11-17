@@ -3,6 +3,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { test } from "node:test";
+import { tempDir } from "../../../core/src/testkit/platform.ts";
 import { openedIn, openedQueue, readOpened } from "./opened-files.ts";
 
 test("only APX files that exist count among a launch's arguments, flags and other files never", () => {
@@ -28,4 +29,14 @@ test("an opened file is read once by the panel; a huge or missing one says why i
   } finally {
     fs.rmSync(dir, { recursive: true, force: true });
   }
+});
+
+test("an opened .apxext reaches the panel byte for byte: it is a zip, never read as text", async () => {
+  await using dir = tempDir("apx-opened-ext-");
+  const ext = path.join(dir.path, "Weather.APXEXT");
+  const bytes = Buffer.from([0x50, 0x4b, 0x03, 0x04, 0xff, 0xfe, 0x00, 0x80]);
+  fs.writeFileSync(ext, bytes);
+  const read = readOpened(ext);
+  assert.equal(read.text, undefined);
+  assert.deepEqual(Buffer.from(read.data ?? "", "base64"), bytes);
 });

@@ -93,7 +93,7 @@ declare global {
       openMain?(threadId?: string): void;
       /** The main window is told to open a chat (asked from the quick window). */
       /** Files opened with APX from the system, each with its text or why it has none (taken once). */
-      takeOpenedFiles?(): Promise<{ name: string; text?: string; error?: "too-big" | "unreadable" }[]>;
+      takeOpenedFiles?(): Promise<{ name: string; text?: string; data?: string; error?: "too-big" | "unreadable" }[]>;
       onFileOpened?(listener: () => void): () => void;
       onOpenThread?(listener: (threadId: string) => void): () => void;
       /** Runs one of the app menu's items: Windows and Linux show no menu bar for them. */

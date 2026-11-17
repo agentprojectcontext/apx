@@ -1,92 +1,34 @@
 // Extensions, the "bundle" step of the extension ladder (DECISIONS.md#d-018): a folder with apx-extension.json that
-// brings skills, MCP servers and routine templates, read without running anything. Installing copies the folder
-// into the home and fingerprints it; turning it on approves exactly those files.
-import { createHash } from "node:crypto";
+// brings skills, MCP servers and routine templates, read without running anything. It comes as a folder, an .apxext
+// file or an https URL (DECISIONS.md#d-240). Installing copies it into the home and fingerprints it; turning it on
+// approves exactly those files. Another version keeps the one before beside it, to go back to.
 import fs from "node:fs";
 import path from "node:path";
-import { type ExtensionInfo, ExtensionManifest } from "@apx/protocol";
-import type { ExtensionRecord } from "../domain/extensions.ts";
+import { EXTENSION_ARCHIVE_MAX, type ExtensionInfo, type ExtensionManifest } from "@apx/protocol";
+import type { ExtensionRecord, PreviousVersion } from "../domain/extensions.ts";
 import type { Store } from "../domain/store.ts";
-import { badRequest, errorMessage, notFound } from "../errors.ts";
+import { badRequest, CallError, errorMessage, notFound } from "../errors.ts";
 import { expandHome, isInside, realpath, tildeHome } from "../paths.ts";
+import { extensionSecret as extSecret } from "../secret-names.ts";
 import type { Secrets } from "../secrets.ts";
+import { type Catalog, type CatalogCheck, downloadArchive } from "./catalog.ts";
+import {
+  comparePowers,
+  filesOf,
+  fingerprint,
+  type Package,
+  PackageError,
+  readArchive,
+  readFolder,
+  SECRET_REF,
+  writePackage,
+} from "./package.ts";
 import type { Plugins } from "./plugins.ts";
 
-const MANIFEST = "apx-extension.json";
-const MAX_FILES = 2000;
-const MAX_BYTES = 50 * 1024 * 1024;
+export { extSecret, SECRET_REF };
 
-import { extensionSecret as extSecret } from "../secret-names.ts";
-
-export { extSecret };
-
-/** A `secret://name` anywhere in a value (the same names the MCP manager resolves). */
-export const SECRET_REF = /secret:\/\/([a-zA-Z0-9_.-]+)/g;
-
-/**
- * Every regular file under `root`, relative and sorted; links and oversized trees are refused. Copying from a source
- * leaves out `.git` and `node_modules`; an installed copy is read whole, so nothing added there goes unnoticed.
- */
-function filesOf(root: string, source = false): string[] {
-  const out: string[] = [];
-  let bytes = 0;
-  const walk = (dir: string) => {
-    for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
-      if (source && (e.name === ".git" || e.name === "node_modules")) continue;
-      const abs = path.join(dir, e.name);
-      if (e.isSymbolicLink()) throw badRequest(`${path.relative(root, abs)} is a link; extensions hold plain files`);
-      if (e.isDirectory()) walk(abs);
-      else if (e.isFile()) {
-        bytes += fs.statSync(abs).size;
-        out.push(path.relative(root, abs));
-        if (out.length > MAX_FILES || bytes > MAX_BYTES) throw badRequest("the extension is too big");
-      }
-    }
-  };
-  walk(root);
-  return out.sort();
-}
-
-function fingerprint(root: string, files: string[]): string {
-  const h = createHash("sha256");
-  for (const f of files)
-    h.update(f)
-      .update("\0")
-      .update(fs.readFileSync(path.join(root, f)))
-      .update("\0");
-  return h.digest("hex").slice(0, 16);
-}
-
-/** The manifest of a folder, checked: valid, its paths inside the folder, its secrets declared. */
-function readManifest(dir: string): ExtensionManifest {
-  let raw: unknown;
-  try {
-    raw = JSON.parse(fs.readFileSync(path.join(dir, MANIFEST), "utf8"));
-  } catch {
-    throw badRequest(`no readable ${MANIFEST} in ${dir}`);
-  }
-  const parsed = ExtensionManifest.safeParse(raw);
-  if (!parsed.success) throw badRequest(`${MANIFEST}: ${parsed.error.issues[0]?.message ?? "invalid"}`);
-  const m = parsed.data;
-  if (m.skills && !isInside(dir, path.resolve(dir, m.skills))) throw badRequest("skills points outside the extension");
-  if (m.plugin) {
-    const entry = path.resolve(dir, m.plugin.entry);
-    if (!isInside(dir, entry)) throw badRequest("plugin.entry points outside the extension");
-    if (!fs.existsSync(entry)) throw badRequest(`plugin.entry ${m.plugin.entry} does not exist`);
-  }
-  const declared = new Set(m.secrets.map((s) => s.name));
-  for (const [name, server] of Object.entries(m.mcp)) {
-    if (!server.command && !server.url) throw badRequest(`mcp ${name} needs a command or a url`);
-    const values = [...Object.values(server.env), ...Object.values(server.headers), ...server.args, server.url ?? ""];
-    for (const v of values) {
-      if (v.startsWith("env:")) throw badRequest(`mcp ${name}: an extension cannot read APX's environment`);
-      // Every reference, also inside text ("Bearer secret://token"), must be one of its own.
-      for (const [, ref] of v.matchAll(SECRET_REF))
-        if (!declared.has(ref ?? "")) throw badRequest(`mcp ${name}: secret ${ref} is not declared under secrets`);
-    }
-  }
-  return m;
-}
+/** Where an extension is read from: exactly one of these (the protocol checks it). */
+export type ExtensionInput = { path?: string; file?: { name: string; data: string }; url?: string };
 
 function skillNames(dir: string, m: ExtensionManifest): string[] {
   if (!m.skills) return [];
@@ -101,13 +43,34 @@ function skillNames(dir: string, m: ExtensionManifest): string[] {
   }
 }
 
-export function createExtensions(deps: { store: Store; secrets: Secrets; home: string; plugins: Plugins }) {
-  const { store, secrets, plugins } = deps;
-  const root = path.join(deps.home, "extensions");
+const sameFiles = (dir: string, hash: string) => {
+  try {
+    return fingerprint(dir, filesOf(dir)) === hash;
+  } catch {
+    return false;
+  }
+};
 
-  const info = (
-    e: Pick<ExtensionRecord, "id" | "manifest" | "hash" | "dir" | "source" | "enabled" | "installed_at">,
-  ): ExtensionInfo => ({
+export function createExtensions(deps: {
+  store: Store;
+  secrets: Secrets;
+  home: string;
+  plugins: Plugins;
+  catalog: Catalog;
+  /** Downloads an extension from a URL (a test answers it). */
+  fetch?: typeof fetch;
+}) {
+  const { store, secrets, plugins, catalog } = deps;
+  const root = path.join(deps.home, "extensions");
+  /** The version an update replaced, kept to go back to; ids hold no ".", so this never names another extension. */
+  const previousDir = (id: string) => path.join(root, `${id}.prev`);
+
+  type Shown = Pick<
+    ExtensionRecord,
+    "id" | "manifest" | "hash" | "dir" | "source" | "enabled" | "installed_at" | "provenance"
+  > & { skills?: string[]; catalog?: CatalogCheck["catalog"]; update?: ExtensionInfo["update"] };
+
+  const info = (e: Shown): ExtensionInfo => ({
     id: e.id,
     name: e.manifest.name,
     version: e.manifest.version,
@@ -116,7 +79,7 @@ export function createExtensions(deps: { store: Store; secrets: Secrets; home: s
     hash: e.hash,
     // Shown with "~" for the home; install reads it back.
     source: tildeHome(e.source),
-    skills: skillNames(e.dir, e.manifest),
+    skills: e.skills ?? skillNames(e.dir, e.manifest),
     mcp: Object.keys(e.manifest.mcp).map((n) => `${e.id}-${n}`),
     routines: e.manifest.routines,
     secrets: e.manifest.secrets.map((s) => ({
@@ -138,14 +101,52 @@ export function createExtensions(deps: { store: Store; secrets: Secrets; home: s
       : {}),
     runs_code: Boolean(e.manifest.plugin) || Object.values(e.manifest.mcp).some((m) => m.command),
     installed_at: e.installed_at,
+    provenance: e.provenance,
+    ...(e.catalog ? { catalog: e.catalog } : {}),
+    ...(e.update ? { update: e.update } : {}),
   });
+  /** An installed one, with what it adds over the version kept before it. */
+  const shown = (e: ExtensionRecord, check?: CatalogCheck): ExtensionInfo =>
+    info({
+      ...e,
+      ...(check?.catalog ? { catalog: check.catalog } : {}),
+      ...(e.previous
+        ? { update: { from: e.previous.manifest.version, ...comparePowers(e.previous.manifest, e.manifest) } }
+        : {}),
+    });
 
-  const source = (p: string) => {
+  const folder = (p: string) => {
     const dir = path.resolve(expandHome(p));
     if (!fs.existsSync(dir) || !fs.statSync(dir).isDirectory()) throw notFound(`folder ${p}`);
     if (isInside(root, dir)) throw badRequest("that folder is an installed copy already");
     return realpath(dir);
   };
+  /** The extension read and checked, and what to call where it came from. Nothing is written. */
+  const load = async (input: ExtensionInput): Promise<{ pkg: Package; source: string }> => {
+    try {
+      if (input.path !== undefined) {
+        const dir = folder(input.path);
+        return { pkg: readFolder(dir), source: dir };
+      }
+      if (input.file) {
+        const buf = Buffer.from(input.file.data.replace(/^data:[^,]*,/, ""), "base64");
+        if (buf.length > EXTENSION_ARCHIVE_MAX) throw badRequest("the file is too big for an extension");
+        return { pkg: readArchive(buf), source: path.basename(input.file.name) };
+      }
+      if (input.url) return { pkg: readArchive(await downloadArchive(input.url, deps.fetch)), source: input.url };
+    } catch (err) {
+      // A refused archive or a failed download is the owner's to fix, not APX's failure.
+      if (err instanceof CallError || !(err instanceof Error)) throw err;
+      throw badRequest(err instanceof PackageError ? err.message : errorMessage(err, 300));
+    }
+    throw badRequest("give a folder, an .apxext file or an https address");
+  };
+  /** Whether an extension that is on stays on with these files: the same ones, or official asking for nothing more. */
+  const keepsOn = (cur: ExtensionRecord | undefined, m: ExtensionManifest, hash: string, check: CatalogCheck) =>
+    Boolean(
+      cur?.enabled &&
+        (cur.hash === hash || (check.provenance === "official" && comparePowers(cur.manifest, m).adds.length === 0)),
+    );
   /** Starts its plugin without ever failing APX: a problem is shown as the plugin's error. */
   const startPlugin = (e: ExtensionRecord) => {
     try {
@@ -159,6 +160,9 @@ export function createExtensions(deps: { store: Store; secrets: Secrets; home: s
     if (!e) throw notFound(`extension ${id}`);
     return e;
   };
+  /** Only one enabled extension may add context to turns. */
+  const contextTaken = (id: string, m: ExtensionManifest) =>
+    m.plugin?.context ? store.extensions.enabled().find((x) => x.id !== id && x.manifest.plugin?.context) : undefined;
 
   return {
     /** The owner's "Test": its plugin asked for context on a sample text, as a turn would ask it. */
@@ -184,82 +188,148 @@ export function createExtensions(deps: { store: Store; secrets: Secrets; home: s
     approved(id: string): ExtensionRecord | undefined {
       const e = store.extensions.get(id);
       if (!e?.enabled) return undefined;
-      try {
-        return fingerprint(e.dir, filesOf(e.dir)) === e.hash ? e : undefined;
-      } catch {
-        return undefined;
-      }
+      return sameFiles(e.dir, e.hash) ? e : undefined;
     },
     /** At start: an enabled extension whose files changed on disk is turned off. */
     verify(): string[] {
       const off: string[] = [];
       for (const e of store.extensions.enabled()) {
-        let same = false;
-        try {
-          same = fingerprint(e.dir, filesOf(e.dir)) === e.hash;
-        } catch {}
-        if (!same) {
+        if (!sameFiles(e.dir, e.hash)) {
           store.extensions.setEnabled(e.id, false);
           off.push(e.manifest.name);
         } else startPlugin(e);
       }
       return off;
     },
-    list: () => store.extensions.list().map(info),
-    inspect(p: string): ExtensionInfo {
-      const dir = source(p);
-      const manifest = readManifest(dir);
-      const hash = fingerprint(dir, filesOf(dir, true));
+    list: () => store.extensions.list().map((e) => shown(e)),
+    /** What an extension would bring, where it comes from by fingerprint, and what it changes over the installed one. */
+    async inspect(input: ExtensionInput): Promise<ExtensionInfo> {
+      const { pkg, source } = await load(input);
+      const { manifest, hash } = pkg;
+      const check = await catalog.check(manifest.id, manifest.version, hash);
       const cur = store.extensions.get(manifest.id);
       return info({
         id: manifest.id,
         manifest,
         hash,
-        dir,
-        source: dir,
-        enabled: cur?.hash === hash && cur.enabled,
+        dir: "",
+        source,
+        skills: pkg.skills,
+        enabled: Boolean(cur && keepsOn(cur, manifest, hash, check)),
         installed_at: cur?.installed_at ?? "",
+        provenance: check.provenance,
+        ...(check.catalog ? { catalog: check.catalog } : {}),
+        ...(cur && cur.hash !== hash
+          ? {
+              update: {
+                from: cur.manifest.version,
+                ...comparePowers(cur.manifest, manifest),
+                keeps_on: keepsOn(cur, manifest, hash, check),
+              },
+            }
+          : {}),
       });
     },
-    install(p: string): ExtensionInfo {
-      const from = source(p);
-      const manifest = readManifest(from);
-      const files = filesOf(from, true);
-      const dir = path.join(root, manifest.id);
-      const staging = `${dir}.new`;
-      fs.rmSync(staging, { recursive: true, force: true });
-      for (const f of files) {
-        fs.mkdirSync(path.dirname(path.join(staging, f)), { recursive: true });
-        // Opened without following links: a file swapped for a link after the listing is refused.
-        const fd = fs.openSync(path.join(from, f), fs.constants.O_RDONLY | fs.constants.O_NOFOLLOW);
+    /**
+     * Installs it off (an update of one that is on stays on only when keepsOn says so). A different version moves the
+     * installed one aside, to go back to; `expect` refuses files other than the ones the owner looked at.
+     */
+    async install(input: ExtensionInput, expect?: string): Promise<ExtensionInfo> {
+      const { pkg, source } = await load(input);
+      const { manifest, hash } = pkg;
+      if (expect && expect !== hash) throw badRequest("the extension is not the one you looked at; look at it again");
+      const check = await catalog.check(manifest.id, manifest.version, hash);
+      const id = manifest.id;
+      const dir = path.join(root, id);
+      fs.mkdirSync(root, { recursive: true });
+      const tmp = fs.mkdtempSync(path.join(root, ".staging-"));
+      try {
+        const staged = path.join(tmp, id);
         try {
-          fs.writeFileSync(path.join(staging, f), fs.readFileSync(fd));
-        } finally {
-          fs.closeSync(fd);
+          writePackage(pkg, staged);
+        } catch (err) {
+          throw badRequest(err instanceof Error ? err.message : "the extension could not be copied");
         }
+        const cur = store.extensions.get(id);
+        let previous: PreviousVersion | undefined = cur?.previous;
+        // The running plugin (if any) is of the files being replaced; it starts again only if allowed to stay on.
+        plugins.stop(id);
+        if (cur && cur.hash !== hash && fs.existsSync(dir)) {
+          fs.rmSync(previousDir(id), { recursive: true, force: true });
+          fs.renameSync(dir, previousDir(id));
+          previous = {
+            manifest: cur.manifest,
+            hash: cur.hash,
+            source: cur.source,
+            provenance: cur.provenance,
+            enabled: cur.enabled,
+            installed_at: cur.installed_at,
+          };
+        } else fs.rmSync(dir, { recursive: true, force: true });
+        fs.renameSync(staged, dir);
+        const e = store.extensions.put({
+          id,
+          manifest,
+          hash,
+          dir,
+          source,
+          provenance: check.provenance,
+          previous,
+          keepOn: keepsOn(cur, manifest, hash, check) && !contextTaken(id, manifest),
+        });
+        if (e.enabled) startPlugin(e);
+        return shown(e, check);
+      } finally {
+        fs.rmSync(tmp, { recursive: true, force: true });
       }
-      // The running plugin (if any) is of the files being replaced; it starts again only if they are unchanged.
-      plugins.stop(manifest.id);
-      fs.rmSync(dir, { recursive: true, force: true });
-      fs.renameSync(staging, dir);
-      const e = store.extensions.put({ id: manifest.id, manifest, hash: fingerprint(dir, files), dir, source: from });
-      if (e.enabled) startPlugin(e);
-      return info(e);
+    },
+    /** Swaps the installed version with the one kept before it, each with the approval it had. */
+    rollback(id: string): ExtensionInfo {
+      const e = get(id);
+      const prev = e.previous;
+      if (!prev) throw badRequest(`${e.manifest.name} has no earlier version kept`);
+      const back = previousDir(id);
+      if (!fs.existsSync(back) || !sameFiles(back, prev.hash))
+        throw badRequest(`the earlier version of ${e.manifest.name} changed on disk; install it again`);
+      plugins.stop(id);
+      const swap = path.join(root, `${id}.swap`);
+      fs.rmSync(swap, { recursive: true, force: true });
+      if (fs.existsSync(e.dir)) fs.renameSync(e.dir, swap);
+      fs.renameSync(back, e.dir);
+      if (fs.existsSync(swap)) fs.renameSync(swap, back);
+      const restored = store.extensions.put({
+        id,
+        manifest: prev.manifest,
+        hash: prev.hash,
+        dir: e.dir,
+        source: prev.source,
+        provenance: prev.provenance,
+        enabled: prev.enabled && !contextTaken(id, prev.manifest),
+        installed_at: prev.installed_at,
+        previous: {
+          manifest: e.manifest,
+          hash: e.hash,
+          source: e.source,
+          provenance: e.provenance,
+          enabled: e.enabled,
+          installed_at: e.installed_at,
+        },
+      });
+      if (restored.enabled) startPlugin(restored);
+      return shown(restored);
     },
     enable(id: string, enabled: boolean): ExtensionInfo {
       const e = get(id);
       // The copy must still be what was installed.
-      if (enabled && fingerprint(e.dir, filesOf(e.dir)) !== e.hash)
+      if (enabled && !sameFiles(e.dir, e.hash))
         throw badRequest(`${e.manifest.name} changed on disk since it was installed; install it again`);
-      if (enabled && e.manifest.plugin?.context) {
-        // Any other enabled one counts, running or not: at the next start only one could take the turn context.
-        const other = store.extensions.enabled().find((x) => x.id !== id && x.manifest.plugin?.context);
-        if (other) throw badRequest(`${other.manifest.name} already adds context to turns; turn it off first`);
-      }
+      // Any other enabled one counts, running or not: at the next start only one could take the turn context.
+      const other = enabled ? contextTaken(id, e.manifest) : undefined;
+      if (other) throw badRequest(`${other.manifest.name} already adds context to turns; turn it off first`);
       store.extensions.setEnabled(id, enabled);
       if (enabled) startPlugin(get(id));
       else plugins.stop(id);
-      return info(get(id));
+      return shown(get(id));
     },
     remove(id: string): boolean {
       const e = store.extensions.get(id);
@@ -268,6 +338,7 @@ export function createExtensions(deps: { store: Store; secrets: Secrets; home: s
       for (const s of e.manifest.secrets) secrets.set(extSecret(id, s.name), null);
       store.extensions.remove(id);
       fs.rmSync(e.dir, { recursive: true, force: true });
+      fs.rmSync(previousDir(id), { recursive: true, force: true });
       // A later extension with the same id starts clean.
       fs.rmSync(path.join(deps.home, "extension-data", id), { recursive: true, force: true });
       return true;
@@ -281,7 +352,7 @@ export function createExtensions(deps: { store: Store; secrets: Secrets; home: s
         plugins.stop(id);
         startPlugin(e);
       }
-      return info(e);
+      return shown(e);
     },
   };
 }

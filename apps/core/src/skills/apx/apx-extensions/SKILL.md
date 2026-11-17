@@ -104,17 +104,24 @@ export default function activate(api) {
 ## Check, install, turn on
 
 ```bash
-apx extensions inspect <folder>        # what it would bring; nothing is installed
-apx extensions install <folder>        # copied in, off
-apx extensions                         # installed ones, on or off, and secrets missing
+apx extensions inspect <folder|file.apxext|https-url>   # what it would bring; nothing is installed
+apx extensions install <folder|file.apxext|https-url>   # copied in, off
+apx extensions                                          # installed ones, on or off, and secrets missing
+apx extensions rollback <id>                            # back to the version installed before (again: forward)
 ```
+
+To hand it to someone else, zip the folder (the manifest at the top, or inside one top folder) and name it
+`<id>.apxext`: a double-click installs it. It is refused whole if it holds links, encrypted entries, paths outside the
+folder, more than 2,000 files or 50 MB unpacked (20 MB packed). It shows as **Official** only when APX's catalog lists
+that id and version with exactly those files; yours is **Third party**, which is fine for your own.
 
 Turning it on is the owner's decision, because it approves what the folder runs: ask, or send them
 [Resources › Extensions](apx:resources/extensions). With their OK: `apx extensions on <id>`. Its keys are typed by the
 owner in that screen (or, if they gave you the value to store: `printf %s "$VALUE" | apx extensions secret <id>
 <name>`).
 
-Changing the folder after installing does nothing: install it again. Remove with `apx extensions rm <id>`.
+Changing the folder after installing does nothing: install it again. Another version keeps the one before; it turns
+off until the owner turns it on, unless it is official and asks for nothing more. Remove with `apx extensions rm <id>`.
 
 ## Before you hand it over
 

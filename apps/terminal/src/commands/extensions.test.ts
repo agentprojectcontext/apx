@@ -1,5 +1,8 @@
 import assert from "node:assert/strict";
+import fs from "node:fs";
+import path from "node:path";
 import { test } from "node:test";
+import { tempDir } from "../../../core/src/testkit/platform.ts";
 import { extensions } from "./extensions.ts";
 import { printed, recordingClient } from "./testing.ts";
 
@@ -73,4 +76,29 @@ test("incomplete extension commands have no side effect and install errors canno
     }),
     "",
   );
+});
+
+test("an .apxext on this computer is sent whole, an https address as given, a folder by its path", async () => {
+  await using dir = tempDir("apx-cli-ext-");
+  const file = path.join(dir.path, "acme.apxext");
+  fs.writeFileSync(file, "PK-not-really");
+  const update = {
+    ...extension,
+    provenance: "official",
+    update: { from: "0.9.0", adds: [{ kind: "host", name: "api.acme.test" }], removes: [], keeps_on: false },
+  };
+  const { client, calls } = recordingClient({ "extensions.install": update, "extensions.rollback": update });
+  const out = await printed(() => extensions(client, ["install", file], {}));
+  await printed(() => extensions(client, ["install", "https://dl.example.com/acme.apxext"], {}));
+  await printed(() => extensions(client, ["rollback", "acme"], {}));
+  assert.deepEqual(calls, [
+    ["extensions.install", { file: { name: "acme.apxext", data: Buffer.from("PK-not-really").toString("base64") } }],
+    ["extensions.install", { url: "https://dl.example.com/acme.apxext" }],
+    ["extensions.rollback", { id: "acme" }],
+  ]);
+  for (const text of ["· official", "over v0.9.0:", "+ reaches api.acme.test", "will be off until you turn it on"])
+    assert.ok(out.includes(text), out);
+  await assert.rejects(extensions(client, ["install", "http://dl.example.com/acme.apxext"], {}), /https/);
+  await assert.rejects(extensions(client, ["install", path.join(dir.path, "none.apxext")], {}), /no file/);
+  assert.equal(calls.length, 3);
 });

@@ -203,6 +203,7 @@
                       "**/HandBack.tsx",
                       "**/InputPart.tsx",
                       "**/InstallArtifact.tsx",
+                      "**/InstallExtension.tsx",
                       "**/JobList.tsx",
                       "**/LiveLayer.tsx",
                       "**/MediaGroup.tsx",

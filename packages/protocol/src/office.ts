@@ -1,5 +1,6 @@
 // The office: tasks and commitments, routines, the attention tray, and extensions.
 import { z } from "zod";
+import { EXTENSION_ARCHIVE_MAX } from "./constants.ts";
 import { Id, RunState } from "./domain.ts";
 import { schemaFields } from "./schema-fields.ts";
 
@@ -457,6 +458,41 @@ export const ExtensionManifest = z
   .strict();
 export type ExtensionManifest = z.infer<typeof ExtensionManifest>;
 
+/**
+ * One thing an extension may do, to compare two versions: an MCP server (its command or address in `detail`), a host it
+ * reaches, a secret it asks for, a routine, its plugin and what that plugin may reach or watch.
+ */
+export const ExtensionPower = z.object(
+  schemaFields({
+    kind: () =>
+      z.enum(["mcp", "host", "secret", "routine", "plugin", "internet", "local_network", "context", "observe"]),
+    name: () => z.string(),
+    detail: () => z.string().optional(),
+  }),
+);
+export type ExtensionPower = z.infer<typeof ExtensionPower>;
+
+/** Where an extension came from by its fingerprint: the official APX catalog lists these exact files, or not. */
+export const ExtensionProvenance = z.enum(["official", "third_party"]);
+export type ExtensionProvenance = z.infer<typeof ExtensionProvenance>;
+
+/** What to read an extension from: exactly one of a folder on the core's computer, an `.apxext` file or an https URL. */
+export const ExtensionSource = {
+  path: () => z.string().min(1).max(1000).optional(),
+  file: () =>
+    z
+      .object({
+        name: z.string().max(200),
+        data: z
+          .string()
+          .min(1)
+          .max(Math.ceil(EXTENSION_ARCHIVE_MAX / 3) * 4 + 100),
+      })
+      .strict()
+      .optional(),
+  url: () => z.string().min(9).max(2000).startsWith("https://").optional(),
+};
+
 /** An installed extension as the owner sees it: what it brings and whether it is on. */
 export const ExtensionInfo = z.object(
   schemaFields({
@@ -499,6 +535,24 @@ export const ExtensionInfo = z.object(
     /** It brings code that runs on this computer (an MCP command or a plugin): turning it on trusts its author. */
     runs_code: () => z.boolean(),
     installed_at: () => z.string(),
+    provenance: () => ExtensionProvenance,
+    /** Why the official catalog could not be asked: none reachable now and none kept, or it needs a newer APX. */
+    catalog: () => z.enum(["unreachable", "needs_update"]).optional(),
+    /**
+     * Against another version: on an installed one, the previous version kept to go back to; when inspecting, the
+     * version installed now. `keeps_on`: installing it leaves an extension that is on still on.
+     */
+    update: () =>
+      z
+        .object(
+          schemaFields({
+            from: () => z.string(),
+            adds: () => z.array(ExtensionPower),
+            removes: () => z.array(ExtensionPower),
+            keeps_on: () => z.boolean().optional(),
+          }),
+        )
+        .optional(),
   }),
 );
 export type ExtensionInfo = z.infer<typeof ExtensionInfo>;

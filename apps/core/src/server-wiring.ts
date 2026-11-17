@@ -20,6 +20,7 @@ import { applyProfile, listProfiles, type ProfileRoot } from "./engine/profiles.
 import type { Upkeep } from "./engine/upkeep.ts";
 import type { Computer } from "./environments/computer.ts";
 import { errorMessage } from "./errors.ts";
+import { createCatalog } from "./extensions/catalog.ts";
 import { createExtensions } from "./extensions/extensions.ts";
 import { createPlugins } from "./extensions/plugins.ts";
 import { acpAgents, acpEngine } from "./harness/acp/agents.ts";
@@ -147,7 +148,15 @@ export function knownEngines(store: Store, providers: { has: (id: string) => boo
 }
 
 /** Extensions and their plugin host. Copies changed on disk since approval are turned off at boot. */
-export function extensionStack(d: { store: Store; secrets: Secrets; bus: Bus; log: Log; home: string }) {
+export function extensionStack(d: {
+  store: Store;
+  secrets: Secrets;
+  bus: Bus;
+  log: Log;
+  home: string;
+  marketplaceIndex: string | undefined;
+  fetch?: typeof fetch | undefined;
+}) {
   const hooks = createHooks();
   const plugins = createPlugins({
     home: d.home,
@@ -161,7 +170,15 @@ export function extensionStack(d: { store: Store; secrets: Secrets; bus: Bus; lo
       return Boolean(t && audienceOf(d.store, t).kind === "contact");
     },
   });
-  const extensions = createExtensions({ store: d.store, secrets: d.secrets, home: d.home, plugins });
+  const catalog = createCatalog({ home: d.home, url: d.marketplaceIndex, ...(d.fetch ? { fetch: d.fetch } : {}) });
+  const extensions = createExtensions({
+    store: d.store,
+    secrets: d.secrets,
+    home: d.home,
+    plugins,
+    catalog,
+    ...(d.fetch ? { fetch: d.fetch } : {}),
+  });
   const changed = extensions.verify();
   if (changed.length) d.log.warn({ extensions: changed }, "extensions changed on disk were turned off");
   return { hooks, plugins, extensions };

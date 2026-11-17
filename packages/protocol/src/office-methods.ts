@@ -8,6 +8,7 @@ import {
   CallModel,
   ClientScope,
   ExtensionInfo,
+  ExtensionSource,
   Notification,
   ProfileInfo,
   Routine,
@@ -34,6 +35,11 @@ const TaskAttachment = z.object(
     name: () => z.string(),
   }),
 );
+
+/** An extension is read from exactly one place. */
+const oneSource = (p: { path?: unknown; file?: unknown; url?: unknown }) =>
+  [p.path, p.file, p.url].filter((v) => v !== undefined).length === 1;
+const SOURCE_MESSAGE = "give one of path, file or url";
 
 export const officeMethods = {
   /** Snapshots selected readable media into the task; never shares its source chat. */
@@ -515,24 +521,49 @@ export const officeMethods = {
     effect: false,
     access: "human",
   }),
-  /** Reads a folder's apx-extension.json without installing or running anything. */
+  /** Reads an extension (a folder, an .apxext file or an https URL) without writing or running anything. */
   "extensions.inspect": deferMethod({
     params: () =>
       z
         .object({
-          path: z.string().min(1).max(1000),
+          path: ExtensionSource.path(),
+          file: ExtensionSource.file(),
+          url: ExtensionSource.url(),
         })
-        .strict(),
+        .strict()
+        .refine(oneSource, SOURCE_MESSAGE),
     result: () => ExtensionInfo,
     effect: false,
     access: "human",
   }),
-  /** Copies the folder into APX's home, off; installing it again replaces it (and turns it off if it changed). */
+  /**
+   * Copies the extension into APX's home, off. Installing another version keeps the one before to go back to; it
+   * stays on only when official and asking for nothing more. `hash`: refuse unless the files are the ones inspected.
+   */
   "extensions.install": deferMethod({
     params: () =>
       z
         .object({
-          path: z.string().min(1).max(1000),
+          path: ExtensionSource.path(),
+          file: ExtensionSource.file(),
+          url: ExtensionSource.url(),
+          hash: z
+            .string()
+            .regex(/^[0-9a-f]{16}$/)
+            .optional(),
+        })
+        .strict()
+        .refine(oneSource, SOURCE_MESSAGE),
+    result: () => ExtensionInfo,
+    effect: true,
+    access: "human",
+  }),
+  /** Goes back to the version installed before this one (and forward again), each as it was approved. */
+  "extensions.rollback": deferMethod({
+    params: () =>
+      z
+        .object({
+          id: z.string().max(40),
         })
         .strict(),
     result: () => ExtensionInfo,
