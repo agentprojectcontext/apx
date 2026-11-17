@@ -5,11 +5,16 @@ test("usage switches persist independently of model power and preserve the choic
 }) => {
   await rpc("setup.finish");
   await rpc("engines.set_usage", { engine: "codex", enabled: false });
+  // The plan shows its switches only once signed in: a stand-in sign-in, removed at the end.
+  await rpc("secrets.set", {
+    name: "chatgpt_login",
+    value: JSON.stringify({ access_token: "e2e-access", refresh_token: "e2e-refresh" }),
+  });
   await open(page);
   await openSettings(page);
   const settings = page.getByRole("dialog", { name: "Configuración", exact: true });
   await settings.getByRole("button", { name: "Motores y modelos", exact: true }).click();
-  const plan = settings.locator(".pcard--plan");
+  const plan = settings.locator(".pcard--plan:not(.pcard--openrouter)");
   const quota = plan.getByRole("switch", { name: "Consumo", exact: true });
   const power = plan.getByRole("switch", { name: "Activo", exact: true });
   await expect(quota).toBeEnabled();
@@ -51,6 +56,7 @@ test("usage switches persist independently of model power and preserve the choic
   await expect(claude.getByRole("switch", { name: "Consumo", exact: true })).toBeVisible();
   const overflow = await claude.evaluate((card) => card.scrollWidth - card.clientWidth);
   expect(overflow).toBeLessThanOrEqual(1);
+  await rpc("secrets.set", { name: "chatgpt_login", value: null });
 });
 
 test("the real usage method returns an empty state when all quota sources are off", async ({ page }) => {
