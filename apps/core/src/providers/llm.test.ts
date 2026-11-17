@@ -6,6 +6,7 @@ import { test } from "node:test";
 import type { ProviderConfig } from "../config.ts";
 import { createSecrets } from "../secrets.ts";
 import { toAnthropic } from "./anthropic-messages.ts";
+import { REASONING } from "./chatgpt-responses.ts";
 import { createLlm, retryWait } from "./llm.ts";
 import { classifyHttp, limitKind, ProviderError, resetOf } from "./types.ts";
 
@@ -822,4 +823,31 @@ test("a chat no model's context fits fails as too long, not as a sign-in to fix"
     }),
     (e: unknown) => e instanceof ProviderError && e.kind === "context" && /smaller than this chat/.test(e.message),
   );
+});
+
+test("encrypted reasoning carried on the chat does not count as words toward a model's context", async () => {
+  let called = 0;
+  const llm = createLlm({
+    providers: () => providers,
+    secrets,
+    firstByteMs: 1000,
+    fetchImpl: (async () => {
+      called++;
+      return new Response(JSON.stringify({ choices: [{ message: { content: "ok" }, finish_reason: "stop" }] }));
+    }) as unknown as typeof fetch,
+  });
+  // 50k tokens of words and 150k of encrypted reasoning: the provider reads the blob as far fewer tokens.
+  const blob = "Zx9".repeat(200_000);
+  const out = await llm.complete({
+    models: ["pa/llama-small"],
+    messages: [
+      { role: "user", content: "x".repeat(200_000) },
+      { role: "assistant", content: "done", [REASONING]: [{ model: "gpt", summary: [], encrypted_content: blob }] },
+      { role: "user", content: "next" },
+    ],
+    tools: [],
+    signal: new AbortController().signal,
+  });
+  assert.equal(called, 1);
+  assert.equal(out.message.content, "ok");
 });
