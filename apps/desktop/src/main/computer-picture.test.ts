@@ -50,6 +50,7 @@ const { createComputer } = await import("./computer.ts");
 hooks.deregister();
 
 const moves: Array<{ x: number; y: number }> = [];
+let hidden = 0;
 function setup(bounds?: Bounds) {
   windowBounds = bounds;
   crops.length = 0;
@@ -71,7 +72,9 @@ function setup(bounds?: Bounds) {
       moveTo: async (x, y) => {
         moves.push({ x, y });
       },
-      hide: () => {},
+      hide: () => {
+        hidden++;
+      },
       pulse: () => {},
       say: () => {},
       close: () => {},
@@ -120,4 +123,12 @@ test("a look moves the agent's cursor to the window's top; a look right after an
   assert.deepEqual(moves, [{ x: 300, y: 90 }]);
   await computer.handle("computer.snapshot", { stay: true });
   assert.deepEqual(moves, [{ x: 300, y: 90 }]);
+});
+
+test("when the core says no turn uses the computer, the agent's cursor leaves the screen", async () => {
+  const computer = setup({ x: 100, y: 50, width: 400, height: 300 });
+  await computer.handle("computer.snapshot", {});
+  const before = hidden;
+  assert.deepEqual(await computer.handle("computer.release", {}), {});
+  assert.equal(hidden, before + 1);
 });

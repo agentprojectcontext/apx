@@ -74,6 +74,7 @@ let desktopHandler: Parameters<ApxSocket["onRequest"]>[0] | undefined;
 const calls: string[] = [];
 const clickParams: unknown[] = [];
 const nodeParams: Array<{ method: string; params: unknown }> = [];
+let releases = 0;
 
 before(async () => {
   home = fs.mkdtempSync(path.join(os.tmpdir(), "apx-computer-"));
@@ -124,6 +125,10 @@ test("computer use exists only while the desktop lends it; in Auto a look at the
 
   desktop = await new ApxClient({ url: core.url }).connect("node", ["browser", "computer", "computer.pointer"]);
   desktopHandler = async (method, params) => {
+    if (method === "computer.release") {
+      releases++;
+      return {};
+    }
     calls.push(method);
     nodeParams.push({ method, params });
     if (method === "computer.open") return { app: (params as { app: string }).app };
@@ -205,8 +210,11 @@ test("all computer actions carry the stored agent identity, while operators cann
   try {
     const thread = (await owner.call("threads.create", { kind: "loose", agent_id: agent.id })).id;
     const before = nodeParams.length;
+    const released = releases;
     await owner.call("threads.send", { thread, text: "label check" });
     await settle(thread);
+    // The turn that used the computer ended: the desktop is told to take the agent's cursor away.
+    await waitFor(() => releases > released, "the cursor released after the turn");
     const forwarded = nodeParams.slice(before);
     assert.deepEqual(
       forwarded.map((c) => c.method),

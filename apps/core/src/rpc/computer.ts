@@ -1,7 +1,8 @@
 // The owner's computer, as a node, when they turned computer use on in the desktop app: a picture of the screen and
 // a click or typing on the app in front. The core only routes; the desktop checks the app is still the one approved.
 // The emergency stop (the desktop says so) ends the turns that were using the computer: only those, only that time.
-import { COMPUTER_CAP, COMPUTER_POINTER_CAP, type NodeComputerParams } from "@apx/protocol";
+import { COMPUTER_CAP, COMPUTER_POINTER_CAP, type NodeComputerParams, TERMINAL_RUN_STATES } from "@apx/protocol";
+import type { Bus } from "../bus.ts";
 import type { Store } from "../domain/store.ts";
 import { CallError } from "../errors.ts";
 import type { NodeBroker } from "../nodes/broker.ts";
@@ -28,10 +29,13 @@ export function computerHandlers(
   engine: { cancel(thread: string): number },
   /** Whether a chat works on the shared Linux computer: its agent's screen is there, never the owner's. */
   onComputer: (thread: string) => boolean = () => false,
+  bus?: Bus,
 ) {
   /** The turns using the computer now (run → its chat, last use), and those the owner stopped. */
   const using = new Map<string, { thread: string; agent: string; at: number }>();
   const stopped = new Set<string>();
+  /** Turns in `using` that already ended: still listed for a while, no longer holding the cursor. */
+  const ended = new Set<string>();
 
   broker.onEvent((node, event) => {
     if (event.type !== "computer.stopped" || !node.caps.includes(COMPUTER_CAP)) return;
@@ -42,6 +46,16 @@ export function computerHandlers(
       engine.cancel(u.thread);
     }
     using.clear();
+    ended.clear();
+  });
+
+  // The last turn using the computer ended: the agent's cursor leaves the screen instead of showing its last note.
+  bus?.on((e) => {
+    if (e.type !== "run.updated" || !TERMINAL_RUN_STATES.includes(e.run.state) || !using.has(e.run.id)) return;
+    ended.add(e.run.id);
+    const now = Date.now();
+    if ([...using].some(([run, u]) => !ended.has(run) && now - u.at <= ACTIVE_MS)) return;
+    void broker.invoke(COMPUTER_CAP, "computer.release", {}, ACT_MS).catch(() => {});
   });
 
   /** A computer call from an agent's turn: refused if the owner stopped that turn; remembered for the stop. */
@@ -74,8 +88,10 @@ export function computerHandlers(
       const now = Date.now();
       const agents = new Map<string, string>();
       for (const [run, u] of using) {
-        if (now - u.at > ACTIVE_MS) using.delete(run);
-        else if (now - u.at <= IN_USE_MS) agents.set(u.agent, store.agents.get(u.agent)?.name ?? u.agent);
+        if (now - u.at > ACTIVE_MS) {
+          using.delete(run);
+          ended.delete(run);
+        } else if (now - u.at <= IN_USE_MS) agents.set(u.agent, store.agents.get(u.agent)?.name ?? u.agent);
       }
       return {
         name: await hostName(),
