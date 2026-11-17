@@ -56,6 +56,15 @@ export function fingerprint(root: string, files: string[]): string {
   return fingerprintOf(files.map((f) => [f, fs.readFileSync(path.join(root, ...f.split("/")))]));
 }
 
+/**
+ * The fingerprint as APX computed it before paths used "/" everywhere: on Windows they were joined and sorted with
+ * "\\". Only to recognise a record approved then (DECISIONS.md#d-240).
+ */
+export function legacyFingerprint(root: string, files: string[]): string {
+  const names = files.map((f) => f.split("/").join("\\")).sort();
+  return fingerprintOf(names.map((n) => [n, fs.readFileSync(path.join(root, ...n.split("\\")))]));
+}
+
 /** A path the manifest names, relative to the extension's folder; undefined when it would leave it. */
 function inside(rel: string): string | undefined {
   if (path.posix.isAbsolute(rel) || path.win32.isAbsolute(rel)) return undefined;

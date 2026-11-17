@@ -106,6 +106,10 @@ export function extensionsRepo({ one, all, run }: Sql) {
       );
       return repo.get(e.id) as ExtensionRecord;
     },
+    /** The same files under another fingerprint (how it is computed changed); on or off stays as it is. */
+    setHash(id: string, hash: string): void {
+      run(qb.updateTable("extensions").set({ hash, updated_at: now() }).where("id", "=", id));
+    },
     setEnabled(id: string, enabled: boolean): void {
       run(
         qb

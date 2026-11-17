@@ -16,6 +16,7 @@ import {
   comparePowers,
   filesOf,
   fingerprint,
+  legacyFingerprint,
   type Package,
   PackageError,
   readArchive,
@@ -190,8 +191,18 @@ export function createExtensions(deps: {
       if (!e?.enabled) return undefined;
       return sameFiles(e.dir, e.hash) ? e : undefined;
     },
-    /** At start: an enabled extension whose files changed on disk is turned off. */
+    /**
+     * At start: an enabled extension whose files changed on disk is turned off. One fingerprinted with "\\" (Windows,
+     * before DECISIONS.md#d-240) whose files are unchanged gets the new fingerprint and keeps its on or off.
+     */
     verify(): string[] {
+      for (const e of store.extensions.list()) {
+        if (sameFiles(e.dir, e.hash)) continue;
+        try {
+          const files = filesOf(e.dir);
+          if (legacyFingerprint(e.dir, files) === e.hash) store.extensions.setHash(e.id, fingerprint(e.dir, files));
+        } catch {}
+      }
       const off: string[] = [];
       for (const e of store.extensions.enabled()) {
         if (!sameFiles(e.dir, e.hash)) {

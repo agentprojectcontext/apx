@@ -5223,7 +5223,8 @@ extension's folder) the installer for any extension, and needs APX to tell an of
   otherwise it is off until the owner turns it on, as any changed files always were. `extensions.rollback` swaps the
   two copies, each with the approval it had, after checking the kept copy's fingerprint on disk.
 - **Fingerprints use "/" on every system**, so a package matches the catalog on Windows too. An extension installed on
-  Windows before this was fingerprinted with "\": it turns off once at the next start and is turned on again by hand.
+  Windows before this was fingerprinted with "\": at start, a record whose fingerprint equals the "\" one of its
+  unchanged files gets the new fingerprint and keeps its on or off; only files that really changed turn it off.
 
 Rejected: trusting the zip's own hash (it changes when the same files are recompressed); a staging token between
 inspect and install (state to expire; the fingerprint already names the files); keeping an update off even when official
