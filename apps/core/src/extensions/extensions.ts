@@ -13,6 +13,7 @@ import { extensionSecret as extSecret } from "../secret-names.ts";
 import type { Secrets } from "../secrets.ts";
 import { type Catalog, type CatalogCheck, downloadArchive } from "./catalog.ts";
 import { ASSET_MAX, createPackageReader, newest } from "./catalog-packages.ts";
+import type { Catalogs } from "./catalogs.ts";
 import { createManifestV2, settingsInfo } from "./manifest-v2.ts";
 import {
   comparePowers,
@@ -57,7 +58,13 @@ function listingIn(read: () => Buffer | undefined): ListingFile | undefined {
 }
 
 /** Where an extension is read from: exactly one of these (the protocol checks it). */
-export type ExtensionInput = { path?: string; file?: { name: string; data: string }; url?: string };
+export type ExtensionInput = {
+  path?: string;
+  file?: { name: string; data: string };
+  url?: string;
+  /** An entry of a catalog the owner added. */
+  entry?: { catalog: string; id: string };
+};
 
 function skillNames(dir: string, m: ExtensionManifest): string[] {
   if (!m.skills) return [];
@@ -86,6 +93,8 @@ export function createExtensions(deps: {
   home: string;
   plugins: Plugins;
   catalog: Catalog;
+  /** The catalogs the owner added. */
+  catalogs: Catalogs;
   /** Downloads an extension from a URL (a test answers it). */
   fetch?: typeof fetch;
 }) {
@@ -187,6 +196,7 @@ export function createExtensions(deps: {
         return { pkg: readArchive(buf), source: path.basename(input.file.name) };
       }
       if (input.url) return { pkg: readArchive(await downloadArchive(input.url, deps.fetch)), source: input.url };
+      if (input.entry) return await deps.catalogs.resolve(input.entry.catalog, input.entry.id);
     } catch (err) {
       // A refused archive or a failed download is the owner's to fix, not APX's failure.
       if (err instanceof CallError || !(err instanceof Error)) throw err;
@@ -218,6 +228,8 @@ export function createExtensions(deps: {
     m.plugin?.context ? store.extensions.enabled().find((x) => x.id !== id && x.manifest.plugin?.context) : undefined;
 
   return {
+    /** The catalogs the owner added. */
+    catalogs: deps.catalogs,
     /** The owner's "Test": its plugin asked for context on a sample text, as a turn would ask it. */
     async testContext(
       id: string,
@@ -294,7 +306,23 @@ export function createExtensions(deps: {
     /** What APX's catalog offers, each with what it brings once its package was read. */
     async catalogEntries(refresh = false) {
       const { entries, catalog: status } = await catalog.entries(refresh);
-      return { entries: await packages.entries(entries, true), ...(status ? { catalog: status } : {}) };
+      // Then the owner's own catalogs: third party, as they list them.
+      const added = deps.catalogs.list().flatMap((c) =>
+        c.entries.map((e) => ({
+          id: e.id,
+          name: e.name,
+          description: e.description,
+          categories: e.category ? [e.category] : [],
+          version: e.version,
+          provenance: "third_party" as const,
+          catalog: c.id,
+          ...(e.license ? { license: e.license } : {}),
+        })),
+      );
+      return {
+        entries: [...(await packages.entries(entries, true)), ...added],
+        ...(status ? { catalog: status } : {}),
+      };
     },
     /** What an extension would bring, where it comes from by fingerprint, and what it changes over the installed one. */
     async inspect(input: ExtensionInput): Promise<ExtensionInfo> {

@@ -3,16 +3,52 @@
 import { z } from "zod";
 import { deferMethod } from "./defer-method.ts";
 import { ArtifactBundle } from "./domain-artifacts.ts";
-import { CatalogEntry, ExtensionInfo, ExtensionSource } from "./extensions.ts";
+import { CatalogEntry, ExtensionCatalog, ExtensionInfo, ExtensionSource } from "./extensions.ts";
 
 /** An extension is read from exactly one place. */
-const oneSource = (p: { path?: unknown; file?: unknown; url?: unknown }) =>
-  [p.path, p.file, p.url].filter((v) => v !== undefined).length === 1;
-const SOURCE_MESSAGE = "give one of path, file or url";
+const oneSource = (p: { path?: unknown; file?: unknown; url?: unknown; entry?: unknown }) =>
+  [p.path, p.file, p.url, p.entry].filter((v) => v !== undefined).length === 1;
+const SOURCE_MESSAGE = "give one of path, file, url or entry";
 
 const SettingValue = z.union([z.string().max(10_000), z.number(), z.boolean()]).nullable();
 
+const CatalogId = z.object({ id: z.string().max(40) }).strict();
+
 export const extensionMethods = {
+  /** The catalogs the owner added, and public ones to add with one click. */
+  "extensions.catalogs": deferMethod({
+    params: () => z.object({}).strict(),
+    result: () =>
+      z.object({
+        catalogs: z.array(ExtensionCatalog),
+        suggested: z.array(z.object({ source: z.string(), name: z.string(), description: z.string() })),
+      }),
+    effect: false,
+    access: "human",
+  }),
+  /**
+   * Adds a catalog for the owner (a GitHub owner/repo, a git address, an index's https address or a folder) and reads
+   * it. Everything from it is third party.
+   */
+  "extensions.catalog_add": deferMethod({
+    params: () => z.object({ source: z.string().trim().min(3).max(500) }).strict(),
+    result: () => ExtensionCatalog,
+    effect: true,
+    access: "human",
+  }),
+  /** Reads an added catalog again at its newest commit. */
+  "extensions.catalog_sync": deferMethod({
+    params: () => CatalogId,
+    result: () => ExtensionCatalog,
+    effect: true,
+    access: "human",
+  }),
+  "extensions.catalog_remove": deferMethod({
+    params: () => CatalogId,
+    result: () => z.object({ removed: z.boolean() }),
+    effect: true,
+    access: "human",
+  }),
   /** Sets some of an extension's settings (null clears one); a sensitive one goes to the secret store. */
   "extensions.settings": deferMethod({
     params: () =>
@@ -106,6 +142,7 @@ export const extensionMethods = {
           path: ExtensionSource.path(),
           file: ExtensionSource.file(),
           url: ExtensionSource.url(),
+          entry: ExtensionSource.entry(),
         })
         .strict()
         .refine(oneSource, SOURCE_MESSAGE),
@@ -124,6 +161,7 @@ export const extensionMethods = {
           path: ExtensionSource.path(),
           file: ExtensionSource.file(),
           url: ExtensionSource.url(),
+          entry: ExtensionSource.entry(),
           hash: z
             .string()
             .regex(/^[0-9a-f]{16}$/)

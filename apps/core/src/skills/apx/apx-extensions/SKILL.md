@@ -123,7 +123,8 @@ apx extensions inspect <folder|file.apxext|https-url>   # what it would bring; n
 apx extensions install <folder|file.apxext|https-url>   # copied in, off
 apx extensions                                          # installed ones, on or off, and secrets missing
 apx extensions rollback <id>                            # back to the version installed before (again: forward)
-apx extensions catalog                                  # what APX's catalog offers, with the address to install each
+apx extensions catalog                                  # what APX's catalog (and the owner's) offer, with addresses
+apx extensions catalogs add <owner/repo|url|folder>     # add a catalog for the owner (APX or Claude Code format)
 ```
 
 To hand it to someone else, zip the folder (the manifest at the top, or inside one top folder) and name it

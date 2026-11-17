@@ -1270,4 +1270,20 @@ export const MIGRATIONS: readonly string[] = [
   `,
   // An extension's plain settings (manifest 2) as JSON; its sensitive ones live in the secret store.
   `ALTER TABLE extensions ADD COLUMN settings TEXT;`,
+  `
+  -- Extension catalogs the owner added for themself (a repository, an address, a folder): where it is, the ref and
+  -- commit it was last read at, and what it lists (entries and the ones left out, as JSON).
+  CREATE TABLE extension_catalogs (
+    id TEXT PRIMARY KEY,
+    name TEXT NOT NULL,
+    source TEXT NOT NULL,
+    kind TEXT NOT NULL,
+    ref TEXT,
+    synced_sha TEXT,
+    synced_at TEXT,
+    entries TEXT NOT NULL DEFAULT '[]',
+    skipped TEXT NOT NULL DEFAULT '[]',
+    created_at TEXT NOT NULL
+  );
+  `,
 ];

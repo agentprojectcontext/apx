@@ -147,3 +147,17 @@ test("filters by words and by what it brings", () => {
   assert.ok(!newer("1.0.0", "1.0.0"));
   assert.ok(newer("2.0.0", "2.0.0-rc.1"));
 });
+
+test("an added catalog's entries stay under it, after APX's own, and APX's entry wins an id both list", () => {
+  const withAdded = buildItems({
+    ...sources,
+    catalog: [
+      ...sources.catalog,
+      entry("trello", "9.0.0", { catalog: "c1", provenance: "third_party" }),
+      entry("notes", "0.4.0", { catalog: "c1", provenance: "third_party" }),
+    ],
+  });
+  assert.equal(withAdded.find((i) => i.id === "trello")?.version, "1.0.1");
+  assert.equal(withAdded.find((i) => i.id === "notes")?.key, "added:c1:notes");
+  assert.equal(groupByCategory(withAdded).at(-1)?.id, "added:c1");
+});

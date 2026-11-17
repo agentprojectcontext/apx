@@ -8,7 +8,8 @@ import type { ApxClient } from "@apx/protocol/client";
 const USAGE = `apx extensions                                   Installed extensions
 apx extensions inspect <folder|file.apxext|url>  What it would bring (nothing is installed)
 apx extensions install <folder|file.apxext|url>  Copy it in, off
-apx extensions catalog                           What APX's catalog offers (install one by its address)
+apx extensions catalog                           What APX's catalog and yours offer (install one by its address)
+apx extensions catalogs [add <source>|sync <id>|rm <id>]  Your own catalogs (owner/repo, git, https index, folder)
 apx extensions set <id> name=value ...           Its settings (value "-": read from stdin, for a sensitive one)
 apx extensions rollback <id>                     Go back to the version installed before
 apx extensions on|off <id>
@@ -106,6 +107,35 @@ export async function extensions(
       values[pair.slice(0, at)] = value;
     }
     return show(await client.call("extensions.settings", { id: arg, values }));
+  }
+  if (sub === "catalogs") {
+    const show1 = (c: {
+      id: string;
+      name: string;
+      source: string;
+      count: number;
+      skipped: { name: string; reason: string }[];
+      synced_sha?: string | undefined;
+    }) => {
+      console.log(`${c.id}  ${c.name}  · ${c.count} extensions${c.synced_sha ? ` · ${c.synced_sha.slice(0, 7)}` : ""}`);
+      console.log(`  ${c.source}`);
+      for (const s of c.skipped) console.log(`  left out ${s.name}: ${s.reason}`);
+    };
+    if (arg === "add" && name) return show1(await client.call("extensions.catalog_add", { source: name }));
+    if (arg === "sync" && name) return show1(await client.call("extensions.catalog_sync", { id: name }));
+    if (arg === "rm" && name) {
+      console.log(
+        (await client.call("extensions.catalog_remove", { id: name })).removed ? "removed" : "no such catalog",
+      );
+      return;
+    }
+    if (arg) throw new Error(USAGE);
+    const r = await client.call("extensions.catalogs", {});
+    for (const c of r.catalogs) show1(c);
+    if (!r.catalogs.length) console.log("(no catalogs of your own)");
+    console.log("\nSuggested:");
+    for (const g of r.suggested) console.log(`  apx extensions catalogs add ${g.source}   ${g.name}`);
+    return;
   }
   if (sub === "catalog") {
     const r = await client.call("extensions.catalog", {});

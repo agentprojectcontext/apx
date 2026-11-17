@@ -85,6 +85,19 @@ export interface DevicesTable {
   push: string | null;
 }
 
+export interface ExtensionCatalogsTable {
+  id: string;
+  name: string;
+  source: string;
+  kind: string;
+  ref: string | null;
+  synced_sha: string | null;
+  synced_at: string | null;
+  entries: Generated<string>;
+  skipped: Generated<string>;
+  created_at: string;
+}
+
 export interface ExtensionsTable {
   id: string;
   manifest: string;
@@ -746,6 +759,7 @@ export interface Database {
   channel_held: ChannelHeldTable;
   channel_inbox: ChannelInboxTable;
   devices: DevicesTable;
+  extension_catalogs: ExtensionCatalogsTable;
   extensions: ExtensionsTable;
   flow_events: FlowEventsTable;
   flow_graph_drafts: FlowGraphDraftsTable;

@@ -257,6 +257,20 @@ export function readArchive(buf: Buffer): Package {
   );
 }
 
+/** Files already in memory (a converted plugin, a folder read through git), checked like an archive's. */
+export function readFiles(all: Map<string, Buffer>): Package {
+  const kept = [...all].filter(([p]) => !junk(p) && !p.split("/").some((x) => LEFT_OUT.has(x)));
+  if (kept.length > MAX_FILES || kept.reduce((n, [, d]) => n + d.length, 0) > MAX_BYTES)
+    throw new PackageError("the extension is too big");
+  const byPath = new Map(kept);
+  const files = [...byPath.keys()].sort();
+  return packageOf(
+    files,
+    (rel) => byPath.get(rel) ?? Buffer.alloc(0),
+    (rel) => byPath.has(rel),
+  );
+}
+
 /** Writes a package into `dir`, which must not exist yet; its fingerprint read back from disk must match. */
 export function writePackage(pkg: Package, dir: string): void {
   fs.mkdirSync(dir);

@@ -5,7 +5,7 @@ import { useSyncExternalStore } from "react";
 
 export type InstallMode = "file" | "url" | "folder";
 /** `url`: an address already chosen (a catalog entry), looked at as the dialog opens. */
-type Request = { file?: File; mode?: InstallMode; url?: string };
+type Request = { file?: File; mode?: InstallMode; url?: string; entry?: { catalog: string; id: string } };
 let request: Request | undefined;
 let installed = 0;
 const subs = new Set<() => void>();

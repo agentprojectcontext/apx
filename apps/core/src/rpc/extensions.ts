@@ -1,20 +1,44 @@
 // Extensions, for the owner: inspect a folder, an .apxext file or a URL, install it (off), go back a version, turn it
 // on or off, give it its secrets.
+import type { CatalogRecord } from "../domain/extension-catalogs.ts";
+import { SUGGESTED } from "../extensions/catalogs.ts";
 import type { ExtensionInput, Extensions } from "../extensions/extensions.ts";
 import type { Mcp } from "../mcp/manager.ts";
 import type { Handlers } from "./router.ts";
 
 /** The one place given, as the protocol checked it. */
-const source = (path?: string, file?: { name: string; data: string }, url?: string): ExtensionInput =>
-  path !== undefined ? { path } : file ? { file } : { url: url ?? "" };
+const source = (
+  path?: string,
+  file?: { name: string; data: string },
+  url?: string,
+  entry?: { catalog: string; id: string },
+): ExtensionInput => (path !== undefined ? { path } : file ? { file } : entry ? { entry } : { url: url ?? "" });
+
+/** An added catalog as the owner sees it. */
+const shown = (c: CatalogRecord) => ({
+  id: c.id,
+  name: c.name,
+  source: c.source,
+  kind: c.kind,
+  ...(c.ref ? { ref: c.ref } : {}),
+  ...(c.synced_sha ? { synced_sha: c.synced_sha } : {}),
+  ...(c.synced_at ? { synced_at: c.synced_at } : {}),
+  count: c.entries.length,
+  skipped: c.skipped,
+});
 
 export function extensionHandlers(extensions: Extensions, mcp: Mcp) {
+  const { catalogs } = extensions;
   /** Its MCP servers stop now rather than at their idle timeout. */
   const dropServers = (id: string) => {
     for (const name of extensions.list().find((e) => e.id === id)?.mcp ?? []) mcp.drop({ scope: "global", name });
   };
   return {
     "extensions.list": () => ({ extensions: extensions.list() }),
+    "extensions.catalogs": () => ({ catalogs: catalogs.list().map(shown), suggested: SUGGESTED }),
+    "extensions.catalog_add": async ({ source: text }) => shown(await catalogs.add(text)),
+    "extensions.catalog_sync": async ({ id }) => shown(await catalogs.sync(id)),
+    "extensions.catalog_remove": ({ id }) => ({ removed: catalogs.remove(id) }),
     "extensions.catalog": ({ refresh }) => extensions.catalogEntries(refresh),
     "extensions.settings": ({ id, values }) => {
       // Its servers start again with the new values at their next use.
@@ -25,10 +49,10 @@ export function extensionHandlers(extensions: Extensions, mcp: Mcp) {
     "extensions.companion_file": ({ id }) => extensions.companionFile(id),
     "extensions.app_bundle": ({ id, file }) => extensions.appBundle(id, file),
     "extensions.asset": async ({ id, file }) => (await extensions.asset(id, file)) ?? {},
-    "extensions.inspect": ({ path, file, url }) => extensions.inspect(source(path, file, url)),
-    "extensions.install": async ({ path, file, url, hash }) => {
+    "extensions.inspect": ({ path, file, url, entry }) => extensions.inspect(source(path, file, url, entry)),
+    "extensions.install": async ({ path, file, url, entry, hash }) => {
       const before = extensions.list();
-      const info = await extensions.install(source(path, file, url), hash);
+      const info = await extensions.install(source(path, file, url, entry), hash);
       // Its servers start again with the new files at their next use; a server this version dropped stops now.
       for (const name of new Set([...(before.find((e) => e.id === info.id)?.mcp ?? []), ...info.mcp]))
         mcp.drop({ scope: "global", name });

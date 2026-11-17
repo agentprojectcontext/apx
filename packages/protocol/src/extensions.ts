@@ -252,6 +252,12 @@ export const ExtensionSource = {
       .strict()
       .optional(),
   url: () => z.string().min(9).max(2000).startsWith("https://").optional(),
+  /** One entry of a catalog the owner added. */
+  entry: () =>
+    z
+      .object({ catalog: z.string().max(40), id: z.string().max(40) })
+      .strict()
+      .optional(),
 };
 
 /** What an extension brings, to filter by: an account it connects, tools, skills, ready-made agents, a device. */
@@ -345,6 +351,10 @@ export const CatalogEntry = z.object(
     provenance: () => ExtensionProvenance,
     /** The .apxext to install it from. */
     url: () => z.string().optional(),
+    /** The catalog the owner added it from (absent: APX's own). */
+    catalog: () => z.string().optional(),
+    /** Its license, as APX read it before listing it (an added catalog's). */
+    license: () => z.string().optional(),
     /** From the package's own manifest, once APX read it (absent while it could not). */
     brings: () => z.array(ExtensionBrings).optional(),
     needs: () => z.array(ExtensionNeeds).optional(),
@@ -435,3 +445,24 @@ export const ExtensionInfo = z.object(
   }),
 );
 export type ExtensionInfo = z.infer<typeof ExtensionInfo>;
+
+/** A catalog the owner added: where it is, the ref and commit it was read at, what it lists and leaves out. */
+export const ExtensionCatalog = z.object(
+  schemaFields({
+    id: () => z.string(),
+    name: () => z.string(),
+    source: () => z.string(),
+    kind: () => z.enum(["apx", "claude"]),
+    ref: () => z.string().optional(),
+    synced_sha: () => z.string().optional(),
+    synced_at: () => z.string().optional(),
+    count: () => z.number().int(),
+    skipped: () =>
+      z.array(
+        z.object(
+          schemaFields({ name: () => z.string(), reason: () => z.enum(["license", "unpinned", "source", "invalid"]) }),
+        ),
+      ),
+  }),
+);
+export type ExtensionCatalog = z.infer<typeof ExtensionCatalog>;

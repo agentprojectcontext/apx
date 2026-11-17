@@ -99,4 +99,3 @@ export function createManifestV2(deps: { store: Store; secrets: Secrets }) {
     },
   };
 }
-

@@ -161,7 +161,7 @@ function installed(e: ExtensionInfo, entry: CatalogEntry | undefined): Item {
 
 function offered(c: CatalogEntry): Item {
   return {
-    key: `catalog:${c.id}`,
+    key: c.catalog ? `added:${c.catalog}:${c.id}` : `catalog:${c.id}`,
     id: c.id,
     name: c.name,
     description: c.description,
@@ -195,7 +195,8 @@ export function buildItems(src: {
   servers: McpServerStatus[];
   project?: string | undefined;
 }): Item[] {
-  const byId = new Map(src.catalog.map((c) => [c.id, c]));
+  // APX's own entry stands for an id that an added catalog also lists.
+  const byId = new Map(src.catalog.filter((c) => !c.catalog).map((c) => [c.id, c]));
   const mine = new Set(src.installed.map((e) => e.id));
   const packaged = new Set([...byId.keys(), ...mine]);
   const connected = new Set(src.integrations.filter((i) => i.connected && !i.own).map((i) => i.id));
@@ -224,7 +225,9 @@ export function buildItems(src: {
         ]
       : []),
     ...src.installed.map((e) => installed(e, byId.get(e.id))),
-    ...src.catalog.filter((c) => !mine.has(c.id) && !connected.has(c.id)).map(offered),
+    ...src.catalog
+      .filter((c) => !mine.has(c.id) && !connected.has(c.id) && (!c.catalog || !byId.has(c.id)))
+      .map(offered),
   ];
 }
 
@@ -241,10 +244,11 @@ export function groupByCategory(items: Item[]): Group[] {
   const included = items.filter((i) => i.origin === "included");
   const byCat = new Map<string, Item[]>();
   for (const i of items.filter((x) => x.origin !== "included")) {
-    const k = i.category ?? (i.integration ? "accounts" : "other");
+    // An added catalog's entries stay together under it.
+    const k = i.entry?.catalog ? `added:${i.entry.catalog}` : (i.category ?? (i.integration ? "accounts" : "other"));
     byCat.set(k, [...(byCat.get(k) ?? []), i]);
   }
-  const last = (k: string) => (k === "accounts" ? 1 : k === "other" ? 2 : 0);
+  const last = (k: string) => (k.startsWith("added:") ? 3 : k === "accounts" ? 1 : k === "other" ? 2 : 0);
   return [
     ...(included.length ? [{ id: "included", items: included }] : []),
     ...[...byCat.entries()]

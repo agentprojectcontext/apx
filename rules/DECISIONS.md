@@ -5301,3 +5301,29 @@ Shown first on the real Android TV extension: its two secrets become an `address
 
 Rejected: installing agents and apps with the extension (the owner adds what they want); pages with same-origin access
 (they would reach the panel's API); enforcing `hosts` on command servers (APX does not sandbox their network).
+
+<a id="d-243"></a>
+## D-243 — 2026-11-17 — Catalogs of your own, including Claude Code's, converted only under a license that allows it
+The owner can add catalogs for themself, as Claude Desktop lists marketplaces: a GitHub `owner/repo`, a git address
+(https or ssh), an index's https address or a folder. Suggested public ones are one click away (Anthropic's
+`knowledge-work-plugins` first). Everything from them is third party; APX's catalog always stays and is never removed.
+
+- **Two formats.** APX's own `index.json` (an entry installs from its `.apxext`) and Claude Code's
+  `.claude-plugin/marketplace.json`. A Claude plugin is converted when installed: its skills as they are, `.mcp.json`
+  servers (stdio, or https with headers; a `${VAR}` becomes a sensitive setting, `secret://var`), `agents/*.md` as
+  manifest 2 agents, and its license, notice and readme kept beside them. Commands and hooks are left out (no APX
+  counterpart). The converted files then go through the same checks, fingerprint and install as any extension.
+- **Pinned or not listed.** A plugin from another repository (`url`, `git-subdir`, `github`) counts only with a
+  40-hex `sha`, and is fetched at exactly that commit (`git fetch --depth 1 origin <sha>`). A path plugin of the
+  catalog's own repository is read at the commit the catalog was synced at; one that leaves the repository is refused.
+- **License first.** Before a plugin is listed its license is read: its own license file, else its `plugin.json`
+  `license`, else the repository's (for another repository, the file at that commit through raw.githubusercontent.com).
+  Only MIT, Apache-2.0, BSD-2/3, ISC, 0BSD, MPL-2.0, Unlicense and CC0 are converted; the rest are kept as "left out"
+  with the reason (license, unpinned, source, invalid), shown to the owner.
+- **Kept.** Each catalog's source, ref, synced commit, entries and left-out list live in `extension_catalogs`; a git
+  catalog's repository is kept in `<home>/marketplace/catalogs/<id>` to install its folders from. Git runs with only
+  https and ssh allowed, links checked out as files and no prompts.
+
+Rejected: listing everything and checking licenses at install (the owner would see what they cannot use); following
+an unpinned branch for another repository (its files could change between the look and the install); converting
+commands into skills (different behaviour than their authors meant).

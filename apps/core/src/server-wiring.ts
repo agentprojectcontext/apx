@@ -22,6 +22,7 @@ import type { Upkeep } from "./engine/upkeep.ts";
 import type { Computer } from "./environments/computer.ts";
 import { errorMessage } from "./errors.ts";
 import { createCatalog, shippedCatalog } from "./extensions/catalog.ts";
+import { createCatalogs } from "./extensions/catalogs.ts";
 import { createExtensions } from "./extensions/extensions.ts";
 import { createPlugins } from "./extensions/plugins.ts";
 import { acpAgents, acpEngine } from "./harness/acp/agents.ts";
@@ -96,6 +97,7 @@ import { transcriptionHandlers } from "./rpc/transcription.ts";
 import { webhookHandlers } from "./rpc/webhooks.ts";
 import type { Secrets } from "./secrets.ts";
 import type { SignIn } from "./sign-in.ts";
+import { runGit } from "./skills/import.ts";
 import type { RuntimeHomes } from "./skills/runtimes.ts";
 import { storedPublicPages } from "./surface-pages.ts";
 import type { Telemetry } from "./telemetry.ts";
@@ -178,12 +180,19 @@ export function extensionStack(d: {
     // The official catalog's copy shipped with APX, only for the official address.
     ...(d.marketplaceIndex === MARKETPLACE_INDEX ? { shipped: shippedCatalog } : {}),
   });
+  const catalogs = createCatalogs({
+    store: d.store,
+    home: d.home,
+    git: runGit,
+    ...(d.fetch ? { fetch: d.fetch } : {}),
+  });
   const extensions = createExtensions({
     store: d.store,
     secrets: d.secrets,
     home: d.home,
     plugins,
     catalog,
+    catalogs,
     ...(d.fetch ? { fetch: d.fetch } : {}),
   });
   const changed = extensions.verify();

@@ -7,6 +7,7 @@ import { ProvenanceBadge } from "../resources/ExtensionSummary.tsx";
 import { openExtensionInstall } from "../resources/extensionInstall.ts";
 import { groupByCategory, type Item } from "../resources/extensionItems.ts";
 import { go, type MarketSection } from "../shell/nav.ts";
+import { AddCatalogDialog, CatalogList, type CatalogsState } from "./Catalogs.tsx";
 import { ItemIcon } from "./ConnectHead.tsx";
 import type { CatalogState } from "./MarketplaceScreen.tsx";
 
@@ -20,6 +21,10 @@ function action(i: Item): { label: MessageKey; run?: () => void } | undefined {
   if (i.update && i.url) {
     const url = i.url;
     return { label: "extx.act.update", run: () => openExtensionInstall({ url }) };
+  }
+  if (i.state === "available" && i.entry?.catalog) {
+    const entry = { catalog: i.entry.catalog, id: i.id };
+    return { label: "extx.act.install", run: () => openExtensionInstall({ entry }) };
   }
   if (i.state === "available" && i.ext === undefined && !i.integration && !i.channel && i.url) {
     const url = i.url;
@@ -108,15 +113,28 @@ function Card({ item: i, onOpen }: { item: Item; onOpen(): void }) {
   );
 }
 
-function GroupView({ id, items, onOpen }: { id: string; items: Item[]; onOpen(i: Item): void }) {
+function GroupView({
+  id,
+  items,
+  onOpen,
+  names,
+}: {
+  id: string;
+  items: Item[];
+  onOpen(i: Item): void;
+  names: Map<string, string>;
+}) {
   const t = useT();
+  const added = id.startsWith("added:") ? names.get(id.slice(6)) : undefined;
   const [all, setAll] = useState(false);
   const shown = all ? items : items.slice(0, FIRST);
   return (
     <section className="mkt-group">
       <header className="mkt-group__head">
         <h3>
-          {t(`mkt.cat.${id}` as MessageKey)} <span className="mkt__count">{items.length}</span>
+          {added !== undefined ? t("mkt.addedGroup", { name: added }) : t(`mkt.cat.${id}` as MessageKey)}{" "}
+          <span className="mkt__count">{items.length}</span>
+          {added !== undefined && <span className="mkt-group__sub"> · {t("mkt.addedSub")}</span>}
         </h3>
         {items.length > FIRST && (
           <Button size="sm" variant="ghost" onClick={() => setAll(!all)}>
@@ -139,6 +157,8 @@ export function MarketBrowse({
   query,
   onQuery,
   catalog,
+  catalogs,
+  onCatalogs,
   onOpen,
 }: {
   section: MarketSection;
@@ -146,10 +166,14 @@ export function MarketBrowse({
   query: string;
   onQuery(q: string): void;
   catalog: CatalogState;
+  catalogs: CatalogsState | undefined;
+  onCatalogs(): Promise<void>;
   onOpen(i: Item): void;
 }) {
   const t = useT();
   const groups = groupByCategory(items);
+  const [adding, setAdding] = useState(false);
+  const names = new Map((catalogs?.catalogs ?? []).map((c) => [c.id, c.name]));
   return (
     <div className="mkt-browse">
       <header className="mkt-browse__head">
@@ -179,15 +203,25 @@ export function MarketBrowse({
                 ["url", "extx.add.url", "extx.add.urlHint"],
                 ["folder", "extx.add.folder", "extx.add.folderHint"],
               ] as const
-            ).map(([mode, label, hint]) => ({
-              label: (
-                <span className="extx__menuitem">
-                  <span>{t(label)}</span>
-                  <small>{t(hint)}</small>
-                </span>
-              ),
-              onSelect: () => openExtensionInstall({ mode }),
-            }))}
+            )
+              .map(([mode, label, hint]) => ({
+                label: (
+                  <span className="extx__menuitem">
+                    <span>{t(label)}</span>
+                    <small>{t(hint)}</small>
+                  </span>
+                ),
+                onSelect: () => openExtensionInstall({ mode }),
+              }))
+              .concat({
+                label: (
+                  <span className="extx__menuitem">
+                    <span>{t("mkt.addCatalog")}</span>
+                    <small>{t("mkt.addCatalogHint")}</small>
+                  </span>
+                ),
+                onSelect: () => setAdding(true),
+              })}
           />
         )}
       </div>
@@ -200,8 +234,9 @@ export function MarketBrowse({
               : t("extx.catalogUnreachable")}
         </p>
       )}
+      {section === "extensions" && <CatalogList catalogs={catalogs?.catalogs ?? []} onChanged={onCatalogs} />}
       {groups.length ? (
-        groups.map((g) => <GroupView key={g.id} id={g.id} items={g.items} onOpen={onOpen} />)
+        groups.map((g) => <GroupView key={g.id} id={g.id} items={g.items} onOpen={onOpen} names={names} />)
       ) : (
         <EmptyState variant="dashed" icon={section === "agents" ? <Icons.Bot /> : <Icons.Search />}>
           {query ? t("extx.emptyHint") : section === "agents" ? t("mkt.agentsEmpty") : t("mkt.skillsEmpty")}
@@ -215,6 +250,14 @@ export function MarketBrowse({
           </p>
           <ExtensionGuide />
         </>
+      )}
+      {adding && catalogs && (
+        <AddCatalogDialog
+          suggested={catalogs.suggested}
+          added={catalogs.catalogs}
+          onClose={() => setAdding(false)}
+          onAdded={onCatalogs}
+        />
       )}
     </div>
   );

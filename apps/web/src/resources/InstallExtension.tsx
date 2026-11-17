@@ -20,7 +20,11 @@ import "../styles/config.css";
 // folder. It shows what it is, whether APX publishes these exact files and what it brings, then installs it off.
 
 type Mode = InstallMode;
-type Source = { file: { name: string; data: string } } | { url: string } | { path: string };
+type Source =
+  | { file: { name: string; data: string } }
+  | { url: string }
+  | { path: string }
+  | { entry: { catalog: string; id: string } };
 
 const errText = (e: unknown) => (e instanceof Error ? e.message : String(e));
 
@@ -37,11 +41,26 @@ const base64 = (file: File) =>
 export function InstallExtensionDialog() {
   const open = useExtensionInstall();
   return open ? (
-    <InstallExtension file={open.file} url={open.url} initial={open.url ? "url" : (open.mode ?? "file")} />
+    <InstallExtension
+      file={open.file}
+      url={open.url}
+      entry={open.entry}
+      initial={open.url ? "url" : (open.mode ?? "file")}
+    />
   ) : null;
 }
 
-function InstallExtension({ file, url, initial }: { file: File | undefined; url: string | undefined; initial: Mode }) {
+function InstallExtension({
+  file,
+  url,
+  entry,
+  initial,
+}: {
+  file: File | undefined;
+  url: string | undefined;
+  entry: { catalog: string; id: string } | undefined;
+  initial: Mode;
+}) {
   const t = useT();
   const [mode, setMode] = useState<Mode>(initial);
   const [fileName, setFileName] = useState("");
@@ -88,6 +107,10 @@ function InstallExtension({ file, url, initial }: { file: File | undefined; url:
   useEffect(() => {
     if (url) void lookRef.current({ url });
   }, [url]);
+  // An entry of an added catalog: read where it is (its repository at its commit) as the dialog opens.
+  useEffect(() => {
+    if (entry) void lookRef.current({ entry });
+  }, [entry]);
   // Listened on the element: the drop zone is not a control, the "Choose file" button inside it is. A ref callback, as
   // the zone comes and goes with the mode.
   const drop = useCallback((el: HTMLDivElement | null) => {
@@ -163,7 +186,7 @@ function InstallExtension({ file, url, initial }: { file: File | undefined; url:
       }
     >
       <div className="install">
-        {!file && (
+        {!file && !entry && (
           <SegmentedControl
             size="sm"
             value={mode}
@@ -175,7 +198,9 @@ function InstallExtension({ file, url, initial }: { file: File | undefined; url:
             ]}
           />
         )}
-        {mode === "file" ? (
+        {entry ? (
+          !seen && !error && <p className="install__note">{t("mkt.catalogReading")}</p>
+        ) : mode === "file" ? (
           <div ref={drop} className="install__drop" data-dragging={dragging || undefined}>
             <Icons.Upload size={18} />
             <span>{fileName || t("extInstall.drop")}</span>

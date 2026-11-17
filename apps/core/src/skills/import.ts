@@ -30,7 +30,7 @@ const PLAIN_KEYS = new Set(["name", "description", "license", "metadata", "versi
 /** Runs git; tests pass their own. Resolves with the exit code and the tail of its output. */
 export type GitRunner = (args: string[], timeoutMs: number) => Promise<{ code: number; out: string }>;
 
-const runGit: GitRunner = (args, timeoutMs) =>
+export const runGit: GitRunner = (args, timeoutMs) =>
   new Promise((resolve) => {
     const child = spawn("git", args, {
       stdio: ["ignore", "pipe", "pipe"],

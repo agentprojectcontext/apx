@@ -293,6 +293,27 @@
   overflow-wrap: anywhere;
 }
 
+/* The owner's added catalogs, above the groups. */
+.mkt-catalogs {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.mkt-catalogs .mkt__label {
+  margin: 0;
+}
+.mkt-skipped {
+  margin: 6px 0 0;
+  padding-left: 22px;
+  color: var(--apx-fg-muted);
+  font-size: var(--apx-text-sm);
+}
+.mkt-group__sub {
+  color: var(--apx-fg-subtle);
+  font-size: var(--apx-text-sm);
+  font-weight: var(--apx-weight-regular);
+}
+
 @media (max-width: 760px) {
   .mkt {
     grid-template-columns: minmax(0, 1fr);

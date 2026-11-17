@@ -149,3 +149,18 @@ test("settings are set as name=value pairs; a sensitive one can come from stdin"
   assert.deepEqual(calls, [["extensions.settings", { id: "acme", values: { region: "eu", volume: "12" } }]]);
   await assert.rejects(extensions(client, ["set", "acme", "region"], {}), /apx extensions/);
 });
+
+test("your own catalogs: add one by its address, see what it left out", async () => {
+  const catalog = {
+    id: "c1",
+    name: "Acme",
+    source: "acme/plugins",
+    kind: "claude",
+    count: 2,
+    skipped: [{ name: "closed", reason: "license" }],
+  };
+  const { client, calls } = recordingClient({ "extensions.catalog_add": catalog });
+  const out = await printed(() => extensions(client, ["catalogs", "add", "acme/plugins"], {}));
+  assert.deepEqual(calls, [["extensions.catalog_add", { source: "acme/plugins" }]]);
+  assert.ok(out.includes("left out closed: license"), out);
+});
