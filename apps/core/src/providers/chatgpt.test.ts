@@ -243,6 +243,21 @@ test("the plan's model runs in APX's loop: tools as functions, reasoning replaye
   assert.ok(
     !toInput([...messages, first.message], "gpt-6-sol").input.some((i) => (i as { type: string }).type === "reasoning"),
   );
+
+  // A call may reason less than the model's own effort, never more.
+  const sent = async (ref: string, lighter: string) => {
+    const out = await llm.complete({ models: [ref], messages, tools, signal: AbortSignal.timeout(5000), lighter });
+    return { effort: out.effort, body: seen.filter((s) => s.url === "/codex/responses").at(-1)?.body.reasoning };
+  };
+  assert.deepEqual(await sent("chatgpt/gpt-whole#high", "low"), {
+    effort: "low",
+    body: { effort: "low", summary: "auto" },
+  });
+  assert.deepEqual(await sent("chatgpt/gpt-whole", "low"), { effort: "low", body: { effort: "low", summary: "auto" } });
+  assert.deepEqual(await sent("chatgpt/gpt-whole#minimal", "low"), {
+    effort: "minimal",
+    body: { effort: "minimal", summary: "auto" },
+  });
 });
 
 test("a round with no text deltas still answers, or says why it came back empty", async () => {

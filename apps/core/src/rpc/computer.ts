@@ -84,9 +84,9 @@ export function computerHandlers(
         agents: [...agents].map(([id, name]) => ({ id, name })),
       };
     },
-    "computer.snapshot": async ({ thread, app, note }, ctx) => {
+    "computer.snapshot": async ({ thread, app, note, stay }, ctx) => {
       enter(ctx);
-      const ask = forNode({ ...(app ? { app } : {}), ...(note ? { note } : {}) }, ctx);
+      const ask = forNode({ ...(app ? { app } : {}), ...(note ? { note } : {}), ...(stay ? { stay } : {}) }, ctx);
       const r = (await broker.invoke(COMPUTER_CAP, "computer.snapshot", ask, SNAPSHOT_MS)) as {
         mime?: string;
         data?: string;

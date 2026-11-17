@@ -141,7 +141,7 @@ export function createComputer(o: {
       throw missing("screen");
   };
 
-  async function look(app?: string, note?: string) {
+  async function look(app?: string, note?: string, stay?: boolean) {
     if (app) await d.activate(app).catch(() => {});
     // A browser's page is read from its picture: its elements take seconds and say less. Elsewhere a busy window
     // (a long list) can also take longer to read than to see: then the picture goes alone.
@@ -153,9 +153,10 @@ export function createComputer(o: {
           lines: ["(this window's elements took too long to read: look at the picture)"],
         }));
     target = { app: f.app, window: f.window, bounds: f.bounds };
-    // What it is doing, by the window it looks at (the pointer never shows in the picture).
+    // What it is doing, by the window it looks at (the pointer never shows in the picture); after an action it stays
+    // where it acted.
     const b0 = f.bounds;
-    if (b0) void o.cursor.moveTo(b0.x + b0.width / 2, b0.y + 40, note || "👀").catch(() => {});
+    if (b0 && !stay) void o.cursor.moveTo(b0.x + b0.width / 2, b0.y + 40, note || "👀").catch(() => {});
     const { image: img, bounds: captured } = await picture(f.bounds, SHOT_MAX);
     const where = f.bounds
       ? `window at ${f.bounds.x},${f.bounds.y}, ${f.bounds.width}x${f.bounds.height} points`
@@ -189,8 +190,9 @@ export function createComputer(o: {
       url?: string;
       note?: string;
       pointer?: "visible";
+      stay?: boolean;
     };
-    if (method === "computer.snapshot") return look(p.app, p.note);
+    if (method === "computer.snapshot") return look(p.app, p.note, p.stay === true);
     if (method === "computer.open") {
       o.cursor.say(p.note || (p.url ? new URL(p.url).host : (p.app ?? "")));
       await d.open(p.app, p.url);

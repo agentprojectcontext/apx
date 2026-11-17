@@ -48,11 +48,12 @@ export function computerTools(store: Store): Tool[] {
     .optional()
     .describe("what you are doing, in a few words of the owner's language: shown beside your pointer on their screen");
   /** A look at the window in front: the model gets its elements as outside content, and sees its picture. */
-  const look = async (ctx: ToolContext, app?: string, note?: string) => {
+  const look = async (ctx: ToolContext, app?: string, note?: string, stay?: boolean) => {
     const r = await ctx.call("computer.snapshot", {
       thread: ctx.thread.id,
       ...(app ? { app } : {}),
       ...(note ? { note } : {}),
+      ...(stay ? { stay } : {}),
     });
     // The model looks at the picture itself: the elements alone miss what a page shows.
     ctx.see?.({ media_id: r.media.id, mime: r.media.mime });
@@ -181,7 +182,7 @@ export function computerTools(store: Store): Tool[] {
         if (a.look === false) return `${done.join("\n")}\ntake a screen_snapshot to check it worked`;
         // A short pause lets the app redraw before the look.
         await new Promise((r) => setTimeout(r, 300));
-        return `${done.join("\n")}\nthe window now:\n${await look(ctx, undefined, a.note)}`;
+        return `${done.join("\n")}\nthe window now (no screen_snapshot needed: plan the next screen_do with every step you can predict):\n${await look(ctx, undefined, a.note, true)}`;
       },
     }),
   ];

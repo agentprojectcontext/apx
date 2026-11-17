@@ -41,7 +41,6 @@ const llm = scriptedLlm((req, { said, afterTool }) => {
           { do: "type", text: "wifi" },
           { do: "key", keys: "enter" },
         ],
-        look: false,
       });
     return say("Label check complete");
   }
@@ -211,7 +210,12 @@ test("all computer actions carry the stored agent identity, while operators cann
     const forwarded = nodeParams.slice(before);
     assert.deepEqual(
       forwarded.map((c) => c.method),
-      ["computer.open", "computer.snapshot", "computer.click", "computer.type", "computer.key"],
+      ["computer.open", "computer.snapshot", "computer.click", "computer.type", "computer.key", "computer.snapshot"],
+    );
+    // A look of its own moves the agent's cursor; the look after the actions leaves it where it acted.
+    assert.deepEqual(
+      forwarded.filter((c) => c.method === "computer.snapshot").map((c) => (c.params as { stay?: boolean }).stay),
+      [undefined, true],
     );
     for (const call of forwarded)
       assert.deepEqual((call.params as { cursorAgent?: unknown }).cursorAgent, { id: agent.id, name: "Screen helper" });
