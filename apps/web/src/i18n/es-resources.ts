@@ -192,7 +192,7 @@ export const esResources: Partial<Record<MessageKey, string>> = {
   "extInstall.keepsBefore": "La versión {from} queda guardada, para volver a ella.",
   "extInstall.installOff": "Instalar apagada",
   "extInstall.update": "Actualizar",
-  "extInstall.done": "{name} quedó instalada, apagada. Encendela en Extensiones cuando la quieras.",
+  "extInstall.done": "{name} quedó instalada, apagada. Encendela acá cuando la quieras.",
   "extInstall.updated": "{name} quedó en la versión {version}.",
   "extPower.mcp": "Servidor MCP {name}",
   "extPower.host": "Se conecta a {name}",

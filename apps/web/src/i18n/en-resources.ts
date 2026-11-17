@@ -186,7 +186,7 @@ export const enResources = {
   "extInstall.keepsBefore": "Version {from} is kept, to go back to it.",
   "extInstall.installOff": "Install off",
   "extInstall.update": "Update",
-  "extInstall.done": "{name} is installed, off. Turn it on in Extensions when you want it.",
+  "extInstall.done": "{name} is installed, off. Turn it on here when you want it.",
   "extInstall.updated": "{name} is on version {version}.",
   "extPower.mcp": "MCP server {name}",
   "extPower.host": "Connects to {name}",

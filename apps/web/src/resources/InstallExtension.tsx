@@ -150,7 +150,8 @@ function InstallExtension({
       );
       extensionInstalled();
       closeExtensionInstall();
-      go.resources("extensions", true);
+      // Its own page, where it is turned on, connected or taken back.
+      go.marketplace("extensions", `ext:${done.id}`);
     } catch (e) {
       setError(errText(e));
     } finally {
