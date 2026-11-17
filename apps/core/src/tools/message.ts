@@ -9,8 +9,9 @@ import { z } from "zod";
 import { meansOwner, OWNER_ID } from "../domain/persons.ts";
 import type { Store } from "../domain/store.ts";
 import { SKIP_ANSWER } from "../engine/routines.ts";
+import { real, samePath } from "../paths.ts";
 import { channelsOn } from "./directory.ts";
-import { folderAccess, readsOutside, workDir } from "./folders.ts";
+import { folderAccess, readsOutside, scratchDir, workDir } from "./folders.ts";
 import { untrusted } from "./result.ts";
 import { defineTool, type Tool, type ToolContext } from "./types.ts";
 
@@ -70,17 +71,21 @@ const norm = (s: string) => s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCa
 export function messageTools(store: Store, home: string): Tool[] {
   /**
    * Files the agent may read, copied aside as media so what goes out is what was asked for. To the owner any of them
-   * (DECISIONS.md#d-115); to anyone else only the folder it works in, never its temp folder or one it reads anywhere.
+   * (DECISIONS.md#d-115); to anyone else only its work folder or its chat's own temp folder.
    */
   const attach = (ctx: ToolContext, files: string[], toOwner: boolean): { ids: string[] } | { problem: string } => {
     const base = workDir(store, home, ctx.thread);
     const ids: string[] = [];
     for (const file of files) {
-      const where = folderAccess(store, home, ctx.thread, file);
+      const requested = folderAccess(store, home, ctx.thread, file);
+      if ("refused" in requested) return { problem: requested.refused };
+      const where = folderAccess(store, home, ctx.thread, real(requested.at));
       if ("refused" in where) return { problem: where.refused };
       if (where.at.split(/[\\/]/).includes(".git")) return { problem: "the .git folder is off limits" };
-      if (!toOwner && where.base !== base)
-        return { problem: `${file} is not in the folder you work in: copy it there to send it` };
+      if (!toOwner && !samePath(where.base, base) && !samePath(where.base, scratchDir(store, home, ctx.thread)))
+        return {
+          problem: `${file} is not in your work folder or this chat's temp folder: copy it to this chat's temp folder to send it`,
+        };
       const { at } = where;
       if (!fs.existsSync(at) || !fs.statSync(at).isFile()) return { problem: `no file ${file}` };
       const bytes = fs.statSync(at).size;
@@ -132,7 +137,7 @@ export function messageTools(store: Store, home: string): Tool[] {
     defineTool({
       name: "message_contact",
       description:
-        "Message a contact ('tell Alex…') or the owner (to=\"me\") on a channel. to: a name or id; channel: default where they last talked; files: paths in your work folder (any you can read for me, 20 MB max); stay: the owner asked to go on there. Plain text, no Markdown, first person as the owner's assistant, only what was asked. It cannot be undone; check the end of that chat in the result before saying it went.",
+        "Message a contact ('tell Alex…') or the owner (to=\"me\") on a channel. to: a name or id; channel: default where they last talked; files: paths in your work folder or this chat's temp folder (any you can read for me, 20 MB max); stay: the owner asked to go on there. Plain text, no Markdown, first person as the owner's assistant, only what was asked. It cannot be undone; check the end of that chat in the result before saying it went.",
       args: z.object({
         to: z.string().trim().min(1).max(120),
         omit_signature: z.boolean().optional().describe("email only: omit the configured signature"),
@@ -180,7 +185,7 @@ export function messageTools(store: Store, home: string): Tool[] {
     defineTool({
       name: "channel_post",
       description:
-        "Post in a public room of the owner's channels (a Discord #channel; in a forum, a new topic titled by the first line, 100 chars, 2000 in all, no files or required tags). room: as channel_list names it; channel: only when two have that room; files: paths in your work folder (20 MB max). Plain text, no Markdown or @everyone; mention with the @handle read_chat shows. Only what the owner asked; it cannot be taken back.",
+        "Post in a public room of the owner's channels (a Discord #channel; in a forum, a new topic titled by the first line, 100 chars, 2000 in all, no files or required tags). room: as channel_list names it; channel: only when two have that room; files: paths in your work folder or this chat's temp folder (20 MB max). Plain text, no Markdown or @everyone; mention with the @handle read_chat shows. Only what the owner asked; it cannot be taken back.",
       args: z.object({
         room: z.string().trim().min(1).max(80),
         text: z.string().trim().min(1).max(4000),

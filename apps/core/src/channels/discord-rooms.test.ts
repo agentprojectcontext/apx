@@ -1,8 +1,11 @@
 import assert from "node:assert/strict";
+import fs from "node:fs";
+import path from "node:path";
 import { after, before, test } from "node:test";
 import { OWNER_ID } from "../domain/persons.ts";
 import { callTool, say, scriptedLlm, startCore } from "../engine/testkit.ts";
 import { manualTimers, waitFor } from "../testkit/platform.ts";
+import { scratchDir } from "../tools/folders.ts";
 import { canWrite, discordAdapter } from "./discord.ts";
 import { fakeDiscord } from "./fake-discord.test-support.ts";
 import { calledByName, roomDecision } from "./rooms.ts";
@@ -15,6 +18,12 @@ const ROOMS = { general: "8001", help: "8002", logs: "8003", ideas: "8004" };
 
 const llm = scriptedLlm((req, { system, said, afterTool }) => {
   if (afterTool) return say(`Done: ${String(req.messages.at(-1)?.content).slice(0, 160)}`);
+  if (said.startsWith("post scratch video: "))
+    return callTool("video", "channel_post", {
+      room: "#general",
+      text: "Video",
+      files: [said.slice("post scratch video: ".length)],
+    });
   if (said.includes("announce the beta"))
     return callTool("p5", "channel_post", { room: "#ideas", text: "The beta is coming" });
   if (said.includes("post the release note"))
@@ -107,6 +116,23 @@ after(async () => {
   await env.core.close();
   await dc.close();
   await env.cleanup();
+});
+
+test("Home uploads its scratch video to Discord as a native attachment through the tool and router", async () => {
+  const home = env.core.store.threads.get("home");
+  assert.ok(home);
+  const file = path.join(scratchDir(env.core.store, env.home, home), "horizontal.mp4");
+  fs.mkdirSync(path.dirname(file), { recursive: true });
+  fs.writeFileSync(file, Buffer.from([0, 255, 13, 10, 42]));
+  const before = posts(ROOMS.general).length;
+  await env.client.call("threads.send", { thread: "home", text: `post scratch video: ${file}` });
+  await env.settle("home");
+  assert.match(String(llm.calls.at(-1)?.messages.at(-1)?.content), /sent to #general on Discord with 1 file/);
+  const sent = posts(ROOMS.general).slice(before);
+  assert.equal(sent.length, 2, "caption and native multipart upload");
+  assert.equal(sent[0]?.content, "Video");
+  assert.ok(Number(sent[1]?.bytes) > 5, "Discord received multipart bytes, not a local path or a link");
+  dc.sent.splice(0, dc.sent.length);
 });
 
 test("with rooms the bot also reads servers; an unlisted room does not exist for it", async () => {
