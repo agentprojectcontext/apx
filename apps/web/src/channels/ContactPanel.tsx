@@ -6,6 +6,7 @@ import { claimAddress, neverRead, saveContact, useChannels } from "../data/chann
 import { notify } from "../data/notices.ts";
 import { useData } from "../data/state.ts";
 import { type MessageKey, useT } from "../i18n/index.ts";
+import { APPOINTMENT_LABEL, APPOINTMENT_MODES } from "./appointments.ts";
 import { CardField, ChatCard } from "./ChatCard.tsx";
 import { PersonAvatar } from "./PersonAvatar.tsx";
 import { initials, RELATION_KEY, RELATIONS } from "./people.ts";
@@ -81,10 +82,20 @@ export function ContactPanel({
     setBusy(false);
     if (ok) notify(t("ch.saved"), "info");
   };
-  // Each right: as the account says (and what that is), or on or off for this person only.
+  // Each right: as the account says (and what that is), or on or off for this person only. Appointments are a mode.
   const right = (k: Right) => {
     const own = d.perms[k];
-    const account = t(defaults?.[k] ? "ch.right.yes" : "ch.right.no");
+    const modes = k === "appointments";
+    const account = modes
+      ? t(APPOINTMENT_LABEL[defaults?.appointments ?? "off"])
+      : t(defaults?.[k] ? "ch.right.yes" : "ch.right.no");
+    const choices = modes
+      ? APPOINTMENT_MODES.map((m) => ({ value: m, label: t(APPOINTMENT_LABEL[m]) }))
+      : [
+          { value: "on", label: t("ch.right.yes") },
+          { value: "off", label: t("ch.right.no") },
+        ];
+    const value = own === undefined ? "account" : typeof own === "string" ? own : own ? "on" : "off";
     return (
       <li key={k} className="chan__right">
         <span className="chan__rightlabel">
@@ -94,20 +105,17 @@ export function ContactPanel({
         <SegmentedControl
           size="sm"
           label={t(RIGHT_LABEL[k])}
-          value={own === undefined ? "account" : own ? "on" : "off"}
+          value={value}
           onValueChange={(v) =>
             setD((x) => {
               const perms = { ...x.perms };
               if (v === "account") delete perms[k];
+              else if (k === "appointments") perms.appointments = APPOINTMENT_MODES.find((m) => m === v) ?? "off";
               else perms[k] = v === "on";
               return { ...x, perms };
             })
           }
-          options={[
-            { value: "account", label: t("ch.right.account", { value: account }) },
-            { value: "on", label: t("ch.right.yes") },
-            { value: "off", label: t("ch.right.no") },
-          ]}
+          options={[{ value: "account", label: t("ch.right.account", { value: account }) }, ...choices]}
         />
       </li>
     );

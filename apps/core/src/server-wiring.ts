@@ -38,6 +38,7 @@ import { activityReviewHandlers } from "./rpc/activity-review.ts";
 import { agentHandlers } from "./rpc/agents.ts";
 import { appHandlers } from "./rpc/app.ts";
 import { asanaHandlers } from "./rpc/asana.ts";
+import { bookingHandlers } from "./rpc/bookings.ts";
 import { browserHandlers, type OwnersChrome } from "./rpc/browser.ts";
 import { callHandlers } from "./rpc/calls.ts";
 import { channelHandlers } from "./rpc/channels.ts";
@@ -364,6 +365,7 @@ export function coreHandlers(d: HandlerDeps & { vm?: Computer | undefined }) {
       connected(ctx, "channel", [p.type]);
       return r;
     },
+    ...bookingHandlers(d.store, d.google, d.channels),
     ...emailSignatureHandlers(d.store, d.google),
     ...mailHandlers(d.store, d.google, d.channels),
     ...mediaHandlers(d.services, d.store),

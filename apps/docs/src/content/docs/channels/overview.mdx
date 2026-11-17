@@ -171,12 +171,33 @@ for them (silenced, supervised, rules of their own, what their chat may do). The
   account's agent for contacts leaves them with theirs.
 - **Who they are**, in your words. It reaches only the turns that answer this person.
 - **Rules**, which go last in the prompt and win over the agent's caution.
-- **What this conversation may do**: **Note appointments**, **Take requests** (each becomes a task for you),
+- **What this conversation may do**: **Appointments**, **Take requests** (each becomes a task for you),
   **Answer from my notes** (your general notes, read only) and **Answer at any hour**. Each one follows the account by
-  default (**Account: Yes** or **No**), or you set **Yes** or **No** for this person only.
+  default (**Account: …**), or you set it for this person only: **Yes** or **No**, and for appointments **No**,
+  **Note** or **Book**.
 
 What every contact of an account gets by default is in that account's settings, **Contacts › For your contacts, by
 default**: all off until you turn one on. A contact's own choice wins over it, on that account and any other.
+
+### Appointments
+
+When a contact asks for an appointment, the account (or their card) says what happens:
+
+- **No**: their agent does not take appointments.
+- **Note**: it becomes a task for you to confirm, and you are told on your channel right away. Nothing is booked.
+- **Book**: it goes straight on your Google Calendar. This needs Google Calendar connected and the account's
+  attention hours set; until both are there, appointments are noted instead. Pick how long each one lasts (15 to 60
+  minutes).
+
+A booked appointment is only ever at a time that is free on your calendar, inside the account's attention hours, at
+least two hours ahead and at most two weeks ahead. The agent sees only which times are free, never your events. Each
+person has one coming appointment at a time and each account takes at most three a day; past that, the request is
+noted for you. The event is named **Appointment: name** (with the name you gave the contact), carries the reason they
+gave, and invites nobody.
+
+You are told each time, on your channel and in the app's notices. **Cancel appointment** on the notice (or replying
+"cancel it" to your agent) takes it off your calendar and tells the contact. A contact can also cancel their own
+appointment from their chat; you are told. Supervised contacts never book: their appointments are noted.
 - **Silenced** (a switch): their messages are kept but never reach a model. A silenced contact's chat shows a
   crossed-out bell beside its name in the Inbox, and a supervised one an eye.
 - **Supervise** (a switch): they aren't answered on their own; you get the answer the agent would send, to send it, edit it or
@@ -194,7 +215,7 @@ list. Accounts with rooms or groups have a **Rooms**, **Groups** or **Spaces** b
 
 An account goes by the name you gave it. If you left the app's own name (WhatsApp, Telegram), it goes by the name the
 app gives it instead (your WhatsApp profile, the bot's name) or by its number, address or bot; its icon says the app.
-Small marks show what it does for everyone on it: answers only you, keeps attention hours, has rules, books
+Small marks show what it does for everyone on it: answers only you, keeps attention hours, has rules, notes or books
 appointments, takes requests or answers from your notes. In **Manage channels** what it does not do shows dimmed, so
 accounts compare at a glance. Point at a mark to read it. A contact's own marks show at the end of their row.
 

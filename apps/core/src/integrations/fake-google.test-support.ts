@@ -17,6 +17,9 @@ export async function fakeGoogle() {
   let historyId = 100;
   /** Events added to the calendar after the start (besides the fixed one). */
   const scheduled: Array<Record<string, unknown>> = [];
+  /** What free/busy answers as busy, and the events deleted. */
+  const busy: Array<{ start: string; end: string }> = [];
+  const deleted: string[] = [];
   const server = http.createServer((req, res) => {
     const url = new URL(req.url ?? "/", "http://google.test");
     let body = "";
@@ -69,6 +72,13 @@ export async function fakeGoogle() {
             ...scheduled,
           ],
         });
+      if (url.pathname === "/calendar/v3/freeBusy" && req.method === "POST")
+        return send(200, { calendars: { primary: { busy } } });
+      if (url.pathname.startsWith("/calendar/v3/calendars/primary/events/") && req.method === "DELETE") {
+        deleted.push(decodeURIComponent(url.pathname.split("/").at(-1) ?? ""));
+        res.writeHead(204);
+        return res.end();
+      }
       if (url.pathname === "/calendar/v3/calendars/primary/events" && req.method === "POST") {
         const event = JSON.parse(body) as { summary?: string; attendees?: Array<{ email: string }> };
         created.push({ ...event, sendUpdates: url.searchParams.get("sendUpdates") });
@@ -123,6 +133,14 @@ export async function fakeGoogle() {
     url: `http://127.0.0.1:${(server.address() as AddressInfo).port}`,
     drafts,
     created,
+    deleted,
+    /** The owner is busy then, as free/busy tells. */
+    busyAt(b: { start: string; end: string }) {
+      busy.push(b);
+    },
+    clearBusy() {
+      busy.length = 0;
+    },
     /** A mail reaches the inbox now. */
     arrive(m: { id: string; from: string; subject: string; labels?: string[] }) {
       historyId += 1;

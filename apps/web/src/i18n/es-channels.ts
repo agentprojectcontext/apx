@@ -175,9 +175,14 @@ export const esChannels: Partial<Record<MessageKey, string>> = {
   "ch.rules": "Reglas",
   "ch.rulesHint": "Va último en el prompt, así que le gana a la cautela del agente.",
   "ch.may": "Qué puede hacer esta conversación",
-  "ch.perm.appointments": "Anotar citas",
+  "ch.perm.appointments": "Citas",
   "ch.perm.appointmentsHint":
-    "Cuando pide una cita (día y hora), queda anotada como tarea para que la confirmes y te aviso por tu canal en el momento. No agenda nada.",
+    "Cuando pide una cita: nada, la anota como tarea para que la confirmes, o la agenda en tu Google Calendar dentro del horario de atención de la cuenta. Te aviso en el momento.",
+  "ch.appt.off": "No",
+  "ch.appt.note": "Anotar",
+  "ch.appt.book": "Agendar",
+  "ch.flag.appointmentsNote": "Anota citas",
+  "ch.flag.appointmentsBook": "Agenda citas en tu calendario",
   "ch.perm.requests": "Tomar pedidos",
   "ch.perm.requestsHint":
     "Cuando pide algo que solo vos podés hacer (una compra, un favor, llamar a alguien), queda como tarea y te aviso en el momento. Tu agente nunca lo hace por vos.",

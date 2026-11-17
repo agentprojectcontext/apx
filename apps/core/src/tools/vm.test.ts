@@ -92,8 +92,10 @@ test("Home never goes on the computer: an allowed super-agent there keeps its to
     assert.equal(seen[0]?.includes("computer"), false, "no computer tool in Home");
     for (const kept of ["task_create", "delegate", "remember", "web_search", "web_read"])
       assert.ok(seen[0]?.includes(kept), kept);
-    assert.match(systems[0] ?? "", /Computer: not used from Home/);
-    assert.doesNotMatch(inputs[0] ?? "", /Computer: not used from Home/, "said once, in the cached system prompt");
+    assert.match(systems[0] ?? "", /Computer: the shared Linux one is not used from Home/);
+    // The owner's own Mac is not that computer: a quick check on their screen stays in Home, not a task (D-238).
+    assert.match(systems[0] ?? "", /Their own screen and browser are not it: use them here\./);
+    assert.doesNotMatch(inputs[0] ?? "", /not used from Home/, "said once, in the cached system prompt");
     // Started from Home's panel, the computer comes up and Home stays on this Mac.
     await env.client.call("environments.enable", { appearance: "light" });
     assert.deepEqual((await env.client.call("environments.status", {})).chats, []);

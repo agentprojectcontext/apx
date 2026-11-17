@@ -7,6 +7,10 @@ import { type MessageKey, useT } from "../i18n/index.ts";
 /** Something set for a contact or an account, shown as a small mark with its words on hover. */
 export type Flag = { key: string; icon: ReactNode; label: string; off?: boolean };
 
+/** A right is on unless unset, off or false (appointments are a mode: "off", "note", "book"). */
+const rightOn = (v: unknown) => v !== undefined && v !== false && v !== "off";
+const APPOINTMENT_FLAG = { note: "ch.flag.appointmentsNote", book: "ch.flag.appointmentsBook" } as const;
+
 const ACCOUNT_PERMS: Array<{ key: keyof Person["perms"]; icon: ReactNode; label: MessageKey; no: MessageKey }> = [
   {
     key: "appointments",
@@ -43,9 +47,11 @@ export function useAccountFlags(channel: ChannelInfo | undefined, all = false): 
     ...quiet,
     ...(channel.hours ? [flag("hours", <Icons.Clock size={12} />, "ch.acctFlag.hours")] : []),
     ...(channel.rules?.trim() ? [flag("rules", <Icons.FileText size={12} />, "ch.acctFlag.rules")] : []),
-    ...ACCOUNT_PERMS.flatMap((f) =>
-      channel.contacts?.[f.key] ? [flag(f.key, f.icon, f.label)] : all ? [flag(f.key, f.icon, f.no, true)] : [],
-    ),
+    ...ACCOUNT_PERMS.flatMap((f) => {
+      const v = channel.contacts?.[f.key];
+      const label = f.key === "appointments" && v === "book" ? "ch.acctFlag.booksAppointments" : f.label;
+      return rightOn(v) ? [flag(f.key, f.icon, label)] : all ? [flag(f.key, f.icon, f.no, true)] : [];
+    }),
   ];
 }
 
@@ -90,6 +96,10 @@ export function useContactFlags(person: Person | undefined, channelId: string): 
       : []),
     ...(person.supervised ? [{ key: "supervised", icon: <Icons.Eye size={12} />, label: t("ch.supervised") }] : []),
     ...(person.rules?.trim() ? [{ key: "rules", icon: <Icons.FileText size={12} />, label: t("ch.flag.rules") }] : []),
-    ...PERM_FLAGS.filter((f) => rights[f.key]).map((f) => ({ key: f.key, icon: f.icon, label: t(f.label) })),
+    ...PERM_FLAGS.filter((f) => rightOn(rights[f.key])).map((f) => ({
+      key: f.key,
+      icon: f.icon,
+      label: t(f.key === "appointments" ? APPOINTMENT_FLAG[rights.appointments === "book" ? "book" : "note"] : f.label),
+    })),
   ];
 }

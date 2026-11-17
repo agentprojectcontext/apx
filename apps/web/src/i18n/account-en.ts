@@ -69,6 +69,16 @@ export const enAccount = {
   "acct.lead.stickers": "How it answers without words on this account.",
   "acct.contactsDefault": "For your contacts, by default",
   "acct.contactsDefaultHint": "What every contact of this account gets unless you set it on their card.",
+  "acct.appointmentsHint":
+    "Note: it becomes a task for you to confirm. Book: it goes on your Google Calendar at a free time inside the attention hours, at least two hours ahead and up to two weeks. One per person, three a day.",
+  "acct.appointmentsNeedCalendar":
+    "To book them, connect Google Calendar. Until then they are noted for you to confirm.",
+  "acct.appointmentsNeedHours":
+    "To book them, set the account's attention hours. Until then they are noted for you to confirm.",
+  "acct.appointmentsNeedBoth":
+    "To book them, connect Google Calendar and set the account's attention hours. Until then they are noted for you to confirm.",
+  "acct.appointmentMinutes": "Each appointment lasts",
+  "acct.minutes": "{n} minutes",
   "acct.ownerOnly": "Only answers you",
   "acct.ownerOnlyHint": "On the whole account: everyone else's messages are kept, but only you get answers.",
   "acct.limits": "Limits",

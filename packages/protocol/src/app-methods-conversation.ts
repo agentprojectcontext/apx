@@ -4,6 +4,7 @@ import { MemoryJobs, Sent, Withheld } from "./app-method-schemas.ts";
 import { CHANNEL_DEFAULTS } from "./constants.ts";
 import { deferMethod } from "./defer-method.ts";
 import {
+  AppointmentMinutes,
   AuxPurpose,
   ChannelEmail,
   ChannelHours,
@@ -477,6 +478,7 @@ export const appConversationMethods = {
               quiet: z.boolean().optional(),
               email: ChannelEmail.optional(),
               contacts: PersonPerms.optional(),
+              appointment_minutes: AppointmentMinutes.optional(),
               knowledge: z.string().max(12000).optional(),
               rules: z.string().max(2000).optional(),
               owner_only: z.boolean().optional(),

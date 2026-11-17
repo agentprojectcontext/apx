@@ -373,7 +373,7 @@ export function taskTools(store: Store, home: string): Tool[] {
     defineTool({
       name: "task_create",
       description:
-        "First task_list: if an open task is the same or close, continue that one. Record requested tasks or track substantial work, not every action. Capture only: omit assignee; nothing starts. To execute, give assignee, goal and a description in short Markdown lines: assignment starts its session, never also delegate it. Self-assigning now transfers execution: end this turn. Reviews or another area's work: propose it (a delegate, to its caller). A promise: person, owed_by, due_at.",
+        "Not for what the owner waits for here and fits this turn: do it now. First task_list: if an open task is the same or close, continue that one. Record requested tasks or track long work, not every action. Capture only: omit assignee; nothing starts. To execute, give assignee, goal and a description in short Markdown lines: assignment starts its session, never also delegate it. Self-assigning now transfers execution: end this turn. Reviews or another area's work: propose it (a delegate, to its caller). A promise: person, owed_by, due_at.",
       args: z.object({
         title: z.string().trim().min(3).max(200),
         goal: goalArg,

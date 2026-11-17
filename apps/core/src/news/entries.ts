@@ -16,6 +16,7 @@ import { CHANNEL_AGENTS_NEWS } from "./channel-agents.ts";
 import { CHROME_TABS_NEWS } from "./chrome-tabs.ts";
 import { COMPUTER_POINTER_NEWS } from "./computer-pointer.ts";
 import { CONTACT_AGENT_NEWS } from "./contact-agent.ts";
+import { CONTACT_BOOKING_NEWS } from "./contact-booking.ts";
 import { EVENT_MUTE_NEWS } from "./event-mute.ts";
 import { EXTERNAL_SESSIONS_NEWS } from "./external-sessions.ts";
 import { GROUP_CHATS_NEWS } from "./group-chats.ts";
@@ -178,6 +179,7 @@ export const NEWS: readonly NewsEntry[] = [
   MEMORY_REVIEW_NEWS,
   GROUP_CHATS_NEWS,
   VOICE_CALLS_NEWS,
+  CONTACT_BOOKING_NEWS,
   SIMPLE_PANEL_NEWS,
   {
     id: "storage-screen",

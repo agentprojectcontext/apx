@@ -8,8 +8,10 @@ import { type ChannelInfo, type CoreEvent, noticeText, type Part } from "@apx/pr
 import type { Bus } from "../bus.ts";
 import type { AuxAbout } from "../domain/aux-calls.ts";
 import type { Presentation } from "../domain/channels.ts";
+import { bookingDone, bookingRef, contactBookings } from "../domain/contact-bookings.ts";
 import { appOnly, followsOwner, noticePrefs } from "../domain/notices.ts";
 import type { NewNotification } from "../domain/notifications.ts";
+import { ownerTimeZone } from "../domain/owner.ts";
 import { OWNER_ID } from "../domain/persons.ts";
 import type { RunRecord } from "../domain/runs.ts";
 import type { Store } from "../domain/store.ts";
@@ -355,7 +357,23 @@ export function createChannels(deps: {
     const audience = thread ? audienceOf(store, thread) : undefined;
     if (audience?.kind !== "contact" || audience.room) return;
     const texts = channelTexts(store);
+    const tz = ownerTimeZone(store);
     for (const s of store.runs.steps(run.id)) {
+      const booked = bookingDone(s);
+      if (booked) {
+        const b = contactBookings(store)
+          .list(new Date(0), { past: true })
+          .filter((x) => x.thread_id === run.thread_id && x.state === (booked === "booked" ? "booked" : "canceled"))
+          .sort((x, y) => y.created_at.localeCompare(x.created_at))[0];
+        if (!b) continue;
+        const when = texts.bookingWhen(new Date(b.start), tz);
+        const text =
+          booked === "booked" ? texts.booked(audience.name, when) : texts.bookingCanceledByContact(audience.name, when);
+        // The tray's notice carries the booking, so it can be canceled from there.
+        const ref = booked === "booked" ? bookingRef(b.id) : undefined;
+        tell({ text }, { title: audience.name, body: text, thread_id: run.thread_id, ...(ref ? { ref } : {}) });
+        continue;
+      }
       if (s.tool !== "pass_request" || s.state !== "ok" || !/^(passed on|updated)/.test(s.result ?? "")) continue;
       const rest = [s.args.when, s.args.details].filter((v) => typeof v === "string" && v).join("\n");
       const text = texts.passedOn(audience.name, String(s.args.kind), String(s.args.summary ?? ""), rest);

@@ -9,6 +9,7 @@ import {
   CALENDAR_LEAD,
   CHECK_EVERY,
   ChannelInfo,
+  ContactBooking,
   EmailSignatures,
   EmailSignatureValue,
   HookMode,
@@ -140,6 +141,8 @@ export const SETTINGS = {
   ),
   /** Google Calendar's events (a whole series, for a recurring one) the owner is not reminded of; the latest last. */
   calendar_muted: entry(z.array(MutedEvent).catch([]), []),
+  /** Appointments contacts booked on the owner's calendar (domain/contact-bookings.ts), the newest last. */
+  contact_bookings: entry(listOf(ContactBooking), []),
   /** Gmail's mail check: off, every 5 minutes, any mail outside ads and social until the owner chooses. */
   mail_check: entry(
     z.object({

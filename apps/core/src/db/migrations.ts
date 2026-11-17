@@ -1249,4 +1249,17 @@ export const MIGRATIONS: readonly string[] = [
   `ALTER TABLE jobs ADD COLUMN start_error TEXT;`,
   // How a routine's runs act, over its agent's own mode (null: the agent's own; DECISIONS.md#d-223).
   `ALTER TABLE routines ADD COLUMN autonomy TEXT;`,
+  `
+  -- Appointments became a mode (off, note, book; DECISIONS.md#d-239): a yes notes them, as it did, and a no stays off.
+  UPDATE persons SET perms = json_set(perms, '$.appointments',
+    CASE json_type(perms, '$.appointments') WHEN 'true' THEN 'note' ELSE 'off' END)
+  WHERE json_valid(perms) AND json_type(perms, '$.appointments') IN ('true', 'false');
+  UPDATE meta SET value = (
+    SELECT json_group_array(json(CASE json_type(c.value, '$.contacts.appointments')
+      WHEN 'true' THEN json_set(c.value, '$.contacts.appointments', 'note')
+      WHEN 'false' THEN json_set(c.value, '$.contacts.appointments', 'off')
+      ELSE c.value END))
+    FROM json_each(meta.value) AS c
+  ) WHERE key = 'setting:channels' AND json_valid(value) AND json_type(value) = 'array';
+  `,
 ];
