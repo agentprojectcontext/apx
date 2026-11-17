@@ -9,6 +9,15 @@ test("the documented Groq image cap applies only to its exact Qwen 3.8 model", (
     assert.equal(imageLimit(model), undefined, model);
 });
 
+test("Cerebras Qwen 3.8 reads images without inheriting Groq's cap or matching other variants", () => {
+  for (const model of ["cerebras/qwen-3.8-27b", "cerebras/qwen-3.8-27b#high"]) {
+    assert.equal(readsImages(model), true, model);
+    assert.equal(imageLimit(model), undefined, model);
+  }
+  for (const model of ["cerebras/qwen-3.8-270b", "cerebras/qwen-3.8-27b-preview", "cerebras/qwen-3-27b"])
+    assert.equal(readsImages(model), undefined, model);
+});
+
 test("Gemma 3n retains image support in local and hosted model refs", () => {
   for (const model of ["ollama/gemma3n:e4b", "google/gemma-3n-e4b-it"]) assert.equal(readsImages(model), true, model);
   for (const model of ["ollama/gemma4n:e4b", "google/gemma-4n-e4b-it", "google/gemma-30n-e4b-it"])

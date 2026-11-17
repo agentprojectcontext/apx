@@ -82,6 +82,9 @@ for (const kind of ["stream_event", "assistant"] as const) {
       event("reported-main", null),
       event("nested-child", "parent-tool"),
       event("<synthetic>", null),
+      event("best", null),
+      event("fable", null),
+      event("fable[1m]", null),
       {
         type: "result",
         subtype: "success",
@@ -137,7 +140,7 @@ readline.createInterface({ input: process.stdin }).on("line", (line) => {
   const m = JSON.parse(line);
   if (m.type === "control_request") send({ type: "control_response", response: { subtype: "success", request_id: m.request_id, response: {} } });
   else if (m.type === "user") {
-    for (const model of ["default", "opus", "sonnet", "haiku", "sonnet[1m]", "opusplan", "<synthetic>"])
+    for (const model of ["default", "opus", "sonnet", "haiku", "sonnet[1m]", "opusplan", "best", "fable", "fable[1m]", "<synthetic>"])
       send({ type: "system", subtype: "init", model, session_id: "fixture-session" });
     send({ type: "result", subtype: "success", result: "Done", session_id: "fixture-session", modelUsage: {}, usage: { input_tokens: 1, output_tokens: 1 } });
   }

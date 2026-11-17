@@ -63,6 +63,8 @@ stay listed but are not offered for agent turns, including locally discovered li
 Qwen 3.8 27B reads images and uses a 131,072-token context fallback, as documented in the
 [Groq model card](https://console.groq.com/docs/model/qwen/qwen3.8-27b). This exact-model fallback does not infer
 vision or a larger window for other Qwen variants; provider-reported windows still take precedence.
+Cerebras's `qwen-3.8-27b` spelling also reads images, as documented in its
+[model card](https://inference-docs.cerebras.ai/models/qwen-3.8-27b); it does not inherit Groq's image cap.
 Groq accepts at most three images per request for this model. If the prepared call carries more,
 APX tries the next model in the chain without silently removing an image; with no suitable fallback it
 asks for fewer images or another model. The Groq-specific cap is not inferred for other providers.
@@ -75,6 +77,11 @@ The documented Claude Opus 4.6/4.7/4.8 and Sonnet 4.6 windows are 1,000,000 toke
 A Gemini voice saved with a model Google retired falls back to `PINNED.geminiSpeech` on 404. Embedding defaults are
 not swapped silently: vectors from another model do not mix, so a retired embedding model needs a release that
 re-indexes.
+
+Claude Code's reported startup or message model is not confirmed when it is only a selection alias
+(`default`, `best`, `fable`, `opus`, `sonnet`, `haiku`, `opusplan`, including bracketed modifiers).
+Only a concrete model reported for the main session confirms which model answered; an alias never
+replaces an already reported concrete model. See [Claude Code model configuration](https://code.claude.com/docs/en/model-config).
 
 ## Daily check
 

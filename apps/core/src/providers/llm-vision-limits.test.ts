@@ -5,14 +5,18 @@ import { tempDir } from "../testkit/platform.ts";
 import { createLlm } from "./llm.ts";
 import { ProviderError } from "./types.ts";
 
-for (const count of [3, 4]) {
-  test(`Groq Qwen 3.8 accepts at most three images: ${count} attached`, async () => {
+for (const { provider, model, count } of [
+  { provider: "groq", model: "qwen/qwen3.8-27b", count: 3 },
+  { provider: "groq", model: "qwen/qwen3.8-27b", count: 4 },
+  { provider: "cerebras", model: "qwen-3.8-27b", count: 4 },
+]) {
+  test(`${provider} Qwen 3.8 uses only its documented image cap: ${count} attached`, async () => {
     const home = tempDir("apx-qwen-images-");
     try {
       const calls: string[] = [];
       const llm = createLlm({
         providers: () => [
-          { id: "groq", transport: "openai-chat", base_url: "https://example.com", key: "none", models: [] },
+          { id: provider, transport: "openai-chat", base_url: "https://example.com", key: "none", models: [] },
         ],
         secrets: createSecrets(home.path, "file", {}),
         firstByteMs: 1_000,
@@ -28,7 +32,7 @@ for (const count of [3, 4]) {
         },
       });
       const request = {
-        models: ["groq/qwen/qwen3.8-27b"],
+        models: [`${provider}/${model}`],
         messages: [
           {
             role: "user" as const,
@@ -39,9 +43,9 @@ for (const count of [3, 4]) {
         tools: [],
         signal: new AbortController().signal,
       };
-      if (count === 3) {
-        assert.equal((await llm.complete(request)).model, "groq/qwen/qwen3.8-27b");
-        assert.deepEqual(calls, ["qwen/qwen3.8-27b"]);
+      if (count === 3 || provider === "cerebras") {
+        assert.equal((await llm.complete(request)).model, `${provider}/${model}`);
+        assert.deepEqual(calls, [model]);
       } else {
         await assert.rejects(
           llm.complete(request),
