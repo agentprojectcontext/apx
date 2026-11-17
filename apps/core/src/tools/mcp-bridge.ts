@@ -18,7 +18,13 @@ const words = (s: string): string[] => s.toLowerCase().match(/[\p{L}\p{N}]{2,}/g
  * Apps the owner connects (Gmail, Calendar…) whose tools are found like an MCP server's instead of sent on every call:
  * most turns use none of them (DECISIONS.md#d-229). By the tool name's first word.
  */
-const APPS: Record<string, string> = { calendar: "calendar", gmail: "gmail", drive: "drive", asana: "asana" };
+const APPS: Record<string, string> = {
+  calendar: "calendar",
+  gmail: "gmail",
+  drive: "drive",
+  sheets: "drive",
+  asana: "asana",
+};
 export const appOf = (name: string): string | undefined => APPS[name.split("_")[0] ?? ""];
 
 /**

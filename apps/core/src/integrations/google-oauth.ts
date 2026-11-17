@@ -9,6 +9,7 @@ export type GoogleEndpoints = {
   gmail: string;
   drive: string;
   driveUpload: string;
+  sheets: string;
 };
 
 export const GOOGLE: GoogleEndpoints = {
@@ -18,6 +19,7 @@ export const GOOGLE: GoogleEndpoints = {
   gmail: "https://gmail.googleapis.com/gmail/v1",
   drive: "https://www.googleapis.com/drive/v3",
   driveUpload: "https://www.googleapis.com/upload/drive/v3",
+  sheets: "https://sheets.googleapis.com/v4",
 };
 
 /** Every endpoint under one address: a stand-in Google for tests. */
@@ -28,6 +30,7 @@ export const googleAt = (base: string): GoogleEndpoints => ({
   gmail: `${base}/gmail/v1`,
   drive: `${base}/drive/v3`,
   driveUpload: `${base}/upload/drive/v3`,
+  sheets: `${base}/sheets/v4`,
 });
 
 const b64url = (buf: Buffer | string) => Buffer.from(buf).toString("base64url");

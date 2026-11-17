@@ -88,7 +88,11 @@ Cada parte de Google se conecta por separado, así elegís a qué llegan tus age
 |---|---|---|
 | Google Calendar | Leer eventos, buscar huecos libres, crear y cambiar eventos, sumar o quitar invitados, agregar Meet, cancelar | Todo lo que les manda un mail a los invitados (una invitación, avisarles un cambio o una cancelación), y cancelar |
 | Gmail | Enviar mails. Con tu propio cliente: además buscar y leer mails y escribir borradores | Enviar siempre pregunta; escribir un borrador pregunta |
-| Google Drive | Escribir Docs y compartirlos; buscarlos y leerlos. Con tu propio cliente: buscar y leer todo tu Drive (Docs, Sheets, Slides, archivos de texto) | Compartir |
+| Google Drive | Escribir Docs y compartir archivos; buscarlos y leerlos. Ver pestañas, leer rangos de celdas y crear Sheets. Con tu propio cliente: buscar y leer todo tu Drive (Docs, Sheets, Slides, archivos de texto); la escritura sigue limitada a los archivos accesibles a la app | Compartir y reemplazar celdas de una planilla |
+
+**Google Sheets** usa la misma conexión de Drive: no necesita otra cuenta ni permisos más amplios de Google. Pedile a tu agente que encuentre una planilla, liste sus pestañas y lea un rango específico, o que cree una nueva y complete celdas elegidas. Cada lectura llega a 200 filas, 50 columnas y 2.000 celdas, con 20.000 caracteres de valores; las planillas más grandes se leen por partes. Se leen valores mostrados, no fórmulas. Reemplazar celdas pregunta primero y escribe valores literales, sin evaluar fórmulas. Los textos vacíos borran celdas; las celdas omitidas no cambian. No incluye formato, agregado de filas, compartir automáticamente ni sincronización en segundo plano. Con tu propio cliente OAuth, habilitá **Google Sheets API** en el mismo proyecto de Google Cloud. El acceso y las cuotas siguen dependiendo de Google y de tu cuenta.
+
+**Google Docs** conserva las herramientas existentes de Drive: leer texto, crear un Doc o reemplazar todo su texto plano. No es un editor de formato enriquecido ni de cambios incrementales. Leer una planilla como CSV con la herramienta anterior de Drive representa una sola pestaña, no el libro completo. Desconectar Drive también quita acceso a las herramientas de Docs y Sheets. Si no sabés si se completó una escritura, inspeccioná el archivo antes de volver a pedirla.
 
 Los agentes encuentran estas tools cuando un pedido las necesita (con `tool_search`, como las de un servidor MCP), así que
 un chat que no toca tu calendario ni tu correo no las paga en cada paso.

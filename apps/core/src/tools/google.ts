@@ -8,6 +8,7 @@ import { calendarApi } from "../integrations/calendar.ts";
 import { gmailApi } from "../integrations/gmail.ts";
 import type { Google } from "../integrations/google.ts";
 import { driveTools } from "./google-drive.ts";
+import { sheetsTools } from "./google-sheets.ts";
 import { untrusted } from "./result.ts";
 import { defineTool, type Tool } from "./types.ts";
 
@@ -260,5 +261,6 @@ export function googleTools(g: Google | undefined): Tool[] {
       },
     }),
     ...driveTools(g),
+    ...sheetsTools(g),
   ];
 }

@@ -84,7 +84,11 @@ Each Google part connects on its own, so you choose what your agents reach: **Go
 |---|---|---|
 | Google Calendar | Read events, find free time, create and change events, add or remove guests, add a Meet link, cancel | Anything that emails guests (an invitation, telling them of a change or a cancellation), and cancelling |
 | Gmail | Send mail. With your own client: also search and read mail, and write drafts | Sending always asks; writing a draft asks |
-| Google Drive | Write Docs and share them; find and read them. With your own client: find and read your whole Drive (Docs, Sheets, Slides, text files) | Sharing |
+| Google Drive | Write Docs and share files; find and read them. List spreadsheet tabs, read cell ranges and create Sheets. With your own client: find and read your whole Drive (Docs, Sheets, Slides, text files); writes remain limited to app-accessible files | Sharing and replacing spreadsheet cells |
+
+**Google Sheets** uses the same Drive connection; there is no extra account or broader Google permission. Ask your agent to find a spreadsheet, list its tabs and read a named range, or create a new workbook and fill selected cells. A read reaches at most 200 rows, 50 columns and 2,000 cells, with 20,000 characters of values; larger sheets are read in chunks. Values are displayed text, not formulas. Replacing cells asks first and writes literal values, never evaluated formulas. Empty strings clear cells; omitted cells stay unchanged. Formatting, appending rows, automatic sharing and background synchronization are not included. With your own OAuth client, enable **Google Sheets API** in the same Google Cloud project. Access and quotas still depend on Google and your account.
+
+**Google Docs** continues to use the existing Drive tools: read text, create a Doc or replace its whole plain text. This is not a rich-text or incremental document editor. A Sheet read as CSV through the older Drive reader represents one worksheet, not the whole workbook. Disconnecting Drive removes access to these Docs and Sheets tools too. If a write's result is uncertain, inspect the file before asking for it again.
 
 Agents find these tools when a request needs them (through `tool_search`, like an MCP server's), so a chat that does
 not touch your calendar or mail does not pay for them on every step.

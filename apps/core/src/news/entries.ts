@@ -22,6 +22,7 @@ import { CONTACT_AGENT_NEWS } from "./contact-agent.ts";
 import { CONTACT_BOOKING_NEWS } from "./contact-booking.ts";
 import { EVENT_MUTE_NEWS } from "./event-mute.ts";
 import { EXTERNAL_SESSIONS_NEWS } from "./external-sessions.ts";
+import { GOOGLE_SHEETS_NEWS } from "./google-sheets.ts";
 import { GROUP_CHATS_NEWS } from "./group-chats.ts";
 import { HEADLINE_MODELS_NEWS } from "./headline-models.ts";
 import { HERMES_IMPORT_NEWS } from "./hermes-import.ts";
@@ -173,6 +174,7 @@ export const NEWS: readonly NewsEntry[] = [
   QUEUED_MESSAGES_NEWS,
   EXTERNAL_SESSIONS_NEWS,
   HERMES_IMPORT_NEWS,
+  GOOGLE_SHEETS_NEWS,
   BROWSER_EDIT_NEWS,
   BROWSER_JAVASCRIPT_NEWS,
   QUICK_CHAT_NEWS,

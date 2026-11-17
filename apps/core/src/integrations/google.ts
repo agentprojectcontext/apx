@@ -210,6 +210,8 @@ export function createGoogle(deps: {
         body?: unknown;
         raw?: { type: string; data: string };
         text?: boolean;
+        maxResponseBytes?: number;
+        signal?: AbortSignal;
       } = {},
     ): Promise<T> {
       const u = new URL(url);
@@ -228,7 +230,7 @@ export function createGoogle(deps: {
             ...(payload ? { "content-type": payload.type } : {}),
           },
           ...(payload ? { body: payload.data } : {}),
-          signal: AbortSignal.timeout(30_000),
+          signal: o.signal ? AbortSignal.any([o.signal, AbortSignal.timeout(30_000)]) : AbortSignal.timeout(30_000),
         });
       let res = await send();
       if (res.status === 401) {
@@ -236,12 +238,34 @@ export function createGoogle(deps: {
         res = await send();
       }
       if (res.ok && o.text) return (await res.text()) as T;
-      const data = (await res.json().catch(() => ({}))) as { error?: { message?: string } };
+      const data = (
+        o.maxResponseBytes ? JSON.parse(await limitedBody(res, o.maxResponseBytes)) : await res.json().catch(() => ({}))
+      ) as { error?: { message?: string } };
       if (!res.ok) throw new Error(`${labelOf(id)}: ${data.error?.message ?? `HTTP ${res.status}`}`);
       return data as T;
     },
   };
   return g;
+}
+
+async function limitedBody(response: Response, max: number): Promise<string> {
+  const reader = response.body?.getReader();
+  if (!reader) return "{}";
+  const chunks: Uint8Array[] = [];
+  let size = 0;
+  try {
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      size += value.byteLength;
+      if (size > max) throw new Error("Google response exceeds the size limit; choose a smaller range");
+      chunks.push(value);
+    }
+    return Buffer.concat(chunks).toString("utf8");
+  } finally {
+    await reader.cancel().catch(() => {});
+    reader.releaseLock();
+  }
 }
 
 const labelOf = (id: GoogleId) => GOOGLE_INTEGRATIONS.find((x) => x.id === id)?.label ?? id;

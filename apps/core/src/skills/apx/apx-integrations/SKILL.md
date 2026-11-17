@@ -14,7 +14,7 @@ to have at hand, and use the tools once it is connected.
 | Google Calendar | Sign in with Google (APX's own sign-in; no Google Cloud setup) | `calendar_events`, `calendar_free`, `calendar_create_event`, `calendar_update_event`, `calendar_cancel_event` |
 | Asana | Personal access token | Native `asana_read`, `asana_write` |
 | Gmail | Sign in with Google, as above | `gmail_send` with APX's sign-in; `gmail_search`, `gmail_read`, `gmail_draft`, `gmail_send_draft` with the owner's own OAuth client |
-| Google Drive | Sign in with Google, as above | `drive_search`, `drive_read`, `drive_write_doc`, `drive_share` (APX's sign-in reaches only the Docs APX wrote; the owner's own client, the whole Drive) |
+| Google Drive, Docs and Sheets | Sign in with Google, as above | `drive_search`, `drive_read`, `drive_write_doc`, `drive_share`, `sheets_tabs`, `sheets_read`, `sheets_create`, `sheets_write` (APX's sign-in reaches app-accessible files; the owner's own client can read the whole Drive, but writing stays limited to app-accessible files) |
 | GitHub | Personal access token | MCP server `github` |
 | Notion | Integration token | MCP server `notion` |
 | Slack | Bot token | MCP server `slack` |
@@ -28,6 +28,9 @@ to have at hand, and use the tools once it is connected.
 Microsoft 365 and Box are listed as coming: not available yet. An app the owner signs in to waits on that sign-in
 until they finish it: its server shows `needs-sign-in`, and the integration's screen has **Sign in** to open the page
 again.
+
+Docs already use `drive_read` and `drive_write_doc`: the latter creates a Doc or replaces its entire plain text, not a rich-text or incremental editor. Do not claim structured Docs API editing.
+For Sheets, connect Drive, find the spreadsheet with `drive_search` `kind: "sheet"`, then use `sheets_tabs` to discover exact tab names and `sheets_read` with an explicit range such as `'Budget 2026'!A1:D20`. CSV export through `drive_read` covers only a worksheet, not the full workbook. Ranges are limited to 200 rows, 50 columns and 2,000 cells, with 20,000 characters of returned values; chunk larger reads. `sheets_create` creates an empty workbook; `sheets_write` replaces only supplied cells after owner confirmation. Values use RAW mode, so a string starting with `=` remains text, not an evaluated formula. Empty strings clear cells; omitted values do not. No append, formula evaluation, formatting, automatic sharing or background sync is provided. Writes require Google's existing app-file grant; the owner's own client does not grant arbitrary full-Drive edits. A custom OAuth project must enable the Google Sheets API. After an uncertain create/write, inspect before repeating it; no automatic write retry occurs except Google's existing token-refresh handling of a rejected 401.
 
 Asana uses a personal access token from https://app.asana.com/0/my-apps, entered only in the app.
 APX validates it before saving `secret://asana-token`; no MCP server is installed.
@@ -59,8 +62,8 @@ with apx-mcps. If it only has an HTTP API, a small extension can wrap it (apx-ex
 2. `apx mcps check <name>`: the exact error. An authentication error usually means a token expired or was revoked:
    the owner reconnects it in [the Marketplace](apx:marketplace).
 3. For Asana, check its connection and project switch in the Marketplace; a rejected token must be replaced there.
-4. For Google, no `calendar_*`, `gmail_*` or `drive_*` tools means that part is not connected (or is off in this
-   project). "Sign in again" in its dialog fixes a revoked or expired access.
+4. For Google, no `calendar_*`, `gmail_*`, `drive_*` or `sheets_*` tools means that part is not connected (or is off
+   in this project). "Sign in again" in its dialog fixes a revoked or expired access.
 
 Say what you found and the one step left for the owner. Never ask the owner to paste a token in the chat for an
 integration: the app's form keeps it out of the conversation.
