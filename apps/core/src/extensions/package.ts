@@ -145,8 +145,14 @@ export function readFolder(dir: string): Package {
   return packageOf(files, read, (rel) => set.has(rel));
 }
 
-/** Left out of a zip as an operating system adds them ("Compress" on a Mac); never part of an extension. */
-const junk = (p: string) => p.startsWith("__MACOSX/") || p === ".DS_Store" || p.endsWith("/.DS_Store");
+/**
+ * Left out of a zip as a Mac adds them when zipping a folder (`__MACOSX/`, `.DS_Store`, the `._name` files that carry
+ * a file's extended attributes); never part of an extension, and never on the disk it was zipped from.
+ */
+const junk = (p: string) => {
+  const base = p.slice(p.lastIndexOf("/") + 1);
+  return p.startsWith("__MACOSX/") || base === ".DS_Store" || base.startsWith("._");
+};
 
 /**
  * Unpacks an .apxext (a zip) in memory. Refused whole: links, encrypted entries, paths that leave the folder,

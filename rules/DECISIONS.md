@@ -5202,7 +5202,7 @@ extension's folder) the installer for any extension, and needs APX to tell an of
   entry) on a link, an encrypted entry, another compression, a path that leaves the folder (`..`, absolute, a drive),
   a size that does not match what inflates, declared sizes over 50 MB (checked before inflating, and each entry is
   capped at its declared size), more than 2000 files, two names one disk takes as one (case, Unicode form) or a name
-  that is both a file and a folder. One top folder is taken as the extension; `__MACOSX`, `.DS_Store`, `.git` and
+  that is both a file and a folder. One top folder is taken as the extension; `__MACOSX`, `.DS_Store`, `._` files, `.git` and
   `node_modules` are left out. The copy is written with exclusive creates into a fresh folder under the home and its
   fingerprint read back from disk must equal the one computed in memory before it replaces anything.
 - **Official by fingerprint, no signature for now.** The catalog (`index.json` from the public marketplace repository,

@@ -143,7 +143,7 @@ Es un zip común de la carpeta de la extensión: `apx-extension.json` arriba de 
 queda al comprimir una carpeta a mano). APX rechaza el archivo entero, antes de escribir nada, si tiene un link, una
 entrada cifrada, una ruta que sale de la carpeta (`..`, una ruta absoluta), tamaños que no coinciden con lo que se
 descomprime, dos nombres que un disco tomaría como uno, más de 2000 archivos o más de 50 MB descomprimido. El archivo en
-sí pesa como mucho 20 MB. `.git`, `node_modules`, `__MACOSX` y `.DS_Store` quedan afuera, como desde una carpeta.
+sí pesa como mucho 20 MB. `.git`, `node_modules` y lo que agrega una Mac al comprimir (`__MACOSX`, `.DS_Store`, archivos `._`) quedan afuera.
 
 ### Oficial o de terceros
 

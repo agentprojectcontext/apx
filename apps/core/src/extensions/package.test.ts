@@ -34,6 +34,7 @@ test("an .apxext gives the same fingerprint as its folder, zipped flat or inside
     zip([
       ...Object.entries(FILES).map(([n, d]) => ({ name: `w/${n}`, data: d })),
       { name: "__MACOSX/w/._README.md", data: "resource fork" },
+      { name: "w/skills/._forecast", data: "extended attributes" },
     ]),
   );
   assert.equal(flat.hash, folder.hash);

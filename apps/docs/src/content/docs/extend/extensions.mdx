@@ -143,7 +143,7 @@ It is a plain zip of the extension's folder: `apx-extension.json` at the top, or
 folder by hand packs it). APX refuses the whole file, before writing anything, when it holds a link, an encrypted
 entry, a path that leaves the folder (`..`, an absolute path), sizes that don't match what unpacks, two names one disk
 would take as one, more than 2,000 files or more than 50 MB unpacked. The file itself is at most 20 MB. `.git`,
-`node_modules`, `__MACOSX` and `.DS_Store` are left out, as from a folder.
+`node_modules`, and what a Mac adds when zipping (`__MACOSX`, `.DS_Store`, `._` files) are left out.
 
 ### Official or third party
 
