@@ -307,6 +307,11 @@ export function createComputer(o: {
 
   return {
     async handle(method: string, params: unknown): Promise<unknown> {
+      // The core says no turn uses the computer any more: the cursor goes, unless an action is still on its way.
+      if (method === "computer.release") {
+        if (!inFlight) o.cursor.hide();
+        return {};
+      }
       go();
       gestures.assertIdle();
       if (inFlight) throw new Error("another computer action is still finishing; do not retry automatically");

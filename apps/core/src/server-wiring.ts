@@ -388,7 +388,7 @@ export function coreHandlers(d: HandlerDeps & { vm?: Computer | undefined }) {
     ...accessHandlers(d.access),
     ...webhookHandlers(d.webhooks, d.publicCredentials),
     ...phoneHandlers(d.broker, d.store, d.app.home),
-    ...computerHandlers(d.broker, d.store, d.app.home, d.engine, (thread) => Boolean(d.vm?.hasThread(thread))),
+    ...computerHandlers(d.broker, d.store, d.app.home, d.engine, (thread) => Boolean(d.vm?.hasThread(thread)), d.bus),
     ...extensionHandlers(d.extensions, d.mcp),
     // Native integrations share the project switches of global servers, without starting an MCP.
     ...mcpHandlers(d.mcp, d.store, (name) =>

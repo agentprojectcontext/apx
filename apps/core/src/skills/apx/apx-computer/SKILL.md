@@ -45,7 +45,7 @@ preview's evidence; one synthetic fixture is not proof of support for every app.
 
 A look of its own moves the indicator to the top of the window it reads; the look that ends a `screen_do` leaves it
 where it acted. The indicator stays visible between actions, with the action note and a stored agent's short name (APX when no note or agent is available),
-and hides on stop or disconnection. Stop, turning computer use off, changing connections or quitting cancels the
+and hides when your turn ends, on stop or on disconnection. Stop, turning computer use off, changing connections or quitting cancels the
 gesture and any queued click not yet delivered. If delivery is uncertain, do not retry automatically: an already
 delivered effect cannot be withdrawn. Do not use this option to bypass browser rules or handle credentials.
 
