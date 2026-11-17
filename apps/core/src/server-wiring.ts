@@ -9,6 +9,7 @@ import { BROWSER_CAP } from "@apx/protocol";
 import { loopbackHost } from "@apx/protocol/browser-urls";
 import type { Bus } from "./bus.ts";
 import type { CoreConfig } from "./config.ts";
+import { MARKETPLACE_INDEX } from "./config.ts";
 import { nativeApproval } from "./domain/approvals.ts";
 import type { Store } from "./domain/store.ts";
 import { type Added, tellAdded } from "./engine/added.ts";
@@ -20,7 +21,7 @@ import { applyProfile, listProfiles, type ProfileRoot } from "./engine/profiles.
 import type { Upkeep } from "./engine/upkeep.ts";
 import type { Computer } from "./environments/computer.ts";
 import { errorMessage } from "./errors.ts";
-import { createCatalog } from "./extensions/catalog.ts";
+import { createCatalog, shippedCatalog } from "./extensions/catalog.ts";
 import { createExtensions } from "./extensions/extensions.ts";
 import { createPlugins } from "./extensions/plugins.ts";
 import { acpAgents, acpEngine } from "./harness/acp/agents.ts";
@@ -170,7 +171,13 @@ export function extensionStack(d: {
       return Boolean(t && audienceOf(d.store, t).kind === "contact");
     },
   });
-  const catalog = createCatalog({ home: d.home, url: d.marketplaceIndex, ...(d.fetch ? { fetch: d.fetch } : {}) });
+  const catalog = createCatalog({
+    home: d.home,
+    url: d.marketplaceIndex,
+    ...(d.fetch ? { fetch: d.fetch } : {}),
+    // The official catalog's copy shipped with APX, only for the official address.
+    ...(d.marketplaceIndex === MARKETPLACE_INDEX ? { shipped: shippedCatalog } : {}),
+  });
   const extensions = createExtensions({
     store: d.store,
     secrets: d.secrets,

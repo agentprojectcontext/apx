@@ -11,7 +11,7 @@ export function usePowerText(): (p: ExtensionPower) => string {
 }
 
 /** Oficial or De terceros, by its files. */
-function ProvenanceBadge({ e }: { e: Pick<ExtensionInfo, "provenance"> }) {
+export function ProvenanceBadge({ e }: { e: Pick<ExtensionInfo, "provenance"> }) {
   const t = useT();
   return e.provenance === "official" ? (
     <Badge tone="brand" dot>
@@ -41,9 +41,9 @@ export function ExtensionSummary({ e }: { e: ExtensionInfo }) {
       {e.description && <p className="config__lead">{e.description}</p>}
       <dl className="pcard__rows">
         <dt>{t("ext.skills")}</dt>
-        <dd>{e.skills.join(", ") || "—"}</dd>
-        <dt>{t("ext.mcp")}</dt>
-        <dd>{e.mcp.join(", ") || "—"}</dd>
+        <dd>{e.skills.length ? t("extx.piece.skillsText", { n: e.skills.length }) : "—"}</dd>
+        <dt>{t("extx.piece.tools")}</dt>
+        <dd>{e.mcp.length ? t("extx.piece.toolsText", { name: e.name }) : "—"}</dd>
         {e.plugin && (
           <>
             <dt>{t("ext.plugin")}</dt>

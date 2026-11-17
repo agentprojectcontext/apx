@@ -15,8 +15,8 @@ import { TELEMETRY_SINK } from "./telemetry-sink.ts";
 export const defaultHome = () => path.join(os.homedir(), ".apx", "v2");
 /** Where v2 lived before it moved into ~/.apx (moved once, at start: see home.ts). */
 export const legacyHome = () => path.join(os.homedir(), ".apx2");
-/** The official extension catalog, served by GitHub Pages from the public apx-marketplace repository. */
-const MARKETPLACE_INDEX = "https://agentprojectcontext.github.io/apx-marketplace/index.json";
+/** The official extension catalog, published from the public apx-marketplace repository. */
+export const MARKETPLACE_INDEX = "https://marketplace.apxagent.app/index.json";
 
 type ProviderTransport = "openai-chat" | "anthropic-messages" | "chatgpt-responses";
 

@@ -15,6 +15,8 @@ export function extensionHandlers(extensions: Extensions, mcp: Mcp) {
   };
   return {
     "extensions.list": () => ({ extensions: extensions.list() }),
+    "extensions.catalog": ({ refresh }) => extensions.catalogEntries(refresh),
+    "extensions.asset": async ({ id, file }) => (await extensions.asset(id, file)) ?? {},
     "extensions.inspect": ({ path, file, url }) => extensions.inspect(source(path, file, url)),
     "extensions.install": async ({ path, file, url, hash }) => {
       const before = extensions.list();

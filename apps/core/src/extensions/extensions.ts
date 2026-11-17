@@ -12,10 +12,12 @@ import { expandHome, isInside, realpath, tildeHome } from "../paths.ts";
 import { extensionSecret as extSecret } from "../secret-names.ts";
 import type { Secrets } from "../secrets.ts";
 import { type Catalog, type CatalogCheck, downloadArchive } from "./catalog.ts";
+import { ASSET_MAX, createPackageReader, newest } from "./catalog-packages.ts";
 import {
   comparePowers,
   filesOf,
   fingerprint,
+  hostsOf,
   legacyFingerprint,
   type Package,
   PackageError,
@@ -25,8 +27,28 @@ import {
   writePackage,
 } from "./package.ts";
 import type { Plugins } from "./plugins.ts";
+import { bringsOf, type ListingFile, listingCopy, needsOf, readListing } from "./summary.ts";
 
 export { extSecret, SECRET_REF };
+
+const LISTING = "apx-listing.json";
+const IMAGE: Record<string, string> = {
+  ".png": "image/png",
+  ".webp": "image/webp",
+  ".jpg": "image/jpeg",
+  ".jpeg": "image/jpeg",
+  ".svg": "image/svg+xml",
+};
+
+/** Its listing file, when it brings one that reads well. */
+function listingIn(read: () => Buffer | undefined): ListingFile | undefined {
+  try {
+    const buf = read();
+    return buf && buf.length < 256 * 1024 ? readListing(JSON.parse(buf.toString("utf8"))) : undefined;
+  } catch {
+    return undefined;
+  }
+}
 
 /** Where an extension is read from: exactly one of these (the protocol checks it). */
 export type ExtensionInput = { path?: string; file?: { name: string; data: string }; url?: string };
@@ -62,6 +84,7 @@ export function createExtensions(deps: {
   fetch?: typeof fetch;
 }) {
   const { store, secrets, plugins, catalog } = deps;
+  const packages = createPackageReader({ home: deps.home, ...(deps.fetch ? { fetch: deps.fetch } : {}) });
   const root = path.join(deps.home, "extensions");
   /** The version an update replaced, kept to go back to; ids hold no ".", so this never names another extension. */
   const previousDir = (id: string) => path.join(root, `${id}.prev`);
@@ -69,9 +92,25 @@ export function createExtensions(deps: {
   type Shown = Pick<
     ExtensionRecord,
     "id" | "manifest" | "hash" | "dir" | "source" | "enabled" | "installed_at" | "provenance"
-  > & { skills?: string[]; catalog?: CatalogCheck["catalog"]; update?: ExtensionInfo["update"] };
+  > & {
+    skills?: string[];
+    catalog?: CatalogCheck["catalog"];
+    update?: ExtensionInfo["update"];
+    /** Its listing, already read (an inspected package); otherwise read from its folder. */
+    listing?: ListingFile;
+  };
 
-  const info = (e: Shown): ExtensionInfo => ({
+  const info = (e: Shown): ExtensionInfo => {
+    const listing = e.listing ?? (e.dir ? listingIn(() => fs.readFileSync(path.join(e.dir, LISTING))) : undefined);
+    return {
+      ...base(e),
+      brings: bringsOf(e.manifest, listing),
+      needs: needsOf(e.manifest, listing),
+      hosts: hostsOf(e.manifest),
+      ...(listing ? { listing: listingCopy(listing, e.manifest, e.provenance === "official") } : {}),
+    };
+  };
+  const base = (e: Shown): Omit<ExtensionInfo, "brings" | "needs" | "hosts" | "listing"> => ({
     id: e.id,
     name: e.manifest.name,
     version: e.manifest.version,
@@ -213,6 +252,37 @@ export function createExtensions(deps: {
       return off;
     },
     list: () => store.extensions.list().map((e) => shown(e)),
+    /**
+     * One of its listing's images (icon, screenshot), from its installed copy or, not installed, its catalog package
+     * read before. Only images, only inside it.
+     */
+    async asset(id: string, file: string): Promise<{ mime: string; data: string } | undefined> {
+      const e = store.extensions.get(id);
+      // "@icon": the icon the catalog's index points at, for one whose package was not read.
+      if (file === "@icon") {
+        const { entries } = await catalog.entries();
+        const url = entries.find((x) => x.id === id)?.icon;
+        const got = url ? await packages.linkedIcon(url) : undefined;
+        return got ? { mime: got.mime, data: got.data.toString("base64") } : undefined;
+      }
+      const mime = IMAGE[path.extname(file).toLowerCase()];
+      if (!mime || file.includes("..") || path.isAbsolute(file)) return undefined;
+      let buf: Buffer | undefined;
+      if (e) {
+        const f = path.resolve(e.dir, file);
+        if (isInside(e.dir, f) && fs.existsSync(f) && fs.statSync(f).size <= ASSET_MAX) buf = fs.readFileSync(f);
+      } else {
+        const { entries } = await catalog.entries();
+        const v = newest(entries.find((x) => x.id === id)?.versions ?? []);
+        if (v?.content_hash) buf = packages.asset(v.content_hash, file);
+      }
+      return buf ? { mime, data: buf.toString("base64") } : undefined;
+    },
+    /** What APX's catalog offers, each with what it brings once its package was read. */
+    async catalogEntries(refresh = false) {
+      const { entries, catalog: status } = await catalog.entries(refresh);
+      return { entries: await packages.entries(entries, true), ...(status ? { catalog: status } : {}) };
+    },
     /** What an extension would bring, where it comes from by fingerprint, and what it changes over the installed one. */
     async inspect(input: ExtensionInput): Promise<ExtensionInfo> {
       const { pkg, source } = await load(input);
@@ -227,6 +297,7 @@ export function createExtensions(deps: {
         source,
         skills: pkg.skills,
         enabled: Boolean(cur && keepsOn(cur, manifest, hash, check)),
+        ...(pkg.files.includes(LISTING) ? { listing: listingIn(() => pkg.read(LISTING)) } : {}),
         installed_at: cur?.installed_at ?? "",
         provenance: check.provenance,
         ...(check.catalog ? { catalog: check.catalog } : {}),

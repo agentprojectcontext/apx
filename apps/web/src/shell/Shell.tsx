@@ -23,6 +23,7 @@ import {
   InstallArtifactDialog,
   InstallExtensionDialog,
   LiveLayer,
+  MarketplaceScreen,
   McpPeek,
   NoticeStrip,
   PhoneDialog,
@@ -124,6 +125,8 @@ export function Shell() {
                   <RoutinesScreen />
                 ) : view === "resources" ? (
                   <ResourcesScreen />
+                ) : view === "marketplace" ? (
+                  <MarketplaceScreen />
                 ) : view === "files" ? (
                   <FilesScreen />
                 ) : view === "computers" ? (

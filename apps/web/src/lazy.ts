@@ -137,6 +137,11 @@ export const ProjectScreen = lazy(
     import("./project/ProjectScreen.tsx").then((m) => ({ default: m.ProjectScreen })),
   ),
 );
+export const MarketplaceScreen = lazy(
+  withPacks(["resources"], () =>
+    import("./marketplace/MarketplaceScreen.tsx").then((m) => ({ default: m.MarketplaceScreen })),
+  ),
+);
 export const ResourcesScreen = lazy(
   withPacks(["resources"], () => import("./project/ResourcesScreen.tsx").then((m) => ({ default: m.ResourcesScreen }))),
 );

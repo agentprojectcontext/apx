@@ -1,0 +1,166 @@
+// Methods for extensions: read one from a folder, file or URL, install it, turn it on, go back a version, give it its
+// secrets, and browse the catalogs.
+import { z } from "zod";
+import { deferMethod } from "./defer-method.ts";
+import { CatalogEntry, ExtensionInfo, ExtensionSource } from "./extensions.ts";
+
+/** An extension is read from exactly one place. */
+const oneSource = (p: { path?: unknown; file?: unknown; url?: unknown }) =>
+  [p.path, p.file, p.url].filter((v) => v !== undefined).length === 1;
+const SOURCE_MESSAGE = "give one of path, file or url";
+
+export const extensionMethods = {
+  /** An image of an extension's listing (its icon, a screenshot), installed or in APX's catalog; none when missing. */
+  "extensions.asset": deferMethod({
+    params: () =>
+      z
+        .object({
+          id: z.string().max(40),
+          file: z.string().min(1).max(200),
+        })
+        .strict(),
+    result: () =>
+      z.object({
+        mime: z.string().optional(),
+        data: z.string().optional(),
+      }),
+    effect: false,
+    access: "human",
+  }),
+  /**
+   * What APX's catalog offers, each with what it brings and its page. Read from the catalog's kept copy unless it is
+   * older than a few minutes or `refresh`; each package's own manifest is read once and kept by its fingerprint.
+   */
+  "extensions.catalog": deferMethod({
+    params: () =>
+      z
+        .object({
+          refresh: z.boolean().optional(),
+        })
+        .strict(),
+    result: () =>
+      z.object({
+        entries: z.array(CatalogEntry),
+        catalog: z.enum(["unreachable", "needs_update"]).optional(),
+      }),
+    effect: false,
+    access: "human",
+  }),
+  "extensions.list": deferMethod({
+    params: () => z.object({}).strict(),
+    result: () =>
+      z.object({
+        extensions: z.array(ExtensionInfo),
+      }),
+    effect: false,
+    access: "human",
+  }),
+  /** Reads an extension (a folder, an .apxext file or an https URL) without writing or running anything. */
+  "extensions.inspect": deferMethod({
+    params: () =>
+      z
+        .object({
+          path: ExtensionSource.path(),
+          file: ExtensionSource.file(),
+          url: ExtensionSource.url(),
+        })
+        .strict()
+        .refine(oneSource, SOURCE_MESSAGE),
+    result: () => ExtensionInfo,
+    effect: false,
+    access: "human",
+  }),
+  /**
+   * Copies the extension into APX's home, off. Installing another version keeps the one before to go back to; it
+   * stays on only when official and asking for nothing more. `hash`: refuse unless the files are the ones inspected.
+   */
+  "extensions.install": deferMethod({
+    params: () =>
+      z
+        .object({
+          path: ExtensionSource.path(),
+          file: ExtensionSource.file(),
+          url: ExtensionSource.url(),
+          hash: z
+            .string()
+            .regex(/^[0-9a-f]{16}$/)
+            .optional(),
+        })
+        .strict()
+        .refine(oneSource, SOURCE_MESSAGE),
+    result: () => ExtensionInfo,
+    effect: true,
+    access: "human",
+  }),
+  /** Goes back to the version installed before this one (and forward again), each as it was approved. */
+  "extensions.rollback": deferMethod({
+    params: () =>
+      z
+        .object({
+          id: z.string().max(40),
+        })
+        .strict(),
+    result: () => ExtensionInfo,
+    effect: true,
+    access: "human",
+  }),
+  "extensions.enable": deferMethod({
+    params: () =>
+      z
+        .object({
+          id: z.string().max(40),
+          enabled: z.boolean(),
+        })
+        .strict(),
+    result: () => ExtensionInfo,
+    effect: true,
+    access: "human",
+  }),
+  "extensions.remove": deferMethod({
+    params: () =>
+      z
+        .object({
+          id: z.string().max(40),
+        })
+        .strict(),
+    result: () =>
+      z.object({
+        removed: z.boolean(),
+      }),
+    effect: true,
+    access: "human",
+  }),
+  /** Stores (or with null, deletes) one of the secrets an extension declares. */
+  /** Asks the extension's plugin for context on a sample text, as a turn would: what it adds, or why not. */
+  "extensions.test": deferMethod({
+    params: () =>
+      z
+        .object({
+          id: z.string().min(1).max(80),
+          text: z.string().trim().min(1).max(2000),
+        })
+        .strict(),
+    result: () =>
+      z.object({
+        ok: z.boolean(),
+        ms: z.number().int(),
+        context: z.string().optional(),
+        error: z.string().optional(),
+      }),
+    effect: false,
+    access: "human",
+  }),
+  "extensions.set_secret": deferMethod({
+    params: () =>
+      z
+        .object({
+          id: z.string().max(40),
+          name: z.string().max(40),
+          value: z.string().max(10000).nullable(),
+        })
+        .strict(),
+    result: () => ExtensionInfo,
+    effect: true,
+    access: "human",
+  }),
+};

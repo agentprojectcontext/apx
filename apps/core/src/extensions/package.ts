@@ -240,6 +240,9 @@ function powersOf(m: ExtensionManifest): ExtensionPower[] {
   return out;
 }
 
+/** The hosts its servers connect to. */
+export const hostsOf = (m: ExtensionManifest) => powersOf(m).flatMap((p) => (p.kind === "host" ? [p.name] : []));
+
 const key = (p: ExtensionPower) => `${p.kind}\0${p.name}\0${p.detail ?? ""}`;
 
 /**

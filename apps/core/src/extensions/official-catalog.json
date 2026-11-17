@@ -1,0 +1,2107 @@
+{
+  "schema": 1,
+  "registry": "apx-official",
+  "generated_at": "2026-11-17T20:28:41.763Z",
+  "publishers": [
+    {
+      "id": "apx",
+      "name": "APX",
+      "tier": "official",
+      "github": "agentprojectcontext",
+      "domains": ["agentprojectcontext.com"],
+      "homepage": "https://agentprojectcontext.com"
+    }
+  ],
+  "entries": [
+    {
+      "kind": "extension",
+      "id": "agentmail",
+      "publisher": "apx",
+      "name": "AgentMail",
+      "description": "Read messages in one selected AgentMail inbox without sending or changing mail.",
+      "categories": ["communication"],
+      "tags": ["optional"],
+      "license": "MIT",
+      "versions": [
+        {
+          "version": "1.0.0",
+          "source": {
+            "type": "archive",
+            "url": "https://agentprojectcontext.github.io/apx-marketplace/packages/agentmail/1.0.0/dfa64503993806e50f4a658e1c139d9cf64c0f789dbc6c3d9de39e3359f79de2.apxext"
+          },
+          "integrity": "sha256-dfa64503993806e50f4a658e1c139d9cf64c0f789dbc6c3d9de39e3359f79de2",
+          "archive": {
+            "url": "https://agentprojectcontext.github.io/apx-marketplace/packages/agentmail/1.0.0/dfa64503993806e50f4a658e1c139d9cf64c0f789dbc6c3d9de39e3359f79de2.apxext",
+            "sha256": "dfa64503993806e50f4a658e1c139d9cf64c0f789dbc6c3d9de39e3359f79de2"
+          },
+          "content_hash": "d6f332e0dc0e2325",
+          "apx": "2.16.0",
+          "published_at": "2026-11-17T09:55:15.000Z",
+          "card": {
+            "summary": "Read messages in one selected AgentMail inbox without sending or changing mail.",
+            "features": [
+              "Read bounded preview pages with explicit continuation",
+              "Read selected plain-text messages without loading HTML or attachments"
+            ],
+            "requirements": [
+              "Node.js 24",
+              "An inbox-scoped bearer key with only message_read permission",
+              "An exact inbox id and explicit us or eu region"
+            ],
+            "limits": [
+              "No inbox creation, sends, replies, drafts, labels, attachments or HTML",
+              "Spam, blocked, unauthenticated and trashed messages are excluded",
+              "Live account permissions, expiry and revocation remain unverified"
+            ],
+            "pricing": "AgentMail account plan, API quotas and regional availability apply; no account or usage is included.",
+            "privacy": "The chosen AgentMail region receives authenticated reads. Private mail enters agent context as untrusted data. Keys stay in APX's extension secret form.",
+            "schema": 1,
+            "id": "agentmail",
+            "authentication": "secret",
+            "billing": "account-plan",
+            "docs": "README.md",
+            "locales": {
+              "es": {
+                "summary": "Le\u00e9 mensajes de una casilla elegida de AgentMail sin enviarlos ni modificar el correo.",
+                "features": [
+                  "Leer p\u00e1ginas acotadas de vistas previas con continuaci\u00f3n expl\u00edcita",
+                  "Leer mensajes elegidos en texto plano sin cargar HTML ni adjuntos"
+                ],
+                "requirements": [
+                  "Node.js 24",
+                  "Una clave limitada a la casilla con el \u00fanico permiso message_read",
+                  "El id exacto de la casilla y la regi\u00f3n expl\u00edcita us o eu"
+                ],
+                "limits": [
+                  "Sin crear casillas, enviar, responder, redactar, etiquetar, adjuntar ni cargar HTML",
+                  "Se excluyen spam, bloqueados, no autenticados y papelera",
+                  "Cuenta real, permisos, vencimiento y revocaci\u00f3n sin verificar"
+                ],
+                "pricing": "Se aplican el plan, las cuotas de API y la disponibilidad regional de AgentMail; no se incluye cuenta ni consumo.",
+                "privacy": "La regi\u00f3n elegida de AgentMail recibe las lecturas autenticadas. El correo privado entra al contexto como datos no confiables. Las claves se guardan mediante el formulario de la extensi\u00f3n de APX."
+              }
+            }
+          }
+        }
+      ],
+      "tier": "official"
+    },
+    {
+      "kind": "extension",
+      "id": "android_tv",
+      "publisher": "apx",
+      "name": "Android TV",
+      "description": "Optional Android TV companion APK with scoped HTTPS pairing, accessibility remote controls and an agent skill. Development APK; protected screens and app-specific playback can require owner assistance.",
+      "categories": ["devices"],
+      "tags": ["optional", "android", "tv"],
+      "license": "MIT",
+      "versions": [
+        {
+          "version": "0.2.0",
+          "source": {
+            "type": "archive",
+            "url": "https://agentprojectcontext.github.io/apx-marketplace/packages/android_tv/0.2.0/490b23a6a844e9668a0a47037bbbddb112acdfd7c4e26e31189ec5f5705d4bc0.apxext"
+          },
+          "integrity": "sha256-490b23a6a844e9668a0a47037bbbddb112acdfd7c4e26e31189ec5f5705d4bc0",
+          "archive": {
+            "url": "https://agentprojectcontext.github.io/apx-marketplace/packages/android_tv/0.2.0/490b23a6a844e9668a0a47037bbbddb112acdfd7c4e26e31189ec5f5705d4bc0.apxext",
+            "sha256": "490b23a6a844e9668a0a47037bbbddb112acdfd7c4e26e31189ec5f5705d4bc0"
+          },
+          "content_hash": "0bb508db61c9f8ce",
+          "apx": "2.16.0",
+          "published_at": "2026-11-17T01:33:09.000Z"
+        }
+      ],
+      "tier": "official"
+    },
+    {
+      "kind": "extension",
+      "id": "apple-calendar",
+      "publisher": "apx",
+      "name": "Apple Calendar",
+      "description": "Inspect stored records in one local macOS calendar, without edits or recurrence expansion.",
+      "categories": ["productivity"],
+      "tags": ["optional"],
+      "license": "MIT",
+      "versions": [
+        {
+          "version": "1.0.1",
+          "source": {
+            "type": "archive",
+            "url": "https://agentprojectcontext.github.io/apx-marketplace/packages/apple-calendar/1.0.1/09d2beac4be06559844feec54632c188017710f191c569c4e333277b0c05c515.apxext"
+          },
+          "integrity": "sha256-09d2beac4be06559844feec54632c188017710f191c569c4e333277b0c05c515",
+          "archive": {
+            "url": "https://agentprojectcontext.github.io/apx-marketplace/packages/apple-calendar/1.0.1/09d2beac4be06559844feec54632c188017710f191c569c4e333277b0c05c515.apxext",
+            "sha256": "09d2beac4be06559844feec54632c188017710f191c569c4e333277b0c05c515"
+          },
+          "content_hash": "98c26d11ac030e23",
+          "apx": "2.16.0",
+          "published_at": "2026-11-17T09:55:15.000Z",
+          "card": {
+            "summary": "Inspect stored records in one local macOS calendar, without edits or recurrence expansion.",
+            "features": [
+              "Page stored event records overlapping an explicit UTC window of up to 31 days",
+              "Read selected event notes and location without fetching links or inviting anyone"
+            ],
+            "requirements": [
+              "macOS Calendar and Node 24 on the MCP execution host",
+              "Owner-reviewed Automation/privacy access for Calendar",
+              "Exact unique calendar name entered in the extension form"
+            ],
+            "limits": [
+              "No recurrence expansion: not a complete agenda, free/busy check or scheduling solution",
+              "At most 2000 stored event references in the selected calendar; no cloud API or writes",
+              "Successful authorized Calendar read and actual OS permission journey remain unverified"
+            ],
+            "pricing": "Uses the installed macOS app. No paid API, sync, AI or membership is invoked.",
+            "privacy": "Selected stored event metadata, notes and location can enter agent context. Calendar names/references are inspected to find a unique selection; other calendars' event fields are not read. The OS grant may exceed the adapter's calendar filter.",
+            "schema": 1,
+            "id": "apple-calendar",
+            "authentication": "local-permission",
+            "billing": "free",
+            "docs": "README.md",
+            "locales": {
+              "es": {
+                "summary": "Revis\u00e1 registros guardados de un calendario local de macOS, sin cambios ni expansi\u00f3n de recurrencias.",
+                "features": [
+                  "Recorrer registros que se superponen con un intervalo UTC expl\u00edcito de hasta 31 d\u00edas",
+                  "Leer notas y ubicaci\u00f3n del evento elegido, sin seguir enlaces ni invitar personas"
+                ],
+                "requirements": [
+                  "Calendario de macOS y Node 24 donde se ejecuta el MCP",
+                  "Acceso de automatizaci\u00f3n/privacidad para Calendario revisado por el due\u00f1o",
+                  "Nombre exacto y \u00fanico del calendario ingresado en la extensi\u00f3n"
+                ],
+                "limits": [
+                  "Sin expandir recurrencias: no es agenda completa ni comprueba disponibilidad",
+                  "Hasta 2000 referencias de eventos guardados del calendario elegido; sin API cloud ni cambios",
+                  "Sin verificar lectura autorizada real ni recorrido de permisos del sistema"
+                ],
+                "pricing": "Usa la app instalada de macOS. No invoca API paga, sincronizaci\u00f3n, AI ni membres\u00eda.",
+                "privacy": "Metadatos, notas y ubicaci\u00f3n elegidos pueden entrar al contexto. Se revisan nombres/referencias para elegir un calendario \u00fanico, sin leer campos de eventos de los otros. El permiso del sistema puede ser m\u00e1s amplio que este filtro."
+              }
+            }
+          }
+        }
+      ],
+      "tier": "official"
+    },
+    {
+      "kind": "extension",
+      "id": "apple-contacts",
+      "publisher": "apx",
+      "name": "Apple Contacts",
+      "description": "Read names and communication fields in one selected macOS Contacts group.",
+      "categories": ["productivity"],
+      "tags": ["optional"],
+      "license": "MIT",
+      "versions": [
+        {
+          "version": "1.0.1",
+          "source": {
+            "type": "archive",
+            "url": "https://agentprojectcontext.github.io/apx-marketplace/packages/apple-contacts/1.0.1/a0522e7c451635231ec18d6f65c9d73cfbaf9ab453954d0518e5e319e2bece20.apxext"
+          },
+          "integrity": "sha256-a0522e7c451635231ec18d6f65c9d73cfbaf9ab453954d0518e5e319e2bece20",
+          "archive": {
+            "url": "https://agentprojectcontext.github.io/apx-marketplace/packages/apple-contacts/1.0.1/a0522e7c451635231ec18d6f65c9d73cfbaf9ab453954d0518e5e319e2bece20.apxext",
+            "sha256": "a0522e7c451635231ec18d6f65c9d73cfbaf9ab453954d0518e5e319e2bece20"
+          },
+          "content_hash": "1759e34f7af09897",
+          "apx": "2.16.0",
+          "published_at": "2026-11-17T09:55:15.000Z",
+          "card": {
+            "summary": "Read names and communication fields in one selected macOS Contacts group.",
+            "features": [
+              "Page through names and IDs in a uniquely named selected group",
+              "Read email addresses and phones for a selected group member, without changes"
+            ],
+            "requirements": [
+              "macOS with Contacts and Node 24 on the MCP execution host",
+              "Owner-reviewed Automation/privacy permission for Contacts",
+              "Exact unique group name entered in the extension form"
+            ],
+            "limits": [
+              "Read-only subset: no address-book-wide search, edits, notes, photos, postal addresses or messaging",
+              "OS permissions may be broader than the adapter's group filter",
+              "No authorized live Contacts journey has been verified"
+            ],
+            "pricing": "Uses the installed macOS app; no paid API, subscription, sync or messaging is invoked.",
+            "privacy": "Names, emails and phones from selected members enter agent context as untrusted data. Group names/references are inspected to select a unique group; other groups' person fields are not read. A member can belong to multiple groups. OS access is not reduced to a group-scoped grant.",
+            "schema": 1,
+            "id": "apple-contacts",
+            "authentication": "local-permission",
+            "billing": "free",
+            "docs": "README.md",
+            "locales": {
+              "es": {
+                "summary": "Le\u00e9 nombres y datos de contacto de un grupo elegido de Contactos en macOS.",
+                "features": [
+                  "Recorrer nombres e IDs de un grupo elegido con nombre \u00fanico",
+                  "Leer correos y tel\u00e9fonos de un miembro del grupo, sin cambios"
+                ],
+                "requirements": [
+                  "macOS con Contactos y Node 24 donde se ejecuta el MCP",
+                  "Permiso de automatizaci\u00f3n/privacidad para Contactos revisado por el due\u00f1o",
+                  "Nombre exacto y \u00fanico del grupo ingresado en la extensi\u00f3n"
+                ],
+                "limits": [
+                  "S\u00f3lo lectura: sin b\u00fasqueda general, cambios, notas, fotos, direcciones postales ni mensajes",
+                  "El permiso del sistema puede ser m\u00e1s amplio que el filtro de grupo del adaptador",
+                  "Sin verificar el recorrido autorizado con Contactos real"
+                ],
+                "pricing": "Usa la app instalada de macOS; no invoca API paga, suscripci\u00f3n, sincronizaci\u00f3n ni mensajes.",
+                "privacy": "Nombres, correos y tel\u00e9fonos elegidos entran al contexto como datos no confiables. Se revisan nombres/referencias de grupos para elegir uno \u00fanico, sin leer campos personales de los otros. Un contacto puede estar en varios grupos. El permiso del sistema no se restringe a ese grupo."
+              }
+            }
+          }
+        }
+      ],
+      "tier": "official"
+    },
+    {
+      "kind": "extension",
+      "id": "apple-mail",
+      "publisher": "apx",
+      "name": "Apple Mail",
+      "description": "Read metadata and selected message text in one local macOS Mail account/mailbox.",
+      "categories": ["communication"],
+      "tags": ["optional"],
+      "license": "MIT",
+      "versions": [
+        {
+          "version": "1.0.0",
+          "source": {
+            "type": "archive",
+            "url": "https://agentprojectcontext.github.io/apx-marketplace/packages/apple-mail/1.0.0/ea796e0b23529fcca902feb6126b5e28b4a5fb3cb753ada3f4ea6846f616a23b.apxext"
+          },
+          "integrity": "sha256-ea796e0b23529fcca902feb6126b5e28b4a5fb3cb753ada3f4ea6846f616a23b",
+          "archive": {
+            "url": "https://agentprojectcontext.github.io/apx-marketplace/packages/apple-mail/1.0.0/ea796e0b23529fcca902feb6126b5e28b4a5fb3cb753ada3f4ea6846f616a23b.apxext",
+            "sha256": "ea796e0b23529fcca902feb6126b5e28b4a5fb3cb753ada3f4ea6846f616a23b"
+          },
+          "content_hash": "ddfbec65bc1ae87f",
+          "apx": "2.16.0",
+          "published_at": "2026-11-17T09:55:15.000Z",
+          "card": {
+            "summary": "Read metadata and selected message text in one local macOS Mail account/mailbox.",
+            "features": [
+              "Page selected mailbox metadata without reading message bodies",
+              "Read Mail-returned text for an observed local message id"
+            ],
+            "requirements": [
+              "macOS Mail and Node 24 on the MCP execution host",
+              "Owner-reviewed Automation/privacy grant for Mail",
+              "Exact unique account and mailbox names entered in the extension form"
+            ],
+            "limits": [
+              "No sends, replies, drafts, mutations, attachments, raw MIME/headers or mailbox search",
+              "Up to 2000 selected-mailbox references, 20/page; body reads reject metadata size over 1 MiB",
+              "Real authorized reads, OS permission/revocation, read-flag and background network behavior unverified"
+            ],
+            "pricing": "Uses the installed app and its existing account. Provider account terms apply; no paid API, AI or new subscription is invoked.",
+            "privacy": "Selected metadata and requested message text can enter agent context. Account/mailbox names are inspected to find scope; other mailboxes' message fields are not read. The OS grant may be broader; Mail may sync/fetch through its existing account. Read-flag behavior is unverified.",
+            "schema": 1,
+            "id": "apple-mail",
+            "authentication": "local-permission",
+            "billing": "free",
+            "docs": "README.md",
+            "locales": {
+              "es": {
+                "summary": "Le\u00e9 metadatos y texto de mensajes elegidos en una cuenta/casilla local de Mail de macOS.",
+                "features": [
+                  "Recorrer metadatos de la casilla elegida sin leer cuerpos",
+                  "Leer texto devuelto por Mail para un identificador local observado"
+                ],
+                "requirements": [
+                  "Mail de macOS y Node 24 donde se ejecuta el MCP",
+                  "Permiso de automatizaci\u00f3n/privacidad de Mail revisado por el due\u00f1o",
+                  "Nombres exactos y \u00fanicos de cuenta y casilla ingresados en la extensi\u00f3n"
+                ],
+                "limits": [
+                  "Sin env\u00edos, respuestas, borradores, cambios, adjuntos, MIME/cabeceras ni b\u00fasquedas de casillas",
+                  "Hasta 2000 referencias elegidas, 20 por p\u00e1gina; rechaza cuerpos cuyo tama\u00f1o informado supere 1 MiB",
+                  "Sin verificar lectura real, permisos/revocaci\u00f3n, marca de le\u00eddo ni red en segundo plano"
+                ],
+                "pricing": "Usa la app y cuenta existentes. Rigen condiciones del proveedor; no invoca API paga, AI ni suscripci\u00f3n nueva.",
+                "privacy": "Metadatos y texto pedidos pueden entrar al contexto. Revisa nombres de cuentas/casillas para elegir alcance, sin leer mensajes de otras. El permiso del sistema puede ser m\u00e1s amplio; Mail puede sincronizar/descargar con su cuenta. No se verific\u00f3 la marca de le\u00eddo."
+              }
+            }
+          }
+        }
+      ],
+      "tier": "official"
+    },
+    {
+      "kind": "extension",
+      "id": "apple-notes",
+      "publisher": "apx",
+      "name": "Apple Notes",
+      "description": "Read plain-text notes in one selected Apple Notes folder on the Mac running APX.",
+      "categories": ["productivity"],
+      "tags": ["optional"],
+      "license": "MIT",
+      "versions": [
+        {
+          "version": "1.0.1",
+          "source": {
+            "type": "archive",
+            "url": "https://agentprojectcontext.github.io/apx-marketplace/packages/apple-notes/1.0.1/2975dac31e4ca9bff44a22f2dcbb617290f7136f1ba0b134fe9342204098fb2e.apxext"
+          },
+          "integrity": "sha256-2975dac31e4ca9bff44a22f2dcbb617290f7136f1ba0b134fe9342204098fb2e",
+          "archive": {
+            "url": "https://agentprojectcontext.github.io/apx-marketplace/packages/apple-notes/1.0.1/2975dac31e4ca9bff44a22f2dcbb617290f7136f1ba0b134fe9342204098fb2e.apxext",
+            "sha256": "2975dac31e4ca9bff44a22f2dcbb617290f7136f1ba0b134fe9342204098fb2e"
+          },
+          "content_hash": "eca5bd75792e9ea0",
+          "apx": "2.16.0",
+          "published_at": "2026-11-17T09:55:15.000Z",
+          "card": {
+            "summary": "Read plain-text notes in one selected Apple Notes folder on the Mac running APX.",
+            "features": [
+              "Read bounded metadata pages in one configured account and folder",
+              "Read an observed note without HTML, attachments or password-protected content"
+            ],
+            "requirements": [
+              "Node.js 24 on macOS 14+ where the MCP process runs",
+              "Owner-granted Automation access to Notes",
+              "Exact account name and a unique folder name within that account"
+            ],
+            "limits": [
+              "Read-only; no edits, new notes, deletion, unlocking or full-account search",
+              "Up to 20 accounts, 256 folder references and 2000 note references in the selected folder",
+              "Authorized Notes reads, actual Automation permissions and Intel execution remain unverified"
+            ],
+            "pricing": "No connector charge; requires a compatible Mac and normal Apple account/service terms apply.",
+            "privacy": "Only the selected account's folder metadata and selected note data are read. The OS Automation grant is broader than this adapter; the process is not sandboxed. Private note content enters agent context as untrusted data.",
+            "schema": 1,
+            "id": "apple-notes",
+            "authentication": "local-permission",
+            "billing": "free",
+            "docs": "README.md",
+            "locales": {
+              "es": {
+                "summary": "Le\u00e9 notas en texto plano de una carpeta elegida en la Mac donde corre APX.",
+                "features": [
+                  "Consultar p\u00e1ginas acotadas de metadatos de una cuenta y carpeta configuradas",
+                  "Leer una nota observada sin HTML, adjuntos ni contenido protegido por contrase\u00f1a"
+                ],
+                "requirements": [
+                  "Node.js 24 en macOS 14+ donde se ejecuta el MCP",
+                  "Acceso de Automatizaci\u00f3n a Notes otorgado por el due\u00f1o",
+                  "Nombre exacto de la cuenta y carpeta con nombre \u00fanico dentro de esa cuenta"
+                ],
+                "limits": [
+                  "S\u00f3lo lectura; sin cambios, creaci\u00f3n, borrado, desbloqueo ni b\u00fasqueda en toda la cuenta",
+                  "Hasta 20 cuentas, 256 referencias a carpetas y 2000 referencias a notas en la carpeta elegida",
+                  "Lecturas autorizadas, permisos reales de Automatizaci\u00f3n y ejecuci\u00f3n Intel sin verificar"
+                ],
+                "pricing": "El conector no tiene cargo; requiere una Mac compatible y se aplican los t\u00e9rminos de Apple.",
+                "privacy": "Se consultan metadatos de carpetas de la cuenta elegida y notas de la carpeta seleccionada. El permiso del sistema es m\u00e1s amplio que el adaptador; el proceso no est\u00e1 aislado. El contenido privado entra al contexto como datos no confiables."
+              }
+            }
+          }
+        }
+      ],
+      "tier": "official"
+    },
+    {
+      "kind": "extension",
+      "id": "apple-reminders",
+      "publisher": "apx",
+      "name": "Apple Reminders",
+      "description": "Work with Apple Reminders through an existing local CLI, without a new background server.",
+      "categories": ["productivity"],
+      "tags": ["optional"],
+      "license": "MIT",
+      "versions": [
+        {
+          "version": "1.0.0",
+          "source": {
+            "type": "archive",
+            "url": "https://agentprojectcontext.github.io/apx-marketplace/packages/apple-reminders/1.0.0/48d06dac662d9fc76b370f4be760ef2462099896fcbecd04f6d511fe0cf08b8f.apxext"
+          },
+          "integrity": "sha256-48d06dac662d9fc76b370f4be760ef2462099896fcbecd04f6d511fe0cf08b8f",
+          "archive": {
+            "url": "https://agentprojectcontext.github.io/apx-marketplace/packages/apple-reminders/1.0.0/48d06dac662d9fc76b370f4be760ef2462099896fcbecd04f6d511fe0cf08b8f.apxext",
+            "sha256": "48d06dac662d9fc76b370f4be760ef2462099896fcbecd04f6d511fe0cf08b8f"
+          },
+          "content_hash": "f60a70a9292e3a35",
+          "apx": "2.16.0",
+          "published_at": "2026-11-17T09:55:15.000Z",
+          "card": {
+            "summary": "Work with Apple Reminders through an existing local CLI, without a new background server.",
+            "features": [
+              "Read selected lists, dates and searches with stable item ids",
+              "Prepare authorized task changes and check them afterward through the CLI"
+            ],
+            "requirements": [
+              "A macOS 14+ host where APX's shell actually runs",
+              "Owner-installed remindctl 0.3.9 on PATH",
+              "Owner-granted Reminders access and permission for APX's shell tool"
+            ],
+            "limits": [
+              "A skill, not a new MCP or mechanical per-list sandbox",
+              "No native tags, smart lists, sections, attachments or private Urgent toggle",
+              "Authorized reads, writes, sync, alarms and revocation remain unverified"
+            ],
+            "pricing": "No connector charge; a compatible Mac is required and normal Apple account/service terms apply.",
+            "privacy": "The CLI has the host's Reminders permission, which can cover all lists. Only requested list data should enter agent context; changes require explicit owner authorization.",
+            "schema": 1,
+            "id": "apple-reminders",
+            "authentication": "local-permission",
+            "billing": "free",
+            "docs": "README.md",
+            "locales": {
+              "es": {
+                "summary": "Us\u00e1 Recordatorios de Apple mediante una CLI local existente, sin otro servidor en segundo plano.",
+                "features": [
+                  "Consultar listas elegidas, fechas y b\u00fasquedas con ids estables",
+                  "Preparar cambios autorizados y comprobarlos despu\u00e9s mediante la CLI"
+                ],
+                "requirements": [
+                  "Un host macOS 14+ donde realmente se ejecuta el shell de APX",
+                  "remindctl 0.3.9 instalado por el due\u00f1o en el PATH",
+                  "Permiso de Recordatorios otorgado por el due\u00f1o y acceso al shell de APX"
+                ],
+                "limits": [
+                  "Es un skill, no un MCP nuevo ni un aislamiento mec\u00e1nico por lista",
+                  "Sin etiquetas nativas, listas inteligentes, secciones, adjuntos ni el modo Urgente privado",
+                  "Lecturas y cambios autorizados, sincronizaci\u00f3n, alarmas y revocaci\u00f3n sin verificar"
+                ],
+                "pricing": "El conector no tiene cargo; requiere una Mac compatible y se aplican los t\u00e9rminos de Apple.",
+                "privacy": "La CLI usa el permiso de Recordatorios del host, que puede abarcar todas las listas. S\u00f3lo los datos pedidos deber\u00edan entrar al contexto; los cambios requieren autorizaci\u00f3n expl\u00edcita del due\u00f1o."
+              }
+            }
+          }
+        }
+      ],
+      "tier": "official"
+    },
+    {
+      "kind": "extension",
+      "id": "arxiv",
+      "publisher": "apx",
+      "name": "arXiv",
+      "description": "Search public arXiv paper metadata and abstracts in small explicit pages.",
+      "categories": ["data"],
+      "tags": ["optional"],
+      "license": "MIT",
+      "versions": [
+        {
+          "version": "1.0.0",
+          "source": {
+            "type": "archive",
+            "url": "https://agentprojectcontext.github.io/apx-marketplace/packages/arxiv/1.0.0/b540f49ac28903bad61466624054ed31ca7a3bf4561aed12fd50722c9fb93c7e.apxext"
+          },
+          "integrity": "sha256-b540f49ac28903bad61466624054ed31ca7a3bf4561aed12fd50722c9fb93c7e",
+          "archive": {
+            "url": "https://agentprojectcontext.github.io/apx-marketplace/packages/arxiv/1.0.0/b540f49ac28903bad61466624054ed31ca7a3bf4561aed12fd50722c9fb93c7e.apxext",
+            "sha256": "b540f49ac28903bad61466624054ed31ca7a3bf4561aed12fd50722c9fb93c7e"
+          },
+          "content_hash": "50d0d2c69eacc277",
+          "apx": "2.16.0",
+          "published_at": "2026-11-17T09:55:15.000Z",
+          "card": {
+            "summary": "Search public arXiv paper metadata and abstracts in small explicit pages.",
+            "features": [
+              "Search titles, authors, abstracts and categories with canonical paper links",
+              "Choose sort/order and explicit pages of 1\u20135 results, offsets through 500"
+            ],
+            "requirements": [
+              "Node24 and HTTPS access to the public arXiv API on the MCP host",
+              "Observe arXiv API terms, attribution, data/paper licenses and other clients' combined request rate"
+            ],
+            "limits": [
+              "One in-flight request per process; at least 3 seconds after completion before another, no automatic retry or paging",
+              "No PDF/full-text fetch, uploads, scraping, credentials or arbitrary URL access",
+              "Strict bounded Atom XML subset; incompatible/malformed/oversized feeds fail rather than silently omit results"
+            ],
+            "pricing": "Public arXiv API, no paid account or credits bundled. Service terms/availability/rate limits apply; no support or completeness guarantee.",
+            "privacy": "Search query/offset/sort go to arXiv. Selected public paper metadata and abstracts enter chat and may be retained by APX; this package writes no local result cache. Avoid private text. Paper/data rights are not this package's MIT license.",
+            "schema": 1,
+            "id": "arxiv",
+            "authentication": "none",
+            "billing": "free",
+            "docs": "README.md",
+            "locales": {
+              "es": {
+                "summary": "Busc\u00e1 metadatos p\u00fablicos y res\u00famenes de art\u00edculos de arXiv en p\u00e1ginas chicas.",
+                "features": [
+                  "Buscar t\u00edtulos, autores, res\u00famenes y categor\u00edas con enlaces can\u00f3nicos",
+                  "Elegir orden y p\u00e1ginas expl\u00edcitas de 1\u20135 resultados, offsets hasta 500"
+                ],
+                "requirements": [
+                  "Node24 y acceso HTTPS a la API p\u00fablica de arXiv desde el host MCP",
+                  "Cumplir t\u00e9rminos, atribuci\u00f3n, licencias de datos/art\u00edculos y tasa combinada con otros clientes"
+                ],
+                "limits": [
+                  "Una petici\u00f3n simult\u00e1nea por proceso; m\u00ednimo 3 segundos tras finalizar antes de otra, sin reintentos/paginaci\u00f3n autom\u00e1tica",
+                  "Sin PDF/texto completo, subir, scraping, credenciales o URL arbitraria",
+                  "Subconjunto Atom XML estricto y acotado; feeds incompatibles/err\u00f3neos/grandes fallan sin omitir resultados en silencio"
+                ],
+                "pricing": "API p\u00fablica arXiv, sin cuenta paga/cr\u00e9ditos incluidos. Rigen t\u00e9rminos/disponibilidad/l\u00edmites; no garantiza soporte o completitud.",
+                "privacy": "Consulta/offset/orden van a arXiv. Metadatos y res\u00famenes p\u00fablicos elegidos entran al chat y APX puede conservarlos; paquete sin cach\u00e9 local. Evit\u00e1 texto privado. Derechos de datos/art\u00edculos no equivalen a licencia MIT del paquete."
+              }
+            }
+          }
+        }
+      ],
+      "tier": "official"
+    },
+    {
+      "kind": "extension",
+      "id": "box",
+      "publisher": "apx",
+      "name": "Box",
+      "description": "Work with selected Box files and folders using an existing official CLI connection.",
+      "categories": ["productivity"],
+      "tags": ["optional"],
+      "license": "MIT",
+      "versions": [
+        {
+          "version": "1.0.0",
+          "source": {
+            "type": "archive",
+            "url": "https://agentprojectcontext.github.io/apx-marketplace/packages/box/1.0.0/ee3163ea80a77ed05f4c43d4ce26d2cd0685ecca7bea4809ac9fe2e104502aec.apxext"
+          },
+          "integrity": "sha256-ee3163ea80a77ed05f4c43d4ce26d2cd0685ecca7bea4809ac9fe2e104502aec",
+          "archive": {
+            "url": "https://agentprojectcontext.github.io/apx-marketplace/packages/box/1.0.0/ee3163ea80a77ed05f4c43d4ce26d2cd0685ecca7bea4809ac9fe2e104502aec.apxext",
+            "sha256": "ee3163ea80a77ed05f4c43d4ce26d2cd0685ecca7bea4809ac9fe2e104502aec"
+          },
+          "content_hash": "6e8e6e4b692d3e4e",
+          "apx": "2.16.0",
+          "published_at": "2026-11-17T09:55:15.000Z",
+          "card": {
+            "summary": "Work with selected Box files and folders using an existing official CLI connection.",
+            "features": [
+              "Check the connected actor and read bounded file/folder previews",
+              "Guide selected downloads, folder creation, file renaming and uploads with authorization and read-back"
+            ],
+            "requirements": [
+              "Official @box/cli 4.10.1 installed separately on the shell execution host",
+              "Existing user OAuth connection managed by the CLI",
+              "Agent access to APX shell"
+            ],
+            "limits": [
+              "Skill only: no new MCP tools or native connected account",
+              "No deletion, sharing, permissions, AI, Hubs, enterprise administration or full upstream parity",
+              "No account-connected journey or effective revocation has been live-tested"
+            ],
+            "pricing": "Box account terms, storage, API limits and administrator policy apply. No account, storage or usage is included; the CLI is a separate Apache-2.0 dependency.",
+            "privacy": "The CLI sends authenticated operations to Box and manages OAuth credentials outside APX. Requested metadata and file content can enter agent context. Folder selection and authorization rules are procedural, not a sandbox.",
+            "schema": 1,
+            "id": "box",
+            "authentication": "oauth",
+            "billing": "account-plan",
+            "docs": "README.md",
+            "locales": {
+              "es": {
+                "summary": "Trabaj\u00e1 con archivos y carpetas elegidos de Box mediante una conexi\u00f3n existente de su CLI oficial.",
+                "features": [
+                  "Comprobar la cuenta y leer vistas previas acotadas de archivos y carpetas",
+                  "Guiar descargas, creaci\u00f3n de carpetas, renombres y cargas con autorizaci\u00f3n y comprobaci\u00f3n posterior"
+                ],
+                "requirements": [
+                  "@box/cli oficial 4.10.1 instalada aparte donde se ejecuta el shell",
+                  "Conexi\u00f3n OAuth de usuario existente, administrada por la CLI",
+                  "Acceso del agente al shell de APX"
+                ],
+                "limits": [
+                  "S\u00f3lo skill: sin herramientas MCP nuevas ni cuenta nativa conectada",
+                  "Sin borrado, uso compartido, permisos, AI, Hubs, administraci\u00f3n empresarial ni paridad completa",
+                  "Sin verificar el recorrido conectado ni la revocaci\u00f3n efectiva con una cuenta real"
+                ],
+                "pricing": "Rigen las condiciones de cuenta, almacenamiento, l\u00edmites de API y pol\u00edticas de Box. No incluye cuenta ni consumo; la CLI es una dependencia Apache-2.0 separada.",
+                "privacy": "La CLI env\u00eda operaciones autenticadas a Box y administra OAuth fuera de APX. Los metadatos y archivos pedidos pueden entrar al contexto. Elegir una carpeta y autorizar acciones son pautas, no un aislamiento t\u00e9cnico."
+              }
+            }
+          }
+        }
+      ],
+      "tier": "official"
+    },
+    {
+      "kind": "extension",
+      "id": "browser-use",
+      "publisher": "apx",
+      "name": "Browser Use",
+      "description": "Read one existing Browser Use V4 run status in your explicitly selected US/EU workload region.",
+      "categories": ["dev"],
+      "tags": ["optional"],
+      "license": "MIT",
+      "versions": [
+        {
+          "version": "1.0.0",
+          "source": {
+            "type": "archive",
+            "url": "https://agentprojectcontext.github.io/apx-marketplace/packages/browser-use/1.0.0/e4110adf7d14e98c29345151b26dc20b4f1df2b83368771e9cc37cdd0053136d.apxext"
+          },
+          "integrity": "sha256-e4110adf7d14e98c29345151b26dc20b4f1df2b83368771e9cc37cdd0053136d",
+          "archive": {
+            "url": "https://agentprojectcontext.github.io/apx-marketplace/packages/browser-use/1.0.0/e4110adf7d14e98c29345151b26dc20b4f1df2b83368771e9cc37cdd0053136d.apxext",
+            "sha256": "e4110adf7d14e98c29345151b26dc20b4f1df2b83368771e9cc37cdd0053136d"
+          },
+          "content_hash": "1c9f43f22135da4b",
+          "apx": "2.16.0",
+          "published_at": "2026-11-17T11:00:54.000Z",
+          "card": {
+            "summary": "Read one existing Browser Use V4 run status in your explicitly selected US/EU workload region.",
+            "features": [
+              "One on-demand status read for an observed existing run UUID",
+              "Explicit regional host/key, no fallback, positive status-only projection"
+            ],
+            "requirements": [
+              "Node24 and HTTPS from MCP host",
+              "Existing Browser Use regional project API key and observed V4 run UUID; privately set workload_region to us or eu"
+            ],
+            "limits": [
+              "No run creation/cancellation, auto polling, results/events/files/shares/profiles/browser/CDP or billing operations",
+              "Completed is not task success, page availability, outcome verification or full upstream parity",
+              "Existing V4 runs only in the selected region; resources in another region are not discovered or migrated",
+              "Disabling/removing or cancelling a local read does not stop remote work or ongoing charges"
+            ],
+            "pricing": "Vendor plan/usage/quotas apply. Read starts no run/browser. Existing remote work and idle browsers may continue to incur charges after local cancellation/disabling/removal. Manage them in the selected vendor region.",
+            "privacy": "The selected run id, region and status can remain in chat. Provide the regional API key privately. No page content, task results, files or cookies are requested. Shared account, billing and some audit records can reach the US even for EU runs; see regional policies.",
+            "schema": 1,
+            "id": "browser-use",
+            "authentication": "secret",
+            "billing": "usage",
+            "docs": "README.md",
+            "locales": {
+              "es": {
+                "summary": "Consult\u00e1 el estado de una ejecuci\u00f3n Browser Use V4 existente en tu regi\u00f3n de trabajo US/EU elegida expl\u00edcitamente.",
+                "features": [
+                  "Una lectura a pedido para el UUID observado de una ejecuci\u00f3n existente",
+                  "Host/clave regional expl\u00edcitos, sin fallback y con proyecci\u00f3n s\u00f3lo de estado"
+                ],
+                "requirements": [
+                  "Node24 y HTTPS desde host MCP",
+                  "API key de proyecto regional Browser Use existente y UUID V4 observado; configurar workload_region como us o eu en privado"
+                ],
+                "limits": [
+                  "Sin crear/cancelar ejecuciones, polling autom\u00e1tico, resultados/eventos/archivos/enlaces/perfiles/browser/CDP ni facturaci\u00f3n",
+                  "Completed no prueba \u00e9xito, p\u00e1gina disponible, resultado verificado ni paridad upstream completa",
+                  "S\u00f3lo ejecuciones V4 existentes en la regi\u00f3n elegida; no descubre ni migra recursos de otra regi\u00f3n",
+                  "Desactivar/eliminar o cancelar lectura local no detiene trabajo remoto ni cargos en curso"
+                ],
+                "pricing": "Aplican plan/uso/cuotas del proveedor. Leer no inicia ejecuci\u00f3n/browser. Trabajo remoto y browsers inactivos pueden seguir facturando al cancelar/desactivar/eliminar localmente. Administralos en regi\u00f3n del proveedor elegida.",
+                "privacy": "Id de ejecuci\u00f3n, regi\u00f3n y estado pueden quedar en chat. Carg\u00e1 la API key regional en privado. No pide contenido de p\u00e1ginas, resultados, archivos ni cookies. Cuenta, facturaci\u00f3n y parte de auditor\u00eda pueden llegar a US incluso en ejecuciones EU; revis\u00e1 pol\u00edticas regionales."
+              }
+            }
+          }
+        }
+      ],
+      "tier": "official"
+    },
+    {
+      "kind": "extension",
+      "id": "browserbase",
+      "publisher": "apx",
+      "name": "Browserbase",
+      "description": "Read selected status metadata for one existing Browserbase session in your configured project.",
+      "categories": ["dev"],
+      "tags": ["optional"],
+      "license": "MIT",
+      "versions": [
+        {
+          "version": "1.0.0",
+          "source": {
+            "type": "archive",
+            "url": "https://agentprojectcontext.github.io/apx-marketplace/packages/browserbase/1.0.0/78d72827a86527d82cc369dd6a066a9b90e642d0d4fed868c93beaaf8f2fcf67.apxext"
+          },
+          "integrity": "sha256-78d72827a86527d82cc369dd6a066a9b90e642d0d4fed868c93beaaf8f2fcf67",
+          "archive": {
+            "url": "https://agentprojectcontext.github.io/apx-marketplace/packages/browserbase/1.0.0/78d72827a86527d82cc369dd6a066a9b90e642d0d4fed868c93beaaf8f2fcf67.apxext",
+            "sha256": "78d72827a86527d82cc369dd6a066a9b90e642d0d4fed868c93beaaf8f2fcf67"
+          },
+          "content_hash": "d1e5c43361e3c915",
+          "apx": "2.16.0",
+          "published_at": "2026-11-17T09:55:15.000Z",
+          "card": {
+            "summary": "Read selected status metadata for one existing Browserbase session in your configured project.",
+            "features": [
+              "Check session status, timestamps, region, keep-alive flag and safe-integer proxy-byte observations",
+              "Reject different session/project and exclude connection secrets, labels and arbitrary metadata"
+            ],
+            "requirements": [
+              "Node24 and HTTPS access to api.browserbase.com on MCP host",
+              "Browserbase account/plan, API key with least available authority, exact project id and observed/provided session id"
+            ],
+            "limits": [
+              "No session list/create/update/release, browser/CDP control, page checks, cookies, recordings or context access",
+              "Project filter checks the response, not the authority of an account-wide API key",
+              "Status metadata is not page availability, a billing statement or full upstream browser parity",
+              "No automatic retry/paging/polling; disabling does not end sessions or their ongoing charges"
+            ],
+            "pricing": "Browserbase plan/session/proxy usage charges and quotas apply. No session or paid plan is created by this read. Existing sessions may keep accruing costs after disabling/removing this extension; manage them in Browserbase.",
+            "privacy": "API connection secrets enter MCP transiently; URLs/signingKey/contextId/userMetadata/labels excluded before output. Key/project stay private; selected status/id may remain in APX chat. No raw logs/cache. See README for scope and billing.",
+            "schema": 1,
+            "id": "browserbase",
+            "authentication": "secret",
+            "billing": "account-plan",
+            "docs": "README.md",
+            "locales": {
+              "es": {
+                "summary": "Consult\u00e1 metadatos de estado de una sesi\u00f3n Browserbase existente en tu proyecto configurado.",
+                "features": [
+                  "Leer estado, fechas, regi\u00f3n, keep-alive y observaciones de bytes proxy como enteros seguros",
+                  "Rechazar sesi\u00f3n/proyecto distintos y excluir secretos de conexi\u00f3n, etiquetas y metadatos libres"
+                ],
+                "requirements": [
+                  "Node24 y HTTPS a api.browserbase.com en host MCP",
+                  "Cuenta/plan Browserbase, API key de m\u00ednima autoridad disponible, project id exacto y session id observado/provisto"
+                ],
+                "limits": [
+                  "Sin listar/crear/cambiar/liberar sesiones, control browser/CDP, p\u00e1ginas, cookies, grabaciones o contextos",
+                  "Filtro de proyecto comprueba respuesta, no reduce autoridad de una API key de cuenta",
+                  "Estado no prueba disponibilidad de p\u00e1gina, facturaci\u00f3n ni paridad browser upstream",
+                  "Sin reintento/p\u00e1ginas/polling autom\u00e1ticos; desactivar no termina sesiones ni sus cargos"
+                ],
+                "pricing": "Rigen plan/uso de sesiones/proxy/cuotas Browserbase. Lectura no crea sesi\u00f3n ni plan pago. Sesiones existentes pueden seguir facturando al desactivar/eliminar; administralas en Browserbase.",
+                "privacy": "Respuesta API puede traer URLs/keys de conexi\u00f3n transitoriamente al proceso MCP. Proyecci\u00f3n positiva descarta esas claves, contextId/userMetadata/labels antes de salida. API key/proyecto en secretos privados; estado e id consultado pueden quedar en chat APX. Sin logs crudos ni cach\u00e9 local."
+              }
+            }
+          }
+        }
+      ],
+      "tier": "official"
+    },
+    {
+      "kind": "extension",
+      "id": "canvas-lms",
+      "publisher": "apx",
+      "name": "Canvas LMS",
+      "description": "See your Canvas courses, assignments and due dates without changing school data.",
+      "categories": ["productivity"],
+      "tags": ["optional"],
+      "license": "MIT",
+      "versions": [
+        {
+          "version": "1.0.1",
+          "source": {
+            "type": "archive",
+            "url": "https://agentprojectcontext.github.io/apx-marketplace/packages/canvas-lms/1.0.1/6a492c8734a8e2eabc8294cb6a0556b1ec2eddc6a45882abd9e8851fe312fa72.apxext"
+          },
+          "integrity": "sha256-6a492c8734a8e2eabc8294cb6a0556b1ec2eddc6a45882abd9e8851fe312fa72",
+          "archive": {
+            "url": "https://agentprojectcontext.github.io/apx-marketplace/packages/canvas-lms/1.0.1/6a492c8734a8e2eabc8294cb6a0556b1ec2eddc6a45882abd9e8851fe312fa72.apxext",
+            "sha256": "6a492c8734a8e2eabc8294cb6a0556b1ec2eddc6a45882abd9e8851fe312fa72"
+          },
+          "content_hash": "4dedb83dce516a52",
+          "apx": "2.16.0",
+          "published_at": "2026-11-17T09:55:15.000Z",
+          "card": {
+            "summary": "See your Canvas courses, assignments and due dates without changing school data.",
+            "features": ["List active courses, one page at a time", "Read assignment names, due dates and points"],
+            "requirements": [
+              "A school account on a subdomain of instructure.com",
+              "A personal Canvas access token",
+              "Node.js 24 or newer"
+            ],
+            "limits": [
+              "Read-only: no submissions, grading or course edits",
+              "Custom domains and self-hosted schools are unsupported",
+              "Live institutional access has not been verified"
+            ],
+            "pricing": "Requires your existing school account; school access policies apply.",
+            "privacy": "Your school receives authenticated course queries. Returned text may enter agent context. The access token is never intended for model context.",
+            "schema": 1,
+            "id": "canvas-lms",
+            "authentication": "secret",
+            "billing": "account-plan",
+            "docs": "README.md",
+            "locales": {
+              "es": {
+                "summary": "Consult\u00e1 tus cursos, tareas y fechas de entrega de Canvas sin modificar datos de la instituci\u00f3n.",
+                "features": [
+                  "Listar cursos activos, de a una p\u00e1gina",
+                  "Ver nombres, fechas de entrega y puntajes de las tareas"
+                ],
+                "requirements": [
+                  "Una cuenta institucional en un subdominio de instructure.com",
+                  "Un token personal de Canvas",
+                  "Node.js 24 o posterior"
+                ],
+                "limits": [
+                  "Solo lectura: sin entregas, calificaciones ni cambios de cursos",
+                  "Sin soporte para dominios personalizados ni instalaciones propias",
+                  "Todav\u00eda no se verific\u00f3 acceso a una instituci\u00f3n real"
+                ],
+                "pricing": "Necesit\u00e1s tu cuenta institucional; se aplican las pol\u00edticas de acceso de la instituci\u00f3n.",
+                "privacy": "Tu instituci\u00f3n recibe las consultas autenticadas. El texto devuelto puede entrar al contexto del agente. El token no est\u00e1 destinado al contexto del modelo."
+              }
+            }
+          }
+        }
+      ],
+      "tier": "official"
+    },
+    {
+      "kind": "extension",
+      "id": "docker",
+      "publisher": "apx",
+      "name": "Docker",
+      "description": "Inspect fixed state and health metadata for one selected Docker container.",
+      "categories": ["dev"],
+      "tags": ["optional"],
+      "license": "MIT",
+      "versions": [
+        {
+          "version": "1.0.0",
+          "source": {
+            "type": "archive",
+            "url": "https://agentprojectcontext.github.io/apx-marketplace/packages/docker/1.0.0/b8918dccb475eef1b21bdf7cd27cfa07e1c4d857f00ae38cc76a9ee030deb1c9.apxext"
+          },
+          "integrity": "sha256-b8918dccb475eef1b21bdf7cd27cfa07e1c4d857f00ae38cc76a9ee030deb1c9",
+          "archive": {
+            "url": "https://agentprojectcontext.github.io/apx-marketplace/packages/docker/1.0.0/b8918dccb475eef1b21bdf7cd27cfa07e1c4d857f00ae38cc76a9ee030deb1c9.apxext",
+            "sha256": "b8918dccb475eef1b21bdf7cd27cfa07e1c4d857f00ae38cc76a9ee030deb1c9"
+          },
+          "content_hash": "ffc4a49c8361f853",
+          "apx": "2.16.0",
+          "published_at": "2026-11-17T09:55:15.000Z",
+          "card": {
+            "summary": "Inspect fixed state and health metadata for one selected Docker container.",
+            "features": ["Read selected container state, timestamps, exit code and configured health status"],
+            "requirements": [
+              "Node 24 and owner-installed trusted Docker CLI on the macOS/Linux MCP host",
+              "Existing owner-reviewed Docker context and exact full 64-character container id",
+              "Permission to access that context's daemon; no runtime or credentials bundled"
+            ],
+            "limits": [
+              "No discovery, logs, environment, commands, builds, lifecycle changes or raw socket proxy",
+              "Daemon/context authority is broader than this adapter's one-container read",
+              "Real Docker CLI/daemon/context permissions, metadata and revocation unverified; Windows unsupported"
+            ],
+            "pricing": "Docker Desktop licensing, chosen daemon/cloud account and hosting terms apply. No subscription, image pull, build or paid infrastructure operation included.",
+            "privacy": "Only fixed state/health metadata enters context, never raw inspect output, environment, mounts, labels, health logs or registry data. Docker CLI/context may hold broader local or remote credentials outside APX's vault.",
+            "schema": 1,
+            "id": "docker",
+            "authentication": "local-permission",
+            "billing": "account-plan",
+            "docs": "README.md",
+            "locales": {
+              "es": {
+                "summary": "Revis\u00e1 estado y salud de un contenedor elegido de Docker.",
+                "features": ["Leer estado, fechas, c\u00f3digo de salida y estado del chequeo de salud elegido"],
+                "requirements": [
+                  "Node 24 y CLI Docker confiable instalado por el due\u00f1o en el host MCP macOS/Linux",
+                  "Contexto Docker existente revisado e ID completo exacto de 64 caracteres",
+                  "Permiso al daemon de ese contexto; no incluye runtime ni credenciales"
+                ],
+                "limits": [
+                  "Sin descubrir, logs, entorno, comandos, builds, cambios de ciclo ni proxy de socket",
+                  "Autoridad del daemon/contexto mayor que esta lectura de un contenedor",
+                  "Sin verificar CLI/daemon/permisos/datos/revocaci\u00f3n reales; Windows no soportado"
+                ],
+                "pricing": "Rigen licencias Desktop y cuenta/alojamiento del daemon elegido. Sin suscripci\u00f3n, pull, build u operaci\u00f3n paga de infraestructura incluida.",
+                "privacy": "S\u00f3lo metadatos fijos de estado/salud entran al contexto; nunca inspect crudo, entorno, mounts, labels, logs de salud o registro. CLI/contexto puede guardar credenciales locales/remotas amplias fuera del vault APX."
+              }
+            }
+          }
+        }
+      ],
+      "tier": "official"
+    },
+    {
+      "kind": "extension",
+      "id": "evm",
+      "publisher": "apx",
+      "name": "Ethereum public reads",
+      "description": "Read Ethereum mainnet height and finalized native ETH balance with a chain-ID check and exact decimal strings.",
+      "categories": ["finance"],
+      "tags": ["optional"],
+      "license": "MIT",
+      "versions": [
+        {
+          "version": "1.0.0",
+          "source": {
+            "type": "archive",
+            "url": "https://agentprojectcontext.github.io/apx-marketplace/packages/evm/1.0.0/0fecf7b3c719f1196e647dd673d3a8f7d34a2f9d9d7cbe64ceabe6f700fd5b26.apxext"
+          },
+          "integrity": "sha256-0fecf7b3c719f1196e647dd673d3a8f7d34a2f9d9d7cbe64ceabe6f700fd5b26",
+          "archive": {
+            "url": "https://agentprojectcontext.github.io/apx-marketplace/packages/evm/1.0.0/0fecf7b3c719f1196e647dd673d3a8f7d34a2f9d9d7cbe64ceabe6f700fd5b26.apxext",
+            "sha256": "0fecf7b3c719f1196e647dd673d3a8f7d34a2f9d9d7cbe64ceabe6f700fd5b26"
+          },
+          "content_hash": "5c6cafababc32b29",
+          "apx": "2.16.0",
+          "published_at": "2026-11-17T09:55:15.000Z",
+          "card": {
+            "summary": "Read Ethereum mainnet height and finalized native ETH balance with a chain-ID check and exact decimal strings.",
+            "features": [
+              "Check provider-reported Ethereum chain ID before latest block-height or balance read",
+              "Read finalized native wei/ETH for one provided public hex address without floats"
+            ],
+            "requirements": [
+              "Node24 on MCP host and HTTPS access to fixed PublicNode Ethereum RPC",
+              "Observe PublicNode terms/privacy/quotas and independently check address/provider before financial decisions"
+            ],
+            "limits": [
+              "Ethereum mainnet only, no other EVM networks, wallets, keys, signing, transfers, contracts, tokens/NFTs or address discovery",
+              "Address hex/length only; EIP-55 checksum, ownership, spendability and independent chain consensus not verified",
+              "One call at a time plus 1 second after completion, no automatic retries, polling, paging or fallback",
+              "Strict uint256 canonical hex and JSON-RPC envelope; unsupported data fails rather than round or invent zero"
+            ],
+            "pricing": "Anonymous PublicNode endpoint; no paid account, archive access, credit or transaction fee initiated by these reads. Terms, quotas, restrictions and availability apply; no production SLA.",
+            "privacy": "PublicNode sees requested address when supplied, methods/network/IP; public addresses may identify people. Queries/results may remain in APX chat. Package reads no wallet/profile/credential store and writes no result cache; provider privacy marketing is not a guarantee.",
+            "schema": 1,
+            "id": "evm",
+            "authentication": "none",
+            "billing": "free",
+            "docs": "README.md",
+            "locales": {
+              "es": {
+                "summary": "Consult\u00e1 altura Ethereum mainnet y saldo ETH nativo finalizado con control de chain ID y strings decimales exactos.",
+                "features": [
+                  "Comprobar chain ID Ethereum informado por proveedor antes de leer altura o saldo",
+                  "Consultar wei/ETH nativo finalizado de una direcci\u00f3n hex provista sin floats"
+                ],
+                "requirements": [
+                  "Node24 en host MCP y HTTPS al RPC Ethereum PublicNode fijo",
+                  "Cumplir t\u00e9rminos/privacidad/cuotas y comprobar direcci\u00f3n/proveedor antes de decisiones financieras"
+                ],
+                "limits": [
+                  "S\u00f3lo Ethereum mainnet, sin otras redes EVM, wallets, claves, firmar, transferir, contratos, tokens/NFTs o descubrir direcciones",
+                  "S\u00f3lo formato/longitud hex; sin verificar checksum EIP-55, titularidad, fondos disponibles ni consenso independiente",
+                  "Una llamada simult\u00e1nea m\u00e1s 1 segundo tras finalizar, sin reintentos/polling/p\u00e1ginas/fallback autom\u00e1ticos",
+                  "Hex uint256 can\u00f3nico y envelope JSON-RPC estrictos; datos no soportados fallan sin redondear o inventar cero"
+                ],
+                "pricing": "Endpoint an\u00f3nimo PublicNode; sin cuenta paga/archive/cr\u00e9ditos/coste transacci\u00f3n iniciado por estas lecturas. Rigen t\u00e9rminos/cuotas/restricciones/disponibilidad, sin SLA producci\u00f3n.",
+                "privacy": "PublicNode ve direcci\u00f3n si se consulta, m\u00e9todos/red/IP; direcciones p\u00fablicas pueden identificar personas. Consultas/resultados pueden quedar en chat APX. Sin leer wallets/perfiles/credenciales ni cach\u00e9 propio; marketing de privacidad no es garant\u00eda."
+              }
+            }
+          }
+        }
+      ],
+      "tier": "official"
+    },
+    {
+      "kind": "extension",
+      "id": "exa",
+      "publisher": "apx",
+      "name": "Exa",
+      "description": "Find web results and read selected page contents using Exa.",
+      "categories": ["data"],
+      "tags": ["optional"],
+      "license": "MIT",
+      "versions": [
+        {
+          "version": "1.0.1",
+          "source": {
+            "type": "archive",
+            "url": "https://agentprojectcontext.github.io/apx-marketplace/packages/exa/1.0.1/cde701ea3a2b9baef1f77f3fbfc27499d70b00f90476b07f412376d2bb5445d6.apxext"
+          },
+          "integrity": "sha256-cde701ea3a2b9baef1f77f3fbfc27499d70b00f90476b07f412376d2bb5445d6",
+          "archive": {
+            "url": "https://agentprojectcontext.github.io/apx-marketplace/packages/exa/1.0.1/cde701ea3a2b9baef1f77f3fbfc27499d70b00f90476b07f412376d2bb5445d6.apxext",
+            "sha256": "cde701ea3a2b9baef1f77f3fbfc27499d70b00f90476b07f412376d2bb5445d6"
+          },
+          "content_hash": "e6524fd5b690b90d",
+          "apx": "2.16.0",
+          "published_at": "2026-11-17T09:55:15.000Z",
+          "card": {
+            "summary": "Find web results and read selected page contents using Exa.",
+            "features": ["Search for relevant pages", "Retrieve bounded content from selected URLs"],
+            "requirements": ["An Exa API key", "Node.js 24 or newer"],
+            "limits": [
+              "Only search and contents; no autonomous research jobs",
+              "Provider quotas and availability apply",
+              "Live paid-account access has not been verified"
+            ],
+            "pricing": "Exa usage and your current account plan apply; service credits are not included.",
+            "privacy": "Exa receives queries and selected URLs. Returned website content is untrusted and may enter agent context.",
+            "schema": 1,
+            "id": "exa",
+            "authentication": "secret",
+            "billing": "usage",
+            "docs": "README.md",
+            "locales": {
+              "es": {
+                "summary": "Encontr\u00e1 p\u00e1ginas y consult\u00e1 su contenido con Exa.",
+                "features": ["Buscar p\u00e1ginas relevantes", "Obtener contenido acotado de las direcciones elegidas"],
+                "requirements": ["Una clave API de Exa", "Node.js 24 o posterior"],
+                "limits": [
+                  "Solo b\u00fasqueda y contenido; sin investigaciones aut\u00f3nomas",
+                  "Se aplican las cuotas y disponibilidad del proveedor",
+                  "Todav\u00eda no se verific\u00f3 acceso con una cuenta paga real"
+                ],
+                "pricing": "Se aplican el uso y el plan de tu cuenta de Exa; no se incluyen cr\u00e9ditos del servicio.",
+                "privacy": "Exa recibe las consultas y direcciones elegidas. El contenido web devuelto no es confiable y puede entrar al contexto del agente."
+              }
+            }
+          }
+        }
+      ],
+      "tier": "official"
+    },
+    {
+      "kind": "extension",
+      "id": "firecrawl",
+      "publisher": "apx",
+      "name": "Firecrawl",
+      "description": "Search the web and turn a selected page into readable text with Firecrawl.",
+      "categories": ["data"],
+      "tags": ["optional"],
+      "license": "MIT",
+      "versions": [
+        {
+          "version": "1.0.1",
+          "source": {
+            "type": "archive",
+            "url": "https://agentprojectcontext.github.io/apx-marketplace/packages/firecrawl/1.0.1/c253c95b1a7abfda444d488e23a9829141a49d1de6c511fdd91998b5d2fb7411.apxext"
+          },
+          "integrity": "sha256-c253c95b1a7abfda444d488e23a9829141a49d1de6c511fdd91998b5d2fb7411",
+          "archive": {
+            "url": "https://agentprojectcontext.github.io/apx-marketplace/packages/firecrawl/1.0.1/c253c95b1a7abfda444d488e23a9829141a49d1de6c511fdd91998b5d2fb7411.apxext",
+            "sha256": "c253c95b1a7abfda444d488e23a9829141a49d1de6c511fdd91998b5d2fb7411"
+          },
+          "content_hash": "9ac919c3408c359b",
+          "apx": "2.16.0",
+          "published_at": "2026-11-17T09:55:15.000Z",
+          "card": {
+            "summary": "Search the web and turn a selected page into readable text with Firecrawl.",
+            "features": ["Search for public pages", "Scrape a selected page with bounded output"],
+            "requirements": ["A Firecrawl API key", "Node.js 24 or newer"],
+            "limits": [
+              "No crawling, browser actions, extraction jobs or self-hosted endpoints",
+              "Provider quotas and availability apply",
+              "Live paid-account access has not been verified"
+            ],
+            "pricing": "Firecrawl credits and your account plan apply; APX does not include service credits.",
+            "privacy": "Firecrawl receives queries and selected URLs. Returned website content is untrusted and may enter agent context.",
+            "schema": 1,
+            "id": "firecrawl",
+            "authentication": "secret",
+            "billing": "usage",
+            "docs": "README.md",
+            "locales": {
+              "es": {
+                "summary": "Busc\u00e1 en la web y convert\u00ed una p\u00e1gina elegida en texto legible con Firecrawl.",
+                "features": ["Buscar p\u00e1ginas p\u00fablicas", "Obtener texto acotado de una p\u00e1gina elegida"],
+                "requirements": ["Una clave API de Firecrawl", "Node.js 24 o posterior"],
+                "limits": [
+                  "Sin rastreo, acciones de navegador, trabajos de extracci\u00f3n ni servidores propios",
+                  "Se aplican las cuotas y disponibilidad del proveedor",
+                  "Todav\u00eda no se verific\u00f3 acceso con una cuenta paga real"
+                ],
+                "pricing": "Se aplican los cr\u00e9ditos y el plan de tu cuenta de Firecrawl; APX no incluye cr\u00e9ditos del servicio.",
+                "privacy": "Firecrawl recibe las consultas y direcciones elegidas. El contenido web devuelto no es confiable y puede entrar al contexto del agente."
+              }
+            }
+          }
+        }
+      ],
+      "tier": "official"
+    },
+    {
+      "kind": "extension",
+      "id": "hubspot",
+      "publisher": "apx",
+      "name": "HubSpot",
+      "description": "Review active contacts, companies, deals and notes in your own HubSpot account.",
+      "categories": ["productivity"],
+      "tags": ["optional"],
+      "license": "MIT",
+      "versions": [
+        {
+          "version": "1.0.1",
+          "source": {
+            "type": "archive",
+            "url": "https://agentprojectcontext.github.io/apx-marketplace/packages/hubspot/1.0.1/6eeaae1947f2087d407ee9e49fb5aa7bbd11384bdc376c0d3a47200659e7aa02.apxext"
+          },
+          "integrity": "sha256-6eeaae1947f2087d407ee9e49fb5aa7bbd11384bdc376c0d3a47200659e7aa02",
+          "archive": {
+            "url": "https://agentprojectcontext.github.io/apx-marketplace/packages/hubspot/1.0.1/6eeaae1947f2087d407ee9e49fb5aa7bbd11384bdc376c0d3a47200659e7aa02.apxext",
+            "sha256": "6eeaae1947f2087d407ee9e49fb5aa7bbd11384bdc376c0d3a47200659e7aa02"
+          },
+          "content_hash": "a92033ce81de562b",
+          "apx": "2.16.0",
+          "published_at": "2026-11-17T09:55:15.000Z",
+          "card": {
+            "summary": "Review active contacts, companies, deals and notes in your own HubSpot account.",
+            "features": [
+              "Read bounded CRM pages and selected records",
+              "Keep notes and business fields marked as untrusted data"
+            ],
+            "requirements": [
+              "Your own single-account static-auth app token",
+              "Read scopes and app administrator permissions",
+              "Node.js 24 or newer"
+            ],
+            "limits": [
+              "No writes, email delivery, attachments, archived or sensitive-property expansion",
+              "No hosted multi-account OAuth or automatic token renewal",
+              "New legacy private apps cannot be created; use current static auth. Live access and notes permissions remain unverified"
+            ],
+            "pricing": "Your HubSpot edition, API access, scopes and quotas apply; no subscription is included.",
+            "privacy": "HubSpot receives account queries. Selected private CRM fields and note bodies may enter agent context as untrusted data.",
+            "schema": 1,
+            "id": "hubspot",
+            "authentication": "secret",
+            "billing": "account-plan",
+            "docs": "README.md",
+            "locales": {
+              "es": {
+                "summary": "Consult\u00e1 contactos, empresas, negocios y notas activos de tu propia cuenta de HubSpot.",
+                "features": [
+                  "Leer p\u00e1ginas acotadas y registros elegidos del CRM",
+                  "Mantener notas y campos comerciales como datos no confiables"
+                ],
+                "requirements": [
+                  "Un token est\u00e1tico de tu app para una sola cuenta",
+                  "Permisos de lectura y administraci\u00f3n de apps",
+                  "Node.js 24 o posterior"
+                ],
+                "limits": [
+                  "Sin edici\u00f3n, env\u00edo de correo, adjuntos, datos archivados ni ampliaci\u00f3n de campos sensibles",
+                  "Sin servicio OAuth compartido ni renovaci\u00f3n autom\u00e1tica del token",
+                  "No se pueden crear apps privadas antiguas; us\u00e1 autenticaci\u00f3n est\u00e1tica actual. Acceso real y permisos de notas sin verificar"
+                ],
+                "pricing": "Se aplican la edici\u00f3n, el acceso a la API, los permisos y las cuotas de tu cuenta; no se incluye una suscripci\u00f3n.",
+                "privacy": "HubSpot recibe las consultas. Los campos privados y las notas elegidos pueden entrar al contexto del agente como datos no confiables."
+              }
+            }
+          }
+        }
+      ],
+      "tier": "official"
+    },
+    {
+      "kind": "extension",
+      "id": "paper",
+      "publisher": "apx",
+      "name": "Paper",
+      "description": "Work on selected design files through a separately connected local Paper MCP server.",
+      "categories": ["dev"],
+      "tags": ["optional"],
+      "license": "MIT",
+      "versions": [
+        {
+          "version": "1.0.0",
+          "source": {
+            "type": "archive",
+            "url": "https://agentprojectcontext.github.io/apx-marketplace/packages/paper/1.0.0/27ce62af58d37506eb59d5d82a95384db46d0eb6ebb4e87013c78aaac94f77a7.apxext"
+          },
+          "integrity": "sha256-27ce62af58d37506eb59d5d82a95384db46d0eb6ebb4e87013c78aaac94f77a7",
+          "archive": {
+            "url": "https://agentprojectcontext.github.io/apx-marketplace/packages/paper/1.0.0/27ce62af58d37506eb59d5d82a95384db46d0eb6ebb4e87013c78aaac94f77a7.apxext",
+            "sha256": "27ce62af58d37506eb59d5d82a95384db46d0eb6ebb4e87013c78aaac94f77a7"
+          },
+          "content_hash": "68f3dc0f687d6c60",
+          "apx": "2.16.0",
+          "published_at": "2026-11-17T09:55:15.000Z",
+          "card": {
+            "summary": "Work on selected design files through a separately connected local Paper MCP server.",
+            "features": [
+              "Guide bounded inspection of chosen artboards, styles, JSX and tokens",
+              "Apply explicitly authorized layout changes with target checks and read-back"
+            ],
+            "requirements": [
+              "Paper Desktop installed, opened and a file selected by the owner",
+              "Official local Paper CLI and separately owner-approved APX MCP connection on its execution host",
+              "Vendor account/plan and current server tool support"
+            ],
+            "limits": [
+              "Skill only: no bundled app, executable, MCP server, credential or account setup",
+              "Procedural scope, not a sandbox or read-only connection; external server may expose broader tools",
+              "No AI generation, publication, deletion or whole-file replacement workflow; actual app journey unverified"
+            ],
+            "pricing": "Paper account/plan and MCP usage limits apply; a connection, license and usage are not included. This workflow does not invoke paid image/AI generation.",
+            "privacy": "Requested design content can enter agent context. The local connection uses Paper's existing app/file/account; local stdio is not a no-cloud guarantee. Removing this skill leaves its separately configured MCP and app account in place.",
+            "schema": 1,
+            "id": "paper",
+            "authentication": "local-permission",
+            "billing": "account-plan",
+            "docs": "README.md",
+            "locales": {
+              "es": {
+                "summary": "Trabaj\u00e1 sobre dise\u00f1os elegidos mediante un servidor MCP local de Paper conectado aparte.",
+                "features": [
+                  "Guiar revisi\u00f3n acotada de mesas, estilos, JSX y tokens elegidos",
+                  "Aplicar cambios de dise\u00f1o autorizados con comprobaci\u00f3n del destino y lectura posterior"
+                ],
+                "requirements": [
+                  "Paper Desktop instalado, abierto y con archivo elegido por el due\u00f1o",
+                  "CLI local oficial de Paper y conexi\u00f3n MCP de APX aprobada aparte en su equipo de ejecuci\u00f3n",
+                  "Cuenta/plan del proveedor y herramientas vigentes compatibles"
+                ],
+                "limits": [
+                  "S\u00f3lo skill: no incluye app, ejecutable, servidor MCP, credenciales ni conexi\u00f3n de cuenta",
+                  "Alcance de procedimiento, no aislamiento ni conexi\u00f3n de s\u00f3lo lectura; el servidor puede ofrecer m\u00e1s herramientas",
+                  "Sin generaci\u00f3n AI, publicaci\u00f3n, borrado o reemplazo completo; recorrido real de app sin verificar"
+                ],
+                "pricing": "Rigen cuenta/plan y l\u00edmites MCP de Paper; no incluye conexi\u00f3n, licencia ni consumo. Este flujo no invoca generaci\u00f3n paga de im\u00e1genes/AI.",
+                "privacy": "El dise\u00f1o pedido puede entrar al contexto. La conexi\u00f3n local usa app/archivo/cuenta existentes; stdio no garantiza ausencia de cloud. Quitar la skill no elimina el MCP ni la cuenta configurados aparte."
+              }
+            }
+          }
+        }
+      ],
+      "tier": "official"
+    },
+    {
+      "kind": "extension",
+      "id": "parallel",
+      "publisher": "apx",
+      "name": "Parallel",
+      "description": "Search public web sources and extract page excerpts with your Parallel API account.",
+      "categories": ["data"],
+      "tags": ["optional"],
+      "license": "MIT",
+      "versions": [
+        {
+          "version": "1.0.0",
+          "source": {
+            "type": "archive",
+            "url": "https://agentprojectcontext.github.io/apx-marketplace/packages/parallel/1.0.0/ef6a1ec00bb06eca363eb5c72abc059ed30cba4af20d9229f5df628c75bcf6f5.apxext"
+          },
+          "integrity": "sha256-ef6a1ec00bb06eca363eb5c72abc059ed30cba4af20d9229f5df628c75bcf6f5",
+          "archive": {
+            "url": "https://agentprojectcontext.github.io/apx-marketplace/packages/parallel/1.0.0/ef6a1ec00bb06eca363eb5c72abc059ed30cba4af20d9229f5df628c75bcf6f5.apxext",
+            "sha256": "ef6a1ec00bb06eca363eb5c72abc059ed30cba4af20d9229f5df628c75bcf6f5"
+          },
+          "content_hash": "c22769d343f0a2ac",
+          "apx": "2.16.0",
+          "published_at": "2026-11-17T14:22:39.000Z",
+          "card": {
+            "summary": "Search public web sources and extract page excerpts with your Parallel API account.",
+            "features": [
+              "Ranked source titles, public links, publication dates when available and excerpts",
+              "Basic or advanced search with 1\u20133 queries; extract excerpts from 1\u20135 distinct public HTTPS URLs with explicit per-URL errors"
+            ],
+            "requirements": [
+              "Owner-managed Parallel API account with Search/Extract access and available credits",
+              "API key entered directly in the APX extension form; Node24 with network access"
+            ],
+            "limits": [
+              "Synchronous Search/Extract subset only; no Task/FindAll/Monitor, background research, generated answers or model backend",
+              "No full-content export, link crawl, private pages, browser cookies, arbitrary endpoints, EU region selection or automatic retries",
+              "Excerpts may be cached or truncated; account access, charges, quotas, key revocation and upstream result quality remain unverified"
+            ],
+            "pricing": "Parallel API usage charges apply, including remote extraction; advanced search may cost more. No credits, paid plan, top-up or unlimited usage is included or purchased.",
+            "privacy": "Queries, objectives and public URLs go to fixed Parallel endpoints; the key resolves only in the server header. Parallel may fetch/cache pages and track requests. Output is untrusted data. Do not submit secrets or private/signed links.",
+            "schema": 1,
+            "id": "parallel",
+            "authentication": "secret",
+            "billing": "usage",
+            "docs": "README.md",
+            "locales": {
+              "es": {
+                "summary": "Busc\u00e1 fuentes p\u00fablicas y extra\u00e9 fragmentos con tu cuenta API de Parallel.",
+                "features": [
+                  "T\u00edtulos, enlaces p\u00fablicos, fechas de publicaci\u00f3n disponibles y fragmentos ordenados",
+                  "B\u00fasqueda b\u00e1sica o avanzada con1\u20133 consultas; extracci\u00f3n de1\u20135 URLs HTTPS p\u00fablicas distintas con errores expl\u00edcitos por p\u00e1gina"
+                ],
+                "requirements": [
+                  "Cuenta API propia de Parallel con Search/Extract y cr\u00e9ditos disponibles",
+                  "Clave API ingresada directamente en la ficha APX; Node24 con red"
+                ],
+                "limits": [
+                  "S\u00f3lo Search/Extract s\u00edncronos; sin Task/FindAll/Monitor, investigaci\u00f3n en segundo plano, respuestas generadas ni proveedor de modelos",
+                  "Sin exportaci\u00f3n completa, rastreo de enlaces, p\u00e1ginas privadas, cookies, destino arbitrario, selecci\u00f3n regional UE ni reintentos autom\u00e1ticos",
+                  "Fragmentos posiblemente cacheados o recortados; cuenta, cobros, cuotas, revocaci\u00f3n y calidad del proveedor sin validar"
+                ],
+                "pricing": "La API de Parallel cobra por uso, incluida extracci\u00f3n remota; b\u00fasqueda avanzada puede costar m\u00e1s. No incluye ni compra cr\u00e9ditos, planes, recargas o uso ilimitado.",
+                "privacy": "Consultas, objetivos y URLs p\u00fablicas van a Parallel; la clave se resuelve s\u00f3lo en el encabezado del servidor. Parallel puede consultar/cachear p\u00e1ginas y seguir solicitudes. Salida no confiable. No mandar secretos ni links privados/firmados."
+              }
+            }
+          }
+        }
+      ],
+      "tier": "official"
+    },
+    {
+      "kind": "extension",
+      "id": "perplexity-search",
+      "publisher": "apx",
+      "name": "Perplexity Search",
+      "description": "Search public web sources with your Perplexity Search API account.",
+      "categories": ["data"],
+      "tags": ["optional"],
+      "license": "MIT",
+      "versions": [
+        {
+          "version": "1.0.0",
+          "source": {
+            "type": "archive",
+            "url": "https://agentprojectcontext.github.io/apx-marketplace/packages/perplexity-search/1.0.0/785d43abd0e51cdd7d0fa2e48998c10ecc34808f13795bb8b88141b4d636e84c.apxext"
+          },
+          "integrity": "sha256-785d43abd0e51cdd7d0fa2e48998c10ecc34808f13795bb8b88141b4d636e84c",
+          "archive": {
+            "url": "https://agentprojectcontext.github.io/apx-marketplace/packages/perplexity-search/1.0.0/785d43abd0e51cdd7d0fa2e48998c10ecc34808f13795bb8b88141b4d636e84c.apxext",
+            "sha256": "785d43abd0e51cdd7d0fa2e48998c10ecc34808f13795bb8b88141b4d636e84c"
+          },
+          "content_hash": "64f1249b87a61593",
+          "apx": "2.16.0",
+          "published_at": "2026-11-17T13:19:45.000Z",
+          "card": {
+            "summary": "Search public web sources with your Perplexity Search API account.",
+            "features": [
+              "Ranked titles, public source links, snippets and available publication/update dates",
+              "Web or fast search, up to 10 results, country/language and recency/date filters"
+            ],
+            "requirements": [
+              "Owner-managed Perplexity API account, enabled Search access and credits",
+              "API key entered directly in the APX extension form"
+            ],
+            "limits": [
+              "Search only, not a model provider, generated answer, people search or private account session",
+              "No full-page fetch, bulk queries, automatic pagination or exhaustive index coverage",
+              "Live API account, quotas, filters and key revocation remain unverified"
+            ],
+            "pricing": "Perplexity Search API usage is billed separately. A Perplexity web subscription does not include API credits. No plan, credit purchase or top-up is performed.",
+            "privacy": "Your query and filters go to Perplexity's fixed Search endpoint using an API key resolved in the server. Search excerpts/links enter agent context as untrusted data. No web login, cookies or external link fetches.",
+            "schema": 1,
+            "id": "perplexity-search",
+            "authentication": "secret",
+            "billing": "usage",
+            "docs": "README.md",
+            "locales": {
+              "es": {
+                "summary": "Busc\u00e1 fuentes p\u00fablicas con tu cuenta de API Perplexity Search.",
+                "features": [
+                  "T\u00edtulos ordenados, enlaces p\u00fablicos, extractos y fechas de publicaci\u00f3n/actualizaci\u00f3n disponibles",
+                  "B\u00fasqueda web o fast, hasta 10 resultados y filtros de pa\u00eds, idioma, antig\u00fcedad o fechas"
+                ],
+                "requirements": [
+                  "Cuenta API propia con acceso Search y cr\u00e9ditos",
+                  "Clave ingresada directamente en la ficha de la extensi\u00f3n APX"
+                ],
+                "limits": [
+                  "S\u00f3lo b\u00fasqueda: no proveedor de modelos, respuestas generadas, b\u00fasqueda de personas ni sesi\u00f3n privada",
+                  "Sin leer p\u00e1ginas completas, lotes, paginaci\u00f3n autom\u00e1tica ni cobertura exhaustiva",
+                  "Cuenta API, cuotas, filtros y revocaci\u00f3n de clave reales sin verificar"
+                ],
+                "pricing": "La API Perplexity Search se factura aparte. Una suscripci\u00f3n web no incluye cr\u00e9ditos de API. No contrata planes, compra cr\u00e9ditos ni recarga saldo.",
+                "privacy": "Tu consulta y filtros van al endpoint fijo de Search con una clave resuelta en el servidor. Extractos/enlaces entran al contexto como datos no confiables. Sin login web, cookies ni descarga de enlaces."
+              }
+            }
+          }
+        }
+      ],
+      "tier": "official"
+    },
+    {
+      "kind": "extension",
+      "id": "posthog",
+      "publisher": "apx",
+      "name": "PostHog",
+      "description": "Read a selected dashboard or flag definition in one pinned PostHog project.",
+      "categories": ["dev"],
+      "tags": ["optional"],
+      "license": "MIT",
+      "versions": [
+        {
+          "version": "1.0.0",
+          "source": {
+            "type": "archive",
+            "url": "https://agentprojectcontext.github.io/apx-marketplace/packages/posthog/1.0.0/a53033475a006e5e31ccfd647c5ea4b949012bcc90d91b97ba7aab205ef03953.apxext"
+          },
+          "integrity": "sha256-a53033475a006e5e31ccfd647c5ea4b949012bcc90d91b97ba7aab205ef03953",
+          "archive": {
+            "url": "https://agentprojectcontext.github.io/apx-marketplace/packages/posthog/1.0.0/a53033475a006e5e31ccfd647c5ea4b949012bcc90d91b97ba7aab205ef03953.apxext",
+            "sha256": "a53033475a006e5e31ccfd647c5ea4b949012bcc90d91b97ba7aab205ef03953"
+          },
+          "content_hash": "413b04f61bd30180",
+          "apx": "2.16.0",
+          "published_at": "2026-11-17T09:55:15.000Z",
+          "card": {
+            "summary": "Read a selected dashboard or flag definition in one pinned PostHog project.",
+            "features": ["Read one observed dashboard id", "Read one observed feature flag definition"],
+            "requirements": [
+              "PostHog account, project id and personal API key scoped to that project",
+              "Owner reviews key permissions and enters both fields only in the extension form",
+              "Access to the official hosted PostHog MCP"
+            ],
+            "limits": [
+              "Two named read tools only; no list, writes, SQL, context switching or AI tools",
+              "Filtering and project pinning rely on the provider's documented server enforcement",
+              "Authenticated tools, project isolation, EU routing and revocation remain unverified"
+            ],
+            "pricing": "MCP connection is documented as free; underlying PostHog usage, plan and quotas apply. No service credits or paid AI operations are included.",
+            "privacy": "PostHog receives the requested ids and project-scoped credential. Selected dashboard/flag content may enter agent context. The server routes by the account's region; filtering does not narrow the key's own authority elsewhere.",
+            "schema": 1,
+            "id": "posthog",
+            "authentication": "secret",
+            "billing": "usage",
+            "docs": "README.md",
+            "locales": {
+              "es": {
+                "summary": "Le\u00e9 un dashboard o definici\u00f3n de flag elegidos en un \u00fanico proyecto de PostHog.",
+                "features": [
+                  "Leer un dashboard por identificador observado",
+                  "Leer una definici\u00f3n de flag observada"
+                ],
+                "requirements": [
+                  "Cuenta PostHog, ID de proyecto y clave API personal limitada a ese proyecto",
+                  "El due\u00f1o revisa permisos e ingresa ambos campos s\u00f3lo en el formulario de la extensi\u00f3n",
+                  "Acceso al MCP oficial alojado por PostHog"
+                ],
+                "limits": [
+                  "S\u00f3lo dos lecturas por nombre; sin listados, cambios, SQL, cambio de contexto ni herramientas AI",
+                  "Filtrado y proyecto fijado dependen de la aplicaci\u00f3n documentada del proveedor",
+                  "Sin verificar herramientas autenticadas, aislamiento, regi\u00f3n EU ni revocaci\u00f3n"
+                ],
+                "pricing": "La conexi\u00f3n MCP est\u00e1 documentada como gratuita; rigen consumo, plan y cuotas de PostHog. No incluye cr\u00e9ditos ni operaciones AI pagas.",
+                "privacy": "PostHog recibe IDs pedidos y credencial acotada al proyecto. Datos elegidos pueden entrar al contexto. El servidor elige regi\u00f3n seg\u00fan cuenta; el filtro no reduce la autoridad propia de la clave en otros usos."
+              }
+            }
+          }
+        }
+      ],
+      "tier": "official"
+    },
+    {
+      "kind": "extension",
+      "id": "render",
+      "publisher": "apx",
+      "name": "Render",
+      "description": "Inspect service metadata and deployment status for one selected Render service.",
+      "categories": ["dev"],
+      "tags": ["optional"],
+      "license": "MIT",
+      "versions": [
+        {
+          "version": "1.0.0",
+          "source": {
+            "type": "archive",
+            "url": "https://agentprojectcontext.github.io/apx-marketplace/packages/render/1.0.0/fd4007b44fdf62d9f22b23135734c1b64ca5b28a92f95b94cea7a3b3b3084ab4.apxext"
+          },
+          "integrity": "sha256-fd4007b44fdf62d9f22b23135734c1b64ca5b28a92f95b94cea7a3b3b3084ab4",
+          "archive": {
+            "url": "https://agentprojectcontext.github.io/apx-marketplace/packages/render/1.0.0/fd4007b44fdf62d9f22b23135734c1b64ca5b28a92f95b94cea7a3b3b3084ab4.apxext",
+            "sha256": "fd4007b44fdf62d9f22b23135734c1b64ca5b28a92f95b94cea7a3b3b3084ab4"
+          },
+          "content_hash": "e052e827ec1d5097",
+          "apx": "2.16.0",
+          "published_at": "2026-11-17T09:55:15.000Z",
+          "card": {
+            "summary": "Inspect service metadata and deployment status for one selected Render service.",
+            "features": [
+              "Read fixed service metadata without secrets or environment variables",
+              "Page deployment status and timestamps, up to 20 records per request"
+            ],
+            "requirements": [
+              "Render account, API key and exact srv- service id",
+              "Node 24 on the MCP execution host",
+              "Owner reviews key permissions; standard API keys can reach all their workspaces"
+            ],
+            "limits": [
+              "No deploy/restart/rollback, logs, environment variables, credentials, workspace discovery or changes",
+              "Service selection is enforced by the adapter, not a narrow provider credential grant",
+              "Authorized Render calls, current provider errors/quotas and effective revocation unverified"
+            ],
+            "pricing": "Render hosting/account terms and API quotas apply. No new resources, paid deploy or infrastructure operation is invoked; APX includes no hosting credits.",
+            "privacy": "The configured service and selected deploy metadata enter agent context. Full provider responses are bounded but only fixed fields returned; commit messages, image/registry fields and environment/secret endpoints are excluded.",
+            "schema": 1,
+            "id": "render",
+            "authentication": "secret",
+            "billing": "account-plan",
+            "docs": "README.md",
+            "locales": {
+              "es": {
+                "summary": "Revis\u00e1 metadatos y estado de despliegues de un servicio elegido de Render.",
+                "features": [
+                  "Leer campos fijos del servicio sin secretos ni variables de entorno",
+                  "Recorrer estados y fechas de despliegues, hasta 20 por pedido"
+                ],
+                "requirements": [
+                  "Cuenta Render, clave API e ID exacto de servicio srv-",
+                  "Node 24 donde se ejecuta el MCP",
+                  "El due\u00f1o revisa permisos; claves API comunes alcanzan todos sus espacios"
+                ],
+                "limits": [
+                  "Sin desplegar/reiniciar/rollback, logs, variables, credenciales, descubrir espacios ni cambios",
+                  "Selecci\u00f3n de servicio aplicada por el adaptador, no por un permiso acotado de la credencial",
+                  "Sin verificar llamadas autorizadas, errores/cuotas actuales ni revocaci\u00f3n efectiva"
+                ],
+                "pricing": "Rigen alojamiento/cuenta y cuotas API de Render. No crea recursos ni invoca despliegues u operaciones pagas de infraestructura; sin cr\u00e9ditos incluidos.",
+                "privacy": "Servicio elegido y metadatos de despliegues entran al contexto. Respuestas acotadas con campos fijos; excluye mensajes de commits, im\u00e1genes/registro y endpoints de entorno/secretos."
+              }
+            }
+          }
+        }
+      ],
+      "tier": "official"
+    },
+    {
+      "kind": "extension",
+      "id": "resend",
+      "publisher": "apx",
+      "name": "Resend",
+      "description": "Read selected domain status and delivery metadata for one observed sent email.",
+      "categories": ["communication"],
+      "tags": ["optional"],
+      "license": "MIT",
+      "versions": [
+        {
+          "version": "1.0.0",
+          "source": {
+            "type": "archive",
+            "url": "https://agentprojectcontext.github.io/apx-marketplace/packages/resend/1.0.0/9ead781097203979a0dc637c9f81e70903c1de51c9b1effac9892ec3d5359d3a.apxext"
+          },
+          "integrity": "sha256-9ead781097203979a0dc637c9f81e70903c1de51c9b1effac9892ec3d5359d3a",
+          "archive": {
+            "url": "https://agentprojectcontext.github.io/apx-marketplace/packages/resend/1.0.0/9ead781097203979a0dc637c9f81e70903c1de51c9b1effac9892ec3d5359d3a.apxext",
+            "sha256": "9ead781097203979a0dc637c9f81e70903c1de51c9b1effac9892ec3d5359d3a"
+          },
+          "content_hash": "667c33b46b3aebe0",
+          "apx": "2.16.0",
+          "published_at": "2026-11-17T09:55:15.000Z",
+          "card": {
+            "summary": "Read selected domain status and delivery metadata for one observed sent email.",
+            "features": [
+              "Inspect fixed domain/tracking/DNS status metadata, without record values",
+              "Inspect one observed sent-email id's timestamps and last delivery event"
+            ],
+            "requirements": [
+              "Resend account and API key permitted to read the chosen resources",
+              "Exact domain id in extension form; email ids must be provided or previously observed",
+              "Node 24 on the MCP host; owner reviews broader key permissions"
+            ],
+            "limits": [
+              "No sending, verification triggers, changes, discovery, message body/subject/recipient output",
+              "Domain selection applies only to domain tool, not email reads or credential authority",
+              "Authorized provider calls, current permissions/quotas and effective revocation remain unverified"
+            ],
+            "pricing": "Resend account plan and API quotas apply; no sending operation or credits included. No paid action is deliberately invoked by these reads.",
+            "privacy": "Resend receives selected ids. Its retrieve-email response includes message content processed transiently by the handler; only id/timestamps/last_event enter context. Domain record values and other private fields are not returned.",
+            "schema": 1,
+            "id": "resend",
+            "authentication": "secret",
+            "billing": "account-plan",
+            "docs": "README.md",
+            "locales": {
+              "es": {
+                "summary": "Le\u00e9 estado de un dominio elegido y metadatos de entrega de un email observado.",
+                "features": [
+                  "Revisar metadatos de dominio/tracking/estado DNS, sin valores de registros",
+                  "Revisar fechas y \u00faltimo evento de un email enviado por ID observado"
+                ],
+                "requirements": [
+                  "Cuenta Resend y clave API autorizada para leer recursos elegidos",
+                  "ID exacto de dominio en formulario; emails por ID provisto u observado",
+                  "Node 24 donde corre el MCP; el due\u00f1o revisa permisos m\u00e1s amplios de la clave"
+                ],
+                "limits": [
+                  "Sin enviar, disparar verificaci\u00f3n, cambios, descubrimiento ni cuerpo/asunto/destinatarios en salida",
+                  "Dominio elegido s\u00f3lo limita su herramienta, no emails ni autoridad de la credencial",
+                  "Sin verificar llamadas autorizadas, permisos/cuotas actuales ni revocaci\u00f3n efectiva"
+                ],
+                "pricing": "Rigen plan y cuotas API de Resend; sin env\u00edos ni cr\u00e9ditos incluidos. Estas lecturas no invocan deliberadamente acciones pagas.",
+                "privacy": "Resend recibe IDs. La respuesta de email incluye contenido procesado transitoriamente en el handler; s\u00f3lo ID/fechas/\u00faltimo evento entran al contexto. No devuelve valores DNS ni otros campos privados."
+              }
+            }
+          }
+        }
+      ],
+      "tier": "official"
+    },
+    {
+      "kind": "extension",
+      "id": "salesforce",
+      "publisher": "apx",
+      "name": "Salesforce",
+      "description": "Review accounts, contacts and opportunities in one authorized Salesforce CLI org.",
+      "categories": ["productivity"],
+      "tags": ["optional"],
+      "license": "MIT",
+      "versions": [
+        {
+          "version": "1.0.1",
+          "source": {
+            "type": "archive",
+            "url": "https://agentprojectcontext.github.io/apx-marketplace/packages/salesforce/1.0.1/e7408513a77799c5c0960ff3a3d8e2f1964c3d97c32323321b87e4dc0ceca5bd.apxext"
+          },
+          "integrity": "sha256-e7408513a77799c5c0960ff3a3d8e2f1964c3d97c32323321b87e4dc0ceca5bd",
+          "archive": {
+            "url": "https://agentprojectcontext.github.io/apx-marketplace/packages/salesforce/1.0.1/e7408513a77799c5c0960ff3a3d8e2f1964c3d97c32323321b87e4dc0ceca5bd.apxext",
+            "sha256": "e7408513a77799c5c0960ff3a3d8e2f1964c3d97c32323321b87e4dc0ceca5bd"
+          },
+          "content_hash": "309454be1aac909b",
+          "apx": "2.16.0",
+          "published_at": "2026-11-17T09:55:15.000Z",
+          "card": {
+            "summary": "Review accounts, contacts and opportunities in one authorized Salesforce CLI org.",
+            "features": [
+              "Read bounded record pages with optional exact-name filtering",
+              "Inspect selected records without arbitrary SOQL or mutations"
+            ],
+            "requirements": [
+              "Node.js 24 and a supported sf CLI on APX's PATH",
+              "macOS or Linux; native Windows is not implemented",
+              "One explicitly authorized CLI org alias and a dedicated API/read-permission user"
+            ],
+            "limits": [
+              "No writes, deployment, email, custom/sensitive fields or attachments",
+              "Sequential reads only; external CLI sessions are not synchronized",
+              "Live account queries, Linux and OAuth token lifecycle remain unverified"
+            ],
+            "pricing": "Your Salesforce edition, API access, account permissions and quotas apply; no subscription is included.",
+            "privacy": "The official CLI retains its OAuth credentials. Salesforce receives queries and selected private records enter agent context as untrusted data.",
+            "schema": 1,
+            "id": "salesforce",
+            "authentication": "oauth",
+            "billing": "account-plan",
+            "docs": "README.md",
+            "locales": {
+              "es": {
+                "summary": "Consult\u00e1 cuentas, contactos y oportunidades de una organizaci\u00f3n autorizada en Salesforce CLI.",
+                "features": [
+                  "Leer p\u00e1ginas acotadas con filtro opcional de nombre exacto",
+                  "Consultar registros elegidos sin SOQL libre ni modificaciones"
+                ],
+                "requirements": [
+                  "Node.js 24 y una CLI sf compatible en el PATH de APX",
+                  "macOS o Linux; Windows nativo no est\u00e1 implementado",
+                  "Un alias autorizado expresamente y un usuario dedicado con permisos de API y lectura"
+                ],
+                "limits": [
+                  "Sin edici\u00f3n, despliegues, correo, campos personalizados/sensibles ni adjuntos",
+                  "Lecturas secuenciales; no sincroniza otras sesiones de la CLI",
+                  "Cuenta real, Linux y ciclo de tokens OAuth sin verificar"
+                ],
+                "pricing": "Se aplican la edici\u00f3n, el acceso a la API, los permisos y las cuotas de tu cuenta; no se incluye una suscripci\u00f3n.",
+                "privacy": "La CLI oficial conserva sus credenciales OAuth. Salesforce recibe las consultas y los registros privados elegidos entran al contexto como datos no confiables."
+              }
+            }
+          }
+        }
+      ],
+      "tier": "official"
+    },
+    {
+      "kind": "extension",
+      "id": "siyuan",
+      "publisher": "apx",
+      "name": "SiYuan",
+      "description": "Read selected SiYuan blocks from a local kernel without SQL, discovery or edits.",
+      "categories": ["productivity"],
+      "tags": ["optional"],
+      "license": "MIT",
+      "versions": [
+        {
+          "version": "1.0.0",
+          "source": {
+            "type": "archive",
+            "url": "https://agentprojectcontext.github.io/apx-marketplace/packages/siyuan/1.0.0/6ec492c0af74d633f7632355e8c8c8aadcdaa6a3022e6a16c3e98035d6a9b767.apxext"
+          },
+          "integrity": "sha256-6ec492c0af74d633f7632355e8c8c8aadcdaa6a3022e6a16c3e98035d6a9b767",
+          "archive": {
+            "url": "https://agentprojectcontext.github.io/apx-marketplace/packages/siyuan/1.0.0/6ec492c0af74d633f7632355e8c8c8aadcdaa6a3022e6a16c3e98035d6a9b767.apxext",
+            "sha256": "6ec492c0af74d633f7632355e8c8c8aadcdaa6a3022e6a16c3e98035d6a9b767"
+          },
+          "content_hash": "4a43108175913875",
+          "apx": "2.16.0",
+          "published_at": "2026-11-17T09:55:15.000Z",
+          "card": {
+            "summary": "Read selected SiYuan blocks from a local kernel without SQL, discovery or edits.",
+            "features": [
+              "List the exact block IDs configured by the owner",
+              "Read bounded Kramdown for those IDs only, without following links or embeds"
+            ],
+            "requirements": [
+              "SiYuan kernel deliberately available at 127.0.0.1:6806 on the MCP execution host",
+              "API token and 1\u201320 selected block IDs entered in the extension's secret form",
+              "Node 24 on the execution host"
+            ],
+            "limits": [
+              "Initial read-only subset, not full notebook search or upstream parity",
+              "No remote kernel, custom port, SQL, files, exports, writes or automatic notebook unlocking",
+              "No real SiYuan workspace or live token journey has been tested"
+            ],
+            "pricing": "Local reads do not invoke paid cloud, sync or AI services. SiYuan installation, optional subscriptions and hosting are separate.",
+            "privacy": "Only selected IDs are accepted by these tools, but the kernel token may have broad workspace permissions. Kramdown can contain child content and private references. Loopback HTTP does not attest kernel identity. Requested content enters agent context as untrusted data.",
+            "schema": 1,
+            "id": "siyuan",
+            "authentication": "secret",
+            "billing": "free",
+            "docs": "README.md",
+            "locales": {
+              "es": {
+                "summary": "Le\u00e9 bloques elegidos de SiYuan desde un kernel local, sin SQL, descubrimiento ni cambios.",
+                "features": [
+                  "Listar los IDs exactos configurados por el due\u00f1o",
+                  "Leer Kramdown acotado s\u00f3lo de esos IDs, sin seguir enlaces ni contenido incrustado"
+                ],
+                "requirements": [
+                  "Kernel de SiYuan habilitado deliberadamente en 127.0.0.1:6806 donde se ejecuta el MCP",
+                  "Token de API y entre 1 y 20 IDs elegidos ingresados en el formulario de secretos de la extensi\u00f3n",
+                  "Node 24 en el equipo de ejecuci\u00f3n"
+                ],
+                "limits": [
+                  "Subconjunto inicial de lectura, sin b\u00fasqueda general ni paridad completa",
+                  "Sin kernel remoto, puerto propio, SQL, archivos, exportaci\u00f3n, cambios ni desbloqueo autom\u00e1tico",
+                  "Sin verificar un espacio real de SiYuan ni el recorrido con token real"
+                ],
+                "pricing": "Las lecturas locales no invocan nube, sincronizaci\u00f3n ni AI pagas. La instalaci\u00f3n, suscripciones opcionales y alojamiento de SiYuan son aparte.",
+                "privacy": "Estas herramientas s\u00f3lo aceptan IDs elegidos, pero el token puede tener permisos amplios sobre el espacio. Kramdown puede incluir contenido hijo y referencias privadas. HTTP local no certifica la identidad del kernel. Los datos pedidos entran al contexto como contenido no confiable."
+              }
+            }
+          }
+        }
+      ],
+      "tier": "official"
+    },
+    {
+      "kind": "extension",
+      "id": "solana",
+      "publisher": "apx",
+      "name": "Solana public reads",
+      "description": "Read finalized Solana mainnet-beta slot and native SOL balance for a provided public address.",
+      "categories": ["finance"],
+      "tags": ["optional"],
+      "license": "MIT",
+      "versions": [
+        {
+          "version": "1.0.1",
+          "source": {
+            "type": "archive",
+            "url": "https://agentprojectcontext.github.io/apx-marketplace/packages/solana/1.0.1/4a6b8f8d85e4ed718cbacf94321afa7fba3f3fc47ffc18fcecdadfb69a3ba889.apxext"
+          },
+          "integrity": "sha256-4a6b8f8d85e4ed718cbacf94321afa7fba3f3fc47ffc18fcecdadfb69a3ba889",
+          "archive": {
+            "url": "https://agentprojectcontext.github.io/apx-marketplace/packages/solana/1.0.1/4a6b8f8d85e4ed718cbacf94321afa7fba3f3fc47ffc18fcecdadfb69a3ba889.apxext",
+            "sha256": "4a6b8f8d85e4ed718cbacf94321afa7fba3f3fc47ffc18fcecdadfb69a3ba889"
+          },
+          "content_hash": "ff21deb33d240cfb",
+          "apx": "2.16.0",
+          "published_at": "2026-11-17T09:55:15.000Z",
+          "card": {
+            "summary": "Read finalized Solana mainnet-beta slot and native SOL balance for a provided public address.",
+            "features": [
+              "Read a finalized slot on demand from the fixed public Solana endpoint",
+              "Read native SOL/lamports and context slot as exact decimal strings for one provided address"
+            ],
+            "requirements": [
+              "Node24 on the MCP host, including JSON.parse integer-source support, and HTTPS access to the fixed public RPC",
+              "Observe public endpoint terms/rate limits and independently check the address/provider before relying on financial data"
+            ],
+            "limits": [
+              "No wallets, profiles, keys, seed phrases, signing, transfers, swaps, token/NFT balances or address discovery",
+              "One call at a time and at least 1 second after completion; no automatic retry, polling, paging or fallback provider",
+              "Only Solana mainnet-beta endpoint; provider assertions are not independent chain/ownership/spendability verification",
+              "Strict canonical integer JSON and u64 bounds; unsupported responses fail rather than round or invent zero"
+            ],
+            "pricing": "Anonymous public endpoint, no paid account, credit or transaction fee initiated by these reads. Provider quotas, terms, availability and access restrictions apply; not a production SLA.",
+            "privacy": "The provider receives the address when requested, methods and network/IP information. Public addresses may identify people. Results/queries may remain in APX chat; package writes no cache and never reads local wallet/profile/credential stores.",
+            "schema": 1,
+            "id": "solana",
+            "authentication": "none",
+            "billing": "free",
+            "docs": "README.md",
+            "locales": {
+              "es": {
+                "summary": "Consult\u00e1 slot finalizado y saldo nativo SOL de una direcci\u00f3n p\u00fablica provista en mainnet-beta.",
+                "features": [
+                  "Consultar a pedido un slot finalizado en el endpoint p\u00fablico fijo Solana",
+                  "Leer SOL/lamports y slot de contexto como strings decimales exactos de una direcci\u00f3n provista"
+                ],
+                "requirements": [
+                  "Node24 en el host MCP, incluido soporte de fuente entera JSON.parse, y HTTPS al RPC p\u00fablico fijo",
+                  "Cumplir t\u00e9rminos/l\u00edmites y comprobar direcci\u00f3n/proveedor por separado antes de confiar en datos financieros"
+                ],
+                "limits": [
+                  "Sin wallets, perfiles, claves, seeds, firmar, transferir, swaps, balances token/NFT o descubrir direcciones",
+                  "Una llamada simult\u00e1nea y m\u00ednimo 1 segundo tras finalizar; sin reintentos, polling, p\u00e1ginas o proveedor alternativo autom\u00e1ticos",
+                  "S\u00f3lo endpoint Solana mainnet-beta; datos del proveedor no verifican cadena/titularidad/fondos disponibles por separado",
+                  "JSON entero can\u00f3nico y rango u64 estrictos; respuestas no soportadas fallan sin redondear o inventar cero"
+                ],
+                "pricing": "Endpoint p\u00fablico an\u00f3nimo, sin cuenta paga/cr\u00e9ditos/coste transacci\u00f3n iniciado por lecturas. Rigen cuotas/t\u00e9rminos/disponibilidad/restricciones del proveedor, sin SLA producci\u00f3n.",
+                "privacy": "Proveedor recibe direcci\u00f3n si se consulta, m\u00e9todos y red/IP. Direcciones p\u00fablicas pueden identificar personas. Consultas/resultados pueden quedar en chat APX; paquete sin cach\u00e9 ni lectura de wallets/perfiles/credenciales locales."
+              }
+            }
+          }
+        }
+      ],
+      "tier": "official"
+    },
+    {
+      "kind": "extension",
+      "id": "tavily",
+      "publisher": "apx",
+      "name": "Tavily",
+      "description": "Search the web and extract text with your Tavily account.",
+      "categories": ["data"],
+      "tags": ["optional"],
+      "license": "MIT",
+      "versions": [
+        {
+          "version": "1.0.1",
+          "source": {
+            "type": "archive",
+            "url": "https://agentprojectcontext.github.io/apx-marketplace/packages/tavily/1.0.1/1b03782df07111820fcc877201ef25d46ae40420eb314551d4db4847e1c538f9.apxext"
+          },
+          "integrity": "sha256-1b03782df07111820fcc877201ef25d46ae40420eb314551d4db4847e1c538f9",
+          "archive": {
+            "url": "https://agentprojectcontext.github.io/apx-marketplace/packages/tavily/1.0.1/1b03782df07111820fcc877201ef25d46ae40420eb314551d4db4847e1c538f9.apxext",
+            "sha256": "1b03782df07111820fcc877201ef25d46ae40420eb314551d4db4847e1c538f9"
+          },
+          "content_hash": "8896e89b9175d720",
+          "apx": "2.16.0",
+          "published_at": "2026-11-17T09:55:15.000Z",
+          "card": {
+            "summary": "Search the web and extract text with your Tavily account.",
+            "features": [
+              "Run bounded basic web searches",
+              "Extract text from selected public pages and report per-page failures"
+            ],
+            "requirements": ["A Tavily API key", "Node.js 24 or newer"],
+            "limits": [
+              "No advanced search, crawling or account management",
+              "Provider quotas and availability apply",
+              "Live paid-account access has not been verified"
+            ],
+            "pricing": "Tavily credits and your account's current pricing apply; APX does not include service credits.",
+            "privacy": "Tavily receives search queries and page URLs. Returned website text is untrusted and may enter agent context.",
+            "schema": 1,
+            "id": "tavily",
+            "authentication": "secret",
+            "billing": "usage",
+            "docs": "README.md",
+            "locales": {
+              "es": {
+                "summary": "Busc\u00e1 en la web y extra\u00e9 texto con tu cuenta de Tavily.",
+                "features": [
+                  "Hacer b\u00fasquedas web b\u00e1sicas con l\u00edmites",
+                  "Extraer texto de p\u00e1ginas p\u00fablicas elegidas e informar fallos por p\u00e1gina"
+                ],
+                "requirements": ["Una clave API de Tavily", "Node.js 24 o posterior"],
+                "limits": [
+                  "Sin b\u00fasqueda avanzada, rastreo ni administraci\u00f3n de cuentas",
+                  "Se aplican las cuotas y disponibilidad del proveedor",
+                  "Todav\u00eda no se verific\u00f3 acceso con una cuenta paga real"
+                ],
+                "pricing": "Se aplican los cr\u00e9ditos y precios de tu cuenta de Tavily; APX no incluye cr\u00e9ditos del servicio.",
+                "privacy": "Tavily recibe las b\u00fasquedas y direcciones de las p\u00e1ginas. El texto web devuelto no es confiable y puede entrar al contexto del agente."
+              }
+            }
+          }
+        }
+      ],
+      "tier": "official"
+    },
+    {
+      "kind": "extension",
+      "id": "things",
+      "publisher": "apx",
+      "name": "Things",
+      "description": "Read to-do names, status and selected notes in one local Things project.",
+      "categories": ["productivity"],
+      "tags": ["optional"],
+      "license": "MIT",
+      "versions": [
+        {
+          "version": "1.0.0",
+          "source": {
+            "type": "archive",
+            "url": "https://agentprojectcontext.github.io/apx-marketplace/packages/things/1.0.0/1e5f8e8a4eb82e91f3735c575007d989afaabe06d7e241a228ff3542e3b0beab.apxext"
+          },
+          "integrity": "sha256-1e5f8e8a4eb82e91f3735c575007d989afaabe06d7e241a228ff3542e3b0beab",
+          "archive": {
+            "url": "https://agentprojectcontext.github.io/apx-marketplace/packages/things/1.0.0/1e5f8e8a4eb82e91f3735c575007d989afaabe06d7e241a228ff3542e3b0beab.apxext",
+            "sha256": "1e5f8e8a4eb82e91f3735c575007d989afaabe06d7e241a228ff3542e3b0beab"
+          },
+          "content_hash": "d67cefd944a64034",
+          "apx": "2.16.0",
+          "published_at": "2026-11-17T09:55:15.000Z",
+          "card": {
+            "summary": "Read to-do names, status and selected notes in one local Things project.",
+            "features": [
+              "Page to-do metadata without reading notes",
+              "Read an observed to-do's notes while checking selected-project membership"
+            ],
+            "requirements": [
+              "Licensed Things for Mac and Node 24 on the MCP execution host",
+              "Owner-reviewed macOS Automation/privacy grant for Things",
+              "Exact unique project name entered in the extension form"
+            ],
+            "limits": [
+              "No creation, completion, edits, scheduling, recurrence, checklists, headings or all-library search",
+              "At most 256 project references, 2000 selected to-dos and 20 results per page",
+              "Authorized Things reads, actual OS permission/revocation and macOS/app version compatibility unverified"
+            ],
+            "pricing": "A separate Things for Mac license is required under the vendor's terms. No license is bundled; no paid API or AI operation is invoked.",
+            "privacy": "Project names/references resolve scope; other projects' to-do fields are not read. Selected metadata and requested notes can enter agent context. The OS grant may exceed this project filter; Things Cloud behavior remains the app's.",
+            "schema": 1,
+            "id": "things",
+            "authentication": "local-permission",
+            "billing": "account-plan",
+            "docs": "README.md",
+            "locales": {
+              "es": {
+                "summary": "Le\u00e9 nombres, estado y notas elegidas de tareas de un proyecto local de Things.",
+                "features": [
+                  "Recorrer metadatos de tareas sin leer notas",
+                  "Leer notas de una tarea observada comprobando su pertenencia al proyecto elegido"
+                ],
+                "requirements": [
+                  "Things para Mac con licencia y Node 24 donde se ejecuta el MCP",
+                  "Permiso de automatizaci\u00f3n/privacidad para Things revisado por el due\u00f1o",
+                  "Nombre exacto y \u00fanico del proyecto ingresado en la extensi\u00f3n"
+                ],
+                "limits": [
+                  "Sin crear, completar, editar, programar, recurrencias, checklists, encabezados ni b\u00fasqueda global",
+                  "Hasta 256 referencias de proyectos, 2000 tareas elegidas y 20 resultados por p\u00e1gina",
+                  "Sin verificar lectura autorizada, permisos/revocaci\u00f3n ni compatibilidad de versiones de macOS/app"
+                ],
+                "pricing": "Requiere licencia aparte de Things para Mac seg\u00fan condiciones del proveedor. No incluye licencia ni invoca API paga o AI.",
+                "privacy": "Revisa nombres/referencias para elegir alcance; no lee tareas de otros proyectos. Metadatos y notas pedidos pueden entrar al contexto. El permiso del sistema puede ser m\u00e1s amplio; Things Cloud sigue dependiendo de la app."
+              }
+            }
+          }
+        }
+      ],
+      "tier": "official"
+    },
+    {
+      "kind": "extension",
+      "id": "trello",
+      "publisher": "apx",
+      "name": "Trello",
+      "description": "Read your Trello boards, lists and cards without changing them.",
+      "categories": ["productivity"],
+      "tags": ["optional"],
+      "license": "MIT",
+      "versions": [
+        {
+          "version": "1.0.1",
+          "source": {
+            "type": "archive",
+            "url": "https://agentprojectcontext.github.io/apx-marketplace/packages/trello/1.0.1/9cec2979ca7ca309d7508fe2ee999de59779c9e7808bc3e69cf5a390e037f3f9.apxext"
+          },
+          "integrity": "sha256-9cec2979ca7ca309d7508fe2ee999de59779c9e7808bc3e69cf5a390e037f3f9",
+          "archive": {
+            "url": "https://agentprojectcontext.github.io/apx-marketplace/packages/trello/1.0.1/9cec2979ca7ca309d7508fe2ee999de59779c9e7808bc3e69cf5a390e037f3f9.apxext",
+            "sha256": "9cec2979ca7ca309d7508fe2ee999de59779c9e7808bc3e69cf5a390e037f3f9"
+          },
+          "content_hash": "ca0ed621660c22ae",
+          "apx": "2.16.0",
+          "published_at": "2026-11-17T09:55:15.000Z",
+          "card": {
+            "summary": "Read your Trello boards, lists and cards without changing them.",
+            "features": ["Find open or closed boards", "Read lists and card due dates with bounded local slices"],
+            "requirements": [
+              "A Trello account and API key",
+              "A user token with read-only scope",
+              "Node.js 24 or newer"
+            ],
+            "limits": [
+              "No writes, comments, attachments or sharing",
+              "Local slices are not stable server pagination; large responses above 1 MiB are refused",
+              "No token renewal; live account access is unverified"
+            ],
+            "pricing": "Your Trello account plan, API availability and quotas apply; no subscription is included.",
+            "privacy": "Trello receives authenticated account queries. Returned board and card text may enter agent context as untrusted content.",
+            "schema": 1,
+            "id": "trello",
+            "authentication": "secret",
+            "billing": "account-plan",
+            "docs": "README.md",
+            "locales": {
+              "es": {
+                "summary": "Consult\u00e1 tus tableros, listas y tarjetas de Trello sin modificarlos.",
+                "features": [
+                  "Encontrar tableros abiertos o cerrados",
+                  "Consultar listas y fechas de tarjetas en porciones locales acotadas"
+                ],
+                "requirements": [
+                  "Una cuenta de Trello y una clave API",
+                  "Un token personal con permiso solo lectura",
+                  "Node.js 24 o posterior"
+                ],
+                "limits": [
+                  "Sin edici\u00f3n, comentarios, adjuntos ni compartir",
+                  "Las porciones locales no son paginaci\u00f3n estable del servidor; se rechazan respuestas de m\u00e1s de 1 MiB",
+                  "Sin renovaci\u00f3n del token; todav\u00eda no se verific\u00f3 una cuenta real"
+                ],
+                "pricing": "Se aplican el plan, la disponibilidad y las cuotas de tu cuenta de Trello; no se incluye una suscripci\u00f3n.",
+                "privacy": "Trello recibe las consultas autenticadas. Los textos de tableros y tarjetas pueden entrar al contexto del agente como contenido no confiable."
+              }
+            }
+          }
+        }
+      ],
+      "tier": "official"
+    },
+    {
+      "kind": "extension",
+      "id": "weather",
+      "publisher": "apx",
+      "name": "Weather",
+      "description": "Check current weather estimates and bounded daily or hourly forecasts for a place you choose.",
+      "categories": ["data"],
+      "tags": ["optional"],
+      "license": "MIT",
+      "versions": [
+        {
+          "version": "1.0.0",
+          "source": {
+            "type": "archive",
+            "url": "https://agentprojectcontext.github.io/apx-marketplace/packages/weather/1.0.0/7a9936c35a19d080d0cf0b80f4a799979453747d720642ef357d240fb2b28a71.apxext"
+          },
+          "integrity": "sha256-7a9936c35a19d080d0cf0b80f4a799979453747d720642ef357d240fb2b28a71",
+          "archive": {
+            "url": "https://agentprojectcontext.github.io/apx-marketplace/packages/weather/1.0.0/7a9936c35a19d080d0cf0b80f4a799979453747d720642ef357d240fb2b28a71.apxext",
+            "sha256": "7a9936c35a19d080d0cf0b80f4a799979453747d720642ef357d240fb2b28a71"
+          },
+          "content_hash": "e7902d85a4f6a8a1",
+          "apx": "2.16.0",
+          "published_at": "2026-11-17T13:12:23.000Z",
+          "card": {
+            "summary": "Check current weather estimates and bounded daily or hourly forecasts for a place you choose.",
+            "features": [
+              "Current temperature, feels-like temperature, humidity, precipitation, wind and conditions",
+              "Up to 7 daily or 20 hourly forecasts, with explicit metric or imperial units",
+              "Open-Meteo attribution and explicit noncommercial or commercial access"
+            ],
+            "requirements": [
+              "Choose noncommercial or commercial usage_plan explicitly",
+              "Commercial use requires an owner-managed Open-Meteo subscription and API key",
+              "Coordinates provided by the owner or an authorized location lookup"
+            ],
+            "limits": [
+              "UTC forecast boundaries, not local calendar days",
+              "Model estimates, not station observations or emergency warnings",
+              "No geolocation, place search, historical data, maps, air quality or automatic polling"
+            ],
+            "pricing": "The free endpoint is noncommercial only and subject to Open-Meteo limits. Commercial access requires a separate paid plan. No credits or plan are included. Forecast data are CC BY 4.0 with attribution; this package's original code is MIT.",
+            "privacy": "Chosen coordinates and your server IP go to Open-Meteo. Commercial requests also send the API key in the provider-required query parameter; APX does not return or log that URL. No location detection or stored location history.",
+            "schema": 1,
+            "id": "weather",
+            "authentication": "secret",
+            "billing": "account-plan",
+            "docs": "README.md",
+            "locales": {
+              "es": {
+                "summary": "Consult\u00e1 estimaciones actuales y pron\u00f3sticos diarios u horarios acotados para el lugar que elijas.",
+                "features": [
+                  "Temperatura, sensaci\u00f3n t\u00e9rmica, humedad, precipitaci\u00f3n, viento y condiciones actuales",
+                  "Hasta 7 d\u00edas o 20 horas con unidades m\u00e9tricas o imperiales expl\u00edcitas",
+                  "Atribuci\u00f3n Open-Meteo y acceso no comercial o comercial expl\u00edcito"
+                ],
+                "requirements": [
+                  "Elegir usage_plan noncommercial o commercial expl\u00edcitamente",
+                  "Uso comercial requiere suscripci\u00f3n y clave Open-Meteo propias",
+                  "Coordenadas dadas por el due\u00f1o o una b\u00fasqueda de ubicaci\u00f3n autorizada"
+                ],
+                "limits": [
+                  "Fechas UTC, no d\u00edas calendario locales",
+                  "Estimaciones de modelos, no mediciones de estaci\u00f3n ni alertas de emergencia",
+                  "Sin geolocalizaci\u00f3n, b\u00fasqueda de lugares, hist\u00f3ricos, mapas, calidad del aire ni consultas autom\u00e1ticas"
+                ],
+                "pricing": "El acceso gratuito es s\u00f3lo no comercial y tiene l\u00edmites Open-Meteo. El acceso comercial requiere un plan pago aparte. No incluye cr\u00e9ditos ni plan. Datos CC BY 4.0 con atribuci\u00f3n; c\u00f3digo original de este paquete MIT.",
+                "privacy": "Las coordenadas elegidas y la IP del servidor van a Open-Meteo. En acceso comercial la clave tambi\u00e9n va en el par\u00e1metro de URL exigido por el proveedor; APX no devuelve ni registra esa URL. Sin detectar ubicaci\u00f3n ni guardar historial."
+              }
+            }
+          }
+        }
+      ],
+      "tier": "official"
+    }
+  ]
+}

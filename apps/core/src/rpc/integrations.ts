@@ -97,9 +97,10 @@ export function integrationHandlers(deps: {
       const projects = store.projects.list().filter((p) => p.path);
       return {
         integrations: [
-          ...GOOGLE_INTEGRATIONS.map((e) => googleEntry(e, projects)),
+          ...GOOGLE_INTEGRATIONS.map((e) => ({ ...googleEntry(e, projects), own: true })),
           {
             ...ASANA,
+            own: true,
             fields: [{ ...ASANA_FIELD, set: asana.connected() }],
             connected: asana.connected(),
             coming: false,

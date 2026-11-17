@@ -444,6 +444,7 @@ export const en = {
   "nav.apps": "Apps",
   "nav.computers": "Computers",
   "nav.resources": "Resources",
+  "nav.marketplace": "Marketplace",
   "nav.files": "Files",
   "account.you": "You",
   "account.menuOf": "Account: {name}",

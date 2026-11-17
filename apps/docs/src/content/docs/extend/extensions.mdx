@@ -13,6 +13,28 @@ An extension is a folder with an `apx-extension.json` that brings several things
 routine templates, the secrets they need and, optionally, a sandboxed plugin. APX reads the manifest without running
 anything, installs it **off**, and turning it on approves exactly the files it had.
 
+## Find them in the Marketplace
+
+**Marketplace**, in the sidebar, is where extensions are found, installed and connected. Resources keeps the technical
+parts (Skills, MCP, Variables).
+
+- **Extensions**, **Agents** and **Skills** are its sections. Agents lists extensions that bring ready-made agents;
+  Skills, the ones that bring skills.
+- **Your extensions**, under the sections, lists what you installed or connected; a warning marks one that waits on
+  you (off, missing keys, an expired sign-in, a new version).
+- Extensions are grouped: **Included with APX** first (Google, Asana, the channels and the browser: APX has code of
+  its own for them, so they are connected, never installed or uninstalled), then APX's catalog by category, each with
+  its count and **See all**.
+- A card opens its page: its icon, line and publisher, screenshots, things to ask it, what it brings, about it, what
+  it does, needs and does not, cost, privacy and links; beside it, the steps (install, turn on, connect). Turning one
+  on shows exactly what you approve: where it connects, the keys it keeps and its files at that version.
+- **Connect** opens a dialog with APX and the service joined by dots, for its keys or its sign-in.
+- **Add** installs from an `.apxext` file, an https address or a folder.
+
+APX reads what each catalog package brings from the package itself: it downloads it once, checks it against the
+catalog's sha256 and fingerprint, and keeps only its manifest, its listing and its images in its home. Nothing is
+installed or run until you install it. APX ships a copy of the official catalog, so the Marketplace lists it offline.
+
 ## Do you need one?
 
 Start with the smallest thing that does the job:
@@ -90,7 +112,7 @@ or from an **https address** of one. APX shows what it brings before it writes a
 
 <Steps>
 
-1. Double-click an `.apxext` file, or drop it on the APX window. Or open **Resources › Extensions** and press
+1. Double-click an `.apxext` file, or drop it on the APX window. Or open the **Marketplace** and press
    **From a file** or **From a URL** (the **Install** dialog also takes a folder).
 
 2. Look at what it brings: its skills, servers, the secrets it asks for, its plugin, and whether it is **Official**
@@ -131,7 +153,7 @@ a folder is read where the core runs.
 
 Turn it on with: apx extensions on daily-brief`}</Terminal>
 
-<Shot name="resources-extensions" alt="Resources, Extensions tab: installed extensions with their on or off switch, skills, servers and routines" caption="Resources › Extensions" />
+<Shot name="resources-extensions" alt="Resources, Extensions tab: installed extensions with their on or off switch, skills, servers and routines" caption="the Marketplace" />
 
 Installing copies plain files into APX's home and fingerprints them. If the installed copy changes on disk, APX turns
 the extension off at its next start until you approve it again. To take changes from the original folder or address,

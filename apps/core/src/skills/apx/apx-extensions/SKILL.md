@@ -7,7 +7,7 @@ description: Build and install an APX extension, one folder with an apx-extensio
 
 An extension is a folder APX can read without running anything: `apx-extension.json` plus the files it names. It
 installs **off**; turning it on approves exactly those files. You build it, check it and install it with the
-`apx extensions` command (through `shell`); the owner sees it in [Resources › Extensions](apx:resources/extensions).
+`apx extensions` command (through `shell`); the owner sees it in [the Marketplace](apx:resources/extensions).
 
 ## Pick the smallest thing first
 
@@ -108,6 +108,7 @@ apx extensions inspect <folder|file.apxext|https-url>   # what it would bring; n
 apx extensions install <folder|file.apxext|https-url>   # copied in, off
 apx extensions                                          # installed ones, on or off, and secrets missing
 apx extensions rollback <id>                            # back to the version installed before (again: forward)
+apx extensions catalog                                  # what APX's catalog offers, with the address to install each
 ```
 
 To hand it to someone else, zip the folder (the manifest at the top, or inside one top folder) and name it
@@ -116,7 +117,7 @@ folder, more than 2,000 files or 50 MB unpacked (20 MB packed). It shows as **Of
 that id and version with exactly those files; yours is **Third party**, which is fine for your own.
 
 Turning it on is the owner's decision, because it approves what the folder runs: ask, or send them
-[Resources › Extensions](apx:resources/extensions). With their OK: `apx extensions on <id>`. Its keys are typed by the
+[the Marketplace](apx:resources/extensions). With their OK: `apx extensions on <id>`. Its keys are typed by the
 owner in that screen (or, if they gave you the value to store: `printf %s "$VALUE" | apx extensions secret <id>
 <name>`).
 

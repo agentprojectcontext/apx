@@ -102,3 +102,31 @@ test("an .apxext on this computer is sent whole, an https address as given, a fo
   await assert.rejects(extensions(client, ["install", path.join(dir.path, "none.apxext")], {}), /no file/);
   assert.equal(calls.length, 3);
 });
+
+test("the catalog lists each offer with what it brings and where to install it from", async () => {
+  const { client, calls } = recordingClient({
+    "extensions.catalog": {
+      entries: [
+        {
+          id: "weather",
+          name: "Weather",
+          description: "Forecasts.",
+          categories: [],
+          version: "1.0.0",
+          provenance: "official",
+          url: "https://dl.example.com/weather.apxext",
+          brings: ["tools"],
+          needs: ["cost"],
+        },
+      ],
+    },
+  });
+  const out = await printed(() => extensions(client, ["catalog"], {}));
+  assert.deepEqual(calls, [["extensions.catalog", {}]]);
+  for (const text of [
+    "weather  Weather v1.0.0  · official",
+    "tools, needs cost",
+    "https://dl.example.com/weather.apxext",
+  ])
+    assert.ok(out.includes(text), out);
+});

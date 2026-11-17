@@ -8,6 +8,15 @@ import { EXTENSION_ARCHIVE_MAX, type ExtensionProvenance } from "@apx/protocol";
 import { loopbackHost } from "@apx/protocol/browser-urls";
 import { z } from "zod";
 
+/** The copy of the official catalog this APX ships (official-catalog.json beside this file), read when needed. */
+export function shippedCatalog(): unknown {
+  try {
+    return JSON.parse(fs.readFileSync(path.join(import.meta.dirname, "official-catalog.json"), "utf8"));
+  } catch {
+    return undefined;
+  }
+}
+
 /** The newest catalog format this APX reads; a newer one is set aside whole and the owner told to update APX. */
 const SCHEMA = 1;
 const CATALOG_MAX = 5 * 1024 * 1024;
@@ -21,15 +30,40 @@ const Version = z.object({
   content_hash: z.string().optional(),
   apx: z.string().optional(),
   archive: z.object({ url: z.string(), sha256: z.string() }).optional(),
+  /** The package's listing copy, as the catalog extracted it. */
+  card: z.unknown().optional(),
+  /** A pulled version: never installed new. */
+  yanked: z.string().optional(),
 });
 const Entry = z.object({
   id: z.string(),
   kind: z.string().optional(),
   name: z.string().optional(),
+  description: z.string().optional(),
+  categories: z.array(z.string()).optional(),
+  /** Copied from its listing (schema 2), to list it before its package is read. */
+  tagline: z.string().max(60).optional(),
+  category: z.string().max(60).optional(),
+  /** Absolute https addresses of its `apx-listing.json` and its icon. */
+  listing: z.string().max(500).startsWith("https://").optional(),
+  icon: z.string().max(500).startsWith("https://").optional(),
   tier: z.string().optional(),
   versions: z.array(z.unknown()).default([]),
 });
-type Listed = { id: string; tier: string | undefined; versions: z.infer<typeof Version>[] };
+export type ListedVersion = z.infer<typeof Version>;
+export type Listed = {
+  id: string;
+  kind: string | undefined;
+  name: string;
+  description: string;
+  categories: string[];
+  tagline: string | undefined;
+  category: string | undefined;
+  listing: string | undefined;
+  icon: string | undefined;
+  tier: string | undefined;
+  versions: ListedVersion[];
+};
 
 /** Entries that read well; one broken entry never hides the others. Unknown fields are ignored. */
 function parseIndex(raw: unknown): { schema: number; entries: Listed[] } | undefined {
@@ -44,7 +78,19 @@ function parseIndex(raw: unknown): { schema: number; entries: Listed[] } | undef
       const pv = Version.safeParse(v);
       return pv.success ? [pv.data] : [];
     });
-    entries.push({ id: p.data.id, tier: p.data.tier, versions });
+    entries.push({
+      id: p.data.id,
+      kind: p.data.kind,
+      name: p.data.name ?? p.data.id,
+      description: p.data.description ?? "",
+      categories: p.data.categories ?? [],
+      tagline: p.data.tagline,
+      category: p.data.category,
+      listing: p.data.listing,
+      icon: p.data.icon,
+      tier: p.data.tier,
+      versions,
+    });
   }
   return { schema: r.schema, entries };
 }
@@ -68,6 +114,18 @@ async function readCapped(res: Response, max: number): Promise<Buffer> {
     chunks.push(Buffer.from(chunk));
   }
   return Buffer.concat(chunks);
+}
+
+/** A small file (a listing, an icon) from an https address, following redirects but never off https. */
+export async function fetchSmall(url: string, max: number, doFetch: typeof fetch = fetch): Promise<Buffer | undefined> {
+  if (URL.parse(url)?.protocol !== "https:") return undefined;
+  try {
+    const res = await doFetch(url, { signal: AbortSignal.timeout(CATALOG_MS), redirect: "follow" });
+    if (!res.ok || (res.url && URL.parse(res.url)?.protocol !== "https:")) return undefined;
+    return await readCapped(res, max);
+  } catch {
+    return undefined;
+  }
 }
 
 /** Downloads an .apxext from an https address, up to the size an uploaded one may have. */
@@ -99,6 +157,8 @@ export function createCatalog(deps: {
   url: string | undefined;
   fetch?: typeof fetch;
   now?: () => number;
+  /** The copy APX ships of the official catalog: what is listed while none was ever fetched (offline). */
+  shipped?: () => unknown;
 }) {
   const doFetch = deps.fetch ?? fetch;
   const now = deps.now ?? Date.now;
@@ -120,11 +180,11 @@ export function createCatalog(deps: {
   };
 
   /** The catalog now: the kept copy while fresh, else asked again (ETag); a failure falls back to the kept copy. */
-  async function index(): Promise<unknown> {
+  async function index(refresh = false): Promise<unknown> {
     const url = deps.url;
     if (!url || !catalogUrlAllowed(url)) return undefined;
     const kept = readKept();
-    if (kept && now() - kept.fetched_at < FRESH_MS) return kept.index;
+    if (kept && !refresh && now() - kept.fetched_at < FRESH_MS) return kept.index;
     try {
       const res = await doFetch(url, {
         signal: AbortSignal.timeout(CATALOG_MS),
@@ -134,17 +194,31 @@ export function createCatalog(deps: {
         keep({ ...kept, fetched_at: now() });
         return kept.index;
       }
-      if (!res.ok) return kept?.index;
+      if (!res.ok) return kept?.index ?? deps.shipped?.();
       const parsed: unknown = JSON.parse((await readCapped(res, CATALOG_MAX)).toString("utf8"));
       const etag = res.headers.get("etag") ?? undefined;
       keep({ url, ...(etag ? { etag } : {}), fetched_at: now(), index: parsed });
       return parsed;
     } catch {
-      return kept?.index;
+      return kept?.index ?? deps.shipped?.();
     }
   }
 
   return {
+    /**
+     * The extensions it lists (integration entries and pulled versions left out), or why there are none: no catalog
+     * reachable now and none kept, or one this APX is too old to read.
+     */
+    async entries(refresh = false): Promise<{ entries: Listed[]; catalog?: "unreachable" | "needs_update" }> {
+      const parsed = parseIndex(await index(refresh));
+      if (!parsed) return { entries: [], ...(deps.url ? { catalog: "unreachable" as const } : {}) };
+      if (parsed.schema > SCHEMA) return { entries: [], catalog: "needs_update" };
+      const entries = parsed.entries
+        .filter((e) => (e.kind ?? "extension") === "extension")
+        .map((e) => ({ ...e, versions: e.versions.filter((v) => !v.yanked) }))
+        .filter((e) => e.versions.length);
+      return { entries };
+    },
     /** Official when the catalog lists this id and version with this fingerprint under the official tier. */
     async check(id: string, version: string, hash: string): Promise<CatalogCheck> {
       const parsed = parseIndex(await index());

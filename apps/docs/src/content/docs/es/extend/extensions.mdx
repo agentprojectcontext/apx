@@ -13,6 +13,28 @@ Una extensión es una carpeta con un `apx-extension.json` que junta varias cosas
 rutinas, los secretos que necesitan y, si hace falta, un plugin en un sandbox. APX lee el manifiesto sin correr nada,
 la instala **apagada**, y encenderla aprueba exactamente los archivos que tenía.
 
+## Encontralas en el Marketplace
+
+El **Marketplace**, en la barra lateral, es donde se buscan, instalan y conectan las extensiones. Recursos queda para
+lo técnico (Skills, MCP, Variables).
+
+- **Extensiones**, **Agentes** y **Habilidades** son sus secciones. Agentes muestra las extensiones que traen agentes
+  listos; Habilidades, las que traen skills.
+- **Tus extensiones**, debajo de las secciones, lista lo que instalaste o conectaste; un aviso marca la que te espera
+  (apagada, faltan claves, se venció un inicio de sesión, una versión nueva).
+- Las extensiones van agrupadas: primero **Incluidas con APX** (Google, Asana, los canales y el navegador: APX tiene
+  código propio para ellas, así que se conectan y nunca se instalan ni desinstalan), después el catálogo de APX por
+  categoría, cada una con su cantidad y **Ver todo**.
+- Una tarjeta abre su ficha: ícono, línea y publicador, capturas, cosas para pedirle, qué trae, acerca de, qué hace,
+  qué necesita y qué no hace, costo, privacidad y enlaces; al lado, los pasos (instalar, encender, conectar). Encender
+  una muestra exactamente qué aprobás: a dónde se conecta, las claves que guarda y sus archivos en esa versión.
+- **Conectar** abre un diálogo con APX y el servicio unidos por puntos, para sus claves o su inicio de sesión.
+- **Agregar** instala desde un archivo `.apxext`, una dirección https o una carpeta.
+
+APX lee qué trae cada paquete del catálogo desde el paquete mismo: lo descarga una vez, lo compara con el sha256 y la
+huella del catálogo, y guarda en su carpeta sólo el manifest, la ficha y sus imágenes. No se instala ni corre nada
+hasta que lo instalás. APX trae una copia del catálogo oficial, así el Marketplace lo muestra sin conexión.
+
 ## ¿Necesitás una?
 
 Empezá por lo más chico que resuelva el problema:
@@ -90,7 +112,7 @@ APX) o desde una **dirección https** de uno. APX muestra qué trae antes de esc
 
 <Steps>
 
-1. Hacé doble clic en un archivo `.apxext`, o soltalo sobre la ventana de APX. O abrí **Recursos › Extensiones** y
+1. Hacé doble clic en un archivo `.apxext`, o soltalo sobre la ventana de APX. O abrí el **Marketplace** y
    tocá **Desde un archivo** o **Desde una URL** (el diálogo **Instalar** también acepta una carpeta).
 
 2. Mirá qué trae: sus skills, servidores, los secretos que pide, su plugin, y si es **Oficial** o **De terceros**
@@ -131,7 +153,7 @@ otra; una carpeta se lee donde corre el core.
 
 Turn it on with: apx extensions on daily-brief`}</Terminal>
 
-<Shot name="resources-extensions" alt="Recursos, pestaña Extensiones: extensiones instaladas con su interruptor, skills, servidores y rutinas" caption="Recursos › Extensiones" />
+<Shot name="resources-extensions" alt="Recursos, pestaña Extensiones: extensiones instaladas con su interruptor, skills, servidores y rutinas" caption="el Marketplace" />
 
 Instalar copia archivos comunes a la carpeta de APX y les toma una huella. Si la copia instalada cambia en el disco,
 APX apaga la extensión en el próximo arranque hasta que la vuelvas a aprobar. Para traer cambios de la carpeta o la

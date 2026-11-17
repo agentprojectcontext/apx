@@ -29,6 +29,7 @@ type View =
   | "flows"
   | "routines"
   | "resources"
+  | "marketplace"
   | "files"
   | "computers"
   | "channels"
@@ -114,6 +115,9 @@ export type NavState = {
   listInFront: boolean;
   /** Tab of Resources (global, and inside a project). */
   resourcesTab: ResourceTab;
+  /** The Marketplace's section, and the item whose page is open there. */
+  marketSection: MarketSection;
+  marketItem: string | undefined;
   /** The variable picked on Resources › Variables (a link from where it is used), and the project it belongs to. */
   variable: string | undefined;
   variableIn: string | undefined;
@@ -162,7 +166,22 @@ const PANELS: readonly PanelKind[] = [
   "processes",
   "document",
 ];
-const VIEWS: readonly string[] = ["tasks", "flows", "routines", "resources", "files", "computers", "channels"];
+const VIEWS: readonly string[] = [
+  "tasks",
+  "flows",
+  "routines",
+  "resources",
+  "marketplace",
+  "files",
+  "computers",
+  "channels",
+];
+
+/** The Marketplace's sections: extensions, ready-made agents, and skills. */
+export const MARKET_SECTIONS = ["extensions", "agents", "skills"] as const;
+export type MarketSection = (typeof MARKET_SECTIONS)[number];
+const marketSectionFrom = (v: string | null): MarketSection =>
+  (MARKET_SECTIONS as readonly string[]).includes(v ?? "") ? (v as MarketSection) : "extensions";
 
 /** Deep links: #thread=<id>&panel=<kind>, #app=<id>, #project=<id>&tab=<tab>, #view=tasks&task=<id>. */
 function fromHash(): Partial<NavState> {
@@ -196,6 +215,9 @@ function fromHash(): Partial<NavState> {
           variable: h.get("variable") ?? undefined,
           variableIn: h.get("variable_in") ?? undefined,
         }
+      : {}),
+    ...(view === "marketplace"
+      ? { marketSection: marketSectionFrom(h.get("section")), marketItem: h.get("item") ?? undefined }
       : {}),
     ...(view === "flows"
       ? {
@@ -243,6 +265,8 @@ export const nav = createStore<NavState>({
   palette: false,
   listInFront: false,
   resourcesTab: "skills",
+  marketSection: "extensions",
+  marketItem: undefined,
   variable: undefined,
   variableIn: undefined,
   channelId: undefined,
@@ -278,6 +302,8 @@ const PLACE = [
   "flowTables",
   "flowTable",
   "resourcesTab",
+  "marketSection",
+  "marketItem",
   "variable",
   "variableIn",
   "listInFront",
@@ -355,6 +381,7 @@ nav.subscribe(() => {
     s.view === "flows" ||
     s.view === "routines" ||
     s.view === "resources" ||
+    s.view === "marketplace" ||
     s.view === "files" ||
     s.view === "computers" ||
     s.view === "channels"
@@ -367,6 +394,8 @@ nav.subscribe(() => {
     if (s.view === "flows" && !s.flowId && s.flowTables && s.flowTable) h.set("table", s.flowTable);
     if (s.view === "tasks" && s.taskId) h.set("task", s.taskId);
     if (s.view === "resources") variableHash(s, h);
+    if (s.view === "marketplace" && s.marketSection !== "extensions") h.set("section", s.marketSection);
+    if (s.view === "marketplace" && s.marketItem) h.set("item", s.marketItem);
   } else if (s.view === "channel" && s.channelId) {
     h.set("channel", s.channelId);
     if (s.channelThread) h.set("chat", s.channelThread);
@@ -528,8 +557,12 @@ export const go = {
   tables(flowProject?: string, flowTable?: string) {
     nav.set({ view: "flows", flowProject, flowId: undefined, flowEdit: false, flowTables: true, flowTable });
   },
-  view(view: "tasks" | "routines" | "resources" | "files" | "computers" | "channels") {
+  view(view: "tasks" | "routines" | "resources" | "marketplace" | "files" | "computers" | "channels") {
     nav.set({ view });
+  },
+  /** The Marketplace, on a section and, with `item`, that item's page. */
+  marketplace(section?: MarketSection, item?: string) {
+    nav.set((s) => ({ view: "marketplace", marketSection: section ?? s.marketSection, marketItem: item }));
   },
   /** A task: beside a tasks list when one is open, else over the current screen (a chat, a notice…). */
   task(taskId: string) {

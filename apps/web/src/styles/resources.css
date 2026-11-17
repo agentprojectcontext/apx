@@ -1014,3 +1014,244 @@
   z-index: 1;
   margin-bottom: 12px;
 }
+
+/* The Marketplace's "Add" menu items and drop hint (marketplace/MarketBrowse.tsx). */
+.extx__menuitem {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+.extx__menuitem small {
+  color: var(--apx-fg-muted);
+  font-size: var(--apx-text-xs);
+}
+.extx__drop {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  margin: 0;
+  padding: 12px 14px;
+  border: 1.5px dashed var(--apx-border-strong);
+  border-radius: var(--apx-radius-lg);
+  color: var(--apx-fg-muted);
+  font-size: var(--apx-text-sm);
+}
+
+/* An item's page (marketplace/ItemPage.tsx): what it is on the left, the steps to have it working on the right. */
+.extpage {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+  padding: 18px 28px 32px;
+  overflow-y: auto;
+}
+/* Only this area scrolls: what it holds keeps its height. */
+.extpage > * {
+  flex-shrink: 0;
+}
+.extpage__tags {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+  margin-top: 3px;
+}
+@media (max-width: 720px) {
+  .extpage {
+    padding: 14px 14px 24px;
+  }
+}
+.extpage__grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 300px;
+  gap: 20px;
+  align-items: start;
+}
+.extpage__main,
+.extpage__side {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  min-width: 0;
+}
+.extpage__head {
+  display: flex;
+  gap: 14px;
+  align-items: flex-start;
+}
+.extpage__titles {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+.extpage__titles p {
+  margin: 0;
+}
+.extpage__name {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.extpage__name h2 {
+  margin: 0;
+  font-size: var(--apx-text-xl);
+}
+.extpage__origin,
+.extpage__note {
+  color: var(--apx-fg-muted);
+  font-size: var(--apx-text-sm);
+  margin: 0;
+}
+.extpage__sec {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding-top: 14px;
+  border-top: 1px solid var(--apx-border);
+}
+.extpage__sec h4 {
+  margin: 0;
+  color: var(--apx-fg-muted);
+  font-size: var(--apx-text-sm);
+}
+.extpage__sec ul {
+  margin: 0;
+  padding-left: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.extpage__sec p {
+  margin: 0;
+}
+.extpage__pieces {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--apx-border);
+  border-radius: var(--apx-radius-md);
+  overflow: hidden;
+}
+.extpage__pieces > div {
+  display: grid;
+  grid-template-columns: 110px minmax(0, 1fr);
+  gap: 10px;
+  padding: 9px 12px;
+  border-top: 1px solid var(--apx-border);
+  font-size: var(--apx-text-sm);
+}
+.extpage__pieces > div:first-child {
+  border-top: 0;
+}
+.extpage__piece {
+  justify-self: start;
+  align-self: start;
+  padding: 1px 6px;
+  border-radius: var(--apx-radius-sm);
+  background: var(--apx-fill);
+  color: var(--apx-fg-muted);
+  font-size: var(--apx-text-xs);
+  font-weight: var(--apx-weight-semibold);
+}
+.extpage__panel {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px;
+  border: 1px solid var(--apx-border);
+  border-radius: var(--apx-radius-lg);
+  background: var(--apx-surface);
+}
+.extpage__steps {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  color: var(--apx-fg-subtle);
+  font-size: var(--apx-text-xs);
+}
+.extpage__steps span {
+  display: inline-flex;
+  gap: 3px;
+  align-items: center;
+}
+.extpage__steps .is-on {
+  color: var(--apx-fg);
+  font-weight: var(--apx-weight-semibold);
+}
+.extpage__steps .is-done {
+  color: var(--apx-brand-soft-fg);
+}
+.extpage__approve {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font-size: var(--apx-text-sm);
+}
+.extpage__callout {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  margin: 0;
+  padding: 10px 12px;
+  border-radius: var(--apx-radius-md);
+  font-size: var(--apx-text-sm);
+}
+.extpage__callout--info {
+  background: var(--apx-info-soft);
+  color: var(--apx-info-soft-fg);
+}
+.extpage__callout--warn {
+  background: var(--apx-warning-soft);
+  color: var(--apx-warning-soft-fg);
+}
+.extpage__callout--ok {
+  background: var(--apx-brand-soft);
+  color: var(--apx-brand-soft-fg);
+}
+.extpage__row {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+.extpage__kv {
+  display: grid;
+  grid-template-columns: 96px minmax(0, 1fr);
+  gap: 7px 8px;
+  margin: 0;
+  padding: 16px;
+  border-radius: var(--apx-radius-lg);
+  background: var(--apx-fill);
+  font-size: var(--apx-text-sm);
+}
+.extpage__kv dt {
+  color: var(--apx-fg-muted);
+}
+.extpage__kv dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+.extpage .int__head--bare {
+  flex-wrap: wrap;
+}
+@media (max-width: 900px) {
+  .extpage__grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  /* What to do comes before the details. */
+  .extpage__side {
+    order: -1;
+  }
+}
+/* A key typed beside the page: the field takes the row, its link goes under it. */
+.extpage__panel .tgtoken {
+  flex-wrap: wrap;
+}
+.extpage__panel .tgtoken > :first-child {
+  flex: 1 1 140px;
+  min-width: 0;
+}
+.extpage__panel .tgtoken a {
+  flex-basis: 100%;
+}

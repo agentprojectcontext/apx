@@ -429,6 +429,7 @@ export const es: Partial<Record<MessageKey, string>> = {
   "nav.apps": "Apps",
   "nav.computers": "Computadoras",
   "nav.resources": "Recursos",
+  "nav.marketplace": "Marketplace",
   "nav.files": "Archivos",
   "account.you": "Vos",
   "account.menuOf": "Cuenta: {name}",

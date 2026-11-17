@@ -1,4 +1,4 @@
-// Methods behind the office: tasks and commitments, routines, the attention tray and extensions.
+// Methods behind the office: tasks and commitments, routines and the attention tray (extensions: extension-methods.ts).
 import { z } from "zod";
 import { deferMethod } from "./defer-method.ts";
 import { Id, Message, Nudge, Run, Thread } from "./domain.ts";
@@ -7,8 +7,6 @@ import {
   ApiClient,
   CallModel,
   ClientScope,
-  ExtensionInfo,
-  ExtensionSource,
   Notification,
   ProfileInfo,
   Routine,
@@ -35,11 +33,6 @@ const TaskAttachment = z.object(
     name: () => z.string(),
   }),
 );
-
-/** An extension is read from exactly one place. */
-const oneSource = (p: { path?: unknown; file?: unknown; url?: unknown }) =>
-  [p.path, p.file, p.url].filter((v) => v !== undefined).length === 1;
-const SOURCE_MESSAGE = "give one of path, file or url";
 
 export const officeMethods = {
   /** Snapshots selected readable media into the task; never shares its source chat. */
@@ -509,123 +502,6 @@ export const officeMethods = {
       z.object({
         unread: z.number().int(),
       }),
-    effect: true,
-    access: "human",
-  }),
-  "extensions.list": deferMethod({
-    params: () => z.object({}).strict(),
-    result: () =>
-      z.object({
-        extensions: z.array(ExtensionInfo),
-      }),
-    effect: false,
-    access: "human",
-  }),
-  /** Reads an extension (a folder, an .apxext file or an https URL) without writing or running anything. */
-  "extensions.inspect": deferMethod({
-    params: () =>
-      z
-        .object({
-          path: ExtensionSource.path(),
-          file: ExtensionSource.file(),
-          url: ExtensionSource.url(),
-        })
-        .strict()
-        .refine(oneSource, SOURCE_MESSAGE),
-    result: () => ExtensionInfo,
-    effect: false,
-    access: "human",
-  }),
-  /**
-   * Copies the extension into APX's home, off. Installing another version keeps the one before to go back to; it
-   * stays on only when official and asking for nothing more. `hash`: refuse unless the files are the ones inspected.
-   */
-  "extensions.install": deferMethod({
-    params: () =>
-      z
-        .object({
-          path: ExtensionSource.path(),
-          file: ExtensionSource.file(),
-          url: ExtensionSource.url(),
-          hash: z
-            .string()
-            .regex(/^[0-9a-f]{16}$/)
-            .optional(),
-        })
-        .strict()
-        .refine(oneSource, SOURCE_MESSAGE),
-    result: () => ExtensionInfo,
-    effect: true,
-    access: "human",
-  }),
-  /** Goes back to the version installed before this one (and forward again), each as it was approved. */
-  "extensions.rollback": deferMethod({
-    params: () =>
-      z
-        .object({
-          id: z.string().max(40),
-        })
-        .strict(),
-    result: () => ExtensionInfo,
-    effect: true,
-    access: "human",
-  }),
-  "extensions.enable": deferMethod({
-    params: () =>
-      z
-        .object({
-          id: z.string().max(40),
-          enabled: z.boolean(),
-        })
-        .strict(),
-    result: () => ExtensionInfo,
-    effect: true,
-    access: "human",
-  }),
-  "extensions.remove": deferMethod({
-    params: () =>
-      z
-        .object({
-          id: z.string().max(40),
-        })
-        .strict(),
-    result: () =>
-      z.object({
-        removed: z.boolean(),
-      }),
-    effect: true,
-    access: "human",
-  }),
-  /** Stores (or with null, deletes) one of the secrets an extension declares. */
-  /** Asks the extension's plugin for context on a sample text, as a turn would: what it adds, or why not. */
-  "extensions.test": deferMethod({
-    params: () =>
-      z
-        .object({
-          id: z.string().min(1).max(80),
-          text: z.string().trim().min(1).max(2000),
-        })
-        .strict(),
-    result: () =>
-      z.object({
-        ok: z.boolean(),
-        ms: z.number().int(),
-        context: z.string().optional(),
-        error: z.string().optional(),
-      }),
-    effect: false,
-    access: "human",
-  }),
-  "extensions.set_secret": deferMethod({
-    params: () =>
-      z
-        .object({
-          id: z.string().max(40),
-          name: z.string().max(40),
-          value: z.string().max(10000).nullable(),
-        })
-        .strict(),
-    result: () => ExtensionInfo,
     effect: true,
     access: "human",
   }),

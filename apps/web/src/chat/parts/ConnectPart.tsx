@@ -8,7 +8,7 @@ import { openChannelKind } from "../../channels/openKind.ts";
 import { loadChannels, useChannels } from "../../data/channels.ts";
 import { client } from "../../data/client.ts";
 import { useT } from "../../i18n/index.ts";
-import { ConnectDialog, ConnectForm, describe, type Integration } from "../../resources/IntegrationsTab.tsx";
+import { ConnectDialog, ConnectForm, describe, type Integration } from "../../resources/IncludedIntegration.tsx";
 
 type Connect = Extract<Part, { type: "connect" }>;
 
@@ -35,7 +35,7 @@ export function ConnectPart({ part }: { part: Connect }) {
     try {
       setIntegrations((await client.call("integrations.list", {})).integrations);
     } catch {
-      // Without the list its Connect buttons stay off; Resources › Integrations still connects it.
+      // Without the list its Connect buttons stay off; the Marketplace still connects it.
     }
   }, []);
   useEffect(() => {

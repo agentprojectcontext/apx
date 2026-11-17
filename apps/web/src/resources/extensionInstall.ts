@@ -4,7 +4,8 @@ import { useSyncExternalStore } from "react";
 // lazily. `installed` counts installs, so an open Extensions tab reads its list again.
 
 export type InstallMode = "file" | "url" | "folder";
-type Request = { file?: File; mode?: InstallMode };
+/** `url`: an address already chosen (a catalog entry), looked at as the dialog opens. */
+type Request = { file?: File; mode?: InstallMode; url?: string };
 let request: Request | undefined;
 let installed = 0;
 const subs = new Set<() => void>();

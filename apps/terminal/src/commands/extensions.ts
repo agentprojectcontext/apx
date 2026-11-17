@@ -8,6 +8,7 @@ import type { ApxClient } from "@apx/protocol/client";
 const USAGE = `apx extensions                                   Installed extensions
 apx extensions inspect <folder|file.apxext|url>  What it would bring (nothing is installed)
 apx extensions install <folder|file.apxext|url>  Copy it in, off
+apx extensions catalog                           What APX's catalog offers (install one by its address)
 apx extensions rollback <id>                     Go back to the version installed before
 apx extensions on|off <id>
 apx extensions secret <id> <name>      Value on stdin (rm: --clear)
@@ -80,6 +81,17 @@ export async function extensions(
     return;
   }
   if (sub === "rollback" && arg) return show(await client.call("extensions.rollback", { id: arg }));
+  if (sub === "catalog") {
+    const r = await client.call("extensions.catalog", {});
+    if (r.catalog === "unreachable") console.log("APX's catalog could not be reached.");
+    if (r.catalog === "needs_update") console.log("Update APX to read its catalog.");
+    for (const e of r.entries) {
+      const extra = [...(e.brings ?? []), ...(e.needs ?? []).map((n) => `needs ${n}`)].join(", ");
+      console.log(`${e.id}  ${e.name} v${e.version}  · ${e.provenance === "official" ? "official" : "third party"}`);
+      console.log(`  ${e.description}${extra ? `\n  ${extra}` : ""}${e.url ? `\n  ${e.url}` : ""}`);
+    }
+    return;
+  }
   if ((sub === "on" || sub === "off") && arg)
     return show(await client.call("extensions.enable", { id: arg, enabled: sub === "on" }));
   if (sub === "rm" && arg) {

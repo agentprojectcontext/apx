@@ -58,7 +58,9 @@ function usePlaceHint(place: AppPlace | undefined): string {
     case "resources":
       return place.server
         ? `${t("res.mcpOpen")}: ${place.server}`
-        : t("link.go.resources", { name: t(`res.tab.${place.tab}`) });
+        : place.tab === "integrations" || place.tab === "extensions"
+          ? t("nav.marketplace")
+          : t("link.go.resources", { name: t(`res.tab.${place.tab}`) });
     case "inbox":
       return t("link.go.inbox");
     case "chat":

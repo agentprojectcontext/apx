@@ -4,7 +4,5 @@ export const enResourcesShared = {
   "res.error": "Resources: {error}",
   "res.tab.skills": "Skills",
   "res.tab.mcp": "MCP",
-  "res.tab.integrations": "Integrations",
   "res.tab.variables": "Variables",
-  "res.tab.extensions": "Extensions",
 } as const;

@@ -4,7 +4,7 @@ import path from "node:path";
 import { test } from "node:test";
 import type { ExtensionManifest } from "@apx/protocol";
 import { tempDir } from "../testkit/platform.ts";
-import { createCatalog } from "./catalog.ts";
+import { createCatalog, shippedCatalog } from "./catalog.ts";
 import { comparePowers, MAX_FILES, PackageError, readArchive, readFolder, writePackage } from "./package.ts";
 import { catalogOf, zip, zipFiles } from "./zip.test-support.ts";
 
@@ -175,4 +175,35 @@ test("the catalog: official only for the same id, version and fingerprint under 
   const before = asked.length;
   assert.deepEqual(await none.check("weather", "1.0.0", "aaaaaaaaaaaaaaaa"), { provenance: "third_party" });
   assert.equal(asked.length, before);
+});
+
+test("offline with nothing kept, the copy APX ships of the official catalog answers", async () => {
+  await using home = tempDir("apx-catalog-shipped-");
+  const catalog = createCatalog({
+    home: home.path,
+    url: "https://catalog.example.com/index.json",
+    fetch: (async () => {
+      throw new TypeError("fetch failed");
+    }) as typeof fetch,
+    shipped: () => JSON.parse(catalogOf([{ id: "weather", version: "1.0.0", hash: "aaaaaaaaaaaaaaaa" }])),
+  });
+  assert.deepEqual(await catalog.check("weather", "1.0.0", "aaaaaaaaaaaaaaaa"), { provenance: "official" });
+  assert.deepEqual(
+    (await catalog.entries()).entries.map((e) => e.id),
+    ["weather"],
+  );
+});
+
+test("the copy of the official catalog APX ships reads as a catalog", async () => {
+  await using home = tempDir("apx-catalog-copy-");
+  const catalog = createCatalog({
+    home: home.path,
+    url: "https://catalog.example.com/index.json",
+    fetch: (async () => new Response("down", { status: 503 })) as typeof fetch,
+    shipped: shippedCatalog,
+  });
+  const { entries, catalog: status } = await catalog.entries();
+  assert.equal(status, undefined);
+  assert.ok(entries.length > 0);
+  assert.ok(entries.every((e) => e.versions.every((v) => /^[0-9a-f]{16}$/.test(v.content_hash ?? ""))));
 });

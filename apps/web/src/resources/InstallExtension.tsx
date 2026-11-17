@@ -36,14 +36,16 @@ const base64 = (file: File) =>
 /** The dialog, mounted by the shell while openExtensionInstall's request stands. */
 export function InstallExtensionDialog() {
   const open = useExtensionInstall();
-  return open ? <InstallExtension file={open.file} initial={open.mode ?? "file"} /> : null;
+  return open ? (
+    <InstallExtension file={open.file} url={open.url} initial={open.url ? "url" : (open.mode ?? "file")} />
+  ) : null;
 }
 
-function InstallExtension({ file, initial }: { file: File | undefined; initial: Mode }) {
+function InstallExtension({ file, url, initial }: { file: File | undefined; url: string | undefined; initial: Mode }) {
   const t = useT();
   const [mode, setMode] = useState<Mode>(initial);
   const [fileName, setFileName] = useState("");
-  const [address, setAddress] = useState("");
+  const [address, setAddress] = useState(url ?? "");
   const [source, setSource] = useState<Source>();
   const [seen, setSeen] = useState<ExtensionInfo>();
   const [error, setError] = useState("");
@@ -80,6 +82,12 @@ function InstallExtension({ file, initial }: { file: File | undefined; initial: 
   useEffect(() => {
     if (file) void readRef.current(file);
   }, [file]);
+  const lookRef = useRef(look);
+  lookRef.current = look;
+  // An address chosen from the catalog is looked at right away.
+  useEffect(() => {
+    if (url) void lookRef.current({ url });
+  }, [url]);
   // Listened on the element: the drop zone is not a control, the "Choose file" button inside it is. A ref callback, as
   // the zone comes and goes with the mode.
   const drop = useCallback((el: HTMLDivElement | null) => {

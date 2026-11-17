@@ -1,0 +1,71 @@
+/* A connect dialog's head: two logos joined by dots that move while it connects. */
+.mkt-connect {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.mkt-link {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 6px 0 4px;
+}
+.mkt-link__tile {
+  display: grid;
+  place-items: center;
+  width: 52px;
+  height: 52px;
+  border: 1px solid var(--apx-border);
+  border-radius: var(--apx-radius-lg);
+  background: var(--apx-surface-raised);
+}
+.mkt-link__dots {
+  display: flex;
+  gap: 5px;
+}
+.mkt-link__dots i {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--apx-fg-subtle);
+}
+.mkt-link--connecting .mkt-link__dots i {
+  background: var(--apx-accent);
+  animation: mkt-flow 1.2s infinite ease-in-out;
+}
+.mkt-link--connecting .mkt-link__dots i:nth-child(2) {
+  animation-delay: 0.15s;
+}
+.mkt-link--connecting .mkt-link__dots i:nth-child(3) {
+  animation-delay: 0.3s;
+}
+.mkt-link--connecting .mkt-link__dots i:nth-child(4) {
+  animation-delay: 0.45s;
+}
+.mkt-link--connecting .mkt-link__dots i:nth-child(5) {
+  animation-delay: 0.6s;
+}
+.mkt-link--connected .mkt-link__dots i {
+  background: var(--apx-brand);
+}
+.mkt-link--connected .mkt-link__tile--target {
+  border-color: var(--apx-brand);
+}
+.mkt-link--broken .mkt-link__dots i {
+  opacity: 0.4;
+}
+@keyframes mkt-flow {
+  0%,
+  100% {
+    opacity: 0.25;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .mkt-link--connecting .mkt-link__dots i {
+    animation: none;
+  }
+}

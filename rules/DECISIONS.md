@@ -5206,7 +5206,7 @@ extension's folder) the installer for any extension, and needs APX to tell an of
   `node_modules` are left out. The copy is written with exclusive creates into a fresh folder under the home and its
   fingerprint read back from disk must equal the one computed in memory before it replaces anything.
 - **Official by fingerprint, no signature for now.** The catalog (`index.json`, schema 1, that GitHub Pages serves
-  from the public `apx-marketplace` repository at `https://agentprojectcontext.github.io/apx-marketplace/index.json`) lists each id's versions with `content_hash`, the same fingerprint turning an extension on approves (paths
+  from the public `apx-marketplace` repository at `https://marketplace.apxagent.app/index.json`; redirects are followed, never off https) lists each id's versions with `content_hash`, the same fingerprint turning an extension on approves (paths
   with "/", sorted). Official = same id + version + `content_hash` under `tier: "official"`; anything else is third
   party. A signature would be signed by whoever publishes the catalog, which is us; it protects something new only once
   the catalog is served from places we do not control (mirrors), and then it is added. Provenance is stored on the
@@ -5230,3 +5230,43 @@ Rejected: trusting the zip's own hash (it changes when the same files are recomp
 inspect and install (state to expire; the fingerprint already names the files); keeping an update off even when official
 and asking for nothing more (the plan's choice: the catalog vouches for those exact files); skipping bad entries as the
 skills importer does (an extension missing a file it names would be installed half).
+
+<a id="d-241"></a>
+## D-241 — 2026-11-17 — The Marketplace: one place for extensions, included, catalog and own
+The owner settled one name for what is installed or connected, **Extensions**, and a place of its own for them: the
+**Marketplace**, in the sidebar (store icon), with **Extensions**, **Agents** and **Skills** and the owner's own
+extensions listed under them with their state. "Apps" is not used (an app is an artifact in APX) nor "connector".
+Resources keeps Skills, MCP and Variables; a link to `resources/integrations` or `resources/extensions` opens the
+Marketplace.
+
+- **Included = APX's own code.** Google (with its tools), Asana, the channels and the browser are Included: connected
+  with their existing flows, never installed or uninstalled (`integrations.list` marks them `own`). The other account
+  integrations APX ships as data are shown as APX's catalog and connect as before; when the official catalog lists a
+  package with the same id, the package stands for it (unless that account is connected).
+- **Sections and groups.** Agents lists what brings agents; Skills, what brings skills. Extensions groups Included
+  first, then the catalog by category (with counts, the first six and "See all"), then accounts not filed yet.
+- **What it brings comes from the package.** The index does not say it, and guessing would make the filters lie.
+  `extensions.catalog` downloads each listed package once (4 at a time, waiting at most 15 s, the rest kept for the next
+  look), checks its sha256 against `archive.sha256` and its fingerprint against `content_hash`, and keeps only its
+  manifest, its `apx-listing.json` and the images that listing names (each at most 2 MB) by fingerprint in
+  `<home>/marketplace/packages`. A package that does not match is never read. Nothing runs and no timer asks again.
+- **Listing schema 2** is read as the plan defines it: `tagline`, `description` (Markdown), `category` (an id or its
+  English or Spanish label), `icon`, `screenshots[]`, `prompts[]`, `connection`, `links` (https only), `publisher`,
+  and `locales.es` for every text. Schema 1 still reads. Category ids: productivity, communication, docs-notes, files,
+  development, data, design-media, sales-customers, finance, marketing, devices-home, search-research,
+  business-systems. Each index entry may give `listing` and `icon` (absolute https addresses): they show the entry
+  until its package is read. A package cannot vouch for itself: its publisher's check shows
+  only when the official catalog lists those exact files. Its images reach the panel through `extensions.asset` (only
+  images, only inside the package).
+- **Offline.** APX ships a copy of the official catalog (`official-catalog.json`), used only for the official address
+  when nothing was ever fetched or kept; it is refreshed when a version is cut.
+- **Honest approval and connect.** Turning one on lists the hosts its URL servers reach; a command server with no
+  declared hosts is said to reach any address. Connecting an account shows APX and the service joined by dots that
+  move while it connects.
+
+The Marketplace's sidebar item, its icon and its route are on the first screen: the boot budget goes from 334 to
+335 KB gzip for it (rule 27), after removing the strings only the old Integrations and Extensions tabs used.
+
+Rejected: a Marketplace tab inside Resources (the owner wants it as a place); adding `brings` to the index first (the
+package is the source of truth either way); showing a package's own "verified" claim; counting an account's own plan
+as "Has a cost".
