@@ -48,7 +48,7 @@ export type LlmRequest = {
 const EFFORTS = ["none", "minimal", "low", "medium", "high", "xhigh"];
 
 /** The effort a call runs at: `lighter` when it is below the model's own (unset counts as medium). */
-export function callEffort(own: string | undefined, lighter: string | undefined): string | undefined {
+function callEffort(own: string | undefined, lighter: string | undefined): string | undefined {
   if (!lighter || !EFFORTS.includes(lighter)) return own;
   const at = EFFORTS.indexOf(own ?? "medium");
   return at === -1 || EFFORTS.indexOf(lighter) < at ? lighter : own;
