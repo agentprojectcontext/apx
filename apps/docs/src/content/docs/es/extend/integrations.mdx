@@ -68,6 +68,7 @@ Los listados excluyen tareas completadas por defecto; usá `completed: true` par
 Para crear una tarea, indicá un `project` de Asana o un `workspace` si no querés asociarla a un proyecto.
 `asana_write` crea o actualiza tareas (nombre, notas, estado, responsable y vencimiento), con autorización del dueño.
 El switch por proyecto controla la disponibilidad, no los permisos sobre objetos: la cuenta compartida conserva los permisos de su token.
+Si no sabés si una creación se completó, revisá Asana antes de repetirla: APX no reintenta las escrituras automáticamente.
 
 Para casillas, borradores y firmas locales por remitente, consultá [Email y firmas](/es/office/email/).
 
@@ -82,7 +83,7 @@ Cada parte de Google se conecta por separado, así elegís a qué llegan tus age
 - **Gmail y Drive** arrancan en **Mi propio OAuth client**, que llega a todo. El diálogo te guía para crearlo una vez en
   Google Cloud (unos 5 minutos); después subís el JSON que te da Google. Publicá la app (**En producción**): en Prueba,
   Google corta el acceso a los 7 días. Un mismo inicio de sesión puede conectar las otras partes, con el mismo cliente.
-- **Acceso de APX (limitado)** está también para Gmail y Drive, para enviar mails y los Docs que escribe APX.
+- **Acceso de APX (limitado)** está también para Gmail y Drive, para enviar mails y los archivos que crea APX, incluidos Docs y Sheets.
 
 | Parte | Qué pueden hacer los agentes | Te pregunta antes |
 |---|---|---|
@@ -129,7 +130,6 @@ Un evento solo en tu calendario se crea sin preguntar. Mover un evento o sacar i
 los invitados les llega un mail solo cuando el agente pide avisarles, y eso primero lo confirmás vos. Eventos, mails y archivos les llegan a los agentes como datos de
 afuera, nunca como instrucciones. Con tu propio cliente, Google muestra "Google no verificó esta app": elegí
 **Avanzado** y seguí.
-Si no sabés si una creación se completó, revisá Asana antes de repetirla: APX no reintenta las escrituras automáticamente.
 
 Los servidores basados en MCP arrancan con `npx`, así que la máquina donde corre el core necesita Node.js e internet la primera vez
 que arranca cada uno. Una vez conectada, una integración se porta como cualquier otro servidor MCP: tiene [permisos
