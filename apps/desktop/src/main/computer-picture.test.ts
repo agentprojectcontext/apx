@@ -49,6 +49,7 @@ const hooks = registerHooks({
 const { createComputer } = await import("./computer.ts");
 hooks.deregister();
 
+const moves: Array<{ x: number; y: number }> = [];
 function setup(bounds?: Bounds) {
   windowBounds = bounds;
   crops.length = 0;
@@ -66,7 +67,15 @@ function setup(bounds?: Bounds) {
   };
   return createComputer({
     driver,
-    cursor: { moveTo: async () => {}, hide: () => {}, pulse: () => {}, say: () => {}, close: () => {} },
+    cursor: {
+      moveTo: async (x, y) => {
+        moves.push({ x, y });
+      },
+      hide: () => {},
+      pulse: () => {},
+      say: () => {},
+      close: () => {},
+    },
     onActivity: () => {},
     onStopped: () => {},
   });
@@ -102,4 +111,13 @@ test("rounding and unequal thumbnail axes use the actual crop origin and dimensi
   const result = await snapshot(setup({ x: 1, y: 2, width: 200, height: 100 }));
   assert.deepEqual(crops, [{ x: 2, y: 3, width: 300, height: 125 }]);
   assert.match(result.elements, /\(1\.3333333333333333 \+ px\*0\.667, 2\.4 \+ py\*0\.800\)/);
+});
+
+test("a look moves the agent's cursor to the window's top; a look right after an action leaves it where it acted", async () => {
+  const computer = setup({ x: 100, y: 50, width: 400, height: 300 });
+  moves.length = 0;
+  await computer.handle("computer.snapshot", {});
+  assert.deepEqual(moves, [{ x: 300, y: 90 }]);
+  await computer.handle("computer.snapshot", { stay: true });
+  assert.deepEqual(moves, [{ x: 300, y: 90 }]);
 });

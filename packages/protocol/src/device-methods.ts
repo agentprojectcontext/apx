@@ -342,6 +342,8 @@ export const deviceMethods = {
           thread: Id.optional(),
           app: z.string().min(1).max(120).optional(),
           note: z.string().max(80).optional(),
+          /** Right after an action: the agent's cursor stays where it acted (the picture never shows it). */
+          stay: z.boolean().optional(),
         })
         .strict(),
     result: () =>

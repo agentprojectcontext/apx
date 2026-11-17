@@ -209,3 +209,32 @@ test("a chat too long for the model is retried once with only the newest results
   assert.equal(out.text, "done");
   assert.equal(refused, 1, "one squeeze was enough");
 });
+
+test("after a step that only worked the screen, the next call reasons lighter; other steps keep the model's own", async () => {
+  const plan = [
+    callTool("s1", "screen_snapshot", {}),
+    callTool("d1", "screen_do", { app: "Notes", steps: [] }),
+    callTool("m1", "memory_search", { query: "q" }),
+    say("done"),
+  ];
+  const llm = scriptedLlm((req) => plan[toolResults(req.messages)] ?? say("done"));
+  const io = {
+    system: "system",
+    history: [],
+    input: { role: "user", content: "go" },
+    tools: [{ type: "function", function: { name: "any", description: "", parameters: {} } }],
+    models: ["fake/fake-1"],
+    signal: new AbortController().signal,
+    thread: { id: "t1" },
+    onText() {},
+    log() {},
+    async execute() {
+      return { ok: true, text: "ok" };
+    },
+  } as unknown as TurnIO;
+  await nativeHarness(llm).run(io);
+  assert.deepEqual(
+    llm.calls.map((c) => c.lighter),
+    [undefined, "low", "low", undefined],
+  );
+});

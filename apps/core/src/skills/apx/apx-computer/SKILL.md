@@ -17,8 +17,13 @@ making **fewer calls**, not faster ones.
    screen formula in the header.
 3. **Act in one call.** `screen_do` with every step you can already predict: click the field, type, press enter.
    It looks at the window after the last step, so you do not need a `screen_snapshot` after it.
-4. **Check that result**, then the next `screen_do`. Look again only when the screen changed in a way you cannot
-   predict (a menu opened, a dialog appeared).
+4. **Check that result**, then the next `screen_do`. Never a `screen_snapshot` right after a `screen_do`: its result
+   already is the window as it is now. Look again only when the screen changed in a way you cannot predict and the
+   last `screen_do` did not show it.
+
+A `screen_do` with one click is the slow way: aim for every step up to the next thing you cannot see yet. Scrolling
+and then clicking what you already saw lower is one call (`pagedown`, then the click); filling a field and confirming
+is one call (click, type, `enter`). Each call costs a round trip through you, far more than the steps in it.
 
 A form is one `screen_do`: click the first field, type, `tab`, type, `tab`, type. A menu is one `screen_do` too when
 you know it: click the button, then arrows and `enter` instead of a second look and a second click.
@@ -38,7 +43,8 @@ at the point takes a press, the pointer jumps there, clicks and comes straight b
 Never claim a refused control was activated. General native runtime and safety validation remain bounded by the
 preview's evidence; one synthetic fixture is not proof of support for every app.
 
-The indicator stays visible between actions, with the action note and a stored agent's short name (APX when no note or agent is available),
+A look of its own moves the indicator to the top of the window it reads; the look that ends a `screen_do` leaves it
+where it acted. The indicator stays visible between actions, with the action note and a stored agent's short name (APX when no note or agent is available),
 and hides on stop or disconnection. Stop, turning computer use off, changing connections or quitting cancels the
 gesture and any queued click not yet delivered. If delivery is uncertain, do not retry automatically: an already
 delivered effect cannot be withdrawn. Do not use this option to bypass browser rules or handle credentials.

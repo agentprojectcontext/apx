@@ -26,6 +26,11 @@ const STUCK_AT = 8;
 const LOOKS_AGAIN = new Set(["screen_snapshot", "browser_snapshot"]);
 /** Reading the same page part again is stuck only when it says the same: after a click or a load it may not. */
 const READS_AGAIN = new Set(["browser_text"]);
+/**
+ * After a step that only worked the screen, the next call reasons at this effort: it reads the window and picks the
+ * next clicks, and long thinking there is most of a computer session's wait.
+ */
+const SCREEN_EFFORT = "low";
 /** A picture that comes beside a whole text answer: shown only to a model known to read images. */
 const PICTURE_BESIDE_TEXT = new Set(["browser_snapshot"]);
 /**
@@ -86,9 +91,12 @@ export function nativeHarness(llm: Llm): Harness {
       let prefix = "";
       let toolsOff = false;
       let continuations = 0;
+      /** The last step's calls all worked the screen. */
+      let onScreen = false;
 
       const step = async (tools: boolean, cut?: AbortSignal) => {
         const c = await llm.complete({
+          ...(onScreen && tools ? { lighter: SCREEN_EFFORT } : {}),
           models: io.models,
           messages,
           tools: tools && !toolsOff ? io.tools.map(modelSpec) : [],
@@ -106,7 +114,8 @@ export function nativeHarness(llm: Llm): Harness {
         io.signal.throwIfAborted();
         io.alive?.();
         model = c.model;
-        effort = c.effort;
+        // The turn is named by the effort it was asked for, not a screen step's lighter one.
+        if (!onScreen) effort = c.effort;
         for (const f of c.failed ?? []) if (!failed.has(f.model)) failed.set(f.model, f);
         usage.input += c.usage?.input ?? 0;
         usage.output += c.usage?.output ?? 0;
@@ -166,6 +175,7 @@ export function nativeHarness(llm: Llm): Harness {
         const lookedFrom = new Set<string>();
         // The model that asked for these tools takes the next step too, unless it fails over.
         const sees = readsImages(c.model);
+        onScreen = calls.every((call) => call.function.name.startsWith("screen_"));
         for (const call of calls) {
           // Every call needs its result: the ones after a cut are not run.
           if (cut?.aborted) {

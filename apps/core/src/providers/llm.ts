@@ -40,7 +40,19 @@ export type LlmRequest = {
   once?: boolean | undefined;
   /** Called synchronously right before the request goes out; throwing stops it from being sent. */
   onDispatch?: (() => void) | undefined;
+  /** A reasoning effort for this call only; it lowers the model's own, never raises it. */
+  lighter?: string | undefined;
 };
+
+/** Reasoning efforts, least first, as the transports that take one name them. */
+const EFFORTS = ["none", "minimal", "low", "medium", "high", "xhigh"];
+
+/** The effort a call runs at: `lighter` when it is below the model's own (unset counts as medium). */
+export function callEffort(own: string | undefined, lighter: string | undefined): string | undefined {
+  if (!lighter || !EFFORTS.includes(lighter)) return own;
+  const at = EFFORTS.indexOf(own ?? "medium");
+  return at === -1 || EFFORTS.indexOf(lighter) < at ? lighter : own;
+}
 
 export type Llm = {
   /** Providers that have a key, for health and the UI ("gemini, anthropic"). */
@@ -173,6 +185,7 @@ export function createLlm(opts: {
       for (const t of list) {
         if (skipped.has(t.provider.id)) continue;
         const ref = `${t.provider.id}/${t.model}`;
+        const effort = callEffort(t.effort, req.lighter);
         const hold = held.get(ref);
         if (hold && hold.until > now()) {
           // What the provider said when it was held, so the owner can tell a real plan limit from a misread one.
@@ -229,7 +242,7 @@ export function createLlm(opts: {
               baseUrl: t.provider.base_url,
               key,
               model: t.model,
-              effort: t.effort,
+              effort,
               headers,
               messages: readsImages(ref) === false ? wordsOnly : messages,
               tools: req.tools,
@@ -245,7 +258,7 @@ export function createLlm(opts: {
             return {
               ...out,
               model: ref,
-              ...(t.effort ? { effort: t.effort } : {}),
+              ...(effort ? { effort } : {}),
               ...(failed.length ? { failed } : {}),
             };
           } catch (err) {
