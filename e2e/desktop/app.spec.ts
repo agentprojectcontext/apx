@@ -8,6 +8,7 @@ import type { AddressInfo } from "node:net";
 import path from "node:path";
 import { type ElectronApplication, expect, type Page, test } from "@playwright/test";
 import { tempDir } from "../../apps/core/src/testkit/platform.ts";
+import { ALL_SLIDES } from "../../apps/web/src/shell/welcomeFilm.ts";
 import { rpc, until } from "../specs/kit.ts";
 import { assertDesktopHeader, assertFullscreenBar, launchDesktop } from "./app-shell.test-support.ts";
 
@@ -50,15 +51,27 @@ test("the window shows the panel the core serves", async () => {
   await expect(main.getByRole("textbox", { name: /^Escribile a|^Message/ }).or(main.getByRole("dialog"))).toBeVisible();
 });
 
-test("an account return reaches the panel and refuses an unrequested sign-in without creating a session", async () => {
+test("a forged sign-in link is ignored: no screen opens and no session is made", async () => {
   const main = await page("main");
+  // The welcome would cover the screen: seen already, as in the panel's own specs.
+  await main.evaluate((seen) => {
+    localStorage.setItem("apx.corner", JSON.stringify({ discord: true, star: true, welcomeSeen: seen }));
+    location.reload();
+  }, ALL_SLIDES);
+  await expect(main.getByRole("textbox", { name: /^Escribile a|^Message/ })).toBeVisible();
+  let finishes = 0;
+  await main.route("**/rpc/account.finish", async (route) => {
+    finishes++;
+    await route.abort();
+  });
   await app.evaluate(({ app }) => {
     app.emit("open-url", { preventDefault() {} }, "apx://account/callback?code=invalid&state=invalid");
   });
-  const account = main.getByRole("region", { name: "Cuenta en la nube" });
-  await expect(account.getByRole("alert")).toContainText("venció");
+  // Signing in finishes in the browser; only apx://account/signed-in opens Account (account.spec.ts).
+  await main.waitForTimeout(500);
+  await expect(main.getByRole("dialog", { name: "Configuración", exact: true })).toHaveCount(0);
+  expect(finishes).toBe(0);
   expect((await rpc<{ profile: unknown }>("account.get")).profile).toBeNull();
-  await main.getByRole("button", { name: "Cerrar", exact: true }).click();
 });
 
 test("the desktop header shares the native title bar and centers history with search", async () => {
