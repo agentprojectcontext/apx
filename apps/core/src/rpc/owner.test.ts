@@ -16,6 +16,7 @@ test("saving one field of the owner keeps the others as they were", async () => 
     await env.client.call("owner.set", { timezone: "Europe/Madrid" });
     assert.deepEqual(await env.client.call("owner.get", {}), {
       name: "Ada",
+      call_me: "",
       about: "Runs a bakery in Northwind.",
       language: "en",
       timezone: "Europe/Madrid",

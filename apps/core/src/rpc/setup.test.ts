@@ -352,6 +352,7 @@ test("importing the identity brings who the owner is, the super-agent's personal
   const owner = await env.client.call("owner.get", {});
   assert.deepEqual(owner, {
     name: "Ana",
+    call_me: "",
     about: "Runs a small bakery in Northwind.",
     language: "es",
     timezone: "America/Argentina/Buenos_Aires",
