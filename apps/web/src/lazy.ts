@@ -38,7 +38,9 @@ export const ArtifactWindow = lazy(() =>
   import("./apps/ArtifactWindow.tsx").then((m) => ({ default: m.ArtifactWindow })),
 );
 export const OAuthReturn = lazy(
-  withPacks(["resources"], () => import("./resources/OAuthReturn.tsx").then((m) => ({ default: m.OAuthReturn }))),
+  withPacks(["resources", "cloudAccount"], () =>
+    import("./resources/OAuthReturn.tsx").then((m) => ({ default: m.OAuthReturn })),
+  ),
 );
 
 export const AttachChips = lazy(() =>
@@ -65,7 +67,9 @@ export const ChannelDialogs = lazy(
   ),
 );
 export const ConfigModal = lazy(
-  withPacks(["team"], () => import("./config/ConfigModal.tsx").then((m) => ({ default: m.ConfigModal }))),
+  withPacks(["team", "cloudAccount"], () =>
+    import("./config/ConfigModal.tsx").then((m) => ({ default: m.ConfigModal })),
+  ),
 );
 export const McpPeek = lazy(
   withPacks(["resources"], () => import("./resources/McpPeek.tsx").then((m) => ({ default: m.McpPeek }))),

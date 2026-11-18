@@ -471,19 +471,11 @@ export const en = {
   "account.handleInvalid": "Use 3–24 letters, numbers or underscores, starting with a letter.",
   "account.handleUnavailable": "That username is unavailable. Try another one or reload your account.",
   "account.unavailable": "Sign-in is not set up yet. You can keep using APX without an account.",
-  "account.signedIn": "You’re signed in to APX",
-  "account.cancelled": "You cancelled sign-in. Return to APX whenever you’re ready to try again.",
-  "account.required": "Your session has ended. Sign in with Google again.",
-  "account.denied": "You don’t have permission to update this account. Try signing in again.",
-  "account.busy": "Your account is being updated. Wait a moment and try again.",
-  "account.localOnly": "To sign in, open APX on the computer where it is running.",
   "account.expired": "This sign-in has expired or was cancelled. Start again from APX.",
   "account.failed": "Could not update your account. Check your connection and try again.",
   "account.waiting": "Finish signing in in your browser, then return to APX.",
   "account.saved": "Username saved.",
-  "account.returnTitle": "Return to APX to finish signing in",
   "account.returnAction": "Open APX",
-  "account.returnHint": "Allow your browser to open APX when it asks.",
   "error.respond": "Could not send your answer: {error}",
   "running.label": "Processes",
   "running.aria": "{working} running, {waiting} waiting, {background} in the background",
@@ -1972,6 +1964,7 @@ export const en = {
 
 /** Every key the panel may show: these, and those of the packs loaded with their screens (messages.ts PACKS). */
 export type MessageKey =
+  | keyof typeof import("./cloud-account-en.ts").enCloudAccount
   | keyof typeof en
   | keyof typeof enAccount
   | keyof typeof enGroup

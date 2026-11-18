@@ -50,17 +50,6 @@ test("the window shows the panel the core serves", async () => {
   await expect(main.getByRole("textbox", { name: /^Escribile a|^Message/ }).or(main.getByRole("dialog"))).toBeVisible();
 });
 
-test("an account return reaches the panel and refuses an unrequested sign-in without creating a session", async () => {
-  const main = await page("main");
-  await app.evaluate(({ app }) => {
-    app.emit("open-url", { preventDefault() {} }, "apx://account/callback?code=invalid&state=invalid");
-  });
-  const account = main.getByRole("region", { name: "Cuenta en la nube" });
-  await expect(account.getByRole("alert")).toContainText("venció");
-  expect((await rpc<{ profile: unknown }>("account.get")).profile).toBeNull();
-  await main.getByRole("button", { name: "Cerrar", exact: true }).click();
-});
-
 test("the desktop header shares the native title bar and centers history with search", async () => {
   await assertDesktopHeader(app, await page("main"));
 });

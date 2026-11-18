@@ -4,36 +4,54 @@ import { expect, open, rpc, test } from "./kit.ts";
 
 type Owner = { language: string; timezone: string };
 
-for (const width of [1280, 390]) {
-  for (const cancelled of [false, true]) {
-    test(`desktop sign-in ${cancelled ? "cancellation" : "completion"} finishes in the browser at ${width}px`, async ({
-      page,
-    }, testInfo) => {
-      await page.setViewportSize({ width, height: 844 });
-      let calls = 0;
-      await page.route("**/rpc/account.finish", async (route) => {
-        calls++;
-        expect(route.request().postDataJSON()).toEqual(
-          cancelled ? { error: "access_denied", state: "desktop.nonce" } : { code: "one-use", state: "desktop.nonce" },
-        );
-        await route.fulfill({
-          json: cancelled
-            ? { ok: false, error: { code: "bad_request", message: "sign_in_cancelled" } }
-            : { ok: true, result: { ok: true } },
+for (const language of ["es", "en"]) {
+  test.describe(`account return ${language}`, () => {
+    test.use({ locale: language });
+    for (const width of [1280, 390]) {
+      for (const cancelled of [false, true]) {
+        test(`desktop sign-in ${cancelled ? "cancellation" : "completion"} finishes in the browser at ${width}px`, async ({
+          page,
+        }, testInfo) => {
+          await page.setViewportSize({ width, height: 844 });
+          let calls = 0;
+          await page.route("**/rpc/account.finish", async (route) => {
+            calls++;
+            expect(route.request().postDataJSON()).toEqual(
+              cancelled
+                ? { error: "access_denied", state: "desktop.nonce" }
+                : { code: "one-use", state: "desktop.nonce" },
+            );
+            await route.fulfill({
+              json: cancelled
+                ? { ok: false, error: { code: "bad_request", message: "sign_in_cancelled" } }
+                : { ok: true, result: { ok: true } },
+            });
+          });
+          await page.goto(`/oauth/account?${cancelled ? "error=access_denied" : "code=one-use"}&state=desktop.nonce`);
+          await expect(
+            page.getByText(
+              cancelled
+                ? language === "es"
+                  ? /Cancelaste el inicio de sesión/
+                  : /You cancelled sign-in/
+                : language === "es"
+                  ? "Iniciaste sesión en APX"
+                  : "You’re signed in to APX",
+              { exact: !cancelled },
+            ),
+          ).toBeVisible();
+          await expect(
+            page.getByRole("button", { name: language === "es" ? "Abrir APX" : "Open APX", exact: true }),
+          ).toBeVisible();
+          expect(calls).toBe(1);
+          expect(new URL(page.url()).search).toBe("");
+          await page.screenshot({
+            path: testInfo.outputPath(`account-return-${cancelled ? "cancelled" : "success"}-${width}.png`),
+          });
         });
-      });
-      await page.goto(`/oauth/account?${cancelled ? "error=access_denied" : "code=one-use"}&state=desktop.nonce`);
-      await expect(
-        page.getByText(cancelled ? /Cancelaste el inicio de sesión/ : "Iniciaste sesión en APX", { exact: !cancelled }),
-      ).toBeVisible();
-      await expect(page.getByRole("button", { name: "Abrir APX", exact: true })).toBeVisible();
-      expect(calls).toBe(1);
-      expect(new URL(page.url()).search).toBe("");
-      await page.screenshot({
-        path: testInfo.outputPath(`account-return-${cancelled ? "cancelled" : "success"}-${width}.png`),
-      });
-    });
-  }
+      }
+    }
+  });
 }
 
 for (const viewport of [
