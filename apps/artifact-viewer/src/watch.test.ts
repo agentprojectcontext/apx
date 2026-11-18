@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { manualTimers, waitFor } from "../../core/src/testkit/platform.ts";
+import { createPublicationController } from "./controller.ts";
 import { createPublicationWatch } from "./watch.ts";
 
 type Events = { open(): void; closed(): void; message(data: unknown): void };
@@ -14,7 +15,7 @@ function fixture() {
   let removed = false;
   let visibility = () => {};
   let metadata: (signal: AbortSignal) => Promise<unknown> = async () => ({ revision: "one" });
-  const start = () =>
+  const start = (observe?: (state: "waiting" | "live" | "missing") => void) =>
     createPublicationWatch(
       {
         metadata: (signal) => {
@@ -45,7 +46,10 @@ function fixture() {
         },
         after: timers.after,
       },
-      (state) => states.push(state),
+      (state) => {
+        states.push(state);
+        observe?.(state);
+      },
       (missing) => failures.push(missing),
     );
   const events = (index = sockets.length - 1) => {
@@ -71,6 +75,39 @@ function fixture() {
   };
 }
 
+test("an update completed before the socket handshake replaces an already rendered older copy", async () => {
+  const f = fixture();
+  const copy = (html: string) => ({
+    bundle: {
+      format: "apx-artifact@1" as const,
+      manifest: { name: "orders", title: "Orders", kind: "widget" as const, version: 1 },
+      html,
+    },
+    json: html,
+    sha256: "a".repeat(64),
+  });
+  let current = copy("Revision A");
+  const controller = createPublicationController({
+    valid: true,
+    load: async () => current,
+    watch: (changed) => f.start(changed),
+    after: f.timers.after,
+    online: () => true,
+  });
+  try {
+    controller.start();
+    await waitFor(() => controller.snapshot().copy?.bundle.html === "Revision A", "first revision rendered");
+    current = copy("Revision B");
+    f.events().open();
+    await waitFor(() => controller.snapshot().copy?.bundle.html === "Revision B", "handshake catches missed update");
+    f.timers.tick(86_400_000);
+    assert.equal(controller.snapshot().copy?.bundle.html, "Revision B");
+    assert.equal(f.reads(), 1, "synchronization is event-driven, not a metadata poll");
+  } finally {
+    controller.stop();
+  }
+});
+
 test("a connected viewer receives changes without polling and a revocation terminates its stream", async () => {
   const f = fixture();
   const stop = f.start();
@@ -81,7 +118,7 @@ test("a connected viewer receives changes without polling and a revocation termi
   assert.equal(f.timers.pending(), 0);
   f.events().message(JSON.stringify({ state: "live" }));
   f.events().message(JSON.stringify({ state: "missing" }));
-  assert.deepEqual(f.states, ["waiting", "live", "live", "missing"]);
+  assert.deepEqual(f.states, ["waiting", "live", "live", "live", "missing"]);
   f.events().message(JSON.stringify({ state: "live" }));
   f.timers.tick(86_400_000);
   assert.equal(f.states.at(-1), "missing");

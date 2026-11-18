@@ -227,6 +227,83 @@ test("real Worker publishes, updates and revokes through R2; cached public copie
   }
 });
 
+test("socket fan-out is bounded per copy and account; updates and revocation reach every accepted subscriber", async () => {
+  const f = await runtimeFixture();
+  type Connection = WebSocket;
+  const sockets: Connection[] = [];
+  const notices: { code: string; state: string }[] = [];
+  const closed = new Set<Connection>();
+  const root = "https://example.com";
+  const headers = { authorization: `Bearer ${f.token}` };
+  const codes = Array.from({ length: 6 }, (_, i) => String(i).padStart(8, "0"));
+  const body = (html: string) =>
+    JSON.stringify({
+      format: "apx-artifact@1",
+      manifest: { name: "orders", title: "Orders", kind: "app", version: 1 },
+      html,
+    });
+  const watch = (code: string) =>
+    f.mf.dispatchFetch(`${root}/api/copies/${code}/events`, { headers: { upgrade: "websocket" } });
+  try {
+    for (const code of codes) {
+      const response = await f.mf.dispatchFetch(`${root}/api/account/copies/${code}/publish`, {
+        method: "POST",
+        headers,
+        body: body("Revision A"),
+      });
+      assert.equal(response.status, 200, await response.text());
+    }
+    for (const code of codes.slice(0, 5)) {
+      for (let i = 0; i < 20; i++) {
+        const socket = new WebSocket(`${(await f.mf.ready).origin.replace(/^http/, "ws")}/api/copies/${code}/events`);
+        sockets.push(socket);
+        await waitFor(() => socket.readyState === WebSocket.OPEN, "native socket connected");
+        socket.addEventListener("message", (event) => {
+          const state = JSON.parse(String(event.data)).state;
+          notices.push({ code, state });
+          if (state === "missing") socket.close();
+        });
+        socket.addEventListener("close", () => {
+          closed.add(socket);
+        });
+      }
+    }
+    assert.equal((await watch(codes[0] ?? "")).status, 429, "twenty retained sockets is the per-copy ceiling");
+    assert.equal((await watch(codes[5] ?? "")).status, 429, "one hundred retained sockets is the per-account ceiling");
+    for (const [index, action] of [
+      [1, "update"],
+      [0, "revoke"],
+    ] as const) {
+      const code = codes[index];
+      const inspected = await f.mf.dispatchFetch(`${root}/api/account/copies/${code}/inspect`, { headers });
+      const meta = (await inspected.json()) as { updateTime: string };
+      const response = await f.mf.dispatchFetch(`${root}/api/account/copies/${code}/${action}`, {
+        method: "POST",
+        headers: { ...headers, "x-artifact-revision": meta.updateTime },
+        ...(action === "update" ? { body: body("Revision B") } : {}),
+      });
+      assert.equal(response.status, 200, await response.text());
+      const state = action === "update" ? "live" : "missing";
+      await waitFor(
+        () => notices.filter((notice) => notice.code === code && notice.state === state).length === 20,
+        "all accepted sockets notified",
+      );
+    }
+    await waitFor(() => closed.size === 20, "revocation releases retained subscriptions");
+    const replacement = new WebSocket(
+      `${(await f.mf.ready).origin.replace(/^http/, "ws")}/api/copies/${codes[5]}/events`,
+    );
+    sockets.push(replacement);
+    await waitFor(
+      () => replacement.readyState === WebSocket.OPEN,
+      "released sockets restore capacity for another copy",
+    );
+  } finally {
+    for (const socket of sockets) if (socket.readyState < 2) socket.close();
+    await f.mf.dispose();
+  }
+});
+
 test("R2 quota stays trusted even if an owner deletes Firebase metadata directly; other accounts cannot inspect or change a copy", async () => {
   const f = await runtimeFixture();
   const json = JSON.stringify({

@@ -1,7 +1,7 @@
 type Metadata = { title: string; sha256: string; bytes: number; revision: string; updated_at: string };
 export type Pointer = { uid: string; slot: string; meta: Metadata };
 export type Bucket = {
-  get(key: string): Promise<R2ObjectBody | null>;
+  get(key: string): Promise<Pick<R2ObjectBody, "body" | "json"> | null>;
   put(key: string, value: string, options?: R2PutOptions): Promise<unknown>;
   delete(key: string): Promise<unknown>;
 };

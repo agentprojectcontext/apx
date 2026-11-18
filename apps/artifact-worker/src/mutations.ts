@@ -1,5 +1,6 @@
 import { verifyPublicCopy } from "@apx/protocol/public-copy";
 import type { metadataCloud, Session } from "./metadata.ts";
+import type { PendingCopy } from "./recovery.ts";
 import { type Bucket, bodyKey, type Pointer, pointer, pointerKey, setPointer } from "./storage.ts";
 
 async function boundedText(request: Request, limit: number) {
@@ -51,7 +52,7 @@ export async function mutate(
     action: "publish" | "update" | "revoke";
     revoked?: Pointer;
     rememberRevocation(value: Pointer): Promise<void>;
-    rememberPending(value: { sha256: string; acknowledged: boolean }): Promise<void>;
+    rememberPending(value: PendingCopy): Promise<void>;
   },
 ) {
   const { bucket, session, cloud, code, action } = deps;
@@ -104,16 +105,13 @@ export async function mutate(
     revision: crypto.randomUUID(),
     updated_at: new Date().toISOString(),
   };
-  // Claim the code before touching its body: another account may race for the same code.
-  if (action === "publish" && !old) await deps.rememberPending({ sha256, acknowledged: false });
+  const pending = { sha256, ...(old ? { previous: old.meta.sha256 } : {}), owned: !!old, acknowledged: false };
+  await deps.rememberPending(pending);
   const slot = await cloud.reserve(code, meta);
+  const target = { uid: session.uid, slot, meta };
+  await deps.rememberPending({ ...pending, owned: true, target });
   await bucket.put(bodyKey(code, sha256), json, { httpMetadata: { contentType: "application/vnd.apx.artifact+json" } });
-  if (action === "publish" && !old) await deps.rememberPending({ sha256, acknowledged: true });
-  await setPointer(bucket, code, { uid: session.uid, slot, meta });
-  if (old && old.meta.sha256 !== sha256) {
-    try {
-      await bucket.delete(bodyKey(code, old.meta.sha256));
-    } catch {}
-  }
+  await deps.rememberPending({ ...pending, owned: true, target, acknowledged: true });
+  await setPointer(bucket, code, target);
   return { code, sha256 };
 }

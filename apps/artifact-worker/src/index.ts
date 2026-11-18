@@ -6,6 +6,7 @@ export { PublicationBudget } from "./budget.ts";
 import { failure, secureResponse } from "./headers.ts";
 import { metadataCloud, type Session } from "./metadata.ts";
 import { mutate } from "./mutations.ts";
+import { type PendingCopy, recoverPending, sweepUncertainCopy } from "./recovery.ts";
 import { bodyKey, type Pointer, pointer, pointerKey, readCopy } from "./storage.ts";
 
 type Env = {
@@ -173,38 +174,57 @@ export class PublicationAccount {
       } catch {}
     }
     if (pending.size) return;
-    const abandoned = await this.ctx.storage.list<{ sha256: string; acknowledged: boolean }>({
-      prefix: "pending/",
-      limit: 1,
-    });
-    for (const [key, saved] of abandoned) {
-      const code = key.slice("pending/".length);
+    const abandoned = await this.ctx.storage.list<PendingCopy>({ prefix: "pending/", limit: 1 });
+    for (const key of abandoned.keys()) {
       try {
-        const bucket = budgetedBucket(this.env.COPIES, this.env.BUDGET, true);
-        const current = await pointer(bucket, code);
-        if (!current) {
-          const metadata = cloud(session, this.env);
-          const slots = await metadata.slots();
-          const slot = slots
-            .find((item) => item.fields.code?.stringValue === code)
-            ?.name.split("/")
-            .at(-1);
-          if (slot) {
-            await metadata.release(code, slot);
-            if (saved.acknowledged) await bucket.delete(bodyKey(code, saved.sha256));
-            else await this.env.COPIES.delete(bodyKey(code, saved.sha256));
-          }
-        }
-        await this.ctx.storage.delete(key);
-        if (!current || current.uid !== session.uid) {
-          const active = (await this.ctx.storage.get<string[]>("active")) ?? [];
-          await this.ctx.storage.put(
-            "active",
-            active.filter((item) => item !== code),
-          );
-        }
+        await this.recover(key.slice("pending/".length), session);
       } catch {}
     }
+    await this.sweepUncertain(session);
+  }
+  private async sweepUncertain(session: Session) {
+    const startAfter = await this.ctx.storage.get<string>("uncertain-cursor");
+    const entries = await this.ctx.storage.list<{ code: string; sha256: string }>({
+      prefix: "uncertain/",
+      startAfter,
+      limit: 1,
+    });
+    if (!entries.size) {
+      await this.ctx.storage.delete("uncertain-cursor");
+      return;
+    }
+    for (const [key, saved] of entries) {
+      try {
+        await sweepUncertainCopy(saved.code, saved.sha256, {
+          bucket: budgetedBucket(this.env.COPIES, this.env.BUDGET, true),
+          session,
+          rawDelete: (key) => this.env.COPIES.delete(key),
+        });
+      } catch {}
+      await this.ctx.storage.put("uncertain-cursor", key);
+    }
+  }
+  private async recover(code: string, session: Session) {
+    const key = `pending/${code}`;
+    const saved = await this.ctx.storage.get<PendingCopy>(key);
+    if (!saved) return;
+    const current = await recoverPending(code, saved, {
+      bucket: budgetedBucket(this.env.COPIES, this.env.BUDGET, true),
+      cloud: cloud(session, this.env),
+      session,
+      rememberPending: (value) => this.ctx.storage.put(key, value),
+      rememberUncertain: (hash) => this.ctx.storage.put(`uncertain/${code}/${hash}`, { code, sha256: hash }),
+      rawDelete: (key) => this.env.COPIES.delete(key),
+      revoked: !!(await this.ctx.storage.get(`revoked/${code}`)),
+    });
+    if (!current || current.uid !== session.uid) {
+      const active = (await this.ctx.storage.get<string[]>("active")) ?? [];
+      await this.ctx.storage.put(
+        "active",
+        active.filter((item) => item !== code),
+      );
+    }
+    await this.ctx.storage.delete(key);
   }
   private broadcast(code: string, state: "live" | "missing") {
     const message = JSON.stringify({ state });
@@ -223,7 +243,7 @@ export class PublicationAccount {
   }
   webSocketClose(socket: WebSocket) {
     try {
-      socket.close();
+      socket.close(1000);
     } catch {}
   }
   async fetch(request: Request) {
@@ -231,6 +251,8 @@ export class PublicationAccount {
     if (watch && request.headers.get("x-apx-uid") && request.headers.get("upgrade")?.toLowerCase() === "websocket") {
       const code = watch[1] ?? "";
       if (await this.ctx.storage.get(`revoked/${code}`)) return new Response(null, { status: 404 });
+      if (this.ctx.getWebSockets(code).length >= 20 || this.ctx.getWebSockets().length >= 100)
+        return new Response(null, { status: 429 });
       const sockets = new WebSocketPair();
       this.ctx.acceptWebSocket(sockets[1], [code]);
       return new Response(null, { status: 101, webSocket: sockets[0] });
@@ -267,6 +289,7 @@ export class PublicationAccount {
       const action = match[2] as "publish" | "update" | "revoke";
       const revoked = await this.ctx.storage.get<Pointer>(`revoked/${code}`);
       if (action !== "revoke" && revoked) throw new Error("public_artifact_missing");
+      if (action !== "revoke") await this.recover(code, session);
       const bucket = budgetedBucket(this.env.COPIES, this.env.BUDGET, action === "revoke");
       const active = (await this.ctx.storage.get<string[]>("active")) ?? [];
       if (action === "publish" && !active.includes(code)) {
@@ -298,8 +321,10 @@ export class PublicationAccount {
           if ("cleanup_pending" in result && !result.cleanup_pending) await this.ctx.storage.delete(`cleanup/${code}`);
         }
         try {
-          await this.ctx.storage.delete(`pending/${code}`);
-        } catch {}
+          await this.recover(code, session);
+        } catch {
+          if ("cleanup_pending" in result) result.cleanup_pending = true;
+        }
         if ("sha256" in result) this.broadcast(code, "live");
         return Response.json(result);
       } finally {

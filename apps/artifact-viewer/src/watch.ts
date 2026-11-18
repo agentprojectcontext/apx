@@ -72,6 +72,8 @@ export function createPublicationWatch(
           cancelDeadline?.();
           cancelDeadline = undefined;
           retry = 1000;
+          // Changes before registration have no replay; read again once the socket is registered.
+          changed("live");
         },
         closed: () => unavailable(expected),
         message: (data) => {
