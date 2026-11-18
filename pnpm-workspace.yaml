@@ -10,6 +10,9 @@ allowBuilds:
   electron: true
   '@whiskeysockets/baileys': false
   protobufjs: false
+  '@firebase/util': false
+  # Wrangler's local runtime installs and validates its platform-specific binary, like esbuild.
+  workerd: true
 minimumReleaseAgeExclude:
   - '@biomejs/biome@2.5.15'
   - '@biomejs/cli-darwin-arm64@2.5.15'

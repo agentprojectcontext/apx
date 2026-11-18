@@ -31,6 +31,7 @@ import type { enMove } from "./move-en.ts";
 import { enPanelAgents } from "./panel-agents-en.ts";
 import { enPanelTabs } from "./panel-tabs-en.ts";
 import { enProjectSlim } from "./project-slim-en.ts";
+import type { enPublicCopies } from "./public-copies-en.ts";
 import type { ReceivedKey } from "./received-en.ts";
 import { enResourcesShared } from "./resources-shared-en.ts";
 import { enRoutineChat } from "./routine-chat-en.ts";
@@ -48,6 +49,8 @@ import type { enVoice } from "./voice-en.ts";
 
 // UI strings, English: the source of truth. Every key lives here; `{name}` placeholders are filled by t().
 export const en = {
+  "share.publish": "Publish copy…",
+  "input.reviewCopy": "Review public copy",
   "config.activityReview": "Activity review",
   "panel.computer": "Computer",
   "panel.computer.hint": "See the agent's Linux computer",
@@ -763,6 +766,9 @@ export const en = {
   "artifact.install": "Install artifact",
   "artifact.installAction": "Install",
   "artifact.installTitle": "Install an artifact",
+  "artifact.publicLoading": "Opening public copy…",
+  "artifact.publicUnavailable":
+    "Could not open this public copy. It may have been removed. Check your connection and try again.",
   "artifact.installHint": "Drop an .apxart file here or pick one. You see what it is before installing it.",
   "artifact.fileNotYet": "{name} is an APX app or extension: APX does not install those from a file yet.",
   "artifact.fileTooBig": "{name} is too big to be an APX artifact.",
@@ -1967,6 +1973,7 @@ export const en = {
 export type MessageKey =
   | keyof typeof import("./cloud-account-en.ts").enCloudAccount
   | keyof typeof en
+  | keyof typeof enPublicCopies
   | keyof typeof enAccount
   | keyof typeof enGroup
   | keyof typeof enActivityReview

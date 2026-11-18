@@ -92,7 +92,7 @@ export const callTool = (id: string, name: string, args: object): { message: Ass
   },
 });
 
-export async function startCore(opts: {
+type StartCoreOptions = {
   computer?: ComputerConfig;
   llm: Llm;
   home?: string;
@@ -140,6 +140,8 @@ export async function startCore(opts: {
   /** The Google OAuth client the core ships, as `client_id:client_secret` (none: a build without one). */
   googleClient?: string;
   asanaFetch?: typeof fetch;
+  accountClient?: string;
+  publicArtifactFetch?: typeof fetch;
   /** The extension catalog's address and what answers it and extension downloads. */
   marketplaceIndex?: string;
   extensionFetch?: typeof fetch;
@@ -153,7 +155,9 @@ export async function startCore(opts: {
   flowHttpAllow?: string[];
   /** Reads a project folder at start instead of the worker threads (a test holds one or answers it). */
   projectRead?: ReadProjectFiles;
-}) {
+};
+
+export async function startCore(opts: StartCoreOptions) {
   const home = opts.home ?? fs.mkdtempSync(path.join(os.tmpdir(), "apx-engine-"));
   // A provider named "fake" so refs like "fake/fake-1" are valid; the scripted model answers for it.
   const providers = [
@@ -167,6 +171,7 @@ export async function startCore(opts: {
       ...(opts.port !== undefined ? { port: opts.port } : {}),
       ...(opts.googleApi ? { googleApi: opts.googleApi } : {}),
       ...(opts.googleClient ? { googleClient: opts.googleClient } : {}),
+      ...(opts.accountClient ? { accountClient: opts.accountClient } : {}),
       ...(opts.expoPushUrl ? { expoPushUrl: opts.expoPushUrl } : {}),
       ...(opts.flowHttpAllow ? { flowHttpAllow: opts.flowHttpAllow } : {}),
       ...(opts.marketplaceIndex ? { marketplaceIndex: opts.marketplaceIndex } : {}),
@@ -184,6 +189,7 @@ export async function startCore(opts: {
           }
         : {}),
       ...(opts.asanaFetch ? { asanaFetch: opts.asanaFetch } : {}),
+      ...(opts.publicArtifactFetch ? { publicArtifactFetch: opts.publicArtifactFetch } : {}),
       ...(opts.extensionFetch ? { extensionFetch: opts.extensionFetch } : {}),
       integrationFetch: opts.integrationFetch ?? (async () => new Response("{}", { status: 200 })),
       llm: opts.llm,

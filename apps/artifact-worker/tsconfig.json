@@ -1,0 +1,9 @@
+{
+  "extends": "@apx/config/tsconfig.dom.json",
+  "compilerOptions": {
+    "types": ["@cloudflare/workers-types", "node"],
+    "lib": ["ESNext"],
+    "noEmit": true
+  },
+  "include": ["src/**/*.ts", "scripts/**/*.ts"]
+}

@@ -49,6 +49,12 @@ contextBridge.exposeInMainWorld("apxDesktop", {
     ipcRenderer.send("quick:open-main", typeof threadId === "string" ? threadId : undefined),
   /** Files the owner opened with APX, each with its text or why it has none; taken once. */
   takeOpenedFiles: (): Promise<unknown> => ipcRenderer.invoke("artifact:take-opened"),
+  takePublicCopy: (): Promise<unknown> => ipcRenderer.invoke("artifact:take-public"),
+  onPublicCopy: (listener: () => void) => {
+    const on = () => listener();
+    ipcRenderer.on("artifact:public-ready", on);
+    return () => ipcRenderer.removeListener("artifact:public-ready", on);
+  },
   onFileOpened: (listener: () => void) => {
     const on = () => listener();
     ipcRenderer.on("artifact:file-opened", on);

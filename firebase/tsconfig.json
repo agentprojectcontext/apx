@@ -1,4 +1,5 @@
 {
   "extends": "../packages/config/tsconfig.node.json",
-  "include": ["*.test.ts"]
+  "compilerOptions": { "lib": ["ES2024", "DOM", "DOM.Iterable"] },
+  "include": ["*.ts"]
 }

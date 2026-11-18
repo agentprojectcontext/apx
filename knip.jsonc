@@ -10,8 +10,6 @@
     "codex",
     "cwebp",
     "ffmpeg",
-    // Installed Firebase CLI drives the isolated Firestore rules gate (firebase/README.md).
-    "firebase",
     "iconutil",
     "mkfifo",
     "plutil",

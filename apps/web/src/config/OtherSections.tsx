@@ -8,6 +8,7 @@ import { ownerRead } from "../data/owner.ts";
 import { setPrefs, TEXT_SIZES, textSizeOf, usePrefs } from "../data/prefs.ts";
 import { isLanguage, LANGUAGE_NAMES, LANGUAGES, useLanguage, useT } from "../i18n/index.ts";
 import { go, useNav } from "../shell/nav.ts";
+import { PublishedCopies } from "../surfaces/PublishedCopies.tsx";
 import { AccountCard, AccountHandle, AccountNameChoice } from "./CloudAccount.tsx";
 import { EmailSignatures } from "./EmailSignatures.tsx";
 import { SectionHead } from "./SectionHead.tsx";
@@ -123,6 +124,7 @@ export function AccountSection() {
           </SettingRow>
         </>
       )}
+      {profile && <PublishedCopies key={profile.id} />}
       <EmailSignatures />
       {choose && (
         <AccountNameChoice

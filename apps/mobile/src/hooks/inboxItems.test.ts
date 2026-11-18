@@ -64,6 +64,20 @@ test("a pending confirmation is an approval card that approves in place, ahead o
   assert.equal(approval?.notice?.id, "n-input");
 });
 
+test("public copies never offer inbox approval, including longer scopes", () => {
+  for (const extra of [
+    { artifact_draft: "00000000-0000-4000-8000-000000000001" },
+    { tool: "apx_settings", artifact_draft: "00000000-0000-4000-8000-000000000001" },
+  ]) {
+    const [item] = inboxItems(
+      data({ inputs: [input("copy", { ...extra, approval_scopes: ["once", "session", "always"] })] }),
+    );
+    assert.equal(item?.reviewOnComputer, true);
+    assert.deepEqual(item?.primary.action, { kind: "open", thread: "t1" });
+    assert.equal(item?.more, undefined);
+  }
+});
+
 test("a confirmation that can last longer offers approving for the session and always", () => {
   const [item] = inboxItems(data({ inputs: [input("c", { approval_scopes: ["once", "session", "always"] })] }));
   assert.equal(item?.primary.label, "approveOnce");

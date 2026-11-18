@@ -3,13 +3,19 @@
 How v2 leaves the private working repo and reaches people. What was built for updates is
 [D-044](DECISIONS.md#d-044).
 
-## Firebase rules deployment
+## Cloud rules and public artifact viewer
 
-Before publishing Firestore rules, run `pnpm test:firebase` from the repository root with Firebase CLI and Java
-installed. This isolated `demo-apx-account` emulator check is mandatory for every rules deployment, including
-telemetry-only changes. `pnpm typecheck` covers both rules test files; normal preflight does not start Java or the
-emulator. Keep the test output with deployment evidence and preserve account and telemetry permissions together.
-See [Firebase setup](../firebase/README.md) and [D-247](DECISIONS.md#d-247). No billing upgrade is required.
+Before publishing Firestore rules or the artifact Worker, run `pnpm test:firebase` from the repository root with
+Firebase CLI, Java and Playwright Chromium, Firefox and WebKit installed. This mandatory gate covers account,
+telemetry and private artifact-metadata rules, the built viewer through actual local workerd/R2/Durable Objects
+on `127.0.0.1:7497`, and built-panel journeys. Run the artifact Worker's own tests as well; they verify JWT claims,
+aggregate resource budgets and viewing/revocation while Firestore is unavailable. Firebase Hosting is no longer
+the artifact deployment target.
+`pnpm typecheck` includes `firebase/`; normal preflight does not start Java or the emulators. Retain the test
+output with deployment evidence and preserve account and telemetry permissions together. The native installation
+journey is separate: run `pnpm test:firebase:native` on a desktop-capable host before shipping that integration.
+See [Firebase setup](../firebase/README.md) and [Public artifact copies](PUBLIC_ARTIFACTS.md). Neither command
+authorizes production deployment or enabling billing.
 
 ## History
 

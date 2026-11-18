@@ -68,8 +68,18 @@ export const publicInput = ({
   approval: _p,
   folders_write: _w,
   app_only: _o,
+  artifact_draft: _draft,
   ...rest
-}: InputRecord): PendingInput => rest;
+}: InputRecord): PendingInput => {
+  const params = _a?.params;
+  const draft = params && typeof params === "object" && "draft" in params ? params.draft : undefined;
+  const artifact =
+    rest.tool === "apx_settings" &&
+    _a?.method === "surfaces.public_commit" &&
+    typeof draft === "string" &&
+    /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(draft);
+  return { ...rest, ...(artifact ? { artifact_draft: draft } : {}) };
+};
 
 export function inputsRepo({ one, all, run }: Sql) {
   const repo = {

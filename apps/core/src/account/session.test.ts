@@ -50,6 +50,7 @@ function fixture(origin = "http://127.0.0.1:7449") {
       });
     }
     if (url.includes("/secure/token")) {
+      if (hold) await hold;
       refreshes++;
       const form = new URLSearchParams(String(init?.body));
       assert.equal(form.get("refresh_token"), "refresh-secret");
@@ -211,6 +212,86 @@ test("sign-out invalidates in-flight sign-in and cannot restore its saved sessio
     assert.equal(f.secrets.has(`secret://${APX_ACCOUNT_SESSION}`), false);
   } finally {
     release();
+    await f.dir.remove();
+  }
+});
+
+test("private account work requires sign-in and coalesces concurrent token renewal", async () => {
+  const f = fixture();
+  try {
+    let calls = 0;
+    await assert.rejects(
+      f.account.withSession(async () => ++calls),
+      /sign_in_required/,
+    );
+    assert.equal(calls, 0);
+    await f.account.finish("code", f.start());
+    f.advance(3600_000);
+    const results = await Promise.all(
+      Array.from({ length: 3 }, () =>
+        f.account.withSession(async (session) => {
+          assert.equal(session.uid, "person");
+          assert.equal(session.idToken, "new-identity-secret");
+          assert.equal(session.current(), true);
+          return "done";
+        }),
+      ),
+    );
+    assert.deepEqual(results, ["done", "done", "done"]);
+    assert.equal(f.refreshes(), 1);
+    assert.doesNotMatch(JSON.stringify(f.account.status()), /Token|secret|generation/);
+  } finally {
+    await f.dir.remove();
+  }
+});
+
+test("private account work cannot report success after sign-out or a superseding sign-in", async () => {
+  const f = fixture();
+  try {
+    await f.account.finish("code", f.start());
+    await assert.rejects(
+      f.account.withSession(async (session) => {
+        assert.equal(session.current(), true);
+        f.start();
+        assert.equal(session.current(), false);
+        return "not delivered";
+      }),
+      /sign_in_cancelled/,
+    );
+    await assert.rejects(
+      f.account.withSession(async (session) => {
+        f.account.logout();
+        assert.equal(session.current(), false);
+        return "not delivered";
+      }),
+      /sign_in_cancelled/,
+    );
+    assert.equal(f.account.status().profile, null);
+  } finally {
+    await f.dir.remove();
+  }
+});
+
+test("sign-out during renewal neither starts private work nor restores credentials", async () => {
+  const f = fixture();
+  const gate = Promise.withResolvers<void>();
+  try {
+    await f.account.finish("code", f.start());
+    f.advance(3600_000);
+    f.pause(gate.promise);
+    let calls = 0;
+    const pending = assert.rejects(
+      f.account.withSession(async () => ++calls),
+      /sign_in_cancelled/,
+    );
+    f.account.logout();
+    gate.resolve();
+    await pending;
+    assert.equal(calls, 0);
+    assert.equal(f.account.status().profile, null);
+    assert.equal(f.secrets.has(`secret://${APX_ACCOUNT_SESSION}`), false);
+  } finally {
+    gate.resolve();
     await f.dir.remove();
   }
 });

@@ -73,6 +73,7 @@ import { notificationHandlers } from "./rpc/notifications.ts";
 import { panelModeHandlers } from "./rpc/panel-mode.ts";
 import { phoneHandlers } from "./rpc/phone.ts";
 import { providerHandlers } from "./rpc/providers.ts";
+import { publicArtifactHandlers } from "./rpc/public-artifacts.ts";
 import { resourceHandlers } from "./rpc/resources.ts";
 import type { Dispatch } from "./rpc/router.ts";
 import { routineHandlers } from "./rpc/routines.ts";
@@ -264,6 +265,7 @@ export function builtinTools(
 
 type HandlerDeps = {
   account: Parameters<typeof accountHandlers>[0];
+  publications: Parameters<typeof publicArtifactHandlers>[0]["publications"];
   store: Store;
   /** How agents act and how far their files reach (engine/permissions.ts). */
   permissions: Permissions;
@@ -367,6 +369,7 @@ export function coreHandlers(d: HandlerDeps & { vm?: Computer | undefined }) {
   const channelsH = channelHandlers(d.store, d.channels, d.nudges);
   return {
     ...accountHandlers(d.account),
+    ...publicArtifactHandlers({ store: d.store, publications: d.publications }),
     ...environmentHandlers(d.store, d.vm, d.engine.cancel),
     ...desktopInstallHandlers(d.desktopInstaller),
     ...updateHandlers(d.updates),
@@ -395,7 +398,7 @@ export function coreHandlers(d: HandlerDeps & { vm?: Computer | undefined }) {
     ),
     ...threadHandlers(d.store, d.engine, d.upkeep, d.aside, d.groups, (ref) => refProblem(ref, d.engines, undefined)),
     ...threadAdminHandlers(d.store, d.app.home, d.vm?.beforeDelete),
-    ...runHandlers(d.store, d.engine),
+    ...runHandlers(d.store, d.engine, d.publications),
     ...jobHandlers(d.store, d.engine),
     ...memoryHandlers(d.store, d.memory, d.memoryMaintenance),
     ...channelsH,

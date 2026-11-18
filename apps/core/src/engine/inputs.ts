@@ -32,34 +32,38 @@ export const folderBinding = (folders: string[], write = false) =>
   `${write ? "write-folders" : "folders"}:${folders.join("\n")}`;
 
 /** A stored question or confirmation as the chat shows it. */
-export const inputPartOf = (r: InputRecord): Extract<Part, { type: "input" }> => ({
-  type: "input",
-  input_id: r.id,
-  kind: r.kind,
-  prompt: r.prompt,
-  ...(r.tool ? { tool: r.tool } : {}),
-  ...(r.detail ? { detail: r.detail } : {}),
-  ...(r.approval?.browser && typeof r.args?.document === "string"
-    ? {
-        browser: {
-          origin: r.approval.browser.origin,
-          title: r.approval.browser.title,
-          tab_number: r.approval.browser.tab_number,
-          document: r.args.document,
-          ...(typeof r.args.path === "string" ? { path: r.args.path } : {}),
-          ...(typeof r.args.sha256 === "string" ? { sha256: r.args.sha256 } : {}),
-        },
-      }
-    : {}),
-  ...(r.change ? { change: r.change } : {}),
-  ...(r.options ? { options: r.options } : {}),
-  ...(r.multi ? { multi: true } : {}),
-  ...(r.folders ? { folders: r.folders } : {}),
-  ...(r.approval_scopes ? { approval_scopes: r.approval_scopes } : {}),
-  ...(r.approval_scope ? { approval_scope: r.approval_scope } : {}),
-  state: r.state,
-  ...(r.answer ? { answer: r.answer } : {}),
-});
+export const inputPartOf = (r: InputRecord): Extract<Part, { type: "input" }> => {
+  const artifact = publicInput(r).artifact_draft;
+  return {
+    type: "input",
+    input_id: r.id,
+    kind: r.kind,
+    prompt: r.prompt,
+    ...(r.tool ? { tool: r.tool } : {}),
+    ...(r.detail ? { detail: r.detail } : {}),
+    ...(artifact ? { artifact_draft: artifact } : {}),
+    ...(r.approval?.browser && typeof r.args?.document === "string"
+      ? {
+          browser: {
+            origin: r.approval.browser.origin,
+            title: r.approval.browser.title,
+            tab_number: r.approval.browser.tab_number,
+            document: r.args.document,
+            ...(typeof r.args.path === "string" ? { path: r.args.path } : {}),
+            ...(typeof r.args.sha256 === "string" ? { sha256: r.args.sha256 } : {}),
+          },
+        }
+      : {}),
+    ...(r.change ? { change: r.change } : {}),
+    ...(r.options ? { options: r.options } : {}),
+    ...(r.multi ? { multi: true } : {}),
+    ...(r.folders ? { folders: r.folders } : {}),
+    ...(r.approval_scopes ? { approval_scopes: r.approval_scopes } : {}),
+    ...(r.approval_scope ? { approval_scope: r.approval_scope } : {}),
+    state: r.state,
+    ...(r.answer ? { answer: r.answer } : {}),
+  };
+};
 
 export function createInputs(deps: {
   store: Store;
@@ -144,7 +148,12 @@ export function createInputs(deps: {
 
   store.approvals.subscribe(() => {
     for (const r of store.inputs.pending()) {
-      if (r.kind !== "confirm" || !r.approval || !store.approvals.allows(r.approval, r.thread_id, r.agent_id, r.args))
+      if (
+        r.kind !== "confirm" ||
+        !r.approval ||
+        publicInput(r).artifact_draft ||
+        !store.approvals.allows(r.approval, r.thread_id, r.agent_id, r.args)
+      )
         continue;
       const grant = store.approvals
         .list(r.thread_id)
@@ -255,10 +264,14 @@ export function createInputs(deps: {
       id: string,
       a: { decision?: "approve" | "deny" | undefined; text?: string | undefined; scope?: ApprovalScope | undefined },
       onChannel = false,
+      reviewedArtifact?: string,
     ): InputRecord {
       const rec = store.inputs.get(id);
       if (!rec) throw notFound(`input ${id}`);
       if (rec.app_only && onChannel) throw unauthorized(APP_ONLY);
+      const draft = publicInput(rec).artifact_draft;
+      if (draft && a.decision === "approve" && reviewedArtifact !== draft)
+        throw unauthorized("public_artifact_review_required");
       if (rec.state === "pending" && rec.expires_at <= new Date().toISOString()) store.inputs.settle(id, "expired");
       const cur = store.inputs.get(id) as InputRecord;
       if (cur.state !== "pending") throw conflict(`input ${id} is already ${cur.state}`);

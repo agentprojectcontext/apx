@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Alert, Pressable, Text, TextInput, View } from "react-native";
+import { needsComputerReview } from "../../approvalReview";
 import { type Key, t } from "../../i18n";
 import type { Answer, Message } from "../../protocol";
 import { BrowserHelp, BrowserReview } from "../BrowserReview";
@@ -156,7 +157,8 @@ function PendingInput({ part, respond }: { part: InputPart; respond: Respond }) 
   const [reply, setReply] = useState("");
   const [picked, setPicked] = useState<string[]>([]);
   const action = isAction(part);
-  const scopes = part.approval_scopes;
+  const computerReview = needsComputerReview(part);
+  const scopes = computerReview ? undefined : part.approval_scopes;
   const many = (part.folders?.length ?? 0) > 1;
   const answer = (key: string, value: Answer) => {
     setBusy(key);
@@ -208,9 +210,12 @@ function PendingInput({ part, respond }: { part: InputPart; respond: Respond }) 
           <Text style={s.help}>{t("scopeHelp")}</Text>
         )
       ) : null}
+      {computerReview ? <Text style={s.help}>{t("artifactReviewOnComputer")}</Text> : null}
       {part.kind === "confirm" ? (
         <View style={s.actions}>
-          {part.folders ? (
+          {computerReview ? (
+            button("deny", "deny", { decision: "deny" })
+          ) : part.folders ? (
             <>
               {button("approve", "inputFolderOnce", { decision: "approve" }, true)}
               {scopes?.includes("project")

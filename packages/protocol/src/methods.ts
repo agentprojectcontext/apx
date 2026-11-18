@@ -19,6 +19,7 @@ import { flowMethods } from "./flow-methods.ts";
 import { hermesMethods } from "./hermes-methods.ts";
 import { instanceMethods } from "./instance-methods.ts";
 import { mailMethods } from "./mail-methods.ts";
+import { publicArtifactMethods } from "./public-artifacts.ts";
 import { schemaFields } from "./schema-fields.ts";
 import { storageMethods } from "./storage-methods.ts";
 import { tableMethods } from "./table-methods.ts";
@@ -129,6 +130,7 @@ export const methods = {
   ...appMethods,
   ...channelMethods,
   ...artifactMethods,
+  ...publicArtifactMethods,
   ...asanaMethods,
   ...deviceMethods,
   ...environmentMethods,

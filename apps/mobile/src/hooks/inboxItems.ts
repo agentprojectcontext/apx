@@ -1,3 +1,4 @@
+import { needsComputerReview } from "../approvalReview.ts";
 import { textOrder } from "../format.ts";
 import type { Key } from "../i18n/index.ts";
 import type { IconName } from "../ui/Icon";
@@ -24,6 +25,7 @@ export type InboxItem = {
   at: string;
   title: string;
   body?: string;
+  reviewOnComputer?: boolean;
   /** Words shown apart, quoted (a question's options, what a confirmation would do). */
   quote?: string;
   agentId?: string;
@@ -52,9 +54,12 @@ export function inboxItems(data: Data): InboxItem[] {
       const { thread, name } = projectOf(input.thread_id);
       const notice = data.notices.find((item) => item.kind === "input" && item.ref === input.id);
       const confirm = input.kind === "confirm";
+      const reviewOnComputer = needsComputerReview(input);
       // Browser code must be reviewed in full in the chat, not approved from a truncated preview.
       const reviewInChat =
-        input.tool === "browser_evaluate" || input.approval_scopes?.some((s) => s === "tab" || s === "turn");
+        reviewOnComputer ||
+        input.tool === "browser_evaluate" ||
+        input.approval_scopes?.some((s) => s === "tab" || s === "turn");
       const scopes = confirm && !reviewInChat ? (input.approval_scopes ?? []) : [];
       const more = [
         ...(scopes.includes("session")
@@ -82,6 +87,7 @@ export function inboxItems(data: Data): InboxItem[] {
         at: notice?.created_at ?? "",
         title: input.prompt,
         body: input.detail,
+        reviewOnComputer,
         quote: input.options?.length ? input.options.join(" · ") : undefined,
         agentId: input.agent_id,
         primary: reviewInChat

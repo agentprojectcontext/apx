@@ -100,18 +100,48 @@ test("account profiles and reservations enforce ownership, stable ids and atomic
   assert.equal(extra.status, 403);
   const unicode = await profiles.ensure("unicode", token("unicode"), `${"a".repeat(99)}😀rest`, "");
   assert.equal(unicode.name, "a".repeat(99));
-  await profiles.rename("unicode", token("unicode"), "missing");
-  const removeReservation = await fetch(`${root}/accountHandles/missing`, {
+  await profiles.rename("unicode", token("unicode"), "unicode_missing");
+  const removeReservation = await fetch(`${root}/accountHandles/unicode_missing`, {
     method: "DELETE",
     headers: { authorization: "Bearer owner" },
   });
   assert.equal(removeReservation.status, 200);
-  assert.equal((await profiles.rename("unicode", token("unicode"), "recovered")).handle, "recovered");
-  assert.equal((await call("second", "/accountHandles/recovered", undefined, "DELETE")).status, 403);
+  assert.equal((await profiles.rename("unicode", token("unicode"), "unicode_recovered")).handle, "unicode_recovered");
   const race = await Promise.allSettled([
     profiles.rename("first", token("first"), "shared"),
     profiles.rename("second", token("second"), "shared"),
   ]);
   assert.equal(race.filter((result) => result.status === "fulfilled").length, 1);
   assert.equal(race.filter((result) => result.status === "rejected").length, 1);
+});
+
+test("a missing handle reservation can be recovered only by its profile owner during a rename", async () => {
+  const uid = "reservation-recovery";
+  const profile = await profiles.ensure(uid, token(uid), "Acme", "");
+  await profiles.rename(uid, token(uid), "missing");
+  const removed = await fetch(`${root}/accountHandles/missing`, {
+    method: "DELETE",
+    headers: { authorization: "Bearer owner" },
+  });
+  assert.equal(removed.status, 200);
+  assert.equal((await call("second", "/accountHandles/missing", undefined, "DELETE")).status, 403);
+  assert.equal((await call(uid, "/accountHandles/missing", undefined, "DELETE")).status, 403);
+  const renamed = await call(uid, ":commit", {
+    writes: [
+      {
+        update: {
+          name: `${database}/documents/users/${uid}`,
+          fields: { id: field(profile.id), name: field("Acme"), photo: field(""), handle: field("recovered") },
+        },
+      },
+      {
+        update: { name: `${database}/documents/accountHandles/recovered`, fields: { uid: field(uid) } },
+        currentDocument: { exists: false },
+      },
+      { delete: `${database}/documents/accountHandles/missing` },
+    ],
+  });
+  assert.equal(renamed.status, 200);
+  assert.equal((await profiles.ensure(uid, token(uid), "Acme", "")).handle, "recovered");
+  assert.equal((await call("second", "/accountHandles/recovered", undefined, "DELETE")).status, 403);
 });

@@ -1,7 +1,7 @@
 rules_version = '2';
 
-// Private profiles with atomic ID/handle reservations (D-247); anonymous telemetry keeps its shape checks (D-092).
-// Telemetry reads require an administrator-issued claim; authenticated telemetry writes stay denied.
+// Private profiles use atomic reservations (D-247); public copies keep only private metadata here (D-248).
+// Anonymous telemetry retains its shape checks and administrator-only reads (D-092).
 service cloud.firestore {
   match /databases/{database}/documents {
     function isUuid(id) {
@@ -26,6 +26,62 @@ service cloud.firestore {
 
     function telemetryReader() {
       return request.auth != null && request.auth.token.telemetry_reader == true;
+    }
+
+    function artifactCode(code) {
+      return code.matches('^[0-9abcdefghjkmnpqrstvwxyz]{8}$');
+    }
+    function artifactSlot(slot) {
+      return slot.matches('^([0-9]|1[0-9])$');
+    }
+    function artifactOwner(code) {
+      return get(/databases/$(database)/documents/artifactOwners/$(code)).data;
+    }
+    function artifactOwned(code) {
+      return request.auth != null && artifactOwner(code).uid == request.auth.uid;
+    }
+    function artifactOwnedAfter(code) {
+      let owner = getAfter(/databases/$(database)/documents/artifactOwners/$(code)).data;
+      return request.auth != null && owner.uid == request.auth.uid
+        && getAfter(/databases/$(database)/documents/artifactAccounts/$(owner.uid)/slots/$(owner.slot)).data.code == code;
+    }
+    match /artifactOwners/{code} {
+      allow get: if request.auth != null && artifactCode(code)
+        && (resource == null || resource.data.uid == request.auth.uid);
+      allow list, update, delete: if false;
+      allow create: if request.auth != null && artifactCode(code)
+        && request.resource.data.keys().hasOnly(['uid', 'slot'])
+        && request.resource.data.uid == request.auth.uid && artifactSlot(request.resource.data.slot)
+        && getAfter(/databases/$(database)/documents/artifactAccounts/$(request.auth.uid)/slots/$(request.resource.data.slot)).data.code == code
+        && existsAfter(/databases/$(database)/documents/publicArtifacts/$(code));
+    }
+    match /artifactAccounts/{uid}/slots/{slot} {
+      allow get, list: if request.auth != null && request.auth.uid == uid;
+      allow create, update: if request.auth != null && request.auth.uid == uid && artifactSlot(slot)
+        && request.resource.data.keys().hasOnly(['code']) && artifactCode(request.resource.data.code)
+        && getAfter(/databases/$(database)/documents/artifactOwners/$(request.resource.data.code)).data.uid == uid
+        && getAfter(/databases/$(database)/documents/artifactOwners/$(request.resource.data.code)).data.slot == slot
+        && existsAfter(/databases/$(database)/documents/publicArtifacts/$(request.resource.data.code))
+        && (!exists(/databases/$(database)/documents/artifactAccounts/$(uid)/slots/$(slot))
+          || resource.data.code == request.resource.data.code
+          || !existsAfter(/databases/$(database)/documents/publicArtifacts/$(resource.data.code)));
+      allow delete: if request.auth != null && request.auth.uid == uid
+        && !existsAfter(/databases/$(database)/documents/publicArtifacts/$(resource.data.code));
+    }
+    match /publicArtifacts/{code} {
+      // Content lives in R2. Firebase metadata is private, even when the public link is live.
+      allow get: if artifactCode(code) && artifactOwned(code);
+      allow list: if false;
+      allow create, update: if artifactCode(code) && artifactOwnedAfter(code)
+        && (exists(/databases/$(database)/documents/publicArtifacts/$(code))
+          || !exists(/databases/$(database)/documents/artifactOwners/$(code)))
+        && request.resource.data.keys().hasOnly(['title', 'bytes', 'sha256', 'updated_at'])
+        && request.resource.data.keys().hasAll(['title', 'bytes', 'sha256', 'updated_at'])
+        && short(request.resource.data.title, 120)
+        && request.resource.data.bytes is int && request.resource.data.bytes > 0 && request.resource.data.bytes <= 10000000
+        && request.resource.data.sha256.matches('^[a-f0-9]{64}$')
+        && request.resource.data.updated_at == request.time;
+      allow delete: if artifactOwned(code);
     }
 
     function owns(uid) {

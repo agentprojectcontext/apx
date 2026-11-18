@@ -6,6 +6,7 @@
   "type": "module",
   "exports": {
     ".": "./src/index.ts",
+    "./public-preview": "./src/public-preview.ts",
     "./kit-cards.css": "./src/kit/apx-kit-cards.css"
   },
   "scripts": {

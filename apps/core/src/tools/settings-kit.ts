@@ -5,6 +5,7 @@ import type { z } from "zod";
 import type { TemplateRoot } from "../apc/templates.ts";
 import type { Store } from "../domain/store.ts";
 import type { ProfileRoot } from "../engine/profiles.ts";
+import type { createPublicationDrafts } from "../public-artifacts/drafts.ts";
 import { inlineName } from "./result.ts";
 import type { ToolContext } from "./types.ts";
 
@@ -15,6 +16,7 @@ export type SettingsDeps = {
   store: Store;
   profiles: readonly ProfileRoot[];
   templates: TemplateRoot[];
+  publications?: ReturnType<typeof createPublicationDrafts> | undefined;
 };
 
 export type Setting = {

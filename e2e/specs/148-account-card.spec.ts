@@ -12,6 +12,12 @@ const accountOf = (profile: object | null) => ({
   json: { ok: true, result: { available: true, profile, pending: false } },
 });
 
+test.beforeEach(async ({ page }) => {
+  await page.route("**/rpc/surfaces.public_list", (route) =>
+    route.fulfill({ json: { ok: true, result: { items: [], count: 0, bytes: 0 } } }),
+  );
+});
+
 async function openAccount(page: Page) {
   await openSettings(page);
   // Settings opens on Account.

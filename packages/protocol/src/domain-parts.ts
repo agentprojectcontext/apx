@@ -186,6 +186,7 @@ const KnownPart = z.discriminatedUnion("type", [
       /** For a confirmation: the tool and a readable summary of its arguments. */
       tool: () => z.string().optional(),
       detail: () => z.string().optional(),
+      artifact_draft: () => z.string().uuid().optional(),
       browser: () =>
         z
           .object(

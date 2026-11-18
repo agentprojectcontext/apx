@@ -3,6 +3,7 @@ import { ARTIFACT_FILE_EXT } from "@apx/protocol/client";
 import { Badge, Button, Dialog, Field, Icons, Select, SettingRow, Switch } from "@apx/ui";
 import { useEffect, useRef, useState } from "react";
 import { installArtifact } from "../data/artifacts.ts";
+import { client } from "../data/client.ts";
 import { baseName } from "../data/identity.ts";
 import { useData } from "../data/state.ts";
 import { useT } from "../i18n/index.ts";
@@ -22,10 +23,25 @@ const listed = (parts: string[], and: string) =>
 export function InstallArtifactDialog() {
   const open = useInstallRequest();
   if (!open) return null;
-  return <InstallForm initialProject={open.project ?? GLOBAL} file={open.file} />;
+  return (
+    <InstallForm
+      key={open.publicCode}
+      initialProject={open.project ?? GLOBAL}
+      file={open.file}
+      publicCode={open.publicCode}
+    />
+  );
 }
 
-function InstallForm({ initialProject, file }: { initialProject: string; file: File | undefined }) {
+function InstallForm({
+  initialProject,
+  file,
+  publicCode,
+}: {
+  initialProject: string;
+  file: File | undefined;
+  publicCode: string | undefined;
+}) {
   const t = useT();
   const projects = useData((s) => s.projects);
   const surfaces = useData((s) => s.surfaces);
@@ -37,6 +53,8 @@ function InstallForm({ initialProject, file }: { initialProject: string; file: F
   const [withMemory, setWithMemory] = useState(true);
   const [dragging, setDragging] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [loading, setLoading] = useState(Boolean(publicCode));
+  const [source, setSource] = useState({ code: publicCode });
   const input = useRef<HTMLInputElement>(null);
 
   const read = async (file: File) => {
@@ -60,6 +78,29 @@ function InstallForm({ initialProject, file }: { initialProject: string; file: F
   useEffect(() => {
     if (file) void readRef.current(file);
   }, [file]);
+  useEffect(() => {
+    if (!source.code) return;
+    let active = true;
+    setLoading(true);
+    setError("");
+    void client
+      .call("surfaces.public_read", { code: source.code })
+      .then(async (copy) => {
+        if (active)
+          await readRef.current(
+            new File([JSON.stringify(copy)], `${copy.manifest.name}.apxart`, { type: "application/json" }),
+          );
+      })
+      .catch(() => {
+        if (active) setError(t("artifact.publicUnavailable"));
+      })
+      .finally(() => {
+        if (active) setLoading(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, [source, t]);
   const drop = useRef<HTMLDivElement>(null);
   // Listened on the element: the drop zone is not a control, the "Choose file" button inside it is.
   useEffect(() => {
@@ -120,24 +161,36 @@ function InstallForm({ initialProject, file }: { initialProject: string; file: F
       }
     >
       <div className="install">
-        <div ref={drop} className="install__drop" data-dragging={dragging || undefined}>
-          <Icons.Upload size={18} />
-          <span>{fileName || t("artifact.installDrop")}</span>
-          <Button size="sm" variant="secondary" onClick={() => input.current?.click()}>
-            {t("artifact.installPick")}
+        {!publicCode && (
+          <div ref={drop} className="install__drop" data-dragging={dragging || undefined}>
+            <Icons.Upload size={18} />
+            <span>{fileName || t("artifact.installDrop")}</span>
+            <Button size="sm" variant="secondary" onClick={() => input.current?.click()}>
+              {t("artifact.installPick")}
+            </Button>
+            <input
+              ref={input}
+              type="file"
+              hidden
+              accept={`${ARTIFACT_FILE_EXT},.json,application/json`}
+              onChange={(e) => {
+                const file = e.currentTarget.files?.[0];
+                if (file) void read(file);
+              }}
+            />
+          </div>
+        )}
+        {loading && <p role="status">{t("artifact.publicLoading")}</p>}
+        {error && (
+          <p className="install__error" role="alert">
+            {error}
+          </p>
+        )}
+        {publicCode && error && (
+          <Button variant="secondary" onClick={() => setSource({ code: publicCode })}>
+            {t("common.retry")}
           </Button>
-          <input
-            ref={input}
-            type="file"
-            hidden
-            accept={`${ARTIFACT_FILE_EXT},.json,application/json`}
-            onChange={(e) => {
-              const file = e.currentTarget.files?.[0];
-              if (file) void read(file);
-            }}
-          />
-        </div>
-        {error && <p className="install__error">{error}</p>}
+        )}
         {m && (
           <>
             <div className="install__what">

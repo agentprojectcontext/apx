@@ -23,6 +23,7 @@ import {
   InstallArtifactDialog,
   InstallExtensionDialog,
   LiveLayer,
+  listenApxFiles,
   MarketplaceScreen,
   McpPeek,
   NoticeStrip,
@@ -39,7 +40,6 @@ import {
 } from "../lazy.ts";
 import { useExtensionInstall } from "../resources/extensionInstall.ts";
 import { useAnyLive } from "../surfaces/liveAny.ts";
-import { useApxFiles } from "../surfaces/openedFiles.ts";
 import { widgetChatOpen } from "../surfaces/widgetChatOpen.ts";
 import { ChatWorkspace } from "./ChatWorkspace.tsx";
 import { DiskBanner } from "./DiskBanner.tsx";
@@ -289,5 +289,5 @@ function useDesktopBridge() {
     window.apxDesktop?.setTitleBar?.(nav.get().mode);
     return window.apxDesktop?.onOpenThread?.((id) => go.thread(id));
   }, []);
-  useApxFiles();
+  useEffect(listenApxFiles, []);
 }

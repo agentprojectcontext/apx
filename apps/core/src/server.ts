@@ -99,6 +99,7 @@ import { createChatgptLogin } from "./providers/chatgpt-login.ts";
 import { createLlm, type Llm, NO_KEY, type SignIn } from "./providers/llm.ts";
 import { createLocalModels } from "./providers/local-models.ts";
 import { providerRegistry } from "./providers/registry.ts";
+import { createPublicationService } from "./public-artifacts/service.ts";
 import { createPublicCredentials } from "./public-credentials.ts";
 import { nativePublicRoutes, publishedPublicRoutes } from "./public-routes.ts";
 import { createPublicTunnel, type NgrokStart } from "./public-tunnel.ts";
@@ -155,6 +156,8 @@ export type CoreOptions = {
   computer?: ComputerConfig;
   /** Asana transport; tests record REST requests without contacting an account. */
   asanaFetch?: typeof fetch;
+  /** Publication transport; tests route authenticated requests to a stand-in or Firestore emulator. */
+  publicArtifactFetch?: typeof fetch;
   /** Answers the extension catalog and extension downloads (a test's stand-in for the net). */
   extensionFetch?: typeof fetch;
   /** What asks an integration's remote server whether it takes the owner's account; tests pass a fake. */
@@ -370,12 +373,21 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
     // A stand-in Google never takes APX's real client.
     builtin: clientFromPair(config.googleClient) ?? (config.googleApi ? undefined : apxGoogleClient()),
   });
+  const cloudClient = accountClient(config.accountClient);
   const account = createAccount({
     secrets,
-    client: accountClient(config.accountClient),
+    client: cloudClient,
     google: clientFromPair(config.googleClient) ?? (config.googleApi ? undefined : apxGoogleClient()),
     origin: () => `http://127.0.0.1:${listening}`,
     onSignedIn: (profile) => adoptAccountName(store, profile.name),
+  });
+  const publications = createPublicationService({
+    account,
+    store,
+    home: config.home,
+    onReceiptPersistenceError: () =>
+      log.warn({}, "Public copy completed remotely, but its local receipt could not be saved"),
+    fetch: opts.publicArtifactFetch,
   });
   const asana = createAsana({
     secrets,
@@ -441,7 +453,7 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
       ...(opts.extraTools ?? []),
     ],
     config.runtimeSkills.homes,
-    { profiles: profileRoots, templates: templateRoots },
+    { profiles: profileRoots, templates: templateRoots, publications },
     vm,
     signIn,
   );
@@ -815,6 +827,7 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
   const dispatch = createRouter(
     coreHandlers({
       account,
+      publications,
       activityReview,
       vm,
       internal,

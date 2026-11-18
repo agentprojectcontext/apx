@@ -80,6 +80,7 @@ export const PendingInput = z.object(
     prompt: () => z.string(),
     tool: () => z.string().optional(),
     detail: () => z.string().optional(),
+    artifact_draft: () => z.string().uuid().optional(),
     /** For a confirmation of a file write: what the file would become, as a patch. */
     change: () => FileChange.optional(),
     options: () => z.array(z.string()).optional(),

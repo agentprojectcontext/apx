@@ -12,6 +12,7 @@ import { USAGE } from "./plan-usage.ts";
 import { EMAIL } from "./settings-email.ts";
 import type { Params, Setting, SettingsDeps } from "./settings-kit.ts";
 import { PEOPLE } from "./settings-people.ts";
+import { PUBLIC_ARTIFACTS } from "./settings-public-artifacts.ts";
 import { TEAM } from "./settings-team.ts";
 import { WORK } from "./settings-work.ts";
 import { defineTool, type Tool } from "./types.ts";
@@ -23,6 +24,7 @@ export const SETTINGS: Readonly<Record<string, Setting>> = {
   ...WORK,
   ...EMAIL,
   ...USAGE,
+  ...PUBLIC_ARTIFACTS,
 };
 
 /** The area a method belongs to, as its card's title names it ("Changed a channel"). */
@@ -261,9 +263,18 @@ export function areaTool(spec: AreaToolSpec, deps: SettingsDeps): Tool {
 
 export function settingsTools(
   store: Store,
-  roots: { profiles?: readonly ProfileRoot[]; templates?: TemplateRoot[] } = {},
+  roots: {
+    profiles?: readonly ProfileRoot[];
+    templates?: TemplateRoot[];
+    publications?: SettingsDeps["publications"];
+  } = {},
 ): Tool[] {
-  const deps: SettingsDeps = { store, profiles: roots.profiles ?? [], templates: roots.templates ?? [] };
+  const deps: SettingsDeps = {
+    store,
+    profiles: roots.profiles ?? [],
+    templates: roots.templates ?? [],
+    publications: roots.publications,
+  };
   return [
     areaTool(
       {

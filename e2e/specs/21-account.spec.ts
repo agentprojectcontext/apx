@@ -58,9 +58,7 @@ for (const viewport of [
   { width: 1280, height: 800 },
   { width: 390, height: 844 },
 ]) {
-  test(`cloud account is optional and explains unavailable sign-in at ${viewport.width}px`, async ({
-    page,
-  }, testInfo) => {
+  test(`account stays local when sign-in is unavailable at ${viewport.width}px`, async ({ page }, testInfo) => {
     await page.setViewportSize(viewport);
     await open(page);
     await page.keyboard.press("ControlOrMeta+k");
@@ -69,11 +67,12 @@ for (const viewport of [
       .or(page.getByRole("combobox", { name: "Buscar" }))
       .fill("cuenta");
     await page.getByRole("option", { name: /Cuenta/ }).click();
-    const account = page.getByRole("region", { name: "Cuenta en la nube", exact: true });
+    const account = page.getByRole("region", { name: "Cuenta", exact: true });
     await account.scrollIntoViewIfNeeded();
-    await expect(account.getByRole("button", { name: "Iniciar sesión con Google" })).toBeDisabled();
-    await expect(account.getByText(/Podés seguir usando APX sin cuenta/)).toBeVisible();
-    await expect(account.getByText(/computadora donde corre APX/)).toBeVisible();
+    await expect(account.getByText("Dueño de esta instalación")).toBeVisible();
+    await expect(account.getByRole("button", { name: "Iniciar sesión con Google" })).toHaveCount(0);
+    await expect(page.getByRole("textbox", { name: "Nombre", exact: true })).toBeEditable();
+    await expect(page.getByText("Cuenta en la nube", { exact: true })).toHaveCount(0);
     expect((await rpc<{ profile: unknown }>("account.get")).profile).toBeNull();
     await page.screenshot({ path: testInfo.outputPath(`cloud-account-${viewport.width}.png`) });
   });
@@ -108,8 +107,12 @@ test("account focus reads are limited to one read per fifteen seconds", async ({
 test("account read errors reload the account while failed username edits retry through Save", async ({
   page,
 }, testInfo) => {
+  await rpc("owner.set", { name: "Acme Owner" });
   let readFails = true;
   let saves = 0;
+  await page.route("**/rpc/surfaces.public_list", (route) =>
+    route.fulfill({ json: { ok: true, result: { items: [], count: 0, limit: 20 } } }),
+  );
   const profile = { id: "0123abcd", name: "Acme Owner", photo: "", handle: "" };
   await page.route("**/rpc/account.get", (route) =>
     route.fulfill({
@@ -135,13 +138,14 @@ test("account read errors reload the account while failed username edits retry t
     .or(page.getByRole("combobox", { name: "Buscar" }))
     .fill("cuenta");
   await page.getByRole("option", { name: /Cuenta/ }).click();
-  const account = page.getByRole("region", { name: "Cuenta en la nube", exact: true });
+  const account = page.getByRole("dialog", { name: "Configuración", exact: true });
   const reload = account.getByRole("button", { name: "Volver a cargar la cuenta" });
   await expect(reload).toBeVisible();
   readFails = false;
   await reload.click();
-  await expect(account.getByText("Tu ID de APX: 0123abcd")).toBeVisible();
+  await expect(account.getByText(/Tu ID de APX: 0123abcd/)).toBeVisible();
   await expect(account.getByRole("alert")).toHaveCount(0);
+  await expect(account.getByRole("region", { name: "Copias publicadas", exact: true })).toBeVisible();
   await page
     .getByText("Quién sos, para el panel y para tus agentes. Tu perfil local queda en esta computadora.", {
       exact: true,
