@@ -1,5 +1,5 @@
 import type { CatalogEngine, ModelChoice } from "@apx/protocol";
-import { Icons, Popover, Skeleton } from "@apx/ui";
+import { Icons, Popover, Skeleton, Tooltip } from "@apx/ui";
 import { type ReactNode, Suspense, useState } from "react";
 import { choiceLabel, effectiveChoice, forAgents, inCatalog, useModels } from "../../data/models.ts";
 import { useT } from "../../i18n/index.ts";
@@ -21,18 +21,14 @@ export function trigger(o: {
   extra?: ReactNode;
 }) {
   return (
-    <button
-      type="button"
-      disabled={o.disabled}
-      className={o.className ?? "selectbtn"}
-      aria-label={o.label}
-      title={o.warn ? o.warnText : o.text}
-    >
-      {o.warn ? <Icons.TriangleAlert size={12} className="selectbtn__warn" /> : o.icon}
-      <span className="selectbtn__text">{o.text}</span>
-      {o.extra}
-      <Icons.ChevronDown size={12} className="selectbtn__chevron" />
-    </button>
+    <Tooltip content={o.warn ? o.warnText : o.text}>
+      <button type="button" disabled={o.disabled} className={o.className ?? "selectbtn"} aria-label={o.label}>
+        {o.warn ? <Icons.TriangleAlert size={12} className="selectbtn__warn" /> : o.icon}
+        <span className="selectbtn__text">{o.text}</span>
+        {o.extra}
+        <Icons.ChevronDown size={12} className="selectbtn__chevron" />
+      </button>
+    </Tooltip>
   );
 }
 

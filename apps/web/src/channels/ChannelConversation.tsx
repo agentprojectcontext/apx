@@ -296,9 +296,11 @@ function Bubble({ m, agentName, mail }: { m: Message; agentName: string; mail: b
             words && <p className="chan__text">{words}</p>
           )}
           {marks.map((code) => (
-            <span key={code} className="chan__mark" title={t("ch.markHint")}>
-              <Icons.Tag size={12} /> {t(MARK_LABEL[code] ?? "ch.mark.automatic")}
-            </span>
+            <Tooltip key={code} content={t("ch.markHint")}>
+              <span className="chan__mark">
+                <Icons.Tag size={12} /> {t(MARK_LABEL[code] ?? "ch.mark.automatic")}
+              </span>
+            </Tooltip>
           ))}
           {m.reactions?.length ? (
             <span className="chan__reactions">

@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import { cx } from "../cx";
 import { Icons } from "../icons";
 import { type MediaKind, MediaLoader } from "./MediaLoader";
+import { Tooltip } from "./Tooltip";
 
 export interface FileTileProps {
   /** The file's name: the open button's accessible name, and the label on a tile without a picture. */
@@ -26,26 +27,27 @@ export function FileTile({ name, meta, src, loading, icon, onOpen, actions, clas
   const picture = src !== undefined || loading !== undefined;
   return (
     <li className={cx("apx-filetile", picture && "is-picture", className)}>
-      <button
-        type="button"
-        className="apx-filetile__open"
-        title={name}
-        aria-label={picture ? undefined : name}
-        onClick={onOpen}
-        disabled={!onOpen}
-      >
-        {src ? (
-          <img src={src} alt={name} />
-        ) : loading ? (
-          <MediaLoader kind={loading} size={24} />
-        ) : (
-          <>
-            <span className="apx-filetile__icon">{icon ?? <Icons.FileText size={22} />}</span>
-            <span className="apx-filetile__name">{name}</span>
-            {meta && <span className="apx-filetile__meta">{meta}</span>}
-          </>
-        )}
-      </button>
+      <Tooltip content={name}>
+        <button
+          type="button"
+          className="apx-filetile__open"
+          aria-label={picture ? undefined : name}
+          onClick={onOpen}
+          disabled={!onOpen}
+        >
+          {src ? (
+            <img src={src} alt={name} />
+          ) : loading ? (
+            <MediaLoader kind={loading} size={24} />
+          ) : (
+            <>
+              <span className="apx-filetile__icon">{icon ?? <Icons.FileText size={22} />}</span>
+              <span className="apx-filetile__name">{name}</span>
+              {meta && <span className="apx-filetile__meta">{meta}</span>}
+            </>
+          )}
+        </button>
+      </Tooltip>
       {actions && <div className="apx-filetile__actions">{actions}</div>}
     </li>
   );

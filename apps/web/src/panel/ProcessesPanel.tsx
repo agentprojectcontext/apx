@@ -1,6 +1,6 @@
 import "../styles/panel-parts.css";
 import type { Job } from "@apx/protocol";
-import { Button, EmptyState, IconButton, Icons, Skeleton, Spinner } from "@apx/ui";
+import { Button, EmptyState, IconButton, Icons, Skeleton, Spinner, Tooltip } from "@apx/ui";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { elapsed, shortWhen } from "../common/format.ts";
 import { useNow } from "../common/useNow.ts";
@@ -188,9 +188,9 @@ function CommandOutput({ job }: { job: Job }) {
               {statusOf(t, job)}
             </span>
             {job.cwd && (
-              <span className="procs__cwd" title={job.cwd}>
-                {job.cwd}
-              </span>
+              <Tooltip content={job.cwd}>
+                <span className="procs__cwd">{job.cwd}</span>
+              </Tooltip>
             )}
           </span>
         </div>

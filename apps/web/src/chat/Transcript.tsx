@@ -10,6 +10,7 @@ import {
   StickyScroll,
   type StickyScrollHandle,
   SystemNote,
+  Tooltip,
   withMentions,
 } from "@apx/ui";
 import { type ReactNode, Suspense, useEffect, useMemo, useRef } from "react";
@@ -366,14 +367,15 @@ function UserText({ text, sourceOf }: { text: string; sourceOf: (quote: string) 
     <>
       {quote &&
         (source ? (
-          <button
-            type="button"
-            className="transcript__quote is-link"
-            title={t("msg.quoteJump")}
-            onClick={() => nav.set({ focus: `msg:${source}` })}
-          >
-            {body}
-          </button>
+          <Tooltip content={t("msg.quoteJump")}>
+            <button
+              type="button"
+              className="transcript__quote is-link"
+              onClick={() => nav.set({ focus: `msg:${source}` })}
+            >
+              {body}
+            </button>
+          </Tooltip>
         ) : (
           <blockquote className="transcript__quote">{body}</blockquote>
         ))}

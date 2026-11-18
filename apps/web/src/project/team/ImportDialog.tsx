@@ -1,5 +1,16 @@
 import type { Agent, AgentTemplate, TeamTemplate } from "@apx/protocol";
-import { Badge, Button, Checkbox, Dialog, EmptyState, Icons, SegmentedControl, Skeleton, Switch } from "@apx/ui";
+import {
+  Badge,
+  Button,
+  Checkbox,
+  Dialog,
+  EmptyState,
+  Icons,
+  SegmentedControl,
+  Skeleton,
+  Switch,
+  Tooltip,
+} from "@apx/ui";
 import { useEffect, useMemo, useState } from "react";
 import { notify } from "../../data/notices.ts";
 import { cloneAgents, installTemplates, loadTemplates } from "../../data/team.ts";
@@ -266,12 +277,14 @@ function Member(props: {
         </span>
       )}
       {m.routines.length > 0 && (
-        <span className="teamimport__leadtag" title={m.routines.map((r) => r.name).join(" · ")}>
-          <Icons.Repeat size={12} />
-          {m.routines.length === 1
-            ? t("team.import.routines.one")
-            : t("team.import.routines.other", { n: m.routines.length })}
-        </span>
+        <Tooltip content={m.routines.map((r) => r.name).join(" · ")}>
+          <span className="teamimport__leadtag">
+            <Icons.Repeat size={12} />
+            {m.routines.length === 1
+              ? t("team.import.routines.one")
+              : t("team.import.routines.other", { n: m.routines.length })}
+          </span>
+        </Tooltip>
       )}
       {props.taken && <span className="teamimport__muted">{t("team.import.taken")}</span>}
       {props.open && (

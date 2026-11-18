@@ -1,4 +1,4 @@
-import { IconButton, Icons, Menu } from "@apx/ui";
+import { IconButton, Icons, Menu, Tooltip } from "@apx/ui";
 import { activeCommandsOf } from "../data/jobs.ts";
 import { useData } from "../data/state.ts";
 import { useT } from "../i18n/index.ts";
@@ -63,15 +63,16 @@ export function PanelSwitcher({ wide, skipUsage = false }: { wide: boolean; skip
           : []),
       ]}
       trigger={
-        <button
-          type="button"
-          className={panel ? "panelswitch__menu is-on" : "panelswitch__menu"}
-          aria-label={current ? t("panel.current", { name: t(current.label) }) : t("panel.open")}
-          title={current ? t("panel.current", { name: t(current.label) }) : t("panel.open")}
-        >
-          {current ? current.icon(14) : <Icons.Globe size={14} />}
-          <Icons.ChevronDown size={12} />
-        </button>
+        <Tooltip content={current ? t("panel.current", { name: t(current.label) }) : t("panel.open")}>
+          <button
+            type="button"
+            className={panel ? "panelswitch__menu is-on" : "panelswitch__menu"}
+            aria-label={current ? t("panel.current", { name: t(current.label) }) : t("panel.open")}
+          >
+            {current ? current.icon(14) : <Icons.Globe size={14} />}
+            <Icons.ChevronDown size={12} />
+          </button>
+        </Tooltip>
       }
     />
   );

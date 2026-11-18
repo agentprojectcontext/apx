@@ -1,6 +1,6 @@
 import "../styles/call.css";
 import type { CallFrame, CallVoice, VoiceLocale } from "@apx/protocol";
-import { Button, IconButton, Icons, Meter, SegmentedControl, Select } from "@apx/ui";
+import { Button, IconButton, Icons, Meter, SegmentedControl, Select, Tooltip } from "@apx/ui";
 import { useEffect, useRef, useState } from "react";
 import { AgentFace } from "../common/AgentFace.tsx";
 import { calls, useCalls } from "../data/calls.ts";
@@ -221,40 +221,38 @@ export function CallCard() {
       data-small={small ? "" : undefined}
       data-talk={stage === "live" ? talk : undefined}
     >
-      <div
-        className="callcard__head"
-        onPointerDown={placed.onPointerDown}
-        title={thread ? t("callCard.openChat") : undefined}
-      >
-        <span className="callcard__face">
-          {agent ? <AgentFace agent={agent} size={36} /> : <Icons.Phone size={16} aria-hidden="true" />}
-        </span>
-        <div className="callcard__who">
-          <div className="callcard__name">{name}</div>
-          <div className="callcard__state" aria-live="polite">
-            {state}
+      <Tooltip content={thread ? t("callCard.openChat") : undefined}>
+        <div className="callcard__head" onPointerDown={placed.onPointerDown}>
+          <span className="callcard__face">
+            {agent ? <AgentFace agent={agent} size={36} /> : <Icons.Phone size={16} aria-hidden="true" />}
+          </span>
+          <div className="callcard__who">
+            <div className="callcard__name">{name}</div>
+            <div className="callcard__state" aria-live="polite">
+              {state}
+            </div>
           </div>
+          {since !== undefined && busy && <span className="callcard__time">{clock(now - since)}</span>}
+          {busy && (
+            <IconButton
+              size="sm"
+              label={t(small ? "callCard.unfold" : "callCard.fold")}
+              icon={small ? <Icons.Maximize2 size={14} /> : <Icons.Minus size={14} />}
+              onClick={() => setSmall(!small)}
+            />
+          )}
+          {busy && small && (
+            <IconButton
+              size="sm"
+              className="callcard__hangup"
+              label={t("callCard.hangUp")}
+              icon={<Icons.PhoneOff size={14} />}
+              onClick={hangUp}
+            />
+          )}
+          {!busy && <IconButton size="sm" label={t("common.close")} icon={<Icons.X size={14} />} onClick={closeCall} />}
         </div>
-        {since !== undefined && busy && <span className="callcard__time">{clock(now - since)}</span>}
-        {busy && (
-          <IconButton
-            size="sm"
-            label={t(small ? "callCard.unfold" : "callCard.fold")}
-            icon={small ? <Icons.Maximize2 size={14} /> : <Icons.Minus size={14} />}
-            onClick={() => setSmall(!small)}
-          />
-        )}
-        {busy && small && (
-          <IconButton
-            size="sm"
-            className="callcard__hangup"
-            label={t("callCard.hangUp")}
-            icon={<Icons.PhoneOff size={14} />}
-            onClick={hangUp}
-          />
-        )}
-        {!busy && <IconButton size="sm" label={t("common.close")} icon={<Icons.X size={14} />} onClick={closeCall} />}
-      </div>
+      </Tooltip>
       {small && busy ? null : (
         <>
           {stage === "live" && partial && <p className="callcard__caption">{partial}</p>}

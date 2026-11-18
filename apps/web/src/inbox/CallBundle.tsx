@@ -1,5 +1,5 @@
 import type { Thread } from "@apx/protocol";
-import { ConversationRow, Icons, Spinner } from "@apx/ui";
+import { ConversationRow, Icons, Spinner, Tooltip } from "@apx/ui";
 import { shortWhen } from "../common/format.ts";
 import { isWorking } from "../data/identity.ts";
 import { useData } from "../data/state.ts";
@@ -69,9 +69,11 @@ function CallsHead({ threads, onToggle }: { threads: Thread[]; onToggle(): void 
         preview={
           <span className="threadrow__line">
             <span className="threadrow__who">
-              <span className="inboxtask__count" title={t("call.count", { n: threads.length })}>
-                <Icons.Phone size={12} /> {threads.length}
-              </span>
+              <Tooltip content={t("call.count", { n: threads.length })}>
+                <span className="inboxtask__count">
+                  <Icons.Phone size={12} /> {threads.length}
+                </span>
+              </Tooltip>
               {said && ` · ${said}`}
             </span>
           </span>

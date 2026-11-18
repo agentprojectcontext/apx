@@ -1,5 +1,5 @@
 import type { Agent, Thread } from "@apx/protocol";
-import { AgentAvatar, EngineIcon, Icons } from "@apx/ui";
+import { AgentAvatar, EngineIcon, Icons, Tooltip } from "@apx/ui";
 import { Suspense } from "react";
 import { AgentFace } from "../common/AgentFace.tsx";
 import { useData, useShownAgents } from "../data/state.ts";
@@ -56,9 +56,11 @@ export function ThreadAvatar({
           <Icons.Phone size={Math.round(size * 0.55)} />
         </span>
       ) : helper ? (
-        <span className="threadavatar__helper" title={t("subthread.worker")} style={{ width: size, height: size }}>
-          <Icons.Bot size={Math.round(size * 0.6)} />
-        </span>
+        <Tooltip content={t("subthread.worker")}>
+          <span className="threadavatar__helper" style={{ width: size, height: size }}>
+            <Icons.Bot size={Math.round(size * 0.6)} />
+          </span>
+        </Tooltip>
       ) : (
         faces.map((face, i) => (
           <span key={face?.id ?? i} className={group ? `threadavatar__group is-${i}` : undefined}>

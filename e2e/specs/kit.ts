@@ -1,6 +1,6 @@
 // What every spec shares: the core's protocol, the outside world (e2e/env.ts's control API), and a page that fails
 // its test on any console error or uncaught exception.
-import { test as base, expect, type Page } from "@playwright/test";
+import { test as base, expect, type Locator, type Page } from "@playwright/test";
 import { ALL_SLIDES } from "../../apps/web/src/shell/welcomeFilm.ts";
 import { startPageCoverage } from "../coverage.ts";
 import { coreOwnsHome } from "../sandbox.ts";
@@ -273,6 +273,24 @@ export async function cardSidebar(page: Page) {
 export async function open(page: Page, hash = "") {
   await page.goto(`/${hash}`);
   await expect(page.getByRole("button", { name: "Inbox" })).toBeVisible();
+}
+
+/**
+ * A hint is the design system's Tooltip, never a native title: hovered, one of `targets` shows `text`. Each target
+ * gets a short wall-clock look, so a list of candidates (counts side by side) finds the one that carries it.
+ */
+export async function expectHint(page: Page, targets: Locator, text: string | RegExp) {
+  const tip = page.locator(".apx-tooltip");
+  for (const target of await targets.all()) {
+    await target.hover();
+    try {
+      await expect(tip).toHaveText(text, { timeout: 2_000 });
+      return;
+    } catch {
+      await page.mouse.move(0, 0);
+    }
+  }
+  throw new Error(`no hint ${String(text)} on ${String(targets)}`);
 }
 
 /** Opens an extension's page in the Marketplace: searched by name, then its row. */

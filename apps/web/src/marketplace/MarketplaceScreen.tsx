@@ -1,5 +1,5 @@
 import type { CatalogEntry, Result } from "@apx/protocol";
-import { Icons, NavItem } from "@apx/ui";
+import { Icons, NavItem, Tooltip } from "@apx/ui";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { CHANNEL_KIND_IDS, CHANNEL_KINDS } from "../channels/kinds.ts";
 import { loadChannels, useChannels } from "../data/channels.ts";
@@ -134,7 +134,13 @@ export function MarketplaceScreen() {
       key={i.key}
       icon={<ItemIcon item={i} size={20} />}
       label={i.name}
-      trailing={waits(i) ? <span className="mkt-dot mkt-dot--wait" title={waitReason(i, t)} /> : undefined}
+      trailing={
+        waits(i) ? (
+          <Tooltip content={waitReason(i, t)}>
+            <span className="mkt-dot mkt-dot--wait" />
+          </Tooltip>
+        ) : undefined
+      }
       active={open === i.key}
       onClick={() => go.marketplace(section, i.key)}
     />

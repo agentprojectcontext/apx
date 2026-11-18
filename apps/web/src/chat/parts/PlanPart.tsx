@@ -1,6 +1,6 @@
 import type { Part } from "@apx/protocol";
 import type { PlanStep } from "@apx/protocol/task-plan";
-import { StepList } from "@apx/ui";
+import { StepList, Tooltip } from "@apx/ui";
 import type { ReactNode } from "react";
 import { useT } from "../../i18n/index.ts";
 
@@ -24,9 +24,9 @@ export function PlanCard({ label, steps, children }: { label: string; steps?: Pl
           className="plancard__steps"
           steps={steps.map((s) => ({
             label: (
-              <span key={s.step} title={s.step}>
-                {s.step}
-              </span>
+              <Tooltip key={s.step} content={s.step}>
+                <span>{s.step}</span>
+              </Tooltip>
             ),
             status: STATUS[s.state],
           }))}

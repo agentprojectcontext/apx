@@ -1,5 +1,5 @@
 import type { FileEntry } from "@apx/protocol";
-import { ContextMenu, EmptyState, IconButton, Icons, Skeleton } from "@apx/ui";
+import { ContextMenu, EmptyState, IconButton, Icons, Skeleton, Tooltip } from "@apx/ui";
 import { type ReactNode, useEffect, useState } from "react";
 import { client } from "../../data/client.ts";
 import { coreOnThisComputer, type FileWhere, mediaKind, mediaOf, revealFile } from "../../data/files.ts";
@@ -84,18 +84,20 @@ export function FilesPane({
     <div className={stacked ? "files files--stacked" : "files"}>
       {showTree && (
         <nav className="files__tree" aria-label={t("files.tree")}>
-          <div className="files__root" title={root || undefined}>
-            <Icons.FolderOpen size={14} />
-            <span>{label ?? ("project" in where ? t("files.repo") : root.split("/").filter(Boolean).at(-1))}</span>
-            {coreOnThisComputer() && (
-              <IconButton
-                size="sm"
-                label={t("files.reveal")}
-                icon={<Icons.ExternalLink size={12} />}
-                onClick={() => void revealFile(where, "")}
-              />
-            )}
-          </div>
+          <Tooltip content={root || undefined}>
+            <div className="files__root">
+              <Icons.FolderOpen size={14} />
+              <span>{label ?? ("project" in where ? t("files.repo") : root.split("/").filter(Boolean).at(-1))}</span>
+              {coreOnThisComputer() && (
+                <IconButton
+                  size="sm"
+                  label={t("files.reveal")}
+                  icon={<Icons.ExternalLink size={12} />}
+                  onClick={() => void revealFile(where, "")}
+                />
+              )}
+            </div>
+          </Tooltip>
           <Folder ctx={ctx} dir="" depth={0} />
         </nav>
       )}

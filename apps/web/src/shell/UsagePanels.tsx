@@ -1,6 +1,6 @@
 import type { DiskSpace, SystemUsage } from "@apx/protocol";
 import { BROWSER_TAB_IDLE_MIN } from "@apx/protocol/client";
-import { Button, Dialog, IconButton, Icons, Meter, Skeleton } from "@apx/ui";
+import { Button, Dialog, IconButton, Icons, Meter, Skeleton, Tooltip } from "@apx/ui";
 import "../styles/usage.css";
 import { refreshUsage, useUsage } from "../data/usage.ts";
 import { type DesktopMemory, homeDisk, type ProcessRow, processRows, ramSplit, size } from "../data/usageModel.ts";
@@ -267,9 +267,9 @@ function ProcessList({ t, rows, limit }: { t: T; rows: ProcessRow[]; limit: numb
       {rows.slice(0, limit).map((r, i) => (
         // biome-ignore lint/suspicious/noArrayIndexKey: two helpers can share a name
         <li key={i} className="usage__row">
-          <span className="usage__name" title={processName(t, r)}>
-            {processName(t, r)}
-          </span>
+          <Tooltip content={processName(t, r)}>
+            <span className="usage__name">{processName(t, r)}</span>
+          </Tooltip>
           <span className="usage__bar" aria-hidden="true">
             <span style={{ width: `${max ? (r.mb / max) * 100 : 0}%` }} />
           </span>

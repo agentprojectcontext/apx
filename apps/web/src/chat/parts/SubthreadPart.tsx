@@ -1,5 +1,5 @@
 import type { Agent, Part } from "@apx/protocol";
-import { AgentAvatar, Icons, MarkdownView, SubthreadCard } from "@apx/ui";
+import { AgentAvatar, Icons, MarkdownView, SubthreadCard, Tooltip } from "@apx/ui";
 import { duration } from "../../common/format.ts";
 import { namedMentions } from "../../common/mentionNames.ts";
 import { useMarkdownLabels } from "../../common/useMarkdownLabels.ts";
@@ -34,9 +34,11 @@ export function SubthreadPart({ part, from }: { part: Extract<Part, { type: "sub
     <SubthreadCard
       avatar={
         part.worker ? (
-          <span className="subthread__worker" title={t("subthread.worker")}>
-            <Icons.Bot size={14} />
-          </span>
+          <Tooltip content={t("subthread.worker")}>
+            <span className="subthread__worker">
+              <Icons.Bot size={14} />
+            </span>
+          </Tooltip>
         ) : (
           <AgentAvatar name={name} blob={blobOf(target)} size={24} animated={part.state === "working"} />
         )
@@ -50,7 +52,11 @@ export function SubthreadPart({ part, from }: { part: Extract<Part, { type: "sub
         .filter(Boolean)
         .join(" · ")}
       status={st.status}
-      statusLabel={<span title={failed}>{t(st.label)}</span>}
+      statusLabel={
+        <Tooltip content={failed}>
+          <span>{t(st.label)}</span>
+        </Tooltip>
+      }
       time={
         // Its answer waits for the others asked in the same turn: the caller reads them all together.
         part.held

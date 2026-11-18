@@ -1,6 +1,6 @@
 import "../../styles/model-menus.css";
 import type { CatalogEngine, ModelRef } from "@apx/protocol";
-import { Badge, EngineIcon, Icons, SearchField } from "@apx/ui";
+import { Badge, EngineIcon, Icons, SearchField, Tooltip } from "@apx/ui";
 import { type ReactNode, useMemo, useState } from "react";
 import { baseRef, forAgents, refLabel, splitRef, useModels, withEffort } from "../../data/models.ts";
 import { useT } from "../../i18n/index.ts";
@@ -83,9 +83,9 @@ export function ModelList({
                 <span>{e.label}</span>
                 {e.local && <span className="chip">{t("models.local")}</span>}
                 {!e.available && (
-                  <Badge tone="warning" title={e.detail}>
-                    {t("models.unavailable")}
-                  </Badge>
+                  <Tooltip content={e.detail}>
+                    <Badge tone="warning">{t("models.unavailable")}</Badge>
+                  </Tooltip>
                 )}
               </div>
               {/* Only a CLI has a default model of its own; a model API runs with its model named. */}
@@ -129,21 +129,22 @@ function Option(props: {
   tag?: ((ref: ModelRef) => ReactNode) | undefined;
 }) {
   return (
-    <button
-      type="button"
-      role="option"
-      aria-selected={props.selected}
-      className={`mlist__opt${props.tag ? " is-tagged" : ""}`}
-      title={props.tag ? props.sub : undefined}
-      onClick={props.onPick}
-    >
-      {!props.tag && <span className="mlist__check">{props.selected && <Icons.Check size={14} />}</span>}
-      <span className="mlist__name">{props.name}</span>
-      {props.tag ? (
-        <span className="mlist__tag">{props.tag(props.sub)}</span>
-      ) : (
-        <span className="mlist__ref">{props.sub}</span>
-      )}
-    </button>
+    <Tooltip content={props.tag ? props.sub : undefined}>
+      <button
+        type="button"
+        role="option"
+        aria-selected={props.selected}
+        className={`mlist__opt${props.tag ? " is-tagged" : ""}`}
+        onClick={props.onPick}
+      >
+        {!props.tag && <span className="mlist__check">{props.selected && <Icons.Check size={14} />}</span>}
+        <span className="mlist__name">{props.name}</span>
+        {props.tag ? (
+          <span className="mlist__tag">{props.tag(props.sub)}</span>
+        ) : (
+          <span className="mlist__ref">{props.sub}</span>
+        )}
+      </button>
+    </Tooltip>
   );
 }

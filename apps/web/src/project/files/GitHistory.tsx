@@ -1,5 +1,5 @@
 import type { Result } from "@apx/protocol";
-import { Button, IconButton, Icons } from "@apx/ui";
+import { Button, IconButton, Icons, Tooltip } from "@apx/ui";
 import { useMemo } from "react";
 import { shortWhen } from "../../common/format.ts";
 import { useT } from "../../i18n/index.ts";
@@ -45,54 +45,55 @@ export function GitHistory({
           const color = laneColor(row?.col ?? 0);
           return (
             <li key={c.sha}>
-              <button
-                type="button"
-                className={`git__commitrow${picked === c.sha ? " is-on" : ""}`}
-                onClick={() => onPick(c.sha)}
-                title={c.subject}
-                style={{ paddingLeft: width + 10 }}
-              >
-                {row && (
-                  <svg className="git__graph" width={width} aria-hidden="true">
-                    {row.through.map((l) => (
-                      <line key={`t${l}`} x1={x(l)} y1="0" x2={x(l)} y2="100%" stroke={laneColor(l)} />
-                    ))}
-                    {row.into.map((l) => (
-                      <line key={`i${l}`} x1={x(l)} y1="0" x2={x(row.col)} y2={DOT_Y} stroke={laneColor(l)} />
-                    ))}
-                    {row.out.map((l) => (
-                      <line key={`o${l}`} x1={x(row.col)} y1={DOT_Y} x2={x(l)} y2="100%" stroke={laneColor(l)} />
-                    ))}
-                    <circle
-                      cx={x(row.col)}
-                      cy={DOT_Y}
-                      r={c.parents.length > 1 ? 3 : 4}
-                      fill={c.parents.length > 1 ? color : "var(--apx-bg)"}
-                      stroke={color}
-                    />
-                  </svg>
-                )}
-                <span className="git__commitmain">
-                  <span className="git__subject">{c.subject}</span>
-                  <span className="git__meta">
-                    {c.author} · {shortWhen(c.at)} · <code>{c.sha.slice(0, 7)}</code>
-                  </span>
-                  {c.refs.length > 0 && (
-                    <span className="git__refs">
-                      {c.refs.map((r) => (
-                        <span
-                          key={r}
-                          className={`git__ref${r.startsWith("tag: ") ? " is-tag" : ""}`}
-                          style={{ color, borderColor: color }}
-                        >
-                          {r.startsWith("tag: ") ? <Icons.Tag size={10} /> : <Icons.GitBranch size={10} />}
-                          {r.replace(/^tag: /, "")}
-                        </span>
+              <Tooltip content={c.subject}>
+                <button
+                  type="button"
+                  className={`git__commitrow${picked === c.sha ? " is-on" : ""}`}
+                  onClick={() => onPick(c.sha)}
+                  style={{ paddingLeft: width + 10 }}
+                >
+                  {row && (
+                    <svg className="git__graph" width={width} aria-hidden="true">
+                      {row.through.map((l) => (
+                        <line key={`t${l}`} x1={x(l)} y1="0" x2={x(l)} y2="100%" stroke={laneColor(l)} />
                       ))}
-                    </span>
+                      {row.into.map((l) => (
+                        <line key={`i${l}`} x1={x(l)} y1="0" x2={x(row.col)} y2={DOT_Y} stroke={laneColor(l)} />
+                      ))}
+                      {row.out.map((l) => (
+                        <line key={`o${l}`} x1={x(row.col)} y1={DOT_Y} x2={x(l)} y2="100%" stroke={laneColor(l)} />
+                      ))}
+                      <circle
+                        cx={x(row.col)}
+                        cy={DOT_Y}
+                        r={c.parents.length > 1 ? 3 : 4}
+                        fill={c.parents.length > 1 ? color : "var(--apx-bg)"}
+                        stroke={color}
+                      />
+                    </svg>
                   )}
-                </span>
-              </button>
+                  <span className="git__commitmain">
+                    <span className="git__subject">{c.subject}</span>
+                    <span className="git__meta">
+                      {c.author} · {shortWhen(c.at)} · <code>{c.sha.slice(0, 7)}</code>
+                    </span>
+                    {c.refs.length > 0 && (
+                      <span className="git__refs">
+                        {c.refs.map((r) => (
+                          <span
+                            key={r}
+                            className={`git__ref${r.startsWith("tag: ") ? " is-tag" : ""}`}
+                            style={{ color, borderColor: color }}
+                          >
+                            {r.startsWith("tag: ") ? <Icons.Tag size={10} /> : <Icons.GitBranch size={10} />}
+                            {r.replace(/^tag: /, "")}
+                          </span>
+                        ))}
+                      </span>
+                    )}
+                  </span>
+                </button>
+              </Tooltip>
             </li>
           );
         })}

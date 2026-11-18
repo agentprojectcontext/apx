@@ -1,5 +1,5 @@
 import type { AgentBudget } from "@apx/protocol";
-import { Input } from "@apx/ui";
+import { Input, Tooltip } from "@apx/ui";
 import { useEffect, useState } from "react";
 import { client } from "../../data/client.ts";
 import { useT } from "../../i18n/index.ts";
@@ -65,9 +65,11 @@ export function AgentBudgetField({ agentId }: { agentId: string }) {
     );
   };
   return (
-    <div className="teambudget" title={t("team.budget.hint")}>
-      {field("runs")}
-      {field("tokens")}
-    </div>
+    <Tooltip content={t("team.budget.hint")}>
+      <div className="teambudget">
+        {field("runs")}
+        {field("tokens")}
+      </div>
+    </Tooltip>
   );
 }

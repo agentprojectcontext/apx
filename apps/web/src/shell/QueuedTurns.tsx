@@ -1,5 +1,5 @@
 import type { Job, JobFrom } from "@apx/protocol";
-import { Icons } from "@apx/ui";
+import { Icons, Tooltip } from "@apx/ui";
 import { elapsed } from "../common/format.ts";
 import { type T, useT } from "../i18n/index.ts";
 
@@ -69,19 +69,15 @@ export function QueuedTurns({
           </>
         );
         return onOpen && (!canOpen || canOpen(j)) ? (
-          <button
-            key={j.id}
-            type="button"
-            className="turns__row"
-            title={t("turn.queuedAfter")}
-            onClick={() => onOpen(j)}
-          >
-            {body}
-          </button>
+          <Tooltip key={j.id} content={t("turn.queuedAfter")}>
+            <button type="button" className="turns__row" onClick={() => onOpen(j)}>
+              {body}
+            </button>
+          </Tooltip>
         ) : (
-          <div key={j.id} className="turns__row" title={t("turn.queuedAfter")}>
-            {body}
-          </div>
+          <Tooltip key={j.id} content={t("turn.queuedAfter")}>
+            <div className="turns__row">{body}</div>
+          </Tooltip>
         );
       })}
     </div>

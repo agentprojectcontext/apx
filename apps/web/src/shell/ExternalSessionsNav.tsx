@@ -1,5 +1,5 @@
 import type { EngineStatus } from "@apx/protocol";
-import { EngineIcon, engineBrand, Icons } from "@apx/ui";
+import { EngineIcon, engineBrand, Icons, Tooltip } from "@apx/ui";
 import { useEffect, useMemo, useState } from "react";
 import { markAllRead } from "../data/actions.ts";
 import { rememberSidebar, setPrefs, usePrefs, useSidebarRows } from "../data/prefs.ts";
@@ -143,7 +143,12 @@ export function ExternalSessionsNav({ rail, compact = false }: { rail: boolean; 
 function EngineState({ engine }: { engine: EngineStatus | undefined }) {
   const t = useT();
   if (!engine) return null;
-  if (engine.installed && engine.logged_in) return <span className="sidebar__running" title={t("engine.loggedIn")} />;
+  if (engine.installed && engine.logged_in)
+    return (
+      <Tooltip content={t("engine.loggedIn")}>
+        <span className="sidebar__running" />
+      </Tooltip>
+    );
   return <span className="sidebar__soon">{engine.installed ? t("engine.noSession") : t("engine.install")}</span>;
 }
 

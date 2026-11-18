@@ -1,5 +1,5 @@
 import type { SurfaceSummary } from "@apx/protocol";
-import { ContextMenu, IconButton, Icons, NavItem, Popover, SearchField } from "@apx/ui";
+import { ContextMenu, IconButton, Icons, NavItem, Popover, SearchField, Tooltip } from "@apx/ui";
 import { useMemo, useState } from "react";
 import { setSurfaceFlags } from "../data/actions.ts";
 import { projectName } from "../data/identity.ts";
@@ -72,7 +72,11 @@ export function AppsDock({ rail: folded, compact = false }: { rail: boolean; com
         }
         label={a.title}
         trailing={
-          !rail && running.has(a.id) ? <span className="navitem__running" title={t("artifact.running")} /> : undefined
+          !rail && running.has(a.id) ? (
+            <Tooltip content={t("artifact.running")}>
+              <span className="navitem__running" />
+            </Tooltip>
+          ) : undefined
         }
         active={view === "app" && appId === a.id}
         onClick={() => go.app(a.id)}
@@ -218,7 +222,11 @@ function AppLauncher({ running }: { running: ReadonlySet<string> }) {
                   {s.in_apps && !s.app ? ` · ${t("artifact.pinned")}` : ""}
                 </small>
               </span>
-              {running.has(s.id) && <span className="navitem__running" title={t("artifact.running")} />}
+              {running.has(s.id) && (
+                <Tooltip content={t("artifact.running")}>
+                  <span className="navitem__running" />
+                </Tooltip>
+              )}
             </button>
           ))}
         </div>

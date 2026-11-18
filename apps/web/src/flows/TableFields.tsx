@@ -3,7 +3,7 @@
 // required ones marked, or keeps one value whole; a read gets one row by its key or the latest rows, with the columns
 // it ticks, and later steps read each column.
 import type { TableInfo } from "@apx/protocol";
-import { Button, Checkbox, Field, Icons, SegmentedControl, Select } from "@apx/ui";
+import { Button, Checkbox, Field, Icons, SegmentedControl, Select, Tooltip } from "@apx/ui";
 import { useState } from "react";
 import { notify } from "../data/notices.ts";
 import { useT } from "../i18n/index.ts";
@@ -101,20 +101,21 @@ function NewColumn({ projectId, table, onAdded }: { projectId: string; table: st
 function CopyName({ text }: { text: string }) {
   const t = useT();
   return (
-    <button
-      type="button"
-      className="ft-var fe-mono"
-      title={t("flow.f.copy")}
-      onClick={() =>
-        void navigator.clipboard.writeText(text).then(
-          () => notify(t("flow.f.copied"), "info"),
-          () => undefined,
-        )
-      }
-    >
-      {text}
-      <Icons.Copy size={11} aria-hidden />
-    </button>
+    <Tooltip content={t("flow.f.copy")}>
+      <button
+        type="button"
+        className="ft-var fe-mono"
+        onClick={() =>
+          void navigator.clipboard.writeText(text).then(
+            () => notify(t("flow.f.copied"), "info"),
+            () => undefined,
+          )
+        }
+      >
+        {text}
+        <Icons.Copy size={11} aria-hidden />
+      </button>
+    </Tooltip>
   );
 }
 
@@ -218,9 +219,9 @@ export function TableWriteFields({
                   <span className="ft-colname">
                     {c}
                     {needed && (
-                      <span className="ft-required" title={t("flow.tbl.required")}>
-                        {" *"}
-                      </span>
+                      <Tooltip content={t("flow.tbl.required")}>
+                        <span className="ft-required">{" *"}</span>
+                      </Tooltip>
                     )}
                   </span>
                 }

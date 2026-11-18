@@ -14,6 +14,7 @@ import {
   Menu,
   PickRow,
   Skeleton,
+  Tooltip,
 } from "@apx/ui";
 import { useCallback, useEffect, useState } from "react";
 import { client } from "../data/client.ts";
@@ -268,9 +269,9 @@ function Grid({
                   <span className="fe-mono">
                     {c}
                     {required.has(c) && (
-                      <span className="ft-required" title={t("flow.tbl.required")}>
-                        {" *"}
-                      </span>
+                      <Tooltip content={t("flow.tbl.required")}>
+                        <span className="ft-required">{" *"}</span>
+                      </Tooltip>
                     )}
                   </span>
                   <Menu
@@ -328,9 +329,9 @@ function Grid({
                 </button>
               </th>
               {r.cells.map((c, i) => (
-                <td key={columns[i]} title={c}>
-                  {c}
-                </td>
+                <Tooltip key={columns[i]} content={c}>
+                  <td>{c}</td>
+                </Tooltip>
               ))}
             </tr>
           ))}

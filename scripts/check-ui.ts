@@ -11,7 +11,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import ts from "typescript-parser";
 
-export type UiRule = "native-control" | "literal-color";
+export type UiRule = "native-control" | "literal-color" | "native-title";
 export type UiFinding = { file: string; line: number; rule: UiRule; reason: string };
 export type UiAllowlist = Partial<Record<UiRule, Record<string, { count: number; reason: string }>>>;
 
@@ -23,6 +23,8 @@ const COMPONENT: Record<string, string> = {
   textarea: "Textarea",
   input: "Input, SearchField, Checkbox or Switch",
 };
+/** Elements whose title is their accessible name, not a hint. */
+const TITLED = new Set(["iframe"]);
 /** Input types the design system has no component for. */
 const FREE_INPUTS = new Set(["file", "hidden", "range", "color", "radio"]);
 const COLOR = /#[0-9a-f]{3,8}\b|\b(?:rgba?|hsla?|oklch|oklab|lab|lch|hwb)\(/i;
@@ -75,6 +77,10 @@ function scanScript(file: string, text: string): UiFinding[] {
       const type = attribute(node, "type");
       const free = tag === "input" && type && ts.isStringLiteral(type) && FREE_INPUTS.has(type.text);
       if (component && !free) add(node, "native-control", `native <${tag}>: use ${component} from @apx/ui`);
+      // A hint is the design system's Tooltip, never the browser's own title box; a frame's title names it for screen
+      // readers and stays.
+      if (/^[a-z]/.test(tag) && !TITLED.has(tag) && attribute(node, "title") !== undefined)
+        add(node, "native-title", `title on <${tag}>: wrap it in Tooltip from @apx/ui (or aria-label for a name)`);
     }
     if (
       (ts.isStringLiteral(node) || ts.isNoSubstitutionTemplateLiteral(node) || ts.isTemplateHead(node)) &&

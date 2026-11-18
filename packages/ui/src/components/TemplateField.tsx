@@ -13,6 +13,7 @@ import { cx } from "../cx";
 import { Icons } from "../icons";
 import { useApx } from "./ApxProvider";
 import { Textarea, type TextareaProps } from "./Textarea";
+import { Tooltip } from "./Tooltip";
 
 /** The list's height at most (its CSS max-height): below the field when it fits there, above otherwise. */
 const LIST_MAX = 280;
@@ -264,23 +265,24 @@ export function TemplateField({
         }}
         onBlur={close}
       />
-      <button
-        type="button"
-        className="apx-tfield__pick"
-        aria-label={pickLabel}
-        title={pickLabel}
-        // Opened before the textarea loses focus, at the caret it had.
-        onMouseDown={(e) => {
-          e.preventDefault();
-          if (browsing) return close();
-          setCaret(ref.current?.selectionStart ?? value.length);
-          setActive(0);
-          setBrowsing(true);
-          ref.current?.focus();
-        }}
-      >
-        <Icons.Braces size={13} />
-      </button>
+      <Tooltip content={pickLabel}>
+        <button
+          type="button"
+          className="apx-tfield__pick"
+          aria-label={pickLabel}
+          // Opened before the textarea loses focus, at the caret it had.
+          onMouseDown={(e) => {
+            e.preventDefault();
+            if (browsing) return close();
+            setCaret(ref.current?.selectionStart ?? value.length);
+            setActive(0);
+            setBrowsing(true);
+            ref.current?.focus();
+          }}
+        >
+          <Icons.Braces size={13} />
+        </button>
+      </Tooltip>
       {open &&
         place &&
         createPortal(

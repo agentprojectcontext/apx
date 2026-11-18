@@ -1,6 +1,6 @@
 // The controls under one bubble: copy its words, quote or answer it (in a task), fork the chat from it, read it aloud.
 import type { Message as Msg, Thread } from "@apx/protocol";
-import { IconButton, Icons, Spinner } from "@apx/ui";
+import { IconButton, Icons, Spinner, Tooltip } from "@apx/ui";
 import { type ReactNode, useContext, useEffect, useState } from "react";
 import { DeliveryTicks } from "../channels/MessageMarks.tsx";
 import { shortWhen } from "../common/format.ts";
@@ -72,13 +72,11 @@ export function MessageActions({
       )}
       {speak && text.trim() && <ReadAloud text={text} speechKey={speechKey} />}
       {children}
-      <time
-        className="msgactions__when"
-        dateTime={message.created_at}
-        title={new Date(message.created_at).toLocaleString()}
-      >
-        {shortWhen(message.created_at)}
-      </time>
+      <Tooltip content={new Date(message.created_at).toLocaleString()}>
+        <time className="msgactions__when" dateTime={message.created_at}>
+          {shortWhen(message.created_at)}
+        </time>
+      </Tooltip>
       {message.author.kind === "user" && message.delivery && <DeliveryTicks state={message.delivery} />}
     </>
   );

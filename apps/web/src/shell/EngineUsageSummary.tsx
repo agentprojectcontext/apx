@@ -1,5 +1,5 @@
 import type { Result } from "@apx/protocol";
-import { EngineIcon, Help, IconButton, Icons, Meter } from "@apx/ui";
+import { EngineIcon, Help, IconButton, Icons, Meter, Tooltip } from "@apx/ui";
 import { useEffect, useState } from "react";
 import { dayLabel } from "../common/format.ts";
 import { currentLocale, type MessageKey, useT } from "../i18n/index.ts";
@@ -67,9 +67,9 @@ export default function EngineUsageSummary({
         </div>
         <div className="engine-usage__checked">
           {!loading && !failed && report && (
-            <span className="usage__note" title={t("engineUsage.updated", { at: dateLabel(report.checked_at) })}>
-              {dayLabel(report.checked_at)}
-            </span>
+            <Tooltip content={t("engineUsage.updated", { at: dateLabel(report.checked_at) })}>
+              <span className="usage__note">{dayLabel(report.checked_at)}</span>
+            </Tooltip>
           )}
           <IconButton
             size="sm"

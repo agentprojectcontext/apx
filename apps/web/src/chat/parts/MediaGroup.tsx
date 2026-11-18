@@ -1,6 +1,6 @@
 // A message's pictures as one grid that opens a viewer to step through them, and its videos as one carousel. Loaded
 // with the first message that has media, so it never weighs on the panel's first script.
-import { ContextMenu, Dialog, IconButton, Icons, MediaLoader } from "@apx/ui";
+import { ContextMenu, Dialog, IconButton, Icons, MediaLoader, Tooltip } from "@apx/ui";
 import { useEffect, useRef, useState } from "react";
 import { formatBytes } from "../../common/format.ts";
 import { mediaUrl } from "../../data/media.ts";
@@ -135,7 +135,14 @@ function Tile({
       </span>
     );
   return (
-    <ContextMenu items={items} render={<button type="button" className={cls} onClick={onOpen} title={nameOf(part)} />}>
+    <ContextMenu
+      items={items}
+      render={(props) => (
+        <Tooltip content={nameOf(part)}>
+          <button {...props} type="button" className={cls} onClick={onOpen} />
+        </Tooltip>
+      )}
+    >
       {/* A single tile needs the image's intrinsic size; lazy loading can leave its box at zero. */}
       <img
         src={src}
@@ -305,9 +312,9 @@ function VideoCard({ part, root }: { part: VideoPart; root: React.RefObject<HTML
         {!ready && <MediaLoader kind="video" className="mediacarousel__poster" />}
       </div>
       <div className="mediacarousel__info">
-        <span className="mediacarousel__name" title={part.name}>
-          {part.name}
-        </span>
+        <Tooltip content={part.name}>
+          <span className="mediacarousel__name">{part.name}</span>
+        </Tooltip>
         <span className="mediacarousel__size">{formatBytes(part.bytes)}</span>
         <IconButton
           size="sm"

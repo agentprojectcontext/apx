@@ -1,7 +1,7 @@
 import "../styles/resources.css";
 import "../styles/shared-files.css";
 import type { SharedFile, SharedKind, SharedOrder } from "@apx/protocol";
-import { Button, EmptyState, Icons, SegmentedControl, Select } from "@apx/ui";
+import { Button, EmptyState, Icons, SegmentedControl, Select, Tooltip } from "@apx/ui";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useMediaUrl } from "../chat/parts/useMediaUrl.ts";
 import { SectionPage } from "../common/SectionPage.tsx";
@@ -86,9 +86,9 @@ function Card({ file, onOpen }: { file: SharedFile; onOpen: () => void }) {
       </button>
       <SharedActions file={file} />
       <div className="sharedf__cardbody">
-        <span className="sharedf__name" title={name}>
-          {name}
-        </span>
+        <Tooltip content={name}>
+          <span className="sharedf__name">{name}</span>
+        </Tooltip>
         <CardLine author={file.author} at={file.created_at} projectId={file.project_id} hint={file.thread_title} />
       </div>
     </li>

@@ -1,5 +1,5 @@
 import type { Result, Task, Thread } from "@apx/protocol";
-import { AgentAvatar, Icons, Skeleton, Spinner } from "@apx/ui";
+import { AgentAvatar, Icons, Skeleton, Spinner, Tooltip } from "@apx/ui";
 import { formatNumber, shortWhen } from "../common/format.ts";
 import { blobOf, isWorking } from "../data/identity.ts";
 import { useData, useShownAgents } from "../data/state.ts";
@@ -36,28 +36,28 @@ export function TaskWork({
         const name = agent?.name ?? s.agent_ids[0] ?? "";
         const consult = s.kind === "a2a";
         return (
-          <button
-            key={s.id}
-            type="button"
-            className="taskwork__chat"
-            title={t(consult ? "tasks.work.openConsult" : "tasks.work.open", { name })}
-            onClick={() => (consult ? go.subthread(s.id) : go.thread(s.id))}
-          >
-            <AgentAvatar name={name} blob={blobOf(agent)} size={18} animated={false} />
-            <span className="taskwork__name">{name}</span>
-            {consult && <span className="taskwork__kind">{t("tasks.work.consult")}</span>}
-            <span className="taskwork__state">
-              {isWorking(chat.state) ? (
-                <>
-                  <Spinner size={11} />
-                  {t("tasks.work.working")}
-                </>
-              ) : (
-                shortWhen(chat.updated_at)
-              )}
-            </span>
-            <Icons.ChevronRight size={13} className="taskwork__go" />
-          </button>
+          <Tooltip key={s.id} content={t(consult ? "tasks.work.openConsult" : "tasks.work.open", { name })}>
+            <button
+              type="button"
+              className="taskwork__chat"
+              onClick={() => (consult ? go.subthread(s.id) : go.thread(s.id))}
+            >
+              <AgentAvatar name={name} blob={blobOf(agent)} size={18} animated={false} />
+              <span className="taskwork__name">{name}</span>
+              {consult && <span className="taskwork__kind">{t("tasks.work.consult")}</span>}
+              <span className="taskwork__state">
+                {isWorking(chat.state) ? (
+                  <>
+                    <Spinner size={11} />
+                    {t("tasks.work.working")}
+                  </>
+                ) : (
+                  shortWhen(chat.updated_at)
+                )}
+              </span>
+              <Icons.ChevronRight size={13} className="taskwork__go" />
+            </button>
+          </Tooltip>
         );
       })}
     </div>
@@ -106,28 +106,24 @@ export function TaskSubtasks({ subtasks }: { subtasks: Task[] }) {
         const agent = agents[task.assignee ?? ""];
         const name = agent?.name ?? task.assignee ?? t("tasks.nobody");
         return (
-          <button
-            key={task.id}
-            type="button"
-            className="taskwork__chat"
-            title={t("tasks.subtask.open", { title: task.title })}
-            onClick={() => go.task(task.id)}
-          >
-            {task.state === "done" ? (
-              <Icons.Check size={13} className="taskwork__go" />
-            ) : task.state === "dropped" ? (
-              <Icons.X size={13} className="taskwork__go" />
-            ) : task.assignee ? (
-              <AgentAvatar name={name} blob={blobOf(agent)} size={18} animated={false} />
-            ) : (
-              <Icons.CircleDashed size={13} className="taskwork__go" />
-            )}
-            <span className={`taskwork__title${task.state === "dropped" ? " is-dropped" : ""}`}>{task.title}</span>
-            <span className="taskwork__state">
-              {task.state === "open" ? name : t(task.state === "done" ? "tasks.markDone" : "tasks.dropped")}
-            </span>
-            <Icons.ChevronRight size={13} className="taskwork__go" />
-          </button>
+          <Tooltip key={task.id} content={t("tasks.subtask.open", { title: task.title })}>
+            <button type="button" className="taskwork__chat" onClick={() => go.task(task.id)}>
+              {task.state === "done" ? (
+                <Icons.Check size={13} className="taskwork__go" />
+              ) : task.state === "dropped" ? (
+                <Icons.X size={13} className="taskwork__go" />
+              ) : task.assignee ? (
+                <AgentAvatar name={name} blob={blobOf(agent)} size={18} animated={false} />
+              ) : (
+                <Icons.CircleDashed size={13} className="taskwork__go" />
+              )}
+              <span className={`taskwork__title${task.state === "dropped" ? " is-dropped" : ""}`}>{task.title}</span>
+              <span className="taskwork__state">
+                {task.state === "open" ? name : t(task.state === "done" ? "tasks.markDone" : "tasks.dropped")}
+              </span>
+              <Icons.ChevronRight size={13} className="taskwork__go" />
+            </button>
+          </Tooltip>
         );
       })}
     </div>
@@ -140,15 +136,12 @@ export function TaskParent({ id }: { id: string }) {
   const parent = useTasks((s) => s.tasks[id]);
   const title = parent?.title ?? id;
   return (
-    <button
-      type="button"
-      className="taskwork__chat"
-      title={t("tasks.subtask.open", { title })}
-      onClick={() => go.task(id)}
-    >
-      <Icons.ListChecks size={13} className="taskwork__go" />
-      <span className="taskwork__title">{title}</span>
-      <Icons.ChevronRight size={13} className="taskwork__go" />
-    </button>
+    <Tooltip content={t("tasks.subtask.open", { title })}>
+      <button type="button" className="taskwork__chat" onClick={() => go.task(id)}>
+        <Icons.ListChecks size={13} className="taskwork__go" />
+        <span className="taskwork__title">{title}</span>
+        <Icons.ChevronRight size={13} className="taskwork__go" />
+      </button>
+    </Tooltip>
   );
 }

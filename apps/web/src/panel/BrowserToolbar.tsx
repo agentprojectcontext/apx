@@ -1,5 +1,5 @@
 import type { TabInfo } from "@apx/protocol";
-import { Button, IconButton, Icons } from "@apx/ui";
+import { Button, IconButton, Icons, Tooltip } from "@apx/ui";
 import { useState } from "react";
 import { hostPath } from "../common/format.ts";
 import { browserControl, browserHistory, browserNavigate, browserOpen } from "../data/actions.ts";
@@ -109,15 +109,16 @@ export function BrowserToolbar({
           }}
         />
       ) : (
-        <button
-          type="button"
-          className={c?.kind === "agent" ? "btoolbar__url is-compact" : "btoolbar__url"}
-          title={tab?.url}
-          onClick={() => setEditing(tab?.url ?? "")}
-        >
-          {tab?.url.startsWith("https://") ? <Icons.Lock size={12} /> : <Icons.Globe size={12} />}
-          <span className="btoolbar__urltext">{tab ? hostPath(tab.url) : ""}</span>
-        </button>
+        <Tooltip content={tab?.url}>
+          <button
+            type="button"
+            className={c?.kind === "agent" ? "btoolbar__url is-compact" : "btoolbar__url"}
+            onClick={() => setEditing(tab?.url ?? "")}
+          >
+            {tab?.url.startsWith("https://") ? <Icons.Lock size={12} /> : <Icons.Globe size={12} />}
+            <span className="btoolbar__urltext">{tab ? hostPath(tab.url) : ""}</span>
+          </button>
+        </Tooltip>
       )}
       {c?.kind === "agent" && draft == null && !locked && (
         <>

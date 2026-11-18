@@ -1,4 +1,4 @@
-import { Icons } from "@apx/ui";
+import { Icons, Tooltip } from "@apx/ui";
 import { type ReactElement, type ReactNode, useEffect } from "react";
 import { ensureTask, useTasks } from "../data/tasks.ts";
 import { useT } from "../i18n/index.ts";
@@ -14,15 +14,16 @@ function TaskChip({ id, code }: { id: string; code: ReactElement }) {
   useEffect(() => ensureTask(id), [id]);
   if (!task) return code;
   return (
-    <button
-      type="button"
-      className={task.state === "open" ? "taskchip" : "taskchip is-closed"}
-      title={t("tasks.chipHint", { id })}
-      onClick={() => go.task(id)}
-    >
-      <Icons.ListChecks size={12} className="taskchip__icon" />
-      <span className="taskchip__title">{task.title}</span>
-    </button>
+    <Tooltip content={t("tasks.chipHint", { id })}>
+      <button
+        type="button"
+        className={task.state === "open" ? "taskchip" : "taskchip is-closed"}
+        onClick={() => go.task(id)}
+      >
+        <Icons.ListChecks size={12} className="taskchip__icon" />
+        <span className="taskchip__title">{task.title}</span>
+      </button>
+    </Tooltip>
   );
 }
 

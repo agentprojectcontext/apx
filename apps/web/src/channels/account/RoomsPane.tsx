@@ -1,5 +1,5 @@
 import type { ChannelInfo, ChannelRooms, RoomMode } from "@apx/protocol";
-import { Button, Icons, Input, Select, SettingRow, Switch, Tag, Textarea } from "@apx/ui";
+import { Button, Icons, Input, Select, SettingRow, Switch, Tag, Textarea, Tooltip } from "@apx/ui";
 import { useEffect, useState } from "react";
 import { SubHead } from "../../config/SectionHead.tsx";
 import { client } from "../../data/client.ts";
@@ -195,9 +195,9 @@ export function RoomsSection({
           <div key={r.id} className="rooms__row">
             <span className="rooms__name">{shown(r)}</span>
             {writable.get(r.id) === false ? (
-              <Tag className="rooms__mute" title={cannotWriteHint}>
-                {t("rooms.cannotWrite")}
-              </Tag>
+              <Tooltip content={cannotWriteHint}>
+                <Tag className="rooms__mute">{t("rooms.cannotWrite")}</Tag>
+              </Tooltip>
             ) : kind === "whatsapp" ? null : (
               // A WhatsApp group's address says nothing to the owner; other platforms' ids are what they look up.
               <code className="rooms__id">{r.id}</code>

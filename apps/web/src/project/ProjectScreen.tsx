@@ -1,5 +1,5 @@
 import "../styles/screens.css";
-import { Badge, Button, EmptyState, IconButton, Icons, ProjectTile, Tabs } from "@apx/ui";
+import { Badge, Button, EmptyState, IconButton, Icons, ProjectTile, Tabs, Tooltip } from "@apx/ui";
 import { type ReactNode, useEffect, useState } from "react";
 import { loadProjectThreads } from "../data/actions.ts";
 import {
@@ -113,17 +113,14 @@ function ProjectHeader({ project, tab }: { project: ProjectEntry; tab: ProjectTa
               </>
             )}
             <h1>{project.name}</h1>
-            <button
-              type="button"
-              className="project__kind"
-              title={t("project.kind.change")}
-              onClick={() => setSettings(true)}
-            >
-              <Badge>
-                <KindIcon size={12} />
-                {kindLabel(t, project.kind)}
-              </Badge>
-            </button>
+            <Tooltip content={t("project.kind.change")}>
+              <button type="button" className="project__kind" onClick={() => setSettings(true)}>
+                <Badge>
+                  <KindIcon size={12} />
+                  {kindLabel(t, project.kind)}
+                </Badge>
+              </button>
+            </Tooltip>
             {project.isDefault && (
               <Badge>
                 <Icons.Lock size={12} />

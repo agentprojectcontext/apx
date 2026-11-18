@@ -2,7 +2,7 @@
 // Choosing writes a message to the chat as the owner (AskContext); nothing here pays or books.
 import { MAP_CREDIT, mapFrame } from "@apx/protocol/inline-map";
 import type { InlineNode, Tone } from "@apx/protocol/inline-ui";
-import { Badge, Button, IconButton, Icons, Tabs, useApx } from "@apx/ui";
+import { Badge, Button, IconButton, Icons, Tabs, Tooltip, useApx } from "@apx/ui";
 import { createContext, type ReactNode, useContext, useMemo, useState } from "react";
 import { useT } from "../i18n/index.ts";
 
@@ -111,23 +111,25 @@ function Stepper({
 }) {
   const t = useT();
   return (
-    <span className="apx-stepper" title={label}>
-      <IconButton
-        size="sm"
-        label={t("cards.fewer")}
-        icon={<Icons.Minus size={14} />}
-        disabled={value <= min}
-        onClick={() => onChange(value - 1)}
-      />
-      <output>{value}</output>
-      <IconButton
-        size="sm"
-        label={t("cards.more")}
-        icon={<Icons.Plus size={14} />}
-        disabled={value >= max}
-        onClick={() => onChange(value + 1)}
-      />
-    </span>
+    <Tooltip content={label}>
+      <span className="apx-stepper">
+        <IconButton
+          size="sm"
+          label={t("cards.fewer")}
+          icon={<Icons.Minus size={14} />}
+          disabled={value <= min}
+          onClick={() => onChange(value - 1)}
+        />
+        <output>{value}</output>
+        <IconButton
+          size="sm"
+          label={t("cards.more")}
+          icon={<Icons.Plus size={14} />}
+          disabled={value >= max}
+          onClick={() => onChange(value + 1)}
+        />
+      </span>
+    </Tooltip>
   );
 }
 
@@ -261,11 +263,9 @@ export function Places({ node }: { node: Of<"places"> }) {
           />
         ))}
         {you && (
-          <span
-            className="apx-pin apx-pin--you"
-            style={{ left: `${you.x}%`, top: `${you.y}%` }}
-            title={t("cards.you")}
-          />
+          <Tooltip content={t("cards.you")}>
+            <span className="apx-pin apx-pin--you" style={{ left: `${you.x}%`, top: `${you.y}%` }} />
+          </Tooltip>
         )}
         {node.places.map((p, i) => {
           const pos = where(p);

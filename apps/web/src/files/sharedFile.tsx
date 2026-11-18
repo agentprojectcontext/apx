@@ -77,13 +77,17 @@ export function CardLine({
   const projects = useData((s) => s.projects);
   const oneProject = useContext(OneProject);
   return (
-    <span className="sharedf__line" title={hint}>
-      <Sender author={author} size={14} />
-      <time className="sharedf__when" dateTime={at} title={when(at)}>
-        {shortWhen(at)}
-      </time>
-      {!oneProject && <ProjectBadge id={projectId ?? DEFAULT_PID} name={projectName(projects, projectId)} />}
-    </span>
+    <Tooltip content={hint}>
+      <span className="sharedf__line">
+        <Sender author={author} size={14} />
+        <Tooltip content={when(at)}>
+          <time className="sharedf__when" dateTime={at}>
+            {shortWhen(at)}
+          </time>
+        </Tooltip>
+        {!oneProject && <ProjectBadge id={projectId ?? DEFAULT_PID} name={projectName(projects, projectId)} />}
+      </span>
+    </Tooltip>
   );
 }
 

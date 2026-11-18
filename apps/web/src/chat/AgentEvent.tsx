@@ -1,6 +1,6 @@
 import "./AgentEvent.css";
 import type { Agent, Message } from "@apx/protocol";
-import { AgentAvatar, Button, Icons, SubthreadCard } from "@apx/ui";
+import { AgentAvatar, Button, Icons, SubthreadCard, Tooltip } from "@apx/ui";
 import type { ReactNode } from "react";
 import { blobOf } from "../data/identity.ts";
 import { useT } from "../i18n/index.ts";
@@ -70,7 +70,11 @@ function AnswerCard({ message, agent, asker }: { message: Message; agent?: Agent
       title={response.title}
       subtitle={`${asker?.name ?? t("common.agent")} → ${name}`}
       status={st.status}
-      statusLabel={<span title={failedLine(response.failed, t)}>{t(st.label)}</span>}
+      statusLabel={
+        <Tooltip content={failedLine(response.failed, t)}>
+          <span>{t(st.label)}</span>
+        </Tooltip>
+      }
       meta={failedLine(response.failed, t)}
       open={open}
       onOpenChange={setOpen}

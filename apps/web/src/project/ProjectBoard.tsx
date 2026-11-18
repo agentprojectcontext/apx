@@ -1,6 +1,6 @@
 import "../styles/panel-parts.css";
 import type { SurfaceSummary } from "@apx/protocol";
-import { IconButton, Icons, Menu } from "@apx/ui";
+import { IconButton, Icons, Menu, Tooltip } from "@apx/ui";
 import { type DragEvent, useCallback, useMemo, useState } from "react";
 import { inProject } from "../data/identity.ts";
 import { setBoard, usePrefs } from "../data/prefs.ts";
@@ -139,37 +139,38 @@ export function ProjectBoard({ projectId }: { projectId: string }) {
                 drop(s.id);
               }}
             >
-              {/* biome-ignore lint/a11y/noStaticElementInteractions: dragging is the pointer's shortcut; the grip button moves the tile with the keyboard. */}
-              <header
-                className="widgets__head projboard__head"
-                draggable
-                title={t("board.drag")}
-                onDragStart={(e) => {
-                  e.dataTransfer.effectAllowed = "move";
-                  e.dataTransfer.setData("text/plain", s.id);
-                  setDragging(s.id);
-                }}
-                onDragEnd={() => {
-                  setDragging(undefined);
-                  setOver(undefined);
-                }}
-              >
-                <button
-                  type="button"
-                  className="projboard__grip"
-                  aria-label={t("board.move", { name: s.title })}
-                  onKeyDown={(e) => {
-                    const by = { ArrowLeft: -1, ArrowUp: -1, ArrowRight: 1, ArrowDown: 1 }[e.key];
-                    if (!by) return;
-                    e.preventDefault();
-                    nudge(s.id, by as -1 | 1);
+              <Tooltip content={t("board.drag")}>
+                {/* biome-ignore lint/a11y/noStaticElementInteractions: dragging is the pointer's shortcut; the grip button moves the tile with the keyboard. */}
+                <header
+                  className="widgets__head projboard__head"
+                  draggable
+                  onDragStart={(e) => {
+                    e.dataTransfer.effectAllowed = "move";
+                    e.dataTransfer.setData("text/plain", s.id);
+                    setDragging(s.id);
+                  }}
+                  onDragEnd={() => {
+                    setDragging(undefined);
+                    setOver(undefined);
                   }}
                 >
-                  <Icons.GripVertical size={14} />
-                </button>
-                <span className="widgets__title">{s.title}</span>
-                <SurfaceActions surface={s} />
-              </header>
+                  <button
+                    type="button"
+                    className="projboard__grip"
+                    aria-label={t("board.move", { name: s.title })}
+                    onKeyDown={(e) => {
+                      const by = { ArrowLeft: -1, ArrowUp: -1, ArrowRight: 1, ArrowDown: 1 }[e.key];
+                      if (!by) return;
+                      e.preventDefault();
+                      nudge(s.id, by as -1 | 1);
+                    }}
+                  >
+                    <Icons.GripVertical size={14} />
+                  </button>
+                  <span className="widgets__title">{s.title}</span>
+                  <SurfaceActions surface={s} />
+                </header>
+              </Tooltip>
               <div className="projboard__frame" style={{ height: board.heights[s.id] ?? TILE_H }}>
                 <SurfaceFrame surfaceId={s.id} fit="fill" />
               </div>

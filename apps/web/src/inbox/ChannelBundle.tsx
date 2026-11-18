@@ -1,5 +1,5 @@
 import type { Thread } from "@apx/protocol";
-import { ConversationRow, Icons, Spinner } from "@apx/ui";
+import { ConversationRow, Icons, Spinner, Tooltip } from "@apx/ui";
 import { accountName } from "../channels/accountName.ts";
 import { KindTile } from "../channels/KindIcon.tsx";
 import { isChannelKind } from "../channels/kinds.ts";
@@ -79,9 +79,11 @@ function ChannelHead({ account, threads, onToggle }: { account: string; threads:
         preview={
           <span className="threadrow__line">
             <span className="threadrow__who">
-              <span className="inboxtask__count" title={t("inbox.channelBundle.chats", { n: threads.length })}>
-                <Icons.MessageSquare size={12} /> {threads.length}
-              </span>
+              <Tooltip content={t("inbox.channelBundle.chats", { n: threads.length })}>
+                <span className="inboxtask__count">
+                  <Icons.MessageSquare size={12} /> {threads.length}
+                </span>
+              </Tooltip>
               {latest && (
                 <>
                   {" · "}

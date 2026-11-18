@@ -1,5 +1,5 @@
 import type { McpServerStatus } from "@apx/protocol";
-import { Badge, Button, Icons, Switch, Tag } from "@apx/ui";
+import { Badge, Button, Icons, Switch, Tag, Tooltip } from "@apx/ui";
 import { useEffect, useState } from "react";
 import { projectName } from "../data/identity.ts";
 import { signInMcp, testMcp, toggleMcp, trustMcp } from "../data/resources.ts";
@@ -172,15 +172,18 @@ export function McpDetail({
       {s.vars.length ? (
         <div className="resd__chips">
           {s.vars.map((v) => (
-            <button
+            <Tooltip
               key={v.name}
-              type="button"
-              className={v.set ? "resd__var" : "resd__var is-missing"}
-              title={`${v.set ? t("res.varSet") : t("res.varMissing")} · ${t("res.openVariable", { name: v.name })}`}
-              onClick={() => go.variable(v.name)}
+              content={`${v.set ? t("res.varSet") : t("res.varMissing")} · ${t("res.openVariable", { name: v.name })}`}
             >
-              {v.name}
-            </button>
+              <button
+                type="button"
+                className={v.set ? "resd__var" : "resd__var is-missing"}
+                onClick={() => go.variable(v.name)}
+              >
+                {v.name}
+              </button>
+            </Tooltip>
           ))}
         </div>
       ) : (

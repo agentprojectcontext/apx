@@ -1,6 +1,6 @@
 // A Flow page's panel under the canvas: the chosen step's input and output, and the run's log (DECISIONS.md#d-178).
 import type { TableRow } from "@apx/protocol";
-import { Button, FlowStepTile, IconButton, Icons, SegmentedControl } from "@apx/ui";
+import { Button, FlowStepTile, IconButton, Icons, SegmentedControl, Tooltip } from "@apx/ui";
 import { Fragment, useEffect, useState } from "react";
 import { client } from "../data/client.ts";
 import { notify } from "../data/notices.ts";
@@ -243,9 +243,9 @@ function Rows({ flow, project, table }: { flow: string; project: string; table: 
                       </button>
                     </th>
                     {r.cells.map((c, j) => (
-                      <td key={got.columns[j]} title={c}>
-                        {c}
-                      </td>
+                      <Tooltip key={got.columns[j]} content={c}>
+                        <td>{c}</td>
+                      </Tooltip>
                     ))}
                   </tr>
                   {open === r.key && (

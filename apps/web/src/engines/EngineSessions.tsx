@@ -1,6 +1,17 @@
 import "../styles/screens.css";
 import type { Result, Thread } from "@apx/protocol";
-import { Button, Dialog, EmptyState, EngineIcon, Field, IconButton, Icons, SearchField, Skeleton } from "@apx/ui";
+import {
+  Button,
+  Dialog,
+  EmptyState,
+  EngineIcon,
+  Field,
+  IconButton,
+  Icons,
+  SearchField,
+  Skeleton,
+  Tooltip,
+} from "@apx/ui";
 import { useEffect, useMemo, useState } from "react";
 import { shortWhen } from "../common/format.ts";
 import { ProjectSelect } from "../common/pickers/ProjectSelect.tsx";
@@ -168,22 +179,22 @@ export function EngineSessions() {
               <Skeleton height={48} />
             ) : (
               mine.map((s) => (
-                <button
-                  key={s.id}
-                  type="button"
-                  className="engine__session"
-                  disabled={!ready || resuming !== undefined}
-                  title={t("engine.resumeHint", { engine: label })}
-                  onClick={() => void resume(s)}
-                >
-                  <span className="engine__sessiontop">
-                    <span className="engine__sessiontitle">{s.title}</span>
-                    <span className="engine__sessiontime">{shortWhen(s.updated_at)}</span>
-                  </span>
-                  <span className="engine__sessioncwd">
-                    {resuming === s.id ? t("engine.resuming") : s.cwd.split("/").slice(-2).join("/")}
-                  </span>
-                </button>
+                <Tooltip key={s.id} content={t("engine.resumeHint", { engine: label })}>
+                  <button
+                    type="button"
+                    className="engine__session"
+                    disabled={!ready || resuming !== undefined}
+                    onClick={() => void resume(s)}
+                  >
+                    <span className="engine__sessiontop">
+                      <span className="engine__sessiontitle">{s.title}</span>
+                      <span className="engine__sessiontime">{shortWhen(s.updated_at)}</span>
+                    </span>
+                    <span className="engine__sessioncwd">
+                      {resuming === s.id ? t("engine.resuming") : s.cwd.split("/").slice(-2).join("/")}
+                    </span>
+                  </button>
+                </Tooltip>
               ))
             )}
           </div>

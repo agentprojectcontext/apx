@@ -1,6 +1,6 @@
 import "../../styles/model-menus.css";
 import type { ModelRef } from "@apx/protocol";
-import { Button, EngineIcon, Icons } from "@apx/ui";
+import { Button, EngineIcon, Icons, Tooltip } from "@apx/ui";
 import { Suspense, useEffect, useRef } from "react";
 import {
   baseRef,
@@ -113,9 +113,9 @@ export function SlimChoiceMenu(props: ModelChoiceProps & { empty: boolean }) {
               ) : (
                 <Icons.Sparkles size={14} className="mslim__auto" />
               )}
-              <span className="mslim__name" title={s.label}>
-                {s.label}
-              </span>
+              <Tooltip content={s.label}>
+                <span className="mslim__name">{s.label}</span>
+              </Tooltip>
               <span className={`mslim__note${s.now ? " is-now" : ""}`}>
                 {t(s.now ? "models.inUse" : "slim.ifFails")}
               </span>

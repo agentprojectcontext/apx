@@ -28,6 +28,8 @@ export function Tooltip({
   delay = 400,
 }: TooltipProps) {
   const { portalRef } = useApx();
+  // A hint that may be empty (a conditional title) renders its trigger bare.
+  if (content === undefined || content === null || content === false || content === "") return children;
   return (
     <BaseTooltip.Root defaultOpen={defaultOpen}>
       <BaseTooltip.Trigger delay={delay} render={children} />

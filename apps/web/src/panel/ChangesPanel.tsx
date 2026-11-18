@@ -1,6 +1,6 @@
 import "../styles/panel-parts.css";
 import type { Message, Result, Thread } from "@apx/protocol";
-import { EmptyState, IconButton, Icons, SectionLabel, Select, Skeleton } from "@apx/ui";
+import { EmptyState, IconButton, Icons, SectionLabel, Select, Skeleton, Tooltip } from "@apx/ui";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { client } from "../data/client.ts";
 import { useData } from "../data/state.ts";
@@ -122,9 +122,9 @@ export function ChangesPanel({ thread, ws }: { thread: Thread; ws?: Workspace | 
             {!!scratch.length && (
               <section className="wchanges__scratch" aria-label={t("changes.scratch")}>
                 <SectionLabel>{t("changes.scratch")}</SectionLabel>
-                <p className="wchanges__hint" title={scratch[0]?.cwd}>
-                  {t("changes.scratchHint")}
-                </p>
+                <Tooltip content={scratch[0]?.cwd}>
+                  <p className="wchanges__hint">{t("changes.scratchHint")}</p>
+                </Tooltip>
                 {list(scratch)}
               </section>
             )}

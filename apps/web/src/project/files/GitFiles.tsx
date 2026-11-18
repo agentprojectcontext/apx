@@ -1,5 +1,5 @@
 import type { GitFile } from "@apx/protocol";
-import { IconButton, Icons, SectionLabel } from "@apx/ui";
+import { IconButton, Icons, SectionLabel, Tooltip } from "@apx/ui";
 import { type ReactNode, useMemo, useState } from "react";
 import { useT } from "../../i18n/index.ts";
 
@@ -42,25 +42,28 @@ export function FileRow({
   const key = STATUS_KEY[file.status as keyof typeof STATUS_KEY];
   return (
     <li className={`git__file${on ? " is-on" : ""}`}>
-      <button
-        type="button"
-        className="git__filebtn"
-        onClick={onPick}
-        title={file.from ?? file.path}
-        style={depth ? { paddingLeft: 6 + depth * 14 } : undefined}
-      >
-        <span className={`git__letter is-${file.status === "?" ? "U" : file.status}`} title={key ? t(key) : undefined}>
-          {file.status === "?" ? "U" : file.status}
-        </span>
-        <span className="git__name">{name}</span>
-        {dir && <span className="git__dir">{dir}</span>}
-        {(file.added != null || file.removed != null) && (
-          <span className="git__counts">
-            {file.added ? <span className="is-add">+{file.added}</span> : null}
-            {file.removed ? <span className="is-del">−{file.removed}</span> : null}
-          </span>
-        )}
-      </button>
+      <Tooltip content={file.from ?? file.path}>
+        <button
+          type="button"
+          className="git__filebtn"
+          onClick={onPick}
+          style={depth ? { paddingLeft: 6 + depth * 14 } : undefined}
+        >
+          <Tooltip content={key ? t(key) : undefined}>
+            <span className={`git__letter is-${file.status === "?" ? "U" : file.status}`}>
+              {file.status === "?" ? "U" : file.status}
+            </span>
+          </Tooltip>
+          <span className="git__name">{name}</span>
+          {dir && <span className="git__dir">{dir}</span>}
+          {(file.added != null || file.removed != null) && (
+            <span className="git__counts">
+              {file.added ? <span className="is-add">+{file.added}</span> : null}
+              {file.removed ? <span className="is-del">−{file.removed}</span> : null}
+            </span>
+          )}
+        </button>
+      </Tooltip>
       {action}
     </li>
   );

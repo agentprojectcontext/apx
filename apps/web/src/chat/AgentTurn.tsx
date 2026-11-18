@@ -8,6 +8,7 @@ import {
   MarkdownView,
   Message,
   MessageMeta,
+  Tooltip,
 } from "@apx/ui";
 import { type ReactNode, Suspense, useState } from "react";
 import { DeliveryTicks, ReactionList, ViaMark } from "../channels/MessageMarks.tsx";
@@ -176,9 +177,9 @@ export function AgentTurn({
       effort={effort && effortLabel(effort)}
     >
       {fellBack && (
-        <span className="apx-msgmeta__part" title={t("chat.modelFallbackHint")}>
-          {t("chat.modelFallback")}
-        </span>
+        <Tooltip content={t("chat.modelFallbackHint")}>
+          <span className="apx-msgmeta__part">{t("chat.modelFallback")}</span>
+        </Tooltip>
       )}
       <ViaMark thread={thread} message={message} />
       {message.delivery && <DeliveryTicks state={message.delivery} />}

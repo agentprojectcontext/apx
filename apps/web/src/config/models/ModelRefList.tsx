@@ -1,5 +1,5 @@
 import type { ModelRef } from "@apx/protocol";
-import { IconButton, Icons } from "@apx/ui";
+import { IconButton, Icons, Tooltip } from "@apx/ui";
 import type { ReactNode } from "react";
 import { inCatalog, useModels } from "../../data/models.ts";
 import { useT } from "../../i18n/index.ts";
@@ -48,10 +48,12 @@ export function ModelRefList(props: {
                 onChange={(next) => free(next) && onChange(refs.map((r, j) => (j === i ? next : r)))}
               />
               {catalog.length > 0 && !inCatalog(ref, catalog) && (
-                <span className="chain__warn" title={t("models.notInCatalog")}>
-                  <Icons.TriangleAlert size={12} />
-                  {t("models.notInCatalogShort")}
-                </span>
+                <Tooltip content={t("models.notInCatalog")}>
+                  <span className="chain__warn">
+                    <Icons.TriangleAlert size={12} />
+                    {t("models.notInCatalogShort")}
+                  </span>
+                </Tooltip>
               )}
               <IconButton
                 size="sm"

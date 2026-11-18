@@ -1,6 +1,6 @@
 import "../../styles/chat-cards.css";
 import type { Agent, Part } from "@apx/protocol";
-import { Button, Icons, LiveBrowserCard } from "@apx/ui";
+import { Button, Icons, LiveBrowserCard, Tooltip } from "@apx/ui";
 import { hostPath } from "../../common/format.ts";
 import { useInView } from "../../common/useInView.ts";
 import { useScreenshot } from "../../common/useScreenshot.ts";
@@ -55,13 +55,15 @@ export function BrowserPart({
             : t("browser.finished", { host });
   if (part.environment === "chrome")
     return (
-      <p className="browserpart__chrome" title={part.url}>
-        <Icons.Globe size={14} aria-hidden />
-        <span>
-          {part.title || hostPath(part.url)} ·{" "}
-          {part.state === "agent" ? t("browser.inChrome", { name }) : t("browser.finished", { host })}
-        </span>
-      </p>
+      <Tooltip content={part.url}>
+        <p className="browserpart__chrome">
+          <Icons.Globe size={14} aria-hidden />
+          <span>
+            {part.title || hostPath(part.url)} ·{" "}
+            {part.state === "agent" ? t("browser.inChrome", { name }) : t("browser.finished", { host })}
+          </span>
+        </p>
+      </Tooltip>
     );
   const open = () => (guest ? go.panel("computer") : go.browser(part.tab));
   // A closed tab opens again on the same page.

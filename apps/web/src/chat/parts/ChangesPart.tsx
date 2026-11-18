@@ -1,5 +1,5 @@
 import type { Part } from "@apx/protocol";
-import { Button, Icons } from "@apx/ui";
+import { Button, Icons, Tooltip } from "@apx/ui";
 import { useState } from "react";
 import { useT } from "../../i18n/index.ts";
 
@@ -31,9 +31,9 @@ export function ChangesPart({ part }: { part: Changes }) {
         <span className="changes__title">
           {t(part.scratch ? "changes.scratchEdited" : part.edits ? "changes.edited" : "changes.title", { n })}
         </span>
-        <span className="changes__cwd" title={part.cwd}>
-          {part.cwd}
-        </span>
+        <Tooltip content={part.cwd}>
+          <span className="changes__cwd">{part.cwd}</span>
+        </Tooltip>
         {counted && (
           <span className="changes__stat">
             <span className="is-add">+{added}</span> <span className="is-del">−{removed}</span>
@@ -45,19 +45,21 @@ export function ChangesPart({ part }: { part: Changes }) {
           const letter = letterOf(f.status);
           const cut = f.path.lastIndexOf("/") + 1;
           return (
-            <li key={f.path} className="changes__file" title={f.path}>
-              <span className={`changes__status is-${letter.toLowerCase()}`}>{letter}</span>
-              <span className="changes__path">
-                <span className="changes__dir">{f.path.slice(0, cut)}</span>
-                <span className="changes__name">{f.path.slice(cut)}</span>
-              </span>
-              {f.added !== undefined && (
-                <span className="changes__stat">
-                  {f.added > 0 && <span className="is-add">+{f.added}</span>}{" "}
-                  {(f.removed ?? 0) > 0 && <span className="is-del">−{f.removed}</span>}
+            <Tooltip key={f.path} content={f.path}>
+              <li className="changes__file">
+                <span className={`changes__status is-${letter.toLowerCase()}`}>{letter}</span>
+                <span className="changes__path">
+                  <span className="changes__dir">{f.path.slice(0, cut)}</span>
+                  <span className="changes__name">{f.path.slice(cut)}</span>
                 </span>
-              )}
-            </li>
+                {f.added !== undefined && (
+                  <span className="changes__stat">
+                    {f.added > 0 && <span className="is-add">+{f.added}</span>}{" "}
+                    {(f.removed ?? 0) > 0 && <span className="is-del">−{f.removed}</span>}
+                  </span>
+                )}
+              </li>
+            </Tooltip>
           );
         })}
         {part.more && (all || hidden <= 0) ? (

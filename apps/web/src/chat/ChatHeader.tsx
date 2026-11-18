@@ -159,15 +159,12 @@ export function ChatHeader({
           {engine && <span>{t("chat.headerEngine", { engine })}</span>}
           {sub && <Tag>{t(fromCall ? "call.from" : "thread.a2a")}</Tag>}
           {thread.flow && (
-            <button
-              type="button"
-              className="chat__task"
-              title={t("flows.fromFlowHint")}
-              onClick={() => go.flows(thread.project_id, thread.flow?.id)}
-            >
-              <Icons.GitBranch size={11} />
-              {t("flows.fromFlow")}
-            </button>
+            <Tooltip content={t("flows.fromFlowHint")}>
+              <button type="button" className="chat__task" onClick={() => go.flows(thread.project_id, thread.flow?.id)}>
+                <Icons.GitBranch size={11} />
+                {t("flows.fromFlow")}
+              </button>
+            </Tooltip>
           )}
           {thread.channel && (
             <Suspense fallback={null}>
@@ -175,15 +172,17 @@ export function ChatHeader({
             </Suspense>
           )}
           {thread.cwd && thread.write && (
-            <span className="chat__code" title={thread.cwd}>
-              {thread.engine || agent?.harness ? (
-                <EngineIcon engine={thread.engine ?? agent?.harness ?? ""} size={12} />
-              ) : (
-                <Icons.Code size={12} />
-              )}
-              <span className="chat__cwd">{thread.cwd}</span>
-              <Tag>{t(`write.${thread.write ?? "ask"}`)}</Tag>
-            </span>
+            <Tooltip content={thread.cwd}>
+              <span className="chat__code">
+                {thread.engine || agent?.harness ? (
+                  <EngineIcon engine={thread.engine ?? agent?.harness ?? ""} size={12} />
+                ) : (
+                  <Icons.Code size={12} />
+                )}
+                <span className="chat__cwd">{thread.cwd}</span>
+                <Tag>{t(`write.${thread.write ?? "ask"}`)}</Tag>
+              </span>
+            </Tooltip>
           )}
         </div>
         {engine && (

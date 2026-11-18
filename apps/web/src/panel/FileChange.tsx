@@ -1,6 +1,6 @@
 import "../styles/panel-parts.css";
 import type { Result } from "@apx/protocol";
-import { Button, Icons, Skeleton } from "@apx/ui";
+import { Button, Icons, Skeleton, Tooltip } from "@apx/ui";
 import { useCallback, useEffect, useState } from "react";
 import { client } from "../data/client.ts";
 import { useT } from "../i18n/index.ts";
@@ -36,19 +36,21 @@ export function FileChange({ thread, row }: { thread: string; row: ChangeRow }) 
   };
   return (
     <li className={open ? "wchanges__file is-open" : "wchanges__file"}>
-      <button type="button" className="wchanges__row" aria-expanded={open} onClick={toggle} title={file.path}>
-        {open ? <Icons.ChevronDown size={14} /> : <Icons.ChevronRight size={14} />}
-        <Icons.FileText size={14} />
-        <span className="wchanges__path">{file.path}</span>
-        <span className="wchanges__spacer" />
-        {file.status === "??" || file.status === "A" ? (
-          <span className="wchanges__badge">{t("changes.new")}</span>
-        ) : file.status.includes("D") ? (
-          <span className="wchanges__badge">{t("changes.deleted")}</span>
-        ) : null}
-        {file.added != null && <span className="wchanges__add">+{file.added}</span>}
-        {file.removed != null && <span className="wchanges__del">−{file.removed}</span>}
-      </button>
+      <Tooltip content={file.path}>
+        <button type="button" className="wchanges__row" aria-expanded={open} onClick={toggle}>
+          {open ? <Icons.ChevronDown size={14} /> : <Icons.ChevronRight size={14} />}
+          <Icons.FileText size={14} />
+          <span className="wchanges__path">{file.path}</span>
+          <span className="wchanges__spacer" />
+          {file.status === "??" || file.status === "A" ? (
+            <span className="wchanges__badge">{t("changes.new")}</span>
+          ) : file.status.includes("D") ? (
+            <span className="wchanges__badge">{t("changes.deleted")}</span>
+          ) : null}
+          {file.added != null && <span className="wchanges__add">+{file.added}</span>}
+          {file.removed != null && <span className="wchanges__del">−{file.removed}</span>}
+        </button>
+      </Tooltip>
       {open &&
         (loading || !diff ? (
           <Skeleton className="wchanges__loading" />

@@ -1,6 +1,7 @@
 import { ArrowUp, Mic, Plus, Square } from "lucide-react";
 import { type KeyboardEvent, type ReactNode, type Ref, type SyntheticEvent, useRef, useState } from "react";
 import { cx } from "../cx";
+import { Tooltip } from "./Tooltip";
 
 /** Accessible names of the icon buttons; English by default. */
 interface ComposerLabels {
@@ -120,16 +121,17 @@ export function Composer({
       <Square size={12} fill="currentColor" />
     </button>
   ) : canSend || !onVoice ? (
-    <button
-      type="button"
-      className="apx-composer__send"
-      aria-label={l.send}
-      title={sendHint}
-      onClick={() => submit()}
-      disabled={disabled || !canSend}
-    >
-      <ArrowUp size={16} strokeWidth={2.5} />
-    </button>
+    <Tooltip content={sendHint}>
+      <button
+        type="button"
+        className="apx-composer__send"
+        aria-label={l.send}
+        onClick={() => submit()}
+        disabled={disabled || !canSend}
+      >
+        <ArrowUp size={16} strokeWidth={2.5} />
+      </button>
+    </Tooltip>
   ) : (
     <button
       type="button"

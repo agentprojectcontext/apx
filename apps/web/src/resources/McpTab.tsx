@@ -1,5 +1,16 @@
 import type { McpServerStatus } from "@apx/protocol";
-import { Button, ContextMenu, Dialog, EmptyState, Icons, MasterDetail, type MenuEntry, PickRow, Tag } from "@apx/ui";
+import {
+  Button,
+  ContextMenu,
+  Dialog,
+  EmptyState,
+  Icons,
+  MasterDetail,
+  type MenuEntry,
+  PickRow,
+  Tag,
+  Tooltip,
+} from "@apx/ui";
 import { useState } from "react";
 import { projectName } from "../data/identity.ts";
 import { setMcp, setMcpToolMode, toggleMcp, trustMcp } from "../data/resources.ts";
@@ -289,8 +300,10 @@ function PermissionIndicator({ mode }: { mode: McpServerStatus["tool_permission_
           : Icons.CircleDashed;
   const label = `${t("res.toolsMode")}: ${t(`res.toolsMode.${mode}`)}`;
   return (
-    <span className={`mcp-permission is-${mode}`} role="img" aria-label={label} title={label}>
-      <Icon size={14} aria-hidden="true" />
-    </span>
+    <Tooltip content={label}>
+      <span className={`mcp-permission is-${mode}`} role="img" aria-label={label}>
+        <Icon size={14} aria-hidden="true" />
+      </span>
+    </Tooltip>
   );
 }

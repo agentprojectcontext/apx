@@ -82,9 +82,9 @@ function ArtifactCard({
         />
       </span>
       <div className="sharedf__cardbody">
-        <span className="sharedf__name" title={s.title}>
-          {s.title}
-        </span>
+        <Tooltip content={s.title}>
+          <span className="sharedf__name">{s.title}</span>
+        </Tooltip>
         <CardLine author={maker(s)} at={s.updated_at} projectId={s.project_id} hint={kindLabel(kind, t)} />
       </div>
     </li>

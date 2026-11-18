@@ -3,6 +3,7 @@ import type { CSSProperties, ReactNode } from "react";
 import { cx } from "../cx";
 import { AgentAvatar } from "./AgentAvatar";
 import { EngineIcon } from "./EngineIcon";
+import { Tooltip } from "./Tooltip";
 
 export type AgentNodeStat = { icon: ReactNode; value: number; label: string };
 
@@ -78,7 +79,11 @@ export function AgentNode({
       <header className="apx-agentnode__top">
         <span className="apx-agentnode__avatar">
           <AgentAvatar name={name} {...(blob ? { blob } : {})} size={32} animated={status === "running"} />
-          {status === "waiting" && <span className="apx-agentnode__wait" title={waitingLabel} />}
+          {status === "waiting" && (
+            <Tooltip content={waitingLabel}>
+              <span className="apx-agentnode__wait" role="img" aria-label={waitingLabel} />
+            </Tooltip>
+          )}
         </span>
         <span className="apx-agentnode__names">
           <span className="apx-agentnode__name">{name}</span>
@@ -101,10 +106,12 @@ export function AgentNode({
       {stats.length > 0 && (
         <ul className="apx-agentnode__stats">
           {stats.map((s) => (
-            <li key={s.label} title={s.label}>
-              {s.icon}
-              {s.value}
-            </li>
+            <Tooltip key={s.label} content={s.label}>
+              <li>
+                {s.icon}
+                {s.value}
+              </li>
+            </Tooltip>
           ))}
         </ul>
       )}
@@ -118,10 +125,12 @@ export function AgentNode({
           {chatLabel}
         </button>
         {engine && (
-          <span className="apx-agentnode__engine" title={engineLabel ?? engine}>
-            <EngineIcon engine={engine} size={12} />
-            <span className="apx-agentnode__enginelabel">{engineLabel ?? engine}</span>
-          </span>
+          <Tooltip content={engineLabel ?? engine}>
+            <span className="apx-agentnode__engine">
+              <EngineIcon engine={engine} size={12} />
+              <span className="apx-agentnode__enginelabel">{engineLabel ?? engine}</span>
+            </span>
+          </Tooltip>
         )}
       </footer>
     </article>

@@ -1,5 +1,5 @@
 import type { RouterRule } from "@apx/protocol";
-import { IconButton, Icons, Input, SegmentedControl } from "@apx/ui";
+import { IconButton, Icons, Input, SegmentedControl, Tooltip } from "@apx/ui";
 import { type ReactNode, useState } from "react";
 import { type MessageKey, useT } from "../../i18n/index.ts";
 import { ModelRefPicker } from "./ModelRefPicker.tsx";
@@ -164,15 +164,16 @@ function Field({ label, children }: { label: string; children: ReactNode }) {
 
 function Chip(props: { on: boolean; title?: string; onClick: () => void; children: ReactNode }) {
   return (
-    <button
-      type="button"
-      className={props.on ? "togglechip is-on" : "togglechip"}
-      aria-pressed={props.on}
-      title={props.title}
-      onClick={props.onClick}
-    >
-      {props.children}
-    </button>
+    <Tooltip content={props.title}>
+      <button
+        type="button"
+        className={props.on ? "togglechip is-on" : "togglechip"}
+        aria-pressed={props.on}
+        onClick={props.onClick}
+      >
+        {props.children}
+      </button>
+    </Tooltip>
   );
 }
 

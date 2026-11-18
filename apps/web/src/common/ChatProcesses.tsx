@@ -1,4 +1,4 @@
-import { Spinner } from "@apx/ui";
+import { Spinner, Tooltip } from "@apx/ui";
 import { activeCommandsOf } from "../data/jobs.ts";
 import { useData } from "../data/state.ts";
 import { useT } from "../i18n/index.ts";
@@ -16,12 +16,16 @@ export function ChatProcesses({ thread, onOpen }: { thread: string; onOpen?: () 
     </>
   );
   return onOpen ? (
-    <button type="button" className="chatprocesses" aria-label={label} title={label} onClick={onOpen}>
-      {content}
-    </button>
+    <Tooltip content={label}>
+      <button type="button" className="chatprocesses" aria-label={label} onClick={onOpen}>
+        {content}
+      </button>
+    </Tooltip>
   ) : (
-    <span className="chatprocesses" role="img" aria-label={label} title={label}>
-      {content}
-    </span>
+    <Tooltip content={label}>
+      <span className="chatprocesses" role="img" aria-label={label}>
+        {content}
+      </span>
+    </Tooltip>
   );
 }

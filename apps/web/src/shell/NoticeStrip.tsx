@@ -1,5 +1,5 @@
 import "../styles/corner.css";
-import { Button, IconButton, Icons, ProjectTile } from "@apx/ui";
+import { Button, IconButton, Icons, ProjectTile, Tooltip } from "@apx/ui";
 import { useState } from "react";
 import { useT } from "../i18n/index.ts";
 import { useNotices } from "./notices.tsx";
@@ -21,20 +21,22 @@ export function NoticeStrip() {
   return (
     <aside className={`noticestrip is-${notice.tone}`} aria-label={t("corner.label")} data-card={notice.id}>
       <ProjectTile tone={notice.tone} size={22} icon={notice.icon(12)} />
-      <div className="noticestrip__text" title={notice.description}>
-        <span className="noticestrip__title">{notice.title}</span>
-        <span className="noticestrip__desc" role={notice.alert ? "alert" : undefined}>
-          {notice.description}
-          {notice.link && (
-            <>
-              {" "}
-              <a href={notice.link.href} target="_blank" rel="noopener noreferrer">
-                {notice.link.label}
-              </a>
-            </>
-          )}
-        </span>
-      </div>
+      <Tooltip content={notice.description}>
+        <div className="noticestrip__text">
+          <span className="noticestrip__title">{notice.title}</span>
+          <span className="noticestrip__desc" role={notice.alert ? "alert" : undefined}>
+            {notice.description}
+            {notice.link && (
+              <>
+                {" "}
+                <a href={notice.link.href} target="_blank" rel="noopener noreferrer">
+                  {notice.link.label}
+                </a>
+              </>
+            )}
+          </span>
+        </div>
+      </Tooltip>
       {notice.extra}
       {notice.secondary && (
         <Button size="sm" variant="ghost" className="noticestrip__btn" onClick={notice.onClose}>

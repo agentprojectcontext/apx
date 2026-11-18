@@ -1,6 +1,7 @@
 import { Plus, X } from "lucide-react";
 import type { ReactNode } from "react";
 import { cx } from "../cx";
+import { Tooltip } from "./Tooltip";
 
 export interface BrowserTabItem {
   id: string;
@@ -38,42 +39,44 @@ export function BrowserTabs({
   return (
     <div className={cx("apx-btabs", className)} role="tablist">
       {tabs.map((t) => (
-        <div
-          key={t.id}
-          role="tab"
-          tabIndex={0}
-          aria-selected={t.id === value}
-          title={t.url}
-          className={cx("apx-btabs__tab", t.id === value && "is-active")}
-          onClick={() => onValueChange?.(t.id)}
-          onKeyDown={(e) => {
-            if (e.key === "Enter" || e.key === " ") {
-              e.preventDefault();
-              onValueChange?.(t.id);
-            }
-          }}
-        >
-          <span className={cx("apx-btabs__dot", `is-${t.holder ?? "idle"}`)} aria-hidden="true" />
-          <span className="apx-btabs__title">{t.title}</span>
-          {onClose && (
-            <button
-              type="button"
-              className="apx-btabs__close"
-              aria-label={closeLabel}
-              onClick={(e) => {
-                e.stopPropagation();
-                onClose(t.id);
-              }}
-            >
-              <X size={12} />
-            </button>
-          )}
-        </div>
+        <Tooltip key={t.id} content={t.url}>
+          <div
+            role="tab"
+            tabIndex={0}
+            aria-selected={t.id === value}
+            className={cx("apx-btabs__tab", t.id === value && "is-active")}
+            onClick={() => onValueChange?.(t.id)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                onValueChange?.(t.id);
+              }
+            }}
+          >
+            <span className={cx("apx-btabs__dot", `is-${t.holder ?? "idle"}`)} aria-hidden="true" />
+            <span className="apx-btabs__title">{t.title}</span>
+            {onClose && (
+              <button
+                type="button"
+                className="apx-btabs__close"
+                aria-label={closeLabel}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onClose(t.id);
+                }}
+              >
+                <X size={12} />
+              </button>
+            )}
+          </div>
+        </Tooltip>
       ))}
       {onNew && (
-        <button type="button" className="apx-btabs__new" aria-label={newLabel} title={newLabel} onClick={onNew}>
-          <Plus size={16} />
-        </button>
+        <Tooltip content={newLabel}>
+          <button type="button" className="apx-btabs__new" aria-label={newLabel} onClick={onNew}>
+            <Plus size={16} />
+          </button>
+        </Tooltip>
       )}
     </div>
   );

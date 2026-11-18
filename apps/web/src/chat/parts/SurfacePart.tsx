@@ -1,6 +1,6 @@
 import "../../styles/chat-cards.css";
 import type { Part } from "@apx/protocol";
-import { Button, IconButton, Icons } from "@apx/ui";
+import { Button, IconButton, Icons, Tooltip } from "@apx/ui";
 import { useData } from "../../data/state.ts";
 import { useT } from "../../i18n/index.ts";
 import { startEditing } from "../../panel/browserEdit.ts";
@@ -46,10 +46,12 @@ export function SurfacePart({ part }: { part: Extract<Part, { type: "surface" }>
         <KindIcon kind={kindOf(surface)} size={12} />
         <span className="surfacecard__eyebrow">{t("widget.eyebrow", { title: surface.title })}</span>
         {surface.connect && (
-          <span className="surfacecard__net" title={surface.connect.join("\n")}>
-            <Icons.Globe size={12} />
-            {t("widget.connects", { hosts: surface.connect.map((o) => new URL(o).hostname).join(", ") })}
-          </span>
+          <Tooltip content={surface.connect.join("\n")}>
+            <span className="surfacecard__net">
+              <Icons.Globe size={12} />
+              {t("widget.connects", { hosts: surface.connect.map((o) => new URL(o).hostname).join(", ") })}
+            </span>
+          </Tooltip>
         )}
         <span className="surfacecard__spacer" />
         <IconButton

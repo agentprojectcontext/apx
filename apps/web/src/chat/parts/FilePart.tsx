@@ -1,5 +1,5 @@
 import type { Part } from "@apx/protocol";
-import { IconButton, Icons, MediaLoader, mediaKindOf } from "@apx/ui";
+import { IconButton, Icons, MediaLoader, mediaKindOf, Tooltip } from "@apx/ui";
 import { Suspense, useState } from "react";
 import { formatBytes } from "../../common/format.ts";
 import { audioEnded } from "../../data/audioEnd.ts";
@@ -57,30 +57,32 @@ export function FilePart({ part }: { part: Extract<Part, { type: "file" }> }) {
         // biome-ignore lint/a11y/useMediaCaption: audio files are shared as supplied, without a separate caption track.
         <audio src={src} controls preload="metadata" aria-label={part.name} onEnded={audioEnded} />
       )}
-      <div className="filechip" title={part.name}>
-        <span className="filechip__icon">
-          {busy ? <MediaLoader inline kind={mediaKindOf(part.mime, part.name)} /> : <Icons.FileText size={16} />}
-        </span>
-        <span className="filechip__info">
-          <span className="filechip__name">{part.name}</span>
-          <span className="filechip__size">{formatBytes(part.bytes)}</span>
-        </span>
-        <IconButton
-          size="sm"
-          label={t("file.download")}
-          icon={<Icons.Download size={14} />}
-          onClick={() => void download()}
-          disabled={busy}
-        />
-        {viewable && (
+      <Tooltip content={part.name}>
+        <div className="filechip">
+          <span className="filechip__icon">
+            {busy ? <MediaLoader inline kind={mediaKindOf(part.mime, part.name)} /> : <Icons.FileText size={16} />}
+          </span>
+          <span className="filechip__info">
+            <span className="filechip__name">{part.name}</span>
+            <span className="filechip__size">{formatBytes(part.bytes)}</span>
+          </span>
           <IconButton
             size="sm"
-            label={t("file.open")}
-            icon={<Icons.ExternalLink size={14} />}
-            onClick={() => setViewing(true)}
+            label={t("file.download")}
+            icon={<Icons.Download size={14} />}
+            onClick={() => void download()}
+            disabled={busy}
           />
-        )}
-      </div>
+          {viewable && (
+            <IconButton
+              size="sm"
+              label={t("file.open")}
+              icon={<Icons.ExternalLink size={14} />}
+              onClick={() => setViewing(true)}
+            />
+          )}
+        </div>
+      </Tooltip>
       {viewing && viewable && (
         <Suspense fallback={null}>
           <FileViewer mediaId={part.media_id} name={part.name} kind={viewable} onClose={() => setViewing(false)} />

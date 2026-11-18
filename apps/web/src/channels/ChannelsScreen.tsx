@@ -1,6 +1,17 @@
 import "../styles/screens.css";
 import type { ChannelInfo } from "@apx/protocol";
-import { AgentAvatar, Badge, Button, ContextMenu, EmptyState, IconButton, Icons, PickRow, ProjectTile } from "@apx/ui";
+import {
+  AgentAvatar,
+  Badge,
+  Button,
+  ContextMenu,
+  EmptyState,
+  IconButton,
+  Icons,
+  PickRow,
+  ProjectTile,
+  Tooltip,
+} from "@apx/ui";
 import { useEffect, useState } from "react";
 import { SectionPage } from "../common/SectionPage.tsx";
 import { loadChannels, useChannels } from "../data/channels.ts";
@@ -118,9 +129,9 @@ function AccountRow({ channel, counts }: { channel: ChannelInfo; counts: Account
         }
         title={
           <span className="chs__name">
-            <span className="chs__label" title={name}>
-              {name}
-            </span>
+            <Tooltip content={name}>
+              <span className="chs__label">{name}</span>
+            </Tooltip>
             {waiting > 0 && <Badge tone="warning">{t("chs.waiting", { n: waiting })}</Badge>}
           </span>
         }
@@ -130,20 +141,22 @@ function AccountRow({ channel, counts }: { channel: ChannelInfo; counts: Account
       <span className="chs__meta">
         {/* What it does for everyone on it; what it does not, dimmed. */}
         <ContactFlags className="chs__marks" flags={flags} />
-        <span className="chs__agents" title={answersLine({ owner, contacts }, t)}>
-          <span className="chs__agent">
-            {owner && <AgentAvatar name={owner.name} blob={blobOf(owner)} size={18} animated={false} />}
-            {sentence(agentName(owner, t))}
-          </span>
-          {contacts && (
+        <Tooltip content={answersLine({ owner, contacts }, t)}>
+          <span className="chs__agents">
             <span className="chs__agent">
-              {contacts.agent && (
-                <AgentAvatar name={contacts.agent.name} blob={blobOf(contacts.agent)} size={18} animated={false} />
-              )}
-              {sentence(t("chs.forContacts", { agent: agentName(contacts.agent, t) }))}
+              {owner && <AgentAvatar name={owner.name} blob={blobOf(owner)} size={18} animated={false} />}
+              {sentence(agentName(owner, t))}
             </span>
-          )}
-        </span>
+            {contacts && (
+              <span className="chs__agent">
+                {contacts.agent && (
+                  <AgentAvatar name={contacts.agent.name} blob={blobOf(contacts.agent)} size={18} animated={false} />
+                )}
+                {sentence(t("chs.forContacts", { agent: agentName(contacts.agent, t) }))}
+              </span>
+            )}
+          </span>
+        </Tooltip>
         <span className={`chs__status is-${status}`}>
           <span className="chs__dot" />
           {t(`tg.status.${status}`)}

@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import { cx } from "../cx";
+import { Tooltip } from "./Tooltip";
 
 export interface PickRowProps {
   title: ReactNode;
@@ -51,7 +52,9 @@ export function PickRow({
       {trailing && <span className="apx-pickrow__trail">{trailing}</span>}
       {dot &&
         (dotLabel ? (
-          <span className={`apx-pickrow__dot is-${dot}`} title={dotLabel} role="img" aria-label={dotLabel} />
+          <Tooltip content={dotLabel}>
+            <span className={`apx-pickrow__dot is-${dot}`} role="img" aria-label={dotLabel} />
+          </Tooltip>
         ) : (
           <span className={`apx-pickrow__dot is-${dot}`} />
         ))}

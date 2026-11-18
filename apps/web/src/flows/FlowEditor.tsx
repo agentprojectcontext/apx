@@ -1,6 +1,6 @@
 import { ApxError } from "@apx/protocol/client";
 import { shapeOfGraph } from "@apx/protocol/flow-shape";
-import { Button, FlowStepTile, IconButton, Icons, Input, Select, Spinner } from "@apx/ui";
+import { Button, FlowStepTile, IconButton, Icons, Input, Select, Spinner, Tooltip } from "@apx/ui";
 import { type CSSProperties, useCallback, useEffect, useMemo, useState } from "react";
 import { Drawer } from "../common/Drawer.tsx";
 import { client } from "../data/client.ts";
@@ -593,21 +593,21 @@ export function FlowEditor({
                 const taken = isTrigger(kind) && hasTrigger;
                 const meta = STEP[kind];
                 return (
-                  <button
-                    key={kind}
-                    type="button"
-                    className="fe-pal__item"
-                    disabled={taken || frozen}
-                    title={taken ? t("flow.ed.oneTrigger") : undefined}
-                    aria-label={t("flow.ed.add", { kind: t(meta.label) })}
-                    onClick={() => !taken && add(kind as StepKind)}
-                  >
-                    <FlowStepTile icon={meta.icon} tone={meta.tone} size="lg" />
-                    <span className="fe-pal__text">
-                      <span className="fe-pal__name">{t(meta.label)}</span>
-                      {meta.body && <span className="fe-pal__body">{t(meta.body)}</span>}
-                    </span>
-                  </button>
+                  <Tooltip key={kind} content={taken ? t("flow.ed.oneTrigger") : undefined}>
+                    <button
+                      type="button"
+                      className="fe-pal__item"
+                      disabled={taken || frozen}
+                      aria-label={t("flow.ed.add", { kind: t(meta.label) })}
+                      onClick={() => !taken && add(kind as StepKind)}
+                    >
+                      <FlowStepTile icon={meta.icon} tone={meta.tone} size="lg" />
+                      <span className="fe-pal__text">
+                        <span className="fe-pal__name">{t(meta.label)}</span>
+                        {meta.body && <span className="fe-pal__body">{t(meta.body)}</span>}
+                      </span>
+                    </button>
+                  </Tooltip>
                 );
               })}
             </div>

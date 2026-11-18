@@ -1,4 +1,4 @@
-import { IconButton, Icons } from "@apx/ui";
+import { IconButton, Icons, Tooltip } from "@apx/ui";
 import { useLayoutEffect, useRef, useState } from "react";
 import { client } from "../data/client.ts";
 import { useT } from "../i18n/index.ts";
@@ -148,15 +148,16 @@ export function ComputerConsole({
                 }
               }}
             />
-            <button
-              type="submit"
-              className="computer__button is-primary"
-              title={t("computer.commandShortcut")}
-              disabled={running || !editable || !command.trim()}
-            >
-              <Icons.ArrowUp size={14} />
-              {t(running ? "common.running" : "computer.sendCommand")}
-            </button>
+            <Tooltip content={t("computer.commandShortcut")}>
+              <button
+                type="submit"
+                className="computer__button is-primary"
+                disabled={running || !editable || !command.trim()}
+              >
+                <Icons.ArrowUp size={14} />
+                {t(running ? "common.running" : "computer.sendCommand")}
+              </button>
+            </Tooltip>
           </form>
         </>
       )}

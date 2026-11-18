@@ -1,5 +1,5 @@
 import type { Memory } from "@apx/protocol";
-import { AgentAvatar, Badge, Button, IconButton, Icons, Textarea } from "@apx/ui";
+import { AgentAvatar, Badge, Button, IconButton, Icons, Textarea, Tooltip } from "@apx/ui";
 import { useState } from "react";
 import { Drawer } from "../common/Drawer.tsx";
 import { shortWhen } from "../common/format.ts";
@@ -27,9 +27,9 @@ export function NoteAuthor({ note }: { note: Memory }) {
   if (note.source === "owner") return <span className="memory__by">{t("memory.byYou")}</span>;
   if (note.source === "imported")
     return (
-      <span className="memory__by" title={t("memory.fromV1Hint")}>
-        {t("memory.fromV1")}
-      </span>
+      <Tooltip content={t("memory.fromV1Hint")}>
+        <span className="memory__by">{t("memory.fromV1")}</span>
+      </Tooltip>
     );
   return (
     <span className="memory__by">
@@ -46,9 +46,9 @@ export function NoteBadges({ note }: { note: Memory }) {
   return (
     <>
       {note.pending && !note.forgotten_at && (
-        <Badge tone="info" title={t("memory.pendingHint")}>
-          {t("memory.pending")}
-        </Badge>
+        <Tooltip content={t("memory.pendingHint")}>
+          <Badge tone="info">{t("memory.pending")}</Badge>
+        </Tooltip>
       )}
       {owner && <Badge>{t("memory.notebookOf", { name: owner.name })}</Badge>}
     </>

@@ -10,6 +10,7 @@ import {
   SegmentedControl,
   Select,
   Spinner,
+  Tooltip,
 } from "@apx/ui";
 import { type CSSProperties, type ReactNode, useEffect, useMemo, useState } from "react";
 import { aheadLabel, dueLabel, shortWhen } from "../common/format.ts";
@@ -372,29 +373,30 @@ function TaskRow(props: {
           onClick={props.onOpen}
           {...props.drag}
         >
-          <span
-            className={`taskrow__glyph is-${props.group}`}
-            title={props.group === "blocked" ? t("tasks.blockedTip") : undefined}
-          >
-            {props.running && props.group === "doing" ? (
-              <Spinner size={12} />
-            ) : props.group === "closed" ? (
-              task.state === "dropped" ? (
-                <Icons.X size={12} />
-              ) : (
-                <Icons.Check size={12} />
-              )
-            ) : null}
-          </span>
+          <Tooltip content={props.group === "blocked" ? t("tasks.blockedTip") : undefined}>
+            <span className={`taskrow__glyph is-${props.group}`}>
+              {props.running && props.group === "doing" ? (
+                <Spinner size={12} />
+              ) : props.group === "closed" ? (
+                task.state === "dropped" ? (
+                  <Icons.X size={12} />
+                ) : (
+                  <Icons.Check size={12} />
+                )
+              ) : null}
+            </span>
+          </Tooltip>
           <span className="taskrow__main">
             <span className="taskrow__title">
               {task.priority !== "normal" && task.state === "open" && <PriorityDot priority={task.priority} />}
               <span className="taskrow__name">{task.title}</span>
               {subs && (
-                <span className="taskrow__subs" title={t("tasks.subtasks.count", { done: subs.done, n: subs.total })}>
-                  <Icons.ListChecks size={11} />
-                  {subs.done}/{subs.total}
-                </span>
+                <Tooltip content={t("tasks.subtasks.count", { done: subs.done, n: subs.total })}>
+                  <span className="taskrow__subs">
+                    <Icons.ListChecks size={11} />
+                    {subs.done}/{subs.total}
+                  </span>
+                </Tooltip>
               )}
               {task.state !== "open" && closedLabel(task, t) && (
                 <span className={`taskrow__closed is-${task.state}`}>{closedLabel(task, t)}</span>
@@ -471,10 +473,12 @@ function TaskRow(props: {
               <span className="taskrow__nobody">{t("tasks.nobody")}</span>
             )}
             {task.chats > 0 && (
-              <span className="taskrow__chats" title={t("tasks.chats", { n: String(task.chats) })}>
-                {props.running ? <Spinner size={10} /> : <Icons.MessagesSquare size={11} />}
-                {task.chats}
-              </span>
+              <Tooltip content={t("tasks.chats", { n: String(task.chats) })}>
+                <span className="taskrow__chats">
+                  {props.running ? <Spinner size={10} /> : <Icons.MessagesSquare size={11} />}
+                  {task.chats}
+                </span>
+              </Tooltip>
             )}
           </span>
           <span className={due?.late && task.state === "open" ? "taskrow__when is-late" : "taskrow__when"}>

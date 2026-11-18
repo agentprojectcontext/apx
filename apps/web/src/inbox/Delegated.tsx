@@ -1,5 +1,5 @@
 import type { Thread } from "@apx/protocol";
-import { Icons } from "@apx/ui";
+import { Icons, Tooltip } from "@apx/ui";
 import { type ReactNode, useEffect, useState } from "react";
 import { loadDelegated } from "../data/actions.ts";
 import { DELEGATED_SHOWN } from "../data/identity.ts";
@@ -63,16 +63,17 @@ function WithDelegated({
         <FoldContext.Provider value={{ open, toggle: () => setOpen(!open), label }}>{children}</FoldContext.Provider>
       ) : (
         <div className="delegated__head">
-          <button
-            type="button"
-            className="delegated__fold"
-            aria-expanded={open}
-            aria-label={label}
-            title={label}
-            onClick={() => setOpen(!open)}
-          >
-            {open ? <Icons.ChevronDown size={14} /> : <Icons.ChevronRight size={14} />}
-          </button>
+          <Tooltip content={label}>
+            <button
+              type="button"
+              className="delegated__fold"
+              aria-expanded={open}
+              aria-label={label}
+              onClick={() => setOpen(!open)}
+            >
+              {open ? <Icons.ChevronDown size={14} /> : <Icons.ChevronRight size={14} />}
+            </button>
+          </Tooltip>
           <div className="delegated__row">{children}</div>
         </div>
       )}

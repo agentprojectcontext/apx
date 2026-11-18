@@ -1,6 +1,16 @@
 import "../styles/inbox-parts.css";
 import type { Thread } from "@apx/protocol";
-import { Button, ContextMenu, ConversationRow, IconButton, Icons, Menu, type MenuEntry, Spinner } from "@apx/ui";
+import {
+  Button,
+  ContextMenu,
+  ConversationRow,
+  IconButton,
+  Icons,
+  Menu,
+  type MenuEntry,
+  Spinner,
+  Tooltip,
+} from "@apx/ui";
 import { type ReactNode, Suspense, useEffect, useState } from "react";
 import { shortWhen } from "../common/format.ts";
 import { ASKED, namedMentions } from "../common/mentionNames.ts";
@@ -106,15 +116,16 @@ export function TaskBundle({ taskId, threads, selected }: { taskId: string; thre
                   <span className="routinerow__dot" />
                   {state.label}
                 </span>
-                <span className="inboxtask__count" title={t("inbox.taskBundle.chats", { n: chats })}>
-                  <Icons.MessageSquare size={12} /> {chats}
-                </span>
-                <span
-                  className="inboxtask__count"
-                  title={`${t("inbox.taskBundle.agents", { n: who.size })}: ${names.join(", ")}`}
-                >
-                  <Icons.Bot size={12} /> {who.size}
-                </span>
+                <Tooltip content={t("inbox.taskBundle.chats", { n: chats })}>
+                  <span className="inboxtask__count">
+                    <Icons.MessageSquare size={12} /> {chats}
+                  </span>
+                </Tooltip>
+                <Tooltip content={`${t("inbox.taskBundle.agents", { n: who.size })}: ${names.join(", ")}`}>
+                  <span className="inboxtask__count">
+                    <Icons.Bot size={12} /> {who.size}
+                  </span>
+                </Tooltip>
               </span>
               <span className="threadrow__dot">·</span>
               <ProjectBadge id={project} name={projectName(projects, project)} />

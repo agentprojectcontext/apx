@@ -2,7 +2,7 @@
 // from its Marketplace page; other apps' skills with their tag, duplicates and the engines filter; skills imported from a folder after a preview.
 import fs from "node:fs";
 import path from "node:path";
-import { expect, open, openExtension, rpc, test, world } from "./kit.ts";
+import { expect, expectHint, open, openExtension, rpc, test, world } from "./kit.ts";
 
 test("variables: the imported one is listed, a new one is saved and shown with the eye", async ({ page }) => {
   await open(page);
@@ -249,7 +249,7 @@ test("other apps' skills show their tag and duplicates; the engines filter narro
   await expect(page.getByRole("button", { name: /^acme-deck/ })).toBeVisible();
   await expect(page.getByRole("button", { name: /^apx-mcps/ })).toHaveCount(0);
   // In Claude only as an unused copy: listed, with Claude's tag dimmed and saying so.
-  await expect(page.getByTitle("Copia en Claude: los agentes no la usan")).toBeVisible();
+  await expectHint(page, page.locator(".resv__copytag"), "Copia en Claude: los agentes no la usan");
   await expect(page.getByText(/Mostrando las de Claude/)).toBeVisible();
   await page.getByRole("button", { name: "Claude", exact: true }).click();
   await page.getByRole("menuitem", { name: "Claude" }).click();

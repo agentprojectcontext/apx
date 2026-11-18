@@ -1,6 +1,6 @@
 import "../../styles/nav-dialogs.css";
 import type { Result } from "@apx/protocol";
-import { Button, Dialog, Field, IconButton, Icons, Input, Menu, type MenuEntry, Select } from "@apx/ui";
+import { Button, Dialog, Field, IconButton, Icons, Input, Menu, type MenuEntry, Select, Tooltip } from "@apx/ui";
 import { useEffect, useState } from "react";
 import { client } from "../../data/client.ts";
 import { notify } from "../../data/notices.ts";
@@ -205,20 +205,26 @@ export function GitBar({
         items={branchItems}
       />
       {status.upstream && (
-        <span className="git__sync" title={status.upstream}>
-          {status.ahead ? (
-            <span title={t("git.ahead", { n: status.ahead })}>
-              <Icons.ArrowUp size={12} />
-              {status.ahead}
-            </span>
-          ) : null}
-          {status.behind ? (
-            <span title={t("git.behind", { n: status.behind })}>
-              <Icons.ArrowDown size={12} />
-              {status.behind}
-            </span>
-          ) : null}
-        </span>
+        <Tooltip content={status.upstream}>
+          <span className="git__sync">
+            {status.ahead ? (
+              <Tooltip content={t("git.ahead", { n: status.ahead })}>
+                <span>
+                  <Icons.ArrowUp size={12} />
+                  {status.ahead}
+                </span>
+              </Tooltip>
+            ) : null}
+            {status.behind ? (
+              <Tooltip content={t("git.behind", { n: status.behind })}>
+                <span>
+                  <Icons.ArrowDown size={12} />
+                  {status.behind}
+                </span>
+              </Tooltip>
+            ) : null}
+          </span>
+        </Tooltip>
       )}
       <span className="files__spacer" />
       <IconButton

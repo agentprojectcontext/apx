@@ -1,4 +1,4 @@
-import { Icons, Menu, type MenuEntry } from "@apx/ui";
+import { Icons, Menu, type MenuEntry, Tooltip } from "@apx/ui";
 import { Suspense, useEffect } from "react";
 import { guidesUrl, LINKS, openLink } from "../data/links.ts";
 import { loadNews, openNews, useNews } from "../data/news.ts";
@@ -66,15 +66,12 @@ export function HelpMenu({ rail }: { rail: boolean }) {
         items={items}
         onOpenChange={(o) => o && void loadNews()}
         trigger={
-          <button
-            type="button"
-            className="help__btn"
-            aria-label={fresh ? t("help.labelNew") : t("help.label")}
-            title={fresh ? t("help.labelNewHint") : t("help.label")}
-          >
-            <Icons.CircleHelp size={16} />
-            {fresh && <span className="help__dot" aria-hidden="true" />}
-          </button>
+          <Tooltip content={fresh ? t("help.labelNewHint") : t("help.label")}>
+            <button type="button" className="help__btn" aria-label={fresh ? t("help.labelNew") : t("help.label")}>
+              <Icons.CircleHelp size={16} />
+              {fresh && <span className="help__dot" aria-hidden="true" />}
+            </button>
+          </Tooltip>
         }
       />
       {open && (

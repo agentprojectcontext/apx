@@ -6,7 +6,7 @@
 import { callTool, say, scriptedLlm, startCore } from "../../apps/core/src/engine/testkit.ts";
 import { waitFor } from "../../apps/core/src/testkit/platform.ts";
 import type { Tool } from "../../apps/core/src/tools/types.ts";
-import { expect, test } from "./kit.ts";
+import { expect, expectHint, test } from "./kit.ts";
 
 const SHOTS = process.env.SHOTS;
 
@@ -94,7 +94,7 @@ test("a teammate asked on a task is one row where the asker asked, unfolding its
     await expect(cards).toContainText("Fallaron algunas acciones");
     await expect(cards.locator(".apx-subthread__body")).toHaveCount(0);
     // Which steps failed, on its state.
-    await expect(cards.getByTitle("Falló: Deploy the preview")).toBeVisible();
+    await expectHint(page, cards.getByText("Fallaron algunas acciones", { exact: true }), "Falló: Deploy the preview");
     // The answer is told once, folded in the row: not in a box with the words handed to Ramiro.
     await expect(transcript.locator(".transcript__agent-event, .transcript__answered")).toHaveCount(0);
     await expect(transcript).not.toContainText("answered your question");
@@ -161,8 +161,8 @@ test("a teammate asked on a task is one row where the asker asked, unfolding its
       .getByRole("radio", { name: /^Tareas/ })
       .click();
     const row = page.locator(".taskbundle", { hasText: "Lead cards ignore disabled attributes" });
-    await expect(row.getByTitle(/^2 agentes: .*Ramiro.*Bruno|^2 agentes: .*Bruno.*Ramiro/)).toBeVisible();
-    await expect(row.getByTitle("2 chats")).toBeVisible();
+    await expectHint(page, row.locator(".inboxtask__count"), /^2 agentes: .*Ramiro.*Bruno|^2 agentes: .*Bruno.*Ramiro/);
+    await expectHint(page, row.locator(".inboxtask__count"), "2 chats");
     // It unfolds to the teammates asked on it: Bruno, with what Ramiro asked him.
     const teammate = row.locator(".tree__session", { hasText: "Bruno" });
     await expect(teammate).toHaveCount(0);
@@ -260,7 +260,11 @@ test("an answer that reached a chat without its card shows as that closed row, o
     await expect(card).toContainText("Ramiro → Bruno");
     await expect(card).toContainText("Lead cards ignore disabled attributes");
     await expect(card).toContainText("Fallaron algunas acciones");
-    await expect(card.getByTitle("Falló: Updated task task_nope")).toBeVisible();
+    await expectHint(
+      page,
+      card.getByText("Fallaron algunas acciones", { exact: true }),
+      "Falló: Updated task task_nope",
+    );
     await expect(card).not.toContainText("Use the staging database.");
     await expect(page.locator(".transcript__agent-event")).toHaveCount(0);
   } finally {

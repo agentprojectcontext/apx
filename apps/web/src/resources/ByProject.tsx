@@ -1,4 +1,4 @@
-import { Icons, ProjectTile, Switch } from "@apx/ui";
+import { Icons, ProjectTile, Switch, Tooltip } from "@apx/ui";
 import { DEFAULT_PID, nestProjects, projectEntries, projectInitial, projectTone } from "../data/identity.ts";
 import { useData } from "../data/state.ts";
 import { useT } from "../i18n/index.ts";
@@ -21,12 +21,9 @@ export function OriginChip({ project, offIn }: { project: string | undefined; of
   const reach = useReach(offIn);
   if (!project && reach.off.length)
     return (
-      <span
-        className="projbadge is-global"
-        title={t("res.reach.offIn", { list: reach.off.map((p) => p.name).join(", ") })}
-      >
-        {t("res.reach.some", { n: reach.on, total: reach.total })}
-      </span>
+      <Tooltip content={t("res.reach.offIn", { list: reach.off.map((p) => p.name).join(", ") })}>
+        <span className="projbadge is-global">{t("res.reach.some", { n: reach.on, total: reach.total })}</span>
+      </Tooltip>
     );
   if (!project) return <span className="projbadge is-global">{t("res.scope.global")}</span>;
   const name = projects.find((p) => p.id === project)?.name ?? project;

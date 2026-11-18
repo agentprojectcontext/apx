@@ -1,4 +1,4 @@
-import { IconButton, Icons, ProjectTile } from "@apx/ui";
+import { IconButton, Icons, ProjectTile, Tooltip } from "@apx/ui";
 import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { markAllRead } from "../data/actions.ts";
 import {
@@ -148,9 +148,15 @@ export function ProjectsNav({ rail, compact = false }: { rail: boolean; compact?
           {onPick && aside(p) && <span className="sidebar__aside">{aside(p)}</span>}
           {p.isDefault && <Icons.Lock size={12} aria-label={t("nav.baseProject")} />}
           {running.has(p.id) ? (
-            <span className="sidebar__running" title={t("common.running")} />
+            <Tooltip content={t("common.running")}>
+              <span className="sidebar__running" />
+            </Tooltip>
           ) : (
-            unread.has(p.id) && <span className="sidebar__unread" title={t("inbox.unread")} />
+            unread.has(p.id) && (
+              <Tooltip content={t("inbox.unread")}>
+                <span className="sidebar__unread" />
+              </Tooltip>
+            )
           )}
         </>
       }

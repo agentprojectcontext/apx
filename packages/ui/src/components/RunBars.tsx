@@ -1,4 +1,5 @@
 import { cx } from "../cx";
+import { Tooltip } from "./Tooltip";
 
 export type RunBarState = "ran" | "cut" | "failed" | "live";
 export interface RunBar {
@@ -28,22 +29,24 @@ export function RunBars({ runs, label, size = "sm", selected, onSelect, classNam
     return (
       <span className={cls} role="img" aria-label={label}>
         {runs.map((r) => (
-          <span key={r.id} className={cx("apx-runbars__bar", `apx-runbars__bar--${r.state}`)} title={r.label} />
+          <Tooltip key={r.id} content={r.label}>
+            <span className={cx("apx-runbars__bar", `apx-runbars__bar--${r.state}`)} />
+          </Tooltip>
         ))}
       </span>
     );
   return (
     <fieldset className={cls} aria-label={label}>
       {runs.map((r) => (
-        <button
-          key={r.id}
-          type="button"
-          className={cx("apx-runbars__bar", `apx-runbars__bar--${r.state}`, selected === r.id && "is-selected")}
-          aria-label={r.label}
-          aria-pressed={selected === r.id}
-          title={r.label}
-          onClick={() => onSelect(r.id)}
-        />
+        <Tooltip key={r.id} content={r.label}>
+          <button
+            type="button"
+            className={cx("apx-runbars__bar", `apx-runbars__bar--${r.state}`, selected === r.id && "is-selected")}
+            aria-label={r.label}
+            aria-pressed={selected === r.id}
+            onClick={() => onSelect(r.id)}
+          />
+        </Tooltip>
       ))}
     </fieldset>
   );

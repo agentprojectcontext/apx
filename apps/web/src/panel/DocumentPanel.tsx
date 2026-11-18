@@ -1,7 +1,7 @@
 import "../styles/panel-parts.css";
 import "../styles/document-panel.css";
 import { DOCUMENT_MAX_BYTES } from "@apx/protocol/client";
-import { Button, EmptyState, IconButton, Icons, MarkdownView } from "@apx/ui";
+import { Button, EmptyState, IconButton, Icons, MarkdownView, Tooltip } from "@apx/ui";
 import { useEffect, useMemo, useState } from "react";
 import { useMarkdownLabels } from "../common/useMarkdownLabels.ts";
 import { client } from "../data/client.ts";
@@ -104,9 +104,9 @@ function DocumentBody({ doc }: { doc: DocRef }) {
       <header className="documentpanel__head">
         <h2>{doc.title}</h2>
         {/* Icons with tooltips: a narrow panel keeps the name on one line instead of breaking it per letter. */}
-        <span className="documentpanel__filename" title={doc.source?.path ?? doc.name}>
-          {doc.source?.path ?? doc.name}
-        </span>
+        <Tooltip content={doc.source?.path ?? doc.name}>
+          <span className="documentpanel__filename">{doc.source?.path ?? doc.name}</span>
+        </Tooltip>
         <div className="documentpanel__actions">
           <IconButton
             size="sm"

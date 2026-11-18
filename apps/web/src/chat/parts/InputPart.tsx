@@ -2,7 +2,7 @@ import "../../styles/chat-cards.css";
 import "../../styles/panel-parts.css";
 import "../../styles/screens.css";
 import type { ApprovalScope, FileChange, Part } from "@apx/protocol";
-import { ActionGroup, Button, Icons, MarkdownView } from "@apx/ui";
+import { ActionGroup, Button, Icons, MarkdownView, Tooltip } from "@apx/ui";
 import { Fragment, useId, useState } from "react";
 import { ApprovalText } from "../../common/ApprovalText.tsx";
 import { useMarkdownLabels } from "../../common/useMarkdownLabels.ts";
@@ -135,9 +135,9 @@ function ProposedChange({ change }: { change: FileChange }) {
     <div className="inputcard__change">
       <div className="inputcard__file">
         <Icons.FileText size={14} />
-        <span className="inputcard__path" title={change.path}>
-          {change.path}
-        </span>
+        <Tooltip content={change.path}>
+          <span className="inputcard__path">{change.path}</span>
+        </Tooltip>
         {change.status === "A" && <span className="wchanges__badge">{t("changes.new")}</span>}
         {change.added != null && <span className="wchanges__add">+{change.added}</span>}
         {change.removed != null && <span className="wchanges__del">−{change.removed}</span>}

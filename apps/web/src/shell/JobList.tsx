@@ -129,36 +129,29 @@ function JobCard({ job: j, now, onOpen }: { job: Job; now: number; onOpen: (job:
             </span>
           </button>
         </Tooltip>
-        <button
-          type="button"
-          className="job__stop"
-          aria-label={t("job.details")}
-          title={t("job.details")}
-          onClick={() => setShowDetails(true)}
-        >
-          <Icons.Info size={12} />
-        </button>
-        {terminal && (
+        <Tooltip content={t("job.details")}>
           <button
             type="button"
             className="job__stop"
-            aria-label={t("job.openChat")}
-            title={t("job.openChat")}
-            onClick={() => onOpen(j)}
+            aria-label={t("job.details")}
+            onClick={() => setShowDetails(true)}
           >
-            <Icons.MessageCircle size={12} />
+            <Icons.Info size={12} />
           </button>
+        </Tooltip>
+        {terminal && (
+          <Tooltip content={t("job.openChat")}>
+            <button type="button" className="job__stop" aria-label={t("job.openChat")} onClick={() => onOpen(j)}>
+              <Icons.MessageCircle size={12} />
+            </button>
+          </Tooltip>
         )}
         {live && (
-          <button
-            type="button"
-            className="job__stop"
-            aria-label={t("job.stop")}
-            title={t("job.stop")}
-            onClick={() => void cancelJob(j.id)}
-          >
-            <Icons.Square size={12} />
-          </button>
+          <Tooltip content={t("job.stop")}>
+            <button type="button" className="job__stop" aria-label={t("job.stop")} onClick={() => void cancelJob(j.id)}>
+              <Icons.Square size={12} />
+            </button>
+          </Tooltip>
         )}
       </div>
       <Dialog

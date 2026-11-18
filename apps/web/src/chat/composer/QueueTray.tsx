@@ -2,7 +2,7 @@
 // run, dragged by its handle (or moved with ↑ ↓) into another place, sent now, edited or removed.
 import "../../styles/queue.css";
 import type { Message as Msg } from "@apx/protocol";
-import { Button, IconButton, Icons, Textarea } from "@apx/ui";
+import { Button, IconButton, Icons, Textarea, Tooltip } from "@apx/ui";
 import { type KeyboardEvent, type PointerEvent, useMemo, useRef, useState } from "react";
 import { useData } from "../../data/state.ts";
 import { editInLine, inLine, moveInLine, unsend } from "../../data/waiting.ts";
@@ -183,15 +183,17 @@ function QueueRow({
           onKeyDown={keys}
         />
       )}
-      <span className="queue__text" title={text}>
-        {files > 0 && (
-          <span className="queue__files">
-            <Icons.Paperclip size={12} />
-            {files}
-          </span>
-        )}
-        {text}
-      </span>
+      <Tooltip content={text}>
+        <span className="queue__text">
+          {files > 0 && (
+            <span className="queue__files">
+              <Icons.Paperclip size={12} />
+              {files}
+            </span>
+          )}
+          {text}
+        </span>
+      </Tooltip>
       <span className="queue__acts">
         <SendNowButton message={message} iconOnly />
         <IconButton

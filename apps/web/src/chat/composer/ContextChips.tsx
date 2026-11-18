@@ -1,4 +1,4 @@
-import { IconButton, Icons } from "@apx/ui";
+import { IconButton, Icons, Tooltip } from "@apx/ui";
 import type { ReactNode } from "react";
 import { useT } from "../../i18n/index.ts";
 import type { ContextRef } from "./contextRefs.ts";
@@ -16,17 +16,19 @@ export function ContextChips({ refs, onRemove }: { refs: readonly ContextRef[]; 
   return (
     <ul className="ctxrefs" aria-label={t("composer.context")}>
       {refs.map((r) => (
-        <li key={`${r.kind}:${r.id}`} className="ctxrefs__chip" title={r.kind === "file" ? r.id : r.label}>
-          <span className="ctxrefs__icon">{ICON[r.kind]}</span>
-          <span className="ctxrefs__label">{r.label}</span>
-          <IconButton
-            size="sm"
-            className="ctxrefs__remove"
-            label={t("composer.removeContext", { name: r.label })}
-            icon={<Icons.X size={12} />}
-            onClick={() => onRemove(r)}
-          />
-        </li>
+        <Tooltip key={`${r.kind}:${r.id}`} content={r.kind === "file" ? r.id : r.label}>
+          <li className="ctxrefs__chip">
+            <span className="ctxrefs__icon">{ICON[r.kind]}</span>
+            <span className="ctxrefs__label">{r.label}</span>
+            <IconButton
+              size="sm"
+              className="ctxrefs__remove"
+              label={t("composer.removeContext", { name: r.label })}
+              icon={<Icons.X size={12} />}
+              onClick={() => onRemove(r)}
+            />
+          </li>
+        </Tooltip>
       ))}
     </ul>
   );

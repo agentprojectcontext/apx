@@ -22,7 +22,10 @@ test("changes are staged and committed from the Git view, and the commit opens f
     await open(page, `#project=${project.id}&tab=folder`);
     await page.getByRole("radio", { name: "Git" }).click();
     const side = page.getByRole("navigation", { name: "Control de versiones" });
-    await side.getByTitle("AGENTS.md", { exact: true }).click();
+    await side
+      .getByRole("button", { name: /AGENTS\.md/ })
+      .first()
+      .click();
     await expect(page.getByText("Ships on Fridays.")).toBeVisible();
 
     await side.getByRole("button", { name: "Preparar todo" }).click();
@@ -37,7 +40,10 @@ test("changes are staged and committed from the Git view, and the commit opens f
     await side.getByRole("button", { name: "Mostrar historial" }).click();
     await history.getByRole("button", { name: /docs: shipping day/ }).click();
     const detail = page.getByRole("region", { name: "Detalle del cambio" });
-    await detail.getByTitle("AGENTS.md", { exact: true }).click();
+    await detail
+      .getByRole("button", { name: /AGENTS\.md/ })
+      .first()
+      .click();
     await expect(detail.getByText("Ships on Fridays.")).toBeVisible();
   } finally {
     await rpc("projects.unregister", { project: project.id });

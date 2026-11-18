@@ -1,5 +1,5 @@
 import "../../styles/model-menus.css";
-import { Button, Icons } from "@apx/ui";
+import { Button, Icons, Tooltip } from "@apx/ui";
 import { Suspense } from "react";
 import { choiceLabel, effectiveChoice, refLabel, useModels } from "../../data/models.ts";
 import { useT } from "../../i18n/index.ts";
@@ -32,9 +32,11 @@ function FullChoiceMenu(props: ModelChoiceProps & { empty: boolean }) {
   return (
     <div className="mchoice">
       {effective.model && (
-        <div className="mchoice__current" role="status" title={current}>
-          {t("models.currentChoice", { model: current })}
-        </div>
+        <Tooltip content={current}>
+          <div className="mchoice__current" role="status">
+            {t("models.currentChoice", { model: current })}
+          </div>
+        </Tooltip>
       )}
       {!empty && (
         <>
@@ -74,9 +76,9 @@ function Fallback(props: { active: boolean; title: string; action: string; onPic
   const t = useT();
   return (
     <div className="mchoice__fallback">
-      <span className="mchoice__title" title={props.title}>
-        {props.title}
-      </span>
+      <Tooltip content={props.title}>
+        <span className="mchoice__title">{props.title}</span>
+      </Tooltip>
       {props.active ? (
         <span className="mchoice__inuse">
           <Icons.Check size={14} />

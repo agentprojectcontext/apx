@@ -1,6 +1,6 @@
 // The chats agents keep for one task sit together under that task in the chat list instead of
 // scattered under each agent.
-import { expect, open, rpc, test } from "./kit.ts";
+import { expect, expectHint, open, rpc, test } from "./kit.ts";
 
 test("a task's chats are one row under the task and open each agent's chat", async ({ page }) => {
   await rpc("setup.finish", {});
@@ -31,7 +31,7 @@ test("a task's chats are one row under the task and open each agent's chat", asy
   const list = page.locator(".inbox__list");
   const bundle = list.locator(".taskbundle", { hasText: "Build the stats panel" });
   await expect(bundle).toHaveCount(1);
-  await expect(bundle.getByTitle("2 chats")).toBeVisible();
+  await expectHint(page, bundle.locator(".inboxtask__count"), "2 chats");
   // The row is the task's latest chat; its fold lists the others, and never opens the task.
   const fold = bundle.getByRole("button", { name: "Ver los chats de la tarea" });
   await expect(fold).toHaveAttribute("aria-expanded", "false");

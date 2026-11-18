@@ -1,4 +1,4 @@
-import { Badge, Button, ContextMenu, EmptyState, Icons, MasterDetail, PickRow, Tag } from "@apx/ui";
+import { Badge, Button, ContextMenu, EmptyState, Icons, MasterDetail, PickRow, Tag, Tooltip } from "@apx/ui";
 import { useEffect, useState } from "react";
 import { projectName } from "../data/identity.ts";
 import { type SkillInfo, toggleSkill } from "../data/resources.ts";
@@ -117,19 +117,16 @@ export function SkillsTab({ projectId, query, scope, adding, setAdding, res, own
               <span className="resv__tags">
                 {!projectId && <OriginChip project={s.scope === "project" ? s.project_id : undefined} />}
                 {s.copies.length > 0 && (
-                  <Badge
-                    tone="warning"
-                    title={t("res.duplicateTitle", { where: s.copies.map((c) => copyTag(c, t)).join(", ") })}
-                  >
-                    {t("res.duplicate")}
-                  </Badge>
+                  <Tooltip content={t("res.duplicateTitle", { where: s.copies.map((c) => copyTag(c, t)).join(", ") })}>
+                    <Badge tone="warning">{t("res.duplicate")}</Badge>
+                  </Tooltip>
                 )}
                 {tag && <Tag>{tag}</Tag>}
                 {/* Filtered by an engine it only has a copy in: that engine's tag, dimmed (that copy is not used). */}
                 {unusedIn(s, engines).map((e) => (
-                  <Tag key={e} className="resv__copytag" title={t("res.copyUnused", { engine: ENGINE_LABEL[e] })}>
-                    {ENGINE_LABEL[e]}
-                  </Tag>
+                  <Tooltip key={e} content={t("res.copyUnused", { engine: ENGINE_LABEL[e] })}>
+                    <Tag className="resv__copytag">{ENGINE_LABEL[e]}</Tag>
+                  </Tooltip>
                 ))}
               </span>
             )

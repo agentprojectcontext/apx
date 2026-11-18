@@ -1,5 +1,17 @@
 import type { ProviderInfo } from "@apx/protocol";
-import { Badge, Button, Dialog, EngineIcon, engineBrand, IconButton, Icons, Input, ProjectTile, Switch } from "@apx/ui";
+import {
+  Badge,
+  Button,
+  Dialog,
+  EngineIcon,
+  engineBrand,
+  IconButton,
+  Icons,
+  Input,
+  ProjectTile,
+  Switch,
+  Tooltip,
+} from "@apx/ui";
 import { useEffect, useState } from "react";
 import { createStore, useSlice } from "../data/createStore.ts";
 import { useModels } from "../data/models.ts";
@@ -211,7 +223,9 @@ function ProviderCard({ p, onEdit, compact }: { p: ProviderInfo; onEdit: () => v
       </div>
       <dl className="pcard__rows">
         <dt>{t("providers.url")}</dt>
-        <dd title={p.base_url}>{p.base_url.replace(/^https?:\/\//, "")}</dd>
+        <Tooltip content={p.base_url}>
+          <dd>{p.base_url.replace(/^https?:\/\//, "")}</dd>
+        </Tooltip>
         <dt>{t("providers.key")}</dt>
         <dd>{!p.needs_key ? t("providers.keyNone") : p.key_set ? `****${p.key_hint ?? ""}` : "—"}</dd>
         {!compact && (
@@ -255,9 +269,9 @@ function ModelCount({ p }: { p: ProviderInfo }) {
   return count ? (
     <>{t("plans.modelsCount", { count })}</>
   ) : (
-    <Badge tone="neutral" title={t("providers.modelsAsked")}>
-      {t("providers.modelsAuto")}
-    </Badge>
+    <Tooltip content={t("providers.modelsAsked")}>
+      <Badge tone="neutral">{t("providers.modelsAuto")}</Badge>
+    </Tooltip>
   );
 }
 

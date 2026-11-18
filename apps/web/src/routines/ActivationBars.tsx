@@ -1,4 +1,5 @@
 import type { Routine, RoutineRun } from "@apx/protocol";
+import { Tooltip } from "@apx/ui";
 import { useEffect, useMemo, useState } from "react";
 import { shortWhen } from "../common/format.ts";
 import { useNow } from "../common/useNow.ts";
@@ -50,19 +51,20 @@ export function ActivationBars({
   return (
     <span className={large ? "rtbars is-large" : "rtbars"} role="img" aria-label={t("routines.col.activations")}>
       {slots.map((s, i) => (
-        <span
+        <Tooltip
           // Slots are positions in a fixed row; their order never changes.
           // biome-ignore lint/suspicious/noArrayIndexKey: positional
           key={i}
-          className={`rtbar ${s.run ? barOf(s.run, r.action) : "is-none"}`}
-          title={
+          content={
             s.run
               ? `${shortWhen(s.run.started_at)} · ${t(barKey(s.run, r.action))}`
               : s.at
                 ? `${shortWhen(s.at)} · ${t("routines.legend.none")}`
                 : t("routines.legend.none")
           }
-        />
+        >
+          <span className={`rtbar ${s.run ? barOf(s.run, r.action) : "is-none"}`} />
+        </Tooltip>
       ))}
     </span>
   );
