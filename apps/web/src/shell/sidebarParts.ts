@@ -11,9 +11,9 @@ export const SIDEBAR_VIEWS = [
   { id: "flows", label: "nav.flows" },
   { id: "routines", label: "nav.routines" },
   { id: "resources", label: "nav.resources" },
-  { id: "marketplace", label: "nav.marketplace" },
   { id: "files", label: "nav.files" },
   { id: "computers", label: "nav.computers" },
+  { id: "marketplace", label: "nav.marketplace" },
 ] as const satisfies readonly { id: string; label: MessageKey }[];
 
 export const SIDEBAR_SECTIONS = [
