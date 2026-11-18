@@ -129,6 +129,9 @@ export async function fetchSmall(url: string, max: number, doFetch: typeof fetch
   }
 }
 
+/** The download itself failed (no network, the server answered an error, it broke): worth trying again. */
+export class DownloadError extends Error {}
+
 /** Downloads an .apxext from an https address, up to the size an uploaded one may have. */
 export async function downloadArchive(url: string, doFetch: typeof fetch = fetch): Promise<Buffer> {
   if (URL.parse(url)?.protocol !== "https:") throw new Error("an extension is downloaded only from an https address");
@@ -136,15 +139,15 @@ export async function downloadArchive(url: string, doFetch: typeof fetch = fetch
   try {
     res = await doFetch(url, { signal: AbortSignal.timeout(DOWNLOAD_MS), redirect: "follow" });
   } catch {
-    throw new Error(`could not download ${url}`);
+    throw new DownloadError(`could not download ${url}`);
   }
   // A redirect may not leave https.
   if (res.url && URL.parse(res.url)?.protocol !== "https:") throw new Error("the download left https");
-  if (!res.ok) throw new Error(`the download answered ${res.status}`);
+  if (!res.ok) throw new DownloadError(`the download answered ${res.status}`);
   try {
     return await readCapped(res, EXTENSION_ARCHIVE_MAX);
   } catch {
-    throw new Error(`the file is larger than ${EXTENSION_ARCHIVE_MAX / 1024 / 1024} MB, or the download broke`);
+    throw new DownloadError(`the file is larger than ${EXTENSION_ARCHIVE_MAX / 1024 / 1024} MB, or the download broke`);
   }
 }
 

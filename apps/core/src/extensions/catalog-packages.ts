@@ -7,8 +7,8 @@ import path from "node:path";
 import { type CatalogEntry, ExtensionManifest } from "@apx/protocol";
 import { isInside, samePath } from "../paths.ts";
 import { downloadArchive, fetchSmall, type Listed, type ListedVersion } from "./catalog.ts";
-import { readArchive } from "./package.ts";
-import { bringsOf, categoryOf, type ListingFile, listingCopy, needsOf, readListing } from "./summary.ts";
+import { hostsOf, readArchive } from "./package.ts";
+import { bringsOf, categoryOf, contentsOf, type ListingFile, listingCopy, needsOf, readListing } from "./summary.ts";
 
 /** Downloads at once while filling; the rest wait their turn. */
 const PARALLEL = 4;
@@ -17,7 +17,7 @@ export const ASSET_MAX = 2 * 1024 * 1024;
 /** How long browsing waits for packages not read yet; the rest are kept for the next look as they arrive. */
 const WAIT_MS = 15_000;
 
-type Known = { manifest: ExtensionManifest; listing?: ListingFile };
+type Known = { manifest: ExtensionManifest; listing?: ListingFile; skills?: string[] };
 
 /** "1.10.0" after "1.9.2"; a pre-release sorts before its release. */
 export function compareVersions(a: string, b: string): number {
@@ -48,11 +48,17 @@ export function createPackageReader(deps: { home: string; fetch?: typeof fetch; 
   const file = (hash: string) => path.join(dir, `${hash.replace(/[^0-9a-f]/g, "")}.json`);
   const known = (hash: string): Known | undefined => {
     try {
-      const raw = JSON.parse(fs.readFileSync(file(hash), "utf8")) as { manifest?: unknown; listing?: unknown };
+      const raw = JSON.parse(fs.readFileSync(file(hash), "utf8")) as {
+        manifest?: unknown;
+        listing?: unknown;
+        skills?: unknown;
+      };
       const manifest = ExtensionManifest.safeParse(raw.manifest);
       if (!manifest.success) return undefined;
       const listing = readListing(raw.listing);
-      return { manifest: manifest.data, ...(listing ? { listing } : {}) };
+      // Kept by a newer read; one kept before has none (its skills are then counted, not named).
+      const skills = Array.isArray(raw.skills) ? raw.skills.filter((s) => typeof s === "string") : undefined;
+      return { manifest: manifest.data, ...(listing ? { listing } : {}), ...(skills ? { skills } : {}) };
     } catch {
       return undefined;
     }
@@ -80,7 +86,10 @@ export function createPackageReader(deps: { home: string; fetch?: typeof fetch; 
     }
     fs.mkdirSync(dir, { recursive: true });
     const tmp = `${file(v.content_hash)}.${process.pid}.tmp`;
-    fs.writeFileSync(tmp, JSON.stringify({ manifest: pkg.manifest, ...(listing ? { listing } : {}) }));
+    fs.writeFileSync(
+      tmp,
+      JSON.stringify({ manifest: pkg.manifest, ...(listing ? { listing } : {}), skills: pkg.skills }),
+    );
     fs.renameSync(tmp, file(v.content_hash));
   };
 
@@ -193,6 +202,9 @@ export function createPackageReader(deps: { home: string; fetch?: typeof fetch; 
           ...(v.archive ? { url: v.archive.url } : {}),
           ...(pkg ? { brings: bringsOf(pkg.manifest, listing), needs: needsOf(pkg.manifest, listing) } : {}),
           ...(listing ? { listing: listingCopy(listing, pkg?.manifest, isOfficial) } : {}),
+          ...(pkg && v.content_hash
+            ? { contents: contentsOf(pkg.manifest, v.content_hash, hostsOf(pkg.manifest), pkg.skills) }
+            : {}),
         };
       });
     },

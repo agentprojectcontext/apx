@@ -95,6 +95,7 @@ The schema is strict: unknown keys are refused.
 |---|---|
 | `id` | Lowercase letters, digits, `_` and `-`, up to 20 characters. |
 | `name`, `version` | Required. `description` is optional, up to 500 characters. |
+| `min_apx` | Optional: the oldest APX that runs it (`"2.18.0"`). An older APX says it needs that version instead of adding it; a key an APX does not know is read the same way. |
 | `skills` | A folder of skill folders, each with its `SKILL.md`. |
 | `mcp` | Servers by name (letters, digits and `_`): `command` + `args` + `env`, or `url` + `headers`. A command starting with `./` runs from the extension's folder. |
 | `routines` | Templates with a `name`, a `schedule` (`cron`, `every` N minutes with N of 5 or more, or `once`) and a `prompt`. |
@@ -124,6 +125,14 @@ other variables or the environment, so a bundle can't carry your credentials els
 | `hosts` | The hosts its code connects to, shown before it is turned on. |
 | `platforms` | The systems it runs on (`darwin`, `linux`, `win32`); it does not turn on elsewhere. |
 | `companion` | An app on another device: `name`, `platform` (`android`, `android-tv`, `ios`, `macos`, `windows`, `linux`), the app `file` in the package or a store `url`, `steps`, and `pairing`: `{ "with": "apx" }` pairs it with APX as a device (a code and QR), `{ "with": "extension", "server", "tool" }` asks the extension's own tool for the code. |
+
+### Its page: `apx-listing.json`
+
+An optional `apx-listing.json` beside the manifest is its page in the Marketplace: a `summary` and `tagline`, a
+Markdown `description`, `prompts` to try, `requirements`, `limits`, `pricing`, `privacy`, an `icon` and `screenshots`
+in the package, `links`, and Spanish text under `locales.es`. Its `tools` (`name` and an optional `description`)
+name what its connection brings, so the owner sees them before adding it; without them APX says the service decides
+its tools and shows the real ones once it is connected.
 
 Nothing an extension brings is added by itself: its agents and apps wait for **Add**, its companion app for
 **Pair**. Its settings, pages, agents and apps show on its page in the Marketplace, or with `apx extensions` in the

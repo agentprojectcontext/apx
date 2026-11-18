@@ -17,7 +17,14 @@ export const SECRET_REF = /secret:\/\/([a-zA-Z0-9_.-]+)/g;
 export const SETTING_REF = /setting:\/\/([a-zA-Z0-9_]+)/g;
 
 /** A refused extension: the message says what is wrong with it. */
-export class PackageError extends Error {}
+/** Why a package was refused; `newer_apx`: written for an APX newer than this one. */
+export class PackageError extends Error {
+  readonly reason: "invalid" | "newer_apx";
+  constructor(message: string, reason: "invalid" | "newer_apx" = "invalid") {
+    super(message);
+    this.reason = reason;
+  }
+}
 
 /** Folders a source leaves out (an installed copy is read whole, so nothing added there goes unnoticed). */
 const LEFT_OUT = new Set([".git", "node_modules"]);
@@ -85,7 +92,14 @@ function checkManifest(text: string | undefined, has: (rel: string) => boolean):
     throw new PackageError(`no readable ${MANIFEST} at the top of the extension`);
   }
   const parsed = ExtensionManifest.safeParse(raw);
-  if (!parsed.success) throw new PackageError(`${MANIFEST}: ${parsed.error.issues[0]?.message ?? "invalid"}`);
+  if (!parsed.success) {
+    const issue = parsed.error.issues[0];
+    // A field this APX does not know is one a newer APX added.
+    throw new PackageError(
+      `${MANIFEST}: ${issue?.message ?? "invalid"}`,
+      issue?.code === "unrecognized_keys" ? "newer_apx" : "invalid",
+    );
+  }
   const m = parsed.data;
   if (m.skills && inside(m.skills) === undefined) throw new PackageError("skills points outside the extension");
   if (m.plugin) {
@@ -301,6 +315,12 @@ function powersOf(m: ExtensionManifest): ExtensionPower[] {
     // An address the owner types is theirs, not a host the extension picked.
     const host = s.url && !OWNER_HOST.test(s.url) ? URL.parse(s.url)?.hostname : undefined;
     if (host) hosts.add(host);
+    // A command that bridges to a remote server (`npx mcp-remote https://…`) names where it connects.
+    if (s.command)
+      for (const a of s.args) {
+        const h = /^https:\/\//.test(a) ? URL.parse(a)?.hostname : undefined;
+        if (h) hosts.add(h);
+      }
   }
   for (const h of m.hosts) hosts.add(h);
   for (const h of [...hosts].sort()) out.push({ kind: "host", name: h });

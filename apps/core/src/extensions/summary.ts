@@ -5,6 +5,7 @@ import type {
   ExtensionBrings,
   ExtensionCategory,
   ExtensionConnection,
+  ExtensionContents,
   ExtensionListing,
   ExtensionManifest,
   ExtensionNeeds,
@@ -30,6 +31,11 @@ const Copy = z.object({
   pricing: Text.default(""),
   privacy: Text.default(""),
   prompts: z.array(Text).max(12).default([]),
+  /** The tools it brings, named so the owner sees them before adding it (a Spanish copy translates descriptions). */
+  tools: z
+    .array(z.object({ name: z.string().trim().min(1).max(80), description: Text.optional() }))
+    .max(100)
+    .default([]),
   /** Spanish captions come as the same screenshots with their caption. */
   screenshots: z
     .array(z.object({ file: File.optional(), caption: Text.optional() }))
@@ -129,6 +135,11 @@ export function listingCopy(l: ListingFile, m: ExtensionManifest | undefined, of
     pricing: c.pricing,
     privacy: c.privacy,
     prompts: c.prompts,
+    // A translation that names no tools keeps the base list.
+    tools: (c.tools.length ? c.tools : (base?.tools ?? [])).map((x) => ({
+      name: x.name,
+      ...(x.description ? { description: x.description } : {}),
+    })),
     captions: (base?.screenshots ?? c.screenshots).map((s, i) => c.screenshots[i]?.caption ?? s.caption ?? ""),
   });
   const category = categoryOf(l.category);
@@ -141,6 +152,26 @@ export function listingCopy(l: ListingFile, m: ExtensionManifest | undefined, of
     ...(l.links ? { links: l.links } : {}),
     ...(l.publisher ? { publisher: { name: l.publisher.name, verified: official && l.publisher.verified } } : {}),
     ...(l.locales?.es ? { es: pick(l.locales.es, l) } : {}),
+  };
+}
+
+/** What a package holds, from its manifest (and its skills' names when they were kept), to show before adding it. */
+export function contentsOf(
+  m: ExtensionManifest,
+  hash: string,
+  hosts: string[],
+  skills: string[] | undefined,
+): ExtensionContents {
+  return {
+    hosts,
+    runs_code: Boolean(m.plugin) || Object.values(m.mcp).some((s) => s.command),
+    servers: Object.keys(m.mcp).length,
+    keys: [...m.secrets.map((s) => s.label), ...m.settings.filter((s) => s.sensitive).map((s) => s.label)],
+    ...(skills ? { skills } : {}),
+    agents: m.agents.map((a) => a.name),
+    routines: m.routines.map((r) => r.name),
+    ...(m.companion ? { companion: { name: m.companion.name, platform: m.companion.platform } } : {}),
+    hash,
   };
 }
 

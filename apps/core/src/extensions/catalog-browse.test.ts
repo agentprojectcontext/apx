@@ -201,6 +201,21 @@ test("the catalog lists each extension at its newest version, with what its own 
   assert.deepEqual(w?.needs, ["code", "cost"]);
   assert.equal(w?.listing?.summary, "Forecasts for a place you choose.");
   assert.equal(w?.listing?.es?.summary, "Pronósticos.");
+  // What its package holds, to show before adding it: code that runs here, the key it asks for, its skills by name.
+  assert.deepEqual(
+    { ...w?.contents, hash: undefined },
+    {
+      hosts: [],
+      runs_code: true,
+      servers: 1,
+      keys: ["API key"],
+      skills: ["weather"],
+      agents: [],
+      routines: [],
+      hash: undefined,
+    },
+  );
+  assert.match(w?.contents?.hash ?? "", /^[0-9a-f]{16}$/);
   // A package that is not what the catalog says is never read: no brings, nothing kept.
   assert.equal(entries[1]?.brings, undefined);
 

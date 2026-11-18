@@ -159,6 +159,8 @@ export function extensionStack(d: {
   home: string;
   marketplaceIndex: string | undefined;
   fetch?: typeof fetch | undefined;
+  /** This APX's version (extensions written for a newer one are refused). */
+  version?: string;
 }) {
   const hooks = createHooks();
   const plugins = createPlugins({
@@ -194,6 +196,7 @@ export function extensionStack(d: {
     catalog,
     catalogs,
     ...(d.fetch ? { fetch: d.fetch } : {}),
+    ...(d.version ? { version: d.version } : {}),
   });
   const changed = extensions.verify();
   if (changed.length) d.log.warn({ extensions: changed }, "extensions changed on disk were turned off");

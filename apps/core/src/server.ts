@@ -70,7 +70,7 @@ import type { CliStatus } from "./harness/detect.ts";
 import { which } from "./harness/detect.ts";
 import { harnessEnv, useApxCommand, useUsualDirs } from "./harness/env.ts";
 import { createHarnesses, type Harness } from "./harness/index.ts";
-import { readIdentity } from "./identity.ts";
+import { type Identity, readIdentity } from "./identity.ts";
 import { createIdleTrim } from "./idle-memory.ts";
 import { type IMessageOps, systemIMessage } from "./imessage.ts";
 import { markV1Notes } from "./import/v1-memory-mark.ts";
@@ -222,6 +222,16 @@ export type CoreOptions = {
   /** Reads a project folder at start (by default in a worker thread); tests hold one or answer it. */
   projectRead?: ReadProjectFiles;
 };
+
+/** This APX's release, when known: its notes' version, else a packaged build's own; a dev checkout has none. */
+function versionOf(releases: ReleaseSource | undefined, identity: Identity): { version?: string } {
+  let v: string | undefined;
+  try {
+    v = releases?.version();
+  } catch {}
+  v ??= identity.version !== "0.0.0" ? identity.version : undefined;
+  return v ? { version: v } : {};
+}
 
 export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
   const log = createLog("core", opts.quiet, opts.quiet ? undefined : coreLogSink(config.home));
@@ -457,6 +467,8 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
     home: config.home,
     marketplaceIndex: config.marketplaceIndex,
     fetch: opts.extensionFetch,
+    // The release this is (a dev checkout's package says 0.0.0: no version, nothing refused for it).
+    ...versionOf(releases, identity),
   });
   const upkeep = createUpkeep({ store, llm, log });
   const aside = createAside({ store, llm });

@@ -77,6 +77,12 @@ export const ExtensionManifest = z
       id: () => ExtId,
       name: () => z.string().trim().min(1).max(80),
       version: () => z.string().max(40),
+      /** The oldest APX that can run it ("2.18.0"); an older APX says so instead of installing it. */
+      min_apx: () =>
+        z
+          .string()
+          .regex(/^\d+\.\d+\.\d+$/)
+          .optional(),
       description: () => z.string().max(500).default(""),
       /** A folder of skill folders (each with a SKILL.md). */
       skills: () => z.string().max(200).optional(),
@@ -260,6 +266,17 @@ export const ExtensionSource = {
       .optional(),
 };
 
+/**
+ * Why reading or installing an extension was refused, in an error's `detail`, for the panel to say in its own words:
+ * the download failed, the files are not valid, they need a newer APX (`needs`: its version, when the manifest says),
+ * or they changed since the owner looked at them.
+ */
+export const ExtensionRefusal = z.object({
+  reason: z.enum(["download", "invalid", "newer_apx", "changed"]),
+  needs: z.string().optional(),
+});
+export type ExtensionRefusal = z.infer<typeof ExtensionRefusal>;
+
 /** What an extension brings, to filter by: an account it connects, tools, skills, ready-made agents, a device. */
 export const ExtensionBrings = z.enum(["accounts", "tools", "skills", "agents", "devices", "apps"]);
 export type ExtensionBrings = z.infer<typeof ExtensionBrings>;
@@ -290,6 +307,15 @@ export type ExtensionCategory = z.infer<typeof ExtensionCategory>;
 export const ExtensionConnection = z.enum(["none", "key", "oauth", "pairing", "local"]);
 export type ExtensionConnection = z.infer<typeof ExtensionConnection>;
 
+/** A tool its connection brings, as its listing names it, so the owner sees it before adding the extension. */
+export const ListingTool = z.object(
+  schemaFields({
+    name: () => z.string(),
+    description: () => z.string().optional(),
+  }),
+);
+export type ListingTool = z.infer<typeof ListingTool>;
+
 const ListingCopy = {
   summary: () => z.string(),
   /** One short line (at most 60 characters). */
@@ -305,6 +331,8 @@ const ListingCopy = {
   prompts: () => z.array(z.string()),
   /** One caption per screenshot, in order. */
   captions: () => z.array(z.string()),
+  /** The tools its connection brings, when the listing names them (the server's own list counts once it ran). */
+  tools: () => z.array(ListingTool).default([]),
 };
 /**
  * Its page (`apx-listing.json`, or the catalog's card of it): what it does, needs and does not, cost, privacy, its
@@ -334,6 +362,28 @@ export const ExtensionListing = z.object(
 );
 export type ExtensionListing = z.infer<typeof ExtensionListing>;
 
+/**
+ * What a catalog package holds, read from its manifest before it is added: where its servers connect, whether it runs
+ * code here, the keys it asks for, its skills (names, once APX kept them), agents, routines and a device's app.
+ */
+export const ExtensionContents = z.object(
+  schemaFields({
+    hosts: () => z.array(z.string()),
+    runs_code: () => z.boolean(),
+    /** Its servers (connections). */
+    servers: () => z.number().int(),
+    /** The labels of the keys it asks for. */
+    keys: () => z.array(z.string()),
+    skills: () => z.array(z.string()).optional(),
+    agents: () => z.array(z.string()),
+    routines: () => z.array(z.string()),
+    companion: () => z.object({ name: z.string(), platform: z.string() }).optional(),
+    /** Its fingerprint, shown in its details. */
+    hash: () => z.string(),
+  }),
+);
+export type ExtensionContents = z.infer<typeof ExtensionContents>;
+
 /** One extension a catalog offers, at its newest version. */
 export const CatalogEntry = z.object(
   schemaFields({
@@ -361,6 +411,8 @@ export const CatalogEntry = z.object(
     brings: () => z.array(ExtensionBrings).optional(),
     needs: () => z.array(ExtensionNeeds).optional(),
     listing: () => ExtensionListing.optional(),
+    /** What its package holds, once APX read it. */
+    contents: () => ExtensionContents.optional(),
   }),
 );
 export type CatalogEntry = z.infer<typeof CatalogEntry>;

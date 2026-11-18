@@ -97,6 +97,7 @@ El esquema es estricto: las claves desconocidas se rechazan.
 |---|---|
 | `id` | Minúsculas, números, `_` y `-`, hasta 20 caracteres. |
 | `name`, `version` | Obligatorios. `description` es opcional, hasta 500 caracteres. |
+| `min_apx` | Opcional: el APX más viejo que la corre (`"2.18.0"`). Un APX anterior dice qué versión necesita en vez de agregarla; una clave que ese APX no conoce se lee igual. |
 | `skills` | Una carpeta de carpetas de skills, cada una con su `SKILL.md`. |
 | `mcp` | Servidores por nombre (letras, números y `_`): `command` + `args` + `env`, o `url` + `headers`. Un comando que empieza con `./` corre desde la carpeta de la extensión. |
 | `routines` | Plantillas con `name`, `schedule` (`cron`, `every` cada N minutos con N de 5 o más, o `once`) y `prompt`. |
@@ -126,6 +127,14 @@ puede nombrar tus otras variables ni el entorno, así que un paquete no puede ll
 | `hosts` | Los hosts a los que se conecta su código, que se muestran antes de encenderla. |
 | `platforms` | Los sistemas en los que corre (`darwin`, `linux`, `win32`); en otro no se enciende. |
 | `companion` | Una app en otro dispositivo: `name`, `platform` (`android`, `android-tv`, `ios`, `macos`, `windows`, `linux`), el `file` de la app en el paquete o la `url` de una tienda, `steps`, y `pairing`: `{ "with": "apx" }` la empareja con APX como dispositivo (un código y un QR), `{ "with": "extension", "server", "tool" }` le pide el código a una herramienta de la propia extensión. |
+
+### Su ficha: `apx-listing.json`
+
+Un `apx-listing.json` opcional junto al manifiesto es su ficha en el Marketplace: un `summary` y un `tagline`, una
+`description` en Markdown, `prompts` para probar, `requirements`, `limits`, `pricing`, `privacy`, un `icon` y
+`screenshots` dentro del paquete, `links`, y el texto en español en `locales.es`. Sus `tools` (`name` y una
+`description` opcional) nombran lo que trae su conexión, para verlo antes de agregarla; sin ellas APX dice que las
+herramientas las pone el servicio y muestra las reales una vez conectada.
 
 Nada de lo que trae una extensión se agrega solo: sus agentes y apps esperan a **Agregar**, su app compañera a
 **Emparejar**. Sus ajustes, páginas, agentes y apps se ven en su ficha del Marketplace, o con `apx extensions` en la

@@ -82,6 +82,8 @@ Add `"manifest": 2` when it needs more than skills, servers and secrets:
   `window.apx.settings.get()/set(values)`, `apx.secrets.has(name)/set(name, value)` and `apx.close()`.
 - `hosts`, `platforms` (`darwin|linux|win32`) and `companion` (an app on a TV, phone or computer: `name`, `platform`,
   `file` or `url`, `steps`, `pairing: {with: "apx"}` or `{with: "extension", server, tool}` for its own pairing tool).
+- `min_apx` (`"2.18.0"`) when it needs a newer APX: an older one says so instead of adding it. Its
+  `apx-listing.json` can name its `tools` (`name`, `description`) so the owner sees them before adding it.
 
 Set values from the terminal with `apx extensions set <id> name=value` (`name=-` reads a sensitive value from stdin).
 

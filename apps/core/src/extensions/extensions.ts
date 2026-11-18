@@ -4,14 +4,20 @@
 // approves exactly those files. Another version keeps the one before beside it, to go back to.
 import fs from "node:fs";
 import path from "node:path";
-import { EXTENSION_ARCHIVE_MAX, type ExtensionInfo, type ExtensionManifest } from "@apx/protocol";
+import {
+  compareVersions,
+  EXTENSION_ARCHIVE_MAX,
+  type ExtensionInfo,
+  type ExtensionManifest,
+  type ExtensionRefusal,
+} from "@apx/protocol";
 import type { ExtensionRecord, PreviousVersion } from "../domain/extensions.ts";
 import type { Store } from "../domain/store.ts";
 import { badRequest, CallError, errorMessage, notFound } from "../errors.ts";
 import { expandHome, isInside, realpath, tildeHome } from "../paths.ts";
 import { extensionSecret as extSecret } from "../secret-names.ts";
 import type { Secrets } from "../secrets.ts";
-import { type Catalog, type CatalogCheck, downloadArchive } from "./catalog.ts";
+import { type Catalog, type CatalogCheck, DownloadError, downloadArchive } from "./catalog.ts";
 import { ASSET_MAX, createPackageReader, newest } from "./catalog-packages.ts";
 import type { Catalogs } from "./catalogs.ts";
 import { createManifestV2, settingsInfo } from "./manifest-v2.ts";
@@ -99,6 +105,8 @@ export function createExtensions(deps: {
   catalogs: Catalogs;
   /** Downloads an extension from a URL (a test answers it). */
   fetch?: typeof fetch;
+  /** This APX's version, to refuse an extension written for a newer one. */
+  version?: string;
 }) {
   const { store, secrets, plugins, catalog } = deps;
   const v2 = createManifestV2({ store, secrets });
@@ -186,8 +194,16 @@ export function createExtensions(deps: {
     if (isInside(root, dir)) throw badRequest("that folder is an installed copy already");
     return realpath(dir);
   };
+  const refused = (message: string, detail: ExtensionRefusal) => badRequest(message, detail);
   /** The extension read and checked, and what to call where it came from. Nothing is written. */
   const load = async (input: ExtensionInput): Promise<{ pkg: Package; source: string }> => {
+    const read = await readInput(input);
+    const min = read.pkg.manifest.min_apx;
+    if (min && deps.version && compareVersions(min, deps.version) > 0)
+      throw refused(`${read.pkg.manifest.name} needs APX ${min} or newer`, { reason: "newer_apx", needs: min });
+    return read;
+  };
+  const readInput = async (input: ExtensionInput): Promise<{ pkg: Package; source: string }> => {
     try {
       if (input.path !== undefined) {
         const dir = folder(input.path);
@@ -203,7 +219,9 @@ export function createExtensions(deps: {
     } catch (err) {
       // A refused archive or a failed download is the owner's to fix, not APX's failure.
       if (err instanceof CallError || !(err instanceof Error)) throw err;
-      throw badRequest(err instanceof PackageError ? err.message : errorMessage(err, 300));
+      if (err instanceof PackageError) throw refused(err.message, { reason: err.reason });
+      if (err instanceof DownloadError) throw refused(errorMessage(err, 300), { reason: "download" });
+      throw badRequest(errorMessage(err, 300));
     }
     throw badRequest("give a folder, an .apxext file or an https address");
   };
@@ -377,7 +395,8 @@ export function createExtensions(deps: {
     async install(input: ExtensionInput, expect?: string): Promise<ExtensionInfo> {
       const { pkg, source } = await load(input);
       const { manifest, hash } = pkg;
-      if (expect && expect !== hash) throw badRequest("the extension is not the one you looked at; look at it again");
+      if (expect && expect !== hash)
+        throw refused("the extension is not the one you looked at; look at it again", { reason: "changed" });
       const check = await catalog.check(manifest.id, manifest.version, hash);
       const id = manifest.id;
       const dir = path.join(root, id);

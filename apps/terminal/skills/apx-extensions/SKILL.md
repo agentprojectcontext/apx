@@ -83,6 +83,8 @@ Add `"manifest": 2` for more than skills, servers and secrets:
 - `pages` (`id`, `title`, `entry` HTML): its own settings screen, sandboxed, talking through `window.apx`.
 - `hosts`, `platforms` (`darwin|linux|win32`) and `companion`: an app on a TV, phone or computer (`name`, `platform`,
   `file` or `url`, `steps`, `pairing: {"with": "apx"}` or `{"with": "extension", "server", "tool"}`).
+- `min_apx` (`"2.18.0"`) when it needs a newer APX: an older one says so instead of adding it. Its
+  `apx-listing.json` can name its `tools` (`name`, `description`) so the owner sees them before adding it.
 
 ## From a script or an app they already have
 
