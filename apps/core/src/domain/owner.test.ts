@@ -20,8 +20,8 @@ test("the account's name names an owner who has none, and never replaces one the
     saveOwnerIdentity(store, { name: "Ani" });
     assert.equal(adoptAccountName(store, "Ana Acme"), false);
     assert.equal(ownerIdentity(store).name, "Ani");
-    saveOwnerIdentity(store, { call_me: " Manu " });
-    assert.deepEqual([ownerIdentity(store).name, ownerIdentity(store).call_me], ["Ani", "Manu"]);
+    saveOwnerIdentity(store, { call_me: " Nora " });
+    assert.deepEqual([ownerIdentity(store).name, ownerIdentity(store).call_me], ["Ani", "Nora"]);
   } finally {
     db.close();
     await dir.remove();
