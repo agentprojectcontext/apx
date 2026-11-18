@@ -46,6 +46,9 @@ export const OWNER_ONLY: Readonly<Record<string, string>> = {
   "account.finish": SECRET,
   "account.rename": "the owner's public account name is theirs to choose",
   "account.logout": "the owner signs out of their optional cloud account",
+  "surfaces.public_preview":
+    "the owner reviews the exact copy before publishing it; agents receive only the draft summary",
+  "surfaces.public_discard": "the owner closes a private review; unused agent previews expire automatically",
   "channels.add": "a new account starts with its sign-in, which is the owner's to give (Channels › New channel)",
   "contacts.add":
     "the panel's one-step Add contact; agents add a contact and its address with contacts.set and contacts.address",

@@ -32,34 +32,38 @@ export const folderBinding = (folders: string[], write = false) =>
   `${write ? "write-folders" : "folders"}:${folders.join("\n")}`;
 
 /** A stored question or confirmation as the chat shows it. */
-export const inputPartOf = (r: InputRecord): Extract<Part, { type: "input" }> => ({
-  type: "input",
-  input_id: r.id,
-  kind: r.kind,
-  prompt: r.prompt,
-  ...(r.tool ? { tool: r.tool } : {}),
-  ...(r.detail ? { detail: r.detail } : {}),
-  ...(r.approval?.browser && typeof r.args?.document === "string"
-    ? {
-        browser: {
-          origin: r.approval.browser.origin,
-          title: r.approval.browser.title,
-          tab_number: r.approval.browser.tab_number,
-          document: r.args.document,
-          ...(typeof r.args.path === "string" ? { path: r.args.path } : {}),
-          ...(typeof r.args.sha256 === "string" ? { sha256: r.args.sha256 } : {}),
-        },
-      }
-    : {}),
-  ...(r.change ? { change: r.change } : {}),
-  ...(r.options ? { options: r.options } : {}),
-  ...(r.multi ? { multi: true } : {}),
-  ...(r.folders ? { folders: r.folders } : {}),
-  ...(r.approval_scopes ? { approval_scopes: r.approval_scopes } : {}),
-  ...(r.approval_scope ? { approval_scope: r.approval_scope } : {}),
-  state: r.state,
-  ...(r.answer ? { answer: r.answer } : {}),
-});
+export const inputPartOf = (r: InputRecord): Extract<Part, { type: "input" }> => {
+  const artifact = publicInput(r).artifact_draft;
+  return {
+    type: "input",
+    input_id: r.id,
+    kind: r.kind,
+    prompt: r.prompt,
+    ...(r.tool ? { tool: r.tool } : {}),
+    ...(r.detail ? { detail: r.detail } : {}),
+    ...(artifact ? { artifact_draft: artifact } : {}),
+    ...(r.approval?.browser && typeof r.args?.document === "string"
+      ? {
+          browser: {
+            origin: r.approval.browser.origin,
+            title: r.approval.browser.title,
+            tab_number: r.approval.browser.tab_number,
+            document: r.args.document,
+            ...(typeof r.args.path === "string" ? { path: r.args.path } : {}),
+            ...(typeof r.args.sha256 === "string" ? { sha256: r.args.sha256 } : {}),
+          },
+        }
+      : {}),
+    ...(r.change ? { change: r.change } : {}),
+    ...(r.options ? { options: r.options } : {}),
+    ...(r.multi ? { multi: true } : {}),
+    ...(r.folders ? { folders: r.folders } : {}),
+    ...(r.approval_scopes ? { approval_scopes: r.approval_scopes } : {}),
+    ...(r.approval_scope ? { approval_scope: r.approval_scope } : {}),
+    state: r.state,
+    ...(r.answer ? { answer: r.answer } : {}),
+  };
+};
 
 export function createInputs(deps: {
   store: Store;

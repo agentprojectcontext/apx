@@ -1,10 +1,17 @@
 import { randomUUID } from "node:crypto";
+import type { AccountProfile } from "@apx/protocol";
 import { publicArtifactCode, publicArtifactCopy } from "../domain/public-artifact-copy.ts";
 import { cloudNumber, cloudString, type createPublicArtifactCloud } from "./firestore.ts";
 
 type Source = Parameters<typeof publicArtifactCopy>[0];
 type Cloud = ReturnType<typeof createPublicArtifactCloud>;
-export type PublicationSession = { uid: string; idToken: string; generation: number; current(): boolean };
+export type PublicationSession = {
+  uid: string;
+  idToken: string;
+  profile?: AccountProfile;
+  generation: number;
+  current(): boolean;
+};
 export type PublicationAccount = { withSession<T>(work: (session: PublicationSession) => Promise<T>): Promise<T> };
 export type PublicationRequest = {
   action: "publish" | "update" | "revoke";
@@ -79,6 +86,19 @@ export function createPublicationDrafts(deps: {
       return { code: draft.code, url: address(draft.code), action: draft.action };
     });
   return {
+    describe(id: string) {
+      return summary(find(id));
+    },
+    async discard(id: string) {
+      const draft = drafts.get(id);
+      if (!draft) return { ok: true as const };
+      return deps.account.withSession(async (session) => {
+        current(session, draft);
+        if (draft.pending) throw new Error("public_artifact_pending");
+        drafts.delete(id);
+        return { ok: true as const };
+      });
+    },
     async prepare(input: PublicationRequest) {
       return deps.account.withSession(async (session) => {
         current(session);
@@ -128,6 +148,7 @@ export function createPublicationDrafts(deps: {
         current(session, draft);
         return {
           ...summary(draft),
+          ...(session.profile ? { account: { ...session.profile } } : {}),
           ...(draft.copy ? { bundle: JSON.parse(draft.copy.json) as typeof draft.copy.bundle } : {}),
         };
       });

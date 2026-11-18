@@ -10,6 +10,7 @@ import { createAccountProfiles } from "./profile.ts";
 const TTL = 10 * 60_000;
 type Flow = { state: string; verifier: string; redirect: string; expires: number; generation: number };
 export type AccountClient = { project: string; apiKey: string };
+type ScopedSession = Pick<Session, "uid" | "idToken" | "profile"> & { generation: number; current(): boolean };
 
 export function createAccount(deps: {
   secrets: Secrets;
@@ -134,15 +135,19 @@ export function createAccount(deps: {
         changing = false;
       }
     },
-    async withSession<T>(
-      work: (session: { uid: string; idToken: string; generation: number; current(): boolean }) => Promise<T>,
-    ): Promise<T> {
+    async withSession<T>(work: (session: ScopedSession) => Promise<T>): Promise<T> {
       if (changing) throw new Error("account_busy");
       const expected = generation;
       const session = await token(expected);
       const current = () => generation === expected && stored()?.uid === session.uid;
       if (!current()) throw new Error("sign_in_cancelled");
-      const result = await work({ uid: session.uid, idToken: session.idToken, generation: expected, current });
+      const result = await work({
+        uid: session.uid,
+        idToken: session.idToken,
+        profile: { ...session.profile },
+        generation: expected,
+        current,
+      });
       if (!current()) throw new Error("sign_in_cancelled");
       return result;
     },

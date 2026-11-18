@@ -70,13 +70,19 @@ Free-plan Firestore quotas still constrain total reads and writes across the pro
 the free quota and temporarily stop publication/viewing; this does not authorize enabling billing. Surface that
 error honestly, preserve confirmed state and document the limits. Do not weaken the open telemetry policies.
 
-## APX integration (draft service implemented; protocol and UI pending)
+## APX integration
 
 `public-artifacts/drafts.ts` creates expiring, opaque preview IDs without uploading anything. Its snapshots bind
 the chosen state, source hash, account generation and remote revision. A changed source or signed-out account
 cannot commit the old preview. Concurrent commits share one write; completed previews return their old receipt
 without reapplying it. Preview data is copied, so a caller cannot mutate the internal approved snapshot.
-The service remains unexposed until the human-access protocol boundary and mandatory owner cards are wired.
+The protocol exposes `surfaces.public_list`, `public_prepare`, `public_preview`, `public_commit` and
+`public_discard`. Preview, commit and discard are human-only. Preparation never uploads. The human preview alone
+includes the account's public identity; agent summaries never contain session credentials or the full bundle.
+The core shares one draft service between RPC handlers and `apx_settings`; commit keeps its app-only owner card
+in every mode and carries a structured draft reference for the review UI. Closing a review cannot cancel a write
+already dispatched. The account-wide list and cloud update/revocation preparation stay with the owner and the
+global super-agent; project-scoped agents can prepare publication only from their own or global artifacts.
 
 Use the single protocol registry/router for preparation, publishing, updating, revoking and listing. Effect
 methods require idempotency keys. Session resolution stays inside the core. Publishing and updating public
@@ -102,7 +108,9 @@ The F3 account implementation is included in this branch. Its core-only `withSes
 with a shared in-flight refresh and binds work to the signed-in identity and session generation. It returns no
 credentials through the account protocol. Sign-out or a new sign-in invalidates old work; publication checks the
 session again before each cloud request. Sign-out cannot retract a write already sent to Firestore.
-Protocol and UI publication wiring remain pending. Combined artifact, account and telemetry emulator tests pass;
+Protocol and mandatory confirmation wiring have isolated-core tests with a recording cloud transport. The UI,
+native install handoff and deployment remain pending; the pre-implementation reference is
+[PUBLIC_ARTIFACTS_UI.md](PUBLIC_ARTIFACTS_UI.md). Combined artifact, account and telemetry emulator tests pass;
 never replace unrelated telemetry/account policies during deployment. Use the separate artifact Hosting site
 and approved DNS tools without changing the login origin or restarting the owner's core.
 
