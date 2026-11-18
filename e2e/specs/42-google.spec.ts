@@ -31,7 +31,10 @@ test("Google Calendar connects by signing in with Google, shows the account, and
 
   await settings.getByRole("button", { name: "Desconectar" }).click();
   // It asks first.
-  await page.getByRole("dialog", { name: /¿Desconectar/ }).getByRole("button", { name: "Desconectar" }).click();
+  await page
+    .getByRole("dialog", { name: /¿Desconectar/ })
+    .getByRole("button", { name: "Desconectar" })
+    .click();
   await expect
     .poll(
       async () =>
