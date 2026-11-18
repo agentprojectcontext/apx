@@ -2,6 +2,7 @@
 // owner approves or declines it, and reads the card and the answer.
 import assert from "node:assert/strict";
 import { callTool, say, scriptedLlm, startCore } from "../engine/testkit.ts";
+import { waitFor } from "../testkit/platform.ts";
 
 export async function settingsCore({
   tool = "apx_settings",
@@ -22,11 +23,10 @@ export async function settingsCore({
     });
     let detail: string | undefined;
     if (decision) {
-      let pending: Array<{ id: string; tool?: string | undefined; detail?: string | undefined }> = [];
-      for (let i = 0; i < 100 && !pending.length; i++) {
-        pending = (await env.client.call("runs.pending", { thread: thread.id })).inputs;
-        if (!pending.length) await new Promise((r) => setTimeout(r, 20));
-      }
+      const pending = await waitFor(async () => {
+        const inputs = (await env.client.call("runs.pending", { thread: thread.id })).inputs;
+        return inputs.length ? inputs : undefined;
+      }, "the settings confirmation");
       assert.equal(pending[0]?.tool, tool);
       detail = pending[0]?.detail;
       await env.client.call("runs.respond", { input: pending[0]?.id ?? "", decision });
