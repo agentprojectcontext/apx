@@ -159,3 +159,36 @@ test("its page, its app for Apps and its companion app come only from what it de
   assert.equal(apk.name, "tv.apk");
   assert.deepEqual(Buffer.from(apk.data, "base64"), Buffer.from([0x50, 0x4b, 3, 4, 1, 2, 3]));
 });
+
+test("an address the owner types with a final / joins its server's path with one /, as native integrations do", async () => {
+  await using ha = tempDir("apx-v2-ha-");
+  fs.writeFileSync(
+    path.join(ha.path, "apx-extension.json"),
+    JSON.stringify({
+      manifest: 2,
+      id: "home_hub",
+      name: "Home hub",
+      version: "1.0.0",
+      mcp: {
+        hub: {
+          url: "setting://address/api/mcp",
+          headers: { Authorization: "Bearer secret://token", "X-Hub": "setting://address" },
+        },
+      },
+      settings: [
+        { name: "address", label: "Address", type: "string", required: true },
+        { name: "token", label: "Token", type: "string", sensitive: true },
+      ],
+    }),
+  );
+  await env.client.call("extensions.install", { path: ha.path });
+  const target = async (address: string) => {
+    await env.client.call("extensions.settings", { id: "home_hub", values: { address } });
+    await env.client.call("extensions.enable", { id: "home_hub", enabled: true });
+    return (await env.client.call("mcp.list", {})).servers.find((s) => s.name === "home_hub-hub")?.target;
+  };
+  assert.equal(await target("https://hub.example.com:8123/"), "https://hub.example.com:8123/api/mcp");
+  assert.equal(await target("https://hub.example.com:8123//"), "https://hub.example.com:8123/api/mcp");
+  assert.equal(await target("https://hub.example.com:8123"), "https://hub.example.com:8123/api/mcp");
+  await env.client.call("extensions.remove", { id: "home_hub" });
+});

@@ -111,18 +111,22 @@ function extensionDefs(store: Store): McpDef[] {
         const v = e.settings[n] ?? e.manifest.settings.find((x) => x.name === n && !x.sensitive)?.default;
         return v === undefined ? "" : String(v);
       };
-      const own = (v: string) =>
+      // In an address, a setting followed by a path drops its trailing "/" ("https://ha.example/" + "/api/mcp"), as the
+      // native integrations' addresses do.
+      const own = (v: string, address = false) =>
         v
           .replace(SECRET_REF, (_m, n: string) => `secret://${extSecret(e.id, n)}`)
-          .replace(SETTING_REF, (_m, n: string) => setting(n));
+          .replace(SETTING_REF, (m, n: string, at: number, all: string) =>
+            address && all[at + m.length] === "/" ? setting(n).replace(/\/+$/, "") : setting(n),
+          );
       const map = (r: Record<string, string>) => Object.fromEntries(Object.entries(r).map(([k, v]) => [k, own(v)]));
       const raw: Raw = {
         ...(server.command
           ? { command: server.command.startsWith("./") ? path.join(e.dir, server.command) : server.command }
           : {}),
-        args: server.args.map(own),
+        args: server.args.map((a) => own(a)),
         env: map(server.env),
-        ...(server.url ? { url: own(server.url) } : {}),
+        ...(server.url ? { url: own(server.url, true) } : {}),
         headers: map(server.headers),
       };
       const d = toDef(`${e.id}-${name}`, raw, { scope: "global", cwd: e.dir });
