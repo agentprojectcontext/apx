@@ -1,8 +1,8 @@
-// Resources: the variable imported from v1, a new one revealed with the eye; an integration connected and removed;
-// other apps' skills with their tag, duplicates and the engines filter; skills imported from a folder after a preview.
+// Resources: the variable imported from v1, a new one revealed with the eye; an integration connected and removed
+// from its Marketplace page; other apps' skills with their tag, duplicates and the engines filter; skills imported from a folder after a preview.
 import fs from "node:fs";
 import path from "node:path";
-import { expect, open, rpc, test, world } from "./kit.ts";
+import { expect, open, openExtension, rpc, test, world } from "./kit.ts";
 
 test("variables: the imported one is listed, a new one is saved and shown with the eye", async ({ page }) => {
   await open(page);
@@ -135,67 +135,39 @@ test("a new MCP server takes a variable for its token from the + list, or a new 
     .not.toContain("northwind");
 });
 
-test("integrations: GitHub is connected with a token, then disconnected", async ({ page }) => {
+test("integrations: GitHub is connected with a token from its page, then disconnected from ⋯", async ({ page }) => {
   await open(page);
-  await page.getByRole("button", { name: "Recursos", exact: true }).first().click();
-  await page.getByRole("radio", { name: /^Integraciones/ }).click();
-  await page
-    .getByRole("button", { name: /Conectar nueva|Integración/ })
-    .first()
-    .click();
-  // Each app shows its own logo, the ones still coming too.
-  await expect(
-    page
-      .getByRole("dialog")
-      .getByRole("button", { name: /^GitHub/ })
-      .locator(".apx-intmark svg"),
-  ).toBeVisible();
-  await expect(
-    page
-      .getByRole("dialog")
-      .getByRole("button", { name: /Linear/ })
-      .locator(".apx-intmark svg"),
-  ).toBeVisible();
-  await page
-    .getByRole("dialog")
-    .getByRole("button", { name: /^GitHub/ })
-    .click();
+  await openExtension(page, "GitHub");
+  await page.getByRole("button", { name: "Conectar", exact: true }).click();
   await page.getByRole("dialog").getByLabel(/token/i).fill("ghp_e2e000000000");
   await page.getByRole("dialog").getByRole("button", { name: "Conectar" }).click();
   await expect(page.getByRole("dialog")).toBeHidden();
-  await expect(page.getByText("GitHub").first()).toBeVisible();
+  // One button that follows its state: connected now, the rest in ⋯.
+  await expect(page.getByRole("button", { name: "Conectada" })).toBeDisabled();
   const servers = (await rpc<{ servers: Array<{ name: string }> }>("mcp.list")).servers;
   expect(servers.some((s) => s.name === "github")).toBe(true);
   expect(JSON.stringify(servers)).not.toContain("ghp_e2e000000000");
 
-  await page.getByRole("button", { name: "Desconectar" }).click();
+  await page.getByRole("button", { name: "Más opciones" }).click();
+  await page.getByRole("menuitem", { name: "Desconectar" }).click();
+  // It asks first.
+  await page.getByRole("dialog").getByRole("button", { name: "Desconectar" }).click();
   await expect.poll(async () => (await rpc<{ servers: Array<{ name: string }> }>("mcp.list")).servers.length).toBe(0);
 });
 
-test("integrations: Connect opens its dialog inside a project too", async ({ page }) => {
+test("integrations: the Marketplace is searched; Home Assistant connects with its address and token", async ({
+  page,
+}) => {
   await open(page);
-  await page.getByRole("button", { name: "Northwind", exact: true }).click();
-  await page.getByRole("tab", { name: "Recursos" }).click();
-  await page.getByRole("radio", { name: /^Integraciones/ }).click();
-  await page.getByRole("button", { name: "Conectar", exact: true }).click();
-  const dialog = page.getByRole("dialog");
-  await expect(dialog.getByRole("button", { name: /^GitHub/ })).toBeVisible();
-  await page.keyboard.press("Escape");
-  await expect(dialog).toBeHidden();
-});
-
-test("integrations: the catalog is searched; Home Assistant connects with its address and token", async ({ page }) => {
-  await open(page);
-  await page.getByRole("button", { name: "Recursos", exact: true }).first().click();
-  await page.getByRole("radio", { name: /^Integraciones/ }).click();
+  await page.getByRole("button", { name: "Marketplace", exact: true }).first().click();
+  await page.getByRole("searchbox", { name: "Buscar en el Marketplace" }).fill("home");
+  await expect(page.getByRole("button", { name: /^GitHub/ })).toBeHidden();
   await page
-    .getByRole("button", { name: /Conectar nueva|Integración/ })
+    .getByRole("button", { name: /^Home Assistant/ })
     .first()
     .click();
+  await page.getByRole("button", { name: "Conectar", exact: true }).click();
   const dialog = page.getByRole("dialog");
-  await dialog.getByRole("searchbox", { name: "Buscar integraciones" }).fill("home");
-  await expect(dialog.getByRole("button", { name: /^GitHub/ })).toBeHidden();
-  await dialog.getByRole("button", { name: /Home Assistant/ }).click();
   await dialog.getByLabel("Address").fill("http://homeassistant.local:8123/");
   await dialog.getByLabel("Long-lived access token").fill("ha-e2e-token-000");
   await dialog.getByRole("button", { name: "Conectar" }).click();
@@ -203,16 +175,20 @@ test("integrations: the catalog is searched; Home Assistant connects with its ad
   const servers = (await rpc<{ servers: Array<{ name: string; target: string }> }>("mcp.list")).servers;
   expect(servers.find((s) => s.name === "home-assistant")?.target).toBe("http://homeassistant.local:8123/api/mcp");
   expect(JSON.stringify(servers)).not.toContain("ha-e2e-token-000");
-  await page.getByRole("button", { name: "Desconectar" }).click();
+  await page.getByRole("button", { name: "Más opciones" }).click();
+  await page.getByRole("menuitem", { name: "Desconectar" }).click();
+  // It asks first.
+  await page.getByRole("dialog").getByRole("button", { name: "Desconectar" }).click();
   await expect.poll(async () => (await rpc<{ servers: Array<{ name: string }> }>("mcp.list")).servers.length).toBe(0);
 });
 
 test("an extension's routine says what and when, waits to be added, and once in Routines says so", async ({ page }) => {
   await rpc("extensions.install", { path: path.resolve(import.meta.dirname, "../../examples/extensions/daily-brief") });
   await open(page);
-  await page.getByRole("button", { name: "Recursos", exact: true }).first().click();
-  await page.getByRole("radio", { name: /^Extensiones/ }).click();
-  await expect(page.getByText("Rutinas que sugiere")).toBeVisible();
+  await page.getByRole("button", { name: "Marketplace", exact: true }).first().click();
+  // Installed, it is one of the owner's own: its page lists what it brings, the routine among them.
+  await page.getByRole("button", { name: "Daily brief" }).first().click();
+  await page.getByText("1 rutina(s)").click();
   await page.getByRole("button", { name: "Agregar a Rutinas" }).click();
   await expect(page.getByText("En Rutinas · apagada")).toBeVisible();
   await expect(page.getByRole("button", { name: "Agregar a Rutinas" })).toHaveCount(0);

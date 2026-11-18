@@ -19,6 +19,7 @@ export * from "./engine-usage.ts";
 export * from "./environment-methods.ts";
 export * from "./events.ts";
 export * from "./exposure.ts";
+export * from "./extensions.ts";
 export * from "./files-methods.ts";
 export * from "./frames.ts";
 export * from "./git-methods.ts";

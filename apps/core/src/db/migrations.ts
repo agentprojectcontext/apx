@@ -1262,4 +1262,28 @@ export const MIGRATIONS: readonly string[] = [
     FROM json_each(meta.value) AS c
   ) WHERE key = 'setting:channels' AND json_valid(value) AND json_type(value) = 'array';
   `,
+  `
+  -- An extension's provenance by fingerprint against the official catalog (official, third_party), and the version it
+  -- replaced, kept to go back to: that version's manifest, fingerprint, source, provenance and on/off as JSON.
+  ALTER TABLE extensions ADD COLUMN provenance TEXT NOT NULL DEFAULT 'third_party';
+  ALTER TABLE extensions ADD COLUMN previous TEXT;
+  `,
+  // An extension's plain settings (manifest 2) as JSON; its sensitive ones live in the secret store.
+  `ALTER TABLE extensions ADD COLUMN settings TEXT;`,
+  `
+  -- Extension catalogs the owner added for themself (a repository, an address, a folder): where it is, the ref and
+  -- commit it was last read at, and what it lists (entries and the ones left out, as JSON).
+  CREATE TABLE extension_catalogs (
+    id TEXT PRIMARY KEY,
+    name TEXT NOT NULL,
+    source TEXT NOT NULL,
+    kind TEXT NOT NULL,
+    ref TEXT,
+    synced_sha TEXT,
+    synced_at TEXT,
+    entries TEXT NOT NULL DEFAULT '[]',
+    skipped TEXT NOT NULL DEFAULT '[]',
+    created_at TEXT NOT NULL
+  );
+  `,
 ];

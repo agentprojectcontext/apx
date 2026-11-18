@@ -1,0 +1,139 @@
+---
+title: Bring your app to an extension
+description: Turn a script or an app you already have into an APX extension your agents can use, with its settings, its app on another device and one file to share. Android TV as the example.
+sidebar:
+  order: 4
+---
+
+import { Aside, FileTree, Steps } from "@astrojs/starlight/components";
+import Terminal from "../../../components/Terminal.astro";
+
+You have something that works: a Node script that controls a device, a small server for your own tools, an app on a
+TV or a phone. An [extension](/extend/extensions/) puts it in APX without rewriting it: your agents get its tools, the
+owner fills in what it needs once, and its app pairs from the Marketplace. This page walks through **Android TV**, an
+extension whose agents work the TV remote through an app on the TV.
+
+## What you start from
+
+- **A script** (`server.mjs`) that speaks MCP over stdio: it lists its tools and runs them. If yours does something
+  else (an HTTP server, a CLI), add a small MCP server in the same folder that calls it.
+- **What it needs to know**: for the TV, the address the TV reaches it at and a key the TV and the script share.
+- **An app on another device**, if it has one: `android-tv.apk`, which the TV runs.
+
+<Aside type="caution">
+A server inside an extension runs from its folder, without `node_modules`. Use only Node's built-ins, or bundle your
+dependencies into the script.
+</Aside>
+
+## 1. The folder
+
+<FileTree>
+- android-tv/
+  - apx-extension.json what it brings
+  - server.mjs your script, unchanged
+  - bridge.mjs
+  - session.mjs
+  - skills/
+    - android-tv/
+      - SKILL.md when and how agents use it
+  - android-tv.apk the app for the TV
+  - apx-listing.json its page in the Marketplace (optional)
+  - README.md
+</FileTree>
+
+The skill tells agents when to use the extension's tools and what not to do (here: never drive the TV another way).
+Its `description` is what an agent reads to decide whether to load it.
+
+## 2. The manifest
+
+```json
+{
+  "manifest": 2,
+  "id": "android_tv",
+  "name": "Android TV",
+  "version": "0.3.0",
+  "description": "Your agents control the TV: open apps, search a title, pause and change the volume.",
+  "skills": "skills",
+  "mcp": {
+    "remote": {
+      "command": "node",
+      "args": ["./server.mjs"],
+      "env": { "APX_TV_KEY": "secret://connection_key", "APX_TV_URL": "setting://address" }
+    }
+  },
+  "settings": [
+    {
+      "name": "address",
+      "label": "Address the TV reaches this extension at",
+      "description": "A private https address of this computer, never a public one.",
+      "type": "string",
+      "required": true
+    },
+    { "name": "connection_key", "label": "Connection key", "type": "string", "sensitive": true, "generate": "random" }
+  ],
+  "companion": {
+    "name": "APX TV",
+    "platform": "android-tv",
+    "file": "android-tv.apk",
+    "steps": [
+      "Install APX TV on the TV (from this computer with the file below).",
+      "Open APX TV and turn on its accessibility service when it asks.",
+      "Type the address and the code shown here."
+    ],
+    "pairing": { "with": "extension", "server": "remote", "tool": "tv_pairing" }
+  }
+}
+```
+
+- **`mcp.remote`** runs your script from the extension's folder. Its environment gets only what the manifest names:
+  `setting://address` is the value the owner typed, `secret://connection_key` the key kept in APX's secret store.
+- **`settings`** are what the owner fills in once, in the extension's page or with `apx extensions set`. A
+  `sensitive` one is kept as a key; `"generate": "random"` makes one at install, so nobody has to invent it.
+- **`companion`** is the app on the TV: offered to download from its page, with its steps, and paired through
+  `tv_pairing`, a tool of your own server. When that tool answers `{"code": "416879", "address": "https://…"}`, the
+  page shows the address and the code, large. An app that pairs with APX itself, like the phone app, uses
+  `"pairing": {"with": "apx"}` instead.
+
+## 3. Check it, pack it, install it
+
+Check what it would bring. Nothing is installed and nothing runs:
+
+<Terminal command="apx extensions inspect ./android-tv">{`android_tv  Android TV v0.3.0  · off  · third party  · 38baf5b119f13cbe
+  Your agents control the TV: open apps, search a title, pause and change the volume.
+  skills: android-tv
+  mcp: android_tv-remote
+  setting address: Address the TV reaches this extension at (missing)
+  setting connection_key: Connection key (missing)
+  companion app: APX TV (android-tv)
+  runs code on this computer: turn it on only if you trust its author`}</Terminal>
+
+Pack it into one file. The same folder always gives the same file; `.git`, `node_modules` and what a Mac adds are left
+out:
+
+<Terminal command="apx extensions pack ./android-tv">{`~/work/android_tv-0.3.0.apxext  61 KB  · 38baf5b119f13cbe
+
+Install it with: apx extensions install android_tv-0.3.0.apxext`}</Terminal>
+
+<Steps>
+
+1. Install it: `apx extensions install android_tv-0.3.0.apxext`, a double-click on the file, or **Add › From an
+   .apxext file** in the Marketplace. It arrives off, with its key already made.
+
+2. Fill in its address and turn it on from its page (or `apx extensions set android_tv address=https://…` and
+   `apx extensions on android_tv`). Turning it on approves exactly these files and what they reach.
+
+3. **Connect** opens the pairing: download the app, follow its steps, **Show the code**, and type the address and code
+   on the TV.
+
+</Steps>
+
+## 4. Share it
+
+The `.apxext` is the whole extension. Anyone who installs it sees it as **Third party**, with what it brings before
+they turn it on. To publish a new version, raise `version` and pack again: whoever has it sees what the new one adds,
+and can go back to the one before.
+
+<Aside>
+A desktop app works the same way: the extension's server talks to the app on the computer, and `companion` with
+`"platform": "macos"` offers it to download.
+</Aside>

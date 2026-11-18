@@ -98,6 +98,15 @@ test("account profiles and reservations enforce ownership, stable ids and atomic
     ],
   });
   assert.equal(extra.status, 403);
+  const unicode = await profiles.ensure("unicode", token("unicode"), `${"a".repeat(99)}😀rest`, "");
+  assert.equal(unicode.name, "a".repeat(99));
+  await profiles.rename("unicode", token("unicode"), "unicode_missing");
+  const removeReservation = await fetch(`${root}/accountHandles/unicode_missing`, {
+    method: "DELETE",
+    headers: { authorization: "Bearer owner" },
+  });
+  assert.equal(removeReservation.status, 200);
+  assert.equal((await profiles.rename("unicode", token("unicode"), "unicode_recovered")).handle, "unicode_recovered");
   const race = await Promise.allSettled([
     profiles.rename("first", token("first"), "shared"),
     profiles.rename("second", token("second"), "shared"),

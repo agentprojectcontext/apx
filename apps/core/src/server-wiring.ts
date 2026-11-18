@@ -9,6 +9,7 @@ import { BROWSER_CAP } from "@apx/protocol";
 import { loopbackHost } from "@apx/protocol/browser-urls";
 import type { Bus } from "./bus.ts";
 import type { CoreConfig } from "./config.ts";
+import { MARKETPLACE_INDEX } from "./config.ts";
 import { nativeApproval } from "./domain/approvals.ts";
 import type { Store } from "./domain/store.ts";
 import { type Added, tellAdded } from "./engine/added.ts";
@@ -20,6 +21,8 @@ import { applyProfile, listProfiles, type ProfileRoot } from "./engine/profiles.
 import type { Upkeep } from "./engine/upkeep.ts";
 import type { Computer } from "./environments/computer.ts";
 import { errorMessage } from "./errors.ts";
+import { createCatalog, shippedCatalog } from "./extensions/catalog.ts";
+import { createCatalogs } from "./extensions/catalogs.ts";
 import { createExtensions } from "./extensions/extensions.ts";
 import { createPlugins } from "./extensions/plugins.ts";
 import { acpAgents, acpEngine } from "./harness/acp/agents.ts";
@@ -96,6 +99,7 @@ import { transcriptionHandlers } from "./rpc/transcription.ts";
 import { webhookHandlers } from "./rpc/webhooks.ts";
 import type { Secrets } from "./secrets.ts";
 import type { SignIn } from "./sign-in.ts";
+import { runGit } from "./skills/import.ts";
 import type { RuntimeHomes } from "./skills/runtimes.ts";
 import { storedPublicPages } from "./surface-pages.ts";
 import type { Telemetry } from "./telemetry.ts";
@@ -149,7 +153,17 @@ export function knownEngines(store: Store, providers: { has: (id: string) => boo
 }
 
 /** Extensions and their plugin host. Copies changed on disk since approval are turned off at boot. */
-export function extensionStack(d: { store: Store; secrets: Secrets; bus: Bus; log: Log; home: string }) {
+export function extensionStack(d: {
+  store: Store;
+  secrets: Secrets;
+  bus: Bus;
+  log: Log;
+  home: string;
+  marketplaceIndex: string | undefined;
+  fetch?: typeof fetch | undefined;
+  /** This APX's version (extensions written for a newer one are refused). */
+  version?: string;
+}) {
   const hooks = createHooks();
   const plugins = createPlugins({
     home: d.home,
@@ -163,7 +177,29 @@ export function extensionStack(d: { store: Store; secrets: Secrets; bus: Bus; lo
       return Boolean(t && audienceOf(d.store, t).kind === "contact");
     },
   });
-  const extensions = createExtensions({ store: d.store, secrets: d.secrets, home: d.home, plugins });
+  const catalog = createCatalog({
+    home: d.home,
+    url: d.marketplaceIndex,
+    ...(d.fetch ? { fetch: d.fetch } : {}),
+    // The official catalog's copy shipped with APX, only for the official address.
+    ...(d.marketplaceIndex === MARKETPLACE_INDEX ? { shipped: shippedCatalog } : {}),
+  });
+  const catalogs = createCatalogs({
+    store: d.store,
+    home: d.home,
+    git: runGit,
+    ...(d.fetch ? { fetch: d.fetch } : {}),
+  });
+  const extensions = createExtensions({
+    store: d.store,
+    secrets: d.secrets,
+    home: d.home,
+    plugins,
+    catalog,
+    catalogs,
+    ...(d.fetch ? { fetch: d.fetch } : {}),
+    ...(d.version ? { version: d.version } : {}),
+  });
   const changed = extensions.verify();
   if (changed.length) d.log.warn({ extensions: changed }, "extensions changed on disk were turned off");
   return { hooks, plugins, extensions };
@@ -397,7 +433,7 @@ export function coreHandlers(d: HandlerDeps & { vm?: Computer | undefined }) {
     ...webhookHandlers(d.webhooks, d.publicCredentials),
     ...phoneHandlers(d.broker, d.store, d.app.home),
     ...computerHandlers(d.broker, d.store, d.app.home, d.engine, (thread) => Boolean(d.vm?.hasThread(thread)), d.bus),
-    ...extensionHandlers(d.extensions, d.mcp),
+    ...extensionHandlers(d.extensions, d.mcp, d.bus),
     // Native integrations share the project switches of global servers, without starting an MCP.
     ...mcpHandlers(d.mcp, d.store, (name) =>
       name === "asana" ? d.asana.connected() : isGoogleId(name) && d.google.connected(name),

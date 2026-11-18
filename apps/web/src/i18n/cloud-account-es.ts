@@ -1,0 +1,19 @@
+export const esCloudAccount = {
+  "account.signedIn": "Iniciaste sesión en APX",
+  "account.cancelled": "Cancelaste el inicio de sesión. Volvé a APX cuando quieras intentarlo de nuevo.",
+  "account.required": "Tu sesión terminó. Volvé a iniciar sesión con Google.",
+  "account.denied": "No tenés permiso para actualizar esta cuenta. Probá iniciar sesión de nuevo.",
+  "account.busy": "Tu cuenta se está actualizando. Esperá un momento y volvé a intentar.",
+  "account.localOnly": "Para iniciar sesión, abrí APX en la computadora donde está corriendo.",
+  "account.nameChoiceTitle": "¿Usar el nombre de tu cuenta de Google?",
+  "account.nameChoiceLead": "Es como te llaman tus agentes y el panel. Nada más de tu perfil cambia.",
+  "account.nameNow": "Ahora",
+  "account.nameGoogle": "De Google",
+  "account.nameLoses": "Si usás el de Google, se reemplaza “{name}”. Después podés escribir otro en Nombre.",
+  "account.nameKeep": "Dejar {name}",
+  "account.nameUse": "Usar {name}",
+  "account.handleYours": "@{handle} es tuyo: nadie más puede usarlo.",
+  "account.signOutTitle": "¿Cerrar sesión de tu cuenta APX en esta compu?",
+  "account.signOutLead":
+    "Esta compu se olvida del inicio de sesión. Tu ID de APX, tu nombre de usuario y tu trabajo acá se quedan; podés volver a iniciar sesión cuando quieras.",
+} as const;

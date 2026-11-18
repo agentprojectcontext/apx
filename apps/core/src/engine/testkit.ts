@@ -142,6 +142,9 @@ type StartCoreOptions = {
   asanaFetch?: typeof fetch;
   accountClient?: string;
   publicArtifactFetch?: typeof fetch;
+  /** The extension catalog's address and what answers it and extension downloads. */
+  marketplaceIndex?: string;
+  extensionFetch?: typeof fetch;
   /** Answers an integration's account check (GitHub's server); by default it refuses nothing and is never the net. */
   integrationFetch?: typeof fetch;
   /** Where telemetry goes (a recorder); none sends nothing, like any test core. */
@@ -171,6 +174,7 @@ export async function startCore(opts: StartCoreOptions) {
       ...(opts.accountClient ? { accountClient: opts.accountClient } : {}),
       ...(opts.expoPushUrl ? { expoPushUrl: opts.expoPushUrl } : {}),
       ...(opts.flowHttpAllow ? { flowHttpAllow: opts.flowHttpAllow } : {}),
+      ...(opts.marketplaceIndex ? { marketplaceIndex: opts.marketplaceIndex } : {}),
     }),
     {
       quiet: true,
@@ -186,6 +190,7 @@ export async function startCore(opts: StartCoreOptions) {
         : {}),
       ...(opts.asanaFetch ? { asanaFetch: opts.asanaFetch } : {}),
       ...(opts.publicArtifactFetch ? { publicArtifactFetch: opts.publicArtifactFetch } : {}),
+      ...(opts.extensionFetch ? { extensionFetch: opts.extensionFetch } : {}),
       integrationFetch: opts.integrationFetch ?? (async () => new Response("{}", { status: 200 })),
       llm: opts.llm,
       ...(opts.harnesses ? { harnesses: opts.harnesses } : {}),

@@ -6,7 +6,5 @@ export const esResourcesShared: Partial<Record<MessageKey, string>> = {
   "res.error": "Recursos: {error}",
   "res.tab.skills": "Skills",
   "res.tab.mcp": "MCP",
-  "res.tab.integrations": "Integraciones",
   "res.tab.variables": "Variables",
-  "res.tab.extensions": "Extensiones",
 };

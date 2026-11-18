@@ -1,5 +1,5 @@
 import type { EmailSignatureEntry, Result } from "../../packages/protocol/src/index.ts";
-import { expect, open, openSettings, rpc, test } from "./kit.ts";
+import { expect, open, openExtension, openExtensionSettings, openSettings, rpc, test } from "./kit.ts";
 
 test("the personal default signature can be edited without connecting an account", async ({ page }) => {
   await rpc("setup.finish");
@@ -55,16 +55,16 @@ test("Gmail connection editing is separate from integration preferences", async 
     });
   });
   await open(page);
-  await page.getByRole("button", { name: "Recursos", exact: true }).first().click();
-  await page.getByRole("radio", { name: /^Integraciones/ }).click();
-  await expect(page.getByRole("radiogroup", { name: "Dónde se usa" })).toBeVisible();
-  await page.getByRole("button", { name: "Configurar integración", exact: true }).click();
+  await openExtension(page, "Gmail");
+  const gmail = await openExtensionSettings(page);
+  await expect(gmail.getByRole("radiogroup", { name: "Dónde se usa" })).toBeVisible();
+  await gmail.getByRole("button", { name: "Configurar integración", exact: true }).click();
   const preferences = page.getByRole("dialog", { name: "Configurar integración", exact: true });
   await expect(preferences.getByLabel("Firma en texto plano", { exact: true })).toBeVisible();
   await expect(preferences.getByText("Dónde se usa")).toHaveCount(0);
   await expect(preferences.getByRole("combobox", { name: "Cuenta de email" })).toHaveCount(0);
   await page.keyboard.press("Escape");
-  await page.getByRole("button", { name: "Editar conexión", exact: true }).click();
+  await gmail.getByRole("button", { name: "Editar conexión", exact: true }).click();
   await expect(page.getByRole("dialog").getByLabel("Firma en texto plano", { exact: true })).toHaveCount(0);
   await expect(page.getByRole("dialog")).toBeVisible();
 });

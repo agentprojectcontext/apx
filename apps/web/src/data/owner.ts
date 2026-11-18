@@ -15,6 +15,11 @@ function ask(): void {
     .catch(() => fromCore.set({ asked: false }));
 }
 
+/** The core's answer after it changed (Settings saved it, or signing in named the owner). */
+export function ownerRead(o: { name: string; timezone: string }): void {
+  fromCore.set({ name: o.name.trim(), timezone: o.timezone, asked: true });
+}
+
 /** How the panel names the owner in third person ("Alex assigned it"): this device's name, else the core's, else "". */
 export function useOwnerName(): string {
   const local = usePrefs((s) => s.displayName);
@@ -30,4 +35,25 @@ export function useOwnerTimeZone(): string {
   const zone = useSlice(fromCore, (s) => s.timezone);
   useEffect(ask, []);
   return zone;
+}
+
+const account = createStore({ photo: "", asked: false });
+
+/** The APX account's photo once read, or after signing in or out here ("" when none). */
+export function accountPhotoRead(photo: string): void {
+  account.set({ photo, asked: true });
+}
+
+/** The signed-in account's photo for the sidebar's account row, read from the core once ("" signed out). */
+export function useAccountPhoto(): string {
+  const photo = useSlice(account, (s) => s.photo);
+  useEffect(() => {
+    if (account.get().asked) return;
+    account.set({ asked: true });
+    void client
+      .call("account.get", {})
+      .then((r) => account.set({ photo: r.profile?.photo ?? "" }))
+      .catch(() => account.set({ asked: false }));
+  }, []);
+  return photo;
 }

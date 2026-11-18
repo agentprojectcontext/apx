@@ -13,6 +13,8 @@ import { schemaFields } from "./schema-fields.ts";
 export const OwnerIdentity = z.object(
   schemaFields({
     name: () => z.string().trim().max(80).default(""),
+    /** How the owner wants to be called ("Manu"); empty: by their name. */
+    call_me: () => z.string().trim().max(80).default(""),
     about: () => z.string().max(2000).default(""),
     /** ISO 639-1 ("es", "en"). */
     language: () =>
@@ -37,6 +39,7 @@ export const OwnerPatch = z
   .object(
     schemaFields({
       name: () => z.string().trim().max(80),
+      call_me: () => z.string().trim().max(80),
       about: () => z.string().max(2000),
       language: () => z.string().regex(/^[a-z]{2}$/),
       timezone: () => z.string().max(60),

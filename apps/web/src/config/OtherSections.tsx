@@ -4,49 +4,70 @@ import { useEffect, useState } from "react";
 import { LanguageSelect, TimezoneSelect } from "../common/pickers/LocaleSelect.tsx";
 import { client } from "../data/client.ts";
 import { notify } from "../data/notices.ts";
-import { initialsOf, setPrefs, TEXT_SIZES, textSizeOf, usePrefs } from "../data/prefs.ts";
+import { ownerRead } from "../data/owner.ts";
+import { setPrefs, TEXT_SIZES, textSizeOf, usePrefs } from "../data/prefs.ts";
 import { isLanguage, LANGUAGE_NAMES, LANGUAGES, useLanguage, useT } from "../i18n/index.ts";
 import { go, useNav } from "../shell/nav.ts";
-import { CloudAccount } from "./CloudAccount.tsx";
+import { PublishedCopies } from "../surfaces/PublishedCopies.tsx";
+import { AccountCard, AccountHandle, AccountNameChoice } from "./CloudAccount.tsx";
 import { EmailSignatures } from "./EmailSignatures.tsx";
 import { SectionHead } from "./SectionHead.tsx";
+import { useCloudAccount } from "./useCloudAccount.ts";
 import "../styles/theme-switch.css";
 
-/** Account: who you are, for the panel and for your agents (name, a few lines about you, their language, your time). */
+/**
+ * Account: who you are, for the panel and for your agents (name, a few lines about you, their language, your time),
+ * with the APX account in the same card.
+ */
 export function AccountSection() {
   const t = useT();
   const stored = usePrefs((s) => s.displayName);
+  const asked = usePrefs((s) => s.accountNameAsked);
   const you = t("account.you");
+  const account = useCloudAccount();
+  const profile = account.profile;
   const [owner, setOwner] = useState<OwnerIdentity>();
+  // Your name (who you are) and how you want to be called; the panel shows the second, else the first.
   const [draft, setDraft] = useState(stored);
+  const [callDraft, setCallDraft] = useState("");
+  // biome-ignore lint/correctness/useExhaustiveDependencies: read again once signed in, as signing in names an owner who had none
   useEffect(() => {
     void client
       .call("owner.get", {})
       .then((o) => {
         setOwner(o);
-        if (o.name && !stored) setDraft(o.name);
+        ownerRead(o);
+        setDraft(o.name || stored);
+        setCallDraft(o.call_me);
       })
       .catch(() => {});
-  }, [stored]);
+  }, [stored, profile?.id]);
   const save = (patch: Partial<OwnerIdentity>) =>
     void client
       .call("owner.set", patch)
-      .then(setOwner)
+      .then((o) => {
+        setOwner(o);
+        ownerRead(o);
+        setPrefs({ displayName: (o.call_me || o.name).trim() });
+      })
       .catch((e: unknown) => notify(t("error.account", { error: e instanceof Error ? e.message : String(e) })));
-  const saveName = () => {
-    setPrefs({ displayName: draft.trim() });
-    if (draft.trim() && draft.trim() !== owner?.name) save({ name: draft.trim() });
+  const saveName = (value = draft) => {
+    const name = value.trim();
+    setDraft(name);
+    if (name && name !== owner?.name) save({ name });
   };
+  const saveCallMe = () => {
+    const call = callDraft.trim();
+    setCallDraft(call);
+    if (call !== (owner?.call_me ?? "")) save({ call_me: call });
+  };
+  const current = (owner?.name || stored || "").trim();
+  const offered = profile?.name.trim() ?? "";
+  const choose = profile && owner && current && offered && current !== offered && asked !== profile.id;
   return (
     <>
       <SectionHead title={t("config.account")} lead={t("account.lead")} />
-      <div className="account-card">
-        <span className="account-card__avatar">{initialsOf(draft.trim() || you)}</span>
-        <div className="account-card__text">
-          <div className="account-card__name">{draft.trim() || you}</div>
-          <div className="account-card__sub">{t("account.owner")}</div>
-        </div>
-      </div>
+      <AccountCard name={draft.trim() || you} account={account} />
       <SettingRow title={t("account.name")} description={t("account.nameHint")}>
         <Input
           size="sm"
@@ -55,11 +76,25 @@ export function AccountSection() {
           placeholder={you}
           maxLength={80}
           onChange={(e) => setDraft(e.currentTarget.value)}
-          onBlur={saveName}
+          onBlur={() => saveName()}
           onKeyDown={(e) => e.key === "Enter" && saveName()}
           aria-label={t("account.name")}
         />
       </SettingRow>
+      <SettingRow title={t("account.callMe")} description={t("account.callMeHint")}>
+        <Input
+          size="sm"
+          className="config__input"
+          value={callDraft}
+          placeholder={draft.trim() || you}
+          maxLength={80}
+          onChange={(e) => setCallDraft(e.currentTarget.value)}
+          onBlur={saveCallMe}
+          onKeyDown={(e) => e.key === "Enter" && saveCallMe()}
+          aria-label={t("account.callMe")}
+        />
+      </SettingRow>
+      {profile && <AccountHandle profile={profile} account={account} />}
       {owner && (
         <>
           <SettingRow stacked title={t("account.about")} description={t("account.aboutHint")}>
@@ -89,8 +124,19 @@ export function AccountSection() {
           </SettingRow>
         </>
       )}
-      <CloudAccount />
+      {profile && <PublishedCopies key={profile.id} />}
       <EmailSignatures />
+      {choose && (
+        <AccountNameChoice
+          current={current}
+          offered={offered}
+          onKeep={() => setPrefs({ accountNameAsked: profile.id })}
+          onUse={() => {
+            setPrefs({ accountNameAsked: profile.id });
+            saveName(offered);
+          }}
+        />
+      )}
     </>
   );
 }

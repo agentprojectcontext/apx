@@ -1,5 +1,5 @@
 import type { Result } from "@apx/protocol";
-import { Button, Checkbox, Dialog, Field, Icons, Input, SegmentedControl, Spinner } from "@apx/ui";
+import { Button, Checkbox, Dialog, Field, GoogleMark, Icons, Input, SegmentedControl, Spinner } from "@apx/ui";
 import { useEffect, useRef, useState } from "react";
 import { client as api } from "../data/client.ts";
 import { notify } from "../data/notices.ts";
@@ -179,12 +179,7 @@ export function GoogleSignInForm({
           <Button variant="secondary" onClick={onClose}>
             {waiting ? t("common.close") : t("common.cancel")}
           </Button>
-          <Button
-            disabled={!ok}
-            loading={busy}
-            leadingIcon={<Icons.ExternalLink size={14} />}
-            onClick={() => void signIn()}
-          >
+          <Button disabled={!ok} loading={busy} leadingIcon={<GoogleMark />} onClick={() => void signIn()}>
             {i.connected || waiting ? t("int.signInAgain") : t("int.signIn")}
           </Button>
         </>

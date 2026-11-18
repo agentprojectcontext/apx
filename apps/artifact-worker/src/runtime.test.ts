@@ -124,8 +124,13 @@ test("the deployed module serves its embedded viewer without an asset service or
     assert.equal(index.headers.get("cache-control"), "no-store");
     assert.match(index.headers.get("content-security-policy") ?? "", /script-src 'self'/);
     const html = await index.text();
-    const root = await f.mf.dispatchFetch("https://artifact.example.com/");
-    assert.equal(await root.text(), html);
+    for (const path of ["/", "/index.html", "/?code=0123abcd", "/index.html?next=https://example.com"]) {
+      const root = await f.mf.dispatchFetch(`https://artifact.example.com${path}`, { redirect: "manual" });
+      assert.equal(root.status, 302);
+      assert.equal(root.headers.get("location"), "https://apxagent.app/");
+      assert.equal(root.headers.get("cache-control"), "no-store");
+      assert.equal(await root.text(), "");
+    }
     const assets = [...html.matchAll(/(?:src|href)="(\/assets\/[^"\s]+\.(?:js|css))"/g)].map((match) => match[1]);
     assert.ok(assets.length >= 2);
     for (const asset of assets) {

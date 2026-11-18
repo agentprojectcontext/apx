@@ -13,7 +13,7 @@ import { useSetup } from "../data/setup.ts";
 import { type DataState, useData } from "../data/state.ts";
 import { type MessageKey, useT } from "../i18n/index.ts";
 import { kindOptions, NO_KIND } from "../project/projectKind.ts";
-import { ConnectForm, type Integration } from "../resources/IntegrationsTab.tsx";
+import { ConnectForm, type Integration } from "../resources/IncludedIntegration.tsx";
 import { BotCard } from "./BotCard.tsx";
 import { BrainChoice } from "./BrainChoice.tsx";
 import { type Draft, type StepProps, withStarters } from "./draft.ts";
@@ -199,7 +199,7 @@ export function ChannelsStep({ name, simple }: { name: string; simple?: boolean 
   );
 }
 
-/** Gmail through Google's sign-in: the same form Resources › Integrations opens. */
+/** Gmail through Google's sign-in: the same form the Marketplace opens. */
 function GmailCard({ name }: { name: string }) {
   const t = useT();
   const [gmail, setGmail] = useState<Integration>();

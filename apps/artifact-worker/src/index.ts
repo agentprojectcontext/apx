@@ -126,12 +126,12 @@ export function createWorker(files: Readonly<Record<string, string>>) {
           } else result = new Response(null, { status: 405 });
         } else if (url.pathname.startsWith("/api/") || url.pathname.startsWith("/_private-cache/")) {
           result = new Response(null, { status: 404 });
+        } else if (request.method === "GET" && (url.pathname === "/" || url.pathname === "/index.html")) {
+          result = Response.redirect("https://apxagent.app", 302);
         } else if (
           request.method === "GET" &&
           (url.pathname === "/runner.html" ||
             url.pathname.startsWith("/assets/") ||
-            url.pathname === "/" ||
-            url.pathname === "/index.html" ||
             new RegExp(`^/${codePattern}$`).test(url.pathname))
         ) {
           const path =

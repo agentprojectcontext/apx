@@ -41,6 +41,8 @@ These ceilings concern this deployment, not unrelated workloads consuming the sa
 
 `https://artifact.apxagent.app/<code>` serves a fixed wrapper and separate runner. The viewer has no Firebase SDK, Firebase build variables, persistence or account authentication. Its ordinary network requests are same-origin only. Hashed assets are immutable; HTML and APIs are uncached. CSP is applied to both wrapper and execution document, with distinct `frame-ancestors` policies.
 
+Requests to `/` or `/index.html` without a copy code redirect to `https://apxagent.app`; copy-code links keep opening the viewer. Query strings cannot choose the redirect destination.
+
 The build packages `index.html`, `runner.html` and the viewer's hashed JavaScript/CSS as text modules in the same Worker upload. No static-assets binding, separate upload session or assets JWT exists. The scripts API uses the existing credential reference; Wrangler and Miniflare are local build/test tools. Source maps and unknown asset paths are not served. All routes still pass through the same response-header boundary.
 
 The execution iframe always has `sandbox="allow-scripts"`, never `allow-same-origin`. `credentialless` adds isolation where supported but is not required: Firefox, Safari and iPhone browsers use the same opaque sandbox. No uploaded HTML executes in the wrapper's origin. The runner denies network requests, frames, forms and an APX bridge; inlined APX Kit and a cloned state selection work offline. CSP is not an IP-anonymity firewall: WebRTC/STUN and DNS prefetch remain browser-level limitations.
@@ -74,4 +76,4 @@ The account's published list remains useful without its original local source. O
 
 No announcement, owner news entry, release or merge is part of this rollout. Production deployment and outside-device checks must be reported as unverified when permissions or owner activation block them.
 
-Docs impact: updated — this boundary document, [the public artifact decision](DECISIONS.md#d-248-public-artifacts), infrastructure EN/ES setup, release verification and artifact user guides cover R2/Worker, Firebase independence, authorization, budgets, cleanup and the limits of revocation.
+Docs impact: updated — this boundary document, [the public artifact decision](DECISIONS.md#d-248), infrastructure EN/ES setup, release verification and artifact user guides cover R2/Worker, Firebase independence, authorization, budgets, cleanup and the limits of revocation.

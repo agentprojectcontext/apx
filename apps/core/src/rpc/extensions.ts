@@ -1,19 +1,96 @@
-// Extensions, for the owner: inspect a folder, install it (off), turn it on or off, give it its secrets.
-import type { Extensions } from "../extensions/extensions.ts";
+// Extensions, for the owner: inspect a folder, an .apxext file or a URL, install it (off), go back a version, turn it
+// on or off, give it its secrets.
+import type { Bus } from "../bus.ts";
+import type { CatalogRecord } from "../domain/extension-catalogs.ts";
+import { SUGGESTED } from "../extensions/catalogs.ts";
+import type { ExtensionInput, Extensions } from "../extensions/extensions.ts";
 import type { Mcp } from "../mcp/manager.ts";
 import type { Handlers } from "./router.ts";
 
-export function extensionHandlers(extensions: Extensions, mcp: Mcp) {
+/** The one place given, as the protocol checked it. */
+const source = (
+  path?: string,
+  file?: { name: string; data: string },
+  url?: string,
+  entry?: { catalog: string; id: string },
+): ExtensionInput => (path !== undefined ? { path } : file ? { file } : entry ? { entry } : { url: url ?? "" });
+
+/** An added catalog as the owner sees it. */
+const shown = (c: CatalogRecord) => ({
+  id: c.id,
+  name: c.name,
+  source: c.source,
+  kind: c.kind,
+  ...(c.ref ? { ref: c.ref } : {}),
+  ...(c.synced_sha ? { synced_sha: c.synced_sha } : {}),
+  ...(c.synced_at ? { synced_at: c.synced_at } : {}),
+  count: c.entries.length,
+  skipped: c.skipped,
+});
+
+/** The methods that change what the owner has: an open Marketplace anywhere hears of it. */
+const CHANGES = [
+  "extensions.install",
+  "extensions.rollback",
+  "extensions.enable",
+  "extensions.remove",
+  "extensions.set_secret",
+  "extensions.settings",
+  "extensions.catalog_add",
+  "extensions.catalog_sync",
+  "extensions.catalog_remove",
+] as const;
+
+export function extensionHandlers(extensions: Extensions, mcp: Mcp, bus: Bus) {
+  const handlers = extensionMethods(extensions, mcp);
+  const told = { ...handlers };
+  for (const name of CHANGES) {
+    const run = handlers[name] as (p: never) => unknown;
+    (told as Record<string, unknown>)[name] = async (p: never) => {
+      const out = await run(p);
+      bus.emit({ type: "extensions.changed" });
+      return out;
+    };
+  }
+  return told as typeof handlers;
+}
+
+function extensionMethods(extensions: Extensions, mcp: Mcp) {
+  const { catalogs } = extensions;
   /** Its MCP servers stop now rather than at their idle timeout. */
   const dropServers = (id: string) => {
     for (const name of extensions.list().find((e) => e.id === id)?.mcp ?? []) mcp.drop({ scope: "global", name });
   };
   return {
     "extensions.list": () => ({ extensions: extensions.list() }),
-    "extensions.inspect": ({ path }) => extensions.inspect(path),
-    "extensions.install": ({ path }) => {
-      const info = extensions.install(path);
-      if (!info.enabled) dropServers(info.id);
+    "extensions.catalogs": () => ({ catalogs: catalogs.list().map(shown), suggested: SUGGESTED }),
+    "extensions.catalog_add": async ({ source: text }) => shown(await catalogs.add(text)),
+    "extensions.catalog_sync": async ({ id }) => shown(await catalogs.sync(id)),
+    "extensions.catalog_remove": ({ id }) => ({ removed: catalogs.remove(id) }),
+    "extensions.catalog": ({ refresh }) => extensions.catalogEntries(refresh),
+    "extensions.settings": ({ id, values }) => {
+      // Its servers start again with the new values at their next use.
+      dropServers(id);
+      return extensions.setSettings(id, values);
+    },
+    "extensions.page": ({ id, page }) => extensions.page(id, page),
+    "extensions.companion_file": ({ id }) => extensions.companionFile(id),
+    "extensions.app_bundle": ({ id, file }) => extensions.appBundle(id, file),
+    "extensions.asset": async ({ id, file }) => (await extensions.asset(id, file)) ?? {},
+    "extensions.pack": ({ path }) => extensions.pack(path),
+    "extensions.inspect": ({ path, file, url, entry }) => extensions.inspect(source(path, file, url, entry)),
+    "extensions.install": async ({ path, file, url, entry, hash }) => {
+      const before = extensions.list();
+      const info = await extensions.install(source(path, file, url, entry), hash);
+      // Its servers start again with the new files at their next use; a server this version dropped stops now.
+      for (const name of new Set([...(before.find((e) => e.id === info.id)?.mcp ?? []), ...info.mcp]))
+        mcp.drop({ scope: "global", name });
+      return info;
+    },
+    "extensions.rollback": ({ id }) => {
+      dropServers(id);
+      const info = extensions.rollback(id);
+      dropServers(id);
       return info;
     },
     "extensions.enable": ({ id, enabled }) => {

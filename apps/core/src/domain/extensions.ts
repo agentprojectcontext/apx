@@ -1,6 +1,17 @@
-// Installed extensions: the manifest as it was read at install, the copy's folder and fingerprint, on or off.
-import type { ExtensionManifest } from "@apx/protocol";
+// Installed extensions: the manifest as it was read at install, the copy's folder and fingerprint, on or off, where it
+// came from by fingerprint, and the version it replaced (kept to go back to).
+import { ExtensionManifest, type ExtensionProvenance } from "@apx/protocol";
 import { now, qb, type Sql } from "./sql.ts";
+
+/** A version kept beside the installed one: as it was when replaced, approved or not. */
+export type PreviousVersion = {
+  manifest: ExtensionManifest;
+  hash: string;
+  source: string;
+  provenance: ExtensionProvenance;
+  enabled: boolean;
+  installed_at: string;
+};
 
 export type ExtensionRecord = {
   id: string;
@@ -10,7 +21,48 @@ export type ExtensionRecord = {
   source: string;
   enabled: boolean;
   installed_at: string;
+  provenance: ExtensionProvenance;
+  previous: PreviousVersion | undefined;
+  /** Its plain settings as the owner set them (manifest 2). */
+  settings: Record<string, string | number | boolean>;
 };
+
+/** A manifest as stored: read again through the schema, so one stored before a field existed gets its default. */
+function manifestOf(raw: string): ExtensionManifest {
+  const json: unknown = JSON.parse(raw);
+  const p = ExtensionManifest.safeParse(json);
+  return p.success ? p.data : (json as ExtensionManifest);
+}
+
+function settingsOf(raw: string | null): Record<string, string | number | boolean> {
+  if (!raw) return {};
+  try {
+    const v: unknown = JSON.parse(raw);
+    return v && typeof v === "object" ? (v as Record<string, string | number | boolean>) : {};
+  } catch {
+    return {};
+  }
+}
+
+type NewRecord = Omit<ExtensionRecord, "enabled" | "installed_at" | "settings"> & {
+  /** Kept on although its files changed (an official update asking for nothing more). */
+  keepOn?: boolean;
+  /** Set as given (going back to a version as it was approved); otherwise decided by its fingerprint. */
+  enabled?: boolean;
+  installed_at?: string;
+};
+
+const provenanceOf = (v: string): ExtensionProvenance => (v === "official" ? "official" : "third_party");
+
+function previousOf(raw: string | null): PreviousVersion | undefined {
+  if (!raw) return undefined;
+  try {
+    const p = JSON.parse(raw) as PreviousVersion;
+    return { ...p, provenance: provenanceOf(p.provenance), enabled: Boolean(p.enabled) };
+  } catch {
+    return undefined;
+  }
+}
 
 export function extensionsRepo({ one, all, run }: Sql) {
   const toRecord = (r: {
@@ -21,14 +73,20 @@ export function extensionsRepo({ one, all, run }: Sql) {
     source: string;
     enabled: number;
     installed_at: string;
+    provenance: string;
+    previous: string | null;
+    settings: string | null;
   }): ExtensionRecord => ({
     id: r.id,
-    manifest: JSON.parse(r.manifest) as ExtensionManifest,
+    manifest: manifestOf(r.manifest),
     hash: r.hash,
     dir: r.dir,
     source: r.source,
     enabled: Boolean(r.enabled),
     installed_at: r.installed_at,
+    provenance: provenanceOf(r.provenance),
+    previous: previousOf(r.previous),
+    settings: settingsOf(r.settings),
   });
   const repo = {
     get(id: string): ExtensionRecord | undefined {
@@ -41,36 +99,45 @@ export function extensionsRepo({ one, all, run }: Sql) {
     enabled(): ExtensionRecord[] {
       return all(qb.selectFrom("extensions").selectAll().where("enabled", "=", 1).orderBy("id")).map(toRecord);
     },
-    /** Adds or replaces one; a changed fingerprint turns it off until the owner turns it on again. */
-    put(e: Omit<ExtensionRecord, "enabled" | "installed_at">): ExtensionRecord {
+    /** Adds or replaces one; a changed fingerprint turns it off until the owner turns it on again (unless `keepOn`). */
+    put(e: NewRecord): ExtensionRecord {
       const cur = one(qb.selectFrom("extensions").select(["hash", "enabled"]).where("id", "=", e.id));
       const at = now();
-      const enabled = cur && cur.hash === e.hash ? cur.enabled : 0;
+      const enabled =
+        e.enabled !== undefined ? (e.enabled ? 1 : 0) : cur && (cur.hash === e.hash || e.keepOn) ? cur.enabled : 0;
+      const fields = {
+        manifest: JSON.stringify(e.manifest),
+        hash: e.hash,
+        dir: e.dir,
+        source: e.source,
+        enabled,
+        provenance: e.provenance,
+        previous: e.previous ? JSON.stringify(e.previous) : null,
+        updated_at: at,
+      };
       run(
         qb
           .insertInto("extensions")
-          .values({
-            id: e.id,
-            manifest: JSON.stringify(e.manifest),
-            hash: e.hash,
-            dir: e.dir,
-            source: e.source,
-            enabled,
-            installed_at: at,
-            updated_at: at,
-          })
+          .values({ id: e.id, ...fields, installed_at: e.installed_at ?? at })
           .onConflict((oc) =>
-            oc.column("id").doUpdateSet({
-              manifest: JSON.stringify(e.manifest),
-              hash: e.hash,
-              dir: e.dir,
-              source: e.source,
-              enabled,
-              updated_at: at,
-            }),
+            oc
+              .column("id")
+              .doUpdateSet({ ...fields, ...(e.installed_at !== undefined ? { installed_at: e.installed_at } : {}) }),
           ),
       );
       return repo.get(e.id) as ExtensionRecord;
+    },
+    /** The same files under another fingerprint (how it is computed changed); on or off stays as it is. */
+    setHash(id: string, hash: string): void {
+      run(qb.updateTable("extensions").set({ hash, updated_at: now() }).where("id", "=", id));
+    },
+    setSettings(id: string, values: Record<string, string | number | boolean>): void {
+      run(
+        qb
+          .updateTable("extensions")
+          .set({ settings: JSON.stringify(values), updated_at: now() })
+          .where("id", "=", id),
+      );
     },
     setEnabled(id: string, enabled: boolean): void {
       run(

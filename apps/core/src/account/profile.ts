@@ -14,6 +14,15 @@ function accountHandle(value: string): string {
   return handle;
 }
 
+function profileName(name: string): string {
+  let result = "";
+  for (const point of name) {
+    if (result.length + point.length > 100) break;
+    result += point;
+  }
+  return result;
+}
+
 /** Account writes use preconditions, so a collision never overwrites another person's reservation. */
 export function createAccountProfiles(deps: { project: string; origin?: string; fetch?: typeof fetch }) {
   const fetchImpl = deps.fetch ?? fetch;
@@ -48,7 +57,12 @@ export function createAccountProfiles(deps: { project: string; origin?: string; 
       if (existing) return existing.profile;
       // A bounded retry handles short-id collisions and simultaneous first sign-ins on two devices.
       for (let attempt = 0; attempt < 5; attempt++) {
-        const profile = { id: accountId(), name: name.slice(0, 100), photo: photo.slice(0, 2048), handle: "" };
+        const profile = {
+          id: accountId(),
+          name: profileName(name),
+          photo: photo.slice(0, 2048),
+          handle: "",
+        };
         const result = await request(token, `${root}:commit`, {
           writes: [
             { update: { name: doc(`users/${uid}`), fields: fields(profile) }, currentDocument: { exists: false } },
@@ -82,10 +96,10 @@ export function createAccountProfiles(deps: { project: string; origin?: string; 
           update: { name: doc(`accountHandles/${handle}`), fields: fields({ uid }) },
           currentDocument: { exists: false },
         });
-      if (existing.profile.handle)
-        writes.push({ delete: doc(`accountHandles/${existing.profile.handle}`), currentDocument: { exists: true } });
+      if (existing.profile.handle) writes.push({ delete: doc(`accountHandles/${existing.profile.handle}`) });
       const result = await request(token, `${root}:commit`, { writes });
-      if ([403, 409].includes(result.status)) throw new Error("handle_unavailable");
+      if (result.status === 409) throw new Error("handle_unavailable");
+      if (result.status === 403) throw new Error("account_access_denied");
       if (result.status !== 200) throw new Error("account_unavailable");
       return profile;
     },

@@ -15,6 +15,7 @@ function fixture(origin = "http://127.0.0.1:7449") {
   let refreshes = 0;
   let hold: Promise<void> | undefined;
   let fail = false;
+  const signedIn: string[] = [];
   const send: typeof fetch = async (input, init) => {
     const url = String(input);
     if (url.includes("/google/token")) {
@@ -76,6 +77,7 @@ function fixture(origin = "http://127.0.0.1:7449") {
     client: { project: "demo-account", apiKey: "test-key" },
     google: { clientId: "test-client", clientSecret: "test-secret" },
     origin: () => origin,
+    onSignedIn: (profile) => signedIn.push(profile.name),
     now: () => now,
     fetch: send,
     endpoints: {
@@ -108,17 +110,19 @@ function fixture(origin = "http://127.0.0.1:7449") {
       fail = true;
     },
     refreshes: () => refreshes,
+    signedIn,
   };
 }
 
 test("account sign-in uses PKCE, keeps credentials secret, survives restart and removes the session on sign-out", async () => {
   const f = fixture();
   try {
-    assert.deepEqual(f.account.status(), { available: true, profile: null });
+    assert.deepEqual(f.account.status(), { available: true, profile: null, pending: false });
     const state = f.start();
     await assert.rejects(f.account.finish("code", `${state}forged`), /sign_in_expired/);
     assert.deepEqual(await f.account.finish("code", state), { ok: true });
     await assert.rejects(f.account.finish("code", state), /sign_in_expired/);
+    assert.deepEqual(f.signedIn, ["Acme"], "told once, with the saved profile");
     const status = f.account.status();
     assert.equal(status.profile?.name, "Acme");
     assert.doesNotMatch(JSON.stringify(status), /secret|Token|person/);
@@ -146,12 +150,30 @@ test("installed-app sign-in refuses non-loopback redirect origins before issuing
   ]) {
     const f = fixture(origin);
     try {
-      assert.throws(() => f.account.start(), { message: "account_unavailable" });
+      assert.throws(() => f.account.start(), { message: "sign_in_local_only" });
       assert.equal(f.account.status().profile, null);
       assert.equal(f.secrets.has(`secret://${APX_ACCOUNT_SESSION}`), false);
     } finally {
       await f.dir.remove();
     }
+  }
+});
+
+test("Google cancellation validates state, consumes the flow and ends waiting without a session", async () => {
+  const f = fixture();
+  try {
+    const state = f.start();
+    assert.equal(f.account.status().pending, true);
+    await assert.rejects(f.account.finish("", "forged", "access_denied"), /sign_in_expired/);
+    assert.equal(f.account.status().pending, true);
+    await assert.rejects(f.account.finish("", state, "access_denied"), /sign_in_cancelled/);
+    assert.equal(f.account.status().pending, false);
+    assert.equal(f.account.status().profile, null);
+    await assert.rejects(f.account.finish("code", state), /sign_in_expired/);
+    await f.account.finish("code", f.start());
+    assert.ok(f.account.status().profile);
+  } finally {
+    await f.dir.remove();
   }
 });
 
@@ -168,6 +190,28 @@ test("expired and superseded flows fail and provider errors are sanitized", asyn
     await assert.rejects(f.account.finish("code", fresh), { message: "account_unavailable" });
     assert.equal(f.account.status().profile, null);
   } finally {
+    await f.dir.remove();
+  }
+});
+
+test("sign-out invalidates in-flight sign-in and cannot restore its saved session", async () => {
+  const f = fixture();
+  let release = () => {};
+  try {
+    f.pause(
+      new Promise<void>((resolve) => {
+        release = resolve;
+      }),
+    );
+    const state = f.start();
+    const finishing = f.account.finish("code", state);
+    f.account.logout();
+    release();
+    await assert.rejects(finishing, /sign_in_cancelled/);
+    assert.equal(f.account.status().profile, null);
+    assert.equal(f.secrets.has(`secret://${APX_ACCOUNT_SESSION}`), false);
+  } finally {
+    release();
     await f.dir.remove();
   }
 });
@@ -248,28 +292,6 @@ test("sign-out during renewal neither starts private work nor restores credentia
     assert.equal(f.secrets.has(`secret://${APX_ACCOUNT_SESSION}`), false);
   } finally {
     gate.resolve();
-    await f.dir.remove();
-  }
-});
-
-test("sign-out invalidates in-flight sign-in and cannot restore its saved session", async () => {
-  const f = fixture();
-  let release = () => {};
-  try {
-    f.pause(
-      new Promise<void>((resolve) => {
-        release = resolve;
-      }),
-    );
-    const state = f.start();
-    const finishing = f.account.finish("code", state);
-    f.account.logout();
-    release();
-    await assert.rejects(finishing, /sign_in_cancelled/);
-    assert.equal(f.account.status().profile, null);
-    assert.equal(f.secrets.has(`secret://${APX_ACCOUNT_SESSION}`), false);
-  } finally {
-    release();
     await f.dir.remove();
   }
 });

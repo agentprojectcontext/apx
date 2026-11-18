@@ -50,7 +50,9 @@ export const ArtifactWindow = lazy(() =>
   import("./apps/ArtifactWindow.tsx").then((m) => ({ default: m.ArtifactWindow })),
 );
 export const OAuthReturn = lazy(
-  withPacks(["resources"], () => import("./resources/OAuthReturn.tsx").then((m) => ({ default: m.OAuthReturn }))),
+  withPacks(["resources", "cloudAccount"], () =>
+    import("./resources/OAuthReturn.tsx").then((m) => ({ default: m.OAuthReturn })),
+  ),
 );
 
 export const AttachChips = lazy(() =>
@@ -77,7 +79,9 @@ export const ChannelDialogs = lazy(
   ),
 );
 export const ConfigModal = lazy(
-  withPacks(["team"], () => import("./config/ConfigModal.tsx").then((m) => ({ default: m.ConfigModal }))),
+  withPacks(["team", "cloudAccount", "publicCopies"], () =>
+    import("./config/ConfigModal.tsx").then((m) => ({ default: m.ConfigModal })),
+  ),
 );
 export const McpPeek = lazy(
   withPacks(["resources"], () => import("./resources/McpPeek.tsx").then((m) => ({ default: m.McpPeek }))),
@@ -163,6 +167,11 @@ export const ProjectScreen = lazy(
     import("./project/ProjectScreen.tsx").then((m) => ({ default: m.ProjectScreen })),
   ),
 );
+export const MarketplaceScreen = lazy(
+  withPacks(["resources"], () =>
+    import("./marketplace/MarketplaceScreen.tsx").then((m) => ({ default: m.MarketplaceScreen })),
+  ),
+);
 export const ResourcesScreen = lazy(
   withPacks(["resources"], () => import("./project/ResourcesScreen.tsx").then((m) => ({ default: m.ResourcesScreen }))),
 );
@@ -176,6 +185,11 @@ export const PublicCopyDialog = lazy(
 );
 export const InstallArtifactDialog = lazy(() =>
   import("./surfaces/ArtifactDialogs.tsx").then((m) => ({ default: m.ArtifactDialogs })),
+);
+export const InstallExtensionDialog = lazy(
+  withPacks(["resources"], () =>
+    import("./resources/InstallExtension.tsx").then((m) => ({ default: m.InstallExtensionDialog })),
+  ),
 );
 export const LiveLayer = lazy(() => import("./surfaces/LiveLayer.tsx").then((m) => ({ default: m.LiveLayer })));
 export const WelcomeV2 = lazy(() => import("./shell/WelcomeV2.tsx").then((m) => ({ default: m.WelcomeV2 })));

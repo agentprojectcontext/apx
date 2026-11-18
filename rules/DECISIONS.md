@@ -5360,7 +5360,7 @@ things. This replaces D-241's sections and its item page steps:
 - **Skills and agents are filters**, not sections (All, Connections, Skills, Agents, Devices); an empty filter is not
   shown. The left column has Explore, Your extensions (**Needs attention**: off, missing keys or settings, an error,
   a new version; then **Active**) and **Advanced** at its foot: catalogs, installing from a file, a folder or a
-  command, and the guide. The sidebar icon is a puzzle piece.
+  command, and the guide. The sidebar keeps the store icon; the puzzle piece marks Explore, where the pieces are (owner, 2026-11-18).
 - **One button that follows the state**: Add → Connect (Pair for a companion app) → Connected. Connecting an added
   extension still approves its hosts, keys and files first (the add box since [D-246](#d-246)). APX cannot tell whether a companion
   app is paired, so Pair stays the button of an extension with one. Turn off, update, roll back, settings and remove
@@ -5411,6 +5411,12 @@ MCP address before adding it (a new method for what connecting already does).
 The APX account is optional and separate from local owner identity, Google integrations and telemetry. Signing in
 uploads only the account profile, not projects, conversations or agents. It does not publish an artifact.
 
+One exception to the separation (2026-11-18, the owner's call): signing in names an owner who has no name yet (the
+panel says "You") after the Google profile. A name the owner typed is never replaced by the core; the panel shows
+both and the owner picks, once per account. About, language and time zone are never synced; carrying who you are to
+other APX installs with the account is left for later. Settings › Account shows the local owner and the account in
+one card.
+
 Use Firebase Authentication with Google and Firestore REST, without Cloud Functions or a billing upgrade. Google
 installed-app authorization uses PKCE S256, random expiring state and an HTTP `127.0.0.1` return under RFC 8252.
 The existing panel return page always completes the loopback-only registered protocol method in the browser.
@@ -5435,7 +5441,7 @@ it is a mandatory manual gate before every rules deployment (see RELEASE.md), no
 
 See [Firebase setup](../firebase/README.md) and its Spanish counterpart for configuration, rules and verification.
 
-<a id="d-248-public-artifacts"></a>
+<a id="d-248"></a>
 ## D-248 — 2026-11-18 — Public artifacts use R2 and a Worker, independent of Firebase read quotas
 
 A public artifact is an independently chosen copy of HTML and optional top-level state, published at

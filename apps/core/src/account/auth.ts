@@ -36,6 +36,7 @@ export function accountPost(send: typeof fetch) {
     url: string,
     body: Record<string, string | boolean>,
     form = false,
+    refresh = false,
   ): Promise<Record<string, unknown>> => {
     try {
       const response = await send(url, {
@@ -48,9 +49,21 @@ export function accountPost(send: typeof fetch) {
           : JSON.stringify(body),
         signal: AbortSignal.timeout(20_000),
       });
-      if (!response.ok) throw new Error("account_unavailable");
+      if (!response.ok) {
+        if (refresh && [400, 401, 403].includes(response.status)) {
+          const data = (await response.json()) as { error?: { message?: string } };
+          if (
+            ["TOKEN_EXPIRED", "USER_DISABLED", "USER_NOT_FOUND", "INVALID_REFRESH_TOKEN", "INVALID_GRANT"].includes(
+              data.error?.message ?? "",
+            )
+          )
+            throw new Error("sign_in_required");
+        }
+        throw new Error("account_unavailable");
+      }
       return (await response.json()) as Record<string, unknown>;
-    } catch {
+    } catch (error) {
+      if (refresh && error instanceof Error && error.message === "sign_in_required") throw error;
       throw new Error("account_unavailable");
     }
   };

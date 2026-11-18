@@ -10,6 +10,8 @@ import { enCall } from "./call-en.ts";
 import { esCall } from "./call-es.ts";
 import { enCards } from "./cards-en.ts";
 import { esCards } from "./cards-es.ts";
+import { enCloudAccount } from "./cloud-account-en.ts";
+import { esCloudAccount } from "./cloud-account-es.ts";
 import { enComputer } from "./computer-en.ts";
 import { esComputer } from "./computer-es.ts";
 import { en as base } from "./en.ts";
@@ -40,6 +42,16 @@ import { enThreadDialogs } from "./thread-dialogs-en.ts";
 import { esThreadDialogs } from "./thread-dialogs-es.ts";
 import { enVoice } from "./voice-en.ts";
 import { esVoice } from "./voice-es.ts";
+
+test("cloud sign-in feedback loads with account screens, not the first screen", async () => {
+  const { loadMessages, loadPack } = await import("./messages.ts");
+  for (const lang of ["en", "es"] as const) {
+    const base = await loadMessages(lang);
+    for (const key of Object.keys(enCloudAccount) as (keyof typeof enCloudAccount)[])
+      assert.equal(base[key], undefined);
+    assert.deepEqual(await loadPack("cloudAccount", lang), lang === "en" ? enCloudAccount : esCloudAccount);
+  }
+});
 
 test("the setup screens' strings load with them, never with the first screen", async () => {
   const { loadMessages, loadPack } = await import("./messages.ts");
@@ -204,6 +216,7 @@ test("the Voices settings' strings load only with that section in both languages
 const en = {
   ...base,
   ...enAccount,
+  ...enCloudAccount,
   ...enActivityReview,
   ...enApprovals,
   ...enCall,
@@ -225,6 +238,7 @@ const en = {
 const es = {
   ...esBase,
   ...esAccount,
+  ...esCloudAccount,
   ...esActivityReview,
   ...esApprovals,
   ...esCall,

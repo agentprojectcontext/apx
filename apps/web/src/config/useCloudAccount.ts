@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import { accountReturnState } from "../data/account.ts";
 import { client } from "../data/client.ts";
 import { useSlice } from "../data/createStore.ts";
+import { accountPhotoRead } from "../data/owner.ts";
 import { onSignInDone } from "../data/signInWindow.ts";
 
 export function useCloudAccount() {
@@ -18,6 +19,7 @@ export function useCloudAccount() {
   const [saved, setSaved] = useState(false);
   const [revision, setRevision] = useState(0);
   const version = useRef(0);
+  const lastRead = useRef(0);
   const confirmed = useRef<string | undefined>(undefined);
   const alive = useRef(true);
   const mutating = useRef(false);
@@ -30,18 +32,20 @@ export function useCloudAccount() {
   useEffect(() => {
     if (revision === 0 && returned.revision === 0) setLoading(true);
     const current = ++version.current;
+    lastRead.current = Date.now();
     void client
       .call("account.get", {})
       .then((result) => {
         if (version.current !== current) return;
         setProfile(result.profile);
+        accountPhotoRead(result.profile?.photo ?? "");
         setAvailable(result.available);
         setReadError(undefined);
         if (confirmed.current !== result.profile?.handle) {
           confirmed.current = result.profile?.handle;
           setHandle(result.profile?.handle ?? "");
         }
-        if (result.profile) setWaiting(false);
+        if (result.profile || !result.pending) setWaiting(false);
       })
       .catch((reason: unknown) => {
         if (version.current === current) setReadError(reason);
@@ -57,7 +61,10 @@ export function useCloudAccount() {
     const refresh = () => {
       if (!mutating.current) setRevision((value) => value + 1);
     };
-    window.addEventListener("focus", refresh);
+    const focus = () => {
+      if (waiting || Date.now() - lastRead.current >= 15_000) refresh();
+    };
+    window.addEventListener("focus", focus);
     const off = onSignInDone((id) => {
       if (id === "account") {
         setWaiting(false);
@@ -66,9 +73,9 @@ export function useCloudAccount() {
     });
     return () => {
       off();
-      window.removeEventListener("focus", refresh);
+      window.removeEventListener("focus", focus);
     };
-  }, []);
+  }, [waiting]);
   useEffect(() => {
     if (returned.error) {
       setError(new Error(returned.error));
@@ -120,6 +127,7 @@ export function useCloudAccount() {
       await client.call("account.logout", {});
       if (alive.current) {
         setProfile(null);
+        accountPhotoRead("");
         setWaiting(false);
       }
     });

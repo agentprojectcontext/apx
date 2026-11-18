@@ -1,34 +1,32 @@
-import type { McpServerStatus, Result } from "@apx/protocol";
+import type { McpServerStatus } from "@apx/protocol";
 import {
   Badge,
   Button,
-  ContextMenu,
+  ConfirmDialog,
   Dialog,
-  EmptyState,
   Field,
   Icons,
   Input,
   IntegrationIcon,
-  MasterDetail,
-  PickRow,
   ProjectTile,
   SegmentedControl,
   Switch,
 } from "@apx/ui";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { EmailSignatures } from "../config/EmailSignatures.tsx";
 import { client } from "../data/client.ts";
-import { loadMarks } from "../data/models.ts";
 import { notify } from "../data/notices.ts";
 import { signInMcp } from "../data/resources.ts";
-import { useData } from "../data/state.ts";
 import { isKey, useT } from "../i18n/index.ts";
 import { CalendarReminders } from "./CalendarReminders.tsx";
 import { GoogleSignInForm } from "./GoogleSignIn.tsx";
 import { MailCheck } from "./MailCheck.tsx";
-import type { TabProps } from "./ResourcesView.tsx";
 
-export type Integration = Result<"integrations.list">["integrations"][number];
+export type { Integration } from "./extensionItems.ts";
+
+import { ConnectHead } from "../marketplace/ConnectHead.tsx";
+import type { Integration } from "./extensionItems.ts";
+
 const errText = (e: unknown) => (e instanceof Error ? e.message : String(e));
 /** What each one is, in the owner's language (`int.desc.<id without dashes>`; the core's text otherwise). */
 export const describe = (i: Pick<Integration, "id" | "description">, t: ReturnType<typeof useT>) => {
@@ -48,213 +46,33 @@ function Tile({ i, size = 32 }: { i: Pick<Integration, "id" | "label">; size?: n
   return <IntegrationIcon id={i.id} name={i.label} size={size} />;
 }
 
-/**
- * Integrations: an account connected once (GitHub, Notion, Slack…) that brings its MCP server and the variables it
- * needs. The list holds the connected ones; each says where it is used, project by project.
- */
-export function IntegrationsTab({ projectId, query, scope, adding, setAdding }: TabProps) {
-  const t = useT();
-  const all = useData((s) => s.projects);
-  const projects = useMemo(() => all.filter((p) => p.path && p.registered !== false), [all]);
-  const [list, setList] = useState<Integration[]>();
-  const [picked, setPicked] = useState<string>();
-  /** "Edit" from the list's menu: the detail opens with its form (a new number opens it again). */
-  const [editing, setEditing] = useState(0);
-  const load = useCallback(async () => {
-    try {
-      setList((await client.call("integrations.list", {})).integrations);
-    } catch (e) {
-      notify(t("error.load", { error: errText(e) }));
-    }
-  }, [t]);
-  useEffect(() => {
-    loadMarks();
-    void load();
-  }, [load]);
-
-  const toggle = async (id: string, project: string, on: boolean) => {
-    try {
-      await client.call("mcp.toggle", { project, server: id, on });
-      await load();
-    } catch (e) {
-      notify(t("error.change", { error: errText(e) }));
-    }
-  };
-
-  const connected = (list ?? [])
-    .filter((i) => i.connected)
-    .filter((i) => !query || `${i.label} ${describe(i, t)}`.toLowerCase().includes(query))
-    .filter((i) => scope === "all" || scope === "global" || !i.off_in.includes(scope));
-
-  const dialog = adding && list && (
-    <ConnectDialog
-      list={list}
-      onClose={() => setAdding(false)}
-      onConnected={async (id) => {
-        setAdding(false);
-        await load();
-        setPicked(id);
-      }}
-    />
-  );
-  // Inside a project: its integrations, each on or off here.
-  if (projectId)
-    return (
-      <div className="resvars">
-        {!connected.length ? (
-          <EmptyState variant="dashed" icon={<Icons.Plug />}>
-            {t("int.noneHere")}
-          </EmptyState>
-        ) : (
-          <div className="int__rows">
-            {connected.map((i) => (
-              <div key={i.id} className="int__row">
-                <Tile i={i} />
-                <span className="int__rowmain">
-                  <b>{i.label}</b>
-                  <span>{describe(i, t)}</span>
-                </span>
-                <Switch
-                  size="sm"
-                  aria-label={i.label}
-                  checked={!i.off_in.includes(projectId)}
-                  onCheckedChange={(on) => void toggle(i.id, projectId, on)}
-                />
-              </div>
-            ))}
-          </div>
-        )}
-        {dialog}
-      </div>
-    );
-
-  const current = connected.find((i) => i.id === picked) ?? connected[0];
-  const disconnect = async (id: string) => {
-    try {
-      await client.call("integrations.disconnect", { id });
-      await load();
-    } catch (e) {
-      notify(t("error.change", { error: errText(e) }));
-    }
-  };
-  // Nothing connected yet: the invitation alone, no empty list beside it.
-  if (list && !list.some((i) => i.connected))
-    return (
-      <div className="resvars">
-        <EmptyState
-          variant="dashed"
-          icon={<Icons.Plug />}
-          title={t("int.emptyTitle")}
-          action={
-            <Button size="sm" leadingIcon={<Icons.Plus size={14} />} onClick={() => setAdding(true)}>
-              {t("int.connectNew")}
-            </Button>
-          }
-        >
-          {t("int.emptyBody")}
-        </EmptyState>
-        {dialog}
-      </div>
-    );
-  return (
-    <>
-      <MasterDetail
-        resizeKey="integrations"
-        listLabel={t("res.tab.integrations")}
-        backLabel={t("res.tab.integrations")}
-        onBack={() => setPicked(undefined)}
-        list={
-          <>
-            <div className="int__listhead">{t("int.connected")}</div>
-            {connected.map((i) => (
-              <ContextMenu
-                key={i.id}
-                items={[
-                  { label: t("res.open"), icon: <Icons.PanelRight size={14} />, onSelect: () => setPicked(i.id) },
-                  {
-                    label: t("res.edit"),
-                    icon: <Icons.Pencil size={14} />,
-                    onSelect: () => {
-                      setPicked(i.id);
-                      setEditing(Date.now());
-                    },
-                  },
-                  { type: "separator" },
-                  {
-                    label: t("int.disconnect"),
-                    icon: <Icons.Unplug size={14} />,
-                    danger: true,
-                    onSelect: () => void disconnect(i.id),
-                  },
-                ]}
-              >
-                <PickRow
-                  title={i.label}
-                  description={where(i, projects.length, t)}
-                  leading={<Tile i={i} />}
-                  dot="on"
-                  selected={current?.id === i.id}
-                  onClick={() => setPicked(i.id)}
-                />
-              </ContextMenu>
-            ))}
-            <Button
-              size="sm"
-              variant="secondary"
-              className="int__add"
-              leadingIcon={<Icons.Plus size={14} />}
-              onClick={() => setAdding(true)}
-            >
-              {t("int.connectNew")}
-            </Button>
-          </>
-        }
-        detail={
-          current ? (
-            <IntegrationDetail
-              key={`${current.id}:${editing}`}
-              i={current}
-              projects={projects}
-              onToggle={toggle}
-              onChanged={load}
-              editing={editing > 0}
-            />
-          ) : undefined
-        }
-        empty={
-          <EmptyState variant="dashed" icon={<Icons.Plug />} title={t("int.emptyTitle")}>
-            {t("int.emptyBody")}
-          </EmptyState>
-        }
-      />
-      {dialog}
-    </>
-  );
-}
-
 function where(i: Integration, total: number, t: ReturnType<typeof useT>): string {
   if (!i.off_in.length) return t("int.everywhere");
   return t("int.inSome", { n: total - i.off_in.length, total });
 }
 
-function IntegrationDetail({
+/** A connected one: its account, where it is used and its settings. `bare`: without its name (a page shows it). */
+export function IntegrationDetail({
   i,
   projects,
   onToggle,
   onChanged,
   editing = false,
+  bare = false,
 }: {
   i: Integration;
   projects: Array<{ id: string; name: string }>;
   onToggle(id: string, project: string, on: boolean): Promise<void>;
   onChanged(): Promise<void>;
   editing?: boolean;
+  bare?: boolean;
 }) {
   const t = useT();
   const [mode, setMode] = useState<"all" | "chosen">(i.off_in.length ? "chosen" : "all");
   const [account, setAccount] = useState(editing);
   const [preferences, setPreferences] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [asking, setAsking] = useState(false);
   useEffect(() => setMode(i.off_in.length ? "chosen" : "all"), [i.off_in.length]);
   const everywhere = async () => {
     setMode("all");
@@ -273,10 +91,10 @@ function IntegrationDetail({
   };
   return (
     <div className="int__detail">
-      <header className="int__head">
-        <Tile i={i} size={44} />
+      <header className={bare ? "int__head int__head--bare" : "int__head"}>
+        {!bare && <Tile i={i} size={44} />}
         <span className="int__titles">
-          <b>{i.label}</b>
+          {!bare && <b>{i.label}</b>}
           <span>
             {i.oauth?.account ? t("int.signedInAs", { account: i.oauth.account }) : t("int.connectedAs")} ·{" "}
             {where(i, projects.length, t)}
@@ -295,11 +113,22 @@ function IntegrationDetail({
             {t("int.configure")}
           </Button>
         )}
-        <Button size="sm" variant="ghost" loading={busy} onClick={() => void disconnect()}>
+        <Button size="sm" variant="ghost" loading={busy} onClick={() => setAsking(true)}>
           {t("int.disconnect")}
         </Button>
       </header>
-      <p className="int__desc">{describe(i, t)}</p>
+      {asking && (
+        <ConfirmDialog
+          title={t("mkt.disconnectTitle", { name: i.label })}
+          description={t("mkt.disconnectBody")}
+          confirmLabel={t("int.disconnect")}
+          cancelLabel={t("common.cancel")}
+          closeLabel={t("common.close")}
+          onConfirm={disconnect}
+          onClose={() => setAsking(false)}
+        />
+      )}
+      {!bare && <p className="int__desc">{describe(i, t)}</p>}
       {viaBrowser(i) && <BrowserSignIn id={i.id} />}
       <div className="int__usehead">
         <b>{t("int.usedIn")}</b>
@@ -530,6 +359,7 @@ function TokenForm({
       }
     >
       <div className="int__form">
+        <ConnectHead item={{ id: i.id, name: i.label }} state={busy ? "connecting" : "idle"} />
         <p className="int__desc">{t(viaBrowser(i) ? "int.browserNote" : "int.formNote")}</p>
         {i.fields.map((f) => (
           <Field

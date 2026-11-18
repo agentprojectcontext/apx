@@ -30,6 +30,7 @@ const PLACE_ICON: Record<AppPlace["kind"], ReactNode> = {
   project: <Icons.Folder size={13} />,
   computer: <Icons.Monitor size={13} />,
   channels: <Icons.MessageCircle size={13} />,
+  marketplace: <Icons.Store size={13} />,
 };
 
 /** What a click on an app link does, in words: where it goes, by name when the panel knows it. */
@@ -58,7 +59,9 @@ function usePlaceHint(place: AppPlace | undefined): string {
     case "resources":
       return place.server
         ? `${t("res.mcpOpen")}: ${place.server}`
-        : t("link.go.resources", { name: t(`res.tab.${place.tab}`) });
+        : place.tab === "integrations" || place.tab === "extensions"
+          ? t("nav.marketplace")
+          : t("link.go.resources", { name: t(`res.tab.${place.tab}`) });
     case "inbox":
       return t("link.go.inbox");
     case "chat":
@@ -69,6 +72,8 @@ function usePlaceHint(place: AppPlace | undefined): string {
       return t("nav.computers");
     case "channels":
       return t("nav.channels");
+    case "marketplace":
+      return t("nav.marketplace");
     default:
       return "";
   }

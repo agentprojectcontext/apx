@@ -447,6 +447,7 @@ export const en = {
   "nav.apps": "Apps",
   "nav.computers": "Computers",
   "nav.resources": "Resources",
+  "nav.marketplace": "Marketplace",
   "nav.files": "Files",
   "account.you": "You",
   "account.menuOf": "Account: {name}",
@@ -462,9 +463,9 @@ export const en = {
   "error.account": "Could not save your account: {error}",
   "account.owner": "Owner of this installation",
   "account.name": "Name",
-  "account.nameHint": "How the panel shows you and how your agents know you.",
-  "account.cloud": "Cloud account",
-  "account.cloudHint": "Optional. To sign in, use a browser on the computer running APX.",
+  "account.nameHint": "Your name. Your agents know it is you.",
+  "account.callMe": "How to call you",
+  "account.callMeHint": "How your agents talk to you and the panel names you. Empty: by your name.",
   "account.signIn": "Sign in with Google",
   "account.signOut": "Sign out",
   "account.shortId": "Your APX ID: {id}",
@@ -473,14 +474,12 @@ export const en = {
   "account.handlePlaceholder": "@username",
   "account.handleInvalid": "Use 3–24 letters, numbers or underscores, starting with a letter.",
   "account.handleUnavailable": "That username is unavailable. Try another one or reload your account.",
-  "account.unavailable": "Sign-in is not available in this build. You can keep using APX without an account.",
+  "account.unavailable": "Sign-in is not set up yet. You can keep using APX without an account.",
   "account.expired": "This sign-in has expired or was cancelled. Start again from APX.",
   "account.failed": "Could not update your account. Check your connection and try again.",
   "account.waiting": "Finish signing in in your browser, then return to APX.",
   "account.saved": "Username saved.",
-  "account.returnTitle": "Return to APX to finish signing in",
   "account.returnAction": "Open APX",
-  "account.returnHint": "Allow your browser to open APX when it asks.",
   "error.respond": "Could not send your answer: {error}",
   "running.label": "Processes",
   "running.aria": "{working} running, {waiting} waiting, {background} in the background",
@@ -1972,6 +1971,7 @@ export const en = {
 
 /** Every key the panel may show: these, and those of the packs loaded with their screens (messages.ts PACKS). */
 export type MessageKey =
+  | keyof typeof import("./cloud-account-en.ts").enCloudAccount
   | keyof typeof en
   | keyof typeof enPublicCopies
   | keyof typeof enAccount

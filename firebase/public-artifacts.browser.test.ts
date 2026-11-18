@@ -39,7 +39,13 @@ function fixture(spy: string) {
 }
 
 test("The Worker serves disjoint wrapper/runner policies and immutable hashed assets", async () => {
-  for (const pathname of ["/", "/index.html", "/abcd1234"]) {
+  for (const pathname of ["/", "/index.html"]) {
+    const response = await fetch(`${url.origin}${pathname}`, { redirect: "manual" });
+    assert.equal(response.status, 302);
+    assert.equal(response.headers.get("location"), "https://apxagent.app/");
+    assert.equal(response.headers.get("cache-control"), "no-store");
+  }
+  for (const pathname of ["/abcd1234"]) {
     const response = await fetch(`${url.origin}${pathname}`);
     assert.equal(response.status, 200);
     assert.equal(response.headers.get("cache-control"), "no-store");
@@ -60,7 +66,7 @@ test("The Worker serves disjoint wrapper/runner policies and immutable hashed as
   assert.match(csp, /script-src 'unsafe-inline'/);
   assert.match(csp, /sandbox allow-scripts/);
   assert.doesNotMatch(csp, /frame-ancestors 'none'|script-src 'self'|,/);
-  const html = await (await fetch(`${url.origin}/index.html`)).text();
+  const html = await (await fetch(`${url.origin}/abcd1234`)).text();
   const assets = [...html.matchAll(/(?:src|href)="(\/assets\/[^" ]+)"/g)].map((match) => match[1]);
   assert.ok(assets.length >= 2);
   for (const asset of assets) {

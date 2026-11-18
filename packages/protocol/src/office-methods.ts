@@ -1,4 +1,4 @@
-// Methods behind the office: tasks and commitments, routines, the attention tray and extensions.
+// Methods behind the office: tasks and commitments, routines and the attention tray (extensions: extension-methods.ts).
 import { z } from "zod";
 import { deferMethod } from "./defer-method.ts";
 import { Id, Message, Nudge, Run, Thread } from "./domain.ts";
@@ -7,7 +7,6 @@ import {
   ApiClient,
   CallModel,
   ClientScope,
-  ExtensionInfo,
   Notification,
   ProfileInfo,
   Routine,
@@ -503,98 +502,6 @@ export const officeMethods = {
       z.object({
         unread: z.number().int(),
       }),
-    effect: true,
-    access: "human",
-  }),
-  "extensions.list": deferMethod({
-    params: () => z.object({}).strict(),
-    result: () =>
-      z.object({
-        extensions: z.array(ExtensionInfo),
-      }),
-    effect: false,
-    access: "human",
-  }),
-  /** Reads a folder's apx-extension.json without installing or running anything. */
-  "extensions.inspect": deferMethod({
-    params: () =>
-      z
-        .object({
-          path: z.string().min(1).max(1000),
-        })
-        .strict(),
-    result: () => ExtensionInfo,
-    effect: false,
-    access: "human",
-  }),
-  /** Copies the folder into APX's home, off; installing it again replaces it (and turns it off if it changed). */
-  "extensions.install": deferMethod({
-    params: () =>
-      z
-        .object({
-          path: z.string().min(1).max(1000),
-        })
-        .strict(),
-    result: () => ExtensionInfo,
-    effect: true,
-    access: "human",
-  }),
-  "extensions.enable": deferMethod({
-    params: () =>
-      z
-        .object({
-          id: z.string().max(40),
-          enabled: z.boolean(),
-        })
-        .strict(),
-    result: () => ExtensionInfo,
-    effect: true,
-    access: "human",
-  }),
-  "extensions.remove": deferMethod({
-    params: () =>
-      z
-        .object({
-          id: z.string().max(40),
-        })
-        .strict(),
-    result: () =>
-      z.object({
-        removed: z.boolean(),
-      }),
-    effect: true,
-    access: "human",
-  }),
-  /** Stores (or with null, deletes) one of the secrets an extension declares. */
-  /** Asks the extension's plugin for context on a sample text, as a turn would: what it adds, or why not. */
-  "extensions.test": deferMethod({
-    params: () =>
-      z
-        .object({
-          id: z.string().min(1).max(80),
-          text: z.string().trim().min(1).max(2000),
-        })
-        .strict(),
-    result: () =>
-      z.object({
-        ok: z.boolean(),
-        ms: z.number().int(),
-        context: z.string().optional(),
-        error: z.string().optional(),
-      }),
-    effect: false,
-    access: "human",
-  }),
-  "extensions.set_secret": deferMethod({
-    params: () =>
-      z
-        .object({
-          id: z.string().max(40),
-          name: z.string().max(40),
-          value: z.string().max(10000).nullable(),
-        })
-        .strict(),
-    result: () => ExtensionInfo,
     effect: true,
     access: "human",
   }),

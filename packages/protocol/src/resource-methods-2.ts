@@ -199,6 +199,8 @@ export const resourceMethodsPart2 = {
             ),
             connected: z.boolean(),
             coming: z.boolean(),
+            /** APX has code of its own for it (its tools, its sign-in): it stays included with APX. */
+            own: z.boolean().optional(),
             /** Projects where it is turned off (it is on everywhere else). */
             off_in: z.array(Id),
             /**

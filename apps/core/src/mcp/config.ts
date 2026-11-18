@@ -6,7 +6,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { withoutBom } from "../apc/read.ts";
 import type { Store } from "../domain/store.ts";
-import { extSecret, SECRET_REF } from "../extensions/extensions.ts";
+import { extSecret, SECRET_REF, SETTING_REF } from "../extensions/extensions.ts";
 import { NO_GLOBALS } from "../skills/skills.ts";
 
 /** A command's arguments show in the process list to anyone on the computer: a variable goes in its env instead. */
@@ -106,15 +106,27 @@ function extensionDefs(store: Store): McpDef[] {
   return store.extensions.enabled().flatMap((e) =>
     Object.entries(e.manifest.mcp).flatMap(([name, server]) => {
       // A whole value or inside text ("Bearer secret://token"): always the extension's own secret, never the owner's.
-      const own = (v: string) => v.replace(SECRET_REF, (_m, n: string) => `secret://${extSecret(e.id, n)}`);
+      // Its plain settings (manifest 2) are filled in as set, or their default.
+      const setting = (n: string) => {
+        const v = e.settings[n] ?? e.manifest.settings.find((x) => x.name === n && !x.sensitive)?.default;
+        return v === undefined ? "" : String(v);
+      };
+      // In an address, a setting followed by a path drops its trailing "/" ("https://ha.example/" + "/api/mcp"), as the
+      // native integrations' addresses do.
+      const own = (v: string, address = false) =>
+        v
+          .replace(SECRET_REF, (_m, n: string) => `secret://${extSecret(e.id, n)}`)
+          .replace(SETTING_REF, (m, n: string, at: number, all: string) =>
+            address && all[at + m.length] === "/" ? setting(n).replace(/\/+$/, "") : setting(n),
+          );
       const map = (r: Record<string, string>) => Object.fromEntries(Object.entries(r).map(([k, v]) => [k, own(v)]));
       const raw: Raw = {
         ...(server.command
           ? { command: server.command.startsWith("./") ? path.join(e.dir, server.command) : server.command }
           : {}),
-        args: server.args.map(own),
+        args: server.args.map((a) => own(a)),
         env: map(server.env),
-        ...(server.url ? { url: own(server.url) } : {}),
+        ...(server.url ? { url: own(server.url, true) } : {}),
         headers: map(server.headers),
       };
       const d = toDef(`${e.id}-${name}`, raw, { scope: "global", cwd: e.dir });

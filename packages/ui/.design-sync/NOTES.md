@@ -26,6 +26,11 @@
   Flows screens; neither is in the Claude Design project yet. Their CSS is `dist/flow.css`, outside `styles.css` (it
   stays off the panel's first load): a re-sync bundles it too.
 - AgentAvatar's eye canvas now keeps its full size inside icon buttons; re-sync the shared CSS bundle.
+- Disclosure (a bordered row that opens to show its details, with DisclosureFacts for label/value lines) is new, for
+  the Marketplace's extension pages; not in the Claude Design project yet. Its CSS is `dist/disclosure.css`, outside
+  `styles.css`: a re-sync bundles it too. Menu items take a `description` (a muted second line). CatalogRow (a catalog entry: logo, name and badge,
+  two lines, one action or status) is new too, its CSS in `dist/catalog-row.css`. The icon set swaps
+  Store for Puzzle (the Marketplace's icon).
 - Meter is new (single or stacked bar with a legend) and the icon set gained Gauge, Cpu, HardDrive and MemoryStick:
   neither is in the Claude Design project yet.
 - Meter gained `shape="ring"` (one amount as a small circle beside text, for the composer's context use); not in the

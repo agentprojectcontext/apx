@@ -1,7 +1,15 @@
 // Where an app link an agent wrote goes (apx:settings/desktop, apx:tasks…): a place of the panel, or nothing for a
 // link it does not know (shown as its label).
 import { openMcp } from "../data/mcpPeek.ts";
-import { CONFIG_SECTIONS, type ConfigSection, go, nav, RESOURCE_TABS, type ResourceTab } from "../shell/nav.ts";
+import {
+  CONFIG_SECTIONS,
+  type ConfigSection,
+  go,
+  MARKET_SECTIONS,
+  nav,
+  RESOURCE_TABS,
+  type ResourceTab,
+} from "../shell/nav.ts";
 import { projectTabFrom } from "../shell/projectTabs.ts";
 
 const isIn = <T extends string>(list: readonly T[], v: string | undefined): v is T =>
@@ -19,7 +27,8 @@ export type AppPlace =
   | { kind: "chat"; id: string; open: () => void }
   | { kind: "project"; id: string; open: () => void }
   | { kind: "computer"; open: () => void }
-  | { kind: "channels"; open: () => void };
+  | { kind: "channels"; open: () => void }
+  | { kind: "marketplace"; open: () => void };
 
 /** The place an `apx:` link names; undefined when it names none. */
 export function appPlace(href: string): AppPlace | undefined {
@@ -63,6 +72,11 @@ export function appPlace(href: string): AppPlace | undefined {
     }
     case "inbox":
       return { kind: "inbox", open: () => go.inbox() };
+    // The Marketplace, a section of it, or one extension by its id.
+    case "marketplace": {
+      const section = a === undefined ? "extensions" : isIn(MARKET_SECTIONS, a) ? a : undefined;
+      return section ? { kind: "marketplace", open: () => go.marketplace(section, b) } : undefined;
+    }
     // The computer's panel beside the chat the link is in (its memory, its screen), or the Computers view.
     case "computer":
     case "computers":

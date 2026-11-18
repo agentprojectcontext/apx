@@ -24,6 +24,10 @@ const PACKS = {
     en: () => import("./public-copies-en.ts").then((m) => m.enPublicCopies),
     es: () => import("./public-copies-es.ts").then((m) => m.esPublicCopies),
   },
+  cloudAccount: {
+    en: () => import("./cloud-account-en.ts").then((m) => m.enCloudAccount),
+    es: () => import("./cloud-account-es.ts").then((m) => m.esCloudAccount),
+  },
   account: {
     en: () => import("./account-en.ts").then((m) => m.enAccount),
     es: () => import("./account-es.ts").then((m) => m.esAccount),

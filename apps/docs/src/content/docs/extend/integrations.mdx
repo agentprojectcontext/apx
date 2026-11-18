@@ -2,7 +2,7 @@
 title: Integrations and variables
 description: Connect an account once to give agents its tools, and keep tokens and keys as variables agents use but never see.
 sidebar:
-  order: 4
+  order: 5
 ---
 
 import { Aside, Steps } from "@astrojs/starlight/components";
@@ -12,17 +12,19 @@ import Terminal from "../../../components/Terminal.astro";
 ## Integrations
 
 An integration is an account you connect once, such as GitHub or Notion. Connecting it stores its token as a variable
-and adds its MCP server as one of your global servers, so your agents can use its tools right away.
+and adds its MCP server as one of your global servers, so your agents can use its tools right away. Integrations are
+the **Included** extensions: they come with APX, so you connect them instead of installing them, and they are never
+uninstalled ([Extensions](/extend/extensions/)).
 
 <Steps>
 
-1. Open **Resources › Integrations** and press **Connect**.
+1. Open the **Marketplace**, find it under **Included with APX** and press **Connect** on its row or its page.
 
-2. Pick one from **Connect an integration** and fill in its fields. Each field links to **Where to get it**.
+2. Fill in its fields in the window that opens. Each field links to **Where to get it**.
 
 3. Press **Connect**. Tokens and keys go to your secret store; agents use them through the server and never see them.
 
-4. Under **Where it is used**, choose **Every project** or only the projects you pick.
+4. Its page now says **Connected**. In **⋯ › Settings**, under **Where it is used**, choose **Every project** or only the projects you pick.
 
 </Steps>
 
@@ -31,7 +33,7 @@ my Figma file", "send it on WhatsApp") and the agent answers with a **Suggested 
 that integration's form right in the chat, or that channel's setup in **Channels**. Once it is connected, from the
 card or anywhere else in APX within two days, the agent that offered it is told and goes on.
 
-<Shot name="resources-integrations" alt="Resources, Integrations tab: connected integrations and the catalog of ones that can be connected" caption="Resources › Integrations" />
+<Shot name="resources-integrations" alt="Resources, Integrations tab: connected integrations and the catalog of ones that can be connected" caption="the Marketplace" />
 
 | Integration | Gives your agents | You provide |
 |---|---|---|

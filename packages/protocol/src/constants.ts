@@ -361,6 +361,9 @@ export const SURFACE_STATE_MAX = 64_000;
  * kept for the marketplace's packaged apps and extensions. See DECISIONS.md#d-118.
  */
 export const ARTIFACT_FILE_EXT = ".apxart";
+/** A packed extension (a zip) is sent whole, as base64; it unpacks to at most 50 MB. */
+export const EXTENSION_ARCHIVE_EXT = ".apxext";
+export const EXTENSION_ARCHIVE_MAX = 20 * 1024 * 1024;
 
 /** How long before an event its reminder comes, in minutes: from 5 up to a week ahead. */
 export const CALENDAR_LEAD = { min: 5, max: 7 * 24 * 60, default: 30 } as const;

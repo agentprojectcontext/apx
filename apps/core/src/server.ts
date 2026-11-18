@@ -30,7 +30,7 @@ import { type DesktopOps, systemDesktop } from "./desktop.ts";
 import { watchAgentReviews } from "./domain/agent-review.ts";
 import { cleanUpCapturedNotes } from "./domain/memory-capture-cleanup.ts";
 import { tellWaitingNotes } from "./domain/memory-notice.ts";
-import { ownerIdentity } from "./domain/owner.ts";
+import { adoptAccountName, ownerIdentity } from "./domain/owner.ts";
 import { lineage } from "./domain/projects.ts";
 import { parseRef } from "./domain/refs.ts";
 import { TERMINAL } from "./domain/runs.ts";
@@ -72,7 +72,7 @@ import type { CliStatus } from "./harness/detect.ts";
 import { which } from "./harness/detect.ts";
 import { harnessEnv, useApxCommand, useUsualDirs } from "./harness/env.ts";
 import { createHarnesses, type Harness } from "./harness/index.ts";
-import { readIdentity } from "./identity.ts";
+import { type Identity, readIdentity } from "./identity.ts";
 import { createIdleTrim } from "./idle-memory.ts";
 import { type IMessageOps, systemIMessage } from "./imessage.ts";
 import { markV1Notes } from "./import/v1-memory-mark.ts";
@@ -158,6 +158,8 @@ export type CoreOptions = {
   asanaFetch?: typeof fetch;
   /** Publication transport; tests route authenticated requests to a stand-in or Firestore emulator. */
   publicArtifactFetch?: typeof fetch;
+  /** Answers the extension catalog and extension downloads (a test's stand-in for the net). */
+  extensionFetch?: typeof fetch;
   /** What asks an integration's remote server whether it takes the owner's account; tests pass a fake. */
   integrationFetch?: typeof fetch;
   quiet?: boolean;
@@ -225,6 +227,16 @@ export type CoreOptions = {
   /** Reads a project folder at start (by default in a worker thread); tests hold one or answer it. */
   projectRead?: ReadProjectFiles;
 };
+
+/** This APX's release, when known: its notes' version, else a packaged build's own; a dev checkout has none. */
+function versionOf(releases: ReleaseSource | undefined, identity: Identity): { version?: string } {
+  let v: string | undefined;
+  try {
+    v = releases?.version();
+  } catch {}
+  v ??= identity.version !== "0.0.0" ? identity.version : undefined;
+  return v ? { version: v } : {};
+}
 
 export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
   const log = createLog("core", opts.quiet, opts.quiet ? undefined : coreLogSink(config.home));
@@ -367,6 +379,7 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
     client: cloudClient,
     google: clientFromPair(config.googleClient) ?? (config.googleApi ? undefined : apxGoogleClient()),
     origin: () => `http://127.0.0.1:${listening}`,
+    onSignedIn: (profile) => adoptAccountName(store, profile.name),
   });
   const publications = createPublicationService({
     account,
@@ -467,7 +480,17 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
     workDir: path.join(scratchRoot(config.home), "mcp"),
     files: (thread) => agentFiles(store, config.home, thread),
   });
-  const { hooks, plugins, extensions } = extensionStack({ store, secrets, bus, log, home: config.home });
+  const { hooks, plugins, extensions } = extensionStack({
+    store,
+    secrets,
+    bus,
+    log,
+    home: config.home,
+    marketplaceIndex: config.marketplaceIndex,
+    fetch: opts.extensionFetch,
+    // The release this is (a dev checkout's package says 0.0.0: no version, nothing refused for it).
+    ...versionOf(releases, identity),
+  });
   const upkeep = createUpkeep({ store, llm, log });
   const aside = createAside({ store, llm });
   const voiceEngine = createVoiceEngine({

@@ -5,20 +5,17 @@ import { type ProjectEntry, projectName } from "../data/identity.ts";
 import { useData } from "../data/state.ts";
 import { type MessageKey, useT } from "../i18n/index.ts";
 import { go, type ResourceTab, useNav } from "../shell/nav.ts";
-import { ExtensionsTab } from "./ExtensionsTab.tsx";
-import { IntegrationsTab } from "./IntegrationsTab.tsx";
 import { ENGINE_LABEL, SKILL_ENGINES, type SkillEngine } from "./labels.ts";
 import { McpTab } from "./McpTab.tsx";
 import { SkillsTab } from "./SkillsTab.tsx";
 import { useResources } from "./useResources.ts";
 import { VariablesTab } from "./VariablesTab.tsx";
 
+/** The technical resources; extensions and integrations live in the Marketplace. */
 const TABS: Array<{ id: ResourceTab; label: MessageKey; add?: MessageKey; search?: MessageKey }> = [
   { id: "skills", label: "res.tab.skills", add: "res.add.skill", search: "res.search.skills" },
   { id: "mcp", label: "res.tab.mcp", add: "res.add.mcp", search: "res.search.mcp" },
-  { id: "integrations", label: "res.tab.integrations", add: "res.add.integration", search: "res.search.integrations" },
   { id: "variables", label: "res.tab.variables", add: "res.add.variable", search: "res.search.variables" },
-  { id: "extensions", label: "res.tab.extensions", add: "res.add.extension" },
 ];
 
 /** Tabs where a project has resources of its own: they can show only those. */
@@ -45,6 +42,10 @@ export function ResourcesView({ project }: { project?: ProjectEntry }) {
   const t = useT();
   const projects = useData((s) => s.projects);
   const tab = useNav((s) => s.resourcesTab);
+  // Integrations and extensions moved to the Marketplace: an old link to them opens it.
+  useEffect(() => {
+    if (tab === "integrations" || tab === "extensions") go.marketplace("extensions");
+  }, [tab]);
   const variable = useNav((s) => s.variable);
   const variableIn = useNav((s) => s.variableIn);
   const [query, setQuery] = useState("");
@@ -70,7 +71,7 @@ export function ResourcesView({ project }: { project?: ProjectEntry }) {
     projectId,
     projects.filter((p) => p.path && p.registered !== false).map((p) => p.id),
   );
-  const { skills, servers, secrets, extensions } = res.data;
+  const { skills, servers, secrets } = res.data;
   // A link to one APX keeps for itself opens the system ones.
   const linkedSystem = Boolean(variable && secrets?.some((s) => s.name === variable && s.system));
   // biome-ignore lint/correctness/useExhaustiveDependencies: the same name in another project is a new link
@@ -88,7 +89,7 @@ export function ResourcesView({ project }: { project?: ProjectEntry }) {
         ...secrets.filter((x) => !x.system).map((x) => x.name),
         ...(servers ?? []).flatMap((srv) => srv.vars.filter((v) => !v.set).map((v) => v.name)),
       ]).size,
-    extensions: extensions?.length,
+    extensions: undefined,
   };
   const def = TABS.find((x) => x.id === tab) ?? (TABS[0] as (typeof TABS)[number]);
   const ctx = {
@@ -186,9 +187,7 @@ export function ResourcesView({ project }: { project?: ProjectEntry }) {
   let body: ReactNode;
   if (tab === "skills") body = <SkillsTab {...ctx} />;
   else if (tab === "mcp") body = <McpTab {...ctx} />;
-  else if (tab === "integrations") body = <IntegrationsTab {...ctx} />;
-  else if (tab === "variables") body = <VariablesTab {...ctx} />;
-  else body = <ExtensionsTab adding={adding} setAdding={setAdding} onChanged={() => void res.loadExtensions()} />;
+  else body = <VariablesTab {...ctx} />;
 
   const add = def.add && (
     <Button

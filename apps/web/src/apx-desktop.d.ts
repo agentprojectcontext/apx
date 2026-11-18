@@ -56,7 +56,7 @@ declare global {
     apxDesktop?: {
       /** Host OS of the desktop shell (`darwin` | `win32` | `linux`). */
       platform?: string;
-      takeAccountReturn?(): Promise<{ code: string; state: string } | null>;
+      takeAccountReturn?(): Promise<boolean | null>;
       onAccountReturn?(listener: () => void): () => void;
       /** The window is in native fullscreen (no traffic lights). Missing in builds from before it was reported. */
       isFullScreen?(): boolean;
@@ -95,7 +95,7 @@ declare global {
       openMain?(threadId?: string): void;
       /** The main window is told to open a chat (asked from the quick window). */
       /** Files opened with APX from the system, each with its text or why it has none (taken once). */
-      takeOpenedFiles?(): Promise<{ name: string; text?: string; error?: "too-big" | "unreadable" }[]>;
+      takeOpenedFiles?(): Promise<{ name: string; text?: string; data?: string; error?: "too-big" | "unreadable" }[]>;
       onFileOpened?(listener: () => void): () => void;
       takePublicCopy?(): Promise<string | null>;
       onPublicCopy?(listener: () => void): () => void;

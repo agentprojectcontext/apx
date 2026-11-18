@@ -269,6 +269,8 @@ test("every long-running method gives its server time to finish and other method
     ["surfaces.fetch", {}, 45_000],
     ["surfaces.export", {}, 180_000],
     ["surfaces.import", {}, 180_000],
+    ["extensions.install", {}, 120_000],
+    ["extensions.companion_file", {}, 120_000],
     ["memory.reindex", {}, 600_000],
     ["sessions.projects", {}, 60_000],
     ["sessions.import", {}, 300_000],

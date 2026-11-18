@@ -31,6 +31,9 @@ test("an app link says what it opens, so its button can show the place's icon an
   assert.deepEqual(kindOf("apx:settings/desktop"), { kind: "settings", section: "desktop" });
   assert.deepEqual(kindOf("apx:config"), { kind: "settings", section: "account" });
   assert.deepEqual(kindOf("apx:resources/mcp"), { kind: "resources", tab: "mcp" });
+  assert.deepEqual(kindOf("apx:marketplace"), { kind: "marketplace" });
+  assert.deepEqual(kindOf("apx:marketplace/extensions/android_tv"), { kind: "marketplace" });
+  assert.equal(kindOf("apx:marketplace/apps"), undefined);
   assert.deepEqual(kindOf("apx:inbox"), { kind: "inbox" });
   assert.deepEqual(kindOf("apx:chat/thr_1"), { kind: "chat", id: "thr_1" });
   assert.deepEqual(kindOf("apx:project/prj_1/tasks"), { kind: "project", id: "prj_1" });

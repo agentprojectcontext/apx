@@ -5,7 +5,7 @@ import { APX_ACCOUNT_SESSION } from "../secret-names.ts";
 import type { Secrets } from "../secrets.ts";
 import { ACCOUNT_ENDPOINTS, accountAuthUrl, accountPost } from "./auth.ts";
 import { exchangeAccountCode, renewAccountSession, type AccountSession as Session } from "./exchange.ts";
-import { createAccountProfiles } from "./profile.ts";
+import { type AccountProfile, createAccountProfiles } from "./profile.ts";
 
 const TTL = 10 * 60_000;
 type Flow = { state: string; verifier: string; redirect: string; expires: number; generation: number };
@@ -17,6 +17,7 @@ export function createAccount(deps: {
   client?: AccountClient | undefined;
   google?: ClientCreds | undefined;
   origin: () => string;
+  onSignedIn?: (profile: AccountProfile) => void;
   fetch?: typeof fetch;
   now?: () => number;
   endpoints?: { googleAuth: string; googleToken: string; identity: string; secureToken: string; firestore: string };
@@ -53,15 +54,21 @@ export function createAccount(deps: {
     if (session.expires - 60_000 > now()) return session;
     if (refreshing?.generation === expected) return refreshing.promise;
     const pending = renewAccountSession({
-      post,
+      post: (url, body, form) => post(url, body, form, true),
       endpoint: endpoints.secureToken,
       apiKey: deps.client.apiKey,
       session,
       now,
-    }).then((next) => {
-      save(next, expected);
-      return next;
-    });
+    })
+      .catch((error: unknown) => {
+        if (error instanceof Error && error.message === "sign_in_required" && generation === expected)
+          deps.secrets.set(APX_ACCOUNT_SESSION, null);
+        throw error;
+      })
+      .then((next) => {
+        save(next, expected);
+        return next;
+      });
     refreshing = { generation: expected, promise: pending };
     try {
       return await pending;
@@ -72,14 +79,18 @@ export function createAccount(deps: {
   return {
     status() {
       const session = stored();
-      return { available: Boolean(deps.client && deps.google), profile: session?.profile ?? null };
+      return {
+        available: Boolean(deps.client && deps.google),
+        profile: session?.profile ?? null,
+        pending: Boolean(changing || (flow && flow.expires > now())),
+      };
     },
     start(desktop = false) {
       if (!deps.google || !deps.client) throw new Error("account_not_configured");
       if (changing) throw new Error("account_busy");
       const origin = new URL(deps.origin());
       if (origin.protocol !== "http:" || origin.hostname !== "127.0.0.1" || origin.username || origin.password)
-        throw new Error("account_unavailable");
+        throw new Error("sign_in_local_only");
       const pair = pkce();
       generation++;
       flow = {
@@ -98,12 +109,13 @@ export function createAccount(deps: {
         }),
       };
     },
-    async finish(code: string, state: string) {
+    async finish(code: string, state: string, error?: "access_denied") {
       const current = flow;
       if (!current || current.state !== state || current.expires <= now()) throw new Error("sign_in_expired");
       if (!deps.google || !deps.client) throw new Error("account_not_configured");
       if (changing) throw new Error("account_busy");
       flow = undefined;
+      if (error === "access_denied") throw new Error("sign_in_cancelled");
       changing = true;
       try {
         const session = await exchangeAccountCode({
@@ -117,6 +129,7 @@ export function createAccount(deps: {
           now,
         });
         save(session, current.generation);
+        deps.onSignedIn?.(session.profile);
         return { ok: true as const };
       } finally {
         changing = false;

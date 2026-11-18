@@ -395,3 +395,24 @@ test("on the simple panel only the super-agent is told to work alone and offer t
   assert.doesNotMatch(prompt(boss, false), /simple panel/);
   assert.doesNotMatch(prompt(worker, true), /simple panel/);
 });
+
+test("the owner's name and how they want to be called: said only when it differs from their name", () => {
+  const agent = {
+    id: "superagent",
+    name: "Roby",
+    role: "secretary",
+    kind: "secretary" as const,
+    browser_profile: "shared" as const,
+    source: "local" as const,
+    prompt: "",
+  };
+  const said = (owner: { name: string; about: string; call_me?: string }) =>
+    systemPrompt(agent, { kind: "home" }, "es", undefined, "", "", owner);
+  assert.match(
+    said({ name: "Ana Acme", about: "", call_me: "Ani" }),
+    /Your owner is Ana Acme; call them Ani; you know them/,
+  );
+  assert.doesNotMatch(said({ name: "Ana Acme", about: "", call_me: "Ana Acme" }), /call them/);
+  assert.doesNotMatch(said({ name: "Ana Acme", about: "" }), /call them/);
+  assert.match(said({ name: "", about: "", call_me: "Ani" }), /Call your owner Ani; you know them/);
+});

@@ -15,7 +15,7 @@ export type AccountProfile = z.infer<typeof AccountProfile>;
 export const accountMethods = {
   "account.get": deferMethod({
     params: () => z.object({}).strict(),
-    result: () => z.object({ available: z.boolean(), profile: AccountProfile.nullable() }),
+    result: () => z.object({ available: z.boolean(), profile: AccountProfile.nullable(), pending: z.boolean() }),
     effect: false,
     access: "human",
   }),
@@ -23,15 +23,21 @@ export const accountMethods = {
     params: () => z.object({ desktop: z.boolean().optional() }).strict(),
     result: () => z.object({ url: z.string() }),
     effect: true,
+    local: true,
     access: "human",
     replay: false,
   }),
   "account.finish": deferMethod({
-    params: () => z.object({ code: z.string().min(1).max(2000), state: z.string().min(1).max(2000) }).strict(),
+    params: () =>
+      z.union([
+        z.object({ code: z.string().min(1).max(2000), state: z.string().min(1).max(2000) }).strict(),
+        z.object({ error: z.literal("access_denied"), state: z.string().min(1).max(2000) }).strict(),
+      ]),
     result: () => z.object({ ok: z.literal(true) }),
     effect: true,
     access: "human",
     open: true,
+    local: true,
     replay: false,
   }),
   "account.rename": deferMethod({

@@ -595,16 +595,9 @@
 .account__btn[data-popup-open] {
   background: var(--apx-fill-hover);
 }
+/* The ui Avatar (photo, else initials): it only keeps its size in the row. */
 .account__avatar {
-  display: grid;
-  place-items: center;
   flex: none;
-  width: 26px;
-  height: 26px;
-  border-radius: 50%;
-  background: var(--apx-fill-strong);
-  font-size: var(--apx-text-2xs);
-  font-weight: var(--apx-weight-semibold);
 }
 .account__name {
   flex: 1;
