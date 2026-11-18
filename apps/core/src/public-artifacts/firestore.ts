@@ -3,7 +3,7 @@ import { artifactWrites, type PublicArtifactCopy } from "./writes.ts";
 
 type Value = { stringValue?: string; integerValue?: string; timestampValue?: string };
 export type CloudDocument = { name: string; fields: Record<string, Value>; updateTime: string };
-type Session = { uid: string; idToken: string };
+type Session = { uid: string; idToken: string; current?(): boolean };
 const string = (value: string): Value => ({ stringValue: value });
 export const cloudString = (doc: CloudDocument, key: string): string => doc.fields[key]?.stringValue ?? "";
 export const cloudNumber = (doc: CloudDocument, key: string): number => Number(doc.fields[key]?.integerValue ?? "NaN");
@@ -19,6 +19,7 @@ export function createPublicArtifactCloud(deps: { project: string; origin?: stri
     return `publicArtifacts/${code}`;
   };
   const account = (session: Session) => {
+    if (session.current && !session.current()) throw new Error("public_artifact_account_changed");
     if (!session.uid || session.uid.includes("/") || !session.idToken) throw new Error("sign_in_required");
     return `artifactAccounts/${encodeURIComponent(session.uid)}/slots`;
   };

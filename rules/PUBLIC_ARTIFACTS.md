@@ -98,7 +98,11 @@ account-specific in-flight results. No cloud account is required for existing lo
 5. Desktop/phone-width screenshots in both languages against the reference; EN/ES user docs and a decision
    record with the completed integration. No news entry, announcement, release or merge to staging.
 
-The F3 account bridge is not yet integrated into this branch. Merge its rule changes carefully with these rules;
+The F3 account implementation is included in this branch. Its core-only `withSession` callback renews credentials
+with a shared in-flight refresh and binds work to the signed-in identity and session generation. It returns no
+credentials through the account protocol. Sign-out or a new sign-in invalidates old work; publication checks the
+session again before each cloud request. Sign-out cannot retract a write already sent to Firestore.
+Protocol and UI publication wiring remain pending. Combined artifact, account and telemetry emulator tests pass;
 never replace unrelated telemetry/account policies during deployment. Use the separate artifact Hosting site
 and approved DNS tools without changing the login origin or restarting the owner's core.
 

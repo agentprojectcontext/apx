@@ -3,11 +3,11 @@ import type { ClientCreds } from "../integrations/google-oauth.ts";
 import { pkce } from "../integrations/google-oauth.ts";
 import { APX_ACCOUNT_SESSION } from "../secret-names.ts";
 import type { Secrets } from "../secrets.ts";
-import { ACCOUNT_ENDPOINTS, accountAuthUrl, accountExpiry, accountPost, accountText as text } from "./auth.ts";
-import { type AccountProfile, createAccountProfiles } from "./profile.ts";
+import { ACCOUNT_ENDPOINTS, accountAuthUrl, accountPost } from "./auth.ts";
+import { exchangeAccountCode, renewAccountSession, type AccountSession as Session } from "./exchange.ts";
+import { createAccountProfiles } from "./profile.ts";
 
 const TTL = 10 * 60_000;
-type Session = { uid: string; idToken: string; refreshToken: string; expires: number; profile: AccountProfile };
 type Flow = { state: string; verifier: string; redirect: string; expires: number; generation: number };
 export type AccountClient = { project: string; apiKey: string };
 
@@ -31,6 +31,7 @@ export function createAccount(deps: {
   let generation = 0;
   let flow: Flow | undefined;
   let changing = false;
+  let refreshing: { generation: number; promise: Promise<Session> } | undefined;
   const stored = (): Session | undefined => {
     const raw = deps.secrets.resolve(`secret://${APX_ACCOUNT_SESSION}`);
     if (!raw) return undefined;
@@ -49,23 +50,23 @@ export function createAccount(deps: {
     const session = stored();
     if (!session || !deps.client) throw new Error("sign_in_required");
     if (session.expires - 60_000 > now()) return session;
-    const data = await post(
-      `${endpoints.secureToken}/token?key=${encodeURIComponent(deps.client.apiKey)}`,
-      {
-        grant_type: "refresh_token",
-        refresh_token: session.refreshToken,
-      },
-      true,
-    );
-    if (text(data, "user_id") !== session.uid) throw new Error("account_unavailable");
-    const next = {
-      ...session,
-      idToken: text(data, "id_token"),
-      refreshToken: text(data, "refresh_token"),
-      expires: now() + accountExpiry(data.expires_in),
-    };
-    save(next, expected);
-    return next;
+    if (refreshing?.generation === expected) return refreshing.promise;
+    const pending = renewAccountSession({
+      post,
+      endpoint: endpoints.secureToken,
+      apiKey: deps.client.apiKey,
+      session,
+      now,
+    }).then((next) => {
+      save(next, expected);
+      return next;
+    });
+    refreshing = { generation: expected, promise: pending };
+    try {
+      return await pending;
+    } finally {
+      if (refreshing?.promise === pending) refreshing = undefined;
+    }
   };
   return {
     status() {
@@ -104,48 +105,17 @@ export function createAccount(deps: {
       flow = undefined;
       changing = true;
       try {
-        const google = await post(
-          endpoints.googleToken,
-          {
-            grant_type: "authorization_code",
-            code,
-            client_id: deps.google.clientId,
-            client_secret: deps.google.clientSecret,
-            redirect_uri: current.redirect,
-            code_verifier: current.verifier,
-          },
-          true,
-        );
-        const identity = await post(
-          `${endpoints.identity}/accounts:signInWithIdp?key=${encodeURIComponent(deps.client.apiKey)}`,
-          {
-            requestUri: "http://localhost",
-            postBody: new URLSearchParams({
-              id_token: text(google, "id_token"),
-              providerId: "google.com",
-            }).toString(),
-            returnSecureToken: true,
-          },
-        );
-        const uid = text(identity, "localId");
-        const idToken = text(identity, "idToken");
-        const profile = await profiles.ensure(
-          uid,
-          idToken,
-          typeof identity.displayName === "string" ? identity.displayName : "",
-          typeof identity.photoUrl === "string" ? identity.photoUrl : "",
-        );
-        if (current.expires <= now()) throw new Error("sign_in_expired");
-        save(
-          {
-            uid,
-            idToken,
-            refreshToken: text(identity, "refreshToken"),
-            expires: now() + accountExpiry(identity.expiresIn),
-            profile,
-          },
-          current.generation,
-        );
+        const session = await exchangeAccountCode({
+          post,
+          endpoints,
+          google: deps.google,
+          apiKey: deps.client.apiKey,
+          code,
+          flow: current,
+          profiles,
+          now,
+        });
+        save(session, current.generation);
         return { ok: true as const };
       } finally {
         changing = false;
@@ -163,6 +133,18 @@ export function createAccount(deps: {
       } finally {
         changing = false;
       }
+    },
+    async withSession<T>(
+      work: (session: { uid: string; idToken: string; generation: number; current(): boolean }) => Promise<T>,
+    ): Promise<T> {
+      if (changing) throw new Error("account_busy");
+      const expected = generation;
+      const session = await token(expected);
+      const current = () => generation === expected && stored()?.uid === session.uid;
+      if (!current()) throw new Error("sign_in_cancelled");
+      const result = await work({ uid: session.uid, idToken: session.idToken, generation: expected, current });
+      if (!current()) throw new Error("sign_in_cancelled");
+      return result;
     },
     logout() {
       generation++;
