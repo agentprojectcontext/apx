@@ -432,7 +432,8 @@ export const es: Partial<Record<MessageKey, string>> = {
   "nav.files": "Archivos",
   "account.you": "Vos",
   "account.menuOf": "Cuenta: {name}",
-  "account.lead": "Quién sos, para el panel y para tus agentes. Se guarda en tu máquina.",
+  "account.lead": "Quién sos, para el panel y para tus agentes. Tu perfil local queda en esta computadora.",
+  "account.reload": "Volver a cargar la cuenta",
   "account.about": "Sobre vos",
   "account.aboutHint":
     "Lo que tus agentes saben de vos siempre: a qué te dedicás, con quién trabajás, cómo preferís las cosas.",
