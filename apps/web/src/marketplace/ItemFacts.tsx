@@ -1,4 +1,4 @@
-import { Icons } from "@apx/ui";
+import { Badge, Icons } from "@apx/ui";
 import type { ReactNode } from "react";
 import { type MessageKey, useLanguage, useT } from "../i18n/index.ts";
 import type { Item } from "../resources/extensionItems.ts";
@@ -54,10 +54,10 @@ export function ItemFacts({ item }: { item: Item }) {
         <Fact title="mkt.kv.publisher">
           <span>{item.publisher}</span>
           {verified && (
-            <span className="mkt-facts__verified">
+            <Badge tone="neutral" className="mkt-facts__badge">
               <Icons.ShieldCheck size={12} />
               {t(item.label === "included" ? "mkt.label.included" : "mkt.verifiedShort")}
-            </span>
+            </Badge>
           )}
         </Fact>
       )}

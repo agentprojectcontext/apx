@@ -1,5 +1,5 @@
 import type { McpServerStatus } from "@apx/protocol";
-import { Button, IconButton, Icons, MarkdownView, Menu, type MenuEntry } from "@apx/ui";
+import { Button, Card, IconButton, Icons, MarkdownView, Menu, type MenuEntry } from "@apx/ui";
 import { type ReactNode, useState } from "react";
 import { client } from "../data/client.ts";
 import { setMcp, signInMcp } from "../data/resources.ts";
@@ -183,33 +183,33 @@ export function ItemPage({
     );
   }
 
-  const update =
-    item.update && item.url ? (
-      <div className="mkt-notice mkt-notice--update">
-        <Icons.ArrowUp size={16} />
-        <span className="mkt-notice__text">{t("mkt.notice.update", { version: item.update })}</span>
-        <Button size="sm" variant="secondary" onClick={() => item.url && openExtensionInstall({ url: item.url })}>
-          {t("extx.seeUpdate")}
-        </Button>
-      </div>
-    ) : null;
+  // What waits on the owner, in one quiet panel: why it is not working yet, and a newer version.
+  const waiting =
+    item.attention && item.state === "attention"
+      ? t(`extx.fix.${item.attention}`)
+      : item.state === "off" && e
+        ? t(item.attention === "update-waits" ? "extx.fix.update-waits" : "mkt.notice.off")
+        : undefined;
+  const newer = item.update && item.url ? t("mkt.notice.update", { version: item.update }) : undefined;
   const notice =
-    item.attention && item.state === "attention" ? (
-      <div className="mkt-notice mkt-notice--warn">
-        <Icons.TriangleAlert size={16} />
-        <span className="mkt-notice__text">{t(`extx.fix.${item.attention}`)}</span>
-      </div>
-    ) : item.state === "off" && e ? (
-      <div className="mkt-notice mkt-notice--warn">
-        <Icons.Power size={16} />
-        <span className="mkt-notice__text">
-          {t(item.attention === "update-waits" ? "extx.fix.update-waits" : "mkt.notice.off")}
-        </span>
-      </div>
+    waiting || newer ? (
+      <Card
+        variant="soft"
+        padding="sm"
+        className="mkt-notice"
+        description={[waiting, newer].filter(Boolean).join(" ")}
+        aside={
+          newer ? (
+            <Button size="sm" variant="secondary" onClick={() => item.url && openExtensionInstall({ url: item.url })}>
+              {t("extx.seeUpdate")}
+            </Button>
+          ) : undefined
+        }
+      />
     ) : null;
 
   return (
-    <div className="mkt-page">
+    <div className="mkt-item">
       <Button
         size="sm"
         variant="ghost"
@@ -241,32 +241,35 @@ export function ItemPage({
         </div>
       </header>
       {notice}
-      {update}
-      {item.listing && item.listing.screenshots.length > 0 && (
-        <section className="mkt-shots" aria-label={t("mkt.screenshots")}>
-          {item.listing.screenshots.map((f, n) => (
-            <Shot key={f} id={item.id} file={f} caption={copy?.captions[n] ?? ""} />
-          ))}
-        </section>
-      )}
-      {copy && copy.prompts.length > 0 && (
-        <section className="mkt-try">
-          <h4>{t("mkt.try")}</h4>
-          {copy.prompts.map((p) => (
-            <span key={p} className="mkt-try__row">
-              <Icons.MessageCircle size={14} />
-              {p}
-            </span>
-          ))}
-        </section>
-      )}
-      {about && (
-        <section className="mkt-page__about">
-          <MarkdownView source={about} size="sm" />
-        </section>
-      )}
-      <ItemParts item={item} servers={servers} />
-      <ItemFacts item={item} />
+      <div className="mkt-page__cols">
+        <div className="mkt-page__main">
+          {item.listing && item.listing.screenshots.length > 0 && (
+            <section className="mkt-shots" aria-label={t("mkt.screenshots")}>
+              {item.listing.screenshots.map((f, n) => (
+                <Shot key={f} id={item.id} file={f} caption={copy?.captions[n] ?? ""} />
+              ))}
+            </section>
+          )}
+          {copy && copy.prompts.length > 0 && (
+            <Card variant="soft" padding="sm" className="mkt-try">
+              <h4>{t("mkt.try")}</h4>
+              {copy.prompts.map((p) => (
+                <span key={p} className="mkt-try__row">
+                  <Icons.MessageCircle size={14} />
+                  {p}
+                </span>
+              ))}
+            </Card>
+          )}
+          {about && (
+            <section className="mkt-page__about">
+              <MarkdownView source={about} size="sm" />
+            </section>
+          )}
+          <ItemParts item={item} servers={servers} />
+        </div>
+        <ItemFacts item={item} />
+      </div>
       {open === "connect" && i && (
         <ConnectForm
           i={i}

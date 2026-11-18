@@ -93,7 +93,13 @@ function PageDialog({ e, page, onClose }: { e: ExtensionInfo; page: { id: string
   return (
     <Dialog open size="lg" title={page.title} closeLabel={t("common.close")} onOpenChange={(o) => !o && onClose()}>
       {doc && (
-        <iframe ref={frame} className="mkt-page" title={page.title} sandbox="allow-scripts allow-forms" srcDoc={doc} />
+        <iframe
+          ref={frame}
+          className="mkt-pageframe"
+          title={page.title}
+          sandbox="allow-scripts allow-forms"
+          srcDoc={doc}
+        />
       )}
     </Dialog>
   );

@@ -124,13 +124,11 @@
   color: var(--apx-fg-muted);
   font-size: var(--apx-text-sm);
 }
+/* The Card around them gives the fill; this lays out its rows. */
 .mkt-try {
   display: flex;
   flex-direction: column;
   gap: 6px;
-  padding: 14px 16px;
-  border-radius: var(--apx-radius-lg);
-  background: var(--apx-brand-soft);
 }
 .mkt-try h4 {
   margin: 0 0 2px;
@@ -141,12 +139,16 @@
   align-items: center;
   gap: 8px;
 }
+.mkt-try__row svg {
+  flex: none;
+  color: var(--apx-fg-muted);
+}
 
 /* Manifest 2 on an item's page: its settings, what it brings to add, its companion app's pairing. */
 .mkt-config {
   gap: 12px;
 }
-.mkt-page {
+.mkt-pageframe {
   width: 100%;
   height: min(70vh, 640px);
   border: 1px solid var(--apx-border);
@@ -268,7 +270,7 @@
     border: 0;
   }
   .mkt-browse,
-  .mkt-page {
+  .mkt-item {
     padding: 14px 14px 24px;
   }
   .mkt-page__head {
@@ -402,11 +404,11 @@
   white-space: nowrap;
 }
 .mkt-row__state--wait {
-  color: var(--apx-warning-soft-fg);
+  color: var(--apx-fg);
 }
 
 /* An extension's page: one column, its button at the top right, the facts at its foot. */
-.mkt-page {
+.mkt-item {
   display: flex;
   flex: 1;
   flex-direction: column;
@@ -416,10 +418,39 @@
   overflow-y: auto;
   container-type: inline-size;
 }
-.mkt-page > * {
+.mkt-item > * {
   flex-shrink: 0;
   width: 100%;
-  max-width: 860px;
+  max-width: 1180px;
+}
+/* The facts sit beside what it is once there is room, under it otherwise. */
+.mkt-page__cols {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 24px;
+}
+.mkt-page__main {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  min-width: 0;
+}
+.mkt-page__main > * {
+  box-sizing: border-box;
+  width: 100%;
+}
+@container (min-width: 860px) {
+  .mkt-page__cols {
+    grid-template-columns: minmax(0, 1fr) 280px;
+    gap: 40px;
+    align-items: start;
+  }
+  .mkt-page__cols .mkt-facts {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 18px;
+    padding-top: 0;
+    border-top: 0;
+  }
 }
 .mkt-page__back {
   align-self: flex-start;
@@ -475,30 +506,6 @@
   font-size: var(--apx-text-sm);
   font-weight: var(--apx-weight-medium);
 }
-.mkt-notice {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  flex-wrap: wrap;
-  padding: 10px 14px;
-  border-radius: var(--apx-radius-lg);
-  font-size: var(--apx-text-sm);
-}
-.mkt-notice > svg {
-  flex: none;
-}
-.mkt-notice__text {
-  flex: 1;
-  min-width: 180px;
-}
-.mkt-notice--update {
-  background: var(--apx-violet-soft);
-  color: var(--apx-violet-soft-fg);
-}
-.mkt-notice--warn {
-  background: var(--apx-warning-soft);
-  color: var(--apx-warning-soft-fg);
-}
 .mkt-parts {
   display: flex;
   flex-direction: column;
@@ -550,16 +557,8 @@
   gap: 3px;
   color: var(--apx-info-soft-fg);
 }
-.mkt-facts__verified {
-  display: inline-flex;
-  align-items: center;
+.mkt-facts__badge {
   align-self: flex-start;
-  gap: 4px;
-  padding: 1px 8px;
-  border-radius: var(--apx-radius-full, 999px);
-  background: var(--apx-info-soft);
-  color: var(--apx-info-soft-fg);
-  font-size: var(--apx-text-xs);
 }
 .mkt-facts__sub {
   color: var(--apx-fg-muted);

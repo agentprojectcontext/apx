@@ -53,7 +53,7 @@ function Connection({ item, server, name }: { item: Item; server?: McpServerStat
       />
       {!server && (
         <p className="mkt-part__note">
-          {t(item.integration || item.origin === "included" ? "mkt.conn.laterConnect" : "mkt.conn.later")}
+          {t(item.integration || item.ext || item.origin === "included" ? "mkt.conn.laterConnect" : "mkt.conn.later")}
         </p>
       )}
     </Disclosure>
