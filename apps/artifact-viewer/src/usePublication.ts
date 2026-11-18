@@ -1,14 +1,14 @@
+import { readEdgePublicCopy } from "@apx/protocol/public-copy";
 import { useEffect, useMemo, useRef, useSyncExternalStore } from "react";
-import { readDocument, watchPublication } from "./cloud.ts";
+import { watchPublication } from "./cloud.ts";
 import { createPublicationController } from "./controller.ts";
-import { createCopyReader } from "./read.ts";
 
 export function usePublication(code: string) {
   const controller = useMemo(
     () =>
       createPublicationController({
         valid: /^[0-9abcdefghjkmnpqrstvwxyz]{8}$/.test(code),
-        load: createCopyReader(code, readDocument),
+        load: () => readEdgePublicCopy(code, { origin: window.location.origin }),
         watch: (changed, failed) => watchPublication(code, changed, failed),
         after: (ms, callback) => {
           const timer = window.setTimeout(callback, ms);

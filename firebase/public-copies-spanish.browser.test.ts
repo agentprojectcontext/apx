@@ -12,7 +12,7 @@ import { browserCloud } from "./browser-cloud.ts";
 for (const width of [1280, 390]) {
   test(`Spanish public-copy review and publication at ${width}px`, async () => {
     const home = tempDir("apx-public-spanish-");
-    const cloud = browserCloud();
+    const cloud = browserCloud(`spanish-${width}`);
     const core = await createCore(
       testConfig({
         home: home.path,

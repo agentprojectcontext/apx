@@ -1,11 +1,12 @@
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
 import { test } from "node:test";
 import { createAccount } from "../account/session.ts";
 import { APX_ACCOUNT_SESSION } from "../secret-names.ts";
 import { createSecrets } from "../secrets.ts";
 import { tempDir } from "../testkit/platform.ts";
+import { createPublicArtifactCloud } from "./cloud.ts";
 import { createPublicationDrafts } from "./drafts.ts";
-import { createPublicArtifactCloud } from "./firestore.ts";
 
 test("publication drafts use the real account boundary without exposing its credentials", async () => {
   const dir = tempDir("apx-public-account-");
@@ -30,16 +31,22 @@ test("publication drafts use the real account boundary without exposing its cred
     let writes = 0;
     let availabilityReads = 0;
     const cloud = createPublicArtifactCloud({
-      project: "demo-apx-artifacts",
       fetch: async (input, init) => {
         assert.equal(new Headers(init?.headers).get("authorization"), "Bearer private-identity-token");
-        if (new URL(String(input)).pathname.includes("/artifactOwners/")) {
+        if (new URL(String(input)).pathname.endsWith("/available")) {
           assert.equal(init?.method, "GET");
           availabilityReads++;
-          return Response.json({}, { status: 404 });
+          return Response.json({ available: true });
         }
         if (init?.method === "POST") writes++;
-        return Response.json(init?.method === "POST" ? {} : { documents: [] });
+        return Response.json(
+          init?.method === "POST"
+            ? {
+                code: new URL(String(input)).pathname.split("/").at(-2),
+                sha256: createHash("sha256").update(String(init?.body)).digest("hex"),
+              }
+            : { documents: [] },
+        );
       },
     });
     const service = createPublicationDrafts({

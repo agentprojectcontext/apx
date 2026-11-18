@@ -4,8 +4,8 @@ import { test } from "node:test";
 import { _electron, type ElectronApplication, expect } from "@playwright/test";
 import { testConfig } from "../apps/core/src/config.ts";
 import { publicArtifactCopy } from "../apps/core/src/domain/public-artifact-copy.ts";
+import { createPublicArtifactCloud } from "../apps/core/src/public-artifacts/cloud.ts";
 import { publicationTransport } from "../apps/core/src/public-artifacts/test-cloud.ts";
-import { artifactWrites } from "../apps/core/src/public-artifacts/writes.ts";
 import { createCore } from "../apps/core/src/server.ts";
 import { tempDir, waitFor } from "../apps/core/src/testkit/platform.ts";
 import { ApxClient } from "../packages/protocol/src/client.ts";
@@ -25,10 +25,11 @@ test("a native public link opens the existing install dialog without an account 
     },
     ["destination"],
   );
-  const root = "projects/demo-apx-artifacts/databases/(default)/documents";
-  await cloud.fetch(`https://firestore.googleapis.com/v1/${root}:commit`, {
-    body: JSON.stringify({ writes: artifactWrites(root, code, copy) }),
-  });
+  await createPublicArtifactCloud({ fetch: cloud.fetch }).publish(
+    { uid: "person", idToken: "fixture-token" },
+    code,
+    copy,
+  );
   const core = await createCore(
     testConfig({
       home: path.join(home.path, "core"),

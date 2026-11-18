@@ -111,7 +111,9 @@ An export that includes memory carries what you typed and the app's records. Sha
 
 Sign in to your [APX account](/start/account/), then open an artifact's **Share › Publish copy…**.
 This is separate from sharing a link to your own running APX: it uploads an independent copy to
-`artifact.apxagent.app` so anyone with its link can view it without an account.
+`artifact.apxagent.app` so anyone with its link can view it without an account. Opening the page does not use
+the account service: exhausting that service's quota can stop publishing, but does not by itself stop existing
+links from opening. Public hosting has its own limits.
 
 No state is selected by default. Expand **View contents** to read each value, select only what you want to
 include, and choose **Review copy**. The next screen shows the publishing account, the public link, size,
@@ -129,7 +131,8 @@ such as WebRTC/STUN or DNS prefetch may still reveal your IP address to another 
 **Update copy…** from a chosen local artifact, or **Stop publishing…**. Updates keep the same link and always
 start with no state selected; local edits are not uploaded automatically. If the original artifact is gone,
 choose another local artifact for an update. Stopping publication does not need the original and does not
-delete it; it makes future reads of the link fail but cannot recall files someone already downloaded.
+delete it; it makes future reads of the link fail and notifies connected pages to remove the preview.
+A page hidden in the background checks again when you return. It cannot recall files someone already downloaded.
 
 On a public page, **Open in APX** opens the existing installation dialog in the desktop app. It does not
 install automatically or need the recipient to sign in. **Download file** saves an `.apxart` that you can open

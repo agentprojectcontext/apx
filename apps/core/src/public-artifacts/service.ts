@@ -2,22 +2,21 @@ import type { Account } from "../account/session.ts";
 import { publicInput } from "../domain/inputs.ts";
 import type { Store } from "../domain/store.ts";
 import { withKit } from "../surface-kit.ts";
+import { createPublicArtifactCloud } from "./cloud.ts";
 import { createPublicationDrafts } from "./drafts.ts";
-import { createPublicArtifactCloud } from "./firestore.ts";
 import { publicationDraftPersistence } from "./persistence.ts";
 import { readPublishedArtifact } from "./read.ts";
 
 export function createPublicationService(deps: {
   account: Account;
   store: Store;
-  project: string | undefined;
   home: string;
   onReceiptPersistenceError?(): void;
   fetch?: typeof fetch | undefined;
 }) {
   const drafts = createPublicationDrafts({
     account: deps.account,
-    cloud: createPublicArtifactCloud({ project: deps.project ?? "apx-agents", fetch: deps.fetch }),
+    cloud: createPublicArtifactCloud({ fetch: deps.fetch }),
     source: (id) => deps.store.surfaces.get(id),
     decorateHtml: (html) => withKit(html),
     persistence: publicationDraftPersistence(deps.store.settings, deps.home),
@@ -32,6 +31,6 @@ export function createPublicationService(deps: {
   });
   return {
     ...drafts,
-    read: (code: string) => readPublishedArtifact(code, { project: deps.project ?? "apx-agents", fetch: deps.fetch }),
+    read: (code: string) => readPublishedArtifact(code, { fetch: deps.fetch }),
   };
 }

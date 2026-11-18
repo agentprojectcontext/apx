@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { waitFor } from "../testkit/platform.ts";
+import type { createPublicArtifactCloud } from "./cloud.ts";
 import { createPublicationDrafts, type PublicationAccount } from "./drafts.ts";
-import type { createPublicArtifactCloud } from "./firestore.ts";
 
 function fixture(codes?: () => string) {
   let now = 0;

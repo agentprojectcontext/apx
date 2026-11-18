@@ -13,7 +13,7 @@ import { browserCloud } from "./browser-cloud.ts";
 for (const width of [1280, 390]) {
   test(`an agent publication card must open its exact review before approval at ${width}px`, async () => {
     const home = tempDir("apx-public-card-");
-    const cloud = browserCloud();
+    const cloud = browserCloud(`card-${width}`);
     let draft = "";
     const core = await createCore(
       testConfig({

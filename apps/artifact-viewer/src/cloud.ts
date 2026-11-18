@@ -1,39 +1,58 @@
-import { initializeApp } from "firebase/app";
-import {
-  connectFirestoreEmulator,
-  doc,
-  getDocFromServer,
-  initializeFirestore,
-  memoryLocalCache,
-  onSnapshot,
-} from "firebase/firestore";
+import { createPublicationWatch } from "./watch.ts";
 
-import { viewerConfig } from "./config.ts";
-
-const config = viewerConfig(import.meta.env);
-const app = initializeApp({ projectId: config.projectId });
-const database = initializeFirestore(app, { localCache: memoryLocalCache() });
-if (config.emulator) {
-  connectFirestoreEmulator(database, "127.0.0.1", 8196);
-}
-export async function readDocument(path: string): Promise<unknown> {
-  const result = await getDocFromServer(doc(database, path));
-  if (!result.exists()) throw new Error("public_copy_unavailable");
-  return result.data();
-}
 export function watchPublication(
   code: string,
   changed: (state: "waiting" | "live" | "missing", metadata?: unknown) => void,
   failed: (missing: boolean) => void,
 ) {
-  return onSnapshot(
-    doc(database, `publicArtifacts/${code}`),
-    { includeMetadataChanges: true },
-    (snapshot) =>
-      changed(
-        snapshot.metadata.fromCache ? "waiting" : snapshot.exists() ? "live" : "missing",
-        snapshot.metadata.fromCache ? undefined : snapshot.data(),
-      ),
-    (error) => failed(error.code === "permission-denied" || error.code === "not-found"),
+  return createPublicationWatch(
+    {
+      async metadata(signal) {
+        const response = await fetch(`/api/copies/${code}/meta`, {
+          cache: "no-store",
+          credentials: "omit",
+          redirect: "error",
+          signal,
+        });
+        if (!response.ok)
+          throw new Error(response.status === 404 ? "public_artifact_missing" : "public_artifact_unavailable");
+        const text = await response.text();
+        if (text.length > 4096) throw new Error("public_artifact_unavailable");
+        return JSON.parse(text) as unknown;
+      },
+      socket() {
+        const url = new URL(`/api/copies/${code}/events`, window.location.origin);
+        url.protocol = url.protocol === "https:" ? "wss:" : "ws:";
+        const socket = new WebSocket(url);
+        return {
+          listen(events) {
+            socket.onopen = () => events.open();
+            socket.onclose = () => events.closed();
+            socket.onerror = () => events.closed();
+            socket.onmessage = (event) => events.message(event.data);
+            return () => {
+              socket.onopen = null;
+              socket.onclose = null;
+              socket.onerror = null;
+              socket.onmessage = null;
+            };
+          },
+          close() {
+            socket.close();
+          },
+        };
+      },
+      hidden: () => document.hidden,
+      visibility(notify) {
+        document.addEventListener("visibilitychange", notify);
+        return () => document.removeEventListener("visibilitychange", notify);
+      },
+      after(ms, notify) {
+        const timer = window.setTimeout(notify, ms);
+        return () => window.clearTimeout(timer);
+      },
+    },
+    changed,
+    failed,
   );
 }

@@ -2,49 +2,8 @@
   "firestore": { "rules": "firebase/firestore.rules" },
   "emulators": {
     "firestore": { "host": "127.0.0.1", "port": 8196 },
-    "hosting": { "host": "127.0.0.1", "port": 7497 },
     "hub": { "host": "127.0.0.1", "port": 4517 },
     "logging": { "host": "127.0.0.1", "port": 4617 },
     "ui": { "enabled": false }
-  },
-  "hosting": {
-    "target": "artifacts",
-    "public": "apps/artifact-viewer/dist",
-    "ignore": ["**/.*", "**/*.map"],
-    "rewrites": [{ "source": "/!(runner.html|assets)", "destination": "/index.html" }],
-    "headers": [
-      {
-        "source": "**",
-        "headers": [
-          { "key": "Referrer-Policy", "value": "no-referrer" },
-          { "key": "X-Content-Type-Options", "value": "nosniff" },
-          { "key": "Permissions-Policy", "value": "camera=(), microphone=(), geolocation=(), payment=(), usb=()" }
-        ]
-      },
-      {
-        "source": "/{,!(runner.html)}",
-        "headers": [
-          { "key": "Cache-Control", "value": "no-store" },
-          {
-            "key": "Content-Security-Policy",
-            "value": "default-src 'none'; script-src 'self'; style-src 'self'; connect-src https://firestore.googleapis.com; frame-src 'self'; img-src 'self' data:; font-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'"
-          }
-        ]
-      },
-      {
-        "source": "/assets/**",
-        "headers": [{ "key": "Cache-Control", "value": "public, max-age=31536000, immutable" }]
-      },
-      {
-        "source": "/runner.html",
-        "headers": [
-          { "key": "Cache-Control", "value": "no-store" },
-          {
-            "key": "Content-Security-Policy",
-            "value": "default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data: blob:; font-src data:; connect-src 'none'; frame-src 'none'; worker-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'self'; sandbox allow-scripts"
-          }
-        ]
-      }
-    ]
   }
 }

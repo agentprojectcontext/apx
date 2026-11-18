@@ -115,7 +115,9 @@ memoria.
 
 Iniciá sesión en tu [cuenta APX](/es/start/account/) y abrí **Compartir › Publicar copia…** en un artifact.
 Esto es distinto de compartir un enlace a tu propio APX: sube una copia independiente a
-`artifact.apxagent.app` que cualquiera con el enlace puede ver sin cuenta.
+`artifact.apxagent.app` que cualquiera con el enlace puede ver sin cuenta. Abrir la página no usa el servicio
+de cuentas: agotar su cuota puede impedir publicar, pero no impide por sí solo abrir enlaces existentes.
+El alojamiento público tiene sus propios límites.
 
 No se selecciona estado por defecto. Abrí **Ver contenido** para leer cada valor, elegí sólo lo que querés
 incluir y tocá **Revisar copia**. La siguiente pantalla muestra la cuenta, el enlace público, el tamaño,
@@ -133,7 +135,8 @@ mecanismos del navegador como WebRTC/STUN o DNS prefetch todavía pueden revelar
 **Actualizar copia…** desde un artifact local elegido o **Dejar de publicar…**. Actualizar conserva el enlace
 y siempre empieza sin estado seleccionado; los cambios locales no se suben automáticamente. Si el original
 ya no está, elegí otro artifact local para actualizar. Dejar de publicar no necesita el original ni lo elimina:
-impide futuras lecturas del enlace, pero no retira archivos que alguien ya descargó.
+impide futuras lecturas del enlace y avisa a las páginas conectadas para quitar la vista previa.
+Una página oculta vuelve a comprobar al regresar. No retira archivos que alguien ya descargó.
 
 En una página pública, **Abrir en APX** abre el diálogo de instalación existente en la app de escritorio.
 No instala automáticamente ni necesita que quien recibe la copia inicie sesión. **Descargar archivo** guarda

@@ -5,9 +5,12 @@ How v2 leaves the private working repo and reaches people. What was built for up
 
 ## Cloud rules and public artifact viewer
 
-Before publishing Firestore rules or artifact Hosting, run `pnpm test:firebase` from the repository root with
-Firebase CLI, Java and Playwright Chromium, Firefox and WebKit installed. This single mandatory gate covers account, telemetry and
-artifact rules, the built viewer through the Hosting emulator on `127.0.0.1:7497`, and built-panel journeys.
+Before publishing Firestore rules or the artifact Worker, run `pnpm test:firebase` from the repository root with
+Firebase CLI, Java and Playwright Chromium, Firefox and WebKit installed. This mandatory gate covers account,
+telemetry and private artifact-metadata rules, the built viewer through actual local workerd/R2/Durable Objects
+on `127.0.0.1:7497`, and built-panel journeys. Run the artifact Worker's own tests as well; they verify JWT claims,
+aggregate resource budgets and viewing/revocation while Firestore is unavailable. Firebase Hosting is no longer
+the artifact deployment target.
 `pnpm typecheck` includes `firebase/`; normal preflight does not start Java or the emulators. Retain the test
 output with deployment evidence and preserve account and telemetry permissions together. The native installation
 journey is separate: run `pnpm test:firebase:native` on a desktop-capable host before shipping that integration.

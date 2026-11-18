@@ -12,7 +12,7 @@ import { browserCloud } from "./browser-cloud.ts";
 for (const width of [1280, 390]) {
   test(`public-copy selection, exact review, invalidation and confirmation in the built panel at ${width}px`, async () => {
     const home = tempDir("apx-public-panel-").path;
-    const cloud = browserCloud();
+    const cloud = browserCloud(`panel-${width}`);
     const core = await createCore(
       testConfig({
         home,

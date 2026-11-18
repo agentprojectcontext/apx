@@ -1,14 +1,14 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
+import { createPublicArtifactCloud } from "./cloud.ts";
 import { createPublicationDrafts, type PublicationDraftSnapshot, type PublicationSession } from "./drafts.ts";
-import { createPublicArtifactCloud } from "./firestore.ts";
 import { publicationTransport } from "./test-cloud.ts";
 
 function fixture() {
   let saved: readonly PublicationDraftSnapshot[] = [];
   const pending = new Set<string>();
   const session: PublicationSession = { uid: "person", idToken: "test-token", generation: 1, current: () => true };
-  const cloud = createPublicArtifactCloud({ project: "demo-apx-artifacts", fetch: publicationTransport().fetch });
+  const cloud = createPublicArtifactCloud({ fetch: publicationTransport().fetch });
   const create = () =>
     createPublicationDrafts({
       account: { withSession: (work) => work(session) },

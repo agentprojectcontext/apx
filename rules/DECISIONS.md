@@ -5215,19 +5215,42 @@ identifiers, never public artifact link codes: each published artifact has an in
 
 See [Firebase setup](../firebase/README.md) and its Spanish counterpart for configuration, rules and verification.
 
-<a id="d-246"></a>
-## D-246 — 2026-11-17 — Public artifacts are reviewed offline copies, not access to the owner's core
+<a id="d-241-public-artifacts"></a>
+## D-241 — 2026-11-18 — Public artifacts use R2 and a Worker, independent of Firebase read quotas
 
 A public artifact is an independently chosen copy of HTML and optional top-level state, published at
 `https://artifact.apxagent.app/<code>`. Every artifact gets a random eight-character Crockford base32 code,
-independent of the account's private short ID. The viewer is a fixed Firebase Hosting site on a separate origin;
-Firestore holds the divided copy under that code. No Cloud Storage, Functions, billing upgrade or administrator
-credentials are required. Free service quotas remain a limitation; there is no promise of unlimited availability.
+independent of the account's private short ID. A Cloudflare Worker serves the fixed viewer/runner assets and
+anonymous content from a private R2 bucket on a separate origin. Opening a copy never calls Firestore,
+Firebase Authentication or Google. Firebase `apx-agents` keeps login, telemetry and private ownership/slot
+metadata. There is no new Firebase project, Cloud Storage, Cloud Functions or service-account key.
 
-Authenticated owners may publish up to 20 copies, at most 4,200,000 bytes each. Firestore rules validate matching
-ownership, bounded slots, sizes, revisions and chunks in atomic writes. Anonymous callers can fetch a known code
-and its chunks, not enumerate publications or read ownership/account metadata. Revocation removes the live copy
-and prevents future reads; it cannot recall already downloaded or rendered bytes.
+Authenticated writes go through the Worker. It verifies Firebase RS256 ID tokens against Google's fixed public
+key endpoint, project-bound audience/issuer, subject and expiration. Firestore REST calls carry that person's
+token, not administrator credentials. Rules allow only private metadata, permanent code reservations and twenty
+bounded slots; no content or parts are accepted or readable there. A SQLite Durable Object per account serializes
+mutations, independently enforces twenty active copies and sixty mutations per hour, and permanently records
+revoked codes. Client-editable Firebase slots cannot be the trusted quota for R2. Copies retain the 4,200,000-byte
+limit. The edge also applies approximate, per-location IP rate limiting.
+
+R2 stores immutable bodies by code/hash and uncached private pointers. A public read checks the current pointer
+before a cache hit can be returned, and body reads check it again. A read-only account tombstone check prevents
+an uncertain older R2 put from resurrecting a revoked code. These checks do not join the mutation queue or wait
+for Firebase writes. Cache keys have no public bypass route. Revocation
+records a durable account tombstone and deletes the R2 pointer before best-effort metadata/body cleanup; deleting
+a pointer needs no R2 write allocation. Pending cleanup is retried when that owner lists their copies, without
+reusing a revoked code or hiding a successful revocation behind a Firebase quota error. The viewer receives
+changes through a same-origin hibernatable WebSocket, clears a revoked preview immediately on notification and
+closes the connection while hidden. Reconnection first confirms current metadata; there is no periodic polling
+that could exhaust the free Worker request allowance with a few long-lived tabs. Already rendered or downloaded
+bytes cannot be recalled.
+
+A separate trusted Durable Object transactionally reserves aggregate R2 storage and operations: at most 1 GB
+including a per-object margin, 500,000 puts/month and 7.5 million ordinary gets/month, with authenticated management
+reads allowed up to 9.5 million total. Reservations survive uncertain writes; only confirmed deletes release space.
+These ceilings stay below the standard R2 included tier for this deployment, not a guarantee about other workloads
+sharing the account. Workers/Durable Objects free quotas still limit availability. Exhaustion fails closed; normal
+operation never upgrades a plan or promises unlimited free traffic. Any R2 checkout/card step belongs to the owner.
 
 Publishing uses an expiring, session-bound draft of the exact exported bytes. State starts unselected; store,
 database, private memory and secret references are excluded. HTML is still owner-controlled content and can

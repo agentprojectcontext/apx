@@ -1,76 +1,61 @@
-# Firebase account backend
+# Firebase account backend and public-artifact infrastructure
 
-APX accounts use Firebase Authentication (Google) and Firestore REST. They do not require Cloud Functions or a billing-enabled Firebase plan. Free quotas still apply; quota exhaustion makes account operations unavailable without disabling local APX work.
+APX accounts use Firebase Authentication (Google) and Firestore REST in `apx-agents`. Login and telemetry stay there. Public HTML and selected state live in Cloudflare R2, behind the artifact Worker; opening a public link never reads Firebase. No new Firebase project, Cloud Storage, Functions, service-account key or Firebase billing upgrade is required.
 
-## Configuration
+## Account configuration
 
-Enable Google in Firebase Authentication and create a Firebase web app. Use the existing Google **Desktop app** OAuth client for the installed-app authorization flow. The Firebase API key and desktop client identifier are public application configuration, not an authorization boundary. Never package administrator credentials or service-account keys.
+Enable Google in Firebase Authentication and create a Firebase web app. Use the existing Google **Desktop app** OAuth client for the installed-app authorization flow. The Firebase API key and desktop client identifier are public application configuration, not authorization boundaries. Never package administrator credentials.
 
-Supply `APX_ACCOUNT_CLIENT` as JSON with `project` and `apiKey`, or package `account-client.json` at the core root. Supply the desktop Google client using APX's existing `APX_GOOGLE_CLIENT` configuration or packaged `google-client.json`. Distribution builds inject these through the existing staging scripts. Do not commit local configuration files.
+Supply `APX_ACCOUNT_CLIENT` as JSON with `project` and `apiKey`, or package `account-client.json` at the core root. Supply the desktop Google client through `APX_GOOGLE_CLIENT` or packaged `google-client.json`. Distribution builds inject these through the existing staging scripts. Do not commit local configuration files. The deployed artifact Worker's `FIREBASE_PROJECT` must match the account project; changing a local project alone neither migrates accounts nor authorizes publication on another deployment.
 
-The core requests only `openid email profile` with PKCE S256 and a random, expiring state. Google returns to `http://127.0.0.1:<core-port>/oauth/account`. The return page calls the registered `account.finish` protocol method; desktop returns the code through `apx://account/callback` before completing that method. No second HTTP authentication handler is introduced. Firebase validates the Google ID token through `accounts:signInWithIdp`; renewal uses Secure Token's refresh endpoint.
+The core requests only `openid email profile`, with PKCE S256 and random expiring state. Google returns to `http://127.0.0.1:<core-port>/oauth/account`. The return page calls the registered `account.finish` method; desktop returns the code through `apx://account/callback` before completing that method. No second authentication handler is introduced. Firebase validates Google's ID token through `accounts:signInWithIdp`; renewal uses Secure Token's refresh endpoint.
 
-This loopback flow requires the browser and core on the same computer. A phone browser or browser on a different computer cannot reach the core through that address. It does not provide remote sign-in; an HTTPS broker would be a separate deployment and cost decision. A local build must serve the built panel to render the return page.
+The browser and core must be on the same computer. A phone or remote browser cannot reach that loopback address. Remote sign-in would require a separately approved HTTPS broker. A local build must serve the built panel to render the return page.
 
-## Data and security
+## Data and authorization
 
-- `users/<Firebase UID>` contains the private profile: eight-character ID, name, photo and optional handle.
-- `accountIds/<code>` reserves an immutable user ID; `accountHandles/<handle>` reserves a unique handle.
-- Atomic Firestore commits create the profile and reservation with `exists: false` preconditions. Conflicts retry without overwriting another account. Renames compare the profile revision, reserve the new handle and release the old handle in one commit.
-- Rules use `getAfter` to require matching profile/reservation writes. People cannot list profiles, read another profile, change their ID or keep an obsolete handle reservation.
-- The core stores Firebase ID and refresh tokens together only in its secret store. Account protocol results contain no tokens. Account methods are owner-only; agents cannot inspect the session. Sign-out deletes this core's secret, not the cloud profile or sessions on other cores.
-- Account IDs are not public artifact codes. Public artifact links use an independent code for each artifact; account creation publishes nothing.
-- Telemetry remains separate: anonymous writes retain their existing validation; private reads require `telemetry_reader: true`. Ordinary Google accounts gain no telemetry access. Keep the telemetry rules when deploying account rules.
+- `users/<Firebase UID>` holds the private profile: eight-character ID, name, photo and optional handle.
+- `accountIds/<code>` reserves an immutable profile ID; `accountHandles/<handle>` reserves a unique handle.
+- Atomic commits create matching profile/reservation documents with `exists: false` preconditions. Conflicts never overwrite another account. Renames compare the profile revision, reserve the new handle and release the old one atomically.
+- Rules forbid profile enumeration, reading other profiles, changing an ID and retaining obsolete handle reservations.
+- Firebase ID and refresh tokens stay together in the core's secret store. Account protocol results expose neither. Account methods are owner-only. Sign-out removes this core's session, not the profile or sessions on other cores.
+- Profile IDs are not artifact codes. Account creation publishes nothing.
+- Telemetry keeps its existing anonymous write rules. Private reads require `telemetry_reader: true`; an ordinary Google account gains no telemetry access.
+- `artifactOwners/<code>` permanently reserves a code and its owner/slot. `artifactAccounts/<uid>/slots/0..19` bounds active metadata reservations. `publicArtifacts/<code>` contains only private title, byte count, hash and timestamp. Anonymous reads, enumeration, HTML and former `parts` documents are denied.
 
-## Emulator regression tests
+## Public content: Worker and R2
 
-From the repository root:
+`apps/artifact-worker` serves the fixed viewer, runner and content on `artifact.apxagent.app`. The viewer needs no Firebase build variables or SDK. Its network requests are same-origin; the opaque runner has no network or APX connection. Static hashed assets are immutable; HTML, pointers and public API responses are `no-store`.
+
+The R2 bucket is private: do not enable `r2.dev`, a public bucket domain or direct downloads that bypass the Worker. Bodies are immutable by code/hash. Every download checks a fresh R2 pointer before serving a cache hit and checks the revision again before completing. No public read calls Firestore or verifies a Firebase token. Read-only durable revocation checks bypass the account mutation queue, preventing late R2 writes from resurrecting a code without waiting for Firebase mutations.
+
+Publishing/updating/revoking calls the Worker with the person's Firebase ID token. Web Crypto verifies RS256 against Google's fixed public key endpoint, expected audience/issuer, subject and expiration. Owner and slot operations use that same token in Firestore REST. No administrator credential is deployed. A token's normal validity window still applies; local sign-out is not global token revocation.
+
+A SQLite Durable Object per account serializes mutations and enforces twenty active copies independently of client-editable Firebase slots, plus sixty mutations/hour. Each copy is at most 4,200,000 UTF-8 bytes. A native edge limit allows approximately 120 requests/IP/minute per location, not a global WAF guarantee.
+
+Revocation records a permanent account tombstone and deletes the R2 pointer before cleaning up content and Firebase metadata. R2 deletes do not need a write allocation. Pending cleanup is retried when the owner next lists their copies. A Firebase outage can delay reclaiming a slot, never restore the public pointer. Listing also reclaims unused metadata from interrupted first uploads; after reclamation, prepare a fresh review instead of retrying the old code. Uncertain body writes retain their conservative storage reservation. A hibernatable WebSocket notifies connected viewers without periodic reads. Hidden pages close it; reconnection confirms fresh metadata, and disconnects clear unconfirmed previews. Revocation notifications remove the preview immediately. Previously downloaded/rendered copies cannot be recalled.
+
+A separate Durable Object reserves aggregate R2 usage transactionally: 1 GB including per-object margin, 500,000 puts/calendar month, 7.5 million ordinary gets/month and 9.5 million total gets including authenticated management. Failed/uncertain uploads retain their reservation until confirmed deletion. Exhaustion fails closed, without switching to paid operation. These budgets leave room within R2 Standard's included tier for this deployment; other workloads on the same account consume shared allowances. Workers/Durable Objects free request, CPU, duration and storage limits still apply. This is not an unlimited-availability or zero-bill promise for a shared Cloudflare account.
+
+## Verification and deployment
 
 ```bash
 pnpm test:firebase
-pnpm test:firebase:native # desktop-capable host; checks the existing installation dialog
-node --test apps/core/src/account/session.test.ts apps/core/src/rpc/account.test.ts apps/desktop/src/main/account-return.test.ts
+pnpm test:firebase:native # desktop-capable host: existing install dialog
+pnpm --filter @apx/artifact-worker test
 ```
 
-Install Firebase CLI and Java, then run `pnpm exec playwright install chromium firefox webkit` before the gate. `pnpm test:firebase` builds the panel
-and viewer, starts Firestore on `127.0.0.1:8196` and Hosting on `127.0.0.1:7497`, then runs the account, telemetry,
-artifact rules and browser suites sequentially. Viewer tests use Hosting's actual headers, not Vite. The command
-uses demo projects and isolated core homes with file-backed secrets; it never needs the owner's running core.
-`pnpm typecheck` also checks every TypeScript test in `firebase/`. Native installation has its own desktop command
-because it launches Electron. Emulator/scripted-provider tests do not prove live Google sign-in or deployment.
+Install Firebase CLI, Java and Playwright's Chromium/Firefox/WebKit first. `pnpm test:firebase` builds the panel, viewer and Worker, starts only the demo Firestore emulator on `127.0.0.1:8196`, then runs rules and browser suites. The actual Worker/workerd serves the built assets and headers on `127.0.0.1:7497`, not Vite or Firebase Hosting. Locally generated RS256 keys replace only Google's key transport; the production verifier is exercised unchanged. Each browser case has its own signed demo identity. Core homes and file-backed secrets are isolated; the owner's core is never used. `pnpm typecheck` checks `firebase/` tests as well. Scripted/emulator tests do not prove production Google login, deployment or production revocation latency.
 
-Before every rules or artifact Hosting deployment, run `pnpm test:firebase` and keep the output with deployment
-evidence (see `rules/RELEASE.md`). Deploy only reviewed rules, preserving the existing telemetry/account policies,
-with `firebase deploy --config firebase.artifacts.json --only firestore:rules --project <project>`. The gate is mandatory, not part of normal
-preflight. No billing upgrade is part of account setup.
+Run the gate before every artifact Worker or rules deployment and retain its output. Deploy only the reviewed rules, preserving account and telemetry policies:
 
-## Optional quota isolation (owner decision)
+```bash
+firebase deploy --config firebase.artifacts.json --only firestore:rules --project apx-agents
+pnpm --filter @apx/artifact-worker exec wrangler deploy
+```
 
-No separate Firebase project is created by this change. The current project shares Firestore quotas between
-accounts, artifacts and telemetry; a popular public link can still consume that shared free quota. The viewer
-now uses a listener-confirmed initial revision, reuses only hash-verified parts for downloads, and ships hashed
-assets with immutable caching. Metadata/part reads no longer inspect private owner/slot documents in rules.
-These reduce ordinary reads; they do not provide abuse protection or unlimited availability.
+Use stored credentials through the deployment tools, never tokens in chat or committed configuration. The Worker needs its private R2 bucket, `ACCOUNTS` and `BUDGET` SQLite Durable Object bindings, static assets and project binding from `wrangler.jsonc`. Never enable a paid Workers plan automatically. R2 activation may require a subscription checkout/card even for included usage: only the owner may complete it.
 
-If the owner chooses a new free project:
+Verify the Worker first, then attach only `artifact.apxagent.app` as its custom domain using the approved Cloudflare account/zone. Do not touch the login origin, main site, marketplace or unrelated records. After HTTPS and content/revocation checks pass, stop using the former `apx-artifacts` Firebase Hosting site. Do not delete a live site or migrate production content before inventorying existing publications and obtaining approval for any production data migration.
 
-1. In Firebase Console, create a **Spark** project without upgrading billing, create its Firestore database and
-   Hosting site, and enable Google Authentication. Configure the desktop Google OAuth client for that project as
-   described above. Pick the database location before creating it; this cannot be changed in place.
-2. Configure the core's public `APX_ACCOUNT_CLIENT` with that project's `project` and `apiKey`, and the matching
-   Google desktop client through `APX_GOOGLE_CLIENT`. Set `VITE_ARTIFACT_FIREBASE_PROJECT=<project>` when building
-   the viewer, without `VITE_ARTIFACT_EMULATOR`. Existing accounts/documents are not migrated by these settings.
-3. Run `pnpm test:firebase`, review the rules, bind the Hosting target with
-   `firebase target:apply hosting artifacts <site> --project <project>`, and explicitly deploy only the reviewed
-   `firestore:rules,hosting:artifacts`. Add the artifact custom domain in Hosting, then change only its approved DNS
-   records. Do not change the login origin, telemetry configuration or enable billing as a side effect.
-4. Verify sign-in, publish/update/revoke, public viewing and installation against an isolated core before moving
-   any live account. Rebuild recipient clients with the same public target configuration; links carry only codes.
-
-This supported configuration moves the optional account and artifacts together; telemetry can remain in its
-original project. It does **not** split artifacts from F3 authentication/profile quotas. Firebase ID tokens are
-project-scoped: an original-project token cannot authorize writes in a different project. Keeping F3 login in
-its original project while artifacts use another requires a separately authenticated session in the artifact
-project (not just a project-id override); that auth bridge is not implemented or deployed here.
-
-Spanish: [Configuración de Firebase](README.es.md).
+Spanish: [Infraestructura Firebase y artifacts públicos](README.es.md).

@@ -3,22 +3,22 @@ import path from "node:path";
 import { test } from "node:test";
 import { expect, firefox, webkit } from "@playwright/test";
 import { publicArtifactCode, publicArtifactCopy } from "../apps/core/src/domain/public-artifact-copy.ts";
-import { createPublicArtifactCloud } from "../apps/core/src/public-artifacts/firestore.ts";
+import { createPublicArtifactCloud } from "../apps/core/src/public-artifacts/cloud.ts";
 import { withKit } from "../apps/core/src/surface-kit.ts";
 import { browserCloud } from "./browser-cloud.ts";
 
 const host = process.env.FIRESTORE_EMULATOR_HOST;
 const viewer = process.env.APX_ARTIFACT_VIEWER_URL;
 if (!host || !/^127\.0\.0\.1:\d+$/.test(host) || viewer !== "http://127.0.0.1:7497")
-  throw new Error("Run these browser engines through pnpm test:firebase and the demo Hosting emulator");
+  throw new Error("Run these browser engines through pnpm test:firebase and the local Worker");
 
 for (const [engine, width] of [
   [firefox, 1280],
   [webkit, 390],
 ] as const) {
   test(`${engine.name()} previews, downloads and revokes an opaque public copy without credentialless at ${width}px`, async () => {
-    const transport = browserCloud();
-    const cloud = createPublicArtifactCloud({ project: "demo-apx-artifacts", fetch: transport.fetch });
+    const transport = browserCloud(`engine-${engine.name()}`);
+    const cloud = createPublicArtifactCloud({ fetch: transport.fetch });
     const session = { uid: transport.uid, idToken: transport.token };
     const copy = publicArtifactCopy(
       {

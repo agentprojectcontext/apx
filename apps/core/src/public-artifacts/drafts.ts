@@ -2,7 +2,8 @@ import { randomUUID } from "node:crypto";
 import type { AccountProfile } from "@apx/protocol";
 import { publicArtifactCopy } from "../domain/public-artifact-copy.ts";
 import { PUBLIC_DRAFT_SNAPSHOTS, trimPublicationReceipts } from "./capacity.ts";
-import { cloudNumber, cloudString, type createPublicArtifactCloud } from "./firestore.ts";
+import type { createPublicArtifactCloud } from "./cloud.ts";
+import { cloudNumber, cloudString } from "./firestore.ts";
 import { preparePublication } from "./prepare.ts";
 
 type Source = Parameters<typeof publicArtifactCopy>[0];

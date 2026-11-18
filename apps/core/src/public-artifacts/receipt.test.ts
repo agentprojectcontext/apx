@@ -1,13 +1,13 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
+import { createPublicArtifactCloud } from "./cloud.ts";
 import { createPublicationDrafts, type PublicationSession } from "./drafts.ts";
-import { createPublicArtifactCloud } from "./firestore.ts";
 import { publicationTransport } from "./test-cloud.ts";
 
 for (const action of ["publish", "update", "revoke"] as const) {
   test(`a confirmed ${action} wins over local receipt and logging failures, while write errors still fail`, async () => {
     const remote = publicationTransport();
-    const cloud = createPublicArtifactCloud({ project: "demo-apx-artifacts", fetch: remote.fetch });
+    const cloud = createPublicArtifactCloud({ fetch: remote.fetch });
     const session: PublicationSession = { uid: "person", idToken: "test-token", generation: 1, current: () => true };
     let fail = false;
     let errors = 0;

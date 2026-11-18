@@ -9,14 +9,9 @@ import path from "node:path";
 import type { RunTimers } from "../engine/engine.ts";
 import { real, samePath } from "../paths.ts";
 
-/**
- * How much longer than on a developer's machine a wait may take here. CI sets it for slow runners (Windows); it only
- * stretches budgets, never what a test decides.
- */
-const TIME_SCALE = (() => {
-  const n = Number(process.env.TEST_TIME_SCALE);
-  return Number.isFinite(n) && n >= 1 ? n : 1;
-})();
+import { scaled } from "./wait.ts";
+
+export { scaled, waitFor } from "./wait.ts";
 
 /**
  * Whether a fake binary written as a script (a shebang line) can be spawned: Windows runs only real executables. The
@@ -25,31 +20,7 @@ const TIME_SCALE = (() => {
  */
 export const RUNS_SCRIPTS = process.platform !== "win32";
 
-/** A budget in ms, stretched by TEST_TIME_SCALE. */
-export const scaled = (ms: number) => Math.round(ms * TIME_SCALE);
-
-type Truthy<T> = Exclude<T, false | 0 | "" | null | undefined>;
-
 const tick = (ms: number) => new Promise((r) => setTimeout(r, ms));
-
-/**
- * Polls `check` until it returns something truthy, and returns that. Fails after `ms` of wall-clock time (× the
- * scale), never after a number of tries: a slow machine gets as long as a fast one.
- */
-export async function waitFor<T>(
-  check: () => T | Promise<T>,
-  what = "the condition",
-  o: { ms?: number; every?: number } = {},
-): Promise<Truthy<T>> {
-  const budget = scaled(o.ms ?? 5000);
-  const end = performance.now() + budget;
-  while (true) {
-    const v = await check();
-    if (v) return v as Truthy<T>;
-    if (performance.now() >= end) throw new Error(`timed out after ${budget} ms waiting for ${what}`);
-    await tick(o.every ?? 20);
-  }
-}
 
 /** Settles once `child` has exited (at once if it already has); fails after `ms` (× the scale). */
 export function stopped(child: ChildProcess, ms = 10_000): Promise<void> {

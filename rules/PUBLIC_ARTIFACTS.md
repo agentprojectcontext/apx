@@ -1,148 +1,75 @@
 # Public artifact copies
 
-F4 uses the free Firebase plan: Firestore holds snapshots and Hosting serves a fixed viewer. No Storage,
-Functions, Blaze plan or billing activation is part of this implementation. The Hosting viewer is deployed for
-verification; the APX integration has not yet shipped in a release. The existing local `surfaces.share` listener
-is unchanged.
+F4 publishes independent copies through a Cloudflare Worker and private R2 bucket. Firebase `apx-agents` retains account authentication, telemetry and private publication ownership/slots. Public viewing never reads Firebase, even with its quota exhausted. No new Firebase project, Storage, Functions, Blaze upgrade or administrator key is introduced. Workers/R2/Durable Objects have their own free limits; R2 checkout/card activation belongs to the owner. Do not claim production deployment from local tests. The existing local `surfaces.share` listener is unchanged.
 
 ## Snapshot boundary
 
-`apps/core/src/domain/public-artifact-copy.ts` prepares an installable `apx-artifact@1` copy from an allowlist:
-name, title, kind, version and HTML. State is omitted by default. Only explicitly selected, currently present
-state keys can enter the snapshot. A missing key fails preparation instead of publishing an incomplete selection.
-The result owns a JSON snapshot and SHA-256 hash: subsequent local edits cannot change its approved bytes.
+`apps/core/src/domain/public-artifact-copy.ts` builds an installable `apx-artifact@1` allowlisted copy: name, title, kind, version and HTML. State is omitted by default. Only selected, currently present top-level state keys enter the immutable JSON snapshot and SHA-256. Missing selections fail rather than silently dropping values.
 
-The builder never opens the artifact database, key-value store, secret store, chats or project memory. It does
-not include author, agent, project identifiers, connection grants or secret declarations. Known `secret://`
-references fail preparation. This is not secret detection: HTML and explicitly selected state can already
-contain sensitive text. The final confirmation must show the exact copy that will leave the machine; it must
-not imply a scanner can establish the absence of arbitrary credentials in user-authored content.
+The builder never opens the artifact database, store, secrets, chats or project memory. Author, agent/project identifiers, grants and secret declarations are excluded. Known `secret://` references fail preparation. This is not secret detection: HTML or selected values can already contain sensitive text. Confirmation shows the exact source, rendered preview and chosen values, not a scanner's assurance.
 
-An eight-character lowercase Crockford code is sampled independently using cryptographic random bytes. It
-contains no user input or account prefix. Forty random bits are not authorization: pages are public. Code
-reservations are immutable, private tombstones so revoked codes cannot be reassigned or republished.
+Each code is eight independently sampled lowercase Crockford base32 characters, with no user ID or account prefix. Forty random bits are not authorization: anyone with the link may read it. Permanent private ownership reservations and durable account tombstones prevent reassignment or reuse after revocation.
 
-## Firestore layout and limits
+## Storage and authorization
 
-- `artifactOwners/<code>`: immutable private ownership (`uid`, `slot`), visible only to its owner.
-- `artifactAccounts/<uid>/slots/<0..19>`: private occupied slots (`code`), listable only by that account.
-- `publicArtifacts/<code>`: public title, byte count, hash, part count and server update time; no user ID.
-- `publicArtifacts/<code>/parts/<0..7>`: base64-encoded UTF-8 JSON, at most 700,000 ASCII characters per document.
+Firestore stores no content:
 
-The maximum decoded copy is 4,200,000 bytes (eight parts), below 900 KB per stored document. A maximum of 20
-active slots bounds an account to 84 MB of snapshot payload. Existing `.apxart` HTML limits still apply:
-400,000 characters of HTML. Large selected state can use the rest of the budget. Base64 avoids ambiguity between
-Unicode character limits and Firestore's byte limit. Rules validate ASCII shape and fixed part IDs, not a
-client's size claim, so forging the declared byte count cannot bypass the physical snapshot bound.
+- `artifactOwners/<code>`: immutable private owner and slot.
+- `artifactAccounts/<uid>/slots/0..19`: private occupied slots, listable only by their account.
+- `publicArtifacts/<code>`: private title, UTF-8 byte count, SHA-256 and server update time.
+- Former `parts` paths deny all reads and writes, including the owner's. Metadata denies anonymous reads and enumeration.
 
-Public documents support exact `get`, never `list`. Knowing one code does not allow enumerating the catalog.
-An owner atomically creates the private reservation, free slot, metadata and all parts. The rules check the
-post-commit document state; a claimed owner ID is not authority. An update replaces the metadata and parts in
-one commit and removes no-longer-needed parts. The client uses update-time preconditions so concurrent changes
-fail instead of overwriting a newer revision. Standalone part writes cannot change the published copy.
+R2 stores `heads/<code>` (private owner, slot, public metadata and revision) and immutable `copies/<code>/<hash>` bodies. Do not enable public R2 bucket access or a direct download route. Only the Worker returns public title/size/hash/revision and verified body bytes; private owner identity never enters its anonymous responses.
 
-Revocation deletes the public metadata, every part and the private occupied slot in one commit. The private
-ownership tombstone remains. Releasing or replacing a slot while the old publication is live is refused.
-There are no public Storage objects, signed URLs or download tokens to bypass revocation.
+The Worker validates Firebase ID tokens with Web Crypto RS256, Google's fixed public key endpoint, expected project audience/issuer, subject and expiration. Only authenticated account operations use that token in Firestore REST; no service-account key exists. Ordinary ID-token validity applies: signing out of one core does not revoke sessions on other cores or previously issued tokens globally.
 
-## Fixed Hosting viewer
+A SQLite Durable Object per account serializes mutation work and independently enforces twenty active copies and sixty mutations/hour. Firestore slots alone cannot enforce the R2 quota because an account can edit its own Firebase documents. A request cannot impersonate another account with an internal header: the edge verifies the token and sets the internal identity itself. Code claims precede body writes, preventing a competing account from overwriting/deleting another claimant's data.
 
-`https://artifact.apxagent.app/<code>` serves a trusted fixed wrapper. The viewer uses the anonymous Firebase
-SDK with `getDocFromServer` for current metadata and exact part IDs, `onSnapshot` for publication changes, and
-an in-memory cache only. The core's anonymous reader uses REST. Both readers validate size and SHA-256 before
-accepting a copy. The viewer renders the chosen snapshot inside an opaque-origin sandbox. It never enables
-Firestore persistence, service-worker caches or account authentication. The loaded HTML cannot access the
-wrapper, account cookies or APX RPC. Apply CSP to the execution document as well as the wrapper. CSP denies
-external resource loads and child frames; no APX bridge is provided. The snapshot's inlined APX Kit supports
-offline copies. No uploaded HTML executes in the wrapper's origin.
+Each copy is at most 4,200,000 bytes; HTML retains the `.apxart` limit of 400,000 characters. Selected state can use the remaining bytes. Updates check the current immutable revision, retain the public code and may use a different local source. Retrying a matching committed copy returns success without a new slot.
 
-The execution iframe always uses `sandbox="allow-scripts"`, never `allow-same-origin`. Where supported,
-`credentialless` adds isolation, but it is not a condition for showing a preview: Safari, Firefox and iPhone
-browsers use the same opaque-origin sandbox. No sign-in or account cookie is needed by the viewer. CSP blocks
-ordinary fetches and external resource loads; it is not an IP-anonymity guarantee. Browser networking such as
-WebRTC/STUN or DNS prefetch may still disclose a viewer's IP address. Do not describe CSP as a network firewall.
+## Cache, revocation and cost boundaries
 
-The page observes publication changes while open and removes the iframe and download when revoked. Cached
-listener observations are a loading state, not evidence that a copy is live or missing. Reads and downloads have
-15-second deadlines; cancellation and listener generations prevent late bytes or detached listeners from
-restoring a removed preview. These timing paths are covered with injected timers, not wall-clock sleeps. Before
-creating a download, re-read the current publication instead of reusing previously loaded bytes. A person can
-keep a copy they have already downloaded: revocation stops subsequent access through APX, not possession.
-`Open in APX` hands only an exact public code to `apx://artifact/<code>`. The native panel calls the human-only
-`surfaces.public_read` method, which anonymously reads from the fixed Firestore service, validates bounded parts
-and SHA-256, then rechecks publication before opening the existing installation dialog. It never forwards an
-account token or accepts an arbitrary remote URL. No recipient account is required. `Download file` separately
-saves the approved `.apxart`. Neither a public URL nor a deep link installs automatically.
+Public metadata checks R2 directly, without pointer caching. Body reads check the pointer before cache access and again before returning bytes. Only immutable bodies use Cloudflare's internal cache; its keys have no public route. Public responses use `no-store`. Old cached bodies are not a bypass for a missing or changed pointer. Anonymous reads also check the account's durable revocation flag through a read-only path, outside its mutation queue. A late/uncertain old R2 put cannot resurrect a code, and a stalled Firebase mutation cannot block these checks.
 
-Free-plan Firestore quotas still constrain total reads and writes across the project. Rate abuse can exhaust
-the free quota and temporarily stop publication/viewing; this does not authorize enabling billing. Surface that
-error honestly, preserve confirmed state and document the limits. Do not weaken the open telemetry policies.
+Revocation records the exact authorized pointer in the account Durable Object, then deletes the R2 pointer before best-effort Firebase/body cleanup. R2 deletes require no put budget. A durable retry prevents an uncertain response or failed cleanup from republishing the code. Pending cleanup runs on the owner's next list request, one entry at a time. Slot deletion compares the slot's current revision and code so a retry cannot remove a reused slot. An interrupted first upload also has durable pending metadata: a later list can reclaim its unused slot. If that reservation was reclaimed, close the failed review and prepare a new one; an approved URL is never silently changed. Uncertain body writes keep their storage reservation even after cleanup. A Firebase outage can retain a slot temporarily, never undo a successful pointer deletion.
+
+A separate trusted Durable Object transactionally reserves global R2 storage and operations: 1 GB including a per-object margin; 500,000 puts/calendar month; 7.5 million ordinary gets/month and 9.5 million total gets including authenticated management. Reservations are conservative after failed or uncertain writes and return only after confirmed deletion. Monthly counter reset never discards stored-byte reservations. Exceeding a budget fails closed, not into paid usage. Approximate native IP limiting is 120 requests/minute per Cloudflare location; it is not a global WAF.
+
+These ceilings concern this deployment, not unrelated workloads consuming the same Cloudflare account's allowances. Workers/Durable Objects free request, CPU, duration and storage ceilings also limit availability. Do not enable a paid plan, promise unlimited traffic or claim the entire shared account cannot incur a bill. See [infrastructure setup](../firebase/README.md) and its Spanish counterpart. If R2 activation asks for checkout/card information, only the owner may complete it.
+
+## Fixed Worker viewer
+
+`https://artifact.apxagent.app/<code>` serves a fixed wrapper and separate runner. The viewer has no Firebase SDK, Firebase build variables, persistence or account authentication. Its ordinary network requests are same-origin only. Hashed assets are immutable; HTML and APIs are uncached. CSP is applied to both wrapper and execution document, with distinct `frame-ancestors` policies.
+
+The execution iframe always has `sandbox="allow-scripts"`, never `allow-same-origin`. `credentialless` adds isolation where supported but is not required: Firefox, Safari and iPhone browsers use the same opaque sandbox. No uploaded HTML executes in the wrapper's origin. The runner denies network requests, frames, forms and an APX bridge; inlined APX Kit and a cloned state selection work offline. CSP is not an IP-anonymity firewall: WebRTC/STUN and DNS prefetch remain browser-level limitations.
+
+A same-origin hibernatable WebSocket delivers change/revocation notifications, without repeated pointer polling or awake idle Durable Objects. The viewer closes its stream while hidden and confirms metadata again when visible. Disconnects clear unconfirmed previews and reconnect with bounded backoff; handshake deadlines and reconnect timers are injected in tests. A notification clears revoked previews and downloads immediately; a failed connection is not evidence that cached bytes remain live. Controller deadlines, cancellation and generations prevent late reads or detached callbacks from restoring a removed preview; timing tests use injected clocks. Each download fetches and verifies bounded UTF-8 bytes, SHA-256 and current revision again, rather than reusing a rendered snapshot.
+
+`Open in APX` carries only an exact code to `apx://artifact/<code>`. The human-only `surfaces.public_read` method reads anonymously from the fixed edge origin, checks size/hash and revision again, then opens the existing installation dialog. It forwards no account token and accepts no arbitrary remote URL. Recipients need no account. `Download file` saves the `.apxart` separately. Neither path installs automatically. Revocation prevents subsequent service reads; it cannot recall a downloaded or already rendered copy.
 
 ## APX integration
 
-`public-artifacts/drafts.ts` creates expiring, opaque preview IDs without uploading anything. At most twenty
-selected snapshots are retained privately for thirty days, extended through the actual pending-card deadline.
-The database holds only metadata and integrity references; immutable bytes live in per-draft files under
-`<home>/public-artifact-drafts` (0700 directory, 0600 files on POSIX; the home ACL applies on Windows). Unchanged
-files are not rewritten. Files are staged before committing metadata; failed metadata commits roll back new
-files, and obsolete files are collected only after a successful metadata commit. Include both the database
-and this folder in backups. Inline snapshots from the earlier data layout move once after validation, without
-losing pending cards; a failed migration preserves the prior row. Missing or corrupt bytes invalidate only
-the affected review. A confirmed cloud result remains successful if saving its local receipt fails; the core
-logs a content-free warning. Inspect the published list before retrying after a local storage failure. Twenty separate metadata-only slots reserve room for revocation; the twenty most recent
-completion receipts are retained without their copied bytes and do not consume review capacity. At capacity,
-the oldest uncommitted review without an in-flight write or live pending card is replaced; actual pending cards
-are protected, including when preparing another review of the same source. Closing a directly prepared human
-review releases it, while closing an agent card's review preserves that card. Only serialized snapshots and
-receipts persist, never session credentials, generations
-or human review tokens. A restart requires opening the review again and binds the unchanged copy to the current
-session of the same account. Its snapshots bind the chosen state, source hash, account generation and remote
-revision. A changed source or signed-out account cannot commit the old preview. Concurrent commits share one write; completed previews return their old receipt
-without reapplying it. Preview data is copied, so a caller cannot mutate the internal approved snapshot.
-The protocol exposes `surfaces.public_list`, `public_prepare`, `public_preview`, `public_commit` and
-`public_discard`. Preview, commit and discard are human-only. Preparation never uploads. The human preview alone
-includes the account's public identity; agent summaries never contain session credentials or the full bundle.
-The core shares one draft service between RPC handlers and `apx_settings`; commit keeps its app-only owner card
-in every mode and carries a structured draft reference for the review UI. Closing a review cannot cancel a write
-already dispatched. The account-wide list and cloud update/revocation preparation stay with the owner and the
-global super-agent; project-scoped agents can prepare publication only from artifacts in that exact project,
-never global artifacts or another project's artifacts. Generic approvals cannot approve public-copy cards:
-the review dialog obtains a draft-bound, human-only token from `surfaces.public_preview` and sends it with
-`runs.respond`. The core checks that token and current account before settling the card. The phone instead
-asks the person to open APX on their computer; it offers no generic approval for these cards.
+`public-artifacts/drafts.ts` prepares opaque reviews without uploading. Twenty selected snapshots are retained privately for thirty days, extended through a pending card's actual deadline. The database stores metadata/integrity references; immutable bytes live in `<home>/public-artifact-drafts` (0700 directory, 0600 files on POSIX; home ACL on Windows). Unchanged files are reused. Bytes stage before metadata commits, failed commits roll back new files, and obsolete files are pruned only after success. Back up both database and draft folder. Validated inline data migrates without losing pending cards; a failed migration preserves the original row. Missing/corrupt bytes invalidate only their own review.
 
-Use the single protocol registry/router for preparation, publishing, updating, revoking and listing. Effect
-methods require idempotency keys. Session resolution stays inside the core. Publishing and updating public
-bytes require an owner card even in Total mode and even when an agent requests the action. Approval binds the
-exact hash, selected state, account and target revision; an edit requires a fresh confirmation.
+A confirmed remote result wins over local receipt/diagnostic failures. Lost mutation responses are reconciled against the Worker's current private R2 metadata. Inspect the published list before retrying after local storage failure. Twenty separate metadata-only revocation reviews and twenty metadata-only receipts do not consume selected-copy review capacity. Abandoned reviews can be replaced, never in-flight writes or live pending cards. Closing a human-started review releases it; closing an agent's review preserves its pending request. No session credentials, generations or human review tokens persist. Restart requires a fresh exact review by the same account.
 
-The publication list belongs to the signed-in account, not the current local project. It remains useful if
-the original local artifact has gone. Offline errors preserve the last confirmed status. Signing out discards
-account-specific in-flight results. No cloud account is required for existing local use.
+Reviews bind selected bytes, source hash, account generation and remote revision. Source/account changes invalidate uncommitted approval. Concurrent commits share one write; completed drafts return their receipt while retained. Preview values are copied, not mutable references into the approved snapshot.
 
-## Verification required before delivery
+The protocol exposes `surfaces.public_list`, `public_prepare`, `public_preview`, `public_commit`, `public_discard` and `public_read`. Preview, commit, discard and read are human-only. Preparation never uploads. Confirmation binds the exact copy/account/revision; edits need fresh confirmation. Agent tools may prepare only artifacts in their exact project, not global artifacts, and cannot read an identity-bearing preview or commit directly.
 
-1. Snapshot/chunk/usage unit tests, including invalid state, byte limits and exact approved bytes.
-2. Real Firestore emulator tests: anonymous/other-account writes, private ownership access, public enumeration,
-   incomplete writes, slot exhaustion/races, code collisions, part sizes, update preconditions and revocation.
-3. Separate core with file-backed secrets, correct revision, actual protocol paths and mandatory owner cards.
-4. Deployed viewer checked from an outside phone with the publishing core stopped. Check CSP, sandbox, download
-   verification and revocation. Check already-open viewers and every public part URL.
-5. Desktop/phone-width screenshots in both languages against the reference; EN/ES user docs and a decision
-   record with the completed integration. No news entry, announcement, release or merge to staging.
+Agent commits require a target-bound owner card even in Total mode. The card opens the exact copy; generic approve-once/always controls cannot authorize publication. Its human-only review token must match the card draft. Phone approval controls direct the owner to review on their computer. Transport actors cannot grant themselves owner rights. Token resolution stays in the core.
 
-The F3 account implementation is included in this branch. Its core-only `withSession` callback renews credentials
-with a shared in-flight refresh and binds work to the signed-in identity and session generation. It returns no
-credentials through the account protocol. Sign-out or a new sign-in invalidates old work; publication checks the
-session again before each cloud request. Sign-out cannot retract a write already sent to Firestore.
-Protocol and mandatory confirmation wiring have isolated-core tests with a recording cloud transport. Built-panel
-journeys cover publish, update, source-free revoke and both languages at desktop and phone widths. The native
-handoff test launches its own Desktop and core, verifies no installation before confirmation, selected state
-and failure after revocation. The design reference is [PUBLIC_ARTIFACTS_UI.md](PUBLIC_ARTIFACTS_UI.md).
-Run the combined artifact, account and telemetry emulator suites before deploying rules; never replace unrelated
-telemetry/account policies. The separate Hosting deployment uses `firebase.artifacts.json` at the repository root;
-its public directory must remain inside that root. Use the approved DNS tools without changing the login origin
-or restarting the owner's core. Deployment and outside-device verification evidence belongs in the task report.
+The account's published list remains useful without its original local source. Offline errors preserve last confirmed status. Sign-out discards account-specific in-flight results and prevents further cloud requests; it cannot retract a write already sent to the Worker. Existing local artifacts require no cloud account.
 
-Docs impact: updated — this document records the snapshot, native handoff and free-plan cloud boundary. The
-English and Spanish artifact guides explain selection, review, account management and installation.
+## Verification before delivery or deployment
+
+1. Snapshot/state/usage regressions, raw-byte hash checks, malformed copy boundaries, reviewed-card persistence and lost-response reconciliation.
+2. Actual Firestore emulator: account/telemetry parity, private metadata authorization, denied content/parts, atomic slots, races/collisions, shape/size/timestamp validation and idempotent cleanup.
+3. Actual local workerd/R2/Durable Objects: JWT signatures/claims, per-account and aggregate quotas, cross-account isolation, warm-cache revocation and viewing with Firestore unavailable. A mocked metadata transport does not replace emulator tests.
+4. Separate core and file-backed secrets, expected commit SHA, actual protocol/owner-card paths and native installation without automatic install.
+5. Built viewer through the actual Worker headers, Chromium/Firefox/WebKit, desktop/phone screenshots in both languages against [the reference](PUBLIC_ARTIFACTS_UI.md), and independent review. `pnpm test:firebase` starts the demo emulator and Worker, not Hosting or Vite. Run `pnpm test:firebase:native` separately on a desktop-capable host.
+6. Production Worker/R2 and approved DNS only after tests; inventory existing publications before any approved data migration. Verify HTTPS, public reads with publishing core stopped, CSP, download and revocation, including an already-open phone page. Record measured production timing separately from local timing. Retire the old Hosting site only after the Worker domain works.
+
+No announcement, owner news entry, release or merge is part of this rollout. Production deployment and outside-device checks must be reported as unverified when permissions or owner activation block them.
+
+Docs impact: updated — this boundary document, [the public artifact decision](DECISIONS.md#d-241-public-artifacts), infrastructure EN/ES setup, release verification and artifact user guides cover R2/Worker, Firebase independence, authorization, budgets, cleanup and the limits of revocation.

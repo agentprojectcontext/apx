@@ -5,9 +5,10 @@ import path from "node:path";
 import { test } from "node:test";
 import { type Browser, chromium, expect, type Request } from "@playwright/test";
 import { publicArtifactCode, publicArtifactCopy } from "../apps/core/src/domain/public-artifact-copy.ts";
-import { createPublicArtifactCloud } from "../apps/core/src/public-artifacts/firestore.ts";
+import { createPublicArtifactCloud } from "../apps/core/src/public-artifacts/cloud.ts";
 import { withKit } from "../apps/core/src/surface-kit.ts";
 import { tempDir } from "../apps/core/src/testkit/platform.ts";
+import { browserCloud } from "./browser-cloud.ts";
 
 const emulator = process.env.FIRESTORE_EMULATOR_HOST;
 const viewer = process.env.APX_ARTIFACT_VIEWER_URL;
@@ -15,14 +16,10 @@ if (!emulator || !/^127\.0\.0\.1:\d+$/.test(emulator) || !viewer)
   throw new Error("Start the demo emulator and local artifact viewer first");
 const url = new URL(viewer);
 if (url.origin !== "http://127.0.0.1:7497")
-  throw new Error("Run the built viewer on the Firebase Hosting emulator at http://127.0.0.1:7497, not Vite");
-const project = "demo-apx-artifacts";
-const encode = (value: unknown) => Buffer.from(JSON.stringify(value)).toString("base64url");
-const session = {
-  uid: "browser",
-  idToken: `${encode({ alg: "none", typ: "JWT" })}.${encode({ sub: "browser", user_id: "browser", aud: project, iss: `https://securetoken.google.com/${project}`, iat: 1, exp: 4102444800, firebase: { sign_in_provider: "google.com", identities: {} } })}.`,
-};
-const cloud = createPublicArtifactCloud({ project, origin: `http://${emulator}` });
+  throw new Error("Run the built viewer through the real local Worker at http://127.0.0.1:7497, not Vite");
+const transport = browserCloud();
+const session = { uid: transport.uid, idToken: transport.token };
+const cloud = createPublicArtifactCloud({ fetch: transport.fetch });
 
 function fixture(spy: string) {
   const html = withKit(
@@ -41,7 +38,7 @@ function fixture(spy: string) {
   );
 }
 
-test("Hosting serves disjoint wrapper/runner policies and immutable hashed assets", async () => {
+test("The Worker serves disjoint wrapper/runner policies and immutable hashed assets", async () => {
   for (const pathname of ["/", "/index.html", "/abcd1234"]) {
     const response = await fetch(`${url.origin}${pathname}`);
     assert.equal(response.status, 200);
@@ -73,7 +70,7 @@ test("Hosting serves disjoint wrapper/runner policies and immutable hashed asset
   }
 });
 
-test("the viewer isolates credentials and network, downloads exact approved bytes and removes live revoked copies", async () => {
+test("the viewer isolates credentials and network, downloads exact approved bytes and removes live revoked copies", async (t) => {
   const dir = tempDir("apx-artifact-browser-");
   let browser: Browser | undefined;
   let networkRequests = 0;
@@ -131,8 +128,16 @@ test("the viewer isolates credentials and network, downloads exact approved byte
     }
     await page.getByRole("button", { name: "English", exact: true }).click();
     const previous = await cloud.inspect(session, code);
+    const started = performance.now();
     await cloud.revoke(session, code, previous.updateTime);
+    const serverMs = performance.now() - started;
     await expect(page.locator("iframe")).toHaveCount(0, { timeout: 15_000 });
+    t.diagnostic(
+      JSON.stringify({
+        local_revocation_response_ms: Math.round(serverMs),
+        local_open_viewer_removed_ms: Math.round(performance.now() - started),
+      }),
+    );
     await expect(page.getByRole("heading", { name: "This copy isn't available", exact: true })).toBeVisible();
     assert.equal(await page.getByRole("button", { name: "Open in APX", exact: true }).count(), 0);
   } finally {

@@ -374,7 +374,6 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
     home: config.home,
     onReceiptPersistenceError: () =>
       log.warn({}, "Public copy completed remotely, but its local receipt could not be saved"),
-    project: cloudClient?.project,
     fetch: opts.publicArtifactFetch,
   });
   const asana = createAsana({

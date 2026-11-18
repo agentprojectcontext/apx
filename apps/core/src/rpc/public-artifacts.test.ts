@@ -314,7 +314,7 @@ test("changed sources, discarded reviews and provider failures cannot bypass the
   const cloud = publicationTransport();
   const transport = cloud.fetch;
   cloud.fetch = async (input, init) => {
-    if (String(input).endsWith(":commit")) throw new Error("Bearer private-identity-token");
+    if (init?.method === "POST") throw new Error("Bearer private-identity-token");
     return transport(input, init);
   };
   const env = await fixture(undefined, cloud);

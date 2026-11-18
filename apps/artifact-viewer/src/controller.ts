@@ -1,6 +1,6 @@
-import type { readPublicCopy } from "./read.ts";
+import type { readEdgePublicCopy } from "@apx/protocol/public-copy";
 
-type Copy = Awaited<ReturnType<typeof readPublicCopy>>;
+type Copy = Awaited<ReturnType<typeof readEdgePublicCopy>>;
 type After = (ms: number, callback: () => void) => () => void;
 type Status = "loading" | "ready" | "missing" | "offline";
 type State = { status: Status; copy?: Copy; downloading: boolean };

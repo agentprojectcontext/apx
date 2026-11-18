@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
+import { createPublicArtifactCloud } from "./cloud.ts";
 import { createPublicationDrafts, type PublicationAccount, type PublicationDraftSnapshot } from "./drafts.ts";
-import { createPublicArtifactCloud } from "./firestore.ts";
 import { publicationTransport } from "./test-cloud.ts";
 
 test("a draft is retained through its actual pending-card deadline, including after restart and pruning", async () => {
@@ -16,7 +16,7 @@ test("a draft is retained through its actual pending-card deadline, including af
   const create = () =>
     createPublicationDrafts({
       account,
-      cloud: createPublicArtifactCloud({ project: "demo-apx-artifacts", fetch: publicationTransport().fetch }),
+      cloud: createPublicArtifactCloud({ fetch: publicationTransport().fetch }),
       source: () => ({ name: "orders", title: "Orders", html: "<h1>Orders</h1>", version: 1, app: false, state: {} }),
       decorateHtml: (html) => html,
       now: () => now,
