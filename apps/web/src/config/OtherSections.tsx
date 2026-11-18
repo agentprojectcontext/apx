@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { LanguageSelect, TimezoneSelect } from "../common/pickers/LocaleSelect.tsx";
 import { client } from "../data/client.ts";
 import { notify } from "../data/notices.ts";
+import { ownerRead } from "../data/owner.ts";
 import { setPrefs, TEXT_SIZES, textSizeOf, usePrefs } from "../data/prefs.ts";
 import { isLanguage, LANGUAGE_NAMES, LANGUAGES, useLanguage, useT } from "../i18n/index.ts";
 import { go, useNav } from "../shell/nav.ts";
@@ -32,6 +33,7 @@ export function AccountSection() {
       .call("owner.get", {})
       .then((o) => {
         setOwner(o);
+        ownerRead(o);
         if (o.name && !stored) setDraft(o.name);
       })
       .catch(() => {});
@@ -39,7 +41,10 @@ export function AccountSection() {
   const save = (patch: Partial<OwnerIdentity>) =>
     void client
       .call("owner.set", patch)
-      .then(setOwner)
+      .then((o) => {
+        setOwner(o);
+        ownerRead(o);
+      })
       .catch((e: unknown) => notify(t("error.account", { error: e instanceof Error ? e.message : String(e) })));
   const saveName = (value = draft) => {
     const name = value.trim();

@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import { accountReturnState } from "../data/account.ts";
 import { client } from "../data/client.ts";
 import { useSlice } from "../data/createStore.ts";
+import { accountPhotoRead } from "../data/owner.ts";
 import { onSignInDone } from "../data/signInWindow.ts";
 
 export function useCloudAccount() {
@@ -37,6 +38,7 @@ export function useCloudAccount() {
       .then((result) => {
         if (version.current !== current) return;
         setProfile(result.profile);
+        accountPhotoRead(result.profile?.photo ?? "");
         setAvailable(result.available);
         setReadError(undefined);
         if (confirmed.current !== result.profile?.handle) {
@@ -125,6 +127,7 @@ export function useCloudAccount() {
       await client.call("account.logout", {});
       if (alive.current) {
         setProfile(null);
+        accountPhotoRead("");
         setWaiting(false);
       }
     });

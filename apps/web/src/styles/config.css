@@ -157,6 +157,19 @@
   font-size: var(--apx-text-sm);
   color: var(--apx-fg-muted);
 }
+/* Where the username stands, under its hint: yours, or why it cannot be saved. */
+.account-handle__status {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 4px;
+}
+.account-handle__status.is-ok {
+  color: var(--apx-fg);
+}
+.account-handle__status.is-bad {
+  color: var(--apx-danger);
+}
 /* The name typed here beside the account's, before one replaces the other. */
 .account-compare {
   display: grid;

@@ -4,6 +4,10 @@
 import type { Page } from "@playwright/test";
 import { expect, open, openSettings, rpc, test } from "./kit.ts";
 
+/** A 1×1 picture standing in for the Google photo. */
+const PHOTO =
+  "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=";
+
 const accountOf = (profile: object | null) => ({
   json: { ok: true, result: { available: true, profile, pending: false } },
 });
@@ -33,7 +37,7 @@ test("signed in with another name: the owner sees both and keeps or takes the ac
   await rpc("setup.finish");
   await rpc("owner.set", { name: "Ani" });
   await page.route("**/rpc/account.get", (route) =>
-    route.fulfill(accountOf({ id: "9bspfhsq", name: "Ana Acme", photo: "", handle: "" })),
+    route.fulfill(accountOf({ id: "9bspfhsq", name: "Ana Acme", photo: PHOTO, handle: "" })),
   );
   await open(page);
   const settings = await openAccount(page);
@@ -51,6 +55,8 @@ test("signed in with another name: the owner sees both and keeps or takes the ac
   await expect(card.getByText("Ana Acme", { exact: true })).toBeVisible();
   await expect(card.getByText(/Tu ID de APX: 9bspfhsq/)).toBeVisible();
   await expect(card.getByRole("button", { name: "Cerrar sesión" })).toBeVisible();
+  // The sidebar's account row shows the same photo.
+  await expect(page.locator(".account__avatar img")).toHaveAttribute("src", PHOTO);
   await expect(settings.getByRole("textbox", { name: "Nombre de usuario" })).toBeVisible();
   await page.screenshot({ path: info.outputPath("account-signed-in.png") });
 

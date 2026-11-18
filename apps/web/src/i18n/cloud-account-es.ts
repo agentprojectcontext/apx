@@ -12,4 +12,5 @@ export const esCloudAccount = {
   "account.nameLoses": "Si usás el de Google, se reemplaza “{name}”. Después podés escribir otro en Nombre.",
   "account.nameKeep": "Dejar {name}",
   "account.nameUse": "Usar {name}",
+  "account.handleYours": "@{handle} es tuyo: nadie más puede usarlo.",
 } as const;

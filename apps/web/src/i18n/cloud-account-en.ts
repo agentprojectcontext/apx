@@ -12,4 +12,5 @@ export const enCloudAccount = {
   "account.nameLoses": "Using Google’s replaces “{name}”. You can type another one later in Name.",
   "account.nameKeep": "Keep {name}",
   "account.nameUse": "Use {name}",
+  "account.handleYours": "@{handle} is yours: nobody else can use it.",
 } as const;

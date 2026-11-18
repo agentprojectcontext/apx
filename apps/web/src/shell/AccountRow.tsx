@@ -1,5 +1,6 @@
-import { Icons, Menu, type MenuEntry } from "@apx/ui";
-import { initialsOf, setPrefs, usePrefs } from "../data/prefs.ts";
+import { Avatar, Icons, Menu, type MenuEntry } from "@apx/ui";
+import { useAccountPhoto, useOwnerName } from "../data/owner.ts";
+import { setPrefs, usePrefs } from "../data/prefs.ts";
 import { openSetup } from "../data/setup.ts";
 import { LANGUAGE_NAMES, type T, useLanguage, useT } from "../i18n/index.ts";
 import { useLanguageItems } from "./LanguageMenu.tsx";
@@ -10,7 +11,8 @@ import { useSidebarMenu } from "./sidebarParts.ts";
 /** Sidebar footer: who is using the panel, with quick theme / phone / setup / usage actions and Settings. */
 export function AccountRow({ rail }: { rail: boolean }) {
   const t = useT();
-  const name = usePrefs((s) => s.displayName) || t("account.you");
+  const name = useOwnerName() || t("account.you");
+  const photo = useAccountPhoto();
   const languageItems = useLanguageItems();
   const language = useLanguage();
   const compact = usePrefs((s) => s.sidebarCompact);
@@ -87,9 +89,7 @@ export function AccountRow({ rail }: { rail: boolean }) {
         items={items}
         trigger={
           <button type="button" className="account__btn" aria-label={t("account.menuOf", { name })}>
-            <span className="account__avatar" aria-hidden="true">
-              {initialsOf(name)}
-            </span>
+            <Avatar name={name} src={photo || undefined} size={26} className="account__avatar" />
             {!rail && (
               <>
                 <span className="account__name">{name}</span>
