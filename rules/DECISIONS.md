@@ -5215,8 +5215,8 @@ identifiers, never public artifact link codes: each published artifact has an in
 
 See [Firebase setup](../firebase/README.md) and its Spanish counterpart for configuration, rules and verification.
 
-<a id="d-241"></a>
-## D-241 — 2026-11-17 — Public artifacts are reviewed offline copies, not access to the owner's core
+<a id="d-246"></a>
+## D-246 — 2026-11-17 — Public artifacts are reviewed offline copies, not access to the owner's core
 
 A public artifact is an independently chosen copy of HTML and optional top-level state, published at
 `https://artifact.apxagent.app/<code>`. Every artifact gets a random eight-character Crockford base32 code,
