@@ -27,12 +27,50 @@ Este flujo requiere que el navegador y el core estén en la misma computadora. U
 Desde la raíz del repositorio:
 
 ```bash
-firebase emulators:exec --config firebase/firebase.json --only firestore --project demo-apx-account 'node --test firebase/account.rules.test.ts firebase/telemetry.rules.test.ts'
+pnpm test:firebase
+pnpm test:firebase:native # equipo con escritorio; comprueba el diálogo de instalación existente
 node --test apps/core/src/account/session.test.ts apps/core/src/rpc/account.test.ts apps/desktop/src/main/account-return.test.ts
 ```
 
-Usá un core aislado con `APX_SECRETS=file`, `APX_HOME` temporal y otro puerto. Las pruebas con emulador y proveedores simulados no prueban un login real de Google ni el despliegue de reglas en producción.
+Instalá Firebase CLI y Java; después ejecutá `pnpm exec playwright install chromium firefox webkit` antes del chequeo. `pnpm test:firebase` compila el panel
+y el visor, inicia Firestore en `127.0.0.1:8196` y Hosting en `127.0.0.1:7497`, y ejecuta secuencialmente las suites
+de reglas de cuenta, telemetría y artifacts, y las de navegador. El visor se prueba con los encabezados reales de
+Hosting, no con Vite. Usa proyectos demo y cores con carpetas aisladas y secretos en archivo; no necesita el core
+del dueño. `pnpm typecheck` también revisa todos los tests TypeScript de `firebase/`. La instalación nativa tiene
+su propio comando porque inicia Electron. Los emuladores no prueban un login real de Google ni un despliegue.
 
-Desplegá sólo las reglas revisadas, conservando las de telemetría, con `firebase deploy --only firestore:rules --project <proyecto>`. Esto cambia el control de acceso del proyecto: inspeccioná el diff y ejecutá ambas suites primero. Habilitar facturación no forma parte de la configuración de cuenta.
+Antes de cada despliegue de reglas o Hosting de artifacts, ejecutá `pnpm test:firebase` y conservá la salida como
+evidencia (ver `rules/RELEASE.md`). Desplegá sólo reglas revisadas, conservando las políticas de cuenta y telemetría,
+con `firebase deploy --config firebase.artifacts.json --only firestore:rules --project <proyecto>`. Este chequeo es obligatorio y no forma parte del
+preflight normal. Habilitar facturación no forma parte de la configuración de cuenta.
+
+## Aislar cuotas, si el dueño lo decide
+
+Este cambio no crea otro proyecto Firebase. El proyecto actual comparte cuotas de Firestore entre cuenta,
+artifacts y telemetría; un enlace popular todavía puede consumir esa cuota gratuita compartida. El visor usa la
+primera revisión confirmada por el listener, reutiliza sólo partes verificadas por hash al descargar y conserva
+los assets con hash en caché inmutable. Las lecturas públicas ya no consultan dueño y slot privados en las reglas.
+Esto reduce lecturas normales; no evita abusos ni garantiza disponibilidad ilimitada.
+
+Si el dueño elige un proyecto gratuito nuevo:
+
+1. En Firebase Console, creá un proyecto **Spark** sin activar facturación, su base Firestore y su sitio Hosting,
+   y habilitá Google Authentication. Configurá el cliente OAuth de escritorio de Google para ese proyecto como
+   se explica arriba. Elegí la ubicación de la base antes de crearla: después no se puede cambiar ahí mismo.
+2. Configurá `APX_ACCOUNT_CLIENT` del core con `project` y `apiKey` de ese proyecto y el cliente Google correspondiente
+   en `APX_GOOGLE_CLIENT`. Al compilar el visor, usá `VITE_ARTIFACT_FIREBASE_PROJECT=<proyecto>` sin
+   `VITE_ARTIFACT_EMULATOR`. Estas opciones no migran cuentas ni documentos existentes.
+3. Ejecutá `pnpm test:firebase`, revisá las reglas y vinculá el destino Hosting con
+   `firebase target:apply hosting artifacts <sitio> --project <proyecto>`. Desplegá explícitamente sólo
+   `firestore:rules,hosting:artifacts` revisados. Agregá el dominio de artifacts en Hosting y cambiá sólo sus
+   registros DNS aprobados. No cambies el origen del login, la telemetría ni habilites facturación como efecto secundario.
+4. Verificá login, publicación, actualización, revocación, visor e instalación con un core aislado antes de mover
+   una cuenta real. Los clientes receptores necesitan la misma configuración pública: los enlaces llevan sólo códigos.
+
+Esta configuración mueve juntos la cuenta opcional y los artifacts; la telemetría puede quedar en el proyecto
+original. **No** separa artifacts de las cuotas del login/perfil F3. Los tokens de Firebase pertenecen a un proyecto:
+un token del proyecto original no autoriza escrituras en otro. Mantener F3 en el original y artifacts en otro
+requiere una sesión autenticada propia para ese otro proyecto, no sólo cambiar el ID. Ese puente de autenticación
+no está implementado ni desplegado acá.
 
 English: [Firebase account backend](README.md).

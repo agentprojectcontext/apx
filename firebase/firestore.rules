@@ -46,11 +46,6 @@ service cloud.firestore {
       return request.auth != null && owner.uid == request.auth.uid
         && getAfter(/databases/$(database)/documents/artifactAccounts/$(owner.uid)/slots/$(owner.slot)).data.code == code;
     }
-    function artifactActive(code) {
-      let owner = artifactOwner(code);
-      return artifactCode(code)
-        && get(/databases/$(database)/documents/artifactAccounts/$(owner.uid)/slots/$(owner.slot)).data.code == code;
-    }
     function artifactPart(code, part, expected) {
       return existsAfter(/databases/$(database)/documents/publicArtifacts/$(code)/parts/$(part)) == expected;
     }
@@ -61,7 +56,8 @@ service cloud.firestore {
         && artifactPart(code, '6', count > 6) && artifactPart(code, '7', count > 7);
     }
     match /artifactOwners/{code} {
-      allow get: if artifactOwned(code);
+      allow get: if request.auth != null && artifactCode(code)
+        && (resource == null || resource.data.uid == request.auth.uid);
       allow list, update, delete: if false;
       allow create: if request.auth != null && artifactCode(code)
         && request.resource.data.keys().hasOnly(['uid', 'slot'])
@@ -83,7 +79,8 @@ service cloud.firestore {
         && !existsAfter(/databases/$(database)/documents/publicArtifacts/$(resource.data.code));
     }
     match /publicArtifacts/{code} {
-      allow get: if artifactActive(code);
+      // Atomic writes enforce ownership and slots; a public read needs no private account lookups.
+      allow get: if artifactCode(code);
       allow list: if false;
       allow create, update: if artifactCode(code) && artifactOwnedAfter(code)
         && (exists(/databases/$(database)/documents/publicArtifacts/$(code))
@@ -98,7 +95,7 @@ service cloud.firestore {
         && artifactParts(code, request.resource.data.chunk_count);
       allow delete: if artifactOwned(code) && artifactParts(code, 0);
       match /parts/{part} {
-        allow get: if artifactActive(code) && exists(/databases/$(database)/documents/publicArtifacts/$(code));
+        allow get: if artifactCode(code) && exists(/databases/$(database)/documents/publicArtifacts/$(code));
         allow list: if false;
         allow create, update: if artifactOwnedAfter(code) && part in ['0', '1', '2', '3', '4', '5', '6', '7']
           && existsAfter(/databases/$(database)/documents/publicArtifacts/$(code))

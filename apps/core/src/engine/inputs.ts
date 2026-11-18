@@ -148,7 +148,12 @@ export function createInputs(deps: {
 
   store.approvals.subscribe(() => {
     for (const r of store.inputs.pending()) {
-      if (r.kind !== "confirm" || !r.approval || !store.approvals.allows(r.approval, r.thread_id, r.agent_id, r.args))
+      if (
+        r.kind !== "confirm" ||
+        !r.approval ||
+        publicInput(r).artifact_draft ||
+        !store.approvals.allows(r.approval, r.thread_id, r.agent_id, r.args)
+      )
         continue;
       const grant = store.approvals
         .list(r.thread_id)
@@ -259,10 +264,14 @@ export function createInputs(deps: {
       id: string,
       a: { decision?: "approve" | "deny" | undefined; text?: string | undefined; scope?: ApprovalScope | undefined },
       onChannel = false,
+      reviewedArtifact?: string,
     ): InputRecord {
       const rec = store.inputs.get(id);
       if (!rec) throw notFound(`input ${id}`);
       if (rec.app_only && onChannel) throw unauthorized(APP_ONLY);
+      const draft = publicInput(rec).artifact_draft;
+      if (draft && a.decision === "approve" && reviewedArtifact !== draft)
+        throw unauthorized("public_artifact_review_required");
       if (rec.state === "pending" && rec.expires_at <= new Date().toISOString()) store.inputs.settle(id, "expired");
       const cur = store.inputs.get(id) as InputRecord;
       if (cur.state !== "pending") throw conflict(`input ${id} is already ${cur.state}`);

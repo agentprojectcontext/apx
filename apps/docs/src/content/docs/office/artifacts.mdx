@@ -116,11 +116,14 @@ This is separate from sharing a link to your own running APX: it uploads an inde
 No state is selected by default. Expand **View contents** to read each value, select only what you want to
 include, and choose **Review copy**. The next screen shows the publishing account, the public link, size,
 page preview, page source and the exact selected state. Only **Publish copy** uploads it. An agent's request
-also needs this review and your confirmation, even when it can otherwise work without asking.
+also needs this review and your confirmation, even when it can otherwise work without asking. On your phone,
+open APX on your computer to review that request; the phone cannot approve a public copy without the review.
 
 The HTML itself can contain sensitive information. Review it too: omitting state cannot remove information
 already written into the page. A public copy never includes the artifact's store, database or secret references,
-and cannot make requests to APX or other sites. Features that require those connections will not work there.
+and has no connection to APX. Its sandbox and content policy block ordinary requests and external resource loads;
+features that require those connections will not work there. This is not anonymous browsing: browser mechanisms
+such as WebRTC/STUN or DNS prefetch may still reveal your IP address to another service.
 
 **Settings › Account › Published copies** lists your copies. **Manage** lets you copy the link,
 **Update copy…** from a chosen local artifact, or **Stop publishing…**. Updates keep the same link and always

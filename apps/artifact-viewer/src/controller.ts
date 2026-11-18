@@ -5,7 +5,7 @@ type After = (ms: number, callback: () => void) => () => void;
 type Status = "loading" | "ready" | "missing" | "offline";
 type State = { status: Status; copy?: Copy; downloading: boolean };
 type Watch = (
-  changed: (state: "waiting" | "live" | "missing") => void,
+  changed: (state: "waiting" | "live" | "missing", metadata?: unknown) => void,
   failed: (missing: boolean) => void,
 ) => () => void;
 
@@ -30,7 +30,7 @@ function boundedRead(load: () => Promise<Copy>, after: After, signal: AbortSigna
 
 export function createPublicationController(deps: {
   valid: boolean;
-  load(): Promise<Copy>;
+  load(metadata?: unknown): Promise<Copy>;
   watch: Watch;
   after: After;
   online(): boolean;
@@ -58,11 +58,11 @@ export function createPublicationController(deps: {
     invalidate();
     emit({ status, downloading: false });
   };
-  const load = () => {
+  const load = (metadata?: unknown) => {
     invalidate();
     emit({ status: "loading", downloading: false });
     const expected = generation;
-    void boundedRead(deps.load, deps.after, operation.signal).then(
+    void boundedRead(() => deps.load(metadata), deps.after, operation.signal).then(
       (copy) => {
         if (expected === generation) emit({ status: "ready", copy, downloading: false });
       },
@@ -98,9 +98,9 @@ export function createPublicationController(deps: {
       }
       waiting();
       unsubscribe = deps.watch(
-        (next) => {
+        (next, metadata) => {
           if (expectedSubscription !== subscription) return;
-          if (next === "live") load();
+          if (next === "live") load(metadata);
           else if (next === "missing") unavailable("missing");
           else {
             invalidate();

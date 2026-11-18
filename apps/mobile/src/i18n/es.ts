@@ -1,6 +1,7 @@
 import type { Key } from "./en.ts";
 
 export const es: Record<Key, string> = {
+  artifactReviewOnComputer: "Abrí APX en la compu para revisar esta copia.",
   browserTechnical: "Detalles técnicos",
   browserDocument: "Documento",
   browserFile: "Archivo",

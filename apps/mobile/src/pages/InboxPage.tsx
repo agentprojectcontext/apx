@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Alert, Text, View } from "react-native";
+import { needsComputerReview } from "../approvalReview";
 import { listWhen } from "../format";
 import type { InboxAction, InboxItem } from "../hooks/inboxItems";
 import type { Notice, Workspace } from "../hooks/useWorkspace";
@@ -29,8 +30,11 @@ export function InboxPage({
   muteEvent: (series: string, title: string) => Promise<void>;
 }) {
   const act = async (item: InboxItem, action: InboxAction) => {
-    if (action.kind === "approve")
+    if (action.kind === "approve") {
+      const input = data.inputs.find((input) => input.id === action.input);
+      if (item.reviewOnComputer || (input && needsComputerReview(input))) return;
       await respond(action.input, { decision: "approve", ...(action.scope ? { scope: action.scope } : {}) });
+    }
     if (action.kind === "rerun") await rerun(action.routine);
     if (action.kind === "continue") await continueSession(action.session);
     if (action.kind === "muteEvent") await muteEvent(action.series, action.title);
@@ -100,6 +104,7 @@ function InboxCard({
           ) : null}
         </View>
       </View>
+      {item.reviewOnComputer ? <Text style={type.muted}>{t("artifactReviewOnComputer")}</Text> : null}
       {item.quote ? <Text style={s.quote}>{item.quote}</Text> : null}
       <View style={s.actions}>
         <Button

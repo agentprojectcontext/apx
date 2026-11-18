@@ -16,6 +16,10 @@ export const enPublicCopies = {
   "public.invalid": "This review is no longer current. Close it and review a new copy before publishing.",
   "public.limit": "You already have 20 published copies. Stop publishing one before adding another.",
   "public.large": "This copy exceeds 4.2 MB. Choose less state or a smaller page.",
+  "public.htmlLarge":
+    "The page exceeds the 400,000-character HTML limit, including offline components. Shorten it before publishing.",
+  "public.codeBusy": "Could not reserve a public link. Try preparing the copy again.",
+  "public.reviewRequired": "Open the copy's review again before approving it.",
   "public.secret": "Remove secret references from the page or selected state before publishing.",
   "public.retry": "Try again",
   "public.published": "Copy published",

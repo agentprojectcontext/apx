@@ -17,6 +17,7 @@ export function publicArtifactCopy(
   surface: Pick<Surface, "name" | "title" | "html" | "version" | "app" | "state">,
   stateKeys: readonly string[] = [],
 ): { bundle: ArtifactBundle; json: string; bytes: number; sha256: string } {
+  if (surface.html.length > 400_000) throw new Error("public_artifact_html_too_large");
   if (stateKeys.length > 1000 || new Set(stateKeys).size !== stateKeys.length) {
     throw new Error("Choose at most 1000 different state keys");
   }

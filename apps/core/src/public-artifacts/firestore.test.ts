@@ -8,6 +8,26 @@ const copy = publicArtifactCopy(
   [],
 );
 
+test("availability distinguishes missing owner records from occupied or hidden codes and fails closed on outages", async () => {
+  const session = { uid: "person", idToken: "test-token" };
+  for (const [status, expected] of [
+    [200, false],
+    [403, false],
+    [404, true],
+  ] as const) {
+    const cloud = createPublicArtifactCloud({
+      project: "demo-apx-artifacts",
+      fetch: async () => Response.json({}, { status }),
+    });
+    assert.equal(await cloud.available(session, "abcd1234"), expected);
+  }
+  const cloud = createPublicArtifactCloud({
+    project: "demo-apx-artifacts",
+    fetch: async () => Response.json({}, { status: 503 }),
+  });
+  await assert.rejects(cloud.available(session, "abcd1234"), /unavailable/);
+});
+
 test("an invalidated account cannot start any publication request", async () => {
   let calls = 0;
   const cloud = createPublicArtifactCloud({
@@ -19,6 +39,7 @@ test("an invalidated account cannot start any publication request", async () => 
   });
   const session = { uid: "person", idToken: "test-token", current: () => false };
   for (const run of [
+    () => cloud.available(session, "abcd1234"),
     () => cloud.slots(session),
     () => cloud.inspect(session, "abcd1234"),
     () => cloud.publish(session, "abcd1234", copy),

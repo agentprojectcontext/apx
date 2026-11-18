@@ -1,5 +1,6 @@
 // The app's words in English, the source language; every other language mirrors these keys.
 export const en = {
+  artifactReviewOnComputer: "Open APX on your computer to review this copy.",
   browserTechnical: "Technical details",
   browserDocument: "Document",
   browserFile: "File",

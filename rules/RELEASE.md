@@ -3,6 +3,17 @@
 How v2 leaves the private working repo and reaches people. What was built for updates is
 [D-044](DECISIONS.md#d-044).
 
+## Cloud rules and public artifact viewer
+
+Before publishing Firestore rules or artifact Hosting, run `pnpm test:firebase` from the repository root with
+Firebase CLI, Java and Playwright Chromium, Firefox and WebKit installed. This single mandatory gate covers account, telemetry and
+artifact rules, the built viewer through the Hosting emulator on `127.0.0.1:7497`, and built-panel journeys.
+`pnpm typecheck` includes `firebase/`; normal preflight does not start Java or the emulators. Retain the test
+output with deployment evidence and preserve account and telemetry permissions together. The native installation
+journey is separate: run `pnpm test:firebase:native` on a desktop-capable host before shipping that integration.
+See [Firebase setup](../firebase/README.md) and [Public artifact copies](PUBLIC_ARTIFACTS.md). Neither command
+authorizes production deployment or enabling billing.
+
 ## History
 
 The private working repo's older commits carry a work email, AI-tool trailers and a few real names, so its history

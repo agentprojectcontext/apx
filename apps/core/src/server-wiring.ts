@@ -362,7 +362,7 @@ export function coreHandlers(d: HandlerDeps & { vm?: Computer | undefined }) {
     ),
     ...threadHandlers(d.store, d.engine, d.upkeep, d.aside, d.groups, (ref) => refProblem(ref, d.engines, undefined)),
     ...threadAdminHandlers(d.store, d.app.home, d.vm?.beforeDelete),
-    ...runHandlers(d.store, d.engine),
+    ...runHandlers(d.store, d.engine, d.publications),
     ...jobHandlers(d.store, d.engine),
     ...memoryHandlers(d.store, d.memory, d.memoryMaintenance),
     ...channelsH,

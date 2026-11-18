@@ -4,16 +4,34 @@ import { publicRun } from "../domain/runs.ts";
 import { HOME_THREAD_ID } from "../domain/seed.ts";
 import type { Store } from "../domain/store.ts";
 import type { Engine } from "../engine/engine.ts";
-import { notFound } from "../errors.ts";
+import { notFound, unauthorized } from "../errors.ts";
+import type { createPublicationService } from "../public-artifacts/service.ts";
 import type { Handlers } from "./router.ts";
 
 /** Runs of a thread (pending inputs, answers, waits) and widget prompts, which start one. */
-export function runHandlers(store: Store, engine: Engine) {
+export function runHandlers(
+  store: Store,
+  engine: Engine,
+  publications: Pick<ReturnType<typeof createPublicationService>, "verifyReview">,
+) {
   return {
     "runs.pending": ({ thread }) => ({ inputs: engine.pending(thread) }),
     // A channel's answer carries the channel the owner wrote on (set by the channel manager, never by a request).
-    "runs.respond": ({ input, decision, text, scope }, ctx) =>
-      publicInput(engine.respond(input, { decision, text, scope }, Boolean(ctx.channel))),
+    "runs.respond": async ({ input, decision, text, scope, artifact_review }, ctx) => {
+      const record = store.inputs.get(input);
+      const draft = record && publicInput(record).artifact_draft;
+      let reviewed: string | undefined;
+      if (draft && decision === "approve") {
+        if (
+          ctx.channel ||
+          !artifact_review ||
+          !(await publications.verifyReview(draft, artifact_review).catch(() => false))
+        )
+          throw unauthorized("public_artifact_review_required");
+        reviewed = draft;
+      }
+      return publicInput(engine.respond(input, { decision, text, scope }, Boolean(ctx.channel), reviewed));
+    },
     "runs.update_queued": ({ run, text }) => ({ message: engine.editQueued(run, text) }),
     "runs.remove_queued": ({ run }) => {
       engine.removeQueued(run);

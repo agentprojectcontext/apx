@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { test } from "node:test";
-import { readPublicCopy } from "./read.ts";
+import { createCopyReader, readPublicCopy } from "./read.ts";
 
 function fixture(extra = {}) {
   const bundle = {
@@ -33,6 +33,44 @@ test("a public copy is decoded losslessly and checked again before it can be sho
   assert.equal(copy.json, f.json);
   assert.deepEqual(copy.bundle, f.bundle);
   assert.deepEqual(calls, ["publicArtifacts/abcd1234", "publicArtifacts/abcd1234/parts/0", "publicArtifacts/abcd1234"]);
+});
+
+test("listener metadata saves one read and verified parts are reused only with fresh server checks", async () => {
+  const f = fixture();
+  const calls: string[] = [];
+  let revoked = false;
+  let changed = false;
+  const load = createCopyReader("abcd1234", async (path) => {
+    calls.push(path);
+    if (revoked) throw new Error("permission-denied");
+    if (changed && !path.includes("/parts/")) return { ...f.meta, sha256: "0".repeat(64) };
+    return f.read(path);
+  });
+  assert.equal((await load(f.meta)).json, f.json);
+  assert.deepEqual(calls.splice(0), ["publicArtifacts/abcd1234/parts/0", "publicArtifacts/abcd1234"]);
+  assert.equal((await load()).json, f.json);
+  assert.deepEqual(calls.splice(0), ["publicArtifacts/abcd1234", "publicArtifacts/abcd1234"]);
+  changed = true;
+  await assert.rejects(load(), /invalid_public_copy/);
+  changed = false;
+  revoked = true;
+  await assert.rejects(load(), /permission-denied/);
+});
+
+test("a new server snapshot fetches new parts and revalidates the final metadata", async () => {
+  const first = fixture();
+  const second = fixture({ html: "<h1>Updated</h1>" });
+  let current = first;
+  let partReads = 0;
+  const load = createCopyReader("abcd1234", async (path) => {
+    if (path.includes("/parts/")) partReads++;
+    return current.read(path);
+  });
+  assert.equal((await load(first.meta)).json, first.json);
+  current = second;
+  assert.equal((await load(second.meta)).json, second.json);
+  assert.equal(partReads, 2);
+  await assert.rejects(load(first.meta), /invalid_public_copy/);
 });
 
 test("invalid codes, metadata, missing parts and wrong hashes fail closed", async () => {

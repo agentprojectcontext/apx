@@ -21,6 +21,8 @@ const CODES = new Set([
   "public_artifact_account_changed",
   "public_artifact_access_denied",
   "public_artifact_too_large",
+  "public_artifact_html_too_large",
+  "public_artifact_code_unavailable",
   "public_artifact_unavailable",
 ]);
 const COPY_ERRORS: Readonly<Record<string, string>> = {
@@ -64,8 +66,7 @@ export function publicArtifactHandlers(deps: {
       if (boundary) {
         if (params.action !== "publish") throw unauthorized("public_artifact_access_denied");
         const source = deps.store.surfaces.get(params.surface);
-        if (!source || (source.project_id && source.project_id !== boundary.project))
-          throw notFound("public_artifact_missing");
+        if (!source || source.project_id !== boundary.project) throw notFound("public_artifact_missing");
       }
       return result(() => deps.publications.prepare(params));
     },

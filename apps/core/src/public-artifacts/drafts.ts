@@ -23,7 +23,8 @@ type Receipt = { code: string; url: string; action: PublicationRequest["action"]
 type Draft = {
   id: string;
   uid: string;
-  generation: number;
+  generation?: number;
+  reviewToken?: string;
   expires: number;
   action: PublicationRequest["action"];
   code: string;
@@ -34,6 +35,11 @@ type Draft = {
   copy?: ReturnType<typeof publicArtifactCopy>;
   done?: Receipt;
   pending?: Promise<Receipt>;
+};
+export type PublicationDraftSnapshot = Omit<Draft, "pending" | "generation" | "reviewToken">;
+export type PublicationDraftPersistence = {
+  load(): readonly PublicationDraftSnapshot[];
+  save(drafts: readonly PublicationDraftSnapshot[]): void;
 };
 const address = (code: string) => `https://artifact.apxagent.app/${code}`;
 const summary = (draft: Draft) => ({
@@ -53,9 +59,23 @@ export function createPublicationDrafts(deps: {
   source(id: string): Source | undefined;
   decorateHtml(html: string): string;
   now?: () => number;
+  code?: () => string;
+  persistence?: PublicationDraftPersistence;
+  pendingUntil?(id: string): number | undefined;
 }) {
   const drafts = new Map<string, Draft>();
   const now = deps.now ?? Date.now;
+  for (const saved of (deps.persistence?.load() ?? []).slice(-20)) {
+    const draft = structuredClone(saved);
+    draft.expires = Math.max(draft.expires, deps.pendingUntil?.(draft.id) ?? 0);
+    if (draft.expires > now()) drafts.set(draft.id, draft);
+  }
+  const persist = () =>
+    deps.persistence?.save(
+      [...drafts.values()].map(({ pending: _pending, generation: _generation, reviewToken: _token, ...draft }) =>
+        structuredClone(draft),
+      ),
+    );
   const snapshot = (id: string, keys: string[]) => {
     const source = deps.source(id);
     if (!source) throw new Error("public_artifact_source_missing");
@@ -66,13 +86,17 @@ export function createPublicationDrafts(deps: {
       throw new Error("public_artifact_account_changed");
   };
   const find = (id: string) => {
-    for (const [key, draft] of drafts) if (draft.expires <= now() && !draft.pending) drafts.delete(key);
+    for (const [key, draft] of drafts) {
+      draft.expires = Math.max(draft.expires, deps.pendingUntil?.(draft.id) ?? 0);
+      if (draft.expires <= now() && !draft.pending) drafts.delete(key);
+    }
     const draft = drafts.get(id);
     if (!draft || draft.expires <= now()) throw new Error("public_artifact_preview_expired");
     return draft;
   };
   const execute = (draft: Draft) =>
     deps.account.withSession(async (session): Promise<Receipt> => {
+      if (draft.generation === undefined) throw new Error("public_artifact_review_required");
       current(session, draft);
       if (draft.copy && draft.surface && snapshot(draft.surface, draft.keys).sha256 !== draft.copy.sha256)
         throw new Error("public_artifact_source_changed");
@@ -96,6 +120,7 @@ export function createPublicationDrafts(deps: {
         current(session, draft);
         if (draft.pending) throw new Error("public_artifact_pending");
         drafts.delete(id);
+        persist();
         return { ok: true as const };
       });
     },
@@ -114,6 +139,7 @@ export function createPublicationDrafts(deps: {
         const remote = input.code ? await deps.cloud.inspect(session, input.code) : undefined;
         current(session);
         for (const [id, old] of drafts) {
+          old.expires = Math.max(old.expires, deps.pendingUntil?.(id) ?? 0);
           if (
             !old.pending &&
             (old.expires <= now() ||
@@ -125,13 +151,26 @@ export function createPublicationDrafts(deps: {
             drafts.delete(id);
         }
         if (drafts.size >= 20) throw new Error("public_artifact_preview_limit");
+        let code = input.code;
+        if (!code) {
+          for (let attempt = 0; attempt < 8; attempt++) {
+            const candidate = (deps.code ?? publicArtifactCode)();
+            if (await deps.cloud.available(session, candidate)) {
+              code = candidate;
+              break;
+            }
+          }
+          if (!code) throw new Error("public_artifact_code_unavailable");
+        }
+        current(session);
+        if (drafts.size >= 20) throw new Error("public_artifact_preview_limit");
         const draft: Draft = {
           id: randomUUID(),
           uid: session.uid,
           generation: session.generation,
-          expires: now() + 10 * 60_000,
+          expires: now() + 30 * 24 * 60 * 60_000,
           action: input.action,
-          code: input.code ?? publicArtifactCode(),
+          code,
           title: copy?.bundle.manifest.title ?? (remote ? cloudString(remote, "title") : ""),
           ...(input.surface ? { surface: input.surface } : {}),
           keys,
@@ -139,15 +178,39 @@ export function createPublicationDrafts(deps: {
           ...(remote ? { expected: remote.updateTime } : {}),
         };
         drafts.set(draft.id, draft);
+        persist();
         return summary(draft);
       });
+    },
+    async verifyReview(id: string, token: string): Promise<boolean> {
+      try {
+        const draft = find(id);
+        if (!token || draft.reviewToken !== token) return false;
+        return await deps.account.withSession(async (session) => {
+          current(session, draft);
+          if (draft.copy && draft.surface && snapshot(draft.surface, draft.keys).sha256 !== draft.copy.sha256)
+            return false;
+          return true;
+        });
+      } catch {
+        return false;
+      }
     },
     async preview(id: string) {
       const draft = find(id);
       return deps.account.withSession(async (session) => {
+        if (draft.generation === undefined) {
+          current(session);
+          if (session.uid !== draft.uid) throw new Error("public_artifact_account_changed");
+          draft.generation = session.generation;
+        }
         current(session, draft);
+        if (draft.copy && draft.surface && snapshot(draft.surface, draft.keys).sha256 !== draft.copy.sha256)
+          throw new Error("public_artifact_source_changed");
+        draft.reviewToken ??= randomUUID();
         return {
           ...summary(draft),
+          review_token: draft.reviewToken,
           ...(session.profile ? { account: { ...session.profile } } : {}),
           ...(draft.copy ? { bundle: JSON.parse(draft.copy.json) as typeof draft.copy.bundle } : {}),
         };
@@ -164,6 +227,7 @@ export function createPublicationDrafts(deps: {
       draft.pending = execute(draft);
       try {
         draft.done = await draft.pending;
+        persist();
         return { ...draft.done };
       } finally {
         delete draft.pending;

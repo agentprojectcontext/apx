@@ -27,12 +27,50 @@ This loopback flow requires the browser and core on the same computer. A phone b
 From the repository root:
 
 ```bash
-firebase emulators:exec --config firebase/firebase.json --only firestore --project demo-apx-account 'node --test firebase/account.rules.test.ts firebase/telemetry.rules.test.ts'
+pnpm test:firebase
+pnpm test:firebase:native # desktop-capable host; checks the existing installation dialog
 node --test apps/core/src/account/session.test.ts apps/core/src/rpc/account.test.ts apps/desktop/src/main/account-return.test.ts
 ```
 
-Use an isolated core with `APX_SECRETS=file`, a temporary `APX_HOME` and a port other than the owner's core. Emulator/scripted-provider tests do not prove a live Google sign-in or production rules deployment.
+Install Firebase CLI and Java, then run `pnpm exec playwright install chromium firefox webkit` before the gate. `pnpm test:firebase` builds the panel
+and viewer, starts Firestore on `127.0.0.1:8196` and Hosting on `127.0.0.1:7497`, then runs the account, telemetry,
+artifact rules and browser suites sequentially. Viewer tests use Hosting's actual headers, not Vite. The command
+uses demo projects and isolated core homes with file-backed secrets; it never needs the owner's running core.
+`pnpm typecheck` also checks every TypeScript test in `firebase/`. Native installation has its own desktop command
+because it launches Electron. Emulator/scripted-provider tests do not prove live Google sign-in or deployment.
 
-Deploy only the reviewed rules, preserving the existing telemetry rules, with `firebase deploy --only firestore:rules --project <project>`. This changes access control for the project; inspect the diff and run both emulator suites first. No billing upgrade is part of account setup.
+Before every rules or artifact Hosting deployment, run `pnpm test:firebase` and keep the output with deployment
+evidence (see `rules/RELEASE.md`). Deploy only reviewed rules, preserving the existing telemetry/account policies,
+with `firebase deploy --config firebase.artifacts.json --only firestore:rules --project <project>`. The gate is mandatory, not part of normal
+preflight. No billing upgrade is part of account setup.
+
+## Optional quota isolation (owner decision)
+
+No separate Firebase project is created by this change. The current project shares Firestore quotas between
+accounts, artifacts and telemetry; a popular public link can still consume that shared free quota. The viewer
+now uses a listener-confirmed initial revision, reuses only hash-verified parts for downloads, and ships hashed
+assets with immutable caching. Metadata/part reads no longer inspect private owner/slot documents in rules.
+These reduce ordinary reads; they do not provide abuse protection or unlimited availability.
+
+If the owner chooses a new free project:
+
+1. In Firebase Console, create a **Spark** project without upgrading billing, create its Firestore database and
+   Hosting site, and enable Google Authentication. Configure the desktop Google OAuth client for that project as
+   described above. Pick the database location before creating it; this cannot be changed in place.
+2. Configure the core's public `APX_ACCOUNT_CLIENT` with that project's `project` and `apiKey`, and the matching
+   Google desktop client through `APX_GOOGLE_CLIENT`. Set `VITE_ARTIFACT_FIREBASE_PROJECT=<project>` when building
+   the viewer, without `VITE_ARTIFACT_EMULATOR`. Existing accounts/documents are not migrated by these settings.
+3. Run `pnpm test:firebase`, review the rules, bind the Hosting target with
+   `firebase target:apply hosting artifacts <site> --project <project>`, and explicitly deploy only the reviewed
+   `firestore:rules,hosting:artifacts`. Add the artifact custom domain in Hosting, then change only its approved DNS
+   records. Do not change the login origin, telemetry configuration or enable billing as a side effect.
+4. Verify sign-in, publish/update/revoke, public viewing and installation against an isolated core before moving
+   any live account. Rebuild recipient clients with the same public target configuration; links carry only codes.
+
+This supported configuration moves the optional account and artifacts together; telemetry can remain in its
+original project. It does **not** split artifacts from F3 authentication/profile quotas. Firebase ID tokens are
+project-scoped: an original-project token cannot authorize writes in a different project. Keeping F3 login in
+its original project while artifacts use another requires a separately authenticated session in the artifact
+project (not just a project-id override); that auth bridge is not implemented or deployed here.
 
 Spanish: [Configuración de Firebase](README.es.md).

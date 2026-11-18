@@ -15,7 +15,6 @@ const texts = {
     offlineHint: "Check your connection and try again.",
     retry: "Try again",
     preview: "Published artifact",
-    noPreview: "This browser can't preview the copy",
     downloading: "Preparing download…",
   },
   es: {
@@ -30,7 +29,6 @@ const texts = {
     offlineHint: "Revisá tu conexión y volvé a intentar.",
     retry: "Volver a intentar",
     preview: "Artifact publicado",
-    noPreview: "Este navegador no puede mostrar la copia",
     downloading: "Preparando descarga…",
   },
 };
@@ -80,27 +78,21 @@ export function App() {
           )}
         </header>
         {status === "ready" && copy ? (
-          "credentialless" in HTMLIFrameElement.prototype ? (
-            <iframe
-              {...{ credentialless: true }}
-              key={copy.sha256}
-              title={t.preview}
-              src="/runner.html"
-              sandbox="allow-scripts"
-              referrerPolicy="no-referrer"
-              className="public-copy__frame"
-              onLoad={(event) => {
-                event.currentTarget.contentWindow?.postMessage(
-                  { type: "apx-public-copy", html: copy.bundle.html, state: copy.bundle.state ?? {} },
-                  "*",
-                );
-              }}
-            />
-          ) : (
-            <section className="public-copy__status">
-              <h2>{t.noPreview}</h2>
-            </section>
-          )
+          <iframe
+            {...{ credentialless: true }}
+            key={copy.sha256}
+            title={t.preview}
+            src="/runner.html"
+            sandbox="allow-scripts"
+            referrerPolicy="no-referrer"
+            className="public-copy__frame"
+            onLoad={(event) => {
+              event.currentTarget.contentWindow?.postMessage(
+                { type: "apx-public-copy", html: copy.bundle.html, state: copy.bundle.state ?? {} },
+                "*",
+              );
+            }}
+          />
         ) : (
           <section className="public-copy__status" aria-live="polite" aria-busy={status === "loading"}>
             <h1>{status === "loading" ? t.loading : status === "missing" ? t.missing : t.offline}</h1>

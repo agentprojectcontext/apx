@@ -474,6 +474,7 @@ export const appWorkspaceMethods = {
       z
         .object({
           input: Id,
+          artifact_review: z.string().uuid().optional(),
           decision: z.enum(["approve", "deny"]).optional(),
           scope: ApprovalScope.optional(),
           text: z.string().max(4000).optional(),

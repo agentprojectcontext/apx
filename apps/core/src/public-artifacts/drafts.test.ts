@@ -4,7 +4,7 @@ import { waitFor } from "../testkit/platform.ts";
 import { createPublicationDrafts, type PublicationAccount } from "./drafts.ts";
 import type { createPublicArtifactCloud } from "./firestore.ts";
 
-function fixture() {
+function fixture(codes?: () => string) {
   let now = 0;
   const account = { uid: "first", generation: 1 };
   let source:
@@ -31,6 +31,7 @@ function fixture() {
     },
   };
   const cloud: ReturnType<typeof createPublicArtifactCloud> = {
+    available: async () => true,
     slots: async () => [],
     inspect: async (_session, code) => ({
       name: code,
@@ -50,15 +51,27 @@ function fixture() {
       return { ok: true };
     },
   };
-  const drafts = createPublicationDrafts({
-    account: connection,
-    cloud,
-    source: () => source,
-    decorateHtml: (html) => html,
-    now: () => now,
-  });
+  let saved: import("./drafts.ts").PublicationDraftSnapshot[] = [];
+  const create = () =>
+    createPublicationDrafts({
+      persistence: {
+        load: () => saved,
+        save: (value) => {
+          saved = structuredClone([...value]);
+        },
+      },
+      account: connection,
+      cloud,
+      code: codes,
+      source: () => source,
+      decorateHtml: (html) => html,
+      now: () => now,
+    });
+  const drafts = create();
   return {
     drafts,
+    restart: create,
+    persisted: () => saved,
     cloud,
     account,
     writes,
@@ -73,6 +86,72 @@ function fixture() {
     },
   };
 }
+
+test("durable cards survive waiting and restart but require a fresh human review", async () => {
+  const f = fixture();
+  const prepared = await f.drafts.prepare({ action: "publish", surface: "surface" });
+  assert.equal(await f.drafts.verifyReview(prepared.draft, "invented"), false);
+  const preview = await f.drafts.preview(prepared.draft);
+  assert.equal(await f.drafts.verifyReview(prepared.draft, preview.review_token), true);
+  assert.equal(JSON.stringify(f.persisted()).includes(preview.review_token), false);
+  assert.equal(JSON.stringify(f.persisted()).includes("emulated-token"), false);
+  assert.equal(JSON.stringify(f.drafts.describe(prepared.draft)).includes(preview.review_token), false);
+  f.advance(11 * 60_000);
+  const restored = f.restart();
+  assert.equal(await restored.verifyReview(prepared.draft, preview.review_token), false);
+  await assert.rejects(restored.commit(prepared.draft), /review_required/);
+  const fresh = await restored.preview(prepared.draft);
+  assert.notEqual(fresh.review_token, preview.review_token);
+  assert.equal(await restored.verifyReview(prepared.draft, fresh.review_token), true);
+  assert.ok(f.source);
+  f.source.html = "changed";
+  assert.equal(await restored.verifyReview(prepared.draft, fresh.review_token), false);
+  await assert.rejects(restored.commit(prepared.draft), /source_changed/);
+  assert.equal(f.writes.length, 0);
+});
+
+test("restart cannot cross account boundaries and live review tokens cannot survive logout", async () => {
+  const f = fixture();
+  const prepared = await f.drafts.prepare({ action: "publish", surface: "surface" });
+  const preview = await f.drafts.preview(prepared.draft);
+  f.account.generation++;
+  assert.equal(await f.drafts.verifyReview(prepared.draft, preview.review_token), false);
+  await assert.rejects(f.drafts.preview(prepared.draft), /account_changed/);
+  const restored = f.restart();
+  f.account.uid = "second";
+  await assert.rejects(restored.preview(prepared.draft), /account_changed/);
+  assert.equal(await restored.verifyReview(prepared.draft, preview.review_token), false);
+  assert.equal(f.writes.length, 0);
+});
+
+test("durable drafts retain at most twenty selected snapshots", async () => {
+  const f = fixture();
+  for (let index = 0; index < 20; index++) {
+    await f.drafts.prepare({ action: "publish", surface: `surface-${index}` });
+  }
+  await assert.rejects(f.drafts.prepare({ action: "publish", surface: "overflow" }), /preview_limit/);
+  assert.equal(f.persisted().length, 20);
+  assert.equal(JSON.stringify(f.persisted()).includes("never uploaded"), false);
+  const restored = f.restart();
+  const first = f.persisted()[0];
+  assert.ok(first);
+  assert.equal(restored.describe(first.id).code, first.code);
+});
+
+test("preparation retries occupied codes before presenting an immutable URL", async () => {
+  const codes = ["00000000", "00000001", "00000002"];
+  const f = fixture(() => codes.shift() ?? "00000003");
+  let attempts = 0;
+  f.cloud.available = async () => ++attempts > 2;
+  const prepared = await f.drafts.prepare({ action: "publish", surface: "surface" });
+  assert.equal(attempts, 3);
+  assert.equal(prepared.code, "00000002");
+  assert.equal((await f.drafts.preview(prepared.draft)).code, prepared.code);
+  await f.drafts.commit(prepared.draft);
+  assert.equal(f.writes[0]?.code, prepared.code);
+  f.cloud.available = async () => false;
+  await assert.rejects(f.drafts.prepare({ action: "publish", surface: "surface" }), /code_unavailable/);
+});
 
 test("preparing and previewing cannot publish; the immutable receipt never reveals account credentials", async () => {
   const f = fixture();
@@ -115,7 +194,7 @@ test("an expired or superseded preview cannot run, and pending copies omit state
   const second = await f.drafts.prepare({ action: "publish", surface: "surface" });
   await assert.rejects(f.drafts.commit(first.draft), /preview_expired/);
   assert.equal((await f.drafts.preview(second.draft)).bundle?.state, undefined);
-  f.advance(10 * 60_000);
+  f.advance(30 * 24 * 60 * 60_000);
   await assert.rejects(f.drafts.preview(second.draft), /preview_expired/);
   await assert.rejects(f.drafts.commit(second.draft), /preview_expired/);
   assert.equal(f.writes.length, 0);

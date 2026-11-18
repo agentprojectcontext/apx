@@ -26,7 +26,7 @@ for (const width of [1280, 390]) {
       core.secrets.set(
         APX_ACCOUNT_SESSION,
         JSON.stringify({
-          uid: "person",
+          uid: cloud.uid,
           idToken: cloud.token,
           refreshToken: "private-refresh-token",
           expires: Number.MAX_SAFE_INTEGER,

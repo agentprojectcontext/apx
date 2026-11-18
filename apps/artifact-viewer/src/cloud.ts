@@ -8,9 +8,12 @@ import {
   onSnapshot,
 } from "firebase/firestore";
 
-const app = initializeApp({ projectId: import.meta.env.DEV ? "demo-apx-artifacts" : "apx-agents" });
+import { viewerConfig } from "./config.ts";
+
+const config = viewerConfig(import.meta.env);
+const app = initializeApp({ projectId: config.projectId });
 const database = initializeFirestore(app, { localCache: memoryLocalCache() });
-if (import.meta.env.DEV && import.meta.env.VITE_ARTIFACT_EMULATOR === "1") {
+if (config.emulator) {
   connectFirestoreEmulator(database, "127.0.0.1", 8196);
 }
 export async function readDocument(path: string): Promise<unknown> {
@@ -20,13 +23,17 @@ export async function readDocument(path: string): Promise<unknown> {
 }
 export function watchPublication(
   code: string,
-  changed: (state: "waiting" | "live" | "missing") => void,
+  changed: (state: "waiting" | "live" | "missing", metadata?: unknown) => void,
   failed: (missing: boolean) => void,
 ) {
   return onSnapshot(
     doc(database, `publicArtifacts/${code}`),
     { includeMetadataChanges: true },
-    (snapshot) => changed(snapshot.metadata.fromCache ? "waiting" : snapshot.exists() ? "live" : "missing"),
+    (snapshot) =>
+      changed(
+        snapshot.metadata.fromCache ? "waiting" : snapshot.exists() ? "live" : "missing",
+        snapshot.metadata.fromCache ? undefined : snapshot.data(),
+      ),
     (error) => failed(error.code === "permission-denied" || error.code === "not-found"),
   );
 }

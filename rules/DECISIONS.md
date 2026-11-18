@@ -5238,11 +5238,16 @@ publication. Update retains the public code and may use another local source; re
 
 Agent tools can prepare a draft but cannot read the identity-bearing preview or commit directly. Every agent
 commit needs a target-bound, app-only owner card even in Total. The card opens the exact review, never generic
-approve-once or always-allow controls. Transport actors cannot grant themselves the owner's permissions.
+approve-once or always-allow controls. Approving the card requires a human-only review token bound to its draft;
+generic responses, including the phone's approval controls, cannot approve it. The phone directs the owner to
+review on their computer. Project agents can prepare only sources in their exact project, not global artifacts.
+Transport actors cannot grant themselves the owner's permissions.
 
 The preview is an opaque nested sandbox: the wrapper allows only an `about:srcdoc` child, and the child has no
-network, subframes, forms or host access. Its offline state is a clone of the reviewed selection. The public
-viewer uses a separate constrained runner; neither copy receives credentials or an APX protocol connection.
+ordinary external resource loads, subframes, forms or host access. Its offline state is a clone of the reviewed
+selection. The public viewer uses a separate constrained runner; neither copy receives credentials or an APX
+protocol connection. The opaque sandbox works without Chromium's optional `credentialless` support. CSP is not
+a network firewall or IP-anonymity promise: WebRTC/STUN and DNS prefetch remain browser-level limitations.
 
 Docs impact: updated the English and Spanish artifact guides with selection, review, account management,
 limits, offline behavior and the limits of revocation. No owner news entry: this rollout is not announced.

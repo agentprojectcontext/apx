@@ -91,7 +91,8 @@ test("limits count UTF-8 bytes, not characters; invalid manifests and oversized 
     /too large/,
   );
   assert.throws(() => publicArtifactCopy({ ...surface, name: "../invalid" }));
-  assert.throws(() => publicArtifactCopy({ ...surface, html: "x".repeat(400_001) }));
+  assert.equal(publicArtifactCopy({ ...surface, html: "x".repeat(400_000) }).bundle.html.length, 400_000);
+  assert.throws(() => publicArtifactCopy({ ...surface, html: "x".repeat(400_001) }), /public_artifact_html_too_large/);
 });
 
 test("publication codes have eight Crockford characters and contain no account-derived prefix", () => {

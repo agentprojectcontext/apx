@@ -14,8 +14,8 @@ const viewer = process.env.APX_ARTIFACT_VIEWER_URL;
 if (!emulator || !/^127\.0\.0\.1:\d+$/.test(emulator) || !viewer)
   throw new Error("Start the demo emulator and local artifact viewer first");
 const url = new URL(viewer);
-if (url.protocol !== "http:" || url.hostname !== "127.0.0.1" || url.port === "7440")
-  throw new Error("Use a separate local viewer, not the owner's core");
+if (url.origin !== "http://127.0.0.1:7497")
+  throw new Error("Run the built viewer on the Firebase Hosting emulator at http://127.0.0.1:7497, not Vite");
 const project = "demo-apx-artifacts";
 const encode = (value: unknown) => Buffer.from(JSON.stringify(value)).toString("base64url");
 const session = {
@@ -40,6 +40,38 @@ function fixture(spy: string) {
     ["destination"],
   );
 }
+
+test("Hosting serves disjoint wrapper/runner policies and immutable hashed assets", async () => {
+  for (const pathname of ["/", "/index.html", "/abcd1234"]) {
+    const response = await fetch(`${url.origin}${pathname}`);
+    assert.equal(response.status, 200);
+    assert.equal(response.headers.get("cache-control"), "no-store");
+    const csp = response.headers.get("content-security-policy") ?? "";
+    assert.match(csp, /frame-ancestors 'none'/);
+    assert.match(csp, /script-src 'self'/);
+    assert.doesNotMatch(csp, /unsafe-inline/);
+    assert.equal(csp.includes(","), false, "only one CSP policy must apply");
+  }
+  for (const pathname of ["/nested/abcd1234", "/assets/not-a-built-file.js"]) {
+    const response = await fetch(`${url.origin}${pathname}`);
+    assert.equal(response.status, 404, "only root-level copy links may fall back to the wrapper");
+  }
+  const runner = await fetch(`${url.origin}/runner.html`);
+  assert.equal(runner.headers.get("cache-control"), "no-store");
+  const csp = runner.headers.get("content-security-policy") ?? "";
+  assert.match(csp, /frame-ancestors 'self'/);
+  assert.match(csp, /script-src 'unsafe-inline'/);
+  assert.match(csp, /sandbox allow-scripts/);
+  assert.doesNotMatch(csp, /frame-ancestors 'none'|script-src 'self'|,/);
+  const html = await (await fetch(`${url.origin}/index.html`)).text();
+  const assets = [...html.matchAll(/(?:src|href)="(\/assets\/[^" ]+)"/g)].map((match) => match[1]);
+  assert.ok(assets.length >= 2);
+  for (const asset of assets) {
+    const response = await fetch(`${url.origin}${asset}`);
+    assert.equal(response.status, 200);
+    assert.equal(response.headers.get("cache-control"), "public, max-age=31536000, immutable");
+  }
+});
 
 test("the viewer isolates credentials and network, downloads exact approved bytes and removes live revoked copies", async () => {
   const dir = tempDir("apx-artifact-browser-");
@@ -111,7 +143,7 @@ test("the viewer isolates credentials and network, downloads exact approved byte
   }
 });
 
-test("browsers without credentialless previews still download without loading an execution iframe", async () => {
+test("browsers without credentialless still execute an opaque sandbox preview and download the verified copy", async () => {
   const dir = tempDir("apx-artifact-browser-");
   let browser: Browser | undefined;
   try {
@@ -119,18 +151,40 @@ test("browsers without credentialless previews still download without loading an
     const copy = publicArtifactCopy({
       name: "orders",
       title: "Orders",
-      html: "<h1>Orders</h1>",
+      html: "<h1>Orders</h1><p id='isolation'></p><script>try {parent.document.body; document.getElementById('isolation').textContent='reachable'} catch {document.getElementById('isolation').textContent='blocked'}</script>",
       version: 1,
       app: false,
     });
     await cloud.publish(session, code, copy);
     browser = await chromium.launch({ headless: true, downloadsPath: dir.path });
     const context = await browser.newContext({ locale: "en-US", acceptDownloads: true });
-    await context.addInitScript(() => Reflect.deleteProperty(HTMLIFrameElement.prototype, "credentialless"));
+    await context.addCookies([{ name: "artifact-test-cookie", value: "demo-cookie", url: viewer }]);
+    await context.addInitScript(() => {
+      Reflect.deleteProperty(HTMLIFrameElement.prototype, "credentialless");
+      const setAttribute = Element.prototype.setAttribute;
+      Element.prototype.setAttribute = function (name, value) {
+        if (name !== "credentialless") setAttribute.call(this, name, value);
+      };
+    });
     const page = await context.newPage();
+    const runnerRequest = page.waitForRequest((request) => request.url().endsWith("/runner.html"));
     await page.goto(`${url.origin}/${code}`);
-    await expect(page.getByRole("heading", { name: "This browser can't preview the copy", exact: true })).toBeVisible();
-    await expect(page.locator("iframe")).toHaveCount(0);
+    assert.match((await (await runnerRequest).allHeaders()).cookie ?? "", /demo-cookie/);
+    const frame = page.frameLocator("iframe");
+    await expect(frame.getByRole("heading", { name: "Orders", exact: true })).toBeVisible();
+    await expect(frame.locator("#isolation")).toHaveText("blocked");
+    assert.equal(await frame.locator("body").evaluate(() => window.origin), "null");
+    assert.equal(
+      await frame.locator("body").evaluate(() => {
+        try {
+          return document.cookie;
+        } catch {
+          return "blocked";
+        }
+      }),
+      "blocked",
+    );
+    assert.equal(await page.locator("iframe").getAttribute("sandbox"), "allow-scripts");
     const event = page.waitForEvent("download");
     await page.getByRole("button", { name: "Download file", exact: true }).click();
     const download = await event;
@@ -138,9 +192,8 @@ test("browsers without credentialless previews still download without loading an
     assert.ok(file);
     assert.equal(await fs.readFile(file, "utf8"), copy.json);
     await page.getByRole("button", { name: "Español", exact: true }).click();
-    await expect(
-      page.getByRole("heading", { name: "Este navegador no puede mostrar la copia", exact: true }),
-    ).toBeVisible();
+    await expect(frame.getByRole("heading", { name: "Orders", exact: true })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Abrir en APX", exact: true })).toBeVisible();
     await cloud.revoke(session, code, (await cloud.inspect(session, code)).updateTime);
   } finally {
     await browser?.close();

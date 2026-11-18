@@ -52,13 +52,15 @@ SDK with `getDocFromServer` for current metadata and exact part IDs, `onSnapshot
 an in-memory cache only. The core's anonymous reader uses REST. Both readers validate size and SHA-256 before
 accepting a copy. The viewer renders the chosen snapshot inside an opaque-origin sandbox. It never enables
 Firestore persistence, service-worker caches or account authentication. The loaded HTML cannot access the
-wrapper, account cookies or APX RPC. Apply CSP to the execution document as well as the wrapper. External
-networking, frames and APX access are disabled; the snapshot's inlined APX Kit supports offline copies. No
-uploaded HTML executes in the wrapper's origin.
+wrapper, account cookies or APX RPC. Apply CSP to the execution document as well as the wrapper. CSP denies
+external resource loads and child frames; no APX bridge is provided. The snapshot's inlined APX Kit supports
+offline copies. No uploaded HTML executes in the wrapper's origin.
 
-The execution iframe requires a boolean `credentialless` attribute as well as `sandbox="allow-scripts"`.
-A browser without credentialless support gets the download action, not a less-isolated execution frame. The
-page explains that its browser cannot show the preview. No sign-in or account cookie is needed by the viewer.
+The execution iframe always uses `sandbox="allow-scripts"`, never `allow-same-origin`. Where supported,
+`credentialless` adds isolation, but it is not a condition for showing a preview: Safari, Firefox and iPhone
+browsers use the same opaque-origin sandbox. No sign-in or account cookie is needed by the viewer. CSP blocks
+ordinary fetches and external resource loads; it is not an IP-anonymity guarantee. Browser networking such as
+WebRTC/STUN or DNS prefetch may still disclose a viewer's IP address. Do not describe CSP as a network firewall.
 
 The page observes publication changes while open and removes the iframe and download when revoked. Cached
 listener observations are a loading state, not evidence that a copy is live or missing. Reads and downloads have
@@ -78,9 +80,12 @@ error honestly, preserve confirmed state and document the limits. Do not weaken 
 
 ## APX integration
 
-`public-artifacts/drafts.ts` creates expiring, opaque preview IDs without uploading anything. Its snapshots bind
-the chosen state, source hash, account generation and remote revision. A changed source or signed-out account
-cannot commit the old preview. Concurrent commits share one write; completed previews return their old receipt
+`public-artifacts/drafts.ts` creates expiring, opaque preview IDs without uploading anything. At most twenty
+selected snapshots are retained privately in the local database for thirty days, extended through the actual
+pending-card deadline. Only serialized snapshots and receipts persist, never session credentials, generations
+or human review tokens. A restart requires opening the review again and binds the unchanged copy to the current
+session of the same account. Its snapshots bind the chosen state, source hash, account generation and remote
+revision. A changed source or signed-out account cannot commit the old preview. Concurrent commits share one write; completed previews return their old receipt
 without reapplying it. Preview data is copied, so a caller cannot mutate the internal approved snapshot.
 The protocol exposes `surfaces.public_list`, `public_prepare`, `public_preview`, `public_commit` and
 `public_discard`. Preview, commit and discard are human-only. Preparation never uploads. The human preview alone
@@ -88,7 +93,11 @@ includes the account's public identity; agent summaries never contain session cr
 The core shares one draft service between RPC handlers and `apx_settings`; commit keeps its app-only owner card
 in every mode and carries a structured draft reference for the review UI. Closing a review cannot cancel a write
 already dispatched. The account-wide list and cloud update/revocation preparation stay with the owner and the
-global super-agent; project-scoped agents can prepare publication only from their own or global artifacts.
+global super-agent; project-scoped agents can prepare publication only from artifacts in that exact project,
+never global artifacts or another project's artifacts. Generic approvals cannot approve public-copy cards:
+the review dialog obtains a draft-bound, human-only token from `surfaces.public_preview` and sends it with
+`runs.respond`. The core checks that token and current account before settling the card. The phone instead
+asks the person to open APX on their computer; it offers no generic approval for these cards.
 
 Use the single protocol registry/router for preparation, publishing, updating, revoking and listing. Effect
 methods require idempotency keys. Session resolution stays inside the core. Publishing and updating public

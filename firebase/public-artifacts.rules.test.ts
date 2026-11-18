@@ -1,7 +1,12 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { publicArtifactCopy } from "../apps/core/src/domain/public-artifact-copy.ts";
-import { cloudNumber, cloudString, createPublicArtifactCloud } from "../apps/core/src/public-artifacts/firestore.ts";
+import {
+  type CloudDocument,
+  cloudNumber,
+  cloudString,
+  createPublicArtifactCloud,
+} from "../apps/core/src/public-artifacts/firestore.ts";
 
 const project = "demo-apx-artifacts";
 const host = process.env.FIRESTORE_EMULATOR_HOST;
@@ -50,7 +55,11 @@ async function clear() {
 
 test("atomic publication is public only by code, privately owned, updateable and immediately revocable", async () => {
   await clear();
+  assert.equal(await cloud.available(first, code), true);
+  assert.equal((await call(undefined, `/artifactOwners/${code}`)).status, 403);
   assert.deepEqual(await cloud.publish(first, code, copy), { code, sha256: copy.sha256 });
+  assert.equal(await cloud.available(first, code), false);
+  assert.equal(await cloud.available(second, code), false);
   assert.deepEqual(await cloud.publish(first, code, copy), { code, sha256: copy.sha256 });
   assert.equal((await cloud.slots(first)).length, 1);
   const published = await cloud.inspect(first, code);
@@ -63,7 +72,10 @@ test("atomic publication is public only by code, privately owned, updateable and
     assert.equal(JSON.stringify(data).includes('"uid"'), false);
     const part = await call(uid, `/publicArtifacts/${code}/parts/0`);
     assert.equal(part.status, 200);
-    assert.equal(Buffer.from((await part.json()).fields.data.stringValue, "base64").toString("utf8"), copy.json);
+    assert.equal(
+      Buffer.from(cloudString((await part.json()) as CloudDocument, "data"), "base64").toString("utf8"),
+      copy.json,
+    );
     assert.equal((await call(uid, "/publicArtifacts")).status, 403);
     assert.equal((await call(uid, `/publicArtifacts/${code}/parts`)).status, 403);
   }
@@ -97,10 +109,11 @@ test("atomic publication is public only by code, privately owned, updateable and
   await assert.rejects(cloud.revoke(first, code, published.updateTime), /changed/);
   await cloud.revoke(first, code, updated.updateTime);
   assert.deepEqual(await cloud.revoke(first, code, updated.updateTime), { ok: true });
-  for (const path of [`/publicArtifacts/${code}`, `/publicArtifacts/${code}/parts/0`]) {
-    assert.equal((await call(undefined, path)).status, 403);
-  }
+  assert.equal((await call(undefined, `/publicArtifacts/${code}`)).status, 404);
+  assert.equal((await call(undefined, `/publicArtifacts/${code}/parts/0`)).status, 403);
   assert.deepEqual(await cloud.slots(first), []);
+  assert.equal(await cloud.available(first, code), false);
+  assert.equal(await cloud.available(second, code), false);
   await assert.rejects(cloud.publish(first, code, copy), /changed|access_denied/);
   await assert.rejects(cloud.publish(second, code, copy), /changed|access_denied/);
 });

@@ -82,7 +82,12 @@ export function usePublicCopy(request: Request) {
     setBusy(true);
     setError(undefined);
     try {
-      if (request.input) await client.call("runs.respond", { input: request.input, decision: "approve" });
+      if (request.input)
+        await client.call("runs.respond", {
+          input: request.input,
+          decision: "approve",
+          artifact_review: review.review_token,
+        });
       else {
         await client.call("surfaces.public_commit", { draft: review.draft });
         notify(

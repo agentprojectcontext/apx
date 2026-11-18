@@ -28,10 +28,16 @@ test("publication drafts use the real account boundary without exposing its cred
       now: () => 1000,
     });
     let writes = 0;
+    let availabilityReads = 0;
     const cloud = createPublicArtifactCloud({
       project: "demo-apx-artifacts",
-      fetch: async (_input, init) => {
+      fetch: async (input, init) => {
         assert.equal(new Headers(init?.headers).get("authorization"), "Bearer private-identity-token");
+        if (new URL(String(input)).pathname.includes("/artifactOwners/")) {
+          assert.equal(init?.method, "GET");
+          availabilityReads++;
+          return Response.json({}, { status: 404 });
+        }
         if (init?.method === "POST") writes++;
         return Response.json(init?.method === "POST" ? {} : { documents: [] });
       },
@@ -51,6 +57,7 @@ test("publication drafts use the real account boundary without exposing its cred
       now: () => 1000,
     });
     const draft = await service.prepare({ action: "publish", surface: "orders", state_keys: ["visible"] });
+    assert.equal(availabilityReads, 1);
     const preview = await service.preview(draft.draft);
     assert.deepEqual(preview.bundle?.state, { visible: "chosen" });
     assert.equal(writes, 0);

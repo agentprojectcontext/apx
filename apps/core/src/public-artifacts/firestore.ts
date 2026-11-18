@@ -61,6 +61,17 @@ export function createPublicArtifactCloud(deps: { project: string; origin?: stri
     ...(updateTime ? { currentDocument: { updateTime } } : {}),
   });
   return {
+    async available(session: Session, code: string) {
+      pathOf(code);
+      try {
+        await get(session, `artifactOwners/${code}`);
+        return false;
+      } catch (error) {
+        if (error instanceof Error && error.message === "public_artifact_missing") return true;
+        if (error instanceof Error && error.message === "public_artifact_access_denied") return false;
+        throw error;
+      }
+    },
     async slots(session: Session) {
       const result = await request(session, `/${account(session)}?pageSize=21`);
       const slots = (result.documents ?? []) as CloudDocument[];

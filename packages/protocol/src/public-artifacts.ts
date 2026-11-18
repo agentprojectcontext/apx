@@ -63,7 +63,12 @@ export const publicArtifactMethods = {
   }),
   "surfaces.public_preview": deferMethod({
     params: () => z.object({ draft: DraftId }).strict(),
-    result: () => Draft.extend({ bundle: ArtifactBundle.optional(), account: AccountProfile.optional() }),
+    result: () =>
+      Draft.extend({
+        bundle: ArtifactBundle.optional(),
+        account: AccountProfile.optional(),
+        review_token: z.string().uuid(),
+      }),
     effect: false,
     access: "human",
   }),

@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { ApxClient } from "@apx/protocol/client";
+import { nativeApproval } from "../domain/approvals.ts";
 import { callTool, pendingInput, say, scriptedLlm, startCore } from "../engine/testkit.ts";
 import { publicationTransport } from "../public-artifacts/test-cloud.ts";
 import { APX_ACCOUNT_SESSION } from "../secret-names.ts";
@@ -130,7 +131,62 @@ test("Total still waits for a target-bound owner card before a publication can r
     assert.match(input.detail ?? "", /artifact\.apxagent\.app/);
     assert.deepEqual(input.approval_scopes ?? [], []);
     assert.equal(env.cloud.commits(), 0);
-    await env.client.call("runs.respond", { input: input.id, decision: "approve" });
+    const existing = env.core.store.inputs.get(input.id);
+    assert.ok(existing);
+    const target = nativeApproval("apx_settings");
+    const legacy = env.core.store.inputs.create({
+      run_id: existing.run_id,
+      thread_id: thread.id,
+      agent_id: "superagent",
+      call_id: "legacy-public-copy",
+      kind: "confirm",
+      prompt: "Review this copy",
+      tool: existing.tool,
+      args: existing.args,
+      approval: target,
+      app_only: true,
+      waitMs: 60_000,
+    });
+    env.core.store.approvals.grant(target, "always", thread.id, "superagent");
+    assert.equal(env.core.store.inputs.get(input.id)?.state, "pending");
+    assert.equal(env.core.store.inputs.get(legacy.id)?.state, "pending");
+    assert.equal(env.cloud.commits(), 0);
+    env.core.store.inputs.settle(legacy.id, "denied");
+    await assert.rejects(
+      env.client.call("runs.respond", { input: input.id, decision: "approve" }),
+      /public_artifact_review_required/,
+    );
+    await assert.rejects(
+      env.client.call("runs.respond", {
+        input: input.id,
+        decision: "approve",
+        artifact_review: "00000000-0000-4000-8000-000000000000",
+      }),
+      /public_artifact_review_required/,
+    );
+    const other = await env.client.call("surfaces.show", {
+      name: "invoices",
+      title: "Invoices",
+      html: "<h1>Invoices</h1>",
+    });
+    const unrelated = await env.client.call("surfaces.public_prepare", { action: "publish", surface: other.id });
+    const unrelatedReview = await env.client.call("surfaces.public_preview", { draft: unrelated.draft });
+    await assert.rejects(
+      env.client.call("runs.respond", {
+        input: input.id,
+        decision: "approve",
+        artifact_review: unrelatedReview.review_token,
+      }),
+      /public_artifact_review_required/,
+    );
+    const review = await env.client.call("surfaces.public_preview", { draft });
+    assert.equal(env.cloud.commits(), 0);
+    assert.equal(env.core.store.inputs.get(input.id)?.state, "pending");
+    await env.client.call("runs.respond", {
+      input: input.id,
+      decision: "approve",
+      artifact_review: review.review_token,
+    });
     await env.settle(thread.id);
     assert.equal(env.cloud.commits(), 1);
     assert.equal((await env.client.call("surfaces.public_list", {})).count, 1);
@@ -163,7 +219,14 @@ test("project-scoped agent preparation cannot read another project's source or m
       project_id: "northwind",
       created_by: "owner",
     });
+    const global = env.core.store.surfaces.upsert({
+      name: "global-page",
+      title: "Global page",
+      html: "<h1>Global</h1>",
+      created_by: "owner",
+    });
     for (const [params, expected] of [
+      [{ action: "publish", surface: global.id }, /public_artifact_missing/],
       [{ action: "publish", surface: other.id }, /public_artifact_missing/],
       [{ action: "publish", surface: "missing" }, /public_artifact_missing/],
       [{ action: "publish", surface: own.id }, /"draft":"[0-9a-f-]{36}"/],
@@ -225,8 +288,18 @@ for (const outcome of ["denied", "signed out"] as const) {
       assert.equal(input.artifact_draft, draft);
       assert.equal(env.core.store.inputs.get(input.id)?.app_only, true);
       assert.equal(env.cloud.commits(), 0);
-      if (outcome === "signed out") await env.client.call("account.logout", {});
-      await env.client.call("runs.respond", { input: input.id, decision: outcome === "denied" ? "deny" : "approve" });
+      if (outcome === "signed out") {
+        const review = await env.client.call("surfaces.public_preview", { draft });
+        await env.client.call("account.logout", {});
+        await assert.rejects(
+          env.client.call("runs.respond", {
+            input: input.id,
+            decision: "approve",
+            artifact_review: review.review_token,
+          }),
+        );
+      }
+      await env.client.call("runs.respond", { input: input.id, decision: "deny" });
       await env.settle(thread.id);
       assert.equal(env.cloud.commits(), 0);
       assert.equal(env.cloud.documents.size, 0);
@@ -239,8 +312,10 @@ for (const outcome of ["denied", "signed out"] as const) {
 
 test("changed sources, discarded reviews and provider failures cannot bypass the reviewed copy or leak credentials", async () => {
   const cloud = publicationTransport();
-  cloud.fetch = async () => {
-    throw new Error("Bearer private-identity-token");
+  const transport = cloud.fetch;
+  cloud.fetch = async (input, init) => {
+    if (String(input).endsWith(":commit")) throw new Error("Bearer private-identity-token");
+    return transport(input, init);
   };
   const env = await fixture(undefined, cloud);
   try {

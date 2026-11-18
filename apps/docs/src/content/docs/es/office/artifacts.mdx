@@ -121,10 +121,13 @@ No se selecciona estado por defecto. Abrí **Ver contenido** para leer cada valo
 incluir y tocá **Revisar copia**. La siguiente pantalla muestra la cuenta, el enlace público, el tamaño,
 la vista previa, el código de la página y el estado exacto elegido. Sólo **Publicar copia** la sube.
 El pedido de un agente también necesita esta revisión y tu confirmación, incluso si puede trabajar sin preguntarte.
+Si recibís ese pedido en el teléfono, abrí APX en la compu para revisarlo; el teléfono no permite aprobarlo sin revisión.
 
 El HTML mismo puede contener información sensible. Revisalo también: omitir estado no quita lo que ya está
 escrito en la página. Una copia pública nunca incluye el store, la base de datos ni referencias a secretos,
-y no puede hacer pedidos a APX ni a otros sitios. Las funciones que necesitan esas conexiones no funcionarán ahí.
+y no tiene conexión a APX. El aislamiento y la política de contenido bloquean los pedidos habituales y la carga de
+recursos externos; las funciones que los necesitan no funcionarán ahí. No equivale a navegar de forma anónima:
+mecanismos del navegador como WebRTC/STUN o DNS prefetch todavía pueden revelar tu dirección IP a otro servicio.
 
 **Configuración › Cuenta › Copias publicadas** lista tus copias. **Administrar** permite copiar el enlace,
 **Actualizar copia…** desde un artifact local elegido o **Dejar de publicar…**. Actualizar conserva el enlace
