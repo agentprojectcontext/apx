@@ -5188,3 +5188,217 @@ book until the owner reviews them; every booking reaches the owner at once with 
 Rejected: letting the model read `calendar_free` itself (it would see busy blocks and could pick any time); booking
 outside the attention hours when none are set (no safe window); moving a booking from the contact's chat in this
 version (a cancel and a new booking under the same caps is enough for now; moving is noted for the owner).
+
+<a id="d-240"></a>
+## D-240 — 2026-11-17 — Extensions install from an .apxext file or URL; official is decided by fingerprint, not signature
+Extensions installed only from a folder on the core's computer. The marketplace plan makes `.apxext` (a zip of the
+extension's folder) the installer for any extension, and needs APX to tell an official package from anything else.
+
+- **One contract, three sources.** `extensions.inspect` and `extensions.install` take exactly one of `path` (a folder
+  where the core runs), `file` (an `.apxext`, base64, at most 20 MB) or `url` (https only; a redirect may not leave
+  https; 60 s, 20 MB). Inspect writes nothing. Install takes `hash`, the fingerprint the owner looked at, and refuses
+  other files, so a URL that changes between the look and the install cannot slip in.
+- **Unpacked in memory, written into an empty staging folder.** The archive is refused whole (not skipped entry by
+  entry) on a link, an encrypted entry, another compression, a path that leaves the folder (`..`, absolute, a drive),
+  a size that does not match what inflates, declared sizes over 50 MB (checked before inflating, and each entry is
+  capped at its declared size), more than 2000 files, two names one disk takes as one (case, Unicode form) or a name
+  that is both a file and a folder. One top folder is taken as the extension; `__MACOSX`, `.DS_Store`, `._` files, `.git` and
+  `node_modules` are left out. The copy is written with exclusive creates into a fresh folder under the home and its
+  fingerprint read back from disk must equal the one computed in memory before it replaces anything.
+- **Official by fingerprint, no signature for now.** The catalog (`index.json`, schema 1, that GitHub Pages serves
+  from the public `apx-marketplace` repository at `https://marketplace.apxagent.app/index.json`; redirects are followed, never off https) lists each id's versions with `content_hash`, the same fingerprint turning an extension on approves (paths
+  with "/", sorted). Official = same id + version + `content_hash` under `tier: "official"`; anything else is third
+  party. A signature would be signed by whoever publishes the catalog, which is us; it protects something new only once
+  the catalog is served from places we do not control (mirrors), and then it is added. Provenance is stored on the
+  extension's record when it is installed.
+- **The catalog is asked only when needed.** On inspect and install, never on a timer: kept in
+  `<home>/marketplace/catalog.json` with its ETag, fresh for 10 minutes, then asked again with `If-None-Match`; 10 s and
+  5 MB at most; unreachable falls back to the kept copy, and with none the extension shows third party and says it could
+  not tell. A catalog with a newer `schema` is set aside whole ("update APX"). `APX_MARKETPLACE_INDEX` sets another
+  address (https, or http on this computer) or `off`; test cores ask none.
+- **Updates keep the version before.** Installing another version moves the installed copy to `<id>.prev` with its
+  record (manifest, fingerprint, source, provenance, on or off). The dialog shows what the new version adds or drops:
+  MCP servers (a changed command or address counts as added), the hosts they reach, secrets, routines, the plugin and
+  what it may reach or watch. One that is on stays on only when the new version is official and adds nothing;
+  otherwise it is off until the owner turns it on, as any changed files always were. `extensions.rollback` swaps the
+  two copies, each with the approval it had, after checking the kept copy's fingerprint on disk.
+- **Fingerprints use "/" on every system**, so a package matches the catalog on Windows too. An extension installed on
+  Windows before this was fingerprinted with "\": at start, a record whose fingerprint equals the "\" one of its
+  unchanged files gets the new fingerprint and keeps its on or off; only files that really changed turn it off.
+
+Rejected: trusting the zip's own hash (it changes when the same files are recompressed); a staging token between
+inspect and install (state to expire; the fingerprint already names the files); keeping an update off even when official
+and asking for nothing more (the plan's choice: the catalog vouches for those exact files); skipping bad entries as the
+skills importer does (an extension missing a file it names would be installed half).
+
+<a id="d-241"></a>
+## D-241 — 2026-11-17 — The Marketplace: one place for extensions, included, catalog and own
+The owner settled one name for what is installed or connected, **Extensions**, and a place of its own for them: the
+**Marketplace**, in the sidebar (store icon), with **Extensions**, **Agents** and **Skills** and the owner's own
+extensions listed under them with their state. "Apps" is not used (an app is an artifact in APX) nor "connector".
+Resources keeps Skills, MCP and Variables; a link to `resources/integrations` or `resources/extensions` opens the
+Marketplace.
+Its sections, the item page's steps and its sidebar icon are replaced by [D-245](#d-245).
+
+- **Included = APX's own code.** Google (with its tools), Asana, the channels and the browser are Included: connected
+  with their existing flows, never installed or uninstalled (`integrations.list` marks them `own`). The other account
+  integrations APX ships as data are shown as APX's catalog and connect as before; when the official catalog lists a
+  package with the same id, the package stands for it (unless that account is connected).
+- **Sections and groups.** Agents lists what brings agents; Skills, what brings skills. Extensions groups Included
+  first, then the catalog by category (with counts, the first six and "See all"), then accounts not filed yet.
+- **What it brings comes from the package.** The index does not say it, and guessing would make the filters lie.
+  `extensions.catalog` downloads each listed package once (4 at a time, waiting at most 15 s, the rest kept for the next
+  look), checks its sha256 against `archive.sha256` and its fingerprint against `content_hash`, and keeps only its
+  manifest, its `apx-listing.json` and the images that listing names (each at most 2 MB) by fingerprint in
+  `<home>/marketplace/packages`. A package that does not match is never read. Nothing runs and no timer asks again.
+- **Listing schema 2** is read as the plan defines it: `tagline`, `description` (Markdown), `category` (an id or its
+  English or Spanish label), `icon`, `screenshots[]`, `prompts[]`, `connection`, `links` (https only), `publisher`,
+  and `locales.es` for every text. Schema 1 still reads. Category ids: productivity, communication, docs-notes, files,
+  development, data, design-media, sales-customers, finance, marketing, devices-home, search-research,
+  business-systems. Each index entry may give `listing` and `icon` (absolute https addresses): they show the entry
+  until its package is read. A package cannot vouch for itself: its publisher's check shows
+  only when the official catalog lists those exact files. Its images reach the panel through `extensions.asset` (only
+  images, only inside the package).
+- **Offline.** APX ships a copy of the official catalog (`official-catalog.json`), used only for the official address
+  when nothing was ever fetched or kept; it is refreshed when a version is cut.
+- **Honest approval and connect.** Turning one on lists the hosts its URL servers reach; a command server with no
+  declared hosts is said to reach any address. Connecting an account shows APX and the service joined by dots that
+  move while it connects.
+
+The Marketplace's sidebar item, its icon and its route are on the first screen: the boot budget goes from 334 to
+335 KB gzip for it (rule 27), after removing the strings only the old Integrations and Extensions tabs used.
+
+Rejected: a Marketplace tab inside Resources (the owner wants it as a place); adding `brings` to the index first (the
+package is the source of truth either way); showing a package's own "verified" claim; counting an account's own plan
+as "Has a cost".
+
+<a id="d-242"></a>
+## D-242 — 2026-11-17 — Manifest 2: settings, agents, pages, apps, hosts and a companion app
+An extension that is a whole product (a TV remote, a CRM with its agents) needs more than skills, servers and secrets.
+`"manifest": 2` adds, all optional so manifest 1 still reads:
+
+- **settings**, typed (`string`, `number`, `boolean`, `directory`, `file`, with `options`, `default`, `required`).
+  Plain values live on the extension's record and fill `setting://name` in its servers when they start; `sensitive`
+  ones go to the secret store under the extension's own names and are referenced as `secret://name`, never returned.
+  `generate: "random"` makes APX create a 32-byte key at install, so the owner never handles a connection key. A
+  folder or file must exist; a choice must be one of its options. A new sensitive setting in an update counts as more.
+- **agents** and **apps** (`.apxart`) are offered on its page; nothing is added until the owner presses Add (an agent
+  through `agents.create`, an app through `surfaces.import`, the bundle read with `extensions.app_bundle`).
+- **pages** open from its settings in an iframe with `sandbox="allow-scripts allow-forms"` (no origin), a CSP with no
+  network, and `window.apx` posting to the panel, which answers only `settings.get/set`, `secrets.has/set` and `close`
+  for that extension. A page never reads a sensitive value.
+- **hosts** are shown before it is turned on with its servers' hosts. They are declared, not enforced for a command
+  server (a process); the approval still says a command server can reach any address.
+- **platforms**: on another system it installs but does not turn on.
+- **companion**: an app on a device. `pairing.with: "apx"` pairs it with APX as a device (`devices.pair_start`, code
+  and QR, done when a new device appears); `"extension"` runs the extension's own pairing tool through `mcp.call`
+  and shows its answer. The app file it carries is offered to download with `extensions.companion_file`; it is never
+  installed by APX on a device.
+- Brings: agents → Agents, a companion → Devices, apps → Apps. Needs: a companion on Android TV → TV, on Android or
+  iOS → phone, on macOS or `platforms: ["darwin"]` → Mac.
+
+Shown first on the real Android TV extension: its two secrets become an `address` setting and a generated
+`connection_key`, and its APK pairs through its own `tv_pairing` tool.
+
+Rejected: installing agents and apps with the extension (the owner adds what they want); pages with same-origin access
+(they would reach the panel's API); enforcing `hosts` on command servers (APX does not sandbox their network).
+
+<a id="d-243"></a>
+## D-243 — 2026-11-17 — Catalogs of your own, including Claude Code's, converted only under a license that allows it
+The owner can add catalogs for themself, as Claude Desktop lists marketplaces: a GitHub `owner/repo`, a git address
+(https or ssh), an index's https address or a folder. Suggested public ones are one click away (Anthropic's
+`knowledge-work-plugins` first). Everything from them is third party; APX's catalog always stays and is never removed.
+
+- **Two formats.** APX's own `index.json` (an entry installs from its `.apxext`) and Claude Code's
+  `.claude-plugin/marketplace.json`. A Claude plugin is converted when installed: its skills as they are, its MCP servers
+  (`.mcp.json` or what `plugin.json`'s `mcpServers` names; stdio, or https with headers; a `${VAR}` becomes a setting,
+  sensitive when its name says key, token or secret, and `${VAR:-x}` gives a plain one its default), `agents/*.md` as
+  manifest 2 agents, and its license, notice and readme kept beside them. Commands and hooks are left out (no APX
+  counterpart). The converted files then go through the same checks, fingerprint and install as any extension.
+- **Pinned or not listed.** A plugin from another repository (`url`, `git-subdir`, `github`) counts only with a
+  40-hex `sha`, and is fetched at exactly that commit (`git fetch --depth 1 origin <sha>`). A path plugin of the
+  catalog's own repository is read at the commit the catalog was synced at; one that leaves the repository is refused.
+- **License first.** Before a plugin is listed its license is read: its own license file, else its `plugin.json`
+  `license`, else the repository's (for another repository, the file at that commit through raw.githubusercontent.com).
+  Only MIT, Apache-2.0, BSD-2/3, ISC, 0BSD, MPL-2.0, Unlicense and CC0 are converted; the rest are kept as "left out"
+  with the reason (license, unpinned, source, invalid), shown to the owner.
+- **Kept.** Each catalog's source, ref, synced commit, entries and left-out list live in `extension_catalogs`; a git
+  catalog's repository is kept in `<home>/marketplace/catalogs/<id>` to install its folders from. Git runs with only
+  https and ssh allowed, links checked out as files and no prompts.
+
+Rejected: listing everything and checking licenses at install (the owner would see what they cannot use); following
+an unpinned branch for another repository (its files could change between the look and the install); converting
+commands into skills (different behaviour than their authors meant).
+
+<a id="d-244"></a>
+## D-244 — 2026-11-17 — `apx extensions pack`: the core packs a folder into the same .apxext every time
+Making an extension ends in a file to share. `apx extensions pack <folder>` asks the core (`extensions.pack`), which
+reads the folder exactly as an install would (checked manifest, links refused, `.git`, `node_modules` and what a Mac
+adds left out), writes a zip with the files in path order, deflated, with no times or owners, and reads it back: the
+packed file must have the folder's fingerprint, or nothing is returned. The terminal saves it as
+`<id>-<version>.apxext` where the person is. The same folder always gives the same bytes, so a published file can be
+rebuilt and compared.
+
+A source folder now leaves out what a Mac adds (`.DS_Store`, `._` files) as the zip reader already did, so a folder and
+its packed file have one fingerprint.
+
+Rejected: packing in the terminal (a second reader of manifests and junk rules outside the core, against rule 3); a
+plain zip of the folder (times and order change the bytes, and junk would change the fingerprint).
+
+<a id="d-245"></a>
+## D-245 — 2026-11-18 — The Marketplace without confusion: one word, labels, one button, Advanced aside
+The owner found the first Marketplace confusing (when is something an extension, a skill or an agent; an empty Agents
+section; too many buttons; a row of catalogs with "17 left out") and liked Claude's panel but not its many kinds of
+things. This replaces D-241's sections and its item page steps:
+
+- **One word, a label for where it comes from.** Everything added to the agents is an **extension**, labelled
+  **Included** (APX's own code), **Official** (the official catalog lists those files), **Third party** (another
+  catalog, a file or an https address) or **Yours** (a folder on this computer, or an MCP server the owner added by its
+  address or command). An MCP that is only an address is added from **Add › From an address** and is one of the
+  owner's extensions, not a separate kind of thing; the owner's servers (with a definition, not an account's or an
+  extension's) are listed as such. An address APX also ships as an account connects that account.
+- **Skills and agents are filters**, not sections (All, Connections, Skills, Agents, Devices); an empty filter is not
+  shown. The left column has Explore, Your extensions (**Needs attention**: off, missing keys or settings, an error,
+  a new version; then **Active**) and **Advanced** at its foot: catalogs, installing from a file, a folder or a
+  command, and the guide. The sidebar icon is a puzzle piece.
+- **One button that follows the state**: Add → Connect (Pair for a companion app) → Connected. Connecting an added
+  extension still approves its hosts, keys and files first (the add box since [D-246](#d-246)). APX cannot tell whether a companion
+  app is paired, so Pair stays the button of an extension with one. Turn off, update, roll back, settings and remove
+  are in ⋯; settings open in a dialog.
+- **What it brings opens like Claude's connectors**: each server's address, how it signs in and its tools; skills,
+  agents (Add agent), routines (Add to Routines), widgets and the device app. The facts at the foot (developer,
+  version and date, security and access, authorization, needs, limits, cost, privacy, links) come only from the
+  manifest, the listing, the index and the servers; a fact nobody gave has no row. A third-party copy never borrows the
+  official listing's publisher.
+- **New** lists recent versions by the index's `published_at` (now passed through `extensions.catalog`), shown only
+  while fewer than half of the catalog is recent. **Most used** waits for the catalog to say it.
+
+Rejected: Claude's split into plugins, connectors and extensions (the confusion the owner named); hiding pairing
+behind ⋯ until APX knows a device is paired (the owner could not find it).
+
+<a id="d-246"></a>
+## D-246 — 2026-11-18 — Adding and connecting in one box, in three words
+The owner found adding confusing: Add from the catalog opened the install window with its File / URL / Folder tabs and
+the package address filled in, then "Install off", then a second window to turn it on (three checkboxes) and a third
+for keys or pairing; the card said "Tools for Stripe", "Skills —" and showed an id and fingerprint.
+
+- **One box** (`InstallBox`): APX joined to the service by dots (a device's app joined to APX for Pair), the card of
+  what it is, one button. From a catalog it opens directly; from elsewhere (a file, an address, a folder) the same box
+  sits under the source picker; for one already added it opens on its connect step. An extension's page that is not
+  added yet shows the same "What it brings" and "Facts" pieces.
+- **Three words.** **Add** copies the files and runs nothing. **Connect** (Pair) is the owner's decision that it works:
+  it saves the keys typed in the box, turns it on and starts its servers (`mcp.signIn`), showing the tools they answer
+  with. What it approves is one line above the button ("you agree that it runs this program and talks to
+  mcp.stripe.com"); the three checkboxes are gone. One with nothing to connect (no server, key, required setting,
+  device app or plugin) is turned on as it is added. "Install off" and "Turn on" leave the flow; Turn off stays in ⋯.
+- **Facts from the package, before adding it.** Catalog entries carry what their package holds (`contents`: hosts,
+  code, keys, skills by name, agents, routines, a device's app, fingerprint). A command bridging to a remote server
+  names that server's host. A listing may name its `tools`; without them the box says the service decides its tools,
+  and the real ones show once connected. The fingerprint is under Details.
+- **Refusals in words.** `extensions.inspect`/`install` errors carry `{reason: download | invalid | newer_apx | changed,
+  needs?}`; a manifest's `min_apx` (or a key this APX does not know) reads as written for a newer APX. A package chosen
+  from APX's catalog whose files are not APX's is not added from there.
+- **An address** in the picker is a package when it ends in `.apxext` (or `.zip`), else an MCP server added as Yours.
+
+Rejected: keeping the approval checkboxes (they repeated what the card already says, as three more clicks); probing an
+MCP address before adding it (a new method for what connecting already does).

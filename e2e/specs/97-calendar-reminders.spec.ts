@@ -1,5 +1,5 @@
 import type { Result } from "../../packages/protocol/src/index.ts";
-import { expect, open, rpc, test } from "./kit.ts";
+import { expect, open, openExtension, openExtensionSettings, rpc, test } from "./kit.ts";
 
 test("Google Calendar's settings turn event reminders on and choose how long before and how often to look", async ({
   page,
@@ -21,15 +21,17 @@ test("Google Calendar's settings turn event reminders on and choose how long bef
     });
   });
   await open(page);
-  await page.getByRole("button", { name: "Recursos", exact: true }).first().click();
-  await page.getByRole("radio", { name: /^Integraciones/ }).click();
-  await page.getByRole("button", { name: /^GitHub/ }).click();
-  await expect(page.getByRole("radiogroup", { name: "Dónde se usa" })).toBeVisible();
-  await expect(page.getByRole("button", { name: "Configurar integración", exact: true })).toHaveCount(0);
+  // GitHub has nothing of its own to configure; Google Calendar has its reminders.
+  await openExtension(page, "GitHub");
+  const github = await openExtensionSettings(page);
+  await expect(github.getByRole("radiogroup", { name: "Dónde se usa" })).toBeVisible();
+  await expect(github.getByRole("button", { name: "Configurar integración", exact: true })).toHaveCount(0);
+  await page.keyboard.press("Escape");
 
-  await page.getByRole("button", { name: /^Google Calendar/ }).click();
-  await expect(page.getByRole("radiogroup", { name: "Dónde se usa" })).toBeVisible();
-  await page.getByRole("button", { name: "Configurar integración", exact: true }).click();
+  await openExtension(page, "Google Calendar");
+  const calendar = await openExtensionSettings(page);
+  await expect(calendar.getByRole("radiogroup", { name: "Dónde se usa" })).toBeVisible();
+  await calendar.getByRole("button", { name: "Configurar integración", exact: true }).click();
   const settings = page.getByRole("dialog", { name: "Configurar integración", exact: true });
   await expect(settings.getByText("Dónde se usa")).toHaveCount(0);
   const lead = settings.getByRole("spinbutton", { name: "Con cuánta anticipación" });

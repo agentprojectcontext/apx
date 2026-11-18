@@ -22,6 +22,9 @@ const FILE_METHODS: ReadonlySet<string> = new Set([
   // An artifact's store holds up to 5 MB; a bundle carries its database.
   "surfaces.store_set",
   "surfaces.import",
+  // An .apxext travels whole.
+  "extensions.inspect",
+  "extensions.install",
 ]);
 const MAX_FILE_BODY = FILE_PAYLOAD_BYTES;
 /** An export travels as JSON, not base64: its own limit and room for the envelope. */

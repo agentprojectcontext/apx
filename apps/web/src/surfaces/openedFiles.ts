@@ -1,17 +1,26 @@
 import { useEffect } from "react";
 import { notify } from "../data/notices.ts";
 import { t } from "../i18n/index.ts";
+import { openExtensionInstall } from "../resources/extensionInstall.ts";
 import { openInstall } from "./installRequest.ts";
 
 // APX files reaching the panel from outside: opened from the system (desktop app) or dropped anywhere on the window.
 
 const kindOf = (name: string) => /\.(apxart|apxapp|apxext)$/i.exec(name)?.[1]?.toLowerCase();
 
-/** An .apxart opens the install dialog with it; .apxapp and .apxext do not install from a file yet. */
+/** An .apxart or .apxext opens its install dialog with it; an .apxapp does not install from a file yet. */
 function openApxFile(file: File): void {
   const kind = kindOf(file.name);
   if (kind === "apxart") openInstall(undefined, file);
+  else if (kind === "apxext") openExtensionInstall({ file });
   else if (kind) notify(t("artifact.fileNotYet", { name: file.name }), "info");
+}
+
+/** A file the desktop app read: an .apxext comes as base64 (it is a zip), the others as text. */
+function openedFile(f: { name: string; text?: string; data?: string }): File | undefined {
+  if (f.data !== undefined) return new File([Uint8Array.from(atob(f.data), (c) => c.charCodeAt(0))], f.name);
+  if (f.text !== undefined) return new File([f.text], f.name, { type: "application/json" });
+  return undefined;
 }
 
 export function useApxFiles(): void {
@@ -19,7 +28,8 @@ export function useApxFiles(): void {
     const desktop = window.apxDesktop;
     const take = async () => {
       for (const f of (await desktop?.takeOpenedFiles?.()) ?? []) {
-        if (f.text !== undefined) openApxFile(new File([f.text], f.name, { type: "application/json" }));
+        const file = openedFile(f);
+        if (file) openApxFile(file);
         else notify(t(f.error === "too-big" ? "artifact.fileTooBig" : "artifact.fileUnreadable", { name: f.name }));
       }
     };

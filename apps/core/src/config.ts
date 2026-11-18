@@ -15,6 +15,8 @@ import { TELEMETRY_SINK } from "./telemetry-sink.ts";
 export const defaultHome = () => path.join(os.homedir(), ".apx", "v2");
 /** Where v2 lived before it moved into ~/.apx (moved once, at start: see home.ts). */
 export const legacyHome = () => path.join(os.homedir(), ".apx2");
+/** The official extension catalog, published from the public apx-marketplace repository. */
+export const MARKETPLACE_INDEX = "https://marketplace.apxagent.app/index.json";
 
 type ProviderTransport = "openai-chat" | "anthropic-messages" | "chatgpt-responses";
 
@@ -74,6 +76,11 @@ export type CoreConfig = {
   runtimeSkills: { homes: { home: string; claude: string; codex: string }; auto: boolean };
   /** Telegram's Bot API; a test environment points it at an emulated one (APX_TELEGRAM_API). */
   telegramApi: string | undefined;
+  /**
+   * The official extension catalog, asked when an extension is inspected or installed (APX_MARKETPLACE_INDEX: an
+   * https address, http on this computer, or "off"; a test core asks none).
+   */
+  marketplaceIndex: string | undefined;
   /**
    * Loopback `host:port` servers a test lets Flow HTTP steps reach (APX_FLOW_HTTP_ALLOW, comma-separated); anything
    * else on this computer or a private network stays refused. Empty in a real core.
@@ -241,6 +248,7 @@ export function loadConfig(processEnv: NodeJS.ProcessEnv = process.env, readCore
     v1: { url: env.APX_V1_URL ?? "http://127.0.0.1:7430", home: env.APX_V1_HOME ?? path.join(os.homedir(), ".apx") },
     hermes: env.HERMES_HOME ?? path.join(os.homedir(), ".hermes"),
     telegramApi: env.APX_TELEGRAM_API || undefined,
+    marketplaceIndex: env.APX_MARKETPLACE_INDEX === "off" ? undefined : env.APX_MARKETPLACE_INDEX || MARKETPLACE_INDEX,
     flowHttpAllow: list(env.APX_FLOW_HTTP_ALLOW).filter((a) => /^127\.0\.0\.1:\d{1,5}$/.test(a)),
     discord:
       env.APX_DISCORD_API && env.APX_DISCORD_GATEWAY
@@ -331,6 +339,7 @@ export function testConfig(over: Partial<CoreConfig> & { home: string }): CoreCo
     chromeHost: [],
     localModels: [],
     agentName: "Roby",
+    marketplaceIndex: undefined,
     ...over,
   };
 }

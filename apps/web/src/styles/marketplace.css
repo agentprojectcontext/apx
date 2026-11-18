@@ -1,0 +1,520 @@
+/* The Marketplace (marketplace/*.tsx): its sections and the owner's own on the left, a section or a page on the right. */
+.mkt {
+  display: grid;
+  grid-template-columns: 260px minmax(0, 1fr);
+  flex: 1;
+  min-height: 0;
+  min-width: 0;
+}
+.mkt__side {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 18px 12px;
+  border-right: 1px solid var(--apx-border);
+  overflow-y: auto;
+}
+.mkt__title {
+  margin: 0 8px 10px;
+  font-size: var(--apx-text-xl);
+}
+.mkt__count {
+  color: var(--apx-fg-subtle);
+  font-size: var(--apx-text-xs);
+  font-weight: var(--apx-weight-regular);
+  font-variant-numeric: tabular-nums;
+}
+.mkt__yours {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  margin-top: 16px;
+  padding-top: 12px;
+  border-top: 1px solid var(--apx-border);
+}
+.mkt__label {
+  margin: 0 10px 6px;
+  color: var(--apx-fg-subtle);
+  font-size: var(--apx-text-xs);
+  font-weight: var(--apx-weight-semibold);
+}
+.mkt__note {
+  margin: 0 10px;
+  color: var(--apx-fg-muted);
+  font-size: var(--apx-text-sm);
+}
+.mkt__tile {
+  display: inline-grid;
+  place-items: center;
+  flex: none;
+  border-radius: var(--apx-radius-md);
+  background: var(--apx-fill);
+  color: var(--apx-fg-muted);
+}
+.mkt__icon {
+  border-radius: var(--apx-radius-md);
+  object-fit: contain;
+  flex: none;
+}
+.mkt__main {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+}
+.mkt-browse {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 16px;
+  min-width: 0;
+  padding: 22px 28px 32px;
+  overflow-y: auto;
+  /* The cards follow the room they have, not the window's width (the side list and other panes take some). */
+  container-type: inline-size;
+}
+.mkt-browse > * {
+  flex-shrink: 0;
+}
+.mkt-browse__head h2 {
+  margin: 0;
+  font-size: var(--apx-text-xl);
+}
+.mkt-browse__head p,
+.mkt-browse__status {
+  margin: 4px 0 0;
+  color: var(--apx-fg-muted);
+}
+.mkt-browse__bar {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+.mkt-browse__search {
+  flex: 1;
+  min-width: 0;
+  max-width: 420px;
+}
+/* An item's page extras: its screenshots in a row and the things to ask it. */
+.mkt-shots {
+  display: flex;
+  gap: 10px;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  padding-bottom: 4px;
+}
+.mkt-shot {
+  flex: 0 0 min(480px, 85%);
+  margin: 0;
+  scroll-snap-align: start;
+}
+.mkt-shot img,
+.mkt-shot__empty {
+  display: block;
+  width: 100%;
+  aspect-ratio: 16 / 10;
+  border: 1px solid var(--apx-border);
+  border-radius: var(--apx-radius-lg);
+  background: var(--apx-fill);
+  object-fit: cover;
+}
+.mkt-shot figcaption {
+  margin-top: 6px;
+  color: var(--apx-fg-muted);
+  font-size: var(--apx-text-sm);
+}
+/* The Card around them gives the fill; this lays out its rows. */
+.mkt-try {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.mkt-try h4 {
+  margin: 0 0 2px;
+  font-size: var(--apx-text-sm);
+}
+.mkt-try__row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.mkt-try__row svg {
+  flex: none;
+  color: var(--apx-fg-muted);
+}
+
+/* Manifest 2 on an item's page: its settings, what it brings to add, its companion app's pairing. */
+.mkt-config {
+  gap: 12px;
+}
+.mkt-pageframe {
+  width: 100%;
+  height: min(70vh, 640px);
+  border: 1px solid var(--apx-border);
+  border-radius: var(--apx-radius-md);
+  background: var(--apx-surface);
+}
+.mkt-brought {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border: 1px solid var(--apx-border);
+  border-radius: var(--apx-radius-md);
+}
+.mkt-brought__main {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+}
+.mkt-brought__main span {
+  color: var(--apx-fg-muted);
+  font-size: var(--apx-text-sm);
+}
+/* The owner's added catalogs, above the groups. */
+.mkt-catalogs {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.mkt-catalogs .mkt__label {
+  margin: 0;
+}
+/* On a narrow screen its buttons go under its name and address. */
+.mkt-catalog .mkt-brought {
+  flex-wrap: wrap;
+}
+.mkt-catalog .mkt-brought__main {
+  flex-basis: 220px;
+}
+.mkt-catalog .mkt-brought__main span {
+  overflow-wrap: anywhere;
+}
+.mkt-skipped {
+  margin: 6px 0 0;
+  padding-left: 22px;
+  color: var(--apx-fg-muted);
+  font-size: var(--apx-text-sm);
+}
+@media (max-width: 760px) {
+  .mkt {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto minmax(0, 1fr);
+  }
+  .mkt__side {
+    flex-direction: row;
+    flex-wrap: wrap;
+    padding: 12px;
+    border-right: 0;
+    border-bottom: 1px solid var(--apx-border);
+    overflow: visible;
+  }
+  .mkt__title {
+    flex-basis: 100%;
+  }
+  .mkt__side > :not(.mkt__title):not(.mkt__yours) {
+    flex: 0 0 auto;
+    width: auto;
+  }
+  .mkt__yours,
+  .mkt__label {
+    display: none;
+  }
+  .mkt__bottom {
+    margin: 0;
+    padding: 0;
+    border: 0;
+  }
+  .mkt-browse,
+  .mkt-item {
+    padding: 14px 14px 24px;
+  }
+  .mkt-page__head {
+    grid-template-columns: 48px minmax(0, 1fr);
+  }
+  .mkt-page__act {
+    grid-column: 1 / -1;
+  }
+  .mkt-page__act > :first-child {
+    flex: 1;
+  }
+  .mkt-facts {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* The places on the left: Explore and yours on top, Advanced at the bottom. */
+.mkt__yours .mkt__label {
+  margin-top: 6px;
+}
+.mkt__bottom {
+  margin-top: auto;
+  padding-top: 12px;
+  border-top: 1px solid var(--apx-border);
+}
+.mkt-dot {
+  display: inline-block;
+  flex: none;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--apx-fg-subtle);
+}
+.mkt-dot--wait {
+  background: var(--apx-warning);
+}
+
+/* Explore and yours: sections of compact rows, two columns once there is room. */
+.mkt-browse__bar .mkt-browse__search {
+  max-width: none;
+}
+.mkt-filters {
+  align-self: flex-start;
+  max-width: 100%;
+  overflow-x: auto;
+}
+.mkt-section {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.mkt-section__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-height: 32px;
+}
+.mkt-section__head h3 {
+  margin: 0;
+  font-size: var(--apx-text-md);
+}
+.mkt-rows {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  column-gap: 28px;
+}
+@container (min-width: 720px) {
+  .mkt-rows:not(.mkt-rows--one) {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+/* An extension's page: one column, its button at the top right, the facts at its foot. */
+.mkt-item {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 18px;
+  min-width: 0;
+  padding: 18px 28px 32px;
+  overflow-y: auto;
+  container-type: inline-size;
+}
+.mkt-item > * {
+  flex-shrink: 0;
+  width: 100%;
+  max-width: 1180px;
+}
+/* The facts sit beside what it is once there is room, under it otherwise. */
+.mkt-page__cols {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 24px;
+}
+.mkt-page__main {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  min-width: 0;
+}
+.mkt-page__main > * {
+  box-sizing: border-box;
+  width: 100%;
+}
+@container (min-width: 860px) {
+  .mkt-page__cols {
+    grid-template-columns: minmax(0, 1fr) 280px;
+    gap: 40px;
+    align-items: start;
+  }
+  .mkt-page__cols .mkt-facts {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 18px;
+    padding-top: 0;
+    border-top: 0;
+  }
+}
+.mkt-page__back {
+  align-self: flex-start;
+  width: auto;
+}
+.mkt-page__head {
+  display: grid;
+  grid-template-columns: 56px minmax(0, 1fr) auto;
+  gap: 16px;
+  align-items: start;
+  padding-bottom: 18px;
+  border-bottom: 1px solid var(--apx-border);
+}
+.mkt-page__titles {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+.mkt-page__name {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.mkt-page__name h2 {
+  margin: 0;
+  font-size: var(--apx-text-xl);
+}
+.mkt-page__by {
+  color: var(--apx-fg-muted);
+  font-size: var(--apx-text-sm);
+}
+.mkt-page__tagline {
+  margin: 4px 0 0;
+}
+.mkt-page__act {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.mkt-page__about {
+  max-width: 72ch;
+}
+.mkt-page__sec {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.mkt-page__sec h4 {
+  margin: 0;
+  color: var(--apx-fg-muted);
+  font-size: var(--apx-text-sm);
+  font-weight: var(--apx-weight-medium);
+}
+.mkt-parts {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.mkt-part__note {
+  margin: 0;
+  color: var(--apx-fg-muted);
+}
+.mkt-part__steps {
+  margin: 0;
+  padding-left: 18px;
+  color: var(--apx-fg-muted);
+}
+.mkt-facts {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 20px 32px;
+  padding-top: 20px;
+  border-top: 1px solid var(--apx-border);
+  font-size: var(--apx-text-sm);
+}
+.mkt-facts__cell {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+.mkt-facts__cell h4 {
+  margin: 0;
+  color: var(--apx-fg-muted);
+  font-size: var(--apx-text-sm);
+  font-weight: var(--apx-weight-medium);
+}
+.mkt-facts__cell ul {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.mkt-facts__cell p {
+  margin: 0;
+}
+.mkt-facts__cell a {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  color: var(--apx-info-soft-fg);
+}
+.mkt-facts__badge {
+  align-self: flex-start;
+}
+.mkt-facts__sub {
+  color: var(--apx-fg-muted);
+}
+@container (max-width: 560px) {
+  .mkt-facts {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+.mkt-settings {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+/* Advanced: catalogs, installing from this computer, the guide. */
+.mkt-advanced {
+  gap: 24px;
+}
+.mkt-advanced > * {
+  max-width: 820px;
+}
+.mkt-advanced__warn {
+  display: flex;
+  gap: 10px;
+  margin: 0;
+  padding: 12px 14px;
+  border: 1px solid var(--apx-border-strong);
+  border-radius: var(--apx-radius-lg);
+  color: var(--apx-fg-muted);
+  font-size: var(--apx-text-sm);
+}
+.mkt-advanced__warn svg {
+  flex: none;
+  margin-top: 1px;
+  color: var(--apx-warning);
+}
+.mkt-advanced__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.mkt-catalog__always {
+  color: var(--apx-fg-muted);
+  font-size: var(--apx-text-sm);
+}
+
+/* An extension's links (its site, docs, privacy, terms): in the facts and under the page of one not added yet. */
+.mkt-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 16px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.mkt-facts__cell .mkt-links {
+  flex-direction: column;
+}
+.mkt-links a {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  color: var(--apx-info-soft-fg);
+}

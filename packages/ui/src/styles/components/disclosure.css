@@ -1,0 +1,105 @@
+/* Disclosure: a row that opens to show its details. */
+/* It clips its row's hover fill, so the fill follows the card's corners open or closed. */
+.apx-disclosure {
+  border: 1px solid var(--apx-border);
+  border-radius: var(--apx-radius-lg);
+  background: var(--apx-surface);
+  overflow: hidden;
+}
+.apx-disclosure__row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 11px 14px;
+  cursor: pointer;
+  list-style: none;
+}
+.apx-disclosure__row::-webkit-details-marker {
+  display: none;
+}
+.apx-disclosure__row:hover {
+  background: var(--apx-fill-hover);
+}
+.apx-disclosure__row:focus-visible {
+  outline: 2px solid var(--apx-info);
+  outline-offset: -2px;
+}
+.apx-disclosure__chev {
+  flex: none;
+  color: var(--apx-fg-subtle);
+  transition: transform 0.15s ease;
+}
+.apx-disclosure[open] > .apx-disclosure__row .apx-disclosure__chev {
+  transform: rotate(90deg);
+}
+.apx-disclosure__icon {
+  display: inline-grid;
+  flex: none;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border-radius: var(--apx-radius-sm);
+  background: var(--apx-fill);
+  color: var(--apx-fg-muted);
+  overflow: hidden;
+}
+.apx-disclosure__titles {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+}
+.apx-disclosure__title {
+  font-weight: var(--apx-weight-medium);
+}
+.apx-disclosure__desc {
+  color: var(--apx-fg-muted);
+  font-size: var(--apx-text-xs);
+}
+.apx-disclosure__trailing {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: 8px;
+}
+.apx-disclosure__body {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 2px 14px 14px 48px;
+  font-size: var(--apx-text-sm);
+}
+.apx-disclosure__facts {
+  display: grid;
+  grid-template-columns: minmax(110px, max-content) minmax(0, 1fr);
+  gap: 8px 16px;
+  margin: 0;
+}
+.apx-disclosure__facts > div {
+  display: contents;
+}
+.apx-disclosure__facts dt {
+  color: var(--apx-fg-muted);
+}
+.apx-disclosure__facts dd {
+  margin: 0;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+@media (max-width: 560px) {
+  .apx-disclosure__body {
+    padding-left: 14px;
+  }
+  .apx-disclosure__facts {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 2px;
+  }
+  .apx-disclosure__facts dd {
+    margin-bottom: 8px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .apx-disclosure__chev {
+    transition: none;
+  }
+}

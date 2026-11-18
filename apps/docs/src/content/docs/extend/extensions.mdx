@@ -13,6 +13,46 @@ An extension is a folder with an `apx-extension.json` that brings several things
 routine templates, the secrets they need and, optionally, a sandboxed plugin. APX reads the manifest without running
 anything, installs it **off**, and turning it on approves exactly the files it had.
 
+## Find them in the Marketplace
+
+**Marketplace**, in the sidebar (the puzzle piece), is where extensions are found, added and connected. Everything you
+add to your agents is an **extension**; a label says where it comes from: **Included** (it comes with APX: Google,
+Asana, the channels, the browser), **Official** (APX publishes it, with those exact files), **Third party** (another
+catalog, a file or an address someone gave you) or **Yours** (a folder you built, or a server you added by its address
+or command). Resources keeps the technical parts (Skills, MCP, Variables).
+
+- **Explore** has search and filters on top (**All**, **Connections**, **Skills**, **Agents**, **Devices**; a filter
+  with nothing in it is not shown), then **New** (while only a few are new) and every category in compact rows: its
+  icon, name and label, one line, and under it what it brings and who from ("Connection and skills · From APX"). Each
+  row has one button: **Add**, or **Connect** for one included with APX.
+- **Your extensions** lists what you added, in two groups: **Needs attention** (not connected yet, a new version, an
+  error) and **Active**. The same groups show in the left column.
+- An extension's page has one button that follows its state: **Add** → **Connect** (or **Pair** for a device's app)
+  → **Connected ✓**. Turn off, update, go back a version, settings and remove are in **⋯**.
+- **Add** opens one box: APX joined to the service on top (a device's app joined to APX for **Pair**), then what it
+  is: what it brings (its tools by name when its page names them), where it comes from, where it connects, how, what
+  it needs, whether it runs a program on your computer, and whether these are exactly the files APX publishes (its
+  fingerprint is under **Details**). **Add** copies its files and runs nothing. The same box then asks for its key, a
+  sign-in or the device's code: **Connect** (or **Pair**) is your decision that it works, and what that approves is
+  written above the button. Once connected, it shows the tools its server answered with.
+- The page of one not added yet shows the same **What it brings** and **Facts**.
+- Below its button: things to ask it, about it, and **What it brings** as rows that open: each connection with its
+  address, how it signs in and its tools; its skills, ready-made agents (each with **Add agent**), routines (each with
+  **Add to Routines**), widgets and the app for a device. At its foot: developer, version and date, **Security and
+  access** ("Can send data to api.hubapi.com", "Runs code on your computer"), **Authorization** ("A key of yours",
+  "Requires signing in"), what it needs and does not do, cost, privacy and links. A fact nobody gave is not shown.
+- **Add** › **From an address** or **From a file** adds something that is not in a catalog: the same box opens under
+  a picker (a file, an address or a folder). An address of an `.apxext` is read as a package; any other https address
+  is an MCP server, added as **Yours** and connected right away.
+- When it can't be added, the box says why: the download failed, the files changed since you looked at them, they are
+  not an extension, or it needs a newer APX.
+- **Advanced**, at the bottom of the left column, is for building and trying extensions: catalogs, installing from a
+  file, a folder or a command, and the guide to build one.
+
+APX reads what each catalog package brings from the package itself: it downloads it once, checks it against the
+catalog's sha256 and fingerprint, and keeps only its manifest, its listing and its images in its home. Nothing is
+added or run until you add it. APX ships a copy of the official catalog, so the Marketplace lists it offline.
+
 ## Do you need one?
 
 Start with the smallest thing that does the job:
@@ -64,6 +104,7 @@ The schema is strict: unknown keys are refused.
 |---|---|
 | `id` | Lowercase letters, digits, `_` and `-`, up to 20 characters. |
 | `name`, `version` | Required. `description` is optional, up to 500 characters. |
+| `min_apx` | Optional: the oldest APX that runs it (`"2.18.0"`). An older APX says it needs that version instead of adding it; a key an APX does not know is read the same way. |
 | `skills` | A folder of skill folders, each with its `SKILL.md`. |
 | `mcp` | Servers by name (letters, digits and `_`): `command` + `args` + `env`, or `url` + `headers`. A command starting with `./` runs from the extension's folder. |
 | `routines` | Templates with a `name`, a `schedule` (`cron`, `every` N minutes with N of 5 or more, or `once`) and a `prompt`. |
@@ -80,18 +121,51 @@ other variables or the environment, so a bundle can't carry your credentials els
 "secrets": [{ "name": "token", "label": "CRM API token", "url": "https://example.com/settings/tokens" }]
 ```
 
+### Manifest 2
+
+`"manifest": 2` adds what a bigger extension needs. A manifest without it reads as before.
+
+| Field | What it holds |
+|---|---|
+| `settings` | Values the owner sets, with a `type` (`string`, `number`, `boolean`, `directory`, `file`), a `label`, optional `description`, `default`, `options` (a choice), `required`. A `sensitive` one goes to the secret store and is referenced as `secret://name`; a plain one is referenced as `setting://name` in its servers' arguments, environment, address or headers (in an address, `setting://address/api` drops a final `/` the owner typed). `"generate": "random"` (sensitive strings only) makes APX fill a random key at install. |
+| `agents` | Ready-made agents (`id`, `name`, `description`, `prompt`) the owner adds from its page. |
+| `pages` | Its own HTML pages (`id`, `title`, `entry`), opened from its settings in a sandboxed frame with no network. A page reads and sets only its own settings through `window.apx` (`settings.get`, `settings.set`, `secrets.has`, `secrets.set`, `close`). |
+| `apps` | Widgets or apps (`.apxart` files) the owner adds to Apps from its page. |
+| `hosts` | The hosts its code connects to, shown before it is turned on. |
+| `platforms` | The systems it runs on (`darwin`, `linux`, `win32`); it does not turn on elsewhere. |
+| `companion` | An app on another device: `name`, `platform` (`android`, `android-tv`, `ios`, `macos`, `windows`, `linux`), the app `file` in the package or a store `url`, `steps`, and `pairing`: `{ "with": "apx" }` pairs it with APX as a device (a code and QR), `{ "with": "extension", "server", "tool" }` asks the extension's own tool for the code. |
+
+### Its page: `apx-listing.json`
+
+An optional `apx-listing.json` beside the manifest is its page in the Marketplace: a `summary` and `tagline`, a
+Markdown `description`, `prompts` to try, `requirements`, `limits`, `pricing`, `privacy`, an `icon` and `screenshots`
+in the package, `links`, and Spanish text under `locales.es`. Its `tools` (`name` and an optional `description`)
+name what its connection brings, so the owner sees them before adding it; without them APX says the service decides
+its tools and shows the real ones once it is connected.
+
+Nothing an extension brings is added by itself: its agents and apps wait for **Add**, its companion app for
+**Pair**. Its settings, pages, agents and apps show on its page in the Marketplace, or with `apx extensions` in the
+terminal; `apx extensions set <id> name=value` sets them (`name=-` reads a sensitive value from stdin).
+
 ## Install it
+
+An extension comes as a folder, as an **`.apxext` file** (the folder zipped; the packages APX publishes come this way)
+or from an **https address** of one. APX shows what it brings before it writes anything; adding it runs nothing until
+you connect it.
 
 <Tabs>
 <TabItem label="Panel">
 
 <Steps>
 
-1. Open **Resources › Extensions** and press **Install**.
+1. Double-click an `.apxext` file, or drop it on the APX window. Or open the **Marketplace** and press
+   **Add** › **From a file** (**Advanced** also adds from a folder).
 
-2. Paste the folder's path, press **Inspect** to see what it brings, then **Install**.
+2. Look at what it brings: its tools, skills, agents and routines, where it connects, the keys it asks for, whether
+   it runs a program on your computer and whether it is **Official** or **Third party** (below). Then **Add**.
 
-3. It arrives off. Fill in its keys (**Edit**), then turn it on.
+3. In the same box, type its keys (or sign in, or pair the device) and press **Connect**. One with nothing to connect
+   is ready as soon as you add it.
 
 4. Its routines are suggestions: **Add to Routines** puts one in Routines, turned off until you turn it on.
 
@@ -101,30 +175,87 @@ other variables or the environment, so a bundle can't carry your credentials els
 <TabItem label="Terminal">
 
 ```bash
-apx extensions inspect ~/work/daily-brief     # what it would bring; nothing is installed
-apx extensions install ~/work/daily-brief     # copied in, off
-apx extensions secret <id> <name>             # a declared secret's value, on stdin (--clear removes it)
+apx extensions inspect ~/work/daily-brief                          # what it would bring; nothing is installed
+apx extensions install ~/work/daily-brief                          # a folder, copied in, off
+apx extensions install ~/Downloads/daily-brief.apxext              # a file on this computer
+apx extensions install https://example.com/daily-brief.apxext      # a download (https only)
+apx extensions pack ~/work/daily-brief                             # one file to share: daily-brief-1.0.0.apxext
+apx extensions set daily-brief region=eu                           # its settings (name=- reads a sensitive one from stdin)
+apx extensions secret <id> <name>                                  # a declared secret's value, on stdin (--clear removes it)
 apx extensions on daily-brief
-apx extensions                                # installed ones, on or off
+apx extensions rollback daily-brief                                # back to the version installed before
+apx extensions                                                     # installed ones, on or off
 apx extensions off daily-brief
 apx extensions rm daily-brief
 ```
 
+An `.apxext` given to the terminal is read on the terminal's computer and sent to the core, which may run elsewhere;
+a folder is read where the core runs.
+
 </TabItem>
 </Tabs>
 
-<Terminal command="apx extensions install ~/work/daily-brief">{`daily-brief  Daily brief v1.0.0  · off  · 3f9c1a7e5b2d8c40
+<Terminal command="apx extensions install ~/Downloads/daily-brief.apxext">{`daily-brief  Daily brief v1.0.0  · off  · official  · 3f9c1a7e5b2d8c40
   A short morning brief: open tasks, what is due, what others owe you.
   skills: daily-brief
   routines: Morning brief
 
 Turn it on with: apx extensions on daily-brief`}</Terminal>
 
-<Shot name="resources-extensions" alt="Resources, Extensions tab: installed extensions with their on or off switch, skills, servers and routines" caption="Resources › Extensions" />
+<Shot name="resources-extensions" alt="Resources, Extensions tab: installed extensions with their on or off switch, skills, servers and routines" caption="the Marketplace" />
 
 Installing copies plain files into APX's home and fingerprints them. If the installed copy changes on disk, APX turns
-the extension off at its next start until you approve it again. To take changes from the original folder, install it
-again or use **Read again** in its detail.
+the extension off at its next start until you approve it again. To take changes from the original folder or address,
+install it again or use **Read again** / **Download it again** in its detail.
+
+### What an `.apxext` may hold
+
+It is a plain zip of the extension's folder: `apx-extension.json` at the top, or inside one top folder (how zipping a
+folder by hand packs it). APX refuses the whole file, before writing anything, when it holds a link, an encrypted
+entry, a path that leaves the folder (`..`, an absolute path), sizes that don't match what unpacks, two names one disk
+would take as one, more than 2,000 files or more than 50 MB unpacked. The file itself is at most 20 MB. `.git`,
+`node_modules`, and what a Mac adds when zipping (`__MACOSX`, `.DS_Store`, `._` files) are left out.
+
+`apx extensions pack <folder>` makes one for you: it checks the folder first, leaves the same things out, and the same
+folder always packs into the same file (`<id>-<version>.apxext`). To turn a script or an app you already have into an
+extension, see [Bring your app to an extension](/extend/app-to-extension/).
+
+### Official or third party
+
+APX compares the extension's fingerprint (the same one turning it on approves) with APX's official catalog. It is
+**Official** when the catalog lists that id and version with exactly those files; anything else, including an official
+package with one byte changed, is **Third party**. Nothing is signed: what decides is that the files match the ones APX
+publishes. APX asks for the catalog only when you inspect or install an extension, keeps it in its home, and uses that
+copy when it can't reach it; with no copy, the dialog says it couldn't tell. A different catalog address can be set
+with `APX_MARKETPLACE_INDEX` ([Configuration](/reference/configuration/)).
+
+### Your own catalogs
+
+**Advanced › Add catalog** (or `apx extensions catalogs add <source>`) adds a list of extensions for yourself: a GitHub
+`owner/repo`, a git address, an https address of an index, or a folder. Suggested ones (Anthropic's Knowledge Work and
+Claude plugins) are one click away. Everything from them is **Third party**; APX's own catalog always stays.
+
+- APX reads its own index format and Claude Code's `.claude-plugin/marketplace.json`. A Claude plugin installs turned
+  into an extension: its skills, its MCP servers (from `.mcp.json` or the file its `plugin.json` names), its `agents/`
+  as ready-made agents, its license and readme. A `${VAR}` in a server becomes a setting you fill in once: a key when
+  its name says so (`KEY`, `TOKEN`, `SECRET`…), otherwise a plain value, with `${VAR:-default}` as its default. A server
+  whose address you type says so before you turn it on. Commands and hooks have no APX counterpart and are left out.
+- A plugin from another repository counts only pinned to a commit (`sha`); it is read at that commit.
+- Each plugin's license is read before it is listed (its own, else its repository's). Only licenses that allow a copy
+  (MIT, Apache-2.0, BSD, ISC, MPL-2.0, Unlicense, CC0, 0BSD) are converted; the rest are left out (`apx extensions catalogs` says which and why).
+- APX keeps the commit each catalog was read at; **Read again** takes its newest.
+- From the terminal, `apx extensions catalog` prints each entry's address (`catalog:<catalog>/<id>`), which
+  `apx extensions inspect` and `apx extensions install` take.
+
+### Updates and going back
+
+Installing another version of one you have keeps the one before beside it. The dialog shows what the new version adds
+(a server, a host it connects to, a secret, a routine, what its plugin may reach) and what it drops.
+
+- An extension that is on **stays on** only when the new version is official and asks for nothing more.
+- Otherwise it is off until you turn it on, and its card lists what it adds.
+- **Back to 1.0.0** (the version kept) swaps it with the version kept before, each as you had approved it (on or off). Pressing it
+  again goes forward.
 
 ## Plugins
 

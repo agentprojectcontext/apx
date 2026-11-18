@@ -13,6 +13,48 @@ Una extensión es una carpeta con un `apx-extension.json` que junta varias cosas
 rutinas, los secretos que necesitan y, si hace falta, un plugin en un sandbox. APX lee el manifiesto sin correr nada,
 la instala **apagada**, y encenderla aprueba exactamente los archivos que tenía.
 
+## Encontralas en el Marketplace
+
+El **Marketplace**, en la barra lateral (la pieza de rompecabezas), es donde se buscan, agregan y conectan las
+extensiones. Todo lo que les sumás a tus agentes es una **extensión**; una etiqueta dice de dónde viene: **Incluida**
+(viene con APX: Google, Asana, los canales, el navegador), **Oficial** (la publica APX, con esos mismos archivos), **De
+terceros** (otro catálogo, un archivo o una dirección que te pasaron) o **Tuya** (una carpeta que armaste, o un
+servidor que agregaste por su dirección o un comando). Recursos queda para lo técnico (Skills, MCP, Variables).
+
+- **Explorar** tiene la búsqueda y los filtros arriba (**Todo**, **Conexiones**, **Habilidades**, **Agentes**,
+  **Dispositivos**; un filtro sin nada no aparece), después **Novedades** (mientras sean pocas las nuevas) y cada
+  categoría en filas compactas: ícono, nombre y etiqueta, una línea, y debajo qué trae y de quién ("Conexión y
+  habilidades · De APX"). Cada fila tiene un solo botón: **Agregar**, o **Conectar** si es Incluida.
+- **Tus extensiones** lista lo que agregaste, en dos grupos: **Necesitan atención** (sin conectar, con una versión
+  nueva, con error) y **Activas**. Los mismos grupos aparecen en la columna de la izquierda.
+- La ficha de una extensión tiene un solo botón que cambia con su estado: **Agregar** → **Conectar** (o
+  **Emparejar** si trae una app para un dispositivo) → **Conectada ✓**. Apagar, actualizar, volver a una versión,
+  ajustes y quitar están en **⋯**.
+- **Agregar** abre un solo cuadro: arriba APX unido al servicio (la app del dispositivo unida a APX para
+  **Emparejar**), y debajo qué es: qué trae (sus herramientas con nombre cuando su ficha las nombra), de dónde viene, a
+  dónde se conecta, cómo, qué necesita, si corre un programa en tu compu y si son exactamente los archivos que publica
+  APX (su huella queda en **Detalles**). **Agregar** copia sus archivos y no corre nada. El mismo cuadro pide después su
+  clave, un inicio de sesión o el código del dispositivo: **Conectar** (o **Emparejar**) es tu decisión de que funcione,
+  y lo que aprueba queda escrito arriba del botón. Ya conectada, muestra las herramientas que respondió su servidor.
+- La ficha de una que todavía no agregaste muestra el mismo **Qué trae** y los mismos **Datos**.
+- Debajo del botón: cosas para pedirle, acerca de, y **Qué trae** en filas que se abren: cada conexión con su
+  dirección, cómo inicia sesión y sus herramientas; sus habilidades, agentes listos (cada uno con **Agregar agente**),
+  rutinas (cada una con **Agregar a Rutinas**), widgets y la app para un dispositivo. Al pie: desarrollador, versión y
+  fecha, **Seguridad y acceso** ("Puede enviar datos a api.hubapi.com", "Ejecuta código en tu compu"),
+  **Autorización** ("Una clave tuya", "Requiere iniciar sesión"), qué necesita y qué no hace, costo, privacidad y
+  enlaces. Un dato que nadie dio no aparece.
+- **Agregar** › **Desde una dirección** o **Desde un archivo** suma algo que no está en un catálogo: el mismo cuadro se
+  abre debajo de un selector (un archivo, una dirección o una carpeta). La dirección de un `.apxext` se lee como
+  paquete; cualquier otra dirección https es un servidor MCP, que queda como **Tuya** y se conecta en el momento.
+- Cuando no se puede agregar, el cuadro dice por qué: no se pudo bajar, los archivos cambiaron desde que los
+  revisaste, no son una extensión o necesita un APX más nuevo.
+- **Avanzado**, abajo en la columna de la izquierda, es para armar y probar extensiones: catálogos, instalar desde un
+  archivo, una carpeta o un comando, y la guía para armar una.
+
+APX lee qué trae cada paquete del catálogo desde el paquete mismo: lo descarga una vez, lo compara con el sha256 y la
+huella del catálogo, y guarda en su carpeta sólo el manifest, la ficha y sus imágenes. No se instala ni corre nada
+hasta que lo agregás. APX trae una copia del catálogo oficial, así el Marketplace lo muestra sin conexión.
+
 ## ¿Necesitás una?
 
 Empezá por lo más chico que resuelva el problema:
@@ -64,6 +106,7 @@ El esquema es estricto: las claves desconocidas se rechazan.
 |---|---|
 | `id` | Minúsculas, números, `_` y `-`, hasta 20 caracteres. |
 | `name`, `version` | Obligatorios. `description` es opcional, hasta 500 caracteres. |
+| `min_apx` | Opcional: el APX más viejo que la corre (`"2.18.0"`). Un APX anterior dice qué versión necesita en vez de agregarla; una clave que ese APX no conoce se lee igual. |
 | `skills` | Una carpeta de carpetas de skills, cada una con su `SKILL.md`. |
 | `mcp` | Servidores por nombre (letras, números y `_`): `command` + `args` + `env`, o `url` + `headers`. Un comando que empieza con `./` corre desde la carpeta de la extensión. |
 | `routines` | Plantillas con `name`, `schedule` (`cron`, `every` cada N minutos con N de 5 o más, o `once`) y `prompt`. |
@@ -80,18 +123,51 @@ puede nombrar tus otras variables ni el entorno, así que un paquete no puede ll
 "secrets": [{ "name": "token", "label": "CRM API token", "url": "https://example.com/settings/tokens" }]
 ```
 
+### Manifest 2
+
+`"manifest": 2` suma lo que necesita una extensión más grande. Un manifest sin él se lee como antes.
+
+| Campo | Qué tiene |
+|---|---|
+| `settings` | Valores que pone el dueño, con un `type` (`string`, `number`, `boolean`, `directory`, `file`), un `label`, y opcionales `description`, `default`, `options` (una elección), `required`. Uno `sensitive` va al almacén de secretos y se usa como `secret://name`; uno común se usa como `setting://name` en los argumentos, el entorno, la dirección o los encabezados de sus servidores (en una dirección, `setting://address/api` saca una `/` final que haya escrito el dueño). `"generate": "random"` (sólo strings sensibles) hace que APX ponga una clave al azar al instalar. |
+| `agents` | Agentes listos (`id`, `name`, `description`, `prompt`) que el dueño agrega desde su ficha. |
+| `pages` | Sus propias páginas HTML (`id`, `title`, `entry`), que se abren desde su configuración en un marco aislado y sin red. Una página lee y cambia sólo sus propios ajustes con `window.apx` (`settings.get`, `settings.set`, `secrets.has`, `secrets.set`, `close`). |
+| `apps` | Widgets o apps (archivos `.apxart`) que el dueño agrega a Apps desde su ficha. |
+| `hosts` | Los hosts a los que se conecta su código, que se muestran antes de encenderla. |
+| `platforms` | Los sistemas en los que corre (`darwin`, `linux`, `win32`); en otro no se enciende. |
+| `companion` | Una app en otro dispositivo: `name`, `platform` (`android`, `android-tv`, `ios`, `macos`, `windows`, `linux`), el `file` de la app en el paquete o la `url` de una tienda, `steps`, y `pairing`: `{ "with": "apx" }` la empareja con APX como dispositivo (un código y un QR), `{ "with": "extension", "server", "tool" }` le pide el código a una herramienta de la propia extensión. |
+
+### Su ficha: `apx-listing.json`
+
+Un `apx-listing.json` opcional junto al manifiesto es su ficha en el Marketplace: un `summary` y un `tagline`, una
+`description` en Markdown, `prompts` para probar, `requirements`, `limits`, `pricing`, `privacy`, un `icon` y
+`screenshots` dentro del paquete, `links`, y el texto en español en `locales.es`. Sus `tools` (`name` y una
+`description` opcional) nombran lo que trae su conexión, para verlo antes de agregarla; sin ellas APX dice que las
+herramientas las pone el servicio y muestra las reales una vez conectada.
+
+Nada de lo que trae una extensión se agrega solo: sus agentes y apps esperan a **Agregar**, su app compañera a
+**Emparejar**. Sus ajustes, páginas, agentes y apps se ven en su ficha del Marketplace, o con `apx extensions` en la
+terminal; `apx extensions set <id> name=value` los cambia (`name=-` lee un valor sensible de stdin).
+
 ## Instalala
+
+Una extensión llega como carpeta, como **archivo `.apxext`** (la carpeta comprimida; así llegan los paquetes que publica
+APX) o desde una **dirección https** de uno. APX muestra qué trae antes de escribir nada; agregarla no corre nada hasta
+que la conectes.
 
 <Tabs>
 <TabItem label="Panel">
 
 <Steps>
 
-1. Abrí **Recursos › Extensiones** y tocá **Instalar**.
+1. Hacé doble clic en un archivo `.apxext`, o soltalo sobre la ventana de APX. O abrí el **Marketplace** y
+   tocá **Agregar** › **Desde un archivo** (**Avanzado** también agrega desde una carpeta).
 
-2. Pegá la ruta de la carpeta, tocá **Revisar** para ver qué trae, y después **Instalar**.
+2. Mirá qué trae: sus herramientas, habilidades, agentes y rutinas, a dónde se conecta, las claves que pide, si corre
+   un programa en tu compu y si es **Oficial** o **De terceros** (abajo). Después, **Agregar**.
 
-3. Llega apagada. Completá sus claves (**Editar**) y encendela.
+3. En el mismo cuadro, escribí sus claves (o iniciá sesión, o emparejá el dispositivo) y tocá **Conectar**. Una que
+   no tiene nada para conectar queda lista apenas la agregás.
 
 4. Sus rutinas son sugerencias: **Agregar a Rutinas** pone una en Rutinas, apagada hasta que la enciendas.
 
@@ -101,30 +177,90 @@ puede nombrar tus otras variables ni el entorno, así que un paquete no puede ll
 <TabItem label="Terminal">
 
 ```bash
-apx extensions inspect ~/work/daily-brief     # qué traería; no se instala nada
-apx extensions install ~/work/daily-brief     # se copia, apagada
-apx extensions secret <id> <name>             # el valor de un secreto declarado, por stdin (--clear lo borra)
+apx extensions inspect ~/work/daily-brief                          # qué traería; no se instala nada
+apx extensions install ~/work/daily-brief                          # una carpeta, se copia, apagada
+apx extensions install ~/Downloads/daily-brief.apxext              # un archivo en esta computadora
+apx extensions install https://example.com/daily-brief.apxext      # una descarga (solo https)
+apx extensions pack ~/work/daily-brief                             # un archivo para compartir: daily-brief-1.0.0.apxext
+apx extensions set daily-brief region=eu                           # sus ajustes (nombre=- lee uno sensible por stdin)
+apx extensions secret <id> <name>                                  # el valor de un secreto declarado, por stdin (--clear lo borra)
 apx extensions on daily-brief
-apx extensions                                # las instaladas, encendidas o apagadas
+apx extensions rollback daily-brief                                # vuelve a la versión instalada antes
+apx extensions                                                     # las instaladas, encendidas o apagadas
 apx extensions off daily-brief
 apx extensions rm daily-brief
 ```
 
+Un `.apxext` que le das a la terminal se lee en la computadora de la terminal y se manda al core, que puede correr en
+otra; una carpeta se lee donde corre el core.
+
 </TabItem>
 </Tabs>
 
-<Terminal command="apx extensions install ~/work/daily-brief">{`daily-brief  Daily brief v1.0.0  · off  · 3f9c1a7e5b2d8c40
+<Terminal command="apx extensions install ~/Downloads/daily-brief.apxext">{`daily-brief  Daily brief v1.0.0  · off  · official  · 3f9c1a7e5b2d8c40
   A short morning brief: open tasks, what is due, what others owe you.
   skills: daily-brief
   routines: Morning brief
 
 Turn it on with: apx extensions on daily-brief`}</Terminal>
 
-<Shot name="resources-extensions" alt="Recursos, pestaña Extensiones: extensiones instaladas con su interruptor, skills, servidores y rutinas" caption="Recursos › Extensiones" />
+<Shot name="resources-extensions" alt="Recursos, pestaña Extensiones: extensiones instaladas con su interruptor, skills, servidores y rutinas" caption="el Marketplace" />
 
 Instalar copia archivos comunes a la carpeta de APX y les toma una huella. Si la copia instalada cambia en el disco,
-APX apaga la extensión en el próximo arranque hasta que la vuelvas a aprobar. Para traer cambios de la carpeta
-original, instalala de nuevo o usá **Volver a leer** en su detalle.
+APX apaga la extensión en el próximo arranque hasta que la vuelvas a aprobar. Para traer cambios de la carpeta o la
+dirección original, instalala de nuevo o usá **Volver a leer** / **Volver a descargarla** en su detalle.
+
+### Qué puede tener un `.apxext`
+
+Es un zip común de la carpeta de la extensión: `apx-extension.json` arriba de todo, o dentro de una sola carpeta (como
+queda al comprimir una carpeta a mano). APX rechaza el archivo entero, antes de escribir nada, si tiene un link, una
+entrada cifrada, una ruta que sale de la carpeta (`..`, una ruta absoluta), tamaños que no coinciden con lo que se
+descomprime, dos nombres que un disco tomaría como uno, más de 2000 archivos o más de 50 MB descomprimido. El archivo en
+sí pesa como mucho 20 MB. `.git`, `node_modules` y lo que agrega una Mac al comprimir (`__MACOSX`, `.DS_Store`, archivos `._`) quedan afuera.
+
+`apx extensions pack <carpeta>` lo arma por vos: revisa la carpeta primero, deja afuera lo mismo, y la misma carpeta da
+siempre el mismo archivo (`<id>-<versión>.apxext`). Para convertir un script o una app que ya tenés en una extensión,
+mirá [Llevar tu app a una extensión](/es/extend/app-to-extension/).
+
+### Oficial o de terceros
+
+APX compara la huella de la extensión (la misma que aprueba encenderla) con el catálogo oficial de APX. Es **Oficial**
+cuando el catálogo lista ese id y esa versión con exactamente esos archivos; cualquier otra cosa, incluso un paquete
+oficial con un byte cambiado, es **De terceros**. No hay firma: lo que decide es que los archivos coincidan con los que
+publica APX. APX pide el catálogo solo cuando revisás o instalás una extensión, lo guarda en su carpeta y usa esa copia
+cuando no lo alcanza; sin copia, el diálogo avisa que no pudo saberlo. Otra dirección del catálogo se configura con
+`APX_MARKETPLACE_INDEX` ([Configuración](/es/reference/configuration/)).
+
+### Tus propios catálogos
+
+**Avanzado › Agregar catálogo** (o `apx extensions catalogs add <origen>`) suma una lista de extensiones para vos: un
+`dueño/repo` de GitHub, una dirección de git, la dirección https de un índice, o una carpeta. Los sugeridos (Knowledge
+Work y Claude plugins, de Anthropic) están a un clic. Todo lo que viene de ahí es **De terceros**; el catálogo de APX
+siempre queda.
+
+- APX lee su propio formato de índice y el `.claude-plugin/marketplace.json` de Claude Code. Un plugin de Claude se
+  instala convertido en extensión: sus skills, sus servidores MCP (del `.mcp.json` o del archivo que nombra su
+  `plugin.json`), sus `agents/` como agentes listos, su licencia y su readme. Un `${VAR}` en un servidor se vuelve un
+  ajuste que completás una vez: una clave cuando su nombre lo dice (`KEY`, `TOKEN`, `SECRET`…), si no un valor común,
+  con `${VAR:-valor}` como valor por defecto. Un servidor cuya dirección escribís vos lo avisa antes de encenderla. Los
+  comandos y hooks no tienen equivalente en APX y quedan afuera.
+- Un plugin de otro repositorio cuenta sólo si está fijado a un commit (`sha`); se lee en ese commit.
+- La licencia de cada plugin se lee antes de mostrarlo (la suya, si no la de su repositorio). Sólo se convierten las
+  que permiten una copia (MIT, Apache-2.0, BSD, ISC, MPL-2.0, Unlicense, CC0, 0BSD); el resto queda
+  afuera (`apx extensions catalogs` dice cuáles y por qué).
+- APX guarda el commit en el que leyó cada catálogo; **Volver a leer** toma el más nuevo.
+- Desde la terminal, `apx extensions catalog` muestra la dirección de cada entrada (`catalog:<catálogo>/<id>`), que
+  `apx extensions inspect` y `apx extensions install` aceptan.
+
+### Actualizar y volver atrás
+
+Instalar otra versión de una que ya tenés guarda la anterior al lado. El diálogo muestra qué suma la nueva (un
+servidor, un host al que se conecta, un secreto, una rutina, lo que puede alcanzar su plugin) y qué quita.
+
+- Una extensión encendida **sigue encendida** solo si la versión nueva es oficial y no pide nada más.
+- Si no, queda apagada hasta que la enciendas, y su tarjeta lista lo que suma.
+- **Volver a la 1.0.0** (la versión guardada) la cambia por la versión guardada, cada una como la habías aprobado (encendida o apagada).
+  Tocarlo de nuevo vuelve a la nueva.
 
 ## Plugins
 

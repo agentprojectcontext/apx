@@ -80,6 +80,17 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+/* An item with a line under its label grows to fit both. */
+.apx-menu__item--two {
+  height: auto;
+  min-height: 32px;
+  padding-block: 6px;
+}
+.apx-menu__text--two small {
+  display: block;
+  color: var(--apx-fg-muted);
+  font-size: var(--apx-text-xs);
+}
 .apx-menu__shortcut {
   font-size: var(--apx-text-xs);
   color: var(--apx-fg-subtle);

@@ -14,6 +14,7 @@ export { Badge, type BadgeProps } from "./components/Badge";
 export { type BrowserTabItem, BrowserTabs, type BrowserTabsProps } from "./components/BrowserTabs";
 export { Button, type ButtonProps } from "./components/Button";
 export { Card, type CardProps } from "./components/Card";
+export { CatalogRow, type CatalogRowProps } from "./components/CatalogRow";
 export { ChannelIcon, type ChannelIconProps } from "./components/ChannelIcon";
 export { Checkbox, type CheckboxProps } from "./components/Checkbox";
 export {
@@ -23,6 +24,7 @@ export {
   type CodeFrameProps,
 } from "./components/CodeFrame";
 export { Composer, type ComposerProps } from "./components/Composer";
+export { ConnectSignal, type ConnectSignalProps, type ConnectSignalState } from "./components/ConnectSignal";
 export { ContextMenu, type ContextMenuProps } from "./components/ContextMenu";
 export { ConversationRow, type ConversationRowProps } from "./components/ConversationRow";
 export {
@@ -38,6 +40,7 @@ export {
 } from "./components/DatePicker";
 export { DayDivider, type DayDividerProps } from "./components/DayDivider";
 export { Dialog, type DialogProps } from "./components/Dialog";
+export { Disclosure, DisclosureFacts, type DisclosureFactsProps, type DisclosureProps } from "./components/Disclosure";
 export { EmptyState, type EmptyStateProps } from "./components/EmptyState";
 export {
   type EngineBrand,
@@ -97,9 +100,17 @@ export { Skeleton, type SkeletonProps } from "./components/Skeleton";
 export { Spinner, type SpinnerProps } from "./components/Spinner";
 export { StatusIcon, type StatusIconProps, type StepStatus } from "./components/StatusIcon";
 export { type Step, StepList, type StepListProps } from "./components/StepList";
+export { Steps, type StepsProps } from "./components/Steps";
 export { StickyScroll, type StickyScrollHandle, type StickyScrollProps } from "./components/StickyScroll";
 export { SubthreadCard, type SubthreadCardProps } from "./components/SubthreadCard";
 export { type Suggestion, SuggestTextarea, type SuggestTextareaProps } from "./components/SuggestTextarea";
+export {
+  SummaryCard,
+  type SummaryCardProps,
+  SummaryItem,
+  SummaryNote,
+  SummarySection,
+} from "./components/SummaryCard";
 export { Switch, type SwitchProps } from "./components/Switch";
 export { SystemNote, type SystemNoteProps } from "./components/SystemNote";
 export { type TabItem, Tabs, type TabsProps } from "./components/Tabs";

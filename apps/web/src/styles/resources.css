@@ -685,6 +685,29 @@
   color: var(--apx-fg-subtle);
   font-size: var(--apx-text-xs);
 }
+.resext__guidebody ol li {
+  margin-bottom: 6px;
+}
+.resext__guidebody code {
+  display: block;
+  margin-top: 4px;
+  padding: 6px 10px;
+  overflow-x: auto;
+  border-radius: var(--apx-radius-sm);
+  background: var(--apx-fill);
+  color: var(--apx-fg);
+  font-family: var(--apx-font-mono);
+  font-size: var(--apx-text-2xs);
+  white-space: nowrap;
+}
+.resext__guidelink {
+  display: inline-flex;
+  gap: 4px;
+  align-items: center;
+  align-self: flex-start;
+  color: var(--apx-accent);
+  font-size: var(--apx-text-sm);
+}
 /* Integrations */
 .int__listhead {
   padding: 4px 8px 6px;
@@ -815,6 +838,22 @@
   place-items: center;
   min-height: 100dvh;
   padding: 16px;
+}
+
+/* What a newer version adds over the one kept before it, while it waits to be turned on. */
+.extupdate {
+  padding: 8px 10px;
+  border: 1px solid var(--apx-border);
+  border-radius: var(--apx-radius-md);
+  background: var(--apx-surface-raised);
+}
+.extupdate p {
+  margin: 0;
+}
+.extupdate ul {
+  margin: 6px 0 0;
+  padding-left: 18px;
+  font-size: calc(13px * var(--apx-text-scale, 1));
 }
 
 /* An extension's suggested routines: what, when, and whether it is in Routines yet. */
@@ -997,4 +1036,69 @@
   top: 0;
   z-index: 1;
   margin-bottom: 12px;
+}
+
+/* The Marketplace's "Add" menu items and drop hint (marketplace/MarketBrowse.tsx). */
+.extx__drop {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  margin: 0;
+  padding: 12px 14px;
+  border: 1.5px dashed var(--apx-border-strong);
+  border-radius: var(--apx-radius-lg);
+  color: var(--apx-fg-muted);
+  font-size: var(--apx-text-sm);
+}
+
+/* Pieces shared by the Marketplace's dialogs: notes, callouts, the turn-on approval. */
+.extpage__note {
+  color: var(--apx-fg-muted);
+  font-size: var(--apx-text-sm);
+  margin: 0;
+}
+.extpage__sec {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding-top: 14px;
+  border-top: 1px solid var(--apx-border);
+}
+.extpage__sec h4 {
+  margin: 0;
+  color: var(--apx-fg-muted);
+  font-size: var(--apx-text-sm);
+}
+.extpage__sec ul {
+  margin: 0;
+  padding-left: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.extpage__sec p {
+  margin: 0;
+}
+.extpage__approve {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font-size: var(--apx-text-sm);
+}
+.extpage__callout {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  margin: 0;
+  padding: 10px 12px;
+  border-radius: var(--apx-radius-md);
+  font-size: var(--apx-text-sm);
+}
+.extpage__callout--warn {
+  background: var(--apx-warning-soft);
+  color: var(--apx-warning-soft-fg);
+}
+.extpage__callout--ok {
+  background: var(--apx-brand-soft);
+  color: var(--apx-brand-soft-fg);
 }

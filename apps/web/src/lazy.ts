@@ -137,11 +137,21 @@ export const ProjectScreen = lazy(
     import("./project/ProjectScreen.tsx").then((m) => ({ default: m.ProjectScreen })),
   ),
 );
+export const MarketplaceScreen = lazy(
+  withPacks(["resources"], () =>
+    import("./marketplace/MarketplaceScreen.tsx").then((m) => ({ default: m.MarketplaceScreen })),
+  ),
+);
 export const ResourcesScreen = lazy(
   withPacks(["resources"], () => import("./project/ResourcesScreen.tsx").then((m) => ({ default: m.ResourcesScreen }))),
 );
 export const InstallArtifactDialog = lazy(() =>
   import("./surfaces/InstallArtifact.tsx").then((m) => ({ default: m.InstallArtifactDialog })),
+);
+export const InstallExtensionDialog = lazy(
+  withPacks(["resources"], () =>
+    import("./resources/InstallExtension.tsx").then((m) => ({ default: m.InstallExtensionDialog })),
+  ),
 );
 export const LiveLayer = lazy(() => import("./surfaces/LiveLayer.tsx").then((m) => ({ default: m.LiveLayer })));
 export const WelcomeV2 = lazy(() => import("./shell/WelcomeV2.tsx").then((m) => ({ default: m.WelcomeV2 })));

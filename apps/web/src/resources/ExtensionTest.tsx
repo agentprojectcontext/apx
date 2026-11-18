@@ -72,7 +72,11 @@ export function ExtensionTest({ e }: { e: ExtensionInfo }) {
         <div key={name}>
           <div className="tgtoken">
             <Icons.Plug size={14} />
-            <span className="res__name">{name}</span>
+            <span className="res__name">
+              {e.mcp.length > 1
+                ? `${t("extx.piece.toolsText", { name: e.name })} · ${name.slice(e.id.length + 1)}`
+                : t("extx.piece.toolsText", { name: e.name })}
+            </span>
             <span className="pcard__spacer" />
             <Button size="sm" variant="secondary" loading={busy === name} onClick={() => void server(name)}>
               {t("ext.test.server")}

@@ -275,6 +275,25 @@ export async function open(page: Page, hash = "") {
   await expect(page.getByRole("button", { name: "Inbox" })).toBeVisible();
 }
 
+/** Opens an extension's page in the Marketplace: searched by name, then its row. */
+export async function openExtension(page: Page, name: string) {
+  await page.getByRole("button", { name: "Marketplace", exact: true }).first().click();
+  await page.getByRole("searchbox", { name: "Buscar en el Marketplace" }).fill(name);
+  await page
+    .getByRole("main")
+    .getByRole("button", { name: new RegExp(`^${name}`) })
+    .first()
+    .click();
+  await expect(page.getByRole("heading", { name, exact: true })).toBeVisible();
+}
+
+/** An extension's settings, from ⋯ on its page. */
+export async function openExtensionSettings(page: Page) {
+  await page.getByRole("button", { name: "Más opciones" }).click();
+  await page.getByRole("menuitem", { name: "Configuración", exact: true }).click();
+  return page.getByRole("dialog", { name: /^Configuración de / });
+}
+
 /** Opens Settings the way the owner does: from the account menu at the bottom of the sidebar. */
 export async function openSettings(page: Page) {
   await page.getByRole("button", { name: /^Cuenta/ }).click();

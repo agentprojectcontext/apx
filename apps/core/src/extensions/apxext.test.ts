@@ -1,0 +1,222 @@
+import assert from "node:assert/strict";
+import fs from "node:fs";
+import path from "node:path";
+import { after, before, test } from "node:test";
+import { ApxError } from "@apx/protocol/client";
+import { say, scriptedLlm, startCore } from "../engine/testkit.ts";
+import { type TempDir, tempDir, waitFor } from "../testkit/platform.ts";
+import { readArchive } from "./package.ts";
+import { catalogOf, zipFiles } from "./zip.test-support.ts";
+
+const CATALOG = "https://catalog.example.com/index.json";
+/** What the stand-in net serves: the catalog and .apxext downloads. */
+const served = new Map<string, Buffer | string>();
+
+const manifest = (version: string, extra: Record<string, unknown> = {}) => ({
+  id: "weather",
+  name: "Weather",
+  version,
+  description: "Forecasts for agents.",
+  skills: "skills",
+  mcp: { forecast: { url: "https://api.weather.example.com/mcp", headers: { Authorization: "Bearer secret://key" } } },
+  secrets: [{ name: "key", label: "API key" }],
+  ...extra,
+});
+const archive = (version: string, extra: Record<string, unknown> = {}, readme = "Weather.") =>
+  zipFiles({
+    "apx-extension.json": JSON.stringify(manifest(version, extra)),
+    "skills/forecast/SKILL.md": "---\nname: forecast\ndescription: Forecasts.\n---\nAsk the forecast tools.\n",
+    "README.md": readme,
+  });
+const file = (buf: Buffer, name = "weather.apxext") => ({ name, data: buf.toString("base64") });
+const refused = (p: Promise<unknown>, re: RegExp) =>
+  assert.rejects(p, (e: unknown) => e instanceof ApxError && re.test(e.message));
+
+const v1 = archive("1.0.0");
+const v11 = archive("1.1.0", {}, "Weather, with a better README.");
+const v12 = archive("1.2.0", {
+  mcp: {
+    forecast: { url: "https://api.weather.example.com/mcp", headers: { Authorization: "Bearer secret://key" } },
+    radar: { url: "https://radar.northwind.test/mcp" },
+  },
+});
+const official = [v1, v11, v12].map((b) => {
+  const p = readArchive(b);
+  return { id: p.manifest.id, version: p.manifest.version, hash: p.hash };
+});
+
+let env: Awaited<ReturnType<typeof startCore>>;
+let home: TempDir;
+const extDir = () => path.join(home.path, "extensions");
+
+before(async () => {
+  home = tempDir("apx-apxext-");
+  served.set(CATALOG, catalogOf(official));
+  served.set("https://dl.example.com/weather-1.1.0.apxext", v11);
+  env = await startCore({
+    llm: scriptedLlm(() => say("ok")),
+    home: home.path,
+    marketplaceIndex: CATALOG,
+    extensionFetch: (async (url: string | URL) => {
+      const body = served.get(String(url));
+      return body === undefined ? new Response("missing", { status: 404 }) : new Response(body);
+    }) as typeof fetch,
+  });
+});
+after(async () => {
+  await env.core.close();
+  await home.remove();
+});
+
+test("an .apxext is inspected without writing anything, then installed off and marked Official by its fingerprint", async () => {
+  const seen = await env.client.call("extensions.inspect", { file: file(v1) });
+  assert.equal(seen.provenance, "official");
+  assert.equal(seen.enabled, false);
+  assert.deepEqual(seen.skills, ["forecast"]);
+  assert.deepEqual(seen.mcp, ["weather-forecast"]);
+  assert.equal(seen.source, "weather.apxext");
+  assert.equal(fs.existsSync(path.join(extDir(), "weather")), false);
+
+  await refused(env.client.call("extensions.install", { file: file(v1), hash: "0000000000000000" }), /looked at/);
+  const info = await env.client.call("extensions.install", { file: file(v1), hash: seen.hash });
+  assert.equal(info.provenance, "official");
+  assert.equal(info.enabled, false);
+  assert.equal(info.update, undefined);
+  // The staging folder is gone; only the copy remains.
+  assert.deepEqual(fs.readdirSync(extDir()), ["weather"]);
+
+  // One byte changed: the same id and version, but not the files the catalog lists.
+  const touched = archive("1.0.0", {}, "Weather!");
+  const third = await env.client.call("extensions.inspect", { file: file(touched) });
+  assert.equal(third.provenance, "third_party");
+  assert.equal(third.update?.from, "1.0.0");
+});
+
+test("a hostile archive or a plain http address is refused before anything is written", async () => {
+  const before = fs.readdirSync(extDir());
+  await refused(
+    env.client.call("extensions.install", {
+      file: file(zipFiles({ "apx-extension.json": JSON.stringify(manifest("9.0.0")), "../../escape": "x" })),
+    }),
+    /outside/,
+  );
+  await refused(env.client.call("extensions.inspect", { url: "http://dl.example.com/weather.apxext" }), /invalid/);
+  await refused(env.client.call("extensions.inspect", { url: "https://dl.example.com/none.apxext" }), /404/);
+  await refused(env.client.call("extensions.inspect", { path: home.path, url: "https://dl.example.com/x" }), /invalid/);
+  assert.deepEqual(fs.readdirSync(extDir()), before);
+});
+
+test("an update: official and asking for nothing more stays on; one that reaches a new host waits; going back works", async () => {
+  await env.client.call("extensions.enable", { id: "weather", enabled: true });
+
+  // From a URL, official, nothing more: it stays on, with the version before kept beside it.
+  const url = "https://dl.example.com/weather-1.1.0.apxext";
+  const look = await env.client.call("extensions.inspect", { url });
+  assert.deepEqual(look.update, { from: "1.0.0", adds: [], removes: [], keeps_on: true });
+  const on = await env.client.call("extensions.install", { url, hash: look.hash });
+  assert.equal(on.version, "1.1.0");
+  assert.equal(on.enabled, true);
+  assert.equal(on.source, url);
+  assert.ok(fs.existsSync(path.join(extDir(), "weather.prev")));
+
+  // Official, but reaching a new host: shown before, and off until the owner turns it on.
+  const more = await env.client.call("extensions.inspect", { file: file(v12) });
+  assert.equal(more.update?.keeps_on, false);
+  assert.deepEqual(
+    more.update?.adds.map((p) => `${p.kind}:${p.name}`),
+    ["mcp:radar", "host:radar.northwind.test"],
+  );
+  const off = await env.client.call("extensions.install", { file: file(v12) });
+  assert.equal(off.enabled, false);
+  assert.equal(off.update?.from, "1.1.0");
+  assert.equal(off.update?.adds.length, 2);
+
+  // Back to 1.1.0, as it was approved (on); and forward again to 1.2.0, still waiting.
+  const back = await env.client.call("extensions.rollback", { id: "weather" });
+  assert.equal(back.version, "1.1.0");
+  assert.equal(back.enabled, true);
+  assert.equal(back.update?.from, "1.2.0");
+  const forward = await env.client.call("extensions.rollback", { id: "weather" });
+  assert.equal(forward.version, "1.2.0");
+  assert.equal(forward.enabled, false);
+
+  // A third-party update of one that is on goes off, however little it changes.
+  await env.client.call("extensions.rollback", { id: "weather" });
+  const tweaked = await env.client.call("extensions.install", { file: file(archive("1.1.0", {}, "Changed.")) });
+  assert.equal(tweaked.provenance, "third_party");
+  assert.equal(tweaked.enabled, false);
+
+  // A kept version changed on disk is not brought back.
+  fs.writeFileSync(path.join(extDir(), "weather.prev", "README.md"), "edited");
+  await refused(env.client.call("extensions.rollback", { id: "weather" }), /changed on disk/);
+
+  assert.deepEqual(await env.client.call("extensions.remove", { id: "weather" }), { removed: true });
+  assert.deepEqual(fs.readdirSync(extDir()), []);
+  await refused(env.client.call("extensions.rollback", { id: "weather" }), /not found/);
+});
+
+test("a folder packs into an .apxext: the same bytes each time, the same extension once installed", async () => {
+  await using src = tempDir("apx-pack-");
+  const put = (rel: string, data: string) => {
+    fs.mkdirSync(path.dirname(path.join(src.path, rel)), { recursive: true });
+    fs.writeFileSync(path.join(src.path, rel), data);
+  };
+  put("apx-extension.json", JSON.stringify(manifest("2.0.0", { id: "packed" })));
+  put("skills/forecast/SKILL.md", "---\nname: forecast\ndescription: Forecasts.\n---\nAsk the forecast tools.\n");
+  put("server.mjs", "export {};\n");
+  // Left out like on install: what a Mac adds, and dependencies.
+  put(".DS_Store", "junk");
+  put("node_modules/dep/index.js", "module.exports = 1;\n");
+  const first = await env.client.call("extensions.pack", { path: src.path });
+  const again = await env.client.call("extensions.pack", { path: src.path });
+  assert.equal(first.name, "packed-2.0.0.apxext");
+  assert.equal(first.data, again.data);
+  const seen = await env.client.call("extensions.inspect", { path: src.path });
+  assert.equal(first.hash, seen.hash);
+  const installed = await env.client.call("extensions.install", { file: file(Buffer.from(first.data, "base64")) });
+  assert.equal(installed.hash, seen.hash);
+  assert.deepEqual(readArchive(Buffer.from(first.data, "base64")).files, [
+    "apx-extension.json",
+    "server.mjs",
+    "skills/forecast/SKILL.md",
+  ]);
+  // Checked before it is packed: a manifest an install would refuse never makes a file.
+  put("apx-extension.json", JSON.stringify({ ...manifest("2.0.1", { id: "packed" }), version: undefined }));
+  await refused(env.client.call("extensions.pack", { path: src.path }), /apx-extension.json/);
+  await env.client.call("extensions.remove", { id: "packed" });
+});
+
+test("an older version the official catalog published still counts as Official, under its newest", async () => {
+  // The index lists 1.0.0, 1.1.0 and 1.2.0 under one entry; 1.0.0 is not the newest.
+  const old = await env.client.call("extensions.inspect", { file: file(v1) });
+  assert.equal(old.version, "1.0.0");
+  assert.equal(old.provenance, "official");
+  // The same version with other files is not.
+  const touched = await env.client.call("extensions.inspect", { file: file(archive("1.0.0", {}, "Changed.")) });
+  assert.equal(touched.provenance, "third_party");
+});
+
+test("a change made by another client reaches an open panel as extensions.changed", async () => {
+  const socket = await env.client.connect();
+  try {
+    let told = 0;
+    socket.onEvent((e) => {
+      if (e.type === "extensions.changed") told++;
+    });
+    await env.client.call("extensions.install", { file: file(v11) });
+    await waitFor(async () => told > 0 || undefined, "extensions.changed after an install");
+    const before = told;
+    await env.client.call("extensions.enable", { id: "weather", enabled: false });
+    await waitFor(async () => told > before || undefined, "extensions.changed after turning it off");
+    // Looking changes nothing and tells nobody.
+    const quiet = told;
+    await env.client.call("extensions.inspect", { file: file(v1) });
+    await env.client.call("extensions.list", {});
+    await env.client.call("extensions.enable", { id: "weather", enabled: false });
+    await waitFor(async () => told > quiet || undefined, "the last change's event");
+    assert.equal(told, quiet + 1, "inspect and list send no event");
+  } finally {
+    socket.close();
+    await socket.closed;
+  }
+});

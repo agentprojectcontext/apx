@@ -17,6 +17,7 @@ import {
   ToolApproval,
   ToolRisk,
 } from "./domain.ts";
+import { extensionMethods } from "./extension-methods.ts";
 import { filesMethods } from "./files-methods.ts";
 import { gitMethods } from "./git-methods.ts";
 import { officeMethods } from "./office-methods.ts";
@@ -109,6 +110,7 @@ export const appSetupMethods = {
     access: "human",
   }),
   ...officeMethods,
+  ...extensionMethods,
   ...teamMethods,
   ...resourceMethods,
   ...composerMethods,

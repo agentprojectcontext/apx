@@ -468,14 +468,19 @@
 .apx-card--pad-lg {
   padding: var(--apx-space-8);
 }
+/* On a narrow card the aside goes under the text instead of squeezing it. */
 .apx-card__head {
   display: flex;
+  flex-wrap: wrap;
   align-items: flex-start;
   gap: var(--apx-space-3);
   margin-bottom: var(--apx-space-3);
 }
+.apx-card__head:last-child {
+  margin-bottom: 0;
+}
 .apx-card__titles {
-  flex: 1;
+  flex: 1 1 200px;
   min-width: 0;
 }
 .apx-card__title {

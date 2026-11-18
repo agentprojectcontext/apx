@@ -36,7 +36,7 @@ export function Card({
           {aside}
         </div>
       )}
-      {!title && description && <div className="apx-card__desc">{description}</div>}
+      {!title && !aside && description && <div className="apx-card__desc">{description}</div>}
       {children}
     </div>
   );
