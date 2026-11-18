@@ -1,6 +1,7 @@
 """Speech-service requests cross the existing private call socket, never a public endpoint."""
 import asyncio
 import base64
+from contextvars import ContextVar
 import time
 from concurrent.futures import Future, ThreadPoolExecutor, TimeoutError
 
@@ -102,12 +103,17 @@ class Mouth:
 class Speech(LocalSpeech):
     def __init__(self):
         super().__init__()
-        self.bridge = None
+        self._bridge = ContextVar("call_bridge", default=None)
         self._ears, self._mouth = Ears(self), Mouth(self)
 
+    @property
+    def bridge(self):
+        return self._bridge.get()
+
     def bind(self, ws):
-        self.bridge = Bridge(ws)
-        return self.bridge
+        bridge = Bridge(ws)
+        self._bridge.set(bridge)
+        return bridge
 
     def voice(self, name):
         return name

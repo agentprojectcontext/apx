@@ -21,25 +21,30 @@ export function createCallAudio(deps: {
     services: true,
     uvProgram: createUv({ dir: path.join(deps.home, "bin"), log: deps.log }),
   });
+  const eligible = (kind: "speech" | "transcription", id?: string) =>
+    store.settings
+      .read("services")
+      .filter(
+        (s) =>
+          s.kind === kind &&
+          s.enabled &&
+          (!id || s.id === id) &&
+          (!s.needs_key || services.hasKey(s.id)) &&
+          (s.dialect !== "apx-voice" || engine.installed(kind === "speech" ? "all" : "ears")),
+      );
   return {
     remote,
     callEngine: () => (native.status().call_engine === "services" ? remote : engine),
     callServices: () => {
       const s = native.status();
       return s.call_engine === "services"
-        ? { services, speech: s.call_speech, transcription: s.call_transcription }
+        ? {
+            services,
+            speech: s.call_speech ?? eligible("speech")[0]?.id ?? "unavailable:speech",
+            transcription: s.call_transcription ?? eligible("transcription")[0]?.id ?? "unavailable:transcription",
+          }
         : undefined;
     },
-    hasService: (kind: "speech" | "transcription", id: string | undefined) =>
-      store.settings
-        .read("services")
-        .some(
-          (s) =>
-            s.kind === kind &&
-            s.enabled &&
-            (!id || s.id === id) &&
-            (!s.needs_key || services.hasKey(s.id)) &&
-            (s.dialect !== "apx-voice" || engine.installed(kind === "speech" ? "all" : "ears")),
-        ),
+    hasService: (kind: "speech" | "transcription", id: string | undefined) => eligible(kind, id).length > 0,
   };
 }

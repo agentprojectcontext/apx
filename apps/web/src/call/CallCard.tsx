@@ -288,7 +288,7 @@ export function CallCard() {
                 {t(missing === "model" ? "callCard.openModels" : "callCard.openVoices")}
               </Button>
             )}
-          {stage === "setup" && status?.engine === "services" && (
+          {stage === "setup" && status?.engine === "services" && status.ready && (
             <p className="callcard__hint">{t("callCard.serviceVoice")}</p>
           )}
           {stage === "setup" && status?.engine !== "services" && (

@@ -3,11 +3,9 @@ import type { enVoice } from "./voice-en.ts";
 export const esVoice: Record<keyof typeof enVoice, string> = {
   "voice.lead": "Cómo hablan y escuchan tus agentes, y las llamadas con ellos.",
   "voice.speak": "Hablar",
-  "voice.speakLead":
-    "Tus agentes leen en voz alta y hablan en las llamadas con la primera voz que responde, en este orden.",
+  "voice.speakLead": "Tus agentes leen en voz alta con la primera voz que responde, en este orden.",
   "voice.hear": "Escuchar",
-  "voice.hearLead":
-    "Las notas de voz, el dictado y lo que decís en las llamadas pasan a texto con el primero que responde.",
+  "voice.hearLead": "Las notas de voz y el dictado pasan a texto con el primero que responde.",
   "voice.models.speaks": "Habla con {name}, unos {gb} GB en {folder}.",
   "voice.models.hears": "Escucha con {name}.",
   "voice.here": "En esta computadora",
@@ -56,10 +54,11 @@ export const esVoice: Record<keyof typeof enVoice, string> = {
     "La voz local de APX necesita una Mac con Apple silicon. Elegí tus servicios para llamar desde esta computadora.",
   "calls.speech": "Habla con",
   "calls.transcription": "Escucha con",
-  "calls.firstAvailable": "Primero disponible de arriba",
+  "calls.firstAvailable": "Primero habilitado de arriba",
   "calls.serviceUnavailable": "El servicio ya no está disponible",
   "calls.manageServices": "Administrar servicios",
-  "calls.serviceHint": "Usá el orden de arriba o elegí un servicio sólo para las llamadas.",
+  "calls.serviceHint":
+    "Cada llamada conserva los servicios con los que empieza. Si uno falla, termina en vez de cambiar a otro.",
   "calls.empty.speech": "Agregá una voz en Hablar, arriba, para empezar.",
   "calls.empty.transcription": "Agregá un servicio en Escuchar, arriba, para empezar.",
   "calls.offHint": "Los botones de llamada están ocultos. Tus agentes igual hablan y escuchan notas de voz.",

@@ -63,6 +63,7 @@ export function CallsSettings({
             <>
               <CallService kind="speech" services={speech} selected={s.call_speech} save={save} />
               <CallService kind="transcription" services={hearing} selected={s.call_transcription} save={save} />
+              <p className="config__hint">{t("calls.serviceHint")}</p>
               <Button variant="secondary" size="sm" onClick={onManage}>
                 {t("calls.manageServices")}
               </Button>
@@ -95,10 +96,7 @@ function CallService({
   if (selected && !enabled.some((s) => s.id === selected))
     options.push({ value: selected, label: t("calls.serviceUnavailable") });
   return (
-    <SettingRow
-      title={t(`calls.${kind}`)}
-      description={t(enabled.length ? "calls.serviceHint" : `calls.empty.${kind}`)}
-    >
+    <SettingRow title={t(`calls.${kind}`)} description={enabled.length ? undefined : t(`calls.empty.${kind}`)}>
       <Select
         size="sm"
         label={t(`calls.${kind}`)}

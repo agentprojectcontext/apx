@@ -39,6 +39,20 @@ test("calls with configured services work on Linux without enabling or installin
       needs_key: false,
       enabled: true,
     });
+    const pinned = audio.callServices();
+    assert.equal(pinned?.speech, "voice");
+    assert.equal(pinned?.transcription, "ears");
+    services.set("ears-remote", {
+      kind: "transcription",
+      dialect: "openai-transcribe",
+      base_url: "http://example.test/v1",
+      label: "Remote",
+      needs_key: false,
+      enabled: true,
+    });
+    services.order("transcription", ["ears-remote", "ears"]);
+    assert.equal(pinned?.transcription, "ears", "an active call keeps its original audio recipient");
+    assert.equal(audio.callServices()?.transcription, "ears-remote", "a later call uses the new order");
     const status = handlers["calls.status"]();
     assert.equal(status.ready, true);
     assert.equal(status.engine, "services");

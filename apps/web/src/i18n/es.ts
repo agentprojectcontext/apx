@@ -1653,7 +1653,7 @@ export const es: Partial<Record<MessageKey, string>> = {
   "svc.check.name": "No hay una máquina con ese nombre. Revisá la dirección.",
   "svc.check.key": "Respondió, pero no aceptó la clave.",
   "svc.check.http": "Respondió con un error ({detail}). ¿Es la dirección de su API?",
-  "svc.check.other": "No se pudo conectar: {detail}",
+  "svc.check.other": "No se pudo conectar. Revisá la dirección y el puerto del servicio.",
   "svc.check.noModel": "Ese servidor no tiene {model}: elegí uno de sus modelos.",
   "svc.check.noModelOllama":
     "Ese servidor no tiene {model}: elegí uno de sus modelos, o bajalo ahí con ollama pull {model}.",
@@ -1672,7 +1672,8 @@ export const es: Partial<Record<MessageKey, string>> = {
   "svc.style": "Estilo",
   "svc.styleHint": 'Cómo hablar ("tranquilo", "alegre"), en los servidores que lo aceptan.',
   "svc.custom": "Personalizado (compatible con OpenAI)",
-  "svc.elevenVoiceHint": "Pegá el ID de una voz de tu biblioteca de ElevenLabs.",
+  "svc.elevenVoiceHint": "En tu biblioteca de ElevenLabs, copiá el ID desde los detalles de la voz y pegalo acá.",
+  "svc.advanced": "Opciones avanzadas",
   "svc.needsKey": "Necesita clave",
   "svc.needsKeyHint": "Se guarda de forma segura; no se vuelve a mostrar.",
   "svc.test": "Probar",

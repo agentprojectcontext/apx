@@ -4,6 +4,7 @@
 
 import { errorMessage } from "../errors.ts";
 import { PINNED } from "../models/pinned.ts";
+import { readSpeechBody } from "./speech-body.ts";
 import { joinUrl, type ServiceConfig, ServiceError, SPEECH_TIMEOUT_MS, type SpeechResult } from "./types.ts";
 
 type Fetch = typeof fetch;
@@ -39,8 +40,8 @@ async function openaiSpeech(
     }),
     signal,
   });
-  if (!res.ok) throw new Error(`HTTP ${res.status}: ${(await res.text()).slice(0, 200)}`);
-  const bytes = Buffer.from(await res.arrayBuffer());
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  const bytes = await readSpeechBody(res, signal);
   return { bytes, mime: res.headers.get("content-type")?.split(";")[0] || (stock ? "audio/mpeg" : "audio/wav") };
 }
 
@@ -89,8 +90,8 @@ async function geminiSpeech(
   let res = await ask(s.model || PINNED.geminiSpeech.id);
   // A voice model Google retired answers 404: the current default speaks instead of the voice going silent.
   if (res.status === 404 && s.model && s.model !== PINNED.geminiSpeech.id) res = await ask(PINNED.geminiSpeech.id);
-  if (!res.ok) throw new Error(`HTTP ${res.status}: ${(await res.text()).slice(0, 200)}`);
-  const j = (await res.json()) as {
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  const j = JSON.parse((await readSpeechBody(res, signal)).toString()) as {
     candidates?: Array<{ content?: { parts?: Array<{ inlineData?: { data?: string; mimeType?: string } }> } }>;
   };
   const part = j.candidates?.[0]?.content?.parts?.find((p) => p.inlineData?.data)?.inlineData;
@@ -123,8 +124,8 @@ async function elevenlabsSpeech(
       signal,
     },
   );
-  if (!res.ok) throw new Error(`HTTP ${res.status}: ${(await res.text()).slice(0, 200)}`);
-  return { bytes: Buffer.from(await res.arrayBuffer()), mime: "audio/mpeg" };
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  return { bytes: await readSpeechBody(res, signal), mime: "audio/mpeg" };
 }
 
 const DIALECTS = {

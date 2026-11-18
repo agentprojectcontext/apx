@@ -290,19 +290,23 @@ export function createServices(deps: {
     /** Call audio does not create voice notes or duplicate transcript records. */
     async callSpeech(text: string, service: string | undefined, signal: AbortSignal): Promise<Buffer> {
       const { out } = await firstThatWorks(
-        candidates("speech", service).filter((s) => s.enabled),
+        candidates("speech", service)
+          .filter((s) => s.enabled)
+          .slice(0, 1),
         (s) => speakWith(s, { text }, signal),
         signal,
       );
       signal.throwIfAborted();
-      const pcm = await toPcm24k(out.bytes, await ffmpeg.path());
+      const pcm = await toPcm24k(out.bytes, await ffmpeg.path(), undefined, signal);
       signal.throwIfAborted();
       return pcm;
     },
     async callTranscribe(pcm: Buffer, service: string | undefined, signal: AbortSignal): Promise<string> {
       const bytes = wav16k(pcm);
       const { out } = await firstThatWorks(
-        candidates("transcription", service).filter((s) => s.enabled),
+        candidates("transcription", service)
+          .filter((s) => s.enabled)
+          .slice(0, 1),
         async (s) => {
           if (s.dialect !== "whisper-local") return transcribeWith(s, { path: "", bytes, mime: "audio/wav" }, signal);
           const parent = path.join(deps.home, "tmp");

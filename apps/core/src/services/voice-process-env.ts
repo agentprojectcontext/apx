@@ -7,6 +7,14 @@ const KEEP = new Set([
   "LANG",
   "LANGUAGE",
   "XDG_CACHE_HOME",
+  "HF_HOME",
+  "HF_HUB_CACHE",
+  "HF_ASSETS_CACHE",
+  "HF_HUB_OFFLINE",
+  "HF_DATASETS_CACHE",
+  "UV_CACHE_DIR",
+  "UV_PYTHON_INSTALL_DIR",
+  "UV_OFFLINE",
   "VIRTUAL_ENV",
   "HTTPS_PROXY",
   "HTTP_PROXY",
@@ -35,7 +43,7 @@ export function voiceProcessEnv(source: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
   return Object.fromEntries(
     Object.entries(source).filter(([key]) => {
       const name = key.toUpperCase();
-      return KEEP.has(name) || name.startsWith("HF_") || name.startsWith("UV_") || name.startsWith("LC_");
+      return KEEP.has(name) || name.startsWith("LC_");
     }),
   );
 }

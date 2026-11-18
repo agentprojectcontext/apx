@@ -14,8 +14,9 @@ silicon compatibles; los requisitos de esa opción no se aplican a llamadas con 
 ## La voz de APX
 
 Abrí **Ajustes › Voz y llamadas**. Tiene tres partes: **Hablar** (las voces con las que hablan tus agentes),
-**Escuchar** (lo que pasa a texto las notas de voz, el dictado y lo que decís en las llamadas) y **Llamadas**. Hablar y
-Escuchar son una lista cada una, que se prueba en orden: se usa la primera que responde. La voz propia de APX es la
+**Escuchar** (lo que pasa a texto las notas de voz y el dictado) y **Llamadas**. Para notas de voz y lectura en voz alta,
+las listas Hablar y Escuchar se prueban en orden: se usa la primera que responde. Las llamadas conservan las selecciones
+propias que se explican abajo. La voz propia de APX es la
 primera fila de las dos, **APX — En esta computadora**, con su interruptor, el modelo que usa y la carpeta donde guarda
 sus modelos:
 
@@ -55,11 +56,13 @@ menos, según lo que tardaron las últimas cargas en tu Mac.
 
 En **Configuración › Voz y llamadas › Llamadas**, elegí **Tus servicios** en **Voz para llamadas**. Elegí un servicio
 para hablar y otro para escuchar entre los habilitados arriba. Una selección explícita no depende del orden general:
-si deshabilitás o quitás ese servicio, elegí otro antes de llamar. **Primero disponible de arriba** usa el orden de esa
-lista. **Administrar servicios** te lleva de vuelta a esas listas para agregar o editar un servicio.
+si deshabilitás o quitás ese servicio, elegí otro antes de llamar. **Primero habilitado de arriba** elige el primer servicio
+habilitado de esa lista al iniciar. Cada llamada conserva ambos servicios: si uno falla, termina sin enviar tu audio a
+otro proveedor. **Administrar servicios** te lleva de vuelta a esas listas para agregar o editar un servicio.
 
 - **Gemini** usa su API de voz. Configurá la clave, un modelo de voz y una voz compatible, como Kore.
-- **ElevenLabs** usa su API nativa de voz. Agregá tu clave, el modelo y el ID de voz de tu cuenta de ElevenLabs.
+- **ElevenLabs** usa su API nativa de voz. Agregá tu clave y copiá el ID desde los detalles de la voz en tu biblioteca de
+  ElevenLabs. **Opciones avanzadas** permite cambiar el modelo y la dirección del servicio.
 - **QVox** y **Personalizado** usan un servidor de voz compatible con OpenAI. Ingresá su URL, modelo y voz. Puede
   estar en una PC, red privada o VPS; quien necesita llegar a esa dirección es el core, no tu navegador.
 - Para escuchar, usá un transcriptor compatible con OpenAI, un servidor Whisper local o whisper.cpp. Un proveedor que
