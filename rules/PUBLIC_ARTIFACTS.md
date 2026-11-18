@@ -1,8 +1,9 @@
-# Public artifact copies (implementation in progress)
+# Public artifact copies
 
 F4 uses the free Firebase plan: Firestore holds snapshots and Hosting serves a fixed viewer. No Storage,
-Functions, Blaze plan or billing activation is part of this implementation. This is not yet a released or
-deployed service. The existing local `surfaces.share` listener is unchanged.
+Functions, Blaze plan or billing activation is part of this implementation. The Hosting viewer is deployed for
+verification; the APX integration has not yet shipped in a release. The existing local `surfaces.share` listener
+is unchanged.
 
 ## Snapshot boundary
 
@@ -44,14 +45,16 @@ Revocation deletes the public metadata, every part and the private occupied slot
 ownership tombstone remains. Releasing or replacing a slot while the old publication is live is refused.
 There are no public Storage objects, signed URLs or download tokens to bypass revocation.
 
-## Fixed Hosting viewer (implemented; deployment pending)
+## Fixed Hosting viewer
 
-`https://artifact.apxagent.app/<code>` serves a trusted fixed wrapper. It reads the public Firestore metadata
-and exact part IDs using network-only REST requests, checks size and SHA-256, and renders the chosen snapshot
-inside an opaque-origin sandbox. It never enables Firestore persistence, service-worker caches or credentialed
-requests. The loaded HTML cannot access the wrapper, account cookies or APX RPC. Apply CSP to the execution
-document as well as the wrapper. External networking, frames and APX access are disabled; the snapshot's
-inlined APX Kit supports offline copies. No uploaded HTML executes in the wrapper's origin.
+`https://artifact.apxagent.app/<code>` serves a trusted fixed wrapper. The viewer uses the anonymous Firebase
+SDK with `getDocFromServer` for current metadata and exact part IDs, `onSnapshot` for publication changes, and
+an in-memory cache only. The core's anonymous reader uses REST. Both readers validate size and SHA-256 before
+accepting a copy. The viewer renders the chosen snapshot inside an opaque-origin sandbox. It never enables
+Firestore persistence, service-worker caches or account authentication. The loaded HTML cannot access the
+wrapper, account cookies or APX RPC. Apply CSP to the execution document as well as the wrapper. External
+networking, frames and APX access are disabled; the snapshot's inlined APX Kit supports offline copies. No
+uploaded HTML executes in the wrapper's origin.
 
 The execution iframe requires a boolean `credentialless` attribute as well as `sandbox="allow-scripts"`.
 A browser without credentialless support gets the download action, not a less-isolated execution frame. The
