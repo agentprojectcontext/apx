@@ -62,14 +62,18 @@ export const zipFiles = (files: Record<string, string | Buffer>, prefix = "") =>
 
 /** An index.json in the catalog's contract, listing each (id, version, hash) under `tier`. */
 export function catalogOf(listed: { id: string; version: string; hash: string; tier?: string }[], schema = 1) {
+  // As the catalog publishes it: one entry per id, with every version it published.
+  const ids = [...new Set(listed.map((l) => l.id))];
   return JSON.stringify({
     schema,
-    entries: listed.map((l) => ({
+    entries: ids.map((id) => ({
       kind: "extension",
-      id: l.id,
-      tier: l.tier ?? "official",
+      id,
+      tier: listed.find((l) => l.id === id)?.tier ?? "official",
       unknown_field: true,
-      versions: [{ version: l.version, content_hash: l.hash, apx: "2.0.0" }],
+      versions: listed
+        .filter((l) => l.id === id)
+        .map((l) => ({ version: l.version, content_hash: l.hash, apx: "2.0.0" })),
     })),
   });
 }

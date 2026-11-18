@@ -7,12 +7,7 @@ import { notify } from "../data/notices.ts";
 import { useT } from "../i18n/index.ts";
 import { go } from "../shell/nav.ts";
 import { ExtensionSummary, usePowerText } from "./ExtensionSummary.tsx";
-import {
-  closeExtensionInstall,
-  extensionInstalled,
-  type InstallMode,
-  useExtensionInstall,
-} from "./extensionInstall.ts";
+import { closeExtensionInstall, extensionsChanged, type InstallMode, useExtensionInstall } from "./extensionInstall.ts";
 import "../styles/artifacts.css";
 import "../styles/config.css";
 
@@ -148,7 +143,7 @@ function InstallExtension({
           : t("extInstall.done", { name: done.name }),
         "info",
       );
-      extensionInstalled();
+      extensionsChanged();
       closeExtensionInstall();
       // Its own page, where it is turned on, connected or taken back.
       go.marketplace("extensions", `ext:${done.id}`);

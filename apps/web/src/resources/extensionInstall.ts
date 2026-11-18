@@ -1,7 +1,7 @@
 import { useSyncExternalStore } from "react";
 
 // Whether the extension install dialog is asked for, and with which file: kept apart from the dialog, which loads
-// lazily. `installed` counts installs, so an open Extensions tab reads its list again.
+// lazily. `installed` counts changes to what the owner has, so an open Marketplace reads its lists again.
 
 export type InstallMode = "file" | "url" | "folder";
 /** `url`: an address already chosen (a catalog entry), looked at as the dialog opens. */
@@ -28,7 +28,8 @@ export function closeExtensionInstall(): void {
   changed();
 }
 
-export function extensionInstalled(): void {
+/** Something the owner has changed (here, in another window, from the terminal or by an agent): lists read again. */
+export function extensionsChanged(): void {
   installed++;
   changed();
 }

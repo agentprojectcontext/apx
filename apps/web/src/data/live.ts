@@ -4,6 +4,7 @@ import type { CoreEvent, EventFrame } from "@apx/protocol";
 import type { ApxSocket } from "@apx/protocol/client";
 import { t } from "../i18n/index.ts";
 import { documentToOpen } from "../panel/documents.ts";
+import { extensionsChanged } from "../resources/extensionInstall.ts";
 import { go, nav } from "../shell/nav.ts";
 import { shown as shownPanelMode } from "../shell/panelMode.ts";
 import { bootstrap, refetchLoaded } from "./actions.ts";
@@ -138,6 +139,8 @@ function scheduleRefetch(): void {
     void bootstrap()
       .then(refetchLoaded)
       .catch(() => {});
+    // An open Marketplace too: an install from the terminal or while the core was away sends no event here.
+    extensionsChanged();
   }, 300);
 }
 
@@ -250,6 +253,9 @@ function apply(ev: CoreEvent): void {
       return;
     case "storage.changed":
       void loadDiskStatus();
+      return;
+    case "extensions.changed":
+      extensionsChanged();
       return;
     case "models.changed":
       // Only a list already shown: the next screen that needs one asks for it anyway.

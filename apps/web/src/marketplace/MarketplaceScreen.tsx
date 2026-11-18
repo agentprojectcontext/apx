@@ -74,9 +74,14 @@ export function MarketplaceScreen() {
     void loadCatalogs();
     void loadChannels();
   }, [loadIntegrations, loadCatalog, loadCatalogs]);
+  // Changed anywhere (this panel, another window, the terminal, an agent): what it has and what the catalogs offer.
   useEffect(() => {
-    if (installedTick) void loadExtensions();
-  }, [installedTick, loadExtensions]);
+    if (!installedTick) return;
+    void loadExtensions();
+    void loadServers();
+    void loadCatalogs();
+    void loadCatalog();
+  }, [installedTick, loadExtensions, loadServers, loadCatalogs, loadCatalog]);
 
   const items = useMemo(
     () =>

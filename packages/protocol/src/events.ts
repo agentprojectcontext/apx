@@ -196,6 +196,12 @@ export const CoreEvent = z.discriminatedUnion("type", [
       mode: () => z.enum(["simple", "advanced"]),
     }),
   ),
+  /** An extension or a catalog of the owner's changed (from any client or agent): read the Marketplace's lists again. */
+  z.object(
+    schemaFields({
+      type: () => z.literal("extensions.changed"),
+    }),
+  ),
   /** A model app on this computer (Ollama, LM Studio) was found, opened or closed: read `models.list` again. */
   z.object(
     schemaFields({

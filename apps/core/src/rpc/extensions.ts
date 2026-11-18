@@ -1,5 +1,6 @@
 // Extensions, for the owner: inspect a folder, an .apxext file or a URL, install it (off), go back a version, turn it
 // on or off, give it its secrets.
+import type { Bus } from "../bus.ts";
 import type { CatalogRecord } from "../domain/extension-catalogs.ts";
 import { SUGGESTED } from "../extensions/catalogs.ts";
 import type { ExtensionInput, Extensions } from "../extensions/extensions.ts";
@@ -27,7 +28,34 @@ const shown = (c: CatalogRecord) => ({
   skipped: c.skipped,
 });
 
-export function extensionHandlers(extensions: Extensions, mcp: Mcp) {
+/** The methods that change what the owner has: an open Marketplace anywhere hears of it. */
+const CHANGES = [
+  "extensions.install",
+  "extensions.rollback",
+  "extensions.enable",
+  "extensions.remove",
+  "extensions.set_secret",
+  "extensions.settings",
+  "extensions.catalog_add",
+  "extensions.catalog_sync",
+  "extensions.catalog_remove",
+] as const;
+
+export function extensionHandlers(extensions: Extensions, mcp: Mcp, bus: Bus) {
+  const handlers = extensionMethods(extensions, mcp);
+  const told = { ...handlers };
+  for (const name of CHANGES) {
+    const run = handlers[name] as (p: never) => unknown;
+    (told as Record<string, unknown>)[name] = async (p: never) => {
+      const out = await run(p);
+      bus.emit({ type: "extensions.changed" });
+      return out;
+    };
+  }
+  return told as typeof handlers;
+}
+
+function extensionMethods(extensions: Extensions, mcp: Mcp) {
   const { catalogs } = extensions;
   /** Its MCP servers stop now rather than at their idle timeout. */
   const dropServers = (id: string) => {

@@ -4,7 +4,7 @@ import path from "node:path";
 import { after, before, test } from "node:test";
 import { ApxError } from "@apx/protocol/client";
 import { say, scriptedLlm, startCore } from "../engine/testkit.ts";
-import { type TempDir, tempDir } from "../testkit/platform.ts";
+import { type TempDir, tempDir, waitFor } from "../testkit/platform.ts";
 import { readArchive } from "./package.ts";
 import { catalogOf, zipFiles } from "./zip.test-support.ts";
 
@@ -184,4 +184,39 @@ test("a folder packs into an .apxext: the same bytes each time, the same extensi
   put("apx-extension.json", JSON.stringify({ ...manifest("2.0.1", { id: "packed" }), version: undefined }));
   await refused(env.client.call("extensions.pack", { path: src.path }), /apx-extension.json/);
   await env.client.call("extensions.remove", { id: "packed" });
+});
+
+test("an older version the official catalog published still counts as Official, under its newest", async () => {
+  // The index lists 1.0.0, 1.1.0 and 1.2.0 under one entry; 1.0.0 is not the newest.
+  const old = await env.client.call("extensions.inspect", { file: file(v1) });
+  assert.equal(old.version, "1.0.0");
+  assert.equal(old.provenance, "official");
+  // The same version with other files is not.
+  const touched = await env.client.call("extensions.inspect", { file: file(archive("1.0.0", {}, "Changed.")) });
+  assert.equal(touched.provenance, "third_party");
+});
+
+test("a change made by another client reaches an open panel as extensions.changed", async () => {
+  const socket = await env.client.connect();
+  try {
+    let told = 0;
+    socket.onEvent((e) => {
+      if (e.type === "extensions.changed") told++;
+    });
+    await env.client.call("extensions.install", { file: file(v11) });
+    await waitFor(async () => told > 0 || undefined, "extensions.changed after an install");
+    const before = told;
+    await env.client.call("extensions.enable", { id: "weather", enabled: false });
+    await waitFor(async () => told > before || undefined, "extensions.changed after turning it off");
+    // Looking changes nothing and tells nobody.
+    const quiet = told;
+    await env.client.call("extensions.inspect", { file: file(v1) });
+    await env.client.call("extensions.list", {});
+    await env.client.call("extensions.enable", { id: "weather", enabled: false });
+    await waitFor(async () => told > quiet || undefined, "the last change's event");
+    assert.equal(told, quiet + 1, "inspect and list send no event");
+  } finally {
+    socket.close();
+    await socket.closed;
+  }
 });
