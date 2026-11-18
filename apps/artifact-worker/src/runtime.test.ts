@@ -1,11 +1,10 @@
 import assert from "node:assert/strict";
 import { Buffer } from "node:buffer";
-import { readFile } from "node:fs/promises";
 import { test } from "node:test";
-import { fileURLToPath } from "node:url";
 import { readEdgePublicCopy } from "@apx/protocol/public-copy";
 import { convertV4MiniflareOptions, Response as LocalResponse, Miniflare } from "miniflare";
 import { waitFor } from "../../core/src/testkit/wait.ts";
+import { localWorkerModules } from "./local-modules.ts";
 
 async function runtimeFixture() {
   const generated = await crypto.subtle.generateKey(
@@ -47,11 +46,9 @@ async function runtimeFixture() {
     held = { enter: () => entered.resolve(), wait: released.promise };
     return { entered: entered.promise, release: () => released.resolve() };
   };
-  const viewer = fileURLToPath(new URL("../../artifact-viewer/dist/", import.meta.url).href);
   const mf = new Miniflare(
     convertV4MiniflareOptions({
-      modules: true,
-      scriptPath: fileURLToPath(new URL("../dist/index.js", import.meta.url).href),
+      ...(await localWorkerModules()),
       compatibilityDate: "2026-11-13",
       bindings: { FIREBASE_PROJECT: "apx-agents" },
       r2Buckets: ["COPIES"],
@@ -60,16 +57,6 @@ async function runtimeFixture() {
         BUDGET: { className: "PublicationBudget", useSQLite: true },
       },
       ratelimits: { IP_LIMIT: { namespace_id: "24601", simple: { limit: 120, period: 60 } } },
-      serviceBindings: {
-        ASSETS: async (request) => {
-          const file = new URL(request.url).pathname.slice(1);
-          if (!/^(index\.html|runner\.html|assets\/[A-Za-z0-9_.-]+)$/.test(file))
-            return new LocalResponse(null, { status: 404 });
-          const content = await readFile(`${viewer}${file}`);
-          const type = file.endsWith(".js") ? "text/javascript" : file.endsWith(".css") ? "text/css" : "text/html";
-          return new LocalResponse(content, { headers: { "content-type": type } });
-        },
-      },
       outboundService: async (request) => {
         const url = new URL(request.url);
         if (url.hostname === "www.googleapis.com") return LocalResponse.json({ keys: [jwk] });
@@ -128,6 +115,46 @@ async function runtimeFixture() {
     },
   };
 }
+
+test("the deployed module serves its embedded viewer without an asset service or Firebase request", async () => {
+  const f = await runtimeFixture();
+  try {
+    const index = await f.mf.dispatchFetch("https://artifact.example.com/0123abcd");
+    assert.equal(index.status, 200);
+    assert.equal(index.headers.get("cache-control"), "no-store");
+    assert.match(index.headers.get("content-security-policy") ?? "", /script-src 'self'/);
+    const html = await index.text();
+    const root = await f.mf.dispatchFetch("https://artifact.example.com/");
+    assert.equal(await root.text(), html);
+    const assets = [...html.matchAll(/(?:src|href)="(\/assets\/[^"\s]+\.(?:js|css))"/g)].map((match) => match[1]);
+    assert.ok(assets.length >= 2);
+    for (const asset of assets) {
+      const response = await f.mf.dispatchFetch(`https://artifact.example.com${asset}`);
+      assert.equal(response.status, 200);
+      assert.equal(response.headers.get("cache-control"), "public, max-age=31536000, immutable");
+      assert.match(
+        response.headers.get("content-type") ?? "",
+        asset?.endsWith(".js") ? /^text\/javascript/ : /^text\/css/,
+      );
+      assert.equal(response.headers.get("set-cookie"), null);
+      assert.equal(response.headers.get("access-control-allow-origin"), null);
+      assert.ok((await response.text()).length > 0);
+      if (asset?.endsWith(".js"))
+        assert.equal((await f.mf.dispatchFetch(`https://artifact.example.com${asset}.map`)).status, 404);
+    }
+    const runner = await f.mf.dispatchFetch("https://artifact.example.com/runner.html");
+    assert.equal(runner.status, 200);
+    assert.equal(runner.headers.get("cache-control"), "no-store");
+    assert.match(runner.headers.get("content-security-policy") ?? "", /sandbox allow-scripts/);
+    assert.match(runner.headers.get("content-security-policy") ?? "", /connect-src 'none'/);
+    assert.ok((await runner.text()).length > 0);
+    for (const path of ["/assets/missing.js", "/assets/__proto__", "/.generated/viewer-assets.ts"])
+      assert.equal((await f.mf.dispatchFetch(`https://artifact.example.com${path}`)).status, 404);
+    assert.equal(f.counts().firestoreReads, 0);
+  } finally {
+    await f.mf.dispose();
+  }
+});
 
 test("real Worker publishes, updates and revokes through R2; cached public copies survive Firestore quota failure", async () => {
   const f = await runtimeFixture();

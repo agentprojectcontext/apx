@@ -51,10 +51,12 @@ Run the gate before every artifact Worker or rules deployment and retain its out
 
 ```bash
 firebase deploy --config firebase.artifacts.json --only firestore:rules --project apx-agents
-pnpm --filter @apx/artifact-worker exec wrangler deploy
+pnpm --filter @apx/artifact-worker build
 ```
 
-Use stored credentials through the deployment tools, never tokens in chat or committed configuration. The Worker needs its private R2 bucket, `ACCOUNTS` and `BUDGET` SQLite Durable Object bindings, static assets and project binding from `wrangler.jsonc`. Never enable a paid Workers plan automatically. R2 activation may require a subscription checkout/card even for included usage: only the owner may complete it.
+The build embeds the fixed viewer as four text modules alongside `dist/index.js`: `index.html`, `runner.html`, and the versioned JavaScript and CSS. Upload that script and its `dist/*.txt` modules together as multipart parts to the Workers scripts API, with `main_module: "index.js"` and the configured bindings/migrations. There is no static-assets binding, upload session or assets JWT; Wrangler and Miniflare are local build/test tools only. Source maps are not shipped. The Worker returns the same CSP/sandbox policies, uncached HTML and immutable versioned assets.
+
+Use the existing stored credential reference through the deployment tools, never tokens in chat or committed configuration. The Worker needs its private R2 bucket, `ACCOUNTS` and `BUDGET` SQLite Durable Object bindings, IP rate limit and project binding from `wrangler.jsonc`. Never enable a paid Workers plan automatically. R2 activation may require a subscription checkout/card even for included usage: only the owner may complete it.
 
 Verify the Worker first, then attach only `artifact.apxagent.app` as its custom domain using the approved Cloudflare account/zone. Do not touch the login origin, main site, marketplace or unrelated records. After HTTPS and content/revocation checks pass, stop using the former `apx-artifacts` Firebase Hosting site. Do not delete a live site or migrate production content before inventorying existing publications and obtaining approval for any production data migration.
 

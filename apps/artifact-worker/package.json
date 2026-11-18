@@ -2,9 +2,10 @@
   "name": "@apx/artifact-worker",
   "private": true,
   "type": "module",
+  "main": "src/index.ts",
   "scripts": {
-    "dev": "wrangler dev",
-    "build": "pnpm --filter @apx/artifact-viewer build && wrangler deploy --dry-run --outdir dist",
+    "dev": "pnpm build && wrangler dev",
+    "build": "pnpm --filter @apx/artifact-viewer build && node scripts/embed-viewer.ts && wrangler deploy --dry-run --outdir dist",
     "typecheck": "tsc --noEmit",
     "test": "pnpm build && node --test src/*.test.ts"
   },

@@ -51,10 +51,12 @@ Ejecutá el gate antes de cada despliegue del Worker o de reglas y conservá su 
 
 ```bash
 firebase deploy --config firebase.artifacts.json --only firestore:rules --project apx-agents
-pnpm --filter @apx/artifact-worker exec wrangler deploy
+pnpm --filter @apx/artifact-worker build
 ```
 
-Usá credenciales guardadas mediante las herramientas de despliegue, nunca tokens en el chat ni configuración versionada. El Worker necesita su bucket privado R2, los bindings SQLite `ACCOUNTS` y `BUDGET`, assets y proyecto definidos en `wrangler.jsonc`. No actives automáticamente un plan pago de Workers. Habilitar R2 puede pedir suscripción/checkout/tarjeta aun para el uso incluido: sólo el dueño puede completar ese paso.
+El build incorpora el visor fijo como cuatro módulos de texto junto a `dist/index.js`: `index.html`, `runner.html`, y JavaScript y CSS versionados. Subí el script y sus módulos `dist/*.txt` juntos, como partes multipart, a la API de scripts de Workers, con `main_module: "index.js"` y los bindings/migraciones configurados. No hay binding de static assets, sesión de upload ni JWT de assets; Wrangler y Miniflare quedan sólo como herramientas locales de build/prueba. Los mapas de fuentes no se publican. El Worker conserva las mismas políticas CSP/sandbox, HTML sin caché y assets versionados inmutables.
+
+Usá la referencia de credencial guardada existente mediante las herramientas de despliegue, nunca tokens en el chat ni configuración versionada. El Worker necesita su bucket privado R2, los bindings SQLite `ACCOUNTS` y `BUDGET`, límite por IP y proyecto definidos en `wrangler.jsonc`. No actives automáticamente un plan pago de Workers. Habilitar R2 puede pedir suscripción/checkout/tarjeta aun para el uso incluido: sólo el dueño puede completar ese paso.
 
 Verificá primero el Worker y luego asociá sólo `artifact.apxagent.app` como dominio propio en la cuenta/zona Cloudflare aprobada. No toques el origen del login, el sitio principal, el marketplace ni otros registros. Después de verificar HTTPS, contenido y revocación, dejá de usar el sitio Firebase Hosting anterior `apx-artifacts`. No borres un sitio activo ni migres contenido productivo sin inventariar publicaciones existentes y obtener aprobación para cualquier migración de datos de producción.
 

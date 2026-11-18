@@ -5445,6 +5445,12 @@ anonymous content from a private R2 bucket on a separate origin. Opening a copy 
 Firebase Authentication or Google. Firebase `apx-agents` keeps login, telemetry and private ownership/slot
 metadata. There is no new Firebase project, Cloud Storage, Cloud Functions or service-account key.
 
+The fixed viewer's HTML, runner, hashed JavaScript and CSS are text modules in the Worker script upload.
+The existing credential reference uploads them through the scripts API, without a static-assets binding,
+assets upload session or second authorization token. Wrangler and Miniflare remain local build/test tools.
+Every embedded response retains the same CSP/sandbox boundary and HTML/immutable-asset cache policy;
+source maps and unknown paths are not exposed.
+
 Authenticated writes go through the Worker. It verifies Firebase RS256 ID tokens against Google's fixed public
 key endpoint, project-bound audience/issuer, subject and expiration. Firestore REST calls carry that person's
 token, not administrator credentials. Rules allow only private metadata, permanent code reservations and twenty

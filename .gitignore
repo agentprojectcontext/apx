@@ -4,6 +4,7 @@ dist/
 out/
 *.tsbuildinfo
 .turbo/
+/apps/artifact-worker/.generated/
 
 # workspace-only folders (never in the repo)
 _ref/

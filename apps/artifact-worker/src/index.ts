@@ -1,3 +1,4 @@
+import { viewerAsset } from "./assets.ts";
 import { createTokenVerifier } from "./auth.ts";
 import { budgetedBucket } from "./budget.ts";
 
@@ -11,7 +12,6 @@ import { bodyKey, type Pointer, pointer, pointerKey, readCopy } from "./storage.
 
 type Env = {
   COPIES: R2Bucket;
-  ASSETS: Fetcher;
   ACCOUNTS: DurableObjectNamespace;
   BUDGET: DurableObjectNamespace;
   IP_LIMIT: RateLimit;
@@ -52,7 +52,7 @@ async function isLive(env: Env, uid: string, code: string) {
   return (await response.json<{ live: boolean }>()).live;
 }
 
-export function createWorker() {
+export function createWorker(files: Readonly<Record<string, string>>) {
   let verifier: { project: string; verify: ReturnType<typeof createTokenVerifier> } | undefined;
   return {
     async fetch(request: Request, env: Env): Promise<Response> {
@@ -134,10 +134,9 @@ export function createWorker() {
             url.pathname === "/index.html" ||
             new RegExp(`^/${codePattern}$`).test(url.pathname))
         ) {
-          const asset = new URL(request.url);
-          if (asset.pathname !== "/runner.html" && !asset.pathname.startsWith("/assets/"))
-            asset.pathname = "/index.html";
-          result = await env.ASSETS.fetch(new Request(asset, { method: "GET" }));
+          const path =
+            url.pathname === "/runner.html" || url.pathname.startsWith("/assets/") ? url.pathname : "/index.html";
+          result = viewerAsset(files, path);
         } else result = new Response(null, { status: 404 });
       } catch (error) {
         result = failure(error);
@@ -343,5 +342,3 @@ export class PublicationAccount {
     }
   }
 }
-
-export default createWorker();

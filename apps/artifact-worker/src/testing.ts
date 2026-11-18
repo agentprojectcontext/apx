@@ -1,7 +1,6 @@
 import { Buffer } from "node:buffer";
-import { readFile } from "node:fs/promises";
-import { fileURLToPath } from "node:url";
 import { convertV4MiniflareOptions, Response as LocalResponse, Miniflare } from "miniflare";
+import { localWorkerModules } from "./local-modules.ts";
 
 /** Local integration fixture: real workerd/R2/DO, Google's key transport replaced, demo Firestore only. */
 export async function startArtifactWorker(deps: { emulator: string; port?: number }) {
@@ -57,13 +56,11 @@ export async function startArtifactWorker(deps: { emulator: string; port?: numbe
     identities[name] = await identity(`test-${name}`);
   const token = identities.viewer?.token;
   if (!token) throw new Error("Missing viewer identity");
-  const dist = new URL("../../artifact-viewer/dist/", import.meta.url);
   let offline = false;
   let firestoreRequests = 0;
   const mf = new Miniflare(
     convertV4MiniflareOptions({
-      modules: true,
-      scriptPath: fileURLToPath(new URL("../dist/index.js", import.meta.url).href),
+      ...(await localWorkerModules()),
       compatibilityDate: "2026-11-13",
       ...(deps.port ? { port: deps.port } : {}),
       bindings: { FIREBASE_PROJECT: project },
@@ -73,29 +70,6 @@ export async function startArtifactWorker(deps: { emulator: string; port?: numbe
         BUDGET: { className: "PublicationBudget", useSQLite: true },
       },
       ratelimits: { IP_LIMIT: { namespace_id: "24601", simple: { limit: 120, period: 60 } } },
-      serviceBindings: {
-        ASSETS: async (request) => {
-          const path = new URL(request.url).pathname.slice(1);
-          if (!/^(index\.html|runner\.html|assets\/[A-Za-z0-9_.-]+)$/.test(path) || path.endsWith(".map"))
-            return new LocalResponse(null, { status: 404 });
-          try {
-            const bytes = await readFile(fileURLToPath(new URL(path, dist).href));
-            return new LocalResponse(bytes, {
-              headers: {
-                "content-type": path.endsWith(".js")
-                  ? "text/javascript"
-                  : path.endsWith(".css")
-                    ? "text/css"
-                    : "text/html",
-              },
-            });
-          } catch (error) {
-            if (error instanceof Error && "code" in error && error.code === "ENOENT")
-              return new LocalResponse(null, { status: 404 });
-            throw error;
-          }
-        },
-      },
       outboundService: async (request) => {
         const url = new URL(request.url);
         if (url.hostname === "www.googleapis.com") return LocalResponse.json({ keys: [jwk] });
