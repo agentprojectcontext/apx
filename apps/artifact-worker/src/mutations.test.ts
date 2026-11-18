@@ -144,6 +144,56 @@ async function fixture() {
   };
 }
 
+for (const mode of ["exact limit", "oversized stream", "oversized declared length"] as const) {
+  test(`publication size boundary: ${mode} never stores a partial copy`, async () => {
+    const f = await fixture();
+    try {
+      const bundle = {
+        format: "apx-artifact@1",
+        manifest: { name: "orders", title: "Orders", kind: "app", version: 1 },
+        html: "<h1>Orders</h1>",
+        state: { video: "" },
+      };
+      const overhead = new TextEncoder().encode(JSON.stringify(bundle)).byteLength;
+      bundle.state.video = "x".repeat(10_000_000 - overhead + (mode === "oversized stream" ? 1 : 0));
+      let reservations = 0;
+      const reserve = f.cloud.reserve;
+      f.cloud.reserve = async () => {
+        reservations++;
+        return reserve();
+      };
+      const request = new Request("https://example.com/", {
+        method: "POST",
+        body: mode === "oversized declared length" ? "{}" : JSON.stringify(bundle),
+        ...(mode === "oversized declared length" ? { headers: { "content-length": "10000001" } } : {}),
+      });
+      const result = mutate(request, {
+        bucket: f.bucket,
+        cloud: f.cloud,
+        code,
+        action: "publish",
+        session: { uid: "person", idToken: "local" },
+        rememberPending: f.rememberPending,
+        rememberRevocation: async () => {},
+      });
+      if (mode === "exact limit") {
+        assert.equal((await result).code, code);
+        assert.equal((await pointer(f.bucket, code))?.meta.bytes, 10_000_000);
+        assert.equal((await f.r2.list()).objects.length, 2);
+        assert.equal(reservations, 1);
+      } else {
+        await assert.rejects(result, /public_artifact_too_large/);
+        assert.equal((await f.r2.list()).objects.length, 0);
+        assert.equal(reservations, 0);
+        assert.equal(f.pending(), undefined);
+        assert.equal(f.values.size, 0);
+      }
+    } finally {
+      await f.mf.dispose();
+    }
+  });
+}
+
 for (const failure of ["lost pointer response", "failed old body delete"] as const) {
   test(`recovery keeps the committed revision after ${failure} and releases obsolete reservations`, async () => {
     const f = await fixture();

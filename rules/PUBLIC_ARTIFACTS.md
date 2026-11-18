@@ -25,7 +25,7 @@ The Worker validates Firebase ID tokens with Web Crypto RS256, Google's fixed pu
 
 A SQLite Durable Object per account serializes mutation work and independently enforces twenty active copies and sixty mutations/hour. Firestore slots alone cannot enforce the R2 quota because an account can edit its own Firebase documents. A request cannot impersonate another account with an internal header: the edge verifies the token and sets the internal identity itself. Code claims precede body writes, preventing a competing account from overwriting/deleting another claimant's data.
 
-Each copy is at most 4,200,000 bytes; HTML retains the `.apxart` limit of 400,000 characters. Selected state can use the remaining bytes. Updates check the current immutable revision, retain the public code and may use a different local source. Retrying a matching committed copy returns success without a new slot.
+Each copy is at most 10 MB (10,000,000 UTF-8 bytes, including HTML and selected state), checked before upload in the core and independently before any content write in the Worker. Oversized copies are rejected whole, never split or truncated; the artifact stays local. External file and video references are not fetched or embedded. Creation never publishes: an explicit publication and human confirmation are required. The 1 GB aggregate R2 budget is unchanged; HTML retains the `.apxart` limit of 400,000 characters. Selected state can use the remaining bytes. Updates check the current immutable revision, retain the public code and may use a different local source. Retrying a matching committed copy returns success without a new slot.
 
 ## Cache, revocation and cost boundaries
 
@@ -72,4 +72,4 @@ The account's published list remains useful without its original local source. O
 
 No announcement, owner news entry, release or merge is part of this rollout. Production deployment and outside-device checks must be reported as unverified when permissions or owner activation block them.
 
-Docs impact: updated — this boundary document, [the public artifact decision](DECISIONS.md#d-241-public-artifacts), infrastructure EN/ES setup, release verification and artifact user guides cover R2/Worker, Firebase independence, authorization, budgets, cleanup and the limits of revocation.
+Docs impact: updated — this boundary document, [the public artifact decision](DECISIONS.md#d-248-public-artifacts), infrastructure EN/ES setup, release verification and artifact user guides cover R2/Worker, Firebase independence, authorization, budgets, cleanup and the limits of revocation.

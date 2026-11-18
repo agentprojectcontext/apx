@@ -34,7 +34,7 @@ export async function chargeBudget(storage: Storage, input: Operation, now: numb
       totals.bytes -= previous;
       await storage.delete(key);
     } else {
-      if (!Number.isSafeInteger(input.bytes) || input.bytes < 1 || input.bytes > 4_200_000)
+      if (!Number.isSafeInteger(input.bytes) || input.bytes < 1 || input.bytes > 10_000_000)
         throw new Error("invalid_budget_request");
       totals.writes++;
       const reserved = Math.max(previous, input.bytes + 1024);

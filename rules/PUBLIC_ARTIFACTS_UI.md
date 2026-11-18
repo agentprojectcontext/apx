@@ -45,7 +45,7 @@ Agents get an app-only, target-specific owner card, including in Total. Its stru
 
 Use existing `@apx/ui` Menu, Dialog, Card, Checkbox, SettingRow, Select, Button, Skeleton and EmptyState. Preserve the Account content column. Desktop review can place preview and summary side by side; 390 px uses one column and wrapping/full-width footer actions. Long code/value blocks scroll internally; the page must not overflow horizontally. Focus returns to the trigger. Errors use `role="alert"`; progress/success use `role="status"`.
 
-Required EN/ES states: signed out, preparing, initial loading, refreshing with prior results, empty list, missing source, invalidated review, limit (20 active), size (4.2 MB), connection failure/retry, publishing/updating/revoking, copied-link feedback and confirmed success. An account is not required for local artifact use.
+Required EN/ES states: signed out, preparing, initial loading, refreshing with prior results, empty list, missing source, invalidated review, limit (20 active), size (10 MB, shown only after an oversized publication attempt; the local artifact is retained), connection failure/retry, publishing/updating/revoking, copied-link feedback and confirmed success. An account is not required for local artifact use.
 
 ## Public viewer and handoff
 

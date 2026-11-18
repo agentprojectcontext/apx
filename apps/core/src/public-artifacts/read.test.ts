@@ -45,7 +45,8 @@ test("handoff rejects oversized metadata, bodies and a copy that changes during 
   const meta = { title: copy.bundle.manifest.title, bytes: copy.bytes, sha256: copy.sha256, revision: "one" };
   await assert.rejects(
     readPublishedArtifact("0123abcd", {
-      fetch: async (url) => (String(url).endsWith("/meta") ? Response.json(meta) : new Response("x".repeat(4_200_001))),
+      fetch: async (url) =>
+        String(url).endsWith("/meta") ? Response.json(meta) : new Response("x".repeat(10_000_001)),
     }),
     /public_artifact_too_large/,
   );

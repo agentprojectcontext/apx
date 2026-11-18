@@ -20,9 +20,9 @@ const StoredDraft = z
     expected: z.string().optional(),
     copy: z
       .object({
-        bytes: z.number().int().min(1).max(4_200_000),
+        bytes: z.number().int().min(1).max(10_000_000),
         sha256: z.string().regex(/^[a-f0-9]{64}$/),
-        json: z.string().max(4_200_000).optional(),
+        json: z.string().max(10_000_000).optional(),
       })
       .strict()
       .optional(),

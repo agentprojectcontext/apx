@@ -47,7 +47,7 @@ test("invalid metadata, byte counts, hashes and content are rejected rather than
     { title: "" },
     { title: "x".repeat(121) },
     { bytes: 0 },
-    { bytes: 4_200_001 },
+    { bytes: 10_000_001 },
     { bytes: f.meta.bytes - 1 },
     { sha256: "invalid" },
     { sha256: "0".repeat(64) },

@@ -2,7 +2,7 @@ import { createHash, randomBytes } from "node:crypto";
 import { ArtifactBundle, type Surface } from "@apx/protocol";
 
 const ALPHABET = "0123456789abcdefghjkmnpqrstvwxyz";
-export const PUBLIC_ARTIFACT_LIMITS = { count: 20, bytes: 4_200_000, accountBytes: 84_000_000 } as const;
+export const PUBLIC_ARTIFACT_LIMITS = { count: 20, bytes: 10_000_000, accountBytes: 200_000_000 } as const;
 
 export function publicArtifactCode(): string {
   return Array.from(randomBytes(8), (byte) => ALPHABET[byte & 31]).join("");

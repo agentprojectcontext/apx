@@ -1,5 +1,5 @@
 import type { AccountProfile, Surface } from "@apx/protocol";
-import { useEffect, useRef, useState } from "react";
+import { type SetStateAction, useEffect, useRef, useState } from "react";
 import { client } from "../data/client.ts";
 import { notify } from "../data/notices.ts";
 import { type MessageKey, useT } from "../i18n/index.ts";
@@ -141,5 +141,9 @@ export function usePublicCopy(request: Request) {
       setBusy(false);
     }
   };
-  return { source, account, keys, setKeys, review, busy, error, invalid, setReload, prepare, commit, back };
+  const chooseKeys = (next: SetStateAction<string[]>) => {
+    setKeys(next);
+    if (error === "public.large") setError(undefined);
+  };
+  return { source, account, keys, setKeys: chooseKeys, review, busy, error, invalid, setReload, prepare, commit, back };
 }

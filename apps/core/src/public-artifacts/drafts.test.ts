@@ -90,6 +90,54 @@ function fixture(codes?: () => string) {
   };
 }
 
+for (const action of ["publish", "update"] as const) {
+  test(`oversized ${action} is rejected before cloud access without changing the local source`, async () => {
+    const f = fixture();
+    assert.ok(f.source);
+    const source = f.source;
+    source.state.chosen = `data:video/mp4;base64,${"a".repeat(10_000_000)}`;
+    let cloudCalls = 0;
+    f.cloud.available = async () => {
+      cloudCalls++;
+      return true;
+    };
+    f.cloud.inspect = async () => {
+      cloudCalls++;
+      throw new Error("unexpected_cloud_access");
+    };
+    await assert.rejects(
+      f.drafts.prepare({
+        action,
+        surface: "surface",
+        ...(action === "update" ? { code: "abcd1234" } : {}),
+        state_keys: ["chosen"],
+      }),
+      /too large/,
+    );
+    assert.equal(cloudCalls, 0);
+    assert.equal(f.writes.length, 0);
+    assert.equal(f.persisted().length, 0);
+    assert.equal(f.source, source);
+    assert.equal(f.source.state.chosen, source.state.chosen);
+  });
+}
+
+test("creating and editing a local source never publishes or sends referenced files", async () => {
+  const f = fixture();
+  assert.ok(f.source);
+  f.source.html = '<video src="https://example.com/large.mp4"></video>';
+  f.source.state.chosen = "Edited locally";
+  assert.equal(f.writes.length, 0);
+  const prepared = await f.drafts.prepare({ action: "publish", surface: "surface" });
+  await f.drafts.preview(prepared.draft);
+  assert.equal(f.writes.length, 0);
+  await f.drafts.commit(prepared.draft);
+  assert.equal(f.writes.length, 1);
+  const copy = JSON.parse(f.writes[0]?.json ?? "{}");
+  assert.equal(copy.html, f.source.html);
+  assert.equal(copy.state, undefined);
+});
+
 test("durable cards survive waiting and restart but require a fresh human review", async () => {
   const f = fixture();
   const prepared = await f.drafts.prepare({ action: "publish", surface: "surface" });

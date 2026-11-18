@@ -48,8 +48,8 @@ function draft(payload = "open"): PublicationDraftSnapshot {
 test("twenty large snapshots live outside settings, are reused without rewrites, and are pruned after metadata commits", async () => {
   await using home = tempDir();
   const f = fixture(home.path);
-  const first = draft("x".repeat(4_200_000 - (draft("").copy?.bytes ?? 0)));
-  assert.equal(first.copy?.bytes, 4_200_000);
+  const first = draft("x".repeat(10_000_000 - (draft("").copy?.bytes ?? 0)));
+  assert.equal(first.copy?.bytes, 10_000_000);
   const drafts = Array.from({ length: 20 }, () => ({ ...first, id: randomUUID() }));
   f.store.save(drafts);
   assert.ok(f.raw().length < 20_000);

@@ -8,6 +8,7 @@ import { createCore } from "../apps/core/src/server.ts";
 import { removeDir, tempDir } from "../apps/core/src/testkit/platform.ts";
 import { ApxClient } from "../packages/protocol/src/client.ts";
 import { browserCloud } from "./browser-cloud.ts";
+import { checkOversizedPublication } from "./public-size-journey.ts";
 
 for (const width of [1280, 390]) {
   test(`public-copy selection, exact review, invalidation and confirmation in the built panel at ${width}px`, async () => {
@@ -140,6 +141,13 @@ for (const width of [1280, 390]) {
       await page.getByRole("button", { name: "Update copy", exact: true }).click();
       await expect(page.getByRole("dialog", { name: "Review this exact copy" })).toHaveCount(0);
       assert.equal(cloud.commits(), 2);
+      await checkOversizedPublication({ core, page, source: source.id, width, language: "en", commits: cloud.commits });
+      await page.keyboard.press("ControlOrMeta+k");
+      await page
+        .getByRole("textbox", { name: "Search", exact: true })
+        .or(page.getByRole("combobox", { name: "Search", exact: true }))
+        .fill("account");
+      await page.getByRole("option", { name: /Account/ }).click();
       await client.call("surfaces.remove", { surface: source.id });
       await published.getByRole("button", { name: "Manage", exact: true }).click();
       await page.getByRole("button", { name: "Stop publishing…", exact: true }).click();

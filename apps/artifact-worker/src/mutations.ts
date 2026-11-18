@@ -78,7 +78,7 @@ export async function mutate(
     }
     return { ok: true, cleanup_pending: cleanupPending };
   }
-  const json = await boundedText(request, 4_200_000);
+  const json = await boundedText(request, 10_000_000);
   let raw: { manifest?: { title?: unknown } };
   try {
     const parsed: unknown = JSON.parse(json);

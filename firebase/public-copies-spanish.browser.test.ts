@@ -8,6 +8,7 @@ import { createCore } from "../apps/core/src/server.ts";
 import { tempDir } from "../apps/core/src/testkit/platform.ts";
 import { ApxClient } from "../packages/protocol/src/client.ts";
 import { browserCloud } from "./browser-cloud.ts";
+import { checkOversizedPublication } from "./public-size-journey.ts";
 
 for (const width of [1280, 390]) {
   test(`Spanish public-copy review and publication at ${width}px`, async () => {
@@ -66,6 +67,7 @@ for (const width of [1280, 390]) {
       await page.getByRole("button", { name: "Publicar copia", exact: true }).click();
       await expect(dialog).toHaveCount(0);
       assert.equal(cloud.commits(), 1);
+      await checkOversizedPublication({ core, page, source: source.id, width, language: "es", commits: cloud.commits });
     } finally {
       await browser.close();
       await core.close();

@@ -34,7 +34,7 @@ export async function readEdgePublicCopy(code: string, deps: { origin?: string; 
     return new TextDecoder("utf-8", { fatal: true, ignoreBOM: false }).decode(bytes);
   };
   const before = object(JSON.parse(await read("meta", 4096)));
-  const copy = await verifyPublicCopy(await read("bundle", 4_200_000), before);
+  const copy = await verifyPublicCopy(await read("bundle", 10_000_000), before);
   const after = object(JSON.parse(await read("meta", 4096)));
   if (
     typeof before.revision !== "string" ||
@@ -58,7 +58,7 @@ export async function verifyPublicCopy(json: string, value: unknown) {
   const bytes = new TextEncoder().encode(json);
   if (
     bytes.length < 1 ||
-    bytes.length > 4_200_000 ||
+    bytes.length > 10_000_000 ||
     bytes.length !== meta.bytes ||
     typeof meta.title !== "string" ||
     !meta.title ||

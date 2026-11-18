@@ -116,7 +116,7 @@ test("metadata updates enforce size, hash, timestamp and shape, rejecting HTML a
     { html: field("<h1>private</h1>") },
     { data: field("content") },
     { chunk_count: { integerValue: "1" } },
-    { bytes: { integerValue: "4200001" } },
+    { bytes: { integerValue: "10000001" } },
     { bytes: { integerValue: "0" } },
     { sha256: field("not-a-hash") },
     { title: field("") },
@@ -143,8 +143,8 @@ test("metadata updates enforce size, hash, timestamp and shape, rejecting HTML a
     ).status,
     403,
   );
-  await first.reserve(code, { ...meta, bytes: 4_200_000 });
-  assert.equal((await first.get(code)).fields.bytes?.integerValue, "4200000");
+  await first.reserve(code, { ...meta, bytes: 10_000_000 });
+  assert.equal((await first.get(code)).fields.bytes?.integerValue, "10000000");
   await first.reserve(code, meta);
   assert.equal((await first.get(code)).fields.bytes?.integerValue, String(copy.bytes));
 });

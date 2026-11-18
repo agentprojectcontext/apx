@@ -40,7 +40,12 @@ async function result<T>(action: () => T | Promise<T>): Promise<T> {
     return await action();
   } catch (error) {
     const code = error instanceof Error ? error.message : "";
-    throw badRequest(COPY_ERRORS[code] ?? (CODES.has(code) ? code : "public_artifact_unavailable"));
+    const reason = COPY_ERRORS[code] ?? (CODES.has(code) ? code : "public_artifact_unavailable");
+    throw badRequest(
+      reason === "public_artifact_too_large"
+        ? "public_artifact_too_large: It's too large to publish (maximum 10 MB). It's still in your APX."
+        : reason,
+    );
   }
 }
 

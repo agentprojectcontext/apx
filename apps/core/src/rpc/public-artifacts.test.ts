@@ -27,6 +27,57 @@ async function fixture(llm = scriptedLlm(() => say("ok")), cloud = publicationTr
 
 const PAGE = '<script src="/_apx/kit@1.js"></script><h1>Orders</h1>';
 
+test("local creation never uploads and an oversized request gives the person and agent the same useful error", async () => {
+  let sourceId = "";
+  const llm = scriptedLlm((req, { afterTool }) =>
+    afterTool
+      ? say(String(req.messages.at(-1)?.content))
+      : callTool("prepare", "apx_settings", {
+          method: "surfaces.public_prepare",
+          params: { action: "publish", surface: sourceId, state_keys: ["Video"] },
+        }),
+  );
+  const env = await fixture(llm);
+  try {
+    const source = await env.client.call("surfaces.show", {
+      name: "orders",
+      title: "Orders",
+      html: '<video src="https://example.com/large.mp4"></video>',
+      app: true,
+    });
+    sourceId = source.id;
+    await env.client.call("surfaces.set_state", { surface: sourceId, patch: { Edited: true } });
+    assert.equal(env.cloud.commits(), 0);
+    const original = env.core.store.surfaces.get;
+    const local = original(sourceId);
+    assert.ok(local);
+    const state = { Video: "a".repeat(10_000_001) };
+    env.core.store.surfaces.get = (id) => {
+      const result = original(id);
+      return result?.id === sourceId ? { ...result, state } : result;
+    };
+    const expected = /public_artifact_too_large: It's too large to publish \(maximum 10 MB\). It's still in your APX\./;
+    await assert.rejects(
+      env.client.call("surfaces.public_prepare", { action: "publish", surface: sourceId, state_keys: ["Video"] }),
+      expected,
+    );
+    const thread = await env.client.call("threads.create", { kind: "loose", agent_id: "superagent" });
+    await env.client.call("threads.send", {
+      thread: thread.id,
+      text: "Prepare a public copy of the selected video state.",
+    });
+    await env.settle(thread.id);
+    assert.match(String(llm.calls.at(-1)?.messages.findLast((message) => message.role === "tool")?.content), expected);
+    assert.equal(env.cloud.commits(), 0);
+    assert.equal((await env.client.call("runs.pending", { thread: thread.id })).inputs.length, 0);
+    env.core.store.surfaces.get = original;
+    assert.deepEqual(original(sourceId), local);
+  } finally {
+    await env.core.close();
+    await env.cleanup();
+  }
+});
+
 test("public copies travel through the core contract: exact preview, chosen state, update, list and source-free revocation", async () => {
   const env = await fixture();
   try {

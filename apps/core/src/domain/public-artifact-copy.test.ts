@@ -95,6 +95,39 @@ test("limits count UTF-8 bytes, not characters; invalid manifests and oversized 
   assert.throws(() => publicArtifactCopy({ ...surface, html: "x".repeat(400_001) }), /public_artifact_html_too_large/);
 });
 
+test("a public copy accepts exactly ten million UTF-8 bytes and refuses the next byte whole", () => {
+  const source = { ...surface, state: { selected: "" } };
+  const overhead = publicArtifactCopy(source, ["selected"]).bytes;
+  const remaining = 10_000_000 - overhead;
+  source.state.selected = "é".repeat(Math.floor(remaining / 2)) + "x".repeat(remaining % 2);
+  const copy = publicArtifactCopy(source, ["selected"]);
+  assert.equal(copy.bytes, 10_000_000);
+  assert.equal(copy.bundle.state?.selected, source.state.selected);
+  source.state.selected += "x";
+  assert.throws(() => publicArtifactCopy(source, ["selected"]), /too large/);
+  assert.equal(Buffer.byteLength(source.state.selected), remaining + 1);
+});
+
+test("referenced video and file contents are not added to a public copy", () => {
+  const source = {
+    ...surface,
+    html: '<video src="https://example.com/video.mp4"></video><a href="https://example.com/archive.zip">File</a>',
+    files: { video: { bytes: 1_000_000_000, data: "private-file-content" } },
+  };
+  const copy = publicArtifactCopy(source);
+  assert.equal(copy.bundle.html, source.html);
+  assert.equal(copy.bundle.state, undefined);
+  assert.ok(copy.bytes < 1000);
+  assert.equal(copy.json.includes("private-file-content"), false);
+  assert.throws(
+    () =>
+      publicArtifactCopy({ ...source, state: { selected: `data:video/mp4;base64,${"a".repeat(10_000_000)}` } }, [
+        "selected",
+      ]),
+    /too large/,
+  );
+});
+
 test("publication codes have eight Crockford characters and contain no account-derived prefix", () => {
   const codes = Array.from({ length: 128 }, () => publicArtifactCode());
   for (const code of codes) assert.equal(isPublicArtifactCode(code), true);

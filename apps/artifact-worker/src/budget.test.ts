@@ -33,6 +33,7 @@ test("global object reservations are conservative, idempotent in size and releas
 });
 
 test("global storage/write/read ceilings fail closed without raising Cloudflare's included limits", async () => {
+  assert.equal(PUBLIC_BUDGET.bytes, 1_000_000_000);
   const f = fixture();
   const normal = { month: "2026-11", bytes: 0, reads: 0, writes: 0 };
   f.values.set("totals", { ...normal, bytes: PUBLIC_BUDGET.bytes - 100 });
@@ -54,7 +55,7 @@ test("an injected UTC month boundary resets operation counters but never forgets
   f.values.set("totals", { month: "2026-11", bytes: 1124, reads: 9_500_000, writes: PUBLIC_BUDGET.writes });
   await chargeBudget(f.storage, { op: "read" }, Date.UTC(2026, 11, 1));
   assert.deepEqual(f.values.get("totals"), { month: "2026-12", bytes: 1124, reads: 1, writes: 0 });
-  for (const bytes of [-1, 0, 4_200_001, 1.5])
+  for (const bytes of [-1, 0, 10_000_001, 1.5])
     await assert.rejects(chargeBudget(f.storage, { op: "write", key, bytes }, now), /invalid_budget_request/);
   await assert.rejects(chargeBudget(f.storage, { op: "release", key: "../private" }, now), /invalid_budget_request/);
 });

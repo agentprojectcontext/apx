@@ -1,8 +1,7 @@
 rules_version = '2';
 
-// APX telemetry (apps/core/src/telemetry.ts). Installs write without an account, so these rules are the whole guard:
-// only known shapes, server timestamps and immutable steps. Private readers need an administrator-issued claim;
-// authenticated readers cannot write. Console/report access continues through IAM. See rules/DECISIONS.md#d-092.
+// Private profiles use atomic reservations (D-247); public copies keep only private metadata here (D-248).
+// Anonymous telemetry retains its shape checks and administrator-only reads (D-092).
 service cloud.firestore {
   match /databases/{database}/documents {
     function isUuid(id) {
@@ -79,7 +78,7 @@ service cloud.firestore {
         && request.resource.data.keys().hasOnly(['title', 'bytes', 'sha256', 'updated_at'])
         && request.resource.data.keys().hasAll(['title', 'bytes', 'sha256', 'updated_at'])
         && short(request.resource.data.title, 120)
-        && request.resource.data.bytes is int && request.resource.data.bytes > 0 && request.resource.data.bytes <= 4200000
+        && request.resource.data.bytes is int && request.resource.data.bytes > 0 && request.resource.data.bytes <= 10000000
         && request.resource.data.sha256.matches('^[a-f0-9]{64}$')
         && request.resource.data.updated_at == request.time;
       allow delete: if artifactOwned(code);
@@ -127,7 +126,10 @@ service cloud.firestore {
         && request.resource.data.keys().hasOnly(['uid'])
         && request.resource.data.uid == request.auth.uid
         && userAfter(request.auth.uid).handle == handle;
-      allow delete: if request.auth != null && resource.data.uid == request.auth.uid
+      allow delete: if request.auth != null
+        && (exists(/databases/$(database)/documents/accountHandles/$(handle))
+          ? resource.data.uid == request.auth.uid
+          : get(/databases/$(database)/documents/users/$(request.auth.uid)).data.handle == handle)
         && userAfter(request.auth.uid).handle != handle;
     }
 

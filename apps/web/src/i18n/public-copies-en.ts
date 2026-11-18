@@ -15,7 +15,7 @@ export const enPublicCopies = {
   "public.signIn": "Sign in to your APX account in Settings to publish a copy. Local artifacts do not need an account.",
   "public.invalid": "This review is no longer current. Close it and review a new copy before publishing.",
   "public.limit": "You already have 20 published copies. Stop publishing one before adding another.",
-  "public.large": "This copy exceeds 4.2 MB. Choose less state or a smaller page.",
+  "public.large": "It's too large to publish (maximum 10 MB). It's still in your APX.",
   "public.htmlLarge":
     "The page exceeds the 400,000-character HTML limit, including offline components. Shorten it before publishing.",
   "public.codeBusy": "Could not reserve a public link. Try preparing the copy again.",

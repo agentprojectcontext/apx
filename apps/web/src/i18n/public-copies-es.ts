@@ -17,7 +17,7 @@ export const esPublicCopies: Record<keyof typeof enPublicCopies, string> = {
     "Iniciá sesión en tu cuenta APX en Configuración para publicar una copia. Los artifacts locales no necesitan una cuenta.",
   "public.invalid": "Esta revisión ya no está vigente. Cerrala y revisá una nueva copia antes de publicar.",
   "public.limit": "Ya tenés 20 copias publicadas. Dejá de publicar una antes de agregar otra.",
-  "public.large": "Esta copia supera los 4,2 MB. Elegí menos estado o una página más chica.",
+  "public.large": "Es demasiado grande para publicarlo (máximo 10 MB). Sigue en tu APX.",
   "public.htmlLarge":
     "La página supera el límite de 400.000 caracteres de HTML, incluidos los componentes sin conexión. Reducila antes de publicar.",
   "public.codeBusy": "No se pudo reservar un enlace público. Volvé a preparar la copia.",
