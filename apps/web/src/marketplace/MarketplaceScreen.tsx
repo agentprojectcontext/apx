@@ -160,6 +160,11 @@ export function MarketplaceScreen() {
         {current ? (
           <ItemPage
             item={current}
+            twin={
+              current.entry?.catalog
+                ? items.find((i) => i.id === current.id && i.label === "included" && i !== current)
+                : undefined
+            }
             servers={servers}
             backLabel={t(PLACE_LABEL[section])}
             onBack={() => go.marketplace(section)}

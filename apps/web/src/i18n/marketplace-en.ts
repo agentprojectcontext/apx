@@ -252,4 +252,7 @@ export const enMarketplace = {
   "mkt.removeBody": "Its files, keys and settings go. You can add it again later.",
   "mkt.disconnectTitle": "Disconnect {name}?",
   "mkt.disconnectBody": "Your agents stop using it and its keys are deleted. You can connect it again later.",
+  "mkt.twin":
+    "APX already includes {name}: it connects without adding anything. This one comes from the {catalog} catalog; add it only if you need something the included one doesn't do.",
+  "mkt.twinSee": "See the included one",
 } as const;

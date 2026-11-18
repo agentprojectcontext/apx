@@ -1,4 +1,4 @@
-import { Badge, Icons } from "@apx/ui";
+import { Badge, Icons, Tooltip } from "@apx/ui";
 import type { ReactNode } from "react";
 import { type MessageKey, useLanguage, useT } from "../i18n/index.ts";
 import type { Item } from "../resources/extensionItems.ts";
@@ -48,9 +48,11 @@ function LinkList({ links }: { links: Array<{ href: string; label: MessageKey }>
     <ul className="mkt-links">
       {links.map((l) => (
         <li key={l.label}>
-          <a href={l.href} target="_blank" rel="noreferrer" title={host(l.href)}>
-            {t(l.label)} <Icons.ExternalLink size={12} />
-          </a>
+          <Tooltip content={host(l.href)}>
+            <a href={l.href} target="_blank" rel="noreferrer">
+              {t(l.label)} <Icons.ExternalLink size={12} />
+            </a>
+          </Tooltip>
         </li>
       ))}
     </ul>
