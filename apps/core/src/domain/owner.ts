@@ -29,6 +29,17 @@ export function saveOwnerIdentity(store: Store, patch: Partial<OwnerIdentity>): 
   return ownerIdentity(store);
 }
 
+/**
+ * Signing in to the APX account names the owner only while they have no name of their own (the panel says "You"); a
+ * name they typed is never replaced here (the panel asks them first). See DECISIONS.md#d-247.
+ */
+export function adoptAccountName(store: Store, name: string): boolean {
+  const given = name.trim();
+  if (!given || ownerIdentity(store).name) return false;
+  saveOwnerIdentity(store, { name: given });
+  return true;
+}
+
 /** The owner's time zone when it is a real one; undefined: this machine's. */
 export function ownerTimeZone(store: Store): string | undefined {
   const tz = store.settings.read("owner_profile").timezone;

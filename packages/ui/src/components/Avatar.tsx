@@ -50,7 +50,8 @@ export function Avatar({
 }: AvatarProps) {
   const hue = HUES[hashSeed(name) % HUES.length];
   let content: ReactNode;
-  if (src) content = <img src={src} alt="" className="apx-avatar__img" />;
+  // No referrer: account photos (Google's) refuse requests from other sites that send one.
+  if (src) content = <img src={src} alt="" className="apx-avatar__img" referrerPolicy="no-referrer" />;
   else if (emoji) content = <span className="apx-avatar__emoji">{emoji}</span>;
   else content = <span>{initials(name)}</span>;
   return (

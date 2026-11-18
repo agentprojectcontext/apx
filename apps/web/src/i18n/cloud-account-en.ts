@@ -5,4 +5,11 @@ export const enCloudAccount = {
   "account.denied": "You don’t have permission to update this account. Try signing in again.",
   "account.busy": "Your account is being updated. Wait a moment and try again.",
   "account.localOnly": "To sign in, open APX on the computer where it is running.",
+  "account.nameChoiceTitle": "Use your Google account’s name?",
+  "account.nameChoiceLead": "Your agents and the panel call you by this name. Nothing else in your profile changes.",
+  "account.nameNow": "Now",
+  "account.nameGoogle": "From Google",
+  "account.nameLoses": "Using Google’s replaces “{name}”. You can type another one later in Name.",
+  "account.nameKeep": "Keep {name}",
+  "account.nameUse": "Use {name}",
 } as const;

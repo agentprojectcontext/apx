@@ -461,8 +461,6 @@ export const en = {
   "account.owner": "Owner of this installation",
   "account.name": "Name",
   "account.nameHint": "How the panel shows you and how your agents know you.",
-  "account.cloud": "Cloud account",
-  "account.cloudHint": "Optional. To sign in, use a browser on the computer running APX.",
   "account.signIn": "Sign in with Google",
   "account.signOut": "Sign out",
   "account.shortId": "Your APX ID: {id}",

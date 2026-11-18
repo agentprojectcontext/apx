@@ -17,6 +17,8 @@ type UiFont = "system" | "mono";
 export type Prefs = {
   /** How the panel calls you (account row, greetings). Empty = not set: the UI says "You" in its language. */
   displayName: string;
+  /** The APX account (its id) already asked whether its name should replace the one typed here. */
+  accountNameAsked: string;
   look: ApxLook;
   font: UiFont;
   textSize: TextSize;
@@ -104,6 +106,7 @@ const KEY = "apx.prefs";
 
 const DEFAULTS: Prefs = {
   displayName: "",
+  accountNameAsked: "",
   look: "minimal",
   font: "system",
   textSize: 100,
@@ -146,6 +149,7 @@ function load(): Prefs {
     const raw = JSON.parse(localStorage.getItem(KEY) ?? "{}") as Partial<Prefs>;
     return {
       displayName: typeof raw.displayName === "string" ? raw.displayName.trim() : DEFAULTS.displayName,
+      accountNameAsked: typeof raw.accountNameAsked === "string" ? raw.accountNameAsked : DEFAULTS.accountNameAsked,
       look: raw.look === "classic" ? "classic" : "minimal",
       font: raw.font === "mono" ? "mono" : "system",
       textSize: textSizeOf(raw.textSize),

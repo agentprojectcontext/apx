@@ -16,6 +16,8 @@ export function createAccount(deps: {
   client?: AccountClient | undefined;
   google?: ClientCreds | undefined;
   origin: () => string;
+  /** Told once a sign-in finished, with the profile it saved. */
+  onSignedIn?: (profile: AccountProfile) => void;
   fetch?: typeof fetch;
   now?: () => number;
   endpoints?: { googleAuth: string; googleToken: string; identity: string; secureToken: string; firestore: string };
@@ -156,6 +158,7 @@ export function createAccount(deps: {
           },
           current.generation,
         );
+        deps.onSignedIn?.(profile);
         return { ok: true as const };
       } finally {
         changing = false;

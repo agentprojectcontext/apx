@@ -15,6 +15,7 @@ function fixture(origin = "http://127.0.0.1:7449") {
   let refreshes = 0;
   let hold: Promise<void> | undefined;
   let fail = false;
+  const signedIn: string[] = [];
   const send: typeof fetch = async (input, init) => {
     const url = String(input);
     if (url.includes("/google/token")) {
@@ -75,6 +76,7 @@ function fixture(origin = "http://127.0.0.1:7449") {
     client: { project: "demo-account", apiKey: "test-key" },
     google: { clientId: "test-client", clientSecret: "test-secret" },
     origin: () => origin,
+    onSignedIn: (profile) => signedIn.push(profile.name),
     now: () => now,
     fetch: send,
     endpoints: {
@@ -107,6 +109,7 @@ function fixture(origin = "http://127.0.0.1:7449") {
       fail = true;
     },
     refreshes: () => refreshes,
+    signedIn,
   };
 }
 
@@ -118,6 +121,7 @@ test("account sign-in uses PKCE, keeps credentials secret, survives restart and 
     await assert.rejects(f.account.finish("code", `${state}forged`), /sign_in_expired/);
     assert.deepEqual(await f.account.finish("code", state), { ok: true });
     await assert.rejects(f.account.finish("code", state), /sign_in_expired/);
+    assert.deepEqual(f.signedIn, ["Acme"], "told once, with the saved profile");
     const status = f.account.status();
     assert.equal(status.profile?.name, "Acme");
     assert.doesNotMatch(JSON.stringify(status), /secret|Token|person/);

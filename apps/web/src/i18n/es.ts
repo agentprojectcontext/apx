@@ -447,8 +447,6 @@ export const es: Partial<Record<MessageKey, string>> = {
   "account.owner": "Dueño de esta instalación",
   "account.name": "Nombre",
   "account.nameHint": "Cómo te muestra el panel y cómo te conocen tus agentes.",
-  "account.cloud": "Cuenta en la nube",
-  "account.cloudHint": "Opcional. Para iniciar sesión, usá un navegador en la computadora donde corre APX.",
   "account.signIn": "Iniciar sesión con Google",
   "account.signOut": "Cerrar sesión",
   "account.shortId": "Tu ID de APX: {id}",

@@ -30,7 +30,7 @@ import { type DesktopOps, systemDesktop } from "./desktop.ts";
 import { watchAgentReviews } from "./domain/agent-review.ts";
 import { cleanUpCapturedNotes } from "./domain/memory-capture-cleanup.ts";
 import { tellWaitingNotes } from "./domain/memory-notice.ts";
-import { ownerIdentity } from "./domain/owner.ts";
+import { adoptAccountName, ownerIdentity } from "./domain/owner.ts";
 import { lineage } from "./domain/projects.ts";
 import { parseRef } from "./domain/refs.ts";
 import { TERMINAL } from "./domain/runs.ts";
@@ -375,6 +375,7 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
     client: accountClient(config.accountClient),
     google: clientFromPair(config.googleClient) ?? (config.googleApi ? undefined : apxGoogleClient()),
     origin: () => `http://127.0.0.1:${listening}`,
+    onSignedIn: (profile) => adoptAccountName(store, profile.name),
   });
   const asana = createAsana({
     secrets,

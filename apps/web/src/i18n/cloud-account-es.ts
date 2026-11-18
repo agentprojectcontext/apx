@@ -5,4 +5,11 @@ export const esCloudAccount = {
   "account.denied": "No tenés permiso para actualizar esta cuenta. Probá iniciar sesión de nuevo.",
   "account.busy": "Tu cuenta se está actualizando. Esperá un momento y volvé a intentar.",
   "account.localOnly": "Para iniciar sesión, abrí APX en la computadora donde está corriendo.",
+  "account.nameChoiceTitle": "¿Usar el nombre de tu cuenta de Google?",
+  "account.nameChoiceLead": "Es como te llaman tus agentes y el panel. Nada más de tu perfil cambia.",
+  "account.nameNow": "Ahora",
+  "account.nameGoogle": "De Google",
+  "account.nameLoses": "Si usás el de Google, se reemplaza “{name}”. Después podés escribir otro en Nombre.",
+  "account.nameKeep": "Dejar {name}",
+  "account.nameUse": "Usar {name}",
 } as const;

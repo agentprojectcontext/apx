@@ -5411,6 +5411,12 @@ MCP address before adding it (a new method for what connecting already does).
 The APX account is optional and separate from local owner identity, Google integrations and telemetry. Signing in
 uploads only the account profile, not projects, conversations or agents. It does not publish an artifact.
 
+One exception to the separation (2026-11-18, the owner's call): signing in names an owner who has no name yet (the
+panel says "You") after the Google profile. A name the owner typed is never replaced by the core; the panel shows
+both and the owner picks, once per account. About, language and time zone are never synced; carrying who you are to
+other APX installs with the account is left for later. Settings › Account shows the local owner and the account in
+one card.
+
 Use Firebase Authentication with Google and Firestore REST, without Cloud Functions or a billing upgrade. Google
 installed-app authorization uses PKCE S256, random expiring state and an HTTP `127.0.0.1` return under RFC 8252.
 The existing panel return page always completes the loopback-only registered protocol method in the browser.
