@@ -58,7 +58,7 @@ export const esMarketplace = {
   "mkt.edit": "Editar",
   "mkt.openChannels": "Abrir en Canales",
   "mkt.updateTo": "Actualizar a {version}",
-  "mkt.settingsOf": "Ajustes de {name}",
+  "mkt.settingsOf": "Configuración de {name}",
   "mkt.noSettings": "No tiene nada para configurar.",
   "mkt.notice.update": "Hay una versión nueva, {version}.",
   "mkt.notice.off": "Agregada. Conectala para que tus agentes la usen.",

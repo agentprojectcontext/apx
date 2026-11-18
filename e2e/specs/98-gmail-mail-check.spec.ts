@@ -1,5 +1,5 @@
 import type { Result } from "../../packages/protocol/src/index.ts";
-import { expect, open, rpc, test } from "./kit.ts";
+import { expect, open, openExtension, openExtensionSettings, rpc, test } from "./kit.ts";
 
 test("Gmail's settings turn the mail check on, choose how often, and bring the signature Gmail keeps", async ({
   page,
@@ -37,9 +37,9 @@ test("Gmail's settings turn the mail check on, choose how often, and bring the s
     });
   });
   await open(page);
-  await page.getByRole("button", { name: "Recursos", exact: true }).first().click();
-  await page.getByRole("radio", { name: /^Integraciones/ }).click();
-  await page.getByRole("button", { name: "Configurar integración", exact: true }).click();
+  await openExtension(page, "Gmail");
+  const gmail = await openExtensionSettings(page);
+  await gmail.getByRole("button", { name: "Configurar integración", exact: true }).click();
   const settings = page.getByRole("dialog", { name: "Configurar integración", exact: true });
 
   const every = settings.getByRole("spinbutton", { name: "Cada cuánto revisar" });

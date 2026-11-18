@@ -2,8 +2,7 @@
 // from its Marketplace page; other apps' skills with their tag, duplicates and the engines filter; skills imported from a folder after a preview.
 import fs from "node:fs";
 import path from "node:path";
-import type { Page } from "@playwright/test";
-import { expect, open, rpc, test, world } from "./kit.ts";
+import { expect, open, openExtension, rpc, test, world } from "./kit.ts";
 
 test("variables: the imported one is listed, a new one is saved and shown with the eye", async ({ page }) => {
   await open(page);
@@ -136,17 +135,9 @@ test("a new MCP server takes a variable for its token from the + list, or a new 
     .not.toContain("northwind");
 });
 
-/** The Marketplace, searched for one and opened on its page. */
-async function openInMarketplace(page: Page, search: string, name: RegExp) {
-  await page.getByRole("button", { name: "Marketplace", exact: true }).first().click();
-  await page.getByRole("searchbox", { name: "Buscar en el Marketplace" }).fill(search);
-  await page.getByRole("button", { name }).first().click();
-}
-
 test("integrations: GitHub is connected with a token from its page, then disconnected from ⋯", async ({ page }) => {
   await open(page);
-  await openInMarketplace(page, "github", /^GitHub/);
-  await expect(page.getByRole("heading", { name: "GitHub" })).toBeVisible();
+  await openExtension(page, "GitHub");
   await page.getByRole("button", { name: "Conectar", exact: true }).click();
   await page.getByRole("dialog").getByLabel(/token/i).fill("ghp_e2e000000000");
   await page.getByRole("dialog").getByRole("button", { name: "Conectar" }).click();
