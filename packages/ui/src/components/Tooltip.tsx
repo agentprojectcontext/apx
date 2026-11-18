@@ -34,10 +34,15 @@ export function Tooltip({
 }: TooltipProps & Passed) {
   const { portalRef } = useApx();
   // A hint that may be empty (a conditional title) renders its trigger bare.
+  const opensPopup = Object.keys(passed).length > 0;
   if (content === undefined || content === null || content === false || content === "")
-    return Object.keys(passed).length ? cloneElement(children, mergeProps(children.props as object, passed)) : children;
+    return opensPopup ? cloneElement(children, mergeProps(children.props as object, passed)) : children;
   return (
-    <BaseTooltip.Root defaultOpen={defaultOpen}>
+    <BaseTooltip.Root
+      defaultOpen={defaultOpen}
+      // Focus comes back to a menu's trigger when the menu closes: its hint waits for the pointer, so Escape keeps closing.
+      onOpenChange={opensPopup ? (open, d) => open && d.reason === "trigger-focus" && d.cancel() : undefined}
+    >
       <BaseTooltip.Trigger delay={delay} render={children} {...passed} />
       <BaseTooltip.Portal container={portalRef}>
         <BaseTooltip.Positioner side={side} sideOffset={6}>

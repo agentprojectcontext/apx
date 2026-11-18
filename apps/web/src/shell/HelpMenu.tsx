@@ -67,7 +67,12 @@ export function HelpMenu({ rail }: { rail: boolean }) {
         onOpenChange={(o) => o && void loadNews()}
         trigger={
           <Tooltip content={fresh ? t("help.labelNewHint") : t("help.label")}>
-            <button type="button" className="help__btn" aria-label={fresh ? t("help.labelNew") : t("help.label")}>
+            <button
+              type="button"
+              className="help__btn"
+              aria-label={fresh ? t("help.labelNew") : t("help.label")}
+              aria-description={fresh ? t("help.labelNewHint") : undefined}
+            >
               <Icons.CircleHelp size={16} />
               {fresh && <span className="help__dot" aria-hidden="true" />}
             </button>
