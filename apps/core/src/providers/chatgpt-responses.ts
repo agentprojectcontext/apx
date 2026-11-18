@@ -1,7 +1,7 @@
-// The ChatGPT plan's models through the Responses API it serves for Codex (chatgpt.com/backend-api/codex): streamed
-// only, `store: false`, the system prompt as `instructions`. Its encrypted reasoning rides on the assistant item and
-// goes back with the next round, to the same model only, so it keeps its plan across tool calls.
+// Responses for the ChatGPT plan and official GPT-6.2 API: streamed, stateless, encrypted reasoning replayed only
+// to the same model so it can keep its plan across tool calls.
 import { createHash } from "node:crypto";
+import { isGpt62 } from "./gpt-62.ts";
 import {
   type AssistantItem,
   type ChatItem,
@@ -77,11 +77,13 @@ const text = (role: "user" | "assistant", t: string) => ({
   content: [{ type: role === "user" ? "input_text" : "output_text", text: t }],
 });
 
-/** Our chat items as Responses input; the first system item becomes `instructions`, later ones developer notes. */
+/** GPT-6.2 keeps stable guidance first in input; older models use top-level instructions. */
 export function toInput(messages: ChatItem[], model: string): { instructions: string; input: unknown[] } {
   const first = messages[0];
   const instructions = first?.role === "system" ? first.content : "You are a helpful assistant.";
   const input: unknown[] = [];
+  if (isGpt62(model))
+    input.push({ type: "message", role: "developer", content: [{ type: "input_text", text: instructions }] });
   for (const [i, m] of messages.entries()) {
     if (m.role === "system") {
       if (i > 0 && m.content)
@@ -111,7 +113,7 @@ export function toInput(messages: ChatItem[], model: string): { instructions: st
         });
     }
   }
-  return { instructions, input };
+  return { instructions: isGpt62(model) ? "" : instructions, input };
 }
 
 /** A chat's id as the UUID Codex would send for a conversation: the same chat, the same one. */

@@ -64,6 +64,23 @@ Presets: **OpenCode Zen**, **Gemini**, **Anthropic**, **OpenAI**, **OpenRouter**
 **DeepSeek**, **Mistral**, **Ollama**, **LM Studio**, y **OpenAI-compatible** para cualquier otra cosa que hable esa
 API. Ollama y LM Studio corren en tu máquina y no necesitan key.
 
+### Compatibilidad con GPT-6.2 (sin publicar)
+
+La rama de desarrollo reconoce la ventana de API documentada de 1.050.000 tokens y la entrada de imágenes de
+GPT-6.2 Astra y Sol. Para estos identificadores exactos en la dirección oficial de OpenAI, APX usa Responses en
+vez de Chat Completions, porque las herramientas lo requieren. Las instrucciones estables van al principio de
+la conversación; los esfuerzos `none` y `minimal`, incluso en llamadas auxiliares más livianas, usan `low` en
+esa llamada sin modificar tu selección guardada.
+
+El mismo manejo de instrucciones y esfuerzo se aplica si tu plan de ChatGPT conectado ofrece estos modelos.
+El plan y Codex conservan una ventana estimada de 500.000 tokens hasta que el motor informe la propia.
+La disponibilidad se consulta en tu cuenta: APX no agrega estos modelos a la lista ni cambia un agente automáticamente.
+
+La verificación usa simuladores locales, no llamadas pagas a OpenAI: el acceso real, la conservación del razonamiento
+y los aciertos de caché siguen sin verificar. OpenAI puede descartar razonamiento cuando cambia el historial previo;
+APX no garantiza conservarlo después de compactar contexto o editar el prefijo. Otros gateways de API conservan
+su transporte actual y requieren verificar compatibilidad por separado. Consultá la [guía oficial de migración](https://developers.openai.com/api/docs/guides/latest-model?model=gpt-6.2-astra).
+
 ### Avisos de lanzamientos de modelos
 
 Los lanzamientos importantes pueden aparecer en las tarjetas pequeñas debajo de las notificaciones, nunca en la
