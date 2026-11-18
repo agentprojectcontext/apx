@@ -1,0 +1,24 @@
+{
+  "name": "@apx/artifact-viewer",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "vite build",
+    "dev": "vite --host 127.0.0.1",
+    "typecheck": "tsc --noEmit",
+    "test": "node --test \"src/*.test.ts\""
+  },
+  "dependencies": {
+    "@apx/protocol": "workspace:*",
+    "@apx/ui": "workspace:*",
+    "firebase": "13.4.0",
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0"
+  },
+  "devDependencies": {
+    "@apx/config": "workspace:*",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "vite": "^8.3.1"
+  }
+}

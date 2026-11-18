@@ -29,6 +29,92 @@ service cloud.firestore {
       return request.auth != null && request.auth.token.telemetry_reader == true;
     }
 
+    function artifactCode(code) {
+      return code.matches('^[0-9abcdefghjkmnpqrstvwxyz]{8}$');
+    }
+    function artifactSlot(slot) {
+      return slot.matches('^([0-9]|1[0-9])$');
+    }
+    function artifactOwner(code) {
+      return get(/databases/$(database)/documents/artifactOwners/$(code)).data;
+    }
+    function artifactOwned(code) {
+      return request.auth != null && artifactOwner(code).uid == request.auth.uid;
+    }
+    function artifactOwnedAfter(code) {
+      let owner = getAfter(/databases/$(database)/documents/artifactOwners/$(code)).data;
+      return request.auth != null && owner.uid == request.auth.uid
+        && getAfter(/databases/$(database)/documents/artifactAccounts/$(owner.uid)/slots/$(owner.slot)).data.code == code;
+    }
+    function artifactActive(code) {
+      let owner = artifactOwner(code);
+      return artifactCode(code)
+        && get(/databases/$(database)/documents/artifactAccounts/$(owner.uid)/slots/$(owner.slot)).data.code == code;
+    }
+    function artifactPart(code, part, expected) {
+      return existsAfter(/databases/$(database)/documents/publicArtifacts/$(code)/parts/$(part)) == expected;
+    }
+    function artifactParts(code, count) {
+      return artifactPart(code, '0', count > 0) && artifactPart(code, '1', count > 1)
+        && artifactPart(code, '2', count > 2) && artifactPart(code, '3', count > 3)
+        && artifactPart(code, '4', count > 4) && artifactPart(code, '5', count > 5)
+        && artifactPart(code, '6', count > 6) && artifactPart(code, '7', count > 7);
+    }
+    match /artifactOwners/{code} {
+      allow get: if artifactOwned(code);
+      allow list, update, delete: if false;
+      allow create: if request.auth != null && artifactCode(code)
+        && request.resource.data.keys().hasOnly(['uid', 'slot'])
+        && request.resource.data.uid == request.auth.uid && artifactSlot(request.resource.data.slot)
+        && getAfter(/databases/$(database)/documents/artifactAccounts/$(request.auth.uid)/slots/$(request.resource.data.slot)).data.code == code
+        && existsAfter(/databases/$(database)/documents/publicArtifacts/$(code));
+    }
+    match /artifactAccounts/{uid}/slots/{slot} {
+      allow get, list: if request.auth != null && request.auth.uid == uid;
+      allow create, update: if request.auth != null && request.auth.uid == uid && artifactSlot(slot)
+        && request.resource.data.keys().hasOnly(['code']) && artifactCode(request.resource.data.code)
+        && getAfter(/databases/$(database)/documents/artifactOwners/$(request.resource.data.code)).data.uid == uid
+        && getAfter(/databases/$(database)/documents/artifactOwners/$(request.resource.data.code)).data.slot == slot
+        && existsAfter(/databases/$(database)/documents/publicArtifacts/$(request.resource.data.code))
+        && (!exists(/databases/$(database)/documents/artifactAccounts/$(uid)/slots/$(slot))
+          || resource.data.code == request.resource.data.code
+          || !existsAfter(/databases/$(database)/documents/publicArtifacts/$(resource.data.code)));
+      allow delete: if request.auth != null && request.auth.uid == uid
+        && !existsAfter(/databases/$(database)/documents/publicArtifacts/$(resource.data.code));
+    }
+    match /publicArtifacts/{code} {
+      allow get: if artifactActive(code);
+      allow list: if false;
+      allow create, update: if artifactCode(code) && artifactOwnedAfter(code)
+        && (exists(/databases/$(database)/documents/publicArtifacts/$(code))
+          || !exists(/databases/$(database)/documents/artifactOwners/$(code)))
+        && request.resource.data.keys().hasOnly(['title', 'chunk_count', 'bytes', 'sha256', 'updated_at'])
+        && short(request.resource.data.title, 120)
+        && request.resource.data.chunk_count is int && request.resource.data.chunk_count >= 1
+        && request.resource.data.chunk_count <= 8
+        && request.resource.data.bytes is int && request.resource.data.bytes > 0 && request.resource.data.bytes <= 4200000
+        && request.resource.data.sha256.matches('^[a-f0-9]{64}$')
+        && request.resource.data.updated_at == request.time
+        && artifactParts(code, request.resource.data.chunk_count);
+      allow delete: if artifactOwned(code) && artifactParts(code, 0);
+      match /parts/{part} {
+        allow get: if artifactActive(code) && exists(/databases/$(database)/documents/publicArtifacts/$(code));
+        allow list: if false;
+        allow create, update: if artifactOwnedAfter(code) && part in ['0', '1', '2', '3', '4', '5', '6', '7']
+          && existsAfter(/databases/$(database)/documents/publicArtifacts/$(code))
+          && int(part) < getAfter(/databases/$(database)/documents/publicArtifacts/$(code)).data.chunk_count
+          && getAfter(/databases/$(database)/documents/publicArtifacts/$(code)).data.updated_at == request.time
+          && request.resource.data.keys().hasOnly(['data'])
+          && request.resource.data.data is string && request.resource.data.data.size() > 0
+          && request.resource.data.data.size() <= 700000
+          && request.resource.data.data.matches('^[A-Za-z0-9+/]*={0,2}$');
+        allow delete: if artifactOwned(code)
+          && (!existsAfter(/databases/$(database)/documents/publicArtifacts/$(code))
+            || (getAfter(/databases/$(database)/documents/publicArtifacts/$(code)).data.updated_at == request.time
+              && int(part) >= getAfter(/databases/$(database)/documents/publicArtifacts/$(code)).data.chunk_count));
+      }
+    }
+
     match /installs/{id} {
       allow create: if request.auth == null && isUuid(id)
         && request.resource.data.keys().hasOnly(['first_version', 'version', 'os', 'arch', 'channel', 'usage', 'stages', 'created', 'updated_at'])

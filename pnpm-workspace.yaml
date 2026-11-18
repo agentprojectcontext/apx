@@ -10,6 +10,7 @@ allowBuilds:
   electron: true
   '@whiskeysockets/baileys': false
   protobufjs: false
+  '@firebase/util': false
 minimumReleaseAgeExclude:
   - '@biomejs/biome@2.5.15'
   - '@biomejs/cli-darwin-arm64@2.5.15'
