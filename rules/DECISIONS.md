@@ -5360,7 +5360,7 @@ things. This replaces D-241's sections and its item page steps:
 - **Skills and agents are filters**, not sections (All, Connections, Skills, Agents, Devices); an empty filter is not
   shown. The left column has Explore, Your extensions (**Needs attention**: off, missing keys or settings, an error,
   a new version; then **Active**) and **Advanced** at its foot: catalogs, installing from a file, a folder or a
-  command, and the guide. The sidebar icon is a puzzle piece.
+  command, and the guide. The sidebar keeps the store icon; the puzzle piece marks Explore, where the pieces are (owner, 2026-11-18).
 - **One button that follows the state**: Add → Connect (Pair for a companion app) → Connected. Connecting an added
   extension still approves its hosts, keys and files first (the add box since [D-246](#d-246)). APX cannot tell whether a companion
   app is paired, so Pair stays the button of an extension with one. Turn off, update, roll back, settings and remove
