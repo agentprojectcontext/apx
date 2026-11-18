@@ -14,6 +14,7 @@ export function useCloudAccount() {
   const [waiting, setWaiting] = useState(false);
   const [handle, setHandle] = useState("");
   const [error, setError] = useState<unknown>();
+  const [readError, setReadError] = useState<unknown>();
   const [saved, setSaved] = useState(false);
   const [revision, setRevision] = useState(0);
   const version = useRef(0);
@@ -35,6 +36,7 @@ export function useCloudAccount() {
         if (version.current !== current) return;
         setProfile(result.profile);
         setAvailable(result.available);
+        setReadError(undefined);
         if (confirmed.current !== result.profile?.handle) {
           confirmed.current = result.profile?.handle;
           setHandle(result.profile?.handle ?? "");
@@ -42,7 +44,7 @@ export function useCloudAccount() {
         if (result.profile) setWaiting(false);
       })
       .catch((reason: unknown) => {
-        if (version.current === current) setError(reason);
+        if (version.current === current) setReadError(reason);
       })
       .finally(() => {
         if (version.current === current) setLoading(false);
@@ -130,9 +132,24 @@ export function useCloudAccount() {
         setSaved(true);
       }
     });
-  const retry = () => {
-    setError(undefined);
+  const reload = () => {
+    setReadError(undefined);
     setRevision((value) => value + 1);
   };
-  return { profile, available, loading, busy, waiting, handle, setHandle, error, saved, start, logout, save, retry };
+  return {
+    profile,
+    available,
+    loading,
+    busy,
+    waiting,
+    handle,
+    setHandle,
+    error: error ?? readError,
+    canReload: error == null && readError != null,
+    saved,
+    start,
+    logout,
+    save,
+    reload,
+  };
 }

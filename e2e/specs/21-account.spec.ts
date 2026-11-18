@@ -29,6 +29,61 @@ for (const viewport of [
   });
 }
 
+test("account read errors reload the account while failed username edits retry through Save", async ({
+  page,
+}, testInfo) => {
+  let readFails = true;
+  let saves = 0;
+  const profile = { id: "0123abcd", name: "Acme Owner", photo: "", handle: "" };
+  await page.route("**/rpc/account.get", (route) =>
+    route.fulfill({
+      json: readFails
+        ? { ok: false, error: { code: "unavailable", message: "Account unavailable" } }
+        : { ok: true, result: { available: true, profile } },
+    }),
+  );
+  await page.route("**/rpc/account.rename", (route) => {
+    saves++;
+    if (saves > 1) profile.handle = "acme";
+    return route.fulfill({
+      json:
+        saves === 1
+          ? { ok: false, error: { code: "unavailable", message: "Account unavailable" } }
+          : { ok: true, result: { profile } },
+    });
+  });
+  await open(page);
+  await page.keyboard.press("ControlOrMeta+k");
+  await page
+    .getByRole("textbox", { name: "Buscar" })
+    .or(page.getByRole("combobox", { name: "Buscar" }))
+    .fill("cuenta");
+  await page.getByRole("option", { name: /Cuenta/ }).click();
+  const account = page.getByRole("region", { name: "Cuenta en la nube", exact: true });
+  const reload = account.getByRole("button", { name: "Volver a cargar la cuenta" });
+  await expect(reload).toBeVisible();
+  readFails = false;
+  await reload.click();
+  await expect(account.getByText("Tu ID de APX: 0123abcd")).toBeVisible();
+  await expect(account.getByRole("alert")).toHaveCount(0);
+  await page
+    .getByText("Quién sos, para el panel y para tus agentes. Tu perfil local queda en esta computadora.", {
+      exact: true,
+    })
+    .waitFor();
+  await account.getByRole("textbox", { name: "Nombre de usuario" }).fill("acme");
+  await account.getByRole("button", { name: "Guardar", exact: true }).click();
+  await expect(account.getByRole("alert")).toBeVisible();
+  await expect(reload).toHaveCount(0);
+  await expect(account.getByRole("button", { name: "Reintentar" })).toHaveCount(0);
+  await account.getByRole("button", { name: "Guardar", exact: true }).click();
+  await expect(account.getByRole("status")).toHaveText("Nombre de usuario guardado.");
+  expect(saves).toBe(2);
+  await page.setViewportSize({ width: 390, height: 844 });
+  await account.getByRole("textbox", { name: "Nombre de usuario" }).scrollIntoViewIfNeeded();
+  await page.screenshot({ path: testInfo.outputPath("account-recovery-390.png") });
+});
+
 test("time zone and language are picked by searching, Advanced names each part of the core, and an API token is made in its own page", async ({
   page,
 }) => {

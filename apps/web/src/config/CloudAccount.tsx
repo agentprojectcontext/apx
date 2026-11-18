@@ -68,9 +68,11 @@ export function CloudAccount() {
       {error != null && (
         <p role="alert">
           {accountError(t, error)}{" "}
-          <Button size="sm" variant="link" onClick={account.retry}>
-            {t("common.retry")}
-          </Button>
+          {account.canReload && (
+            <Button size="sm" variant="link" onClick={account.reload}>
+              {t("account.reload")}
+            </Button>
+          )}
         </p>
       )}
       {saved && <p role="status">{t("account.saved")}</p>}
