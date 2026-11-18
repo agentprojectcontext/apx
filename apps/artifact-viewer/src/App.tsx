@@ -6,7 +6,8 @@ const texts = {
   en: {
     published: "Published copy",
     open: "Open in APX",
-    hint: "Download the file, then open it in APX.",
+    hint: "Open this copy in APX to review it before installing. You can also download the file.",
+    file: "Download file",
     loading: "Opening this copy…",
     missing: "This copy isn't available",
     missingHint: "The link may have been removed. Ask the person who shared it.",
@@ -20,7 +21,8 @@ const texts = {
   es: {
     published: "Copia publicada",
     open: "Abrir en APX",
-    hint: "Descargá el archivo y abrilo en APX.",
+    hint: "Abrí esta copia en APX para revisarla antes de instalar. También podés descargar el archivo.",
+    file: "Descargar archivo",
     loading: "Abriendo esta copia…",
     missing: "Esta copia no está disponible",
     missingHint: "Es posible que hayan quitado el enlace. Consultá con quien te lo compartió.",
@@ -59,11 +61,20 @@ export function App() {
                 <p>{t.hint}</p>
               </div>
               <Button
+                disabled={!copy || status !== "ready" || downloading}
+                onClick={() => {
+                  window.location.href = `apx://artifact/${window.location.pathname.slice(1)}`;
+                }}
+              >
+                {t.open}
+              </Button>
+              <Button
+                variant="secondary"
                 leadingIcon={<Icons.Download size={16} />}
                 disabled={!copy || status !== "ready" || downloading}
                 onClick={() => void download()}
               >
-                {downloading ? t.downloading : t.open}
+                {downloading ? t.downloading : t.file}
               </Button>
             </div>
           )}

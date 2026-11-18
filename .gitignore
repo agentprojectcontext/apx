@@ -33,6 +33,7 @@ playground/out/
 test-results/
 playwright-report/
 coverage/
+.firebase/
 e2e/.out/
 
 # scratch scripts while developing e2e

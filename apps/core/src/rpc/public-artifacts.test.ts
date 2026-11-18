@@ -63,6 +63,8 @@ test("public copies travel through the core contract: exact preview, chosen stat
     const receipt = await env.client.call("surfaces.public_commit", { draft: draft.draft });
     assert.deepEqual(await env.client.call("surfaces.public_commit", { draft: draft.draft }), receipt);
     assert.equal(env.cloud.commits(), 1);
+    assert.deepEqual(await env.client.call("surfaces.public_read", { code: receipt.code }), preview.bundle);
+    await assert.rejects(agent.call("surfaces.public_read", { code: receipt.code }), /reserved to the owner/);
     assert.equal((await env.client.call("surfaces.public_list", {})).items[0]?.code, receipt.code);
 
     const replacement = await env.client.call("surfaces.show", {

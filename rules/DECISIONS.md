@@ -5214,3 +5214,35 @@ remote-core or phone sign-in. An HTTPS broker needs a separate deployment/cost d
 identifiers, never public artifact link codes: each published artifact has an independent code.
 
 See [Firebase setup](../firebase/README.md) and its Spanish counterpart for configuration, rules and verification.
+
+<a id="d-241"></a>
+## D-241 — 2026-11-17 — Public artifacts are reviewed offline copies, not access to the owner's core
+
+A public artifact is an independently chosen copy of HTML and optional top-level state, published at
+`https://artifact.apxagent.app/<code>`. Every artifact gets a random eight-character Crockford base32 code,
+independent of the account's private short ID. The viewer is a fixed Firebase Hosting site on a separate origin;
+Firestore holds the divided copy under that code. No Cloud Storage, Functions, billing upgrade or administrator
+credentials are required. Free service quotas remain a limitation; there is no promise of unlimited availability.
+
+Authenticated owners may publish up to 20 copies, at most 4,200,000 bytes each. Firestore rules validate matching
+ownership, bounded slots, sizes, revisions and chunks in atomic writes. Anonymous callers can fetch a known code
+and its chunks, not enumerate publications or read ownership/account metadata. Revocation removes the live copy
+and prevents future reads; it cannot recall already downloaded or rendered bytes.
+
+Publishing uses an expiring, session-bound draft of the exact exported bytes. State starts unselected; store,
+database, private memory and secret references are excluded. HTML is still owner-controlled content and can
+already contain sensitive text: show the full source, preview and selected values before confirming. Identity is
+shown only in the owner's review, never in agent draft data or the published bundle. A source/account change
+invalidates an uncommitted review. Retry of an already committed draft returns its receipt instead of duplicating
+publication. Update retains the public code and may use another local source; revoke needs no local source.
+
+Agent tools can prepare a draft but cannot read the identity-bearing preview or commit directly. Every agent
+commit needs a target-bound, app-only owner card even in Total. The card opens the exact review, never generic
+approve-once or always-allow controls. Transport actors cannot grant themselves the owner's permissions.
+
+The preview is an opaque nested sandbox: the wrapper allows only an `about:srcdoc` child, and the child has no
+network, subframes, forms or host access. Its offline state is a clone of the reviewed selection. The public
+viewer uses a separate constrained runner; neither copy receives credentials or an APX protocol connection.
+
+Docs impact: updated the English and Spanish artifact guides with selection, review, account management,
+limits, offline behavior and the limits of revocation. No owner news entry: this rollout is not announced.

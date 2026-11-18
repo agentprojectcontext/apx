@@ -11,6 +11,18 @@ function withPacks<T>(packs: Pack[], load: () => Promise<T>): () => Promise<T> {
   return () => Promise.all([load(), ...packs.map((pack) => addPack(pack))]).then(([module]) => module);
 }
 
+export function listenApxFiles(): () => void {
+  let active = true;
+  let stop: (() => void) | undefined;
+  void import("./surfaces/openedFiles.ts").then((m) => {
+    if (active) stop = m.listenApxFiles();
+  });
+  return () => {
+    active = false;
+    stop?.();
+  };
+}
+
 /** Native sign-in handling stays out of the browser's first load. */
 export function listenAccountReturn(openAccount: () => void): () => void {
   let active = true;
@@ -154,8 +166,16 @@ export const ProjectScreen = lazy(
 export const ResourcesScreen = lazy(
   withPacks(["resources"], () => import("./project/ResourcesScreen.tsx").then((m) => ({ default: m.ResourcesScreen }))),
 );
+export const PublicCopyInput = lazy(() =>
+  import("./surfaces/PublicCopyInput.tsx").then((m) => ({ default: m.PublicCopyInput })),
+);
+export const PublicCopyDialog = lazy(
+  withPacks(["publicCopies"], () =>
+    import("./surfaces/PublicCopyDialog.tsx").then((m) => ({ default: m.PublicCopyDialog })),
+  ),
+);
 export const InstallArtifactDialog = lazy(() =>
-  import("./surfaces/InstallArtifact.tsx").then((m) => ({ default: m.InstallArtifactDialog })),
+  import("./surfaces/ArtifactDialogs.tsx").then((m) => ({ default: m.ArtifactDialogs })),
 );
 export const LiveLayer = lazy(() => import("./surfaces/LiveLayer.tsx").then((m) => ({ default: m.LiveLayer })));
 export const WelcomeV2 = lazy(() => import("./shell/WelcomeV2.tsx").then((m) => ({ default: m.WelcomeV2 })));

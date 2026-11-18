@@ -55,7 +55,7 @@ test("a private copy preview cannot reach the host, send network requests or nav
     );
     assert.equal(requests, 0);
     const blocked = page.waitForEvent("console", {
-      predicate: (message) => message.text().includes("frame-src blob:") && message.text().includes("blocked"),
+      predicate: (message) => message.text().includes("frame-src about:") && message.text().includes("blocked"),
     });
     await inner.locator("body").evaluate((_element, url) => {
       location.href = url;

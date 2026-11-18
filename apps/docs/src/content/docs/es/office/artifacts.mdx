@@ -111,6 +111,35 @@ Una exportación con memoria lleva lo que escribiste y los registros de la app. 
 memoria.
 </Aside>
 
+## Publicar una copia pública
+
+Iniciá sesión en tu [cuenta APX](/es/start/account/) y abrí **Compartir › Publicar copia…** en un artifact.
+Esto es distinto de compartir un enlace a tu propio APX: sube una copia independiente a
+`artifact.apxagent.app` que cualquiera con el enlace puede ver sin cuenta.
+
+No se selecciona estado por defecto. Abrí **Ver contenido** para leer cada valor, elegí sólo lo que querés
+incluir y tocá **Revisar copia**. La siguiente pantalla muestra la cuenta, el enlace público, el tamaño,
+la vista previa, el código de la página y el estado exacto elegido. Sólo **Publicar copia** la sube.
+El pedido de un agente también necesita esta revisión y tu confirmación, incluso si puede trabajar sin preguntarte.
+
+El HTML mismo puede contener información sensible. Revisalo también: omitir estado no quita lo que ya está
+escrito en la página. Una copia pública nunca incluye el store, la base de datos ni referencias a secretos,
+y no puede hacer pedidos a APX ni a otros sitios. Las funciones que necesitan esas conexiones no funcionarán ahí.
+
+**Configuración › Cuenta › Copias publicadas** lista tus copias. **Administrar** permite copiar el enlace,
+**Actualizar copia…** desde un artifact local elegido o **Dejar de publicar…**. Actualizar conserva el enlace
+y siempre empieza sin estado seleccionado; los cambios locales no se suben automáticamente. Si el original
+ya no está, elegí otro artifact local para actualizar. Dejar de publicar no necesita el original ni lo elimina:
+impide futuras lecturas del enlace, pero no retira archivos que alguien ya descargó.
+
+En una página pública, **Abrir en APX** abre el diálogo de instalación existente en la app de escritorio.
+No instala automáticamente ni necesita que quien recibe la copia inicie sesión. **Descargar archivo** guarda
+un `.apxart` que podés abrir o arrastrar a APX. Antes de instalar podés volver a excluir el estado copiado.
+
+El límite es de 20 copias por cuenta, de hasta 4.200.000 bytes cada una. Si cambia el artifact o la cuenta,
+o vence la revisión, tenés que revisar una nueva copia antes de publicar. También rigen las cuotas gratuitas
+de la nube: si no está disponible, tus artifacts locales siguen funcionando.
+
 ## Apps más grandes
 
 La mayoría de las apps son una página que el agente escribe a mano. Para una grande, el agente puede armarla desde

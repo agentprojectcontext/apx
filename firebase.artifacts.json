@@ -7,7 +7,7 @@
   },
   "hosting": {
     "site": "apx-artifacts",
-    "public": "../apps/artifact-viewer/dist",
+    "public": "apps/artifact-viewer/dist",
     "ignore": ["**/.*", "**/*.map"],
     "rewrites": [{ "source": "**", "destination": "/index.html" }],
     "headers": [

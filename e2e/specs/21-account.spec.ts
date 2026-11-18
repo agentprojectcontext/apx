@@ -34,6 +34,9 @@ test("account read errors reload the account while failed username edits retry t
 }, testInfo) => {
   let readFails = true;
   let saves = 0;
+  await page.route("**/rpc/surfaces.public_list", (route) =>
+    route.fulfill({ json: { ok: true, result: { items: [], count: 0, limit: 20 } } }),
+  );
   const profile = { id: "0123abcd", name: "Acme Owner", photo: "", handle: "" };
   await page.route("**/rpc/account.get", (route) =>
     route.fulfill({

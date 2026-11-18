@@ -25,6 +25,12 @@ const Draft = Receipt.extend(
 );
 
 export const publicArtifactMethods = {
+  "surfaces.public_read": deferMethod({
+    params: () => z.object({ code: Code }).strict(),
+    result: () => ArtifactBundle,
+    effect: false,
+    access: "human",
+  }),
   "surfaces.public_list": deferMethod({
     params: () => z.object({}).strict(),
     result: () =>

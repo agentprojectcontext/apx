@@ -16,7 +16,7 @@ Desktop sketch:
 +------------------------------------------------------------------+
 | APX · Published copy                         [Español / English]   |
 | Orders                                           [Open in APX]   |
-| Download the file, then open it in APX.                           |
+| Open in APX to review before installing, or download the file.   |
 +------------------------------------------------------------------+
 |                                                                  |
 |                   Sandboxed artifact page                        |

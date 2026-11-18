@@ -3,6 +3,7 @@
 // panel reload never kills tabs.
 import fs from "node:fs";
 import path from "node:path";
+import { publicArtifactLink } from "@apx/protocol/artifact-link";
 import {
   app,
   BaseWindow,
@@ -65,8 +66,16 @@ const openedConnection = JSON.stringify(loadConnection(app.getPath("userData")))
 registerAppScheme();
 
 let pendingAccountReturn: AccountReturn | undefined;
+let pendingPublicCopy: string | undefined;
+let publicCopyOpened = () => {};
 let accountReturned = () => {};
 const receiveAccountReturn = (value: string) => {
+  const code = publicArtifactLink(value);
+  if (code) {
+    pendingPublicCopy = code;
+    publicCopyOpened();
+    return;
+  }
   const result = accountReturn(value);
   if (!result) return;
   pendingAccountReturn = result;
@@ -199,6 +208,16 @@ app.whenReady().then(() => {
     const value = pendingAccountReturn;
     pendingAccountReturn = undefined;
     return value ?? null;
+  });
+  publicCopyOpened = () => {
+    openMain();
+    panel.webContents.send("artifact:public-ready");
+  };
+  ipcMain.handle("artifact:take-public", (event) => {
+    if (event.sender !== panel.webContents) return null;
+    const code = pendingPublicCopy;
+    pendingPublicCopy = undefined;
+    return code ?? null;
   });
   if (app.isPackaged) app.setAsDefaultProtocolClient("apx");
   externalLinks(panel.webContents);

@@ -3,11 +3,12 @@ import "../../styles/panel-parts.css";
 import "../../styles/screens.css";
 import type { ApprovalScope, FileChange, Part } from "@apx/protocol";
 import { ActionGroup, Button, Icons, MarkdownView } from "@apx/ui";
-import { Fragment, useId, useState } from "react";
+import { Fragment, Suspense, useId, useState } from "react";
 import { ApprovalText } from "../../common/ApprovalText.tsx";
 import { useMarkdownLabels } from "../../common/useMarkdownLabels.ts";
 import { respond } from "../../data/actions.ts";
 import { type MessageKey, useT } from "../../i18n/index.ts";
+import { PublicCopyInput } from "../../lazy.ts";
 import { DiffView } from "../../panel/DiffView.tsx";
 import { BrowserHelp, BrowserReview } from "./BrowserReview.tsx";
 import { cardLine, SAYS_ITSELF } from "./input-words.ts";
@@ -45,7 +46,13 @@ export function InputPart({ part }: { part: InputPartData }) {
 function InputBody({ part }: { part: InputPartData }) {
   const { state } = part;
   if (state !== "pending") return <SettledInput part={part} state={state} />;
-  return <PendingInput part={part} />;
+  return part.artifact_draft ? (
+    <Suspense fallback={null}>
+      <PublicCopyInput part={part} />
+    </Suspense>
+  ) : (
+    <PendingInput part={part} />
+  );
 }
 
 /** What was asked and how it ended, in the actions' design: a line that opens to show what it was. */

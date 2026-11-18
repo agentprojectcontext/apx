@@ -1,6 +1,6 @@
 import type { Store } from "../domain/store.ts";
 import { badRequest, notFound, unauthorized } from "../errors.ts";
-import type { createPublicationDrafts } from "../public-artifacts/drafts.ts";
+import type { createPublicationService } from "../public-artifacts/service.ts";
 import type { CallContext } from "./context.ts";
 import type { Handlers } from "./router.ts";
 
@@ -44,7 +44,7 @@ async function result<T>(action: () => T | Promise<T>): Promise<T> {
 
 export function publicArtifactHandlers(deps: {
   store: Store;
-  publications: ReturnType<typeof createPublicationDrafts>;
+  publications: ReturnType<typeof createPublicationService>;
 }) {
   const scope = (ctx: CallContext) => {
     if (ctx.actor === "human" && !ctx.agent) return undefined;
@@ -54,6 +54,7 @@ export function publicArtifactHandlers(deps: {
     return { project: thread.project_id };
   };
   return {
+    "surfaces.public_read": ({ code }) => result(() => deps.publications.read(code)),
     "surfaces.public_list": (_, ctx) => {
       if (scope(ctx)) throw unauthorized("public_artifact_access_denied");
       return result(() => deps.publications.list());

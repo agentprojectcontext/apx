@@ -1,0 +1,41 @@
+import type { enPublicCopies } from "./public-copies-en.ts";
+export const esPublicCopies: Record<keyof typeof enPublicCopies, string> = {
+  "public.publish": "Publicar copia",
+  "public.review": "Revisar copia",
+  "public.reviewTitle": "Revisá esta copia exacta",
+  "public.state": "Estado que querés incluir",
+  "public.page": "Se incluye la página del artifact",
+  "public.warning":
+    "Cualquiera con el enlace puede ver y descargar esta copia. La página misma ya puede contener información sensible.",
+  "public.identity": "Publicando como {name}",
+  "public.html": "Código de la página",
+  "public.contents": "Ver contenido",
+  "public.back": "Cambiar selección",
+  "public.loading": "Preparando copia…",
+  "public.connection": "No se pudo cargar o guardar la copia. Revisá tu conexión y volvé a intentar.",
+  "public.signIn":
+    "Iniciá sesión en tu cuenta APX en Configuración para publicar una copia. Los artifacts locales no necesitan una cuenta.",
+  "public.invalid": "Esta revisión ya no está vigente. Cerrala y revisá una nueva copia antes de publicar.",
+  "public.limit": "Ya tenés 20 copias publicadas. Dejá de publicar una antes de agregar otra.",
+  "public.large": "Esta copia supera los 4,2 MB. Elegí menos estado o una página más chica.",
+  "public.secret": "Quitá las referencias a secretos de la página o del estado elegido antes de publicar.",
+  "public.retry": "Reintentar",
+  "public.published": "Copia publicada",
+  "public.updated": "Copia publicada actualizada",
+  "public.revoked": "Se dejó de publicar",
+  "public.list": "Copias publicadas",
+  "public.empty": "No tenés copias publicadas. Publicá una desde el menú para compartir de un artifact.",
+  "public.refresh": "Actualizar lista",
+  "public.manage": "Administrar",
+  "public.local": "Los cambios locales no se publican automáticamente.",
+  "public.update": "Actualizar copia",
+  "public.replace": "El enlace no cambia. Se reemplazará su contenido.",
+  "public.source": "Elegí un artifact local",
+  "public.missing":
+    "Elegí un artifact local para reemplazar esta copia publicada. Es posible que el original ya no esté en este dispositivo.",
+  "public.revoke": "Dejar de publicar",
+  "public.revokeWarning":
+    "El enlace dejará de funcionar. No se eliminarán los archivos que otras personas ya descargaron. Tu artifact local se conservará.",
+  "public.preview": "Vista previa de la página publicada",
+  "public.refreshing": "Actualizando copias publicadas…",
+};

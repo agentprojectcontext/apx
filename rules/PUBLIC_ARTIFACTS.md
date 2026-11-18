@@ -63,8 +63,11 @@ listener observations are a loading state, not evidence that a copy is live or m
 restoring a removed preview. These timing paths are covered with injected timers, not wall-clock sleeps. Before
 creating a download, re-read the current publication instead of reusing previously loaded bytes. A person can
 keep a copy they have already downloaded: revocation stops subsequent access through APX, not possession.
-`Open in APX` downloads the approved `.apxart`; opening it still requires the existing installation dialog.
-Neither a public URL nor a deep link installs it automatically.
+`Open in APX` hands only an exact public code to `apx://artifact/<code>`. The native panel calls the human-only
+`surfaces.public_read` method, which anonymously reads from the fixed Firestore service, validates bounded parts
+and SHA-256, then rechecks publication before opening the existing installation dialog. It never forwards an
+account token or accepts an arbitrary remote URL. No recipient account is required. `Download file` separately
+saves the approved `.apxart`. Neither a public URL nor a deep link installs automatically.
 
 Free-plan Firestore quotas still constrain total reads and writes across the project. Rate abuse can exhaust
 the free quota and temporarily stop publication/viewing; this does not authorize enabling billing. Surface that
@@ -108,11 +111,14 @@ The F3 account implementation is included in this branch. Its core-only `withSes
 with a shared in-flight refresh and binds work to the signed-in identity and session generation. It returns no
 credentials through the account protocol. Sign-out or a new sign-in invalidates old work; publication checks the
 session again before each cloud request. Sign-out cannot retract a write already sent to Firestore.
-Protocol and mandatory confirmation wiring have isolated-core tests with a recording cloud transport. The UI,
-native install handoff and deployment remain pending; the pre-implementation reference is
-[PUBLIC_ARTIFACTS_UI.md](PUBLIC_ARTIFACTS_UI.md). Combined artifact, account and telemetry emulator tests pass;
-never replace unrelated telemetry/account policies during deployment. Use the separate artifact Hosting site
-and approved DNS tools without changing the login origin or restarting the owner's core.
+Protocol and mandatory confirmation wiring have isolated-core tests with a recording cloud transport. Built-panel
+journeys cover publish, update, source-free revoke and both languages at desktop and phone widths. The native
+handoff test launches its own Desktop and core, verifies no installation before confirmation, selected state
+and failure after revocation. The design reference is [PUBLIC_ARTIFACTS_UI.md](PUBLIC_ARTIFACTS_UI.md).
+Run the combined artifact, account and telemetry emulator suites before deploying rules; never replace unrelated
+telemetry/account policies. The separate Hosting deployment uses `firebase.artifacts.json` at the repository root;
+its public directory must remain inside that root. Use the approved DNS tools without changing the login origin
+or restarting the owner's core. Deployment and outside-device verification evidence belongs in the task report.
 
-Docs impact: updated — this document records the snapshot and free-plan cloud boundary. EN/ES user instructions
-remain pending the completed integration.
+Docs impact: updated — this document records the snapshot, native handoff and free-plan cloud boundary. The
+English and Spanish artifact guides explain selection, review, account management and installation.

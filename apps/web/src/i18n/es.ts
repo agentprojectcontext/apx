@@ -27,6 +27,8 @@ import { esTeamShared } from "./team-shared-es.ts";
 import { esTopbar } from "./topbar-es.ts";
 
 export const es: Partial<Record<MessageKey, string>> = {
+  "share.publish": "Publicar copia…",
+  "input.reviewCopy": "Revisar copia pública",
   "config.activityReview": "Revisión y mejoras",
   "panel.computer": "Computadora",
   "panel.computer.hint": "Ver computadora Linux del agente",
@@ -752,6 +754,9 @@ export const es: Partial<Record<MessageKey, string>> = {
   "artifact.install": "Instalar artefacto",
   "artifact.installAction": "Instalar",
   "artifact.installTitle": "Instalar un artefacto",
+  "artifact.publicLoading": "Abriendo copia pública…",
+  "artifact.publicUnavailable":
+    "No pudimos abrir esta copia pública. Es posible que la hayan quitado. Revisá tu conexión y volvé a intentar.",
   "artifact.installHint": "Arrastrá un archivo .apxart acá o elegilo. Antes de instalarlo ves qué es.",
   "artifact.fileNotYet": "{name} es una app o extensión de APX: todavía no se instalan desde un archivo.",
   "artifact.fileTooBig": "{name} es demasiado grande para ser un artefacto de APX.",

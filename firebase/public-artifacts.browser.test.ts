@@ -81,7 +81,7 @@ test("the viewer isolates credentials and network, downloads exact approved byte
     assert.match((await wrappers[0].allHeaders()).cookie ?? "", /acme-session/);
     assert.equal((await runners[0].allHeaders()).cookie, undefined);
     const event = page.waitForEvent("download", { timeout: 20_000 });
-    await page.getByRole("button", { name: "Open in APX", exact: true }).click();
+    await page.getByRole("button", { name: "Download file", exact: true }).click();
     const download = await event;
     assert.equal(download.suggestedFilename(), "weekend-plan.apxart");
     const file = await download.path();
@@ -132,7 +132,7 @@ test("browsers without credentialless previews still download without loading an
     await expect(page.getByRole("heading", { name: "This browser can't preview the copy", exact: true })).toBeVisible();
     await expect(page.locator("iframe")).toHaveCount(0);
     const event = page.waitForEvent("download");
-    await page.getByRole("button", { name: "Open in APX", exact: true }).click();
+    await page.getByRole("button", { name: "Download file", exact: true }).click();
     const download = await event;
     const file = await download.path();
     assert.ok(file);

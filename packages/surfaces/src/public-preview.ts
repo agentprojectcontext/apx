@@ -1,7 +1,7 @@
 const POLICY =
   "default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data: blob:; font-src data:; connect-src 'none'; frame-src 'none'; worker-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'";
 const WRAPPER_POLICY =
-  "default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; frame-src blob:; connect-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'";
+  "default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; frame-src about:; connect-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'";
 const scriptValue = (value: unknown) => JSON.stringify(value).replace(/</g, "\\u003c");
 
 // This function travels alone inside the frame: every value it uses must be local or a browser global.
@@ -34,5 +34,5 @@ function offlineState(initial: Record<string, unknown>) {
 /** A nested, opaque preview: the wrapper also blocks the page navigating itself to a network URL. */
 export function publicPreviewDocument(html: string, state: Record<string, unknown> = {}): string {
   const child = `<!doctype html><html><head><meta charset="utf-8"><meta name="referrer" content="no-referrer"><meta http-equiv="Content-Security-Policy" content="${POLICY}"><script>(${offlineState.toString()})(${scriptValue(state)});</script></head><body>${html}</body></html>`;
-  return `<!doctype html><html><head><meta charset="utf-8"><meta name="referrer" content="no-referrer"><meta http-equiv="Content-Security-Policy" content="${WRAPPER_POLICY}"><style>html,body,iframe{margin:0;width:100%;height:100%;border:0;display:block}</style></head><body><iframe id="copy" title="Artifact page" sandbox="allow-scripts" referrerpolicy="no-referrer"></iframe><script>const url=URL.createObjectURL(new Blob([${scriptValue(child)}],{type:"text/html"}));document.getElementById("copy").src=url;window.addEventListener("pagehide",()=>URL.revokeObjectURL(url),{once:true});</script></body></html>`;
+  return `<!doctype html><html><head><meta charset="utf-8"><meta name="referrer" content="no-referrer"><meta http-equiv="Content-Security-Policy" content="${WRAPPER_POLICY}"><style>html,body,iframe{margin:0;width:100%;height:100%;border:0;display:block}</style></head><body><iframe id="copy" title="Artifact page" sandbox="allow-scripts" referrerpolicy="no-referrer"></iframe><script>document.getElementById("copy").srcdoc=${scriptValue(child)};</script></body></html>`;
 }

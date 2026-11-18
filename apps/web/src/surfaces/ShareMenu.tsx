@@ -7,6 +7,7 @@ import { client } from "../data/client.ts";
 import { notify } from "../data/notices.ts";
 import { t as tr, useT } from "../i18n/index.ts";
 import { openPublicLink, publicLink } from "./public-link.ts";
+import { openPublicCopy } from "./publicRequest.ts";
 
 async function publicShareLink(path: string): Promise<string> {
   const address = await client.call("webhooks.get", {});
@@ -110,6 +111,12 @@ export function shareEntries(surface: SurfaceSummary, t: typeof tr): MenuEntry[]
           },
         ] satisfies MenuEntry[])
       : []),
+    { type: "separator" },
+    {
+      label: t("share.publish"),
+      icon: <Icons.Upload size={16} />,
+      onSelect: () => openPublicCopy({ action: "publish", surface: surface.id }),
+    },
   ];
 }
 

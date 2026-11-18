@@ -107,6 +107,35 @@ taken there, it installs beside it with a number. From a terminal: `apx artifact
 An export that includes memory carries what you typed and the app's records. Share only exports made without memory.
 </Aside>
 
+## Publish a public copy
+
+Sign in to your [APX account](/start/account/), then open an artifact's **Share › Publish copy…**.
+This is separate from sharing a link to your own running APX: it uploads an independent copy to
+`artifact.apxagent.app` so anyone with its link can view it without an account.
+
+No state is selected by default. Expand **View contents** to read each value, select only what you want to
+include, and choose **Review copy**. The next screen shows the publishing account, the public link, size,
+page preview, page source and the exact selected state. Only **Publish copy** uploads it. An agent's request
+also needs this review and your confirmation, even when it can otherwise work without asking.
+
+The HTML itself can contain sensitive information. Review it too: omitting state cannot remove information
+already written into the page. A public copy never includes the artifact's store, database or secret references,
+and cannot make requests to APX or other sites. Features that require those connections will not work there.
+
+**Settings › Account › Published copies** lists your copies. **Manage** lets you copy the link,
+**Update copy…** from a chosen local artifact, or **Stop publishing…**. Updates keep the same link and always
+start with no state selected; local edits are not uploaded automatically. If the original artifact is gone,
+choose another local artifact for an update. Stopping publication does not need the original and does not
+delete it; it makes future reads of the link fail but cannot recall files someone already downloaded.
+
+On a public page, **Open in APX** opens the existing installation dialog in the desktop app. It does not
+install automatically or need the recipient to sign in. **Download file** saves an `.apxart` that you can open
+or drag into APX instead. The copied state can be excluded again before installing.
+
+There is a limit of 20 copies per account, each up to 4,200,000 bytes. A changed artifact, changed account or
+expired review requires a fresh review before publishing. Free cloud quotas also apply: if unavailable,
+your local artifacts still work.
+
 ## Bigger apps
 
 Most apps are one page an agent writes by hand. For a large one, an agent can build it from source (with Preact and

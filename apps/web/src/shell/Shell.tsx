@@ -22,6 +22,7 @@ import {
   FlowsScreen,
   InstallArtifactDialog,
   LiveLayer,
+  listenApxFiles,
   McpPeek,
   NoticeStrip,
   PhoneDialog,
@@ -36,7 +37,6 @@ import {
   WidgetChatHost,
 } from "../lazy.ts";
 import { useAnyLive } from "../surfaces/liveAny.ts";
-import { useApxFiles } from "../surfaces/openedFiles.ts";
 import { widgetChatOpen } from "../surfaces/widgetChatOpen.ts";
 import { ChatWorkspace } from "./ChatWorkspace.tsx";
 import { DiskBanner } from "./DiskBanner.tsx";
@@ -278,5 +278,5 @@ function useDesktopBridge() {
     window.apxDesktop?.setTitleBar?.(nav.get().mode);
     return window.apxDesktop?.onOpenThread?.((id) => go.thread(id));
   }, []);
-  useApxFiles();
+  useEffect(listenApxFiles, []);
 }

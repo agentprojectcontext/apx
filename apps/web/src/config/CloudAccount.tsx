@@ -1,6 +1,7 @@
 import { Button, Input, SettingRow, Spinner } from "@apx/ui";
 import { accountError } from "../data/account.ts";
 import { useT } from "../i18n/index.ts";
+import { PublishedCopies } from "../surfaces/PublishedCopies.tsx";
 import { useCloudAccount } from "./useCloudAccount.ts";
 
 /** Uses the adjacent account card and setting rows: recognize your account, choose a handle, sign out. */
@@ -63,6 +64,7 @@ export function CloudAccount() {
               </Button>
             </SettingRow>
           </form>
+          <PublishedCopies key={profile.id} />
         </>
       )}
       {error != null && (
