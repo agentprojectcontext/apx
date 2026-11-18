@@ -1,4 +1,4 @@
-import { DisclosureFacts, Icons, SummaryCard, SummaryItem, SummaryNote, SummarySection } from "@apx/ui";
+import { DisclosureFacts, IconButton, Icons, SummaryCard, SummaryItem, SummaryNote, SummarySection } from "@apx/ui";
 import type { ReactNode } from "react";
 import "@apx/ui/disclosure.css";
 import "@apx/ui/summary.css";
@@ -150,7 +150,20 @@ function AboutNotes({ a }: { a: About }) {
 }
 
 /** The add box's card: who it is, then all of it, or (once added) only what it brings. */
-export function AboutCard({ a, compact, aside }: { a: About; compact?: boolean; aside?: ReactNode }) {
+export function AboutCard({
+  a,
+  compact,
+  aside,
+  open = true,
+  onToggle,
+}: {
+  a: About;
+  compact?: boolean;
+  aside?: ReactNode;
+  /** Shown whole, or only its head (while the owner pairs a device, say). */
+  open?: boolean;
+  onToggle?(): void;
+}) {
   const t = useT();
   return (
     <SummaryCard
@@ -159,9 +172,25 @@ export function AboutCard({ a, compact, aside }: { a: About; compact?: boolean; 
       meta={a.version}
       badge={<ItemLabel label={a.label} />}
       description={a.tagline}
-      aside={aside}
+      aside={
+        aside || onToggle ? (
+          <span className="mkt-box__aside">
+            {aside}
+            {onToggle && (
+              <IconButton
+                size="sm"
+                variant="ghost"
+                label={t(open ? "box.collapse" : "box.expand")}
+                aria-expanded={open}
+                icon={open ? <Icons.ChevronUp size={15} /> : <Icons.ChevronDown size={15} />}
+                onClick={onToggle}
+              />
+            )}
+          </span>
+        ) : undefined
+      }
     >
-      {compact ? (
+      {!open ? null : compact ? (
         <SummarySection>
           <AboutBrings a={a} />
         </SummarySection>

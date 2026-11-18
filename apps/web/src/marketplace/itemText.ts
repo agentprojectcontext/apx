@@ -68,7 +68,14 @@ export function stepLabel(i: Item, step: Step, t: T): string {
 
 /** It connects to an account (keys, a sign-in): "Connected" fits it; otherwise it is just on. */
 const signsIn = (i: Item) =>
-  Boolean(i.integration || i.channel || i.ext?.secrets.length || i.brings.includes("accounts") || i.server);
+  Boolean(
+    i.integration ||
+      i.channel ||
+      i.ext?.secrets.length ||
+      i.ext?.mcp.length ||
+      i.brings.includes("accounts") ||
+      i.server,
+  );
 
 /** Why one of the owner's own waits on them, in a few words; nothing when it does not. */
 export function waitReason(i: Item, t: T): string | undefined {
@@ -103,6 +110,8 @@ export function bringsText(i: Item, t: T): string {
 /** "From APX", "Added by you": who it comes from; nothing when no one says. */
 export function fromText(i: Item, t: T): string | undefined {
   if (i.label === "own") return t("mkt.from.you");
+  // Third party has no mark by its name: its line says so.
+  if (i.label === "third") return i.publisher ? t("mkt.from.third", { name: i.publisher }) : t("mkt.from.thirdOnly");
   return i.publisher ? t("mkt.from", { name: i.publisher }) : undefined;
 }
 

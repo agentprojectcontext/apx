@@ -211,3 +211,11 @@
     align-items: flex-start;
   }
 }
+.mkt-box__aside {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.mkt-box__line {
+  display: block;
+}

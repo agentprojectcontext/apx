@@ -1,5 +1,16 @@
 import type { CatalogEntry, ExtensionInfo, ExtensionListing, McpServerStatus } from "@apx/protocol";
-import { Button, ConnectSignal, type ConnectSignalState, Dialog, Field, Icons, Input, Steps } from "@apx/ui";
+import {
+  Button,
+  ConnectSignal,
+  type ConnectSignalState,
+  Dialog,
+  Field,
+  Icons,
+  Input,
+  Steps,
+  SummaryCard,
+  SummaryItem,
+} from "@apx/ui";
 import { type ReactNode, useEffect, useRef, useState } from "react";
 import "@apx/ui/summary.css";
 import { client } from "../data/client.ts";
@@ -70,6 +81,36 @@ const filled = (v: string | number | boolean | undefined) => (typeof v === "stri
 const nothingToConnect = (e: ExtensionInfo) =>
   !e.mcp.length && !e.secrets.length && !e.companion && !e.plugin && !e.settings.some((s) => s.required && !s.set);
 
+/** What a newer version changes, framed: from which to which, what it adds or drops, and what happens to it. */
+function UpdateNote({
+  from,
+  to,
+  adds,
+  drops,
+  stays,
+}: {
+  from: string;
+  to: string;
+  adds: string[];
+  drops: string[];
+  stays: boolean;
+}) {
+  const t = useT();
+  return (
+    <SummaryCard variant="outline">
+      <SummaryItem icon={<Icons.ArrowUp size={13} />} title={t("box.update.title", { from, to })}>
+        {adds.length > 0 && <span className="mkt-box__line">{t("box.update.adds", { list: adds.join(" · ") })}</span>}
+        {drops.length > 0 && (
+          <span className="mkt-box__line">{t("box.update.drops", { list: drops.join(" · ") })}</span>
+        )}
+        {!adds.length && !drops.length && <span className="mkt-box__line">{t("box.update.nothingNew")}</span>}
+        <span className="mkt-box__line">{t(stays ? "box.update.stays" : "box.update.waits")}</span>
+        <span className="mkt-box__line">{t("box.update.keeps", { from })}</span>
+      </SummaryItem>
+    </SummaryCard>
+  );
+}
+
 export function InstallBox({
   start,
   top,
@@ -100,6 +141,8 @@ export function InstallBox({
   const [signInUrl, setSignInUrl] = useState<string>();
   const alive = useRef(true);
   const pair = usePairing(ext);
+  // Open to read what it is; folded to its head while the owner follows the pairing steps.
+  const [cardOpen, setCardOpen] = useState(true);
   useEffect(
     () => () => {
       alive.current = false;
@@ -117,6 +160,8 @@ export function InstallBox({
     setProblem(undefined);
     setTools(undefined);
     setSignInUrl(undefined);
+    // Whole to decide on adding it; folded for anything done to one already there (an update, connecting, pairing).
+    setCardOpen(start?.kind !== "installed");
     if (!start) return;
     if (start.kind === "address") return;
     setLooking(true);
@@ -131,8 +176,15 @@ export function InstallBox({
             if (known.some((s) => s.tool_names.length)) setTools(known.flatMap((s) => s.tool_names));
             setPhase("connect");
           })
-        : client.call("extensions.inspect", start.source).then((e) => {
+        : client.call("extensions.inspect", start.source).then(async (e) => {
             setSeen(e);
+            if (e.update) setCardOpen(false);
+            // A newer version of one the owner has: the tools its servers already gave.
+            if (e.update) {
+              const m = await client.call("mcp.list", {});
+              const known = m.servers.filter((x) => x.scope === "global" && e.mcp.includes(x.name));
+              if (known.some((x) => x.tool_names.length)) setTools(known.flatMap((x) => x.tool_names));
+            }
             // Chosen from APX's catalog, these must be APX's files: other ones are not added from here.
             if (start.official && e.provenance !== "official" && !e.catalog)
               setProblem({ key: "box.err.mismatch", vars: { name: e.name, version: e.version } });
@@ -144,6 +196,11 @@ export function InstallBox({
       })
       .finally(() => setLooking(false));
   }, [start]);
+
+  // Past adding it, the action is what matters: the card folds to its head.
+  useEffect(() => {
+    if (phase !== "review") setCardOpen(false);
+  }, [phase]);
 
   // The pairing finished (or the owner said they typed the code): it works.
   useEffect(() => {
@@ -180,7 +237,11 @@ export function InstallBox({
         : undefined;
   const pairs = Boolean(ext?.companion ?? seen?.companion);
   const verb = pairs ? "mkt.step.pair" : "mkt.step.connect";
-  const twoSteps = !(start?.kind === "source" && seen && nothingToConnect(seen)) && start?.kind !== "installed";
+  // A newer version of one the owner has: no Add and Connect trail, and its state on top is the one it has now.
+  const update = seen?.update;
+  const twoSteps =
+    !update && !(start?.kind === "source" && seen && nothingToConnect(seen)) && start?.kind !== "installed";
+  const shownLink: ConnectSignalState = phase === "review" && update?.keeps_on && link === "idle" ? "connected" : link;
 
   /** Starts each server as agents will use it: its tools once ready; a sign-in page waits for the owner. */
   const startServers = async (names: string[]): Promise<string[]> => {
@@ -316,7 +377,9 @@ export function InstallBox({
         : link === "broken"
           ? t(problem?.key === "box.err.download" ? "box.state.offline" : "box.state.broken")
           : phase === "review"
-            ? t("box.state.notYet")
+            ? update
+              ? t("box.state.youHave", { version: update.from })
+              : t("box.state.notYet")
             : t(pairs ? "box.state.notPaired" : "box.state.notConnected");
 
   const heading =
@@ -327,7 +390,9 @@ export function InstallBox({
         : phase === "review"
           ? t(seen?.update ? "box.title.update" : "box.title.add", { name: a.name })
           : phase === "done"
-            ? t("box.title.done", { name: a.name })
+            ? update
+              ? t("box.title.updated", { name: a.name, version: a.version ?? "" })
+              : t("box.title.done", { name: a.name })
             : t(pairs ? "box.title.pair" : "box.title.connect", { name: a.name });
 
   const openPage = () => {
@@ -382,10 +447,10 @@ export function InstallBox({
           <Button
             disabled={!a || Boolean(blocked) || looking}
             loading={busy}
-            leadingIcon={seen?.update ? undefined : <Icons.Plus size={14} />}
+            leadingIcon={update ? <Icons.ArrowUp size={14} /> : <Icons.Plus size={14} />}
             onClick={() => void add()}
           >
-            {t(seen?.update ? "extInstall.update" : "mkt.step.add")}
+            {t(update ? "extInstall.update" : "mkt.step.add")}
           </Button>
         )}
       </>
@@ -429,7 +494,7 @@ export function InstallBox({
           <ConnectSignal
             from={pairs ? <ItemIcon item={a} size={36} /> : <ApxMark />}
             to={pairs ? <ApxMark /> : <ItemIcon item={a} size={36} />}
-            state={link}
+            state={shownLink}
             label={signalLabel}
           />
         )}
@@ -452,28 +517,91 @@ export function InstallBox({
             </span>
           </div>
         )}
-        {a && phase === "review" && seen?.update && (
-          <div className="mkt-box__update">
-            <b>{t("extInstall.updateFrom", { from: seen.update.from })}</b>
-            {seen.update.adds.length > 0 ? (
-              <ul>
-                {seen.update.adds.map((p) => (
-                  <li key={`+${p.kind}${p.name}`}>
-                    {t("extInstall.adds")}: {power(p)}
-                  </li>
-                ))}
-              </ul>
-            ) : (
-              <span>{t("extInstall.nothingNew")}</span>
-            )}
-          </div>
+        {a && phase === "review" && update && (
+          <UpdateNote
+            from={update.from}
+            to={seen?.version ?? ""}
+            adds={update.adds.map(power)}
+            drops={update.removes.map(power)}
+            stays={Boolean(update.keeps_on)}
+          />
         )}
+        {phase === "connect" && ext && !ext.enabled && ext.update && ext.update.adds.length > 0 && (
+          <UpdateNote
+            from={ext.update.from}
+            to={ext.version}
+            adds={ext.update.adds.map(power)}
+            drops={ext.update.removes.map(power)}
+            stays={false}
+          />
+        )}
+        {phase === "connect" &&
+          ext &&
+          (fields.length > 0 || ext.companion || signInUrl || link === "connecting" || agree) && (
+            // What to do now, framed like an update's changes: keys, the pairing steps, a sign-in, what it approves.
+            <SummaryCard variant="outline" className="mkt-box__connect">
+              {fields.map(({ kind, s }) =>
+                kind === "secret" ? (
+                  <Field
+                    key={s.name}
+                    label={s.label}
+                    hint={
+                      "url" in s && s.url ? (
+                        <a href={s.url} target="_blank" rel="noreferrer">
+                          {t("box.whereKey")}
+                        </a>
+                      ) : undefined
+                    }
+                  >
+                    {(id) => (
+                      <Input
+                        id={id}
+                        type="password"
+                        autoComplete="off"
+                        value={String(values[s.name] ?? "")}
+                        onChange={({ currentTarget: { value } }) => setValues((v) => ({ ...v, [s.name]: value }))}
+                      />
+                    )}
+                  </Field>
+                ) : (
+                  <SettingField
+                    key={s.name}
+                    s={s}
+                    value={values[s.name]}
+                    onChange={(v) => setValues((x) => ({ ...x, [s.name]: v }))}
+                  />
+                ),
+              )}
+              {ext.companion && <PairBody ext={ext} pair={pair} />}
+              {signInUrl && (
+                <p className="mkt-box__wait">
+                  {t("box.signInWaiting", { name: ext.name })}{" "}
+                  <a href={signInUrl} target="_blank" rel="noreferrer">
+                    {t("box.signInOpen")} <Icons.ExternalLink size={12} />
+                  </a>
+                </p>
+              )}
+              {link === "connecting" && !signInUrl && !pairs && <p className="mkt-box__wait">{t("box.starting")}</p>}
+              {agree && link !== "connecting" && <p className="mkt-box__agree">{agree}</p>}
+            </SummaryCard>
+          )}
+        {phase === "done" && a && (
+          <p className="mkt-box__ok">
+            <Icons.Check size={15} />
+            <span>
+              {update ? t("box.doneUpdated") : t(pairs ? "box.donePaired" : "box.doneConnected", { name: a.name })}
+            </span>
+          </p>
+        )}
+        {/* What it is comes last once there is something to do: open to add it, folded to its head otherwise. */}
         {a && (
           <AboutCard
             a={a}
+            open={cardOpen}
+            onToggle={() => setCardOpen((o) => !o)}
             compact={phase !== "review"}
             aside={
-              phase !== "review" && label !== "own" && !(start?.kind === "installed") ? (
+              phase !== "review" && !update && label !== "own" && !(start?.kind === "installed") ? (
                 <span className="mkt-box__added">
                   <Icons.Check size={13} />
                   {t("box.added")}
@@ -481,69 +609,6 @@ export function InstallBox({
               ) : undefined
             }
           />
-        )}
-        {phase === "connect" && ext && (
-          <div className="mkt-box__connect">
-            {!ext.enabled && ext.update && ext.update.adds.length > 0 && (
-              <div className="mkt-box__update">
-                <b>{t("ext.updateAdds", { version: ext.version, from: ext.update.from })}</b>
-                <ul>
-                  {ext.update.adds.map((p) => (
-                    <li key={`${p.kind}${p.name}`}>{power(p)}</li>
-                  ))}
-                </ul>
-              </div>
-            )}
-            {fields.map(({ kind, s }) =>
-              kind === "secret" ? (
-                <Field
-                  key={s.name}
-                  label={s.label}
-                  hint={
-                    "url" in s && s.url ? (
-                      <a href={s.url} target="_blank" rel="noreferrer">
-                        {t("box.whereKey")}
-                      </a>
-                    ) : undefined
-                  }
-                >
-                  {(id) => (
-                    <Input
-                      id={id}
-                      type="password"
-                      autoComplete="off"
-                      value={String(values[s.name] ?? "")}
-                      onChange={({ currentTarget: { value } }) => setValues((v) => ({ ...v, [s.name]: value }))}
-                    />
-                  )}
-                </Field>
-              ) : (
-                <SettingField
-                  key={s.name}
-                  s={s}
-                  value={values[s.name]}
-                  onChange={(v) => setValues((x) => ({ ...x, [s.name]: v }))}
-                />
-              ),
-            )}
-            {ext.companion && <PairBody ext={ext} pair={pair} />}
-            {signInUrl && (
-              <p className="mkt-box__wait">
-                {t("box.signInWaiting", { name: ext.name })}{" "}
-                <a href={signInUrl} target="_blank" rel="noreferrer">
-                  {t("box.signInOpen")} <Icons.ExternalLink size={12} />
-                </a>
-              </p>
-            )}
-            {link === "connecting" && !signInUrl && !pairs && <p className="mkt-box__wait">{t("box.starting")}</p>}
-            {agree && link !== "connecting" && <p className="mkt-box__agree">{agree}</p>}
-          </div>
-        )}
-        {phase === "done" && a && (
-          <p className="mkt-box__ok">
-            <Icons.Check size={15} />
-            <span>{t(pairs ? "box.donePaired" : "box.doneConnected", { name: a.name })}</span>
-          </p>
         )}
       </div>
     </Dialog>

@@ -56,6 +56,8 @@ test("from a folder: looked at, added without running, then connected with its k
   await box.getByRole("button", { name: "Conectar", exact: true }).click();
   await expect(box.getByRole("heading", { name: "Northwind Notes está lista" })).toBeVisible({ timeout: 30_000 });
   await expect(box.getByRole("status").filter({ hasText: "Conectada" })).toBeVisible();
+  // Past adding it the card is folded under the action; opened, it lists the tools its server answered with.
+  await box.getByRole("button", { name: "Ver qué trae" }).click();
   await expect(box.getByText(/herramientas: echo y token/)).toBeVisible();
   await box.getByRole("button", { name: "Listo" }).click();
   await expect(box).toBeHidden();
