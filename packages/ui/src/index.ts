@@ -24,6 +24,7 @@ export {
   type CodeFrameProps,
 } from "./components/CodeFrame";
 export { Composer, type ComposerProps } from "./components/Composer";
+export { ConnectSignal, type ConnectSignalProps, type ConnectSignalState } from "./components/ConnectSignal";
 export { ContextMenu, type ContextMenuProps } from "./components/ContextMenu";
 export { ConversationRow, type ConversationRowProps } from "./components/ConversationRow";
 export {
@@ -99,9 +100,17 @@ export { Skeleton, type SkeletonProps } from "./components/Skeleton";
 export { Spinner, type SpinnerProps } from "./components/Spinner";
 export { StatusIcon, type StatusIconProps, type StepStatus } from "./components/StatusIcon";
 export { type Step, StepList, type StepListProps } from "./components/StepList";
+export { Steps, type StepsProps } from "./components/Steps";
 export { StickyScroll, type StickyScrollHandle, type StickyScrollProps } from "./components/StickyScroll";
 export { SubthreadCard, type SubthreadCardProps } from "./components/SubthreadCard";
 export { type Suggestion, SuggestTextarea, type SuggestTextareaProps } from "./components/SuggestTextarea";
+export {
+  SummaryCard,
+  type SummaryCardProps,
+  SummaryItem,
+  SummaryNote,
+  SummarySection,
+} from "./components/SummaryCard";
 export { Switch, type SwitchProps } from "./components/Switch";
 export { SystemNote, type SystemNoteProps } from "./components/SystemNote";
 export { type TabItem, Tabs, type TabsProps } from "./components/Tabs";

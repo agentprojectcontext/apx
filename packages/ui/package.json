@@ -20,7 +20,8 @@
     "./styles.css": "./dist/styles.css",
     "./flow.css": "./dist/flow.css",
     "./disclosure.css": "./dist/disclosure.css",
-    "./catalog-row.css": "./dist/catalog-row.css"
+    "./catalog-row.css": "./dist/catalog-row.css",
+    "./summary.css": "./dist/summary.css"
   },
   "sideEffects": [
     "*.css"

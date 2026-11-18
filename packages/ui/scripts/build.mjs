@@ -52,4 +52,6 @@ writeFileSync("dist/flow.css", readFileSync("src/styles/components/flow.css", "u
 // Disclosure and catalog rows are only on the Marketplace, which loads late too.
 writeFileSync("dist/disclosure.css", readFileSync("src/styles/components/disclosure.css", "utf8"));
 writeFileSync("dist/catalog-row.css", readFileSync("src/styles/components/catalog-row.css", "utf8"));
-console.log("built dist/ (index.js, index.d.ts, styles.css, flow.css, disclosure.css, catalog-row.css)");
+// Adding and connecting (signal, steps, summary card) is on the Marketplace only.
+writeFileSync("dist/summary.css", readFileSync("src/styles/components/summary.css", "utf8"));
+console.log("built dist/ (index.js, index.d.ts, styles.css, flow.css, disclosure.css, catalog-row.css, summary.css)");
