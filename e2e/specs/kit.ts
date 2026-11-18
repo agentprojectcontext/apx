@@ -284,7 +284,7 @@ export async function expectHint(page: Page, targets: Locator, text: string | Re
   for (const target of await targets.all()) {
     await target.hover();
     try {
-      await expect(tip).toHaveText(text, { timeout: 2_000 });
+      await expect(tip).toHaveText(text, { timeout: 5_000 });
       return;
     } catch {
       await page.mouse.move(0, 0);

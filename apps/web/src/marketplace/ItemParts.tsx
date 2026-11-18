@@ -169,10 +169,19 @@ export function ItemParts({ item, servers }: { item: Item; servers: McpServerSta
     rows.push(<Connection key="conn" item={item} server={item.server} name={item.name} />);
   if (e?.skills.length || (!e && item.brings.includes("skills")))
     rows.push(
-      <Part key="skills" icon={<Icons.Sparkles size={14} />} title={t("mkt.part.skillsTitle")} kind="mkt.part.skillOne">
-        <p className="mkt-part__note">
-          {e?.skills.length ? t("mkt.part.skillsN", { n: e.skills.length }) : t("mkt.part.skillsSome")}
-        </p>
+      <Part
+        key="skills"
+        icon={<Icons.Sparkles size={14} />}
+        title={
+          !e?.skills.length
+            ? t("box.skills")
+            : e.skills.length === 1
+              ? t("box.skillsOne")
+              : t("box.skillsN", { n: e.skills.length })
+        }
+        kind="mkt.part.skillOne"
+      >
+        <p className="mkt-part__note">{t("mkt.part.skillsNote")}</p>
       </Part>,
     );
   if (e?.agents.length) rows.push(<Agents key="agents" e={e} />);
@@ -187,7 +196,7 @@ export function ItemParts({ item, servers }: { item: Item; servers: McpServerSta
       <Part
         key="routines"
         icon={<Icons.Clock size={14} />}
-        title={t("mkt.part.routinesTitle", { n: e.routines.length })}
+        title={e.routines.length === 1 ? t("box.routinesOne") : t("box.routinesN", { n: e.routines.length })}
         kind="mkt.part.routineOne"
       >
         <ExtensionRoutines e={e} onAdd={addRoutine} bare />

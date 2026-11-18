@@ -188,7 +188,7 @@ test("an extension's routine says what and when, waits to be added, and once in 
   await page.getByRole("button", { name: "Marketplace", exact: true }).first().click();
   // Installed, it is one of the owner's own: its page lists what it brings, the routine among them.
   await page.getByRole("button", { name: "Daily brief" }).first().click();
-  await page.getByText("1 rutina(s)").click();
+  await page.getByText("Una rutina", { exact: true }).click();
   await page.getByRole("button", { name: "Agregar a Rutinas" }).click();
   await expect(page.getByText("En Rutinas · apagada")).toBeVisible();
   await expect(page.getByRole("button", { name: "Agregar a Rutinas" })).toHaveCount(0);
