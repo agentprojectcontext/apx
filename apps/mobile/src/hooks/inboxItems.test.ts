@@ -67,7 +67,7 @@ test("a pending confirmation is an approval card that approves in place, ahead o
 test("public copies never offer inbox approval, including longer scopes", () => {
   for (const extra of [
     { artifact_draft: "00000000-0000-4000-8000-000000000001" },
-    { tool: "surfaces.public_commit" },
+    { tool: "apx_settings", artifact_draft: "00000000-0000-4000-8000-000000000001" },
   ]) {
     const [item] = inboxItems(
       data({ inputs: [input("copy", { ...extra, approval_scopes: ["once", "session", "always"] })] }),

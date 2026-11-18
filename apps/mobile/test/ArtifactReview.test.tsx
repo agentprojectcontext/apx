@@ -17,7 +17,7 @@ const input: PendingInput = {
   kind: "confirm",
   state: "pending",
   prompt: "Publish this copy?",
-  tool: "surfaces.public_commit",
+  tool: "apx_settings",
   artifact_draft: "00000000-0000-4000-8000-000000000001",
   approval_scopes: ["once", "session", "always"],
 };
@@ -83,8 +83,8 @@ test.each(["en", "es"] as const)("%s inbox opens the chat without approving the 
 
 test.each([
   { ...input, tool: undefined },
-  { ...input, artifact_draft: undefined },
-])("input card blocks approval from either public-review marker (%j)", async (pending) => {
+  { ...input, tool: "apx_settings" },
+])("input card blocks approval for draft metadata with or without a tool name (%j)", async (pending) => {
   const ui = await render(
     <InputCard part={{ ...pending, type: "input", input_id: pending.id, state: "pending" }} respond={jest.fn()} />,
   );
