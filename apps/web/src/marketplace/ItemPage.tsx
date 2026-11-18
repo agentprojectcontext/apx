@@ -39,12 +39,15 @@ function Shot({ id, file, caption }: { id: string; file: string; caption: string
 
 export function ItemPage({
   item,
+  twin,
   servers,
   backLabel,
   onBack,
   onChanged,
 }: {
   item: Item;
+  /** The one APX includes under the same name, when this comes from another catalog. */
+  twin?: Item | undefined;
   servers: McpServerStatus[];
   backLabel: string;
   onBack(): void;
@@ -258,6 +261,14 @@ export function ItemPage({
         </div>
       </header>
       {notice}
+      {twin && (
+        <div className="mkt-notice" role="status">
+          <span>{t("mkt.twin", { name: twin.name, catalog: item.entry?.catalog_name ?? "" })}</span>
+          <Button size="sm" variant="secondary" onClick={() => go.marketplace("extensions", twin.key)}>
+            {t("mkt.twinSee")}
+          </Button>
+        </div>
+      )}
       <div className="mkt-page__cols">
         <div className="mkt-page__main">
           {item.listing && item.listing.screenshots.length > 0 && (

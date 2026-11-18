@@ -1,5 +1,5 @@
 import type { Result } from "@apx/protocol";
-import { Button, ConfirmDialog, Dialog, Field, IconButton, Icons, Input } from "@apx/ui";
+import { Button, ConfirmDialog, Dialog, Field, IconButton, Icons, Input, Tooltip } from "@apx/ui";
 import { useState } from "react";
 import { client } from "../data/client.ts";
 import { notify } from "../data/notices.ts";
@@ -144,9 +144,11 @@ export function CatalogList({
           <Button size="sm" variant="ghost" trailingIcon={<Icons.ArrowRight size={14} />} onClick={() => onOpen("apx")}>
             {t("mkt.catalogSee")}
           </Button>
-          <span className="mkt-catalog__always" title={t("mkt.catalogFixed")}>
-            <Icons.Lock size={14} aria-label={t("mkt.catalogFixed")} />
-          </span>
+          <Tooltip content={t("mkt.catalogFixed")}>
+            <span className="mkt-catalog__always" role="img" aria-label={t("mkt.catalogFixed")}>
+              <Icons.Lock size={14} />
+            </span>
+          </Tooltip>
         </div>
       </div>
       {catalogs.map((c) => (

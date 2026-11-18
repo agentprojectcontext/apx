@@ -255,4 +255,7 @@ export const esMarketplace = {
   "mkt.removeBody": "Se borran sus archivos, claves y ajustes. La podés volver a agregar después.",
   "mkt.disconnectTitle": "¿Desconectar {name}?",
   "mkt.disconnectBody": "Tus agentes dejan de usarla y se borran sus claves. La podés volver a conectar después.",
+  "mkt.twin":
+    "APX ya incluye {name}: se conecta sin agregar nada. Esta viene del catálogo {catalog}; agregala sólo si necesitás algo que la incluida no hace.",
+  "mkt.twinSee": "Ver la incluida",
 } satisfies Record<keyof typeof enMarketplace, string>;
