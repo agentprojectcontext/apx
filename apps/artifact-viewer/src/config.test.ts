@@ -3,7 +3,7 @@ import { test } from "node:test";
 import { viewerConfig } from "./config.ts";
 
 test("viewer builds require an explicit project and never mix real projects with an emulator", () => {
-  assert.throws(() => viewerConfig({}), /explicitly/);
+  assert.throws(() => viewerConfig({}), /VITE_ARTIFACT_FIREBASE_PROJECT=<project-id> pnpm build/);
   for (const project of ["../other", "", "UPPERCASE", "demo-apx-artifacts"]) {
     assert.throws(() => viewerConfig({ VITE_ARTIFACT_FIREBASE_PROJECT: project }));
   }

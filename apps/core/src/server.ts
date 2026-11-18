@@ -371,6 +371,9 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
   const publications = createPublicationService({
     account,
     store,
+    home: config.home,
+    onReceiptPersistenceError: () =>
+      log.warn({}, "Public copy completed remotely, but its local receipt could not be saved"),
     project: cloudClient?.project,
     fetch: opts.publicArtifactFetch,
   });

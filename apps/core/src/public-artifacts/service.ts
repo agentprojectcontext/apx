@@ -11,6 +11,8 @@ export function createPublicationService(deps: {
   account: Account;
   store: Store;
   project: string | undefined;
+  home: string;
+  onReceiptPersistenceError?(): void;
   fetch?: typeof fetch | undefined;
 }) {
   const drafts = createPublicationDrafts({
@@ -18,7 +20,8 @@ export function createPublicationService(deps: {
     cloud: createPublicArtifactCloud({ project: deps.project ?? "apx-agents", fetch: deps.fetch }),
     source: (id) => deps.store.surfaces.get(id),
     decorateHtml: (html) => withKit(html),
-    persistence: publicationDraftPersistence(deps.store.settings),
+    persistence: publicationDraftPersistence(deps.store.settings, deps.home),
+    onReceiptPersistenceError: deps.onReceiptPersistenceError,
     pendingUntil: (id) => {
       const deadlines = deps.store.inputs
         .pending()

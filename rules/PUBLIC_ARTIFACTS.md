@@ -81,8 +81,15 @@ error honestly, preserve confirmed state and document the limits. Do not weaken 
 ## APX integration
 
 `public-artifacts/drafts.ts` creates expiring, opaque preview IDs without uploading anything. At most twenty
-selected snapshots are retained privately in the local database for thirty days, extended through the actual
-pending-card deadline. Twenty separate metadata-only slots reserve room for revocation; the twenty most recent
+selected snapshots are retained privately for thirty days, extended through the actual pending-card deadline.
+The database holds only metadata and integrity references; immutable bytes live in per-draft files under
+`<home>/public-artifact-drafts` (0700 directory, 0600 files on POSIX; the home ACL applies on Windows). Unchanged
+files are not rewritten. Files are staged before committing metadata; failed metadata commits roll back new
+files, and obsolete files are collected only after a successful metadata commit. Include both the database
+and this folder in backups. Inline snapshots from the earlier data layout move once after validation, without
+losing pending cards; a failed migration preserves the prior row. Missing or corrupt bytes invalidate only
+the affected review. A confirmed cloud result remains successful if saving its local receipt fails; the core
+logs a content-free warning. Inspect the published list before retrying after a local storage failure. Twenty separate metadata-only slots reserve room for revocation; the twenty most recent
 completion receipts are retained without their copied bytes and do not consume review capacity. At capacity,
 the oldest uncommitted review without an in-flight write or live pending card is replaced; actual pending cards
 are protected, including when preparing another review of the same source. Closing a directly prepared human

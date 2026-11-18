@@ -64,6 +64,7 @@ export type PublicationDraftDependencies = {
   code?: () => string;
   persistence?: PublicationDraftPersistence;
   pendingUntil?(id: string): number | undefined;
+  onReceiptPersistenceError?(): void;
 };
 
 export function createPublicationDrafts(deps: PublicationDraftDependencies) {
@@ -77,8 +78,8 @@ export function createPublicationDrafts(deps: PublicationDraftDependencies) {
   }
   const persist = () =>
     deps.persistence?.save(
-      [...drafts.values()].map(({ pending: _pending, generation: _generation, reviewToken: _token, ...draft }) =>
-        structuredClone(draft),
+      [...drafts.values()].map(
+        ({ pending: _pending, generation: _generation, reviewToken: _token, ...draft }) => draft,
       ),
     );
   const snapshot = (id: string, keys: string[]) => {
@@ -179,7 +180,14 @@ export function createPublicationDrafts(deps: PublicationDraftDependencies) {
         drafts.delete(draft.id);
         drafts.set(draft.id, draft);
         trimPublicationReceipts(drafts);
-        persist();
+        try {
+          persist();
+        } catch {
+          // A local receipt failure cannot undo the confirmed remote action.
+          try {
+            deps.onReceiptPersistenceError?.();
+          } catch {}
+        }
         return { ...draft.done };
       } finally {
         delete draft.pending;

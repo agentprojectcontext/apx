@@ -58,7 +58,9 @@ not uniformly contained by CSP. Do not preview untrusted copies when those resid
 ## Reads and revocation
 
 The server-confirmed document listener supplies the first metadata snapshot. An initial successful view of an
-N-part copy uses N part reads and one final server metadata read, plus the listener's initial read (N + 2). Each
+N-part copy uses N part reads and one final server metadata read, plus the listener's initial read. The part
+rules also call `exists()` on the public parent: allow approximately **2N + 2 billed reads**, not N + 2.
+Batching, caching and rule evaluation can affect billing; this is an estimate, not a quota guarantee. Each
 download reuses only previously SHA-256-verified parts in memory and performs two fresh server metadata reads;
 it revalidates the assembled bytes, schema and hash. It never rereads parts just to download the same revision.
 A listener update fetches the new parts, while revocation, lost connectivity, listener errors and deadlines clear
@@ -69,7 +71,11 @@ billable reads; these counts are successful-path document reads, not a quota gua
 
 There is no implicit production project. Set `VITE_ARTIFACT_FIREBASE_PROJECT` explicitly for every dev server
 and build. A real project cannot use `VITE_ARTIFACT_EMULATOR=1`; a `demo-*` project requires it. Missing or mixed
-configuration fails the build. The Hosting config uses the `artifacts` target instead of a hard-coded site.
+configuration fails the build with the exact environment command to use, including when running `pnpm build`
+from the repository root. For an isolated full build use
+`VITE_ARTIFACT_FIREBASE_PROJECT=demo-apx-artifacts VITE_ARTIFACT_EMULATOR=1 pnpm build`.
+This builds local files only and does not choose a production project. The Hosting config uses the `artifacts`
+target instead of a hard-coded site.
 Before any future authorized deployment, bind that target explicitly for the selected project, verify the built
 project id and deploy with an explicit `--project` and `--only hosting:artifacts` scope. This does not create a
 project, migrate documents, enable billing or deploy rules. Core publishing and anonymous installation reads

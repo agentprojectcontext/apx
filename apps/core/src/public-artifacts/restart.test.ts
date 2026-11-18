@@ -47,6 +47,7 @@ test("a pending public-copy card survives a core restart but its old review toke
     const input = await pendingInput(first.client, thread.id);
     const stored = first.core.store.settings.get("public_artifact_drafts") ?? "";
     assert.ok(stored.includes(draft));
+    assert.doesNotMatch(stored, /<h1>|"json":/);
     assert.equal(stored.includes(review.review_token), false);
     assert.doesNotMatch(stored, /private-identity-token|private-refresh-token|reviewToken|generation/);
     await first.core.close();
