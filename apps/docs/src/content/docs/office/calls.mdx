@@ -67,7 +67,9 @@ to another provider.
 - For listening, use an OpenAI-compatible transcription service, a local Whisper server, or whisper.cpp. A speech-only
   provider does not transcribe. Configure whisper.cpp's model through **Hear** if you want local CPU transcription.
 
-Turn taking runs on the core's computer using CPU models. The first call downloads its Python dependencies and small
+On Windows and Linux, install [uv](https://docs.astral.sh/uv/getting-started/installation/) on the core's computer first;
+APX currently downloads uv automatically only on supported Macs. Turn taking runs on the core's computer using CPU
+models. The first call downloads its Python dependencies and small
 voice-activity and end-of-turn models with uv; it does not download MLX or Qwen speech models. Calls need an available
 microphone and browser audio permission. Audio sent to a remote speech or transcription service is handled by that
 service. Responses are played after each sentence's synthesis completes; provider audio is not token-streamed. Live

@@ -13,12 +13,14 @@ export function createCallAudio(deps: {
   native: NativeVoiceSettings;
   engine: VoiceEngine;
   services: Services;
+  uv?: (() => string | undefined) | undefined;
 }) {
   const { native, engine, services, store } = deps;
   const remote = createVoiceEngine({
     log: deps.log,
     home: deps.home,
     services: true,
+    uv: deps.uv,
     uvProgram: createUv({ dir: path.join(deps.home, "bin"), log: deps.log }),
   });
   const eligible = (kind: "speech" | "transcription", id?: string) =>

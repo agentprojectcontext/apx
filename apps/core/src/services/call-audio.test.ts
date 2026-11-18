@@ -15,7 +15,15 @@ test("calls with configured services work on Linux without enabling or installin
   const engine = createVoiceEngine({ log, home: env.home, platform: "linux", arch: "x64", uv: () => "uv" });
   const services = createServices({ store: env.core.store, secrets: env.core.secrets, home: env.home, log });
   const native = createNativeVoice({ store: env.core.store, services, engine, log, auto: false });
-  const audio = createCallAudio({ store: env.core.store, home: env.home, log, native, engine, services });
+  const audio = createCallAudio({
+    store: env.core.store,
+    home: env.home,
+    log,
+    native,
+    engine,
+    services,
+    uv: () => "uv",
+  });
   const handlers = callHandlers({ ...audio, native, engine, calls: env.core.voice.calls });
   try {
     assert.equal(native.status().tier, "none");

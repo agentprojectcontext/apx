@@ -70,6 +70,8 @@ otro proveedor. **Administrar servicios** te lleva de vuelta a esas listas para 
 
 Los turnos de conversación se detectan en la CPU de la computadora del core. La primera llamada descarga dependencias
 de Python y modelos pequeños de detección de voz y fin de turno con uv; no descarga MLX ni modelos de voz de Qwen.
+En Windows y Linux, instalá [uv](https://docs.astral.sh/uv/getting-started/installation/) primero en la computadora del
+core; por ahora APX sólo descarga uv automáticamente en las Mac compatibles.
 Necesitás un micrófono disponible y permiso de audio del navegador. El audio enviado a un servicio remoto lo procesa
 ese servicio. Cada frase se reproduce cuando termina su síntesis; no se recibe audio token por token. En el modo de
 servicios no hay transcripción parcial en vivo. Interrumpir detiene la reproducción y cancela pedidos pendientes, pero
