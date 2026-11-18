@@ -281,11 +281,12 @@ export const PEOPLE: Readonly<Record<string, Setting>> = {
     now: (_p, { store }) => ({ on: store.settings.read("imessage").on }),
   },
   "owner.get": {
-    does: "the owner's own profile: name, about, language, time zone",
+    does: "the owner's own profile: name, how to call them, about, language, time zone",
     read: (_p, { store }) => {
       const o = ownerIdentity(store);
       return [
         `name: ${inlineName(o.name) || "(none)"}`,
+        `call them: ${inlineName(o.call_me) || "(by their name)"}`,
         `language: ${o.language}`,
         `time zone: ${o.timezone || "this computer's"}`,
         `about: ${o.about || "(none)"}`,
@@ -293,7 +294,7 @@ export const PEOPLE: Readonly<Record<string, Setting>> = {
     },
   },
   "owner.set": {
-    does: "change the owner's own profile (only what changes: name, about, language, timezone)",
+    does: "change the owner's own profile (only what changes: name, call_me, about, language, timezone)",
     says: () => "Change your profile",
     now: (_p, { store }) => ownerIdentity(store),
     keep: (p, { store }) => merged(ownerIdentity(store), p),

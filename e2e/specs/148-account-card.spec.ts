@@ -58,10 +58,19 @@ test("signed in with another name: the owner sees both and keeps or takes the ac
   // The sidebar's account row shows the same photo.
   await expect(page.locator(".account__avatar img")).toHaveAttribute("src", PHOTO);
   await expect(settings.getByRole("textbox", { name: "Nombre de usuario" })).toBeVisible();
+
+  // How to be called is apart from the name: the agents and the panel use it, the card keeps the name.
+  const callMe = settings.getByRole("textbox", { name: "Cómo querés que te llamen" });
+  await callMe.fill("Ani");
+  await callMe.press("Enter");
+  await expect.poll(async () => (await rpc<{ call_me: string }>("owner.get")).call_me).toBe("Ani");
+  await expect(card.getByText("Ana Acme", { exact: true })).toBeVisible();
+  await page.screenshot({ path: info.outputPath("account-call-me.png") });
   await page.screenshot({ path: info.outputPath("account-signed-in.png") });
 
-  // Asked once for that account: reopening the screen does not ask again.
+  // Asked once for that account: reopening the screen does not ask again. The sidebar calls you as you asked.
   await page.reload();
+  await expect(page.getByRole("button", { name: "Cuenta: Ani" })).toBeVisible();
   await openAccount(page);
   await expect(page.getByText("¿Usar el nombre de tu cuenta de Google?")).toHaveCount(0);
   await page.setViewportSize({ width: 390, height: 844 });

@@ -117,6 +117,8 @@ export const SETTINGS = {
   owner_profile: entry(
     z.object({
       about: z.string().catch(""),
+      /** How the owner wants to be called; empty: by their name. */
+      call_me: z.string().optional().catch(undefined),
       timezone: z.string().catch(""),
       // Unset: publishing runs without asking ("auto").
       publish: z.enum(["auto", "ask"]).optional().catch(undefined),

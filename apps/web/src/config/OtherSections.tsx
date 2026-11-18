@@ -26,7 +26,9 @@ export function AccountSection() {
   const account = useCloudAccount();
   const profile = account.profile;
   const [owner, setOwner] = useState<OwnerIdentity>();
+  // Your name (who you are) and how you want to be called; the panel shows the second, else the first.
   const [draft, setDraft] = useState(stored);
+  const [callDraft, setCallDraft] = useState("");
   // biome-ignore lint/correctness/useExhaustiveDependencies: read again once signed in, as signing in names an owner who had none
   useEffect(() => {
     void client
@@ -34,7 +36,8 @@ export function AccountSection() {
       .then((o) => {
         setOwner(o);
         ownerRead(o);
-        if (o.name && !stored) setDraft(o.name);
+        setDraft(o.name || stored);
+        setCallDraft(o.call_me);
       })
       .catch(() => {});
   }, [stored, profile?.id]);
@@ -44,15 +47,20 @@ export function AccountSection() {
       .then((o) => {
         setOwner(o);
         ownerRead(o);
+        setPrefs({ displayName: (o.call_me || o.name).trim() });
       })
       .catch((e: unknown) => notify(t("error.account", { error: e instanceof Error ? e.message : String(e) })));
   const saveName = (value = draft) => {
     const name = value.trim();
     setDraft(name);
-    setPrefs({ displayName: name });
     if (name && name !== owner?.name) save({ name });
   };
-  const current = (stored || owner?.name || "").trim();
+  const saveCallMe = () => {
+    const call = callDraft.trim();
+    setCallDraft(call);
+    if (call !== (owner?.call_me ?? "")) save({ call_me: call });
+  };
+  const current = (owner?.name || stored || "").trim();
   const offered = profile?.name.trim() ?? "";
   const choose = profile && owner && current && offered && current !== offered && asked !== profile.id;
   return (
@@ -70,6 +78,19 @@ export function AccountSection() {
           onBlur={() => saveName()}
           onKeyDown={(e) => e.key === "Enter" && saveName()}
           aria-label={t("account.name")}
+        />
+      </SettingRow>
+      <SettingRow title={t("account.callMe")} description={t("account.callMeHint")}>
+        <Input
+          size="sm"
+          className="config__input"
+          value={callDraft}
+          placeholder={draft.trim() || you}
+          maxLength={80}
+          onChange={(e) => setCallDraft(e.currentTarget.value)}
+          onBlur={saveCallMe}
+          onKeyDown={(e) => e.key === "Enter" && saveCallMe()}
+          aria-label={t("account.callMe")}
         />
       </SettingRow>
       {profile && <AccountHandle profile={profile} account={account} />}
