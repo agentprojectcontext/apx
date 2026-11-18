@@ -60,6 +60,22 @@ Presets: **OpenCode Zen**, **Gemini**, **Anthropic**, **OpenAI**, **OpenRouter**
 **DeepSeek**, **Mistral**, **Ollama**, **LM Studio**, and **OpenAI-compatible** for anything else that speaks that
 API. Ollama and LM Studio run on your machine and need no key.
 
+### GPT-6.2 compatibility (unreleased)
+
+The development branch recognizes GPT-6.2 Astra and Sol's documented 1,050,000-token API window and image input.
+For these exact model IDs at OpenAI's official API address, APX uses Responses rather than Chat Completions,
+because tool calling requires it. Stable guidance goes first in the conversation; reasoning efforts `none` and
+`minimal`, including lighter auxiliary calls, use `low` for that request without changing your saved selection.
+
+The same instruction and effort handling applies if your connected ChatGPT plan offers these models. The plan and
+Codex keep a conservative 500,000-token fallback until the engine reports its own window. Availability is read
+from your account; APX neither adds these models to its list nor switches an agent automatically.
+
+Verification uses local simulators, not paid OpenAI requests: real account access, reasoning retention and cache
+hits remain unverified. OpenAI may discard reasoning after earlier conversation items change; APX does not promise
+retention after context compaction or prefix edits. Other API gateways keep their existing transport and require
+separate compatibility checks. See the [official migration guide](https://developers.openai.com/api/docs/guides/latest-model?model=gpt-6.2-astra).
+
 ### Model launch notices
 
 Important launches can appear in the small notice cards below notifications, never in the notice strip or the

@@ -1,3 +1,5 @@
+import { chatgptResponses } from "./chatgpt-responses.ts";
+import { officialGpt62 } from "./gpt-62.ts";
 import { grammarSchema } from "./tool-schema.ts";
 // OpenAI-compatible chat completions: OpenAI, Gemini (OpenAI endpoint), OpenRouter, Groq, Ollama, LM Studio…
 import {
@@ -76,6 +78,7 @@ function wire(items: TransportRequest["messages"], gemini: boolean): unknown[] {
 }
 
 export const openaiChat: Transport = async (req) => {
+  if (officialGpt62(req.baseUrl, req.model)) return chatgptResponses(req);
   const stream = Boolean(req.onText);
   const { res, touch, done } = await post(
     req,

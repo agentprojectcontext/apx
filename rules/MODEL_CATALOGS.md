@@ -55,8 +55,21 @@ For an OpenAI service still using the retired `gpt-image-1`, edit its model in S
 generating or editing again. Both operations use the saved model.
 
 Context windows distinguish API models from subscription defaults: GPT-5.6 Sol, GPT-6 Astra, Luna, Sol and GPT-6.1
-Sol/Terra have a 1,050,000-token API window; GPT-6 `codex/` and `chatgpt/` refs use a 500,000-token fallback.
-A window reported by the running provider takes precedence. Gemma 4's 12B, 26B A4B and 31B variants use 256K, E2B/E4B use 128K, and GPT-OSS
+Sol/Terra and GPT-6.2 Astra/Sol have a 1,050,000-token API window; GPT-6 `codex/` and `chatgpt/` refs use a 500,000-token fallback.
+A window reported by the running provider takes precedence.
+
+GPT-6.2 Astra/Sol use the existing Responses adapter at the exact official `https://api.openai.com/v1` address,
+not Chat Completions (tool calling requires Responses). Stable guidance is the first developer input item;
+`none`/`minimal` efforts are floored to `low` per call, including auxiliary lighter requests, without persisting a
+selection change. The ChatGPT Responses adapter uses the same instruction/effort rules if its catalog offers
+these exact IDs. Other gateways and external Codex sessions keep their existing transport contract. Local
+simulators verify wire behavior only, not account access, paid inference, cache hits or retention of reasoning
+after prefix edits/context compaction. Sources: [changelog](https://developers.openai.com/api/docs/changelog),
+[Astra](https://developers.openai.com/api/docs/models/gpt-6.2-astra),
+[Sol](https://developers.openai.com/api/docs/models/gpt-6.2-sol),
+[migration guide](https://developers.openai.com/api/docs/guides/latest-model?model=gpt-6.2-astra).
+
+Gemma 4's 12B, 26B A4B and 31B variants use 256K, E2B/E4B use 128K, and GPT-OSS
 20B/120B use 131,072. Gemma 4 reads images; GPT-OSS does not. Decision-only Gemini and FLUX.2 Klein image models
 stay listed but are not offered for agent turns, including locally discovered lists.
 

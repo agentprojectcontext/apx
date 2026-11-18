@@ -4,7 +4,7 @@ const WINDOWS: ReadonlyArray<[RegExp, number]> = [
   [/^claude-(?:opus-4-[678]|sonnet-4-6)(?:[-#]|$)/, 1_000_000],
   [/claude/, 200_000],
   [/gemini-([1-9]|flash|pro)/, 1_048_576],
-  [/^gpt-(?:6-(?:astra|sol|luna)|6\.1-(?:sol|terra)|5\.6-sol)(?:[-#]|$)/, 1_050_000],
+  [/^gpt-(?:6-(?:astra|sol|luna)|6\.1-(?:sol|terra)|6\.2-(?:astra|sol)|5\.6-sol)(?:[-#]|$)/, 1_050_000],
   [/gpt-5/, 400_000],
   [/^gemma-?4[-:](?:26b|31b|12b)(?:[-:#]|$)/, 262_144],
   [/^gemma-?4[-:]e[24]b(?:[-:#]|$)/, 131_072],

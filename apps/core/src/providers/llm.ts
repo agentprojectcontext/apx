@@ -5,6 +5,7 @@ import { parseRef } from "../domain/refs.ts";
 import type { Secrets } from "../secrets.ts";
 import { anthropicMessages } from "./anthropic-messages.ts";
 import { chatgptResponses } from "./chatgpt-responses.ts";
+import { isGpt62, officialGpt62 } from "./gpt-62.ts";
 import { openaiChat } from "./openai-chat.ts";
 import {
   type ChatItem,
@@ -185,7 +186,11 @@ export function createLlm(opts: {
       for (const t of list) {
         if (skipped.has(t.provider.id)) continue;
         const ref = `${t.provider.id}/${t.model}`;
-        const effort = callEffort(t.effort, req.lighter);
+        const requestedEffort = callEffort(t.effort, req.lighter);
+        const gpt62 =
+          officialGpt62(t.provider.base_url, t.model) ||
+          (t.provider.transport === "chatgpt-responses" && isGpt62(t.model));
+        const effort = gpt62 && (requestedEffort === "none" || requestedEffort === "minimal") ? "low" : requestedEffort;
         const hold = held.get(ref);
         if (hold && hold.until > now()) {
           // What the provider said when it was held, so the owner can tell a real plan limit from a misread one.
