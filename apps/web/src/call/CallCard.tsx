@@ -24,6 +24,8 @@ const END_REASON: Record<string, MessageKey> = {
   engine: "callCard.end.engine",
   network: "callCard.end.network",
   max_duration: "callCard.end.max_duration",
+  speech: "callCard.end.speech",
+  transcription: "callCard.end.transcription",
 };
 
 // Spanish first, the neutral accent before the Argentine one.
@@ -267,20 +269,29 @@ export function CallCard() {
               {t(problem ?? (missing ? `callCard.missing.${missing}` : "callCard.failed"), { name })}
             </p>
           )}
-          {!problem && !busy && (missing === "off" || missing === "model") && (
-            <Button
-              size="sm"
-              variant="secondary"
-              fullWidth
-              onClick={() => {
-                closeCall();
-                go.config(missing === "off" ? "voices" : "engines");
-              }}
-            >
-              {t(missing === "off" ? "callCard.openVoices" : "callCard.openModels")}
-            </Button>
+          {!problem &&
+            !busy &&
+            (missing === "off" ||
+              missing === "model" ||
+              missing === "speech" ||
+              missing === "transcription" ||
+              missing === "platform") && (
+              <Button
+                size="sm"
+                variant="secondary"
+                fullWidth
+                onClick={() => {
+                  closeCall();
+                  go.config(missing === "model" ? "engines" : "calls");
+                }}
+              >
+                {t(missing === "model" ? "callCard.openModels" : "callCard.openVoices")}
+              </Button>
+            )}
+          {stage === "setup" && status?.engine === "services" && (
+            <p className="callcard__hint">{t("callCard.serviceVoice")}</p>
           )}
-          {stage === "setup" && (
+          {stage === "setup" && status?.engine !== "services" && (
             <div className="callcard__voice">
               <span>{t("callCard.voice")}</span>
               <SegmentedControl
@@ -299,7 +310,7 @@ export function CallCard() {
               />
             </div>
           )}
-          {stage === "setup" && (
+          {stage === "setup" && status?.engine !== "services" && (
             <div className="callcard__voice">
               <span>{t("callCard.accent")}</span>
               <Select

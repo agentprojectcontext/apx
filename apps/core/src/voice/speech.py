@@ -17,6 +17,12 @@ import numpy as np
 
 SR_IN, SR_OUT = 16000, 24000
 FRAME = 512  # 32 ms at 16 kHz: what the VAD model takes
+def wav(pcm, rate):
+    import struct
+    return b"RIFF" + struct.pack("<I4s4sIHHIIHH4sI", 36 + len(pcm), b"WAVE", b"fmt ", 16, 1, 1, rate, rate * 2, 2, 16,
+                                 b"data", len(pcm)) + pcm
+
+
 LANGS = {"es": "spanish", "en": "english"}
 VOICES = Path(__file__).parent / "voices"
 

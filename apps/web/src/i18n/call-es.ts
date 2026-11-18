@@ -29,17 +29,24 @@ export const esCall: Record<keyof typeof enCall, string> = {
   "callCard.ended": "Llamada terminada",
   "callCard.end.engine": "La voz se detuvo. Probá de nuevo en un momento.",
   "callCard.end.network": "Se cortó la conexión.",
+  "callCard.end.speech": "El servicio de voz no pudo hablar. Revisalo en Ajustes › Voz y llamadas.",
+  "callCard.end.transcription":
+    "El servicio de transcripción no pudo escucharte. Revisalo en Ajustes › Voz y llamadas.",
+  "callCard.serviceVoice": "Usa la voz que elegiste en Ajustes › Voz y llamadas.",
+  "callCard.missing.speech": "Agregá o activá un servicio de voz en Ajustes › Voz y llamadas.",
+  "callCard.missing.transcription": "Agregá o activá un servicio de transcripción en Ajustes › Voz y llamadas.",
   "callCard.end.max_duration": "Las llamadas terminan a las dos horas.",
   "callCard.failed": "La llamada no empezó. Probá de nuevo.",
   "callCard.busy": "Ya hay una llamada en curso.",
   "callCard.mic": "APX no te escucha. Permití el micrófono para APX y volvé a llamar.",
-  "callCard.missing.platform": "Las llamadas necesitan una Mac con Apple silicon.",
+  "callCard.missing.platform":
+    "La voz local de APX necesita una Mac con Apple silicon. Elegí tus servicios en Ajustes › Voz y llamadas.",
   "callCard.missing.memory": "Esta computadora no tiene memoria suficiente para las llamadas.",
   "callCard.missing.uv":
     "Las llamadas necesitan uv en esta Mac. Instalalo con “brew install uv” en una terminal y probá de nuevo.",
   "callCard.missing.off": "La voz de APX está apagada.",
   "callCard.missing.model": "Las llamadas necesitan un modelo al que APX pueda llamar directamente.",
   "callCard.missing.disabled": "Las llamadas están apagadas. Prendelas en Ajustes › Voz y llamadas.",
-  "callCard.openVoices": "Encenderla en Configuración",
+  "callCard.openVoices": "Configurar voz y llamadas",
   "callCard.openModels": "Elegir un modelo en Configuración",
 };

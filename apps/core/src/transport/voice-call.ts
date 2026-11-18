@@ -2,6 +2,7 @@ import type { Server } from "node:http";
 import { CallFrame } from "@apx/protocol";
 import type WebSocket from "ws";
 import { WebSocketServer } from "ws";
+import { createCallServices } from "../engine/call-services.ts";
 import type { Calls, EngineEvent } from "../engine/calls.ts";
 import { errorMessage } from "../errors.ts";
 import type { Log } from "../log.ts";
@@ -19,7 +20,16 @@ const BOTH = new Set(["partial"]);
  * single-use ticket comes from the human-only `calls.start`; what the call says is written to its thread by `calls`,
  * which also runs the model the call talks with.
  */
-export function attachVoiceCall(server: Server, deps: { calls: Calls; engine: VoiceEngine; gate: Gate; log: Log }) {
+export function attachVoiceCall(
+  server: Server,
+  deps: {
+    calls: Calls;
+    engine: VoiceEngine | (() => VoiceEngine);
+    services?: () => Omit<Parameters<typeof createCallServices>[0], "send" | "failed"> | undefined;
+    gate: Gate;
+    log: Log;
+  },
+) {
   const wss = new WebSocketServer({ noServer: true, maxPayload: 256 * 1024 });
   server.on("upgrade", (req, socket, head) => {
     const url = new URL(req.url ?? "/", "http://core");
@@ -51,7 +61,20 @@ export function attachVoiceCall(server: Server, deps: { calls: Calls; engine: Vo
     const tell = (f: CallFrame) => {
       if (panel.readyState === panel.OPEN) panel.send(JSON.stringify(f));
     };
+    const selected = typeof deps.engine === "function" ? deps.engine() : deps.engine;
+    const configured = deps.services?.();
     let engine: WebSocket | undefined;
+    const waiting: object[] = [];
+    const serviceBridge = configured
+      ? createCallServices({
+          ...configured,
+          send: (frame) => {
+            if (engine?.readyState === engine?.OPEN) engine?.send(JSON.stringify(frame));
+            else waiting.push(frame);
+          },
+          failed: (operation) => end(operation === "speak" ? "speech" : "transcription"),
+        })
+      : undefined;
     let ended = false;
     // What the owner says before the voice answers (while it loads) is never heard: the call begins with its greeting.
     let answered = false;
@@ -62,6 +85,7 @@ export function attachVoiceCall(server: Server, deps: { calls: Calls; engine: Vo
       deps.calls.end(call.thread);
       tell({ type: "end", reason });
       panel.close();
+      serviceBridge?.close();
       engine?.close();
     };
     const deadline = setTimeout(() => end("max_duration"), CALL_MAX_MS);
@@ -78,8 +102,8 @@ export function attachVoiceCall(server: Server, deps: { calls: Calls; engine: Vo
     panel.on("close", () => end("hangup"));
     panel.on("error", () => end("hangup"));
 
-    if (deps.engine.loading()) {
-      const wait = deps.engine.expectedWait();
+    if (selected.loading()) {
+      const wait = selected.expectedWait();
       tell(wait ? { type: "preparing", progress: 0, left_s: wait } : { type: "preparing" });
     }
     // Listened to from the moment the socket exists: the engine speaks as soon as it accepts the call.
@@ -89,12 +113,13 @@ export function attachVoiceCall(server: Server, deps: { calls: Calls; engine: Vo
         panel.send(data, { binary: true });
         return;
       }
-      let e: { type?: string };
+      let e: { type?: string; [key: string]: unknown };
       try {
         e = JSON.parse(String(data));
       } catch {
         return;
       }
+      if (serviceBridge?.receive(e)) return;
       if (BOTH.has(e.type ?? "")) deps.calls.hear(call.thread, e as EngineEvent);
       if (RECORDED.has(e.type ?? "")) {
         deps.calls.hear(call.thread, e as EngineEvent);
@@ -110,8 +135,10 @@ export function attachVoiceCall(server: Server, deps: { calls: Calls; engine: Vo
       // The first call on a computer that has not downloaded the voice yet waits for it.
       const stop = new AbortController();
       panel.once("close", () => stop.abort());
-      await deps.engine.whenInstalled(stop.signal);
-      engine = await deps.engine.open(call.setup, fromEngine);
+      await selected.whenInstalled(stop.signal);
+      if (stop.signal.aborted) return;
+      engine = await selected.open(call.setup, fromEngine);
+      for (const frame of waiting.splice(0)) engine.send(JSON.stringify(frame));
     } catch (err) {
       deps.log.warn({ err: errorMessage(err, 300) }, "voice engine did not start");
       end("engine");

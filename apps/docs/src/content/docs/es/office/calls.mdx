@@ -7,8 +7,9 @@ sidebar:
 
 import { Aside } from "@astrojs/starlight/components";
 
-APX tiene una voz propia que corre en tu Mac. Tus agentes dicen sus notas de voz con ella, escribe las notas de voz que
-les mandás, y te deja **llamar** a cualquiera de tus agentes y hablarle como por teléfono.
+Podés **llamar** a cualquiera de tus agentes con servicios de voz y transcripción en Windows, Linux o macOS. Elegís
+los servicios por separado, incluidos servidores remotos. APX también tiene una voz local propia para Mac con Apple
+silicon compatibles; los requisitos de esa opción no se aplican a llamadas con otros servicios.
 
 ## La voz de APX
 
@@ -50,17 +51,42 @@ llamada después de un rato tarda unos segundos más; la tarjeta de la llamada m
 menos, según lo que tardaron las últimas cargas en tu Mac.
 </Aside>
 
+## Elegir servicios para las llamadas
+
+En **Configuración › Voz y llamadas › Llamadas**, elegí **Tus servicios** en **Voz para llamadas**. Elegí un servicio
+para hablar y otro para escuchar entre los habilitados arriba. Una selección explícita no depende del orden general:
+si deshabilitás o quitás ese servicio, elegí otro antes de llamar. **Primero disponible de arriba** usa el orden de esa
+lista. **Administrar servicios** te lleva de vuelta a esas listas para agregar o editar un servicio.
+
+- **Gemini** usa su API de voz. Configurá la clave, un modelo de voz y una voz compatible, como Kore.
+- **ElevenLabs** usa su API nativa de voz. Agregá tu clave, el modelo y el ID de voz de tu cuenta de ElevenLabs.
+- **QVox** y **Personalizado** usan un servidor de voz compatible con OpenAI. Ingresá su URL, modelo y voz. Puede
+  estar en una PC, red privada o VPS; quien necesita llegar a esa dirección es el core, no tu navegador.
+- Para escuchar, usá un transcriptor compatible con OpenAI, un servidor Whisper local o whisper.cpp. Un proveedor que
+  sólo genera voz no transcribe. Configurá el modelo de whisper.cpp en **Escuchar** para transcribir con la CPU local.
+
+Los turnos de conversación se detectan en la CPU de la computadora del core. La primera llamada descarga dependencias
+de Python y modelos pequeños de detección de voz y fin de turno con uv; no descarga MLX ni modelos de voz de Qwen.
+Necesitás un micrófono disponible y permiso de audio del navegador. El audio enviado a un servicio remoto lo procesa
+ese servicio. Cada frase se reproduce cuando termina su síntesis; no se recibe audio token por token. En el modo de
+servicios no hay transcripción parcial en vivo. Interrumpir detiene la reproducción y cancela pedidos pendientes, pero
+un proveedor puede seguir procesando o cobrando un pedido que ya aceptó.
+
+Elegí **Voz de APX** para usar la opción local de Apple silicon y sus controles de voz y acento.
+
 ## Hacer una llamada
 
 Las llamadas están activadas salvo que las apagues: **Ajustes › Voz y llamadas › Llamadas › Permitir llamadas**. Con las llamadas
 apagadas los botones del teléfono se ocultan, y tus agentes igual hablan y escuchan notas de voz.
 
 Tocá el botón del teléfono arriba del panel para llamar a tu super-agente, o **Llamar** en el perfil de cualquier agente,
-en su menú o en su chat. Elegí la voz y el acento; APX los recuerda. Suena mientras la voz carga, después la voz atiende
+en su menú o en su chat. Con la voz local de APX elegís la voz y el acento; APX los recuerda. Otros servicios usan
+la voz guardada en su configuración. Suena mientras la voz carga, después la voz atiende
 con un saludo y te escucha: lo que digas antes de que atienda no se oye. Hablá normal: podés interrumpir a la voz
 cuando quieras, y decir "dale, te espero" la deja callada hasta que haya novedades.
 
-Lo que decís aparece en el chat de la llamada mientras hablás, y las palabras de la voz a medida que las dice. También
+Lo que decís aparece en el chat de la llamada (con servicios, después de cada tramo hablado), y las palabras de la voz
+a medida que las dice. También
 podés escribir en el chat de la llamada mientras sigue: la voz lo toma como dicho y te contesta en voz alta. La tarjeta
 de la llamada se mueve arrastrándola desde arriba y se achica, así nunca tapa lo que necesitás. Un clic arriba, sin
 arrastrarla, vuelve a abrir el chat de la llamada, estés donde estés.

@@ -1,3 +1,4 @@
+import type { ServiceInfo } from "@apx/protocol";
 import { Skeleton } from "@apx/ui";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { loadVoice, useVoice } from "../data/voice.ts";
@@ -18,7 +19,14 @@ export function VoiceSection({ focus }: { focus?: "calls" }) {
 function Voices({ focus }: { focus?: "calls" | undefined }) {
   const t = useT();
   const voice = useVoice();
+  const [speech, setSpeech] = useState<ServiceInfo[]>();
+  const [hearing, setHearing] = useState<ServiceInfo[]>();
   const calls = useRef<HTMLDivElement>(null);
+  const serviceList = useRef<HTMLDivElement>(null);
+  const manage = () => {
+    serviceList.current?.scrollIntoView({ block: "start" });
+    serviceList.current?.focus({ preventScroll: true });
+  };
   const [hearKey, setHearKey] = useState(0);
   const refreshHear = useCallback(() => setHearKey((k) => k + 1), []);
   useEffect(() => {
@@ -30,18 +38,19 @@ function Voices({ focus }: { focus?: "calls" | undefined }) {
   return (
     <>
       <SectionHead title={t("config.voices")} lead={t("voice.lead")} />
+      <div ref={serviceList} tabIndex={-1} />
       <SubHead>{t("voice.speak")}</SubHead>
       <p className="config__lead">{t("voice.speakLead")}</p>
-      <ServicesSection kind="speech" bare />
+      <ServicesSection kind="speech" bare onChange={setSpeech} />
       <SubHead>{t("voice.hear")}</SubHead>
       <p className="config__lead">{t("voice.hearLead")}</p>
       {/* Transcription on this machine is offered only where APX's own voice can't hear for the owner. */}
       {(!voice || voice.tier === "none" || !voice.enabled) && <LocalTranscription onInstalled={refreshHear} />}
-      <ServicesSection key={hearKey} kind="transcription" embedded />
+      <ServicesSection key={hearKey} kind="transcription" embedded onChange={setHearing} />
       <div ref={calls} />
       <SubHead>{t("config.calls")}</SubHead>
       <p className="config__lead">{t("calls.lead")}</p>
-      <CallsSettings />
+      <CallsSettings speech={speech} hearing={hearing} onManage={manage} />
     </>
   );
 }

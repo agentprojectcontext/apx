@@ -1671,6 +1671,8 @@ export const es: Partial<Record<MessageKey, string>> = {
   "svc.language": "Idioma",
   "svc.style": "Estilo",
   "svc.styleHint": 'Cómo hablar ("tranquilo", "alegre"), en los servidores que lo aceptan.',
+  "svc.custom": "Personalizado (compatible con OpenAI)",
+  "svc.elevenVoiceHint": "Pegá el ID de una voz de tu biblioteca de ElevenLabs.",
   "svc.needsKey": "Necesita clave",
   "svc.needsKeyHint": "Se guarda de forma segura; no se vuelve a mostrar.",
   "svc.test": "Probar",

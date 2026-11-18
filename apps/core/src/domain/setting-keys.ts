@@ -219,6 +219,9 @@ export const SETTINGS = {
         calls: z.boolean().optional(),
         quality: VoiceQuality.optional(),
         call_model: ModelRef.optional(),
+        call_engine: z.enum(["native", "services"]).optional(),
+        call_speech: z.string().optional(),
+        call_transcription: z.string().optional(),
       })
       .catch({}),
     {},

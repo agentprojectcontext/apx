@@ -15,6 +15,10 @@ export const toOggOpus = (input: Buffer, bin = "ffmpeg", run = spawn) =>
 export const toPcm16k = (input: Buffer, bin = "ffmpeg", run = spawn) =>
   convert(input, ["-ac", "1", "-ar", "16000", "-f", "s16le"], bin, run);
 
+/** A service's reply in the call socket's 24 kHz mono PCM16 format. */
+export const toPcm24k = (input: Buffer, bin = "ffmpeg", run = spawn) =>
+  convert(input, ["-ac", "1", "-ar", "24000", "-f", "s16le"], bin, run);
+
 /** Any recording as a 16 kHz mono WAV: what whisper.cpp reads without converting it itself. */
 export const toWav16k = async (input: Buffer, bin = "ffmpeg", run = spawn) => wav16k(await toPcm16k(input, bin, run));
 

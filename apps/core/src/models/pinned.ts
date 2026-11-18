@@ -24,6 +24,12 @@ export const PINNED = {
     use: "embedding",
     source: "https://ai.google.dev/gemini-api/docs/deprecations",
   },
+  elevenlabsSpeech: {
+    id: "eleven_multilingual_v2",
+    provider: "elevenlabs",
+    use: "speech",
+    source: "https://elevenlabs.io/docs/api-reference/text-to-speech/convert",
+  },
   openaiSpeech: {
     provider: "openai",
     id: "tts-1",

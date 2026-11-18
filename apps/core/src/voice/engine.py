@@ -51,6 +51,9 @@ from fastapi.responses import JSONResponse, Response  # noqa: E402
 import speech as parts  # noqa: E402
 from speech import FRAME, SR_IN, SR_OUT, Speech  # noqa: E402
 
+if os.environ.get("VOICE_SERVICES") == "1":
+    from remote_speech import Speech
+
 SECRET = os.environ.get("VOICE_SECRET", "")
 OWNER = os.environ.get("VOICE_OWNER", "")
 
@@ -155,53 +158,9 @@ def ends_call(heard, said):
     return bool((BYE_HEARD.search(heard) or LEAVING.search(heard)) and BYE_HEARD.search(said))
 
 
-LOADS = os.path.join(os.environ.get("VOICE_STATE") or ".", f"load-{os.environ.get('VOICE_TIER') or 'light'}.json")
-FIRST_LOAD_S = {"vad": 1, "turn": 3, "draft": 5, "mouth": 10, "warm": 10, "greeting": 2}  # before this Mac's own times are known
-started_in = None  # seconds this engine took to start, kept with the next load from nothing
+from loading import load_for_call  # noqa: E402
 
-
-def load_history():
-    """The last three loads from nothing, part by part (the core reads them too, to tell how long a call waits)."""
-    try:
-        with open(LOADS) as f:
-            return {k: [float(x) for x in v][-3:] for k, v in json.load(f).items() if isinstance(v, list)}
-    except (OSError, ValueError, AttributeError, TypeError):
-        return {}
-
-
-def middle(xs):
-    return sorted(xs)[len(xs) // 2]
-
-
-async def load_for_call(send, greeting):
-    """Loads what a call uses and makes its greeting, telling the panel how far it got and how long is left (as long
-    as it usually takes). The greeting's audio is returned ready, so the call answers with it at once."""
-    global started_in
-    history = load_history()
-    before = {**FIRST_LOAD_S, **{k: middle(v) for k, v in history.items() if v}}
-    audio = []
-    steps = [*speech.call_parts(), ("greeting", lambda: False, lambda: audio.extend(greeting()))]
-    cold = {name for name, loaded, _ in steps if not loaded()}
-    models_cold = cold - {"warm", "greeting"}
-    # Warming loaded models is quick; warming ones just loaded takes as long as it did last time.
-    guess = {name: before[name] if name in cold and (name != "warm" or models_cold) else 0.5 for name, _, _ in steps}
-    took = {}
-    for i, (name, _, load) in enumerate(steps):
-        left = sum(guess[n] for n, _, _ in steps[i:])
-        done = sum(took.values())
-        await send({"type": "preparing", "progress": round(done / (done + left), 3), "left_s": round(left)})
-        t = time.monotonic()
-        await asyncio.to_thread(load)
-        took[name] = time.monotonic() - t
-    if len(models_cold) == len(steps) - 2:  # only a load from nothing measures what the next one will wait
-        if started_in is not None:
-            took["start"], started_in = started_in, None
-        try:
-            with open(LOADS, "w") as f:
-                json.dump({k: [*history.get(k, []), round(v, 1)][-3:] for k, v in took.items()}, f)
-        except OSError:
-            pass
-    return took, audio
+started_in = None
 
 
 def clean(text):
@@ -270,7 +229,7 @@ async def speak(request: Request):
     await asyncio.to_thread(lambda: speech.mouth.speak(text, lang, voice, out.append, threading.Event()).result())
     speech.last_use = time.monotonic()
     pcm = b"".join(out)
-    return Response(wav(pcm, SR_OUT), media_type="audio/wav")
+    return Response(parts.wav(pcm, SR_OUT), media_type="audio/wav")
 
 
 @app.post("/transcribe")
@@ -289,12 +248,6 @@ async def transcribe(request: Request):
         text, heard = await asyncio.wrap_future(ears.final(pcm, lang, None))
     speech.last_use = time.monotonic()
     return {"text": text, "language": heard}
-
-
-def wav(pcm, rate):
-    import struct
-    return b"RIFF" + struct.pack("<I4s4sIHHIIHH4sI", 36 + len(pcm), b"WAVE", b"fmt ", 16, 1, 1, rate, rate * 2, 2, 16,
-                                 b"data", len(pcm)) + pcm
 
 
 # ---- one call ----
@@ -784,36 +737,51 @@ async def call(ws: WebSocket):
         await ws.close(code=1008)
         return
     await ws.accept()
-    t = time.monotonic()
-    q = ws.query_params
-    # The first call after a while loads hearing, turn taking and the voice; every call makes its greeting first.
-    took, hello = await load_for_call(lambda f: ws.send_text(json.dumps(f)), lambda: greeting_audio(q))
-    steps = ", ".join(f"{k} {v:.1f}s" for k, v in took.items())
-    print(f"[voice] ready for a call in {time.monotonic() - t:.1f}s ({steps})", flush=True)
-    c = Call(ws, q)
-    await c.send({"type": "ready"})
-    watcher = asyncio.create_task(c.watch())
-    c.reply_task = asyncio.create_task(c.greet(hello))
-    try:
+    q, c, watcher = ws.query_params, None, None
+    bridge = speech.bind(ws) if hasattr(speech, "bind") else None
+
+    async def receive():
         while True:
             msg = await ws.receive()
             if msg["type"] == "websocket.disconnect":
-                break
-            if msg.get("bytes"):
+                return
+            if msg.get("bytes") and c:
                 await c.feed(msg["bytes"])
             elif msg.get("text"):
                 f = json.loads(msg["text"])
-                if f.get("type") == "result":
-                    c.news.append((int(f["n"]), f.get("state", "done"), f.get("text", ""), f.get("by") or ""))
-                elif f.get("type") in ("thought", "thought_end"):
-                    c.thought(f)
-                elif f.get("type") == "typed" and str(f.get("text") or "").strip():
-                    c.typed(str(f["text"]).strip())
+                if f.get("type") == "service_result" and bridge:
+                    bridge.receive(f)
+                elif c:
+                    if f.get("type") == "result":
+                        c.news.append((int(f["n"]), f.get("state", "done"), f.get("text", ""), f.get("by") or ""))
+                    elif f.get("type") in ("thought", "thought_end"):
+                        c.thought(f)
+                    elif f.get("type") == "typed" and str(f.get("text") or "").strip():
+                        c.typed(str(f["text"]).strip())
+
+    reader = asyncio.create_task(receive())
+    preparation = asyncio.create_task(load_for_call(speech, lambda f: ws.send_json(f), lambda: greeting_audio(q), started_in))
+    try:
+        done, _ = await asyncio.wait([reader, preparation], return_when=asyncio.FIRST_COMPLETED)
+        if reader in done:
+            return
+        _, hello = await preparation
+        c = Call(ws, q)
+        await c.send({"type": "ready"})
+        watcher = asyncio.create_task(c.watch())
+        c.reply_task = asyncio.create_task(c.greet(hello))
+        await reader
     except WebSocketDisconnect:
         pass
     finally:
-        watcher.cancel()
-        c.barge_in()
+        reader.cancel()
+        preparation.cancel()
+        if watcher:
+            watcher.cancel()
+        if c:
+            c.barge_in()
+        if bridge:
+            bridge.close()
 
 
 if __name__ == "__main__":
@@ -825,4 +793,4 @@ if __name__ == "__main__":
     if a.prefetch:
         parts.prefetch(lambda got, total: print(json.dumps({"received": got, "total": total}), flush=True), a.part)
         sys.exit(0)
-    uvicorn.run(app, host="127.0.0.1", port=a.port, log_level="warning", ws_max_size=1 << 20)
+    uvicorn.run(app, host="127.0.0.1", port=a.port, log_level="warning", ws_max_size=8 << 20)

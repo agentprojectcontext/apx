@@ -77,6 +77,14 @@ const PRESETS: Record<ServiceKind, Preset[]> = {
       voice: "Kore",
     },
     {
+      id: "elevenlabs",
+      label: "ElevenLabs",
+      dialect: "elevenlabs-speech",
+      base_url: "https://api.elevenlabs.io",
+      needs_key: true,
+      model: "eleven_multilingual_v2",
+    },
+    {
       id: "compatible",
       label: "OpenAI-compatible",
       dialect: "openai-speech",
@@ -226,7 +234,11 @@ export function ServiceDialog(props: {
           <Button variant="secondary" onClick={props.onClose}>
             {t("common.cancel")}
           </Button>
-          <Button disabled={clash || !validUrl} loading={busy} onClick={() => void save()}>
+          <Button
+            disabled={clash || !validUrl || (draft.dialect === "elevenlabs-speech" && !draft.voice?.trim())}
+            loading={busy}
+            onClick={() => void save()}
+          >
             {t("common.save")}
           </Button>
         </>
@@ -245,7 +257,7 @@ export function ServiceDialog(props: {
                   setDraft({ kind, enabled: true, ...rest });
                 }}
               >
-                {p.label}
+                {p.id === "compatible" ? t("svc.custom") : p.label}
               </button>
             ))}
           </div>
@@ -361,7 +373,7 @@ function SpeechFields({ draft, set }: { draft: ServiceSettings; set(patch: Parti
   const t = useT();
   return (
     <>
-      <Field label={t("svc.voice")}>
+      <Field label={t("svc.voice")} hint={draft.dialect === "elevenlabs-speech" ? t("svc.elevenVoiceHint") : undefined}>
         <Input
           aria-label={t("svc.voice")}
           value={draft.voice ?? ""}
@@ -376,13 +388,15 @@ function SpeechFields({ draft, set }: { draft: ServiceSettings; set(patch: Parti
           onChange={(e) => set({ language: e.currentTarget.value })}
         />
       </Field>
-      <Field label={t("svc.style")} hint={t("svc.styleHint")}>
-        <Input
-          aria-label={t("svc.style")}
-          value={draft.style ?? ""}
-          onChange={(e) => set({ style: e.currentTarget.value })}
-        />
-      </Field>
+      {draft.dialect !== "elevenlabs-speech" && (
+        <Field label={t("svc.style")} hint={t("svc.styleHint")}>
+          <Input
+            aria-label={t("svc.style")}
+            value={draft.style ?? ""}
+            onChange={(e) => set({ style: e.currentTarget.value })}
+          />
+        </Field>
+      )}
       {draft.dialect === "openai-speech" && (
         <>
           <Field label={t("svc.clone")} hint={t("svc.cloneHint")}>

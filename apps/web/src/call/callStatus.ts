@@ -17,15 +17,15 @@ export function loadCallStatus(): Promise<void> {
 }
 
 /**
- * Whether calls can ever run here (not a Mac with Apple silicon: never) and the owner allows them, asking the core once
- * when a call button first shows. The card says what else is missing.
+ * Whether the owner allows calls, asking the core once when a call button first shows.
+ * The card explains what still needs to be set up.
  */
 export function useCanCall(): boolean {
   const status = useCalls((s) => s.status);
   useEffect(() => {
     if (!calls.get().status) void loadCallStatus();
   }, []);
-  return status !== undefined && status.missing !== "platform" && status.missing !== "disabled";
+  return status !== undefined && status.missing !== "disabled";
 }
 
 export function closeCall(): void {

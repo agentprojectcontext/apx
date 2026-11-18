@@ -11,7 +11,7 @@ import { errorMessage } from "../errors.ts";
 import type { Log } from "../log.ts";
 import { serviceSecret } from "../secret-names.ts";
 import type { Secrets } from "../secrets.ts";
-import { toOggOpus, toPcm16k, toWav16k } from "./audio.ts";
+import { toOggOpus, toPcm16k, toPcm24k, toWav16k, wav16k } from "./audio.ts";
 import type { CodexImages } from "./codex-images.ts";
 import { EMBED_PROBE, embed } from "./embeddings.ts";
 import { createFfmpeg, type Ffmpeg } from "./ffmpeg.ts";
@@ -171,9 +171,14 @@ export function createServices(deps: {
   }
 
   /** Runs `work` on each candidate until one succeeds; says why each one before it was skipped. */
-  async function firstThatWorks<T>(list: ServiceConfig[], work: (s: ServiceConfig) => Promise<T>) {
+  async function firstThatWorks<T>(
+    list: ServiceConfig[],
+    work: (s: ServiceConfig) => Promise<T>,
+    signal?: AbortSignal,
+  ) {
     const skipped: string[] = [];
     for (const s of list) {
+      signal?.throwIfAborted();
       const cached = status.get(s.id);
       if (list.length > 1 && cached && !cached.ok && Date.now() - cached.at < STATUS_TTL_MS) {
         skipped.push(`${s.label}: not reachable`);
@@ -184,6 +189,7 @@ export function createServices(deps: {
         status.set(s.id, { ok: true, at: Date.now() });
         return { out, service: s, skipped };
       } catch (err) {
+        signal?.throwIfAborted();
         const msg = errorMessage(err);
         status.set(s.id, { ok: false, at: Date.now() });
         log.warn({ service: s.id, err: msg.slice(0, 200) }, "media service failed, trying the next one");
@@ -196,6 +202,7 @@ export function createServices(deps: {
   return {
     info,
     has: (id: string) => all().some((s) => s.id === id),
+    hasKey: (id: string) => secrets.has(`secret://${keyName(id)}`),
     imageDefaults,
     setImageDefaults(d: ImageDefaults): ImageDefaults {
       store.settings.write("image_defaults", d);
@@ -279,6 +286,39 @@ export function createServices(deps: {
         embed(s, texts, keyOf(s), signal, f),
       );
       return { vectors: out, model: `${service.id}/${service.model ?? ""}` };
+    },
+    /** Call audio does not create voice notes or duplicate transcript records. */
+    async callSpeech(text: string, service: string | undefined, signal: AbortSignal): Promise<Buffer> {
+      const { out } = await firstThatWorks(
+        candidates("speech", service).filter((s) => s.enabled),
+        (s) => speakWith(s, { text }, signal),
+        signal,
+      );
+      signal.throwIfAborted();
+      const pcm = await toPcm24k(out.bytes, await ffmpeg.path());
+      signal.throwIfAborted();
+      return pcm;
+    },
+    async callTranscribe(pcm: Buffer, service: string | undefined, signal: AbortSignal): Promise<string> {
+      const bytes = wav16k(pcm);
+      const { out } = await firstThatWorks(
+        candidates("transcription", service).filter((s) => s.enabled),
+        async (s) => {
+          if (s.dialect !== "whisper-local") return transcribeWith(s, { path: "", bytes, mime: "audio/wav" }, signal);
+          const parent = path.join(deps.home, "tmp");
+          fs.mkdirSync(parent, { recursive: true });
+          const dir = fs.mkdtempSync(path.join(parent, "call-"));
+          const file = path.join(dir, "audio.wav");
+          try {
+            fs.writeFileSync(file, bytes, { mode: 0o600 });
+            return await transcribeWith(s, { path: file, bytes, mime: "audio/wav" }, signal);
+          } finally {
+            fs.rmSync(dir, { recursive: true, force: true });
+          }
+        },
+        signal,
+      );
+      return out;
     },
     /** Whether a kind of service is set up (enabled), without calling it. */
     hasKind: (kind: ServiceKind) => ofKind(kind).some((s) => s.enabled),

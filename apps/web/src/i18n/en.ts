@@ -1682,6 +1682,8 @@ export const en = {
   "svc.language": "Language",
   "svc.style": "Style",
   "svc.styleHint": 'How it should speak ("calm", "cheerful"), for servers that take it.',
+  "svc.custom": "Custom (OpenAI-compatible)",
+  "svc.elevenVoiceHint": "Paste a voice ID from your ElevenLabs voice library.",
   "svc.needsKey": "Needs a key",
   "svc.needsKeyHint": "Stored securely; never shown again.",
   "svc.test": "Try it",

@@ -12,6 +12,7 @@ import { AGENT_REVIEW_NEWS } from "./agent-review.ts";
 import { BROWSER_EDIT_NEWS } from "./browser-edit.ts";
 import { BROWSER_JAVASCRIPT_NEWS } from "./browser-javascript.ts";
 import { BROWSER_SIGN_IN_NEWS } from "./browser-sign-in.ts";
+import { CALL_SERVICES_NEWS } from "./call-services.ts";
 import { CHANNEL_AGENTS_NEWS } from "./channel-agents.ts";
 import { CHROME_TABS_NEWS } from "./chrome-tabs.ts";
 import { COMPUTER_POINTER_NEWS } from "./computer-pointer.ts";
@@ -121,6 +122,7 @@ export type NewsEntry = {
 };
 
 export const NEWS: readonly NewsEntry[] = [
+  CALL_SERVICES_NEWS,
   {
     id: "email-retained-history",
     since: "2.14.0",

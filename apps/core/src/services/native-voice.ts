@@ -100,6 +100,9 @@ export function createNativeVoice(deps: {
       quality: settings().quality ?? "auto",
       can_full: engine.canFull(),
       ...(call_model ? { call_model } : {}),
+      call_engine: settings().call_engine ?? (m.tier === "none" ? "services" : "native"),
+      ...(settings().call_speech ? { call_speech: settings().call_speech } : {}),
+      ...(settings().call_transcription ? { call_transcription: settings().call_transcription } : {}),
       ...(models ? { models } : {}),
     };
   }
@@ -153,6 +156,9 @@ export function createNativeVoice(deps: {
       calls?: boolean | undefined;
       quality?: VoiceQuality | undefined;
       call_model?: ModelRef | null | undefined;
+      call_engine?: "native" | "services" | undefined;
+      call_speech?: string | null | undefined;
+      call_transcription?: string | null | undefined;
     }) {
       const tier = engine.machine().tier;
       save({
@@ -161,6 +167,9 @@ export function createNativeVoice(deps: {
         ...(p.quality ? { quality: p.quality } : {}),
         ...(p.voice ? { voice: p.voice } : {}),
         ...(p.call_model !== undefined ? { call_model: p.call_model ?? undefined } : {}),
+        ...(p.call_engine !== undefined ? { call_engine: p.call_engine } : {}),
+        ...(p.call_speech !== undefined ? { call_speech: p.call_speech ?? undefined } : {}),
+        ...(p.call_transcription !== undefined ? { call_transcription: p.call_transcription ?? undefined } : {}),
       });
       if (engine.machine().tier !== tier) {
         // Other models: the engine starts again with them, and gets them first where it is on.

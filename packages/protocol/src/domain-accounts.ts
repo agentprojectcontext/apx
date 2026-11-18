@@ -168,6 +168,7 @@ export const ServiceDialect = z.enum([
   "codex-images",
   "openai-speech",
   "gemini-speech",
+  "elevenlabs-speech",
   "ollama-embed",
   "gemini-embed",
   "openai-embed",
