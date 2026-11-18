@@ -49,6 +49,7 @@ const css = ["tokens.css", ...sheets].map((f) => readFileSync(`src/styles/${f}`,
 writeFileSync("dist/styles.css", css);
 // Flow steps and run bars are only on the Flows screens, which load late: their sheet stays off the first load.
 writeFileSync("dist/flow.css", readFileSync("src/styles/components/flow.css", "utf8"));
-// Disclosure rows are only on the Marketplace's pages, which load late too.
+// Disclosure and catalog rows are only on the Marketplace, which loads late too.
 writeFileSync("dist/disclosure.css", readFileSync("src/styles/components/disclosure.css", "utf8"));
-console.log("built dist/ (index.js, index.d.ts, styles.css, flow.css, disclosure.css)");
+writeFileSync("dist/catalog-row.css", readFileSync("src/styles/components/catalog-row.css", "utf8"));
+console.log("built dist/ (index.js, index.d.ts, styles.css, flow.css, disclosure.css, catalog-row.css)");

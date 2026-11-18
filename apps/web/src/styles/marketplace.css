@@ -343,70 +343,6 @@
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
-.mkt-row {
-  display: grid;
-  grid-template-columns: 36px minmax(0, 1fr) auto;
-  gap: 12px;
-  align-items: center;
-  padding: 10px 4px;
-  border-bottom: 1px solid var(--apx-border);
-  cursor: pointer;
-}
-.mkt-row:focus-visible {
-  outline: 2px solid var(--apx-info);
-  outline-offset: 1px;
-  border-radius: var(--apx-radius-sm);
-}
-.mkt-row__main {
-  display: flex;
-  flex-direction: column;
-  gap: 1px;
-  min-width: 0;
-}
-.mkt-row__title {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  min-width: 0;
-}
-.mkt-row__name {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.mkt-row:hover .mkt-row__name {
-  text-decoration: underline;
-  text-underline-offset: 2px;
-}
-.mkt-row__title .apx-badge {
-  flex: none;
-}
-.mkt-row__line,
-.mkt-row__meta {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.mkt-row__line {
-  color: var(--apx-fg-muted);
-  font-size: var(--apx-text-sm);
-}
-.mkt-row__meta {
-  color: var(--apx-fg-subtle);
-  font-size: var(--apx-text-xs);
-}
-.mkt-row__state {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  color: var(--apx-fg-muted);
-  font-size: var(--apx-text-sm);
-  white-space: nowrap;
-}
-.mkt-row__state--wait {
-  color: var(--apx-fg);
-}
-
 /* An extension's page: one column, its button at the top right, the facts at its foot. */
 .mkt-item {
   display: flex;
@@ -604,16 +540,4 @@
 .mkt-catalog__always {
   color: var(--apx-fg-muted);
   font-size: var(--apx-text-sm);
-}
-
-/* A narrow list puts a row's button or state under its text, so its name keeps the room. */
-@container (max-width: 420px) {
-  .mkt-row {
-    grid-template-columns: 36px minmax(0, 1fr);
-    row-gap: 6px;
-  }
-  .mkt-row__act {
-    grid-column: 2;
-    justify-self: start;
-  }
 }

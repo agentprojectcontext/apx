@@ -1,0 +1,91 @@
+/* CatalogRow: one catalog entry; its own width decides whether the action sits beside or under the text. */
+.apx-catalogrow {
+  container-type: inline-size;
+  border-bottom: 1px solid var(--apx-border);
+  cursor: pointer;
+}
+.apx-catalogrow:focus-visible {
+  outline: 2px solid var(--apx-info);
+  outline-offset: -2px;
+  border-radius: var(--apx-radius-sm);
+}
+.apx-catalogrow__inner {
+  display: grid;
+  grid-template-columns: 36px minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: center;
+  padding: 10px 4px;
+}
+.apx-catalogrow__lead {
+  display: inline-grid;
+  place-items: center;
+}
+.apx-catalogrow__main {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+.apx-catalogrow__title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+.apx-catalogrow__title b {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.apx-catalogrow:hover .apx-catalogrow__title b {
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.apx-catalogrow__title > :not(b) {
+  flex: none;
+}
+.apx-catalogrow__desc,
+.apx-catalogrow__meta {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.apx-catalogrow__desc {
+  color: var(--apx-fg-muted);
+  font-size: var(--apx-text-sm);
+}
+.apx-catalogrow__meta {
+  color: var(--apx-fg-subtle);
+  font-size: var(--apx-text-xs);
+}
+.apx-catalogrow__end {
+  display: inline-flex;
+  align-items: center;
+}
+.apx-catalogrow__status {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--apx-fg-muted);
+  font-size: var(--apx-text-sm);
+  white-space: nowrap;
+}
+.apx-catalogrow__status.is-waiting {
+  color: var(--apx-fg);
+}
+.apx-catalogrow__dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--apx-warning);
+}
+@container (max-width: 380px) {
+  .apx-catalogrow__inner {
+    grid-template-columns: 36px minmax(0, 1fr);
+    row-gap: 6px;
+  }
+  .apx-catalogrow__end {
+    grid-column: 2;
+    justify-self: start;
+  }
+}

@@ -14,6 +14,7 @@ export { Badge, type BadgeProps } from "./components/Badge";
 export { type BrowserTabItem, BrowserTabs, type BrowserTabsProps } from "./components/BrowserTabs";
 export { Button, type ButtonProps } from "./components/Button";
 export { Card, type CardProps } from "./components/Card";
+export { CatalogRow, type CatalogRowProps } from "./components/CatalogRow";
 export { ChannelIcon, type ChannelIconProps } from "./components/ChannelIcon";
 export { Checkbox, type CheckboxProps } from "./components/Checkbox";
 export {

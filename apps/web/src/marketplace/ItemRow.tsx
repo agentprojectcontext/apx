@@ -1,28 +1,25 @@
-import { Button, Icons } from "@apx/ui";
-import type { ReactNode } from "react";
+import { Button, CatalogRow, Icons } from "@apx/ui";
 import { useT } from "../i18n/index.ts";
 import type { Item } from "../resources/extensionItems.ts";
 import { ItemIcon } from "./ConnectHead.tsx";
 import { ItemLabel } from "./ItemLabel.tsx";
 import { bringsText, fromText, waitReason } from "./itemText.ts";
+import "@apx/ui/catalog-row.css";
 
-// One extension in a list, as compact as Claude's: its icon, name and label, one line, what it brings and who from,
-// and on the right one thing: Add (or Connect), why it waits, or that it is working.
+// One extension in a list: its icon, name and label, one line, what it brings and who from, and on the right one
+// thing: Add (or Connect), why it waits, or that it is working.
 
 export function ItemRow({
   item: i,
   line,
   onOpen,
   onAct,
-  trailing,
 }: {
   item: Item;
   line?: string | undefined;
   onOpen(): void;
   /** Its button when it is not the owner's yet: Add, or Connect for one included with APX. */
   onAct?: (() => void) | undefined;
-  /** In place of the default right side. */
-  trailing?: ReactNode;
 }) {
   const t = useT();
   const why = waitReason(i, t);
@@ -30,55 +27,34 @@ export function ItemRow({
   const mine = i.state !== "available" && i.state !== "coming";
   const connects = Boolean(i.origin === "included" || i.integration || i.channel);
   return (
-    // biome-ignore lint/a11y/useSemanticElements: a row holds its own button, which a <button> cannot contain
-    <div
-      className="mkt-row"
-      role="button"
-      tabIndex={0}
-      onClick={onOpen}
-      onKeyDown={(e) => {
-        if (e.target !== e.currentTarget || (e.key !== "Enter" && e.key !== " ")) return;
-        e.preventDefault();
-        onOpen();
-      }}
-    >
-      <ItemIcon item={i} size={36} />
-      <span className="mkt-row__main">
-        <span className="mkt-row__title">
-          <b className="mkt-row__name">{i.name}</b>
-          <ItemLabel label={i.label} />
-        </span>
-        {line && <span className="mkt-row__line">{line}</span>}
-        {meta && <span className="mkt-row__meta">{meta}</span>}
-      </span>
-      <span className="mkt-row__act">
-        {trailing ??
-          (i.state === "coming" ? (
-            <span className="mkt-row__state">{t("mkt.step.coming")}</span>
-          ) : !mine ? (
-            <Button
-              size="sm"
-              variant="secondary"
-              leadingIcon={connects ? undefined : <Icons.Plus size={14} />}
-              onClick={(e) => {
-                e.stopPropagation();
-                (onAct ?? onOpen)();
-              }}
-            >
-              {t(connects ? "mkt.step.connect" : "mkt.step.add")}
-            </Button>
-          ) : why ? (
-            <span className="mkt-row__state mkt-row__state--wait">
-              <span className="mkt-dot mkt-dot--wait" aria-hidden="true" />
-              {why}
-            </span>
-          ) : (
-            <span className="mkt-row__state">
-              <Icons.Check size={14} />
-              {t(connects ? "mkt.step.connected" : "mkt.added")}
-            </span>
-          ))}
-      </span>
-    </div>
+    <CatalogRow
+      leading={<ItemIcon item={i} size={36} />}
+      title={i.name}
+      badge={<ItemLabel label={i.label} />}
+      description={line}
+      meta={meta || undefined}
+      onOpen={onOpen}
+      action={
+        mine || i.state === "coming" ? undefined : (
+          <Button
+            size="sm"
+            variant="secondary"
+            leadingIcon={connects ? undefined : <Icons.Plus size={14} />}
+            onClick={() => (onAct ?? onOpen)()}
+          >
+            {t(connects ? "mkt.step.connect" : "mkt.step.add")}
+          </Button>
+        )
+      }
+      status={
+        i.state === "coming"
+          ? { label: t("mkt.step.coming") }
+          : !mine
+            ? undefined
+            : why
+              ? { label: why, tone: "waiting" }
+              : { label: t(connects ? "mkt.step.connected" : "mkt.added"), tone: "done" }
+      }
+    />
   );
 }

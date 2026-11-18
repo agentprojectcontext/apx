@@ -1,8 +1,10 @@
 /* Disclosure: a row that opens to show its details. */
+/* It clips its row's hover fill, so the fill follows the card's corners open or closed. */
 .apx-disclosure {
   border: 1px solid var(--apx-border);
   border-radius: var(--apx-radius-lg);
   background: var(--apx-surface);
+  overflow: hidden;
 }
 .apx-disclosure__row {
   display: flex;
@@ -11,7 +13,6 @@
   padding: 11px 14px;
   cursor: pointer;
   list-style: none;
-  border-radius: inherit;
 }
 .apx-disclosure__row::-webkit-details-marker {
   display: none;
@@ -21,7 +22,7 @@
 }
 .apx-disclosure__row:focus-visible {
   outline: 2px solid var(--apx-info);
-  outline-offset: 1px;
+  outline-offset: -2px;
 }
 .apx-disclosure__chev {
   flex: none;
