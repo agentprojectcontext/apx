@@ -113,7 +113,7 @@ function fixture(origin = "http://127.0.0.1:7449") {
 test("account sign-in uses PKCE, keeps credentials secret, survives restart and removes the session on sign-out", async () => {
   const f = fixture();
   try {
-    assert.deepEqual(f.account.status(), { available: true, profile: null });
+    assert.deepEqual(f.account.status(), { available: true, profile: null, pending: false });
     const state = f.start();
     await assert.rejects(f.account.finish("code", `${state}forged`), /sign_in_expired/);
     assert.deepEqual(await f.account.finish("code", state), { ok: true });
@@ -145,12 +145,30 @@ test("installed-app sign-in refuses non-loopback redirect origins before issuing
   ]) {
     const f = fixture(origin);
     try {
-      assert.throws(() => f.account.start(), { message: "account_unavailable" });
+      assert.throws(() => f.account.start(), { message: "sign_in_local_only" });
       assert.equal(f.account.status().profile, null);
       assert.equal(f.secrets.has(`secret://${APX_ACCOUNT_SESSION}`), false);
     } finally {
       await f.dir.remove();
     }
+  }
+});
+
+test("Google cancellation validates state, consumes the flow and ends waiting without a session", async () => {
+  const f = fixture();
+  try {
+    const state = f.start();
+    assert.equal(f.account.status().pending, true);
+    await assert.rejects(f.account.finish("", "forged", "access_denied"), /sign_in_expired/);
+    assert.equal(f.account.status().pending, true);
+    await assert.rejects(f.account.finish("", state, "access_denied"), /sign_in_cancelled/);
+    assert.equal(f.account.status().pending, false);
+    assert.equal(f.account.status().profile, null);
+    await assert.rejects(f.account.finish("code", state), /sign_in_expired/);
+    await f.account.finish("code", f.start());
+    assert.ok(f.account.status().profile);
+  } finally {
+    await f.dir.remove();
   }
 });
 

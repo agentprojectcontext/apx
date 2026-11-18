@@ -19,7 +19,7 @@ import {
   WebContentsView,
 } from "electron";
 import { showAbout } from "./about.ts";
-import { type AccountReturn, accountReturn } from "./account-return.ts";
+import { accountReturn } from "./account-return.ts";
 import { registerAppScheme, serveAppScheme, webDist } from "./app-scheme.ts";
 import { createArtifactWindows } from "./artifact-windows.ts";
 import { runAskpass } from "./askpass.ts";
@@ -64,7 +64,7 @@ const openedConnection = JSON.stringify(loadConnection(app.getPath("userData")))
 
 registerAppScheme();
 
-let pendingAccountReturn: AccountReturn | undefined;
+let pendingAccountReturn: boolean | undefined;
 let accountReturned = () => {};
 const receiveAccountReturn = (value: string) => {
   const result = accountReturn(value);

@@ -5189,16 +5189,17 @@ Rejected: letting the model read `calendar_free` itself (it would see busy block
 outside the attention hours when none are set (no safe window); moving a booking from the contact's chat in this
 version (a cancel and a new booking under the same caps is enough for now; moving is noted for the owner).
 
-<a id="d-240"></a>
-## D-240 — 2026-11-17 — Optional Firebase accounts use installed-app Google sign-in and private short IDs
+<a id="d-245"></a>
+## D-245 — 2026-11-17 — Optional Firebase accounts use installed-app Google sign-in and private short IDs
 
 The APX account is optional and separate from local owner identity, Google integrations and telemetry. Signing in
 uploads only the account profile, not projects, conversations or agents. It does not publish an artifact.
 
 Use Firebase Authentication with Google and Firestore REST, without Cloud Functions or a billing upgrade. Google
 installed-app authorization uses PKCE S256, random expiring state and an HTTP `127.0.0.1` return under RFC 8252.
-The existing panel return page completes the registered protocol method; desktop hands the code back through the
-strict `apx://account/callback` path. Firebase verifies Google's ID token; the core stores Firebase ID and refresh
+The existing panel return page always completes the loopback-only registered protocol method in the browser.
+The optional `apx://account/signed-in` link only brings desktop forward; it never carries code or state. Login does
+not depend on OS protocol registration, including development and AppImage. Firebase verifies Google's ID token; the core stores Firebase ID and refresh
 tokens only as a secret. Account methods are owner-only, sanitized and never expose tokens to agents. Logout removes
 this core's saved session without deleting the cloud profile or another core's session.
 
@@ -5212,5 +5213,8 @@ existing rules. Emulator regression tests cover both account isolation and telem
 Trade-off: this no-broker loopback flow requires the browser and core on the same computer. It does not provide
 remote-core or phone sign-in. An HTTPS broker needs a separate deployment/cost decision. Account IDs are profile
 identifiers, never public artifact link codes: each published artifact has an independent code.
+
+`pnpm typecheck` includes both Firebase rules suites. `pnpm test:firebase` runs them in the isolated demo emulator;
+it is a mandatory manual gate before every rules deployment (see RELEASE.md), not part of ordinary preflight.
 
 See [Firebase setup](../firebase/README.md) and its Spanish counterpart for configuration, rules and verification.

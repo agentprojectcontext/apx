@@ -56,7 +56,12 @@ export function createAccount(deps: {
         refresh_token: session.refreshToken,
       },
       true,
-    );
+      true,
+    ).catch((error: unknown) => {
+      if (error instanceof Error && error.message === "sign_in_required" && generation === expected)
+        deps.secrets.set(APX_ACCOUNT_SESSION, null);
+      throw error;
+    });
     if (text(data, "user_id") !== session.uid) throw new Error("account_unavailable");
     const next = {
       ...session,
@@ -70,14 +75,18 @@ export function createAccount(deps: {
   return {
     status() {
       const session = stored();
-      return { available: Boolean(deps.client && deps.google), profile: session?.profile ?? null };
+      return {
+        available: Boolean(deps.client && deps.google),
+        profile: session?.profile ?? null,
+        pending: Boolean(changing || (flow && flow.expires > now())),
+      };
     },
     start(desktop = false) {
       if (!deps.google || !deps.client) throw new Error("account_not_configured");
       if (changing) throw new Error("account_busy");
       const origin = new URL(deps.origin());
       if (origin.protocol !== "http:" || origin.hostname !== "127.0.0.1" || origin.username || origin.password)
-        throw new Error("account_unavailable");
+        throw new Error("sign_in_local_only");
       const pair = pkce();
       generation++;
       flow = {
@@ -96,12 +105,13 @@ export function createAccount(deps: {
         }),
       };
     },
-    async finish(code: string, state: string) {
+    async finish(code: string, state: string, error?: "access_denied") {
       const current = flow;
       if (!current || current.state !== state || current.expires <= now()) throw new Error("sign_in_expired");
       if (!deps.google || !deps.client) throw new Error("account_not_configured");
       if (changing) throw new Error("account_busy");
       flow = undefined;
+      if (error === "access_denied") throw new Error("sign_in_cancelled");
       changing = true;
       try {
         const google = await post(

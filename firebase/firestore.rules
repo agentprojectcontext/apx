@@ -1,8 +1,7 @@
 rules_version = '2';
 
-// APX telemetry (apps/core/src/telemetry.ts). Installs write without an account, so these rules are the whole guard:
-// only known shapes, server timestamps and immutable steps. Private readers need an administrator-issued claim;
-// authenticated readers cannot write. Console/report access continues through IAM. See rules/DECISIONS.md#d-092.
+// Private profiles with atomic ID/handle reservations (D-245); anonymous telemetry keeps its shape checks (D-092).
+// Telemetry reads require an administrator-issued claim; authenticated telemetry writes stay denied.
 service cloud.firestore {
   match /databases/{database}/documents {
     function isUuid(id) {
@@ -71,7 +70,10 @@ service cloud.firestore {
         && request.resource.data.keys().hasOnly(['uid'])
         && request.resource.data.uid == request.auth.uid
         && userAfter(request.auth.uid).handle == handle;
-      allow delete: if request.auth != null && resource.data.uid == request.auth.uid
+      allow delete: if request.auth != null
+        && (exists(/databases/$(database)/documents/accountHandles/$(handle))
+          ? resource.data.uid == request.auth.uid
+          : get(/databases/$(database)/documents/users/$(request.auth.uid)).data.handle == handle)
         && userAfter(request.auth.uid).handle != handle;
     }
 

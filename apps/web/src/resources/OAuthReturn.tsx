@@ -25,8 +25,12 @@ function finish() {
   const code = params.get("code");
   const state = params.get("state");
   const denied = params.get("error");
+  if (ACCOUNT && denied === "access_denied" && state) {
+    finishing ??= client.call("account.finish", { error: "access_denied", state }).then(() => ({ id: "account" }));
+    return finishing;
+  }
   if (denied) return Promise.reject(new Error(denied));
-  if (!code || !state || DESKTOP_ACCOUNT) return undefined;
+  if (!code || !state) return undefined;
   if (ACCOUNT) finishing ??= client.call("account.finish", { code, state }).then(() => ({ id: "account" }));
   if (window.location.pathname === "/oauth/openrouter")
     finishing ??= client.call("openrouter.finish", { code, state }).then(() => ({ id: "openrouter" }));
@@ -57,7 +61,10 @@ export function OAuthReturn() {
         tellSignInDone(r.id);
         if (POPUP) window.setTimeout(() => window.close(), CLOSE_MS);
       },
-      (e: unknown) => setState({ kind: "failed", error: e instanceof Error ? e.message : String(e) }),
+      (e: unknown) => {
+        setState({ kind: "failed", error: e instanceof Error ? e.message : String(e) });
+        if (ACCOUNT) tellSignInDone("account");
+      },
     );
   }, []);
   const open = POPUP ? (
@@ -69,19 +76,13 @@ export function OAuthReturn() {
       {t("oauth.open")}
     </Button>
   );
-  if (DESKTOP_ACCOUNT && params.get("code") && !params.get("error")) {
-    const link = `apx://account/callback?${new URLSearchParams({ code: params.get("code") ?? "", state: params.get("state") ?? "" })}`;
-    return (
-      <div className="oauthreturn">
-        <EmptyState
-          title={t("account.returnTitle")}
-          action={<Button onClick={() => window.location.assign(link)}>{t("account.returnAction")}</Button>}
-        >
-          {t("account.returnHint")}
-        </EmptyState>
-      </div>
-    );
-  }
+  const back = DESKTOP_ACCOUNT ? (
+    <Button size="sm" onClick={() => window.location.assign("apx://account/signed-in")}>
+      {t("account.returnAction")}
+    </Button>
+  ) : (
+    open
+  );
   return (
     <div className="oauthreturn">
       {state.kind === "working" && <EmptyState icon={<Spinner size={18} />} title={t("oauth.working")} />}
@@ -89,20 +90,22 @@ export function OAuthReturn() {
         <EmptyState
           icon={<Icons.CircleCheck />}
           title={
-            state.also?.length
-              ? t("oauth.doneTitleMany", {
-                  names: [state.id, ...state.also].map((id) => NAMES[id] ?? id).join(", "),
-                })
-              : t("oauth.doneTitle", { name: NAMES[state.id] ?? state.id })
+            ACCOUNT
+              ? t("account.signedIn")
+              : state.also?.length
+                ? t("oauth.doneTitleMany", {
+                    names: [state.id, ...state.also].map((id) => NAMES[id] ?? id).join(", "),
+                  })
+                : t("oauth.doneTitle", { name: NAMES[state.id] ?? state.id })
           }
-          action={open}
+          action={back}
         >
           {state.account ? `${t("int.signedInAs", { account: state.account })}. ` : ""}
           {t(POPUP ? "oauth.closing" : "oauth.doneBody")}
         </EmptyState>
       )}
       {state.kind === "failed" && (
-        <EmptyState icon={<Icons.TriangleAlert />} title={t("oauth.failTitle")} action={open}>
+        <EmptyState icon={<Icons.TriangleAlert />} title={t("oauth.failTitle")} action={back}>
           {ACCOUNT ? accountError(t, new Error(state.error)) : state.error}
         </EmptyState>
       )}
