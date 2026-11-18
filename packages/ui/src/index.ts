@@ -24,6 +24,7 @@ export {
   type CodeFrameProps,
 } from "./components/CodeFrame";
 export { Composer, type ComposerProps } from "./components/Composer";
+export { ConfirmDialog, type ConfirmDialogProps } from "./components/ConfirmDialog";
 export { ConnectSignal, type ConnectSignalProps, type ConnectSignalState } from "./components/ConnectSignal";
 export { ContextMenu, type ContextMenuProps } from "./components/ContextMenu";
 export { ConversationRow, type ConversationRowProps } from "./components/ConversationRow";

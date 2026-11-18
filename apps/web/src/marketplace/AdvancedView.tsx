@@ -11,10 +11,16 @@ import { AddCatalogDialog, CatalogList, type CatalogsState } from "./Catalogs.ts
 
 export function AdvancedView({
   catalogs,
+  apxCount,
   onCatalogs,
   onServers,
+  onOpenCatalog,
 }: {
   catalogs: CatalogsState | undefined;
+  /** How many APX's own catalog offers. */
+  apxCount: number | undefined;
+  /** Shows a catalog's extensions in Explore. */
+  onOpenCatalog(id: string): void;
   onCatalogs(): Promise<void>;
   /** After a server was added by its command. */
   onServers(): Promise<void>;
@@ -36,7 +42,12 @@ export function AdvancedView({
           </Button>
         </header>
         <p className="mkt-browse__status">{t("mkt.catalogsLead")}</p>
-        <CatalogList catalogs={catalogs?.catalogs ?? []} onChanged={onCatalogs} />
+        <CatalogList
+          catalogs={catalogs?.catalogs ?? []}
+          apxCount={apxCount}
+          onChanged={onCatalogs}
+          onOpen={onOpenCatalog}
+        />
       </section>
       <section className="mkt-section">
         <header className="mkt-section__head">

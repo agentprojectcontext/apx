@@ -405,6 +405,8 @@ export const CatalogEntry = z.object(
     url: () => z.string().optional(),
     /** The catalog the owner added it from (absent: APX's own). */
     catalog: () => z.string().optional(),
+    /** That catalog's name, to say where it comes from. */
+    catalog_name: () => z.string().optional(),
     /** Its license, as APX read it before listing it (an added catalog's). */
     license: () => z.string().optional(),
     /** Who makes it, as an added catalog names them. */

@@ -2,6 +2,7 @@ import type { McpServerStatus } from "@apx/protocol";
 import {
   Badge,
   Button,
+  ConfirmDialog,
   Dialog,
   Field,
   Icons,
@@ -71,6 +72,7 @@ export function IntegrationDetail({
   const [account, setAccount] = useState(editing);
   const [preferences, setPreferences] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [asking, setAsking] = useState(false);
   useEffect(() => setMode(i.off_in.length ? "chosen" : "all"), [i.off_in.length]);
   const everywhere = async () => {
     setMode("all");
@@ -111,10 +113,21 @@ export function IntegrationDetail({
             {t("int.configure")}
           </Button>
         )}
-        <Button size="sm" variant="ghost" loading={busy} onClick={() => void disconnect()}>
+        <Button size="sm" variant="ghost" loading={busy} onClick={() => setAsking(true)}>
           {t("int.disconnect")}
         </Button>
       </header>
+      {asking && (
+        <ConfirmDialog
+          title={t("mkt.disconnectTitle", { name: i.label })}
+          description={t("mkt.disconnectBody")}
+          confirmLabel={t("int.disconnect")}
+          cancelLabel={t("common.cancel")}
+          closeLabel={t("common.close")}
+          onConfirm={disconnect}
+          onClose={() => setAsking(false)}
+        />
+      )}
       {!bare && <p className="int__desc">{describe(i, t)}</p>}
       {viaBrowser(i) && <BrowserSignIn id={i.id} />}
       <div className="int__usehead">

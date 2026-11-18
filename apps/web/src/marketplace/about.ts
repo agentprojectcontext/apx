@@ -133,7 +133,7 @@ export function aboutEntry(c: CatalogEntry, lang: string): About {
     version: c.version === "0.0.0" ? undefined : c.version,
     tagline: copy?.tagline ?? c.tagline ?? (c.description || undefined),
     label: c.provenance === "official" ? "official" : "third",
-    origin: c.catalog ? { kind: "catalog", name: c.catalog } : { kind: "apx" },
+    origin: c.catalog ? { kind: "catalog", name: c.catalog_name ?? c.catalog } : { kind: "apx" },
     hosts: k?.hosts ?? [],
     ownerHost: false,
     runsCode: k?.runs_code ?? Boolean(c.needs?.includes("code")),

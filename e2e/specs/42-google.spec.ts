@@ -30,6 +30,8 @@ test("Google Calendar connects by signing in with Google, shows the account, and
   expect(JSON.stringify(cal)).not.toContain("fake-client-secret");
 
   await settings.getByRole("button", { name: "Desconectar" }).click();
+  // It asks first.
+  await page.getByRole("dialog", { name: /¿Desconectar/ }).getByRole("button", { name: "Desconectar" }).click();
   await expect
     .poll(
       async () =>

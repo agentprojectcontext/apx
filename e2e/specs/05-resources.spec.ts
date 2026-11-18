@@ -150,6 +150,8 @@ test("integrations: GitHub is connected with a token from its page, then disconn
 
   await page.getByRole("button", { name: "Más opciones" }).click();
   await page.getByRole("menuitem", { name: "Desconectar" }).click();
+  // It asks first.
+  await page.getByRole("dialog").getByRole("button", { name: "Desconectar" }).click();
   await expect.poll(async () => (await rpc<{ servers: Array<{ name: string }> }>("mcp.list")).servers.length).toBe(0);
 });
 
@@ -175,6 +177,8 @@ test("integrations: the Marketplace is searched; Home Assistant connects with it
   expect(JSON.stringify(servers)).not.toContain("ha-e2e-token-000");
   await page.getByRole("button", { name: "Más opciones" }).click();
   await page.getByRole("menuitem", { name: "Desconectar" }).click();
+  // It asks first.
+  await page.getByRole("dialog").getByRole("button", { name: "Desconectar" }).click();
   await expect.poll(async () => (await rpc<{ servers: Array<{ name: string }> }>("mcp.list")).servers.length).toBe(0);
 });
 

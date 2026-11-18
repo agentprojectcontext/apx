@@ -244,4 +244,15 @@ export const esMarketplace = {
   "box.update.keeps": "La {from} queda guardada: podés volver a ella desde ⋯.",
   "box.collapse": "Mostrar menos",
   "box.expand": "Ver qué trae",
+  "box.bringsUnknown":
+    "Su catálogo todavía no lo dice. Tocá Agregar: APX la lee y te muestra qué trae antes de sumar nada.",
+  "mkt.catalogApxCount": "marketplace.apxagent.app · {n} extensiones",
+  "mkt.catalogFixed": "Siempre está",
+  "mkt.catalogSee": "Ver en Explorar",
+  "mkt.catalogRemoveTitle": "¿Quitar el catálogo {name}?",
+  "mkt.catalogRemoveBody": "Sus {n} extensiones dejan de aparecer en Explorar. Las que ya agregaste se quedan.",
+  "mkt.removeTitle": "¿Quitar {name}?",
+  "mkt.removeBody": "Se borran sus archivos, claves y ajustes. La podés volver a agregar después.",
+  "mkt.disconnectTitle": "¿Desconectar {name}?",
+  "mkt.disconnectBody": "Tus agentes dejan de usarla y se borran sus claves. La podés volver a conectar después.",
 } satisfies Record<keyof typeof enMarketplace, string>;

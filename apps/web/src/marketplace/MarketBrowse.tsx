@@ -37,7 +37,9 @@ export function rowAction(i: Item, open: () => void): (() => void) | undefined {
   if (i.state !== "available") return undefined;
   const kind = i.channel;
   if (kind) return () => isChannelKind(kind) && go.newChannel(kind);
-  const entry = i.entry?.catalog ? { catalog: i.entry.catalog, id: i.id } : undefined;
+  const entry = i.entry?.catalog
+    ? { catalog: i.entry.catalog, id: i.id, ...(i.entry.catalog_name ? { name: i.entry.catalog_name } : {}) }
+    : undefined;
   if (entry) return () => openExtensionInstall({ entry, catalog: true });
   const url = !i.integration && i.url;
   if (url) return () => openExtensionInstall({ url, catalog: true, official: i.provenance === "official" });
@@ -81,7 +83,12 @@ export function MarketBrowse({
   catalogNames,
   onOpen,
   total,
+  source,
+  onSource,
 }: {
+  /** Which catalog: "all", "apx" or an added catalog's id. */
+  source: string;
+  onSource(source: string): void;
   /** Everything it can offer: included, APX's catalog and added catalogs (the owner's own built ones are not here). */
   items: Item[];
   /** How many it offers before the search narrows them. */
@@ -95,11 +102,11 @@ export function MarketBrowse({
 }) {
   const t = useT();
   const [filter, setFilter] = useState<Filter>();
-  // Which catalog: all of them, APX's (with what comes with APX), or one the owner added.
-  const [source, setSource] = useState("all");
+  // A catalog removed while chosen falls back to all of them.
+  const picked = source === "all" || source === "apx" || catalogNames.has(source) ? source : "all";
   const ofSource = (s: string) => (i: Item) =>
     s === "all" || (s === "apx" ? !i.entry?.catalog : i.entry?.catalog === s);
-  const here = items.filter(ofSource(source));
+  const here = items.filter(ofSource(picked));
   // The chosen one stays, even when a search leaves it empty: it is how the owner takes it off.
   const filters = (Object.keys(FILTERS) as Filter[]).filter((f) => f === filter || here.some(FILTERS[f]));
   const shown = filter ? here.filter(FILTERS[filter]) : here;
@@ -168,7 +175,7 @@ export function MarketBrowse({
             className="mkt-browse__source"
             label={t("mkt.source.label")}
             value={source}
-            onValueChange={(v) => setSource(v ?? "all")}
+            onValueChange={(v) => onSource(v ?? "all")}
             options={[
               { value: "all", label: t("mkt.source.all") },
               { value: "apx", label: t("mkt.source.apx") },

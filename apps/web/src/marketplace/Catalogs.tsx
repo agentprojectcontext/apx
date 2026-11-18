@@ -1,5 +1,5 @@
 import type { Result } from "@apx/protocol";
-import { Button, Dialog, Field, Icons, Input } from "@apx/ui";
+import { Button, ConfirmDialog, Dialog, Field, IconButton, Icons, Input } from "@apx/ui";
 import { useState } from "react";
 import { client } from "../data/client.ts";
 import { notify } from "../data/notices.ts";
@@ -110,9 +110,22 @@ export function AddCatalogDialog({
 }
 
 /** APX's catalog, which always stays, and the owner's: how many extensions each lists, read again, remove. */
-export function CatalogList({ catalogs, onChanged }: { catalogs: Catalog[]; onChanged(): Promise<void> }) {
+export function CatalogList({
+  catalogs,
+  apxCount,
+  onChanged,
+  onOpen,
+}: {
+  catalogs: Catalog[];
+  /** How many APX's own catalog offers. */
+  apxCount: number | undefined;
+  onChanged(): Promise<void>;
+  /** Shows that catalog's extensions in Explore ("apx" for APX's). */
+  onOpen(id: string): void;
+}) {
   const t = useT();
   const [busy, setBusy] = useState<string>();
+  const [removing, setRemoving] = useState<Catalog>();
   const act = async (id: string, fn: () => Promise<unknown>) => {
     setBusy(id);
     await attempt(fn, t);
@@ -126,9 +139,14 @@ export function CatalogList({ catalogs, onChanged }: { catalogs: Catalog[]; onCh
           <Icons.Puzzle size={18} />
           <span className="mkt-brought__main">
             <b>APX</b>
-            <span>{t("mkt.catalogApx")}</span>
+            <span>{apxCount === undefined ? t("mkt.catalogApx") : t("mkt.catalogApxCount", { n: apxCount })}</span>
           </span>
-          <span className="mkt-catalog__always">{t("mkt.catalogAlways")}</span>
+          <Button size="sm" variant="ghost" trailingIcon={<Icons.ArrowRight size={14} />} onClick={() => onOpen("apx")}>
+            {t("mkt.catalogSee")}
+          </Button>
+          <span className="mkt-catalog__always" title={t("mkt.catalogFixed")}>
+            <Icons.Lock size={14} aria-label={t("mkt.catalogFixed")} />
+          </span>
         </div>
       </div>
       {catalogs.map((c) => (
@@ -144,22 +162,41 @@ export function CatalogList({ catalogs, onChanged }: { catalogs: Catalog[]; onCh
             <Button
               size="sm"
               variant="ghost"
+              trailingIcon={<Icons.ArrowRight size={14} />}
+              onClick={() => onOpen(c.id)}
+            >
+              {t("mkt.catalogSee")}
+            </Button>
+            <Button
+              size="sm"
+              variant="ghost"
               leadingIcon={<Icons.RefreshCw size={14} />}
               loading={busy === c.id}
               onClick={() => void act(c.id, () => client.call("extensions.catalog_sync", { id: c.id }))}
             >
               {t("mkt.sync")}
             </Button>
-            <Button
+            <IconButton
               size="sm"
               variant="ghost"
-              onClick={() => void act(c.id, () => client.call("extensions.catalog_remove", { id: c.id }))}
-            >
-              {t("mkt.remove")}
-            </Button>
+              label={t("mkt.remove")}
+              icon={<Icons.Trash2 size={14} />}
+              onClick={() => setRemoving(c)}
+            />
           </div>
         </div>
       ))}
+      {removing && (
+        <ConfirmDialog
+          title={t("mkt.catalogRemoveTitle", { name: removing.name })}
+          description={t("mkt.catalogRemoveBody", { n: removing.count })}
+          confirmLabel={t("mkt.remove")}
+          cancelLabel={t("common.cancel")}
+          closeLabel={t("common.close")}
+          onConfirm={() => act(removing.id, () => client.call("extensions.catalog_remove", { id: removing.id }))}
+          onClose={() => setRemoving(undefined)}
+        />
+      )}
     </section>
   );
 }

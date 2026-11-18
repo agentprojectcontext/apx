@@ -241,4 +241,15 @@ export const enMarketplace = {
   "box.update.keeps": "{from} is kept: you can go back to it from ⋯.",
   "box.collapse": "Show less",
   "box.expand": "Show what it brings",
+  "box.bringsUnknown":
+    "Its catalog doesn't say yet. Press Add: APX reads it and shows you what it brings before adding anything.",
+  "mkt.catalogApxCount": "marketplace.apxagent.app · {n} extensions",
+  "mkt.catalogFixed": "Always there",
+  "mkt.catalogSee": "See in Explore",
+  "mkt.catalogRemoveTitle": "Remove the {name} catalog?",
+  "mkt.catalogRemoveBody": "Its {n} extensions leave Explore. The ones you already added stay.",
+  "mkt.removeTitle": "Remove {name}?",
+  "mkt.removeBody": "Its files, keys and settings go. You can add it again later.",
+  "mkt.disconnectTitle": "Disconnect {name}?",
+  "mkt.disconnectBody": "Your agents stop using it and its keys are deleted. You can connect it again later.",
 } as const;

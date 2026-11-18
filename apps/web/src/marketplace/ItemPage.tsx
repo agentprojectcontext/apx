@@ -1,5 +1,5 @@
 import type { McpServerStatus } from "@apx/protocol";
-import { Button, Card, IconButton, Icons, MarkdownView, Menu, type MenuEntry } from "@apx/ui";
+import { Button, Card, ConfirmDialog, IconButton, Icons, MarkdownView, Menu, type MenuEntry } from "@apx/ui";
 import { type ReactNode, useState } from "react";
 import { client } from "../data/client.ts";
 import { setMcp, signInMcp } from "../data/resources.ts";
@@ -55,6 +55,8 @@ export function ItemPage({
   const copy = listingIn(item.listing, lang);
   const [open, setOpen] = useState<Dialog>();
   const [busy, setBusy] = useState(false);
+  // An action that removes or disconnects asks first.
+  const [asking, setAsking] = useState<{ title: string; body: string; label: string; run(): Promise<unknown> }>();
   const e = item.ext;
   const i = item.integration;
   const step = nextStep(item);
@@ -146,7 +148,13 @@ export function ItemPage({
         label: t("mkt.remove"),
         icon: <Icons.Trash2 size={14} />,
         danger: true,
-        onSelect: () => void run(() => client.call("extensions.remove", { id: e.id })).then(() => onBack()),
+        onSelect: () =>
+          setAsking({
+            title: t("mkt.removeTitle", { name: item.name }),
+            body: t("mkt.removeBody"),
+            label: t("mkt.remove"),
+            run: () => run(() => client.call("extensions.remove", { id: e.id })).then(() => onBack()),
+          }),
       },
     );
   } else if (i && item.state !== "available" && item.state !== "coming") {
@@ -155,7 +163,13 @@ export function ItemPage({
       {
         label: t("int.disconnect"),
         icon: <Icons.Power size={14} />,
-        onSelect: () => void run(() => client.call("integrations.disconnect", { id: i.id })),
+        onSelect: () =>
+          setAsking({
+            title: t("mkt.disconnectTitle", { name: item.name }),
+            body: t("mkt.disconnectBody"),
+            label: t("int.disconnect"),
+            run: () => run(() => client.call("integrations.disconnect", { id: i.id })),
+          }),
       },
     );
   } else if (item.channel && item.state !== "available") {
@@ -179,7 +193,13 @@ export function ItemPage({
         label: t("mkt.remove"),
         icon: <Icons.Trash2 size={14} />,
         danger: true,
-        onSelect: () => void run(() => setMcp(server.name, null)).then(() => onBack()),
+        onSelect: () =>
+          setAsking({
+            title: t("mkt.removeTitle", { name: item.name }),
+            body: t("mkt.removeBody"),
+            label: t("mkt.remove"),
+            run: () => run(() => setMcp(server.name, null)).then(() => onBack()),
+          }),
       },
     );
   }
@@ -283,6 +303,17 @@ export function ItemPage({
             setOpen(undefined);
             await onChanged();
           }}
+        />
+      )}
+      {asking && (
+        <ConfirmDialog
+          title={asking.title}
+          description={asking.body}
+          confirmLabel={asking.label}
+          cancelLabel={t("common.cancel")}
+          closeLabel={t("common.close")}
+          onConfirm={asking.run}
+          onClose={() => setAsking(undefined)}
         />
       )}
       {open === "settings" && <ItemSettings item={item} onClose={() => setOpen(undefined)} onChanged={onChanged} />}

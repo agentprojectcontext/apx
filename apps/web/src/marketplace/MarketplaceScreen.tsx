@@ -45,6 +45,8 @@ export function MarketplaceScreen() {
   const [catalog, setCatalog] = useState<CatalogState>();
   const [catalogs, setCatalogs] = useState<CatalogsState>();
   const [query, setQuery] = useState("");
+  // Which catalog Explore shows: all of them, APX's, or one the owner added (Advanced opens one here).
+  const [source, setSource] = useState("all");
   const installedTick = useExtensionsInstalled();
   const { loadExtensions, loadServers } = res;
 
@@ -166,10 +168,21 @@ export function MarketplaceScreen() {
         ) : section === "mine" ? (
           <MineView items={items} onOpen={(i) => go.marketplace(section, i.key)} />
         ) : section === "advanced" ? (
-          <AdvancedView catalogs={catalogs} onCatalogs={catalogsChanged} onServers={loadServers} />
+          <AdvancedView
+            catalogs={catalogs}
+            apxCount={catalog ? catalog.entries.filter((e) => !e.catalog).length : undefined}
+            onCatalogs={catalogsChanged}
+            onServers={loadServers}
+            onOpenCatalog={(id) => {
+              setSource(id);
+              go.marketplace("extensions");
+            }}
+          />
         ) : (
           <MarketBrowse
             items={offered}
+            source={source}
+            onSource={setSource}
             total={items.filter((i) => i.label !== "own").length}
             query={query}
             onQuery={setQuery}
