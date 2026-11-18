@@ -194,19 +194,15 @@ export function ItemPage({
   const newer = item.update && item.url ? t("mkt.notice.update", { version: item.update }) : undefined;
   const notice =
     waiting || newer ? (
-      <Card
-        variant="soft"
-        padding="sm"
-        className="mkt-notice"
-        description={[waiting, newer].filter(Boolean).join(" ")}
-        aside={
-          newer ? (
-            <Button size="sm" variant="secondary" onClick={() => item.url && update(item.url)}>
-              {t("extx.seeUpdate")}
-            </Button>
-          ) : undefined
-        }
-      />
+      // Its button right after what it says, not at the far end of the row.
+      <div className="mkt-notice" role="status">
+        <span>{[waiting, newer].filter(Boolean).join(" ")}</span>
+        {newer && (
+          <Button size="sm" variant="secondary" onClick={() => item.url && update(item.url)}>
+            {t("extx.seeUpdate")}
+          </Button>
+        )}
+      </div>
     ) : null;
 
   return (

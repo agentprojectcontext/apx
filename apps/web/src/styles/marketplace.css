@@ -518,3 +518,17 @@
   gap: 3px;
   color: var(--apx-info-soft-fg);
 }
+
+/* What waits on the owner on an extension's page (a newer version, not connected yet): the text and its button. */
+.mkt-notice {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 14px;
+  border: 1px solid var(--apx-border);
+  border-radius: var(--apx-radius-lg);
+  padding: 10px 14px;
+  background: var(--apx-fill);
+  color: var(--apx-fg-muted);
+  font-size: var(--apx-text-sm);
+}

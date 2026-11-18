@@ -156,6 +156,7 @@
   padding: 14px 16px;
 }
 .apx-summary--soft {
+  border: 1px solid var(--apx-border-strong);
   background: var(--apx-fill);
 }
 .apx-summary--outline {
