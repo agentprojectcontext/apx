@@ -29,6 +29,7 @@ const Version = z.object({
   version: z.string(),
   content_hash: z.string().optional(),
   apx: z.string().optional(),
+  published_at: z.string().max(40).optional(),
   archive: z.object({ url: z.string(), sha256: z.string() }).optional(),
   /** The package's listing copy, as the catalog extracted it. */
   card: z.unknown().optional(),

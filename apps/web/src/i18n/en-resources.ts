@@ -1,5 +1,8 @@
 // UI strings, English: Resources (skills, MCP servers, integrations, variables, extensions).
+import { enMarketplace } from "./marketplace-en.ts";
+
 export const enResources = {
+  ...enMarketplace,
   "res.mcpAvailable": "Available in",
   "res.mcpEverywhere": "All projects",
   "res.mcpMissingVariables": "Before using this connection here, add a value for: {names}.",
@@ -619,7 +622,7 @@ export const enResources = {
   "mkt.agentsEmpty": "No ready-made agents in the catalog yet. They arrive with the extensions that bring them.",
   "mkt.skillsEmpty": "No extensions with skills match.",
   "mkt.connected": "Connected",
-  "mkt.added": "Installed",
+  "mkt.added": "Added",
   "mkt.browserName": "Browser",
   "mkt.browserText": "Your agents browse the web in APX's own browser.",
   "mkt.openSettings": "Open its settings",
@@ -628,7 +631,7 @@ export const enResources = {
   "mkt.info": "Information",
   "mkt.about": "About",
   "mkt.screenshots": "Screenshots",
-  "mkt.kv.publisher": "Publisher",
+  "mkt.kv.publisher": "Developer",
   "mkt.kv.category": "Category",
   "mkt.kv.website": "Website",
   "mkt.kv.privacy": "Privacy policy",

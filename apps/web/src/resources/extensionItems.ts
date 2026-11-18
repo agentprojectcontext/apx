@@ -18,6 +18,11 @@ export type Integration = Result<"integrations.list">["integrations"][number];
 
 /** Included with APX, from APX's catalog, or the owner's own (a file, a folder, an address). */
 type Origin = "included" | "catalog" | "own";
+/**
+ * Its label on screen: comes with APX, published by APX (its files match), from someone else (another catalog, a file
+ * or address someone gave), or the owner's own (a folder they built, a server they added by its address or command).
+ */
+export type Label = "included" | "official" | "third" | "own";
 /** Shown on the row: not here yet, coming, installed but off, working, or waiting on the owner. */
 type ItemState = "available" | "coming" | "off" | "on" | "attention";
 /** Why one waits on the owner. */
@@ -31,7 +36,12 @@ export type Item = {
   tagline?: string | undefined;
   category?: ExtensionCategory | undefined;
   origin: Origin;
+  label: Label;
   provenance: "included" | ExtensionInfo["provenance"];
+  /** Who makes it, as its listing says (APX for its own catalog when the listing says nothing). */
+  publisher?: string | undefined;
+  /** When the catalog published the version it offers (ISO date). */
+  published?: string | undefined;
   connection?: ExtensionConnection | undefined;
   brings: ExtensionBrings[];
   needs: ExtensionNeeds[];
@@ -52,6 +62,8 @@ export type Item = {
   channel?: string;
   /** Part of APX with settings of its own (the browser). */
   builtin?: "browser";
+  /** The server it runs, when APX knows it: an account's, or one the owner added by its address or command. */
+  server?: McpServerStatus;
 };
 
 /** A channel kind as the screen names it: its name and line come from the channel's own texts. */
@@ -89,7 +101,9 @@ function fromIntegration(i: Integration, servers: McpServerStatus[], project: st
     description: i.description,
     // With code of its own it stays included; the rest are APX's data, on their way to its catalog.
     origin: own ? "included" : "catalog",
+    label: own ? "included" : "official",
     provenance: own ? "included" : "official",
+    publisher: "APX",
     connection: i.oauth || !i.fields.length ? "oauth" : "key",
     brings: ["accounts", "tools"],
     needs: [],
@@ -97,6 +111,7 @@ function fromIntegration(i: Integration, servers: McpServerStatus[], project: st
     attention,
     here: Boolean(project && i.connected && !i.off_in.includes(project)),
     integration: i,
+    ...(server ? { server } : {}),
   };
 }
 
@@ -108,7 +123,9 @@ function fromChannel(c: ChannelOffer): Item {
     description: c.description,
     category: "communication",
     origin: "included",
+    label: "included",
     provenance: "included",
+    publisher: "APX",
     connection: "local",
     brings: ["accounts"],
     needs: [],
@@ -134,6 +151,8 @@ function installed(e: ExtensionInfo, entry: CatalogEntry | undefined): Item {
           : undefined;
   const update = entry && newer(entry.version, e.version) ? entry.version : undefined;
   const listing = e.listing ?? entry?.listing;
+  const label: Label =
+    e.provenance === "official" ? "official" : !entry?.catalog && FOLDER.test(e.source) ? "own" : "third";
   return {
     key: `ext:${e.id}`,
     id: e.id,
@@ -142,7 +161,10 @@ function installed(e: ExtensionInfo, entry: CatalogEntry | undefined): Item {
     tagline: listing?.tagline ?? entry?.tagline,
     category: listing?.category ?? entry?.category,
     origin: entry && e.provenance === "official" ? "catalog" : "own",
+    label,
     provenance: e.provenance,
+    // The catalog's publisher speaks for its own files only: a copy from elsewhere says who made it itself, or nothing.
+    publisher: e.provenance === "official" ? (listing?.publisher?.name ?? "APX") : e.listing?.publisher?.name,
     connection: listing?.connection,
     brings: e.brings,
     needs: e.needs,
@@ -159,6 +181,31 @@ function installed(e: ExtensionInfo, entry: CatalogEntry | undefined): Item {
   };
 }
 
+/** A folder on this computer: the owner built it (or keeps it) there. */
+const FOLDER = /^(~|\/|[A-Za-z]:[\\/])/;
+
+/** One the owner added in APX by its address or command: their own extension, with the tools its server has. */
+function fromServer(s: McpServerStatus): Item {
+  const url = s.definition?.url;
+  const attention: Attention | undefined =
+    s.status === "needs-sign-in" ? "sign-in" : s.status === "error" ? "error" : undefined;
+  return {
+    key: `mcp:${s.name}`,
+    id: s.name,
+    name: s.name,
+    description: url ? (URL.parse(url)?.host ?? url) : s.target,
+    origin: "own",
+    label: "own",
+    provenance: "third_party",
+    brings: ["tools"],
+    needs: url ? [] : ["code"],
+    state: !s.enabled ? "off" : attention ? "attention" : "on",
+    attention,
+    here: s.enabled,
+    server: s,
+  };
+}
+
 /** A plugin that never said its version is listed without one. */
 const known = (v: string) => (v === "0.0.0" ? undefined : v);
 
@@ -171,7 +218,10 @@ function offered(c: CatalogEntry): Item {
     tagline: c.listing?.tagline ?? c.tagline,
     category: c.listing?.category ?? c.category,
     origin: "catalog",
+    label: c.provenance === "official" ? "official" : "third",
     provenance: c.provenance,
+    publisher: c.listing?.publisher?.name ?? (c.provenance === "official" ? "APX" : undefined),
+    published: c.published_at,
     connection: c.listing?.connection,
     brings: c.brings ?? [],
     needs: c.needs ?? [],
@@ -206,6 +256,8 @@ export function buildItems(src: {
   const mine = new Set(src.installed.map((e) => e.id));
   const packaged = new Set([...byId.keys(), ...mine]);
   const connected = new Set(src.integrations.filter((i) => i.connected && !i.own).map((i) => i.id));
+  // The servers an account or an extension runs are shown as that account or extension, never on their own.
+  const taken = new Set([...src.integrations.map((i) => i.id), ...src.installed.flatMap((e) => e.mcp)]);
   return [
     ...src.integrations
       .filter((i) => i.own || i.connected || !packaged.has(i.id))
@@ -220,7 +272,9 @@ export function buildItems(src: {
             description: src.browser.description,
             category: "productivity" as const,
             origin: "included" as const,
+            label: "included" as const,
             provenance: "included" as const,
+            publisher: "APX",
             connection: "local" as const,
             brings: ["tools" as const],
             needs: [],
@@ -231,6 +285,7 @@ export function buildItems(src: {
         ]
       : []),
     ...src.installed.map((e) => installed(e, byId.get(e.id) ?? fromAdded(e))),
+    ...src.servers.filter((s) => s.scope === "global" && s.definition && !taken.has(s.name)).map(fromServer),
     ...src.catalog
       .filter((c) => !mine.has(c.id) && !connected.has(c.id) && (!c.catalog || !byId.has(c.id)))
       .map(offered),
@@ -238,7 +293,7 @@ export function buildItems(src: {
 }
 
 /** It waits on the owner: something to fix, an update, or installed and still off. */
-const waits = (i: Item) => i.state === "attention" || i.state === "off" || Boolean(i.update);
+export const waits = (i: Item) => i.state === "attention" || i.state === "off" || Boolean(i.update);
 
 /** Installed or connected: the owner's own list. */
 export const isMine = (i: Item) => i.state !== "available" && i.state !== "coming";
@@ -263,14 +318,12 @@ export function groupByCategory(items: Item[]): Group[] {
   ];
 }
 
-/** The owner's own: what waits on them first, then what is on here, then the rest. */
-export function groupMine(items: Item[], project: string | undefined): Group[] {
+/** The owner's own: what waits on them (not connected, a new version, an error) first, then what is working. */
+export function groupMine(items: Item[]): Group[] {
   const mine = items.filter(isMine);
-  const rest = mine.filter((i) => !waits(i));
   return [
     { id: "attention", items: mine.filter(waits) },
-    { id: "here", items: project ? rest.filter((i) => i.here) : [] },
-    { id: "active", items: project ? rest.filter((i) => !i.here) : rest },
+    { id: "active", items: mine.filter((i) => !waits(i)) },
   ].filter((g) => g.items.length);
 }
 

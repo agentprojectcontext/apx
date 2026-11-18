@@ -122,20 +122,51 @@ test("browse groups: included first, the catalog by category, then accounts not 
   );
 });
 
-test("the owner's own: what waits first, then what is on here, then the rest", () => {
+test("the owner's own: what waits on them first, then what works", () => {
   assert.deepEqual(
-    groupMine(items, "p1").map((g) => [g.id, g.items.map((i) => i.id)]),
+    groupMine(items).map((g) => [g.id, g.items.map((i) => i.id)]),
     [
       ["attention", ["slack", "weather", "hubspot"]],
-      ["here", ["github", "telegram", "browser", "camera"]],
+      ["active", ["github", "telegram", "browser", "camera"]],
     ],
   );
+});
+
+test("each one says where it comes from: included, official, third party or the owner's own", () => {
+  const own = buildItems({
+    ...sources,
+    installed: [
+      ...sources.installed,
+      ext("tv", { provenance: "third_party", source: "~/work/acme-tv" }),
+      ext("acme-docs", { mcp: ["acme-docs-remote"] }),
+    ],
+    servers: [
+      ...sources.servers,
+      {
+        ...server("docs", "ready"),
+        transport: "http",
+        target: "https://mcp.acme.example/mcp",
+        enabled: true,
+        definition: { url: "https://mcp.acme.example/mcp", args: [], env: {}, headers: {} },
+      },
+      // An extension's own server and an account's are shown as that extension or account, never alone.
+      { ...server("acme-docs-remote", "ready"), definition: { args: [], env: {}, headers: {} } },
+      { ...server("github", "ready"), definition: { args: [], env: {}, headers: {} } },
+    ] as McpServerStatus[],
+  });
+  const label = (k: string) => own.find((i) => i.key === k)?.label;
+  assert.equal(label("included:gmail"), "included");
+  assert.equal(label("account:github"), "official");
+  assert.equal(label("ext:weather"), "official");
+  assert.equal(label("ext:camera"), "third");
+  assert.equal(label("ext:tv"), "own");
+  assert.equal(label("mcp:docs"), "own");
+  assert.equal(own.find((i) => i.key === "mcp:docs")?.state, "on");
   assert.deepEqual(
-    groupMine(buildItems({ ...sources, project: "p2" }), "p2")
-      .find((g) => g.id === "active")
-      ?.items.map((i) => i.id),
-    ["github"],
+    own.filter((i) => i.key.startsWith("mcp:")).map((i) => i.id),
+    ["docs"],
   );
+  assert.equal(own.find((i) => i.key === "ext:weather")?.publisher, "APX");
 });
 
 test("filters by words and by what it brings", () => {

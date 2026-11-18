@@ -1,7 +1,10 @@
 // UI strings, Spanish (voseo): Recursos.
 import type { MessageKey } from "./en.ts";
 
+import { esMarketplace } from "./marketplace-es.ts";
+
 export const esResources: Partial<Record<MessageKey, string>> = {
+  ...esMarketplace,
   "res.mcpAvailable": "Disponible en",
   "res.mcpEverywhere": "Todos los proyectos",
   "res.mcpMissingVariables": "Antes de usar esta conexión acá, agregá un valor para: {names}.",
@@ -629,7 +632,7 @@ export const esResources: Partial<Record<MessageKey, string>> = {
   "mkt.agentsEmpty": "Todavía no hay agentes listos en el catálogo. Llegan con las extensiones que los traen.",
   "mkt.skillsEmpty": "No hay extensiones con skills que coincidan.",
   "mkt.connected": "Conectada",
-  "mkt.added": "Instalada",
+  "mkt.added": "Agregada",
   "mkt.browserName": "Navegador",
   "mkt.browserText": "Tus agentes navegan la web con el navegador de APX.",
   "mkt.openSettings": "Abrir su configuración",
@@ -638,7 +641,7 @@ export const esResources: Partial<Record<MessageKey, string>> = {
   "mkt.info": "Información",
   "mkt.about": "Acerca de",
   "mkt.screenshots": "Capturas",
-  "mkt.kv.publisher": "Publicador",
+  "mkt.kv.publisher": "Desarrollador",
   "mkt.kv.category": "Categoría",
   "mkt.kv.website": "Sitio web",
   "mkt.kv.privacy": "Política de privacidad",

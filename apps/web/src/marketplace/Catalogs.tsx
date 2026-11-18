@@ -7,7 +7,7 @@ import { type MessageKey, useT } from "../i18n/index.ts";
 import { attempt } from "../resources/InstalledExtension.tsx";
 
 // The catalogs the owner adds for themself: a dialog to add one (a repository, an address, a folder, or one of the
-// suggested ones with one click), and the list of the added ones with what each left out and why.
+// suggested ones with one click), and the list of the added ones.
 
 export type CatalogsState = Result<"extensions.catalogs">;
 
@@ -80,7 +80,7 @@ export function AddCatalogDialog({
         <span className="mkt__label">{t("mkt.suggested")}</span>
         {suggested.map((s) => (
           <div key={s.source} className="mkt-brought">
-            <Icons.Store size={18} />
+            <Icons.Puzzle size={18} />
             <span className="mkt-brought__main">
               <b>{s.name}</b>
               <span>{SUGGESTED_TEXT[s.source] ? t(SUGGESTED_TEXT[s.source] as MessageKey) : s.description}</span>
@@ -109,12 +109,10 @@ export function AddCatalogDialog({
   );
 }
 
-/** The owner's catalogs: read again, remove, and what each left out and why. */
+/** APX's catalog, which always stays, and the owner's: how many extensions each lists, read again, remove. */
 export function CatalogList({ catalogs, onChanged }: { catalogs: Catalog[]; onChanged(): Promise<void> }) {
   const t = useT();
   const [busy, setBusy] = useState<string>();
-  const [open, setOpen] = useState<string>();
-  if (!catalogs.length) return null;
   const act = async (id: string, fn: () => Promise<unknown>) => {
     setBusy(id);
     await attempt(fn, t);
@@ -123,23 +121,26 @@ export function CatalogList({ catalogs, onChanged }: { catalogs: Catalog[]; onCh
   };
   return (
     <section className="mkt-catalogs">
-      <span className="mkt__label">{t("mkt.catalogs")}</span>
+      <div className="mkt-catalog">
+        <div className="mkt-brought">
+          <Icons.Puzzle size={18} />
+          <span className="mkt-brought__main">
+            <b>APX</b>
+            <span>{t("mkt.catalogApx")}</span>
+          </span>
+          <span className="mkt-catalog__always">{t("mkt.catalogAlways")}</span>
+        </div>
+      </div>
       {catalogs.map((c) => (
         <div key={c.id} className="mkt-catalog">
           <div className="mkt-brought">
-            <Icons.Store size={18} />
+            <Icons.Puzzle size={18} />
             <span className="mkt-brought__main">
               <b>{c.name}</b>
               <span>
-                {c.source}
-                {c.synced_sha ? ` · ${c.synced_sha.slice(0, 7)}` : ""}
+                {c.source} · {t("mkt.catalogCount", { n: c.count })}
               </span>
             </span>
-            {c.skipped.length > 0 && (
-              <Button size="sm" variant="ghost" onClick={() => setOpen(open === c.id ? undefined : c.id)}>
-                {t("mkt.leftOut", { n: c.skipped.length })}
-              </Button>
-            )}
             <Button
               size="sm"
               variant="ghost"
@@ -157,15 +158,6 @@ export function CatalogList({ catalogs, onChanged }: { catalogs: Catalog[]; onCh
               {t("mkt.remove")}
             </Button>
           </div>
-          {open === c.id && (
-            <ul className="mkt-skipped">
-              {c.skipped.map((s) => (
-                <li key={s.name}>
-                  <b>{s.name}</b> · {t(`mkt.reason.${s.reason}` as MessageKey)}
-                </li>
-              ))}
-            </ul>
-          )}
         </div>
       ))}
     </section>

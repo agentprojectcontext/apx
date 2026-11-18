@@ -347,6 +347,8 @@ export const CatalogEntry = z.object(
     /** The index's icon for it (an https address), shown before its package is read. */
     icon_url: () => z.string().optional(),
     version: () => z.string(),
+    /** When the catalog published this version (ISO date), to show what is new. */
+    published_at: () => z.string().optional(),
     /** Official when listed by APX's catalog under the official tier; every other catalog's are third party. */
     provenance: () => ExtensionProvenance,
     /** The .apxext to install it from. */

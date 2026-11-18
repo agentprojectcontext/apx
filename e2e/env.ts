@@ -94,6 +94,8 @@ const core = spawn(process.execPath, ["--no-warnings", "--import", hook, path.jo
     APX_ALLOWED_ORIGINS: `http://panel.test:${E2E.port}`,
     APX_SECRETS: "file",
     APX_UPDATES: "off",
+    // No live catalog: the Marketplace offers only what APX ships, the same on every run and offline.
+    APX_MARKETPLACE_INDEX: "off",
     // A sandbox never reports to the APX project.
     APX_TELEMETRY: "off",
     APX_AGENT_NAME: "Roby",

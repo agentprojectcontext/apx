@@ -5238,6 +5238,7 @@ The owner settled one name for what is installed or connected, **Extensions**, a
 extensions listed under them with their state. "Apps" is not used (an app is an artifact in APX) nor "connector".
 Resources keeps Skills, MCP and Variables; a link to `resources/integrations` or `resources/extensions` opens the
 Marketplace.
+Its sections, the item page's steps and its sidebar icon are replaced by [D-245](#d-245).
 
 - **Included = APX's own code.** Google (with its tools), Asana, the channels and the browser are Included: connected
   with their existing flows, never installed or uninstalled (`integrations.list` marks them `own`). The other account
@@ -5343,3 +5344,34 @@ its packed file have one fingerprint.
 
 Rejected: packing in the terminal (a second reader of manifests and junk rules outside the core, against rule 3); a
 plain zip of the folder (times and order change the bytes, and junk would change the fingerprint).
+
+<a id="d-245"></a>
+## D-245 — 2026-11-18 — The Marketplace without confusion: one word, labels, one button, Advanced aside
+The owner found the first Marketplace confusing (when is something an extension, a skill or an agent; an empty Agents
+section; too many buttons; a row of catalogs with "17 left out") and liked Claude's panel but not its many kinds of
+things. This replaces D-241's sections and its item page steps:
+
+- **One word, a label for where it comes from.** Everything added to the agents is an **extension**, labelled
+  **Included** (APX's own code), **Official** (the official catalog lists those files), **Third party** (another
+  catalog, a file or an https address) or **Yours** (a folder on this computer, or an MCP server the owner added by its
+  address or command). An MCP that is only an address is added from **Add › From an address** and is one of the
+  owner's extensions, not a separate kind of thing; the owner's servers (with a definition, not an account's or an
+  extension's) are listed as such. An address APX also ships as an account connects that account.
+- **Skills and agents are filters**, not sections (All, Connections, Skills, Agents, Devices); an empty filter is not
+  shown. The left column has Explore, Your extensions (**Needs attention**: off, missing keys or settings, an error,
+  a new version; then **Active**) and **Advanced** at its foot: catalogs, installing from a file, a folder or a
+  command, and the guide. The sidebar icon is a puzzle piece.
+- **One button that follows the state**: Add → Connect (Pair for a companion app) → Connected. Connecting an added
+  extension still approves its hosts, keys and files first (the turn-on dialog). APX cannot tell whether a companion
+  app is paired, so Pair stays the button of an extension with one. Turn off, update, roll back, settings and remove
+  are in ⋯; settings open in a dialog.
+- **What it brings opens like Claude's connectors**: each server's address, how it signs in and its tools; skills,
+  agents (Add agent), routines (Add to Routines), widgets and the device app. The facts at the foot (developer,
+  version and date, security and access, authorization, needs, limits, cost, privacy, links) come only from the
+  manifest, the listing, the index and the servers; a fact nobody gave has no row. A third-party copy never borrows the
+  official listing's publisher.
+- **New** lists recent versions by the index's `published_at` (now passed through `extensions.catalog`), shown only
+  while fewer than half of the catalog is recent. **Most used** waits for the catalog to say it.
+
+Rejected: Claude's split into plugins, connectors and extensions (the confusion the owner named); hiding pairing
+behind ⋯ until APX knows a device is paired (the owner could not find it).

@@ -11,7 +11,7 @@ export function usePowerText(): (p: ExtensionPower) => string {
 }
 
 /** Oficial or De terceros, by its files. */
-export function ProvenanceBadge({ e }: { e: Pick<ExtensionInfo, "provenance"> }) {
+function ProvenanceBadge({ e }: { e: Pick<ExtensionInfo, "provenance"> }) {
   const t = useT();
   return e.provenance === "official" ? (
     <Badge tone="brand" dot>

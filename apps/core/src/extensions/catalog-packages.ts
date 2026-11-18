@@ -188,6 +188,7 @@ export function createPackageReader(deps: { home: string; fetch?: typeof fetch; 
           ...(category ? { category } : {}),
           ...(e.icon ? { icon_url: e.icon } : {}),
           version: v.version,
+          ...(v.published_at ? { published_at: v.published_at } : {}),
           provenance: isOfficial ? "official" : "third_party",
           ...(v.archive ? { url: v.archive.url } : {}),
           ...(pkg ? { brings: bringsOf(pkg.manifest, listing), needs: needsOf(pkg.manifest, listing) } : {}),

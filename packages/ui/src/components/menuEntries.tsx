@@ -8,6 +8,8 @@ export type MenuEntry =
   | {
       type?: "item";
       label: ReactNode;
+      /** A muted second line under the label: what picking it does ("An MCP server someone gave you as a link"). */
+      description?: ReactNode;
       icon?: ReactNode;
       shortcut?: string;
       danger?: boolean;
@@ -58,13 +60,16 @@ export function MenuEntries({
     return (
       <BaseMenu.Item
         key={key}
-        className={cx("apx-menu__item", it.danger && "is-danger")}
+        className={cx("apx-menu__item", it.danger && "is-danger", it.description && "apx-menu__item--two")}
         disabled={it.disabled}
         closeOnClick={!it.keepOpen}
         onClick={it.onSelect}
       >
         <span className="apx-menu__icon">{it.icon}</span>
-        <span className="apx-menu__text">{it.label}</span>
+        <span className={cx("apx-menu__text", it.description && "apx-menu__text--two")}>
+          {it.label}
+          {it.description && <small>{it.description}</small>}
+        </span>
         {it.shortcut && <span className="apx-menu__shortcut">{it.shortcut}</span>}
         {it.checked && <Check className="apx-menu__check" size={14} />}
       </BaseMenu.Item>

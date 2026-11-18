@@ -177,8 +177,8 @@ const VIEWS: readonly string[] = [
   "channels",
 ];
 
-/** The Marketplace's sections: extensions, ready-made agents, and skills. */
-export const MARKET_SECTIONS = ["extensions", "agents", "skills"] as const;
+/** The Marketplace's places: everything to explore, the owner's own, and the corner for whoever builds extensions. */
+export const MARKET_SECTIONS = ["extensions", "mine", "advanced"] as const;
 export type MarketSection = (typeof MARKET_SECTIONS)[number];
 const marketSectionFrom = (v: string | null): MarketSection =>
   (MARKET_SECTIONS as readonly string[]).includes(v ?? "") ? (v as MarketSection) : "extensions";

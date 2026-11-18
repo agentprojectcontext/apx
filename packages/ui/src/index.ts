@@ -38,6 +38,7 @@ export {
 } from "./components/DatePicker";
 export { DayDivider, type DayDividerProps } from "./components/DayDivider";
 export { Dialog, type DialogProps } from "./components/Dialog";
+export { Disclosure, DisclosureFacts, type DisclosureFactsProps, type DisclosureProps } from "./components/Disclosure";
 export { EmptyState, type EmptyStateProps } from "./components/EmptyState";
 export {
   type EngineBrand,

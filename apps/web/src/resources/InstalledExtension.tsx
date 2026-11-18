@@ -1,5 +1,5 @@
 import type { ExtensionInfo } from "@apx/protocol";
-import { Badge, Button, Checkbox, Dialog, Icons, Input } from "@apx/ui";
+import { Badge, Button, Icons, Input } from "@apx/ui";
 import { useEffect, useState } from "react";
 import { client } from "../data/client.ts";
 import { DEFAULT_PID, secretary } from "../data/identity.ts";
@@ -9,13 +9,9 @@ import { useData } from "../data/state.ts";
 import { useT } from "../i18n/index.ts";
 import { scheduleText } from "../routines/scheduleText.ts";
 import { go } from "../shell/nav.ts";
-import { usePowerText } from "./ExtensionSummary.tsx";
-import { ExtensionTest } from "./ExtensionTest.tsx";
-import { openExtensionInstall } from "./extensionInstall.ts";
-import type { Item } from "./extensionItems.ts";
 
-// What the owner does with an installed extension, on its page: turn it on (approving exactly what it brings), give it
-// its keys, update it or go back a version, turn it off or uninstall it; and below, the routines it suggests.
+// Pieces of an installed extension's page: its keys and reading its files again (in its settings), and the routines
+// it suggests, each added off.
 
 const errText = (e: unknown) => (e instanceof Error ? e.message : String(e));
 
@@ -37,192 +33,56 @@ const readAgain = (source: string) =>
       ? { path: source }
       : undefined;
 
-/** The side panel of an installed extension's page. */
-export function InstalledSide({
-  item,
-  onChanged,
-  onConnect,
-}: {
-  item: Item & { ext: ExtensionInfo };
-  onChanged(): Promise<void>;
-  /** Opens the dialog that connects its account (its keys). */
-  onConnect(): void;
-}) {
+/** Its keys (typed once, never shown again) and, for one from a folder or an address, reading its files again. */
+export function ExtensionKeys({ e, onChanged }: { e: ExtensionInfo; onChanged(): Promise<void> }) {
   const t = useT();
-  const power = usePowerText();
-  const e = item.ext;
-  const [editing, setEditing] = useState(false);
-  const [ok, setOk] = useState({ hosts: false, keys: false, files: false });
   const run = async (fn: () => Promise<unknown>) => {
     await attempt(fn, t);
     await onChanged();
   };
-  const missing = e.secrets.filter((s) => !s.set);
-  // A sensitive setting is a key it keeps, like a secret.
-  const keys = [...e.secrets.map((s) => s.label), ...e.settings.filter((s) => s.sensitive).map((s) => s.label)];
   const again = readAgain(e.source);
+  if (!e.secrets.length && !again) return null;
   return (
-    <>
-      {item.update && item.url && (
+    <div className="pform">
+      {e.secrets.length > 0 && <span className="pform__label">{t("ext.secrets")}</span>}
+      {e.secrets.map((s) => (
+        <SecretRow
+          key={s.name}
+          label={s.label}
+          set={s.set}
+          url={s.url}
+          onSave={(value) => run(() => client.call("extensions.set_secret", { id: e.id, name: s.name, value }))}
+        />
+      ))}
+      {again && (
         <>
-          <p className="extpage__callout extpage__callout--info">
-            <Icons.Info size={16} /> {t("extx.updateCallout", { version: item.update })}
+          <span className="pform__label">{t("url" in again ? "ext.redownload" : "ext.reload")}</span>
+          <p className="pform__hint">
+            {"url" in again ? t("ext.redownloadHint", { url: e.source }) : t("ext.reloadHint", { folder: e.source })}
           </p>
-          <Button onClick={() => openExtensionInstall({ url: item.url })}>{t("extx.seeUpdate")}</Button>
-        </>
-      )}
-      {!e.enabled ? (
-        <>
-          {e.update && e.update.adds.length > 0 && (
-            <div className="extupdate">
-              <p className="pform__hint">{t("ext.updateAdds", { version: e.version, from: e.update.from })}</p>
-              <ul>
-                {e.update.adds.map((p) => (
-                  <li key={`${p.kind}${p.name}`}>{power(p)}</li>
-                ))}
-              </ul>
-            </div>
-          )}
-          <div className="extpage__approve">
-            <b>{t("extx.approveTitle")}</b>
-            <Checkbox
-              checked={ok.hosts}
-              onCheckedChange={(v) => setOk((o) => ({ ...o, hosts: v === true }))}
-              label={
-                e.hosts.length
-                  ? t(e.owner_host ? "extx.approve.hostsAndYours" : "extx.approve.hosts", { hosts: e.hosts.join(", ") })
-                  : e.owner_host
-                    ? t("extx.approve.yourHost")
-                    : e.runs_code
-                      ? t("extx.approve.anyHost")
-                      : t("extx.approve.noHosts")
-              }
-            />
-            <Checkbox
-              checked={ok.keys}
-              onCheckedChange={(v) => setOk((o) => ({ ...o, keys: v === true }))}
-              label={keys.length ? t("extx.approve.keys", { keys: keys.join(", ") }) : t("extx.approve.noKeys")}
-            />
-            <Checkbox
-              checked={ok.files}
-              onCheckedChange={(v) => setOk((o) => ({ ...o, files: v === true }))}
-              label={t("extx.approve.files", { version: e.version })}
-            />
-            {e.runs_code && (
-              <p className="pform__hint">
-                <Icons.TriangleAlert size={12} /> {t("ext.runsCode")}
-              </p>
-            )}
-          </div>
-          <Button
-            leadingIcon={<Icons.Power size={14} />}
-            disabled={!(ok.hosts && ok.keys && ok.files)}
-            onClick={() => void run(() => client.call("extensions.enable", { id: e.id, enabled: true }))}
-          >
-            {t("extx.turnOn")}
-          </Button>
-        </>
-      ) : (
-        <>
-          {item.attention ? (
-            <p className="extpage__callout extpage__callout--warn">
-              <Icons.TriangleAlert size={16} /> {t(`extx.fix.${item.attention}`)}
-            </p>
-          ) : (
-            <p className="extpage__callout extpage__callout--ok">
-              <Icons.Check size={16} /> {t("extx.onNote")}
-            </p>
-          )}
-          {missing.length > 0 && <Button onClick={onConnect}>{t("mkt.connectAction")}</Button>}
-          <Button
-            variant="secondary"
-            leadingIcon={<Icons.Power size={14} />}
-            onClick={() => void run(() => client.call("extensions.enable", { id: e.id, enabled: false }))}
-          >
-            {t("extx.turnOff")}
-          </Button>
-        </>
-      )}
-      <div className="extpage__row">
-        {e.update && (
-          <Button
-            size="sm"
-            variant="ghost"
-            leadingIcon={<Icons.RotateCcw size={14} />}
-            onClick={() => void run(() => client.call("extensions.rollback", { id: e.id }))}
-          >
-            {e.update.from === e.version ? t("ext.rollbackSame") : t("ext.rollback", { version: e.update.from })}
-          </Button>
-        )}
-        <Button size="sm" variant="ghost" leadingIcon={<Icons.Pencil size={14} />} onClick={() => setEditing(true)}>
-          {t("res.edit")}
-        </Button>
-        <Button
-          size="sm"
-          variant="ghost"
-          leadingIcon={<Icons.Trash2 size={14} />}
-          onClick={() => void run(() => client.call("extensions.remove", { id: e.id }))}
-        >
-          {t("extx.uninstall")}
-        </Button>
-      </div>
-      {editing && (
-        <Dialog
-          open
-          onOpenChange={(o) => !o && setEditing(false)}
-          title={t("res.editMcp", { name: e.name })}
-          footer={
-            <Button variant="secondary" onClick={() => setEditing(false)}>
-              {t("common.close")}
+          <div>
+            <Button
+              size="sm"
+              variant="secondary"
+              leadingIcon={<Icons.RefreshCw size={14} />}
+              onClick={() => void run(() => client.call("extensions.install", again))}
+            >
+              {t("url" in again ? "ext.redownload" : "ext.reloadButton")}
             </Button>
-          }
-        >
-          <div className="pform">
-            {e.secrets.length > 0 && <span className="pform__label">{t("ext.secrets")}</span>}
-            {e.secrets.map((s) => (
-              <SecretRow
-                key={s.name}
-                label={s.label}
-                set={s.set}
-                url={s.url}
-                onSave={(value) => run(() => client.call("extensions.set_secret", { id: e.id, name: s.name, value }))}
-              />
-            ))}
-            {again && (
-              <>
-                <span className="pform__label">{t("url" in again ? "ext.redownload" : "ext.reload")}</span>
-                <p className="pform__hint">
-                  {"url" in again
-                    ? t("ext.redownloadHint", { url: e.source })
-                    : t("ext.reloadHint", { folder: e.source })}
-                </p>
-                <div>
-                  <Button
-                    size="sm"
-                    variant="secondary"
-                    leadingIcon={<Icons.RefreshCw size={14} />}
-                    onClick={() => void run(() => client.call("extensions.install", again))}
-                  >
-                    {t("url" in again ? "ext.redownload" : "ext.reloadButton")}
-                  </Button>
-                </div>
-              </>
-            )}
           </div>
-        </Dialog>
+        </>
       )}
-    </>
+    </div>
   );
 }
 
-/** Below its page: the routines it suggests and, for a plugin that adds context, a way to try it. */
-export function InstalledExtras({ e }: { e: ExtensionInfo }) {
+/** Adds one of its routines to the Default project, off: the owner turns it on in Routines. */
+export function useAddRoutine(): (r: ExtensionInfo["routines"][number]) => Promise<void> {
   const t = useT();
   const agents = useData((s) => s.agents);
-  const addRoutine = async (r: ExtensionInfo["routines"][number]) => {
+  return async (r) => {
     const agent = secretary(agents)?.id;
     if (!agent) return;
-    // Added off: the owner reviews it in Routines before it runs on its own.
     const saved = await attempt(
       () =>
         client.call("routines.set", { name: r.name, agent, schedule: r.schedule, prompt: r.prompt, enabled: false }),
@@ -233,12 +93,6 @@ export function InstalledExtras({ e }: { e: ExtensionInfo }) {
       void loadRoutines();
     }
   };
-  return (
-    <>
-      {e.routines.length > 0 && <ExtensionRoutines e={e} onAdd={addRoutine} />}
-      <ExtensionTest e={e} />
-    </>
-  );
 }
 
 /** A secret the extension needs: typed once, never shown again. */
@@ -295,12 +149,15 @@ function SecretRow(props: {
  * The routines an extension suggests: what each one would do and when. None runs by itself: added, it waits in
  * Routines (Default project) turned off until the owner turns it on; once there, this says so and opens it.
  */
-function ExtensionRoutines({
+export function ExtensionRoutines({
   e,
   onAdd,
+  bare = false,
 }: {
   e: ExtensionInfo;
   onAdd(r: ExtensionInfo["routines"][number]): Promise<void>;
+  /** Without its title and line (inside a row that already names it). */
+  bare?: boolean;
 }) {
   const t = useT();
   const routines = useRoutines((s) => s.routines);
@@ -310,7 +167,7 @@ function ExtensionRoutines({
   }, [ready]);
   return (
     <div className="extroutines">
-      <span className="pform__label">{t("ext.routinesTitle")}</span>
+      {!bare && <span className="pform__label">{t("ext.routinesTitle")}</span>}
       <p className="pform__hint">{t("ext.routinesLead")}</p>
       {e.routines.map((r) => {
         const there = routines.find((x) => x.name === r.name && !x.project_id);

@@ -15,21 +15,32 @@ la instala **apagada**, y encenderla aprueba exactamente los archivos que tenía
 
 ## Encontralas en el Marketplace
 
-El **Marketplace**, en la barra lateral, es donde se buscan, instalan y conectan las extensiones. Recursos queda para
-lo técnico (Skills, MCP, Variables).
+El **Marketplace**, en la barra lateral (la pieza de rompecabezas), es donde se buscan, agregan y conectan las
+extensiones. Todo lo que les sumás a tus agentes es una **extensión**; una etiqueta dice de dónde viene: **Incluida**
+(viene con APX: Google, Asana, los canales, el navegador), **Oficial** (la publica APX, con esos mismos archivos), **De
+terceros** (otro catálogo, un archivo o una dirección que te pasaron) o **Tuya** (una carpeta que armaste, o un
+servidor que agregaste por su dirección o un comando). Recursos queda para lo técnico (Skills, MCP, Variables).
 
-- **Extensiones**, **Agentes** y **Habilidades** son sus secciones. Agentes muestra las extensiones que traen agentes
-  listos; Habilidades, las que traen skills.
-- **Tus extensiones**, debajo de las secciones, lista lo que instalaste o conectaste; un aviso marca la que te espera
-  (apagada, faltan claves, se venció un inicio de sesión, una versión nueva).
-- Las extensiones van agrupadas: primero **Incluidas con APX** (Google, Asana, los canales y el navegador: APX tiene
-  código propio para ellas, así que se conectan y nunca se instalan ni desinstalan), después el catálogo de APX por
-  categoría, cada una con su cantidad y **Ver todo**.
-- Una tarjeta abre su ficha: ícono, línea y publicador, capturas, cosas para pedirle, qué trae, acerca de, qué hace,
-  qué necesita y qué no hace, costo, privacidad y enlaces; al lado, los pasos (instalar, encender, conectar). Encender
-  una muestra exactamente qué aprobás: a dónde se conecta, las claves que guarda y sus archivos en esa versión.
-- **Conectar** abre un diálogo con APX y el servicio unidos por puntos, para sus claves o su inicio de sesión.
-- **Agregar** instala desde un archivo `.apxext`, una dirección https o una carpeta.
+- **Explorar** tiene la búsqueda y los filtros arriba (**Todo**, **Conexiones**, **Habilidades**, **Agentes**,
+  **Dispositivos**; un filtro sin nada no aparece), después **Novedades** (mientras sean pocas las nuevas) y cada
+  categoría en filas compactas: ícono, nombre y etiqueta, una línea, y debajo qué trae y de quién ("Conexión y
+  habilidades · De APX"). Cada fila tiene un solo botón: **Agregar**, o **Conectar** si es Incluida.
+- **Tus extensiones** lista lo que agregaste, en dos grupos: **Necesitan atención** (sin conectar, con una versión
+  nueva, con error) y **Activas**. Los mismos grupos aparecen en la columna de la izquierda.
+- La ficha de una extensión tiene un solo botón que cambia con su estado: **Agregar** → **Conectar** (o
+  **Emparejar** si trae una app para un dispositivo) → **Conectada ✓**. Apagar, actualizar, volver a una versión,
+  ajustes y quitar están en **⋯**. Conectar una agregada muestra exactamente qué aprobás: a dónde se conecta, las
+  claves que guarda y sus archivos en esa versión.
+- Debajo del botón: cosas para pedirle, acerca de, y **Qué trae** en filas que se abren: cada conexión con su
+  dirección, cómo inicia sesión y sus herramientas; sus habilidades, agentes listos (cada uno con **Agregar agente**),
+  rutinas (cada una con **Agregar a Rutinas**), widgets y la app para un dispositivo. Al pie: desarrollador, versión y
+  fecha, **Seguridad y acceso** ("Puede enviar datos a api.hubapi.com", "Ejecuta código en tu compu"),
+  **Autorización** ("Una clave tuya", "Requiere iniciar sesión"), qué necesita y qué no hace, costo, privacidad y
+  enlaces. Un dato que nadie dio no aparece.
+- **Agregar** › **Desde una dirección** convierte un servidor MCP que te pasaron como link en una extensión tuya (la
+  dirección de un `.apxext` abre la ventana de instalar). **Agregar** › **Desde un archivo** instala un `.apxext`.
+- **Avanzado**, abajo en la columna de la izquierda, es para armar y probar extensiones: catálogos, instalar desde un
+  archivo, una carpeta o un comando, y la guía para armar una.
 
 APX lee qué trae cada paquete del catálogo desde el paquete mismo: lo descarga una vez, lo compara con el sha256 y la
 huella del catálogo, y guarda en su carpeta sólo el manifest, la ficha y sus imágenes. No se instala ni corre nada
@@ -131,12 +142,12 @@ APX) o desde una **dirección https** de uno. APX muestra qué trae antes de esc
 <Steps>
 
 1. Hacé doble clic en un archivo `.apxext`, o soltalo sobre la ventana de APX. O abrí el **Marketplace** y
-   tocá **Desde un archivo** o **Desde una URL** (el diálogo **Instalar** también acepta una carpeta).
+   tocá **Agregar** › **Desde un archivo** (**Avanzado** también instala desde una carpeta).
 
 2. Mirá qué trae: sus skills, servidores, los secretos que pide, su plugin, y si es **Oficial** o **De terceros**
    (abajo). Después, **Instalar apagada**.
 
-3. Completá sus claves (**Editar**) y encendela.
+3. Tocá **Conectar** en su ficha: aprobá a qué llega y después escribí sus claves.
 
 4. Sus rutinas son sugerencias: **Agregar a Rutinas** pone una en Rutinas, apagada hasta que la enciendas.
 
@@ -202,7 +213,7 @@ cuando no lo alcanza; sin copia, el diálogo avisa que no pudo saberlo. Otra dir
 
 ### Tus propios catálogos
 
-**Agregar › Agregar catálogo** (o `apx extensions catalogs add <origen>`) suma una lista de extensiones para vos: un
+**Avanzado › Agregar catálogo** (o `apx extensions catalogs add <origen>`) suma una lista de extensiones para vos: un
 `dueño/repo` de GitHub, una dirección de git, la dirección https de un índice, o una carpeta. Los sugeridos (Knowledge
 Work y Claude plugins, de Anthropic) están a un clic. Todo lo que viene de ahí es **De terceros**; el catálogo de APX
 siempre queda.
@@ -215,8 +226,8 @@ siempre queda.
   comandos y hooks no tienen equivalente en APX y quedan afuera.
 - Un plugin de otro repositorio cuenta sólo si está fijado a un commit (`sha`); se lee en ese commit.
 - La licencia de cada plugin se lee antes de mostrarlo (la suya, si no la de su repositorio). Sólo se convierten las
-  que permiten una copia (MIT, Apache-2.0, BSD, ISC, MPL-2.0, Unlicense, CC0, 0BSD); el resto queda listado afuera,
-  con el motivo.
+  que permiten una copia (MIT, Apache-2.0, BSD, ISC, MPL-2.0, Unlicense, CC0, 0BSD); el resto queda
+  afuera (`apx extensions catalogs` dice cuáles y por qué).
 - APX guarda el commit en el que leyó cada catálogo; **Volver a leer** toma el más nuevo.
 - Desde la terminal, `apx extensions catalog` muestra la dirección de cada entrada (`catalog:<catálogo>/<id>`), que
   `apx extensions inspect` y `apx extensions install` aceptan.

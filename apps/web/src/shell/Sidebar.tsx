@@ -142,7 +142,7 @@ export function Sidebar({
     marketplace: (
       <NavItem
         collapsed={rail}
-        icon={<Icons.Store />}
+        icon={<Icons.Puzzle />}
         label={t("nav.marketplace")}
         active={view === "marketplace"}
         onClick={() => go.marketplace()}

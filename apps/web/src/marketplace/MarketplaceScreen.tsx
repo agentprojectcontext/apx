@@ -6,30 +6,31 @@ import { loadChannels, useChannels } from "../data/channels.ts";
 import { client } from "../data/client.ts";
 import { loadMarks } from "../data/models.ts";
 import { useData } from "../data/state.ts";
-import { type MessageKey, useT } from "../i18n/index.ts";
+import { useT } from "../i18n/index.ts";
 import { useExtensionsInstalled } from "../resources/extensionInstall.ts";
-import { buildItems, filterItems, type Integration, type Item, isMine } from "../resources/extensionItems.ts";
+import { buildItems, filterItems, type Integration, type Item, isMine, waits } from "../resources/extensionItems.ts";
 import { describe } from "../resources/IncludedIntegration.tsx";
 import { attempt } from "../resources/InstalledExtension.tsx";
 import { useResources } from "../resources/useResources.ts";
-import { go, MARKET_SECTIONS, type MarketSection, useNav } from "../shell/nav.ts";
+import { go, type MarketSection, useNav } from "../shell/nav.ts";
+import { AddAddressDialog } from "./AddAddressDialog.tsx";
+import { AdvancedView } from "./AdvancedView.tsx";
 import type { CatalogsState } from "./Catalogs.tsx";
 import { ItemIcon } from "./ConnectHead.tsx";
 import { ItemPage } from "./ItemPage.tsx";
+import { waitReason } from "./itemText.ts";
 import { MarketBrowse } from "./MarketBrowse.tsx";
+import { MineView } from "./MineView.tsx";
 import "../styles/screens.css";
 import "../styles/marketplace.css";
 
-// The Marketplace, a place of its own: Extensions, Agents and Skills on the left with the owner's own extensions
-// under them (each with its state), the section or an item's page on the right.
+// The Marketplace: on the left Explore, your extensions (what waits on you, then what works) and Advanced at the
+// bottom; on the right the place chosen or an extension's page. On a phone the places are a row of tabs on top.
 
 export type CatalogState = { entries: CatalogEntry[]; catalog?: Result<"extensions.catalog">["catalog"] } | undefined;
 
-const SECTION_ICON = { extensions: Icons.Store, agents: Icons.Bot, skills: Icons.Sparkles } as const;
-
-/** Which items a section shows. */
-const inSection = (section: MarketSection, i: Item) =>
-  section === "extensions" ? true : section === "agents" ? i.brings.includes("agents") : i.brings.includes("skills");
+const PLACE_ICON = { extensions: Icons.Puzzle, mine: Icons.CircleCheck, advanced: Icons.Wrench } as const;
+const PLACE_LABEL = { extensions: "mkt.explore", mine: "mkt.yours", advanced: "mkt.advanced" } as const;
 
 export function MarketplaceScreen() {
   const t = useT();
@@ -45,6 +46,7 @@ export function MarketplaceScreen() {
   const [catalog, setCatalog] = useState<CatalogState>();
   const [catalogs, setCatalogs] = useState<CatalogsState>();
   const [query, setQuery] = useState("");
+  const [address, setAddress] = useState(false);
   const installedTick = useExtensionsInstalled();
   const { loadExtensions, loadServers } = res;
 
@@ -83,6 +85,7 @@ export function MarketplaceScreen() {
     void loadCatalog();
   }, [installedTick, loadExtensions, loadServers, loadCatalogs, loadCatalog]);
 
+  const servers = res.data.servers ?? [];
   const items = useMemo(
     () =>
       buildItems({
@@ -100,62 +103,96 @@ export function MarketplaceScreen() {
       }),
     [integrations, channels, catalog, res.data.extensions, res.data.servers, t],
   );
-  const found = filterItems(items, query, "");
+  // Explore offers what can be added or connected; the owner's own built ones (a folder, a server) stay in theirs.
+  const offered = filterItems(
+    items.filter((i) => i.label !== "own"),
+    query,
+    "",
+  );
   // A link may name an extension by its id alone: the installed one first, else what offers it.
   const current = open ? (items.find((i) => i.key === open) ?? items.find((i) => i.id === open)) : undefined;
   const mine = items.filter(isMine);
+  const waiting = mine.filter(waits);
+  const working = mine.filter((i) => !waits(i));
+  const names = new Map((catalogs?.catalogs ?? []).map((c) => [c.id, c.name]));
+  const place = (s: MarketSection) => (
+    <NavItem
+      key={s}
+      icon={(() => {
+        const Icon = PLACE_ICON[s];
+        return <Icon size={16} />;
+      })()}
+      label={t(PLACE_LABEL[s])}
+      count={s === "mine" && waiting.length ? waiting.length : undefined}
+      attention={s === "mine" && waiting.length > 0}
+      active={section === s && !current}
+      onClick={() => go.marketplace(s)}
+    />
+  );
+  const own = (i: Item) => (
+    <NavItem
+      key={i.key}
+      icon={<ItemIcon item={i} size={20} />}
+      label={i.name}
+      trailing={waits(i) ? <span className="mkt-dot mkt-dot--wait" title={waitReason(i, t)} /> : undefined}
+      active={open === i.key}
+      onClick={() => go.marketplace(section, i.key)}
+    />
+  );
 
   return (
     <div className="mkt">
       <nav className="mkt__side" aria-label={t("mkt.title")}>
         <h1 className="mkt__title">{t("mkt.title")}</h1>
-        {MARKET_SECTIONS.map((s) => {
-          const Icon = SECTION_ICON[s];
-          return (
-            <NavItem
-              key={s}
-              icon={<Icon size={16} />}
-              label={t(`mkt.section.${s}` as MessageKey)}
-              count={query ? found.filter((i) => inSection(s, i)).length : undefined}
-              active={section === s && !open}
-              onClick={() => go.marketplace(s)}
-            />
-          );
-        })}
-        <div className="mkt__yours">
-          <span className="mkt__label">{t("mkt.yours")}</span>
-          {mine.length ? (
-            mine.map((i) => (
-              <NavItem
-                key={i.key}
-                icon={<ItemIcon item={i} size={20} />}
-                label={i.name}
-                attention={i.state === "attention" || i.state === "off" || Boolean(i.update)}
-                active={open === i.key}
-                onClick={() => go.marketplace(section, i.key)}
-              />
-            ))
-          ) : (
-            <p className="mkt__note">{t("mkt.yoursEmpty")}</p>
-          )}
-        </div>
+        {place("extensions")}
+        {place("mine")}
+        {mine.length > 0 && (
+          <div className="mkt__yours">
+            {waiting.length > 0 && <span className="mkt__label">{t("mkt.group.attention")}</span>}
+            {waiting.map(own)}
+            {working.length > 0 && <span className="mkt__label">{t("mkt.group.active")}</span>}
+            {working.map(own)}
+          </div>
+        )}
+        <div className="mkt__bottom">{place("advanced")}</div>
       </nav>
       <div className="mkt__main">
         {current ? (
-          <ItemPage item={current} onBack={() => go.marketplace(section)} onChanged={reload} />
+          <ItemPage
+            item={current}
+            servers={servers}
+            backLabel={t(PLACE_LABEL[section])}
+            onBack={() => go.marketplace(section)}
+            onChanged={reload}
+          />
+        ) : section === "mine" ? (
+          <MineView items={items} onOpen={(i) => go.marketplace(section, i.key)} />
+        ) : section === "advanced" ? (
+          <AdvancedView catalogs={catalogs} onCatalogs={catalogsChanged} onServers={loadServers} />
         ) : (
           <MarketBrowse
-            section={section}
-            items={found.filter((i) => inSection(section, i))}
+            items={offered}
             query={query}
             onQuery={setQuery}
             catalog={catalog}
-            catalogs={catalogs}
-            onCatalogs={catalogsChanged}
+            catalogNames={names}
             onOpen={(i) => go.marketplace(section, i.key)}
+            onAddAddress={() => setAddress(true)}
           />
         )}
       </div>
+      {address && (
+        <AddAddressDialog
+          servers={servers}
+          onClose={() => setAddress(false)}
+          onAdded={async (name) => {
+            setAddress(false);
+            await loadServers();
+            // By its name: one APX also offers as an account opens as that account, now connected.
+            go.marketplace("mine", name);
+          }}
+        />
+      )}
     </div>
   );
 }

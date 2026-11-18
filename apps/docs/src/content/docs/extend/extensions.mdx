@@ -15,21 +15,30 @@ anything, installs it **off**, and turning it on approves exactly the files it h
 
 ## Find them in the Marketplace
 
-**Marketplace**, in the sidebar, is where extensions are found, installed and connected. Resources keeps the technical
-parts (Skills, MCP, Variables).
+**Marketplace**, in the sidebar (the puzzle piece), is where extensions are found, added and connected. Everything you
+add to your agents is an **extension**; a label says where it comes from: **Included** (it comes with APX: Google,
+Asana, the channels, the browser), **Official** (APX publishes it, with those exact files), **Third party** (another
+catalog, a file or an address someone gave you) or **Yours** (a folder you built, or a server you added by its address
+or command). Resources keeps the technical parts (Skills, MCP, Variables).
 
-- **Extensions**, **Agents** and **Skills** are its sections. Agents lists extensions that bring ready-made agents;
-  Skills, the ones that bring skills.
-- **Your extensions**, under the sections, lists what you installed or connected; a warning marks one that waits on
-  you (off, missing keys, an expired sign-in, a new version).
-- Extensions are grouped: **Included with APX** first (Google, Asana, the channels and the browser: APX has code of
-  its own for them, so they are connected, never installed or uninstalled), then APX's catalog by category, each with
-  its count and **See all**.
-- A card opens its page: its icon, line and publisher, screenshots, things to ask it, what it brings, about it, what
-  it does, needs and does not, cost, privacy and links; beside it, the steps (install, turn on, connect). Turning one
-  on shows exactly what you approve: where it connects, the keys it keeps and its files at that version.
-- **Connect** opens a dialog with APX and the service joined by dots, for its keys or its sign-in.
-- **Add** installs from an `.apxext` file, an https address or a folder.
+- **Explore** has search and filters on top (**All**, **Connections**, **Skills**, **Agents**, **Devices**; a filter
+  with nothing in it is not shown), then **New** (while only a few are new) and every category in compact rows: its
+  icon, name and label, one line, and under it what it brings and who from ("Connection and skills · From APX"). Each
+  row has one button: **Add**, or **Connect** for one included with APX.
+- **Your extensions** lists what you added, in two groups: **Needs attention** (not connected yet, a new version, an
+  error) and **Active**. The same groups show in the left column.
+- An extension's page has one button that follows its state: **Add** → **Connect** (or **Pair** for a device's app)
+  → **Connected ✓**. Turn off, update, go back a version, settings and remove are in **⋯**. Connecting an added one
+  shows exactly what you approve: where it connects, the keys it keeps and its files at that version.
+- Below its button: things to ask it, about it, and **What it brings** as rows that open: each connection with its
+  address, how it signs in and its tools; its skills, ready-made agents (each with **Add agent**), routines (each with
+  **Add to Routines**), widgets and the app for a device. At its foot: developer, version and date, **Security and
+  access** ("Can send data to api.hubapi.com", "Runs code on your computer"), **Authorization** ("A key of yours",
+  "Requires signing in"), what it needs and does not do, cost, privacy and links. A fact nobody gave is not shown.
+- **Add** › **From an address** turns an MCP server someone gave you as a link into one of your extensions (an
+  `.apxext` address opens the install window instead). **Add** › **From a file** installs an `.apxext`.
+- **Advanced**, at the bottom of the left column, is for building and trying extensions: catalogs, installing from a
+  file, a folder or a command, and the guide to build one.
 
 APX reads what each catalog package brings from the package itself: it downloads it once, checks it against the
 catalog's sha256 and fingerprint, and keeps only its manifest, its listing and its images in its home. Nothing is
@@ -131,12 +140,12 @@ or from an **https address** of one. APX shows what it brings before it writes a
 <Steps>
 
 1. Double-click an `.apxext` file, or drop it on the APX window. Or open the **Marketplace** and press
-   **From a file** or **From a URL** (the **Install** dialog also takes a folder).
+   **Add** › **From a file** (**Advanced** also installs from a folder).
 
 2. Look at what it brings: its skills, servers, the secrets it asks for, its plugin, and whether it is **Official**
    or **Third party** (below). Then **Install off**.
 
-3. Fill in its keys (**Edit**), then turn it on.
+3. Press **Connect** on its page: approve what it reaches, then type its keys.
 
 4. Its routines are suggestions: **Add to Routines** puts one in Routines, turned off until you turn it on.
 
@@ -202,7 +211,7 @@ with `APX_MARKETPLACE_INDEX` ([Configuration](/reference/configuration/)).
 
 ### Your own catalogs
 
-**Add › Add catalog** (or `apx extensions catalogs add <source>`) adds a list of extensions for yourself: a GitHub
+**Advanced › Add catalog** (or `apx extensions catalogs add <source>`) adds a list of extensions for yourself: a GitHub
 `owner/repo`, a git address, an https address of an index, or a folder. Suggested ones (Anthropic's Knowledge Work and
 Claude plugins) are one click away. Everything from them is **Third party**; APX's own catalog always stays.
 
@@ -213,7 +222,7 @@ Claude plugins) are one click away. Everything from them is **Third party**; APX
   whose address you type says so before you turn it on. Commands and hooks have no APX counterpart and are left out.
 - A plugin from another repository counts only pinned to a commit (`sha`); it is read at that commit.
 - Each plugin's license is read before it is listed (its own, else its repository's). Only licenses that allow a copy
-  (MIT, Apache-2.0, BSD, ISC, MPL-2.0, Unlicense, CC0, 0BSD) are converted; the rest are listed as left out, with why.
+  (MIT, Apache-2.0, BSD, ISC, MPL-2.0, Unlicense, CC0, 0BSD) are converted; the rest are left out (`apx extensions catalogs` says which and why).
 - APX keeps the commit each catalog was read at; **Read again** takes its newest.
 - From the terminal, `apx extensions catalog` prints each entry's address (`catalog:<catalog>/<id>`), which
   `apx extensions inspect` and `apx extensions install` take.
