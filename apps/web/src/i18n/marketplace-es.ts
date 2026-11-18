@@ -31,6 +31,8 @@ export const esMarketplace = {
   "mkt.part.device": "app para un dispositivo",
   "mkt.part.apps": "widgets",
   "mkt.from": "De {name}",
+  "mkt.from.third": "De {name}, de terceros",
+  "mkt.from.thirdOnly": "De terceros",
   "mkt.from.you": "Agregada por vos",
   "mkt.comesWithApx": "Viene con APX",
   "mkt.versionN": "versión {version}",

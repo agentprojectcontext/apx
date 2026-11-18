@@ -5399,6 +5399,8 @@ for keys or pairing; the card said "Tools for Stripe", "Skills —" and showed a
   needs?}`; a manifest's `min_apx` (or a key this APX does not know) reads as written for a newer APX. A package chosen
   from APX's catalog whose files are not APX's is not added from there.
 - **An address** in the picker is a package when it ends in `.apxext` (or `.zip`), else an MCP server added as Yours.
+- **Quiet labels**, as Claude marks its connectors: Official is a check after the name, Included and Yours a small
+  word, Third party no mark (its line says "From X, third party").
 
 Rejected: keeping the approval checkboxes (they repeated what the card already says, as three more clicks); probing an
 MCP address before adding it (a new method for what connecting already does).

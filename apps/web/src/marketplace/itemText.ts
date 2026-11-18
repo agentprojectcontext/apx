@@ -110,6 +110,8 @@ export function bringsText(i: Item, t: T): string {
 /** "From APX", "Added by you": who it comes from; nothing when no one says. */
 export function fromText(i: Item, t: T): string | undefined {
   if (i.label === "own") return t("mkt.from.you");
+  // Third party has no mark by its name: its line says so.
+  if (i.label === "third") return i.publisher ? t("mkt.from.third", { name: i.publisher }) : t("mkt.from.thirdOnly");
   return i.publisher ? t("mkt.from", { name: i.publisher }) : undefined;
 }
 

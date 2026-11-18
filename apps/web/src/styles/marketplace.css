@@ -532,3 +532,10 @@
   color: var(--apx-fg-muted);
   font-size: var(--apx-text-sm);
 }
+
+/* Official: a check after the name, in the name's colour, quieter. */
+.mkt-verified {
+  display: inline-flex;
+  flex: none;
+  color: var(--apx-fg-muted);
+}
