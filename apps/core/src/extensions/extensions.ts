@@ -338,6 +338,8 @@ export function createExtensions(deps: {
           provenance: "third_party" as const,
           catalog: c.id,
           ...(e.license ? { license: e.license } : {}),
+          ...(e.publisher ? { publisher: e.publisher } : {}),
+          ...(e.github ? { github: e.github } : {}),
         })),
       );
       return {

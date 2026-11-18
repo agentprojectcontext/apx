@@ -1,4 +1,4 @@
-import { Button, EmptyState, Icons, Menu, SearchField, SegmentedControl } from "@apx/ui";
+import { Button, EmptyState, Icons, Menu, SearchField, SegmentedControl, Select } from "@apx/ui";
 import { useState } from "react";
 import { isChannelKind } from "../channels/kinds.ts";
 import { type MessageKey, useLanguage, useT } from "../i18n/index.ts";
@@ -95,9 +95,14 @@ export function MarketBrowse({
 }) {
   const t = useT();
   const [filter, setFilter] = useState<Filter>();
+  // Which catalog: all of them, APX's (with what comes with APX), or one the owner added.
+  const [source, setSource] = useState("all");
+  const ofSource = (s: string) => (i: Item) =>
+    s === "all" || (s === "apx" ? !i.entry?.catalog : i.entry?.catalog === s);
+  const here = items.filter(ofSource(source));
   // The chosen one stays, even when a search leaves it empty: it is how the owner takes it off.
-  const filters = (Object.keys(FILTERS) as Filter[]).filter((f) => f === filter || items.some(FILTERS[f]));
-  const shown = filter ? items.filter(FILTERS[filter]) : items;
+  const filters = (Object.keys(FILTERS) as Filter[]).filter((f) => f === filter || here.some(FILTERS[f]));
+  const shown = filter ? here.filter(FILTERS[filter]) : here;
   const fresh = query || filter ? [] : newest(shown, Date.now());
   const groups = groupByCategory(shown);
   const titleOf = (id: string) =>
@@ -136,26 +141,45 @@ export function MarketBrowse({
           ]}
         />
       </div>
-      {(filters.length > 1 || filter) && (
-        <SegmentedControl
-          size="sm"
-          className="mkt-filters"
-          label={t("mkt.filterLabel")}
-          value={filter ?? "all"}
-          onValueChange={(v) => setFilter(v === "all" ? undefined : (v as Filter))}
-          options={["all", ...filters].map((f) => ({
-            value: f,
-            label: (
-              <>
-                {t(`mkt.filter.${f}` as MessageKey)}
-                <span className="mkt-filters__n">
-                  {f === "all" ? items.length : items.filter(FILTERS[f as Filter]).length}
-                </span>
-              </>
-            ),
-          }))}
-        />
-      )}
+      <div className="mkt-browse__filters">
+        {(filters.length > 1 || filter) && (
+          <SegmentedControl
+            size="sm"
+            className="mkt-filters"
+            label={t("mkt.filterLabel")}
+            value={filter ?? "all"}
+            onValueChange={(v) => setFilter(v === "all" ? undefined : (v as Filter))}
+            options={["all", ...filters].map((f) => ({
+              value: f,
+              label: (
+                <>
+                  {t(`mkt.filter.${f}` as MessageKey)}
+                  <span className="mkt-filters__n">
+                    {f === "all" ? here.length : here.filter(FILTERS[f as Filter]).length}
+                  </span>
+                </>
+              ),
+            }))}
+          />
+        )}
+        {catalogNames.size > 0 && (
+          <Select
+            size="sm"
+            className="mkt-browse__source"
+            label={t("mkt.source.label")}
+            value={source}
+            onValueChange={(v) => setSource(v ?? "all")}
+            options={[
+              { value: "all", label: t("mkt.source.all") },
+              { value: "apx", label: t("mkt.source.apx") },
+              ...[...catalogNames].map(([id, name]) => ({ value: id, label: name })),
+            ].map((o) => ({
+              ...o,
+              trailing: <span className="mkt-filters__n">{items.filter(ofSource(o.value)).length}</span>,
+            }))}
+          />
+        )}
+      </div>
       {shown.length > 0 && (
         <p className="mkt-browse__count" role="status">
           {shown.length === total

@@ -156,6 +156,7 @@ before(async () => {
   put(cat.path, {
     ".claude-plugin/marketplace.json": JSON.stringify({
       name: "Acme plugins",
+      owner: { name: "Acme" },
       plugins: [
         { name: "notes", displayName: "Notes", description: "Notes for agents.", source: "./notes" },
         { name: "secret-sauce", description: "Closed.", source: "./sauce" },
@@ -217,6 +218,10 @@ test("an added catalog lists what it may, leaves out what it may not (license, u
   assert.equal(notes?.provenance, "third_party");
   assert.equal(notes?.license, "MIT");
   assert.equal(notes?.version, "0.4.0");
+  // Who makes each: the catalog's owner for one kept in its repository; the GitHub account of one kept elsewhere.
+  assert.equal(notes?.publisher, "Acme");
+  const pinned = entries.find((e) => e.id === "pinned");
+  assert.deepEqual([pinned?.publisher, pinned?.github], [undefined, "acme"]);
 });
 
 test("an entry of an added catalog installs converted, third party, off", async () => {

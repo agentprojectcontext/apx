@@ -551,3 +551,15 @@
   color: var(--apx-fg-muted);
   font-size: var(--apx-text-sm);
 }
+
+/* What it brings and which catalog, side by side (they wrap on a phone). */
+.mkt-browse__filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+}
+.mkt-browse__source {
+  flex: 0 1 240px;
+  min-width: 180px;
+}

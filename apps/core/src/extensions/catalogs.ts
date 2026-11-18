@@ -60,6 +60,12 @@ export function parseSource(text: string): Source {
 const sourceText = (s: Source) => (s.kind === "folder" ? s.path : s.url);
 const catalogId = (s: Source) => createHash("sha256").update(sourceText(s)).digest("hex").slice(0, 12);
 
+/** A name a catalog gives (a string, or an object with `name`), short and trimmed. */
+const nameOf = (v: unknown): string | undefined => {
+  const n = typeof v === "string" ? v : v && typeof v === "object" ? (v as { name?: unknown }).name : undefined;
+  return typeof n === "string" && n.trim() ? n.trim().slice(0, 80) : undefined;
+};
+
 /** owner/repo of a GitHub address, to read a file at a commit. */
 const githubRepo = (url: string) =>
   /^https:\/\/github\.com\/([^/]+)\/([^/]+?)(?:\.git)?\/?$/.exec(url)?.slice(1, 3) as [string, string] | undefined;
@@ -125,6 +131,7 @@ export function createCatalogs(deps: { store: Store; home: string; git: GitRunne
     const entries: CatalogItem[] = [];
     const skipped: CatalogSkip[] = [];
     const plugins = (raw as { plugins?: unknown[] }).plugins ?? [];
+    const owner = nameOf((raw as { owner?: unknown }).owner);
     const one = async (p0: unknown) => {
       const p = p0 as {
         name?: string;
@@ -133,6 +140,7 @@ export function createCatalogs(deps: { store: Store; home: string; git: GitRunne
         version?: string;
         category?: string;
         homepage?: string;
+        author?: unknown;
         source?: unknown;
       };
       const name = p.displayName ?? p.name ?? "";
@@ -150,6 +158,8 @@ export function createCatalogs(deps: { store: Store; home: string; git: GitRunne
         | { source?: string; url?: string; repo?: string; path?: string; ref?: string; sha?: string }
         | string
         | undefined;
+      // Who makes it: its author; else the catalog's owner for a plugin kept in the catalog's own repository.
+      const author = nameOf(p.author);
       if (typeof src === "string") {
         const rel = src.replace(/^\.\//, "");
         const dir = root ? path.resolve(root, rel) : undefined;
@@ -159,7 +169,14 @@ export function createCatalogs(deps: { store: Store; home: string; git: GitRunne
         const license = pluginLicense(files, repoLicense);
         if (!license) return skipped.push({ name, reason: "license" });
         const version = p.version ?? pluginVersion(files);
-        return entries.push({ ...base, ...(version ? { version } : {}), license, via: { type: "path", path: rel } });
+        const by = author ?? owner;
+        return entries.push({
+          ...base,
+          ...(version ? { version } : {}),
+          ...(by ? { publisher: by } : {}),
+          license,
+          via: { type: "path", path: rel },
+        });
       }
       const url = src?.source === "github" && src.repo ? `https://github.com/${src.repo}.git` : src?.url;
       if (!url || !/^https:\/\//.test(url)) return skipped.push({ name, reason: "source" });
@@ -172,7 +189,14 @@ export function createCatalogs(deps: { store: Store; home: string; git: GitRunne
         sha: src.sha,
         ...(src.source === "git-subdir" && src.path ? { path: src.path } : {}),
       };
-      return entries.push({ ...base, license, via });
+      // One from another repository nobody names is told by the GitHub account it lives under.
+      const account = githubRepo(url)?.[0];
+      return entries.push({
+        ...base,
+        ...(author ? { publisher: author } : account ? { github: account } : {}),
+        license,
+        via,
+      });
     };
     // A few at a time: each checks a license over the network.
     for (let i = 0; i < plugins.length; i += 8) await Promise.all(plugins.slice(i, i + 8).map(one));

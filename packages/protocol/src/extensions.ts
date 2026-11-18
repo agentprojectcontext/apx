@@ -407,6 +407,10 @@ export const CatalogEntry = z.object(
     catalog: () => z.string().optional(),
     /** Its license, as APX read it before listing it (an added catalog's). */
     license: () => z.string().optional(),
+    /** Who makes it, as an added catalog names them. */
+    publisher: () => z.string().optional(),
+    /** The GitHub account its code lives under, when the catalog names nobody. */
+    github: () => z.string().optional(),
     /** From the package's own manifest, once APX read it (absent while it could not). */
     brings: () => z.array(ExtensionBrings).optional(),
     needs: () => z.array(ExtensionNeeds).optional(),

@@ -38,8 +38,10 @@ export type Item = {
   origin: Origin;
   label: Label;
   provenance: "included" | ExtensionInfo["provenance"];
-  /** Who makes it, as its listing says (APX for its own catalog when the listing says nothing). */
+  /** Who makes it, as its listing or its catalog says (APX for its own catalog when nothing says). */
   publisher?: string | undefined;
+  /** The GitHub account its code lives under, when nobody says who makes it. */
+  github?: string | undefined;
   /** When the catalog published the version it offers (ISO date). */
   published?: string | undefined;
   connection?: ExtensionConnection | undefined;
@@ -164,7 +166,11 @@ function installed(e: ExtensionInfo, entry: CatalogEntry | undefined): Item {
     label,
     provenance: e.provenance,
     // The catalog's publisher speaks for its own files only: a copy from elsewhere says who made it itself, or nothing.
-    publisher: e.provenance === "official" ? (listing?.publisher?.name ?? "APX") : e.listing?.publisher?.name,
+    publisher:
+      e.provenance === "official"
+        ? (listing?.publisher?.name ?? "APX")
+        : (e.listing?.publisher?.name ?? entry?.publisher),
+    github: entry?.github,
     connection: listing?.connection,
     brings: e.brings,
     needs: e.needs,
@@ -220,7 +226,8 @@ function offered(c: CatalogEntry): Item {
     origin: "catalog",
     label: c.provenance === "official" ? "official" : "third",
     provenance: c.provenance,
-    publisher: c.listing?.publisher?.name ?? (c.provenance === "official" ? "APX" : undefined),
+    publisher: c.listing?.publisher?.name ?? c.publisher ?? (c.provenance === "official" ? "APX" : undefined),
+    github: c.github,
     published: c.published_at,
     connection: c.listing?.connection,
     brings: c.brings ?? [],

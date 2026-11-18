@@ -16,6 +16,10 @@ export type CatalogItem = {
   category?: string | undefined;
   homepage?: string | undefined;
   license?: string | undefined;
+  /** Who makes it, as its catalog says (the plugin's author, or the catalog's owner for one kept in its repository). */
+  publisher?: string | undefined;
+  /** The GitHub account its code lives under, when nobody is named. */
+  github?: string | undefined;
   /** A Claude Code plugin, turned into an extension when installed. */
   plugin: boolean;
   via: CatalogVia;
