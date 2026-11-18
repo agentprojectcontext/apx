@@ -173,48 +173,6 @@
   color: var(--apx-fg-muted);
   font-size: var(--apx-text-sm);
 }
-.mkt-steps {
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-  margin: 0;
-  padding-left: 20px;
-}
-.mkt-steps > li {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-.mkt-steps ul {
-  margin: 0;
-  padding-left: 18px;
-  color: var(--apx-fg-muted);
-}
-.mkt-steps__row {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-.mkt-code {
-  margin: 0;
-  font-family: var(--apx-font-mono);
-  font-size: var(--apx-text-xl);
-  font-weight: var(--apx-weight-semibold);
-  letter-spacing: 0.18em;
-}
-.mkt-code--text {
-  font-size: var(--apx-text-sm);
-  font-weight: var(--apx-weight-regular);
-  letter-spacing: 0;
-  white-space: pre-wrap;
-  overflow-wrap: anywhere;
-}
-.mkt-code__address {
-  font-family: var(--apx-font-mono);
-  font-size: var(--apx-text-sm);
-  overflow-wrap: anywhere;
-}
-
 /* The owner's added catalogs, above the groups. */
 .mkt-catalogs {
   display: flex;
@@ -540,4 +498,23 @@
 .mkt-catalog__always {
   color: var(--apx-fg-muted);
   font-size: var(--apx-text-sm);
+}
+
+/* An extension's links (its site, docs, privacy, terms): in the facts and under the page of one not added yet. */
+.mkt-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 16px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.mkt-facts__cell .mkt-links {
+  flex-direction: column;
+}
+.mkt-links a {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  color: var(--apx-info-soft-fg);
 }

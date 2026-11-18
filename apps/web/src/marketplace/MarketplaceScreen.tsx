@@ -13,7 +13,6 @@ import { describe } from "../resources/IncludedIntegration.tsx";
 import { attempt } from "../resources/InstalledExtension.tsx";
 import { useResources } from "../resources/useResources.ts";
 import { go, type MarketSection, useNav } from "../shell/nav.ts";
-import { AddAddressDialog } from "./AddAddressDialog.tsx";
 import { AdvancedView } from "./AdvancedView.tsx";
 import type { CatalogsState } from "./Catalogs.tsx";
 import { ItemIcon } from "./ConnectHead.tsx";
@@ -46,7 +45,6 @@ export function MarketplaceScreen() {
   const [catalog, setCatalog] = useState<CatalogState>();
   const [catalogs, setCatalogs] = useState<CatalogsState>();
   const [query, setQuery] = useState("");
-  const [address, setAddress] = useState(false);
   const installedTick = useExtensionsInstalled();
   const { loadExtensions, loadServers } = res;
 
@@ -177,22 +175,9 @@ export function MarketplaceScreen() {
             catalog={catalog}
             catalogNames={names}
             onOpen={(i) => go.marketplace(section, i.key)}
-            onAddAddress={() => setAddress(true)}
           />
         )}
       </div>
-      {address && (
-        <AddAddressDialog
-          servers={servers}
-          onClose={() => setAddress(false)}
-          onAdded={async (name) => {
-            setAddress(false);
-            await loadServers();
-            // By its name: one APX also offers as an account opens as that account, now connected.
-            go.marketplace("mine", name);
-          }}
-        />
-      )}
     </div>
   );
 }

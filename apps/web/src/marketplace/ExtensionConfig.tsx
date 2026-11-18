@@ -12,7 +12,16 @@ import { attempt } from "../resources/InstalledExtension.tsx";
 type Value = string | number | boolean;
 type Setting = ExtensionInfo["settings"][number];
 
-function SettingField({ s, value, onChange }: { s: Setting; value: Value | undefined; onChange(v: Value): void }) {
+/** One setting's field: a switch, a choice or text (a sensitive one as a password). */
+export function SettingField({
+  s,
+  value,
+  onChange,
+}: {
+  s: Setting;
+  value: Value | undefined;
+  onChange(v: Value): void;
+}) {
   const t = useT();
   if (s.type === "boolean")
     return (

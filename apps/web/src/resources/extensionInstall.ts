@@ -1,11 +1,28 @@
+import type { CatalogEntry, ExtensionListing } from "@apx/protocol";
 import { useSyncExternalStore } from "react";
 
-// Whether the extension install dialog is asked for, and with which file: kept apart from the dialog, which loads
-// lazily. `installed` counts changes to what the owner has, so an open Marketplace reads its lists again.
+// Whether the add box is asked for, and from where: kept apart from the box, which loads lazily. `installed` counts
+// changes to what the owner has, so an open Marketplace reads its lists again.
 
 export type InstallMode = "file" | "url" | "folder";
-/** `url`: an address already chosen (a catalog entry), looked at as the dialog opens. */
-type Request = { file?: File; mode?: InstallMode; url?: string; entry?: { catalog: string; id: string } };
+type Request = {
+  /** A double-clicked or dropped .apxext, already chosen. */
+  file?: File;
+  /** The picker's tab to open on (adding from elsewhere). */
+  mode?: InstallMode;
+  /** A package's address. */
+  url?: string;
+  /** An entry of a catalog the owner added (`name`: that catalog's, to say where it comes from). */
+  entry?: { catalog: string; id: string; name?: string };
+  /** Chosen from a catalog's list: the box opens on it directly, without the picker. */
+  catalog?: boolean;
+  /** From APX's catalog as official: its files must be the ones APX publishes. */
+  official?: boolean;
+  /** One already added, to connect or pair. */
+  connect?: string;
+  /** How its page shows it (its listing and catalog entry), for its icon. */
+  look?: { listing?: ExtensionListing | undefined; entry?: CatalogEntry | undefined };
+};
 let request: Request | undefined;
 let installed = 0;
 const subs = new Set<() => void>();
@@ -17,7 +34,6 @@ const subscribe = (f: () => void) => {
   return () => subs.delete(f);
 };
 
-/** Opens the dialog on `mode`; with `file`, already read (a double-clicked or dropped .apxext). */
 export function openExtensionInstall(open: Request = {}): void {
   request = open;
   changed();

@@ -48,7 +48,7 @@ const STEP_LABEL: Record<Step, MessageKey> = {
   add: "mkt.step.add",
   connect: "mkt.step.connect",
   pair: "mkt.step.pair",
-  "turn-on": "mkt.step.turnOn",
+  "turn-on": "mkt.step.connect",
   keys: "mkt.step.connect",
   settings: "mkt.step.settings",
   "sign-in": "mkt.step.signIn",

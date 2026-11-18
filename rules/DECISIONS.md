@@ -5362,7 +5362,7 @@ things. This replaces D-241's sections and its item page steps:
   a new version; then **Active**) and **Advanced** at its foot: catalogs, installing from a file, a folder or a
   command, and the guide. The sidebar icon is a puzzle piece.
 - **One button that follows the state**: Add → Connect (Pair for a companion app) → Connected. Connecting an added
-  extension still approves its hosts, keys and files first (the turn-on dialog). APX cannot tell whether a companion
+  extension still approves its hosts, keys and files first (the add box since [D-246](#d-246)). APX cannot tell whether a companion
   app is paired, so Pair stays the button of an extension with one. Turn off, update, roll back, settings and remove
   are in ⋯; settings open in a dialog.
 - **What it brings opens like Claude's connectors**: each server's address, how it signs in and its tools; skills,
@@ -5375,3 +5375,30 @@ things. This replaces D-241's sections and its item page steps:
 
 Rejected: Claude's split into plugins, connectors and extensions (the confusion the owner named); hiding pairing
 behind ⋯ until APX knows a device is paired (the owner could not find it).
+
+<a id="d-246"></a>
+## D-246 — 2026-11-18 — Adding and connecting in one box, in three words
+The owner found adding confusing: Add from the catalog opened the install window with its File / URL / Folder tabs and
+the package address filled in, then "Install off", then a second window to turn it on (three checkboxes) and a third
+for keys or pairing; the card said "Tools for Stripe", "Skills —" and showed an id and fingerprint.
+
+- **One box** (`InstallBox`): APX joined to the service by dots (a device's app joined to APX for Pair), the card of
+  what it is, one button. From a catalog it opens directly; from elsewhere (a file, an address, a folder) the same box
+  sits under the source picker; for one already added it opens on its connect step. An extension's page that is not
+  added yet shows the same "What it brings" and "Facts" pieces.
+- **Three words.** **Add** copies the files and runs nothing. **Connect** (Pair) is the owner's decision that it works:
+  it saves the keys typed in the box, turns it on and starts its servers (`mcp.signIn`), showing the tools they answer
+  with. What it approves is one line above the button ("you agree that it runs this program and talks to
+  mcp.stripe.com"); the three checkboxes are gone. One with nothing to connect (no server, key, required setting,
+  device app or plugin) is turned on as it is added. "Install off" and "Turn on" leave the flow; Turn off stays in ⋯.
+- **Facts from the package, before adding it.** Catalog entries carry what their package holds (`contents`: hosts,
+  code, keys, skills by name, agents, routines, a device's app, fingerprint). A command bridging to a remote server
+  names that server's host. A listing may name its `tools`; without them the box says the service decides its tools,
+  and the real ones show once connected. The fingerprint is under Details.
+- **Refusals in words.** `extensions.inspect`/`install` errors carry `{reason: download | invalid | newer_apx | changed,
+  needs?}`; a manifest's `min_apx` (or a key this APX does not know) reads as written for a newer APX. A package chosen
+  from APX's catalog whose files are not APX's is not added from there.
+- **An address** in the picker is a package when it ends in `.apxext` (or `.zip`), else an MCP server added as Yours.
+
+Rejected: keeping the approval checkboxes (they repeated what the card already says, as three more clicks); probing an
+MCP address before adding it (a new method for what connecting already does).

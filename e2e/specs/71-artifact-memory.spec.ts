@@ -1,3 +1,4 @@
+import path from "node:path";
 import type { Frame, Page } from "@playwright/test";
 import { expect, open, rpc, test } from "./kit.ts";
 
@@ -176,13 +177,16 @@ test("an .apxart file is shown for what it is before it installs, pinned and wit
 });
 
 /** Lets `files` go over `selector`, the way a drag from the system ends: a drop event carrying them. */
-async function dropFiles(p: Page, selector: string, files: { name: string; text: string }[]) {
+async function dropFiles(p: Page, selector: string, files: { name: string; text?: string; base64?: string }[]) {
   await p
     .locator(selector)
     .first()
     .evaluate((el, files) => {
       const data = new DataTransfer();
-      for (const f of files) data.items.add(new File([f.text], f.name));
+      for (const f of files)
+        data.items.add(
+          new File([f.base64 ? Uint8Array.from(atob(f.base64), (c) => c.charCodeAt(0)) : (f.text ?? "")], f.name),
+        );
       el.dispatchEvent(new DragEvent("dragover", { dataTransfer: data, bubbles: true, cancelable: true }));
       el.dispatchEvent(new DragEvent("drop", { dataTransfer: data, bubbles: true, cancelable: true }));
     }, files);
@@ -205,9 +209,15 @@ test("an .apxart dropped anywhere on the window opens the install dialog with it
   await dialog.getByRole("button", { name: "Cancelar" }).click();
   await expect(dialog).toBeHidden();
 
-  // Anywhere else too; an app or extension file says it does not install from a file yet.
-  await dropFiles(p, "body", [{ name: "tools.apxext", text: "{}" }]);
-  await expect(p.getByText(/tools\.apxext es una app o extensión de APX/)).toBeVisible();
+  // Anywhere else too; an extension's file opens the add box on it, under the picker.
+  const packed = await rpc<{ data: string }>("extensions.pack", {
+    path: path.resolve(import.meta.dirname, "../../examples/extensions/daily-brief"),
+  });
+  await dropFiles(p, "body", [{ name: "daily-brief.apxext", base64: packed.data }]);
+  const box = p.getByRole("dialog", { name: "Agregar desde otro lado" });
+  await expect(box.getByText("Daily brief", { exact: true })).toBeVisible();
+  await expect(box.getByText("Tuya").or(box.getByText("De terceros"))).toBeVisible();
+  await box.getByRole("button", { name: "Cancelar" }).click();
   await expect(dialog).toBeHidden();
   await dropFiles(p, "body", [{ name: "dropped.apxart", text: bundle }]);
   await expect(dialog.getByText("Dropped", { exact: true })).toBeVisible();

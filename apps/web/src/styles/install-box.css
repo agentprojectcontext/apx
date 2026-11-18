@@ -1,0 +1,213 @@
+/* The add box (InstallBox.tsx): signal, steps, card, the connect step and its outcome. */
+.mkt-box__body,
+.mkt-connect {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.mkt-box__apx {
+  display: block;
+  border-radius: var(--apx-radius-md);
+}
+.mkt-box__added {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--apx-fg-muted);
+  font-size: var(--apx-text-xs);
+  white-space: nowrap;
+}
+.mkt-box__problem {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  border-radius: var(--apx-radius-lg);
+  padding: 10px 12px;
+  background: var(--apx-danger-soft);
+  color: var(--apx-danger-soft-fg);
+  font-size: var(--apx-text-sm);
+  line-height: 1.45;
+}
+.mkt-box__problem.is-soft {
+  background: var(--apx-warning-soft);
+  color: var(--apx-warning-soft-fg);
+}
+.mkt-box__problem > svg {
+  flex: none;
+  margin-top: 2px;
+}
+.mkt-box__update {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: var(--apx-text-sm);
+}
+.mkt-box__update ul {
+  margin: 0;
+  padding-left: 18px;
+  color: var(--apx-fg-muted);
+}
+.mkt-box__connect {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.mkt-box__agree,
+.mkt-box__wait {
+  margin: 0;
+  color: var(--apx-fg-muted);
+  font-size: var(--apx-text-xs);
+}
+.mkt-box__wait a {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+}
+.mkt-box__ok {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  margin: 0;
+  border-radius: var(--apx-radius-lg);
+  padding: 10px 12px;
+  background: var(--apx-brand-soft);
+  color: var(--apx-brand-soft-fg);
+  font-size: var(--apx-text-sm);
+}
+.mkt-box__ok > svg {
+  flex: none;
+  margin-top: 2px;
+}
+
+/* Details: a fingerprint or an error's own words, out of the way. */
+.mkt-details {
+  font-size: var(--apx-text-xs);
+  color: var(--apx-fg-subtle);
+}
+.mkt-details summary {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  cursor: pointer;
+  list-style: none;
+}
+.mkt-details summary::-webkit-details-marker {
+  display: none;
+}
+.mkt-details[open] summary svg {
+  transform: rotate(90deg);
+}
+.mkt-details code {
+  display: block;
+  margin-top: 6px;
+  font-family: var(--apx-font-mono);
+  overflow-wrap: anywhere;
+}
+
+/* Pairing a device's app. */
+.mkt-pair {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.mkt-pair__n {
+  font-size: var(--apx-text-xs);
+  font-weight: var(--apx-weight-semibold);
+}
+.mkt-pair__get {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  margin-top: 6px;
+}
+.mkt-pair__get a {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+}
+.mkt-pair__code {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  border-radius: var(--apx-radius-lg);
+  padding: 12px;
+  background: var(--apx-fill);
+}
+.mkt-pair__code > div {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+.mkt-pair__wait {
+  color: var(--apx-fg-muted);
+  font-size: var(--apx-text-xs);
+}
+.mkt-code {
+  margin: 0;
+  font-family: var(--apx-font-mono);
+  font-size: var(--apx-text-xl);
+  font-weight: var(--apx-weight-semibold);
+  letter-spacing: 0.18em;
+}
+.mkt-code--text {
+  font-size: var(--apx-text-sm);
+  font-weight: var(--apx-weight-regular);
+  letter-spacing: 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.mkt-code__address {
+  font-family: var(--apx-font-mono);
+  font-size: var(--apx-text-sm);
+  overflow-wrap: anywhere;
+}
+
+/* The source picker above the box (adding from elsewhere). */
+.mkt-pick {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--apx-border);
+}
+.mkt-pick__row {
+  display: flex;
+  gap: 8px;
+}
+.mkt-pick__row > :first-child {
+  flex: 1;
+  min-width: 0;
+}
+.mkt-pick__drop {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border: 1.5px dashed var(--apx-border-strong);
+  border-radius: var(--apx-radius-lg);
+  padding: 10px 12px;
+  font-size: var(--apx-text-sm);
+}
+.mkt-pick__drop > span {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.mkt-pick__drop[data-dragging] {
+  border-color: var(--apx-accent);
+  background: var(--apx-fill);
+}
+.mkt-pick__hint {
+  margin: 0;
+  color: var(--apx-fg-muted);
+  font-size: var(--apx-text-xs);
+}
+@media (max-width: 560px) {
+  .mkt-pair__code {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}

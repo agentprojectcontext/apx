@@ -1,12 +1,12 @@
-import { ChannelIcon, Icons, IntegrationIcon } from "@apx/ui";
-import type { ReactNode } from "react";
+import { ChannelIcon, ConnectSignal, Icons, IntegrationIcon } from "@apx/ui";
 import logoUrl from "../assets/logo.png";
 import type { Item } from "../resources/extensionItems.ts";
 import { useAsset } from "./useAsset.ts";
-import "../styles/connect-link.css";
+import "@apx/ui/summary.css";
+import "../styles/install-box.css";
 
-// The top of a connect dialog: two logos joined by dots. An account goes from APX to the service; a companion app
-// from the app to APX. The dots move while it connects, turn solid once connected, and stay still when it broke.
+// An extension's mark (its own icon, a channel's, the browser's, or its letter), and the head of a connect form: APX
+// joined to the service by dots that move while it connects (packages/ui ConnectSignal).
 
 export type LinkState = "idle" | "connecting" | "connected" | "broken";
 
@@ -39,12 +39,10 @@ export function ItemIcon({
   );
 }
 
-const ApxTile = () => (
-  <span className="mkt-link__tile">
-    <img src={logoUrl} alt="APX" width={28} height={28} />
-  </span>
-);
+/** APX's own mark, at the APX end of a link. */
+export const ApxMark = () => <img className="mkt-box__apx" src={logoUrl} alt="" width={30} height={30} />;
 
+/** The head of an included account's connect form: APX joined to the service, as in the add box. */
 export function ConnectHead({
   item,
   from = "apx",
@@ -55,22 +53,8 @@ export function ConnectHead({
   from?: "apx" | "app";
   state: LinkState;
 }) {
-  const app: ReactNode = (
-    <span className="mkt-link__tile mkt-link__tile--target">
-      <ItemIcon item={item} size={36} />
-    </span>
-  );
+  const app = <ItemIcon item={item} size={36} />;
   return (
-    <div className={`mkt-link mkt-link--${state}`} aria-hidden="true">
-      {from === "apx" ? <ApxTile /> : app}
-      <span className="mkt-link__dots">
-        <i />
-        <i />
-        <i />
-        <i />
-        <i />
-      </span>
-      {from === "apx" ? app : <ApxTile />}
-    </div>
+    <ConnectSignal from={from === "apx" ? <ApxMark /> : app} to={from === "apx" ? app : <ApxMark />} state={state} />
   );
 }

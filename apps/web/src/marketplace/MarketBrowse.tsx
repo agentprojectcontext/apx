@@ -38,9 +38,9 @@ export function rowAction(i: Item, open: () => void): (() => void) | undefined {
   const kind = i.channel;
   if (kind) return () => isChannelKind(kind) && go.newChannel(kind);
   const entry = i.entry?.catalog ? { catalog: i.entry.catalog, id: i.id } : undefined;
-  if (entry) return () => openExtensionInstall({ entry });
+  if (entry) return () => openExtensionInstall({ entry, catalog: true });
   const url = !i.integration && i.url;
-  if (url) return () => openExtensionInstall({ url });
+  if (url) return () => openExtensionInstall({ url, catalog: true, official: i.provenance === "official" });
   return open;
 }
 
@@ -80,7 +80,6 @@ export function MarketBrowse({
   catalog,
   catalogNames,
   onOpen,
-  onAddAddress,
 }: {
   /** Everything it can offer: included, APX's catalog and added catalogs (the owner's own built ones are not here). */
   items: Item[];
@@ -90,7 +89,6 @@ export function MarketBrowse({
   /** The added catalogs' names, by id. */
   catalogNames: Map<string, string>;
   onOpen(i: Item): void;
-  onAddAddress(): void;
 }) {
   const t = useT();
   const [filter, setFilter] = useState<Filter>();
@@ -124,7 +122,7 @@ export function MarketBrowse({
             {
               label: t("mkt.addAddress"),
               description: t("mkt.addAddressHint"),
-              onSelect: onAddAddress,
+              onSelect: () => openExtensionInstall({ mode: "url" }),
             },
             {
               label: t("mkt.addFile"),

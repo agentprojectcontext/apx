@@ -27,16 +27,9 @@ const Lines = ({ items }: { items: string[] }) => (
   </ul>
 );
 
-export function ItemFacts({ item }: { item: Item }) {
-  const t = useT();
-  const lang = useLanguage();
-  const copy = listingIn(item.listing, lang);
-  const publisher = item.listing?.publisher;
-  const verified = publisher?.verified || item.label === "official" || item.label === "included";
-  const access = accessLines(item, t);
-  const auth = authText(item, t);
-  const day = dayText(item.published, lang);
-  const links = (
+/** Its listing's https links, by what they are. */
+function linksOf(item: Item): Array<{ href: string; label: MessageKey }> {
+  return (
     [
       ["website", "mkt.kv.website"],
       ["docs", "mkt.kv.docs"],
@@ -47,6 +40,46 @@ export function ItemFacts({ item }: { item: Item }) {
     const href = item.listing?.links?.[k];
     return href?.startsWith("https://") ? [{ href, label }] : [];
   });
+}
+
+function LinkList({ links }: { links: Array<{ href: string; label: MessageKey }> }) {
+  const t = useT();
+  return (
+    <ul className="mkt-links">
+      {links.map((l) => (
+        <li key={l.label}>
+          <a href={l.href} target="_blank" rel="noreferrer" title={host(l.href)}>
+            {t(l.label)} <Icons.ExternalLink size={12} />
+          </a>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+/** Its links alone, under the page of one not added yet. */
+export function ItemLinks({ item }: { item: Item }) {
+  const t = useT();
+  const links = linksOf(item);
+  if (!links.length) return null;
+  return (
+    <section className="mkt-page__sec">
+      <h4>{t("mkt.kv.more")}</h4>
+      <LinkList links={links} />
+    </section>
+  );
+}
+
+export function ItemFacts({ item }: { item: Item }) {
+  const t = useT();
+  const lang = useLanguage();
+  const copy = listingIn(item.listing, lang);
+  const publisher = item.listing?.publisher;
+  const verified = publisher?.verified || item.label === "official" || item.label === "included";
+  const access = accessLines(item, t);
+  const auth = authText(item, t);
+  const day = dayText(item.published, lang);
+  const links = linksOf(item);
   const version = item.version ?? item.ext?.version;
   return (
     <section className="mkt-facts" aria-label={t("mkt.info")}>
@@ -99,15 +132,7 @@ export function ItemFacts({ item }: { item: Item }) {
       )}
       {links.length > 0 && (
         <Fact title="mkt.kv.more">
-          <ul>
-            {links.map((l) => (
-              <li key={l.label}>
-                <a href={l.href} target="_blank" rel="noreferrer" title={host(l.href)}>
-                  {t(l.label)} <Icons.ExternalLink size={12} />
-                </a>
-              </li>
-            ))}
-          </ul>
+          <LinkList links={links} />
         </Fact>
       )}
     </section>

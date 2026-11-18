@@ -29,22 +29,31 @@ servidor que agregaste por su dirección o un comando). Recursos queda para lo t
   nueva, con error) y **Activas**. Los mismos grupos aparecen en la columna de la izquierda.
 - La ficha de una extensión tiene un solo botón que cambia con su estado: **Agregar** → **Conectar** (o
   **Emparejar** si trae una app para un dispositivo) → **Conectada ✓**. Apagar, actualizar, volver a una versión,
-  ajustes y quitar están en **⋯**. Conectar una agregada muestra exactamente qué aprobás: a dónde se conecta, las
-  claves que guarda y sus archivos en esa versión.
+  ajustes y quitar están en **⋯**.
+- **Agregar** abre un solo cuadro: arriba APX unido al servicio (la app del dispositivo unida a APX para
+  **Emparejar**), y debajo qué es: qué trae (sus herramientas con nombre cuando su ficha las nombra), de dónde viene, a
+  dónde se conecta, cómo, qué necesita, si corre un programa en tu compu y si son exactamente los archivos que publica
+  APX (su huella queda en **Detalles**). **Agregar** copia sus archivos y no corre nada. El mismo cuadro pide después su
+  clave, un inicio de sesión o el código del dispositivo: **Conectar** (o **Emparejar**) es tu decisión de que funcione,
+  y lo que aprueba queda escrito arriba del botón. Ya conectada, muestra las herramientas que respondió su servidor.
+- La ficha de una que todavía no agregaste muestra el mismo **Qué trae** y los mismos **Datos**.
 - Debajo del botón: cosas para pedirle, acerca de, y **Qué trae** en filas que se abren: cada conexión con su
   dirección, cómo inicia sesión y sus herramientas; sus habilidades, agentes listos (cada uno con **Agregar agente**),
   rutinas (cada una con **Agregar a Rutinas**), widgets y la app para un dispositivo. Al pie: desarrollador, versión y
   fecha, **Seguridad y acceso** ("Puede enviar datos a api.hubapi.com", "Ejecuta código en tu compu"),
   **Autorización** ("Una clave tuya", "Requiere iniciar sesión"), qué necesita y qué no hace, costo, privacidad y
   enlaces. Un dato que nadie dio no aparece.
-- **Agregar** › **Desde una dirección** convierte un servidor MCP que te pasaron como link en una extensión tuya (la
-  dirección de un `.apxext` abre la ventana de instalar). **Agregar** › **Desde un archivo** instala un `.apxext`.
+- **Agregar** › **Desde una dirección** o **Desde un archivo** suma algo que no está en un catálogo: el mismo cuadro se
+  abre debajo de un selector (un archivo, una dirección o una carpeta). La dirección de un `.apxext` se lee como
+  paquete; cualquier otra dirección https es un servidor MCP, que queda como **Tuya** y se conecta en el momento.
+- Cuando no se puede agregar, el cuadro dice por qué: no se pudo bajar, los archivos cambiaron desde que los
+  revisaste, no son una extensión o necesita un APX más nuevo.
 - **Avanzado**, abajo en la columna de la izquierda, es para armar y probar extensiones: catálogos, instalar desde un
   archivo, una carpeta o un comando, y la guía para armar una.
 
 APX lee qué trae cada paquete del catálogo desde el paquete mismo: lo descarga una vez, lo compara con el sha256 y la
 huella del catálogo, y guarda en su carpeta sólo el manifest, la ficha y sus imágenes. No se instala ni corre nada
-hasta que lo instalás. APX trae una copia del catálogo oficial, así el Marketplace lo muestra sin conexión.
+hasta que lo agregás. APX trae una copia del catálogo oficial, así el Marketplace lo muestra sin conexión.
 
 ## ¿Necesitás una?
 
@@ -143,7 +152,8 @@ terminal; `apx extensions set <id> name=value` los cambia (`name=-` lee un valor
 ## Instalala
 
 Una extensión llega como carpeta, como **archivo `.apxext`** (la carpeta comprimida; así llegan los paquetes que publica
-APX) o desde una **dirección https** de uno. APX muestra qué trae antes de escribir nada, y la instala apagada.
+APX) o desde una **dirección https** de uno. APX muestra qué trae antes de escribir nada; agregarla no corre nada hasta
+que la conectes.
 
 <Tabs>
 <TabItem label="Panel">
@@ -151,12 +161,13 @@ APX) o desde una **dirección https** de uno. APX muestra qué trae antes de esc
 <Steps>
 
 1. Hacé doble clic en un archivo `.apxext`, o soltalo sobre la ventana de APX. O abrí el **Marketplace** y
-   tocá **Agregar** › **Desde un archivo** (**Avanzado** también instala desde una carpeta).
+   tocá **Agregar** › **Desde un archivo** (**Avanzado** también agrega desde una carpeta).
 
-2. Mirá qué trae: sus skills, servidores, los secretos que pide, su plugin, y si es **Oficial** o **De terceros**
-   (abajo). Después, **Instalar apagada**.
+2. Mirá qué trae: sus herramientas, habilidades, agentes y rutinas, a dónde se conecta, las claves que pide, si corre
+   un programa en tu compu y si es **Oficial** o **De terceros** (abajo). Después, **Agregar**.
 
-3. Tocá **Conectar** en su ficha: aprobá a qué llega y después escribí sus claves.
+3. En el mismo cuadro, escribí sus claves (o iniciá sesión, o emparejá el dispositivo) y tocá **Conectar**. Una que
+   no tiene nada para conectar queda lista apenas la agregás.
 
 4. Sus rutinas son sugerencias: **Agregar a Rutinas** pone una en Rutinas, apagada hasta que la enciendas.
 

@@ -28,21 +28,30 @@ or command). Resources keeps the technical parts (Skills, MCP, Variables).
 - **Your extensions** lists what you added, in two groups: **Needs attention** (not connected yet, a new version, an
   error) and **Active**. The same groups show in the left column.
 - An extension's page has one button that follows its state: **Add** → **Connect** (or **Pair** for a device's app)
-  → **Connected ✓**. Turn off, update, go back a version, settings and remove are in **⋯**. Connecting an added one
-  shows exactly what you approve: where it connects, the keys it keeps and its files at that version.
+  → **Connected ✓**. Turn off, update, go back a version, settings and remove are in **⋯**.
+- **Add** opens one box: APX joined to the service on top (a device's app joined to APX for **Pair**), then what it
+  is: what it brings (its tools by name when its page names them), where it comes from, where it connects, how, what
+  it needs, whether it runs a program on your computer, and whether these are exactly the files APX publishes (its
+  fingerprint is under **Details**). **Add** copies its files and runs nothing. The same box then asks for its key, a
+  sign-in or the device's code: **Connect** (or **Pair**) is your decision that it works, and what that approves is
+  written above the button. Once connected, it shows the tools its server answered with.
+- The page of one not added yet shows the same **What it brings** and **Facts**.
 - Below its button: things to ask it, about it, and **What it brings** as rows that open: each connection with its
   address, how it signs in and its tools; its skills, ready-made agents (each with **Add agent**), routines (each with
   **Add to Routines**), widgets and the app for a device. At its foot: developer, version and date, **Security and
   access** ("Can send data to api.hubapi.com", "Runs code on your computer"), **Authorization** ("A key of yours",
   "Requires signing in"), what it needs and does not do, cost, privacy and links. A fact nobody gave is not shown.
-- **Add** › **From an address** turns an MCP server someone gave you as a link into one of your extensions (an
-  `.apxext` address opens the install window instead). **Add** › **From a file** installs an `.apxext`.
+- **Add** › **From an address** or **From a file** adds something that is not in a catalog: the same box opens under
+  a picker (a file, an address or a folder). An address of an `.apxext` is read as a package; any other https address
+  is an MCP server, added as **Yours** and connected right away.
+- When it can't be added, the box says why: the download failed, the files changed since you looked at them, they are
+  not an extension, or it needs a newer APX.
 - **Advanced**, at the bottom of the left column, is for building and trying extensions: catalogs, installing from a
   file, a folder or a command, and the guide to build one.
 
 APX reads what each catalog package brings from the package itself: it downloads it once, checks it against the
 catalog's sha256 and fingerprint, and keeps only its manifest, its listing and its images in its home. Nothing is
-installed or run until you install it. APX ships a copy of the official catalog, so the Marketplace lists it offline.
+added or run until you add it. APX ships a copy of the official catalog, so the Marketplace lists it offline.
 
 ## Do you need one?
 
@@ -141,7 +150,8 @@ terminal; `apx extensions set <id> name=value` sets them (`name=-` reads a sensi
 ## Install it
 
 An extension comes as a folder, as an **`.apxext` file** (the folder zipped; the packages APX publishes come this way)
-or from an **https address** of one. APX shows what it brings before it writes anything, and installs it off.
+or from an **https address** of one. APX shows what it brings before it writes anything; adding it runs nothing until
+you connect it.
 
 <Tabs>
 <TabItem label="Panel">
@@ -149,12 +159,13 @@ or from an **https address** of one. APX shows what it brings before it writes a
 <Steps>
 
 1. Double-click an `.apxext` file, or drop it on the APX window. Or open the **Marketplace** and press
-   **Add** › **From a file** (**Advanced** also installs from a folder).
+   **Add** › **From a file** (**Advanced** also adds from a folder).
 
-2. Look at what it brings: its skills, servers, the secrets it asks for, its plugin, and whether it is **Official**
-   or **Third party** (below). Then **Install off**.
+2. Look at what it brings: its tools, skills, agents and routines, where it connects, the keys it asks for, whether
+   it runs a program on your computer and whether it is **Official** or **Third party** (below). Then **Add**.
 
-3. Press **Connect** on its page: approve what it reaches, then type its keys.
+3. In the same box, type its keys (or sign in, or pair the device) and press **Connect**. One with nothing to connect
+   is ready as soon as you add it.
 
 4. Its routines are suggestions: **Add to Routines** puts one in Routines, turned off until you turn it on.
 

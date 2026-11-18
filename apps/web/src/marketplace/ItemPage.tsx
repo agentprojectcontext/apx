@@ -10,23 +10,22 @@ import { ConnectForm, describe } from "../resources/IncludedIntegration.tsx";
 import { attempt } from "../resources/InstalledExtension.tsx";
 import { McpDialog } from "../resources/McpDialog.tsx";
 import { go } from "../shell/nav.ts";
-import { CompanionDialog } from "./CompanionDialog.tsx";
+import { AboutSections } from "./AboutParts.tsx";
+import { aboutEntry } from "./about.ts";
 import { ItemIcon } from "./ConnectHead.tsx";
-import { ItemFacts } from "./ItemFacts.tsx";
+import { ItemFacts, ItemLinks } from "./ItemFacts.tsx";
 import { ItemLabel } from "./ItemLabel.tsx";
 import { ItemParts } from "./ItemParts.tsx";
 import { ItemSettings } from "./ItemSettings.tsx";
 import { fromText, listingIn, nextStep, type Step, stepLabel } from "./itemText.ts";
-import { KeysDialog } from "./KeysDialog.tsx";
 import { rowAction } from "./MarketBrowse.tsx";
-import { TurnOnDialog } from "./TurnOnDialog.tsx";
 import { useAsset } from "./useAsset.ts";
 
 // An extension's page: its icon, name, label and who makes it, with one button that follows its state (Add → Connect,
 // or Pair for a device → Connected ✓) and everything else in ⋯; what to ask it, about it, what it brings (rows that
 // open) and the facts at its foot.
 
-type Dialog = "connect" | "keys" | "pair" | "turn-on" | "settings" | "edit" | undefined;
+type Dialog = "connect" | "settings" | "edit" | undefined;
 
 function Shot({ id, file, caption }: { id: string; file: string; caption: string }) {
   const url = useAsset(id, file);
@@ -59,6 +58,8 @@ export function ItemPage({
   const e = item.ext;
   const i = item.integration;
   const step = nextStep(item);
+  // One not added yet shows what it holds with the add box's own pieces.
+  const offered = item.state === "available" && item.entry ? aboutEntry(item.entry, lang) : undefined;
   const tagline = copy?.tagline ?? item.tagline ?? (i ? describe(i, t) : copy?.summary || item.description);
   const about = copy?.description ?? (copy?.summary && copy.summary !== tagline ? copy.summary : undefined);
   const by = [
@@ -74,18 +75,18 @@ export function ItemPage({
     setBusy(false);
     await onChanged();
   };
-  /** After it was turned on: its keys or its pairing, when it needs them. */
-  const afterOn = async () => {
-    await onChanged();
-    setOpen(e?.secrets.some((s) => !s.set) ? "keys" : e?.companion ? "pair" : undefined);
-  };
+  /** Connecting or pairing one already added happens in the add box, where adding it began. */
+  const connectBox = () =>
+    e && openExtensionInstall({ connect: e.id, look: { listing: item.listing, entry: item.entry } });
+  const update = (url: string) =>
+    openExtensionInstall({ url, catalog: true, official: item.entry?.provenance === "official" });
   const server = item.server;
   const act: Partial<Record<Step, () => void>> = {
     add: rowAction(item, () => undefined),
-    connect: e ? () => setOpen("turn-on") : i ? () => setOpen("connect") : rowAction(item, () => undefined),
-    review: () => setOpen("turn-on"),
-    pair: () => setOpen("pair"),
-    keys: () => setOpen("keys"),
+    connect: e ? connectBox : i ? () => setOpen("connect") : rowAction(item, () => undefined),
+    review: connectBox,
+    pair: connectBox,
+    keys: connectBox,
     settings: () => setOpen("settings"),
     fix: () => setOpen(server && !e && !i ? "edit" : "settings"),
     "sign-in": () => {
@@ -124,7 +125,7 @@ export function ItemPage({
       menu.push({
         label: t("mkt.updateTo", { version: item.update }),
         icon: <Icons.ArrowUp size={14} />,
-        onSelect: () => openExtensionInstall({ url }),
+        onSelect: () => update(url),
       });
     }
     if (e.update)
@@ -200,7 +201,7 @@ export function ItemPage({
         description={[waiting, newer].filter(Boolean).join(" ")}
         aside={
           newer ? (
-            <Button size="sm" variant="secondary" onClick={() => item.url && openExtensionInstall({ url: item.url })}>
+            <Button size="sm" variant="secondary" onClick={() => item.url && update(item.url)}>
               {t("extx.seeUpdate")}
             </Button>
           ) : undefined
@@ -266,9 +267,16 @@ export function ItemPage({
               <MarkdownView source={about} size="sm" />
             </section>
           )}
-          <ItemParts item={item} servers={servers} />
+          {offered ? (
+            <>
+              <AboutSections a={offered} />
+              <ItemLinks item={item} />
+            </>
+          ) : (
+            <ItemParts item={item} servers={servers} />
+          )}
         </div>
-        <ItemFacts item={item} />
+        {!offered && <ItemFacts item={item} />}
       </div>
       {open === "connect" && i && (
         <ConnectForm
@@ -278,20 +286,6 @@ export function ItemPage({
           onDone={async () => {
             setOpen(undefined);
             await onChanged();
-          }}
-        />
-      )}
-      {open === "turn-on" && e && <TurnOnDialog e={e} onClose={() => setOpen(undefined)} onOn={afterOn} />}
-      {open === "pair" && e?.companion && <CompanionDialog item={item} ext={e} onClose={() => setOpen(undefined)} />}
-      {open === "keys" && e && (
-        <KeysDialog
-          item={item}
-          ext={e}
-          onClose={() => setOpen(undefined)}
-          onDone={async () => {
-            setOpen(undefined);
-            await onChanged();
-            if (e.companion) setOpen("pair");
           }}
         />
       )}
