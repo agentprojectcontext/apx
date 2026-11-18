@@ -1,5 +1,6 @@
 import type { AccountProfile } from "@apx/protocol";
-import { Avatar, Button, Dialog, GoogleMark, Icons, Input, SettingRow, Spinner } from "@apx/ui";
+import { Avatar, Button, ConfirmDialog, Dialog, GoogleMark, Icons, Input, SettingRow, Spinner } from "@apx/ui";
+import { useState } from "react";
 import { accountError } from "../data/account.ts";
 import { useT } from "../i18n/index.ts";
 import type { useCloudAccount } from "./useCloudAccount.ts";
@@ -18,6 +19,7 @@ const handleError = (error: unknown) =>
 export function AccountCard({ name, account }: { name: string; account: Account }) {
   const t = useT();
   const { profile, available, loading, busy, waiting, error } = account;
+  const [leaving, setLeaving] = useState(false);
   const sub = profile
     ? `${t("account.shortId", { id: profile.id })} · ${t("account.owner")}`
     : waiting
@@ -37,7 +39,7 @@ export function AccountCard({ name, account }: { name: string; account: Account 
           {loading ? (
             <Spinner size={18} />
           ) : profile ? (
-            <Button size="sm" variant="secondary" loading={busy} onClick={() => void account.logout()}>
+            <Button size="sm" variant="secondary" loading={busy} onClick={() => setLeaving(true)}>
               {t("account.signOut")}
             </Button>
           ) : waiting ? (
@@ -57,6 +59,17 @@ export function AccountCard({ name, account }: { name: string; account: Account 
           ) : null}
         </div>
       </div>
+      {leaving && (
+        <ConfirmDialog
+          title={t("account.signOutTitle")}
+          description={t("account.signOutLead")}
+          confirmLabel={t("account.signOut")}
+          cancelLabel={t("common.cancel")}
+          closeLabel={t("common.close")}
+          onConfirm={() => account.logout()}
+          onClose={() => setLeaving(false)}
+        />
+      )}
       {error != null && !handleError(error) && (
         <p role="alert" className="account-card__note">
           {accountError(t, error)}{" "}

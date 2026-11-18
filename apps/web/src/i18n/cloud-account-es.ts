@@ -13,4 +13,7 @@ export const esCloudAccount = {
   "account.nameKeep": "Dejar {name}",
   "account.nameUse": "Usar {name}",
   "account.handleYours": "@{handle} es tuyo: nadie más puede usarlo.",
+  "account.signOutTitle": "¿Cerrar sesión de tu cuenta APX en esta compu?",
+  "account.signOutLead":
+    "Esta compu se olvida del inicio de sesión. Tu ID de APX, tu nombre de usuario y tu trabajo acá se quedan; podés volver a iniciar sesión cuando quieras.",
 } as const;

@@ -76,6 +76,14 @@ test("signed in with another name: the owner sees both and keeps or takes the ac
   await page.setViewportSize({ width: 390, height: 844 });
   await expect(page.getByRole("button", { name: "Cerrar sesión" })).toBeVisible();
   await page.screenshot({ path: info.outputPath("account-signed-in-phone.png") });
+
+  // Signing out asks first, as everything that takes something away does.
+  await page.getByRole("button", { name: "Cerrar sesión" }).click();
+  const leaving = page.getByRole("dialog", { name: "¿Cerrar sesión de tu cuenta APX en esta compu?" });
+  await expect(leaving.getByText(/Tu ID de APX, tu nombre de usuario y tu trabajo acá se quedan/)).toBeVisible();
+  await leaving.getByRole("button", { name: "Cancelar" }).click();
+  await expect(leaving).toBeHidden();
+  await expect(page.getByRole("button", { name: "Cerrar sesión" })).toBeVisible();
 });
 
 test("keeping the typed name leaves it as it was", async ({ page }) => {

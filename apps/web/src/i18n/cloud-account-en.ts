@@ -13,4 +13,7 @@ export const enCloudAccount = {
   "account.nameKeep": "Keep {name}",
   "account.nameUse": "Use {name}",
   "account.handleYours": "@{handle} is yours: nobody else can use it.",
+  "account.signOutTitle": "Sign out of your APX account here?",
+  "account.signOutLead":
+    "This computer forgets the sign-in. Your APX ID, your username and your work here stay; you can sign in again anytime.",
 } as const;
