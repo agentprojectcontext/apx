@@ -71,6 +71,8 @@
   min-width: 0;
   padding: 22px 28px 32px;
   overflow-y: auto;
+  /* The cards follow the room they have, not the window's width (the side list and other panes take some). */
+  container-type: inline-size;
 }
 .mkt-browse > * {
   flex-shrink: 0;
@@ -91,6 +93,7 @@
 }
 .mkt-browse__search {
   flex: 1;
+  min-width: 0;
   max-width: 420px;
 }
 .mkt-group {
@@ -107,11 +110,16 @@
   margin: 0;
   font-size: var(--apx-text-md);
 }
-/* Two columns of cards on a wide screen, one on a phone. */
+/* One column of cards; two once the content is about 720px wide. */
 .mkt-grid {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: minmax(0, 1fr);
   gap: 8px;
+}
+@container (min-width: 720px) {
+  .mkt-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 .mkt-card {
   display: grid;
@@ -302,6 +310,16 @@
 .mkt-catalogs .mkt__label {
   margin: 0;
 }
+/* On a narrow screen its buttons go under its name and address. */
+.mkt-catalog .mkt-brought {
+  flex-wrap: wrap;
+}
+.mkt-catalog .mkt-brought__main {
+  flex-basis: 220px;
+}
+.mkt-catalog .mkt-brought__main span {
+  overflow-wrap: anywhere;
+}
 .mkt-skipped {
   margin: 6px 0 0;
   padding-left: 22px;
@@ -334,20 +352,21 @@
     flex: 0 0 auto;
     width: auto;
   }
-  .mkt-card {
-    grid-template-columns: 36px minmax(0, 1fr);
-  }
-  .mkt-card__act {
-    grid-column: 2;
-    justify-self: start;
-  }
   .mkt__yours {
     display: none;
   }
   .mkt-browse {
     padding: 14px 14px 24px;
   }
-  .mkt-grid {
-    grid-template-columns: minmax(0, 1fr);
+}
+
+/* A narrow card puts its action under its text. */
+@container (max-width: 420px) {
+  .mkt-card {
+    grid-template-columns: 36px minmax(0, 1fr);
+  }
+  .mkt-card__act {
+    grid-column: 2;
+    justify-self: start;
   }
 }
