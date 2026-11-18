@@ -539,3 +539,15 @@
   flex: none;
   color: var(--apx-fg-muted);
 }
+
+/* How many it shows: beside each filter, and above the list. */
+.mkt-filters__n {
+  margin-left: 6px;
+  color: var(--apx-fg-subtle);
+  font-variant-numeric: tabular-nums;
+}
+.mkt-browse__count {
+  margin: 0;
+  color: var(--apx-fg-muted);
+  font-size: var(--apx-text-sm);
+}

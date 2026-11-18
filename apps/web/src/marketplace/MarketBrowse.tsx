@@ -80,9 +80,12 @@ export function MarketBrowse({
   catalog,
   catalogNames,
   onOpen,
+  total,
 }: {
   /** Everything it can offer: included, APX's catalog and added catalogs (the owner's own built ones are not here). */
   items: Item[];
+  /** How many it offers before the search narrows them. */
+  total: number;
   query: string;
   onQuery(q: string): void;
   catalog: CatalogState;
@@ -92,7 +95,8 @@ export function MarketBrowse({
 }) {
   const t = useT();
   const [filter, setFilter] = useState<Filter>();
-  const filters = (Object.keys(FILTERS) as Filter[]).filter((f) => items.some(FILTERS[f]));
+  // The chosen one stays, even when a search leaves it empty: it is how the owner takes it off.
+  const filters = (Object.keys(FILTERS) as Filter[]).filter((f) => f === filter || items.some(FILTERS[f]));
   const shown = filter ? items.filter(FILTERS[filter]) : items;
   const fresh = query || filter ? [] : newest(shown, Date.now());
   const groups = groupByCategory(shown);
@@ -132,15 +136,32 @@ export function MarketBrowse({
           ]}
         />
       </div>
-      {filters.length > 1 && (
+      {(filters.length > 1 || filter) && (
         <SegmentedControl
           size="sm"
           className="mkt-filters"
           label={t("mkt.filterLabel")}
           value={filter ?? "all"}
           onValueChange={(v) => setFilter(v === "all" ? undefined : (v as Filter))}
-          options={["all", ...filters].map((f) => ({ value: f, label: t(`mkt.filter.${f}` as MessageKey) }))}
+          options={["all", ...filters].map((f) => ({
+            value: f,
+            label: (
+              <>
+                {t(`mkt.filter.${f}` as MessageKey)}
+                <span className="mkt-filters__n">
+                  {f === "all" ? items.length : items.filter(FILTERS[f as Filter]).length}
+                </span>
+              </>
+            ),
+          }))}
         />
+      )}
+      {shown.length > 0 && (
+        <p className="mkt-browse__count" role="status">
+          {shown.length === total
+            ? t(total === 1 ? "mkt.countOne" : "mkt.countAll", { n: total })
+            : t("mkt.countOf", { n: shown.length, total })}
+        </p>
       )}
       {(!catalog || catalog.catalog) && (
         <p className="mkt-browse__status">

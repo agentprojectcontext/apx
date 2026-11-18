@@ -170,6 +170,7 @@ export function MarketplaceScreen() {
         ) : (
           <MarketBrowse
             items={offered}
+            total={items.filter((i) => i.label !== "own").length}
             query={query}
             onQuery={setQuery}
             catalog={catalog}
