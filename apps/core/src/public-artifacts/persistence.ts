@@ -2,6 +2,7 @@ import { createHash } from "node:crypto";
 import { ArtifactBundle } from "@apx/protocol";
 import { z } from "zod";
 import type { Store } from "../domain/store.ts";
+import { draftBucket, PUBLIC_DRAFT_LIMIT, PUBLIC_DRAFT_SNAPSHOTS } from "./capacity.ts";
 import type { PublicationDraftPersistence, PublicationDraftSnapshot } from "./drafts.ts";
 
 const KEY = "public_artifact_drafts";
@@ -29,6 +30,15 @@ const StoredDraft = z
   })
   .strict();
 
+const StoredDrafts = z
+  .array(StoredDraft)
+  .max(PUBLIC_DRAFT_SNAPSHOTS)
+  .refine((drafts) =>
+    ["copy", "revocation", "receipt"].every(
+      (bucket) => drafts.filter((draft) => draftBucket(draft) === bucket).length <= PUBLIC_DRAFT_LIMIT,
+    ),
+  );
+
 /** Local private snapshots, not cloud state or a public configuration setting. */
 export function publicationDraftPersistence(settings: Store["settings"]): PublicationDraftPersistence {
   return {
@@ -36,7 +46,7 @@ export function publicationDraftPersistence(settings: Store["settings"]): Public
       const raw = settings.get(KEY);
       if (!raw) return [];
       try {
-        const stored = z.array(StoredDraft).max(20).parse(JSON.parse(raw));
+        const stored = StoredDrafts.parse(JSON.parse(raw));
         return stored.map((draft): PublicationDraftSnapshot => {
           if (!draft.copy) return { ...draft, copy: undefined };
           const { copy } = draft;
@@ -57,7 +67,7 @@ export function publicationDraftPersistence(settings: Store["settings"]): Public
         ...draft,
         ...(copy ? { copy: { json: copy.json, bytes: copy.bytes, sha256: copy.sha256 } } : {}),
       }));
-      settings.set(KEY, JSON.stringify(z.array(StoredDraft).max(20).parse(stored)));
+      settings.set(KEY, JSON.stringify(StoredDrafts.parse(stored)));
     },
   };
 }

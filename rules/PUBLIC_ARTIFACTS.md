@@ -82,7 +82,12 @@ error honestly, preserve confirmed state and document the limits. Do not weaken 
 
 `public-artifacts/drafts.ts` creates expiring, opaque preview IDs without uploading anything. At most twenty
 selected snapshots are retained privately in the local database for thirty days, extended through the actual
-pending-card deadline. Only serialized snapshots and receipts persist, never session credentials, generations
+pending-card deadline. Twenty separate metadata-only slots reserve room for revocation; the twenty most recent
+completion receipts are retained without their copied bytes and do not consume review capacity. At capacity,
+the oldest uncommitted review without an in-flight write or live pending card is replaced; actual pending cards
+are protected, including when preparing another review of the same source. Closing a directly prepared human
+review releases it, while closing an agent card's review preserves that card. Only serialized snapshots and
+receipts persist, never session credentials, generations
 or human review tokens. A restart requires opening the review again and binds the unchanged copy to the current
 session of the same account. Its snapshots bind the chosen state, source hash, account generation and remote
 revision. A changed source or signed-out account cannot commit the old preview. Concurrent commits share one write; completed previews return their old receipt

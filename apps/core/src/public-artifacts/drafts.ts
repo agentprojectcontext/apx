@@ -1,7 +1,9 @@
 import { randomUUID } from "node:crypto";
 import type { AccountProfile } from "@apx/protocol";
-import { publicArtifactCode, publicArtifactCopy } from "../domain/public-artifact-copy.ts";
+import { publicArtifactCopy } from "../domain/public-artifact-copy.ts";
+import { PUBLIC_DRAFT_SNAPSHOTS, trimPublicationReceipts } from "./capacity.ts";
 import { cloudNumber, cloudString, type createPublicArtifactCloud } from "./firestore.ts";
+import { preparePublication } from "./prepare.ts";
 
 type Source = Parameters<typeof publicArtifactCopy>[0];
 type Cloud = ReturnType<typeof createPublicArtifactCloud>;
@@ -20,7 +22,7 @@ export type PublicationRequest = {
   state_keys?: string[];
 };
 type Receipt = { code: string; url: string; action: PublicationRequest["action"] };
-type Draft = {
+export type Draft = {
   id: string;
   uid: string;
   generation?: number;
@@ -53,7 +55,7 @@ const summary = (draft: Draft) => ({
   expires_at: new Date(draft.expires).toISOString(),
 });
 
-export function createPublicationDrafts(deps: {
+export type PublicationDraftDependencies = {
   account: PublicationAccount;
   cloud: Cloud;
   source(id: string): Source | undefined;
@@ -62,11 +64,14 @@ export function createPublicationDrafts(deps: {
   code?: () => string;
   persistence?: PublicationDraftPersistence;
   pendingUntil?(id: string): number | undefined;
-}) {
+};
+
+export function createPublicationDrafts(deps: PublicationDraftDependencies) {
   const drafts = new Map<string, Draft>();
   const now = deps.now ?? Date.now;
-  for (const saved of (deps.persistence?.load() ?? []).slice(-20)) {
+  for (const saved of (deps.persistence?.load() ?? []).slice(-PUBLIC_DRAFT_SNAPSHOTS)) {
     const draft = structuredClone(saved);
+    if (draft.done) delete draft.copy;
     draft.expires = Math.max(draft.expires, deps.pendingUntil?.(draft.id) ?? 0);
     if (draft.expires > now()) drafts.set(draft.id, draft);
   }
@@ -124,64 +129,7 @@ export function createPublicationDrafts(deps: {
         return { ok: true as const };
       });
     },
-    async prepare(input: PublicationRequest) {
-      return deps.account.withSession(async (session) => {
-        current(session);
-        if (!(["publish", "update", "revoke"] as const).includes(input.action))
-          throw new Error("invalid_public_artifact_action");
-        if ((input.action === "publish" && input.code) || (input.action !== "publish" && !input.code))
-          throw new Error("invalid_public_artifact_target");
-        if (input.action === "revoke" && (input.surface || input.state_keys?.length))
-          throw new Error("invalid_public_artifact_target");
-        if (input.action !== "revoke" && !input.surface) throw new Error("public_artifact_source_missing");
-        const keys = [...(input.state_keys ?? [])];
-        const copy = input.surface ? snapshot(input.surface, keys) : undefined;
-        const remote = input.code ? await deps.cloud.inspect(session, input.code) : undefined;
-        current(session);
-        for (const [id, old] of drafts) {
-          old.expires = Math.max(old.expires, deps.pendingUntil?.(id) ?? 0);
-          if (
-            !old.pending &&
-            (old.expires <= now() ||
-              (old.uid === session.uid &&
-                old.surface === input.surface &&
-                (input.action === "publish" || old.code === input.code) &&
-                old.action === input.action))
-          )
-            drafts.delete(id);
-        }
-        if (drafts.size >= 20) throw new Error("public_artifact_preview_limit");
-        let code = input.code;
-        if (!code) {
-          for (let attempt = 0; attempt < 8; attempt++) {
-            const candidate = (deps.code ?? publicArtifactCode)();
-            if (await deps.cloud.available(session, candidate)) {
-              code = candidate;
-              break;
-            }
-          }
-          if (!code) throw new Error("public_artifact_code_unavailable");
-        }
-        current(session);
-        if (drafts.size >= 20) throw new Error("public_artifact_preview_limit");
-        const draft: Draft = {
-          id: randomUUID(),
-          uid: session.uid,
-          generation: session.generation,
-          expires: now() + 30 * 24 * 60 * 60_000,
-          action: input.action,
-          code,
-          title: copy?.bundle.manifest.title ?? (remote ? cloudString(remote, "title") : ""),
-          ...(input.surface ? { surface: input.surface } : {}),
-          keys,
-          ...(copy ? { copy } : {}),
-          ...(remote ? { expected: remote.updateTime } : {}),
-        };
-        drafts.set(draft.id, draft);
-        persist();
-        return summary(draft);
-      });
-    },
+    prepare: preparePublication({ deps, drafts, now, snapshot, current, persist, summary }),
     async verifyReview(id: string, token: string): Promise<boolean> {
       try {
         const draft = find(id);
@@ -227,6 +175,10 @@ export function createPublicationDrafts(deps: {
       draft.pending = execute(draft);
       try {
         draft.done = await draft.pending;
+        delete draft.copy;
+        drafts.delete(draft.id);
+        drafts.set(draft.id, draft);
+        trimPublicationReceipts(drafts);
         persist();
         return { ...draft.done };
       } finally {

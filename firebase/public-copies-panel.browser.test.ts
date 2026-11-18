@@ -56,6 +56,36 @@ for (const width of [1280, 390]) {
         await expect(page.getByRole("checkbox", { name: "Filters", exact: true })).not.toBeChecked();
         await expect(page.getByRole("checkbox", { name: "PrivateNotes", exact: true })).not.toBeChecked();
       };
+      for (let i = 0; i < 20; i++) {
+        const abandoned = await client.call("surfaces.show", {
+          name: `cancelled-${i}`,
+          title: `Cancelled review ${i}`,
+          html: "<h1>Orders</h1>",
+          app: true,
+        });
+        await client.call("surfaces.set_state", {
+          surface: abandoned.id,
+          patch: { Filters: {}, PrivateNotes: "Not selected" },
+        });
+        await page.goto(`${core.url}/#app=${abandoned.id}`);
+        await start();
+        await page.getByRole("button", { name: "Review copy", exact: true }).click();
+        const cancelled = page.getByRole("dialog", { name: "Review this exact copy" });
+        await expect(cancelled.getByRole("button", { name: "Publish copy", exact: true })).toBeEnabled();
+        if (i % 2) await page.keyboard.press("Escape");
+        else await cancelled.getByRole("button", { name: "Cancel", exact: true }).click();
+        await expect(cancelled).toHaveCount(0);
+        await expect
+          .poll(
+            () =>
+              (JSON.parse(core.store.settings.get("public_artifact_drafts") ?? "[]") as { done?: unknown }[]).filter(
+                (draft) => !draft.done,
+              ).length,
+          )
+          .toBe(0);
+      }
+      assert.equal(cloud.commits(), 0);
+      await page.goto(`${core.url}/#app=${source.id}`);
       await start();
       await page.getByText("View contents", { exact: true }).first().click();
       await expect(page.getByRole("dialog").locator("pre").first()).toContainText('"region": "South"');

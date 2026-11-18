@@ -5234,7 +5234,11 @@ database, private memory and secret references are excluded. HTML is still owner
 already contain sensitive text: show the full source, preview and selected values before confirming. Identity is
 shown only in the owner's review, never in agent draft data or the published bundle. A source/account change
 invalidates an uncommitted review. Retry of an already committed draft returns its receipt instead of duplicating
-publication. Update retains the public code and may use another local source; revoke needs no local source.
+publication while its bounded receipt is retained. Twenty selected-copy reviews, twenty metadata-only revocation
+reviews and twenty recent receipts have separate local allowances; receipts drop the copied bytes. Abandoned
+reviews can be replaced, never an in-flight write or live pending card. Closing a human-started review frees
+it, but closing an agent card's review preserves its request. Update retains the public code and may use another
+local source; revoke needs no local source.
 
 Agent tools can prepare a draft but cannot read the identity-bearing preview or commit directly. Every agent
 commit needs a target-bound, app-only owner card even in Total. The card opens the exact review, never generic

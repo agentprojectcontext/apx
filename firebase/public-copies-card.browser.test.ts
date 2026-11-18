@@ -75,6 +75,12 @@ for (const width of [1280, 390]) {
       assert.equal(cloud.commits(), 0);
       if (process.env.PUBLIC_COPY_EVIDENCE)
         await page.screenshot({ path: path.join(process.env.PUBLIC_COPY_EVIDENCE, `agent-review-${width}-en.png`) });
+      await page.keyboard.press("Escape");
+      await expect(dialog).toHaveCount(0);
+      assert.equal(core.store.inputs.get(input.id)?.state, "pending");
+      assert.equal((await client.call("surfaces.public_preview", { draft })).draft, draft);
+      await page.getByRole("button", { name: "Review public copy", exact: true }).click();
+      await expect(frame.getByRole("heading", { name: "Reviewed orders" })).toBeVisible();
       await dialog.getByRole("button", { name: "Publish copy", exact: true }).click();
       await expect(dialog).toHaveCount(0);
       await waitFor(() => cloud.commits() === 1, "publication after exact review", { ms: 10_000 });

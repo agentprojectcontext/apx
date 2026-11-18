@@ -51,6 +51,7 @@ function fixture(codes?: () => string) {
       return { ok: true };
     },
   };
+  const pending = new Set<string>();
   let saved: import("./drafts.ts").PublicationDraftSnapshot[] = [];
   const create = () =>
     createPublicationDrafts({
@@ -66,10 +67,12 @@ function fixture(codes?: () => string) {
       source: () => source,
       decorateHtml: (html) => html,
       now: () => now,
+      pendingUntil: (id) => (pending.has(id) ? 60_000 : undefined),
     });
   const drafts = create();
   return {
     drafts,
+    pending,
     restart: create,
     persisted: () => saved,
     cloud,
@@ -124,10 +127,11 @@ test("restart cannot cross account boundaries and live review tokens cannot surv
   assert.equal(f.writes.length, 0);
 });
 
-test("durable drafts retain at most twenty selected snapshots", async () => {
+test("twenty live card snapshots stay bounded and are never evicted", async () => {
   const f = fixture();
   for (let index = 0; index < 20; index++) {
-    await f.drafts.prepare({ action: "publish", surface: `surface-${index}` });
+    const draft = await f.drafts.prepare({ action: "publish", surface: `surface-${index}` });
+    f.pending.add(draft.draft);
   }
   await assert.rejects(f.drafts.prepare({ action: "publish", surface: "overflow" }), /preview_limit/);
   assert.equal(f.persisted().length, 20);
