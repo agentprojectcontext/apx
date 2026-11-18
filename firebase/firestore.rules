@@ -1,8 +1,7 @@
 rules_version = '2';
 
-// APX telemetry (apps/core/src/telemetry.ts). Installs write without an account, so these rules are the whole guard:
-// only known shapes, server timestamps and immutable steps. Private readers need an administrator-issued claim;
-// authenticated readers cannot write. Console/report access continues through IAM. See rules/DECISIONS.md#d-092.
+// Private profiles with atomic ID/handle reservations (D-247); anonymous telemetry keeps its shape checks (D-092).
+// Telemetry reads require an administrator-issued claim; authenticated telemetry writes stay denied.
 service cloud.firestore {
   match /databases/{database}/documents {
     function isUuid(id) {
@@ -27,6 +26,55 @@ service cloud.firestore {
 
     function telemetryReader() {
       return request.auth != null && request.auth.token.telemetry_reader == true;
+    }
+
+    function owns(uid) {
+      return request.auth != null && request.auth.uid == uid;
+    }
+    function userAfter(uid) {
+      return getAfter(/databases/$(database)/documents/users/$(uid)).data;
+    }
+    function validProfile(uid) {
+      let d = request.resource.data;
+      return d.keys().hasAll(['id', 'name', 'photo', 'handle'])
+        && d.keys().hasOnly(['id', 'name', 'photo', 'handle'])
+        && d.id is string && d.id.matches('^[0-9a-hjkmnp-tv-z]{8}$')
+        && d.name is string && d.name.size() <= 100
+        && d.photo is string && d.photo.size() <= 2048
+        && (d.photo == '' || d.photo.matches('^https://.*'))
+        && d.handle is string && (d.handle == '' || d.handle.matches('^[a-z][a-z0-9_]{2,23}$'))
+        && getAfter(/databases/$(database)/documents/accountIds/$(d.id)).data.uid == uid
+        && (d.handle == '' || getAfter(/databases/$(database)/documents/accountHandles/$(d.handle)).data.uid == uid);
+    }
+    match /users/{uid} {
+      allow get: if owns(uid);
+      allow list, delete: if false;
+      allow create: if owns(uid) && validProfile(uid);
+      allow update: if owns(uid) && validProfile(uid)
+        && request.resource.data.id == resource.data.id
+        && (resource.data.handle == '' || resource.data.handle == request.resource.data.handle
+          || !existsAfter(/databases/$(database)/documents/accountHandles/$(resource.data.handle)));
+    }
+    match /accountIds/{id} {
+      allow get: if request.auth != null && resource.data.uid == request.auth.uid;
+      allow list, update, delete: if false;
+      allow create: if request.auth != null
+        && request.resource.data.keys().hasOnly(['uid'])
+        && request.resource.data.uid == request.auth.uid
+        && userAfter(request.auth.uid).id == id;
+    }
+    match /accountHandles/{handle} {
+      allow get: if request.auth != null && resource.data.uid == request.auth.uid;
+      allow list, update: if false;
+      allow create: if request.auth != null
+        && request.resource.data.keys().hasOnly(['uid'])
+        && request.resource.data.uid == request.auth.uid
+        && userAfter(request.auth.uid).handle == handle;
+      allow delete: if request.auth != null
+        && (exists(/databases/$(database)/documents/accountHandles/$(handle))
+          ? resource.data.uid == request.auth.uid
+          : get(/databases/$(database)/documents/users/$(request.auth.uid)).data.handle == handle)
+        && userAfter(request.auth.uid).handle != handle;
     }
 
     match /installs/{id} {

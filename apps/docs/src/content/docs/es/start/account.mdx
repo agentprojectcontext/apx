@@ -1,0 +1,40 @@
+---
+title: Tu cuenta APX
+description: Iniciá sesión con Google, encontrá tu ID de APX y elegí un nombre de usuario opcional.
+---
+
+La cuenta APX es opcional. Tus proyectos, agentes y conversaciones locales siguen funcionando sin iniciar sesión.
+Iniciar sesión no sube ni sincroniza esos proyectos o conversaciones, ni conecta Gmail, Google Calendar o
+Google Drive. Conectalos por separado en **Recursos › Integraciones**.
+
+## Iniciar sesión
+
+1. Abrí **Configuración › Cuenta**.
+2. En **Cuenta en la nube**, elegí **Iniciar sesión con Google**.
+3. Terminá de iniciar sesión en tu navegador. Cuando diga **Iniciaste sesión en APX**, volvé a APX. **Abrir APX** es un atajo opcional de la app de escritorio; si el navegador no puede abrirla, volvé manualmente.
+4. La tarjeta de tu cuenta muestra tu nombre, foto e ID de APX de ocho caracteres.
+
+Mantené APX abierto mientras iniciás sesión. El inicio de sesión vence a los diez minutos; si vence o
+reiniciás APX, empezá de nuevo desde Configuración. El navegador y el core deben correr en la misma
+computadora para este inicio de sesión. Si el navegador bloquea la ventana, permití las ventanas emergentes
+para la dirección de APX y volvé a intentar. Cancelar en Google termina ese intento; podés empezar de nuevo desde APX.
+Si se revoca tu sesión guardada, APX la borra y te pide iniciar sesión otra vez. Los errores temporales de conexión
+conservan la sesión para que puedas reintentar.
+
+## Elegir un nombre de usuario
+
+El nombre de usuario es opcional y único. Usá entre 3 y 24 letras minúsculas, números o guiones bajos,
+empezando con una letra. Podés escribir `@` al principio; APX lo quita al guardar. Elegí **Guardar**.
+Si el nombre ya está ocupado, elegí otro. Vaciá el campo y guardá para quitar el nombre. Cambiarlo no
+modifica tu ID de APX.
+
+El ID usa base32 Crockford, sin las letras I, L, O ni U. Tu perfil es privado: crear una cuenta no publica nada.
+
+## Cerrar sesión
+
+Elegí **Cerrar sesión** en la tarjeta de tu cuenta. APX borra la sesión guardada de este core. Tu cuenta y
+perfil en la nube se conservan, y tu trabajo local no se borra. Los demás cores que tengan iniciada la
+sesión con la misma cuenta la mantienen.
+
+Si el inicio de sesión todavía no está configurado, podés seguir usando APX sin cuenta. Una compilación
+propia necesita la configuración de Firebase y Google; consultá `firebase/README.md` en el repositorio.

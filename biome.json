@@ -212,6 +212,7 @@
                       "**/ModelList.tsx",
                       "**/NewProjectDialog.tsx",
                       "**/OAuthReturn.tsx",
+                      "**/data/account.ts",
                       "**/PairScreen.tsx",
                       "**/PhoneDialog.tsx",
                       "**/ProcessesPanel.tsx",

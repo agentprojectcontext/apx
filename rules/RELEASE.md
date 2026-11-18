@@ -3,6 +3,14 @@
 How v2 leaves the private working repo and reaches people. What was built for updates is
 [D-044](DECISIONS.md#d-044).
 
+## Firebase rules deployment
+
+Before publishing Firestore rules, run `pnpm test:firebase` from the repository root with Firebase CLI and Java
+installed. This isolated `demo-apx-account` emulator check is mandatory for every rules deployment, including
+telemetry-only changes. `pnpm typecheck` covers both rules test files; normal preflight does not start Java or the
+emulator. Keep the test output with deployment evidence and preserve account and telemetry permissions together.
+See [Firebase setup](../firebase/README.md) and [D-247](DECISIONS.md#d-247). No billing upgrade is required.
+
 ## History
 
 The private working repo's older commits carry a work email, AI-tool trailers and a few real names, so its history

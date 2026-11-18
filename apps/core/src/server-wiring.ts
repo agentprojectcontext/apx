@@ -37,6 +37,7 @@ import type { HeadlessBrowser } from "./nodes/headless-browser.ts";
 import type { WidgetPages } from "./nodes/widget-pages.ts";
 import { findProgram } from "./programs.ts";
 import { accessHandlers } from "./rpc/access.ts";
+import { accountHandlers } from "./rpc/account.ts";
 import { activityReviewHandlers } from "./rpc/activity-review.ts";
 import { agentHandlers } from "./rpc/agents.ts";
 import { appHandlers } from "./rpc/app.ts";
@@ -262,6 +263,7 @@ export function builtinTools(
 }
 
 type HandlerDeps = {
+  account: Parameters<typeof accountHandlers>[0];
   store: Store;
   /** How agents act and how far their files reach (engine/permissions.ts). */
   permissions: Permissions;
@@ -364,6 +366,7 @@ export function coreHandlers(d: HandlerDeps & { vm?: Computer | undefined }) {
   });
   const channelsH = channelHandlers(d.store, d.channels, d.nudges);
   return {
+    ...accountHandlers(d.account),
     ...environmentHandlers(d.store, d.vm, d.engine.cancel),
     ...desktopInstallHandlers(d.desktopInstaller),
     ...updateHandlers(d.updates),

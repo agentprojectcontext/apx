@@ -11,6 +11,20 @@ function withPacks<T>(packs: Pack[], load: () => Promise<T>): () => Promise<T> {
   return () => Promise.all([load(), ...packs.map((pack) => addPack(pack))]).then(([module]) => module);
 }
 
+/** Native sign-in handling stays out of the browser's first load. */
+export function listenAccountReturn(openAccount: () => void): () => void {
+  let active = true;
+  let stop: (() => void) | undefined;
+  if (window.apxDesktop?.takeAccountReturn)
+    void import("./data/account.ts").then((m) => {
+      if (active) stop = m.listenAccountReturn(openAccount);
+    });
+  return () => {
+    active = false;
+    stop?.();
+  };
+}
+
 // Windows of their own and the setup screens: the main window never loads them.
 export const QuickChat = lazy(() => import("./quick/QuickChat.tsx").then((m) => ({ default: m.QuickChat })));
 export const BrowserPanel = lazy(() => import("./panel/BrowserPanel.tsx").then((m) => ({ default: m.BrowserPanel })));
@@ -24,7 +38,9 @@ export const ArtifactWindow = lazy(() =>
   import("./apps/ArtifactWindow.tsx").then((m) => ({ default: m.ArtifactWindow })),
 );
 export const OAuthReturn = lazy(
-  withPacks(["resources"], () => import("./resources/OAuthReturn.tsx").then((m) => ({ default: m.OAuthReturn }))),
+  withPacks(["resources", "cloudAccount"], () =>
+    import("./resources/OAuthReturn.tsx").then((m) => ({ default: m.OAuthReturn })),
+  ),
 );
 
 export const AttachChips = lazy(() =>
@@ -51,7 +67,9 @@ export const ChannelDialogs = lazy(
   ),
 );
 export const ConfigModal = lazy(
-  withPacks(["team"], () => import("./config/ConfigModal.tsx").then((m) => ({ default: m.ConfigModal }))),
+  withPacks(["team", "cloudAccount"], () =>
+    import("./config/ConfigModal.tsx").then((m) => ({ default: m.ConfigModal })),
+  ),
 );
 export const McpPeek = lazy(
   withPacks(["resources"], () => import("./resources/McpPeek.tsx").then((m) => ({ default: m.McpPeek }))),

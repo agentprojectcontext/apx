@@ -448,7 +448,8 @@ export const en = {
   "nav.files": "Files",
   "account.you": "You",
   "account.menuOf": "Account: {name}",
-  "account.lead": "Who you are, for the panel and for your agents. It stays on your machine.",
+  "account.lead": "Who you are, for the panel and for your agents. Your local profile stays on this machine.",
+  "account.reload": "Reload account",
   "account.about": "About you",
   "account.aboutHint": "What your agents always know about you: what you do, who you work with, how you like things.",
   "account.aboutPlaceholder": "E.g.: I run a bakery in Northwind; I prefer short answers.",
@@ -461,7 +462,21 @@ export const en = {
   "account.name": "Name",
   "account.nameHint": "How the panel shows you and how your agents know you.",
   "account.cloud": "Cloud account",
-  "account.cloudHint": "Sync across devices and share with your team.",
+  "account.cloudHint": "Optional. To sign in, use a browser on the computer running APX.",
+  "account.signIn": "Sign in with Google",
+  "account.signOut": "Sign out",
+  "account.shortId": "Your APX ID: {id}",
+  "account.handle": "Username",
+  "account.handleHint": "Optional. Use 3–24 letters, numbers or underscores, starting with a letter.",
+  "account.handlePlaceholder": "@username",
+  "account.handleInvalid": "Use 3–24 letters, numbers or underscores, starting with a letter.",
+  "account.handleUnavailable": "That username is unavailable. Try another one or reload your account.",
+  "account.unavailable": "Sign-in is not set up yet. You can keep using APX without an account.",
+  "account.expired": "This sign-in has expired or was cancelled. Start again from APX.",
+  "account.failed": "Could not update your account. Check your connection and try again.",
+  "account.waiting": "Finish signing in in your browser, then return to APX.",
+  "account.saved": "Username saved.",
+  "account.returnAction": "Open APX",
   "error.respond": "Could not send your answer: {error}",
   "running.label": "Processes",
   "running.aria": "{working} running, {waiting} waiting, {background} in the background",
@@ -1950,6 +1965,7 @@ export const en = {
 
 /** Every key the panel may show: these, and those of the packs loaded with their screens (messages.ts PACKS). */
 export type MessageKey =
+  | keyof typeof import("./cloud-account-en.ts").enCloudAccount
   | keyof typeof en
   | keyof typeof enAccount
   | keyof typeof enGroup

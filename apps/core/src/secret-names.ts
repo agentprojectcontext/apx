@@ -10,6 +10,7 @@ export const googleRefreshSecret = (id: string) => `${id}-refresh_token`;
 export const GOOGLE_CLIENT_SECRET = "google-client_secret";
 export const ASANA_SECRET = "asana-token";
 export const CHATGPT_SECRET = "chatgpt_login";
+export const APX_ACCOUNT_SESSION = "apx-account-session";
 export const PUBLIC_TOKEN_PREFIX = "public-token-";
 export const artifactSecretPrefix = (artifact: string) => `artifact.${artifact}.`;
 
@@ -21,6 +22,7 @@ export type SystemNames = { providers: Iterable<string>; integrations: Iterable<
  * owner's own. A name that is not one of these is the owner's, even when a provider or a server reads it.
  */
 export function systemSecretOwner(name: string, known: SystemNames): string | undefined {
+  if (name === APX_ACCOUNT_SESSION) return "account";
   if (name === CHATGPT_SECRET) return "provider:chatgpt";
   if (name === GOOGLE_CLIENT_SECRET) return "integration:google";
   if (name === ASANA_SECRET) return "integration:asana";

@@ -19,6 +19,7 @@ import {
   WebContentsView,
 } from "electron";
 import { showAbout } from "./about.ts";
+import { accountReturn } from "./account-return.ts";
 import { registerAppScheme, serveAppScheme, webDist } from "./app-scheme.ts";
 import { createArtifactWindows } from "./artifact-windows.ts";
 import { runAskpass } from "./askpass.ts";
@@ -62,6 +63,20 @@ const CORE_URL = localCoreUrl();
 const openedConnection = JSON.stringify(loadConnection(app.getPath("userData")));
 
 registerAppScheme();
+
+let pendingAccountReturn: boolean | undefined;
+let accountReturned = () => {};
+const receiveAccountReturn = (value: string) => {
+  const result = accountReturn(value);
+  if (!result) return;
+  pendingAccountReturn = result;
+  accountReturned();
+};
+app.on("open-url", (event, value) => {
+  event.preventDefault();
+  receiveAccountReturn(value);
+});
+for (const value of process.argv.slice(1)) receiveAccountReturn(value);
 
 // One APX at a time: opening it again brings the running one forward.
 const single = app.requestSingleInstanceLock();
@@ -146,6 +161,7 @@ app.whenReady().then(() => {
       return;
     }
     opened.add(openedIn(argv.slice(1)));
+    for (const value of argv.slice(1)) receiveAccountReturn(value);
     openMain();
   });
   // Every page (the panel, the quick chat, browser tabs) gets the edit menu on a right click.
@@ -174,6 +190,17 @@ app.whenReady().then(() => {
     },
   });
   win.contentView.addChildView(panel);
+  accountReturned = () => {
+    openMain();
+    panel.webContents.send("account:return-ready");
+  };
+  ipcMain.handle("account:take-return", (event) => {
+    if (event.sender !== panel.webContents) return null;
+    const value = pendingAccountReturn;
+    pendingAccountReturn = undefined;
+    return value ?? null;
+  });
+  if (app.isPackaged) app.setAsDefaultProtocolClient("apx");
   externalLinks(panel.webContents);
   let shown: WebContentsView | undefined;
   let slot: Bounds | null = null;

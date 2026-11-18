@@ -4,7 +4,12 @@ import { createLog } from "../log.ts";
 import { say, scriptedLlm, startCore } from "./testkit.ts";
 import { createUpkeep } from "./upkeep.ts";
 
-for (const model of ["ollama/gemma3n:e4b", "google/gemma-3n-e4b-it", "groq/qwen/qwen3.8-27b"]) {
+for (const model of [
+  "ollama/gemma3n:e4b",
+  "google/gemma-3n-e4b-it",
+  "groq/qwen/qwen3.8-27b",
+  "cerebras/qwen-3.8-27b",
+]) {
   test(`auxiliary image analysis keeps ${model} eligible`, async () => {
     const llm = scriptedLlm(() => say("A smiling face"));
     const env = await startCore({ llm });

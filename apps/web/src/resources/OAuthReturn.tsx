@@ -1,6 +1,7 @@
 import "../styles/screens.css";
 import { Button, EmptyState, Icons, Spinner } from "@apx/ui";
 import { useEffect, useState } from "react";
+import { accountError } from "../data/account.ts";
 import { client } from "../data/client.ts";
 import { isSignInWindow, tellSignInDone } from "../data/signInWindow.ts";
 import { useT } from "../i18n/index.ts";
@@ -10,19 +11,27 @@ const NAMES: Record<string, string> = {
   gmail: "Gmail",
   "google-drive": "Google Drive",
   openrouter: "OpenRouter",
+  account: "APX",
 };
 
 // Loaded only on /oauth/google and /oauth/openrouter. What Google sent is read once: the code leaves the address bar right away, and
 // StrictMode's second mount reuses the same call instead of spending the code twice.
 const params = new URLSearchParams(window.location.search);
 if (window.location.search) window.history.replaceState(null, "", window.location.pathname);
+const ACCOUNT = window.location.pathname === "/oauth/account";
+const DESKTOP_ACCOUNT = ACCOUNT && Boolean(params.get("state")?.startsWith("desktop."));
 let finishing: Promise<{ id: string; also?: string[] | undefined; account?: string | undefined }> | undefined;
 function finish() {
   const code = params.get("code");
   const state = params.get("state");
   const denied = params.get("error");
+  if (ACCOUNT && denied === "access_denied" && state) {
+    finishing ??= client.call("account.finish", { error: "access_denied", state }).then(() => ({ id: "account" }));
+    return finishing;
+  }
   if (denied) return Promise.reject(new Error(denied));
   if (!code || !state) return undefined;
+  if (ACCOUNT) finishing ??= client.call("account.finish", { code, state }).then(() => ({ id: "account" }));
   if (window.location.pathname === "/oauth/openrouter")
     finishing ??= client.call("openrouter.finish", { code, state }).then(() => ({ id: "openrouter" }));
   finishing ??= client.call("integrations.oauth_finish", { code, state });
@@ -52,7 +61,10 @@ export function OAuthReturn() {
         tellSignInDone(r.id);
         if (POPUP) window.setTimeout(() => window.close(), CLOSE_MS);
       },
-      (e: unknown) => setState({ kind: "failed", error: e instanceof Error ? e.message : String(e) }),
+      (e: unknown) => {
+        setState({ kind: "failed", error: e instanceof Error ? e.message : String(e) });
+        if (ACCOUNT) tellSignInDone("account");
+      },
     );
   }, []);
   const open = POPUP ? (
@@ -64,6 +76,13 @@ export function OAuthReturn() {
       {t("oauth.open")}
     </Button>
   );
+  const back = DESKTOP_ACCOUNT ? (
+    <Button size="sm" onClick={() => window.location.assign("apx://account/signed-in")}>
+      {t("account.returnAction")}
+    </Button>
+  ) : (
+    open
+  );
   return (
     <div className="oauthreturn">
       {state.kind === "working" && <EmptyState icon={<Spinner size={18} />} title={t("oauth.working")} />}
@@ -71,21 +90,23 @@ export function OAuthReturn() {
         <EmptyState
           icon={<Icons.CircleCheck />}
           title={
-            state.also?.length
-              ? t("oauth.doneTitleMany", {
-                  names: [state.id, ...state.also].map((id) => NAMES[id] ?? id).join(", "),
-                })
-              : t("oauth.doneTitle", { name: NAMES[state.id] ?? state.id })
+            ACCOUNT
+              ? t("account.signedIn")
+              : state.also?.length
+                ? t("oauth.doneTitleMany", {
+                    names: [state.id, ...state.also].map((id) => NAMES[id] ?? id).join(", "),
+                  })
+                : t("oauth.doneTitle", { name: NAMES[state.id] ?? state.id })
           }
-          action={open}
+          action={back}
         >
           {state.account ? `${t("int.signedInAs", { account: state.account })}. ` : ""}
           {t(POPUP ? "oauth.closing" : "oauth.doneBody")}
         </EmptyState>
       )}
       {state.kind === "failed" && (
-        <EmptyState icon={<Icons.TriangleAlert />} title={t("oauth.failTitle")} action={open}>
-          {state.error}
+        <EmptyState icon={<Icons.TriangleAlert />} title={t("oauth.failTitle")} action={back}>
+          {ACCOUNT ? accountError(t, new Error(state.error)) : state.error}
         </EmptyState>
       )}
       {state.kind === "nothing" && <EmptyState title={t("oauth.nothing")} action={open} />}

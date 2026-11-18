@@ -314,7 +314,11 @@ async function attempt(
   let modelConfirmed = false;
   const reportModel = (reported: string | undefined) => {
     // Startup aliases do not identify the model that will actually answer.
-    if (!reported || /^(default|opus|sonnet|haiku|opusplan)(\[.*\])?$/.test(reported) || reported === "<synthetic>")
+    if (
+      !reported ||
+      /^(default|best|fable|opus|sonnet|haiku|opusplan)(\[.*\])?$/.test(reported) ||
+      reported === "<synthetic>"
+    )
       return;
     model = reported;
     modelConfirmed = true;

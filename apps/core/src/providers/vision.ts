@@ -8,7 +8,7 @@ const TEXT_ONLY: readonly RegExp[] = [
   /llama-?3(\.[0-3])?(?!.*vision)([^0-9.]|$)/,
 ];
 const READS_IMAGES: readonly RegExp[] = [
-  /^qwen3\.8-27b(?:#|$)/,
+  /^qwen-?3\.8-27b(?:#|$)/,
   /claude/,
   /gemini/,
   /gemma-?(?:3n?|4)(?:[-:]|$)/,

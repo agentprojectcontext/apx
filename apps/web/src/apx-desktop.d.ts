@@ -56,6 +56,8 @@ declare global {
     apxDesktop?: {
       /** Host OS of the desktop shell (`darwin` | `win32` | `linux`). */
       platform?: string;
+      takeAccountReturn?(): Promise<boolean | null>;
+      onAccountReturn?(listener: () => void): () => void;
       /** The window is in native fullscreen (no traffic lights). Missing in builds from before it was reported. */
       isFullScreen?(): boolean;
       onFullScreen?(listener: (full: boolean) => void): () => void;

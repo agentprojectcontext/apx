@@ -11,6 +11,7 @@ import {
   ArtifactWindow,
   BrowserPanel,
   ConnectScreen,
+  listenAccountReturn,
   OAuthReturn,
   PairScreen,
   QuickChat,
@@ -18,12 +19,12 @@ import {
   Wizard,
 } from "./lazy.ts";
 import { IS_BROWSER_WINDOW } from "./panel/browserWindow.ts";
-import { useNav } from "./shell/nav.ts";
+import { go, useNav } from "./shell/nav.ts";
 import { loadPanelMode } from "./shell/panelMode.ts";
 import { Shell } from "./shell/Shell.tsx";
 
 /** The pages Google and OpenRouter send the browser back to after the owner signs in (the core serves the panel there). */
-const OAUTH_RETURN = window.location.pathname === "/oauth/google" || window.location.pathname === "/oauth/openrouter";
+const OAUTH_RETURN = ["/oauth/google", "/oauth/openrouter", "/oauth/account"].includes(window.location.pathname);
 
 /** The desktop app's menu-bar window loads the panel with ?quick: only the quick chat. */
 const QUICK = new URLSearchParams(window.location.search).has("quick");
@@ -57,6 +58,7 @@ function Main() {
   const textSize = usePrefs((s) => s.textSize);
   const lang = useLanguage();
   const gate = useGate();
+  useEffect(() => listenAccountReturn(() => go.config("account")), []);
   useEffect(() => {
     void checkAccess();
   }, []);
