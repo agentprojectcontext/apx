@@ -202,6 +202,15 @@ export const CoreEvent = z.discriminatedUnion("type", [
       type: () => z.literal("extensions.changed"),
     }),
   ),
+  /** A catalog of the owner's is being read: entries checked of how many (0 of 0 while it downloads). */
+  z.object(
+    schemaFields({
+      type: () => z.literal("extensions.catalog_reading"),
+      id: () => z.string(),
+      done: () => z.number().int(),
+      total: () => z.number().int(),
+    }),
+  ),
   /** A model app on this computer (Ollama, LM Studio) was found, opened or closed: read `models.list` again. */
   z.object(
     schemaFields({

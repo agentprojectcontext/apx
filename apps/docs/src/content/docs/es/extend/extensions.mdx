@@ -257,6 +257,10 @@ siempre queda.
   que permiten una copia (MIT, Apache-2.0, BSD, ISC, MPL-2.0, Unlicense, CC0, 0BSD); el resto queda
   afuera (`apx extensions catalogs` dice cuáles y por qué).
 - APX guarda el commit en el que leyó cada catálogo; **Volver a leer** toma el más nuevo.
+- En el panel un catálogo se lee en segundo plano: podés cerrar el cuadro y seguir con lo tuyo. Su fila en
+  **Avanzado** dice cuánto lleva (un catálogo grande de Claude revisa la licencia de cada plugin y puede tardar un
+  minuto), y sus extensiones aparecen en Explorar cuando termina. Si no se puede leer, la fila lo dice con **Intentar
+  de nuevo**. La terminal espera a que termine y muestra lo que lista.
 - Desde la terminal, `apx extensions catalog` muestra la dirección de cada entrada (`catalog:<catálogo>/<id>`), que
   `apx extensions inspect` y `apx extensions install` aceptan.
 

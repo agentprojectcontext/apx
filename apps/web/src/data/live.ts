@@ -4,7 +4,7 @@ import type { CoreEvent, EventFrame } from "@apx/protocol";
 import type { ApxSocket } from "@apx/protocol/client";
 import { t } from "../i18n/index.ts";
 import { documentToOpen } from "../panel/documents.ts";
-import { extensionsChanged } from "../resources/extensionInstall.ts";
+import { catalogReading, extensionsChanged } from "../resources/extensionInstall.ts";
 import { go, nav } from "../shell/nav.ts";
 import { shown as shownPanelMode } from "../shell/panelMode.ts";
 import { bootstrap, refetchLoaded } from "./actions.ts";
@@ -256,6 +256,9 @@ function apply(ev: CoreEvent): void {
       return;
     case "extensions.changed":
       extensionsChanged();
+      return;
+    case "extensions.catalog_reading":
+      catalogReading(ev.id, ev.done, ev.total);
       return;
     case "models.changed":
       // Only a list already shown: the next screen that needs one asks for it anyway.

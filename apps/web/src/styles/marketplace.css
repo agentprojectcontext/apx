@@ -499,6 +499,16 @@
   color: var(--apx-fg-muted);
   font-size: var(--apx-text-sm);
 }
+/* A catalog being read (how far along) or whose read failed, after its address. */
+.mkt-catalog__state {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  vertical-align: middle;
+}
+.mkt-catalog__state--failed {
+  color: var(--apx-warning);
+}
 
 /* An extension's links (its site, docs, privacy, terms): in the facts and under the page of one not added yet. */
 .mkt-links {

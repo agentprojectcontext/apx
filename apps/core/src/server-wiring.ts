@@ -189,6 +189,8 @@ export function extensionStack(d: {
     home: d.home,
     git: runGit,
     ...(d.fetch ? { fetch: d.fetch } : {}),
+    onReading: (id, at) => d.bus.emit({ type: "extensions.catalog_reading", id, ...at }),
+    onRead: () => d.bus.emit({ type: "extensions.changed" }),
   });
   const extensions = createExtensions({
     store: d.store,

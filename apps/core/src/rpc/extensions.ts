@@ -1,8 +1,7 @@
 // Extensions, for the owner: inspect a folder, an .apxext file or a URL, install it (off), go back a version, turn it
 // on or off, give it its secrets.
 import type { Bus } from "../bus.ts";
-import type { CatalogRecord } from "../domain/extension-catalogs.ts";
-import { SUGGESTED } from "../extensions/catalogs.ts";
+import { type CatalogShown, SUGGESTED } from "../extensions/catalogs.ts";
 import type { ExtensionInput, Extensions } from "../extensions/extensions.ts";
 import type { Mcp } from "../mcp/manager.ts";
 import type { Handlers } from "./router.ts";
@@ -16,7 +15,7 @@ const source = (
 ): ExtensionInput => (path !== undefined ? { path } : file ? { file } : entry ? { entry } : { url: url ?? "" });
 
 /** An added catalog as the owner sees it. */
-const shown = (c: CatalogRecord) => ({
+const shown = (c: CatalogShown) => ({
   id: c.id,
   name: c.name,
   source: c.source,
@@ -25,6 +24,8 @@ const shown = (c: CatalogRecord) => ({
   ...(c.synced_sha ? { synced_sha: c.synced_sha } : {}),
   ...(c.synced_at ? { synced_at: c.synced_at } : {}),
   count: c.entries.length,
+  ...(c.reading ? { reading: c.reading } : {}),
+  ...(c.failed ? { failed: c.failed } : {}),
   skipped: c.skipped,
 });
 
@@ -64,8 +65,8 @@ function extensionMethods(extensions: Extensions, mcp: Mcp) {
   return {
     "extensions.list": () => ({ extensions: extensions.list() }),
     "extensions.catalogs": () => ({ catalogs: catalogs.list().map(shown), suggested: SUGGESTED }),
-    "extensions.catalog_add": async ({ source: text }) => shown(await catalogs.add(text)),
-    "extensions.catalog_sync": async ({ id }) => shown(await catalogs.sync(id)),
+    "extensions.catalog_add": async ({ source: text, background }) => shown(await catalogs.add(text, background)),
+    "extensions.catalog_sync": async ({ id, background }) => shown(await catalogs.sync(id, background)),
     "extensions.catalog_remove": ({ id }) => ({ removed: catalogs.remove(id) }),
     "extensions.catalog": ({ refresh }) => extensions.catalogEntries(refresh),
     "extensions.settings": ({ id, values }) => {

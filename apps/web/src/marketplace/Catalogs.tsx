@@ -1,9 +1,10 @@
 import type { Result } from "@apx/protocol";
-import { Button, ConfirmDialog, Dialog, Field, IconButton, Icons, Input, Tooltip } from "@apx/ui";
-import { useState } from "react";
+import { Button, ConfirmDialog, Dialog, Field, IconButton, Icons, Input, Meter, Spinner, Tooltip } from "@apx/ui";
+import { useEffect, useRef, useState } from "react";
 import { client } from "../data/client.ts";
 import { notify } from "../data/notices.ts";
 import { type MessageKey, useT } from "../i18n/index.ts";
+import { useCatalogReading } from "../resources/extensionInstall.ts";
 import { attempt } from "../resources/InstalledExtension.tsx";
 
 // The catalogs the owner adds for themself: a dialog to add one (a repository, an address, a folder, or one of the
@@ -34,10 +35,10 @@ export function AddCatalogDialog({
   const [busy, setBusy] = useState<string>();
   const add = async (text: string) => {
     setBusy(text);
-    const c = await attempt(() => client.call("extensions.catalog_add", { source: text }), t);
+    // Read in the background: its row shows how far along it is, and Explore lists it once read.
+    const c = await attempt(() => client.call("extensions.catalog_add", { source: text, background: true }), t);
     setBusy(undefined);
     if (!c) return;
-    notify(t("mkt.catalogAdded", { name: c.name, n: c.count, skipped: c.skipped.length }), "info");
     await onAdded();
     onClose();
   };
@@ -102,7 +103,6 @@ export function AddCatalogDialog({
             )}
           </div>
         ))}
-        {busy && <p className="extpage__note">{t("mkt.catalogReading")}</p>}
         <p className="extpage__note">{t("mkt.catalogApxStays")}</p>
       </div>
     </Dialog>
@@ -126,6 +126,16 @@ export function CatalogList({
   const t = useT();
   const [busy, setBusy] = useState<string>();
   const [removing, setRemoving] = useState<Catalog>();
+  const live = useCatalogReading();
+  // A read this list watched that ended well says what it found.
+  const watching = useRef(new Set<string>());
+  useEffect(() => {
+    for (const c of catalogs) {
+      if (c.reading) watching.current.add(c.id);
+      else if (watching.current.delete(c.id) && !c.failed)
+        notify(t("mkt.catalogAdded", { name: c.name, n: c.count, skipped: c.skipped.length }), "info");
+    }
+  }, [catalogs, t]);
   const act = async (id: string, fn: () => Promise<unknown>) => {
     setBusy(id);
     await attempt(fn, t);
@@ -151,43 +161,76 @@ export function CatalogList({
           </Tooltip>
         </div>
       </div>
-      {catalogs.map((c) => (
-        <div key={c.id} className="mkt-catalog">
-          <div className="mkt-brought">
-            <Icons.Puzzle size={18} />
-            <span className="mkt-brought__main">
-              <b>{c.name}</b>
-              <span>
-                {c.source} · {t("mkt.catalogCount", { n: c.count })}
+      {catalogs.map((c) => {
+        const at = c.reading ? (live[c.id] ?? c.reading) : undefined;
+        return (
+          <div key={c.id} className="mkt-catalog">
+            <div className="mkt-brought">
+              <Icons.Puzzle size={18} />
+              <span className="mkt-brought__main">
+                <b>{c.name}</b>
+                <span className="mkt-catalog__line">
+                  {c.source} ·{" "}
+                  {at ? (
+                    <span className="mkt-catalog__state" role="status">
+                      {at.total ? (
+                        <Meter
+                          shape="ring"
+                          size="sm"
+                          tone="brand"
+                          label={t("mkt.catalogReadingN", at)}
+                          value={at.done}
+                          max={at.total}
+                        />
+                      ) : (
+                        <Spinner size={12} />
+                      )}
+                      {at.total ? t("mkt.catalogReadingN", at) : t("mkt.catalogDownloading")}
+                    </span>
+                  ) : c.failed ? (
+                    <span className="mkt-catalog__state mkt-catalog__state--failed">
+                      <Icons.TriangleAlert size={12} />
+                      {t("mkt.catalogFailed")}
+                    </span>
+                  ) : (
+                    t("mkt.catalogCount", { n: c.count })
+                  )}
+                </span>
               </span>
-            </span>
-            <Button
-              size="sm"
-              variant="ghost"
-              trailingIcon={<Icons.ArrowRight size={14} />}
-              onClick={() => onOpen(c.id)}
-            >
-              {t("mkt.catalogSee")}
-            </Button>
-            <Button
-              size="sm"
-              variant="ghost"
-              leadingIcon={<Icons.RefreshCw size={14} />}
-              loading={busy === c.id}
-              onClick={() => void act(c.id, () => client.call("extensions.catalog_sync", { id: c.id }))}
-            >
-              {t("mkt.sync")}
-            </Button>
-            <IconButton
-              size="sm"
-              variant="ghost"
-              label={t("mkt.remove")}
-              icon={<Icons.Trash2 size={14} />}
-              onClick={() => setRemoving(c)}
-            />
+              {c.synced_at && (
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  trailingIcon={<Icons.ArrowRight size={14} />}
+                  onClick={() => onOpen(c.id)}
+                >
+                  {t("mkt.catalogSee")}
+                </Button>
+              )}
+              {!at && (
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  leadingIcon={<Icons.RefreshCw size={14} />}
+                  loading={busy === c.id}
+                  onClick={() =>
+                    void act(c.id, () => client.call("extensions.catalog_sync", { id: c.id, background: true }))
+                  }
+                >
+                  {t(c.failed ? "mkt.catalogRetry" : "mkt.sync")}
+                </Button>
+              )}
+              <IconButton
+                size="sm"
+                variant="ghost"
+                label={t("mkt.remove")}
+                icon={<Icons.Trash2 size={14} />}
+                onClick={() => setRemoving(c)}
+              />
+            </div>
           </div>
-        </div>
-      ))}
+        );
+      })}
       {removing && (
         <ConfirmDialog
           title={t("mkt.catalogRemoveTitle", { name: removing.name })}

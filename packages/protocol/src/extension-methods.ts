@@ -28,17 +28,18 @@ export const extensionMethods = {
   }),
   /**
    * Adds a catalog for the owner (a GitHub owner/repo, a git address, an index's https address or a folder) and reads
-   * it. Everything from it is third party.
+   * it. Everything from it is third party. `background` answers at once while it is read (`reading`, then
+   * `extensions.catalog_reading` events and `extensions.changed` when done).
    */
   "extensions.catalog_add": deferMethod({
-    params: () => z.object({ source: z.string().trim().min(3).max(500) }).strict(),
+    params: () => z.object({ source: z.string().trim().min(3).max(500), background: z.boolean().optional() }).strict(),
     result: () => ExtensionCatalog,
     effect: true,
     access: "human",
   }),
-  /** Reads an added catalog again at its newest commit. */
+  /** Reads an added catalog again at its newest commit (`background` as for adding one). */
   "extensions.catalog_sync": deferMethod({
-    params: () => CatalogId,
+    params: () => CatalogId.extend({ background: z.boolean().optional() }).strict(),
     result: () => ExtensionCatalog,
     effect: true,
     access: "human",

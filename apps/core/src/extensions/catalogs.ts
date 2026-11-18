@@ -58,6 +58,13 @@ export function parseSource(text: string): Source {
 }
 
 const sourceText = (s: Source) => (s.kind === "folder" ? s.path : s.url);
+/** A name for one not read yet: its repository's, file's or folder's (`knowledge-work-plugins`). */
+const shortName = (source: string) =>
+  source
+    .replace(/[/\\]+$/, "")
+    .split(/[/\\:]/)
+    .at(-1)
+    ?.replace(/\.(git|json)$/, "") || source;
 const catalogId = (s: Source) => createHash("sha256").update(sourceText(s)).digest("hex").slice(0, 12);
 
 /** A name a catalog gives (a string, or an object with `name`), short and trimmed. */
@@ -70,7 +77,22 @@ const nameOf = (v: unknown): string | undefined => {
 const githubRepo = (url: string) =>
   /^https:\/\/github\.com\/([^/]+)\/([^/]+?)(?:\.git)?\/?$/.exec(url)?.slice(1, 3) as [string, string] | undefined;
 
-export function createCatalogs(deps: { store: Store; home: string; git: GitRunner; fetch?: typeof fetch }) {
+/** How far along a catalog being read is: entries checked of how many (0 of 0 while it downloads). */
+export type CatalogReading = { done: number; total: number };
+
+/** An added catalog as the owner sees it: what it lists, and whether it is being read or its last read failed. */
+export type CatalogShown = CatalogRecord & { reading?: CatalogReading | undefined; failed?: string | undefined };
+
+export function createCatalogs(deps: {
+  store: Store;
+  home: string;
+  git: GitRunner;
+  fetch?: typeof fetch;
+  /** A catalog being read got further along. */
+  onReading?(id: string, at: CatalogReading): void;
+  /** A catalog finished being read, or failed. */
+  onRead?(id: string): void;
+}) {
   const { store, git } = deps;
   const repoDir = (id: string) => path.join(deps.home, "marketplace", "catalogs", id);
   /** Git with only https and ssh, no links checked out, never a prompt. */
@@ -127,7 +149,12 @@ export function createCatalogs(deps: { store: Store; home: string; git: GitRunne
     new Map(filesOf(dir, true).map((f) => [f, fs.readFileSync(path.join(dir, ...f.split("/")))]));
 
   /** A Claude marketplace.json's plugins, each checked: pinned, and under a license that allows converting it. */
-  async function readClaude(raw: unknown, root: string | undefined, repoLicense: string | undefined) {
+  async function readClaude(
+    raw: unknown,
+    root: string | undefined,
+    repoLicense: string | undefined,
+    progress: (done: number, total: number) => void,
+  ) {
     const entries: CatalogItem[] = [];
     const skipped: CatalogSkip[] = [];
     const plugins = (raw as { plugins?: unknown[] }).plugins ?? [];
@@ -199,7 +226,11 @@ export function createCatalogs(deps: { store: Store; home: string; git: GitRunne
       });
     };
     // A few at a time: each checks a license over the network.
-    for (let i = 0; i < plugins.length; i += 8) await Promise.all(plugins.slice(i, i + 8).map(one));
+    progress(0, plugins.length);
+    for (let i = 0; i < plugins.length; i += 8) {
+      await Promise.all(plugins.slice(i, i + 8).map(one));
+      progress(Math.min(i + 8, plugins.length), plugins.length);
+    }
     entries.sort((a, b) => a.name.localeCompare(b.name));
     return { entries, skipped };
   }
@@ -241,7 +272,10 @@ export function createCatalogs(deps: { store: Store; home: string; git: GitRunne
   };
 
   /** Reads a catalog where it is now; its repository is kept in the home to install its folders from. */
-  async function sync(text: string): Promise<CatalogRecord> {
+  async function sync(
+    text: string,
+    progress: (done: number, total: number) => void,
+  ): Promise<Omit<CatalogRecord, "created_at">> {
     const src = parseSource(text);
     const id = catalogId(src);
     let root: string | undefined;
@@ -268,11 +302,11 @@ export function createCatalogs(deps: { store: Store; home: string; git: GitRunne
       ? LICENSES.map((f) => path.join(root as string, f)).find((f) => fs.existsSync(f))
       : undefined;
     const read = claude
-      ? await readClaude(raw, root, repoLicense ? fs.readFileSync(repoLicense, "utf8") : undefined)
+      ? await readClaude(raw, root, repoLicense ? fs.readFileSync(repoLicense, "utf8") : undefined, progress)
       : readApx(raw);
     const name =
       (raw as { name?: string; registry?: string }).name ?? (raw as { registry?: string }).registry ?? sourceText(src);
-    return store.extensionCatalogs.put({
+    return {
       id,
       name: String(name).slice(0, 80),
       source: sourceText(src),
@@ -282,20 +316,112 @@ export function createCatalogs(deps: { store: Store; home: string; git: GitRunne
       synced_at: new Date().toISOString(),
       entries: read.entries,
       skipped: read.skipped,
-    });
+    };
+  }
+
+  type Job = { source: string; at: CatalogReading; done: Promise<CatalogRecord>; shown: boolean; removed: boolean };
+  /** Catalogs being read now, by id; one read at a time each, whoever asked for it. */
+  const reading = new Map<string, Job>();
+  /** Why the last read the owner watched failed, by id, until it is read again or removed. */
+  const failed = new Map<string, { source: string; error: string }>();
+
+  /** Starts reading a catalog, or joins the read already going. A bad address is refused right away. */
+  function start(text: string, shown: boolean): { id: string; job: Job } {
+    const src = parseSource(text);
+    const id = catalogId(src);
+    const going = reading.get(id);
+    if (going && !going.removed) {
+      going.shown ||= shown;
+      return { id, job: going };
+    }
+    failed.delete(id);
+    const state = { source: sourceText(src), at: { done: 0, total: 0 }, shown, removed: false };
+    // One removed while it was read finishes first: both would write the same folder.
+    const done = (going ? going.done.catch(() => undefined) : Promise.resolve())
+      .then(() =>
+        sync(text, (n, total) => {
+          state.at = { done: n, total };
+          deps.onReading?.(id, state.at);
+        }),
+      )
+      .then((c) => {
+        // Removed while it was read: nothing of it stays.
+        if (state.removed) {
+          fs.rmSync(repoDir(id), { recursive: true, force: true });
+          throw notFound(`catalog ${id}`);
+        }
+        return store.extensionCatalogs.put(c);
+      })
+      .catch((e: unknown) => {
+        if (state.shown && !state.removed)
+          failed.set(id, { source: state.source, error: e instanceof Error ? e.message : String(e) });
+        throw e;
+      })
+      .finally(() => {
+        if (reading.get(id) === job) reading.delete(id);
+        deps.onRead?.(id);
+      });
+    // Whoever only watches hears of a failure through the list, not as an unhandled rejection.
+    done.catch(() => {});
+    const job: Job = Object.assign(state, { done });
+    reading.set(id, job);
+    return { id, job };
+  }
+
+  /** What the owner sees of one: stored, being read for the first time, or whose first read failed. */
+  function shownOf(id: string): CatalogShown | undefined {
+    const c = store.extensionCatalogs.get(id);
+    const going = reading.get(id);
+    const job = going?.removed ? undefined : going;
+    const fail = failed.get(id);
+    const source = c?.source ?? job?.source ?? fail?.source;
+    if (!source) return undefined;
+    return {
+      ...(c ?? {
+        id,
+        name: shortName(source),
+        source,
+        kind: "apx",
+        ref: undefined,
+        synced_sha: undefined,
+        synced_at: undefined,
+        entries: [],
+        skipped: [],
+        created_at: "",
+      }),
+      ...(job ? { reading: job.at } : {}),
+      ...(fail ? { failed: fail.error } : {}),
+    };
+  }
+
+  /** Reads one: waits for it, or (`background`) answers at once with it being read. */
+  async function read(text: string, background: boolean): Promise<CatalogShown> {
+    const { id, job } = start(text, background);
+    if (background) return shownOf(id) as CatalogShown;
+    await job.done;
+    return shownOf(id) as CatalogShown;
   }
 
   return {
-    list: () => store.extensionCatalogs.list(),
-    add: (text: string) => sync(text),
-    sync(id: string): Promise<CatalogRecord> {
-      const c = store.extensionCatalogs.get(id);
-      if (!c) throw notFound(`catalog ${id}`);
-      return sync(c.source);
+    /** The added ones, then any being read for the first time or whose first read failed. */
+    list(): CatalogShown[] {
+      const stored = store.extensionCatalogs.list();
+      const ids = [...stored.map((c) => c.id), ...reading.keys(), ...failed.keys()];
+      // shownOf leaves out one removed while it is still being read.
+      return [...new Set(ids)].map(shownOf).filter((c): c is CatalogShown => Boolean(c));
+    },
+    add: (text: string, background = false) => read(text, background),
+    sync(id: string, background = false): Promise<CatalogShown> {
+      const source = store.extensionCatalogs.get(id)?.source ?? failed.get(id)?.source;
+      if (!source) throw notFound(`catalog ${id}`);
+      return read(source, background);
     },
     remove(id: string): boolean {
+      const job = reading.get(id);
+      if (job) job.removed = true;
+      const wasFailed = failed.delete(id);
       fs.rmSync(repoDir(id), { recursive: true, force: true });
-      return store.extensionCatalogs.remove(id);
+      return store.extensionCatalogs.remove(id) || wasFailed || Boolean(job);
     },
     /** An entry's files as an extension: its .apxext, or its plugin folder at its commit turned into one. */
     async resolve(catalog: string, entry: string): Promise<{ pkg: Package; source: string }> {

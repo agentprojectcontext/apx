@@ -645,5 +645,8 @@ export const esResources: Partial<Record<MessageKey, string>> = {
   "mkt.reason.invalid": "no se lee bien",
   "mkt.addedGroup": "{name}",
   "mkt.addedSub": "lo agregaste vos; todo es De terceros",
-  "mkt.catalogReading": "Leyendo el catálogo… puede tardar un minuto.",
+  "mkt.catalogDownloading": "Descargando…",
+  "mkt.catalogReadingN": "Leyendo {done} de {total}…",
+  "mkt.catalogFailed": "No se pudo leer",
+  "mkt.catalogRetry": "Intentar de nuevo",
 };

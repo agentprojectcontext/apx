@@ -251,6 +251,10 @@ Claude plugins) are one click away. Everything from them is **Third party**; APX
 - Each plugin's license is read before it is listed (its own, else its repository's). Only licenses that allow a copy
   (MIT, Apache-2.0, BSD, ISC, MPL-2.0, Unlicense, CC0, 0BSD) are converted; the rest are left out (`apx extensions catalogs` says which and why).
 - APX keeps the commit each catalog was read at; **Read again** takes its newest.
+- In the panel a catalog is read in the background: you can close the dialog and keep working. Its row in
+  **Advanced** says how far along it is (a big Claude catalog checks each plugin's license and can take a minute), and
+  its extensions show up in Explore once it is read. If it can't be read, the row says so with **Try again**. The
+  terminal waits until it is read and prints what it lists.
 - From the terminal, `apx extensions catalog` prints each entry's address (`catalog:<catalog>/<id>`), which
   `apx extensions inspect` and `apx extensions install` take.
 

@@ -636,5 +636,8 @@ export const enResources = {
   "mkt.reason.invalid": "it does not read well",
   "mkt.addedGroup": "{name}",
   "mkt.addedSub": "you added it; all third party",
-  "mkt.catalogReading": "Reading the catalog… it can take a minute.",
+  "mkt.catalogDownloading": "Downloading…",
+  "mkt.catalogReadingN": "Reading {done} of {total}…",
+  "mkt.catalogFailed": "Couldn't read it",
+  "mkt.catalogRetry": "Try again",
 } as const;

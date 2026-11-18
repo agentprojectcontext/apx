@@ -11,6 +11,8 @@ export interface MeterSegment {
 export interface MeterProps {
   /** One amount, toned by how full it is, or stacked parts (each with its tone). */
   value?: number;
+  /** One amount's tone, fixed: for progress (how far along), which is never a warning by being nearly done. */
+  tone?: MeterTone;
   segments?: MeterSegment[];
   max: number;
   /** Accessible name. */
@@ -34,6 +36,7 @@ const C = 2 * Math.PI * R;
 /** Horizontal bar for an amount out of a whole (RAM, disk), single or stacked; or a small ring for one amount. */
 export function Meter({
   value,
+  tone,
   segments,
   max,
   label,
@@ -48,7 +51,7 @@ export function Meter({
     const px = size === "sm" ? 14 : 16;
     return (
       <svg
-        className={cx("apx-meter-ring", `apx-meter-ring--${toneFor(share)}`, className)}
+        className={cx("apx-meter-ring", `apx-meter-ring--${tone ?? toneFor(share)}`, className)}
         width={px}
         height={px}
         viewBox="0 0 18 18"
@@ -67,7 +70,7 @@ export function Meter({
       </svg>
     );
   }
-  const parts = segments ?? [{ value: value ?? 0, tone: toneFor(max > 0 ? (value ?? 0) / max : 0) }];
+  const parts = segments ?? [{ value: value ?? 0, tone: tone ?? toneFor(max > 0 ? (value ?? 0) / max : 0) }];
   const total = parts.reduce((n, p) => n + Math.max(0, p.value), 0);
   const pct = (v: number) => (max > 0 ? Math.min(100, (Math.max(0, v) / max) * 100) : 0);
   return (

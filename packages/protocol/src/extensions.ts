@@ -519,6 +519,10 @@ export const ExtensionCatalog = z.object(
     synced_sha: () => z.string().optional(),
     synced_at: () => z.string().optional(),
     count: () => z.number().int(),
+    /** Being read now: entries checked of how many (0 of 0 while it downloads). */
+    reading: () => z.object({ done: z.number().int(), total: z.number().int() }).optional(),
+    /** Why its last read failed. */
+    failed: () => z.string().optional(),
     skipped: () =>
       z.array(
         z.object(

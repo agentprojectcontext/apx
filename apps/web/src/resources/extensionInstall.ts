@@ -2,7 +2,7 @@ import type { CatalogEntry, ExtensionListing } from "@apx/protocol";
 import { useSyncExternalStore } from "react";
 
 // Whether the add box is asked for, and from where: kept apart from the box, which loads lazily. `installed` counts
-// changes to what the owner has, so an open Marketplace reads its lists again.
+// changes to what the owner has, so an open Marketplace reads its lists again; `reading`, how far each catalog's read is.
 
 export type InstallMode = "file" | "url" | "folder";
 type Request = {
@@ -56,4 +56,16 @@ export function useExtensionInstall(): Request | undefined {
 
 export function useExtensionsInstalled(): number {
   return useSyncExternalStore(subscribe, () => installed);
+}
+
+/** How far along each catalog being read is, as the core tells it: entries checked of how many. */
+let reading: Record<string, { done: number; total: number }> = {};
+
+export function catalogReading(id: string, done: number, total: number): void {
+  reading = { ...reading, [id]: { done, total } };
+  changed();
+}
+
+export function useCatalogReading(): Record<string, { done: number; total: number }> {
+  return useSyncExternalStore(subscribe, () => reading);
 }

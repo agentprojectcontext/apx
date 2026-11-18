@@ -3,7 +3,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { after, before, test } from "node:test";
 import { say, scriptedLlm, startCore } from "../engine/testkit.ts";
-import { type TempDir, tempDir } from "../testkit/platform.ts";
+import { type TempDir, tempDir, waitFor } from "../testkit/platform.ts";
 import { parseSource } from "./catalogs.ts";
 import { convertPlugin, licenseOf } from "./claude-plugin.ts";
 import { hostsOf, ownerHost, readFiles } from "./package.ts";
@@ -149,6 +149,8 @@ let env: Awaited<ReturnType<typeof startCore>>;
 let home: TempDir;
 let cat: TempDir;
 const asked: string[] = [];
+/** While set, reading a plugin's license waits for it: a catalog stays being read. */
+let hold: Promise<void> | undefined;
 
 before(async () => {
   home = tempDir("apx-catalogs-home-");
@@ -186,6 +188,7 @@ before(async () => {
     home: home.path,
     extensionFetch: (async (url: string | URL) => {
       asked.push(String(url));
+      await hold;
       // The pinned plugin's license, read at its commit.
       if (String(url) === `https://raw.githubusercontent.com/acme/pinned/${SHA}/LICENSE`) return new Response(MIT);
       return new Response("missing", { status: 404 });
@@ -236,4 +239,73 @@ test("an entry of an added catalog installs converted, third party, off", async 
   assert.equal(info.version, "0.4.0");
   assert.equal(info.source, "Acme plugins · Notes");
   assert.deepEqual(await env.client.call("extensions.catalog_remove", { id }), { removed: true });
+});
+
+test("a catalog read in the background answers at once, tells how far along it is, and lists it once read", async () => {
+  const socket = await env.client.connect();
+  try {
+    const at: Array<{ done: number; total: number }> = [];
+    let changed = 0;
+    socket.onEvent((e) => {
+      if (e.type === "extensions.catalog_reading") {
+        const { done, total } = e.payload as { done: number; total: number };
+        at.push({ done, total });
+      }
+      if (e.type === "extensions.changed") changed++;
+    });
+    const started = await env.client.call("extensions.catalog_add", { source: cat.path, background: true });
+    assert.ok(started.reading, "being read");
+    assert.equal(started.count, 0);
+    const read = await waitFor(async () => {
+      const c = (await env.client.call("extensions.catalogs", {})).catalogs.find((x) => x.id === started.id);
+      return c && !c.reading ? c : undefined;
+    }, "the catalog read");
+    assert.deepEqual([read.name, read.count, read.failed], ["Acme plugins", 2, undefined]);
+    // Every plugin was checked, and the panel heard when it was done.
+    assert.deepEqual(at.at(-1), { done: 5, total: 5 });
+    await waitFor(async () => changed > 0 || undefined, "extensions.changed once read");
+    assert.deepEqual(await env.client.call("extensions.catalog_remove", { id: started.id }), { removed: true });
+  } finally {
+    socket.close();
+  }
+});
+
+test("a background read that fails says so until it is removed; one removed while read does not come back", async () => {
+  const gone = path.join(cat.path, "missing");
+  const bad = await env.client.call("extensions.catalog_add", { source: gone, background: true });
+  const failed = await waitFor(async () => {
+    const c = (await env.client.call("extensions.catalogs", {})).catalogs.find((x) => x.id === bad.id);
+    return c?.failed ? c : undefined;
+  }, "the failed read");
+  // Never read, it goes by its folder's name.
+  assert.deepEqual([failed.source, failed.name, failed.count], [gone, "missing", 0]);
+  assert.deepEqual(await env.client.call("extensions.catalog_remove", { id: bad.id }), { removed: true });
+  assert.equal((await env.client.call("extensions.catalogs", {})).catalogs.length, 0);
+
+  let release = () => {};
+  hold = new Promise((r) => {
+    release = r;
+  });
+  const socket = await env.client.connect();
+  try {
+    let ended = 0;
+    socket.onEvent((e) => {
+      if (e.type === "extensions.changed") ended++;
+    });
+    const slow = await env.client.call("extensions.catalog_add", { source: cat.path, background: true });
+    const shown = (await env.client.call("extensions.catalogs", {})).catalogs;
+    assert.ok(shown.find((c) => c.id === slow.id)?.reading, "still being read");
+    assert.deepEqual(await env.client.call("extensions.catalog_remove", { id: slow.id }), { removed: true });
+    // Gone from the list at once, and its read, once it ends, keeps nothing.
+    assert.equal((await env.client.call("extensions.catalogs", {})).catalogs.length, 0);
+    const before = ended;
+    hold = undefined;
+    release();
+    await waitFor(async () => ended > before || undefined, "its read ended");
+    assert.equal((await env.client.call("extensions.catalogs", {})).catalogs.length, 0);
+  } finally {
+    hold = undefined;
+    release();
+    socket.close();
+  }
 });
