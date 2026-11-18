@@ -5,7 +5,7 @@ import path from "node:path";
 import type { Locator, Page } from "@playwright/test";
 import { say, scriptedLlm, startCore } from "../../apps/core/src/engine/testkit.ts";
 import { tempDir } from "../../apps/core/src/testkit/platform.ts";
-import { expect, test } from "./kit.ts";
+import { expect, expectHint, test } from "./kit.ts";
 
 const SERVER = path.resolve("apps/core/src/mcp/fake-server.test-support.mjs");
 
@@ -78,10 +78,7 @@ test("MCP rows tell tools, permissions and reach before a click; a server moves 
     await expect(notes.getByRole("img", { name: "Permisos de tools: Todas permitidas" })).toBeVisible();
     await expect(notes.getByRole("img", { name: "Listo: arranca cuando un agente lo usa" })).toBeVisible();
     // Turned off in one of two projects: never "Global" as if it were everywhere.
-    await expect(row(page, "design-kit").getByText("En 1 de 2", { exact: true })).toHaveAttribute(
-      "title",
-      "Apagado en: Acme",
-    );
+    await expectHint(page, row(page, "design-kit").getByText("En 1 de 2", { exact: true }), "Apagado en: Acme");
     const globalHeights = await rowsApart(page.locator(".apx-mdetail__list .apx-pickrow"));
     await page.screenshot({ path: info.outputPath("mcp-global.png") });
 

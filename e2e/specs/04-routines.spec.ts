@@ -1,6 +1,6 @@
 // Routines: one that sends a Telegram message by hand, run now; its row keeps a full strip of activation bars, and its
 // detail and the run's conversation open in a drawer at the right.
-import { expect, open, rpc, test, until } from "./kit.ts";
+import { expect, expectHint, open, rpc, test, until } from "./kit.ts";
 
 test("a routine that sends a message is created and runs now", async ({ page }) => {
   await open(page);
@@ -30,7 +30,7 @@ test("a routine that sends a message is created and runs now", async ({ page }) 
   const bars = row.getByRole("img", { name: "Últimas activaciones" });
   await expect(bars.locator(".rtbar")).toHaveCount(14);
   await expect(bars.locator(".rtbar:not(.is-none)")).toHaveCount(1);
-  await expect(bars.locator(".rtbar.is-none").first()).toHaveAttribute("title", /No corrió/);
+  await expectHint(page, bars.locator(".rtbar.is-none").first(), /No corrió/);
 
   // The routine opens beside the list; a run opens its conversation in the same drawer, and back returns.
   await row.getByRole("button", { name: /ping-me/ }).click();

@@ -3,7 +3,7 @@ import fs from "node:fs";
 import net, { type AddressInfo } from "node:net";
 import path from "node:path";
 import { say, scriptedLlm, startCore } from "../../apps/core/src/engine/testkit.ts";
-import { expect, test } from "./kit.ts";
+import { expect, expectHint, test } from "./kit.ts";
 
 const PNG = Buffer.from(
   "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==",
@@ -71,12 +71,12 @@ test("Archivos lists what was shared, by kind and project, and leads back to the
     await expect(cards).toHaveCount(3);
     await expect(cards.nth(0)).toContainText("invoice.pdf");
     // The chat's title and the full date sit in the card's hover titles, not in its line.
-    await expect(cards.nth(0).locator(".sharedf__line")).toHaveAttribute("title", "Errands");
+    await expectHint(page, cards.nth(0).locator(".sharedf__line > :first-child"), "Errands");
     await expect(cards.nth(1)).toContainText("teaser.mp4");
     await expect(cards.nth(2)).toContainText("storefront.png");
     await expect(cards.nth(2)).toContainText("Acme");
-    await expect(cards.nth(2).locator(".sharedf__line")).toHaveAttribute("title", "Storefront launch");
-    await expect(cards.nth(2).locator("time")).toHaveAttribute("title", /2026/);
+    await expectHint(page, cards.nth(2).locator(".sharedf__line > :first-child"), "Storefront launch");
+    await expectHint(page, cards.nth(2).locator("time"), /2026/);
     await expect(cards.nth(2).locator(".sharedf__thumb img")).toBeVisible();
     // A video's card shows its first frame, made by the core's ffmpeg when this computer has it.
     if (spawnSync("ffmpeg", ["-version"]).status === 0)
