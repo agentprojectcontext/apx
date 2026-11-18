@@ -98,5 +98,6 @@ test("its settings keep each part apart: the keys, reading it again and trying i
   expect(await body.evaluate((el) => el.scrollWidth <= el.clientWidth)).toBe(true);
   await dialog.screenshot({ path: info.outputPath("extension-settings.png") });
   await page.setViewportSize({ width: 390, height: 844 });
+  await expect(parts.nth(0).getByRole("button", { name: "Borrar" })).toBeInViewport({ ratio: 1 });
   await dialog.screenshot({ path: info.outputPath("extension-settings-phone.png") });
 });

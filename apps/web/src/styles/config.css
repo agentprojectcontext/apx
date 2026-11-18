@@ -554,8 +554,14 @@
 }
 .tgtoken {
   display: flex;
+  flex-wrap: wrap;
   gap: 8px;
   align-items: center;
+}
+/* On a narrow screen the field takes the line and what goes with it wraps under it. */
+.tgtoken > .apx-field {
+  flex: 1 1 200px;
+  min-width: 0;
 }
 .tgcard__tile.is-idle {
   opacity: 0.55;
