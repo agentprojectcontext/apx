@@ -87,13 +87,15 @@ export function ItemFacts({ item }: { item: Item }) {
     <section className="mkt-facts" aria-label={t("mkt.info")}>
       {item.publisher && item.label !== "own" && (
         <Fact title="mkt.kv.publisher">
-          <span>{item.publisher}</span>
-          {verified && (
-            <Badge tone="neutral" className="mkt-facts__badge">
-              <Icons.ShieldCheck size={12} />
-              {t(item.label === "included" ? "mkt.label.included" : "mkt.verifiedShort")}
-            </Badge>
-          )}
+          <span className="mkt-facts__inline">
+            {item.publisher}
+            {verified && (
+              <Badge tone="neutral">
+                <Icons.BadgeCheck size={12} />
+                {t(item.label === "included" ? "mkt.label.included" : "mkt.verifiedShort")}
+              </Badge>
+            )}
+          </span>
         </Fact>
       )}
       {(version || day) && (

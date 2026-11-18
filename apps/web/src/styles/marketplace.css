@@ -315,7 +315,6 @@
 .mkt-item > * {
   flex-shrink: 0;
   width: 100%;
-  max-width: 1180px;
 }
 /* The facts sit beside what it is once there is room, under it otherwise. */
 .mkt-page__cols {
@@ -386,9 +385,6 @@
   align-items: center;
   gap: 6px;
 }
-.mkt-page__about {
-  max-width: 72ch;
-}
 .mkt-page__sec {
   display: flex;
   flex-direction: column;
@@ -451,8 +447,11 @@
   gap: 3px;
   color: var(--apx-info-soft-fg);
 }
-.mkt-facts__badge {
-  align-self: flex-start;
+.mkt-facts__inline {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
 }
 .mkt-facts__sub {
   color: var(--apx-fg-muted);
@@ -465,15 +464,28 @@
 .mkt-settings {
   display: flex;
   flex-direction: column;
-  gap: 18px;
+  gap: 16px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--apx-border);
+}
+/* Each part of the settings: its title right above what it holds, a line between parts. */
+.mkt-settings__sec {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.mkt-settings > * + * {
+  padding-top: 16px;
+  border-top: 1px solid var(--apx-border);
+}
+.mkt-settings__hint {
+  margin: 0;
+  overflow-wrap: anywhere;
 }
 
 /* Advanced: catalogs, installing from this computer, the guide. */
 .mkt-advanced {
   gap: 24px;
-}
-.mkt-advanced > * {
-  max-width: 820px;
 }
 .mkt-advanced__warn {
   display: flex;

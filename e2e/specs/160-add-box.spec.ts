@@ -2,7 +2,7 @@
 // then connected in the same box with its key, its real tools shown; one with nothing to connect is ready on Add.
 import fs from "node:fs";
 import path from "node:path";
-import { expect, open, rpc, test, world } from "./kit.ts";
+import { expect, open, openExtension, openExtensionSettings, rpc, test, world } from "./kit.ts";
 
 const SERVER = path.resolve(import.meta.dirname, "../../apps/core/src/mcp/fake-server.test-support.mjs");
 
@@ -71,4 +71,32 @@ test("one with nothing to connect is ready on Add", async ({ page }) => {
   await expect(box.getByRole("heading", { name: "Daily brief está lista" })).toBeVisible();
   await box.getByRole("button", { name: "Listo" }).click();
   await expect(box).toBeHidden();
+});
+
+test("its settings keep each part apart: the keys, reading it again and trying it", async ({ page }, info) => {
+  const root = await folder("northwind-desk", {
+    id: "northwind-desk",
+    name: "Northwind Desk",
+    version: "1.0.0",
+    description: "The help desk.",
+    mcp: { desk: { command: process.execPath, args: [SERVER], env: { DESK_TOKEN: "secret://token" } } },
+    secrets: [{ name: "token", label: "Desk token" }],
+  });
+  await rpc("extensions.install", { path: root });
+  await rpc("extensions.set_secret", { id: "northwind-desk", name: "token", value: "desk-e2e-token" });
+  await rpc("extensions.enable", { id: "northwind-desk", enabled: true });
+  await open(page);
+  await openExtension(page, "Northwind Desk");
+  const dialog = await openExtensionSettings(page);
+  const parts = dialog.locator(".mkt-settings > section");
+  await expect(parts).toHaveCount(3);
+  await expect(parts.nth(0)).toContainText("Sus claves");
+  await expect(parts.nth(1)).toContainText(root);
+  await expect(parts.nth(2).getByRole("button", { name: "Probar" })).toBeVisible();
+  // The folder's path wraps: nothing in the dialog scrolls sideways.
+  const body = dialog.locator(".mkt-settings");
+  expect(await body.evaluate((el) => el.scrollWidth <= el.clientWidth)).toBe(true);
+  await dialog.screenshot({ path: info.outputPath("extension-settings.png") });
+  await page.setViewportSize({ width: 390, height: 844 });
+  await dialog.screenshot({ path: info.outputPath("extension-settings-phone.png") });
 });

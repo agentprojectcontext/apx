@@ -44,7 +44,7 @@ export function ExtensionTest({ e }: { e: ExtensionInfo }) {
     });
 
   return (
-    <div className="exttest">
+    <section className="exttest mkt-settings__sec">
       <div className="pform__label">{t("ext.test")}</div>
       {e.plugin?.context && (
         <>
@@ -85,7 +85,7 @@ export function ExtensionTest({ e }: { e: ExtensionInfo }) {
           <Result o={out[name]} />
         </div>
       ))}
-    </div>
+    </section>
   );
 }
 

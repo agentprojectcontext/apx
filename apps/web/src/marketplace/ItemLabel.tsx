@@ -14,7 +14,7 @@ export function ItemLabel({ label }: { label: Label }) {
     <Tooltip content={hint}>
       {label === "official" ? (
         <span className="mkt-verified" role="img" aria-label={t("mkt.label.official")}>
-          <Icons.CircleCheck size={14} />
+          <Icons.BadgeCheck size={14} />
         </span>
       ) : (
         <Badge tone="neutral">{t(`mkt.label.${label}` as MessageKey)}</Badge>

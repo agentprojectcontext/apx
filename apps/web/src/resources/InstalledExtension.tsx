@@ -43,21 +43,25 @@ export function ExtensionKeys({ e, onChanged }: { e: ExtensionInfo; onChanged():
   const again = readAgain(e.source);
   if (!e.secrets.length && !again) return null;
   return (
-    <div className="pform">
-      {e.secrets.length > 0 && <span className="pform__label">{t("ext.secrets")}</span>}
-      {e.secrets.map((s) => (
-        <SecretRow
-          key={s.name}
-          label={s.label}
-          set={s.set}
-          url={s.url}
-          onSave={(value) => run(() => client.call("extensions.set_secret", { id: e.id, name: s.name, value }))}
-        />
-      ))}
+    <>
+      {e.secrets.length > 0 && (
+        <section className="mkt-settings__sec">
+          <span className="pform__label">{t("ext.secrets")}</span>
+          {e.secrets.map((s) => (
+            <SecretRow
+              key={s.name}
+              label={s.label}
+              set={s.set}
+              url={s.url}
+              onSave={(value) => run(() => client.call("extensions.set_secret", { id: e.id, name: s.name, value }))}
+            />
+          ))}
+        </section>
+      )}
       {again && (
-        <>
+        <section className="mkt-settings__sec">
           <span className="pform__label">{t("url" in again ? "ext.redownload" : "ext.reload")}</span>
-          <p className="pform__hint">
+          <p className="pform__hint mkt-settings__hint">
             {"url" in again ? t("ext.redownloadHint", { url: e.source }) : t("ext.reloadHint", { folder: e.source })}
           </p>
           <div>
@@ -70,9 +74,9 @@ export function ExtensionKeys({ e, onChanged }: { e: ExtensionInfo; onChanged():
               {t("url" in again ? "ext.redownload" : "ext.reloadButton")}
             </Button>
           </div>
-        </>
+        </section>
       )}
-    </div>
+    </>
   );
 }
 

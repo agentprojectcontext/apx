@@ -124,7 +124,7 @@ function AboutNotes({ a }: { a: About }) {
         </SummaryNote>
       )}
       {a.files === "official" && (
-        <SummaryNote tone="brand" rule icon={<Icons.ShieldCheck size={14} />}>
+        <SummaryNote tone="brand" rule icon={<Icons.BadgeCheck size={14} />}>
           {t("box.filesOfficial", { name: a.name, version: a.version ?? "" })}
         </SummaryNote>
       )}
