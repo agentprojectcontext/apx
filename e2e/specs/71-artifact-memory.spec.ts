@@ -217,7 +217,7 @@ test("an .apxart dropped anywhere on the window opens the install dialog with it
   const box = p.getByRole("dialog", { name: "Agregar desde otro lado" });
   await expect(box.getByText("Daily brief", { exact: true })).toBeVisible();
   // A file APX does not publish says so before it is added.
-  await expect(box.getByText(/APX no publica estos archivos/)).toBeVisible();
+  await expect(box.getByText(/Archivos sin verificar/)).toBeVisible();
   await box.getByRole("button", { name: "Cancelar" }).click();
   await expect(dialog).toBeHidden();
   await dropFiles(p, "body", [{ name: "dropped.apxart", text: bundle }]);

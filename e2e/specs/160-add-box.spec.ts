@@ -44,7 +44,7 @@ test("from a folder: looked at, added without running, then connected with its k
   const box = await fromFolder(page, root);
   await expect(box.getByText("Tuya")).toBeVisible();
   await expect(box.getByText("2 herramientas: echo y token.")).toBeVisible();
-  await expect(box.getByText(/Corre un programa en tu compu\. No arranca hasta que la conectes\./)).toBeVisible();
+  await expect(box.getByText("Corre en tu compu desde que la conectes", { exact: true })).toBeVisible();
   await box.getByRole("button", { name: "Agregar", exact: true }).click();
 
   // Added, still off: the same box asks for its key before it connects.
