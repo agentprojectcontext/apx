@@ -90,7 +90,7 @@ test("a command's tree is stopped, and its start time names it while it runs", {
     process.execPath,
     [
       "-e",
-      'const { spawn } = require("node:child_process"); const child = spawn(process.execPath, ["-e", "setInterval(() => {}, 1000)"], { stdio: "ignore" }); console.log(child.pid); setInterval(() => {}, 1000);',
+      'const { spawn } = require("node:child_process"); const child = spawn(process.execPath, ["-e", "setInterval(() => {}, 1000)"], { stdio: "ignore" }); console.log(String(child.pid)); setInterval(() => {}, 1000);',
     ],
     { detached: process.platform !== "win32", stdio: ["ignore", "pipe", "ignore"], windowsHide: true },
   );

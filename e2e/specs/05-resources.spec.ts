@@ -63,7 +63,7 @@ test("a new MCP server takes a variable for its token from the + list, or a new 
   await page.getByRole("button", { name: "MCP", exact: true }).first().click();
   const dialog = page.getByRole("dialog", { name: "Nuevo servidor MCP" });
   await dialog.getByRole("textbox", { name: "Nombre" }).fill("northwind");
-  await dialog.getByRole("textbox", { name: "Comando" }).fill("apx-e2e-missing-mcp-server");
+  await dialog.getByRole("textbox", { name: "Comando" }).fill("apx-e2e-missing-mcp-command");
   // An env key is written as an env name.
   await dialog.getByRole("textbox", { name: "Clave" }).fill("api token");
   await expect(dialog.getByRole("textbox", { name: "Clave" })).toHaveValue("API_TOKEN");

@@ -1,8 +1,10 @@
 import assert from "node:assert/strict";
+import { execFile } from "node:child_process";
 import fs from "node:fs";
 import net from "node:net";
 import path from "node:path";
 import test from "node:test";
+import { promisify } from "node:util";
 import { manualTimers, tempDir, waitFor } from "../apps/core/src/testkit/platform.ts";
 import { coverageCommand, runE2ESuites } from "./coverage-e2e.ts";
 
@@ -128,6 +130,27 @@ test("coverage process reports nonzero exits and missing executables as failures
   assert.equal(await coverageCommand(process.execPath, ["-e", "process.exitCode=0"], options), true);
   assert.equal(await coverageCommand(process.execPath, ["-e", "process.exitCode=1"], options), false);
   assert.equal(await coverageCommand(path.join(process.cwd(), "missing-coverage-executable"), [], options), false);
+});
+
+test("a standalone coverage timeout settles before the process exits", async () => {
+  const source = `
+    import { coverageCommand } from ${JSON.stringify(new URL("./coverage-e2e.ts", import.meta.url).href)};
+    const result = await coverageCommand(process.execPath, ["-e", "setInterval(() => {}, 1000)"], {
+      cwd: process.cwd(),
+      env: process.env,
+      after: (_ms, callback) => {
+        const timer = setImmediate(callback);
+        return () => clearImmediate(timer);
+      },
+    });
+    console.log("CLEANUP_SETTLED " + result);
+  `;
+  const { stdout, stderr } = await promisify(execFile)(process.execPath, ["--input-type=module", "-e", source], {
+    cwd: process.cwd(),
+    timeout: 20_000,
+  });
+  assert.match(stdout, /CLEANUP_SETTLED false/);
+  assert.doesNotMatch(stderr, /unsettled top-level await/);
 });
 
 test("a coverage timeout closes a real descendant listener before resolving", async () => {

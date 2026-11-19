@@ -112,7 +112,7 @@ async function until(gone: () => boolean, ms: number): Promise<boolean> {
   const end = Date.now() + ms;
   while (!gone()) {
     if (Date.now() >= end) return false;
-    await new Promise((r) => setTimeout(r, 25).unref());
+    await new Promise((r) => setTimeout(r, 25));
   }
   return true;
 }
