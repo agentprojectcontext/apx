@@ -1,4 +1,4 @@
-import { Button, Icons, Popover } from "@apx/ui";
+import { Button, Icons, Popover, Skeleton } from "@apx/ui";
 import { Suspense, useEffect, useState } from "react";
 import type { KnownServer } from "../apx-desktop.d.ts";
 import { useData } from "../data/state.ts";
@@ -73,9 +73,26 @@ export function ServerSwitch() {
         </Button>
       }
     >
-      <Suspense fallback={null}>
+      <Suspense fallback={<ServerListSkeleton />}>
         <ServerList rows={rows} onClose={() => setOpen(false)} />
       </Suspense>
     </Popover>
+  );
+}
+
+/** The list's shape while its code loads: a heading, the server in use and the connect button. */
+function ServerListSkeleton() {
+  return (
+    <div className="serverswitch__skeleton" aria-busy="true">
+      <Skeleton width={48} />
+      <div className="serverswitch__skeleton-row">
+        <Skeleton shape="circle" width={16} height={16} />
+        <div className="serverswitch__skeleton-lines">
+          <Skeleton width="40%" />
+          <Skeleton width="70%" />
+        </div>
+      </div>
+      <Skeleton width="55%" height={28} shape="block" />
+    </div>
   );
 }

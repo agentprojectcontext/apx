@@ -129,6 +129,24 @@
   white-space: nowrap;
   text-overflow: ellipsis;
 }
+/* The server list's shape while its code loads (ServerSwitch); the list's own styles come with it. */
+.serverswitch__skeleton {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 8px;
+}
+.serverswitch__skeleton-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.serverswitch__skeleton-lines {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 6px;
+}
 .serverswitch__chev {
   flex: none;
   color: var(--apx-fg-subtle);
