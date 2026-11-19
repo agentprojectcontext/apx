@@ -101,3 +101,24 @@ test("its settings keep each part apart: the keys, reading it again and trying i
   await expect(parts.nth(0).getByRole("button", { name: "Borrar" })).toBeInViewport({ ratio: 1 });
   await dialog.screenshot({ path: info.outputPath("extension-settings-phone.png") });
 });
+
+test("a server added by its address is one of your extensions, not a plain server in Resources", async ({ page }) => {
+  await open(page);
+  await page.getByRole("button", { name: "Marketplace", exact: true }).first().click();
+  await page.getByRole("button", { name: "Agregar", exact: true }).first().click();
+  await page.getByRole("menuitem", { name: /Desde una dirección/ }).click();
+  const box = page.getByRole("dialog");
+  await box.getByLabel("Dirección").fill("https://mcp.northwind.example/mcp");
+  await box.getByRole("button", { name: "Revisar" }).click();
+  await box.getByRole("button", { name: "Agregar", exact: true }).click();
+  // The address answers nobody here; it stays added as the owner's own connector, to check and try again.
+  await expect
+    .poll(async () =>
+      (await rpc<{ extensions: Array<{ source: string; mcp: string[] }> }>("extensions.list")).extensions.some(
+        (e) => e.source.includes("connectors") && e.mcp.length === 1,
+      ),
+    )
+    .toBe(true);
+  const servers = (await rpc<{ servers: Array<{ name: string; definition?: unknown }> }>("mcp.list")).servers;
+  expect(servers.some((s) => s.name.startsWith("mcp-northwind") && s.definition)).toBe(false);
+});

@@ -14,12 +14,13 @@ import {
 import type { ExtensionRecord, PreviousVersion } from "../domain/extensions.ts";
 import type { Store } from "../domain/store.ts";
 import { badRequest, CallError, errorMessage, notFound } from "../errors.ts";
-import { expandHome, isInside, realpath, tildeHome } from "../paths.ts";
+import { expandHome, isInside, real, realpath, samePath, tildeHome } from "../paths.ts";
 import { extensionSecret as extSecret } from "../secret-names.ts";
 import type { Secrets } from "../secrets.ts";
 import { type Catalog, type CatalogCheck, DownloadError, downloadArchive } from "./catalog.ts";
 import { ASSET_MAX, createPackageReader, newest } from "./catalog-packages.ts";
 import type { Catalogs } from "./catalogs.ts";
+import { writeConnector } from "./connector.ts";
 import { createManifestV2, settingsInfo } from "./manifest-v2.ts";
 import {
   comparePowers,
@@ -360,6 +361,13 @@ export function createExtensions(deps: {
       if (buf.length > EXTENSION_ARCHIVE_MAX) throw badRequest("the extension is too big for one file");
       const { id, version } = pkg.manifest;
       return { name: `${id}-${version}.apxext`, data: buf.toString("base64"), hash: pkg.hash, size: buf.length };
+    },
+    /** A server added by its address: the folder of the owner's own connector with that server inside (D-249). */
+    connector(server: { name: string; url: string }): string {
+      return writeConnector(deps.home, server, (id, dir) => {
+        const e = store.extensions.get(id);
+        return Boolean(e && !samePath(real(expandHome(e.source)), real(dir)));
+      });
     },
     /** What an extension would bring, where it comes from by fingerprint, and what it changes over the installed one. */
     async inspect(input: ExtensionInput): Promise<ExtensionInfo> {

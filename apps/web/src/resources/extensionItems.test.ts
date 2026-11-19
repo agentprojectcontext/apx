@@ -111,7 +111,7 @@ test("included ones have APX code of their own; APX's data accounts give way to 
   assert.equal(byKey("ext:hubspot")?.attention, "keys");
   assert.deepEqual(
     items.filter(isMine).map((i) => i.id),
-    ["github", "slack", "telegram", "browser", "weather", "hubspot", "camera"],
+    ["github", "slack", "browser", "weather", "hubspot", "camera"],
   );
 });
 
@@ -122,12 +122,12 @@ test("browse groups: included first, the catalog by category, then accounts not 
   );
 });
 
-test("the owner's own: what waits on them first, then what works", () => {
+test("the owner's own: what waits on them first, then what works; channels stay in Channels", () => {
   assert.deepEqual(
     groupMine(items).map((g) => [g.id, g.items.map((i) => i.id)]),
     [
       ["attention", ["slack", "weather", "hubspot"]],
-      ["active", ["github", "telegram", "browser", "camera"]],
+      ["active", ["github", "browser", "camera"]],
     ],
   );
 });
@@ -160,12 +160,12 @@ test("each one says where it comes from: included, official, third party or the 
   assert.equal(label("ext:weather"), "official");
   assert.equal(label("ext:camera"), "third");
   assert.equal(label("ext:tv"), "own");
-  assert.equal(label("mcp:docs"), "own");
-  assert.equal(own.find((i) => i.key === "mcp:docs")?.state, "on");
+  // A server the owner wrote in Resources is theirs there, not an extension: the Marketplace never lists it.
   assert.deepEqual(
-    own.filter((i) => i.key.startsWith("mcp:")).map((i) => i.id),
-    ["docs"],
+    own.filter((i) => ["docs", "acme-docs-remote"].includes(i.id)),
+    [],
   );
+  assert.equal(label("ext:acme-docs"), "official");
   assert.equal(own.find((i) => i.key === "ext:weather")?.publisher, "APX");
 });
 

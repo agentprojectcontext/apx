@@ -121,7 +121,7 @@ export const enMarketplace = {
   "mkt.fromFolder": "From a folder",
   "mkt.fromCommand": "With a command",
   "mkt.fromCommandHint":
-    "With a command: an MCP server that runs on your computer. It stays as one of your extensions.",
+    "With a command: an MCP server that runs on your computer. It is yours in Resources › MCP, not an extension.",
   "box.thisOne": "This extension",
   "box.connection": "Connection with {name}",
   "box.tools": "{n} tools: {list}.",

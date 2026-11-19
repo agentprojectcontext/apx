@@ -190,28 +190,6 @@ function installed(e: ExtensionInfo, entry: CatalogEntry | undefined): Item {
 /** A folder on this computer: the owner built it (or keeps it) there. */
 const FOLDER = /^(~|\/|[A-Za-z]:[\\/])/;
 
-/** One the owner added in APX by its address or command: their own extension, with the tools its server has. */
-function fromServer(s: McpServerStatus): Item {
-  const url = s.definition?.url;
-  const attention: Attention | undefined =
-    s.status === "needs-sign-in" ? "sign-in" : s.status === "error" ? "error" : undefined;
-  return {
-    key: `mcp:${s.name}`,
-    id: s.name,
-    name: s.name,
-    description: url ? (URL.parse(url)?.host ?? url) : s.target,
-    origin: "own",
-    label: "own",
-    provenance: "third_party",
-    brings: ["tools"],
-    needs: url ? [] : ["code"],
-    state: !s.enabled ? "off" : attention ? "attention" : "on",
-    attention,
-    here: s.enabled,
-    server: s,
-  };
-}
-
 /** A plugin that never said its version is listed without one. */
 const known = (v: string) => (v === "0.0.0" ? undefined : v);
 
@@ -263,8 +241,6 @@ export function buildItems(src: {
   const mine = new Set(src.installed.map((e) => e.id));
   const packaged = new Set([...byId.keys(), ...mine]);
   const connected = new Set(src.integrations.filter((i) => i.connected && !i.own).map((i) => i.id));
-  // The servers an account or an extension runs are shown as that account or extension, never on their own.
-  const taken = new Set([...src.integrations.map((i) => i.id), ...src.installed.flatMap((e) => e.mcp)]);
   return [
     ...src.integrations
       .filter((i) => i.own || i.connected || !packaged.has(i.id))
@@ -292,7 +268,6 @@ export function buildItems(src: {
         ]
       : []),
     ...src.installed.map((e) => installed(e, byId.get(e.id) ?? fromAdded(e))),
-    ...src.servers.filter((s) => s.scope === "global" && s.definition && !taken.has(s.name)).map(fromServer),
     ...src.catalog
       .filter((c) => !mine.has(c.id) && !connected.has(c.id) && (!c.catalog || !byId.has(c.id)))
       .map(offered),
@@ -302,8 +277,8 @@ export function buildItems(src: {
 /** It waits on the owner: something to fix, an update, or installed and still off. */
 export const waits = (i: Item) => i.state === "attention" || i.state === "off" || Boolean(i.update);
 
-/** Installed or connected: the owner's own list. */
-export const isMine = (i: Item) => i.state !== "available" && i.state !== "coming";
+/** Installed or connected: the owner's own list. Channels live in Channels, so they are not repeated here. */
+export const isMine = (i: Item) => i.state !== "available" && i.state !== "coming" && !i.channel;
 
 export type Group = { id: string; items: Item[] };
 

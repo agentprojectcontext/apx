@@ -80,9 +80,10 @@ function extensionMethods(extensions: Extensions, mcp: Mcp) {
     "extensions.asset": async ({ id, file }) => (await extensions.asset(id, file)) ?? {},
     "extensions.pack": ({ path }) => extensions.pack(path),
     "extensions.inspect": ({ path, file, url, entry }) => extensions.inspect(source(path, file, url, entry)),
-    "extensions.install": async ({ path, file, url, entry, hash }) => {
+    "extensions.install": async ({ path, file, url, entry, server, hash }) => {
       const before = extensions.list();
-      const info = await extensions.install(source(path, file, url, entry), hash);
+      const from = server ? { path: extensions.connector(server) } : source(path, file, url, entry);
+      const info = await extensions.install(from, hash);
       // Its servers start again with the new files at their next use; a server this version dropped stops now.
       for (const name of new Set([...(before.find((e) => e.id === info.id)?.mcp ?? []), ...info.mcp]))
         mcp.drop({ scope: "global", name });

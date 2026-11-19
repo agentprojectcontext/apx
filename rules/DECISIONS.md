@@ -5516,3 +5516,21 @@ a network firewall or IP-anonymity promise: WebRTC/STUN and DNS prefetch remain 
 
 Docs impact: updated the English and Spanish artifact guides with selection, review, account management,
 limits, offline behavior and the limits of revocation. No owner news entry: this rollout is not announced.
+
+<a id="d-249"></a>
+## D-249 — 2026-11-18 — Everything in the Marketplace is an extension; servers and channels keep their own places
+The owner saw their hand-written MCP servers and their channels listed among "Your extensions", next to what they
+added from the Marketplace, and the same servers again in Resources › MCP.
+
+- **The Marketplace lists extensions only.** What it brings (an MCP server, skills, agents, routines, a device's app)
+  is inside the extension; its kind is read from that, not stored apart.
+- **A server added by its address from the Marketplace is an extension**: APX writes a connector folder under its home
+  (`connectors/<id>`, `extensions.install` with `server: {name, url}`) and installs it as the owner's own. Its server
+  runs as that extension's.
+- **A server written in Resources stays a plain server** there (command and arguments, or an address), never listed
+  in the Marketplace.
+- **Channels live in Channels.** They can still be found and connected from Explore, but "Your extensions" does not
+  repeat them.
+
+Rejected: tagging plain servers with where they were added (two kinds of the same thing in one list); moving the
+owner's existing servers into extensions (nothing says which ones came from the Marketplace).

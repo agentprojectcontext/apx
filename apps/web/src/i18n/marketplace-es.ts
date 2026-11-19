@@ -122,7 +122,8 @@ export const esMarketplace = {
   "mkt.fromFile": "Desde un archivo",
   "mkt.fromFolder": "Desde una carpeta",
   "mkt.fromCommand": "Con un comando",
-  "mkt.fromCommandHint": "Con un comando: un servidor MCP que corre en tu compu. Queda como una extensión tuya.",
+  "mkt.fromCommandHint":
+    "Con un comando: un servidor MCP que corre en tu compu. Queda en Recursos › MCP, no como extensión.",
   "box.thisOne": "Esta extensión",
   "box.connection": "Conexión con {name}",
   "box.tools": "{n} herramientas: {list}.",

@@ -19,15 +19,18 @@ anything, installs it **off**, and turning it on approves exactly the files it h
 add to your agents is an **extension**; a label says where it comes from: **Included** (it comes with APX: Google,
 Asana, the channels, the browser), **Official** (APX publishes it, with those exact files), **Third party** (another
 catalog, a file or an address someone gave you) or **Yours** (a folder you built, or a server you added by its address
-or command). Official shows as a check after its name, Included and Yours as a small word, and Third party with no
-mark: the line under its name says where it comes from. Resources keeps the technical parts (Skills, MCP, Variables).
+here). Official shows as a check after its name, Included and Yours as a small word, and Third party with no
+mark: the line under its name says where it comes from. What an extension brings (an MCP server, skills, agents,
+routines, a device's app) is inside it. Resources keeps the technical parts (Skills, MCP, Variables): an MCP server
+you write there by hand stays a server of yours there and is not listed in the Marketplace.
 
 - **Explore** has search and filters on top (**All**, **Connections**, **Skills**, **Agents**, **Devices**; a filter
   with nothing in it is not shown), then **New** (while only a few are new) and every category in compact rows: its
   icon, name and label, one line, and under it what it brings and who from ("Connection and skills · From APX"). Each
   row has one button: **Add**, or **Connect** for one included with APX.
 - **Your extensions** lists what you added, in two groups: **Needs attention** (not connected yet, a new version, an
-  error) and **Active**. The same groups show in the left column.
+  error) and **Active**. The same groups show in the left column. Channels are found and connected from Explore, but
+  live in **Channels**, so they are not repeated here.
 - An extension's page has one button that follows its state: **Add** → **Connect** (or **Pair** for a device's app)
   → **Connected ✓**. Turn off, update, go back a version, settings and remove are in **⋯**.
 - **Add** opens one box: APX joined to the service on top (a device's app joined to APX for **Pair**), then what it
@@ -44,7 +47,7 @@ mark: the line under its name says where it comes from. Resources keeps the tech
   "You sign in to the service"), what it needs and does not do, cost, privacy and links. A fact nobody gave is not shown.
 - **Add** › **From an address** or **From a file** adds something that is not in a catalog: the same box opens under
   a picker (a file, an address or a folder). An address of an `.apxext` is read as a package; any other https address
-  is an MCP server, added as **Yours** and connected right away.
+  is an MCP server: APX adds it as an extension of yours with that server inside and connects it right away.
 - When it can't be added, the box says why: the download failed, the files changed since you looked at them, they are
   not an extension, or it needs a newer APX.
 - When you have added catalogs, Explore has a **catalog** picker (all, APX's, or one you added), each with how many
@@ -54,7 +57,8 @@ mark: the line under its name says where it comes from. Resources keeps the tech
 - Removing an extension or a catalog, or disconnecting an account, always asks first. In **Advanced**, APX's catalog
   has a lock (it is always there) and says how many it lists; **See in Explore** shows only one catalog's extensions.
 - **Advanced**, at the bottom of the left column, is for building and trying extensions: catalogs, installing from a
-  file, a folder or a command, and the guide to build one.
+  file or a folder, writing an MCP server by its command (it is saved in **Resources › MCP**), and the guide to build
+  one.
 
 APX reads what each catalog package brings from the package itself: it downloads it once, checks it against the
 catalog's sha256 and fingerprint, and keeps only its manifest, its listing and its images in its home. Nothing is
