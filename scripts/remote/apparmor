@@ -1,0 +1,8 @@
+abi <abi/4.0>,
+include <tunables/global>
+
+# The remote box (`docker run --security-opt apparmor=apx-remote`): unconfined like a plain container, plus the user
+# namespaces Chromium's sandbox needs on hosts that restrict them (Ubuntu 24.04), as the CI runner's profile allows.
+profile apx-remote flags=(unconfined) {
+  userns,
+}

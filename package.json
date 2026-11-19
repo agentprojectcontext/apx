@@ -41,6 +41,8 @@
     "tools:review": "node --no-warnings scripts/tool-review.ts",
     "bench:group-chat": "node --no-warnings scripts/group-chat-bench.ts",
     "verify": "node scripts/verify.ts verify",
+    "verify:mac": "node scripts/verify.ts mac",
+    "remote": "node scripts/remote.ts",
     "release:check": "node scripts/release-check.ts",
     "package": "node scripts/package.ts",
     "package:mac": "node scripts/package.ts mac",
