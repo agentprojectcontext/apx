@@ -148,6 +148,8 @@ const LOOKING = new Set([...READING, "fetch"]);
 
 export function createExecutor(o: {
   store: Store;
+  /** Clock for tool durations, independent of persisted wall-clock timestamps. */
+  now?: () => number;
   inputs: Inputs;
   tools: Tool[];
   /** Tools that join on first use (MCP's): tool_run names one, and grant_tool may grant one. */
@@ -180,6 +182,7 @@ export function createExecutor(o: {
   permissions: Permissions;
 }): Executor {
   const { store, display, signal, agent, thread } = o;
+  const now = o.now ?? (() => performance.now());
   const byName = new Map(o.tools.map((t) => [t.name, t]));
   const offered = new Set(byName.keys());
   let joined = false;
@@ -288,7 +291,7 @@ export function createExecutor(o: {
       ((name.startsWith("mcp_") || foundLater(name)) && name !== TOOL_RUN && name !== TOOL_SEARCH);
     const tool = bridged ? byName.get(name) : undefined;
     const title = tool ? toolTitle(store, tool, raw) : name;
-    const began = Date.now();
+    const began = now();
     const card = (status: "running" | "ok" | "error", detail?: string) =>
       display.upsert((p) => p.type === "tool" && p.call_id === callId, {
         type: "tool",
@@ -297,7 +300,7 @@ export function createExecutor(o: {
         title,
         status,
         ...(detail ? { detail } : {}),
-        ...(status === "running" ? {} : { ms: Date.now() - began }),
+        ...(status === "running" ? {} : { ms: Math.max(0, Math.round(now() - began)) }),
       });
     card("running");
     signal.throwIfAborted();
@@ -670,7 +673,7 @@ export function createExecutor(o: {
     // What an external agent fetched from the web is now in its context.
     if (ev.kind === "fetch") untrusted = true;
     if (!seen.has(ev.callId)) {
-      seen.set(ev.callId, Date.now());
+      seen.set(ev.callId, now());
       const looks = LOOKING.has(ev.kind);
       if (!looks) toolsRan++;
       store.runs.beginStep(run.id, {
@@ -690,7 +693,7 @@ export function createExecutor(o: {
       title: ev.title,
       status: ev.status,
       ...(ev.detail ? { detail: ev.detail } : {}),
-      ...(ev.status === "running" ? {} : { ms: Date.now() - (seen.get(ev.callId) ?? Date.now()) }),
+      ...(ev.status === "running" ? {} : { ms: Math.max(0, Math.round(now() - (seen.get(ev.callId) ?? now()))) }),
     });
   };
 
