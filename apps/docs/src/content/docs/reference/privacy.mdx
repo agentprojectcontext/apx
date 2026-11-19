@@ -61,9 +61,23 @@ wrote in the side panel. What it reads goes to APX on your computer through Chro
 network), and from there, like any page an agent reads, to the model provider answering. Tabs outside that group are
 never read. The extension adds nothing to the reports above.
 
+## Only when you use them: account, public copies, catalogs
+
+These send something only when you use them, and are not part of the reports above:
+
+- **Your [APX account](/start/account/)** (optional). Signing in with Google keeps that Google account in Firebase
+  Authentication, and a private profile with your APX ID, your Google name and photo address and the username you
+  choose, in the same `apx-agents` project. Your projects, chats, agents and files are not uploaded.
+- **A [public copy](/office/artifacts/#publish-a-public-copy)** of an artifact. Only when you choose **Public** and
+  confirm the review, the page (and the saved data you chose to include) is uploaded to `artifact.apxagent.app`,
+  where anyone with its link can see it and search engines may list it. **Only you** stops sharing it.
+- **The Marketplace.** To list extensions and tell an official one from others, APX downloads APX's catalog from
+  `marketplace.apxagent.app`, and the catalogs you added from where they live (GitHub, a git address, an https
+  address). These are plain downloads: nothing about you or your install is sent with them.
+
 ## Where it goes
 
-To a Google Cloud Firestore database of the APX project (`apx-agents`, in the United States), written without an
+The install steps and usage numbers go to a Google Cloud Firestore database of the APX project (`apx-agents`, in the United States), written without an
 account. Its rules accept only the shapes above, stamp every time on the server and let no one outside the project
 read anything back.
 

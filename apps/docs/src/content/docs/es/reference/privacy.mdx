@@ -62,9 +62,24 @@ escribiste en el panel lateral. Lo que lee va a APX en tu computadora por la men
 red), y de ahí, como cualquier página que lee un agente, al proveedor de modelos que responde. Las pestañas fuera de ese
 grupo nunca se leen. La extensión no agrega nada a los reportes de arriba.
 
+## Solo cuando los usás: cuenta, copias públicas, catálogos
+
+Estos mandan algo solo cuando los usás, y no son parte de los reportes de arriba:
+
+- **Tu [cuenta APX](/es/start/account/)** (opcional). Iniciar sesión con Google guarda esa cuenta de Google en Firebase
+  Authentication, y un perfil privado con tu ID de APX, tu nombre y la dirección de tu foto de Google y el nombre de
+  usuario que elijas, en el mismo proyecto `apx-agents`. Tus proyectos, chats, agentes y archivos no se suben.
+- **Una [copia pública](/es/office/artifacts/#publicar-una-copia-pública)** de un artefacto. Solo cuando elegís
+  **Público** y confirmás la revisión, la página (y los datos guardados que elegiste incluir) se sube a
+  `artifact.apxagent.app`, donde cualquiera con el enlace la ve y los buscadores pueden listarla. **Solo vos** deja de
+  compartirla.
+- **El Marketplace.** Para listar extensiones y distinguir una oficial de las demás, APX descarga el catálogo de APX
+  de `marketplace.apxagent.app`, y los catálogos que agregaste de donde estén (GitHub, una dirección git, una dirección
+  https). Son descargas comunes: no se manda nada sobre vos ni tu instalación con ellas.
+
 ## Adónde va
 
-A una base Google Cloud Firestore del proyecto APX (`apx-agents`, en Estados Unidos), escrita sin cuenta. Sus reglas
+Los pasos de instalación y los números de uso van a una base Google Cloud Firestore del proyecto APX (`apx-agents`, en Estados Unidos), escrita sin cuenta. Sus reglas
 aceptan solo las formas de arriba, ponen cada hora en el servidor y no dejan que nadie de afuera lea nada.
 
 ## Apagarla

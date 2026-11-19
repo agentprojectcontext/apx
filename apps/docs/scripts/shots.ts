@@ -163,6 +163,11 @@ const resources = (seg: string) => async (p: Page) => {
     .click();
 };
 
+const marketplace = (rest: string) => async (p: Page) => {
+  await at(`view=marketplace${rest ? `&${rest}` : ""}`)(p);
+  await p.locator(".mkt-rows, .mkt-page__head").first().waitFor({ timeout: 20_000 });
+};
+
 const SHOTS: Shot[] = [
   { name: "home-hero", go: at("thread=home") },
   { name: "inbox", go: at(`thread=${ids.luciaChat}`) },
@@ -230,9 +235,11 @@ const SHOTS: Shot[] = [
   { name: "files", go: project("files") },
   { name: "resources-skills", go: resources("Skills") },
   { name: "resources-mcp", go: resources("MCP") },
-  { name: "resources-integrations", go: resources("Integrations") },
   { name: "resources-variables", go: resources("Variables") },
-  { name: "resources-extensions", go: resources("Extensions") },
+  // Explore lists APX's catalog (read in the background) and the included ones: wait for the rows to be there.
+  { name: "marketplace", go: marketplace("") },
+  // The demo seed installs examples/extensions/daily-brief: its page, with its button and what it brings.
+  { name: "marketplace-extension", go: marketplace("section=mine&item=ext:daily-brief") },
   { name: "settings-engines", go: settings("Engines and models") },
   { name: "settings-router", go: settings("Router") },
   { name: "settings-memory", go: settings("Memory") },

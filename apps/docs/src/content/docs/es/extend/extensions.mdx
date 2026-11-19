@@ -1,6 +1,6 @@
 ---
 title: Extensiones
-description: Empaquetá skills, servidores MCP, plantillas de rutinas y sus secretos en una carpeta que se instala apagada y se enciende toda junta.
+description: Buscá, agregá y conectá extensiones en el Marketplace, o empaquetá skills, servidores MCP, rutinas y su configuración en una carpeta tuya.
 sidebar:
   order: 3
 ---
@@ -10,8 +10,8 @@ import Shot from "../../../../components/Shot.astro";
 import Terminal from "../../../../components/Terminal.astro";
 
 Una extensión es una carpeta con un `apx-extension.json` que junta varias cosas: skills, servidores MCP, plantillas de
-rutinas, los secretos que necesitan y, si hace falta, un plugin en un sandbox. APX lee el manifiesto sin correr nada,
-la instala **apagada**, y encenderla aprueba exactamente los archivos que tenía.
+rutinas, los secretos que necesitan y, si hace falta, un plugin en un sandbox. APX lee el manifiesto sin correr nada:
+agregarla copia sus archivos y no corre nada, y conectarla aprueba exactamente los archivos que tenía.
 
 ## Encontralas en el Marketplace
 
@@ -24,6 +24,8 @@ como una palabra chica, y De terceros sin marca: la línea debajo del nombre dic
 servidor MCP, habilidades, agentes, rutinas, la app de un dispositivo) va adentro de ella. Recursos queda para lo
 técnico (Skills, MCP, Variables): un servidor MCP que escribís ahí a mano sigue siendo un servidor tuyo ahí y no
 aparece en el Marketplace.
+
+<Shot name="marketplace" alt="Explorar en el Marketplace: búsqueda, filtros por tipo y extensiones por categoría, cada una con su etiqueta y un botón" caption="Marketplace › Explorar" />
 
 - **Explorar** tiene la búsqueda y los filtros arriba (**Todo**, **Integraciones**, **Conectores**, **Canales**,
   **Habilidades**, **Agentes**; un filtro sin nada no aparece), después **Novedades** (mientras sean pocas las nuevas),
@@ -226,11 +228,11 @@ otra; una carpeta se lee donde corre el core.
 
 Turn it on with: apx extensions on daily-brief`}</Terminal>
 
-<Shot name="resources-extensions" alt="Recursos, pestaña Extensiones: extensiones instaladas con su interruptor, skills, servidores y rutinas" caption="el Marketplace" />
+<Shot name="marketplace-extension" alt="La página de una extensión en el Marketplace: su botón, lo que trae y los datos al costado" caption="La página de una extensión en el Marketplace" />
 
 Instalar copia archivos comunes a la carpeta de APX y les toma una huella. Si la copia instalada cambia en el disco,
 APX apaga la extensión en el próximo arranque hasta que la vuelvas a aprobar. Para traer cambios de la carpeta o la
-dirección original, instalala de nuevo o usá **Volver a leer** / **Volver a descargarla** en su detalle.
+dirección original, instalala de nuevo o usá **Volver a leer** / **Volver a descargarla** en su configuración (**⋯ › Configuración**).
 
 ### Qué puede tener un `.apxext`
 
@@ -290,8 +292,8 @@ Instalar otra versión de una que ya tenés guarda la anterior al lado. El diál
 servidor, un host al que se conecta, un secreto, una rutina, lo que puede alcanzar su plugin) y qué quita.
 
 - Una extensión encendida **sigue encendida** solo si la versión nueva es oficial y no pide nada más.
-- Si no, queda apagada hasta que la enciendas, y su tarjeta lista lo que suma.
-- **Volver a la 1.0.0** (la versión guardada) la cambia por la versión guardada, cada una como la habías aprobado (encendida o apagada).
+- Si no, la conectás de nuevo para aprobar lo que suma; hasta entonces queda apagada, y su tarjeta lista lo que suma.
+- **⋯ › Volver a la 1.0.0** (la versión guardada) la cambia por la versión guardada, cada una como la habías aprobado (encendida o apagada).
   Tocarlo de nuevo vuelve a la nueva.
 
 ## Plugins
