@@ -41,7 +41,7 @@ test("local coverage runs every web shard sequentially and desktop with shared c
     assert.equal(failed, false);
     assert.deepEqual(calls, [
       ["pnpm", "build:web"],
-      ...["1/3", "2/3", "3/3"].map((shard) => [
+      ...["1/6", "2/6", "3/6", "4/6", "5/6", "6/6"].map((shard) => [
         "pnpm",
         "exec",
         "playwright",
@@ -61,6 +61,32 @@ test("local coverage runs every web shard sequentially and desktop with shared c
   } finally {
     await dir.remove();
   }
+});
+
+test("only a newly owned virtual display parks the idle pointer before desktop input", async () => {
+  const calls: string[][] = [];
+  const failed = await runE2ESuites(
+    { web: false, desktop: true },
+    {
+      root: process.cwd(),
+      raw: "coverage/v8",
+      snapshot: () => {},
+      ports: async () => ({}),
+      platform: "linux",
+      env: {},
+      run: async (command, args) => {
+        calls.push([command, ...args]);
+        return true;
+      },
+    },
+  );
+  assert.equal(failed, false);
+  assert.equal(calls.length, 3);
+  const [command, ...args] = calls[2] ?? [];
+  assert.equal(command, "xvfb-run");
+  assert.deepEqual(args.slice(0, 3), ["-a", "sh", "-c"]);
+  assert.match(args[3] ?? "", /APX_TEST_VIRTUAL_DISPLAY=1 python3 scripts\/virtual-pointer\.py && exec "\$@"$/);
+  assert.deepEqual(args.slice(4), ["apx-desktop", "pnpm", "exec", "playwright", "test", "--project", "desktop"]);
 });
 
 test("an explicit CI shard is not expanded and a failed shard keeps the overall run red", async () => {
@@ -98,12 +124,12 @@ test("a failing local shard cannot be hidden by later passing shards", async () 
       run: async (_command, args) => {
         const shard = args.find((arg) => arg.startsWith("--shard="));
         if (shard) shards.push(shard);
-        return shard !== "--shard=1/3";
+        return shard !== "--shard=1/6";
       },
     },
   );
   assert.equal(failed, true);
-  assert.deepEqual(shards, ["--shard=1/3", "--shard=2/3", "--shard=3/3"]);
+  assert.deepEqual(shards, ["--shard=1/6", "--shard=2/6", "--shard=3/6", "--shard=4/6", "--shard=5/6", "--shard=6/6"]);
 });
 
 test("a failed build does not run tests against stale output", async () => {

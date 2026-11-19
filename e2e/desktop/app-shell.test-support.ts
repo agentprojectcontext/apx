@@ -5,10 +5,25 @@ import { ALL_SLIDES } from "../../apps/web/src/shell/welcomeFilm.ts";
 import { assertSandboxDesktopData } from "../sandbox.ts";
 import { ownSandbox, rpc, world } from "../specs/kit.ts";
 
-/**
- * The APX app as a test opens it: its data in a temp folder (refused otherwise), and only once the e2e core is this
- * run's own, so nothing it saves can point the owner's app at a sandbox.
- */
+/** The native tab's bounds and stacking order, distinct from the full-window panel view. */
+export async function nativeTabBounds(app: ElectronApplication) {
+  return app.evaluate(({ BaseWindow }) => {
+    const win = BaseWindow.getAllWindows().find((w) => w.contentView.children.length > 0);
+    const kids = win?.contentView.children ?? [];
+    if (kids.length < 2) return null;
+    const full = win?.getContentBounds();
+    const i = kids.findIndex((k) => {
+      const b = k.getBounds();
+      return !(b.x === 0 && b.y === 0 && b.width === full?.width && b.height === full?.height);
+    });
+    const at = i < 0 ? 0 : i;
+    const view = kids[at];
+    if (!view) return null;
+    return { on: at === kids.length - 1 ? ("top" as const) : ("behind" as const), ...view.getBounds() };
+  });
+}
+
+/** Refuse the owner's data folder and wait for this test's own core before opening Electron. */
 export async function launchSandboxApp(entry: string, env: NodeJS.ProcessEnv): Promise<ElectronApplication> {
   assertSandboxDesktopData(env.APX_DESKTOP_DATA);
   await ownSandbox();
