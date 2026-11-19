@@ -42,6 +42,34 @@ test("file journal resumes a partial move and reverses it without losing binary 
   }
 });
 
+for (const keepNewWork of [false, true]) {
+  test(`recovery removes only newly-created empty folders and preserves unrelated work (${keepNewWork})`, async () => {
+    const dir = tempDir("apx-file-folders-");
+    const source = path.join(dir.path, "acme");
+    const destination = path.join(dir.path, "northwind");
+    const recovery = path.join(dir.path, "private", "move");
+    fs.mkdirSync(source);
+    fs.mkdirSync(path.join(destination, "reports"), { recursive: true });
+    try {
+      const prepared = prepareFileJournal(recovery, "migration_example", source, destination);
+      prepared.change("destination", "reports/new/nested/report.txt", new TextEncoder().encode("Example report"));
+      prepared.persist();
+      applyFileJournal(recovery, prepared.journal);
+      if (keepNewWork) fs.writeFileSync(path.join(destination, "reports/new/unrelated.txt"), "Keep this work");
+      const reopened = JSON.parse(fs.readFileSync(path.join(recovery, "journal.json"), "utf8")) as FileJournal;
+      applyFileJournal(recovery, reopened, true);
+      assert.equal(fs.existsSync(path.join(destination, "reports/new/nested")), false);
+      assert.equal(fs.existsSync(path.join(destination, "reports/new")), keepNewWork);
+      assert.equal(fs.existsSync(path.join(destination, "reports")), true, "pre-existing folders are preserved");
+      if (keepNewWork)
+        assert.equal(fs.readFileSync(path.join(destination, "reports/new/unrelated.txt"), "utf8"), "Keep this work");
+      applyFileJournal(recovery, reopened, true);
+    } finally {
+      await dir.remove();
+    }
+  });
+}
+
 test("file recovery refuses newer destination work and leaves all files untouched", async () => {
   const dir = tempDir("apx-file-journal-conflict-");
   const source = path.join(dir.path, "acme");

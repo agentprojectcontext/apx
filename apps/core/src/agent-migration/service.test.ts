@@ -144,6 +144,9 @@ test("a move preserves identity, exact instructions, shared completed work and b
     assert.equal(fs.existsSync(path.join(env.destination, "reports", "report.bin")), false);
     assert.equal(store.agentMigrationPending.list().length, 0);
     assert.deepEqual(service.recover(preview.id), { id: preview.id, restored: true });
+    const retried = service.preview(input);
+    assert.equal(service.move({ ...input, id: retried.id, revision: retried.revision }).state, "committed");
+    assert.deepEqual(service.recover(retried.id), { id: retried.id, restored: true });
   } finally {
     await env.close();
   }

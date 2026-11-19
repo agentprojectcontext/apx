@@ -59,6 +59,7 @@ no se borra automáticamente después del éxito. Protegé y respaldá la carpet
 Antes de preparar copias, se guarda un manifiesto privado. Así, una preparación interrumpida se puede cerrar sin registros de archivos completos ni cambios en los originales.
 Al reiniciar, APX intenta finalizar un traslado confirmado o restaurar uno interrumpido. El trabajo afectado queda bloqueado
 si la recuperación no puede terminar. Se rechazan archivos modificados o trabajo posterior relacionado en la base en vez de sobrescribirlos.
+Sólo se retiran las carpetas vacías creadas por el traslado, para que no impidan otro intento; se conservan las carpetas previas y los archivos nuevos ajenos al traslado.
 El registro cubre procesos interrumpidos; no reemplaza un backup ante fallas del disco ni garantiza todos los casos de corte de energía.
 
 Los comandos de previsualización, aplicación y recuperación están en la [referencia de CLI](/es/reference/cli/).

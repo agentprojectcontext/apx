@@ -17,6 +17,7 @@ export type FileJournal = {
   source: string;
   destination: string;
   changes: FileChange[];
+  created_dirs: Array<{ root: "source" | "destination"; relative: string }>;
   state: "prepared" | "applied" | "committed" | "recovering" | "recovered";
 };
 const hash = (file: string) => createHash("sha256").update(readMigrationFile(file)).digest("hex");
@@ -35,6 +36,7 @@ export function prepareFileJournal(folder: string, id: string, source: string, d
     source: real(source),
     destination: real(destination),
     changes: [],
+    created_dirs: [],
     state: "prepared",
   };
   const stage = (bytes: Uint8Array): string => {
@@ -52,6 +54,15 @@ export function prepareFileJournal(folder: string, id: string, source: string, d
       )
     )
       throw badRequest("A selected file would be changed twice");
+    const project = root === "source" ? source : destination;
+    for (let parent = path.dirname(relative); parent !== "."; parent = path.dirname(parent)) {
+      const dir = migrationFilePath(project, parent);
+      if (
+        !fs.existsSync(dir) &&
+        !journal.created_dirs.some((d) => d.root === root && samePath(migrationFilePath(project, d.relative), dir))
+      )
+        journal.created_dirs.push({ root, relative: parent });
+    }
     const stat = fs.existsSync(absolute) ? fs.lstatSync(absolute) : undefined;
     if (stat && !stat.isFile()) throw badRequest("A selected destination is not an ordinary file");
     const before = stat ? stage(readMigrationFile(absolute)) : null;
@@ -115,8 +126,26 @@ export function applyFileJournal(folder: string, journal: FileJournal, reverse =
       fs.rmSync(tmp, { force: true });
     }
   }
+  if (reverse) removeCreatedDirectories(journal);
   journal.state = reverse ? "recovered" : "applied";
   save(folder, journal);
+}
+
+function removeCreatedDirectories(journal: FileJournal) {
+  const depth = (relative: string) => relative.split(/[\\/]/).length;
+  for (const directory of [...journal.created_dirs].sort((a, b) => depth(b.relative) - depth(a.relative))) {
+    const root = directory.root === "source" ? journal.source : journal.destination;
+    const dir = migrationFilePath(root, directory.relative);
+    try {
+      // Remove only empty folders this journal introduced; never unrelated work or pre-existing folders.
+      fs.rmdirSync(dir);
+    } catch (error) {
+      if (
+        !(error instanceof Error && "code" in error && ["ENOENT", "ENOTEMPTY", "EEXIST"].includes(String(error.code)))
+      )
+        throw error;
+    }
+  }
 }
 
 export function commitFileJournal(folder: string, journal: FileJournal) {

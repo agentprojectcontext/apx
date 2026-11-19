@@ -59,6 +59,7 @@ not automatically erased after success. Protect and back up the APX home accordi
 A private manifest is saved before staging begins, so an interrupted preparation can be retired without complete file journals or changes to the originals.
 On restart, APX attempts to finish a committed move or restore an interrupted one. Affected work stays blocked when
 recovery cannot complete. Recovery refuses changed files or newer related database work instead of overwriting them.
+It removes only empty folders introduced by the move, so they do not prevent another attempt; pre-existing folders and unrelated new files are preserved.
 This journal handles interrupted processes; it does not replace a backup against disk failure or guarantee survival
 of every power-loss scenario.
 

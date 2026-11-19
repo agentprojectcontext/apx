@@ -42,6 +42,7 @@ const FileRecord = z.object({
   source: z.string(),
   destination: z.string(),
   state: z.enum(["prepared", "applied", "committed", "recovering", "recovered"]),
+  created_dirs: z.array(z.object({ root: z.enum(["source", "destination"]), relative: z.string() })),
   changes: z.array(
     z.object({
       root: z.enum(["source", "destination"]),
