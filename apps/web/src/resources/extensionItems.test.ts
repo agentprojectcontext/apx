@@ -286,7 +286,12 @@ test("one installed from an added catalog stays under it; a namesake from elsewh
     ...sources,
     catalog,
     installed: [
-      ext("notes", { provenance: "third_party", source: "Acme plugins · Notes", version: "0.0.0" }),
+      ext("notes", {
+        provenance: "third_party",
+        source: "Acme plugins · Notes",
+        source_catalog: { catalog: "c1", entry: "notes" },
+        version: "0.0.0",
+      }),
       ext("todo", { provenance: "third_party", source: "~/work/todo" }),
     ],
   });
@@ -299,6 +304,31 @@ test("one installed from an added catalog stays under it; a namesake from elsewh
       .find((g) => g.id === "added:c1")
       ?.items.some((i) => i.id === "notes"),
   );
+});
+
+test("a third-party installation never inherits an official namesake's listing or update", () => {
+  const catalog = [
+    entry("linear", "1.0.1", {
+      listing: { tagline: "Official only", publisher: { name: "APX" } } as CatalogEntry["listing"],
+    }),
+    entry("linear", "0.0.0", { catalog: "c1", provenance: "third_party", name: "Linear" }),
+    entry("linear", "0.0.0", { catalog: "c2", provenance: "third_party", name: "Linear" }),
+  ];
+  const installed = ext("linear", {
+    provenance: "third_party",
+    source: "Other · Linear",
+    version: "0.0.0",
+    source_catalog: { catalog: "c2", entry: "linear" },
+  });
+  const item = buildItems({ ...sources, catalog, installed: [installed] }).find((i) => i.ext?.id === "linear");
+  assert.equal(item?.entry?.catalog, "c2");
+  assert.equal(item?.listing?.tagline, undefined);
+  assert.equal(item?.update, undefined);
+  const legacy = buildItems({ ...sources, catalog, installed: [{ ...installed, source_catalog: undefined }] }).find(
+    (i) => i.ext?.id === "linear",
+  );
+  assert.equal(legacy?.entry, undefined);
+  assert.equal(legacy?.update, undefined);
 });
 
 test("a page opened on a catalog's entry keeps showing it once added, as the owner's", () => {

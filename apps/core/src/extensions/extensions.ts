@@ -134,7 +134,16 @@ export function createExtensions(deps: {
 
   type Shown = Pick<
     ExtensionRecord,
-    "id" | "manifest" | "hash" | "dir" | "source" | "enabled" | "installed_at" | "provenance" | "settings"
+    | "id"
+    | "manifest"
+    | "hash"
+    | "dir"
+    | "source"
+    | "enabled"
+    | "installed_at"
+    | "provenance"
+    | "settings"
+    | "origin_key"
   > & {
     /** Installed: the agents the owner added from it. */
     added_agents?: ExtensionRecord["added_agents"];
@@ -167,6 +176,17 @@ export function createExtensions(deps: {
     const got = e.skillLines ?? (e.dir ? skillLinesIn(e.dir, e.manifest) : {});
     return Object.keys(got).length ? { skill_lines: got } : {};
   };
+  const sourceCatalog = (origin: string | undefined) => {
+    if (!origin?.startsWith("catalog-v2:")) return undefined;
+    try {
+      const value: unknown = JSON.parse(origin.slice("catalog-v2:".length));
+      if (Array.isArray(value) && typeof value[0] === "string" && typeof value[1] === "string")
+        return { catalog: value[0], entry: value[1] };
+    } catch {
+      /* An older or invalid origin has no verified catalog identity. */
+    }
+    return undefined;
+  };
   const base = (e: Shown): Omit<ExtensionInfo, "brings" | "needs" | "hosts" | "listing"> => ({
     id: e.id,
     name: e.manifest.name,
@@ -176,6 +196,7 @@ export function createExtensions(deps: {
     hash: e.hash,
     // Shown with "~" for the home; install reads it back.
     source: tildeHome(e.source),
+    ...(sourceCatalog(e.origin_key) ? { source_catalog: sourceCatalog(e.origin_key) } : {}),
     skills: e.skills ?? skillNames(e.dir, e.manifest),
     ...lines(e),
     mcp: Object.keys(e.manifest.mcp).map((n) => `${e.id}-${n}`),

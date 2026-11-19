@@ -43,6 +43,7 @@ test("catalogs with the same displayed names do not share extension identity", a
     const a = await env.client.call("extensions.catalog_add", { source: first.path });
     const b = await env.client.call("extensions.catalog_add", { source: second.path });
     const installed = await env.client.call("extensions.install", { entry: { catalog: a.id, id: "shared" } });
+    assert.deepEqual(installed.source_catalog, { catalog: a.id, entry: "shared" });
     const key = installed.settings.find((s) => s.label === "Secret token")?.name;
     assert.ok(key);
     await env.client.call("extensions.settings", { id: "shared", values: { [key]: "synthetic-private-key" } });

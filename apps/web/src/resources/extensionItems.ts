@@ -245,8 +245,10 @@ export function buildItems(src: {
   // APX's own entry stands for an id that an added catalog also lists (that one becomes its other version).
   const byId = new Map(src.catalog.filter((c) => !c.catalog).map((c) => [c.id, c]));
   // One installed from an added catalog keeps its place there (its source names the entry it came from).
-  const fromAdded = (e: ExtensionInfo) =>
-    src.catalog.find((c) => c.catalog && c.id === e.id && e.source.endsWith(` · ${c.name}`));
+  const fromAdded = (e: ExtensionInfo) => {
+    const source = e.source_catalog;
+    return source ? src.catalog.find((c) => c.catalog === source.catalog && c.id === source.entry) : undefined;
+  };
   const mine = new Set(src.installed.map((e) => e.id));
   const packaged = new Set([...byId.keys(), ...mine]);
   const connected = new Set(src.integrations.filter((i) => i.connected && !i.own).map((i) => i.id));
@@ -276,7 +278,7 @@ export function buildItems(src: {
           },
         ]
       : []),
-    ...src.installed.map((e) => installed(e, byId.get(e.id) ?? fromAdded(e))),
+    ...src.installed.map((e) => installed(e, e.provenance === "official" ? byId.get(e.id) : fromAdded(e))),
     ...src.catalog.filter((c) => !mine.has(c.id) && (c.catalog || !connected.has(c.id))).map(offered),
   ]);
 }

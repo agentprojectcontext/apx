@@ -462,6 +462,7 @@ export const ExtensionInfo = z.object(
     hash: () => z.string(),
     /** The folder it was installed from. */
     source: () => z.string(),
+    source_catalog: () => z.object({ catalog: z.string(), entry: z.string() }).optional(),
     skills: () => z.array(z.string()),
     mcp: () => z.array(z.string()),
     routines: () => ExtensionManifest.shape.routines,
