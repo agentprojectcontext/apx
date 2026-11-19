@@ -232,10 +232,11 @@ otra; una carpeta se lee donde corre el core.
 </Tabs>
 
 Una extensión de otra fuente no puede reemplazar una instalada con el mismo ID mientras tenga ajustes o secretos
-guardados: de otro modo podría recibirlos. Para cambiarla, eliminá primero la instalada, agregá la otra y conectala de nuevo.
-Al eliminarla también se borran sus secretos guardados. Una extensión de un catálogo de terceros instalada antes de
-que APX registrara la identidad de su fuente también puede necesitar que la elimines y la agregues de nuevo para
-actualizarla.
+guardados, o use el puente de acceso `mcp-remote`: de otro modo podría reutilizar la conexión de la primera. Para
+cambiarla, eliminá primero la instalada y agregá la otra. Al eliminarla se borran sus secretos guardados en APX;
+`mcp-remote` guarda su propia sesión por separado y puede reutilizarla. Una extensión de un catálogo de terceros
+instalada antes de que APX registrara la identidad de su fuente también puede necesitar que la elimines y la agregues
+de nuevo para actualizarla.
 
 Para plugins de Claude convertidos, APX también copia los directorios compartidos que una habilidad menciona
 explícitamente y ajusta las rutas a la carpeta del plugin. Otras funciones, como los hooks y comandos, no se

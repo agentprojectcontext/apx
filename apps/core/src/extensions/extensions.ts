@@ -245,6 +245,7 @@ export function createExtensions(deps: {
   };
   const hasPrivateConfig = (old: ExtensionRecord, next: ExtensionManifest) => {
     if (Object.keys(old.settings).length) return true;
+    if ([old.manifest, next].some((m) => Object.values(m.mcp).some((s) => s.args.includes("mcp-remote")))) return true;
     const names = [old.manifest, next].flatMap((m) => [
       ...m.secrets.map((s) => s.name),
       ...m.settings.filter((s) => s.sensitive).map((s) => s.name),
@@ -550,7 +551,7 @@ export function createExtensions(deps: {
         hasPrivateConfig(e, prev.manifest)
       )
         throw badRequest(
-          `${e.manifest.name} has saved settings from a different source; remove it before installing the earlier one`,
+          `${e.manifest.name} has a connection from a different source; remove it before installing the earlier one`,
         );
       const back = previousDir(id);
       if (!fs.existsSync(back) || !sameFiles(back, prev.hash))

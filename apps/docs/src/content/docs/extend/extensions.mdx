@@ -228,9 +228,10 @@ a folder is read where the core runs.
 </Tabs>
 
 An extension from another source cannot replace an installed one with the same ID while it has saved settings or
-secrets: it could otherwise receive those values. To switch, remove the installed extension first, then add the other one and
-connect it again. Removing it also removes its saved secrets. A third-party catalog extension installed before APX
-recorded its source identity may likewise need to be removed and added again before updating.
+secrets, or uses the `mcp-remote` sign-in bridge: it could otherwise reuse the first extension's connection. To switch,
+remove the installed extension first, then add the other one. Removing it deletes its APX-saved secrets; `mcp-remote`
+keeps its own sign-in state separately and may reuse it. A third-party catalog extension installed before APX recorded
+its source identity may likewise need to be removed and added again before updating.
 
 For converted Claude plugins, APX also copies shared directories explicitly referenced by a skill and adjusts its
 plugin-root paths. Other plugin features, such as hooks and commands, are not converted; a copied script does not run
