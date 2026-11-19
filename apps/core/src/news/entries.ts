@@ -24,6 +24,7 @@ import { HEADLINE_MODELS_NEWS } from "./headline-models.ts";
 import { HERMES_IMPORT_NEWS } from "./hermes-import.ts";
 import { HOME_CHANNEL_SWITCH_NEWS } from "./home-channel-switch.ts";
 import { LOCAL_MODELS_NEWS } from "./local-models.ts";
+import { MARKETPLACE_NEWS } from "./marketplace.ts";
 import { MCP_CONTEXT_NEWS } from "./mcp-context.ts";
 import { MCP_REACH_NEWS } from "./mcp-reach.ts";
 import { MEMORY_REVIEW_NEWS } from "./memory-review.ts";
@@ -179,6 +180,7 @@ export const NEWS: readonly NewsEntry[] = [
   MEMORY_REVIEW_NEWS,
   GROUP_CHATS_NEWS,
   VOICE_CALLS_NEWS,
+  MARKETPLACE_NEWS,
   CONTACT_BOOKING_NEWS,
   SIMPLE_PANEL_NEWS,
   {
