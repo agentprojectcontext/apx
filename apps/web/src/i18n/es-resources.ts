@@ -616,6 +616,7 @@ export const esResources: Partial<Record<MessageKey, string>> = {
   "mkt.agents": "Agentes que trae",
   "mkt.addAgent": "Agregar agente",
   "mkt.agentAdded": "{name} ya está en tu equipo.",
+  "mkt.agentInTeam": "En tu equipo",
   "mkt.apps": "Widgets y apps que trae",
   "mkt.addApp": "Agregar a Apps",
   "mkt.pairDownload": "Descargar {file}",

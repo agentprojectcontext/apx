@@ -5634,3 +5634,22 @@ cloning every remote plugin to read its skills (a git fetch per plugin on every 
 
 Docs impact: updated `apps/docs` extend/extensions (EN/ES): categories, Another version, what is read with the
 catalog, the `empty` reason and the left-out list.
+
+<a id="d-254"></a>
+## D-254 — 2026-11-19 — An extension's agents leave with it, archived
+
+Adding one of an extension's ready-made agents made a plain agent from the panel: nothing remembered where it came
+from, so removing the extension left its agents in the team. The owner wants them to go with it.
+
+- `extensions.add_agent` makes the agent in the core (global, like one made by hand, its id from its name) and the
+  extension keeps the link in `extensions.added_agents` (its agent's id → the agent's id). Asked again, it answers the
+  agent already there; the page's button reads **In your team**.
+- `extensions.remove` archives the agents still linked, as the team's own Archive does, so each can come back or be
+  deleted for good in Config › Agents; the confirmation names them first. One that answers a channel is kept and
+  named in the result (`kept`), since a channel would otherwise answer as nobody, which `agents.archive` refuses too.
+- An update keeps the links; a renamed agent is still found by its id.
+
+Rejected: deleting them for good (an agent may have chats and notes the owner wants back); leaving them (the owner
+asked for them to go); marking the agent itself with its extension (a field on every agent for one origin).
+
+Docs impact: updated `apps/docs` extend/extensions (EN/ES): what happens to an extension's agents when it is removed.

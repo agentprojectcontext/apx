@@ -59,18 +59,24 @@ test("extension inspect, install and toggles preserve exact protocol intent and 
 test("extension list, removal and clearing a secret never request its value as argv", async () => {
   const { client, calls } = recordingClient({
     "extensions.list": { extensions: [extension] },
-    "extensions.remove": { removed: true },
+    "extensions.remove": { removed: true, archived: ["Marketing planner"], kept: ["Data operations"] },
     "extensions.set_secret": extension,
   });
   assert.match(await printed(() => extensions(client, [], {})), /^acme {2}Acme/);
-  assert.equal(await printed(() => extensions(client, ["rm", "acme"], {})), "removed");
+  assert.equal(
+    await printed(() => extensions(client, ["rm", "acme"], {})),
+    "removed\narchived the agents added from it: Marketing planner\nkept, they answer a channel: Data operations",
+  );
   await printed(() => extensions(client, ["secret", "acme", "api"], { clear: true }));
   assert.deepEqual(calls, [
     ["extensions.list", {}],
     ["extensions.remove", { id: "acme" }],
     ["extensions.set_secret", { id: "acme", name: "api", value: null }],
   ]);
-  const empty = recordingClient({ "extensions.list": { extensions: [] }, "extensions.remove": { removed: false } });
+  const empty = recordingClient({
+    "extensions.list": { extensions: [] },
+    "extensions.remove": { removed: false, archived: [], kept: [] },
+  });
   assert.match(await printed(() => extensions(empty.client, [], {})), /^\(no extensions\)/);
   assert.equal(await printed(() => extensions(empty.client, ["rm", "missing"], {})), "no such extension");
 });

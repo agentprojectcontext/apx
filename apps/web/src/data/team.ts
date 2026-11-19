@@ -126,6 +126,18 @@ export async function updateAgent(agent: string, fields: Omit<Params<"agents.upd
 }
 
 /** A new agent: in a project's `.apc/agents/` or, with no project, a global one. Undefined when the core refused. */
+/** One of an extension's ready-made agents, added to the owner's team (removing the extension archives it). */
+export async function addExtensionAgent(id: string, agent: string): Promise<Agent | undefined> {
+  try {
+    const made = await client.call("extensions.add_agent", { id, agent });
+    data.set((s) => ({ agents: { ...s.agents, [made.id]: made } }));
+    return made;
+  } catch (e) {
+    notify(t("error.save", { error: errText(e) }));
+    return undefined;
+  }
+}
+
 export async function createAgent(
   fields: Omit<Params<"agents.create">, "slug" | "role" | "prompt"> & { role?: string; prompt?: string },
 ): Promise<Agent | undefined> {

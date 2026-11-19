@@ -17,6 +17,7 @@ import { badRequest, CallError, errorMessage, notFound } from "../errors.ts";
 import { expandHome, isInside, real, realpath, samePath, tildeHome } from "../paths.ts";
 import { extensionSecret as extSecret } from "../secret-names.ts";
 import type { Secrets } from "../secrets.ts";
+import { addExtensionAgent, addedAgents, archiveExtensionAgents } from "./agents.ts";
 import { type Catalog, type CatalogCheck, DownloadError, downloadArchive } from "./catalog.ts";
 import { ASSET_MAX, createPackageReader, newest } from "./catalog-packages.ts";
 import type { Catalogs } from "./catalogs.ts";
@@ -120,6 +121,8 @@ export function createExtensions(deps: {
     ExtensionRecord,
     "id" | "manifest" | "hash" | "dir" | "source" | "enabled" | "installed_at" | "provenance" | "settings"
   > & {
+    /** Installed: the agents the owner added from it. */
+    added_agents?: ExtensionRecord["added_agents"];
     skills?: string[];
     catalog?: CatalogCheck["catalog"];
     update?: ExtensionInfo["update"];
@@ -137,6 +140,11 @@ export function createExtensions(deps: {
       ...(ownerHost(e.manifest) ? { owner_host: true } : {}),
       ...(listing ? { listing: listingCopy(listing, e.manifest, e.provenance === "official") } : {}),
     };
+  };
+  /** The agents added from it that the owner still has, when there are any. */
+  const addedOf = (e: Shown) => {
+    const added = e.added_agents ? addedAgents(store, { added_agents: e.added_agents }) : [];
+    return added.length ? { added_agents: added } : {};
   };
   const base = (e: Shown): Omit<ExtensionInfo, "brings" | "needs" | "hosts" | "listing"> => ({
     id: e.id,
@@ -172,6 +180,7 @@ export function createExtensions(deps: {
     provenance: e.provenance,
     settings: settingsInfo(e, secrets),
     agents: e.manifest.agents,
+    ...addedOf(e),
     pages: e.manifest.pages.map((p) => ({ id: p.id, title: p.title })),
     apps: e.manifest.apps,
     ...(e.manifest.companion ? { companion: e.manifest.companion } : {}),
@@ -512,9 +521,11 @@ export function createExtensions(deps: {
       else plugins.stop(id);
       return shown(get(id));
     },
-    remove(id: string): boolean {
+    /** Removes it, and archives the agents the owner added from it (one answering a channel stays). */
+    remove(id: string): { removed: boolean; archived: string[]; kept: string[] } {
       const e = store.extensions.get(id);
-      if (!e) return false;
+      if (!e) return { removed: false, archived: [], kept: [] };
+      const agents = archiveExtensionAgents(store, e);
       plugins.stop(id);
       for (const s of e.manifest.secrets) secrets.set(extSecret(id, s.name), null);
       store.extensions.remove(id);
@@ -522,8 +533,10 @@ export function createExtensions(deps: {
       fs.rmSync(previousDir(id), { recursive: true, force: true });
       // A later extension with the same id starts clean.
       fs.rmSync(path.join(deps.home, "extension-data", id), { recursive: true, force: true });
-      return true;
+      return { removed: true, ...agents };
     },
+    /** One of its ready-made agents, added to the owner's team. */
+    addAgent: (id: string, agent: string) => addExtensionAgent(store, get(id), agent),
     /** Its settings (manifest 2); a running plugin starts again with them. */
     setSettings(id: string, values: Record<string, string | number | boolean | null>): ExtensionInfo {
       v2.set(get(id), values);

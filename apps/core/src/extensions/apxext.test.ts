@@ -150,7 +150,11 @@ test("an update: official and asking for nothing more stays on; one that reaches
   fs.writeFileSync(path.join(extDir(), "weather.prev", "README.md"), "edited");
   await refused(env.client.call("extensions.rollback", { id: "weather" }), /changed on disk/);
 
-  assert.deepEqual(await env.client.call("extensions.remove", { id: "weather" }), { removed: true });
+  assert.deepEqual(await env.client.call("extensions.remove", { id: "weather" }), {
+    removed: true,
+    archived: [],
+    kept: [],
+  });
   assert.deepEqual(fs.readdirSync(extDir()), []);
   await refused(env.client.call("extensions.rollback", { id: "weather" }), /not found/);
 });

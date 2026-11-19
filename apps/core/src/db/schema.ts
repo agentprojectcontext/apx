@@ -110,6 +110,7 @@ export interface ExtensionsTable {
   provenance: Generated<string>;
   previous: string | null;
   settings: string | null;
+  added_agents: string | null;
 }
 
 export interface FlowEventsTable {

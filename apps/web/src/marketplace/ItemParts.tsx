@@ -5,7 +5,7 @@ import "@apx/ui/disclosure.css";
 import { installArtifact } from "../data/artifacts.ts";
 import { client } from "../data/client.ts";
 import { notify } from "../data/notices.ts";
-import { createAgent } from "../data/team.ts";
+import { addExtensionAgent } from "../data/team.ts";
 import { type MessageKey, useT } from "../i18n/index.ts";
 import type { Item } from "../resources/extensionItems.ts";
 import { attempt, ExtensionRoutines, useAddRoutine } from "../resources/InstalledExtension.tsx";
@@ -80,21 +80,29 @@ function Part({
   );
 }
 
-function Agents({ e }: { e: ExtensionInfo }) {
+function Agents({ e, onChanged }: { e: ExtensionInfo; onChanged(): Promise<void> }) {
   const t = useT();
   const add = async (a: ExtensionInfo["agents"][number]) => {
-    const made = await createAgent({ name: a.name, description: a.description, prompt: a.prompt });
+    const made = await addExtensionAgent(e.id, a.id);
     if (made) notify(t("mkt.agentAdded", { name: made.name }), "info");
+    await onChanged();
   };
+  const added = new Set((e.added_agents ?? []).map((x) => x.agent));
   return (
     <>
       {e.agents.map((a) => (
         <Part key={a.id} icon={<Icons.Bot size={14} />} title={a.name} kind="mkt.part.agentOne">
           {a.description && <p className="mkt-part__note">{a.description}</p>}
           <div>
-            <Button size="sm" variant="secondary" leadingIcon={<Icons.Plus size={14} />} onClick={() => void add(a)}>
-              {t("mkt.addAgent")}
-            </Button>
+            {added.has(a.id) ? (
+              <Button size="sm" variant="secondary" disabled leadingIcon={<Icons.Check size={14} />}>
+                {t("mkt.agentInTeam")}
+              </Button>
+            ) : (
+              <Button size="sm" variant="secondary" leadingIcon={<Icons.Plus size={14} />} onClick={() => void add(a)}>
+                {t("mkt.addAgent")}
+              </Button>
+            )}
           </div>
         </Part>
       ))}
@@ -149,7 +157,16 @@ const PLATFORM: Record<NonNullable<ExtensionInfo["companion"]>["platform"], stri
   linux: "Linux",
 };
 
-export function ItemParts({ item, servers }: { item: Item; servers: McpServerStatus[] }) {
+export function ItemParts({
+  item,
+  servers,
+  onChanged,
+}: {
+  item: Item;
+  servers: McpServerStatus[];
+  /** Something changed (an agent added): read it again. */
+  onChanged(): Promise<void>;
+}) {
   const t = useT();
   const addRoutine = useAddRoutine();
   const e = item.ext;
@@ -186,7 +203,7 @@ export function ItemParts({ item, servers }: { item: Item; servers: McpServerSta
         <p className="mkt-part__note">{t("mkt.part.skillsNote")}</p>
       </Part>,
     );
-  if (e?.agents.length) rows.push(<Agents key="agents" e={e} />);
+  if (e?.agents.length) rows.push(<Agents key="agents" e={e} onChanged={onChanged} />);
   if (!e && item.brings.includes("agents"))
     rows.push(
       <Part key="agents" icon={<Icons.Bot size={14} />} title={t("mkt.part.agentsTitle")} kind="mkt.part.agentOne">

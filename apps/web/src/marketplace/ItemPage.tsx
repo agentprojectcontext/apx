@@ -2,6 +2,7 @@ import type { McpServerStatus } from "@apx/protocol";
 import { Button, Card, ConfirmDialog, IconButton, Icons, MarkdownView, Menu, type MenuEntry } from "@apx/ui";
 import { type ReactNode, useState } from "react";
 import { client } from "../data/client.ts";
+import { notify } from "../data/notices.ts";
 import { setMcp, signInMcp } from "../data/resources.ts";
 import { useLanguage, useT } from "../i18n/index.ts";
 import { openExtensionInstall } from "../resources/extensionInstall.ts";
@@ -11,7 +12,7 @@ import { attempt } from "../resources/InstalledExtension.tsx";
 import { McpDialog } from "../resources/McpDialog.tsx";
 import { go } from "../shell/nav.ts";
 import { AboutSections } from "./AboutParts.tsx";
-import { aboutEntry } from "./about.ts";
+import { aboutEntry, listText } from "./about.ts";
 import { ItemIcon } from "./ConnectHead.tsx";
 import { ItemFacts, ItemLinks } from "./ItemFacts.tsx";
 import { ItemLabel } from "./ItemLabel.tsx";
@@ -158,9 +159,20 @@ export function ItemPage({
         onSelect: () =>
           setAsking({
             title: t("mkt.removeTitle", { name: item.name }),
-            body: t("mkt.removeBody"),
+            body: e.added_agents?.length
+              ? t("mkt.removeBodyAgents", {
+                  names: listText(
+                    e.added_agents.map((a) => a.name),
+                    t,
+                  ),
+                })
+              : t("mkt.removeBody"),
             label: t("mkt.remove"),
-            run: () => run(() => client.call("extensions.remove", { id: e.id })).then(() => onBack()),
+            run: () =>
+              run(async () => {
+                const r = await client.call("extensions.remove", { id: e.id });
+                if (r.kept.length) notify(t("mkt.removedKept", { names: listText(r.kept, t) }));
+              }).then(() => onBack()),
           }),
       },
     );
@@ -309,7 +321,7 @@ export function ItemPage({
               <ItemLinks item={item} />
             </>
           ) : (
-            <ItemParts item={item} servers={servers} />
+            <ItemParts item={item} servers={servers} onChanged={onChanged} />
           )}
           {versions.length > 0 && (
             <section className="mkt-section">

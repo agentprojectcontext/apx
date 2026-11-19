@@ -3,6 +3,7 @@
 import { z } from "zod";
 import { deferMethod } from "./defer-method.ts";
 import { ArtifactBundle } from "./domain-artifacts.ts";
+import { Agent } from "./domain-models.ts";
 import { CatalogEntry, ExtensionCatalog, ExtensionInfo, ExtensionSource } from "./extensions.ts";
 
 /** An extension is read from exactly one place. */
@@ -229,7 +230,17 @@ export const extensionMethods = {
     result: () =>
       z.object({
         removed: z.boolean(),
+        /** The agents added from it, archived with it, by name; `kept`: those still answering a channel. */
+        archived: z.array(z.string()).default([]),
+        kept: z.array(z.string()).default([]),
       }),
+    effect: true,
+    access: "human",
+  }),
+  /** Adds one of its ready-made agents to the owner's team; removing the extension archives it (DECISIONS.md#d-254). */
+  "extensions.add_agent": deferMethod({
+    params: () => z.object({ id: z.string().max(40), agent: z.string().max(40) }).strict(),
+    result: () => Agent,
     effect: true,
     access: "human",
   }),

@@ -606,6 +606,7 @@ export const enResources = {
   "mkt.agents": "Agents it brings",
   "mkt.addAgent": "Add agent",
   "mkt.agentAdded": "{name} is in your team now.",
+  "mkt.agentInTeam": "In your team",
   "mkt.apps": "Widgets and apps it brings",
   "mkt.addApp": "Add to Apps",
   "mkt.pairDownload": "Download {file}",

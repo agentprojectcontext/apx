@@ -96,6 +96,34 @@ test("an added one's page names the skills it brings", async ({ page }) => {
   await expect(page.getByText("campaign-strategist y deals-crm", { exact: true })).toBeVisible();
 });
 
+test("an agent added from an extension is archived when the extension is removed", async ({ page }) => {
+  const root = await folder("acme-crew", {
+    manifest: 2,
+    id: "acme-crew",
+    name: "Acme crew",
+    version: "1.0.0",
+    description: "Ready-made agents.",
+    agents: [{ id: "planner", name: "Campaign planner", description: "Plans campaigns.", prompt: "Plan campaigns." }],
+  });
+  const box = await fromFolder(page, root);
+  await box.getByRole("button", { name: "Agregar", exact: true }).click();
+  await expect(box.getByRole("heading", { name: "Acme crew está lista" })).toBeVisible();
+  await box.getByRole("button", { name: "Listo" }).click();
+  await page.getByRole("button", { name: "Acme crew", exact: true }).click();
+  await page.getByText("Campaign planner", { exact: true }).click();
+  await page.getByRole("button", { name: "Agregar agente" }).click();
+  await expect(page.getByRole("button", { name: "En tu equipo" })).toBeDisabled();
+
+  await page.getByRole("button", { name: "Más opciones" }).click();
+  await page.getByRole("menuitem", { name: "Quitar" }).click();
+  const confirm = page.getByRole("dialog", { name: "¿Quitar Acme crew?" });
+  await expect(confirm.getByText(/se archivan los agentes que agregaste desde ella: Campaign planner/)).toBeVisible();
+  await confirm.getByRole("button", { name: "Quitar", exact: true }).click();
+  await expect(confirm).toBeHidden();
+  const archived = (await rpc<{ agents: Array<{ id: string }> }>("agents.archived")).agents;
+  expect(archived.map((a) => a.id)).toContain("campaign-planner");
+});
+
 test("its settings keep each part apart: the keys, reading it again and trying it", async ({ page }, info) => {
   const root = await folder("northwind-desk", {
     id: "northwind-desk",

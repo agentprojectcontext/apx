@@ -35,6 +35,7 @@ const CHANGES = [
   "extensions.rollback",
   "extensions.enable",
   "extensions.remove",
+  "extensions.add_agent",
   "extensions.set_secret",
   "extensions.settings",
   "extensions.catalog_add",
@@ -101,8 +102,9 @@ function extensionMethods(extensions: Extensions, mcp: Mcp) {
     },
     "extensions.remove": ({ id }) => {
       dropServers(id);
-      return { removed: extensions.remove(id) };
+      return extensions.remove(id);
     },
+    "extensions.add_agent": ({ id, agent }) => extensions.addAgent(id, agent),
     "extensions.test": ({ id, text }) => extensions.testContext(id, text),
     "extensions.set_secret": ({ id, name, value }) => {
       // A server started with the old value would keep it.

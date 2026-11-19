@@ -248,6 +248,10 @@ export const enMarketplace = {
   "mkt.catalogRemoveBody": "Its {n} extensions leave Explore. The ones you already added stay.",
   "mkt.removeTitle": "Remove {name}?",
   "mkt.removeBody": "Its files, keys and settings go. You can add it again later.",
+  "mkt.removeBodyAgents":
+    "Its files, keys and settings go, and the agents you added from it are archived: {names}. You can bring them back or delete them for good in Config › Agents.",
+  "mkt.removedKept":
+    "{names} stayed in your team because they answer a channel. Choose who answers it in Channels, then archive them.",
   "mkt.disconnectTitle": "Disconnect {name}?",
   "mkt.disconnectBody": "Your agents stop using it and its keys are deleted. You can connect it again later.",
   "mkt.twin":
