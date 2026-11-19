@@ -10,6 +10,7 @@ import { catalogPluginIds } from "./catalog-identities.ts";
 import { parseSource } from "./catalogs.ts";
 import { convertPlugin, licenseOf } from "./claude-plugin.ts";
 import { hostsOf, ownerHost, readFiles } from "./package.ts";
+import { bringsOf } from "./summary.ts";
 
 const MIT = "MIT License\n\nPermission is hereby granted, free of charge, to any person obtaining a copy...";
 const PROPRIETARY = "Copyright Acme. All rights reserved. No part of this may be copied.";
@@ -172,6 +173,7 @@ test("plugin settings with the same truncated name stay separate and repeated pl
   assert.equal(server.env.FIRST, server.env.AGAIN);
   assert.equal(pkg.manifest.settings?.length, 2);
   assert.ok(pkg.manifest.settings?.every((setting) => setting.sensitive));
+  assert.ok(bringsOf(pkg.manifest).includes("accounts"));
   files.set(
     ".mcp.json",
     Buffer.from(

@@ -127,7 +127,7 @@ function connectionOf(m: ExtensionManifest, l?: ListingFile): ExtensionConnectio
   if (l?.authentication === "oauth") return "oauth";
   if (l?.authentication === "secret") return "key";
   if (l?.authentication === "local-permission") return "local";
-  return m.secrets.length ? "key" : "none";
+  return m.secrets.length || m.settings.some((s) => s.sensitive) ? "key" : "none";
 }
 
 /**
