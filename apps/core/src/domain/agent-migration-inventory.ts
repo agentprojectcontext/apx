@@ -1,5 +1,6 @@
 import { createHash } from "node:crypto";
 import { badRequest, notFound } from "../errors.ts";
+import { migrationBusyBlockers } from "./agent-migration-busy.ts";
 import { migrationGrants } from "./agent-migration-grants.ts";
 import { migrationResources } from "./agent-migration-resources.ts";
 import { migrationWork } from "./agent-migration-scope.ts";
@@ -71,44 +72,7 @@ export function agentMigrationInventory(q: Sql, agentId: string, destinationId: 
     )
   )
     blockers.push("artifact_name_conflict");
-  const sourceThreads = new Set(
-    q.all(qb.selectFrom("threads").select("id").where("project_id", "=", source.id)).map((t) => t.id),
-  );
-  const sourceAgents = new Set(
-    q.all(qb.selectFrom("agents").select("id").where("project_id", "=", source.id)).map((a) => a.id),
-  );
-  const owners = new Set(q.all(qb.selectFrom("agents").select("id").where("kind", "=", "secretary")).map((a) => a.id));
-  if (
-    q
-      .all(qb.selectFrom("runs").select(["agent_id", "thread_id", "ended_at"]))
-      .some(
-        (r) =>
-          !r.ended_at && !owners.has(r.agent_id) && (sourceAgents.has(r.agent_id) || sourceThreads.has(r.thread_id)),
-      )
-  )
-    blockers.push("active_source_work");
-  if (
-    q
-      .all(qb.selectFrom("runs").select(["agent_id", "thread_id", "ended_at"]))
-      .some((r) => (r.agent_id === agentId || threadIds.has(r.thread_id)) && !r.ended_at)
-  )
-    blockers.push("active_run");
-  if (
-    q
-      .all(qb.selectFrom("jobs").select(["thread_id", "ended_at"]))
-      .some((j) => sourceThreads.has(j.thread_id) && !j.ended_at)
-  )
-    blockers.push("active_job");
-  if (
-    q
-      .all(qb.selectFrom("memory_work").select(["agent_id", "thread_id", "project_id", "state"]))
-      .some(
-        (j) =>
-          (j.agent_id === agentId || sourceThreads.has(j.thread_id) || j.project_id === source.id) &&
-          j.state === "working",
-      )
-  )
-    blockers.push("active_memory_work");
+  blockers.push(...migrationBusyBlockers(q, source.id, agentId, threadIds));
   if (surfaces.some((s) => s.share_token)) blockers.push("published_surface");
   const ids = <T extends { id: string }>(rows: T[]) => rows.map((r) => r.id).sort();
   const inventory = {

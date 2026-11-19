@@ -5634,3 +5634,26 @@ cloning every remote plugin to read its skills (a git fetch per plugin on every 
 
 Docs impact: updated `apps/docs` extend/extensions (EN/ES): categories, Another version, what is read with the
 catalog, the `empty` reason and the left-out list.
+
+<a id="d-254"></a>
+## D-254 — 2026-11-19 — An agent move keeps identity and related work, with a private recovery journal
+
+A move is an owner-confirmed operation between registered projects, not a clone or an agent edit. The protocol
+provides preview, apply and recovery; the panel, CLI and agent settings tool use that same contract. Preview binds
+selected relative files, the related database graph, destination team and connection bindings to a revision.
+Shared and completed tasks follow recorded participation. Unrelated chats stay where they were; historical author
+attribution is preserved while live participation and cross-project parent links are detached.
+
+Stage private before/after file journals before changing anything. Commit the database graph transactionally and
+reindex both project definitions while preserving the agent id and prompt. Persist pending work so a restart can
+finish a committed move or roll back an interrupted one. Recovery checks later database and file changes rather
+than overwriting new work. Keep recovery material private under the core home; it is not automatically erased.
+This is process-interruption recovery, not a disk-failure or universal power-loss guarantee.
+
+Moved routines pause, existing grants retire, and source-project connections and secret values do not copy.
+Protect moved chat, memory, search, attachment and native folder access from former project teammates. Retire old
+model memory snapshots and external harness sessions. Do not claim historical owner chats, exports, independent
+integrations or broad shell access have been scrubbed or sandboxed. Refuse active work and unsupported cross-project
+bindings rather than silently moving a partial graph. Existing destination teammates remain part of that project.
+
+Docs impact: updated agent-move concepts and CLI reference in English and Spanish, and the `apx-agents` skill.

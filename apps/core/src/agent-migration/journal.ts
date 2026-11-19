@@ -14,24 +14,26 @@ const Record = z.object({
   destination: z.string(),
   source_root: z.string(),
   destination_root: z.string(),
+  revision: z.string(),
+  paths: z.array(z.string()),
   threads: z.array(z.string()),
   journals: z.array(Name),
-  state: z.enum(["applying", "committed", "recovering", "restored"]),
+  state: z.enum(["preparing", "applying", "committed", "recovering", "restored"]),
 });
 export type MoveRecord = z.infer<typeof Record>;
 export const recoveryRoot = (home: string) => path.join(home, "agent-moves");
 export const recoveryFolder = (home: string, id: string) =>
   migrationFilePath(recoveryRoot(home), z.string().uuid().parse(id));
+export const moveRecordPath = (home: string, id: string) =>
+  migrationFilePath(recoveryRoot(home), `${z.string().uuid().parse(id)}.json`);
 export function writeMoveRecord(home: string, value: MoveRecord) {
   const record = Record.parse(value);
-  const folder = recoveryFolder(home, record.id);
-  fs.mkdirSync(folder, { recursive: true, mode: 0o700 });
-  writeAtomic(path.join(folder, "move.json"), JSON.stringify(record), 0o600);
+  fs.mkdirSync(recoveryRoot(home), { recursive: true, mode: 0o700 });
+  // Install the manifest before creating any per-move staging folder.
+  writeAtomic(moveRecordPath(home, record.id), JSON.stringify(record), 0o600);
 }
 export function readMoveRecord(home: string, id: string): MoveRecord {
-  const record = Record.parse(
-    JSON.parse(fs.readFileSync(migrationFilePath(recoveryFolder(home, id), "move.json"), "utf8")),
-  );
+  const record = Record.parse(JSON.parse(fs.readFileSync(moveRecordPath(home, id), "utf8")));
   if (record.id !== id) throw badRequest("This recovery journal belongs to another move");
   return record;
 }

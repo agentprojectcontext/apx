@@ -56,6 +56,7 @@ El core conserva un registro privado y copias de respaldo en `APX_HOME/agent-mov
 Pueden contener trabajo sensible: no los agregues a repositorios ni carpetas compartidas. La recuperación se conserva,
 no se borra automáticamente después del éxito. Protegé y respaldá la carpeta de APX en consecuencia.
 
+Antes de preparar copias, se guarda un manifiesto privado. Así, una preparación interrumpida se puede cerrar sin registros de archivos completos ni cambios en los originales.
 Al reiniciar, APX intenta finalizar un traslado confirmado o restaurar uno interrumpido. El trabajo afectado queda bloqueado
 si la recuperación no puede terminar. Se rechazan archivos modificados o trabajo posterior relacionado en la base en vez de sobrescribirlos.
 El registro cubre procesos interrumpidos; no reemplaza un backup ante fallas del disco ni garantiza todos los casos de corte de energía.

@@ -5,9 +5,11 @@ import { test } from "node:test";
 import { createApcSync } from "../apc/sync.ts";
 import { createBus } from "../bus.ts";
 import { openDb } from "../db/db.ts";
+import { prepareFileJournal } from "../domain/agent-migration-file-journal.ts";
 import { canReadChat } from "../domain/chat-access.ts";
 import { createStore } from "../domain/store.ts";
 import { manualTimers, tempDir } from "../testkit/platform.ts";
+import { readMoveRecord, recoveryFolder, writeMoveRecord } from "./journal.ts";
 import { createAgentMigration } from "./service.ts";
 
 function fixture() {
@@ -129,6 +131,11 @@ test("a move preserves identity, exact instructions, shared completed work and b
     apcReindex(env);
     assert.equal(store.agents.get(agent.id)?.project_id, env.destinationId);
     assert.deepEqual(service.move({ ...input, id: preview.id, revision: preview.revision }), moved);
+    assert.throws(() => service.move({ ...input, id: preview.id, revision: "changed" }), /different request/);
+    assert.throws(
+      () => service.move({ ...input, paths: [], id: preview.id, revision: preview.revision }),
+      /different request/,
+    );
     assert.deepEqual(service.recover(preview.id), { id: preview.id, restored: true });
     assert.equal(store.agents.get(agent.id)?.project_id, env.sourceId);
     assert.equal(store.tasks.get(task.id)?.assignee, lead.id);
@@ -141,6 +148,70 @@ test("a move preserves identity, exact instructions, shared completed work and b
     await env.close();
   }
 });
+
+for (const stage of ["before-staging", "partial-first-group", "between-groups"] as const) {
+  test(`preparation interrupted ${stage} recovers after reopening without requiring complete file journals`, async () => {
+    const env = fixture();
+    try {
+      const input = { agent: env.agent.id, destination: env.destinationId, paths: ["reports"] };
+      const preview = env.service.preview(input);
+      writeMoveRecord(env.home, {
+        id: preview.id,
+        agent: env.agent.id,
+        source: env.sourceId,
+        destination: env.destinationId,
+        source_root: env.source,
+        destination_root: env.destination,
+        revision: preview.revision,
+        paths: preview.paths,
+        threads: preview.threads,
+        journals: ["work", "artifacts"],
+        state: "preparing",
+      });
+      const folder = recoveryFolder(env.home, preview.id);
+      assert.equal(fs.existsSync(folder), false, "the recovery record precedes all staging folders");
+      if (stage !== "before-staging") {
+        const work = prepareFileJournal(path.join(folder, "work"), preview.id, env.source, env.destination);
+        work.change("source", "reports/report.bin", null);
+        if (stage === "between-groups") {
+          work.persist();
+          const artifacts = prepareFileJournal(path.join(folder, "artifacts"), preview.id, env.source, env.destination);
+          artifacts.change("destination", "staged.txt", new TextEncoder().encode("Example staging"));
+        }
+      }
+      assert.throws(() => env.service.move({ ...input, id: preview.id, revision: preview.revision }), /Recover/);
+      env.apc.close();
+      env.db.close();
+      const db = openDb(env.home);
+      const store = createStore(db, createBus());
+      const apc = createApcSync({
+        store,
+        engines: { has: () => false },
+        watchTimers: manualTimers(),
+        log: { info() {}, warn() {}, error() {} },
+      });
+      try {
+        const restarted = createAgentMigration({ store, home: env.home, apc });
+        assert.deepEqual(restarted.recoverInterrupted(), [{ id: preview.id, state: "restored" }]);
+        assert.deepEqual(restarted.recover(preview.id), { id: preview.id, restored: true });
+        assert.equal(readMoveRecord(env.home, preview.id).state, "restored");
+        assert.equal(store.agents.get(env.agent.id)?.project_id, env.sourceId);
+        assert.equal(fs.readFileSync(path.join(env.source, ".apc", "agents", "researcher.md"), "utf8"), env.definition);
+        assert.deepEqual(new Uint8Array(fs.readFileSync(path.join(env.source, "reports", "report.bin"))), env.bytes);
+        assert.equal(fs.existsSync(path.join(env.destination, "reports", "report.bin")), false);
+        assert.equal(store.agentMigrationPending.list().length, 0);
+        assert.deepEqual(restarted.recoverInterrupted(), []);
+        const retry = restarted.preview(input);
+        assert.equal(restarted.move({ ...input, id: retry.id, revision: retry.revision }).state, "committed");
+      } finally {
+        apc.close();
+        db.close();
+      }
+    } finally {
+      await env.close();
+    }
+  });
+}
 
 function apcReindex(env: ReturnType<typeof fixture>) {
   env.apc.sync();

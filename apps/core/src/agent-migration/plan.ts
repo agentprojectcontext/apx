@@ -135,7 +135,8 @@ export function buildMigrationPlan(
       mode: change.mode,
     })),
   );
-  const { destinationAgents, sourceBindings, destinationBindings, bindingChanges, connectionsLeft } = migrationEnvironment(store, inventory.source, inventory.destination, bindings);
+  const { destinationAgents, sourceBindings, destinationBindings, bindingChanges, connectionsLeft } =
+    migrationEnvironment(store, inventory.source, inventory.destination, bindings);
   const revision = hash({
     inventory: inventory.revision,
     files,

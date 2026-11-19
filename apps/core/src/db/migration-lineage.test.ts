@@ -72,7 +72,10 @@ test("the pre-repair copy includes committed WAL rows and is kept in a private d
     writer.close();
     assert.ok(fs.statSync(path.join(home.path, "apx.db-wal")).size > 0);
     repaired = openDb(home.path);
-    assert.deepEqual(rows(repaired), expected);
+    assert.deepEqual(
+      rows(repaired),
+      expected.map((row) => ({ ...row, archived: 0 })),
+    );
     const file = backups(home.path)[0];
     assert.ok(file);
     if (process.platform !== "win32") {
@@ -113,7 +116,10 @@ test("lineage recovery refuses a user trigger whose name starts with sqlite but 
 });
 
 function rows(db: DatabaseSync) {
-  return db.prepare("SELECT * FROM model_log ORDER BY rowid").all();
+  return db
+    .prepare("SELECT * FROM model_log ORDER BY rowid")
+    .all()
+    .map((row) => ({ ...row }));
 }
 
 function backups(home: string): string[] {
@@ -135,7 +141,10 @@ test("version 105 with an already installed log index and missing tail columns i
     const expected = rows(db);
     db.close();
     db = openDb(home.path);
-    assert.deepEqual(rows(db), expected);
+    assert.deepEqual(
+      rows(db),
+      expected.map((row) => ({ ...row, archived: 0 })),
+    );
     assert.equal(
       db.prepare("SELECT value FROM meta WHERE key = 'schema_version'").get()?.value,
       String(MIGRATIONS.length),
@@ -157,7 +166,10 @@ test("version 105 with an already installed log index and missing tail columns i
     for (let restart = 0; restart < 3; restart++) {
       db.close();
       db = openDb(home.path);
-      assert.deepEqual(rows(db), expected);
+      assert.deepEqual(
+        rows(db),
+        expected.map((row) => ({ ...row, archived: 0 })),
+      );
       assert.equal(db.prepare("PRAGMA integrity_check").get()?.integrity_check, "ok");
       assert.equal(backups(home.path).length, 1);
     }

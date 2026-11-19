@@ -56,6 +56,7 @@ The core keeps a private journal and backups under `APX_HOME/agent-moves/<move-i
 These may contain sensitive work; keep them out of repositories and shared folders. Recovery material is retained,
 not automatically erased after success. Protect and back up the APX home accordingly.
 
+A private manifest is saved before staging begins, so an interrupted preparation can be retired without complete file journals or changes to the originals.
 On restart, APX attempts to finish a committed move or restore an interrupted one. Affected work stays blocked when
 recovery cannot complete. Recovery refuses changed files or newer related database work instead of overwriting them.
 This journal handles interrupted processes; it does not replace a backup against disk failure or guarantee survival
