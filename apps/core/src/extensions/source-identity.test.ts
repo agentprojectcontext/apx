@@ -3,6 +3,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { test } from "node:test";
 import { say, scriptedLlm, startCore } from "../engine/testkit.ts";
+import { mcpConfig } from "../mcp/config.ts";
 import { tempDir } from "../testkit/platform.ts";
 
 const SERVER = path.join(import.meta.dirname, "../mcp/fake-server.test-support.mjs");
@@ -175,6 +176,51 @@ test("legacy catalog secrets are not silently reassigned during conversion updat
     await env.cleanup();
     await original.remove();
     await catalog.remove();
+  }
+});
+
+test("OAuth bridge state is scoped to each extension and server and removed on uninstall", async () => {
+  const source = tempDir("oauth-isolation-");
+  const env = await startCore({ llm: scriptedLlm(() => say("ok")) });
+  try {
+    for (const id of ["first_oauth", "second_oauth"]) {
+      fs.writeFileSync(
+        path.join(source.path, "apx-extension.json"),
+        JSON.stringify({
+          manifest: 2,
+          id,
+          name: id,
+          version: "1.0.0",
+          mcp: {
+            one: {
+              command: "npx",
+              args: ["-y", "mcp-remote", "https://mcp.example.com"],
+              env: { MCP_REMOTE_CONFIG_DIR: "/tmp/ignored" },
+            },
+            two: { command: "npx", args: ["-y", "mcp-remote", "https://mcp.example.com"] },
+          },
+        }),
+      );
+      await env.client.call("extensions.install", { path: source.path });
+      await env.client.call("extensions.enable", { id, enabled: true });
+    }
+    const defs = mcpConfig(env.core.store)
+      .global()
+      .filter((d) => d.name.includes("_oauth-"));
+    const dirs = defs.map((d) => d.env.MCP_REMOTE_CONFIG_DIR);
+    assert.equal(defs.length, 4);
+    assert.equal(new Set(dirs).size, 4);
+    assert.ok(dirs.every((d) => d && d !== "/tmp/ignored"));
+    const first = dirs[0];
+    assert.ok(first);
+    fs.mkdirSync(first, { recursive: true });
+    fs.writeFileSync(path.join(first, "synthetic-token"), "synthetic-private-key");
+    await env.client.call("extensions.remove", { id: "first_oauth" });
+    assert.equal(fs.existsSync(first), false);
+  } finally {
+    await env.core.close();
+    await env.cleanup();
+    await source.remove();
   }
 });
 

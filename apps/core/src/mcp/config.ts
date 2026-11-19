@@ -125,12 +125,24 @@ function extensionDefs(store: Store): McpDef[] {
             address && all[at + m.length] === "/" ? setting(n).replace(/\/+$/, "") : setting(n),
           );
       const map = (r: Record<string, string>) => Object.fromEntries(Object.entries(r).map(([k, v]) => [k, own(v)]));
+      const bridge =
+        server.command === "mcp-remote" ||
+        (server.command === "npx" && server.args.some((arg) => /^mcp-remote(?:@[^/]+)?$/.test(arg)));
+      const env = map(server.env);
+      if (bridge)
+        env.MCP_REMOTE_CONFIG_DIR = path.join(
+          path.dirname(path.dirname(e.dir)),
+          "extension-data",
+          e.id,
+          "mcp-remote",
+          name,
+        );
       const raw: Raw = {
         ...(server.command
           ? { command: server.command.startsWith("./") ? path.join(e.dir, server.command) : server.command }
           : {}),
         args: server.args.map((a) => own(a)),
-        env: map(server.env),
+        env,
         ...(server.url ? { url: own(server.url, true) } : {}),
         headers: map(server.headers),
       };
