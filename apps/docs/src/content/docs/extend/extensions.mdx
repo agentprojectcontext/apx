@@ -57,6 +57,12 @@ you write there by hand stays a server of yours there and is not listed in the M
   it lists; each filter and the list above it say how many they show. An extension from another catalog says who
   makes it ("From Anthropic"), else the GitHub account its code lives under ("From acme on GitHub"), else "Third
   party". Only what APX publishes with those exact files is Official.
+- Another catalog's extensions go in APX's categories, beside APX's own (Claude's "database" and "monitoring" in
+  Data, "security" or "testing" in Development, "design" in Design and media…); one whose category fits none of them
+  stays under its catalog's name, after the categories.
+- One service is listed once. When another catalog offers something APX already includes or publishes (the same id,
+  the same name, or the same website), Explore and search show APX's, and its page lists the other one under
+  **Another version**, with the catalog it comes from; that one's own page points back to APX's.
 - Removing an extension or a catalog, or disconnecting an account, always asks first. In **Advanced**, APX's catalog
   has a lock (it is always there) and says how many it lists; **See in Explore** shows only one catalog's extensions.
 - **Advanced**, at the bottom of the left column, is for building and trying extensions: catalogs, installing from a
@@ -250,13 +256,20 @@ with `APX_MARKETPLACE_INDEX` ([Configuration](/reference/configuration/)).
 Claude plugins) are one click away. Everything from them is **Third party**; APX's own catalog always stays.
 
 - APX reads its own index format and Claude Code's `.claude-plugin/marketplace.json`. A Claude plugin installs turned
-  into an extension: its skills, its MCP servers (from `.mcp.json` or the file its `plugin.json` names), its `agents/`
+  into an extension: its skills, its MCP servers (from `.mcp.json`, with or without `mcpServers`, or the file its `plugin.json` names), its `agents/`
   as ready-made agents, its license and readme. A `${VAR}` in a server becomes a setting you fill in once: a key when
   its name says so (`KEY`, `TOKEN`, `SECRET`…), otherwise a plain value, with `${VAR:-default}` as its default. A server
   whose address you type says so before you turn it on. Commands and hooks have no APX counterpart and are left out.
+- What each plugin brings is read with the catalog, the way installing converts it, so it shows as what it is before
+  you add it (a plugin with an MCP server is a **Connector**). A plugin that would bring only what APX has no counterpart
+  for (commands, hooks, language servers, output styles) is left out, since it would add nothing. For a plugin kept in another repository APX reads only its server files at its
+  commit, so it shows as a Connector when it has one; whether it also brings skills or agents shows once added. A
+  catalog read before this shows it after **Read again**.
 - A plugin from another repository counts only pinned to a commit (`sha`); it is read at that commit.
 - Each plugin's license is read before it is listed (its own, else its repository's). Only licenses that allow a copy
-  (MIT, Apache-2.0, BSD, ISC, MPL-2.0, Unlicense, CC0, 0BSD) are converted; the rest are left out (`apx extensions catalogs` says which and why).
+  (MIT, Apache-2.0, BSD, ISC, MPL-2.0, Unlicense, CC0, 0BSD) are converted; the rest are left out. Its row in
+  **Advanced** lists what was left out and why (`apx extensions catalogs` too: `license`, `unpinned`, `source`,
+  `invalid` or `empty`).
 - APX keeps the commit each catalog was read at; **Read again** takes its newest.
 - In the panel a catalog is read in the background: you can close the dialog and keep working. Its row in
   **Advanced** says how far along it is (a big Claude catalog checks each plugin's license and can take a minute), and

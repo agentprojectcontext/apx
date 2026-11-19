@@ -1,11 +1,25 @@
 import type { Result } from "@apx/protocol";
-import { Button, ConfirmDialog, Dialog, Field, IconButton, Icons, Input, Meter, Spinner, Tooltip } from "@apx/ui";
+import {
+  Button,
+  ConfirmDialog,
+  Dialog,
+  Disclosure,
+  DisclosureFacts,
+  Field,
+  IconButton,
+  Icons,
+  Input,
+  Meter,
+  Spinner,
+  Tooltip,
+} from "@apx/ui";
 import { useEffect, useRef, useState } from "react";
 import { client } from "../data/client.ts";
 import { notify } from "../data/notices.ts";
 import { type MessageKey, useT } from "../i18n/index.ts";
 import { useCatalogReading } from "../resources/extensionInstall.ts";
 import { attempt } from "../resources/InstalledExtension.tsx";
+import "@apx/ui/disclosure.css";
 
 // The catalogs the owner adds for themself: a dialog to add one (a repository, an address, a folder, or one of the
 // suggested ones with one click), and the list of the added ones.
@@ -228,6 +242,11 @@ export function CatalogList({
                 onClick={() => setRemoving(c)}
               />
             </div>
+            {!at && c.skipped.length > 0 && (
+              <Disclosure title={t("mkt.leftOut", { n: c.skipped.length })} description={t("mkt.leftOutHint")}>
+                <DisclosureFacts rows={c.skipped.map((s) => [s.name, t(`mkt.reason.${s.reason}` as MessageKey)])} />
+              </Disclosure>
+            )}
           </div>
         );
       })}

@@ -39,7 +39,7 @@ import {
   writePackage,
 } from "./package.ts";
 import type { Plugins } from "./plugins.ts";
-import { bringsOf, type ListingFile, listingCopy, needsOf, readListing } from "./summary.ts";
+import { bringsOf, categoryOf, type ListingFile, listingCopy, needsOf, readListing } from "./summary.ts";
 
 export { extSecret, SECRET_REF, SETTING_REF };
 
@@ -328,21 +328,29 @@ export function createExtensions(deps: {
     /** What APX's catalog offers, each with what it brings once its package was read. */
     async catalogEntries(refresh = false) {
       const { entries, catalog: status } = await catalog.entries(refresh);
-      // Then the owner's own catalogs: third party, as they list them.
+      // Then the owner's own catalogs: third party, as they list them, filed in APX's categories where theirs maps.
       const added = deps.catalogs.list().flatMap((c) =>
-        c.entries.map((e) => ({
-          id: e.id,
-          name: e.name,
-          description: e.description,
-          categories: e.category ? [e.category] : [],
-          version: e.version,
-          provenance: "third_party" as const,
-          catalog: c.id,
-          catalog_name: c.name,
-          ...(e.license ? { license: e.license } : {}),
-          ...(e.publisher ? { publisher: e.publisher } : {}),
-          ...(e.github ? { github: e.github } : {}),
-        })),
+        c.entries.map((e) => {
+          const category = categoryOf(e.category);
+          return {
+            id: e.id,
+            name: e.name,
+            description: e.description,
+            categories: e.category ? [e.category] : [],
+            ...(category ? { category } : {}),
+            version: e.version,
+            provenance: "third_party" as const,
+            catalog: c.id,
+            catalog_name: c.name,
+            ...(e.license ? { license: e.license } : {}),
+            ...(e.publisher ? { publisher: e.publisher } : {}),
+            ...(e.github ? { github: e.github } : {}),
+            ...(e.homepage ? { homepage: e.homepage } : {}),
+            ...(e.brings ? { brings: e.brings } : {}),
+            ...(e.needs ? { needs: e.needs } : {}),
+            ...(e.contents ? { contents: e.contents } : {}),
+          };
+        }),
       );
       return {
         entries: [...(await packages.entries(entries, true)), ...added],

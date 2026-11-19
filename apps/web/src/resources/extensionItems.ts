@@ -66,6 +66,11 @@ export type Item = {
   builtin?: "browser";
   /** The server it runs, when APX knows it: an account's, or one the owner added by its address or command. */
   server?: McpServerStatus;
+  /**
+   * From a catalog the owner added, the same service as one APX includes or publishes (that one's key): shown as
+   * its other version on that one's page, never listed apart (DECISIONS.md#d-253).
+   */
+  twin?: string;
 };
 
 /** A channel kind as the screen names it: its name and line come from the channel's own texts. */
@@ -221,8 +226,9 @@ function offered(c: CatalogEntry): Item {
 }
 
 /**
- * Every extension once: an installed one stands for its catalog entry, and a catalog package for the account APX
- * ships as data under the same id (unless that account is connected).
+ * Every extension once: an installed one stands for its catalog entry, a catalog package for the account APX ships as
+ * data under the same id (unless that account is connected), and an added catalog's entry that repeats one of APX's
+ * is marked as that one's other version.
  */
 export function buildItems(src: {
   integrations: Integration[];
@@ -234,7 +240,7 @@ export function buildItems(src: {
   servers: McpServerStatus[];
   project?: string | undefined;
 }): Item[] {
-  // APX's own entry stands for an id that an added catalog also lists.
+  // APX's own entry stands for an id that an added catalog also lists (that one becomes its other version).
   const byId = new Map(src.catalog.filter((c) => !c.catalog).map((c) => [c.id, c]));
   // One installed from an added catalog keeps its place there (its source names the entry it came from).
   const fromAdded = (e: ExtensionInfo) =>
@@ -242,7 +248,7 @@ export function buildItems(src: {
   const mine = new Set(src.installed.map((e) => e.id));
   const packaged = new Set([...byId.keys(), ...mine]);
   const connected = new Set(src.integrations.filter((i) => i.connected && !i.own).map((i) => i.id));
-  return [
+  return markTwins([
     ...src.integrations
       .filter((i) => i.own || i.connected || !packaged.has(i.id))
       .map((i) => fromIntegration(i, src.servers, src.project)),
@@ -269,11 +275,50 @@ export function buildItems(src: {
         ]
       : []),
     ...src.installed.map((e) => installed(e, byId.get(e.id) ?? fromAdded(e))),
-    ...src.catalog
-      .filter((c) => !mine.has(c.id) && !connected.has(c.id) && (!c.catalog || !byId.has(c.id)))
-      .map(offered),
-  ];
+    ...src.catalog.filter((c) => !mine.has(c.id) && (c.catalog || !connected.has(c.id))).map(offered),
+  ]);
 }
+
+/** A service's name, to tell one listed twice: letters and digits only, without a trailing "MCP", "plugin" or "server". */
+export const serviceName = (name: string) =>
+  name
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim()
+    .replace(/( (mcp|plugin|server|connector|integration))+$/, "")
+    .replaceAll(" ", "");
+
+/** Where its code is kept says nothing of which service it is. */
+const CODE_HOST = /(^|\.)(github\.com|githubusercontent\.com|gitlab\.com|bitbucket\.org|npmjs\.com|pypi\.org)$/;
+/** The host of its own web page, when it has one that is not a code host. */
+const siteOf = (url: string | undefined) => {
+  const host = url ? URL.parse(url)?.hostname.replace(/^www\./, "") : undefined;
+  return host && !CODE_HOST.test(host) ? host : undefined;
+};
+/** What tells it apart as a service: its id, its name and its site. */
+function marks(i: Item): string[] {
+  const name = serviceName(i.name);
+  const site = siteOf(i.entry?.homepage ?? i.listing?.links?.website);
+  return [`id:${i.id}`, ...(name ? [`name:${name}`] : []), ...(site ? [`site:${site}`] : [])];
+}
+
+/** An added catalog's entry, not added yet, that repeats one APX includes or publishes is that one's other version. */
+function markTwins(items: Item[]): Item[] {
+  const ours = new Map<string, string>();
+  for (const i of items)
+    if ((i.label === "included" || i.label === "official") && !i.entry?.catalog)
+      for (const m of marks(i)) if (!ours.has(m)) ours.set(m, i.key);
+  return items.map((i) => {
+    if (i.state !== "available" || !i.entry?.catalog) return i;
+    const twin = marks(i)
+      .map((m) => ours.get(m))
+      .find(Boolean);
+    return twin ? { ...i, twin } : i;
+  });
+}
+
+/** What Explore lists: not the owner's own built ones, and one service once (its other versions are on its page). */
+export const listed = (i: Item) => i.label !== "own" && !i.twin;
 
 /** It waits on the owner: something to fix, an update, or installed and still off. */
 export const waits = (i: Item) => i.state === "attention" || i.state === "off" || Boolean(i.update);
@@ -302,16 +347,16 @@ export function kindOf(i: Item): Kind {
   return "skills";
 }
 
-/** Every category, included ones in theirs (marked Included); the channels together; then accounts not filed yet. */
+/**
+ * Every category, included ones in theirs (marked Included) and an added catalog's beside them; the channels
+ * together; then accounts not filed yet, and last, each added catalog's entries that fit no category.
+ */
 export function groupByCategory(items: Item[]): Group[] {
   const byCat = new Map<string, Item[]>();
   for (const i of items) {
-    // An added catalog's entries stay together under it.
     const k = i.channel
       ? "channels"
-      : i.entry?.catalog
-        ? `added:${i.entry.catalog}`
-        : (i.category ?? (i.integration ? "accounts" : "other"));
+      : (i.category ?? (i.entry?.catalog ? `added:${i.entry.catalog}` : i.integration ? "accounts" : "other"));
     byCat.set(k, [...(byCat.get(k) ?? []), i]);
   }
   const last = (k: string) =>

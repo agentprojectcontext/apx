@@ -138,8 +138,12 @@ function serversOf(files: Map<string, Buffer>, declared: unknown, left: string[]
     const data = files.get(f);
     if (!data) return {};
     try {
-      const raw = JSON.parse(data.toString("utf8")) as { mcpServers?: Record<string, Server> };
-      return raw.mcpServers ?? {};
+      const raw = JSON.parse(data.toString("utf8")) as Record<string, unknown>;
+      if (raw.mcpServers && typeof raw.mcpServers === "object") return raw.mcpServers as Record<string, Server>;
+      // Claude Code also takes the servers at the top, without `mcpServers`.
+      return Object.fromEntries(
+        Object.entries(raw).filter(([, s]) => s && typeof s === "object" && ("command" in s || "url" in s)),
+      ) as Record<string, Server>;
     } catch {
       left.push(f);
       return {};

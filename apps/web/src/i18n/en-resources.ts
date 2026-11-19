@@ -635,6 +635,8 @@ export const enResources = {
   "mkt.reason.unpinned": "not pinned to a version",
   "mkt.reason.source": "its files cannot be reached",
   "mkt.reason.invalid": "it does not read well",
+  "mkt.reason.empty": "it only brings Claude Code features APX doesn't use, such as commands or hooks",
+  "mkt.leftOutHint": "Not shown in Explore, and why",
   "mkt.addedGroup": "{name}",
   "mkt.addedSub": "you added it; all third party",
   "mkt.catalogDownloading": "Downloading…",

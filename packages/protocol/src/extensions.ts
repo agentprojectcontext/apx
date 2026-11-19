@@ -413,6 +413,8 @@ export const CatalogEntry = z.object(
     publisher: () => z.string().optional(),
     /** The GitHub account its code lives under, when the catalog names nobody. */
     github: () => z.string().optional(),
+    /** Its web page, as an added catalog gives it (to tell one service listed twice). */
+    homepage: () => z.string().optional(),
     /** From the package's own manifest, once APX read it (absent while it could not). */
     brings: () => z.array(ExtensionBrings).optional(),
     needs: () => z.array(ExtensionNeeds).optional(),
@@ -526,7 +528,11 @@ export const ExtensionCatalog = z.object(
     skipped: () =>
       z.array(
         z.object(
-          schemaFields({ name: () => z.string(), reason: () => z.enum(["license", "unpinned", "source", "invalid"]) }),
+          schemaFields({
+            name: () => z.string(),
+            /** `empty`: it brings only what APX does not use (commands, hooks, language servers). */
+            reason: () => z.enum(["license", "unpinned", "source", "invalid", "empty"]),
+          }),
         ),
       ),
   }),

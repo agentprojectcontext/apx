@@ -5602,3 +5602,35 @@ the session kept on the page's origin.
 
 Docs impact: updated `apps/docs` office/artifacts (EN/ES), `firebase/README.md` (EN/ES) and
 `rules/PUBLIC_ARTIFACTS_UI.md`.
+
+<a id="d-253"></a>
+## D-253 — 2026-11-19 — Another catalog's entries in APX's categories, as what they are, once per service
+
+With Anthropic's Claude Code catalogs added (D-243), searching "Asana" showed two: APX's included one under
+Productivity, and Claude's under its own "From claude-plugins-official" section, read as Skills. Three fixes:
+
+- **APX's categories.** The category a catalog gives is mapped to APX's (`categoryOf` in `extensions/summary.ts`, the
+  one place catalogs' words are read): Claude's database and monitoring are Data; security, deployment, testing and
+  migration are Development; design is Design and media; automation is Productivity. An added catalog's entry is
+  listed in its category beside APX's, still saying who makes it; with no category, or one that maps to none
+  (learning, location, math), it stays under its catalog's name, last. The catalog picker still shows one alone.
+- **What it is before it is added.** When a catalog is read, each plugin of its own repository is converted in memory
+  the way installing would and its contents, brings and needs are stored with the entry, so the kind (D-250) is right
+  and its page shows its fingerprint, hosts and keys before adding. A plugin in another repository would need its
+  whole tree for skills and agents; APX reads only its `.mcp.json` and `plugin.json` at its commit (two small reads
+  beside the license), so one with a server is a Connector and the rest stay unknown until added. One that converts
+  to nothing APX uses (only commands, hooks, language servers or output styles, like Claude's `asana`) is left out with reason `empty`; the catalog's row
+  in Advanced lists what was left out and why. Reading them showed that Claude Code also takes a `.mcp.json` with the
+  servers at the top, without `mcpServers` (Anthropic's own `github`, `linear`, `playwright`); the conversion now reads
+  both, so those install with their server instead of empty.
+- **Once per service.** An added catalog's entry, not added yet, that repeats one APX includes or publishes (the same
+  id, the same name without "MCP"/"plugin"/"server", or the same website host; code hosts such as github.com do not
+  count) is that one's other version: not listed in Explore or search, shown on APX's page under **Another version**
+  with its catalog, and its own page points back. One the owner installed is theirs and always listed.
+
+Rejected: keeping each added catalog in its own section (the owner looks by what it does, not where it comes from);
+cloning every remote plugin to read its skills (a git fetch per plugin on every read); hiding a repeat altogether
+(the other version may do something APX's does not).
+
+Docs impact: updated `apps/docs` extend/extensions (EN/ES): categories, Another version, what is read with the
+catalog, the `empty` reason and the left-out list.

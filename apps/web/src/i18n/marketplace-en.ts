@@ -253,4 +253,10 @@ export const enMarketplace = {
   "mkt.twin":
     "APX already includes {name}: it connects without adding anything. This one comes from the {catalog} catalog; add it only if you need something the included one doesn't do.",
   "mkt.twinSee": "See the included one",
+  "mkt.twinOfficial":
+    "APX's catalog already has {name}. This one comes from the {catalog} catalog; add it only if you need something APX's doesn't do.",
+  "mkt.twinSeeOfficial": "See APX's",
+  "mkt.otherVersion": "Another version",
+  "mkt.otherVersions": "Other versions",
+  "mkt.otherVersionLine": "From the {catalog} catalog you added",
 } as const;

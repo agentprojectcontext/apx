@@ -257,4 +257,10 @@ export const esMarketplace = {
   "mkt.twin":
     "APX ya incluye {name}: se conecta sin agregar nada. Esta viene del catálogo {catalog}; agregala sólo si necesitás algo que la incluida no hace.",
   "mkt.twinSee": "Ver la incluida",
+  "mkt.twinOfficial":
+    "El catálogo de APX ya tiene {name}. Esta viene del catálogo {catalog}; agregala sólo si necesitás algo que la de APX no hace.",
+  "mkt.twinSeeOfficial": "Ver la de APX",
+  "mkt.otherVersion": "Otra versión",
+  "mkt.otherVersions": "Otras versiones",
+  "mkt.otherVersionLine": "Del catálogo {catalog} que agregaste",
 } satisfies Record<keyof typeof enMarketplace, string>;

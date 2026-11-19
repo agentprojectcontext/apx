@@ -145,6 +145,20 @@ test("servers plugin.json names in a file of its own; a placeholder with a defau
   assert.equal(ownerHost(pkg.manifest), true);
 });
 
+test("servers written at the top of .mcp.json, without mcpServers, are its servers all the same", () => {
+  const files = new Map(
+    Object.entries({
+      ".claude-plugin/plugin.json": JSON.stringify({ name: "tracker" }),
+      ".mcp.json": JSON.stringify({
+        tracker: { type: "http", url: "https://mcp.tracker.example.com/mcp" },
+        local: { command: "npx", args: ["-y", "tracker-mcp@2.0.0"] },
+      }),
+    }).map(([k, v]) => [k, Buffer.from(v)]),
+  );
+  const m = JSON.parse(convertPlugin(files, { name: "Tracker" }).files.get("apx-extension.json")?.toString() ?? "{}");
+  assert.deepEqual(Object.keys(m.mcp).sort(), ["local", "tracker"]);
+});
+
 let env: Awaited<ReturnType<typeof startCore>>;
 let home: TempDir;
 let cat: TempDir;
@@ -160,7 +174,15 @@ before(async () => {
       name: "Acme plugins",
       owner: { name: "Acme" },
       plugins: [
-        { name: "notes", displayName: "Notes", description: "Notes for agents.", source: "./notes" },
+        {
+          name: "notes",
+          displayName: "Notes",
+          description: "Notes for agents.",
+          category: "database",
+          homepage: "https://notes.example.com",
+          source: "./notes",
+        },
+        { name: "setup", description: "Only a command.", category: "productivity", source: "./setup" },
         { name: "secret-sauce", description: "Closed.", source: "./sauce" },
         {
           name: "drifting",
@@ -180,6 +202,9 @@ before(async () => {
     "notes/.mcp.json": JSON.stringify({
       mcpServers: { store: { type: "http", url: "https://notes.example.com/mcp" } },
     }),
+    "setup/.claude-plugin/plugin.json": JSON.stringify({ name: "setup", license: "MIT" }),
+    "setup/commands/setup.md": "Set it up.",
+    "setup/README.md": "Run /setup.",
     "sauce/.claude-plugin/plugin.json": JSON.stringify({ name: "secret-sauce" }),
     "sauce/LICENSE": PROPRIETARY,
   });
@@ -191,6 +216,11 @@ before(async () => {
       await hold;
       // The pinned plugin's license, read at its commit.
       if (String(url) === `https://raw.githubusercontent.com/acme/pinned/${SHA}/LICENSE`) return new Response(MIT);
+      // …and its MCP server, read at the same commit.
+      if (String(url) === `https://raw.githubusercontent.com/acme/pinned/${SHA}/.mcp.json`)
+        return new Response(
+          JSON.stringify({ mcpServers: { api: { command: "npx", args: ["-y", "pinned-mcp@1.0.0"] } } }),
+        );
       return new Response("missing", { status: 404 });
     }) as typeof fetch,
   });
@@ -201,7 +231,7 @@ after(async () => {
   await cat.remove();
 });
 
-test("an added catalog lists what it may, leaves out what it may not (license, unpinned, outside) and says why", async () => {
+test("an added catalog lists what it may, leaves out what it may not (license, unpinned, outside, empty) and says why", async () => {
   const added = await env.client.call("extensions.catalog_add", { source: cat.path });
   assert.equal(added.kind, "claude");
   assert.equal(added.name, "Acme plugins");
@@ -210,6 +240,8 @@ test("an added catalog lists what it may, leaves out what it may not (license, u
     "drifting:unpinned",
     "outside:source",
     "secret-sauce:license",
+    // Only a command once converted: nothing APX uses.
+    "setup:empty",
   ]);
   assert.ok(asked.includes(`https://raw.githubusercontent.com/acme/pinned/${SHA}/LICENSE`));
   const { catalogs, suggested } = await env.client.call("extensions.catalogs", {});
@@ -225,6 +257,26 @@ test("an added catalog lists what it may, leaves out what it may not (license, u
   assert.equal(notes?.publisher, "Acme");
   const pinned = entries.find((e) => e.id === "pinned");
   assert.deepEqual([pinned?.publisher, pinned?.github], [undefined, "acme"]);
+});
+
+test("an added catalog's entry is filed in APX's category and says what it brings before it is added", async () => {
+  const { catalogs } = await env.client.call("extensions.catalogs", {});
+  const { entries } = await env.client.call("extensions.catalog", {});
+  const notes = entries.find((e) => e.id === "notes" && e.catalog === catalogs[0]?.id);
+  // Claude's "database" is APX's Data; its own word stays among its categories.
+  assert.equal(notes?.category, "data");
+  assert.deepEqual(notes?.categories, ["database"]);
+  assert.equal(notes?.homepage, "https://notes.example.com");
+  // Read from its files as installing would convert them: a server and a skill, so a connector, not skills alone.
+  assert.equal(notes?.contents?.servers, 1);
+  assert.deepEqual(notes?.contents?.skills, ["notes"]);
+  assert.deepEqual(notes?.contents?.hosts, ["notes.example.com"]);
+  assert.deepEqual(notes?.brings?.sort(), ["skills", "tools"]);
+  const seen = await env.client.call("extensions.inspect", { entry: { catalog: catalogs[0]?.id ?? "", id: "notes" } });
+  assert.equal(notes?.contents?.hash, seen.hash, "the fingerprint shown is the one installing gets");
+  // One in another repository: its server read at its commit; nothing more is known before it is added.
+  const pinned = entries.find((e) => e.id === "pinned");
+  assert.deepEqual([pinned?.brings, pinned?.needs, pinned?.contents], [["tools"], ["code"], undefined]);
 });
 
 test("an entry of an added catalog installs converted, third party, off", async () => {
@@ -262,7 +314,7 @@ test("a catalog read in the background answers at once, tells how far along it i
     }, "the catalog read");
     assert.deepEqual([read.name, read.count, read.failed], ["Acme plugins", 2, undefined]);
     // Every plugin was checked, and the panel heard when it was done.
-    assert.deepEqual(at.at(-1), { done: 5, total: 5 });
+    assert.deepEqual(at.at(-1), { done: 6, total: 6 });
     await waitFor(async () => changed > 0 || undefined, "extensions.changed once read");
     assert.deepEqual(await env.client.call("extensions.catalog_remove", { id: started.id }), { removed: true });
   } finally {

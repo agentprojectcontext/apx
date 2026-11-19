@@ -16,6 +16,7 @@ import { ItemIcon } from "./ConnectHead.tsx";
 import { ItemFacts, ItemLinks } from "./ItemFacts.tsx";
 import { ItemLabel } from "./ItemLabel.tsx";
 import { ItemParts } from "./ItemParts.tsx";
+import { ItemRow } from "./ItemRow.tsx";
 import { ItemSettings } from "./ItemSettings.tsx";
 import { fromText, listingIn, nextStep, type Step, stepLabel } from "./itemText.ts";
 import { rowAction } from "./MarketBrowse.tsx";
@@ -40,14 +41,17 @@ function Shot({ id, file, caption }: { id: string; file: string; caption: string
 export function ItemPage({
   item,
   twin,
+  versions = [],
   servers,
   backLabel,
   onBack,
   onChanged,
 }: {
   item: Item;
-  /** The one APX includes under the same name, when this comes from another catalog. */
+  /** The one APX includes or publishes for the same service, when this comes from a catalog the owner added. */
   twin?: Item | undefined;
+  /** The same service from catalogs the owner added, when this is APX's. */
+  versions?: Item[];
   servers: McpServerStatus[];
   backLabel: string;
   onBack(): void;
@@ -263,9 +267,14 @@ export function ItemPage({
       {notice}
       {twin && (
         <div className="mkt-notice" role="status">
-          <span>{t("mkt.twin", { name: twin.name, catalog: item.entry?.catalog_name ?? "" })}</span>
+          <span>
+            {t(twin.label === "included" ? "mkt.twin" : "mkt.twinOfficial", {
+              name: twin.name,
+              catalog: item.entry?.catalog_name ?? "",
+            })}
+          </span>
           <Button size="sm" variant="secondary" onClick={() => go.marketplace("extensions", twin.key)}>
-            {t("mkt.twinSee")}
+            {t(twin.label === "included" ? "mkt.twinSee" : "mkt.twinSeeOfficial")}
           </Button>
         </div>
       )}
@@ -301,6 +310,27 @@ export function ItemPage({
             </>
           ) : (
             <ItemParts item={item} servers={servers} />
+          )}
+          {versions.length > 0 && (
+            <section className="mkt-section">
+              <header className="mkt-section__head">
+                <h3>{t(versions.length === 1 ? "mkt.otherVersion" : "mkt.otherVersions")}</h3>
+              </header>
+              <div className="mkt-rows mkt-rows--one">
+                {versions.map((v) => {
+                  const see = () => go.marketplace("extensions", v.key);
+                  return (
+                    <ItemRow
+                      key={v.key}
+                      item={v}
+                      line={t("mkt.otherVersionLine", { catalog: v.entry?.catalog_name ?? "" })}
+                      onOpen={see}
+                      onAct={rowAction(v, see)}
+                    />
+                  );
+                })}
+              </div>
+            </section>
           )}
         </div>
         {!offered && <ItemFacts item={item} />}

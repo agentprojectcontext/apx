@@ -1,5 +1,6 @@
 // Extension catalogs the owner added for themself: where each is, the ref and commit it was last read at, and what it
 // lists. What is listed is APX's own reading of it (see extensions/catalogs.ts), kept as JSON.
+import type { ExtensionBrings, ExtensionContents, ExtensionNeeds } from "@apx/protocol";
 import { now, qb, type Sql } from "./sql.ts";
 
 /** Where an entry's files come from: a packed .apxext, a folder of the catalog's repository, or another repository at a commit. */
@@ -23,9 +24,14 @@ export type CatalogItem = {
   /** A Claude Code plugin, turned into an extension when installed. */
   plugin: boolean;
   via: CatalogVia;
+  /** What it holds once converted, read when the catalog was (absent: its files were not at hand). */
+  contents?: ExtensionContents | undefined;
+  brings?: ExtensionBrings[] | undefined;
+  needs?: ExtensionNeeds[] | undefined;
 };
 
-export type CatalogSkip = { name: string; reason: "license" | "unpinned" | "source" | "invalid" };
+/** Why an entry is not listed; `empty`: once converted it brings nothing APX uses (commands, hooks, language servers). */
+export type CatalogSkip = { name: string; reason: "license" | "unpinned" | "source" | "invalid" | "empty" };
 
 export type CatalogRecord = {
   id: string;

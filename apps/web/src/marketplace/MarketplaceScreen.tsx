@@ -8,7 +8,15 @@ import { loadMarks } from "../data/models.ts";
 import { useData } from "../data/state.ts";
 import { useT } from "../i18n/index.ts";
 import { useExtensionsInstalled } from "../resources/extensionInstall.ts";
-import { buildItems, filterItems, type Integration, type Item, isMine, waits } from "../resources/extensionItems.ts";
+import {
+  buildItems,
+  filterItems,
+  type Integration,
+  type Item,
+  isMine,
+  listed,
+  waits,
+} from "../resources/extensionItems.ts";
 import { describe } from "../resources/IncludedIntegration.tsx";
 import { attempt } from "../resources/InstalledExtension.tsx";
 import { useResources } from "../resources/useResources.ts";
@@ -103,12 +111,8 @@ export function MarketplaceScreen() {
       }),
     [integrations, channels, catalog, res.data.extensions, res.data.servers, t],
   );
-  // Explore offers what can be added or connected; the owner's own built ones (a folder, a server) stay in theirs.
-  const offered = filterItems(
-    items.filter((i) => i.label !== "own"),
-    query,
-    "",
-  );
+  // Explore offers what can be added or connected, each service once; the owner's own built ones stay in theirs.
+  const offered = filterItems(items.filter(listed), query, "");
   // A link may name an extension by its id alone: the installed one first, else what offers it.
   const current = open ? (items.find((i) => i.key === open) ?? items.find((i) => i.id === open)) : undefined;
   const mine = items.filter(isMine);
@@ -166,11 +170,8 @@ export function MarketplaceScreen() {
         {current ? (
           <ItemPage
             item={current}
-            twin={
-              current.entry?.catalog
-                ? items.find((i) => i.id === current.id && i.label === "included" && i !== current)
-                : undefined
-            }
+            twin={current.twin ? items.find((i) => i.key === current.twin) : undefined}
+            versions={items.filter((i) => i.twin === current.key)}
             servers={servers}
             backLabel={t(PLACE_LABEL[section])}
             onBack={() => go.marketplace(section)}
@@ -193,7 +194,7 @@ export function MarketplaceScreen() {
             items={offered}
             source={source}
             onSource={setSource}
-            total={items.filter((i) => i.label !== "own").length}
+            total={items.filter(listed).length}
             query={query}
             onQuery={setQuery}
             catalog={catalog}

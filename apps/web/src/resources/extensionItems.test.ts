@@ -9,7 +9,9 @@ import {
   type Integration,
   isMine,
   kindOf,
+  listed,
   newer,
+  serviceName,
 } from "./extensionItems.ts";
 
 const integration = (id: string, extra: Partial<Integration> = {}): Integration => ({
@@ -205,18 +207,73 @@ test("filters by words and by what it brings", () => {
   assert.ok(newer("2.0.0", "2.0.0-rc.1"));
 });
 
-test("an added catalog's entries stay under it, after APX's own, and APX's entry wins an id both list", () => {
+test("an added catalog's entries go in APX's categories; one with none stays under it, last", () => {
   const withAdded = buildItems({
     ...sources,
     catalog: [
       ...sources.catalog,
-      entry("trello", "9.0.0", { catalog: "c1", provenance: "third_party" }),
       entry("notes", "0.4.0", { catalog: "c1", provenance: "third_party" }),
+      entry("tasks", "1.0.0", { catalog: "c1", provenance: "third_party", category: "productivity" }),
     ],
   });
-  assert.equal(withAdded.find((i) => i.id === "trello")?.version, "1.0.1");
   assert.equal(withAdded.find((i) => i.id === "notes")?.key, "added:c1:notes");
-  assert.equal(groupByCategory(withAdded).at(-1)?.id, "added:c1");
+  const groups = groupByCategory(withAdded);
+  // Beside APX's own in its category, still saying it is third party.
+  const productivity = groups.find((g) => g.id === "productivity")?.items ?? [];
+  assert.deepEqual(
+    productivity.filter((i) => i.entry?.catalog).map((i) => [i.id, i.label]),
+    [["tasks", "third"]],
+  );
+  assert.equal(groups.at(-1)?.id, "added:c1");
+  assert.deepEqual(
+    groups.at(-1)?.items.map((i) => i.id),
+    ["notes"],
+  );
+});
+
+test("an added catalog's entry that repeats one of APX's is that one's other version, not listed apart", () => {
+  const website = (url: string) => ({ links: { website: url } }) as CatalogEntry["listing"];
+  const third = { catalog: "c1", provenance: "third_party" as const };
+  const withAdded = buildItems({
+    ...sources,
+    catalog: [
+      ...sources.catalog,
+      entry("maps", "1.0.0", { listing: website("https://maps.example.com") }),
+      // The same id as APX's package, the same name as an account, the same site as a package, the same as a channel.
+      entry("trello", "9.0.0", third),
+      entry("slack-tools", "1.0.0", { ...third, name: "Slack MCP" }),
+      entry("geo", "1.0.0", { ...third, homepage: "https://www.maps.example.com/claude" }),
+      entry("telegram", "1.0.0", third),
+      // Its code on GitHub says nothing of which service it is; nor does a name APX has nothing under.
+      entry("gh-notes", "1.0.0", { ...third, homepage: "https://github.com/acme/notes" }),
+    ],
+  });
+  const twin = (key: string) => withAdded.find((i) => i.key === key)?.twin;
+  assert.equal(withAdded.find((i) => i.id === "trello")?.version, "1.0.1", "APX's comes first");
+  assert.equal(twin("added:c1:trello"), "catalog:trello");
+  assert.equal(twin("added:c1:slack-tools"), "account:slack");
+  assert.equal(twin("added:c1:geo"), "catalog:maps");
+  assert.equal(twin("added:c1:telegram"), "channel:telegram");
+  assert.equal(twin("added:c1:gh-notes"), undefined);
+  assert.deepEqual(
+    withAdded.filter((i) => i.entry?.catalog && listed(i)).map((i) => i.id),
+    ["gh-notes"],
+  );
+  assert.equal(serviceName("Acme Notes plugin"), "acmenotes");
+});
+
+test("an added catalog's entry is the kind its contents say; one whose files were not read reads as skills", () => {
+  const contents = { hosts: [], runs_code: true, servers: 1, keys: [], agents: [], routines: [], hash: "h" };
+  const [connector, unknown] = buildItems({
+    integrations: [],
+    catalog: [
+      entry("db", "1.0.0", { catalog: "c1", provenance: "third_party", brings: [], contents }),
+      entry("tips", "1.0.0", { catalog: "c1", provenance: "third_party", brings: undefined }),
+    ],
+    installed: [],
+    servers: [],
+  });
+  assert.deepEqual([connector && kindOf(connector), unknown && kindOf(unknown)], ["connector", "skills"]);
 });
 
 test("one installed from an added catalog stays under it; a namesake from elsewhere does not, and 0.0.0 is no version", () => {

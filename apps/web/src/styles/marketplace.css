@@ -192,11 +192,14 @@
 .mkt-catalog .mkt-brought__main span {
   overflow-wrap: anywhere;
 }
-.mkt-skipped {
-  margin: 6px 0 0;
-  padding-left: 22px;
-  color: var(--apx-fg-muted);
-  font-size: var(--apx-text-sm);
+/* What it left out, and why, under it. */
+.mkt-catalog .apx-disclosure {
+  margin: 6px 0 0 28px;
+}
+@media (max-width: 760px) {
+  .mkt-catalog .apx-disclosure {
+    margin-left: 0;
+  }
 }
 @media (max-width: 760px) {
   .mkt {

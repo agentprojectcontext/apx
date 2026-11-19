@@ -69,7 +69,7 @@ export function readListing(raw: unknown): ListingFile | undefined {
   return p.success && (p.data.summary || p.data.tagline) ? p.data : undefined;
 }
 
-/** A category by its id or its label in English or Spanish; the catalog's older categories map to the closest. */
+/** A category by its id or its label in English or Spanish; older and other catalogs' categories map to the closest. */
 const CATEGORY: Record<string, ExtensionCategory> = {
   productivity: "productivity",
   productividad: "productivity",
@@ -107,6 +107,15 @@ const CATEGORY: Record<string, ExtensionCategory> = {
   enterprise: "business-systems",
   "business systems": "business-systems",
   "sistemas de empresa": "business-systems",
+  // Claude Code catalogs' own words (DECISIONS.md#d-253); learning, location and math fit none of ours.
+  database: "data",
+  monitoring: "data",
+  security: "development",
+  deployment: "development",
+  testing: "development",
+  migration: "development",
+  design: "design-media",
+  automation: "productivity",
 };
 export const categoryOf = (v: string | undefined): ExtensionCategory | undefined =>
   v ? CATEGORY[v.trim().toLowerCase()] : undefined;

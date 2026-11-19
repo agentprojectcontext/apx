@@ -1,7 +1,8 @@
 // Catalogs the owner adds for themself: a GitHub `owner/repo`, a git address, an index's https address or a folder.
 // APX reads APX's own index format and Claude Code's `.claude-plugin/marketplace.json`; whatever comes from them is
 // third party. A plugin whose source is another repository counts only pinned to a commit, and only under a license
-// that allows a converted copy; the rest are listed as left out (DECISIONS.md#d-243).
+// that allows a converted copy; the rest are listed as left out (DECISIONS.md#d-243). What each holds once converted
+// is read with the catalog, so it shows as what it is, and one that would bring nothing is left out too (D-253).
 import { createHash } from "node:crypto";
 import fs from "node:fs";
 import os from "node:os";
@@ -14,7 +15,8 @@ import type { GitRunner } from "../skills/import.ts";
 import { downloadArchive, fetchSmall } from "./catalog.ts";
 import { compareVersions } from "./catalog-packages.ts";
 import { convertPlugin, extensionId, licenseOf, pluginLicense, pluginVersion } from "./claude-plugin.ts";
-import { filesOf, type Package, readArchive, readFiles } from "./package.ts";
+import { filesOf, hostsOf, type Package, readArchive, readFiles } from "./package.ts";
+import { bringsOf, contentsOf, needsOf } from "./summary.ts";
 
 const GIT_MS = 90_000;
 const INDEX_MAX = 5 * 1024 * 1024;
@@ -76,6 +78,30 @@ const nameOf = (v: unknown): string | undefined => {
 /** owner/repo of a GitHub address, to read a file at a commit. */
 const githubRepo = (url: string) =>
   /^https:\/\/github\.com\/([^/]+)\/([^/]+?)(?:\.git)?\/?$/.exec(url)?.slice(1, 3) as [string, string] | undefined;
+
+/** The fields a plugin is converted with: the catalog's, as installing it uses them. */
+type PluginBase = { id: string; name: string; description: string; version: string };
+
+/**
+ * What a plugin's files hold once converted, as the Marketplace shows it before it is added; `empty` when it would
+ * bring nothing APX uses. Undefined when its files do not read as an extension (installing it says why).
+ */
+function summarizePlugin(files: Map<string, Buffer>, base: PluginBase) {
+  try {
+    const native = files.has("apx-extension.json");
+    const pkg = readFiles(native ? files : convertPlugin(files, base).files);
+    const m = pkg.manifest;
+    const contents = contentsOf(m, pkg.hash, hostsOf(m), pkg.skills);
+    return {
+      contents,
+      brings: bringsOf(m),
+      needs: needsOf(m),
+      empty: !native && !contents.servers && !pkg.skills.length && !contents.agents.length,
+    };
+  } catch {
+    return undefined;
+  }
+}
 
 /** How far along a catalog being read is: entries checked of how many (0 of 0 while it downloads). */
 export type CatalogReading = { done: number; total: number };
@@ -143,6 +169,30 @@ export function createCatalogs(deps: {
       }
     return undefined;
   };
+  /**
+   * What a plugin of another repository brings, from its `.mcp.json` and plugin.json at its commit: whether it brings
+   * MCP servers. Its skills and agents would need its whole tree, so they stay unknown until it is added.
+   */
+  const remoteBrings = async (url: string, sha: string, base: PluginBase, sub?: string) => {
+    const dir = sub ? `${sub.replace(/\/$/, "")}/` : "";
+    const files = new Map<string, Buffer>();
+    const get = async (rel: string) => {
+      const got = await rawFile(url, sha, `${dir}${rel}`);
+      if (got) files.set(rel, got);
+    };
+    await Promise.all([get(".mcp.json"), get(".claude-plugin/plugin.json")]);
+    // plugin.json may name the file its servers are in.
+    let named: unknown;
+    try {
+      named = JSON.parse(files.get(".claude-plugin/plugin.json")?.toString("utf8") ?? "{}").mcpServers;
+    } catch {}
+    const refs = (typeof named === "string" ? [named] : Array.isArray(named) ? named : []).filter(
+      (r): r is string => typeof r === "string" && !r.includes(".."),
+    );
+    await Promise.all(refs.slice(0, 3).map((r) => get(r.replace(/^\.\//, ""))));
+    const read = summarizePlugin(files, base);
+    return read?.contents.servers ? { brings: read.brings, needs: read.needs } : {};
+  };
 
   /** A folder's files as a map (plain files only, `.git` and `node_modules` left out). */
   const folderFiles = (dir: string) =>
@@ -197,12 +247,15 @@ export function createCatalogs(deps: {
         if (!license) return skipped.push({ name, reason: "license" });
         const version = p.version ?? pluginVersion(files);
         const by = author ?? owner;
+        const read = summarizePlugin(files, { ...base, version: version ?? base.version });
+        if (read?.empty) return skipped.push({ name, reason: "empty" });
         return entries.push({
           ...base,
           ...(version ? { version } : {}),
           ...(by ? { publisher: by } : {}),
           license,
           via: { type: "path", path: rel },
+          ...(read ? { contents: read.contents, brings: read.brings, needs: read.needs } : {}),
         });
       }
       const url = src?.source === "github" && src.repo ? `https://github.com/${src.repo}.git` : src?.url;
@@ -223,6 +276,7 @@ export function createCatalogs(deps: {
         ...(author ? { publisher: author } : account ? { github: account } : {}),
         license,
         via,
+        ...(await remoteBrings(url, src.sha, base, via.path)),
       });
     };
     // A few at a time: each checks a license over the network.
