@@ -62,6 +62,8 @@ const site = "https://apxagent.app";
 const install = `curl -fsSL ${site}/install.sh | bash`;
 const installWin = `irm ${site}/install.ps1 | iex`;
 const installServer = `curl -fsSL ${site}/install.sh | bash -s -- --server`;
+const installDocker =
+  'curl -fsSLO https://raw.githubusercontent.com/agentprojectcontext/apx/main/compose.yaml && echo "APX_TOKEN=$(openssl rand -hex 32)" > .env && docker compose up -d';
 const releases = releasesPage;
 const discord = "https://discord.gg/vxdZuT5WuE";
 type BlobName = keyof typeof blobs;
@@ -147,6 +149,7 @@ const cliRows = [
   { id: "server", icon: "server", label: t.download.term.server, cmd: installServer },
   { id: "unix", icon: "mac", label: t.download.term.here, cmd: install },
   { id: "win", icon: "windows", label: t.download.term.windows, cmd: installWin },
+  { id: "docker", icon: "container", label: t.download.term.docker, cmd: installDocker },
 ] as const;
 // One column per system: a step whose label is not a system (macOS's "if it says it is damaged") stays with the one above.
 const systems = new Set(["macOS", "Windows", "Linux"]);
@@ -561,7 +564,7 @@ const unsignedBySystem = t.download.unsigned.items.reduce<(typeof t.download.uns
               <div><h3>{t.download.term.title}</h3><p>{t.download.term.lead}</p></div>
             </div>
             <div class="cli__tabs" role="group" aria-label={t.download.term.label}>
-              {cliRows.map((row) => <button type="button" data-cli={row.id} aria-pressed={String(row.id === "server")}>{row.icon === "server" ? <UiIcon name="server" size={14} /> : <OsIcon name={row.icon} size={14} />}{t.download.term.tabs[row.id]}</button>)}
+              {cliRows.map((row) => <button type="button" data-cli={row.id} aria-pressed={String(row.id === "server")}>{row.icon === "server" || row.icon === "container" ? <UiIcon name={row.icon} size={14} /> : <OsIcon name={row.icon} size={14} />}{t.download.term.tabs[row.id]}</button>)}
             </div>
             {
               cliRows.map((row) => (

@@ -127,6 +127,10 @@ for the server it talks to, with one button.
 `apx setup --headless --expose tailscale` (or `--expose lan`) and `apx pair` to connect your desktop and phone. The
 desktop app can also install APX on a server for you over SSH. Guide: [Run APX on a server](https://apxagent.app/devices/server/).
 
+**With Docker**: `compose.yaml` at the root of this repository runs the image `ghcr.io/agentprojectcontext/apx`. Put
+`APX_TOKEN=<a long random string>` in a `.env` beside it, `docker compose up -d`, open `http://localhost:7440` and pair
+it with `docker compose exec apx apx pair`. Guide: [Install › Docker](https://apxagent.app/start/install/).
+
 **On your phone**: the Android app is in each [v2 release](https://github.com/agentprojectcontext/apx/releases?q=v2&expanded=true)
 (`APX-<version>-android.apk`); pair it with the code the desktop shows. It installs beside v1's app.
 [Phone guide](https://apxagent.app/devices/phone/).

@@ -207,6 +207,49 @@ jobs:
         run: pnpm release:check --check-tag "$TAG" "$TAG"
       - run: gh release edit "$TAG" -R "$GITHUB_REPOSITORY" --draft=false --latest="${{ vars.APX_V2_LATEST == 'true' }}"
 
+  # The Docker image, from the server bundles just published (the Dockerfile downloads and checks them): amd64 and
+  # arm64, tagged with the version and, for the newest release, latest. Install guide: Install › Docker.
+  docker:
+    needs: [publish]
+    if: ${{ !inputs.announce_only }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      packages: write
+    env:
+      TAG: ${{ inputs.tag || github.ref_name }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.tag || github.ref }}
+      - uses: docker/setup-qemu-action@v3
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ github.token }}
+      - id: tags
+        run: |
+          image="ghcr.io/${GITHUB_REPOSITORY,,}"
+          tags="$image:${TAG#v}"
+          if [ "${{ vars.APX_V2_LATEST }}" = true ]; then tags="$tags,$image:latest"; fi
+          { echo "tags=$tags"; echo "version=${TAG#v}"; } >> "$GITHUB_OUTPUT"
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          platforms: linux/amd64,linux/arm64
+          build-args: |
+            APX_VERSION=${{ steps.tags.outputs.version }}
+            APX_REPO=${{ github.repository }}
+          labels: |
+            org.opencontainers.image.source=https://github.com/${{ github.repository }}
+            org.opencontainers.image.version=${{ steps.tags.outputs.version }}
+            org.opencontainers.image.licenses=MIT
+          tags: ${{ steps.tags.outputs.tags }}
+          push: true
+
   # Once every file is published, announce the release with v1's webhook.
   announce:
     needs: [publish]
