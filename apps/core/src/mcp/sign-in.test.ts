@@ -78,6 +78,10 @@ test("a sign-in request on stderr is found with its page, and only once the URL 
   // Cut mid-chunk: the rest may still come.
   assert.equal(signInUrl(`Please authorize this client by visiting:\n${url.slice(0, 30)}`), undefined);
   assert.equal(signInUrl("Server listening on https://localhost:3000 \n"), undefined);
+  const progress =
+    "[123] This instance is running the sign-in for this server (callback port 22227)\n[123] Connecting to remote server: https://mcp.example.com/mcp\n";
+  assert.equal(signInUrl(progress), undefined);
+  assert.equal(signInUrl(`${progress}\nPlease authorize this client by visiting:\n${url}\n`), url);
 });
 
 test("a server that asks to sign in does not hold the turn, is not retried, and the sign-in can still finish", async () => {
