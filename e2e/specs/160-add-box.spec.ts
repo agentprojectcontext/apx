@@ -73,6 +73,29 @@ test("one with nothing to connect is ready on Add", async ({ page }) => {
   await expect(box).toBeHidden();
 });
 
+test("an added one's page names the skills it brings", async ({ page }) => {
+  const root = await folder("acme-playbooks", {
+    id: "acme-playbooks",
+    name: "Acme playbooks",
+    version: "1.0.0",
+    description: "Playbooks.",
+    skills: "skills",
+  });
+  for (const s of ["campaign-strategist", "deals-crm"]) {
+    fs.mkdirSync(path.join(root, "skills", s), { recursive: true });
+    fs.writeFileSync(path.join(root, "skills", s, "SKILL.md"), `---\nname: ${s}\ndescription: ${s}.\n---\nDo it.\n`);
+  }
+  const box = await fromFolder(page, root);
+  await box.getByRole("button", { name: "Agregar", exact: true }).click();
+  await expect(box.getByRole("heading", { name: "Acme playbooks está lista" })).toBeVisible();
+  await box.getByRole("button", { name: "Listo" }).click();
+  // Added, it is one of yours in the left column.
+  await page.getByRole("button", { name: "Acme playbooks", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "Acme playbooks", exact: true })).toBeVisible();
+  await page.getByText("2 habilidades", { exact: true }).click();
+  await expect(page.getByText("campaign-strategist y deals-crm", { exact: true })).toBeVisible();
+});
+
 test("its settings keep each part apart: the keys, reading it again and trying it", async ({ page }, info) => {
   const root = await folder("northwind-desk", {
     id: "northwind-desk",

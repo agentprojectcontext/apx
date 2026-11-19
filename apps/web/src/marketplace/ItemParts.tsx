@@ -9,6 +9,7 @@ import { createAgent } from "../data/team.ts";
 import { type MessageKey, useT } from "../i18n/index.ts";
 import type { Item } from "../resources/extensionItems.ts";
 import { attempt, ExtensionRoutines, useAddRoutine } from "../resources/InstalledExtension.tsx";
+import { listText } from "./about.ts";
 import { ItemIcon } from "./ConnectHead.tsx";
 import { authText, serverPlace } from "./itemText.ts";
 
@@ -181,6 +182,7 @@ export function ItemParts({ item, servers }: { item: Item; servers: McpServerSta
         }
         kind="mkt.part.skillOne"
       >
+        {e?.skills.length ? <p>{listText(e.skills, t)}</p> : null}
         <p className="mkt-part__note">{t("mkt.part.skillsNote")}</p>
       </Part>,
     );
