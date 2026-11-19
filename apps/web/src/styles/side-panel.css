@@ -46,14 +46,59 @@
   flex-direction: column;
   overflow-y: auto;
 }
-.share__url {
-  display: block;
-  max-width: 260px;
+/* Share: who can see an artifact, as one choice with its link, like a document's share panel. */
+.share-popover {
+  max-width: calc(100vw - 32px);
+}
+.share-panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--apx-space-2);
+  padding: var(--apx-space-3);
+}
+.share-panel__title {
+  margin: 0 0 var(--apx-space-1);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--apx-text-md);
+  font-weight: 600;
+}
+.share-panel__hint {
+  margin: 0;
+  color: var(--apx-fg-muted);
+  font-size: var(--apx-text-sm);
+}
+.share-panel__link {
+  display: flex;
+  align-items: center;
+  gap: var(--apx-space-2);
+  min-height: 34px;
+  padding: 0 var(--apx-space-1) 0 var(--apx-space-3);
+  border: 1px solid var(--apx-border);
+  border-radius: var(--apx-radius-md);
+  background: var(--apx-fill);
+}
+.share-panel__link > span {
+  flex: 1;
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
   font-family: var(--apx-font-mono);
-  font-size: var(--apx-text-2xs);
+  font-size: var(--apx-text-sm);
+}
+.share-panel__update {
+  margin-right: auto;
+}
+.share-panel__actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: var(--apx-space-2);
+  margin-top: var(--apx-space-1);
+  padding-top: var(--apx-space-3);
+  border-top: 1px solid var(--apx-border);
 }
 
 /* ── Drawer: a detail over the right edge; the list beside it keeps its place and width ─ */

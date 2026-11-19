@@ -193,13 +193,13 @@ for (const width of [1280, 390]) {
     await expect(memory.getByRole("button", { name: /Borrar/ })).toHaveCount(0);
     await page.keyboard.press("Escape");
 
-    // The share menu fits on the screen and says only what the owner chooses.
+    // The share panel fits on the screen and says only what the owner chooses.
     await card.getByRole("button", { name: /^Compartir/ }).click();
-    const menu = page.getByRole("menu");
-    await expect(menu.getByRole("menuitem", { name: /^Cualquiera con el enlace/ })).toBeVisible();
+    const menu = page.getByRole("dialog", { name: /^Compartir/ });
+    await expect(menu.getByRole("combobox", { name: "Quién lo puede ver" })).toBeVisible();
     await expect(menu.getByText(/no acceden al estado de APX/)).toHaveCount(0);
     const box = await menu.boundingBox();
-    if (!box) throw new Error("no menu");
+    if (!box) throw new Error("no panel");
     expect(box.x).toBeGreaterThanOrEqual(0);
     expect(box.x + box.width).toBeLessThanOrEqual(width);
     await page.screenshot({ path: info.outputPath(`widget-share-${width}.png`) });

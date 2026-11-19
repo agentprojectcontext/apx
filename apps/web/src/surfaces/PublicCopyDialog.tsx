@@ -1,11 +1,10 @@
 import { publicPreviewDocument } from "@apx/surfaces/public-preview";
-import { Button, Checkbox, Dialog, GoogleMark, SettingRow, Spinner } from "@apx/ui";
+import { Button, Dialog, GoogleMark, Skeleton, Switch } from "@apx/ui";
 import { useEffect, useMemo, useRef } from "react";
 import { formatBytes } from "../common/format.ts";
 import { GoogleSignal } from "../common/GoogleSignal.tsx";
 import { useCloudAccount } from "../config/useCloudAccount.ts";
 import { accountError } from "../data/account.ts";
-import { notify } from "../data/notices.ts";
 import { useT } from "../i18n/index.ts";
 import { closePublicCopy, type usePublicRequest } from "./publicRequest.ts";
 import { usePublicCopy } from "./usePublicCopy.ts";
@@ -15,8 +14,9 @@ type Request = NonNullable<ReturnType<typeof usePublicRequest>>;
 type Account = ReturnType<typeof useCloudAccount>;
 
 /**
- * Anyone with the link: a copy of the artifact at apxagent.app. Signed out, the same dialog signs in first (APX joined
- * to Google) and carries on when the browser is done; signed in, it goes straight to what goes in the copy.
+ * Share public: a copy of the artifact at apxagent.app. Signed out, signing in comes first (APX joined to Google) and
+ * the dialog carries on by itself once the browser is done; signed in, it is one step: see it, choose whether its saved
+ * data goes too, and share.
  */
 export function PublicCopyDialog({ request }: { request: Request }) {
   // A card an agent prepared or a copy being stopped already belongs to the account; the rest may need to sign in.
@@ -37,39 +37,36 @@ function SignInDialog({ account }: { account: Account }) {
   return (
     <Dialog
       open
+      bare
       size="sm"
-      title={t("share.anyone")}
+      title={t("public.signInTitle")}
       closeLabel={t("common.close")}
       onOpenChange={(open) => !open && closePublicCopy()}
-      footer={
-        <>
-          {waiting && (
-            <Button variant="link" disabled={busy} onClick={() => void account.start()}>
-              {t("public.reopen")}
-            </Button>
-          )}
-          <Button variant="secondary" onClick={closePublicCopy}>
-            {t("common.cancel")}
-          </Button>
-          {!waiting && available && (
-            <Button leadingIcon={<GoogleMark />} loading={busy} onClick={() => void account.start()}>
-              {t("public.continueGoogle")}
-            </Button>
-          )}
-        </>
-      }
     >
-      <div className="public-copy public-copy--signin">
+      <div className="public-signin">
         {loading ? (
-          <Spinner size={18} />
+          <Skeleton width="100%" height={120} />
         ) : (
           <>
-            <GoogleSignal state={state} label={waiting ? t("public.waiting") : undefined} />
-            <p>{t("public.signIn")}</p>
-            {!waiting && (
-              <p className="public-copy__muted">{t(available ? "public.signInLead" : "account.unavailable")}</p>
-            )}
+            <GoogleSignal state={state} />
+            <p>{t(waiting ? "public.waiting" : available ? "public.signIn" : "account.unavailable")}</p>
             {error != null && <p role="alert">{accountError(t, error)}</p>}
+            <div className="public-signin__actions">
+              <Button variant="secondary" onClick={closePublicCopy}>
+                {t("common.cancel")}
+              </Button>
+              {waiting ? (
+                <Button variant="secondary" disabled={busy} onClick={() => void account.start()}>
+                  {t("public.reopen")}
+                </Button>
+              ) : (
+                available && (
+                  <Button leadingIcon={<GoogleMark />} loading={busy} onClick={() => void account.start()}>
+                    {t("public.continueGoogle")}
+                  </Button>
+                )
+              )}
+            </div>
           </>
         )}
       </div>
@@ -77,18 +74,9 @@ function SignInDialog({ account }: { account: Account }) {
   );
 }
 
-async function copyLink(url: string, copied: string, failed: string) {
-  try {
-    await navigator.clipboard.writeText(url);
-    notify(copied, "info");
-  } catch {
-    notify(failed);
-  }
-}
-
 function CopyDialog({ request, onSignedOut }: { request: Request; onSignedOut?: () => void }) {
   const t = useT();
-  const { source, account, keys, setKeys, review, done, busy, error, invalid, setReload, prepare, commit, back } =
+  const { source, account, withData, setWithData, review, busy, error, invalid, setReload, commit } =
     usePublicCopy(request);
   const preview = useMemo(
     () => review?.bundle && publicPreviewDocument(review.bundle.html, review.bundle.state),
@@ -101,57 +89,16 @@ function CopyDialog({ request, onSignedOut }: { request: Request; onSignedOut?: 
     if (error === "public.signIn") signedOut.current?.();
   }, [error]);
   const action = review?.action ?? request.action;
-  const actionKey = action === "revoke" ? "public.revoke" : action === "update" ? "public.update" : "public.publish";
-  const title = done
-    ? t("public.done")
-    : review
-      ? t("public.reviewTitle")
-      : action === "publish"
-        ? t("share.anyone")
-        : t(actionKey);
+  const stopping = action === "revoke";
+  const title = t(stopping ? "public.stopTitle" : action === "update" ? "public.updateTitle" : "public.title");
+  const confirm = t(stopping ? "public.stop" : action === "update" ? "public.updateAction" : "public.title");
   const name = (review?.account ?? account)?.name;
-  const stateKeys = Object.entries(source?.state ?? {});
-  if (done)
-    return (
-      <Dialog
-        open
-        size="md"
-        title={title}
-        closeLabel={t("common.close")}
-        onOpenChange={(open) => !open && closePublicCopy()}
-        footer={
-          <>
-            <Button variant="secondary" onClick={() => window.open(done.url, "_blank", "noopener,noreferrer")}>
-              {t("public.openLink")}
-            </Button>
-            <Button onClick={closePublicCopy}>{t("public.finish")}</Button>
-          </>
-        }
-      >
-        <div className="public-copy">
-          <div className="public-copy__link">
-            {/* A line breaks only before the copy's code, never inside it. */}
-            <span>
-              {done.url.slice(0, done.url.lastIndexOf("/") + 1)}
-              <wbr />
-              {done.url.slice(done.url.lastIndexOf("/") + 1)}
-            </span>
-            <Button
-              size="sm"
-              variant="secondary"
-              onClick={() => void copyLink(done.url, t("share.copied"), t("share.copyFailed"))}
-            >
-              {t("public.copyLink")}
-            </Button>
-          </div>
-          <p className="public-copy__muted">{t("public.doneHint")}</p>
-        </div>
-      </Dialog>
-    );
+  const savedData = request.draft ? review?.bundle?.state : source?.state;
+  const hasData = Object.keys(savedData ?? {}).length > 0;
   return (
     <Dialog
       open
-      size="lg"
+      size={stopping ? "sm" : "lg"}
       title={title}
       closeLabel={t("common.close")}
       onOpenChange={(open) => !open && !busy && closePublicCopy()}
@@ -160,98 +107,74 @@ function CopyDialog({ request, onSignedOut }: { request: Request; onSignedOut?: 
           <Button variant="secondary" disabled={busy} onClick={closePublicCopy}>
             {t("common.cancel")}
           </Button>
-          {review && source && (
-            <Button variant="secondary" disabled={busy} onClick={() => void back()}>
-              {t("public.back")}
-            </Button>
-          )}
-          {review ? (
-            <Button loading={busy} disabled={invalid} onClick={() => void commit()}>
-              {t(actionKey)}
-            </Button>
-          ) : (
-            <Button loading={busy} disabled={!source || Boolean(error)} onClick={() => void prepare()}>
-              {t("public.review")}
-            </Button>
-          )}
+          <Button
+            variant={stopping ? "danger" : "primary"}
+            loading={busy}
+            disabled={!review || invalid || Boolean(error)}
+            onClick={() => void commit()}
+          >
+            {confirm}
+          </Button>
         </>
       }
     >
       <div className="public-copy">
-        {busy && (
-          <p role="status">
-            <Spinner size={16} /> {t("public.loading")}
-          </p>
-        )}
         {error && (
           <p role="alert" className="public-copy__alert">
             {t(error)}{" "}
-            {error === "public.connection" && !review && (
+            {error === "public.connection" && (
               <Button variant="link" onClick={() => setReload((n) => n + 1)}>
                 {t("public.retry")}
               </Button>
             )}
           </p>
         )}
-        {name && <p className="public-copy__muted">{t("public.identity", { name })}</p>}
-        {review && <h3>{review.title}</h3>}
-        {action === "update" && <p>{t("public.replace")}</p>}
-        {review && (
-          <>
-            <a href={review.url} target="_blank" rel="noreferrer">
-              {review.url}
-            </a>
-            <p className="public-copy__muted">{formatBytes(review.bytes)}</p>
-          </>
-        )}
-        {action === "revoke" ? (
+        {stopping ? (
           <p>{t("public.revokeWarning")}</p>
         ) : (
           <>
-            {!review && source && (
-              <>
-                <p>{t("public.snapshot", { title: source.title })}</p>
-                {stateKeys.length > 0 && <h4>{t("public.state")}</h4>}
-                {stateKeys.map(([key, value]) => (
-                  <div key={key}>
-                    <Checkbox
-                      label={key}
-                      checked={keys.includes(key)}
-                      disabled={busy}
-                      onCheckedChange={(on) =>
-                        setKeys((cur) => (on ? [...cur, key] : cur.filter((item) => item !== key)))
-                      }
-                    />
-                    <details>
-                      <summary>{t("public.contents")}</summary>
-                      <pre>{JSON.stringify(value, null, 2)}</pre>
-                    </details>
-                  </div>
-                ))}
-              </>
+            {preview ? (
+              <iframe
+                className="public-copy__preview"
+                title={t("public.preview")}
+                sandbox="allow-scripts"
+                referrerPolicy="no-referrer"
+                srcDoc={preview}
+              />
+            ) : (
+              !error && <Skeleton width="100%" height={240} />
             )}
-            {review && <p>{t("public.warning")}</p>}
-            {review?.bundle && (
-              <>
-                <SettingRow
-                  title={review.bundle.manifest.title}
-                  description={String(review.bundle.manifest.version ?? "")}
-                />
-                <iframe
-                  className="public-copy__preview"
-                  title={t("public.preview")}
-                  sandbox="allow-scripts"
-                  referrerPolicy="no-referrer"
-                  srcDoc={preview}
-                />
+            <p className="public-copy__muted">
+              {action === "update" ? t("public.replace") : t("public.snapshot")}
+              {review ? ` ${t("public.size", { size: formatBytes(review.bytes) })}` : ""}
+            </p>
+            {hasData && !request.draft && (
+              <Switch
+                checked={withData}
+                disabled={busy}
+                onCheckedChange={setWithData}
+                label={t("public.withData")}
+                description={withData ? undefined : t("public.withDataHint")}
+              />
+            )}
+            <div className="public-copy__more">
+              {hasData && (withData || request.draft) && (
+                <details>
+                  <summary>{t("public.contents")}</summary>
+                  <pre>{JSON.stringify(savedData, null, 2)}</pre>
+                </details>
+              )}
+              {review?.bundle && (
                 <details>
                   <summary>{t("public.html")}</summary>
                   <pre>{review.bundle.html}</pre>
                 </details>
-                <h4>{t("public.state")}</h4>
-                <pre>{JSON.stringify(review.bundle.state ?? {}, null, 2)}</pre>
-              </>
-            )}
+              )}
+            </div>
+            <p className="public-copy__muted">
+              {name ? `${t("public.identity", { name })} · ` : ""}
+              {t("public.warning")}
+            </p>
           </>
         )}
       </div>

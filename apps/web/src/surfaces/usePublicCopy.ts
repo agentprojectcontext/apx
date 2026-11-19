@@ -1,5 +1,5 @@
 import type { AccountProfile, Surface } from "@apx/protocol";
-import { type SetStateAction, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { client } from "../data/client.ts";
 import { notify } from "../data/notices.ts";
 import { type MessageKey, useT } from "../i18n/index.ts";
@@ -13,46 +13,65 @@ const releaseReview = (draft: string) => {
   void client.call("surfaces.public_discard", { draft }).catch(() => {});
 };
 
+/**
+ * One step to share public: the copy is prepared as soon as the dialog opens (without the widget's saved data), and
+ * again when the owner switches that data on or off. Nothing is public until `commit`.
+ */
 export function usePublicCopy(request: Request) {
   const t = useT();
   const [source, setSource] = useState<Surface>();
   const [account, setAccount] = useState<AccountProfile>();
-  const [keys, setKeys] = useState<string[]>([]);
+  const [withData, setWithData] = useState(false);
   const [review, setReview] = useState<Review>();
   const [busy, setBusy] = useState(true);
   const [error, setError] = useState<MessageKey>();
   const [invalid, setInvalid] = useState(false);
   const [reload, setReload] = useState(0);
-  const [done, setDone] = useState<{ url: string }>();
   const ownedDrafts = useRef<Set<string> | undefined>(undefined);
   useEffect(() => {
     let live = true;
     const owned = new Set<string>();
     ownedDrafts.current = owned;
-    if (reload > 0) setInvalid(false);
+    // A retry after a failed connection starts over with the same choices.
+    if (reload >= 0) setInvalid(false);
     setBusy(true);
     setError(undefined);
+    setReview(undefined);
+    const own = async (prepared: Promise<{ draft: string }>) => {
+      const { draft } = await prepared;
+      if (!live) return releaseReview(draft);
+      owned.add(draft);
+      const value = await readPreview(draft);
+      if (live) setReview(value);
+    };
     const load = async () => {
       if (request.draft) {
         const value = await readPreview(request.draft);
         if (live) setReview(value);
-      } else if (request.action === "revoke" && request.code) {
-        const draft = await client.call("surfaces.public_prepare", { action: "revoke", code: request.code });
-        if (!live) return releaseReview(draft.draft);
-        owned.add(draft.draft);
-        const value = await readPreview(draft.draft);
-        if (live) setReview(value);
-      } else if (request.surface) {
-        const [value, identity] = await Promise.all([
-          client.call("surfaces.get", { surface: request.surface }),
-          client.call("account.get", {}),
-        ]);
-        if (!identity.profile) throw new Error("sign_in_required");
-        if (live) {
-          setSource(value);
-          setAccount(identity.profile);
-        }
+        return;
       }
+      if (request.action === "revoke" && request.code)
+        return own(client.call("surfaces.public_prepare", { action: "revoke", code: request.code }));
+      if (!request.surface) return;
+      const [value, identity] = await Promise.all([
+        client.call("surfaces.get", { surface: request.surface }),
+        client.call("account.get", {}),
+      ]);
+      if (!identity.profile) throw new Error("sign_in_required");
+      if (!live) return;
+      setSource(value);
+      setAccount(identity.profile);
+      const state_keys = withData ? Object.keys(value.state ?? {}) : [];
+      await own(
+        request.action === "update" && request.code
+          ? client.call("surfaces.public_prepare", {
+              action: "update",
+              code: request.code,
+              surface: value.id,
+              state_keys,
+            })
+          : client.call("surfaces.public_prepare", { action: "publish", surface: value.id, state_keys }),
+      );
     };
     void load()
       .catch((e: unknown) => {
@@ -66,32 +85,7 @@ export function usePublicCopy(request: Request) {
       if (ownedDrafts.current === owned) ownedDrafts.current = undefined;
       for (const draft of owned) releaseReview(draft);
     };
-  }, [request, reload]);
-  const prepare = async () => {
-    const owned = ownedDrafts.current;
-    if (!source || request.action === "revoke" || !owned) return;
-    setBusy(true);
-    setError(undefined);
-    try {
-      const result =
-        request.action === "update" && request.code
-          ? await client.call("surfaces.public_prepare", {
-              action: "update",
-              code: request.code,
-              surface: source.id,
-              state_keys: keys,
-            })
-          : await client.call("surfaces.public_prepare", { action: "publish", surface: source.id, state_keys: keys });
-      if (ownedDrafts.current !== owned) return releaseReview(result.draft);
-      owned.add(result.draft);
-      const value = await readPreview(result.draft);
-      if (ownedDrafts.current === owned) setReview(value);
-    } catch (e) {
-      if (ownedDrafts.current === owned) setError(publicError(e));
-    } finally {
-      if (ownedDrafts.current === owned) setBusy(false);
-    }
-  };
+  }, [request, reload, withData]);
   const commit = async () => {
     if (!review || invalid) return;
     setBusy(true);
@@ -105,14 +99,8 @@ export function usePublicCopy(request: Request) {
         });
       else {
         const receipt = await client.call("surfaces.public_commit", { draft: review.draft });
-        // A copy that is public now shows its link to copy; stopping one just closes.
-        if (review.action !== "revoke") {
-          ownedDrafts.current?.delete(review.draft);
-          window.dispatchEvent(new Event("apx-public-copies-changed"));
-          setDone({ url: receipt.url });
-          return;
-        }
-        notify(t("public.revoked"), "info");
+        if (review.action === "revoke") notify(t("public.revoked"), "info");
+        else await copyPublicLink(receipt.url, t("public.sharedCopied"), t("public.shared"));
       }
       ownedDrafts.current?.delete(review.draft);
       window.dispatchEvent(new Event("apx-public-copies-changed"));
@@ -125,38 +113,15 @@ export function usePublicCopy(request: Request) {
       setBusy(false);
     }
   };
-  const back = async () => {
-    if (!review || request.draft) return;
-    setBusy(true);
-    try {
-      await client.call("surfaces.public_discard", { draft: review.draft });
-      ownedDrafts.current?.delete(review.draft);
-      setReview(undefined);
-      setError(undefined);
-      setInvalid(false);
-    } catch (e) {
-      setError(publicError(e));
-    } finally {
-      setBusy(false);
-    }
-  };
-  const chooseKeys = (next: SetStateAction<string[]>) => {
-    setKeys(next);
-    if (error === "public.large") setError(undefined);
-  };
-  return {
-    source,
-    account,
-    keys,
-    setKeys: chooseKeys,
-    review,
-    done,
-    busy,
-    error,
-    invalid,
-    setReload,
-    prepare,
-    commit,
-    back,
-  };
+  return { source, account, withData, setWithData, review, busy, error, invalid, setReload, commit };
+}
+
+/** Copies a public link and says so; when the browser refuses the clipboard, it still says the copy is public. */
+async function copyPublicLink(url: string, copied: string, fallback: string): Promise<void> {
+  try {
+    await navigator.clipboard.writeText(url);
+    notify(copied, "info");
+  } catch {
+    notify(fallback, "info");
+  }
 }
