@@ -15,6 +15,7 @@ import {
   type Item,
   isMine,
   listed,
+  pageItem,
   waits,
 } from "../resources/extensionItems.ts";
 import { describe } from "../resources/IncludedIntegration.tsx";
@@ -113,8 +114,7 @@ export function MarketplaceScreen() {
   );
   // Explore offers what can be added or connected, each service once; the owner's own built ones stay in theirs.
   const offered = filterItems(items.filter(listed), query, "");
-  // A link may name an extension by its id alone: the installed one first, else what offers it.
-  const current = open ? (items.find((i) => i.key === open) ?? items.find((i) => i.id === open)) : undefined;
+  const current = open ? pageItem(items, open) : undefined;
   const mine = items.filter(isMine);
   const waiting = mine.filter(waits);
   const working = mine.filter((i) => !waits(i));
@@ -176,6 +176,7 @@ export function MarketplaceScreen() {
             backLabel={t(PLACE_LABEL[section])}
             onBack={() => go.marketplace(section)}
             onChanged={reload}
+            onAdded={(id) => go.marketplace(section, `ext:${id}`)}
           />
         ) : section === "mine" ? (
           <MineView items={items} onOpen={(i) => go.marketplace(section, i.key)} />

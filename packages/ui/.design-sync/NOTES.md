@@ -60,3 +60,5 @@
 - Blob images are baked from APX v1's `public/modules/blobs`; if v1 adds or changes blobs, re-run `scripts/export-blobs.mjs`.
 - Playwright pin (1.60.0 ↔ chromium-1223) depends on this machine's cache.
 - Fonts are system stacks (no webfont shipped). If a brand font is adopted, wire it via `extraFonts`.
+- CatalogRow gained `counts` (small icons with how many it brings of each, after its muted line: a book for skills, a
+  plug for a connector, a bot for agents), for the Marketplace's rows; re-sync it and `dist/catalog-row.css`.

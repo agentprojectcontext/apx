@@ -4,7 +4,8 @@
 import { createHash } from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
-import { ExtensionManifest, type ExtensionPower } from "@apx/protocol";
+import { type ExtensionConnector, ExtensionManifest, type ExtensionPower } from "@apx/protocol";
+import { parseFrontmatter, textField } from "../apc/frontmatter.ts";
 import { readZip, writeZip } from "../skills/zip.ts";
 
 const MANIFEST = "apx-extension.json";
@@ -185,23 +186,41 @@ function skillsIn(m: ExtensionManifest, files: readonly string[]): string[] {
   return [...names].sort();
 }
 
+/** Each skill's one line (its SKILL.md `description`), by its folder's name; a skill without one is left out. */
+function skillLinesOf(m: ExtensionManifest, skills: string[], read: (rel: string) => Buffer): Record<string, string> {
+  const base = m.skills ? inside(m.skills) : undefined;
+  if (base === undefined) return {};
+  const out: Record<string, string> = {};
+  for (const name of skills) {
+    try {
+      const text = read(`${base === "." ? "" : `${base}/`}${name}/SKILL.md`).toString("utf8");
+      const line = textField(parseFrontmatter(text).fields.description)?.trim();
+      if (line) out[name] = line.slice(0, 300);
+    } catch {}
+  }
+  return out;
+}
+
 /** An extension read and checked, ready to show or to write. */
 export type Package = {
   manifest: ExtensionManifest;
   hash: string;
   files: string[];
   skills: string[];
+  skillLines: Record<string, string>;
   read(rel: string): Buffer;
 };
 
 function packageOf(files: string[], read: (rel: string) => Buffer, has: (rel: string) => boolean): Package {
   const text = files.includes(MANIFEST) ? read(MANIFEST).toString("utf8") : undefined;
   const manifest = checkManifest(text, has);
+  const skills = skillsIn(manifest, files);
   return {
     manifest,
     hash: fingerprintOf(files.map((f) => [f, read(f)])),
     files,
-    skills: skillsIn(manifest, files),
+    skills,
+    skillLines: skillLinesOf(manifest, skills, read),
     read,
   };
 }
@@ -343,6 +362,17 @@ function powersOf(m: ExtensionManifest): ExtensionPower[] {
 const OWNER_HOST = /^https:\/\/(setting|secret):\/\//;
 export const ownerHost = (m: ExtensionManifest) => Object.values(m.mcp).some((s) => OWNER_HOST.test(s.url ?? ""));
 export const hostsOf = (m: ExtensionManifest) => powersOf(m).flatMap((p) => (p.kind === "host" ? [p.name] : []));
+
+/** The remote server a command bridges to (`npx mcp-remote https://…`), when it names one. */
+const bridgedUrl = (args: string[]) => args.find((a) => /^https:\/\//.test(a) && URL.canParse(a));
+
+/** Each server with the address it reaches, to show before it is added; an owner's address is said, not shown. */
+export const connectorsOf = (m: ExtensionManifest): ExtensionConnector[] =>
+  Object.entries(m.mcp).map(([name, s]) => {
+    const owner = Boolean(s.url && OWNER_HOST.test(s.url));
+    const url = s.command ? bridgedUrl(s.args) : owner ? undefined : s.url;
+    return { name, ...(url ? { url } : {}), ...(owner ? { owner_url: true } : {}), runs_here: Boolean(s.command) };
+  });
 
 const key = (p: ExtensionPower) => `${p.kind}\0${p.name}\0${p.detail ?? ""}`;
 

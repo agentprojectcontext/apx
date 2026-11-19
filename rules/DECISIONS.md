@@ -5653,3 +5653,49 @@ Rejected: deleting them for good (an agent may have chats and notes the owner wa
 asked for them to go); marking the agent itself with its extension (a field on every agent for one origin).
 
 Docs impact: updated `apps/docs` extend/extensions (EN/ES): what happens to an extension's agents when it is removed.
+
+<a id="d-255"></a>
+## D-255 — 2026-11-19 — An extension's page shows all it brings before adding; Add and Connect are two steps there
+
+Trying the Marketplace as an outsider, the owner could not tell what an extension brings until after connecting it:
+the page of one not added said only "Connection · Sign-in: you sign in to the service · its address and tools appear
+when you connect it", Add opened a box that went straight to Connect and hid the page, and **Later** left them on the
+list, searching for it again. They compared it with Claude's plugin pages, which show each connector's address, sign-in
+and full tool list, and "this plugin includes no skills", before installing.
+
+- **One "What it brings", before and after adding.** The page reads the same model (`bringsOf`) from a catalog
+  entry's contents or an added extension's manifest and servers: each **Connector** with its address (its own, or the
+  remote one a program bridges to, with a copy button; an owner's address is said, not shown), how it signs in, and its
+  tools (named by its listing, or by its server once it answered; otherwise said once: "You'll see them when you connect
+  it"); its **Skills** with each one's line, or "It brings no skills"; its ready-made **Agents** with their lines;
+  routines, widgets, a device's app; and **It will ask you for**: its keys and required settings. The facts sit beside
+  it in both states, with files nobody verified named under Security and access and the fingerprint under Details.
+  The add box keeps its short card.
+- **The catalog carries what the page needs.** `ExtensionContents` gains `connectors` (name, address, runs here),
+  `skill_lines` (each SKILL.md's `description`), `agent_lines`, `settings` and `apps`; installed extensions report
+  `connectors` and `skill_lines` too. A package kept by an older APX is read once more, so its page names its skills'
+  lines; offline it keeps showing what was kept.
+- **Add, then Connect, on the page.** Add (on the page, or a row's Add, which opens the page and adds it there) checks
+  and copies the files and the page stays, now added, with **Connect**; the page's key follows it from the catalog's
+  entry to the owner's extension. Connect opens the box on its connect step, which first says what opens for one that
+  signs in on the service's page ("Connect opens your browser on Cloudflare's sign-in page"); **Later** closes it on
+  the page. One with
+  nothing to connect is turned on as it is added (D-246). Adding from a file, an address or a folder ends on its page
+  the same way.
+- **Rows say what it brings with icons.** After "Connector · From APX", small icons with counts (a plug for its
+  connector, a book for skills, a bot for agents, a phone for a device's app, a grid for widgets), with a label read
+  aloud and shown on hover; a count APX does not know is left out. The look is `CatalogRow`'s `counts` in `@apx/ui`.
+
+Proposed, not done (it changes the marketplace repository, which needs the owner's OK): the catalog builder records
+each remote server's tools at publish time, the way Claude's directory lists them. For a package whose server
+answers `tools/list` without signing in it writes the names (and descriptions) into `apx-listing.json` `tools`, which
+APX already shows before adding; for one that needs a sign-in, the publisher signs in once on the build machine with
+a test account, or the listing keeps writing them by hand; a re-publish refreshes them and a check fails the build
+when the server's list and the listing's differ.
+
+Rejected: a second "preview" box before adding (the page already shows it all); probing a server from the owner's
+APX before adding it (D-246 rejected a method for what connecting already does); counting a lone connector (a plug
+without a number reads clearer).
+
+Docs impact: updated `apps/docs` extend/extensions (EN/ES): the row's icons, Add then Connect on the page, Later, and
+what the page shows before adding.
