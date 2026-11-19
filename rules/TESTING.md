@@ -178,6 +178,9 @@ Electron starts (`scripts/virtual-pointer.py`). Otherwise native-view reparentin
 hover into Playwright's separate synthetic drag and release its capture. This uses Python 3 and the existing X11
 library in the Linux test images, not a product dependency. The helper refuses without `APX_TEST_VIRTUAL_DISPLAY=1`;
 it is never run against an already supplied display by coverage, nor on macOS or Windows.
+Owned Xvfb servers use `-noreset`, preserving that position when the helper closes its last X11 connection before
+other clients start. On Linux, `python3 scripts/virtual-pointer.test.py` verifies parking across reconnect on a new
+server allocated with `-displayfd`; `--reset` reproduces the failure without that flag. Both paths close their server.
 Reports identify each unexecuted function by file and line. An executed function still needs meaningful assertions;
 unit coverage does not replace Playwright or a real phone. The default coverage command fails on suite failures;
 the separate strict command additionally requires every inventoried function to execute. CI runs all suites with

@@ -6,7 +6,7 @@ export HOME=/cache/home
 mkdir -p "$HOME" /cache/pnpm-store "$PLAYWRIGHT_BROWSERS_PATH"
 
 # The screen: a desktop on :99, watchable at :6080 inside the box (`pnpm remote screen` tunnels to it).
-Xvfb :99 -screen 0 1600x1000x24 -nolisten tcp >/tmp/xvfb.log 2>&1 &
+Xvfb :99 -screen 0 1600x1000x24 -nolisten tcp -noreset >/tmp/xvfb.log 2>&1 &
 for _ in $(seq 50); do [ -e /tmp/.X11-unix/X99 ] && break; sleep 0.1; done
 APX_TEST_VIRTUAL_DISPLAY=1 python3 /work/scripts/virtual-pointer.py || exit $?
 openbox >/tmp/openbox.log 2>&1 &

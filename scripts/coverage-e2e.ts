@@ -105,7 +105,16 @@ export async function runE2ESuites(which: Suites, options: SuiteOptions): Promis
   if (platform === "linux" && !env.DISPLAY) {
     const launch =
       'command -v openbox >/dev/null || { echo "Install openbox for desktop window tests" >&2; exit 1; }; openbox >/dev/null 2>&1 & APX_TEST_VIRTUAL_DISPLAY=1 python3 scripts/virtual-pointer.py && exec "$@"';
-    passed = await run("xvfb-run", ["-a", "sh", "-c", launch, "apx-desktop", pnpm, ...desktop]);
+    passed = await run("xvfb-run", [
+      "-a",
+      "--server-args=-screen 0 1600x1000x24 -nolisten tcp -noreset",
+      "sh",
+      "-c",
+      launch,
+      "apx-desktop",
+      pnpm,
+      ...desktop,
+    ]);
   } else if (platform === "darwin") {
     passed = await run("caffeinate", ["-d", "-i", pnpm, ...desktop]);
   } else passed = await run(pnpm, desktop);

@@ -84,9 +84,9 @@ test("only a newly owned virtual display parks the idle pointer before desktop i
   assert.equal(calls.length, 3);
   const [command, ...args] = calls[2] ?? [];
   assert.equal(command, "xvfb-run");
-  assert.deepEqual(args.slice(0, 3), ["-a", "sh", "-c"]);
-  assert.match(args[3] ?? "", /APX_TEST_VIRTUAL_DISPLAY=1 python3 scripts\/virtual-pointer\.py && exec "\$@"$/);
-  assert.deepEqual(args.slice(4), ["apx-desktop", "pnpm", "exec", "playwright", "test", "--project", "desktop"]);
+  assert.deepEqual(args.slice(0, 4), ["-a", "--server-args=-screen 0 1600x1000x24 -nolisten tcp -noreset", "sh", "-c"]);
+  assert.match(args[4] ?? "", /APX_TEST_VIRTUAL_DISPLAY=1 python3 scripts\/virtual-pointer\.py && exec "\$@"$/);
+  assert.deepEqual(args.slice(5), ["apx-desktop", "pnpm", "exec", "playwright", "test", "--project", "desktop"]);
 });
 
 test("an explicit CI shard is not expanded and a failed shard keeps the overall run red", async () => {
