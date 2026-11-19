@@ -1,9 +1,12 @@
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import { after, before, test } from "node:test";
+import type { CatalogItem } from "../domain/extension-catalogs.ts";
 import { say, scriptedLlm, startCore } from "../engine/testkit.ts";
 import { type TempDir, tempDir, waitFor } from "../testkit/platform.ts";
+import { catalogPluginIds } from "./catalog-identities.ts";
 import { parseSource } from "./catalogs.ts";
 import { convertPlugin, licenseOf } from "./claude-plugin.ts";
 import { hostsOf, ownerHost, readFiles } from "./package.ts";
@@ -13,6 +16,7 @@ const PROPRIETARY = "Copyright Acme. All rights reserved. No part of this may be
 const SHA = "778122e5f9c680f541eeceda5a5b36405eb7980c";
 /** Claude Code's `${NAME}` placeholder, as a plugin writes it. */
 const placeholder = (name: string) => `\${${name}}`;
+const settingId = (name: string) => `x_${createHash("sha256").update(name).digest("hex").slice(0, 18)}`;
 const put = (root: string, files: Record<string, string>) => {
   for (const [f, data] of Object.entries(files)) {
     fs.mkdirSync(path.dirname(path.join(root, f)), { recursive: true });
@@ -79,17 +83,17 @@ test("a Claude plugin becomes an extension: skills as they are, servers with the
   assert.deepEqual(m.mcp.crm, {
     command: "npx",
     args: ["-y", "crm-mcp@1.0.0"],
-    env: { CRM_API_KEY: "secret://crm_api_key" },
+    env: { CRM_API_KEY: `secret://${settingId("CRM_API_KEY")}` },
   });
   assert.deepEqual(m.mcp.deal_room, {
     url: "https://mcp.example.com/mcp",
-    headers: { Authorization: "Bearer secret://room_token" },
+    headers: { Authorization: `Bearer secret://${settingId("ROOM_TOKEN")}` },
   });
   assert.deepEqual(
     m.settings.map((s: { name: string; sensitive: boolean; required: boolean }) => [s.name, s.sensitive, s.required]),
     [
-      ["crm_api_key", true, true],
-      ["room_token", true, true],
+      [settingId("CRM_API_KEY"), true, true],
+      [settingId("ROOM_TOKEN"), true, true],
     ],
   );
   assert.deepEqual(m.agents[0], {
@@ -125,19 +129,19 @@ test("servers plugin.json names in a file of its own; a placeholder with a defau
   assert.equal(m.name, "Watch");
   assert.equal(m.version, "0.7.1");
   assert.deepEqual(m.mcp.mcp, {
-    url: "https://setting://watch_domain/v1/mcp",
-    headers: { WATCH_API_KEY: "secret://watch_api_key" },
+    url: `https://setting://${settingId("WATCH_DOMAIN")}/v1/mcp`,
+    headers: { WATCH_API_KEY: `secret://${settingId("WATCH_API_KEY")}` },
   });
   assert.deepEqual(m.settings, [
     {
-      name: "watch_domain",
+      name: settingId("WATCH_DOMAIN"),
       label: "Watch domain",
       type: "string",
       sensitive: false,
       required: false,
       default: "not-setup",
     },
-    { name: "watch_api_key", label: "Watch API key", type: "string", sensitive: true, required: false },
+    { name: settingId("WATCH_API_KEY"), label: "Watch API key", type: "string", sensitive: true, required: false },
   ]);
   // The address the owner types is theirs: no host of its own, said apart.
   const pkg = readFiles(out.files);
@@ -168,6 +172,40 @@ test("plugin settings with the same truncated name stay separate and repeated pl
   assert.equal(server.env.FIRST, server.env.AGAIN);
   assert.equal(pkg.manifest.settings?.length, 2);
   assert.ok(pkg.manifest.settings?.every((setting) => setting.sensitive));
+  files.set(
+    ".mcp.json",
+    Buffer.from(
+      JSON.stringify({
+        tracker: {
+          command: "node",
+          env: {
+            SECOND: placeholder("SOME_SERVICE_ACCESS_SECRET"),
+            FIRST: placeholder("SOME_SERVICE_ACCESS_TOKEN"),
+          },
+        },
+      }),
+    ),
+  );
+  const reordered = readFiles(convertPlugin(files, { name: "Tracker" }).files).manifest.mcp?.tracker;
+  assert.ok(reordered && "env" in reordered && reordered.env);
+  assert.equal(reordered.env.FIRST, server.env.FIRST);
+  assert.equal(reordered.env.SECOND, server.env.SECOND);
+  files.set(
+    ".mcp.json",
+    Buffer.from(
+      JSON.stringify({
+        tracker: {
+          command: "node",
+          env: {
+            SECOND: placeholder("SOME_SERVICE_ACCESS_SECRET"),
+          },
+        },
+      }),
+    ),
+  );
+  const remaining = readFiles(convertPlugin(files, { name: "Tracker" }).files).manifest.mcp?.tracker;
+  assert.ok(remaining && "env" in remaining && remaining.env);
+  assert.equal(remaining.env.SECOND, server.env.SECOND);
 });
 
 test("servers written at the top of .mcp.json, without mcpServers, are its servers all the same", () => {
@@ -254,6 +292,32 @@ after(async () => {
   await env.core.close();
   await home.remove();
   await cat.remove();
+});
+
+test("entries sharing a source keep the ID of the displayed entry, not the source's ordering", () => {
+  const plugins = [
+    { name: "alpha", displayName: "Zulu", source: "./shared" },
+    { name: "beta", displayName: "Alpha", source: "./shared" },
+  ];
+  const old = (id: string, name: string): CatalogItem => ({
+    id,
+    name,
+    description: "",
+    version: "1.0.0",
+    plugin: true,
+    via: { type: "path", path: "shared" },
+  });
+  const previous = [old("beta", "Alpha"), old("alpha", "Zulu")];
+  const ids = catalogPluginIds(plugins, previous);
+  assert.equal(ids.get(0), "alpha");
+  assert.equal(ids.get(1), "beta");
+  const legacy = catalogPluginIds(plugins, [old("duplicate", "Alpha"), old("duplicate", "Zulu")]);
+  assert.equal(legacy.get(1), "duplicate");
+  assert.notEqual(legacy.get(0), "duplicate");
+  const remaining = catalogPluginIds([plugins[0]], previous);
+  assert.equal(remaining.get(0), "alpha");
+  const moved = catalogPluginIds([{ ...plugins[0], source: "./other" }], previous);
+  assert.notEqual(moved.get(0), "alpha");
 });
 
 test("catalog names sharing the first 20 characters remain separately inspectable across syncs", async () => {

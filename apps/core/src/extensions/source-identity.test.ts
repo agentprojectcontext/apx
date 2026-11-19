@@ -41,8 +41,10 @@ test("catalogs with the same displayed names do not share extension identity", a
     }
     const a = await env.client.call("extensions.catalog_add", { source: first.path });
     const b = await env.client.call("extensions.catalog_add", { source: second.path });
-    await env.client.call("extensions.install", { entry: { catalog: a.id, id: "shared" } });
-    await env.client.call("extensions.settings", { id: "shared", values: { secret_token: "synthetic-private-key" } });
+    const installed = await env.client.call("extensions.install", { entry: { catalog: a.id, id: "shared" } });
+    const key = installed.settings.find((s) => s.label === "Secret token")?.name;
+    assert.ok(key);
+    await env.client.call("extensions.settings", { id: "shared", values: { [key]: "synthetic-private-key" } });
     await assert.rejects(
       env.client.call("extensions.install", { entry: { catalog: b.id, id: "shared" } }),
       /already installed.*different source/i,
@@ -52,6 +54,127 @@ test("catalogs with the same displayed names do not share extension identity", a
     await env.cleanup();
     await first.remove();
     await second.remove();
+  }
+});
+
+test("a reordered plugin update keeps two server credentials with their original variables", async () => {
+  const catalog = tempDir("reorder-catalog-");
+  const env = await startCore({ llm: scriptedLlm(() => say("ok")) });
+  try {
+    fs.mkdirSync(path.join(catalog.path, ".claude-plugin"), { recursive: true });
+    fs.mkdirSync(path.join(catalog.path, "plugin", ".claude-plugin"), { recursive: true });
+    fs.writeFileSync(
+      path.join(catalog.path, ".claude-plugin", "marketplace.json"),
+      JSON.stringify({
+        name: "Acme",
+        plugins: [{ name: "shared", source: "./plugin" }],
+      }),
+    );
+    fs.writeFileSync(
+      path.join(catalog.path, "plugin", ".claude-plugin", "plugin.json"),
+      JSON.stringify({ name: "shared", license: "MIT" }),
+    );
+    const server = (variable: string) => ({
+      command: process.execPath,
+      args: [SERVER],
+      env: { NOTES_TOKEN: `\${${variable}}` },
+    });
+    const first = server("SOME_SERVICE_ACCESS_TOKEN");
+    const second = server("SOME_SERVICE_ACCESS_SECRET");
+    const mcp = path.join(catalog.path, "plugin", ".mcp.json");
+    fs.writeFileSync(mcp, JSON.stringify({ first, second }));
+    const added = await env.client.call("extensions.catalog_add", { source: catalog.path });
+    const installed = await env.client.call("extensions.install", { entry: { catalog: added.id, id: "shared" } });
+    const token = installed.settings.find((s) => s.label === "Some service access token")?.name;
+    const secret = installed.settings.find((s) => s.label === "Some service access secret")?.name;
+    assert.ok(token && secret);
+    await env.client.call("extensions.settings", {
+      id: "shared",
+      values: { [token]: "synthetic-first", [secret]: "synthetic-second" },
+    });
+    await env.client.call("extensions.enable", { id: "shared", enabled: true });
+    const check = async () => {
+      for (const [name, expected] of [
+        ["first", "synthetic-first"],
+        ["second", "synthetic-second"],
+      ] as const) {
+        const result = await env.client.call("mcp.call", {
+          scope: "global",
+          server: `shared-${name}`,
+          tool: "token",
+          arguments: {},
+        });
+        assert.match(String(result.content?.[0]?.text), new RegExp(expected));
+      }
+    };
+    await check();
+    fs.writeFileSync(mcp, JSON.stringify({ second, first }));
+    await env.client.call("extensions.catalog_add", { source: catalog.path });
+    await env.client.call("extensions.install", { entry: { catalog: added.id, id: "shared" } });
+    await env.client.call("extensions.enable", { id: "shared", enabled: true });
+    await check();
+  } finally {
+    await env.core.close();
+    await env.cleanup();
+    await catalog.remove();
+  }
+});
+
+test("legacy catalog secrets are not silently reassigned during conversion updates", async () => {
+  const catalog = tempDir("legacy-catalog-");
+  const original = tempDir("legacy-extension-");
+  const env = await startCore({ llm: scriptedLlm(() => say("ok")) });
+  try {
+    fs.writeFileSync(
+      path.join(original.path, "apx-extension.json"),
+      JSON.stringify({
+        manifest: 2,
+        id: "shared",
+        name: "Shared",
+        version: "1.0.0",
+        settings: [{ name: "legacy_token", label: "Old API key", type: "string", sensitive: true }],
+        mcp: { test: { command: process.execPath, args: [SERVER], env: { NOTES_TOKEN: "secret://legacy_token" } } },
+      }),
+    );
+    await env.client.call("extensions.install", { path: original.path });
+    const legacy = env.core.store.extensions.get("shared");
+    assert.ok(legacy);
+    env.core.store.extensions.put({ ...legacy, source: "Acme · shared", origin_key: undefined });
+    await env.client.call("extensions.settings", { id: "shared", values: { legacy_token: "synthetic-private-key" } });
+    fs.mkdirSync(path.join(catalog.path, ".claude-plugin"), { recursive: true });
+    fs.mkdirSync(path.join(catalog.path, "plugin", ".claude-plugin"), { recursive: true });
+    fs.writeFileSync(
+      path.join(catalog.path, ".claude-plugin", "marketplace.json"),
+      JSON.stringify({
+        name: "Acme",
+        plugins: [{ name: "shared", source: "./plugin" }],
+      }),
+    );
+    fs.writeFileSync(
+      path.join(catalog.path, "plugin", ".claude-plugin", "plugin.json"),
+      JSON.stringify({ name: "shared", license: "MIT" }),
+    );
+    fs.writeFileSync(
+      path.join(catalog.path, "plugin", ".mcp.json"),
+      JSON.stringify({
+        test: { command: "node", env: { TOKEN: "$" + "{SOME_SERVICE_ACCESS_TOKEN}" } },
+      }),
+    );
+    const added = await env.client.call("extensions.catalog_add", { source: catalog.path });
+    await assert.rejects(
+      env.client.call("extensions.install", { entry: { catalog: added.id, id: "shared" } }),
+      /different source/i,
+    );
+    const before = await env.client.call("extensions.list", {});
+    assert.equal(
+      before.extensions.find((e) => e.id === "shared")?.settings.find((s) => s.name === "legacy_token")?.set,
+      true,
+    );
+  } finally {
+    await env.core.close();
+    await env.cleanup();
+    await original.remove();
+    await catalog.remove();
   }
 });
 

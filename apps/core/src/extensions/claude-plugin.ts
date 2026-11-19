@@ -2,6 +2,7 @@
 // extension, in memory: its skills as they are, its MCP servers (`${VAR}` becoming a sensitive setting), its agents as
 // manifest 2 agents, its license and readme kept. Commands and hooks have no APX counterpart and are left out.
 // Converting happens only under a license that allows it (DECISIONS.md#d-243).
+import { createHash } from "node:crypto";
 
 /** The licenses whose terms allow a converted copy for the owner's own use (the license file travels with it). */
 const ALLOWED = ["MIT", "Apache-2.0", "BSD-2-Clause", "BSD-3-Clause", "ISC", "0BSD", "MPL-2.0", "Unlicense", "CC0-1.0"];
@@ -186,12 +187,8 @@ export function convertPlugin(
     v.replace(/\$\{([A-Za-z_][A-Za-z0-9_]*)(?::-([^}]*))?\}/g, (_m, n: string, fallback: string | undefined) => {
       let s = settingNames.get(n);
       if (!s) {
-        const base = innerName(n);
-        s = base;
-        for (let i = 2; settings.has(s); i++) {
-          const suffix = `_${i}`;
-          s = `${base.slice(0, 20 - suffix.length)}${suffix}`;
-        }
+        s = `x_${createHash("sha256").update(n).digest("hex").slice(0, 18)}`;
+        if ([...settingNames.values()].includes(s)) throw new Error("plugin setting identifiers collide");
         settingNames.set(n, s);
       }
       const sensitive = SENSITIVE.test(n);

@@ -228,9 +228,9 @@ export function createExtensions(deps: {
     return realpath(dir);
   };
   const refused = (message: string, detail: ExtensionRefusal) => badRequest(message, detail);
-  const originOf = (input: ExtensionInput, source: string, hash: string) =>
+  const originOf = (input: ExtensionInput, source: string, hash: string, catalogOrigin?: string) =>
     input.entry
-      ? `catalog:${input.entry.catalog}/${input.entry.id}`
+      ? (catalogOrigin ?? `catalog-unresolved:${hash}`)
       : input.path !== undefined
         ? `folder:${source}`
         : input.url !== undefined
@@ -256,14 +256,14 @@ export function createExtensions(deps: {
     });
   };
   /** The extension read and checked, and what to call where it came from. Nothing is written. */
-  const load = async (input: ExtensionInput): Promise<{ pkg: Package; source: string }> => {
+  const load = async (input: ExtensionInput): Promise<{ pkg: Package; source: string; origin?: string }> => {
     const read = await readInput(input);
     const min = read.pkg.manifest.min_apx;
     if (min && deps.version && compareVersions(min, deps.version) > 0)
       throw refused(`${read.pkg.manifest.name} needs APX ${min} or newer`, { reason: "newer_apx", needs: min });
     return read;
   };
-  const readInput = async (input: ExtensionInput): Promise<{ pkg: Package; source: string }> => {
+  const readInput = async (input: ExtensionInput): Promise<{ pkg: Package; source: string; origin?: string }> => {
     try {
       if (input.path !== undefined) {
         const dir = folder(input.path);
@@ -472,14 +472,14 @@ export function createExtensions(deps: {
      * installed one aside, to go back to; `expect` refuses files other than the ones the owner looked at.
      */
     async install(input: ExtensionInput, expect?: string): Promise<ExtensionInfo> {
-      const { pkg, source } = await load(input);
+      const { pkg, source, origin: catalogOrigin } = await load(input);
       const { manifest, hash } = pkg;
       if (expect && expect !== hash)
         throw refused("the extension is not the one you looked at; look at it again", { reason: "changed" });
       const check = await catalog.check(manifest.id, manifest.version, hash);
       const id = manifest.id;
       const cur = store.extensions.get(id);
-      const origin = originOf(input, source, hash);
+      const origin = originOf(input, source, hash, catalogOrigin);
       const same = cur ? sameOrigin(cur, input, source, origin) : true;
       const officialUpdate = cur?.provenance === "official" && check.provenance === "official";
       if (cur && cur.hash !== hash && !same && !officialUpdate && hasPrivateConfig(cur, manifest))

@@ -35,12 +35,20 @@ export function catalogPluginIds(plugins: unknown[], previous: CatalogItem[]): M
   for (const old of previous) {
     const key = previousKey(old.via);
     const matches = key ? candidates.filter((p) => p.key === key && !ids.has(p.index)) : [];
-    const match = matches.find((p) => p.shown === old.name) ?? (matches.length === 1 ? matches[0] : undefined);
+    const sameSourceBefore = previous.filter((item) => previousKey(item.via) === key);
+    const sameName = matches.filter((p) => p.shown === old.name);
+    const match =
+      sameName.length === 1
+        ? sameName[0]
+        : matches.length === 1 && sameSourceBefore.length === 1
+          ? matches[0]
+          : undefined;
     if (match && !used.has(old.id)) {
       ids.set(match.index, old.id);
       used.add(old.id);
     }
   }
+  for (const old of previous) used.add(old.id);
   for (const p of candidates) {
     if (ids.has(p.index)) continue;
     const base = extensionId(p.name);

@@ -487,13 +487,20 @@ export function createCatalogs(deps: {
       return store.extensionCatalogs.remove(id) || wasFailed || Boolean(job);
     },
     /** An entry's files as an extension: its .apxext, or its plugin folder at its commit turned into one. */
-    async resolve(catalog: string, entry: string): Promise<{ pkg: Package; source: string }> {
+    async resolve(catalog: string, entry: string): Promise<{ pkg: Package; source: string; origin: string }> {
       const c = store.extensionCatalogs.get(catalog);
       const e = c?.entries.find((x) => x.id === entry);
       if (!c || !e) throw notFound(`${entry} in that catalog`);
       const label = `${c.name} · ${e.name}`;
+      const via =
+        e.via.type === "path"
+          ? ["path", e.via.path]
+          : e.via.type === "git"
+            ? ["git", e.via.url, e.via.path ?? ""]
+            : ["archive", e.via.url];
+      const origin = `catalog-v2:${JSON.stringify([catalog, entry, via])}`;
       if (e.via.type === "archive")
-        return { pkg: readArchive(await downloadArchive(e.via.url, deps.fetch)), source: label };
+        return { pkg: readArchive(await downloadArchive(e.via.url, deps.fetch)), source: label, origin };
       const tmp = e.via.type === "git" ? fs.mkdtempSync(path.join(os.tmpdir(), "apx-plugin-")) : undefined;
       try {
         let dir: string;
@@ -508,14 +515,14 @@ export function createCatalogs(deps: {
           if (!isInside(tmp as string, dir)) throw badRequest("that plugin points outside its repository");
         }
         const files = folderFiles(dir);
-        if (files.has("apx-extension.json")) return { pkg: readFiles(files), source: label };
+        if (files.has("apx-extension.json")) return { pkg: readFiles(files), source: label, origin };
         const converted = convertPlugin(files, {
           id: e.id,
           name: e.name,
           description: e.description,
           version: e.version,
         });
-        return { pkg: readFiles(converted.files), source: label };
+        return { pkg: readFiles(converted.files), source: label, origin };
       } finally {
         if (tmp) fs.rmSync(tmp, { recursive: true, force: true });
       }
