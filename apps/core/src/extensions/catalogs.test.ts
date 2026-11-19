@@ -145,6 +145,31 @@ test("servers plugin.json names in a file of its own; a placeholder with a defau
   assert.equal(ownerHost(pkg.manifest), true);
 });
 
+test("plugin settings with the same truncated name stay separate and repeated placeholders agree", () => {
+  const files = new Map(
+    Object.entries({
+      ".claude-plugin/plugin.json": JSON.stringify({ name: "Tracker" }),
+      ".mcp.json": JSON.stringify({
+        tracker: {
+          command: "node",
+          env: {
+            FIRST: placeholder("SOME_SERVICE_ACCESS_TOKEN"),
+            SECOND: placeholder("SOME_SERVICE_ACCESS_SECRET"),
+            AGAIN: placeholder("SOME_SERVICE_ACCESS_TOKEN"),
+          },
+        },
+      }),
+    }).map(([k, v]) => [k, Buffer.from(v)]),
+  );
+  const pkg = readFiles(convertPlugin(files, { name: "Tracker" }).files);
+  const server = pkg.manifest.mcp?.tracker;
+  assert.ok(server && "env" in server && server.env);
+  assert.notEqual(server.env.FIRST, server.env.SECOND);
+  assert.equal(server.env.FIRST, server.env.AGAIN);
+  assert.equal(pkg.manifest.settings?.length, 2);
+  assert.ok(pkg.manifest.settings?.every((setting) => setting.sensitive));
+});
+
 test("servers written at the top of .mcp.json, without mcpServers, are its servers all the same", () => {
   const files = new Map(
     Object.entries({
@@ -229,6 +254,51 @@ after(async () => {
   await env.core.close();
   await home.remove();
   await cat.remove();
+});
+
+test("catalog names sharing the first 20 characters remain separately inspectable across syncs", async () => {
+  const folder = tempDir("catalog-collisions-");
+  const first = { name: "long-catalog-entry-name-alpha", source: "./alpha" };
+  const second = { name: "long-catalog-entry-name-beta", source: "./beta" };
+  const index = (plugins: unknown[]) => JSON.stringify({ name: "Acme", plugins });
+  put(folder.path, {
+    ".claude-plugin/marketplace.json": index([first]),
+    "alpha/.claude-plugin/plugin.json": JSON.stringify({ name: first.name, license: "MIT" }),
+    "alpha/skills/alpha/SKILL.md": "---\nname: alpha\ndescription: Alpha.\n---\nAlpha.\n",
+    "beta/.claude-plugin/plugin.json": JSON.stringify({ name: second.name, license: "MIT" }),
+    "beta/skills/beta/SKILL.md": "---\nname: beta\ndescription: Beta.\n---\nBeta.\n",
+  });
+  try {
+    const added = await env.client.call("extensions.catalog_add", { source: folder.path });
+    const listed = async () =>
+      (await env.client.call("extensions.catalog", {})).entries.filter((e) => e.catalog === added.id);
+    const legacy = (await listed())[0]?.id;
+    assert.ok(legacy);
+    put(folder.path, { ".claude-plugin/marketplace.json": index([second, first]) });
+    await env.client.call("extensions.catalog_add", { source: folder.path });
+    const entries = await listed();
+    const a = entries.find((e) => e.name === first.name);
+    const b = entries.find((e) => e.name === second.name);
+    assert.equal(a?.id, legacy);
+    assert.ok(b?.id);
+    assert.notEqual(a.id, b.id);
+    assert.deepEqual((await env.client.call("extensions.inspect", { entry: { catalog: added.id, id: a.id } })).skills, [
+      "alpha",
+    ]);
+    assert.deepEqual((await env.client.call("extensions.inspect", { entry: { catalog: added.id, id: b.id } })).skills, [
+      "beta",
+    ]);
+    const installedA = await env.client.call("extensions.install", { entry: { catalog: added.id, id: a.id } });
+    const installedB = await env.client.call("extensions.install", { entry: { catalog: added.id, id: b.id } });
+    assert.equal(installedA.id, a.id);
+    assert.equal(installedB.id, b.id);
+    put(folder.path, { ".claude-plugin/marketplace.json": index([first, second]) });
+    await env.client.call("extensions.catalog_add", { source: folder.path });
+    assert.equal((await listed()).find((e) => e.name === second.name)?.id, b.id);
+    await env.client.call("extensions.catalog_remove", { id: added.id });
+  } finally {
+    await folder.remove();
+  }
 });
 
 test("an added catalog lists what it may, leaves out what it may not (license, unpinned, outside, empty) and says why", async () => {

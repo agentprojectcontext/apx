@@ -13,6 +13,7 @@ import { badRequest, notFound } from "../errors.ts";
 import { expandHome, isInside } from "../paths.ts";
 import type { GitRunner } from "../skills/import.ts";
 import { downloadArchive, fetchSmall } from "./catalog.ts";
+import { catalogPluginIds } from "./catalog-identities.ts";
 import { compareVersions } from "./catalog-packages.ts";
 import { convertPlugin, extensionId, licenseOf, pluginLicense, pluginVersion } from "./claude-plugin.ts";
 import { filesOf, type Package, readArchive, readFiles } from "./package.ts";
@@ -204,12 +205,14 @@ export function createCatalogs(deps: {
     root: string | undefined,
     repoLicense: string | undefined,
     progress: (done: number, total: number) => void,
+    previous: CatalogItem[],
   ) {
     const entries: CatalogItem[] = [];
     const skipped: CatalogSkip[] = [];
     const plugins = (raw as { plugins?: unknown[] }).plugins ?? [];
     const owner = nameOf((raw as { owner?: unknown }).owner);
-    const one = async (p0: unknown) => {
+    const ids = catalogPluginIds(plugins, previous);
+    const one = async (p0: unknown, index: number) => {
       const p = p0 as {
         name?: string;
         displayName?: string;
@@ -223,7 +226,7 @@ export function createCatalogs(deps: {
       const name = p.displayName ?? p.name ?? "";
       if (!p.name) return skipped.push({ name: name || "?", reason: "invalid" });
       const base = {
-        id: extensionId(p.name),
+        id: ids.get(index) ?? extensionId(p.name),
         name,
         description: (p.description ?? "").slice(0, 500),
         version: p.version ?? "0.0.0",
@@ -282,7 +285,7 @@ export function createCatalogs(deps: {
     // A few at a time: each checks a license over the network.
     progress(0, plugins.length);
     for (let i = 0; i < plugins.length; i += 8) {
-      await Promise.all(plugins.slice(i, i + 8).map(one));
+      await Promise.all(plugins.slice(i, i + 8).map((p, offset) => one(p, i + offset)));
       progress(Math.min(i + 8, plugins.length), plugins.length);
     }
     entries.sort((a, b) => a.name.localeCompare(b.name));
@@ -356,7 +359,13 @@ export function createCatalogs(deps: {
       ? LICENSES.map((f) => path.join(root as string, f)).find((f) => fs.existsSync(f))
       : undefined;
     const read = claude
-      ? await readClaude(raw, root, repoLicense ? fs.readFileSync(repoLicense, "utf8") : undefined, progress)
+      ? await readClaude(
+          raw,
+          root,
+          repoLicense ? fs.readFileSync(repoLicense, "utf8") : undefined,
+          progress,
+          store.extensionCatalogs.get(id)?.entries ?? [],
+        )
       : readApx(raw);
     const name =
       (raw as { name?: string; registry?: string }).name ?? (raw as { registry?: string }).registry ?? sourceText(src);

@@ -181,9 +181,19 @@ export function convertPlugin(
   }
   // Its MCP servers; `${VAR}` in them becomes a setting the owner types once, sensitive when it names a key.
   const settings = new Map<string, Setting>();
+  const settingNames = new Map<string, string>();
   const ref = (v: string) =>
     v.replace(/\$\{([A-Za-z_][A-Za-z0-9_]*)(?::-([^}]*))?\}/g, (_m, n: string, fallback: string | undefined) => {
-      const s = innerName(n);
+      let s = settingNames.get(n);
+      if (!s) {
+        const base = innerName(n);
+        s = base;
+        for (let i = 2; settings.has(s); i++) {
+          const suffix = `_${i}`;
+          s = `${base.slice(0, 20 - suffix.length)}${suffix}`;
+        }
+        settingNames.set(n, s);
+      }
       const sensitive = SENSITIVE.test(n);
       settings.set(s, {
         name: s,
