@@ -33,7 +33,8 @@ async function projectWithEarlierChat(...agents: Array<[string, string]>): Promi
 
 async function newChatWith(page: import("@playwright/test").Page, project: string, name: string, id: string) {
   await open(page, `#project=${project}&tab=chats`);
-  await page.getByRole("combobox", { name: "Nuevo chat" }).first().click();
+  // The project's own menu: the sidebar's lists every project's agents, and earlier runs left more than one Zeta.
+  await page.getByRole("main").getByRole("combobox", { name: "Nuevo chat" }).first().click();
   await page
     .getByRole("option", { name: new RegExp(name) })
     .first()
@@ -85,4 +86,27 @@ test("a new chat with an agent installed from a template opens and is made with 
   expect(done.installed).toHaveLength(1);
 
   await newChatWith(page, target, done.installed[0]?.name ?? "", done.installed[0]?.id ?? "");
+});
+
+test("a new chat picked from the sidebar with another project's agent opens and stays, out of the open project", async ({
+  page,
+}) => {
+  await rpc("setup.finish", {});
+  const name = `Yara ${Date.now().toString(36)}`;
+  await projectWithEarlierChat(["yara", name]);
+  const shown = await projectWithEarlierChat(["boss", "Boss"]);
+
+  await open(page, `#project=${shown}&tab=chats`);
+  await page.locator(".sidebar").getByRole("combobox", { name: "Nuevo chat", exact: true }).click();
+  await page
+    .getByRole("option", { name: new RegExp(name) })
+    .first()
+    .click();
+  const box = page.getByRole("textbox", { name: `Escribile a ${name}…` });
+  await expect(box).toBeVisible();
+  await expect(page).toHaveURL(/thread=new/);
+  // The open project's Chats would swap it for its own latest chat: it opens in the Inbox and stays.
+  await page.waitForTimeout(500);
+  await expect(box).toBeVisible();
+  await expect(page).not.toHaveURL(new RegExp(`project=${shown}`));
 });

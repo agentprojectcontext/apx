@@ -7,7 +7,7 @@ import { newChatId } from "../data/newChat.ts";
 import { useData } from "../data/state.ts";
 import { useT } from "../i18n/index.ts";
 import { NewAgentDialog, NewGroupDialog, SearchSelect } from "../lazy.ts";
-import { go } from "../shell/nav.ts";
+import { go, nav } from "../shell/nav.ts";
 
 /** Agents the owner talked to lately, shown first. */
 const RECENT = 5;
@@ -110,8 +110,12 @@ export function NewChatMenu({
       return;
     }
     if (projectId) return startChat(agent, projectId);
-    // From the Inbox: the chat belongs to the agent's project, and opens here.
-    go.thread(newChatId({ agent: agent.id, ...(agent.project_id ? { project: agent.project_id } : {}) }));
+    // From the sidebar: the chat belongs to the agent's project. It opens in the Chats tab open beside it only when it
+    // is that project's; another project's Chats would put its own latest chat back, so it opens in the Inbox.
+    const chat = newChatId({ agent: agent.id, ...(agent.project_id ? { project: agent.project_id } : {}) });
+    const s = nav.get();
+    if (s.view === "project" && s.projectTab === "chats" && !inProject(agent, s.projectId)) go.inboxThread(chat);
+    else go.thread(chat);
   };
 
   // The combobox loads after the first paint; until then the button shows, without its list.
