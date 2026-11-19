@@ -49,12 +49,12 @@ export function callHandlers(d: VoiceDeps | undefined) {
     const v = d.native.status();
     const remote = v.call_engine === "services";
     const audioMissing = remote
-      ? !d.remote || d.remote.machine().missing
-        ? "uv"
-        : !d.hasService?.("speech", v.call_speech)
-          ? "speech"
-          : !d.hasService?.("transcription", v.call_transcription)
-            ? "transcription"
+      ? !d.hasService?.("speech", v.call_speech)
+        ? "speech"
+        : !d.hasService?.("transcription", v.call_transcription)
+          ? "transcription"
+          : !d.remote || d.remote.machine().missing
+            ? "uv"
             : undefined
       : (v.missing ?? (!v.enabled ? "off" : undefined));
     const missing: CallStatus["missing"] = !v.calls

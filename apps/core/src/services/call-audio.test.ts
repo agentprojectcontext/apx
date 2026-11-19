@@ -25,11 +25,13 @@ test("calls with configured services work on Linux without enabling or installin
     uv: () => "uv",
   });
   const handlers = callHandlers({ ...audio, native, engine, calls: env.core.voice.calls });
+  const withoutAudio = callHandlers({ ...audio, remote: undefined, native, engine, calls: env.core.voice.calls });
   try {
     assert.equal(native.status().tier, "none");
     assert.equal(native.status().enabled, false);
     assert.equal(native.status().call_engine, "services");
     assert.equal(handlers["calls.status"]().missing, "speech");
+    assert.equal(withoutAudio["calls.status"]().missing, "speech");
     services.set("voice", {
       kind: "speech",
       dialect: "openai-speech",
@@ -39,6 +41,7 @@ test("calls with configured services work on Linux without enabling or installin
       enabled: true,
     });
     assert.equal(handlers["calls.status"]().missing, "transcription");
+    assert.equal(withoutAudio["calls.status"]().missing, "transcription");
     services.set("ears", {
       kind: "transcription",
       dialect: "openai-transcribe",
@@ -47,6 +50,8 @@ test("calls with configured services work on Linux without enabling or installin
       needs_key: false,
       enabled: true,
     });
+    assert.equal(withoutAudio["calls.status"]().missing, "uv");
+    assert.equal(withoutAudio["calls.status"]().ready, false);
     const pinned = audio.callServices();
     assert.equal(pinned?.speech, "voice");
     assert.equal(pinned?.transcription, "ears");
