@@ -12,7 +12,11 @@ import type { ToolContext } from "./types.ts";
 const origin = "https://example.com";
 function fixture(cwd = "") {
   const calls: unknown[] = [];
-  const store = { projects: { list: () => [] } } as unknown as Store;
+  const store = {
+    projects: { list: () => [] },
+    projectProtection: { list: () => [] },
+    agentMigrationPending: { list: () => [] },
+  } as unknown as Store;
   const ctx = {
     agent: { id: "reader", autonomy: "total", rules: {} },
     thread: { id: "chat", cwd, reach: "fenced" },
