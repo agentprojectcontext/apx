@@ -9,6 +9,12 @@ export const enWelcome = {
   "welcome.cta": "Let's go",
   "welcome.soundOn": "Turn sound on",
   "welcome.soundOff": "Turn sound off",
+  "welcome.marketplace.title": "The Marketplace",
+  "welcome.marketplace.text":
+    "Everything your agents can use, in one place, each labeled with where it comes from. You add and connect each extension in the same box, even pairing your TV.",
+  "welcome.contact-booking.title": "Your contacts book on their own",
+  "welcome.contact-booking.text":
+    "When a contact asks for an appointment, your agent books it on your Google Calendar within the account's hours and tells you. Turn it on in Contacts › Appointments › Book.",
   "welcome.voice.title": "APX's own voice",
   "welcome.voice.text":
     "Your agents speak and hear voice notes with APX's own voice. In Settings › Voice and calls you pick female or male, the language and the accent.",

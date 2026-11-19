@@ -3,6 +3,8 @@
  * (media/whats-new/<lang>/<key>.mp4), with the first release that has it. A new feature goes at the top.
  */
 export const WELCOME_SLIDES = [
+  { key: "marketplace", since: "2.16.0" },
+  { key: "contact-booking", since: "2.16.0" },
   { key: "voice", since: "2.15.0" },
   { key: "calls", since: "2.15.0" },
   { key: "call-work", since: "2.15.0" },

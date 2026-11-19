@@ -9,6 +9,12 @@ export const esWelcome: Record<WelcomeKey, string> = {
   "welcome.cta": "Vamos",
   "welcome.soundOn": "Activar el sonido",
   "welcome.soundOff": "Silenciar",
+  "welcome.marketplace.title": "El Marketplace",
+  "welcome.marketplace.text":
+    "Todo lo que pueden usar tus agentes, en un solo lugar y con una etiqueta que dice de dónde viene. Agregás y conectás cada extensión en el mismo cuadro, hasta emparejar tu tele.",
+  "welcome.contact-booking.title": "Tus contactos agendan solos",
+  "welcome.contact-booking.text":
+    "Cuando un contacto pide un turno, tu agente lo agenda en tu Google Calendar dentro del horario de atención y te avisa. Lo activás en Contactos › Citas › Agendar.",
   "welcome.voice.title": "La voz de APX",
   "welcome.voice.text":
     "Tus agentes hablan y escuchan notas de voz con la voz propia de APX. En Configuración › Voz y llamadas elegís mujer u hombre, el idioma y el acento.",
