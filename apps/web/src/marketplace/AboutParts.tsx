@@ -2,14 +2,13 @@ import { DisclosureFacts, IconButton, Icons, SummaryCard, SummaryItem, SummaryNo
 import type { ReactNode } from "react";
 import "@apx/ui/disclosure.css";
 import "@apx/ui/summary.css";
-import { useLanguage, useT } from "../i18n/index.ts";
+import { useT } from "../i18n/index.ts";
 import { type About, connectText, listText, originText, toolsLine } from "./about.ts";
 import { ItemIcon } from "./ConnectHead.tsx";
 import { ItemLabel } from "./ItemLabel.tsx";
-import { dayText } from "./itemText.ts";
 
-// The pieces that say what an extension is, used alike by the add box (in a filled card) and by the page of one not
-// added yet (in bordered cards): what it brings, the facts, and the lines to read before deciding.
+// The pieces that say what an extension is in the add box's card: what it brings, the facts, and the lines to read
+// before deciding. Its page says the same at length (ItemBrings, ItemFacts).
 
 const PLATFORM: Record<string, string> = {
   android: "Android",
@@ -89,11 +88,9 @@ function AboutBrings({ a }: { a: About }) {
   return <>{rows}</>;
 }
 
-/** Where it comes from, where it connects, how and what it needs (with its version and date on a page). */
-function AboutFacts({ a, page }: { a: About; page?: boolean }) {
+/** Where it comes from, where it connects, how and what it needs. */
+function AboutFacts({ a }: { a: About }) {
   const t = useT();
-  const lang = useLanguage();
-  const day = page ? dayText(a.entry?.published_at, lang) : undefined;
   const where = [
     ...a.hosts,
     ...(a.ownerHost ? [t("box.yourAddress")] : []),
@@ -102,7 +99,6 @@ function AboutFacts({ a, page }: { a: About; page?: boolean }) {
   return (
     <DisclosureFacts
       rows={[
-        [t("extx.kv.version"), page && a.version ? [a.version, day].filter(Boolean).join(" · ") : undefined],
         [t("box.kv.from"), a.origin ? originText(a.origin, t) : undefined],
         [t("box.kv.connects"), where.length ? where.join(", ") : undefined],
         [t("box.kv.how"), connectText(a, t)],
@@ -206,27 +202,5 @@ export function AboutCard({
         </>
       )}
     </SummaryCard>
-  );
-}
-
-/** The page of one not added yet: the same pieces in bordered cards, under its own text. */
-export function AboutSections({ a }: { a: About }) {
-  const t = useT();
-  return (
-    <>
-      <section className="mkt-page__sec">
-        <h4>{t("extx.sec.brings")}</h4>
-        <SummaryCard variant="outline">
-          <AboutBrings a={a} />
-        </SummaryCard>
-      </section>
-      <section className="mkt-page__sec">
-        <h4>{t("box.facts")}</h4>
-        <SummaryCard variant="outline">
-          <AboutFacts a={a} page />
-          <AboutNotes a={a} />
-        </SummaryCard>
-      </section>
-    </>
   );
 }

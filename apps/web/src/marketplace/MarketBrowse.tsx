@@ -5,6 +5,7 @@ import { type MessageKey, useLanguage, useT } from "../i18n/index.ts";
 import { openExtensionInstall } from "../resources/extensionInstall.ts";
 import { groupByCategory, type Item, kindOf } from "../resources/extensionItems.ts";
 import { go } from "../shell/nav.ts";
+import { addSource, askToAdd } from "./adding.ts";
 import { ItemRow } from "./ItemRow.tsx";
 import { listingIn, newest } from "./itemText.ts";
 import type { CatalogState } from "./MarketplaceScreen.tsx";
@@ -33,17 +34,16 @@ export function useLine(): (i: Item) => string {
   };
 }
 
-/** Its button from a list: add it from its catalog, start a channel, or open its page to connect it. */
+/** Its button from a list: add it on its page (which stays, added, with Connect), start a channel, or open its page. */
 export function rowAction(i: Item, open: () => void): (() => void) | undefined {
   if (i.state !== "available") return undefined;
   const kind = i.channel;
   if (kind) return () => isChannelKind(kind) && go.newChannel(kind);
-  const entry = i.entry?.catalog
-    ? { catalog: i.entry.catalog, id: i.id, ...(i.entry.catalog_name ? { name: i.entry.catalog_name } : {}) }
-    : undefined;
-  if (entry) return () => openExtensionInstall({ entry, catalog: true });
-  const url = !i.integration && i.url;
-  if (url) return () => openExtensionInstall({ url, catalog: true, official: i.provenance === "official" });
+  if (addSource(i))
+    return () => {
+      askToAdd(i.key);
+      open();
+    };
   return open;
 }
 

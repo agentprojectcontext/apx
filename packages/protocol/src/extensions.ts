@@ -366,6 +366,21 @@ export type ExtensionListing = z.infer<typeof ExtensionListing>;
  * What a catalog package holds, read from its manifest before it is added: where its servers connect, whether it runs
  * code here, the keys it asks for, its skills (names, once APX kept them), agents, routines and a device's app.
  */
+/**
+ * One server an extension runs, as its page shows it before and after adding: its name, the address it reaches (its
+ * own, or the remote one a command bridges to) and whether it runs as a program on this computer.
+ */
+export const ExtensionConnector = z.object(
+  schemaFields({
+    name: () => z.string(),
+    url: () => z.string().optional(),
+    /** The address is one the owner types in its settings. */
+    owner_url: () => z.boolean().optional(),
+    runs_here: () => z.boolean(),
+  }),
+);
+export type ExtensionConnector = z.infer<typeof ExtensionConnector>;
+
 export const ExtensionContents = z.object(
   schemaFields({
     hosts: () => z.array(z.string()),
@@ -380,6 +395,16 @@ export const ExtensionContents = z.object(
     companion: () => z.object({ name: z.string(), platform: z.string() }).optional(),
     /** Its fingerprint, shown in its details. */
     hash: () => z.string(),
+    /** Each server it runs, with the address it reaches (absent: kept by an older APX). */
+    connectors: () => z.array(ExtensionConnector).optional(),
+    /** Each skill's one line, by its name, as its SKILL.md says. */
+    skill_lines: () => z.record(z.string(), z.string()).optional(),
+    /** Each ready-made agent's one line, by its name. */
+    agent_lines: () => z.record(z.string(), z.string()).optional(),
+    /** The settings it asks for before it works (required, not keys), by their labels. */
+    settings: () => z.array(z.string()).optional(),
+    /** Its widgets. */
+    apps: () => z.number().int().optional(),
   }),
 );
 export type ExtensionContents = z.infer<typeof ExtensionContents>;
@@ -474,6 +499,10 @@ export const ExtensionInfo = z.object(
     hosts: () => z.array(z.string()),
     /** One of its servers connects to the address the owner types in its settings. */
     owner_host: () => z.boolean().optional(),
+    /** Its servers with the address each reaches, in the order of `mcp`. */
+    connectors: () => z.array(ExtensionConnector).optional(),
+    /** Each skill's one line, by its name, as its SKILL.md says. */
+    skill_lines: () => z.record(z.string(), z.string()).optional(),
     /** Its settings with what is set: a plain value as stored, a sensitive one only whether it is set. */
     settings: () =>
       z.array(

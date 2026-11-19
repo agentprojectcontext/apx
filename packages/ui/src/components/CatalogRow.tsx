@@ -10,8 +10,10 @@ export interface CatalogRowProps {
   badge?: ReactNode;
   /** One line of what it is. */
   description?: ReactNode;
-  /** A muted third line: what it brings and who from. */
+  /** A muted third line: what it is and who from. */
   meta?: ReactNode;
+  /** After the muted line, small icons with how many it brings of each (skills, agents, a connector); `label` names it. */
+  counts?: Array<{ icon: ReactNode; count?: number | undefined; label: string }>;
   /** Its one button (Add, Connect). Clicks on it do not open the row. */
   action?: ReactNode;
   /** In place of a button, where it stands: "Connected" with a check, or why it waits with a warning dot. */
@@ -27,6 +29,7 @@ export function CatalogRow({
   badge,
   description,
   meta,
+  counts,
   action,
   status,
   onOpen,
@@ -53,7 +56,17 @@ export function CatalogRow({
             {badge}
           </span>
           {description && <span className="apx-catalogrow__desc">{description}</span>}
-          {meta && <span className="apx-catalogrow__meta">{meta}</span>}
+          {(meta || counts?.length) && (
+            <span className="apx-catalogrow__meta">
+              {meta && <span className="apx-catalogrow__metatext">{meta}</span>}
+              {counts?.map((c) => (
+                <span key={c.label} className="apx-catalogrow__count" title={c.label} role="img" aria-label={c.label}>
+                  {c.icon}
+                  {c.count !== undefined && <span aria-hidden="true">{c.count}</span>}
+                </span>
+              ))}
+            </span>
+          )}
         </span>
         {(action || status) && (
           // biome-ignore lint/a11y/noStaticElementInteractions: only keeps a click on its button from opening the row

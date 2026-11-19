@@ -56,6 +56,28 @@ test("a command that bridges to a remote server shows that server's host before 
   const seen = await env.client.call("extensions.inspect", { file: file(pack(manifest())) });
   assert.deepEqual(seen.hosts, ["mcp.billing.example.com"]);
   assert.equal(seen.runs_code, true);
+  // Its page shows the address the program connects to, not "this computer".
+  assert.deepEqual(seen.connectors, [{ name: "service", url: "https://mcp.billing.example.com", runs_here: true }]);
+});
+
+test("a server at an address shows it, and one at the owner's own address says so without one", async () => {
+  const seen = await env.client.call("extensions.inspect", {
+    file: file(
+      pack(
+        manifest({
+          mcp: {
+            cloud: { url: "https://mcp.billing.example.com/mcp" },
+            mine: { url: "https://setting://domain/mcp" },
+          },
+          settings: [{ name: "domain", label: "Your domain", type: "string", required: true }],
+        }),
+      ),
+    ),
+  });
+  assert.deepEqual(seen.connectors, [
+    { name: "cloud", url: "https://mcp.billing.example.com/mcp", runs_here: false },
+    { name: "mine", owner_url: true, runs_here: false },
+  ]);
 });
 
 test("the tools its listing names are shown before adding, in the owner's language", async () => {

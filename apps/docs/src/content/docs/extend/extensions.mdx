@@ -29,27 +29,33 @@ you write there by hand stays a server of yours there and is not listed in the M
 - **Explore** has search and filters on top (**All**, **Integrations**, **Connectors**, **Channels**, **Skills**,
   **Agents**; a filter with nothing in it is not shown), then **New** (while only a few are new), every category in
   compact rows (the ones included with APX in theirs, marked **Included**) and **Channels** together. Each row has its
-  icon, name and label, one line, and under it what it is and who from ("Connector · From APX"). What it is comes from
+  icon, name and label, one line, and under it what it is and who from ("Connector · From APX") with small icons for
+  what it brings and how many (a plug for its connector, a book for its skills, a bot for its agents, a phone for a
+  device's app; hover one to read it). What it is comes from
   what it brings: a **Channel** APX talks through; an **Integration** with code or an app of its own (a **Native
   integration** when APX makes it, like Google Calendar); a **Connector**, an MCP server (with skills to use it or
-  not); **Agents**; or **Skills** alone. Each row has one button: **Add**, or **Connect** for one included with APX.
+  not); **Agents**; or **Skills** alone. Each row has one button: **Add** (it opens the extension's page and adds it
+  there), or **Connect** for one included with APX.
 - **Your extensions** lists what you added, in two groups: **Needs attention** (not connected yet, a new version, an
   error) and **Active**. The same groups show in the left column. Channels are found and connected from Explore, but
   live in **Channels**, so they are not repeated here.
 - An extension's page has one button that follows its state: **Add** → **Connect** (or **Pair** for a device's app)
   → **Connected ✓**. Turn off, update, go back a version, settings and remove are in **⋯**.
-- **Add** opens one box: APX joined to the service on top (a device's app joined to APX for **Pair**), then what it
-  is: what it brings (its tools by name when its page names them), where it comes from, where it connects, how, what
-  it needs, whether it runs a program on your computer, and whether these are exactly the files APX publishes (its
-  fingerprint is under **Details**). **Add** copies its files and runs nothing. The same box then asks for its key, a
-  sign-in or the device's code: **Connect** (or **Pair**) is your decision that it works, and what that approves is
-  written above the button. Once connected, it shows the tools its server answered with.
-- The page of one not added yet shows the same **What it brings** and **Facts**.
-- Below its button: things to ask it, about it, and **What it brings** as rows that open: each connection with its
-  address, how it signs in and its tools; its skills, ready-made agents (each with **Add agent**), routines (each with
-  **Add to Routines**), widgets and the app for a device. At its foot: developer, version and date, **Security and
-  access** ("Can send data to api.hubapi.com", "Runs code on your computer"), **Authorization** ("A key of yours",
-  "You sign in to the service"), what it needs and does not do, cost, privacy and links. A fact nobody gave is not shown.
+- **Add** and **Connect** are two steps you take on the page. **Add** checks its files (from APX's catalog they must
+  be the ones APX publishes) and copies them; nothing runs. The page stays, now marked added, with **Connect** as its
+  button. **Connect** (or **Pair**) opens a box with APX joined to the service, the keys to type, a sign-in or the
+  device's code (for one you sign in to, it says first that your browser opens on the service's sign-in page), and what
+  you approve written above the button; it is your decision that it works. **Later** closes
+  the box and leaves you on the page. Once connected, it shows the tools its server answered with. One with nothing to
+  connect is ready as soon as you add it.
+- The page shows everything it brings before you add it, the same as after: things to ask it, about it, and **What
+  it brings**: each **Connector** with its address (with a copy button), how it signs in and its tools (by name when
+  its page names them; otherwise "You'll see them when you connect it"); its **Skills**, each with what it does, or
+  that it brings none; its ready-made **Agents** (each with **Add agent** once added), **Routines** (each with **Add to
+  Routines**), widgets and the app for a device; and what **It will ask you for**: its keys and the settings it needs.
+  Beside it: developer, version and date, **Security and access** ("Can send data to api.hubapi.com", "Runs code on
+  your computer", files nobody verified), **Authorization** ("A key of yours", "You sign in to the service"), what it
+  needs and does not do, cost, privacy, links and its fingerprint under **Details**. A fact nobody gave is not shown.
 - **Add** › **From an address** or **From a file** adds something that is not in a catalog: the same box opens under
   a picker (a file, an address or a folder). An address of an `.apxext` is read as a package; any other https address
   is an MCP server: APX adds it as an extension of yours with that server inside and connects it right away.
@@ -190,8 +196,8 @@ you connect it.
 2. Look at what it brings: its tools, skills, agents and routines, where it connects, the keys it asks for, whether
    it runs a program on your computer and whether it is **Official** or **Third party** (below). Then **Add**.
 
-3. In the same box, type its keys (or sign in, or pair the device) and press **Connect**. One with nothing to connect
-   is ready as soon as you add it.
+3. Its page opens, added. Press **Connect**, type its keys (or sign in, or pair the device) and press **Connect**
+   again. One with nothing to connect is ready as soon as you add it.
 
 4. Its routines are suggestions: **Add to Routines** puts one in Routines, turned off until you turn it on.
 

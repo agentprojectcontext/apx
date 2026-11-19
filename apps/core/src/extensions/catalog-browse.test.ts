@@ -1,5 +1,7 @@
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
+import fs from "node:fs";
+import path from "node:path";
 import { after, before, test } from "node:test";
 import { say, scriptedLlm, startCore } from "../engine/testkit.ts";
 import { type TempDir, tempDir } from "../testkit/platform.ts";
@@ -210,9 +212,11 @@ test("the catalog lists each extension at its newest version, with what its own 
       servers: 1,
       keys: ["API key"],
       skills: ["weather"],
+      skill_lines: { weather: "Weather." },
       agents: [],
       routines: [],
       hash: undefined,
+      connectors: [{ name: "forecast", runs_here: true }],
     },
   );
   assert.match(w?.contents?.hash ?? "", /^[0-9a-f]{16}$/);
@@ -225,6 +229,19 @@ test("the catalog lists each extension at its newest version, with what its own 
   assert.equal(asked.filter((u) => u.includes("weather")).length, before);
 });
 
+test("a package kept by an older APX is read once more, so its page names its skills' lines", async () => {
+  const w = (await env.client.call("extensions.catalog", {})).entries.find((e) => e.id === "weather");
+  const kept = path.join(home.path, "marketplace", "packages", `${w?.contents?.hash}.json`);
+  const raw = JSON.parse(fs.readFileSync(kept, "utf8")) as Record<string, unknown>;
+  fs.writeFileSync(kept, JSON.stringify({ manifest: raw.manifest, listing: raw.listing, skills: raw.skills }));
+  const before = asked.filter((u) => u.includes("weather-1.1.0")).length;
+  const again = (await env.client.call("extensions.catalog", { refresh: true })).entries.find(
+    (e) => e.id === "weather",
+  );
+  assert.equal(asked.filter((u) => u.includes("weather-1.1.0")).length, before + 1);
+  assert.deepEqual(again?.contents?.skill_lines, { weather: "Weather." });
+});
+
 test("an installed extension shows what it brings and its page from its own folder", async () => {
   const info = await env.client.call("extensions.install", {
     file: { name: "weather.apxext", data: weather.toString("base64") },
@@ -232,6 +249,9 @@ test("an installed extension shows what it brings and its page from its own fold
   assert.equal(info.provenance, "official");
   assert.deepEqual(info.brings, ["accounts", "tools", "skills"]);
   assert.equal(info.listing?.features[0], "Up to 7 days");
+  // Its server and its skills' lines, for the page of one already added.
+  assert.deepEqual(info.connectors, [{ name: "forecast", runs_here: true }]);
+  assert.deepEqual(info.skill_lines, { weather: "Weather." });
   const listed = (await env.client.call("extensions.list", {})).extensions[0];
   assert.equal(listed?.listing?.privacy, "Coordinates go to Open-Meteo.");
 });

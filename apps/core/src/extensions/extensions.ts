@@ -11,6 +11,7 @@ import {
   type ExtensionManifest,
   type ExtensionRefusal,
 } from "@apx/protocol";
+import { parseFrontmatter, textField } from "../apc/frontmatter.ts";
 import type { ExtensionRecord, PreviousVersion } from "../domain/extensions.ts";
 import type { Store } from "../domain/store.ts";
 import { badRequest, CallError, errorMessage, notFound } from "../errors.ts";
@@ -25,6 +26,7 @@ import { writeConnector } from "./connector.ts";
 import { createManifestV2, settingsInfo } from "./manifest-v2.ts";
 import {
   comparePowers,
+  connectorsOf,
   filesOf,
   fingerprint,
   hostsOf,
@@ -76,6 +78,19 @@ export type ExtensionInput = {
   entry?: { catalog: string; id: string };
 };
 
+/** Each skill's one line (its SKILL.md `description`) in an installed folder, by the skill's name. */
+function skillLinesIn(dir: string, m: ExtensionManifest): Record<string, string> {
+  const out: Record<string, string> = {};
+  for (const name of skillNames(dir, m)) {
+    try {
+      const text = fs.readFileSync(path.join(dir, m.skills ?? "", name, "SKILL.md"), "utf8");
+      const line = textField(parseFrontmatter(text).fields.description)?.trim();
+      if (line) out[name] = line.slice(0, 300);
+    } catch {}
+  }
+  return out;
+}
+
 function skillNames(dir: string, m: ExtensionManifest): string[] {
   if (!m.skills) return [];
   try {
@@ -124,6 +139,7 @@ export function createExtensions(deps: {
     /** Installed: the agents the owner added from it. */
     added_agents?: ExtensionRecord["added_agents"];
     skills?: string[];
+    skillLines?: Record<string, string>;
     catalog?: CatalogCheck["catalog"];
     update?: ExtensionInfo["update"];
     /** Its listing, already read (an inspected package); otherwise read from its folder. */
@@ -146,6 +162,11 @@ export function createExtensions(deps: {
     const added = e.added_agents ? addedAgents(store, { added_agents: e.added_agents }) : [];
     return added.length ? { added_agents: added } : {};
   };
+  /** Its skills' lines: an inspected package's, or read from its folder. */
+  const lines = (e: Shown): Pick<ExtensionInfo, "skill_lines"> => {
+    const got = e.skillLines ?? (e.dir ? skillLinesIn(e.dir, e.manifest) : {});
+    return Object.keys(got).length ? { skill_lines: got } : {};
+  };
   const base = (e: Shown): Omit<ExtensionInfo, "brings" | "needs" | "hosts" | "listing"> => ({
     id: e.id,
     name: e.manifest.name,
@@ -156,7 +177,9 @@ export function createExtensions(deps: {
     // Shown with "~" for the home; install reads it back.
     source: tildeHome(e.source),
     skills: e.skills ?? skillNames(e.dir, e.manifest),
+    ...lines(e),
     mcp: Object.keys(e.manifest.mcp).map((n) => `${e.id}-${n}`),
+    connectors: connectorsOf(e.manifest),
     routines: e.manifest.routines,
     secrets: e.manifest.secrets.map((s) => ({
       name: s.name,
@@ -400,6 +423,7 @@ export function createExtensions(deps: {
         dir: "",
         source,
         skills: pkg.skills,
+        skillLines: pkg.skillLines,
         enabled: Boolean(cur && keepsOn(cur, manifest, hash, check)),
         ...(pkg.files.includes(LISTING) ? { listing: listingIn(() => pkg.read(LISTING)) } : {}),
         installed_at: cur?.installed_at ?? "",

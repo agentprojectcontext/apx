@@ -15,7 +15,7 @@ import type { GitRunner } from "../skills/import.ts";
 import { downloadArchive, fetchSmall } from "./catalog.ts";
 import { compareVersions } from "./catalog-packages.ts";
 import { convertPlugin, extensionId, licenseOf, pluginLicense, pluginVersion } from "./claude-plugin.ts";
-import { filesOf, hostsOf, type Package, readArchive, readFiles } from "./package.ts";
+import { filesOf, type Package, readArchive, readFiles } from "./package.ts";
 import { bringsOf, contentsOf, needsOf } from "./summary.ts";
 
 const GIT_MS = 90_000;
@@ -91,7 +91,7 @@ function summarizePlugin(files: Map<string, Buffer>, base: PluginBase) {
     const native = files.has("apx-extension.json");
     const pkg = readFiles(native ? files : convertPlugin(files, base).files);
     const m = pkg.manifest;
-    const contents = contentsOf(m, pkg.hash, hostsOf(m), pkg.skills);
+    const contents = contentsOf(m, pkg.hash, { names: pkg.skills, lines: pkg.skillLines });
     return {
       contents,
       brings: bringsOf(m),

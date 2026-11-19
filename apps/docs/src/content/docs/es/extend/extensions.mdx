@@ -30,29 +30,35 @@ aparece en el Marketplace.
 - **Explorar** tiene la búsqueda y los filtros arriba (**Todo**, **Integraciones**, **Conectores**, **Canales**,
   **Habilidades**, **Agentes**; un filtro sin nada no aparece), después **Novedades** (mientras sean pocas las nuevas),
   cada categoría en filas compactas (las que vienen con APX en la suya, marcadas **Incluida**) y **Canales** juntos.
-  Cada fila tiene ícono, nombre y etiqueta, una línea, y debajo qué es y de quién ("Conector · De APX"). Qué es sale de
+  Cada fila tiene ícono, nombre y etiqueta, una línea, y debajo qué es y de quién ("Conector · De APX") con íconos
+  chicos de lo que trae y cuántos (un enchufe para su conector, un libro para sus habilidades, un robot para sus
+  agentes, un teléfono para la app de un dispositivo; pasá el mouse para leerlo). Qué es sale de
   lo que trae: un **Canal** por el que habla APX; una **Integración** con código o una app propia (**Integración
   nativa** cuando la hace APX, como Google Calendar); un **Conector**, un servidor MCP (con habilidades para usarlo o
-  no); **Agentes**; o solo **Habilidades**. Cada fila tiene un solo botón: **Agregar**, o **Conectar** si es Incluida.
+  no); **Agentes**; o solo **Habilidades**. Cada fila tiene un solo botón: **Agregar** (abre la ficha de la extensión
+  y la agrega ahí), o **Conectar** si es Incluida.
 - **Tus extensiones** lista lo que agregaste, en dos grupos: **Necesitan atención** (sin conectar, con una versión
   nueva, con error) y **Activas**. Los mismos grupos aparecen en la columna de la izquierda. Los canales se encuentran y se
   conectan desde Explorar, pero viven en **Canales**, así que acá no se repiten.
 - La ficha de una extensión tiene un solo botón que cambia con su estado: **Agregar** → **Conectar** (o
   **Emparejar** si trae una app para un dispositivo) → **Conectada ✓**. Apagar, actualizar, volver a una versión,
   ajustes y quitar están en **⋯**.
-- **Agregar** abre un solo cuadro: arriba APX unido al servicio (la app del dispositivo unida a APX para
-  **Emparejar**), y debajo qué es: qué trae (sus herramientas con nombre cuando su ficha las nombra), de dónde viene, a
-  dónde se conecta, cómo, qué necesita, si corre un programa en tu compu y si son exactamente los archivos que publica
-  APX (su huella queda en **Detalles**). **Agregar** copia sus archivos y no corre nada. El mismo cuadro pide después su
-  clave, un inicio de sesión o el código del dispositivo: **Conectar** (o **Emparejar**) es tu decisión de que funcione,
-  y lo que aprueba queda escrito arriba del botón. Ya conectada, muestra las herramientas que respondió su servidor.
-- La ficha de una que todavía no agregaste muestra el mismo **Qué trae** y los mismos **Datos**.
-- Debajo del botón: cosas para pedirle, acerca de, y **Qué trae** en filas que se abren: cada conexión con su
-  dirección, cómo inicia sesión y sus herramientas; sus habilidades, agentes listos (cada uno con **Agregar agente**),
-  rutinas (cada una con **Agregar a Rutinas**), widgets y la app para un dispositivo. Al pie: desarrollador, versión y
-  fecha, **Seguridad y acceso** ("Puede enviar datos a api.hubapi.com", "Ejecuta código en tu compu"),
-  **Autorización** ("Una clave tuya", "Iniciás sesión en el servicio"), qué necesita y qué no hace, costo, privacidad y
-  enlaces. Un dato que nadie dio no aparece.
+- **Agregar** y **Conectar** son dos pasos que das en la ficha. **Agregar** revisa sus archivos (del catálogo de APX
+  tienen que ser los que publica APX) y los copia; no corre nada. La ficha queda abierta, ahora marcada como agregada,
+  con **Conectar** como botón. **Conectar** (o **Emparejar**) abre un cuadro con APX unido al servicio, las claves para
+  escribir, un inicio de sesión (si es una en la que iniciás sesión, avisa antes que se abre tu navegador en la página
+  del servicio) o el código del dispositivo, y lo que aprobás escrito arriba del botón: es tu decisión
+  de que funcione. **Más tarde** cierra el cuadro y te deja en la ficha. Ya conectada, muestra las herramientas que
+  respondió su servidor. Una que no tiene nada para conectar queda lista apenas la agregás.
+- La ficha muestra todo lo que trae antes de agregarla, igual que después: cosas para pedirle, acerca de, y **Qué
+  trae**: cada **Conector** con su dirección (con un botón para copiarla), cómo inicia sesión y sus herramientas (con
+  nombre cuando su ficha las nombra; si no, "Las vas a ver cuando la conectes"); sus **Habilidades**, cada una con lo
+  que hace, o que no trae ninguna; sus **Agentes listos** (cada uno con **Agregar agente** una vez agregada),
+  **Rutinas** (cada una con **Agregar a Rutinas**), widgets y la app para un dispositivo; y lo que **Te va a pedir**:
+  sus claves y los ajustes que necesita. Al costado: desarrollador, versión y fecha, **Seguridad y acceso** ("Puede
+  enviar datos a api.hubapi.com", "Ejecuta código en tu compu", archivos que nadie verificó), **Autorización** ("Una
+  clave tuya", "Iniciás sesión en el servicio"), qué necesita y qué no hace, costo, privacidad, enlaces y su huella en
+  **Detalles**. Un dato que nadie dio no aparece.
 - **Agregar** › **Desde una dirección** o **Desde un archivo** suma algo que no está en un catálogo: el mismo cuadro se
   abre debajo de un selector (un archivo, una dirección o una carpeta). La dirección de un `.apxext` se lee como
   paquete; cualquier otra dirección https es un servidor MCP: APX lo agrega como una extensión tuya con ese servidor
@@ -194,8 +200,8 @@ que la conectes.
 2. Mirá qué trae: sus herramientas, habilidades, agentes y rutinas, a dónde se conecta, las claves que pide, si corre
    un programa en tu compu y si es **Oficial** o **De terceros** (abajo). Después, **Agregar**.
 
-3. En el mismo cuadro, escribí sus claves (o iniciá sesión, o emparejá el dispositivo) y tocá **Conectar**. Una que
-   no tiene nada para conectar queda lista apenas la agregás.
+3. Se abre su ficha, ya agregada. Tocá **Conectar**, escribí sus claves (o iniciá sesión, o emparejá el dispositivo) y
+   tocá **Conectar** otra vez. Una que no tiene nada para conectar queda lista apenas la agregás.
 
 4. Sus rutinas son sugerencias: **Agregar a Rutinas** pone una en Rutinas, apagada hasta que la enciendas.
 

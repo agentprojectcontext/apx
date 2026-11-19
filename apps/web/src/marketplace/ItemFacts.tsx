@@ -3,9 +3,11 @@ import type { ReactNode } from "react";
 import { type MessageKey, useLanguage, useT } from "../i18n/index.ts";
 import type { Item } from "../resources/extensionItems.ts";
 import { accessLines, authText, dayText, listingIn } from "./itemText.ts";
+import "../styles/install-box.css";
 
-// The facts at the foot of an extension's page, as Claude lists them: who makes it, its version and date, what it may
-// reach, how it signs in, what it needs and does not do, its cost and its links. A fact nobody gave is not shown.
+// The facts beside an extension's page, before and after adding it, as Claude lists them: who makes it, its version
+// and date, what it may reach, how it signs in, what it needs and does not do, its cost, its links and its
+// fingerprint under Details. A fact nobody gave is not shown.
 
 const host = (u: string) => URL.parse(u)?.host ?? u;
 
@@ -59,19 +61,6 @@ function LinkList({ links }: { links: Array<{ href: string; label: MessageKey }>
   );
 }
 
-/** Its links alone, under the page of one not added yet. */
-export function ItemLinks({ item }: { item: Item }) {
-  const t = useT();
-  const links = linksOf(item);
-  if (!links.length) return null;
-  return (
-    <section className="mkt-page__sec">
-      <h4>{t("mkt.kv.more")}</h4>
-      <LinkList links={links} />
-    </section>
-  );
-}
-
 export function ItemFacts({ item }: { item: Item }) {
   const t = useT();
   const lang = useLanguage();
@@ -83,6 +72,9 @@ export function ItemFacts({ item }: { item: Item }) {
   const day = dayText(item.published, lang);
   const links = linksOf(item);
   const version = item.version ?? item.ext?.version;
+  // Files nobody verified (another catalog, a file, an address): said before adding, beside what it may reach.
+  const third = item.label === "third";
+  const hash = item.ext?.hash ?? item.entry?.contents?.hash;
   return (
     <section className="mkt-facts" aria-label={t("mkt.info")}>
       {item.publisher && item.label !== "own" && (
@@ -104,9 +96,9 @@ export function ItemFacts({ item }: { item: Item }) {
           {item.update && <span className="mkt-facts__sub">{t("mkt.updateAvailable", { version: item.update })}</span>}
         </Fact>
       )}
-      {access.length > 0 && (
+      {(access.length > 0 || third) && (
         <Fact title="mkt.kv.access">
-          <Lines items={access} />
+          <Lines items={third ? [...access, t("box.filesThird")] : access} />
         </Fact>
       )}
       {auth && (
@@ -138,6 +130,15 @@ export function ItemFacts({ item }: { item: Item }) {
         <Fact title="mkt.kv.more">
           <LinkList links={links} />
         </Fact>
+      )}
+      {hash && (
+        <details className="mkt-details">
+          <summary>
+            <Icons.ChevronRight size={12} aria-hidden="true" />
+            {t("box.details")}
+          </summary>
+          <code>{t("box.fingerprint", { id: item.id, hash })}</code>
+        </details>
       )}
     </section>
   );

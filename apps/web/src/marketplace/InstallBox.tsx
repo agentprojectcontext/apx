@@ -14,12 +14,13 @@ import {
 import { type ReactNode, useEffect, useRef, useState } from "react";
 import "@apx/ui/summary.css";
 import { client } from "../data/client.ts";
-import { type MessageKey, useLanguage, useT } from "../i18n/index.ts";
+import { useLanguage, useT } from "../i18n/index.ts";
 import { usePowerText } from "../resources/ExtensionSummary.tsx";
 import { extensionsChanged } from "../resources/extensionInstall.ts";
 import { go } from "../shell/nav.ts";
 import { AboutCard } from "./AboutParts.tsx";
-import { type About, aboutAddress, aboutExtension, type Origin, originOf, refusalOf } from "./about.ts";
+import { type About, aboutAddress, aboutExtension, type Origin, originOf } from "./about.ts";
+import { nothingToConnect, type Problem, problemOf } from "./adding.ts";
 import { ApxMark, ItemIcon } from "./ConnectHead.tsx";
 import { SettingField } from "./ExtensionConfig.tsx";
 import { nameFor } from "./itemText.ts";
@@ -51,7 +52,6 @@ export type BoxStart =
   | { kind: "address"; url: string };
 
 type Phase = "review" | "connect" | "done";
-type Problem = { key: MessageKey; vars?: Record<string, string>; detail?: string; retry?: boolean };
 
 const errText = (e: unknown) => (e instanceof Error ? e.message : String(e));
 const SETTLE_MS = 3 * 60_000;
@@ -59,26 +59,8 @@ const SETTLE_MS = 3 * 60_000;
 /** Waiting on something the box does not drive (a sign-in in the browser), checked every couple of seconds. */
 const pause = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
-/** A refusal in the owner's words: what happened and what to do. */
-function problemOf(e: unknown, name: string, version: string | undefined): Problem {
-  const r = refusalOf(e);
-  const detail = errText(e);
-  if (r?.reason === "download") return { key: "box.err.download", detail, retry: true };
-  if (r?.reason === "changed") return { key: "box.err.changed", detail, retry: true };
-  if (r?.reason === "newer_apx")
-    return r.needs
-      ? { key: "box.err.newerVersion", vars: { name, version: r.needs }, detail }
-      : { key: "box.err.newer", vars: { name }, detail };
-  if (r?.reason === "invalid") return { key: "box.err.invalid", detail };
-  return { key: "box.err.other", vars: { name, version: version ?? "" }, detail, retry: true };
-}
-
 /** A typed value, trimmed; empty text is none. */
 const filled = (v: string | number | boolean | undefined) => (typeof v === "string" ? v.trim() || undefined : v);
-
-/** It has nothing to connect: no server, key, setting to fill, app to pair or code of its own. */
-const nothingToConnect = (e: ExtensionInfo) =>
-  !e.mcp.length && !e.secrets.length && !e.companion && !e.plugin && !e.settings.some((s) => s.required && !s.set);
 
 /** What a newer version changes, framed: from which to which, what it adds or drops, and what happens to it. */
 function UpdateNote({
@@ -296,7 +278,11 @@ export function InstallBox({
         extensionsChanged();
         setLink("connected");
         setPhase("done");
-      } else setPhase("connect");
+      } else {
+        // Added: its page, now with Connect, is where the owner takes the next step (DECISIONS.md#d-255).
+        onClose();
+        go.marketplace(label === "own" ? "mine" : "extensions", `ext:${done.id}`);
+      }
     } catch (e) {
       if (start.kind === "address") {
         setLink("broken");
@@ -356,6 +342,8 @@ export function InstallBox({
     kind === "secret" || s.required ? filled(values[s.name]) !== undefined : true,
   );
 
+  // It signs in on the service's own page (OAuth): Connect opens it in the browser.
+  const signsIn = !pairs && a?.connection === "oauth";
   const agree = !a
     ? undefined
     : pairs
@@ -537,7 +525,7 @@ export function InstallBox({
         )}
         {phase === "connect" &&
           ext &&
-          (fields.length > 0 || ext.companion || signInUrl || link === "connecting" || agree) && (
+          (fields.length > 0 || ext.companion || signInUrl || link === "connecting" || agree || signsIn) && (
             // What to do now, framed like an update's changes: keys, the pairing steps, a sign-in, what it approves.
             <SummaryCard variant="outline" className="mkt-box__connect">
               {fields.map(({ kind, s }) =>
@@ -582,6 +570,10 @@ export function InstallBox({
                 </p>
               )}
               {link === "connecting" && !signInUrl && !pairs && <p className="mkt-box__wait">{t("box.starting")}</p>}
+              {/* What opens before it does: the service's own sign-in page, then back here. */}
+              {signsIn && link === "idle" && (
+                <p className="mkt-box__wait">{t("box.signInWillOpen", { name: ext.name })}</p>
+              )}
               {agree && link !== "connecting" && <p className="mkt-box__agree">{agree}</p>}
             </SummaryCard>
           )}

@@ -588,3 +588,56 @@
   flex: 0 1 240px;
   min-width: 180px;
 }
+
+/* What it brings, before and after adding: a heading, then each kind under its own small title. */
+.mkt-brings {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.mkt-brings__title {
+  margin: 0;
+  font-size: var(--apx-text-md);
+  font-weight: var(--apx-weight-medium);
+}
+/* A connector's address, as written, with its copy button right after it. */
+.mkt-addr {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+  max-width: 100%;
+}
+.mkt-addr code {
+  min-width: 0;
+  font-family: var(--apx-font-mono);
+  font-size: var(--apx-text-xs);
+  overflow-wrap: anywhere;
+}
+/* "9  list customers, get a payment…": how many, then which. */
+.mkt-tools {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 10px;
+}
+.mkt-tools b {
+  font-weight: var(--apx-weight-medium);
+  font-variant-numeric: tabular-nums;
+}
+.mkt-tools__list {
+  color: var(--apx-fg-muted);
+}
+.mkt-bring__line {
+  display: block;
+}
+.mkt-bring__act {
+  display: block;
+  margin-top: 6px;
+}
+.mkt-notice.is-problem {
+  color: var(--apx-fg);
+}
+.mkt-notice.is-problem > svg {
+  flex: none;
+  color: var(--apx-warning);
+}
