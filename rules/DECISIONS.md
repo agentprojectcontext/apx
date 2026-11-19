@@ -5516,3 +5516,30 @@ a network firewall or IP-anonymity promise: WebRTC/STUN and DNS prefetch remain 
 
 Docs impact: updated the English and Spanish artifact guides with selection, review, account management,
 limits, offline behavior and the limits of revocation. No owner news entry: this rollout is not announced.
+
+<a id="d-249"></a>
+## D-249 — 2026-11-18 — A turn groups its writes; the store stays `synchronous = FULL`
+
+`node:sqlite` runs on the event loop, and the store opens WAL with SQLite's default `synchronous = FULL`: every
+commit fsyncs the log before the next line of JavaScript runs. A plain chat turn committed about twenty times (the
+words, the run's start, the message, the context kept, the engine chosen, the answer, the run's end, the thread's
+state, each on its own). On a busy CI runner a single fsync took 200–290 ms, so a turn that met one missed
+`turn_p95_ms` while the same commit passed on a rerun (`Performance profile (diagnostic)`, TESTING.md 5b).
+
+A turn now writes what happens at the same moment in one `store.tx`: the words and where answers go
+(`threads.send`), the run's start with its project, state and message, the input logged for the model, the context
+kept with the engine chosen, and the answer with the run's and the thread's end. Folder changes are read before that
+last transaction, never inside it, since a transaction spans no await. A plain turn commits ten times;
+`engine/turn-commits.test.ts` counts commit frames in the WAL and fails above that. What still commits alone is
+what happens at another moment: the idempotency key after the handler, streamed text, usage as the model reports
+it (kept so a failed or stopped turn shows what it spent), the model's answer in the log, the memory upkeep after the
+run. A write added to the turn joins the transaction of its moment.
+
+`PRAGMA synchronous = NORMAL` under WAL was weighed and is not taken here: it removes the fsync from every commit
+(only checkpoints sync) and keeps the file consistent, but a power loss or an OS crash can roll back the commits
+since the last checkpoint, up to about a thousand pages: several turns, sent messages and their idempotency keys
+among them. An application crash loses nothing either way. That trade is the owner's call; until it is made the
+store keeps FULL and fewer commits.
+
+Docs impact: updated `rules/TESTING.md` 5b (commits per turn and the test that bounds them). Nothing user-facing
+changes: no user guide, reference or troubleshooting page describes the store's commits.
