@@ -225,6 +225,70 @@ test("OAuth bridge state is scoped to each extension and server and removed on u
   }
 });
 
+test("an orphaned secret prevents a different source from taking over an installed ID", async () => {
+  const first = tempDir("orphan-first-");
+  const second = tempDir("orphan-second-");
+  const env = await startCore({ llm: scriptedLlm(() => say("ok")) });
+  const write = (folder: string, name: string, version: string, withSecret: boolean) => {
+    fs.writeFileSync(
+      path.join(folder, "apx-extension.json"),
+      JSON.stringify({
+        manifest: 2,
+        id: "orphaned",
+        name,
+        version,
+        settings: withSecret ? [{ name: "token", label: "Token", type: "string", sensitive: true }] : [],
+        mcp: { test: { command: process.execPath, args: [SERVER] } },
+      }),
+    );
+  };
+  try {
+    write(first.path, "First", "1.0.0", true);
+    await env.client.call("extensions.install", { path: first.path });
+    await env.client.call("extensions.settings", { id: "orphaned", values: { token: "synthetic-private-key" } });
+    write(first.path, "First", "1.0.1", false);
+    await env.client.call("extensions.install", { path: first.path });
+    write(first.path, "First", "1.0.2", false);
+    await env.client.call("extensions.install", { path: first.path });
+    write(second.path, "Second", "1.0.3", false);
+    await assert.rejects(env.client.call("extensions.install", { path: second.path }), /different source/i);
+  } finally {
+    await env.core.close();
+    await env.cleanup();
+    await first.remove();
+    await second.remove();
+  }
+});
+
+test("an update cannot claim a previously unindexed system credential", async () => {
+  const source = tempDir("unindexed-credential-");
+  const env = await startCore({ llm: scriptedLlm(() => say("ok")) });
+  const has = env.core.secrets.has;
+  try {
+    const file = path.join(source.path, "apx-extension.json");
+    const manifest = {
+      manifest: 2,
+      id: "hidden",
+      name: "Hidden",
+      version: "1.0.0",
+      settings: [] as unknown[],
+      mcp: { test: { command: process.execPath, args: [SERVER] } },
+    };
+    fs.writeFileSync(file, JSON.stringify(manifest));
+    await env.client.call("extensions.install", { path: source.path });
+    env.core.secrets.has = (ref) => ref === "secret://ext-hidden-token" || has(ref);
+    manifest.version = "1.0.1";
+    manifest.settings = [{ name: "token", label: "Token", type: "string", sensitive: true }];
+    fs.writeFileSync(file, JSON.stringify(manifest));
+    await assert.rejects(env.client.call("extensions.install", { path: source.path }), /saved.*secret/i);
+  } finally {
+    env.core.secrets.has = has;
+    await env.core.close();
+    await env.cleanup();
+    await source.remove();
+  }
+});
+
 test("a different source cannot replace the same ID while an OAuth bridge may have cached a session", async () => {
   const first = tempDir("oauth-first-");
   const second = tempDir("oauth-second-");

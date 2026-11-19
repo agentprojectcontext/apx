@@ -239,8 +239,9 @@ extensión se borra esa sesión y las conexiones existentes pueden necesitar que
 que envuelven el puente pueden usar su propia caché compartida. Una extensión de un catálogo de terceros instalada
 antes de que APX registrara la identidad de su fuente también puede necesitar que la elimines y la agregues
 de nuevo para actualizarla. Si una eliminación anterior dejó secretos guardados, APX no permite instalar otra extensión
-con ese ID hasta que elimines las variables anteriores en Recursos › Variables. Si un secreto quedó en otro almacén de
-credenciales del sistema, también puede ser necesario eliminarlo allí.
+con ese ID hasta que elimines las variables anteriores en Recursos › Variables. También rechaza una actualización que
+introduce una credencial que solo aparece en el almacén del sistema hasta que la elimines allí: APX no asigna ese
+valor sin indexar a la extensión en silencio.
 
 Para plugins de Claude convertidos, APX también copia los directorios compartidos que una habilidad menciona
 explícitamente y ajusta las rutas a la carpeta del plugin. Para una dirección remota sin encabezados que coincide

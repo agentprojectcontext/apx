@@ -281,15 +281,9 @@ export function createExtensions(deps: {
   const hasPrivateConfig = (old: ExtensionRecord, next: ExtensionManifest) => {
     if (Object.keys(old.settings).length) return true;
     if ([old.manifest, next].some((m) => Object.values(m.mcp).some((s) => s.args.includes("mcp-remote")))) return true;
-    const names = [old.manifest, next].flatMap((m) => [
-      ...m.secrets.map((s) => s.name),
-      ...m.settings.filter((s) => s.sensitive).map((s) => s.name),
-    ]);
-    const indexed = new Set(secrets.list().map((s) => s.name));
-    return names.some((name) => {
-      const key = extSecret(old.id, name);
-      return indexed.has(key) || secrets.has(`secret://${key}`);
-    });
+    return [...extensionSecrets(old.id, [old.manifest, next])].some(
+      (name) => secrets.listed(name) || secrets.has(`secret://${name}`),
+    );
   };
   /** The extension read and checked, and what to call where it came from. Nothing is written. */
   const load = async (input: ExtensionInput): Promise<{ pkg: Package; source: string; origin?: string }> => {
@@ -523,6 +517,21 @@ export function createExtensions(deps: {
         throw badRequest(
           "This extension has saved secrets from an earlier installation; remove them before installing it",
         );
+      if (cur) {
+        const declared = (m: ExtensionManifest) =>
+          new Set([
+            ...m.secrets.map((s) => extSecret(id, s.name)),
+            ...m.settings.filter((s) => s.sensitive).map((s) => extSecret(id, s.name)),
+          ]);
+        const before = declared(cur.manifest);
+        const unknown = [...declared(manifest)].some(
+          (name) => !before.has(name) && !secrets.listed(name) && secrets.has(`secret://${name}`),
+        );
+        if (unknown)
+          throw badRequest(
+            "This extension has saved secrets from an earlier installation; remove them before updating it",
+          );
+      }
       const same = cur ? sameOrigin(cur, input, source, origin) : true;
       const officialUpdate = cur?.provenance === "official" && check.provenance === "official";
       if (cur && cur.hash !== hash && !same && !officialUpdate && hasPrivateConfig(cur, manifest))
