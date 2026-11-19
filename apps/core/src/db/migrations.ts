@@ -1292,4 +1292,6 @@ export const MIGRATIONS: readonly string[] = [
   // extension archives them (DECISIONS.md#d-254).
   `ALTER TABLE extensions ADD COLUMN added_agents TEXT;`,
   ARCHIVE_MODEL_CONTEXT,
+  // A stable source identity prevents another package with the same id from inheriting its settings and secrets.
+  `ALTER TABLE extensions ADD COLUMN origin_key TEXT;`,
 ];

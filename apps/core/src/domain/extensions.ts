@@ -8,6 +8,7 @@ export type PreviousVersion = {
   manifest: ExtensionManifest;
   hash: string;
   source: string;
+  origin_key?: string | undefined;
   provenance: ExtensionProvenance;
   enabled: boolean;
   installed_at: string;
@@ -19,6 +20,7 @@ export type ExtensionRecord = {
   hash: string;
   dir: string;
   source: string;
+  origin_key?: string | undefined;
   enabled: boolean;
   installed_at: string;
   provenance: ExtensionProvenance;
@@ -85,6 +87,7 @@ export function extensionsRepo({ one, all, run }: Sql) {
     hash: string;
     dir: string;
     source: string;
+    origin_key: string | null;
     enabled: number;
     installed_at: string;
     provenance: string;
@@ -97,6 +100,7 @@ export function extensionsRepo({ one, all, run }: Sql) {
     hash: r.hash,
     dir: r.dir,
     source: r.source,
+    ...(r.origin_key ? { origin_key: r.origin_key } : {}),
     enabled: Boolean(r.enabled),
     installed_at: r.installed_at,
     provenance: provenanceOf(r.provenance),
@@ -126,6 +130,7 @@ export function extensionsRepo({ one, all, run }: Sql) {
         hash: e.hash,
         dir: e.dir,
         source: e.source,
+        origin_key: e.origin_key ?? null,
         enabled,
         provenance: e.provenance,
         previous: e.previous ? JSON.stringify(e.previous) : null,

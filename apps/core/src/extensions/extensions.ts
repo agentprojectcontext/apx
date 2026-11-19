@@ -228,6 +228,33 @@ export function createExtensions(deps: {
     return realpath(dir);
   };
   const refused = (message: string, detail: ExtensionRefusal) => badRequest(message, detail);
+  const originOf = (input: ExtensionInput, source: string, hash: string) =>
+    input.entry
+      ? `catalog:${input.entry.catalog}/${input.entry.id}`
+      : input.path !== undefined
+        ? `folder:${source}`
+        : input.url !== undefined
+          ? `url:${source}`
+          : `file:${hash}`;
+  const sameOrigin = (old: ExtensionRecord, input: ExtensionInput, source: string, origin: string) => {
+    if (old.origin_key?.startsWith("folder:") && origin.startsWith("folder:"))
+      return samePath(old.origin_key.slice(7), origin.slice(7));
+    if (old.origin_key) return old.origin_key === origin;
+    if (input.path !== undefined && path.isAbsolute(old.source)) return samePath(old.source, source);
+    return input.url !== undefined && old.source === source;
+  };
+  const hasPrivateConfig = (old: ExtensionRecord, next: ExtensionManifest) => {
+    if (Object.keys(old.settings).length) return true;
+    const names = [old.manifest, next].flatMap((m) => [
+      ...m.secrets.map((s) => s.name),
+      ...m.settings.filter((s) => s.sensitive).map((s) => s.name),
+    ]);
+    const indexed = new Set(secrets.list().map((s) => s.name));
+    return names.some((name) => {
+      const key = extSecret(old.id, name);
+      return indexed.has(key) || secrets.has(`secret://${key}`);
+    });
+  };
   /** The extension read and checked, and what to call where it came from. Nothing is written. */
   const load = async (input: ExtensionInput): Promise<{ pkg: Package; source: string }> => {
     const read = await readInput(input);
@@ -451,6 +478,14 @@ export function createExtensions(deps: {
         throw refused("the extension is not the one you looked at; look at it again", { reason: "changed" });
       const check = await catalog.check(manifest.id, manifest.version, hash);
       const id = manifest.id;
+      const cur = store.extensions.get(id);
+      const origin = originOf(input, source, hash);
+      const same = cur ? sameOrigin(cur, input, source, origin) : true;
+      const officialUpdate = cur?.provenance === "official" && check.provenance === "official";
+      if (cur && cur.hash !== hash && !same && !officialUpdate && hasPrivateConfig(cur, manifest))
+        throw badRequest(
+          `${cur.manifest.name} is already installed from a different source; remove it before installing this one`,
+        );
       const dir = path.join(root, id);
       fs.mkdirSync(root, { recursive: true });
       const tmp = fs.mkdtempSync(path.join(root, ".staging-"));
@@ -461,7 +496,6 @@ export function createExtensions(deps: {
         } catch (err) {
           throw badRequest(err instanceof Error ? err.message : "the extension could not be copied");
         }
-        const cur = store.extensions.get(id);
         let previous: PreviousVersion | undefined = cur?.previous;
         // The running plugin (if any) is of the files being replaced; it starts again only if allowed to stay on.
         plugins.stop(id);
@@ -472,18 +506,22 @@ export function createExtensions(deps: {
             manifest: cur.manifest,
             hash: cur.hash,
             source: cur.source,
+            ...(cur.origin_key ? { origin_key: cur.origin_key } : {}),
             provenance: cur.provenance,
             enabled: cur.enabled,
             installed_at: cur.installed_at,
           };
         } else fs.rmSync(dir, { recursive: true, force: true });
         fs.renameSync(staged, dir);
+        const preserveOrigin = cur && cur.hash === hash && !same && !officialUpdate;
+        const originKey = preserveOrigin ? cur.origin_key : origin;
         const e = store.extensions.put({
           id,
           manifest,
           hash,
           dir,
-          source,
+          source: preserveOrigin ? cur.source : source,
+          ...(originKey ? { origin_key: originKey } : {}),
           provenance: check.provenance,
           previous,
           keepOn: keepsOn(cur, manifest, hash, check) && !contextTaken(id, manifest),
@@ -500,6 +538,20 @@ export function createExtensions(deps: {
       const e = get(id);
       const prev = e.previous;
       if (!prev) throw badRequest(`${e.manifest.name} has no earlier version kept`);
+      const sameSavedOrigin =
+        e.origin_key &&
+        prev.origin_key &&
+        (e.origin_key.startsWith("folder:") && prev.origin_key.startsWith("folder:")
+          ? samePath(e.origin_key.slice(7), prev.origin_key.slice(7))
+          : e.origin_key === prev.origin_key);
+      if (
+        !sameSavedOrigin &&
+        !(e.provenance === "official" && prev.provenance === "official") &&
+        hasPrivateConfig(e, prev.manifest)
+      )
+        throw badRequest(
+          `${e.manifest.name} has saved settings from a different source; remove it before installing the earlier one`,
+        );
       const back = previousDir(id);
       if (!fs.existsSync(back) || !sameFiles(back, prev.hash))
         throw badRequest(`the earlier version of ${e.manifest.name} changed on disk; install it again`);
@@ -515,6 +567,7 @@ export function createExtensions(deps: {
         hash: prev.hash,
         dir: e.dir,
         source: prev.source,
+        ...(prev.origin_key ? { origin_key: prev.origin_key } : {}),
         provenance: prev.provenance,
         enabled: prev.enabled && !contextTaken(id, prev.manifest),
         installed_at: prev.installed_at,
@@ -522,6 +575,7 @@ export function createExtensions(deps: {
           manifest: e.manifest,
           hash: e.hash,
           source: e.source,
+          ...(e.origin_key ? { origin_key: e.origin_key } : {}),
           provenance: e.provenance,
           enabled: e.enabled,
           installed_at: e.installed_at,

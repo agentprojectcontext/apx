@@ -111,6 +111,7 @@ export interface ExtensionsTable {
   previous: string | null;
   settings: string | null;
   added_agents: string | null;
+  origin_key: string | null;
 }
 
 export interface FlowEventsTable {
