@@ -189,6 +189,7 @@ export const test = base.extend<{
   desktopInstallNotice: boolean;
   diskWarning: boolean;
   compactSidebar: boolean;
+  expectedConsoleErrors: Array<{ path: string; text: string }>;
 }>({
   // The corner cards and the welcome cover what sits under them, so they start closed unless a spec is about them.
   cornerCards: [false, { option: true }],
@@ -198,7 +199,12 @@ export const test = base.extend<{
   diskWarning: [false, { option: true }],
   // The sidebar is compact by default (each section one row); specs list its items inline unless one is about the compact one.
   compactSidebar: [false, { option: true }],
-  page: async ({ page, cornerCards, welcome, desktopInstallNotice, diskWarning, compactSidebar }, use) => {
+  // A deliberate negative journey must name each browser network error and observe it exactly once.
+  expectedConsoleErrors: [[], { option: true }],
+  page: async (
+    { page, cornerCards, welcome, desktopInstallNotice, diskWarning, compactSidebar, expectedConsoleErrors },
+    use,
+  ) => {
     if (!compactSidebar) {
       await cardSidebar(page);
       // Below 760px of height the panel folds the sidebar whatever the choice (devices['Desktop Chrome'] is 720).
@@ -235,8 +241,14 @@ export const test = base.extend<{
         { ...(cornerCards ? {} : { discord: true, star: true }), ...(welcome ? {} : { welcomeSeen: ALL_SLIDES }) },
       );
     const errors: string[] = [];
+    const expectedErrors = expectedConsoleErrors.map((error) => ({ ...error, seen: 0 }));
     page.on("console", (m) => {
-      if (m.type() === "error" && !IGNORED.some((r) => r.test(m.text()))) errors.push(m.text());
+      if (m.type() !== "error" || IGNORED.some((r) => r.test(m.text()))) return;
+      const expected = expectedErrors.find(
+        (error) => m.text() === error.text && m.location().url === new URL(error.path, core).href,
+      );
+      if (expected) expected.seen++;
+      else errors.push(m.text());
     });
     page.on("pageerror", (e) => errors.push(`uncaught: ${e.message}`));
     page.on("response", (r) => {
@@ -248,6 +260,10 @@ export const test = base.extend<{
       await finishCoverage();
     }
     expect(errors, "console errors").toEqual([]);
+    expect(
+      expectedErrors.map((error) => error.seen),
+      "each deliberate network error occurs exactly once",
+    ).toEqual(expectedErrors.map(() => 1));
   },
 });
 export { expect };

@@ -2,6 +2,15 @@ import fs from "node:fs";
 import path from "node:path";
 import { expect, open, rpc, test, world } from "./kit.ts";
 
+test.use({
+  expectedConsoleErrors: [
+    {
+      path: "/rpc/agents.migrate",
+      text: "Failed to load resource: the server responded with a status of 409 (Conflict)",
+    },
+  ],
+});
+
 for (const width of [1280, 390]) {
   test(`an agent and selected files move after review at ${width}px, without cloning`, async ({ page }, info) => {
     await rpc("setup.finish", {});
@@ -45,10 +54,14 @@ for (const width of [1280, 390]) {
     await dialog.screenshot({ path: info.outputPath(`review-${width}.png`) });
 
     fs.writeFileSync(path.join(sourceRoot, "reports", "result.txt"), "Updated example findings");
+    const stale = page.waitForResponse(
+      (response) => response.url().endsWith("/rpc/agents.migrate") && response.status() === 409,
+    );
     await dialog
       .getByRole("checkbox", { name: `Mover a Researcher y el trabajo revisado a northwind ${width}.` })
       .check();
     await dialog.getByRole("button", { name: "Mover agente y trabajo" }).click();
+    expect((await stale).status()).toBe(409);
     await expect(dialog.getByRole("alert")).toBeVisible();
     expect(fs.existsSync(path.join(sourceRoot, ".apc", "agents", "researcher.md"))).toBe(true);
     expect(fs.existsSync(path.join(targetRoot, "reports", "result.txt"))).toBe(false);
