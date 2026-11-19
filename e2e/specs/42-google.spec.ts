@@ -16,6 +16,8 @@ test("Google Calendar connects by signing in with Google, shows the account, and
   await dialog.getByRole("button", { name: "Iniciar sesión con Google" }).click();
   const back = await tab;
   await expect(back.getByText("Google Calendar está conectado")).toBeVisible();
+  // APX joined to the service by the connect dots, as the APX account's own return shows.
+  await expect(back.getByRole("status")).toHaveText(/Conectado/);
   await expect(back.getByText(/owner@example\.com/)).toBeVisible();
   expect(new URL(back.url()).search, "the code leaves the address bar").toBe("");
   await back.close();

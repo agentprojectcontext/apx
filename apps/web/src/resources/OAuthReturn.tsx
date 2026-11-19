@@ -1,9 +1,11 @@
 import "../styles/screens.css";
-import { Button, EmptyState, Icons, Spinner } from "@apx/ui";
+import { Button, ConnectSignal, EngineIcon, GoogleMark, IntegrationIcon } from "@apx/ui";
 import { useEffect, useState } from "react";
 import { client } from "../data/client.ts";
+import { loadMarks } from "../data/models.ts";
 import { isSignInWindow, tellSignInDone } from "../data/signInWindow.ts";
 import { useT } from "../i18n/index.ts";
+import { ApxMark } from "../marketplace/ConnectHead.tsx";
 import { AccountReturn } from "./AccountReturn.tsx";
 
 const NAMES: Record<string, string> = {
@@ -51,6 +53,15 @@ export function OAuthReturn() {
   return running ? <AccountReturn running={running} desktop={DESKTOP_ACCOUNT} /> : <IntegrationReturn />;
 }
 
+/** The service at the far end of the link: its own mark, or Google's when one sign-in connected several of its parts. */
+function ServiceMark({ id, many }: { id: string | undefined; many: boolean }) {
+  if (!id || id === "account") return <GoogleMark size={28} />;
+  if (id === "openrouter") return <EngineIcon engine="openrouter" size={30} tile />;
+  if (many) return <GoogleMark size={28} />;
+  return <IntegrationIcon id={id} name={NAMES[id] ?? id} size={30} />;
+}
+
+/** Where a service's sign-in comes back: APX joined to it by the connect dots, as the APX account's return shows. */
 function IntegrationReturn() {
   const t = useT();
   const [state, setState] = useState<
@@ -60,6 +71,7 @@ function IntegrationReturn() {
     | { kind: "nothing" }
   >({ kind: "working" });
   useEffect(() => {
+    loadMarks();
     const running = finish();
     if (!running) return setState({ kind: "nothing" });
     running.then(
@@ -71,41 +83,56 @@ function IntegrationReturn() {
       (e: unknown) => setState({ kind: "failed", error: e instanceof Error ? e.message : String(e) }),
     );
   }, []);
-  const open = POPUP ? (
-    <Button size="sm" onClick={() => window.close()}>
-      {t("oauth.closeWindow")}
-    </Button>
+  const back = POPUP ? (
+    <Button onClick={() => window.close()}>{t("oauth.closeWindow")}</Button>
   ) : (
-    <Button size="sm" onClick={() => window.location.replace("/")}>
-      {t("oauth.open")}
-    </Button>
+    <Button onClick={() => window.location.replace("/")}>{t("oauth.open")}</Button>
   );
-  const back = open;
+  // Which service this was is known from where Google came back to until the core answers.
+  const id =
+    state.kind === "done" ? state.id : window.location.pathname === "/oauth/openrouter" ? "openrouter" : undefined;
+  const many = state.kind === "done" && Boolean(state.also?.length);
+  const signal = state.kind === "done" ? "connected" : state.kind === "working" ? "connecting" : "broken";
   return (
     <div className="oauthreturn">
-      {state.kind === "working" && <EmptyState icon={<Spinner size={18} />} title={t("oauth.working")} />}
-      {state.kind === "done" && (
-        <EmptyState
-          icon={<Icons.CircleCheck />}
-          title={
-            state.also?.length
-              ? t("oauth.doneTitleMany", {
-                  names: [state.id, ...state.also].map((id) => NAMES[id] ?? id).join(", "),
-                })
-              : t("oauth.doneTitle", { name: NAMES[state.id] ?? state.id })
-          }
-          action={back}
-        >
-          {state.account ? `${t("int.signedInAs", { account: state.account })}. ` : ""}
-          {t(POPUP ? "oauth.closing" : "oauth.doneBody")}
-        </EmptyState>
-      )}
-      {state.kind === "failed" && (
-        <EmptyState icon={<Icons.TriangleAlert />} title={t("oauth.failTitle")} action={back}>
-          {state.error}
-        </EmptyState>
-      )}
-      {state.kind === "nothing" && <EmptyState title={t("oauth.nothing")} action={open} />}
+      <div className="signin-return">
+        <ConnectSignal
+          from={<ApxMark />}
+          to={<ServiceMark id={id} many={many} />}
+          state={signal}
+          label={state.kind === "done" ? t("account.returnConnected") : undefined}
+        />
+        {state.kind === "working" && <h1>{t("oauth.working")}</h1>}
+        {state.kind === "done" && (
+          <>
+            <h1>
+              {state.also?.length
+                ? t("oauth.doneTitleMany", {
+                    names: [state.id, ...state.also].map((x) => NAMES[x] ?? x).join(", "),
+                  })
+                : t("oauth.doneTitle", { name: NAMES[state.id] ?? state.id })}
+            </h1>
+            <p>
+              {state.account ? `${t("int.signedInAs", { account: state.account })}. ` : ""}
+              {t(POPUP ? "oauth.closing" : "oauth.doneBody")}
+            </p>
+            {back}
+          </>
+        )}
+        {state.kind === "failed" && (
+          <>
+            <h1>{t("oauth.failTitle")}</h1>
+            <p role="alert">{state.error}</p>
+            {back}
+          </>
+        )}
+        {state.kind === "nothing" && (
+          <>
+            <h1>{t("oauth.nothing")}</h1>
+            {back}
+          </>
+        )}
+      </div>
     </div>
   );
 }
