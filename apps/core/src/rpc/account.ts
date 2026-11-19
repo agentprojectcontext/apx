@@ -20,6 +20,7 @@ async function result<T>(action: () => T | Promise<T>): Promise<T> {
         "account_not_configured",
         "account_busy",
         "sign_in_local_only",
+        "session_not_saved",
       ].includes(code)
         ? code
         : "account_unavailable",

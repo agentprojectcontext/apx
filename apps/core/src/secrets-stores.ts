@@ -2,7 +2,7 @@
 // only the user's Windows account can decrypt (DPAPI, what Credential Manager itself uses) and the desktop keyring
 // through the Secret Service (Linux, `secret-tool`). Each runs the system's own command; values go on stdin, never on
 // argv. See DECISIONS.md#d-010 and DECISIONS.md#d-133.
-import { execFileSync } from "node:child_process";
+import { execFileSync, spawnSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 
@@ -12,22 +12,30 @@ export type SecretsBackend = "keychain" | "dpapi" | "secret-service" | "file";
 export const systemBackend = (platform: NodeJS.Platform = process.platform): SecretsBackend =>
   platform === "darwin" ? "keychain" : platform === "win32" ? "dpapi" : "secret-service";
 
-/** A system command: its stdout, or a throw when it fails or exits non-zero. Injected so tests can fake it. */
+/**
+ * A system command: its stdout (its stderr with `stderr: true`), or a throw when it fails or exits non-zero. Injected
+ * so tests can fake it.
+ */
 export type Run = (
   cmd: string,
   args: string[],
-  o?: { input?: string; env?: Record<string, string>; timeoutMs?: number },
+  o?: { input?: string; env?: Record<string, string>; timeoutMs?: number; stderr?: boolean },
 ) => string;
 
-export const runCommand: Run = (cmd, args, o = {}) =>
-  execFileSync(cmd, args, {
-    encoding: "utf8",
+export const runCommand: Run = (cmd, args, o = {}) => {
+  const options = {
+    encoding: "utf8" as const,
     input: o.input ?? "",
-    stdio: ["pipe", "pipe", "ignore"],
     ...(o.env ? { env: { ...process.env, ...o.env } } : {}),
     timeout: o.timeoutMs ?? 15_000,
     windowsHide: true,
-  });
+  };
+  if (!o.stderr) return execFileSync(cmd, args, { ...options, stdio: ["pipe", "pipe", "ignore"] });
+  const done = spawnSync(cmd, args, options);
+  if (done.error) throw done.error;
+  if (done.status !== 0) throw new Error(`${cmd} exited ${done.status}`);
+  return done.stderr;
+};
 
 export type ValueStore = {
   get(name: string): string | undefined;
@@ -44,9 +52,16 @@ const PARTS = "apx-parts:v1:";
 
 export function keychainStore(service: string, run: Run = runCommand): ValueStore {
   const q = (s: string) => `"${s.replace(/\\/g, "\\\\").replace(/"/g, '\\"')}"`;
+  const find = (name: string, flag: "-w" | "-g") =>
+    run(SECURITY, ["find-generic-password", "-s", service, "-a", name, flag], flag === "-g" ? { stderr: true } : {});
+  // `-w` prints a value holding anything but printable ASCII (an accent, a tab) as bare hex, which a hex-looking value
+  // also is; `-g` tells them apart: `password: 0x…` only for the encoded one. See HISTORY.md#keychain-hex
   const read = (name: string) => {
     try {
-      return run(SECURITY, ["find-generic-password", "-s", service, "-a", name, "-w"]).replace(/\n$/, "");
+      const shown = find(name, "-w").replace(/\n$/, "");
+      if (!/^(?:[0-9a-f]{2})+$/.test(shown)) return shown;
+      const hex = /^password: 0x([0-9A-F]+)/m.exec(find(name, "-g"))?.[1];
+      return hex ? Buffer.from(hex, "hex").toString("utf8") : shown;
     } catch {
       return undefined;
     }

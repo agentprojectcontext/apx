@@ -15,7 +15,14 @@ export type AccountProfile = z.infer<typeof AccountProfile>;
 export const accountMethods = {
   "account.get": deferMethod({
     params: () => z.object({}).strict(),
-    result: () => z.object({ available: z.boolean(), profile: AccountProfile.nullable(), pending: z.boolean() }),
+    result: () =>
+      z.object({
+        available: z.boolean(),
+        profile: AccountProfile.nullable(),
+        pending: z.boolean(),
+        /** A session was kept here but cannot be read back: signing in again replaces it. */
+        unreadable: z.boolean(),
+      }),
     effect: false,
     access: "human",
   }),

@@ -197,7 +197,7 @@ test("moving a value to another project keeps it, its sign-in sites and last use
   assert.equal(s.move("NOT_THERE", "ELSEWHERE"), "missing");
 });
 
-/** `/usr/bin/security` in memory, cutting each `-i` line at 4 KB as the real one does. */
+/** `/usr/bin/security` in memory, cutting each `-i` line at 4 KB and printing values as the real one does. */
 function fakeKeychain() {
   const items = new Map<string, string>();
   const unquote = (s: string) => s.replace(/\\(.)/g, "$1");
@@ -218,7 +218,14 @@ function fakeKeychain() {
     }
     const v = items.get(account);
     if (v === undefined) throw new Error("not found");
-    return `${v}\n`;
+    // As the real one: `-w` shows a value with anything but printable ASCII as bare hex; `-g` (on stderr) marks it 0x.
+    const printable = /^[\x20-\x7e]*$/.test(v);
+    const hex = Buffer.from(v, "utf8").toString("hex");
+    if (args.includes("-g")) {
+      assert.equal(opts.stderr, true, "`-g` answers on stderr");
+      return printable ? `password: "${v}"\n` : `password: 0x${hex.toUpperCase()}  "…"\n`;
+    }
+    return `${printable ? v : hex}\n`;
   };
   return { run, items };
 }
@@ -242,6 +249,21 @@ test("a Keychain value longer than one `security` line comes back whole, and lea
     s.set("apx-account-session", session);
     s.set("apx-account-session", null);
     assert.equal(sys.items.size, 0);
+  } finally {
+    fs.rmSync(home, { recursive: true, force: true });
+  }
+});
+
+test("a Keychain value with an accent or a tab comes back as written, and a value that only looks like hex stays", () => {
+  const home = tempHome();
+  try {
+    const sys = fakeKeychain();
+    const s = createSecrets(home, "keychain", {}, sys.run);
+    const session = JSON.stringify({ uid: "u1", profile: { name: "Zoë Müller" }, idToken: "t".repeat(1500) });
+    for (const value of [session, "tab\there", "c3a9", "deadbeef", 'with "quotes" and \\']) {
+      s.set("apx-account-session", value);
+      assert.equal(createSecrets(home, "keychain", {}, sys.run).resolve("secret://apx-account-session"), value);
+    }
   } finally {
     fs.rmSync(home, { recursive: true, force: true });
   }
