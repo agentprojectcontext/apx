@@ -17,23 +17,18 @@ test("the live link opens at the custom public address and never the private pan
     await rpc("webhooks.set", { mode: "custom", url: "https://public.example.com" });
     await open(page, `#app=${surface.id}`);
     await page.getByRole("button", { name: "Compartido", exact: true }).click();
-    await expect(page.getByText(`https://public.example.com${share_path}`, { exact: true })).toBeVisible();
+    await expect(page.getByRole("combobox", { name: "Quién lo puede ver" })).toHaveText(/En vivo desde esta compu/);
+    await expect(page.getByText(`public.example.com${share_path}`, { exact: true })).toBeVisible();
     const popupReady = page.waitForEvent("popup");
-    await page.getByRole("menuitem", { name: "Abrir enlace en vivo", exact: true }).click();
+    await page.getByRole("button", { name: "Abrir enlace", exact: true }).click();
     const popup = await popupReady;
     await expect(popup).toHaveURL(`https://public.example.com${share_path}`);
     expect(await popup.evaluate(() => window.opener === null)).toBe(true);
     await popup.close();
+    await page.keyboard.press("Escape");
     await rpc("webhooks.set", { mode: "off" });
     await page.getByRole("button", { name: "Compartido", exact: true }).click();
-    await expect(page.getByText("El enlace en vivo no está disponible.", { exact: false })).toBeVisible();
-    const unavailablePopup = page.waitForEvent("popup");
-    await page.getByRole("menuitem", { name: "Abrir enlace en vivo", exact: true }).click();
-    const blank = await unavailablePopup;
-    await expect.poll(() => blank.isClosed()).toBe(true);
-    await expect(
-      page.locator(".toast__text").filter({ hasText: "El enlace en vivo no está disponible." }),
-    ).toBeVisible();
+    await expect(page.getByText("Copiar y abrir necesitan una dirección pública", { exact: false })).toBeVisible();
   } finally {
     await rpc("webhooks.set", { mode: "off" });
     await rpc("surfaces.remove", { surface: surface.id });

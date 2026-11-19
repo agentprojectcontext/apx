@@ -80,9 +80,30 @@
   flex-wrap: wrap;
   gap: var(--apx-space-2);
 }
-.public-copy--signin {
+/* Signing in to share public: APX joined to Google, one sentence and the buttons, all in the middle. */
+.public-signin {
+  display: flex;
+  flex-direction: column;
   align-items: center;
+  gap: var(--apx-space-3);
+  padding: var(--apx-space-6) var(--apx-space-5) var(--apx-space-5);
   text-align: center;
+}
+.public-signin p {
+  margin: 0;
+  max-width: 22rem;
+}
+.public-signin__actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: var(--apx-space-2);
+  margin-top: var(--apx-space-2);
+}
+.public-copy__more {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--apx-space-4);
 }
 .public-copy__muted {
   color: var(--apx-fg-muted);
@@ -91,21 +112,4 @@
   padding: var(--apx-space-3);
   border: 1px solid var(--apx-danger);
   border-radius: var(--apx-radius-md);
-}
-/* The link a copy is public at, with its Copy button beside it (under it on a phone). */
-.public-copy__link {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--apx-space-2);
-  padding: var(--apx-space-2) var(--apx-space-3);
-  border: 1px solid var(--apx-border);
-  border-radius: var(--apx-radius-md);
-  background: var(--apx-fill);
-}
-.public-copy__link > span {
-  flex: 1 1 14rem;
-  min-width: 0;
-  font-family: var(--apx-font-mono);
-  font-size: var(--apx-text-sm);
 }

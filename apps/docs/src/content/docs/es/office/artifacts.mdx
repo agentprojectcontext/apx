@@ -115,22 +115,23 @@ memoria.
 
 Abrir `artifact.apxagent.app` sin un código de copia te lleva al sitio de APX. Los enlaces con código abren esa copia publicada.
 
-Abrí **Compartir › Cualquiera con el enlace** en un artifact. Si no iniciaste sesión en tu
-[cuenta APX](/es/start/account/), el mismo cuadro te lo pide primero, con **Continuar con Google**, y sigue solo
-cuando el navegador termina. Esto es distinto de **Enlace en vivo desde esta compu…**, una opción avanzada que
-muestra el artifact en vivo desde tu propio APX, solo mientras esta compu esté prendida y tenga una dirección
-pública (Configuración › Dispositivos). **Cualquiera con el enlace** sube una copia independiente a
-`artifact.apxagent.app` que cualquiera con el enlace puede ver sin cuenta. Abrir la página no usa el servicio
-de cuentas: agotar su cuota puede impedir publicar, pero no impide por sí solo abrir enlaces existentes.
-El alojamiento público tiene sus propios límites.
+**Compartir** en un artifact pregunta quién lo puede ver, y cada respuesta tiene su propio enlace para copiar:
 
-No se selecciona estado por defecto. Abrí **Ver contenido** para leer cada valor, elegí sólo lo que querés
-incluir y tocá **Revisar copia**. La siguiente pantalla muestra la cuenta, el enlace público, el tamaño,
-la vista previa, el código de la página y el estado exacto elegido. Sólo **Publicar** la sube; después el cuadro
-muestra el enlace con **Copiar enlace** y **Abrir enlace**, y el menú Compartir lo muestra con **Actualizar con tus
-cambios…** y **Dejar de compartir…**.
-El pedido de un agente también necesita esta revisión y tu confirmación, incluso si puede trabajar sin preguntarte.
-Si recibís ese pedido en el teléfono, abrí APX en la compu para revisarlo; el teléfono no permite aprobarlo sin revisión.
+- **Solo vos**: en tu APX y tus dispositivos. **Copiar enlace privado** lo abre ahí.
+- **Público**: una copia independiente en `artifact.apxagent.app` que cualquiera con el enlace ve sin cuenta.
+- **En vivo desde esta compu**: el artifact en vivo desde tu propio APX, solo mientras esta compu esté prendida y
+  tenga una dirección pública (Configuración › Dispositivos).
+
+Elegir **Público** te pide primero iniciar sesión en tu [cuenta APX](/es/start/account/) si no lo hiciste, con
+**Continuar con Google**, y sigue solo cuando el navegador termina. Después, un solo paso muestra la copia como la va
+a ver cualquiera y cuánto pesa. Los datos que guardó el widget quedan afuera salvo que prendas **Incluir los datos que
+guardó el widget**; **Ver qué datos son** y **Ver el código** muestran exactamente qué va. Solo **Compartir público**
+la sube, y copia su enlace. Después el panel Compartir muestra el enlace con **Copiar enlace público** y **Actualizar
+con tus cambios…**; volver a **Solo vos** pregunta antes **¿Dejar de compartir?**. Abrir la página no usa el servicio
+de cuentas: agotar su cuota puede impedir publicar, pero no impide por sí solo abrir enlaces existentes. El
+alojamiento público tiene sus propios límites. El pedido de un agente también necesita este paso y tu confirmación,
+incluso si puede trabajar sin preguntarte. Si recibís ese pedido en el teléfono, abrí APX en la compu para revisarlo;
+el teléfono no permite aprobarlo sin revisión.
 
 El HTML mismo puede contener información sensible. Revisalo también: omitir estado no quita lo que ya está
 escrito en la página. Una copia pública nunca incluye el store, la base de datos ni referencias a secretos,
@@ -140,7 +141,7 @@ mecanismos del navegador como WebRTC/STUN o DNS prefetch todavía pueden revelar
 
 **Configuración › Cuenta › Copias publicadas** muestra cada copia como una tarjeta con su enlace, **Copiar
 enlace**, **Actualizar con tus cambios…** (desde el artifact de donde salió, o uno que elegís si no la publicó
-esta compu) y **Dejar de compartir…**. Elegir **Privado** en el menú Compartir del artifact también deja de
+esta compu) y **Dejar de compartir…**. Elegir **Solo vos** en el panel Compartir del artifact también deja de
 compartir su copia, después de la misma revisión. Actualizar conserva el enlace
 y siempre empieza sin estado seleccionado; los cambios locales no se suben automáticamente. Si el original
 ya no está, elegí otro artifact local para actualizar. Dejar de publicar no necesita el original ni lo elimina:
