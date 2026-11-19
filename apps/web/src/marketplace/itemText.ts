@@ -39,6 +39,7 @@ export function nextStep(i: Item): Step {
   if (i.state === "off") return i.attention === "update-waits" ? "review" : e.companion ? "pair" : "connect";
   if (i.attention === "keys") return "keys";
   if (i.attention === "settings") return "settings";
+  if (i.attention === "sign-in") return "sign-in";
   if (i.attention) return "fix";
   // APX cannot tell whether the app on the device is paired: pairing stays at hand.
   return e.companion ? "pair" : "done";

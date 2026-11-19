@@ -543,7 +543,7 @@ export const enResources = {
   "extx.kv.version": "Version",
   "extx.kv.noHosts": "No service of its own",
   "extx.fix.keys": "Add its keys to finish.",
-  "extx.fix.sign-in": "Its sign-in expired.",
+  "extx.fix.sign-in": "Sign in to finish connecting.",
   "extx.fix.error": "Its server stopped with an error. Open MCP to see why.",
   "extx.fix.update-waits": "This version adds things the one before didn't have. Look at them before you turn it on.",
   "extx.fix.plugin": "Its plugin stopped.",

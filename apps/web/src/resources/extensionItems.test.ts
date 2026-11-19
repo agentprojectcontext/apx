@@ -306,6 +306,29 @@ test("one installed from an added catalog stays under it; a namesake from elsewh
   );
 });
 
+test("an enabled extension awaiting its own server login is not shown as connected", () => {
+  const connector = ext("linear", { mcp: ["linear-main"] });
+  const pending = buildItems({
+    ...sources,
+    installed: [connector],
+    servers: [server("linear-main", "needs-sign-in")],
+  }).find((i) => i.ext?.id === "linear");
+  assert.equal(pending?.state, "attention");
+  assert.equal(pending?.attention, "sign-in");
+  const other = buildItems({
+    ...sources,
+    installed: [connector],
+    servers: [server("other-main", "needs-sign-in")],
+  }).find((i) => i.ext?.id === "linear");
+  assert.equal(other?.state, "on");
+  const off = buildItems({
+    ...sources,
+    installed: [{ ...connector, enabled: false }],
+    servers: [server("linear-main", "needs-sign-in")],
+  }).find((i) => i.ext?.id === "linear");
+  assert.equal(off?.state, "off");
+});
+
 test("a third-party installation never inherits an official namesake's listing or update", () => {
   const catalog = [
     entry("linear", "1.0.1", {

@@ -117,6 +117,7 @@ export function ItemPage({
     settings: () => setOpen("settings"),
     fix: () => setOpen(server && !e && !i ? "edit" : "settings"),
     "sign-in": () => {
+      if (e) return connectBox();
       if (!server || i) return setOpen("settings");
       void signInMcp(server).then((s) => {
         if (s?.sign_in_url) window.open(s.sign_in_url, "_blank", "noopener");

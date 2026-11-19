@@ -553,7 +553,7 @@ export const esResources: Partial<Record<MessageKey, string>> = {
   "extx.kv.version": "Versión",
   "extx.kv.noHosts": "Ningún servicio propio",
   "extx.fix.keys": "Cargá sus claves para terminar.",
-  "extx.fix.sign-in": "Se venció su inicio de sesión.",
+  "extx.fix.sign-in": "Iniciá sesión para terminar de conectar.",
   "extx.fix.error": "Su servidor se detuvo con un error. Abrí MCP para ver por qué.",
   "extx.fix.update-waits": "Esta versión suma cosas que la anterior no tenía. Revisalas antes de encenderla.",
   "extx.fix.plugin": "Su plugin se detuvo.",

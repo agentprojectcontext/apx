@@ -143,7 +143,9 @@ function fromChannel(c: ChannelOffer): Item {
   };
 }
 
-function installed(e: ExtensionInfo, entry: CatalogEntry | undefined): Item {
+function installed(e: ExtensionInfo, entry: CatalogEntry | undefined, servers: McpServerStatus[]): Item {
+  const signingIn =
+    e.enabled && servers.some((s) => s.scope === "global" && e.mcp.includes(s.name) && s.status === "needs-sign-in");
   const missing = e.enabled && e.secrets.some((s) => !s.set);
   const unset = e.enabled && e.settings.some((s) => s.required && !s.set && s.value === undefined);
   const attention: Attention | undefined = !e.enabled
@@ -156,7 +158,9 @@ function installed(e: ExtensionInfo, entry: CatalogEntry | undefined): Item {
         ? "keys"
         : unset
           ? "settings"
-          : undefined;
+          : signingIn
+            ? "sign-in"
+            : undefined;
   const update = entry && newer(entry.version, e.version) ? entry.version : undefined;
   const listing = e.listing ?? entry?.listing;
   const label: Label =
@@ -278,7 +282,7 @@ export function buildItems(src: {
           },
         ]
       : []),
-    ...src.installed.map((e) => installed(e, e.provenance === "official" ? byId.get(e.id) : fromAdded(e))),
+    ...src.installed.map((e) => installed(e, e.provenance === "official" ? byId.get(e.id) : fromAdded(e), src.servers)),
     ...src.catalog.filter((c) => !mine.has(c.id) && (c.catalog || !connected.has(c.id))).map(offered),
   ]);
 }
