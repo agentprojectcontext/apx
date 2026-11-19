@@ -1,15 +1,17 @@
 #!/usr/bin/env node
 // One part of every package's unit tests, so CI runs them on several machines at once:
 //   node scripts/test-shard.ts 2/4
+//   node scripts/test-shard.ts all/4   # every part at once on one machine (the remote runner: rules/TESTING.md#remote-runner)
 // Each package's own `test` script says what runs (its `node --test` flags and globs, and any step before them); the
 // test files of all packages are dealt out in turn, so the core's many files spread over every part. A package whose
 // tests are not `node --test` (the mobile app's Jest) and the repo's scripts/*.test.ts run whole in part 1.
 //   node scripts/test-shard.ts 2/4 --rerun-failed   # Windows: a failed file runs once more; passing then is "flaky"
 // The rerun policy and why it is Windows only: DECISIONS.md#d-145.
-import { spawnSync } from "node:child_process";
+import { spawn, spawnSync } from "node:child_process";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import readline from "node:readline";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 export type Suite =
@@ -124,11 +126,41 @@ export function reportFlaky(flaky: readonly string[], part: string, summary = pr
   else console.log(table.join("\n"));
 }
 
+/** Every part at once on this machine (`all/4`): the steps before the tests once, then the parts side by side. */
+async function everyPart(total: number, root: string): Promise<number> {
+  for (const s of suites(root))
+    if (!("whole" in s))
+      for (const command of s.before)
+        if (spawnSync(command, { cwd: path.join(root, s.dir), stdio: "inherit", shell: true }).status !== 0) return 1;
+  const parts = Array.from({ length: total }, (_, i) => {
+    const tag = `[${i + 1}/${total}] `;
+    const child = spawn(process.execPath, [fileURLToPath(import.meta.url), `${i + 1}/${total}`, "--no-before"], {
+      cwd: root,
+      stdio: ["ignore", "pipe", "pipe"],
+    });
+    for (const stream of [child.stdout, child.stderr])
+      readline.createInterface({ input: stream }).on("line", (line) => process.stdout.write(`${tag}${line}\n`));
+    return new Promise<number>((resolve) => child.on("close", (code) => resolve(code ?? 1)));
+  });
+  const codes = await Promise.all(parts);
+  const failed = codes.flatMap((code, i) => (code ? [`${i + 1}/${total}`] : []));
+  if (failed.length) console.error(`\nFailed parts: ${failed.join(", ")}`);
+  return failed.length ? 1 : 0;
+}
+
 function main(): void {
-  const [index, total] = (process.argv[2] ?? "").split("/").map(Number);
-  if (!index || !total || index > total) throw new Error("usage: node scripts/test-shard.ts <part>/<parts>, e.g. 2/4");
-  const rerun = process.argv.includes("--rerun-failed");
   const root = path.resolve(import.meta.dirname, "..");
+  const [first = "", second = ""] = (process.argv[2] ?? "").split("/");
+  if (first === "all" && Number(second) > 0) {
+    everyPart(Number(second), root).then((code) => {
+      process.exitCode = code;
+    });
+    return;
+  }
+  const [index, total] = [Number(first), Number(second)];
+  if (!index || !total || index > total)
+    throw new Error("usage: node scripts/test-shard.ts <part>/<parts> (e.g. 2/4), or all/<parts>");
+  const rerun = process.argv.includes("--rerun-failed");
   const failed: string[] = [];
   const flaky: string[] = [];
   const all = suites(root);
@@ -138,7 +170,8 @@ function main(): void {
   };
   // Every package's steps before its tests run in every part: another package's tests may need what they build
   // (the panel's import the design system's dist), as pnpm's dependency order gives them in a whole run.
-  for (const s of all) if (!("whole" in s)) for (const command of s.before) step(s.dir, command);
+  if (!process.argv.includes("--no-before"))
+    for (const s of all) if (!("whole" in s)) for (const command of s.before) step(s.dir, command);
   for (const s of shard(all, index, total)) {
     const cwd = path.join(root, s.dir);
     console.log(`\n${s.dir}: ${"whole" in s ? s.whole : `${s.files.length} files`}`);

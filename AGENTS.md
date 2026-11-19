@@ -34,12 +34,16 @@ node apps/terminal/src/main.ts status      # is the core up, and is it running m
 pnpm --filter @apx/web dev                 # panel on :7441, proxies /rpc, /ws, /health to the core
 pnpm preflight                             # check:private + decisions + schema + lint + check:ui + check:dead + typecheck + test — must be green before push
 pnpm verify                                # preflight + e2e (web, desktop) + perf budgets — what CI runs; green before merge
+pnpm remote preflight|verify               # the same on the Linux box set for this clone (live bar, screen); then pnpm verify:mac here
 pnpm package                               # this OS's installer + daemon bundle in out/ (CI: push a v2.x.y tag)
 pnpm package:linux                         # cross-build Linux or Windows (:win); :mac requires macOS + Xcode tools
 ```
 
 - The core runs `.ts` directly (Node 24 type stripping): no build step. `pnpm dev` uses `node --watch`, so a
   saved file restarts it. Always confirm with `apx status` that `code_sha` is the commit you expect.
+- When a remote runner is set (`APX_REMOTE_HOST` or `git config apx.remoteHost`), run preflight and verify there (`pnpm remote …`), not on the laptop, and only
+  `pnpm verify:mac` locally when the change touches the desktop app or native code
+  ([remote runner](rules/TESTING.md#remote-runner)).
 - v2 runs **beside** v1: port `7440`, home `~/.apx/v2` (inside v1's folder, never touching v1's files), binary `apx` (it
   replaces v1's). Never write to v1's files in `~/.apx`.
 

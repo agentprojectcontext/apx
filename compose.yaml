@@ -1,0 +1,23 @@
+# APX with Docker Compose. Put a long random APX_TOKEN in a .env file next to this one, then:
+#   docker compose up -d        open http://localhost:7440 and sign in with that token
+# Docs: Install › Docker.
+services:
+  apx:
+    image: ghcr.io/agentprojectcontext/apx:latest
+    build: .
+    restart: unless-stopped
+    environment:
+      APX_TOKEN: "${APX_TOKEN:?Set APX_TOKEN in .env, for example with openssl rand -hex 32}"
+      # The addresses you open the panel at, when not http://localhost:7440 (another port, a LAN IP, a domain),
+      # comma separated: http://192.168.1.20:7440,https://apx.example.com
+      APX_ALLOWED_ORIGINS: "${APX_ALLOWED_ORIGINS:-}"
+    ports:
+      # Only this computer. To reach it from your network, use "7440:7440" and add its address above.
+      - "127.0.0.1:7440:7440"
+    volumes:
+      - apx-data:/data
+      # The folders your agents work in.
+      - ./projects:/projects
+
+volumes:
+  apx-data:

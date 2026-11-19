@@ -110,37 +110,54 @@ export function fromText(i: Item, t: T): string | undefined {
 const host = (u: string) => URL.parse(u)?.host ?? u;
 
 /** Where a server talks to: its address's host, or this computer for one that runs a command. */
-export function serverPlace(s: McpServerStatus, t: T): string {
+function serverPlace(s: McpServerStatus, t: T): string {
   return s.transport === "http" ? host(s.definition?.url ?? s.target) : t("mkt.place.here");
 }
 
-/** How it signs in, as its listing or its connection says. */
-export function authText(i: Item, t: T): string | undefined {
+/** How it signs in: on the service's page, with a key of the owner's, with a code a device shows, or not at all. */
+export type Auth = "signIn" | "key" | "pairing" | "none";
+
+/** How it signs in, as its listing, its keys or its server say; nothing when APX does not know. */
+export function authOf(i: Item): Auth | undefined {
   const via = i.connection ?? i.listing?.connection;
   if (i.integration) {
-    if (i.integration.oauth) return t("mkt.auth.signIn");
-    if (i.integration.fields.length) return t("mkt.auth.key");
+    if (i.integration.oauth) return "signIn";
+    if (i.integration.fields.length) return "key";
     // With no keys, its server says it: one reached at its address asks for nothing, one run here signs in in the
     // browser. Not connected yet, APX does not know which.
     if (!i.server) return undefined;
-    return i.server.transport === "http" ? t("mkt.auth.none") : t("mkt.auth.signIn");
+    return i.server.transport === "http" ? "none" : "signIn";
   }
-  if (i.ext?.companion || via === "pairing") return t("mkt.auth.pairing");
-  if (via === "oauth" || i.server?.status === "needs-sign-in") return t("mkt.auth.signIn");
-  if (via === "key" || i.ext?.secrets.length) return t("mkt.auth.key");
-  if (via === "none" || via === "local") return t("mkt.auth.none");
+  if (i.ext?.companion || i.entry?.contents?.companion || via === "pairing") return "pairing";
+  if (via === "oauth" || i.server?.status === "needs-sign-in") return "signIn";
+  if (via === "key" || i.ext?.secrets.length || i.entry?.contents?.keys.length) return "key";
+  if (via === "none" || via === "local") return "none";
   return undefined;
+}
+
+export const AUTH_TEXT: Record<Auth, MessageKey> = {
+  signIn: "mkt.auth.signIn",
+  key: "mkt.auth.key",
+  pairing: "mkt.auth.pairing",
+  none: "mkt.auth.none",
+};
+
+/** How it signs in, in the owner's words. */
+export function authText(i: Item, t: T): string | undefined {
+  const a = authOf(i);
+  return a ? t(AUTH_TEXT[a]) : undefined;
 }
 
 /** What it may reach and run, one line each: the hosts it sends data to, code on this computer, what its plugin sees. */
 export function accessLines(i: Item, t: T): string[] {
   const e = i.ext;
+  const k = i.entry?.contents;
   const out: string[] = [];
-  const hosts = new Set<string>(e?.hosts ?? []);
+  const hosts = new Set<string>(e?.hosts ?? k?.hosts ?? []);
   for (const s of i.server ? [i.server] : []) if (s.transport === "http") hosts.add(serverPlace(s, t));
   if (hosts.size) out.push(t("mkt.access.hosts", { hosts: [...hosts].join(", ") }));
-  if (e?.owner_host) out.push(t("mkt.access.yourHost"));
-  if (e?.runs_code || i.server?.transport === "stdio") out.push(t("mkt.access.code"));
+  if (e?.owner_host || k?.connectors?.some((c) => c.owner_url)) out.push(t("mkt.access.yourHost"));
+  if (e?.runs_code || (!e && k?.runs_code) || i.server?.transport === "stdio") out.push(t("mkt.access.code"));
   if (e?.plugin?.context) out.push(t("mkt.access.context"));
   if (e?.plugin?.observe.length) out.push(t("mkt.access.observe", { events: e.plugin.observe.join(", ") }));
   if (e?.plugin?.local_network) out.push(t("mkt.access.localNetwork"));

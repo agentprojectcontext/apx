@@ -11,6 +11,7 @@ import {
   kindOf,
   listed,
   newer,
+  pageItem,
   serviceName,
 } from "./extensionItems.ts";
 
@@ -298,4 +299,21 @@ test("one installed from an added catalog stays under it; a namesake from elsewh
       .find((g) => g.id === "added:c1")
       ?.items.some((i) => i.id === "notes"),
   );
+});
+
+test("a page opened on a catalog's entry keeps showing it once added, as the owner's", () => {
+  const before = buildItems({ ...sources, installed: [] });
+  assert.equal(pageItem(before, "catalog:weather")?.state, "available");
+  // Added: the catalog no longer lists it apart, and the same page shows the owner's, now with Connect.
+  const after = buildItems({ ...sources, installed: [ext("weather", { enabled: false })] });
+  assert.equal(pageItem(after, "catalog:weather")?.key, "ext:weather");
+  assert.equal(pageItem(after, "catalog:weather")?.state, "off");
+  // An added catalog's entry goes the same way, and a link that names only the id still finds it.
+  const added = buildItems({
+    ...sources,
+    catalog: [...sources.catalog, entry("acme", "1.0.0", { catalog: "c1", catalog_name: "Northwind" })],
+    installed: [ext("acme", { source: "acme · acme" })],
+  });
+  assert.equal(pageItem(added, "added:c1:acme")?.key, "ext:acme");
+  assert.equal(pageItem(after, "weather")?.key, "ext:weather");
 });

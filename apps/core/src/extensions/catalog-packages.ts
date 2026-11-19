@@ -7,7 +7,7 @@ import path from "node:path";
 import { type CatalogEntry, ExtensionManifest } from "@apx/protocol";
 import { isInside, samePath } from "../paths.ts";
 import { downloadArchive, fetchSmall, type Listed, type ListedVersion } from "./catalog.ts";
-import { hostsOf, readArchive } from "./package.ts";
+import { readArchive } from "./package.ts";
 import { bringsOf, categoryOf, contentsOf, type ListingFile, listingCopy, needsOf, readListing } from "./summary.ts";
 
 /** Downloads at once while filling; the rest wait their turn. */
@@ -17,7 +17,15 @@ export const ASSET_MAX = 2 * 1024 * 1024;
 /** How long browsing waits for packages not read yet; the rest are kept for the next look as they arrive. */
 const WAIT_MS = 15_000;
 
-type Known = { manifest: ExtensionManifest; listing?: ListingFile; skills?: string[] };
+/** A package's kept files; `stale`: kept by an older APX, without its skills' lines, so it is read once more. */
+type Known = {
+  manifest: ExtensionManifest;
+  listing?: ListingFile;
+  skills?: { names: string[]; lines?: Record<string, string> };
+  stale?: boolean;
+};
+/** What a kept package records; a file without it is read again when the catalog is next browsed. */
+const KEPT = 2;
 
 /** "1.10.0" after "1.9.2"; a pre-release sorts before its release. */
 export function compareVersions(a: string, b: string): number {
@@ -49,19 +57,38 @@ export function createPackageReader(deps: { home: string; fetch?: typeof fetch; 
   const known = (hash: string): Known | undefined => {
     try {
       const raw = JSON.parse(fs.readFileSync(file(hash), "utf8")) as {
+        kept?: unknown;
         manifest?: unknown;
         listing?: unknown;
         skills?: unknown;
+        skill_lines?: unknown;
       };
       const manifest = ExtensionManifest.safeParse(raw.manifest);
       if (!manifest.success) return undefined;
       const listing = readListing(raw.listing);
       // Kept by a newer read; one kept before has none (its skills are then counted, not named).
-      const skills = Array.isArray(raw.skills) ? raw.skills.filter((s) => typeof s === "string") : undefined;
-      return { manifest: manifest.data, ...(listing ? { listing } : {}), ...(skills ? { skills } : {}) };
+      const names = Array.isArray(raw.skills) ? raw.skills.filter((s) => typeof s === "string") : undefined;
+      const lines =
+        raw.skill_lines && typeof raw.skill_lines === "object"
+          ? Object.fromEntries(
+              Object.entries(raw.skill_lines).filter((e): e is [string, string] => typeof e[1] === "string"),
+            )
+          : undefined;
+      return {
+        manifest: manifest.data,
+        ...(listing ? { listing } : {}),
+        ...(names ? { skills: { names, ...(lines ? { lines } : {}) } } : {}),
+        ...(raw.kept !== KEPT ? { stale: true } : {}),
+      };
     } catch {
       return undefined;
     }
+  };
+
+  /** Whether a package was kept by this APX: false when it was never kept or an older APX kept it. */
+  const fresh = (hash: string) => {
+    const k = known(hash);
+    return Boolean(k && !k.stale);
   };
 
   /** One package read and kept; a package that does not match what the catalog says is skipped, not kept. */
@@ -88,7 +115,13 @@ export function createPackageReader(deps: { home: string; fetch?: typeof fetch; 
     const tmp = `${file(v.content_hash)}.${process.pid}.tmp`;
     fs.writeFileSync(
       tmp,
-      JSON.stringify({ manifest: pkg.manifest, ...(listing ? { listing } : {}), skills: pkg.skills }),
+      JSON.stringify({
+        kept: KEPT,
+        manifest: pkg.manifest,
+        ...(listing ? { listing } : {}),
+        skills: pkg.skills,
+        skill_lines: pkg.skillLines,
+      }),
     );
     fs.renameSync(tmp, file(v.content_hash));
   };
@@ -97,7 +130,7 @@ export function createPackageReader(deps: { home: string; fetch?: typeof fetch; 
   async function fill(versions: ListedVersion[]): Promise<void> {
     const todo = versions.filter(
       (v): v is ListedVersion & { content_hash: string; archive: { url: string; sha256: string } } =>
-        Boolean(v.content_hash && v.archive && !known(v.content_hash)),
+        Boolean(v.content_hash && v.archive && !fresh(v.content_hash)),
     );
     const queue = [...todo];
     const worker = async () => {
@@ -202,9 +235,7 @@ export function createPackageReader(deps: { home: string; fetch?: typeof fetch; 
           ...(v.archive ? { url: v.archive.url } : {}),
           ...(pkg ? { brings: bringsOf(pkg.manifest, listing), needs: needsOf(pkg.manifest, listing) } : {}),
           ...(listing ? { listing: listingCopy(listing, pkg?.manifest, isOfficial) } : {}),
-          ...(pkg && v.content_hash
-            ? { contents: contentsOf(pkg.manifest, v.content_hash, hostsOf(pkg.manifest), pkg.skills) }
-            : {}),
+          ...(pkg && v.content_hash ? { contents: contentsOf(pkg.manifest, v.content_hash, pkg.skills) } : {}),
         };
       });
     },

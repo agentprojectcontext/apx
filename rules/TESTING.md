@@ -201,6 +201,31 @@ duration (`node_modules/.cache/apx-verify/history.json`; none on the first run).
 `node_modules/.cache/apx-verify/logs/`, and only a failing step's is shown. Outside a terminal (CI, a log file) or with
 `--stream`, the output streams and the status is one plain line per step start and end.
 
+### Remote runner
+
+When a Linux machine with Docker is set as `APX_REMOTE_HOST` or `git config apx.remoteHost` (an ssh host alias), preflight and verify run there and the
+laptop only watches. What runs is what is on disk, uncommitted edits included: `scripts/remote.ts` makes a commit of the
+working tree without touching any ref or the index, pushes it to a bare repo on the machine (no GitHub push), checks it
+out in a folder per branch (installs are kept between runs) and starts a container from `scripts/remote/Dockerfile`.
+```bash
+pnpm remote setup                  # once per machine, and after scripts/remote/ changes: folders, bare repo, image
+pnpm remote preflight              # the plan with the same live bar; Ctrl-C leaves it running there
+pnpm remote verify
+pnpm remote run -- pnpm perf       # any command in the same box
+pnpm remote status                 # every branch's run and its last line
+pnpm remote attach [branch]        # follow a run again (exit code is the run's)
+pnpm remote screen [branch]        # the run's virtual screen in the browser (noVNC through an ssh tunnel)
+pnpm remote stop [branch]
+pnpm verify:mac                    # on the Mac: what Linux cannot prove (native pointer, desktop app's macOS paths)
+```
+Each branch has one run at a time; several branches run side by side, each capped at `APX_REMOTE_CPUS` (24) and
+`APX_REMOTE_MEMORY` (40g). In the box the unit tests run in `APX_REMOTE_SHARDS` (4) parts at once
+(`APX_TEST_SHARDS`, `node scripts/test-shard.ts all/4`), since the core's own run goes one file at a time. The screen is a desktop on `:99` inside the box: Electron and anything headed shows there;
+its VNC port only listens on the machine's loopback, reached through the tunnel. `APX_SECRETS=file` is set in the box.
+The box runs under the `apx-remote` AppArmor profile (`scripts/remote/apparmor`, installed by `setup` with sudo) and
+without Docker's seccomp filter, so the core's headless Chromium keeps its sandbox; `--init` reaps the processes tests
+orphan, as their process-tree checks expect.
+
 ## 5a. End to end (Playwright)
 ```bash
 pnpm e2e                           # builds the panel, then every spec in e2e/specs against a sandboxed core

@@ -55,8 +55,24 @@
   font-size: var(--apx-text-sm);
 }
 .apx-catalogrow__meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
   color: var(--apx-fg-subtle);
   font-size: var(--apx-text-xs);
+}
+.apx-catalogrow__metatext {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+/* What it brings, each a small icon and how many, after who it is from. */
+.apx-catalogrow__count {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: 3px;
+  font-variant-numeric: tabular-nums;
 }
 .apx-catalogrow__end {
   display: inline-flex;

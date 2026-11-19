@@ -1,6 +1,6 @@
 import type { McpServerStatus } from "@apx/protocol";
 import { Button, Card, ConfirmDialog, IconButton, Icons, MarkdownView, Menu, type MenuEntry } from "@apx/ui";
-import { type ReactNode, useState } from "react";
+import { type ReactNode, useEffect, useState } from "react";
 import { client } from "../data/client.ts";
 import { notify } from "../data/notices.ts";
 import { setMcp, signInMcp } from "../data/resources.ts";
@@ -11,12 +11,12 @@ import { ConnectForm, describe } from "../resources/IncludedIntegration.tsx";
 import { attempt } from "../resources/InstalledExtension.tsx";
 import { McpDialog } from "../resources/McpDialog.tsx";
 import { go } from "../shell/nav.ts";
-import { AboutSections } from "./AboutParts.tsx";
-import { aboutEntry, listText } from "./about.ts";
+import { listText } from "./about.ts";
+import { addItem, addSource, type Problem, takeAsked } from "./adding.ts";
 import { ItemIcon } from "./ConnectHead.tsx";
-import { ItemFacts, ItemLinks } from "./ItemFacts.tsx";
+import { ItemBrings } from "./ItemBrings.tsx";
+import { ItemFacts } from "./ItemFacts.tsx";
 import { ItemLabel } from "./ItemLabel.tsx";
-import { ItemParts } from "./ItemParts.tsx";
 import { ItemRow } from "./ItemRow.tsx";
 import { ItemSettings } from "./ItemSettings.tsx";
 import { fromText, listingIn, nextStep, type Step, stepLabel } from "./itemText.ts";
@@ -24,8 +24,8 @@ import { rowAction } from "./MarketBrowse.tsx";
 import { useAsset } from "./useAsset.ts";
 
 // An extension's page: its icon, name, label and who makes it, with one button that follows its state (Add → Connect,
-// or Pair for a device → Connected ✓) and everything else in ⋯; what to ask it, about it, what it brings (rows that
-// open) and the facts at its foot.
+// or Pair for a device → Connected ✓) and everything else in ⋯; what to ask it, about it, what it brings (the same
+// before and after adding it) and the facts beside it. Add happens here and the page stays, now with Connect.
 
 type Dialog = "connect" | "settings" | "edit" | undefined;
 
@@ -47,6 +47,7 @@ export function ItemPage({
   backLabel,
   onBack,
   onChanged,
+  onAdded,
 }: {
   item: Item;
   /** The one APX includes or publishes for the same service, when this comes from a catalog the owner added. */
@@ -57,6 +58,8 @@ export function ItemPage({
   backLabel: string;
   onBack(): void;
   onChanged(): Promise<void>;
+  /** Added from here: its page by its new key, now with Connect. */
+  onAdded(id: string): void;
 }) {
   const t = useT();
   const lang = useLanguage();
@@ -68,8 +71,7 @@ export function ItemPage({
   const e = item.ext;
   const i = item.integration;
   const step = nextStep(item);
-  // One not added yet shows what it holds with the add box's own pieces.
-  const offered = item.state === "available" && item.entry ? aboutEntry(item.entry, lang) : undefined;
+  const [problem, setProblem] = useState<Problem>();
   const tagline = copy?.tagline ?? item.tagline ?? (i ? describe(i, t) : copy?.summary || item.description);
   const about = copy?.description ?? (copy?.summary && copy.summary !== tagline ? copy.summary : undefined);
   const by = [
@@ -85,14 +87,29 @@ export function ItemPage({
     setBusy(false);
     await onChanged();
   };
-  /** Connecting or pairing one already added happens in the add box, where adding it began. */
+  /** Copies its files here; the page stays, added, with Connect as the next step. */
+  const add = async () => {
+    setBusy(true);
+    setProblem(undefined);
+    const r = await addItem(item);
+    setBusy(false);
+    if ("problem" in r) return setProblem(r.problem);
+    await onChanged();
+    onAdded(r.ext.id);
+  };
+  // A list row's Add opened this page to add it here.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: once per page opened, not on every render of it
+  useEffect(() => {
+    if (takeAsked(item.key)) void add();
+  }, [item.key]);
+  /** Connecting or pairing one already added happens in the add box. */
   const connectBox = () =>
     e && openExtensionInstall({ connect: e.id, look: { listing: item.listing, entry: item.entry } });
   const update = (url: string) =>
     openExtensionInstall({ url, catalog: true, official: item.entry?.provenance === "official" });
   const server = item.server;
   const act: Partial<Record<Step, () => void>> = {
-    add: rowAction(item, () => undefined),
+    add: addSource(item) ? () => void add() : rowAction(item, () => undefined),
     connect: e ? connectBox : i ? () => setOpen("connect") : rowAction(item, () => undefined),
     review: connectBox,
     pair: connectBox,
@@ -277,6 +294,17 @@ export function ItemPage({
         </div>
       </header>
       {notice}
+      {problem && (
+        <div className="mkt-notice is-problem" role="alert">
+          <Icons.TriangleAlert size={15} />
+          <span>{t(problem.key, { ...problem.vars, name: problem.vars?.name || item.name })}</span>
+          {problem.retry && (
+            <Button size="sm" variant="secondary" onClick={() => void add()}>
+              {t("box.retry")}
+            </Button>
+          )}
+        </div>
+      )}
       {twin && (
         <div className="mkt-notice" role="status">
           <span>
@@ -315,14 +343,7 @@ export function ItemPage({
               <MarkdownView source={about} size="sm" />
             </section>
           )}
-          {offered ? (
-            <>
-              <AboutSections a={offered} />
-              <ItemLinks item={item} />
-            </>
-          ) : (
-            <ItemParts item={item} servers={servers} onChanged={onChanged} />
-          )}
+          <ItemBrings item={item} servers={servers} onChanged={onChanged} />
           {versions.length > 0 && (
             <section className="mkt-section">
               <header className="mkt-section__head">
@@ -345,7 +366,7 @@ export function ItemPage({
             </section>
           )}
         </div>
-        {!offered && <ItemFacts item={item} />}
+        <ItemFacts item={item} />
       </div>
       {open === "connect" && i && (
         <ConnectForm

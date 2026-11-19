@@ -1,13 +1,48 @@
 import { Button, CatalogRow, Icons } from "@apx/ui";
-import { useT } from "../i18n/index.ts";
+import type { ReactNode } from "react";
+import { type MessageKey, useLanguage, useT } from "../i18n/index.ts";
 import type { Item } from "../resources/extensionItems.ts";
+import { type Count, countsOf } from "./brings.ts";
 import { ItemIcon } from "./ConnectHead.tsx";
 import { ItemLabel } from "./ItemLabel.tsx";
 import { fromText, kindText, waitReason } from "./itemText.ts";
 import "@apx/ui/catalog-row.css";
 
-// One extension in a list: its icon, name and label, one line, what it brings and who from, and on the right one
-// thing: Add (or Connect), why it waits, or that it is working.
+// One extension in a list: its icon, name and label, one line, what it is and who from with small icons for what it
+// brings, and on the right one thing: Add (or Connect), why it waits, or that it is working.
+
+const COUNT: Record<Count["kind"], { icon: ReactNode; one: MessageKey; many: MessageKey; some: MessageKey }> = {
+  connector: {
+    icon: <Icons.Plug size={12} />,
+    one: "mkt.count.connectorOne",
+    many: "mkt.count.connectorN",
+    some: "mkt.count.connectorOne",
+  },
+  skills: {
+    icon: <Icons.BookOpen size={12} />,
+    one: "mkt.count.skillOne",
+    many: "mkt.count.skillN",
+    some: "mkt.count.skills",
+  },
+  agents: {
+    icon: <Icons.Bot size={12} />,
+    one: "mkt.count.agentOne",
+    many: "mkt.count.agentN",
+    some: "mkt.count.agents",
+  },
+  device: {
+    icon: <Icons.Smartphone size={12} />,
+    one: "mkt.count.device",
+    many: "mkt.count.device",
+    some: "mkt.count.device",
+  },
+  widgets: {
+    icon: <Icons.LayoutGrid size={12} />,
+    one: "mkt.count.widgetOne",
+    many: "mkt.count.widgetN",
+    some: "mkt.count.widgetOne",
+  },
+};
 
 export function ItemRow({
   item: i,
@@ -22,7 +57,17 @@ export function ItemRow({
   onAct?: (() => void) | undefined;
 }) {
   const t = useT();
+  const lang = useLanguage();
   const why = waitReason(i, t);
+  // A device's app is one; a lone connector needs no number beside its plug.
+  const counts = countsOf(i, lang).map(({ kind, n }) => {
+    const c = COUNT[kind];
+    return {
+      icon: c.icon,
+      count: kind === "device" || (kind === "connector" && n === 1) ? undefined : n,
+      label: t(n === undefined ? c.some : n === 1 ? c.one : c.many, { n: n ?? 0 }),
+    };
+  });
   const meta = [kindText(i, t), fromText(i, t)].filter(Boolean).join(" · ");
   const mine = i.state !== "available" && i.state !== "coming";
   const connects = Boolean(i.origin === "included" || i.integration || i.channel);
@@ -33,6 +78,7 @@ export function ItemRow({
       badge={<ItemLabel label={i.label} />}
       description={line}
       meta={meta || undefined}
+      counts={counts}
       onOpen={onOpen}
       action={
         mine || i.state === "coming" ? undefined : (

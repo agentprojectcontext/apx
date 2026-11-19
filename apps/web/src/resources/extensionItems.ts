@@ -177,6 +177,8 @@ function installed(e: ExtensionInfo, entry: CatalogEntry | undefined): Item {
         ? (listing?.publisher?.name ?? "APX")
         : (e.listing?.publisher?.name ?? entry?.publisher),
     github: entry?.github,
+    // The catalog's date belongs to the version it offers: the owner's keeps it while it is that one.
+    published: entry && entry.version === e.version ? entry.published_at : undefined,
     connection: listing?.connection,
     brings: e.brings,
     needs: e.needs,
@@ -315,6 +317,17 @@ function markTwins(items: Item[]): Item[] {
       .find(Boolean);
     return twin ? { ...i, twin } : i;
   });
+}
+
+/**
+ * The item a page shows, by its key. A link may name it by its id alone; and a page opened on a catalog's entry
+ * (`catalog:stripe`, `added:<catalog>:stripe`) keeps showing it once added, as the owner's (`ext:stripe`).
+ */
+export function pageItem(items: Item[], key: string): Item | undefined {
+  const id = key.replace(/^catalog:/, "").replace(/^added:[^:]+:/, "");
+  return (
+    items.find((i) => i.key === key) ?? items.find((i) => i.key === `ext:${id}`) ?? items.find((i) => i.id === key)
+  );
 }
 
 /** What Explore lists: not the owner's own built ones, and one service once (its other versions are on its page). */

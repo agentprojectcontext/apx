@@ -11,6 +11,7 @@ import type {
   ExtensionNeeds,
 } from "@apx/protocol";
 import { z } from "zod";
+import { connectorsOf, hostsOf } from "./package.ts";
 
 const Text = z.string().trim().min(1).max(600);
 const Long = z.string().trim().max(20_000);
@@ -164,23 +165,29 @@ export function listingCopy(l: ListingFile, m: ExtensionManifest | undefined, of
   };
 }
 
-/** What a package holds, from its manifest (and its skills' names when they were kept), to show before adding it. */
+/** What a package holds, from its manifest (and its skills' names and lines when they were kept), to show before adding it. */
 export function contentsOf(
   m: ExtensionManifest,
   hash: string,
-  hosts: string[],
-  skills: string[] | undefined,
+  skills: { names: string[]; lines?: Record<string, string> | undefined } | undefined,
 ): ExtensionContents {
+  const agentLines = Object.fromEntries(m.agents.filter((a) => a.description).map((a) => [a.name, a.description]));
+  const settings = m.settings.filter((s) => s.required && !s.sensitive && !s.generate && s.default === undefined);
   return {
-    hosts,
+    hosts: hostsOf(m),
     runs_code: Boolean(m.plugin) || Object.values(m.mcp).some((s) => s.command),
     servers: Object.keys(m.mcp).length,
     keys: [...m.secrets.map((s) => s.label), ...m.settings.filter((s) => s.sensitive).map((s) => s.label)],
-    ...(skills ? { skills } : {}),
+    ...(skills ? { skills: skills.names } : {}),
+    ...(skills?.lines && Object.keys(skills.lines).length ? { skill_lines: skills.lines } : {}),
     agents: m.agents.map((a) => a.name),
+    ...(Object.keys(agentLines).length ? { agent_lines: agentLines } : {}),
     routines: m.routines.map((r) => r.name),
     ...(m.companion ? { companion: { name: m.companion.name, platform: m.companion.platform } } : {}),
     hash,
+    connectors: connectorsOf(m),
+    ...(settings.length ? { settings: settings.map((s) => s.label) } : {}),
+    ...(m.apps.length ? { apps: m.apps.length } : {}),
   };
 }
 

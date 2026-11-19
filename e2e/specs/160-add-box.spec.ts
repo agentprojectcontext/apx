@@ -1,5 +1,6 @@
-// The add box: an extension from elsewhere (a folder) is looked at under the source picker, added (nothing runs),
-// then connected in the same box with its key, its real tools shown; one with nothing to connect is ready on Add.
+// The add box: an extension from elsewhere (a folder) is looked at under the source picker and added (nothing runs);
+// its page opens, added, and Connect there asks for its key and shows its real tools. One with nothing to connect is
+// ready on Add (DECISIONS.md#d-255).
 import fs from "node:fs";
 import path from "node:path";
 import { expect, open, openExtension, openExtensionSettings, rpc, test, world } from "./kit.ts";
@@ -26,9 +27,7 @@ async function fromFolder(page: import("@playwright/test").Page, root: string) {
   return box;
 }
 
-test("from a folder: looked at, added without running, then connected with its key in the same box", async ({
-  page,
-}) => {
+test("from a folder: looked at, added without running, then connected with its key from its page", async ({ page }) => {
   const root = await folder(
     "northwind-notes",
     {
@@ -47,10 +46,14 @@ test("from a folder: looked at, added without running, then connected with its k
   await expect(box.getByText("Corre en tu compu desde que la conectes", { exact: true })).toBeVisible();
   await box.getByRole("button", { name: "Agregar", exact: true }).click();
 
-  // Added, still off: the same box asks for its key before it connects.
-  await expect(box.getByRole("heading", { name: "Conectar Northwind Notes" })).toBeVisible();
+  // Added, still off: its page opens with Connect, and Connect asks for its key before it connects.
+  await expect(box).toBeHidden();
+  await expect(page.getByRole("heading", { name: "Northwind Notes", exact: true })).toBeVisible();
+  await expect(page.getByText("Agregada. Conectala para que tus agentes la usen.")).toBeVisible();
   const added = (await rpc<{ extensions: Array<{ id: string; enabled: boolean }> }>("extensions.list")).extensions;
   expect(added.find((e) => e.id === "northwind-notes")?.enabled).toBe(false);
+  await page.getByRole("button", { name: "Conectar", exact: true }).click();
+  await expect(box.getByRole("heading", { name: "Conectar Northwind Notes" })).toBeVisible();
   await expect(box.getByRole("button", { name: "Conectar", exact: true })).toBeDisabled();
   await box.getByLabel("Notes token").fill("notes-e2e-token");
   await box.getByRole("button", { name: "Conectar", exact: true }).click();
@@ -92,8 +95,10 @@ test("an added one's page names the skills it brings", async ({ page }) => {
   // Added, it is one of yours in the left column.
   await page.getByRole("button", { name: "Acme playbooks", exact: true }).click();
   await expect(page.getByRole("heading", { name: "Acme playbooks", exact: true })).toBeVisible();
-  await page.getByText("2 habilidades", { exact: true }).click();
-  await expect(page.getByText("campaign-strategist y deals-crm", { exact: true })).toBeVisible();
+  // Each skill by its name with its own line.
+  await expect(page.getByRole("heading", { name: "Habilidades", exact: true })).toBeVisible();
+  await expect(page.getByText("campaign-strategist", { exact: true })).toBeVisible();
+  await expect(page.getByText("deals-crm.", { exact: true })).toBeVisible();
 });
 
 test("an agent added from an extension is archived when the extension is removed", async ({ page }) => {
