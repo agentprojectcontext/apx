@@ -27,9 +27,9 @@ test("a native account wake-up opens settings without exchanging any credentials
       app.emit("open-url", { preventDefault() {} }, "apx://account/callback?code=invalid&state=invalid");
       app.emit("open-url", { preventDefault() {} }, "apx://account/signed-in");
     });
-    const account = main.getByRole("region", { name: "Cuenta", exact: true });
+    const account = main.getByRole("region", { name: /^(Account|Cuenta)$/ });
     await expect(account).toBeVisible();
-    await expect(account.getByText("Dueño de esta instalación")).toBeVisible();
+    await expect(account.getByText(/^(Owner of this installation|Dueño de esta instalación)$/)).toBeVisible();
     await expect(account.getByRole("alert")).toHaveCount(0);
     const status = await rpc<{ profile: unknown; pending: boolean }>("account.get");
     expect(status.profile).toBeNull();

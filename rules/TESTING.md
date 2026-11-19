@@ -169,10 +169,18 @@ awake display; a sleeping or locked display cannot supply reliable native focus 
 Every Playwright run (coverage or not) picks free loopback ports and a run id in `playwright.config.ts`
 (`e2e/sandbox.ts`), so parallel checkouts and scratch cores never collide; `E2E_PORT`, `E2E_CONTROL_PORT` and
 `E2E_WA_PORT` override the ports when debugging.
-Local browser coverage runs the same three Playwright shards as CI sequentially, replaying setup for each shard
-and merging their counters into the same report. An explicit `--part=web --shard=i/3` still runs only that part.
+Local browser coverage runs the same six Playwright shards as CI sequentially, replaying setup for each shard
+and merging their counters into the same report. An explicit `--part=web --shard=i/6` still runs only that part.
 Each E2E command retains its 15-minute deadline; a timeout fails the run and stops its owned process tree before
 the next sandbox starts. Failed builds do not run tests against stale output.
+The remote runner and coverage's disposable Xvfb screen park their idle X11 pointer at the root's top-left before
+Electron starts (`scripts/virtual-pointer.py`). Otherwise native-view reparenting can inject a stationary physical
+hover into Playwright's separate synthetic drag and release its capture. This uses Python 3 and the existing X11
+library in the Linux test images, not a product dependency. The helper refuses without `APX_TEST_VIRTUAL_DISPLAY=1`;
+it is never run against an already supplied display by coverage, nor on macOS or Windows.
+Owned Xvfb servers use `-noreset`, preserving that position when the helper closes its last X11 connection before
+other clients start. On Linux, `python3 scripts/virtual-pointer.test.py` verifies parking across reconnect on a new
+server allocated with `-displayfd`; `--reset` reproduces the failure without that flag. Both paths close their server.
 Reports identify each unexecuted function by file and line. An executed function still needs meaningful assertions;
 unit coverage does not replace Playwright or a real phone. The default coverage command fails on suite failures;
 the separate strict command additionally requires every inventoried function to execute. CI runs all suites with
@@ -252,7 +260,7 @@ APX app (`e2e/fake-desktop-app.ts`): "Open desktop" records the launch and saves
 opening the machine's APX app or writing its data folder ([HISTORY](HISTORY.md#e2e-desktop-handoff)); under a test
 runner `saveLocalTarget` itself refuses that folder, like the store refuses the real home. Specs act as the
 outside world through its control API (`world.telegram(...)`, `world.sentTo(chat)`). Specs run in file order on
-one core, like one owner from the first-run setup on. CI splits them into three parts (`--shard=i/3`), each on a core
+one core, like one owner from the first-run setup on. CI splits them into six parts (`--shard=i/6`), each on a core
 of its own, so a spec may build only on what the `setup` project leaves (`01-setup`, `06-telegram`, `10-whatsapp`,
 replayed first in every part; `playwright.config.ts`), never on another spec: set up anything else in the spec itself. Any console error or 5xx response fails the test. Specs
 are written in Spanish, as the owner uses the panel. WhatsApp is emulated inside the sandbox's core: it starts
@@ -337,8 +345,8 @@ start together:
 |---|---|---|
 | Static checks and lightness budgets | commits, `pnpm preflight:static` (private terms, schema, lint, UI controls and tokens, dead code, typecheck, test quality), mobile types, Android bundle; then `pnpm build:web` with coverage maps and `scripts/perf.ts` | 1 Linux |
 | Unit tests | every package's tests, `node scripts/test-shard.ts <i>/2`, plus the POSIX installer onboarding | 2 Linux |
-| Coverage | `node scripts/test-coverage.ts --e2e --part=…`: unit, panel in three (`--part=web --shard=i/3`), desktop | 5 Linux |
-| Coverage report | merges the parts (`--merge --expect-parts=5`: a function ran if any part ran it; a part that never uploaded fails it) | 1 Linux |
+| Coverage | `node scripts/test-coverage.ts --e2e --part=…`: unit, panel in six (`--part=web --shard=i/6`), desktop | 8 Linux |
+| Coverage report | merges the parts (`--merge --expect-parts=8`: a function ran if any part ran it; a part that never uploaded fails it) | 1 Linux |
 | Unit tests (portability) | the unit tests only, `test-shard.ts` over 4 Windows and 2 macOS machines | 6 |
 
 The unit part runs each package's tests as one `node --test` with a 10-minute limit; a package with more than 160

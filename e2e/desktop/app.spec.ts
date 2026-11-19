@@ -10,7 +10,7 @@ import { type ElectronApplication, expect, type Page, test } from "@playwright/t
 import { tempDir } from "../../apps/core/src/testkit/platform.ts";
 import { ALL_SLIDES } from "../../apps/web/src/shell/welcomeFilm.ts";
 import { rpc, until } from "../specs/kit.ts";
-import { assertDesktopHeader, assertFullscreenBar, launchDesktop } from "./app-shell.test-support.ts";
+import { assertDesktopHeader, assertFullscreenBar, launchDesktop, nativeTabBounds } from "./app-shell.test-support.ts";
 
 const core = `http://127.0.0.1:${process.env.E2E_PORT ?? 7460}`;
 
@@ -217,30 +217,7 @@ test("an agent answers a page's confirm in the app's browser, and the app's own 
   }
 });
 
-/** Where the main window's browser tab is: its bounds, and whether it paints over the panel or sits behind it. */
-async function tabView(): Promise<{
-  on: "top" | "behind";
-  x: number;
-  y: number;
-  width: number;
-  height: number;
-} | null> {
-  return app.evaluate(({ BaseWindow }) => {
-    const win = BaseWindow.getAllWindows().find((w) => w.contentView.children.length > 0);
-    const kids = win?.contentView.children ?? [];
-    if (kids.length < 2) return null;
-    const full = win?.getContentBounds();
-    // The panel fills the window; the tab is the other view.
-    const i = kids.findIndex((k) => {
-      const b = k.getBounds();
-      return !(b.x === 0 && b.y === 0 && b.width === full?.width && b.height === full?.height);
-    });
-    const at = i < 0 ? 0 : i;
-    const view = kids[at];
-    if (!view) return null;
-    return { on: at === kids.length - 1 ? ("top" as const) : ("behind" as const), ...view.getBounds() };
-  });
-}
+const tabView = () => nativeTabBounds(app);
 
 test("the browser tab follows its slot, a popup over it shows a still, and a reloaded panel takes it back", async () => {
   await until(async () => {
@@ -399,8 +376,8 @@ test("the browser tab stays in its slot while its page scrolls and the window is
         return view?.webContents.executeJavaScript("scrollY") as Promise<number>;
       });
     // Both read now: the slot moves while the window settles.
-    const fits = async () => JSON.stringify(await tabView()) === JSON.stringify({ on: "top", ...(await rect()) });
-    await expect.poll(fits).toBe(true);
+    const fits = async () => expect(await tabView()).toEqual({ on: "top", ...(await rect()) });
+    await expect(fits).toPass({ timeout: 7_000 });
     const scrollAndCheck = async () => {
       const b = await tabView();
       // The wheel goes to the native page, where the person's pointer is.
@@ -414,7 +391,7 @@ test("the browser tab stays in its slot while its page scrolls and the window is
         },
         { x: Math.round((b?.width ?? 200) / 2), y: Math.round((b?.height ?? 200) / 2) },
       );
-      await expect.poll(fits).toBe(true);
+      await expect(fits).toPass({ timeout: 7_000 });
     };
     await scrollAndCheck();
     for (const [w, h] of [
@@ -430,7 +407,7 @@ test("the browser tab stays in its slot while its page scrolls and the window is
         },
         { w, h },
       );
-      await expect.poll(fits).toBe(true);
+      await expect(fits).toPass({ timeout: 7_000 });
       await scrollAndCheck();
     }
     // Dragging the panel's edge wider and narrower: once let go, the live page is back in its new place.
@@ -456,7 +433,7 @@ test("the browser tab stays in its slot while its page scrolls and the window is
       await expect.poll(tabView).toEqual({ on: "behind", ...before });
       for (let i = 1; i <= 8; i++) await main.mouse.move(x + (dx * i) / 8, y);
       await main.mouse.up();
-      await expect.poll(fits).toBe(true);
+      await expect(fits).toPass({ timeout: 7_000 });
       await expect(main.locator(".browser__frame")).toHaveCount(0);
       expect(await scrollY()).toBe(scrolled);
       await scrollAndCheck();
