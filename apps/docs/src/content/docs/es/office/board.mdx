@@ -67,15 +67,23 @@ La pestaña **Resumen** de un proyecto arranca con su **Tablero**: los widgets f
 
 ## Compartí deliberadamente
 
-Un enlace permite ver el artefacto a cualquiera que lo tenga: revisá los datos visibles antes de habilitar **Cualquiera
-con el enlace**. Usá el menú para dejar de compartir cuando no haga falta. El enlace necesita un host APX accesible;
-crearlo no publica en internet un core que escucha solo localmente. No expongas todo el panel para compartir un widget.
+**Compartir** pregunta quién puede verlo. Quien tenga un enlace ve lo que muestra, así que revisá antes sus datos
+visibles.
 
-Un agente no puede reemplazar el HTML de un artefacto publicado: dejá de compartirlo vos antes de pedir cambios o
-pedí otro artefacto. Una página pública muestra sólo su HTML: no llega al estado de APX, a tus archivos privados ni a
-ninguna acción, y no tiene tu chat para aprobar una. Al activar una dirección pública (Configuración › Dispositivos)
-también se puede llegar a las páginas ya compartidas: revisalas antes. Exportá sin memoria para distribuir
-una plantilla en vez de tus registros. Leé [memoria y exportación](/es/office/artifacts/).
+- **Público** sube una copia, tal como se ve ahora, a `artifact.apxagent.app`, después de que iniciás sesión en tu
+  cuenta APX y revisás exactamente qué va. Tus cambios posteriores llegan al enlace solo cuando elegís **Actualizar con
+  tus cambios…**; un agente puede cambiar el widget en APX, nunca la copia pública. Mirá
+  [Publicar una copia pública](/es/office/artifacts/#publicar-una-copia-pública).
+- **En vivo desde esta compu** muestra el widget como está ahora, desde tu APX en marcha, mientras esta compu está
+  prendida y tiene una dirección pública (Configuración › Dispositivos). Crear el enlace no publica en internet un core
+  que escucha solo localmente; no expongas todo el panel para compartir un widget. Mientras tiene un enlace en vivo, un
+  agente no puede reemplazar su HTML: apagá el enlace vos antes de pedir cambios, o pedí otro widget.
+- **Solo vos** deja de compartirlo; pregunta antes.
+
+Una página compartida muestra sólo su HTML: no llega al estado de APX, a tus archivos privados ni a ninguna acción, y
+no tiene tu chat para aprobar una. Al activar una dirección pública también se puede llegar a los enlaces en vivo ya
+creados: revisalos antes. Exportá sin memoria para distribuir una plantilla en vez de tus registros. Leé
+[memoria y exportación](/es/office/artifacts/).
 
 ## Apps: lo que tenés a mano
 
@@ -103,7 +111,7 @@ Un agente nunca toca los widgets de otro proyecto.
 
 <Aside type="note">
 Los widgets se guardan en la base de datos de APX, no como archivos en tu proyecto: un backup de APX los guarda a
-todos y un enlace compartido siempre muestra la versión actual.
+todos. Un enlace en vivo siempre muestra la versión actual; una copia pública muestra la que publicaste por última vez.
 </Aside>
 
 ## Lo que sigue

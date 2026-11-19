@@ -119,20 +119,24 @@ Install it with: apx extensions install android_tv-0.3.0.apxext`}</Terminal>
 
 <Steps>
 
-1. Instalala: `apx extensions install android_tv-0.3.0.apxext`, doble clic en el archivo, o **Agregar › Desde un
-   archivo .apxext** en el Marketplace. Llega apagada, con su clave ya creada.
+1. Hacé doble clic en el archivo, soltalo en la ventana de APX o tocá **Agregar › Desde un archivo** en el
+   Marketplace. La caja muestra lo que trae (**De terceros**, un programa que corre en tu compu, su app para la tele)
+   antes de escribir nada. **Agregar** copia sus archivos con su clave ya creada, y no corre nada.
 
-2. Completá su dirección y encendela desde su página (o `apx extensions set android_tv address=https://…` y
-   `apx extensions on android_tv`). Encenderla aprueba exactamente estos archivos y a dónde llegan.
+2. En la misma caja, completá su dirección y tocá **Emparejar**: es tu decisión de que funcione. Lo que aprueba está
+   escrito arriba del botón: exactamente estos archivos y a dónde llegan.
 
-3. **Conectar** abre la vinculación: descargá la app, seguí sus pasos, **Mostrar el código**, y escribí la dirección y
-   el código en la tele.
+3. La caja muestra después la app de la tele para descargar, sus pasos y el código que da su propia herramienta de
+   emparejamiento: instalá la app, abrila y escribí el código en la tele.
 
 </Steps>
 
+Desde la terminal: `apx extensions install android_tv-0.3.0.apxext`, `apx extensions set android_tv
+address=https://…` y `apx extensions on android_tv` (llega apagada, como cualquier extensión instalada desde ahí).
+
 ## 4. Compartila
 
-El `.apxext` es la extensión entera. Quien la instala la ve como **De terceros**, con lo que trae antes de encenderla.
+El `.apxext` es la extensión entera. Quien la agrega la ve como **De terceros**, con lo que trae antes de agregarla.
 Para publicar una versión nueva, subí `version` y empaquetá de nuevo: quien la tiene ve qué suma la nueva y puede volver
 a la anterior.
 

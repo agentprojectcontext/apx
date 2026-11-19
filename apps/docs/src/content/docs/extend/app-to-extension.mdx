@@ -116,21 +116,25 @@ Install it with: apx extensions install android_tv-0.3.0.apxext`}</Terminal>
 
 <Steps>
 
-1. Install it: `apx extensions install android_tv-0.3.0.apxext`, a double-click on the file, or **Add › From an
-   .apxext file** in the Marketplace. It arrives off, with its key already made.
+1. Double-click the file, drop it on the APX window, or press **Add › From a file** in the Marketplace. The box shows
+   what it brings (**Third party**, a program that runs on your computer, its app for the TV) before anything is
+   written. **Add** copies its files with its key already made, and runs nothing.
 
-2. Fill in its address and turn it on from its page (or `apx extensions set android_tv address=https://…` and
-   `apx extensions on android_tv`). Turning it on approves exactly these files and what they reach.
+2. In the same box, fill in its address and press **Pair**: that is your decision that it runs. What it approves is
+   written above the button: exactly these files and what they reach.
 
-3. **Connect** opens the pairing: download the app, follow its steps, **Show the code**, and type the address and code
-   on the TV.
+3. The box then shows the TV app to download, its steps and the code its own pairing tool gives: install the app, open
+   it and type the code on the TV.
 
 </Steps>
 
+From the terminal: `apx extensions install android_tv-0.3.0.apxext`, `apx extensions set android_tv
+address=https://…` and `apx extensions on android_tv` (it arrives off, as any extension installed there).
+
 ## 4. Share it
 
-The `.apxext` is the whole extension. Anyone who installs it sees it as **Third party**, with what it brings before
-they turn it on. To publish a new version, raise `version` and pack again: whoever has it sees what the new one adds,
+The `.apxext` is the whole extension. Anyone who adds it sees it as **Third party**, with what it brings before
+they add it. To publish a new version, raise `version` and pack again: whoever has it sees what the new one adds,
 and can go back to the one before.
 
 <Aside>

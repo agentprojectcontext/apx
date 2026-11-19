@@ -163,7 +163,7 @@ Public copies can appear in search results: search engines and link previews see
 image and a link to APX. They do not see your name or account. Stopping sharing makes the link answer that it is
 gone, and search engines drop it the next time they check. Do not publish something you want to keep private.
 
-There is a limit of 20 copies per account, each up to **10 MB (10,000,000 bytes)**, including HTML and selected state. Creating an artifact keeps it local: only an explicit publish action and your confirmation upload a copy. Referenced videos and other files are not fetched or embedded. If your chosen content is too large, the entire copy is refused before upload; your local artifact stays in APX. Live viewer connections are limited to
+There is a limit of 20 copies per account, each up to **10 MB (10,000,000 bytes)**, including HTML and selected state, with the page's HTML itself at most 400,000 characters. Creating an artifact keeps it local: only an explicit publish action and your confirmation upload a copy. Referenced videos and other files are not fetched or embedded. If your chosen content is too large, the entire copy is refused before upload; your local artifact stays in APX. Live viewer connections are limited to
 20 per copy and 100 per account; if those connections are full, wait for another viewer to close the page and retry. A changed artifact, changed account or
 expired review requires a fresh review before publishing. Free cloud quotas also apply: if unavailable,
 your local artifacts still work. Canceling a review you started releases that local draft; it does not publish
@@ -185,9 +185,10 @@ apx artifacts list
 The source lives in APX's folder, under `artifact-sources/<project>/<name>`, never in your project's own files. Your
 records stay in the app's database, so rebuilding it never loses them.
 
-## Marketplace (coming)
+## What an `.apxart` holds
 
-Exported artifacts are the format a future marketplace will use. Each file holds:
+The [Marketplace](/extend/extensions/) lists extensions, and an extension can bring widgets and apps as `.apxart`
+files that you add to Apps from its page. Each file holds:
 
 - a **manifest**: name, title, kind (widget or app), version, the kit version it uses, the sites it reaches, the
   secrets it expects (names only, never values), whether it runs live, and the version of its database layout so a
@@ -195,8 +196,8 @@ Exported artifacts are the format a future marketplace will use. Each file holds
 - the **page** itself;
 - optionally, the memory (state, store and database), only when you export it for yourself.
 
-An upload to the marketplace will never carry your memory: whoever installs an artifact starts with an empty one and
-adds their own secrets.
+A file shared this way never carries your memory: whoever installs an artifact starts with an empty one and adds
+their own secrets.
 
 ## Next
 

@@ -66,15 +66,21 @@ A project's **Overview** tab opens with its **Board**: the widgets pinned to tha
 
 ## Share deliberately
 
-A share link lets anyone who has it view the artifact, so check its visible data before enabling **Anyone with the
-link**. Use the menu to stop sharing when no longer needed. The link needs a reachable APX host; creating it does not
-publish your loopback-only core to the internet. Do not expose the whole panel just to make a widget link reachable.
+**Share** asks who can see it. Anyone who has a link sees what it shows, so check its visible data first.
 
-Agents cannot replace a published artifact's HTML: unpublish it yourself before requesting changes, or ask for a
-separate artifact. A public page shows only its own HTML: it cannot reach APX's state, your private files or any
-action, and it has no owner chat to approve one. Turning on a public address (Settings › Devices) makes every page
-already shared reachable too, so review them first. Export without memory when distributing a
-template rather than sharing your records. See [artifact memory and export](/office/artifacts/).
+- **Public** uploads a copy, as it looks now, to `artifact.apxagent.app`, after you sign in to your APX account and
+  review exactly what goes. Your later changes reach the link only when you choose **Update with your changes…**; an
+  agent can change the widget in APX, never the public copy. See [Publish a public copy](/office/artifacts/#publish-a-public-copy).
+- **Live from this computer** shows the widget as it is now, from your running APX, while this computer is on and has
+  a public address (Settings › Devices). Creating the link does not publish your loopback-only core to the internet;
+  do not expose the whole panel just to make a widget link reachable. While it has a live link, agents cannot replace
+  its HTML: turn the link off yourself before asking for changes, or ask for a separate widget.
+- **Only you** stops sharing; it asks first.
+
+A shared page shows only its own HTML: it cannot reach APX's state, your private files or any action, and it has no
+owner chat to approve one. Turning on a public address makes every live link already made reachable too, so review
+them first. Export without memory when distributing a template rather than sharing your records. See
+[artifact memory and export](/office/artifacts/).
 
 ## Apps: what you keep at hand
 
@@ -100,8 +106,8 @@ only that project's widgets; chats outside a project see only the global ones. T
 An agent never reaches into another project's widgets.
 
 <Aside type="note">
-Widgets are kept in APX's database, not as files in your project, so a backup of APX keeps them all and a share link
-always shows the current version.
+Widgets are kept in APX's database, not as files in your project, so a backup of APX keeps them all. A live link
+always shows the current version; a public copy shows the version you last published.
 </Aside>
 
 ## Next

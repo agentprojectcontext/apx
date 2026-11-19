@@ -168,7 +168,7 @@ copia, una imagen de APX y un enlace a APX. No ven tu nombre ni tu cuenta. Al de
 que ya no existe y los buscadores lo quitan la próxima vez que lo revisan. No publiques algo que quieras mantener
 privado.
 
-El límite es de 20 copias por cuenta, de hasta **10 MB (10.000.000 bytes)** cada una, incluido el HTML y el estado elegido. Crear un artifact lo deja local: sólo una publicación explícita y tu confirmación suben una copia. Los videos y otros archivos referenciados no se descargan ni se incorporan. Si lo elegido es demasiado grande, se rechaza la copia entera antes de subirla; el artifact local sigue en tu APX. Las conexiones de visores en vivo se limitan a
+El límite es de 20 copias por cuenta, de hasta **10 MB (10.000.000 bytes)** cada una, incluido el HTML y el estado elegido, con el HTML de la página en sí de 400.000 caracteres como máximo. Crear un artifact lo deja local: sólo una publicación explícita y tu confirmación suben una copia. Los videos y otros archivos referenciados no se descargan ni se incorporan. Si lo elegido es demasiado grande, se rechaza la copia entera antes de subirla; el artifact local sigue en tu APX. Las conexiones de visores en vivo se limitan a
 20 por copia y 100 por cuenta; si están ocupadas, esperá a que otro visor cierre la página y reintentá. Si cambia el artifact o la cuenta,
 o vence la revisión, tenés que revisar una nueva copia antes de publicar. También rigen las cuotas gratuitas
 de la nube: si no está disponible, tus artifacts locales siguen funcionando. Cancelar una revisión que iniciaste
@@ -191,9 +191,10 @@ apx artifacts list
 El código vive en la carpeta de APX, en `artifact-sources/<proyecto>/<nombre>`, nunca entre los archivos de tu
 proyecto. Tus registros quedan en la base de datos de la app, así que rearmarla nunca los pierde.
 
-## Marketplace (próximamente)
+## Qué tiene un `.apxart`
 
-Los artefactos exportados son el formato que va a usar un futuro marketplace. Cada archivo tiene:
+El [Marketplace](/es/extend/extensions/) lista extensiones, y una extensión puede traer widgets y apps como archivos
+`.apxart` que sumás a Apps desde su página. Cada archivo tiene:
 
 - un **manifiesto**: nombre, título, tipo (widget o app), versión, la versión del kit que usa, los sitios a los que
   llega, los secretos que espera (solo nombres, nunca valores), si corre en vivo y la versión del formato de su base de
@@ -201,8 +202,8 @@ Los artefactos exportados son el formato que va a usar un futuro marketplace. Ca
 - la **página** en sí;
 - opcionalmente, la memoria (estado, almacén y base de datos), solo cuando lo exportás para vos.
 
-Una subida al marketplace nunca va a llevar tu memoria: quien instala un artefacto arranca con una vacía y suma sus
-propios secretos.
+Un archivo compartido así nunca lleva tu memoria: quien instala un artefacto arranca con una vacía y suma sus propios
+secretos.
 
 ## Siguiente
 

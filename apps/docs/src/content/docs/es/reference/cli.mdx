@@ -241,9 +241,14 @@ Los demás canales (WhatsApp, Discord, Slack) se configuran en el panel. Mirá [
 | `apx mcp check <server>` | Una prueba de conexión. |
 | `apx mcp signin <server>` | Iniciar sesión en un servidor que lo pidió; su página se abre en tu navegador. |
 | `apx extensions` | Las extensiones instaladas. |
-| `apx extensions inspect <folder>` | Qué traería una carpeta; no instala nada. |
-| `apx extensions install <folder>` | La copia, apagada. |
+| `apx extensions inspect <source>` | Qué traería; no instala nada. El origen es una carpeta, un archivo `.apxext`, una dirección https o una entrada de un catálogo (`catalog:<catalog>/<id>`). |
+| `apx extensions install <source>` | La copia, apagada. |
+| `apx extensions pack <folder>` | Empaqueta una carpeta en un archivo para compartir o instalar (`<id>-<version>.apxext`). |
+| `apx extensions catalog` | Lo que ofrecen el catálogo de APX y los tuyos, cada una con la dirección que toma `install`. |
+| `apx extensions catalogs` | Tus catálogos; `add <source>` (un `owner/repo` de GitHub, una dirección git, un índice https o una carpeta), `sync <id>` vuelve a leer uno, `rm <id>`. |
+| `apx extensions set <id> name=value…` | Su configuración (`name=-` lee un valor sensible por stdin). |
 | `apx extensions on <id>` | La prende (`off` la apaga). |
+| `apx extensions rollback <id>` | Vuelve a la versión instalada antes. |
 | `apx extensions secret <id> <name>` | Le da un secreto, con el valor por stdin (`--clear` lo borra). |
 | `apx extensions rm <id>` | La saca. |
 | `apx clients` | Las apps de afuera con un token propio. |
