@@ -60,7 +60,8 @@ export function parseSource(text: string): Source {
   throw badRequest("give a GitHub owner/repo, a git address, an https address of an index, or a folder");
 }
 
-const sourceText = (s: Source) => (s.kind === "folder" ? s.path : s.url);
+const sourceText = (s: Source) =>
+  s.kind === "folder" ? s.path : s.kind === "git" && s.ref ? `${s.url}/tree/${s.ref}` : s.url;
 /** A name for one not read yet: its repository's, file's or folder's (`knowledge-work-plugins`). */
 const shortName = (source: string) =>
   source
@@ -392,6 +393,12 @@ export function createCatalogs(deps: {
   function start(text: string, shown: boolean): { id: string; job: Job } {
     const src = parseSource(text);
     const id = catalogId(src);
+    const existing = store.extensionCatalogs.get(id);
+    if (existing?.ref) {
+      const saved = parseSource(existing.source);
+      if (saved.kind !== "git" || saved.ref !== existing.ref)
+        throw badRequest("remove the old branch catalog and add it again with its branch");
+    }
     const going = reading.get(id);
     if (going && !going.removed) {
       going.shown ||= shown;

@@ -7,7 +7,7 @@ import type { CatalogItem } from "../domain/extension-catalogs.ts";
 import { say, scriptedLlm, startCore } from "../engine/testkit.ts";
 import { type TempDir, tempDir, waitFor } from "../testkit/platform.ts";
 import { catalogPluginIds } from "./catalog-identities.ts";
-import { parseSource } from "./catalogs.ts";
+import { createCatalogs, parseSource } from "./catalogs.ts";
 import { convertPlugin, licenseOf } from "./claude-plugin.ts";
 import { hostsOf, ownerHost, readFiles } from "./package.ts";
 import { bringsOf, needsOf } from "./summary.ts";
@@ -42,6 +42,56 @@ test("a catalog's address: GitHub owner/repo, a git address, an index's https ad
   assert.equal(parseSource("~/work/catalog").kind, "folder");
   for (const bad of ["http://catalog.example.com/index.json", "file:///etc", "ext::sh -c x", "just words"])
     assert.throws(() => parseSource(bad), /GitHub owner\/repo/);
+});
+
+test("catalog branches have separate identities and syncing keeps the selected branch", async () => {
+  const home = tempDir("catalog-branches-");
+  const env = await startCore({ llm: scriptedLlm(() => say("ok")) });
+  const fetched: string[] = [];
+  const catalogs = createCatalogs({
+    store: env.core.store,
+    home: home.path,
+    git: async (args) => {
+      if (args.includes("fetch")) fetched.push(args.at(-1) ?? "");
+      if (args.includes("checkout")) {
+        const root = args[1] ?? "";
+        put(root, {
+          ".claude-plugin/marketplace.json": JSON.stringify({
+            name: "Acme",
+            plugins: [{ name: "shared", source: "./plugin" }],
+          }),
+          "plugin/.claude-plugin/plugin.json": JSON.stringify({ name: "shared", license: "MIT" }),
+          "plugin/skills/test/SKILL.md": "---\nname: test\ndescription: Test.\n---\nTest.\n",
+        });
+      }
+      return { code: 0, out: args.includes("rev-parse") ? SHA : "" };
+    },
+  });
+  try {
+    const one = await catalogs.add("acme/tools/tree/first");
+    const two = await catalogs.add("acme/tools/tree/second");
+    assert.notEqual(one.id, two.id);
+    assert.equal(one.ref, "first");
+    assert.equal(two.ref, "second");
+    assert.notEqual(
+      (await catalogs.resolve(one.id, "shared")).origin,
+      (await catalogs.resolve(two.id, "shared")).origin,
+    );
+    assert.equal((await catalogs.sync(one.id)).id, one.id);
+    assert.deepEqual(fetched, ["first", "second", "first"]);
+    const legacy = {
+      ...one,
+      id: createHash("sha256").update("https://github.com/acme/tools.git").digest("hex").slice(0, 12),
+      source: "https://github.com/acme/tools.git",
+    };
+    env.core.store.extensionCatalogs.put(legacy);
+    await assert.rejects(catalogs.sync(legacy.id), /remove.*add|re-add/i);
+    await assert.rejects(catalogs.add("acme/tools"), /remove.*add|re-add/i);
+  } finally {
+    await env.core.close();
+    await env.cleanup();
+    await home.remove();
+  }
 });
 
 test("a license by its words or its id; one that does not allow a copy is none", () => {

@@ -279,6 +279,10 @@ with `APX_MARKETPLACE_INDEX` ([Configuration](/reference/configuration/)).
 
 ### Your own catalogs
 
+GitHub catalog branches are separate sources. To update a branch catalog added before APX recorded its branch in the
+source, remove that catalog and add it again with its branch address. An installed extension from the old catalog may
+also need to be removed and added again; removal deletes its saved credentials.
+
 **Advanced › Add catalog** (or `apx extensions catalogs add <source>`) adds a list of extensions for yourself: a GitHub
 `owner/repo`, a git address, an https address of an index, or a folder. Suggested ones (Anthropic's Knowledge Work and
 Claude plugins) are one click away. Everything from them is **Third party**; APX's own catalog always stays.
