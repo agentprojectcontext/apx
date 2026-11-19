@@ -14,7 +14,11 @@ export type Step = { label: string; command: string };
 export type History = Record<string, number>;
 type Out = { write(chunk: string): unknown; isTTY?: boolean; columns?: number };
 
-const PREFLIGHT = ["pnpm preflight:static", "pnpm test"];
+// APX_TEST_SHARDS=4 runs the unit tests in that many parts at once on this machine (the remote runner's box has the
+// cores for it; the core's own tests run one file at a time).
+const shards = Number(process.env.APX_TEST_SHARDS ?? 0);
+const TESTS = shards > 1 ? ["pnpm check:tests", `node scripts/test-shard.ts all/${shards}`] : ["pnpm test"];
+const PREFLIGHT = ["pnpm preflight:static", ...TESTS];
 export const PLANS: Record<string, string[]> = {
   preflight: PREFLIGHT,
   verify: [
@@ -24,6 +28,9 @@ export const PLANS: Record<string, string[]> = {
     "pnpm test:coverage:all",
     "node --no-warnings scripts/perf.ts",
   ],
+  // What only a Mac proves when preflight and verify run on Linux (`pnpm remote`): the native pointer helper and the
+  // desktop app's macOS paths (tray, focus, window placement).
+  mac: ["node --test apps/desktop/scripts/native-pointer.test.ts", "pnpm e2e:desktop"],
 };
 
 // Names for the long steps whose command says little at a glance.
@@ -32,6 +39,7 @@ const LABELS: Record<string, string> = {
   'node --test "scripts/*.test.ts"': "test › repo scripts' tests",
   "pnpm test:coverage:all": "test:coverage:all (every suite + e2e)",
   "node --no-warnings scripts/perf.ts": "perf budgets",
+  [`node scripts/test-shard.ts all/${shards}`]: `test › unit tests (every package, ${shards} parts at once)`,
 };
 
 const ROOT_SCRIPT = /^pnpm\s+(?:run\s+)?([\w:.-]+)$/;
