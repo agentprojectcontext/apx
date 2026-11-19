@@ -10,26 +10,30 @@ export function connectionErrors(resolve: (reference: string) => string | undefi
     const value = resolve(reference);
     if (value) {
       values.add(value);
-      for (const encode of [encodeURIComponent, encodeURI]) {
-        try {
-          const encoded = encode(value);
-          values.add(encoded);
-          values.add(encoded.replace(/%[0-9A-F]{2}/g, (byte) => byte.toLowerCase()));
-        } catch {}
-      }
       values.add(JSON.stringify(value).slice(1, -1));
     }
     return value;
+  };
+  const mask = (text: string) => {
+    for (const value of [...values].sort((a, b) => b.length - a.length)) text = text.split(value).join("[secret]");
+    return text;
   };
   return {
     fill(text: string): string {
       return captured(text) ?? text.replace(MCP_SECRET_REF, (reference) => captured(reference) ?? reference);
     },
     message(error: unknown): string {
-      let message = errorMessage(error);
-      for (const value of [...values].sort((a, b) => b.length - a.length))
-        message = message.split(value).join("[secret]");
-      return redactSecrets(message);
+      // A peer-controlled redirect target can encode credentials in arbitrary ways, including opaque URLs.
+      const message = mask(
+        errorMessage(error)
+          .replace(/\bRedirect to\b[\s\S]*/i, "Redirect to [secret] not followed")
+          .replace(/\b[a-z][a-z\d+.-]*:\/\/[^\s<>"'`]+/gi, "[secret]"),
+      );
+      const decoded = message.replace(/(?:%[a-f\d]{2})+/gi, (bytes) =>
+        Buffer.from(bytes.replaceAll("%", ""), "hex").toString("utf8"),
+      );
+      const hidden = mask(decoded);
+      return redactSecrets(hidden === decoded ? message : hidden);
     },
   };
 }

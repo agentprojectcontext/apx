@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { fetchWithinOrigin } from "@modelcontextprotocol/sdk/shared/transport.js";
+import { fetchWithinOrigin, unfollowedRedirect } from "@modelcontextprotocol/sdk/shared/transport.js";
 import { createSecrets, projectSecretName } from "../secrets.ts";
 import { tempDir } from "../testkit/platform.ts";
 import { connectionErrors } from "./connection-errors.ts";
@@ -28,6 +28,46 @@ test("connection diagnostics remember the exact project, environment and inline 
   } finally {
     await home.remove();
   }
+});
+
+test("connection diagnostics omit peer URLs regardless of how a path encodes a credential", () => {
+  const errors = connectionErrors((ref) => (ref === "secret://key" ? "abc" : undefined));
+  assert.equal(errors.fill("secret://key"), "abc");
+  for (const path of ["abc", "%61%62%63", "a%62c", "%2561%2562%2563", "YWJj", "not-a-credential"]) {
+    const url = `https://acme.example/capture/${path}?value=${path}#${path}`;
+    assert.equal(errors.message(new Error(`Redirect to ${url} not followed`)), "Redirect to [secret] not followed");
+    assert.equal(errors.message(new Error(`Use '${url}' instead`)), "Use '[secret]' instead");
+  }
+});
+
+test("connection diagnostics omit opaque and non-web redirect targets from SDK errors", () => {
+  const errors = connectionErrors(() => undefined);
+  for (const target of [
+    "ftp://acme.example/capture/%2561%2562%2563",
+    "data:text/plain,%2561%2562%2563",
+    "javascript:YWJj",
+  ]) {
+    const response = new Response(null, { status: 307, headers: { location: target } });
+    const diagnostic = unfollowedRedirect(response, "https://acme.example/mcp");
+    assert.ok(diagnostic?.includes(target));
+    assert.equal(errors.message(new Error(diagnostic)), "Redirect to [secret] not followed");
+  }
+});
+
+test("connection diagnostics hide partially encoded UTF-8 values outside URLs without changing unrelated escapes", () => {
+  const secret = "abc-+/=é";
+  const errors = connectionErrors((ref) => (ref === "secret://key" ? secret : undefined));
+  errors.fill("secret://key");
+  for (const value of ["%61%62%63%2d%2B%2f%3d%c3%A9", "a%62c-+/%3Dé", "%61%62%63-+/=%c3%a9%FF"]) {
+    const message = errors.message(new Error(`failed at /capture/${value}`));
+    assert.ok(!message.includes(value));
+    assert.ok(!message.includes(secret));
+    assert.match(message, /\[secret\]/);
+  }
+  assert.equal(
+    errors.message(new Error("failed at /capture/keep%2Fencoded%FF")),
+    "failed at /capture/keep%2Fencoded%FF",
+  );
 });
 
 test("the redirect policy permits only same-origin or default-port HTTPS upgrades and preserves POST", async () => {

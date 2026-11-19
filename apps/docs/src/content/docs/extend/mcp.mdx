@@ -136,9 +136,11 @@ HTTP-to-HTTPS upgrade on the same hostname when both use their default ports. Re
 variables or the request contents. If the service has moved, edit the connection to use its final URL after
 checking that you trust the new address, then try **Test** again.
 
-Connection and transport errors mask the stored variables used by that connection, including values reflected
-in a redirect path. This does not make an approved third-party server safe: it still receives the credentials
-and data you choose to send it.
+Connection and transport errors omit web addresses, so a server cannot expose a credential by encoding it in
+a redirect address. Outside web addresses, masking covers the stored variables used by that connection as
+literal values, usual JSON escaping and a single layer of percent encoding. This does not make an approved
+third-party server safe: it still receives the credentials and data you choose to send it, and may transform
+or return them in ways that masking does not recognize.
 
 If you suspect an older connection redirected credentials to a site you do not trust, revoke or rotate those
 credentials at the service and update their values in APX.

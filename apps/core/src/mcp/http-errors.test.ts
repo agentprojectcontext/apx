@@ -7,9 +7,28 @@ import { say, scriptedLlm, startCore } from "../engine/testkit.ts";
 import { createMcp } from "./manager.ts";
 
 const KEY = "synthetic-error-value+/=";
+const escapedBytes = (value: string) =>
+  [...Buffer.from(value)]
+    .map((byte, index) => {
+      const hex = byte.toString(16).padStart(2, "0");
+      return `%${index % 2 ? hex.toUpperCase() : hex}`;
+    })
+    .join("");
+const representations = [
+  { name: "usual encoding", encode: encodeURIComponent },
+  { name: "escaped bytes", encode: escapedBytes },
+  {
+    name: "mixed encoding",
+    encode: (value: string) => [...value].map((char, index) => (index % 2 ? escapedBytes(char) : char)).join(""),
+  },
+  { name: "nested encoding", encode: (value: string) => escapedBytes(value).replaceAll("%", "%25") },
+];
 
-for (const phase of ["connect", "call"] as const) {
-  test(`a reflected credential in a ${phase} error is masked before returning, caching or logging it`, async () => {
+const cases = (["connect", "call"] as const).flatMap((phase) =>
+  representations.map((representation) => ({ phase, representation })),
+);
+for (const { phase, representation } of cases) {
+  test(`a reflected credential with ${representation.name} in a ${phase} error is masked before returning, caching or logging it`, async () => {
     const env = await startCore({ llm: scriptedLlm(() => say("ok")) });
     const logs: unknown[] = [];
     const record = (fields: Record<string, unknown>, message: string) => logs.push({ fields, message });
@@ -41,7 +60,9 @@ for (const phase of ["connect", "call"] as const) {
       const message = JSON.parse(body) as { id?: number; method: string; params?: { protocolVersion: string } };
       if (phase === "connect" || message.method === "tools/call") {
         env.core.secrets.set("error_key", "rotated-value");
-        res.writeHead(307, { location: `${target}/capture/${encodeURIComponent(String(req.headers["x-api-key"]))}` });
+        res.writeHead(307, {
+          location: `${target}/capture/${representation.encode(String(req.headers["x-api-key"]))}`,
+        });
         return res.end();
       }
       if (message.id === undefined) {
@@ -74,6 +95,12 @@ for (const phase of ["connect", "call"] as const) {
         const text = JSON.stringify(value);
         assert.ok(!text.includes(KEY));
         assert.ok(!text.includes(encodeURIComponent(KEY)));
+        assert.ok(!text.includes(representation.encode(KEY)));
+        assert.ok(
+          !text.includes("/capture/"),
+          "diagnostics must omit the whole peer-controlled URL, not just a known encoding",
+        );
+        assert.ok(!text.includes(target));
         assert.match(text, /\[secret\]/);
       };
       if (phase === "connect") {

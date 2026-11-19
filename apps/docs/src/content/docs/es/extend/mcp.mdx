@@ -138,9 +138,12 @@ cuerpo solo siguen redirecciones 307 o 308, que conservan el método de la solic
 reenviar tus variables o el contenido de la solicitud. Si el servicio se mudó, editá la conexión para usar su URL
 final después de comprobar que confiás en la nueva dirección y volvé a tocar **Probar**.
 
-Los errores de conexión y transporte ocultan las variables guardadas que usó esa conexión, incluso si aparecen
-en el path de una redirección. Esto no hace seguro a un servidor de terceros aprobado: sigue recibiendo las
-credenciales y los datos que elegís enviarle.
+Los errores de conexión y transporte omiten las direcciones web para que un servidor no pueda exponer una
+credencial codificándola en una dirección de redirección. Fuera de las direcciones web, la máscara cubre las
+variables guardadas que usó esa conexión como valores literales, escapes JSON habituales y una sola capa de
+codificación porcentual. Esto no hace seguro a un servidor de terceros aprobado: sigue recibiendo las
+credenciales y los datos que elegís enviarle, y puede transformarlos o devolverlos de formas que la máscara
+no reconoce.
 
 Si sospechás que una conexión anterior redirigió credenciales a un sitio en el que no confiás, revocá o rotá esas
 credenciales en el servicio y actualizá sus valores en APX.
