@@ -5,6 +5,7 @@ import { test } from "node:test";
 import { say, scriptedLlm, startCore } from "../engine/testkit.ts";
 import { mcpConfig } from "../mcp/config.ts";
 import { tempDir } from "../testkit/platform.ts";
+import { zipFiles } from "./zip.test-support.ts";
 
 const SERVER = path.join(import.meta.dirname, "../mcp/fake-server.test-support.mjs");
 
@@ -56,6 +57,79 @@ test("catalogs with the same displayed names do not share extension identity", a
     await env.cleanup();
     await first.remove();
     await second.remove();
+  }
+});
+
+test("an archive update in the same catalog preserves its secret across versioned URLs and rollback", async () => {
+  const catalog = tempDir("archive-catalog-");
+  const other = tempDir("archive-other-");
+  const make = (version: string) =>
+    zipFiles({
+      "apx-extension.json": JSON.stringify({
+        id: "archive_test",
+        name: "Archive test",
+        version,
+        settings: [{ name: "token", label: "API key", type: "string", sensitive: true }],
+      }),
+    });
+  const urls = new Map([
+    ["https://example.com/archive-1.apxext", make("1.0.0")],
+    ["https://example.com/archive-2.apxext", make("2.0.0")],
+    ["https://other.example.com/archive-2.apxext", make("2.0.0")],
+  ]);
+  const env = await startCore({
+    llm: scriptedLlm(() => say("ok")),
+    extensionFetch: (async (url: string | URL) => {
+      const data = urls.get(String(url));
+      return data ? new Response(data) : new Response("missing", { status: 404 });
+    }) as typeof fetch,
+  });
+  const index = (folder: string, version: string, url: string) =>
+    fs.writeFileSync(
+      path.join(folder, "index.json"),
+      JSON.stringify({
+        schema: 1,
+        entries: [
+          {
+            kind: "extension",
+            id: "archive_test",
+            name: "Archive test",
+            description: "Test.",
+            versions: [{ version, archive: { url } }],
+          },
+        ],
+      }),
+    );
+  try {
+    index(catalog.path, "1.0.0", "https://example.com/archive-1.apxext");
+    index(other.path, "2.0.0", "https://example.com/archive-2.apxext");
+    const a = await env.client.call("extensions.catalog_add", { source: catalog.path });
+    const b = await env.client.call("extensions.catalog_add", { source: other.path });
+    await env.client.call("extensions.install", { entry: { catalog: a.id, id: "archive_test" } });
+    await env.client.call("extensions.settings", { id: "archive_test", values: { token: "synthetic-secret" } });
+    await assert.rejects(
+      env.client.call("extensions.install", { entry: { catalog: b.id, id: "archive_test" } }),
+      /different source/i,
+    );
+    index(catalog.path, "2.0.0", "https://other.example.com/archive-2.apxext");
+    await env.client.call("extensions.catalog_add", { source: catalog.path });
+    await assert.rejects(
+      env.client.call("extensions.install", { entry: { catalog: a.id, id: "archive_test" } }),
+      /different source/i,
+    );
+    index(catalog.path, "2.0.0", "https://example.com/archive-2.apxext");
+    await env.client.call("extensions.catalog_add", { source: catalog.path });
+    const updated = await env.client.call("extensions.install", { entry: { catalog: a.id, id: "archive_test" } });
+    assert.equal(updated.version, "2.0.0");
+    assert.equal(updated.settings.find((s) => s.name === "token")?.set, true);
+    const rolled = await env.client.call("extensions.rollback", { id: "archive_test" });
+    assert.equal(rolled.version, "1.0.0");
+    assert.equal(rolled.settings.find((s) => s.name === "token")?.set, true);
+  } finally {
+    await env.core.close();
+    await env.cleanup();
+    await catalog.remove();
+    await other.remove();
   }
 });
 

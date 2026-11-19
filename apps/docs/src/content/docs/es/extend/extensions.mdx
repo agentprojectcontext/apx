@@ -241,7 +241,9 @@ antes de que APX registrara la identidad de su fuente también puede necesitar q
 de nuevo para actualizarla. Si una eliminación anterior dejó secretos guardados, APX no permite instalar otra extensión
 con ese ID hasta que elimines las variables anteriores en Recursos › Variables. También rechaza una actualización que
 introduce una credencial que solo aparece en el almacén del sistema hasta que la elimines allí: APX no asigna ese
-valor sin indexar a la extensión en silencio.
+valor sin indexar a la extensión en silencio. Una actualización de archivo de la misma entrada de catálogo puede
+cambiar la ruta de descarga dentro del mismo origen HTTPS sin perder sus ajustes. Un cambio a otro origen de descarga
+se trata como una fuente distinta.
 
 Para plugins de Claude convertidos, APX también copia los directorios compartidos que una habilidad menciona
 explícitamente y ajusta las rutas a la carpeta del plugin. Para una dirección remota sin encabezados que coincide

@@ -258,10 +258,31 @@ export function createExtensions(deps: {
         : input.url !== undefined
           ? `url:${source}`
           : `file:${hash}`;
+  const sameKeys = (a: string, b: string) => {
+    if (a === b) return true;
+    if (a.startsWith("folder:") && b.startsWith("folder:")) return samePath(a.slice(7), b.slice(7));
+    if (!a.startsWith("catalog-v2:") || !b.startsWith("catalog-v2:")) return false;
+    try {
+      const left: unknown = JSON.parse(a.slice("catalog-v2:".length));
+      const right: unknown = JSON.parse(b.slice("catalog-v2:".length));
+      if (!Array.isArray(left) || !Array.isArray(right) || left[0] !== right[0] || left[1] !== right[1]) return false;
+      const l: unknown = left[2];
+      const r: unknown = right[2];
+      return (
+        Array.isArray(l) &&
+        Array.isArray(r) &&
+        l[0] === "archive" &&
+        r[0] === "archive" &&
+        typeof l[1] === "string" &&
+        typeof r[1] === "string" &&
+        new URL(l[1]).origin === new URL(r[1]).origin
+      );
+    } catch {
+      return false;
+    }
+  };
   const sameOrigin = (old: ExtensionRecord, input: ExtensionInput, source: string, origin: string) => {
-    if (old.origin_key?.startsWith("folder:") && origin.startsWith("folder:"))
-      return samePath(old.origin_key.slice(7), origin.slice(7));
-    if (old.origin_key) return old.origin_key === origin;
+    if (old.origin_key) return sameKeys(old.origin_key, origin);
     if (input.path !== undefined && path.isAbsolute(old.source)) return samePath(old.source, source);
     return input.url !== undefined && old.source === source;
   };
@@ -591,12 +612,7 @@ export function createExtensions(deps: {
       const e = get(id);
       const prev = e.previous;
       if (!prev) throw badRequest(`${e.manifest.name} has no earlier version kept`);
-      const sameSavedOrigin =
-        e.origin_key &&
-        prev.origin_key &&
-        (e.origin_key.startsWith("folder:") && prev.origin_key.startsWith("folder:")
-          ? samePath(e.origin_key.slice(7), prev.origin_key.slice(7))
-          : e.origin_key === prev.origin_key);
+      const sameSavedOrigin = e.origin_key && prev.origin_key && sameKeys(e.origin_key, prev.origin_key);
       if (
         !sameSavedOrigin &&
         !(e.provenance === "official" && prev.provenance === "official") &&

@@ -236,7 +236,9 @@ cache. A third-party catalog extension installed before APX recorded
 its source identity may likewise need to be removed and added again before updating. If a previous removal left saved
 secrets behind, APX refuses a new installation with that ID until those old variables are removed in Resources › Variables.
 An update that introduces a credential found only in the system credential store is also refused until it is removed
-there; APX does not silently assign that unindexed value to the extension.
+there; APX does not silently assign that unindexed value to the extension. An archive update from the same catalog
+entry can change its download path on the same HTTPS origin without losing its settings. A change to another download
+origin is treated as a different source.
 
 For converted Claude plugins, APX also copies shared directories explicitly referenced by a skill and adjusts its
 plugin-root paths. For a headerless remote address that exactly matches an APX built-in OAuth integration, APX uses its
