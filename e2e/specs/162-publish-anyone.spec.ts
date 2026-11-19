@@ -145,3 +145,71 @@ test("a session APX keeps but cannot read says so on the account card, with the 
   await expect(card.getByText(/APX ya no puede leer tu sesión en esta compu/)).toBeVisible();
   await expect(card.getByRole("button", { name: "Iniciar sesión con Google" })).toBeVisible();
 });
+
+for (const width of [1280, 390]) {
+  test(`each published copy is a card with its link and every action in view at ${width}px`, async ({ page }, info) => {
+    await page.setViewportSize({ width, height: 844 });
+    await page.route(
+      "**/rpc/account.get",
+      ok({ available: true, profile: PROFILE, pending: false, unreadable: false }),
+    );
+    await page.route(
+      "**/rpc/surfaces.public_list",
+      ok({
+        items: [
+          { code: CODE, url: URL, title: "Sales board", bytes: 1200, updated_at: "2026-11-18T12:00:00.000Z" },
+          {
+            code: "m7q2x9k3",
+            url: "https://artifact.apxagent.app/m7q2x9k3",
+            title: "Team page",
+            bytes: 54_000,
+            updated_at: "2026-11-17T09:30:00.000Z",
+          },
+        ],
+        count: 2,
+        bytes: 55_200,
+      }),
+    );
+    await page.route(
+      "**/rpc/surfaces.public_prepare",
+      ok({
+        draft: DRAFT,
+        action: "revoke",
+        code: CODE,
+        url: URL,
+        title: "Sales board",
+        bytes: 0,
+        state_keys: [],
+        expires_at: "2026-11-30T12:00:00.000Z",
+      }),
+    );
+    await page.route(
+      "**/rpc/surfaces.public_preview",
+      ok({
+        draft: DRAFT,
+        action: "revoke",
+        code: CODE,
+        url: URL,
+        title: "Sales board",
+        bytes: 0,
+        state_keys: [],
+        expires_at: "2026-11-30T12:00:00.000Z",
+        review_token: "0b6c3f4e-4f0a-4f8e-9f55-8f1d7c2a9e10",
+      }),
+    );
+    await page.route("**/rpc/surfaces.public_discard", ok({ ok: true }));
+    await open(page);
+    await openSettings(page);
+    // The stand-in account's name differs from the owner's: keep the owner's.
+    await page.getByRole("button", { name: /^Dejar / }).click();
+    const list = page.getByRole("region", { name: "Copias publicadas" });
+    await list.scrollIntoViewIfNeeded();
+    await expect(list.getByText("Team page")).toBeVisible();
+    await expect(list.getByRole("button", { name: "Copiar enlace" })).toHaveCount(2);
+    await expect(list.getByRole("button", { name: "Dejar de compartir…" })).toHaveCount(2);
+    await expect(list.getByRole("button", { name: "Administrar" })).toHaveCount(0);
+    await page.screenshot({ path: info.outputPath(`published-cards-${width}.png`) });
+    await list.getByRole("button", { name: "Dejar de compartir…" }).first().click();
+    await expect(page.getByRole("dialog", { name: "Dejar de publicar" })).toBeVisible();
+  });
+}

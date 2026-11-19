@@ -36,7 +36,6 @@ export const esPublicCopies: Record<keyof typeof enPublicCopies, string> = {
   "public.list": "Copias publicadas",
   "public.empty": "No tenés copias publicadas. Publicá una desde el menú para compartir de un artifact.",
   "public.refresh": "Actualizar lista",
-  "public.manage": "Administrar",
   "public.local": "Los cambios locales no se publican automáticamente.",
   "public.update": "Actualizar copia",
   "public.replace": "El enlace no cambia. Se reemplazará su contenido.",

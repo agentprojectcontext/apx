@@ -35,7 +35,6 @@ export const enPublicCopies = {
   "public.list": "Published copies",
   "public.empty": "You have no published copies. Publish one from an artifact’s sharing menu.",
   "public.refresh": "Refresh",
-  "public.manage": "Manage",
   "public.local": "Local changes are not published automatically.",
   "public.update": "Update copy",
   "public.replace": "The link stays the same. Its contents will be replaced.",

@@ -33,9 +33,47 @@
   border: 1px solid var(--apx-border);
   border-radius: var(--apx-radius-md);
 }
-.public-copies__row {
-  padding-block: var(--apx-space-3);
-  border-bottom: 1px solid var(--apx-border);
+.public-copies {
+  display: flex;
+  flex-direction: column;
+  gap: var(--apx-space-3);
+}
+.public-copies__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--apx-space-2);
+}
+.public-copies__head h3 {
+  margin: 0;
+}
+/* One card per published copy, side by side where they fit and one per row on a phone. */
+.public-copies__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 17rem), 1fr));
+  gap: var(--apx-space-3);
+}
+.public-copies__card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--apx-space-2);
+  min-width: 0;
+}
+.public-copies__url {
+  color: var(--apx-fg-muted);
+  text-decoration: none;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: var(--apx-font-mono);
+  font-size: var(--apx-text-sm);
+}
+.public-copies__url:hover {
+  color: var(--apx-fg);
+  text-decoration: underline;
+}
+.public-copies__stop {
+  color: var(--apx-danger);
 }
 .public-copies__actions {
   display: flex;

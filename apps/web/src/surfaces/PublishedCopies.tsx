@@ -1,5 +1,5 @@
 import type { SurfaceSummary } from "@apx/protocol";
-import { Button, Dialog, Select, Skeleton } from "@apx/ui";
+import { Button, Card, Dialog, IconButton, Icons, Select, Skeleton } from "@apx/ui";
 import { useEffect, useState } from "react";
 import { formatBytes } from "../common/format.ts";
 import { client } from "../data/client.ts";
@@ -50,33 +50,82 @@ function CopyList() {
     };
   }, [revision]);
   return (
-    <section aria-label={t("public.list")}>
-      <h3>{t("public.list")}</h3>
-      <p>{t("public.local")}</p>
-      <Button size="sm" variant="secondary" loading={busy} onClick={() => setRevision((n) => n + 1)}>
-        {t("public.refresh")}
-      </Button>
+    <section aria-label={t("public.list")} className="public-copies">
+      <div className="public-copies__head">
+        <h3>{t("public.list")}</h3>
+        <IconButton
+          size="sm"
+          label={t("public.refresh")}
+          icon={<Icons.RefreshCw size={14} />}
+          disabled={busy}
+          onClick={() => setRevision((n) => n + 1)}
+        />
+      </div>
       {busy && !list && <Skeleton width="100%" height={60} />}
       {busy && list && <p role="status">{t("public.refreshing")}</p>}
       {error && <p role="alert">{t(error)}</p>}
-      {list?.items.length === 0 && <p>{t("public.empty")}</p>}
-      {list?.items.map((item) => (
-        <div key={item.code} className="public-copies__row public-copy">
-          <strong>{item.title}</strong>
-          <a href={item.url} target="_blank" rel="noreferrer">
-            {item.url}
-          </a>
-          <span>
-            <time dateTime={item.updated_at}>{new Date(item.updated_at).toLocaleString()}</time> ·{" "}
-            {formatBytes(item.bytes)}
-          </span>
-          <Button size="sm" variant="secondary" onClick={() => setSelected(item)}>
-            {t("public.manage")}
-          </Button>
+      {list?.items.length === 0 && <p className="public-copy__muted">{t("public.empty")}</p>}
+      {list && list.items.length > 0 && (
+        <div className="public-copies__grid">
+          {list.items.map((item) => (
+            <CopyCard key={item.code} item={item} onChoose={() => setSelected(item)} />
+          ))}
         </div>
-      ))}
+      )}
       {selected && <ManageCopy copy={selected} onClose={() => setSelected(undefined)} />}
     </section>
+  );
+}
+
+/** One published copy: what it is, its link, and each thing the owner can do with it in view. */
+function CopyCard({ item, onChoose }: { item: Copy; onChoose: () => void }) {
+  const t = useT();
+  const copy = () =>
+    void navigator.clipboard.writeText(item.url).then(
+      () => notify(t("share.copied"), "info"),
+      () => notify(t("share.copyFailed")),
+    );
+  return (
+    <Card
+      variant="outline"
+      padding="sm"
+      className="public-copies__card"
+      title={item.title}
+      description={
+        <>
+          <time dateTime={item.updated_at}>{new Date(item.updated_at).toLocaleDateString()}</time> ·{" "}
+          {formatBytes(item.bytes)}
+        </>
+      }
+    >
+      <a className="public-copies__url" href={item.url} target="_blank" rel="noreferrer">
+        {item.url.replace(/^https:\/\//, "")}
+      </a>
+      <div className="public-copies__actions">
+        <Button size="sm" variant="secondary" leadingIcon={<Icons.Copy size={14} />} onClick={copy}>
+          {t("public.copyLink")}
+        </Button>
+        <Button
+          size="sm"
+          variant="secondary"
+          leadingIcon={<Icons.RefreshCw size={14} />}
+          onClick={() =>
+            item.surface ? openPublicCopy({ action: "update", code: item.code, surface: item.surface }) : onChoose()
+          }
+        >
+          {t("share.update")}
+        </Button>
+        <Button
+          size="sm"
+          variant="secondary"
+          leadingIcon={<Icons.EyeOff size={14} />}
+          className="public-copies__stop"
+          onClick={() => openPublicCopy({ action: "revoke", code: item.code })}
+        >
+          {t("share.stop")}
+        </Button>
+      </div>
+    </Card>
   );
 }
 
@@ -156,9 +205,6 @@ function ManageCopy({ copy, onClose }: { copy: Copy; onClose: () => void }) {
         <div className="public-copies__actions">
           <Button disabled={!source} onClick={() => launch("update")}>
             {t("public.update")}…
-          </Button>
-          <Button variant="secondary" onClick={() => launch("revoke")}>
-            {t("public.revoke")}…
           </Button>
         </div>
       </div>
