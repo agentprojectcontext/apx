@@ -230,8 +230,9 @@ function fakeKeychain() {
   return { run, items };
 }
 
-test("a Keychain value longer than one `security` line comes back whole, and leaves no parts once removed", () => {
-  const home = tempHome();
+test("a Keychain value longer than one `security` line comes back whole, and leaves no parts once removed", async () => {
+  const dir = tempDir("apx-secrets-");
+  const home = dir.path;
   try {
     const sys = fakeKeychain();
     const s = createSecrets(home, "keychain", {}, sys.run);
@@ -250,12 +251,13 @@ test("a Keychain value longer than one `security` line comes back whole, and lea
     s.set("apx-account-session", null);
     assert.equal(sys.items.size, 0);
   } finally {
-    fs.rmSync(home, { recursive: true, force: true });
+    await dir.remove();
   }
 });
 
-test("a Keychain value with an accent or a tab comes back as written, and a value that only looks like hex stays", () => {
-  const home = tempHome();
+test("a Keychain value with an accent or a tab comes back as written, and a value that only looks like hex stays", async () => {
+  const dir = tempDir("apx-secrets-");
+  const home = dir.path;
   try {
     const sys = fakeKeychain();
     const s = createSecrets(home, "keychain", {}, sys.run);
@@ -265,6 +267,6 @@ test("a Keychain value with an accent or a tab comes back as written, and a valu
       assert.equal(createSecrets(home, "keychain", {}, sys.run).resolve("secret://apx-account-session"), value);
     }
   } finally {
-    fs.rmSync(home, { recursive: true, force: true });
+    await dir.remove();
   }
 });
