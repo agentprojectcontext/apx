@@ -289,35 +289,40 @@ test("an update cannot claim a previously unindexed system credential", async ()
   }
 });
 
-test("a different source cannot replace the same ID while an OAuth bridge may have cached a session", async () => {
-  const first = tempDir("oauth-first-");
-  const second = tempDir("oauth-second-");
-  const env = await startCore({ llm: scriptedLlm(() => say("ok")) });
-  try {
-    for (const [folder, name] of [
-      [first, "First"],
-      [second, "Second"],
-    ] as const) {
-      fs.writeFileSync(
-        path.join(folder.path, "apx-extension.json"),
-        JSON.stringify({
-          manifest: 2,
-          id: "oauth_session",
-          name,
-          version: "1.0.0",
-          mcp: { test: { command: "npx", args: ["-y", "mcp-remote", "https://mcp.example.com"] } },
-        }),
-      );
+for (const bridge of [
+  { command: "npx", args: ["-y", "mcp-remote", "https://mcp.example.com"] },
+  { command: "npx", args: ["-y", "mcp-remote@0.1.0", "https://mcp.example.com"] },
+  { command: "mcp-remote", args: ["https://mcp.example.com"] },
+])
+  test(`a different source cannot replace an OAuth bridge: ${bridge.command} ${bridge.args.join(" ")}`, async () => {
+    const first = tempDir("oauth-first-");
+    const second = tempDir("oauth-second-");
+    const env = await startCore({ llm: scriptedLlm(() => say("ok")) });
+    try {
+      for (const [folder, name] of [
+        [first, "First"],
+        [second, "Second"],
+      ] as const) {
+        fs.writeFileSync(
+          path.join(folder.path, "apx-extension.json"),
+          JSON.stringify({
+            manifest: 2,
+            id: "oauth_session",
+            name,
+            version: "1.0.0",
+            mcp: { test: bridge },
+          }),
+        );
+      }
+      await env.client.call("extensions.install", { path: first.path });
+      await assert.rejects(env.client.call("extensions.install", { path: second.path }), /different source/i);
+    } finally {
+      await env.core.close();
+      await env.cleanup();
+      await first.remove();
+      await second.remove();
     }
-    await env.client.call("extensions.install", { path: first.path });
-    await assert.rejects(env.client.call("extensions.install", { path: second.path }), /different source/i);
-  } finally {
-    await env.core.close();
-    await env.cleanup();
-    await first.remove();
-    await second.remove();
-  }
-});
+  });
 
 test("rolling back to a different source does not give it secrets set after replacement", async () => {
   const first = tempDir("rollback-first-");

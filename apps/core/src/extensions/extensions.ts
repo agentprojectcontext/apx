@@ -15,6 +15,7 @@ import { parseFrontmatter, textField } from "../apc/frontmatter.ts";
 import type { ExtensionRecord, PreviousVersion } from "../domain/extensions.ts";
 import type { Store } from "../domain/store.ts";
 import { badRequest, CallError, errorMessage, notFound } from "../errors.ts";
+import { isMcpRemote } from "../mcp/bridge.ts";
 import { expandHome, isInside, real, realpath, samePath, tildeHome } from "../paths.ts";
 import { extensionSecret as extSecret } from "../secret-names.ts";
 import type { Secrets } from "../secrets.ts";
@@ -280,7 +281,7 @@ export function createExtensions(deps: {
   };
   const hasPrivateConfig = (old: ExtensionRecord, next: ExtensionManifest) => {
     if (Object.keys(old.settings).length) return true;
-    if ([old.manifest, next].some((m) => Object.values(m.mcp).some((s) => s.args.includes("mcp-remote")))) return true;
+    if ([old.manifest, next].some((m) => Object.values(m.mcp).some(isMcpRemote))) return true;
     return [...extensionSecrets(old.id, [old.manifest, next])].some(
       (name) => secrets.listed(name) || secrets.has(`secret://${name}`),
     );

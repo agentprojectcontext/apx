@@ -8,6 +8,7 @@ import { withoutBom } from "../apc/read.ts";
 import type { Store } from "../domain/store.ts";
 import { extSecret, SECRET_REF, SETTING_REF } from "../extensions/extensions.ts";
 import { NO_GLOBALS } from "../skills/skills.ts";
+import { isMcpRemote } from "./bridge.ts";
 
 /** A command's arguments show in the process list to anyone on the computer: a variable goes in its env instead. */
 export const ARGS_SECRET = "a variable (secret://) in args shows in the process list: put it in env instead";
@@ -125,9 +126,7 @@ function extensionDefs(store: Store): McpDef[] {
             address && all[at + m.length] === "/" ? setting(n).replace(/\/+$/, "") : setting(n),
           );
       const map = (r: Record<string, string>) => Object.fromEntries(Object.entries(r).map(([k, v]) => [k, own(v)]));
-      const bridge =
-        server.command === "mcp-remote" ||
-        (server.command === "npx" && server.args.some((arg) => /^mcp-remote(?:@[^/]+)?$/.test(arg)));
+      const bridge = isMcpRemote(server);
       const env = map(server.env);
       if (bridge)
         env.MCP_REMOTE_CONFIG_DIR = path.join(
