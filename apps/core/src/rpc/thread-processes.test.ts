@@ -7,8 +7,20 @@ test("scoped chat processes retain old and nested descendants beyond the global 
   try {
     const repo = env.core.store.threads;
     const root = repo.create({ kind: "agent", title: "Root", agent_ids: ["secretary"], at: "2020-01-01T00:00:00Z" });
-    const child = repo.create({ kind: "a2a", title: "Child", agent_ids: ["secretary"], parent_id: root.id });
-    const nested = repo.create({ kind: "a2a", title: "Nested", agent_ids: ["secretary"], parent_id: child.id });
+    const child = repo.create({
+      kind: "a2a",
+      title: "Child",
+      agent_ids: ["secretary"],
+      parent_id: root.id,
+      at: "2020-01-01T00:00:01Z",
+    });
+    const nested = repo.create({
+      kind: "a2a",
+      title: "Nested",
+      agent_ids: ["secretary"],
+      parent_id: child.id,
+      at: "2020-01-01T00:00:02Z",
+    });
     for (let i = 0; i < 305; i++) repo.create({ kind: "agent", title: `Other ${i}`, agent_ids: ["secretary"] });
     const global = await env.client.call("threads.list", { include_subthreads: true });
     assert.equal(
