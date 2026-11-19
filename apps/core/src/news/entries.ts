@@ -9,6 +9,7 @@ import { ACTIVITY_REVIEW_NEWS } from "./activity-review.ts";
 import { AGENT_FALLBACKS_NEWS } from "./agent-fallbacks.ts";
 import { AGENT_PROMPTS_NEWS } from "./agent-prompts.ts";
 import { AGENT_REVIEW_NEWS } from "./agent-review.ts";
+import { APX_ACCOUNT_NEWS } from "./apx-account.ts";
 import { BROWSER_EDIT_NEWS } from "./browser-edit.ts";
 import { BROWSER_JAVASCRIPT_NEWS } from "./browser-javascript.ts";
 import { BROWSER_SIGN_IN_NEWS } from "./browser-sign-in.ts";
@@ -30,6 +31,7 @@ import { MCP_REACH_NEWS } from "./mcp-reach.ts";
 import { MEMORY_REVIEW_NEWS } from "./memory-review.ts";
 import { MOVE_BACKUP_NEWS } from "./move-backup.ts";
 import { OLDER_NEWS } from "./older-entries.ts";
+import { PUBLIC_ARTIFACTS_NEWS } from "./public-artifacts.ts";
 import { QUEUED_MESSAGES_NEWS } from "./queued-messages.ts";
 import { QUICK_CHAT_NEWS } from "./quick-chat.ts";
 import { ROOM_AGENT_NEWS } from "./room-agent.ts";
@@ -181,6 +183,8 @@ export const NEWS: readonly NewsEntry[] = [
   GROUP_CHATS_NEWS,
   VOICE_CALLS_NEWS,
   MARKETPLACE_NEWS,
+  PUBLIC_ARTIFACTS_NEWS,
+  APX_ACCOUNT_NEWS,
   CONTACT_BOOKING_NEWS,
   SIMPLE_PANEL_NEWS,
   {
