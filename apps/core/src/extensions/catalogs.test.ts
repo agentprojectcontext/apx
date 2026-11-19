@@ -52,7 +52,11 @@ test("catalog branches have separate identities and syncing keeps the selected b
     store: env.core.store,
     home: home.path,
     git: async (args) => {
-      if (args.includes("fetch")) fetched.push(args.at(-1) ?? "");
+      if (args.includes("fetch")) {
+        assert.ok(args.includes("gc.auto=0"));
+        assert.ok(args.includes("maintenance.auto=false"));
+        fetched.push(args.at(-1) ?? "");
+      }
       if (args.includes("checkout")) {
         const root = args[1] ?? "";
         put(root, {
