@@ -33,7 +33,7 @@ for (const status of [301, 302, 303, 307, 308]) {
     const target = await listen(destination);
     const source = http.createServer((req, res) => {
       req.resume();
-      res.writeHead(status, { location: `${target}/capture` });
+      res.writeHead(status, { location: `${target}/capture/${encodeURIComponent(String(req.headers["x-api-key"]))}` });
       res.end();
     });
     const env = await startCore({ llm: scriptedLlm(() => say("ok")) });

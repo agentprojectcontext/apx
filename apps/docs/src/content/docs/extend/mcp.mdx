@@ -130,10 +130,15 @@ Add `--project <id>` for a project's server, and `--scope global|project` when a
 
 ### A server redirects to another site (development preview)
 
-For a URL connection, APX follows redirects only within the same origin: the scheme, host and port must stay the
-same. A redirect to another origin fails instead of forwarding your variables or the request contents. If the
-service has moved, edit the connection to use its final URL after checking that you trust the new address, then
-try **Test** again.
+For a URL connection, APX follows redirects within the same origin (scheme, host and port). It also permits an
+HTTP-to-HTTPS upgrade on the same hostname when both use their default ports. Requests with a body only follow
+307 or 308 redirects, which preserve the request method. Other redirects fail instead of forwarding your
+variables or the request contents. If the service has moved, edit the connection to use its final URL after
+checking that you trust the new address, then try **Test** again.
+
+Connection and transport errors mask the stored variables used by that connection, including values reflected
+in a redirect path. This does not make an approved third-party server safe: it still receives the credentials
+and data you choose to send it.
 
 If you suspect an older connection redirected credentials to a site you do not trust, revoke or rotate those
 credentials at the service and update their values in APX.

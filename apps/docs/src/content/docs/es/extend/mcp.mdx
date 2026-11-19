@@ -132,10 +132,15 @@ Sumá `--project <id>` para un servidor de proyecto, y `--scope global|project` 
 
 ### Un servidor redirige a otro sitio (versión de desarrollo)
 
-Para una conexión por URL, APX sigue redirecciones solo dentro del mismo origen: el esquema, el host y el puerto
-no deben cambiar. Una redirección a otro origen falla en vez de reenviar tus variables o el contenido de la
-solicitud. Si el servicio se mudó, editá la conexión para usar su URL final después de comprobar que confiás en la
-nueva dirección y volvé a tocar **Probar**.
+Para una conexión por URL, APX sigue redirecciones dentro del mismo origen (esquema, host y puerto). También
+permite pasar de HTTP a HTTPS en el mismo host cuando ambos usan sus puertos por defecto. Las solicitudes con
+cuerpo solo siguen redirecciones 307 o 308, que conservan el método de la solicitud. Las demás fallan en vez de
+reenviar tus variables o el contenido de la solicitud. Si el servicio se mudó, editá la conexión para usar su URL
+final después de comprobar que confiás en la nueva dirección y volvé a tocar **Probar**.
+
+Los errores de conexión y transporte ocultan las variables guardadas que usó esa conexión, incluso si aparecen
+en el path de una redirección. Esto no hace seguro a un servidor de terceros aprobado: sigue recibiendo las
+credenciales y los datos que elegís enviarle.
 
 Si sospechás que una conexión anterior redirigió credenciales a un sitio en el que no confiás, revocá o rotá esas
 credenciales en el servicio y actualizá sus valores en APX.

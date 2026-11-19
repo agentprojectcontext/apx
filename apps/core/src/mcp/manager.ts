@@ -18,6 +18,7 @@ import { cap, untrusted } from "../tools/result.ts";
 import { type Confirm, type Effect, invalidArguments, type ScopedThread, type Tool } from "../tools/types.ts";
 import { type McpTool, mcpApproval, mcpServerApproval, serverApprovalId } from "./approval.ts";
 import { ARGS_SECRET, type McpDef, mcpConfig } from "./config.ts";
+import { connectionErrors, MCP_SECRET_REF } from "./connection-errors.ts";
 import { fileRefs, fillFileArgs, hasFileRefs, type OpenFile, refOf } from "./file-args.ts";
 import { createStderrLogs } from "./logs.ts";
 import { watchSignIn } from "./sign-in.ts";
@@ -28,6 +29,8 @@ const IDLE_MS = 10 * 60_000;
 /** How long a server that asked the owner to sign in is kept running, so the browser's answer still finds it. */
 const SIGN_IN_MS = 5 * 60_000;
 
+type Connected = { client: Client; tools: McpTool[]; errorMessage: (error: unknown) => string };
+
 type Conn = {
   key: string;
   hash: string;
@@ -35,6 +38,7 @@ type Conn = {
   tools: McpTool[];
   status: "starting" | "ready" | "error" | "needs-sign-in";
   error?: string;
+  errorMessage?: (error: unknown) => string;
   /** The page the server asked the owner to open, while it waits for them. */
   signInUrl?: string;
   /** Ends a start still under way, its process with it (one waiting on a sign-in lives for minutes). */
@@ -74,14 +78,11 @@ export type McpStatus = {
   error?: string;
 };
 
-/** A stored secret named in a value, whole or inside text. */
-const SECRET_REF = /secret:\/\/([a-zA-Z0-9_.-]+)/g;
-
 /** The stored secrets a definition names, in order, once each. */
 const secretNames = (d: McpDef): string[] => [
   ...new Set(
     [...Object.values(d.env), ...Object.values(d.headers), ...d.args, d.url ?? ""].flatMap((v) =>
-      [...v.matchAll(SECRET_REF)].map((m) => m[1] as string),
+      [...v.matchAll(MCP_SECRET_REF)].map((m) => m[1] as string),
     ),
   ),
 ];
@@ -122,17 +123,8 @@ export function createMcp(deps: {
   const stderr = createStderrLogs();
   const keyOf = (d: McpDef) => `${d.scope}:${d.project_id ?? ""}:${d.values_of ?? ""}:${d.name}`;
 
-  /**
-   * `secret://NAME` is resolved here, at start, and never written anywhere else: a whole value, or inside text
-   * ("Bearer secret://API_KEY"). A name with no value stays as written.
-   */
   /** A project's own values first, then its parent's for a subproject (domain/projects.ts lineage). */
   const valuesIn = (projectId: string | undefined) => lineage(deps.store.projects, projectId);
-  const resolveText = (v: string, valuesOf?: string) =>
-    deps.secrets.resolveIn(v, valuesIn(valuesOf)) ??
-    v.replace(SECRET_REF, (ref) => deps.secrets.resolveIn(ref, valuesIn(valuesOf)) ?? ref);
-  const resolve = (values: Record<string, string>, valuesOf?: string) =>
-    Object.fromEntries(Object.entries(values).map(([k, v]) => [k, resolveText(v, valuesOf)]));
   /** An owner's server in a project with its own value for one of its variables runs as a copy of its own there. */
   const inProject = (d: McpDef, projectId: string | undefined): McpDef =>
     projectId &&
@@ -151,12 +143,11 @@ export function createMcp(deps: {
    * Starts a server and lists its tools, within CONNECT_MS; one that asks the owner to sign in gets SIGN_IN_MS from
    * then, and `onSignIn` hears it. The caller owns the client and closes it.
    */
-  async function connect(
-    d: McpDef,
-    onSignIn?: (url: string) => void,
-    signal?: AbortSignal,
-  ): Promise<{ client: Client; tools: McpTool[] }> {
+  async function connect(d: McpDef, onSignIn?: (url: string) => void, signal?: AbortSignal): Promise<Connected> {
     if (d.args.some((a) => a.includes("secret://"))) throw new Error(ARGS_SECRET);
+    const errors = connectionErrors((ref) => deps.secrets.resolveIn(ref, valuesIn(d.values_of)));
+    const resolve = (values: Record<string, string>) =>
+      Object.fromEntries(Object.entries(values).map(([k, v]) => [k, errors.fill(v)]));
     // Loaded with the first server: a core with none never loads the MCP client.
     const [{ Client }, { StdioClientTransport }, { StreamableHTTPClientTransport }] = await Promise.all([
       import("@modelcontextprotocol/sdk/client/index.js"),
@@ -177,46 +168,46 @@ export function createMcp(deps: {
       timer = setTimeout(() => fail(new Error(why)), ms);
     };
     let transport: InstanceType<typeof StreamableHTTPClientTransport> | InstanceType<typeof StdioClientTransport>;
-    if (d.url)
-      transport = new StreamableHTTPClientTransport(new URL(resolveText(d.url, d.values_of)), {
-        requestInit: { headers: resolve(d.headers, d.values_of) },
-      });
-    else {
-      const env = resolve(d.env, d.values_of);
-      // Windows starts it through cmd, which hides a missing program as a closed connection: say so first.
-      const cmd = d.command ?? "";
-      if (process.platform === "win32" && !/[\\/]/.test(cmd) && !onPath(cmd)) throw new Error(`spawn ${cmd} ENOENT`);
-      const stdio = new StdioClientTransport({
-        command: d.command ?? "",
-        args: d.args.map((a) => resolveText(a, d.values_of)),
-        // Only what the definition gives it, on top of an environment without credentials.
-        env: { ...commandEnv(), ...env },
-        cwd: d.cwd ?? ownDir(d.name),
-        stderr: "pipe",
-      });
-      // A server may print what it was given: its secrets and credential-like variables are masked in its log.
-      const hidden = [
-        ...secretNames(d).map((n) => deps.secrets.resolveIn(`secret://${n}`, valuesIn(d.values_of)) ?? ""),
-        ...Object.keys(d.env)
-          .filter((k) => SECRET_NAME.test(k) || d.env[k]?.includes("secret://"))
-          .map((k) => env[k] ?? ""),
-      ];
-      stderr.follow(keyOf(d), stdio.stderr, hidden);
-      watchSignIn(stdio.stderr, (url) => {
-        arm(SIGN_IN_MS, `sign-in not finished in ${SIGN_IN_MS / 60_000} min`);
-        onSignIn?.(url);
-      });
-      transport = stdio;
-    }
     try {
+      if (d.url)
+        transport = new StreamableHTTPClientTransport(new URL(errors.fill(d.url)), {
+          requestInit: { headers: resolve(d.headers) },
+        });
+      else {
+        const env = resolve(d.env);
+        // Windows starts it through cmd, which hides a missing program as a closed connection: say so first.
+        const cmd = d.command ?? "";
+        if (process.platform === "win32" && !/[\\/]/.test(cmd) && !onPath(cmd)) throw new Error(`spawn ${cmd} ENOENT`);
+        const stdio = new StdioClientTransport({
+          command: d.command ?? "",
+          args: d.args.map((a) => errors.fill(a)),
+          // Only what the definition gives it, on top of an environment without credentials.
+          env: { ...commandEnv(), ...env },
+          cwd: d.cwd ?? ownDir(d.name),
+          stderr: "pipe",
+        });
+        // A server may print what it was given: its secrets and credential-like variables are masked in its log.
+        const hidden = [
+          ...secretNames(d).map((n) => deps.secrets.resolveIn(`secret://${n}`, valuesIn(d.values_of)) ?? ""),
+          ...Object.keys(d.env)
+            .filter((k) => SECRET_NAME.test(k) || d.env[k]?.includes("secret://"))
+            .map((k) => env[k] ?? ""),
+        ];
+        stderr.follow(keyOf(d), stdio.stderr, hidden);
+        watchSignIn(stdio.stderr, (url) => {
+          arm(SIGN_IN_MS, `sign-in not finished in ${SIGN_IN_MS / 60_000} min`);
+          onSignIn?.(url);
+        });
+        transport = stdio;
+      }
       arm(CONNECT_MS, `no answer in ${CONNECT_MS / 1000}s`);
       // Our deadline ends the start, not the SDK's own minute: a sign-in may take longer.
       await Promise.race([client.connect(transport, { timeout: SIGN_IN_MS }), deadline]);
       const { tools } = await client.listTools(undefined, { timeout: CONNECT_MS });
-      return { client, tools: tools as McpTool[] };
+      return { client, tools: tools as McpTool[], errorMessage: errors.message };
     } catch (err) {
       await client.close().catch(() => {});
-      throw err;
+      throw new Error(errors.message(err));
     } finally {
       clearTimeout(timer);
     }
@@ -268,7 +259,7 @@ export function createMcp(deps: {
   function follow(
     d: McpDef,
     c: Conn,
-    start: (onSignIn: (url: string) => void) => Promise<{ client: Client; tools: McpTool[] }>,
+    start: (onSignIn: (url: string) => void) => Promise<Connected>,
     abort: () => void,
   ) {
     let settle!: () => void;
@@ -290,11 +281,12 @@ export function createMcp(deps: {
     };
     started
       .then(
-        async ({ client, tools }) => {
+        async ({ client, tools, errorMessage }) => {
           // Replaced or dropped while starting: this process is nobody's now.
           if (!mine()) return void (await client.close().catch(() => {}));
           c.client = client;
           c.tools = tools;
+          c.errorMessage = errorMessage;
           c.status = "ready";
           remember(d, tools);
           c.signInUrl = undefined;
@@ -374,10 +366,14 @@ export function createMcp(deps: {
       mcpApproval(next, liveTool).key !== mcpApproval(d, t).key
     )
       throw new Error("MCP approval or tool contract changed; start a new turn");
-    return (await c.client.callTool({ name: t.name, arguments: args }, undefined, {
-      timeout: CALL_MS,
-      signal: signal,
-    })) as { content?: Array<{ type: string; text?: string }>; isError?: boolean; structuredContent?: unknown };
+    try {
+      return (await c.client.callTool({ name: t.name, arguments: args }, undefined, {
+        timeout: CALL_MS,
+        signal: signal,
+      })) as { content?: Array<{ type: string; text?: string }>; isError?: boolean; structuredContent?: unknown };
+    } catch (error) {
+      throw new Error(c.errorMessage?.(error) ?? errorMessage(error));
+    }
   }
 
   function adapt(d: McpDef, t: McpTool, name: string): Tool {
