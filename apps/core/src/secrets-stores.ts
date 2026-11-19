@@ -37,26 +37,56 @@ export type ValueStore = {
 };
 
 const SECURITY = "/usr/bin/security";
+/** `security -i` cuts each line at about 4 KB: a longer value goes in parts, base64 so nothing needs escaping. */
+const LINE_BYTES = 3_500;
+const PART_CHARS = 3_000;
+const PARTS = "apx-parts:v1:";
 
 export function keychainStore(service: string, run: Run = runCommand): ValueStore {
+  const q = (s: string) => `"${s.replace(/\\/g, "\\\\").replace(/"/g, '\\"')}"`;
+  const read = (name: string) => {
+    try {
+      return run(SECURITY, ["find-generic-password", "-s", service, "-a", name, "-w"]).replace(/\n$/, "");
+    } catch {
+      return undefined;
+    }
+  };
+  const remove = (name: string) => {
+    try {
+      run(SECURITY, ["delete-generic-password", "-s", service, "-a", name]);
+    } catch {}
+  };
+  // Through `security -i` on stdin: a value on argv would show up in the process list.
+  const write = (name: string, value: string) =>
+    run(SECURITY, ["-i"], { input: `add-generic-password -U -s ${service} -a ${q(name)} -w ${q(value)}\n` });
+  const partsOf = (head: string | undefined) => (head?.startsWith(PARTS) ? Number(head.slice(PARTS.length)) || 0 : 0);
+  const part = (name: string, i: number) => `${name}#${i}`;
   return {
     get(name) {
-      try {
-        return run(SECURITY, ["find-generic-password", "-s", service, "-a", name, "-w"]).replace(/\n$/, "");
-      } catch {
-        return undefined;
+      const head = read(name);
+      const n = partsOf(head);
+      if (!n) return head;
+      const parts: string[] = [];
+      for (let i = 1; i <= n; i++) {
+        const p = read(part(name, i));
+        if (p === undefined) return undefined;
+        parts.push(p);
       }
+      return Buffer.from(parts.join(""), "base64").toString("utf8");
     },
     set(name, value) {
-      if (value === null) {
-        try {
-          run(SECURITY, ["delete-generic-password", "-s", service, "-a", name]);
-        } catch {}
-        return;
+      const before = partsOf(read(name));
+      let now = 0;
+      if (value === null) remove(name);
+      else if (Buffer.byteLength(q(value)) + Buffer.byteLength(q(name)) + service.length < LINE_BYTES)
+        write(name, value);
+      else {
+        const encoded = Buffer.from(value, "utf8").toString("base64");
+        now = Math.ceil(encoded.length / PART_CHARS);
+        for (let i = 1; i <= now; i++) write(part(name, i), encoded.slice((i - 1) * PART_CHARS, i * PART_CHARS));
+        write(name, `${PARTS}${now}`);
       }
-      // Through `security -i` on stdin: a value on argv would show up in the process list.
-      const q = (s: string) => `"${s.replace(/\\/g, "\\\\").replace(/"/g, '\\"')}"`;
-      run(SECURITY, ["-i"], { input: `add-generic-password -U -s ${service} -a ${q(name)} -w ${q(value)}\n` });
+      for (let i = now + 1; i <= before; i++) remove(part(name, i));
     },
     works: () => true,
   };

@@ -196,3 +196,53 @@ test("moving a value to another project keeps it, its sign-in sites and last use
   assert.equal(s.resolve(`secret://${acme}`), "acme-again", "and the one asked to move stays");
   assert.equal(s.move("NOT_THERE", "ELSEWHERE"), "missing");
 });
+
+/** `/usr/bin/security` in memory, cutting each `-i` line at 4 KB as the real one does. */
+function fakeKeychain() {
+  const items = new Map<string, string>();
+  const unquote = (s: string) => s.replace(/\\(.)/g, "$1");
+  const run: Run = (cmd, args, opts = {}) => {
+    assert.equal(cmd, "/usr/bin/security");
+    const account = args[args.indexOf("-a") + 1] ?? "";
+    if (args[0] === "-i") {
+      const line = Buffer.from(opts.input ?? "", "utf8")
+        .subarray(0, 4096)
+        .toString("utf8");
+      const m = /-a "((?:[^"\\]|\\.)*)" -w "((?:[^"\\]|\\.)*)"?/.exec(line);
+      if (m?.[1] !== undefined) items.set(unquote(m[1]), unquote(m[2] ?? ""));
+      return "";
+    }
+    if (args[0] === "delete-generic-password") {
+      if (!items.delete(account)) throw new Error("not found");
+      return "";
+    }
+    const v = items.get(account);
+    if (v === undefined) throw new Error("not found");
+    return `${v}\n`;
+  };
+  return { run, items };
+}
+
+test("a Keychain value longer than one `security` line comes back whole, and leaves no parts once removed", () => {
+  const home = tempHome();
+  try {
+    const sys = fakeKeychain();
+    const s = createSecrets(home, "keychain", {}, sys.run);
+    const session = JSON.stringify({
+      idToken: "a".repeat(5000),
+      refresh: 'with "quotes" and \\ ñ',
+      more: "b".repeat(4000),
+    });
+    s.set("apx-account-session", session);
+    assert.equal(createSecrets(home, "keychain", {}, sys.run).resolve("secret://apx-account-session"), session);
+    assert.ok(sys.items.size > 2, "it is kept in parts");
+    s.set("apx-account-session", "short");
+    assert.equal(createSecrets(home, "keychain", {}, sys.run).resolve("secret://apx-account-session"), "short");
+    assert.deepEqual([...sys.items.keys()], ["apx-account-session"], "the old parts are gone");
+    s.set("apx-account-session", session);
+    s.set("apx-account-session", null);
+    assert.equal(sys.items.size, 0);
+  } finally {
+    fs.rmSync(home, { recursive: true, force: true });
+  }
+});
