@@ -243,8 +243,10 @@ con ese ID hasta que elimines las variables anteriores en Recursos › Variables
 credenciales del sistema, también puede ser necesario eliminarlo allí.
 
 Para plugins de Claude convertidos, APX también copia los directorios compartidos que una habilidad menciona
-explícitamente y ajusta las rutas a la carpeta del plugin. Otras funciones, como los hooks y comandos, no se
-convierten; copiar un script no lo ejecuta por agregar la extensión.
+explícitamente y ajusta las rutas a la carpeta del plugin. Para una dirección remota sin encabezados que coincide
+exactamente con una integración OAuth incluida, APX usa su puente de inicio de sesión; la revisión de la extensión
+muestra que ejecuta código. Las demás direcciones remotas conservan su conexión declarada. Otras funciones, como los
+hooks y comandos, no se convierten; copiar un script no lo ejecuta por agregar la extensión.
 
 <Terminal command="apx extensions install ~/Downloads/daily-brief.apxext">{`daily-brief  Daily brief v1.0.0  · off  · official  · 3f9c1a7e5b2d8c40
   A short morning brief: open tasks, what is due, what others owe you.

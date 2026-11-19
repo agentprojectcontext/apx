@@ -10,7 +10,7 @@ import { catalogPluginIds } from "./catalog-identities.ts";
 import { parseSource } from "./catalogs.ts";
 import { convertPlugin, licenseOf } from "./claude-plugin.ts";
 import { hostsOf, ownerHost, readFiles } from "./package.ts";
-import { bringsOf } from "./summary.ts";
+import { bringsOf, needsOf } from "./summary.ts";
 
 const MIT = "MIT License\n\nPermission is hereby granted, free of charge, to any person obtaining a copy...";
 const PROPRIETARY = "Copyright Acme. All rights reserved. No part of this may be copied.";
@@ -208,6 +208,31 @@ test("plugin settings with the same truncated name stay separate and repeated pl
   const remaining = readFiles(convertPlugin(files, { name: "Tracker" }).files).manifest.mcp?.tracker;
   assert.ok(remaining && "env" in remaining && remaining.env);
   assert.equal(remaining.env.SECOND, server.env.SECOND);
+});
+
+test("known OAuth endpoints use a disclosed sign-in bridge without changing unrelated servers", () => {
+  const files = new Map(
+    Object.entries({
+      ".claude-plugin/plugin.json": JSON.stringify({ name: "OAuth" }),
+      ".mcp.json": JSON.stringify({
+        linear: { url: "https://mcp.linear.app/mcp" },
+        private_key: {
+          url: "https://mcp.linear.app/mcp",
+          headers: { Authorization: `Bearer ${placeholder("API_KEY")}` },
+        },
+        unknown: { url: "https://mcp.example.com/mcp" },
+      }),
+    }).map(([key, value]) => [key, Buffer.from(value)]),
+  );
+  const pkg = readFiles(convertPlugin(files, { name: "OAuth" }).files);
+  assert.equal(pkg.manifest.mcp.linear?.command, "npx");
+  assert.deepEqual(pkg.manifest.mcp.linear?.args, ["-y", "mcp-remote", "https://mcp.linear.app/mcp"]);
+  assert.equal(pkg.manifest.mcp.private_key?.url, "https://mcp.linear.app/mcp");
+  assert.equal(pkg.manifest.mcp.unknown?.url, "https://mcp.example.com/mcp");
+  files.set(".mcp.json", Buffer.from(JSON.stringify({ linear: { url: "https://mcp.linear.app/mcp" } })));
+  const onlyOAuth = readFiles(convertPlugin(files, { name: "OAuth" }).files);
+  assert.ok(bringsOf(onlyOAuth.manifest).includes("accounts"));
+  assert.ok(needsOf(onlyOAuth.manifest).includes("code"));
 });
 
 test("converted skills keep their referenced plugin files and address the installed root", () => {

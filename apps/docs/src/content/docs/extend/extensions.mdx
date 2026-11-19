@@ -238,8 +238,10 @@ secrets behind, APX refuses a new installation with that ID until those old vari
 A secret held by another system credential store may also need to be removed there.
 
 For converted Claude plugins, APX also copies shared directories explicitly referenced by a skill and adjusts its
-plugin-root paths. Other plugin features, such as hooks and commands, are not converted; a copied script does not run
-just because the extension was added.
+plugin-root paths. For a headerless remote address that exactly matches an APX built-in OAuth integration, APX uses its
+sign-in bridge; the extension review shows that it runs code. Other remote addresses keep their declared connection.
+Other plugin features, such as hooks and commands, are not converted; a copied script does not run just because the
+extension was added.
 
 <Terminal command="apx extensions install ~/Downloads/daily-brief.apxext">{`daily-brief  Daily brief v1.0.0  · off  · official  · 3f9c1a7e5b2d8c40
   A short morning brief: open tasks, what is due, what others owe you.

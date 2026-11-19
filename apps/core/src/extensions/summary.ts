@@ -127,7 +127,9 @@ function connectionOf(m: ExtensionManifest, l?: ListingFile): ExtensionConnectio
   if (l?.authentication === "oauth") return "oauth";
   if (l?.authentication === "secret") return "key";
   if (l?.authentication === "local-permission") return "local";
-  return m.secrets.length || m.settings.some((s) => s.sensitive) ? "key" : "none";
+  if (m.secrets.length || m.settings.some((s) => s.sensitive)) return "key";
+  if (Object.values(m.mcp).some((s) => s.command === "npx" && s.args.includes("mcp-remote"))) return "oauth";
+  return "none";
 }
 
 /**

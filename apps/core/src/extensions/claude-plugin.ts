@@ -3,6 +3,7 @@
 // manifest 2 agents, its license and readme kept. Commands and hooks have no APX counterpart and are left out.
 // Converting happens only under a license that allows it (DECISIONS.md#d-243).
 import { createHash } from "node:crypto";
+import { CATALOG } from "../integrations/catalog.ts";
 
 /** The licenses whose terms allow a converted copy for the owner's own use (the license file travels with it). */
 const ALLOWED = ["MIT", "Apache-2.0", "BSD-2-Clause", "BSD-3-Clause", "ISC", "0BSD", "MPL-2.0", "Unlicense", "CC0-1.0"];
@@ -120,6 +121,21 @@ const labelOf = (name: string) =>
 /** A placeholder that names a key, a token or a password: kept as a secret. */
 const SENSITIVE = /KEY|TOKEN|SECRET|PASSWORD|PASSWD|CREDENTIAL|AUTH/i;
 
+function knownOAuth(url: string) {
+  const target = URL.parse(url)?.href;
+  if (!target) return undefined;
+  return CATALOG.find((e) => {
+    const s = e.server;
+    return (
+      "command" in s &&
+      s.command === "npx" &&
+      s.args[0] === "-y" &&
+      s.args[1] === "mcp-remote" &&
+      URL.parse(s.args[2] ?? "")?.href === target
+    );
+  });
+}
+
 type Server = {
   command?: string;
   args?: string[];
@@ -233,10 +249,14 @@ export function convertPlugin(
         env: Object.fromEntries(Object.entries(s.env ?? {}).map(([k, v]) => [k, ref(String(v))])),
       };
     } else if (s.url?.startsWith("https://")) {
-      mcp[key] = {
-        url: ref(s.url),
-        headers: Object.fromEntries(Object.entries(s.headers ?? {}).map(([k, v]) => [k, ref(String(v))])),
-      };
+      const bridge = Object.keys(s.headers ?? {}).length === 0 ? knownOAuth(s.url)?.server : undefined;
+      mcp[key] =
+        bridge && "command" in bridge
+          ? { command: bridge.command, args: [...bridge.args], env: { ...bridge.env } }
+          : {
+              url: ref(s.url),
+              headers: Object.fromEntries(Object.entries(s.headers ?? {}).map(([k, v]) => [k, ref(String(v))])),
+            };
     } else left.push(`mcp ${n}`);
   }
   // Its agents (agents/*.md with name and description in their frontmatter) as ready-made agents.
