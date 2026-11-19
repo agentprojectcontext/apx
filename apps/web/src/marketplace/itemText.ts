@@ -1,6 +1,6 @@
 import type { ExtensionListing, McpServerStatus } from "@apx/protocol";
 import type { MessageKey } from "../i18n/index.ts";
-import type { Item } from "../resources/extensionItems.ts";
+import { type Item, kindOf } from "../resources/extensionItems.ts";
 
 // What the Marketplace says about an item, in the owner's words, from what APX knows of it (its manifest, its listing,
 // its servers): what it brings, its one next step, why it waits, what it may reach and how it signs in. A fact APX
@@ -89,22 +89,9 @@ export function waitReason(i: Item, t: T): string | undefined {
   return undefined;
 }
 
-/** "Connection and skills": what it brings, as one phrase. */
-export function bringsText(i: Item, t: T): string {
-  const e = i.ext;
-  const parts: MessageKey[] = [];
-  if (i.brings.includes("accounts") || i.brings.includes("tools") || e?.mcp.length || i.server)
-    parts.push("mkt.part.connection");
-  if (i.brings.includes("skills") || e?.skills.length) parts.push("mkt.part.skills");
-  if (i.brings.includes("agents") || e?.agents.length) parts.push("mkt.part.agents");
-  if (e?.routines.length) parts.push("mkt.part.routines");
-  if (i.brings.includes("devices") || e?.companion) parts.push("mkt.part.device");
-  if (i.brings.includes("apps") || e?.apps.length) parts.push("mkt.part.apps");
-  const words = parts.map((k) => t(k));
-  if (!words.length) return "";
-  const last = words.pop() as string;
-  const phrase = words.length ? `${words.join(", ")} ${t("mkt.and")} ${last}` : last;
-  return phrase.charAt(0).toUpperCase() + phrase.slice(1);
+/** "Connector", "Native integration": what it is, as its row says (DECISIONS.md#d-250). */
+export function kindText(i: Item, t: T): string {
+  return t(`mkt.kind.${kindOf(i)}` as MessageKey);
 }
 
 /** "From APX", "Added by you": who it comes from; nothing when no one says. */

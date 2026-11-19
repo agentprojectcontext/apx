@@ -122,3 +122,17 @@ test("a server added by its address is one of your extensions, not a plain serve
   const servers = (await rpc<{ servers: Array<{ name: string; definition?: unknown }> }>("mcp.list")).servers;
   expect(servers.some((s) => s.name.startsWith("mcp-northwind") && s.definition)).toBe(false);
 });
+
+test("Explore says what each one is, filters by kind and keeps the channels together", async ({ page }, info) => {
+  await open(page);
+  await page.getByRole("button", { name: "Marketplace", exact: true }).first().click();
+  const filters = page.getByRole("radiogroup", { name: "Qué trae" });
+  await expect(filters.getByRole("radio", { name: /^Canales/ })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Incluidas con APX" })).toHaveCount(0);
+  const channels = page.locator(".mkt-section", { has: page.getByRole("heading", { name: "Canales", exact: true }) });
+  await expect(channels.getByText("Canal · De APX").first()).toBeVisible();
+  await page.screenshot({ path: info.outputPath("explore-kinds.png"), fullPage: true });
+  await filters.getByRole("radio", { name: /^Canales/ }).click();
+  await expect(page.getByText("Conector · De APX")).toHaveCount(0);
+  await expect(page.getByText("Canal · De APX").first()).toBeVisible();
+});

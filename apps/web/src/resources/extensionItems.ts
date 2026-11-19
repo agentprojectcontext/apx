@@ -101,6 +101,7 @@ function fromIntegration(i: Integration, servers: McpServerStatus[], project: st
     id: i.id,
     name: i.label,
     description: i.description,
+    ...(own ? { category: "productivity" as const } : {}),
     // With code of its own it stays included; the rest are APX's data, on their way to its catalog.
     origin: own ? "included" : "catalog",
     label: own ? "included" : "official",
@@ -282,18 +283,40 @@ export const isMine = (i: Item) => i.state !== "available" && i.state !== "comin
 
 export type Group = { id: string; items: Item[] };
 
-/** Included first, then the catalog by category, then APX's accounts not filed in a category yet. */
+/**
+ * What an extension is, read from what it brings (DECISIONS.md#d-250): a channel APX talks through, an integration
+ * (APX's own, or one with code or an app of its own), a connector (an MCP server, maybe with skills to use it),
+ * ready-made agents, or skills alone.
+ */
+export type Kind = "channel" | "native" | "integration" | "connector" | "agents" | "skills";
+
+export function kindOf(i: Item): Kind {
+  if (i.channel) return "channel";
+  if (i.builtin || i.integration?.own) return "native";
+  const e = i.ext;
+  const c = i.entry?.contents;
+  const brings = (...b: ExtensionBrings[]) => b.some((x) => i.brings.includes(x));
+  if (e?.plugin || e?.companion || e?.apps.length || c?.companion || brings("devices", "apps")) return "integration";
+  if (i.integration || i.server || e?.mcp.length || c?.servers || brings("tools", "accounts")) return "connector";
+  if (e?.agents.length || c?.agents.length || brings("agents")) return "agents";
+  return "skills";
+}
+
+/** Every category, included ones in theirs (marked Included); the channels together; then accounts not filed yet. */
 export function groupByCategory(items: Item[]): Group[] {
-  const included = items.filter((i) => i.origin === "included");
   const byCat = new Map<string, Item[]>();
-  for (const i of items.filter((x) => x.origin !== "included")) {
+  for (const i of items) {
     // An added catalog's entries stay together under it.
-    const k = i.entry?.catalog ? `added:${i.entry.catalog}` : (i.category ?? (i.integration ? "accounts" : "other"));
+    const k = i.channel
+      ? "channels"
+      : i.entry?.catalog
+        ? `added:${i.entry.catalog}`
+        : (i.category ?? (i.integration ? "accounts" : "other"));
     byCat.set(k, [...(byCat.get(k) ?? []), i]);
   }
-  const last = (k: string) => (k.startsWith("added:") ? 3 : k === "accounts" ? 1 : k === "other" ? 2 : 0);
+  const last = (k: string) =>
+    k.startsWith("added:") ? 4 : k === "other" ? 3 : k === "accounts" ? 2 : k === "channels" ? 1 : 0;
   return [
-    ...(included.length ? [{ id: "included", items: included }] : []),
     ...[...byCat.entries()]
       .sort(([a, x], [b, y]) => last(a) - last(b) || y.length - x.length || a.localeCompare(b))
       .map(([id, items]) => ({ id, items })),

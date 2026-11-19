@@ -587,6 +587,7 @@ export const esResources: Partial<Record<MessageKey, string>> = {
   "mkt.cat.search-research": "Búsqueda e investigación",
   "mkt.cat.business-systems": "Sistemas de empresa",
   "mkt.cat.included": "Incluidas con APX",
+  "mkt.cat.channels": "Canales",
   "mkt.cat.accounts": "Más cuentas para conectar",
   "mkt.cat.other": "Otras",
   "mkt.agentsEmpty": "Todavía no hay agentes listos en el catálogo. Llegan con las extensiones que los traen.",

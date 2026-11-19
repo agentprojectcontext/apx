@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import type { ExtensionInfo, McpServerStatus } from "@apx/protocol";
 import type { Item } from "../resources/extensionItems.ts";
-import { accessLines, authText, bringsText, nameFor, newest, nextStep, waitReason } from "./itemText.ts";
+import { accessLines, authText, kindText, nameFor, newest, nextStep, waitReason } from "./itemText.ts";
 
 // The key with its values, so a test reads what the screen would say without the dictionaries.
 const t = (key: string, vars?: Record<string, string | number>) =>
@@ -59,7 +59,7 @@ test("why one of the owner's own waits, and nothing for one that works", () => {
   assert.equal(waitReason(item({ state: "on" }), t), undefined);
 });
 
-test("what it brings reads as one phrase; what it reaches and how it signs in come from its data only", () => {
+test("a connector with skills is a connector; what it reaches and how it signs in come from its data only", () => {
   const e = ext({
     skills: ["a"],
     hosts: ["api.hubapi.com"],
@@ -67,7 +67,8 @@ test("what it brings reads as one phrase; what it reaches and how it signs in co
     secrets: [{ name: "k", label: "Key", set: true }],
   });
   const hub = item({ brings: ["accounts"], ext: e, state: "on" });
-  assert.equal(bringsText(hub, t), "Mkt.part.connection mkt.and mkt.part.skills");
+  // A server with skills to use it is a connector all the same.
+  assert.equal(kindText(hub, t), "mkt.kind.connector");
   assert.deepEqual(accessLines(hub, t), ["mkt.access.hosts(api.hubapi.com)", "mkt.access.code"]);
   assert.equal(authText(hub, t), "mkt.auth.key");
   // An account APX ships with no keys: unknown until connected, then said by how its server is reached.

@@ -3,7 +3,7 @@ import { useState } from "react";
 import { isChannelKind } from "../channels/kinds.ts";
 import { type MessageKey, useLanguage, useT } from "../i18n/index.ts";
 import { openExtensionInstall } from "../resources/extensionInstall.ts";
-import { groupByCategory, type Item } from "../resources/extensionItems.ts";
+import { groupByCategory, type Item, kindOf } from "../resources/extensionItems.ts";
 import { go } from "../shell/nav.ts";
 import { ItemRow } from "./ItemRow.tsx";
 import { listingIn, newest } from "./itemText.ts";
@@ -14,12 +14,13 @@ import type { CatalogState } from "./MarketplaceScreen.tsx";
 
 const FIRST = 6;
 
-/** What a filter keeps: one that connects to something, brings skills, ready-made agents or a device's app. */
+/** What a filter keeps: one kind of extension (an integration, APX's own or not, counts as one). */
 const FILTERS = {
-  connections: (i: Item) => i.brings.includes("accounts") || i.brings.includes("tools"),
-  skills: (i: Item) => i.brings.includes("skills"),
-  agents: (i: Item) => i.brings.includes("agents"),
-  devices: (i: Item) => i.brings.includes("devices"),
+  integrations: (i: Item) => kindOf(i) === "native" || kindOf(i) === "integration",
+  connectors: (i: Item) => kindOf(i) === "connector",
+  channels: (i: Item) => kindOf(i) === "channel",
+  skills: (i: Item) => kindOf(i) === "skills",
+  agents: (i: Item) => kindOf(i) === "agents",
 } as const;
 export type Filter = keyof typeof FILTERS;
 
