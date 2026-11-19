@@ -128,6 +128,16 @@ echo '{"q":"is:open"}' | apx mcp run github search_issues -
 
 Add `--project <id>` for a project's server, and `--scope global|project` when a name exists in both.
 
+### A server redirects to another site (development preview)
+
+For a URL connection, APX follows redirects only within the same origin: the scheme, host and port must stay the
+same. A redirect to another origin fails instead of forwarding your variables or the request contents. If the
+service has moved, edit the connection to use its final URL after checking that you trust the new address, then
+try **Test** again.
+
+If you suspect an older connection redirected credentials to a site you do not trust, revoke or rotate those
+credentials at the service and update their values in APX.
+
 ## Tool permissions
 
 Each server has **Tool permissions**:

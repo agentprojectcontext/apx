@@ -130,6 +130,16 @@ echo '{"q":"is:open"}' | apx mcp run github search_issues -
 
 Sumá `--project <id>` para un servidor de proyecto, y `--scope global|project` cuando un nombre existe en los dos.
 
+### Un servidor redirige a otro sitio (versión de desarrollo)
+
+Para una conexión por URL, APX sigue redirecciones solo dentro del mismo origen: el esquema, el host y el puerto
+no deben cambiar. Una redirección a otro origen falla en vez de reenviar tus variables o el contenido de la
+solicitud. Si el servicio se mudó, editá la conexión para usar su URL final después de comprobar que confiás en la
+nueva dirección y volvé a tocar **Probar**.
+
+Si sospechás que una conexión anterior redirigió credenciales a un sitio en el que no confiás, revocá o rotá esas
+credenciales en el servicio y actualizá sus valores en APX.
+
 ## Permisos de tools
 
 Cada servidor tiene **Permisos de tools**:
