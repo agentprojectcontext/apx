@@ -76,7 +76,7 @@ after(async () => {
 
 test("a manifest 2 says what it brings and needs: agents, apps, a TV app, the hosts it reaches", async () => {
   const seen = await env.client.call("extensions.inspect", { path: src.path });
-  assert.deepEqual(seen.brings, ["tools", "skills", "agents", "devices", "apps"]);
+  assert.deepEqual(seen.brings, ["accounts", "tools", "skills", "agents", "devices", "apps"]);
   assert.deepEqual(seen.needs, ["code", "tv"]);
   assert.deepEqual(seen.hosts, ["tv.example.com"]);
   assert.equal(seen.agents[0]?.name, "Movie night host");

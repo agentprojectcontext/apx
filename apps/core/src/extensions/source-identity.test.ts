@@ -264,6 +264,17 @@ test("a different extension source cannot inherit the installed extension's secr
     }
     await env.client.call("extensions.install", { path: first.path });
     await env.client.call("extensions.settings", { id: "shared_id", values: { token: "synthetic-private-key" } });
+    await env.client.call("extensions.enable", { id: "shared_id", enabled: true });
+    const received = async () => {
+      const result = await env.client.call("mcp.call", {
+        scope: "global",
+        server: "shared_id-test",
+        tool: "token",
+        arguments: {},
+      });
+      return String(result.content?.[0]?.text);
+    };
+    assert.match(await received(), /token=synthetic-private-key/);
     await assert.rejects(
       env.client.call("extensions.install", { path: second.path }),
       /already installed.*different source/i,
@@ -285,6 +296,19 @@ test("a different extension source cannot inherit the installed extension's secr
       env.client.call("extensions.install", { path: second.path }),
       /already installed.*different source/i,
     );
+    await env.client.call("secrets.set", { name: "ext-shared_id-stale", value: "synthetic-old-setting" });
+    await env.client.call("secrets.set", { name: "ext-shared_id-other-token", value: "synthetic-other-extension" });
+    await env.client.call("extensions.remove", { id: "shared_id" });
+    const names = (await env.client.call("secrets.list", {})).secrets.map((s) => s.name);
+    assert.equal(names.includes("ext-shared_id-stale"), false);
+    assert.equal(names.includes("ext-shared_id-other-token"), true);
+    const reinstalled = await env.client.call("extensions.install", { path: second.path });
+    assert.equal(reinstalled.settings.find((s) => s.name === "token")?.set, false);
+    await env.client.call("extensions.enable", { id: "shared_id", enabled: true });
+    assert.doesNotMatch(await received(), /synthetic-private-key/);
+    await env.client.call("extensions.remove", { id: "shared_id" });
+    await env.client.call("secrets.set", { name: "ext-shared_id-token", value: "synthetic-orphan" });
+    await assert.rejects(env.client.call("extensions.install", { path: second.path }), /saved.*secret/i);
   } finally {
     await env.core.close();
     await env.cleanup();

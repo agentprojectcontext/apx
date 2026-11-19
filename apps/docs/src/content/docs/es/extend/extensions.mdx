@@ -236,7 +236,9 @@ guardados, o use el puente de acceso `mcp-remote`: de otro modo podría reutiliz
 cambiarla, eliminá primero la instalada y agregá la otra. Al eliminarla se borran sus secretos guardados en APX;
 `mcp-remote` guarda su propia sesión por separado y puede reutilizarla. Una extensión de un catálogo de terceros
 instalada antes de que APX registrara la identidad de su fuente también puede necesitar que la elimines y la agregues
-de nuevo para actualizarla.
+de nuevo para actualizarla. Si una eliminación anterior dejó secretos guardados, APX no permite instalar otra extensión
+con ese ID hasta que elimines las variables anteriores en Recursos › Variables. Si un secreto quedó en otro almacén de
+credenciales del sistema, también puede ser necesario eliminarlo allí.
 
 Para plugins de Claude convertidos, APX también copia los directorios compartidos que una habilidad menciona
 explícitamente y ajusta las rutas a la carpeta del plugin. Otras funciones, como los hooks y comandos, no se

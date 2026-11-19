@@ -243,6 +243,20 @@ export function createExtensions(deps: {
     if (input.path !== undefined && path.isAbsolute(old.source)) return samePath(old.source, source);
     return input.url !== undefined && old.source === source;
   };
+  const extensionSecrets = (id: string, manifests: ExtensionManifest[]) => {
+    const prefix = `ext-${id}-`;
+    const indexed = secrets
+      .list()
+      .map((s) => s.name)
+      .filter((name) => name.startsWith(prefix) && !name.slice(prefix.length).includes("-"));
+    return new Set([
+      ...indexed,
+      ...manifests.flatMap((m) => [
+        ...m.secrets.map((s) => extSecret(id, s.name)),
+        ...m.settings.filter((s) => s.sensitive).map((s) => extSecret(id, s.name)),
+      ]),
+    ]);
+  };
   const hasPrivateConfig = (old: ExtensionRecord, next: ExtensionManifest) => {
     if (Object.keys(old.settings).length) return true;
     if ([old.manifest, next].some((m) => Object.values(m.mcp).some((s) => s.args.includes("mcp-remote")))) return true;
@@ -481,6 +495,13 @@ export function createExtensions(deps: {
       const id = manifest.id;
       const cur = store.extensions.get(id);
       const origin = originOf(input, source, hash, catalogOrigin);
+      if (
+        !cur &&
+        [...extensionSecrets(id, [manifest])].some((name) => secrets.listed(name) || secrets.has(`secret://${name}`))
+      )
+        throw badRequest(
+          "This extension has saved secrets from an earlier installation; remove them before installing it",
+        );
       const same = cur ? sameOrigin(cur, input, source, origin) : true;
       const officialUpdate = cur?.provenance === "official" && check.provenance === "official";
       if (cur && cur.hash !== hash && !same && !officialUpdate && hasPrivateConfig(cur, manifest))
@@ -606,7 +627,8 @@ export function createExtensions(deps: {
       if (!e) return { removed: false, archived: [], kept: [] };
       const agents = archiveExtensionAgents(store, e);
       plugins.stop(id);
-      for (const s of e.manifest.secrets) secrets.set(extSecret(id, s.name), null);
+      for (const name of extensionSecrets(id, [e.manifest, ...(e.previous ? [e.previous.manifest] : [])]))
+        if (secrets.listed(name)) secrets.set(name, null);
       store.extensions.remove(id);
       fs.rmSync(e.dir, { recursive: true, force: true });
       fs.rmSync(previousDir(id), { recursive: true, force: true });
