@@ -4,6 +4,7 @@ import { useT } from "../i18n/index.ts";
 import { ExtensionGuide } from "../resources/ExtensionGuide.tsx";
 import { openExtensionInstall } from "../resources/extensionInstall.ts";
 import { McpDialog } from "../resources/McpDialog.tsx";
+import { go } from "../shell/nav.ts";
 import { AddCatalogDialog, CatalogList, type CatalogsState } from "./Catalogs.tsx";
 
 // Advanced: for whoever builds or tries extensions. The catalogs that add to Explore, installing from this computer
@@ -13,7 +14,6 @@ export function AdvancedView({
   catalogs,
   apxCount,
   onCatalogs,
-  onServers,
   onOpenCatalog,
 }: {
   catalogs: CatalogsState | undefined;
@@ -22,8 +22,6 @@ export function AdvancedView({
   /** Shows a catalog's extensions in Explore. */
   onOpenCatalog(id: string): void;
   onCatalogs(): Promise<void>;
-  /** After a server was added by its command. */
-  onServers(): Promise<void>;
 }) {
   const t = useT();
   const [adding, setAdding] = useState(false);
@@ -92,7 +90,8 @@ export function AdvancedView({
           onClose={() => setCommand(false)}
           onSaved={() => {
             setCommand(false);
-            void onServers();
+            // A server written by hand is the owner's in Resources, not an extension (D-249).
+            go.resources("mcp", true);
           }}
         />
       )}

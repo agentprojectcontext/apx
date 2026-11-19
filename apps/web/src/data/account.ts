@@ -13,6 +13,7 @@ export function accountError(t: T, error: unknown): string {
   if (message === "sign_in_required") return t("account.required");
   if (message === "account_busy") return t("account.busy");
   if (message === "account_access_denied") return t("account.denied");
+  if (message === "session_not_saved") return t("account.notSaved");
   if (
     message === "sign_in_local_only" ||
     message === "account.start requires a direct local connection" ||

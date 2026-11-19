@@ -14,7 +14,6 @@ import {
 import { type ReactNode, useEffect, useRef, useState } from "react";
 import "@apx/ui/summary.css";
 import { client } from "../data/client.ts";
-import { setMcp } from "../data/resources.ts";
 import { type MessageKey, useLanguage, useT } from "../i18n/index.ts";
 import { usePowerText } from "../resources/ExtensionSummary.tsx";
 import { extensionsChanged } from "../resources/extensionInstall.ts";
@@ -271,13 +270,15 @@ export function InstallBox({
     setProblem(undefined);
     try {
       if (start.kind === "address") {
-        const saved = await setMcp(ownName, { url: start.url, enabled: true });
-        if (!saved) throw new Error(t("box.err.noAnswer"));
+        // The owner's own connector, with this server inside (D-249): added and turned on in one go.
+        const added = await client.call("extensions.install", { server: { name: ownName, url: start.url } });
         setOwn(ownName);
-        extensionsChanged();
         setPhase("connect");
         setLink("connecting");
-        setTools(await startServers([ownName]));
+        const on = await client.call("extensions.enable", { id: added.id, enabled: true });
+        setExt(on);
+        extensionsChanged();
+        setTools(await startServers(on.mcp));
         setLink("connected");
         setPhase("done");
         return;
@@ -397,8 +398,7 @@ export function InstallBox({
 
   const openPage = () => {
     onClose();
-    // By its name: an address APX also offers as an account opens as that account, now connected.
-    go.marketplace(own ? "mine" : "extensions", own ?? `ext:${ext?.id ?? seen?.id ?? ""}`);
+    go.marketplace(own ? "mine" : "extensions", `ext:${ext?.id ?? seen?.id ?? ""}`);
   };
 
   const retry = () => {

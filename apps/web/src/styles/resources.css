@@ -1100,3 +1100,21 @@
   background: var(--apx-brand-soft);
   color: var(--apx-brand-soft-fg);
 }
+/* The APX account's return page: APX joined to Google, then what happened and the one thing to do next. */
+.signin-return {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  max-width: 380px;
+  text-align: center;
+}
+.signin-return h1 {
+  margin: 8px 0 0;
+  font-size: var(--apx-text-lg);
+  font-weight: 600;
+}
+.signin-return p {
+  margin: 0 0 6px;
+  color: var(--apx-fg-muted);
+}

@@ -577,6 +577,7 @@ export const enResources = {
   "mkt.cat.search-research": "Search and research",
   "mkt.cat.business-systems": "Business systems",
   "mkt.cat.included": "Included with APX",
+  "mkt.cat.channels": "Channels",
   "mkt.cat.accounts": "More accounts to connect",
   "mkt.cat.other": "Other",
   "mkt.agentsEmpty": "No ready-made agents in the catalog yet. They arrive with the extensions that bring them.",

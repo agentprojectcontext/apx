@@ -5516,3 +5516,37 @@ a network firewall or IP-anonymity promise: WebRTC/STUN and DNS prefetch remain 
 
 Docs impact: updated the English and Spanish artifact guides with selection, review, account management,
 limits, offline behavior and the limits of revocation. No owner news entry: this rollout is not announced.
+
+<a id="d-249"></a>
+## D-249 — 2026-11-18 — Everything in the Marketplace is an extension; servers and channels keep their own places
+The owner saw their hand-written MCP servers and their channels listed among "Your extensions", next to what they
+added from the Marketplace, and the same servers again in Resources › MCP.
+
+- **The Marketplace lists extensions only.** What it brings (an MCP server, skills, agents, routines, a device's app)
+  is inside the extension; its kind is read from that, not stored apart.
+- **A server added by its address from the Marketplace is an extension**: APX writes a connector folder under its home
+  (`connectors/<id>`, `extensions.install` with `server: {name, url}`) and installs it as the owner's own. Its server
+  runs as that extension's.
+- **A server written in Resources stays a plain server** there (command and arguments, or an address), never listed
+  in the Marketplace.
+- **Channels live in Channels.** They can still be found and connected from Explore, but "Your extensions" does not
+  repeat them.
+
+Rejected: tagging plain servers with where they were added (two kinds of the same thing in one list); moving the
+owner's existing servers into extensions (nothing says which ones came from the Marketplace).
+
+<a id="d-250"></a>
+## D-250 — 2026-11-18 — An extension's kind is read from what it brings
+Every row said what it brings as a phrase ("Connection and skills"), included ones sat in their own "Included with
+APX" section and the filters were Connections, Skills, Agents and Devices. The owner set the kinds instead:
+
+- **Channel**: it makes a channel in APX (WhatsApp, Telegram…). Channels are listed together in Explore.
+- **Integration**: it has code or an app of its own (a plugin, a device's app, widgets); a **Native integration** when
+  APX makes it (Google Calendar, Gmail, Drive, the browser). A device is a category, not a kind.
+- **Connector**: it brings an MCP server; skills that teach how to use it do not make it something else.
+- **Agents**: ready-made agents. **Skills**: skills alone.
+
+The kind is derived (`kindOf`), never stored; the row reads "Connector · From APX", the filters are the kinds, and
+included ones go in their category marked Included.
+
+Rejected: "Connector and skills" as its own kind (it is a connector); "Device" as a kind (it is a category).

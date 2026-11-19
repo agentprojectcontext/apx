@@ -27,7 +27,6 @@ import { esTeamShared } from "./team-shared-es.ts";
 import { esTopbar } from "./topbar-es.ts";
 
 export const es: Partial<Record<MessageKey, string>> = {
-  "share.publish": "Publicar copia…",
   "input.reviewCopy": "Revisar copia pública",
   "config.activityReview": "Revisión y mejoras",
   "panel.computer": "Computadora",
@@ -464,7 +463,6 @@ export const es: Partial<Record<MessageKey, string>> = {
   "account.failed": "No se pudo actualizar tu cuenta. Revisá tu conexión y volvé a intentar.",
   "account.waiting": "Terminá de iniciar sesión en tu navegador y volvé a APX.",
   "account.saved": "Nombre de usuario guardado.",
-  "account.returnAction": "Abrir APX",
   "error.respond": "No se pudo enviar tu respuesta: {error}",
   "running.label": "Procesos",
   "running.aria": "{working} en curso, {waiting} esperando, {background} en segundo plano",
@@ -713,11 +711,24 @@ export const es: Partial<Record<MessageKey, string>> = {
   "share.copyFailed": "No se pudo copiar el enlace.",
   "share.tunnelHint": "Copiar y abrir necesitan una dirección pública (Configuración › Dispositivos).",
   "share.linkUnavailable":
-    "Enlace público no disponible. Revisá la dirección pública en Configuración › Dispositivos y permití abrir pestañas.",
+    "El enlace en vivo no está disponible. Revisá la dirección pública en Configuración › Dispositivos y permití abrir pestañas.",
   "share.private": "Privado",
+  "share.privateHint": "Solo vos y tus dispositivos",
   "share.anyone": "Cualquiera con el enlace",
+  "share.anyoneHint": "Una copia que se abre desde cualquier navegador",
   "share.copy": "Copiar enlace",
   "share.open": "Abrir enlace",
+  "share.update": "Actualizar con tus cambios…",
+  "share.stop": "Dejar de compartir…",
+  "share.live": "Enlace en vivo desde esta compu",
+  "share.liveHint": "Avanzado · solo con la compu prendida",
+  "share.liveCopy": "Copiar enlace en vivo",
+  "share.liveOpen": "Abrir enlace en vivo",
+  "share.liveOff": "Apagar enlace en vivo",
+  "share.liveTitle": "¿Prender un enlace en vivo desde esta compu?",
+  "share.liveLead":
+    "Quien tenga el enlace lo ve en vivo, con cada cambio, directo desde esta compu. Solo anda mientras esta compu esté prendida y tenga una dirección pública (Configuración › Dispositivos). Para compartir una copia que siempre se abre, elegí Cualquiera con el enlace.",
+  "share.liveOn": "Prender y copiar enlace",
   "share.shared": "Compartido",
   "share.share": "Compartir",
   "share.iconLabel": "Compartir · {state}",

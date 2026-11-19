@@ -27,21 +27,43 @@ for (const language of ["es", "en"]) {
                 : { ok: true, result: { ok: true } },
             });
           });
+          await page.route("**/rpc/account.get", (route) =>
+            route.fulfill({
+              json: {
+                ok: true,
+                result: {
+                  available: true,
+                  profile: { id: "abcd2345", name: "Acme", photo: "", handle: "" },
+                  pending: false,
+                  unreadable: false,
+                },
+              },
+            }),
+          );
           await page.goto(`/oauth/account?${cancelled ? "error=access_denied" : "code=one-use"}&state=desktop.nonce`);
           await expect(
             page.getByText(
               cancelled
                 ? language === "es"
-                  ? /Cancelaste el inicio de sesión/
-                  : /You cancelled sign-in/
+                  ? /No diste permiso en Google/
+                  : /You did not give permission in Google/
                 : language === "es"
-                  ? "Iniciaste sesión en APX"
-                  : "You’re signed in to APX",
+                  ? "Listo, iniciaste sesión como Acme"
+                  : "Done, you’re signed in as Acme",
               { exact: !cancelled },
             ),
           ).toBeVisible();
           await expect(
-            page.getByRole("button", { name: language === "es" ? "Abrir APX" : "Open APX", exact: true }),
+            page.getByRole("button", {
+              name: cancelled
+                ? language === "es"
+                  ? "Probar de nuevo"
+                  : "Try again"
+                : language === "es"
+                  ? "Cerrar pestaña"
+                  : "Close tab",
+              exact: true,
+            }),
           ).toBeVisible();
           expect(calls).toBe(1);
           expect(new URL(page.url()).search).toBe("");
@@ -53,6 +75,19 @@ for (const language of ["es", "en"]) {
     }
   });
 }
+
+test("the return page never says signed in when APX cannot read the session back", async ({ page }) => {
+  await page.route("**/rpc/account.finish", (route) => route.fulfill({ json: { ok: true, result: { ok: true } } }));
+  await page.route("**/rpc/account.get", (route) =>
+    route.fulfill({
+      json: { ok: true, result: { available: true, profile: null, pending: false, unreadable: true } },
+    }),
+  );
+  await page.goto("/oauth/account?code=one-use&state=desktop.nonce");
+  await expect(page.getByRole("heading", { name: "No se pudo iniciar sesión" })).toBeVisible();
+  await expect(page.getByText(/APX no pudo guardar tu sesión/)).toBeVisible();
+  await expect(page.getByText(/iniciaste sesión como/)).toHaveCount(0);
+});
 
 for (const viewport of [
   { width: 1280, height: 800 },

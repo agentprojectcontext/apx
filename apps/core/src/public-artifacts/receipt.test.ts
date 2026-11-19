@@ -53,3 +53,23 @@ for (const action of ["publish", "update", "revoke"] as const) {
     assert.equal(errors, 1);
   });
 }
+
+test("a public copy remembers the local artifact it came from until it is revoked", async () => {
+  const remote = publicationTransport();
+  const session: PublicationSession = { uid: "person", idToken: "test-token", generation: 1, current: () => true };
+  const kept = new Map<string, string>();
+  const drafts = createPublicationDrafts({
+    account: { withSession: (work) => work(session) },
+    cloud: createPublicArtifactCloud({ fetch: remote.fetch }),
+    source: () => ({ name: "orders", title: "Orders", html: "<h1>Orders</h1>", app: false, version: 1, state: {} }),
+    decorateHtml: (html) => html,
+    sources: { get: (code) => kept.get(code), set: (code, s) => (s ? kept.set(code, s) : kept.delete(code)) },
+  });
+  const published = await drafts.commit((await drafts.prepare({ action: "publish", surface: "sf_orders" })).draft);
+  assert.deepEqual(
+    (await drafts.list()).items.map((item) => [item.code, item.surface]),
+    [[published.code, "sf_orders"]],
+  );
+  await drafts.commit((await drafts.prepare({ action: "revoke", code: published.code })).draft);
+  assert.equal(kept.size, 0);
+});

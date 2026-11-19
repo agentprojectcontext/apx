@@ -6,9 +6,10 @@ import { ArtifactBundle } from "./domain-artifacts.ts";
 import { CatalogEntry, ExtensionCatalog, ExtensionInfo, ExtensionSource } from "./extensions.ts";
 
 /** An extension is read from exactly one place. */
-const oneSource = (p: { path?: unknown; file?: unknown; url?: unknown; entry?: unknown }) =>
-  [p.path, p.file, p.url, p.entry].filter((v) => v !== undefined).length === 1;
+const oneSource = (p: { path?: unknown; file?: unknown; url?: unknown; entry?: unknown; server?: unknown }) =>
+  [p.path, p.file, p.url, p.entry, p.server].filter((v) => v !== undefined).length === 1;
 const SOURCE_MESSAGE = "give one of path, file, url or entry";
+const INSTALL_MESSAGE = "give one of path, file, url, entry or server";
 
 const SettingValue = z.union([z.string().max(10_000), z.number(), z.boolean()]).nullable();
 
@@ -178,13 +179,18 @@ export const extensionMethods = {
           file: ExtensionSource.file(),
           url: ExtensionSource.url(),
           entry: ExtensionSource.entry(),
+          /** An MCP server by its address: installed as the owner's own connector with that server inside (D-249). */
+          server: z
+            .object({ name: z.string().trim().min(1).max(60), url: z.string().min(9).max(2000).startsWith("https://") })
+            .strict()
+            .optional(),
           hash: z
             .string()
             .regex(/^[0-9a-f]{16}$/)
             .optional(),
         })
         .strict()
-        .refine(oneSource, SOURCE_MESSAGE),
+        .refine(oneSource, INSTALL_MESSAGE),
     result: () => ExtensionInfo,
     effect: true,
     access: "human",

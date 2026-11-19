@@ -553,3 +553,16 @@ slide again, the ones already seen too. Each slide now carries the release it sh
 keys it has seen (`welcomeSeen`), and a slide stops showing two minor releases after its own (`slidesToShow`). A device
 that had closed `whats-new-2.14.3` reads as having seen the ten 2.14.0 slides (`seenBefore`); that mapping leaves with
 those slides at 2.16.0. Where: `apps/web/src/shell/welcomeFilm.ts`, `WelcomeV2.tsx`, `data/cornerCards.ts`.
+
+<a id="keychain-hex"></a>
+### Signing in to the APX account said done, and APX stayed signed out
+
+The browser said "signed in", but the panel showed no account. The session had been kept whole in the macOS Keychain;
+the owner's name has an accented letter, and `security find-generic-password -w` prints any value holding something other
+than printable ASCII (an accent, a tab) as bare hex. The session read back as 3,804 hex characters, `JSON.parse` failed and
+the account read as signed out, without saying why. A value that only looks like hex (`deadbeef`) prints the same way, so
+the store now asks `-g` once in that case: its `password: 0x…` marks the encoded form, and a quoted value is literal.
+Signing in now reads the session back before it reports done (`session_not_saved` otherwise), and a session that is kept but
+cannot be read shows as `unreadable`, so the panel offers to sign in again. Where: `apps/core/src/secrets-stores.ts`,
+`account/session.ts`; tests in `secrets.test.ts` (a fake `security` that prints the way the real one does) and
+`account/session.test.ts`.

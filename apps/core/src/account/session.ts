@@ -38,14 +38,19 @@ export function createAccount(deps: {
     const raw = deps.secrets.resolve(`secret://${APX_ACCOUNT_SESSION}`);
     if (!raw) return undefined;
     try {
-      return JSON.parse(raw) as Session;
+      const session = JSON.parse(raw) as Partial<Session> | null;
+      return typeof session?.uid === "string" && session.profile ? (session as Session) : undefined;
     } catch {
       return undefined;
     }
   };
+  /** A session this install kept but cannot read back: the owner is asked to sign in again, never left signed out. */
+  const unreadable = () => deps.secrets.listed(APX_ACCOUNT_SESSION) && !stored();
+  // Read back right away: "signed in" is said only for a session the next start will find.
   const save = (session: Session, expected: number) => {
     if (generation !== expected) throw new Error("sign_in_cancelled");
     deps.secrets.set(APX_ACCOUNT_SESSION, JSON.stringify(session));
+    if (stored()?.uid !== session.uid) throw new Error("session_not_saved");
   };
   const post = accountPost(send);
   const token = async (expected: number): Promise<Session> => {
@@ -83,6 +88,7 @@ export function createAccount(deps: {
         available: Boolean(deps.client && deps.google),
         profile: session?.profile ?? null,
         pending: Boolean(changing || (flow && flow.expires > now())),
+        unreadable: !session && unreadable(),
       };
     },
     start(desktop = false) {

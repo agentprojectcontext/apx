@@ -3,7 +3,7 @@ import { useT } from "../i18n/index.ts";
 import type { Item } from "../resources/extensionItems.ts";
 import { ItemIcon } from "./ConnectHead.tsx";
 import { ItemLabel } from "./ItemLabel.tsx";
-import { bringsText, fromText, waitReason } from "./itemText.ts";
+import { fromText, kindText, waitReason } from "./itemText.ts";
 import "@apx/ui/catalog-row.css";
 
 // One extension in a list: its icon, name and label, one line, what it brings and who from, and on the right one
@@ -23,7 +23,7 @@ export function ItemRow({
 }) {
   const t = useT();
   const why = waitReason(i, t);
-  const meta = [bringsText(i, t), fromText(i, t)].filter(Boolean).join(" · ");
+  const meta = [kindText(i, t), fromText(i, t)].filter(Boolean).join(" · ");
   const mine = i.state !== "available" && i.state !== "coming";
   const connects = Boolean(i.origin === "included" || i.integration || i.channel);
   return (

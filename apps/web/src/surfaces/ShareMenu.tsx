@@ -7,6 +7,7 @@ import { client } from "../data/client.ts";
 import { notify } from "../data/notices.ts";
 import { t as tr, useT } from "../i18n/index.ts";
 import { openPublicLink, publicLink } from "./public-link.ts";
+import { loadPublicCopies, openLiveLink, publicCopyOf, usePublicCopyOf } from "./publicCopies.ts";
 import { openPublicCopy } from "./publicRequest.ts";
 
 async function publicShareLink(path: string): Promise<string> {
@@ -37,7 +38,7 @@ export function linkOf(s: SurfaceSummary): string | undefined {
   return s.share_path;
 }
 
-async function copy(url: string): Promise<void> {
+async function copyText(url: string): Promise<void> {
   try {
     await navigator.clipboard.writeText(url);
     notify(tr("share.copied"), "info");
@@ -46,53 +47,83 @@ async function copy(url: string): Promise<void> {
   }
 }
 
-/** The share choices for a surface: private or public link, and copy/open of the link once public. */
+/**
+ * The share choices for a surface: private, or anyone with the link (a public copy at apxagent.app, reviewed first).
+ * A live link from this computer is an advanced choice of its own, never called public.
+ */
 export function shareEntries(surface: SurfaceSummary, t: typeof tr): MenuEntry[] {
-  const url = linkOf(surface);
+  void loadPublicCopies();
+  const live = linkOf(surface);
+  const copy = publicCopyOf(surface.id);
+  const stop = () => copy && openPublicCopy({ action: "revoke", code: copy.code });
   return [
     {
-      label: url ? t("share.private") : `${t("share.private")} ✓`,
+      label: live || copy ? t("share.private") : `${t("share.private")} ✓`,
+      description: t("share.privateHint"),
       icon: <Icons.Lock size={16} />,
-      onSelect: () => url && void shareSurface(surface.id, false),
-    },
-    {
-      label: url ? `${t("share.anyone")} ✓` : t("share.anyone"),
-      icon: <Icons.Globe size={16} />,
-      onSelect: async () => {
-        if (url) return;
-        const path = await shareSurface(surface.id, true);
-        if (path) {
-          try {
-            await copy(await publicShareLink(path));
-          } catch {
-            notify(t("share.linkUnavailable"));
-          }
-        }
+      onSelect: () => {
+        if (live) void shareSurface(surface.id, false);
+        stop();
       },
     },
-    ...(url
+    {
+      label: copy ? `${t("share.anyone")} ✓` : t("share.anyone"),
+      ...(copy ? {} : { description: t("share.anyoneHint") }),
+      icon: <Icons.Globe size={16} />,
+      onSelect: () => {
+        if (!copy) openPublicCopy({ action: "publish", surface: surface.id });
+      },
+    },
+    ...(copy
       ? ([
-          { type: "separator" },
-          { type: "label", label: <PublicLinkPreview path={surface.share_path ?? ""} /> },
+          { type: "label", label: <span className="share__url">{copy.url}</span> },
+          { label: t("share.copy"), icon: <Icons.Copy size={16} />, onSelect: () => copyText(copy.url) },
+          {
+            label: t("share.open"),
+            icon: <Icons.ExternalLink size={16} />,
+            onSelect: () => {
+              window.open(copy.url, "_blank", "noopener,noreferrer");
+            },
+          },
+          {
+            label: t("share.update"),
+            icon: <Icons.RefreshCw size={16} />,
+            onSelect: () => openPublicCopy({ action: "update", code: copy.code, surface: surface.id }),
+          },
+          { label: t("share.stop"), icon: <Icons.EyeOff size={16} />, danger: true, onSelect: stop },
+        ] satisfies MenuEntry[])
+      : []),
+    { type: "separator" },
+    {
+      label: live ? `${t("share.live")} ✓` : `${t("share.live")}…`,
+      description: t("share.liveHint"),
+      icon: <Icons.Monitor size={16} />,
+      onSelect: () => {
+        if (!live) openLiveLink(surface.id);
+      },
+    },
+    ...(live
+      ? ([
+          { type: "label", label: <PublicLinkPreview path={live} /> },
           { type: "label", label: t("share.tunnelHint") },
           {
-            label: t("share.copy"),
+            label: t("share.liveCopy"),
             icon: <Icons.Copy size={16} />,
             onSelect: async () => {
               try {
-                await copy(await publicShareLink(surface.share_path ?? ""));
+                await copyText(await publicShareLink(live));
               } catch {
                 notify(t("share.linkUnavailable"));
               }
             },
           },
           {
-            label: t("share.open"),
+            label: t("share.liveOpen"),
             icon: <Icons.ExternalLink size={16} />,
             onSelect: async () => {
               try {
                 await openPublicLink(
-                  () => publicShareLink(surface.share_path ?? ""),
+                  () => publicShareLink(live),
                   () => {
                     const tab = window.open("about:blank", "_blank");
                     if (!tab) return null;
@@ -109,21 +140,32 @@ export function shareEntries(surface: SurfaceSummary, t: typeof tr): MenuEntry[]
               }
             },
           },
+          {
+            label: t("share.liveOff"),
+            icon: <Icons.EyeOff size={16} />,
+            onSelect: () => void shareSurface(surface.id, false),
+          },
         ] satisfies MenuEntry[])
       : []),
-    { type: "separator" },
-    {
-      label: t("share.publish"),
-      icon: <Icons.Upload size={16} />,
-      onSelect: () => openPublicCopy({ action: "publish", surface: surface.id }),
-    },
   ];
 }
 
-/** Private ↔ public link for a surface (surfaces.share), with copy/open of the link. */
+/** Turns on the live link once the owner read what it is, and copies it. */
+export async function turnOnLiveLink(surface: string): Promise<void> {
+  const path = await shareSurface(surface, true);
+  if (!path) return;
+  try {
+    await copyText(await publicShareLink(path));
+  } catch {
+    notify(tr("share.linkUnavailable"));
+  }
+}
+
+/** Private, anyone with the link (a public copy) or a live link from this computer, with copy/open of the link. */
 export function ShareMenu({ surface, variant = "button" }: { surface: SurfaceSummary; variant?: "button" | "icon" }) {
   const t = useT();
-  const url = linkOf(surface);
+  const copy = usePublicCopyOf(surface.id);
+  const url = linkOf(surface) ?? copy?.url;
   const items = shareEntries(surface, t);
   const label = url ? t("share.shared") : t("share.private");
   const trigger =

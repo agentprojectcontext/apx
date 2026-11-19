@@ -70,6 +70,11 @@ export function AccountCard({ name, account }: { name: string; account: Account 
           onClose={() => setLeaving(false)}
         />
       )}
+      {account.unreadable && !profile && !waiting && error == null && (
+        <p role="status" className="account-card__note">
+          {t("account.unreadable")}
+        </p>
+      )}
       {error != null && !handleError(error) && (
         <p role="alert" className="account-card__note">
           {accountError(t, error)}{" "}

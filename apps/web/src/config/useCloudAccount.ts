@@ -10,6 +10,7 @@ export function useCloudAccount() {
   const returned = useSlice(accountReturnState, (s) => s);
   const [profile, setProfile] = useState<AccountProfile | null>(null);
   const [available, setAvailable] = useState(false);
+  const [unreadable, setUnreadable] = useState(false);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [waiting, setWaiting] = useState(false);
@@ -40,6 +41,7 @@ export function useCloudAccount() {
         setProfile(result.profile);
         accountPhotoRead(result.profile?.photo ?? "");
         setAvailable(result.available);
+        setUnreadable(result.unreadable);
         setReadError(undefined);
         if (confirmed.current !== result.profile?.handle) {
           confirmed.current = result.profile?.handle;
@@ -65,6 +67,8 @@ export function useCloudAccount() {
       if (waiting || Date.now() - lastRead.current >= 15_000) refresh();
     };
     window.addEventListener("focus", focus);
+    // The desktop app signs in in another browser, which cannot tell this window: look again while it waits.
+    const poll = waiting ? window.setInterval(refresh, 2500) : undefined;
     const off = onSignInDone((id) => {
       if (id === "account") {
         setWaiting(false);
@@ -73,6 +77,7 @@ export function useCloudAccount() {
     });
     return () => {
       off();
+      window.clearInterval(poll);
       window.removeEventListener("focus", focus);
     };
   }, [waiting]);
@@ -147,6 +152,7 @@ export function useCloudAccount() {
   return {
     profile,
     available,
+    unreadable,
     loading,
     busy,
     waiting,

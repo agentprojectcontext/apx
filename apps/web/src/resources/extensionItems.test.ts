@@ -8,6 +8,7 @@ import {
   groupMine,
   type Integration,
   isMine,
+  kindOf,
   newer,
 } from "./extensionItems.ts";
 
@@ -111,23 +112,48 @@ test("included ones have APX code of their own; APX's data accounts give way to 
   assert.equal(byKey("ext:hubspot")?.attention, "keys");
   assert.deepEqual(
     items.filter(isMine).map((i) => i.id),
-    ["github", "slack", "telegram", "browser", "weather", "hubspot", "camera"],
+    ["github", "slack", "browser", "weather", "hubspot", "camera"],
   );
 });
 
-test("browse groups: included first, the catalog by category, then accounts not filed yet, then the rest", () => {
+test("browse groups: every category with its included ones, the channels together, then accounts not filed yet", () => {
   assert.deepEqual(
     groupByCategory(items).map((g) => `${g.id}:${g.items.length}`),
-    ["included:3", "data:1", "productivity:1", "sales-customers:1", "accounts:3", "other:1"],
+    ["productivity:3", "data:1", "sales-customers:1", "channels:1", "accounts:3", "other:1"],
   );
 });
 
-test("the owner's own: what waits on them first, then what works", () => {
+test("its kind comes from what it brings: a channel, an integration, a connector, agents or skills", () => {
+  const kinds = buildItems({
+    ...sources,
+    installed: [
+      ext("tv", { companion: { name: "APX TV", platform: "android-tv" } } as Partial<ExtensionInfo>),
+      ext("docs", { brings: ["tools", "skills"], mcp: ["docs-server"], skills: ["docs-guide"] }),
+      ext("guide", { brings: ["skills"], skills: ["guide"] }),
+      ext("crew", { brings: ["agents"], agents: [{ name: "Scout" }] } as Partial<ExtensionInfo>),
+    ],
+  });
+  const kind = (k: string) => {
+    const i = kinds.find((x) => x.key === k);
+    return i && kindOf(i);
+  };
+  assert.equal(kind("channel:telegram"), "channel");
+  assert.equal(kind("included:gmail"), "native");
+  assert.equal(kind("included:browser"), "native");
+  assert.equal(kind("account:github"), "connector");
+  assert.equal(kind("ext:tv"), "integration");
+  // A server with skills to use it is a connector all the same.
+  assert.equal(kind("ext:docs"), "connector");
+  assert.equal(kind("ext:guide"), "skills");
+  assert.equal(kind("ext:crew"), "agents");
+});
+
+test("the owner's own: what waits on them first, then what works; channels stay in Channels", () => {
   assert.deepEqual(
     groupMine(items).map((g) => [g.id, g.items.map((i) => i.id)]),
     [
       ["attention", ["slack", "weather", "hubspot"]],
-      ["active", ["github", "telegram", "browser", "camera"]],
+      ["active", ["github", "browser", "camera"]],
     ],
   );
 });
@@ -160,12 +186,12 @@ test("each one says where it comes from: included, official, third party or the 
   assert.equal(label("ext:weather"), "official");
   assert.equal(label("ext:camera"), "third");
   assert.equal(label("ext:tv"), "own");
-  assert.equal(label("mcp:docs"), "own");
-  assert.equal(own.find((i) => i.key === "mcp:docs")?.state, "on");
+  // A server the owner wrote in Resources is theirs there, not an extension: the Marketplace never lists it.
   assert.deepEqual(
-    own.filter((i) => i.key.startsWith("mcp:")).map((i) => i.id),
-    ["docs"],
+    own.filter((i) => ["docs", "acme-docs-remote"].includes(i.id)),
+    [],
   );
+  assert.equal(label("ext:acme-docs"), "official");
   assert.equal(own.find((i) => i.key === "ext:weather")?.publisher, "APX");
 });
 

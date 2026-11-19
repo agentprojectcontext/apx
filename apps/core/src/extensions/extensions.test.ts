@@ -108,3 +108,21 @@ test("installing again restores it; removing deletes its files and secrets", asy
   assert.deepEqual((await env.client.call("extensions.list", {})).extensions, []);
   assert.ok(!(await skillNames()).includes("crm-notes"));
 });
+
+test("a server added by its address is the owner's own connector, its server inside, never a plain server", async () => {
+  const added = await env.client.call("extensions.install", {
+    server: { name: "Acme Docs", url: "https://mcp.acme.example/mcp" },
+  });
+  assert.equal(added.id, "acme-docs");
+  assert.equal(added.name, "Acme Docs");
+  assert.deepEqual(added.mcp, ["acme-docs-server"]);
+  const { servers } = await env.client.call("mcp.list", {});
+  // Not one of the owner's own servers in Resources.
+  assert.ok(!servers.some((s) => s.name === "acme-docs" || (s.name === "acme-docs-server" && s.scope !== "global")));
+  // Adding the same address again keeps the same extension; another one with that name gets a number.
+  const again = await env.client.call("extensions.install", {
+    server: { name: "Acme Docs", url: "https://mcp.acme.example/mcp" },
+  });
+  assert.equal(again.id, "acme-docs");
+  await env.client.call("extensions.remove", { id: "acme-docs" });
+});

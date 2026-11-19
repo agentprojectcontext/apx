@@ -1,5 +1,17 @@
 export const esCloudAccount = {
-  "account.signedIn": "Iniciaste sesión en APX",
+  "account.returnWorking": "Conectando APX con tu cuenta…",
+  "account.returnWait": "Esto tarda unos segundos.",
+  "account.returnConnected": "Conectado",
+  "account.returnDone": "Listo, iniciaste sesión como {name}",
+  "account.returnClose": "Ya podés cerrar esta pestaña y volver a APX.",
+  "account.closeTab": "Cerrar pestaña",
+  "account.closeBlocked": "Cerrá esta pestaña y volvé a APX.",
+  "account.returnFailed": "No se pudo iniciar sesión",
+  "account.retry": "Probar de nuevo",
+  "account.returnCancelled": "No diste permiso en Google. Si fue sin querer, probá de nuevo.",
+  "account.notSaved": "APX no pudo guardar tu sesión en esta compu. Probá de nuevo; si vuelve a pasar, reiniciá APX.",
+  "account.unreadable":
+    "APX ya no puede leer tu sesión en esta compu. Iniciá sesión de nuevo para seguir usando tu cuenta.",
   "account.cancelled": "Cancelaste el inicio de sesión. Volvé a APX cuando quieras intentarlo de nuevo.",
   "account.required": "Tu sesión terminó. Volvé a iniciar sesión con Google.",
   "account.denied": "No tenés permiso para actualizar esta cuenta. Probá iniciar sesión de nuevo.",

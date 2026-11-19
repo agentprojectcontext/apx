@@ -4,7 +4,7 @@ import type { Store } from "../domain/store.ts";
 import { withKit } from "../surface-kit.ts";
 import { createPublicArtifactCloud } from "./cloud.ts";
 import { createPublicationDrafts } from "./drafts.ts";
-import { publicationDraftPersistence } from "./persistence.ts";
+import { publicationDraftPersistence, publicationSources } from "./persistence.ts";
 import { readPublishedArtifact } from "./read.ts";
 
 export function createPublicationService(deps: {
@@ -21,6 +21,7 @@ export function createPublicationService(deps: {
     decorateHtml: (html) => withKit(html),
     persistence: publicationDraftPersistence(deps.store.settings, deps.home),
     onReceiptPersistenceError: deps.onReceiptPersistenceError,
+    sources: publicationSources(deps.store.settings),
     pendingUntil: (id) => {
       const deadlines = deps.store.inputs
         .pending()

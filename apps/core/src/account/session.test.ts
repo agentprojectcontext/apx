@@ -2,13 +2,13 @@ import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { test } from "node:test";
 import { APX_ACCOUNT_SESSION } from "../secret-names.ts";
-import { createSecrets } from "../secrets.ts";
+import { createSecrets, type Secrets } from "../secrets.ts";
 import { tempDir } from "../testkit/platform.ts";
 import { createAccount } from "./session.ts";
 
-function fixture(origin = "http://127.0.0.1:7449") {
+function fixture(origin = "http://127.0.0.1:7449", wrap: (s: Secrets) => Secrets = (s) => s) {
   const dir = tempDir("apx-account-");
-  const secrets = createSecrets(dir.path, "file", {});
+  const secrets = wrap(createSecrets(dir.path, "file", {}));
   let now = 1000;
   let challenge = "";
   let stored: unknown;
@@ -117,7 +117,7 @@ function fixture(origin = "http://127.0.0.1:7449") {
 test("account sign-in uses PKCE, keeps credentials secret, survives restart and removes the session on sign-out", async () => {
   const f = fixture();
   try {
-    assert.deepEqual(f.account.status(), { available: true, profile: null, pending: false });
+    assert.deepEqual(f.account.status(), { available: true, profile: null, pending: false, unreadable: false });
     const state = f.start();
     await assert.rejects(f.account.finish("code", `${state}forged`), /sign_in_expired/);
     assert.deepEqual(await f.account.finish("code", state), { ok: true });
@@ -292,6 +292,38 @@ test("sign-out during renewal neither starts private work nor restores credentia
     assert.equal(f.secrets.has(`secret://${APX_ACCOUNT_SESSION}`), false);
   } finally {
     gate.resolve();
+    await f.dir.remove();
+  }
+});
+
+test("a kept session that cannot be read back is reported, and signing in again replaces it", async () => {
+  const f = fixture();
+  try {
+    f.secrets.set(APX_ACCOUNT_SESSION, "7b22756964223a22706572736f6e227d");
+    assert.deepEqual(f.account.status(), { available: true, profile: null, pending: false, unreadable: true });
+    await assert.rejects(f.account.rename("acme"), /sign_in_required/);
+    assert.deepEqual(await f.account.finish("code", f.start()), { ok: true });
+    const status = f.account.status();
+    assert.equal(status.profile?.name, "Acme");
+    assert.equal(status.unreadable, false);
+  } finally {
+    await f.dir.remove();
+  }
+});
+
+test("sign-in is not reported done when the session it saved does not read back", async () => {
+  // A store that keeps something other than what it was given, as the Keychain's hex output once looked.
+  const f = fixture(undefined, (s) => ({
+    ...s,
+    set: (name, value) => s.set(name, value === null ? null : Buffer.from(value).toString("hex")),
+  }));
+  try {
+    await assert.rejects(f.account.finish("code", f.start()), /session_not_saved/);
+    assert.deepEqual(f.signedIn, [], "nobody is told it worked");
+    const status = f.account.status();
+    assert.equal(status.profile, null);
+    assert.equal(status.unreadable, true, "the panel can offer to sign in again");
+  } finally {
     await f.dir.remove();
   }
 });

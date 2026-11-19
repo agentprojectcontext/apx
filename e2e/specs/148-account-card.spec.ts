@@ -9,7 +9,7 @@ const PHOTO =
   "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=";
 
 const accountOf = (profile: object | null) => ({
-  json: { ok: true, result: { available: true, profile, pending: false } },
+  json: { ok: true, result: { available: true, profile, pending: false, unreadable: false } },
 });
 
 test.beforeEach(async ({ page }) => {

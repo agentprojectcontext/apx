@@ -19,16 +19,22 @@ El **Marketplace**, en la barra lateral (el ícono de la tienda), es donde se bu
 extensiones. Todo lo que les sumás a tus agentes es una **extensión**; una etiqueta dice de dónde viene: **Incluida**
 (viene con APX: Google, Asana, los canales, el navegador), **Oficial** (la publica APX, con esos mismos archivos), **De
 terceros** (otro catálogo, un archivo o una dirección que te pasaron) o **Tuya** (una carpeta que armaste, o un
-servidor que agregaste por su dirección o un comando). Oficial se ve como un tilde junto al nombre, Incluida y Tuya
-como una palabra chica, y De terceros sin marca: la línea debajo del nombre dice de dónde viene. Recursos queda para lo
-técnico (Skills, MCP, Variables).
+servidor que agregaste acá por su dirección). Oficial se ve como un tilde junto al nombre, Incluida y Tuya
+como una palabra chica, y De terceros sin marca: la línea debajo del nombre dice de dónde viene. Lo que trae una extensión (un
+servidor MCP, habilidades, agentes, rutinas, la app de un dispositivo) va adentro de ella. Recursos queda para lo
+técnico (Skills, MCP, Variables): un servidor MCP que escribís ahí a mano sigue siendo un servidor tuyo ahí y no
+aparece en el Marketplace.
 
-- **Explorar** tiene la búsqueda y los filtros arriba (**Todo**, **Conexiones**, **Habilidades**, **Agentes**,
-  **Dispositivos**; un filtro sin nada no aparece), después **Novedades** (mientras sean pocas las nuevas) y cada
-  categoría en filas compactas: ícono, nombre y etiqueta, una línea, y debajo qué trae y de quién ("Conexión y
-  habilidades · De APX"). Cada fila tiene un solo botón: **Agregar**, o **Conectar** si es Incluida.
+- **Explorar** tiene la búsqueda y los filtros arriba (**Todo**, **Integraciones**, **Conectores**, **Canales**,
+  **Habilidades**, **Agentes**; un filtro sin nada no aparece), después **Novedades** (mientras sean pocas las nuevas),
+  cada categoría en filas compactas (las que vienen con APX en la suya, marcadas **Incluida**) y **Canales** juntos.
+  Cada fila tiene ícono, nombre y etiqueta, una línea, y debajo qué es y de quién ("Conector · De APX"). Qué es sale de
+  lo que trae: un **Canal** por el que habla APX; una **Integración** con código o una app propia (**Integración
+  nativa** cuando la hace APX, como Google Calendar); un **Conector**, un servidor MCP (con habilidades para usarlo o
+  no); **Agentes**; o solo **Habilidades**. Cada fila tiene un solo botón: **Agregar**, o **Conectar** si es Incluida.
 - **Tus extensiones** lista lo que agregaste, en dos grupos: **Necesitan atención** (sin conectar, con una versión
-  nueva, con error) y **Activas**. Los mismos grupos aparecen en la columna de la izquierda.
+  nueva, con error) y **Activas**. Los mismos grupos aparecen en la columna de la izquierda. Los canales se encuentran y se
+  conectan desde Explorar, pero viven en **Canales**, así que acá no se repiten.
 - La ficha de una extensión tiene un solo botón que cambia con su estado: **Agregar** → **Conectar** (o
   **Emparejar** si trae una app para un dispositivo) → **Conectada ✓**. Apagar, actualizar, volver a una versión,
   ajustes y quitar están en **⋯**.
@@ -47,7 +53,8 @@ técnico (Skills, MCP, Variables).
   enlaces. Un dato que nadie dio no aparece.
 - **Agregar** › **Desde una dirección** o **Desde un archivo** suma algo que no está en un catálogo: el mismo cuadro se
   abre debajo de un selector (un archivo, una dirección o una carpeta). La dirección de un `.apxext` se lee como
-  paquete; cualquier otra dirección https es un servidor MCP, que queda como **Tuya** y se conecta en el momento.
+  paquete; cualquier otra dirección https es un servidor MCP: APX lo agrega como una extensión tuya con ese servidor
+  adentro y la conecta en el momento.
 - Cuando no se puede agregar, el cuadro dice por qué: no se pudo bajar, los archivos cambiaron desde que los
   revisaste, no son una extensión o necesita un APX más nuevo.
 - Cuando agregaste catálogos, Explorar tiene un selector de **catálogo** (todos, el de APX o uno que agregaste), cada
@@ -57,7 +64,8 @@ técnico (Skills, MCP, Variables).
 - Quitar una extensión o un catálogo, o desconectar una cuenta, siempre pregunta antes. En **Avanzado**, el catálogo
   de APX tiene un candado (siempre está) y dice cuántas lista; **Ver en Explorar** muestra sólo las de un catálogo.
 - **Avanzado**, abajo en la columna de la izquierda, es para armar y probar extensiones: catálogos, instalar desde un
-  archivo, una carpeta o un comando, y la guía para armar una.
+  archivo o una carpeta, escribir un servidor MCP con su comando (se guarda en **Recursos › MCP**) y la guía para
+  armar una.
 
 APX lee qué trae cada paquete del catálogo desde el paquete mismo: lo descarga una vez, lo compara con el sha256 y la
 huella del catálogo, y guarda en su carpeta sólo el manifest, la ficha y sus imágenes. No se instala ni corre nada

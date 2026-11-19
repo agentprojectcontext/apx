@@ -4,7 +4,7 @@ import { z } from "zod";
 import type { Store } from "../domain/store.ts";
 import { draftBucket, PUBLIC_DRAFT_LIMIT, PUBLIC_DRAFT_SNAPSHOTS } from "./capacity.ts";
 import { publicationDraftFiles } from "./draft-files.ts";
-import type { PublicationDraftPersistence, PublicationDraftSnapshot } from "./drafts.ts";
+import type { PublicationDraftPersistence, PublicationDraftSnapshot, PublicationSources } from "./drafts.ts";
 
 const KEY = "public_artifact_drafts";
 const StoredDraft = z
@@ -97,4 +97,27 @@ export function publicationDraftPersistence(
     },
   };
   return persistence;
+}
+
+const SOURCES = "public_artifact_sources";
+const Sources = z.record(z.string().regex(/^[0-9abcdefghjkmnpqrstvwxyz]{8}$/), z.string().min(1).max(200));
+
+/** Public copy code → the local artifact it was published from, so the artifact's Share menu shows its link. */
+export function publicationSources(settings: Pick<Store["settings"], "get" | "set">): PublicationSources {
+  const read = (): Record<string, string> => {
+    try {
+      return Sources.parse(JSON.parse(settings.get(SOURCES) ?? "{}"));
+    } catch {
+      return {};
+    }
+  };
+  return {
+    get: (code) => read()[code],
+    set(code, surface) {
+      const all = read();
+      if (surface) all[code] = surface;
+      else delete all[code];
+      settings.set(SOURCES, JSON.stringify(all));
+    },
+  };
 }

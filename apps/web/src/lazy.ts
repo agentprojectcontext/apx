@@ -179,7 +179,7 @@ export const PublicCopyInput = lazy(() =>
   import("./surfaces/PublicCopyInput.tsx").then((m) => ({ default: m.PublicCopyInput })),
 );
 export const PublicCopyDialog = lazy(
-  withPacks(["publicCopies"], () =>
+  withPacks(["publicCopies", "cloudAccount"], () =>
     import("./surfaces/PublicCopyDialog.tsx").then((m) => ({ default: m.PublicCopyDialog })),
   ),
 );

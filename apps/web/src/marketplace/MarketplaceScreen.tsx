@@ -183,7 +183,6 @@ export function MarketplaceScreen() {
             catalogs={catalogs}
             apxCount={catalog ? catalog.entries.filter((e) => !e.catalog).length : undefined}
             onCatalogs={catalogsChanged}
-            onServers={loadServers}
             onOpenCatalog={(id) => {
               setSource(id);
               go.marketplace("extensions");
