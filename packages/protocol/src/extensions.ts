@@ -483,6 +483,11 @@ export const ExtensionInfo = z.object(
         }),
       ),
     agents: () => ExtensionManifest.shape.agents,
+    /** Its agents the owner added and still has: its agent's id, the agent's id in APX and its name now. */
+    added_agents: () =>
+      z
+        .array(z.object(schemaFields({ agent: () => z.string(), id: () => z.string(), name: () => z.string() })))
+        .optional(),
     pages: () => z.array(z.object(schemaFields({ id: () => z.string(), title: () => z.string() }))),
     apps: () => ExtensionManifest.shape.apps,
     companion: () => ExtensionCompanion.optional(),

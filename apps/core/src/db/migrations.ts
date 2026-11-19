@@ -1288,5 +1288,8 @@ export const MIGRATIONS: readonly string[] = [
     created_at TEXT NOT NULL
   );
   `,
+  // The agents the owner added from an extension, as JSON (its agent's id → the agent's id in APX): removing the
+  // extension archives them (DECISIONS.md#d-254).
+  `ALTER TABLE extensions ADD COLUMN added_agents TEXT;`,
   ARCHIVE_MODEL_CONTEXT,
 ];

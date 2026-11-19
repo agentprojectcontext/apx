@@ -252,6 +252,10 @@ export const esMarketplace = {
   "mkt.catalogRemoveBody": "Sus {n} extensiones dejan de aparecer en Explorar. Las que ya agregaste se quedan.",
   "mkt.removeTitle": "¿Quitar {name}?",
   "mkt.removeBody": "Se borran sus archivos, claves y ajustes. La podés volver a agregar después.",
+  "mkt.removeBodyAgents":
+    "Se borran sus archivos, claves y ajustes, y se archivan los agentes que agregaste desde ella: {names}. Los podés recuperar o borrar para siempre en Config › Agentes.",
+  "mkt.removedKept":
+    "{names} siguen en tu equipo porque responden un canal. Elegí quién responde en Canales y después archivalos.",
   "mkt.disconnectTitle": "¿Desconectar {name}?",
   "mkt.disconnectBody": "Tus agentes dejan de usarla y se borran sus claves. La podés volver a conectar después.",
   "mkt.twin":

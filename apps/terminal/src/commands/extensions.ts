@@ -175,7 +175,10 @@ export async function extensions(
   if ((sub === "on" || sub === "off") && arg)
     return show(await client.call("extensions.enable", { id: arg, enabled: sub === "on" }));
   if (sub === "rm" && arg) {
-    console.log((await client.call("extensions.remove", { id: arg })).removed ? "removed" : "no such extension");
+    const r = await client.call("extensions.remove", { id: arg });
+    console.log(r.removed ? "removed" : "no such extension");
+    if (r.archived.length) console.log(`archived the agents added from it: ${r.archived.join(", ")}`);
+    if (r.kept.length) console.log(`kept, they answer a channel: ${r.kept.join(", ")}`);
     return;
   }
   if (sub === "secret" && arg && name) {
