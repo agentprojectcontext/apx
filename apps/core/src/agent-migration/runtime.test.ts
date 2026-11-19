@@ -79,6 +79,17 @@ test("the running core moves shared work through the protocol and fences source 
       agent: { id: editor.id, run_id: sourceRun.id, thread_id: sourceChat.id },
       log: { info() {}, warn() {}, error() {} },
     };
+    for (const method of ["threads.get", "threads.list"] as const) {
+      const argument = (id: string) => (method === "threads.get" ? { thread: id } : { root_thread: id });
+      const denied = await env.core.dispatch(method, argument(shared.id), ctx);
+      const missing = await env.core.dispatch(method, argument("unknown-chat"), ctx);
+      assert.ok(!denied.ok && !missing.ok);
+      assert.deepEqual(
+        denied.error,
+        { ...missing.error, message: missing.error.message.replace("unknown-chat", shared.id) },
+        "unavailable chats disclose only the caller-supplied identifier",
+      );
+    }
     for (const method of ["threads.get", "tasks.get", "media.get"] as const) {
       const argument =
         method === "threads.get"

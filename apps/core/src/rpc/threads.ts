@@ -309,7 +309,7 @@ export function threadHandlers(
         return { threads: [...threads, ...extra], delegated: store.threads.delegatedCounts(ids) };
       }
       const root = store.threads.get(root_thread);
-      if (!root || !visible(root)) throw notFound("chat unavailable");
+      if (!root || !visible(root)) throw notFound(`thread ${root_thread}`);
       const asked = store.threads.consultsFrom(root_thread, include_archived).filter(visible);
       return {
         threads: [
@@ -325,13 +325,13 @@ export function threadHandlers(
       ownClientThread(thread, ctx);
       if (ctx.agent) {
         const agent = store.agents.get(ctx.agent.id);
-        if (!agent || !canReadChat(store, agent, t)) throw notFound("chat unavailable");
+        if (!agent || !canReadChat(store, agent, t)) throw notFound(`thread ${thread}`);
       } else if (
         ctx.actor !== "human" &&
         t.project_id &&
         store.projectProtection.list().some((p) => p.project === t.project_id)
       )
-        throw notFound("chat unavailable");
+        throw notFound(`thread ${thread}`);
       return { thread: t, messages: store.messages.list(thread), runs: store.runs.list(thread).map(publicRun) };
     },
     "threads.create": (params, ctx) => createThread(store, params, ctx),
