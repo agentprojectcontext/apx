@@ -171,14 +171,34 @@ export function convertPlugin(
   } catch {}
   const name = fallback.id ? fallback.name : (plugin.name ?? fallback.name);
   const id = fallback.id ?? extensionId(name);
-  // Skills, license and readme as they are.
+  // Keep explicitly named shared plugin directories without importing unrelated or hidden files.
+  const shared = new Set<string>();
+  for (const [f, data] of files) {
+    if (!/^skills\/[^/]+\/SKILL\.md$/.test(f)) continue;
+    const text = data.toString("utf8");
+    for (const match of text.matchAll(/(?:\$\{CLAUDE_PLUGIN_ROOT\}|(?<!\.\.\/)\.\.\/\.\.)\/([A-Za-z0-9_-]+)\//g)) {
+      const root = match[1];
+      if (root && root !== "skills" && root !== "commands" && root !== "hooks") shared.add(root);
+    }
+  }
   let skills = false;
   for (const [f, data] of files) {
     if (f.startsWith("skills/")) {
-      out.set(f, data);
+      const content = /^skills\/[^/]+\/SKILL\.md$/.test(f)
+        ? Buffer.from(
+            data
+              .toString("utf8")
+              .replace(/(?<!\.\.\/)\.\.\/\.\.\/([A-Za-z0-9_-]+)\//g, (whole, root: string) =>
+                shared.has(root) ? `{{skill_dir}}/../../${root}/` : whole,
+              )
+              .replaceAll("$" + "{CLAUDE_PLUGIN_ROOT}", "{{skill_dir}}/../.."),
+          )
+        : data;
+      out.set(f, content);
       skills = true;
     } else if (/^(LICENSE|LICENCE|COPYING|NOTICE)(\.(md|txt))?$/i.test(f) || f === "README.md") out.set(f, data);
     else if (f.startsWith("commands/") || f.startsWith("hooks/")) left.push(f.split("/")[0] ?? f);
+    else if (shared.has(f.split("/")[0] ?? "") && !f.split("/").some((part) => part.startsWith("."))) out.set(f, data);
   }
   // Its MCP servers; `${VAR}` in them becomes a setting the owner types once, sensitive when it names a key.
   const settings = new Map<string, Setting>();

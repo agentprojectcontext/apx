@@ -237,6 +237,10 @@ Al eliminarla también se borran sus secretos guardados. Una extensión de un ca
 que APX registrara la identidad de su fuente también puede necesitar que la elimines y la agregues de nuevo para
 actualizarla.
 
+Para plugins de Claude convertidos, APX también copia los directorios compartidos que una habilidad menciona
+explícitamente y ajusta las rutas a la carpeta del plugin. Otras funciones, como los hooks y comandos, no se
+convierten; copiar un script no lo ejecuta por agregar la extensión.
+
 <Terminal command="apx extensions install ~/Downloads/daily-brief.apxext">{`daily-brief  Daily brief v1.0.0  · off  · official  · 3f9c1a7e5b2d8c40
   A short morning brief: open tasks, what is due, what others owe you.
   skills: daily-brief

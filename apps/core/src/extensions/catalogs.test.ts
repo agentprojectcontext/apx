@@ -208,6 +208,30 @@ test("plugin settings with the same truncated name stay separate and repeated pl
   assert.equal(remaining.env.SECOND, server.env.SECOND);
 });
 
+test("converted skills keep their referenced plugin files and address the installed root", () => {
+  const files = new Map(
+    Object.entries({
+      ".claude-plugin/plugin.json": JSON.stringify({ name: "Migrator" }),
+      "skills/migrate/SKILL.md": `---\nname: migrate\ndescription: Migrate.\n---\nRun python3 ${placeholder("CLAUDE_PLUGIN_ROOT")}/engine/run.py and read [notes](../../references/notes.md).\n`,
+      "engine/run.py": "print('ok')\n",
+      "engine/helpers.py": "# helper\n",
+      "engine/.env": "SECRET=example\n",
+      "references/notes.md": "Notes.\n",
+      "unrelated/private.txt": "Not referenced.\n",
+    }).map(([k, v]) => [k, Buffer.from(v)]),
+  );
+  const converted = convertPlugin(files, { name: "Migrator" });
+  assert.equal(converted.files.get("engine/run.py")?.toString(), "print('ok')\n");
+  assert.equal(converted.files.get("engine/helpers.py")?.toString(), "# helper\n");
+  assert.equal(converted.files.get("references/notes.md")?.toString(), "Notes.\n");
+  assert.equal(converted.files.has("unrelated/private.txt"), false);
+  assert.equal(converted.files.has("engine/.env"), false);
+  const skill = converted.files.get("skills/migrate/SKILL.md")?.toString() ?? "";
+  assert.match(skill, /\{\{skill_dir\}\}\/\.\.\/\.\.\/engine\/run\.py/);
+  assert.match(skill, /\{\{skill_dir\}\}\/\.\.\/\.\.\/references\/notes\.md/);
+  assert.doesNotThrow(() => readFiles(converted.files));
+});
+
 test("servers written at the top of .mcp.json, without mcpServers, are its servers all the same", () => {
   const files = new Map(
     Object.entries({
