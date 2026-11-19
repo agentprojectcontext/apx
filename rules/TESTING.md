@@ -87,10 +87,14 @@ runner that would time out.
 
 ## 1. Build / typecheck
 ```bash
-pnpm typecheck                     # tsc (TS 7) in every package
+pnpm typecheck                     # builds @apx/ui once, then tsc (TS 7) in every package
 pnpm --filter @apx/web build       # Vite production build
-pnpm --filter @apx/ui build        # design system dist/ (what web and design-sync consume)
+pnpm --filter @apx/ui build        # design system dist/ (what web, artifact-viewer and design-sync consume)
 ```
+
+`@apx/ui` exposes its types from `dist/`, so a package's own `typecheck` (`pnpm --filter @apx/web typecheck`) needs
+`pnpm --filter @apx/ui build` first on a clean checkout. Only the root `typecheck` builds it, once: the build empties
+`dist/`, so packages rebuilding it while others typecheck in parallel would fail at random.
 
 ## 2. Static checks
 ```bash
