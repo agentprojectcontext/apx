@@ -423,7 +423,8 @@ const en = {
       here: "On this computer, macOS or Linux",
       windows: "On Windows, in PowerShell",
       server: "On a server or a VPS",
-      tabs: { server: "VPS / server", unix: "macOS / Linux", win: "Windows" },
+      docker: "With Docker, on a computer or a server: then docker compose exec apx apx pair",
+      tabs: { server: "VPS / server", unix: "macOS / Linux", win: "Windows", docker: "Docker" },
       label: "Your system",
       docs: {
         title: "Setting up a server?",
@@ -923,7 +924,8 @@ const es: HomeText = {
       here: "En esta compu, macOS o Linux",
       windows: "En Windows, en PowerShell",
       server: "En un servidor o VPS",
-      tabs: { server: "VPS / servidor", unix: "macOS / Linux", win: "Windows" },
+      docker: "Con Docker, en una compu o un servidor: después docker compose exec apx apx pair",
+      tabs: { server: "VPS / servidor", unix: "macOS / Linux", win: "Windows", docker: "Docker" },
       label: "Tu sistema",
       docs: {
         title: "¿Vas a armar un servidor?",

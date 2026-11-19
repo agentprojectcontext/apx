@@ -144,22 +144,48 @@ escuchar más allá de esta máquina sin un token; `apx expose` te lo crea. Más
 </TabItem>
 <TabItem label="Docker">
 
-`scripts/docker/Dockerfile` del repositorio mete el bundle del daemon de un release (el mismo que instala
-`install.sh`) en una imagen. Bajate el bundle de Linux para tu máquina (`apx-core-<versión>-linux-x64.tar.gz` o
-`-arm64`) de los [releases de v2](https://github.com/agentprojectcontext/apx/releases?q=v2&expanded=true) dentro de un
-checkout del repositorio, y después:
+APX corre en un contenedor con la imagen `ghcr.io/agentprojectcontext/apx`, armada con el bundle de servidor de cada
+release (el mismo que instala el script). El repositorio tiene el `compose.yaml` y el `Dockerfile` en la raíz.
+
+<Steps>
+
+1. En una carpeta vacía, guardá [`compose.yaml`](https://github.com/agentprojectcontext/apx/blob/main/compose.yaml) y un
+   archivo `.env` con un token largo al azar:
+
+   ```bash
+   curl -fsSLO https://raw.githubusercontent.com/agentprojectcontext/apx/main/compose.yaml
+   echo "APX_TOKEN=$(openssl rand -hex 32)" > .env
+   ```
+
+2. Arrancalo:
+
+   ```bash
+   docker compose up -d
+   ```
+
+3. Abrí [http://localhost:7440](http://localhost:7440). APX pide vincular este navegador: pedí un código con
+   `docker compose exec apx apx pair` y escribilo. El mismo código vincula la app de escritorio o tu teléfono.
+
+</Steps>
+
+Sin compose:
 
 ```bash
-docker build -f scripts/docker/Dockerfile --build-arg BUNDLE=apx-core-<versión>-linux-x64.tar.gz -t apx .
-docker run -d --name apx -p 7440:7440 -v apx-data:/data -e APX_TOKEN=<un texto largo al azar> apx
-docker exec -it apx apx pair            # emparejá la app de escritorio o el teléfono
+docker run -d --name apx -p 127.0.0.1:7440:7440 -v apx-data:/data -e APX_TOKEN=<un texto largo al azar> \
+  ghcr.io/agentprojectcontext/apx
+docker exec -it apx apx pair
 ```
 
-- El core escucha en todas las interfaces del contenedor, así que no arranca sin `APX_TOKEN`.
-- Tus datos están en el volumen `/data` (`APX_HOME=/data`); los secretos van a un archivo ahí, no a un llavero.
-- Nunca se actualiza solo (`APX_UPDATES=off`): armá una imagen nueva con un bundle más nuevo y correla sobre el mismo
-  volumen.
-- Publicá el puerto solo en una red de confianza, o dejalo en `127.0.0.1` y poné tu propio proxy TLS adelante.
+- **Token**: el core escucha en todas las interfaces del contenedor, así que no arranca sin `APX_TOKEN`.
+- **Tus datos** están en el volumen `/data` (`APX_HOME=/data/apx`); los secretos van a un archivo ahí, no a un llavero.
+- **Tus proyectos**: compose monta `./projects` en `/projects`, donde trabajan tus agentes. Sumá las carpetas que quieras.
+- **Otras direcciones**: el panel abre en `http://localhost:7440`. Para abrirlo en otro puerto, una dirección de tu red
+  o un dominio, ponelas en `APX_ALLOWED_ORIGINS` (en `.env`, separadas por coma) y publicá el puerto ahí. Hacelo solo
+  en una red de confianza, o poné tu propio proxy TLS adelante.
+- **Actualizaciones**: el contenedor nunca se actualiza solo (`APX_UPDATES=off`). `docker compose pull && docker compose up -d`
+  trae la imagen nueva y conserva tus datos.
+- **Una versión puntual, o tu propia imagen**: `docker build --build-arg APX_VERSION=2.16.0 -t apx .` en un checkout.
+- **Navegador**: la imagen no trae Chrome, así que el navegador integrado lo presta una app de escritorio vinculada.
 
 </TabItem>
 <TabItem label="Desde el código">
@@ -339,8 +365,8 @@ guardada del script es `bash install.sh --uninstall`.
 </TabItem>
 <TabItem label="Docker">
 
-`docker rm -f apx` borra el contenedor; el volumen `apx-data` guarda tus datos hasta que hagas
-`docker volume rm apx-data`.
+`docker compose down` borra el contenedor; el volumen `apx-data` guarda tus datos hasta `docker compose down -v`.
+Sin compose: `docker rm -f apx`, y `docker volume rm apx-data` para borrar los datos.
 
 </TabItem>
 <TabItem label="Desde el código">

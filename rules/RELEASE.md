@@ -191,7 +191,7 @@ already answered is skipped. To preview it locally: `TAG=v2.x.y node scripts/iss
 | New, a server or VM | `install.sh \| bash -s -- --server` (or `install.ps1 -Server`), then `apx setup --headless` | over SSH, linger needs root: install.sh uses passwordless sudo when it can, else says the command |
 | From the desktop, onto a server | first run › Client › SSH › "Install APX there" | sends the app's own install.sh over ssh and installs the app's version |
 | v1 user | the desktop's setup imports from `~/.apx`; on a server install.sh stops v1 and `apx import-v1` imports from its files | a v1 installed with `sudo npm` needs sudo to go |
-| Docker | `scripts/docker/Dockerfile` from a bundle | `APX_TOKEN` required; updates by image |
+| Docker | `docker compose up -d` (`compose.yaml`, `Dockerfile` at the root; image `ghcr.io/agentprojectcontext/apx`) | `APX_TOKEN` required; updates by image |
 
 The install scripts have a URL of their own, served by the Pages site (`apps/docs` copies them in when it builds):
 `https://apxagent.app/install.sh` and `…/install.ps1` (the older `/v2/install.sh` and `…/install.ps1`

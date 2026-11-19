@@ -200,11 +200,12 @@ a.dlc__alt:hover {
   background: var(--apx-fg);
   color: var(--apx-bg);
 }
-/* On a phone the three systems share one line instead of wrapping into a tall pill. */
+/* On a phone the four ways sit two by two, each label on one line, instead of wrapping into a tall pill. */
 @media (max-width: 560px) {
   .cli__tabs {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
     align-self: stretch;
-    flex-wrap: nowrap;
     border-radius: 18px;
   }
   .cli__tabs button {

@@ -130,6 +130,10 @@ servidor al que se conecta, con un solo botón.
 La app de escritorio también puede instalar APX en un servidor por SSH. Guía:
 [APX en un servidor](https://apxagent.app/es/devices/server/).
 
+**Con Docker**: el `compose.yaml` de la raíz de este repositorio corre la imagen `ghcr.io/agentprojectcontext/apx`.
+Poné `APX_TOKEN=<un texto largo al azar>` en un `.env` al lado, `docker compose up -d`, abrí `http://localhost:7440` y
+vinculalo con `docker compose exec apx apx pair`. Guía: [Instalar › Docker](https://apxagent.app/es/start/install/).
+
 **En el teléfono**: la app de Android está en cada [versión v2](https://github.com/agentprojectcontext/apx/releases?q=v2&expanded=true)
 (`APX-<versión>-android.apk`); vinculala con el código que muestra el escritorio. Se instala al lado de la app de v1.
 [Guía del teléfono](https://apxagent.app/es/devices/phone/).
