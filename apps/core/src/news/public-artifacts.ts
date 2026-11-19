@@ -12,11 +12,13 @@ export const PUBLIC_ARTIFACTS_NEWS: NewsEntry = {
     en:
       "Any widget, app or page you have can get its own link on artifact.apxagent.app, for anyone to open without " +
       "APX. Nothing goes public until you publish it and approve exactly what is shared, and you can stop " +
-      "publishing it whenever you want. It needs your APX account and up to 10 MB.",
+      "publishing it whenever you want. Signed in with Google on the page, you copy its link, edit it in APX or stop " +
+      "sharing it from there. It needs your APX account and up to 10 MB.",
     es:
       "Cualquier widget, app o página que tengas puede tener su propio link en artifact.apxagent.app, para que " +
       "cualquiera lo abra sin APX. Nada se vuelve público hasta que lo publicás y aprobás exactamente qué se " +
-      "comparte, y podés dejar de publicarlo cuando quieras. Necesita tu cuenta APX y hasta 10 MB.",
+      "comparte, y podés dejar de publicarlo cuando quieras. Si iniciás sesión con Google en la página, desde ahí " +
+      "copiás el link, lo editás en APX o dejás de compartirlo. Necesita tu cuenta APX y hasta 10 MB.",
   },
   applies: (facts) => facts.artifacts > 0,
   text:
@@ -25,7 +27,9 @@ export const PUBLIC_ARTIFACTS_NEWS: NewsEntry = {
     "state_keys) and send the draft to surfaces.public_commit: the owner always approves the exact copy on a card, in " +
     "every mode, and the same goes for updating or stopping it. It needs the owner signed in to their APX account " +
     "and at most 10 MB; a bigger one stays local and you say so. surfaces.public_list shows what is published. Offer " +
-    "it when the owner wants to show a widget to someone who has no APX; never publish on your own.",
+    "it when the owner wants to show a widget to someone who has no APX; never publish on your own. Public copies can " +
+    "show up in search results with their name, never the owner's; say so before publishing something personal. On " +
+    "the page itself the owner can sign in with Google to copy the link, edit in APX or stop sharing.",
   actions: [
     {
       label: { en: "Share one", es: "Compartir uno" },

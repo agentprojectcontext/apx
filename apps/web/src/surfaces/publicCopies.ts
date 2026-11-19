@@ -25,6 +25,12 @@ export function loadPublicCopies(again = false): Promise<void> {
   return loading;
 }
 
+/** The local artifact a public copy of the owner's was published from, once the list is read. */
+export async function sourceOfPublicCopy(code: string): Promise<string | undefined> {
+  await loadPublicCopies();
+  return copies.get().items.find((item) => item.code === code)?.surface;
+}
+
 /** The public copy published from this artifact, if any. */
 export const publicCopyOf = (surface: string): Copy | undefined =>
   copies.get().items.find((item) => item.surface === surface);

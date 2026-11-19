@@ -6,7 +6,7 @@ import { convertV4MiniflareOptions, Response as LocalResponse, Miniflare } from 
 import { waitFor } from "../../core/src/testkit/wait.ts";
 import { localWorkerModules } from "./local-modules.ts";
 
-async function runtimeFixture() {
+async function runtimeFixture(options: { webKey?: string } = {}) {
   const generated = await crypto.subtle.generateKey(
     { name: "RSASSA-PKCS1-v1_5", modulusLength: 2048, publicExponent: new Uint8Array([1, 0, 1]), hash: "SHA-256" },
     true,
@@ -50,7 +50,7 @@ async function runtimeFixture() {
     convertV4MiniflareOptions({
       ...(await localWorkerModules()),
       compatibilityDate: "2026-11-13",
-      bindings: { FIREBASE_PROJECT: "apx-agents" },
+      bindings: { FIREBASE_PROJECT: "apx-agents", ...(options.webKey ? { FIREBASE_WEB_KEY: options.webKey } : {}) },
       r2Buckets: ["COPIES"],
       durableObjects: {
         ACCOUNTS: { className: "PublicationAccount", useSQLite: true },
@@ -120,10 +120,27 @@ test("the deployed module serves its embedded viewer without an asset service or
   const f = await runtimeFixture();
   try {
     const index = await f.mf.dispatchFetch("https://artifact.example.com/0123abcd");
-    assert.equal(index.status, 200);
+    // No copy behind the code: search engines are told it is gone, the viewer still explains it.
+    assert.equal(index.status, 404);
     assert.equal(index.headers.get("cache-control"), "no-store");
-    assert.match(index.headers.get("content-security-policy") ?? "", /script-src 'self'/);
+    assert.match(index.headers.get("content-security-policy") ?? "", /script-src 'self';/);
     const html = await index.text();
+    assert.match(html, /<meta name="robots" content="noindex">/);
+    assert.doesNotMatch(html, /apx-sign-in|og:title/);
+    for (const [path, type] of [
+      ["/icon.png", "image/png"],
+      ["/apple-touch-icon.png", "image/png"],
+      ["/og.jpg", "image/jpeg"],
+      ["/logo.svg", "image/svg+xml"],
+    ] as const) {
+      const image = await f.mf.dispatchFetch(`https://artifact.example.com${path}`);
+      assert.equal(image.status, 200);
+      assert.equal(image.headers.get("content-type"), type);
+      assert.equal(image.headers.get("cache-control"), "public, max-age=86400");
+      const bytes = new Uint8Array(await image.arrayBuffer());
+      if (type === "image/png") assert.deepEqual([...bytes.slice(1, 4)], [80, 78, 71]);
+      if (type === "image/jpeg") assert.deepEqual([...bytes.slice(0, 2)], [0xff, 0xd8]);
+    }
     for (const path of ["/", "/index.html", "/?code=0123abcd", "/index.html?next=https://example.com"]) {
       const root = await f.mf.dispatchFetch(`https://artifact.example.com${path}`, { redirect: "manual" });
       assert.equal(root.status, 302);
@@ -156,6 +173,56 @@ test("the deployed module serves its embedded viewer without an asset service or
     for (const path of ["/assets/missing.js", "/assets/__proto__", "/.generated/viewer-assets.ts"])
       assert.equal((await f.mf.dispatchFetch(`https://artifact.example.com${path}`)).status, 404);
     assert.equal(f.counts().firestoreReads, 0);
+  } finally {
+    await f.mf.dispose();
+  }
+});
+
+test("a published copy's page names it for search engines and link previews, and offers Google sign-in", async () => {
+  const f = await runtimeFixture({ webKey: "AIzaPublicWebKeyForTests_0123456789" });
+  try {
+    const code = "pqrs5678";
+    const published = await f.mf.dispatchFetch(`https://artifact.example.com/api/account/copies/${code}/publish`, {
+      method: "POST",
+      headers: { authorization: `Bearer ${f.token}` },
+      body: JSON.stringify({
+        format: "apx-artifact@1",
+        manifest: { name: "tank", title: 'Pocket "aquarium" <3', kind: "widget", version: 1 },
+        html: "<p>Fish</p>",
+      }),
+    });
+    assert.equal(published.status, 200, await published.text());
+    const page = await f.mf.dispatchFetch(`https://artifact.example.com/${code}`);
+    assert.equal(page.status, 200);
+    const policy = page.headers.get("content-security-policy") ?? "";
+    assert.match(policy, /script-src 'self' https:\/\/apis\.google\.com;/);
+    assert.match(policy, /frame-src 'self' https:\/\/apx-agents\.firebaseapp\.com;/);
+    const html = await page.text();
+    assert.match(html, /<title>Pocket &#34;aquarium&#34; &#60;3 · APX<\/title>/);
+    assert.match(html, /<link rel="canonical" href="https:\/\/artifact\.example\.com\/pqrs5678">/);
+    assert.match(html, /<meta property="og:image" content="https:\/\/artifact\.example\.com\/og\.jpg">/);
+    assert.match(html, /<link rel="icon" type="image\/png" sizes="64x64" href="\/icon\.png">/);
+    assert.match(html, /<a href="https:\/\/apxagent\.app">APX<\/a>/);
+    assert.doesNotMatch(html, /noindex/);
+    const data = JSON.parse(/<script type="application\/ld\+json">(.*?)<\/script>/.exec(html)?.[1] ?? "{}");
+    assert.equal(data.name, 'Pocket "aquarium" <3');
+    assert.equal(data.publisher.url, "https://apxagent.app");
+    const signIn = /<meta name="apx-sign-in" content="([^"]+)">/.exec(html)?.[1] ?? "";
+    assert.deepEqual(JSON.parse(signIn.replaceAll("&#34;", '"')), {
+      project: "apx-agents",
+      apiKey: "AIzaPublicWebKeyForTests_0123456789",
+    });
+    const meta = (await (await f.mf.dispatchFetch(`https://artifact.example.com/api/copies/${code}/meta`)).json()) as {
+      revision: string;
+    };
+    const revoked = await f.mf.dispatchFetch(`https://artifact.example.com/api/account/copies/${code}/revoke`, {
+      method: "POST",
+      headers: { authorization: `Bearer ${f.token}`, "x-artifact-revision": meta.revision },
+    });
+    assert.equal(revoked.status, 200, await revoked.text());
+    const gone = await f.mf.dispatchFetch(`https://artifact.example.com/${code}`);
+    assert.equal(gone.status, 404);
+    assert.match(await gone.text(), /noindex/);
   } finally {
     await f.mf.dispose();
   }

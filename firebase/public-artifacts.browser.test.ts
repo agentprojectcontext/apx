@@ -47,7 +47,8 @@ test("The Worker serves disjoint wrapper/runner policies and immutable hashed as
   }
   for (const pathname of ["/abcd1234"]) {
     const response = await fetch(`${url.origin}${pathname}`);
-    assert.equal(response.status, 200);
+    // Nothing published behind this code: the page still loads, with a 404 search engines drop.
+    assert.equal(response.status, 404);
     assert.equal(response.headers.get("cache-control"), "no-store");
     const csp = response.headers.get("content-security-policy") ?? "";
     assert.match(csp, /frame-ancestors 'none'/);

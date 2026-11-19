@@ -1,7 +1,9 @@
 import { notify } from "../data/notices.ts";
 import { t } from "../i18n/index.ts";
 import { openExtensionInstall } from "../resources/extensionInstall.ts";
+import { go } from "../shell/nav.ts";
 import { openInstall, openPublicInstall } from "./installRequest.ts";
+import { sourceOfPublicCopy } from "./publicCopies.ts";
 
 // APX files reaching the panel from outside: opened from the system (desktop app) or dropped anywhere on the window.
 
@@ -35,7 +37,11 @@ export function listenApxFiles(): () => void {
   const off = desktop?.onFileOpened?.(() => void take());
   const takePublic = async () => {
     const code = await desktop?.takePublicCopy?.();
-    if (code) openPublicInstall(code);
+    if (!code) return;
+    // The owner's own copy opens the artifact it was published from; anyone else's is offered to install.
+    const source = await sourceOfPublicCopy(code).catch(() => undefined);
+    if (source) go.app(source);
+    else openPublicInstall(code);
   };
   void takePublic();
   const offPublic = desktop?.onPublicCopy?.(() => void takePublic());

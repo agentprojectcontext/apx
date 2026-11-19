@@ -7,13 +7,18 @@ await rm(generated, { recursive: true, force: true });
 await rm(new URL("../dist/", import.meta.url), { recursive: true, force: true });
 await mkdir(new URL("viewer-modules/", generated), { recursive: true });
 const files = ["index.html", "runner.html"];
+// Images go in as base64 text (Worker text modules); assets.ts decodes them.
+const images = ["icon.png", "apple-touch-icon.png", "og.jpg", "logo.svg"];
 for (const name of (await readdir(new URL("assets/", viewer))).sort()) {
   if (/^[A-Za-z0-9_.-]+\.(js|css)$/.test(name)) files.push(`assets/${name}`);
 }
+files.push(...images);
 const imports: string[] = [];
 const entries: string[] = [];
 for (const [index, name] of files.entries()) {
-  const text = await readFile(new URL(name, viewer), "utf8");
+  const text = images.includes(name)
+    ? (await readFile(new URL(name, viewer))).toString("base64")
+    : await readFile(new URL(name, viewer), "utf8");
   const module = `viewer-modules/${name.replaceAll("/", "_")}.txt`;
   await writeFile(new URL(module, generated), text);
   imports.push(`import file${index} from ${JSON.stringify(`./${module}`)};`);

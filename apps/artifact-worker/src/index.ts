@@ -7,6 +7,7 @@ export { PublicationBudget } from "./budget.ts";
 import { failure, secureResponse } from "./headers.ts";
 import { metadataCloud, type Session } from "./metadata.ts";
 import { mutate } from "./mutations.ts";
+import { copyPage, signInConfig } from "./page.ts";
 import { type PendingCopy, recoverPending, sweepUncertainCopy } from "./recovery.ts";
 import { bodyKey, type Pointer, pointer, pointerKey, readCopy } from "./storage.ts";
 
@@ -16,8 +17,10 @@ type Env = {
   BUDGET: DurableObjectNamespace;
   IP_LIMIT: RateLimit;
   FIREBASE_PROJECT: string;
+  FIREBASE_WEB_KEY?: string;
   FIRESTORE_ORIGIN?: string;
 };
+const pageImages = ["/icon.png", "/apple-touch-icon.png", "/og.jpg", "/logo.svg"];
 const codePattern = "([0-9abcdefghjkmnpqrstvwxyz]{8})";
 function cloud(session: Session, env: Env) {
   if (
@@ -128,20 +131,31 @@ export function createWorker(files: Readonly<Record<string, string>>) {
           result = new Response(null, { status: 404 });
         } else if (request.method === "GET" && (url.pathname === "/" || url.pathname === "/index.html")) {
           result = Response.redirect("https://apxagent.app", 302);
+        } else if (request.method === "GET" && new RegExp(`^/${codePattern}$`).test(url.pathname)) {
+          const code = url.pathname.slice(1);
+          const head = await pointer(budgetedBucket(env.COPIES, env.BUDGET), code);
+          const live = head && (await isLive(env, head.uid, code)) ? head : undefined;
+          const page = copyPage(files["/index.html"] ?? "", {
+            origin: url.origin,
+            code,
+            copy: live?.meta,
+            signIn: signInConfig(env),
+          });
+          // A removed copy answers 404 so search engines drop it; the viewer still explains it to a person.
+          result = new Response(page, {
+            status: live ? 200 : 404,
+            headers: { "content-type": "text/html; charset=utf-8" },
+          });
         } else if (
           request.method === "GET" &&
-          (url.pathname === "/runner.html" ||
-            url.pathname.startsWith("/assets/") ||
-            new RegExp(`^/${codePattern}$`).test(url.pathname))
+          (url.pathname === "/runner.html" || url.pathname.startsWith("/assets/") || pageImages.includes(url.pathname))
         ) {
-          const path =
-            url.pathname === "/runner.html" || url.pathname.startsWith("/assets/") ? url.pathname : "/index.html";
-          result = viewerAsset(files, path);
+          result = viewerAsset(files, url.pathname);
         } else result = new Response(null, { status: 404 });
       } catch (error) {
         result = failure(error);
       }
-      return secureResponse(result, url.pathname, url.origin);
+      return secureResponse(result, url.pathname, url.origin, signInConfig(env)?.project);
     },
   };
 }

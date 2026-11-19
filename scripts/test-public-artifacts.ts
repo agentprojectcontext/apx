@@ -13,6 +13,7 @@ try {
         "--test-concurrency=1",
         "firebase/public-artifact*.browser.test.ts",
         "firebase/public-copies*.browser.test.ts",
+        "firebase/public-copy-owner.browser.test.ts",
       ],
       {
         stdio: "inherit",

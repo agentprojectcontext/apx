@@ -52,6 +52,9 @@ export async function startArtifactWorker(deps: { emulator: string; port?: numbe
     "panel-390",
     "spanish-1280",
     "spanish-390",
+    "owner-1280",
+    "owner-390",
+    "stranger",
   ])
     identities[name] = await identity(`test-${name}`);
   const token = identities.viewer?.token;
@@ -63,7 +66,7 @@ export async function startArtifactWorker(deps: { emulator: string; port?: numbe
       ...(await localWorkerModules()),
       compatibilityDate: "2026-11-13",
       ...(deps.port ? { port: deps.port } : {}),
-      bindings: { FIREBASE_PROJECT: project },
+      bindings: { FIREBASE_PROJECT: project, FIREBASE_WEB_KEY: "demo-web-key-for-browser-tests" },
       r2Buckets: ["COPIES"],
       durableObjects: {
         ACCOUNTS: { className: "PublicationAccount", useSQLite: true },

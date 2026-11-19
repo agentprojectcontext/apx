@@ -45,7 +45,11 @@ Required EN/ES states: signed out, preparing, initial loading, refreshing with p
 
 ## Public viewer and handoff
 
-Keep the minimal public wrapper, language switch, title, isolated page and Open in APX action. No login is required to view or download. Unavailable/revoked copies remove the page and disable download; a connection error must not retain stale content.
+Keep the minimal public wrapper: APX logo (a link to apxagent.app), the title opening the copy's menu, the isolated page, Open in APX and Download APX. When Open in APX keeps the page focused, say the app is needed on this computer and offer the download. No login is required to view or download. Unavailable/revoked copies remove the page and disable download; a connection error must not retain stale content.
+
+Sign in with Google is the last item of the menu, never a button in the bar. Signed in on their own copy, the owner sees their photo in the bar, Edit in APX instead of Open in APX, and Copy link, Edit in APX, Download file and Stop sharing… (always confirmed) in the menu, with their email and "This copy is yours" above Sign out. Signed in on someone else's copy, only the account and Sign out are added. Firebase is downloaded only when the menu opens or a session was kept.
+
+The page's head names the copy for search engines and link previews (title, description, canonical, APX preview image and icon, schema.org publisher APX); a code without a live copy answers 404 with `noindex`. Public copies are indexable on purpose ([D-252](DECISIONS.md#d-252)).
 
 Downloading a file alone does not prove APX opened its install dialog. Until the native handoff is implemented and exercised, say **Download the file, then open it in APX / Descargá el archivo y abrilo en APX**, and keep the automatic handoff explicitly pending in delivery evidence. Do not mark the task complete on that fallback alone.
 

@@ -3,7 +3,19 @@ const viewerPolicy =
 const runnerPolicy =
   "default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data: blob:; font-src data:; connect-src 'none'; frame-src 'none'; worker-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'self'; sandbox allow-scripts";
 
-export function secureResponse(response: Response, path: string, origin?: string) {
+/** What Firebase's Google sign-in needs on the page; only added when the Worker has a web client. */
+function withSignIn(policy: string, project: string) {
+  return policy
+    .replace("script-src 'self'", "script-src 'self' https://apis.google.com")
+    .replace("frame-src 'self'", `frame-src 'self' https://${project}.firebaseapp.com`)
+    .replace("img-src 'self' data:", "img-src 'self' data: https://lh3.googleusercontent.com")
+    .replace(
+      /connect-src 'self'/,
+      "connect-src 'self' https://identitytoolkit.googleapis.com https://securetoken.googleapis.com",
+    );
+}
+
+export function secureResponse(response: Response, path: string, origin?: string, signInProject?: string) {
   const result = new Response(response.body, {
     status: response.status,
     statusText: response.statusText,
@@ -15,12 +27,15 @@ export function secureResponse(response: Response, path: string, origin?: string
   result.headers.set("referrer-policy", "no-referrer");
   result.headers.set("x-content-type-options", "nosniff");
   result.headers.set("permissions-policy", "camera=(), microphone=(), geolocation=(), payment=(), usb=()");
-  const policy = origin
+  const base = origin
     ? viewerPolicy.replace("connect-src 'self'", `connect-src 'self' ${origin.replace(/^http/, "ws")}`)
     : viewerPolicy;
+  const policy = signInProject ? withSignIn(base, signInProject) : base;
   result.headers.set("content-security-policy", path === "/runner.html" ? runnerPolicy : policy);
   if (path.startsWith("/assets/") && response.ok)
     result.headers.set("cache-control", "public, max-age=31536000, immutable");
+  else if (/^\/[a-z-]+\.(png|jpg|svg)$/.test(path) && response.ok)
+    result.headers.set("cache-control", "public, max-age=86400");
   else result.headers.set("cache-control", "no-store");
   return result;
 }

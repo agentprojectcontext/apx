@@ -5580,3 +5580,25 @@ the event loop, about once every fourteen plain turns. `db/db.test.ts` checks th
 
 Docs impact: updated `rules/TESTING.md` 5b (commits per turn, the test that bounds them, and that commits no
 longer fsync). No user guide, reference or troubleshooting page describes the store's durability settings.
+
+<a id="d-252"></a>
+## D-252 — 2026-11-19 — Public copies are indexable, and their page signs the owner in with Google
+
+A public copy at `artifact.apxagent.app` is public on purpose: its page now tells search engines and link previews
+what it is (title, description, canonical link, an APX preview image and icon, schema.org data naming APX as
+publisher) and is not marked `noindex`. Other artifact hosts have been criticised for this, but each indexed copy is
+a link to APX, and the owner chose that reach. What protects the person is in the review before publishing, the
+guide saying copies can appear in search results, and stopping sharing: a code with no live copy answers 404 with
+`noindex`, so search engines drop it. The page never carries the owner's name or account.
+
+The owner also manages a copy from its page, as on other hosts: **Sign in with Google** in the copy's menu uses
+Firebase Auth's web popup, lazy-loaded, against the same `apx-agents` project the core signs in to, so the same
+Google account is the same person. Checking ownership and stopping sharing call the Worker's existing private routes
+(`inspect`, `revoke`) with that ID token; nothing new decides ownership. The Firebase SDK is a new viewer dependency
+because a popup sign-in from a third-party domain depends on Firebase's hosted handler protocol, which is not worth
+reimplementing. The sign-in only exists when the Worker has `FIREBASE_WEB_KEY` and the domain is authorized in
+Firebase; the page's CSP widens for Google only then. The copy itself runs in the opaque sandbox and cannot reach
+the session kept on the page's origin.
+
+Docs impact: updated `apps/docs` office/artifacts (EN/ES), `firebase/README.md` (EN/ES) and
+`rules/PUBLIC_ARTIFACTS_UI.md`.
