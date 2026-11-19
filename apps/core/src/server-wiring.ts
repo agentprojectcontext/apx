@@ -636,7 +636,15 @@ export async function listen(
   server.keepAliveTimeout = KEEP_ALIVE_MS;
   server.headersTimeout = KEEP_ALIVE_MS + 1000;
   const display = d.vm ? attachVmDisplay(server, d.vm, gate) : undefined;
-  const calls = d.voice ? attachVoiceCall(server, { ...d.voice, gate, log: d.log }) : undefined;
+  const calls = d.voice
+    ? attachVoiceCall(server, {
+        ...d.voice,
+        engine: d.voice.callEngine ?? d.voice.engine,
+        services: d.voice.callServices,
+        gate,
+        log: d.log,
+      })
+    : undefined;
   const wss = attachWs(server, {
     streamPaths: [...(d.vm ? ["/vm-display"] : []), ...(calls ? ["/voice-call"] : [])],
     dispatch: d.dispatch,

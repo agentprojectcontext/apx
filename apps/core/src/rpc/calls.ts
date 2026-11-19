@@ -1,6 +1,7 @@
 // APX's own voice and voice calls from the panel (services/native-voice.ts, engine/calls.ts,
 // services/voice-engine.ts, transport/voice-call.ts).
 import type { CallStatus, VoiceStatus } from "@apx/protocol";
+import type { createCallServices } from "../engine/call-services.ts";
 import type { Calls } from "../engine/calls.ts";
 import { unavailable } from "../errors.ts";
 import type { NativeVoiceSettings } from "../services/native-voice.ts";
@@ -14,6 +15,8 @@ const NEEDS = {
   off: "APX's voice is turned off",
   model: "calls need a model APX can call directly",
   disabled: "calls are turned off in Settings › Voice and calls",
+  speech: "choose a speech service in Settings › Voice and calls",
+  transcription: "choose a transcription service in Settings › Voice and calls",
 } as const;
 
 const NONE: VoiceStatus = {
@@ -30,19 +33,39 @@ const NONE: VoiceStatus = {
   can_full: false,
 };
 
-export type VoiceDeps = { calls: Calls; engine: VoiceEngine; native: NativeVoiceSettings };
+export type VoiceDeps = {
+  calls: Calls;
+  engine: VoiceEngine;
+  native: NativeVoiceSettings;
+  remote?: VoiceEngine;
+  callEngine?: () => VoiceEngine;
+  callServices?: () => Omit<Parameters<typeof createCallServices>[0], "send" | "failed"> | undefined;
+  hasService?: (kind: "speech" | "transcription", id: string | undefined) => boolean;
+};
 
 export function callHandlers(d: VoiceDeps | undefined) {
   function callStatus(): CallStatus {
     if (!d) return { ready: false, running: false, missing: "platform" };
     const v = d.native.status();
-    const missing: CallStatus["missing"] =
-      v.missing ?? (!v.calls ? "disabled" : !v.enabled ? "off" : !d.calls.hasModel() ? "model" : undefined);
+    const remote = v.call_engine === "services";
+    const audioMissing = remote
+      ? !d.hasService?.("speech", v.call_speech)
+        ? "speech"
+        : !d.hasService?.("transcription", v.call_transcription)
+          ? "transcription"
+          : !d.remote || d.remote.machine().missing
+            ? "uv"
+            : undefined
+      : (v.missing ?? (!v.enabled ? "off" : undefined));
+    const missing: CallStatus["missing"] = !v.calls
+      ? "disabled"
+      : (audioMissing ?? (!d.calls.hasModel() ? "model" : undefined));
     const live = d.calls.status().live;
     return {
       // Not downloaded yet is not missing: the first call waits for it.
       ready: !missing,
-      running: v.running,
+      engine: remote ? "services" : "native",
+      running: remote ? Boolean(d.remote?.running()) : v.running,
       ...(missing ? { missing } : {}),
       ...(live ? { live } : {}),
       voice: v.voice,
@@ -63,7 +86,7 @@ export function callHandlers(d: VoiceDeps | undefined) {
     "calls.start": (p) => {
       const s = callStatus();
       if (!d || s.missing) throw unavailable(NEEDS[s.missing ?? "platform"]);
-      if (!d.engine.installed()) d.native.install();
+      if (d.native.status().call_engine !== "services" && !d.engine.installed()) d.native.install();
       const v = d.native.voice();
       return d.calls.start({
         agent_id: p.agent_id,
@@ -74,7 +97,10 @@ export function callHandlers(d: VoiceDeps | undefined) {
     },
     "calls.prepare": () => {
       // Only where a call could start now: never downloads, never wakes a voice that is off.
-      if (d && !callStatus().missing && d.engine.installed()) d.engine.prepare();
+      if (d && !callStatus().missing) {
+        const engine = d.native.status().call_engine === "services" ? d.remote : d.engine;
+        if (engine?.installed()) engine.prepare();
+      }
       return { ok: true as const };
     },
     "calls.say": ({ thread_id, text }) => {

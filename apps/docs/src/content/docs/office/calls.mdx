@@ -7,14 +7,15 @@ sidebar:
 
 import { Aside } from "@astrojs/starlight/components";
 
-APX has a voice of its own that runs on your Mac. Your agents speak their voice notes with it, it writes down the voice
-notes you send them, and it lets you **call** any of your agents and talk to it like on the phone.
+You can **call** any of your agents using speech and transcription services on Windows, Linux or macOS. Choose the
+services separately, including remote servers. APX also has its own local voice on supported Apple silicon Macs;
+that option's hardware requirements do not apply to calls using other services.
 
 ## APX's voice
 
 Open **Settings › Voice and calls**. It has three parts: **Speak** (the voices your agents talk with), **Hear** (what
-turns voice notes, dictation and what you say on calls into text) and **Calls**. Speak and Hear are each one list,
-tried in order: the first that answers is used. APX's own voice is the first row of both, **APX — On this computer**,
+turns voice notes and dictation into text) and **Calls**. Voice notes and read-aloud messages try the Speak and Hear
+lists in order: the first that answers is used. Calls keep their own choices, described below. APX's own voice is the first row of both, **APX — On this computer**,
 with its switch, the model it uses and the folder its models are kept in:
 
 - **Female or male** (female by default), the **language** (Spanish or English) and then, for Spanish, the **accent**:
@@ -49,17 +50,47 @@ while takes some seconds more; the call card shows a bar with about how long is 
 your Mac.
 </Aside>
 
+## Choose services for calls
+
+In **Settings › Voice and calls › Calls**, choose **Your services** under **Voice for calls**. Pick a speech service
+and a transcription service from the enabled services above. An explicit choice is independent of their general order:
+if you disable or remove it, choose another before calling. **First enabled above** chooses the first enabled service
+in that list when the call starts. Each call keeps both services: if one fails, the call ends without sending your audio
+to another provider.
+**Manage services** takes you back to those lists to add or edit a service.
+
+- **Gemini** uses its speech API. Set an API key, a speech model and a supported voice, such as Kore.
+- **ElevenLabs** uses its native speech API. Add your API key and copy the voice ID from the voice's details in your
+  ElevenLabs voice library. **Advanced options** lets you change the model and service address.
+- **QVox** and **Custom** use an OpenAI-compatible speech endpoint. Enter its URL, model and voice. A server on a PC,
+  private network or VPS can be used; the core, not your browser, must be able to reach that address.
+- For listening, use an OpenAI-compatible transcription service, a local Whisper server, or whisper.cpp. A speech-only
+  provider does not transcribe. Configure whisper.cpp's model through **Hear** if you want local CPU transcription.
+
+On Windows and Linux, install [uv](https://docs.astral.sh/uv/getting-started/installation/) on the core's computer first;
+APX currently downloads uv automatically only on supported Macs. Turn taking runs on the core's computer using CPU
+models. The first call downloads its Python dependencies and small
+voice-activity and end-of-turn models with uv; it does not download MLX or Qwen speech models. Calls need an available
+microphone and browser audio permission. Audio sent to a remote speech or transcription service is handled by that
+service. Responses are played after each sentence's synthesis completes; provider audio is not token-streamed. Live
+partial transcription is unavailable in service mode. Interruption stops playback and cancels pending requests, but a
+provider may continue processing or billing a request it has already accepted.
+
+Select **APX's voice** instead to use the local Apple silicon option and its voice/accent controls.
+
 ## Make a call
 
 Calls are on unless you turn them off: **Settings › Voice and calls › Calls › Allow calls**. With calls off the phone buttons are hidden,
 and your agents still speak and hear voice notes.
 
 Press the phone button at the top of the panel to call your super-agent, or **Call** on any agent's profile, its menu
-or its chat. Pick the voice and the accent; APX remembers them. It rings while the voice loads, then the voice answers
+or its chat. With APX's local voice, pick the voice and accent; APX remembers them. Other services use the voice saved
+in their service settings. It rings while the voice loads, then the voice answers
 with a greeting and listens: what you say before it answers is not heard. Speak normally: you can interrupt the voice
 at any moment, and saying "ok, I'll wait" leaves it quiet until there is news.
 
-What you say shows in the call's chat as you speak, and the voice's words as it says them. You can also type in the
+What you say shows in the call's chat (with services, after each spoken segment), and the voice's words as it says
+them. You can also type in the
 call's chat while it goes on: the voice takes it as said and answers aloud. The call card moves anywhere by its top
 and folds to it, so it never covers what you need. A click on its top, without dragging it, opens the call's chat
 again, wherever you went meanwhile.

@@ -11,7 +11,7 @@ const useLiveCall = (): string | undefined => useCalls((s) => s.live ?? s.status
 
 /**
  * A call to an agent (the top bar's for the super-agent, an agent's chat and profile): opens the call card, or, during
- * a call (marked), goes back to it. Hidden where calls can never run (not a Mac with Apple silicon); otherwise the
+ * a call (marked), goes back to it. Hidden when the owner turns calls off; otherwise the
  * card says what is missing. `labeled`: a button with its words, instead of an icon.
  */
 export function CallButton({

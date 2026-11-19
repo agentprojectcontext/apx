@@ -15,6 +15,13 @@ export const toOggOpus = (input: Buffer, bin = "ffmpeg", run = spawn) =>
 export const toPcm16k = (input: Buffer, bin = "ffmpeg", run = spawn) =>
   convert(input, ["-ac", "1", "-ar", "16000", "-f", "s16le"], bin, run);
 
+/** A service's reply in the call socket's 24 kHz mono PCM16 format. */
+export const toPcm24k = async (input: Buffer, bin = "ffmpeg", run = spawn, signal?: AbortSignal) => {
+  signal?.throwIfAborted();
+  if (input.length > 8 * 1024 * 1024) throw new Error("audio input is too large");
+  return convert(input, ["-ac", "1", "-ar", "24000", "-f", "s16le"], bin, run, signal, 4 * 1024 * 1024);
+};
+
 /** Any recording as a 16 kHz mono WAV: what whisper.cpp reads without converting it itself. */
 export const toWav16k = async (input: Buffer, bin = "ffmpeg", run = spawn) => wav16k(await toPcm16k(input, bin, run));
 
@@ -40,33 +47,65 @@ export function wav16k(pcm: Buffer): Buffer {
  * The input goes through a file: a phone's m4a keeps its index at the end, and ffmpeg reading it from a pipe ends
  * with no sound and no error. Nothing out counts as a failure, so the next engine is tried.
  */
-async function convert(input: Buffer, out: string[], bin: string, run: typeof spawn): Promise<Buffer> {
+async function convert(
+  input: Buffer,
+  out: string[],
+  bin: string,
+  run: typeof spawn,
+  signal?: AbortSignal,
+  max = Number.POSITIVE_INFINITY,
+): Promise<Buffer> {
+  signal?.throwIfAborted();
   const dir = await fs.promises.mkdtemp(path.join(os.tmpdir(), "apx-audio-"));
   try {
     const file = path.join(dir, "in");
     await fs.promises.writeFile(file, input);
-    return await ffmpeg(run, bin, ["-hide_banner", "-loglevel", "error", "-i", file, ...out, "pipe:1"]);
+    signal?.throwIfAborted();
+    return await ffmpeg(run, bin, ["-hide_banner", "-loglevel", "error", "-i", file, ...out, "pipe:1"], signal, max);
   } finally {
     await fs.promises.rm(dir, { recursive: true, force: true });
   }
 }
 
-function ffmpeg(run: typeof spawn, bin: string, args: string[]): Promise<Buffer> {
+function ffmpeg(
+  run: typeof spawn,
+  bin: string,
+  args: string[],
+  signal: AbortSignal | undefined,
+  max: number,
+): Promise<Buffer> {
   return new Promise((resolve, reject) => {
     const p = run(bin, args, { stdio: ["ignore", "pipe", "pipe"] });
     const chunks: Buffer[] = [];
     let err = "";
-    const timer = setTimeout(() => p.kill("SIGKILL"), CONVERT_MS);
-    p.stdout?.on("data", (c: Buffer) => chunks.push(c));
+    let size = 0;
+    let failure: Error | undefined;
+    const stop = (reason: Error) => {
+      failure ??= reason;
+      p.kill("SIGKILL");
+    };
+    const abort = () => stop(new Error("audio conversion cancelled"));
+    signal?.addEventListener("abort", abort, { once: true });
+    const timer = setTimeout(() => stop(new Error("audio conversion timed out")), CONVERT_MS);
+    if (signal?.aborted) abort();
+    p.stdout?.on("data", (c: Buffer) => {
+      size += c.length;
+      if (size > max) stop(new Error("converted audio is too large"));
+      else if (!failure) chunks.push(c);
+    });
     p.stderr?.on("data", (c: Buffer) => {
-      err += c.toString();
+      err = (err + c.toString()).slice(0, 4096);
     });
     p.on("error", (e) => {
-      clearTimeout(timer);
-      reject(e);
+      failure ??= e;
     });
     p.on("close", (code) => {
       clearTimeout(timer);
+      signal?.removeEventListener("abort", abort);
+      if (failure) {
+        reject(failure);
+        return;
+      }
       const audio = Buffer.concat(chunks);
       if (code === 0 && audio.length) resolve(audio);
       else

@@ -3,11 +3,9 @@ import type { enVoice } from "./voice-en.ts";
 export const esVoice: Record<keyof typeof enVoice, string> = {
   "voice.lead": "Cómo hablan y escuchan tus agentes, y las llamadas con ellos.",
   "voice.speak": "Hablar",
-  "voice.speakLead":
-    "Tus agentes leen en voz alta y hablan en las llamadas con la primera voz que responde, en este orden.",
+  "voice.speakLead": "Tus agentes leen en voz alta con la primera voz que responde, en este orden.",
   "voice.hear": "Escuchar",
-  "voice.hearLead":
-    "Las notas de voz, el dictado y lo que decís en las llamadas pasan a texto con el primero que responde.",
+  "voice.hearLead": "Las notas de voz y el dictado pasan a texto con el primero que responde.",
   "voice.models.speaks": "Habla con {name}, unos {gb} GB en {folder}.",
   "voice.models.hears": "Escucha con {name}.",
   "voice.here": "En esta computadora",
@@ -45,9 +43,25 @@ export const esVoice: Record<keyof typeof enVoice, string> = {
   "voice.error": "No se pudo cambiar la voz de APX: {error}",
   "calls.lead": "Llamá a cualquiera de tus agentes y hablá con él mientras trabaja.",
   "calls.allow": "Permitir llamadas",
-  "calls.allowHint": "Las llamadas usan la voz de APX, la que elegís arriba.",
+  "calls.allowHint": "Mostrar los botones para llamar a tus agentes.",
+  "calls.audio": "Voz para llamadas",
+  "calls.native": "Voz de APX",
+  "calls.services": "Tus servicios",
+  "calls.nativeHint": "Habla y escucha en esta computadora, con los modelos locales de APX.",
+  "calls.servicesHint":
+    "Usá los servicios de arriba. El audio va a los que elijas; los turnos de conversación se detectan en esta computadora.",
+  "calls.nativeUnavailable":
+    "La voz local de APX necesita una Mac con Apple silicon. Elegí tus servicios para llamar desde esta computadora.",
+  "calls.speech": "Habla con",
+  "calls.transcription": "Escucha con",
+  "calls.firstAvailable": "Primero habilitado de arriba",
+  "calls.serviceUnavailable": "El servicio ya no está disponible",
+  "calls.manageServices": "Administrar servicios",
+  "calls.serviceHint":
+    "Cada llamada conserva los servicios con los que empieza. Si uno falla, termina en vez de cambiar a otro.",
+  "calls.empty.speech": "Agregá una voz en Hablar, arriba, para empezar.",
+  "calls.empty.transcription": "Agregá un servicio en Escuchar, arriba, para empezar.",
   "calls.offHint": "Los botones de llamada están ocultos. Tus agentes igual hablan y escuchan notas de voz.",
-  "calls.cantRun": "Las llamadas necesitan la voz de APX, que no puede correr en esta computadora.",
   "calls.model": "Modelo para llamadas",
   "calls.modelHint": "Con quién hablás en una llamada. El agente al que llamás sigue trabajando con su propio modelo.",
   "calls.mainModel": "Tu modelo principal",

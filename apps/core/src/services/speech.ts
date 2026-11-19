@@ -4,6 +4,7 @@
 
 import { errorMessage } from "../errors.ts";
 import { PINNED } from "../models/pinned.ts";
+import { readSpeechBody } from "./speech-body.ts";
 import { joinUrl, type ServiceConfig, ServiceError, SPEECH_TIMEOUT_MS, type SpeechResult } from "./types.ts";
 
 type Fetch = typeof fetch;
@@ -39,8 +40,8 @@ async function openaiSpeech(
     }),
     signal,
   });
-  if (!res.ok) throw new Error(`HTTP ${res.status}: ${(await res.text()).slice(0, 200)}`);
-  const bytes = Buffer.from(await res.arrayBuffer());
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  const bytes = await readSpeechBody(res, signal);
   return { bytes, mime: res.headers.get("content-type")?.split(";")[0] || (stock ? "audio/mpeg" : "audio/wav") };
 }
 
@@ -89,8 +90,8 @@ async function geminiSpeech(
   let res = await ask(s.model || PINNED.geminiSpeech.id);
   // A voice model Google retired answers 404: the current default speaks instead of the voice going silent.
   if (res.status === 404 && s.model && s.model !== PINNED.geminiSpeech.id) res = await ask(PINNED.geminiSpeech.id);
-  if (!res.ok) throw new Error(`HTTP ${res.status}: ${(await res.text()).slice(0, 200)}`);
-  const j = (await res.json()) as {
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  const j = JSON.parse((await readSpeechBody(res, signal)).toString()) as {
     candidates?: Array<{ content?: { parts?: Array<{ inlineData?: { data?: string; mimeType?: string } }> } }>;
   };
   const part = j.candidates?.[0]?.content?.parts?.find((p) => p.inlineData?.data)?.inlineData;
@@ -99,7 +100,39 @@ async function geminiSpeech(
   return { bytes: wav(Buffer.from(part.data, "base64"), rate), mime: "audio/wav" };
 }
 
-const DIALECTS = { "openai-speech": openaiSpeech, "gemini-speech": geminiSpeech } as const;
+async function elevenlabsSpeech(
+  s: ServiceConfig,
+  r: SpeechRequest,
+  key: string | undefined,
+  signal: AbortSignal,
+  f: Fetch,
+) {
+  if (!key) throw new Error("needs an ElevenLabs API key");
+  const voice = r.voice ?? s.voice;
+  if (!voice) throw new Error("choose an ElevenLabs voice");
+  const res = await f(
+    joinUrl(s.base_url, `/v1/text-to-speech/${encodeURIComponent(voice)}?output_format=mp3_44100_128`),
+    {
+      method: "POST",
+      headers: { "content-type": "application/json", "xi-api-key": key },
+      redirect: "error",
+      body: JSON.stringify({
+        text: r.text,
+        model_id: s.model || PINNED.elevenlabsSpeech.id,
+        ...(s.language && s.model !== "eleven_multilingual_v2" && s.model ? { language_code: s.language } : {}),
+      }),
+      signal,
+    },
+  );
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  return { bytes: await readSpeechBody(res, signal), mime: "audio/mpeg" };
+}
+
+const DIALECTS = {
+  "openai-speech": openaiSpeech,
+  "gemini-speech": geminiSpeech,
+  "elevenlabs-speech": elevenlabsSpeech,
+} as const;
 
 export async function speak(
   s: ServiceConfig,
@@ -120,4 +153,5 @@ export async function speak(
 export const SPEECH_PROBE: Record<string, string> = {
   "openai-speech": "/v1/models",
   "gemini-speech": "/v1beta/models",
+  "elevenlabs-speech": "/v1/models",
 };

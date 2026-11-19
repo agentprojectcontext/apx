@@ -77,6 +77,14 @@ const PRESETS: Record<ServiceKind, Preset[]> = {
       voice: "Kore",
     },
     {
+      id: "elevenlabs",
+      label: "ElevenLabs",
+      dialect: "elevenlabs-speech",
+      base_url: "https://api.elevenlabs.io",
+      needs_key: true,
+      model: "eleven_multilingual_v2",
+    },
+    {
       id: "compatible",
       label: "OpenAI-compatible",
       dialect: "openai-speech",
@@ -178,6 +186,8 @@ export function ServiceDialog(props: {
     return { kind, enabled: true, ...p };
   });
   const [key, setKey] = useState("");
+  const [advanced, setAdvanced] = useState(false);
+  const elevenlabs = draft.dialect === "elevenlabs-speech";
   const [busy, setBusy] = useState(false);
   // What "Test connection" found for the address as it is now (cleared when the address or the key change).
   const [check, setCheck] = useState<ServiceTest>();
@@ -226,7 +236,11 @@ export function ServiceDialog(props: {
           <Button variant="secondary" onClick={props.onClose}>
             {t("common.cancel")}
           </Button>
-          <Button disabled={clash || !validUrl} loading={busy} onClick={() => void save()}>
+          <Button
+            disabled={clash || !validUrl || (draft.dialect === "elevenlabs-speech" && !draft.voice?.trim())}
+            loading={busy}
+            onClick={() => void save()}
+          >
             {t("common.save")}
           </Button>
         </>
@@ -243,9 +257,11 @@ export function ServiceDialog(props: {
                 onClick={() => {
                   const { id: _p, ...rest } = p;
                   setDraft({ kind, enabled: true, ...rest });
+                  setCheck(undefined);
+                  setAdvanced(false);
                 }}
               >
-                {p.label}
+                {p.id === "compatible" ? t("svc.custom") : p.label}
               </button>
             ))}
           </div>
@@ -258,47 +274,62 @@ export function ServiceDialog(props: {
           />
         </Field>
         {draft.dialect === "codex-images" && <span className="pform__hint">{t("svc.codexHint")}</span>}
-        {!runsHere && (
-          <Field label={t("providers.url")}>
-            <Input
-              aria-label={t("providers.url")}
-              value={draft.base_url}
-              onChange={(e) => set({ base_url: e.currentTarget.value })}
-            />
-          </Field>
+        {elevenlabs && (
+          <Button
+            variant="secondary"
+            size="sm"
+            aria-expanded={advanced}
+            aria-controls="service-advanced"
+            onClick={() => setAdvanced((v) => !v)}
+          >
+            {t("svc.advanced")}
+          </Button>
         )}
-        <Field
-          label={t("svc.model")}
-          hint={t(
-            draft.dialect === "whisper-cpp"
-              ? "svc.modelWhisperCppHint"
-              : draft.dialect === "codex-images"
-                ? "svc.modelCodexHint"
-                : kind === "image"
-                  ? "svc.modelImageHint"
-                  : "svc.modelSpeechHint",
-          )}
-        >
-          <Input
-            aria-label={t("svc.model")}
-            value={draft.model ?? ""}
-            onChange={(e) => set({ model: e.currentTarget.value })}
-          />
-        </Field>
-        {check?.models && check.models.length > 0 && (
-          <fieldset className="pform__presets pform__models" aria-label={t("svc.model")}>
-            {check.models.slice(0, 24).map((m) => (
-              <button
-                key={m}
-                type="button"
-                className={draft.model === m ? "pform__preset is-on" : "pform__preset"}
-                aria-pressed={draft.model === m}
-                onClick={() => set({ model: m })}
-              >
-                {m}
-              </button>
-            ))}
-          </fieldset>
+        {(!elevenlabs || advanced) && (
+          <div className="pform" id="service-advanced">
+            {!runsHere && (
+              <Field label={t("providers.url")}>
+                <Input
+                  aria-label={t("providers.url")}
+                  value={draft.base_url}
+                  onChange={(e) => set({ base_url: e.currentTarget.value })}
+                />
+              </Field>
+            )}
+            <Field
+              label={t("svc.model")}
+              hint={t(
+                draft.dialect === "whisper-cpp"
+                  ? "svc.modelWhisperCppHint"
+                  : draft.dialect === "codex-images"
+                    ? "svc.modelCodexHint"
+                    : kind === "image"
+                      ? "svc.modelImageHint"
+                      : "svc.modelSpeechHint",
+              )}
+            >
+              <Input
+                aria-label={t("svc.model")}
+                value={draft.model ?? ""}
+                onChange={(e) => set({ model: e.currentTarget.value })}
+              />
+            </Field>
+            {check?.models && check.models.length > 0 && (
+              <fieldset className="pform__presets pform__models" aria-label={t("svc.model")}>
+                {check.models.slice(0, 24).map((m) => (
+                  <button
+                    key={m}
+                    type="button"
+                    className={draft.model === m ? "pform__preset is-on" : "pform__preset"}
+                    aria-pressed={draft.model === m}
+                    onClick={() => set({ model: m })}
+                  >
+                    {m}
+                  </button>
+                ))}
+              </fieldset>
+            )}
+          </div>
         )}
         {kind === "speech" && <SpeechFields draft={draft} set={set} />}
         {!runsHere && (
@@ -306,7 +337,6 @@ export function ServiceDialog(props: {
             checked={draft.needs_key}
             onCheckedChange={(on) => set({ needs_key: on })}
             label={t("svc.needsKey")}
-            description={t("svc.needsKeyHint")}
           />
         )}
         {draft.needs_key && (
@@ -361,28 +391,32 @@ function SpeechFields({ draft, set }: { draft: ServiceSettings; set(patch: Parti
   const t = useT();
   return (
     <>
-      <Field label={t("svc.voice")}>
+      <Field label={t("svc.voice")} hint={draft.dialect === "elevenlabs-speech" ? t("svc.elevenVoiceHint") : undefined}>
         <Input
           aria-label={t("svc.voice")}
           value={draft.voice ?? ""}
           onChange={(e) => set({ voice: e.currentTarget.value })}
         />
       </Field>
-      <Field label={t("svc.language")}>
-        <Input
-          aria-label={t("svc.language")}
-          value={draft.language ?? ""}
-          placeholder="es"
-          onChange={(e) => set({ language: e.currentTarget.value })}
-        />
-      </Field>
-      <Field label={t("svc.style")} hint={t("svc.styleHint")}>
-        <Input
-          aria-label={t("svc.style")}
-          value={draft.style ?? ""}
-          onChange={(e) => set({ style: e.currentTarget.value })}
-        />
-      </Field>
+      {draft.dialect !== "elevenlabs-speech" && (
+        <Field label={t("svc.language")}>
+          <Input
+            aria-label={t("svc.language")}
+            value={draft.language ?? ""}
+            placeholder="es"
+            onChange={(e) => set({ language: e.currentTarget.value })}
+          />
+        </Field>
+      )}
+      {draft.dialect !== "elevenlabs-speech" && (
+        <Field label={t("svc.style")} hint={t("svc.styleHint")}>
+          <Input
+            aria-label={t("svc.style")}
+            value={draft.style ?? ""}
+            onChange={(e) => set({ style: e.currentTarget.value })}
+          />
+        </Field>
+      )}
       {draft.dialect === "openai-speech" && (
         <>
           <Field label={t("svc.clone")} hint={t("svc.cloneHint")}>

@@ -121,6 +121,7 @@ import {
   reachableAt,
   servedPanel,
 } from "./server-wiring.ts";
+import { createCallAudio } from "./services/call-audio.ts";
 import { CODEX_IMAGE_SERVICE, CODEX_IMAGES, createCodexImages } from "./services/codex-images.ts";
 import { createLocalEmbeddings } from "./services/local-embed.ts";
 import { createModelInstaller } from "./services/local-whisper.ts";
@@ -687,6 +688,7 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
   });
   const native = createNativeVoice({ store, services, engine: voiceEngine, log, auto: config.voice.auto });
   const voice = {
+    ...createCallAudio({ store, home: config.home, log, native, engine: voiceEngine, services }),
     engine: voiceEngine,
     native,
     calls: createCalls({
@@ -1007,6 +1009,7 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
       chatgpt.stop();
       localModels.cancel();
       voice.engine.close();
+      voice.remote.close();
       voice.native.close();
       await widgetPages?.closeAll().catch(() => {});
       headless?.close();

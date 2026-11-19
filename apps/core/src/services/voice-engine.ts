@@ -14,12 +14,12 @@ import type { Log } from "../log.ts";
 import { isInside } from "../paths.ts";
 import { findProgram } from "../programs.ts";
 import type { Uv } from "./uv.ts";
+import { voiceProcessEnv } from "./voice-process-env.ts";
 
 const START_TIMEOUT_MS = 5 * 60_000; // the first start after an update installs Python packages
 const IDLE_MS = 10 * 60_000;
 const SPEAK_TIMEOUT_MS = 90_000;
 const ENGINE = path.join(import.meta.dirname, "../voice/engine.py");
-const KEEP_ENV = new Set(["PATH", "HOME", "USER", "TMPDIR", "LANG", "SHELL", "XDG_CACHE_HOME", "SSL_CERT_FILE"]);
 
 /**
  * Below MIN_GB the voice does not run. On its own it runs the larger models from AUTO_FULL_GB: with less, the 6 GB
@@ -87,6 +87,8 @@ type Running = {
 
 export function createVoiceEngine(deps: {
   log: Log;
+  /** CPU turn taking with speech and transcription provided over the private call socket. */
+  services?: boolean;
   /** APX's home: the engine logs to <home>/logs/voice.log. */
   home: string;
   /** The owner's name, for the greeting. */
@@ -115,6 +117,12 @@ export function createVoiceEngine(deps: {
 
   function machine(): VoiceMachine {
     const memory_gb = deps.memoryGb ?? Math.round(os.totalmem() / 2 ** 30);
+    if (deps.services)
+      return {
+        tier: "light",
+        memory_gb,
+        ...(!uv() && !deps.uvProgram?.downloadable ? { missing: "uv" as const } : {}),
+      };
     if ((deps.platform ?? process.platform) !== "darwin" || (deps.arch ?? process.arch) !== "arm64")
       return { tier: "none", memory_gb, missing: "platform" };
     if (memory_gb < MIN_GB) return { tier: "none", memory_gb, missing: "memory" };
@@ -126,11 +134,7 @@ export function createVoiceEngine(deps: {
 
   // What the engine needs from the core's environment, and nothing else: never APX's token or any key.
   const env = (extra: Record<string, string>, tier = machine().tier) => ({
-    ...Object.fromEntries(
-      Object.entries(process.env).filter(
-        ([k]) => KEEP_ENV.has(k) || k.startsWith("HF_") || k.startsWith("UV_") || k.startsWith("LC_"),
-      ),
-    ),
+    ...voiceProcessEnv(process.env),
     VOICE_TIER: tier,
     VOICE_PARENT_PID: String(process.pid),
     VOICE_OWNER: deps.owner?.() ?? "",
@@ -167,6 +171,7 @@ export function createVoiceEngine(deps: {
   };
   /** Every model on disk; with `ears`, at least what hears (all of it counts too). */
   const installed = (part: VoicePart = "all") => {
+    if (deps.services) return true;
     const tier = machine().tier;
     if (tier === "none") return false;
     return done(marker(tier)) || (part === "ears" && done(marker(tier, "ears")));
@@ -197,7 +202,8 @@ export function createVoiceEngine(deps: {
     const bin = await getUv();
     const port = await freePort();
     const secret = crypto.randomBytes(24).toString("base64url");
-    const child = run(bin, ["run", "--script", ENGINE, "--port", String(port)], {
+    const script = deps.services ? path.join(import.meta.dirname, "../voice/remote.py") : ENGINE;
+    const child = run(bin, ["run", "--script", script, "--port", String(port)], {
       stdio: ["ignore", "pipe", "pipe"],
       env: env({ VOICE_SECRET: secret }),
     });
@@ -415,6 +421,7 @@ export function createVoiceEngine(deps: {
     async open(q: CallSetup, onMessage?: (data: WebSocket.RawData, binary: boolean) => void): Promise<WebSocket> {
       const r = await up();
       const ws = new WebSocket(`${r.url.replace("http", "ws")}/call?${new URLSearchParams(q)}`, {
+        maxPayload: 8 * 1024 * 1024,
         headers: { "x-voice-secret": r.secret },
       });
       // Before it opens: the first frame can arrive with the handshake itself.

@@ -1,7 +1,5 @@
-// APX's own voice and voice calls. The voice runs on this machine (Apple silicon): it speaks the agents' voice notes,
-// transcribes what the owner records, and carries calls. A call is a thread of kind "call" with one agent: the owner
-// talks with a model (their main one unless they pick another), and what needs real work goes to that agent inside the
-// call, shown there as a card.
+// Calls use configured services on any desktop platform, or APX's local voice on supported Apple silicon Macs.
+// Each call keeps a thread; work requested during it goes to the agent while the conversation continues.
 import { z } from "zod";
 import { deferMethod } from "./defer-method.ts";
 import { Id, ModelRef } from "./domain.ts";
@@ -77,6 +75,10 @@ export const VoiceStatus = z.object(
      * server of their own added as a provider). The agent called works with its own model either way.
      */
     call_model: () => ModelRef.optional(),
+    /** Local MLX voice, or the owner's configured speech and transcription services. */
+    call_engine: () => z.enum(["native", "services"]).optional(),
+    call_speech: () => Id.optional(),
+    call_transcription: () => Id.optional(),
     /** What this Mac's voice is made of and where it is kept (absent where it cannot run). */
     models: () =>
       z
@@ -104,13 +106,15 @@ export const CallStatus = z.object(
   schemaFields({
     /** Everything a call needs is on this machine. */
     ready: () => z.boolean(),
+    engine: () => z.enum(["native", "services"]).optional(),
     /** The voice engine is loaded now (a call starts at once); otherwise the first call loads it. */
     running: () => z.boolean(),
     /**
      * What is missing when not ready: the voice cannot run here, is off, there is no model to talk with, or the owner
      * turned calls off (`disabled`: no call buttons).
      */
-    missing: () => z.enum(["platform", "memory", "uv", "off", "model", "disabled"]).optional(),
+    missing: () =>
+      z.enum(["platform", "memory", "uv", "off", "model", "disabled", "speech", "transcription"]).optional(),
     /** The call going on now, if any. */
     live: () => Id.optional(),
     /** The voice a call starts with. */
@@ -153,6 +157,9 @@ export const callMethods = {
           calls: z.boolean().optional(),
           quality: VoiceQuality.optional(),
           call_model: ModelRef.nullable().optional(),
+          call_engine: z.enum(["native", "services"]).optional(),
+          call_speech: Id.nullable().optional(),
+          call_transcription: Id.nullable().optional(),
         })
         .strict(),
     result: () => VoiceStatus,

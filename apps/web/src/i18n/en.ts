@@ -1696,7 +1696,7 @@ export const en = {
   "svc.check.name": "No machine has that name. Check the address.",
   "svc.check.key": "It answered, but did not take the key.",
   "svc.check.http": "It answered with an error ({detail}). Is that the address of its API?",
-  "svc.check.other": "Could not connect: {detail}",
+  "svc.check.other": "Couldn’t connect. Check the service address and port.",
   "svc.check.noModel": "That server does not have {model}: pick one of its models.",
   "svc.check.noModelOllama":
     "That server does not have {model}: pick one of its models, or get it there with ollama pull {model}.",
@@ -1714,6 +1714,10 @@ export const en = {
   "svc.language": "Language",
   "svc.style": "Style",
   "svc.styleHint": 'How it should speak ("calm", "cheerful"), for servers that take it.',
+  "svc.custom": "Custom (OpenAI-compatible)",
+  "svc.elevenVoiceHint":
+    "In your ElevenLabs voice library, copy the voice ID from the voice’s details and paste it here.",
+  "svc.advanced": "Advanced options",
   "svc.needsKey": "Needs a key",
   "svc.needsKeyHint": "Stored securely; never shown again.",
   "svc.test": "Try it",

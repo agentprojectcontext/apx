@@ -10,6 +10,7 @@ const TEST_TIMEOUT_MS = 5000;
 /** The headers a service reads its key from: Gemini its own, the rest a bearer token (or x-api-key). */
 function keyHeaders(s: Pick<ServiceConfig, "dialect">, key: string | undefined): Record<string, string> {
   if (!key) return {};
+  if (s.dialect === "elevenlabs-speech") return { "xi-api-key": key };
   return s.dialect.startsWith("gemini-")
     ? { "x-goog-api-key": key }
     : { authorization: `Bearer ${key}`, "x-api-key": key };
@@ -24,7 +25,9 @@ function modelNames(s: Pick<ServiceConfig, "dialect" | "kind">, body: unknown): 
     data?: Array<{ id?: string }>;
   };
   let names: string[] | undefined;
-  if (s.dialect.startsWith("ollama")) names = b?.models?.map((m) => m.name?.replace(/:latest$/, "") ?? "");
+  if (s.dialect === "elevenlabs-speech" && Array.isArray(body))
+    names = body.filter((m) => m.can_do_text_to_speech).map((m) => String(m.model_id ?? ""));
+  else if (s.dialect.startsWith("ollama")) names = b?.models?.map((m) => m.name?.replace(/:latest$/, "") ?? "");
   else if (s.dialect.startsWith("gemini-"))
     names = b?.models
       ?.filter((m) => s.kind !== "embedding" || m.supportedGenerationMethods?.includes("embedContent"))
@@ -59,6 +62,7 @@ export async function reach(
   try {
     const res = await f(joinUrl(s.base_url, path), {
       headers: keyHeaders(s, key),
+      ...(s.dialect === "elevenlabs-speech" ? { redirect: "error" as const } : {}),
       signal: AbortSignal.timeout(timeoutMs),
     });
     if (!res.ok) {
