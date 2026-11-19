@@ -29,7 +29,7 @@ const subs = new Set<() => void>();
 const changed = () => {
   for (const f of subs) f();
 };
-const subscribe = (f: () => void) => {
+export const subscribeExtensionChanges = (f: () => void) => {
   subs.add(f);
   return () => subs.delete(f);
 };
@@ -41,7 +41,7 @@ export function openExtensionInstall(open: Request = {}): void {
 
 export function closeExtensionInstall(): void {
   request = undefined;
-  changed();
+  extensionsChanged();
 }
 
 /** Something the owner has changed (here, in another window, from the terminal or by an agent): lists read again. */
@@ -51,11 +51,13 @@ export function extensionsChanged(): void {
 }
 
 export function useExtensionInstall(): Request | undefined {
-  return useSyncExternalStore(subscribe, () => request);
+  return useSyncExternalStore(subscribeExtensionChanges, () => request);
 }
 
+export const extensionsVersion = () => installed;
+
 export function useExtensionsInstalled(): number {
-  return useSyncExternalStore(subscribe, () => installed);
+  return useSyncExternalStore(subscribeExtensionChanges, extensionsVersion);
 }
 
 /** How far along each catalog being read is, as the core tells it: entries checked of how many. */
@@ -67,5 +69,5 @@ export function catalogReading(id: string, done: number, total: number): void {
 }
 
 export function useCatalogReading(): Record<string, { done: number; total: number }> {
-  return useSyncExternalStore(subscribe, () => reading);
+  return useSyncExternalStore(subscribeExtensionChanges, () => reading);
 }

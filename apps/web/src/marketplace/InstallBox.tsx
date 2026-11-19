@@ -233,7 +233,12 @@ export function InstallBox({
         s = (await client.call("mcp.signIn", { scope: "global", server })).server;
       } catch {}
       const until = Date.now() + SETTLE_MS;
+      let lastStatus: McpServerStatus["status"] | undefined;
       while (alive.current && (!s || s.status === "starting" || s.status === "needs-sign-in") && Date.now() < until) {
+        if (s?.status && s.status !== lastStatus) {
+          lastStatus = s.status;
+          extensionsChanged();
+        }
         if (s?.sign_in_url) setSignInUrl(s.sign_in_url);
         await pause(2000);
         s = (await client.call("mcp.list", {})).servers.find((x) => x.scope === "global" && x.name === server);
