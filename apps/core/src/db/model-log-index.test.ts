@@ -27,7 +27,9 @@ test("upgrading preserves run-global log order and avoids a scan or sort for rec
     original.append("th_source", undefined, [{ text: "Legacy" }]);
     original.append("th_source", "run_target", [{ text: "First" }, { text: "Second" }]);
     original.append("th_source", "run_other", [{ text: "Unrelated" }]);
-    original.copyInto("th_source", "th_copy");
+    db.exec(
+      "INSERT INTO model_log (thread_id, seq, run_id, item, memory_snapshot) SELECT 'th_copy', seq, run_id, item, memory_snapshot FROM model_log WHERE thread_id = 'th_source'",
+    );
     db.prepare("UPDATE model_log SET item = ? WHERE thread_id = 'th_copy' AND seq = 2").run(
       JSON.stringify({ text: "First in copy" }),
     );
@@ -43,7 +45,13 @@ test("upgrading preserves run-global log order and avoids a scan or sort for rec
     const rows = db.prepare("SELECT * FROM model_log ORDER BY rowid").all();
     db.close();
     db = openDb(home.path);
-    assert.deepEqual(db.prepare("SELECT * FROM model_log ORDER BY rowid").all(), rows);
+    assert.deepEqual(
+      db
+        .prepare("SELECT * FROM model_log ORDER BY rowid")
+        .all()
+        .map((row) => ({ ...row })),
+      rows.map((row) => ({ ...row, archived: 0 })),
+    );
     const queries = sql(db);
     const log = modelLogRepo({
       ...queries,

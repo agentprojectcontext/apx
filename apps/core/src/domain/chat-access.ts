@@ -6,6 +6,7 @@ import type { Store } from "./store.ts";
 export function canReadChat(store: Store, agent: AgentRecord, thread: Thread): boolean {
   const context = store.threads.context(thread.id);
   if (context.client) return false;
+  if (agent.kind !== "secretary" && store.agentMigrationPending.blocked(agent.id, thread.id)) return false;
   if (agent.kind === "secretary" || thread.agent_ids.includes(agent.id)) return true;
   if (agent.project_id) return thread.project_id === agent.project_id;
   return !thread.project_id && !thread.channel && !context.room && !thread.parent_id;
@@ -38,6 +39,7 @@ export function canRecallOwnChat(
 const ownersOrNone = (thread: Thread) => !thread.channel || thread.channel.person_id === OWNER_ID;
 
 export function memoryEligibleChat(store: Store, thread: Thread): boolean {
+  if (store.agentMigrationPending.blocked("", thread.id)) return false;
   const context = store.threads.context(thread.id);
   return (
     !thread.engine && ownersOrNone(thread) && !thread.parent_id && !context.room && !context.client && !context.worker

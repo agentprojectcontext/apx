@@ -18,6 +18,25 @@ Lo que va entre ángulos lo completás vos: `<id>` es un id que sale del comando
 `apx threads`, `apx tasks`…), `<agent>` el id de un agente, `<project>` el de un proyecto.
 </Aside>
 
+## Mover un agente entre proyectos
+
+`apx agents move <agent> <destination> [relative-path…]` devuelve una previsualización JSON sin mover nada.
+Ambos proyectos deben estar registrados y tener sus carpetas disponibles. Elegí archivos o carpetas de trabajo
+explícitamente, con rutas relativas al proyecto de origen; omitirlas significa no incluir archivos de trabajo
+adicionales, no seleccionar todo el proyecto.
+
+Revisá el inventario completo, las tareas compartidas, los colaboradores que se desvinculan, los hashes de archivos,
+los bloqueos y las conexiones que quedan en el origen. Las tareas compartidas abiertas y cerradas acompañan al agente;
+los otros agentes no se trasladan. El traslado conserva identidad e instrucciones en lugar de crear una copia.
+La memoria y las conexiones de todo el proyecto no se copian en bloque.
+
+Repetí la selección idéntica con `--apply --id <preview-id> --revision <revision>` para aplicarla.
+Si cambiaron los datos o quedan bloqueos, frená y obtené una nueva previsualización; no reintentes automáticamente.
+`apx agents move recover <id>` restaura desde el registro privado de recuperación y puede rechazar cambios posteriores
+incompatibles. Mantené privados los inventarios y registros de recuperación. Después del traslado, verificá los accesos
+a tareas y chats, los archivos y las capacidades en el destino. El superagente puede usar las mismas operaciones con
+`apx_settings`; el traslado y la recuperación siempre conservan la tarjeta de aprobación, incluso en Total.
+
 ## La consola interactiva
 
 Corré `apx` sin argumentos en una terminal interactiva (o `apx wizard`) y tenés una consola con autocompletado con Tab

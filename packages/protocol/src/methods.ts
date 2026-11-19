@@ -3,6 +3,7 @@
 import { z } from "zod";
 import { accountMethods } from "./account.ts";
 import { activityReviewMethods } from "./activity-review.ts";
+import { agentMigrationMethods } from "./agent-migration.ts";
 import { appMethods } from "./app-methods.ts";
 import { artifactMethods } from "./artifact-methods.ts";
 import { asanaMethods } from "./asana-methods.ts";
@@ -145,6 +146,7 @@ export const methods = {
   ...usageMethods,
   ...storageMethods,
   ...activityReviewMethods,
+  ...agentMigrationMethods,
   ...instanceMethods,
   ...engineUsageMethods,
   ...emailSignatureMethods,

@@ -1,4 +1,6 @@
 // Append-only. Never edit a shipped migration; add the next one.
+import { ARCHIVE_MODEL_CONTEXT } from "./migrations-agent-context.ts";
+
 export const MIGRATIONS: readonly string[] = [
   `
   CREATE TABLE projects (id TEXT PRIMARY KEY, name TEXT NOT NULL, blob TEXT, path TEXT, created_at TEXT NOT NULL);
@@ -1286,4 +1288,5 @@ export const MIGRATIONS: readonly string[] = [
     created_at TEXT NOT NULL
   );
   `,
+  ARCHIVE_MODEL_CONTEXT,
 ];

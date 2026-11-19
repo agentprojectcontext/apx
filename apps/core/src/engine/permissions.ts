@@ -56,9 +56,10 @@ export function createPermissions(o: { store: Store; home: string }) {
   /** The thread as the folder rule sees it for an agent as it acts (agentIn): its reach and the folders granted for good. */
   function scope<T extends ThreadOf>(agent: AgentRecord, thread: T): T & FolderThread {
     const reach = reachOf(agent);
-    if (reach === "all" || reach === "fenced") return { ...thread, reach };
+    const principal = { project: agent.project_id, owner: agent.kind === "secretary" };
+    if (reach === "all" || reach === "fenced") return { ...thread, reach, principal };
     const granted = store.approvals.writeFolders(agent.id);
-    return { ...thread, reach, ...(granted.length ? { granted } : {}) };
+    return { ...thread, reach, principal, ...(granted.length ? { granted } : {}) };
   }
 
   return {

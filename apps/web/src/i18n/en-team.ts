@@ -1,5 +1,65 @@
 // UI strings, English: the Team screen (org chart, agent details, importing templates).
 export const enTeam = {
+  "team.move.stays":
+    "{chats} other shared chats stay in the original project without this agent. {tasks} other subtasks stay there and are separated from the moved tasks.",
+  "team.move.done": "{name} and their work moved to {destination}.",
+  "team.move.menu": "Move to another project",
+  "team.move.title": "Move {name}",
+  "team.move.lead":
+    "Move this agent and its work, keeping its identity and instructions. Nothing changes until you confirm the review.",
+  "team.move.destination": "Destination project",
+  "team.move.noDestination": "Register another project with a folder before moving this agent.",
+  "team.move.files": "Files",
+  "team.move.filesHint":
+    "Choose work files or folders to move. The agent’s definition and saved attachments are included automatically. Selected files leave the original folder.",
+  "team.move.up": "Up one folder",
+  "team.move.root": "Project folder",
+  "team.move.browse": "Browse {name}",
+  "team.move.filesError": "Could not read this folder. Try again.",
+  "team.move.retry": "Try again",
+  "team.move.loading": "Loading files…",
+  "team.move.emptyFolder": "This folder is empty.",
+  "team.move.truncated": "Not all entries fit here. Open a smaller folder to find your files.",
+  "team.move.selected": "{n} files or folders selected",
+  "team.move.remove": "Remove",
+  "team.move.back": "Back",
+  "team.move.review": "Review move",
+  "team.move.apply": "Move agent and work",
+  "team.move.error":
+    "The move could not be completed. Review again to check the current state before retrying. If it still fails, ask your super-agent to check the move and recovery options.",
+  "team.move.confirm": "Move {name} and the reviewed work to {destination}.",
+  "team.move.route": "{source} → {destination}",
+  "team.move.count.tasks": "Tasks, including completed",
+  "team.move.count.shared_tasks": "Of these, shared tasks",
+  "team.move.count.threads": "Chats and history",
+  "team.move.count.memories": "Memory notes",
+  "team.move.count.routines": "Routines",
+  "team.move.count.surfaces": "Widgets and apps",
+  "team.move.count.media": "Attachments",
+  "team.move.history":
+    "Shared tasks move too. Their history and authors stay recorded, but former collaborators lose access to the moved chats. No other agent moves. The rest of the original project’s memory stays there.",
+  "team.move.permissions":
+    "Routines will be paused. {n} saved permissions will be cleared and may need your approval again. The agent will use its new project’s access settings.",
+  "team.move.destinationTeam":
+    "Agents already in the destination: {names}. They may access work shared within that project.",
+  "team.move.children": "These agents stay in the original project and stop reporting to this agent: {names}.",
+  "team.move.connections":
+    "These connections stay in the original project: {names}. Connect them separately in the destination if needed.",
+  "team.move.fileList": "Review included files",
+  "team.move.bindings":
+    "These connections will use different destination variables: {names}. Review their access before restarting work.",
+  "team.move.blocked": "Resolve these before moving",
+  "team.move.blocker.busy": "Work is still running in the source project. Wait for it to finish, then review again.",
+  "team.move.blocker.inheritance":
+    "These projects share inherited context. Choose a destination that does not inherit from the source or provide its context.",
+  "team.move.blocker.conflict":
+    "The destination has a conflicting name, or the agent’s instructions changed. Resolve the conflict and review again.",
+  "team.move.blocker.connection":
+    "Some work is still linked to a group, connected chat, published page or automation. Ask your super-agent to help separate it before moving.",
+  "team.move.blocker.files":
+    "An attachment is missing or a project skill needs attention. Ask your super-agent to check the required files.",
+  "team.move.blocker.pending": "An earlier move needs recovery. Ask your super-agent to finish or restore it first.",
+  "team.move.blocker.unknown": "This agent cannot move yet. Ask your super-agent to check what needs to be resolved.",
   "team.import": "Import",
   "team.import.makesCompany":
     "This team makes the project a company: its areas and roles are added, and its routines start running.",

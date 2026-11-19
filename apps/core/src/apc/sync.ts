@@ -69,6 +69,7 @@ export function createApcSync(deps: {
   const queued = new Map<string, () => void>();
   // A folder still being read is not read a second time: one held read holds one thread.
   const reading = new Map<string, Promise<ProjectFiles>>();
+  const generations = new Map<string, number>();
   // Each start-up read still inside its deadline; closing ends them.
   const waits = new Set<() => void>();
   let closed = false;
@@ -97,6 +98,8 @@ export function createApcSync(deps: {
     const taken = holder?.path && holder.path !== abs && fs.existsSync(holder.path);
     const apcId = indexed ? indexed.id.replace(/^p_/, "") : taken ? p.pathId : p.id;
     const projectId = indexed?.id ?? projectIdOf(apcId);
+    if (store.agentMigrationPending.list().some((move) => move.source === projectId || move.destination === projectId))
+      return { project: projectId, agents: 0, archived: 0 };
     // An unreadable project.json says nothing about the name or kind: keep what the index knew.
     const meta = p.metaError && indexed ? indexed : p;
     if (p.metaError) log.warn({ root: abs, err: p.metaError }, "could not read .apc/project.json");
@@ -172,7 +175,9 @@ export function createApcSync(deps: {
   /** Reads one folder off the main thread; past the deadline it shows as waiting, and its answer still lands. */
   function loadOne(id: string, root: string): Promise<void> {
     const read = deps.read;
-    if (!read) return Promise.resolve();
+    if (!read || store.agentMigrationPending.list().some((move) => move.source === id || move.destination === id))
+      return Promise.resolve();
+    const generation = generations.get(root) ?? 0;
     let pending = reading.get(root);
     if (!pending) {
       pending = read(root);
@@ -180,12 +185,15 @@ export function createApcSync(deps: {
       void pending
         .then((files) => {
           // Closed, or removed from APX while it was read: nothing to write.
-          if (closed || store.projects.get(id)?.registered === false) return;
+          if (closed || store.projects.get(id)?.registered === false || (generations.get(root) ?? 0) !== generation)
+            return;
           const r = settle(id, root, files);
           if (r) log.info({ project: r.project, agents: r.agents }, "project read");
         })
         .catch((err) => closed || log.warn({ project: id, err: String(err) }, "could not read project"))
-        .finally(() => reading.delete(root));
+        .finally(() => {
+          if (reading.get(root) === pending) reading.delete(root);
+        });
     }
     return new Promise<void>((resolve) => {
       const end = () => {
@@ -194,7 +202,7 @@ export function createApcSync(deps: {
         resolve();
       };
       const cancel = (deps.timers ?? realTimers).after(deps.readMs ?? PROJECT_READ_MS, () => {
-        if (!closed) {
+        if (!closed && (generations.get(root) ?? 0) === generation) {
           log.warn({ project: id, root }, "project folder did not answer; it shows as waiting until it does");
           store.projects.setPresent(id, false);
           store.projects.setUnreadable(id, "waiting");
@@ -235,6 +243,18 @@ export function createApcSync(deps: {
   }
 
   return {
+    /** Discard reads started before a coordinated file change; their late results must not restore old ownership. */
+    invalidate(projectIds: readonly string[]): void {
+      for (const id of projectIds) {
+        const root = store.projects.get(id)?.path;
+        if (!root) continue;
+        const abs = path.resolve(root);
+        generations.set(abs, (generations.get(abs) ?? 0) + 1);
+        reading.delete(abs);
+        queued.get(abs)?.();
+        queued.delete(abs);
+      }
+    },
     /** Registers a folder as a project (it must have .apc/ or AGENTS.md) and indexes it. */
     register(root: string): SyncResult {
       const abs = path.resolve(root);
@@ -261,6 +281,8 @@ export function createApcSync(deps: {
       const out = { projects: 0, agents: 0, archived: 0 };
       for (const p of store.projects.list()) {
         if (projectId && p.id !== projectId) continue;
+        if (store.agentMigrationPending.list().some((move) => move.source === p.id || move.destination === p.id))
+          continue;
         if (!p.path) continue;
         // A folder still being read off the main thread may be held by the system: that read settles it.
         if (reading.has(path.resolve(p.path))) continue;

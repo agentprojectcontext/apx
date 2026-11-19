@@ -408,6 +408,7 @@ export interface ModelLogTable {
   item: string;
   run_id: string | null;
   memory_snapshot: string | null;
+  archived: Generated<number>;
 }
 
 export interface NotificationsTable {

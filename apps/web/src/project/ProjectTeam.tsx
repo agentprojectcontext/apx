@@ -1,16 +1,18 @@
 import type { Agent } from "@apx/protocol";
 import { AgentAvatar, Button, ContextMenu, IconButton, Icons, Menu, SegmentedControl, Tabs } from "@apx/ui";
-import { type ReactNode, useMemo, useState } from "react";
+import { type ReactNode, Suspense, useEffect, useMemo, useState } from "react";
 import { useCanCall } from "../call/callStatus.ts";
 import { AgentModelPicker } from "../config/models/AgentModelPicker.tsx";
 import { calls, openCall } from "../data/calls.ts";
 import { PROFILE_KEY } from "../data/engines.ts";
 import { blobOf, type ProjectEntry, realProjectId, teamOf } from "../data/identity.ts";
+import { notify } from "../data/notices.ts";
 import { useOrg } from "../data/org.ts";
 import { useData } from "../data/state.ts";
 import { updateAgent } from "../data/team.ts";
 import { type T, useT } from "../i18n/index.ts";
 import { startChat } from "../inbox/NewChatMenu.tsx";
+import { MoveAgentDialog } from "../lazy.ts";
 import { go } from "../shell/nav.ts";
 import { ProjectEmpty } from "./ProjectEmpty.tsx";
 import { ProjectOrg } from "./ProjectOrg.tsx";
@@ -60,6 +62,8 @@ function ProjectTeam({ project, switcher }: { project: ProjectEntry; switcher?: 
   const [creating, setCreating] = useState(false);
   const [editing, setEditing] = useState<Agent>();
   const [deleting, setDeleting] = useState<Agent>();
+  const [moving, setMoving] = useState<Agent>();
+  useMoveNotice(t);
   const team = useMemo(() => teamOf(agents, project.id), [agents, project.id]);
   const lead = teamLead(team);
   // Marked, or the head by inference: a sub-team lead stays marked although the project's head is someone else.
@@ -86,6 +90,7 @@ function ProjectTeam({ project, switcher }: { project: ProjectEntry; switcher?: 
         }
       : {}),
     onDelete: setDeleting,
+    onMove: setMoving,
     isOrchestrator: (a) => leads(a),
     onOrchestrator: (a) => void updateAgent(a.id, { orchestrator: !leads(a) }),
   };
@@ -174,26 +179,19 @@ function ProjectTeam({ project, switcher }: { project: ProjectEntry; switcher?: 
         </div>
       )}
       <ArchivedAgents project={realProjectId(project.id) ?? ""} />
-      {creating && (
-        <NewAgentDialog
-          project={project}
-          onClose={() => setCreating(false)}
-          onCreated={(a) => {
-            setCreating(false);
-            setSelected(a.id);
-          }}
-        />
-      )}
-      {editing && <AgentEditor agent={editing} onClose={() => setEditing(undefined)} />}
-      {deleting && (
-        <DeleteAgentDialog
-          agent={deleting}
-          onClose={() => {
-            if (selected === deleting.id) setSelected(undefined);
-            setDeleting(undefined);
-          }}
-        />
-      )}
+      <TeamDialogs
+        project={project}
+        creating={creating}
+        setCreating={setCreating}
+        moving={moving}
+        setMoving={setMoving}
+        editing={editing}
+        setEditing={setEditing}
+        deleting={deleting}
+        setDeleting={setDeleting}
+        selected={selected}
+        setSelected={setSelected}
+      />
       {importing && (
         <ImportDialog
           projectId={project.id}
@@ -204,6 +202,65 @@ function ProjectTeam({ project, switcher }: { project: ProjectEntry; switcher?: 
         />
       )}
     </div>
+  );
+}
+
+function useMoveNotice(t: T) {
+  useEffect(() => {
+    try {
+      const moved = sessionStorage.getItem("apx.agentMoved");
+      if (!moved) return;
+      sessionStorage.removeItem("apx.agentMoved");
+      const { name, destination } = JSON.parse(moved);
+      if (typeof name === "string" && typeof destination === "string")
+        notify(t("team.move.done", { name, destination }), "info");
+    } catch {
+      /* A missing notice does not affect the completed move. */
+    }
+  }, [t]);
+}
+
+function TeamDialogs(p: {
+  project: ProjectEntry;
+  creating: boolean;
+  setCreating(v: boolean): void;
+  moving?: Agent;
+  setMoving(v?: Agent): void;
+  editing?: Agent;
+  setEditing(v?: Agent): void;
+  deleting?: Agent;
+  setDeleting(v?: Agent): void;
+  selected?: string;
+  setSelected(v?: string): void;
+}) {
+  return (
+    <>
+      {p.creating && (
+        <NewAgentDialog
+          project={p.project}
+          onClose={() => p.setCreating(false)}
+          onCreated={(a) => {
+            p.setCreating(false);
+            p.setSelected(a.id);
+          }}
+        />
+      )}
+      {p.moving && (
+        <Suspense fallback={null}>
+          <MoveAgentDialog agent={p.moving} onClose={() => p.setMoving(undefined)} />
+        </Suspense>
+      )}
+      {p.editing && <AgentEditor agent={p.editing} onClose={() => p.setEditing(undefined)} />}
+      {p.deleting && (
+        <DeleteAgentDialog
+          agent={p.deleting}
+          onClose={() => {
+            if (p.selected === p.deleting?.id) p.setSelected(undefined);
+            p.setDeleting(undefined);
+          }}
+        />
+      )}
+    </>
   );
 }
 

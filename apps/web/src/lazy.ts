@@ -382,6 +382,10 @@ export const GroupPart = lazy(() => import("./groups/GroupPart.tsx").then((m) =>
 
 export const QrSvg = lazy(() => import("./common/QrSvg.tsx").then((m) => ({ default: m.QrSvg })));
 
+export const MoveAgentDialog = lazy(
+  withPacks(["team"], () => import("./project/team/MoveAgentDialog.tsx").then((m) => ({ default: m.MoveAgentDialog }))),
+);
+
 // Plain modules loaded on first use.
 export const loadOsNotices = () => import("./shell/osNotices.ts");
 export const loadSounds = () => import("./shell/sounds.ts");

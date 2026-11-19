@@ -1,5 +1,6 @@
 export * from "./account.ts";
 export * from "./activity-review.ts";
+export * from "./agent-migration.ts";
 export * from "./app-links.ts";
 export * from "./app-methods.ts";
 export * from "./artifact-methods.ts";

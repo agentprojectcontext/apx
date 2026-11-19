@@ -28,6 +28,31 @@ description: Create, edit, clone, import and review APX agents in their destinat
 5. Read back the result. Verify its destination, prompt, role, hierarchy and available capabilities. Creation or a
    successful write does not prove that its actual job works. State what was verified and what remains untested.
 
+## Moving an agent between projects
+
+Use a supported move, not `agent_set project`, cloning, or manual database/file edits. Both project folders must be
+registered and available. Moving preserves the agent's identity and prompt; it includes its open and closed work,
+including shared tasks. Other agents do not move: review detached collaborators, hierarchy, permissions and chats.
+Project-wide memory and connections are not copied wholesale.
+
+1. Ask for the destination and explicit relative work files/folders. Do not scan or select the whole source by default.
+2. Call `apx_settings` with `method: "agents.migration_preview"` and `params: {agent, destination, paths: []}`.
+   This owner-scoped read uses an approval card; it does not move anything. Read the complete returned inventory,
+   file hashes, blockers, detached agents, connections left behind and destination team. Stop on blockers.
+3. Explain the scope and isolation consequences to the owner. Only after they agree, call `apx_settings` with
+   `method: "agents.migrate"` and the identical `agent`, `destination`, `paths`, plus the preview's `id` and `revision`.
+   This always keeps its confirmation card, even in Total. A changed preview needs a new review, not an automatic retry.
+4. Read back the destination agent and task/chat access, attachments, selected files and capabilities. Report any
+   untested boundary. Do not rewrite the prompt to fix project references without a separate approved edit.
+5. If interrupted or rollback is requested, use `apx_settings` with `method: "agents.migration_recover"` and
+   `params: {id}`. Recovery always asks and can refuse incompatible later changes. Keep the private recovery record;
+   do not delete journals or bypass a refusal by editing state.
+
+CLI equivalent: `apx agents move <agent> <destination> [relative-path…]` previews as JSON;
+repeat the exact selection with `--apply --id <preview-id> --revision <revision>` to move.
+`apx agents move recover <id>` restores from the recovery record. Never publish these inventories: paths and
+references may be private even though they contain no chat or memory bodies.
+
 ## Reviewing changes
 
 APX's detector is separate from this guide. It groups changed agents into passive review notices without making a

@@ -142,6 +142,8 @@ export type Root = {
   write: boolean;
   scratch: boolean;
   off?: boolean;
+  /** A project restriction takes precedence over broader or explicitly lent folders. */
+  protected?: boolean;
   lent?: boolean;
   anywhere?: { home: string };
 };
@@ -161,6 +163,7 @@ export type Reach = "all" | "read" | "card" | "fenced";
 export type FolderThread = Parameters<typeof workDir>[2] &
   Parameters<typeof scratchDir>[2] & {
     reach: Reach;
+    principal?: { project?: string | undefined; owner: boolean };
     lent?: readonly string[] | undefined;
     lentWrite?: boolean | undefined;
     /** Folders outside its own the owner let this agent change for good (a folder card's "always"). */
@@ -247,15 +250,30 @@ function sharedRoots(home: string): Root[] {
  * folder leaves the work folder writable, and a read-only folder in /tmp stays read-only.
  */
 export function rootsOf(store: Store, home: string, thread: Thread): Root[] {
+  const restricted = thread.principal?.owner
+    ? []
+    : store.projectProtection
+        .list()
+        .filter((p) => p.project !== (thread.principal ? thread.principal.project : thread.project_id));
+  const pending = thread.principal?.owner
+    ? []
+    : store.agentMigrationPending.list().flatMap((p) => [{ project: p.source }, { project: p.destination }]);
+  const denied = [...restricted, ...pending].flatMap((p) => {
+    const project = store.projects.get(p.project);
+    return project?.path ? [project.path, ...projectWorktrees(store, { project_id: p.project })] : [];
+  });
   return [
     { dir: workDir(store, home, thread), write: true, scratch: false },
+    ...denied.map((dir) => ({ dir, write: false, scratch: false, off: true, protected: true })),
     { dir: scratchDir(store, home, thread), write: true, scratch: true },
     { dir: artifactSources(home, thread.project_id), write: true, scratch: false },
     ...projectWorktrees(store, thread).map((dir) => ({ dir, write: true, scratch: false })),
     ...readOnlyFolders(store, thread).map((dir) => ({ dir, write: false, scratch: false })),
     ...sharedRoots(home),
     // After the read-only folders and other chats' temp folders, which keep their own rule inside these.
-    ...(thread.reach === "read" ? ownerProjects(store, home, thread) : []),
+    ...(thread.reach === "read"
+      ? ownerProjects(store, home, thread).filter((r) => !denied.some((d) => insideReal(d, r.dir)))
+      : []),
     ...(thread.granted ?? []).map((dir) => ({ dir, write: true, scratch: false })),
     // Last, so other chats' temp folders stay closed even inside a folder lent for one call.
     ...(thread.lent ?? []).map((dir) => ({ dir, write: thread.lentWrite === true, scratch: false, lent: true })),
@@ -367,6 +385,8 @@ export function judge(roots: Root[], file: string, from: string, o: JudgeOptions
   const name = o.name ?? file;
   const at = path.resolve(from, expandHome(file));
   const lands = physical(from, expandHome(file));
+  if (roots.some((r) => r.protected && insideReal(r.dir, lands)))
+    return { refused: `${name} belongs to a project whose files are restricted to its team` };
   const root = roots.find((r) => r.anywhere || insideReal(r.dir, lands));
   if (!root || root.off || root.lent || root.anywhere) {
     // A folder lent for one call, or every folder, never opens APX's home inside it.

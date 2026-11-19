@@ -4,6 +4,7 @@ import { ApxClient, ApxError } from "@apx/protocol/client";
 // The terminal owns no domain logic: every command is a protocol call to the core.
 import { admin, status, version, wizard } from "./commands/admin.ts";
 import { agentLimits } from "./commands/agent-fields.ts";
+import { agentMove } from "./commands/agent-migration.ts";
 import { artifacts } from "./commands/artifacts.ts";
 import { browser } from "./commands/browser.ts";
 import { channels, contacts, pairing } from "./commands/channels.ts";
@@ -157,6 +158,9 @@ Usage:
                            How far agents go without you in one chat: the default, and an agent's own (0 = no limit)
   apx agents clone <agent…> [--project <id>] [--rename] [--under <slug>]
                            Copy agents (whole definition) into a project; --rename gives each a new free name
+  apx agents move <agent> <destination> [relative-path…]   Preview a move, including shared tasks
+                           Apply the same selection with --apply --id <preview-id> --revision <revision>
+  apx agents move recover <id>       Restore a migration from its recovery record
   apx agents archive <agent>         Project agents: changes are written to .apc/agents/<slug>.md
   apx agents archived | restore <agent>   Archived agents, and bringing one back (deleting for good is in the app)
   apx agents model <agent> <engine/model | engine | router | default> [--router] [--fallbacks <ref>,<ref>]
@@ -207,6 +211,9 @@ function argumentsOf() {
     allowPositionals: true,
     options: {
       json: { type: "boolean" },
+      apply: { type: "boolean" },
+      id: { type: "string" },
+      revision: { type: "string" },
       status: { type: "boolean" },
       version: { type: "boolean", short: "v" },
       check: { type: "boolean" },
@@ -491,7 +498,8 @@ try {
       await mcpCommand(client, rest, values);
       break;
     case "agents":
-      if (rest[0] === "model") await agentModel(client, rest.slice(1), values);
+      if (rest[0] === "move") await agentMove(client, rest.slice(1), values);
+      else if (rest[0] === "model") await agentModel(client, rest.slice(1), values);
       else if (rest[0] === "limits") await agentLimits(client, rest.slice(1));
       else if (rest[0] && rest[0] !== "list") await agentEdit(client, rest, values);
       else await agents(client);

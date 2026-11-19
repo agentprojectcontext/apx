@@ -1,0 +1,79 @@
+.agentmove {
+  display: grid;
+  gap: 20px;
+  min-width: 0;
+}
+.agentmove h3 {
+  font-size: 15px;
+  margin: 0 0 12px;
+}
+.agentmove p {
+  color: var(--apx-fg-muted);
+  font-size: 13px;
+  line-height: 1.6;
+}
+.agentmove__files {
+  margin-top: 20px;
+}
+.agentmove__folder {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  overflow-wrap: anywhere;
+}
+.agentmove__list,
+.agentmove__paths {
+  list-style: none;
+  padding: 0;
+  margin: 12px 0;
+  max-height: 240px;
+  overflow: auto;
+}
+.agentmove__list li,
+.agentmove__paths li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 6px 0;
+}
+.agentmove__paths li {
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+.agentmove__paths li > span {
+  min-width: 0;
+}
+.agentmove__counts {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+.agentmove__counts > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+}
+.agentmove__counts dt {
+  font-size: 13px;
+}
+.agentmove__counts dd {
+  font-weight: 600;
+  margin: 0;
+}
+.agentmove__warning {
+  border-left: 3px solid var(--apx-fg-muted);
+  padding: 8px 12px;
+}
+.agentmove__warning h4 {
+  margin: 0;
+}
+.agentmove summary {
+  cursor: pointer;
+  font-size: 13px;
+}
+@media (max-width: 480px) {
+  .agentmove__counts {
+    grid-template-columns: 1fr;
+  }
+}

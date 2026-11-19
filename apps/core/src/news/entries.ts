@@ -7,6 +7,7 @@ import { computerHost } from "../environments/host.ts";
 import { CATALOG } from "../integrations/catalog.ts";
 import { ACTIVITY_REVIEW_NEWS } from "./activity-review.ts";
 import { AGENT_FALLBACKS_NEWS } from "./agent-fallbacks.ts";
+import { AGENT_MIGRATION_NEWS } from "./agent-migration.ts";
 import { AGENT_PROMPTS_NEWS } from "./agent-prompts.ts";
 import { AGENT_REVIEW_NEWS } from "./agent-review.ts";
 import { APX_ACCOUNT_NEWS } from "./apx-account.ts";
@@ -160,6 +161,7 @@ export const NEWS: readonly NewsEntry[] = [
   ACTIVITY_REVIEW_NEWS,
   AGENT_PROMPTS_NEWS,
   AGENT_REVIEW_NEWS,
+  AGENT_MIGRATION_NEWS,
   TASK_GOALS_NEWS,
   CHANNEL_AGENTS_NEWS,
   WHATSAPP_GROUPS_NEWS,

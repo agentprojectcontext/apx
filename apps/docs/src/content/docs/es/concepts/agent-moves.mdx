@@ -1,0 +1,65 @@
+---
+title: Mover un agente y su trabajo a otro proyecto
+description: Revisá qué se traslada, preservá el trabajo compartido y conocé los límites de recuperación y privacidad.
+sidebar:
+  label: Mover agentes
+  order: 3
+---
+
+El traslado conserva la identidad y las instrucciones del agente. No lo clona ni reescribe su rol.
+El origen y el destino deben ser proyectos registrados con sus carpetas disponibles.
+
+## Revisá antes de mover
+
+Abrí el menú del agente en la pestaña **Agentes** de su proyecto y elegí **Mover a otro proyecto**.
+Elegí un destino y explorá la carpeta de origen para seleccionar los archivos o carpetas que pertenecen al trabajo.
+Revisá el inventario: incluye tareas terminadas y compartidas, chats relacionados, memoria, adjuntos y widgets.
+Confirmá el destino y el trabajo afectado antes de aplicar el traslado.
+
+El inventario sigue relaciones entre tareas y participaciones registradas, no el significado de cada mensaje o archivo.
+Las tareas compartidas también se trasladan; conservan comentarios, historial y atribución. Los otros agentes no se mueven.
+La revisión identifica a los agentes desvinculados del trabajo y al equipo que ya está en el destino.
+La jerarquía del agente se desvincula cuando hace falta para que padres o hijos del origen no crucen de proyecto sin aviso.
+
+Sólo se trasladan los archivos de trabajo seleccionados. Los widgets relacionados y sus fuentes se incluyen por separado.
+Los estudios originales y otros archivos que ya están en el destino no se sobrescriben ni se trasladan otra vez.
+Se rechazan enlaces, proyectos anidados, archivos de credenciales, colisiones y selecciones demasiado grandes.
+Seleccioná menos de 10.000 archivos y no más de 256 MiB en total.
+
+## Conexiones, rutinas y permisos
+
+Las rutinas trasladadas quedan pausadas. Los permisos guardados de herramientas y carpetas se retiran, no se copian al nuevo proyecto.
+Revisá las conexiones y variables del destino antes de retomar el trabajo: el mismo nombre de variable puede resolver
+un valor distinto allí. APX no copia valores secretos ni definiciones de conexiones propias del origen al destino.
+
+El trabajo en marcha en el origen, las operaciones de fondo activas, los chats conectados o grupales, los widgets publicados
+y los vínculos de Flows pueden impedir un traslado. Resolvé esas dependencias y pedí una previsualización nueva.
+Las skills locales del proyecto requieren una revisión separada; por ahora el traslado las rechaza en vez de perder sus definiciones.
+No se pueden usar proyectos que heredan contexto entre sí para establecer esta separación.
+
+## Qué significa la separación
+
+El trabajo trasladado pertenece al destino. Los compañeros del origen pierden la participación en sus chats y tareas;
+APX comprueba las búsquedas de chats, las lecturas de adjuntos y el acceso nativo a carpetas con el nuevo alcance.
+Un destino protegido por un traslado no intercambia trabajo delegado con agentes de otros proyectos; el asistente del dueño puede seguir ayudando.
+Las notas trasladadas quedan limitadas al destino, incluidas las notas antes globales vinculadas al trabajo seleccionado.
+Las memorias guardadas en el contexto del modelo se vuelven a comprobar para que un contexto anterior no reintroduzca esas notas en el origen.
+
+Esto no borra el historial ni crea una barrera del sistema operativo. Los chats del dueño, la atribución de autores
+y las conversaciones ajenas al trabajo pueden conservar menciones o citas anteriores. No se revocan ni limpian retroactivamente
+copias, exportaciones, backups, servicios externos, acceso amplio a shell o integraciones autorizadas por separado.
+No interpretes un traslado como garantía de que desapareció toda mención histórica.
+
+## Recuperá sin pisar trabajo nuevo
+
+El core conserva un registro privado y copias de respaldo en `APX_HOME/agent-moves/<move-id>`.
+Pueden contener trabajo sensible: no los agregues a repositorios ni carpetas compartidas. La recuperación se conserva,
+no se borra automáticamente después del éxito. Protegé y respaldá la carpeta de APX en consecuencia.
+
+Al reiniciar, APX intenta finalizar un traslado confirmado o restaurar uno interrumpido. El trabajo afectado queda bloqueado
+si la recuperación no puede terminar. Se rechazan archivos modificados o trabajo posterior relacionado en la base en vez de sobrescribirlos.
+El registro cubre procesos interrumpidos; no reemplaza un backup ante fallas del disco ni garantiza todos los casos de corte de energía.
+
+Los comandos de previsualización, aplicación y recuperación están en la [referencia de CLI](/es/reference/cli/).
+Pedile al superagente que prepare o recupere un traslado; aplicar o recuperar requiere aprobación del dueño,
+incluso si el agente suele trabajar en modo Total. No edites SQLite ni el registro de recuperación a mano.

@@ -2,6 +2,11 @@
 // shows emits one event on the bus.
 import type { Bus } from "../bus.ts";
 import type { Db } from "../db/db.ts";
+import { agentMigrationReceipt, commitAgentMigration } from "./agent-migration-data.ts";
+import { agentMigrationInventory } from "./agent-migration-inventory.ts";
+import { pendingMigrationsRepo } from "./agent-migration-pending.ts";
+import { checkedMigrationRecovery, restoreAgentMigration } from "./agent-migration-restore.ts";
+import { sealAgentMigration } from "./agent-migration-seal.ts";
 import { agentsRepo } from "./agents.ts";
 import { approvalsRepo } from "./approvals.ts";
 import { auxCallsRepo } from "./aux-calls.ts";
@@ -27,6 +32,7 @@ import { modelLogRepo } from "./model-log.ts";
 import { notificationsRepo } from "./notifications.ts";
 import { nudgesRepo } from "./nudges.ts";
 import { personsRepo } from "./persons.ts";
+import { projectProtectionRepo } from "./project-protection.ts";
 import { projectsRepo } from "./projects.ts";
 import { retentionRepo } from "./retention.ts";
 import { routinesRepo } from "./routines.ts";
@@ -58,12 +64,35 @@ export function createStore(db: Db, bus: Bus) {
   };
   return {
     tx: q.tx,
+    agentMigrationPending: pendingMigrationsRepo(q),
+    agentMigration: {
+      inventory: (agent: string, destination: string) => agentMigrationInventory(q, agent, destination),
+      commit: (inventory: Parameters<typeof commitAgentMigration>[1], id?: string) => {
+        const receipt = commitAgentMigration(q, inventory, id);
+        approvals.reloadSessions();
+        for (const thread of inventory.threads) approvals.endSession(thread);
+        teamChanged();
+        return receipt;
+      },
+      restore: (id: string) => {
+        const receipt = restoreAgentMigration(q, id);
+        approvals.reloadSessions();
+        teamChanged();
+        return receipt;
+      },
+      seal: (id: string): void => sealAgentMigration(q, id),
+      checkRestore: (id: string): void => {
+        checkedMigrationRecovery(q, id);
+      },
+      receipt: (id: string) => agentMigrationReceipt(q, id),
+    },
     flows: flowsRepo(db),
     flowGraphs: flowGraphsRepo(db),
     flowGraphRuns: flowGraphRunsRepo(db),
     flowSchedules: flowSchedulesRepo(db),
     flowTables: flowTablesRepo(db),
     flowSends: flowSendsRepo(db),
+    projectProtection: projectProtectionRepo(q),
     projects: projectsRepo(q, teamChanged),
     agents: agentsRepo(q, teamChanged),
     threads: threadsRepo(q, bus, approvals.endSession),

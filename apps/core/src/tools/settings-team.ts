@@ -74,6 +74,27 @@ export const TEAM: Readonly<Record<string, Setting>> = {
     named: ["agents", "project_id"],
     says: (p, { store }) => `Copy ${names(store, p.agents)} into ${projectName(store, p.project_id)}`,
   },
+  "agents.migration_preview": {
+    does: "preview moving one agent and its work to an existing project (agent, destination, paths: explicit relative files/folders); returns the inventory, blockers, id and revision without moving anything",
+    asks: "card",
+    whole: true,
+    says: (p, { store }) => `Preview moving ${agentName(store, p.agent)} to ${projectName(store, p.destination)}`,
+    shows: (result) => JSON.stringify(result),
+  },
+  "agents.migrate": {
+    does: "move an agent with its shared tasks and context using the reviewed preview (agent, destination, paths, id, revision); detaches former collaborators; always asks the owner",
+    asks: "card",
+    whole: true,
+    says: (p, { store }) => `Move ${agentName(store, p.agent)} and its work to ${projectName(store, p.destination)}`,
+    shows: (result) => JSON.stringify(result),
+  },
+  "agents.migration_recover": {
+    does: "restore an agent migration from its recovery record (id); refuses incompatible later changes; always asks the owner",
+    asks: "card",
+    whole: true,
+    says: (p) => `Restore the agent and its work from migration ${quoted(str(p.id), 80)}`,
+    shows: (result) => JSON.stringify(result),
+  },
   "agents.restore": {
     does: "bring back an archived agent (agent)",
     named: ["agent"],

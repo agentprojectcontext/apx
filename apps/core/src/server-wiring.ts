@@ -39,6 +39,7 @@ import { findProgram } from "./programs.ts";
 import { accessHandlers } from "./rpc/access.ts";
 import { accountHandlers } from "./rpc/account.ts";
 import { activityReviewHandlers } from "./rpc/activity-review.ts";
+import { agentMigrationHandlers } from "./rpc/agent-migration.ts";
 import { agentHandlers } from "./rpc/agents.ts";
 import { appHandlers } from "./rpc/app.ts";
 import { asanaHandlers } from "./rpc/asana.ts";
@@ -312,6 +313,7 @@ type HandlerDeps = {
   voice?: Parameters<typeof callHandlers>[0];
   app: Omit<Parameters<typeof appHandlers>[0], "store" | "secrets" | "services">;
   apc: Parameters<typeof agentHandlers>[1];
+  agentMigration: Parameters<typeof agentMigrationHandlers>[0];
   templateRoots: Parameters<typeof teamHandlers>[2];
   /** Where profiles are found: APX's own, then the owner's installed ones. */
   profileRoots: readonly ProfileRoot[];
@@ -371,6 +373,7 @@ export function coreHandlers(d: HandlerDeps & { vm?: Computer | undefined }) {
   const channelsH = channelHandlers(d.store, d.channels, d.nudges);
   return {
     ...accountHandlers(d.account),
+    ...agentMigrationHandlers(d.agentMigration),
     ...publicArtifactHandlers({ store: d.store, publications: d.publications }),
     ...environmentHandlers(d.store, d.vm, d.engine.cancel),
     ...desktopInstallHandlers(d.desktopInstaller),

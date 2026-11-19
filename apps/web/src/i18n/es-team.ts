@@ -1,7 +1,9 @@
 // UI strings, Spanish (voseo): the Team screen.
 import type { MessageKey } from "./en.ts";
+import { esMigration } from "./migration-es.ts";
 
 export const esTeam: Partial<Record<MessageKey, string>> = {
+  ...esMigration,
   "team.import": "Importar",
   "team.import.makesCompany":
     "Este equipo convierte el proyecto en una empresa: suma sus áreas y roles, y sus rutinas empiezan a correr.",

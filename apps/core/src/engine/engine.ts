@@ -3,6 +3,7 @@
 // See DECISIONS.md#d-009
 
 import type { RunTrigger, Thread } from "@apx/protocol";
+import { canInteractAcrossProjects } from "../domain/project-interaction.ts";
 import { type Attachment, type Origin, type RunInput, type RunRecord, TERMINAL } from "../domain/runs.ts";
 import type { Store } from "../domain/store.ts";
 import { Canceled, conflict, DeadlineExceeded, notFound, Shutdown, Superseded } from "../errors.ts";
@@ -323,6 +324,13 @@ export function createEngine(deps: {
   });
 
   function admit(a: Admit): RunRecord {
+    if (store.agentMigrationPending.blocked(a.agent_id, a.thread_id))
+      throw conflict("Finish recovering this agent's project move before continuing its work");
+    if (
+      a.origin.kind === "agent" &&
+      !canInteractAcrossProjects(store, a.origin, { id: a.agent_id, thread_id: a.thread_id })
+    )
+      throw conflict("This project's agents work only with its own team or the owner's assistant");
     // Null records missing authority at arrival; replay must not acquire a later assignment.
     const origin =
       a.trigger === "user" &&
@@ -369,7 +377,7 @@ export function createEngine(deps: {
   function kick(threadId: string): void {
     if (stopping || busy.has(threadId)) return;
     const next = store.runs.nextQueued(threadId);
-    if (!next) return;
+    if (!next || store.agentMigrationPending.blocked(next.agent_id, threadId)) return;
     busy.add(threadId);
     const p: Promise<void> = execute(next)
       .catch((err) => log.error({ run: next.id, err: String(err) }, "turn crashed"))
@@ -703,7 +711,7 @@ export function createEngine(deps: {
       const cut: RunRecord[] = [];
       for (const { run, resume } of interrupted) {
         // The resumed turn settles the caller's card and reports to it; the cut one wakes nobody.
-        if (!resume || !run.input) {
+        if (!resume || !run.input || store.agentMigrationPending.blocked(run.agent_id, run.thread_id)) {
           cut.push(run);
           continue;
         }

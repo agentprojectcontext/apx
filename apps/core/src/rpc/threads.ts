@@ -1,6 +1,7 @@
 import path from "node:path";
-import { type Author, CHROME_VIA, type Task } from "@apx/protocol";
+import { type Author, CHROME_VIA, type Task, type Thread } from "@apx/protocol";
 import { ownerActsOn } from "../domain/channels.ts";
+import { canReadChat } from "../domain/chat-access.ts";
 import { OWNER_ID } from "../domain/persons.ts";
 import { engineOf } from "../domain/refs.ts";
 import { type Attachment, ownerOrigin, publicRun, TERMINAL } from "../domain/runs.ts";
@@ -281,30 +282,40 @@ export function threadHandlers(
         created_at: message.created_at,
       })),
     }),
-    "threads.list": ({ project_id, root_thread, include_subthreads, delegated, include_archived, engine }) => {
+    "threads.list": ({ project_id, root_thread, include_subthreads, delegated, include_archived, engine }, ctx) => {
+      const agent = ctx.agent && store.agents.get(ctx.agent.id);
+      const protectedProjects = new Set(store.projectProtection.list().map((p) => p.project));
+      const visible = (thread: Thread) =>
+        !thread.project_id ||
+        !protectedProjects.has(thread.project_id) ||
+        (ctx.actor === "human" && !ctx.agent) ||
+        !!(agent && canReadChat(store, agent, thread));
       if (!root_thread) {
-        const threads = store.threads.list({
-          project_id,
-          include_subthreads: include_subthreads || Boolean(engine),
-          include_archived,
-          engine,
-        });
+        const threads = store.threads
+          .list({
+            project_id,
+            include_subthreads: include_subthreads || Boolean(engine),
+            include_archived,
+            engine,
+          })
+          .filter(visible);
         if (!delegated || engine) return { threads };
         const ids = threads.map((t) => t.id);
         const seen = new Set(ids);
         const extra = [
           ...store.threads.delegatedFrom(ids, delegated),
           ...store.threads.delegatedAcross(project_id),
-        ].filter((t) => !seen.has(t.id) && Boolean(seen.add(t.id)));
+        ].filter((t) => visible(t) && !seen.has(t.id) && Boolean(seen.add(t.id)));
         return { threads: [...threads, ...extra], delegated: store.threads.delegatedCounts(ids) };
       }
-      if (!store.threads.get(root_thread)) throw notFound(`thread ${root_thread}`);
-      const asked = store.threads.consultsFrom(root_thread, include_archived);
+      const root = store.threads.get(root_thread);
+      if (!root || !visible(root)) throw notFound("chat unavailable");
+      const asked = store.threads.consultsFrom(root_thread, include_archived).filter(visible);
       return {
         threads: [
           ...store.threads.descendants(root_thread, include_archived),
           ...asked.flatMap((c) => [c, ...store.threads.descendants(c.id, include_archived)]),
-        ].filter((t) => (!project_id || t.project_id === project_id) && (!engine || t.engine === engine)),
+        ].filter((t) => visible(t) && (!project_id || t.project_id === project_id) && (!engine || t.engine === engine)),
         ...(asked.length ? { asked: asked.map((c) => c.id) } : {}),
       };
     },
@@ -312,6 +323,15 @@ export function threadHandlers(
       const t = store.threads.get(thread);
       if (!t) throw notFound(`thread ${thread}`);
       ownClientThread(thread, ctx);
+      if (ctx.agent) {
+        const agent = store.agents.get(ctx.agent.id);
+        if (!agent || !canReadChat(store, agent, t)) throw notFound("chat unavailable");
+      } else if (
+        ctx.actor !== "human" &&
+        t.project_id &&
+        store.projectProtection.list().some((p) => p.project === t.project_id)
+      )
+        throw notFound("chat unavailable");
       return { thread: t, messages: store.messages.list(thread), runs: store.runs.list(thread).map(publicRun) };
     },
     "threads.create": (params, ctx) => createThread(store, params, ctx),

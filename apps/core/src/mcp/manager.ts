@@ -555,6 +555,16 @@ export function createMcp(deps: {
       if (!parsed.ok) throw new Error(parsed.error);
       return invoke(d, t, parsed.args, AbortSignal.timeout(CALL_MS), project ?? d.values_of ?? d.project_id ?? d.only);
     },
+    references(projectId?: string) {
+      return defsFor(projectId).map((d) => ({
+        id: serverApprovalId(d),
+        name: d.name,
+        hash: d.hash,
+        active: d.enabled && config.trusted(d),
+        projects: valuesIn(d.values_of),
+        variables: secretNames(d),
+      }));
+    },
     status(projectId?: string): McpStatus[] {
       const defs = [
         ...config

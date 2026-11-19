@@ -1,0 +1,66 @@
+---
+title: Move an agent and its work to another project
+description: Review what moves, preserve shared work, and understand recovery and privacy boundaries.
+sidebar:
+  label: Moving agents
+  order: 3
+---
+
+A move keeps an agent's identity and instructions. It is not a clone and does not rewrite the agent's role.
+The source and destination must already be registered projects with available folders.
+
+## Review before moving
+
+Open the agent's menu in its project's **Agents** tab and choose **Move to another project**.
+Choose a destination and browse the source folder to select the files or folders that belong with this work.
+Review the inventory, including completed and shared tasks, related chats, memory, attachments and widgets.
+Confirm the destination and affected work before applying the move.
+
+The inventory follows task relationships and recorded participation, not the meaning of every message or file.
+Shared tasks move too; their comments, history and attribution stay intact. Other agents do not move with them.
+The review identifies agents detached from the moved work and the team already in the destination.
+Agent hierarchy is detached where necessary so a source-project parent or child does not silently cross projects.
+
+Only selected source work files move. Relevant widget bundles and sources are included separately.
+Original studies and other files already in the destination are not overwritten or moved again.
+Linked paths, nested projects, credential files, collisions and oversized selections are refused.
+Select fewer than 10,000 files and no more than 256 MiB in total.
+
+## Connections, routines and permissions
+
+Moved routines are paused. Saved tool and folder grants are retired, not copied into the new project.
+Review the destination's connections and variables before restarting work: a variable name can resolve to a different
+value there. APX does not copy secret values or source-project connection definitions into the destination.
+
+Running work in the source, active background work, connected/group chats, published widgets and Flow bindings can
+prevent a move. Resolve these dependencies and request a new preview. Project-local skills require separate review;
+the move currently refuses them rather than silently losing their definitions.
+Projects that inherit context from one another cannot be used to establish this separation.
+
+## What separation means
+
+The moved work belongs to the destination. Former source teammates lose participation in its chats and tasks;
+APX checks chat searches, attachment reads and native folder access against the new scope. A destination protected
+by a move cannot exchange delegated work with another project's agents; the owner's assistant remains able to help.
+Moved notes are scoped to the destination, including formerly global notes attached to the selected work.
+Persisted model memory snapshots are rechecked so an old snapshot cannot restore a moved note to the source's context.
+
+This is not an erasure of history or an operating-system sandbox. The owner's chats, author attribution and unrelated
+source conversations may retain earlier mentions or quotations. Existing copies, exports, backups, external services,
+broad shell access and independently authorized integrations are not retroactively revoked or scrubbed.
+Do not treat a move as a guarantee that every historical mention has disappeared.
+
+## Recover safely
+
+The core keeps a private journal and backups under `APX_HOME/agent-moves/<move-id>`.
+These may contain sensitive work; keep them out of repositories and shared folders. Recovery material is retained,
+not automatically erased after success. Protect and back up the APX home accordingly.
+
+On restart, APX attempts to finish a committed move or restore an interrupted one. Affected work stays blocked when
+recovery cannot complete. Recovery refuses changed files or newer related database work instead of overwriting them.
+This journal handles interrupted processes; it does not replace a backup against disk failure or guarantee survival
+of every power-loss scenario.
+
+For the supported preview/apply/recover commands, see the [CLI reference](/reference/cli/).
+Ask the super-agent to prepare a preview or recover a move; applying or recovering requires the owner's approval,
+even when the agent normally works in Total mode. Do not edit SQLite or the recovery journal by hand.

@@ -140,9 +140,13 @@ export function approvalsRepo(q: Sql) {
     JSON.stringify(PER_AGENT.has(key) ? [key, thread, agent ?? ""] : [key, thread]);
   // "For this chat" lasts as long as the chat, a core restart included; archiving or deleting it ends it.
   const sessions = new Map<string, ToolApproval>();
+  const loadSessions = () => {
+    const saved = ToolApproval.array().parse(JSON.parse(settings.get("tool_session_grants") ?? "[]"));
+    sessions.clear();
+    for (const g of saved) if (g.thread_id) sessions.set(sessionKey(g.key, g.thread_id, g.agent_id), g);
+  };
   try {
-    for (const g of ToolApproval.array().parse(JSON.parse(settings.get("tool_session_grants") ?? "[]")))
-      if (g.thread_id) sessions.set(sessionKey(g.key, g.thread_id, g.agent_id), g);
+    loadSessions();
   } catch {}
   const saveSessions = () => settings.set("tool_session_grants", JSON.stringify([...sessions.values()]));
   const read = (): ToolApproval[] => {
@@ -158,6 +162,10 @@ export function approvalsRepo(q: Sql) {
   const write = (rows: ToolApproval[]) => settings.set("tool_approvals", JSON.stringify(rows));
   let browserConsentGuard: ((context: BrowserConsentContext, agent: string) => boolean) | undefined;
   const repo = {
+    reloadSessions(): void {
+      loadSessions();
+      for (const listener of listeners) listener();
+    },
     setBrowserConsentGuard(guard: (context: BrowserConsentContext, agent: string) => boolean): void {
       browserConsentGuard = guard;
     },

@@ -16,6 +16,8 @@ import { desktopSessionEnv } from "../../../packages/install/src/session.ts";
 import { createAccess, type TailscaleRun } from "./access.ts";
 import { accountClient } from "./account/client.ts";
 import { createAccount } from "./account/session.ts";
+import { migrationBindings } from "./agent-migration/bindings.ts";
+import { createAgentMigration } from "./agent-migration/service.ts";
 import { createProjectReader, type ReadProjectFiles } from "./apc/project-reader.ts";
 import { createApcSync } from "./apc/sync.ts";
 import type { TemplateRoot } from "./apc/templates.ts";
@@ -355,6 +357,14 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
     ...(opts.runTimers ? { timers: opts.runTimers } : {}),
     ...(opts.projectWatchTimers ? { watchTimers: opts.projectWatchTimers } : {}),
   });
+  const agentMigration = createAgentMigration({
+    store,
+    home: config.home,
+    apc,
+    bindings: (project) => migrationBindings(store, mcp, secrets, project),
+  });
+  for (const recovery of agentMigration.recoverInterrupted())
+    if (recovery.state === "needs_recovery") log.warn({ migration: recovery.id }, "project move needs recovery");
   // The port this core answers on: the configured one, or the one the OS gave (tests listen on 0).
   let listening = config.port || 7440;
   const imessage =
@@ -888,6 +898,7 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
         imessage: imessage !== undefined,
       },
       apc,
+      agentMigration,
       engines: engineIds,
       tools,
       desktop: opts.desktop ?? systemDesktop,

@@ -18,6 +18,7 @@ export function modelLogRepo({ one, all, run }: Sql) {
         .selectFrom("model_log")
         .selectAll()
         .where("thread_id", "=", threadId)
+        .where("archived", "=", 0)
         .orderBy("seq", "desc")
         .limit(limit);
       return all(qb.selectFrom(newest.as("l")).select(["seq", "run_id", "item", "memory_snapshot"]).orderBy("seq")).map(
@@ -59,6 +60,7 @@ export function modelLogRepo({ one, all, run }: Sql) {
           .selectFrom("model_log")
           .select(["seq", "run_id", "item", "memory_snapshot"])
           .where("thread_id", "=", from)
+          .where("archived", "=", 0)
           .$if(Number.isFinite(before), (q) => q.where("seq", "<", before))
           .orderBy("seq"),
       );

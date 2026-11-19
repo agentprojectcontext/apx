@@ -13,7 +13,7 @@ import { useData } from "../../data/state.ts";
 import { useTasks } from "../../data/tasks.ts";
 import { getAgent, setAgentParent, updateAgent } from "../../data/team.ts";
 import { useLanguage, useT } from "../../i18n/index.ts";
-import { CallButton } from "../../lazy.ts";
+import { CallButton, MoveAgentDialog } from "../../lazy.ts";
 import { go } from "../../shell/nav.ts";
 import { AgentActivity } from "./AgentActivity.tsx";
 import { AgentBudgetField } from "./AgentBudgetField.tsx";
@@ -49,6 +49,7 @@ export function AgentDetail({
   const t = useT();
   const [pending, setPending] = useState<string>();
   const [tab, setTab] = useState("summary");
+  const [moving, setMoving] = useState(false);
   const [editing, setEditing] = useState<false | "identity" | "prompt" | "computer" | "profile">(false);
   /** Bumped when the editor closes, so the prompt shown is read again. */
   const [edits, setEdits] = useState(0);
@@ -181,6 +182,16 @@ export function AgentDetail({
       {agent.role && <div className="teamdetail__role">{agent.role}</div>}
       {agent.description && <p className="teamdetail__desc">{agent.description}</p>}
       {agent.kind === "secretary" && <SuperAgentLinks onProfile={() => setEditing("profile")} />}
+      {moving && (
+        <Suspense fallback={null}>
+          <MoveAgentDialog agent={agent} onClose={() => setMoving(false)} />
+        </Suspense>
+      )}
+      {fromFile && !isSuper && (
+        <Button size="sm" variant="ghost" onClick={() => setMoving(true)}>
+          {t("team.move.menu")}
+        </Button>
+      )}
       <div className="teamdetail__actions">
         <Button size="sm" leadingIcon={<Icons.MessageCircle size={14} />} onClick={onChat}>
           {t("team.chatWith", { name: agent.name })}

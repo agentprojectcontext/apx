@@ -19,6 +19,23 @@ Placeholders in angle brackets are yours to fill in: `<id>` is an id from the ma
 `apx threads`, `apx tasks`…), `<agent>` an agent's id, `<project>` a project's id.
 </Aside>
 
+## Moving an agent between projects
+
+`apx agents move <agent> <destination> [relative-path…]` returns a JSON preview without moving anything.
+Both projects must be registered with available folders. Select work files or folders explicitly, relative to the
+source project; omitted paths mean no additional work files, not the whole project.
+
+Review the complete inventory, shared tasks, detached collaborators, file hashes, blockers and connections left
+behind. Open and closed shared tasks follow the agent; other agents do not. The move preserves identity and prompt
+rather than making a copy. Project-wide memory and connections are not copied wholesale.
+
+Repeat the identical selection with `--apply --id <preview-id> --revision <revision>` to apply it.
+If the data changed or blockers remain, stop and obtain a new preview; do not silently retry.
+`apx agents move recover <id>` restores from its private recovery record and can refuse incompatible later changes.
+Keep inventories and recovery records private. Verify the destination's task/chat access, files and capabilities
+after moving. The super-agent can use the same operations through `apx_settings`; migration and recovery always
+keep the owner's approval card, even in Total.
+
 ## The interactive console
 
 Run `apx` with no arguments in an interactive terminal (or `apx wizard`) and you get a console with Tab completion and

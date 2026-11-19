@@ -10,6 +10,7 @@ export type AgentActions = {
   /** Calls it; absent where calls can never run. */
   onCall?(a: Agent): void;
   onDelete(a: Agent): void;
+  onMove?(a: Agent): void;
   /** Marks it as the one that runs its team, or unmarks it. */
   onOrchestrator?(a: Agent): void;
   /** Whether it heads its team now: marked, or guessed by its role. */
@@ -33,6 +34,9 @@ export function agentMenu(agent: Agent, t: T, o: AgentActions): MenuEntry[] {
             onSelect: () => o.onOrchestrator?.(agent),
           },
         ]
+      : []),
+    ...(!locked && agent.project_id && agent.source === "apc" && o.onMove
+      ? [{ label: t("team.move.menu"), icon: <Icons.ArrowRight />, onSelect: () => o.onMove?.(agent) }]
       : []),
     { type: "separator" },
     {

@@ -1,6 +1,7 @@
 import type { Selectable } from "kysely";
 import { sql as raw } from "kysely";
 import type { MemoryWorkTable } from "../db/schema.ts";
+import { pendingMigrationsRepo } from "./agent-migration-pending.ts";
 import { cosine, ftsQuery, relatedCut } from "./memories.ts";
 import { memoryFragments } from "./memory-content.ts";
 import { now, qb, type Sql } from "./sql.ts";
@@ -17,7 +18,8 @@ export type MemoryEpisode = {
   excerpt?: string;
 };
 
-export function memoryWorkRepo({ all, one, run, tx }: Sql) {
+export function memoryWorkRepo(q: Sql) {
+  const { all, one, run, tx } = q;
   return {
     enqueue(job: {
       id: string;
@@ -73,6 +75,8 @@ export function memoryWorkRepo({ all, one, run, tx }: Sql) {
     },
     claim(id: string): MemoryWork | undefined {
       return tx(() => {
+        const job = one(qb.selectFrom("memory_work").select(["agent_id", "thread_id"]).where("id", "=", id));
+        if (job && pendingMigrationsRepo(q).blocked(job.agent_id, job.thread_id)) return undefined;
         const at = now();
         const changed = run(
           qb
