@@ -42,3 +42,32 @@
   flex-wrap: wrap;
   gap: var(--apx-space-2);
 }
+.public-copy--signin {
+  align-items: center;
+  text-align: center;
+}
+.public-copy__muted {
+  color: var(--apx-fg-muted);
+}
+.public-copy__alert {
+  padding: var(--apx-space-3);
+  border: 1px solid var(--apx-danger);
+  border-radius: var(--apx-radius-md);
+}
+/* The link a copy is public at, with its Copy button beside it (under it on a phone). */
+.public-copy__link {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--apx-space-2);
+  padding: var(--apx-space-2) var(--apx-space-3);
+  border: 1px solid var(--apx-border);
+  border-radius: var(--apx-radius-md);
+  background: var(--apx-fill);
+}
+.public-copy__link > span {
+  flex: 1 1 14rem;
+  min-width: 0;
+  font-family: var(--apx-font-mono);
+  font-size: var(--apx-text-sm);
+}

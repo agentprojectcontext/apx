@@ -49,7 +49,6 @@ import type { enVoice } from "./voice-en.ts";
 
 // UI strings, English: the source of truth. Every key lives here; `{name}` placeholders are filled by t().
 export const en = {
-  "share.publish": "Publish copy…",
   "input.reviewCopy": "Review public copy",
   "config.activityReview": "Activity review",
   "panel.computer": "Computer",
@@ -479,7 +478,6 @@ export const en = {
   "account.failed": "Could not update your account. Check your connection and try again.",
   "account.waiting": "Finish signing in in your browser, then return to APX.",
   "account.saved": "Username saved.",
-  "account.returnAction": "Open APX",
   "error.respond": "Could not send your answer: {error}",
   "running.label": "Processes",
   "running.aria": "{working} running, {waiting} waiting, {background} in the background",
@@ -725,12 +723,24 @@ export const en = {
   "share.copied": "Link copied.",
   "share.copyFailed": "Could not copy the link.",
   "share.tunnelHint": "Copy and open need a public address (Settings › Devices).",
-  "share.linkUnavailable":
-    "Public link unavailable. Check the public address in Settings › Devices and allow new tabs.",
+  "share.linkUnavailable": "Live link unavailable. Check the public address in Settings › Devices and allow new tabs.",
   "share.private": "Private",
+  "share.privateHint": "Only you and your devices",
   "share.anyone": "Anyone with the link",
+  "share.anyoneHint": "A copy anyone can open in a browser",
   "share.copy": "Copy link",
   "share.open": "Open link",
+  "share.update": "Update with your changes…",
+  "share.stop": "Stop sharing…",
+  "share.live": "Live link from this computer",
+  "share.liveHint": "Advanced · only while this computer is on",
+  "share.liveCopy": "Copy live link",
+  "share.liveOpen": "Open live link",
+  "share.liveOff": "Turn off live link",
+  "share.liveTitle": "Turn on a live link from this computer?",
+  "share.liveLead":
+    "Anyone with the link sees this live, with every change, straight from this computer. It works only while this computer is on and has a public address (Settings › Devices). To share a copy that always opens, choose Anyone with the link instead.",
+  "share.liveOn": "Turn on and copy link",
   "share.shared": "Shared",
   "share.share": "Share",
   "share.iconLabel": "Share · {state}",

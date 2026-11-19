@@ -4,18 +4,20 @@ The person's job: share an explicitly chosen artifact snapshot, review what will
 
 ## Entry points
 
-- Add **Publish copy… / Publicar copia…** to the artifact's sharing menu, separated from its existing live-link choices. A published snapshot and a live link are distinct; changing either never changes the other.
+- In the artifact's Share menu, **Anyone with the link / Cualquiera con el enlace** is the public copy: it opens this dialog. There is one name and one way to make an artifact public. The live link from the owner's own APX (a public address in Settings › Devices) sits under a separator as **Live link from this computer… / Enlace en vivo desde esta compu…**, an advanced choice with its own confirmation saying it works only while the computer is on. It is never called public. A published snapshot and a live link are distinct; changing either never changes the other.
+- Once a copy of this artifact is public, the menu checks **Anyone with the link** and shows its link with Copy, Open, **Update with your changes… / Actualizar con tus cambios…** and **Stop sharing… / Dejar de compartir…**. **Private** stops both the copy (through its revocation review) and the live link.
+- Signed out, the same dialog first asks to sign in: APX joined to Google by the connect dots (`ConnectSignal`), **Continue with Google / Continuar con Google**, then a waiting state that carries on by itself when the browser is done. Never send the owner to Settings to sign in. Signed in, it goes straight to choosing the state.
 - Add **Published copies / Copias publicadas** below the signed-in account controls. The account-wide list shows title, public link, update time and size, with one Manage action per row. Loading is not an empty list; refresh retains the last confirmed rows.
-- Each publish creates a separate copy. Never silently overwrite another copy. The account list manages copies even if their original local source is absent. Do not invent source associations the cloud metadata does not provide.
+- Each publish creates a separate copy. Never silently overwrite another copy. The account list manages copies even if their original local source is absent. Which local artifact a copy came from is kept only on the install that published it (`public_artifact_sources`), never in the cloud; a copy without one shows only in the account list.
 
 ## Choose, then review
 
 ```text
-Publish a copy
-Orders · Publishing as Acme
+Anyone with the link
+Publishing as Acme
+Orders is copied as it is now. Changes you make later are not published on their own.
 
-Artifact page is included
-State to include
+Saved data from this widget that goes in the copy
 [ ] Filters            [View contents]
 [ ] Completed orders   [View contents]
 
@@ -29,7 +31,7 @@ State starts unchecked on publication and update. Use actual state-key names, no
 
 Entering review creates an immutable draft. Show the draft's isolated page, escaped read-only HTML, all chosen values, account identity, title/version and copy size. Reviewing is not publishing. Back/selection changes require a new draft.
 
-The final **Publish copy / Publicar copia** action is the explicit confirmation. No extra agreement checkbox or stacked modal. Account changes, logout, expiry, source edits or remote-revision conflicts require reviewing again, never silently rebuilding and sending different bytes.
+The final **Publish / Publicar** action is the explicit confirmation; the dialog then shows the public link with Copy and Open. No extra agreement checkbox or stacked modal. Account changes, logout, expiry, source edits or remote-revision conflicts require reviewing again, never silently rebuilding and sending different bytes.
 
 Agents get an app-only, target-specific owner card, including in Total. Its structured draft reference opens the same exact-copy review; do not substitute agent-written prose for it. Revocation needs its own target-specific confirmation.
 

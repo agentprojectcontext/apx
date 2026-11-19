@@ -1,5 +1,17 @@
 export const enCloudAccount = {
-  "account.signedIn": "You’re signed in to APX",
+  "account.returnWorking": "Connecting APX to your account…",
+  "account.returnWait": "This takes a few seconds.",
+  "account.returnConnected": "Connected",
+  "account.returnDone": "Done, you’re signed in as {name}",
+  "account.returnClose": "You can close this tab and go back to APX.",
+  "account.closeTab": "Close tab",
+  "account.closeBlocked": "Close this tab and go back to APX.",
+  "account.returnFailed": "Could not sign in",
+  "account.retry": "Try again",
+  "account.returnCancelled": "You did not give permission in Google. If that was by mistake, try again.",
+  "account.notSaved": "APX could not keep your session on this computer. Try again; if it happens again, restart APX.",
+  "account.unreadable":
+    "APX can no longer read your session on this computer. Sign in again to keep using your account.",
   "account.cancelled": "You cancelled sign-in. Return to APX whenever you’re ready to try again.",
   "account.required": "Your session has ended. Sign in with Google again.",
   "account.denied": "You don’t have permission to update this account. Try signing in again.",

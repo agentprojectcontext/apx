@@ -23,6 +23,7 @@ export function usePublicCopy(request: Request) {
   const [error, setError] = useState<MessageKey>();
   const [invalid, setInvalid] = useState(false);
   const [reload, setReload] = useState(0);
+  const [done, setDone] = useState<{ url: string }>();
   const ownedDrafts = useRef<Set<string> | undefined>(undefined);
   useEffect(() => {
     let live = true;
@@ -103,17 +104,15 @@ export function usePublicCopy(request: Request) {
           artifact_review: review.review_token,
         });
       else {
-        await client.call("surfaces.public_commit", { draft: review.draft });
-        notify(
-          t(
-            review.action === "revoke"
-              ? "public.revoked"
-              : review.action === "update"
-                ? "public.updated"
-                : "public.published",
-          ),
-          "info",
-        );
+        const receipt = await client.call("surfaces.public_commit", { draft: review.draft });
+        // A copy that is public now shows its link to copy; stopping one just closes.
+        if (review.action !== "revoke") {
+          ownedDrafts.current?.delete(review.draft);
+          window.dispatchEvent(new Event("apx-public-copies-changed"));
+          setDone({ url: receipt.url });
+          return;
+        }
+        notify(t("public.revoked"), "info");
       }
       ownedDrafts.current?.delete(review.draft);
       window.dispatchEvent(new Event("apx-public-copies-changed"));
@@ -145,5 +144,19 @@ export function usePublicCopy(request: Request) {
     setKeys(next);
     if (error === "public.large") setError(undefined);
   };
-  return { source, account, keys, setKeys: chooseKeys, review, busy, error, invalid, setReload, prepare, commit, back };
+  return {
+    source,
+    account,
+    keys,
+    setKeys: chooseKeys,
+    review,
+    done,
+    busy,
+    error,
+    invalid,
+    setReload,
+    prepare,
+    commit,
+    back,
+  };
 }

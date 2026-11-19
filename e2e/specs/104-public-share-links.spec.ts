@@ -1,6 +1,6 @@
 import { expect, open, rpc, test } from "./kit.ts";
 
-test("share open uses the custom public address and never the private panel", async ({ page, context }) => {
+test("the live link opens at the custom public address and never the private panel", async ({ page, context }) => {
   const surface = await rpc<{ id: string }>("surfaces.show", {
     name: "public-link-ui",
     title: "Public link proof",
@@ -19,19 +19,21 @@ test("share open uses the custom public address and never the private panel", as
     await page.getByRole("button", { name: "Compartido", exact: true }).click();
     await expect(page.getByText(`https://public.example.com${share_path}`, { exact: true })).toBeVisible();
     const popupReady = page.waitForEvent("popup");
-    await page.getByRole("menuitem", { name: "Abrir enlace", exact: true }).click();
+    await page.getByRole("menuitem", { name: "Abrir enlace en vivo", exact: true }).click();
     const popup = await popupReady;
     await expect(popup).toHaveURL(`https://public.example.com${share_path}`);
     expect(await popup.evaluate(() => window.opener === null)).toBe(true);
     await popup.close();
     await rpc("webhooks.set", { mode: "off" });
     await page.getByRole("button", { name: "Compartido", exact: true }).click();
-    await expect(page.getByText("Enlace público no disponible.", { exact: false })).toBeVisible();
+    await expect(page.getByText("El enlace en vivo no está disponible.", { exact: false })).toBeVisible();
     const unavailablePopup = page.waitForEvent("popup");
-    await page.getByRole("menuitem", { name: "Abrir enlace", exact: true }).click();
+    await page.getByRole("menuitem", { name: "Abrir enlace en vivo", exact: true }).click();
     const blank = await unavailablePopup;
     await expect.poll(() => blank.isClosed()).toBe(true);
-    await expect(page.locator(".toast__text").filter({ hasText: "Enlace público no disponible." })).toBeVisible();
+    await expect(
+      page.locator(".toast__text").filter({ hasText: "El enlace en vivo no está disponible." }),
+    ).toBeVisible();
   } finally {
     await rpc("webhooks.set", { mode: "off" });
     await rpc("surfaces.remove", { surface: surface.id });

@@ -39,6 +39,8 @@ export const publicArtifactMethods = {
           .array(
             z.object({
               code: Code,
+              /** The local artifact it was published from, when this install published it. */
+              surface: Id.optional(),
               url: z.string().url().max(256),
               title: z.string().min(1).max(120),
               bytes: z.number().int().min(1).max(10_000_000),

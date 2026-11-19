@@ -66,6 +66,12 @@ export type PublicationDraftDependencies = {
   persistence?: PublicationDraftPersistence;
   pendingUntil?(id: string): number | undefined;
   onReceiptPersistenceError?(): void;
+  /** Which local artifact each public copy came from, kept on this install only (never in the cloud). */
+  sources?: PublicationSources;
+};
+export type PublicationSources = {
+  get(code: string): string | undefined;
+  set(code: string, surface: string | null): void;
 };
 
 export function createPublicationDrafts(deps: PublicationDraftDependencies) {
@@ -177,6 +183,9 @@ export function createPublicationDrafts(deps: PublicationDraftDependencies) {
       draft.pending = execute(draft);
       try {
         draft.done = await draft.pending;
+        try {
+          deps.sources?.set(draft.done.code, draft.action === "revoke" ? null : (draft.surface ?? null));
+        } catch {}
         delete draft.copy;
         drafts.delete(draft.id);
         drafts.set(draft.id, draft);
@@ -202,8 +211,10 @@ export function createPublicationDrafts(deps: PublicationDraftDependencies) {
           slots.map(async (slot) => {
             const code = cloudString(slot, "code");
             const item = await deps.cloud.inspect(session, code);
+            const surface = deps.sources?.get(code);
             return {
               code,
+              ...(surface ? { surface } : {}),
               url: address(code),
               title: cloudString(item, "title"),
               bytes: cloudNumber(item, "bytes"),
