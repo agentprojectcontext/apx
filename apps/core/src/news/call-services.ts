@@ -2,7 +2,7 @@ import type { NewsEntry } from "./entries.ts";
 
 export const CALL_SERVICES_NEWS: NewsEntry = {
   id: "call-speech-services",
-  since: "2.16.0",
+  since: "2.15.3",
   title: { en: "Choose the voice for your calls", es: "Elegí la voz de tus llamadas" },
   about: {
     en: "Call your agents with speech and transcription services on Windows, Linux or macOS. Choose Gemini, ElevenLabs or an OpenAI-compatible voice server.",
