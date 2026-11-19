@@ -241,6 +241,17 @@ function runUnitSuites(root: string, raw: string, nativeOutput: string, snapshot
   });
   if (build.status !== 0) failedAreas.push("packages/ui build");
   snapshot(path.join(root, "packages/ui/dist"));
+  // The Worker's tests run the module it uploads, with the public viewer embedded: `pnpm test` there builds it first.
+  const worker = spawnSync(
+    process.platform === "win32" ? "pnpm.cmd" : "pnpm",
+    ["--filter", "@apx/artifact-worker", "build"],
+    {
+      cwd: root,
+      stdio: "inherit",
+      shell: process.platform === "win32",
+    },
+  );
+  if (worker.status !== 0) failedAreas.push("apps/artifact-worker build");
   for (const area of unitAreas(allTests.map((file) => path.relative(root, file)))) {
     console.log(`\nCoverage: ${area.name} (${area.files.length} files)`);
     const cwd = area.dir === "scripts" ? root : path.join(root, area.dir);
