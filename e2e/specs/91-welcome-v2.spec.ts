@@ -11,7 +11,7 @@ test("the owner steps through the slides and Skip closes them for good", async (
   const dialog = page.getByRole("dialog", { name: "Lo nuevo de APX" });
   await expect(dialog).toBeVisible();
   await expect(dialog.getByRole("heading", { name: "El Marketplace" })).toBeVisible();
-  await expect(dialog.getByText("1 de 19")).toBeVisible();
+  await expect(dialog.getByText("1 de 21")).toBeVisible();
   // The film could not load: the slide's still takes its place.
   await expect(dialog.getByRole("img", { name: "El Marketplace" })).toBeVisible();
   await expect(dialog.getByRole("button", { name: "Atrás" })).toHaveCount(0);
@@ -19,8 +19,8 @@ test("the owner steps through the slides and Skip closes them for good", async (
   await dialog.getByRole("button", { name: "Siguiente" }).click();
   await expect(dialog.getByRole("heading", { name: "Tus contactos agendan solos" })).toBeVisible();
   await page.keyboard.press("ArrowRight");
-  await expect(dialog.getByRole("heading", { name: "La voz de APX" })).toBeVisible();
-  await expect(dialog.getByText("3 de 19")).toBeVisible();
+  await expect(dialog.getByRole("heading", { name: "Tu cuenta APX" })).toBeVisible();
+  await expect(dialog.getByText("3 de 21")).toBeVisible();
   await dialog.getByRole("button", { name: "Atrás" }).click();
   await expect(dialog.getByRole("heading", { name: "Tus contactos agendan solos" })).toBeVisible();
 
@@ -35,7 +35,7 @@ test("the last slide ends with Vamos", async ({ page }) => {
   await page.route("https://apxagent.app/**", (route) => route.abort("aborted"));
   await open(page);
   const dialog = page.getByRole("dialog", { name: "Lo nuevo de APX" });
-  for (let i = 1; i < 19; i++) await dialog.getByRole("button", { name: "Siguiente" }).click();
+  for (let i = 1; i < 21; i++) await dialog.getByRole("button", { name: "Siguiente" }).click();
   await expect(dialog.getByRole("heading", { name: "Una revisión semanal" })).toBeVisible();
   await expect(dialog.getByRole("button", { name: "Siguiente" })).toHaveCount(0);
   await dialog.getByRole("button", { name: "Vamos" }).click();
@@ -69,7 +69,7 @@ test("a device that closed the 2.14.3 welcome sees only what came after it", asy
   await open(page);
   const dialog = page.getByRole("dialog", { name: "Lo nuevo de APX" });
   await expect(dialog.getByRole("heading", { name: "El Marketplace" })).toBeVisible();
-  await expect(dialog.getByText("1 de 9")).toBeVisible();
+  await expect(dialog.getByText("1 de 11")).toBeVisible();
 });
 
 // What a device kept after closing an earlier welcome: the v2 one, then the single-film one.
@@ -78,6 +78,6 @@ for (const kept of [true, "whats-new-2.14"]) {
     await page.route("https://apxagent.app/**", (route) => route.abort("aborted"));
     await keep(page, { welcome: kept });
     await open(page);
-    await expect(page.getByRole("dialog", { name: "Lo nuevo de APX" }).getByText("1 de 19")).toBeVisible();
+    await expect(page.getByRole("dialog", { name: "Lo nuevo de APX" }).getByText("1 de 21")).toBeVisible();
   });
 }

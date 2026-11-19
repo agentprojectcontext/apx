@@ -2,6 +2,7 @@ import "../styles/welcome.css";
 import { Button, Dialog, IconButton, Icons } from "@apx/ui";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import account1 from "../assets/welcome/account-1.jpg";
 import booking1 from "../assets/welcome/booking-1.jpg";
 import call1 from "../assets/welcome/call-1.jpg";
 import call2 from "../assets/welcome/call-2.jpg";
@@ -11,6 +12,7 @@ import group1 from "../assets/welcome/group-1.jpg";
 import group2 from "../assets/welcome/group-2.jpg";
 import group3 from "../assets/welcome/group-3.jpg";
 import market1 from "../assets/welcome/market-1.jpg";
+import public1 from "../assets/welcome/public-1.jpg";
 import slide1 from "../assets/welcome/slide-1.jpg";
 import slide2 from "../assets/welcome/slide-2.jpg";
 import slide3 from "../assets/welcome/slide-3.jpg";
@@ -35,6 +37,8 @@ const clip = (lang: "es" | "en", key: string) => `https://apxagent.app/media/wha
 const POSTERS: Record<SlideKey, string> = {
   marketplace: market1,
   "contact-booking": booking1,
+  "apx-account": account1,
+  "public-link": public1,
   voice: call1,
   calls: call2,
   "call-work": call3,

@@ -15,6 +15,12 @@ export const esWelcome: Record<WelcomeKey, string> = {
   "welcome.contact-booking.title": "Tus contactos agendan solos",
   "welcome.contact-booking.text":
     "Cuando un contacto pide un turno, tu agente lo agenda en tu Google Calendar dentro del horario de atención y te avisa. Lo activás en Contactos › Citas › Agendar.",
+  "welcome.apx-account.title": "Tu cuenta APX",
+  "welcome.apx-account.text":
+    "Iniciá sesión con tu cuenta de Google en Configuración › Cuenta. Tu tarjeta muestra tu foto y tu ID de APX, y con ella podés compartir widgets con un link.",
+  "welcome.public-link.title": "Compartí un widget con un link",
+  "welcome.public-link.text":
+    "En Compartir › Cualquiera con el enlace revisás la copia y la publicás en apxagent.app. Se abre sin cuenta, y la dejás de compartir desde el mismo menú.",
   "welcome.voice.title": "La voz de APX",
   "welcome.voice.text":
     "Tus agentes hablan y escuchan notas de voz con la voz propia de APX. En Configuración › Voz y llamadas elegís mujer u hombre, el idioma y el acento.",

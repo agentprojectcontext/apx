@@ -15,6 +15,12 @@ export const enWelcome = {
   "welcome.contact-booking.title": "Your contacts book on their own",
   "welcome.contact-booking.text":
     "When a contact asks for an appointment, your agent books it on your Google Calendar within the account's hours and tells you. Turn it on in Contacts › Appointments › Book.",
+  "welcome.apx-account.title": "Your APX account",
+  "welcome.apx-account.text":
+    "Sign in with your Google account in Settings › Account. Your card shows your photo and your APX ID, and with it you can share widgets with a link.",
+  "welcome.public-link.title": "Share a widget with a link",
+  "welcome.public-link.text":
+    "In Share › Anyone with the link you review the copy and publish it on apxagent.app. It opens without an account, and you stop sharing it from the same menu.",
   "welcome.voice.title": "APX's own voice",
   "welcome.voice.text":
     "Your agents speak and hear voice notes with APX's own voice. In Settings › Voice and calls you pick female or male, the language and the accent.",

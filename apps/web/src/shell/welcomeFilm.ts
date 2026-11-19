@@ -5,6 +5,8 @@
 export const WELCOME_SLIDES = [
   { key: "marketplace", since: "2.16.0" },
   { key: "contact-booking", since: "2.16.0" },
+  { key: "apx-account", since: "2.16.0" },
+  { key: "public-link", since: "2.16.0" },
   { key: "voice", since: "2.15.0" },
   { key: "calls", since: "2.15.0" },
   { key: "call-work", since: "2.15.0" },
