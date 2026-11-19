@@ -110,6 +110,54 @@ test("the owner's own servers resolve secret:// at start and get no other creden
   assert.ok(!servers.find((s) => s.name === "mine")?.target.includes("s3cret"));
 });
 
+test("a server needing a missing secret asks for it before it starts, then connects once it is set", async () => {
+  await env.client.call("mcp.set", {
+    name: "needs-key",
+    server: { command: process.execPath, args: [SERVER], env: { NOTES_TOKEN: "secret://missing-key" } },
+  });
+  const missing = await env.client.call("mcp.test", { scope: "global", server: "needs-key" });
+  assert.equal(missing.ok, false);
+  assert.match(missing.error ?? "", /missing-key/);
+  await env.client.call("secrets.set", { name: "missing-key", value: "test-key" });
+  const connected = await env.client.call("mcp.test", { scope: "global", server: "needs-key" });
+  assert.equal(connected.ok, true);
+  assert.ok(connected.tools.includes("token"));
+});
+
+test("an extension's optional secret can be absent without sending its reference", async () => {
+  const dir = path.join(root, "optional-extension");
+  fs.mkdirSync(dir);
+  fs.writeFileSync(
+    path.join(dir, "apx-extension.json"),
+    JSON.stringify({
+      manifest: 2,
+      id: "optional_ext",
+      name: "Optional secret",
+      version: "1.0.0",
+      settings: [
+        { name: "token", label: "Token", type: "string", sensitive: true, required: false },
+        { name: "api_key", label: "API key", type: "string", sensitive: true, required: true },
+      ],
+      mcp: {
+        test: { command: process.execPath, args: [SERVER], env: { NOTES_TOKEN: "secret://token" } },
+        required: { command: process.execPath, args: [SERVER], env: { NOTES_TOKEN: "secret://api_key" } },
+      },
+    }),
+  );
+  await env.client.call("extensions.install", { path: dir });
+  await env.client.call("extensions.enable", { id: "optional_ext", enabled: true });
+  const missing = await env.client.call("mcp.test", { scope: "global", server: "optional_ext-required" });
+  assert.equal(missing.ok, false);
+  assert.match(missing.error ?? "", /API key/);
+  assert.doesNotMatch(missing.error ?? "", /ext-optional_ext/);
+  const target = { scope: "global" as const, server: "optional_ext-test" };
+  const tested = await env.client.call("mcp.test", target);
+  assert.equal(tested.ok, true);
+  const result = await env.client.call("mcp.call", { ...target, tool: "token", arguments: {} });
+  assert.match(String(result.content?.[0]?.text), /token= leaked=no/);
+  assert.doesNotMatch(String(result.content?.[0]?.text), /secret:\/\//);
+});
+
 test("a secret inside text is resolved too, and the owner's server comes back as defined to be edited", async () => {
   await env.client.call("mcp.set", {
     name: "mine",

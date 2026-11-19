@@ -182,6 +182,10 @@ test("an address the owner types with a final / joins its server's path with one
     }),
   );
   await env.client.call("extensions.install", { path: ha.path });
+  await env.client.call("extensions.enable", { id: "home_hub", enabled: true });
+  const missing = await env.client.call("mcp.test", { scope: "global", server: "home_hub-hub" });
+  assert.equal(missing.ok, false);
+  assert.match(missing.error ?? "", /Address/);
   const target = async (address: string) => {
     await env.client.call("extensions.settings", { id: "home_hub", values: { address } });
     await env.client.call("extensions.enable", { id: "home_hub", enabled: true });

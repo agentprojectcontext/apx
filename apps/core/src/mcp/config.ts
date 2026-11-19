@@ -23,6 +23,11 @@ export type McpDef = {
   env: Record<string, string>;
   url?: string | undefined;
   headers: Record<string, string>;
+  /** Extension settings explicitly marked optional can be empty without blocking the server. */
+  optionalSecrets?: string[] | undefined;
+  secretLabels?: Record<string, string> | undefined;
+  /** Required extension settings this particular server references but the owner has not set. */
+  missingSettings?: string[] | undefined;
   enabled: boolean;
   /** Folder a stdio server starts in (the project's). */
   cwd?: string | undefined;
@@ -130,7 +135,30 @@ function extensionDefs(store: Store): McpDef[] {
         headers: map(server.headers),
       };
       const d = toDef(`${e.id}-${name}`, raw, { scope: "global", cwd: e.dir });
-      return d ? [d] : [];
+      if (!d) return [];
+      const optionalSecrets = e.manifest.settings
+        .filter((s) => s.sensitive && !s.required)
+        .map((s) => extSecret(e.id, s.name));
+      const secretLabels = Object.fromEntries(
+        [...e.manifest.secrets, ...e.manifest.settings.filter((s) => s.sensitive)].map((s) => [
+          extSecret(e.id, s.name),
+          s.label,
+        ]),
+      );
+      const values = [...server.args, ...Object.values(server.env), server.url ?? "", ...Object.values(server.headers)];
+      const referenced = new Set(values.flatMap((v) => [...v.matchAll(SETTING_REF)].map((m) => m[1])));
+      const missingSettings = e.manifest.settings
+        .filter((s) => {
+          const value = e.settings[s.name] ?? s.default;
+          return !s.sensitive && s.required && referenced.has(s.name) && (value === undefined || value === "");
+        })
+        .map((s) => s.label);
+      if (!optionalSecrets.length && !missingSettings.length && !Object.keys(secretLabels).length) return [d];
+      const hash = createHash("sha256")
+        .update(JSON.stringify([d.hash, optionalSecrets, secretLabels, missingSettings]))
+        .digest("hex")
+        .slice(0, 16);
+      return [{ ...d, hash, optionalSecrets, secretLabels, missingSettings }];
     }),
   );
 }

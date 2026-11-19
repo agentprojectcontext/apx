@@ -145,7 +145,19 @@ export function createMcp(deps: {
    */
   async function connect(d: McpDef, onSignIn?: (url: string) => void, signal?: AbortSignal): Promise<Connected> {
     if (d.args.some((a) => a.includes("secret://"))) throw new Error(ARGS_SECRET);
-    const errors = connectionErrors((ref) => deps.secrets.resolveIn(ref, valuesIn(d.values_of)));
+    if (d.missingSettings?.length) throw new Error(`Set the required settings: ${d.missingSettings.join(", ")}`);
+    const optional = new Set(d.optionalSecrets ?? []);
+    const missing = secretNames(d).filter(
+      (name) => !optional.has(name) && !deps.secrets.resolveIn(`secret://${name}`, valuesIn(d.values_of)),
+    );
+    if (missing.length)
+      throw new Error(
+        `Set the required secret${missing.length === 1 ? "" : "s"}: ${missing.map((name) => d.secretLabels?.[name] ?? name).join(", ")}`,
+      );
+    const errors = connectionErrors((ref) => {
+      const value = deps.secrets.resolveIn(ref, valuesIn(d.values_of));
+      return value ?? (ref.startsWith("secret://") && optional.has(ref.slice(9)) ? "" : undefined);
+    });
     const resolve = (values: Record<string, string>) =>
       Object.fromEntries(Object.entries(values).map(([k, v]) => [k, errors.fill(v)]));
     // Loaded with the first server: a core with none never loads the MCP client.
