@@ -11,6 +11,7 @@ import { realpath } from "../paths.ts";
 import { removeDir } from "../testkit/platform.ts";
 import { untrusted } from "../tools/result.ts";
 import { defineTool } from "../tools/types.ts";
+import { webTools } from "../tools/web.ts";
 import { callTool, inputOrEnd, say, scriptedLlm, startCore } from "./testkit.ts";
 
 /** A page from the web: outside content in the turn from here on. */
@@ -90,9 +91,26 @@ let env: Awaited<ReturnType<typeof startCore>>;
 let root = "";
 let project = "";
 const agents: Record<string, string> = {};
+const fetched: string[] = [];
 
 before(async () => {
-  env = await startCore({ llm, extraTools: [readPage], inputWaits: { turn: 2_000, external: 2_000 } });
+  const webRead = webTools().find((tool) => tool.name === "web_read");
+  assert.ok(webRead);
+  env = await startCore({
+    llm,
+    extraTools: [
+      readPage,
+      {
+        ...webRead,
+        run: async (args) => {
+          const url = String(args.url);
+          fetched.push(url);
+          return untrusted("web_page", { url }, "A plain page.");
+        },
+      },
+    ],
+    inputWaits: { turn: 2_000, external: 2_000 },
+  });
   root = realpath(fs.mkdtempSync(path.join(os.tmpdir(), "apx-perms-")));
   fs.mkdirSync(path.join(root, ".apc", "agents"), { recursive: true });
   fs.writeFileSync(path.join(root, ".apc", "project.json"), JSON.stringify({ name: "Northwind" }));
@@ -152,11 +170,15 @@ test("auto: with a web page in the turn, low-impact tools and writing a file in 
 });
 
 test("auto: with a web page in the turn, a URL that carries values waits for the owner; a plain one does not", async () => {
+  fetched.length = 0;
   const t = await chat("Steady");
   await env.client.call("threads.send", { thread: t.id, text: "send it out" });
   const input: { id: string; tool?: string | undefined } | undefined = await inputOrEnd(env.client, t.id);
+  assert.equal(input?.tool, "web_read");
+  assert.deepEqual(fetched, ["https://example.invalid/about"]);
   await env.client.call("runs.respond", { input: input?.id ?? "", decision: "deny" });
   const { messages } = await env.settle(t.id, 8000);
+  assert.deepEqual(fetched, ["https://example.invalid/about"]);
   assert.deepEqual(asked(messages), ["web_read"]);
   assert.match(JSON.stringify(messages), /collect\?d=/);
 });
