@@ -8,7 +8,7 @@ import { createCore } from "../apps/core/src/server.ts";
 import { tempDir } from "../apps/core/src/testkit/platform.ts";
 import { ApxClient } from "../packages/protocol/src/client.ts";
 import { browserCloud } from "./browser-cloud.ts";
-import { checkOversizedPublication } from "./public-size-journey.ts";
+import { checkOversizedPublication, openPublicStep, withData } from "./public-size-journey.ts";
 
 for (const width of [1280, 390]) {
   test(`Spanish public-copy review and publication at ${width}px`, async () => {
@@ -46,25 +46,23 @@ for (const width of [1280, 390]) {
       const page = await browser.newPage({ locale: "es-AR", viewport: { width, height: 900 } });
       await page.goto(`${core.url}/#app=${source.id}`);
       await page.getByRole("button", { name: "Saltear", exact: true }).click();
-      await page.getByRole("button", { name: "Compartir", exact: true }).click();
-      await page.getByRole("menuitem", { name: "Publicar copia…", exact: true }).click();
-      await expect(page.getByRole("checkbox", { name: "Filters", exact: true })).not.toBeChecked();
-      await page.getByRole("checkbox", { name: "Filters", exact: true }).check();
-      await page.getByRole("button", { name: "Revisar copia", exact: true }).click();
-      const dialog = page.getByRole("dialog", { name: "Revisá esta copia exacta" });
-      await expect(dialog).toContainText("Publicando como Acme");
+      const dialog = await openPublicStep(page, "es");
+      await expect(withData(page, "es")).not.toBeChecked();
+      await withData(page, "es").click();
+      await dialog.getByText("Ver qué datos son", { exact: true }).click();
+      await expect(dialog).toContainText("Publicás como Acme");
       await expect(
         page
           .frameLocator('iframe[title="Vista previa de la página publicada"]')
           .frameLocator("iframe")
           .getByRole("heading", { name: "Orders" }),
       ).toBeVisible();
-      await expect(dialog.locator("pre").last()).toContainText('"region": "South"');
+      await expect(dialog.locator("pre").first()).toContainText('"region": "South"');
       assert.equal(await dialog.evaluate((element) => element.scrollWidth > element.clientWidth), false);
       if (process.env.PUBLIC_COPY_EVIDENCE)
         await page.screenshot({ path: path.join(process.env.PUBLIC_COPY_EVIDENCE, `panel-review-${width}-es.png`) });
       assert.equal(cloud.commits(), 0);
-      await page.getByRole("button", { name: "Publicar copia", exact: true }).click();
+      await dialog.getByRole("button", { name: "Compartir público", exact: true }).click();
       await expect(dialog).toHaveCount(0);
       assert.equal(cloud.commits(), 1);
       await checkOversizedPublication({ core, page, source: source.id, width, language: "es", commits: cloud.commits });

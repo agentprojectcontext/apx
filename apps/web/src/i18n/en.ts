@@ -748,6 +748,14 @@ export const en = {
   "share.copyPublic": "Copy public link",
   "share.copyPrivate": "Copy private link",
   "share.alsoLive": "It also has a live link from this computer.",
+  "share.export": "Export",
+  "share.exportApx": "APX file",
+  "share.exportApxHint": "To open it in another APX (.apxart)",
+  "share.exportMemory": "APX file with its data",
+  "share.exportMemoryHint": "With what it saved (.apxart)",
+  "share.exportHtml": "HTML",
+  "share.exportHtmlHint": "A web page for any browser",
+  "share.exportDownload": "Download {what}",
 
   // Artifact memory, export and import
   "artifact.pinTo": "Pin to {project}'s board",

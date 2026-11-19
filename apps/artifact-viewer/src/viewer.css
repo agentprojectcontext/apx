@@ -10,29 +10,47 @@ body,
   flex-direction: column;
   font-family: var(--apx-font-sans);
   color: var(--apx-fg);
+  background: var(--apx-bg);
 }
-.public-copy__header {
-  padding: 24px 32px;
-  border-bottom: 1px solid var(--apx-border);
-  background: var(--apx-surface);
-}
-.public-copy__top,
-.public-copy__heading {
+/* One slim bar, like a document's: the copy's name opens what can be done with it; Open in APX stays at hand. */
+.public-copy__bar {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 16px;
+  gap: 12px;
+  min-height: 52px;
+  padding: 8px 16px;
+  border-bottom: 1px solid var(--apx-border);
+  background: var(--apx-surface);
 }
-.public-copy__top {
-  margin-bottom: 24px;
+.public-copy__title {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  padding: 6px 10px;
+  border: 0;
+  border-radius: var(--apx-radius-md);
+  background: transparent;
+  color: var(--apx-fg);
+  font: inherit;
+  cursor: pointer;
+}
+.public-copy__title:hover {
+  background: var(--apx-fill);
 }
 .public-copy__brand {
-  font-size: 14px;
+  flex: none;
+  color: var(--apx-fg-muted);
+  font-size: 13px;
   font-weight: 650;
 }
-.public-copy__brand span {
-  color: var(--apx-fg-muted);
-  font-weight: 400;
+.public-copy__name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 15px;
+  font-weight: 600;
 }
 .public-copy h1 {
   margin: 0;
@@ -41,7 +59,6 @@ body,
   line-height: 1.25;
   overflow-wrap: anywhere;
 }
-.public-copy__heading p,
 .public-copy__status p {
   margin: 8px 0 0;
   color: var(--apx-fg-muted);
@@ -61,9 +78,6 @@ body,
   max-width: 480px;
   text-align: center;
 }
-.public-copy__top:last-child {
-  margin-bottom: 0;
-}
 .public-copy__status h1 {
   font-size: 20px;
   font-weight: 600;
@@ -73,17 +87,7 @@ body,
   margin-top: 20px;
 }
 @media (max-width: 600px) {
-  .public-copy__header {
-    padding: 16px 20px 20px;
-  }
-  .public-copy__top {
-    margin-bottom: 20px;
-  }
-  .public-copy__heading {
-    align-items: stretch;
-    flex-direction: column;
-  }
-  .public-copy h1 {
-    font-size: 24px;
+  .public-copy__bar {
+    padding: 8px;
   }
 }

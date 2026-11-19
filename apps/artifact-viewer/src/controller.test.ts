@@ -181,3 +181,19 @@ test("a disconnected browser clears the preview while invalid codes never start 
   assert.equal(invalid.timers.pending(), 0);
   invalid.controller.stop();
 });
+
+test("a copy on screen stays while the page confirms it again, and goes only when it is gone", async () => {
+  const f = fixture();
+  f.controller.start();
+  f.latest().changed("live");
+  await waitFor(() => f.controller.snapshot().status === "ready", "loaded preview");
+  const shown = f.controller.snapshot().copy;
+  f.latest().changed("waiting");
+  assert.equal(f.controller.snapshot().copy, shown, "returning to the window keeps the copy while it confirms");
+  f.latest().changed("live");
+  assert.equal(f.controller.snapshot().copy, shown, "and while it reads it again");
+  await waitFor(() => f.controller.snapshot().status === "ready", "confirmed again");
+  f.latest().changed("missing");
+  assert.equal(f.controller.snapshot().copy, undefined);
+  f.controller.stop();
+});

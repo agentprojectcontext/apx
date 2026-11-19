@@ -127,7 +127,7 @@ test("a connected viewer receives changes without polling and a revocation termi
   stop();
 });
 
-test("disconnects clear the preview; hidden pages stop work and resume from a fresh server read", async () => {
+test("disconnects clear the preview; hidden pages stop work without failing and resume from a fresh server read", async () => {
   const f = fixture();
   const stop = f.start();
   await waitFor(() => f.sockets.length === 1, "initial socket");
@@ -143,6 +143,7 @@ test("disconnects clear the preview; hidden pages stop work and resume from a fr
   f.events().open();
   f.hide(true);
   assert.equal(f.sockets[1]?.closed, true);
+  assert.deepEqual(f.failures, [false], "switching windows is not a failure: the copy stays on screen");
   f.timers.tick(86_400_000);
   assert.equal(f.reads(), 2);
   f.hide(false);

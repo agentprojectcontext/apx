@@ -104,6 +104,11 @@ for (const width of [1280, 390]) {
       await expect(who).toHaveText(/Solo vos/);
       await expect(page.getByRole("button", { name: "Copiar enlace privado" })).toBeVisible();
       await page.screenshot({ path: info.outputPath(`share-private-${width}.png`) });
+      await page.getByRole("radio", { name: "Exportar" }).click();
+      await expect(page.getByText("Archivo de APX", { exact: true })).toBeVisible();
+      await expect(page.getByRole("button", { name: "Descargar Archivo de APX", exact: true })).toBeVisible();
+      await page.screenshot({ path: info.outputPath(`share-export-${width}.png`) });
+      await page.getByRole("radio", { name: "Compartir" }).click();
       await who.click();
       await expect(page.getByRole("option", { name: /En vivo desde esta compu/ })).toBeVisible();
       await page.screenshot({ path: info.outputPath(`share-choices-${width}.png`) });

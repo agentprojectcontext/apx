@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import path from "node:path";
 import { test } from "node:test";
-import { expect, firefox, webkit } from "@playwright/test";
+import { expect, firefox, type Page, webkit } from "@playwright/test";
 import { publicArtifactCode, publicArtifactCopy } from "../apps/core/src/domain/public-artifact-copy.ts";
 import { createPublicArtifactCloud } from "../apps/core/src/public-artifacts/cloud.ts";
 import { withKit } from "../apps/core/src/surface-kit.ts";
@@ -51,7 +51,7 @@ for (const [engine, width] of [
           path: path.join(process.env.APX_ARTIFACT_EVIDENCE, `viewer-${engine.name()}-${width}.png`),
         });
       const downloaded = page.waitForEvent("download");
-      await page.getByRole("button", { name: "Download file", exact: true }).click();
+      await viewerMenu(page, "Download file");
       const download = await downloaded;
       const stream = await download.createReadStream();
       const bytes: Buffer[] = [];
@@ -61,11 +61,16 @@ for (const [engine, width] of [
       await cloud.revoke(session, code, current.updateTime);
       await expect(page.locator("iframe")).toHaveCount(0);
       await expect(page.getByRole("heading", { name: "This copy isn't available", exact: true })).toBeVisible();
-      await expect(page.getByRole("button", { name: "Download file", exact: true })).toHaveCount(0);
       await expect(page.getByRole("button", { name: "Open in APX", exact: true })).toHaveCount(0);
       assert.deepEqual(errors, []);
     } finally {
       await browser.close();
     }
   });
+}
+
+/** The viewer's own actions live in the copy's title menu, as in a document's header. */
+async function viewerMenu(page: Page, item: string) {
+  await page.getByRole("button", { name: /^(Copy options|Opciones de la copia)$/ }).click();
+  await page.getByRole("menuitem", { name: new RegExp(`^${item}`) }).click();
 }

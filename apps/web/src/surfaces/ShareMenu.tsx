@@ -1,7 +1,8 @@
 import type { SurfaceSummary } from "@apx/protocol";
-import { Button, IconButton, Icons, type MenuEntry, Popover, Select } from "@apx/ui";
+import { Button, IconButton, Icons, type MenuEntry, Popover, SegmentedControl, Select } from "@apx/ui";
 import { useEffect, useState } from "react";
 import { shareSurface } from "../data/actions.ts";
+import { downloadPage, exportArtifact } from "../data/artifacts.ts";
 import { client } from "../data/client.ts";
 import { notify } from "../data/notices.ts";
 import { t as tr, useT } from "../i18n/index.ts";
@@ -13,6 +14,13 @@ import { openPublicCopy } from "./publicRequest.ts";
 // apxagent.app anyone opens without an account) or live from this computer (its public address, while it is on).
 
 type Access = "private" | "public" | "live";
+
+/** Each access shows its own mark, on the Share button too: a lock, the world or this computer. */
+const ACCESS_ICON = {
+  private: (size: number) => <Icons.Lock size={size} />,
+  public: (size: number) => <Icons.Globe size={size} />,
+  live: (size: number) => <Icons.Monitor size={size} />,
+} satisfies Record<Access, (size: number) => unknown>;
 
 async function liveLink(path: string): Promise<string> {
   const address = await client.call("webhooks.get", {});
@@ -158,11 +166,63 @@ function LinkRow({ surface, copy }: { surface: SurfaceSummary; copy: { url: stri
   );
 }
 
+/** The artifact as a file: an .apxart to open in another APX (alone or with what it remembers), a page as HTML. */
+function ExportList({ surface }: { surface: SurfaceSummary }) {
+  const t = useT();
+  const rows = [
+    {
+      key: "plain",
+      icon: <Icons.File size={18} />,
+      title: t("share.exportApx"),
+      hint: t("share.exportApxHint"),
+      run: () => exportArtifact(surface.id, false),
+    },
+    {
+      key: "memory",
+      icon: <Icons.Database size={18} />,
+      title: t("share.exportMemory"),
+      hint: t("share.exportMemoryHint"),
+      run: () => exportArtifact(surface.id, true),
+    },
+    ...(surface.page
+      ? [
+          {
+            key: "html",
+            icon: <Icons.Code size={18} />,
+            title: t("share.exportHtml"),
+            hint: t("share.exportHtmlHint"),
+            run: () => downloadPage(surface.id),
+          },
+        ]
+      : []),
+  ];
+  return (
+    <ul className="share-panel__exports">
+      {rows.map((row) => (
+        <li key={row.key}>
+          <span className="share-panel__exporticon">{row.icon}</span>
+          <span className="share-panel__exporttext">
+            <strong>{row.title}</strong>
+            <small>{row.hint}</small>
+          </span>
+          <IconButton
+            size="sm"
+            label={t("share.exportDownload", { what: row.title })}
+            icon={<Icons.Download size={16} />}
+            onClick={() => void row.run()}
+          />
+        </li>
+      ))}
+    </ul>
+  );
+}
+
 /** Share: who can see this artifact (only you, public, or live from this computer) and its link to copy. */
 export function ShareMenu({ surface, variant = "button" }: { surface: SurfaceSummary; variant?: "button" | "icon" }) {
   const t = useT();
   const copy = usePublicCopyOf(surface.id);
   const [open, setOpen] = useState(false);
+  const [tab, setTab] = useState<"share" | "export">("share");
   const access = accessOf(surface, copy);
   const shared = access !== "private";
   const pick = (next: string | null) => {
@@ -175,11 +235,11 @@ export function ShareMenu({ surface, variant = "button" }: { surface: SurfaceSum
       <IconButton
         size="sm"
         label={t("share.iconLabel", { state: shared ? t("share.shared") : t("share.private") })}
-        icon={shared ? <Icons.Globe size={14} /> : <Icons.Share size={14} />}
+        icon={ACCESS_ICON[access](14)}
         active={shared}
       />
     ) : (
-      <Button size="sm" variant="secondary" leadingIcon={shared ? <Icons.Globe size={14} /> : <Icons.Lock size={14} />}>
+      <Button size="sm" variant="secondary" leadingIcon={ACCESS_ICON[access](14)}>
         {shared ? t("share.shared") : t("share.share")}
       </Button>
     );
@@ -195,61 +255,79 @@ export function ShareMenu({ surface, variant = "button" }: { surface: SurfaceSum
     >
       <div className="share-panel">
         <h3 className="share-panel__title">{t("share.panelTitle", { title: surface.title })}</h3>
-        <Select
-          label={t("share.who")}
-          value={access}
-          onValueChange={pick}
+        <SegmentedControl
+          size="sm"
+          label={t("share.panelTitle", { title: surface.title })}
+          value={tab}
+          onValueChange={(next) => setTab(next as "share" | "export")}
           options={[
-            {
-              value: "private",
-              label: t("share.private"),
-              description: t("share.privateHint"),
-              icon: <Icons.Lock size={16} />,
-            },
-            {
-              value: "public",
-              label: t("share.anyone"),
-              description: t("share.anyoneHint"),
-              icon: <Icons.Globe size={16} />,
-            },
-            {
-              value: "live",
-              label: t("share.live"),
-              description: t("share.liveHint"),
-              icon: <Icons.Monitor size={16} />,
-            },
+            { value: "share", label: t("share.share") },
+            { value: "export", label: t("share.export") },
           ]}
         />
-        <p className="share-panel__hint">
-          {t(access === "public" ? "share.anyoneHint" : access === "live" ? "share.liveHint" : "share.privateHint")}
-        </p>
-        <LinkRow surface={surface} copy={copy} />
-        {copy && linkOf(surface) && (
-          <p className="share-panel__hint">
-            {t("share.alsoLive")}{" "}
-            <Button size="sm" variant="link" onClick={() => void shareSurface(surface.id, false)}>
-              {t("share.liveOff")}
-            </Button>
-          </p>
+        {tab === "export" ? (
+          <ExportList surface={surface} />
+        ) : (
+          <>
+            <Select
+              label={t("share.who")}
+              value={access}
+              onValueChange={pick}
+              options={[
+                {
+                  value: "private",
+                  label: t("share.private"),
+                  description: t("share.privateHint"),
+                  icon: ACCESS_ICON.private(16),
+                },
+                {
+                  value: "public",
+                  label: t("share.anyone"),
+                  description: t("share.anyoneHint"),
+                  icon: ACCESS_ICON.public(16),
+                },
+                {
+                  value: "live",
+                  label: t("share.live"),
+                  description: t("share.liveHint"),
+                  icon: ACCESS_ICON.live(16),
+                },
+              ]}
+            />
+            <p className="share-panel__hint">
+              {t(access === "public" ? "share.anyoneHint" : access === "live" ? "share.liveHint" : "share.privateHint")}
+            </p>
+            <LinkRow surface={surface} copy={copy} />
+            {copy && linkOf(surface) && (
+              <p className="share-panel__hint">
+                {t("share.alsoLive")}{" "}
+                <Button size="sm" variant="link" onClick={() => void shareSurface(surface.id, false)}>
+                  {t("share.liveOff")}
+                </Button>
+              </p>
+            )}
+            <div className="share-panel__actions">
+              {copy && (
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="share-panel__update"
+                  onClick={() => {
+                    setOpen(false);
+                    openPublicCopy({ action: "update", code: copy.code, surface: surface.id });
+                  }}
+                >
+                  {t("share.update")}
+                </Button>
+              )}
+              <Button size="sm" leadingIcon={<Icons.Link size={14} />} onClick={() => void copyCurrent(surface, copy)}>
+                {t(
+                  access === "public" ? "share.copyPublic" : access === "live" ? "share.liveCopy" : "share.copyPrivate",
+                )}
+              </Button>
+            </div>
+          </>
         )}
-        <div className="share-panel__actions">
-          {copy && (
-            <Button
-              size="sm"
-              variant="ghost"
-              className="share-panel__update"
-              onClick={() => {
-                setOpen(false);
-                openPublicCopy({ action: "update", code: copy.code, surface: surface.id });
-              }}
-            >
-              {t("share.update")}
-            </Button>
-          )}
-          <Button size="sm" leadingIcon={<Icons.Link size={14} />} onClick={() => void copyCurrent(surface, copy)}>
-            {t(access === "public" ? "share.copyPublic" : access === "live" ? "share.liveCopy" : "share.copyPrivate")}
-          </Button>
-        </div>
       </div>
     </Popover>
   );

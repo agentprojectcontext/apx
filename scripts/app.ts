@@ -71,6 +71,21 @@ function devBundle(): string | undefined {
         spawnSync("plutil", ["-replace", key, "-string", "APX", plist]);
       fs.writeFileSync(stamp, version);
     }
+    // Links to APX (a public copy's "Open in APX", the account's return) reach the app the owner runs, not an
+    // older installed one: the bundle declares apx:// and the app takes it as the default handler when it starts.
+    const plist = path.join(app, "Contents", "Info.plist");
+    if (spawnSync("plutil", ["-extract", "CFBundleURLTypes", "xml1", "-o", "-", plist]).status !== 0)
+      spawnSync("plutil", [
+        "-insert",
+        "CFBundleURLTypes",
+        "-json",
+        JSON.stringify([{ CFBundleURLName: "APX", CFBundleURLSchemes: ["apx"] }]),
+        plist,
+      ]);
+    spawnSync(
+      "/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister",
+      ["-f", app],
+    );
     const icon = path.join(desktop, "assets", "icon.png");
     const iconStamp = path.join(desktop, ".dev", "icon-sha256");
     const iconHash = createHash("sha256").update(fs.readFileSync(icon)).digest("hex");

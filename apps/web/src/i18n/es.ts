@@ -736,6 +736,14 @@ export const es: Partial<Record<MessageKey, string>> = {
   "share.copyPublic": "Copiar enlace público",
   "share.copyPrivate": "Copiar enlace privado",
   "share.alsoLive": "También tiene un enlace en vivo desde esta compu.",
+  "share.export": "Exportar",
+  "share.exportApx": "Archivo de APX",
+  "share.exportApxHint": "Para abrirlo en otro APX (.apxart)",
+  "share.exportMemory": "Archivo de APX con sus datos",
+  "share.exportMemoryHint": "Con lo que guardó (.apxart)",
+  "share.exportHtml": "HTML",
+  "share.exportHtmlHint": "Página web para cualquier navegador",
+  "share.exportDownload": "Descargar {what}",
 
   // Memoria, exportación e importación de artefactos
   "artifact.pinTo": "Fijar al tablero de {project}",

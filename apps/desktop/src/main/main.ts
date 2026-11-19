@@ -81,6 +81,10 @@ const receiveAccountReturn = (value: string) => {
   pendingAccountReturn = result;
   accountReturned();
 };
+/** Whether this is the macOS bundle `pnpm app` makes in apps/desktop/.dev (scripts/app.ts). */
+const isDevBundle = (exec: string) =>
+  process.platform === "darwin" && /\/\.dev\/APX\.app\/Contents\/MacOS\//.test(exec);
+
 app.on("open-url", (event, value) => {
   event.preventDefault();
   receiveAccountReturn(value);
@@ -219,7 +223,8 @@ app.whenReady().then(() => {
     pendingPublicCopy = undefined;
     return code ?? null;
   });
-  if (app.isPackaged) app.setAsDefaultProtocolClient("apx");
+  // The installed app, and the development bundle `pnpm app` runs (it declares apx:// too: scripts/app.ts).
+  if (app.isPackaged || isDevBundle(process.execPath)) app.setAsDefaultProtocolClient("apx");
   externalLinks(panel.webContents);
   let shown: WebContentsView | undefined;
   let slot: Bounds | null = null;

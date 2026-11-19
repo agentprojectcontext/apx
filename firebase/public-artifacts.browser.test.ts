@@ -3,7 +3,7 @@ import fs from "node:fs/promises";
 import http from "node:http";
 import path from "node:path";
 import { test } from "node:test";
-import { type Browser, chromium, expect, type Request } from "@playwright/test";
+import { type Browser, chromium, expect, type Page, type Request } from "@playwright/test";
 import { publicArtifactCode, publicArtifactCopy } from "../apps/core/src/domain/public-artifact-copy.ts";
 import { createPublicArtifactCloud } from "../apps/core/src/public-artifacts/cloud.ts";
 import { withKit } from "../apps/core/src/surface-kit.ts";
@@ -116,7 +116,7 @@ test("the viewer isolates credentials and network, downloads exact approved byte
     assert.match((await wrappers[0].allHeaders()).cookie ?? "", /acme-session/);
     assert.equal((await runners[0].allHeaders()).cookie, undefined);
     const event = page.waitForEvent("download", { timeout: 20_000 });
-    await page.getByRole("button", { name: "Download file", exact: true }).click();
+    await viewerMenu(page, "Download file");
     const download = await event;
     assert.equal(download.suggestedFilename(), "weekend-plan.apxart");
     const file = await download.path();
@@ -125,14 +125,12 @@ test("the viewer isolates credentials and network, downloads exact approved byte
     for (const width of [1280, 390]) {
       await page.setViewportSize({ width, height: 900 });
       for (const language of ["en", "es"]) {
-        if (language === "es") await page.getByRole("button", { name: "Español", exact: true }).click();
-        if (language === "en" && (await page.getByRole("button", { name: "English", exact: true }).count()))
-          await page.getByRole("button", { name: "English", exact: true }).click();
+        if (language === "es") await viewerMenu(page, "Español");
         const output = process.env.APX_ARTIFACT_EVIDENCE ?? dir.path;
         await page.screenshot({ path: path.join(output, `viewer-${width}-${language}.png`), fullPage: true });
+        if (language === "es") await viewerMenu(page, "English");
       }
     }
-    await page.getByRole("button", { name: "English", exact: true }).click();
     const previous = await cloud.inspect(session, code);
     const started = performance.now();
     await cloud.revoke(session, code, previous.updateTime);
@@ -197,12 +195,12 @@ test("browsers without credentialless still execute an opaque sandbox preview an
     );
     assert.equal(await page.locator("iframe").getAttribute("sandbox"), "allow-scripts");
     const event = page.waitForEvent("download");
-    await page.getByRole("button", { name: "Download file", exact: true }).click();
+    await viewerMenu(page, "Download file");
     const download = await event;
     const file = await download.path();
     assert.ok(file);
     assert.equal(await fs.readFile(file, "utf8"), copy.json);
-    await page.getByRole("button", { name: "Español", exact: true }).click();
+    await viewerMenu(page, "Español");
     await expect(frame.getByRole("heading", { name: "Orders", exact: true })).toBeVisible();
     await expect(page.getByRole("button", { name: "Abrir en APX", exact: true })).toBeVisible();
     await cloud.revoke(session, code, (await cloud.inspect(session, code)).updateTime);
@@ -211,3 +209,9 @@ test("browsers without credentialless still execute an opaque sandbox preview an
     await dir.remove();
   }
 });
+
+/** The viewer's own actions live in the copy's title menu, as in a document's header. */
+async function viewerMenu(page: Page, item: string) {
+  await page.getByRole("button", { name: /^(Copy options|Opciones de la copia)$/ }).click();
+  await page.getByRole("menuitem", { name: new RegExp(`^${item}`) }).click();
+}

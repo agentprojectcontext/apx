@@ -8,7 +8,7 @@ import { createCore } from "../apps/core/src/server.ts";
 import { removeDir, tempDir } from "../apps/core/src/testkit/platform.ts";
 import { ApxClient } from "../packages/protocol/src/client.ts";
 import { browserCloud } from "./browser-cloud.ts";
-import { checkOversizedPublication } from "./public-size-journey.ts";
+import { checkOversizedPublication, openPublicStep, withData } from "./public-size-journey.ts";
 
 for (const width of [1280, 390]) {
   test(`public-copy selection, exact review, invalidation and confirmation in the built panel at ${width}px`, async () => {
@@ -52,10 +52,9 @@ for (const width of [1280, 390]) {
       await page.goto(`${core.url}/#app=${source.id}`);
       await page.getByRole("button", { name: "Skip", exact: true }).click();
       const start = async () => {
-        await page.getByRole("button", { name: "Share", exact: true }).click();
-        await page.getByRole("menuitem", { name: "Publish copy…" }).click();
-        await expect(page.getByRole("checkbox", { name: "Filters", exact: true })).not.toBeChecked();
-        await expect(page.getByRole("checkbox", { name: "PrivateNotes", exact: true })).not.toBeChecked();
+        const step = await openPublicStep(page, "en");
+        await expect(withData(page, "en")).not.toBeChecked();
+        return step;
       };
       for (let i = 0; i < 20; i++) {
         const abandoned = await client.call("surfaces.show", {
@@ -69,10 +68,8 @@ for (const width of [1280, 390]) {
           patch: { Filters: {}, PrivateNotes: "Not selected" },
         });
         await page.goto(`${core.url}/#app=${abandoned.id}`);
-        await start();
-        await page.getByRole("button", { name: "Review copy", exact: true }).click();
-        const cancelled = page.getByRole("dialog", { name: "Review this exact copy" });
-        await expect(cancelled.getByRole("button", { name: "Publish copy", exact: true })).toBeEnabled();
+        const cancelled = await start();
+        await expect(cancelled.getByRole("button", { name: "Share public", exact: true })).toBeEnabled();
         if (i % 2) await page.keyboard.press("Escape");
         else await cancelled.getByRole("button", { name: "Cancel", exact: true }).click();
         await expect(cancelled).toHaveCount(0);
@@ -87,32 +84,30 @@ for (const width of [1280, 390]) {
       }
       assert.equal(cloud.commits(), 0);
       await page.goto(`${core.url}/#app=${source.id}`);
-      await start();
-      await page.getByText("View contents", { exact: true }).first().click();
-      await expect(page.getByRole("dialog").locator("pre").first()).toContainText('"region": "South"');
-      await page.getByRole("checkbox", { name: "Filters", exact: true }).check();
-      await page.getByRole("button", { name: "Review copy", exact: true }).click();
-      const dialog = page.getByRole("dialog", { name: "Review this exact copy" });
-      await expect(dialog).toBeVisible();
+      const dialog = await start();
+      const inner = page.frameLocator('iframe[title="Published page preview"]').frameLocator("iframe");
+      await expect(inner.locator("#chosen")).toHaveText("{}");
+      await withData(page, "en").click();
+      await dialog.getByText("See which data", { exact: true }).click();
+      await expect(dialog.locator("pre").first()).toContainText('"region": "South"');
       await expect(dialog).toContainText("Publishing as Acme");
       assert.equal(cloud.commits(), 0);
-      const inner = page.frameLocator('iframe[title="Published page preview"]').frameLocator("iframe");
       await expect(inner.getByRole("heading", { name: "Orders" })).toBeVisible();
-      await expect(inner.locator("#chosen")).toHaveText('{"Filters":{"nested":[1,{"region":"South"}]}}');
-      await expect(dialog.locator("pre").last()).not.toContainText("Not selected");
+      await expect(inner.locator("#chosen")).toHaveText(
+        '{"Filters":{"nested":[1,{"region":"South"}]},"PrivateNotes":"Not selected"}',
+      );
       assert.equal(await dialog.evaluate((element) => element.scrollWidth > element.clientWidth), false);
       if (process.env.PUBLIC_COPY_EVIDENCE)
         await page.screenshot({ path: path.join(process.env.PUBLIC_COPY_EVIDENCE, `panel-review-${width}-en.png`) });
       await client.call("surfaces.set_state", { surface: source.id, patch: { Filters: { changed: true } } });
-      await page.getByRole("button", { name: "Publish copy", exact: true }).click();
+      await dialog.getByRole("button", { name: "Share public", exact: true }).click();
       await expect(dialog.getByRole("alert")).toContainText("review is no longer current");
-      await expect(dialog.getByRole("button", { name: "Publish copy", exact: true })).toBeDisabled();
+      await expect(dialog.getByRole("button", { name: "Share public", exact: true })).toBeDisabled();
       assert.equal(cloud.commits(), 0);
       await dialog.getByRole("button", { name: "Cancel", exact: true }).click();
-      await start();
-      await page.getByRole("button", { name: "Review copy", exact: true }).click();
-      await page.getByRole("button", { name: "Publish copy", exact: true }).click();
-      await expect(dialog).toHaveCount(0);
+      const again = await start();
+      await again.getByRole("button", { name: "Share public", exact: true }).click();
+      await expect(again).toHaveCount(0);
       assert.equal(cloud.commits(), 1);
       assert.equal((await client.call("surfaces.public_list", {})).count, 1);
       await page.keyboard.press("ControlOrMeta+k");
@@ -129,17 +124,11 @@ for (const width of [1280, 390]) {
         app: true,
         html: "<h1>Updated orders</h1>",
       });
-      await published.getByRole("button", { name: "Manage", exact: true }).click();
-      await page.getByRole("combobox", { name: "Choose a local artifact", exact: true }).click();
-      await page.getByRole("option", { name: "Orders", exact: true }).click();
-      await page.getByRole("button", { name: "Update copy…", exact: true }).click();
-      await expect(page.getByRole("checkbox", { name: "Filters", exact: true })).not.toBeChecked();
-      await page.getByRole("button", { name: "Review copy", exact: true }).click();
-      await expect(page.getByRole("dialog", { name: "Review this exact copy" })).toContainText(
-        "The link stays the same",
-      );
-      await page.getByRole("button", { name: "Update copy", exact: true }).click();
-      await expect(page.getByRole("dialog", { name: "Review this exact copy" })).toHaveCount(0);
+      await published.getByRole("button", { name: "Update with your changes…", exact: true }).click();
+      const update = page.getByRole("dialog", { name: "Update the public link" });
+      await expect(update).toContainText("The link stays the same");
+      await update.getByRole("button", { name: "Update", exact: true }).click();
+      await expect(update).toHaveCount(0);
       assert.equal(cloud.commits(), 2);
       await checkOversizedPublication({ core, page, source: source.id, width, language: "en", commits: cloud.commits });
       await page.keyboard.press("ControlOrMeta+k");
@@ -149,12 +138,10 @@ for (const width of [1280, 390]) {
         .fill("account");
       await page.getByRole("option", { name: /Account/ }).click();
       await client.call("surfaces.remove", { surface: source.id });
-      await published.getByRole("button", { name: "Manage", exact: true }).click();
-      await page.getByRole("button", { name: "Stop publishing…", exact: true }).click();
-      await expect(page.getByRole("dialog", { name: "Review this exact copy" })).toContainText(
-        "Files people already downloaded will not be removed",
-      );
-      await page.getByRole("button", { name: "Stop publishing", exact: true }).click();
+      await published.getByRole("button", { name: "Stop sharing…", exact: true }).click();
+      const stop = page.getByRole("dialog", { name: "Stop sharing?" });
+      await expect(stop).toContainText("What someone already downloaded is not deleted");
+      await stop.getByRole("button", { name: "Stop sharing", exact: true }).click();
       await expect(published).toContainText("You have no published copies");
       assert.equal(cloud.commits(), 3);
       assert.equal((await client.call("surfaces.public_list", {})).count, 0);

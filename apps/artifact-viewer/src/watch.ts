@@ -97,10 +97,9 @@ export function createPublicationWatch(
   }
   const removeVisibility = deps.visibility(() => {
     if (!active || terminal) return;
-    if (deps.hidden()) {
-      disconnect();
-      failed(false);
-    } else void connect();
+    // Hidden, the page only lets the connection go: what it shows stays until it confirms again on return.
+    if (deps.hidden()) disconnect();
+    else void connect();
   });
   void connect();
   return () => {

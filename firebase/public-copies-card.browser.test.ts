@@ -68,7 +68,7 @@ for (const width of [1280, 390]) {
       await page.goto(`${core.url}/#thread=${thread.id}`);
       await page.getByRole("button", { name: "Skip", exact: true }).click();
       await page.getByRole("button", { name: "Review public copy", exact: true }).click();
-      const dialog = page.getByRole("dialog", { name: "Review this exact copy" });
+      const dialog = page.getByRole("dialog", { name: "Share public" });
       await expect(dialog).toContainText("Publishing as Acme");
       const frame = page.frameLocator('iframe[title="Published page preview"]').frameLocator("iframe");
       await expect(frame.getByRole("heading", { name: "Reviewed orders" })).toBeVisible();
@@ -81,7 +81,7 @@ for (const width of [1280, 390]) {
       assert.equal((await client.call("surfaces.public_preview", { draft })).draft, draft);
       await page.getByRole("button", { name: "Review public copy", exact: true }).click();
       await expect(frame.getByRole("heading", { name: "Reviewed orders" })).toBeVisible();
-      await dialog.getByRole("button", { name: "Publish copy", exact: true }).click();
+      await dialog.getByRole("button", { name: "Share public", exact: true }).click();
       await expect(dialog).toHaveCount(0);
       await waitFor(() => cloud.commits() === 1, "publication after exact review", { ms: 10_000 });
       assert.equal(core.store.inputs.get(input.id)?.state, "approved");

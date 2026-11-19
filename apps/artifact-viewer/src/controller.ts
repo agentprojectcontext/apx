@@ -58,9 +58,10 @@ export function createPublicationController(deps: {
     invalidate();
     emit({ status, downloading: false });
   };
+  // While it confirms or reads again, a copy already on screen stays; only missing or offline takes it away.
   const load = (metadata?: unknown) => {
     invalidate();
-    emit({ status: "loading", downloading: false });
+    emit({ status: "loading", ...(state.copy ? { copy: state.copy } : {}), downloading: false });
     const expected = generation;
     void boundedRead(() => deps.load(metadata), deps.after, operation.signal).then(
       (copy) => {
@@ -76,7 +77,7 @@ export function createPublicationController(deps: {
       unavailable("offline");
       return;
     }
-    emit({ status: "loading", downloading: false });
+    emit({ status: "loading", ...(state.copy ? { copy: state.copy } : {}), downloading: false });
     if (!cancelWaiting) cancelWaiting = deps.after(15_000, () => unavailable("offline"));
   };
   return {
