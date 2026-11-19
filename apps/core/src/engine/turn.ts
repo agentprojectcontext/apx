@@ -176,42 +176,44 @@ export async function runTurn(deps: TurnDeps, start: RunRecord, signal: AbortSig
   const agent = store.agents.get(start.agent_id);
   if (!thread || !agent || !start.input)
     return store.runs.setState(start, "failed", !start.input ? "run has no input" : "thread or agent is gone");
-  store.runs.captureProject(start.id, thread.project_id ?? agent.project_id);
+  const captureProject = () => store.runs.captureProject(start.id, thread.project_id ?? agent.project_id);
   /** A coded refusal says itself in the owner's language; an unexpected one shows its reason under the notice. */
   const preflightFailure = (
     error: string,
     code?: "computer.notOwners" | "computer.notAllowed" | "computer.manual",
     extra: Record<string, string | number> = {},
-  ) => {
-    store.messages.add({
-      thread_id: thread.id,
-      author: { kind: "agent", id: agent.id },
-      run_id: start.id,
-      parts: [
-        code
-          ? {
-              type: "notice",
-              level: "error",
-              code,
-              text: error,
-              vars: {
-                agent: agent.name,
-                ...(code === "computer.notAllowed" ? { link: "apx:computer" } : {}),
-                ...extra,
+  ) =>
+    store.tx(() => {
+      captureProject();
+      store.messages.add({
+        thread_id: thread.id,
+        author: { kind: "agent", id: agent.id },
+        run_id: start.id,
+        parts: [
+          code
+            ? {
+                type: "notice",
+                level: "error",
+                code,
+                text: error,
+                vars: {
+                  agent: agent.name,
+                  ...(code === "computer.notAllowed" ? { link: "apx:computer" } : {}),
+                  ...extra,
+                },
+              }
+            : {
+                type: "notice",
+                level: "error",
+                code: "computer.unavailable",
+                text: "Computer unavailable. Why is below.",
+                detail: error,
               },
-            }
-          : {
-              type: "notice",
-              level: "error",
-              code: "computer.unavailable",
-              text: "Computer unavailable. Why is below.",
-              detail: error,
-            },
-      ],
+        ],
+      });
+      store.threads.patch(thread.id, { state: "failed" });
+      return store.runs.setState(start, "failed", error);
     });
-    store.threads.patch(thread.id, { state: "failed" });
-    return store.runs.setState(start, "failed", error);
-  };
   const audience = audienceOf(store, thread);
   if (store.settings.read("computer_chats").includes(thread.id) && !deps.vm)
     return preflightFailure("the assigned VM backend is unavailable; host fallback is forbidden");
@@ -250,30 +252,40 @@ export async function runTurn(deps: TurnDeps, start: RunRecord, signal: AbortSig
 
   // The folder as the turn finds it, so its card shows what this turn changed, not what was already uncommitted.
   const before = worksInFolder(thread) && thread.cwd ? gitSnapshot(thread.cwd) : undefined;
-  let run = store.runs.setState(start, "working");
-  store.threads.patch(thread.id, { state: "working" });
   // The answer to words from APX's panel in Chrome carries the same mark as they do.
   const chrome = inChrome(
     start.input.origin,
     (id) => store.runs.get(store.inputs.get(id)?.run_id ?? "")?.input?.origin,
   );
-  const display = openDisplay(
-    store,
-    store.messages.add({
-      thread_id: thread.id,
-      author: { kind: "agent", id: agent.id },
-      parts: [],
-      run_id: run.id,
-      ...(chrome ? { via: CHROME_VIA } : {}),
-    }),
-  );
-  run = store.runs.patch(run, { message_id: display.message.id });
-  // Delegated results arriving later: their reports show above what the caller makes of them.
-  const o = start.input.origin;
-  const answered =
-    o.kind === "delegation_result" ? [o.run_id] : o.kind === "delegation_results" ? o.results.map((r) => r.run_id) : [];
-  for (const report of answered.flatMap((id) => resultCard(store, id) ?? []))
-    display.upsert((p) => p.type === "subthread" && p.thread_id === report.thread_id, report);
+  // The turn starts in one commit (DECISIONS.md#d-251).
+  const started = store.tx(() => {
+    captureProject();
+    const working = store.runs.setState(start, "working");
+    store.threads.patch(thread.id, { state: "working" });
+    const shown = openDisplay(
+      store,
+      store.messages.add({
+        thread_id: thread.id,
+        author: { kind: "agent", id: agent.id },
+        parts: [],
+        run_id: working.id,
+        ...(chrome ? { via: CHROME_VIA } : {}),
+      }),
+    );
+    // Delegated results arriving later: their reports show above what the caller makes of them.
+    const o = turn.input.origin;
+    const answered =
+      o.kind === "delegation_result"
+        ? [o.run_id]
+        : o.kind === "delegation_results"
+          ? o.results.map((r) => r.run_id)
+          : [];
+    for (const report of answered.flatMap((id) => resultCard(store, id) ?? []))
+      shown.upsert((p) => p.type === "subthread" && p.thread_id === report.thread_id, report);
+    return { run: store.runs.patch(working, { message_id: shown.message.id }), display: shown };
+  });
+  let run = started.run;
+  const display = started.display;
   // A routine with commands of its own: the pre-command first; its result may say the model is not needed.
   const routine = routineWithCommands(store, run);
   const pipe = routine && routinePipeline({ store, home: deps.home, routine, run, display });
@@ -385,24 +397,25 @@ export async function runTurn(deps: TurnDeps, start: RunRecord, signal: AbortSig
     log: (items) => store.modelLog.append(thread.id, run.id, items),
   });
 
-  keepContext(store, { run, system: system(), input, blocks: prepared.blocks, tools, history });
+  // The snapshot is taken while the turn is prepared, and done before anything can change the folder.
+  await before;
+  // What the model is sent and which engine answers, kept in one commit (DECISIONS.md#d-251).
+  const chosen = store.tx(() => {
+    keepContext(store, { run, system: system(), input, blocks: prepared.blocks, tools, history });
+    try {
+      const engine = enginePick(deps, turn, start, history);
+      if (deps.vm?.hasThread(thread.id) && engine.harness !== "native")
+        throw new Error("a computer chat runs on APX's own harness only");
+      harness = engine.harness;
+      run = store.runs.patch(run, { harness });
+      return { engine };
+    } catch (err) {
+      return { err };
+    }
+  });
   try {
-    const engine = enginePick(deps, turn, start, history);
-    if (deps.vm?.hasThread(thread.id) && engine.harness !== "native")
-      throw new Error("a computer chat runs on APX's own harness only");
-    // The snapshot is taken while the turn is prepared, and done before anything can change the folder.
-    await before;
-    const outcome = await runEngine(deps, engine, {
-      io,
-      input,
-      signal,
-      thread,
-      run: () => run,
-      onHarness: (h) => {
-        harness = h;
-        run = store.runs.patch(run, { harness: h });
-      },
-    });
+    if ("err" in chosen) throw chosen.err;
+    const outcome = await runEngine(deps, chosen.engine, { io, input, signal, thread, run: () => run });
     // An engine keeps its own session: what it read from outside stays in its context for the next turns too.
     if (thread.engine && exec.untrusted && !startedUntrusted)
       store.modelLog.append(thread.id, run.id, [{ role: "user", content: OUTSIDE_IN_SESSION }]);
@@ -640,17 +653,19 @@ async function buildContext(deps: TurnDeps, turn: Turn, run: RunRecord, mode: Au
         HISTORY_BUDGET_CHARS,
         store.threads.context(thread.id).compaction,
       ).items;
-  const at = store.modelLog.append(
-    thread.id,
-    run.id,
-    [input],
-    snapshotOf(store, input.content, memoryBlock, agent.id, thread.project_id),
-  );
-  if (rosterChanged || recalled.shown)
-    store.threads.mergeContext(thread.id, {
-      ...(rosterChanged ? { roster_hash: roster.hash, roster_agent: agent.id } : {}),
-      ...(recalled.shown ? recalled.shown(at) : {}),
-    });
+  store.tx(() => {
+    const at = store.modelLog.append(
+      thread.id,
+      run.id,
+      [input],
+      snapshotOf(store, input.content, memoryBlock, agent.id, thread.project_id),
+    );
+    if (rosterChanged || recalled.shown)
+      store.threads.mergeContext(thread.id, {
+        ...(rosterChanged ? { roster_hash: roster.hash, roster_agent: agent.id } : {}),
+        ...(recalled.shown ? recalled.shown(at) : {}),
+      });
+  });
   const skills = sealed ? "" : skillCatalog(available);
   // A room's turn has no history of its own: only its run is in view.
   const inView = room ? new Set([run.id]) : windowRuns(entries, from, run.id);
@@ -827,11 +842,9 @@ async function runEngine(
     signal: AbortSignal;
     thread: Thread;
     run: () => RunRecord;
-    onHarness(h: HarnessId): void;
   },
 ): Promise<TurnOutcome> {
   const { store } = deps;
-  t.onHarness(engine.harness);
   const session = t.thread.engine;
   const resumed = session ? store.harnessSessions.get(t.thread.id, session) : undefined;
   const outcome = await deps.harnesses.get(engine.harness).run({
@@ -866,6 +879,8 @@ export function turnShare(total: Usage, before: Usage | undefined, resumed: bool
   return { input, output: Math.max(0, total.output - before.output), ...(cached ? { cached } : {}) };
 }
 
+type FolderChanges = Awaited<ReturnType<typeof gitChanges>>;
+
 /** The answer is in: final text (or an honest notice), the code changes card, usage, and the thread back to idle. */
 async function finishRun(
   store: Store,
@@ -880,7 +895,22 @@ async function finishRun(
     before?: Promise<string | undefined> | undefined;
   },
 ): Promise<RunRecord> {
-  const { display, thread, outcome } = t;
+  const { thread } = t;
+  let changes: FolderChanges;
+  if (worksInFolder(thread) && thread.cwd) {
+    t.display.close();
+    const from = await t.before;
+    changes = from ? await turnChanges(thread.cwd, from) : await gitChanges(thread.cwd);
+  }
+  // The answer and the run's end in one commit (DECISIONS.md#d-251).
+  return store.tx(() => endRun(store, { ...t, changes }));
+}
+
+function endRun(
+  store: Store,
+  t: Omit<Parameters<typeof finishRun>[1], "before"> & { changes: FolderChanges },
+): RunRecord {
+  const { display, thread, outcome, changes } = t;
   display.close();
   // The message names the effort too (a model ref); the run keeps the bare model for usage and context windows.
   if (outcome.modelConfirmed !== false)
@@ -904,12 +934,8 @@ async function finishRun(
       },
     );
   }
-  if (worksInFolder(thread) && thread.cwd) {
-    const from = await t.before;
-    const changes = from ? await turnChanges(thread.cwd, from) : await gitChanges(thread.cwd);
-    if (changes && !display.message.parts.some((p) => p.type === "changes" && p.edits && !p.scratch))
-      display.upsert((p) => p.type === "changes" && !p.scratch, changes);
-  }
+  if (changes && !display.message.parts.some((p) => p.type === "changes" && p.edits && !p.scratch))
+    display.upsert((p) => p.type === "changes" && !p.scratch, changes);
   const text = outcome.text.trim();
   const empty = t.exec.toolsRan ? "Finished without a message." : "The model gave no answer.";
   if (text) display.finalText(text);

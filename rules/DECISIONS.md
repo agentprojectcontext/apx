@@ -5550,3 +5550,33 @@ The kind is derived (`kindOf`), never stored; the row reads "Connector · From A
 included ones go in their category marked Included.
 
 Rejected: "Connector and skills" as its own kind (it is a connector); "Device" as a kind (it is a category).
+
+<a id="d-251"></a>
+## D-251 — 2026-11-18 — A turn groups its writes, and the store commits with `synchronous = NORMAL`
+
+`node:sqlite` runs on the event loop, and the store opens WAL with SQLite's default `synchronous = FULL`: every
+commit fsyncs the log before the next line of JavaScript runs. A plain chat turn committed about twenty times (the
+words, the run's start, the message, the context kept, the engine chosen, the answer, the run's end, the thread's
+state, each on its own). On a busy CI runner a single fsync took 200–290 ms, so a turn that met one missed
+`turn_p95_ms` while the same commit passed on a rerun (`Performance profile (diagnostic)`, TESTING.md 5b).
+
+A turn now writes what happens at the same moment in one `store.tx`: the words and where answers go
+(`threads.send`), the run's start with its project, state and message, the input logged for the model, the context
+kept with the engine chosen, and the answer with the run's and the thread's end. Folder changes are read before that
+last transaction, never inside it, since a transaction spans no await. A plain turn commits ten times;
+`engine/turn-commits.test.ts` counts commit frames in the WAL and fails above that. What still commits alone is
+what happens at another moment: the idempotency key after the handler, streamed text, usage as the model reports
+it (kept so a failed or stopped turn shows what it spent), the model's answer in the log, the memory upkeep after the
+run. A write added to the turn joins the transaction of its moment.
+
+Fewer commits did not keep a turn off a saturated disk: on the next CI profile the fsyncs per turn halved (20.5 to
+10.3) but the first turns still met a window of about three seconds where every fsync took 80–280 ms, and
+`turn_p95_ms` failed again. So the store also opens with `PRAGMA synchronous = NORMAL` (the owner's choice): under
+WAL a commit waits on no fsync, and the log is synced to the disk at each checkpoint. The file stays consistent
+in every case, and an APX crash loses nothing. The trade: a power loss or an operating-system crash can roll back
+what was committed since the last checkpoint (up to about a thousand pages: some turns, with their sent messages
+and idempotency keys), so a send the store forgot may be sent again after such a crash. Checkpoints still sync on
+the event loop, about once every fourteen plain turns. `db/db.test.ts` checks the setting.
+
+Docs impact: updated `rules/TESTING.md` 5b (commits per turn, the test that bounds them, and that commits no
+longer fsync). No user guide, reference or troubleshooting page describes the store's durability settings.

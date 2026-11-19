@@ -444,17 +444,20 @@ export function threadHandlers(
       const t = store.threads.get(thread);
       const room = t?.channel && store.threads.context(thread).room ? t.channel : undefined;
       const contact = room ?? (t?.channel?.person_id && t.channel.person_id !== OWNER_ID ? t.channel : undefined);
-      store.threads.mergeContext(thread, {
-        reply_to: contact ? { channel: contact.id, conversation: contact.conversation } : undefined,
-      });
-      // There the words need their own turn to be framed as what to answer: they never steer.
       // Only the owner's own words choose their Chrome; from anyone else the flag is ignored.
       const chrome = via === "chrome" && ctx.actor === "human" && !ctx.client && !ctx.channel && !ctx.agent;
-      const sent = post(thread, text, { kind: "user" }, mode === "steer" && !contact, {
-        agent_id: agent.id,
-        trigger: "user",
-        origin: { kind: "user", ...(chrome ? { via: "chrome" as const } : {}) },
-        ...(attachments?.length ? { attachments: attachedFiles(store, thread, attachments) } : {}),
+      // One commit for the words and where answers go (DECISIONS.md#d-251).
+      const sent = store.tx(() => {
+        store.threads.mergeContext(thread, {
+          reply_to: contact ? { channel: contact.id, conversation: contact.conversation } : undefined,
+        });
+        // There the words need their own turn to be framed as what to answer: they never steer.
+        return post(thread, text, { kind: "user" }, mode === "steer" && !contact, {
+          agent_id: agent.id,
+          trigger: "user",
+          origin: { kind: "user", ...(chrome ? { via: "chrome" as const } : {}) },
+          ...(attachments?.length ? { attachments: attachedFiles(store, thread, attachments) } : {}),
+        });
       });
       // Enter behind a turn of an outside engine that cannot take words mid-turn (Codex, ACP) runs the message at once.
       if (mode === "steer" && !contact && !sent.steered) engine.enterNow(sent.message.id);

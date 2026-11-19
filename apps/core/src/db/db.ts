@@ -15,9 +15,10 @@ export function openDb(home: string, env: NodeJS.ProcessEnv = process.env): Db {
   }
   const db = new DatabaseSync(path.join(home, "apx.db"));
   // A new store hands freed pages back to the disk bit by bit; an older one needs one rebuild first (storeRebuild).
+  // Commits reach the disk at checkpoints, not each with an fsync on the event loop (DECISIONS.md#d-251).
   try {
     db.exec(
-      "PRAGMA auto_vacuum = INCREMENTAL; PRAGMA journal_mode = WAL; PRAGMA foreign_keys = ON; PRAGMA busy_timeout = 5000;",
+      "PRAGMA auto_vacuum = INCREMENTAL; PRAGMA journal_mode = WAL; PRAGMA synchronous = NORMAL; PRAGMA foreign_keys = ON; PRAGMA busy_timeout = 5000;",
     );
     migrate(db, home);
     return db;
