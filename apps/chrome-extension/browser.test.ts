@@ -122,8 +122,7 @@ for (const language of ["en", "es"] as const) {
         await expect(frame.getByRole("searchbox")).toBeVisible();
         const option = frame.getByRole("option", { name: new RegExp(LONG_MODEL) });
         const label = option.locator(".mlist__name");
-        await option.hover();
-        await expect(frame.getByRole("tooltip")).toHaveText(`custom/${LONG_MODEL}`);
+        await expect(option).toHaveAttribute("title", `custom/${LONG_MODEL}`);
         await expect(label).toHaveText(LONG_MODEL);
         for (const locator of [label]) {
           const fits = await locator.evaluate(
