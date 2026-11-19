@@ -489,10 +489,8 @@ export function createCatalogs(deps: {
       try {
         let dir: string;
         if (e.via.type === "path") {
-          const base =
-            c.source.startsWith("/") || c.source.startsWith("~")
-              ? path.resolve(expandHome(c.source))
-              : path.join(repoDir(c.id), "repo");
+          const from = parseSource(c.source);
+          const base = from.kind === "folder" ? path.resolve(expandHome(from.path)) : path.join(repoDir(c.id), "repo");
           dir = path.resolve(base, e.via.path);
           if (!isInside(base, dir)) throw badRequest("that plugin points outside its catalog");
         } else {
