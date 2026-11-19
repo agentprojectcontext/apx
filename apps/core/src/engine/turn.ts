@@ -257,7 +257,7 @@ export async function runTurn(deps: TurnDeps, start: RunRecord, signal: AbortSig
     start.input.origin,
     (id) => store.runs.get(store.inputs.get(id)?.run_id ?? "")?.input?.origin,
   );
-  // The turn starts in one commit: each one waits on the disk (DECISIONS.md#d-249).
+  // The turn starts in one commit (DECISIONS.md#d-249).
   const started = store.tx(() => {
     captureProject();
     const working = store.runs.setState(start, "working");

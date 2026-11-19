@@ -1,4 +1,4 @@
-// Each commit waits on the disk (an fsync) with the event loop blocked: a plain turn keeps a fixed, small number.
+// Each commit writes the log on the event loop and brings the next checkpoint closer: a plain turn keeps a fixed, small number.
 // Commits are counted in the store's write-ahead log, where each one ends with a commit frame. See DECISIONS.md#d-249
 import assert from "node:assert/strict";
 import fs from "node:fs";

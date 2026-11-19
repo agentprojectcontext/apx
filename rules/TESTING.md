@@ -263,10 +263,11 @@ sample splits `send_ms` (the `threads.send` call) from `wait_ms`. A regression s
 the same turns and in the same half. Spikes scattered over different turns of the run and its `PERF_DIAGNOSTICS`
 rerun, with `turn_p50_ms` unchanged and the same code under budget on another run (its `main` twin, the next
 `staging` push, `pnpm perf` locally), are the runner: record that evidence in the change that fixes the rest of the
-red run and leave the budget alone. The usual cause is the runner's disk: each SQLite commit fsyncs the WAL on the
-event loop, and a busy runner sometimes takes 100–300 ms for one fsync. A plain turn commits about ten times
-(`engine/turn-commits.test.ts` bounds it, [D-249](DECISIONS.md#d-249)); a write added to the turn joins one of its
-transactions instead of committing on its own.
+red run and leave the budget alone. The usual cause is the runner's disk: an fsync on the event loop, which a busy
+runner sometimes holds for 100–300 ms. Since [D-249](DECISIONS.md#d-249) a commit does not fsync
+(`synchronous = NORMAL`); WAL checkpoints still do, about once every fourteen plain turns. A plain turn commits
+about ten times (`engine/turn-commits.test.ts` bounds it); a write added to the turn joins one of its transactions
+instead of committing on its own.
 `Performance profile (diagnostic)` (`gh workflow run performance-profile.yml --ref <branch>`) times every fsync with
 strace; match them to `turn_samples` before calling a miss noise.
 

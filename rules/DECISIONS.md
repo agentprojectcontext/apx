@@ -5518,7 +5518,7 @@ Docs impact: updated the English and Spanish artifact guides with selection, rev
 limits, offline behavior and the limits of revocation. No owner news entry: this rollout is not announced.
 
 <a id="d-249"></a>
-## D-249 — 2026-11-18 — A turn groups its writes; the store stays `synchronous = FULL`
+## D-249 — 2026-11-18 — A turn groups its writes, and the store commits with `synchronous = NORMAL`
 
 `node:sqlite` runs on the event loop, and the store opens WAL with SQLite's default `synchronous = FULL`: every
 commit fsyncs the log before the next line of JavaScript runs. A plain chat turn committed about twenty times (the
@@ -5535,11 +5535,14 @@ what happens at another moment: the idempotency key after the handler, streamed 
 it (kept so a failed or stopped turn shows what it spent), the model's answer in the log, the memory upkeep after the
 run. A write added to the turn joins the transaction of its moment.
 
-`PRAGMA synchronous = NORMAL` under WAL was weighed and is not taken here: it removes the fsync from every commit
-(only checkpoints sync) and keeps the file consistent, but a power loss or an OS crash can roll back the commits
-since the last checkpoint, up to about a thousand pages: several turns, sent messages and their idempotency keys
-among them. An application crash loses nothing either way. That trade is the owner's call; until it is made the
-store keeps FULL and fewer commits.
+Fewer commits did not keep a turn off a saturated disk: on the next CI profile the fsyncs per turn halved (20.5 to
+10.3) but the first turns still met a window of about three seconds where every fsync took 80–280 ms, and
+`turn_p95_ms` failed again. So the store also opens with `PRAGMA synchronous = NORMAL` (the owner's choice): under
+WAL a commit waits on no fsync, and the log is synced to the disk at each checkpoint. The file stays consistent
+in every case, and an APX crash loses nothing. The trade: a power loss or an operating-system crash can roll back
+what was committed since the last checkpoint (up to about a thousand pages: some turns, with their sent messages
+and idempotency keys), so a send the store forgot may be sent again after such a crash. Checkpoints still sync on
+the event loop, about once every fourteen plain turns. `db/db.test.ts` checks the setting.
 
-Docs impact: updated `rules/TESTING.md` 5b (commits per turn and the test that bounds them). Nothing user-facing
-changes: no user guide, reference or troubleshooting page describes the store's commits.
+Docs impact: updated `rules/TESTING.md` 5b (commits per turn, the test that bounds them, and that commits no
+longer fsync). No user guide, reference or troubleshooting page describes the store's durability settings.
