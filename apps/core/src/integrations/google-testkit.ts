@@ -1,6 +1,7 @@
 import crypto from "node:crypto";
 import { SETTINGS, type SettingKey } from "../domain/setting-keys.ts";
 import type { Store } from "../domain/store.ts";
+import type { Log } from "../log.ts";
 import type { Secrets } from "../secrets.ts";
 import { createGoogle } from "./google.ts";
 import { googleAt } from "./google-oauth.ts";
@@ -79,7 +80,9 @@ function fakeGoogle() {
   };
 }
 
-export function setup(o: { builtin?: boolean; wrapFetch?: (base: typeof fetch) => typeof fetch } = {}) {
+export function setup(
+  o: { builtin?: boolean; wrapFetch?: (base: typeof fetch) => typeof fetch; log?: Pick<Log, "warn"> } = {},
+) {
   const settings = new Map<string, string>();
   const vault = new Map<string, string>();
   const store = {
@@ -108,6 +111,7 @@ export function setup(o: { builtin?: boolean; wrapFetch?: (base: typeof fetch) =
     offIn: (project, id) => off.has(`${project}:${id}`),
     fetch: o.wrapFetch ? o.wrapFetch(fake.fetchImpl) : fake.fetchImpl,
     now: () => clock,
+    ...(o.log ? { log: o.log } : {}),
     ...(o.builtin ? { builtin: { clientId: "apx.apps.googleusercontent.com", clientSecret: "apx-public" } } : {}),
   });
   const start = (id: "google-calendar" | "gmail" | "google-drive" = "google-calendar") => {

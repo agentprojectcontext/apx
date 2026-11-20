@@ -5,10 +5,11 @@
 import { randomUUID } from "node:crypto";
 import { signatureFor } from "../domain/email-signature-settings.ts";
 import type { Store } from "../domain/store.ts";
+import type { Log } from "../log.ts";
 import { GOOGLE_CLIENT_SECRET, googleRefreshSecret } from "../secret-names.ts";
 import type { Secrets } from "../secrets.ts";
 import { GOOGLE_INTEGRATIONS, type GoogleId } from "./catalog.ts";
-import { GoogleAccessError } from "./google-errors.ts";
+import { disabledApi, GoogleAccessError } from "./google-errors.ts";
 import {
   authUrl,
   type ClientCreds,
@@ -48,6 +49,8 @@ export function createGoogle(deps: {
   builtin?: ClientCreds | undefined;
   fetch?: typeof fetch;
   now?: () => number;
+  /** Where a failed Google call is noted, so the owner's log says why a tool failed. */
+  log?: Pick<Log, "warn">;
 }) {
   const { store, secrets, endpoints } = deps;
   const now = deps.now ?? Date.now;
@@ -244,7 +247,15 @@ export function createGoogle(deps: {
       const data = (
         o.maxResponseBytes ? JSON.parse(await limitedBody(res, o.maxResponseBytes)) : await res.json().catch(() => ({}))
       ) as { error?: { message?: string } };
-      if (!res.ok) throw new Error(`${labelOf(id)}: ${data.error?.message ?? `HTTP ${res.status}`}`);
+      if (!res.ok) {
+        const off = disabledApi(data);
+        if (off) {
+          deps.log?.warn({ integration: id, client: kindOf(id), ...off }, "Google API is turned off");
+          throw new GoogleAccessError("api_disabled", labelOf(id), { ...off, client: kindOf(id) });
+        }
+        deps.log?.warn({ integration: id, status: res.status }, "Google call failed");
+        throw new Error(`${labelOf(id)}: ${data.error?.message ?? `HTTP ${res.status}`}`);
+      }
       return data as T;
     },
   };

@@ -64,6 +64,8 @@ with apx-mcps. If it only has an HTTP API, a small extension can wrap it (apx-ex
 3. For Asana, check its connection and project switch in the Marketplace; a rejected token must be replaced there.
 4. For Google, no `calendar_*`, `gmail_*`, `drive_*` or `sheets_*` tools means that part is not connected (or is off
    in this project). "Sign in again" in its dialog fixes a revoked or expired access.
+5. A Google tool that says an API "is turned off": with the owner's own client, give them the link it names; with
+   APX's sign-in it is APX's to turn on, nothing in their account fixes it.
 
 Say what you found and the one step left for the owner. Never ask the owner to paste a token in the chat for an
 integration: the app's form keeps it out of the conversation.

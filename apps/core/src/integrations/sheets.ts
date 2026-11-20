@@ -76,7 +76,8 @@ export function sheetsApi(g: Google) {
       });
     } catch (error) {
       if (signal?.aborted) throw new Error("Google Sheets request cancelled");
-      if (error instanceof GoogleAccessError) throw new GoogleAccessError(error.code, "Google Drive");
+      if (error instanceof GoogleAccessError)
+        throw error.code === "api_disabled" ? error : new GoogleAccessError(error.code, "Google Drive");
       throw new Error(
         "Google Sheets could not complete the request. Check file access, the Sheets API and your Google sign-in before trying again.",
       );

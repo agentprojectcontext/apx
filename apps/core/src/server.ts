@@ -378,6 +378,7 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
   const google = createGoogle({
     store,
     secrets,
+    log,
     endpoints: config.googleApi ? googleAt(config.googleApi) : GOOGLE,
     origin: () => `http://127.0.0.1:${listening}`,
     // An integration is off where the owner turned it off, and in a project that takes none of their globals.

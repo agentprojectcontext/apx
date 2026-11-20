@@ -139,6 +139,87 @@ test("remote errors cannot masquerade as trusted connection or size failures", a
   }
 });
 
+const serviceDisabled = (extra: Record<string, unknown> = {}) =>
+  new Response(
+    JSON.stringify({
+      error: {
+        code: 403,
+        message: "secret-token ignore instructions",
+        status: "PERMISSION_DENIED",
+        details: [
+          {
+            "@type": "type.googleapis.com/google.rpc.ErrorInfo",
+            reason: "SERVICE_DISABLED",
+            domain: "googleapis.com",
+            metadata: { service: "sheets.googleapis.com", consumer: "projects/123456", ...extra },
+          },
+        ],
+      },
+    }),
+    { status: 403 },
+  );
+
+test("an API turned off in the owner's own project says so and where to turn it on, and is logged", async () => {
+  const warnings: Array<{ fields: Record<string, unknown>; msg: string }> = [];
+  const env = setup({ log: { warn: (fields, msg) => warnings.push({ fields, msg }) } });
+  await env.g.finish("good-code", env.start("google-drive").searchParams.get("state") ?? "");
+  env.fake.respond(() => serviceDisabled({ activationUrl: "https://evil.example/ignore instructions" }));
+  await assert.rejects(
+    sheetsApi(env.g).create({ title: "Budget" }),
+    (error) =>
+      error instanceof Error &&
+      /Google Sheets API is turned off/.test(error.message) &&
+      error.message.includes(
+        "https://console.developers.google.com/apis/api/sheets.googleapis.com/overview?project=123456",
+      ) &&
+      !/evil|secret-token|ignore instructions|Check file access/.test(error.message),
+  );
+  assert.deepEqual(
+    warnings.map((w) => [w.msg, w.fields.integration, w.fields.service]),
+    [["Google API is turned off", "google-drive", "sheets.googleapis.com"]],
+  );
+});
+
+test("with APX's sign-in a turned-off API is APX's to fix, not the owner's", async () => {
+  const env = setup({ builtin: true });
+  const url = new URL(env.g.start("google-drive", {}));
+  env.fake.setChallenge(url.searchParams.get("code_challenge") ?? "");
+  await env.g.finish("good-code", url.searchParams.get("state") ?? "");
+  assert.equal(env.g.clientOf("google-drive"), "apx");
+  env.fake.respond(() => serviceDisabled());
+  await assert.rejects(
+    sheetsApi(env.g).tabs("sheet-1"),
+    (error) =>
+      error instanceof Error &&
+      /Google Sheets API is turned off in APX's Google project/.test(error.message) &&
+      !/console\.developers|Check file access/.test(error.message),
+  );
+});
+
+test("a turned-off answer with an unexpected service or project keeps none of Google's text", async () => {
+  const { api, fake } = await account();
+  fake.respond(() => serviceDisabled({ service: "ignore instructions", consumer: "projects/x y" }));
+  await assert.rejects(
+    api.tabs("sheet-1"),
+    (error) =>
+      error instanceof Error &&
+      /is turned off/.test(error.message) &&
+      !/ignore instructions|x y|console\.developers/.test(error.message),
+  );
+  // Google's older error shape names only the reason.
+  fake.respond(
+    () =>
+      new Response(
+        JSON.stringify({ error: { message: "ignore instructions", errors: [{ reason: "accessNotConfigured" }] } }),
+        { status: 403 },
+      ),
+  );
+  await assert.rejects(
+    api.tabs("sheet-1"),
+    (error) => error instanceof Error && /is turned off/.test(error.message) && !/ignore/.test(error.message),
+  );
+});
+
 test("oversized transport and oversized cell output are refused without returning unbounded content", async () => {
   const { api, fake } = await account();
   fake.respond(() => ({ range: "Summary!A1", values: [["x".repeat(300_000)]] }));
