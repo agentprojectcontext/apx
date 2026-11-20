@@ -4,10 +4,11 @@ import { sinceProblems, type Told } from "./check-since.ts";
 
 const news = (id: string, since: string): Told => ({ kind: "news", id, since });
 const slide = (id: string, since: string): Told => ({ kind: "slide", id, since });
-const line = (o: { staging: boolean; shipped?: string[]; release?: string }) => ({
+const line = (o: { staging: boolean; shipped?: string[]; release?: string; declared?: string }) => ({
   latest: "2.14.3",
   staging: o.staging,
   release: o.release,
+  declared: o.declared,
   shipped: (item: Told) => (o.shipped ?? []).includes(item.id),
 });
 
@@ -46,4 +47,21 @@ test("a since that is not a version is named", () => {
   assert.deepEqual(sinceProblems([news("odd", "soon")], line({ staging: true })), [
     'news "odd" says since soon, which is not a version',
   ]);
+});
+
+test("staging ships as the patch the owner declared, and the declaration lapses once that release is cut", () => {
+  const groups = [slide("groups", "2.14.4")];
+  assert.deepEqual(sinceProblems(groups, line({ staging: true, declared: "2.14.4" })), []);
+  assert.match(
+    sinceProblems([slide("groups", "2.15.0")], line({ staging: true, declared: "2.14.4" }))[0] ?? "",
+    /next release of this line is 2\.14\.4 \(staging ships as declared/,
+  );
+  // Already cut: staging goes back to the next minor.
+  assert.match(sinceProblems(groups, line({ staging: true, declared: "2.14.3" }))[0] ?? "", /2\.15\.0/);
+  assert.deepEqual(sinceProblems([slide("groups", "2.15.0")], line({ staging: true, declared: "2.14.3" })), []);
+});
+
+test("a declaration that skips a release or is not a version is refused", () => {
+  assert.match(sinceProblems([], line({ staging: true, declared: "2.14.6" }))[0] ?? "", /comes 2\.14\.4 or 2\.15\.0/);
+  assert.match(sinceProblems([], line({ staging: true, declared: "soon" }))[0] ?? "", /not a version/);
 });

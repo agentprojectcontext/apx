@@ -5748,3 +5748,16 @@ must be deployed before a release that sends these counts, or a day with one is 
 The setup question and its wording stay; the privacy page and Settings › Advanced › Usage statistics list the new counts.
 
 Docs impact: updated `reference/privacy` in English and Spanish.
+
+<a id="d-258"></a>
+## D-258 — 2026-11-20 — Staging can ship as a patch when the owner says so
+Right after a minor, the hotfixes for it were worked on `staging`, together with small features the owner wanted in the
+same follow-up. `check:since` assumes staging's work is the next minor, so the follow-up could not be cut as the patch
+the owner named without either moving everything to `main` first or weakening the gate. The owner's call is now a file:
+`scripts/next-release.json` names what staging ships as (`{ "staging": "2.16.1" }`). The gate then asks staging's news
+and slides for that version. It must be the next patch or the next minor of the newest tag (anything else is a typo and
+fails), and it lapses by itself once that tag exists, so staging goes back to the next minor without a cleanup commit.
+`release:check --tag` still runs `check:since --release` and the rule that only a verified `main` commit is tagged
+(AGENTS.md rule 28) is unchanged.
+
+Docs impact: updated rules/RELEASE.md (What people are told).

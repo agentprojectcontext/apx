@@ -171,7 +171,9 @@ since the last tag either has an entry or is not worth offering.
 one the newest release tag already has keeps its `since`; one no release has yet must name the next release of its
 line, which is the next minor for `staging`'s work and the next patch (or minor) for `main`'s. A release already cut
 without it is refused. Staging ships in the next minor, so a feature merged into `staging` after `v2.14.3` says
-`2.15.0`, not `2.14.4`. `release:check --tag v2.x.y` runs `check:since --release v2.x.y` on its HEAD and tags only
+`2.15.0`, not `2.14.4`. When the owner calls what is on `staging` a patch (hotfixes worked there right after a minor),
+`scripts/next-release.json` says so (`{ "staging": "2.16.1" }`) and staging's news name that version instead; it must
+be the next patch or minor, and it lapses by itself once that tag exists ([D-258](DECISIONS.md#d-258)). `release:check --tag v2.x.y` runs `check:since --release v2.x.y` on its HEAD and tags only
 when everything new since the last tag says that version.
 
 ## Issues a release fixes

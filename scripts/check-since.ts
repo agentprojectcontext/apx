@@ -1,9 +1,10 @@
 #!/usr/bin/env node
 // `pnpm check:since`: what people are told is new says the release that really brings it. A news entry or a welcome
-// slide no release has yet names the next release of this line (staging's work: the next minor; main's: the next
-// patch or minor), never one already cut without it. At a release, `--release v2.x.y` asks that everything new since
+// slide no release has yet names the next release of this line (staging's work: the next minor, or the patch the owner
+// declared in scripts/next-release.json; main's: the next patch or minor), never one already cut without it. At a release, `--release v2.x.y` asks that everything new since
 // the last tag says that version (rules/RELEASE.md#what-people-are-told).
 import { execFileSync } from "node:child_process";
+import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -26,6 +27,8 @@ type Line = {
   shipped(item: Told): boolean;
   /** The version being released, when a tag is about to be cut. */
   release?: string | undefined;
+  /** What the owner declared staging ships as (scripts/next-release.json); stale once that release is cut. */
+  declared?: string | undefined;
 };
 
 /** What is wrong with each item's `since`, in words a release cutter can act on. */
@@ -36,6 +39,14 @@ export function sinceProblems(items: readonly Told[], line: Line): string[] {
   const patch: Version = [latest[0], latest[1], latest[2] + 1];
   const release = line.release ? parse(line.release) : undefined;
   const out: string[] = [];
+  const declared = line.declared ? parse(line.declared) : undefined;
+  if (line.declared && !declared) return [`scripts/next-release.json names ${line.declared}, which is not a version`];
+  // A declaration already cut no longer applies; one that skips a release is a typo, not a plan.
+  const planned = declared && compare(declared, latest) > 0 ? declared : undefined;
+  if (planned && compare(planned, patch) !== 0 && compare(planned, minor) !== 0)
+    return [
+      `scripts/next-release.json names ${show(planned)}, but after v${line.latest} comes ${show(patch)} or ${show(minor)}`,
+    ];
   for (const item of items) {
     const name = `${item.kind} "${item.id}" says since ${item.since}`;
     const v = parse(item.since);
@@ -52,11 +63,14 @@ export function sinceProblems(items: readonly Told[], line: Line): string[] {
       if (compare(v, release) !== 0) out.push(`${name}, but it ships in ${show(release)}`);
       continue;
     }
-    const next = line.staging ? [minor] : [patch, minor];
+    const next = line.staging ? [planned ?? minor] : [patch, minor];
+    const why = !line.staging
+      ? ""
+      : planned
+        ? " (staging ships as declared in scripts/next-release.json)"
+        : " (staging ships in the next minor)";
     if (!next.some((n) => compare(v, n) === 0))
-      out.push(
-        `${name}, but the next release of this line is ${next.map(show).join(" or ")}${line.staging ? " (staging ships in the next minor)" : ""}`,
-      );
+      out.push(`${name}, but the next release of this line is ${next.map(show).join(" or ")}${why}`);
   }
   return out;
 }
@@ -77,6 +91,14 @@ const WHERE: Record<Told["kind"], { needle: (id: string) => string; path: string
   slide: { needle: (id) => `"${id}"`, path: "apps/web/src/shell/welcomeFilm.ts" },
 };
 
+/** The release the owner said staging ships as, when it is not the next minor. */
+function declaredRelease(root: string): string | undefined {
+  const file = path.join(root, "scripts", "next-release.json");
+  if (!fs.existsSync(file)) return undefined;
+  const { staging } = JSON.parse(fs.readFileSync(file, "utf8")) as { staging?: unknown };
+  return typeof staging === "string" ? staging : undefined;
+}
+
 function line(root: string, release: string | undefined): Line | undefined {
   const tag = tryGit(["describe", "--tags", "--abbrev=0", "--match", "v2.*", "HEAD"], root);
   if (!tag) return undefined;
@@ -90,6 +112,7 @@ function line(root: string, release: string | undefined): Line | undefined {
     latest: tag.replace(/^v/, ""),
     staging,
     release,
+    declared: declaredRelease(root),
     shipped: (item) => {
       const where = WHERE[item.kind];
       return tryGit(["grep", "-q", "-F", where.needle(item.id), tag, "--", where.path], root) !== undefined;

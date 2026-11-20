@@ -2,7 +2,7 @@ import type { NewsEntry } from "./entries.ts";
 
 export const GOOGLE_SHEETS_NEWS: NewsEntry = {
   id: "google-sheets",
-  since: "2.16.0",
+  since: "2.16.1",
   title: { en: "Work with your Google spreadsheets", es: "Trabajá con tus planillas de Google" },
   about: {
     en: "Your agent can list tabs, read selected cells and create spreadsheets through your Drive connection. Cell changes follow your confirmation preferences.",
