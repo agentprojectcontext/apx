@@ -224,7 +224,8 @@ D-014 sealed a contact's turn: no tools, no memory. The owner asked that a chat 
 requests and answer from the owner's notes. Each is a per-person flag (all off by default) that adds exactly one
 narrow tool to that sealed turn and nothing else: `pass_request` only files a task for the owner (`awaits_owner`,
 linked to the person, owed by the owner) and never acts; `search_owner_notes` reads global notes the owner wrote
-(never an agent's, never one saved with outside content). The flag is checked again inside the tool, contacts stay
+(never an agent's, never one saved with outside content; D-259 extends this for an explicitly assigned agent's project).
+The flag is checked again inside the tool, contacts stay
 rate-limited, and the owner's own turns never see these tools. The owner's rules for a person go last in that
 person's prompt; a silenced person's messages are kept and never reach a model. From the app, the owner's words in a
 contact's chat are an instruction to the agent (`<owner_instruction>`), answered on the channel, or sent as is with
@@ -5761,3 +5762,19 @@ fails), and it lapses by itself once that tag exists, so staging goes back to th
 (AGENTS.md rule 28) is unchanged.
 
 Docs impact: updated rules/RELEASE.md (What people are told).
+
+<a id="d-259"></a>
+## D-259 — 2026-11-20 — A contact's assigned agent can answer from its project notes
+The owner expects choosing an agent for a person and enabling answers from notes to give useful continuity, not
+only a different name. This extends D-022's read-only `search_owner_notes`: an explicit per-person agent assignment,
+matching the chat's current agent and project, also permits standing project notes and that agent's notebook in
+that exact project. Account-default routing alone does not share a project's notes. General notes remain limited
+to untainted owner-written notes. Other notebooks, unscoped notebook notes, other projects, pending and forgotten
+notes stay out; files and past chats are not added. Notes are reference data, never instructions. The tool rechecks
+rights, assignment, project and memory enablement after searches; migration-pending agents cannot search. Turning
+access off stops new lookups, not delivery already completed or knowledge already sent to the person.
+
+No database or protocol shape changes. The existing notes permission is the owner's sharing control; its help text
+now states the expanded scope before the owner chooses it.
+
+Docs impact: updated channels/overview in English and Spanish, permission help and protocol comment.

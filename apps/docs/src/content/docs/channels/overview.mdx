@@ -172,13 +172,20 @@ for them (silenced, supervised, rules of their own, what their chat may do). The
 - **Who they are**, in your words. It reaches only the turns that answer this person.
 - **Rules**, which go last in the prompt and win over the agent's caution.
 - **What this conversation may do**: **Appointments**, **Take requests** (each becomes a task for you),
-  **Answer from my notes** (your general notes, read only) and **Answer at any hour**. Each one follows the account by
+  **Answer from my notes** (read-only general notes you wrote; when you choose **Another agent** for this person,
+  also that project's notes and that agent's notebook in the same project) and **Answer at any hour**. Each one follows the account by
   default (**Account: …**), or you set it for this person only: **Yes** or **No**, and for appointments **No**,
   **Note** or **Book**.
 - **Silenced** (a switch): their messages are kept but never reach a model. A silenced contact's chat shows a
   crossed-out bell beside its name in the Inbox, and a supervised one an eye.
 - **Supervise** (a switch): they aren't answered on their own; you get the answer the agent would send, to send it, edit it or
   drop it. See [Supervised contacts](/channels/supervised/).
+
+With **Answer from my notes** enabled, choosing a specific agent shares its project's standing notes with this
+person, including notes saved by agents. The agent searches them when needed; this does not share files, past chats,
+other agents' notebooks or other projects. Pending and forgotten notes are excluded. Turning notes off prevents new
+lookups, but cannot take back answers already sent. If memory is disabled in Settings, note searches are unavailable.
+A contact using **Like the account** keeps access only to general notes you wrote, not the account agent's project.
 
 What every contact of an account gets by default is in that account's settings, **Contacts › For your contacts, by
 default**: all off until you turn one on. A contact's own choice wins over it, on that account and any other.

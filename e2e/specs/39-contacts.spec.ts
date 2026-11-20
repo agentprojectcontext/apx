@@ -31,6 +31,16 @@ test("a saved contact with no chat: listed, an empty chat to ask the agent to wr
   await expect(relation).toContainText("Amigo/a");
   // What each option does reads under its switch, and the closing note about family and friends under them.
   await expect(card.getByText(/queda como tarea y te aviso en el momento/)).toBeVisible();
+  const notesHelp = card.getByText(/también compartís las notas de ese agente en su proyecto/);
+  await expect(notesHelp).toBeVisible();
+  await notesHelp.scrollIntoViewIfNeeded();
+  await page.screenshot({ path: "test-results/contact-notes-desktop.png" });
+  const viewport = page.viewportSize();
+  await page.setViewportSize({ width: 390, height: 844 });
+  await expect(notesHelp).toBeVisible();
+  await notesHelp.scrollIntoViewIfNeeded();
+  await page.screenshot({ path: "test-results/contact-notes-phone.png" });
+  if (viewport) await page.setViewportSize(viewport);
   await expect(card.getByText(/pareja, familia y amigos siempre pueden dejarte un mensaje/)).toBeVisible();
   // Each right follows the account unless set here: taking requests becomes Nora's own.
   const requests = card.getByRole("radiogroup", { name: "Tomar pedidos", exact: true });

@@ -185,7 +185,7 @@ export const enChannels = {
     "When they ask for something only you can do (a purchase, a favor, calling someone), it becomes a task for you and you are told right away. Your agent never does it for you.",
   "ch.perm.notes": "Answer from my notes",
   "ch.perm.notesHint":
-    "Your agent may look up your general notes to answer their questions (opening hours, prices). Read only; never your agents' notes or anything private.",
+    "Let this person get answers from your general notes. If you choose an agent for them, this also shares that agent's notes in its project. Read only; no files or other chats.",
   "ch.may.help": "About what this conversation may do",
   "ch.may.helpTitle": "What each option lets your agent do with this person",
   "ch.may.close":
