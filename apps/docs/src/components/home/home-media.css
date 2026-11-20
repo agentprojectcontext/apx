@@ -1,6 +1,23 @@
 /* ── What's new: the app's clips, a blurred still until each plays ──────── */
+/* The clip stays on screen while the list scrolls beside it (above it on a phone). */
 .feats__shot:has(.feats__clip) {
+  position: sticky;
+  top: 88px;
   aspect-ratio: 16 / 9;
+}
+@media (max-width: 860px) {
+  .feats:has(.feats__clip) {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .feats__shot:has(.feats__clip) {
+    flex: none;
+    width: 100%;
+    top: 64px;
+    z-index: 2;
+    order: -1;
+    box-shadow: 0 18px 30px -18px var(--apx-shadow);
+  }
 }
 .feats__clip {
   position: absolute;

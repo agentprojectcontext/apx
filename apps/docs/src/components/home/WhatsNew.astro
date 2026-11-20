@@ -136,18 +136,28 @@ type BlobName = keyof typeof blobs;
     });
   });
   feats.forEach((f, i) => {
-    f.querySelector(".feat__pick")?.addEventListener("click", () => showFeat(i));
+    f.querySelector(".feat__pick")?.addEventListener("click", () => {
+      seen = true;
+      showFeat(i);
+    });
   });
-  const featsBox = document.querySelector(".feats");
-  if (featsBox)
-    new IntersectionObserver(([entry]) => {
-      seen = Boolean(entry?.isIntersecting);
-      const bar = feats[fi]?.querySelector<HTMLElement>(".feat__bar");
-      if (bar) bar.style.animationPlayState = seen && !still ? "running" : "paused";
-      if (seen) play();
-      else {
-        clearTimeout(timer);
-        clipOf(fi)?.pause();
-      }
-    }).observe(featsBox);
+  // Measured on scroll rather than observed, so a browser that delays observers still starts the clip.
+  const featsBox = document.querySelector<HTMLElement>(".feats");
+  const check = () => {
+    if (!featsBox) return;
+    const r = featsBox.getBoundingClientRect();
+    const now = r.top < innerHeight * 0.85 && r.bottom > innerHeight * 0.15;
+    if (now === seen) return;
+    seen = now;
+    const bar = feats[fi]?.querySelector<HTMLElement>(".feat__bar");
+    if (bar) bar.style.animationPlayState = seen && !still ? "running" : "paused";
+    if (seen) play();
+    else {
+      clearTimeout(timer);
+      clipOf(fi)?.pause();
+    }
+  };
+  addEventListener("scroll", check, { passive: true });
+  addEventListener("resize", check);
+  check();
 </script>
