@@ -19,6 +19,26 @@ test("an MCP process timeout refuses replacement and retries still wait for its 
   assert.equal(timers.pending(), 0);
 });
 
+test("a failed transport close is retried while its process remains registered", async () => {
+  const tracker = createProcessExits();
+  let attempts = 0;
+  const transport = {
+    pid: 42,
+    onclose: () => {},
+    async close() {
+      if (++attempts === 1) throw new Error("could not stop tree");
+      transport.onclose();
+    },
+  };
+  tracker.watch("global::one", transport)();
+  await assert.rejects(
+    tracker.wait(() => true),
+    /could not stop tree/,
+  );
+  await tracker.wait(() => true);
+  assert.equal(attempts, 2);
+});
+
 test("an MCP process is not closed until the transport reports its exit", async () => {
   const tracker = createProcessExits();
   let originalClosed = false;

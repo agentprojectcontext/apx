@@ -29,8 +29,12 @@ test("server changes and trust revocation report a failed shutdown", async () =>
       },
       env.core.store,
     );
+    const before = mcp.find("global", "shutdown");
+    assert.ok(before);
     await assert.rejects(handlers["mcp.trust"]({ server: "shutdown", trusted: false }), /server did not exit/);
+    assert.equal(mcp.config.trusted(before), false);
     await assert.rejects(handlers["mcp.set"]({ name: "shutdown", server: null }), /server did not exit/);
+    assert.equal(mcp.find("global", "shutdown")?.hash, before.hash);
   } finally {
     await mcp.close();
     await env.core.close();

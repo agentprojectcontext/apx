@@ -104,17 +104,24 @@ export function mcpHandlers(mcp: Mcp, store: Store, switchable: (name: string) =
         throw badRequest("a repository server cannot set private availability");
       for (const p of server?.off_in ?? []) if (!store.projects.get(p)) throw notFound(`project ${p}`);
       if (!project) {
-        const before = mcp.config.global().find((d) => d.name === name);
-        const { off_in: offIn, ...definition } = server ?? {};
-        mcp.config.setGlobal(name, server ? definition : null);
-        // Where a global one is on is kept per project (mcp.toggle's switches): the dialog sets them all at once.
-        if (offIn && server && !server.project) mcp.config.setOffIn(name, offIn);
-        // A server that goes, or moves into one project, leaves no switches behind.
-        if (!server || server.project) mcp.config.setOffIn(name, []);
-        const after = mcp.config.global().find((d) => d.name === name);
-        // Availability alone does not change a tool contract; credential-specific grants stay separately bound.
-        await mcp.drop({ scope: "global", name }, Boolean(before && after && before.hash === after.hash));
-        return { servers: mcp.status() };
+        const target = { scope: "global" as const, name };
+        const release = mcp.suspend([target]);
+        try {
+          const before = mcp.config.global().find((d) => d.name === name);
+          await mcp.drop(target, true);
+          const { off_in: offIn, ...definition } = server ?? {};
+          mcp.config.setGlobal(name, server ? definition : null);
+          // Where a global one is on is kept per project (mcp.toggle's switches): the dialog sets them all at once.
+          if (offIn && server && !server.project) mcp.config.setOffIn(name, offIn);
+          // A server that goes, or moves into one project, leaves no switches behind.
+          if (!server || server.project) mcp.config.setOffIn(name, []);
+          const after = mcp.config.global().find((d) => d.name === name);
+          // Availability alone does not change a tool contract; credential-specific grants stay separately bound.
+          if (!before || !after || before.hash !== after.hash) await mcp.drop(target);
+          return { servers: mcp.status() };
+        } finally {
+          release();
+        }
       }
       if (!store.projects.get(project)?.path) throw notFound(`project ${project}`);
       // A repo's file never holds the owner's secrets: whoever can read the repo would get them.
