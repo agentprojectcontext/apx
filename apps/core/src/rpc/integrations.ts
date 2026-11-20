@@ -199,7 +199,7 @@ export function integrationHandlers(deps: {
             )
           : false;
       mcp.config.setGlobal(e.id, serverFor(e, plain, refused));
-      mcp.drop({ scope: "global", name: e.id });
+      await mcp.drop({ scope: "global", name: e.id });
       return { connected: true as const };
     },
     "integrations.oauth_start": ({ id, values, also }) => {
@@ -248,7 +248,7 @@ export function integrationHandlers(deps: {
       setMuted(store, { series, title, muted }, new Date());
       return settingsOf("google-calendar");
     },
-    "integrations.disconnect": ({ id }) => {
+    "integrations.disconnect": async ({ id }) => {
       if (id === "asana") {
         secrets.set(ASANA_SECRET, null);
         return { connected: false as const };
@@ -260,7 +260,7 @@ export function integrationHandlers(deps: {
       const e = CATALOG.find((x) => x.id === id);
       if (!e) throw notFound(`integration ${id}`);
       mcp.config.setGlobal(e.id, null);
-      mcp.drop({ scope: "global", name: e.id });
+      await mcp.drop({ scope: "global", name: e.id });
       for (const f of e.fields.filter((x) => x.secret)) secrets.set(integrationSecret(e.id, f.name), null);
       store.settings.set(`integration_values:${e.id}`, "");
       return { connected: false as const };

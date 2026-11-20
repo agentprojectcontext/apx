@@ -164,6 +164,20 @@ test("removing a plugin waits for its process before removing its data", async (
   assert.equal(fs.existsSync(path.join(env.home, "extension-data", "removable")), false);
 });
 
+test("a plugin that ignores termination is killed before its data is removed", async () => {
+  const dir = extension("stubborn", { context: true });
+  fs.writeFileSync(path.join(dir, "plugin.mjs"), `process.on('SIGTERM', () => {});\n${PLUGIN}`);
+  await env.client.call("extensions.install", { path: dir });
+  await env.client.call("extensions.enable", { id: "stubborn", enabled: true });
+  const result = await env.client.call("extensions.test", { id: "stubborn", text: "identify" });
+  assert.equal(result.ok, true, result.error);
+  const pid = Number(result.context?.match(/pid=(\d+)/)?.[1]);
+  assert.ok(pid);
+  await env.client.call("extensions.remove", { id: "stubborn" });
+  assert.throws(() => process.kill(pid, 0), { code: "ESRCH" });
+  assert.equal(fs.existsSync(path.join(env.home, "extension-data", "stubborn")), false);
+});
+
 test("names inside an extension cannot be read two ways", async () => {
   const dir = extension("clash", {});
   const m = JSON.parse(fs.readFileSync(path.join(dir, "apx-extension.json"), "utf8"));

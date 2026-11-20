@@ -68,11 +68,11 @@ export function mcpHandlers(mcp: Mcp, store: Store, switchable: (name: string) =
       return { lines: mcp.logs(d, lines) };
     },
     "mcp.list": ({ project }) => ({ servers: mcp.status(project) }),
-    "mcp.trust": ({ project, server, trusted }) => {
+    "mcp.trust": async ({ project, server, trusted }) => {
       const d = mcp.find(project ? "project" : "global", server, project);
       if (!d) throw badRequest(`no server ${server} in that project's .apc/mcps.json`);
       mcp.config.setTrust(d, trusted);
-      if (!trusted) mcp.drop(d);
+      if (!trusted) await mcp.drop(d);
       const s = mcp.status(project).find((x) => x.scope === (project ? "project" : "global") && x.name === server);
       if (!s) throw new Error("server vanished");
       return { server: s };
@@ -96,7 +96,7 @@ export function mcpHandlers(mcp: Mcp, store: Store, switchable: (name: string) =
       if (!d) throw badRequest(`no ${scope} server ${server}`);
       return mcp.test(d);
     },
-    "mcp.set": ({ name, server, project }) => {
+    "mcp.set": async ({ name, server, project }) => {
       if (Array.isArray(server?.args) && JSON.stringify(server.args).includes("secret://"))
         throw badRequest(ARGS_SECRET);
       if (server?.project && !store.projects.get(server.project)) throw notFound(`project ${server.project}`);
@@ -113,7 +113,7 @@ export function mcpHandlers(mcp: Mcp, store: Store, switchable: (name: string) =
         if (!server || server.project) mcp.config.setOffIn(name, []);
         const after = mcp.config.global().find((d) => d.name === name);
         // Availability alone does not change a tool contract; credential-specific grants stay separately bound.
-        mcp.drop({ scope: "global", name }, Boolean(before && after && before.hash === after.hash));
+        await mcp.drop({ scope: "global", name }, Boolean(before && after && before.hash === after.hash));
         return { servers: mcp.status() };
       }
       if (!store.projects.get(project)?.path) throw notFound(`project ${project}`);
@@ -121,7 +121,7 @@ export function mcpHandlers(mcp: Mcp, store: Store, switchable: (name: string) =
       if (server && JSON.stringify(server).includes("secret://"))
         throw badRequest("a project's .apc/mcps.json cannot use your variables (secret://); use a server of your own");
       const old = mcp.find("project", name, project);
-      if (old) mcp.drop(old);
+      if (old) await mcp.drop(old);
       mcp.config.setProject(project, name, server);
       // The owner wrote this definition: it is approved as written.
       const next = mcp.find("project", name, project);

@@ -70,6 +70,48 @@ test("an update stops an MCP test that is still starting before replacing files"
   }
 });
 
+test("an update cancels a server stuck listing tools", async () => {
+  const dir = tempDir("extension-listing-");
+  const env = await startCore({ llm: scriptedLlm(() => say("ok")) });
+  const marker = path.join(env.home, "listing.pid");
+  const script = path.join(env.home, "listing.cjs");
+  fs.writeFileSync(
+    script,
+    `
+const readline = require('node:readline');
+readline.createInterface({ input: process.stdin }).on('line', (line) => {
+  const msg = JSON.parse(line);
+  if (msg.method === 'initialize') process.stdout.write(JSON.stringify({jsonrpc:'2.0',id:msg.id,result:{protocolVersion:'2024-11-05',capabilities:{tools:{}},serverInfo:{name:'fixture',version:'1'}}}) + '\\n');
+  if (msg.method === 'tools/list') require('node:fs').writeFileSync(${JSON.stringify(marker)}, String(process.pid));
+});`,
+  );
+  const manifest = (version: string) => ({
+    id: "listing_server",
+    name: "Listing server",
+    version,
+    mcp: { test: { command: process.execPath, args: [script] } },
+  });
+  try {
+    fs.writeFileSync(path.join(dir.path, "apx-extension.json"), JSON.stringify(manifest("1.0.0")));
+    await env.client.call("extensions.install", { path: dir.path });
+    await env.client.call("extensions.enable", { id: "listing_server", enabled: true });
+    const testing = env.client.call("mcp.test", { scope: "global", server: "listing_server-test" });
+    void testing.catch(() => {});
+    await waitFor(() => fs.existsSync(marker), "server reached tool listing", { ms: 8000 });
+    const pid = Number(fs.readFileSync(marker, "utf8"));
+    fs.writeFileSync(path.join(dir.path, "apx-extension.json"), JSON.stringify(manifest("1.0.1")));
+    await env.client.call("extensions.install", { path: dir.path });
+    const result = await testing;
+    assert.equal(result.ok, false);
+    assert.match(result.error ?? "", /closed/);
+    assert.throws(() => process.kill(pid, 0), { code: "ESRCH" });
+  } finally {
+    await env.core.close();
+    await env.cleanup();
+    await dir.remove();
+  }
+});
+
 test("catalogs with the same displayed names do not share extension identity", async () => {
   const first = tempDir("catalog-first-");
   const second = tempDir("catalog-second-");

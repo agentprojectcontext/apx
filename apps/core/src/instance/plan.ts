@@ -51,7 +51,7 @@ export type ImportDeps = InstanceDeps & {
   /** Saves a channel's configuration and starts or stops it (the channel manager). */
   setChannel(id: string, config: Omit<InstanceChannel, "id">): Promise<unknown>;
   /** One of the owner's MCP servers changed: the running one is dropped. */
-  mcpChanged(name: string): void;
+  mcpChanged(name: string): void | Promise<void>;
   /** A routine's next run, as the scheduler reckons it. */
   nextFor(schedule: Schedule): string | undefined;
 };
@@ -295,7 +295,7 @@ function planMcps(deps: ImportDeps, file: InstanceFile, c: Ctx) {
       name,
       name,
       action,
-      () => {
+      async () => {
         // A value the file leaves empty keeps this computer's; a changed server is off until the owner looks.
         const keep = (file: Record<string, string>, local: Record<string, string> = {}) =>
           Object.fromEntries(Object.entries(file).map(([k, v]) => [k, v === "" ? (local[k] ?? "") : v]));
@@ -312,7 +312,7 @@ function planMcps(deps: ImportDeps, file: InstanceFile, c: Ctx) {
           ...(project ? { project } : {}),
           enabled: false,
         });
-        deps.mcpChanged(name);
+        await deps.mcpChanged(name);
       },
       { off: true, reason: here ? "changed" : "needs_secret" },
     );

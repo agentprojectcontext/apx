@@ -12,6 +12,7 @@ import type { Store } from "../domain/store.ts";
 import { badRequest, conflict, errorMessage, unavailable } from "../errors.ts";
 import { commandEnv, SECRET_NAME } from "../harness/env.ts";
 import type { Log } from "../log.ts";
+import { waitForExit } from "../process-exit.ts";
 import { onPath } from "../programs.ts";
 import { projectSecretName, type Secrets } from "../secrets.ts";
 import { cap, untrusted } from "../tools/result.ts";
@@ -225,7 +226,8 @@ export function createMcp(deps: {
       const connecting = client.connect(transport, { timeout: SIGN_IN_MS });
       trackProcess?.();
       await Promise.race([connecting, deadline]);
-      const { tools } = await client.listTools(undefined, { timeout: CONNECT_MS });
+      arm(CONNECT_MS, `no tool list in ${CONNECT_MS / 1000}s`);
+      const { tools } = await Promise.race([client.listTools(undefined, { timeout: CONNECT_MS }), deadline]);
       return { client, tools: tools as McpTool[], errorMessage: errors.message };
     } catch (err) {
       await client.close().catch(() => {});
@@ -772,7 +774,7 @@ export function createMcp(deps: {
       }
       stderr.forget(mine);
       if (!preserveApprovals) forget(mine);
-      await Promise.all(pending);
+      await waitForExit(Promise.all(pending), "MCP connection did not close; try again");
       await processes.wait(mine);
     },
     /** A global server as it runs in `projectId` (or in its own project, when it is limited to one). */

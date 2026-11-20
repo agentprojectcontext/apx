@@ -12,6 +12,7 @@ import { errorMessage } from "../errors.ts";
 import type { Log } from "../log.ts";
 import { nodeChildEnv } from "../node-runtime.ts";
 import { realpath } from "../paths.ts";
+import { waitForExit } from "../process-exit.ts";
 import type { Secrets } from "../secrets.ts";
 import { extSecret } from "./extensions.ts";
 
@@ -217,11 +218,16 @@ export function createPlugins(deps: {
         if (stopping.get(id) === done) stopping.delete(id);
       });
       l.child.kill();
+      const force = setTimeout(() => l.child.kill("SIGKILL"), 2_000);
+      force.unref();
+      void exited.then(() => clearTimeout(force));
       live.delete(id);
     },
     async stopAndWait(id: string): Promise<void> {
       this.stop(id);
-      await stopping.get(id);
+      const done = stopping.get(id);
+      if (!done) return;
+      await waitForExit(done, "Plugin did not exit; its files were not changed");
     },
     contextOwner: () => deps.hooks.contextOwner(),
     /** Marks a plugin as failed (it could not start); APX goes on without it. */
