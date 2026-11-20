@@ -100,3 +100,14 @@
   color: var(--apx-fg-muted);
   text-wrap: pretty;
 }
+
+/* ── Questions: the heading stays beside the list while it scrolls ───────── */
+@media (min-width: 861px) {
+  .home-questions__layout {
+    align-items: flex-start;
+  }
+  .home-questions__heading {
+    position: sticky;
+    top: 112px;
+  }
+}
