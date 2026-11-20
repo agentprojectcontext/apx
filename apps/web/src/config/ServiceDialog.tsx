@@ -12,13 +12,6 @@ type Preset = { id: string; label: string; dialect: ServiceDialect; base_url: st
 
 const PRESETS: Record<ServiceKind, Preset[]> = {
   image: [
-    {
-      id: "codex",
-      label: "Codex (ChatGPT plan)",
-      dialect: "codex-images",
-      base_url: "http://127.0.0.1",
-      needs_key: false,
-    },
     { id: "a1111", label: "A1111 / Forge", dialect: "a1111", base_url: "http://localhost:7860", needs_key: false },
     {
       id: "sdcpp",
@@ -199,8 +192,8 @@ export function ServiceDialog(props: {
     setDraft((d) => ({ ...d, ...patch }));
   };
   const validUrl = /^https?:\/\/.+/.test(draft.base_url);
-  // APX runs these itself (whisper.cpp) or through the owner's own CLI (Codex): there is no address or key to give.
-  const runsHere = draft.dialect === "whisper-cpp" || draft.dialect === "codex-images";
+  // APX runs whisper.cpp itself: there is no address or key to give.
+  const runsHere = draft.dialect === "whisper-cpp";
   const runCheck = async () => {
     setChecking(true);
     setCheck(await testService(draft, initial?.id, key || undefined));
@@ -273,7 +266,6 @@ export function ServiceDialog(props: {
             onChange={(e) => set({ label: e.currentTarget.value })}
           />
         </Field>
-        {draft.dialect === "codex-images" && <span className="pform__hint">{t("svc.codexHint")}</span>}
         {elevenlabs && (
           <Button
             variant="secondary"
@@ -301,11 +293,9 @@ export function ServiceDialog(props: {
               hint={t(
                 draft.dialect === "whisper-cpp"
                   ? "svc.modelWhisperCppHint"
-                  : draft.dialect === "codex-images"
-                    ? "svc.modelCodexHint"
-                    : kind === "image"
-                      ? "svc.modelImageHint"
-                      : "svc.modelSpeechHint",
+                  : kind === "image"
+                    ? "svc.modelImageHint"
+                    : "svc.modelSpeechHint",
               )}
             >
               <Input

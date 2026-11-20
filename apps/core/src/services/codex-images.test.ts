@@ -47,7 +47,12 @@ process.stdin.on("end", () => {
 
 async function withServices(
   signedIn: boolean,
-  run: (s: ReturnType<typeof createServices>, home: string, codex: ReturnType<typeof fakeCodex>) => unknown,
+  run: (
+    s: ReturnType<typeof createServices>,
+    home: string,
+    codex: ReturnType<typeof fakeCodex>,
+    store: Awaited<ReturnType<typeof startCore>>["core"]["store"],
+  ) => unknown,
 ) {
   const env = await startCore({ llm: scriptedLlm(() => say("ok")) });
   const codex = fakeCodex(env.home);
@@ -64,7 +69,7 @@ async function withServices(
     }),
   });
   try {
-    await run(services, env.home, codex);
+    await run(services, env.home, codex, env.core.store);
   } finally {
     services.close();
     await env.core.close();
@@ -81,10 +86,10 @@ const homelab = {
   needs_key: false,
 } as const;
 
-test("a signed-in Codex is added first of the image services, once: removed, it is not added again", async () => {
+test("Codex is kept first of the image services, as APX sets it: it cannot be removed, only turned off", async () => {
   await withServices(true, async (services) => {
     services.set("homelab", homelab);
-    assert.equal(services.offer(CODEX_IMAGES, CODEX_IMAGE_SERVICE), true);
+    assert.equal(services.keepCodex(CODEX_IMAGES), true);
     assert.deepEqual(
       (await services.info("image")).map((s) => [s.id, s.status]),
       [
@@ -92,19 +97,45 @@ test("a signed-in Codex is added first of the image services, once: removed, it 
         ["homelab", "unreachable"],
       ],
     );
-    assert.equal(services.offer(CODEX_IMAGES, CODEX_IMAGE_SERVICE), false);
-    services.set(CODEX_IMAGES, null);
-    assert.equal(services.offer(CODEX_IMAGES, CODEX_IMAGE_SERVICE), false);
+    assert.equal(services.keepCodex(CODEX_IMAGES), false);
+    assert.throws(() => services.set(CODEX_IMAGES, null), /turn it off/);
+    services.set(CODEX_IMAGES, {
+      ...CODEX_IMAGE_SERVICE,
+      label: "Mine",
+      model: "gpt-image-2.5-sunburst",
+      enabled: false,
+    });
+    const [codex] = await services.info("image");
+    assert.equal(codex?.label, CODEX_IMAGE_SERVICE.label);
+    assert.equal(codex?.model, undefined);
+    assert.equal(codex?.enabled, false);
+    assert.equal(services.keepCodex(CODEX_IMAGES), false, "turned off stays off");
+  });
+});
+
+test("a model saved on Codex's service before it was fixed is dropped, and never reaches Codex", async () => {
+  await withServices(true, async (services, _home, codex, store) => {
+    const stale = { ...CODEX_IMAGE_SERVICE, id: CODEX_IMAGES, model: "gpt-image-2.5-sunburst" };
+    store.settings.write("services", [{ ...homelab, id: "homelab" }, stale]);
+    assert.equal(services.keepCodex(CODEX_IMAGES), false);
     assert.deepEqual(
-      (await services.info("image")).map((s) => s.id),
-      ["homelab"],
+      (await services.info("image")).map((s) => [s.id, s.model]),
+      [
+        ["homelab", undefined],
+        [CODEX_IMAGES, undefined],
+      ],
+      "kept where the owner put it",
     );
+    store.settings.write("services", [stale]);
+    const got = await services.image({ prompt: "a fox" }, AbortSignal.timeout(20_000));
+    assert.equal(got.model, "image_gen");
+    assert.equal(codex.args().includes("--model"), false);
   });
 });
 
 test("an image asked through Codex is the one its image_gen left in its thread's folder, kept as the chat's media", async () => {
   await withServices(true, async (services, home, codex) => {
-    services.offer(CODEX_IMAGES, CODEX_IMAGE_SERVICE);
+    services.keepCodex(CODEX_IMAGES);
     const got = await services.image(
       { prompt: "a unicorn over a neon city", width: 1024, height: 512 },
       AbortSignal.timeout(20_000),
@@ -124,7 +155,7 @@ test("an image asked through Codex is the one its image_gen left in its thread's
 
 test("Codex not signed in shows as unreachable and does not draw", async () => {
   await withServices(false, async (services) => {
-    services.offer(CODEX_IMAGES, CODEX_IMAGE_SERVICE);
+    services.keepCodex(CODEX_IMAGES);
     assert.equal((await services.info("image"))[0]?.status, "unreachable");
     assert.equal((await services.test(CODEX_IMAGE_SERVICE)).ok, false);
   });
@@ -132,7 +163,7 @@ test("Codex not signed in shows as unreachable and does not draw", async () => {
 
 test("reference images reach Codex as images of its turn; only images of the same chat can be references", async () => {
   await withServices(true, async (services, _home, codex) => {
-    services.offer(CODEX_IMAGES, CODEX_IMAGE_SERVICE);
+    services.keepCodex(CODEX_IMAGES);
     const ref = services.keep(PNG, "image/png");
     const got = await services.image(
       {
@@ -157,7 +188,7 @@ test("reference images reach Codex as images of its turn; only images of the sam
 
 test("Codex is told nothing about references when there are none", async () => {
   await withServices(true, async (services, _home, codex) => {
-    services.offer(CODEX_IMAGES, CODEX_IMAGE_SERVICE);
+    services.keepCodex(CODEX_IMAGES);
     await services.image({ prompt: "a fox" }, AbortSignal.timeout(20_000));
     assert.equal(codex.args().includes("--image"), false);
     assert.doesNotMatch(codex.prompt(), /reference/);
