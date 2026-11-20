@@ -30,6 +30,14 @@ export async function refreshTelemetry(): Promise<void> {
   } catch {}
 }
 
+/** A Marketplace search settled: only how many it found reaches the core, and only with the owner's yes. */
+export function noteSearch(results: number): void {
+  if (store.get().state?.usage !== true) return;
+  client.call("telemetry.note", { event: "marketplace_search", results }).catch(() => {
+    // An older core does not count searches.
+  });
+}
+
 export async function setUsage(usage: boolean): Promise<void> {
   try {
     store.set({ state: await client.call("telemetry.set", { usage }) });

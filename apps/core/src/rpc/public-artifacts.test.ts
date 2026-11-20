@@ -81,6 +81,7 @@ test("local creation never uploads and an oversized request gives the person and
 test("public copies travel through the core contract: exact preview, chosen state, update, list and source-free revocation", async () => {
   const env = await fixture();
   try {
+    await env.client.call("telemetry.set", { usage: true });
     const source = await env.client.call("surfaces.show", { name: "orders", title: "Orders", html: PAGE, app: true });
     await env.client.call("surfaces.set_state", {
       surface: source.id,
@@ -144,6 +145,8 @@ test("public copies travel through the core contract: exact preview, chosen stat
     await env.client.call("surfaces.public_commit", { draft: revoke.draft });
     assert.equal((await env.client.call("surfaces.public_list", {})).count, 0);
     assert.equal(env.cloud.commits(), 3);
+    // Usage statistics count the copy made once: not its receipt read again, its update or its revocation.
+    assert.equal((await env.client.call("telemetry.get", {})).preview.public_artifacts, 1);
     assert.equal(
       [...env.cloud.documents.keys()].some((name) => name.includes("/publicArtifacts/")),
       false,

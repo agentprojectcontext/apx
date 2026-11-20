@@ -5722,3 +5722,29 @@ integrations or broad shell access have been scrubbed or sandboxed. Refuse activ
 bindings rather than silently moving a partial graph. Existing destination teammates remain part of that project.
 
 Docs impact: updated agent-move concepts and CLI reference in English and Spanish, and the `apx-agents` skill.
+
+<a id="d-257"></a>
+## D-257 — 2026-11-20 — The usage report counts Marketplace, account and sharing activity, only behind the yes
+We could not tell which extensions people install and from where, whether Marketplace searches find anything, how many
+sign in to the APX account, or how often artifacts are made public. The daily usage report (D-092) now also carries,
+as counts since the last report: Marketplace searches and those that found nothing; extension installs by where they
+came from (APX's catalog, an added catalog, a file, a link, a folder, a server address); APX account sign-ins; public
+copies made; and **Live from this computer** links created. A public copy counts once, when the cloud confirms it (not
+its receipt read again, its update or its revocation); a live link counts when a widget that had none gets one.
+Undoing either later does not take the count back.
+
+All of it stays behind the same opt-in, none of it rides on the lifecycle ping that goes without a yes. The ping rests on
+carrying nothing about what the person does; these say what they did and when, under an id that persists, which under
+GDPR is pseudonymous personal data about behaviour and under the ePrivacy rules needs consent. Counting starts at the
+yes and a no drops what was not sent. Search words are never kept: free text holds names, clients and projects,
+normalisation and a length cap do not make it anonymous, and "found nothing" answers the product question with a number.
+An extension's `id@version` goes only when anyone can see that listing (APX's catalog by its files, or a public catalog
+APX suggests); from a file, a link, a folder or another catalog it is a count, since an id there can name a private tool.
+The panel's search sends only how many it found once the words settle, and only to the local core.
+
+A count that did not happen that day is left out of the report, so `firebase/firestore.rules` accepts each new field as
+optional: an older core's report still lands, and a quiet day passes the rules even before they are deployed. The rules
+must be deployed before a release that sends these counts, or a day with one is refused and retried until they are.
+The setup question and its wording stay; the privacy page and Settings › Advanced › Usage statistics list the new counts.
+
+Docs impact: updated `reference/privacy` in English and Spanish.

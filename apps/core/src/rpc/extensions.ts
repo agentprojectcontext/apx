@@ -1,9 +1,11 @@
 // Extensions, for the owner: inspect a folder, an .apxext file or a URL, install it (off), go back a version, turn it
 // on or off, give it its secrets.
 import type { Bus } from "../bus.ts";
-import { type CatalogShown, SUGGESTED } from "../extensions/catalogs.ts";
+import type { Store } from "../domain/store.ts";
+import { type CatalogShown, isSuggestedCatalog, SUGGESTED } from "../extensions/catalogs.ts";
 import type { ExtensionInput, Extensions } from "../extensions/extensions.ts";
 import type { Mcp } from "../mcp/manager.ts";
+import { countInstall } from "../telemetry-counts.ts";
 import type { Handlers } from "./router.ts";
 
 /** The one place given, as the protocol checked it. */
@@ -43,8 +45,8 @@ const CHANGES = [
   "extensions.catalog_remove",
 ] as const;
 
-export function extensionHandlers(extensions: Extensions, mcp: Mcp, bus: Bus) {
-  const handlers = extensionMethods(extensions, mcp);
+export function extensionHandlers(extensions: Extensions, mcp: Mcp, bus: Bus, store: Store) {
+  const handlers = extensionMethods(extensions, mcp, store);
   const told = { ...handlers };
   for (const name of CHANGES) {
     const run = handlers[name] as (p: never) => unknown;
@@ -57,7 +59,7 @@ export function extensionHandlers(extensions: Extensions, mcp: Mcp, bus: Bus) {
   return told as typeof handlers;
 }
 
-function extensionMethods(extensions: Extensions, mcp: Mcp) {
+function extensionMethods(extensions: Extensions, mcp: Mcp, store: Store) {
   const { catalogs } = extensions;
   /** Its MCP servers stop now rather than at their idle timeout. */
   const dropServers = (id: string) => {
@@ -81,10 +83,12 @@ function extensionMethods(extensions: Extensions, mcp: Mcp) {
     "extensions.asset": async ({ id, file }) => (await extensions.asset(id, file)) ?? {},
     "extensions.pack": ({ path }) => extensions.pack(path),
     "extensions.inspect": ({ path, file, url, entry }) => extensions.inspect(source(path, file, url, entry)),
-    "extensions.install": async ({ path, file, url, entry, server, hash }) => {
+    "extensions.install": async (params) => {
+      const { path, file, url, entry, server, hash } = params;
       const before = extensions.list();
       const from = server ? { path: extensions.connector(server) } : source(path, file, url, entry);
       const info = await extensions.install(from, hash);
+      countInstall(store, params, info, entry ? isSuggestedCatalog(entry.catalog) : false);
       // Its servers start again with the new files at their next use; a server this version dropped stops now.
       for (const name of new Set([...(before.find((e) => e.id === info.id)?.mcp ?? []), ...info.mcp]))
         mcp.drop({ scope: "global", name });

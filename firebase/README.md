@@ -20,7 +20,7 @@ The browser and core must be on the same computer. A phone or remote browser can
 - Rules forbid profile enumeration, reading other profiles, changing an ID and retaining obsolete handle reservations.
 - The core stores Firebase ID and refresh tokens together only in its secret store. Account protocol results contain no tokens. Account methods are owner-only and do not return session credentials to agents. The secret store is not an isolation boundary against owner-approved tools: an approved MCP explicitly configured with `secret://apx-account-session` can resolve that secret. Sign-out deletes this core's secret, not the cloud profile or sessions on other cores.
 - Profile IDs are not artifact codes. Account creation publishes nothing.
-- Telemetry keeps its existing anonymous write rules. Private reads require `telemetry_reader: true`; an ordinary Google account gains no telemetry access.
+- Telemetry keeps its existing anonymous write rules. Private reads require `telemetry_reader: true`; an ordinary Google account gains no telemetry access. A daily usage report may carry the optional counts and public extension ids of D-257; deploy these rules before a release whose cores send them, or those days are refused and retried.
 - `artifactOwners/<code>` permanently reserves a code and its owner/slot. `artifactAccounts/<uid>/slots/0..19` bounds active metadata reservations. `publicArtifacts/<code>` contains only private title, byte count, hash and timestamp. Anonymous reads, enumeration, HTML and former `parts` documents are denied.
 
 ## Public content: Worker and R2

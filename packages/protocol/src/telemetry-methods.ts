@@ -1,6 +1,7 @@
 // What this APX tells the APX project about itself: a few lifecycle steps (installed, opened, set up, first used,
-// updated) under a random install id, and — only if the owner said yes — a daily count of tokens and of what it holds.
-// Nothing the owner wrote, no names, paths, models or keys. See rules/DECISIONS.md#d-092.
+// updated) under a random install id, and — only if the owner said yes — a daily count of tokens, of what it holds and
+// of a few things done that day. Nothing the owner wrote, no names, paths, URLs, models or keys. See
+// rules/DECISIONS.md#d-092 and #d-257.
 import { z } from "zod";
 import { deferMethod } from "./defer-method.ts";
 import { schemaFields } from "./schema-fields.ts";
@@ -25,16 +26,58 @@ export const InstallInfo = z.object(
 );
 export type InstallInfo = z.infer<typeof InstallInfo>;
 
-/** One day's usage, sent only with the owner's yes: totals over every model, and how many of each thing there are. */
+/**
+ * What is counted as it happens, only after the owner's yes: Marketplace searches (how many, and how many found
+ * nothing; never the words), extension installs by where they came from, APX account sign-ins, public copies made and
+ * live links ("Live from this computer") created. Undoing one later does not take it back.
+ */
+export const USAGE_COUNTS = [
+  "searches",
+  "searches_empty",
+  "installs_official",
+  "installs_catalog",
+  "installs_file",
+  "installs_url",
+  "installs_folder",
+  "installs_server",
+  "signins",
+  "public_artifacts",
+  "public_links",
+] as const;
+export type UsageCount = (typeof USAGE_COUNTS)[number];
+/** At most this many extension ids in one day's report. */
+export const USAGE_EXTENSIONS_MAX = 50;
+/** `id@version` of an extension from APX's catalog or a public suggested catalog; the version only when plain. */
+export const UsageExtension = z.string().regex(/^[a-z0-9][a-z0-9_-]{0,19}(@[0-9A-Za-z.+_-]{1,40})?$/);
+
+const count = () => z.number().int().min(0);
+
+/**
+ * One day's usage, sent only with the owner's yes: totals over every model, how many of each thing there are, and the
+ * counts above. The counts are optional so an older core's report (and an older record) still reads.
+ */
 export const UsageStats = z.object(
   schemaFields({
-    tokens_in: () => z.number().int().min(0),
-    tokens_out: () => z.number().int().min(0),
-    runs: () => z.number().int().min(0),
-    projects: () => z.number().int().min(0),
-    agents: () => z.number().int().min(0),
-    channels: () => z.number().int().min(0),
-    routines: () => z.number().int().min(0),
+    tokens_in: count,
+    tokens_out: count,
+    runs: count,
+    projects: count,
+    agents: count,
+    channels: count,
+    routines: count,
+    searches: () => count().optional(),
+    searches_empty: () => count().optional(),
+    installs_official: () => count().optional(),
+    installs_catalog: () => count().optional(),
+    installs_file: () => count().optional(),
+    installs_url: () => count().optional(),
+    installs_folder: () => count().optional(),
+    installs_server: () => count().optional(),
+    signins: () => count().optional(),
+    public_artifacts: () => count().optional(),
+    public_links: () => count().optional(),
+    /** Each install from APX's catalog or a public suggested one, as `id@version`; others count only by kind. */
+    extensions: () => z.array(UsageExtension).max(USAGE_EXTENSIONS_MAX).optional(),
   }),
 );
 export type UsageStats = z.infer<typeof UsageStats>;
@@ -110,6 +153,25 @@ export const telemetryMethods = {
   /** The panel opened on this install: sends the `opened` step the first time. */
   "telemetry.seen": deferMethod({
     params: () => z.object({}).strict(),
+    result: () =>
+      z.object({
+        ok: z.literal(true),
+      }),
+    effect: true,
+    access: "human",
+  }),
+  /**
+   * Something the panel did that the usage report counts (only after the owner's yes; otherwise nothing is kept). A
+   * Marketplace search says only how many it found, never what was typed.
+   */
+  "telemetry.note": deferMethod({
+    params: () =>
+      z
+        .object({
+          event: z.literal("marketplace_search"),
+          results: z.number().int().min(0),
+        })
+        .strict(),
     result: () =>
       z.object({
         ok: z.literal(true),

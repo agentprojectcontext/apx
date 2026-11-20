@@ -1,10 +1,12 @@
 import { PROTOCOL_VERSION, type StoreCompaction } from "@apx/protocol";
 import { coreLogFile, readCoreLog } from "../core-log.ts";
+import type { Store } from "../domain/store.ts";
 import type { Identity } from "../identity.ts";
 import type { News } from "../news/news.ts";
 import type { Storage } from "../storage.ts";
 import type { StorageItems } from "../storage-items.ts";
 import type { Telemetry } from "../telemetry.ts";
+import { countUsage } from "../telemetry-counts.ts";
 import type { Updates } from "../updates.ts";
 import type { Usage } from "../usage.ts";
 import type { Handler, Handlers } from "./router.ts";
@@ -46,12 +48,17 @@ export function updateHandlers(updates: Updates) {
 }
 
 /** What this install reports about itself, and the owner's answer on usage statistics. */
-export function telemetryHandlers(telemetry: Telemetry) {
+export function telemetryHandlers(telemetry: Telemetry, store: Store) {
   return {
     "telemetry.get": () => telemetry.get(),
     "telemetry.set": ({ usage }) => telemetry.set(usage),
     "telemetry.seen": () => {
       telemetry.seen();
+      return { ok: true as const };
+    },
+    "telemetry.note": ({ results }) => {
+      countUsage(store, "searches");
+      if (results === 0) countUsage(store, "searches_empty");
       return { ok: true as const };
     },
   } satisfies Partial<Handlers>;

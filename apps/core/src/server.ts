@@ -139,6 +139,7 @@ import { skillsFor } from "./skills/skills.ts";
 import { createStorage, type StorageOptions } from "./storage.ts";
 import { createStorageItems } from "./storage-items.ts";
 import { createTelemetry } from "./telemetry.ts";
+import { countUsage } from "./telemetry-counts.ts";
 import { type TelemetrySink, telemetrySink } from "./telemetry-sink.ts";
 import { createTerminals } from "./terminal/terminals.ts";
 import { asanaTools } from "./tools/asana.ts";
@@ -390,7 +391,10 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
     client: cloudClient,
     google: clientFromPair(config.googleClient) ?? (config.googleApi ? undefined : apxGoogleClient()),
     origin: () => `http://127.0.0.1:${listening}`,
-    onSignedIn: (profile) => adoptAccountName(store, profile.name),
+    onSignedIn: (profile) => {
+      adoptAccountName(store, profile.name);
+      countUsage(store, "signins");
+    },
   });
   const publications = createPublicationService({
     account,

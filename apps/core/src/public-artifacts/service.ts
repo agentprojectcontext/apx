@@ -2,6 +2,7 @@ import type { Account } from "../account/session.ts";
 import { publicInput } from "../domain/inputs.ts";
 import type { Store } from "../domain/store.ts";
 import { withKit } from "../surface-kit.ts";
+import { countUsage } from "../telemetry-counts.ts";
 import { createPublicArtifactCloud } from "./cloud.ts";
 import { createPublicationDrafts } from "./drafts.ts";
 import { publicationDraftPersistence, publicationSources } from "./persistence.ts";
@@ -21,6 +22,9 @@ export function createPublicationService(deps: {
     decorateHtml: (html) => withKit(html),
     persistence: publicationDraftPersistence(deps.store.settings, deps.home),
     onReceiptPersistenceError: deps.onReceiptPersistenceError,
+    onDone: (action) => {
+      if (action === "publish") countUsage(deps.store, "public_artifacts");
+    },
     sources: publicationSources(deps.store.settings),
     pendingUntil: (id) => {
       const deadlines = deps.store.inputs

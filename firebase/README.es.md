@@ -20,7 +20,7 @@ El navegador y el core deben estar en la misma computadora. Un teléfono o naveg
 - Las reglas impiden enumerar perfiles, leer perfiles ajenos, cambiar el ID o retener reservas de usuarios anteriores.
 - El core guarda los tokens de Firebase y de renovación únicamente en su almacén de secretos. El protocolo no devuelve tokens y los métodos de cuenta son exclusivos del dueño. Los métodos de cuenta no entregan credenciales de sesión a los agentes. El almacén de secretos no aísla herramientas aprobadas por el dueño: un MCP aprobado y configurado expresamente con `secret://apx-account-session` puede resolver ese secreto. Cerrar sesión borra el secreto de este core, no el perfil ni las sesiones de otros cores.
 - El ID del perfil no es el código de un artifact. Crear una cuenta no publica nada.
-- La telemetría conserva sus reglas de escritura anónima. Leer datos privados requiere `telemetry_reader: true`; una cuenta Google común no obtiene acceso.
+- La telemetría conserva sus reglas de escritura anónima. Leer datos privados requiere `telemetry_reader: true`; una cuenta Google común no obtiene acceso. Un reporte diario de uso puede llevar los conteos opcionales y los ids de extensiones públicas de D-257; desplegá estas reglas antes de un release cuyos cores los manden, o esos días se rechazan y se reintentan.
 - `artifactOwners/<código>` reserva para siempre un código y su dueño/slot. `artifactAccounts/<uid>/slots/0..19` limita las reservas activas de metadata. `publicArtifacts/<código>` contiene sólo título privado, tamaño, hash y fecha. No se permiten lecturas anónimas, enumeración, HTML ni los antiguos documentos `parts`.
 
 ## Contenido público: Worker y R2

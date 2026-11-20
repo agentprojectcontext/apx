@@ -28,6 +28,9 @@ import {
   TaskColumn,
   TelemetryEvent,
   TelemetryStage,
+  USAGE_COUNTS,
+  USAGE_EXTENSIONS_MAX,
+  UsageExtension,
   VoiceQuality,
 } from "@apx/protocol";
 import { z } from "zod";
@@ -251,7 +254,8 @@ export const SETTINGS = {
   ),
   /**
    * Telemetry (telemetry.ts): the owner's answer on usage statistics (null: not asked yet), the lifecycle steps sent,
-   * the version and answer the install's record holds, where the next usage report starts, and the last thing sent.
+   * the version and answer the install's record holds, where the next usage report starts, the last thing sent, and
+   * what was counted since the last report (only after a yes; telemetry-counts.ts).
    */
   telemetry: entry(
     z.object({
@@ -263,6 +267,8 @@ export const SETTINGS = {
       usage_from: z.string().nullable().catch(null),
       usage_day: z.string().nullable().catch(null),
       last: z.object({ at: z.string(), event: TelemetryEvent }).nullable().catch(null),
+      counts: z.partialRecord(z.enum(USAGE_COUNTS), z.number().int().min(0)).catch({}),
+      extensions: z.array(UsageExtension).max(USAGE_EXTENSIONS_MAX).catch([]),
     }),
     {
       usage: null,
@@ -273,6 +279,8 @@ export const SETTINGS = {
       usage_from: null,
       usage_day: null,
       last: null,
+      counts: {},
+      extensions: [],
     },
   ),
 };

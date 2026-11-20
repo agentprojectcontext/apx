@@ -204,6 +204,7 @@ export const OWNER_ONLY: Readonly<Record<string, string>> = {
   "notifications.read": AS_OWNER,
   "notices.feedback": AS_OWNER,
   "telemetry.seen": AS_OWNER,
+  "telemetry.note": AS_OWNER,
   "system.news_tell": AS_OWNER,
   "environments.control": AS_OWNER,
 };
