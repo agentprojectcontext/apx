@@ -20,10 +20,14 @@ import SocialIcon from "../web/SocialIcon.astro";
 import WebFooter from "../web/WebFooter.astro";
 import WebHeader from "../web/WebHeader.astro";
 import DownloadButton from "./DownloadButton.astro";
+import HomeBlog from "./HomeBlog.astro";
+import WhatsNew from "./WhatsNew.astro";
 import "./home.css";
 import "./home-hero.css";
 import "./home-sections.css";
 import "./home-download.css";
+import "./home-tiles.css";
+import "./home-media.css";
 
 interface Props {
   lang: Lang;
@@ -91,6 +95,7 @@ const marquee = [
 ] as const;
 const moreIcons = ["link", "monitor", "bot", "plug"] as const;
 const localIcons = ["folder", "messageCircle", "brain", "lock"] as const;
+const marketTones = ["danger", "info", "violet"] as const;
 const taskAgents: BlobName[] = ["cobalto", "amatista", "coral", "orbita"];
 const pitchBlobs: BlobName[] = ["menta", "coral", "noche", "cobalto", "amatista"];
 const stepBlobs: BlobName[] = ["menta", "noche", "cobalto"];
@@ -265,7 +270,7 @@ const unsignedBySystem = t.download.unsigned.items.reduce<(typeof t.download.uns
       <section class="sec" id="what" aria-labelledby="what-title">
         <div class="wrap">
           <div class="sec-head" data-reveal>
-            <p class="sec-label"><Blob name="menta" size={22} /><span class="sec-label__n">01</span><span class="sec-label__dash"></span><span>{t.what.label}</span></p>
+            <p class="sec-say"><Blob name="menta" size={30} /><span class="sec-say__bubble">{t.what.label}</span></p>
             <h2 class="h2" id="what-title">{t.what.title}</h2>
           </div>
           <div class="bento" data-reveal>
@@ -351,55 +356,51 @@ const unsignedBySystem = t.download.unsigned.items.reduce<(typeof t.download.uns
               </div>
               <div class="tile__text"><h3>{t.what.local.title}</h3><p>{t.what.local.body}</p></div>
             </article>
+            <article class="tile">
+              <div class="tile__ui" aria-hidden="true">
+                <div class="mini mini--flow">
+                  <p class="mini__head"><UiIcon name="workflow" size={12} />{t.what.flows.head}</p>
+                  <ol class="flow">
+                    {t.what.flows.steps.map(([kind, what], i) => <li class="flow__step" style={`--i:${i}`}><span class="flow__kind">{kind}</span><span>{what}</span></li>)}
+                  </ol>
+                  <p class="mini__live"><span class="live-dot"></span>{t.what.flows.run}</p>
+                </div>
+              </div>
+              <div class="tile__text"><h3>{t.what.flows.title}</h3><p>{t.what.flows.body}</p></div>
+            </article>
+            <article class="tile">
+              <div class="tile__ui" aria-hidden="true">
+                <div class="mini mini--market">
+                  <p class="mini__head"><UiIcon name="store" size={12} />{t.what.market.head}</p>
+                  {
+                    t.what.market.rows.map(([name, from, action], i) => (
+                      <p class="market">
+                        <span class="market__logo" style={`--tone: var(--apx-${marketTones[i] ?? "info"})`}>{name.slice(0, 1)}</span>
+                        <span class="market__name"><b>{name}</b><span>{from}</span></span>
+                        <span class:list={["market__btn", { "market__btn--on": i === 0 }]}>{action}</span>
+                      </p>
+                    ))
+                  }
+                </div>
+              </div>
+              <div class="tile__text"><h3>{t.what.market.title}</h3><p>{t.what.market.body}</p></div>
+            </article>
+            <article class="tile">
+              <div class="tile__ui" aria-hidden="true">
+                <div class="mini mini--people">
+                  <p class="mini__head"><UiIcon name="messageCircle" size={12} />{t.what.people.head}</p>
+                  <p class="people__in">{t.what.people.ask}</p>
+                  <p class="people__out">{t.what.people.reply}<Blob name="menta" size={18} /></p>
+                  <p class="people__booked"><UiIcon name="calendar" size={12} />{t.what.people.booked}<UiIcon name="check" size={12} /></p>
+                </div>
+              </div>
+              <div class="tile__text"><h3>{t.what.people.title}</h3><p>{t.what.people.body}</p></div>
+            </article>
           </div>
         </div>
       </section>
 
-      <section class="sec" id="new" aria-labelledby="new-title">
-        <div class="wrap">
-          <div class="sec-head" data-reveal>
-            <p class="sec-label"><Blob name="cobalto" size={22} /><span class="sec-label__n">02</span><span class="sec-label__dash"></span><span>{t.newIn.label}</span></p>
-            <h2 class="h2" id="new-title">{t.newIn.title}</h2>
-            <p class="lead">{t.newIn.lead}</p>
-          </div>
-          <div class="feats" data-reveal>
-            <div class="feats__list">
-              {
-                t.newIn.items.map((f, i) => (
-                  <div class:list={["feat", { on: i === 0 }]} data-feat={i}>
-                    <button class="feat__pick" type="button" aria-expanded={String(i === 0)} aria-controls={`feat-${i}`}>
-                      <Blob name={f.blob as BlobName} size={20} />
-                      <span class="feat__title">{f.title}</span>
-                    </button>
-                    <div class="feat__body" id={`feat-${i}`} hidden={i !== 0}>
-                      <p>{f.body}</p>
-                      <a href={href(f.href)}>{t.newIn.more} →</a>
-                    </div>
-                    <span class="feat__bar" aria-hidden="true"></span>
-                  </div>
-                ))
-              }
-            </div>
-            <div class="feats__shot">
-              {
-                t.newIn.items.map((f, i) => (
-                  <div class:list={["feats__img", { on: i === 0, feats__fan: "fan" in f }]} data-shot={i}>
-                    {"fan" in f && f.fan ? (
-                      f.fan.map(([shot, alt], j) => (
-                        <div class:list={["fan__phone", `fan__phone--${j}`]}>
-                          <Shot name={shot} alt={alt} frame="none" />
-                        </div>
-                      ))
-                    ) : (
-                      <Shot name={f.shot} alt={f.title} frame="none" />
-                    )}
-                  </div>
-                ))
-              }
-            </div>
-          </div>
-        </div>
-      </section>
+      <WhatsNew lang={lang} />
 
       <section class="sec pitch">
         <div class="wrap" data-reveal>
@@ -412,7 +413,7 @@ const unsignedBySystem = t.download.unsigned.items.reduce<(typeof t.download.uns
       <section class="sec" id="start" aria-labelledby="start-title">
         <div class="wrap">
           <div class="sec-head" data-reveal>
-            <p class="sec-label"><Blob name="coral" size={22} /><span class="sec-label__n">03</span><span class="sec-label__dash"></span><span>{t.steps.label}</span></p>
+            <p class="sec-say"><Blob name="coral" size={30} /><span class="sec-say__bubble">{t.steps.label}</span></p>
             <h2 class="h2" id="start-title">{t.steps.title}</h2>
           </div>
           <ol class="steps" data-reveal>
@@ -433,7 +434,7 @@ const unsignedBySystem = t.download.unsigned.items.reduce<(typeof t.download.uns
       <section class="sec" id="map" aria-labelledby="map-title">
         <div class="wrap">
           <div class="sec-head" data-reveal>
-            <p class="sec-label"><Blob name="orbita" size={22} /><span class="sec-label__n">04</span><span class="sec-label__dash"></span><span>{t.map.eyebrow}</span></p>
+            <p class="sec-say"><Blob name="orbita" size={30} /><span class="sec-say__bubble">{t.map.eyebrow}</span></p>
             <h2 class="h2" id="map-title">{t.map.title}</h2>
             <p class="lead">{t.map.lead}</p>
           </div>
@@ -461,7 +462,7 @@ const unsignedBySystem = t.download.unsigned.items.reduce<(typeof t.download.uns
       <section class="sec" id="terminal" aria-labelledby="terminal-title">
         <div class="wrap term-demo">
           <div class="sec-head" data-reveal>
-            <p class="sec-label"><Blob name="noche" size={22} /><span class="sec-label__n">05</span><span class="sec-label__dash"></span><span>{t.cli.eyebrow}</span></p>
+            <p class="sec-say"><Blob name="noche" size={30} /><span class="sec-say__bubble">{t.cli.eyebrow}</span></p>
             <h2 class="h2" id="terminal-title">{t.cli.title}</h2>
             <p class="lead">{t.cli.lead}</p>
             <a class="term-demo__all" href={href(`${pre}/reference/cli/`)}>{t.cli.all} →</a>
@@ -536,10 +537,12 @@ const unsignedBySystem = t.download.unsigned.items.reduce<(typeof t.download.uns
         </div>
       </section>
 
+      <HomeBlog lang={lang} />
+
       <section class="sec" id="download" aria-labelledby="download-title">
         <div class="wrap">
           <div class="sec-head" data-reveal>
-            <p class="sec-label"><Blob name="aqua" size={22} /><span class="sec-label__n">06</span><span class="sec-label__dash"></span><span>{t.download.label}</span></p>
+            <p class="sec-say"><Blob name="aqua" size={30} /><span class="sec-say__bubble">{t.download.label}</span></p>
             <h2 class="h2" id="download-title">{t.download.title}</h2>
             <p class="lead">{t.download.lead}</p>
           </div>
@@ -727,41 +730,6 @@ const unsignedBySystem = t.download.unsigned.items.reduce<(typeof t.download.uns
           });
         }, 3400);
 
-      // What's new: one item open at a time, moving on every 7 s until the reader picks one.
-      const feats = [...document.querySelectorAll<HTMLElement>(".feat")];
-      const shots = [...document.querySelectorAll<HTMLElement>(".feats__img")];
-      let fi = 0;
-      let timer = 0;
-      const showFeat = (i: number) => {
-        fi = i;
-        feats.forEach((f, j) => {
-          const on = j === i;
-          f.classList.toggle("on", on);
-          f.querySelector(".feat__pick")?.setAttribute("aria-expanded", String(on));
-          const body = f.querySelector<HTMLElement>(".feat__body");
-          if (body) body.hidden = !on;
-          const bar = f.querySelector<HTMLElement>(".feat__bar");
-          if (bar && on) {
-            bar.style.animation = "none";
-            void bar.offsetWidth;
-            bar.style.animation = "";
-          }
-        });
-        shots.forEach((s, j) => {
-          s.classList.toggle("on", j === i);
-        });
-      };
-      const restart = () => {
-        clearInterval(timer);
-        if (!still) timer = window.setInterval(() => showFeat((fi + 1) % feats.length), 7000);
-      };
-      feats.forEach((f, i) => {
-        f.querySelector(".feat__pick")?.addEventListener("click", () => {
-          showFeat(i);
-          restart();
-        });
-      });
-      restart();
     </script>
     <AnalyticsConsent />
   </body>

@@ -1,0 +1,153 @@
+---
+// What's new: the latest features, each with the app's own clip (media/whats-new/<lang>/<key>.mp4, served by this site)
+// over a blurred still, so switching items never shows an empty frame.
+import type blobs from "../../data/blobs.json";
+import placeholders from "../../data/whats-new-placeholders.json";
+import { sitePath } from "../../doc-routes.mjs";
+import { HOME, type Lang } from "../../i18n/home";
+import Blob from "../Blob.astro";
+import Shot from "../Shot.astro";
+
+interface Props {
+  lang: Lang;
+}
+const { lang } = Astro.props;
+const t = HOME[lang];
+const href = (path: string) => sitePath(path, import.meta.env.BASE_URL);
+const media = (file: string) => href(`/media/whats-new/${lang}/${file}`);
+type BlobName = keyof typeof blobs;
+---
+
+<section class="sec" id="new" aria-labelledby="new-title">
+  <div class="wrap">
+    <div class="sec-head" data-reveal>
+      <p class="sec-say"><Blob name="cobalto" size={30} /><span class="sec-say__bubble">{t.newIn.label}</span></p>
+      <h2 class="h2" id="new-title">{t.newIn.title}</h2>
+      <p class="lead">{t.newIn.lead}</p>
+    </div>
+    <div class="feats" data-reveal>
+      <div class="feats__list">
+        {
+          t.newIn.items.map((f, i) => (
+            <div class:list={["feat", { on: i === 0 }]} data-feat={i}>
+              <button class="feat__pick" type="button" aria-expanded={String(i === 0)} aria-controls={`feat-${i}`}>
+                <Blob name={f.blob as BlobName} size={20} />
+                <span class="feat__title">{f.title}</span>
+              </button>
+              <div class="feat__body" id={`feat-${i}`} hidden={i !== 0}>
+                <p>{f.body}</p>
+                <a href={href(f.href)}>{t.newIn.more} →</a>
+              </div>
+              <span class="feat__bar" aria-hidden="true"></span>
+            </div>
+          ))
+        }
+      </div>
+      <div class="feats__shot">
+        {
+          t.newIn.items.map((f, i) => (
+            <div class:list={["feats__img", { on: i === 0, feats__fan: "fan" in f }]} data-shot={i}>
+              {"fan" in f && f.fan ? (
+                f.fan.map(([shot, alt], j) => (
+                  <div class:list={["fan__phone", `fan__phone--${j}`]}>
+                    <Shot name={shot} alt={alt} frame="none" />
+                  </div>
+                ))
+              ) : "clip" in f && f.clip ? (
+                <div class="feats__clip" style={`background-image:url(${placeholders[`${lang}/${f.clip}` as keyof typeof placeholders]})`}>
+                  <img class="feats__poster" src={media(`${f.clip}.webp`)} alt="" width="960" height="540" decoding="async" fetchpriority="low" />
+                  <video muted playsinline preload="none" aria-label={f.title} poster={media(`${f.clip}.webp`)} data-src={media(`${f.clip}.mp4`)}></video>
+                </div>
+              ) : null}
+            </div>
+          ))
+        }
+      </div>
+    </div>
+  </div>
+</section>
+
+<script>
+  const still = matchMedia("(prefers-reduced-motion: reduce)").matches;
+  // What's new: one item open at a time. A clip plays while its item is open and the section is on screen, and the
+  // next item opens when it ends (7 s for an item with no clip), until the reader picks one.
+  const feats = [...document.querySelectorAll<HTMLElement>(".feat")];
+  const shots = [...document.querySelectorAll<HTMLElement>(".feats__img")];
+  const clipOf = (i: number) => shots[i]?.querySelector<HTMLVideoElement>("video") ?? null;
+  const load = (v: HTMLVideoElement | null) => {
+    if (v && !v.src && v.dataset.src) {
+      v.preload = "auto";
+      v.src = v.dataset.src;
+    }
+  };
+  let fi = 0;
+  let timer = 0;
+  let seen = false;
+  const next = () => showFeat((fi + 1) % feats.length);
+  const play = (fromStart = false) => {
+    clearTimeout(timer);
+    const v = clipOf(fi);
+    if (still || !seen) return;
+    if (!v) {
+      timer = window.setTimeout(next, 7000);
+      return;
+    }
+    load(v);
+    load(clipOf((fi + 1) % feats.length));
+    if (fromStart) v.currentTime = 0;
+    v.play().catch(() => {
+      timer = window.setTimeout(next, 7000);
+    });
+  };
+  const showFeat = (i: number) => {
+    clipOf(fi)?.pause();
+    fi = i;
+    feats.forEach((f, j) => {
+      const on = j === i;
+      f.classList.toggle("on", on);
+      f.querySelector(".feat__pick")?.setAttribute("aria-expanded", String(on));
+      const body = f.querySelector<HTMLElement>(".feat__body");
+      if (body) body.hidden = !on;
+      const bar = f.querySelector<HTMLElement>(".feat__bar");
+      if (bar && on) {
+        const v = clipOf(j);
+        bar.style.animation = "none";
+        void bar.offsetWidth;
+        bar.style.animation = "";
+        bar.style.animationDuration = v && Number.isFinite(v.duration) ? `${v.duration}s` : "";
+        bar.style.animationPlayState = seen && !still ? "running" : "paused";
+      }
+    });
+    shots.forEach((s, j) => {
+      s.classList.toggle("on", j === i);
+    });
+    play(true);
+  };
+  shots.forEach((s, i) => {
+    const v = clipOf(i);
+    if (!v) return;
+    v.addEventListener("playing", () => s.classList.add("is-playing"), { once: true });
+    v.addEventListener("loadedmetadata", () => {
+      const bar = feats[i]?.querySelector<HTMLElement>(".feat__bar");
+      if (bar && i === fi) bar.style.animationDuration = `${v.duration}s`;
+    });
+    v.addEventListener("ended", () => {
+      if (i === fi) next();
+    });
+  });
+  feats.forEach((f, i) => {
+    f.querySelector(".feat__pick")?.addEventListener("click", () => showFeat(i));
+  });
+  const featsBox = document.querySelector(".feats");
+  if (featsBox)
+    new IntersectionObserver(([entry]) => {
+      seen = Boolean(entry?.isIntersecting);
+      const bar = feats[fi]?.querySelector<HTMLElement>(".feat__bar");
+      if (bar) bar.style.animationPlayState = seen && !still ? "running" : "paused";
+      if (seen) play();
+      else {
+        clearTimeout(timer);
+        clipOf(fi)?.pause();
+      }
+    }).observe(featsBox);
+</script>

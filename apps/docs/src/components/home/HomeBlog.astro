@@ -1,0 +1,51 @@
+---
+// The latest three articles in the reader's language, linking to the blog.
+import { Image } from "astro:assets";
+import { getCollection } from "astro:content";
+import { BLOG, blogArchive, blogPath } from "../../data/blog.mjs";
+import { sitePath } from "../../doc-routes.mjs";
+import { HOME, type Lang } from "../../i18n/home";
+
+interface Props {
+  lang: Lang;
+}
+const { lang } = Astro.props;
+const t = HOME[lang];
+const pre = lang === "es" ? "/es" : "";
+const href = (path: string) => sitePath(path, import.meta.env.BASE_URL);
+const latestPosts = blogArchive(await getCollection("blog"), lang, 1).posts.slice(0, 3);
+const postDate = (value: string) =>
+  new Intl.DateTimeFormat(BLOG[lang].language, { dateStyle: "medium", timeZone: "UTC" }).format(
+    new Date(`${value}T00:00:00Z`),
+  );
+---
+
+{
+  latestPosts.length > 0 && (
+    <section class="sec home-blog" id="blog" aria-labelledby="home-blog-title">
+      <div class="wrap">
+        <div class="home-comparisons__heading" data-reveal>
+          <div>
+            <h2 class="h2" id="home-blog-title">{t.blog.title}</h2>
+            <p class="lead">{t.blog.lead}</p>
+          </div>
+          <a class="home-comparisons__all" href={href(`${pre}/blog/`)}>{t.blog.all} ↗</a>
+        </div>
+        <div class="home-blog__grid" data-reveal>
+          {
+            latestPosts.map(({ data }) => (
+              <a class="home-blog__card" href={href(blogPath(data))}>
+                {data.image && <Image src={data.image.src} alt="" widths={[400, 800].filter((w) => w <= data.image!.src.width)} sizes="(max-width: 760px) calc(100vw - 32px), 380px" format="webp" loading="lazy" />}
+                <span class="home-blog__body">
+                  <time datetime={data.published}>{postDate(data.published)}</time>
+                  <span class="home-blog__title">{data.title}</span>
+                  <span class="home-blog__desc">{data.description}</span>
+                </span>
+              </a>
+            ))
+          }
+        </div>
+      </div>
+    </section>
+  )
+}

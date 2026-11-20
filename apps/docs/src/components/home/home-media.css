@@ -1,0 +1,85 @@
+/* ── What's new: the app's clips, a blurred still until each plays ──────── */
+.feats__shot:has(.feats__clip) {
+  aspect-ratio: 16 / 9;
+}
+.feats__clip {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  background-position: center;
+  background-size: cover;
+}
+.feats__clip::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  backdrop-filter: blur(18px);
+}
+.feats__poster,
+.feats__clip video {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.feats__clip video {
+  opacity: 0;
+  transition: opacity 0.4s;
+}
+.feats__img.is-playing video {
+  opacity: 1;
+}
+
+/* ── From the blog ───────────────────────────────────────────────────────── */
+.home-blog__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr));
+  gap: 16px;
+  margin-top: 44px;
+}
+.home-blog__card {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border: 1px solid var(--apx-border-strong);
+  border-radius: 22px;
+  background: var(--apx-surface);
+  color: inherit;
+  text-decoration: none;
+  transition: transform 0.3s var(--apx-ease);
+}
+.home-blog__card:hover {
+  transform: translateY(-4px);
+}
+.home-blog__card img {
+  display: block;
+  width: 100%;
+  height: auto;
+  aspect-ratio: 16 / 9;
+  object-fit: cover;
+}
+.home-blog__body {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 18px 20px 22px;
+}
+.home-blog__body time {
+  font: 500 12px / 1 var(--apx-font-mono);
+  color: var(--apx-fg-subtle);
+}
+.home-blog__title {
+  font-size: 19px;
+  font-weight: 600;
+  line-height: 1.3;
+  letter-spacing: -0.02em;
+}
+.home-blog__card:hover .home-blog__title {
+  color: var(--apx-brand-soft-fg);
+}
+.home-blog__desc {
+  font-size: 15px;
+  color: var(--apx-fg-muted);
+  text-wrap: pretty;
+}

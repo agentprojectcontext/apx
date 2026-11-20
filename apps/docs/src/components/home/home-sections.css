@@ -433,13 +433,16 @@
   border-radius: 18px;
   background: var(--apx-surface);
 }
+/* Hidden items keep their layout box, so their images load before they are shown. */
 .feats__img {
   position: absolute;
   inset: 0;
-  display: none;
+  visibility: hidden;
+  opacity: 0;
 }
 .feats__img.on {
-  display: block;
+  visibility: visible;
+  opacity: 1;
   animation: apx-word-in 0.6s var(--apx-ease) both;
 }
 .feats__img img {

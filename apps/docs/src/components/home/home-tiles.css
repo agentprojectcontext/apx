@@ -1,0 +1,156 @@
+/* ── Section labels: the section's agent saying its name ──────────────────── */
+.sec-say {
+  display: flex;
+  align-items: flex-end;
+  gap: 10px;
+  margin: 0;
+}
+.sec-say .apx-blob {
+  flex: none;
+}
+.sec-say__bubble {
+  position: relative;
+  padding: 8px 14px;
+  border: 1px solid var(--apx-border-strong);
+  border-radius: 16px 16px 16px 4px;
+  background: var(--apx-surface);
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 1.2;
+  color: var(--apx-fg);
+  box-shadow: 0 8px 20px -14px var(--apx-shadow);
+}
+
+/* ── Flows tile ──────────────────────────────────────────────────────────── */
+.mini--flow {
+  gap: 12px;
+}
+.flow {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  margin: 4px 0 0;
+  padding: 0;
+  list-style: none;
+}
+.flow__step {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  width: 72%;
+  padding: 9px 12px;
+  border: 1px solid var(--apx-border);
+  border-radius: 12px;
+  background: var(--apx-surface);
+  margin-left: calc(var(--i) * 14%);
+  animation: apx-word-in 0.6s var(--apx-ease) both;
+  animation-delay: calc(var(--i) * 0.15s);
+}
+.flow__step + .flow__step::before {
+  content: "";
+  position: absolute;
+  top: -19px;
+  left: 18px;
+  width: 1px;
+  height: 18px;
+  background: var(--apx-brand);
+}
+.flow__kind {
+  font: 500 10.5px / 1 var(--apx-font-mono);
+  color: var(--apx-fg-subtle);
+}
+
+/* ── Marketplace tile ────────────────────────────────────────────────────── */
+.mini--market {
+  gap: 8px;
+}
+.market {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 10px;
+  border: 1px solid var(--apx-border);
+  border-radius: 12px;
+  background: var(--apx-surface);
+}
+.market__logo {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--tone) 18%, transparent);
+  color: var(--tone);
+  font-weight: 700;
+}
+.market__name {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+  gap: 2px;
+}
+.market__name b {
+  font-weight: 600;
+}
+.market__name span {
+  font-size: 11px;
+  color: var(--apx-fg-subtle);
+}
+.market__btn {
+  padding: 4px 10px;
+  border: 1px solid var(--apx-border-strong);
+  border-radius: 999px;
+  font-size: 11.5px;
+  font-weight: 500;
+}
+.market__btn--on {
+  border-color: transparent;
+  background: var(--apx-fg);
+  color: var(--apx-bg);
+}
+
+/* ── Talks to people tile ────────────────────────────────────────────────── */
+.mini--people {
+  gap: 12px;
+}
+.people__in,
+.people__out {
+  max-width: 82%;
+  padding: 9px 12px;
+  border-radius: 14px;
+  line-height: 1.4;
+}
+.people__in {
+  border: 1px solid var(--apx-border);
+  border-bottom-left-radius: 4px;
+  background: var(--apx-surface);
+}
+.people__out {
+  display: flex;
+  align-self: flex-end;
+  align-items: flex-end;
+  gap: 8px;
+  border-bottom-right-radius: 4px;
+  background: var(--apx-brand-soft);
+  color: var(--apx-brand-soft-fg);
+}
+.people__out .apx-blob {
+  flex: none;
+}
+.people__booked {
+  display: flex;
+  align-items: center;
+  align-self: center;
+  gap: 6px;
+  padding: 5px 12px;
+  border-radius: 999px;
+  background: var(--apx-fill);
+  font-size: 11.5px;
+  color: var(--apx-fg-muted);
+}
+.people__booked .ui-icon:last-child {
+  color: var(--apx-brand);
+}
