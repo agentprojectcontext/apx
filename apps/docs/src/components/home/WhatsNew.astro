@@ -21,7 +21,7 @@ type BlobName = keyof typeof blobs;
 <section class="sec" id="new" aria-labelledby="new-title">
   <div class="wrap">
     <div class="sec-head" data-reveal>
-      <p class="sec-say"><Blob name="cobalto" size={30} /><span class="sec-say__bubble">{t.newIn.label}</span></p>
+      <p class="sec-say"><Blob name="cobalto" size={30} /><span class="sec-say__bubble"><span class="visually-hidden">{t.newIn.label}</span><span class="sec-say__typed" aria-hidden="true">{t.newIn.label}</span></span></p>
       <h2 class="h2" id="new-title">{t.newIn.title}</h2>
       <p class="lead">{t.newIn.lead}</p>
     </div>

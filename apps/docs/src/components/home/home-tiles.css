@@ -154,3 +154,33 @@
 .people__booked .ui-icon:last-child {
   color: var(--apx-brand);
 }
+.sec-say__typed {
+  white-space: pre;
+}
+/* While the agent types, three dots follow its words; an empty bubble shows only the dots. */
+.sec-say__bubble.is-typing .sec-say__typed::after,
+.sec-say__bubble.is-empty .sec-say__typed::after {
+  content: "";
+  display: inline-block;
+  width: 18px;
+  height: 1em;
+  margin-left: 4px;
+  vertical-align: -0.15em;
+  background:
+    radial-gradient(circle, currentColor 1.5px, transparent 2px) 0 50% / 6px 6px no-repeat,
+    radial-gradient(circle, currentColor 1.5px, transparent 2px) 6px 50% / 6px 6px no-repeat,
+    radial-gradient(circle, currentColor 1.5px, transparent 2px) 12px 50% / 6px 6px no-repeat;
+  opacity: 0.55;
+  animation: sec-say-dots 1s steps(3) infinite;
+}
+.sec-say__bubble.is-empty .sec-say__typed::after {
+  margin-left: 0;
+}
+@keyframes sec-say-dots {
+  from {
+    clip-path: inset(0 12px 0 0);
+  }
+  to {
+    clip-path: inset(0 -6px 0 0);
+  }
+}
