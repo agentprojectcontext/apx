@@ -47,7 +47,7 @@ export function cachedCatalog(store: Store, id: string): CatalogEngine | undefin
   if (!raw) return undefined;
   try {
     const r = CatalogEngineSchema.safeParse(JSON.parse(raw));
-    return r.success ? r.data : undefined;
+    return r.success ? { ...r.data, models: classifyModels(r.data.models) } : undefined;
   } catch {
     return undefined;
   }
@@ -56,7 +56,12 @@ export function cachedCatalog(store: Store, id: string): CatalogEngine | undefin
 // Ids that name models an agent's turn cannot run on (speech, embeddings, images, music, live audio, guards,
 // providers' own agents…); they stay listed but are not offered for agents.
 const NOT_CHAT =
-  /(embed|tts|audio|speech|transcri|whisper|image|imagen|veo|dall-e|moderation|aqa|realtime|lyria|nano-banana|omni|robotics|computer-use|deep-research|antigravity|guard|orpheus|translate|(^|[-/])live([-/]|$)|(^|[/])genie-\d+(?:[-:]|$)|(^|[/])gemini-decision-\d+(?:[-:]|$)|(^|[/])flux2-klein(?:[-:]|$))/i;
+  /(embed|tts|audio|speech|transcri|whisper|image|imagen|veo|dall-e|moderation|aqa|realtime|lyria|nano-banana|omni|robotics|computer-use|deep-research|antigravity|guard|orpheus|translate|(^|[-/])live([-/]|$)|(^|[/])genie-4$|(^|[/])gemini-decision-\d+(?:[-:]|$)|(^|[/])flux2-klein(?:[-:]|$))/i;
+
+/** Recheck known non-chat ids without promoting a model its source already excluded. */
+function classifyModels(models: CatalogModel[]): CatalogModel[] {
+  return models.map((m) => ({ ...m, chat: m.chat && !NOT_CHAT.test(m.id) }));
+}
 
 /** A model as a provider's list gives it; OpenRouter says what it supports, Groq whether it still runs. */
 type Listed = {
@@ -238,7 +243,7 @@ export function createCatalog(deps: {
 
   async function load(base: Omit<CatalogEngine, "models" | "available">, list: () => Promise<CatalogModel[]>) {
     try {
-      const models = await list();
+      const models = classifyModels(await list());
       const entry: CatalogEngine = { ...base, available: true, models, fetched_at: new Date().toISOString() };
       store.settings.set(cacheKey(base.id), JSON.stringify(entry));
       return entry;
@@ -334,7 +339,10 @@ export function createCatalog(deps: {
       return listed.map((e) => {
         if (e.kind !== "provider") return e;
         // A list the owner gave (a local gateway) is in their order: its first model is the one they use.
-        const own = deps.providers().find((p) => p.id === e.id)?.models[0];
+        const own = deps
+          .providers()
+          .find((p) => p.id === e.id)
+          ?.models.find((id) => e.models.some((m) => m.id === id && m.chat));
         const starter = own ?? starterModel(e.models);
         // The provider's free router heads its list, where the owner looks first.
         const models = [...e.models].sort((a, b) => Number(FREE_ROUTER.test(b.id)) - Number(FREE_ROUTER.test(a.id)));

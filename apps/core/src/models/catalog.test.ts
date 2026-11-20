@@ -7,7 +7,9 @@ import { createBus } from "../bus.ts";
 import type { ProviderConfig } from "../config.ts";
 import { openDb } from "../db/db.ts";
 import { createStore } from "../domain/store.ts";
+import { NO_KEY } from "../providers/llm.ts";
 import { createSecrets } from "../secrets.ts";
+import { tempDir } from "../testkit/platform.ts";
 import { createCatalog, fromProviderList } from "./catalog.ts";
 
 test("the catalog asks each engine for its models, caches them and keeps the last good list on failure", async () => {
@@ -150,6 +152,65 @@ test("a signed-in plan's models are asked to the plan with its sign-in, never re
   }
 });
 
+test("known non-chat models cannot bypass eligibility through configured, local, ACP or cached lists", async () => {
+  const home = tempDir("apx-catalog-eligibility-");
+  const db = openDb(home.path);
+  try {
+    const store = createStore(db, createBus());
+    const config = { transport: "openai-chat" as const, key: NO_KEY, models: [] };
+    const providers: ProviderConfig[] = [
+      { ...config, id: "cached", base_url: "http://cached.test" },
+      { ...config, id: "configured", base_url: "http://configured.test", models: ["genie-4", "acme/chat"] },
+      { ...config, id: "local", base_url: "http://127.0.0.1:1/v1", local: true },
+    ];
+    const previous = JSON.stringify({
+      id: "cached",
+      kind: "provider",
+      label: "Cached",
+      available: true,
+      models: [
+        { id: "genie-4", name: "Genie 4", chat: true },
+        { id: "acme/chat", name: "Chat", chat: true },
+        { id: "acme/no-tools", name: "No tools", chat: false },
+      ],
+      fetched_at: new Date().toISOString(),
+    });
+    store.settings.set("catalog.v2:cached", previous);
+    const catalog = createCatalog({
+      store,
+      secrets: createSecrets(home.path, "file", {}),
+      providers: () => providers,
+      home: home.path,
+      fetchImpl: (async (url) => {
+        if (String(url).includes("cached.test")) throw new Error("offline");
+        return new Response(JSON.stringify({ data: [{ id: "genie-4" }, { id: "acme/chat" }] }));
+      }) as typeof fetch,
+      harnessLists: { claude: async () => [], codex: async () => [] },
+      acpList: async () => [
+        { id: "genie-4", name: "Genie 4", chat: true },
+        { id: "acme/chat", name: "Chat", chat: true },
+      ],
+    });
+    for (const refresh of [false, true]) {
+      const engines = await catalog.list(refresh);
+      for (const id of ["cached", "configured", "local", "acp:opencode"]) {
+        const engine = engines.find((e) => e.id === id);
+        assert.ok(engine, id);
+        assert.equal(engine.models.find((m) => m.id === "genie-4")?.chat, false, `${id}: ${refresh}`);
+        assert.equal(engine.models.find((m) => m.id === "acme/chat")?.chat, true, id);
+        if (engine.kind === "provider") assert.equal(engine.starter, "acme/chat", id);
+      }
+      const cached = engines.find((e) => e.id === "cached");
+      assert.equal(cached?.models.find((m) => m.id === "acme/no-tools")?.chat, false);
+      if (refresh) assert.match(cached?.detail ?? "", /could not refresh/);
+    }
+    assert.equal(store.settings.get("catalog.v2:cached"), previous, "reading eligibility does not rewrite saved state");
+  } finally {
+    db.close();
+    await home.remove();
+  }
+});
+
 test("world simulation models stay listed without becoming agent models", () => {
   const list = fromProviderList([
     { id: "models/genie-4", display_name: "Genie 4" },
@@ -158,6 +219,7 @@ test("world simulation models stay listed without becoming agent models", () => 
     { id: "genie-4:latest" },
     { id: "acme/genie-assistant" },
     { id: "acme/my-genie-4" },
+    { id: "acme/genie-4-chat" },
     { id: "genie-4b-chat", supported_parameters: ["tools"] },
     { id: "models/gemini-4-neon" },
   ]);
@@ -166,10 +228,11 @@ test("world simulation models stay listed without becoming agent models", () => 
     [
       ["genie-4", false],
       ["google/genie-4", false],
-      ["genie-4-preview", false],
-      ["genie-4:latest", false],
+      ["genie-4-preview", true],
+      ["genie-4:latest", true],
       ["acme/genie-assistant", true],
       ["acme/my-genie-4", true],
+      ["acme/genie-4-chat", true],
       ["genie-4b-chat", true],
       ["gemini-4-neon", true],
     ],
