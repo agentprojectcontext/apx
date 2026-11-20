@@ -29,6 +29,10 @@
   grid-row: 2;
   padding: 0;
 }
+/* Without the add button (a contact's chat) the text keeps the same inset from the rounded edge. */
+.composer--slim:not(:has(.composer__plus)) > .apx-composer__row {
+  padding-left: 10px;
+}
 .composer--slim > .apx-composer__toolbar {
   display: contents;
 }

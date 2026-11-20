@@ -15,7 +15,7 @@ import { useShellLayout } from "../shell/useShellLayout.ts";
 import { AnswersLine } from "./AnswersLine.tsx";
 import { accountName, accountWhere } from "./accountName.ts";
 import { accountTools } from "./accountTools.tsx";
-import { answerersOf, answersLine } from "./answerers.ts";
+import { answerersOf, answersLine, chatAgentId } from "./answerers.ts";
 import { ChannelConversation } from "./ChannelConversation.tsx";
 import { ContactPanel } from "./ContactPanel.tsx";
 import { ContactRow, type Row } from "./ContactRow.tsx";
@@ -226,9 +226,7 @@ export function ChannelScreen() {
             type={channel.type}
             channelId={channel.id}
             presence={r.person ? presence[r.person.id] : undefined}
-            agent={
-              agents[r.thread?.agent_ids[0] ?? r.person?.agent_id ?? channel.contacts_agent_id ?? channel.agent_id]
-            }
+            agent={agents[chatAgentId(channel, r.person, r.thread)]}
             selected={r.key === picked}
             onPick={() => go.channel(channel.id, r.key)}
           />
