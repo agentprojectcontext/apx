@@ -8,15 +8,16 @@ import { nodeSocket } from "./node-socket.ts";
 
 test("revoking a node closes its transport even when the peer never acknowledges a close frame", async () => {
   const peers = new Set<Duplex>();
-  let ended = false;
+  let peerClosed = false;
   const server = http.createServer();
   server.on("upgrade", (request, peer) => {
     peers.add(peer);
     peer.on("error", () => {});
-    peer.on("end", () => {
-      ended = true;
+    peer.on("end", () => peer.end());
+    peer.on("close", () => {
+      peerClosed = true;
+      peers.delete(peer);
     });
-    peer.on("close", () => peers.delete(peer));
     peer.on("data", () => {});
     const accept = createHash("sha1")
       .update(`${request.headers["sec-websocket-key"]}258EAFA5-E914-47DA-95CA-C5AB0DC85B11`)
@@ -38,7 +39,7 @@ test("revoking a node closes its transport even when the peer never acknowledges
     await waitFor(() => socket.readyState === 1, "the node transport to open");
     socket.close();
     socket.close();
-    await waitFor(() => closed && ended, "both peers to finish without a closing handshake");
+    await waitFor(() => closed && peerClosed, "both peers to finish without a closing handshake");
     assert.equal(socket.readyState, 3);
   } finally {
     socket.close();
