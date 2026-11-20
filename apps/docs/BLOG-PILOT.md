@@ -18,13 +18,13 @@ Publish one original, useful article in English and Spanish every two days. SEO 
 
 ## Cover art: continuity with variation
 
-Review the existing covers before generating. They share a midnight navy background, cyan/violet glass-like 3D forms, restrained lighting, no embedded words and a wide 16:9 composition. Alternate these composition families rather than repeating a single silhouette:
+Review the existing covers before generating. They share a dark blue editorial palette, no embedded words and a wide 16:9 composition, but they are not all the same rendering style. Alternate the existing visual families, using actual reference assets rather than interpreting these labels as a new design:
 
-- A focal object or symbol: memory, a shield, a key or document.
-- Objects in a relationship: a handoff, connection, bridge or deliberate gap.
-- A grouped workflow: several connected objects, a checklist or small system.
+- Bright cyan/violet 3D glass symbols and connected objects: `src/assets/blog/ai-agent-browser-login-safely/hero.webp` and `ai-agent-mcp-connection/hero.webp`. The attachment pilot belongs here.
+- Restrained abstract geometry, dark blue planes and soft luminous connections: `src/assets/blog/ai-agent-chat-apps/hero.webp`.
+- Illustrative workflow scenes with small robots, people or task objects: `src/assets/blog/ai-agent-skill-checklist/hero.webp` and `ai-agent-team-small-business/hero.webp`.
 
-These are editorial composition categories, not three interchangeable color themes. Use an existing cover as a visual reference, choose a new subject that explains the article, inspect the result, and reject off-style outputs. Do not reuse an unrelated cover to fill a missing asset.
+Within each family vary the subject and composition: a focal object, a relationship or a grouped workflow. Do not make every article another bright glass pair. Use the selected existing cover as a visual reference, choose a new subject that explains the article, inspect the result, and reject off-style outputs. Do not reuse an unrelated cover to fill a missing asset.
 
 Pilot prompt: “Minimal premium editorial 3D illustration about an AI agent losing access to an attachment in a long conversation. Match the reference's art direction, not its subject: midnight navy background, translucent rounded glass forms with cyan and violet glowing edges, soft reflections on a dark floor. On the left a floating document with an abstract paperclip, on the right a compact stack of conversation bubbles. A luminous connection between them has a clear small gap, representing lost working context. Simple balanced wide composition, no text, letters, logos or watermark.” Reference: `src/assets/blog/ai-agent-browser-login-safely/hero.webp`.
 
