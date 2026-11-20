@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { readFile, readdir } from "node:fs/promises";
+import { readdir, readFile } from "node:fs/promises";
 import test from "node:test";
 import { BLOG_AUTHOR } from "../src/data/blog-author.mjs";
 
@@ -30,7 +30,10 @@ for (const lang of ["en", "es"]) {
       assert.equal((html.match(/<h1[ >]/g) ?? []).length, 1, route);
       assert.ok(html.includes(`rel="canonical" href="${absolute(route)}"`), route);
       for (const alternate of ["", "es/"]) {
-        assert.ok(html.includes(`hreflang="${alternate ? "es" : "en"}" href="${absolute(`${alternate}blog/${entry.name}/`)}"`), route);
+        assert.ok(
+          html.includes(`hreflang="${alternate ? "es" : "en"}" href="${absolute(`${alternate}blog/${entry.name}/`)}"`),
+          route,
+        );
       }
       assert.ok(html.includes('"@type":"BlogPosting"'), route);
       assert.ok(html.includes(`"name":"${BLOG_AUTHOR.name}"`), route);
