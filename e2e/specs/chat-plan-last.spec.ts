@@ -1,8 +1,8 @@
-// A turn's plan stays under everything the agent shows while it works, and once every step is marked done it keeps
-// that place: the answer written after it comes below. A newer plan in the chat replaces it.
+// A turn's plan stays under everything the agent shows while it works, and once the run ends with every step done it
+// goes on top: the answer closes the turn. A newer plan in the chat replaces it.
 import { expect, open, rpc, test } from "./kit.ts";
 
-test("the plan is drawn last while the turn works and stays above the answer written after it", async ({ page }) => {
+test("the plan is drawn last while the turn works and goes on top once every step is done", async ({ page }) => {
   await rpc("setup.finish", {});
   const chat = await rpc<{ id: string }>("threads.create", { kind: "loose", agent_id: "scout", title: "Plan" });
   await open(page, `#thread=${chat.id}`);
@@ -21,7 +21,7 @@ test("the plan is drawn last while the turn works and stays above the answer wri
   const order = await turn
     .locator(".apx-msg")
     .evaluateAll((els) => els.map((e) => (e.querySelector(".plancard") ? "plan" : (e.textContent ?? "").trim())));
-  expect(order.indexOf("plan")).toBe(order.length - 2);
+  expect(order.indexOf("plan")).toBe(0);
   expect(order.at(-1)).toContain("Got it: plan two checks");
 
   // A new plan in the same chat replaces the one above: only the newest shows.

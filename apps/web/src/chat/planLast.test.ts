@@ -15,9 +15,25 @@ test("while the run works, its plan is drawn under everything it wrote since", (
   );
 });
 
-test("once the run ends, the plan keeps the place it was last marked in", () => {
-  const blocks = [plan, said].map((part) => ({ part }));
-  assert.deepEqual(planLast(false, true, blocks), blocks);
+test("a run cut short with steps left keeps its plan last, under what it wrote", () => {
+  const blocks = [plan, said, notice].map((part) => ({ part }));
+  assert.deepEqual(
+    planLast(false, true, blocks).map((b) => b.part.type),
+    ["text", "notice", "plan"],
+  );
+});
+
+test("once the run ends with every step done, the plan goes on top and the answer closes the turn", () => {
+  const finished: Part = { type: "plan", steps: [{ step: "Check prices", state: "done" }] };
+  const blocks = [said, finished].map((part) => ({ part }));
+  assert.deepEqual(
+    planLast(false, true, blocks).map((b) => b.part.type),
+    ["plan", "text"],
+  );
+  assert.deepEqual(
+    planLast(true, true, blocks).map((b) => b.part.type),
+    ["text", "plan"],
+  );
 });
 
 test("a plan a newer message replaced is not drawn, finished or not", () => {

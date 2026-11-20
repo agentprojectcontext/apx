@@ -302,7 +302,8 @@
 .apx-status.is-running {
   color: var(--apx-fg-muted);
 }
-.apx-status.is-pending {
+.apx-status.is-pending,
+.apx-status.is-stopped {
   color: var(--apx-fg-subtle);
 }
 
@@ -331,7 +332,8 @@
 .apx-steps__row.is-failed .apx-steps__detail {
   color: var(--apx-danger);
 }
-.apx-steps__row.is-pending {
+.apx-steps__row.is-pending,
+.apx-steps__row.is-stopped {
   color: var(--apx-fg-muted);
 }
 
@@ -478,6 +480,9 @@
 }
 .apx-actions__item.is-failed :is(.apx-actions__itemicon, .apx-actions__name) {
   color: var(--apx-danger);
+}
+.apx-actions__item.is-stopped .apx-actions__name {
+  color: var(--apx-fg-muted);
 }
 .apx-actions__name {
   min-width: 0;

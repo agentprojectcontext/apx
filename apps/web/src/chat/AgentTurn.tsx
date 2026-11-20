@@ -47,6 +47,7 @@ import { ToolGroup } from "./parts/ToolGroup.tsx";
 import { planLast } from "./planLast.ts";
 import { QuietMark } from "./QuietMark.tsx";
 import { type ReplySegment, replySegments } from "./replySegments.ts";
+import { runEnded } from "./runEnded.ts";
 import { Speaker } from "./Speaker.tsx";
 import { taskCodeSpan } from "./TaskChip.tsx";
 
@@ -99,6 +100,7 @@ export function AgentTurn({
   const tools = showTools ? message.parts.filter((p): p is ToolPart => p.type === "tool") : [];
   const runState = useData((s) => (message.run_id ? s.runs[message.run_id]?.state : undefined));
   const waiting = runState === "input-required";
+  const ended = runEnded(runState);
   const skills = showSkills ? message.parts.find((p): p is SkillsPick => p.type === "skills") : undefined;
   const projectId = useData((s) => s.threads[message.thread_id]?.project_id);
   // Pictures and videos side by side become one grid or one carousel; everything else is a block of its own.
@@ -214,7 +216,7 @@ export function AgentTurn({
           <SkillsPart part={skills} projectId={projectId} />
         </Suspense>
       )}
-      {tools.length > 0 && <ToolGroup parts={tools} waiting={waiting} />}
+      {tools.length > 0 && <ToolGroup parts={tools} waiting={waiting} ended={ended} />}
       {items.map(({ key, part, media, segment, whole, generation }, i) => {
         if (generation)
           return (
@@ -277,7 +279,7 @@ export function AgentTurn({
                 renderCodeSpan={taskCodeSpan}
               />
             ) : (
-              renderCard(part, agent, message)
+              renderCard(part, agent, message, ended)
             )}
           </Message>
         );
@@ -301,7 +303,7 @@ function cardKey(p: Part, i: number): string {
   return `${p.type}:${i}`;
 }
 
-function renderCard(p: Part, agent: Agent | undefined, message: Msg): ReactNode {
+function renderCard(p: Part, agent: Agent | undefined, message: Msg, ended: boolean): ReactNode {
   switch (p.type) {
     case "surface":
       return (
@@ -335,7 +337,7 @@ function renderCard(p: Part, agent: Agent | undefined, message: Msg): ReactNode 
         </Suspense>
       );
     case "plan":
-      return <PlanPart part={p} />;
+      return <PlanPart part={p} ended={ended} />;
     case "input":
       return (
         <Suspense fallback={null}>
