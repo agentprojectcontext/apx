@@ -94,8 +94,15 @@ test("direct archive and URL updates preserve their settings", async () => {
     await env.client.call("extensions.settings", { id: "direct_archive", values: { token: "synthetic-secret" } });
     const oldUrl = env.core.store.extensions.get("direct_archive");
     assert.ok(oldUrl);
+    for (const url of ["https://other.example.com/two.apxext", "https://example.com/other/two.apxext"]) {
+      await assert.rejects(env.client.call("extensions.install", { url }), /already installed.*different source/i);
+    }
     env.core.store.extensions.put({ ...oldUrl, origin_key: undefined });
-    const urlUpdate = await env.client.call("extensions.install", { url: "https://other.example.com/two.apxext" });
+    await assert.rejects(
+      env.client.call("extensions.install", { url: "https://other.example.com/two.apxext" }),
+      /already installed.*different source/i,
+    );
+    const urlUpdate = await env.client.call("extensions.install", { url: "https://example.com/two.apxext" });
     assert.equal(urlUpdate.version, "2.0.0");
     assert.equal(urlUpdate.settings.find((s) => s.name === "token")?.set, true);
     assert.equal((await env.client.call("extensions.rollback", { id: "direct_archive" })).version, "1.0.0");

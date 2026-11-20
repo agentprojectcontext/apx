@@ -281,15 +281,31 @@ export function createExtensions(deps: {
       return false;
     }
   };
+  const sameUrlFolder = (a: string, b: string) => {
+    try {
+      const left = new URL(a);
+      const right = new URL(b);
+      const folderOf = (url: URL) => url.pathname.slice(0, url.pathname.lastIndexOf("/") + 1);
+      return (
+        left.protocol === "https:" &&
+        left.origin === right.origin &&
+        left.username === right.username &&
+        left.password === right.password &&
+        folderOf(left) === folderOf(right)
+      );
+    } catch {
+      return false;
+    }
+  };
   const sameOrigin = (old: ExtensionRecord, input: ExtensionInput, source: string, origin: string) => {
     if (old.origin_key) {
       if (input.file && old.origin_key.startsWith("file:")) return true;
-      if (input.url && old.origin_key.startsWith("url:")) return true;
+      if (input.url && old.origin_key.startsWith("url:")) return sameUrlFolder(old.origin_key.slice(4), source);
       return sameKeys(old.origin_key, origin);
     }
     if (input.path !== undefined && path.isAbsolute(old.source)) return samePath(old.source, source);
     if (input.file && /^[A-Za-z0-9_.-]+\.apxext$/i.test(old.source)) return true;
-    if (input.url && /^https:\/\//i.test(old.source)) return true;
+    if (input.url && /^https:\/\//i.test(old.source)) return sameUrlFolder(old.source, source);
     return false;
   };
   const extensionSecrets = (id: string, manifests: ExtensionManifest[]) => {

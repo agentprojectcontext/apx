@@ -230,8 +230,8 @@ a folder is read where the core runs.
 A catalog or folder from another source cannot replace an installed extension with the same ID while it has saved
 settings or secrets, or uses the `mcp-remote` sign-in bridge: it could otherwise reuse the first extension's connection.
 To switch, remove the installed extension first, then add the other one. Installing another file over an extension
-previously installed from a file, or another address over one installed from an address, keeps its settings: only do
-this when you trust the new package with the existing connection. Removing it deletes its APX-saved secrets. Recognized
+previously installed from a file keeps its settings. For an extension installed from an address, another address keeps
+its settings only when it has the same HTTPS origin and folder; only do this when you trust the new package with the existing connection. Removing it deletes its APX-saved secrets. Recognized
 `mcp-remote` commands keep sign-in state separately for each extension server, and removing the extension deletes that
 state; existing connections may need to sign in again. Other commands that wrap the bridge may use their own shared
 cache. A third-party catalog extension installed before APX recorded

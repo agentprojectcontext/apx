@@ -234,8 +234,8 @@ otra; una carpeta se lee donde corre el core.
 Una extensión de otro catálogo o carpeta no puede reemplazar una instalada con el mismo ID mientras tenga ajustes o
 secretos guardados, o use el puente de acceso `mcp-remote`: de otro modo podría reutilizar la conexión de la primera.
 Para cambiarla, eliminá primero la instalada y agregá la otra. Si instalás otro archivo sobre una extensión instalada
-desde archivo, u otra dirección sobre una instalada desde dirección, conserva sus ajustes: hacelo solo si confiás en el
-nuevo paquete para usar esa conexión. Al eliminarla se borran sus secretos guardados en APX. Los
+desde archivo, conserva sus ajustes. Para una extensión instalada desde una dirección, otra dirección conserva sus
+ajustes solo si tiene el mismo origen HTTPS y carpeta; hacelo solo si confiás en el nuevo paquete para usar esa conexión. Al eliminarla se borran sus secretos guardados en APX. Los
 comandos `mcp-remote` reconocidos guardan la sesión separada para cada servidor de cada extensión; al eliminar la
 extensión se borra esa sesión y las conexiones existentes pueden necesitar que vuelvas a iniciar sesión. Otros comandos
 que envuelven el puente pueden usar su propia caché compartida. Una extensión de un catálogo de terceros instalada
