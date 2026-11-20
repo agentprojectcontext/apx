@@ -1,11 +1,12 @@
 import type { CatalogEntry, Result } from "@apx/protocol";
 import { Icons, NavItem, Tooltip } from "@apx/ui";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { CHANNEL_KIND_IDS, CHANNEL_KINDS } from "../channels/kinds.ts";
 import { loadChannels, useChannels } from "../data/channels.ts";
 import { client } from "../data/client.ts";
 import { loadMarks } from "../data/models.ts";
 import { useData } from "../data/state.ts";
+import { noteSearch } from "../data/telemetry.ts";
 import { useT } from "../i18n/index.ts";
 import { useExtensionsInstalled } from "../resources/extensionInstall.ts";
 import {
@@ -114,6 +115,7 @@ export function MarketplaceScreen() {
   );
   // Explore offers what can be added or connected, each service once; the owner's own built ones stay in theirs.
   const offered = filterItems(items.filter(listed), query, "");
+  useSearchCount(query, offered.length);
   const current = open ? pageItem(items, open) : undefined;
   const mine = items.filter(isMine);
   const waiting = mine.filter(waits);
@@ -206,4 +208,22 @@ export function MarketplaceScreen() {
       </div>
     </div>
   );
+}
+
+const SEARCH_SETTLED_MS = 1500;
+
+/** Counts a search once the words stop changing, by how many it found; the words themselves never leave the panel. */
+function useSearchCount(query: string, found: number) {
+  const latest = useRef(found);
+  latest.current = found;
+  const last = useRef("");
+  useEffect(() => {
+    const words = query.trim().toLowerCase();
+    if (words.length < 2 || words === last.current) return;
+    const timer = setTimeout(() => {
+      last.current = words;
+      noteSearch(latest.current);
+    }, SEARCH_SETTLED_MS);
+    return () => clearTimeout(timer);
+  }, [query]);
 }

@@ -29,7 +29,11 @@ function jsonSink(url: string, fetchImpl: typeof fetch): TelemetrySink {
   };
 }
 
-type Value = { stringValue: string } | { booleanValue: boolean } | { integerValue: string };
+type Value =
+  | { stringValue: string }
+  | { booleanValue: boolean }
+  | { integerValue: string }
+  | { arrayValue: { values: Value[] } };
 const str = (s: string): Value => ({ stringValue: s });
 const now = (fieldPath: string) => ({ fieldPath, setToServerValue: "REQUEST_TIME" });
 
@@ -38,7 +42,10 @@ export function firestoreWrite(project: string, event: TelemetryEvent) {
   const root = `projects/${project}/databases/(default)/documents/installs/${event.install_id}`;
   if (event.kind === "usage") {
     const fields: Record<string, Value> = { version: str(event.version) };
-    for (const [k, v] of Object.entries(event.stats)) fields[k] = { integerValue: String(v) };
+    for (const [k, v] of Object.entries(event.stats)) {
+      if (Array.isArray(v)) fields[k] = { arrayValue: { values: v.map(str) } };
+      else if (v !== undefined) fields[k] = { integerValue: String(v) };
+    }
     // One report per day: a second one for the same day is refused, and counts as sent.
     return {
       update: { name: `${root}/days/${event.day}`, fields },

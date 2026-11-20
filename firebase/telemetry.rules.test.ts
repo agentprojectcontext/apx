@@ -91,3 +91,48 @@ test("Google accounts do not change anonymous telemetry writes or grant private 
   const alter = { ...report, currentDocument: { exists: true } };
   assert.equal((await call(":commit", { writes: [alter] })).status, 403);
 });
+
+test("a usage report takes the counts and public extension ids added later, and nothing else", async () => {
+  const id = "00000000-0000-4000-8000-000000000002";
+  const created = { ...installWrite, update: { ...installWrite.update, name: `${database}/documents/installs/${id}` } };
+  assert.equal((await call(":commit", { writes: [created] })).status, 200);
+  const base = Object.fromEntries(
+    ["tokens_in", "tokens_out", "runs", "projects", "agents", "channels", "routines"].map((key) => [
+      key,
+      { integerValue: "0" },
+    ]),
+  );
+  const day = (d: string, extra: Record<string, unknown>) => ({
+    update: {
+      name: `${created.update.name}/days/${d}`,
+      fields: { ...base, version: field("2.16.1"), ...extra },
+    },
+    currentDocument: { exists: false },
+    updateTransforms: stamps("at"),
+  });
+  const ids = (...v: string[]) => ({ arrayValue: { values: v.map(field) } });
+  const counts = {
+    searches: { integerValue: "3" },
+    searches_empty: { integerValue: "1" },
+    installs_official: { integerValue: "1" },
+    installs_file: { integerValue: "1" },
+    signins: { integerValue: "1" },
+    public_artifacts: { integerValue: "1" },
+    public_links: { integerValue: "2" },
+  };
+  assert.equal(
+    (await call(":commit", { writes: [day("2026-02-01", { ...counts, extensions: ids("gmail@1.2.0", "acme-tv") })] }))
+      .status,
+    200,
+  );
+  for (const [d, extra] of [
+    ["2026-02-02", { extensions: ids("/Users/someone/ext") }],
+    ["2026-02-03", { extensions: ids("https://example.com/x.apxext") }],
+    ["2026-02-04", { extensions: { arrayValue: { values: [] } } }],
+    ["2026-02-05", { searches: { integerValue: "-1" } }],
+    ["2026-02-06", { searches: field("acme") }],
+    ["2026-02-07", { query: field("acme") }],
+  ] as const) {
+    assert.equal((await call(":commit", { writes: [day(d, extra)] })).status, 403, d);
+  }
+});

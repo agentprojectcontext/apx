@@ -66,6 +66,8 @@ export type PublicationDraftDependencies = {
   persistence?: PublicationDraftPersistence;
   pendingUntil?(id: string): number | undefined;
   onReceiptPersistenceError?(): void;
+  /** A publish, update or revoke the cloud confirmed: once per review, never for a receipt read again. */
+  onDone?(action: Receipt["action"]): void;
   /** Which local artifact each public copy came from, kept on this install only (never in the cloud). */
   sources?: PublicationSources;
 };
@@ -183,6 +185,9 @@ export function createPublicationDrafts(deps: PublicationDraftDependencies) {
       draft.pending = execute(draft);
       try {
         draft.done = await draft.pending;
+        try {
+          deps.onDone?.(draft.done.action);
+        } catch {}
         try {
           deps.sources?.set(draft.done.code, draft.action === "revoke" ? null : (draft.surface ?? null));
         } catch {}

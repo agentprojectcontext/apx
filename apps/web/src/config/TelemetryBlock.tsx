@@ -6,14 +6,21 @@ import { PRIVACY_URL, refreshTelemetry, setUsage, useTelemetry } from "../data/t
 import { useT } from "../i18n/index.ts";
 import { SubHead } from "./SectionHead.tsx";
 
-const STATS: Array<keyof UsageStats> = [
-  "tokens_in",
-  "tokens_out",
-  "runs",
-  "projects",
-  "agents",
-  "channels",
-  "routines",
+type Stat = Exclude<keyof UsageStats, "extensions">;
+const STATS: Stat[] = ["tokens_in", "tokens_out", "runs", "projects", "agents", "channels", "routines"];
+/** Counted as they happen: shown only once one happened, as the report leaves them out until then. */
+const COUNTS: Stat[] = [
+  "searches",
+  "searches_empty",
+  "installs_official",
+  "installs_catalog",
+  "installs_file",
+  "installs_url",
+  "installs_folder",
+  "installs_server",
+  "signins",
+  "public_artifacts",
+  "public_links",
 ];
 
 /** Usage statistics in Advanced: the owner's answer, what the next report holds and what already left, as sent. */
@@ -55,12 +62,18 @@ export function TelemetryBlock() {
       </dl>
       <p className="config__lead telemetry__preview">{t("telemetry.preview")}</p>
       <dl className="kv">
-        {STATS.map((k) => (
+        {[...STATS, ...COUNTS.filter((k) => state.preview[k])].map((k) => (
           <div key={k} className="kv__row">
             <dt>{t(`telemetry.stat.${k}`)}</dt>
-            <dd className="kv__mono">{formatNumber(state.preview[k])}</dd>
+            <dd className="kv__mono">{formatNumber(state.preview[k] ?? 0)}</dd>
           </div>
         ))}
+        {state.preview.extensions?.length ? (
+          <div className="kv__row">
+            <dt>{t("telemetry.stat.extensions")}</dt>
+            <dd className="kv__mono">{state.preview.extensions.join(", ")}</dd>
+          </div>
+        ) : null}
       </dl>
       {state.last && (
         <details className="telemetry__last">

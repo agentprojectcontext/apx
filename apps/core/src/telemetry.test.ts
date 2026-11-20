@@ -1,10 +1,13 @@
 import assert from "node:assert/strict";
 import { after, before, test } from "node:test";
-import type { TelemetryEvent } from "@apx/protocol";
+import type { ExtensionInfo, TelemetryEvent } from "@apx/protocol";
+import { ApxClient } from "@apx/protocol/client";
 import { loadConfig } from "./config.ts";
 import { say, scriptedLlm, startCore } from "./engine/testkit.ts";
+import { zipFiles } from "./extensions/zip.test-support.ts";
 import { createLog } from "./log.ts";
 import { createTelemetry } from "./telemetry.ts";
+import { countInstall, countUsage } from "./telemetry-counts.ts";
 import { firestoreWrite, TELEMETRY_SINK, type TelemetrySink } from "./telemetry-sink.ts";
 
 let env: Awaited<ReturnType<typeof startCore>>;
@@ -140,10 +143,23 @@ test("the Firestore write creates the record once and then only stamps steps", (
     install_id: id,
     day: "2026-03-02",
     version: "2.1.0",
-    stats: { tokens_in: 10, tokens_out: 5, runs: 1, projects: 2, agents: 3, channels: 0, routines: 1 },
+    stats: {
+      tokens_in: 10,
+      tokens_out: 5,
+      runs: 1,
+      projects: 2,
+      agents: 3,
+      channels: 0,
+      routines: 1,
+      searches: 4,
+      extensions: ["gmail@1.2.0"],
+    },
   });
   assert.equal(day.update.name.endsWith(`/installs/${id}/days/2026-03-02`), true);
   assert.deepEqual(day.update.fields.tokens_in, { integerValue: "10" });
+  assert.deepEqual(day.update.fields.searches, { integerValue: "4" });
+  assert.deepEqual(day.update.fields.extensions, { arrayValue: { values: [{ stringValue: "gmail@1.2.0" }] } });
+  assert.equal("signins" in day.update.fields, false, "a count that did not happen is left out");
 });
 
 test("DO_NOT_TRACK, CI and APX_TELEMETRY=off turn telemetry off", () => {
@@ -153,4 +169,113 @@ test("DO_NOT_TRACK, CI and APX_TELEMETRY=off turn telemetry off", () => {
   assert.equal(loadConfig({ APX_TELEMETRY: "off" }, false).telemetry, undefined);
   assert.equal(loadConfig({ DO_NOT_TRACK: "0" }, false).telemetry, TELEMETRY_SINK);
   assert.equal(loadConfig({ APX_TELEMETRY: "https://example.com/t" }, false).telemetry, "https://example.com/t");
+});
+
+const preview = async () => (await env.client.call("telemetry.get", {})).preview;
+
+test("searches, links and installs are counted only after a yes, and never what was typed or where from", async () => {
+  await env.client.call("telemetry.set", { usage: false });
+  await env.client.call("telemetry.note", { event: "marketplace_search", results: 3 });
+  const widget = await env.client.call("surfaces.show", { name: "orders", title: "Orders", html: "<h1>Orders</h1>" });
+  await env.client.call("surfaces.share", { surface: widget.id, shared: true });
+  await env.client.call("surfaces.share", { surface: widget.id, shared: false });
+  assert.equal((await preview()).searches, undefined, "nothing is kept before a yes");
+  assert.equal((await preview()).public_links, undefined);
+
+  await env.client.call("telemetry.set", { usage: true });
+  await env.client.call("telemetry.note", { event: "marketplace_search", results: 3 });
+  await env.client.call("telemetry.note", { event: "marketplace_search", results: 0 });
+  await env.client.call("surfaces.share", { surface: widget.id, shared: true });
+  await env.client.call("surfaces.share", { surface: widget.id, shared: true });
+  const manifest = {
+    id: "billing",
+    name: "Northwind Billing",
+    version: "1.0.0",
+    description: "Invoices and payments.",
+    mcp: { service: { command: "npx", args: ["-y", "mcp-remote", "https://mcp.billing.example.com"] } },
+  };
+  const data = zipFiles({ "apx-extension.json": JSON.stringify(manifest) }).toString("base64");
+  await env.client.call("extensions.install", { file: { name: "billing.apxext", data } });
+  const counted = await preview();
+  assert.equal(counted.searches, 2);
+  assert.equal(counted.searches_empty, 1);
+  assert.equal(counted.public_links, 1, "sharing an already shared widget makes no new link");
+  assert.equal(counted.installs_file, 1);
+  assert.equal(counted.extensions, undefined, "a file's extension goes only as a count");
+  assert.doesNotMatch(JSON.stringify(counted), /billing|Northwind|orders/i);
+
+  const agent = new ApxClient({ url: env.core.url, actor: "agent" });
+  await assert.rejects(
+    agent.call("telemetry.note", { event: "marketplace_search", results: 1 }),
+    /reserved to the owner/,
+  );
+  await env.client.call("telemetry.set", { usage: false });
+  const dropped = await preview();
+  assert.equal(dropped.searches, undefined, "a no drops what was not sent yet");
+  assert.equal(dropped.installs_file, undefined);
+});
+
+test("an install's id goes along only when a public catalog lists it", async () => {
+  const store = env.core.store;
+  await env.client.call("telemetry.set", { usage: true });
+  const info = (provenance: "official" | "third_party", version = "1.2.0") =>
+    ({ id: "gmail", version, provenance }) as ExtensionInfo;
+  countInstall(store, { url: "https://marketplace.example.com/gmail.apxext" }, info("official"), false);
+  countInstall(store, { entry: { catalog: "c1", id: "gmail" } }, info("third_party"), true);
+  countInstall(store, { entry: { catalog: "c2", id: "gmail" } }, info("third_party", "1.0.0"), false);
+  countInstall(store, { url: "https://example.com/private.apxext" }, info("third_party"), false);
+  countInstall(store, { path: "/tmp/acme" }, info("third_party"), false);
+  countInstall(store, { server: { name: "Acme", url: "https://mcp.example.com" } }, info("third_party"), false);
+  countInstall(store, { url: "https://marketplace.example.com/gmail.apxext" }, info("official", "1.0 beta"), false);
+  const p = await preview();
+  assert.deepEqual(
+    [p.installs_official, p.installs_catalog, p.installs_url, p.installs_folder, p.installs_server],
+    [2, 2, 1, 1, 1],
+  );
+  assert.deepEqual(p.extensions, ["gmail@1.2.0", "gmail@1.2.0", "gmail"]);
+  await env.client.call("telemetry.set", { usage: false });
+});
+
+test("a day's report carries the counts once and keeps what was counted while it was on its way", async () => {
+  let at = new Date("2026-04-01T10:00:00Z");
+  const events: TelemetryEvent[] = [];
+  const store = env.core.store;
+  const t = createTelemetry({
+    home: env.home,
+    store,
+    log: createLog("test", true),
+    version: "2.0.0",
+    channel: "test",
+    sink: async (e) => {
+      if (e.kind === "usage") countUsage(store, "signins");
+      events.push(e);
+    },
+    now: () => at,
+  });
+  t.set(true);
+  await t.flush();
+  countUsage(store, "signins");
+  countUsage(store, "public_artifacts");
+  countInstall(
+    store,
+    { url: "https://marketplace.example.com/gmail.apxext" },
+    {
+      id: "gmail",
+      version: "1.2.0",
+      provenance: "official",
+    } as ExtensionInfo,
+    false,
+  );
+  at = new Date("2026-04-02T09:00:00Z");
+  await t.flush();
+  const report = events.findLast((e) => e.kind === "usage");
+  assert.ok(report?.kind === "usage");
+  assert.equal(report.stats.signins, 1);
+  assert.equal(report.stats.public_artifacts, 1);
+  assert.deepEqual(report.stats.extensions, ["gmail@1.2.0"]);
+  const next = t.get().preview;
+  assert.equal(next.signins, 1, "the sign-in counted while the report was sent waits for the next one");
+  assert.equal(next.public_artifacts, undefined);
+  assert.equal(next.extensions, undefined);
+  t.set(false);
 });

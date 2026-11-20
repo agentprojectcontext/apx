@@ -29,6 +29,7 @@ import { modelSettings, refProblem } from "../models/choice.ts";
 import { projectSecretName, type Secrets } from "../secrets.ts";
 import type { Services } from "../services/registry.ts";
 import { withKit } from "../surface-kit.ts";
+import { countUsage } from "../telemetry-counts.ts";
 import { checkReadOnly } from "../tools/folders.ts";
 import { projectHelperHandlers } from "./project-helper.ts";
 import type { Handlers } from "./router.ts";
@@ -335,8 +336,10 @@ export function appHandlers(deps: {
       return { removed: true as const };
     },
     "surfaces.share": ({ surface, shared }) => {
+      const had = Boolean(store.surfaces.get(surface)?.share_path);
       const s = store.surfaces.share(surface, shared);
       if (!s) throw notFound(`surface ${surface}`);
+      if (shared && !had) countUsage(store, "public_links");
       return s;
     },
     "engines.usage": ({ all }) => (all ? engineUsage.readAll() : engineUsage.read()),

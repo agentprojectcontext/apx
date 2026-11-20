@@ -38,6 +38,9 @@ export const SUGGESTED = [
   },
 ];
 
+/** Whether an added catalog is one of the public ones APX suggests (its entries are public, by id). */
+export const isSuggestedCatalog = (id: string) => SUGGESTED.some((s) => catalogId(parseSource(s.source)) === id);
+
 type Source =
   | { kind: "git"; url: string; ref?: string | undefined }
   | { kind: "json"; url: string }

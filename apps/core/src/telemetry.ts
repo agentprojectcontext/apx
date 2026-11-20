@@ -1,6 +1,7 @@
 // Telemetry: the lifecycle steps of this install (installed → opened → consent → setup → first_run, then updated on
 // each new version) under a random id of its own, and a daily usage report only after the owner said yes. Each step is
-// sent once and kept until it lands, so a computer offline today reports tomorrow. See rules/DECISIONS.md#d-092.
+// sent once and kept until it lands, so a computer offline today reports tomorrow. See rules/DECISIONS.md#d-092; what
+// the report counts as it happens is telemetry-counts.ts (D-257).
 import { randomUUID } from "node:crypto";
 import fs from "node:fs";
 import os from "node:os";
@@ -17,6 +18,7 @@ import {
 import type { Store } from "./domain/store.ts";
 import { errorMessage } from "./errors.ts";
 import type { Log } from "./log.ts";
+import { settleUsageCounts, usageCounts } from "./telemetry-counts.ts";
 import type { TelemetrySink } from "./telemetry-sink.ts";
 
 const EVERY_MS = 30 * 60_000;
@@ -69,6 +71,7 @@ export function createTelemetry(opts: {
       agents: store.agents.list().length,
       channels: store.settings.read("channels").length,
       routines: store.routines.list().length,
+      ...usageCounts(store),
     };
   };
 
@@ -103,13 +106,15 @@ export function createTelemetry(opts: {
     const today = clock().toISOString().slice(0, 10);
     // The first report is the day after the owner's yes: nothing from before it is ever counted.
     if (s.usage === true && s.usage_from && s.usage_day !== today) {
+      const report = stats(s.usage_from);
       await send({
         kind: "usage",
         install_id: installId,
         day: today,
         version: opts.version,
-        stats: stats(s.usage_from),
+        stats: report,
       });
+      settleUsageCounts(store, report);
       save({ usage_day: today, usage_from: clock().toISOString() });
     }
   };
@@ -169,7 +174,8 @@ export function createTelemetry(opts: {
       save({
         usage,
         ...(fresh ? { usage_from: at, usage_day: at.slice(0, 10) } : {}),
-        ...(usage ? {} : { usage_from: null }),
+        // A no drops what was counted and not sent yet.
+        ...(usage ? {} : { usage_from: null, counts: {}, extensions: [] }),
       });
       void flush();
       return this.get();
