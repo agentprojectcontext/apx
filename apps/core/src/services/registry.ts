@@ -12,7 +12,7 @@ import type { Log } from "../log.ts";
 import { serviceSecret } from "../secret-names.ts";
 import type { Secrets } from "../secrets.ts";
 import { toOggOpus, toPcm16k, toPcm24k, toWav16k, wav16k } from "./audio.ts";
-import type { CodexImages } from "./codex-images.ts";
+import { CODEX_IMAGE_SERVICE, type CodexImages } from "./codex-images.ts";
 import { EMBED_PROBE, embed } from "./embeddings.ts";
 import { createFfmpeg, type Ffmpeg } from "./ffmpeg.ts";
 import { generateImage, IMAGE_PROBE } from "./images.ts";
@@ -139,7 +139,10 @@ export function createServices(deps: {
 
   async function info(kind?: ServiceKind): Promise<ServiceInfo[]> {
     const list = kind ? ofKind(kind) : all();
-    const checks = await Promise.all(list.map((s) => (s.enabled ? check(s) : Promise.resolve(undefined))));
+    // Codex is asked even when off: whether it is signed in decides whether it can be turned on at all.
+    const checks = await Promise.all(
+      list.map((s) => (s.enabled || s.dialect === "codex-images" ? check(s) : Promise.resolve(undefined))),
+    );
     return list.map((s, i) => ({
       ...publicSettings(s),
       id: s.id,
@@ -209,26 +212,29 @@ export function createServices(deps: {
       return imageDefaults();
     },
     set(id: string, s: ServiceSettings | null, apiKey?: string): void {
-      if (apiKey) secrets.set(keyName(id), apiKey);
-      const rest = all().filter((x) => x.id !== id);
       const prev = all().find((x) => x.id === id);
-      // A changed service keeps its place in the order; a new one goes last.
-      const next = s ? { ...s, id } : undefined;
+      const fixed = prev?.dialect === "codex-images" || s?.dialect === "codex-images";
+      if (fixed && !s) throw new Error("Codex's image service stays in the list: turn it off instead");
+      if (apiKey && !fixed) secrets.set(keyName(id), apiKey);
+      const rest = all().filter((x) => x.id !== id);
+      // A changed service keeps its place in the order; a new one goes last. Codex's only setting is on or off.
+      const next = s ? (fixed ? { ...CODEX_IMAGE_SERVICE, id, enabled: s.enabled } : { ...s, id }) : undefined;
       save(prev && next ? all().map((x) => (x.id === id ? next : x)) : next ? [...rest, next] : rest);
       if (!s) secrets.set(keyName(id), null);
       status.delete(id);
     },
     /**
-     * Adds a service APX found on this machine, first of its kind, once: one the owner removed (or already has, under
-     * any id) is not added again. True when it was added now.
+     * Keeps Codex's image service while Codex is on this machine: added first of the image services when missing, and
+     * its settings always APX's own, so only on or off is the owner's. True when it was added now.
      */
-    offer(id: string, s: ServiceSettings): boolean {
-      const offered = store.settings.read("services_offered");
-      if (offered.includes(id)) return false;
-      store.settings.write("services_offered", [...offered, id]);
-      if (all().some((x) => x.id === id || x.dialect === s.dialect)) return false;
-      save([{ ...s, id }, ...all()]);
-      return true;
+    keepCodex(id: string): boolean {
+      const list = all();
+      const prev = list.find((x) => x.dialect === "codex-images");
+      const next: ServiceConfig = { ...CODEX_IMAGE_SERVICE, id: prev?.id ?? id, enabled: prev?.enabled ?? true };
+      if (prev && JSON.stringify(prev) === JSON.stringify(next)) return false;
+      save(prev ? list.map((x) => (x === prev ? next : x)) : [next, ...list]);
+      status.delete(next.id);
+      return !prev;
     },
     order(kind: ServiceKind, ids: string[]): void {
       const mine = ofKind(kind);
