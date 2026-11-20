@@ -4,10 +4,71 @@ import path from "node:path";
 import { test } from "node:test";
 import { say, scriptedLlm, startCore } from "../engine/testkit.ts";
 import { mcpConfig } from "../mcp/config.ts";
-import { tempDir } from "../testkit/platform.ts";
+import { tempDir, waitFor } from "../testkit/platform.ts";
 import { zipFiles } from "./zip.test-support.ts";
 
 const SERVER = path.join(import.meta.dirname, "../mcp/fake-server.test-support.mjs");
+
+test("an update stops an MCP test that is still starting before replacing files", async () => {
+  const dir = tempDir("extension-starting-");
+  const env = await startCore({ llm: scriptedLlm(() => say("ok")) });
+  const marker = path.join(env.home, "starting-server.pid");
+  let verifiedExited = false;
+  const script = path.join(env.home, "starting-server.cjs");
+  fs.writeFileSync(
+    script,
+    `process.on('SIGTERM', () => {}); require('fs').writeFileSync(${JSON.stringify(marker)}, String(process.pid)); process.stdin.resume(); setInterval(() => {}, 1000)`,
+  );
+  const launcher = path.join(env.home, "starting-server.cmd");
+  if (process.platform === "win32") fs.writeFileSync(launcher, `@echo off\r\n"${process.execPath}" "${script}"\r\n`);
+  const manifest = (version: string) => ({
+    id: "starting_server",
+    name: "Starting server",
+    version,
+    mcp: {
+      test: {
+        command: process.platform === "win32" ? launcher : process.execPath,
+        args: process.platform === "win32" ? [] : [script],
+      },
+    },
+  });
+  try {
+    fs.writeFileSync(path.join(dir.path, "apx-extension.json"), JSON.stringify(manifest("1.0.0")));
+    await env.client.call("extensions.install", { path: dir.path });
+    await env.client.call("extensions.enable", { id: "starting_server", enabled: true });
+    const testing = env.client.call("mcp.test", { scope: "global", server: "starting_server-test" });
+    void testing.catch(() => {});
+    await waitFor(() => fs.existsSync(marker), "MCP test process started", { ms: 8000 });
+    const pid = Number(fs.readFileSync(marker, "utf8"));
+    fs.writeFileSync(path.join(dir.path, "apx-extension.json"), JSON.stringify(manifest("1.0.1")));
+    await env.client.call("extensions.install", { path: dir.path });
+    assert.throws(() => process.kill(pid, 0), { code: "ESRCH" });
+    verifiedExited = true;
+    assert.equal((await testing).ok, false);
+  } finally {
+    if (!verifiedExited && fs.existsSync(marker)) {
+      const pid = Number(fs.readFileSync(marker, "utf8"));
+      try {
+        process.kill(pid, "SIGKILL");
+      } catch {}
+      await waitFor(
+        () => {
+          try {
+            process.kill(pid, 0);
+            return false;
+          } catch {
+            return true;
+          }
+        },
+        "MCP test process exited",
+        { ms: 8000 },
+      );
+    }
+    await env.core.close();
+    await env.cleanup();
+    await dir.remove();
+  }
+});
 
 test("catalogs with the same displayed names do not share extension identity", async () => {
   const first = tempDir("catalog-first-");

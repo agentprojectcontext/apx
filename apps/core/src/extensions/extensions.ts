@@ -548,7 +548,7 @@ export function createExtensions(deps: {
     async install(
       input: ExtensionInput,
       expect?: string,
-      beforeReplace?: (id: string) => Promise<void>,
+      beforeReplace?: (id: string) => Promise<() => void>,
     ): Promise<ExtensionInfo> {
       const { pkg, source, origin: catalogOrigin } = await load(input);
       const { manifest, hash } = pkg;
@@ -604,6 +604,7 @@ export function createExtensions(deps: {
       const dir = path.join(root, id);
       fs.mkdirSync(root, { recursive: true });
       const tmp = fs.mkdtempSync(path.join(root, ".staging-"));
+      let release: (() => void) | undefined;
       try {
         const staged = path.join(tmp, id);
         try {
@@ -612,9 +613,9 @@ export function createExtensions(deps: {
           throw badRequest(err instanceof Error ? err.message : "the extension could not be copied");
         }
         let previous: PreviousVersion | undefined = cur?.previous;
-        if (cur) await beforeReplace?.(id);
+        if (cur) release = await beforeReplace?.(id);
         // The running plugin (if any) is of the files being replaced; it starts again only if allowed to stay on.
-        plugins.stop(id);
+        await plugins.stopAndWait(id);
         if (cur && cur.hash !== hash && fs.existsSync(dir)) {
           fs.rmSync(previousDir(id), { recursive: true, force: true });
           fs.renameSync(dir, previousDir(id));
@@ -652,11 +653,12 @@ export function createExtensions(deps: {
         if (e.enabled) startPlugin(e);
         return shown(e, check);
       } finally {
+        release?.();
         fs.rmSync(tmp, { recursive: true, force: true });
       }
     },
     /** Swaps the installed version with the one kept before it, each with the approval it had. */
-    rollback(id: string): ExtensionInfo {
+    async rollback(id: string): Promise<ExtensionInfo> {
       const e = get(id);
       const prev = e.previous;
       if (!prev) throw badRequest(`${e.manifest.name} has no earlier version kept`);
@@ -672,7 +674,7 @@ export function createExtensions(deps: {
       const back = previousDir(id);
       if (!fs.existsSync(back) || !sameFiles(back, prev.hash))
         throw badRequest(`the earlier version of ${e.manifest.name} changed on disk; install it again`);
-      plugins.stop(id);
+      await plugins.stopAndWait(id);
       const swap = path.join(root, `${id}.swap`);
       fs.rmSync(swap, { recursive: true, force: true });
       if (fs.existsSync(e.dir)) fs.renameSync(e.dir, swap);

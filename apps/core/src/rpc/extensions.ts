@@ -1,6 +1,7 @@
 // Extensions, for the owner: inspect a folder, an .apxext file or a URL, install it (off), go back a version, turn it
 // on or off, give it its secrets.
 import type { Bus } from "../bus.ts";
+import { conflict } from "../errors.ts";
 import { type CatalogShown, SUGGESTED } from "../extensions/catalogs.ts";
 import type { ExtensionInput, Extensions } from "../extensions/extensions.ts";
 import type { Mcp } from "../mcp/manager.ts";
@@ -46,12 +47,32 @@ const CHANGES = [
 export function extensionHandlers(extensions: Extensions, mcp: Mcp, bus: Bus) {
   const handlers = extensionMethods(extensions, mcp);
   const told = { ...handlers };
+  const serial = new Set<string>([
+    "extensions.install",
+    "extensions.rollback",
+    "extensions.remove",
+    "extensions.enable",
+    "extensions.settings",
+    "extensions.set_secret",
+  ]);
+  let changing = false;
   for (const name of CHANGES) {
     const run = handlers[name] as (p: never) => unknown;
     (told as Record<string, unknown>)[name] = async (p: never) => {
-      const out = await run(p);
-      bus.emit({ type: "extensions.changed" });
-      return out;
+      if (!serial.has(name)) {
+        const out = await run(p);
+        bus.emit({ type: "extensions.changed" });
+        return out;
+      }
+      if (changing) throw conflict("Another extension is being changed; try again shortly");
+      changing = true;
+      try {
+        const out = await run(p);
+        bus.emit({ type: "extensions.changed" });
+        return out;
+      } finally {
+        changing = false;
+      }
     };
   }
   return told as typeof handlers;
@@ -65,6 +86,28 @@ function extensionMethods(extensions: Extensions, mcp: Mcp) {
       (extensions.list().find((e) => e.id === id)?.mcp ?? []).map((name) => mcp.drop({ scope: "global", name })),
     );
   };
+  const suspendServers = async (id: string) => {
+    const servers = (extensions.list().find((e) => e.id === id)?.mcp ?? []).map((name) => ({
+      scope: "global" as const,
+      name,
+    }));
+    const release = mcp.suspend(servers);
+    try {
+      await Promise.all(servers.map((server) => mcp.drop(server)));
+      return release;
+    } catch (error) {
+      release();
+      throw error;
+    }
+  };
+  const withServersStopped = async <T>(id: string, fn: () => T | Promise<T>): Promise<T> => {
+    const release = await suspendServers(id);
+    try {
+      return await fn();
+    } finally {
+      release();
+    }
+  };
   return {
     "extensions.list": () => ({ extensions: extensions.list() }),
     "extensions.catalogs": () => ({ catalogs: catalogs.list().map(shown), suggested: SUGGESTED }),
@@ -74,8 +117,7 @@ function extensionMethods(extensions: Extensions, mcp: Mcp) {
     "extensions.catalog": ({ refresh }) => extensions.catalogEntries(refresh),
     "extensions.settings": async ({ id, values }) => {
       // Its servers start again with the new values at their next use.
-      await dropServers(id);
-      return extensions.setSettings(id, values);
+      return withServersStopped(id, () => extensions.setSettings(id, values));
     },
     "extensions.page": ({ id, page }) => extensions.page(id, page),
     "extensions.companion_file": ({ id }) => extensions.companionFile(id),
@@ -86,7 +128,7 @@ function extensionMethods(extensions: Extensions, mcp: Mcp) {
     "extensions.install": async ({ path, file, url, entry, server, hash }) => {
       const before = extensions.list();
       const from = server ? { path: extensions.connector(server) } : source(path, file, url, entry);
-      const info = await extensions.install(from, hash, dropServers);
+      const info = await extensions.install(from, hash, suspendServers);
       // Its servers start again with the new files at their next use; a server this version dropped stops now.
       await Promise.all(
         [...new Set([...(before.find((e) => e.id === info.id)?.mcp ?? []), ...info.mcp])].map((name) =>
@@ -96,25 +138,20 @@ function extensionMethods(extensions: Extensions, mcp: Mcp) {
       return info;
     },
     "extensions.rollback": async ({ id }) => {
-      await dropServers(id);
-      const info = extensions.rollback(id);
+      const info = await withServersStopped(id, () => extensions.rollback(id));
       await dropServers(id);
       return info;
     },
     "extensions.enable": async ({ id, enabled }) => {
-      if (!enabled) await dropServers(id);
+      if (!enabled) return withServersStopped(id, () => extensions.enable(id, enabled));
       return extensions.enable(id, enabled);
     },
-    "extensions.remove": async ({ id }) => {
-      await dropServers(id);
-      return extensions.remove(id);
-    },
+    "extensions.remove": async ({ id }) => withServersStopped(id, () => extensions.remove(id)),
     "extensions.add_agent": ({ id, agent }) => extensions.addAgent(id, agent),
     "extensions.test": ({ id, text }) => extensions.testContext(id, text),
     "extensions.set_secret": async ({ id, name, value }) => {
       // A server started with the old value would keep it.
-      await dropServers(id);
-      return extensions.setSecret(id, name, value);
+      return withServersStopped(id, () => extensions.setSecret(id, name, value));
     },
   } satisfies Partial<Handlers>;
 }

@@ -120,6 +120,10 @@ export function createMcp(deps: {
 }) {
   const config = mcpConfig(deps.store);
   const conns = new Map<string, Conn>();
+  const closing = new Map<Conn, Promise<void>>();
+  const blocked = new Set<string>();
+  const tests = new Map<string, Set<{ abort: () => void; done: Promise<void> }>>();
+  const processes = new Map<symbol, { key: string; exited: Promise<void> }>();
   const stderr = createStderrLogs();
   const keyOf = (d: McpDef) => `${d.scope}:${d.project_id ?? ""}:${d.values_of ?? ""}:${d.name}`;
 
@@ -175,11 +179,13 @@ export function createMcp(deps: {
     // Nobody waits on it once the start is over: a late sign-in line must not become an unhandled rejection.
     deadline.catch(() => {});
     signal?.addEventListener("abort", () => fail(new Error("closed")), { once: true });
+    if (signal?.aborted) fail(new Error("closed"));
     const arm = (ms: number, why: string) => {
       clearTimeout(timer);
       timer = setTimeout(() => fail(new Error(why)), ms);
     };
     let transport: InstanceType<typeof StreamableHTTPClientTransport> | InstanceType<typeof StdioClientTransport>;
+    let trackProcess: (() => void) | undefined;
     try {
       if (d.url)
         transport = new StreamableHTTPClientTransport(new URL(errors.fill(d.url)), {
@@ -198,6 +204,18 @@ export function createMcp(deps: {
           cwd: d.cwd ?? ownDir(d.name),
           stderr: "pipe",
         });
+        const id = Symbol(d.name);
+        let exited!: () => void;
+        const closed = new Promise<void>((resolve) => {
+          exited = resolve;
+        });
+        stdio.onclose = () => {
+          processes.delete(id);
+          exited();
+        };
+        trackProcess = () => {
+          if (stdio.pid !== null) processes.set(id, { key: keyOf(d), exited: closed });
+        };
         // A server may print what it was given: its secrets and credential-like variables are masked in its log.
         const hidden = [
           ...secretNames(d).map((n) => deps.secrets.resolveIn(`secret://${n}`, valuesIn(d.values_of)) ?? ""),
@@ -214,7 +232,9 @@ export function createMcp(deps: {
       }
       arm(CONNECT_MS, `no answer in ${CONNECT_MS / 1000}s`);
       // Our deadline ends the start, not the SDK's own minute: a sign-in may take longer.
-      await Promise.race([client.connect(transport, { timeout: SIGN_IN_MS }), deadline]);
+      const connecting = client.connect(transport, { timeout: SIGN_IN_MS });
+      trackProcess?.();
+      await Promise.race([connecting, deadline]);
       const { tools } = await client.listTools(undefined, { timeout: CONNECT_MS });
       return { client, tools: tools as McpTool[], errorMessage: errors.message };
     } catch (err) {
@@ -322,13 +342,26 @@ export function createMcp(deps: {
   }
 
   /** Closes a connection, or the start still opening it. */
-  async function closeConn(c: Conn): Promise<void> {
-    await c.stop?.();
-    await c.client?.close().catch(() => {});
+  function closeConn(c: Conn): Promise<void> {
+    const existing = closing.get(c);
+    if (existing) return existing;
+    const done = (async () => {
+      await c.stop?.();
+      await c.client?.close().catch(() => {});
+    })();
+    closing.set(c, done);
+    void done.then(
+      () => closing.delete(c),
+      () => closing.delete(c),
+    );
+    return done;
   }
+
+  const blockKey = (d: Pick<McpDef, "scope" | "project_id" | "name">) => `${d.scope}:${d.project_id ?? ""}:${d.name}`;
 
   /** The live connection for a definition, (re)opened when missing, failed or its definition changed. */
   function ensure(d: McpDef): Conn {
+    if (blocked.has(blockKey(d))) throw conflict("This server is being updated; try again shortly");
     const key = keyOf(d);
     let c = conns.get(key);
     if (c && c.hash !== d.hash) {
@@ -637,6 +670,8 @@ export function createMcp(deps: {
      */
     async test(d: McpDef): Promise<{ ok: boolean; ms: number; tools: string[]; error?: string }> {
       if (!config.trusted(d)) return { ok: false, ms: 0, tools: [], error: "approve this server before testing it" };
+      if (blocked.has(blockKey(d)))
+        return { ok: false, ms: 0, tools: [], error: "This server is being updated; try again shortly" };
       const live = conns.get(keyOf(d));
       if ((live?.hash === d.hash && live.status === "needs-sign-in") || waitsSignIn(d))
         return { ok: false, ms: 0, tools: [], error: SIGN_IN_FIRST };
@@ -646,10 +681,27 @@ export function createMcp(deps: {
         asked = r;
       });
       const ac = new AbortController();
+      let finish!: () => void;
+      const done = new Promise<void>((resolve) => {
+        finish = resolve;
+      });
+      const key = keyOf(d);
+      const active = tests.get(key) ?? new Set();
+      const run = { abort: () => ac.abort(), done };
+      active.add(run);
+      tests.set(key, active);
       const started = connect(d, (url) => asked(url), ac.signal);
       try {
         const first = await Promise.race([started, askedFor]);
         if (typeof first === "string") {
+          if (blocked.has(blockKey(d))) {
+            ac.abort();
+            await started.then(
+              ({ client }) => client.close(),
+              () => {},
+            );
+            throw conflict("This server is being updated; try again shortly");
+          }
           // The copy becomes the connection agents use: the sign-in the owner finishes is the one they get.
           const key = keyOf(d);
           const old = conns.get(key);
@@ -676,6 +728,10 @@ export function createMcp(deps: {
         return { ok: true, ms: Date.now() - t0, tools: tools.map((t) => t.name) };
       } catch (err) {
         return { ok: false, ms: Date.now() - t0, tools: [], error: errorMessage(err) };
+      } finally {
+        active.delete(run);
+        if (!active.size) tests.delete(key);
+        finish();
       }
     },
     /**
@@ -684,6 +740,7 @@ export function createMcp(deps: {
      */
     async signIn(d: McpDef): Promise<void> {
       if (!d.enabled || !config.trusted(d)) throw badRequest("approve and enable this server before signing in");
+      if (blocked.has(blockKey(d))) throw conflict("This server is being updated; try again shortly");
       const old = conns.get(keyOf(d));
       conns.delete(keyOf(d));
       if (old) await closeConn(old);
@@ -694,21 +751,55 @@ export function createMcp(deps: {
     logs(d: McpDef, n: number) {
       return stderr.read(keyOf(d), n);
     },
+    /** Refuses new starts while an extension replaces the servers' files. */
+    suspend(servers: Array<Pick<McpDef, "scope" | "project_id" | "name">>): () => void {
+      const keys = [...new Set(servers.map(blockKey))];
+      if (keys.some((key) => blocked.has(key))) throw conflict("This server is already being updated");
+      for (const key of keys) blocked.add(key);
+      return () => {
+        for (const key of keys) blocked.delete(key);
+      };
+    },
     /** Closes a server's connection now (approval withdrawn, definition removed). */
     async drop(d: Pick<McpDef, "scope" | "project_id" | "name">, preserveApprovals = false): Promise<void> {
       if (!preserveApprovals) deps.store.approvals.revokeServer(serverApprovalId(d));
       const prefix = `${d.scope}:${d.project_id ?? ""}:`;
       const mine = (key: string) => key.startsWith(prefix) && key.endsWith(`:${d.name}`);
-      const closing: Promise<void>[] = [];
       for (const [key, c] of conns) {
         if (mine(key)) {
           conns.delete(key);
-          closing.push(closeConn(c));
+          void closeConn(c);
+        }
+      }
+      const pending: Promise<void>[] = [];
+      for (const [c, done] of closing) if (mine(c.key)) pending.push(done);
+      for (const [key, active] of tests) {
+        if (!mine(key)) continue;
+        for (const run of active) {
+          run.abort();
+          pending.push(run.done);
         }
       }
       stderr.forget(mine);
       if (!preserveApprovals) forget(mine);
-      await Promise.all(closing);
+      await Promise.all(pending);
+      const exiting = [...processes.values()].filter((p) => mine(p.key)).map((p) => p.exited);
+      if (exiting.length) {
+        let timer: ReturnType<typeof setTimeout> | undefined;
+        try {
+          await Promise.race([
+            Promise.all(exiting),
+            new Promise<never>((_, reject) => {
+              timer = setTimeout(
+                () => reject(unavailable("MCP server did not exit; its files were not changed")),
+                10_000,
+              );
+            }),
+          ]);
+        } finally {
+          clearTimeout(timer);
+        }
+      }
     },
     /** A global server as it runs in `projectId` (or in its own project, when it is limited to one). */
     find(scope: "global" | "project", name: string, projectId?: string): McpDef | undefined {
