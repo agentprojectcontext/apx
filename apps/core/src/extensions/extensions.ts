@@ -717,11 +717,11 @@ export function createExtensions(deps: {
       return shown(get(id));
     },
     /** Removes it, and archives the agents the owner added from it (one answering a channel stays). */
-    remove(id: string): { removed: boolean; archived: string[]; kept: string[] } {
+    async remove(id: string): Promise<{ removed: boolean; archived: string[]; kept: string[] }> {
       const e = store.extensions.get(id);
       if (!e) return { removed: false, archived: [], kept: [] };
+      await plugins.stopAndWait(id);
       const agents = archiveExtensionAgents(store, e);
-      plugins.stop(id);
       for (const name of extensionSecrets(id, [e.manifest, ...(e.previous ? [e.previous.manifest] : [])]))
         if (secrets.listed(name)) secrets.set(name, null);
       store.extensions.remove(id);

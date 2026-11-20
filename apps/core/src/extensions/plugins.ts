@@ -154,6 +154,7 @@ export function createPlugins(deps: {
 
   /** Extensions that should be running (enabled with a plugin). */
   const wanted = new Map<string, ExtensionRecord>();
+  const stopping = new Map<string, Promise<void>>();
 
   const threadOf = (e: CoreEvent): string | undefined =>
     e.type === "message.created"
@@ -208,8 +209,19 @@ export function createPlugins(deps: {
       const l = live.get(id);
       if (!l) return;
       l.stopping = true;
+      const previous = stopping.get(id);
+      const exited = new Promise<void>((resolve) => l.child.once("close", () => resolve()));
+      const done = Promise.all([previous, exited]).then(() => {});
+      stopping.set(id, done);
+      void done.then(() => {
+        if (stopping.get(id) === done) stopping.delete(id);
+      });
       l.child.kill();
       live.delete(id);
+    },
+    async stopAndWait(id: string): Promise<void> {
+      this.stop(id);
+      await stopping.get(id);
     },
     contextOwner: () => deps.hooks.contextOwner(),
     /** Marks a plugin as failed (it could not start); APX goes on without it. */

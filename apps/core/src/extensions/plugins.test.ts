@@ -27,7 +27,7 @@ export default function activate(api) {
     const mapped = await tryIt(async () => { await fetch("http://[::ffff:127.0.0.1]:" + port + "/health"); });
     if (input.text.includes("garbage")) process.stdout.write(JSON.stringify({ t: "context", id: 1, text: { x: 1 } }) + "\\n");
     if (input.text.includes("flood")) process.stdout.write("x".repeat(200000));
-    return "seen=" + seen + " secret=" + (api.secrets.token ?? "none") + " outside=" + outside + " exec=" + exec +
+    return "pid=" + process.pid + " seen=" + seen + " secret=" + (api.secrets.token ?? "none") + " outside=" + outside + " exec=" + exec +
       " core=" + core + " (" + why + ") data=" + data + " raw=" + raw + " mapped=" + mapped + " asked=" + input.text;
   });
 }
@@ -150,6 +150,18 @@ test("reinstalling changed files while on stops the plugin until approved again"
   assert.equal(again.enabled, false);
   assert.equal(again.plugin?.status, "off");
   assert.doesNotMatch(await turnInput("after reinstall"), /extension context/);
+});
+
+test("removing a plugin waits for its process before removing its data", async () => {
+  await env.client.call("extensions.install", { path: extension("removable", { context: true }) });
+  await env.client.call("extensions.enable", { id: "removable", enabled: true });
+  const result = await env.client.call("extensions.test", { id: "removable", text: "identify" });
+  assert.equal(result.ok, true, result.error);
+  const pid = Number(result.context?.match(/pid=(\d+)/)?.[1]);
+  assert.ok(pid);
+  assert.equal((await env.client.call("extensions.remove", { id: "removable" })).removed, true);
+  assert.throws(() => process.kill(pid, 0), { code: "ESRCH" });
+  assert.equal(fs.existsSync(path.join(env.home, "extension-data", "removable")), false);
 });
 
 test("names inside an extension cannot be read two ways", async () => {
