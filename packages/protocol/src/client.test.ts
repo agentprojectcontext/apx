@@ -340,7 +340,7 @@ test("derived clients retain the native socket factory and cancel its live conne
     url: "https://core.example.com",
     socketFactory: (url) => {
       wire = new FakeWebSocket(url);
-      return wire;
+      return wire as unknown as WebSocket;
     },
   }).withSignal(cancellation.signal);
   const opening = client.connect("node", ["browser"]);
