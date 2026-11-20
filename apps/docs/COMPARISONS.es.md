@@ -7,13 +7,13 @@ El índice está en `/compare/` y su traducción en `/es/compare/`. Las páginas
 - Comparar flujos documentados, no ausencias inferidas ni puntajes universales.
 - Dar un motivo útil para elegir cada producto.
 - Revisar documentación primaria y licencias antes de cambiar la fecha de revisión. La fecha corresponde a las fuentes, no a una prueba de rendimiento.
-- Mantener cada fila y sección en inglés y español. Agregar productos solo con fuentes suficientes; hoy se comparan doce productos.
+- Mantener cada fila y sección en inglés y español. Agregar productos solo con fuentes suficientes; hoy se comparan trece productos.
 - Los logos identifican productos ajenos; su procedencia está en `public/brands/README.md`.
 - Distinguir costos de proveedores, licencias de software y servicios alojados.
 
 ## Fuentes fijadas y descubrimiento desde inicio
 
-Consulta: 2026-10-30. Las citas a documentos y licencias de GitHub están fijadas a commits verificados en `sourceSnapshots`: APX usa la base del sitio revisada `61e82f790c1e4802a8f4e1764ae5ccc86487d3fe`, Hermes `5057eaa3a4d0cbef0e30078418a5115faa62889e`, OpenClaw `b277db00687aabbf245c0d9287139a30bb2a22df` y OpenBot `98e89b61782a2ae7d0aac380d82d824b65179afd`. Cada README y licencia respondió HTTP 200 en esa revisión. Los enlaces a portadas de repositorios sirven para descubrir el producto, no como evidencia inmutable.
+Consulta: 2026-10-30. Las citas a documentos y licencias de GitHub están fijadas a commits verificados en `sourceSnapshots`: APX usa la base del sitio revisada `61e82f790c1e4802a8f4e1764ae5ccc86487d3fe`, Hermes `5057eaa3a4d0cbef0e30078418a5115faa62889e`, OpenClaw `b277db00687aabbf245c0d9287139a30bb2a22df` y OpenBot `98e89b61782a2ae7d0aac380d82d824b65179afd`. Cada README y licencia respondió HTTP 200 en esa revisión. Los enlaces a portadas de repositorios sirven para descubrir el producto, no como evidencia inmutable. DeepSeek Harness se sumó el 2026-11-20, fijado a `2e39e70496aa02986ca6a820c5d497e816b69d7e`; su README, licencia, aviso de seguridad y guías de uso respondieron HTTP 200 en esa revisión. Su README lo marca como versión preliminar con cambios que rompen compatibilidad, así que hay que revisarlo antes de cambiar lo que se afirma.
 
 Las fuentes web siguen siendo variables: `https://openbot.run/`, `https://openbot.run/compare/hermes-agent`, `https://docs.openclaw.ai/concepts/multi-agent` y `https://docs.openclaw.ai/automation/cron-jobs`. La fecha de consulta no congela su contenido. Los extractos fechados de una nueva consulta se conservan en [Evidencia de fuentes web mutables](COMPARISON_WEB_EVIDENCE.md); el registro distingue afirmaciones del editor de funciones ejercitadas. Revisarlas antes de cambiar afirmaciones o la fecha. El texto de licencia conserva posibles excepciones: un uso fuera de los permisos indicados **puede** requerir otra autorización; no decide sobre uso legítimo ni ofrece asesoramiento legal.
 

@@ -7,13 +7,13 @@ The comparison index is at `/compare/`, with Spanish parity at `/es/compare/`. I
 - Compare documented workflows, not inferred absences or universal quality scores.
 - Keep a meaningful reason to choose either product.
 - Check primary project documentation and licenses before editing the review date. The date records source review, not a product benchmark.
-- Keep every row and section in English and Spanish. Add only products with sufficient verified sources; twelve products are compared today.
+- Keep every row and section in English and Spanish. Add only products with sufficient verified sources; thirteen products are compared today.
 - Logos identify third-party products; provenance is in `public/brands/README.md`.
 - Do not treat provider charges, software licenses and hosted-service costs as the same thing.
 
 ## Source snapshots and home discovery
 
-Consulted on 2026-10-30. GitHub document and license citations are pinned to verified commits in `sourceSnapshots`: APX uses the reviewed website base `61e82f790c1e4802a8f4e1764ae5ccc86487d3fe`, Hermes `5057eaa3a4d0cbef0e30078418a5115faa62889e`, OpenClaw `b277db00687aabbf245c0d9287139a30bb2a22df`, and OpenBot `98e89b61782a2ae7d0aac380d82d824b65179afd`. Each README and license returned HTTP 200 at that revision. Repository landing pages are discovery links, not immutable evidence.
+Consulted on 2026-10-30. GitHub document and license citations are pinned to verified commits in `sourceSnapshots`: APX uses the reviewed website base `61e82f790c1e4802a8f4e1764ae5ccc86487d3fe`, Hermes `5057eaa3a4d0cbef0e30078418a5115faa62889e`, OpenClaw `b277db00687aabbf245c0d9287139a30bb2a22df`, and OpenBot `98e89b61782a2ae7d0aac380d82d824b65179afd`. Each README and license returned HTTP 200 at that revision. Repository landing pages are discovery links, not immutable evidence. DeepSeek Harness was added on 2026-11-20, pinned to `2e39e70496aa02986ca6a820c5d497e816b69d7e`; its README, license, safety notice and user guides returned HTTP 200 at that revision. Its README marks it a developer preview with breaking changes expected, so recheck it before changing its claims.
 
 The web sources remain variable: `https://openbot.run/`, `https://openbot.run/compare/hermes-agent`, `https://docs.openclaw.ai/concepts/multi-agent` and `https://docs.openclaw.ai/automation/cron-jobs`. Their consultation date does not freeze their content. Dated excerpts from a fresh consultation are preserved in [Mutable web source evidence](COMPARISON_WEB_EVIDENCE.md); this record explicitly distinguishes publisher claims from exercised functionality. Recheck them before changing claims or the review date. License wording preserves possible exceptions: uses outside the listed permissions **may** require separate permission; it does not decide fair use or give legal advice.
 

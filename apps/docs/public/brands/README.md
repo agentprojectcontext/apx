@@ -17,6 +17,7 @@ Retrieved October 30, 2026 from each product's own site:
 - `muse.svg`: https://muse.ai/images/favicon/app-squiggle.svg (linked by https://muse.ai/).
 - `instinct.png`: https://instinct.com/apple-touch-icon.png (linked by https://instinct.com/).
 - `cursor.png`: https://cursor.com/marketing-static/apple-touch-icon-light.png (linked by https://cursor.com/).
+- `deepseek-harness.svg`: https://deepseek-harness.github.io/deepseek-harness/favicon.svg (the project's documentation site, linked from its README), retrieved November 20, 2026.
 - `antigravity.png`: https://antigravity.google/apple-touch-icon.png (linked by https://antigravity.google/).
 
 Use only for identifying the respective products in the comparison pages. Product names and marks belong to their respective owners. Recording their provenance does not establish permission to reproduce the marks; trademark permissions have not been verified.

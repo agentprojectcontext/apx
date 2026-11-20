@@ -6,8 +6,10 @@ for (const lang of ["en", "es"] as const) {
   test(`${lang}: the docs map and the terminal demo lead into the docs`, async ({ page, request }) => {
     await page.goto(`${pre}/`);
     const map = page.locator("#map");
-    await expect(map.locator(".sec-label")).toContainText("04");
-    await expect(map.locator(".guide-card")).toHaveCount(7);
+    await expect(map.locator(".sec-say .visually-hidden")).toHaveText(
+      lang === "es" ? "Encontrá tu camino" : "Find your way",
+    );
+    await expect(map.locator(".guide-card")).toHaveCount(9);
     const hrefs = await map.locator(".guide-card a").evaluateAll((links) => links.map((a) => a.getAttribute("href")));
     expect(hrefs.length).toBeGreaterThanOrEqual(21);
     for (const href of hrefs) {
@@ -17,7 +19,9 @@ for (const lang of ["en", "es"] as const) {
       expect((await request.get(href ?? "")).status(), href ?? "").toBe(200);
     }
     const terminal = page.locator("#terminal");
-    await expect(terminal.locator(".sec-label")).toContainText("05");
+    await expect(terminal.locator(".sec-say .visually-hidden")).toHaveText(
+      lang === "es" ? "¿Preferís la terminal?" : "Prefer the terminal?",
+    );
     await expect(terminal.locator(".term-demo__screen")).toContainText(
       lang === "es" ? 'apx chat "¿Qué tengo para hoy?"' : 'apx chat "What\'s on my plate today?"',
     );
@@ -40,7 +44,7 @@ test("the terminal demo plays its commands in turn, and keeps its size", async (
   await page.evaluate(() => document.fonts.ready);
   await screen.scrollIntoViewIfNeeded();
   await expect(screen).toHaveAttribute("aria-hidden", "true");
-  await expect(page.locator("#terminal .visually-hidden")).toContainText("apx status");
+  await expect(page.locator("#terminal .term-demo__box .visually-hidden")).toContainText("apx status");
   // Layout height, not the box on screen: blocks rise in scaled while they appear.
   const height = () => screen.evaluate((el) => (el as HTMLElement).offsetHeight);
   const before = await height();
