@@ -1,5 +1,5 @@
 .blog .blog-main {
-  max-width: 1080px;
+  max-width: 1180px;
   padding-top: 96px;
   padding-bottom: 100px;
   min-height: 65vh;
@@ -10,7 +10,7 @@
   padding-block: 12px;
 }
 .blog-hero {
-  max-width: 800px;
+  max-width: 960px;
   margin: 12px 0 48px;
 }
 .blog-kicker {
@@ -124,9 +124,6 @@
 }
 .blog-row-meta span {
   color: var(--apx-brand-soft-fg);
-}
-.blog .blog-article {
-  max-width: 808px;
 }
 .blog-article .blog-hero {
   margin-bottom: 48px;

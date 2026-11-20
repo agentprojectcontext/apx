@@ -93,12 +93,12 @@ for (const lang of ["en", "es"] as const) {
   }
   test(`${lang}: comparison index leads to each product`, async ({ page }) => {
     await page.goto(`${prefix}/compare/`);
-    await expect(page.locator(".comparison-card")).toHaveCount(12);
+    await expect(page.locator(".comparison-card")).toHaveCount(13);
     await expect(page.locator('.comparison-card[aria-current="page"]')).toHaveCount(0);
     await page.locator('.comparison-card[href$="/openbot/"]').click();
     await expect(page.getByRole("heading", { level: 1 })).toHaveText(`APX vs OpenBot: ${tagline("openbot", lang)}`);
     // Keep comparing lists every product, the one being read marked as such.
-    await expect(page.locator(".comparison-card")).toHaveCount(12);
+    await expect(page.locator(".comparison-card")).toHaveCount(13);
     await expect(page.locator('.comparison-card[aria-current="page"]')).toHaveAttribute(
       "href",
       `${prefix}/compare/openbot/`,

@@ -11,7 +11,7 @@ for (const lang of ["en", "es"] as const) {
       .click();
     await expect(page).toHaveURL(new RegExp(`${pre}/#questions$`));
     const questions = page.locator("#questions");
-    await expect(questions.locator("details")).toHaveCount(6);
+    await expect(questions.locator("details")).toHaveCount(10);
     for (const detail of await questions.locator("details").all()) {
       const summary = detail.locator("summary");
       await summary.focus();
@@ -27,12 +27,12 @@ for (const lang of ["en", "es"] as const) {
     // The six most relevant comparisons, in the data's order.
     await expect(cards).toHaveCount(6);
     expect(featured.map((item) => item.slug)).toEqual([
+      "deepseek-harness",
       "claude-cowork",
       "chatgpt-dots",
       "openclaw",
       "manus",
       "hermes-agent",
-      "openbot",
     ]);
     for (const [index, product] of featured.entries()) {
       const slug = product.slug;
@@ -73,10 +73,10 @@ for (const lang of ["en", "es"] as const) {
   test(`${lang}: final crew invitation follows downloads immediately before the footer`, async ({ page }, testInfo) => {
     await page.goto(`${pre}/`);
     const final = page.locator(".final");
-    // The map, the terminal, questions, comparisons and downloads come before it; it closes the page, right above the footer.
-    await expect(page.locator("#map + #terminal + #questions + #compare + #download + .final:last-child")).toHaveCount(
-      1,
-    );
+    // The map, the terminal, questions, comparisons, the blog and downloads come before it; it closes the page, right above the footer.
+    await expect(
+      page.locator("#map + #terminal + #questions + #compare + #blog + #download + .final:last-child"),
+    ).toHaveCount(1);
     await expect(page.locator("main:has(> .final:last-child) + .web-footer")).toHaveCount(1);
     await expect(final.getByRole("heading", { level: 2 })).toHaveText(
       lang === "es" ? "Tu crew te está esperando." : "Your crew is waiting.",

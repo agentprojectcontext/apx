@@ -229,23 +229,6 @@ body.h {
 }
 
 /* Section label: blob, number, a dash and the name. */
-.sec-label {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  margin: 0;
-  font: 500 12px / 1 var(--apx-font-mono);
-  letter-spacing: 0.06em;
-  color: var(--apx-fg);
-}
-.sec-label__n {
-  color: var(--apx-fg-subtle);
-}
-.sec-label__dash {
-  width: 24px;
-  height: 1px;
-  background: var(--apx-border-strong);
-}
 .h2 {
   margin: 16px 0 0;
   font-size: clamp(38px, 5.6vw, 68px);

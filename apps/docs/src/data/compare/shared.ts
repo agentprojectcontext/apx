@@ -8,6 +8,8 @@ export type Product = {
   slug: string;
   name: string;
   logo: string;
+  /** When this product's sources were reviewed, if later than the shared date (YYYY-MM-DD). */
+  checked?: string;
   /** A one-color mark drawn in black, inverted in the dark theme. */
   mono?: boolean;
   source: string;

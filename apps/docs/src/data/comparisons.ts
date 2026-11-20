@@ -1,5 +1,6 @@
 import { chatgptDots } from "./compare/chatgpt-dots.ts";
 import { claudeCowork } from "./compare/claude-cowork.ts";
+import { deepseekHarness } from "./compare/deepseek-harness.ts";
 import { devin } from "./compare/devin.ts";
 import { grokBot } from "./compare/grok-bot.ts";
 import { hermesAgent } from "./compare/hermes-agent.ts";
@@ -20,6 +21,7 @@ export const sourceSnapshots = {
   "openclaw/openclaw": "b277db00687aabbf245c0d9287139a30bb2a22df",
   "paperclipai/paperclip": "76fde891ccc29283b3f5c8dcdce089c5b3d937d1",
   "nightly-labs/openbot": "98e89b61782a2ae7d0aac380d82d824b65179afd",
+  "deepseek-ai/deepseek-harness": "2e39e70496aa02986ca6a820c5d497e816b69d7e",
 } as const;
 export const apxSource = "https://github.com/agentprojectcontext/apx";
 const apxDoc = (path: string) =>
@@ -102,6 +104,7 @@ export const topics = [
   text("License and costs", "Licencia y costos"),
 ];
 export const comparisons: Product[] = [
+  deepseekHarness,
   hermesAgent,
   openclaw,
   openbot,
@@ -117,7 +120,7 @@ export const comparisons: Product[] = [
 ];
 export type Comparison = Product;
 /** The comparisons shown first (the home's cards, the header's menu), most relevant first. */
-export const featured = ["claude-cowork", "chatgpt-dots", "openclaw", "manus", "hermes-agent", "openbot"]
+export const featured = ["deepseek-harness", "claude-cowork", "chatgpt-dots", "openclaw", "manus", "hermes-agent"]
   .map((slug) => comparisons.find((c) => c.slug === slug))
   .filter((c): c is Product => c !== undefined);
 export const labels = {

@@ -76,7 +76,7 @@ const schema = [
       <a class="blog-back" href={href(post ? `${pre}/blog/` : `${pre}/`)}>← {post ? "Blog" : "APX"}</a>
       <header class="blog-hero">
         {cover && <figure class="blog-cover">
-          <Image src={cover.src} alt={cover.alt} widths={[Math.min(400, cover.src.width), ...[800, 1200, 1600].filter((width) => width <= cover.src.width)]} sizes="(max-width: 808px) calc(100vw - 32px), 760px" format="webp" loading="eager" fetchpriority="high" />
+          <Image src={cover.src} alt={cover.alt} widths={[Math.min(400, cover.src.width), ...[800, 1200, 1600].filter((width) => width <= cover.src.width)]} sizes="(max-width: 1180px) calc(100vw - 32px), 960px" format="webp" loading="eager" fetchpriority="high" />
           {cover.caption && <figcaption>{cover.caption}</figcaption>}
         </figure>}
         {!post && <p class="blog-kicker">Blog</p>}

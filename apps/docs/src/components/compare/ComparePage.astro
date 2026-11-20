@@ -32,6 +32,11 @@ interface Props {
 }
 const { lang, comparison: item } = Astro.props;
 const t = labels[lang];
+// A product reviewed after the shared date carries its own.
+const reviewed = item?.checked ?? checked;
+const reviewedLabel = item?.checked
+  ? `${lang === "es" ? "Fuentes revisadas el" : "Sources checked"} ${new Intl.DateTimeFormat(lang === "es" ? "es-AR" : "en-US", { dateStyle: "long", timeZone: "UTC" }).format(new Date(`${item.checked}T00:00:00Z`))}`
+  : t.checked;
 const pre = lang === "es" ? "/es" : "";
 const href = (p: string) => sitePath(p, import.meta.env.BASE_URL);
 const route = `/compare/${item ? `${item.slug}/` : ""}`;
@@ -131,7 +136,7 @@ const chatRows = item ? [item] : comparisons.slice(0, 3);
             <p class="compare-eyebrow">{item ? t.eyebrow : t.comparisons}</p>
             <h1>{item ? <>APX vs {item.name}<span class="compare-h1__tag">: {item.tagline[lang]}</span></> : t.title}</h1>
             <p class="compare-intro">{description}</p>
-            <p class="compare-checked"><time datetime={checked}>{t.checked}</time><span aria-hidden="true">·</span><a href={item ? "#sources" : "#comparisons"}>{item ? t.sourcesLink : t.comparisons}</a></p>
+            <p class="compare-checked"><time datetime={reviewed}>{reviewedLabel}</time><span aria-hidden="true">·</span><a href={item ? "#sources" : "#comparisons"}>{item ? t.sourcesLink : t.comparisons}</a></p>
           </div>
           <div class="compare-hero__chat" aria-hidden="true">
             <div class="chat-window">
