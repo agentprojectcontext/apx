@@ -24,6 +24,7 @@ import { fileRefs, fillFileArgs, hasFileRefs, type OpenFile, refOf } from "./fil
 import { createStderrLogs } from "./logs.ts";
 import { createProcessExits } from "./process-exits.ts";
 import { watchSignIn } from "./sign-in.ts";
+import { closeWindowsTree } from "./windows-process-tree.ts";
 
 const CONNECT_MS = 20_000;
 const CALL_MS = 120_000;
@@ -206,6 +207,7 @@ export function createMcp(deps: {
           cwd: d.cwd ?? ownDir(d.name),
           stderr: "pipe",
         });
+        if (process.platform === "win32") closeWindowsTree(stdio);
         trackProcess = processes.watch(keyOf(d), stdio);
         // A server may print what it was given: its secrets and credential-like variables are masked in its log.
         const hidden = [
