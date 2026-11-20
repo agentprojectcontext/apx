@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import type { Agent, ChannelInfo } from "@apx/protocol";
 import type { T } from "../i18n/index.ts";
-import { answerersOf, answersLine } from "./answerers.ts";
+import { answerersOf, answersLine, chatAgentId } from "./answerers.ts";
 
 const texts: Record<string, string> = {
   "ch.answersBy": "{agent} answers",
@@ -27,4 +27,13 @@ test("a removed agent never shows as its id", () => {
   assert.equal(answersLine(answerersOf(account("gone-7"), agents), t), "An agent that no longer exists answers");
   const split = answersLine(answerersOf(account("a1", "gone-7"), agents), t);
   assert.equal(split, "You talk to Ada · an agent that no longer exists answers your contacts");
+});
+
+test("a contact's chat is answered by its own agent, not the account's", () => {
+  const ch = account("a1", "a2");
+  assert.equal(chatAgentId(ch, undefined, undefined), "a2");
+  assert.equal(chatAgentId(account("a1"), undefined, undefined), "a1");
+  assert.equal(chatAgentId(ch, { agent_id: "a3" }, undefined), "a3");
+  // Once handed over, the chat's own agent wins.
+  assert.equal(chatAgentId(ch, { agent_id: "a3" }, { agent_ids: ["a4"] }), "a4");
 });

@@ -1,4 +1,4 @@
-import type { Agent, ChannelInfo } from "@apx/protocol";
+import type { Agent, ChannelInfo, Person, Thread } from "@apx/protocol";
 import type { T } from "../i18n/index.ts";
 
 /** Who answers on an account: the agent the owner talks to, and the one for contacts only when it is another. */
@@ -11,6 +11,13 @@ export function answerersOf(channel: ChannelInfo, agents: Record<string, Agent>)
     contacts: contactsId && contactsId !== channel.agent_id ? { agent: agents[contactsId] } : undefined,
   };
 }
+
+/** Who answers one contact's chat: the agent it was handed to, else the contact's own, else the account's contacts agent. */
+export const chatAgentId = (
+  channel: Pick<ChannelInfo, "agent_id" | "contacts_agent_id">,
+  person: Pick<Person, "agent_id"> | undefined,
+  thread: Pick<Thread, "agent_ids"> | undefined,
+): string => thread?.agent_ids[0] ?? person?.agent_id ?? channel.contacts_agent_id ?? channel.agent_id;
 
 /** The agent's name, or words for one that was removed; lowercase so it reads inside a sentence. */
 export const agentName = (agent: Agent | undefined, t: T): string => agent?.name ?? t("ch.agentGone");

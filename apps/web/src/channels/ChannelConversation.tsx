@@ -23,6 +23,7 @@ import { useData } from "../data/state.ts";
 import { type MessageKey, useT } from "../i18n/index.ts";
 import { EmailCard, MediaGroup, ReceivedMail } from "../lazy.ts";
 import { go } from "../shell/nav.ts";
+import { chatAgentId } from "./answerers.ts";
 import { addressText, ContactFace } from "./ContactRow.tsx";
 import { ContactFlags, useContactFlags } from "./flags.tsx";
 import { KindIcon } from "./KindIcon.tsx";
@@ -57,13 +58,15 @@ export function ChannelConversation(props: {
   const threadId = thread?.id ?? "";
   const messages = useData((s) => s.messages[threadId]);
   const load = useData((s) => s.threadLoad[threadId]);
-  const agent = useData((s) => s.agents[channel.agent_id]);
+  const agentId = chatAgentId(channel, person, thread);
+  const agents = useData((s) => s.agents);
+  const agent = agents[agentId];
   const [mode, setMode] = useState("agent");
   const [text, setText] = useState("");
   const [busy, setBusy] = useState(false);
   const [recovering, setRecovering] = useState(false);
   const name = person?.name ?? thread?.title ?? "";
-  const agentName = agent?.name ?? channel.agent_id;
+  const agentName = agent?.name ?? agentId;
   const channelLabel = t("chat.viaChannel", { channel: t(CHANNEL_KINDS[channel.type].name) });
 
   useEffect(() => {
@@ -185,7 +188,14 @@ export function ChannelConversation(props: {
         ) : load !== "ready" && !messages ? (
           <Skeleton height={120} />
         ) : (
-          (messages ?? []).map((m) => <Bubble key={m.id} m={m} agentName={agentName} mail={channel.type === "email"} />)
+          (messages ?? []).map((m) => (
+            <Bubble
+              key={m.id}
+              m={m}
+              agentName={m.author.kind === "agent" ? (agents[m.author.id]?.name ?? agentName) : agentName}
+              mail={channel.type === "email"}
+            />
+          ))
         )}
       </StickyScroll>
       {/* The same composer as a room's: the line, and under it who writes, what each choice does on hover. */}
