@@ -36,7 +36,7 @@ command and static checks; they do not require rerunning application suites unle
 | Web / mobile React | Mount the real hook or component, trigger the user action and assert its result plus failure recovery. Preserve drafts and unrelated/concurrent state; test duplicate submissions when the action can be repeated. |
 | Async chat / task / routine / preferences | Resolve requests out of order, switch entity or request scope, fail a later operation and unmount while pending. Old responses cannot overwrite the current entity or latest confirmed state; acknowledgements cannot erase newer live events. |
 | Subscriptions / reconnects | Remove the exact listeners, cancel timers/retries and close late connections after cleanup. Revoked credentials must stop reconnecting and unpair once. |
-| Desktop / preload | Strip native event objects, return working unsubscribe functions and test native restore/minimize/focus transitions in Electron. A renderer-only check or forced focus is not native transition proof. |
+| Desktop / preload | Strip native event objects, return working unsubscribe functions and test native restore/minimize/focus transitions in Electron. A renderer-only check or forced focus is not native transition proof. Native node revocation must end its transport even when the peer never acknowledges a closing handshake; test both an open and a still-connecting socket, plus the real change-connection journey. |
 | Test tooling / coverage | Use synthetic fixtures for inventory, assertions and mappings. Cover replaced/missing build maps and chained library maps; do not read production source in behavioral tests. |
 
 ### Evidence and run isolation

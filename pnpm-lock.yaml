@@ -122,10 +122,16 @@ importers:
       '@apx/protocol':
         specifier: workspace:*
         version: link:../../packages/protocol
+      ws:
+        specifier: ^8.22.0
+        version: 8.22.0
     devDependencies:
       '@apx/config':
         specifier: workspace:*
         version: link:../../packages/config
+      '@types/ws':
+        specifier: ^8.18.2
+        version: 8.18.2
       electron:
         specifier: ^44.5.1
         version: 44.5.1

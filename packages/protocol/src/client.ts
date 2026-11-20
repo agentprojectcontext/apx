@@ -114,6 +114,14 @@ function clientDeadline(method: string, params: unknown, fallback: number): numb
   return fallback;
 }
 
+export interface SocketTransport {
+  readonly readyState: number;
+  send(data: string): void;
+  close(): void;
+  addEventListener(type: "message", listener: (event: { data: unknown }) => void, options?: { once?: boolean }): void;
+  addEventListener(type: "open" | "error" | "close", listener: () => void, options?: { once?: boolean }): void;
+}
+
 export type ClientOptions = {
   /** Base URL of the core, e.g. http://127.0.0.1:7440 */
   url: string;
@@ -122,6 +130,8 @@ export type ClientOptions = {
   timeoutMs?: number;
   /** Native runtimes inject their secure UUID source instead of a browser crypto global. */
   requestKey?: () => string;
+  /** Native nodes can inject a transport that tears down a revoked connection immediately. */
+  socketFactory?: (url: string) => SocketTransport;
   /** "agent" for clients driven by a model (e.g. `apx mcp`): they never get the human's controls. */
   actor?: Actor;
   /** An outside app's client token (clients.create): it acts as a model, limited to its scopes. */
@@ -149,6 +159,7 @@ export class ApxClient {
       timeoutMs: 15_000,
       actor: "human",
       requestKey: secureRequestKey,
+      socketFactory: (url) => new WebSocket(url),
       ...opts,
       url: opts.url.replace(/\/$/, ""),
     };
@@ -201,7 +212,7 @@ export class ApxClient {
     signal?.throwIfAborted();
     const token = this.#opts.token ? `?token=${encodeURIComponent(this.#opts.token)}` : "";
     const wsUrl = `${this.#opts.url.replace(/^http/, "ws")}/ws${token}`;
-    const socket = new ApxSocket(wsUrl, this.#opts.timeoutMs, this.#opts.requestKey);
+    const socket = new ApxSocket(wsUrl, this.#opts.timeoutMs, this.#opts.requestKey, this.#opts.socketFactory);
     const abort = () => socket.close();
     signal?.addEventListener("abort", abort, { once: true });
     try {
@@ -242,7 +253,7 @@ export type RequestHandler = (method: string, params: unknown) => Promise<unknow
 type Pending = { resolve: (v: unknown) => void; reject: (e: Error) => void; timer: ReturnType<typeof setTimeout> };
 
 export class ApxSocket {
-  #ws: WebSocket | undefined;
+  #ws: SocketTransport | undefined;
   #seq = 0;
   #pending = new Map<string, Pending>();
   #listeners = new Set<(event: EventFrame) => void>();
@@ -253,15 +264,23 @@ export class ApxSocket {
   readonly timeoutMs: number;
   readonly #requestKey: () => string;
 
-  constructor(url: string, timeoutMs: number, requestKey = secureRequestKey) {
+  readonly #socketFactory: (url: string) => SocketTransport;
+
+  constructor(
+    url: string,
+    timeoutMs: number,
+    requestKey = secureRequestKey,
+    socketFactory = (url: string): SocketTransport => new WebSocket(url),
+  ) {
     this.url = url;
     this.timeoutMs = timeoutMs;
     this.#requestKey = requestKey;
+    this.#socketFactory = socketFactory;
   }
 
   open(hello: unknown): Promise<WelcomeFrame> {
     return new Promise((resolve, reject) => {
-      const ws = new WebSocket(this.url);
+      const ws = this.#socketFactory(this.url);
       this.#ws = ws;
       const timer = setTimeout(() => {
         reject(new Error("welcome timeout"));

@@ -28,6 +28,9 @@ await build({
   entryPoints: [path.join(root, "src/main/main.ts")],
   outfile: path.join(out, "main.js"),
   format: "esm",
+  banner: {
+    js: 'import { createRequire as apxCreateRequire } from "node:module"; const require = apxCreateRequire(import.meta.url);',
+  },
 });
 await build({
   ...common,

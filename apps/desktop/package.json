@@ -12,10 +12,12 @@
     "test": "node --test \"src/**/*.test.ts\" \"scripts/*.test.ts\""
   },
   "dependencies": {
-    "@apx/protocol": "workspace:*"
+    "@apx/protocol": "workspace:*",
+    "ws": "^8.22.0"
   },
   "devDependencies": {
     "@apx/config": "workspace:*",
+    "@types/ws": "^8.18.2",
     "electron": "^44.5.1",
     "esbuild": "^0.25.12"
   }

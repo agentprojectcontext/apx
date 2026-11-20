@@ -3,6 +3,7 @@
 import { BROWSER_CAP, COMPUTER_CAP, COMPUTER_POINTER_CAP } from "@apx/protocol";
 import { ApxClient, type ApxSocket } from "@apx/protocol/client";
 import type { BrowserHost } from "./browser/host.ts";
+import { nodeSocket } from "./node-socket.ts";
 
 export type ComputerHandler = (method: string, params: unknown) => Promise<unknown>;
 type NodeSocket = Pick<ApxSocket, "onRequest" | "emit" | "close" | "closed">;
@@ -22,6 +23,7 @@ export function startNodeLink(
   const controller = new AbortController();
   const client = new ApxClient({
     url,
+    socketFactory: nodeSocket,
     ...(token ? { token } : {}),
     client: { name: "apx-desktop", version: "0.0.0" },
     timeoutMs: 5_000,

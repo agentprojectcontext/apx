@@ -333,6 +333,32 @@ async function openSocket(timeout = 1000) {
   return { socket, wire };
 }
 
+test("derived clients retain the native socket factory and cancel its live connection", async () => {
+  const cancellation = new AbortController();
+  let wire: FakeWebSocket | undefined;
+  const client = new ApxClient({
+    url: "https://core.example.com",
+    socketFactory: (url) => {
+      wire = new FakeWebSocket(url);
+      return wire;
+    },
+  }).withSignal(cancellation.signal);
+  const opening = client.connect("node", ["browser"]);
+  await Promise.resolve();
+  assert.ok(wire);
+  assert.equal(wire.url, "wss://core.example.com/ws");
+  wire.receive({
+    t: "welcome",
+    protocol: PROTOCOL_VERSION,
+    session: "s1",
+    server: { version: "test", code_sha: "abc" },
+  });
+  const socket = await opening;
+  cancellation.abort();
+  await socket.closed;
+  assert.equal(wire.readyState, 3);
+});
+
 test("a socket handshake uses the configured client, encoded token, role and capabilities", async () => {
   globalThis.WebSocket = FakeWebSocket as unknown as typeof WebSocket;
   const client = new ApxClient({
