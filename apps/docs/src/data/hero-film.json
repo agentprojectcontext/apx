@@ -1,0 +1,33 @@
+{
+  "length": 74,
+  "chapters": [
+    {
+      "id": "ask",
+      "at": 0
+    },
+    {
+      "id": "group",
+      "at": 10
+    },
+    {
+      "id": "routine",
+      "at": 27
+    },
+    {
+      "id": "flow",
+      "at": 37
+    },
+    {
+      "id": "marketplace",
+      "at": 52
+    },
+    {
+      "id": "share",
+      "at": 61
+    }
+  ],
+  "posters": {
+    "light": "data:image/webp;base64,UklGRlwAAABXRUJQVlA4IFAAAACQAwCdASogABQAPtFcqE4oJSQiKAqpABoJaWo3ABpbseZwm5yAAP7xB323Fn3hIahKePov5bltftLpP0paiv2auGSIGjRShNt1rY0I/gAAAA==",
+    "dark": "data:image/webp;base64,UklGRmYAAABXRUJQVlA4IFoAAACwBACdASogABQAPtFcqE4oJSQiKAqpABoJaQAAMX/GqCA9UeUf7RvDFHrhEMYgAP7w4CYKkL07nKOLYpOqU6YnbLQZcNL/9NEf477LGRTxDkn1pAG13mygAAA="
+  }
+}

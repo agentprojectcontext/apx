@@ -40,7 +40,8 @@ const bin = path.join(dir, "bin");
 fs.mkdirSync(bin, { recursive: true });
 fs.writeFileSync(path.join(bin, "tailscale"), "#!/bin/sh\necho 'Logged out.' >&2\nexit 1\n", { mode: 0o755 });
 const models = ["llama-3.3-70b", "qwen-2.5-coder-32b"];
-const llm = await demoLlm(models);
+// SHOTS_LLM_PACE_MS: how fast answers stream (the hero film shows them writing).
+const llm = await demoLlm(models, Number(process.env.SHOTS_LLM_PACE_MS ?? 0));
 const tgToken = "123456789:AAShotsFakeTokenForTheEmulatedBot";
 const tg = await fakeTelegram(tgToken);
 

@@ -65,13 +65,14 @@ function answer(messages: Message[]): string {
   return "Sure. I'll take care of it and let you know when it's done.";
 }
 
-export async function demoLlm(models: string[]) {
+/** `paceMs` spaces the streamed pieces so an answer writes itself on screen (the hero film); 0 sends them at once. */
+export async function demoLlm(models: string[], paceMs = 0) {
   const server = http.createServer((req, res) => {
     let raw = "";
     req.on("data", (c) => {
       raw += c;
     });
-    req.on("end", () => {
+    req.on("end", async () => {
       if (req.url?.endsWith("/models")) {
         res.writeHead(200, { "content-type": "application/json" });
         return res.end(JSON.stringify({ data: models.map((id) => ({ id, object: "model" })) }));
@@ -91,8 +92,10 @@ export async function demoLlm(models: string[]) {
       }
       res.writeHead(200, { "content-type": "text/event-stream", "cache-control": "no-cache" });
       const send = (o: unknown) => res.write(`data: ${JSON.stringify(o)}\n\n`);
-      for (const part of text.match(/[\s\S]{1,24}/g) ?? [text])
+      for (const part of text.match(/[\s\S]{1,24}/g) ?? [text]) {
         send({ id: "demo", choices: [{ index: 0, delta: { content: part }, finish_reason: null }] });
+        if (paceMs) await new Promise((r) => setTimeout(r, paceMs));
+      }
       send({ id: "demo", choices: [{ index: 0, delta: {}, finish_reason: "stop" }] });
       send({ id: "demo", choices: [], usage });
       res.end("data: [DONE]\n\n");
