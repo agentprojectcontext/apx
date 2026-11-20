@@ -56,7 +56,7 @@ export function cachedCatalog(store: Store, id: string): CatalogEngine | undefin
 // Ids that name models an agent's turn cannot run on (speech, embeddings, images, music, live audio, guards,
 // providers' own agents…); they stay listed but are not offered for agents.
 const NOT_CHAT =
-  /(embed|tts|audio|speech|transcri|whisper|image|imagen|veo|dall-e|moderation|aqa|realtime|lyria|nano-banana|omni|robotics|computer-use|deep-research|antigravity|guard|orpheus|translate|(^|[-/])live([-/]|$)|(^|[/])gemini-decision-\d+(?:[-:]|$)|(^|[/])flux2-klein(?:[-:]|$))/i;
+  /(embed|tts|audio|speech|transcri|whisper|image|imagen|veo|dall-e|moderation|aqa|realtime|lyria|nano-banana|omni|robotics|computer-use|deep-research|antigravity|guard|orpheus|translate|(^|[-/])live([-/]|$)|(^|[/])genie-\d+(?:[-:]|$)|(^|[/])gemini-decision-\d+(?:[-:]|$)|(^|[/])flux2-klein(?:[-:]|$))/i;
 
 /** A model as a provider's list gives it; OpenRouter says what it supports, Groq whether it still runs. */
 type Listed = {

@@ -73,6 +73,12 @@ Gemma 4's 12B, 26B A4B and 31B variants use 256K, E2B/E4B use 128K, and GPT-OSS
 20B/120B use 131,072. Gemma 4 reads images; GPT-OSS does not. Decision-only Gemini and FLUX.2 Klein image models
 stay listed but are not offered for agent turns, including locally discovered lists.
 
+Genie's versioned world simulation models also stay listed but are not offered for agent turns.
+Google documents [Genie 4](https://deepmind.google/models/genie/) as interactive world generation,
+not a text-and-tools chat model. This classification does not assign it a chat context window or image-reading
+capability. Existing cached lists retain their classification until refreshed (normally within 24 hours);
+`apx models --refresh` applies the current filter without changing saved model selections.
+
 Qwen 3.8 27B reads images and uses a 131,072-token context fallback, as documented in the
 [Groq model card](https://console.groq.com/docs/model/qwen/qwen3.8-27b). This exact-model fallback does not infer
 vision or a larger window for other Qwen variants; provider-reported windows still take precedence.

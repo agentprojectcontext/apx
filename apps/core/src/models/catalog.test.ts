@@ -30,7 +30,9 @@ test("the catalog asks each engine for its models, caches them and keeps the las
       fetchImpl: (async () => {
         calls++;
         if (!up) return new Response("down", { status: 503 });
-        return new Response(JSON.stringify({ data: [{ id: "models/g-pro" }, { id: "models/g-embedding-1" }] }));
+        return new Response(
+          JSON.stringify({ data: [{ id: "models/g-pro" }, { id: "models/g-embedding-1" }, { id: "models/genie-4" }] }),
+        );
       }) as unknown as typeof fetch,
       home: "/nonexistent",
       acpList: async (a) => (a.id === "opencode" ? [{ id: "zen/pickle", name: "Pickle", chat: true }] : []),
@@ -61,6 +63,7 @@ test("the catalog asks each engine for its models, caches them and keeps the las
       [
         ["g-pro", true],
         ["g-embedding-1", false],
+        ["genie-4", false],
       ],
     );
     assert.equal(first.find((e) => e.id === "claude")?.models[0]?.id, "claude-x");
@@ -70,7 +73,9 @@ test("the catalog asks each engine for its models, caches them and keeps the las
     assert.equal(calls, 1, "served from the cache");
     up = false;
     const stale = await catalog.list(true);
-    assert.equal(stale.find((e) => e.id === "g")?.models.length, 2);
+    assert.equal(stale.find((e) => e.id === "g")?.models.length, 3);
+    assert.equal(stale.find((e) => e.id === "g")?.models.find((m) => m.id === "genie-4")?.chat, false);
+    assert.equal(g?.starter, "g-pro");
     assert.match(stale.find((e) => e.id === "g")?.detail ?? "", /could not refresh/);
   } finally {
     db.close();
@@ -143,6 +148,33 @@ test("a signed-in plan's models are asked to the plan with its sign-in, never re
     db.close();
     fs.rmSync(home, { recursive: true, force: true });
   }
+});
+
+test("world simulation models stay listed without becoming agent models", () => {
+  const list = fromProviderList([
+    { id: "models/genie-4", display_name: "Genie 4" },
+    { id: "google/genie-4" },
+    { id: "genie-4-preview" },
+    { id: "genie-4:latest" },
+    { id: "acme/genie-assistant" },
+    { id: "acme/my-genie-4" },
+    { id: "genie-4b-chat", supported_parameters: ["tools"] },
+    { id: "models/gemini-4-neon" },
+  ]);
+  assert.deepEqual(
+    list.map((m) => [m.id, m.chat]),
+    [
+      ["genie-4", false],
+      ["google/genie-4", false],
+      ["genie-4-preview", false],
+      ["genie-4:latest", false],
+      ["acme/genie-assistant", true],
+      ["acme/my-genie-4", true],
+      ["genie-4b-chat", true],
+      ["gemini-4-neon", true],
+    ],
+  );
+  assert.equal(list[0]?.name, "Genie 4");
 });
 
 test("only models an agent's turn can run on are offered for agents; switched-off ones are left out", () => {
