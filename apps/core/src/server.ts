@@ -27,6 +27,7 @@ import { createChannels } from "./channels/manager.ts";
 import type { AdapterFactory } from "./channels/types.ts";
 import { type CoreConfig, OAUTH_CHATGPT } from "./config.ts";
 import { coreLogSink } from "./core-log.ts";
+import { startCheckpointer } from "./db/checkpointer.ts";
 import { openDb, storeSize } from "./db/db.ts";
 import { type DesktopOps, systemDesktop } from "./desktop.ts";
 import { watchAgentReviews } from "./domain/agent-review.ts";
@@ -246,6 +247,7 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
   const log = createLog("core", opts.quiet, opts.quiet ? undefined : coreLogSink(config.home));
   const identity = readIdentity(config.home);
   const db = openDb(config.home);
+  const checkpointer = startCheckpointer(db, config.home);
   const bus = createBus();
   const storage = createStorage({
     home: config.home,
@@ -1050,6 +1052,7 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
       apc.close();
       projectReader?.close();
       await transport.close();
+      await checkpointer.close();
       db.close();
     },
   };

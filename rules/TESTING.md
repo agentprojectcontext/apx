@@ -302,7 +302,8 @@ rerun, with `turn_p50_ms` unchanged and the same code under budget on another ru
 `staging` push, `pnpm perf` locally), are the runner: record that evidence in the change that fixes the rest of the
 red run and leave the budget alone. The usual cause is the runner's disk: an fsync on the event loop, which a busy
 runner sometimes holds for 100–300 ms. Since [D-251](DECISIONS.md#d-251) a commit does not fsync
-(`synchronous = NORMAL`); WAL checkpoints still do, about once every fourteen plain turns. A plain turn commits
+(`synchronous = NORMAL`), and since [D-259](DECISIONS.md#d-259) WAL checkpoints run in a thread of their own
+(`db/checkpointer.ts`), so no turn waits on one. A plain turn commits
 about ten times (`engine/turn-commits.test.ts` bounds it); a write added to the turn joins one of its transactions
 instead of committing on its own.
 `Performance profile (diagnostic)` (`gh workflow run performance-profile.yml --ref <branch>`) times every fsync with

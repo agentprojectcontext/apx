@@ -5761,3 +5761,23 @@ fails), and it lapses by itself once that tag exists, so staging goes back to th
 (AGENTS.md rule 28) is unchanged.
 
 Docs impact: updated rules/RELEASE.md (What people are told).
+
+<a id="d-259"></a>
+## D-259 — 2026-11-20 — The store's checkpoints run in a thread of their own
+After [D-251](#d-251) a commit waits on no fsync, but SQLite's automatic checkpoint still ran on the core's connection,
+on the event loop, every thousand pages of log: about once every fourteen plain turns, the turn that crossed it waited
+on the copy and its fsync. In `pnpm perf` that was four turns of sixty at about twice the usual time, more than the 5%
+the 95th percentile leaves out, so `turn_p95_ms` read the stall (85–95 ms against a budget of 60 on a busy runner, with
+`turn_p50_ms` at 40) instead of a turn.
+
+The core now starts `db/checkpointer.ts` with the store: a worker thread with its own connection runs a `PASSIVE`
+checkpoint every half second, and while it is up the core's connection has `wal_autocheckpoint = 0`. A passive
+checkpoint never waits on the core's writes and does nothing when the log has nothing new; the core's next commit after
+a full one starts the log over, so it stays bounded. If the thread fails or ends, the core's connection goes back to
+checkpointing itself every thousand pages, never a log that only grows. It also syncs the log more often than before, so
+the window a power loss can roll back ([D-251](#d-251)) is about half a second of work, not up to a thousand pages.
+The budget stayed at 60: the same runner measured 48–51 ms with the thread. The thread costs about 12 MB of resident
+memory (`rss_after_turns_mb` 151 → 164, budget 180).
+
+Docs impact: updated rules/TESTING.md 5b (checkpoints no longer stall a turn). No user guide or reference page describes
+the store's checkpoints.
