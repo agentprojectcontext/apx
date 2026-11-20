@@ -14,6 +14,7 @@ pnpm build        # static site in dist/ at the published base, / (DOCS_BASE and
 pnpm check        # fixture tests, EN/ES page/heading parity, built internal routes and fragments
 pnpm preview      # preview the built site at http://127.0.0.1:4400/
 pnpm shots        # retake every screenshot against a demo core (see below)
+node --no-warnings scripts/hero-film.ts   # re-record the home hero video (see below)
 ```
 
 It is published at `https://apxagent.app/` (the repository's Pages custom domain, built by the Pages workflow on
@@ -96,3 +97,12 @@ The `android-*` shots (the home's "On your phone" fan) are not taken by the scri
 (the published APK, in English, on a real device) paired with the demo office that `SHOTS_SERVE=1` keeps running,
 cropped to the app without the status and navigation bars, 780 px wide, once per theme. `pnpm shots` leaves them
 alone; retake them by hand the same way.
+
+The home's hero plays a video of the whole panel instead of a still: `node --no-warnings scripts/hero-film.ts` starts
+the same demo office (`SHOTS_SERVE=1`, on port 7492, answers streamed slowly enough to watch), drives the panel with a
+drawn cursor through a few chapters (ask an agent, a group chat, a routine, a Flow, the Marketplace, sharing a widget,
+whose cloud side is answered by the script) and saves `public/media/hero/panel-light.mp4` and `panel-dark.mp4`
+(H.264, about 2 MB each) plus `src/data/hero-film.json`: when each chapter starts (the dots under the card) and a tiny
+poster shown blurred until `home-hero` loads. Each chapter starts on a fixed second in both takes; when one runs late
+the script says so, and the times are in its `CHAPTERS`. After retaking `home-hero`, run it with `data` alone to
+refresh the poster. The video is English in both languages, like the screenshots.

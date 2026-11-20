@@ -350,6 +350,94 @@
     0 -40px 90px -40px color-mix(in srgb, var(--apx-brand) 55%, transparent),
     var(--apx-shadow-lift);
 }
+/* The card plays the panel's video over its poster: the poster sharpens once loaded, the video fades in once playing. */
+.stage__film {
+  position: relative;
+  background: var(--poster-light) center / cover var(--apx-surface);
+}
+:root[data-theme="dark"] .stage__film {
+  background-image: var(--poster-dark);
+}
+.stage__film .apx-shot img {
+  filter: blur(18px);
+  transform: scale(1.04);
+  opacity: 0.85;
+  transition:
+    filter 0.6s ease,
+    transform 0.6s ease,
+    opacity 0.6s ease;
+}
+.stage__film.is-sharp .apx-shot img {
+  filter: none;
+  transform: none;
+  opacity: 1;
+}
+.stage__video {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  opacity: 0;
+  transition: opacity 0.5s ease;
+}
+.stage__film.is-playing .stage__video {
+  opacity: 1;
+}
+.stage__dots {
+  display: flex;
+  justify-content: center;
+  gap: 4px;
+  margin-top: 16px;
+}
+.stage__dots[hidden] {
+  display: none;
+}
+.stage__dot {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: pointer;
+  transition: width 0.3s var(--apx-ease);
+}
+.stage__dot-fill {
+  position: relative;
+  overflow: hidden;
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: var(--apx-border-strong);
+  transition:
+    width 0.3s var(--apx-ease),
+    background-color 0.2s;
+}
+.stage__dot:hover .stage__dot-fill {
+  background: var(--apx-fg-subtle);
+}
+.stage__dot[aria-pressed="true"] {
+  width: 44px;
+}
+.stage__dot[aria-pressed="true"] .stage__dot-fill {
+  width: 32px;
+}
+.stage__dot-fill::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: var(--apx-fg);
+  transform: scaleX(var(--p, 0));
+  transform-origin: left;
+}
+.stage__dot:focus-visible {
+  outline: 2px solid var(--apx-brand);
+  outline-offset: 2px;
+  border-radius: 999px;
+}
 .stage__note {
   margin: 22px 0 0;
   font-size: 14px;

@@ -3,6 +3,7 @@
 // questions, comparisons and downloads.
 import logo from "../../assets/logo.png";
 import blobs from "../../data/blobs.json";
+import film from "../../data/hero-film.json";
 import { DEFINITION, ORGANIZATION_ID, organization, REPO, SOFTWARE_ID } from "../../data/brand";
 import { featured } from "../../data/comparisons";
 import { builtRelease, downloadHref, releasesPage } from "../../data/latest-release";
@@ -260,8 +261,34 @@ const unsignedBySystem = t.download.unsigned.items.reduce<(typeof t.download.uns
         <div class="wrap stage__in">
           <div class="stage__bubble stage__bubble--l" aria-hidden="true"><Blob name="coral" size={32} /><span class="stage__say">{t.bubbles[0]}</span></div>
           <div class="stage__bubble stage__bubble--r" aria-hidden="true"><span class="stage__say">{t.bubbles[1]}</span><Blob name="cobalto" size={32} /></div>
-          <div class="stage__shot" data-reveal data-stage-card>
+          <div class="stage__shot stage__film" data-reveal data-stage-card style={`--poster-light:url(${film.posters.light});--poster-dark:url(${film.posters.dark})`}>
             <Shot name="home-hero" alt={t.shotAlt} frame="none" eager />
+            <video
+              class="stage__video"
+              muted
+              playsinline
+              loop
+              preload="none"
+              aria-label={t.film.label}
+              data-light={href("/media/hero/panel-light.mp4")}
+              data-dark={href("/media/hero/panel-dark.mp4")}
+            ></video>
+          </div>
+          <div class="stage__dots" role="group" aria-label={t.film.chapters} hidden>
+            {
+              film.chapters.map((c, i) => (
+                <button
+                  class="stage__dot"
+                  type="button"
+                  aria-pressed={String(i === 0)}
+                  aria-label={t.film.names[c.id as keyof typeof t.film.names]}
+                  title={t.film.names[c.id as keyof typeof t.film.names]}
+                  data-at={c.at}
+                >
+                  <span class="stage__dot-fill" />
+                </button>
+              ))
+            }
           </div>
           <p class="stage__note">{t.stageNote}</p>
         </div>
@@ -634,6 +661,7 @@ const unsignedBySystem = t.download.unsigned.items.reduce<(typeof t.download.uns
       import { startReveal } from "../web/reveal";
       import { startSecSay } from "./sec-say";
       import { startHorizon } from "./horizon";
+      import { startStageFilm } from "./stage-film";
       import { startTermDemo } from "./term-demo";
 
       const still = matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -660,6 +688,8 @@ const unsignedBySystem = t.download.unsigned.items.reduce<(typeof t.download.uns
         })
       )
         document.querySelector(".hero")?.classList.add("has-horizon");
+      const stageFilm = document.querySelector<HTMLElement>(".stage__film");
+      if (stageFilm) startStageFilm(stageFilm, document.querySelector<HTMLElement>(".stage__dots"), still);
       fillLatest(document.querySelectorAll<HTMLAnchorElement>(".dlc a[data-file]"));
 
       for (const b of document.querySelectorAll<HTMLButtonElement>("[data-copy]")) {

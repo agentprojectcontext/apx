@@ -77,7 +77,20 @@ const en = {
   ],
   bubbles: ["@tomás, can you check the checkout?", "On it. Found it, shipping a fix."],
   shotAlt: "APX v2: the inbox with the super-agent's chat, the day's summary and the crew's chats by agent",
-  stageNote: "The real app, with a demo office. Every screenshot is in the theme you are reading in.",
+  stageNote: "The real app, with a demo office, in the theme you are reading in.",
+  film: {
+    label:
+      "The APX panel in use: asking an agent, a group chat, a routine, a Flow, the Marketplace and sharing a widget",
+    chapters: "Jump to",
+    names: {
+      ask: "Ask an agent",
+      group: "A group chat",
+      routine: "Run a routine",
+      flow: "Draw a Flow",
+      marketplace: "The Marketplace",
+      share: "Share a widget with a link",
+    },
+  },
   what: {
     label: "What you can do",
     title: "A whole office, in one app.",
@@ -686,7 +699,20 @@ const es: HomeText = {
   ],
   bubbles: ["@tomás, ¿podés revisar el checkout?", "Voy. Lo encontré, subo el arreglo."],
   shotAlt: "APX v2: la bandeja con el chat del super-agente, el resumen del día y los chats de la crew por agente",
-  stageNote: "La app real, con una oficina de demo. Cada captura está en el tema en el que estás leyendo.",
+  stageNote: "La app real, con una oficina de demo, en el tema en el que estás leyendo.",
+  film: {
+    label:
+      "El panel de APX en uso: pedirle algo a un agente, un chat de grupo, una rutina, un Flow, el Marketplace y compartir un widget",
+    chapters: "Ir a",
+    names: {
+      ask: "Pedirle algo a un agente",
+      group: "Un chat de grupo",
+      routine: "Correr una rutina",
+      flow: "Dibujar un Flow",
+      marketplace: "El Marketplace",
+      share: "Compartir un widget con un enlace",
+    },
+  },
   what: {
     label: "Qué podés hacer",
     title: "Una oficina entera, en una app.",
