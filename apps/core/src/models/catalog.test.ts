@@ -152,7 +152,9 @@ test("a signed-in plan's models are asked to the plan with its sign-in, never re
   }
 });
 
-test("known non-chat models cannot bypass eligibility through configured, local, ACP or cached lists", async () => {
+test("world model exclusion preserves each source's eligibility policy, including cached lists", async () => {
+  const compatible = ["acme/omni-chat", "acme/image-chat", "acme/guard-chat"];
+  const chatModels = compatible.map((id) => ({ id, name: id, chat: true }));
   const home = tempDir("apx-catalog-eligibility-");
   const db = openDb(home.path);
   try {
@@ -160,7 +162,12 @@ test("known non-chat models cannot bypass eligibility through configured, local,
     const config = { transport: "openai-chat" as const, key: NO_KEY, models: [] };
     const providers: ProviderConfig[] = [
       { ...config, id: "cached", base_url: "http://cached.test" },
-      { ...config, id: "configured", base_url: "http://configured.test", models: ["genie-4", "acme/chat"] },
+      {
+        ...config,
+        id: "configured",
+        base_url: "http://configured.test",
+        models: ["genie-4", "acme/chat", ...compatible],
+      },
       { ...config, id: "local", base_url: "http://127.0.0.1:1/v1", local: true },
     ];
     const previous = JSON.stringify({
@@ -172,6 +179,8 @@ test("known non-chat models cannot bypass eligibility through configured, local,
         { id: "genie-4", name: "Genie 4", chat: true },
         { id: "acme/chat", name: "Chat", chat: true },
         { id: "acme/no-tools", name: "No tools", chat: false },
+        { id: "acme/omni-disabled", name: "Disabled", chat: false },
+        ...chatModels,
       ],
       fetched_at: new Date().toISOString(),
     });
@@ -183,12 +192,16 @@ test("known non-chat models cannot bypass eligibility through configured, local,
       home: home.path,
       fetchImpl: (async (url) => {
         if (String(url).includes("cached.test")) throw new Error("offline");
-        return new Response(JSON.stringify({ data: [{ id: "genie-4" }, { id: "acme/chat" }] }));
+        return new Response(JSON.stringify({ data: [{ id: "genie-4" }, { id: "acme/chat" }, ...chatModels] }));
       }) as typeof fetch,
-      harnessLists: { claude: async () => [], codex: async () => [] },
+      harnessLists: {
+        claude: async () => [{ id: "genie-4", name: "Genie 4", chat: true }, ...chatModels],
+        codex: async () => [],
+      },
       acpList: async () => [
         { id: "genie-4", name: "Genie 4", chat: true },
         { id: "acme/chat", name: "Chat", chat: true },
+        ...chatModels,
       ],
     });
     for (const refresh of [false, true]) {
@@ -200,8 +213,21 @@ test("known non-chat models cannot bypass eligibility through configured, local,
         assert.equal(engine.models.find((m) => m.id === "acme/chat")?.chat, true, id);
         if (engine.kind === "provider") assert.equal(engine.starter, "acme/chat", id);
       }
+      for (const id of ["cached", "configured", "acp:opencode", "claude"]) {
+        const engine = engines.find((e) => e.id === id);
+        assert.ok(engine, id);
+        assert.equal(engine.models.find((m) => m.id === "genie-4")?.chat, false);
+        for (const model of compatible) {
+          assert.equal(engine.models.find((m) => m.id === model)?.chat, true, `${id}: ${model}, refresh=${refresh}`);
+        }
+      }
+      for (const model of compatible) {
+        assert.equal(engines.find((e) => e.id === "local")?.models.find((m) => m.id === model)?.chat, false);
+        assert.equal(fromProviderList([{ id: model }])[0]?.chat, false);
+      }
       const cached = engines.find((e) => e.id === "cached");
       assert.equal(cached?.models.find((m) => m.id === "acme/no-tools")?.chat, false);
+      assert.equal(cached?.models.find((m) => m.id === "acme/omni-disabled")?.chat, false);
       if (refresh) assert.match(cached?.detail ?? "", /could not refresh/);
     }
     assert.equal(store.settings.get("catalog.v2:cached"), previous, "reading eligibility does not rewrite saved state");

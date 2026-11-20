@@ -19,8 +19,8 @@ Every list an owner picks an agent or router model from is asked to the engine t
 | Ollama, LM Studio on this computer | their local list | asked every time |
 | A provider with its own `models` list (a gateway) | taken as the owner wrote it | never asked |
 
-A model that appears in a list may still not run an agent's turn. The catalog marks a model `chat: false` (listed, not
-offered for agents) when its id names a non-chat kind (speech, embeddings, images, music, live audio, guards, the
+A model that appears in a list may still not run an agent's turn. For discovered provider and local lists, the catalog
+marks a model `chat: false` (listed, not offered for agents) when its id names a non-chat kind (speech, embeddings, images, music, live audio, guards, the
 provider's own agents: `NOT_CHAT`), when the provider says it takes no tools (OpenRouter's `supported_parameters`) or
 gives no text (`architecture.output_modalities`). Groq models with `active: false` are left out. A model being listed
 does not mean the owner's key may use it for free.
@@ -77,10 +77,13 @@ The exact `genie-4` world simulation id (also when namespaced) stays listed but 
 Google documents [Genie 4](https://deepmind.google/models/genie/) as interactive world generation,
 not a text-and-tools chat model. Similar names and undocumented variants are not inferred to be world models;
 this classification does not assign a chat context window or image-reading capability.
-Known non-chat ids are rechecked for every source, including configured and ACP lists, and when reading a cached
-list, even if a refresh fails. A source's existing `chat: false` is never promoted to true. Configured lists keep
+Only the exact world model exclusion is rechecked for every source, including configured, harness and ACP lists,
+and when reading a cached list, even if a refresh fails. The broader discovery heuristics (`NOT_CHAT`, including
+fragments such as `omni`, `image` and `guard`) do not override those sources or cached eligibility: their own
+classification is preserved. A source's existing `chat: false` is never promoted to true. Configured lists keep
 their order, but their starter is the first eligible chat model. Reading classification does not rewrite cached
-state or saved model selections.
+state or saved model selections. If a previous classification cached an unrelated model as false, a successful
+refresh from its source is needed to recover its eligibility; a failed refresh does not invent support.
 
 Qwen 3.8 27B reads images and uses a 131,072-token context fallback, as documented in the
 [Groq model card](https://console.groq.com/docs/model/qwen/qwen3.8-27b). This exact-model fallback does not infer

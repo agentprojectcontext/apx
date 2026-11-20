@@ -56,11 +56,13 @@ export function cachedCatalog(store: Store, id: string): CatalogEngine | undefin
 // Ids that name models an agent's turn cannot run on (speech, embeddings, images, music, live audio, guards,
 // providers' own agents…); they stay listed but are not offered for agents.
 const NOT_CHAT =
-  /(embed|tts|audio|speech|transcri|whisper|image|imagen|veo|dall-e|moderation|aqa|realtime|lyria|nano-banana|omni|robotics|computer-use|deep-research|antigravity|guard|orpheus|translate|(^|[-/])live([-/]|$)|(^|[/])genie-4$|(^|[/])gemini-decision-\d+(?:[-:]|$)|(^|[/])flux2-klein(?:[-:]|$))/i;
+  /(embed|tts|audio|speech|transcri|whisper|image|imagen|veo|dall-e|moderation|aqa|realtime|lyria|nano-banana|omni|robotics|computer-use|deep-research|antigravity|guard|orpheus|translate|(^|[-/])live([-/]|$)|(^|[/])gemini-decision-\d+(?:[-:]|$)|(^|[/])flux2-klein(?:[-:]|$))/i;
 
-/** Recheck known non-chat ids without promoting a model its source already excluded. */
+const WORLD_MODEL = /(^|[/])genie-4$/i;
+
+/** Only world simulation is excluded across sources; discovery heuristics do not override a source's own policy. */
 function classifyModels(models: CatalogModel[]): CatalogModel[] {
-  return models.map((m) => ({ ...m, chat: m.chat && !NOT_CHAT.test(m.id) }));
+  return models.map((m) => ({ ...m, chat: m.chat && !WORLD_MODEL.test(m.id) }));
 }
 
 /** A model as a provider's list gives it; OpenRouter says what it supports, Groq whether it still runs. */
@@ -75,7 +77,7 @@ type Listed = {
 
 /** An agent's turn needs text out and, when the provider says what a model supports, tool calls. */
 function runsTurns(m: Listed, id: string): boolean {
-  if (NOT_CHAT.test(id)) return false;
+  if (NOT_CHAT.test(id) || WORLD_MODEL.test(id)) return false;
   if (m.supported_parameters && !m.supported_parameters.includes("tools")) return false;
   const out = m.architecture?.output_modalities;
   return !out || out.includes("text");
