@@ -21,6 +21,7 @@ import { ARGS_SECRET, type McpDef, mcpConfig } from "./config.ts";
 import { connectionErrors, MCP_SECRET_REF } from "./connection-errors.ts";
 import { fileRefs, fillFileArgs, hasFileRefs, type OpenFile, refOf } from "./file-args.ts";
 import { createStderrLogs } from "./logs.ts";
+import { createProcessExits } from "./process-exits.ts";
 import { watchSignIn } from "./sign-in.ts";
 
 const CONNECT_MS = 20_000;
@@ -123,7 +124,7 @@ export function createMcp(deps: {
   const closing = new Map<Conn, Promise<void>>();
   const blocked = new Set<string>();
   const tests = new Map<string, Set<{ abort: () => void; done: Promise<void> }>>();
-  const processes = new Map<symbol, { key: string; exited: Promise<void> }>();
+  const processes = createProcessExits();
   const stderr = createStderrLogs();
   const keyOf = (d: McpDef) => `${d.scope}:${d.project_id ?? ""}:${d.values_of ?? ""}:${d.name}`;
 
@@ -204,18 +205,7 @@ export function createMcp(deps: {
           cwd: d.cwd ?? ownDir(d.name),
           stderr: "pipe",
         });
-        const id = Symbol(d.name);
-        let exited!: () => void;
-        const closed = new Promise<void>((resolve) => {
-          exited = resolve;
-        });
-        stdio.onclose = () => {
-          processes.delete(id);
-          exited();
-        };
-        trackProcess = () => {
-          if (stdio.pid !== null) processes.set(id, { key: keyOf(d), exited: closed });
-        };
+        trackProcess = processes.watch(keyOf(d), stdio);
         // A server may print what it was given: its secrets and credential-like variables are masked in its log.
         const hidden = [
           ...secretNames(d).map((n) => deps.secrets.resolveIn(`secret://${n}`, valuesIn(d.values_of)) ?? ""),
@@ -783,23 +773,7 @@ export function createMcp(deps: {
       stderr.forget(mine);
       if (!preserveApprovals) forget(mine);
       await Promise.all(pending);
-      const exiting = [...processes.values()].filter((p) => mine(p.key)).map((p) => p.exited);
-      if (exiting.length) {
-        let timer: ReturnType<typeof setTimeout> | undefined;
-        try {
-          await Promise.race([
-            Promise.all(exiting),
-            new Promise<never>((_, reject) => {
-              timer = setTimeout(
-                () => reject(unavailable("MCP server did not exit; its files were not changed")),
-                10_000,
-              );
-            }),
-          ]);
-        } finally {
-          clearTimeout(timer);
-        }
-      }
+      await processes.wait(mine);
     },
     /** A global server as it runs in `projectId` (or in its own project, when it is limited to one). */
     find(scope: "global" | "project", name: string, projectId?: string): McpDef | undefined {
