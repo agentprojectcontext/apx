@@ -227,16 +227,19 @@ a folder is read where the core runs.
 </TabItem>
 </Tabs>
 
-An extension from another source cannot replace an installed one with the same ID while it has saved settings or
-secrets, or uses the `mcp-remote` sign-in bridge: it could otherwise reuse the first extension's connection. To switch,
-remove the installed extension first, then add the other one. Removing it deletes its APX-saved secrets. Recognized
+A catalog or folder from another source cannot replace an installed extension with the same ID while it has saved
+settings or secrets, or uses the `mcp-remote` sign-in bridge: it could otherwise reuse the first extension's connection.
+To switch, remove the installed extension first, then add the other one. Installing another file over an extension
+previously installed from a file, or another address over one installed from an address, keeps its settings: only do
+this when you trust the new package with the existing connection. Removing it deletes its APX-saved secrets. Recognized
 `mcp-remote` commands keep sign-in state separately for each extension server, and removing the extension deletes that
 state; existing connections may need to sign in again. Other commands that wrap the bridge may use their own shared
 cache. A third-party catalog extension installed before APX recorded
 its source identity may likewise need to be removed and added again before updating. If a previous removal left saved
-secrets behind, APX refuses a new installation with that ID until those old variables are removed in Resources › Variables.
-An update that introduces a credential found only in the system credential store is also refused until it is removed
-there; APX does not silently assign that unindexed value to the extension. An archive update from the same catalog
+secrets behind, APX refuses a new installation with that ID until those old variables are removed. The error names the
+variable and gives the `apx secrets rm` command to remove it, including when it is not listed in Resources › Variables.
+An update that introduces a credential found only in the system credential store is also refused until it is removed;
+APX does not silently assign that unindexed value to the extension. An archive update from the same catalog
 entry can change its download path on the same HTTPS origin without losing its settings. A change to another download
 origin is treated as a different source.
 
@@ -282,9 +285,9 @@ with `APX_MARKETPLACE_INDEX` ([Configuration](/reference/configuration/)).
 
 ### Your own catalogs
 
-GitHub catalog branches are separate sources. To update a branch catalog added before APX recorded its branch in the
-source, remove that catalog and add it again with its branch address. An installed extension from the old catalog may
-also need to be removed and added again; removal deletes its saved credentials.
+GitHub catalog branches are separate sources. A branch catalog added before APX recorded the branch in its address
+keeps its identity and selected branch when synced. An extension installed before APX recorded its source identity may
+need to be removed and added again; removal deletes its saved credentials.
 
 **Advanced › Add catalog** (or `apx extensions catalogs add <source>`) adds a list of extensions for yourself: a GitHub
 `owner/repo`, a git address, an https address of an index, or a folder. Suggested ones (Anthropic's Knowledge Work and

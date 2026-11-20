@@ -251,7 +251,11 @@ export function buildItems(src: {
   // One installed from an added catalog keeps its place there (its source names the entry it came from).
   const fromAdded = (e: ExtensionInfo) => {
     const source = e.source_catalog;
-    return source ? src.catalog.find((c) => c.catalog === source.catalog && c.id === source.entry) : undefined;
+    if (source) return src.catalog.find((c) => c.catalog === source.catalog && c.id === source.entry);
+    const candidates = src.catalog.filter(
+      (c) => c.catalog && c.id === e.id && `${c.catalog_name} · ${c.name}` === e.source,
+    );
+    return candidates.length === 1 ? candidates[0] : undefined;
   };
   const mine = new Set(src.installed.map((e) => e.id));
   const packaged = new Set([...byId.keys(), ...mine]);

@@ -282,9 +282,15 @@ export function createExtensions(deps: {
     }
   };
   const sameOrigin = (old: ExtensionRecord, input: ExtensionInput, source: string, origin: string) => {
-    if (old.origin_key) return sameKeys(old.origin_key, origin);
+    if (old.origin_key) {
+      if (input.file && old.origin_key.startsWith("file:")) return true;
+      if (input.url && old.origin_key.startsWith("url:")) return true;
+      return sameKeys(old.origin_key, origin);
+    }
     if (input.path !== undefined && path.isAbsolute(old.source)) return samePath(old.source, source);
-    return input.url !== undefined && old.source === source;
+    if (input.file && /^[A-Za-z0-9_.-]+\.apxext$/i.test(old.source)) return true;
+    if (input.url && /^https:\/\//i.test(old.source)) return true;
+    return false;
   };
   const extensionSecrets = (id: string, manifests: ExtensionManifest[]) => {
     const prefix = `ext-${id}-`;
@@ -532,34 +538,49 @@ export function createExtensions(deps: {
       const id = manifest.id;
       const cur = store.extensions.get(id);
       const origin = originOf(input, source, hash, catalogOrigin);
-      if (
-        !cur &&
-        [...extensionSecrets(id, [manifest])].some((name) => secrets.listed(name) || secrets.has(`secret://${name}`))
-      )
+      const orphan = !cur
+        ? [...extensionSecrets(id, [manifest])].find((name) => secrets.listed(name) || secrets.has(`secret://${name}`))
+        : undefined;
+      if (orphan)
         throw badRequest(
-          "This extension has saved secrets from an earlier installation; remove them before installing it",
+          `This extension has a saved secret from an earlier installation. To remove it, run: apx secrets rm ${orphan}`,
         );
       if (cur) {
+        if (!cur.origin_key) {
+          const changed = manifest.settings.find((s) => {
+            const old = cur.manifest.settings.find((item) => item.name === s.name && item.sensitive && s.sensitive);
+            return old && old.label !== s.label && secrets.has(`secret://${extSecret(id, s.name)}`);
+          });
+          if (changed)
+            throw badRequest(
+              `A saved setting changed its meaning. Remove the old secret with apx secrets rm ${extSecret(id, changed.name)} before updating and connect it again.`,
+            );
+        }
         const declared = (m: ExtensionManifest) =>
           new Set([
             ...m.secrets.map((s) => extSecret(id, s.name)),
             ...m.settings.filter((s) => s.sensitive).map((s) => extSecret(id, s.name)),
           ]);
         const before = declared(cur.manifest);
-        const unknown = [...declared(manifest)].some(
+        const unknown = [...declared(manifest)].find(
           (name) => !before.has(name) && !secrets.listed(name) && secrets.has(`secret://${name}`),
         );
         if (unknown)
           throw badRequest(
-            "This extension has saved secrets from an earlier installation; remove them before updating it",
+            `This extension has a saved secret from an earlier installation. To remove it, run: apx secrets rm ${unknown}`,
           );
       }
       const same = cur ? sameOrigin(cur, input, source, origin) : true;
       const officialUpdate = cur?.provenance === "official" && check.provenance === "official";
-      if (cur && cur.hash !== hash && !same && !officialUpdate && hasPrivateConfig(cur, manifest))
+      if (cur && cur.hash !== hash && !same && !officialUpdate && hasPrivateConfig(cur, manifest)) {
+        if (!cur.origin_key && input.entry)
+          throw badRequest(
+            `APX cannot verify where ${cur.manifest.name} was installed from. Remove it, install this one, then connect it again.`,
+          );
         throw badRequest(
           `${cur.manifest.name} is already installed from a different source; remove it before installing this one`,
         );
+      }
       const dir = path.join(root, id);
       fs.mkdirSync(root, { recursive: true });
       const tmp = fs.mkdtempSync(path.join(root, ".staging-"));
@@ -580,14 +601,20 @@ export function createExtensions(deps: {
             manifest: cur.manifest,
             hash: cur.hash,
             source: cur.source,
-            ...(cur.origin_key ? { origin_key: cur.origin_key } : {}),
+            ...(cur.origin_key
+              ? { origin_key: cur.origin_key }
+              : same && (input.file || input.url)
+                ? { origin_key: origin }
+                : {}),
             provenance: cur.provenance,
             enabled: cur.enabled,
             installed_at: cur.installed_at,
           };
         } else fs.rmSync(dir, { recursive: true, force: true });
         fs.renameSync(staged, dir);
-        const preserveOrigin = cur && cur.hash === hash && !same && !officialUpdate;
+        const preserveOrigin =
+          cur &&
+          ((cur.hash === hash && !same && !officialUpdate) || (cur.origin_key && same && (input.file || input.url)));
         const originKey = preserveOrigin ? cur.origin_key : origin;
         const e = store.extensions.put({
           id,

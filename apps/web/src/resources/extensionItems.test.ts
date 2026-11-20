@@ -354,6 +354,19 @@ test("a third-party installation never inherits an official namesake's listing o
   assert.equal(legacy?.update, undefined);
 });
 
+test("a legacy catalog installation shows its matching entry only when its label is unambiguous", () => {
+  const catalog = [entry("notes", "2.0.0", { catalog: "c1", catalog_name: "Northwind", name: "Notes" })];
+  const legacy = ext("notes", { provenance: "third_party", source: "Northwind · Notes", version: "1.0.0" });
+  const item = buildItems({ ...sources, catalog, installed: [legacy] }).find((i) => i.ext?.id === "notes");
+  assert.equal(item?.entry?.catalog, "c1");
+  const ambiguous = buildItems({
+    ...sources,
+    catalog: [...catalog, entry("notes", "2.0.0", { catalog: "c2", catalog_name: "Northwind", name: "Notes" })],
+    installed: [legacy],
+  }).find((i) => i.ext?.id === "notes");
+  assert.equal(ambiguous?.entry, undefined);
+});
+
 test("a page opened on a catalog's entry keeps showing it once added, as the owner's", () => {
   const before = buildItems({ ...sources, installed: [] });
   assert.equal(pageItem(before, "catalog:weather")?.state, "available");

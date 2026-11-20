@@ -60,6 +60,51 @@ test("catalogs with the same displayed names do not share extension identity", a
   }
 });
 
+test("direct archive and URL updates preserve their settings", async () => {
+  const make = (version: string) =>
+    zipFiles({
+      "apx-extension.json": JSON.stringify({
+        id: "direct_archive",
+        name: "Direct archive",
+        version,
+        settings: [{ name: "token", label: "API key", type: "string", sensitive: true }],
+      }),
+    });
+  const env = await startCore({
+    llm: scriptedLlm(() => say("ok")),
+    extensionFetch: (async (url: string | URL) =>
+      new Response(make(String(url).includes("one") ? "1.0.0" : "2.0.0"))) as typeof fetch,
+  });
+  try {
+    await env.client.call("extensions.install", {
+      file: { name: "one.apxext", data: make("1.0.0").toString("base64") },
+    });
+    await env.client.call("extensions.settings", { id: "direct_archive", values: { token: "synthetic-secret" } });
+    const oldFile = env.core.store.extensions.get("direct_archive");
+    assert.ok(oldFile);
+    env.core.store.extensions.put({ ...oldFile, origin_key: undefined });
+    const updated = await env.client.call("extensions.install", {
+      file: { name: "two.apxext", data: make("2.0.0").toString("base64") },
+    });
+    assert.equal(updated.version, "2.0.0");
+    assert.equal(updated.settings.find((s) => s.name === "token")?.set, true);
+    assert.equal((await env.client.call("extensions.rollback", { id: "direct_archive" })).version, "1.0.0");
+    await env.client.call("extensions.remove", { id: "direct_archive" });
+    await env.client.call("extensions.install", { url: "https://example.com/one.apxext" });
+    await env.client.call("extensions.settings", { id: "direct_archive", values: { token: "synthetic-secret" } });
+    const oldUrl = env.core.store.extensions.get("direct_archive");
+    assert.ok(oldUrl);
+    env.core.store.extensions.put({ ...oldUrl, origin_key: undefined });
+    const urlUpdate = await env.client.call("extensions.install", { url: "https://other.example.com/two.apxext" });
+    assert.equal(urlUpdate.version, "2.0.0");
+    assert.equal(urlUpdate.settings.find((s) => s.name === "token")?.set, true);
+    assert.equal((await env.client.call("extensions.rollback", { id: "direct_archive" })).version, "1.0.0");
+  } finally {
+    await env.core.close();
+    await env.cleanup();
+  }
+});
+
 test("an archive update in the same catalog preserves its secret across versioned URLs and rollback", async () => {
   const catalog = tempDir("archive-catalog-");
   const other = tempDir("archive-other-");
@@ -239,7 +284,7 @@ test("legacy catalog secrets are not silently reassigned during conversion updat
     const added = await env.client.call("extensions.catalog_add", { source: catalog.path });
     await assert.rejects(
       env.client.call("extensions.install", { entry: { catalog: added.id, id: "shared" } }),
-      /different source/i,
+      /cannot verify.*remove.*install.*connect/i,
     );
     const before = await env.client.call("extensions.list", {});
     assert.equal(
@@ -334,10 +379,45 @@ test("an orphaned secret prevents a different source from taking over an install
   }
 });
 
+test("an update cannot silently reassign an old setting to a different variable", async () => {
+  const source = tempDir("ambiguous-setting-");
+  const env = await startCore({ llm: scriptedLlm(() => say("ok")) });
+  const write = (version: string, label: string) =>
+    fs.writeFileSync(
+      path.join(source.path, "apx-extension.json"),
+      JSON.stringify({
+        manifest: 2,
+        id: "ambiguous",
+        name: "Ambiguous",
+        version,
+        settings: [{ name: "token", label, type: "string", sensitive: true }],
+      }),
+    );
+  try {
+    write("1.0.0", "First token");
+    await env.client.call("extensions.install", { path: source.path });
+    await env.client.call("extensions.settings", { id: "ambiguous", values: { token: "synthetic-private-key" } });
+    const legacy = env.core.store.extensions.get("ambiguous");
+    assert.ok(legacy);
+    env.core.store.extensions.put({ ...legacy, origin_key: undefined });
+    write("2.0.0", "Second token");
+    await assert.rejects(
+      env.client.call("extensions.install", { path: source.path }),
+      /setting.*changed|different.*setting/i,
+    );
+  } finally {
+    await env.core.close();
+    await env.cleanup();
+    await source.remove();
+  }
+});
+
 test("an update cannot claim a previously unindexed system credential", async () => {
   const source = tempDir("unindexed-credential-");
   const env = await startCore({ llm: scriptedLlm(() => say("ok")) });
   const has = env.core.secrets.has;
+  const set = env.core.secrets.set;
+  let orphanExists = true;
   try {
     const file = path.join(source.path, "apx-extension.json");
     const manifest = {
@@ -350,13 +430,23 @@ test("an update cannot claim a previously unindexed system credential", async ()
     };
     fs.writeFileSync(file, JSON.stringify(manifest));
     await env.client.call("extensions.install", { path: source.path });
-    env.core.secrets.has = (ref) => ref === "secret://ext-hidden-token" || has(ref);
+    env.core.secrets.has = (ref) => (ref === "secret://ext-hidden-token" && orphanExists) || has(ref);
+    env.core.secrets.set = (name, value) => {
+      if (name === "ext-hidden-token" && value === null) orphanExists = false;
+      set(name, value);
+    };
     manifest.version = "1.0.1";
     manifest.settings = [{ name: "token", label: "Token", type: "string", sensitive: true }];
     fs.writeFileSync(file, JSON.stringify(manifest));
-    await assert.rejects(env.client.call("extensions.install", { path: source.path }), /saved.*secret/i);
+    await assert.rejects(
+      env.client.call("extensions.install", { path: source.path }),
+      /apx secrets rm ext-hidden-token/i,
+    );
+    await env.client.call("secrets.set", { name: "ext-hidden-token", value: null });
+    assert.equal((await env.client.call("extensions.install", { path: source.path })).version, "1.0.1");
   } finally {
     env.core.secrets.has = has;
+    env.core.secrets.set = set;
     await env.core.close();
     await env.cleanup();
     await source.remove();

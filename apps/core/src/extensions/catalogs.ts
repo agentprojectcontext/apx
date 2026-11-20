@@ -337,9 +337,10 @@ export function createCatalogs(deps: {
   async function sync(
     text: string,
     progress: (done: number, total: number) => void,
+    savedId?: string,
   ): Promise<Omit<CatalogRecord, "created_at">> {
     const src = parseSource(text);
-    const id = catalogId(src);
+    const id = savedId ?? catalogId(src);
     let root: string | undefined;
     let sha: string | undefined;
     let raw: unknown;
@@ -394,15 +395,12 @@ export function createCatalogs(deps: {
   const failed = new Map<string, { source: string; error: string }>();
 
   /** Starts reading a catalog, or joins the read already going. A bad address is refused right away. */
-  function start(text: string, shown: boolean): { id: string; job: Job } {
+  function start(text: string, shown: boolean, savedId?: string): { id: string; job: Job } {
     const src = parseSource(text);
-    const id = catalogId(src);
+    const id = savedId ?? catalogId(src);
     const existing = store.extensionCatalogs.get(id);
-    if (existing?.ref) {
-      const saved = parseSource(existing.source);
-      if (saved.kind !== "git" || saved.ref !== existing.ref)
-        throw badRequest("remove the old branch catalog and add it again with its branch");
-    }
+    if (!savedId && existing?.ref && (src.kind !== "git" || src.ref !== existing.ref))
+      throw badRequest("A catalog from a different branch is already added at this address");
     const going = reading.get(id);
     if (going && !going.removed) {
       going.shown ||= shown;
@@ -413,10 +411,14 @@ export function createCatalogs(deps: {
     // One removed while it was read finishes first: both would write the same folder.
     const done = (going ? going.done.catch(() => undefined) : Promise.resolve())
       .then(() =>
-        sync(text, (n, total) => {
-          state.at = { done: n, total };
-          deps.onReading?.(id, state.at);
-        }),
+        sync(
+          text,
+          (n, total) => {
+            state.at = { done: n, total };
+            deps.onReading?.(id, state.at);
+          },
+          id,
+        ),
       )
       .then((c) => {
         // Removed while it was read: nothing of it stays.
@@ -469,8 +471,8 @@ export function createCatalogs(deps: {
   }
 
   /** Reads one: waits for it, or (`background`) answers at once with it being read. */
-  async function read(text: string, background: boolean): Promise<CatalogShown> {
-    const { id, job } = start(text, background);
+  async function read(text: string, background: boolean, savedId?: string): Promise<CatalogShown> {
+    const { id, job } = start(text, background, savedId);
     if (background) return shownOf(id) as CatalogShown;
     await job.done;
     return shownOf(id) as CatalogShown;
@@ -486,9 +488,12 @@ export function createCatalogs(deps: {
     },
     add: (text: string, background = false) => read(text, background),
     sync(id: string, background = false): Promise<CatalogShown> {
-      const source = store.extensionCatalogs.get(id)?.source ?? failed.get(id)?.source;
+      const saved = store.extensionCatalogs.get(id);
+      const source = saved?.source ?? failed.get(id)?.source;
       if (!source) throw notFound(`catalog ${id}`);
-      return read(source, background);
+      const parsed = parseSource(source);
+      const text = saved?.ref && parsed.kind === "git" ? sourceText({ ...parsed, ref: saved.ref }) : source;
+      return read(text, background, id);
     },
     remove(id: string): boolean {
       const job = reading.get(id);

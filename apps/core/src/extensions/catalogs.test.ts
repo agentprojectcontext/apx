@@ -17,7 +17,10 @@ const PROPRIETARY = "Copyright Acme. All rights reserved. No part of this may be
 const SHA = "778122e5f9c680f541eeceda5a5b36405eb7980c";
 /** Claude Code's `${NAME}` placeholder, as a plugin writes it. */
 const placeholder = (name: string) => `\${${name}}`;
-const settingId = (name: string) => `x_${createHash("sha256").update(name).digest("hex").slice(0, 18)}`;
+const settingId = (name: string) =>
+  /^[A-Z][A-Z0-9_]{0,19}$/.test(name)
+    ? name.toLowerCase()
+    : `x_${createHash("sha256").update(name).digest("hex").slice(0, 18)}`;
 const put = (root: string, files: Record<string, string>) => {
   for (const [f, data] of Object.entries(files)) {
     fs.mkdirSync(path.dirname(path.join(root, f)), { recursive: true });
@@ -89,8 +92,12 @@ test("catalog branches have separate identities and syncing keeps the selected b
       source: "https://github.com/acme/tools.git",
     };
     env.core.store.extensionCatalogs.put(legacy);
-    await assert.rejects(catalogs.sync(legacy.id), /remove.*add|re-add/i);
-    await assert.rejects(catalogs.add("acme/tools"), /remove.*add|re-add/i);
+    const updated = await catalogs.sync(legacy.id);
+    assert.equal(updated.id, legacy.id);
+    assert.equal(updated.ref, "first");
+    assert.equal(fetched.at(-1), "first");
+    assert.equal(env.core.store.extensionCatalogs.get(legacy.id)?.entries[0]?.id, "shared");
+    await assert.rejects(catalogs.add("acme/tools"), /different branch/i);
   } finally {
     await env.core.close();
     await env.cleanup();
@@ -202,6 +209,52 @@ test("servers plugin.json names in a file of its own; a placeholder with a defau
   const pkg = readFiles(out.files);
   assert.deepEqual(hostsOf(pkg.manifest), []);
   assert.equal(ownerHost(pkg.manifest), true);
+});
+
+test("mixed-case variables sharing a legacy name do not inherit that ambiguous setting", () => {
+  const files = new Map(
+    Object.entries({
+      ".claude-plugin/plugin.json": JSON.stringify({ name: "test", license: "MIT" }),
+      ".mcp.json": JSON.stringify({
+        server: {
+          command: "node",
+          env: {
+            FIRST: placeholder("API_KEY"),
+            SECOND: placeholder("api_key"),
+          },
+        },
+      }),
+    }).map(([key, value]) => [key, Buffer.from(value)]),
+  );
+  const converted = convertPlugin(files, { name: "test" });
+  const manifest = JSON.parse(converted.files.get("apx-extension.json")?.toString() ?? "{}");
+  assert.deepEqual(manifest.mcp.server.env, {
+    FIRST: `secret://x_${createHash("sha256").update("API_KEY").digest("hex").slice(0, 18)}`,
+    SECOND: `secret://${settingId("api_key")}`,
+  });
+});
+
+test("a legacy short setting is not reused when a longer variable shared its old name", () => {
+  const short = "SOME_SERVICE_TOKEN_X";
+  const long = `${short}_EXTRA`;
+  const files = new Map(
+    Object.entries({
+      ".claude-plugin/plugin.json": JSON.stringify({ name: "test", license: "MIT" }),
+      ".mcp.json": JSON.stringify({
+        server: {
+          command: "node",
+          env: {
+            FIRST: placeholder(short),
+            SECOND: placeholder(long),
+          },
+        },
+      }),
+    }).map(([key, value]) => [key, Buffer.from(value)]),
+  );
+  const converted = convertPlugin(files, { name: "test" });
+  const manifest = JSON.parse(converted.files.get("apx-extension.json")?.toString() ?? "{}");
+  assert.notEqual(manifest.mcp.server.env.FIRST, `secret://${short.toLowerCase()}`);
+  assert.notEqual(manifest.mcp.server.env.FIRST, manifest.mcp.server.env.SECOND);
 });
 
 test("plugin settings with the same truncated name stay separate and repeated placeholders agree", () => {

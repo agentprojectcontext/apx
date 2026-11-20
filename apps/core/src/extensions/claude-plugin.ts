@@ -217,13 +217,25 @@ export function convertPlugin(
     else if (shared.has(f.split("/")[0] ?? "") && !f.split("/").some((part) => part.startsWith("."))) out.set(f, data);
   }
   // Its MCP servers; `${VAR}` in them becomes a setting the owner types once, sensitive when it names a key.
+  const servers = serversOf(files, plugin.mcpServers, left);
+  const legacyNames = new Map<string, Set<string>>();
+  for (const match of JSON.stringify(servers).matchAll(/\$\{([A-Za-z_][A-Za-z0-9_]*)(?::-([^}]*))?\}/g)) {
+    const name = match[1] ?? "";
+    const old = innerName(name);
+    const names = legacyNames.get(old) ?? new Set<string>();
+    names.add(name);
+    legacyNames.set(old, names);
+  }
   const settings = new Map<string, Setting>();
   const settingNames = new Map<string, string>();
   const ref = (v: string) =>
     v.replace(/\$\{([A-Za-z_][A-Za-z0-9_]*)(?::-([^}]*))?\}/g, (_m, n: string, fallback: string | undefined) => {
       let s = settingNames.get(n);
       if (!s) {
-        s = `x_${createHash("sha256").update(n).digest("hex").slice(0, 18)}`;
+        s =
+          /^[A-Z][A-Z0-9_]{0,19}$/.test(n) && legacyNames.get(innerName(n))?.size === 1
+            ? n.toLowerCase()
+            : `x_${createHash("sha256").update(n).digest("hex").slice(0, 18)}`;
         if ([...settingNames.values()].includes(s)) throw new Error("plugin setting identifiers collide");
         settingNames.set(n, s);
       }
@@ -240,7 +252,7 @@ export function convertPlugin(
       return `${sensitive ? "secret" : "setting"}://${s}`;
     });
   const mcp: Record<string, Record<string, unknown>> = {};
-  for (const [n, s] of Object.entries(serversOf(files, plugin.mcpServers, left))) {
+  for (const [n, s] of Object.entries(servers)) {
     const key = innerName(n);
     if (s.command) {
       mcp[key] = {

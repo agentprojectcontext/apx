@@ -6,7 +6,7 @@ import { stripVTControlCharacters } from "node:util";
 
 /** The sign-in words, then a URL on the same or the next line, ended (a URL cut mid-chunk is not taken). */
 const ASKS =
-  /(?:authori[sz]e[^\n]*(?:visit(?:ing)?|at|open)|(?:sign[ -]?in|log[ -]?in)\s+(?:at|via|by visiting))\s*:?\s*(https?:\/\/[^\s"'<>]+)\s/i;
+  /(?:authori[sz]e[^\n]*(?:visit(?:ing)?|at|open)|(?:sign[ -]?in|log[ -]?in)\s+(?:at|via|by visiting)|open\s+this\s+url\s+to\s+(?:sign[ -]?in|log[ -]?in))\s*:?\s*(https?:\/\/[^\s"'<>]+)\s/i;
 const KEEP = 8_000;
 
 /** The sign-in page a server's output asks the owner to open, if it does. */

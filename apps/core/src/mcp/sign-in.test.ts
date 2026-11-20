@@ -75,6 +75,7 @@ test("a sign-in request on stderr is found with its page, and only once the URL 
   const url = "https://admin.example.com/authorize?response_type=code&client_id=abc";
   assert.equal(signInUrl(`\nPlease authorize this client by visiting:\n${url}\n`), url);
   assert.equal(signInUrl(`Sign in at ${url} to continue\n`), url);
+  assert.equal(signInUrl(`Open this URL to sign in:\n${url}\n`), url);
   // Cut mid-chunk: the rest may still come.
   assert.equal(signInUrl(`Please authorize this client by visiting:\n${url.slice(0, 30)}`), undefined);
   assert.equal(signInUrl("Server listening on https://localhost:3000 \n"), undefined);
