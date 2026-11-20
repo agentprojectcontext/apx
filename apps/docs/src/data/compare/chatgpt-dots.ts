@@ -91,21 +91,21 @@ export const chatgptDots: Product = {
       "Arranca con la memoria de ChatGPT y forma memorias propias, también desde apps conectadas; habilidades locales con una computadora conectada.",
     ),
     text(
-      "Reminders, recurring tasks and background research; Slack and Teams, plus a limited texting beta for US Pro users.",
-      "Recordatorios, tareas recurrentes e investigación en segundo plano; Slack y Teams, y una beta limitada de SMS para usuarios Pro en EE. UU.",
+      "Reminders, recurring tasks and background research; Slack and Teams, plus limited one-to-one texting via iMessage or RCS. Texting does not give the dot access to your other conversations or let other people text it.",
+      "Recordatorios, tareas recurrentes e investigación en segundo plano; Slack y Teams, y mensajes individuales limitados por iMessage o RCS. Esa función no da acceso a tus otras conversaciones ni permite que otras personas le escriban al dot.",
     ),
     text(
       "OpenAI models (launched with GPT-6 Astra); ChatGPT plugins shared with ChatGPT, Work and Codex.",
       "Modelos de OpenAI (se lanzó con GPT-6 Astra); plugins de ChatGPT compartidos con ChatGPT, Work y Codex.",
     ),
     text(
-      "Proprietary. First dot included in Pro (from $100/month) and Business Premium; Enterprise beta. Not in the EEA, Switzerland or UK.",
-      "Propietario. El primer dot viene con Pro (desde USD 100 al mes) y Business Premium; beta en Enterprise. No disponible en el EEE, Suiza ni Reino Unido.",
+      "Proprietary. Available on eligible plans, including Pro, selected Plus and eligible business and enterprise workspaces; availability and pricing depend on plan and region.",
+      "Propietario. Disponible en planes elegibles, incluidos Pro, algunos Plus y espacios empresariales habilitados; la disponibilidad y el precio dependen del plan y la región.",
     ),
   ],
   detail: text(
-    "A dot is one personal agent inside ChatGPT: it works on OpenAI's cloud computer, shares your ChatGPT memory and plugins, and asks for approval according to rules you set. APX gives you several named agents organized by projects and a task board, running on your computer or a server you control, with the model providers and coding agents you choose. OpenAI says it plans to let you add more dots, so the difference today is less about having one agent and more about where the work runs and which ecosystem holds it.",
-    "Un dot es un agente personal dentro de ChatGPT: trabaja en una computadora en la nube de OpenAI, comparte tu memoria y tus plugins de ChatGPT y pide aprobación según las reglas que definas. APX te da varios agentes con nombre, organizados por proyectos y un tablero de tareas, que corren en tu computadora o en un servidor que controlás, con los proveedores de modelos y agentes de código que elijas. OpenAI dice que planea permitir sumar más dots, así que la diferencia hoy pasa menos por tener un agente y más por dónde corre el trabajo y qué ecosistema lo contiene.",
+    "A dot is one personal agent inside ChatGPT: it works on OpenAI's cloud computer, shares your ChatGPT memory and plugins, and asks for approval according to rules you set. APX gives you several named agents organized by projects and a task board, running on your computer or a server you control, with the model providers and coding agents you choose. APX can connect a WhatsApp account or a Telegram bot and assign an agent to a contact. OpenAI's documented dot texting is one-to-one with its owner, not a way to answer the owner's other conversations; connected services are a separate possibility. Configure access and test a conversation: connecting a channel alone does not prove replies work. OpenAI says it plans to let you add more dots, so the difference is also where the work runs and which ecosystem holds it.",
+    "Un dot es un agente personal dentro de ChatGPT: trabaja en una computadora en la nube de OpenAI, comparte tu memoria y tus plugins de ChatGPT y pide aprobación según las reglas que definas. APX te da varios agentes con nombre, organizados por proyectos y un tablero de tareas, que corren en tu computadora o en un servidor que controlás, con los proveedores de modelos y agentes de código que elijas. APX puede conectar una cuenta de WhatsApp o un bot de Telegram y asignar un agente a cada contacto. La función de mensajes del dot que documenta OpenAI es individual con su dueño, no sirve para atender las demás conversaciones de esa persona; los servicios conectados son otra posibilidad. Configurá los permisos y probá una conversación: conectar un canal no demuestra por sí solo que responda. OpenAI dice que planea permitir sumar más dots, así que la diferencia también pasa por dónde corre el trabajo y qué ecosistema lo contiene.",
   ),
   tryIt: text(
     "Ask each to check your calendar every morning and follow up on one open project for a week. Compare what it remembers, where its files end up and how you approve its actions.",
