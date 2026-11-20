@@ -7,6 +7,11 @@ import { z } from "zod";
 
 // Like a real server that needs its credential: without it, it quits before answering.
 if (process.env.REQUIRE_TOKEN && !process.env.NOTES_TOKEN) process.exit(1);
+if (process.env.EXIT_CAPTURE && process.env.EXIT_MANIFEST) {
+  process.on("exit", () => {
+    fs.writeFileSync(process.env.EXIT_CAPTURE, fs.readFileSync(process.env.EXIT_MANIFEST));
+  });
+}
 
 const writable = process.env.TOOL_MODE_FILE && fs.readFileSync(process.env.TOOL_MODE_FILE, "utf8").trim() === "write";
 const server = new McpServer({ name: "notes", version: "1.0.0" });
@@ -26,7 +31,7 @@ server.registerTool(
     content: [
       {
         type: "text",
-        text: `token=${process.env.NOTES_TOKEN ?? "none"} leaked=${process.env.OTHER_API_KEY ?? "no"} cwd=${process.cwd()}`,
+        text: `token=${process.env.NOTES_TOKEN ?? "none"} leaked=${process.env.OTHER_API_KEY ?? "no"} cwd=${process.cwd()} pid=${process.pid}`,
       },
     ],
   }),

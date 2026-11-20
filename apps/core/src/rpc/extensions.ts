@@ -60,8 +60,10 @@ export function extensionHandlers(extensions: Extensions, mcp: Mcp, bus: Bus) {
 function extensionMethods(extensions: Extensions, mcp: Mcp) {
   const { catalogs } = extensions;
   /** Its MCP servers stop now rather than at their idle timeout. */
-  const dropServers = (id: string) => {
-    for (const name of extensions.list().find((e) => e.id === id)?.mcp ?? []) mcp.drop({ scope: "global", name });
+  const dropServers = async (id: string) => {
+    await Promise.all(
+      (extensions.list().find((e) => e.id === id)?.mcp ?? []).map((name) => mcp.drop({ scope: "global", name })),
+    );
   };
   return {
     "extensions.list": () => ({ extensions: extensions.list() }),
@@ -70,9 +72,9 @@ function extensionMethods(extensions: Extensions, mcp: Mcp) {
     "extensions.catalog_sync": async ({ id, background }) => shown(await catalogs.sync(id, background)),
     "extensions.catalog_remove": ({ id }) => ({ removed: catalogs.remove(id) }),
     "extensions.catalog": ({ refresh }) => extensions.catalogEntries(refresh),
-    "extensions.settings": ({ id, values }) => {
+    "extensions.settings": async ({ id, values }) => {
       // Its servers start again with the new values at their next use.
-      dropServers(id);
+      await dropServers(id);
       return extensions.setSettings(id, values);
     },
     "extensions.page": ({ id, page }) => extensions.page(id, page),
@@ -84,31 +86,34 @@ function extensionMethods(extensions: Extensions, mcp: Mcp) {
     "extensions.install": async ({ path, file, url, entry, server, hash }) => {
       const before = extensions.list();
       const from = server ? { path: extensions.connector(server) } : source(path, file, url, entry);
-      const info = await extensions.install(from, hash);
+      const info = await extensions.install(from, hash, dropServers);
       // Its servers start again with the new files at their next use; a server this version dropped stops now.
-      for (const name of new Set([...(before.find((e) => e.id === info.id)?.mcp ?? []), ...info.mcp]))
-        mcp.drop({ scope: "global", name });
+      await Promise.all(
+        [...new Set([...(before.find((e) => e.id === info.id)?.mcp ?? []), ...info.mcp])].map((name) =>
+          mcp.drop({ scope: "global", name }),
+        ),
+      );
       return info;
     },
-    "extensions.rollback": ({ id }) => {
-      dropServers(id);
+    "extensions.rollback": async ({ id }) => {
+      await dropServers(id);
       const info = extensions.rollback(id);
-      dropServers(id);
+      await dropServers(id);
       return info;
     },
-    "extensions.enable": ({ id, enabled }) => {
-      if (!enabled) dropServers(id);
+    "extensions.enable": async ({ id, enabled }) => {
+      if (!enabled) await dropServers(id);
       return extensions.enable(id, enabled);
     },
-    "extensions.remove": ({ id }) => {
-      dropServers(id);
+    "extensions.remove": async ({ id }) => {
+      await dropServers(id);
       return extensions.remove(id);
     },
     "extensions.add_agent": ({ id, agent }) => extensions.addAgent(id, agent),
     "extensions.test": ({ id, text }) => extensions.testContext(id, text),
-    "extensions.set_secret": ({ id, name, value }) => {
+    "extensions.set_secret": async ({ id, name, value }) => {
       // A server started with the old value would keep it.
-      dropServers(id);
+      await dropServers(id);
       return extensions.setSecret(id, name, value);
     },
   } satisfies Partial<Handlers>;

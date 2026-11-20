@@ -545,7 +545,17 @@ test("a different extension source cannot inherit the installed extension's secr
           name,
           version: "1.0.0",
           settings: [{ name: "token", label: "Token", type: "string", sensitive: true }],
-          mcp: { test: { command: process.execPath, args: [SERVER], env: { NOTES_TOKEN: "secret://token" } } },
+          mcp: {
+            test: {
+              command: process.execPath,
+              args: [SERVER],
+              env: {
+                NOTES_TOKEN: "secret://token",
+                EXIT_CAPTURE: path.join(env.home, "exit-manifest.json"),
+                EXIT_MANIFEST: path.join(env.home, "extensions", "shared_id", "apx-extension.json"),
+              },
+            },
+          },
         }),
       );
     }
@@ -561,7 +571,10 @@ test("a different extension source cannot inherit the installed extension's secr
       });
       return String(result.content?.[0]?.text);
     };
-    assert.match(await received(), /token=synthetic-private-key/);
+    const original = await received();
+    assert.match(original, /token=synthetic-private-key/);
+    const pid = Number(original.match(/pid=(\d+)/)?.[1]);
+    assert.ok(pid);
     await assert.rejects(
       env.client.call("extensions.install", { path: second.path }),
       /already installed.*different source/i,
@@ -573,6 +586,11 @@ test("a different extension source cannot inherit the installed extension's secr
     updated.version = "1.0.1";
     fs.writeFileSync(current, JSON.stringify(updated));
     const sameSource = await env.client.call("extensions.install", { path: first.path });
+    assert.throws(() => process.kill(pid, 0), { code: "ESRCH" });
+    const atExit = JSON.parse(fs.readFileSync(path.join(env.home, "exit-manifest.json"), "utf8")) as {
+      version: string;
+    };
+    assert.equal(atExit.version, "1.0.0");
     assert.equal(sameSource.version, "1.0.1");
     assert.equal(sameSource.settings.find((s) => s.name === "token")?.set, true);
     fs.copyFileSync(current, path.join(second.path, "apx-extension.json"));

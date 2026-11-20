@@ -287,11 +287,7 @@ export function createMcp(deps: {
       deps.log.info({ mcp: d.name }, "MCP server waits for the owner to sign in");
       settle();
     });
-    c.stop = async () => {
-      abort();
-      await started.catch(() => {});
-    };
-    started
+    const finished = started
       .then(
         async ({ client, tools, errorMessage }) => {
           // Replaced or dropped while starting: this process is nobody's now.
@@ -319,6 +315,10 @@ export function createMcp(deps: {
         c.stop = undefined;
         settle();
       });
+    c.stop = async () => {
+      abort();
+      await finished;
+    };
   }
 
   /** Closes a connection, or the start still opening it. */
@@ -695,18 +695,20 @@ export function createMcp(deps: {
       return stderr.read(keyOf(d), n);
     },
     /** Closes a server's connection now (approval withdrawn, definition removed). */
-    drop(d: Pick<McpDef, "scope" | "project_id" | "name">, preserveApprovals = false): void {
+    async drop(d: Pick<McpDef, "scope" | "project_id" | "name">, preserveApprovals = false): Promise<void> {
       if (!preserveApprovals) deps.store.approvals.revokeServer(serverApprovalId(d));
       const prefix = `${d.scope}:${d.project_id ?? ""}:`;
       const mine = (key: string) => key.startsWith(prefix) && key.endsWith(`:${d.name}`);
+      const closing: Promise<void>[] = [];
       for (const [key, c] of conns) {
         if (mine(key)) {
-          void closeConn(c);
           conns.delete(key);
+          closing.push(closeConn(c));
         }
       }
       stderr.forget(mine);
       if (!preserveApprovals) forget(mine);
+      await Promise.all(closing);
     },
     /** A global server as it runs in `projectId` (or in its own project, when it is limited to one). */
     find(scope: "global" | "project", name: string, projectId?: string): McpDef | undefined {

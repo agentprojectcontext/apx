@@ -545,7 +545,11 @@ export function createExtensions(deps: {
      * Installs it off (an update of one that is on stays on only when keepsOn says so). A different version moves the
      * installed one aside, to go back to; `expect` refuses files other than the ones the owner looked at.
      */
-    async install(input: ExtensionInput, expect?: string): Promise<ExtensionInfo> {
+    async install(
+      input: ExtensionInput,
+      expect?: string,
+      beforeReplace?: (id: string) => Promise<void>,
+    ): Promise<ExtensionInfo> {
       const { pkg, source, origin: catalogOrigin } = await load(input);
       const { manifest, hash } = pkg;
       if (expect && expect !== hash)
@@ -608,6 +612,7 @@ export function createExtensions(deps: {
           throw badRequest(err instanceof Error ? err.message : "the extension could not be copied");
         }
         let previous: PreviousVersion | undefined = cur?.previous;
+        if (cur) await beforeReplace?.(id);
         // The running plugin (if any) is of the files being replaced; it starts again only if allowed to stay on.
         plugins.stop(id);
         if (cur && cur.hash !== hash && fs.existsSync(dir)) {
