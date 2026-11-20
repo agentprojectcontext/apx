@@ -481,15 +481,15 @@
 .apx-actions__item.is-failed :is(.apx-actions__itemicon, .apx-actions__name) {
   color: var(--apx-danger);
 }
-.apx-actions__item.is-stopped .apx-actions__name {
-  color: var(--apx-fg-muted);
-}
 .apx-actions__name {
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
   color: var(--apx-fg);
+}
+.apx-actions__item.is-stopped .apx-actions__name {
+  color: var(--apx-fg-muted);
 }
 .apx-actions__detail {
   min-width: 0;
