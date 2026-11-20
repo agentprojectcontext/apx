@@ -188,7 +188,7 @@ export const esChannels: Partial<Record<MessageKey, string>> = {
     "Cuando pide algo que solo vos podés hacer (una compra, un favor, llamar a alguien), queda como tarea y te aviso en el momento. Tu agente nunca lo hace por vos.",
   "ch.perm.notes": "Contestar desde mis notas",
   "ch.perm.notesHint":
-    "Tu agente puede buscar en tus notas generales para responderle (horarios, precios). Solo lectura; nunca las notas de tus agentes ni nada privado.",
+    "Permití que esta persona reciba respuestas desde tus notas generales. Si le elegís un agente, también compartís las notas de ese agente en su proyecto. Solo lectura; sin archivos ni otros chats.",
   "ch.may.help": "Sobre qué puede hacer esta conversación",
   "ch.may.helpTitle": "Qué le permite cada opción a tu agente con esta persona",
   "ch.may.close":

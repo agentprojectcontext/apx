@@ -39,7 +39,7 @@ const RIGHTS = {
   appointments: AppointmentMode,
   /** Note a request they make (a purchase, a favor) as a task for the owner. */
   requests: z.boolean(),
-  /** Answer from the owner's own notes (global ones only, read-only). */
+  /** Read-only owner global notes; an explicitly assigned agent also shares notes in its project. */
   notes: z.boolean(),
   /** Answered at any hour, past the attention hours of the account they write on. */
   any_hour: z.boolean(),
