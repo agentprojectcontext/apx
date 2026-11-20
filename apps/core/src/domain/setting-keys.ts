@@ -234,8 +234,6 @@ export const SETTINGS = {
       .catch({}),
     {},
   ),
-  /** Services APX added on its own once (Codex's images): one the owner removed is not added again. */
-  services_offered: entry(z.array(z.string()).catch([]), []),
   channels: entry(listOf(Channel), []),
   /** Drafts the owner sent from a chat's email card, newest first (mail.ts): a card never sends twice. */
   mail_sent: entry(listOf(SentDraft), []),
