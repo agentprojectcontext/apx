@@ -5778,7 +5778,9 @@ a full one starts the log over, so it stays bounded. If the thread fails or ends
 checkpointing itself every thousand pages, never a log that only grows. It also syncs the log more often than before, so
 the window a power loss can roll back ([D-251](#d-251)) is about half a second of work, not up to a thousand pages.
 The budget stayed at 60: the same runner measured 48–51 ms with the thread. The thread costs about 12 MB of resident
-memory (`rss_after_turns_mb` 151 → 164, budget 180).
+memory (`rss_after_turns_mb` 151 → 164, budget 180), and an idle core holds it too: `idle_rss_mb` went from 125–130 to
+133–137, over its budget of 135. No limit on the thread's heap or page cache lowers that (a tighter heap only stops it
+starting), so `idle_rss_mb` rose to 145: about 10 MB at rest buys the 40 ms the slowest turns no longer wait.
 
 Docs impact: updated rules/TESTING.md 5b (checkpoints no longer stall a turn). No user guide or reference page describes
 the store's checkpoints.
