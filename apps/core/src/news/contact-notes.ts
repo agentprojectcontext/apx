@@ -2,7 +2,7 @@ import type { NewsEntry } from "./entries.ts";
 
 export const CONTACT_NOTES_NEWS: NewsEntry = {
   id: "contact-assigned-agent-notes",
-  since: "2.16.1",
+  since: "2.16.2",
   title: { en: "Your contact's agent can use its notes", es: "El agente de tu contacto puede usar sus notas" },
   about: {
     en: "An agent you choose for a contact can answer from its project's notes when you allow answers from notes.",

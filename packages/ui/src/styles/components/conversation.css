@@ -302,7 +302,8 @@
 .apx-status.is-running {
   color: var(--apx-fg-muted);
 }
-.apx-status.is-pending {
+.apx-status.is-pending,
+.apx-status.is-stopped {
   color: var(--apx-fg-subtle);
 }
 
@@ -331,7 +332,8 @@
 .apx-steps__row.is-failed .apx-steps__detail {
   color: var(--apx-danger);
 }
-.apx-steps__row.is-pending {
+.apx-steps__row.is-pending,
+.apx-steps__row.is-stopped {
   color: var(--apx-fg-muted);
 }
 
@@ -485,6 +487,9 @@
   text-overflow: ellipsis;
   white-space: nowrap;
   color: var(--apx-fg);
+}
+.apx-actions__item.is-stopped .apx-actions__name {
+  color: var(--apx-fg-muted);
 }
 .apx-actions__detail {
   min-width: 0;

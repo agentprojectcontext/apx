@@ -12,7 +12,10 @@ import { IMAGE_TIMEOUT_MS, type ImageResult, type ServiceConfig, ServiceError, s
 /** The id APX gives the Codex image service it adds on its own. */
 export const CODEX_IMAGES = "codex";
 
-/** What APX adds once Codex is signed in on this machine: first of the image services. */
+/**
+ * What APX keeps while Codex is on this machine: first of the image services, fixed. Codex picks its own model and
+ * draws with image_gen, so there is nothing to set but on or off.
+ */
 export const CODEX_IMAGE_SERVICE: ServiceSettings = {
   kind: "image",
   dialect: "codex-images",
@@ -84,7 +87,6 @@ export function createCodexImages(deps: {
         sandboxMode: "read-only",
         approvalPolicy: "never",
         modelReasoningEffort: "low",
-        ...(s.model ? { model: s.model } : {}),
       });
       const refs = (r.references ?? []).map((ref) => ({ type: "local_image" as const, path: ref.path }));
       const input = refs.length ? [{ type: "text" as const, text: promptFor(r) }, ...refs] : promptFor(r);
@@ -99,7 +101,7 @@ export function createCodexImages(deps: {
           const bytes = fs.readFileSync(path.join(dir, f));
           return { bytes, mime: sniffImage(bytes) };
         }),
-        model: s.model ?? "image_gen",
+        model: "image_gen",
       };
     } catch (err) {
       throw new ServiceError(s.label, errorMessage(err, 300));

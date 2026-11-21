@@ -1,6 +1,6 @@
 {
   "startup_ms": 1500,
-  "idle_rss_mb": 135,
+  "idle_rss_mb": 145,
   "idle_cpu_pct": 2,
   "rpc_p95_ms": 10,
   "turn_p95_ms": 60,

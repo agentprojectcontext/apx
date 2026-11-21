@@ -3,12 +3,11 @@ import { ActionGroup, type ActionItem, Icons, Spinner } from "@apx/ui";
 import type { ReactNode } from "react";
 import { duration } from "../../common/format.ts";
 import { useT } from "../../i18n/index.ts";
+import { toolStatus } from "../runEnded.ts";
 import { ComputerIcon } from "./ComputerIcon.tsx";
 import { stepLabel, type ToolKind, toolKind } from "./toolKind.ts";
 
 type ToolPart = Extract<Part, { type: "tool" }>;
-
-const STATUS = { running: "running", ok: "done", error: "failed" } as const;
 
 const ICON: Record<ToolKind, ReactNode> = {
   web: <Icons.Globe />,
@@ -36,13 +35,22 @@ const ICON: Record<ToolKind, ReactNode> = {
 /**
  * Tool calls folded into one group: "4 steps · 12 s" once done, the time its steps took (older answers kept none). While
  * the run waits on the owner (a question, a confirmation, a browser tab handed over) it says so instead of "working".
- * Each step is the icon of its kind of action and what it did, in words; only a failed one is marked.
+ * Each step is the icon of its kind of action and what it did, in words; only a failed one is marked, and once the run
+ * has `ended` a step still running shows as stopped.
  */
-export function ToolGroup({ parts, waiting = false }: { parts: ToolPart[]; waiting?: boolean }) {
+export function ToolGroup({
+  parts,
+  waiting = false,
+  ended = false,
+}: {
+  parts: ToolPart[];
+  waiting?: boolean;
+  ended?: boolean;
+}) {
   const t = useT();
   const n = parts.length;
   const failed = parts.filter((p) => p.status === "error").length;
-  const running = parts.some((p) => p.status === "running");
+  const running = !ended && parts.some((p) => p.status === "running");
   // Computer use reads as one thing: the agent controlling the computer, not a list of pictures.
   const computer = parts.length > 0 && parts.every((p) => p.tool.startsWith("screen_"));
   const steps = n === 1 ? t("tools.steps.one") : t("tools.steps.other", { n });
@@ -50,7 +58,7 @@ export function ToolGroup({ parts, waiting = false }: { parts: ToolPart[]; waiti
   const items: ActionItem[] = parts.map((p) => ({
     name: stepLabel(p.tool, p.title),
     icon: ICON[toolKind(p.tool)],
-    status: STATUS[p.status],
+    status: toolStatus(p.status, ended),
   }));
   return (
     <ActionGroup

@@ -130,7 +130,7 @@ export function ServicesSection({
           {services?.map((s, i) => (
             <li
               key={s.id}
-              className={`res__row${s.enabled ? "" : " is-off"}${ours && s.dialect === "apx-voice" ? " voicerow" : ""}`}
+              className={`res__row${s.enabled && !signedOut(s) ? "" : " is-off"}${ours && s.dialect === "apx-voice" ? " voicerow" : ""}`}
             >
               <Order
                 up={i > 0 ? () => move(i, -1) : undefined}
@@ -195,7 +195,13 @@ function Order({ up, down }: { up?: () => void; down?: () => void }) {
   );
 }
 
-/** One of the owner's own services: where it is, whether it answers (and why not), on/off, check, edit, remove. */
+/** Codex's image service while Codex is not signed in on this machine: it cannot draw, so it cannot be turned on. */
+const signedOut = (s: ServiceInfo) => s.dialect === "codex-images" && s.status === "unreachable";
+
+/**
+ * One of the owner's own services: where it is, whether it answers (and why not), on/off, check, edit, remove.
+ * Codex's is APX's own: only on/off, and only while Codex is signed in.
+ */
 function ServiceRow(props: {
   s: ServiceInfo;
   why: ServiceTest | undefined;
@@ -206,6 +212,9 @@ function ServiceRow(props: {
 }) {
   const t = useT();
   const { s, why } = props;
+  const codex = s.dialect === "codex-images";
+  const out = signedOut(s);
+  const status = out ? "signedOut" : s.enabled ? s.status : "unknown";
   return (
     <>
       <div className="res__main">
@@ -213,28 +222,50 @@ function ServiceRow(props: {
           {s.label} <span className="svc__dialect">{s.dialect}</span>
         </div>
         <div className="res__desc res__mono">
-          {s.dialect === "codex-images" ? t("svc.codexWhere") : s.base_url}
-          {s.model ? ` · ${s.model}` : ""}
+          {codex ? t("svc.codexWhere") : `${s.base_url}${s.model ? ` · ${s.model}` : ""}`}
         </div>
-        {s.status === "unreachable" && why && !why.ok && (
+        {out ? (
           <div className="res__desc svc__why" role="status">
-            {checkText(t, why)}
+            {t("svc.codexSignIn")}
           </div>
+        ) : (
+          s.status === "unreachable" &&
+          why &&
+          !why.ok && (
+            <div className="res__desc svc__why" role="status">
+              {checkText(t, why)}
+            </div>
+          )
         )}
       </div>
-      <Badge tone={s.status === "reachable" ? "brand" : s.status === "unreachable" ? "danger" : "neutral"} dot>
-        {t(`svc.status.${s.status}`)}
+      <Badge tone={status === "reachable" ? "brand" : status === "unreachable" ? "danger" : "neutral"} dot>
+        {t(`svc.status.${status}`)}
       </Badge>
-      <Switch size="sm" checked={s.enabled} onCheckedChange={props.onToggle} label={t("providers.on")} />
+      <Switch
+        size="sm"
+        checked={s.enabled && !out}
+        disabled={out}
+        onCheckedChange={props.onToggle}
+        label={t("providers.on")}
+      />
       <IconButton
         size="sm"
         label={t("svc.check")}
         icon={<Icons.RefreshCw size={14} />}
-        disabled={!s.enabled}
+        disabled={!s.enabled && !codex}
         onClick={props.onCheck}
       />
-      <IconButton size="sm" label={t("providers.edit")} icon={<Icons.Pencil size={14} />} onClick={props.onEdit} />
-      <IconButton size="sm" label={t("providers.remove")} icon={<Icons.Trash2 size={14} />} onClick={props.onRemove} />
+      {!codex && (
+        <>
+          <IconButton size="sm" label={t("providers.edit")} icon={<Icons.Pencil size={14} />} onClick={props.onEdit} />
+          <IconButton
+            size="sm"
+            label={t("providers.remove")}
+            icon={<Icons.Trash2 size={14} />}
+            onClick={props.onRemove}
+          />
+        </>
+      )}
     </>
   );
 }

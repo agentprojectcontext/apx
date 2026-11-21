@@ -17,7 +17,8 @@ test("the agent reacts to a sticker: the emoji shows on it, and the Inbox says s
 
   await open(page);
   await page.getByRole("button", { name: ACCOUNT_NAME.whatsapp, exact: true }).click();
-  await page.getByRole("button", { name: /^Olga/ }).click();
+  // The chat's row, not the header that names the same contact once the account opens its only chat.
+  await page.locator(".threadrow", { hasText: "Olga" }).click();
   const sticker = page
     .locator(".chan__bubble")
     .filter({ has: page.locator("img") })

@@ -37,7 +37,8 @@ export interface ActionGroupProps {
 
 /**
  * Folds an agent's tool calls/reasoning into one line ("Worked 2 min ▸") that expands to the list: each action hangs
- * from one line with the icon of its kind; only a failed one is marked (in red), a running one spins.
+ * from one line with the icon of its kind; only a failed one is marked (in red), a running one spins and one its run cut
+ * short shows a stop sign.
  */
 export function ActionGroup({
   title,
@@ -65,10 +66,19 @@ export function ActionGroup({
         {children ?? (
           <ul className="apx-actions__list apx-tree">
             {keyed(items ?? [], (it) => it.name).map(({ item: it, key }) => (
-              <li key={key} className={cx("apx-actions__item", it.status === "failed" && "is-failed")}>
+              <li
+                key={key}
+                className={cx(
+                  "apx-actions__item",
+                  it.status === "failed" && "is-failed",
+                  it.status === "stopped" && "is-stopped",
+                )}
+              >
                 <span className="apx-actions__itemicon">
                   {it.status === "running" ? (
                     <Spinner size={12} />
+                  ) : it.status === "stopped" ? (
+                    <StatusIcon status="stopped" size={12} />
                   ) : (
                     (it.icon ?? <StatusIcon status={it.status ?? "done"} />)
                   )}

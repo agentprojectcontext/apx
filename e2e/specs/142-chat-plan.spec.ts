@@ -48,12 +48,14 @@ test("the agent's plan shows under its message and updates as it marks steps", a
     await expect(plan.locator(".apx-steps__row.is-running")).toHaveText("Read the current page");
     await page.screenshot({ path: test.info().outputPath("chat-plan-working.png") });
 
-    // The agent marks two steps done: the same checklist changes in place.
+    // The agent marks two steps done: the same checklist changes in place. Its turn then ends with the last step
+    // still marked under way, so that step shows as stopped instead of spinning on.
     release();
     await expect(plan).toContainText("2 de 3 hechos");
     await expect(plan.locator(".apx-steps__row.is-done")).toHaveCount(2);
-    await expect(plan.locator(".apx-steps__row.is-running")).toHaveText("Check it on a phone");
     await expect(page.getByText("The new copy is written")).toBeVisible();
+    await expect(plan.locator(".apx-steps__row.is-stopped")).toHaveText("Check it on a phone");
+    await expect(plan.locator(".apx-steps__row.is-running")).toHaveCount(0);
     await expect(page.getByRole("region", { name: "Plan", exact: true })).toHaveCount(1);
     await page.screenshot({ path: test.info().outputPath("chat-plan-desktop.png") });
     await page.setViewportSize({ width: 375, height: 760 });

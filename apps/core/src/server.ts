@@ -27,6 +27,7 @@ import { createChannels } from "./channels/manager.ts";
 import type { AdapterFactory } from "./channels/types.ts";
 import { type CoreConfig, OAUTH_CHATGPT } from "./config.ts";
 import { coreLogSink } from "./core-log.ts";
+import { startCheckpointer } from "./db/checkpointer.ts";
 import { openDb, storeSize } from "./db/db.ts";
 import { type DesktopOps, systemDesktop } from "./desktop.ts";
 import { watchAgentReviews } from "./domain/agent-review.ts";
@@ -124,7 +125,7 @@ import {
   servedPanel,
 } from "./server-wiring.ts";
 import { createCallAudio } from "./services/call-audio.ts";
-import { CODEX_IMAGE_SERVICE, CODEX_IMAGES, createCodexImages } from "./services/codex-images.ts";
+import { CODEX_IMAGES, createCodexImages } from "./services/codex-images.ts";
 import { createLocalEmbeddings } from "./services/local-embed.ts";
 import { createModelInstaller } from "./services/local-whisper.ts";
 import { createNativeVoice } from "./services/native-voice.ts";
@@ -246,6 +247,7 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
   const log = createLog("core", opts.quiet, opts.quiet ? undefined : coreLogSink(config.home));
   const identity = readIdentity(config.home);
   const db = openDb(config.home);
+  const checkpointer = startCheckpointer(db, config.home);
   const bus = createBus();
   const storage = createStorage({
     home: config.home,
@@ -529,10 +531,10 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
       workDir: path.join(config.home, "codex-images"),
     }),
   });
-  // Codex signed in here draws with the owner's ChatGPT plan: added once, first of the image services.
+  // Codex on this machine draws with the owner's ChatGPT plan: kept first of the image services, as APX sets it.
   codexSeen = (codex) => {
-    if (codex.logged_in && services.offer(CODEX_IMAGES, CODEX_IMAGE_SERVICE))
-      log.info({ service: CODEX_IMAGES }, "Codex is signed in: it draws images first now");
+    if (codex.installed && services.keepCodex(CODEX_IMAGES))
+      log.info({ service: CODEX_IMAGES }, "Codex is here: it draws images first now");
   };
   const localModels = createModelInstaller({
     dir: path.join(config.home, "models"),
@@ -1050,6 +1052,7 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
       apc.close();
       projectReader?.close();
       await transport.close();
+      await checkpointer.close();
       db.close();
     },
   };

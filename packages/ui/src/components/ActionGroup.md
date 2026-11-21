@@ -7,8 +7,8 @@ Folds an agent's tool calls into one line that expands: "16 steps · 2 min 10 s 
 
 - `items`: `{ name, icon, detail, status, aside }` → what it did in words ("Opened acme.com", never a tool id), the icon
   of its kind of action, a one-line detail, a duration. The steps hang from the header's chevron as a tree
-  (`apx-tree`). Only a failed step is marked (icon and words in red); a running one spins; without an icon a
-  status glyph shows.
+  (`apx-tree`). Only a failed step is marked (icon and words in red); a running one spins; one its run cut short
+  (`stopped`) shows a stop sign in muted words; without an icon a status glyph shows.
 - `icon`: the header's leading icon (a wrench by default); `null` leaves the chevron alone.
 - `failed` + `failedLabel` shows the failure count in red; `children` replaces the list (reasoning text, a diff).
 - Inline on the page in both looks: no fill, no box; the header is plain muted text that lights up on hover.

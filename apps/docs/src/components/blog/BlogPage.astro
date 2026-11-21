@@ -1,7 +1,9 @@
 ---
 import { getImage, Image } from "astro:assets";
 import { type CollectionEntry, getCollection, render } from "astro:content";
+import authorPhoto from "../../assets/people/manu.png";
 import { archivePath, BLOG, blogArchive, blogPath, relatedPosts } from "../../data/blog.mjs";
+import { BLOG_AUTHOR } from "../../data/blog-author.mjs";
 import { sitePath } from "../../doc-routes.mjs";
 import AnalyticsConsent from "../AnalyticsConsent.astro";
 import PageMeta from "../web/PageMeta.astro";
@@ -47,6 +49,7 @@ const schema = [
     ? {
         "@type": "BlogPosting",
         headline: title,
+        author: { "@type": "Person", name: BLOG_AUTHOR.name },
         description,
         datePublished: post.data.published,
         ...(post.data.updated ? { dateModified: post.data.updated } : {}),
@@ -82,10 +85,24 @@ const schema = [
         {!post && <p class="blog-kicker">Blog</p>}
         <h1>{title}</h1>
         <p class="blog-summary">{description}</p>
+        {post && <p class="blog-byline"><Image class="blog-byline-photo" src={authorPhoto} alt="" width={80} height={80} format="webp" /> <span>{BLOG_AUTHOR[lang].by} {BLOG_AUTHOR.name}<span class="blog-author-handle">{BLOG_AUTHOR.handle}</span></span></p>}
         {post && <p class="blog-dates">{t.published} <time datetime={post.data.published}>{date(post.data.published)}</time>{post.data.updated && <> · {t.updated} <time datetime={post.data.updated}>{date(post.data.updated)}</time></>}</p>}
       </header>
       {post && Content ? <article>
         <div class="blog-prose"><Content /></div>
+        <section class="blog-author" aria-labelledby="about-author">
+          <div class="blog-author-info">
+            <Image class="blog-author-photo" src={authorPhoto} alt={BLOG_AUTHOR.name} width={160} height={160} format="webp" loading="lazy" />
+            <div class="blog-author-copy">
+              <h2 id="about-author">{BLOG_AUTHOR[lang].about}</h2>
+              <p class="blog-author-name">{BLOG_AUTHOR.displayName}</p>
+              <p>{BLOG_AUTHOR[lang].bio}</p>
+            </div>
+          </div>
+          <nav class="blog-author-links" aria-label={BLOG_AUTHOR[lang].about}>
+            {BLOG_AUTHOR.links.map((link) => <a href={link.url} rel="me noopener noreferrer">{link.label}</a>)}
+          </nav>
+        </section>
         <section class="blog-sources" aria-labelledby="sources">
           <h2 id="sources">{t.sources}</h2>
           <ol>{post.data.sources.map((source) => <li><a href={source.url}>{source.label} ↗</a></li>)}</ol>
@@ -94,7 +111,7 @@ const schema = [
           <h2 id="related">{t.related}</h2>
           <div class="blog-list">{related.map(({ data }) => <a class:list={["blog-row", { "blog-row-illustrated": !!data.image }]} href={href(blogPath(data))}>
             {data.image && <Image src={data.image.src} alt={data.image.alt} widths={[Math.min(320, data.image.src.width), ...[640, 800].filter((width) => width <= data.image.src.width)]} sizes="(max-width: 600px) calc(100vw - 32px), 200px" format="webp" loading="lazy" />}
-            <div><h3>{data.title}</h3><p>{data.description}</p></div>
+            <div><h3>{data.title}</h3><p>{data.description}</p><p class="blog-row-author">{BLOG_AUTHOR[lang].by} {BLOG_AUTHOR.displayName}</p></div>
             <div class="blog-row-meta"><time datetime={data.published}>{date(data.published)}</time><span>{t.read} →</span></div>
           </a>)}</div>
         </section>}
@@ -103,7 +120,7 @@ const schema = [
         <h2 id="articles">{lang === "es" ? "Artículos" : "Articles"}</h2>
         <div class="blog-list">{posts.map(({ data }) => <a class:list={["blog-row", { "blog-row-illustrated": !!data.image }]} href={href(blogPath(data))}>
           {data.image && <Image src={data.image.src} alt={data.image.alt} widths={[Math.min(320, data.image.src.width), ...[640, 800].filter((width) => width <= data.image.src.width)]} sizes="(max-width: 600px) calc(100vw - 32px), 200px" format="webp" loading="lazy" />}
-          <div><h3>{data.title}</h3><p>{data.description}</p></div>
+          <div><h3>{data.title}</h3><p>{data.description}</p><p class="blog-row-author">{BLOG_AUTHOR[lang].by} {BLOG_AUTHOR.displayName}</p></div>
           <div class="blog-row-meta"><time datetime={data.published}>{date(data.published)}</time><span>{t.read} →</span></div>
         </a>)}</div>
         {totalPages > 1 && <nav class="blog-pagination" aria-label={t.pagination}>
