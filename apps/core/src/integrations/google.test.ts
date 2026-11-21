@@ -624,15 +624,18 @@ test("Drive finds files, reads Google's formats as text and text files as they a
 
   const doc = await api.read("d1");
   assert.equal(doc.file.type, "doc");
-  assert.equal(doc.text.length, 20_000);
-  assert.equal(doc.next_offset, 20_000);
+  assert.equal(doc.text.length, 2_400);
+  assert.equal(doc.next_offset, 2_400);
   assert.equal(doc.complete, false);
-  const tail = await api.read("d1", { offset: doc.next_offset ?? 0, revision: doc.revision });
-  assert.equal(tail.text.length, 5_000);
-  assert.equal(tail.next_offset, null);
-  assert.equal(doc.text + tail.text, "x".repeat(25_000));
-  await assert.rejects(api.read("d1", { offset: 20_000 }), /requires its revision/);
-  await assert.rejects(api.read("d1", { offset: 20_000, revision: "0".repeat(64) }), /source changed/);
+  let window = doc;
+  let all = doc.text;
+  while (window.next_offset !== null) {
+    window = await api.read("d1", { offset: window.next_offset, revision: doc.revision });
+    all += window.text;
+  }
+  assert.equal(all, "x".repeat(25_000));
+  await assert.rejects(api.read("d1", { offset: 2_400 }), /requires its revision/);
+  await assert.rejects(api.read("d1", { offset: 2_400, revision: "0".repeat(64) }), /source changed/);
   assert.equal(new URL(fake.seen.at(-1)?.url ?? "").searchParams.get("mimeType"), "text/plain");
   assert.equal((await api.read("s1")).text, "text of s1");
   assert.equal(new URL(fake.seen.at(-1)?.url ?? "").searchParams.get("mimeType"), "text/csv");

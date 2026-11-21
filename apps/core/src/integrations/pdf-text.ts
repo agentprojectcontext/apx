@@ -2,19 +2,27 @@ import { spawn } from "node:child_process";
 
 const OUTPUT_LIMIT = 4 * 1024 * 1024;
 
+function startPdf(signal: AbortSignal) {
+  return spawn("pdftotext", ["-layout", "-enc", "UTF-8", "-", "-"], {
+    stdio: ["pipe", "pipe", "ignore"],
+    signal,
+    killSignal: "SIGKILL",
+    windowsHide: true,
+  });
+}
+
 /** Optional Poppler extraction, without a shell, temporary files or document content in errors. */
-export async function pdfText(bytes: Buffer, signal?: AbortSignal): Promise<string> {
+export async function pdfText(
+  bytes: Buffer,
+  signal?: AbortSignal,
+  deps: { start?: typeof startPdf; deadline?: AbortSignal } = {},
+): Promise<string> {
   if (!bytes.subarray(0, 5).equals(Buffer.from("%PDF-"))) throw new Error("The file is not a PDF");
-  const deadline = AbortSignal.timeout(20_000);
+  const deadline = deps.deadline ?? AbortSignal.timeout(20_000);
   const stop = signal ? AbortSignal.any([signal, deadline]) : deadline;
   stop.throwIfAborted();
   return new Promise((resolve, reject) => {
-    const child = spawn("pdftotext", ["-layout", "-enc", "UTF-8", "-", "-"], {
-      stdio: ["pipe", "pipe", "ignore"],
-      signal: stop,
-      killSignal: "SIGKILL",
-      windowsHide: true,
-    });
+    const child = (deps.start ?? startPdf)(stop);
     const chunks: Buffer[] = [];
     let size = 0;
     let failure: Error | undefined;

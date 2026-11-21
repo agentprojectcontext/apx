@@ -52,7 +52,16 @@ export function driveTools(g: Google): Tool[] {
       async run(a, ctx) {
         const { file, text, ...window } = await drive.read(a.id, { ...a, signal: ctx.signal });
         const attributes = Object.fromEntries(Object.entries(window).map(([key, value]) => [key, String(value)]));
-        return untrusted("file", { id: file.id, name: file.name, type: file.type, ...attributes }, text);
+        return untrusted(
+          "file",
+          {
+            id: a.id,
+            name: file.name.slice(0, 200),
+            type: file.type.slice(0, 100),
+            ...attributes,
+          },
+          text,
+        );
       },
     }),
     defineTool({

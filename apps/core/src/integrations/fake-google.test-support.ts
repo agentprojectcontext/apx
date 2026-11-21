@@ -48,6 +48,7 @@ export async function fakeGoogle() {
   const drafts: Array<{ raw: string; threadId?: string }> = [];
   const sheetWrites: unknown[] = [];
   let sheetsError: { status: number; message: string } | undefined;
+  let driveText = "Northwind plan";
   const created: Array<{ summary?: string; attendees?: Array<{ email: string }>; sendUpdates: string | null }> = [];
   /** Mail that reached the inbox after the start, each with the history id it arrived at. */
   const inbox: Array<{ id: string; from: string; subject: string; labels: string[]; at: number }> = [];
@@ -121,6 +122,12 @@ export async function fakeGoogle() {
         created.push({ ...event, sendUpdates: url.searchParams.get("sendUpdates") });
         return send(200, { id: `e${created.length + 1}`, ...event });
       }
+      if (url.pathname === "/drive/v3/files/d1/export") {
+        res.writeHead(200, { "content-type": "text/plain; charset=utf-8" });
+        return res.end(driveText);
+      }
+      if (url.pathname === "/drive/v3/files/d1")
+        return send(200, { id: "d1", name: "Northwind plan", mimeType: "application/vnd.google-apps.document" });
       if (url.pathname === "/drive/v3/files")
         return send(200, {
           files: [{ id: "d1", name: "Northwind plan", mimeType: "application/vnd.google-apps.document" }],
@@ -171,6 +178,9 @@ export async function fakeGoogle() {
     url: `http://127.0.0.1:${(server.address() as AddressInfo).port}`,
     drafts,
     sheetWrites,
+    setDriveText: (text: string) => {
+      driveText = text;
+    },
     setSheetsError: (error?: { status: number; message: string }) => {
       sheetsError = error;
     },

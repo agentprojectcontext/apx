@@ -12,6 +12,8 @@
     "ffmpeg",
     "iconutil",
     "mkfifo",
+    // Optional host-installed Poppler for bounded PDF text extraction.
+    "pdftotext",
     "plutil",
     "scutil",
     "sips",

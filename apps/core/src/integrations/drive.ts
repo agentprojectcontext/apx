@@ -4,7 +4,8 @@ import type { Google } from "./google.ts";
 import { pdfText } from "./pdf-text.ts";
 
 const ID = "google-drive" as const;
-const TEXT_CAP = 20_000;
+// Even an all-"<" window must fit the executor's result cap after untrusted-envelope escaping.
+const TEXT_CAP = 2_400;
 const DOC = "application/vnd.google-apps.document";
 
 /** Google's own formats, exported as text Drive can produce for each. */

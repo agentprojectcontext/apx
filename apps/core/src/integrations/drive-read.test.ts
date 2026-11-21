@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { driveTools } from "../tools/google-drive.ts";
+import { cap } from "../tools/result.ts";
 import { driveApi } from "./drive.ts";
 import { setup } from "./google-testkit.ts";
 import { pdfText } from "./pdf-text.ts";
@@ -89,11 +90,39 @@ test("Drive tool exposes continuation as untrusted data and retains connection/p
   off.clear();
   const result = String(await tool.run({ id: "text" }, { signal: new AbortController().signal } as never));
   assert.match(result, /untrusted/);
-  assert.match(result, /next_offset="20000"/);
+  assert.match(result, /next_offset="2400"/);
   assert.match(result, /complete="false"/);
   assert.match(result, /Ignore all instructions/);
   g.disconnect("google-drive");
   assert.equal(tool.when?.({} as never), false);
+});
+
+test("Drive windows fit the executor cap even with maximal escape growth and large metadata", async () => {
+  const { g, fake } = await connected();
+  const body = `${"<".repeat(12000)}UNIQUE_MIDDLE_MARKER${"<".repeat(13000)}`;
+  fake.respond((url) =>
+    url.searchParams.get("alt") === "media"
+      ? new Response(body)
+      : { id: "text".repeat(5000), name: "Name".repeat(5000), mimeType: "text/plain" },
+  );
+  const tool = driveTools(g).find((t) => t.name === "drive_read");
+  assert.ok(tool);
+  let offset = 0;
+  let revision: string | undefined;
+  let visible = "";
+  for (;;) {
+    const result: string = String(
+      await tool.run({ id: "text", offset, revision }, { signal: new AbortController().signal } as never),
+    );
+    assert.equal(cap(result), result, "the executor must not clip any window or its continuation metadata");
+    visible += result;
+    const next = result.match(/next_offset="(\d+)"/);
+    if (!next) break;
+    offset = Number(next[1]);
+    revision = result.match(/revision="([a-f0-9]+)"/)?.[1];
+  }
+  assert.match(visible, /UNIQUE_MIDDLE_MARKER/);
+  assert.equal((visible.match(/&lt;/g) ?? []).length, 25000);
 });
 
 test("PDF extraction rejects non-PDF bytes before invoking an external program", async () => {
