@@ -10,6 +10,7 @@ import { asanaMethods } from "./asana-methods.ts";
 import { browserMethods } from "./browser.ts";
 import { callMethods } from "./call-methods.ts";
 import { channelMethods } from "./channel-methods.ts";
+import { contactSourceMethods } from "./contact-sources.ts";
 import { deferMethod } from "./defer-method.ts";
 import { desktopInstallMethods } from "./desktop-install.ts";
 import { deviceMethods } from "./device-methods.ts";
@@ -130,6 +131,7 @@ export const methods = {
   ...accountMethods,
   ...appMethods,
   ...channelMethods,
+  ...contactSourceMethods,
   ...artifactMethods,
   ...publicArtifactMethods,
   ...asanaMethods,

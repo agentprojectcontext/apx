@@ -266,11 +266,19 @@ test("a contact's chat follows its account's rights for contacts, unless the own
       channel: { id: "acme-sales", conversation: person.id, person_id: person.id },
     });
     const tools = () => contactToolNames(contactHolder(audienceOf(store, thread)));
-    assert.deepEqual([...tools()].sort(), ["pass_request", "search_owner_notes"], "the account's rights");
+    assert.deepEqual(
+      [...tools()].sort(),
+      ["consult_contact_sources", "pass_request", "propose_contact_update", "search_owner_notes"],
+      "the account's rights",
+    );
     await env.client.call("contacts.set", { id: person.id, name: person.name, perms: { notes: false } });
     assert.deepEqual([...tools()], ["pass_request"], "what the owner set for them wins");
     await env.client.call("contacts.set", { id: person.id, name: person.name, perms: { notes: null } });
-    assert.deepEqual([...tools()].sort(), ["pass_request", "search_owner_notes"], "null gives it back to the account");
+    assert.deepEqual(
+      [...tools()].sort(),
+      ["consult_contact_sources", "pass_request", "propose_contact_update", "search_owner_notes"],
+      "null gives it back to the account",
+    );
     // Elsewhere, an account that sets nothing: none.
     const other = store.threads.create({
       kind: "channel",

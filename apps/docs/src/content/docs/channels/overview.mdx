@@ -182,10 +182,36 @@ for them (silenced, supervised, rules of their own, what their chat may do). The
   drop it. See [Supervised contacts](/channels/supervised/).
 
 With **Answer from my notes** enabled, choosing a specific agent shares its project's standing notes with this
-person, including notes saved by agents. The agent searches them when needed; this does not share files, past chats,
-other agents' notebooks or other projects. Pending and forgotten notes are excluded. Turning notes off prevents new
+person, including notes saved by agents. The agent searches them when needed; this does not automatically share files,
+past chats, other agents' notebooks or other projects. Pending and forgotten notes are excluded. Turning notes off prevents new
 lookups, but cannot take back answers already sent. If memory is disabled in Settings, note searches are unavailable.
 A contact using **Like the account** keeps access only to general notes you wrote, not the account agent's project.
+
+#### Documents for a specific contact
+
+Ask your super-agent to authorize the exact documents the assigned agent needs for this person. You review each
+selection in the app. It shares only that document's reviewed version, not the whole project folder. The contact
+must have **Answer from my notes** enabled, memory must be on, and the same agent must still be assigned in the same
+project. The agent can list the authorized documents, search passages and read more, citing their labels.
+
+Supported sources are existing UTF-8 Markdown, text and CSV files up to 400 KB inside that project's folder.
+PDFs, scans, external Docs and past conversations are not read by this tool; a text derivative must already exist and
+be reviewed separately. Original reports remain read-only. If you edit a document elsewhere, ask your super-agent to
+review and authorize its new version before the contact can read it again. Removing a source or switching notes off
+stops new consultation; it cannot remove information already sent.
+
+When a contact supplies a correction or new data, the agent can propose an exact document change privately, with
+its source conversation and the before/after text. It tells the contact that the data was received and is awaiting
+your confirmation, not that it was permanently saved. A private notice asks you to review it with your super-agent.
+The app confirmation shows who supplied it, the channel, source document and full change. You can accept or reject;
+only a record you explicitly allowed to be edited can be updated, and only if its reviewed version is unchanged.
+Rejection edits nothing; repeated identical suggestions do not create duplicates. Declining permission to run a
+review action leaves the suggestion pending; ask your super-agent to explicitly reject it to dismiss it.
+
+For agents, the owner controls sources with `apx_settings` methods `contacts.sources.list`, `.set` and `.remove`,
+and reviews corrections with `contacts.source_updates.list` and `.resolve` (`accept: true` or `false`). Grants and
+resolutions always require the owner's app confirmation, even in Total. Mark only editable records with
+`allow_updates: true`; the default is read-only. No correction writes global memory.
 
 What every contact of an account gets by default is in that account's settings, **Contacts › For your contacts, by
 default**: all off until you turn one on. A contact's own choice wins over it, on that account and any other.

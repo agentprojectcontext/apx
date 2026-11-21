@@ -185,10 +185,37 @@ que tiene configurado (silenciado, supervisado, reglas propias, qué puede hacer
   descartarla. Mirá [Contactos supervisados](/es/channels/supervised/).
 
 Con **Contestar desde mis notas** activado, elegir un agente para esta persona comparte las notas vigentes de su
-proyecto, incluidas las guardadas por agentes. Las busca cuando hacen falta: no comparte archivos, chats anteriores,
-cuadernos de otros agentes ni otros proyectos. Excluye notas pendientes y olvidadas. Apagar el permiso corta las
+proyecto, incluidas las guardadas por agentes. Las busca cuando hacen falta: no comparte automáticamente archivos,
+chats anteriores, cuadernos de otros agentes ni otros proyectos. Excluye notas pendientes y olvidadas. Apagar el permiso corta las
 nuevas búsquedas, pero no retira respuestas ya enviadas. Si desactivás la memoria en Configuración, no hay búsquedas
 de notas. Con **Como la cuenta** sólo consulta tus notas generales escritas por vos, no el proyecto del agente de la cuenta.
+
+#### Documentos para un contacto concreto
+
+Pedile a tu superagente que autorice los documentos exactos que necesita el agente asignado para esta persona.
+Revisás cada selección en la app. Se comparte sólo la versión revisada de ese documento, no toda la carpeta del
+proyecto. El contacto debe tener **Contestar desde mis notas** activado, la memoria debe estar encendida y el mismo
+agente debe seguir asignado en el mismo proyecto. El agente puede listar los documentos autorizados, buscar pasajes
+y seguir leyendo, citando sus nombres.
+
+Se admiten archivos existentes Markdown, texto y CSV en UTF-8 de hasta 400 KB dentro de la carpeta del proyecto.
+Esta herramienta no lee PDF, escaneos, Docs externos ni conversaciones anteriores: debe existir una versión en texto
+y autorizarse por separado. Los informes originales siguen siendo de sólo lectura. Si editás un documento por otra
+vía, pedile al superagente que revise y autorice la nueva versión antes de que el contacto vuelva a leerlo. Quitar una
+fuente o apagar el permiso de notas corta nuevas consultas, pero no retira información ya enviada.
+
+Cuando un contacto aporta una corrección o datos nuevos, el agente puede proponer un cambio exacto del documento en
+privado, con la conversación de origen y el texto anterior y propuesto. Le dice al contacto que recibió los datos y
+esperan tu confirmación, no que quedaron guardados definitivamente. Un aviso privado te pide revisarlo con tu
+superagente. La confirmación en la app muestra quién lo aportó, el canal, el documento y el cambio completo. Podés
+aceptar o rechazar: sólo se actualiza un registro que permitiste editar expresamente y cuya versión revisada no cambió.
+Rechazar no edita nada; repetir una sugerencia idéntica no crea duplicados. Negar el permiso para ejecutar una acción
+de revisión deja la sugerencia pendiente: pedile al superagente que la rechace expresamente para descartarla.
+
+Para los agentes, las fuentes se administran con `apx_settings`: `contacts.sources.list`, `.set` y `.remove`.
+Las correcciones se revisan con `contacts.source_updates.list` y `.resolve` (`accept: true` o `false`). Autorizar y
+resolver siempre requieren tu confirmación en la app, incluso en Total. Marcá sólo registros editables con
+`allow_updates: true`; de entrada son de sólo lectura. Ninguna corrección escribe en la memoria global.
 
 Lo que recibe de entrada cada contacto de una cuenta está en la configuración de esa cuenta, **Contactos › Para tus
 contactos, por defecto**: todo apagado hasta que prendas algo. Lo que elijas para un contacto le gana, en esa cuenta y

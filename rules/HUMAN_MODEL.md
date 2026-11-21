@@ -312,8 +312,12 @@ notice when there is no text. Tools that touch core state call protocol methods 
   A named agent can retrieve unavailable context through the existing `delegate` path before asking the owner.
 - **Contact notes** (`tools/contact.ts`): the notes right allows read-only owner-written general notes. An explicit
   per-person agent assignment also shares standing project notes and that agent's notebook in the same project,
-  not files, other chats or other notebooks. Account-default routing alone never shares project notes. Rights and
-  assignment are rechecked after lookup; pending, forgotten and migration-pending content is excluded. See D-260.
+  not arbitrary files, other chats or other notebooks. Account-default routing alone never shares project notes.
+  Rights and assignment are rechecked after lookup; pending, forgotten and migration-pending content is excluded.
+  Separately reviewed document grants pin one contact, agent, project, folder and document revision. Contact tools
+  search only those sources; corrections remain private proposals until the owner confirms an exact diff in the app.
+  Only explicitly editable records can change, with a version check and restart-safe journal; originals default to
+  read-only. Sources are data, never instructions. See D-260 and D-261.
 - **Contact requests** (`tools/contact.ts`): `pass_request` checks open requests submitted in the same contact's
   chat before writing. When candidates exist, the agent compares their original submissions with the conversation
   and updates the matching task by id, or explicitly creates a new, unrelated request. Owner edits and task notes

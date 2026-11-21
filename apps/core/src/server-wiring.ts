@@ -50,6 +50,7 @@ import { channelHandlers } from "./rpc/channels.ts";
 import { clientHandlers } from "./rpc/clients.ts";
 import { composerHandlers } from "./rpc/composer.ts";
 import { computerHandlers } from "./rpc/computer.ts";
+import { contactSourceHandlers } from "./rpc/contact-sources.ts";
 import type { CallContext } from "./rpc/context.ts";
 import { desktopInstallHandlers } from "./rpc/desktop-install.ts";
 import { deviceHandlers } from "./rpc/devices.ts";
@@ -407,6 +408,7 @@ export function coreHandlers(d: HandlerDeps & { vm?: Computer | undefined }) {
     ...jobHandlers(d.store, d.engine),
     ...memoryHandlers(d.store, d.memory, d.memoryMaintenance),
     ...channelsH,
+    ...contactSourceHandlers(d.store),
     "channels.add": async (p: Parameters<(typeof channelsH)["channels.add"]>[0], ctx: CallContext) => {
       const r = await channelsH["channels.add"](p);
       connected(ctx, "channel", [p.type]);

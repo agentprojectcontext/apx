@@ -5800,3 +5800,33 @@ No database or protocol shape changes. The existing notes permission is the owne
 now states the expanded scope before the owner chooses it.
 
 Docs impact: updated channels/overview in English and Spanish, permission help and protocol comment.
+
+<a id="d-261"></a>
+## D-261 — 2026-11-21 — Assigned contacts consult explicitly authorized documents and propose corrections
+An assigned agent must be able to consult the client's authorized sources, not just recall short notes. This extends
+D-260 without granting general filesystem or chat access. The owner selects individual UTF-8 Markdown, text or CSV
+documents inside the assigned agent's project through `contacts.sources.set`, naming the person, agent and project.
+The grant pins the real folder and the document's SHA-256. Changing the file outside an approved correction makes it
+unavailable until reviewed again. No directory, symlink, administrative file, binary, PDF extraction or external Doc
+access is implied. Existing originals need a separately reviewed text derivative; do not copy them into general notes.
+
+`consult_contact_sources` lists, searches and pages only these sources, and treats their text as untrusted reference
+data. The contact's notes permission, global memory setting, current assignment, project and migration state are
+checked at every call. Revocation stops new reads, not answers already delivered. Routing by the account alone does
+not share documents. Source ids and provenance are never an authorization credential.
+
+`propose_contact_update` records a bounded exact-passage suggestion and the incoming contact message's provenance,
+without editing memory or documents. Identical suggestions against the same source revision are deduplicated,
+including after rejection. Five pending suggestions per contact are allowed. A generic private notice points the owner
+to their super-agent; it carries no document content. The super-agent reviews the contact, channel, source and full
+diff using `contacts.source_updates.list`, and asks on the app-only confirmation card before resolving it. Both
+acceptance and rejection keep their card even in Total. Denying a tool confirmation leaves the suggestion pending;
+explicit rejection is `accept:false` and never changes the document.
+
+Only documents separately marked `allow_updates:true` can be edited after acceptance; originals default to read-only.
+Acceptance verifies the unchanged source version, writes atomically and records the new authorized revision. An
+approved-write journal makes retries safe across a restart between file rename and state commit. Revoked, moved or
+changed sources fail closed. No automatic memory update, cross-contact lookup, administrative tools, clinical
+interpretation or guarantee of exhaustive retrieval is introduced.
+
+Docs impact: updated channels/overview in English and Spanish, HUMAN_MODEL.md, contact notes news and tool guidance.

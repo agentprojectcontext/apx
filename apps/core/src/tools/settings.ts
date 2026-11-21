@@ -9,6 +9,7 @@ import type { TemplateRoot } from "../apc/templates.ts";
 import type { Store } from "../domain/store.ts";
 import type { ProfileRoot } from "../engine/profiles.ts";
 import { USAGE } from "./plan-usage.ts";
+import { CONTACT_SOURCES } from "./settings-contact-sources.ts";
 import { EMAIL } from "./settings-email.ts";
 import type { Params, Setting, SettingsDeps } from "./settings-kit.ts";
 import { PEOPLE } from "./settings-people.ts";
@@ -20,6 +21,7 @@ import { defineTool, type Tool } from "./types.ts";
 /** What the super-agent may read and change, by method. */
 export const SETTINGS: Readonly<Record<string, Setting>> = {
   ...PEOPLE,
+  ...CONTACT_SOURCES,
   ...TEAM,
   ...WORK,
   ...EMAIL,
@@ -75,7 +77,8 @@ export function settingAct(
 function areasOf(table: Readonly<Record<string, Setting>>): Map<string, string[]> {
   const by = new Map<string, string[]>();
   for (const m of Object.keys(table)) {
-    const [area = "", verb = ""] = m.split(".");
+    const [area = "", ...parts] = m.split(".");
+    const verb = parts.join(".");
     by.set(area, [...(by.get(area) ?? []), verb]);
   }
   return by;
