@@ -216,6 +216,7 @@ export function createGoogle(deps: {
         body?: unknown;
         raw?: { type: string; data: string };
         text?: boolean;
+        bytes?: boolean;
         maxResponseBytes?: number;
         signal?: AbortSignal;
       } = {},
@@ -243,7 +244,10 @@ export function createGoogle(deps: {
         access.delete(id);
         res = await send();
       }
-      if (res.ok && o.text) return (await res.text()) as T;
+      if (res.ok && (o.text || o.bytes)) {
+        const bytes = await limitedBytes(res, o.maxResponseBytes ?? 10 * 1024 * 1024);
+        return (o.bytes ? bytes : bytes.toString("utf8")) as T;
+      }
       const data = (
         o.maxResponseBytes ? JSON.parse(await limitedBody(res, o.maxResponseBytes)) : await res.json().catch(() => ({}))
       ) as { error?: { message?: string } };
@@ -263,8 +267,12 @@ export function createGoogle(deps: {
 }
 
 async function limitedBody(response: Response, max: number): Promise<string> {
+  return (await limitedBytes(response, max)).toString("utf8") || "{}";
+}
+
+async function limitedBytes(response: Response, max: number): Promise<Buffer> {
   const reader = response.body?.getReader();
-  if (!reader) return "{}";
+  if (!reader) return Buffer.alloc(0);
   const chunks: Uint8Array[] = [];
   let size = 0;
   try {
@@ -275,7 +283,7 @@ async function limitedBody(response: Response, max: number): Promise<string> {
       if (size > max) throw new GoogleAccessError("response_too_large");
       chunks.push(value);
     }
-    return Buffer.concat(chunks).toString("utf8");
+    return Buffer.concat(chunks);
   } finally {
     await reader.cancel().catch(() => {});
     reader.releaseLock();

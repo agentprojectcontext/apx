@@ -1,7 +1,7 @@
-// Google Drive's REST API, flattened to what a prompt needs: finding files, reading one as text (a Doc, a Sheet, a
-// Slides deck or a text file), writing a Doc and sharing what APX wrote.
-import { randomUUID } from "node:crypto";
+// Google Drive reads use bounded text windows and content revisions; PDF extraction is optional on the core host.
+import { createHash, randomUUID } from "node:crypto";
 import type { Google } from "./google.ts";
+import { pdfText } from "./pdf-text.ts";
 
 const ID = "google-drive" as const;
 const TEXT_CAP = 20_000;
@@ -82,7 +82,7 @@ function multipart(meta: unknown, content: string, type: string): { type: string
   };
 }
 
-export function driveApi(g: Google) {
+export function driveApi(g: Google, extractPdf = pdfText) {
   const files = `${g.endpoints.drive}/files`;
   const fileUrl = (id: string) => `${files}/${encodeURIComponent(id)}`;
   return {
@@ -102,20 +102,51 @@ export function driveApi(g: Google) {
       return (data.files ?? []).map(flattenFile);
     },
 
-    /** A file's text: Google's formats exported, a text file as is; anything else is refused with its link. */
-    async read(id: string): Promise<{ file: DriveFile; text: string }> {
-      const meta = await g.call<GFile>(ID, fileUrl(id), { query: { fields: FIELDS, supportsAllDrives: true } });
+    /** Bounded text windows with a content revision so callers cannot silently assemble different versions. */
+    async read(
+      id: string,
+      o: { offset?: number | undefined; revision?: string | undefined; signal?: AbortSignal | undefined } = {},
+    ) {
+      if ((o.offset ?? 0) > 0 && !o.revision) throw new Error("Continuing a Drive read requires its revision");
+      const meta = await g.call<GFile>(ID, fileUrl(id), {
+        query: { fields: FIELDS, supportsAllDrives: true },
+        ...(o.signal ? { signal: o.signal } : {}),
+      });
       const file = flattenFile(meta);
       const mime = meta.mimeType ?? "";
       const as = EXPORTS[mime];
       const textual = mime.startsWith("text/") || /json|xml|csv|markdown|yaml/.test(mime);
-      if (!as && !textual)
+      const pdf = mime === KINDS.pdf;
+      if (!as && !textual && !pdf)
         throw new Error(`${file.name} is a ${mime || "binary"} file APX cannot read as text; open ${file.link ?? id}`);
-      const text = await g.call<string>(ID, as ? `${fileUrl(id)}/export` : fileUrl(id), {
+      const bytes = await g.call<Buffer>(ID, as ? `${fileUrl(id)}/export` : fileUrl(id), {
         query: as ? { mimeType: as } : { alt: "media", supportsAllDrives: true },
-        text: true,
+        bytes: true,
+        maxResponseBytes: 10 * 1024 * 1024,
+        ...(o.signal ? { signal: o.signal } : {}),
       });
-      return { file, text: text.length > TEXT_CAP ? `${text.slice(0, TEXT_CAP)}\n…[cut]` : text };
+      const extracted = pdf
+        ? await extractPdf(bytes, o.signal)
+        : new TextDecoder("utf-8", { fatal: true }).decode(bytes);
+      if (extracted.includes("\0")) throw new Error("The source contains binary content");
+      const pages = pdf ? extracted.replace(/\f$/, "").split("\f") : undefined;
+      const text = pages ? pages.map((page, i) => `[Page ${i + 1}]\n${page}`).join("\n") : extracted;
+      const revision = createHash("sha256").update(bytes).update("\0").update(text).digest("hex");
+      if (o.revision && o.revision !== revision)
+        throw new Error("The Drive source changed; restart reading from offset 0");
+      const offset = o.offset ?? 0;
+      if (!Number.isSafeInteger(offset) || offset < 0 || offset > text.length) throw new Error("Invalid text offset");
+      const end = Math.min(offset + TEXT_CAP, text.length);
+      return {
+        file,
+        text: text.slice(offset, end),
+        revision,
+        offset,
+        total_chars: text.length,
+        next_offset: end < text.length ? end : null,
+        complete: offset === 0 && end === text.length,
+        ...(pages ? { pages: pages.length, extraction: "text-only; no OCR or visual verification" } : {}),
+      };
     },
 
     /** A new Google Doc from text, or a Doc APX made written over (drive.file reaches only those). */

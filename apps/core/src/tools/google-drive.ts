@@ -36,15 +36,23 @@ export function driveTools(g: Google): Tool[] {
     defineTool({
       name: "drive_read",
       description:
-        "Read a Google Drive file as text by id (from drive_search): a Doc, a Sheet (CSV), Slides or a text file.",
-      args: z.object({ id: FileId }),
+        "Read a Drive Doc, Sheet (one CSV worksheet), Slides, text file or PDF by id. Returns a text window and revision; continue with next_offset and the same revision until next_offset is null. PDF needs pdftotext on the core host; no OCR or visual verification. Partial reads are not complete documents.",
+      args: z.object({
+        id: FileId,
+        offset: z.number().int().min(0).optional(),
+        revision: z
+          .string()
+          .regex(/^[a-f0-9]{64}$/)
+          .optional(),
+      }),
       effect: "none",
       deadlineMs: 60_000,
       when: onDrive,
       title: () => "Read a file from Drive",
-      async run(a) {
-        const r = await drive.read(a.id);
-        return untrusted("file", { id: r.file.id, name: r.file.name, type: r.file.type }, r.text);
+      async run(a, ctx) {
+        const { file, text, ...window } = await drive.read(a.id, { ...a, signal: ctx.signal });
+        const attributes = Object.fromEntries(Object.entries(window).map(([key, value]) => [key, String(value)]));
+        return untrusted("file", { id: file.id, name: file.name, type: file.type, ...attributes }, text);
       },
     }),
     defineTool({
