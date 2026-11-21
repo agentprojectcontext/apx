@@ -2,6 +2,24 @@
 import { enMarketplace } from "./marketplace-en.ts";
 
 export const enResources = {
+  "market.events.title": "Notices",
+  "market.events.help":
+    "Choose where your agent receives updates from this extension. Changes take effect when you save.",
+  "market.events.connect": "Connect this extension before turning notices on.",
+  "market.events.enable": "Send notices",
+  "market.events.destination": "Receive in",
+  "market.events.home": "Your super-agent",
+  "market.events.untitled": "Untitled chat",
+  "market.events.quiet": "Hold notices during quiet hours",
+  "market.events.from": "Quiet from",
+  "market.events.to": "Until",
+  "market.events.zone": "Time zone",
+  "market.events.sourceError": "A check or delivery failed. APX will retry without assuming anything finished.",
+  "market.events.error":
+    "Couldn't load or save notices. Check the connection, destination and time zone, then try again.",
+  "market.events.saved": "Notice settings saved.",
+  "market.events.reload": "Reload settings",
+  "market.events.loading": "Loading notice settings…",
   ...enMarketplace,
   "res.mcpAvailable": "Available in",
   "res.mcpEverywhere": "All projects",
