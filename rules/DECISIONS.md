@@ -5801,8 +5801,8 @@ now states the expanded scope before the owner chooses it.
 
 Docs impact: updated channels/overview in English and Spanish, permission help and protocol comment.
 
-<a id="d-262"></a>
-## D-262 — 2026-11-21 — Extensions report durable observations through opt-in MCP monitors
+<a id="d-261"></a>
+## D-261 — 2026-11-21 — Extensions report durable observations through opt-in MCP monitors
 
 An extension declares named events and optionally one observation tool in its own MCP server. Connecting approves
 its code, not background notices: the owner separately selects a personal chat and quiet hours. The office clock
