@@ -101,8 +101,20 @@ function resolve(store: Store, id: string, accept: boolean) {
   const current = sourceState(store);
   const update = current.updates.find((u) => u.id === id);
   if (!update) throw notFound("source update");
-  if (["accepted", "rejected"].includes(update.state)) return update;
-  if (!accept && update.state === "applying") throw conflict("finish the already approved update before rejecting it");
+  if (["accepted", "rejected", "unresolved"].includes(update.state)) return update;
+  let unresolved = false;
+  if (!accept && update.state === "applying") {
+    const source = current.sources.find((s) => s.id === update.source);
+    let revision: string | undefined;
+    try {
+      if (source) revision = readSource(store, source).revision;
+    } catch {
+      // Closing an uncertain journal never claims that an earlier approved write was undone.
+    }
+    if (revision && revision === update.result_revision)
+      throw conflict("the approved write already completed; finish accepting it before proposing another change");
+    unresolved = revision !== update.revision;
+  }
   if (accept) {
     const source = current.sources.find((s) => s.id === update.source);
     if (!source || !sourceBound(store, source)) throw conflict("source authorization changed");
@@ -133,7 +145,7 @@ function resolve(store: Store, id: string, accept: boolean) {
     }
     if (update.result_revision) source.revision = update.result_revision;
   }
-  update.state = accept ? "accepted" : "rejected";
+  update.state = accept ? "accepted" : unresolved ? "unresolved" : "rejected";
   store.tx(() => {
     saveSources(store, current);
     store.notifications.resolve("agent", `contact-source:${id}`);

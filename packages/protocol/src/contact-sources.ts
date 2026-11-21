@@ -23,7 +23,7 @@ export const ContactSourceUpdate = z.object({
   result_revision: z.string().optional(),
   old: z.string(),
   replacement: z.string(),
-  state: z.enum(["pending", "applying", "accepted", "rejected"]),
+  state: z.enum(["pending", "applying", "accepted", "rejected", "unresolved"]),
   created_at: z.string(),
 });
 

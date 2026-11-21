@@ -211,6 +211,10 @@ superagente. La confirmación en la app muestra quién lo aportó, el canal, el 
 aceptar o rechazar: sólo se actualiza un registro que permitiste editar expresamente y cuya versión revisada no cambió.
 Rechazar no edita nada; repetir una sugerencia idéntica no crea duplicados. Negar el permiso para ejecutar una acción
 de revisión deja la sugerencia pendiente: pedile al superagente que la rechace expresamente para descartarla.
+Si una escritura aprobada se interrumpe, repetí la aceptación para comprobar la versión exacta guardada. Podés
+rechazar si el texto original sigue intacto. Si la fuente desapareció o cambió, cerrar la revisión registra un
+resultado sin resolver, sin otra escritura: no afirma que se haya deshecho la escritura aprobada anterior.
+Revisá el original antes de proponer otra corrección.
 
 Para los agentes, las fuentes se administran con `apx_settings`: `contacts.sources.list`, `.set` y `.remove`.
 Las correcciones se revisan con `contacts.source_updates.list` y `.resolve` (`accept: true` o `false`). Autorizar y

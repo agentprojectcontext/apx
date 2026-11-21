@@ -1,3 +1,4 @@
+import { ContactSourceUpdate } from "@apx/protocol";
 import { contactSources } from "../domain/contact-sources.ts";
 import { untrusted } from "./result.ts";
 import { agentName, projectName, type Setting, str } from "./settings-kit.ts";
@@ -58,6 +59,14 @@ export const CONTACT_SOURCES: Readonly<Record<string, Setting>> = {
     asks: "card",
     named: ["id", "accept"],
     whole: true,
+    shows: (result) => {
+      const update = ContactSourceUpdate.parse(result);
+      if (update.state === "accepted") return "Correction accepted. The authorized document was updated.";
+      if (update.state === "rejected") return "Correction rejected. The document was not changed.";
+      if (update.state === "unresolved")
+        return "Review closed without another write. The earlier approved write could not be verified; inspect the original document before making another correction.";
+      return "The correction is still awaiting review; do not claim the document was updated.";
+    },
     says: (p, { store }) => {
       const sources = contactSources(store);
       const update = sources.updates().find((u) => u.id === p.id);

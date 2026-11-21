@@ -207,6 +207,10 @@ The app confirmation shows who supplied it, the channel, source document and ful
 only a record you explicitly allowed to be edited can be updated, and only if its reviewed version is unchanged.
 Rejection edits nothing; repeated identical suggestions do not create duplicates. Declining permission to run a
 review action leaves the suggestion pending; ask your super-agent to explicitly reject it to dismiss it.
+If an approved write is interrupted, retry acceptance to reconcile the exact saved version. Rejection is possible
+when the original bytes are still intact. If the source has disappeared or changed, closing the review records an
+unresolved outcome without another write; it does not claim the earlier approved write was undone. Inspect the
+original before proposing another correction.
 
 For agents, the owner controls sources with `apx_settings` methods `contacts.sources.list`, `.set` and `.remove`,
 and reviews corrections with `contacts.source_updates.list` and `.resolve` (`accept: true` or `false`). Grants and
