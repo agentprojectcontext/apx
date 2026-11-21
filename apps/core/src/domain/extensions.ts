@@ -1,7 +1,8 @@
 // Installed extensions: the manifest as it was read at install, the copy's folder and fingerprint, on or off, where it
 // came from by fingerprint, and the version it replaced (kept to go back to).
 import { ExtensionManifest, type ExtensionProvenance } from "@apx/protocol";
-import { now, qb, type Sql } from "./sql.ts";
+import { sql } from "kysely";
+import { newId, now, qb, type Sql } from "./sql.ts";
 
 /** A version kept beside the installed one: as it was when replaced, approved or not. */
 export type PreviousVersion = {
@@ -80,7 +81,10 @@ function previousOf(raw: string | null): PreviousVersion | undefined {
   }
 }
 
-export function extensionsRepo({ one, all, run }: Sql) {
+export const extensionGeneration = (e: ExtensionRecord) =>
+  JSON.stringify([e.installed_at, e.hash, e.origin_key ?? e.source]);
+
+export function extensionsRepo({ one, all, run, tx }: Sql) {
   const toRecord = (r: {
     id: string;
     manifest: string;
@@ -172,12 +176,29 @@ export function extensionsRepo({ one, all, run }: Sql) {
       );
     },
     setEnabled(id: string, enabled: boolean): void {
-      run(
-        qb
-          .updateTable("extensions")
-          .set({ enabled: enabled ? 1 : 0, updated_at: now() })
-          .where("id", "=", id),
-      );
+      tx(() => {
+        run(
+          qb
+            .updateTable("extensions")
+            .set({ enabled: enabled ? 1 : 0, updated_at: now() })
+            .where("id", "=", id),
+        );
+        if (!enabled) {
+          run(
+            qb
+              .updateTable("extension_event_configs")
+              .set({ config: sql<string>`json_set(config, '$.enabled', json('false'))`, revision: newId("ec") })
+              .where("extension", "=", id),
+          );
+          run(
+            qb
+              .updateTable("extension_events")
+              .set({ state: "canceled" })
+              .where("extension", "=", id)
+              .where("state", "=", "pending"),
+          );
+        }
+      });
     },
     remove(id: string): boolean {
       return run(qb.deleteFrom("extensions").where("id", "=", id)) > 0;

@@ -5800,3 +5800,26 @@ No database or protocol shape changes. The existing notes permission is the owne
 now states the expanded scope before the owner chooses it.
 
 Docs impact: updated channels/overview in English and Spanish, permission help and protocol comment.
+
+<a id="d-262"></a>
+## D-262 — 2026-11-21 — Extensions report durable observations through opt-in MCP monitors
+
+An extension declares named events and optionally one observation tool in its own MCP server. Connecting approves
+its code, not background notices: the owner separately selects a personal chat and quiet hours. The office clock
+polls only that declared tool, through the existing bounded MCP manager, without a model turn per check. A source
+may request a shorter bounded interval while observing activity. It receives a stable configuration session and a
+core-provided state directory outside its fingerprinted package. It must persist/replay stable event ids across
+restarts rather than consume a completion before the core receives it. Explicitly declared local cursor writes are
+allowed for non-destructive monitors; device controls remain separate owner-requested actions. Metadata is not a
+sandbox and does not replace reviewing the extension's code.
+
+Normal owner-authenticated protocol and CLI calls can also emit observations. No public listener, generic token
+passed to extension code or agent-authored appliance state is introduced. SQLite receipts deduplicate by installation
+generation, event name and source id. Delivery goes through `threads.send` as external-client data; the receipt and
+run are linked atomically. Configuration revisions invalidate in-flight results and pending destinations. Quiet
+hours defer admission. Disable cancels pending receipts and revokes opt-in atomically; reconnecting alone does not
+resume it. Updates require new configuration. Pending receipts expire after seven days; bounded storage refuses
+new events while its window is full rather than silently evicting recent history. Terminal receipts are compacted after 24 hours so capacity recovers; deduplication is not promised for later replays. Reserved monitor tools are excluded from agent discovery and ordinary calls, with a core-pinned source session and acknowledgments of persisted receipts. Sources retain individual events until acknowledged. Existing Gmail monitoring remains unchanged.
+
+See [extension observations](EXTENSION_EVENTS.md) for the wire/source contract, limits, lifecycle and failure cases.
+Docs impact: updated extension guides in English and Spanish, HUMAN_MODEL.md and EXTENSION_EVENTS.md.

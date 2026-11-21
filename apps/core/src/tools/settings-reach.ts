@@ -77,6 +77,8 @@ export const OWNER_ONLY: Readonly<Record<string, string>> = {
   "mcp.signIn": SECRET,
   "extensions.set_secret": SECRET,
   "extensions.settings": SECRET,
+  "extensions.events_emit":
+    "observations come from an extension's monitor or the owner's authenticated CLI, not an agent inventing appliance state",
   "extensions.add_agent": "the Add agent button on an extension's page; agents make an agent with agent_set",
   "access.set": POWER,
   "webhooks.set": MACHINE,

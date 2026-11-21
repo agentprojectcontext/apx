@@ -6,6 +6,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { withoutBom } from "../apc/read.ts";
 import type { Store } from "../domain/store.ts";
+import { extensionMonitorDir } from "../extensions/data.ts";
 import { extSecret, SECRET_REF, SETTING_REF } from "../extensions/extensions.ts";
 import { NO_GLOBALS } from "../skills/skills.ts";
 import { isMcpRemote } from "./bridge.ts";
@@ -29,6 +30,8 @@ export type McpDef = {
   secretLabels?: Record<string, string> | undefined;
   /** Required extension settings this particular server references but the owner has not set. */
   missingSettings?: string[] | undefined;
+  /** Reserved for the core's managed observations; never exposed as an agent tool. */
+  monitorTool?: string | undefined;
   enabled: boolean;
   /** Folder a stdio server starts in (the project's). */
   cwd?: string | undefined;
@@ -128,6 +131,10 @@ function extensionDefs(store: Store): McpDef[] {
       const map = (r: Record<string, string>) => Object.fromEntries(Object.entries(r).map(([k, v]) => [k, own(v)]));
       const bridge = isMcpRemote(server);
       const env = map(server.env);
+      if (e.manifest.monitor?.server === name) {
+        env.APX_EXTENSION_DATA_DIR = extensionMonitorDir(e);
+        env.APX_EXTENSION_MONITOR_SESSION = store.extensionEvents.config(e.id)?.revision ?? "";
+      }
       if (bridge)
         env.MCP_REMOTE_CONFIG_DIR = path.join(
           path.dirname(path.dirname(e.dir)),
@@ -147,6 +154,7 @@ function extensionDefs(store: Store): McpDef[] {
       };
       const d = toDef(`${e.id}-${name}`, raw, { scope: "global", cwd: e.dir });
       if (!d) return [];
+      if (e.manifest.monitor?.server === name) d.monitorTool = e.manifest.monitor.tool;
       const optionalSecrets = e.manifest.settings
         .filter((s) => s.sensitive && !s.required)
         .map((s) => extSecret(e.id, s.name));

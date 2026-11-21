@@ -151,6 +151,13 @@ The office clock's task lanes (`engine/task-work.ts` start times and pickup, `en
 candidates from `domain/task-lanes.ts`, which filters eligibility in SQL before any limit; the stall check walks tasks in
 progress a page at a time from a saved cursor and asks a few agents per check ([D-206](DECISIONS.md#d-206)).
 
+Installed extensions may declare observations and an opt-in MCP monitor. The owner separately chooses a personal
+chat and quiet hours; connecting alone never enables monitoring. The office clock calls only the declared observation
+tool, with no model turn per poll. SQLite receipts deduplicate stable source ids and link admission atomically through
+`threads.send`; their content remains outside data, not owner instructions. Disable revokes pending delivery;
+changed files require new approval. Existing Gmail monitoring is unchanged. See [extension observations](EXTENSION_EVENTS.md)
+for the source outbox, session, limits, local-state permissions and restart contract.
+
 ## 3. Modules and dependency direction
 
 - `packages/protocol` ← used by everything. Isomorphic: no Node-only imports.

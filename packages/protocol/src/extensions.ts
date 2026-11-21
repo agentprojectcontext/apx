@@ -1,6 +1,7 @@
 // Extensions: the manifest an extension brings, what the owner sees of one, and what the catalogs list.
 import { z } from "zod";
 import { EXTENSION_ARCHIVE_MAX } from "./constants.ts";
+import { ExtensionEventDeclaration, ExtensionMonitor } from "./extension-events.ts";
 import { Schedule } from "./office.ts";
 import { schemaFields } from "./schema-fields.ts";
 
@@ -153,6 +154,10 @@ export const ExtensionManifest = z
           )
           .strict()
           .optional(),
+      /** External observations it can report; never instructions from the owner. */
+      events: () => z.array(ExtensionEventDeclaration).min(1).max(20).optional(),
+      /** Opt-in background observation through one of its own MCP tools. */
+      monitor: () => ExtensionMonitor.optional(),
       // Manifest 2 (DECISIONS.md#d-242): everything below is optional, so a manifest 1 still reads as before.
       manifest: () => z.literal(2).optional(),
       /** The operating systems it runs on (none: any). */
@@ -232,7 +237,19 @@ export type ExtensionManifest = z.infer<typeof ExtensionManifest>;
 export const ExtensionPower = z.object(
   schemaFields({
     kind: () =>
-      z.enum(["mcp", "host", "secret", "routine", "plugin", "internet", "local_network", "context", "observe"]),
+      z.enum([
+        "mcp",
+        "host",
+        "secret",
+        "routine",
+        "plugin",
+        "internet",
+        "local_network",
+        "context",
+        "observe",
+        "event",
+        "monitor",
+      ]),
     name: () => z.string(),
     detail: () => z.string().optional(),
   }),
@@ -466,6 +483,8 @@ export const ExtensionInfo = z.object(
     skills: () => z.array(z.string()),
     mcp: () => z.array(z.string()),
     routines: () => ExtensionManifest.shape.routines,
+    events: () => ExtensionManifest.shape.events,
+    monitor: () => ExtensionManifest.shape.monitor,
     secrets: () =>
       z.array(
         z.object(

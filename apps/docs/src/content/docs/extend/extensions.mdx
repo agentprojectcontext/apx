@@ -326,6 +326,47 @@ Installing another version of one you have keeps the one before beside it. The d
 - **⋯ › Back to 1.0.0** (the version kept) swaps it with the version kept before, each as you had approved it (on or off). Pressing it
   again goes forward.
 
+## Background observations
+
+An extension can declare observations, such as a completed appliance cycle, and a monitor that checks its own MCP
+server periodically. Adding or connecting it does not enable notices. Ask your agent to configure its notices,
+choose a personal chat and set quiet hours. Turning the extension off also turns its notices off; reconnecting alone
+does not resume them. After an update, approve its unchanged files and configure notices again.
+
+The monitor reads without starting a model turn at each check. For example, it may check every five minutes and
+only wake the chosen agent when it detects a real completion. Quiet hours delay that delivery; they do not stop
+observations. An interrupted connection or an estimated finish time is not proof that an appliance finished.
+This does not change Gmail's existing checks or add a second copy of its notices.
+
+For authors, optional manifest fields are:
+
+```json
+{
+  "events": [{ "name": "cycle_finished", "description": "A cycle finished" }],
+  "monitor": { "server": "status", "tool": "observe", "every_seconds": 300, "local_state": true }
+}
+```
+
+The tool receives a `session` string and an `acknowledged` array of up to ten `{event,id}` pairs. It returns
+`{ "events": [] }`, or up to ten objects with `event`, a stable `id` and flat primitive `data`. It is reserved for the
+core monitor, not ordinary agent calls. APX pins `APX_EXTENSION_MONITOR_SESSION`; reject another session before
+changing state. Persist a bounded queue of individual events and replay their stable ids until APX acknowledges
+persisted receipts; do not replace one undelivered completion with the next. A configuration change resets arming;
+a core restart does not. Never include credentials, device addresses or serial numbers. Failed reads return an MCP
+tool error. `local_state` permits non-destructive cursor/outbox writes, not appliance controls. APX supplies
+`APX_EXTENSION_DATA_DIR` outside installed files. Responses may request a shorter `next_poll_seconds` interval
+(minimum 30 seconds), or return old events with `warning: "source_storage_full"` to report bounded backpressure.
+
+The authenticated CLI also supports `apx events get <extension>`, `apx events set <extension>` with `enabled`, `thread`,
+`quiet_start`, `quiet_end` and `time_zone` assignments, and
+`apx events emit <extension>/<event> <stable-id> '<JSON data>'`. Quiet endpoints are minutes since local midnight;
+equal endpoints mean no quiet window. Pending notices survive a restart, expire after seven days and are canceled
+when settings/credentials change or the extension is turned off. Reconnecting alone does not resume notices.
+Terminal receipts are retained for 24 hours, then compacted to recover capacity; duplicates in that window cannot
+start another turn, but later replays may be new receipts. Limits are 60 new receipts per minute and 10,000 retained
+per installation. This does not guarantee external actions happen exactly once. Observations are outside data,
+never instructions from you.
+
 ## Plugins
 
 When files aren't enough, an extension can bring a plugin: a `.mjs` file that runs in its own process, watches events

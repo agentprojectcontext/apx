@@ -1294,4 +1294,29 @@ export const MIGRATIONS: readonly string[] = [
   ARCHIVE_MODEL_CONTEXT,
   // A stable source identity prevents another package with the same id from inheriting its settings and secrets.
   `ALTER TABLE extensions ADD COLUMN origin_key TEXT;`,
+  `
+  CREATE TABLE extension_event_configs (
+    extension TEXT PRIMARY KEY REFERENCES extensions(id) ON DELETE CASCADE,
+    generation TEXT NOT NULL,
+    config TEXT NOT NULL,
+    revision TEXT NOT NULL,
+    error TEXT
+  );
+  CREATE TABLE extension_events (
+    receipt TEXT PRIMARY KEY,
+    extension TEXT NOT NULL REFERENCES extensions(id) ON DELETE CASCADE,
+    generation TEXT NOT NULL,
+    event TEXT NOT NULL,
+    external_id TEXT NOT NULL,
+    revision TEXT NOT NULL,
+    data TEXT NOT NULL,
+    thread TEXT NOT NULL,
+    state TEXT NOT NULL CHECK(state IN ('pending', 'admitted', 'canceled')),
+    created_at TEXT NOT NULL,
+    run_id TEXT,
+    UNIQUE(extension, generation, event, external_id)
+  );
+  CREATE INDEX extension_events_pending ON extension_events(state, created_at);
+  CREATE INDEX extension_events_rate ON extension_events(extension, created_at);
+  `,
 ];

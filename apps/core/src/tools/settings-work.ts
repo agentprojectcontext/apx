@@ -310,6 +310,25 @@ export const WORK: Readonly<Record<string, Setting>> = {
       muted: store.settings.read("calendar_muted").some((m) => m.series === str(p.series)),
     }),
   },
+  "extensions.events_get": {
+    does: "read an extension's declared observations, monitor and saved notice settings (id); enabled settings need unchanged approved files",
+    read: (p, { store }) => {
+      const id = str(p.id);
+      const ext = store.extensions.get(id);
+      return JSON.stringify({
+        events: ext?.manifest.events ?? [],
+        monitor: ext?.manifest.monitor,
+        config: store.extensionEvents.config(id)?.config,
+        pending: store.extensionEvents.pendingCount(id),
+      });
+    },
+  },
+  "extensions.events_set": {
+    does: "configure opt-in extension notices (id, config: enabled, thread, quiet_start and quiet_end in local minutes, time_zone); personal chat only, no Flow needed",
+    says: (p, { store }) =>
+      `Change notices from ${inlineName(store.extensions.get(str(p.id))?.manifest.name ?? str(p.id))}`,
+    now: (p, { store }) => ({ id: p.id, config: store.extensionEvents.config(str(p.id))?.config }),
+  },
   "extensions.enable": {
     does: "turn an installed extension on or off (id, enabled)",
     says: (p, { store }) =>

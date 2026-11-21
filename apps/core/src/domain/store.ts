@@ -14,6 +14,7 @@ import { channelsRepo } from "./channels.ts";
 import { clientsRepo } from "./clients.ts";
 import { devicesRepo } from "./devices.ts";
 import { extensionCatalogsRepo } from "./extension-catalogs.ts";
+import { extensionEventsRepo } from "./extension-events.ts";
 import { extensionsRepo } from "./extensions.ts";
 import { flowGraphRunsRepo } from "./flow-graph-runs.ts";
 import { flowGraphsRepo } from "./flow-graphs.ts";
@@ -121,6 +122,7 @@ export function createStore(db: Db, bus: Bus) {
     routines: routinesRepo(q),
     notifications: notificationsRepo(q, bus),
     extensions: extensionsRepo(q),
+    extensionEvents: extensionEventsRepo(q),
     extensionCatalogs: extensionCatalogsRepo(q),
     clients: clientsRepo(q),
     devices: devicesRepo(q),

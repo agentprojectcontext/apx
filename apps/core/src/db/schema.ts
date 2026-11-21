@@ -98,6 +98,28 @@ export interface ExtensionCatalogsTable {
   created_at: string;
 }
 
+export interface ExtensionEventConfigsTable {
+  extension: string;
+  generation: string;
+  config: string;
+  revision: string;
+  error: string | null;
+}
+
+export interface ExtensionEventsTable {
+  receipt: string;
+  extension: string;
+  generation: string;
+  event: string;
+  external_id: string;
+  revision: string;
+  data: string;
+  thread: string;
+  state: string;
+  created_at: string;
+  run_id: string | null;
+}
+
 export interface ExtensionsTable {
   id: string;
   manifest: string;
@@ -763,6 +785,8 @@ export interface Database {
   channel_inbox: ChannelInboxTable;
   devices: DevicesTable;
   extension_catalogs: ExtensionCatalogsTable;
+  extension_event_configs: ExtensionEventConfigsTable;
+  extension_events: ExtensionEventsTable;
   extensions: ExtensionsTable;
   flow_events: FlowEventsTable;
   flow_graph_drafts: FlowGraphDraftsTable;
