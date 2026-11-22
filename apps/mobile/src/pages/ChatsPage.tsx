@@ -3,11 +3,12 @@ import { FlatList, Pressable, RefreshControl, ScrollView, Text, TextInput, View 
 import { elapsed } from "../format";
 import { workingNow, workSubject } from "../hooks/chatSelectors";
 import { type InboxNode, inboxTree, nodeThreads, searchInbox } from "../hooks/inboxTree";
+import { byAttention } from "../hooks/rowState";
 import type { Agent, Job, Thread, Workspace } from "../hooks/useWorkspace";
 import { t } from "../i18n";
 import { ChatFilterSheet } from "../ui/ChatFilterSheet";
 import { Icon } from "../ui/Icon";
-import { Dot, EmptyState, IconButton, OwnerAvatar, Segmented, Spinner, useType } from "../ui/kit";
+import { BottomSheet, Dot, EmptyState, IconButton, ListRow, OwnerAvatar, Segmented, Spinner, useType } from "../ui/kit";
 import { makeStyles, useTheme } from "../ui/theme";
 import { type ChatFilter, filtering } from "../viewPrefs";
 import { InboxRow, inboxTitle, ThreadAvatar } from "./InboxRows";
@@ -17,6 +18,7 @@ type Tab = "chats" | "tasks" | "routines";
 const TAB_OF = { thread: "chats", channel: "chats", task: "tasks", routine: "routines" } as const;
 // A run from before routines had ids is still a routine's.
 const tabOf = (node: InboxNode): Tab => (node.thread.kind === "routine" ? "routines" : TAB_OF[node.kind]);
+const TAB_TITLE = { chats: "navChats", tasks: "navTasks", routines: "routines" } as const;
 const SEARCH = { chats: "searchChats", tasks: "searchTasks", routines: "searchRoutines" } as const;
 
 export function ChatsPage({
@@ -31,6 +33,7 @@ export function ChatsPage({
   menu,
   taskMenu,
   openArchived,
+  readThreads,
 }: {
   data: Workspace;
   online: boolean;
@@ -43,10 +46,12 @@ export function ChatsPage({
   setFilter: (next: ChatFilter) => void;
   /** A long press on a chat: its own actions. */
   menu?: (thread: Thread) => void;
-  /** A long press on a task's row: the task's options. */
-  taskMenu?: (taskId: string) => void;
-  /** Opens the archived chats; offered while there are some. */
+  /** A long press on a task's row: the task's options, with every chat it holds. */
+  taskMenu?: (taskId: string, threads: Thread[]) => void;
+  /** Opens the archived chats of every tab; offered from a long press on Chats. */
   openArchived?: () => void;
+  /** Marks chats read; a long press on a tab offers it for that tab's chats. */
+  readThreads?: (ids: string[]) => Promise<void>;
 }) {
   const type = useType();
   const theme = useTheme();
@@ -56,19 +61,26 @@ export function ChatsPage({
   const [filters, setFilters] = useState(false);
   const working = useMemo(() => workingNow(data.threads, data.jobs.running), [data.threads, data.jobs.running]);
   const [tab, setTab] = useState<Tab>("chats");
+  /** The tab whose options a long press opened. */
+  const [held, setHeld] = useState<Tab>();
   const tree = useMemo(
     () => inboxTree(data.threads, { ...filter, routines: true, tasks: true }, data.tasks),
     [data.threads, data.tasks, filter],
   );
-  const rows = useMemo(
-    () =>
-      searchInbox(
-        tree.filter((node) => tabOf(node) === tab),
-        query,
-        (node) => inboxTitle(node, data),
-      ),
-    [tree, tab, query, data],
-  );
+  const rows = useMemo(() => {
+    const shown = tree.filter((node) => tabOf(node) === tab);
+    // Tasks go by what needs the owner: waiting and running on top, dropped and done at the end.
+    return searchInbox(tab === "tasks" ? byAttention(shown, data.tasks) : shown, query, (node) =>
+      inboxTitle(node, data),
+    );
+  }, [tree, tab, query, data]);
+  const unreadIn = (which: Tab) =>
+    tree
+      .filter((node) => tabOf(node) === which)
+      .flatMap(nodeThreads)
+      .filter((thread) => thread.unread > 0)
+      .map((thread) => thread.id);
+  const heldUnread = held ? unreadIn(held) : [];
   const searching = !!query?.trim();
   const archived = useMemo(
     () => inboxTree(data.threads, { routines: true, archived: true }, data.tasks).flatMap(nodeThreads).length,
@@ -142,6 +154,10 @@ export function ChatsPage({
           <Segmented
             value={tab}
             onChange={setTab}
+            onLongPress={(which) => {
+              setTab(which);
+              setHeld(which);
+            }}
             style={s.tabs}
             options={[
               { value: "chats", label: t("navChats") },
@@ -182,31 +198,16 @@ export function ChatsPage({
           )
         }
         ListHeaderComponent={
-          <>
-            {working.length > 0 ? (
-              <>
-                <Text style={[type.meta, s.workingLabel]}>{t("workingNow", { n: working.length })}</Text>
-                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.strip}>
-                  {working.map(({ thread, job }) => (
-                    <WorkChip key={thread.id} thread={thread} job={job} data={data} onPress={() => open(thread)} />
-                  ))}
-                </ScrollView>
-              </>
-            ) : null}
-            {archived > 0 && openArchived && !searching && tab === "chats" ? (
-              <Pressable
-                accessibilityRole="button"
-                onPress={openArchived}
-                style={({ pressed }) => [s.archived, pressed && { backgroundColor: theme.fill }]}
-              >
-                <View style={s.archivedIcon}>
-                  <Icon name="Archive" size={18} color={theme.fgMuted} />
-                </View>
-                <Text style={s.archivedLabel}>{t("archivedChats")}</Text>
-                <Text style={type.meta}>{archived}</Text>
-              </Pressable>
-            ) : null}
-          </>
+          working.length > 0 ? (
+            <>
+              <Text style={[type.meta, s.workingLabel]}>{t("workingNow", { n: working.length })}</Text>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.strip}>
+                {working.map(({ thread, job }) => (
+                  <WorkChip key={thread.id} thread={thread} job={job} data={data} onPress={() => open(thread)} />
+                ))}
+              </ScrollView>
+            </>
+          ) : null
         }
         refreshControl={
           <RefreshControl
@@ -223,6 +224,31 @@ export function ChatsPage({
           />
         }
       />
+      {held ? (
+        <BottomSheet title={t(TAB_TITLE[held])} onClose={() => setHeld(undefined)}>
+          {(dismiss) => [
+            <ListRow
+              key="read"
+              label={t("markAllRead")}
+              sub={heldUnread.length ? t("unreadChats", { n: heldUnread.length }) : t("allRead")}
+              leading={<Icon name="CheckCheck" size={18} color={theme.fgMuted} />}
+              chevron={false}
+              {...(heldUnread.length && readThreads
+                ? { onPress: () => dismiss(() => void readThreads(heldUnread).catch(() => undefined)) }
+                : {})}
+            />,
+            held === "chats" && openArchived ? (
+              <ListRow
+                key="archived"
+                label={t("seeArchived")}
+                sub={archived ? t("archivedCount", { n: archived }) : t("noArchivedChats")}
+                leading={<Icon name="Archive" size={18} color={theme.fgMuted} />}
+                onPress={() => dismiss(openArchived)}
+              />
+            ) : null,
+          ]}
+        </BottomSheet>
+      ) : null}
       {filters ? (
         <ChatFilterSheet
           filter={filter}
@@ -308,7 +334,4 @@ const useStyles = makeStyles((theme) => ({
   workTitle: { color: theme.fg, fontSize: 13, fontWeight: "500" },
   tabs: { marginHorizontal: 16 },
   filterDot: { position: "absolute", top: 11, right: 11, backgroundColor: theme.brand },
-  archived: { flexDirection: "row", alignItems: "center", gap: 10, paddingVertical: 8, paddingHorizontal: 16 },
-  archivedIcon: { width: 30, height: 30, alignItems: "center", justifyContent: "center" },
-  archivedLabel: { flex: 1, color: theme.fg, fontSize: 15, fontWeight: "500" },
 }));

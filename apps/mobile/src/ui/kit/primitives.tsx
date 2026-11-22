@@ -142,11 +142,14 @@ export function Segmented<T extends string>({
   value,
   options,
   onChange,
+  onLongPress,
   style,
 }: {
   value: T;
   options: Array<{ value: T; label: string }>;
   onChange: (value: T) => void;
+  /** Holding a part: its own options. */
+  onLongPress?: (value: T) => void;
   style?: StyleProp<ViewStyle>;
 }) {
   const t = useTheme();
@@ -161,6 +164,7 @@ export function Segmented<T extends string>({
             accessibilityRole="tab"
             accessibilityState={{ selected: on }}
             onPress={() => onChange(option.value)}
+            {...(onLongPress ? { onLongPress: () => onLongPress(option.value), delayLongPress: 350 } : {})}
             style={[s.segmentItem, on && { backgroundColor: t.surface }]}
           >
             <Text numberOfLines={1} style={[s.segmentText, on && { fontWeight: "600" }]}>

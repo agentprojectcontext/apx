@@ -134,8 +134,8 @@ export function WorkspaceScreen({
   const [picker, setPicker] = useState<"switch" | "new">();
   /** A chat's long-press sheet, or the Chats tab's ("mark all read"). */
   const [menu, setMenu] = useState<Thread | "all">();
-  /** A task's options, from a long press on its row in Chats. */
-  const [taskMenu, setTaskMenu] = useState<string>();
+  /** A task's options, from a long press on its row in Chats, with the chats that row holds. */
+  const [taskMenu, setTaskMenu] = useState<{ id: string; threads: string[] }>();
   const [noticeThread, setNoticeThread] = useState<string>();
   const top = stack.top;
   // News about the chat on screen does not sound; the others still do.
@@ -360,8 +360,9 @@ export function WorkspaceScreen({
             filter={chatFilter}
             setFilter={setChatFilter}
             menu={setMenu}
-            taskMenu={setTaskMenu}
+            taskMenu={(id, threads) => setTaskMenu({ id, threads: threads.map((thread) => thread.id) })}
             openArchived={() => on.push({ kind: "archived" })}
+            readThreads={workspace.readThreads}
           />
         );
       case "inbox":
@@ -435,7 +436,9 @@ export function WorkspaceScreen({
     return <ConnectionEmpty offline={connection.offline} host={host} checking={connection.checking} retry={retry} />;
   const menuThread =
     menu && menu !== "all" ? (workspace.data.threads.find((x) => x.id === menu.id) ?? menu) : undefined;
-  const taskMenuTask = taskMenu ? workspace.data.tasks.find((task) => task.id === taskMenu) : undefined;
+  const taskMenuTask = taskMenu ? workspace.data.tasks.find((task) => task.id === taskMenu.id) : undefined;
+  const taskThreads = workspace.data.threads.filter((thread) => taskMenu?.threads.includes(thread.id));
+  const taskUnread = taskThreads.filter((thread) => thread.unread > 0).map((thread) => thread.id);
   const unreadIds = workspace.data.threads.filter((thread) => thread.unread > 0).map((thread) => thread.id);
   return (
     <MediaClient.Provider value={workspace.client}>
@@ -493,6 +496,14 @@ export function WorkspaceScreen({
             onClose={() => setTaskMenu(undefined)}
             onOpen={() => push({ kind: "task", id: taskMenuTask.id })}
             openThread={openById}
+            {...(taskUnread.length ? { onRead: () => workspace.readThreads(taskUnread) } : {})}
+            {...(taskThreads.length
+              ? {
+                  onArchive: async () => {
+                    for (const thread of taskThreads) await workspace.updateThread(thread.id, { archived: true });
+                  },
+                }
+              : {})}
           />
         ) : null}
         {menu === "all" ? (
