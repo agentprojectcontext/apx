@@ -31,7 +31,7 @@ Los días intermedios puede incluir un hallazgo todavía vigente que no haya usa
 
 Las fuentes inaccesibles o ilegibles quedan registradas, no se toman como evidencia. Una página que necesita JavaScript o inicio de sesión puede seguir siendo ilegible para esta comprobación en segundo plano. La investigación es acotada y no constituye una auditoría exhaustiva de la web ni de tu código. Las citas exactas muestran de dónde salió la evidencia. Otra consulta al modelo comprueba respaldo, relevancia y novedad antes de aceptar un hallazgo; la interpretación todavía puede ser incorrecta. Tanto la propuesta como su verificación cuentan para el límite de llamadas al modelo.
 
-Marcá un hallazgo como útil o no útil para influir en futuras selecciones, o silenciá su tema. Las preferencias y los registros para evitar repeticiones persisten. La sección Temas silenciados permite deshacer un silencio incluso después de que un cambio de configuración haya descartado el hallazgo guardado. Cambiar la autorización de fuentes descarta hallazgos guardados; desactivar la investigación detiene trabajo futuro sin borrar ni reprogramar el informe elegido.
+Marcá un hallazgo como útil o no útil para influir en futuras selecciones, o silenciá su tema. Podés valorar un hallazgo en Investigación o responder en el chat del informe; confirmá el cambio si APX te lo pide. Las preferencias y los registros para evitar repeticiones persisten. La sección Temas silenciados permite deshacer un silencio incluso después de que un cambio de configuración haya descartado el hallazgo guardado. Cambiar la autorización de fuentes descarta hallazgos guardados; desactivar la investigación detiene trabajo futuro sin borrar ni reprogramar el informe elegido.
 
 ## Fiabilidad y privacidad
 

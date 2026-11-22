@@ -31,7 +31,7 @@ On days between deep research runs, a still-relevant, previously unused finding 
 
 Unavailable or unreadable sources are recorded, not treated as evidence. A source that needs JavaScript or a sign-in may remain unreadable to this background check. Research is bounded and is not an exhaustive audit of the web or your codebase. Exact quotations establish where evidence came from. A separate model request checks material support, relevance and novelty before a finding is accepted; interpretation can still be wrong. Both proposal and verification calls count toward the model-call limit.
 
-Mark a finding useful or not useful to influence future selection, or mute its topic. Feedback and cooldown records persist. The Muted topics section lets you undo a mute even after a settings change has discarded its cached finding. Changing source authorization discards cached findings; switching research off stops future work without deleting or rescheduling the selected report.
+Mark a finding useful or not useful to influence future selection, or mute its topic. You can rate a finding in Research or reply in the report's chat; confirm the change if APX asks. Feedback and cooldown records persist. The Muted topics section lets you undo a mute even after a settings change has discarded its cached finding. Changing source authorization discards cached findings; switching research off stops future work without deleting or rescheduling the selected report.
 
 ## Reliability and privacy
 

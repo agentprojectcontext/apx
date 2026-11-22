@@ -1,7 +1,7 @@
 import { DISCOVERY_DAY, discoveryState } from "./discovery-state.ts";
 import type { Store } from "./store.ts";
 
-function chosenReport(store: Store, routine: string) {
+export function discoveryReportTarget(store: Store, routine: string) {
   const settings = store.settings.read("discovery");
   const target = store.routines.get(routine);
   return (
@@ -16,7 +16,7 @@ function chosenReport(store: Store, routine: string) {
 
 /** Inside routine admission's transaction: a rejected admission rolls back the single-use reservation too. */
 export function reserveDiscoveryReport(store: Store, routine: string, run: string, at: Date): void {
-  if (!chosenReport(store, routine)) return;
+  if (!discoveryReportTarget(store, routine)) return;
   const settings = store.settings.read("discovery");
   const state = discoveryState(store, () => at);
   const runtime = state.read();
@@ -58,7 +58,7 @@ export function composeDiscoveryReport(store: Store, run: string, body: string, 
     const state = discoveryState(store, () => at);
     const runtime = state.read();
     const claim = runtime.claims.find((item) => item.run === run && !item.composed);
-    if (!claim || !chosenReport(store, claim.routine)) return body;
+    if (!claim || !discoveryReportTarget(store, claim.routine)) return body;
     const finding = runtime.findings.find((item) => item.id === claim.finding);
     if (
       !finding ||
