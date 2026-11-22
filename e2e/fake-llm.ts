@@ -13,6 +13,7 @@
 // embeds texts (Ollama's /api/embed) for the skills picked by meaning.
 import http from "node:http";
 import type { AddressInfo } from "node:net";
+import { streamAnswer, streamControls } from "./fake-stream.ts";
 
 /** A landing longer than a window: a full-height hero, two tall bands and a footer at the end. */
 export const LONG_PAGE = `<!doctype html><html><head><meta name="viewport" content="width=device-width"><style>
@@ -389,6 +390,7 @@ function toolCall(messages: Message[], said: string): { name: string; arguments:
 }
 
 export async function fakeLlm() {
+  const streams = streamControls();
   const calls: Array<{ model: string; said: string }> = [];
   /** Every request's body as sent: what a test looks for in what reached the model. */
   const bodies: string[] = [];
@@ -398,6 +400,7 @@ export async function fakeLlm() {
       raw += c;
     });
     req.on("end", () => {
+      if (streams.handle(req.url, raw, res)) return;
       if (req.url?.endsWith("/models")) {
         res.writeHead(200, { "content-type": "application/json" });
         return res.end(JSON.stringify({ data: [{ id: "fake-1", object: "model" }] }));
@@ -492,48 +495,7 @@ export async function fakeLlm() {
             }),
           );
         }
-        res.writeHead(200, { "content-type": "text/event-stream", "cache-control": "no-cache" });
-        const send = (o: unknown) => res.write(`data: ${JSON.stringify(o)}\n\n`);
-        const chunks = text.match(/[\s\S]{1,12}/g) ?? [text];
-        const end = () => {
-          send({ id: "fake", choices: [{ index: 0, delta: {}, finish_reason: "stop" }] });
-          send({ id: "fake", choices: [], usage });
-          res.end("data: [DONE]\n\n");
-        };
-        // "think first": a reasoning model's thinking, said aloud a piece at a time, then the answer.
-        if (/^think first/i.test(said)) {
-          const thoughts = [
-            "**Reading the ask**\n\nThe owner wants a plan. ",
-            "**Checking the dates**\n\nLaunch is close.",
-          ];
-          const next = (i: number) => {
-            if (res.writableEnded) return;
-            if (i < thoughts.length) {
-              send({
-                id: "fake",
-                choices: [{ index: 0, delta: { reasoning_content: thoughts[i] }, finish_reason: null }],
-              });
-              return void setTimeout(() => next(i + 1), 1200);
-            }
-            for (const part of chunks)
-              send({ id: "fake", choices: [{ index: 0, delta: { content: part }, finish_reason: null }] });
-            end();
-          };
-          return next(0);
-        }
-        // "write slowly": a piece every 150 ms, so a test sees the answer grow as a real model's does.
-        if (/^write slowly/i.test(said)) {
-          const next = (i: number) => {
-            if (res.writableEnded) return;
-            if (i >= chunks.length) return end();
-            send({ id: "fake", choices: [{ index: 0, delta: { content: chunks[i] }, finish_reason: null }] });
-            setTimeout(() => next(i + 1), 150);
-          };
-          return next(0);
-        }
-        for (const part of chunks)
-          send({ id: "fake", choices: [{ index: 0, delta: { content: part }, finish_reason: null }] });
-        end();
+        streamAnswer(res, said, text, usage, streams);
       };
       const keepGoing = KEEP_GOING.test(said) && body.messages?.at(-1)?.role === "tool";
       const long = system.startsWith("Take your time");
@@ -555,6 +517,9 @@ export async function fakeLlm() {
     calls,
     /** Whether any request so far carried this text. */
     carried: (text: string) => bodies.some((b) => b.includes(text)),
-    close: () => new Promise<void>((r) => server.close(() => r())),
+    close: () => {
+      streams.close();
+      return new Promise<void>((r) => server.close(() => r()));
+    },
   };
 }
