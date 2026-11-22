@@ -151,11 +151,11 @@ test("long escaped records can be updated by revision and passage without recons
       h.ref,
       h.doc.revision,
       "stable anchor",
-      "changed anchor",
+      "$& changed anchor",
       undefined,
       current?.record_revision,
     );
-    assert.ok(passage.replacement.includes("changed anchor\nWednesday update"));
+    assert.ok(passage.replacement.includes("$& changed anchor\nWednesday update"));
     assert.ok(passage.replacement.startsWith("<".repeat(7000)));
   } finally {
     await h.close();

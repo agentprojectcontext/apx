@@ -30,7 +30,7 @@ function recordEdit(
   if (old && current.text.split(old).length !== 2) throw conflict("give a unique passage from the private record");
   return {
     old: current.text,
-    replacement: old ? current.text.replace(old, replacement) : `${current.text}\n${replacement}`,
+    replacement: old ? current.text.replace(old, () => replacement) : `${current.text}\n${replacement}`,
   };
 }
 
