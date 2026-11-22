@@ -1,6 +1,6 @@
 // A contact's explicitly assigned agent reads its own project for them: the project's notes, the owner's chats there
 // and the documents the owner referenced in them, read-only. A reference is found only in owner-written text and
-// handed out as an opaque handle that is checked again before and after every read. See DECISIONS.md#d-262.
+// handed out as an opaque handle that is checked again before and after every read. See DECISIONS.md#d-263.
 import { randomBytes } from "node:crypto";
 import path from "node:path";
 import type { Memory, Message, Thread } from "@apx/protocol";

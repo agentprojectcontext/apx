@@ -22,6 +22,8 @@ export type CallContext = {
    * together. Never accepted from a transport.
    */
   flowEvent?: { flow: string; event: string; graph?: { revision: number; node: string } };
+  /** Core-only receipt linking admission and deduplication in one transaction. */
+  extensionEvent?: { extension: string; generation: string; receipt: string };
   /** Core-only certificates bound to reviewed memory text and sources; never decoded from request params. */
   memoryReviewed?: readonly string[] | undefined;
   /** Set by the channel manager only (never from a request): who wrote on which channel conversation. */

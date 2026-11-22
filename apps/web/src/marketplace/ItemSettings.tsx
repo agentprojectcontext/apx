@@ -7,6 +7,7 @@ import type { Item } from "../resources/extensionItems.ts";
 import { IntegrationDetail } from "../resources/IncludedIntegration.tsx";
 import { attempt, ExtensionKeys } from "../resources/InstalledExtension.tsx";
 import { ExtensionConfig } from "./ExtensionConfig.tsx";
+import { ExtensionNotices } from "./ExtensionNotices.tsx";
 
 // An extension's settings, opened from ⋯ (or from its page's button when something is missing): an account's
 // connection and the projects it is on in; an installed extension's settings, pages, keys and a way to try it.
@@ -46,8 +47,9 @@ export function ItemSettings({
         {i && <IntegrationDetail i={i} projects={projects} onToggle={toggle} onChanged={onChanged} bare />}
         {e && <ExtensionConfig e={e} onChanged={onChanged} />}
         {e && <ExtensionKeys e={e} onChanged={onChanged} />}
+        {e?.events?.length ? <ExtensionNotices item={e} /> : null}
         {e && <ExtensionTest e={e} />}
-        {e && !e.settings.length && !e.pages.length && !e.secrets.length && (
+        {e && !e.settings.length && !e.pages.length && !e.secrets.length && !e.events?.length && (
           <p className="mkt-browse__status">{t("mkt.noSettings")}</p>
         )}
       </div>

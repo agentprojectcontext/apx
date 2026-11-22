@@ -96,16 +96,18 @@ export function TimezoneSelect({
   value,
   onChange,
   label,
+  disabled,
 }: {
   value: string;
   onChange(v: string): void;
   label: string;
+  disabled?: boolean;
 }) {
   const t = useT();
   const local = Intl.DateTimeFormat().resolvedOptions().timeZone;
   const options = useMemo<SelectOption[]>(() => {
     const now = new Date();
-    const all = zones();
+    const all = [...new Set(["UTC", ...zones()])];
     const list = value && !all.includes(value) ? [value, ...all] : all;
     const rows = list
       .map((z) => {
@@ -123,6 +125,7 @@ export function TimezoneSelect({
     <SearchSelect
       size="sm"
       label={label}
+      disabled={disabled}
       searchPlaceholder={t("pickers.searchZone")}
       emptyLabel={t("pickers.noMatch")}
       value={value || LOCAL}

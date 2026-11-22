@@ -17,6 +17,7 @@ import { deviceMethods } from "./device-methods.ts";
 import { emailSignatureMethods } from "./email-signatures.ts";
 import { engineUsageMethods } from "./engine-usage.ts";
 import { environmentMethods } from "./environment-methods.ts";
+import { extensionEventMethods } from "./extension-events.ts";
 import { flowMethods } from "./flow-methods.ts";
 import { hermesMethods } from "./hermes-methods.ts";
 import { instanceMethods } from "./instance-methods.ts";
@@ -86,6 +87,7 @@ export type MethodDef = {
 };
 
 export const methods = {
+  ...extensionEventMethods,
   "system.health": deferMethod({
     params: () => z.object({}).strict(),
     result: () => Health,

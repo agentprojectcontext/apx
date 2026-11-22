@@ -22,6 +22,7 @@ import { CONTACT_AGENT_NEWS } from "./contact-agent.ts";
 import { CONTACT_BOOKING_NEWS } from "./contact-booking.ts";
 import { CONTACT_NOTES_NEWS, CONTACT_PROJECT_READING_NEWS } from "./contact-notes.ts";
 import { EVENT_MUTE_NEWS } from "./event-mute.ts";
+import { EXTENSION_EVENTS_NEWS } from "./extension-events.ts";
 import { EXTERNAL_SESSIONS_NEWS } from "./external-sessions.ts";
 import { GOOGLE_SHEETS_NEWS } from "./google-sheets.ts";
 import { GROUP_CHATS_NEWS } from "./group-chats.ts";
@@ -71,6 +72,8 @@ export type NewsFacts = {
   integrations: number;
   /** The owner's private MCP connections, including project-limited ones. */
   mcp?: number;
+  /** An installed extension declares observations the owner can opt into. */
+  extensionEvents?: boolean;
   /** This core can run the isolated Linux computer (macOS, Linux or Windows) and the owner has a project to try there. */
   computer: boolean;
   /** This core runs on a Mac and the owner has work there (a project). */
@@ -191,6 +194,7 @@ export const NEWS: readonly NewsEntry[] = [
   VOICE_CALLS_NEWS,
   MARKETPLACE_NEWS,
   PUBLIC_ARTIFACTS_NEWS,
+  EXTENSION_EVENTS_NEWS,
   APX_ACCOUNT_NEWS,
   CONTACT_BOOKING_NEWS,
   CONTACT_NOTES_NEWS,
@@ -735,6 +739,7 @@ export const newsFacts = (store: Store, o: { hermes?: boolean; storeSize?: Store
   whatsapp: store.settings.read("channels").some((c) => c.type === "whatsapp"),
   integrations: connectedIntegrations(store),
   mcp: ownMcpServers(store).length,
+  extensionEvents: store.extensions.list().some((e) => Boolean(e.manifest.events?.length)),
   computer: computerHost() !== undefined && store.projects.list().length > 0,
   mac: process.platform === "darwin" && store.projects.list().length > 0,
   tasks: store.tasks.list({ state: "open", limit: 500 }).filter((t) => t.assignee).length,

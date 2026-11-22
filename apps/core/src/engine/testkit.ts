@@ -93,6 +93,7 @@ export const callTool = (id: string, name: string, args: object): { message: Ass
 });
 
 type StartCoreOptions = {
+  token?: string;
   computer?: ComputerConfig;
   llm: Llm;
   home?: string;
@@ -168,6 +169,7 @@ export async function startCore(opts: StartCoreOptions) {
     testConfig({
       home,
       providers,
+      ...(opts.token ? { token: opts.token } : {}),
       ...(opts.port !== undefined ? { port: opts.port } : {}),
       ...(opts.googleApi ? { googleApi: opts.googleApi } : {}),
       ...(opts.googleClient ? { googleClient: opts.googleClient } : {}),
@@ -231,7 +233,7 @@ export async function startCore(opts: StartCoreOptions) {
     auto_capture: opts.memoryMaintenance ?? false,
     auto_dream: opts.memoryMaintenance ?? false,
   });
-  const client = new ApxClient({ url: core.url });
+  const client = new ApxClient({ url: core.url, ...(opts.token ? { token: opts.token } : {}) });
   const settle = async (
     thread: string,
     ms = 5000,

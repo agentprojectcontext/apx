@@ -54,6 +54,8 @@ const POWER: Record<ExtensionPower["kind"], string> = {
   local_network: "plugin reaches your local network",
   context: "plugin adds context to turns",
   observe: "plugin watches",
+  event: "reports observation",
+  monitor: "background observation",
 };
 const power = (p: ExtensionPower) =>
   ["internet", "local_network", "context"].includes(p.kind) ? POWER[p.kind] : `${POWER[p.kind]} ${p.name}`;

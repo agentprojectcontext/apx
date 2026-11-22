@@ -5802,7 +5802,30 @@ now states the expanded scope before the owner chooses it.
 Docs impact: updated channels/overview in English and Spanish, permission help and protocol comment.
 
 <a id="d-261"></a>
-## D-261 — 2026-11-21 — Assigned contacts consult explicitly authorized documents and propose corrections
+## D-261 — 2026-11-21 — Extensions report durable observations through opt-in MCP monitors
+
+An extension declares named events and optionally one observation tool in its own MCP server. Connecting approves
+its code, not background notices: the owner separately selects a personal chat and quiet hours. The office clock
+polls only that declared tool, through the existing bounded MCP manager, without a model turn per check. A source
+may request a shorter bounded interval while observing activity. It receives a stable configuration session and a
+core-provided state directory outside its fingerprinted package. It must persist/replay stable event ids across
+restarts rather than consume a completion before the core receives it. Explicitly declared local cursor writes are
+allowed for non-destructive monitors; device controls remain separate owner-requested actions. Metadata is not a
+sandbox and does not replace reviewing the extension's code.
+
+Normal owner-authenticated protocol and CLI calls can also emit observations. No public listener, generic token
+passed to extension code or agent-authored appliance state is introduced. SQLite receipts deduplicate by installation
+generation, event name and source id. Delivery goes through `threads.send` as external-client data; the receipt and
+run are linked atomically. Configuration revisions invalidate in-flight results and pending destinations. Quiet
+hours defer admission. Disable cancels pending receipts and revokes opt-in atomically; reconnecting alone does not
+resume it. Updates require new configuration. Pending receipts expire after seven days; bounded storage refuses
+new events while its window is full rather than silently evicting recent history. Terminal receipts are compacted after 24 hours so capacity recovers; deduplication is not promised for later replays. Reserved monitor tools are excluded from agent discovery and ordinary calls, with a core-pinned source session and acknowledgments of persisted receipts. Sources retain individual events until acknowledged. Existing Gmail monitoring remains unchanged.
+
+See [extension observations](EXTENSION_EVENTS.md) for the wire/source contract, limits, lifecycle and failure cases.
+Docs impact: updated extension guides in English and Spanish, HUMAN_MODEL.md and EXTENSION_EVENTS.md.
+
+<a id="d-262"></a>
+## D-262 — 2026-11-21 — Assigned contacts consult explicitly authorized documents and propose corrections
 An assigned agent must be able to consult the client's authorized sources, not just recall short notes. This extends
 D-260 without granting general filesystem or chat access. The owner selects individual UTF-8 Markdown, text or CSV
 documents inside the assigned agent's project through `contacts.sources.set`, naming the person, agent and project.
@@ -5831,11 +5854,11 @@ interpretation or guarantee of exhaustive retrieval is introduced.
 
 Docs impact: updated channels/overview in English and Spanish, HUMAN_MODEL.md, contact notes news and tool guidance.
 
-<a id="d-262"></a>
-## D-262 — 2026-11-21 — A contact's assigned agent can read its own project, read-only
+<a id="d-263"></a>
+## D-263 — 2026-11-21 — A contact's assigned agent can read its own project, read-only
 The owner wants an explicitly assigned agent to answer a contact the way it answers them: look up the project's notes
 and the owner's chats with it, find the document the owner referenced and read it as it is now, citing it, without
-authorizing each file. D-260 and D-261 stay as they are: the notes right does not grow. A separate right,
+authorizing each file. D-260 and D-262 stay as they are: the notes right does not grow. A separate right,
 `project_reading`, is off by default and is set per person only; account defaults never carry it (rejected in
 `channels.set`, ignored when computing rights). Turning it on through the super-agent keeps the owner's card even in
 Total.
@@ -5855,7 +5878,7 @@ output and document contents never lend a reference. A reference is a project-re
 Each reference is handed out as a random handle held in memory, bound to the person, agent, project and contact chat.
 `read_project_document` checks the right, the binding and that the origin still holds the reference before reading and
 again after an asynchronous Drive read, discarding the result when anything changed. Local files reuse the pinned
-reader from D-261 (no symlinks, realpath equality, 400 KB, UTF-8). Drive goes through the owner's connection and the
+reader from D-262 (no symlinks, realpath equality, 400 KB, UTF-8). Drive goes through the owner's connection and the
 versioned windows of `drive_read`; connection availability is rechecked after the response. Both reading tools have
 no side effects. No document write, send, shell, browsing or other owner tool is offered. Handles do not survive a
 restart: the agent searches again.

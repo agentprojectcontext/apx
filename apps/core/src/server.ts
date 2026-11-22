@@ -67,6 +67,7 @@ import { type ComputerConfig, createComputer } from "./environments/computer.ts"
 import { managedVmConfig } from "./environments/managed.ts";
 import { computerWatchdog } from "./environments/watchdog.ts";
 import { errorMessage } from "./errors.ts";
+import { createExtensionEvents } from "./extensions/events.ts";
 import { flowHttpPolicy } from "./flow-http.ts";
 import { notifyDestination } from "./flow-outward.ts";
 import { createFlows } from "./flows.ts";
@@ -771,6 +772,13 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
     models: () => upkeep.auxModels(),
     ...(opts.clock ? { now: opts.clock } : {}),
   });
+  const extensionEvents = createExtensionEvents({
+    store,
+    extensions,
+    mcp,
+    internal,
+    ...(opts.clock ? { now: opts.clock } : {}),
+  });
   const scheduler = officeScheduler({
     store,
     admit: (a) => engine.admit(a),
@@ -779,6 +787,7 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
     openHeld: () => channels.openHeld((a) => engine.admit(a)),
     flowTick: (at) => flows.tick(at),
     checks: (remind) => [
+      { id: "extension-events", everyMs: 15000, run: () => extensionEvents.tick() },
       activityReview.check,
       storage.check,
       retention.check,
@@ -847,6 +856,7 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
 
   const dispatch = createRouter(
     coreHandlers({
+      extensionEvents,
       account,
       publications,
       activityReview,
@@ -1034,6 +1044,7 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
       await widgetPages?.closeAll().catch(() => {});
       headless?.close();
       scheduler.stop();
+      await extensionEvents.close();
       await activityReview.close();
       stopFlowEvents();
       await flows.close();

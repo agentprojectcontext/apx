@@ -23,6 +23,7 @@ import type { Computer } from "./environments/computer.ts";
 import { errorMessage } from "./errors.ts";
 import { createCatalog, shippedCatalog } from "./extensions/catalog.ts";
 import { createCatalogs } from "./extensions/catalogs.ts";
+import type { ExtensionEvents } from "./extensions/events.ts";
 import { createExtensions } from "./extensions/extensions.ts";
 import { createPlugins } from "./extensions/plugins.ts";
 import { acpAgents, acpEngine } from "./harness/acp/agents.ts";
@@ -57,6 +58,7 @@ import { deviceHandlers } from "./rpc/devices.ts";
 import { emailSignatureHandlers } from "./rpc/email-signatures.ts";
 import { embeddingHandlers } from "./rpc/embeddings.ts";
 import { environmentHandlers } from "./rpc/environments.ts";
+import { extensionEventHandlers } from "./rpc/extension-events.ts";
 import { extensionHandlers } from "./rpc/extensions.ts";
 import { fileHandlers } from "./rpc/files.ts";
 import { flowHandlers } from "./rpc/flows.ts";
@@ -298,6 +300,7 @@ type HandlerDeps = {
   flowModel: Parameters<typeof flowHandlers>[3];
   nudges: Parameters<typeof noticeHandlers>[1];
   extensions: Parameters<typeof extensionHandlers>[0];
+  extensionEvents: ExtensionEvents;
   mcp: Parameters<typeof extensionHandlers>[1] & Parameters<typeof mcpHandlers>[0];
   /** The owner's Google account (Calendar, Gmail). */
   google: Google;
@@ -441,6 +444,7 @@ export function coreHandlers(d: HandlerDeps & { vm?: Computer | undefined }) {
     ...phoneHandlers(d.broker, d.store, d.app.home),
     ...computerHandlers(d.broker, d.store, d.app.home, d.engine, (thread) => Boolean(d.vm?.hasThread(thread)), d.bus),
     ...extensionHandlers(d.extensions, d.mcp, d.bus, d.store),
+    ...extensionEventHandlers(d.extensionEvents),
     // Native integrations share the project switches of global servers, without starting an MCP.
     ...mcpHandlers(d.mcp, d.store, (name) =>
       name === "asana" ? d.asana.connected() : isGoogleId(name) && d.google.connected(name),
