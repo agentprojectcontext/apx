@@ -140,9 +140,10 @@ test("the smallest valid budget reserves proposal and verification despite conti
   }
 });
 
-test("shared search failures are shown once to the owner without removing per-source model context", async () => {
+test("shared failures are shown once to the owner without removing per-source model context", async () => {
   const f = fixture();
-  const llm = scriptedLlm(() => say(JSON.stringify({ findings: [] })));
+  let malformed = false;
+  const llm = scriptedLlm(() => say(malformed ? "not JSON" : JSON.stringify({ findings: [] })));
   const discovery = createDiscovery({
     store: f.store,
     llm,
@@ -172,6 +173,14 @@ test("shared search failures are shown once to the owner without removing per-so
       assert.equal(input.inaccessible.length, 1);
       assert.equal(input.inaccessible[0].kind, "search_unavailable");
     }
+    malformed = true;
+    discovery.configure({
+      sources: sources.map((source) => ({ ...source, pages: ["https://example.com/shared"], public_terms: "" })),
+    });
+    await discovery.check.run(new Date(AT));
+    assert.equal(llm.calls.length, 4);
+    assert.equal(discovery.status().inaccessible.length, 1);
+    assert.equal(discovery.status().inaccessible[0]?.kind, "unverified");
   } finally {
     await discovery.close();
     await f.close();

@@ -23,24 +23,30 @@ type Cycle = {
 };
 type Ranked = { finding: DiscoveryFinding; score: number };
 
+function recordFailure(runtime: DiscoveryRuntime, failure: DiscoveryRuntime["inaccessible"][number]) {
+  if (
+    runtime.inaccessible.length < 40 &&
+    !runtime.inaccessible.some((item) => item.url === failure.url && item.kind === failure.kind)
+  )
+    runtime.inaccessible.push(failure);
+}
+
 async function researchSource(cycle: Cycle, source: DiscoverySettings["sources"][number]): Promise<Ranked[]> {
   const { deps, runtime, settings, signal, at } = cycle;
+  const state = discoveryState(deps.store, () => at);
+  const active = () => cycle.valid() && state.allowed(source.project);
   const inaccessible: DiscoveryRuntime["inaccessible"] = [];
   const pages = await researchDiscoverySource({
     source,
     web: deps.web ?? discoveryWeb,
     signal,
-    take: () => ++cycle.operations <= settings.max_pages,
+    take: () => active() && ++cycle.operations <= settings.max_pages,
     failure: (url, reason, kind) => {
       if (inaccessible.length < 40) inaccessible.push({ url, reason, kind });
-      if (
-        runtime.inaccessible.length < 40 &&
-        !runtime.inaccessible.some((item) => item.url === url && item.kind === kind)
-      )
-        runtime.inaccessible.push({ url, reason, kind });
+      recordFailure(runtime, { url, reason, kind });
     },
   });
-  if (!pages.length || !cycle.valid()) return [];
+  if (!pages.length || !active()) return [];
   const reference = discoveryContext(deps.store, settings, source.project, at);
   const previous = runtime.findings.filter((finding) => finding.project === source.project);
   cycle.calls++;
@@ -66,7 +72,7 @@ async function researchSource(cycle: Cycle, source: DiscoverySettings["sources"]
   });
   if (answer.usage) deps.store.auxCalls.add({ purpose: "contextual_discovery" }, answer.model, answer.usage);
   signal.throwIfAborted();
-  if (!cycle.valid()) return [];
+  if (!active()) return [];
   runtime.coverage[source.project ?? ""] = {
     ...runtime.coverage[source.project ?? ""],
     researched_at: at.toISOString(),
@@ -83,7 +89,7 @@ async function researchSource(cycle: Cycle, source: DiscoverySettings["sources"]
       { llm: deps.llm, models: deps.models(), store: deps.store, signal },
       { proposal, pages, reference, previous, location: settings.location, at: at.toISOString() },
     );
-    if (verified && cycle.valid()) result.push({ finding, score });
+    if (verified && active()) result.push({ finding, score });
     signal.throwIfAborted();
   }
   return result;
@@ -114,18 +120,18 @@ export async function runDiscoveryCycle(
   for (const source of sources) {
     signal.throwIfAborted();
     if (!valid() || cycle.calls + 2 > settings.max_model_calls || cycle.operations >= settings.max_pages) break;
+    if (!state.allowed(source.project)) continue;
     runtime.source_attempts[discoveryKey(source)] = at.toISOString();
     try {
       candidates.push(...(await researchSource(cycle, source)));
     } catch {
       signal.throwIfAborted();
       failures++;
-      if (runtime.inaccessible.length < 40)
-        runtime.inaccessible.push({
-          url: source.pages[0] ?? "search",
-          kind: "unverified",
-          reason: "Research could not be validated; no finding was accepted from this source",
-        });
+      recordFailure(runtime, {
+        url: source.pages[0] ?? "search",
+        kind: "unverified",
+        reason: "Research could not be validated; no finding was accepted from this source",
+      });
     }
   }
   if (valid()) commitCycle(cycle, candidates, failures && !candidates.length ? "failed" : "completed", true);

@@ -42,6 +42,7 @@ export async function planDiscovery(
   )) {
     deps.signal.throwIfAborted();
     if (!deps.valid()) return calls;
+    if (!state.allowed(project.id)) continue;
     runtime.plan_attempts[project.id] = at.toISOString();
     calls++;
     try {
@@ -62,7 +63,7 @@ export async function planDiscovery(
       });
       if (response.usage) deps.store.auxCalls.add({ purpose: "contextual_discovery" }, response.model, response.usage);
       const proposal = Question.parse(discoveryJson(response.message.content));
-      if (deps.valid()) {
+      if (deps.valid() && state.allowed(project.id)) {
         runtime.questions[project.id] = { ...proposal, planned_at: at.toISOString() };
         runtime.snapshots[project.id] = digests.get(project.id) ?? "";
       }

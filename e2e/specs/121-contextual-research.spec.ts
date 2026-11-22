@@ -68,6 +68,7 @@ async function recoverConflict(page: Page, en: boolean) {
     .locator(".apx-dialog__footer")
     .getByRole("button", { name: en ? "Cancel" : "Cancelar", exact: true })
     .click();
+  await expect(dialog).toBeHidden();
   const place = page.getByRole("textbox", {
     name: en ? "Place for nearby events · optional" : "Lugar para eventos cercanos · opcional",
     exact: true,
