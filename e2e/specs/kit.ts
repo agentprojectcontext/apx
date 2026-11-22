@@ -73,6 +73,12 @@ export const world = {
         carried: boolean;
       }
     ).carried,
+  /** Holds a scripted stream until the browser observes each intermediate state. */
+  streamGate: async (text: string, action: "hold" | "next" | "clear") => {
+    await ownSandbox();
+    const res = await post(`${control}/llm/stream-gate`, { text, action });
+    if (!res.ok) throw new Error(`Stream gate: ${res.status}`);
+  },
   /** Stops the core's clock at `at` (ISO), or lets it run again with null. */
   clock: async (at: string | null) => {
     await post(`${control}/clock`, { at });
