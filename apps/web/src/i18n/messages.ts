@@ -20,6 +20,10 @@ export function loadMessages(lang: Language): Promise<Messages> {
 
 /** Strings only one late screen shows: loaded with it (index.ts usePack), never with the first screen. */
 const PACKS = {
+  telemetrySettings: {
+    en: () => import("./telemetry-settings-en.ts").then((m) => m.enTelemetrySettings),
+    es: () => import("./telemetry-settings-es.ts").then((m) => m.esTelemetrySettings),
+  },
   discovery: {
     en: () => import("./discovery-en.ts").then((m) => m.enDiscovery),
     es: () => import("./discovery-es.ts").then((m) => m.esDiscovery),
