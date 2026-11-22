@@ -393,6 +393,7 @@ export async function fakeLlm() {
   const calls: Array<{ model: string; said: string }> = [];
   /** Every request's body as sent: what a test looks for in what reached the model. */
   const bodies: string[] = [];
+  const slowAnswers = new Set<() => void>();
   const server = http.createServer((req, res) => {
     let raw = "";
     req.on("data", (c) => {
@@ -523,15 +524,18 @@ export async function fakeLlm() {
           };
           return next(0);
         }
-        // "write slowly": a piece every 150 ms, so a test sees the answer grow as a real model's does.
+        // The browser acknowledges seeing the partial answer before the model sends its final words.
         if (/^write slowly/i.test(said)) {
-          const next = (i: number) => {
-            if (res.writableEnded) return;
-            if (i >= chunks.length) return end();
-            send({ id: "fake", choices: [{ index: 0, delta: { content: chunks[i] }, finish_reason: null }] });
-            setTimeout(() => next(i + 1), 150);
+          send({ id: "fake", choices: [{ index: 0, delta: { content: text.slice(0, -5) }, finish_reason: null }] });
+          const finish = () => {
+            slowAnswers.delete(finish);
+            if (res.writableEnded || res.destroyed) return;
+            send({ id: "fake", choices: [{ index: 0, delta: { content: "Done." }, finish_reason: null }] });
+            end();
           };
-          return next(0);
+          slowAnswers.add(finish);
+          res.on("close", () => slowAnswers.delete(finish));
+          return;
         }
         for (const part of chunks)
           send({ id: "fake", choices: [{ index: 0, delta: { content: part }, finish_reason: null }] });
@@ -555,8 +559,14 @@ export async function fakeLlm() {
   return {
     url: `http://127.0.0.1:${(server.address() as AddressInfo).port}/v1`,
     calls,
+    finishSlowAnswers: () => {
+      for (const finish of slowAnswers) finish();
+    },
     /** Whether any request so far carried this text. */
     carried: (text: string) => bodies.some((b) => b.includes(text)),
-    close: () => new Promise<void>((r) => server.close(() => r())),
+    close: () => {
+      for (const finish of slowAnswers) finish();
+      return new Promise<void>((r) => server.close(() => r()));
+    },
   };
 }

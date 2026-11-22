@@ -204,6 +204,10 @@ const control = http.createServer((req, res) => {
       const user = new URL(req.url, "http://x").searchParams.get("user") ?? "";
       return json(200, { sent: sl.messagesTo(sl.dm(user)).map((s) => ({ text: s.body.text })) });
     }
+    if (req.url === "/llm/finish-stream" && req.method === "POST") {
+      llm.finishSlowAnswers();
+      return json(200, { ok: true });
+    }
     if (req.url === "/llm/calls") return json(200, { calls: llm.calls.length });
     if (req.url === "/llm/carried" && req.method === "POST")
       return json(200, { carried: llm.carried(String(body.text ?? "")) });

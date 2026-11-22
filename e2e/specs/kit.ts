@@ -66,6 +66,10 @@ export const world = {
         calls: { method: string; url: string; headers: Record<string, string>; body: string }[];
       }
     ).calls,
+  finishStream: async () => {
+    await ownSandbox();
+    await post(`${control}/llm/finish-stream`);
+  },
   /** Whether any request the model got carried this text. */
   modelCarried: async (text: string) =>
     (
