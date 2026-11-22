@@ -170,6 +170,21 @@ for (const es of [false, true]) {
     try {
       const update = await h.propose();
       h.store.settings.set("owner_language", es ? "es" : "en");
+      await h.env.client.call("owner.set", { timezone: "America/New_York" });
+      h.store.settings.write("channels", [
+        ...h.store.settings.read("channels"),
+        {
+          id: "test",
+          type: "whatsapp",
+          label: "Acme WhatsApp",
+          enabled: false,
+          agent_id: "superagent",
+          strangers: "pair",
+          concurrency: "steer",
+          owner_thread: "home",
+          contacts: { requests: true, notes: true },
+        },
+      ]);
       await h.env.client.call("agents.update", { agent: "superagent", autonomy: "total" });
       const owner = await h.env.client.call("threads.create", {
         kind: "loose",
@@ -188,6 +203,14 @@ for (const es of [false, true]) {
       assert.equal(h.store.inputs.get(input.id)?.app_only, true);
       assert.match(input.detail ?? "", /Acme Buyer/);
       assert.match(input.detail ?? "", /delivery.md/);
+      assert.match(input.detail ?? "", /Acme WhatsApp/);
+      const received = new Intl.DateTimeFormat(es ? "es" : "en", {
+        dateStyle: "medium",
+        timeStyle: "short",
+        timeZone: "America/New_York",
+      }).format(new Date(update.created_at));
+      assert.ok(input.detail?.includes(received));
+      assert.ok(!input.detail?.includes(update.created_at));
       assert.match(
         input.detail ?? "",
         es

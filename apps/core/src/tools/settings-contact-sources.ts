@@ -1,5 +1,6 @@
 import { ContactSourceUpdate } from "@apx/protocol";
 import { contactSources } from "../domain/contact-sources.ts";
+import { ownerTimeZone } from "../domain/owner.ts";
 import { untrusted } from "./result.ts";
 import { agentName, projectName, type Setting, str } from "./settings-kit.ts";
 
@@ -75,6 +76,11 @@ export const CONTACT_SOURCES: Readonly<Record<string, Setting>> = {
       const update = sources.updates().find((u) => u.id === p.id);
       const es = store.settings.get("owner_language") === "es";
       if (!update) return es ? "Revisar la corrección propuesta" : "Review the proposed document correction";
+      const received = new Intl.DateTimeFormat(es ? "es" : "en", {
+        dateStyle: "medium",
+        timeStyle: "short",
+        timeZone: ownerTimeZone(store),
+      }).format(new Date(update.created_at));
       const source = sources.list(update.person).find((s) => s.id === update.source);
       const channel = store.settings.read("channels").find((c) => c.id === update.channel)?.label;
       const name = store.persons.get(update.person)?.name ?? (es ? "contacto" : "contact");
@@ -83,12 +89,12 @@ export const CONTACT_SOURCES: Readonly<Record<string, Setting>> = {
         const incoming = store.runs.get(update.run)?.input?.text?.slice(0, 8000) ?? "";
         const before = update.old || (es ? "Todavía no hay un registro privado." : "No private record exists yet.");
         return es
-          ? `${p.accept ? "Aceptar" : "Rechazar"} la actualización de ${name}\nCanal: ${channel ?? "Conversación original"}\nProyecto: ${project}\nFuente: ${update.project_record.label}\nRecibida: ${update.created_at}\nMensaje recibido:\n${incoming}\nSólo cambia el registro privado del proyecto, no el documento original.\nAntes:\n${before}\nDespués:\n${update.replacement}`
-          : `${p.accept ? "Accept" : "Reject"} update from ${name}\nChannel: ${channel ?? "Original conversation"}\nProject: ${project}\nSource: ${update.project_record.label}\nReceived: ${update.created_at}\nIncoming message:\n${incoming}\nOnly the private project record changes, not the original document.\nBefore:\n${before}\nAfter:\n${update.replacement}`;
+          ? `${p.accept ? "Aceptar" : "Rechazar"} la actualización de ${name}\nCanal: ${channel ?? "Conversación original"}\nProyecto: ${project}\nFuente: ${update.project_record.label}\nRecibida: ${received}\nMensaje recibido:\n${incoming}\nSólo cambia el registro privado del proyecto, no el documento original.\nAntes:\n${before}\nDespués:\n${update.replacement}`
+          : `${p.accept ? "Accept" : "Reject"} update from ${name}\nChannel: ${channel ?? "Original conversation"}\nProject: ${project}\nSource: ${update.project_record.label}\nReceived: ${received}\nIncoming message:\n${incoming}\nOnly the private project record changes, not the original document.\nBefore:\n${before}\nAfter:\n${update.replacement}`;
       }
       return es
-        ? `${p.accept ? "Aceptar" : "Rechazar"} la corrección de ${name}\nCanal: ${channel ?? "Conversación original"}\nDocumento: ${source?.label ?? "Acceso revocado"}\nRecibida: ${update.created_at}\nAntes:\n${update.old}\nDespués:\n${update.replacement}`
-        : `${p.accept ? "Accept" : "Reject"} correction from ${name}\nChannel: ${channel ?? "Original conversation"}\nSource: ${source?.label ?? "Access revoked"}\nReceived: ${update.created_at}\nBefore:\n${update.old}\nAfter:\n${update.replacement}`;
+        ? `${p.accept ? "Aceptar" : "Rechazar"} la corrección de ${name}\nCanal: ${channel ?? "Conversación original"}\nDocumento: ${source?.label ?? "Acceso revocado"}\nRecibida: ${received}\nAntes:\n${update.old}\nDespués:\n${update.replacement}`
+        : `${p.accept ? "Accept" : "Reject"} correction from ${name}\nChannel: ${channel ?? "Original conversation"}\nSource: ${source?.label ?? "Access revoked"}\nReceived: ${received}\nBefore:\n${update.old}\nAfter:\n${update.replacement}`;
     },
   },
 };
