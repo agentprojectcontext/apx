@@ -9,7 +9,9 @@ export function nodeSocket(url: string): SocketTransport {
     get readyState() {
       return closing && socket.readyState !== WebSocket.CLOSED ? WebSocket.CLOSING : socket.readyState;
     },
-    send: (data) => socket.send(data),
+    send: (data) => {
+      if (!closing) socket.send(data);
+    },
     close: () => {
       if (closing) return;
       closing = true;
