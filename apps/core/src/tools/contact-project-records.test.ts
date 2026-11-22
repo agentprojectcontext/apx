@@ -109,6 +109,10 @@ for (const es of [false, true]) {
           : /private project record changes, not the original document/,
       );
       assert.match(input.detail ?? "", /The pallets now ship Wednesday/);
+      assert.match(
+        input.detail ?? "",
+        es ? /Antes:\nTodavía no hay un registro privado\./ : /Before:\nNo private record exists yet\./,
+      );
       assert.equal(h.reading.search(h.thread.id, h.agent.id, "Wednesday").length, 0);
       await h.env.client.call("runs.respond", { input: input.id, decision: "approve" });
       await h.env.settle(owner.id);

@@ -81,9 +81,10 @@ export const CONTACT_SOURCES: Readonly<Record<string, Setting>> = {
       if (update.project_record) {
         const project = store.projects.get(update.project_record.project)?.name ?? (es ? "Proyecto" : "Project");
         const incoming = store.runs.get(update.run)?.input?.text?.slice(0, 8000) ?? "";
+        const before = update.old || (es ? "Todavía no hay un registro privado." : "No private record exists yet.");
         return es
-          ? `${p.accept ? "Aceptar" : "Rechazar"} la actualización de ${name}\nCanal: ${channel ?? "Conversación original"}\nProyecto: ${project}\nFuente: ${update.project_record.label}\nRecibida: ${update.created_at}\nMensaje recibido:\n${incoming}\nSólo cambia el registro privado del proyecto, no el documento original.\nAntes:\n${update.old}\nDespués:\n${update.replacement}`
-          : `${p.accept ? "Accept" : "Reject"} update from ${name}\nChannel: ${channel ?? "Original conversation"}\nProject: ${project}\nSource: ${update.project_record.label}\nReceived: ${update.created_at}\nIncoming message:\n${incoming}\nOnly the private project record changes, not the original document.\nBefore:\n${update.old}\nAfter:\n${update.replacement}`;
+          ? `${p.accept ? "Aceptar" : "Rechazar"} la actualización de ${name}\nCanal: ${channel ?? "Conversación original"}\nProyecto: ${project}\nFuente: ${update.project_record.label}\nRecibida: ${update.created_at}\nMensaje recibido:\n${incoming}\nSólo cambia el registro privado del proyecto, no el documento original.\nAntes:\n${before}\nDespués:\n${update.replacement}`
+          : `${p.accept ? "Accept" : "Reject"} update from ${name}\nChannel: ${channel ?? "Original conversation"}\nProject: ${project}\nSource: ${update.project_record.label}\nReceived: ${update.created_at}\nIncoming message:\n${incoming}\nOnly the private project record changes, not the original document.\nBefore:\n${before}\nAfter:\n${update.replacement}`;
       }
       return es
         ? `${p.accept ? "Aceptar" : "Rechazar"} la corrección de ${name}\nCanal: ${channel ?? "Conversación original"}\nDocumento: ${source?.label ?? "Acceso revocado"}\nRecibida: ${update.created_at}\nAntes:\n${update.old}\nDespués:\n${update.replacement}`
