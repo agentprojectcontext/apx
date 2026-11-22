@@ -24,6 +24,7 @@ import { fileRefs, fillFileArgs, hasFileRefs, type OpenFile, refOf } from "./fil
 import { createStderrLogs } from "./logs.ts";
 import { createProcessExits } from "./process-exits.ts";
 import { watchSignIn } from "./sign-in.ts";
+import { setMcpToolMode } from "./tool-mode.ts";
 import { closeWindowsTree } from "./windows-process-tree.ts";
 
 const CONNECT_MS = 20_000;
@@ -522,6 +523,7 @@ export function createMcp(deps: {
       for (const { d, c } of live) {
         if (c.status !== "ready") continue;
         for (const t of c.tools) {
+          if (t.name === d.monitorTool) continue;
           let name = toolName(d.name, t.name);
           if (taken.has(name))
             name = `${name.slice(0, 57)}_${createHash("sha256").update(`${d.scope}:${d.name}:${t.name}`).digest("hex").slice(0, 6)}`;
@@ -540,11 +542,13 @@ export function createMcp(deps: {
       const current = this.find(d.scope, d.name, d.values_of ?? d.project_id ?? d.only);
       if (!current || current.hash !== d.hash || !current.enabled || !config.trusted(current))
         throw conflict("MCP server definition changed");
-      return c.tools.map((t) => ({
-        ...mcpApproval(d, t),
-        name: t.name,
-        approved: deps.store.approvals.allows(mcpApproval(d, t)),
-      }));
+      return c.tools
+        .filter((t) => t.name !== d.monitorTool)
+        .map((t) => ({
+          ...mcpApproval(d, t),
+          name: t.name,
+          approved: deps.store.approvals.allows(mcpApproval(d, t)),
+        }));
     },
     /** Whether every tool of the server is allowed, those it adds later included, or which ones ("some"). */
     toolMode(d: McpDef): "ask" | "all" | "some" {
@@ -555,24 +559,7 @@ export function createMcp(deps: {
      * "all": every tool, new ones included, for every agent (one grant for the server). "ask": none; the server's
      * grant and each tool's own for every agent go (one agent's or one chat's stay).
      */
-    setToolMode(d: McpDef, mode: "ask" | "all"): void {
-      const server = mcpServerApproval(d);
-      if (mode === "all") {
-        deps.store.approvals.grant(server, "always", "");
-        return;
-      }
-      const ownerWide = deps.store.approvals
-        .list()
-        .filter(
-          (g) =>
-            g.server === server.server &&
-            g.scope === "always" &&
-            !g.agent_id &&
-            !g.thread_id &&
-            (g.project_id ?? "") === (server.project_id ?? ""),
-        );
-      for (const g of ownerWide) deps.store.approvals.revoke(g.key);
-    },
+    setToolMode: (d: McpDef, mode: "ask" | "all") => setMcpToolMode(deps.store, d, mode),
     async describe(d: McpDef, project?: string) {
       const context = project ?? d.values_of ?? d.project_id ?? d.only;
       const eligible = defsFor(context).find((x) => keyOf(x) === keyOf(d));
@@ -582,7 +569,12 @@ export function createMcp(deps: {
       const c = ensure(d);
       return c.tools;
     },
-    async call(d: McpDef, name: string, args: Record<string, unknown>, project?: string) {
+    async observe(d: McpDef, args: Record<string, unknown>) {
+      if (!d.monitorTool) throw new Error("MCP server has no managed observation tool");
+      return this.call(d, d.monitorTool, args, undefined, true);
+    },
+    async call(d: McpDef, name: string, args: Record<string, unknown>, project?: string, observation = false) {
+      if (name === d.monitorTool && !observation) throw new Error("This tool is reserved for managed observations");
       const tools = await this.describe(d, project);
       const t = tools.find((t) => t.name === name);
       if (!t) throw new Error(`MCP tool ${name} not found`);

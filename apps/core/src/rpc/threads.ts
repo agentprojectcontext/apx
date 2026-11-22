@@ -21,6 +21,7 @@ import { badRequest, conflict, notFound, unauthorized } from "../errors.ts";
 import { insideReal } from "../paths.ts";
 import { folderInProject } from "../tools/folders.ts";
 import type { CallContext } from "./context.ts";
+import { checkExtensionReceipt } from "./extension-event-admission.ts";
 
 type SendMode = "queue" | "interrupt" | "steer";
 type ChannelSender = NonNullable<CallContext["channel"]>;
@@ -435,25 +436,31 @@ export function threadHandlers(
       // never steers a running turn.
       if (ctx.actor === "agent")
         return store.tx(() => {
+          if (ctx.extensionEvent) checkExtensionReceipt(store, ctx.extensionEvent, thread);
           const sent = post(thread, text, { kind: "system" }, false, {
             agent_id: agent.id,
             trigger: "channel",
             origin: {
               kind: "agent",
-              id: ctx.flowEvent
-                ? `client:flow:${ctx.flowEvent.flow}`
-                : ctx.client
-                  ? `client:${ctx.client.id}`
-                  : "external",
-              name: ctx.flowEvent
-                ? "an external Flow event"
-                : ctx.client
-                  ? `${ctx.client.name} (an outside app)`
-                  : "an external agent client",
+              id: ctx.extensionEvent
+                ? `client:extension:${ctx.extensionEvent.extension}`
+                : ctx.flowEvent
+                  ? `client:flow:${ctx.flowEvent.flow}`
+                  : ctx.client
+                    ? `client:${ctx.client.id}`
+                    : "external",
+              name: ctx.extensionEvent
+                ? `an observation from extension ${ctx.extensionEvent.extension}`
+                : ctx.flowEvent
+                  ? "an external Flow event"
+                  : ctx.client
+                    ? `${ctx.client.name} (an outside app)`
+                    : "an external agent client",
               thread_id: thread,
               run_id: "",
             },
           });
+          if (ctx.extensionEvent) store.extensionEvents.admitted(ctx.extensionEvent.receipt, sent.run.id);
           if (ctx.flowEvent?.graph)
             store.flowGraphRuns.linkRun({ ...ctx.flowEvent, ...ctx.flowEvent.graph }, sent.run.id, thread);
           else if (ctx.flowEvent) store.flows.admitted(ctx.flowEvent.flow, ctx.flowEvent.event, sent.run.id);

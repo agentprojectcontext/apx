@@ -390,6 +390,22 @@ function toolCall(messages: Message[], said: string): { name: string; arguments:
 
 export async function fakeLlm() {
   const calls: Array<{ model: string; said: string }> = [];
+  let holdWorkers = false;
+  const workerAnswers = new Set<() => void>();
+  const workerGate = (hold: boolean) => {
+    holdWorkers = hold;
+    if (!hold) {
+      for (const answer of workerAnswers) answer();
+      workerAnswers.clear();
+    }
+  };
+  const streamGates = new Map<string, (() => void) | undefined>();
+  const streamGate = (text: string, action: "hold" | "next" | "clear") => {
+    const next = streamGates.get(text);
+    if (action === "clear") streamGates.delete(text);
+    else streamGates.set(text, undefined);
+    if (action !== "hold") next?.();
+  };
   /** Every request's body as sent: what a test looks for in what reached the model. */
   const bodies: string[] = [];
   const server = http.createServer((req, res) => {
@@ -513,7 +529,9 @@ export async function fakeLlm() {
                 id: "fake",
                 choices: [{ index: 0, delta: { reasoning_content: thoughts[i] }, finish_reason: null }],
               });
-              return void setTimeout(() => next(i + 1), 1200);
+              if (streamGates.has(said)) streamGates.set(said, () => next(i + 1));
+              else setTimeout(() => next(i + 1), 1200);
+              return;
             }
             for (const part of chunks)
               send({ id: "fake", choices: [{ index: 0, delta: { content: part }, finish_reason: null }] });
@@ -521,7 +539,16 @@ export async function fakeLlm() {
           };
           return next(0);
         }
-        // "write slowly": a piece every 150 ms, so a test sees the answer grow as a real model's does.
+        // A held stream advances only after the browser has observed its partial answer.
+        if (/^write slowly/i.test(said) && streamGates.has(said)) {
+          send({ id: "fake", choices: [{ index: 0, delta: { content: text.slice(0, -5) }, finish_reason: null }] });
+          streamGates.set(said, () => {
+            send({ id: "fake", choices: [{ index: 0, delta: { content: text.slice(-5) }, finish_reason: null }] });
+            end();
+          });
+          return;
+        }
+        // "write slowly": a piece every 150 ms for callers that do not hold the stream.
         if (/^write slowly/i.test(said)) {
           const next = (i: number) => {
             if (res.writableEnded) return;
@@ -537,7 +564,10 @@ export async function fakeLlm() {
       };
       const keepGoing = KEEP_GOING.test(said) && body.messages?.at(-1)?.role === "tool";
       const long = system.startsWith("Take your time");
-      if (slow || staggered || keepGoing || long) {
+      if (slow && holdWorkers) {
+        workerAnswers.add(answer);
+        res.on("close", () => workerAnswers.delete(answer));
+      } else if (slow || staggered || keepGoing || long) {
         const asked = JSON.stringify(body.messages?.findLast((m) => m.role === "user")?.content);
         const part = Number(/check part (\d)/.exec(asked)?.[1] ?? 1);
         const timer = setTimeout(
@@ -553,6 +583,8 @@ export async function fakeLlm() {
   return {
     url: `http://127.0.0.1:${(server.address() as AddressInfo).port}/v1`,
     calls,
+    streamGate,
+    workerGate,
     /** Whether any request so far carried this text. */
     carried: (text: string) => bodies.some((b) => b.includes(text)),
     close: () => new Promise<void>((r) => server.close(() => r())),

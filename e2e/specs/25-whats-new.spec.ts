@@ -28,6 +28,8 @@ test("See what's new opens the chat that tells the update, and goes once it is r
   });
   await open(page);
   const pill = page.getByRole("button", { name: "Ver cambios" });
+  // A preceding test may have left the pointer over the trigger before its tooltip mounted.
+  await page.mouse.move(0, 0);
   await pill.hover();
   const hint = page.locator(".apx-tooltip", { hasText: "Novedades de APX 9.9.9" });
   await expect(hint).toBeVisible();

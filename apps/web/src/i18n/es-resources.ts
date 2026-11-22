@@ -4,6 +4,25 @@ import type { MessageKey } from "./en.ts";
 import { esMarketplace } from "./marketplace-es.ts";
 
 export const esResources: Partial<Record<MessageKey, string>> = {
+  "market.events.title": "Avisos",
+  "market.events.help":
+    "Elegí dónde recibe tu agente las novedades de esta extensión. Los cambios se aplican al guardar.",
+  "market.events.connect": "Conectá esta extensión antes de activar los avisos.",
+  "market.events.enable": "Enviar avisos",
+  "market.events.destination": "Recibir en",
+  "market.events.home": "Tu superagente",
+  "market.events.untitled": "Charla sin título",
+  "market.events.quiet": "Retener avisos en horarios de silencio",
+  "market.events.from": "Silencio desde",
+  "market.events.to": "Hasta",
+  "market.events.zone": "Zona horaria",
+  "market.events.sourceError":
+    "Falló una consulta o una entrega. APX volverá a intentarlo sin suponer que algo terminó.",
+  "market.events.error":
+    "No se pudieron cargar o guardar los avisos. Revisá la conexión, el destino y la zona horaria e intentá de nuevo.",
+  "market.events.saved": "Configuración de avisos guardada.",
+  "market.events.reload": "Recargar configuración",
+  "market.events.loading": "Cargando configuración de avisos…",
   ...esMarketplace,
   "res.mcpAvailable": "Disponible en",
   "res.mcpEverywhere": "Todos los proyectos",

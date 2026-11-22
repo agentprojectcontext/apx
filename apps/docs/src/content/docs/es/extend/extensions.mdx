@@ -333,6 +333,49 @@ servidor, un host al que se conecta, un secreto, una rutina, lo que puede alcanz
 - **⋯ › Volver a la 1.0.0** (la versión guardada) la cambia por la versión guardada, cada una como la habías aprobado (encendida o apagada).
   Tocarlo de nuevo vuelve a la nueva.
 
+## Observaciones en segundo plano
+
+Una extensión puede declarar observaciones, como un ciclo terminado, y un monitor que consulta periódicamente su
+propio servidor MCP. Agregarla o conectarla no activa los avisos. Pedile a tu agente que los configure, elegí una
+charla personal y los horarios de silencio. Apagar la extensión también apaga sus avisos; reconectarla por sí sola
+no los reanuda. Después de una actualización, aprobá sus archivos y configurá los avisos nuevamente.
+También podés abrir **Configuración** en la extensión, marcar **Enviar avisos**, elegir dónde llegan y, si querés,
+los horarios de silencio. Buscá una ciudad para elegir su zona horaria y tocá **Guardar** para aplicar tus elecciones.
+
+El monitor consulta sin iniciar un turno del modelo cada vez. Por ejemplo, puede consultar cada cinco minutos y
+solamente despertar al agente elegido cuando detecta un final real. Los horarios de silencio demoran esa entrega;
+no detienen las observaciones. Una desconexión o una hora estimada no prueban que terminó el electrodoméstico.
+Esto no cambia las consultas actuales de Gmail ni agrega una segunda copia de sus avisos.
+
+Para quienes crean extensiones, los campos opcionales del manifiesto son:
+
+```json
+{
+  "events": [{ "name": "cycle_finished", "description": "A cycle finished" }],
+  "monitor": { "server": "status", "tool": "observe", "every_seconds": 300, "local_state": true }
+}
+```
+
+La herramienta recibe `session` y `acknowledged`, un arreglo de hasta diez pares `{event,id}`. Devuelve
+`{ "events": [] }`, o hasta diez objetos con `event`, `id` estable y `data` con campos primitivos planos. Está reservada
+al monitor del core, no a llamadas ordinarias de agentes. APX fija `APX_EXTENSION_MONITOR_SESSION`: rechazá otra
+sesión antes de cambiar estado. Guardá una cola acotada de eventos individuales y repetilos hasta que APX reconozca
+recibos persistidos; no pises un final pendiente con el siguiente. Cambiar la configuración reinicia la detección;
+reiniciar el core no. Nunca incluyas claves, direcciones de dispositivos ni seriales. Una consulta fallida devuelve
+un error MCP. `local_state` permite cursor y cola no destructivos, no controles. APX proporciona `APX_EXTENSION_DATA_DIR`
+fuera del paquete. La respuesta puede pedir `next_poll_seconds` más corto (mínimo 30 segundos), o devolver eventos
+anteriores con `warning: "source_storage_full"` para informar presión de almacenamiento.
+
+La terminal autenticada también permite `apx events get <extension>`, `apx events set <extension>` con asignaciones de
+`enabled`, `thread`, `quiet_start`, `quiet_end` y `time_zone`, y
+`apx events emit <extension>/<event> <stable-id> '<JSON data>'`. Los extremos del silencio son minutos desde la
+medianoche local; valores iguales desactivan esa ventana. Los avisos pendientes sobreviven a un reinicio, vencen
+tras siete días y se cancelan al cambiar ajustes/credenciales o apagar la extensión. Reconectar no reactiva los
+avisos. Los recibos terminales se retienen 24 horas y después se compactan para recuperar capacidad; un duplicado
+en esa ventana no inicia otro turno, pero una repetición posterior puede ser nueva. Los límites son 60 recibos
+nuevos por minuto y 10.000 retenidos por instalación. No garantiza acciones externas exactamente una vez.
+Las observaciones son datos externos, nunca instrucciones tuyas.
+
 ## Plugins
 
 Cuando los archivos no alcanzan, una extensión puede traer un plugin: un archivo `.mjs` que corre en su propio

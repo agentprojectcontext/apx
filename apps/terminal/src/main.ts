@@ -12,6 +12,7 @@ import { chat } from "./commands/chat.ts";
 import { clients } from "./commands/clients.ts";
 import { desktop, openPanel } from "./commands/desktop.ts";
 import { doctor, updateOffline } from "./commands/doctor.ts";
+import { events } from "./commands/events.ts";
 import { expose } from "./commands/expose.ts";
 import { extensions } from "./commands/extensions.ts";
 import { flows } from "./commands/flows.ts";
@@ -93,6 +94,7 @@ Usage:
   apx news [tell [<id>…]] [--json]   Release news; tell runs the super-agent's message now
   apx clients [add <name>|rm <id>]  Outside apps with their own token (Claude Code, Codex…)
   apx extensions [inspect|install|on|off|secret|rm]  Skills, MCP servers and routines in one folder
+  apx events [get|set|emit]                        Extension observations and notices
   apx memory [words]      Notes agents keep between threads (newest first, or the best matches for the words)
   apx memory add [global|project|agent] <text> [--project p] [--agent a]
   apx memory edit <id> <text…>   Rewrite a note in place
@@ -418,6 +420,9 @@ try {
       break;
     case "clients":
       await clients(client, rest, { scopes: values.scopes });
+      break;
+    case "events":
+      await events(client, rest);
       break;
     case "extensions":
       await extensions(client, rest, { clear: values.clear });

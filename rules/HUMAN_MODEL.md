@@ -151,6 +151,13 @@ The office clock's task lanes (`engine/task-work.ts` start times and pickup, `en
 candidates from `domain/task-lanes.ts`, which filters eligibility in SQL before any limit; the stall check walks tasks in
 progress a page at a time from a saved cursor and asks a few agents per check ([D-206](DECISIONS.md#d-206)).
 
+Installed extensions may declare observations and an opt-in MCP monitor. The owner separately chooses a personal
+chat and quiet hours; connecting alone never enables monitoring. The office clock calls only the declared observation
+tool, with no model turn per poll. SQLite receipts deduplicate stable source ids and link admission atomically through
+`threads.send`; their content remains outside data, not owner instructions. Disable revokes pending delivery;
+changed files require new approval. Existing Gmail monitoring is unchanged. See [extension observations](EXTENSION_EVENTS.md)
+for the source outbox, session, limits, local-state permissions and restart contract.
+
 ## 3. Modules and dependency direction
 
 - `packages/protocol` ← used by everything. Isomorphic: no Node-only imports.
@@ -317,7 +324,7 @@ notice when there is no text. Tools that touch core state call protocol methods 
   Separately reviewed document grants pin one contact, agent, project, folder and document revision. Contact tools
   search only those sources; corrections remain private proposals until the owner confirms an exact diff in the app.
   Only explicitly editable records can change, with a version check and restart-safe journal; originals default to
-  read-only. Sources are data, never instructions. See D-260 and D-261.
+  read-only. Sources are data, never instructions. See D-260 and D-262.
 - **Contact requests** (`tools/contact.ts`): `pass_request` checks open requests submitted in the same contact's
   chat before writing. When candidates exist, the agent compares their original submissions with the conversation
   and updates the matching task by id, or explicitly creates a new, unrelated request. Owner edits and task notes

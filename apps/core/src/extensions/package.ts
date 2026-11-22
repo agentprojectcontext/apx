@@ -102,6 +102,10 @@ function checkManifest(text: string | undefined, has: (rel: string) => boolean):
     );
   }
   const m = parsed.data;
+  if (new Set(m.events?.map((e) => e.name)).size !== (m.events?.length ?? 0))
+    throw new PackageError("event names must be unique");
+  if (m.monitor && (!m.events?.length || !m.mcp[m.monitor.server]))
+    throw new PackageError("monitor needs declared events and its own MCP server");
   if (m.skills && inside(m.skills) === undefined) throw new PackageError("skills points outside the extension");
   if (m.plugin) {
     const entry = inside(m.plugin.entry);
@@ -347,6 +351,13 @@ function powersOf(m: ExtensionManifest): ExtensionPower[] {
   for (const s of m.settings.filter((x) => x.sensitive)) out.push({ kind: "secret", name: s.name, detail: s.label });
   for (const s of m.secrets) out.push({ kind: "secret", name: s.name, detail: s.label });
   for (const r of m.routines) out.push({ kind: "routine", name: r.name });
+  for (const event of m.events ?? []) out.push({ kind: "event", name: event.name, detail: event.description });
+  if (m.monitor)
+    out.push({
+      kind: "monitor",
+      name: `${m.monitor.server}/${m.monitor.tool}`,
+      detail: `${m.monitor.every_seconds}s${m.monitor.local_state ? "; local bookkeeping" : ""}`,
+    });
   if (m.plugin) {
     out.push({ kind: "plugin", name: m.plugin.entry });
     if (m.plugin.network) out.push({ kind: "internet", name: "internet" });
