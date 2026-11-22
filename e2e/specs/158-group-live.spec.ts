@@ -1,7 +1,7 @@
 // A group chat as the owner uses it day to day: the member answering shows its words as it writes them, "@" lists the
 // members, a name alone asks that member, and the group's card adds and takes out agents.
 import type { Message, Thread } from "../../packages/protocol/src/index.ts";
-import { expect, open, rpc, test } from "./kit.ts";
+import { expect, open, rpc, test, world } from "./kit.ts";
 
 type Agent = { id: string; name: string };
 
@@ -24,8 +24,12 @@ test("a group shows the answer as it is written, offers its members after @, and
   await box.fill("Write slowly about the launch");
   await box.press("Enter");
   const answer = main.getByText(/^Got it: Write slowly about the launch/).first();
-  await expect(answer).toBeVisible();
-  expect(await answer.textContent()).not.toContain("Done.");
+  try {
+    await expect(answer).toBeVisible();
+    expect(await answer.textContent()).not.toContain("Done.");
+  } finally {
+    await world.finishStream();
+  }
   await expect(answer).toContainText("Done.");
 
   // "@" lists the group's members; a pick writes the mention.
