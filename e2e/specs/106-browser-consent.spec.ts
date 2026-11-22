@@ -79,14 +79,18 @@ for (const [width, scope, language] of [
       try {
         await expect(once).toBeVisible();
       } catch (error) {
-        await info.attach("consent-state", {
-          body: JSON.stringify({
-            chat: await rpc("threads.get", { thread }),
-            pending: await rpc("runs.pending", { thread }),
-            evaluations,
-          }),
-          contentType: "application/json",
-        });
+        try {
+          await info.attach("consent-state", {
+            body: JSON.stringify({
+              chat: await rpc("threads.get", { thread }),
+              pending: await rpc("runs.pending", { thread }),
+              evaluations,
+            }),
+            contentType: "application/json",
+          });
+        } catch (diagnosticError) {
+          console.warn("Could not attach consent diagnostics:", diagnosticError);
+        }
         throw error;
       }
       await expect(once).toHaveAttribute("aria-describedby", /.+/);
