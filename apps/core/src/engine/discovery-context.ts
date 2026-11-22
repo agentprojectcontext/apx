@@ -2,6 +2,7 @@ import { createHash } from "node:crypto";
 import type { DiscoverySettings } from "@apx/protocol";
 import type { discoveryState } from "../domain/discovery-state.ts";
 import { memorySensitive } from "../domain/memories.ts";
+import { ownerIdentity } from "../domain/owner.ts";
 import type { Store } from "../domain/store.ts";
 import { redactedJson } from "../log.ts";
 import { discoveryActivity } from "./discovery-source.ts";
@@ -30,7 +31,7 @@ export function discoveryContext(
     activity: sources,
     interests: settings.interests,
     location: settings.location || null,
-    language: store.settings.get("owner_language") ?? "en",
+    language: ownerIdentity(store).language,
     today: at.toISOString(),
   });
 }

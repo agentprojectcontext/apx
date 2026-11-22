@@ -1,15 +1,15 @@
 import type { DiscoverySettings, DiscoverySourceFailure } from "@apx/protocol";
-import { getPublic, pageText, searchPublic } from "../tools/web.ts";
+import { getPublic, PublicPageScopeError, pageText, searchPublic } from "../tools/web.ts";
 
 export type DiscoveryPage = { url: string; title: string; text: string; read_at: string };
 export type DiscoveryWeb = {
-  read: (url: string, signal: AbortSignal) => Promise<DiscoveryPage>;
+  read: (url: string, signal: AbortSignal, authorize: (url: string) => boolean) => Promise<DiscoveryPage>;
   search: (query: string, signal: AbortSignal) => Promise<string[]>;
 };
 
 export const discoveryWeb: DiscoveryWeb = {
-  async read(url, signal) {
-    const page = await getPublic(url, signal);
+  async read(url, signal, authorize) {
+    const page = await getPublic(url, signal, {}, (target) => authorize(target.toString()));
     if (page.status >= 400) throw new Error(`HTTP ${page.status}`);
     if (!page.body) throw new Error("The page has no readable text");
     const content =
@@ -25,7 +25,9 @@ export const discoveryWeb: DiscoveryWeb = {
     };
   },
   async search(query, signal) {
-    return (await searchPublic(query, 4, signal)).hits.map((hit) => hit.url);
+    const result = await searchPublic(query, 4, signal);
+    if (!result.available) throw new Error("Public search is unavailable");
+    return result.hits.map((hit) => hit.url);
   },
 };
 
@@ -73,7 +75,7 @@ export async function researchDiscoverySource(options: {
     seen.add(url);
     if (!take()) break;
     try {
-      const page = await web.read(url, signal);
+      const page = await web.read(url, signal, safe);
       if (!safe(page.url)) {
         failure(url, "The page redirected outside the authorized sources", "changed_site");
         continue;
@@ -84,9 +86,16 @@ export async function researchDiscoverySource(options: {
         const link = match[1];
         if (link && safe(link) && /pricing|price|news|blog|release|event|changelog|docs/i.test(link)) urls.push(link);
       }
-    } catch {
+    } catch (error) {
       signal.throwIfAborted();
-      failure(url, "The source could not be read; no claim was verified from it", "unreadable");
+      const changed = error instanceof PublicPageScopeError;
+      failure(
+        url,
+        changed
+          ? "The page redirected outside the authorized sources"
+          : "The source could not be read; no claim was verified from it",
+        changed ? "changed_site" : "unreadable",
+      );
     }
   }
   return pages;

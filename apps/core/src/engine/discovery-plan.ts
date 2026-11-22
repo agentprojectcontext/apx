@@ -36,7 +36,10 @@ export async function planDiscovery(
     )
     .sort((a, b) => (runtime.plan_attempts[a.id] ?? "").localeCompare(runtime.plan_attempts[b.id] ?? ""));
   let calls = 0;
-  for (const project of pending.slice(0, Math.max(1, Math.floor(settings.max_model_calls / 3)))) {
+  for (const project of pending.slice(
+    0,
+    Math.min(settings.max_model_calls - 2, Math.max(1, Math.floor(settings.max_model_calls / 3))),
+  )) {
     deps.signal.throwIfAborted();
     if (!deps.valid()) return calls;
     runtime.plan_attempts[project.id] = at.toISOString();

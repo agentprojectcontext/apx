@@ -25,12 +25,14 @@ type Ranked = { finding: DiscoveryFinding; score: number };
 
 async function researchSource(cycle: Cycle, source: DiscoverySettings["sources"][number]): Promise<Ranked[]> {
   const { deps, runtime, settings, signal, at } = cycle;
+  const inaccessible: DiscoveryRuntime["inaccessible"] = [];
   const pages = await researchDiscoverySource({
     source,
     web: deps.web ?? discoveryWeb,
     signal,
     take: () => ++cycle.operations <= settings.max_pages,
     failure: (url, reason, kind) => {
+      if (inaccessible.length < 40) inaccessible.push({ url, reason, kind });
       if (runtime.inaccessible.length < 40) runtime.inaccessible.push({ url, reason, kind });
     },
   });
@@ -53,7 +55,7 @@ async function researchSource(cycle: Cycle, source: DiscoverySettings["sources"]
           question: source.project ? runtime.questions[source.project] : null,
           previous_findings: previous,
           pages,
-          inaccessible: runtime.inaccessible,
+          inaccessible,
         }),
       },
     ],
@@ -107,7 +109,7 @@ export async function runDiscoveryCycle(
   runtime.inaccessible = [];
   for (const source of sources) {
     signal.throwIfAborted();
-    if (!valid() || cycle.calls >= settings.max_model_calls || cycle.operations >= settings.max_pages) break;
+    if (!valid() || cycle.calls + 2 > settings.max_model_calls || cycle.operations >= settings.max_pages) break;
     runtime.source_attempts[discoveryKey(source)] = at.toISOString();
     try {
       candidates.push(...(await researchSource(cycle, source)));

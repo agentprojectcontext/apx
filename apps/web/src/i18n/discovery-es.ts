@@ -1,6 +1,7 @@
 import type { enDiscovery } from "./discovery-en.ts";
 export const esDiscovery: Record<keyof typeof enDiscovery, string> = {
   "discovery.title": "Investigación",
+  "discovery.removeInterest": "Quitar {tag}",
   "discovery.working": "La investigación está en curso.",
   "discovery.nextReview": "Próxima exploración de proyectos: {date}",
   "discovery.nextResearch": "Próxima investigación web: {date}",

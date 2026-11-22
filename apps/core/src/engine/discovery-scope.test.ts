@@ -66,7 +66,11 @@ test("all registered projects are scanned, private questions progress fairly and
   try {
     discovery.configure({ enabled: true, max_model_calls: 3 });
     await discovery.check.run(new Date(AT));
-    assert.equal(llm.calls.length, 3);
+    assert.equal(
+      llm.calls.length,
+      2,
+      "leave a call available to verify rather than proposing an unverifiable next source",
+    );
     assert.deepEqual(
       discovery
         .status()
@@ -76,7 +80,7 @@ test("all registered projects are scanned, private questions progress fairly and
     );
     assert.ok(discovery.status().coverage.every((p) => p.reviewed_at === AT));
     assert.equal(discovery.status().coverage.filter((p) => p.planned_at).length, 1);
-    assert.deepEqual(reads, ["https://example.com/", "https://example.org/"]);
+    assert.deepEqual(reads, ["https://example.com/"]);
     for (const request of llm.calls) {
       const text = JSON.stringify(request.messages);
       assert.doesNotMatch(text, /EXCLUDED_ONLY|GLOBAL_TASK_ONLY/);
@@ -86,11 +90,11 @@ test("all registered projects are scanned, private questions progress fairly and
     await discovery.check.run(new Date("2026-05-02T12:00:00.000Z"));
     assert.equal(
       llm.calls.length,
-      4,
+      3,
       "only the remaining project's private question is planned on the intermediate day",
     );
     assert.equal(discovery.status().coverage.filter((p) => p.planned_at).length, 2);
-    assert.equal(reads.length, 2, "intermediate day does not fetch the web again");
+    assert.equal(reads.length, 1, "intermediate day does not fetch the web again");
     for (const id of ["alpha", "beta"]) {
       const project = store.projects.get(id);
       assert.ok(project);

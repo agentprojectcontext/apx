@@ -1,4 +1,5 @@
 import { DISCOVERY_DAY, discoveryState } from "./discovery-state.ts";
+import { ownerIdentity } from "./owner.ts";
 import type { Store } from "./store.ts";
 
 export function discoveryReportTarget(store: Store, routine: string) {
@@ -71,7 +72,7 @@ export function composeDiscoveryReport(store: Store, run: string, body: string, 
     claim.composed = true;
     finding.included_at = at.toISOString();
     state.write(runtime);
-    const en = (store.settings.get("owner_language") ?? "en") === "en";
+    const en = ownerIdentity(store).language === "en";
     const label = en ? "Worth a look" : "Para tener en cuenta";
     const sources = [
       ...new Set(finding.evidence.map((item) => `${item.title}: ${item.url} (${item.read_at.slice(0, 10)})`)),

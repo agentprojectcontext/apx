@@ -49,7 +49,7 @@ export const DiscoverySettings = z
             }
           }, "Choose a valid time zone"),
       report_routine: () => z.string().nullable(),
-      max_model_calls: () => z.number().int().min(1).max(20),
+      max_model_calls: () => z.number().int().min(3).max(20),
       max_pages: () => z.number().int().min(2).max(40),
       max_seconds: () => z.number().int().min(30).max(600),
       cooldown_days: () => z.number().int().min(1).max(90),

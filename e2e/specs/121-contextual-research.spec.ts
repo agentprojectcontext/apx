@@ -47,6 +47,31 @@ async function restoreMuted(initial: DiscoveryStatus) {
       await rpc("discovery.feedback", { finding: topic.id, feedback: "unmute" });
 }
 
+async function checkInterestControl(page: Page, en: boolean) {
+  const input = page.getByRole("textbox", { name: en ? "Interests" : "Intereses", exact: true });
+  await input.fill("Portable exports");
+  await input.press("Enter");
+  const remove = page.getByRole("button", {
+    name: en ? "Remove Portable exports" : "Quitar Portable exports",
+    exact: true,
+  });
+  await expect(remove).toBeVisible();
+  await remove.click();
+  await expect(remove).toHaveCount(0);
+}
+async function checkRatings(page: Page, en: boolean) {
+  const region = page.getByRole("region", { name: en ? "Worth a look" : "Para tener en cuenta" });
+  const useful = en ? "Useful" : "Útil";
+  const notUseful = en ? "Not useful" : "No útil";
+  await region.getByRole("button", { name: useful, exact: true }).click();
+  await expect(region.getByRole("button", { name: useful, exact: true, pressed: true })).toBeVisible();
+  expect((await rpc<DiscoveryStatus>("discovery.settings")).findings[0]?.feedback).toBe("useful");
+  await region.getByRole("button", { name: notUseful, exact: true }).click();
+  await expect(region.getByRole("button", { name: notUseful, exact: true, pressed: true })).toBeVisible();
+  await expect(region.getByRole("button", { name: useful, exact: true, pressed: false })).toBeVisible();
+  expect((await rpc<DiscoveryStatus>("discovery.settings")).findings[0]?.feedback).toBe("not_useful");
+}
+
 for (const language of ["en", "es"] as const)
   for (const width of [1280, 390]) {
     test(`investigación contextual: configuración, evidencia, feedback y errores (${language}, ${width})`, async ({
@@ -76,6 +101,7 @@ for (const language of ["en", "es"] as const)
         expect(chunks).toHaveLength(1);
         await expect(page.getByRole("switch", { name: enabled })).not.toBeChecked();
         await page.screenshot({ path: info.outputPath("empty.png"), fullPage: true });
+        await checkInterestControl(page, en);
         await page
           .getByText(en ? "Additional public sources" : "Fuentes públicas adicionales", { exact: true })
           .click();
@@ -127,12 +153,8 @@ for (const language of ["en", "es"] as const)
         ).toBeVisible();
         await findings.scrollIntoViewIfNeeded();
         await page.screenshot({ path: info.outputPath("finding.png"), fullPage: true });
-        await findings.getByRole("button", { name: en ? "Useful" : "Útil", exact: true }).click();
-        await expect(findings.getByRole("button", { name: en ? "Useful" : "Útil", exact: true })).toHaveAttribute(
-          "aria-pressed",
-          "true",
-        );
-        expect((await rpc<DiscoveryStatus>("discovery.settings")).findings[0]?.feedback).toBe("useful");
+        await checkRatings(page, en);
+        await page.screenshot({ path: info.outputPath("feedback.png"), fullPage: true });
         await findings.getByRole("button", { name: en ? "Mute topic" : "Silenciar tema", exact: true }).click();
         const confirm = page.getByRole("dialog", {
           name: en ? "Mute this topic?" : "¿Silenciar este tema?",

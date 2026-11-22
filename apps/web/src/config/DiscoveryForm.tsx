@@ -62,6 +62,7 @@ function DiscoveryScope({ draft, set, projects }: Fields) {
         <TagInput
           label={t("discovery.interests")}
           placeholder={t("discovery.addInterest")}
+          removeLabel={t("discovery.removeInterest")}
           value={draft.interests}
           max={30}
           onValueChange={(interests) => set({ interests })}
@@ -156,7 +157,7 @@ export function DiscoveryForm({
         <Disclosure title={t("discovery.limits")}>
           {(
             [
-              ["max_model_calls", "discovery.calls", 1, 20],
+              ["max_model_calls", "discovery.calls", 3, 20],
               ["max_pages", "discovery.pages", 2, 40],
               ["max_seconds", "discovery.seconds", 30, 600],
               ["cooldown_days", "discovery.cooldown", 1, 90],

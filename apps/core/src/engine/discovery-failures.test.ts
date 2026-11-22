@@ -87,7 +87,7 @@ test("one malformed source response cannot exhaust the model budget or prevent l
         { ...source, label: "Northwind", pages: ["https://example.org/"] },
         { ...source, label: "Globex", pages: ["https://example.net/"] },
       ],
-      max_model_calls: 2,
+      max_model_calls: 3,
     });
     await discovery.check.run(new Date(AT));
     assert.equal(llm.calls.length, 2);

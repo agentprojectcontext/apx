@@ -1,5 +1,6 @@
 export const enDiscovery = {
   "discovery.title": "Research",
+  "discovery.removeInterest": "Remove {tag}",
   "discovery.working": "Research is in progress.",
   "discovery.nextReview": "Next project review: {date}",
   "discovery.nextResearch": "Next web research: {date}",

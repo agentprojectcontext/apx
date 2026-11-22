@@ -5,6 +5,7 @@ import { openDb } from "../db/db.ts";
 import { tempDir } from "../testkit/platform.ts";
 import { composeDiscoveryReport, reserveDiscoveryReport } from "./discovery-report.ts";
 import { discoveryState } from "./discovery-state.ts";
+import { saveOwnerIdentity } from "./owner.ts";
 import { seed } from "./seed.ts";
 import { createStore } from "./store.ts";
 
@@ -70,7 +71,7 @@ test("one finding is reserved atomically and composed only once on its chosen ru
     assert.equal(composeDiscoveryReport(store, "other-run", "Base report", new Date(AT)), "Base report");
     const text = composeDiscoveryReport(store, "run-1", "Base report", new Date(AT));
     assert.match(text, /^Base report/);
-    assert.match(text, /Worth a look/, "the default report language matches the default research language");
+    assert.match(text, /Para tener en cuenta/, "the report follows the account's default language");
     assert.match(text, /Relevant announcement 0/);
     assert.match(text, /https:\/\/example.com\/news/);
     assert.doesNotMatch(text, /Relevant announcement 1/);
@@ -87,10 +88,10 @@ test("one finding is reserved atomically and composed only once on its chosen ru
     );
     state.feedback("finding-1", "unmute");
     assert.deepEqual(state.read().muted, []);
-    assert.match(
-      composeDiscoveryReport(store, "next-day", "", new Date("2026-05-02T12:00:00.000Z")),
-      /Relevant announcement 1/,
-    );
+    saveOwnerIdentity(store, { language: "en" });
+    const english = composeDiscoveryReport(store, "next-day", "", new Date("2026-05-02T12:00:00.000Z"));
+    assert.match(english, /Worth a look/);
+    assert.match(english, /Relevant announcement 1/);
     state.feedback("finding-1", "mute");
     state.configure({ enabled: false });
     assert.deepEqual(state.read().muted, ["topic-1"]);
