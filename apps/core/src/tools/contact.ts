@@ -8,6 +8,7 @@ import { contactRights } from "../domain/contact-rights.ts";
 import { memorySettings } from "../domain/memory-settings.ts";
 import type { Store } from "../domain/store.ts";
 import { BOOK_TOOL, CANCEL_BOOKING_TOOL } from "./contact-booking.ts";
+import { READ_PROJECT_DOCUMENT, SEARCH_PROJECT_CONTEXT } from "./contact-project-reading.ts";
 import { CONSULT_CONTACT_SOURCES, contactSourceTools, PROPOSE_CONTACT_UPDATE } from "./contact-sources.ts";
 import { untrusted } from "./result.ts";
 import { defineTool, type Tool, type ToolContext } from "./types.ts";
@@ -43,6 +44,8 @@ export const CONTACT_TOOLS: ReadonlySet<string> = new Set([
   "search_owner_notes",
   CONSULT_CONTACT_SOURCES,
   PROPOSE_CONTACT_UPDATE,
+  SEARCH_PROJECT_CONTEXT,
+  READ_PROJECT_DOCUMENT,
   BOOK_TOOL,
   CANCEL_BOOKING_TOOL,
 ]);
@@ -68,6 +71,11 @@ export function contactToolNames(who: Holder | undefined): Set<string> {
     names.add("search_owner_notes");
     names.add(CONSULT_CONTACT_SOURCES);
     names.add(PROPOSE_CONTACT_UPDATE);
+  }
+  // Each also checks the explicit assignment and the project on every call (DECISIONS.md#d-262).
+  if (who?.rights.project_reading) {
+    names.add(SEARCH_PROJECT_CONTEXT);
+    names.add(READ_PROJECT_DOCUMENT);
   }
   // Each is offered only while it can run (its `when`: the calendar connected, the account's hours set, a booking to cancel).
   if (who?.rights.appointments === "book") names.add(BOOK_TOOL);

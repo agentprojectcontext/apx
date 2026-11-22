@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { ChannelLimits, ChannelRooms, ChannelStrangers, ChannelType } from "./domain-channels.ts";
-import { PersonPerms } from "./domain-people.ts";
+import { AccountContactPerms } from "./domain-people.ts";
 import { Id } from "./domain-projects.ts";
 import { schemaFields } from "./schema-fields.ts";
 
@@ -117,7 +117,7 @@ export const ChannelInfo = z.object(
      */
     quiet: () => z.boolean().optional(),
     /** What its contacts' chats may do unless the owner set it for one of them (none: all off). */
-    contacts: () => PersonPerms.optional(),
+    contacts: () => AccountContactPerms.optional(),
     /** How long an appointment its contacts book lasts. */
     appointment_minutes: () => AppointmentMinutes.optional(),
     /** The owner's notes for every contact and room of the account: what it can do and answer there. */

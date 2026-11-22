@@ -26,3 +26,25 @@ export const CONTACT_NOTES_NEWS: NewsEntry = {
     },
   ],
 };
+
+export const CONTACT_PROJECT_READING_NEWS: NewsEntry = {
+  id: "contact-project-reading",
+  since: "2.16.2",
+  title: {
+    en: "A contact's agent can read its project for them",
+    es: "El agente de un contacto puede leer su proyecto para esa persona",
+  },
+  about: {
+    en: "With project reading on for one person, their agent looks up its project and the documents you referenced there.",
+    es: "Con la lectura del proyecto activada para una persona, su agente busca en su proyecto y en los documentos que mencionaste ahí.",
+  },
+  applies: (facts) => facts.contacts,
+  text: "A new per-person right, project reading, lets a contact's explicitly assigned agent answer from its own project, read-only: the project's standing notes and its notebook there, what the owner wrote in their own chats with that agent in that project, and the documents the owner referenced in them (text, Markdown or CSV files inside the project folder, or Google Drive links read now through the owner's Drive connection). It cites what it used. It is off by default, never an account default, and does not change the existing notes right. It works only while the person has that agent assigned and no other contact is assigned to an agent of the same project. Links or files sent by the contact, written by agents or found inside documents are never opened. It cannot write, send, run or browse anything; turning it off stops new reads, not answers already sent. Turning it on with apx_settings contacts.set perms.project_reading always asks the owner in the app. Explain it to owners with contacts assigned to project agents, and change nothing without their request.",
+  actions: [
+    {
+      label: { en: "Let a contact's agent read its project", es: "Dejar que el agente de un contacto lea su proyecto" },
+      prompt:
+        "Review which contacts have a specific project agent assigned. Explain what project reading would let each one's agent read, flag projects shared by several contacts, and ask me before turning it on for anyone.",
+    },
+  ],
+};

@@ -59,6 +59,8 @@ export const SPANISH_TITLES: Record<string, (a: Args) => string> = {
   search_owner_notes: (a) => `Buscó «${str(a.query, 60)}» en tus notas`,
   consult_contact_sources: () => "Consultó los documentos autorizados",
   propose_contact_update: () => "Propuso una corrección para revisar",
+  search_project_context: (a) => `Buscó «${str(a.query, 60)}» en el proyecto`,
+  read_project_document: () => "Leyó un documento del proyecto",
   book_appointment: (a) => (a.start ? `Agendó un turno: ${str(a.start).replace("T", " ")}` : "Buscó horarios libres"),
   cancel_my_appointment: () => "Canceló su turno",
   contact_requests: () => "Revisó quién está esperando",

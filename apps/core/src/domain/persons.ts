@@ -76,7 +76,7 @@ type Decision = Pick<Person, "role" | "muted" | "supervised" | "unreviewed" | "p
  */
 function stricterRights(a: PersonPerms, b: PersonPerms): PersonPerms {
   const out: PersonPerms = {};
-  for (const k of ["requests", "notes", "any_hour"] as const) {
+  for (const k of ["requests", "notes", "any_hour", "project_reading"] as const) {
     if (a[k] === false || b[k] === false) out[k] = false;
     else if (a[k] === true && b[k] === true) out[k] = true;
   }

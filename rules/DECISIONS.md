@@ -5830,3 +5830,37 @@ changed sources fail closed. No automatic memory update, cross-contact lookup, a
 interpretation or guarantee of exhaustive retrieval is introduced.
 
 Docs impact: updated channels/overview in English and Spanish, HUMAN_MODEL.md, contact notes news and tool guidance.
+
+<a id="d-262"></a>
+## D-262 — 2026-11-21 — A contact's assigned agent can read its own project, read-only
+The owner wants an explicitly assigned agent to answer a contact the way it answers them: look up the project's notes
+and the owner's chats with it, find the document the owner referenced and read it as it is now, citing it, without
+authorizing each file. D-260 and D-261 stay as they are: the notes right does not grow. A separate right,
+`project_reading`, is off by default and is set per person only; account defaults never carry it (rejected in
+`channels.set`, ignored when computing rights). Turning it on through the super-agent keeps the owner's card even in
+Total.
+
+It holds only while the person has an explicit `agent_id`, the chat is answered by that agent in that agent's project,
+the chat is not a room or client chat, memory is on and no migration is pending. It is refused for every contact of a
+project while another contact is assigned to any agent of that project, since owner chats there may be about them.
+
+`search_project_context` returns standing untainted project notes and the agent's notebook in that project, the
+owner's own messages (author `user`) in the owner's chats of that project with that agent (no contact, room, client,
+worker or delegated chat; memory exclusions apply) and the project description. References are taken only from that
+owner-written text: owner-sourced notes, owner messages and the description. Contact messages, agent replies, tool
+output and document contents never lend a reference. A reference is a project-relative `.md`, `.markdown`, `.txt` or
+`.csv` path (no hidden segment, `AGENTS.md`, secret-looking name, `~` or path outside the folder) or an `https` link on
+`docs.google.com`/`drive.google.com` reduced to a file id; the link itself is never fetched.
+
+Each reference is handed out as a random handle held in memory, bound to the person, agent, project and contact chat.
+`read_project_document` checks the right, the binding and that the origin still holds the reference before reading and
+again after an asynchronous Drive read, discarding the result when anything changed. Local files reuse the pinned
+reader from D-261 (no symlinks, realpath equality, 400 KB, UTF-8). Drive goes through the owner's connection and the
+versioned windows of `drive_read`. Both tools have no side effects; no write, send, shell, browsing or other owner tool
+is offered. Handles do not survive a restart: the agent searches again.
+
+Not decided here: sharing a project with several contacts, agent replies as searchable history, or interim "I'll get
+back to you" messages. Revocation stops new reads, not answers already delivered.
+
+Docs impact: updated channels/overview in English and Spanish, HUMAN_MODEL.md, settings help and news.
+
