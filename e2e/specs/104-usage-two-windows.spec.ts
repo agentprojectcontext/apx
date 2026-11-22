@@ -1,4 +1,17 @@
+import type { Page } from "@playwright/test";
 import { expect, open, rpc, test } from "./kit.ts";
+
+async function hoverUsage(page: Page) {
+  const tip = page.locator(".engine-usage-tip");
+  // A late resource report can move the trigger away from the pointer.
+  await expect(async () => {
+    await page.mouse.move(0, 0);
+    await page.getByTestId("engine-usage-button").hover();
+    await expect(tip).toBeVisible({ timeout: 2_000 });
+  }).toPass({ timeout: 7_000 });
+  await expect(tip).toBeInViewport();
+  return tip;
+}
 
 const claude = () => ({
   checked_at: new Date().toISOString(),
@@ -34,8 +47,7 @@ test("a plan with two limits shows the tightest one and lists both", async ({ pa
   await open(page);
   const trigger = page.getByTestId("engine-usage-button");
   await expect(trigger.getByTestId("engine-usage-quick")).toHaveText("13%");
-  await trigger.hover();
-  const tip = page.locator(".engine-usage-tip");
+  const tip = await hoverUsage(page);
   await expect(tip).toContainText("Claude · Sesión (5 h) · 85% disponible · Se reinicia en 2 h");
   await expect(tip).toContainText("Claude · Semanal · 13% disponible · Se reinicia el");
   await page.screenshot({ path: info.outputPath("desktop-hover.png") });
@@ -52,12 +64,30 @@ test("a plan with two limits shows the tightest one and lists both", async ({ pa
 
 test("a plan with one limit looks as before", async ({ page }) => {
   await rpc("setup.finish");
+  let releaseUsage!: () => void;
+  const usageReady = new Promise<void>((resolve) => {
+    releaseUsage = resolve;
+  });
+  await page.route("**/rpc/system.usage", async (route) => {
+    const response = await route.fetch();
+    await usageReady;
+    await route.fulfill({ response });
+  });
   const full = claude();
   const one = { ...full, engines: full.engines.map((engine) => ({ ...engine, windows: engine.windows.slice(0, 1) })) };
   await page.route("**/rpc/engines.usage", (route) => route.fulfill({ json: { ok: true, result: one } }));
-  await open(page);
-  const trigger = page.getByTestId("engine-usage-button");
-  await expect(trigger.getByTestId("engine-usage-quick")).toHaveText("85%");
-  await trigger.hover();
-  await expect(page.locator(".engine-usage-tip")).not.toContainText("Semanal");
+  try {
+    await open(page);
+    const trigger = page.getByTestId("engine-usage-button");
+    await expect(trigger.getByTestId("engine-usage-quick")).toHaveText("85%");
+    await trigger.hover();
+    releaseUsage();
+    await expect(page.locator(".usage-btn__pct")).toBeVisible();
+    const tip = await hoverUsage(page);
+    await expect(tip).toContainText("Claude · Sesión (5 h) · 85% disponible · Se reinicia en 2 h");
+    await expect(tip).not.toContainText("Semanal");
+  } finally {
+    releaseUsage();
+    await page.unrouteAll({ behavior: "ignoreErrors" });
+  }
 });
