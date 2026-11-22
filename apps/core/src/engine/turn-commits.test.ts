@@ -34,23 +34,29 @@ test("a plain chat turn commits to the store a bounded number of times", async (
     // The first turn of a chat writes what later turns only read (its roster): it is not the steady cost.
     await env.client.call("threads.send", { thread, text: "first" });
     await env.settle(thread);
-    // An empty log, so no automatic checkpoint starts a new generation while the turns are counted.
     const side = new DatabaseSync(path.join(env.home, "apx.db"));
-    side.exec("PRAGMA busy_timeout = 5000; PRAGMA wal_checkpoint(TRUNCATE)");
-    side.close();
-    const before = walCommits(env.home);
-    for (let i = 0; i < TURNS; i++) {
-      await env.client.call("threads.send", { thread, text: `turn ${i}` });
-      await env.settle(thread);
+    try {
+      side.exec("PRAGMA busy_timeout = 5000");
+      const checkpoint = side.prepare("PRAGMA wal_checkpoint(TRUNCATE)").get();
+      assert.equal(checkpoint?.busy, 0, "the measurement starts with a truncated log");
+      // Pin a reader: checkpointing must not recycle the log generation being counted.
+      side.exec("BEGIN; SELECT name FROM sqlite_schema LIMIT 1");
+      const before = walCommits(env.home);
+      for (let i = 0; i < TURNS; i++) {
+        await env.client.call("threads.send", { thread, text: `turn ${i}` });
+        await env.settle(thread);
+      }
+      const after = walCommits(env.home);
+      assert.ok(!before.salt || before.salt === after.salt, "the log was checkpointed while turns were counted");
+      const perTurn = (after.commits - before.commits) / TURNS;
+      assert.ok(perTurn > 0, "no commits seen: the log is not where the store writes");
+      assert.ok(
+        perTurn <= MAX_COMMITS_PER_TURN,
+        `a turn commits ${perTurn} times, more than ${MAX_COMMITS_PER_TURN}: group the new writes in one store.tx`,
+      );
+    } finally {
+      side.close();
     }
-    const after = walCommits(env.home);
-    assert.ok(!before.salt || before.salt === after.salt, "the log was checkpointed while turns were counted");
-    const perTurn = (after.commits - before.commits) / TURNS;
-    assert.ok(perTurn > 0, "no commits seen: the log is not where the store writes");
-    assert.ok(
-      perTurn <= MAX_COMMITS_PER_TURN,
-      `a turn commits ${perTurn} times, more than ${MAX_COMMITS_PER_TURN}: group the new writes in one store.tx`,
-    );
   } finally {
     await env.core.close();
     await env.cleanup();
