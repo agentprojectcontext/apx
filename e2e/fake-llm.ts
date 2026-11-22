@@ -387,6 +387,68 @@ function toolCall(messages: Message[], said: string): { name: string; arguments:
   return /^start a worker/i.test(said) ? delegate : undefined;
 }
 
+function answerText(
+  res: http.ServerResponse,
+  stream: boolean | undefined,
+  text: string,
+  said: string,
+  usage: { prompt_tokens: number; completion_tokens: number; total_tokens: number },
+  slowAnswers: Set<() => void>,
+) {
+  if (!stream) {
+    res.writeHead(200, { "content-type": "application/json" });
+    return res.end(
+      JSON.stringify({
+        id: "fake",
+        choices: [{ index: 0, message: { role: "assistant", content: text }, finish_reason: "stop" }],
+        usage,
+      }),
+    );
+  }
+  res.writeHead(200, { "content-type": "text/event-stream", "cache-control": "no-cache" });
+  const send = (o: unknown) => res.write(`data: ${JSON.stringify(o)}\n\n`);
+  const chunks = text.match(/[\s\S]{1,12}/g) ?? [text];
+  const end = () => {
+    send({ id: "fake", choices: [{ index: 0, delta: {}, finish_reason: "stop" }] });
+    send({ id: "fake", choices: [], usage });
+    res.end("data: [DONE]\n\n");
+  };
+  // "think first": a reasoning model's thinking, said aloud a piece at a time, then the answer.
+  if (/^think first/i.test(said)) {
+    const thoughts = ["**Reading the ask**\n\nThe owner wants a plan. ", "**Checking the dates**\n\nLaunch is close."];
+    const next = (i: number) => {
+      if (res.writableEnded) return;
+      if (i < thoughts.length) {
+        send({
+          id: "fake",
+          choices: [{ index: 0, delta: { reasoning_content: thoughts[i] }, finish_reason: null }],
+        });
+        return void setTimeout(() => next(i + 1), 1200);
+      }
+      for (const part of chunks)
+        send({ id: "fake", choices: [{ index: 0, delta: { content: part }, finish_reason: null }] });
+      end();
+    };
+    return next(0);
+  }
+  // The browser acknowledges seeing the partial answer before the model sends its final words.
+  if (/^write slowly/i.test(said)) {
+    send({ id: "fake", choices: [{ index: 0, delta: { content: text.slice(0, -5) }, finish_reason: null }] });
+    const finish = () => {
+      slowAnswers.delete(finish);
+      if (res.writableEnded || res.destroyed) return;
+      send({ id: "fake", choices: [{ index: 0, delta: { content: "Done." }, finish_reason: null }] });
+      end();
+    };
+    slowAnswers.add(finish);
+    res.on("close", () => slowAnswers.delete(finish));
+    return;
+  }
+  for (const part of chunks)
+    send({ id: "fake", choices: [{ index: 0, delta: { content: part }, finish_reason: null }] });
+  end();
+}
+
 export async function fakeLlm() {
   const calls: Array<{ model: string; said: string }> = [];
   /** Every request's body as sent: what a test looks for in what reached the model. */
@@ -488,63 +550,7 @@ export async function fakeLlm() {
         res.write(`data: ${JSON.stringify({ id: "fake", choices: [], usage })}\n\n`);
         return res.end("data: [DONE]\n\n");
       }
-      const answer = () => {
-        if (!body.stream) {
-          res.writeHead(200, { "content-type": "application/json" });
-          return res.end(
-            JSON.stringify({
-              id: "fake",
-              choices: [{ index: 0, message: { role: "assistant", content: text }, finish_reason: "stop" }],
-              usage,
-            }),
-          );
-        }
-        res.writeHead(200, { "content-type": "text/event-stream", "cache-control": "no-cache" });
-        const send = (o: unknown) => res.write(`data: ${JSON.stringify(o)}\n\n`);
-        const chunks = text.match(/[\s\S]{1,12}/g) ?? [text];
-        const end = () => {
-          send({ id: "fake", choices: [{ index: 0, delta: {}, finish_reason: "stop" }] });
-          send({ id: "fake", choices: [], usage });
-          res.end("data: [DONE]\n\n");
-        };
-        // "think first": a reasoning model's thinking, said aloud a piece at a time, then the answer.
-        if (/^think first/i.test(said)) {
-          const thoughts = [
-            "**Reading the ask**\n\nThe owner wants a plan. ",
-            "**Checking the dates**\n\nLaunch is close.",
-          ];
-          const next = (i: number) => {
-            if (res.writableEnded) return;
-            if (i < thoughts.length) {
-              send({
-                id: "fake",
-                choices: [{ index: 0, delta: { reasoning_content: thoughts[i] }, finish_reason: null }],
-              });
-              return void setTimeout(() => next(i + 1), 1200);
-            }
-            for (const part of chunks)
-              send({ id: "fake", choices: [{ index: 0, delta: { content: part }, finish_reason: null }] });
-            end();
-          };
-          return next(0);
-        }
-        // The browser acknowledges seeing the partial answer before the model sends its final words.
-        if (/^write slowly/i.test(said)) {
-          send({ id: "fake", choices: [{ index: 0, delta: { content: text.slice(0, -5) }, finish_reason: null }] });
-          const finish = () => {
-            slowAnswers.delete(finish);
-            if (res.writableEnded || res.destroyed) return;
-            send({ id: "fake", choices: [{ index: 0, delta: { content: "Done." }, finish_reason: null }] });
-            end();
-          };
-          slowAnswers.add(finish);
-          res.on("close", () => slowAnswers.delete(finish));
-          return;
-        }
-        for (const part of chunks)
-          send({ id: "fake", choices: [{ index: 0, delta: { content: part }, finish_reason: null }] });
-        end();
-      };
+      const answer = () => answerText(res, body.stream, text, said, usage, slowAnswers);
       const keepGoing = KEEP_GOING.test(said) && body.messages?.at(-1)?.role === "tool";
       const long = system.startsWith("Take your time");
       if (slow && workersHeld) {
