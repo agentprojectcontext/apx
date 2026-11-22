@@ -33,7 +33,11 @@ async function researchSource(cycle: Cycle, source: DiscoverySettings["sources"]
     take: () => ++cycle.operations <= settings.max_pages,
     failure: (url, reason, kind) => {
       if (inaccessible.length < 40) inaccessible.push({ url, reason, kind });
-      if (runtime.inaccessible.length < 40) runtime.inaccessible.push({ url, reason, kind });
+      if (
+        runtime.inaccessible.length < 40 &&
+        !runtime.inaccessible.some((item) => item.url === url && item.kind === kind)
+      )
+        runtime.inaccessible.push({ url, reason, kind });
     },
   });
   if (!pages.length || !cycle.valid()) return [];

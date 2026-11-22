@@ -64,7 +64,10 @@ async function recoverConflict(page: Page, en: boolean) {
   const discard = en ? "Reload and discard your unsaved changes?" : "¿Recargar y descartar tus cambios sin guardar?";
   await page.getByRole("button", { name: reload, exact: true }).click();
   const dialog = page.getByRole("dialog", { name: discard, exact: true });
-  await dialog.getByRole("button", { name: en ? "Cancel" : "Cancelar", exact: true }).click();
+  await dialog
+    .locator(".apx-dialog__footer")
+    .getByRole("button", { name: en ? "Cancel" : "Cancelar", exact: true })
+    .click();
   const place = page.getByRole("textbox", {
     name: en ? "Place for nearby events · optional" : "Lugar para eventos cercanos · opcional",
     exact: true,

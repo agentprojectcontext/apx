@@ -139,3 +139,41 @@ test("the smallest valid budget reserves proposal and verification despite conti
     await f.close();
   }
 });
+
+test("shared search failures are shown once to the owner without removing per-source model context", async () => {
+  const f = fixture();
+  const llm = scriptedLlm(() => say(JSON.stringify({ findings: [] })));
+  const discovery = createDiscovery({
+    store: f.store,
+    llm,
+    models: () => ["fake/model"],
+    now: () => new Date(AT),
+    web: {
+      async search() {
+        throw new Error("Search is unavailable");
+      },
+      async read(url) {
+        return { url, title: "Public page", text: "A public announcement.", read_at: AT };
+      },
+    },
+  });
+  try {
+    discovery.configure({
+      enabled: true,
+      project_context: false,
+      project_websites: false,
+      sources: sources.map((source) => ({ ...source, public_terms: "public exports" })),
+    });
+    await discovery.check.run(new Date(AT));
+    assert.equal(llm.calls.length, 2);
+    assert.equal(discovery.status().inaccessible.length, 1);
+    for (const request of llm.calls) {
+      const input = JSON.parse(String(request.messages[1]?.content));
+      assert.equal(input.inaccessible.length, 1);
+      assert.equal(input.inaccessible[0].kind, "search_unavailable");
+    }
+  } finally {
+    await discovery.close();
+    await f.close();
+  }
+});
