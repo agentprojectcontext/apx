@@ -89,8 +89,8 @@ export const CONTACT_SOURCES: Readonly<Record<string, Setting>> = {
         const incoming = store.runs.get(update.run)?.input?.text?.slice(0, 8000) ?? "";
         const before = update.old || (es ? "Todavía no hay un registro privado." : "No private record exists yet.");
         return es
-          ? `${p.accept ? "Aceptar" : "Rechazar"} la actualización de ${name}\nCanal: ${channel ?? "Conversación original"}\nProyecto: ${project}\nFuente: ${update.project_record.label}\nRecibida: ${received}\nMensaje recibido:\n${incoming}\nSólo cambia el registro privado del proyecto, no el documento original.\nAntes:\n${before}\nDespués:\n${update.replacement}`
-          : `${p.accept ? "Accept" : "Reject"} update from ${name}\nChannel: ${channel ?? "Original conversation"}\nProject: ${project}\nSource: ${update.project_record.label}\nReceived: ${received}\nIncoming message:\n${incoming}\nOnly the private project record changes, not the original document.\nBefore:\n${before}\nAfter:\n${update.replacement}`;
+          ? `${p.accept ? "Aceptar" : "Rechazar"} la actualización de ${name}\nCanal: ${channel ?? "Conversación original"}\nProyecto: ${project}\nFuente: ${update.project_record.label}\nRecibida: ${received}\n\nMensaje recibido:\n${incoming}\n\nSólo cambia el registro privado del proyecto, no el documento original.\n\nAntes:\n${before}\n\nDespués:\n${update.replacement}`
+          : `${p.accept ? "Accept" : "Reject"} update from ${name}\nChannel: ${channel ?? "Original conversation"}\nProject: ${project}\nSource: ${update.project_record.label}\nReceived: ${received}\n\nIncoming message:\n${incoming}\n\nOnly the private project record changes, not the original document.\n\nBefore:\n${before}\n\nAfter:\n${update.replacement}`;
       }
       return es
         ? `${p.accept ? "Aceptar" : "Rechazar"} la corrección de ${name}\nCanal: ${channel ?? "Conversación original"}\nDocumento: ${source?.label ?? "Acceso revocado"}\nRecibida: ${received}\nAntes:\n${update.old}\nDespués:\n${update.replacement}`

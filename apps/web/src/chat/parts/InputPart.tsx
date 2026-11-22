@@ -93,7 +93,7 @@ function SettledInput({ part, state }: { part: InputPartData; state: Exclude<Inp
       }
     >
       <div className="inputline__body apx-tree">
-        <Prompt part={part} />
+        {(!part.detail || !SAYS_ITSELF.has(part.tool ?? "")) && <Prompt part={part} />}
         <Detail part={part} />
         {part.answer && part.kind === "confirm" && <p className="inputcard__answer">“{part.answer}”</p>}
       </div>
@@ -129,6 +129,7 @@ function Detail({ part }: { part: InputPartData }) {
   if (part.tool === "browser_evaluate" && part.browser)
     return <BrowserReview review={part.browser} source={part.detail ?? ""} />;
   if (!part.detail) return null;
+  if (SAYS_ITSELF.has(part.tool ?? "")) return <div className="inputcard__description">{part.detail}</div>;
   return part.tool === "browser_evaluate" ? (
     <textarea className="inputcard__detail" aria-label={t("input.callDetail")} rows={12} readOnly value={part.detail} />
   ) : (

@@ -458,6 +458,12 @@
   font-size: var(--apx-text-xs);
   word-break: break-all;
 }
+.inputcard__description {
+  font-size: var(--apx-text-sm);
+  line-height: 1.45;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
 .inputcard__detail {
   display: block;
   max-height: 220px;
