@@ -36,7 +36,9 @@ for (const language of ["en", "es"] as const) {
         expect(metrics.font).not.toContain("mono");
         expect(metrics.maxHeight).toBe("none");
         await page.screenshot({ path: info.outputPath("pending.png"), fullPage: true });
-        await card.getByRole("button", { name: language === "es" ? "Aceptar una vez" : "Approve once", exact: true }).click();
+        await card
+          .getByRole("button", { name: language === "es" ? "Aceptar una vez" : "Approve once", exact: true })
+          .click();
         const settled = page.locator(".inputline").filter({ hasText: language === "es" ? "Aprobado" : "Approved" });
         await settled.getByRole("button").first().click();
         await expect(settled.locator(".inputcard__description")).toContainText("Northwind delivery review");
