@@ -72,6 +72,25 @@ for (const language of ["en", "es"] as const) {
       await choice.scrollIntoViewIfNeeded();
       await page.screenshot({ path: info.outputPath(`project-reading-enabled-${suffix}.png`) });
 
+      // A revocation elsewhere must not be silently undone by saving this open card.
+      await rpc("contacts.set", {
+        id: person.id,
+        name: person.name,
+        perms: { project_reading: false },
+      });
+      await expect(choice.getByRole("radio", { name: no, exact: true })).toBeChecked();
+      await card.getByRole("textbox", { name: language === "es" ? "Apodo" : "Nickname", exact: true }).fill("Buyer");
+      await card.getByRole("button", { name: save, exact: true }).click();
+      await expect
+        .poll(async () => {
+          const { persons } = await rpc<{ persons: Person[] }>("contacts.list");
+          const current = persons.find((p) => p.id === person.id);
+          return { nickname: current?.nickname, granted: current?.perms.project_reading };
+        })
+        .toEqual({ nickname: "Buyer", granted: false });
+      await choice.getByRole("radio", { name: yes, exact: true }).click();
+      await card.getByRole("button", { name: save, exact: true }).click();
+
       const answers = card.locator(".chan__answers");
       await answers.getByRole("radio").first().click();
       await expect(choice.getByRole("radio", { name: no, exact: true })).toBeChecked();

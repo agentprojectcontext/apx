@@ -1,6 +1,6 @@
 import type { ChannelInfo, Person } from "@apx/protocol";
 import { Button, Icons, Input, SegmentedControl, Select, Switch, Textarea, Tooltip } from "@apx/ui";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { AgentSelect } from "../common/pickers/AgentSelect.tsx";
 import { claimAddress, neverRead, saveContact, useChannels } from "../data/channels.ts";
 import { notify } from "../data/notices.ts";
@@ -62,6 +62,15 @@ export function ContactPanel({
   const assignedAgent = useData((s) => (d.agent_id ? s.agents[d.agent_id] : undefined));
   const assignedProject = useData((s) => s.projects.find((p) => p.id === assignedAgent?.project_id));
   const projectAvailable = Boolean(assignedAgent && assignedProject?.present);
+  const readingScope = `${d.agent_id ?? ""}|${assignedAgent?.project_id ?? ""}`;
+  const liveReading = useRef({ scope: readingScope, right: person.perms.project_reading });
+  useEffect(() => {
+    const previous = liveReading.current;
+    liveReading.current = { scope: readingScope, right: person.perms.project_reading };
+    // An open draft must not restore a grant revoked elsewhere or carry it into another project.
+    if (previous.scope !== readingScope || (previous.right === true && person.perms.project_reading !== true))
+      setD((x) => (x.perms.project_reading === true ? { ...x, perms: { ...x.perms, project_reading: false } } : x));
+  }, [readingScope, person.perms.project_reading]);
   const projectReadingHint = !d.agent_id
     ? t("ch.perm.projectReadingChoose")
     : !projectAvailable
