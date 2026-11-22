@@ -59,6 +59,22 @@ async function checkInterestControl(page: Page, en: boolean) {
   await remove.click();
   await expect(remove).toHaveCount(0);
 }
+async function recoverConflict(page: Page, en: boolean) {
+  const reload = en ? "Reload saved settings" : "Recargar la configuración guardada";
+  const discard = en ? "Discard unsaved changes?" : "¿Descartar los cambios sin guardar?";
+  await page.getByRole("button", { name: reload, exact: true }).click();
+  const dialog = page.getByRole("dialog", { name: discard, exact: true });
+  await dialog.getByRole("button", { name: en ? "Cancel" : "Cancelar", exact: true }).click();
+  const place = page.getByRole("textbox", {
+    name: en ? "Place for nearby events · optional" : "Lugar para eventos cercanos · opcional",
+    exact: true,
+  });
+  await expect(place).toHaveValue("Unsaved region");
+  await page.getByRole("button", { name: reload, exact: true }).click();
+  await dialog.getByRole("button", { name: reload, exact: true }).click();
+  await expect(place).toHaveValue("Changed elsewhere");
+  await expect(page.getByRole("alert")).toHaveCount(0);
+}
 async function checkRatings(page: Page, en: boolean) {
   const region = page.getByRole("region", { name: en ? "Worth a look" : "Para tener en cuenta" });
   const useful = en ? "Useful" : "Útil";
@@ -173,6 +189,7 @@ for (const language of ["en", "es"] as const)
         );
         await page.getByRole("button", { name: save, exact: true }).click();
         await expect(page.getByRole("alert")).toContainText(en ? "Couldn't save" : "No se pudo guardar");
+        await expect(page.getByRole("alert")).toBeInViewport({ ratio: 1 });
         await expect(place).toHaveValue("Unsaved region");
         await page.screenshot({ path: info.outputPath("save-error.png"), fullPage: true });
         await page.unroute("**/rpc/discovery.configure");
@@ -185,7 +202,10 @@ for (const language of ["en", "es"] as const)
         });
         await page.getByRole("button", { name: save, exact: true }).click();
         await expect(page.getByRole("alert")).toContainText(en ? "changed elsewhere" : "cambió en otro lugar");
+        await expect(page.getByRole("alert")).toBeInViewport({ ratio: 1 });
         await expect(place).toHaveValue("Unsaved region");
+        await page.screenshot({ path: info.outputPath("conflict.png"), fullPage: true });
+        await recoverConflict(page, en);
         await undoAfterCacheClear(page, en);
         const content = page.locator(".config__content");
         const overflow = await content.evaluate((element) => {
@@ -203,7 +223,7 @@ for (const language of ["en", "es"] as const)
           await content.evaluate((element) => element.scrollWidth <= element.clientWidth),
           JSON.stringify(overflow),
         ).toBe(true);
-        await page.screenshot({ path: info.outputPath("conflict.png"), fullPage: true });
+        await page.screenshot({ path: info.outputPath("unmuted-after-cache-clear.png"), fullPage: true });
       } finally {
         await restoreMuted(initial);
         await rpc("discovery.configure", { ...initial.settings, enabled: false });

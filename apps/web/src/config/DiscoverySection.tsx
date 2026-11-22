@@ -1,5 +1,5 @@
 import { Button, Dialog, Skeleton } from "@apx/ui";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useT } from "../i18n/index.ts";
 import { DiscoveryCoverage } from "./DiscoveryCoverage.tsx";
 import { DiscoveryFindings } from "./DiscoveryFindings.tsx";
@@ -18,25 +18,33 @@ export function DiscoverySection() {
     model.load();
     setReload(false);
   };
+  const problemRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (error) {
+      problemRef.current?.focus();
+      problemRef.current?.scrollIntoView({ block: "center" });
+    }
+  }, [error]);
+  const problem = error && (
+    <div ref={problemRef} tabIndex={-1} className="discovery__problem">
+      <p role="alert">
+        {t(
+          error === "conflict"
+            ? "discovery.conflict"
+            : error === "load"
+              ? "discovery.loadError"
+              : "discovery.saveError",
+        )}
+      </p>
+      <Button variant="secondary" onClick={() => (dirty && draft ? setReload(true) : doReload())}>
+        {t(error === "load" ? "discovery.retry" : "discovery.reload")}
+      </Button>
+    </div>
+  );
   return (
     <>
       <SectionHead title={t("discovery.title")} lead={t("discovery.lead")} />
-      {error && (
-        <p role="alert" className="config__lead">
-          {t(
-            error === "conflict"
-              ? "discovery.conflict"
-              : error === "load"
-                ? "discovery.loadError"
-                : "discovery.saveError",
-          )}
-        </p>
-      )}
-      {error && (
-        <Button variant="secondary" onClick={() => (dirty && draft ? setReload(true) : doReload())}>
-          {t(error === "load" ? "discovery.retry" : "discovery.reload")}
-        </Button>
-      )}
+      {(!draft || !status) && problem}
       {!draft || !status ? (
         error ? null : (
           <Skeleton height={240} shape="block" />
@@ -73,6 +81,7 @@ export function DiscoverySection() {
                 routines={model.routines}
               />
             </fieldset>
+            {problem}
             <div className="discovery__actions">
               <Button type="submit" loading={busy} disabled={busy || !dirty}>
                 {t("discovery.save")}
