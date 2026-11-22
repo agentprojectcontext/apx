@@ -17,6 +17,7 @@ function driveReader(google: Google | undefined): DriveReader | undefined {
   return async (id, o) => {
     if (!google.usable("google-drive", o.project)) throw new Error("Drive is not connected for this project");
     const { file, ...window } = await drive.read(id, o);
+    if (!google.usable("google-drive", o.project)) throw new Error("Drive is not connected for this project");
     return { ...window, name: file.name.slice(0, 200) };
   };
 }

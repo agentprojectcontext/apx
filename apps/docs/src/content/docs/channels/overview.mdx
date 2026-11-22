@@ -243,8 +243,11 @@ Only references you wrote count: links or file names sent by the contact, writte
 document are never opened. Hidden, administrative and secret-looking files, files outside the project folder and links
 through other sites are ignored. A reference stops working as soon as you turn the right off, assign someone else,
 move the chat, delete or forget the message that held it, or change the project. A read in progress is discarded when
-that happens. It cannot change, send, run or browse anything; corrections still go through the reviewed proposals
-above. Answers already sent cannot be taken back.
+that happens. Disabling Drive for the project also discards an unfinished Drive read. It cannot change, send, run or
+browse anything. This right does not enable correction proposals for discovered documents: the proposals above
+require the separate notes right and a source you registered explicitly. Accepting a proposal can update only a
+registered local record you marked editable; it cannot update a discovered Drive document. Answers already sent
+cannot be taken back.
 
 For agents, the owner turns it on with `apx_settings` `contacts.set` and `perms: { project_reading: true }` for that
 person; it always asks in the app.
