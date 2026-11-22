@@ -38,10 +38,29 @@ import { enStorage } from "./storage-en.ts";
 import { esStorage } from "./storage-es.ts";
 import { enSysUsage } from "./sysusage-en.ts";
 import { esSysUsage } from "./sysusage-es.ts";
+import { enTelemetrySettings } from "./telemetry-settings-en.ts";
+import { esTelemetrySettings } from "./telemetry-settings-es.ts";
 import { enThreadDialogs } from "./thread-dialogs-en.ts";
 import { esThreadDialogs } from "./thread-dialogs-es.ts";
 import { enVoice } from "./voice-en.ts";
 import { esVoice } from "./voice-es.ts";
+
+test("telemetry reports load with settings while consent remains on the first screen", async () => {
+  const { loadMessages, loadPack } = await import("./messages.ts");
+  for (const lang of ["en", "es"] as const) {
+    const base = await loadMessages(lang);
+    assert.equal(base["telemetry.cardTitle"], lang === "en" ? "Help improve APX" : "Ayudá a mejorar APX");
+    assert.equal(base["telemetry.whatIsSent"], lang === "en" ? "What is sent" : "Qué se envía");
+    assert.ok(base["telemetry.check"]);
+    assert.ok(base["telemetry.checkHint"]);
+    for (const key of Object.keys(enTelemetrySettings) as (keyof typeof enTelemetrySettings)[])
+      assert.equal(base[key], undefined);
+    assert.deepEqual(
+      await loadPack("telemetrySettings", lang),
+      lang === "en" ? enTelemetrySettings : esTelemetrySettings,
+    );
+  }
+});
 
 test("cloud sign-in feedback loads with account screens, not the first screen", async () => {
   const { loadMessages, loadPack } = await import("./messages.ts");
@@ -216,6 +235,7 @@ test("the Voices settings' strings load only with that section in both languages
 const en = {
   ...base,
   ...enAccount,
+  ...enTelemetrySettings,
   ...enCloudAccount,
   ...enActivityReview,
   ...enApprovals,
@@ -238,6 +258,7 @@ const en = {
 const es = {
   ...esBase,
   ...esAccount,
+  ...esTelemetrySettings,
   ...esCloudAccount,
   ...esActivityReview,
   ...esApprovals,
