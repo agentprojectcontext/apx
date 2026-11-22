@@ -66,6 +66,10 @@ export const world = {
         calls: { method: string; url: string; headers: Record<string, string>; body: string }[];
       }
     ).calls,
+  holdWorkers: async (hold: boolean) => {
+    await ownSandbox();
+    await post(`${control}/llm/${hold ? "hold" : "finish"}-workers`);
+  },
   finishStream: async () => {
     await ownSandbox();
     await post(`${control}/llm/finish-stream`);

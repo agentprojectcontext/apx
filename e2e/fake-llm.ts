@@ -1,8 +1,8 @@
 // An OpenAI-compatible model on localhost: it answers at once and always the same way, so a test can read the reply
 // ("Got it: <the last line you wrote>"). Streams like a real one when asked. It calls two tools: "start a worker"
 // delegates to a worker, which answers with a long report ("start two workers" delegates twice in one turn, "start a
-// worker in <project id>" into that project, "start four slow workers" four at once, each taking a few seconds, so one
-// waits for a slot; "ask three staggered workers" three at once that answer a few seconds apart, so their answers wait
+// worker in <project id>" into that project, "start four slow workers" four at once, held until the test releases them,
+// so one waits for a slot; "ask three staggered workers" three at once that answer a few seconds apart, so their answers wait
 // for each other; "start a worker and keep going" hands one off and takes a while to answer, so the worker's result
 // waits behind that turn); "write an email" answers with an email draft; "make a note file" runs a command that
 // needs the owner's OK; "look around the parent folder" reads outside the project's folder (a folder card); "show a
@@ -126,8 +126,6 @@ function reviewTable(said: string): string | undefined {
   ].join("\n");
 }
 
-/** How long a slow worker takes to answer. */
-const SLOW_MS = 2500;
 /** How long a caller that handed work off keeps its turn going ("start a worker and keep going"). */
 const KEEP_GOING_MS = 10_000;
 const KEEP_GOING = /^start a worker and keep going/i;
@@ -394,6 +392,12 @@ export async function fakeLlm() {
   /** Every request's body as sent: what a test looks for in what reached the model. */
   const bodies: string[] = [];
   const slowAnswers = new Set<() => void>();
+  const slowWorkers = new Set<() => void>();
+  let workersHeld = false;
+  const holdWorkers = (hold: boolean) => {
+    workersHeld = hold;
+    if (!hold) for (const finish of slowWorkers) finish();
+  };
   const server = http.createServer((req, res) => {
     let raw = "";
     req.on("data", (c) => {
@@ -543,13 +547,17 @@ export async function fakeLlm() {
       };
       const keepGoing = KEEP_GOING.test(said) && body.messages?.at(-1)?.role === "tool";
       const long = system.startsWith("Take your time");
-      if (slow || staggered || keepGoing || long) {
+      if (slow && workersHeld) {
+        const finish = () => {
+          slowWorkers.delete(finish);
+          if (!res.writableEnded && !res.destroyed) answer();
+        };
+        slowWorkers.add(finish);
+        res.on("close", () => slowWorkers.delete(finish));
+      } else if (staggered || keepGoing || long) {
         const asked = JSON.stringify(body.messages?.findLast((m) => m.role === "user")?.content);
         const part = Number(/check part (\d)/.exec(asked)?.[1] ?? 1);
-        const timer = setTimeout(
-          answer,
-          long ? LONG_MS : slow ? SLOW_MS : staggered ? part * STAGGER_MS : KEEP_GOING_MS,
-        );
+        const timer = setTimeout(answer, long ? LONG_MS : staggered ? part * STAGGER_MS : KEEP_GOING_MS);
         // A caller that gave up (a stopped Flow run) leaves nothing to answer.
         res.on("close", () => clearTimeout(timer));
       } else answer();
@@ -559,12 +567,14 @@ export async function fakeLlm() {
   return {
     url: `http://127.0.0.1:${(server.address() as AddressInfo).port}/v1`,
     calls,
+    holdWorkers,
     finishSlowAnswers: () => {
       for (const finish of slowAnswers) finish();
     },
     /** Whether any request so far carried this text. */
     carried: (text: string) => bodies.some((b) => b.includes(text)),
     close: () => {
+      holdWorkers(false);
       for (const finish of slowAnswers) finish();
       return new Promise<void>((r) => server.close(() => r()));
     },
