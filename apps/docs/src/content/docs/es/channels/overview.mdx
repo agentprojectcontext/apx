@@ -258,7 +258,10 @@ privado del proyecto en APX**. Nada cambia hasta que revises el contacto, el can
 el texto antes/después y la aceptes. Rechazar deja el registro igual; repetir la misma propuesta no crea otra.
 Los datos aceptados quedan disponibles para el agente asignado al consultar el proyecto, no en la memoria global.
 El informe original y el documento de Drive nunca se editan. Revisá estas propuestas con `contacts.source_updates.list`
-y `.resolve`, como arriba; no requieren el permiso de notas. Las propuestas para documentos locales registrados
+y `.resolve`, como arriba; no requieren el permiso de notas. Quitar la referencia del dueño al documento bloquea
+la aprobación pendiente. La propuesta conserva la versión de la fuente leída al crearla; aceptarla no edita ni
+vuelve a leer el informe original. Los registros largos admiten reemplazar un pasaje o agregar datos con su versión,
+sin reconstruir todo el texto. Las propuestas para documentos locales registrados
 explícitamente como editables siguen siendo un circuito separado.
 
 Para los agentes, se prende con `apx_settings` `contacts.set` y `perms: { project_reading: true }` para esa persona;

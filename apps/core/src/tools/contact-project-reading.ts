@@ -31,10 +31,14 @@ export function projectReadingTools(store: Store, google: Google | undefined): T
     defineTool({
       name: PROPOSE_PROJECT_RECORD_UPDATE,
       description:
-        "Propose new data from this contact for the owner's private review, linked to a document you read. This never writes the original document, Drive or global memory. After approval only a private project record changes. Search the project for an existing private record first: old must be its entire current text, or empty for a new record; replacement is the full proposed record (only the new data, not a copy of the document). Give the document ref and revision. The owner sees origin and diff and can accept or reject; identical repeats do not duplicate. Tell the contact it awaits confirmation, never that it is already saved.",
+        "Propose new data from this contact for the owner's private review, linked to a document you read. This never writes the original document, Drive or global memory. After approval only a private project record changes. Search the project for an existing private record first: for an existing record give its record_revision and a unique old passage to replace, or empty old to append replacement. This works from snippets without reconstructing the full record. Without record_revision, old is the full current record or empty for a new record and replacement is the full proposed record. Never copy the source document. Give the document ref and revision. The owner sees origin and diff and can accept or reject; identical repeats do not duplicate. Tell the contact it awaits confirmation, never that it is already saved.",
       args: z.object({
         ref: z.string().regex(/^ref_[A-Za-z0-9_-]{8,40}$/),
         revision: z.string().regex(/^[a-f0-9]{64}$/),
+        record_revision: z
+          .string()
+          .regex(/^[a-f0-9]{64}$/)
+          .optional(),
         old: z.string().max(8000),
         replacement: z.string().min(1).max(8000),
       }),
@@ -53,6 +57,7 @@ export function projectReadingTools(store: Store, google: Google | undefined): T
           a.old,
           a.replacement,
           ctx.signal,
+          a.record_revision,
         );
         return `Project record proposal ${update.id}: ${update.state}. No original document or memory changed. Pending means received, awaiting the owner's confirmation.`;
       },

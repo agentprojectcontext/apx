@@ -251,7 +251,10 @@ APX**. Nothing changes until you review the contact, channel, original message, 
 accept it. Rejection leaves the record unchanged; repeating the same proposal does not create another one. Accepted
 data is available to the assigned agent through project lookup, not global memory. The original report and Drive
 document are never edited. Review these with `contacts.source_updates.list` and `.resolve`, as above; this does not
-require the separate notes right. Proposals for explicitly registered editable local documents remain separate.
+require the separate notes right. Removing the owner's reference to the document blocks pending approval. The
+record proposal retains the source version read at creation; approving it does not edit or reread the original
+report. Long records can be updated by a version-bound passage or append without reconstructing their full text.
+Proposals for explicitly registered editable local documents remain separate.
 
 For agents, the owner turns it on with `apx_settings` `contacts.set` and `perms: { project_reading: true }` for that
 person; it always asks in the app.

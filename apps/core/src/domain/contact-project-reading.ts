@@ -9,7 +9,7 @@ import { isInside, realpath } from "../paths.ts";
 import { canReadChat, canUseChatMemory, memoryEligibleChat } from "./chat-access.ts";
 import { contactProjectRecords } from "./contact-project-records.ts";
 import { contactRights } from "./contact-rights.ts";
-import { readSource, sourceHash } from "./contact-source-state.ts";
+import { readSource, type SourceUpdate, sourceHash } from "./contact-source-state.ts";
 import { memorySettings } from "./memory-settings.ts";
 import type { Store } from "./store.ts";
 
@@ -27,7 +27,26 @@ type Target = { kind: "drive"; id: string } | { kind: "file"; path: string };
 type Origin = { kind: "message"; id: string } | { kind: "memory"; id: string } | { kind: "project" };
 type Handle = { key: string; origin: Origin; target: Target };
 export type Reference = { ref: string; kind: Target["kind"]; label: string };
-export type Finding = { from: "note" | "chat" | "project"; cite: string; text: string; refs: Reference[] };
+export type Finding = {
+  from: "note" | "chat" | "project";
+  cite: string;
+  text: string;
+  refs: Reference[];
+  record_revision?: string;
+};
+
+export function projectRecordSourceAvailable(store: Store, update: SourceUpdate): boolean {
+  const meta = update.project_record;
+  const a = meta && projectReadingAccess(store, update.thread, meta.agent);
+  if (!a || !meta.reference || a.person.id !== update.person || a.project.id !== meta.project) return false;
+  const { origin, target } = meta.reference;
+  const text = originText(store, a, origin);
+  return (
+    text !== undefined &&
+    targetsIn(text, a.project).some((t) => sameTarget(t, target)) &&
+    update.source === `record_${sourceHash(JSON.stringify([a.person.id, a.agent.id, a.project.id, target]))}`
+  );
+}
 type DriveWindow = {
   name: string;
   text: string;
@@ -232,24 +251,33 @@ function recordFindings(store: Store, a: Access, query: string): Finding[] {
         .some((term) => term.length > 1 && `${r.label} ${r.text}`.toLowerCase().includes(term)),
     )
     .slice(0, 3)
-    .map((r) => ({ from: "note", cite: `Private project record: ${r.label}`, text: r.text, refs: [] }));
+    .map((r) => ({
+      from: "note",
+      cite: `Private project record: ${r.label}`,
+      record_revision: r.revision,
+      text: cut(r.text),
+      refs: [],
+    }));
+}
+
+function readingAccessOrThrow(store: Store, thread: string, agent: string) {
+  const a = projectReadingAccess(store, thread, agent);
+  if (!a) throw badRequest("project reading is not allowed here");
+  return a;
+}
+
+function resolveHandle(store: Store, thread: string, agent: string, ref: string) {
+  const a = readingAccessOrThrow(store, thread, agent);
+  const h = handlesOf(store).get(ref);
+  const text = h && h.key === a.key ? originText(store, a, h.origin) : undefined;
+  if (!h || text === undefined || !targetsIn(text, a.project).some((t) => sameTarget(t, h.target)))
+    throw notFound("document reference; search the project again");
+  return { a, h };
 }
 
 export function contactProjectReading(store: Store, readDrive?: DriveReader) {
-  const enter = (threadId: string, agentId: string) => {
-    const a = projectReadingAccess(store, threadId, agentId);
-    if (!a) throw badRequest("project reading is not allowed here");
-    return a;
-  };
-  /** A handle this reader holds whose origin still points at its document; anything else is unknown. */
-  const resolve = (threadId: string, agentId: string, ref: string) => {
-    const a = enter(threadId, agentId);
-    const h = handlesOf(store).get(ref);
-    const text = h && h.key === a.key ? originText(store, a, h.origin) : undefined;
-    if (!h || text === undefined || !targetsIn(text, a.project).some((t) => sameTarget(t, h.target)))
-      throw notFound("document reference; search the project again");
-    return { a, h };
-  };
+  const enter = (thread: string, agent: string) => readingAccessOrThrow(store, thread, agent);
+  const resolve = (thread: string, agent: string, ref: string) => resolveHandle(store, thread, agent, ref);
   const api = {
     available: (threadId: string, agentId: string) => Boolean(projectReadingAccess(store, threadId, agentId)),
     async propose(
@@ -261,6 +289,7 @@ export function contactProjectReading(store: Store, readDrive?: DriveReader) {
       old: string,
       replacement: string,
       signal?: AbortSignal,
+      recordRevision?: string,
     ) {
       const doc = await api.read(thread, agent, ref, { revision, signal });
       const { a, h } = resolve(thread, agent, ref);
@@ -274,6 +303,8 @@ export function contactProjectReading(store: Store, readDrive?: DriveReader) {
         source,
         label: doc.label,
         source_revision: doc.revision,
+        reference: { origin: h.origin, target: h.target },
+        ...(recordRevision ? { record_revision: recordRevision } : {}),
         old,
         replacement,
       });

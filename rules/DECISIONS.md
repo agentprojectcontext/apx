@@ -5866,7 +5866,13 @@ with contact, channel, incoming message, document label/revision and the full pr
 the source into global memory. The existing `contacts.source_updates` review shows the separate destination and
 always asks the owner. Acceptance atomically updates only that person's record bound to the agent, project and
 document; rejection changes nothing. Repeats return the original proposal and stale concurrent edits fail closed.
-Assignment, project and permission are rechecked at acceptance. Approved records can be searched as untrusted data
+Assignment, project, permission and the persisted owner-written reference origin are rechecked at acceptance;
+removing or forgetting that origin blocks a pending proposal even across restart. The source revision is provenance
+of the read that informed the proposal, not a precondition for editing a different private APX record: acceptance
+does not reread Drive or require the original document to stay unchanged. The owner approves the full private-record
+diff, not a write to that snapshot. Existing records are returned as bounded snippets with their record revision;
+revision-bound unique-passage replacement or append is expanded inside core to the full review diff. The agent never
+has to reconstruct a truncated record. Terminal decisions also resolve their review notification. Approved records can be searched as untrusted data
 under the same project-reading boundary; their text never lends document references. The original source remains
 unchanged. This does not require or broaden the separate notes right.
 

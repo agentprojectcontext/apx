@@ -1,6 +1,6 @@
 import { badRequest, conflict, notFound } from "../errors.ts";
 import { writeAtomic } from "../paths.ts";
-import { contactProjectReading } from "./contact-project-reading.ts";
+import { projectRecordSourceAvailable } from "./contact-project-reading.ts";
 import { contactProjectRecords } from "./contact-project-records.ts";
 import {
   readSource,
@@ -104,7 +104,9 @@ function resolve(store: Store, id: string, accept: boolean) {
   const update = current.updates.find((u) => u.id === id);
   if (!update) throw notFound("source update");
   if (update.project_record)
-    return contactProjectRecords(store).resolve(id, accept, contactProjectReading(store).available);
+    return contactProjectRecords(store).resolve(id, accept, (proposal) =>
+      projectRecordSourceAvailable(store, proposal),
+    );
   if (["accepted", "rejected", "unresolved"].includes(update.state)) return update;
   let unresolved = false;
   if (!accept && update.state === "applying") {

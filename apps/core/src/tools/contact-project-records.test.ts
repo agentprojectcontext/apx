@@ -5,6 +5,7 @@ import { contactSources } from "../domain/contact-sources.ts";
 import { callTool, type Script, say } from "../engine/testkit.ts";
 import { waitFor } from "../testkit/platform.ts";
 import { readingFixture } from "./contact-project-reading.test-support.ts";
+import { cap, untrusted } from "./result.ts";
 
 async function fixture(script?: Script) {
   const h = await readingFixture(script);
@@ -71,6 +72,91 @@ test("discovered document data awaits review; accept writes only a private proje
     assert.equal(h.reading.search(h.thread.id, h.agent.id, "Thursday").length, 0);
     assert.equal(h.reading.search(h.thread.id, h.agent.id, "Wednesday").length, 1);
     assert.equal(contactSources(h.store).updates(h.person.id).length, 2);
+  } finally {
+    await h.close();
+  }
+});
+
+for (const remove of [false, true]) {
+  test(`pending record acceptance revalidates its persisted reference (${remove ? "deleted" : "edited"})`, async () => {
+    const h = await fixture();
+    try {
+      const update = await h.propose();
+      assert.ok(update.project_record?.reference);
+      if (remove) h.store.messages.drop(h.ownerChat.id, [h.owner.id]);
+      else h.store.messages.update({ ...h.owner, parts: [{ type: "text", text: "No document is shared now." }] });
+      await assert.rejects(h.resolve(update.id, true), /source access changed/);
+      assert.equal(h.reading.search(h.thread.id, h.agent.id, "Wednesday").length, 0);
+      assert.equal((await h.resolve(update.id, false)).state, "rejected");
+      assert.equal(h.store.notifications.hasUnread("agent", `contact-source:${update.id}`), false);
+    } finally {
+      await h.close();
+    }
+  });
+}
+
+test("long escaped records can be updated by revision and passage without reconstructing truncated text", async () => {
+  const h = await fixture();
+  try {
+    const text = `${"<".repeat(7000)}stable anchor`;
+    const initial = await h.propose("", text);
+    await h.resolve(initial.id, true);
+    assert.equal(h.store.notifications.hasUnread("agent", `contact-source:${initial.id}`), false);
+    const findings = h.reading.search(h.thread.id, h.agent.id, "delivery");
+    const record = findings.find((f) => f.cite.startsWith("Private project record"));
+    assert.ok(record?.record_revision);
+    const rendered = cap(untrusted("project_context", {}, JSON.stringify(findings)));
+    assert.doesNotMatch(rendered, /chars omitted/);
+    assert.ok(rendered.includes(record.record_revision));
+    assert.ok(record.text.length < text.length);
+    const patch = () =>
+      h.reading.propose(
+        h.thread.id,
+        h.agent.id,
+        h.run.id,
+        h.ref,
+        h.doc.revision,
+        "",
+        "Wednesday update",
+        undefined,
+        record.record_revision,
+      );
+    const proposed = await patch();
+    assert.equal(proposed.old, text);
+    assert.equal(proposed.replacement, `${text}\nWednesday update`);
+    await h.resolve(proposed.id, true);
+    assert.equal(h.store.notifications.hasUnread("agent", `contact-source:${proposed.id}`), false);
+    assert.equal((await patch()).id, proposed.id);
+    await assert.rejects(
+      h.reading.propose(
+        h.thread.id,
+        h.agent.id,
+        h.run.id,
+        h.ref,
+        h.doc.revision,
+        "",
+        "Different update",
+        undefined,
+        record.record_revision,
+      ),
+      /private record changed/,
+    );
+    const current = h.reading
+      .search(h.thread.id, h.agent.id, "delivery")
+      .find((f) => f.cite.startsWith("Private project record"));
+    const passage = await h.reading.propose(
+      h.thread.id,
+      h.agent.id,
+      h.run.id,
+      h.ref,
+      h.doc.revision,
+      "stable anchor",
+      "changed anchor",
+      undefined,
+      current?.record_revision,
+    );
+    assert.ok(passage.replacement.includes("changed anchor\nWednesday update"));
+    assert.ok(passage.replacement.startsWith("<".repeat(7000)));
   } finally {
     await h.close();
   }
