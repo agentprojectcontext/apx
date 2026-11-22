@@ -70,6 +70,7 @@ test("one finding is reserved atomically and composed only once on its chosen ru
     assert.equal(composeDiscoveryReport(store, "other-run", "Base report", new Date(AT)), "Base report");
     const text = composeDiscoveryReport(store, "run-1", "Base report", new Date(AT));
     assert.match(text, /^Base report/);
+    assert.match(text, /Worth a look/, "the default report language matches the default research language");
     assert.match(text, /Relevant announcement 0/);
     assert.match(text, /https:\/\/example.com\/news/);
     assert.doesNotMatch(text, /Relevant announcement 1/);

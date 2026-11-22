@@ -71,7 +71,7 @@ export function composeDiscoveryReport(store: Store, run: string, body: string, 
     claim.composed = true;
     finding.included_at = at.toISOString();
     state.write(runtime);
-    const en = store.settings.get("owner_language") === "en";
+    const en = (store.settings.get("owner_language") ?? "en") === "en";
     const label = en ? "Worth a look" : "Para tener en cuenta";
     const sources = [
       ...new Set(finding.evidence.map((item) => `${item.title}: ${item.url} (${item.read_at.slice(0, 10)})`)),
