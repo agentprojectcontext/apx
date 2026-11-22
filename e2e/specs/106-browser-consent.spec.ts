@@ -64,7 +64,7 @@ for (const [width, scope, language] of [
     let thread: string | undefined;
     try {
       const reader = await rpc<{ id: string }>("agents.create", {
-        slug: `browser-reader-${language}-${width}`,
+        slug: `browser-reader-${language}-${width}-${info.repeatEachIndex}`,
         name: "Browser reader",
       });
       thread = (
@@ -76,7 +76,19 @@ for (const [width, scope, language] of [
       await page.keyboard.press("Enter");
       const card = page.locator(".inputcard.is-pending");
       const once = card.getByRole("button", { name: spanish ? "Aceptar una vez" : "Approve once", exact: true });
-      await expect(once).toBeVisible();
+      try {
+        await expect(once).toBeVisible();
+      } catch (error) {
+        await info.attach("consent-state", {
+          body: JSON.stringify({
+            chat: await rpc("threads.get", { thread }),
+            pending: await rpc("runs.pending", { thread }),
+            evaluations,
+          }),
+          contentType: "application/json",
+        });
+        throw error;
+      }
       await expect(once).toHaveAttribute("aria-describedby", /.+/);
       await expect(
         card.getByRole("button", { name: spanish ? "Permitir en esta pestaña" : "Allow in this tab", exact: true }),
