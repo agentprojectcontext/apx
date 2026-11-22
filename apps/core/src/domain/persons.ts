@@ -188,6 +188,14 @@ export function personsRepo({ one, all, run, tx }: Sql) {
       // Silenced and supervised are two ways of not answering on their own: turning one on turns the other off.
       const muted = p.muted ?? (p.supervised ? false : cur.muted);
       const supervised = p.supervised ?? (p.muted ? false : cur.supervised);
+      const agentId = role === "owner" ? null : p.agent_id === undefined ? (cur.agent_id ?? null) : p.agent_id;
+      const perms = permsAfter(cur.perms, p.perms);
+      // A new assignment needs a new explicit decision, not the former agent's permission.
+      if (
+        perms.project_reading === true &&
+        (!agentId || (agentId !== (cur.agent_id ?? null) && p.perms?.project_reading !== true))
+      )
+        perms.project_reading = false;
       run(
         qb
           .updateTable("persons")
@@ -203,9 +211,9 @@ export function personsRepo({ one, all, run, tx }: Sql) {
             // Deciding whether they are answered (or who they are) is the owner's review.
             unreviewed:
               cur.unreviewed && p.muted === undefined && p.supervised === undefined && p.role === undefined ? 1 : 0,
-            perms: JSON.stringify(permsAfter(cur.perms, p.perms)),
+            perms: JSON.stringify(perms),
             // The owner is answered by each account's own agent, never by one of their own.
-            agent_id: role === "owner" ? null : p.agent_id === undefined ? (cur.agent_id ?? null) : p.agent_id,
+            agent_id: agentId,
             updated_at: now(),
           })
           .where("id", "=", id),
@@ -322,7 +330,11 @@ export function personsRepo({ one, all, run, tx }: Sql) {
                     muted: decided.muted ? 1 : 0,
                     supervised: decided.supervised ? 1 : 0,
                     unreviewed: decided.unreviewed ? 1 : 0,
-                    perms: JSON.stringify(decided.perms),
+                    perms: JSON.stringify(
+                      keep.agent_id !== gone.agent_id && decided.perms.project_reading
+                        ? { ...decided.perms, project_reading: false }
+                        : decided.perms,
+                    ),
                     agent_id: keep.agent_id ?? gone.agent_id ?? null,
                   }),
               updated_at: now(),

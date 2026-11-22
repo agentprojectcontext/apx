@@ -3,6 +3,7 @@
 import { type Agent, type AgentRules, Autonomy, type ModelChoice, RulePolicy, ToolRisk } from "@apx/protocol";
 import type { Selectable } from "kysely";
 import type { AgentsTable } from "../db/schema.ts";
+import { revokeContactProjectReading } from "./contact-project-permission.ts";
 import { harnessOf } from "./refs.ts";
 import { now, opt, qb, type Sql } from "./sql.ts";
 
@@ -96,6 +97,10 @@ export function agentsRepo({ one, all, run }: Sql, changed: () => void) {
   const write = (q: Parameters<Sql["run"]>[0]) => {
     if (run(q)) changed();
   };
+  const revokeProjectReadingOnMove = (id: string, projectId: string | undefined) => {
+    const previous = one(qb.selectFrom("agents").select("project_id").where("id", "=", id));
+    if (previous && previous.project_id !== (projectId ?? null)) revokeContactProjectReading({ run }, id);
+  };
   const repo = {
     /** Active agents (an agent whose file was removed from its project is archived and not listed). */
     list(): AgentRecord[] {
@@ -162,6 +167,7 @@ export function agentsRepo({ one, all, run }: Sql, changed: () => void) {
       model_choice?: ModelChoice | undefined;
       extra: unknown;
     }): void {
+      revokeProjectReadingOnMove(a.id, a.project_id);
       write(
         qb
           .insertInto("agents")
@@ -278,6 +284,7 @@ export function agentsRepo({ one, all, run }: Sql, changed: () => void) {
       return ids.length;
     },
     upsert(a: Omit<Agent, "source"> & { source?: Agent["source"]; prompt?: string }): void {
+      revokeProjectReadingOnMove(a.id, a.project_id);
       write(
         qb
           .insertInto("agents")
