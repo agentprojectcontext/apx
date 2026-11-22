@@ -5856,8 +5856,19 @@ Each reference is handed out as a random handle held in memory, bound to the per
 `read_project_document` checks the right, the binding and that the origin still holds the reference before reading and
 again after an asynchronous Drive read, discarding the result when anything changed. Local files reuse the pinned
 reader from D-261 (no symlinks, realpath equality, 400 KB, UTF-8). Drive goes through the owner's connection and the
-versioned windows of `drive_read`. Both tools have no side effects; no write, send, shell, browsing or other owner tool
-is offered. Handles do not survive a restart: the agent searches again.
+versioned windows of `drive_read`; connection availability is rechecked after the response. Both reading tools have
+no side effects. No document write, send, shell, browsing or other owner tool is offered. Handles do not survive a
+restart: the agent searches again.
+
+The owner chose a private APX project record, not an edit to the original Drive document, for new contact data.
+`propose_project_record_update` revalidates a discovered reference and its revision, then stores a bounded proposal
+with contact, channel, incoming message, document label/revision and the full private-record diff. It never copies
+the source into global memory. The existing `contacts.source_updates` review shows the separate destination and
+always asks the owner. Acceptance atomically updates only that person's record bound to the agent, project and
+document; rejection changes nothing. Repeats return the original proposal and stale concurrent edits fail closed.
+Assignment, project and permission are rechecked at acceptance. Approved records can be searched as untrusted data
+under the same project-reading boundary; their text never lends document references. The original source remains
+unchanged. This does not require or broaden the separate notes right.
 
 Not decided here: sharing a project with several contacts, agent replies as searchable history, or interim "I'll get
 back to you" messages. Revocation stops new reads, not answers already delivered.

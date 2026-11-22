@@ -10,6 +10,7 @@ import { defineTool, type Tool } from "./types.ts";
 
 export const SEARCH_PROJECT_CONTEXT = "search_project_context";
 export const READ_PROJECT_DOCUMENT = "read_project_document";
+export const PROPOSE_PROJECT_RECORD_UPDATE = "propose_project_record_update";
 
 function driveReader(google: Google | undefined): DriveReader | undefined {
   if (!google) return undefined;
@@ -27,6 +28,35 @@ export function projectReadingTools(store: Store, google: Google | undefined): T
   const when = (thread: { id: string; agent_ids: string[] }) =>
     thread.agent_ids.some((agent) => reading.available(thread.id, agent));
   return [
+    defineTool({
+      name: PROPOSE_PROJECT_RECORD_UPDATE,
+      description:
+        "Propose new data from this contact for the owner's private review, linked to a document you read. This never writes the original document, Drive or global memory. After approval only a private project record changes. Search the project for an existing private record first: old must be its entire current text, or empty for a new record; replacement is the full proposed record (only the new data, not a copy of the document). Give the document ref and revision. The owner sees origin and diff and can accept or reject; identical repeats do not duplicate. Tell the contact it awaits confirmation, never that it is already saved.",
+      args: z.object({
+        ref: z.string().regex(/^ref_[A-Za-z0-9_-]{8,40}$/),
+        revision: z.string().regex(/^[a-f0-9]{64}$/),
+        old: z.string().max(8000),
+        replacement: z.string().min(1).max(8000),
+      }),
+      effect: "local",
+      confirm: "never",
+      deadlineMs: 60_000,
+      title: () => "Proposed a private project record update",
+      when,
+      async run(a, ctx) {
+        const update = await reading.propose(
+          ctx.thread.id,
+          ctx.agent.id,
+          ctx.run.id,
+          a.ref,
+          a.revision,
+          a.old,
+          a.replacement,
+          ctx.signal,
+        );
+        return `Project record proposal ${update.id}: ${update.state}. No original document or memory changed. Pending means received, awaiting the owner's confirmation.`;
+      },
+    }),
     defineTool({
       name: SEARCH_PROJECT_CONTEXT,
       description:

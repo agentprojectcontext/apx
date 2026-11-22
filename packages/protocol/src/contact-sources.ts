@@ -21,6 +21,14 @@ export const ContactSourceUpdate = z.object({
   message: z.string().optional(),
   revision: z.string(),
   result_revision: z.string().optional(),
+  project_record: z
+    .object({
+      agent: z.string(),
+      project: z.string(),
+      label: z.string(),
+      source_revision: z.string(),
+    })
+    .optional(),
   old: z.string(),
   replacement: z.string(),
   state: z.enum(["pending", "applying", "accepted", "rejected", "unresolved"]),

@@ -250,10 +250,16 @@ que escriba un agente o que aparezcan dentro de un documento. Se ignoran archivo
 parecen secretos, archivos fuera de la carpeta del proyecto y enlaces a otros sitios. Una referencia deja de funcionar
 apenas apagás el permiso, asignás a otro agente, movés el chat, borrás u olvidás el mensaje que la tenía o cambiás el
 proyecto. Una lectura en curso se descarta si pasa eso. Deshabilitar Drive para el proyecto también descarta una
-lectura de Drive que todavía no terminó. No puede cambiar, enviar, ejecutar ni navegar nada. Este permiso no habilita
-propuestas de corrección para documentos descubiertos: las propuestas de arriba requieren el permiso de notas y una
-fuente que hayas registrado explícitamente. Aceptar una propuesta sólo puede actualizar un registro local que hayas
-marcado como editable; no puede actualizar un documento descubierto en Drive. Lo que ya se respondió no se puede retirar.
+lectura de Drive que todavía no terminó. No puede cambiar el documento original, enviar, ejecutar ni navegar nada.
+Lo que ya se respondió no se puede retirar.
+
+Si el contacto aporta datos nuevos sobre un documento, el agente puede proponer una actualización a un **registro
+privado del proyecto en APX**. Nada cambia hasta que revises el contacto, el canal, el mensaje original, la fuente y
+el texto antes/después y la aceptes. Rechazar deja el registro igual; repetir la misma propuesta no crea otra.
+Los datos aceptados quedan disponibles para el agente asignado al consultar el proyecto, no en la memoria global.
+El informe original y el documento de Drive nunca se editan. Revisá estas propuestas con `contacts.source_updates.list`
+y `.resolve`, como arriba; no requieren el permiso de notas. Las propuestas para documentos locales registrados
+explícitamente como editables siguen siendo un circuito separado.
 
 Para los agentes, se prende con `apx_settings` `contacts.set` y `perms: { project_reading: true }` para esa persona;
 siempre pregunta en la app.

@@ -7,8 +7,9 @@ import type { Memory, Message, Thread } from "@apx/protocol";
 import { badRequest, conflict, notFound } from "../errors.ts";
 import { isInside, realpath } from "../paths.ts";
 import { canReadChat, canUseChatMemory, memoryEligibleChat } from "./chat-access.ts";
+import { contactProjectRecords } from "./contact-project-records.ts";
 import { contactRights } from "./contact-rights.ts";
-import { readSource } from "./contact-source-state.ts";
+import { readSource, sourceHash } from "./contact-source-state.ts";
 import { memorySettings } from "./memory-settings.ts";
 import type { Store } from "./store.ts";
 
@@ -221,6 +222,14 @@ const cut = (text: string) => {
   return flat.length > SNIPPET_CHARS ? `${flat.slice(0, SNIPPET_CHARS)}…` : flat;
 };
 
+function recordFindings(store: Store, a: Access, query: string): Finding[] {
+  return contactProjectRecords(store)
+    .list({ person: a.person.id, agent: a.agent.id, project: a.project.id })
+    .filter((r) => `${r.label} ${r.text}`.toLowerCase().includes(query.toLowerCase()))
+    .slice(0, 3)
+    .map((r) => ({ from: "note", cite: `Private project record: ${r.label}`, text: r.text, refs: [] }));
+}
+
 export function contactProjectReading(store: Store, readDrive?: DriveReader) {
   const enter = (threadId: string, agentId: string) => {
     const a = projectReadingAccess(store, threadId, agentId);
@@ -236,8 +245,34 @@ export function contactProjectReading(store: Store, readDrive?: DriveReader) {
       throw notFound("document reference; search the project again");
     return { a, h };
   };
-  return {
+  const api = {
     available: (threadId: string, agentId: string) => Boolean(projectReadingAccess(store, threadId, agentId)),
+    async propose(
+      thread: string,
+      agent: string,
+      run: string,
+      ref: string,
+      revision: string,
+      old: string,
+      replacement: string,
+      signal?: AbortSignal,
+    ) {
+      const doc = await api.read(thread, agent, ref, { revision, signal });
+      const { a, h } = resolve(thread, agent, ref);
+      const source = `record_${sourceHash(JSON.stringify([a.person.id, a.agent.id, a.project.id, h.target]))}`;
+      return contactProjectRecords(store).propose({
+        person: a.person.id,
+        agent,
+        project: a.project.id,
+        thread,
+        run,
+        source,
+        label: doc.label,
+        source_revision: doc.revision,
+        old,
+        replacement,
+      });
+    },
 
     /** Notes and the owner's messages that match, each with the documents it references. */
     search(threadId: string, agentId: string, query: string): Finding[] {
@@ -292,7 +327,7 @@ export function contactProjectReading(store: Store, readDrive?: DriveReader) {
             },
           ]
         : [];
-      return [...notes, ...said, ...about];
+      return [...recordFindings(store, a, query), ...notes, ...said, ...about];
     },
 
     /** One window of a referenced document as it is now, with its revision for continuing. */
@@ -346,4 +381,5 @@ export function contactProjectReading(store: Store, readDrive?: DriveReader) {
       };
     },
   };
+  return api;
 }

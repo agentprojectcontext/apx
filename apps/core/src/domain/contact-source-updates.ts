@@ -1,5 +1,7 @@
 import { badRequest, conflict, notFound } from "../errors.ts";
 import { writeAtomic } from "../paths.ts";
+import { contactProjectReading } from "./contact-project-reading.ts";
+import { contactProjectRecords } from "./contact-project-records.ts";
 import {
   readSource,
   SOURCE_MAX_BYTES,
@@ -101,6 +103,8 @@ function resolve(store: Store, id: string, accept: boolean) {
   const current = sourceState(store);
   const update = current.updates.find((u) => u.id === id);
   if (!update) throw notFound("source update");
+  if (update.project_record)
+    return contactProjectRecords(store).resolve(id, accept, contactProjectReading(store).available);
   if (["accepted", "rejected", "unresolved"].includes(update.state)) return update;
   let unresolved = false;
   if (!accept && update.state === "applying") {

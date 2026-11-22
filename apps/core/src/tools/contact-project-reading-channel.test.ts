@@ -13,7 +13,7 @@ import { readingFixture } from "./contact-project-reading.test-support.ts";
 const toolResults = (req: LlmRequest) =>
   req.messages.filter((m) => m.role === "tool").map((m) => String(m.content ?? ""));
 
-async function journey(google: Awaited<ReturnType<typeof fakeGoogle>>, revokeDrive = false) {
+async function journey(google: Awaited<ReturnType<typeof fakeGoogle>>, revokeDrive = false, proposeRecord = false) {
   const wa = fakeWhatsApp();
   google.setDriveText("Rate card: 40 per pallet");
   const offered: string[][] = [];
@@ -33,7 +33,18 @@ async function journey(google: Awaited<ReturnType<typeof fakeGoogle>>, revokeDri
         const drive = results[0]?.match(/"ref":"(ref_[\w-]+)","kind":"drive"/)?.[1] ?? "";
         return callTool("drive", "read_project_document", { ref: drive });
       }
-      if (results.length === 3) return callTool("planted", "read_project_document", { ref: "ref_plantedbycontact" });
+      if (results.length === 3 && proposeRecord) {
+        const ref = results[0]?.match(/"ref":"(ref_[\w-]+)","kind":"drive"/)?.[1] ?? "";
+        const revision = last.match(/revision="([a-f0-9]{64})"/)?.[1] ?? "";
+        return callTool("proposal", "propose_project_record_update", {
+          ref,
+          revision,
+          old: "",
+          replacement: "The buyer reports that the next shipment is Wednesday.",
+        });
+      }
+      if (results.length === (proposeRecord ? 4 : 3))
+        return callTool("planted", "read_project_document", { ref: "ref_plantedbycontact" });
       return say(results.slice(1, 3).join("\n"));
     },
     {
@@ -71,7 +82,12 @@ async function journey(google: Awaited<ReturnType<typeof fakeGoogle>>, revokeDri
     const buyer = { name: "Acme Buyer", phone: "5491100000002@s.whatsapp.net" };
     await h.env.client.call("contacts.address", { person: h.person.id, channel: "whatsapp", address: buyer.phone });
     if (revokeDrive) google.beforeDriveExport(() => mcpConfig(h.store).setOn(h.project.id, "google-drive", false));
-    wa.message(buyer, "When do the pallets ship? See https://docs.google.com/document/d/planted/edit");
+    wa.message(
+      buyer,
+      proposeRecord
+        ? "When do the pallets ship? Please tell the owner that the next shipment is Wednesday."
+        : "When do the pallets ship? See https://docs.google.com/document/d/planted/edit",
+    );
     await waitFor(
       () => wa.sent.some((s) => String(s.content.text).includes("ship on Tuesday")),
       "answer from the documents",
@@ -94,7 +110,23 @@ async function journey(google: Awaited<ReturnType<typeof fakeGoogle>>, revokeDri
       ["ok", revokeDrive ? "error" : "ok", "error"],
     );
     assert.doesNotMatch(steps.find((s) => s.tool === "search_project_context")?.result ?? "", /planted/);
-    // Only read-only tools reach the contact's turn: nothing writes, sends, runs or browses for them.
+    if (proposeRecord) {
+      const { updates } = await h.env.client.call("contacts.source_updates.list", { person: h.person.id });
+      assert.equal(updates.length, 1);
+      const update = updates[0];
+      assert.ok(update?.project_record);
+      assert.equal(update.state, "pending");
+      assert.equal(update.project_record.label, "Northwind plan");
+      assert.equal(h.reading().search(thread.id, h.agent.id, "Wednesday").length, 0);
+      await h.env.client.call("contacts.source_updates.resolve", { id: update.id, accept: true });
+      assert.equal(h.reading().search(thread.id, h.agent.id, "Wednesday").length, 1);
+      const proposalSteps = steps.filter((s) => s.tool === "propose_project_record_update");
+      assert.deepEqual(
+        proposalSteps.map((s) => s.state),
+        ["ok"],
+      );
+    }
+    // Contacts can only read and propose for private review, never write documents, send, run or browse.
     const names = new Set(offered.flat());
     assert.ok(names.has("search_project_context") && names.has("read_project_document"));
     for (const owner of ["shell", "file_write", "drive_read", "drive_search", "search_chats", "read_chat", "message"])
@@ -108,6 +140,15 @@ test("WhatsApp: question, owner-chat lookup, referenced file and Drive Doc read 
   const google = await fakeGoogle();
   try {
     await journey(google);
+  } finally {
+    await google.close();
+  }
+});
+
+test("WhatsApp: Drive lookup and incoming data propose a private project record without the notes right", async () => {
+  const google = await fakeGoogle();
+  try {
+    await journey(google, false, true);
   } finally {
     await google.close();
   }

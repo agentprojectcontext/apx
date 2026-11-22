@@ -269,11 +269,15 @@ test("a Drive reference is read through the owner's connection and dropped when 
   }
 });
 
-test("project reading is set per person only and opens exactly two read-only tools", async () => {
+test("project reading is set per person only and opens reading plus private review proposals", async () => {
   assert.equal(contactRightsOf({}, { project_reading: true }).project_reading, false);
   assert.equal(contactRightsOf({ project_reading: true }, {}).project_reading, true);
   const rights = contactRightsOf({ project_reading: true }, {});
-  assert.deepEqual([...contactToolNames({ rights })].sort(), ["read_project_document", "search_project_context"]);
+  assert.deepEqual([...contactToolNames({ rights })].sort(), [
+    "propose_project_record_update",
+    "read_project_document",
+    "search_project_context",
+  ]);
   assert.equal(contactToolNames({ rights: contactRightsOf({ notes: true }, {}) }).has("search_project_context"), false);
   const params = methods["channels.set"].params;
   const set = (contacts: Record<string, boolean>) => ({
