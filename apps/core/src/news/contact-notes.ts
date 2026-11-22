@@ -2,7 +2,7 @@ import type { NewsEntry } from "./entries.ts";
 
 export const CONTACT_NOTES_NEWS: NewsEntry = {
   id: "contact-assigned-agent-notes",
-  since: "2.16.2",
+  since: "2.17.0",
   title: {
     en: "Your contact's agent can consult its sources",
     es: "El agente de tu contacto puede consultar sus fuentes",
@@ -29,7 +29,7 @@ export const CONTACT_NOTES_NEWS: NewsEntry = {
 
 export const CONTACT_PROJECT_READING_NEWS: NewsEntry = {
   id: "contact-project-reading",
-  since: "2.16.2",
+  since: "2.17.0",
   title: {
     en: "A contact's agent can read its project for them",
     es: "El agente de un contacto puede leer su proyecto para esa persona",
