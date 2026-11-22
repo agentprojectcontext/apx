@@ -61,7 +61,7 @@ test("Discord: the bot connects with its token, the owner links their account an
 
 test("Discord rooms: the owner lists a server room, and the bot answers there when called by name", async ({
   page,
-}) => {
+}, info) => {
   await open(page);
   await page.getByRole("button", { name: ACCOUNT_NAME.discord, exact: true }).first().click();
   await page.getByRole("button", { name: "Editar cuenta" }).click();
@@ -92,6 +92,7 @@ test("Discord rooms: the owner lists a server room, and the bot answers there wh
   await page.getByRole("radio", { name: "Todos" }).click();
   // Rooms and settings go out together with Save.
   await page.getByRole("button", { name: "Guardar y cerrar" }).click();
+  await expect(page.getByRole("dialog")).toHaveCount(0);
   await until(async () =>
     (await rpc<{ channels: Array<{ id: string; research?: string }> }>("channels.list")).channels.some(
       (c) => c.id === "discord" && c.research === "everyone",
@@ -107,7 +108,24 @@ test("Discord rooms: the owner lists a server room, and the bot answers there wh
   await world.room({ id: "6160", name: "Ana" }, "100000000000000001", "nice weather today");
   await world.room({ id: "6161", name: "Ben" }, "100000000000000001", "roby what is Acme Notes?");
   // A room waits a few seconds for one person's quick messages before it answers.
-  const post = await until(async () => (await world.roomPosts("100000000000000001"))[0], 20_000);
+  const post = await until(async () => (await world.roomPosts("100000000000000001"))[0], 20_000).catch(
+    async (error) => {
+      const channels = await rpc("channels.list");
+      const { threads } = await rpc<{ threads: Array<{ id: string; title: string }> }>("threads.list");
+      await info.attach("room-state", {
+        body: JSON.stringify({
+          channels,
+          rooms: await Promise.all(
+            threads
+              .filter((thread) => thread.title.includes("general"))
+              .map((thread) => rpc("threads.get", { thread: thread.id })),
+          ),
+        }),
+        contentType: "application/json",
+      });
+      throw error;
+    },
+  );
   expect(post.text).toContain("Got it");
   expect(post.reply).toBe(true);
   expect(await world.roomPosts("100000000000000001")).toHaveLength(1);
