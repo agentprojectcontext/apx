@@ -64,7 +64,7 @@ for (const [width, scope, language] of [
     let thread: string | undefined;
     try {
       const reader = await rpc<{ id: string }>("agents.create", {
-        slug: `browser-reader-${language}-${width}-${info.repeatEachIndex}`,
+        slug: `browser-reader-${language}-${width}-${info.repeatEachIndex}-${info.retry}`,
         name: "Browser reader",
       });
       thread = (
