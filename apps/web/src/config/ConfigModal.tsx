@@ -2,7 +2,7 @@ import "../styles/screens.css";
 import { Dialog, Icons, NavItem, SearchField, Skeleton } from "@apx/ui";
 import { type CSSProperties, type ReactNode, Suspense, useEffect, useState } from "react";
 import { type MessageKey, useT } from "../i18n/index.ts";
-import { MoveSection } from "../lazy.ts";
+import { DiscoverySection, MoveSection } from "../lazy.ts";
 import { LAYOUT } from "../shell/layout.ts";
 import { type ConfigSection, go, useNav } from "../shell/nav.ts";
 import { configShows, usePanelMode } from "../shell/panelMode.ts";
@@ -53,6 +53,7 @@ const GROUPS: { label: MessageKey; items: NavEntry[] }[] = [
     items: [
       { id: "agents", label: "config.agents", icon: <Icons.Bot /> },
       { id: "activity-review", label: "config.activityReview", icon: <Icons.Sparkles /> },
+      { id: "discovery", label: "config.discovery", icon: <Icons.Globe /> },
     ],
   },
   {
@@ -171,6 +172,12 @@ function Body({ section }: { section: ConfigSection }) {
       return <VoiceSection focus="calls" />;
     case "images":
       return <ServicesSection kind="image" />;
+    case "discovery":
+      return (
+        <Suspense fallback={<Skeleton height={240} shape="block" />}>
+          <DiscoverySection />
+        </Suspense>
+      );
     case "activity-review":
       return <ActivityReviewSection />;
     case "interruptions":

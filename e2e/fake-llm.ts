@@ -13,6 +13,7 @@
 // embeds texts (Ollama's /api/embed) for the skills picked by meaning.
 import http from "node:http";
 import type { AddressInfo } from "node:net";
+import { fakeDiscoveryReply } from "./fake-contextual-research.ts";
 
 /** A landing longer than a window: a full-height hero, two tall bands and a footer at the end. */
 export const LONG_PAGE = `<!doctype html><html><head><meta name="viewport" content="width=device-width"><style>
@@ -432,6 +433,7 @@ export async function fakeLlm() {
         ? `Done: ${textOf(body.messages?.findLast((m) => m.role === "tool"))}`
         : undefined;
       const text =
+        fakeDiscoveryReply(system, textOf(body.messages?.at(-1))) ??
         (system.startsWith("You pick who answers") ? groupPick(textOf(body.messages?.at(-1))) : undefined) ??
         signed ??
         (/^nothing worth telling/i.test(said) ? "SKIP" : undefined) ??

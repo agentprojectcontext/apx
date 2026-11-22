@@ -10,6 +10,7 @@ import {
   CHECK_EVERY,
   ChannelInfo,
   ContactBooking,
+  DiscoverySettings,
   EmailSignatures,
   EmailSignatureValue,
   HookMode,
@@ -78,6 +79,24 @@ const AcpAgent = z.object({
 const Channel = ChannelInfo.omit({ token_set: true, token_hint: true, status: true, error: true, account: true });
 
 export const SETTINGS = {
+  discovery: entry(DiscoverySettings, {
+    enabled: false,
+    project_context: true,
+    project_websites: true,
+    interest_news: true,
+    projects: "all",
+    project_ids: [],
+    sources: [],
+    interests: [],
+    location: "",
+    deep_every_days: 2,
+    timezone: "UTC",
+    report_routine: null,
+    max_model_calls: 8,
+    max_pages: 12,
+    max_seconds: 180,
+    cooldown_days: 14,
+  }),
   activity_review: entry(ActivityReviewSettings, { enabled: true, frequency: "daily", extra_details: "" }),
   email_signatures: entry(EmailSignatures, []),
   email_signature_default: entry(EmailSignatureValue.nullable(), null),

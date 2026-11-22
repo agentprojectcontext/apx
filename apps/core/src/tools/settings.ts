@@ -47,6 +47,7 @@ const AREA: Readonly<Record<string, string>> = {
   projects: "a project",
   memory: "memory",
   activity_review: "activity review",
+  discovery: "contextual research",
   skills: "the skills",
   resources: "a project's skills and servers",
   mcp: "an MCP server",

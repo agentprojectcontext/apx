@@ -10,6 +10,7 @@ import { enChannelsSlim } from "./channels-slim-en.ts";
 import { enChatSlim } from "./chat-slim-en.ts";
 import { enComposerSlim } from "./composer-slim-en.ts";
 import type { ComputerKey } from "./computer-en.ts";
+import type { enDiscovery } from "./discovery-en.ts";
 import { enChannels } from "./en-channels.ts";
 import { enChat } from "./en-chat.ts";
 import type { enEmailSignatures } from "./en-email-signatures.ts";
@@ -51,6 +52,7 @@ import type { enVoice } from "./voice-en.ts";
 export const en = {
   "input.reviewCopy": "Review public copy",
   "config.activityReview": "Activity review",
+  "config.discovery": "Research",
   "panel.computer": "Computer",
   "panel.computer.hint": "See the agent's Linux computer",
   "computer.screen": "Live VM desktop",
@@ -2002,6 +2004,7 @@ export type MessageKey =
   | keyof typeof enAccount
   | keyof typeof enGroup
   | keyof typeof enActivityReview
+  | keyof typeof enDiscovery
   | keyof typeof enCall
   | keyof typeof enCards
   | ApprovalKey

@@ -17,7 +17,7 @@ export function createBackground(log: Log, checks: readonly BackgroundCheck[] = 
     /** Called on each beat of the office clock: runs every check whose time came. */
     tick(at: Date): void {
       for (const s of state.values()) {
-        if (s.running || at.getTime() - s.lastAt < s.check.everyMs) continue;
+        if (s.running || (at.getTime() >= s.lastAt && at.getTime() - s.lastAt < s.check.everyMs)) continue;
         s.lastAt = at.getTime();
         try {
           const done = s.check.run(at);

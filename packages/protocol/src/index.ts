@@ -14,6 +14,7 @@ export * from "./contact-sources.ts";
 export * from "./core-env.ts";
 export { DesktopInstallStatus } from "./desktop-install.ts";
 export * from "./device-methods.ts";
+export * from "./discovery.ts";
 export * from "./domain.ts";
 export * from "./email-block.ts";
 export * from "./email-signatures.ts";

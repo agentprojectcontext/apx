@@ -29,6 +29,7 @@ import { esTopbar } from "./topbar-es.ts";
 export const es: Partial<Record<MessageKey, string>> = {
   "input.reviewCopy": "Revisar copia pública",
   "config.activityReview": "Revisión y mejoras",
+  "config.discovery": "Investigación",
   "panel.computer": "Computadora",
   "panel.computer.hint": "Ver computadora Linux del agente",
   "computer.screen": "Escritorio VM en vivo",

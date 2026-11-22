@@ -15,6 +15,7 @@ export const AuxPurpose = z.enum([
   "memory_capture",
   "memory_dream",
   "activity_review",
+  "contextual_discovery",
   "news",
   "sticker",
   "aside",

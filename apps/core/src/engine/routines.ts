@@ -3,6 +3,7 @@
 // gets a conversation of its own. The owner hears back only when the agent has something to say; a quiet run's
 // conversation is archived.
 import type { Routine, RoutineRun } from "@apx/protocol";
+import { composeDiscoveryReport, reserveDiscoveryReport } from "../domain/discovery-report.ts";
 import { meansOwner } from "../domain/persons.ts";
 import { type FlowRoutineEvent, type RunRecord, TERMINAL } from "../domain/runs.ts";
 import { MIN_GAP_MIN, nextRun } from "../domain/schedule.ts";
@@ -88,6 +89,7 @@ export function createScheduler(deps: {
         text: r.prompt,
       });
       store.routines.addRun({ routine_id: r.id, run_id: run.id, thread_id: thread.id });
+      reserveDiscoveryReport(store, r.id, run.id, at);
       return { run_id: run.id, thread_id: thread.id, state: run.state, started_at: run.started_at };
     });
   }
@@ -142,14 +144,26 @@ export function createScheduler(deps: {
       const routine = store.routines.get(id);
       if (!routine) return;
       const msg = run.message_id ? store.messages.get(run.message_id) : undefined;
-      const text = (msg?.parts ?? [])
+      let text = (msg?.parts ?? [])
         .map((p) => (p.type === "text" ? p.text : ""))
         .join("\n")
         .trim();
       const failed = run.state === "failed";
+      const stalled = run.end_reason === "provider_limit";
+      if (!failed && !stalled && run.state !== "canceled" && !toldOwner(store, run.id)) {
+        const base = isSkip(text) ? "" : text;
+        const composed = composeDiscoveryReport(store, run.id, base, clock());
+        if (composed !== base) {
+          text = composed;
+          if (msg)
+            store.messages.update({
+              ...msg,
+              parts: [...msg.parts.filter((part) => part.type !== "text"), { type: "text", text }],
+            });
+        }
+      }
       const quiet = run.state === "canceled" || (!failed && (!text || isSkip(text)));
       // A provider limit is told once per stall (provider-limit.ts), not by each routine it stopped.
-      const stalled = run.end_reason === "provider_limit";
       store.routines.delivered(run.id, !quiet && !stalled);
       if (stalled) return;
       if (quiet) {

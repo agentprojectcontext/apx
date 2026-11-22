@@ -78,6 +78,11 @@ export const ChannelDialogs = lazy(
     import("./channels/account/AccountDialog.tsx").then((m) => ({ default: m.ChannelDialogs })),
   ),
 );
+export const DiscoverySection = lazy(
+  withPacks(["discovery"], () =>
+    import("./config/DiscoverySection.tsx").then((m) => ({ default: m.DiscoverySection })),
+  ),
+);
 export const ConfigModal = lazy(
   withPacks(["team", "cloudAccount", "publicCopies"], () =>
     import("./config/ConfigModal.tsx").then((m) => ({ default: m.ConfigModal })),

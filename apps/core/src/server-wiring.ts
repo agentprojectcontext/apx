@@ -54,6 +54,7 @@ import { contactSourceHandlers } from "./rpc/contact-sources.ts";
 import type { CallContext } from "./rpc/context.ts";
 import { desktopInstallHandlers } from "./rpc/desktop-install.ts";
 import { deviceHandlers } from "./rpc/devices.ts";
+import { discoveryHandlers } from "./rpc/discovery.ts";
 import { emailSignatureHandlers } from "./rpc/email-signatures.ts";
 import { embeddingHandlers } from "./rpc/embeddings.ts";
 import { environmentHandlers } from "./rpc/environments.ts";
@@ -348,6 +349,8 @@ type HandlerDeps = {
   /** The APX home by area, clearing what APX rebuilds, and the disk's free space. */
   storage: Parameters<typeof storageHandlers>[0];
   activityReview: Parameters<typeof activityReviewHandlers>[0];
+  discovery: Parameters<typeof discoveryHandlers>[0];
+  clock?: () => Date;
 };
 
 /** The handler table the router serves: one entry per protocol method. */
@@ -371,7 +374,7 @@ export function coreHandlers(d: HandlerDeps & { vm?: Computer | undefined }) {
     asana: d.asana,
     ...(d.integrationFetch ? { fetch: d.integrationFetch } : {}),
   });
-  const channelsH = channelHandlers(d.store, d.channels, d.nudges);
+  const channelsH = channelHandlers(d.store, d.channels, d.nudges, d.clock);
   return {
     ...accountHandlers(d.account),
     ...agentMigrationHandlers(d.agentMigration),
@@ -384,6 +387,7 @@ export function coreHandlers(d: HandlerDeps & { vm?: Computer | undefined }) {
     ...usageHandlers(d.usage),
     ...storageHandlers(d.storage),
     ...activityReviewHandlers(d.activityReview),
+    ...discoveryHandlers(d.discovery),
     ...systemHandlers(d.identity, d.app.home, d.panel, () => ({
       protocol: { status: "ok" },
       browser: d.broker.withCap(BROWSER_CAP)

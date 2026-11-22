@@ -199,6 +199,26 @@ const ENGINES: Array<{ name: string; url: (q: string) => string; parse: (html: s
 /** What a sealed chat (a room, a contact's) may get when its channel allows research: nothing else opens with it. */
 export const WEB_TOOLS: ReadonlySet<string> = new Set(["web_search", "web_read"]);
 
+export async function searchPublic(
+  query: string,
+  limit: number,
+  signal: AbortSignal,
+): Promise<{ hits: Hit[]; engine: string; failed: string[] }> {
+  const failed: string[] = [];
+  for (const engine of ENGINES) {
+    try {
+      const page = await getPublic(engine.url(query), signal, { "accept-language": "es,en;q=0.8" });
+      const hits = engine.parse(page.body).slice(0, limit);
+      if (hits.length) return { hits, engine: engine.name, failed };
+      failed.push(`${engine.name}: no results`);
+    } catch (err) {
+      if (signal.aborted) throw err;
+      failed.push(`${engine.name}: ${err instanceof Error ? err.message : String(err)}`);
+    }
+  }
+  return { hits: [], engine: "", failed };
+}
+
 export function webTools(): Tool[] {
   return [
     defineTool({
@@ -213,23 +233,11 @@ export function webTools(): Tool[] {
       deadlineMs: 60_000,
       title: (a) => `Searched ${String(a.query ?? "").slice(0, 80)}`,
       async run(a, ctx) {
-        const failed: string[] = [];
-        for (const e of ENGINES) {
-          try {
-            const page = await getPublic(e.url(a.query), ctx.signal, { "accept-language": "es,en;q=0.8" });
-            const hits = e.parse(page.body).slice(0, a.limit ?? 6);
-            if (!hits.length) {
-              failed.push(`${e.name}: no results`);
-              continue;
-            }
-            const list = hits.map((h, i) => `${i + 1}. ${h.title}\n   ${h.url}${h.snippet ? `\n   ${h.snippet}` : ""}`);
-            return untrusted("web_search", { query: a.query, engine: e.name }, list.join("\n"));
-          } catch (err) {
-            if (ctx.signal.aborted) throw err;
-            failed.push(`${e.name}: ${err instanceof Error ? err.message : String(err)}`);
-          }
-        }
-        return `no search engine answered (${failed.join("; ")}). If the desktop app is open, try the browser.`;
+        const { hits, engine, failed } = await searchPublic(a.query, a.limit ?? 6, ctx.signal);
+        if (!hits.length)
+          return `no search engine answered (${failed.join("; ")}). If the desktop app is open, try the browser.`;
+        const list = hits.map((h, i) => `${i + 1}. ${h.title}\n   ${h.url}${h.snippet ? `\n   ${h.snippet}` : ""}`);
+        return untrusted("web_search", { query: a.query, engine }, list.join("\n"));
       },
     }),
     defineTool({
