@@ -60,8 +60,8 @@ async function checkInterestControl(page: Page, en: boolean) {
   await expect(remove).toHaveCount(0);
 }
 async function recoverConflict(page: Page, en: boolean) {
-  const reload = en ? "Reload saved settings" : "Recargar la configuración guardada";
-  const discard = en ? "Discard unsaved changes?" : "¿Descartar los cambios sin guardar?";
+  const reload = en ? "Reload" : "Recargar";
+  const discard = en ? "Reload and discard your unsaved changes?" : "¿Recargar y descartar tus cambios sin guardar?";
   await page.getByRole("button", { name: reload, exact: true }).click();
   const dialog = page.getByRole("dialog", { name: discard, exact: true });
   await dialog.getByRole("button", { name: en ? "Cancel" : "Cancelar", exact: true }).click();
