@@ -120,7 +120,9 @@ export const WORK: Readonly<Record<string, Setting>> = {
   },
   "discovery.settings": {
     does: "contextual research settings, project coverage, findings and source evidence",
-    read: (_p, { store }) => {
+    read: (_p, { store }, caller) => {
+      if (caller?.agent.kind !== "secretary")
+        return "Contextual research is managed by the super-agent; its private findings are not available to project agents.";
       const state = discoveryState(store, () => new Date());
       const runtime = state.read();
       return JSON.stringify({
