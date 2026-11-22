@@ -58,6 +58,11 @@ test("discovered document data awaits review; accept writes only a private proje
     assert.match(found[0]?.cite ?? "", /Private project record/);
     assert.equal(found[0]?.text, proposed.replacement);
     assert.deepEqual(found[0]?.refs, []);
+    assert.ok(
+      h.reading
+        .search(h.thread.id, h.agent.id, "pallet schedule")
+        .some((f) => f.cite.startsWith("Private project record") && f.text.includes("Wednesday")),
+    );
     assert.equal(fs.readFileSync(h.file, "utf8"), original);
     assert.deepEqual(h.store.memories.list({ scope: "global", pending: false, limit: 100 }), beforeMemories);
     const next = await h.propose(proposed.replacement, "The pallets now ship Thursday.");

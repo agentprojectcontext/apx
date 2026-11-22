@@ -225,7 +225,12 @@ const cut = (text: string) => {
 function recordFindings(store: Store, a: Access, query: string): Finding[] {
   return contactProjectRecords(store)
     .list({ person: a.person.id, agent: a.agent.id, project: a.project.id })
-    .filter((r) => `${r.label} ${r.text}`.toLowerCase().includes(query.toLowerCase()))
+    .filter((r) =>
+      query
+        .toLowerCase()
+        .split(/\s+/)
+        .some((term) => term.length > 1 && `${r.label} ${r.text}`.toLowerCase().includes(term)),
+    )
     .slice(0, 3)
     .map((r) => ({ from: "note", cite: `Private project record: ${r.label}`, text: r.text, refs: [] }));
 }
