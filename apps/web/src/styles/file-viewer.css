@@ -1,0 +1,21 @@
+.fileviewer {
+  width: calc(100vw - 32px);
+}
+.fileviewer__text {
+  max-height: calc(100vh - 180px);
+  overflow: auto;
+  border: 1px solid var(--apx-border);
+  border-radius: var(--apx-radius-md);
+}
+.fileviewer__text .cm-editor {
+  height: auto;
+}
+.fileviewer__pdf {
+  display: block;
+  width: 100%;
+  height: calc(100vh - 180px);
+  border: 0;
+}
+.fileviewer__failed {
+  color: var(--apx-fg-muted);
+}
