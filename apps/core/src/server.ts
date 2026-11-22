@@ -168,6 +168,8 @@ export type CoreOptions = {
   extensionFetch?: typeof fetch;
   /** What asks an integration's remote server whether it takes the owner's account; tests pass a fake. */
   integrationFetch?: typeof fetch;
+  /** Audio converter; tests avoid probing the host or downloading a program. */
+  ffmpeg?: Parameters<typeof createServices>[0]["ffmpeg"];
   quiet?: boolean;
   llm?: Llm;
   discoveryWeb?: DiscoveryWeb;
@@ -522,6 +524,7 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
   });
   const services = createServices({
     voice: voiceEngine,
+    ffmpeg: opts.ffmpeg,
     store,
     secrets,
     home: config.home,

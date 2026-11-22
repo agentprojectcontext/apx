@@ -45,12 +45,23 @@ const llm = scriptedLlm((_req, { said, afterTool }) => {
 
 let env: Awaited<ReturnType<typeof startCore>>;
 let tg: Awaited<ReturnType<typeof fakeTelegram>>;
+let converterCalls = 0;
 
 before(async () => {
   await new Promise<void>((r) => media.listen(0, "127.0.0.1", r));
   const url = `http://127.0.0.1:${(media.address() as AddressInfo).port}`;
   tg = await fakeTelegram(TOKEN);
-  env = await startCore({ llm, channelAdapters: { telegram: (c, t) => telegramAdapter(c, t, tg.url) } });
+  env = await startCore({
+    llm,
+    channelAdapters: { telegram: (c, t) => telegramAdapter(c, t, tg.url) },
+    // Audio conversion has its own tests; delivery must not download a program from the network.
+    ffmpeg: {
+      path: async () => {
+        converterCalls++;
+        throw new Error("No audio converter in sandbox");
+      },
+    },
+  });
   const svc = (kind: "image" | "speech" | "transcription", dialect: "a1111" | "openai-speech" | "whisper-local") => ({
     kind,
     dialect,
@@ -83,12 +94,25 @@ after(async () => {
 test("a voice note is heard, the agent draws, and the answer returns as a voice note with its words, and the photo", async () => {
   await env.client.call("threads.voice", { thread: "home", on: true });
   tg.voice(OWNER);
-  await waitFor(() => tg.sent.some((s) => s.method === "sendPhoto"), "the photo", { ms: 8000 });
+  await waitFor(() => tg.sent.some((s) => s.method === "sendPhoto"), "the photo", { ms: 8000 }).catch(async (error) => {
+    const home = await env.client.call("threads.get", { thread: "home" });
+    throw new Error(
+      JSON.stringify({
+        sent: tg.sent,
+        converterCalls,
+        home,
+        calls: llm.calls.map((call) => call.messages.filter((message) => message.role !== "system")),
+      }),
+      { cause: error },
+    );
+  });
   await waitFor(() => tg.sent.some((s) => s.method === "sendVoice" || s.method === "sendAudio"), "the voice", {
     ms: 8000,
   });
   // What the voice note says rides with it as its caption, not as a separate message.
   const voice = tg.sent.find((s) => s.method === "sendVoice" || s.method === "sendAudio");
+  assert.ok(converterCalls > 0, "the channel used the injected audio converter");
+  assert.equal(voice?.method, "sendAudio", "without a converter the speech still arrives as audio");
   assert.match(String(voice?.body.caption), /fox, drawn/);
   assert.ok(!tg.messagesTo(OWNER.id).some((m) => /fox, drawn/.test(String(m.body.text))));
   const home = await env.client.call("threads.get", { thread: "home" });

@@ -18,7 +18,7 @@ import type { AssistantItem, Completion } from "../providers/types.ts";
 import type { NgrokStart } from "../public-tunnel.ts";
 import type { ReleaseSource } from "../release-notes.ts";
 import type { OwnersChrome } from "../rpc/browser.ts";
-import { createCore } from "../server.ts";
+import { type CoreOptions, createCore } from "../server.ts";
 import type { TelemetrySink } from "../telemetry-sink.ts";
 import { removeDir, waitFor } from "../testkit/platform.ts";
 import { scratchRoot } from "../tools/folders.ts";
@@ -94,6 +94,7 @@ export const callTool = (id: string, name: string, args: object): { message: Ass
 
 type StartCoreOptions = {
   computer?: ComputerConfig;
+  ffmpeg?: CoreOptions["ffmpeg"];
   llm: Llm;
   home?: string;
   /** Known port for browser fixtures whose origin must be allowed before the core starts. */
@@ -193,6 +194,7 @@ export async function startCore(opts: StartCoreOptions) {
       ...(opts.extensionFetch ? { extensionFetch: opts.extensionFetch } : {}),
       integrationFetch: opts.integrationFetch ?? (async () => new Response("{}", { status: 200 })),
       llm: opts.llm,
+      ffmpeg: opts.ffmpeg,
       ...(opts.harnesses ? { harnesses: opts.harnesses } : {}),
       ...(opts.extraTools ? { extraTools: opts.extraTools } : {}),
       ...(opts.channelAdapters ? { channelAdapters: opts.channelAdapters } : {}),
