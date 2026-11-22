@@ -19,15 +19,34 @@ test("notices are opt-in, save quiet hours and a personal destination, and stay 
   );
   await rpc("extensions.install", { path: root });
   await rpc("extensions.enable", { id: "northwind-events", enabled: true });
+  const initial = await rpc<{ config: { enabled: boolean } | null }>("extensions.events_get", {
+    id: "northwind-events",
+  });
+  expect(initial.config?.enabled ?? false).toBe(false);
+  await rpc("extensions.events_set", {
+    id: "northwind-events",
+    config: { enabled: false, thread: "home", quiet_start: 0, quiet_end: 0, time_zone: "Europe/Madrid" },
+  });
   await open(page);
   await openExtension(page, "Northwind Events");
   let dialog = await openExtensionSettings(page);
-  await expect(dialog.getByRole("switch", { name: "Enviar avisos", exact: true })).not.toBeChecked();
-  await dialog.getByRole("switch", { name: "Enviar avisos", exact: true }).click();
-  await dialog.getByRole("switch", { name: "Retener avisos en horarios de silencio" }).click();
+  await expect(dialog.getByRole("checkbox", { name: "Enviar avisos", exact: true })).not.toBeChecked();
+  await dialog.getByRole("checkbox", { name: "Enviar avisos", exact: true }).click();
+  await dialog.getByRole("checkbox", { name: "Retener avisos en horarios de silencio" }).click();
   await dialog.getByLabel("Silencio desde").fill("00:00");
   await dialog.getByLabel("Hasta", { exact: true }).fill("08:00");
-  await dialog.getByLabel("Zona horaria").fill("UTC");
+  await dialog.getByRole("combobox", { name: "Zona horaria" }).click();
+  const search = page.getByRole("combobox", { expanded: true }).last();
+  await search.fill("Invalid/Zone");
+  await expect(page.getByRole("option")).toHaveCount(0);
+  await search.fill("UTC");
+  await search.press("ArrowDown");
+  await search.press("Enter");
+  await expect(dialog.getByRole("combobox", { name: "Zona horaria" })).toContainText("UTC");
+  const beforeSave = await rpc<{ config: { enabled: boolean } | null }>("extensions.events_get", {
+    id: "northwind-events",
+  });
+  expect(beforeSave.config?.enabled ?? false).toBe(false);
   await dialog.getByRole("button", { name: "Guardar", exact: true }).click();
   await expect(dialog.getByRole("status")).toContainText("Configuración de avisos guardada.");
   const result = await rpc<{
@@ -54,5 +73,5 @@ test("notices are opt-in, save quiet hours and a personal destination, and stay 
   await page.getByRole("main").getByRole("button", { name: "Más opciones", exact: true }).click();
   await page.getByRole("menuitem", { name: "Configuración", exact: true }).click();
   dialog = page.getByRole("dialog", { name: /^Configuración de / });
-  await expect(dialog.getByRole("switch", { name: "Enviar avisos", exact: true })).not.toBeChecked();
+  await expect(dialog.getByRole("checkbox", { name: "Enviar avisos", exact: true })).not.toBeChecked();
 });

@@ -1,6 +1,7 @@
 import type { ExtensionInfo } from "@apx/protocol";
-import { Button, Field, Input, Select, Switch } from "@apx/ui";
+import { Button, Checkbox, Field, Input, Select } from "@apx/ui";
 import { useEffect, useState } from "react";
+import { TimezoneSelect } from "../common/pickers/LocaleSelect.tsx";
 import { client } from "../data/client.ts";
 import { useT } from "../i18n/index.ts";
 
@@ -138,7 +139,7 @@ function NoticeFields({ item, onReload }: { item: ExtensionInfo; onReload: () =>
         </p>
       ) : (
         <>
-          <Switch
+          <Checkbox
             label={t("market.events.enable")}
             checked={enabled}
             onCheckedChange={(v) => {
@@ -166,7 +167,7 @@ function NoticeFields({ item, onReload }: { item: ExtensionInfo; onReload: () =>
                   }))}
                 />
               </Field>
-              <Switch
+              <Checkbox
                 label={t("market.events.quiet")}
                 checked={quiet}
                 onCheckedChange={(v) => {
@@ -206,18 +207,15 @@ function NoticeFields({ item, onReload }: { item: ExtensionInfo; onReload: () =>
                     )}
                   </Field>
                   <Field label={t("market.events.zone")}>
-                    {(id) => (
-                      <Input
-                        id={id}
-                        value={zone}
-                        onChange={(e) => {
-                          setZone(e.target.value);
-                          setSaved(false);
-                        }}
-                        disabled={busy}
-                        placeholder="Europe/Madrid"
-                      />
-                    )}
+                    <TimezoneSelect
+                      label={t("market.events.zone")}
+                      value={zone}
+                      onChange={(value) => {
+                        setZone(value || Intl.DateTimeFormat().resolvedOptions().timeZone);
+                        setSaved(false);
+                      }}
+                      disabled={busy}
+                    />
                   </Field>
                 </>
               )}
