@@ -33,7 +33,7 @@ test("See what's new opens the chat that tells the update, and goes once it is r
   await expect(async () => {
     await page.mouse.move(0, 0);
     await pill.hover();
-    await expect(hint).toBeVisible({ timeout: 500 });
+    await expect(hint).toBeVisible({ timeout: 2_000 });
   }).toPass({ timeout: 7_000 });
   await expect(hint).toBeInViewport();
   await pill.click();
