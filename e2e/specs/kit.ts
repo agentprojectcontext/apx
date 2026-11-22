@@ -73,7 +73,12 @@ export const world = {
         carried: boolean;
       }
     ).carried,
-  /** Holds a scripted stream until the browser observes each intermediate state. */
+  /** Keeps worker slots occupied until the browser observes their queued siblings. */
+  workerGate: async (hold: boolean) => {
+    await ownSandbox();
+    const res = await post(`${control}/llm/worker-gate`, { hold });
+    if (!res.ok) throw new Error(`Worker gate: ${res.status}`);
+  },
   streamGate: async (text: string, action: "hold" | "next" | "clear") => {
     await ownSandbox();
     const res = await post(`${control}/llm/stream-gate`, { text, action });

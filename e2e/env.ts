@@ -204,6 +204,11 @@ const control = http.createServer((req, res) => {
       const user = new URL(req.url, "http://x").searchParams.get("user") ?? "";
       return json(200, { sent: sl.messagesTo(sl.dm(user)).map((s) => ({ text: s.body.text })) });
     }
+    if (req.url === "/llm/worker-gate" && req.method === "POST") {
+      if (typeof body.hold !== "boolean") return json(400, { error: "invalid worker gate" });
+      llm.workerGate(body.hold);
+      return json(200, { ok: true });
+    }
     if (req.url === "/llm/stream-gate" && req.method === "POST") {
       if (typeof body.text !== "string" || !["hold", "next", "clear"].includes(String(body.action)))
         return json(400, { error: "invalid stream gate" });

@@ -2,7 +2,11 @@
 // as queued, and they start and report back as slots free.
 import { MAX_ACTIVE_DELEGATIONS } from "../../apps/core/src/engine/limits.ts";
 import type { Agent, Thread } from "../../packages/protocol/src/domain.ts";
-import { expect, open, rpc, test } from "./kit.ts";
+import { expect, open, rpc, test, world } from "./kit.ts";
+
+test.afterEach(async () => {
+  await world.workerGate(false);
+});
 
 /** Four workers asked at once: those past the cap wait. */
 const QUEUED = 4 - MAX_ACTIVE_DELEGATIONS;
@@ -17,6 +21,7 @@ test("delegations past the cap show as queued, then run as the others end", asyn
   await open(page, `#thread=${root.id}&panel=agents`);
   const mainChat = page.locator(".workspace > .chat");
   const composer = mainChat.getByRole("textbox").last();
+  await world.workerGate(true);
   await composer.fill("start four slow workers");
   await composer.press("Enter");
 
@@ -35,6 +40,7 @@ test("delegations past the cap show as queued, then run as the others end", asyn
   await expect(page.getByText(/^En cola: .+ empieza cuando termine una de las delegaciones en curso$/)).toBeVisible();
   await side.getByRole("tab", { name: /^Todos \(/ }).click();
 
+  await world.workerGate(false);
   await expect(side.getByText("Terminados (4)")).toBeVisible({ timeout: 15_000 });
   await expect(cards.getByText("En cola", { exact: true })).toHaveCount(0);
   // Asked in one turn, their results come back together in one turn, which shows their cards again.

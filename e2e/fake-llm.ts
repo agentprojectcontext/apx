@@ -390,6 +390,15 @@ function toolCall(messages: Message[], said: string): { name: string; arguments:
 
 export async function fakeLlm() {
   const calls: Array<{ model: string; said: string }> = [];
+  let holdWorkers = false;
+  const workerAnswers = new Set<() => void>();
+  const workerGate = (hold: boolean) => {
+    holdWorkers = hold;
+    if (!hold) {
+      for (const answer of workerAnswers) answer();
+      workerAnswers.clear();
+    }
+  };
   const streamGates = new Map<string, (() => void) | undefined>();
   const streamGate = (text: string, action: "hold" | "next" | "clear") => {
     const next = streamGates.get(text);
@@ -555,7 +564,10 @@ export async function fakeLlm() {
       };
       const keepGoing = KEEP_GOING.test(said) && body.messages?.at(-1)?.role === "tool";
       const long = system.startsWith("Take your time");
-      if (slow || staggered || keepGoing || long) {
+      if (slow && holdWorkers) {
+        workerAnswers.add(answer);
+        res.on("close", () => workerAnswers.delete(answer));
+      } else if (slow || staggered || keepGoing || long) {
         const asked = JSON.stringify(body.messages?.findLast((m) => m.role === "user")?.content);
         const part = Number(/check part (\d)/.exec(asked)?.[1] ?? 1);
         const timer = setTimeout(
@@ -572,6 +584,7 @@ export async function fakeLlm() {
     url: `http://127.0.0.1:${(server.address() as AddressInfo).port}/v1`,
     calls,
     streamGate,
+    workerGate,
     /** Whether any request so far carried this text. */
     carried: (text: string) => bodies.some((b) => b.includes(text)),
     close: () => new Promise<void>((r) => server.close(() => r())),
