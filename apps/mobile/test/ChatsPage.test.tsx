@@ -1,4 +1,4 @@
-import { act, fireEvent, render, within } from "@testing-library/react-native";
+import { act, fireEvent, render, waitFor, within } from "@testing-library/react-native";
 import { inboxTree } from "../src/hooks/inboxTree";
 import { t } from "../src/i18n";
 import { ChatsPage } from "../src/pages/ChatsPage";
@@ -90,7 +90,12 @@ test("a long press on a task's row gives the task's options", async () => {
   const ui = await mount({ taskMenu });
   await showTab(ui, t("navTasks"));
   await fireEvent(ui.getByRole("button", { name: "Prepare launch" }), "longPress");
-  expect(taskMenu).toHaveBeenCalledWith("task_a");
+  // With every chat the row holds, so the menu can read or archive them all.
+  expect(taskMenu).toHaveBeenCalledWith("task_a", [
+    expect.objectContaining({ id: "task_chat_a" }),
+    expect.objectContaining({ id: "task_chat_b" }),
+    expect.objectContaining({ id: "task_delegate" }),
+  ]);
   await ui.unmount();
 });
 
@@ -191,14 +196,17 @@ test("a group pair takes a little more than one face; a delegation pair shows th
   await row.unmount();
 });
 
-test("a long press opens a chat's actions, archived chats have their own row and a filter shows its dot", async () => {
+test("a long press opens a chat's actions, holding Chats offers the archived and a filter shows its dot", async () => {
   const menu = jest.fn();
   const openArchived = jest.fn();
   const ui = await mount({ menu, openArchived });
   await fireEvent(ui.getByRole("button", { name: "Launch planning" }), "longPress");
   expect(menu).toHaveBeenLastCalledWith(expect.objectContaining({ id: "home" }));
-  await fireEvent.press(ui.getByRole("button", { name: `${t("archivedChats")} 1` }));
-  expect(openArchived).toHaveBeenCalledTimes(1);
+  // The archived chats leave the list: holding the Chats tab opens them.
+  expect(ui.queryByText(t("archivedChats"))).toBeNull();
+  await act(async () => fireEvent(ui.getByRole("tab", { name: t("navChats") }), "longPress"));
+  await act(async () => fireEvent.press(ui.getByText(t("seeArchived"))));
+  await waitFor(() => expect(openArchived).toHaveBeenCalledTimes(1));
   expect(ui.queryByRole("button", { name: t("filterChatsOn") })).toBeNull();
   await ui.rerender(
     <ChatsPage {...ui.props} menu={menu} openArchived={openArchived} filter={{ ...ALL_CHATS, agents: ["agent_b"] }} />,
@@ -263,4 +271,14 @@ test("channel accounts group under one row that unfolds, and the filter hides an
   expect(hidden.queryByRole("button", { name: "March invoice" })).toBeNull();
   expect(hidden.getByRole("button", { name: "Northwind client" })).toBeVisible();
   await hidden.unmount();
+});
+
+test("holding a tab marks only that tab's chats read", async () => {
+  const readThreads = jest.fn(async () => {});
+  const ui = await mount({ readThreads });
+  await act(async () => fireEvent(ui.getByRole("tab", { name: t("routines") }), "longPress"));
+  expect(ui.queryByText(t("seeArchived"))).toBeNull();
+  await act(async () => fireEvent.press(ui.getByText(t("markAllRead"))));
+  await waitFor(() => expect(readThreads).toHaveBeenCalledWith(["run_today"]));
+  await ui.unmount();
 });

@@ -60,6 +60,7 @@ export const failAlert = (title: string) => (error: unknown) =>
 /**
  * A task's options in a sheet, from a long press on the list or the page's "…": open it or its agents' chats, move it,
  * change its priority or who does it, wait for the owner, close, reopen or delete it (closing and deleting ask first).
+ * From the chat list it also marks its chats read and archives them, which takes the task off the list.
  */
 export function TaskMenu({
   task,
@@ -69,6 +70,8 @@ export function TaskMenu({
   onOpen,
   openThread,
   onDeleted,
+  onRead,
+  onArchive,
 }: {
   task: Task;
   data: Workspace;
@@ -77,6 +80,10 @@ export function TaskMenu({
   onOpen?: () => void;
   openThread: (id: string) => void;
   onDeleted?: () => void;
+  /** Marks its chats read; given only while one has unread messages. */
+  onRead?: () => Promise<void>;
+  /** Archives every chat it has. */
+  onArchive?: () => Promise<void>;
 }) {
   const theme = useTheme();
   const [field, setField] = useState<TaskField | "work">();
@@ -112,6 +119,7 @@ export function TaskMenu({
             onOpen();
           })
         : null}
+      {onRead ? item(t("markRead"), "CheckCheck", () => done(onRead)) : null}
       {item(t("tkWork"), "MessageCircle", () => setField("work"))}
       {open
         ? item(t("tkColumn"), "LayoutGrid", () => setField("status"), {
@@ -141,6 +149,7 @@ export function TaskMenu({
           confirmClose(task, choice, () => done(() => actions.close(task, choice.state))),
         ),
       )}
+      {onArchive ? item(t("tkArchive"), "Archive", () => done(onArchive)) : null}
       {item(
         t("tkDelete"),
         "Trash2",

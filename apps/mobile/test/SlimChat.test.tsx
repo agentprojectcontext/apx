@@ -1,10 +1,10 @@
 import { fireEvent, render, waitFor } from "@testing-library/react-native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import type { InboxItem } from "../src/hooks/inboxItems";
+import { rowState } from "../src/hooks/rowState";
 import { emptyWorkspace, type Task, type Thread } from "../src/hooks/useWorkspace";
 import { t } from "../src/i18n";
 import { InboxPage } from "../src/pages/InboxPage";
-import { rowState } from "../src/pages/InboxRows";
 import type { Message, RoutineRun } from "../src/protocol";
 import { QueueTray } from "../src/ui/chat/QueueTray";
 import { RoutineRunsSheet } from "../src/ui/chat/RoutineRunsSheet";
