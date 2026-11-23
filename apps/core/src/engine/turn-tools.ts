@@ -2,7 +2,7 @@
 // and what is turned on; MCP's join behind the bridge on first use, and never in a contact's turn.
 import { BROWSER_CAP, CHROME_CAP } from "@apx/protocol";
 import { memorySettings } from "../domain/memory-settings.ts";
-import { answersChecked, chromeReach, type Origin, ownersTask, reachIn } from "../domain/runs.ts";
+import { answersChecked, chromeReach, type Origin, reachIn, taskOrigin } from "../domain/runs.ts";
 import type { Store } from "../domain/store.ts";
 import { CONTACT_TOOLS, contactHolder, contactToolNames } from "../tools/contact.ts";
 import { STICKER_TOOL, stickersFor } from "../tools/directory.ts";
@@ -79,6 +79,7 @@ const BOT_KEEPS = new Set([
   "browser_text",
   "browser_click",
   "browser_type",
+  "browser_do",
   "task_get",
   "task_list",
 ]);
@@ -99,6 +100,7 @@ export function reactionsOff(store: Store, o: Origin, replyChannel?: string | nu
 const channelIdOf = (o: Origin, replyChannel?: string | null) =>
   replyChannel === null ? undefined : (replyChannel ?? (o.kind === "channel" ? o.channel : undefined));
 
+// browser_do stays out: its recipes are files of the owner's project, on the host (DECISIONS.md#d-265).
 const VM_BROWSER_TOOLS = new Set(["browser_open", "browser_snapshot", "browser_text", "browser_click", "browser_type"]);
 /**
  * Host tools a chat on the computer keeps: they read nothing of the Mac's files or screen. APX's own work (tasks,
@@ -125,7 +127,11 @@ export async function turnTools(deps: TurnDeps, turn: Turn) {
   const inVm = deps.vm?.hasThread(turn.thread.id);
   // Browser tools are offered with no other browser in a turn from APX's panel in Chrome, and in the owner's own work
   // (their turn, routine or task, and what their agents do for it) while their Chrome is connected: those browse there.
-  const reach = chromeReach(turn.input.origin, ownersTask(deps.store.tasks, turn.thread.task_id), reachIn(deps.store));
+  const reach = chromeReach(
+    turn.input.origin,
+    taskOrigin(deps.store.tasks, turn.thread.task_id ?? undefined),
+    reachIn(deps.store),
+  );
   const chrome = reach === "all" || (reach === "asked" && Boolean(deps.hasCap?.(CHROME_CAP)));
   // Offered only to an agent the owner allowed: one without it never asks to use it (DECISIONS.md#d-154).
   const computerOn = Boolean(deps.vm?.serves(turn.thread.id) && deps.vm.permitted(turn.agent.id, turn.thread.id));

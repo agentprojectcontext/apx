@@ -14,7 +14,7 @@ Measured on a fresh install: the secretary, a new chat, default settings, no ski
 | Tool definitions (27, without the browser) | 30,000 chars (about 7,100 tokens) | 16,332 chars on 2026-11-17, about 3,870 tokens (`task_create` opens with when not to use it, [D-238](DECISIONS.md#d-238); APX's rarely used tools named in `tool_search` by use and called by name, [D-233](DECISIONS.md#d-233), [D-234](DECISIONS.md#d-234); before, 24,094 with 41; the channel and contact tools and make_image only once a channel or an image service is on) |
 | A turn's input before the message | — | 264 chars: one `[context]` line (time, channel, mode) and the roster when it changed |
 | A delegated task's input, besides the task | — | the caller and its rules, with the four-line report it asks for (180 chars, about 45 tokens), only in that agent's turn |
-| Browser tools (8, lent by the desktop app) | — | 811 tokens |
+| Browser tools (10, lent by the desktop app) | — | 8,253 chars on 2026-11-23, about 1,960 tokens; `browser_do` is 1,532 of them, its steps one flat object ([D-265](DECISIONS.md#d-265)) |
 
 Together the two stay at about 6,400 tokens, half of Hermes and OpenClaw (about 13,000): the room above today's size
 is for what a new owner needs to find their way, not for padding. A channel turned on adds its seven tools (about

@@ -205,6 +205,27 @@ timers, solicitudes u otros efectos pueden continuar. Verificá la página antes
 Esto agrega una herramienta para agentes, no un panel DevTools ni un puerto de depuración. Desktop debe cargar el build
 nuevo compatible; reiniciar solo el core no alcanza.
 
+## Repetir un trabajo: recetas
+
+Cuando un agente hace lo mismo muchas veces (programar 20 posts, completar el mismo formulario para cada fila de una
+lista), no necesita leer la página entre cada clic. Manda la secuencia entera de una vez con `browser_do`: abrir, hacer
+clic, escribir y esperar, nombrando cada botón o campo como lo muestra la página ("el botón **Programar** del diálogo
+**Nueva publicación**"). Cada paso espera a que aparezca su botón, y la secuencia para en el primero que no funciona,
+diciendo cuál y mostrando la página.
+
+Cuando una secuencia funciona, el agente puede guardarla como **receta** del proyecto, con huecos para lo que cambia
+cada vez (el texto del post, la fecha, la imagen a adjuntar: la ruta completa de un archivo en un campo de archivo lo
+adjunta, siempre que el agente pueda leer ese archivo). La próxima vez corre la receta por su nombre con valores nuevos: un paso corto
+en lugar de una docena de miradas a la página, más rápido y con muchos menos tokens.
+
+- Las recetas viven en el proyecto, en `.apc/browser-recipes/`, un archivo cada una. Son una lista de pasos que podés
+  leer, nunca código, y corren solo con las mismas reglas del navegador que cualquier clic: tu OK donde el modo del
+  agente lo pide, tu Chrome solo para tu propio trabajo, nunca contraseñas.
+- Una nota de memoria le recuerda al agente que la receta existe, así la encuentra en otro chat: "usá la receta de
+  LinkedIn para estos 20 posts".
+- Para cambiar una receta, pedile al agente que corra los pasos otra vez con el arreglo y la guarde con el mismo
+  nombre; para sacarla, borrá su archivo.
+
 ## Perfiles
 
 Cada agente navega con uno de tres perfiles, que se elige por agente en **Configuración › Agentes** (o en el panel
@@ -251,8 +272,9 @@ sesión.
 - Lo que escribís en ese panel lateral siempre usa tu Chrome. En cualquier otro lado (la app, el teléfono, un canal
   como vos), los agentes usan el navegador de APX salvo que pidas tu Chrome ("hacelo en mi Chrome") o que un sitio
   necesite tu sesión: ahí abren una pestaña en el grupo **APX**, pidiéndote OK antes salvo que el modo del agente lo
-  deje actuar solo. El mensaje de un contacto, el agente de una app de afuera, un agente que trabaja por su cuenta o una
-  tarea que creó un agente nunca llega a tu Chrome; tus rutinas y las tareas que creaste vos sí, como tu propio chat.
+  deje actuar solo. El mensaje de un contacto, el agente de una app de afuera o un agente que trabaja por su cuenta nunca
+  llega a tu Chrome; tus rutinas y las tareas que creaste vos sí, como tu propio chat, y también una tarea que un agente
+  creó o pasó mientras trabajaba para vos (le pediste algo a Roby y Roby se lo dio a un compañero).
 - El trabajo que un agente le pasa a un compañero para vos sigue en tu Chrome también: un ayudante pedido desde tu
   chat, tu rutina o tu tarea lo puede usar como ese chat, y uno pedido desde el panel lateral trabaja solo ahí. Lo mismo
   el agente cuando recibe la respuesta del ayudante.
@@ -293,7 +315,8 @@ apx browser cookies <source> [filter]        Domains with cookies (counts only)
 apx browser import <source> <domain,…> [--profile shared|agent:<id>]`}</Terminal>
 
 `snapshot` lista los elementos de la página con referencias que toman `click` y `type`. `control` define quién tiene
-la pestaña. `cookies` muestra solo cantidades, nunca valores.
+la pestaña. `cookies` muestra solo cantidades, nunca valores. Estos comandos actúan como vos, así que no corren dentro
+del comando de un agente: un agente que quiere repetir pasos en el navegador usa `browser_do` y las recetas.
 
 Las apps de afuera, como Claude Code, también pueden usar este navegador, con `apx mcp`. Mirá
 [Clientes externos](/es/extend/outside-clients/).

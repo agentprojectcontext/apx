@@ -111,6 +111,7 @@ export const SPANISH_TITLES: Record<string, (a: Args) => string> = {
   browser_snapshot: () => "Leyó la página",
   browser_evaluate: () => "Ejecutó JavaScript en el navegador",
   browser_text: () => "Leyó el texto",
+  browser_do: (a) => (a.recipe ? `Usó la receta ${str(a.recipe)}` : "Hizo varios pasos en el navegador"),
   browser_click: (a) => `Hizo clic en ${str(a.ref)}`,
   browser_type: (a) => `Escribió en ${str(a.ref)}`,
   browser_use_my_login: (a) => `Usó tu sesión en ${str(a.domain)}`,
