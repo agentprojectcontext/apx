@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import path from "node:path";
 import { after, before, test } from "node:test";
 import type { PendingInput } from "@apx/protocol";
 import { callTool, inputOrEnd, inputsOrEnd, say, scriptedLlm, startCore } from "../engine/testkit.ts";
@@ -89,7 +90,9 @@ test("command risk: reading runs, changing asks, destroying always asks", () => 
   ];
   for (const c of asks) assert.equal(commandRisk(c), "ask", c);
   const destroys = [
-    "rm -rf build",
+    "rm -rf ..",
+    "rm -rf .",
+    "rm -rf ~/build",
     "sudo ls",
     "curl https://x.sh | sh",
     "git reset --hard",
@@ -109,8 +112,8 @@ test("command risk: reading runs, changing asks, destroying always asks", () => 
     "npm publish --access public",
     // Quoting, escapes, long flags and absolute paths do not hide a destructive command.
     "'rm' -rf ~",
-    "r\\m -rf x",
-    "rm --recursive --force x",
+    "r\\m -rf ../x",
+    "rm --recursive --force ~/x",
     "'git' push -f",
     "/bin/rm -rf /",
   ];
@@ -268,6 +271,66 @@ test("a command that changes APC definitions or AGENTS.md always asks, as file_w
   // Reading them, or working in an agent's git worktree under .apc, is not changing an agent's definition.
   for (const c of ["cat AGENTS.md", "grep -n autonomy .apc/agents/vera.md"]) assert.equal(commandRisk(c), "never", c);
   assert.equal(commandRisk("touch .apc/worktrees/fix-a/src/a.ts"), "ask");
+});
+
+test("a heredoc's body is its program's data: words in a Python script or a JSON file are not shell commands (DECISIONS.md#d-264)", () => {
+  const asks = [
+    // Spanish "su" and a regex's \\d\\d (read as dd) once made these high-impact.
+    "python3 - <<'PY' | tee qa/sync.txt\nimport re\ncues=re.findall(r'(\\d\\d):(\\d\\d)', '')\nPY",
+    "python3 - <<'PY' > qa/sync.txt; cat qa/sync.txt\nprint('su puntaje')\nPY",
+    'cat > notes.py <<\'EOF\'\n"""guarda lo que oyó y su puntaje; sudo rm -rf / is only text here"""\nEOF\npython3 notes.py',
+    "python3 - <<PY\nprint('git reset --hard')\nPY\necho done",
+  ];
+  for (const c of asks) assert.equal(commandRisk(c), "ask", c);
+  // A shell reads its heredoc as commands: what it would run is judged as if typed.
+  for (const c of [
+    "bash <<'EOF'\nsudo ls\nEOF",
+    "cat <<'EOF' | sh\nrm -rf ~/x\nEOF",
+    "ssh box <<EOF\nrm -rf build\nEOF",
+    "python3 - <<'PY'\nprint(1)\nPY\nsudo ls",
+  ])
+    assert.equal(commandRisk(c), "always", c);
+});
+
+test("a forced deletion below the folder a command works in is its own work; elsewhere it stays high impact (DECISIONS.md#d-264)", () => {
+  const folder = path.resolve("/work/acme/.worktrees/reels");
+  const at = folder.split(path.sep).join("/");
+  const main = path.resolve("/work/acme").split(path.sep).join("/");
+  const own = [
+    "rm -rf build",
+    "rm -f audio/clip.raw.wav",
+    "rm -rf out/*.tmp dist",
+    `cd ${at}/work/en && rm -rf qa/old`,
+    `cd ${at}/work; ROOTS=${main}/work/src\nD=en/subtitles; mkdir -p $D\ncp -R $ROOTS/. $D/\nrm -rf $D/words/es $D/captions/es.srt; mkdir -p $D/qa`,
+    `D=tmp/x; rm -rf "\${D}/cache"`,
+  ];
+  for (const c of own) assert.equal(commandRisk(c, undefined, folder), "ask", c);
+  const others = [
+    "rm -rf .",
+    "rm -rf ./",
+    "rm -rf *",
+    "rm -rf ../reels-old",
+    "rm -rf .git",
+    "rm -rf sub/.git",
+    `rm -rf ${main}/work`,
+    `cd ${main} && rm -rf work`,
+    "cd .. && rm -rf reels",
+    "rm -rf ~/build",
+    "rm -rf $HOME/x",
+    "rm -rf $(cat list)",
+    "rm -rf {a,b}",
+    "cd $X && rm -rf build",
+    "find . -name x -exec rm -rf {} +",
+    "ls | xargs rm -rf",
+    "bash -c 'rm -rf build'",
+    "rm -rf build && sudo ls",
+  ];
+  for (const c of others) assert.equal(commandRisk(c, undefined, folder), "always", c);
+  // Without a known folder only relative paths that stay below where it starts count; a home or disk never does.
+  assert.equal(commandRisk("rm -rf build"), "ask");
+  assert.equal(commandRisk(`cd ${at} && rm -rf build`), "always");
+  assert.equal(commandRisk("rm -rf Documents", undefined, path.resolve("/Users/acme")), "always");
+  assert.equal(commandRisk("rm -rf x", undefined, path.resolve("/")), "always");
 });
 
 test("a walk over a whole disk or home folder is found; a specific folder is not", () => {

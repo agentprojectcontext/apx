@@ -255,7 +255,8 @@ than the caller's and is capped at the destination project's autonomy (D-126); a
 sub-thread, so the caller's spend limits pause it (a tripped breaker refuses creating it and every later message) and
 later messages from the caller queue past the active-delegation cap. Confirmation: `confirm: "always"`, so the owner
 approves each start on a card even in Auto; only Total or the agent's own rule for that risk skips it (D-047), and
-Plan mode refuses it. Inside the session, the engine's commands and edits follow the same policy as any session's.
+Plan mode refuses it. *Amended by [D-264](#d-264) (2026-11-23): `untrusted`, so Auto starts it without a card unless
+outside content is in the turn; Manual still asks.* Inside the session, the engine's commands and edits follow the same policy as any session's.
 
 <a id="d-024"></a>
 ## D-024 — 2026-10-02 — v2 lives in ~/.apx/v2, beside v1's files
@@ -5904,3 +5905,39 @@ back to you" messages. Revocation stops new reads, not answers already delivered
 
 Docs impact: updated channels/overview in English and Spanish, HUMAN_MODEL.md, settings help and news.
 
+<a id="d-264"></a>
+## D-264 — 2026-11-23 — Auto lets a session's own work in its folder run: heredoc data, deletions below it, starting a session
+In Auto an external Claude Code session producing a video in a git worktree of the owner's project stopped four times
+on "a high-impact action that needs your OK even in Auto" for ordinary work, and one card expired unanswered. The
+causes were in `commandRisk`'s static reading (D-097): the destructive pattern scanned a heredoc's body as shell
+words, so a Spanish docstring's "su" and a Python regex's `\d\d` (read as `dd`) counted as `su` and `dd`; and every
+`rm -r`/`rm -f` was `always`, even one deleting a subfolder the session had just made. The parent agent also asked
+the owner before starting that session, because `start_session` was `always`. The owner wants Auto to behave like
+Claude Code's auto mode: no question for the agent's own work where it works, only for grave actions.
+
+Now (`tools/command-removals.ts`):
+- A heredoc's body is its program's data unless a shell reads it (`bash <<EOF`, `cat <<EOF | sh`, `ssh host <<EOF`,
+  `sudo`, `eval`, `osascript`…): a script for Python or a file written with `cat > f <<EOF` is judged like a script
+  file, which was never scanned. A body fed to a shell is still scanned, and a forced deletion there stays `always`.
+- A forced deletion is `ask` (so Auto runs it in its folder, Manual asks) when every target is strictly below the
+  folder the command starts in: the external session's work folder, or for APX's own `shell` an absolute `cwd` it
+  named, else relative paths that never climb out. The line's own `cd`s and variables (`D=out/x; rm -rf $D/tmp`) are
+  followed. It stays `always` for the folder itself, `.`, a bare wildcard, anything with `..` out of it, `.git`,
+  `~`/`$HOME`, a variable or `$(…)` the line did not set, braces, a deletion run by another program (`xargs rm`,
+  `find -exec rm`, `bash -c`), and when the starting folder is a home folder, a disk, `/` or a system folder. Every
+  other destructive pattern (`sudo`, `dd`, `git reset --hard`, `curl | sh`…) and every release push is unchanged.
+  The folder rule still judges each path: deleting outside the folders the agent may change asks or is refused.
+- `start_session` is `untrusted`: its calls pass the same policy in the caller's mode, and its write policy is never
+  more than the caller's, so in Auto it starts without a card unless outside content is in the turn (rule 10: an
+  injected page must not launch a session), as a delegation does. Manual asks, Plan refuses.
+- An external agent's call the owner declined, or whose card expired, comes back to Claude Code with why ("the owner
+  did not answer in time … continue another way, or say what is left"), not the generic "policy does not allow it"
+  (`TurnIO.refusal`). The card already resolved as `expired` after its wait and the run went on; this only makes the
+  reason readable. ACP's permission answer carries no message.
+
+The 2026-11-01 choice that `rm -f` of a generated file inside the project still asks in Auto is reversed by the
+owner's request. Trade: an agent in Auto may delete untracked work below its folder without a card; git keeps what
+is committed, and a session in a worktree cannot reach the main checkout this way. Known limit: still a static
+reading, not a sandbox; a script run by Python, Node or a heredoc can do anything its program can, as before.
+
+Docs impact: updated concepts/autonomy and office/code in English and Spanish.

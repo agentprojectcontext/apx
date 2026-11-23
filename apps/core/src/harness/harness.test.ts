@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -374,24 +375,59 @@ test("an outside agent in a delegated session that asks before changes asks for 
   assert.equal(await answer(asking.id), "[false]");
 });
 
-test("an automatic outside session allows local commands but still asks before forced deletion", async () => {
-  const thread = await session("claude");
+test("an automatic outside session in a project worktree runs its own work without a card; deleting outside it still asks (DECISIONS.md#d-264)", async () => {
+  await using tmp = tempDir("apx-harness-");
+  const repo = realpath(tmp.path);
+  const git = (...args: string[]) =>
+    execFileSync("git", ["-c", "user.name=Acme", "-c", "user.email=user@example.com", ...args], { cwd: repo });
+  git("init", "-q");
+  git("commit", "-q", "--allow-empty", "-m", "init");
+  git("worktree", "add", "-q", path.join(".worktrees", "reels"), "-b", "feat/reels");
+  const tree = path.join(repo, ".worktrees", "reels");
+  fs.mkdirSync(path.join(tree, "work", "en"), { recursive: true });
+  fs.mkdirSync(path.join(repo, "work", "src"), { recursive: true });
+  const project = (await env.client.call("projects.register", { path: repo, init: true })).project.id;
+  const thread = await env.client.call("threads.create", {
+    kind: "code",
+    agent_id: "superagent",
+    project_id: project,
+    cwd: tree,
+    write: "auto",
+    engine: "claude",
+  });
+  const [w, r] = [sh(tree), sh(repo)];
   await env.client.call("agents.update", { agent: "superagent", autonomy: "auto" });
   try {
-    const asks = [
-      { kind: "execute", command: "python3 -c 'print(1)'" },
-      { kind: "execute", command: "rm -f audio/clip.raw.wav" },
+    // The shapes a session producing a video in its worktree was stopped for, reading from the main checkout.
+    const own = [
+      `cd ${w}/work/en && python3 - <<'PY'\nimport json\nprint("guarda lo que oyó y su puntaje")\nPY\ncat > voice.json <<'EOF'\n{"voice": "af_bella"}\nEOF`,
+      "python3 - <<'PY' | tee qa/sync.txt\nimport re\nprint(re.findall(r'(\\d\\d):(\\d\\d)', '01:02'))\nPY",
+      `cd ${w}/work; ROOTS=${r}/work/src\nD=en/subtitles; mkdir -p $D\ncp -R $ROOTS/. $D/\nrm -rf $D/words/es $D/captions/es.srt; mkdir -p $D/qa`,
+      "rm -f audio/clip.raw.wav",
     ];
-    await env.client.call("threads.send", { thread: thread.id, text: `probe ${JSON.stringify(asks)}` });
-    const card = await waitFor(
-      async () => (await env.client.call("runs.pending", { thread: thread.id })).inputs[0],
-      "forced deletion confirmation",
-    );
-    assert.match(card.prompt, /Auto/);
-    assert.match(card.detail ?? "", /rm -f/);
-    await env.client.call("runs.respond", { input: card.id, decision: "deny" });
+    await env.client.call("threads.send", {
+      thread: thread.id,
+      text: `probe ${JSON.stringify(own.map((command) => ({ kind: "execute", command })))}`,
+    });
     const done = await env.settle(thread.id);
-    assert.deepEqual(texts(done.messages.slice(-1)), ["[true,false]"]);
+    assert.deepEqual(texts(done.messages.slice(-1)), [JSON.stringify(own.map(() => true))]);
+    // Deleting the owner's main checkout, or what a shell is fed through a heredoc, is still theirs to say.
+    const grave = [`rm -rf ${r}/work/src`, "bash <<'EOF'\nsudo ls\nEOF"];
+    await env.client.call("threads.send", {
+      thread: thread.id,
+      text: `probe ${JSON.stringify(grave.map((command) => ({ kind: "execute", command })))}`,
+    });
+    for (const command of grave) {
+      const card = await waitFor(
+        async () => (await env.client.call("runs.pending", { thread: thread.id })).inputs[0],
+        `a card for ${command}`,
+      );
+      assert.match(card.prompt, /Auto/);
+      assert.equal(JSON.parse(card.detail ?? "{}").command, command);
+      await env.client.call("runs.respond", { input: card.id, decision: "deny" });
+    }
+    const after = await env.settle(thread.id);
+    assert.deepEqual(texts(after.messages.slice(-1)), ["[false,false]"]);
   } finally {
     await env.client.call("agents.update", { agent: "superagent", autonomy: null });
   }

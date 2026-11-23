@@ -135,6 +135,7 @@ function unanswered(answer: InputRecord): { card: string; text: string } | undef
 export type Executor = {
   execute: TurnIO["execute"];
   approve: TurnIO["approve"];
+  refusal: NonNullable<TurnIO["refusal"]>;
   observe: TurnIO["observe"];
   readonly toolsRan: number;
   /** Whether outside content is in the turn so far. */
@@ -603,7 +604,8 @@ export function createExecutor(o: {
     if (READING.has(kind)) return inside ? "never" : "ask";
     // Fetching sends something out; in a code thread it could carry the code with it.
     if (kind === "fetch") return worksInFolder(thread) ? "ask" : "untrusted";
-    if (kind === "execute" && typeof command === "string") return commandRisk(command, o.apxPort());
+    // Its commands start in the folder it works in: a forced deletion below it is its own work (DECISIONS.md#d-264).
+    if (kind === "execute" && typeof command === "string") return commandRisk(command, o.apxPort(), o.workDir);
     // APC files and AGENTS.md define agents and their modes: changing them is high impact, as file_write's.
     if (paths.some((p) => namesApc(p) || guarded(o.workDir, p))) return "always";
     return "ask";
@@ -663,8 +665,17 @@ export function createExecutor(o: {
       stays: false,
       signal,
     });
+    const no = unanswered(answer);
+    // Past its wait the card counts as no: the agent reads why and goes on another way, the run never hangs on it.
+    if (no)
+      refused.set(
+        req.callId,
+        `Not approved: ${no.card}${answer.answer ? ` (their note: ${answer.answer})` : ""}. Do not retry it; continue another way that needs no approval, or end your answer saying what is left for the owner.`,
+      );
     return answer.state === "approved" && allow();
   };
+  /** Why the owner's answer was no, per external call (see approve). */
+  const refused = new Map<string, string>();
 
   /** When each of an external agent's tool calls began. */
   const seen = new Map<string, number>();
@@ -700,6 +711,7 @@ export function createExecutor(o: {
   return {
     execute,
     approve,
+    refusal: (callId) => refused.get(callId),
     observe,
     get toolsRan() {
       return toolsRan;

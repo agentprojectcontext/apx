@@ -51,8 +51,8 @@ no es un `git push`.
 |---|---|
 | `never` | Leer archivos, buscar en la web, buscar en las notas, listar tareas, guardar una nota, mirar tu pantalla, comandos de shell que sólo leen en esta máquina (`ls`, `find . | grep`, `git log`, `git branch -a`, `apx status`, `apx tasks`, `apx mcps list`, `apx usage 7`, cualquier `apx … --help`): corren aunque haya contenido de afuera en el turno. Leer `AGENTS.md` o `.apc/` también es leer. |
 | `untrusted` | Escribir archivos del proyecto, escribirle a un contacto, publicar en un canal, tipear en el navegador, olvidar una nota, darle una herramienta a otro agente, la ubicación del teléfono, abrir una URL con query string, asignarle una tarea a un agente. |
-| `ask` | Cualquier comando de shell que no sea claramente de sólo lectura, incluido un `git push` común de una rama, abrir apps en tu pantalla. |
-| `always` | Comandos de shell destructivos (`rm -rf`, `sudo`, `git reset --hard`…), un push que saca una versión o reescribe la historia (un tag, `--force`, `gh release`, `npm publish`), cambiar `AGENTS.md` o algo dentro de `.apc/` (con una herramienta de archivos o un comando), comandos que llegan a la API de APX, o a su CLI para algo que no sea leer (`apx chat`, `apx runs respond`, `apx routines add`, o cualquier `apx` con una variable puesta antes), no una carpeta o una palabra que se llame apx, mandar un iMessage, responderle a un contacto, usar tu sesión del navegador, hacer clic, tipear o apretar teclas en tu pantalla. |
+| `ask` | Cualquier comando de shell que no sea claramente de sólo lectura, incluido un `git push` común de una rama, borrar algo debajo de la carpeta en la que trabaja el agente (`rm -rf build`), abrir apps en tu pantalla. |
+| `always` | Comandos de shell destructivos (`sudo`, `git reset --hard`, `rm -rf` de algo que no esté debajo de la carpeta en la que trabaja el agente…), un push que saca una versión o reescribe la historia (un tag, `--force`, `gh release`, `npm publish`), cambiar `AGENTS.md` o algo dentro de `.apc/` (con una herramienta de archivos o un comando), comandos que llegan a la API de APX, o a su CLI para algo que no sea leer (`apx chat`, `apx runs respond`, `apx routines add`, o cualquier `apx` con una variable puesta antes), no una carpeta o una palabra que se llame apx, mandar un iMessage, responderle a un contacto, usar tu sesión del navegador, hacer clic, tipear o apretar teclas en tu pantalla. |
 
 Un agente que puede cambiar archivos hace commit, pull, merge o push solo cuando vos o su tarea lo pidieron, o una regla
 o nota del proyecto dice cómo (la web directo a `main`, por ejemplo); si no, te pregunta una vez. Publicar el trabajo
@@ -84,8 +84,11 @@ sus propias reglas por caso, una regla que apaga algo en cualquier punto de la c
 herramientas que pueden usar todos los agentes de la cadena. Pedir una sesión que trabaja en otra carpeta abre una
 sesión nueva con el mismo agente ahí, con una nota que lo dice.
 
-Las sesiones externas de Claude Code, Codex y ACP usan estas mismas reglas de permisos. Auto no es Total: un
-comando que incluye `rm -f` sigue pidiendo tu OK, aunque borre un solo archivo generado dentro del proyecto. Si el
+Las sesiones externas de Claude Code, Codex y ACP usan estas mismas reglas de permisos. En Auto trabajan en su carpeta
+como lo hace el modo auto del propio Claude Code: un script de Python pasado en un heredoc, un archivo escrito con
+`cat > … <<EOF` o borrar una carpeta que crearon debajo de su carpeta corre sin tarjeta. Auto no es Total: borrar la
+carpeta misma, algo fuera de ella (tu checkout principal, tu home), `sudo` o lo que se le pasa a un shell en un heredoc
+sigue pidiendo tu OK. Una tarjeta que nadie contesta cuenta como no: la sesión se entera y sigue por otro camino. Si el
 comando combina varias operaciones, aprobarlo autoriza el comando entero, no solo su parte de lectura. Una sesión
 delegada configurada para preguntar antes de hacer cambios sigue preguntando aunque el agente normalmente use Auto.
 
