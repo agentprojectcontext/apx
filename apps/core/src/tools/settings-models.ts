@@ -1,6 +1,6 @@
 // apx_settings, which models run and how APX talks and listens: the router, a chat's model, APX's voice, local
 // transcription, and the tools of an MCP server already added. Opened to the super-agent at the owner's word
-// (DECISIONS.md#d-267, over D-060); each change is checked against the connected engines before it is written.
+// (DECISIONS.md#d-268, over D-060); each change is checked against the connected engines before it is written.
 import type { ModelChoice, RouterConfig } from "@apx/protocol";
 import { modelSettings } from "../models/choice.ts";
 import { LOCAL_MODELS, machine, recommend } from "../services/local-whisper.ts";
@@ -172,7 +172,7 @@ export const MODELS: Readonly<Record<string, Setting>> = {
       p.trusted
         ? `Run the MCP server ${str(p.server)} from the project's file`
         : `Stop the MCP server ${str(p.server)}`,
-    // Running a new command on this computer is adding a server: the owner's card (DECISIONS.md#d-266).
+    // Running a new command on this computer is adding a server: the owner's card (DECISIONS.md#d-267).
     asks: (p) => (p.trusted ? "card" : undefined),
   },
 };

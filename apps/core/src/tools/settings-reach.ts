@@ -32,7 +32,7 @@ export const TOTAL_SKIPS: Readonly<Record<string, string>> = {
 };
 
 const SECRET = "carries a key, a password or a sign-in the owner types themselves";
-const POWER = "how far agents may act stays the owner's (DECISIONS.md#d-060, DECISIONS.md#d-267)";
+const POWER = "how far agents may act stays the owner's (DECISIONS.md#d-060, DECISIONS.md#d-268)";
 const MACHINE = "installs or controls this computer and its devices";
 const PANEL = "the panel's own view of chats, files, git and the terminal; agents have tools of their own for these";
 const AS_OWNER = "the owner's own word: their answer, their send, their read";

@@ -154,7 +154,7 @@ export function agentTools(store: Store): Tool[] {
             const held = store.approvals
               .list()
               .find((g) => g.scope === "always" && g.key === target.key && g.agent_id === found.agent.id);
-            // A grant held already keeps what the owner narrowed, unless this call narrows it (DECISIONS.md#d-267).
+            // A grant held already keeps what the owner narrowed, unless this call narrows it (DECISIONS.md#d-268).
             if (!held) store.approvals.grant(target, "always", ctx.thread.id, found.agent.id);
             if (narrowed)
               store.approvals.update(target.key, found.agent.id, {

@@ -1,5 +1,5 @@
 // Which models run, APX's voice, local transcription and an MCP server's tools, changed by the super-agent at the
-// owner's word: in Auto with no card, each checked before it is written (DECISIONS.md#d-267).
+// owner's word: in Auto with no card, each checked before it is written (DECISIONS.md#d-268).
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";

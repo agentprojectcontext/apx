@@ -92,7 +92,7 @@ test("a declined change saves nothing", async () => {
   assert.ok(!p?.rules && !p?.note);
 });
 
-test("in Auto, what the owner asks for changes at once; what cannot be undone still asks (DECISIONS.md#d-266)", async () => {
+test("in Auto, what the owner asks for changes at once; what cannot be undone still asks (DECISIONS.md#d-267)", async () => {
   await h.env.client.call("contacts.set", { id: northwind, name: "Northwind Sister", note: "", rules: "" });
   const { answer } = await h.ask(tellHer());
   assert.match(answer, /^done: - Northwind Sister/);

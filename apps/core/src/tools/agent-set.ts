@@ -1,5 +1,5 @@
 // agent_set: the super-agent runs the team for the owner (create, rename, rewrite a prompt, archive), each change at
-// the owner's word, run in Auto unless outside content is in the turn (DECISIONS.md#d-266). Autonomy and the main model stay the owner's own (DECISIONS.md#d-060); the fallback models after
+// the owner's word, run in Auto unless outside content is in the turn (DECISIONS.md#d-267). Autonomy and the main model stay the owner's own (DECISIONS.md#d-060); the fallback models after
 // it are set here too (DECISIONS.md#d-195).
 import { type Organization, randomAgentName } from "@apx/protocol";
 import { z } from "zod";
@@ -152,7 +152,7 @@ export function agentSetTools(store: Store): Tool[] {
       args,
       effect: "local",
       // The owner's word runs in Auto unless outside content is in the turn; applying or acknowledging a reviewed
-      // proposal keeps the owner's yes there (DECISIONS.md#d-266).
+      // proposal keeps the owner's yes there (DECISIONS.md#d-267).
       confirm: (a) => (!changes(a) ? "never" : a.if_revision || a.review ? "always" : "untrusted"),
       ownerSetting: changes,
       deadlineMs: 15_000,
