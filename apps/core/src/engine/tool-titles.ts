@@ -79,6 +79,7 @@ export const SPANISH_TITLES: Record<string, (a: Args) => string> = {
         : "Revisó los límites de los agentes",
   contact_list: () => "Revisó los contactos",
   sticker_list: () => "Revisó los stickers",
+  plan_usage: () => "Consultó el consumo de tus planes de IA",
   apx_settings: (a) => {
     const { act, area } = settingAct(a);
     const what = SETTING_AREA[area] ?? "la configuración";
