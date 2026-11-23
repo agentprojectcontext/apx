@@ -7,6 +7,7 @@ export {
   CalendarReminders,
   MailCheck,
   MutedEvent,
+  SecretField,
   SecretInfo,
   SecretSite,
   SKILL_ZIP_MAX,

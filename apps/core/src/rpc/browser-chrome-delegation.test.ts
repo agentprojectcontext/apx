@@ -168,7 +168,7 @@ test("work not done for the owner never sees or reaches their Chrome", async () 
     ["an agent on its own", helperOf(thread, loose.run)],
     // An outside app's agent naming the owner's run is still an outside app.
     ["an outside app", helperOf(thread, owner, { id: "client:acme", name: "Acme bot" })],
-    // A task an agent gave on its own is not the owner's work (DECISIONS.md#d-267).
+    // A task an agent gave on its own is not the owner's work (DECISIONS.md#d-265).
     ["an agent's own task", helperOf(thread, loose.run, { task_assignment: { task: "tk_acme", id: "as_acme" } })],
   ] as const;
   for (const [who, origin] of refused) {

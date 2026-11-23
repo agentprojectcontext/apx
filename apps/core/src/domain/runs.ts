@@ -178,7 +178,7 @@ export function ownerAsked(
 
 /**
  * Who a task chat's task came from: the owner, or the run of the agent that created it (that run decides whether the
- * task is the owner's work, DECISIONS.md#d-267); undefined outside a task chat.
+ * task is the owner's work, DECISIONS.md#d-265); undefined outside a task chat.
  */
 export type TaskOrigin = "owner" | { run: string } | undefined;
 
@@ -215,7 +215,7 @@ export type ReachLookup = { inputRun(inputId: string): string | undefined; run(r
  * The owner's own work reaches their Chrome: their words, their answers, a routine they scheduled (it runs their
  * words), a task they created (DECISIONS.md#d-223), and what their own agents do for one of those: a helper it delegated
  * to and the turn that hears its result (DECISIONS.md#d-226), and a task it created or assigned there
- * (DECISIONS.md#d-267). A contact, an outside app's agent and work an agent started on its own reach nothing.
+ * (DECISIONS.md#d-265). A contact, an outside app's agent and work an agent started on its own reach nothing.
  */
 export function chromeReach(o: Origin | undefined, task: TaskOrigin, at: ReachLookup, depth = 0): ChromeReach {
   if (o?.kind === "user" && o.via === "chrome") return "all";

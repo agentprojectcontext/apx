@@ -50,22 +50,38 @@ browser, used when the app is closed, the agent types the answer.
 
 ## Signing in with your saved passwords
 
-An agent can sign in for you without ever seeing your password. Save it once and say where it is for:
+An agent can sign in for you without ever seeing your password. When it reaches a sign-in form, it looks for your
+sign-in for that site before asking you anything:
+
+- **A variable set for the site** is used right away, without asking.
+- **A variable whose name matches the site** (`GOOGLE_LOGIN` on `accounts.google.com`) is offered on a card: **Yes**,
+  **Type another** or **No**. Yes sets it for that site, so next time nobody is asked. A plain variable is offered only
+  when its name says it signs in (`USER`, `PASS`, `LOGIN`, `EMAIL`…), never an API key.
+- **Nothing for the site:** a card asks you to type the username and password. **Save** keeps them as a new variable
+  for that site, named after the site and the user (`GOOGLE_PAT_LOGIN`, with a number if that name is taken); **Just
+  this once** uses them for this sign-in only (a few minutes, in that chat, on that site) and keeps nothing. **I'll do
+  it myself** lets the agent hand you the tab.
+
+What you type on the card goes to APX, not to the agent: the agent learns only the variable's name, or that you typed
+one for this time. These cards have no free-text answer, and they are answered only in the app, never from a chat app
+such as Telegram.
+
+To save one ahead of time:
 
 <Steps>
 
-1. In **Resources › Variables**, add the value as a variable (for example `ACME_PASSWORD`). For a username, save it
-   the same way. For two-step codes, paste the setup key, or the `otpauth://` address, that the site offers for an
-   authenticator app.
-2. Open the variable's **Sign-in sites** and choose the field it goes into (**Password**, **Username** or
-   **One-time code**) and the sites, such as `app.acme.com`. **Any site** lets agents use it on every website.
-3. Ask the agent to sign in. It names the variable and the field; the browser fills it in.
+1. In **Resources › Variables**, add a variable and pick its **Type**: **Username and password** (both in one
+   variable, each filled into its own field), **Password**, **Username** or **One-time code**. For two-step codes,
+   paste the setup key, or the `otpauth://` address, that the site offers for an authenticator app.
+2. Add the **Sites** it is for, such as `app.acme.com`. Its **Sign-in sites** dialog also offers **Any site**, which
+   lets agents use it on every website.
+3. Ask the agent to sign in. It finds the variable, or you can name it.
 
 </Steps>
 
-On a site the variable is not for, the agent asks you first in the app: **Once**, **Always on this site** or **No**.
-That card cannot be answered from a chat app such as Telegram, and **Always on this site** adds that site to the
-variable, never "any site".
+The Variables list shows each one's type (**Username and password**, **Password**…) next to its sites. On a site a
+variable is not for, an agent that names it asks you first: **Once**, **Always on this site** or **No**. **Always on
+this site** adds that site to the variable, never "any site".
 
 The agent gets back only "filled" or "refused". The value does not reach the model, the chat, the run's steps, the
 core's logs or the pictures of the tab the agent looks at. The core keeps the value and hands it to the browser in

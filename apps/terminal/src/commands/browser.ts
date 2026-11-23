@@ -7,7 +7,7 @@ export async function browser(
   [sub, a, b, c]: string[],
 ): Promise<void> {
   // Run inside an agent's command, it would drive the browser as the owner, past every check that agent has
-  // (DECISIONS.md#d-267): agents use their browser tools.
+  // (DECISIONS.md#d-265): agents use their browser tools.
   if (process.env.APX_AGENT !== undefined)
     throw new Error(
       "apx browser acts as the owner, so it does not run inside an agent's command. Use your browser tools: browser_do runs a whole sequence, or a saved recipe, in one call.",

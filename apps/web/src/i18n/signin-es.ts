@@ -20,4 +20,12 @@ export const esSignIn: Record<keyof typeof enSignIn, string> = {
   "res.signIn.badge": "Inicio de sesión: {sites}",
   "res.signIn.badgeAny": "Inicio de sesión: cualquier sitio",
   "res.signIn.badgeCount": "Inicio de sesión: {n} sitios",
+  "res.signIn.goesAs": "Va como: {kind}.",
+  "res.field.plain": "Variable",
+  "res.field.login": "Usuario y contraseña",
+  "res.field.username": "Usuario",
+  "res.field.password": "Contraseña",
+  "res.field.otp": "Código de un solo uso",
+  "res.varType": "Tipo",
+  "res.varSitesHint": "Los agentes la usan en estos sitios sin preguntarte; en cualquier otro, te preguntan antes.",
 };

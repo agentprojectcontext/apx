@@ -101,6 +101,16 @@ export type ToolContext = {
    * waits; undefined once the owner said yes, else the text to answer with. A grant already given answers at once.
    */
   requestGrant(prompt: string, approval: ApprovalTarget): Promise<string | undefined>;
+  /**
+   * A sign-in card, in the app only and with no free text (a password typed there would reach the agent): with `login`
+   * the owner types a username and password, which go to the core and never to the agent (DECISIONS.md#d-264); without
+   * it they pick one of `options`. Waits as askOwner does, without staying open.
+   */
+  askSignIn(
+    prompt: string,
+    login: { origin: string; kind: "username" | "password" } | undefined,
+    options?: string[],
+  ): Promise<InputRecord>;
   /** Puts one concrete action to the owner as a card to accept or decline, and waits as askOwner does. */
   proposeAction(action: string, canContinue?: boolean): Promise<InputRecord>;
   /** Takes back this agent's own open question: it ends `withdrawn` and the owner is not told anything new. */

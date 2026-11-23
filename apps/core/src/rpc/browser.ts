@@ -204,7 +204,7 @@ export function browserHandlers(
       if (chromeTurn(ctx)) return (await inOwnersChrome(method, params)) as never;
       if (forChrome(method, params)) {
         // A contact's words, an outside app or an agent working on its own never reach the owner's signed-in Chrome;
-        // neither does a model-driven caller with no run to follow up to the owner (DECISIONS.md#d-267).
+        // neither does a model-driven caller with no run to follow up to the owner (DECISIONS.md#d-265).
         if (ctx.agent ? !ownersTurn(ctx) : ctx.actor !== "human")
           throw unauthorized(
             "only the owner's own work (their turn, routine or task, or a helper's part of it) may use their Chrome",

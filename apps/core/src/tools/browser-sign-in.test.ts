@@ -119,7 +119,9 @@ test("on a site nobody marked, the owner is asked in the app: once covers one fi
     const card = await waitFor(async () => (await env.client.call("runs.pending", { thread: t1 })).inputs[0]);
     assert.equal(env.core.store.inputs.get(card.id)?.app_only, true);
     assert.match(card.prompt ?? "", /ACME_PASSWORD/);
-    assert.match(card.prompt ?? "", /https:\/\/partner\.acme\.com/);
+    assert.match(card.prompt ?? "", /partner\.acme\.com/);
+    // A sign-in card has no free text: a password typed there would reach the agent.
+    assert.equal(env.core.store.inputs.get(card.id)?.tool, "browser_sign_in");
     assert.equal(fills.length, before, "nothing reaches the browser before the owner answers");
     await env.client.call("runs.respond", { input: card.id, text: "Una vez" });
     await env.settle(t1);

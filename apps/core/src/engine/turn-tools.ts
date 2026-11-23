@@ -100,7 +100,7 @@ export function reactionsOff(store: Store, o: Origin, replyChannel?: string | nu
 const channelIdOf = (o: Origin, replyChannel?: string | null) =>
   replyChannel === null ? undefined : (replyChannel ?? (o.kind === "channel" ? o.channel : undefined));
 
-// browser_do stays out: its recipes are files of the owner's project, on the host (DECISIONS.md#d-267).
+// browser_do stays out: its recipes are files of the owner's project, on the host (DECISIONS.md#d-265).
 const VM_BROWSER_TOOLS = new Set(["browser_open", "browser_snapshot", "browser_text", "browser_click", "browser_type"]);
 /**
  * Host tools a chat on the computer keeps: they read nothing of the Mac's files or screen. APX's own work (tasks,

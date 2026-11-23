@@ -52,23 +52,39 @@ el navegador propio de APX, el que se usa con la app cerrada, el agente escribe 
 
 ## Iniciar sesión con tus claves guardadas
 
-Un agente puede iniciar sesión por vos sin ver nunca tu contraseña. Guardala una vez y decí para qué sitios es:
+Un agente puede iniciar sesión por vos sin ver nunca tu contraseña. Cuando llega a un formulario de inicio de sesión,
+busca tu acceso para ese sitio antes de preguntarte nada:
+
+- **Una variable marcada para el sitio** se usa enseguida, sin preguntar.
+- **Una variable cuyo nombre coincide con el sitio** (`GOOGLE_LOGIN` en `accounts.google.com`) se ofrece en una
+  tarjeta: **Sí**, **Escribir otro** o **No**. Sí la deja marcada para ese sitio, así la próxima vez no se pregunta.
+  Una variable común se ofrece solo si su nombre dice que es para iniciar sesión (`USER`, `PASS`, `LOGIN`, `EMAIL`…),
+  nunca una clave de API.
+- **Nada para el sitio:** una tarjeta te pide escribir el usuario y la contraseña. **Guardar** los deja como una
+  variable nueva para ese sitio, con el nombre del sitio y del usuario (`GOOGLE_PAT_LOGIN`, con un número si ese nombre
+  ya existe); **Solo esta vez** los usa para este inicio de sesión (unos minutos, en ese chat, en ese sitio) y no guarda
+  nada. **Lo hago yo** deja que el agente te pase la pestaña.
+
+Lo que escribís en la tarjeta va a APX, no al agente: el agente solo sabe el nombre de la variable, o que escribiste
+uno para esta vez. Estas tarjetas no tienen respuesta de texto libre y se responden solo en la app, nunca desde una app
+de chat como Telegram.
+
+Para guardar uno de antemano:
 
 <Steps>
 
-1. En **Recursos › Variables**, agregá el valor como variable (por ejemplo `ACME_PASSWORD`). Un usuario se guarda
-   igual. Para los códigos de dos pasos, pegá la clave de configuración, o la dirección `otpauth://`, que el sitio da
-   para una app de autenticación.
-2. Abrí **Sitios para iniciar sesión** de la variable y elegí el campo donde va (**Contraseña**, **Usuario** o
-   **Código de un solo uso**) y los sitios, como `app.acme.com`. **Cualquier sitio** deja que los agentes la usen en
-   todos.
-3. Pedile al agente que inicie sesión. Nombra la variable y el campo; el navegador lo completa.
+1. En **Recursos › Variables**, agregá una variable y elegí su **Tipo**: **Usuario y contraseña** (los dos en una
+   variable, cada uno en su campo), **Contraseña**, **Usuario** o **Código de un solo uso**. Para los códigos de dos
+   pasos, pegá la clave de configuración, o la dirección `otpauth://`, que el sitio da para una app de autenticación.
+2. Agregá los **Sitios** donde va, como `app.acme.com`. Su diálogo **Sitios para iniciar sesión** también ofrece
+   **Cualquier sitio**, que deja que los agentes la usen en todos.
+3. Pedile al agente que inicie sesión. Encuentra la variable, o se la podés nombrar.
 
 </Steps>
 
-En un sitio que no está en la variable, el agente te pregunta antes en la app: **Una vez**, **Siempre en este sitio**
-o **No**. Esa tarjeta no se puede responder desde una app de chat como Telegram, y **Siempre en este sitio** agrega
-ese sitio a la variable, nunca "cualquier sitio".
+La lista de Variables muestra el tipo de cada una (**Usuario y contraseña**, **Contraseña**…) junto a sus sitios. En
+un sitio que no está en la variable, el agente que la nombra te pregunta antes: **Una vez**, **Siempre en este sitio**
+o **No**. **Siempre en este sitio** agrega ese sitio a la variable, nunca "cualquier sitio".
 
 El agente recibe solo "rellenado" o "rechazado". El valor no llega al modelo, al chat, a los pasos de la ejecución,
 a los registros de la core ni a las imágenes de la pestaña que mira el agente. La core guarda el valor y se lo pasa

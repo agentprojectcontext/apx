@@ -1,5 +1,5 @@
 // browser_do: several browser actions in one call, the browser's screen_do. Every step goes through the same browser
-// methods as browser_click and browser_type, as this agent, so the same rules hold (DECISIONS.md#d-267).
+// methods as browser_click and browser_type, as this agent, so the same rules hold (DECISIONS.md#d-265).
 import { setTimeout as sleep } from "node:timers/promises";
 import { BROWSER_CAP } from "@apx/protocol";
 import { z } from "zod";

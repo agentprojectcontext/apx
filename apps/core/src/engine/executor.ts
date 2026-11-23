@@ -537,6 +537,22 @@ export function createExecutor(o: {
           stays: !canContinue,
           signal,
         }),
+      askSignIn: (prompt, login, options) =>
+        o.inputs.ask({
+          run,
+          agent,
+          display,
+          callId,
+          kind: "question",
+          prompt,
+          tool: "browser_sign_in",
+          args: login ? { login } : {},
+          options,
+          appOnly: true,
+          external: o.external(),
+          stays: false,
+          signal,
+        }),
       // No tool on the card: the owner accepts the action itself, and the calls it takes still pass their own checks.
       proposeAction: (action, canContinue) =>
         o.inputs.ask({
