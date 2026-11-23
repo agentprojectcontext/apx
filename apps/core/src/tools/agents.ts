@@ -99,6 +99,14 @@ export function agentTools(store: Store): Tool[] {
         agent: z.string().min(1).describe("agent id or unique name"),
         tools: z.array(z.string().min(1).max(80)).min(1).max(50),
         revoke: z.boolean().optional().describe("take the grants back"),
+        condition: z
+          .string()
+          .trim()
+          .min(1)
+          .max(200)
+          .optional()
+          .describe("only calls on these comma-separated paths, domains or names"),
+        expires_at: z.string().datetime().optional().describe("the grant ends then"),
       }),
       effect: "local",
       // Outside content in the turn could be steering it: then the owner confirms.
@@ -106,10 +114,16 @@ export function agentTools(store: Store): Tool[] {
       deadlineMs: 5_000,
       title: (a) =>
         `${a.revoke ? "Took back from" : "Let"} ${a.agent ?? "an agent"} ${a.revoke ? "" : "use "}${(a.tools ?? []).join(", ").slice(0, 60)}`,
+      check(a) {
+        if (a.expires_at && Date.parse(a.expires_at) <= Date.now()) throw new Error("expires_at is already past");
+        if (a.revoke && (a.condition || a.expires_at))
+          throw new Error("revoke takes the grant back whole: no condition");
+      },
       async run(a, ctx) {
         const found = store.agents.resolve(a.agent, ctx.thread.project_id);
         if ("error" in found) return found.error;
         if (found.agent.id === ctx.agent.id) return "refused: an agent cannot grant tools to itself";
+        const narrowed = a.condition !== undefined || a.expires_at !== undefined;
         const mine = ctx.approvalTools?.() ?? [];
         const names = [
           ...new Set(
@@ -137,7 +151,16 @@ export function agentTools(store: Store): Tool[] {
           // A grant for a tool the agent's own list keeps from it would do nothing: say how to give it the tool.
           else if (target.server === APX_SERVER && !listAllows(found.agent, n, mine)) notListed.push(n);
           else {
-            store.approvals.grant(target, "always", ctx.thread.id, found.agent.id);
+            const held = store.approvals
+              .list()
+              .find((g) => g.scope === "always" && g.key === target.key && g.agent_id === found.agent.id);
+            // A grant held already keeps what the owner narrowed, unless this call narrows it (DECISIONS.md#d-265).
+            if (!held) store.approvals.grant(target, "always", ctx.thread.id, found.agent.id);
+            if (narrowed)
+              store.approvals.update(target.key, found.agent.id, {
+                ...(a.condition !== undefined ? { condition: a.condition } : {}),
+                ...(a.expires_at !== undefined ? { expires_at: a.expires_at } : {}),
+              });
             done.push(n);
           }
         }
@@ -155,7 +178,7 @@ export function agentTools(store: Store): Tool[] {
         if (!done.length) return `nothing ${a.revoke ? "taken back" : "granted"}${tail || `: ${a.tools.join(", ")}`}`;
         return a.revoke
           ? `${found.agent.name} asks the owner again before: ${done.join(", ")}${tail}`
-          : `${found.agent.name} can now use without asking: ${done.join(", ")}${tail}`;
+          : `${found.agent.name} can now use without asking: ${done.join(", ")}${narrowed ? ` (${[a.condition ? `only on ${a.condition}` : "", a.expires_at ? `until ${a.expires_at}` : ""].filter(Boolean).join(", ")})` : ""}${tail}`;
       },
     }),
     defineTool({

@@ -13,6 +13,7 @@ import { CONTACT_SOURCES } from "./settings-contact-sources.ts";
 import { EMAIL } from "./settings-email.ts";
 import type { Asks, Params, Setting, SettingsDeps } from "./settings-kit.ts";
 import { MEDIA } from "./settings-media.ts";
+import { MODELS } from "./settings-models.ts";
 import { PEOPLE } from "./settings-people.ts";
 import { PUBLIC_ARTIFACTS } from "./settings-public-artifacts.ts";
 import { TEAM } from "./settings-team.ts";
@@ -26,6 +27,7 @@ export const SETTINGS: Readonly<Record<string, Setting>> = {
   ...TEAM,
   ...WORK,
   ...MEDIA,
+  ...MODELS,
   ...EMAIL,
   ...USAGE,
   ...PUBLIC_ARTIFACTS,
@@ -55,6 +57,9 @@ const AREA: Readonly<Record<string, string>> = {
   extensions: "an extension",
   services: "the media services",
   embeddings: "memory's embedding engine",
+  models: "the models",
+  voice: "APX's voice",
+  transcription: "transcription",
   surfaces: "a widget",
   stickers: "the stickers",
   environments: "the isolated computer",
@@ -299,7 +304,7 @@ export function settingsTools(
         areas: AREA,
         looked: "Looked at the settings",
         elsewhere:
-          "Agents' definitions, routines, Flows and the shared limits have tools of their own. Keys, sign-ins, models, how far agents may act and the machine APX runs on stay the owner's, in Settings.",
+          "Agents' definitions, routines, Flows and the shared limits have tools of their own. Keys, sign-ins, how far agents may act and the machine APX runs on stay the owner's, in Settings.",
       },
       deps,
     ),

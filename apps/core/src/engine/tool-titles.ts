@@ -48,6 +48,9 @@ const SETTING_AREA: Record<string, string> = {
   extensions: "una extensión",
   services: "los servicios de medios",
   embeddings: "el motor de embeddings de la memoria",
+  models: "los modelos",
+  voice: "la voz de APX",
+  transcription: "la transcripción",
   surfaces: "un widget",
   stickers: "los stickers",
 };

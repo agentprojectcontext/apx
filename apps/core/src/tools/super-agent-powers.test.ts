@@ -38,6 +38,29 @@ test("grant_tool hands one of APX's own tools to another agent, and takes it bac
   assert.deepEqual(await granted("acme-helper"), []);
 });
 
+test("grant_tool narrows a grant to a condition and an end date, and a plain grant again keeps that narrowing", async () => {
+  const until = new Date(Date.now() + 86_400_000).toISOString();
+  const { answer } = await grants.ask({
+    agent: "acme-helper",
+    tools: ["remember"],
+    condition: "~/work/acme",
+    expires_at: until,
+  });
+  assert.match(answer, /can now use without asking: remember \(only on ~\/work\/acme, until /);
+  const row = async () =>
+    (await grants.env.client.call("tools.approvals", {})).approvals.find(
+      (g) => g.agent_id === "acme-helper" && g.key === "apx:remember",
+    );
+  assert.equal((await row())?.condition, "~/work/acme");
+  assert.equal((await row())?.expires_at, until);
+  await grants.ask({ agent: "acme-helper", tools: ["remember"] });
+  assert.equal((await row())?.condition, "~/work/acme");
+  const past = await grants.ask({ agent: "acme-helper", tools: ["remember"], expires_at: "2020-01-01T00:00:00.000Z" });
+  assert.match(past.answer, /expires_at is already past/);
+  await grants.ask({ agent: "acme-helper", tools: ["remember"], revoke: true });
+  assert.equal(await row(), undefined);
+});
+
 test("grant_tool says why a tool is not granted: the agent's own list leaves it out, or it runs the team", async () => {
   const listed = await grants.ask({ agent: "acme-browser", tools: ["remember"] });
   assert.match(listed.answer, /Acme Browser's tool list leaves them out \(agent_set tools adds them\): remember/);

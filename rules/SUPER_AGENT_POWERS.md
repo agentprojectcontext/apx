@@ -16,7 +16,7 @@ How a change asks, once the owner asked for it themselves (D-140's gate):
 |---|---|---|---|---|
 | `untrusted` (default) | asks | runs, asks if outside content is in the turn | runs | every settings and team change not below |
 | `always` | asks | asks | runs | deleting for good, speaking for the owner, writing other apps' files |
-| `card` | asks | asks | asks | keys, who reaches the owner, what agents may do, MCP servers, publishing |
+| `card` | asks | asks | asks | keys, who reaches the owner, agents' limits, adding or starting MCP servers, publishing |
 | owner only | — | — | — | list C, and what list B keeps out of reach |
 
 ## A. Could not do on request, and should
@@ -33,19 +33,20 @@ Done in this change:
 | Choose which tools another agent may use | `agent_set` had no `tools` (staging `tools/agent-set.ts:107`); `agents.update` takes it | `agent_set` `tools`, checked against `agents.tools` before writing |
 | Make what the owner asked without a card in Auto | every `apx_settings` change but a few was `always` (staging `tools/settings.ts:206`), every `agent_set` change too (staging `tools/agent-set.ts:132`) | `untrusted` by default; `always` and `card` only where listed in B |
 
-Still out of reach, for the owner to decide (D-060 keeps models and how far agents act the owner's; each would
-reverse a standing decision, so they are not changed here):
+Opened by the owner afterwards ([D-265](DECISIONS.md#d-265), reversing D-060 for models):
 
-| Method | Where | Would need |
+| Need | Was blocked by | Now |
 |---|---|---|
-| `models.set_config` (the router's models) | `settings-reach.ts:84` | the owner lifting D-060 for the router chain; a model with no key or quota breaks every agent on it, so it would need `services.test`-style validation first |
-| `threads.model` (a chat's model) | `settings-reach.ts:85` | same as above, per chat |
-| `voice.set` (APX's voice, call models) | `settings-reach.ts:147` | same as above |
-| `transcription.install` (a local Whisper model) | `settings-reach.ts:145` | the `embeddings.install` treatment: library models only |
-| `voice.install`, `profiles.install` | `settings-reach.ts:146`, `:144` | a download from a known library; same treatment |
-| `mcp.approveTool`, `mcp.toolMode`, `mcp.trust` | `settings-reach.ts:99`, `:100`, `:91` | `card` like `mcp.set` (they decide what a command on this computer may do) |
-| `engines.set_usage` | `settings-reach.ts:43` | low risk: the owner's opt-in to query account limits; reading quotas is `engines.usage` for the super-agent and `plan_usage` for every agent already |
-| `tools.grant_set` (narrow a grant to a condition or a date) | `settings-reach.ts:88` | `grant_tool` taking `condition` and `expires_at` |
+| The router's models and the default | `models.set_config` was `POWER` (D-060) | `apx_settings` `models.config` / `models.set_config`; engines must be on with a key (`providers.list`), an empty chain is refused (`tools/settings-models.ts`) |
+| One chat's model | `threads.model` was `POWER` | `apx_settings` `threads.model`, same check |
+| APX's voice and calls | `voice.set` was `POWER` | `apx_settings` `voice.status` / `voice.set`; a call model is checked, call services must exist |
+| Local transcription | `transcription.install` was `MACHINE` | `apx_settings` `transcription.local` / `transcription.install`, APX's whisper.cpp list only |
+| An added MCP server's tools | `mcp.approveTool`, `mcp.toolMode` were `POWER` | `apx_settings`, in Auto; `mcp.trust` (start a project's server) keeps the card when it trusts |
+| Narrowing a grant | `tools.grant_set` was `POWER` | `grant_tool` `condition` and `expires_at`; a grant held already keeps the owner's narrowing |
+
+Still out of reach and not asked for: `voice.install` and `profiles.install` (`settings-reach.ts` `MACHINE`), and
+`engines.set_usage`, the owner's opt-in to query account limits (reading quotas is `engines.usage` for the
+super-agent and `plan_usage` for every agent already).
 
 `apx_settings`, `agent_set`, `apx_flow` and `task_tidy` stay the super-agent's (`policy.ts:102`): another agent asks
 it, so a project agent never changes the owner's setup on someone else's word.
@@ -54,7 +55,8 @@ it, so a project agent never changes the owner's setup on someone else's word.
 
 `card` (every mode, Total included, never granted for good):
 
-- Keys and commands reaching somewhere: MCP servers (`mcp.set`, D-141, and `hermes.import`, which adds them), a service change that sends a saved key to another address
+- Keys and commands reaching somewhere: MCP servers (`mcp.set`, D-141, `hermes.import`, which adds them, and
+  `mcp.trust` starting a project's server), a service change that sends a saved key to another address
   or deletes it (`services.set`, D-264).
 - Who reaches the owner and who is the owner: channels (`channels.set`), an address with no person, claiming one, the
   owner role (`contacts.address`, `contacts.claim`, `contacts.set`), contact sources (D-144, D-203), letting a contact
@@ -70,17 +72,17 @@ applying a reviewed agent proposal; plus every tool's own `always` calls (destru
 sending as the owner: D-106's list).
 
 Owner only, out of reach (`settings-reach.ts` `OWNER_ONLY`): the machine and its devices — pairing and revoking devices
-(`devices.pair_start:116`, `devices.revoke:118`), installing or updating APX and its desktop app (`system.update:127`,
-`desktop.install:114`), extensions and their catalogs (`extensions.install:137`, `extensions.remove:138`,
-`extensions.catalog_add:141`), the isolated computer (`environments.enable:101`, `environments.bind:102`,
-`environments.configure:119`), taking over other CLIs (`setup.take_over_cli:136`), the browser itself
-(`browser.control:121`); exposure and tokens — clients and public routes (`clients.create:63`, `clients.revoke:64`,
-`public_routes.rotate:65`, `public_routes.revoke:66`, `flows.token_rotate:67`, `flows.path_set:98`), webhooks
-(`webhooks.set:83`), how far agents act (`access.set:82`), telemetry (`telemetry.set:103`); deleting en masse or for
-good — storage (`storage.clear:104`, `storage.compact:105`, `storage.computers.delete:107`,
-`storage.backups.delete:109`), importing a whole setup over this one (`instance.import:111`), deleting chats
-(`threads.delete:167`, a panel action); speaking as the owner where it is their own word (`channels.send:199`,
-`mail.send:201`, `runs.respond`: agents send through their own tools, behind D-106's cards).
+(`devices.pair_start:112`, `devices.revoke:114`), installing or updating APX and its desktop app (`system.update:123`,
+`desktop.install:110`), extensions and their catalogs (`extensions.install:133`, `extensions.remove:134`,
+`extensions.catalog_add:137`), the isolated computer (`environments.enable:97`, `environments.bind:98`,
+`environments.configure:115`), taking over other CLIs (`setup.take_over_cli:132`), the browser itself
+(`browser.control:117`); exposure and tokens — clients and public routes (`clients.create:63`, `clients.revoke:64`,
+`public_routes.rotate:65`, `public_routes.revoke:66`, `flows.token_rotate:67`, `flows.path_set:96`), webhooks
+(`webhooks.set`), how far agents act (`access.set`), telemetry (`telemetry.set`); deleting en masse or for
+good — storage (`storage.clear:100`, `storage.compact:101`, `storage.computers.delete:103`,
+`storage.backups.delete:105`), importing a whole setup over this one (`instance.import:107`), deleting chats
+(`threads.delete:161`, a panel action); speaking as the owner where it is their own word (`channels.send:193`,
+`mail.send:195`, `runs.respond`: agents send through their own tools, behind D-106's cards).
 
 ## C. Never
 

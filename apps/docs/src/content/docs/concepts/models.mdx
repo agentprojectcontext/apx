@@ -200,6 +200,10 @@ agent's own. The notice above it says which model did not answer and why.
 Fallbacks only apply to turns that APX's own loop runs. A Claude Code, Codex or ACP session runs its own CLI with its
 own model, so the agent's fallbacks are not used there.
 
+You can also ask your super-agent to change the default, the router or one chat's model. It only saves models from an
+engine that is on and has its key or sign-in, and it never leaves the router with an empty chain; otherwise nothing
+changes.
+
 ## Usage
 
 Every turn records its model and tokens, and whether they were **included** in a subscription or **metered** (paid
