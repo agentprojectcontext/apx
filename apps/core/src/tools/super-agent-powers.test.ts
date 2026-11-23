@@ -1,5 +1,5 @@
 // What the super-agent sets up for the owner beyond apx_settings' own tests: another agent's grants for APX's tools,
-// and memory's embedding engine and media services, each tried before it replaces what works (DECISIONS.md#d-265).
+// and memory's embedding engine and media services, each tried before it replaces what works (DECISIONS.md#d-266).
 import assert from "node:assert/strict";
 import { after, before, test } from "node:test";
 import { settingsCore } from "./settings.test-support.ts";

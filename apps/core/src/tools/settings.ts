@@ -1,5 +1,5 @@
 // apx_settings: the super-agent changes what the owner sets up in APX for them, through the owner's own methods, each
-// change at the owner's word, run in Auto unless outside content is in the turn (DECISIONS.md#d-265). One tool for every setting,
+// change at the owner's word, run in Auto unless outside content is in the turn (DECISIONS.md#d-266). One tool for every setting,
 // read on demand, so the prompt does not grow with the panel (rules/PROMPT_SIZE.md). Which methods it reaches is
 // settings-reach.ts's to say. See DECISIONS.md#d-138
 // Flows and their tables are the owner's work, not settings: they have apx_flow (flow-tool.ts), built on areaTool here.
@@ -148,7 +148,7 @@ export type AreaToolSpec = {
   areas: Readonly<Record<string, string>>;
   /** The card's title for a look. */
   looked: string;
-  /** How a change asks when its method does not say (Setting.asks); none: `untrusted` (DECISIONS.md#d-265). */
+  /** How a change asks when its method does not say (Setting.asks); none: `untrusted` (DECISIONS.md#d-266). */
   asks?: Asks;
   /** The index's last line: what lives elsewhere. */
   elsewhere: string;
@@ -211,7 +211,7 @@ export function areaTool(spec: AreaToolSpec, deps: SettingsDeps): Tool {
     args,
     effect: "local",
     // What the owner asked runs in Auto unless outside content is in the turn; what cannot be undone asks there, and a
-    // few keep the owner's card in every mode (DECISIONS.md#d-265).
+    // few keep the owner's card in every mode (DECISIONS.md#d-266).
     confirm: (a) =>
       real(a)
         ? asks(a) === undefined || asks(a) === "untrusted"

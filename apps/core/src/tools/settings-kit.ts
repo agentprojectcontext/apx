@@ -52,7 +52,7 @@ export type Setting = {
   /** Its card shows every value whole: a cut could hide what it runs or where a key goes. */
   whole?: true;
   /**
-   * How a change asks (DECISIONS.md#d-265). None or `untrusted`: what the owner asked runs in Auto unless outside
+   * How a change asks (DECISIONS.md#d-266). None or `untrusted`: what the owner asked runs in Auto unless outside
    * content is in the turn. `always`: cannot be undone or speaks for the owner, so Auto asks and Total runs it.
    * `card`: on the owner's card in every mode, never granted for good (keys, who reaches the owner, what agents may do).
    */

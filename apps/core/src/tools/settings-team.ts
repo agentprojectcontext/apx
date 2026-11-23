@@ -209,7 +209,7 @@ export const TEAM: Readonly<Record<string, Setting>> = {
   "hermes.import": {
     does: "bring a Hermes home folder (path) into APX: agents, memory, skills, routines turned off, MCP servers; never secrets",
     named: ["path"],
-    // It adds MCP servers, commands on this computer: mcp.set's card in every mode, naming each (DECISIONS.md#d-265).
+    // It adds MCP servers, commands on this computer: mcp.set's card in every mode, naming each (DECISIONS.md#d-266).
     asks: "card",
     says: (p) => hermesCard(hermesHome(str(p.path))) ?? `Bring the Hermes setup in ${str(p.path)} into APX`,
     refuse: (p) => (readHermes(hermesHome(str(p.path))) ? undefined : `no Hermes setup in ${hermesHome(str(p.path))}`),

@@ -45,7 +45,7 @@ export async function settingsCore({
     }
   }
 
-  /** The owner's card for a change Auto makes at once (DECISIONS.md#d-265): shown in Manual. */
+  /** The owner's card for a change Auto makes at once (DECISIONS.md#d-266): shown in Manual. */
   const card = (call: object | string, decision: "approve" | "deny", agent = "superagent") =>
     inMode("manual", () => ask(call, decision, agent));
 

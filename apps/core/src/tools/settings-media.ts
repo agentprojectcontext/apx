@@ -1,5 +1,5 @@
 // apx_settings, the media services and memory's embedding engine: the super-agent sets up a service or Ollama's
-// embeddings for memory at the owner's word, never typing a key (DECISIONS.md#d-265). A change is tried before it is
+// embeddings for memory at the owner's word, never typing a key (DECISIONS.md#d-266). A change is tried before it is
 // saved, so a service that does not answer never replaces one that works.
 import type { ServiceSettings } from "@apx/protocol";
 import { memorySettings } from "../domain/memory-settings.ts";
