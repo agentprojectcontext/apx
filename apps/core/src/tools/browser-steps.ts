@@ -39,7 +39,7 @@ export const StepArg = z.object({
   do: z.enum(["open", "click", "type", "wait"]),
   target: z.string().optional().describe('click/type: `button "Send"` or a name'),
   within: z.string().optional().describe("the dialog it is in, when names repeat"),
-  text: z.string().optional().describe("type: the text; wait: text to wait for"),
+  text: z.string().optional().describe("type: the text, or a file's full path to attach; wait: text to wait for"),
   url: z.string().optional().describe("open"),
   submit: z.boolean().optional().describe("type: press Enter after"),
   gone: z.boolean().optional().describe("wait until the text is gone"),

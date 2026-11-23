@@ -8,7 +8,7 @@ import { type BrowserRecipe, listRecipes, MAX_STEPS, RECIPE_NAME, readRecipe, sa
 import { type BrowserStep, fill, runSteps, StepArg, stepText, toSteps } from "./browser-steps.ts";
 import { workDir } from "./folders.ts";
 import { cap, untrusted } from "./result.ts";
-import { defineTool, type Tool, type ToolContext } from "./types.ts";
+import { defineTool, type ScopedThread, type Tool, type ToolContext } from "./types.ts";
 
 /** What a failure shows of the page: enough to fix the step without another snapshot. */
 const FAILED_TREE_CHARS = 6000;
@@ -22,6 +22,8 @@ export function browserDoTool(
   home: string,
   own: (ctx: Pick<ToolContext, "agent" | "call">, tab: string) => Promise<string>,
   card: (ctx: ToolContext, tab: string, state: "agent") => Promise<void>,
+  /** A local file the agent may read, when `text` is its full path: a file field gets it attached, as browser_type does. */
+  attachable: (text: string, thread: ScopedThread) => string | undefined,
 ): Tool {
   /** Recipes live in the thread's project (in the agent's work folder when it has none). */
   const projectDir = (ctx: Pick<ToolContext, "thread">) =>
@@ -90,7 +92,15 @@ export function browserDoTool(
           await ctx.call("browser.click", { tab, ref, by });
         },
         type: async (ref, text, submit) => {
-          await ctx.call("browser.type", { tab, ref, text, submit, by });
+          const file = attachable(text, ctx.thread);
+          await ctx.call("browser.type", {
+            tab,
+            ref,
+            text: file ?? text,
+            ...(file ? { upload: true } : {}),
+            submit,
+            by,
+          });
         },
         open: async (url) => {
           await ctx.call("browser.navigate", { tab, url, by });

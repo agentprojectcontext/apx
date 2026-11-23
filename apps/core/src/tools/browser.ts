@@ -138,7 +138,7 @@ export function browserTools(
   const attachable = attachableIn(store, home, vm);
   return [
     browserEvaluateTool(store, home, own, vm),
-    browserDoTool(store, home, own, card),
+    browserDoTool(store, home, own, card, attachable),
     browserSignInTool(store, signIn, own, vm),
     defineTool({
       needsCap: BROWSER_CAP,

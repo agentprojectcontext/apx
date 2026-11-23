@@ -27,6 +27,16 @@ const llm = scriptedLlm((req, { said, afterTool }) => {
     return callTool("d2", "browser_do", { tab: "t1", recipe: "schedule-post", vars: { copy: "Second post" } });
   if (said.includes("unknown")) return callTool("d3", "browser_do", { tab: "t1", recipe: "nope-recipe" });
   if (said.includes("missing")) return callTool("d4", "browser_do", { tab: "t1", recipe: "schedule-post" });
+  const attach = /^attach (\S+)/.exec(said)?.[1];
+  if (attach)
+    return callTool("d5", "browser_do", {
+      tab: "t1",
+      steps: [
+        { do: "click", target: 'button "Create post"' },
+        { do: "type", target: "Add an image", text: "{{image}}" },
+      ],
+      vars: { image: attach },
+    });
   return say("ok");
 });
 
@@ -41,7 +51,14 @@ const tree = () =>
   [
     '<untrusted_web source="https://admin.example.com/">',
     '- button "Create post" [e1]',
-    ...(composing ? ['- dialog "New post"', '  - textbox "Write something" [e2]', '  - button "Schedule" [e3]'] : []),
+    ...(composing
+      ? [
+          '- dialog "New post"',
+          '  - textbox "Write something" [e2]',
+          '  - button "Schedule" [e3]',
+          '  - button "Add an image" [e4]',
+        ]
+      : []),
     ...(scheduled ? ['- status "Scheduled"'] : []),
     "</untrusted_web>",
   ].join("\n");
@@ -76,7 +93,7 @@ before(async () => {
       return { ok: true, url: "https://admin.example.com/" };
     }
     if (method === "browser.type") {
-      actions.push(`type ${p.ref} ${p.text}`);
+      actions.push(`type ${p.ref} ${p.text}${p.upload ? " (attached)" : ""}`);
       return { ok: true, url: "https://admin.example.com/" };
     }
     throw new Error(`unknown ${method}`);
@@ -134,4 +151,23 @@ test("an unknown recipe names the saved ones, and missing values stop it before 
   assert.equal(missing.tool?.status, "error");
   assert.match(missing.tool?.detail ?? "", /missing vars: copy/);
   assert.deepEqual(actions, []);
+});
+
+test("a file's full path, given as a value, is attached; a file the agent may not read is only text", async () => {
+  const work = path.join(env.home, "work");
+  fs.mkdirSync(work, { recursive: true });
+  const image = path.join(work, "post-1.png");
+  fs.writeFileSync(image, "png");
+  actions.length = 0;
+  composing = false;
+  const ok = await turn(`attach ${image}`);
+  assert.equal(ok.tool?.status, "ok", ok.tool?.detail);
+  assert.deepEqual(actions, ["click e1 by superagent", `type e4 ${image} (attached)`]);
+  // A file it may not read (APX's own folder) is never attached: typed as plain text, a file field then refuses it.
+  const outside = path.join(env.home, "elsewhere.png");
+  fs.writeFileSync(outside, "png");
+  actions.length = 0;
+  composing = false;
+  await turn(`attach ${outside}`);
+  assert.deepEqual(actions, ["click e1 by superagent", `type e4 ${outside}`]);
 });

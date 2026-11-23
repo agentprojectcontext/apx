@@ -5952,7 +5952,12 @@ hands it on, it is still me asking".
 A chat on the agents' computer (D-154) does not get `browser_do`: its recipes are files of the owner's project on
 this computer, which those chats never read or write.
 
-Not done yet: attaching files from a step (`browser_type`'s local-file upload) and keys other than Enter.
+A `type` step whose text is the full path of a file the agent may read attaches it to a file field, as `browser_type`
+does (the same folder check, `attachableIn`), so a recipe takes the file as a value (`{{image}}`). A file field the
+page hides (only a button that opens the system's file picker) does not show in the snapshot and cannot be named yet,
+for `browser_type` either.
+
+Not done yet: keys other than Enter.
 
 Docs impact: updated office/browser (recipes, the Chrome bullet, the terminal note) in English and Spanish,
 PROMPT_SIZE.md (browser tools), and news.
