@@ -89,6 +89,22 @@ for (const lang of ["en", "es"] as const)
       await picker.click();
       await page.getByRole("option", { name: /Reviewer/ }).click();
       await page.screenshot({ path: info.outputPath("draft.png") });
+      await page.route("**/rpc/threads.create", (route) =>
+        route.fulfill({ json: { ok: false, error: { code: "conflict", message: "Try again" } } }),
+      );
+      await page.getByRole("button", { name: copy.confirm, exact: true }).click();
+      await expect(page.getByText(en ? /Could not open the chat\./ : /No se pudo abrir el chat\./)).toBeVisible();
+      await expect(picker).toContainText("Builder");
+      await expect(composer).toHaveValue("Keep this unsent draft");
+      expect(await rpc("surfaces.memory", { surface: made.id })).toEqual(memory);
+      await page.screenshot({ path: info.outputPath("draft-error.png") });
+      await page
+        .locator(".toasts")
+        .getByRole("button", { name: en ? "Close" : "Cerrar", exact: true })
+        .click();
+      await page.unroute("**/rpc/threads.create");
+      await picker.click();
+      await page.getByRole("option", { name: /Reviewer/ }).click();
       await page.getByRole("button", { name: copy.confirm, exact: true }).click();
       await expect(picker).toContainText("Reviewer");
       await expect(composer).toHaveValue(new RegExp(made.title));
