@@ -50,7 +50,7 @@ Every tool call has a level, and some depend on their arguments: a read-only `gi
 | `never` | Reading files, searching the web, recalling notes, listing tasks, saving a note, looking at your screen, shell commands that only read on this machine (`ls`, `find . | grep`, `git log`, `git branch -a`, `apx status`, `apx tasks`, `apx mcps list`, `apx usage 7`, any `apx … --help`): they run even with outside content in the turn. Reading `AGENTS.md` or `.apc/` is reading too. |
 | `untrusted` | Writing files in the project, messaging a contact, posting to a channel, typing in the browser, forgetting a note, giving another agent a tool, the phone's location, opening a URL with a query string, assigning a task to an agent. |
 | `ask` | Any shell command that is not plainly read-only, including a plain `git push` of a branch, opening apps on your screen. |
-| `always` | Destructive shell commands (`rm -rf`, `sudo`, `git reset --hard`…), a push that cuts a release or rewrites history (a tag, `--force`, `gh release`, `npm publish`), changing `AGENTS.md` or anything in `.apc/` (with a file tool or a command), commands that reach APX's own API, or its CLI for anything but reading (`apx chat`, `apx runs respond`, `apx routines add`, or any `apx` run with a variable set before it), not a folder or a word named apx, sending an iMessage, answering a contact, using your browser login, clicking, typing or pressing keys on your screen. |
+| `always` | Destructive shell commands (`rm -rf`, `sudo`, `git reset --hard`, `git branch -D`…), a push that cuts a release or rewrites history (a tag, `--force`, `gh release`, `npm publish`), changing `AGENTS.md` or anything in `.apc/` (with a file tool or a command), commands that reach APX's own API, or its CLI for anything but reading (`apx chat`, `apx runs respond`, `apx routines add`, or any `apx` run with a variable set before it), not a folder or a word named apx, sending an iMessage, answering a contact, using your browser login, clicking, typing or pressing keys on your screen. |
 
 An agent that can change files commits, pulls, merges or pushes only when you or its task asked for it, or a rule or
 note of the project says how (the website straight to `main`, say); otherwise it asks you once. Publishing a task's
@@ -120,8 +120,14 @@ once it is merged, say). It is told so, and when you did not ask it asks you and
 command that deletes with `rm -r` or `rm -f` waits for you, also inside its own folder. Its card lists what would be
 deleted, each path in full, why the agent wants to, in its own words, and the command. You can accept it once, or for
 this chat: then that agent's next deletions in this chat run without asking. It is never allowed for good, and it
-never covers anything else that always asks, like `sudo` or a release. `git worktree remove` and `git branch -d` are
-ordinary commands: git itself refuses them when work would be lost.
+never covers anything else that always asks, like `sudo` or a release.
+
+Git commands that throw away work git would otherwise keep ask the same way, and their card names the branch,
+worktree, files or stash they lose: `git worktree remove --force`, `git branch -D`, `git clean -f` (or `-fd`, `-fdx`),
+`git reset --hard`, `git checkout -- .` or `git checkout -f`, `git restore .`, `git switch --discard-changes`,
+`git stash drop` or `clear`, `git rm -f`, `git reflog expire` and `git gc --prune=now`. Their plain forms
+(`git worktree remove`, `git branch -d`, `git stash`, `git rm`) are ordinary commands: git itself refuses them when
+work would be lost.
 
 In the agent's editor, **Granted** lists what you allowed for good. You can narrow a grant to some paths, domains or
 names (`app/Http/, github.com`: only calls whose arguments match run without asking) or give it an end date, after

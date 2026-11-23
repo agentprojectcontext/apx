@@ -12,7 +12,7 @@ import { AGENT_WORKSPACE } from "../environments/worker.ts";
 import { insideReal } from "../paths.ts";
 import { commandShell } from "../processes.ts";
 import { apxReads } from "./apx-reads.ts";
-import { deletionTargets, FORCED_RM } from "./command-deletions.ts";
+import { deletes as deletesHere, deletionTargets, FORCED_RM } from "./command-deletions.ts";
 import { shellCode } from "./command-heredocs.ts";
 import { namedPaths } from "./command-paths.ts";
 import { mayChange, readsOnly } from "./command-reads.ts";
@@ -32,9 +32,9 @@ import {
 import { untrusted } from "./result.ts";
 import { type Confirm, defineTool, type Tool, ToolFailed } from "./types.ts";
 
-/** Destructive or system-level commands, but for a forced deletion (command-deletions.ts FORCED_RM, checked apart). */
+/** Destructive or system-level commands, but for deletions (command-deletions.ts: forced `rm`, git discarding work). */
 const DESTRUCTIVE =
-  /\b(sudo|su|doas|mkfs|dd|shutdown|reboot|halt|diskutil|launchctl|crontab|shred|srm)\b|\bgit\b[^|;&]*\s(reset\s+--hard|clean\b|filter-branch|update-ref\s+-d)|\b(curl|wget|fetch)\b[^|]*\|\s*(sudo\s+)?(ba|z|da|k)?sh\b|\bchmod\b[^|;&]*\s-\w*R|\bchown\b[^|;&]*\s-\w*R|:\(\)\s*\{|\/dev\/(sd|disk|nvme)/;
+  /\b(sudo|su|doas|mkfs|dd|shutdown|reboot|halt|diskutil|launchctl|crontab|shred|srm)\b|\bgit\b[^|;&]*\s(filter-branch|update-ref\s+-d)|\b(curl|wget|fetch)\b[^|]*\|\s*(sudo\s+)?(ba|z|da|k)?sh\b|\bchmod\b[^|;&]*\s-\w*R|\bchown\b[^|;&]*\s-\w*R|:\(\)\s*\{|\/dev\/(sd|disk|nvme)/;
 
 /**
  * A push that rewrites or deletes what others have, or that cuts a release (a tag, a package, a GitHub release). A
@@ -102,11 +102,12 @@ export function commandRisk(command: string, apxPort?: number): Confirm {
   return deletes(command) ? "always" : riskBesides(command, apxPort);
 }
 
-/** Whether a command forcibly deletes something: it asks in every mode but Total, unless the owner asked (D-264). */
-const deletes = (command: string) => {
-  const code = shellCode(command.trim());
-  return FORCED_RM.test(code) || FORCED_RM.test(normalize(code));
-};
+/**
+ * Whether a command deletes: a forced `rm` or a git command that discards work git would keep. It asks in every mode
+ * but Total, unless the owner asked (D-264).
+ */
+export const deletes = (command: string) =>
+  deletesHere(command) || FORCED_RM.test(normalize(shellCode(command.trim())));
 
 /**
  * A forced deletion is all that makes this command always ask: its card is a deletion's, and the owner's OK for this
@@ -349,7 +350,7 @@ export function shellTools(
             ? strictApproval(nativeApproval("shell"))
             : nativeApproval("shell"),
       deletes(a, ctx) {
-        if (commandRisk(a.command, apxPort()) !== "always" || !FORCED_RM.test(a.command)) return undefined;
+        if (!deletes(a.command)) return undefined;
         const where = vm?.hasThread(ctx.thread.id) ? undefined : commandFolder(store, home, ctx.thread, a);
         return deletionTargets(a.command, where && !("refused" in where) ? where.at : (a.cwd ?? "."));
       },

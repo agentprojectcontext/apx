@@ -62,7 +62,7 @@ test("command risk: reading runs, changing asks, destroying always asks", () => 
     "find . -execdir rm {} +",
     "find . -fprint f",
     "sort -o f x",
-    "git branch -D main",
+    "git branch -d main",
     "git diff --output=f",
     "FOO=1 ls",
     "tree -o f",
@@ -307,15 +307,78 @@ test("a deletion card lists the paths a command deletes, resolved where it runs;
   assert.deepEqual(deletionTargets("cd work; D=en/subtitles\nrm -rf $D/words/es $D/captions/es.srt", cwd), {
     paths: [at("work", "en", "subtitles", "words", "es"), at("work", "en", "subtitles", "captions", "es.srt")],
     later: [],
+    git: [],
   });
   assert.deepEqual(deletionTargets("rm -rf $OUT/x && ls | xargs rm -f", cwd), {
     paths: [],
     later: ["$OUT/x", "xargs rm -f"],
+    git: [],
   });
   assert.equal(onlyDeletes("rm -rf build"), true);
   assert.equal(onlyDeletes("python3 - <<'PY'\nprint(1)\nPY\nrm -rf out"), true);
   for (const c of ["sudo rm -rf build", "rm -rf build && git push --force", "ls", "bash <<'EOF'\nsudo ls\nEOF"])
     assert.equal(onlyDeletes(c), false, c);
+});
+
+test("git commands that throw away work git would keep ask like a deletion; the forms git itself guards do not (DECISIONS.md#d-264)", () => {
+  const cwd = path.resolve("/work/acme/.worktrees/reels");
+  const at = (...p: string[]) => path.join(cwd, ...p);
+  const discards: Array<[string, Array<{ what: string; target: string }>]> = [
+    ["git worktree remove --force .worktrees/old", [{ what: "worktree", target: at(".worktrees", "old") }]],
+    ["git worktree remove -f ../reels-old", [{ what: "worktree", target: path.resolve(cwd, "../reels-old") }]],
+    ["git branch -D fix/old", [{ what: "branch", target: "fix/old" }]],
+    ["git branch --delete --force fix/old", [{ what: "branch", target: "fix/old" }]],
+    ["git branch -df fix/old", [{ what: "branch", target: "fix/old" }]],
+    ["git -C ../main branch -D fix/old", [{ what: "branch", target: "fix/old" }]],
+    ["git clean -f", [{ what: "untracked", target: at() }]],
+    ["git clean -fd", [{ what: "untracked", target: at() }]],
+    ["git clean -fdx build", [{ what: "untracked", target: at("build") }]],
+    ["git reset --hard", [{ what: "changes", target: at() }]],
+    ["git reset --hard HEAD~1", [{ what: "changes", target: at() }]],
+    ["git checkout -- .", [{ what: "changes", target: at() }]],
+    ["git checkout main -- src/a.ts", [{ what: "changes", target: at("src", "a.ts") }]],
+    ["git checkout .", [{ what: "changes", target: at() }]],
+    ["git checkout -f main", [{ what: "changes", target: at() }]],
+    ["git restore .", [{ what: "changes", target: at() }]],
+    ["git restore --staged --worktree src", [{ what: "changes", target: at("src") }]],
+    ["git switch --discard-changes main", [{ what: "changes", target: at() }]],
+    ["git switch -f main", [{ what: "changes", target: at() }]],
+    ["git stash drop", [{ what: "stash", target: "stash@{0}" }]],
+    ["git stash drop stash@{2}", [{ what: "stash", target: "stash@{2}" }]],
+    ["git stash clear", [{ what: "stashes", target: "" }]],
+    ["git rm -rf build", [{ what: "changes", target: at("build") }]],
+    ["git reflog expire --expire=now --all", [{ what: "commits", target: "" }]],
+    ["git gc --prune=now", [{ what: "commits", target: "" }]],
+  ];
+  for (const [c, lost] of discards) {
+    assert.equal(commandRisk(c), "always", c);
+    assert.equal(onlyDeletes(c), true, c);
+    assert.deepEqual(deletionTargets(c, cwd).git, lost, c);
+  }
+  // A shell fed a script that discards work asks too.
+  assert.equal(commandRisk("bash <<'EOF'\ngit reset --hard\nEOF"), "always");
+  // Git refuses these when work would be lost, or they keep it: ordinary commands, no card in Auto.
+  for (const c of [
+    "git worktree remove .worktrees/old",
+    "git branch -d fix/old",
+    "git branch --delete fix/old",
+    "git worktree prune",
+    "git clean -n",
+    "git clean --dry-run -d",
+    "git reset --soft HEAD~1",
+    "git reset src/a.ts",
+    "git checkout main",
+    "git checkout -b feat/new",
+    "git restore --staged src/a.ts",
+    "git switch main",
+    "git stash",
+    "git stash pop",
+    "git rm src/a.ts",
+    "git rm -r --cached build",
+    "git rm -r old",
+    "git gc",
+  ])
+    assert.equal(commandRisk(c), "ask", c);
 });
 
 test("a forced deletion asks in Auto even below the folder the command works in (DECISIONS.md#d-264)", () => {

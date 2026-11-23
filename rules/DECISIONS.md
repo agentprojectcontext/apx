@@ -5930,12 +5930,22 @@ Now:
   git: "Commit, pull, merge, push or delete only if the owner or task asked or a project rule or note says so; else
   ask, saying why." It replaced the old line at one character more, which fills the realistic owner's budget exactly
   (8,250, PROMPT_SIZE.md).
-- Standing deletions: the owner's worktree cleanup after a merge (AGENTS.md rule 29) is `git worktree remove` and
-  `git branch -d`, which are ordinary commands (`ask`, so Auto runs them in the folder) and git itself refuses when
-  work would be lost. A note or project rule tells the agent it was asked, but does not open a card. The only
-  standing grant beyond a chat is the agent's own rule for `irreversible`, which covers every action that always asks:
-  a rule for deletions alone does not exist. Also left as they are: `git worktree remove --force` and `git branch -D`
-  run as ordinary commands although they discard work git would have kept.
+- Git commands that throw away work git would otherwise keep are deletions too (the owner: "Sí, que pregunte"), with
+  the same card, listing the branch, worktree, files or stash they lose, and the same `apx:delete` grant:
+  `git worktree remove --force`/`-f`, `git branch -D` (and `--delete --force`, `-df`), `git clean` unless a dry run,
+  `git reset --hard` (moved here from the destructive list), `git checkout -- paths`, `git checkout .`,
+  `git checkout -f`, `git restore` of the working tree (not `--staged` alone), `git switch --discard-changes`/`-f`,
+  `git stash drop`/`clear`, `git rm -f` (not `--cached`), `git reflog expire`/`delete` and `git gc --prune=now`. Git's
+  own options before the command (`-C dir`) are read through, and a script fed to a shell is read as commands. Still
+  ordinary commands, since git refuses them when work would be lost or they keep it: `git worktree remove`,
+  `git branch -d`, `git worktree prune`, `git clean -n`, `git reset --soft`/`--mixed`, `git checkout <branch>`,
+  `git restore --staged`, `git stash`/`pop`, `git rm` and `git gc`. `git rm` is no longer read as a forced `rm`. So
+  the owner's worktree cleanup after a merge (AGENTS.md rule 29: `git worktree remove` and `git branch -d`) runs in
+  Auto without a card, and forcing it asks. Gaps left: a project rule or note tells the agent it was asked but does
+  not skip the card, and the only standing grant beyond a chat is the agent's rule for `irreversible`, which covers
+  every action that always asks; a rule for deletions alone does not exist. `git filter-branch` and
+  `git update-ref -d` stay high-impact actions (they rewrite history) and a push that deletes a branch keeps its
+  release card (D-208).
 - `start_session` is `untrusted`: its calls pass the same policy in the caller's mode, and its write policy is never
   more than the caller's, so in Auto it starts without a card unless outside content is in the turn (rule 10: an
   injected page must not launch a session), as a delegation does. Manual asks, Plan refuses.

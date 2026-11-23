@@ -459,14 +459,14 @@ test("an automatic outside session in a project worktree runs its own scripts wi
     await env.client.call("runs.respond", { input: card.id, decision: "approve", scope: "session" });
     assert.deepEqual(texts((await env.settle(thread.id)).messages.slice(-1)), ["[true]"]);
     // That OK covers the next deletion in its folder only: the main checkout and what a shell is fed still ask.
-    const next = [`rm -rf ${w}/work/en/words`, `rm -rf ${r}/work/src`, "bash <<'EOF'\nsudo ls\nEOF"];
+    const next = [`rm -rf ${w}/work/en/words`, "git stash drop", `rm -rf ${r}/work/src`, "bash <<'EOF'\nsudo ls\nEOF"];
     await env.client.call("threads.send", {
       thread: thread.id,
       text: `probe ${JSON.stringify(next.map((command) => ({ kind: "execute", command })))}`,
     });
     for (const [command, shown] of [
-      [next[1], path.join(repo, "work", "src")],
-      [next[2], "sudo ls"],
+      [next[2], path.join(repo, "work", "src")],
+      [next[3], "sudo ls"],
     ] as const) {
       const asked = await waitFor(
         async () => (await env.client.call("runs.pending", { thread: thread.id })).inputs[0],
@@ -476,7 +476,27 @@ test("an automatic outside session in a project worktree runs its own scripts wi
       await env.client.call("runs.respond", { input: asked.id, decision: "deny" });
     }
     const after = await env.settle(thread.id);
-    assert.deepEqual(texts(after.messages.slice(-1)), ["[true,false,false]"]);
+    assert.deepEqual(texts(after.messages.slice(-1)), ["[true,true,false,false]"]);
+    // Git throwing away work it would keep asks the same way, in a chat with no OK yet: the branch and the reason show.
+    const other = await env.client.call("threads.create", {
+      kind: "code",
+      agent_id: "superagent",
+      project_id: project,
+      cwd: tree,
+      write: "auto",
+      engine: "claude",
+    });
+    const branch = { kind: "execute", command: "git branch -D fix/old", description: "It was merged into staging" };
+    await env.client.call("threads.send", { thread: other.id, text: `probe ${JSON.stringify([branch])}` });
+    const gitCard = await waitFor(
+      async () => (await env.client.call("runs.pending", { thread: other.id })).inputs[0],
+      "the branch deletion card",
+    );
+    assert.match(gitCard.prompt, /delete|borrar/);
+    assert.match(gitCard.detail ?? "", /(Branch|La rama) fix\/old/);
+    assert.match(gitCard.detail ?? "", /merged into staging/);
+    await env.client.call("runs.respond", { input: gitCard.id, decision: "deny" });
+    assert.deepEqual(texts((await env.settle(other.id)).messages.slice(-1)), ["[false]"]);
   } finally {
     await env.client.call("agents.update", { agent: "superagent", autonomy: null });
   }

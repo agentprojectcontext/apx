@@ -1,5 +1,6 @@
 // What APX itself tells the owner about an agent's turn (not the agent's words), in the owner's language.
 import type { Store } from "../domain/store.ts";
+import type { Deletion, GitLoss } from "../tools/command-deletions.ts";
 import type { ConfirmWhy } from "../tools/policy.ts";
 
 const es: Record<ConfirmWhy, (agent: string, tool: string) => string> = {
@@ -67,18 +68,35 @@ export const deletePrompt = (store: Store, agent: string) =>
     : `${agent} quiere borrar esto. En Auto un agente solo borra cuando vos se lo pedís:`;
 
 /** What a deletion card shows: each path, what only the running command knows, the agent's reason and the command. */
-export function deletionDetail(
-  store: Store,
-  d: { paths: string[]; later: string[] },
-  why: string | undefined,
-  command: string,
-): string {
+export function deletionDetail(store: Store, d: Deletion, why: string | undefined, command: string): string {
   const en = english(store);
+  const lost = en ? GIT_LOSS_EN : GIT_LOSS_ES;
   return [
     ...d.paths,
+    ...d.git.map((l) => lost[l.what](l.target)),
     ...d.later.map((w) => `${en ? "Known only when it runs" : "Se sabe recién al correr"}: ${w}`),
     "",
     `${en ? "Why, in its words" : "Por qué, en sus palabras"}: ${why?.trim() || (en ? "it did not say" : "no lo dijo")}`,
     `${en ? "Command" : "Comando"}: ${command}`,
   ].join("\n");
 }
+
+/** What a git command throws away, in the owner's words. */
+const GIT_LOSS_EN: Record<GitLoss["what"], (t: string) => string> = {
+  branch: (t) => `Branch ${t}, even with commits merged nowhere`,
+  worktree: (t) => `Worktree ${t}, with its uncommitted changes`,
+  untracked: (t) => `Files git does not keep in ${t}`,
+  changes: (t) => `Uncommitted changes in ${t}`,
+  stash: (t) => `Stash ${t}`,
+  stashes: () => "Every stash",
+  commits: () => "Commits that only git's history of moves still keeps",
+};
+const GIT_LOSS_ES: typeof GIT_LOSS_EN = {
+  branch: (t) => `La rama ${t}, aunque tenga commits sin mergear`,
+  worktree: (t) => `El worktree ${t}, con sus cambios sin commitear`,
+  untracked: (t) => `Los archivos que git no guarda en ${t}`,
+  changes: (t) => `Los cambios sin commitear en ${t}`,
+  stash: (t) => `El stash ${t}`,
+  stashes: () => "Todos los stashes",
+  commits: () => "Commits que solo guarda el historial de movimientos de git",
+};
