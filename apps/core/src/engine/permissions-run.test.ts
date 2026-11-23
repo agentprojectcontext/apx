@@ -60,7 +60,7 @@ const PLANS: Record<string, Plan[]> = {
     () => ({ name: "read_page", args: {} }),
     () => ({ name: "file_write", args: { path: "panel.md", content: "built\n" } }),
     () => ({ name: "shell", args: { command: "touch built.txt" } }),
-    () => ({ name: "shell", args: { command: "rm -rf scratch" } }),
+    () => ({ name: "shell", args: { command: 'rm -rf "$PWD/scratch"' } }),
   ],
   "hand it on": [
     () => ({ name: "read_page", args: {} }),
@@ -75,7 +75,10 @@ const PLANS: Record<string, Plan[]> = {
     () => ({ name: "shell", args: { command: "ls -la" } }),
     () => ({ name: "shell", args: { command: "touch stamped.txt" } }),
   ],
-  "clean up": [() => ({ name: "read_page", args: {} }), () => ({ name: "shell", args: { command: "rm -rf scratch" } })],
+  "clean up": [
+    () => ({ name: "read_page", args: {} }),
+    () => ({ name: "shell", args: { command: 'rm -rf "$PWD/scratch"' } }),
+  ],
 };
 
 const llm = scriptedLlm(async (req, { said }) => {
