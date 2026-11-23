@@ -266,6 +266,67 @@ test("world simulation models stay listed without becoming agent models", () => 
   assert.equal(list[0]?.name, "Genie 4");
 });
 
+test("embedding discovery does not reinterpret configured, harness or cached eligibility", async () => {
+  const home = tempDir("apx-catalog-embedding-policy-");
+  const db = openDb(home.path);
+  try {
+    const store = createStore(db, createBus());
+    const models = ["bge-m3", "voyage-4", "voyage-code-4"];
+    const reported = models.map((id) => ({ id, name: id, chat: true }));
+    const previous = JSON.stringify({
+      id: "cached",
+      kind: "provider",
+      label: "Cached",
+      available: true,
+      models: reported,
+      fetched_at: new Date().toISOString(),
+    });
+    store.settings.set("catalog.v2:cached", previous);
+    const catalog = createCatalog({
+      store,
+      secrets: createSecrets(home.path, "file", {}),
+      home: home.path,
+      providers: () => [
+        { id: "cached", transport: "openai-chat", base_url: "http://cached.test", key: NO_KEY, models: [] },
+        { id: "configured", transport: "openai-chat", base_url: "http://configured.test", key: NO_KEY, models },
+      ],
+      fetchImpl: (async () => {
+        throw new Error("offline");
+      }) as typeof fetch,
+      harnessLists: { claude: async () => reported, codex: async () => [] },
+      acpList: async () => [],
+    });
+    for (const refresh of [false, true]) {
+      const engines = await catalog.list(refresh);
+      for (const id of ["cached", "configured", "claude"]) {
+        assert.deepEqual(engines.find((e) => e.id === id)?.models, reported, `${id}, refresh=${refresh}`);
+      }
+      assert.equal(store.settings.get("catalog.v2:cached"), previous);
+    }
+  } finally {
+    db.close();
+    await home.remove();
+  }
+});
+
+test("discovered BGE M3 and Voyage 4 embeddings stay listed without being offered for agents", () => {
+  const embeddings = ["bge-m3", "BAAI/bge-m3", "bge-m3:latest", "voyage-4", "voyageai/voyage-4", "voyage-code-4"];
+  const chat = ["acme/voyage-assistant", "acme/voyage-4-chat", "acme/bge-m3-chat", "acme/my-voyage-4"];
+  const list = fromProviderList([...embeddings, ...chat].map((id) => ({ id })));
+  assert.deepEqual(
+    list.map((m) => m.id),
+    [...embeddings, ...chat],
+  );
+  assert.deepEqual(
+    list.filter((m) => !m.chat).map((m) => m.id),
+    embeddings,
+  );
+  assert.deepEqual(
+    list.filter((m) => m.chat).map((m) => m.id),
+    chat,
+  );
+});
+
 test("only models an agent's turn can run on are offered for agents; switched-off ones are left out", () => {
   const list = fromProviderList([
     { id: "models/gemini-4-argon", display_name: "Gemini 4 Argon" },

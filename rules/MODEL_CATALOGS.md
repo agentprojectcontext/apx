@@ -25,6 +25,12 @@ provider's own agents: `NOT_CHAT`), when the provider says it takes no tools (Op
 gives no text (`architecture.output_modalities`). Groq models with `active: false` are left out. A model being listed
 does not mean the owner's key may use it for free.
 
+Discovered `bge-m3`, `voyage-4` and `voyage-code-4` IDs (including namespaces and local tags) are embeddings,
+not agent chat models: see the [BGE M3 model card](https://huggingface.co/BAAI/bge-m3) and
+[Voyage text embeddings](https://docs.voyageai.com/docs/embeddings). Similar chat names are not excluded.
+These discovery rules do not reinterpret configured or harness lists, or old cached classifications;
+a successful refresh applies them to a discovered provider list without changing saved selections.
+
 The starter model a new router chain gets (`models/starter.ts`) is picked from the provider's list by name, never named.
 A provider's own router over its free models (an id ending in `/free`, such as OpenRouter's) is the starter and heads
 that provider's list: a new account may have no credit, and a paid model would fail its first turn.
