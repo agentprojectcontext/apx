@@ -4129,6 +4129,7 @@ without the owner seeing what goes.
 
 <a id="d-203"></a>
 ## D-203 — 2026-11-06 — What the owner asks the super-agent for follows its mode; a short list keeps the card
+*Auto part superseded by [D-264](#d-264) (2026-11-23): in Auto what the owner asks runs unless outside content is in the turn.*
 The owner asked the super-agent, on Total, to add a contact and their WhatsApp, and got two cards. Since D-140 and D-143
 every `apx_settings` change, and every `agent_set` and `task_tidy` change, showed the owner's card in every mode with no
 "always" answer. The owner wants the super-agent independent: what they ask it themselves, it does as its mode says,
@@ -5904,3 +5905,39 @@ back to you" messages. Revocation stops new reads, not answers already delivered
 
 Docs impact: updated channels/overview in English and Spanish, HUMAN_MODEL.md, settings help and news.
 
+<a id="d-264"></a>
+## D-264 — 2026-11-23 — The super-agent does what the owner asks in Auto, and sets up memory's engine and agents' tools
+The owner asked Roby, on Discord, to set up an embedding engine for memory and to let a project agent read quotas; it
+could do neither, and every settings change it could make still showed a card in Auto. The owner's rule: the
+super-agent can do on request whatever the owner could do in the panel or CLI, and asks only for what is genuinely
+harmful; in Auto and Total it does not ask at all except for grave or system-touching actions, and a failed change
+must not break what worked. [rules/SUPER_AGENT_POWERS.md](SUPER_AGENT_POWERS.md) audits every owner method against
+this.
+
+- **Auto runs the owner's word.** An `apx_settings` or `agent_set` change is now `untrusted`, not `always`: Auto,
+  Accept edits and Total run it unless outside content is in the turn; Manual asks. D-140's gate is unchanged (only the
+  owner's own word), and so is `card` (D-143, D-203's list). `Setting.asks: "always"` marks what cannot be undone or
+  speaks for the owner, which asks in Auto and runs in Total: deleting a task, a routine, a widget or an agent profile
+  for good, a widget's memory, cancelling a contact's appointment (it tells them), copying APX's skills into other agent
+  apps. Applying or acknowledging a reviewed agent proposal (`if_revision`, `review`) keeps `always`.
+- **Memory's engine.** `embeddings.local` (a read) and `embeddings.install` join `apx_settings`; install takes only a
+  model from APX's library (Ollama itself stays the owner's to install). `services.set` joins too, never with
+  `api_key` (refused; the owner types keys in Settings › Services) and with the card in every mode when the change
+  would send a saved key to another address or delete it. `memory.set_settings` refuses `mode: semantic` while no
+  embedding engine is on.
+- **Agents' tools.** `agent_set` takes `tools` (the whole list; `[]` all), checked against `agents.tools` before
+  anything is written; the super-agent's own tools are refused there. `grant_tool` grants APX's own tools as well as
+  MCP ones (key `apx:<tool>`, the ordinary grant, never the strict one of D-089 or a `card`), only ones the granter
+  runs without asking and the target's own `tools:` list allows, and takes grants back with `revoke`.
+- **Failure containment.** Every change is validated before it is written: the method's schema and `refuse` (as
+  before), a live `services.test` before a service is saved (a service that does not answer is not saved; one that
+  needs a key the owner has not typed is saved off), the tool names of a list, the embedding model, an engine before
+  semantic search. A method that fails changes nothing, so the previous config keeps working.
+
+Rejected: a new tool for embeddings or grants (footprint ladder, rules/PROMPT_SIZE.md: `apx_settings` methods and
+existing tools cost no prompt); letting the agent pass a key as `secret://NAME` for a service (a saved key could be
+sent to an address the agent picks: that stays the owner's, as MCP servers' do); `models.set_config`, `voice.set` and
+`access.set` (D-060 keeps models and how far agents act the owner's; listed in the audit for the owner to decide).
+
+Docs impact: updated concepts/autonomy, concepts/memory, concepts/agents and office/secretary in English and Spanish,
+the apx-agents skill, rules/SUPER_AGENT_POWERS.md and news.

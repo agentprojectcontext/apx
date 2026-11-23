@@ -60,7 +60,6 @@ export const OWNER_ONLY: Readonly<Record<string, string>> = {
   "secrets.set_sites":
     "where agents may sign in with a stored secret is the owner's to say; an agent asks with its own card (DECISIONS.md#d-193)",
   "providers.set": SECRET,
-  "services.set": SECRET,
   "clients.create": SECRET,
   "clients.revoke": SECRET,
   "public_routes.rotate": SECRET,
@@ -86,8 +85,10 @@ export const OWNER_ONLY: Readonly<Record<string, string>> = {
   "threads.model": POWER,
   "threads.group": "the owner picks who is in a group chat in the panel (D-218)",
   "threads.group_set": "the owner changes a group chat's members and models in its card (D-218)",
-  "tools.grant_set": POWER,
-  "tools.revoke": POWER,
+  "tools.grant_set":
+    "narrowing a grant to a condition or a date is the owner's, in Resources; agents grant with grant_tool",
+  "tools.revoke":
+    "the owner takes back any grant, a chat's too, in Resources; agents take back one agent's with grant_tool revoke",
   "mcp.trust": POWER,
   // A drawing is published and run by hand through apx_flow's card or in the panel's Flows editor (DECISIONS.md#d-184).
   "flows.draft_discard": "the owner deletes a Flow draft on purpose",
@@ -142,7 +143,6 @@ export const OWNER_ONLY: Readonly<Record<string, string>> = {
   "extensions.catalog_sync": MACHINE,
   "extensions.catalog_remove": MACHINE,
   "profiles.install": MACHINE,
-  "embeddings.install": MACHINE,
   "transcription.install": MACHINE,
   "voice.install": MACHINE,
   "voice.set": `${POWER}; APX's voice and the model calls talk with are set in Settings › Voice and calls`,

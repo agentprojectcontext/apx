@@ -219,6 +219,7 @@ expected `code_sha`) and the changed path is exercised for real; anything not ex
 | First time / reviewing | [`rules/HUMAN_MODEL.md`](rules/HUMAN_MODEL.md) |
 | Which rules have a gate, high-risk changes | [`rules/GUARDRAILS_PROFILE.md`](rules/GUARDRAILS_PROFILE.md) |
 | Why something is the way it is | [`rules/DECISIONS.md`](rules/DECISIONS.md), [`rules/HISTORY.md`](rules/HISTORY.md) |
+| What the super-agent may change for the owner, and what still asks | [`rules/SUPER_AGENT_POWERS.md`](rules/SUPER_AGENT_POWERS.md) |
 | How to verify | [`rules/TESTING.md`](rules/TESTING.md) |
 | Fixing a bug or repairing a failing test | [`rules/TESTING.md#fix-regression-contract`](rules/TESTING.md#fix-regression-contract) |
 | Adding to the prompt or a tool | [`rules/PROMPT_SIZE.md`](rules/PROMPT_SIZE.md) |

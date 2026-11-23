@@ -114,6 +114,18 @@ function byList(agent: AgentRecord, tools: Tool[]): (name: string) => boolean {
 const BRIDGE = new Set(["tool_search", "tool_run"]);
 
 /**
+ * Whether an agent's own `tools:` list (and the super-agent's own tools) let it use `name`, decided over the tool
+ * names `known`: what grant_tool checks before letting an agent use a tool without asking.
+ */
+export function listAllows(agent: AgentRecord, name: string, known: readonly string[]): boolean {
+  if (agent.kind !== "secretary" && SUPER_AGENT_TOOLS.has(name)) return false;
+  return byList(
+    agent,
+    known.map((n) => ({ name: n }) as Tool),
+  )(name);
+}
+
+/**
  * `untrusted` is whether text from outside (web pages, other agents, channel messages) is in the turn's context:
  * then a model may be acting on someone else's instructions, so strong actions wait for the owner. `level`: the
  * call's own, unless the executor found it acts only on this computer (DECISIONS.md#d-212).

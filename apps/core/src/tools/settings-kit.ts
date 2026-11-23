@@ -11,6 +11,9 @@ import type { ToolContext } from "./types.ts";
 
 export type Params = Record<string, unknown>;
 
+/** How a settings change waits for the owner, per method (Setting.asks). */
+export type Asks = "untrusted" | "always" | "card";
+
 /** What a setting reads besides the store: where profiles and agent templates are found. */
 export type SettingsDeps = {
   store: Store;
@@ -49,11 +52,11 @@ export type Setting = {
   /** Its card shows every value whole: a cut could hide what it runs or where a key goes. */
   whole?: true;
   /**
-   * How a change asks (DECISIONS.md#d-203). None: as a strong action, so the agent's mode decides (Total runs it).
-   * `untrusted`: like a contact message, it runs unless outside content is in the turn. `card`: on the owner's card
-   * in every mode, never granted for good (keys, who reaches the owner, what agents may do).
+   * How a change asks (DECISIONS.md#d-264). None or `untrusted`: what the owner asked runs in Auto unless outside
+   * content is in the turn. `always`: cannot be undone or speaks for the owner, so Auto asks and Total runs it.
+   * `card`: on the owner's card in every mode, never granted for good (keys, who reaches the owner, what agents may do).
    */
-  asks?: "untrusted" | "card" | ((p: Params, d: SettingsDeps) => "untrusted" | "card" | undefined);
+  asks?: Asks | ((p: Params, d: SettingsDeps) => Asks | undefined);
   /**
    * Run as the agent's own call through the router, not as the owner's: a Flow's drawing, which runs nothing until the
    * owner publishes it. `confirm`: `untrusted` asks the owner only while outside content is in the turn (a change, or

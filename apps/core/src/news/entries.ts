@@ -46,6 +46,7 @@ import { SIDE_QUESTION_NEWS } from "./side-question.ts";
 import { SIMPLE_PANEL_NEWS } from "./simple-panel.ts";
 import { STORE_COMPACT_NEWS } from "./store-compact.ts";
 import { SUBPROJECTS_NEWS } from "./subprojects.ts";
+import { SUPER_AGENT_SETUP_NEWS } from "./super-agent-setup.ts";
 import { TASK_COMMENTS_NEWS } from "./task-comments.ts";
 import { TASK_GOALS_NEWS } from "./task-goals.ts";
 import { TASK_REGROUP_NEWS } from "./task-regroup.ts";
@@ -200,6 +201,7 @@ export const NEWS: readonly NewsEntry[] = [
   CONTACT_NOTES_NEWS,
   CONTACT_PROJECT_READING_NEWS,
   SIMPLE_PANEL_NEWS,
+  SUPER_AGENT_SETUP_NEWS,
   {
     id: "storage-screen",
     since: "2.13.0",

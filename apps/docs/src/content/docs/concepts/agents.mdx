@@ -146,6 +146,10 @@ what they should never do alone.
 what the list says, because they only read or ask you: reading output, asking you a question, loading a skill and
 recalling notes.
 
+Your super-agent can change this list for you (`agent_set` with `tools`) and let an agent run one of APX's tools
+without asking you each time (`grant_tool`, which also takes a grant back). Your super-agent's own settings tools stay
+its own whatever a list says.
+
 <Aside type="tip">
   A `tools:` list that names nothing APX knows (a file written for another tool) is ignored rather than leaving the
   agent with no tools at all.

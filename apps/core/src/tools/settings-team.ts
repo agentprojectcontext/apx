@@ -117,6 +117,7 @@ export const TEAM: Readonly<Record<string, Setting>> = {
   },
   "routines.remove": {
     does: "delete a routine for good (routine: its id, routine_list)",
+    asks: "always",
     named: ["routine"],
     says: (p, { store }) =>
       `Delete the routine ${inlineName(store.routines.get(str(p.routine))?.name ?? str(p.routine))}`,
@@ -170,6 +171,7 @@ export const TEAM: Readonly<Record<string, Setting>> = {
   },
   "profiles.remove": {
     does: "remove an installed agent profile (id); APX's own stay",
+    asks: "always",
     named: ["id"],
     says: (p) => `Remove the agent profile ${str(p.id)}`,
   },
@@ -181,6 +183,7 @@ export const TEAM: Readonly<Record<string, Setting>> = {
   },
   "tasks.delete": {
     does: "delete a task for good, with its history and its chat (task)",
+    asks: "always",
     named: ["task"],
     says: (p, { store }) =>
       `Delete for good the task ${quoted(store.tasks.get(str(p.task))?.title ?? str(p.task), 80)}`,

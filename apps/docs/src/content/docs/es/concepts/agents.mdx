@@ -154,6 +154,10 @@ dar una herramienta), `shell`, `files`, `mcp`, `memory`, `images`, `tasks`. Tamb
 sueltas. Algunas quedan siempre, diga lo que diga la lista, porque sólo leen o te preguntan: leer una salida,
 hacerte una pregunta, cargar una skill y buscar en las notas.
 
+Tu super-agente puede cambiar esta lista por vos (`agent_set` con `tools`) y dejar que un agente use una herramienta
+de APX sin preguntarte cada vez (`grant_tool`, que también la quita). Las herramientas de ajustes propias de tu
+super-agente siguen siendo suyas, diga lo que diga la lista.
+
 <Aside type="tip">
   Una lista `tools:` que no nombra nada que APX conozca (un archivo escrito para otra herramienta) se ignora, en vez
   de dejar al agente sin ninguna herramienta.
