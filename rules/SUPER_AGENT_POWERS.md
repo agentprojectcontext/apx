@@ -54,7 +54,7 @@ it, so a project agent never changes the owner's setup on someone else's word.
 
 `card` (every mode, Total included, never granted for good):
 
-- Keys reaching somewhere: MCP servers (`mcp.set`, D-141), a service change that sends a saved key to another address
+- Keys and commands reaching somewhere: MCP servers (`mcp.set`, D-141, and `hermes.import`, which adds them), a service change that sends a saved key to another address
   or deletes it (`services.set`, D-264).
 - Who reaches the owner and who is the owner: channels (`channels.set`), an address with no person, claiming one, the
   owner role (`contacts.address`, `contacts.claim`, `contacts.set`), contact sources (D-144, D-203), letting a contact

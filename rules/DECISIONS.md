@@ -5919,7 +5919,8 @@ this.
   owner's own word), and so is `card` (D-143, D-203's list). `Setting.asks: "always"` marks what cannot be undone or
   speaks for the owner, which asks in Auto and runs in Total: deleting a task, a routine, a widget or an agent profile
   for good, a widget's memory, cancelling a contact's appointment (it tells them), copying APX's skills into other agent
-  apps. Applying or acknowledging a reviewed agent proposal (`if_revision`, `review`) keeps `always`.
+  apps. Applying or acknowledging a reviewed agent proposal (`if_revision`, `review`) keeps `always`. `hermes.import`
+  adds MCP servers, so it keeps `mcp.set`'s `card`.
 - **Memory's engine.** `embeddings.local` (a read) and `embeddings.install` join `apx_settings`; install takes only a
   model from APX's library (Ollama itself stays the owner's to install). `services.set` joins too, never with
   `api_key` (refused; the owner types keys in Settings › Services) and with the card in every mode when the change
