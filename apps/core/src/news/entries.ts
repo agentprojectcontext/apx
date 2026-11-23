@@ -20,7 +20,7 @@ import { CHROME_TABS_NEWS } from "./chrome-tabs.ts";
 import { COMPUTER_POINTER_NEWS } from "./computer-pointer.ts";
 import { CONTACT_AGENT_NEWS } from "./contact-agent.ts";
 import { CONTACT_BOOKING_NEWS } from "./contact-booking.ts";
-import { CONTACT_NOTES_NEWS } from "./contact-notes.ts";
+import { CONTACT_NOTES_NEWS, CONTACT_PROJECT_READING_NEWS } from "./contact-notes.ts";
 import { EVENT_MUTE_NEWS } from "./event-mute.ts";
 import { EXTENSION_EVENTS_NEWS } from "./extension-events.ts";
 import { EXTERNAL_SESSIONS_NEWS } from "./external-sessions.ts";
@@ -198,6 +198,7 @@ export const NEWS: readonly NewsEntry[] = [
   APX_ACCOUNT_NEWS,
   CONTACT_BOOKING_NEWS,
   CONTACT_NOTES_NEWS,
+  CONTACT_PROJECT_READING_NEWS,
   SIMPLE_PANEL_NEWS,
   {
     id: "storage-screen",

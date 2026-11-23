@@ -1,6 +1,6 @@
 import type { ChannelInfo, Person } from "@apx/protocol";
 import { Button, Icons, Input, SegmentedControl, Select, Switch, Textarea, Tooltip } from "@apx/ui";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { AgentSelect } from "../common/pickers/AgentSelect.tsx";
 import { claimAddress, neverRead, saveContact, useChannels } from "../data/channels.ts";
 import { notify } from "../data/notices.ts";
@@ -14,6 +14,7 @@ import { ownerOn } from "./StartRows.tsx";
 
 /** The rights a contact's card sets, in the order it shows them. */
 const RIGHTS = ["appointments", "requests", "notes", "any_hour"] as const;
+const SAVED_RIGHTS = [...RIGHTS, "project_reading"] as const;
 type Right = (typeof RIGHTS)[number];
 const RIGHT_LABEL: Record<Right, MessageKey> = {
   appointments: "ch.perm.appointments",
@@ -58,6 +59,29 @@ export function ContactPanel({
   });
   const [other, setOther] = useState(Boolean(person.agent_id));
   const accountAgent = useData((s) => s.agents[channel.contacts_agent_id ?? channel.agent_id]);
+  const assignedAgent = useData((s) => (d.agent_id ? s.agents[d.agent_id] : undefined));
+  const assignedProject = useData((s) => s.projects.find((p) => p.id === assignedAgent?.project_id));
+  const projectAvailable = Boolean(assignedAgent && assignedProject?.present);
+  const readingScope = `${d.agent_id ?? ""}|${assignedAgent?.project_id ?? ""}`;
+  const liveReading = useRef({ scope: readingScope, right: person.perms.project_reading });
+  useEffect(() => {
+    const previous = liveReading.current;
+    liveReading.current = { scope: readingScope, right: person.perms.project_reading };
+    // An open draft must not restore a grant revoked elsewhere or carry it into another project.
+    if (previous.scope !== readingScope || (previous.right === true && person.perms.project_reading !== true))
+      setD((x) => (x.perms.project_reading === true ? { ...x, perms: { ...x.perms, project_reading: false } } : x));
+  }, [readingScope, person.perms.project_reading]);
+  const projectReadingHint = !d.agent_id
+    ? t("ch.perm.projectReadingChoose")
+    : !projectAvailable
+      ? t("ch.perm.projectReadingUnavailable")
+      : t("ch.perm.projectReadingHint", { agent: assignedAgent?.name ?? "", project: assignedProject?.name ?? "" });
+  const selectAgent = (agent_id: string | undefined) =>
+    setD((x) => ({
+      ...x,
+      agent_id,
+      perms: x.agent_id === agent_id ? x.perms : { ...x.perms, project_reading: false },
+    }));
   const [busy, setBusy] = useState(false);
   const dirty =
     d.name !== person.name ||
@@ -66,12 +90,12 @@ export function ContactPanel({
     d.note !== (person.note ?? "") ||
     d.rules !== (person.rules ?? "") ||
     d.agent_id !== person.agent_id ||
-    RIGHTS.some((k) => d.perms[k] !== person.perms[k]);
+    SAVED_RIGHTS.some((k) => d.perms[k] !== person.perms[k]);
   const save = async () => {
     setBusy(true);
     // Only the rights changed go out; one set back to the account goes as null.
     const perms = Object.fromEntries(
-      RIGHTS.filter((k) => d.perms[k] !== person.perms[k]).map((k) => [k, d.perms[k] ?? null]),
+      SAVED_RIGHTS.filter((k) => d.perms[k] !== person.perms[k]).map((k) => [k, d.perms[k] ?? null]),
     );
     const ok = await saveContact(person.id, {
       ...d,
@@ -186,7 +210,7 @@ export function ContactPanel({
           value={other ? "other" : "account"}
           onValueChange={(v) => {
             setOther(v === "other");
-            if (v === "account") setD((x) => ({ ...x, agent_id: undefined }));
+            if (v === "account") selectAgent(undefined);
           }}
           options={[
             { value: "account", label: t("ch.answers.account", { agent: accountAgent?.name ?? "" }) },
@@ -199,7 +223,7 @@ export function ContactPanel({
             channel
             label={t("ch.answers.pick", { name: person.name })}
             value={d.agent_id}
-            onChange={(id) => id && setD((x) => ({ ...x, agent_id: id }))}
+            onChange={(id) => id && selectAgent(id)}
           />
         )}
       </CardField>
@@ -222,7 +246,30 @@ export function ContactPanel({
         />
       </CardField>
       <CardField label={t("ch.may")} hint={t("ch.may.close")}>
-        <ul className="chan__perms">{RIGHTS.map(right)}</ul>
+        <ul className="chan__perms">
+          {RIGHTS.slice(0, 3).map(right)}
+          <li className="chan__right">
+            <span className="chan__rightlabel">
+              {t("ch.perm.projectReading")}
+              <span className="chan__righthint">{projectReadingHint}</span>
+              {person.perms.project_reading && d.agent_id !== person.agent_id && (
+                <span className="chan__righthint">{t("ch.perm.projectReadingReset")}</span>
+              )}
+            </span>
+            <SegmentedControl
+              size="sm"
+              label={t("ch.perm.projectReading")}
+              disabled={!projectAvailable}
+              value={projectAvailable && d.perms.project_reading ? "on" : "off"}
+              onValueChange={(v) => setD((x) => ({ ...x, perms: { ...x.perms, project_reading: v === "on" } }))}
+              options={[
+                { value: "off", label: t("ch.right.no") },
+                { value: "on", label: t("ch.right.yes") },
+              ]}
+            />
+          </li>
+          {right("any_hour")}
+        </ul>
       </CardField>
       <ItsMine person={person} onDone={onClose} />
     </ChatCard>

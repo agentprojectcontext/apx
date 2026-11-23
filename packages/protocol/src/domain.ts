@@ -64,6 +64,7 @@ export {
 export { MemorySettings, NoticePrefs, Nudge, OwnerIdentity, OwnerPatch } from "./domain-owner.ts";
 export { ConnectOffer, DocumentSource, Part } from "./domain-parts.ts";
 export {
+  AccountContactPerms,
   Address,
   AppointmentMode,
   ContactBooking,

@@ -1996,6 +1996,7 @@ export const en = {
 
 /** Every key the panel may show: these, and those of the packs loaded with their screens (messages.ts PACKS). */
 export type MessageKey =
+  | keyof typeof import("./telemetry-settings-en.ts").enTelemetrySettings
   | keyof typeof import("./cloud-account-en.ts").enCloudAccount
   | keyof typeof en
   | keyof typeof enPublicCopies

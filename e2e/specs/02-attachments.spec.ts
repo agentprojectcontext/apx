@@ -92,7 +92,7 @@ test("arrastrar MP4 5,3 MB y PDF grande permite enviar; rechazo muestra motivo c
   }
 });
 
-test("adjuntos usuario y agente muestran imágenes y descargan archivos después de recargar", async ({ page }) => {
+test("adjuntos usuario y agente muestran imágenes y descargan archivos después de recargar", async ({ page }, info) => {
   const listener = net.createServer();
   await new Promise<void>((resolve) => listener.listen(0, "127.0.0.1", resolve));
   const port = (listener.address() as AddressInfo).port;
@@ -163,6 +163,18 @@ test("adjuntos usuario y agente muestran imágenes y descargan archivos después
     await page.reload();
     await expect(page.getByRole("img", { name: "Agent copy: ticket.png", exact: true })).toBeVisible();
     await expect(chip(page, "Agent copy: receipt.pdf")).toBeVisible();
+    for (const width of [1280, 390]) {
+      await page.setViewportSize({ width, height: 850 });
+      await chip(page, "Agent copy: receipt.pdf").getByRole("button", { name: "Abrir", exact: true }).click();
+      const viewer = page.getByRole("dialog", { name: "Agent copy: receipt.pdf", exact: true });
+      const preview = viewer.locator("iframe");
+      await expect(preview).toBeVisible();
+      await expect(preview).toHaveCSS("display", "block");
+      await expect(preview).toHaveCSS("height", "670px");
+      expect((await viewer.boundingBox())?.width).toBeLessThanOrEqual(width - 32);
+      await page.screenshot({ path: info.outputPath(`file-preview-${width}.png`), fullPage: true });
+      await viewer.getByRole("button", { name: "Cerrar", exact: true }).click();
+    }
   } finally {
     // Detach the browser before stopping its server; reconnect timers must not outlive the fixture.
     await page.goto("about:blank");

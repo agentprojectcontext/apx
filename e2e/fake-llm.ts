@@ -13,6 +13,7 @@
 // embeds texts (Ollama's /api/embed) for the skills picked by meaning.
 import http from "node:http";
 import type { AddressInfo } from "node:net";
+import { reviewTool } from "./review-tool.test-support.ts";
 
 /** A landing longer than a window: a full-height hero, two tall bands and a footer at the end. */
 export const LONG_PAGE = `<!doctype html><html><head><meta name="viewport" content="width=device-width"><style>
@@ -175,6 +176,8 @@ function signIn(messages: Message[], said: string): { name: string; arguments: s
 
 /** A tool call to make instead of answering, if the conversation asks for one. */
 function toolCall(messages: Message[], said: string): { name: string; arguments: string } | undefined {
+  const review = reviewTool(messages, said);
+  if (review || said.startsWith("review my profile note")) return review;
   const signing = signIn(messages, said);
   if (signing || /^sign in to /i.test(said)) return signing;
   if (/^evaluate browser three times/i.test(said)) {

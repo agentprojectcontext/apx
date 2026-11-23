@@ -217,6 +217,48 @@ and reviews corrections with `contacts.source_updates.list` and `.resolve` (`acc
 resolutions always require the owner's app confirmation, even in Total. Mark only editable records with
 `allow_updates: true`; the default is read-only. No correction writes global memory.
 
+#### Reading the assigned agent's project
+
+When this person should get answers like the ones you get from that agent, open their contact card and turn on
+**Consult the agent’s project** under **What this conversation may do**. Choose a specific agent first; the option is
+unavailable if that agent has no available project. This is independent of **Answer from my notes**. Changing the
+assigned agent or moving that agent to another project turns project consultation off; enable it again for the new
+assignment if you want to share that project.
+
+Project consultation is off by default and is set only for one person: an account's defaults never turn it on. It works only while you chose a
+specific agent for this person, their chat is answered by that agent in its own project, memory is on, and no other
+contact has an agent of that project. If another contact is assigned to any agent of the same project, project reading
+stops for everyone there until each project serves one contact. Rooms and groups never get it.
+
+The agent can then look things up the way it would for you, read-only:
+
+- the project's standing notes and its own notebook in that project (pending, forgotten and unconfirmed notes left
+  out);
+- what you wrote in your own chats with that agent in that project (not its replies, not other people's chats,
+  rooms, delegated chats or other projects);
+- the documents you referenced there: a text, Markdown or CSV file inside the project's folder, or a Google Drive
+  link, read as it is now through your Drive connection. It cites the chat, note or document it used.
+
+Only references you wrote count: links or file names sent by the contact, written by an agent or found inside a
+document are never opened. Hidden, administrative and secret-looking files, files outside the project folder and links
+through other sites are ignored. A reference stops working as soon as you turn the right off, assign someone else,
+move the chat, delete or forget the message that held it, or change the project. A read in progress is discarded when
+that happens. Disabling Drive for the project also discards an unfinished Drive read. It cannot change the original
+document, send, run or browse anything. Answers already sent cannot be taken back.
+
+If the contact provides new data about a document, the agent can propose an update to a **private project record in
+APX**. Nothing changes until you review the contact, channel, original message, source and before/after text and
+accept it. Rejection leaves the record unchanged; repeating the same proposal does not create another one. Accepted
+data is available to the assigned agent through project lookup, not global memory. The original report and Drive
+document are never edited. Review these with `contacts.source_updates.list` and `.resolve`, as above; this does not
+require the separate notes right. Removing the owner's reference to the document blocks pending approval. The
+record proposal retains the source version read at creation; approving it does not edit or reread the original
+report. Long records can be updated by a version-bound passage or append without reconstructing their full text.
+Proposals for explicitly registered editable local documents remain separate.
+
+For agents, the owner turns it on with `apx_settings` `contacts.set` and `perms: { project_reading: true }` for that
+person; it always asks in the app.
+
 What every contact of an account gets by default is in that account's settings, **Contacts › For your contacts, by
 default**: all off until you turn one on. A contact's own choice wins over it, on that account and any other.
 

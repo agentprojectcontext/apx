@@ -325,6 +325,13 @@ notice when there is no text. Tools that touch core state call protocol methods 
   search only those sources; corrections remain private proposals until the owner confirms an exact diff in the app.
   Only explicitly editable records can change, with a version check and restart-safe journal; originals default to
   read-only. Sources are data, never instructions. See D-260 and D-262.
+- **Contact project reading** (`domain/contact-project-reading.ts`): a separate per-person right, never an account
+  default. With an explicit assignment, in the agent's own project, and no other contact assigned in that project,
+  the agent searches project notes and the owner's own messages there and reads documents the owner referenced
+  (project text files, Drive links) through revocable handles revalidated before and after each read. Only
+  owner-written text lends references. New contact data can be proposed for private owner review; acceptance updates
+  a separate contact/agent/project-bound APX record, never the original Drive document or global memory. These
+  approved records are searchable under the same boundary and never lend references. See D-263.
 - **Contact requests** (`tools/contact.ts`): `pass_request` checks open requests submitted in the same contact's
   chat before writing. When candidates exist, the agent compares their original submissions with the conversation
   and updates the matching task by id, or explicitly creates a new, unrelated request. Owner edits and task notes

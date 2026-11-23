@@ -43,24 +43,33 @@ const RIGHTS = {
   notes: z.boolean(),
   /** Answered at any hour, past the attention hours of the account they write on. */
   any_hour: z.boolean(),
+  /**
+   * Read-only reading of the assigned agent's project: its notes, the owner's chats there and the documents the owner
+   * referenced in them. Set per person only, never by an account (DECISIONS.md#d-263).
+   */
+  project_reading: z.boolean(),
 };
 /** The rights set somewhere (an account, a person): one not set follows the next place, and in the end is off. */
 export const PersonPerms = z.object(RIGHTS).partial();
 export type PersonPerms = z.infer<typeof PersonPerms>;
+/** What an account sets for every contact: project reading is never among them. */
+export const AccountContactPerms = PersonPerms.omit({ project_reading: true });
 export const ContactRights = z.object(
   schemaFields({
     appointments: () => AppointmentMode.default("off"),
     requests: () => z.boolean().default(false),
     notes: () => z.boolean().default(false),
     any_hour: () => z.boolean().default(false),
+    project_reading: () => z.boolean().default(false),
   }),
 );
 export type ContactRights = z.infer<typeof ContactRights>;
-/** A person's rights on one account: what the owner set for them, the account's for the rest. */
+/** A person's rights on one account: what the owner set for them, the account's for the rest (not project reading). */
 export const contactRightsOf = (perms: PersonPerms | undefined, account: PersonPerms | undefined): ContactRights =>
   ContactRights.parse({
     ...account,
     ...Object.fromEntries(Object.entries(perms ?? {}).filter(([, v]) => v !== undefined)),
+    project_reading: perms?.project_reading === true,
   });
 /** An appointment a contact booked on the owner's calendar from their chat (DECISIONS.md#d-239). */
 export const ContactBooking = z.object(

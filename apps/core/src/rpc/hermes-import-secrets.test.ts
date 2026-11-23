@@ -7,6 +7,7 @@ import { type TempDir, tempDir } from "../testkit/platform.ts";
 import { settingsCore } from "../tools/settings.test-support.ts";
 
 // Credentials written where no key name gives them away: by their shape, in a URL, in a command's arguments.
+// The enabled server is local because the next agent turn can start it.
 const CONFIG = `mcp_servers:
   github:
     command: npx
@@ -26,8 +27,8 @@ const CONFIG = `mcp_servers:
   userinfo:
     url: https://acme:not-a-real-url-password@mcp.example.com/mcp
   plain:
-    command: npx
-    args: ["-y", "acme-plain-mcp", "--port", "4100"]
+    command: ${JSON.stringify(process.execPath)}
+    args: [${JSON.stringify(path.join(import.meta.dirname, "../mcp/fake-server.test-support.mjs"))}, "--port", "4100"]
 `;
 const SECRETS = [
   "ghp_notarealtokennotarealtoken000000",

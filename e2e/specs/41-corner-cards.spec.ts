@@ -1,7 +1,7 @@
 // The corner cards: a newer release, the Discord and a star on GitHub, one at a time, each said once per device (the
 // update card again each time APX opens, until it is updated). The core's update answer is stood in for (the sandbox never asks the release feed).
 import type { Route } from "@playwright/test";
-import { expect, open, test } from "./kit.ts";
+import { expect, open, openSettings, test } from "./kit.ts";
 
 // The deck of cards at the foot of the compact sidebar.
 test.use({ cornerCards: true, compactSidebar: true });
@@ -65,6 +65,28 @@ test("a newer release goes first, opens the update dialog, and once closed comes
   latest = "9.2.0";
   await page.reload();
   await expect(card.getByText("Salió APX 9.2.0")).toBeVisible();
+});
+
+test("telemetry report translations wait for settings while consent stays available on the first screen", async ({
+  page,
+}) => {
+  const reports: string[] = [];
+  page.on("request", (request) => {
+    if (new URL(request.url()).pathname.includes("telemetry-settings-")) reports.push(request.url());
+  });
+  await open(page);
+  expect(reports).toEqual([]);
+  await openSettings(page);
+  const settings = page.getByRole("dialog", { name: "Configuración", exact: true });
+  await settings.getByRole("button", { name: "Avanzado", exact: true }).click();
+  await expect(settings.getByText("Estadísticas de uso", { exact: true })).toBeVisible();
+  await expect(
+    settings.getByText("La telemetría está apagada en esta computadora: no se envía nada.", { exact: false }),
+  ).toBeVisible();
+  await expect(settings.getByText("Próximo reporte", { exact: true })).toBeVisible();
+  await expect(settings.getByText("Tokens de entrada", { exact: true })).toBeVisible();
+  expect(reports.length).toBeGreaterThan(0);
+  await settings.getByRole("button", { name: "Cerrar", exact: true }).click();
 });
 
 test("an install from before telemetry is asked once in the corner, and closing the card is a no", async ({ page }) => {

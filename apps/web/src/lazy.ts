@@ -79,7 +79,7 @@ export const ChannelDialogs = lazy(
   ),
 );
 export const ConfigModal = lazy(
-  withPacks(["team", "cloudAccount", "publicCopies"], () =>
+  withPacks(["team", "cloudAccount", "publicCopies", "telemetrySettings"], () =>
     import("./config/ConfigModal.tsx").then((m) => ({ default: m.ConfigModal })),
   ),
 );

@@ -50,7 +50,9 @@ const ownersOwn = (p: Params, store: Store) =>
 /** A contact changes like a message to them; making someone the owner, or the owner someone else, keeps its card. */
 const contactAsks = (p: Params, { store }: { store: Store }) => {
   const cur = personOf(p, store);
-  return ownersOwn(p, store) || (p.role === "owner" && cur?.role !== "owner") ? "card" : "untrusted";
+  // Opening a project to a contact shares it like a document grant: the owner's card even in Total (DECISIONS.md#d-263).
+  const opensProject = (p.perms as { project_reading?: unknown } | undefined)?.project_reading === true;
+  return ownersOwn(p, store) || (p.role === "owner" && cur?.role !== "owner") || opensProject ? "card" : "untrusted";
 };
 
 const channelsOf = (store: Store) => store.settings.read("channels").map(kindFixed);
@@ -119,6 +121,11 @@ const RIGHT_WORDS = {
           : "May not ask for appointments",
   "perms.requests": right("May leave requests", "May not leave requests", "Requests as the account says"),
   "perms.notes": right("Answered from your notes", "Not answered from your notes", "Your notes as the account says"),
+  "perms.project_reading": right(
+    "Answered from their agent's project and the documents you referenced there",
+    "Not answered from their agent's project",
+    "No reading of their agent's project",
+  ),
 };
 
 const stickerOf = (p: Params, store: Store) => (typeof p.id === "string" ? store.stickers.get(p.id) : undefined);
@@ -156,7 +163,7 @@ export const PEOPLE: Readonly<Record<string, Setting>> = {
     },
   },
   "contacts.set": {
-    does: "change a contact (id and only what changes: note says who they are, rules how to answer them, perms {appointments off|note|book, requests, notes, any_hour true or false} for this person only, null to follow the account they write on, agent_id the agent that answers them instead of each account's, null for the account's) or add one",
+    does: "change a contact (id and only what changes: note says who they are, rules how to answer them, perms {appointments off|note|book, requests, notes, any_hour, project_reading true or false} for this person only (project_reading: read-only reading of their assigned agent's project, never set by an account), null to follow the account they write on, agent_id the agent that answers them instead of each account's, null for the account's) or add one",
     asks: contactAsks,
     says: (p, { store }) => {
       const cur = personOf(p, store);
